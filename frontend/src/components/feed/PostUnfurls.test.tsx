@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { render, screen } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { ReactNode } from "react"
@@ -20,22 +20,30 @@ vi.mock("../../lib/dao/proposals", async (orig) => ({
     ...(await orig<typeof import("../../lib/dao/proposals")>()),
     getProposalDetail: vi.fn(),
 }))
+// fetchLinkPreview is the SSRF-guarded rich-preview RPC; linkImageUrl stays real.
+vi.mock("../../lib/feedApi", async (orig) => ({
+    ...(await orig<typeof import("../../lib/feedApi")>()),
+    fetchLinkPreview: vi.fn(),
+}))
 
 import { PostUnfurls } from "./PostUnfurls"
 import { getTokenInfo } from "../../lib/grc20"
 import { queryRender } from "../../lib/dao/shared"
 import { getProposalDetail } from "../../lib/dao/proposals"
+import { fetchLinkPreview } from "../../lib/feedApi"
 
 const mockTokenInfo = vi.mocked(getTokenInfo)
 const mockRender = vi.mocked(queryRender)
 const mockProposal = vi.mocked(getProposalDetail)
+const mockLinkPreview = vi.mocked(fetchLinkPreview)
 
 function renderWithClient(ui: ReactNode) {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>)
 }
 
-beforeEach(() => { mockTokenInfo.mockReset(); mockRender.mockReset(); mockProposal.mockReset() })
+beforeEach(() => { mockTokenInfo.mockReset(); mockRender.mockReset(); mockProposal.mockReset(); mockLinkPreview.mockReset() })
+afterEach(() => vi.unstubAllEnvs())
 
 describe("PostUnfurls", () => {
     it("renders a realm card for a gno.land realm reference", () => {
@@ -46,11 +54,13 @@ describe("PostUnfurls", () => {
         expect(card).toHaveTextContent("r/samcrew")
     })
 
-    it("renders a link card (with host) for a plain URL", () => {
-        render(<PostUnfurls body="see https://example.com/post" />)
+    it("renders a plain link card (with host) when previews are disabled", () => {
+        // Flag off (default) → the card never calls GetLinkPreview.
+        renderWithClient(<PostUnfurls body="see https://example.com/post" />)
         const card = screen.getByTestId("feed-unfurl-link")
         expect(card).toHaveAttribute("href", "https://example.com/post")
         expect(card).toHaveTextContent("example.com")
+        expect(mockLinkPreview).not.toHaveBeenCalled()
     })
 
     it("renders nothing for a body with no references", () => {
@@ -137,5 +147,30 @@ describe("PostUnfurls", () => {
 
         const card = await screen.findByTestId("feed-unfurl-proposal")
         expect(card).toHaveTextContent("Proposal #9")
+    })
+
+    it("upgrades an external link to a rich card (proxied image) when previews are enabled", async () => {
+        vi.stubEnv("VITE_ENABLE_LINK_PREVIEWS", "true")
+        mockLinkPreview.mockResolvedValue({
+            title: "Great Article", description: "why it matters", siteName: "Example News",
+            canonicalUrl: "https://example.com/post", imageToken: "tok123", imageWidth: 1200, imageHeight: 630,
+        })
+        renderWithClient(<PostUnfurls body="read https://example.com/post" />)
+
+        const card = await screen.findByTestId("feed-unfurl-rich")
+        expect(await screen.findByText("Great Article")).toBeInTheDocument()
+        expect(card).toHaveTextContent("Example News")
+        // The image loads from OUR proxy, never the third-party host.
+        const img = card.querySelector("img")
+        expect(img?.getAttribute("src")).toContain("/api/link-image?t=tok123")
+    })
+
+    it("falls back to the plain link card when previews are enabled but none is available", async () => {
+        vi.stubEnv("VITE_ENABLE_LINK_PREVIEWS", "true")
+        mockLinkPreview.mockResolvedValue(null)
+        renderWithClient(<PostUnfurls body="https://example.com/post" />)
+
+        const card = await screen.findByTestId("feed-unfurl-link")
+        expect(card).toHaveTextContent("example.com")
     })
 })

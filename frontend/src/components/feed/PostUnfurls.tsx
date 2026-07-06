@@ -8,6 +8,7 @@
  *
  * @module components/feed/PostUnfurls
  */
+import { useState } from "react"
 import { Cube, Coins, ShieldCheck, Scroll, LinkSimple, ArrowUpRight } from "@phosphor-icons/react"
 import { useQuery } from "@tanstack/react-query"
 import { parseUnfurls } from "../../lib/feedUnfurl"
@@ -15,6 +16,7 @@ import { getTokenInfo, formatSupply } from "../../lib/grc20"
 import { queryRender } from "../../lib/dao/shared"
 import { parseValoperDetail, VALOPERS_REALM } from "../../lib/valopers"
 import { getProposalDetail } from "../../lib/dao/proposals"
+import { fetchLinkPreview, linkImageUrl } from "../../lib/feedApi"
 import { GNO_RPC_URL } from "../../lib/config"
 
 /** Last path segment — the realm/package name. */
@@ -153,6 +155,73 @@ function ProposalUnfurlCard({ realmPath, id, href }: { realmPath: string; id: st
     )
 }
 
+/**
+ * An external-link card. When link previews are enabled it upgrades to a rich
+ * card — title / description / site name and a proxied thumbnail (fixed aspect
+ * ratio, no CLS) from the SSRF-guarded GetLinkPreview. Falls back to the plain
+ * host + "Open" card when disabled, still loading, on any error, or if the image
+ * fails — never a blank or broken card.
+ */
+function LinkUnfurlCard({ url, host }: { url: string; host: string }) {
+    const [imgFailed, setImgFailed] = useState(false)
+    const { data } = useQuery({
+        queryKey: ["feed-unfurl-link", url],
+        queryFn: () => fetchLinkPreview(url),
+        enabled: import.meta.env.VITE_ENABLE_LINK_PREVIEWS === "true",
+        staleTime: 300_000,
+        retry: false,
+    })
+
+    const showImage = !!data?.imageToken && !imgFailed
+    if (data && (data.title || showImage)) {
+        const ratio = data.imageWidth > 0 && data.imageHeight > 0 ? data.imageWidth / data.imageHeight : 1.91
+        return (
+            <a
+                className="feed-unfurl feed-unfurl--rich"
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="feed-unfurl-rich"
+            >
+                {showImage && (
+                    <span className="feed-unfurl__thumb" style={{ aspectRatio: String(ratio) }}>
+                        <img
+                            src={linkImageUrl(data.imageToken)}
+                            alt=""
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                            onError={() => setImgFailed(true)}
+                        />
+                    </span>
+                )}
+                <span className="feed-unfurl__rich-body">
+                    <span className="feed-unfurl__rich-site">{data.siteName || host}</span>
+                    <span className="feed-unfurl__rich-title">{data.title || host}</span>
+                    {data.description && <span className="feed-unfurl__rich-desc">{data.description}</span>}
+                </span>
+            </a>
+        )
+    }
+
+    return (
+        <a
+            className="feed-unfurl feed-unfurl--link"
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="feed-unfurl-link"
+        >
+            <span className="feed-unfurl__badge">
+                <LinkSimple size={13} /> link
+            </span>
+            <span className="feed-unfurl__title">{host}</span>
+            <span className="feed-unfurl__sub">
+                Open <ArrowUpRight size={12} />
+            </span>
+        </a>
+    )
+}
+
 export function PostUnfurls({ body }: { body: string }) {
     const refs = parseUnfurls(body)
     if (refs.length === 0) return null
@@ -189,24 +258,7 @@ export function PostUnfurls({ body }: { body: string }) {
                 if (r.kind === "proposal") {
                     return <ProposalUnfurlCard key={`proposal-${i}`} realmPath={r.realmPath} id={r.id} href={r.href} />
                 }
-                return (
-                    <a
-                        key={`link-${i}`}
-                        className="feed-unfurl feed-unfurl--link"
-                        href={r.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        data-testid="feed-unfurl-link"
-                    >
-                        <span className="feed-unfurl__badge">
-                            <LinkSimple size={13} /> link
-                        </span>
-                        <span className="feed-unfurl__title">{r.host}</span>
-                        <span className="feed-unfurl__sub">
-                            Open <ArrowUpRight size={12} />
-                        </span>
-                    </a>
-                )
+                return <LinkUnfurlCard key={`link-${i}`} url={r.url} host={r.host} />
             })}
         </div>
     )

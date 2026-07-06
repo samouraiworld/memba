@@ -7018,6 +7018,150 @@ func (x *GetFeedStatsResponse) GetMostReplied() []*FeedPost {
 	return nil
 }
 
+type GetLinkPreviewRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Url           string                 `protobuf:"bytes,1,opt,name=url,proto3" json:"url,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLinkPreviewRequest) Reset() {
+	*x = GetLinkPreviewRequest{}
+	mi := &file_memba_v1_memba_proto_msgTypes[113]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLinkPreviewRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLinkPreviewRequest) ProtoMessage() {}
+
+func (x *GetLinkPreviewRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[113]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLinkPreviewRequest.ProtoReflect.Descriptor instead.
+func (*GetLinkPreviewRequest) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{113}
+}
+
+func (x *GetLinkPreviewRequest) GetUrl() string {
+	if x != nil {
+		return x.Url
+	}
+	return ""
+}
+
+type GetLinkPreviewResponse struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Ok            bool                   `protobuf:"varint,1,opt,name=ok,proto3" json:"ok,omitempty"` // false → render the plain link card (unknown / blocked / disabled)
+	Title         string                 `protobuf:"bytes,2,opt,name=title,proto3" json:"title,omitempty"`
+	Description   string                 `protobuf:"bytes,3,opt,name=description,proto3" json:"description,omitempty"`
+	SiteName      string                 `protobuf:"bytes,4,opt,name=site_name,json=siteName,proto3" json:"site_name,omitempty"`
+	CanonicalUrl  string                 `protobuf:"bytes,5,opt,name=canonical_url,json=canonicalUrl,proto3" json:"canonical_url,omitempty"` // resolved/canonical URL (post-redirect)
+	ImageToken    string                 `protobuf:"bytes,6,opt,name=image_token,json=imageToken,proto3" json:"image_token,omitempty"`       // opaque signed token for GET /api/link-image; "" if none
+	ImageWidth    int32                  `protobuf:"varint,7,opt,name=image_width,json=imageWidth,proto3" json:"image_width,omitempty"`      // og:image:width if present (aspect ratio; 0 = unknown)
+	ImageHeight   int32                  `protobuf:"varint,8,opt,name=image_height,json=imageHeight,proto3" json:"image_height,omitempty"`   // og:image:height if present (0 = unknown)
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *GetLinkPreviewResponse) Reset() {
+	*x = GetLinkPreviewResponse{}
+	mi := &file_memba_v1_memba_proto_msgTypes[114]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *GetLinkPreviewResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*GetLinkPreviewResponse) ProtoMessage() {}
+
+func (x *GetLinkPreviewResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_memba_v1_memba_proto_msgTypes[114]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use GetLinkPreviewResponse.ProtoReflect.Descriptor instead.
+func (*GetLinkPreviewResponse) Descriptor() ([]byte, []int) {
+	return file_memba_v1_memba_proto_rawDescGZIP(), []int{114}
+}
+
+func (x *GetLinkPreviewResponse) GetOk() bool {
+	if x != nil {
+		return x.Ok
+	}
+	return false
+}
+
+func (x *GetLinkPreviewResponse) GetTitle() string {
+	if x != nil {
+		return x.Title
+	}
+	return ""
+}
+
+func (x *GetLinkPreviewResponse) GetDescription() string {
+	if x != nil {
+		return x.Description
+	}
+	return ""
+}
+
+func (x *GetLinkPreviewResponse) GetSiteName() string {
+	if x != nil {
+		return x.SiteName
+	}
+	return ""
+}
+
+func (x *GetLinkPreviewResponse) GetCanonicalUrl() string {
+	if x != nil {
+		return x.CanonicalUrl
+	}
+	return ""
+}
+
+func (x *GetLinkPreviewResponse) GetImageToken() string {
+	if x != nil {
+		return x.ImageToken
+	}
+	return ""
+}
+
+func (x *GetLinkPreviewResponse) GetImageWidth() int32 {
+	if x != nil {
+		return x.ImageWidth
+	}
+	return 0
+}
+
+func (x *GetLinkPreviewResponse) GetImageHeight() int32 {
+	if x != nil {
+		return x.ImageHeight
+	}
+	return 0
+}
+
 var File_memba_v1_memba_proto protoreflect.FileDescriptor
 
 const file_memba_v1_memba_proto_rawDesc = "" +
@@ -7563,7 +7707,20 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"live_posts\x18\x01 \x01(\x04R\tlivePosts\x12#\n" +
 	"\rtotal_replies\x18\x02 \x01(\x04R\ftotalReplies\x12#\n" +
 	"\rtotal_authors\x18\x03 \x01(\x04R\ftotalAuthors\x125\n" +
-	"\fmost_replied\x18\x04 \x03(\v2\x12.memba.v1.FeedPostR\vmostReplied*N\n" +
+	"\fmost_replied\x18\x04 \x03(\v2\x12.memba.v1.FeedPostR\vmostReplied\")\n" +
+	"\x15GetLinkPreviewRequest\x12\x10\n" +
+	"\x03url\x18\x01 \x01(\tR\x03url\"\x87\x02\n" +
+	"\x16GetLinkPreviewResponse\x12\x0e\n" +
+	"\x02ok\x18\x01 \x01(\bR\x02ok\x12\x14\n" +
+	"\x05title\x18\x02 \x01(\tR\x05title\x12 \n" +
+	"\vdescription\x18\x03 \x01(\tR\vdescription\x12\x1b\n" +
+	"\tsite_name\x18\x04 \x01(\tR\bsiteName\x12#\n" +
+	"\rcanonical_url\x18\x05 \x01(\tR\fcanonicalUrl\x12\x1f\n" +
+	"\vimage_token\x18\x06 \x01(\tR\n" +
+	"imageToken\x12\x1f\n" +
+	"\vimage_width\x18\a \x01(\x05R\n" +
+	"imageWidth\x12!\n" +
+	"\fimage_height\x18\b \x01(\x05R\vimageHeight*N\n" +
 	"\tJoinState\x12\x1a\n" +
 	"\x16JOIN_STATE_UNSPECIFIED\x10\x00\x12\x11\n" +
 	"\rJOIN_STATE_IN\x10\x01\x12\x12\n" +
@@ -7575,7 +7732,7 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\bTeamRole\x12\x19\n" +
 	"\x15TEAM_ROLE_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10TEAM_ROLE_MEMBER\x10\x01\x12\x13\n" +
-	"\x0fTEAM_ROLE_ADMIN\x10\x022\xcc\x1c\n" +
+	"\x0fTEAM_ROLE_ADMIN\x10\x022\xa1\x1d\n" +
 	"\x0fMultisigService\x12M\n" +
 	"\fGetChallenge\x12\x1d.memba.v1.GetChallengeRequest\x1a\x1e.memba.v1.GetChallengeResponse\x12A\n" +
 	"\bGetToken\x12\x19.memba.v1.GetTokenRequest\x1a\x1a.memba.v1.GetTokenResponse\x12e\n" +
@@ -7623,7 +7780,8 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\vGetUserFeed\x12\x1c.memba.v1.GetUserFeedRequest\x1a\x1d.memba.v1.GetUserFeedResponse\x12P\n" +
 	"\rGetFeedThread\x12\x1e.memba.v1.GetFeedThreadRequest\x1a\x1f.memba.v1.GetFeedThreadResponse\x12h\n" +
 	"\x15GetReplyNotifications\x12&.memba.v1.GetReplyNotificationsRequest\x1a'.memba.v1.GetReplyNotificationsResponse\x12M\n" +
-	"\fGetFeedStats\x12\x1d.memba.v1.GetFeedStatsRequest\x1a\x1e.memba.v1.GetFeedStatsResponseB=Z;github.com/samouraiworld/memba/backend/gen/memba/v1;membav1b\x06proto3"
+	"\fGetFeedStats\x12\x1d.memba.v1.GetFeedStatsRequest\x1a\x1e.memba.v1.GetFeedStatsResponse\x12S\n" +
+	"\x0eGetLinkPreview\x12\x1f.memba.v1.GetLinkPreviewRequest\x1a .memba.v1.GetLinkPreviewResponseB=Z;github.com/samouraiworld/memba/backend/gen/memba/v1;membav1b\x06proto3"
 
 var (
 	file_memba_v1_memba_proto_rawDescOnce sync.Once
@@ -7638,7 +7796,7 @@ func file_memba_v1_memba_proto_rawDescGZIP() []byte {
 }
 
 var file_memba_v1_memba_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
-var file_memba_v1_memba_proto_msgTypes = make([]protoimpl.MessageInfo, 113)
+var file_memba_v1_memba_proto_msgTypes = make([]protoimpl.MessageInfo, 115)
 var file_memba_v1_memba_proto_goTypes = []any{
 	(JoinState)(0),                         // 0: memba.v1.JoinState
 	(ExecutionState)(0),                    // 1: memba.v1.ExecutionState
@@ -7756,6 +7914,8 @@ var file_memba_v1_memba_proto_goTypes = []any{
 	(*GetReplyNotificationsResponse)(nil),  // 113: memba.v1.GetReplyNotificationsResponse
 	(*GetFeedStatsRequest)(nil),            // 114: memba.v1.GetFeedStatsRequest
 	(*GetFeedStatsResponse)(nil),           // 115: memba.v1.GetFeedStatsResponse
+	(*GetLinkPreviewRequest)(nil),          // 116: memba.v1.GetLinkPreviewRequest
+	(*GetLinkPreviewResponse)(nil),         // 117: memba.v1.GetLinkPreviewResponse
 }
 var file_memba_v1_memba_proto_depIdxs = []int32{
 	3,   // 0: memba.v1.TokenRequestInfo.challenge:type_name -> memba.v1.Challenge
@@ -7875,51 +8035,53 @@ var file_memba_v1_memba_proto_depIdxs = []int32{
 	110, // 114: memba.v1.MultisigService.GetFeedThread:input_type -> memba.v1.GetFeedThreadRequest
 	112, // 115: memba.v1.MultisigService.GetReplyNotifications:input_type -> memba.v1.GetReplyNotificationsRequest
 	114, // 116: memba.v1.MultisigService.GetFeedStats:input_type -> memba.v1.GetFeedStatsRequest
-	7,   // 117: memba.v1.MultisigService.GetChallenge:output_type -> memba.v1.GetChallengeResponse
-	9,   // 118: memba.v1.MultisigService.GetToken:output_type -> memba.v1.GetTokenResponse
-	12,  // 119: memba.v1.MultisigService.CreateOrJoinMultisig:output_type -> memba.v1.CreateOrJoinMultisigResponse
-	14,  // 120: memba.v1.MultisigService.MultisigInfo:output_type -> memba.v1.MultisigInfoResponse
-	16,  // 121: memba.v1.MultisigService.Multisigs:output_type -> memba.v1.MultisigsResponse
-	20,  // 122: memba.v1.MultisigService.CreateTransaction:output_type -> memba.v1.CreateTransactionResponse
-	24,  // 123: memba.v1.MultisigService.GetTransaction:output_type -> memba.v1.GetTransactionResponse
-	22,  // 124: memba.v1.MultisigService.Transactions:output_type -> memba.v1.TransactionsResponse
-	26,  // 125: memba.v1.MultisigService.SignTransaction:output_type -> memba.v1.SignTransactionResponse
-	28,  // 126: memba.v1.MultisigService.CompleteTransaction:output_type -> memba.v1.CompleteTransactionResponse
-	31,  // 127: memba.v1.MultisigService.GetProfile:output_type -> memba.v1.GetProfileResponse
-	33,  // 128: memba.v1.MultisigService.UpdateProfile:output_type -> memba.v1.UpdateProfileResponse
-	37,  // 129: memba.v1.MultisigService.CompleteQuest:output_type -> memba.v1.CompleteQuestResponse
-	39,  // 130: memba.v1.MultisigService.GetUserQuests:output_type -> memba.v1.GetUserQuestsResponse
-	45,  // 131: memba.v1.MultisigService.SyncQuests:output_type -> memba.v1.SyncQuestsResponse
-	48,  // 132: memba.v1.MultisigService.GetUserRank:output_type -> memba.v1.GetUserRankResponse
-	51,  // 133: memba.v1.MultisigService.GetLeaderboard:output_type -> memba.v1.GetLeaderboardResponse
-	53,  // 134: memba.v1.MultisigService.SubmitQuestClaim:output_type -> memba.v1.SubmitQuestClaimResponse
-	55,  // 135: memba.v1.MultisigService.ReviewQuestClaim:output_type -> memba.v1.ReviewQuestClaimResponse
-	58,  // 136: memba.v1.MultisigService.ListPendingClaims:output_type -> memba.v1.ListPendingClaimsResponse
-	43,  // 137: memba.v1.MultisigService.GetAttestationVouchers:output_type -> memba.v1.GetAttestationVouchersResponse
-	62,  // 138: memba.v1.MultisigService.CreateTeam:output_type -> memba.v1.CreateTeamResponse
-	64,  // 139: memba.v1.MultisigService.GetTeam:output_type -> memba.v1.GetTeamResponse
-	66,  // 140: memba.v1.MultisigService.GetMyTeams:output_type -> memba.v1.GetMyTeamsResponse
-	68,  // 141: memba.v1.MultisigService.JoinTeam:output_type -> memba.v1.JoinTeamResponse
-	70,  // 142: memba.v1.MultisigService.LeaveTeam:output_type -> memba.v1.LeaveTeamResponse
-	72,  // 143: memba.v1.MultisigService.UpdateTeamMemberRole:output_type -> memba.v1.UpdateTeamMemberRoleResponse
-	74,  // 144: memba.v1.MultisigService.FavoriteAgent:output_type -> memba.v1.FavoriteAgentResponse
-	76,  // 145: memba.v1.MultisigService.GetFavorites:output_type -> memba.v1.GetFavoritesResponse
-	79,  // 146: memba.v1.MultisigService.GetAgentStats:output_type -> memba.v1.GetAgentStatsResponse
-	82,  // 147: memba.v1.MultisigService.CreateServiceListing:output_type -> memba.v1.CreateServiceListingResponse
-	84,  // 148: memba.v1.MultisigService.GetServiceListings:output_type -> memba.v1.GetServiceListingsResponse
-	86,  // 149: memba.v1.MultisigService.UpdateServiceListing:output_type -> memba.v1.UpdateServiceListingResponse
-	90,  // 150: memba.v1.MultisigService.GetNFTCollection:output_type -> memba.v1.GetNFTCollectionResponse
-	92,  // 151: memba.v1.MultisigService.GetNFTActivity:output_type -> memba.v1.GetNFTActivityResponse
-	94,  // 152: memba.v1.MultisigService.GetNFTPortfolio:output_type -> memba.v1.GetNFTPortfolioResponse
-	96,  // 153: memba.v1.MultisigService.ListNFTTokens:output_type -> memba.v1.ListNFTTokensResponse
-	104, // 154: memba.v1.MultisigService.GetHomeSnapshot:output_type -> memba.v1.GetHomeSnapshotResponse
-	107, // 155: memba.v1.MultisigService.GetFeedTimeline:output_type -> memba.v1.GetFeedTimelineResponse
-	109, // 156: memba.v1.MultisigService.GetUserFeed:output_type -> memba.v1.GetUserFeedResponse
-	111, // 157: memba.v1.MultisigService.GetFeedThread:output_type -> memba.v1.GetFeedThreadResponse
-	113, // 158: memba.v1.MultisigService.GetReplyNotifications:output_type -> memba.v1.GetReplyNotificationsResponse
-	115, // 159: memba.v1.MultisigService.GetFeedStats:output_type -> memba.v1.GetFeedStatsResponse
-	117, // [117:160] is the sub-list for method output_type
-	74,  // [74:117] is the sub-list for method input_type
+	116, // 117: memba.v1.MultisigService.GetLinkPreview:input_type -> memba.v1.GetLinkPreviewRequest
+	7,   // 118: memba.v1.MultisigService.GetChallenge:output_type -> memba.v1.GetChallengeResponse
+	9,   // 119: memba.v1.MultisigService.GetToken:output_type -> memba.v1.GetTokenResponse
+	12,  // 120: memba.v1.MultisigService.CreateOrJoinMultisig:output_type -> memba.v1.CreateOrJoinMultisigResponse
+	14,  // 121: memba.v1.MultisigService.MultisigInfo:output_type -> memba.v1.MultisigInfoResponse
+	16,  // 122: memba.v1.MultisigService.Multisigs:output_type -> memba.v1.MultisigsResponse
+	20,  // 123: memba.v1.MultisigService.CreateTransaction:output_type -> memba.v1.CreateTransactionResponse
+	24,  // 124: memba.v1.MultisigService.GetTransaction:output_type -> memba.v1.GetTransactionResponse
+	22,  // 125: memba.v1.MultisigService.Transactions:output_type -> memba.v1.TransactionsResponse
+	26,  // 126: memba.v1.MultisigService.SignTransaction:output_type -> memba.v1.SignTransactionResponse
+	28,  // 127: memba.v1.MultisigService.CompleteTransaction:output_type -> memba.v1.CompleteTransactionResponse
+	31,  // 128: memba.v1.MultisigService.GetProfile:output_type -> memba.v1.GetProfileResponse
+	33,  // 129: memba.v1.MultisigService.UpdateProfile:output_type -> memba.v1.UpdateProfileResponse
+	37,  // 130: memba.v1.MultisigService.CompleteQuest:output_type -> memba.v1.CompleteQuestResponse
+	39,  // 131: memba.v1.MultisigService.GetUserQuests:output_type -> memba.v1.GetUserQuestsResponse
+	45,  // 132: memba.v1.MultisigService.SyncQuests:output_type -> memba.v1.SyncQuestsResponse
+	48,  // 133: memba.v1.MultisigService.GetUserRank:output_type -> memba.v1.GetUserRankResponse
+	51,  // 134: memba.v1.MultisigService.GetLeaderboard:output_type -> memba.v1.GetLeaderboardResponse
+	53,  // 135: memba.v1.MultisigService.SubmitQuestClaim:output_type -> memba.v1.SubmitQuestClaimResponse
+	55,  // 136: memba.v1.MultisigService.ReviewQuestClaim:output_type -> memba.v1.ReviewQuestClaimResponse
+	58,  // 137: memba.v1.MultisigService.ListPendingClaims:output_type -> memba.v1.ListPendingClaimsResponse
+	43,  // 138: memba.v1.MultisigService.GetAttestationVouchers:output_type -> memba.v1.GetAttestationVouchersResponse
+	62,  // 139: memba.v1.MultisigService.CreateTeam:output_type -> memba.v1.CreateTeamResponse
+	64,  // 140: memba.v1.MultisigService.GetTeam:output_type -> memba.v1.GetTeamResponse
+	66,  // 141: memba.v1.MultisigService.GetMyTeams:output_type -> memba.v1.GetMyTeamsResponse
+	68,  // 142: memba.v1.MultisigService.JoinTeam:output_type -> memba.v1.JoinTeamResponse
+	70,  // 143: memba.v1.MultisigService.LeaveTeam:output_type -> memba.v1.LeaveTeamResponse
+	72,  // 144: memba.v1.MultisigService.UpdateTeamMemberRole:output_type -> memba.v1.UpdateTeamMemberRoleResponse
+	74,  // 145: memba.v1.MultisigService.FavoriteAgent:output_type -> memba.v1.FavoriteAgentResponse
+	76,  // 146: memba.v1.MultisigService.GetFavorites:output_type -> memba.v1.GetFavoritesResponse
+	79,  // 147: memba.v1.MultisigService.GetAgentStats:output_type -> memba.v1.GetAgentStatsResponse
+	82,  // 148: memba.v1.MultisigService.CreateServiceListing:output_type -> memba.v1.CreateServiceListingResponse
+	84,  // 149: memba.v1.MultisigService.GetServiceListings:output_type -> memba.v1.GetServiceListingsResponse
+	86,  // 150: memba.v1.MultisigService.UpdateServiceListing:output_type -> memba.v1.UpdateServiceListingResponse
+	90,  // 151: memba.v1.MultisigService.GetNFTCollection:output_type -> memba.v1.GetNFTCollectionResponse
+	92,  // 152: memba.v1.MultisigService.GetNFTActivity:output_type -> memba.v1.GetNFTActivityResponse
+	94,  // 153: memba.v1.MultisigService.GetNFTPortfolio:output_type -> memba.v1.GetNFTPortfolioResponse
+	96,  // 154: memba.v1.MultisigService.ListNFTTokens:output_type -> memba.v1.ListNFTTokensResponse
+	104, // 155: memba.v1.MultisigService.GetHomeSnapshot:output_type -> memba.v1.GetHomeSnapshotResponse
+	107, // 156: memba.v1.MultisigService.GetFeedTimeline:output_type -> memba.v1.GetFeedTimelineResponse
+	109, // 157: memba.v1.MultisigService.GetUserFeed:output_type -> memba.v1.GetUserFeedResponse
+	111, // 158: memba.v1.MultisigService.GetFeedThread:output_type -> memba.v1.GetFeedThreadResponse
+	113, // 159: memba.v1.MultisigService.GetReplyNotifications:output_type -> memba.v1.GetReplyNotificationsResponse
+	115, // 160: memba.v1.MultisigService.GetFeedStats:output_type -> memba.v1.GetFeedStatsResponse
+	117, // 161: memba.v1.MultisigService.GetLinkPreview:output_type -> memba.v1.GetLinkPreviewResponse
+	118, // [118:162] is the sub-list for method output_type
+	74,  // [74:118] is the sub-list for method input_type
 	74,  // [74:74] is the sub-list for extension type_name
 	74,  // [74:74] is the sub-list for extension extendee
 	0,   // [0:74] is the sub-list for field type_name
@@ -7936,7 +8098,7 @@ func file_memba_v1_memba_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_memba_v1_memba_proto_rawDesc), len(file_memba_v1_memba_proto_rawDesc)),
 			NumEnums:      3,
-			NumMessages:   113,
+			NumMessages:   115,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

@@ -161,6 +161,9 @@ const (
 	// MultisigServiceGetFeedStatsProcedure is the fully-qualified name of the MultisigService's
 	// GetFeedStats RPC.
 	MultisigServiceGetFeedStatsProcedure = "/memba.v1.MultisigService/GetFeedStats"
+	// MultisigServiceGetLinkPreviewProcedure is the fully-qualified name of the MultisigService's
+	// GetLinkPreview RPC.
+	MultisigServiceGetLinkPreviewProcedure = "/memba.v1.MultisigService/GetLinkPreview"
 )
 
 // MultisigServiceClient is a client for the memba.v1.MultisigService service.
@@ -226,6 +229,11 @@ type MultisigServiceClient interface {
 	GetReplyNotifications(context.Context, *connect.Request[v1.GetReplyNotificationsRequest]) (*connect.Response[v1.GetReplyNotificationsResponse], error)
 	// Feed-wide live stats for the header/rail (post + author counts).
 	GetFeedStats(context.Context, *connect.Request[v1.GetFeedStatsRequest]) (*connect.Response[v1.GetFeedStatsResponse], error)
+	// Server-side rich preview for an external URL — OG/Twitter-card metadata via
+	// an SSRF-guarded fetch, with the image proxied through a signed token. Public
+	// read, no auth; rate-limited; returns ok=false (never an error) so the UI can
+	// fall back to a plain link card. Gated by MEMBA_ENABLE_LINK_PREVIEWS.
+	GetLinkPreview(context.Context, *connect.Request[v1.GetLinkPreviewRequest]) (*connect.Response[v1.GetLinkPreviewResponse], error)
 }
 
 // NewMultisigServiceClient constructs a client for the memba.v1.MultisigService service. By
@@ -497,6 +505,12 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(multisigServiceMethods.ByName("GetFeedStats")),
 			connect.WithClientOptions(opts...),
 		),
+		getLinkPreview: connect.NewClient[v1.GetLinkPreviewRequest, v1.GetLinkPreviewResponse](
+			httpClient,
+			baseURL+MultisigServiceGetLinkPreviewProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetLinkPreview")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -545,6 +559,7 @@ type multisigServiceClient struct {
 	getFeedThread          *connect.Client[v1.GetFeedThreadRequest, v1.GetFeedThreadResponse]
 	getReplyNotifications  *connect.Client[v1.GetReplyNotificationsRequest, v1.GetReplyNotificationsResponse]
 	getFeedStats           *connect.Client[v1.GetFeedStatsRequest, v1.GetFeedStatsResponse]
+	getLinkPreview         *connect.Client[v1.GetLinkPreviewRequest, v1.GetLinkPreviewResponse]
 }
 
 // GetChallenge calls memba.v1.MultisigService.GetChallenge.
@@ -762,6 +777,11 @@ func (c *multisigServiceClient) GetFeedStats(ctx context.Context, req *connect.R
 	return c.getFeedStats.CallUnary(ctx, req)
 }
 
+// GetLinkPreview calls memba.v1.MultisigService.GetLinkPreview.
+func (c *multisigServiceClient) GetLinkPreview(ctx context.Context, req *connect.Request[v1.GetLinkPreviewRequest]) (*connect.Response[v1.GetLinkPreviewResponse], error) {
+	return c.getLinkPreview.CallUnary(ctx, req)
+}
+
 // MultisigServiceHandler is an implementation of the memba.v1.MultisigService service.
 type MultisigServiceHandler interface {
 	// Auth — Challenge-response authentication (ed25519)
@@ -825,6 +845,11 @@ type MultisigServiceHandler interface {
 	GetReplyNotifications(context.Context, *connect.Request[v1.GetReplyNotificationsRequest]) (*connect.Response[v1.GetReplyNotificationsResponse], error)
 	// Feed-wide live stats for the header/rail (post + author counts).
 	GetFeedStats(context.Context, *connect.Request[v1.GetFeedStatsRequest]) (*connect.Response[v1.GetFeedStatsResponse], error)
+	// Server-side rich preview for an external URL — OG/Twitter-card metadata via
+	// an SSRF-guarded fetch, with the image proxied through a signed token. Public
+	// read, no auth; rate-limited; returns ok=false (never an error) so the UI can
+	// fall back to a plain link card. Gated by MEMBA_ENABLE_LINK_PREVIEWS.
+	GetLinkPreview(context.Context, *connect.Request[v1.GetLinkPreviewRequest]) (*connect.Response[v1.GetLinkPreviewResponse], error)
 }
 
 // NewMultisigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -1092,6 +1117,12 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		connect.WithSchema(multisigServiceMethods.ByName("GetFeedStats")),
 		connect.WithHandlerOptions(opts...),
 	)
+	multisigServiceGetLinkPreviewHandler := connect.NewUnaryHandler(
+		MultisigServiceGetLinkPreviewProcedure,
+		svc.GetLinkPreview,
+		connect.WithSchema(multisigServiceMethods.ByName("GetLinkPreview")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/memba.v1.MultisigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case MultisigServiceGetChallengeProcedure:
@@ -1180,6 +1211,8 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceGetReplyNotificationsHandler.ServeHTTP(w, r)
 		case MultisigServiceGetFeedStatsProcedure:
 			multisigServiceGetFeedStatsHandler.ServeHTTP(w, r)
+		case MultisigServiceGetLinkPreviewProcedure:
+			multisigServiceGetLinkPreviewHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1359,4 +1392,8 @@ func (UnimplementedMultisigServiceHandler) GetReplyNotifications(context.Context
 
 func (UnimplementedMultisigServiceHandler) GetFeedStats(context.Context, *connect.Request[v1.GetFeedStatsRequest]) (*connect.Response[v1.GetFeedStatsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetFeedStats is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetLinkPreview(context.Context, *connect.Request[v1.GetLinkPreviewRequest]) (*connect.Response[v1.GetLinkPreviewResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetLinkPreview is not implemented"))
 }
