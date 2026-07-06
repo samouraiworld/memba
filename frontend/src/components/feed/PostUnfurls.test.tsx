@@ -15,20 +15,27 @@ vi.mock("../../lib/dao/shared", async (orig) => ({
     ...(await orig<typeof import("../../lib/dao/shared")>()),
     queryRender: vi.fn(),
 }))
+// getProposalDetail is the on-chain read behind the proposal card.
+vi.mock("../../lib/dao/proposals", async (orig) => ({
+    ...(await orig<typeof import("../../lib/dao/proposals")>()),
+    getProposalDetail: vi.fn(),
+}))
 
 import { PostUnfurls } from "./PostUnfurls"
 import { getTokenInfo } from "../../lib/grc20"
 import { queryRender } from "../../lib/dao/shared"
+import { getProposalDetail } from "../../lib/dao/proposals"
 
 const mockTokenInfo = vi.mocked(getTokenInfo)
 const mockRender = vi.mocked(queryRender)
+const mockProposal = vi.mocked(getProposalDetail)
 
 function renderWithClient(ui: ReactNode) {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>)
 }
 
-beforeEach(() => { mockTokenInfo.mockReset(); mockRender.mockReset() })
+beforeEach(() => { mockTokenInfo.mockReset(); mockRender.mockReset(); mockProposal.mockReset() })
 
 describe("PostUnfurls", () => {
     it("renders a realm card for a gno.land realm reference", () => {
@@ -110,5 +117,25 @@ describe("PostUnfurls", () => {
         expect(card).toHaveAttribute("href", `https://app.memba.world/test13/validators/${addr}`)
         // Degrades to a truncated address — never a crash.
         expect(card).toHaveTextContent(/g1ghost/i)
+    })
+
+    it("renders a LIVE proposal card (title + status) for a Memba DAO proposal link", async () => {
+        const url = "https://app.memba.world/test13/dao/gno.land/r/gov/dao/proposal/5"
+        mockProposal.mockResolvedValue({ id: 5, title: "Fund the grants program", status: "open", yesPercent: 72 } as never)
+        renderWithClient(<PostUnfurls body={`vote ${url}`} />)
+
+        const card = await screen.findByTestId("feed-unfurl-proposal")
+        expect(card).toHaveAttribute("href", url)
+        expect(await screen.findByText("Fund the grants program")).toBeInTheDocument()
+        expect(card).toHaveTextContent(/open/i)
+    })
+
+    it("falls back to 'Proposal #<id>' when the proposal can't be read", async () => {
+        const url = "https://app.memba.world/test13/dao/gno.land/r/gov/dao/proposal/9"
+        mockProposal.mockResolvedValue(null)
+        renderWithClient(<PostUnfurls body={url} />)
+
+        const card = await screen.findByTestId("feed-unfurl-proposal")
+        expect(card).toHaveTextContent("Proposal #9")
     })
 })
