@@ -27,7 +27,7 @@ func observeRPC(procedure, code string, elapsed time.Duration) {
 	RPCDuration.WithLabelValues(procedure, code).Observe(elapsed.Seconds())
 }
 
-// UnaryTimingInterceptor returns a Connect interceptor that records every unary
+// UnaryTimingInterceptor returns a Connect interceptor that records each unary
 // RPC's handler latency into RPCDuration (labeled by procedure and result code)
 // and tracks concurrency in RPCInFlight. It is pure observation: it returns the
 // handler's response and error unchanged and never short-circuits or rewrites a
