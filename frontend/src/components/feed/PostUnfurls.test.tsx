@@ -9,18 +9,26 @@ vi.mock("../../lib/grc20", async (orig) => ({
     ...(await orig<typeof import("../../lib/grc20")>()),
     getTokenInfo: vi.fn(),
 }))
+// queryRender is the on-chain read behind the validator card; parseValoperDetail
+// (real) parses whatever it returns, so the card's full path is exercised.
+vi.mock("../../lib/dao/shared", async (orig) => ({
+    ...(await orig<typeof import("../../lib/dao/shared")>()),
+    queryRender: vi.fn(),
+}))
 
 import { PostUnfurls } from "./PostUnfurls"
 import { getTokenInfo } from "../../lib/grc20"
+import { queryRender } from "../../lib/dao/shared"
 
 const mockTokenInfo = vi.mocked(getTokenInfo)
+const mockRender = vi.mocked(queryRender)
 
 function renderWithClient(ui: ReactNode) {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>)
 }
 
-beforeEach(() => mockTokenInfo.mockReset())
+beforeEach(() => { mockTokenInfo.mockReset(); mockRender.mockReset() })
 
 describe("PostUnfurls", () => {
     it("renders a realm card for a gno.land realm reference", () => {
@@ -73,5 +81,34 @@ describe("PostUnfurls", () => {
         expect(card).toHaveAttribute("href", "https://app.memba.world/test13/tokens/GHOST")
         // Degrades to just the symbol — never a crash, never fabricated numbers.
         expect(card).toHaveTextContent("GHOST")
+    })
+
+    it("renders a LIVE validator card (moniker + server type) for a Memba validator link", async () => {
+        const addr = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+        mockRender.mockResolvedValue([
+            "## Zooma Ops",
+            "Reliable test13 operator",
+            `- Operator Address: ${addr}`,
+            "- Signing Address: g1sign00000000000000000000000000000000000",
+            "- Server Type: cloud",
+        ].join("\n"))
+        renderWithClient(<PostUnfurls body={`gm ${`https://app.memba.world/test13/validators/${addr}`}`} />)
+
+        const card = await screen.findByTestId("feed-unfurl-validator")
+        expect(card).toHaveAttribute("href", `https://app.memba.world/test13/validators/${addr}`)
+        // Wait for the valoper read to resolve.
+        expect(await screen.findByText("Zooma Ops")).toBeInTheDocument()
+        expect(card).toHaveTextContent(/cloud/i)
+    })
+
+    it("falls back to a plain address card for an unregistered validator", async () => {
+        const addr = "g1ghostxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+        mockRender.mockResolvedValue(null)
+        renderWithClient(<PostUnfurls body={`https://app.memba.world/test13/validators/${addr}`} />)
+
+        const card = await screen.findByTestId("feed-unfurl-validator")
+        expect(card).toHaveAttribute("href", `https://app.memba.world/test13/validators/${addr}`)
+        // Degrades to a truncated address — never a crash.
+        expect(card).toHaveTextContent(/g1ghost/i)
     })
 })

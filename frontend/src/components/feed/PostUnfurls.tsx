@@ -8,10 +8,12 @@
  *
  * @module components/feed/PostUnfurls
  */
-import { Cube, Coins, LinkSimple, ArrowUpRight } from "@phosphor-icons/react"
+import { Cube, Coins, ShieldCheck, LinkSimple, ArrowUpRight } from "@phosphor-icons/react"
 import { useQuery } from "@tanstack/react-query"
 import { parseUnfurls } from "../../lib/feedUnfurl"
 import { getTokenInfo, formatSupply } from "../../lib/grc20"
+import { queryRender } from "../../lib/dao/shared"
+import { parseValoperDetail, VALOPERS_REALM } from "../../lib/valopers"
 import { GNO_RPC_URL } from "../../lib/config"
 
 /** Last path segment — the realm/package name. */
@@ -69,6 +71,47 @@ function TokenUnfurlCard({ symbol, href }: { symbol: string; href: string }) {
     )
 }
 
+/**
+ * A LIVE validator card — resolves the pasted `/validators/<operatorAddr>` link
+ * to the operator's on-chain valoper profile (moniker + server type) via the
+ * valopers registry Render, the same source the validators page uses. Skeleton
+ * while loading; degrades to a truncated-address card (never a crash) when the
+ * address isn't a registered valoper (e.g. a genesis validator).
+ */
+function ValidatorUnfurlCard({ address, href }: { address: string; href: string }) {
+    const { data, isLoading } = useQuery({
+        queryKey: ["feed-unfurl-valoper", address],
+        queryFn: async () => {
+            const raw = await queryRender(GNO_RPC_URL, VALOPERS_REALM, address)
+            return raw ? parseValoperDetail(raw) : null
+        },
+        staleTime: 60_000,
+        retry: false,
+    })
+
+    const short = `${address.slice(0, 8)}…${address.slice(-4)}`
+    const sub = data ? ["validator", data.serverType || null].filter(Boolean).join(" · ") : "validator"
+
+    return (
+        <a
+            className="feed-unfurl feed-unfurl--validator"
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="feed-unfurl-validator"
+            aria-busy={isLoading || undefined}
+        >
+            <span className="feed-unfurl__badge">
+                <ShieldCheck size={13} weight="fill" /> validator
+            </span>
+            <span className="feed-unfurl__title">{data?.moniker || short}</span>
+            <span className="feed-unfurl__sub">
+                {isLoading ? "Loading…" : sub} <ArrowUpRight size={12} />
+            </span>
+        </a>
+    )
+}
+
 export function PostUnfurls({ body }: { body: string }) {
     const refs = parseUnfurls(body)
     if (refs.length === 0) return null
@@ -98,6 +141,9 @@ export function PostUnfurls({ body }: { body: string }) {
                 }
                 if (r.kind === "token") {
                     return <TokenUnfurlCard key={`token-${i}`} symbol={r.symbol} href={r.href} />
+                }
+                if (r.kind === "validator") {
+                    return <ValidatorUnfurlCard key={`validator-${i}`} address={r.address} href={r.href} />
                 }
                 return (
                     <a
