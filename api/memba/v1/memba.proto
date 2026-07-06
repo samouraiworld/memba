@@ -75,6 +75,8 @@ service MultisigService {
   rpc GetFeedThread(GetFeedThreadRequest) returns (GetFeedThreadResponse);
   // Replies to the caller's own posts — the "someone replied to you" surface.
   rpc GetReplyNotifications(GetReplyNotificationsRequest) returns (GetReplyNotificationsResponse);
+  // Feed-wide live stats for the header/rail (post + author counts).
+  rpc GetFeedStats(GetFeedStatsRequest) returns (GetFeedStatsResponse);
 }
 
 // --- Auth Messages ---
@@ -831,4 +833,12 @@ message GetReplyNotificationsResponse {
   repeated FeedPost replies = 1;
   uint32 unread_count = 2; // how many replies have id > since_id
   uint64 latest_id = 3; // newest reply id (0 = none) — advance the cursor to this
+}
+
+message GetFeedStatsRequest {}
+
+message GetFeedStatsResponse {
+  uint64 live_posts = 1; // visible top-level posts
+  uint64 total_replies = 2; // visible replies
+  uint64 total_authors = 3; // distinct authors of visible posts
 }

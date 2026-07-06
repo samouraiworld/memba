@@ -66,3 +66,13 @@ export async function fetchReplyNotifications(
         return { replies: [], unreadCount: 0, latestId: 0n }
     }
 }
+
+/** Feed-wide live counters for the header (posts / replies / authors). */
+export async function fetchFeedStats(): Promise<{ livePosts: bigint; totalReplies: bigint; totalAuthors: bigint }> {
+    try {
+        const res = await api.getFeedStats({})
+        return { livePosts: res.livePosts ?? 0n, totalReplies: res.totalReplies ?? 0n, totalAuthors: res.totalAuthors ?? 0n }
+    } catch {
+        return { livePosts: 0n, totalReplies: 0n, totalAuthors: 0n }
+    }
+}

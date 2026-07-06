@@ -23,7 +23,7 @@ import { FeedComposer } from "../components/feed/FeedComposer"
 import { PostCard } from "../components/feed/PostCard"
 import { FeedNotifications } from "../components/feed/FeedNotifications"
 import { useActorUsernames } from "../hooks/home/useActorUsernames"
-import { fetchFeedTimeline } from "../lib/feedApi"
+import { fetchFeedTimeline, fetchFeedStats } from "../lib/feedApi"
 import { countNewer } from "../lib/feedPaging"
 import { sameContent, type UiPost } from "../lib/feedTypes"
 import { FEED_POLL_MS, RECONCILE_MS } from "../lib/feedConstants"
@@ -48,6 +48,14 @@ export default function FeedPage() {
         queryFn: () => fetchFeedTimeline(0n, 20),
         refetchInterval: FEED_POLL_MS,
         staleTime: 5_000,
+        retry: false,
+    })
+
+    // Feed-wide live counters for the header strip.
+    const stats = useQuery({
+        queryKey: ["feed", "stats"],
+        queryFn: fetchFeedStats,
+        staleTime: 30_000,
         retry: false,
     })
 
@@ -93,6 +101,13 @@ export default function FeedPage() {
             <header className="feed-header">
                 <h1 className="feed-title">Feed</h1>
                 <p className="feed-subtitle">A global, on-chain timeline for the Memba community.</p>
+                {stats.data && stats.data.livePosts > 0n && (
+                    <p className="feed-stats" data-testid="feed-stats">
+                        <span><b>{stats.data.livePosts.toString()}</b> posts</span>
+                        <span><b>{stats.data.totalReplies.toString()}</b> replies</span>
+                        <span><b>{stats.data.totalAuthors.toString()}</b> authors</span>
+                    </p>
+                )}
             </header>
 
             {connected && address && (

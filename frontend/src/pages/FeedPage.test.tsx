@@ -11,7 +11,10 @@ import type { ReactNode } from "react"
 vi.mock("../hooks/useAdena", () => ({ useAdena: () => ({ address: undefined, connected: false, connect: vi.fn() }) }))
 vi.mock("../hooks/useNetworkNav", () => ({ useNetworkNav: () => vi.fn() }))
 vi.mock("../hooks/home/useActorUsernames", () => ({ useActorUsernames: () => new Map() }))
-vi.mock("../lib/feedApi", () => ({ fetchFeedTimeline: vi.fn() }))
+vi.mock("../lib/feedApi", () => ({
+    fetchFeedTimeline: vi.fn(),
+    fetchFeedStats: vi.fn(async () => ({ livePosts: 0n, totalReplies: 0n, totalAuthors: 0n })),
+}))
 
 const { fetchFeedTimeline } = await import("../lib/feedApi")
 const FeedPage = (await import("./FeedPage")).default

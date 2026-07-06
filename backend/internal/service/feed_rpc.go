@@ -267,6 +267,32 @@ func (s *MultisigService) GetReplyNotifications(ctx context.Context, req *connec
 	}), nil
 }
 
+// GetFeedStats returns feed-wide live counters for the header/rail. Public read
+// — no auth. All counts exclude hidden + deleted rows.
+func (s *MultisigService) GetFeedStats(ctx context.Context, req *connect.Request[membav1.GetFeedStatsRequest]) (*connect.Response[membav1.GetFeedStatsResponse], error) {
+	var livePosts, totalReplies, totalAuthors int64
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM feed_posts WHERE reply_to = 0 AND hidden = 0 AND deleted = 0`).
+		Scan(&livePosts); err != nil {
+		return nil, internalError("GetFeedStats/posts", err)
+	}
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(*) FROM feed_posts WHERE reply_to != 0 AND hidden = 0 AND deleted = 0`).
+		Scan(&totalReplies); err != nil {
+		return nil, internalError("GetFeedStats/replies", err)
+	}
+	if err := s.db.QueryRowContext(ctx,
+		`SELECT COUNT(DISTINCT author) FROM feed_posts WHERE hidden = 0 AND deleted = 0`).
+		Scan(&totalAuthors); err != nil {
+		return nil, internalError("GetFeedStats/authors", err)
+	}
+	return connect.NewResponse(&membav1.GetFeedStatsResponse{
+		LivePosts:    u64(livePosts),
+		TotalReplies: u64(totalReplies),
+		TotalAuthors: u64(totalAuthors),
+	}), nil
+}
+
 // nextCursor returns the paging cursor for a descending window: the last
 // (smallest) id when the window filled, else 0 (end reached). Compares in int
 // space (limit ≤ 100 by feedLimit).

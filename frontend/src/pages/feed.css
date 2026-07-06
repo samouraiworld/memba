@@ -28,6 +28,21 @@
     margin: 4px 0 0;
 }
 
+/* Live feed counters under the header. */
+.feed-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin: 8px 0 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm, 0.875rem);
+    font-variant-numeric: tabular-nums;
+}
+.feed-stats b {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
 /* ── Composer ─────────────────────────────────────────────── */
 
 .feed-composer {
