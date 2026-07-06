@@ -55,6 +55,12 @@ type MultisigService struct {
 	homeCached   map[string]*membav1.HomeSnapshot
 	homeCachedAt map[string]time.Time
 	homeQuery    queryFunc
+
+	// Block Party (B6): feature flag + seed RPC source for the daily-challenge
+	// block fetcher. Disabled (false, empty seed) by default; wired in
+	// production via SetBlockParty from BLOCKPARTY_ENABLED / BLOCKPARTY_SEED_RPC_URL.
+	blockPartyEnabled bool
+	blockPartySeedRPC string
 }
 
 // parseAcceptedChainIDs splits a comma-separated env value into a trimmed,
@@ -134,6 +140,29 @@ func (s *MultisigService) SetUserLimiter(l *ratelimit.Limiter) {
 // attestation so no vouchers are issued and GetAttestationVouchers is empty.
 func (s *MultisigService) SetAttestationSigner(signer *attestation.Signer) {
 	s.attSigner = signer
+}
+
+// SetBlockParty enables/disables the Block Party feature and configures the
+// seed RPC node used to derive daily challenge blocks. An empty seedRPC
+// leaves the previously configured value (including the built-in default)
+// untouched, so callers can toggle `enabled` without needing to know the URL.
+func (s *MultisigService) SetBlockParty(enabled bool, seedRPC string) {
+	s.blockPartyEnabled = enabled
+	if seedRPC != "" {
+		s.blockPartySeedRPC = seedRPC
+	}
+}
+
+// blockPartyFetcher returns the httpBlockFetcher configured for this service,
+// falling back to the default test13 seed RPC when none has been set.
+//
+//nolint:unused // consumed by the daily-challenge RPC handlers landing in a later Block Party task (B7+); wired here now so SetBlockParty's seed config has a single reader.
+func (s *MultisigService) blockPartyFetcher() httpBlockFetcher {
+	url := s.blockPartySeedRPC
+	if url == "" {
+		url = "https://rpc.testnet13.samourai.live:443"
+	}
+	return httpBlockFetcher{rpcURL: url}
 }
 
 // rateLimitUser enforces the per-address quest quota for endpoint. Returns a
