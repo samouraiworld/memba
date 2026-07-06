@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Explorer — read any realm in-app (W9 P0, 2026-07-06)
+- **New `/explorer/*` realm viewer** behind `VITE_ENABLE_EXPLORER` (ordinary flag, off by default): deep-linkable `/explorer/r/<path>` shows any realm's live **Render** (`vm/qrender`), authoritative on-chain **Source** (`vm/qfile`, reusing the Directory's viewer), and exported **Functions** (`vm/qfuncs` signatures). Read-only by construction — three query paths only, no `vm/qeval`/execution surface (SEC-01) — needs no wallet and moves no funds. Verified live on test13 across multiple realms. Deferred to a later increment: the qeval read-console (reopens the SEC-01 surface) and an in-app code editor.
+
 ### Observability — backend RPC & DB-pool metrics on /metrics (#764, 2026-07-06)
 - **RPC duration histogram** `memba_rpc_duration_seconds{procedure,code}` via a transparent Connect interceptor (panics are metered as `code="panic"` and re-propagate unchanged), plus **`memba_rpc_in_flight`** — a real-time saturation gauge that surfaces a handler wedged on the single-writer DB lock *before* it ever records a duration.
 - **DB connection-pool metrics** from `db.Stats()`: `memba_db_connections_{open,in_use,idle}` gauges + `memba_db_wait_count_total` / `memba_db_wait_duration_seconds_total` counters (the single-writer SQLite contention signal). All served behind the bearer-gated `/metrics` (U-2). Alert thresholds in `OPS_RUNBOOK.md` §3.4.
