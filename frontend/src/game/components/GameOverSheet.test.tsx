@@ -1,7 +1,9 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
+import { create } from "@bufbuild/protobuf";
 import { GameOverSheet } from "./GameOverSheet";
 import { gameApi } from "../../lib/gameApi";
+import { SubmitScoreResponseSchema, TokenSchema } from "../../gen/memba/v1/memba_pb";
 
 vi.mock("../../lib/gameApi", () => ({ gameApi: { submitScore: vi.fn() } }));
 
@@ -22,8 +24,15 @@ describe("GameOverSheet", () => {
 
   it("authenticated: submits (token, date, moveLog) exactly once — never a score — and shows the percentile", async () => {
     const submit = vi.mocked(gameApi.submitScore);
-    submit.mockResolvedValue({ score: 1200n, percentile: 88, par: 1500n, streak: { current: 3, longest: 3, freezesRemaining: 1 } } as any);
-    const token = { nonce: "n", userAddress: "g1me", expiration: "", serverSignature: "s" } as any;
+    submit.mockResolvedValue(
+      create(SubmitScoreResponseSchema, {
+        score: 1200n,
+        percentile: 88,
+        par: 1500n,
+        streak: { current: 3, longest: 3, freezesRemaining: 1 },
+      }),
+    );
+    const token = create(TokenSchema, { nonce: "n", userAddress: "g1me", expiration: "", serverSignature: "s" });
     render(<GameOverSheet {...baseProps}
       wallet={{ installed: true, connect: vi.fn() }}
       auth={{ isAuthenticated: true, token }} />);

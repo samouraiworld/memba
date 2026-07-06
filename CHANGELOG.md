@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Block Party — daily chain-seeded 2048 game (2026-07-06)
+- New daily puzzle behind `VITE_ENABLE_GAME` / `BLOCKPARTY_ENABLED` (both off by default): one shared board a day seeded from an unpredictable Gno block (public verify script under `scripts/`), instant no-wallet play, and a wallet-optional **server-verified** leaderboard + streaks. The client submits only its move log; the server replays it for the authoritative score. Ships dark.
+
 ### Social feed — Wave 2: live validator unfurl cards (2026-07-06)
 - On-chain unfurls extend to **validators**: paste a Memba validator link (`/<network>/validators/<operator-address>`) into a post and it renders a **live card** with the operator's **moniker and server type**, read from the `gno.land/r/gnops/valopers` registry `Render` (the same source the validators page uses). Resolves by the canonical **operator** address, shows a skeleton while loading, and **degrades to a truncated-address card** (never a crash) when the address isn't a registered valoper (e.g. a genesis validator). Detection is precise — `/validators/hacker` and the 4-segment `/validators/valoper/…` subpath stay plain links. Reuses the typed-ref + card path from the token cards (`lib/feedUnfurl` `validator` ref); proposal cards are next. Behind `VITE_ENABLE_FEED`.
 

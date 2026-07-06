@@ -23,6 +23,7 @@ export function GameOverSheet(props: {
   // guest local persistence (also runs for connected users as a fallback)
   useEffect(() => { setLocalBest(date, score); }, [date, score]);
 
+  // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: sync local streak once per date change, not derivable from render
   useEffect(() => { setLocalStreakState(bumpLocalStreak(date).current); }, [date]);
 
   // auto-submit when authenticated

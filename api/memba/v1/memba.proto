@@ -831,7 +831,9 @@ message GetFeedThreadResponse {
 
 // --- Block Party Messages ---
 
-message GetDailyChallengeRequest { string date = 1; } // "" = today (server resolves UTC)
+message GetDailyChallengeRequest {
+  string date = 1;
+} // "" = today (server resolves UTC)
 message GetDailyChallengeResponse {
   string date = 1;
   uint32 seed = 2;
@@ -844,13 +846,13 @@ message GetDailyChallengeResponse {
 }
 
 message SubmitScoreRequest {
-  Token auth_token = 1;   // reuse existing Token message
+  Token auth_token = 1; // reuse existing Token message
   string date = 2;
-  string move_log = 3;    // compact moves, e.g. "URDL..."
+  string move_log = 3; // compact moves, e.g. "URDL..."
 }
 message SubmitScoreResponse {
-  int64 score = 1;        // authoritative = server replay
-  int32 percentile = 2;   // % of today's field beaten
+  int64 score = 1; // authoritative = server replay
+  int32 percentile = 2; // % of today's field beaten
   int64 par = 3;
   BlockPartyStreak streak = 4;
 }
@@ -861,12 +863,25 @@ message BlockPartyStreak {
   int32 freezes_remaining = 3;
 }
 
-message GetDailyLeaderboardRequest { string date = 1; int32 limit = 2; }
-message LeaderboardScore { string address = 1; int64 score = 2; int32 rank = 3; }
-message GetDailyLeaderboardResponse { repeated LeaderboardScore entries = 1; }
+message GetDailyLeaderboardRequest {
+  string date = 1;
+  int32 limit = 2;
+}
+message LeaderboardScore {
+  string address = 1;
+  int64 score = 2;
+  int32 rank = 3;
+}
+message GetDailyLeaderboardResponse {
+  repeated LeaderboardScore entries = 1;
+}
 
-message GetStreakRequest { string address = 1; }
-message GetStreakResponse { BlockPartyStreak streak = 1; }
+message GetStreakRequest {
+  string address = 1;
+}
+message GetStreakResponse {
+  BlockPartyStreak streak = 1;
+}
 
 message GetReplyNotificationsRequest {
   string author = 1; // the caller — whose posts' replies we want

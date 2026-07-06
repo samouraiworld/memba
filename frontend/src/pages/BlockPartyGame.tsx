@@ -54,6 +54,7 @@ export default function BlockPartyGame() {
     } catch {
       /* localStorage unavailable — don't show the hint */
     }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: localStorage is only readable in an effect, gates first-session hint
     setHinted(seen);
     setShowHint(!seen);
   }, []);
@@ -89,6 +90,7 @@ export default function BlockPartyGame() {
       prevMode.current = mode;
       if (mode === "practice") {
         const s = randomSeed();
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: re-seed practice board only on explicit mode switch
         setPracticeSeed(s);
         restart(s);
       } else if (challenge?.ready) {
