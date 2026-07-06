@@ -155,8 +155,6 @@ func (s *MultisigService) SetBlockParty(enabled bool, seedRPC string) {
 
 // blockPartyFetcher returns the httpBlockFetcher configured for this service,
 // falling back to the default test13 seed RPC when none has been set.
-//
-//nolint:unused // consumed by the daily-challenge RPC handlers landing in a later Block Party task (B7+); wired here now so SetBlockParty's seed config has a single reader.
 func (s *MultisigService) blockPartyFetcher() httpBlockFetcher {
 	url := s.blockPartySeedRPC
 	if url == "" {
