@@ -750,9 +750,11 @@ describe("engine invariants (pseudo-random games)", () => {
         // score monotonic
         expect(s.score).toBeGreaterThanOrEqual(prevScore);
         prevScore = s.score;
-        // a real move adds at most one tile; a no-op adds none
+        // A real move nets AT MOST one new tile (the single spawn). Merges
+        // remove tiles, so a multi-merge move can net 0 or negative; a no-op
+        // nets 0. The invariant is therefore delta <= 1 (never > +1).
         const delta = tileMass(s) - tileMass(before);
-        expect(delta === 0 || delta === 1).toBe(true);
+        expect(delta).toBeLessThanOrEqual(1);
       }
       // over flag matches the detector
       expect(s.over).toBe(isGameOver(s.board));
