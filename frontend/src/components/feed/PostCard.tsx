@@ -22,6 +22,7 @@ import { relativeTime } from "../../lib/relativeTime"
 import { useNow } from "../../hooks/home/useNow"
 import { FeedAvatar } from "./FeedAvatar"
 import { PostUnfurls } from "./PostUnfurls"
+import { ReactionBar } from "./ReactionBar"
 
 /** Short display form of a bech32 address, e.g. g1abcd…wxyz. */
 function shortAddr(a: string): string {
@@ -263,6 +264,15 @@ export function PostCard({
             )}
 
             {!editing && <PostUnfurls body={displayBody} />}
+
+            {!editing && !post.deleted && (
+                <ReactionBar
+                    postId={post.id}
+                    connected={connected}
+                    selfAddress={selfAddress}
+                    onConnect={onConnect ?? (() => {})}
+                />
+            )}
 
             <div className="feed-post__actions">
                 <button
