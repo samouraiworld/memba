@@ -95,6 +95,23 @@ export function PostCard({
     const name = displayName || shortAddr(post.author)
     const rel = post.optimistic ? "" : relativeTime(post.blockTs, Date.now())
 
+    // Client-side moderation suppression. GetFeedThread returns a thread root in
+    // ANY state — a flag-hidden or deleted root reaches this card with its body
+    // still populated (hidden posts retain their body on-chain as the audit
+    // trail). Never render that body; show a tombstone, mirroring the realm's
+    // own renderPost suppression. No actions (flag/reply) on a suppressed post.
+    if (post.deleted || post.hidden) {
+        return (
+            <article className="feed-post feed-post--tombstone" data-testid="feed-post-tombstone">
+                <p className="feed-post__tombstone">
+                    {post.deleted
+                        ? "This post was deleted by its author."
+                        : "This post is hidden pending moderation."}
+                </p>
+            </article>
+        )
+    }
+
     return (
         <article className={"feed-post" + (post.optimistic ? " feed-post--pending" : "")}>
             {/* Card-level open-thread affordance: a single keyboard-reachable

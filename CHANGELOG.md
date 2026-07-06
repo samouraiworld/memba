@@ -20,6 +20,16 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Social feed — Wave 1: timestamps, identity, a11y, notifications, moderation & read-freely (#767, #768, #769, #772, #773, 2026-07-06)
+- **Human timestamps.** Posts showed "block 12345"; they now show relative time ("2m", "3h", "Jun 6"), sourced from a new deterministic `block_ts` — the block *header* time denormalized at ingest, which is rebuild-stable (unlike the indexer's ingest wall-clock, which re-stamps on a rebuild-from-raw). Block height moves to a hover tooltip.
+- **Identity.** A deterministic mono-glyph tile (hashed hue + the first two glyphs — on-brand, no identicon dependency) plus a resolved `@handle` where available (falls back to the short address).
+- **Accessibility.** The whole card opens its thread via a single labelled overlay control — the body is plain text again, not a paragraph announced as one button; `:focus-visible` rings on every control; the light-theme author name uses the AA-safe accent token; the post body switches to the humanist sans for readable long-form prose.
+- **A flag that responds.** Optimistic count bump that reverts on failure and surfaces the realm's actionable panic (already-flagged / daily budget / account-age) via an `aria-live` alert, instead of the old silent `catch {}`.
+- **Reply notifications.** A connected wallet now sees when others reply to its posts — a new public `GetReplyNotifications` RPC (replies to your posts, by others, live, newest-first, with an unread count relative to a last-seen id) plus a badge + expandable list on the home feed; last-seen persisted per address.
+- **Moderation-leak fix.** A hidden or deleted post (a `GetFeedThread` root can be a tombstone) no longer renders its body client-side — it shows a tombstone, mirroring the realm's own `renderPost` suppression.
+- **On-chain permanence disclosed** in the composer (posting is public and permanent; "delete" only hides the projection, the text stays on-chain).
+- **Read freely, connect on action.** The feed is fully readable without a wallet; the composer input is always shown and clicking **Post connects the wallet and sends in one action**; the flag is visible to everyone and connects on click. Still behind `VITE_ENABLE_FEED` — no funds, no multisig paths.
+
 ### Observability — backend RPC & DB-pool metrics on /metrics (#764, 2026-07-06)
 - **RPC duration histogram** `memba_rpc_duration_seconds{procedure,code}` via a transparent Connect interceptor (panics are metered as `code="panic"` and re-propagate unchanged), plus **`memba_rpc_in_flight`** — a real-time saturation gauge that surfaces a handler wedged on the single-writer DB lock *before* it ever records a duration.
 - **DB connection-pool metrics** from `db.Stats()`: `memba_db_connections_{open,in_use,idle}` gauges + `memba_db_wait_count_total` / `memba_db_wait_duration_seconds_total` counters (the single-writer SQLite contention signal). All served behind the bearer-gated `/metrics` (U-2). Alert thresholds in `OPS_RUNBOOK.md` §3.4.

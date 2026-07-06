@@ -1,8 +1,8 @@
 /**
- * PostCard — Wave-1 UI: identity, the open-thread overlay (a11y), and a flag
- * that responds (optimistic count + surfaced realm errors). The write path
- * (lib/feed) is mocked at the module boundary; everything else is the real
- * component.
+ * PostCard — Wave-1 behavior: moderation suppression (hidden/deleted → tombstone,
+ * never the body), identity, the open-thread overlay (a11y), and a flag that
+ * responds (optimistic count + surfaced realm errors + connect-on-action). The
+ * write path (lib/feed) is mocked; everything else is the real component.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
@@ -35,6 +35,38 @@ const noop = () => {}
 
 beforeEach(() => mockSubmit.mockReset())
 
+describe("PostCard moderation suppression", () => {
+    it("renders a tombstone, not the body, for a deleted post", () => {
+        render(<PostCard post={basePost({ deleted: true })} connected={false} selfAddress={undefined} onRefetch={noop} />)
+        expect(screen.queryByText("hello feed")).toBeNull()
+        expect(screen.getByTestId("feed-post-tombstone")).toBeInTheDocument()
+    })
+
+    it("renders a tombstone, not the body, for a flag-hidden post", () => {
+        render(<PostCard post={basePost({ hidden: true })} connected={false} selfAddress={undefined} onRefetch={noop} />)
+        expect(screen.queryByText("hello feed")).toBeNull()
+        expect(screen.getByTestId("feed-post-tombstone")).toBeInTheDocument()
+    })
+
+    it("renders the body normally for a visible post (no over-suppression)", () => {
+        render(<PostCard post={basePost({})} connected={false} selfAddress={undefined} onRefetch={noop} />)
+        expect(screen.getByText("hello feed")).toBeInTheDocument()
+        expect(screen.queryByTestId("feed-post-tombstone")).toBeNull()
+    })
+
+    it("does not offer a flag action on a hidden post even to a connected non-author", () => {
+        render(
+            <PostCard
+                post={basePost({ hidden: true })}
+                connected={true}
+                selfAddress="g1someoneelseXXXXXXXXXXXXXXXXXXXXXXXXXXXX"
+                onRefetch={noop}
+            />,
+        )
+        expect(screen.queryByTestId("feed-flag-btn")).toBeNull()
+    })
+})
+
 describe("PostCard identity + a11y", () => {
     it("shows a resolved @handle as the name when provided", () => {
         render(<PostCard post={basePost({})} connected={false} selfAddress={undefined} onRefetch={noop} displayName="zooma" />)
@@ -43,8 +75,7 @@ describe("PostCard identity + a11y", () => {
 
     it("renders the body as plain text, not a button", () => {
         render(<PostCard post={basePost({})} connected={false} selfAddress={undefined} onRefetch={noop} onOpenThread={noop} />)
-        const body = screen.getByText("hello feed")
-        expect(body.tagName).not.toBe("BUTTON")
+        expect(screen.getByText("hello feed").tagName).not.toBe("BUTTON")
     })
 
     it("exposes a single labelled open-thread overlay when clickable", () => {
@@ -64,7 +95,6 @@ describe("PostCard flag that responds", () => {
         mockSubmit.mockResolvedValueOnce("hash")
         render(<PostCard post={basePost({ flagCount: 2 })} {...connectedOther} />)
         fireEvent.click(screen.getByTestId("feed-flag-btn"))
-        // flagCount 2 → 3 optimistically.
         await waitFor(() => expect(screen.getByText(/· 3/)).toBeInTheDocument())
         expect(screen.getByText("Flagged")).toBeInTheDocument()
     })
@@ -74,7 +104,6 @@ describe("PostCard flag that responds", () => {
         render(<PostCard post={basePost({})} {...connectedOther} />)
         fireEvent.click(screen.getByTestId("feed-flag-btn"))
         await waitFor(() => expect(screen.getByTestId("feed-flag-error")).toHaveTextContent("already flagged"))
-        // Reverted: the button is back to "Flag", not stuck "Flagged".
         expect(screen.getByText("Flag")).toBeInTheDocument()
     })
 

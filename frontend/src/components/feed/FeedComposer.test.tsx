@@ -1,7 +1,8 @@
 /**
- * FeedComposer — read-freely / connect-on-action. A disconnected visitor still
- * sees the input; clicking Post triggers the wallet connect, and the post is
- * sent automatically once the wallet is connected (one action, not two).
+ * FeedComposer — Wave-1 behavior: read-freely / connect-on-action (the input is
+ * always shown; clicking Post connects the wallet and auto-submits once
+ * connected) and the on-chain permanence disclosure. The write path (lib/feed)
+ * is mocked at the module boundary.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
@@ -54,5 +55,20 @@ describe("FeedComposer connect-on-action", () => {
         fireEvent.change(screen.getByTestId("feed-composer-input"), { target: { value: "direct post" } })
         fireEvent.click(screen.getByTestId("feed-post-btn"))
         await waitFor(() => expect(mockSubmit).toHaveBeenCalledTimes(1))
+    })
+})
+
+describe("FeedComposer permanence disclosure", () => {
+    it("discloses that posts are public and permanent on-chain", () => {
+        render(
+            <FeedComposer
+                connected={true}
+                address="g1abcabcabcabcabcabcabcabcabcabcabcabcabc"
+                onConnect={() => {}}
+                onPosted={() => {}}
+            />,
+        )
+        expect(screen.getByText(/permanent/i)).toBeInTheDocument()
+        expect(screen.getByText(/on-chain|public/i)).toBeInTheDocument()
     })
 })
