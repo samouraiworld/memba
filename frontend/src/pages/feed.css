@@ -200,6 +200,56 @@
     line-height: 1.4;
 }
 
+/* ── Infinite scroll: "new posts" pill + load-more ────────── */
+
+.feed-newpill {
+    align-self: center;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: 1px solid var(--color-primary);
+    border-radius: 999px;
+    padding: 6px 14px;
+    background: color-mix(in srgb, var(--color-primary) 12%, var(--color-surface));
+    color: var(--color-primary);
+    font: inherit;
+    font-weight: 600;
+    font-size: var(--text-sm, 0.875rem);
+    cursor: pointer;
+}
+.feed-newpill:hover {
+    background: color-mix(in srgb, var(--color-primary) 20%, var(--color-surface));
+}
+.feed-newpill:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
+.feed-loadmore {
+    align-self: center;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 8px);
+    padding: 8px 16px;
+    margin-top: 4px;
+    background: var(--color-surface);
+    color: var(--color-text-secondary);
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+}
+.feed-loadmore:hover:not(:disabled) {
+    color: var(--color-text);
+    border-color: var(--color-primary);
+}
+.feed-loadmore:disabled {
+    opacity: 0.6;
+    cursor: default;
+}
+.feed-loadmore:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+
 /* ── Buttons ──────────────────────────────────────────────── */
 
 .feed-btn {

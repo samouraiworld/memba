@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Social feed — Wave 2: infinite scroll (2026-07-06)
+- The feed no longer stops at the newest 20 posts. The home timeline and profile timelines are **cursor-paginated with infinite scroll** (`useInfiniteQuery` over the already-live `nextCursor`), with a **"Load older posts"** control that stops when history is exhausted. A **separate lightweight page-0 poll** drives a **"N new posts" pill** (click to pull the freshest posts to the top) — so background refresh never re-fetches the deep loaded pages (the classic infinite-query thundering-herd). Optimistic-post reconciliation now flattens across pages. Still behind `VITE_ENABLE_FEED`.
+
 ### Social feed — Wave 1: timestamps, identity, a11y, notifications, moderation & read-freely (#767, #768, #769, #772, #773, 2026-07-06)
 - **Human timestamps.** Posts showed "block 12345"; they now show relative time ("2m", "3h", "Jun 6"), sourced from a new deterministic `block_ts` — the block *header* time denormalized at ingest, which is rebuild-stable (unlike the indexer's ingest wall-clock, which re-stamps on a rebuild-from-raw). Block height moves to a hover tooltip.
 - **Identity.** A deterministic mono-glyph tile (hashed hue + the first two glyphs — on-brand, no identicon dependency) plus a resolved `@handle` where available (falls back to the short address).
