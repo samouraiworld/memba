@@ -50,9 +50,8 @@ export function FeedComposer({
         setSubmitting(true)
         setError(null)
         try {
-            const replyToNum = Number(replyTo)
             await submitFeedMsg(
-                buildCreatePostMsg(address, trimmed, replyToNum),
+                buildCreatePostMsg(address, trimmed, replyTo), // bigint threaded through — no precision loss
                 replyTo === 0n ? "feed post" : "feed reply",
             )
             onPosted(makeOptimisticPost(address, trimmed, replyTo, nonce.current++))
