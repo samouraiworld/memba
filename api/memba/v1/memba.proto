@@ -782,8 +782,8 @@ message FeedPost {
   bool deleted = 10;
   uint32 reply_count = 11; // live replies indexed under this post
   int64 block_ts = 12; // block header time (unix seconds); 0 = unknown. The
-                       // DETERMINISTIC display timestamp — NOT the indexer's
-                       // ingest wall-clock (which re-stamps on rebuild-from-raw).
+  // DETERMINISTIC display timestamp — NOT the indexer's
+  // ingest wall-clock (which re-stamps on rebuild-from-raw).
 }
 
 message GetFeedTimelineRequest {
