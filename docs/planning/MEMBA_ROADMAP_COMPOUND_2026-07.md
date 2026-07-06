@@ -451,16 +451,16 @@ Lane C OFF-LIMITS while active (external: #734 / per-sig-verified):
 |---|---|---|---|
 | **U-1** | First Litestream restore drill → `OPS_RUNBOOK §4.7` (fill RPO/RTO) | **Wave 8 (hard)** | ⏳ PENDING |
 | **U-3** | Flip `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY=1` when boot-sweep reads `mismatch=0` (O-1 code done #734) — **USER-ONLY, metric-gated** | **Wave 8 (hard)** | ⏳ PENDING |
-| **U-2** | Set `METRICS_BEARER` + `QUEST_ADMIN_ADDRESSES` (O-4) | W6.5 PR2 + closes `/metrics` scrape hole | ⏳ PENDING |
+| ~~U-2~~ | Set `METRICS_BEARER` + `QUEST_ADMIN_ADDRESSES` (O-4) — **done**: `/metrics` now gated (verified 401 no-auth / 200 with token); `QUEST_ADMIN_ADDRESSES` set explicitly to `samcrew-core-test1` (`g1x7k46…`, unchanged admin set, warning silenced; dedicated mainnet admin = later env rotation) | unblocks W6.5 PR2 | ✅ DONE 2026-07-06 |
 | **U-9** | Add `Changelog entry` to `main` required checks | Makes W6.1 gate binding | ⏳ PENDING |
 | ~~A.3~~ | ~~Verify `VITE_ENABLE_FEED` Netlify redeploy~~ — feed live on prod, verified | W7 feed launch | ✅ DONE 2026-07-06 |
 | **U-6a / U-8 / U-10** | AMM framing · per-lane fee bps · "first 100 users" motion | Frame W8/W9 (no deadline) | 💬 decisions |
 
-**Open items rollup:** O-1 (→U-3) · O-2 (Lane C, external) · O-3 (→U-1) · O-4 (→U-2) · O-8 quests/badges (→W8.3) · **O-13** `agent_registry.DepositCredits` missing `IsUserCall()` guard before `unsafe.OriginSend()` (→**W8.1 PR2**, must redeploy hardened before `VITE_ENABLE_AGENT_CREDITS` de-gates) · **O-14** DAO v1→v2 migration story absent (→**W8.1 PR0** decision). **Closed:** O-5, O-6, O-7, O-11, O-12. **Ratchet lane (continuous):** O-9 react-hooks 52→0 · O-10 god-files / `any` / a11y AA.
+**Open items rollup:** O-1 (→U-3) · O-2 (Lane C, external) · O-3 (→U-1) · ~~O-4~~ ✅ CLOSED (U-2 done 2026-07-06) · O-8 quests/badges (→W8.3) · **O-13** `agent_registry.DepositCredits` missing `IsUserCall()` guard before `unsafe.OriginSend()` (→**W8.1 PR2**, must redeploy hardened before `VITE_ENABLE_AGENT_CREDITS` de-gates) · **O-14** DAO v1→v2 migration story absent (→**W8.1 PR0** decision). **Closed:** O-5, O-6, O-7, O-11, O-12. **Ratchet lane (continuous):** O-9 react-hooks 52→0 · O-10 god-files / `any` / a11y AA.
 
 **Next actionable, in order:**
 1. ~~Verify A.3 (feed UI live on prod)~~ — ✅ **done 2026-07-06; Wave-7 gate CLOSED.**
-2. **U-2 + U-9** — small independent owner actions; U-2 unblocks W6.5 PR2 (backend Sentry) as the next session-side PR.
+2. ~~U-2~~ ✅ **done 2026-07-06** → **W6.5 PR2 (backend Sentry + RPC/DB histograms) is now unblocked** as the next session-side PR. **U-9** (add `Changelog entry` required check) remains — small, independent.
 3. **U-1 + U-3** — the two Wave-8 hard-gate unlocks. Until BOTH land, no money-path (W8) code starts; if they stall, pull the **Wave-9 spikes** (explorer / app-store / AMM / playground — docs only, no code gate) forward instead of starting W8 optimistically.
 4. On the W8 gate passing: **W8.1 PR0** (owner picks DAO v1→v2 Option A vs B) → banker-as-new-version + **O-13** hardened `agent_registry` → treasury-spend UI → e2e → de-gate flips.
 
