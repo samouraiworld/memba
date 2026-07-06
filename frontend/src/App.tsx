@@ -9,6 +9,7 @@ import { LegacyRedirect } from "./components/layout/LegacyRedirect"
 import { ConnectingLoader } from "./components/ui/ConnectingLoader"
 import { NftGate } from "./components/ui/NftGate"
 import { FeedGate } from "./components/ui/FeedGate"
+import { GameGate } from "./components/ui/GameGate"
 import { ValoperRouteRedirect } from "./components/validators/ValoperRouteRedirect"
 import { NETWORKS, DEFAULT_NETWORK } from "./lib/config"
 
@@ -73,6 +74,9 @@ const Leaderboard = lazy(() => import("./pages/Leaderboard"))
 
 // ── Alerts page (lazy — v2.18.0) ──
 const AlertsPage = lazy(() => import("./pages/AlertsPage"))
+
+// ── Block Party game (lazy — gated behind VITE_ENABLE_GAME) ──
+const BlockPartyGame = lazy(() => import("./pages/BlockPartyGame"))
 
 // ── Organizations page (lazy — v2.22.0) ──
 const OrganizationsPage = lazy(() => import("./pages/OrganizationsPage"))
@@ -292,6 +296,9 @@ function App() {
           <Route path="quests/:questId" element={<Suspense fallback={<PageLoader />}><QuestDetail /></Suspense>} />
           <Route path="quest-admin" element={<Suspense fallback={<PageLoader />}><QuestAdmin /></Suspense>} />
           <Route path="leaderboard" element={<Suspense fallback={<PageLoader />}><Leaderboard /></Suspense>} />
+
+          {/* Block Party — Daily puzzle game (gated behind VITE_ENABLE_GAME) */}
+          <Route path="game" element={<Suspense fallback={<PageLoader />}><GameGate><BlockPartyGame /></GameGate></Suspense>} />
 
           {/* Candidature — Memba DAO membership application (v2.28) */}
           <Route path="candidature" element={<Suspense fallback={<PageLoader />}><CandidaturePage /></Suspense>} />
