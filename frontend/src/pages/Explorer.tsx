@@ -193,7 +193,10 @@ function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
                 )}
 
                 {tab === "functions" && (
-                    funcs === null ? (
+                    // Still loading while qfuncs is in flight, OR qfuncs came back
+                    // empty but the source-parser fallback hasn't resolved yet —
+                    // otherwise the tab flashes "no functions" before the fallback.
+                    funcs === null || (fnList.length === 0 && sourceLoading) ? (
                         <p className="realmview__muted">Loading functions…</p>
                     ) : fnList.length > 0 ? (
                         <ul className="realmview__funcs">
