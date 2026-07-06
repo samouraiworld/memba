@@ -136,6 +136,20 @@
     opacity: 0.7;
 }
 
+/* Moderation tombstone — a hidden/deleted post shows this in place of its body
+   (client mirror of the realm's renderPost suppression). */
+.feed-post--tombstone {
+    border-style: dashed;
+    background: transparent;
+}
+
+.feed-post__tombstone {
+    margin: 0;
+    color: var(--color-text-muted);
+    font-size: var(--text-sm, 0.875rem);
+    font-style: italic;
+}
+
 .feed-post--skeleton {
     height: 96px;
     background: linear-gradient(
