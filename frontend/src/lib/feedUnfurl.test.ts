@@ -73,4 +73,16 @@ describe("parseUnfurls", () => {
         expect(parseUnfurls("https://app.memba.world/test13/validators/valoper/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
             .toEqual([{ kind: "link", url: "https://app.memba.world/test13/validators/valoper/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", host: "app.memba.world" }])
     })
+
+    it("detects a Memba app DAO proposal link as a proposal ref", () => {
+        const url = "https://app.memba.world/test13/dao/gno.land/r/gov/dao/proposal/5"
+        expect(parseUnfurls(`vote on ${url}`)).toEqual([
+            { kind: "proposal", realmPath: "gno.land/r/gov/dao", id: "5", href: url },
+        ])
+    })
+
+    it("does not treat a DAO home path (no /proposal/<id>) as a proposal ref", () => {
+        const url = "https://app.memba.world/test13/dao/gno.land/r/gov/dao"
+        expect(parseUnfurls(url)).toEqual([{ kind: "link", url, host: "app.memba.world" }])
+    })
 })
