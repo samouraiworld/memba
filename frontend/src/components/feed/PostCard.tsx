@@ -19,6 +19,7 @@ import { Flag, ChatCircle } from "@phosphor-icons/react"
 import { submitFeedMsg, buildFlagPostMsg } from "../../lib/feed"
 import type { UiPost } from "../../lib/feedTypes"
 import { relativeTime } from "../../lib/relativeTime"
+import { useNow } from "../../hooks/home/useNow"
 import { FeedAvatar } from "./FeedAvatar"
 
 /** Short display form of a bech32 address, e.g. g1abcd…wxyz. */
@@ -91,9 +92,10 @@ export function PostCard({
         }
     }, [connected, selfAddress, post.id, post.optimistic, flagging, flagged, onRefetch, onConnect])
 
+    const now = useNow()
     const openThread = () => canOpen && onOpenThread!(post.id)
     const name = displayName || shortAddr(post.author)
-    const rel = post.optimistic ? "" : relativeTime(post.blockTs, Date.now())
+    const rel = post.optimistic ? "" : relativeTime(post.blockTs, now)
 
     // Client-side moderation suppression. GetFeedThread returns a thread root in
     // ANY state — a flag-hidden or deleted root reaches this card with its body

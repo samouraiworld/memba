@@ -16,6 +16,7 @@ import { fetchReplyNotifications } from "../../lib/feedApi"
 import { getLastSeenReply, setLastSeenReply } from "../../lib/feedLastSeen"
 import { useActorUsernames } from "../../hooks/home/useActorUsernames"
 import { relativeTime } from "../../lib/relativeTime"
+import { useNow } from "../../hooks/home/useNow"
 import { FeedAvatar } from "./FeedAvatar"
 import { FEED_POLL_MS } from "../../lib/feedConstants"
 
@@ -44,6 +45,7 @@ export function FeedNotifications({
     const unread = query.data?.unreadCount ?? 0
     const latestId = query.data?.latestId ?? 0n
     const names = useActorUsernames(replies.map(r => r.author))
+    const now = useNow()
 
     const markSeen = useCallback(() => {
         if (latestId > 0n) {
@@ -90,7 +92,7 @@ export function FeedNotifications({
                                     <span className="feed-notifs__text">
                                         <span className="feed-notifs__who">
                                             <b>{name}</b> replied
-                                            <span className="feed-notifs__when"> · {relativeTime(r.blockTs, Date.now()) || `block ${r.blockH.toString()}`}</span>
+                                            <span className="feed-notifs__when"> · {relativeTime(r.blockTs, now) || `block ${r.blockH.toString()}`}</span>
                                         </span>
                                         <span className="feed-notifs__snippet">{r.body}</span>
                                     </span>
