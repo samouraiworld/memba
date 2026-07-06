@@ -9,7 +9,7 @@
  */
 
 import { useParams } from "react-router-dom"
-import { useQuery } from "@tanstack/react-query"
+import { useInfiniteQuery } from "@tanstack/react-query"
 import { ArrowLeft } from "@phosphor-icons/react"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useAdena } from "../hooks/useAdena"
@@ -33,16 +33,17 @@ export default function FeedProfile() {
 
     const valid = !!profileAddr && ADDR_RE.test(profileAddr)
 
-    const query = useQuery({
+    const query = useInfiniteQuery({
         queryKey: ["feed", "user", profileAddr ?? ""],
-        queryFn: () => fetchUserFeed(profileAddr as string, 0n, 20),
+        queryFn: ({ pageParam }) => fetchUserFeed(profileAddr as string, pageParam, 20),
+        initialPageParam: 0n,
+        getNextPageParam: (last) => (last.nextCursor && last.nextCursor > 0n ? last.nextCursor : undefined),
         enabled: valid,
-        refetchInterval: 30_000,
         staleTime: 10_000,
         retry: false,
     })
 
-    const posts = (query.data?.posts ?? []) as UiPost[]
+    const posts = (query.data?.pages.flatMap(p => p.posts) ?? []) as UiPost[]
     const isSelf = selfAddress === profileAddr
     const names = useActorUsernames(valid && profileAddr ? [profileAddr] : [])
 
@@ -79,21 +80,34 @@ export default function FeedProfile() {
                     body={isSelf ? "Posts you make will appear here." : "This account hasn't posted to the feed."}
                 />
             ) : (
-                <div className="feed-list" data-testid="feed-profile-list">
-                    {posts.map(post => (
-                        <PostCard
-                            key={post.id.toString()}
-                            post={post}
-                            connected={connected}
-                            selfAddress={selfAddress}
-                            onRefetch={() => void query.refetch()}
-                            onConnect={connect}
-                            onOpenThread={(id) => nav(`/feed/post/${id.toString()}`)}
-                            onOpenProfile={(addr) => nav(`/feed/user/${addr}`)}
-                            displayName={names.get(post.author)}
-                        />
-                    ))}
-                </div>
+                <>
+                    <div className="feed-list" data-testid="feed-profile-list">
+                        {posts.map(post => (
+                            <PostCard
+                                key={post.id.toString()}
+                                post={post}
+                                connected={connected}
+                                selfAddress={selfAddress}
+                                onRefetch={() => void query.refetch()}
+                                onConnect={connect}
+                                onOpenThread={(id) => nav(`/feed/post/${id.toString()}`)}
+                                onOpenProfile={(addr) => nav(`/feed/user/${addr}`)}
+                                displayName={names.get(post.author)}
+                            />
+                        ))}
+                    </div>
+                    {query.hasNextPage && (
+                        <button
+                            type="button"
+                            className="feed-loadmore"
+                            onClick={() => void query.fetchNextPage()}
+                            disabled={query.isFetchingNextPage}
+                            data-testid="feed-profile-load-more"
+                        >
+                            {query.isFetchingNextPage ? "Loading…" : "Load older posts"}
+                        </button>
+                    )}
+                </>
             )}
         </div>
     )
