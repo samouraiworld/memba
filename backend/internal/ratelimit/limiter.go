@@ -41,6 +41,8 @@ const (
 	QuestWriteEndpoint = "quest_write"
 	// QuestClaimEndpoint gates per-address SubmitQuestClaim (self-report proof).
 	QuestClaimEndpoint = "quest_claim"
+	// BlockPartySubmitEndpoint gates per-address SubmitScore.
+	BlockPartySubmitEndpoint = "blockparty_submit"
 )
 
 // PerUserQuestConfigs returns the per-address quest rate limits (Q-03). Defaults:
@@ -56,9 +58,10 @@ func PerUserQuestConfigs(envInt func(name string, def int) int) map[string]Confi
 		envInt = func(_ string, def int) int { return def }
 	}
 	return map[string]Config{
-		QuestWriteEndpoint: {MaxRequests: envInt("MEMBA_QUEST_WRITE_RPM", 10), Window: time.Minute},
-		QuestClaimEndpoint: {MaxRequests: envInt("MEMBA_QUEST_CLAIM_RPM", 5), Window: time.Minute},
-		"default":          {MaxRequests: 10, Window: time.Minute},
+		QuestWriteEndpoint:       {MaxRequests: envInt("MEMBA_QUEST_WRITE_RPM", 10), Window: time.Minute},
+		QuestClaimEndpoint:       {MaxRequests: envInt("MEMBA_QUEST_CLAIM_RPM", 5), Window: time.Minute},
+		BlockPartySubmitEndpoint: {MaxRequests: envInt("MEMBA_BLOCKPARTY_SUBMIT_RPM", 10), Window: time.Minute},
+		"default":                {MaxRequests: 10, Window: time.Minute},
 	}
 }
 

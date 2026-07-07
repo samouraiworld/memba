@@ -8,8 +8,16 @@
  *
  * @module components/feed/PostUnfurls
  */
-import { Cube, LinkSimple, ArrowUpRight } from "@phosphor-icons/react"
+import { useState } from "react"
+import { Cube, Coins, ShieldCheck, Scroll, LinkSimple, ArrowUpRight } from "@phosphor-icons/react"
+import { useQuery } from "@tanstack/react-query"
 import { parseUnfurls } from "../../lib/feedUnfurl"
+import { getTokenInfo, formatSupply } from "../../lib/grc20"
+import { queryRender } from "../../lib/dao/shared"
+import { parseValoperDetail, VALOPERS_REALM } from "../../lib/valopers"
+import { getProposalDetail } from "../../lib/dao/proposals"
+import { fetchLinkPreview, linkImageUrl } from "../../lib/feedApi"
+import { GNO_RPC_URL } from "../../lib/config"
 
 /** Last path segment — the realm/package name. */
 function realmName(path: string): string {
@@ -23,49 +31,235 @@ function realmNamespace(path: string): string {
     return parts.length >= 2 ? `${parts[0]}/${parts[1]}` : path
 }
 
+/**
+ * A LIVE token card — resolves the pasted Memba token link to on-chain data
+ * (supply + holder count) via the same GRC20 factory Render the token page uses.
+ * Shows a skeleton while loading and degrades to a plain `$SYMBOL` card (never a
+ * crash, never fabricated numbers) if the read fails or the token is unknown.
+ */
+function TokenUnfurlCard({ symbol, href }: { symbol: string; href: string }) {
+    const { data, isLoading } = useQuery({
+        queryKey: ["feed-unfurl-token", symbol],
+        queryFn: () => getTokenInfo(GNO_RPC_URL, symbol),
+        staleTime: 60_000,
+        retry: false,
+    })
+
+    const supply = data ? formatSupply(data.totalSupply, data.decimals) : null
+    const facts = data
+        ? [
+            `$${data.symbol}`,
+            supply ? `${supply} supply` : null,
+            data.knownAccounts != null ? `${data.knownAccounts} holders` : null,
+          ].filter(Boolean).join(" · ")
+        : `$${symbol}`
+
+    return (
+        <a
+            className="feed-unfurl feed-unfurl--token"
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="feed-unfurl-token"
+            aria-busy={isLoading || undefined}
+        >
+            <span className="feed-unfurl__badge">
+                <Coins size={13} weight="fill" /> token
+            </span>
+            <span className="feed-unfurl__title">{data?.name || `$${symbol}`}</span>
+            <span className="feed-unfurl__sub">
+                {isLoading ? "Loading…" : facts} <ArrowUpRight size={12} />
+            </span>
+        </a>
+    )
+}
+
+/**
+ * A LIVE validator card — resolves the pasted `/validators/<operatorAddr>` link
+ * to the operator's on-chain valoper profile (moniker + server type) via the
+ * valopers registry Render, the same source the validators page uses. Skeleton
+ * while loading; degrades to a truncated-address card (never a crash) when the
+ * address isn't a registered valoper (e.g. a genesis validator).
+ */
+function ValidatorUnfurlCard({ address, href }: { address: string; href: string }) {
+    const { data, isLoading } = useQuery({
+        queryKey: ["feed-unfurl-valoper", address],
+        queryFn: async () => {
+            const raw = await queryRender(GNO_RPC_URL, VALOPERS_REALM, address)
+            return raw ? parseValoperDetail(raw) : null
+        },
+        staleTime: 60_000,
+        retry: false,
+    })
+
+    const short = `${address.slice(0, 8)}…${address.slice(-4)}`
+    const sub = data ? ["validator", data.serverType || null].filter(Boolean).join(" · ") : "validator"
+
+    return (
+        <a
+            className="feed-unfurl feed-unfurl--validator"
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="feed-unfurl-validator"
+            aria-busy={isLoading || undefined}
+        >
+            <span className="feed-unfurl__badge">
+                <ShieldCheck size={13} weight="fill" /> validator
+            </span>
+            <span className="feed-unfurl__title">{data?.moniker || short}</span>
+            <span className="feed-unfurl__sub">
+                {isLoading ? "Loading…" : sub} <ArrowUpRight size={12} />
+            </span>
+        </a>
+    )
+}
+
+/**
+ * A LIVE DAO proposal card — resolves the pasted `/dao/<realm>/proposal/<id>`
+ * link to the proposal's title + status (+ yes-share) via getProposalDetail, the
+ * same multi-framework read the proposal page uses. Skeleton while loading;
+ * degrades to a `Proposal #<id>` card (never a crash) when the read fails.
+ */
+function ProposalUnfurlCard({ realmPath, id, href }: { realmPath: string; id: string; href: string }) {
+    const { data, isLoading } = useQuery({
+        queryKey: ["feed-unfurl-proposal", realmPath, id],
+        queryFn: () => getProposalDetail(GNO_RPC_URL, realmPath, Number(id)),
+        staleTime: 60_000,
+        retry: false,
+    })
+
+    const sub = isLoading
+        ? "Loading…"
+        : data
+            ? [data.status || "proposal", data.yesPercent ? `${data.yesPercent}% yes` : null].filter(Boolean).join(" · ")
+            : "proposal"
+
+    return (
+        <a
+            className="feed-unfurl feed-unfurl--proposal"
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="feed-unfurl-proposal"
+            aria-busy={isLoading || undefined}
+        >
+            <span className="feed-unfurl__badge">
+                <Scroll size={13} weight="fill" /> proposal
+            </span>
+            <span className="feed-unfurl__title">{data?.title || `Proposal #${id}`}</span>
+            <span className="feed-unfurl__sub">
+                {sub} <ArrowUpRight size={12} />
+            </span>
+        </a>
+    )
+}
+
+/**
+ * An external-link card. When link previews are enabled it upgrades to a rich
+ * card — title / description / site name and a proxied thumbnail (fixed aspect
+ * ratio, no CLS) from the SSRF-guarded GetLinkPreview. Falls back to the plain
+ * host + "Open" card when disabled, still loading, on any error, or if the image
+ * fails — never a blank or broken card.
+ */
+function LinkUnfurlCard({ url, host }: { url: string; host: string }) {
+    const [imgFailed, setImgFailed] = useState(false)
+    const { data } = useQuery({
+        queryKey: ["feed-unfurl-link", url],
+        queryFn: () => fetchLinkPreview(url),
+        enabled: import.meta.env.VITE_ENABLE_LINK_PREVIEWS === "true",
+        staleTime: 300_000,
+        retry: false,
+    })
+
+    const showImage = !!data?.imageToken && !imgFailed
+    if (data && (data.title || showImage)) {
+        const ratio = data.imageWidth > 0 && data.imageHeight > 0 ? data.imageWidth / data.imageHeight : 1.91
+        return (
+            <a
+                className="feed-unfurl feed-unfurl--rich"
+                href={url}
+                target="_blank"
+                rel="noopener noreferrer"
+                data-testid="feed-unfurl-rich"
+            >
+                {showImage && (
+                    <span className="feed-unfurl__thumb" style={{ aspectRatio: String(ratio) }}>
+                        <img
+                            src={linkImageUrl(data.imageToken)}
+                            alt=""
+                            loading="lazy"
+                            referrerPolicy="no-referrer"
+                            onError={() => setImgFailed(true)}
+                        />
+                    </span>
+                )}
+                <span className="feed-unfurl__rich-body">
+                    <span className="feed-unfurl__rich-site">{data.siteName || host}</span>
+                    <span className="feed-unfurl__rich-title">{data.title || host}</span>
+                    {data.description && <span className="feed-unfurl__rich-desc">{data.description}</span>}
+                </span>
+            </a>
+        )
+    }
+
+    return (
+        <a
+            className="feed-unfurl feed-unfurl--link"
+            href={url}
+            target="_blank"
+            rel="noopener noreferrer"
+            data-testid="feed-unfurl-link"
+        >
+            <span className="feed-unfurl__badge">
+                <LinkSimple size={13} /> link
+            </span>
+            <span className="feed-unfurl__title">{host}</span>
+            <span className="feed-unfurl__sub">
+                Open <ArrowUpRight size={12} />
+            </span>
+        </a>
+    )
+}
+
 export function PostUnfurls({ body }: { body: string }) {
     const refs = parseUnfurls(body)
     if (refs.length === 0) return null
 
     return (
         <div className="feed-unfurls" data-testid="feed-unfurls">
-            {refs.map((r, i) =>
-                r.kind === "realm" ? (
-                    <a
-                        key={`realm-${i}`}
-                        className="feed-unfurl feed-unfurl--realm"
-                        href={r.href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        data-testid="feed-unfurl-realm"
-                    >
-                        <span className="feed-unfurl__badge">
-                            <Cube size={13} weight="fill" /> on-chain
-                        </span>
-                        <span className="feed-unfurl__title">{realmName(r.path)}</span>
-                        <span className="feed-unfurl__sub">
-                            {realmNamespace(r.path)} <ArrowUpRight size={12} />
-                        </span>
-                    </a>
-                ) : (
-                    <a
-                        key={`link-${i}`}
-                        className="feed-unfurl feed-unfurl--link"
-                        href={r.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        data-testid="feed-unfurl-link"
-                    >
-                        <span className="feed-unfurl__badge">
-                            <LinkSimple size={13} /> link
-                        </span>
-                        <span className="feed-unfurl__title">{r.host}</span>
-                        <span className="feed-unfurl__sub">
-                            Open <ArrowUpRight size={12} />
-                        </span>
-                    </a>
-                ),
-            )}
+            {refs.map((r, i) => {
+                if (r.kind === "realm") {
+                    return (
+                        <a
+                            key={`realm-${i}`}
+                            className="feed-unfurl feed-unfurl--realm"
+                            href={r.href}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            data-testid="feed-unfurl-realm"
+                        >
+                            <span className="feed-unfurl__badge">
+                                <Cube size={13} weight="fill" /> on-chain
+                            </span>
+                            <span className="feed-unfurl__title">{realmName(r.path)}</span>
+                            <span className="feed-unfurl__sub">
+                                {realmNamespace(r.path)} <ArrowUpRight size={12} />
+                            </span>
+                        </a>
+                    )
+                }
+                if (r.kind === "token") {
+                    return <TokenUnfurlCard key={`token-${i}`} symbol={r.symbol} href={r.href} />
+                }
+                if (r.kind === "validator") {
+                    return <ValidatorUnfurlCard key={`validator-${i}`} address={r.address} href={r.href} />
+                }
+                if (r.kind === "proposal") {
+                    return <ProposalUnfurlCard key={`proposal-${i}`} realmPath={r.realmPath} id={r.id} href={r.href} />
+                }
+                return <LinkUnfurlCard key={`link-${i}`} url={r.url} host={r.host} />
+            })}
         </div>
     )
 }

@@ -10,7 +10,7 @@
  *
  * @module lib/navFlags
  */
-import { isNftEnabled, isServicesEnabled, isMarketplaceEnabled, isFeedEnabled, isExplorerEnabled } from "./config"
+import { isNftEnabled, isServicesEnabled, isMarketplaceEnabled, isFeedEnabled, isExplorerEnabled, isAppStoreEnabled } from "./config"
 
 const FLAG_READERS: Record<string, () => boolean> = {
     VITE_ENABLE_MARKETPLACE: isMarketplaceEnabled,
@@ -18,6 +18,7 @@ const FLAG_READERS: Record<string, () => boolean> = {
     VITE_ENABLE_NFT: isNftEnabled,
     VITE_ENABLE_FEED: isFeedEnabled,
     VITE_ENABLE_EXPLORER: isExplorerEnabled,
+    VITE_ENABLE_APPSTORE: isAppStoreEnabled,
 }
 
 /** True when the entry has no flag (always on) or its flag reader returns true. */

@@ -39,4 +39,50 @@ describe("parseUnfurls", () => {
     it("does not misfire on words containing r/ mid-token", () => {
         expect(parseUnfurls("interior/design is nice")).toEqual([])
     })
+
+    it("detects a Memba app token link as a live token ref", () => {
+        const u = parseUnfurls("holding https://app.memba.world/test13/tokens/MEMBA")
+        expect(u).toEqual([
+            { kind: "token", symbol: "MEMBA", href: "https://app.memba.world/test13/tokens/MEMBA" },
+        ])
+    })
+
+    it("only treats a network-scoped /tokens/ path as a token (not arbitrary sites)", () => {
+        const u = parseUnfurls("see https://example.com/foo/tokens/BAR")
+        expect(u).toEqual([{ kind: "link", url: "https://example.com/foo/tokens/BAR", host: "example.com" }])
+    })
+
+    it("ignores a token path with a non-network first segment", () => {
+        const u = parseUnfurls("https://app.memba.world/en/tokens/NEWS")
+        expect(u).toEqual([{ kind: "link", url: "https://app.memba.world/en/tokens/NEWS", host: "app.memba.world" }])
+    })
+
+    it("detects a Memba app validator link as a validator ref", () => {
+        const addr = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+        const u = parseUnfurls(`gm to ${`https://app.memba.world/test13/validators/${addr}`}`)
+        expect(u).toEqual([
+            { kind: "validator", address: addr, href: `https://app.memba.world/test13/validators/${addr}` },
+        ])
+    })
+
+    it("does not treat /validators/hacker or /validators/valoper/<op> as a validator ref", () => {
+        expect(parseUnfurls("https://app.memba.world/test13/validators/hacker")).toEqual([
+            { kind: "link", url: "https://app.memba.world/test13/validators/hacker", host: "app.memba.world" },
+        ])
+        // A 4-segment valoper subpath is not the canonical /validators/<addr> shape.
+        expect(parseUnfurls("https://app.memba.world/test13/validators/valoper/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"))
+            .toEqual([{ kind: "link", url: "https://app.memba.world/test13/validators/valoper/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5", host: "app.memba.world" }])
+    })
+
+    it("detects a Memba app DAO proposal link as a proposal ref", () => {
+        const url = "https://app.memba.world/test13/dao/gno.land/r/gov/dao/proposal/5"
+        expect(parseUnfurls(`vote on ${url}`)).toEqual([
+            { kind: "proposal", realmPath: "gno.land/r/gov/dao", id: "5", href: url },
+        ])
+    })
+
+    it("does not treat a DAO home path (no /proposal/<id>) as a proposal ref", () => {
+        const url = "https://app.memba.world/test13/dao/gno.land/r/gov/dao"
+        expect(parseUnfurls(url)).toEqual([{ kind: "link", url, host: "app.memba.world" }])
+    })
 })

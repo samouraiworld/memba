@@ -34,6 +34,10 @@ func dispatchFeedEvent(ctx context.Context, db *sql.DB, ev GnoEvent, blockHash s
 		return applyFeedPostFlagged(ctx, db, ev)
 	case "ModAction":
 		return applyFeedModAction(ctx, db, ev)
+	case "ReactionAdded":
+		return applyFeedReactionAdded(ctx, db, ev)
+	case "ReactionRemoved":
+		return applyFeedReactionRemoved(ctx, db, ev)
 	default:
 		// OwnershipTransferred / RealmPaused / TombstonesSwept etc. — no
 		// projection impact.
@@ -134,6 +138,38 @@ func applyFeedPostFlagged(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 	_, err := db.ExecContext(ctx, `
 		UPDATE feed_posts SET flag_count = ?, updated_at = CURRENT_TIMESTAMP
 		WHERE post_id = ?`, count, id)
+	return err
+}
+
+// applyFeedReactionAdded records one (post, emoji, reactor) reaction. Idempotent
+// (INSERT OR IGNORE on the composite key) so re-processing the tail is safe; the
+// realm already enforces one-per-emoji, so a duplicate here is only a replay.
+func applyFeedReactionAdded(ctx context.Context, db *sql.DB, ev GnoEvent) error {
+	id, ok := postID(ev)
+	emoji := ev.Attr("emoji")
+	by := ev.Attr("by")
+	if !ok || emoji == "" || by == "" {
+		slog.Warn("feed indexer: skipping malformed ReactionAdded",
+			"block", ev.Block, "tx", ev.TxIndex, "idx", ev.EventIdx, "hasEmoji", emoji != "", "hasBy", by != "")
+		return nil
+	}
+	_, err := db.ExecContext(ctx, `
+		INSERT OR IGNORE INTO feed_reactions (post_id, emoji, reactor, event_block)
+		VALUES (?, ?, ?, ?)`, id, emoji, by, ev.Block)
+	return err
+}
+
+// applyFeedReactionRemoved deletes the (post, emoji, reactor) reaction (the
+// toggle-off). Idempotent: deleting an absent row is a no-op.
+func applyFeedReactionRemoved(ctx context.Context, db *sql.DB, ev GnoEvent) error {
+	id, ok := postID(ev)
+	emoji := ev.Attr("emoji")
+	by := ev.Attr("by")
+	if !ok || emoji == "" || by == "" {
+		return nil
+	}
+	_, err := db.ExecContext(ctx, `
+		DELETE FROM feed_reactions WHERE post_id = ? AND emoji = ? AND reactor = ?`, id, emoji, by)
 	return err
 }
 

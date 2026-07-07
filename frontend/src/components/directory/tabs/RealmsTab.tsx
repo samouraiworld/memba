@@ -8,7 +8,9 @@ import { useState, useEffect, useCallback, useMemo, useDeferredValue, type CSSPr
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../../../lib/config"
 import { fetchRealms, fetchRealmsLive } from "../../../lib/directory"
 import { queryRender } from "../../../lib/dao/shared"
+import { useNetwork } from "../../../hooks/useNetwork"
 import { RealmDetailDrawer } from "../RealmDetailDrawer"
+import { ExplorerLink } from "../ExplorerLink"
 import DOMPurify from "dompurify"
 import { renderMarkdown } from "../../../lib/markdownLite"
 
@@ -22,6 +24,7 @@ const REALM_CATEGORY_COLORS: Record<string, string> = {
 }
 
 export function RealmsTab() {
+    const { networkKey } = useNetwork()
     const [search, setSearch] = useState("")
     const deferredSearch = useDeferredValue(search)
     const [categoryFilter, setCategoryFilter] = useState<string>("all")
@@ -176,13 +179,21 @@ export function RealmsTab() {
                                                 >
                                                     View Details →
                                                 </button>
+                                                <ExplorerLink
+                                                    realmPath={r.path}
+                                                    networkKey={networkKey}
+                                                    className="dir-render-preview__link"
+                                                    onClick={(e) => e.stopPropagation()}
+                                                />
+                                                {/* External block explorer (gnoweb on current networks) — labelled
+                                                    distinctly from the in-app "🔎 Explorer" viewer above; ↗ signals new tab. */}
                                                 <a
                                                     href={`${getExplorerBaseUrl()}/${r.path.replace("gno.land/", "")}`}
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     className="dir-render-preview__link"
                                                 >
-                                                    Explorer →
+                                                    Block explorer ↗
                                                 </a>
                                                 {r.gnowebUrl && (
                                                     <a
