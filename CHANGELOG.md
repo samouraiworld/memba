@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### App Store — flagship redesign (2026-07-07)
+- **`/apps` reshaped into a world-class on-chain app store.** A real masthead ("Apps you can read before you run them") leads on the store's actual differentiator — every app is a public gno.land realm you can inspect before running — instead of a bare title. Adds a **featured hero** for the lead app, a responsive card grid that scales as listings grow, and designed loading (skeleton), empty, and error states.
+- **Per-app identity when no artwork exists.** Apps with an empty `iconCID` get a deterministic monogram over a gradient seeded (FNV-1a) from the realm path — stable, unique per app, and CSP-safe (computed inline, never fetched). The realm path itself is promoted to a first-class mono chip.
+- **App detail gains a trust panel** ("Read before you run") that names the publisher and points to the Explorer source — the reassurance a store of opaque binaries can't offer. Primary **Open app** CTA + secondary source link; first-party apps still open inline, third-party still open in a new tab (never an iframe).
+- Theme-aware (light + dark) and mobile-responsive via Kodera `--color-k-*` tokens only — no literal colors in `appstore.css` (passes the DESIGN_SYSTEM §13 guardrail); keyboard focus + reduced-motion respected. No backend/realm changes.
+
 ### App Store — de-gate + memba_appstore_v2 (2026-07-07)
 - **`VITE_ENABLE_APPSTORE` is no longer a safety-gated flag.** It was removed from `SAFETY_GATED_FLAGS` (frontend/src/lib/safeFlags.ts) now that `memba_appstore_v2` is deployed on test13 with a self-managed 2-of-2 admin and a **live-verified fee path** — a prod build with the flag enabled no longer fails. The `/apps` page can now ship to prod (Netlify flag flip is a separate operator action).
 - **Frontend repointed to `gno.land/r/samcrew/memba_appstore_v2`** (was `_v1`): `APPSTORE_REALM_PATH` and the `lib/appStore` reads now target the live v2 realm.
