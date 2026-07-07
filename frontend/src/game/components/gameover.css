@@ -1,5 +1,5 @@
 .k-bp-over { text-align: center; padding: var(--space-6) var(--space-4) calc(var(--space-6) + var(--mb-safe-bottom)); font-family: var(--font-mono); }
-.k-bp-over-score { color: var(--color-k-accent); font-size: 2.4rem; margin: 0; }
+.k-bp-over-score { color: var(--color-k-accent-text); font-size: 2.4rem; margin: 0; }
 .k-bp-over-par { color: var(--color-k-dim); margin: var(--space-1) 0 var(--space-4); }
 .k-bp-over-rank { color: var(--color-k-text); font-size: 1.1rem; }
 .k-bp-over-note { color: var(--color-k-muted); font-size: 0.8rem; max-width: 32ch; margin: var(--space-3) auto; }
