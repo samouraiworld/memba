@@ -3,8 +3,9 @@
  *
  * Renders children only when VITE_ENABLE_APPSTORE is on; otherwise a Coming-Soon
  * gate (mirrors FeedGate), so the page can't leak by direct URL when off.
- * VITE_ENABLE_APPSTORE is SAFETY-GATED (in SAFETY_GATED_FLAGS) because the realm's
- * RegisterApp fee path is not yet verified on-chain — it stays off until then.
+ * VITE_ENABLE_APPSTORE was de-gated 2026-07-07 (memba_appstore_v2 live on test13
+ * with a self-managed 2-of-2 admin + verified fee path); enabling it is a Netlify
+ * flag flip, no longer blocked by the build-time safety gate.
  *
  * @module components/ui/AppStoreGate
  */

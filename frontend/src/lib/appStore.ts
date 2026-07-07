@@ -1,5 +1,5 @@
 /**
- * appStore — read-only client for the memba_appstore_v1 realm (W9 App Store).
+ * appStore — read-only client for the memba_appstore_v2 realm (W9 App Store).
  *
  * Reads the realm's JSON getters (`ListLiveJSON`, `GetListingJSON`) via ABCI
  * `vm/qeval` and parses them. Read-only: the money path (RegisterApp) is a wallet
@@ -15,7 +15,7 @@
 import { queryEval, parseQevalJSON } from "./dao/shared"
 import { GNO_RPC_URL } from "./config"
 
-export const APPSTORE_REALM_PATH = "gno.land/r/samcrew/memba_appstore_v1"
+export const APPSTORE_REALM_PATH = "gno.land/r/samcrew/memba_appstore_v2"
 
 export interface AppListing {
     id: number
@@ -43,6 +43,9 @@ function coerce(o: unknown): AppListing | null {
     if (!o || typeof o !== "object") return null
     const r = o as Record<string, unknown>
     if (typeof r.pkgPath !== "string" || typeof r.name !== "string") return null
+    // Defense-in-depth: fetchLiveApps maps coerce and AppDetail cross-links to
+    // /explorer/{pkgPath}, so drop any listing whose pkgPath isn't a safe realm path.
+    if (!isSafeRealmPath(r.pkgPath)) return null
     const str = (v: unknown): string => (typeof v === "string" ? v : "")
     return {
         id: Number(r.id) || 0,

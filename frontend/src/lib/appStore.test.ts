@@ -1,5 +1,33 @@
-import { describe, it, expect } from "vitest"
-import { isSafeRealmPath } from "./appStore"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
+import { isSafeRealmPath, APPSTORE_REALM_PATH, fetchLiveApps } from "./appStore"
+import * as shared from "./dao/shared"
+
+describe("APPSTORE_REALM_PATH", () => {
+    it("points at the v2 realm", () => {
+        expect(APPSTORE_REALM_PATH.endsWith("_v2")).toBe(true)
+    })
+})
+
+describe("fetchLiveApps (coerce drops unsafe pkgPaths)", () => {
+    beforeEach(() => {
+        vi.restoreAllMocks()
+    })
+    afterEach(() => {
+        vi.restoreAllMocks()
+    })
+
+    it("drops a listing whose pkgPath is not a safe realm path", async () => {
+        const safe = { id: 1, pkgPath: "gno.land/r/samcrew/block_party", name: "Block Party" }
+        const unsafe = { id: 2, pkgPath: `gno.land/r/x") + Evil("`, name: "Evil" }
+        vi.spyOn(shared, "queryEval").mockResolvedValue("[unused]")
+        vi.spyOn(shared, "parseQevalJSON").mockReturnValue([safe, unsafe])
+
+        const apps = await fetchLiveApps(0, 10)
+        expect(apps).toHaveLength(1)
+        expect(apps[0].pkgPath).toBe(safe.pkgPath)
+        expect(apps.some((a) => a.pkgPath.includes("Evil"))).toBe(false)
+    })
+})
 
 describe("isSafeRealmPath (qeval-expression injection guard)", () => {
     it("accepts well-formed realm/package paths", () => {

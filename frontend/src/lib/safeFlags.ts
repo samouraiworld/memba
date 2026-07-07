@@ -16,10 +16,9 @@ export const SAFETY_GATED_FLAGS = [
     // treasury enforced on-chain). The flag now legitimately turns the lane on in prod.
     "VITE_ENABLE_TREASURY_SPEND",
     "VITE_ENABLE_AGENT_CREDITS",
-    // VITE_ENABLE_APPSTORE — the memba_appstore_v1 RegisterApp fee path (money path)
-    // is not yet deployed + verified on test13. Remove this once the on-chain
-    // fee-path checklist (SPIKE_APP_STORE.md) passes, then de-gate.
-    "VITE_ENABLE_APPSTORE",
+    // VITE_ENABLE_APPSTORE de-gated 2026-07-07 after memba_appstore_v2 deployed on
+    // test13 with a self-managed 2-of-2 admin and a live-verified fee path. The flag
+    // now legitimately turns the App Store lane on in prod.
 ] as const
 
 /**
