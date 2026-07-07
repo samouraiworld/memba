@@ -37,6 +37,11 @@
   --color-k-danger-border: rgba(255, 71, 87, 0.20);   /* 20% border */
   --color-k-featured-border: #14463a;
   --color-k-featured-bg: #0c1614;
+  /* Surface-tinted scrim for text-bearing overlays on a surface (e.g. the
+     Block Party board hint). Tints toward the theme's surface — NOT a fixed
+     black like --color-overlay — so normal --color-k-text/-dim stay legible on
+     top in BOTH themes. */
+  --color-k-scrim: rgba(0, 0, 0, 0.62);
   --color-k-danger: #ff4757;
   --color-k-warning: #ffa502;
   --color-k-warning-text: #ffa502; /* §13: warning/amber as TEXT — bright amber is legible on the dark bg */
@@ -110,6 +115,8 @@
   --color-k-danger-border: rgba(220, 38, 38, 0.25);   /* 25% border */
   --color-k-featured-border: #bfe6dd;
   --color-k-featured-bg: #f1faf7;
+  /* Scrim tints toward the light surface so near-black text reads on top. */
+  --color-k-scrim: rgba(240, 241, 243, 0.86);
   --color-k-danger: #dc2626;
   --color-k-warning: #d97706;
   --color-k-warning-text: #854f0b; /* §13: amber as TEXT on light — amber-800 ~5.9:1 (the bright #ffa502/#f5a623 are ~2:1 as text) */
