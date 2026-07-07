@@ -70,7 +70,7 @@ const feedPostSelect = `
 	SELECT p.post_id, p.author, p.body, p.reply_to, p.block_h, p.block_ts,
 	       p.edited_at, p.flag_count, p.hidden, p.deleted,
 	       (SELECT COUNT(*) FROM feed_posts c
-	          WHERE c.reply_to = p.post_id AND c.deleted = 0 AND c.hidden = 0) AS reply_count
+	          WHERE c.reply_to = p.post_id AND c.deleted = 0 AND c.hidden = 0 AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = c.post_id)) AS reply_count
 	FROM feed_posts p`
 
 // GetFeedTimeline returns the newest visible TOP-LEVEL posts (reply_to = 0),
@@ -84,7 +84,7 @@ func (s *MultisigService) GetFeedTimeline(ctx context.Context, req *connect.Requ
 
 	// cursor == 0 → newest window; else strictly older than the cursor id.
 	q := feedPostSelect + `
-		WHERE p.reply_to = 0 AND p.hidden = 0 AND p.deleted = 0`
+		WHERE p.reply_to = 0 AND p.hidden = 0 AND p.deleted = 0 AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)`
 	args := []any{}
 	if cursor != 0 {
 		q += ` AND p.post_id < ?`
@@ -122,7 +122,7 @@ func (s *MultisigService) GetUserFeed(ctx context.Context, req *connect.Request[
 	cursor := req.Msg.Cursor
 
 	q := feedPostSelect + `
-		WHERE p.author = ? AND p.hidden = 0 AND p.deleted = 0`
+		WHERE p.author = ? AND p.hidden = 0 AND p.deleted = 0 AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)`
 	args := []any{author}
 	if cursor != 0 {
 		q += ` AND p.post_id < ?`
@@ -160,7 +160,7 @@ func (s *MultisigService) GetFeedThread(ctx context.Context, req *connect.Reques
 	cursor := req.Msg.Cursor
 
 	// Root (any state — a deleted parent still anchors its thread).
-	rootRows, err := s.db.QueryContext(ctx, feedPostSelect+` WHERE p.post_id = ?`, postID)
+	rootRows, err := s.db.QueryContext(ctx, feedPostSelect+` WHERE p.post_id = ? AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)`, postID)
 	if err != nil {
 		return nil, internalError("GetFeedThread/root", err)
 	}
@@ -175,7 +175,7 @@ func (s *MultisigService) GetFeedThread(ctx context.Context, req *connect.Reques
 
 	// Live replies, oldest first, strictly after the cursor.
 	q := feedPostSelect + `
-		WHERE p.reply_to = ? AND p.hidden = 0 AND p.deleted = 0`
+		WHERE p.reply_to = ? AND p.hidden = 0 AND p.deleted = 0 AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)`
 	args := []any{postID}
 	if cursor != 0 {
 		q += ` AND p.post_id > ?`
@@ -226,7 +226,7 @@ func (s *MultisigService) GetReplyNotifications(ctx context.Context, req *connec
 	const joinWhere = `
 		FROM feed_posts r
 		JOIN feed_posts p ON p.post_id = r.reply_to
-		WHERE p.author = ? AND r.author != ? AND r.hidden = 0 AND r.deleted = 0`
+		WHERE p.author = ? AND r.author != ? AND r.hidden = 0 AND r.deleted = 0 AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = r.post_id)`
 
 	q := `
 		SELECT r.post_id, r.author, r.body, r.reply_to, r.block_h, r.block_ts,
@@ -272,24 +272,24 @@ func (s *MultisigService) GetReplyNotifications(ctx context.Context, req *connec
 func (s *MultisigService) GetFeedStats(ctx context.Context, req *connect.Request[membav1.GetFeedStatsRequest]) (*connect.Response[membav1.GetFeedStatsResponse], error) {
 	var livePosts, totalReplies, totalAuthors int64
 	if err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM feed_posts WHERE reply_to = 0 AND hidden = 0 AND deleted = 0`).
+		`SELECT COUNT(*) FROM feed_posts WHERE reply_to = 0 AND hidden = 0 AND deleted = 0 AND post_id NOT IN (SELECT post_id FROM feed_blocklist)`).
 		Scan(&livePosts); err != nil {
 		return nil, internalError("GetFeedStats/posts", err)
 	}
 	if err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(*) FROM feed_posts WHERE reply_to != 0 AND hidden = 0 AND deleted = 0`).
+		`SELECT COUNT(*) FROM feed_posts WHERE reply_to != 0 AND hidden = 0 AND deleted = 0 AND post_id NOT IN (SELECT post_id FROM feed_blocklist)`).
 		Scan(&totalReplies); err != nil {
 		return nil, internalError("GetFeedStats/replies", err)
 	}
 	if err := s.db.QueryRowContext(ctx,
-		`SELECT COUNT(DISTINCT author) FROM feed_posts WHERE hidden = 0 AND deleted = 0`).
+		`SELECT COUNT(DISTINCT author) FROM feed_posts WHERE hidden = 0 AND deleted = 0 AND post_id NOT IN (SELECT post_id FROM feed_blocklist)`).
 		Scan(&totalAuthors); err != nil {
 		return nil, internalError("GetFeedStats/authors", err)
 	}
 	// Most-replied visible top-level posts (trending). reply_count is the same
 	// live-reply subquery the timeline uses; order by it descending.
 	rows, err := s.db.QueryContext(ctx, feedPostSelect+`
-		WHERE p.reply_to = 0 AND p.hidden = 0 AND p.deleted = 0
+		WHERE p.reply_to = 0 AND p.hidden = 0 AND p.deleted = 0 AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)
 		ORDER BY reply_count DESC, p.post_id DESC LIMIT 5`)
 	if err != nil {
 		return nil, internalError("GetFeedStats/mostReplied", err)

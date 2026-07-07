@@ -188,6 +188,12 @@ func main() {
 		slog.Info("attestation signer configured", "pubkey", signer.PublicKeyHex())
 	}
 
+	// Block Party feature flag + seed RPC source (B6). Disabled unless
+	// BLOCKPARTY_ENABLED is "1"/"true"; BLOCKPARTY_SEED_RPC_URL overrides the
+	// built-in default test13 node.
+	bpEnabled := os.Getenv("BLOCKPARTY_ENABLED") == "1" || os.Getenv("BLOCKPARTY_ENABLED") == "true"
+	svc.SetBlockParty(bpEnabled, os.Getenv("BLOCKPARTY_SEED_RPC_URL"))
+
 	// Start nonce tracker GC with app context for clean shutdown.
 	auth.StartNonceTracker(ctx)
 
@@ -331,6 +337,13 @@ func main() {
 	// SSRF-hardened: only ipfs:// and https:// public hosts are permitted.
 	mux.Handle("/api/nft/image", rateLimitMiddleware("nft", service.HandleNFTImage()))
 	mux.Handle("/api/nft/metadata", rateLimitMiddleware("nft", service.HandleNFTMetadata()))
+	// Feed link-preview image proxy — serves only images vetted by GetLinkPreview
+	// (signed token). SSRF-hardened via the shared safeTransport; gated by
+	// MEMBA_ENABLE_LINK_PREVIEWS (returns 404 when off).
+	mux.Handle("/api/link-image", rateLimitMiddleware("link_preview", svc.HandleLinkImage()))
+	// Feed serving-blocklist (W8.2): operator lever to suppress a post from every
+	// read path. Bearer-gated + fail-closed (404 unless FEED_MODERATION_BEARER set).
+	mux.Handle("/api/feed/moderation", rateLimitMiddleware("feed_moderation", service.HandleFeedModeration(database)))
 
 	// GitHub OAuth — CSRF-protected state generation + code exchange
 	mux.Handle("/github/oauth/state", rateLimitMiddleware("oauth", service.HandleGitHubOAuthState(oauthStore)))

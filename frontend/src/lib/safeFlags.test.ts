@@ -27,10 +27,7 @@ describe("assertSafeFlags", () => {
     })
 
     it("guards the fund-moving and incomplete-enforcement flags", () => {
-        expect([...SAFETY_GATED_FLAGS]).toEqual([
-            "VITE_ENABLE_TREASURY_SPEND",
-            "VITE_ENABLE_AGENT_CREDITS",
-        ])
+        expect([...SAFETY_GATED_FLAGS]).toEqual(["VITE_ENABLE_TREASURY_SPEND", "VITE_ENABLE_AGENT_CREDITS"])
     })
 })
 
@@ -38,6 +35,13 @@ describe("VITE_ENABLE_NFT (enabled — marketplace live: v3.1 deployed + registe
     it("is no longer gated, so true does not fail the build", () => {
         expect(SAFETY_GATED_FLAGS).not.toContain("VITE_ENABLE_NFT")
         expect(() => assertSafeFlags({ VITE_ENABLE_NFT: "true" })).not.toThrow()
+    })
+})
+
+describe("VITE_ENABLE_APPSTORE (de-gated 2026-07-07 — memba_appstore_v2 live on test13)", () => {
+    it("is no longer gated, so true does not fail the build", () => {
+        expect(SAFETY_GATED_FLAGS).not.toContain("VITE_ENABLE_APPSTORE")
+        expect(() => assertSafeFlags({ VITE_ENABLE_APPSTORE: "true" })).not.toThrow()
     })
 })
 

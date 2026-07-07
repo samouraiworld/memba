@@ -1,0 +1,7 @@
+.k-bp-panel { border: 1px solid var(--color-k-edge); border-radius: var(--radius-lg); padding: var(--space-4); font-family: var(--font-mono); }
+.k-bp-panel--empty { color: var(--color-k-muted); text-align: center; }
+.k-bp-lb { list-style: none; margin: 0; padding: var(--space-2); }
+.k-bp-lb-row { display: grid; grid-template-columns: 3rem 1fr auto; gap: var(--space-3); padding: var(--space-2) 0; border-bottom: 1px solid var(--color-k-edge); }
+.k-bp-lb-rank { color: var(--color-k-accent); }
+.k-bp-lb-score { color: var(--color-k-text); text-align: right; }
+.k-bp-streak { color: var(--color-k-govdao); }

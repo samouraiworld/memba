@@ -53,3 +53,24 @@ Both GO conditions are met (qfile/qfuncs read-only work; median render < 2s) and
 
 ## How this was measured
 `gnokey query vm/{qrender,qfile,qfuncs} --data <path> -remote https://rpc.test13.testnets.gno.land:443`, wall-clock timed, 2026-07-06. `qeval` removal confirmed at `render_proxy.go:234` (`HandleEvalProxy … removed in v6 (SEC-01)`).
+
+---
+
+## P1 — shipped increment + `qeval` read-console decision (2026-07-06)
+
+After P0 landed (#776), the P1 increment ships three read-only-by-construction additions and **resolves the one deferred decision this spike flagged** ("whether to pursue the deferred `qeval` read-console").
+
+### Shipped in P1 (no funds, no owner action, still behind `VITE_ENABLE_EXPLORER`)
+1. **Cross-link discoverability** — the Explorer stops being an island. The Directory's realm detail drawer and realm cards link into `/explorer/<path>` through a self-gating `<ExplorerLink>` (renders nothing when the flag is off → no coming-soon-gate dead-ends). Internal SPA `<Link>`s, deliberately distinct from the external block-explorer / gnoweb links.
+2. **Playground hand-off** — an "Open Playground ↗" link on the Source tab, beside the copy-source control. Devs copy a file and experiment on `play.gno.land`. **No in-app editor, no pre-fill deep-link** — play.gno.land shares via server-side permalinks with no client-constructable pre-fill URL, so a `?code=` guess would silently break — and no execution.
+3. **Signature cleanup** — the Functions tab strips the VM's internal `.uverse.` qualifier (`address` not `.uverse.address`, incl. nested/composite types), and the source-parser fallback is centralised in a unit-tested `resolveFnList`.
+
+### Decision: `qeval` read-console — **KEEP READ-ONLY-BY-CONSTRUCTION (do not build the qeval path)**
+
+| Option | What it is | Verdict |
+|---|---|---|
+| **A. Lean on the Playground hand-off (SHIPPED)** | Copy source → `play.gno.land` to run/experiment. Zero in-app execution surface. | **RECOMMENDED / shipped.** Preserves the read-only-by-construction invariant and still gives realm devs a real "run it" path — no new attack surface. |
+| B. Strictly-scoped guarded `qeval` read-proxy | Re-add a backend `qeval` proxy restricted to an allowlist of "known-pure" exported reads. | **Not recommended.** There is no cheap on-chain guarantee an exported function is side-effect-free from the proxy's vantage — exactly why `HandleEvalProxy` was removed in v6 (SEC-01). Re-introducing *any* `qeval` path reopens that surface + its review/ops burden, for a convenience the Playground already covers. If ever revisited, it is an **owner-gated, security-reviewed** track, not a viewer increment. |
+| C. Embed `play.gno.land` in an iframe | Frame the Playground in-app. | Not recommended — CSP/frame-ancestors friction, no real advantage over the hand-off link. |
+
+**Owner action:** ratify Option A (already shipped) and consider the deferred `qeval` decision **closed** as read-only-by-construction. Re-open only as a dedicated, owner-gated security track if in-app read-console demand from realm developers materialises.

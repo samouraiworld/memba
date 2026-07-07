@@ -155,12 +155,30 @@ const (
 	// MultisigServiceGetFeedThreadProcedure is the fully-qualified name of the MultisigService's
 	// GetFeedThread RPC.
 	MultisigServiceGetFeedThreadProcedure = "/memba.v1.MultisigService/GetFeedThread"
+	// MultisigServiceGetDailyChallengeProcedure is the fully-qualified name of the MultisigService's
+	// GetDailyChallenge RPC.
+	MultisigServiceGetDailyChallengeProcedure = "/memba.v1.MultisigService/GetDailyChallenge"
+	// MultisigServiceSubmitScoreProcedure is the fully-qualified name of the MultisigService's
+	// SubmitScore RPC.
+	MultisigServiceSubmitScoreProcedure = "/memba.v1.MultisigService/SubmitScore"
+	// MultisigServiceGetDailyLeaderboardProcedure is the fully-qualified name of the MultisigService's
+	// GetDailyLeaderboard RPC.
+	MultisigServiceGetDailyLeaderboardProcedure = "/memba.v1.MultisigService/GetDailyLeaderboard"
+	// MultisigServiceGetStreakProcedure is the fully-qualified name of the MultisigService's GetStreak
+	// RPC.
+	MultisigServiceGetStreakProcedure = "/memba.v1.MultisigService/GetStreak"
 	// MultisigServiceGetReplyNotificationsProcedure is the fully-qualified name of the
 	// MultisigService's GetReplyNotifications RPC.
 	MultisigServiceGetReplyNotificationsProcedure = "/memba.v1.MultisigService/GetReplyNotifications"
 	// MultisigServiceGetFeedStatsProcedure is the fully-qualified name of the MultisigService's
 	// GetFeedStats RPC.
 	MultisigServiceGetFeedStatsProcedure = "/memba.v1.MultisigService/GetFeedStats"
+	// MultisigServiceGetLinkPreviewProcedure is the fully-qualified name of the MultisigService's
+	// GetLinkPreview RPC.
+	MultisigServiceGetLinkPreviewProcedure = "/memba.v1.MultisigService/GetLinkPreview"
+	// MultisigServiceGetPostReactionsProcedure is the fully-qualified name of the MultisigService's
+	// GetPostReactions RPC.
+	MultisigServiceGetPostReactionsProcedure = "/memba.v1.MultisigService/GetPostReactions"
 )
 
 // MultisigServiceClient is a client for the memba.v1.MultisigService service.
@@ -222,10 +240,23 @@ type MultisigServiceClient interface {
 	GetFeedTimeline(context.Context, *connect.Request[v1.GetFeedTimelineRequest]) (*connect.Response[v1.GetFeedTimelineResponse], error)
 	GetUserFeed(context.Context, *connect.Request[v1.GetUserFeedRequest]) (*connect.Response[v1.GetUserFeedResponse], error)
 	GetFeedThread(context.Context, *connect.Request[v1.GetFeedThreadRequest]) (*connect.Response[v1.GetFeedThreadResponse], error)
+	// Block Party — daily on-chain-seeded puzzle game
+	GetDailyChallenge(context.Context, *connect.Request[v1.GetDailyChallengeRequest]) (*connect.Response[v1.GetDailyChallengeResponse], error)
+	SubmitScore(context.Context, *connect.Request[v1.SubmitScoreRequest]) (*connect.Response[v1.SubmitScoreResponse], error)
+	GetDailyLeaderboard(context.Context, *connect.Request[v1.GetDailyLeaderboardRequest]) (*connect.Response[v1.GetDailyLeaderboardResponse], error)
+	GetStreak(context.Context, *connect.Request[v1.GetStreakRequest]) (*connect.Response[v1.GetStreakResponse], error)
 	// Replies to the caller's own posts — the "someone replied to you" surface.
 	GetReplyNotifications(context.Context, *connect.Request[v1.GetReplyNotificationsRequest]) (*connect.Response[v1.GetReplyNotificationsResponse], error)
 	// Feed-wide live stats for the header/rail (post + author counts).
 	GetFeedStats(context.Context, *connect.Request[v1.GetFeedStatsRequest]) (*connect.Response[v1.GetFeedStatsResponse], error)
+	// Server-side rich preview for an external URL — OG/Twitter-card metadata via
+	// an SSRF-guarded fetch, with the image proxied through a signed token. Public
+	// read, no auth; rate-limited; returns ok=false (never an error) so the UI can
+	// fall back to a plain link card. Gated by MEMBA_ENABLE_LINK_PREVIEWS.
+	GetLinkPreview(context.Context, *connect.Request[v1.GetLinkPreviewRequest]) (*connect.Response[v1.GetLinkPreviewResponse], error)
+	// Reaction counts for a set of posts (+ which emojis the viewer reacted with).
+	// Public read, no auth; aggregated from the feed_reactions projection.
+	GetPostReactions(context.Context, *connect.Request[v1.GetPostReactionsRequest]) (*connect.Response[v1.GetPostReactionsResponse], error)
 }
 
 // NewMultisigServiceClient constructs a client for the memba.v1.MultisigService service. By
@@ -485,6 +516,30 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(multisigServiceMethods.ByName("GetFeedThread")),
 			connect.WithClientOptions(opts...),
 		),
+		getDailyChallenge: connect.NewClient[v1.GetDailyChallengeRequest, v1.GetDailyChallengeResponse](
+			httpClient,
+			baseURL+MultisigServiceGetDailyChallengeProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetDailyChallenge")),
+			connect.WithClientOptions(opts...),
+		),
+		submitScore: connect.NewClient[v1.SubmitScoreRequest, v1.SubmitScoreResponse](
+			httpClient,
+			baseURL+MultisigServiceSubmitScoreProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("SubmitScore")),
+			connect.WithClientOptions(opts...),
+		),
+		getDailyLeaderboard: connect.NewClient[v1.GetDailyLeaderboardRequest, v1.GetDailyLeaderboardResponse](
+			httpClient,
+			baseURL+MultisigServiceGetDailyLeaderboardProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetDailyLeaderboard")),
+			connect.WithClientOptions(opts...),
+		),
+		getStreak: connect.NewClient[v1.GetStreakRequest, v1.GetStreakResponse](
+			httpClient,
+			baseURL+MultisigServiceGetStreakProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetStreak")),
+			connect.WithClientOptions(opts...),
+		),
 		getReplyNotifications: connect.NewClient[v1.GetReplyNotificationsRequest, v1.GetReplyNotificationsResponse](
 			httpClient,
 			baseURL+MultisigServiceGetReplyNotificationsProcedure,
@@ -495,6 +550,18 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			httpClient,
 			baseURL+MultisigServiceGetFeedStatsProcedure,
 			connect.WithSchema(multisigServiceMethods.ByName("GetFeedStats")),
+			connect.WithClientOptions(opts...),
+		),
+		getLinkPreview: connect.NewClient[v1.GetLinkPreviewRequest, v1.GetLinkPreviewResponse](
+			httpClient,
+			baseURL+MultisigServiceGetLinkPreviewProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetLinkPreview")),
+			connect.WithClientOptions(opts...),
+		),
+		getPostReactions: connect.NewClient[v1.GetPostReactionsRequest, v1.GetPostReactionsResponse](
+			httpClient,
+			baseURL+MultisigServiceGetPostReactionsProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetPostReactions")),
 			connect.WithClientOptions(opts...),
 		),
 	}
@@ -543,8 +610,14 @@ type multisigServiceClient struct {
 	getFeedTimeline        *connect.Client[v1.GetFeedTimelineRequest, v1.GetFeedTimelineResponse]
 	getUserFeed            *connect.Client[v1.GetUserFeedRequest, v1.GetUserFeedResponse]
 	getFeedThread          *connect.Client[v1.GetFeedThreadRequest, v1.GetFeedThreadResponse]
+	getDailyChallenge      *connect.Client[v1.GetDailyChallengeRequest, v1.GetDailyChallengeResponse]
+	submitScore            *connect.Client[v1.SubmitScoreRequest, v1.SubmitScoreResponse]
+	getDailyLeaderboard    *connect.Client[v1.GetDailyLeaderboardRequest, v1.GetDailyLeaderboardResponse]
+	getStreak              *connect.Client[v1.GetStreakRequest, v1.GetStreakResponse]
 	getReplyNotifications  *connect.Client[v1.GetReplyNotificationsRequest, v1.GetReplyNotificationsResponse]
 	getFeedStats           *connect.Client[v1.GetFeedStatsRequest, v1.GetFeedStatsResponse]
+	getLinkPreview         *connect.Client[v1.GetLinkPreviewRequest, v1.GetLinkPreviewResponse]
+	getPostReactions       *connect.Client[v1.GetPostReactionsRequest, v1.GetPostReactionsResponse]
 }
 
 // GetChallenge calls memba.v1.MultisigService.GetChallenge.
@@ -752,6 +825,26 @@ func (c *multisigServiceClient) GetFeedThread(ctx context.Context, req *connect.
 	return c.getFeedThread.CallUnary(ctx, req)
 }
 
+// GetDailyChallenge calls memba.v1.MultisigService.GetDailyChallenge.
+func (c *multisigServiceClient) GetDailyChallenge(ctx context.Context, req *connect.Request[v1.GetDailyChallengeRequest]) (*connect.Response[v1.GetDailyChallengeResponse], error) {
+	return c.getDailyChallenge.CallUnary(ctx, req)
+}
+
+// SubmitScore calls memba.v1.MultisigService.SubmitScore.
+func (c *multisigServiceClient) SubmitScore(ctx context.Context, req *connect.Request[v1.SubmitScoreRequest]) (*connect.Response[v1.SubmitScoreResponse], error) {
+	return c.submitScore.CallUnary(ctx, req)
+}
+
+// GetDailyLeaderboard calls memba.v1.MultisigService.GetDailyLeaderboard.
+func (c *multisigServiceClient) GetDailyLeaderboard(ctx context.Context, req *connect.Request[v1.GetDailyLeaderboardRequest]) (*connect.Response[v1.GetDailyLeaderboardResponse], error) {
+	return c.getDailyLeaderboard.CallUnary(ctx, req)
+}
+
+// GetStreak calls memba.v1.MultisigService.GetStreak.
+func (c *multisigServiceClient) GetStreak(ctx context.Context, req *connect.Request[v1.GetStreakRequest]) (*connect.Response[v1.GetStreakResponse], error) {
+	return c.getStreak.CallUnary(ctx, req)
+}
+
 // GetReplyNotifications calls memba.v1.MultisigService.GetReplyNotifications.
 func (c *multisigServiceClient) GetReplyNotifications(ctx context.Context, req *connect.Request[v1.GetReplyNotificationsRequest]) (*connect.Response[v1.GetReplyNotificationsResponse], error) {
 	return c.getReplyNotifications.CallUnary(ctx, req)
@@ -760,6 +853,16 @@ func (c *multisigServiceClient) GetReplyNotifications(ctx context.Context, req *
 // GetFeedStats calls memba.v1.MultisigService.GetFeedStats.
 func (c *multisigServiceClient) GetFeedStats(ctx context.Context, req *connect.Request[v1.GetFeedStatsRequest]) (*connect.Response[v1.GetFeedStatsResponse], error) {
 	return c.getFeedStats.CallUnary(ctx, req)
+}
+
+// GetLinkPreview calls memba.v1.MultisigService.GetLinkPreview.
+func (c *multisigServiceClient) GetLinkPreview(ctx context.Context, req *connect.Request[v1.GetLinkPreviewRequest]) (*connect.Response[v1.GetLinkPreviewResponse], error) {
+	return c.getLinkPreview.CallUnary(ctx, req)
+}
+
+// GetPostReactions calls memba.v1.MultisigService.GetPostReactions.
+func (c *multisigServiceClient) GetPostReactions(ctx context.Context, req *connect.Request[v1.GetPostReactionsRequest]) (*connect.Response[v1.GetPostReactionsResponse], error) {
+	return c.getPostReactions.CallUnary(ctx, req)
 }
 
 // MultisigServiceHandler is an implementation of the memba.v1.MultisigService service.
@@ -821,10 +924,23 @@ type MultisigServiceHandler interface {
 	GetFeedTimeline(context.Context, *connect.Request[v1.GetFeedTimelineRequest]) (*connect.Response[v1.GetFeedTimelineResponse], error)
 	GetUserFeed(context.Context, *connect.Request[v1.GetUserFeedRequest]) (*connect.Response[v1.GetUserFeedResponse], error)
 	GetFeedThread(context.Context, *connect.Request[v1.GetFeedThreadRequest]) (*connect.Response[v1.GetFeedThreadResponse], error)
+	// Block Party — daily on-chain-seeded puzzle game
+	GetDailyChallenge(context.Context, *connect.Request[v1.GetDailyChallengeRequest]) (*connect.Response[v1.GetDailyChallengeResponse], error)
+	SubmitScore(context.Context, *connect.Request[v1.SubmitScoreRequest]) (*connect.Response[v1.SubmitScoreResponse], error)
+	GetDailyLeaderboard(context.Context, *connect.Request[v1.GetDailyLeaderboardRequest]) (*connect.Response[v1.GetDailyLeaderboardResponse], error)
+	GetStreak(context.Context, *connect.Request[v1.GetStreakRequest]) (*connect.Response[v1.GetStreakResponse], error)
 	// Replies to the caller's own posts — the "someone replied to you" surface.
 	GetReplyNotifications(context.Context, *connect.Request[v1.GetReplyNotificationsRequest]) (*connect.Response[v1.GetReplyNotificationsResponse], error)
 	// Feed-wide live stats for the header/rail (post + author counts).
 	GetFeedStats(context.Context, *connect.Request[v1.GetFeedStatsRequest]) (*connect.Response[v1.GetFeedStatsResponse], error)
+	// Server-side rich preview for an external URL — OG/Twitter-card metadata via
+	// an SSRF-guarded fetch, with the image proxied through a signed token. Public
+	// read, no auth; rate-limited; returns ok=false (never an error) so the UI can
+	// fall back to a plain link card. Gated by MEMBA_ENABLE_LINK_PREVIEWS.
+	GetLinkPreview(context.Context, *connect.Request[v1.GetLinkPreviewRequest]) (*connect.Response[v1.GetLinkPreviewResponse], error)
+	// Reaction counts for a set of posts (+ which emojis the viewer reacted with).
+	// Public read, no auth; aggregated from the feed_reactions projection.
+	GetPostReactions(context.Context, *connect.Request[v1.GetPostReactionsRequest]) (*connect.Response[v1.GetPostReactionsResponse], error)
 }
 
 // NewMultisigServiceHandler builds an HTTP handler from the service implementation. It returns the
@@ -1080,6 +1196,30 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		connect.WithSchema(multisigServiceMethods.ByName("GetFeedThread")),
 		connect.WithHandlerOptions(opts...),
 	)
+	multisigServiceGetDailyChallengeHandler := connect.NewUnaryHandler(
+		MultisigServiceGetDailyChallengeProcedure,
+		svc.GetDailyChallenge,
+		connect.WithSchema(multisigServiceMethods.ByName("GetDailyChallenge")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceSubmitScoreHandler := connect.NewUnaryHandler(
+		MultisigServiceSubmitScoreProcedure,
+		svc.SubmitScore,
+		connect.WithSchema(multisigServiceMethods.ByName("SubmitScore")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetDailyLeaderboardHandler := connect.NewUnaryHandler(
+		MultisigServiceGetDailyLeaderboardProcedure,
+		svc.GetDailyLeaderboard,
+		connect.WithSchema(multisigServiceMethods.ByName("GetDailyLeaderboard")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetStreakHandler := connect.NewUnaryHandler(
+		MultisigServiceGetStreakProcedure,
+		svc.GetStreak,
+		connect.WithSchema(multisigServiceMethods.ByName("GetStreak")),
+		connect.WithHandlerOptions(opts...),
+	)
 	multisigServiceGetReplyNotificationsHandler := connect.NewUnaryHandler(
 		MultisigServiceGetReplyNotificationsProcedure,
 		svc.GetReplyNotifications,
@@ -1090,6 +1230,18 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		MultisigServiceGetFeedStatsProcedure,
 		svc.GetFeedStats,
 		connect.WithSchema(multisigServiceMethods.ByName("GetFeedStats")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetLinkPreviewHandler := connect.NewUnaryHandler(
+		MultisigServiceGetLinkPreviewProcedure,
+		svc.GetLinkPreview,
+		connect.WithSchema(multisigServiceMethods.ByName("GetLinkPreview")),
+		connect.WithHandlerOptions(opts...),
+	)
+	multisigServiceGetPostReactionsHandler := connect.NewUnaryHandler(
+		MultisigServiceGetPostReactionsProcedure,
+		svc.GetPostReactions,
+		connect.WithSchema(multisigServiceMethods.ByName("GetPostReactions")),
 		connect.WithHandlerOptions(opts...),
 	)
 	return "/memba.v1.MultisigService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -1176,10 +1328,22 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceGetUserFeedHandler.ServeHTTP(w, r)
 		case MultisigServiceGetFeedThreadProcedure:
 			multisigServiceGetFeedThreadHandler.ServeHTTP(w, r)
+		case MultisigServiceGetDailyChallengeProcedure:
+			multisigServiceGetDailyChallengeHandler.ServeHTTP(w, r)
+		case MultisigServiceSubmitScoreProcedure:
+			multisigServiceSubmitScoreHandler.ServeHTTP(w, r)
+		case MultisigServiceGetDailyLeaderboardProcedure:
+			multisigServiceGetDailyLeaderboardHandler.ServeHTTP(w, r)
+		case MultisigServiceGetStreakProcedure:
+			multisigServiceGetStreakHandler.ServeHTTP(w, r)
 		case MultisigServiceGetReplyNotificationsProcedure:
 			multisigServiceGetReplyNotificationsHandler.ServeHTTP(w, r)
 		case MultisigServiceGetFeedStatsProcedure:
 			multisigServiceGetFeedStatsHandler.ServeHTTP(w, r)
+		case MultisigServiceGetLinkPreviewProcedure:
+			multisigServiceGetLinkPreviewHandler.ServeHTTP(w, r)
+		case MultisigServiceGetPostReactionsProcedure:
+			multisigServiceGetPostReactionsHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -1353,10 +1517,34 @@ func (UnimplementedMultisigServiceHandler) GetFeedThread(context.Context, *conne
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetFeedThread is not implemented"))
 }
 
+func (UnimplementedMultisigServiceHandler) GetDailyChallenge(context.Context, *connect.Request[v1.GetDailyChallengeRequest]) (*connect.Response[v1.GetDailyChallengeResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetDailyChallenge is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) SubmitScore(context.Context, *connect.Request[v1.SubmitScoreRequest]) (*connect.Response[v1.SubmitScoreResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.SubmitScore is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetDailyLeaderboard(context.Context, *connect.Request[v1.GetDailyLeaderboardRequest]) (*connect.Response[v1.GetDailyLeaderboardResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetDailyLeaderboard is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetStreak(context.Context, *connect.Request[v1.GetStreakRequest]) (*connect.Response[v1.GetStreakResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetStreak is not implemented"))
+}
+
 func (UnimplementedMultisigServiceHandler) GetReplyNotifications(context.Context, *connect.Request[v1.GetReplyNotificationsRequest]) (*connect.Response[v1.GetReplyNotificationsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetReplyNotifications is not implemented"))
 }
 
 func (UnimplementedMultisigServiceHandler) GetFeedStats(context.Context, *connect.Request[v1.GetFeedStatsRequest]) (*connect.Response[v1.GetFeedStatsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetFeedStats is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetLinkPreview(context.Context, *connect.Request[v1.GetLinkPreviewRequest]) (*connect.Response[v1.GetLinkPreviewResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetLinkPreview is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetPostReactions(context.Context, *connect.Request[v1.GetPostReactionsRequest]) (*connect.Response[v1.GetPostReactionsResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetPostReactions is not implemented"))
 }

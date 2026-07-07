@@ -42,6 +42,19 @@ export function buildFlagPostMsg(caller: string, id: bigint): AminoMsg {
     return buildFeedMsgCall("FlagPost", [id.toString()], caller)
 }
 
+/** AddReaction(id, emoji) — one-per-emoji reaction (optimistic; toggle-off via RemoveReaction). */
+export function buildAddReactionMsg(caller: string, id: bigint, emoji: string): AminoMsg {
+    return buildFeedMsgCall("AddReaction", [id.toString(), emoji], caller)
+}
+
+/** RemoveReaction(id, emoji) — retract a previously-added reaction. */
+export function buildRemoveReactionMsg(caller: string, id: bigint, emoji: string): AminoMsg {
+    return buildFeedMsgCall("RemoveReaction", [id.toString(), emoji], caller)
+}
+
+/** The realm's fixed reaction set (must match memba_feed_v1.reactionEmojis). */
+export const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👀", "🚀"] as const
+
 /** Broadcast a single feed MsgCall via Adena. Returns the tx hash. */
 export async function submitFeedMsg(msg: AminoMsg, memo: string): Promise<string> {
     const { hash } = await doContractBroadcast([msg], memo)

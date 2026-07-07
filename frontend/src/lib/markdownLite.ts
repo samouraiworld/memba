@@ -53,7 +53,7 @@ function autoLinkAddresses(text: string): string {
 
 // ── Inline Processing ───────────────────────────────────────
 
-function processInline(text: string): string {
+function processInline(text: string, opts?: { autolink?: boolean }): string {
     let out = escapeHtml(text)
 
     // Inline code (must come before bold/italic to avoid conflicts)
@@ -72,10 +72,27 @@ function processInline(text: string): string {
         return `<a href="${safeHref}" target="_blank" rel="noopener noreferrer">${text}</a>`
     })
 
-    // Auto-link bech32 addresses
-    out = autoLinkAddresses(out)
+    // Auto-link bech32 addresses (skippable — the /profile/ route is
+    // network-scoped in the app, so feed posts opt out until mention-linking
+    // uses the correct route).
+    if (opts?.autolink !== false) {
+        out = autoLinkAddresses(out)
+    }
 
     return out
+}
+
+/**
+ * renderPostBody — INLINE-ONLY markdown for a short, untrusted feed-post body:
+ * bold / italic / inline-code and protocol-whitelisted `[links]`. Deliberately
+ * NO block elements (headings / tables / lists / code fences) — those don't fit
+ * a post and invite visual spam — and NO address auto-linking (see above).
+ *
+ * XSS-safe: escapes first, sanitizes URLs (javascript:/data: → "#"). Newlines
+ * are preserved by the container's `white-space: pre-wrap`, so no <br> injection.
+ */
+export function renderPostBody(body: string): string {
+    return body ? processInline(body, { autolink: false }) : ""
 }
 
 // ── Block Processing ────────────────────────────────────────
