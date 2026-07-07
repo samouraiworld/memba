@@ -1,148 +1,440 @@
+/* App Store — curated on-chain apps. Theme-aware via Kodera --color-k-* tokens
+ * only (no literal colors, so it passes the DESIGN_SYSTEM §13 grep). The one
+ * exception is each app's monogram gradient, which is computed inline in
+ * AppStore.tsx (per-app identity), never here. */
+
 .appstore {
-    max-width: 1000px;
+    max-width: 1080px;
     margin: 0 auto;
-    padding: 1.5rem 1rem 3rem;
+    padding: var(--space-6, 1.5rem) var(--space-4, 1rem) var(--space-10, 4rem);
 }
 
-.appstore__title {
-    font-size: 1.6rem;
-    font-weight: 700;
-    color: var(--color-text);
+/* ── Masthead ─────────────────────────────────────────────── */
+.appstore__masthead {
+    padding: var(--space-6, 1.5rem) 0 var(--space-7, 2rem);
+    border-bottom: 1px solid var(--color-k-edge);
+    margin-bottom: var(--space-7, 2rem);
+}
+.appstore__eyebrow {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-k-accent-text);
+    margin: 0 0 var(--space-3, 0.75rem);
+}
+.appstore__headline {
+    font-family: var(--font-sans);
+    font-size: clamp(2rem, 5vw, 2.9rem);
+    line-height: 1.05;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--color-k-text);
     margin: 0;
 }
-
-.appstore__sub {
-    color: var(--color-text-secondary);
-    margin: 0.25rem 0 1.25rem;
+.appstore__lede {
+    color: var(--color-k-dim);
+    font-size: 1.02rem;
+    line-height: 1.6;
+    max-width: 56ch;
+    margin: var(--space-4, 1rem) 0 0;
+}
+.appstore__stats {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    flex-wrap: wrap;
+    margin-top: var(--space-5, 1.25rem);
+    font-family: var(--font-mono);
+    font-size: 0.8rem;
+    color: var(--color-k-muted);
+}
+.appstore__stats strong {
+    color: var(--color-k-text);
+    font-weight: 700;
+}
+.appstore__dot {
+    color: var(--color-k-edge-hover);
 }
 
-.appstore__muted {
-    color: var(--color-text-muted);
-    padding: 1rem 0;
+/* ── Monogram (identity tile; gradient set inline) ─────────── */
+.appmono {
+    flex: none;
+    display: grid;
+    place-items: center;
+    border-radius: var(--radius-md, 10px);
+    font-family: var(--font-sans);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    line-height: 1;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+}
+.appmono span {
+    text-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
+}
+.appmono--md {
+    width: 46px;
+    height: 46px;
+    font-size: 1.15rem;
+}
+.appmono--lg {
+    width: 88px;
+    height: 88px;
+    font-size: 2.2rem;
+    border-radius: var(--radius-lg, 14px);
 }
 
-.appstore__back {
+/* ── Category facet chip ──────────────────────────────────── */
+.appchip {
     display: inline-block;
-    margin-bottom: 1rem;
-    color: var(--color-k-accent-text);
-    text-decoration: none;
-    font-size: 0.9rem;
-}
-.appstore__back:hover {
-    text-decoration: underline;
-}
-
-.appstore__empty {
-    text-align: center;
-    padding: 3rem 1rem;
-    border: 1px dashed var(--color-border);
-    border-radius: 12px;
-    background: var(--color-surface);
-}
-.appstore__empty-title {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
     font-weight: 600;
-    color: var(--color-text);
-    margin: 0 0 0.25rem;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--color-k-accent-text);
+    background: var(--color-k-accent-subtle);
+    border: 1px solid var(--color-k-accent-border);
+    border-radius: var(--radius-full, 999px);
+    padding: 0.18rem 0.6rem;
+}
+.appchip--gold {
+    color: var(--color-k-govdao-text);
+    background: var(--color-k-govdao-subtle);
+    border-color: var(--color-k-govdao-border);
 }
 
+/* ── Realm path chip (the signature: address = identity) ──── */
+.apppath {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-k-muted);
+    background: var(--color-k-elevated);
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-sm, 6px);
+    padding: 0.2rem 0.5rem;
+    word-break: break-all;
+    max-width: 100%;
+}
+
+/* ── Buttons ──────────────────────────────────────────────── */
+.appbtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-family: var(--font-sans);
+    font-size: 0.92rem;
+    font-weight: 600;
+    text-decoration: none;
+    border-radius: var(--radius-md, 10px);
+    padding: 0.6rem 1.1rem;
+    border: 1px solid transparent;
+    transition: background 0.14s ease, border-color 0.14s ease, transform 0.14s ease;
+}
+.appbtn--primary {
+    color: var(--color-k-on-accent);
+    background: var(--color-k-accent);
+}
+.appbtn--primary:hover {
+    background: var(--color-k-accent-hover);
+}
+.appbtn--ghost {
+    color: var(--color-k-text);
+    background: transparent;
+    border-color: var(--color-k-edge);
+}
+.appbtn--ghost:hover {
+    background: var(--color-k-panel-hover);
+    border-color: var(--color-k-edge-hover);
+}
+.appbtn__ext {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
+    font-weight: 500;
+    opacity: 0.7;
+}
+.appbtn:focus-visible {
+    outline: 2px solid var(--color-k-accent);
+    outline-offset: 2px;
+}
+
+/* ── Featured hero ────────────────────────────────────────── */
+.appfeatured {
+    position: relative;
+    background: var(--color-k-featured-bg);
+    border: 1px solid var(--color-k-featured-border);
+    border-radius: var(--radius-lg, 16px);
+    padding: var(--space-6, 1.5rem);
+    box-shadow: 0 12px 48px -24px var(--color-k-accent-tint);
+}
+.appfeatured__badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    font-family: var(--font-mono);
+    font-size: 0.7rem;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--color-k-accent-text);
+    margin: 0 0 var(--space-4, 1rem);
+}
+.appfeatured__star {
+    font-size: 0.85rem;
+}
+.appfeatured__body {
+    display: flex;
+    gap: var(--space-5, 1.25rem);
+    align-items: flex-start;
+}
+.appfeatured__content {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+.appfeatured__cats {
+    margin-bottom: 0.15rem;
+}
+.appfeatured__name {
+    font-family: var(--font-sans);
+    font-size: clamp(1.5rem, 3.5vw, 2rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--color-k-text);
+    margin: 0;
+}
+.appfeatured__tag {
+    font-size: 1.05rem;
+    color: var(--color-k-dim);
+    margin: 0;
+}
+.appfeatured__descr {
+    color: var(--color-k-text);
+    line-height: 1.6;
+    max-width: 62ch;
+    margin: 0.35rem 0 0;
+}
+.appfeatured__actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin: var(--space-4, 1rem) 0 0.25rem;
+}
+
+/* ── Section + grid ───────────────────────────────────────── */
+.appstore__section {
+    margin-top: var(--space-8, 2.5rem);
+}
+.appstore__section-title {
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--color-k-muted);
+    margin: 0 0 var(--space-4, 1rem);
+}
 .appstore__grid {
     list-style: none;
     margin: 0;
     padding: 0;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-    gap: 1rem;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--space-4, 1rem);
 }
 
 .appcard {
-    border: 1px solid var(--color-border);
-    border-radius: 12px;
-    background: var(--color-surface);
-    padding: 1rem;
-    cursor: pointer;
     height: 100%;
     display: flex;
     flex-direction: column;
-    gap: 0.4rem;
-    transition: border-color 0.12s, background 0.12s;
+    gap: 0.5rem;
+    background: var(--color-k-panel);
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-lg, 14px);
+    padding: var(--space-4, 1rem);
+    cursor: pointer;
+    transition: transform 0.14s ease, border-color 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;
 }
 .appcard:hover,
 .appcard:focus-visible {
+    transform: translateY(-2px);
     border-color: var(--color-k-accent-border);
-    background: var(--color-surface-hover);
+    background: var(--color-k-panel-hover);
+    box-shadow: 0 14px 32px -20px var(--color-k-accent-tint);
     outline: none;
 }
-
-.appcard__name {
-    font-weight: 700;
-    color: var(--color-text);
-    font-size: 1.05rem;
+.appcard:focus-visible {
+    outline: 2px solid var(--color-k-accent);
+    outline-offset: 2px;
 }
-.appcard__cat {
-    align-self: flex-start;
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--color-k-accent-text);
-    background: var(--color-k-accent-subtle);
-    border-radius: 999px;
-    padding: 0.12rem 0.55rem;
+.appcard__top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.5rem;
+}
+.appcard__name {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 1.1rem;
+    color: var(--color-k-text);
 }
 .appcard__tag {
-    color: var(--color-text-secondary);
+    color: var(--color-k-dim);
     font-size: 0.9rem;
+    line-height: 1.5;
     margin: 0;
     flex: 1 1 auto;
 }
 .appcard__path {
-    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-    font-size: 0.75rem;
-    color: var(--color-text-muted);
-    word-break: break-all;
+    align-self: flex-start;
+}
+.appcard--skeleton {
+    cursor: default;
+    min-height: 160px;
+    background: linear-gradient(100deg, var(--color-k-panel) 30%, var(--color-k-panel-hover) 50%, var(--color-k-panel) 70%);
+    background-size: 220% 100%;
+    animation: appShimmer 1.3s ease-in-out infinite;
+}
+@keyframes appShimmer {
+    from { background-position: 180% 0; }
+    to { background-position: -40% 0; }
 }
 
-/* Detail */
-.appdetail__meta {
+/* ── Notices (empty / error / not found) ──────────────────── */
+.appstore__notice {
+    text-align: center;
+    padding: var(--space-8, 2.5rem) var(--space-4, 1rem);
+    border: 1px dashed var(--color-k-edge);
+    border-radius: var(--radius-lg, 14px);
+    background: var(--color-k-elevated);
+}
+.appstore__notice-title {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 1.05rem;
+    color: var(--color-k-text);
+    margin: 0 0 0.35rem;
+}
+.appstore__muted {
+    color: var(--color-k-muted);
+    margin: 0;
+}
+
+/* ── Detail ───────────────────────────────────────────────── */
+.appstore__back {
+    display: inline-block;
+    margin-bottom: var(--space-5, 1.25rem);
+    color: var(--color-k-accent-text);
+    text-decoration: none;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+.appstore__back:hover {
+    text-decoration: underline;
+}
+.appdetail__hero {
     display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    flex-wrap: wrap;
-    margin: 0.5rem 0 1rem;
+    gap: var(--space-5, 1.25rem);
+    align-items: flex-start;
+}
+.appdetail__heroText {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+}
+.appdetail__cats {
+    margin-bottom: 0.1rem;
+}
+.appdetail__name {
+    font-family: var(--font-sans);
+    font-size: clamp(1.7rem, 4vw, 2.3rem);
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    color: var(--color-k-text);
+    margin: 0;
+}
+.appdetail__tag {
+    font-size: 1.05rem;
+    color: var(--color-k-dim);
+    margin: 0;
 }
 .appdetail__descr {
-    color: var(--color-text);
-    line-height: 1.6;
+    color: var(--color-k-text);
+    line-height: 1.65;
+    max-width: 64ch;
     white-space: pre-wrap;
     overflow-wrap: break-word;
+    margin: var(--space-6, 1.5rem) 0 0;
 }
 .appdetail__actions {
     display: flex;
     align-items: center;
-    gap: 1rem;
+    gap: 0.75rem;
     flex-wrap: wrap;
-    margin-top: 1.5rem;
+    margin-top: var(--space-6, 1.5rem);
 }
-.appdetail__open {
-    font-weight: 600;
-    color: var(--color-k-accent-text);
+.apptrust {
+    margin-top: var(--space-7, 2rem);
     background: var(--color-k-accent-subtle);
     border: 1px solid var(--color-k-accent-border);
-    border-radius: 10px;
-    padding: 0.55rem 1rem;
-    text-decoration: none;
+    border-left-width: 3px;
+    border-radius: var(--radius-md, 10px);
+    padding: var(--space-4, 1rem) var(--space-5, 1.25rem);
+    max-width: 64ch;
 }
-.appdetail__open:hover {
-    background: var(--color-k-accent-border);
-}
-.appdetail__ext {
-    font-weight: 400;
-    font-size: 0.8rem;
-    opacity: 0.75;
-}
-.appdetail__source {
+.apptrust__title {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    font-size: 0.95rem;
     color: var(--color-k-accent-text);
-    text-decoration: none;
-    font-size: 0.9rem;
+    margin: 0 0 0.3rem;
 }
-.appdetail__source:hover {
-    text-decoration: underline;
+.apptrust__body {
+    color: var(--color-k-dim);
+    font-size: 0.92rem;
+    line-height: 1.6;
+    margin: 0;
+}
+.apptrust__addr {
+    font-family: var(--font-mono);
+    font-size: 0.82rem;
+    color: var(--color-k-text);
+}
+
+/* ── Responsive ───────────────────────────────────────────── */
+@media (max-width: 560px) {
+    .appfeatured__body,
+    .appdetail__hero {
+        flex-direction: column;
+    }
+    .appfeatured__actions {
+        width: 100%;
+    }
+    .appfeatured__actions .appbtn {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .appcard,
+    .appbtn {
+        transition: none;
+    }
+    .appcard:hover,
+    .appcard:focus-visible {
+        transform: none;
+    }
+    .appcard--skeleton {
+        animation: none;
+    }
 }
