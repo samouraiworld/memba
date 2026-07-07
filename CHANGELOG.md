@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### App Store — de-gate + memba_appstore_v2 (2026-07-07)
+- **`VITE_ENABLE_APPSTORE` is no longer a safety-gated flag.** It was removed from `SAFETY_GATED_FLAGS` (frontend/src/lib/safeFlags.ts) now that `memba_appstore_v2` is deployed on test13 with a self-managed 2-of-2 admin and a **live-verified fee path** — a prod build with the flag enabled no longer fails. The `/apps` page can now ship to prod (Netlify flag flip is a separate operator action).
+- **Frontend repointed to `gno.land/r/samcrew/memba_appstore_v2`** (was `_v1`): `APPSTORE_REALM_PATH` and the `lib/appStore` reads now target the live v2 realm.
+- **Defense-in-depth pkgPath validation in `coerce`.** `fetchLiveApps` maps `coerce` over the realm's `ListLiveJSON` rows and the App Store detail view cross-links to `/explorer/{pkgPath}`, so `coerce` now drops any listing whose `pkgPath` fails `isSafeRealmPath` — a malformed/hostile on-chain path can never reach a qeval expression or an Explorer link. The existing `fetchApp` guard is unchanged.
+
 ### Social feed — Wave 3: rich-text post bodies (2026-07-07)
 - Feed posts now render **inline markdown** — **bold**, *italic*, `inline code`, and protocol-whitelisted `[links]` — instead of flat plain text. Scoped deliberately to inline formatting only: no headings / tables / lists / code fences (they don't fit a short post and invite visual spam), and no address auto-linking yet (the `/profile` route is network-scoped). **XSS-safe by construction** — a new `renderPostBody` escapes all content first, then injects only its own known tags with `javascript:`/`data:` URLs neutralized to `#` (the same escape-first approach the repo's `renderMarkdown` uses; verified with `<img onerror>` / `<script>` / `javascript:` tests). Only live post bodies are affected — the tombstone branch still suppresses hidden/deleted bodies. No realm change, no backend, no new flag. Behind `VITE_ENABLE_FEED`.
 

@@ -1,12 +1,12 @@
 /**
  * AppStore — the curated App Store surface at `/apps` (Wave 9).
  *
- * `/apps` lists live apps (read from `memba_appstore_v1.ListLiveJSON` via ABCI);
+ * `/apps` lists live apps (read from `memba_appstore_v2.ListLiveJSON` via ABCI);
  * `/apps/<pkgPath>` shows one app's detail. Read-only: registering an app is a
  * wallet flow (later); this page only reads. Each app cross-links to the Explorer
- * (`/explorer/<pkgPath>`) — "read the contract you're about to use". Behind the
- * SAFETY-gated `VITE_ENABLE_APPSTORE` (the realm's fee path is not yet verified
- * on-chain), so it ships off.
+ * (`/explorer/<pkgPath>`) — "read the contract you're about to use". Behind
+ * `VITE_ENABLE_APPSTORE` (de-gated 2026-07-07; memba_appstore_v2 live on test13),
+ * so it ships when the Netlify flag is flipped on.
  *
  * @module pages/AppStore
  */
