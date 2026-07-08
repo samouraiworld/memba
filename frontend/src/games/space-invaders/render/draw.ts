@@ -42,6 +42,15 @@ export function draw(ctx: CanvasRenderingContext2D, state: GameState, fx: FxStat
     ctx.fillRect(state.ufo.x, state.ufo.y, state.ufo.w, state.ufo.h);
   }
 
+  // Bunkers (destructible cover) — fade as they take damage.
+  ctx.fillStyle = COLORS.player;
+  for (const bl of state.bunkers) {
+    if (bl.hp <= 0) continue;
+    ctx.globalAlpha = 0.35 + 0.2 * (bl.hp / CONFIG.bunker.hp);
+    ctx.fillRect(bl.x, bl.y, bl.w, bl.h);
+  }
+  ctx.globalAlpha = 1;
+
   ctx.fillStyle = COLORS.bullet;
   for (const b of state.playerBullets) ctx.fillRect(b.x, b.y, b.w, b.h);
   for (const b of state.alienBullets) ctx.fillRect(b.x, b.y, b.w, b.h);

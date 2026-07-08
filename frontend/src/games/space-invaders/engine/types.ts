@@ -18,6 +18,11 @@ export interface Ufo extends Rect {
   alive: boolean;
 }
 
+// A destructible bunker block (a shield segment). hp hits before it's gone.
+export interface Block extends Rect {
+  hp: number;
+}
+
 export interface InputIntent {
   move: -1 | 0 | 1;
   fire: boolean;
@@ -68,6 +73,8 @@ export interface GameState {
   // Mystery UFO (null when none on screen) and the countdown to the next spawn.
   ufo: Ufo | null;
   ufoTimerMs: number;
+  // Destructible bunker blocks (refresh each wave).
+  bunkers: Block[];
   // Events produced by the step that yielded this state (reset each step).
   events: GameEvent[];
 }
