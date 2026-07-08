@@ -38,8 +38,19 @@ jobs:
           # JSON array, matched with jq — label names may legally contain
           # commas, so a joined string would misparse (review finding).
           LABELS_JSON: ${{ toJson(github.event.pull_request.labels.*.name) }}
+          PR_AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
           set -euo pipefail
+
+          # Dependabot PRs are bot-authored dependency bumps: not user-visible
+          # product changes, and the bot can neither write a CHANGELOG.md entry
+          # nor self-apply the 'no-changelog' label. Without this skip they wedge
+          # forever on a REQUIRED gate — which silently blocks security bumps
+          # (e.g. @sentry). Exempt by actor; the human PR path below is unchanged.
+          if [ "$PR_AUTHOR" = "dependabot[bot]" ]; then
+            echo "::notice::PR authored by dependabot[bot] — gate skipped."
+            exit 0
+          fi
 
           if printf '%s' "$LABELS_JSON" | jq -e 'any(. == "no-changelog")' > /dev/null; then
             echo "::notice::'no-changelog' label present — gate skipped."
