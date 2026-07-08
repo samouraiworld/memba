@@ -1,4 +1,4 @@
-import { CONFIG, formationStepMs, comboMultiplier10 } from "./config";
+import { CONFIG, formationStepMs, comboMultiplier10, alienFireCooldownMs } from "./config";
 import type { GameState, GameEvent, InputIntent } from "./types";
 import { aabb } from "./collision";
 import { rngFloat } from "./prng";
@@ -143,7 +143,11 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
     const fireMs = s.alienFireMs - dtMs;
     if (fireMs <= 0 && living.length > 0) {
       const pick = rngFloat(s.rng);
-      const shooter = living[Math.floor(pick.value * living.length)];
+      // Pick a random living column (sorted for a canonical, port-stable order),
+      // then fire from its bottom-most alien — looks right and plays fair.
+      const cols = [...new Set(living.map((a) => a.col))].sort((a, b) => a - b);
+      const col = cols[Math.floor(pick.value * cols.length)];
+      const shooter = living.filter((a) => a.col === col).reduce((lo, a) => (a.y > lo.y ? a : lo));
       const bullet = {
         x: shooter.x + shooter.w / 2 - CONFIG.bullet.w / 2,
         y: shooter.y + shooter.h,
@@ -155,7 +159,7 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
         ...s,
         rng: pick.state,
         alienBullets: [...s.alienBullets, bullet],
-        alienFireMs: CONFIG.alienFire.cooldownMs,
+        alienFireMs: alienFireCooldownMs(s.wave),
       };
     } else {
       s = { ...s, alienFireMs: fireMs };

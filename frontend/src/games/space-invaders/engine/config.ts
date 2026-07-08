@@ -3,10 +3,14 @@ export const CONFIG = {
   // maxBullets/fireCooldownMs power rapid fire: hold to stream shots (one every
   // ~140ms) with up to 3 on screen — snappier, more energetic play.
   player: { w: 22, h: 12, speedPxPerMs: 0.16, baselineY: 380, maxBullets: 3, fireCooldownMs: 140 },
-  alien: { w: 16, h: 12, gapX: 8, gapY: 10, rows: 5, cols: 11, marginX: 32, startY: 40 },
+  // startYMaxDrop caps how far later waves spawn down, so deep-wave difficulty
+  // comes from faster fire (below), not from spawning inside the kill line.
+  alien: { w: 16, h: 12, gapX: 8, gapY: 10, rows: 5, cols: 11, marginX: 32, startY: 40, startYMaxDrop: 50 },
   formation: { dropY: 12, stepDx: 8, stepMsMax: 700, stepMsMin: 90 },
   bullet: { w: 3, h: 8, playerSpeedPxPerMs: 0.6, alienSpeedPxPerMs: 0.18 },
-  alienFire: { cooldownMs: 900 },
+  // Alien fire accelerates with the wave: cooldown drops perWaveMs each wave,
+  // floored at cooldownMinMs.
+  alienFire: { cooldownMs: 900, cooldownMinMs: 320, perWaveMs: 55 },
   lives: 3,
   respawnInvulnMs: 1500,
   points: [40, 30, 20, 20, 10] as const, // by row index; top row worth most
@@ -18,6 +22,13 @@ export const CONFIG = {
 export function formationStepMs(alive: number, total: number): number {
   const t = total <= 0 ? 1 : 1 - Math.max(0, Math.min(alive, total)) / total;
   return CONFIG.formation.stepMsMax + (CONFIG.formation.stepMsMin - CONFIG.formation.stepMsMax) * t;
+}
+
+// Alien fire cooldown for a given wave — shrinks each wave, floored at the
+// minimum. wave 1 == base cooldown (unchanged), so it stays backward-compatible.
+export function alienFireCooldownMs(wave: number): number {
+  const scaled = CONFIG.alienFire.cooldownMs - (wave - 1) * CONFIG.alienFire.perWaveMs;
+  return Math.max(CONFIG.alienFire.cooldownMinMs, scaled);
 }
 
 // No-miss combo → score multiplier, expressed as an integer ×10 numerator so
