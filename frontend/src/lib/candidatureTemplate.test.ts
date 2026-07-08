@@ -115,7 +115,7 @@ describe("buildSubmitCandidatureMsg", () => {
 
     it("uses default candidature realm path", () => {
         const msg = buildSubmitCandidatureMsg("g1caller", "bio", "skills")
-        expect(msg.value.pkg_path).toBe("gno.land/r/samcrew/memba_dao_candidature_v2")
+        expect(msg.value.pkg_path).toBe("gno.land/r/samcrew/memba_dao_candidature_v3")
     })
 
     it("accepts custom realm path", () => {
@@ -155,7 +155,7 @@ describe("buildMarkApprovedMsg", () => {
 
     it("uses the default candidature realm path", () => {
         const msg = buildMarkApprovedMsg("g1admin", "g1applicant")
-        expect(msg.value.pkg_path).toBe("gno.land/r/samcrew/memba_dao_candidature_v2")
+        expect(msg.value.pkg_path).toBe("gno.land/r/samcrew/memba_dao_candidature_v3")
     })
 
     it("accepts a custom realm path", () => {
