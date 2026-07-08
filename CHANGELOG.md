@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Security — Go toolchain 1.25.11 → 1.25.12 (2026-07-08)
+<!-- categories: memba -->
+- Bumped the backend Go toolchain (`backend/go.mod`, `backend/Dockerfile`) to **go1.25.12** to clear **GO-2026-5856**, a `crypto/tls` advisory published today that `govulncheck` flags in go1.25.11 (fixed in 1.25.12). No product change — this unblocks the Backend (Go) CI gate, which now reds on every build until the toolchain is patched.
+
 ### Space Invaders — arcade game in the Store (#823, 2026-07-08)
 - A classic **Space Invaders** added to the Store, playable instantly in the browser with no wallet. Built on a pure, deterministic game engine (a fixed-timestep loop that carries sub-frame time, so it runs correctly on 60 / 120 / 144 Hz displays) with keyboard (←/→ · Space · P) and full touch controls (steer on the left, tap-and-hold to fire on the right). Lean-classic rules: a formation that marches, drops and reverses at the edges and accelerates as ranks thin, one player shot in flight, three lives, escalating waves, and a local high score.
 - Gated by `VITE_ENABLE_SPACE_INVADERS` — an ordinary flag (client-side only, no funds), off by default; reachable at `/game/space-invaders`. Listing it in the on-chain App Store (`memba_appstore_v2`) is a separate operator action.
