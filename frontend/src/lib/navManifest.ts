@@ -15,7 +15,7 @@ import type { Icon } from '@phosphor-icons/react'
 import {
     House, ChartBar, Buildings, Coins, FolderOpen,
     LinkSimpleHorizontal, Bell, Briefcase, Heart, GameController,
-    PuzzlePiece, Robot, Handshake, ImageSquare,
+    PuzzlePiece, Robot,
     User, Gear, Bank, Megaphone,
     UsersThree, Trophy, ClockCounterClockwise, ShieldStar, Newspaper,
     ChatCircle, Storefront,
@@ -75,9 +75,11 @@ export const NAV: NavEntry[] = [
     { id: 'leaderboard', to: '/leaderboard', label: 'Leaderboard', Icon: Trophy, group: 'account', showOn: 'both' },
     { id: 'extensions', to: '/extensions', label: 'Extensions', Icon: PuzzlePiece, group: 'account', showOn: 'both' },
     { id: 'organizations', to: '/organizations', label: 'Organizations', Icon: UsersThree, group: 'govern', showOn: 'both', requiresAuth: true },
+    // One Marketplace entry — NFTs, Services, and Tokens are tabs (lanes) inside
+    // the unified /marketplace shell, not separate nav items. The former standalone
+    // NFT + Services entries were redirect-only duplicates (/nft → /marketplace/nfts,
+    // /services → /marketplace/services), so they were removed here (2026-07-08).
     { id: 'marketplace', to: '/marketplace', label: 'Marketplace', Icon: Robot, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_MARKETPLACE' },
-    { id: 'services', to: '/services', label: 'Services', Icon: Handshake, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_SERVICES' },
-    { id: 'nft', to: '/nft', label: 'NFT', Icon: ImageSquare, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_NFT' },
     { id: 'appstore', to: '/apps', label: 'App Store', Icon: Storefront, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_APPSTORE' },
 
     // ── Account ─────────────────────────────────────────────────────
@@ -111,11 +113,12 @@ const resolve = (ids: string[]): NavEntry[] => ids.map(byId).filter((e): e is Na
 
 const PRIMARY_TABS_VISITOR = ['home', 'dao', 'tokens', 'directory']
 const PRIMARY_TABS_MEMBER = ['home', 'dao', 'tokens', 'alerts']
-// Overflow nav for the "More" sheet. Includes `directory` + `quests` so every
-// sidebar destination is reachable on mobile (they aren't primary tabs); the
-// per-audience primary tabs are filtered out at render time so nothing is shown
+// Overflow nav for the "More" sheet. Carries every sidebar destination that
+// isn't a primary tab so nothing is desktop-only — including the Launch group
+// (`marketplace`, `appstore`), which otherwise had no mobile entry point at all.
+// Per-audience primary tabs are filtered out at render time so nothing is shown
 // twice (see mobileMoreNav).
-const MORE_NAV_IDS = ['dashboard', 'directory', 'validators', 'gnolove', 'quests', 'feed', 'blog', 'changelogs', 'extensions', 'alerts']
+const MORE_NAV_IDS = ['dashboard', 'directory', 'marketplace', 'appstore', 'validators', 'gnolove', 'quests', 'feed', 'blog', 'changelogs', 'extensions', 'alerts']
 const MORE_ACCOUNT_IDS = ['profile', 'settings', 'multisig', 'feedback']
 
 const visibleFor = (connected: boolean) => (e: NavEntry) => !e.requiresAuth || connected
