@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Tooling — changelog conflicts auto-resolve (2026-07-08)
+<!-- categories: memba -->
+- Added a `.gitattributes` rule (`CHANGELOG.md merge=union`) so that when several independent PRs each append an entry to `[Unreleased]`, git keeps **both** sides instead of raising a conflict on every merge. Removes the recurring manual changelog-conflict resolution when a batch of PRs lands together. No product change.
+
 ### gno.land public-sale announcement popup (#809, 2026-07-08)
 - A dismissible promo popup announcing the gno.land public **GNOT sale** (opens 2026-07-20, links to sale.gno.land), with a countdown that switches to "Now open" at the sale date. Shown once per campaign (localStorage), rendered via `AccessibleDialog` (focus trap, body-scroll lock, Esc), and suppressed while the onboarding wizard or activation gate is up so it never stacks on another modal.
 - Gated by `VITE_ENABLE_ICO_ANNOUNCEMENT` — an ordinary flag (read-only external link, no funds), off by default; the owner enables it for the sale window.
