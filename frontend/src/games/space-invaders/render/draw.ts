@@ -37,10 +37,7 @@ export function draw(ctx: CanvasRenderingContext2D, state: GameState, fx: FxStat
   for (const a of state.aliens) if (a.alive) ctx.fillRect(a.x, a.y, a.w, a.h);
 
   ctx.fillStyle = COLORS.bullet;
-  if (state.playerBullet) {
-    const b = state.playerBullet;
-    ctx.fillRect(b.x, b.y, b.w, b.h);
-  }
+  for (const b of state.playerBullets) ctx.fillRect(b.x, b.y, b.w, b.h);
   for (const b of state.alienBullets) ctx.fillRect(b.x, b.y, b.w, b.h);
 
   // Player: blink while invulnerable (steady-dim under reduced motion to avoid
