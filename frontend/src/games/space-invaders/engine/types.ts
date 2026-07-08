@@ -24,7 +24,10 @@ export interface Block extends Rect {
 }
 
 export interface InputIntent {
-  move: -1 | 0 | 1;
+  // Steering intent in [-1, 1]: sign = direction, magnitude = how hard (keyboard
+  // is ±1; touch is proportional). Applied as move * speed * dt, so integer ±1
+  // inputs behave exactly as before (the determinism corpus is unaffected).
+  move: number;
   fire: boolean;
   pause: boolean;
 }
