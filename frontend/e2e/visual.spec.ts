@@ -36,8 +36,14 @@ for (const path of ROUTES) {
         await page.goto(path)
         await page.waitForLoadState('networkidle').catch(() => {})
 
-        // Extra settle time for React state transitions after network is idle
-        await page.waitForTimeout(300)
+        // Wait for a REAL rendered element, not a fixed timer. The persistent
+        // desktop Sidebar is the deterministic shell present on every route
+        // (DesktopShell) — its visibility proves React actually mounted (the old
+        // 300ms timer fired whether or not the app painted, which is how blank
+        // captures slipped through against blank baselines). toHaveScreenshot's
+        // own stabilization (retries until two consecutive shots match) then
+        // settles any remaining synchronous paint.
+        await expect(page.locator('[data-testid="sidebar"]')).toBeVisible()
 
         await expect(page).toHaveScreenshot(
             // NOTE: the `|| '_home'` branch is dead (for '/', replace() yields
