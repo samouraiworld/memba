@@ -1,6 +1,7 @@
 /**
  * Candidature Template — types, validation, MsgCall builders, and Render parser
- * for the MembaDAO candidature realm deployed at gno.land/r/samcrew/memba_dao_candidature_v2.
+ * for the MembaDAO candidature realm. Canonical path is gno.land/r/samcrew/memba_dao_candidature_v3
+ * (IsUserCall-guarded, P0 fund-drain fix); the older _v2 is paused and retained for legacy withdrawals.
  *
  * The deployed realm (via samcrew-deployer) uses:
  *   - Apply(bio, skills) — with GNOT deposit (10 GNOT min, 10x per re-application)

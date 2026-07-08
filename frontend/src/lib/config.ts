@@ -223,7 +223,8 @@ export function areRealmsDeployed(): boolean {
 const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
     test13: [
         "gno.land/r/samcrew/memba_dao",
-        "gno.land/r/samcrew/memba_dao_candidature_v2",
+        "gno.land/r/samcrew/memba_dao_candidature_v2", // paused; kept so the 2 legacy applicants can still Withdraw
+        "gno.land/r/samcrew/memba_dao_candidature_v3", // IsUserCall-guarded successor (P0 fund-drain fix) — canonical
         "gno.land/r/samcrew/memba_dao_channels_v2",
         "gno.land/r/samcrew/agent_registry",
         // Commerce realms redeployed to interrealm-v2 _v2 paths (2026-06-16).
@@ -554,7 +555,7 @@ export const MEMBA_TOKEN = import.meta.env.PROD
 export const MEMBA_DAO = {
     realmPath: "gno.land/r/samcrew/memba_dao",
     channelsPath: import.meta.env.VITE_CHANNELS_REALM_PATH || "gno.land/r/samcrew/memba_dao_channels_v2",
-    candidaturePath: import.meta.env.VITE_CANDIDATURE_REALM_PATH || "gno.land/r/samcrew/memba_dao_candidature_v2",
+    candidaturePath: import.meta.env.VITE_CANDIDATURE_REALM_PATH || "gno.land/r/samcrew/memba_dao_candidature_v3",
     agentRegistryPath: "gno.land/r/samcrew/agent_registry",
     escrowPath: "gno.land/r/samcrew/escrow_v2",
     nftMarketPath: "gno.land/r/samcrew/memba_nft_market_v2",

@@ -52,7 +52,7 @@ vi.mock("../lib/candidatureTemplate", () => ({
 }))
 
 vi.mock("../lib/config", () => ({
-    MEMBA_DAO: { candidaturePath: "gno.land/r/samcrew/memba_dao_candidature_v2" },
+    MEMBA_DAO: { candidaturePath: "gno.land/r/samcrew/memba_dao_candidature_v3" },
     GNO_RPC_URL: "https://rpc.test.gno.land",
 }))
 
@@ -461,7 +461,7 @@ describe("CandidaturePage — Admin approve/reject", () => {
         expect(candidatureMock.buildMarkApprovedMsg).toHaveBeenCalledWith(
             "g1testuser123",
             pending.applicant,
-            "gno.land/r/samcrew/memba_dao_candidature_v2",
+            "gno.land/r/samcrew/memba_dao_candidature_v3",
         )
     })
 
@@ -476,7 +476,7 @@ describe("CandidaturePage — Admin approve/reject", () => {
             expect(candidatureMock.buildMarkRejectedMsg).toHaveBeenCalledWith(
                 "g1testuser123",
                 pending.applicant,
-                "gno.land/r/samcrew/memba_dao_candidature_v2",
+                "gno.land/r/samcrew/memba_dao_candidature_v3",
             ),
         )
     })
