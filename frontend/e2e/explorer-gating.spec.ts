@@ -1,11 +1,13 @@
 import { test, expect, type Page } from '@playwright/test'
 
 /**
- * Explorer gating E2E (W9 P0). The /explorer/* route is wrapped in
- * <ExplorerGate>, which renders the ComingSoonGate when VITE_ENABLE_EXPLORER is
- * off. The committed root .env.e2e pins VITE_ENABLE_EXPLORER=false, so this spec
- * deterministically asserts the flag-off path: direct-navigating to /explorer (or
- * a deep realm link) shows the coming-soon gate, never the live viewer.
+ * Explorer gating E2E. The realm Explorer is now a gated tab inside the Directory
+ * (merged 2026-07-08). The committed root .env.e2e pins VITE_ENABLE_EXPLORER=false,
+ * so this spec deterministically asserts the flag-off path:
+ *   - the legacy /explorer/* route redirects into /directory?tab=explorer…
+ *   - with the flag off the Directory collapses that to its default tab, so the
+ *     read-only viewer never renders (no leak past the gate),
+ *   - and there is no standalone "Explorer" nav entry anymore.
  *
  * Runs against the pinned-flags dev server on :5174 (npm run dev:e2e →
  * vite --mode e2e → reads .env.e2e), identical on any machine and in CI.
@@ -27,30 +29,34 @@ test.describe('Explorer gating (VITE_ENABLE_EXPLORER=false)', () => {
         await page.setViewportSize({ width: 1280, height: 800 })
     })
 
-    test('direct-navigating to /explorer when gated shows the coming-soon gate, not the viewer', async ({ page }) => {
+    test('legacy /explorer redirects into the Directory, and the viewer stays gated', async ({ page }) => {
         const network = await resolveNetwork(page)
 
         await page.goto(`/${network}/explorer`, { waitUntil: 'domcontentloaded' })
 
-        await expect(page.getByTestId('coming-soon-gate')).toBeVisible({ timeout: 10_000 })
-        await expect(page.getByTestId('coming-soon-gate')).toContainText('Realm Explorer')
+        // The redirect lands on the Directory…
+        await page.waitForURL(/\/directory(\?|$)/, { timeout: 10_000 })
+        await expect(page.getByTestId('global-search')).toBeVisible({ timeout: 10_000 })
+        // …but with the flag off the Explorer tab collapses to the default tab —
+        // the read-only viewer must not render.
         await expect(page.getByTestId('explorer-root')).toHaveCount(0)
     })
 
-    test('a deep realm link is gated too (no leak past ExplorerGate)', async ({ page }) => {
+    test('a deep realm link is gated too (no leak past the merged tab)', async ({ page }) => {
         const network = await resolveNetwork(page)
 
         await page.goto(`/${network}/explorer/r/samcrew/memba_feed_v1`, { waitUntil: 'domcontentloaded' })
-        await expect(page.getByTestId('coming-soon-gate')).toBeVisible({ timeout: 10_000 })
+
+        await page.waitForURL(/\/directory\?tab=explorer/, { timeout: 10_000 })
         await expect(page.getByTestId('explorer-root')).toHaveCount(0)
     })
 
-    test('the Explorer nav entry is present but badged "soon" when gated', async ({ page }) => {
+    test('there is no standalone Explorer nav entry (it lives inside the Directory)', async ({ page }) => {
         const network = await resolveNetwork(page)
         await page.goto(`/${network}/`, { waitUntil: 'domcontentloaded' })
 
-        const explorerLink = page.locator(`a[href$="/explorer"]`).first()
-        await expect(explorerLink).toBeVisible({ timeout: 10_000 })
-        await expect(explorerLink).toContainText('soon')
+        // The former /explorer nav link is gone; Directory is the single entry.
+        await expect(page.locator('a[href$="/explorer"]')).toHaveCount(0)
+        await expect(page.locator('a[href$="/directory"]').first()).toBeVisible({ timeout: 10_000 })
     })
 })
