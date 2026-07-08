@@ -42,6 +42,9 @@ Full changelogs are split by version range for easier navigation:
 ### Performance — home snapshot: dedup + parallel sources (2026-07-08)
 <!-- categories: memba -->
 - **The landing page's server snapshot got much cheaper to build.** `GetHomeSnapshot` is cached for 30s, but on a cache miss it assembled the payload from **8 network/DB sources run one after another**, and every request that arrived during that assembly (a burst on cold start, or on each 30s expiry) re-ran all of them — a thundering herd against the pinned RPC node. Now concurrent misses per chain collapse to a **single assembly** via `singleflight` (the rest share its result), and the 8 sources are fetched **concurrently** instead of sequentially, so a miss costs the slowest single source instead of their sum. Behavior is unchanged — each source is still independently fault-tolerant and its failures still surface in `stale_sources` (verified under `-race`).
+### Performance — right-size oversized icons & social image (2026-07-08)
+<!-- categories: memba -->
+- **~1.1 MB off first load.** Three images were shipped at ~10× the bytes they needed: the favicon (`memba-icon.png`, 414 KB at 777px but displayed 32px), `apple-touch-icon.png` (414 KB, displayed 180px), and the Open Graph card (`og-image.png`, 408 KB). Resized to sane dimensions and re-encoded the OG card as JPEG: **58 KB / 31 KB / 53 KB** respectively (the favicon downloads on every first paint). OG/Twitter meta now points at `og-image.jpg` with an explicit `og:image:type`.
 
 ### Feature articles — product + engineering scope (#814, 2026-07-08)
 - Nine `/blog` articles, one per major feature (Directory + Explorer, unified Marketplace, App Store, social Feed, Block Party, DAO governance, Multisig, Validators, Quests/XP), each pairing a product framing with an engineering-scope section so it doubles as documentation. Ships via the existing static blog pipeline.
