@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### gno.land public-sale announcement popup (#809, 2026-07-08)
+- A dismissible promo popup announcing the gno.land public **GNOT sale** (opens 2026-07-20, links to sale.gno.land), with a countdown that switches to "Now open" at the sale date. Shown once per campaign (localStorage), rendered via `AccessibleDialog` (focus trap, body-scroll lock, Esc), and suppressed while the onboarding wizard or activation gate is up so it never stacks on another modal.
+- Gated by `VITE_ENABLE_ICO_ANNOUNCEMENT` — an ordinary flag (read-only external link, no funds), off by default; the owner enables it for the sale window.
+
 ### Explorer merged into the Directory (#811, 2026-07-08)
 - The read-only realm Explorer is now a gated **🔎 Explorer** tab inside the Directory instead of a separate `/explorer` feature — realm discovery is one place: browse (Packages / Realms / …) → deep-dive into a realm's live render, source, and functions. Canonical route is `/directory`; the active realm rides the URL as `?tab=explorer&realm=r/x/y`.
 - Legacy `/explorer/*` links redirect into the tab, preserving the realm path, so bookmarks and shares don't 404. The standalone Explorer nav entry is removed — the sidebar shows a single **Directory** entry.
