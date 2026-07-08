@@ -15,8 +15,11 @@ export default function SpaceInvaders({ initialState }: { initialState?: Partial
   // still produce a valid GameState — Canvas etc. assume all fields are present.
   const [state, setState] = useState<GameState>(() => ({ ...newGame(SEED), ...initialState }));
   const stateRef = useRef(state);
-  stateRef.current = state;
   const [best, setBest] = useState(() => loadBest());
+
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
 
   const areaRef = useRef<HTMLDivElement>(null);
   const getKeyInput = useKeyboard();

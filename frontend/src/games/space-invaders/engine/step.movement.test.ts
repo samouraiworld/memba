@@ -4,7 +4,6 @@ import { newGame } from "./spawn";
 import { CONFIG } from "./config";
 import type { InputIntent } from "./types";
 
-const idle: InputIntent = { move: 0, fire: false, pause: false };
 const left: InputIntent = { move: -1, fire: false, pause: false };
 const right: InputIntent = { move: 1, fire: false, pause: false };
 
@@ -36,7 +35,7 @@ describe("step — movement & phase", () => {
   });
 
   it("toggles pause on a pause intent edge and freezes movement while paused", () => {
-    let s = step(newGame(1), 16, right); // playing
+    const s = step(newGame(1), 16, right); // playing
     const paused = step(s, 16, { move: 0, fire: false, pause: true });
     expect(paused.phase).toBe("paused");
     const stillPaused = step(paused, 16, right); // pause held / move ignored

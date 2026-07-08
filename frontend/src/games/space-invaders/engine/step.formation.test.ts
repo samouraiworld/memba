@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { step } from "./step";
 import { newGame } from "./spawn";
-import { CONFIG, formationStepMs } from "./config";
+import { formationStepMs } from "./config";
 import type { GameState, InputIntent } from "./types";
 
 const idle: InputIntent = { move: 0, fire: false, pause: false };

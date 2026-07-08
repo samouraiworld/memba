@@ -107,7 +107,7 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
   // Alien fire on cooldown (seeded).
   {
     const living = s.aliens.filter((a) => a.alive);
-    let fireMs = s.alienFireMs - dtMs;
+    const fireMs = s.alienFireMs - dtMs;
     if (fireMs <= 0 && living.length > 0) {
       const pick = rngFloat(s.rng);
       const shooter = living[Math.floor(pick.value * living.length)];

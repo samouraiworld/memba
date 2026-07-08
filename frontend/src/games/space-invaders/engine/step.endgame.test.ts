@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { step } from "./step";
-import { newGame, spawnWave } from "./spawn";
+import { newGame } from "./spawn";
 import { CONFIG } from "./config";
 import type { GameState, InputIntent } from "./types";
 
