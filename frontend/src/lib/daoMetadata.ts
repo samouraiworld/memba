@@ -1,16 +1,18 @@
 /**
  * daoMetadata — Parse DAO Render output for rich directory metadata.
  *
- * Queries Render("") for each DAO to extract:
+ * Extracts from a realm's Render("") body:
  * - Description (first non-empty line)
  * - Member count
  * - Proposal count
  * - Active status (has recent proposals based on count > 0)
  *
- * Uses Promise.allSettled with concurrency cap for batch fetching.
+ * W3.2: the Directory▸DAOs tab used to fetch these via a dedicated per-DAO
+ * fan-out (batchGetDAOMetadata). That fan-out was removed — `useResolvedDirectoryDaos`
+ * now resolves and parses metadata from a single cached Render("") per DAO, so
+ * this module is just the pure parser plus the `parseDAORender` reuse point
+ * (useNotifications also parses proposal counts from a render it already holds).
  */
-
-import { queryRender } from "./dao/shared"
 
 /** Rich DAO metadata parsed from Render output. */
 export interface DAOMetadata {
@@ -20,8 +22,6 @@ export interface DAOMetadata {
     proposalCount: number
     isActive: boolean
 }
-
-const MAX_CONCURRENT = 10
 
 /**
  * Parse Render("") output for a single DAO.
@@ -62,40 +62,4 @@ export function parseDAORender(path: string, raw: string | null): DAOMetadata {
     }
 
     return defaults
-}
-
-/**
- * Fetch metadata for a single DAO from its Render("") output.
- */
-export async function getDAOMetadata(rpcUrl: string, daoPath: string): Promise<DAOMetadata> {
-    try {
-        const raw = await queryRender(rpcUrl, daoPath, "")
-        return parseDAORender(daoPath, raw)
-    } catch {
-        return parseDAORender(daoPath, null)
-    }
-}
-
-/**
- * Batch fetch metadata for multiple DAOs.
- * Caps at MAX_CONCURRENT to avoid RPC abuse.
- */
-export async function batchGetDAOMetadata(
-    rpcUrl: string,
-    daoPaths: string[],
-): Promise<Map<string, DAOMetadata>> {
-    const results = new Map<string, DAOMetadata>()
-    const capped = daoPaths.slice(0, MAX_CONCURRENT)
-
-    const settled = await Promise.allSettled(
-        capped.map(path => getDAOMetadata(rpcUrl, path)),
-    )
-
-    for (const result of settled) {
-        if (result.status === "fulfilled") {
-            results.set(result.value.path, result.value)
-        }
-    }
-
-    return results
 }

@@ -4,12 +4,11 @@
  * @module components/directory/tabs/DAOsTab
  */
 
-import { useState, useMemo, useDeferredValue, useEffect } from "react"
+import { useState, useMemo, useDeferredValue } from "react"
 import { GNO_RPC_URL } from "../../../lib/config"
 import { getDirectoryDAOs } from "../../../lib/directory"
 import { useResolvedDirectoryDaos } from "../../../hooks/useResolvedDirectoryDaos"
 import { encodeSlug } from "../../../lib/daoSlug"
-import { batchGetDAOMetadata, type DAOMetadata } from "../../../lib/daoMetadata"
 import { DAOCard, FeaturedDAOs } from "../index"
 import type { TabProps } from "./types"
 
@@ -18,7 +17,6 @@ export function DAOsTab({ navigate }: TabProps) {
     // I2 audit fix: useDeferredValue for search — smooth typing with large datasets
     const deferredSearch = useDeferredValue(search)
     const [daoRefreshKey, setDaoRefreshKey] = useState(0)
-    const [metadata, setMetadata] = useState<Map<string, DAOMetadata>>(new Map())
 
     // daoRefreshKey forces recalculation when user saves a DAO
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -27,16 +25,9 @@ export function DAOsTab({ navigate }: TabProps) {
     // R2-D2: the seed+saved list is not network-aware, so it can contain DAOs
     // deployed on another testnet (or never deployed) that 404 on the active
     // network. Resolve each on-chain and show only the ones that render here.
-    const { daos: resolvedDAOs, loading: resolving } = useResolvedDirectoryDaos(allDAOs, GNO_RPC_URL)
-
-    // Fetch metadata for the resolved DAOs (skip the ones we already dropped).
-    useEffect(() => {
-        const paths = resolvedDAOs.map(d => d.path)
-        if (paths.length === 0) return
-        batchGetDAOMetadata(GNO_RPC_URL, paths)
-            .then(setMetadata)
-            .catch(() => { /* best-effort */ })
-    }, [resolvedDAOs])
+    // W3.2: the hook returns card metadata from the same Render("") it uses to
+    // resolve, so DAOsTab no longer runs a second per-DAO metadata fan-out.
+    const { daos: resolvedDAOs, metadata, loading: resolving } = useResolvedDirectoryDaos(allDAOs, GNO_RPC_URL)
 
     const filtered = useMemo(() =>
         deferredSearch
