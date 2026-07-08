@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Feature articles — product + engineering scope (#814, 2026-07-08)
+- Nine `/blog` articles, one per major feature (Directory + Explorer, unified Marketplace, App Store, social Feed, Block Party, DAO governance, Multisig, Validators, Quests/XP), each pairing a product framing with an engineering-scope section so it doubles as documentation. Ships via the existing static blog pipeline.
+
 ### App Store — flagship redesign (2026-07-07)
 - **`/apps` reshaped into a world-class on-chain app store.** A real masthead ("Apps you can read before you run them") leads on the store's actual differentiator — every app is a public gno.land realm you can inspect before running — instead of a bare title. Adds a **featured hero** for the lead app, a responsive card grid that scales as listings grow, and designed loading (skeleton), empty, and error states.
 - **Per-app identity when no artwork exists.** Apps with an empty `iconCID` get a deterministic monogram over a gradient seeded (FNV-1a) from the realm path — stable, unique per app, and CSP-safe (computed inline, never fetched). The realm path itself is promoted to a first-class mono chip.
