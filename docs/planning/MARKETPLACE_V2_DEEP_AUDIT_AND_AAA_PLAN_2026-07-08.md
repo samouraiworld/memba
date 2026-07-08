@@ -330,8 +330,9 @@ Status: **effectively done** (much was already collapsed on main — stale audit
 - *Acceptance:* exactly one front door ✅; marketplace reachable on mobile ✅; sell-anything routes by asset type ✅.
 
 ## Phase 5 — Mobile trade & real dialogs (A11y P0s)
+> **Firsthand finding (2026-07-08):** the primitives ALREADY EXIST — `src/hooks/useFocusTrap.ts` + `src/components/AccessibleDialog.tsx`. So 5.2 is *adopt them in `TradeModal`* (which has `role="dialog"` but no `aria-modal`/trap and doesn't use them) + upgrade `BottomSheet`'s single-`focus()` "fake trap" to the real hook. `TradeModal.css` confirmed to have **0 `@media`** (the "no mobile layout" P0 is real). **This phase modifies the LIVE, money-path `TradeModal`** → needs real browser verification (currently blocked by the preview-proxy caching bug). Recommend fixing preview / doing this with e2e before touching the trade modal.
 - **Task 5.1** `TradeModal`/`TokenTradeModal` render as full-height `BottomSheet` on mobile with **sticky always-reachable CTA**; `@media` + `max-height` + internal scroll. *Test (Playwright iphone 375px):* List-flow CTA visible + tappable without page scroll; no horizontal scroll.
-- **Task 5.2** Real dialog semantics — `aria-modal`, focus-move-in, focus-trap, focus-restore on `TradeModal` + `BottomSheet`; disable overlay-click mid-broadcast. *Test:* Tab cycles within dialog; focus returns to trigger on close; SR sees modal.
+- **Task 5.2** Real dialog semantics — **adopt `AccessibleDialog`/`useFocusTrap`** in `TradeModal`; add `aria-modal`, focus-move-in, focus-trap, focus-restore; fix `BottomSheet`'s fake trap; disable overlay-click mid-broadcast. *Test:* Tab cycles within dialog; focus returns to trigger on close; SR sees modal.
 - **Task 5.3** Tablist ARIA on lane tabs (`aria-selected`, roving `tabindex`, `aria-controls`); skeletons replace bare-text loading. *Test:* axe/a11y assertions pass on shell + tabs.
 - *Acceptance:* every trade completes one-thumb on a phone; all transaction dialogs trap+restore focus; WCAG AA on the money path.
 
