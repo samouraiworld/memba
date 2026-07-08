@@ -4,6 +4,7 @@ import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { getLiveLanes, getDefaultLaneSlug } from "../lib/marketplace/lanes"
 import { useAdena } from "../hooks/useAdena"
 import { isMarketplaceV2Enabled } from "../lib/config"
+import { Image, Briefcase, Coins, Robot, Tag, type Icon } from "@phosphor-icons/react"
 import type { AssetType } from "../lib/marketplace/types"
 
 // Lazy-load the lane components so the shell stays light
@@ -47,11 +48,11 @@ const LANE_COMPONENTS: Record<AssetType, ComponentType> = isMarketplaceV2Enabled
           agent: AgentLane,
       }
 
-const LANE_TAB_ICONS: Record<AssetType, string> = {
-    nft: "🖼️",
-    service: "💼",
-    token: "🪙",
-    agent: "🤖",
+const LANE_TAB_ICONS: Record<AssetType, Icon> = {
+    nft: Image,
+    service: Briefcase,
+    token: Coins,
+    agent: Robot,
 }
 
 // Per-lane hero copy + trust chips. The marketplace is one shell; each lane gets
@@ -146,16 +147,19 @@ export default function UnifiedMarketplace() {
             {/* ── Navigation Tabs (live lanes only) & Search ────── */}
             <div className="um-nav-container">
                 <nav className="um-tabs" role="tablist">
-                    {liveLanes.map((lane) => (
-                        <NavLink
-                            key={lane.assetType}
-                            role="tab"
-                            to={lane.slug}
-                            className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}
-                        >
-                            <span className="um-tab-icon">{LANE_TAB_ICONS[lane.assetType]}</span> {lane.label}
-                        </NavLink>
-                    ))}
+                    {liveLanes.map((lane) => {
+                        const LaneIcon = LANE_TAB_ICONS[lane.assetType]
+                        return (
+                            <NavLink
+                                key={lane.assetType}
+                                role="tab"
+                                to={lane.slug}
+                                className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}
+                            >
+                                <span className="um-tab-icon" aria-hidden="true"><LaneIcon size={16} weight="bold" /></span> {lane.label}
+                            </NavLink>
+                        )
+                    })}
                     {showMyListings && (
                         <NavLink
                             role="tab"
@@ -163,7 +167,7 @@ export default function UnifiedMarketplace() {
                             className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}
                             data-testid="my-listings-tab"
                         >
-                            <span className="um-tab-icon">🏷️</span> My Listings
+                            <span className="um-tab-icon" aria-hidden="true"><Tag size={16} weight="bold" /></span> My Listings
                         </NavLink>
                     )}
                 </nav>
