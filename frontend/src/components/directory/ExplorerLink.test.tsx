@@ -23,7 +23,7 @@ describe("ExplorerLink gating", () => {
                 <ExplorerLink realmPath="gno.land/r/x/y" networkKey="test13" />
             </MemoryRouter>,
         )
-        expect(screen.getByRole("link")).toHaveAttribute("href", "/test13/explorer/r/x/y")
+        expect(screen.getByRole("link")).toHaveAttribute("href", "/test13/directory?tab=explorer&realm=r/x/y")
     })
 
     it("renders nothing when the flag is off (never links into the coming-soon gate)", () => {

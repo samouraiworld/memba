@@ -282,7 +282,7 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
 
                     <div className="appdetail__actions">
                         {app.appURL && <OpenApp url={app.appURL} networkKey={networkKey} />}
-                        <Link className="appbtn appbtn--ghost" to={`/${networkKey}/explorer/${rel}`}>
+                        <Link className="appbtn appbtn--ghost" to={`/${networkKey}/directory?tab=explorer&realm=${rel}`}>
                             Read the source <span aria-hidden="true">→</span>
                         </Link>
                     </div>
