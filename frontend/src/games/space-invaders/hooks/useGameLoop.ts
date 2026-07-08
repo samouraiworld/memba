@@ -1,8 +1,7 @@
-import { useEffect, useRef } from "react";
 import { step, type GameState, type InputIntent } from "../engine";
 
-const FIXED_MS = 1000 / 60;
-const MAX_FRAME_MS = 250; // clamp to avoid spiral-of-death
+export const FIXED_MS = 1000 / 60;
+export const MAX_FRAME_MS = 250; // clamp to avoid spiral-of-death
 
 export function advance(
   state: GameState,
@@ -19,23 +18,16 @@ export function advance(
   return s;
 }
 
-export function useGameLoop(
-  getState: () => GameState,
-  setState: (s: GameState) => void,
-  getInput: () => InputIntent
-): void {
-  const raf = useRef(0);
-  const last = useRef<number | null>(null);
-  useEffect(() => {
-    const tick = (t: number) => {
-      if (last.current == null) last.current = t;
-      const frameMs = t - last.current;
-      last.current = t;
-      setState(advance(getState(), frameMs, getInput()));
-      raf.current = requestAnimationFrame(tick);
-    };
-    raf.current = requestAnimationFrame(tick);
-    return () => cancelAnimationFrame(raf.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+// Carry leftover sub-step time across frames so high-refresh displays (frame
+// delta < FIXED_MS) still advance. Returns how many fixed steps to run now and
+// the remaining accumulator (clamped to MAX_FRAME_MS to avoid spiral-of-death).
+export function drainAccumulator(
+  acc: number,
+  frameMs: number,
+  fixedMs: number = FIXED_MS,
+  maxMs: number = MAX_FRAME_MS
+): { steps: number; acc: number } {
+  const total = Math.min(Math.max(0, acc) + Math.max(0, frameMs), maxMs);
+  const steps = Math.floor(total / fixedMs);
+  return { steps, acc: total - steps * fixedMs };
 }

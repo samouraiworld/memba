@@ -4,11 +4,9 @@ import { aabb } from "./collision";
 import { rngFloat } from "./prng";
 import { spawnWave } from "./spawn";
 
-// Tracks whether the previous frame's pause was held, to detect a rising edge.
-// Encoded in phase transitions rather than extra state: we treat any frame with
-// pause:true as a toggle request and debounce via a module-free approach —
-// callers send pause:true for a single frame (the keyboard/touch hooks below
-// emit an edge). To stay pure, we toggle whenever pause is true.
+// This reducer stays pure: it has no memory of the previous frame's pause
+// state. Callers are expected to send pause:true for a single frame only
+// (i.e. an edge, not a held key) — every such frame flips playing/paused.
 export function step(state: GameState, dtMs: number, input: InputIntent): GameState {
   let s = { ...state };
 

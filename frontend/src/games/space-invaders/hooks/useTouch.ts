@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useRef, type RefObject } from "react";
 import type { InputIntent } from "../engine";
 
 // Left half of the play area = steer (pointer left/right of its start),
@@ -17,12 +17,16 @@ export function useTouch(ref: RefObject<HTMLElement>): () => InputIntent {
 
     const onDown = (e: PointerEvent) => {
       if (e.clientX < rectHalf()) {
-        steerId.current = e.pointerId;
-        steerStartX.current = e.clientX;
-        move.current = 0;
+        if (steerId.current == null) {
+          steerId.current = e.pointerId;
+          steerStartX.current = e.clientX;
+          move.current = 0;
+        }
       } else {
-        fireId.current = e.pointerId;
-        fire.current = true;
+        if (fireId.current == null) {
+          fireId.current = e.pointerId;
+          fire.current = true;
+        }
       }
     };
     const onMove = (e: PointerEvent) => {
@@ -51,5 +55,5 @@ export function useTouch(ref: RefObject<HTMLElement>): () => InputIntent {
     };
   }, [ref]);
 
-  return () => ({ move: move.current, fire: fire.current, pause: false });
+  return useCallback(() => ({ move: move.current, fire: fire.current, pause: false }), []);
 }

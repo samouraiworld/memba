@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { newGame, type GameState } from "./engine";
-import { advance } from "./hooks/useGameLoop";
+import { advance, drainAccumulator, FIXED_MS } from "./hooks/useGameLoop";
 import { useKeyboard } from "./hooks/useKeyboard";
 import { useTouch } from "./hooks/useTouch";
 import { Canvas } from "./render/Canvas";
@@ -39,15 +39,37 @@ export default function SpaceInvaders({ initialState }: { initialState?: Partial
 
   // rAF loop (inline so tests can stub rAF).
   const last = useRef<number | null>(null);
+  const accRef = useRef(0);
   useEffect(() => {
     let raf = 0;
     const tick = (time: number) => {
       if (last.current == null) last.current = time;
       const frameMs = time - last.current;
       last.current = time;
-      const next = advance(stateRef.current, frameMs, getInput());
-      stateRef.current = next;
-      setState(next);
+      const input = getInput();
+
+      // Pause edge handled once per frame (never per sub-step).
+      if (input.pause) {
+        const cur = stateRef.current;
+        if (cur.phase === "playing" || cur.phase === "paused") {
+          const phase: GameState["phase"] = cur.phase === "playing" ? "paused" : "playing";
+          const next = { ...cur, phase };
+          stateRef.current = next;
+          setState(next);
+        }
+      }
+
+      const { steps, acc } = drainAccumulator(accRef.current, frameMs);
+      accRef.current = acc;
+      if (steps > 0) {
+        const next = advance(stateRef.current, steps * FIXED_MS, {
+          move: input.move,
+          fire: input.fire,
+          pause: false,
+        });
+        stateRef.current = next;
+        setState(next);
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -63,13 +85,17 @@ export default function SpaceInvaders({ initialState }: { initialState?: Partial
     const fresh = newGame(SEED);
     stateRef.current = fresh;
     last.current = null;
+    accRef.current = 0;
     setState(fresh);
   };
 
   const togglePause = () => {
-    const p = stateRef.current.phase;
-    if (p === "playing") setState({ ...stateRef.current, phase: "paused" });
-    else if (p === "paused") setState({ ...stateRef.current, phase: "playing" });
+    const cur = stateRef.current;
+    if (cur.phase !== "playing" && cur.phase !== "paused") return;
+    const phase: GameState["phase"] = cur.phase === "playing" ? "paused" : "playing";
+    const next = { ...cur, phase };
+    stateRef.current = next;
+    setState(next);
   };
 
   return (
@@ -79,7 +105,12 @@ export default function SpaceInvaders({ initialState }: { initialState?: Partial
         <span>Best {best}</span>
         <span>Wave {state.wave}</span>
         <span>Lives {"◈".repeat(Math.max(0, state.lives))}</span>
-        <button type="button" className="si-pause" onClick={togglePause} aria-label="Pause">
+        <button
+          type="button"
+          className="si-pause"
+          onClick={togglePause}
+          aria-label={state.phase === "paused" ? "Resume" : "Pause"}
+        >
           {state.phase === "paused" ? "▶" : "⏸"}
         </button>
       </div>

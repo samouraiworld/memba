@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import type { InputIntent } from "../engine";
 
 export function useKeyboard(): () => InputIntent {
@@ -27,10 +27,10 @@ export function useKeyboard(): () => InputIntent {
     };
   }, []);
 
-  return () => {
+  return useCallback(() => {
     const move = (right.current ? 1 : 0) - (left.current ? 1 : 0);
     const pause = pauseEdge.current;
     pauseEdge.current = false; // consume edge
     return { move: move as -1 | 0 | 1, fire: fire.current, pause };
-  };
+  }, []);
 }
