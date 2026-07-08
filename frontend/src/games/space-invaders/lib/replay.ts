@@ -6,7 +6,7 @@ export const REPLAY_VERSION = 1;
 
 export interface InputDelta {
   tick: number;
-  move: -1 | 0 | 1;
+  move: number; // steering in [-1, 1] (see InputIntent.move)
   fire: boolean;
   pause: boolean;
 }
