@@ -129,24 +129,7 @@
 .mkt-card__rep {
     display: flex;
     align-items: center;
-    gap: var(--space-2, 8px);
-    font-size: 0.8rem;
     min-height: 1.1rem;
-}
-
-.mkt-card__rating {
-    color: var(--color-text);
-    font-weight: 600;
-}
-
-.mkt-card__level {
-    color: var(--mkt-accent);
-    font-weight: 600;
-}
-
-.mkt-card__rep-count,
-.mkt-card__new {
-    color: var(--color-text-muted);
 }
 
 /* ── Stats ─────────────────────────────────────────────────────────────── */

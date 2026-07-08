@@ -11,6 +11,7 @@
 import { memo } from "react"
 import { Link } from "react-router-dom"
 import { VerifiedBadge } from "../nft/VerifiedBadge"
+import { ReputationBadge } from "./ReputationBadge"
 import type { CardModel } from "../../lib/marketplace/types"
 import "./MarketCard.css"
 
@@ -69,15 +70,7 @@ function MarketCardImpl({ model }: MarketCardProps) {
                 </div>
 
                 <div className="mkt-card__rep">
-                    {seller.reputation ? (
-                        <>
-                            <span className="mkt-card__rating">★ {seller.reputation.rating.toFixed(1)}</span>
-                            <span className="mkt-card__level">{seller.reputation.level}</span>
-                            <span className="mkt-card__rep-count">({seller.reputation.count})</span>
-                        </>
-                    ) : (
-                        <span className="mkt-card__new">New seller</span>
-                    )}
+                    <ReputationBadge reputation={seller.reputation ?? null} />
                 </div>
 
                 {model.stats.length > 0 && (
