@@ -72,7 +72,7 @@ describe("scoring — combo, accuracy, bonuses (all in the pure reducer)", () =>
     };
     s = step(s, 16, fire);
     let missed = false;
-    for (let i = 0; i < 90 && s.playerBullet; i++) {
+    for (let i = 0; i < 90 && s.playerBullets.length > 0; i++) {
       s = step(s, 16, idle);
       missed = missed || s.events.some((e) => e.type === "shotMissed");
     }

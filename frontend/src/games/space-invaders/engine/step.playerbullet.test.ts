@@ -11,25 +11,24 @@ function playing(seed = 1): GameState {
   return { ...newGame(seed), phase: "playing" };
 }
 
-describe("step — player bullet", () => {
-  it("spawns a bullet on fire when none is in flight", () => {
+describe("step — player bullets (rapid fire)", () => {
+  it("spawns a bullet on fire", () => {
     const s = step(playing(), 16, fire);
-    expect(s.playerBullet).not.toBeNull();
+    expect(s.playerBullets.length).toBe(1);
   });
 
-  it("does not spawn a second bullet while one is live", () => {
+  it("respects the fire cooldown between shots", () => {
     let s = step(playing(), 16, fire);
-    const firstY = s.playerBullet!.y;
-    s = step(s, 16, fire);
-    // still exactly one bullet, and it moved (not replaced at spawn Y)
-    expect(s.playerBullet).not.toBeNull();
-    expect(s.playerBullet!.y).toBeLessThan(firstY);
+    const firstY = s.playerBullets[0].y;
+    s = step(s, 16, fire); // cooldown still active → no new bullet
+    expect(s.playerBullets.length).toBe(1);
+    expect(s.playerBullets[0].y).toBeLessThan(firstY); // and it moved up
   });
 
-  it("moves the bullet upward and despawns it off the top", () => {
+  it("moves bullets upward and despawns them off the top / on impact", () => {
     let s = step(playing(), 16, fire);
     for (let i = 0; i < 200; i++) s = step(s, 16, idle);
-    expect(s.playerBullet).toBeNull();
+    expect(s.playerBullets.length).toBe(0);
   });
 
   it("kills an alien on contact, frees the bullet, and scores", () => {
@@ -42,7 +41,7 @@ describe("step — player bullet", () => {
     for (let i = 0; i < 20; i++) s = step(s, 16, idle);
     expect(s.wave).toBe(1); // wave not cleared (decoy alive)
     expect(s.aliens[0].alive).toBe(false); // target destroyed
-    expect(s.playerBullet).toBeNull();
-    expect(s.score).toBe(CONFIG.points[0]);
+    expect(s.playerBullets.length).toBe(0);
+    expect(s.score).toBe(CONFIG.points[0]); // first kill: combo x1
   });
 });

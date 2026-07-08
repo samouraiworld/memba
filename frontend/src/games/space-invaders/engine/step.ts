@@ -42,19 +42,20 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
     s = { ...s, player: { ...s.player, x } };
   }
 
-  // Fire: spawn one bullet if none is live.
-  if (input.fire && !s.playerBullet) {
+  // Fire-rate cooldown decay.
+  if (s.fireCd > 0) s = { ...s, fireCd: Math.max(0, s.fireCd - dtMs) };
+
+  // Fire: rapid fire — spawn a bullet when off cooldown and under the cap.
+  if (input.fire && s.fireCd <= 0 && s.playerBullets.length < CONFIG.player.maxBullets) {
     const bx = s.player.x + s.player.w / 2 - CONFIG.bullet.w / 2;
     s = {
       ...s,
       shots: s.shots + 1,
-      playerBullet: {
-        x: bx,
-        y: s.player.y - CONFIG.bullet.h,
-        w: CONFIG.bullet.w,
-        h: CONFIG.bullet.h,
-        alive: true,
-      },
+      fireCd: CONFIG.player.fireCooldownMs,
+      playerBullets: [
+        ...s.playerBullets,
+        { x: bx, y: s.player.y - CONFIG.bullet.h, w: CONFIG.bullet.w, h: CONFIG.bullet.h, alive: true },
+      ],
     };
     events.push({ type: "playerFired", x: bx });
   }
@@ -90,37 +91,45 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
     }
   }
 
-  // Advance the player bullet and resolve alien hits.
-  if (s.playerBullet) {
-    const b = { ...s.playerBullet, y: s.playerBullet.y - CONFIG.bullet.playerSpeedPxPerMs * dtMs };
-    if (b.y + b.h < 0) {
-      // Shot left the top without a kill → the no-miss combo breaks.
-      s = { ...s, playerBullet: null, combo: 0 };
-      events.push({ type: "shotMissed" });
-    } else {
-      let hitScore = 0;
-      let hit = false;
-      let killed: { x: number; y: number; row: number } | null = null;
-      const aliens = s.aliens.map((a) => {
-        if (!hit && a.alive && aabb(b, a)) {
-          hit = true;
-          hitScore = CONFIG.points[a.row] ?? CONFIG.points[CONFIG.points.length - 1];
-          killed = { x: a.x, y: a.y, row: a.row };
-          return { ...a, alive: false };
+  // Advance player bullets; resolve alien hits and misses (rapid fire — several
+  // bullets may be in flight, each resolved independently this step).
+  if (s.playerBullets.length > 0) {
+    let aliens = s.aliens;
+    let combo = s.combo;
+    let hits = s.hits;
+    let score = s.score;
+    const survivors: typeof s.playerBullets = [];
+    for (const pb of s.playerBullets) {
+      const b = { ...pb, y: pb.y - CONFIG.bullet.playerSpeedPxPerMs * dtMs };
+      if (b.y + b.h < 0) {
+        // Shot left the top without a kill → the no-miss combo breaks.
+        combo = 0;
+        events.push({ type: "shotMissed" });
+        continue;
+      }
+      let hitIdx = -1;
+      for (let i = 0; i < aliens.length; i++) {
+        const a = aliens[i];
+        if (a.alive && aabb(b, a)) {
+          hitIdx = i;
+          break;
         }
-        return a;
-      });
-      if (hit && killed) {
+      }
+      if (hitIdx >= 0) {
+        const a = aliens[hitIdx];
+        const hitScore = CONFIG.points[a.row] ?? CONFIG.points[CONFIG.points.length - 1];
         // combo increments first; the multiplier applies to this kill, so the
         // first hit is ×1.0 (preserves base-point scoring).
-        const combo = s.combo + 1;
-        const gain = Math.floor((hitScore * comboMultiplier10(combo)) / 10);
-        s = { ...s, aliens, playerBullet: null, score: s.score + gain, combo, hits: s.hits + 1 };
-        events.push({ type: "alienKilled", ...(killed as { x: number; y: number; row: number }) });
+        combo += 1;
+        score += Math.floor((hitScore * comboMultiplier10(combo)) / 10);
+        hits += 1;
+        aliens = aliens.map((x, i) => (i === hitIdx ? { ...x, alive: false } : x));
+        events.push({ type: "alienKilled", x: a.x, y: a.y, row: a.row });
       } else {
-        s = { ...s, playerBullet: b };
+        survivors.push(b);
       }
     }
+    s = { ...s, aliens, playerBullets: survivors, combo, hits, score };
   }
 
   // Invulnerability countdown.
@@ -184,7 +193,8 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
       aliens: spawnWave(nextWave).aliens,
       dir: 1,
       stepAccumMs: 0,
-      playerBullet: null,
+      playerBullets: [],
+      fireCd: 0,
       alienBullets: [],
     };
     events.push({ type: "waveCleared" });
