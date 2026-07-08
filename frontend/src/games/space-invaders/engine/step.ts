@@ -1,6 +1,7 @@
 import { CONFIG, formationStepMs } from "./config";
 import type { GameState, InputIntent } from "./types";
 import { aabb } from "./collision";
+import { rngFloat } from "./prng";
 
 // Tracks whether the previous frame's pause was held, to detect a rising edge.
 // Encoded in phase transitions rather than extra state: we treat any frame with
@@ -94,6 +95,49 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
       s = hit
         ? { ...s, aliens, playerBullet: null, score: s.score + hitScore }
         : { ...s, playerBullet: b };
+    }
+  }
+
+  // Invulnerability countdown.
+  if (s.invulnMs > 0) {
+    s = { ...s, invulnMs: Math.max(0, s.invulnMs - dtMs) };
+  }
+
+  // Alien fire on cooldown (seeded).
+  {
+    const living = s.aliens.filter((a) => a.alive);
+    let fireMs = s.alienFireMs - dtMs;
+    if (fireMs <= 0 && living.length > 0) {
+      const pick = rngFloat(s.rng);
+      const shooter = living[Math.floor(pick.value * living.length)];
+      const bullet = {
+        x: shooter.x + shooter.w / 2 - CONFIG.bullet.w / 2,
+        y: shooter.y + shooter.h,
+        w: CONFIG.bullet.w,
+        h: CONFIG.bullet.h,
+        alive: true,
+      };
+      s = {
+        ...s,
+        rng: pick.state,
+        alienBullets: [...s.alienBullets, bullet],
+        alienFireMs: CONFIG.alienFire.cooldownMs,
+      };
+    } else {
+      s = { ...s, alienFireMs: fireMs };
+    }
+  }
+
+  // Advance alien bullets; resolve player damage.
+  if (s.alienBullets.length > 0) {
+    const moved = s.alienBullets
+      .map((b) => ({ ...b, y: b.y + CONFIG.bullet.alienSpeedPxPerMs * dtMs }))
+      .filter((b) => b.y < CONFIG.arena.h);
+    const struck = s.invulnMs <= 0 && moved.some((b) => aabb(b, s.player));
+    if (struck) {
+      s = { ...s, alienBullets: [], lives: s.lives - 1, invulnMs: CONFIG.respawnInvulnMs };
+    } else {
+      s = { ...s, alienBullets: moved };
     }
   }
 
