@@ -1,4 +1,4 @@
-import { step, type GameState, type InputIntent } from "../engine";
+import { step, type GameState, type GameEvent, type InputIntent } from "../engine";
 
 export const FIXED_MS = 1000 / 60;
 export const MAX_FRAME_MS = 250; // clamp to avoid spiral-of-death
@@ -18,6 +18,24 @@ export function advanceSteps(
     s = step(s, fixedMs, input);
   }
   return s;
+}
+
+// Like advanceSteps, but also returns every event emitted across the sub-steps
+// (each step() resets its own events). The cosmetic/audio layer consumes these;
+// the returned state is byte-identical to advanceSteps.
+export function advanceWithEvents(
+  state: GameState,
+  nSteps: number,
+  input: InputIntent,
+  fixedMs: number = FIXED_MS
+): { state: GameState; events: GameEvent[] } {
+  let s = state;
+  const events: GameEvent[] = [];
+  for (let i = 0; i < nSteps; i++) {
+    s = step(s, fixedMs, input);
+    for (const e of s.events) events.push(e);
+  }
+  return { state: s, events };
 }
 
 // Convenience wrapper: derive the integer step count from a wall-clock frame
