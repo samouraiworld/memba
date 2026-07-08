@@ -432,8 +432,11 @@ export function Layout() {
                 <WhatsNewToast />
 
                 {/* ── gno.land public-sale announcement (flag-gated promo; suppressed while
-                    the onboarding wizard is up so new users never see two modals stacked) ── */}
-                <GnoIcoAnnouncement suppressed={showWizard} />
+                    a higher-priority modal is up — the onboarding wizard, or the
+                    address-only activation gate — so the promo never stacks on top) ── */}
+                <GnoIcoAnnouncement
+                    suppressed={showWizard || (adena.connected && auth.isAuthenticated && !adena.pubkeyJSON)}
+                />
                 <NetworkStatusToast />
 
                 {/* ── Network switch success toast ── */}
