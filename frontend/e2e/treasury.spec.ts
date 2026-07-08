@@ -1,8 +1,9 @@
 import { test, expect, type Page } from '@playwright/test'
+import { GNO_RPC_HOSTS, abortOnchainReads } from './helpers/onchain'
 
 /**
- * Treasury E2E — verifies the treasury page renders its shell for GovDAO.
- * No wallet, no live on-chain reads.
+ * Treasury E2E — verifies the treasury page renders for GovDAO. No wallet, no
+ * live on-chain reads.
  *
  * History: the old body-text assertion (`toContainText(/Treasury|Balance|Asset/)`)
  * flaked in CI. That text only appears once the page leaves its loading state
@@ -12,22 +13,28 @@ import { test, expect, type Page } from '@playwright/test'
  * reads intermittently missed the 10s expect timeout across all 3 retries, and
  * which PR failed shifted run-to-run as public-RPC contention varied.
  *
- * Fix: abort just the gno RPC / indexer hosts so those reads reject instantly.
- * Treasury.tsx catches the failure and drops out of `loading`, rendering its
- * deterministic shell ("💰 Treasury" heading + back button) with zero RPC
- * dependency. We intentionally do NOT abort everything (the shared stubNetwork
- * helper's /sentry/ pattern also matches the app's own bundled @sentry_react
- * module and would blank the whole app), and we assert on stable elements
- * instead of racing body text.
+ * Fix: the shared `abortOnchainReads` fixture (e2e/helpers/onchain.ts) aborts the
+ * gno RPC / indexer hosts so those reads reject instantly. Treasury.tsx catches
+ * the failure and drops out of `loading`, rendering its deterministic shell
+ * ("💰 Treasury" heading + back button) with zero RPC dependency, and we assert
+ * on stable elements instead of racing body text. The populated-grid describe
+ * below instead *fulfills* the reads to exercise the assets table.
  */
-const GNO_RPC_HOSTS = [/\.gno\.land/, /testnets\.gno\.land/, /gnoland\.network/, /\.onbloc\.xyz/]
-
-async function abortOnchainReads(page: Page) {
-    await page.route('**/*', route => {
-        if (GNO_RPC_HOSTS.some(re => re.test(route.request().url()))) return route.abort()
-        return route.continue()
+test.describe('Treasury Page', () => {
+    test.beforeEach(async ({ page }) => {
+        await abortOnchainReads(page)
     })
-}
+
+    test('treasury page loads for GovDAO', async ({ page }) => {
+        await page.goto('/dao/gno.land~r~gov~dao/treasury')
+        await expect(page.getByRole('heading', { name: /Treasury/ })).toBeVisible()
+    })
+
+    test('treasury page has back navigation', async ({ page }) => {
+        await page.goto('/dao/gno.land~r~gov~dao/treasury')
+        await expect(page.locator('#treasury-back-btn')).toBeVisible()
+    })
+})
 
 // Mirrors GRC20_FACTORY_PATH in frontend/src/lib/config.ts.
 const GRC20_FACTORY_PATH = 'gno.land/r/samcrew/tokenfactory_v2'
@@ -36,13 +43,13 @@ const GRC20_FACTORY_PATH = 'gno.land/r/samcrew/tokenfactory_v2'
  * Fulfill the treasury's on-chain reads with a deterministic, fully-offline
  * populated payload so the assets TABLE renders (not the empty-state shell).
  *
- * Why this exists (follow-up to the abort helper above): aborting every gno RPC
- * host drops Treasury.tsx straight into its "No assets found" empty state, so
- * the `1fr 1fr 1fr` assets grid — with its long monospace GNOT/GRC20 balances,
- * the most plausible source of mobile horizontal overflow — was no longer
- * exercised by the ≤380px assertion. Rather than abort, we intercept the same
- * hosts and *fulfill* the specific abci_query calls Treasury makes, keeping the
- * test 100% offline while restoring populated-grid coverage.
+ * Why this exists (follow-up to the abort helper): aborting every gno RPC host
+ * drops Treasury.tsx straight into its "No assets found" empty state, so the
+ * `1fr 1fr 1fr` assets grid — with its long monospace GNOT/GRC20 balances, the
+ * most plausible source of mobile horizontal overflow — was no longer exercised
+ * by the ≤380px assertion. Rather than abort, we intercept the same hosts
+ * (GNO_RPC_HOSTS) and *fulfill* the specific abci_query calls Treasury makes,
+ * keeping the test 100% offline while restoring populated-grid coverage.
  *
  * The reads Treasury.tsx issues (see loadTreasury):
  *  - GNOT: a `bank/balances/<realm>` abci_query. The page reads
@@ -100,22 +107,6 @@ async function fulfillPopulatedTreasury(page: Page) {
     })
 }
 
-test.describe('Treasury Page', () => {
-    test.beforeEach(async ({ page }) => {
-        await abortOnchainReads(page)
-    })
-
-    test('treasury page loads for GovDAO', async ({ page }) => {
-        await page.goto('/dao/gno.land~r~gov~dao/treasury')
-        await expect(page.getByRole('heading', { name: /Treasury/ })).toBeVisible()
-    })
-
-    test('treasury page has back navigation', async ({ page }) => {
-        await page.goto('/dao/gno.land~r~gov~dao/treasury')
-        await expect(page.locator('#treasury-back-btn')).toBeVisible()
-    })
-})
-
 test.describe('Treasury Page — populated assets grid', () => {
     test.beforeEach(async ({ page }) => {
         await fulfillPopulatedTreasury(page)
@@ -123,7 +114,7 @@ test.describe('Treasury Page — populated assets grid', () => {
 
     // Primary value: this deterministically exercises the POPULATED assets-table
     // render path (mock → listFactoryTokens/getTokenBalance/GNOT parse → the
-    // `1fr 1fr 1fr` grid with long monospace balances). #825's abort variant only
+    // `1fr 1fr 1fr` grid with long monospace balances). The abort variant only
     // ever rendered the empty-state shell, so a break in that render path — or a
     // parse regression on the balance columns — went uncaught by the ≤380 check.
     //
