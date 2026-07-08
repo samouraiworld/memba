@@ -15,6 +15,8 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"golang.org/x/sync/singleflight"
+
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
 	"github.com/samouraiworld/memba/backend/internal/attestation"
 	"github.com/samouraiworld/memba/backend/internal/auth"
@@ -55,6 +57,9 @@ type MultisigService struct {
 	homeCached   map[string]*membav1.HomeSnapshot
 	homeCachedAt map[string]time.Time
 	homeQuery    queryFunc
+	// homeGroup collapses concurrent cache misses per chain_id so only one
+	// assembly (8 network/DB reads) runs at a time — the rest share its result.
+	homeGroup singleflight.Group
 
 	// Block Party (B6): feature flag + seed RPC source for the daily-challenge
 	// block fetcher. Disabled (false, empty seed) by default; wired in
