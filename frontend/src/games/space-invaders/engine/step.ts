@@ -2,7 +2,18 @@ import { CONFIG, formationStepMs, comboMultiplier10, alienFireCooldownMs } from 
 import type { GameState, GameEvent, InputIntent } from "./types";
 import { aabb } from "./collision";
 import { rngFloat } from "./prng";
-import { spawnWave } from "./spawn";
+import { spawnWave, spawnBunkers } from "./spawn";
+
+// Erode the first bunker block a bullet overlaps. Returns the (possibly
+// smaller) block list and whether a block absorbed the shot.
+function hitBunker(bunkers: GameState["bunkers"], b: { x: number; y: number; w: number; h: number }) {
+  const i = bunkers.findIndex((bl) => bl.hp > 0 && aabb(b, bl));
+  if (i < 0) return { bunkers, hit: false };
+  const next = bunkers
+    .map((bl, j) => (j === i ? { ...bl, hp: bl.hp - 1 } : bl))
+    .filter((bl) => bl.hp > 0);
+  return { bunkers: next, hit: true };
+}
 
 // Apply end-of-game bonuses (accuracy + surviving lives) and enter gameover.
 // Integer-only so the future Go replay verifier reproduces it exactly.
@@ -133,6 +144,7 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
     let score = s.score;
     let ufo = s.ufo;
     let rng = s.rng;
+    let bunkers = s.bunkers;
     const survivors: typeof s.playerBullets = [];
     for (const pb of s.playerBullets) {
       const b = { ...pb, y: pb.y - CONFIG.bullet.playerSpeedPxPerMs * dtMs };
@@ -172,10 +184,15 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
         events.push({ type: "ufoKilled", x: ufo.x, y: ufo.y, points: pts });
         ufo = null;
       } else {
-        survivors.push(b);
+        const bh = hitBunker(bunkers, b);
+        if (bh.hit) {
+          bunkers = bh.bunkers; // shot absorbed by (and erodes) your own cover
+        } else {
+          survivors.push(b);
+        }
       }
     }
-    s = { ...s, aliens, playerBullets: survivors, combo, hits, score, ufo, rng };
+    s = { ...s, aliens, playerBullets: survivors, combo, hits, score, ufo, rng, bunkers };
   }
 
   // Invulnerability countdown.
@@ -212,18 +229,25 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
     }
   }
 
-  // Advance alien bullets; resolve player damage.
+  // Advance alien bullets; bunkers absorb them, then resolve player damage.
   if (s.alienBullets.length > 0) {
     const moved = s.alienBullets
       .map((b) => ({ ...b, y: b.y + CONFIG.bullet.alienSpeedPxPerMs * dtMs }))
       .filter((b) => b.y < CONFIG.arena.h);
-    const struck = s.invulnMs <= 0 && moved.some((b) => aabb(b, s.player));
+    let bunkers = s.bunkers;
+    const remaining: typeof moved = [];
+    for (const b of moved) {
+      const bh = hitBunker(bunkers, b);
+      if (bh.hit) bunkers = bh.bunkers; // stopped by cover
+      else remaining.push(b);
+    }
+    const struck = s.invulnMs <= 0 && remaining.some((b) => aabb(b, s.player));
     if (struck) {
-      s = { ...s, alienBullets: [], lives: s.lives - 1, invulnMs: CONFIG.respawnInvulnMs };
+      s = { ...s, alienBullets: [], lives: s.lives - 1, invulnMs: CONFIG.respawnInvulnMs, bunkers };
       events.push({ type: "playerHit" });
       events.push({ type: "lifeLost" });
     } else {
-      s = { ...s, alienBullets: moved };
+      s = { ...s, alienBullets: remaining, bunkers };
     }
   }
 
@@ -246,6 +270,7 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
       playerBullets: [],
       fireCd: 0,
       alienBullets: [],
+      bunkers: spawnBunkers(),
     };
     events.push({ type: "waveCleared" });
   }

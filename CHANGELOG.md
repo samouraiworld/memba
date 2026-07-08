@@ -71,6 +71,10 @@ Full changelogs are split by version range for easier navigation:
 <!-- categories: memba -->
 - The **mystery UFO** is back: it drifts across the top of the screen every so often for bonus points. Base value varies, but land the hit on the right shot and it pays the classic **300** — a risk/reward hook that rewards players who track their shot count and break rhythm to snipe it. Deterministic and integer-only like the rest of the engine; gated by `VITE_ENABLE_SPACE_INVADERS`.
 
+### Space Invaders — destructible bunkers (2026-07-08)
+<!-- categories: memba -->
+- The classic **bunkers** are here: rows of destructible cover between you and the swarm. They soak up alien fire (three hits per block) — but you erode your *own* cover when you shoot through it, so positioning matters. Cover **refreshes each wave**. The tactical layer that makes "do I burn my shield to snipe the UFO?" a real decision. Deterministic/integer-only; gated by `VITE_ENABLE_SPACE_INVADERS`.
+
 <!-- categories: memba -->
 - Added a `.gitattributes` rule (`CHANGELOG.md merge=union`) so that when several independent PRs each append an entry to `[Unreleased]`, git keeps **both** sides instead of raising a conflict on every merge. Removes the recurring manual changelog-conflict resolution when a batch of PRs lands together. No product change.
 

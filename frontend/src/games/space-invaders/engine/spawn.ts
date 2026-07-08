@@ -1,5 +1,23 @@
 import { CONFIG } from "./config";
-import type { Alien, GameState } from "./types";
+import type { Alien, Block, GameState } from "./types";
+
+// Lay out `count` bunkers, each a cols×rows grid of full-HP blocks, evenly
+// spaced across the arena between the fleet and the player.
+export function spawnBunkers(): Block[] {
+  const { count, cols, rows, blockW, blockH, gapX, hp, y } = CONFIG.bunker;
+  const bunkerW = cols * blockW + (cols - 1) * gapX;
+  const slot = CONFIG.arena.w / count;
+  const blocks: Block[] = [];
+  for (let b = 0; b < count; b++) {
+    const x0 = b * slot + (slot - bunkerW) / 2;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        blocks.push({ x: x0 + c * (blockW + gapX), y: y + r * blockH, w: blockW, h: blockH, hp });
+      }
+    }
+  }
+  return blocks;
+}
 
 export function spawnWave(wave: number): { aliens: Alien[] } {
   const { rows, cols, w, h, gapX, gapY, marginX, startY, startYMaxDrop } = CONFIG.alien;
@@ -53,6 +71,7 @@ export function newGame(seed: number): GameState {
     alienFireMs: CONFIG.alienFire.cooldownMs,
     ufo: null,
     ufoTimerMs: CONFIG.ufo.spawnMs,
+    bunkers: spawnBunkers(),
     events: [],
   };
 }

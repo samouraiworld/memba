@@ -15,6 +15,9 @@ export const CONFIG = {
   // seeded pick; a hit on a parityShot-th shot pays the 300 bonus (the classic
   // risk/reward skill hook — track your shot count).
   ufo: { w: 24, h: 10, y: 22, speedPxPerMs: 0.09, spawnMs: 16000, points: [50, 100, 150] as const, bonusPoints: 300, parityShot: 23 },
+  // Destructible bunkers: count clusters of cols×rows blocks, each with hp hits.
+  // Both player and alien shots erode them; they refresh each wave.
+  bunker: { count: 4, cols: 4, rows: 2, blockW: 7, blockH: 6, gapX: 2, hp: 3, y: 296 },
   lives: 3,
   respawnInvulnMs: 1500,
   points: [40, 30, 20, 20, 10] as const, // by row index; top row worth most
