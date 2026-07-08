@@ -1,0 +1,62 @@
+import { screen, fireEvent, waitFor } from "@testing-library/react"
+import { describe, it, expect, vi, beforeEach } from "vitest"
+import { AppStore } from "./AppStore"
+import { renderWithProviders } from "../test/test-utils"
+import type { AppListing } from "../lib/appStore"
+
+// Control the realm generation + the network reads so we can assert the v3-only pending disclosure
+// without hitting a chain. isAppStoreV3 is a plain fn here, flipped per-test via `v3`.
+let v3 = true
+const fetchByStatus = vi.fn()
+
+vi.mock("../lib/appStore", async (importActual) => {
+    const actual = await importActual<typeof import("../lib/appStore")>()
+    return {
+        ...actual,
+        isAppStoreV3: () => v3,
+        fetchLiveApps: vi.fn().mockResolvedValue([]),
+        fetchByStatus: (...a: unknown[]) => fetchByStatus(...a),
+    }
+})
+
+function listing(over: Partial<AppListing>): AppListing {
+    return {
+        id: 1, pkgPath: "gno.land/r/samcrew/app_x", name: "App X", tagline: "", category: "",
+        iconCID: "", appURL: "", publisher: "", status: "pending", flagCount: 0, createdAt: 0, ...over,
+    }
+}
+
+describe("AppStore — pending-review disclosure (v3, opt-in)", () => {
+    beforeEach(() => {
+        v3 = true
+        fetchByStatus.mockReset().mockResolvedValue([
+            listing({ pkgPath: "gno.land/r/samcrew/unvetted", name: "Unvetted App", status: "pending" }),
+        ])
+    })
+
+    it("shows the opt-in toggle but keeps pending apps hidden until asked", async () => {
+        renderWithProviders(<AppStore />, { route: "/test13/apps" })
+        // The toggle exists…
+        expect(await screen.findByRole("button", { name: /apps pending review/i })).toBeInTheDocument()
+        // …but a pending app is NOT visible by default, and we haven't even fetched it.
+        expect(screen.queryByText(/Unvetted App/)).not.toBeInTheDocument()
+        expect(fetchByStatus).not.toHaveBeenCalled()
+    })
+
+    it("reveals amber-chipped pending apps with a caution only after the user expands it", async () => {
+        renderWithProviders(<AppStore />, { route: "/test13/apps" })
+        fireEvent.click(await screen.findByRole("button", { name: /apps pending review/i }))
+        expect(await screen.findByText(/Unvetted App/)).toBeInTheDocument()
+        expect(screen.getByText(/not reviewed/i)).toBeInTheDocument()
+        expect(screen.getByText(/Pending review/)).toBeInTheDocument()
+        expect(fetchByStatus).toHaveBeenCalledWith("pending", 0, 30)
+    })
+
+    it("does not render the pending disclosure at all on the v2 realm", async () => {
+        v3 = false
+        renderWithProviders(<AppStore />, { route: "/test13/apps" })
+        // let the live query settle
+        await waitFor(() => expect(screen.getByTestId("appstore-root")).toBeInTheDocument())
+        expect(screen.queryByRole("button", { name: /apps pending review/i })).not.toBeInTheDocument()
+    })
+})

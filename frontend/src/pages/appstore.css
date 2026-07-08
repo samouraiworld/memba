@@ -448,3 +448,51 @@
         animation: none;
     }
 }
+
+/* ── Pending-review (v3, opt-in) ─────────────────────────────────────── */
+.appstore__pending {
+    margin-top: var(--space-7, 2rem);
+    padding-top: var(--space-5, 1.25rem);
+    border-top: 1px solid var(--color-k-edge);
+}
+.appstore__pending-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--color-k-text);
+}
+.appstore__pending-hint {
+    font-weight: 400;
+    color: var(--color-k-muted);
+}
+.appstore__pending-caution {
+    margin: var(--space-3, 0.75rem) 0 var(--space-4, 1rem);
+    padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+    max-width: 64ch;
+    font-size: 0.85rem;
+    line-height: 1.55;
+    color: var(--color-k-warning-text);
+    background: var(--color-k-amber-subtle);
+    border: 1px solid var(--color-k-amber-border);
+    border-left-width: 3px;
+    border-radius: var(--radius-md, 10px);
+}
+.appcard__pending-chip {
+    font-size: var(--text-xs, 0.64rem);
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--color-k-amber-tint);
+    border: 1px solid var(--color-k-amber-border);
+    color: var(--color-k-warning-text);
+    white-space: nowrap;
+}
+.appcard--pending {
+    border-color: var(--color-k-amber-border);
+}
