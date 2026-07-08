@@ -1,10 +1,14 @@
 import { describe, it, expect, vi, afterEach } from "vitest"
-import { resilientAbciQuery, resilientAbciQueryDetailed, AbciQueryError, abciErrorPresent } from "./rpcFallback"
+import { resilientAbciQuery, resilientAbciQueryDetailed, getRpcUrlsInOrder, AbciQueryError, abciErrorPresent } from "./rpcFallback"
 
 afterEach(() => {
     vi.restoreAllMocks()
     vi.unstubAllGlobals()
 })
+
+// Helpers for the dedup/retry suites.
+const okData = (text: string) => ({ ok: true, json: async () => ({ result: { response: { ResponseBase: { Data: btoa(text) } } } }) })
+const emptyResp = () => ({ ok: true, json: async () => ({ result: { response: { ResponseBase: {} } } }) })
 
 // FE-2: resilientAbciQuery conflated "realm rendered nothing" (empty) with
 // "every RPC endpoint is down" (failure) — both returned null — so a DAO read
@@ -115,5 +119,86 @@ describe("abciErrorPresent", () => {
     it("treats non-empty strings and objects as present", () => {
         expect(abciErrorPresent("not found")).toBe(true)
         expect(abciErrorPresent({ "@type": "/std.InvalidAddressError" })).toBe(true)
+    })
+})
+
+// W3.3: the same qrender/qeval fires from several call-sites during a render
+// pass. Concurrent identical reads must collapse to one round-trip, but only
+// while in flight (never a stale cache).
+describe("resilientAbciQueryDetailed — in-flight dedup (W3.3)", () => {
+    it("coalesces concurrent identical reads into one fetch", async () => {
+        let resolveFetch!: (v: unknown) => void
+        const fetchMock = vi.fn(() => new Promise((r) => { resolveFetch = r }))
+        vi.stubGlobal("fetch", fetchMock)
+
+        const p1 = resilientAbciQueryDetailed("vm/qrender", "gno.land/r/x:")
+        const p2 = resilientAbciQueryDetailed("vm/qrender", "gno.land/r/x:")
+        // Both share one in-flight request.
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+
+        resolveFetch(okData("# shared"))
+        const [r1, r2] = await Promise.all([p1, p2])
+        expect(r1).toEqual({ kind: "ok", text: "# shared" })
+        expect(r2).toEqual(r1)
+    })
+
+    it("does NOT coalesce reads with different path/data", async () => {
+        const fetchMock = vi.fn().mockResolvedValue(emptyResp())
+        vi.stubGlobal("fetch", fetchMock)
+        await Promise.all([
+            resilientAbciQueryDetailed("vm/qrender", "gno.land/r/a:"),
+            resilientAbciQueryDetailed("vm/qrender", "gno.land/r/b:"),
+        ])
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+
+    it("re-reads after the in-flight request settles (coalescing, not caching)", async () => {
+        const fetchMock = vi.fn().mockResolvedValue(okData("# x"))
+        vi.stubGlobal("fetch", fetchMock)
+        await resilientAbciQueryDetailed("vm/qrender", "gno.land/r/x:")
+        await resilientAbciQueryDetailed("vm/qrender", "gno.land/r/x:")
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+})
+
+// W3.4: a transient blip on a healthy primary shouldn't demote it to a fallback.
+describe("resilientFetch — same-URL retry before failover (W3.4)", () => {
+    it("retries the SAME url once on a network blip, then succeeds", async () => {
+        const fetchMock = vi.fn()
+            .mockRejectedValueOnce(new Error("ECONNREFUSED"))
+            .mockResolvedValueOnce(okData("# ok"))
+        vi.stubGlobal("fetch", fetchMock)
+
+        const res = await resilientAbciQueryDetailed("vm/qrender", "gno.land/r/x:")
+        expect(res).toEqual({ kind: "ok", text: "# ok" })
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+        // Same url both times — no premature failover.
+        expect(fetchMock.mock.calls[1][0]).toBe(fetchMock.mock.calls[0][0])
+    })
+
+    it("retries the same url on a 5xx, then succeeds", async () => {
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce({ ok: false, status: 502 })
+            .mockResolvedValueOnce(okData("# ok"))
+        vi.stubGlobal("fetch", fetchMock)
+
+        const res = await resilientAbciQueryDetailed("vm/qrender", "gno.land/r/x:")
+        expect(res).toEqual({ kind: "ok", text: "# ok" })
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+    })
+
+    it("does NOT retry a 4xx — one attempt per url", async () => {
+        const fetchMock = vi.fn().mockResolvedValue({ ok: false, status: 400 })
+        vi.stubGlobal("fetch", fetchMock)
+        await expect(resilientAbciQueryDetailed("vm/qrender", "gno.land/r/x:")).rejects.toThrow()
+        expect(fetchMock).toHaveBeenCalledTimes(getRpcUrlsInOrder().length)
+    })
+
+    it("retries each url once on persistent network errors before giving up", async () => {
+        const fetchMock = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"))
+        vi.stubGlobal("fetch", fetchMock)
+        await expect(resilientAbciQueryDetailed("vm/qrender", "gno.land/r/x:")).rejects.toThrow()
+        // Each url attempted (1 + SAME_URL_RETRIES) times.
+        expect(fetchMock).toHaveBeenCalledTimes(getRpcUrlsInOrder().length * 2)
     })
 })

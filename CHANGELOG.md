@@ -23,6 +23,9 @@ Full changelogs are split by version range for easier navigation:
 ### Performance — feed reply counts (2026-07-08)
 <!-- categories: memba -->
 - The social feed now serves each post's reply count from a maintained column instead of recomputing it per row on every read, and ranks "most replied" posts from that column instead of an on-the-fly sort. This trims the work behind the timeline, thread, and feed-stats endpoints — most visible under load — with no change to the counts shown (they stay correct across reply delete / hide / unhide / operator-blocklist / chain-reorg).
+### Performance — on-chain read resilience (2026-07-08)
+<!-- categories: memba -->
+- On-chain reads now **coalesce**: when the same realm query is requested from several places at once (common while a page renders), they share a single round-trip instead of each hitting the network. And a read that hits a brief network blip or a 5xx now **retries the same endpoint once** before falling back to a backup node, so one hiccup no longer demotes a healthy primary. Timeouts still fail over immediately. Fewer redundant requests and steadier reads under flaky connectivity, with no change to results.
 
 ### Security — Go toolchain 1.25.11 → 1.25.12 (2026-07-08)
 <!-- categories: memba -->
