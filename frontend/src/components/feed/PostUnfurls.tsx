@@ -8,7 +8,7 @@
  *
  * @module components/feed/PostUnfurls
  */
-import { useState } from "react"
+import { memo, useMemo, useState } from "react"
 import { Cube, Coins, ShieldCheck, Scroll, LinkSimple, ArrowUpRight } from "@phosphor-icons/react"
 import { useQuery } from "@tanstack/react-query"
 import { parseUnfurls } from "../../lib/feedUnfurl"
@@ -222,8 +222,10 @@ function LinkUnfurlCard({ url, host }: { url: string; host: string }) {
     )
 }
 
-export function PostUnfurls({ body }: { body: string }) {
-    const refs = parseUnfurls(body)
+function PostUnfurlsInner({ body }: { body: string }) {
+    // Parse the body for on-chain refs once per body change; PostCard re-renders
+    // on poll/scroll and this ran the parser every time.
+    const refs = useMemo(() => parseUnfurls(body), [body])
     if (refs.length === 0) return null
 
     return (
@@ -263,3 +265,6 @@ export function PostUnfurls({ body }: { body: string }) {
         </div>
     )
 }
+
+/** Memoized: re-parses/re-renders only when the post body changes. */
+export const PostUnfurls = memo(PostUnfurlsInner)

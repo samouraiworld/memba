@@ -32,6 +32,9 @@ Full changelogs are split by version range for easier navigation:
 - The read-only realm Explorer is now a gated **🔎 Explorer** tab inside the Directory instead of a separate `/explorer` feature — realm discovery is one place: browse (Packages / Realms / …) → deep-dive into a realm's live render, source, and functions. Canonical route is `/directory`; the active realm rides the URL as `?tab=explorer&realm=r/x/y`.
 - Legacy `/explorer/*` links redirect into the tab, preserving the realm path, so bookmarks and shares don't 404. The standalone Explorer nav entry is removed — the sidebar shows a single **Directory** entry.
 - Still gated by `VITE_ENABLE_EXPLORER`: the tab is hidden and a deep-link to `?tab=explorer` falls back to the default tab when the flag is off, so there's no dead button or blank panel.
+### Performance — feed render (2026-07-08)
+<!-- categories: memba -->
+- **Reading the feed no longer churns the main thread.** Each post card ran its own 15-second clock and re-ran the body's markdown + on-chain-unfurl parsing on every render, and cards weren't memoized — so a 200-post timeline meant 200 timers all re-parsing on each poll/scroll. Now the ticking relative-time is isolated to a tiny leaf (only the timestamp text updates every 15s), the body markdown and unfurl parsing are memoized per body, `PostCard`/`PostUnfurls` are `React.memo`'d, and the feed's row callbacks are stabilized so an unchanged card doesn't re-render on a timeline poll. Pure render-perf; no behavior change (all 30 feed unit tests unchanged and green). Behind `VITE_ENABLE_FEED`.
 
 ### Feature articles — product + engineering scope (#814, 2026-07-08)
 - Nine `/blog` articles, one per major feature (Directory + Explorer, unified Marketplace, App Store, social Feed, Block Party, DAO governance, Multisig, Validators, Quests/XP), each pairing a product framing with an engineering-scope section so it doubles as documentation. Ships via the existing static blog pipeline.
