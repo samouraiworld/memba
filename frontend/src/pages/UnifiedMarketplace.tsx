@@ -3,6 +3,7 @@ import { Routes, Route, Navigate, NavLink, useLocation, useSearchParams } from "
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { getLiveLanes, getDefaultLaneSlug } from "../lib/marketplace/lanes"
 import { useAdena } from "../hooks/useAdena"
+import { isMarketplaceV2Enabled } from "../lib/config"
 import type { AssetType } from "../lib/marketplace/types"
 
 // Lazy-load the lane components so the shell stays light
@@ -11,6 +12,12 @@ const ServiceLane = lazy(() => import("../components/marketplace/ServiceLane"))
 const AgentLane = lazy(() => import("../components/marketplace/AgentLane"))
 const TokenLane = lazy(() => import("./TokenLane").then(m => ({ default: m.TokenLane })))
 const MyListingsView = lazy(() => import("../components/marketplace/MyListingsView"))
+
+// marketplace-v2 lanes (rebuilt on LaneView/MarketCard). Behind VITE_ENABLE_MARKETPLACE_V2
+// so the old lanes stay the prod default until the flag flips at cutover.
+const NftLaneV2 = lazy(() => import("../components/marketplace/NftLaneV2"))
+const ServiceLaneV2 = lazy(() => import("../components/marketplace/ServiceLaneV2"))
+const TokenLaneV2 = lazy(() => import("../components/marketplace/TokenLaneV2"))
 
 // The "My Listings" management surface is a fixed sub-route (not a lane): it
 // aggregates the connected wallet's own listings across the live lanes.
@@ -26,12 +33,19 @@ import "./unified-marketplace.css"
 // assetType → the lane's UI. A lane only appears in the shell when getLiveLanes()
 // says it is live (flag + backing realm both valid on the active network), so a
 // gated lane is unreachable via both its tab and a direct URL (W0.1).
-const LANE_COMPONENTS: Record<AssetType, ComponentType> = {
-    nft: NftLane,
-    service: ServiceLane,
-    token: TokenLane,
-    agent: AgentLane,
-}
+const LANE_COMPONENTS: Record<AssetType, ComponentType> = isMarketplaceV2Enabled()
+    ? {
+          nft: NftLaneV2,
+          service: ServiceLaneV2,
+          token: TokenLaneV2,
+          agent: AgentLane, // no v2 agent lane yet — Agents stays on the current component
+      }
+    : {
+          nft: NftLane,
+          service: ServiceLane,
+          token: TokenLane,
+          agent: AgentLane,
+      }
 
 const LANE_TAB_ICONS: Record<AssetType, string> = {
     nft: "🖼️",

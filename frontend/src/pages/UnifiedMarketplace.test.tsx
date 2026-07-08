@@ -17,6 +17,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 
 // ── Drive the lane predicates. Default: only NFT + Services live. ────────────
 vi.mock("../lib/config", () => ({
+    isMarketplaceV2Enabled: vi.fn(() => false),
     isNftEnabled: vi.fn(() => true),
     isNftMarketV3Valid: vi.fn(() => true),
     isServicesEnabled: vi.fn(() => true),
