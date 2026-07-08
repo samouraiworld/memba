@@ -18,7 +18,7 @@ import {
     PuzzlePiece, Robot,
     User, Gear, Bank, Megaphone,
     UsersThree, Trophy, ClockCounterClockwise, ShieldStar, Newspaper,
-    ChatCircle, MagnifyingGlass, Storefront,
+    ChatCircle, Storefront,
 } from '@phosphor-icons/react'
 
 /** W6.2 4-mode IA: the nav IS the positioning statement. Every primary
@@ -60,8 +60,9 @@ export const NAV: NavEntry[] = [
     { id: 'dashboard', to: '/dashboard', label: 'Dashboard', Icon: ChartBar, group: 'wallet', showOn: 'both', requiresAuth: true },
     { id: 'dao', to: '/dao', label: 'DAOs', Icon: Buildings, group: 'govern', showOn: 'both' },
     { id: 'tokens', to: '/tokens', label: 'Tokens', Icon: Coins, group: 'wallet', showOn: 'both' },
+    // Directory is the single discovery hub — the realm Explorer was merged in as
+    // its gated `?tab=explorer` tab (2026-07-08), so there is no separate nav entry.
     { id: 'directory', to: '/directory', label: 'Directory', Icon: FolderOpen, group: 'explore', showOn: 'both' },
-    { id: 'explorer', to: '/explorer', label: 'Explorer', Icon: MagnifyingGlass, group: 'explore', showOn: 'both', flag: 'VITE_ENABLE_EXPLORER' },
     { id: 'validators', to: '/validators', label: 'Validators', Icon: LinkSimpleHorizontal, group: 'govern', showOn: 'both' },
     { id: 'alerts', to: '/alerts', label: 'Alerts', Icon: Bell, group: 'govern', showOn: 'both' },
     { id: 'gnolove', to: '/gnolove', label: 'Gnolove', Icon: Heart, group: 'explore', showOn: 'both' },

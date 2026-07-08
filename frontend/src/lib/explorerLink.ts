@@ -1,10 +1,12 @@
 /**
  * explorerLink — build the in-app Explorer route for a realm path.
  *
- * Pure helpers shared by {@link ExplorerLink} and the Explorer page so the
- * cross-link target and the viewer agree on normalization. The Explorer route is
- * `/{networkKey}/explorer/<relpath>`, where `relpath` is the bare pkgpath
- * (`r/x/y`) that `Explorer.toRealmPath` re-normalizes to `gno.land/r/x/y`.
+ * Pure helpers shared by {@link ExplorerLink} and the Explorer tab so the
+ * cross-link target and the viewer agree on normalization. The Explorer now lives
+ * as a Directory tab, so the target is
+ * `/{networkKey}/directory?tab=explorer&realm=<relpath>`, where `relpath` is the
+ * bare pkgpath (`r/x/y`) the viewer re-normalizes to `gno.land/r/x/y`.
+ * (Legacy `/{net}/explorer/<relpath>` links redirect here.)
  *
  * @module lib/explorerLink
  */
@@ -23,10 +25,10 @@ export function toExplorerRelPath(realmPath: string): string {
 }
 
 /**
- * In-app Explorer route for a realm on a given network, or "" if the path is
- * unusable (callers should render nothing in that case).
+ * In-app Explorer route (Directory explorer tab) for a realm on a given network,
+ * or "" if the path is unusable (callers should render nothing in that case).
  */
 export function explorerHref(networkKey: string, realmPath: string): string {
     const rel = toExplorerRelPath(realmPath)
-    return rel ? `/${networkKey}/explorer/${rel}` : ""
+    return rel ? `/${networkKey}/directory?tab=explorer&realm=${rel}` : ""
 }

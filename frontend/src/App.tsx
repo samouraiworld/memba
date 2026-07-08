@@ -10,7 +10,6 @@ import { ConnectingLoader } from "./components/ui/ConnectingLoader"
 import { NftGate } from "./components/ui/NftGate"
 import { FeedGate } from "./components/ui/FeedGate"
 import { GameGate } from "./components/ui/GameGate"
-import { ExplorerGate } from "./components/ui/ExplorerGate"
 import { AppStoreGate } from "./components/ui/AppStoreGate"
 import { ValoperRouteRedirect } from "./components/validators/ValoperRouteRedirect"
 import { NETWORKS, DEFAULT_NETWORK } from "./lib/config"
@@ -240,7 +239,8 @@ function App() {
 
           {/* Directory */}
           <Route path="directory" element={<Suspense fallback={<PageLoader />}><Directory /></Suspense>} />
-          <Route path="explorer/*" element={<ExplorerGate><Suspense fallback={<PageLoader />}><Explorer /></Suspense></ExplorerGate>} />
+          {/* Legacy /explorer/* → merged Directory explorer tab (redirect keeps old links alive) */}
+          <Route path="explorer/*" element={<Suspense fallback={<PageLoader />}><Explorer /></Suspense>} />
           <Route path="apps/*" element={<AppStoreGate><Suspense fallback={<PageLoader />}><AppStore /></Suspense></AppStoreGate>} />
 
           {/* Validators suite (v2.14) — order: /validators, /validators/hacker, /validators/:address */}

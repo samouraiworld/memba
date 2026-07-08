@@ -20,6 +20,18 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### gno.land public-sale announcement popup (#809, 2026-07-08)
+- A dismissible promo popup announcing the gno.land public **GNOT sale** (opens 2026-07-20, links to sale.gno.land), with a countdown that switches to "Now open" at the sale date. Shown once per campaign (localStorage), rendered via `AccessibleDialog` (focus trap, body-scroll lock, Esc), and suppressed while the onboarding wizard or activation gate is up so it never stacks on another modal.
+- Gated by `VITE_ENABLE_ICO_ANNOUNCEMENT` — an ordinary flag (read-only external link, no funds), off by default; the owner enables it for the sale window.
+
+### Explorer merged into the Directory (#811, 2026-07-08)
+- The read-only realm Explorer is now a gated **🔎 Explorer** tab inside the Directory instead of a separate `/explorer` feature — realm discovery is one place: browse (Packages / Realms / …) → deep-dive into a realm's live render, source, and functions. Canonical route is `/directory`; the active realm rides the URL as `?tab=explorer&realm=r/x/y`.
+- Legacy `/explorer/*` links redirect into the tab, preserving the realm path, so bookmarks and shares don't 404. The standalone Explorer nav entry is removed — the sidebar shows a single **Directory** entry.
+- Still gated by `VITE_ENABLE_EXPLORER`: the tab is hidden and a deep-link to `?tab=explorer` falls back to the default tab when the flag is off, so there's no dead button or blank panel.
+
+### Feature articles — product + engineering scope (#814, 2026-07-08)
+- Nine `/blog` articles, one per major feature (Directory + Explorer, unified Marketplace, App Store, social Feed, Block Party, DAO governance, Multisig, Validators, Quests/XP), each pairing a product framing with an engineering-scope section so it doubles as documentation. Ships via the existing static blog pipeline.
+
 ### Marketplace menu consolidated to a single entry (#813, 2026-07-08)
 - NFTs, Services, and Tokens are tabs (lanes) inside the unified `/marketplace` page, so the sidebar's separate **NFT** and **Services** entries — redirect-only duplicates — are removed. One **Marketplace** menu entry now matches the one page; deep links to `/nft` and `/services` still redirect in.
 - Added a mobile "More"-sheet entry point for the Marketplace and App Store, which previously had no mobile navigation at all.
