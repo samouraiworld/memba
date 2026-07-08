@@ -21,7 +21,7 @@ func TestOpen_ReadDoesNotBlockBehindOpenWriteTx(t *testing.T) {
 	if err != nil {
 		t.Fatalf("open: %v", err)
 	}
-	defer database.Close()
+	defer func() { _ = database.Close() }()
 
 	if _, err := database.Exec(`CREATE TABLE t (id INTEGER PRIMARY KEY, v TEXT)`); err != nil {
 		t.Fatalf("create: %v", err)
