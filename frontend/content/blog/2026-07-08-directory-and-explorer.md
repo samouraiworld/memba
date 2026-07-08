@@ -31,8 +31,9 @@ your realm path.
 
 The Explorer is **read-only by construction**. It issues exactly three ABCI
 queries — `vm/qrender`, `vm/qfile`, and `vm/qfuncs` — and never `vm/qeval`, so
-there is no execution surface to abuse (SEC-01). What you read is what the chain
-returns: source comes from `vm/qfile`, not a scraper.
+there is no execution surface to abuse (SEC-01). Source is fetched from the chain
+via `vm/qfile` first, with a gnoweb fallback only if the RPC can't be reached —
+so what you read is what the chain returns, not content scraped from a website.
 
 The active realm rides the URL as shareable state
 (`/directory?tab=explorer&realm=r/x/y`), parsed and validated by a small pure

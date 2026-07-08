@@ -1,20 +1,20 @@
 ---
 title: DAO governance, with an AI analyst reading every proposal
 date: 2026-07-08
-description: Spin up a DAO, run candidature, vote on-chain — and get a ten-perspective AI read on every proposal and the DAO's health. The product and the realms behind Memba governance.
+description: Spin up a DAO, run candidature, vote on-chain — and get a multi-perspective AI read on every proposal and the DAO's health. The product and the realms behind Memba governance.
 tags: memba, dao, governance, engineering
 ---
 
 Governance tools usually stop at "here's a proposal, click vote." Memba adds the
 part that actually helps people decide: an **AI analyst** that reads each
-proposal from ten angles and grades the DAO's health — free, and on by default.
+proposal from up to ten angles and grades the DAO's health — free, and on by default.
 
 ## What you get (product)
 
 Create a DAO from a template, invite members, open proposals, vote, and read the
 on-chain result. **Candidature** lets outsiders apply and existing members vote
 them in, so a DAO can grow without handing out keys. On every proposal, the
-analyst summarizes intent, flags risks, and offers ten independent perspectives;
+analyst summarizes intent, flags risks, and offers up to ten independent perspectives;
 it also scores overall DAO health so members get signal, not just a vote count.
 
 ## Under the hood (engineering scope)

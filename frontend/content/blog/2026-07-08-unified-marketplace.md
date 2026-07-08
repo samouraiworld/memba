@@ -33,10 +33,11 @@ its tab *and* a direct URL, so a half-deployed money path can't leak into
 production. The lane set is data (`marketplace/lanes.ts`); the shell renders
 whatever is live.
 
-Fees are the point. Each lane's fee settles **on-chain to the Memba DAO
-treasury** — the NFT engine is the config-reading v3.1 build, so the fee route is
-a realm, not a promise. The token lane runs through an on-chain OTC engine with
-atomic settlement; the service lane through milestone escrow with an on-chain
+Fees are the point. Each live lane routes its fee **on-chain to the Memba DAO
+treasury**. That's fully enforced today for the NFT lane — its config-reading
+v3.1 engine reads the fee and treasury from a realm, not a promise. The token
+lane runs through an on-chain OTC engine with atomic settlement, and the service
+lane through milestone escrow with an on-chain
 dispute freeze.
 
 Safety is enforced at build time: flags whose on-chain enforcement is incomplete
