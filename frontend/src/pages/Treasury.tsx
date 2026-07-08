@@ -270,7 +270,7 @@ export function Treasury() {
                                     textAlign: "right", fontSize: 14, fontWeight: 700,
                                     fontFamily: "JetBrains Mono, monospace", color: "var(--color-text)",
                                 }}>
-                                    {formatBalance(asset.rawBalance)}
+                                    {formatBalance(asset.balance)}
                                 </span>
                             </div>
                         ))}
@@ -307,8 +307,12 @@ function StatCard({ label, value, icon, accent }: { label: string; value: string
 
 // ── Helpers ────────────────────────────────────────────────
 
-function formatBalance(balance: bigint): string {
-    if (balance === 0n) return "0"
-    const str = String(balance)
-    return str.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+// Formats an already-decimal-scaled amount string (e.g. GNOT's "123.456789" or a
+// GRC20 integer "1000") for display. Comma-groups the whole part; leaves the
+// fractional part untouched. Do NOT pass raw ugnot here — GNOT is pre-scaled into
+// `asset.balance` by loadTreasury (whole/frac split), so pass that, not rawBalance.
+function formatBalance(balance: string): string {
+    const [whole, frac] = balance.split(".")
+    const groupedWhole = whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+    return frac ? `${groupedWhole}.${frac}` : groupedWhole
 }

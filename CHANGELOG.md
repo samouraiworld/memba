@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Fix — Treasury shows GNOT in whole units, not raw ugnot (2026-07-08)
+<!-- categories: memba -->
+- The DAO **Treasury** page rendered the GNOT balance from raw micro-units (ugnot), so a treasury holding **1 GNOT** displayed as **"1,000,000"** — off by a factor of a million and misleading. It now shows the human-readable, decimal-scaled amount (**"1"**, or **"123.456789"** for sub-unit balances), with thousands still comma-grouped. GRC-20 token rows are unaffected.
+
 ### Performance — feed reply counts (2026-07-08)
 <!-- categories: memba -->
 - The social feed now serves each post's reply count from a maintained column instead of recomputing it per row on every read, and ranks "most replied" posts from that column instead of an on-the-fly sort. This trims the work behind the timeline, thread, and feed-stats endpoints — most visible under load — with no change to the counts shown (they stay correct across reply delete / hide / unhide / operator-blocklist / chain-reorg).
