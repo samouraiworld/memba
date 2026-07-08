@@ -64,13 +64,12 @@ func scanFeedPosts(rows *sql.Rows) ([]*membav1.FeedPost, error) {
 	return posts, rows.Err()
 }
 
-// feedPostSelect is the shared column list. reply_count is computed as the
-// number of live (not deleted, not hidden) replies indexed under each post.
+// feedPostSelect is the shared column list. reply_count is the denormalized
+// count of live (not deleted, not hidden, not blocklisted) replies, maintained
+// by the triggers in migration 022 — was a per-row correlated subquery (W1.4).
 const feedPostSelect = `
 	SELECT p.post_id, p.author, p.body, p.reply_to, p.block_h, p.block_ts,
-	       p.edited_at, p.flag_count, p.hidden, p.deleted,
-	       (SELECT COUNT(*) FROM feed_posts c
-	          WHERE c.reply_to = p.post_id AND c.deleted = 0 AND c.hidden = 0 AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = c.post_id)) AS reply_count
+	       p.edited_at, p.flag_count, p.hidden, p.deleted, p.reply_count
 	FROM feed_posts p`
 
 // GetFeedTimeline returns the newest visible TOP-LEVEL posts (reply_to = 0),
@@ -230,9 +229,7 @@ func (s *MultisigService) GetReplyNotifications(ctx context.Context, req *connec
 
 	q := `
 		SELECT r.post_id, r.author, r.body, r.reply_to, r.block_h, r.block_ts,
-		       r.edited_at, r.flag_count, r.hidden, r.deleted,
-		       (SELECT COUNT(*) FROM feed_posts c
-		          WHERE c.reply_to = r.post_id AND c.deleted = 0 AND c.hidden = 0) AS reply_count` +
+		       r.edited_at, r.flag_count, r.hidden, r.deleted, r.reply_count` +
 		joinWhere + ` ORDER BY r.post_id DESC LIMIT ?`
 
 	rows, err := s.db.QueryContext(ctx, q, author, author, limit)
@@ -286,11 +283,14 @@ func (s *MultisigService) GetFeedStats(ctx context.Context, req *connect.Request
 		Scan(&totalAuthors); err != nil {
 		return nil, internalError("GetFeedStats/authors", err)
 	}
-	// Most-replied visible top-level posts (trending). reply_count is the same
-	// live-reply subquery the timeline uses; order by it descending.
+	// Most-replied visible top-level posts (trending). Ordered by the
+	// denormalized p.reply_count — idx_feed_posts_most_replied
+	// (reply_to, hidden, deleted, reply_count DESC, post_id DESC) serves this
+	// without a filesort (W1.4). The tiny blocklist residual filter is applied
+	// after; the LIMIT 5 keeps it O(1) either way.
 	rows, err := s.db.QueryContext(ctx, feedPostSelect+`
 		WHERE p.reply_to = 0 AND p.hidden = 0 AND p.deleted = 0 AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)
-		ORDER BY reply_count DESC, p.post_id DESC LIMIT 5`)
+		ORDER BY p.reply_count DESC, p.post_id DESC LIMIT 5`)
 	if err != nil {
 		return nil, internalError("GetFeedStats/mostReplied", err)
 	}
