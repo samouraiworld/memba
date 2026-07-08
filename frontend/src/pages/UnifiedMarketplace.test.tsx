@@ -77,6 +77,12 @@ describe("UnifiedMarketplace — lanes gate tab visibility (W0.1)", () => {
         expect(screen.queryByRole("tab", { name: /Agents/i })).not.toBeInTheDocument()
     })
 
+    it("marks the active lane tab aria-selected (tablist semantics)", () => {
+        mountAt("/nfts")
+        expect(screen.getByRole("tab", { name: /NFTs/i })).toHaveAttribute("aria-selected", "true")
+        expect(screen.getByRole("tab", { name: /Services/i })).toHaveAttribute("aria-selected", "false")
+    })
+
     it("shows a gated lane's tab once its flag + realm become live", () => {
         vi.mocked(config.isTokensEnabled).mockReturnValue(true)
         vi.mocked(config.isTokenOtcValid).mockReturnValue(true)

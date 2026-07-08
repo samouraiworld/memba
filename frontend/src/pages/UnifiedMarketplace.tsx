@@ -154,6 +154,7 @@ export default function UnifiedMarketplace() {
                                 key={lane.assetType}
                                 role="tab"
                                 to={lane.slug}
+                                aria-selected={pathname.endsWith(`/${lane.slug}`)}
                                 className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}
                             >
                                 <span className="um-tab-icon" aria-hidden="true"><LaneIcon size={16} weight="bold" /></span> {lane.label}
@@ -164,6 +165,7 @@ export default function UnifiedMarketplace() {
                         <NavLink
                             role="tab"
                             to={MY_LISTINGS_SLUG}
+                            aria-selected={pathname.endsWith(`/${MY_LISTINGS_SLUG}`)}
                             className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}
                             data-testid="my-listings-tab"
                         >
