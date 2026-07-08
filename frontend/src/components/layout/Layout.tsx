@@ -22,6 +22,7 @@ import { JitsiProvider } from "../../contexts/JitsiContext"
 import { OrgProvider } from "../../contexts/OrgContext"
 import { JitsiPiPOverlay } from "../ui/JitsiPiPOverlay"
 import { WhatsNewToast } from "../ui/WhatsNewToast"
+import { GnoIcoAnnouncement } from "../ui/GnoIcoAnnouncement"
 import { QuestToast } from "../quests/QuestToast"
 import { getQuestById } from "../../lib/gnobuilders"
 import { setupKonamiDetector, trackDailyLogin } from "../../lib/questVerifier"
@@ -429,6 +430,10 @@ export function Layout() {
 
                 {/* ── What's New Toast (v2.14 — shown once per version to returning users) ── */}
                 <WhatsNewToast />
+
+                {/* ── gno.land public-sale announcement (flag-gated promo; suppressed while
+                    the onboarding wizard is up so new users never see two modals stacked) ── */}
+                <GnoIcoAnnouncement suppressed={showWizard} />
                 <NetworkStatusToast />
 
                 {/* ── Network switch success toast ── */}
