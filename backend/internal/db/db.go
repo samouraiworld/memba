@@ -11,6 +11,11 @@ import (
 //go:embed migrations/*.sql
 var migrationsFS embed.FS
 
+// maxOpenConns bounds the SQLite connection pool. WAL supports one writer
+// concurrently with multiple readers, so several connections let reads run
+// while a write is in flight instead of serializing behind it.
+const maxOpenConns = 4
+
 // Open creates a new SQLite connection with WAL mode and foreign keys enabled.
 func Open(path string) (*sql.DB, error) {
 	// busy_timeout(5000): a contended writer waits up to 5s for the lock instead
@@ -21,15 +26,41 @@ func Open(path string) (*sql.DB, error) {
 		return nil, fmt.Errorf("open database: %w", err)
 	}
 
-	// Connection pool settings for SQLite
-	db.SetMaxOpenConns(1) // SQLite only supports one writer
-	db.SetMaxIdleConns(1)
+	// Connection pool settings for SQLite (WAL).
+	//
+	// Previously capped at 1, which serialized EVERY read behind EVERY write
+	// (and the in-process indexer tailers): an RPC read could not acquire a
+	// connection while a write transaction held the only one, so reads queued
+	// behind indexer writes — the dominant source of intermittent backend lag.
+	// WAL runs one writer alongside multiple readers, and busy_timeout(5000)
+	// makes the rare write-vs-write overlap wait for the lock; the pure-Go
+	// modernc.org/sqlite driver fully supports a multi-connection WAL pool.
+	//
+	// A plain in-memory database (tests) is the exception: it is private to its
+	// connection, so poolSize keeps it single-connection to preserve shared
+	// state. Production is always file-backed and gets the full pool.
+	n := poolSize(path)
+	db.SetMaxOpenConns(n)
+	db.SetMaxIdleConns(n)
 
 	if err := db.Ping(); err != nil {
 		return nil, fmt.Errorf("ping database: %w", err)
 	}
 
 	return db, nil
+}
+
+// poolSize returns the connection-pool bound for a database path. A plain
+// in-memory SQLite database is private to its connection, so a pool larger than
+// one would hand out connections backed by different (empty) databases — the
+// pool is capped at 1 for it. Shared-cache in-memory and file-backed databases
+// (production) can safely use the multi-connection WAL pool.
+func poolSize(path string) int {
+	inMemory := strings.Contains(path, ":memory:") || strings.Contains(path, "mode=memory")
+	if inMemory && !strings.Contains(path, "cache=shared") {
+		return 1
+	}
+	return maxOpenConns
 }
 
 // Migrate runs all SQL migration files in order.
