@@ -496,3 +496,16 @@
 .appcard--pending {
     border-color: var(--color-k-amber-border);
 }
+/* Carries the pending-review caution onto the detail page (a pending app must never look
+   identical to a curated one once clicked through). */
+.appdetail__pending-banner {
+    margin-bottom: var(--space-5, 1.25rem);
+    padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--color-k-warning-text);
+    background: var(--color-k-amber-subtle);
+    border: 1px solid var(--color-k-amber-border);
+    border-left-width: 3px;
+    border-radius: var(--radius-md, 10px);
+}

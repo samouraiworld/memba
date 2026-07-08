@@ -269,6 +269,7 @@ function PendingReviewSection({ networkKey }: { networkKey: string }) {
                 type="button"
                 className="appstore__pending-toggle"
                 aria-expanded={open}
+                aria-controls="appstore-pending-list"
                 onClick={() => setOpen((v) => !v)}
             >
                 <span aria-hidden="true">{open ? "▾" : "▸"}</span> Apps pending review
@@ -276,27 +277,29 @@ function PendingReviewSection({ networkKey }: { networkKey: string }) {
             </button>
 
             {open && (
-                isPending ? (
-                    <p className="appstore__muted">Loading…</p>
-                ) : isError ? (
-                    <p className="appstore__muted">Couldn't load pending apps. Reload to retry.</p>
-                ) : !pending || pending.length === 0 ? (
-                    <p className="appstore__muted">Nothing pending review right now.</p>
-                ) : (
-                    <>
-                        <p className="appstore__pending-caution" role="note">
-                            These apps have been submitted but not reviewed. Treat them with extra
-                            caution and read the source before you connect a wallet.
-                        </p>
-                        <ul className="appstore__grid">
-                            {pending.map((app) => (
-                                <li key={app.pkgPath}>
-                                    <AppCard app={app} networkKey={networkKey} pending />
-                                </li>
-                            ))}
-                        </ul>
-                    </>
-                )
+                <div id="appstore-pending-list">
+                    {isPending ? (
+                        <p className="appstore__muted">Loading…</p>
+                    ) : isError ? (
+                        <p className="appstore__muted">Couldn't load pending apps. Reload to retry.</p>
+                    ) : !pending || pending.length === 0 ? (
+                        <p className="appstore__muted">Nothing pending review right now.</p>
+                    ) : (
+                        <>
+                            <p className="appstore__pending-caution" role="note">
+                                These apps have been submitted but not reviewed. Treat them with extra
+                                caution and read the source before you connect a wallet.
+                            </p>
+                            <ul className="appstore__grid">
+                                {pending.map((app) => (
+                                    <li key={app.pkgPath}>
+                                        <AppCard app={app} networkKey={networkKey} pending />
+                                    </li>
+                                ))}
+                            </ul>
+                        </>
+                    )}
+                </div>
             )}
         </section>
     )
@@ -342,6 +345,14 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
                 </div>
             ) : (
                 <article className="appdetail">
+                    {/* An unvetted listing must carry its caution onto the detail page too — otherwise
+                        a pending app looks identical to a curated one once you click through. */}
+                    {app.status === "pending" && (
+                        <div className="appdetail__pending-banner" role="note">
+                            <strong>Pending review.</strong> This app has been submitted but not yet
+                            vetted by a curator. Read its source before you connect a wallet.
+                        </div>
+                    )}
                     <div className="appdetail__hero">
                         <Monogram app={app} size="lg" />
                         <div className="appdetail__heroText">

@@ -1,13 +1,18 @@
 import { screen, fireEvent, waitFor } from "@testing-library/react"
 import { describe, it, expect, vi, beforeEach } from "vitest"
+import { Routes, Route } from "react-router-dom"
 import { AppStore } from "./AppStore"
 import { renderWithProviders } from "../test/test-utils"
 import type { AppListing } from "../lib/appStore"
+
+// Detail routes need the splat param populated, which requires a matching <Route>.
+const appStoreRoutes = <Routes><Route path="/:network/apps/*" element={<AppStore />} /></Routes>
 
 // Control the realm generation + the network reads so we can assert the v3-only pending disclosure
 // without hitting a chain. isAppStoreV3 is a plain fn here, flipped per-test via `v3`.
 let v3 = true
 const fetchByStatus = vi.fn()
+const fetchApp = vi.fn()
 
 vi.mock("../lib/appStore", async (importActual) => {
     const actual = await importActual<typeof import("../lib/appStore")>()
@@ -16,6 +21,7 @@ vi.mock("../lib/appStore", async (importActual) => {
         isAppStoreV3: () => v3,
         fetchLiveApps: vi.fn().mockResolvedValue([]),
         fetchByStatus: (...a: unknown[]) => fetchByStatus(...a),
+        fetchApp: (...a: unknown[]) => fetchApp(...a),
     }
 })
 
@@ -58,5 +64,24 @@ describe("AppStore — pending-review disclosure (v3, opt-in)", () => {
         // let the live query settle
         await waitFor(() => expect(screen.getByTestId("appstore-root")).toBeInTheDocument())
         expect(screen.queryByRole("button", { name: /apps pending review/i })).not.toBeInTheDocument()
+    })
+})
+
+describe("AppDetail — pending-review banner follows the user to the detail page", () => {
+    beforeEach(() => fetchApp.mockReset())
+
+    it("shows an amber caution when the listing is pending", async () => {
+        fetchApp.mockResolvedValue(listing({ pkgPath: "gno.land/r/samcrew/unvetted", name: "Unvetted App", status: "pending" }))
+        renderWithProviders(appStoreRoutes, { route: "/test13/apps/r/samcrew/unvetted" })
+        expect(await screen.findByText(/Unvetted App/)).toBeInTheDocument()
+        expect(screen.getByText(/Pending review\./)).toBeInTheDocument()
+        expect(screen.getByText(/not yet\s+vetted by a curator/i)).toBeInTheDocument()
+    })
+
+    it("shows no caution for a live listing", async () => {
+        fetchApp.mockResolvedValue(listing({ pkgPath: "gno.land/r/samcrew/verified", name: "Verified App", status: "live" }))
+        renderWithProviders(appStoreRoutes, { route: "/test13/apps/r/samcrew/verified" })
+        expect(await screen.findByText(/Verified App/)).toBeInTheDocument()
+        expect(screen.queryByText(/Pending review\./)).not.toBeInTheDocument()
     })
 })
