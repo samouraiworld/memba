@@ -22,7 +22,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### App Store reviews — realm-path threading in the reviews client (B2a, 2026-07-08)
 <!-- categories: memba -->
-- Groundwork for community reviews on App Store listings: the subject-agnostic reviews data client (`lib/reviews.ts`) now threads an optional `realm` argument through every read and write builder, defaulting to the existing validator/profile web-of-trust realm. This lets a caller target the reputation-isolated App Store reviews realm by path alone, with no behavior change for existing callers (verified: the full validator/profile reviews suite still passes). No user-visible change yet — the App Store detail page wiring follows.
+- Groundwork for community reviews on App Store listings: the subject-agnostic reviews data client (`lib/reviews.ts`) now threads an optional `realmPath` argument through every read and write builder, defaulting to the existing validator/profile web-of-trust realm. This lets a caller target the reputation-isolated App Store reviews realm by path alone, with no behavior change for existing callers (verified: the full validator/profile reviews suite still passes). No user-visible change yet — the App Store detail page wiring follows.
 
 ### Fix — Treasury shows GNOT in whole units, not raw ugnot (2026-07-08)
 <!-- categories: memba -->
