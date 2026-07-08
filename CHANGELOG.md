@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Performance — feed reply counts (2026-07-08)
+<!-- categories: memba -->
+- The social feed now serves each post's reply count from a maintained column instead of recomputing it per row on every read, and ranks "most replied" posts from that column instead of an on-the-fly sort. This trims the work behind the timeline, thread, and feed-stats endpoints — most visible under load — with no change to the counts shown (they stay correct across reply delete / hide / unhide / operator-blocklist / chain-reorg).
+
 ### Security — Go toolchain 1.25.11 → 1.25.12 (2026-07-08)
 <!-- categories: memba -->
 - Bumped the backend Go toolchain (`backend/go.mod`, `backend/Dockerfile`) to **go1.25.12** to clear **GO-2026-5856**, a `crypto/tls` advisory published today that `govulncheck` flags in go1.25.11 (fixed in 1.25.12). No product change — this unblocks the Backend (Go) CI gate, which now reds on every build until the toolchain is patched.
