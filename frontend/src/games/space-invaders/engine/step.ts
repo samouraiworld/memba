@@ -1,5 +1,5 @@
 import { CONFIG, formationStepMs } from "./config";
-import type { GameState, InputIntent } from "./types";
+import type { GameState, GameEvent, InputIntent } from "./types";
 import { aabb } from "./collision";
 import { rngFloat } from "./prng";
 import { spawnWave } from "./spawn";
@@ -8,7 +8,10 @@ import { spawnWave } from "./spawn";
 // state. Callers are expected to send pause:true for a single frame only
 // (i.e. an edge, not a held key) — every such frame flips playing/paused.
 export function step(state: GameState, dtMs: number, input: InputIntent): GameState {
-  let s = { ...state };
+  // Fresh per-step event list (bounded) and the monotonic tick — both threaded
+  // through every `{ ...s }` below via the shared `events` array reference.
+  const events: GameEvent[] = [];
+  let s: GameState = { ...state, tick: state.tick + 1, events };
 
   // Pause toggle (edge is produced by the input layer; here pause:true flips).
   if (input.pause) {
@@ -33,16 +36,18 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
 
   // Fire: spawn one bullet if none is live.
   if (input.fire && !s.playerBullet) {
+    const bx = s.player.x + s.player.w / 2 - CONFIG.bullet.w / 2;
     s = {
       ...s,
       playerBullet: {
-        x: s.player.x + s.player.w / 2 - CONFIG.bullet.w / 2,
+        x: bx,
         y: s.player.y - CONFIG.bullet.h,
         w: CONFIG.bullet.w,
         h: CONFIG.bullet.h,
         alive: true,
       },
     };
+    events.push({ type: "playerFired", x: bx });
   }
 
   // ── Formation march (fixed-cadence, accelerating as ranks thin) ──
@@ -52,6 +57,7 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
     let accum = s.stepAccumMs + dtMs;
     if (accum >= cadence) {
       accum -= cadence;
+      events.push({ type: "alienStep", dir: s.dir });
       const minX = Math.min(...living.map((a) => a.x));
       const maxX = Math.max(...living.map((a) => a.x + a.w));
       const dx = s.dir * CONFIG.formation.stepDx;
@@ -83,17 +89,22 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
     } else {
       let hitScore = 0;
       let hit = false;
+      let killed: { x: number; y: number; row: number } | null = null;
       const aliens = s.aliens.map((a) => {
         if (!hit && a.alive && aabb(b, a)) {
           hit = true;
           hitScore = CONFIG.points[a.row] ?? CONFIG.points[CONFIG.points.length - 1];
+          killed = { x: a.x, y: a.y, row: a.row };
           return { ...a, alive: false };
         }
         return a;
       });
-      s = hit
-        ? { ...s, aliens, playerBullet: null, score: s.score + hitScore }
-        : { ...s, playerBullet: b };
+      if (hit && killed) {
+        s = { ...s, aliens, playerBullet: null, score: s.score + hitScore };
+        events.push({ type: "alienKilled", ...(killed as { x: number; y: number; row: number }) });
+      } else {
+        s = { ...s, playerBullet: b };
+      }
     }
   }
 
@@ -135,6 +146,8 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
     const struck = s.invulnMs <= 0 && moved.some((b) => aabb(b, s.player));
     if (struck) {
       s = { ...s, alienBullets: [], lives: s.lives - 1, invulnMs: CONFIG.respawnInvulnMs };
+      events.push({ type: "playerHit" });
+      events.push({ type: "lifeLost" });
     } else {
       s = { ...s, alienBullets: moved };
     }
@@ -159,6 +172,7 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
       playerBullet: null,
       alienBullets: [],
     };
+    events.push({ type: "waveCleared" });
   }
 
   return s;

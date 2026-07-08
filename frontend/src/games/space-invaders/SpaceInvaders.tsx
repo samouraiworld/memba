@@ -1,19 +1,27 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
 import { newGame, type GameState } from "./engine";
-import { advance, drainAccumulator, FIXED_MS } from "./hooks/useGameLoop";
+import { advanceSteps, drainAccumulator } from "./hooks/useGameLoop";
 import { useKeyboard } from "./hooks/useKeyboard";
 import { useTouch } from "./hooks/useTouch";
 import { Canvas } from "./render/Canvas";
 import { loadBest, saveBest } from "./lib/highScore";
 import "./space-invaders.css";
 
-// A fixed seed keeps runs reproducible; vary if a daily hook is added later.
+// Default seed. Injectable via prop so a daily-challenge / per-run-random seed
+// can drive the game (W1+); the recorded seed is what a replay is verified
+// against. Kept fixed by default to preserve reproducibility for tests.
 const SEED = 0x5eed;
 
-export default function SpaceInvaders({ initialState }: { initialState?: Partial<GameState> }) {
+export default function SpaceInvaders({
+  initialState,
+  seed = SEED,
+}: {
+  initialState?: Partial<GameState>;
+  seed?: number;
+}) {
   // Merge onto a full newGame() base so partial overrides (e.g. from tests)
   // still produce a valid GameState — Canvas etc. assume all fields are present.
-  const [state, setState] = useState<GameState>(() => ({ ...newGame(SEED), ...initialState }));
+  const [state, setState] = useState<GameState>(() => ({ ...newGame(seed), ...initialState }));
   const stateRef = useRef(state);
   const [best, setBest] = useState(() => loadBest());
 
@@ -63,7 +71,8 @@ export default function SpaceInvaders({ initialState }: { initialState?: Partial
       accRef.current = acc;
       if (steps > 0) {
         const prev = stateRef.current;
-        const next = advance(prev, steps * FIXED_MS, {
+        // Pass the integer step count straight through — no float ms round-trip.
+        const next = advanceSteps(prev, steps, {
           move: input.move,
           fire: input.fire,
           pause: false,
@@ -82,7 +91,7 @@ export default function SpaceInvaders({ initialState }: { initialState?: Partial
   }, [getInput]);
 
   const restart = () => {
-    const fresh = newGame(SEED);
+    const fresh = newGame(seed);
     stateRef.current = fresh;
     last.current = null;
     accRef.current = 0;

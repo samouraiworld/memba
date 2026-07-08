@@ -26,7 +26,9 @@ export function newGame(seed: number): GameState {
   const { aliens } = spawnWave(1);
   return {
     phase: "ready",
+    seed,
     rng: seed,
+    tick: 0,
     player: {
       x: CONFIG.arena.w / 2 - CONFIG.player.w / 2,
       y: CONFIG.player.baselineY,
@@ -43,5 +45,6 @@ export function newGame(seed: number): GameState {
     playerBullet: null,
     alienBullets: [],
     alienFireMs: CONFIG.alienFire.cooldownMs,
+    events: [],
   };
 }
