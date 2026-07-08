@@ -12,6 +12,7 @@ import { Navigate, useParams } from "react-router-dom"
 import ListingGrid from "../components/marketplace/ListingGrid"
 import { LaneToolbar } from "../components/marketplace/LaneToolbar"
 import { SellAnythingButton } from "../components/marketplace/SellAnythingButton"
+import NftLaneV2 from "../components/marketplace/NftLaneV2"
 import { seedNftToCard, seedServiceToCard, seedTokenToCard } from "../lib/marketplace/adapters/seedToCard"
 import { seedNfts, seedServices, seedTokens } from "../lib/marketplace/seed/foundingSupply.seed"
 import { useMarketFilters } from "../lib/marketplace/useMarketFilters"
@@ -50,6 +51,16 @@ export default function MarketplaceV2Preview() {
                 <SellAnythingButton options={sellOptions} />
             </header>
 
+            <section style={{ marginBottom: "var(--space-8, 32px)" }}>
+                <h2 style={{ fontFamily: "var(--font-sans)" }}>Live NFT lane — real test13 data</h2>
+                <p className="k-text-muted" style={{ margin: "0 0 var(--space-3, 12px)" }}>
+                    Rendered via <code>NftLaneV2</code> = <code>LaneView</code> + <code>nftToCard</code> + the real <code>fetchVerifiedCollections</code> read (its own toolbar; skeleton → data / retry-on-error).
+                </p>
+                <NftLaneV2 />
+            </section>
+
+            <hr style={{ border: "none", borderTop: "1px solid var(--color-border)", margin: "var(--space-6, 24px) 0" }} />
+            <h2 style={{ fontFamily: "var(--font-sans)" }}>Seed catalog (design fixtures)</h2>
             <LaneToolbar filters={filters} onChange={setFilters} />
 
             {LANES.map(({ key, cards }) => {
