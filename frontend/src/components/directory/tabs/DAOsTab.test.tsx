@@ -29,16 +29,11 @@ vi.mock("../../../lib/directory", () => ({
     getDirectoryDAOs: vi.fn(() => [REAL, STALE]),
 }))
 
-vi.mock("../../../lib/daoMetadata", () => ({
-    batchGetDAOMetadata: vi.fn(async () => new Map()),
-}))
-
-// The resolve hook calls getDAOConfig: REAL resolves, STALE returns null.
-vi.mock("../../../lib/dao", () => ({
-    getDAOConfig: vi.fn(async (_rpc: string, path: string) =>
-        path === REAL.path
-            ? { name: "GovDAO", description: "", threshold: "", memberCount: 3, memberstorePath: "", tierDistribution: [], isArchived: false }
-            : null,
+// W3.2: the resolve hook now keys off a single Render("") per DAO. REAL renders
+// (resolves + yields metadata); STALE returns null (dropped).
+vi.mock("../../../lib/dao/shared", () => ({
+    queryRender: vi.fn(async (_rpc: string, path: string) =>
+        path === REAL.path ? "# GovDAO\n\nCore governance DAO\n\nMembers: 3\n" : null,
     ),
 }))
 
