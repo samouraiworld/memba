@@ -15,7 +15,7 @@ import type { Icon } from '@phosphor-icons/react'
 import {
     House, ChartBar, Buildings, Coins, FolderOpen,
     LinkSimpleHorizontal, Bell, Briefcase, Heart, GameController,
-    PuzzlePiece, Robot,
+    PuzzlePiece, ShoppingBag,
     User, Gear, Bank, Megaphone,
     UsersThree, Trophy, ClockCounterClockwise, ShieldStar, Newspaper,
     ChatCircle, Storefront,
@@ -79,7 +79,7 @@ export const NAV: NavEntry[] = [
     // the unified /marketplace shell, not separate nav items. The former standalone
     // NFT + Services entries were redirect-only duplicates (/nft → /marketplace/nfts,
     // /services → /marketplace/services), so they were removed here (2026-07-08).
-    { id: 'marketplace', to: '/marketplace', label: 'Marketplace', Icon: Robot, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_MARKETPLACE' },
+    { id: 'marketplace', to: '/marketplace', label: 'Marketplace', Icon: ShoppingBag, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_MARKETPLACE' },
     { id: 'appstore', to: '/apps', label: 'App Store', Icon: Storefront, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_APPSTORE' },
 
     // ── Account ─────────────────────────────────────────────────────

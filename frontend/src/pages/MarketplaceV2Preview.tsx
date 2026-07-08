@@ -8,13 +8,15 @@
  *
  * @module pages/MarketplaceV2Preview
  */
-import { Navigate } from "react-router-dom"
+import { Navigate, useParams } from "react-router-dom"
 import ListingGrid from "../components/marketplace/ListingGrid"
 import { LaneToolbar } from "../components/marketplace/LaneToolbar"
+import { SellAnythingButton } from "../components/marketplace/SellAnythingButton"
 import { seedNftToCard, seedServiceToCard, seedTokenToCard } from "../lib/marketplace/adapters/seedToCard"
 import { seedNfts, seedServices, seedTokens } from "../lib/marketplace/seed/foundingSupply.seed"
 import { useMarketFilters } from "../lib/marketplace/useMarketFilters"
 import { applyFilters } from "../lib/marketplace/marketFilters"
+import { buildSellOptions } from "../lib/marketplace/sellOptions"
 import { isMarketplaceV2Enabled } from "../lib/config"
 
 const NFT_CARDS = seedNfts.map(seedNftToCard)
@@ -27,19 +29,25 @@ const LANES = [
 ] as const
 
 export default function MarketplaceV2Preview() {
-    // Shared discovery state (URL-synced). Hook must run before any early return.
+    // Shared discovery state (URL-synced). Hooks must run before any early return.
     const { filters, setFilters } = useMarketFilters()
+    const { network = "test13" } = useParams()
+    // Demo: show all three sell options (real shell derives these from live-lane flags).
+    const sellOptions = buildSellOptions(network, { nft: true, service: true, token: true })
 
     // Dev-only harness — never reachable in prod (flag off).
     if (!isMarketplaceV2Enabled()) return <Navigate to="../marketplace" replace />
 
     return (
         <div className="mktv2-preview" style={{ maxWidth: "1200px", margin: "0 auto", padding: "var(--space-6, 24px)" }}>
-            <header style={{ marginBottom: "var(--space-6, 24px)" }}>
-                <h1 style={{ fontFamily: "var(--font-sans)", margin: 0 }}>Marketplace v2 — design preview</h1>
-                <p className="k-text-muted" style={{ margin: "var(--space-2, 8px) 0 0" }}>
-                    Founding-Supply seed catalog through the new MarketCard / ListingGrid, filtered by the shared LaneToolbar. Seed data — not live inventory.
-                </p>
+            <header style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-4, 16px)", marginBottom: "var(--space-6, 24px)" }}>
+                <div>
+                    <h1 style={{ fontFamily: "var(--font-sans)", margin: 0 }}>Marketplace v2 — design preview</h1>
+                    <p className="k-text-muted" style={{ margin: "var(--space-2, 8px) 0 0" }}>
+                        Founding-Supply seed catalog through the new MarketCard / ListingGrid, filtered by the shared LaneToolbar. Seed data — not live inventory.
+                    </p>
+                </div>
+                <SellAnythingButton options={sellOptions} />
             </header>
 
             <LaneToolbar filters={filters} onChange={setFilters} />

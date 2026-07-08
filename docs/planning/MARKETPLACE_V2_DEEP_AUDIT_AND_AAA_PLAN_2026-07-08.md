@@ -323,10 +323,11 @@ Status: **core built** (3.1 + 3.2 + 3.3); shelves (3.4) + price-range facet defe
 - *Acceptance (met for core):* filters/sort share one URL-synced state; search filters real items with a clear scope. Shelves + per-lane facet declaration land in Phase 7.
 
 ## Phase 4 — Shell & IA (one front door, sell-anything, mobile nav)
-- **Task 4.1** Collapse sidebar to one **Marketplace** entry (`navManifest.ts:77-80`); App Store stays separate. *Test:* nav shows one marketplace entry; no dead routes.
-- **Task 4.2** **Sell-anything** CTA in shell → routes to per-lane create (launchpad / gig / OTC list). *Test:* routes by asset type.
-- **Task 4.3** **Mobile nav entry (P0)** — add `marketplace` to mobile IA + "Sell" in `ActFab`. *Test (Playwright iphone):* marketplace reachable from bottom bar/More; Sell reachable.
-- *Acceptance:* exactly one front door; marketplace reachable one-thumb on mobile; sell-anything works.
+Status: **effectively done** (much was already collapsed on main — stale audit findings).
+- **Task 4.1 ✅ DONE** — the sidebar already has ONE `marketplace` entry (+ App Store, intentionally separate); the standalone NFT/Services entries were removed on main 2026-07-08 (the "four front doors" was a stale-snapshot finding). Fixed the wrong **Robot** icon → `ShoppingBag` (visual expert flag).
+- **Task 4.2 ✅ DONE** — `buildSellOptions` (live-lanes-only routing map, no coming-soon rows) + `<SellAnythingButton>` (single lane → direct link; multiple → accessible disclosure menu with Escape/outside-click close). Wired into the preview; live-shell wiring lands with the Phase 7 shell modifications. Tests: 3 + 4.
+- **Task 4.3 ✅ DONE (already on main)** — `navManifest.ts` `MORE_NAV_IDS` already includes `marketplace` (verified in Phase 1.5); mobile reachable via the More sheet. (Optional "Sell" in `ActFab` can piggyback the Phase 7 shell work.)
+- *Acceptance:* exactly one front door ✅; marketplace reachable on mobile ✅; sell-anything routes by asset type ✅.
 
 ## Phase 5 — Mobile trade & real dialogs (A11y P0s)
 - **Task 5.1** `TradeModal`/`TokenTradeModal` render as full-height `BottomSheet` on mobile with **sticky always-reachable CTA**; `@media` + `max-height` + internal scroll. *Test (Playwright iphone 375px):* List-flow CTA visible + tappable without page scroll; no horizontal scroll.

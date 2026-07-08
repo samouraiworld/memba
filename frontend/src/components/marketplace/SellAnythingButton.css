@@ -1,0 +1,46 @@
+/**
+ * SellAnythingButton.css — the "Sell anything" CTA + disclosure menu. Tokens only.
+ */
+.sell-anything {
+    position: relative;
+    display: inline-block;
+}
+
+.sell-btn {
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.sell-anything__menu {
+    position: absolute;
+    right: 0;
+    top: calc(100% + var(--space-2, 8px));
+    z-index: 20;
+    min-width: 200px;
+    display: flex;
+    flex-direction: column;
+    padding: var(--space-1, 4px);
+    background: var(--color-bg-secondary, var(--color-bg-tertiary));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 10px);
+    box-shadow: var(--shadow-md);
+}
+
+.sell-anything__item {
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    min-height: var(--mb-touch-min, 40px);
+    display: flex;
+    align-items: center;
+    font-family: var(--font-sans);
+    font-size: 0.9rem;
+    color: var(--color-text);
+    text-decoration: none;
+    border-radius: var(--radius-sm, 8px);
+}
+
+.sell-anything__item:hover,
+.sell-anything__item:focus-visible {
+    background: var(--color-primary-bg);
+    color: var(--color-primary);
+    outline: none;
+}
