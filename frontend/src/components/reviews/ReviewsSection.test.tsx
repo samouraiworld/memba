@@ -55,6 +55,16 @@ describe("ReviewsSection", () => {
     expect(screen.getByRole("button", { name: /connect & post review/i })).toBeInTheDocument()
   })
 
+  it("suppresses the header average below minRatedCount (App Store integrity rule)", async () => {
+    // One review, but minRatedCount=3 → the header must NOT present a confident "5.0"; it shows
+    // a neutral "New · 1 review" instead. The review body + form still render normally.
+    renderWithProviders(<ReviewsSection subject="g1s" minRatedCount={3} />)
+    expect(await screen.findByText(/great validator/)).toBeInTheDocument()
+    expect(screen.queryByText(/5\.0/)).not.toBeInTheDocument()
+    expect(screen.getByText(/New/)).toBeInTheDocument()
+    expect(screen.getByText(/1 review\b/)).toBeInTheDocument()
+  })
+
   it("shows a 'select a rating' hint while no rating is chosen, and does not connect on submit", async () => {
     renderWithProviders(<ReviewsSection subject="g1s" />)
     await screen.findByText(/great validator/)

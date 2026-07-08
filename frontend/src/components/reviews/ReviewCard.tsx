@@ -68,9 +68,10 @@ interface CommentRowProps {
   comment: OnChainComment
   address: string
   onRefetch: () => void
+  realmPath?: string
 }
 
-function CommentRow({ comment, address, onRefetch }: CommentRowProps) {
+function CommentRow({ comment, address, onRefetch, realmPath }: CommentRowProps) {
   const [editMode, setEditMode] = useState(false)
   const [editBody, setEditBody] = useState(comment.body)
   const [error, setError] = useState<string | null>(null)
@@ -122,7 +123,7 @@ function CommentRow({ comment, address, onRefetch }: CommentRowProps) {
               className="reviews-btn-primary"
               disabled={busy || !editBody.trim()}
               onClick={() =>
-                handleAction(buildEditCommentMsg(address, comment.id, editBody.trim()), "edit comment")
+                handleAction(buildEditCommentMsg(address, comment.id, editBody.trim(), realmPath), "edit comment")
               }
             >
               {busy ? "Saving…" : "Save"}
@@ -155,7 +156,7 @@ function CommentRow({ comment, address, onRefetch }: CommentRowProps) {
                 className="review-card__action-btn review-card__action-btn--danger"
                 disabled={busy}
                 onClick={() =>
-                  handleAction(buildDeleteCommentMsg(address, comment.id), "delete comment")
+                  handleAction(buildDeleteCommentMsg(address, comment.id, realmPath), "delete comment")
                 }
               >
                 Delete
@@ -167,7 +168,7 @@ function CommentRow({ comment, address, onRefetch }: CommentRowProps) {
               className="review-card__action-btn review-card__action-btn--hide"
               disabled={busy}
               onClick={() =>
-                handleAction(buildHideCommentMsg(address, comment.id), "hide comment")
+                handleAction(buildHideCommentMsg(address, comment.id, realmPath), "hide comment")
               }
             >
               Hide
@@ -185,9 +186,10 @@ function CommentRow({ comment, address, onRefetch }: CommentRowProps) {
 interface ReviewCardProps {
   review: OnChainReview
   onRefetch: () => void
+  realmPath?: string
 }
 
-export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
+export function ReviewCard({ review, onRefetch, realmPath }: ReviewCardProps) {
   const { address, connected } = useAdena()
 
   const [showComments, setShowComments] = useState(false)
@@ -211,14 +213,14 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
   const loadComments = useCallback(async () => {
     setCommentsLoading(true)
     try {
-      const items = await fetchComments(review.id)
+      const items = await fetchComments(review.id, 0, 50, realmPath)
       setComments(items)
     } catch {
       // non-critical — show empty if comments fail to load
     } finally {
       setCommentsLoading(false)
     }
-  }, [review.id])
+  }, [review.id, realmPath])
 
   async function toggleComments() {
     const next = !showComments
@@ -250,7 +252,7 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
   async function handleReply() {
     if (!replyBody.trim()) return
     await handleAction(
-      buildCommentMsg(address, review.id, replyBody.trim()),
+      buildCommentMsg(address, review.id, replyBody.trim(), realmPath),
       "post comment",
       () => { setReplyBody(""); setReplyOpen(false); loadComments() },
     )
@@ -258,7 +260,7 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
 
   async function handleEdit() {
     await handleAction(
-      buildEditReviewMsg(address, review.id, editRating, editBody.trim()),
+      buildEditReviewMsg(address, review.id, editRating, editBody.trim(), realmPath),
       "edit review",
       () => setEditMode(false),
     )
@@ -337,7 +339,7 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
           <button
             className="review-card__action-btn review-card__action-btn--like"
             disabled={busy || !connected || isAuthor}
-            onClick={() => handleAction(buildReactMsg(address, review.id, "like"), "like review")}
+            onClick={() => handleAction(buildReactMsg(address, review.id, "like", realmPath), "like review")}
             aria-label={`Like — ${review.likes}`}
           >
             <span aria-hidden="true">👍</span> {review.likes}
@@ -347,7 +349,7 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
           <button
             className="review-card__action-btn review-card__action-btn--dislike"
             disabled={busy || !connected || isAuthor}
-            onClick={() => handleAction(buildReactMsg(address, review.id, "dislike"), "dislike review")}
+            onClick={() => handleAction(buildReactMsg(address, review.id, "dislike", realmPath), "dislike review")}
             aria-label={`Dislike — ${review.dislikes}`}
           >
             <span aria-hidden="true">👎</span> {review.dislikes}
@@ -368,7 +370,7 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
             <button
               className="review-card__action-btn review-card__action-btn--flag"
               disabled={busy}
-              onClick={() => handleAction(buildFlagMsg(address, review.id), "flag review")}
+              onClick={() => handleAction(buildFlagMsg(address, review.id, realmPath), "flag review")}
               aria-label="Flag for moderation"
             >
               <span aria-hidden="true">🚩</span> Flag
@@ -389,7 +391,7 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
                 className="review-card__action-btn review-card__action-btn--danger"
                 disabled={busy}
                 onClick={() =>
-                  handleAction(buildDeleteReviewMsg(address, review.id), "delete review")
+                  handleAction(buildDeleteReviewMsg(address, review.id, realmPath), "delete review")
                 }
               >
                 Delete
@@ -404,7 +406,7 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
                 className="review-card__action-btn review-card__action-btn--hide"
                 disabled={busy}
                 onClick={() =>
-                  handleAction(buildHideReviewMsg(address, review.id), "hide review")
+                  handleAction(buildHideReviewMsg(address, review.id, realmPath), "hide review")
                 }
               >
                 Hide
@@ -413,7 +415,7 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
                 className="review-card__action-btn review-card__action-btn--hide"
                 disabled={busy}
                 onClick={() =>
-                  handleAction(buildUnhideMsg(address, review.id), "unhide review")
+                  handleAction(buildUnhideMsg(address, review.id, realmPath), "unhide review")
                 }
               >
                 Unhide
@@ -437,6 +439,7 @@ export function ReviewCard({ review, onRefetch }: ReviewCardProps) {
               comment={c}
               address={address}
               onRefetch={loadComments}
+              realmPath={realmPath}
             />
           ))}
 
