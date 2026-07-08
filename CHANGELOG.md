@@ -20,6 +20,14 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### App Store reviews — community reviews on the App Store detail page (B2b, 2026-07-08)
+<!-- categories: memba -->
+- App Store listings can now carry **community reviews and ratings**. The App Store detail page mounts the shared reviews experience — a compact rating summary in the hero plus the full reviews section (post a rating, reply, like/dislike, flag, moderate) — pointed at the reputation-isolated App Store reviews realm, so an app's reputation is scored independently of the validator/profile web-of-trust. A **product-integrity** rule keeps early ratings honest: a listing with fewer than three reviews shows a neutral "New" chip with the review count instead of a headline star average, so one or two reviews can't present as a confident 5.0. Gated behind the new `VITE_ENABLE_APP_REVIEWS` flag (off by default; the app-reviews realm is deployed to test13 but the front end stays dark until it's switched on).
+
+### App Store reviews — realm-path threading in the reviews client (B2a, 2026-07-08)
+<!-- categories: memba -->
+- Groundwork for community reviews on App Store listings: the subject-agnostic reviews data client (`lib/reviews.ts`) now threads an optional `realmPath` argument through every read and write builder, defaulting to the existing validator/profile web-of-trust realm. This lets a caller target the reputation-isolated App Store reviews realm by path alone, with no behavior change for existing callers (verified: the full validator/profile reviews suite still passes). No user-visible change yet — the App Store detail page wiring follows.
+
 ### Fix — Treasury shows GNOT in whole units, not raw ugnot (2026-07-08)
 <!-- categories: memba -->
 - The DAO **Treasury** page rendered the GNOT balance from raw micro-units (ugnot), so a treasury holding **1 GNOT** displayed as **"1,000,000"** — off by a factor of a million and misleading. It now shows the human-readable, decimal-scaled amount (**"1"**, or **"123.456789"** for sub-unit balances), with thousands still comma-grouped. GRC-20 token rows are unaffected.
@@ -52,7 +60,37 @@ Full changelogs are split by version range for easier navigation:
 - **Every run is now different** — each game seeds from a fresh random value instead of a fixed one, so the swarm's patterns change from run to run (a deliberate daily-challenge seed comes later).
 - Rendering is decoupled from React (drawn straight from the game loop) for smoother 60fps play, and all motion — particles, shake, scanline, the invulnerability blink — is disabled under **`prefers-reduced-motion`** for accessibility. Every cosmetic effect runs on its own separate randomness, so it can never affect a score that will be certified on-chain.
 - Still gated by `VITE_ENABLE_SPACE_INVADERS` (client-side only, no funds), off by default.
+
+### Space Invaders — skill-based scoring (combo, accuracy, bonuses) (2026-07-08)
 <!-- categories: memba -->
+- Scoring now rewards **skill, not grinding** — the foundation for a competitive leaderboard. A **no-miss combo** builds a live score multiplier (×1 → ×1.5 → ×2 → ×3 → ×4) that **resets the moment you miss a shot**, so accuracy under pressure separates a good run from a great one. The active multiplier shows in the HUD.
+- Two end-of-game bonuses — an **accuracy bonus** (high hit-rate) and a **surviving-lives bonus** — and top-row aliens are now worth more (40/30/20/20/10), so going for the hard targets pays off.
+- All scoring lives inside the pure, deterministic engine using integer-only math, so a score can be **re-computed and verified byte-for-byte** — the basis for the upcoming on-chain certification. Controls unchanged; still gated by `VITE_ENABLE_SPACE_INVADERS`.
+
+### Space Invaders — rapid fire (2026-07-08)
+<!-- categories: memba -->
+- Firing feels **faster and more energetic**: hold to stream shots (one every ~140ms) with **up to three bullets on screen at once**, and bullets travel noticeably quicker. More offense — but with combo scoring a missed shot still breaks your multiplier, so it rewards aggression *and* aim. Deterministic and integer-only like the rest of the engine; still gated by `VITE_ENABLE_SPACE_INVADERS`.
+
+### Space Invaders — deeper waves that actually get harder (2026-07-08)
+<!-- categories: memba -->
+- Later waves now ramp up **real difficulty**: the aliens **fire faster each wave** (cooldown tightens toward a floor), and shots come from the **bottom-most alien of a column** — so cover disappears the way the arcade original intended, instead of raining from mid-formation. The formation also **stops descending past a safe cap**, so deep waves are hard because they're *fast*, not because they spawn on top of you. Still deterministic/integer-only; gated by `VITE_ENABLE_SPACE_INVADERS`.
+
+### Space Invaders — mystery UFO (2026-07-08)
+<!-- categories: memba -->
+- The **mystery UFO** is back: it drifts across the top of the screen every so often for bonus points. Base value varies, but land the hit on the right shot and it pays the classic **300** — a risk/reward hook that rewards players who track their shot count and break rhythm to snipe it. Deterministic and integer-only like the rest of the engine; gated by `VITE_ENABLE_SPACE_INVADERS`.
+
+### Space Invaders — destructible bunkers (2026-07-08)
+<!-- categories: memba -->
+- The classic **bunkers** are here: rows of destructible cover between you and the swarm. They soak up alien fire (three hits per block) — but you erode your *own* cover when you shoot through it, so positioning matters. Cover **refreshes each wave**. The tactical layer that makes "do I burn my shield to snipe the UFO?" a real decision. Deterministic/integer-only; gated by `VITE_ENABLE_SPACE_INVADERS`.
+
+### Space Invaders — replay verifier (onchain-leaderboard groundwork) (2026-07-08)
+<!-- categories: memba -->
+- Internal groundwork for **certified scores**: a deterministic replay verifier that re-runs the game engine from a recorded input log and re-derives the *authoritative* score plus an integer, cross-language-portable state hash. This is the anti-cheat backbone — the server (and, later, a Gno realm) recompute the score rather than trusting any number the client sends. Proven by a round-trip test (a recorded run replays to the identical score and hash). **No product change** — substrate for the upcoming on-chain leaderboard.
+
+### Space Invaders — determinism corpus (scoring model frozen) (2026-07-08)
+<!-- categories: memba -->
+- Committed a set of **golden test vectors** (`engine/testdata/game_vectors.json`) — canonical input scripts pinned to their exact final score and state hash. This **freezes the scoring model**: any accidental change to scoring or determinism now fails CI, and a future Go/Gno engine port loads the *same* file and must reproduce it byte-for-byte (the cross-language equivalence the on-chain verifier relies on). Mirrors the Block Party corpus pattern. **No product change.**
+
 - Added a `.gitattributes` rule (`CHANGELOG.md merge=union`) so that when several independent PRs each append an entry to `[Unreleased]`, git keeps **both** sides instead of raising a conflict on every merge. Removes the recurring manual changelog-conflict resolution when a batch of PRs lands together. No product change.
 
 ### gno.land public-sale announcement popup (#809, 2026-07-08)

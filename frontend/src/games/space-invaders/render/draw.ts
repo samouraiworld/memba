@@ -10,6 +10,7 @@ const COLORS = {
   alien: "#e6f7ef",
   bullet: "#ffd24d",
   popup: "#ffd24d",
+  ufo: "#ff6b8a",
 } as const;
 
 const FX_COLORS: Record<FxColor, string> = {
@@ -36,11 +37,22 @@ export function draw(ctx: CanvasRenderingContext2D, state: GameState, fx: FxStat
   ctx.fillStyle = COLORS.alien;
   for (const a of state.aliens) if (a.alive) ctx.fillRect(a.x, a.y, a.w, a.h);
 
-  ctx.fillStyle = COLORS.bullet;
-  if (state.playerBullet) {
-    const b = state.playerBullet;
-    ctx.fillRect(b.x, b.y, b.w, b.h);
+  if (state.ufo && state.ufo.alive) {
+    ctx.fillStyle = COLORS.ufo;
+    ctx.fillRect(state.ufo.x, state.ufo.y, state.ufo.w, state.ufo.h);
   }
+
+  // Bunkers (destructible cover) — fade as they take damage.
+  ctx.fillStyle = COLORS.player;
+  for (const bl of state.bunkers) {
+    if (bl.hp <= 0) continue;
+    ctx.globalAlpha = 0.35 + 0.2 * (bl.hp / CONFIG.bunker.hp);
+    ctx.fillRect(bl.x, bl.y, bl.w, bl.h);
+  }
+  ctx.globalAlpha = 1;
+
+  ctx.fillStyle = COLORS.bullet;
+  for (const b of state.playerBullets) ctx.fillRect(b.x, b.y, b.w, b.h);
   for (const b of state.alienBullets) ctx.fillRect(b.x, b.y, b.w, b.h);
 
   // Player: blink while invulnerable (steady-dim under reduced motion to avoid

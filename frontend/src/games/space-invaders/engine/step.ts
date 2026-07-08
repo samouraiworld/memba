@@ -1,8 +1,27 @@
-import { CONFIG, formationStepMs } from "./config";
+import { CONFIG, formationStepMs, comboMultiplier10, alienFireCooldownMs } from "./config";
 import type { GameState, GameEvent, InputIntent } from "./types";
 import { aabb } from "./collision";
 import { rngFloat } from "./prng";
-import { spawnWave } from "./spawn";
+import { spawnWave, spawnBunkers } from "./spawn";
+
+// Erode the first bunker block a bullet overlaps. Returns the (possibly
+// smaller) block list and whether a block absorbed the shot.
+function hitBunker(bunkers: GameState["bunkers"], b: { x: number; y: number; w: number; h: number }) {
+  const i = bunkers.findIndex((bl) => bl.hp > 0 && aabb(b, bl));
+  if (i < 0) return { bunkers, hit: false };
+  const next = bunkers
+    .map((bl, j) => (j === i ? { ...bl, hp: bl.hp - 1 } : bl))
+    .filter((bl) => bl.hp > 0);
+  return { bunkers: next, hit: true };
+}
+
+// Apply end-of-game bonuses (accuracy + surviving lives) and enter gameover.
+// Integer-only so the future Go replay verifier reproduces it exactly.
+function finalize(s: GameState): GameState {
+  const accuracy = s.shots > 0 ? Math.floor((s.hits * CONFIG.scoring.accuracyBonusK) / s.shots) : 0;
+  const livesBonus = Math.max(0, s.lives) * CONFIG.scoring.livesBonus;
+  return { ...s, phase: "gameover", score: s.score + accuracy + livesBonus };
+}
 
 // This reducer stays pure: it has no memory of the previous frame's pause
 // state. Callers are expected to send pause:true for a single frame only
@@ -34,18 +53,20 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
     s = { ...s, player: { ...s.player, x } };
   }
 
-  // Fire: spawn one bullet if none is live.
-  if (input.fire && !s.playerBullet) {
+  // Fire-rate cooldown decay.
+  if (s.fireCd > 0) s = { ...s, fireCd: Math.max(0, s.fireCd - dtMs) };
+
+  // Fire: rapid fire — spawn a bullet when off cooldown and under the cap.
+  if (input.fire && s.fireCd <= 0 && s.playerBullets.length < CONFIG.player.maxBullets) {
     const bx = s.player.x + s.player.w / 2 - CONFIG.bullet.w / 2;
     s = {
       ...s,
-      playerBullet: {
-        x: bx,
-        y: s.player.y - CONFIG.bullet.h,
-        w: CONFIG.bullet.w,
-        h: CONFIG.bullet.h,
-        alive: true,
-      },
+      shots: s.shots + 1,
+      fireCd: CONFIG.player.fireCooldownMs,
+      playerBullets: [
+        ...s.playerBullets,
+        { x: bx, y: s.player.y - CONFIG.bullet.h, w: CONFIG.bullet.w, h: CONFIG.bullet.h, alive: true },
+      ],
     };
     events.push({ type: "playerFired", x: bx });
   }
@@ -81,31 +102,97 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
     }
   }
 
-  // Advance the player bullet and resolve alien hits.
-  if (s.playerBullet) {
-    const b = { ...s.playerBullet, y: s.playerBullet.y - CONFIG.bullet.playerSpeedPxPerMs * dtMs };
-    if (b.y + b.h < 0) {
-      s = { ...s, playerBullet: null };
-    } else {
-      let hitScore = 0;
-      let hit = false;
-      let killed: { x: number; y: number; row: number } | null = null;
-      const aliens = s.aliens.map((a) => {
-        if (!hit && a.alive && aabb(b, a)) {
-          hit = true;
-          hitScore = CONFIG.points[a.row] ?? CONFIG.points[CONFIG.points.length - 1];
-          killed = { x: a.x, y: a.y, row: a.row };
-          return { ...a, alive: false };
-        }
-        return a;
-      });
-      if (hit && killed) {
-        s = { ...s, aliens, playerBullet: null, score: s.score + hitScore };
-        events.push({ type: "alienKilled", ...(killed as { x: number; y: number; row: number }) });
+  // ── Mystery UFO: seeded spawn timer, drifts across the top ──
+  {
+    let ufo = s.ufo;
+    let timer = s.ufoTimerMs;
+    if (ufo && ufo.alive) {
+      const nx = ufo.x + ufo.dir * CONFIG.ufo.speedPxPerMs * dtMs;
+      if (nx > CONFIG.arena.w || nx + ufo.w < 0) {
+        ufo = null; // drifted off-screen — reset the cooldown
+        timer = CONFIG.ufo.spawnMs;
       } else {
-        s = { ...s, playerBullet: b };
+        ufo = { ...ufo, x: nx };
+      }
+    } else {
+      timer -= dtMs;
+      if (timer <= 0) {
+        const pick = rngFloat(s.rng);
+        const dir: 1 | -1 = pick.value < 0.5 ? 1 : -1;
+        ufo = {
+          x: dir === 1 ? -CONFIG.ufo.w : CONFIG.arena.w,
+          y: CONFIG.ufo.y,
+          w: CONFIG.ufo.w,
+          h: CONFIG.ufo.h,
+          dir,
+          alive: true,
+        };
+        timer = CONFIG.ufo.spawnMs;
+        s = { ...s, rng: pick.state };
+        events.push({ type: "ufoSpawned" });
       }
     }
+    s = { ...s, ufo, ufoTimerMs: timer };
+  }
+
+  // Advance player bullets; resolve alien / UFO hits and misses (rapid fire —
+  // several bullets may be in flight, each resolved independently this step).
+  if (s.playerBullets.length > 0) {
+    let aliens = s.aliens;
+    let combo = s.combo;
+    let hits = s.hits;
+    let score = s.score;
+    let ufo = s.ufo;
+    let rng = s.rng;
+    let bunkers = s.bunkers;
+    const survivors: typeof s.playerBullets = [];
+    for (const pb of s.playerBullets) {
+      const b = { ...pb, y: pb.y - CONFIG.bullet.playerSpeedPxPerMs * dtMs };
+      if (b.y + b.h < 0) {
+        // Shot left the top without a kill → the no-miss combo breaks.
+        combo = 0;
+        events.push({ type: "shotMissed" });
+        continue;
+      }
+      let hitIdx = -1;
+      for (let i = 0; i < aliens.length; i++) {
+        const a = aliens[i];
+        if (a.alive && aabb(b, a)) {
+          hitIdx = i;
+          break;
+        }
+      }
+      if (hitIdx >= 0) {
+        const a = aliens[hitIdx];
+        const hitScore = CONFIG.points[a.row] ?? CONFIG.points[CONFIG.points.length - 1];
+        // combo increments first; the multiplier applies to this kill, so the
+        // first hit is ×1.0 (preserves base-point scoring).
+        combo += 1;
+        score += Math.floor((hitScore * comboMultiplier10(combo)) / 10);
+        hits += 1;
+        aliens = aliens.map((x, i) => (i === hitIdx ? { ...x, alive: false } : x));
+        events.push({ type: "alienKilled", x: a.x, y: a.y, row: a.row });
+      } else if (ufo && ufo.alive && aabb(b, ufo)) {
+        // Mystery UFO hit: a flat bonus (seeded base value, or the 300 bonus if
+        // this is a parity-th shot). Not combo-multiplied — it's its own reward.
+        const rp = rngFloat(rng);
+        rng = rp.state;
+        const base = CONFIG.ufo.points[Math.floor(rp.value * CONFIG.ufo.points.length)];
+        const pts = s.shots % CONFIG.ufo.parityShot === 0 ? CONFIG.ufo.bonusPoints : base;
+        score += pts;
+        hits += 1;
+        events.push({ type: "ufoKilled", x: ufo.x, y: ufo.y, points: pts });
+        ufo = null;
+      } else {
+        const bh = hitBunker(bunkers, b);
+        if (bh.hit) {
+          bunkers = bh.bunkers; // shot absorbed by (and erodes) your own cover
+        } else {
+          survivors.push(b);
+        }
+      }
+    }
+    s = { ...s, aliens, playerBullets: survivors, combo, hits, score, ufo, rng, bunkers };
   }
 
   // Invulnerability countdown.
@@ -119,7 +206,11 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
     const fireMs = s.alienFireMs - dtMs;
     if (fireMs <= 0 && living.length > 0) {
       const pick = rngFloat(s.rng);
-      const shooter = living[Math.floor(pick.value * living.length)];
+      // Pick a random living column (sorted for a canonical, port-stable order),
+      // then fire from its bottom-most alien — looks right and plays fair.
+      const cols = [...new Set(living.map((a) => a.col))].sort((a, b) => a - b);
+      const col = cols[Math.floor(pick.value * cols.length)];
+      const shooter = living.filter((a) => a.col === col).reduce((lo, a) => (a.y > lo.y ? a : lo));
       const bullet = {
         x: shooter.x + shooter.w / 2 - CONFIG.bullet.w / 2,
         y: shooter.y + shooter.h,
@@ -131,35 +222,42 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
         ...s,
         rng: pick.state,
         alienBullets: [...s.alienBullets, bullet],
-        alienFireMs: CONFIG.alienFire.cooldownMs,
+        alienFireMs: alienFireCooldownMs(s.wave),
       };
     } else {
       s = { ...s, alienFireMs: fireMs };
     }
   }
 
-  // Advance alien bullets; resolve player damage.
+  // Advance alien bullets; bunkers absorb them, then resolve player damage.
   if (s.alienBullets.length > 0) {
     const moved = s.alienBullets
       .map((b) => ({ ...b, y: b.y + CONFIG.bullet.alienSpeedPxPerMs * dtMs }))
       .filter((b) => b.y < CONFIG.arena.h);
-    const struck = s.invulnMs <= 0 && moved.some((b) => aabb(b, s.player));
+    let bunkers = s.bunkers;
+    const remaining: typeof moved = [];
+    for (const b of moved) {
+      const bh = hitBunker(bunkers, b);
+      if (bh.hit) bunkers = bh.bunkers; // stopped by cover
+      else remaining.push(b);
+    }
+    const struck = s.invulnMs <= 0 && remaining.some((b) => aabb(b, s.player));
     if (struck) {
-      s = { ...s, alienBullets: [], lives: s.lives - 1, invulnMs: CONFIG.respawnInvulnMs };
+      s = { ...s, alienBullets: [], lives: s.lives - 1, invulnMs: CONFIG.respawnInvulnMs, bunkers };
       events.push({ type: "playerHit" });
       events.push({ type: "lifeLost" });
     } else {
-      s = { ...s, alienBullets: moved };
+      s = { ...s, alienBullets: remaining, bunkers };
     }
   }
 
   // ── Resolve end-of-frame conditions ──
   if (s.lives <= 0) {
-    return { ...s, phase: "gameover" };
+    return finalize(s);
   }
   const alive = s.aliens.filter((a) => a.alive);
   if (alive.some((a) => a.y + a.h >= s.player.y)) {
-    return { ...s, phase: "gameover" };
+    return finalize(s);
   }
   if (alive.length === 0) {
     const nextWave = s.wave + 1;
@@ -169,8 +267,10 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
       aliens: spawnWave(nextWave).aliens,
       dir: 1,
       stepAccumMs: 0,
-      playerBullet: null,
+      playerBullets: [],
+      fireCd: 0,
       alienBullets: [],
+      bunkers: spawnBunkers(),
     };
     events.push({ type: "waveCleared" });
   }

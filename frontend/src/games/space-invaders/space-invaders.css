@@ -1,6 +1,9 @@
 .si-root { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px; color: var(--color-k-text); }
 .si-hud { display: flex; gap: 16px; align-items: center; font-variant-numeric: tabular-nums; font-size: 14px; }
 .si-pause { background: transparent; border: 1px solid var(--color-k-edge); color: inherit; border-radius: var(--radius-md); padding: 2px 8px; cursor: pointer; }
+/* No-miss combo multiplier — brand gold, theme-aware (§13: HUD chrome sits
+   outside the dark arcade screen, so it must stay legible in light theme too). */
+.si-combo { color: var(--color-k-govdao-text); font-weight: 700; letter-spacing: 0.02em; }
 /* Bigger arcade screen: near-full-width on phones, up to ~480px on desktop.
    The internal buffer stays 320x400 (see Canvas/CONFIG) and upscales cleanly
    via image-rendering: pixelated, so gameplay + determinism are unchanged. */

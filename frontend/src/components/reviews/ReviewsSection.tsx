@@ -7,6 +7,10 @@
  *                              signing address, so reviews posted before it registered an
  *                              operator address still show). New reviews always post to
  *                              `subject` (the stable canonical identity).
+ *   realmPath?: string       — which on-chain reviews realm to read/write. Defaults (undefined)
+ *                              to the validator/profile web-of-trust realm; the App Store detail
+ *                              page passes the reputation-isolated app-reviews realm path. Threaded
+ *                              down to every ReviewCard so its actions hit the same realm.
  *
  * Responsibilities:
  * - On mount: fetch reviews for subject + aliases → merge/dedupe by author → attach
@@ -35,11 +39,19 @@ import "./reviews.css"
 interface ReviewsSectionProps {
   subject: string
   aliasSubjects?: string[]
+  realmPath?: string
+  /**
+   * Smallest number of reviews before the header shows a star average. Below it, the header
+   * shows a neutral "New · N" chip instead — so a 1–2 review sample can't read as a confident
+   * score. Defaults to 0 (never suppress), preserving the validator/profile display; the App
+   * Store passes MIN_RATED_COUNT so the section matches its hero AppReviewStars.
+   */
+  minRatedCount?: number
 }
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms))
 
-export function ReviewsSection({ subject, aliasSubjects }: ReviewsSectionProps) {
+export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCount = 0 }: ReviewsSectionProps) {
   const { address, connected, connect } = useAdena()
 
   const [reviews, setReviews] = useState<OnChainReview[]>([])
@@ -77,9 +89,9 @@ export function ReviewsSection({ subject, aliasSubjects }: ReviewsSectionProps) 
 
   const fetchMerged = useCallback(async () => {
     const subs = subjectsKey.split(",").filter(Boolean)
-    const lists = await Promise.all(subs.map((s) => fetchReviews(s)))
+    const lists = await Promise.all(subs.map((s) => fetchReviews(s, 0, 20, realmPath)))
     return mergeReviewsByAuthor(lists, subject)
-  }, [subjectsKey, subject])
+  }, [subjectsKey, subject, realmPath])
 
   const load = useCallback(async () => {
     const reqId = ++reqIdRef.current
@@ -135,7 +147,7 @@ export function ReviewsSection({ subject, aliasSubjects }: ReviewsSectionProps) 
     const trimmed = body.trim()
     const chosen = rating
     try {
-      await submitMsg(buildPostReviewMsg(caller, subject, chosen, trimmed), "post review")
+      await submitMsg(buildPostReviewMsg(caller, subject, chosen, trimmed, realmPath), "post review")
       // Optimistic: show it immediately (the realm edits an author's existing review on
       // re-post, so upsert-by-author matches that), then reconcile against the chain.
       const opt = makeOptimisticReview(caller, chosen, trimmed, subject)
@@ -150,7 +162,7 @@ export function ReviewsSection({ subject, aliasSubjects }: ReviewsSectionProps) 
       submittingRef.current = false
       setSubmitting(false)
     }
-  }, [subject, rating, body, reconcileToChain])
+  }, [subject, rating, body, reconcileToChain, realmPath])
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -184,20 +196,32 @@ export function ReviewsSection({ subject, aliasSubjects }: ReviewsSectionProps) 
 
   const visible = reviews.filter((r) => !r.deleted)
   const summary = summaryFromReviews(visible)
-  const average = summary.count > 0 ? summary.average.toFixed(1) : null
+  // Enough of a sample to show a star average? Below minRatedCount we show the count only.
+  const rated = summary.count >= minRatedCount
 
   return (
     <section className="reviews-section" aria-label="Reviews">
       {/* Header */}
       <div className="reviews-section__header">
         <h2 className="reviews-section__title">Reviews</h2>
-        {summary.count > 0 && average && (
+        {summary.count > 0 && (
           <div className="reviews-section__summary">
-            <StarRating value={Math.round(summary.average)} size="sm" />
-            <span className="reviews-section__average">{average}</span>
-            <span className="reviews-section__count">
-              ({summary.count} review{summary.count !== 1 ? "s" : ""})
-            </span>
+            {rated ? (
+              <>
+                <StarRating value={Math.round(summary.average)} size="sm" />
+                <span className="reviews-section__average">{summary.average.toFixed(1)}</span>
+                <span className="reviews-section__count">
+                  ({summary.count} review{summary.count !== 1 ? "s" : ""})
+                </span>
+              </>
+            ) : (
+              <>
+                <span className="appreviewstars__new-chip">New</span>
+                <span className="reviews-section__count">
+                  · {summary.count} review{summary.count !== 1 ? "s" : ""}
+                </span>
+              </>
+            )}
           </div>
         )}
       </div>
@@ -261,7 +285,7 @@ export function ReviewsSection({ subject, aliasSubjects }: ReviewsSectionProps) 
 
         {visible.length > 0 &&
           visible.map((r) => (
-            <ReviewCard key={`${r.subject}:${r.id}`} review={r} onRefetch={load} />
+            <ReviewCard key={`${r.subject}:${r.id}`} review={r} onRefetch={load} realmPath={realmPath} />
           ))}
       </div>
     </section>
