@@ -34,12 +34,14 @@ describe("step — player bullet", () => {
 
   it("kills an alien on contact, frees the bullet, and scores", () => {
     let s = playing();
-    // Place a lone alien directly above the player and fire.
-    const target = { ...s.aliens[0], x: s.player.x, y: s.player.y - 40, alive: true, row: 0 };
-    s = { ...s, aliens: [target] };
+    // Target directly above the player; a decoy kept alive so the wave isn't cleared.
+    const target = { ...s.aliens[0], x: s.player.x, y: s.player.y - 40, alive: true, row: 0, col: 0 };
+    const decoy = { ...s.aliens[0], x: 10, y: 10, alive: true, row: 1, col: 5 };
+    s = { ...s, aliens: [target, decoy] };
     s = step(s, 16, fire);
     for (let i = 0; i < 20; i++) s = step(s, 16, idle);
-    expect(s.aliens[0].alive).toBe(false);
+    expect(s.wave).toBe(1); // wave not cleared (decoy alive)
+    expect(s.aliens[0].alive).toBe(false); // target destroyed
     expect(s.playerBullet).toBeNull();
     expect(s.score).toBe(CONFIG.points[0]);
   });

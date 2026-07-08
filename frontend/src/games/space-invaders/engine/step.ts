@@ -2,6 +2,7 @@ import { CONFIG, formationStepMs } from "./config";
 import type { GameState, InputIntent } from "./types";
 import { aabb } from "./collision";
 import { rngFloat } from "./prng";
+import { spawnWave } from "./spawn";
 
 // Tracks whether the previous frame's pause was held, to detect a rising edge.
 // Encoded in phase transitions rather than extra state: we treat any frame with
@@ -139,6 +140,27 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
     } else {
       s = { ...s, alienBullets: moved };
     }
+  }
+
+  // ── Resolve end-of-frame conditions ──
+  if (s.lives <= 0) {
+    return { ...s, phase: "gameover" };
+  }
+  const alive = s.aliens.filter((a) => a.alive);
+  if (alive.some((a) => a.y + a.h >= s.player.y)) {
+    return { ...s, phase: "gameover" };
+  }
+  if (alive.length === 0) {
+    const nextWave = s.wave + 1;
+    s = {
+      ...s,
+      wave: nextWave,
+      aliens: spawnWave(nextWave).aliens,
+      dir: 1,
+      stepAccumMs: 0,
+      playerBullet: null,
+      alienBullets: [],
+    };
   }
 
   return s;
