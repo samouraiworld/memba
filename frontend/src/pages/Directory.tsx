@@ -15,11 +15,11 @@ import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect, useCallback, useMemo, useDeferredValue, useRef } from "react"
 import type { KeyboardEvent as ReactKeyboardEvent } from "react"
 import { useDirectoryUrlState } from "../hooks/useDirectoryUrlState"
-import { type DirectoryTab } from "../lib/directoryUrl"
-import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
+import { type DirectoryTab, resolveActiveTab } from "../lib/directoryUrl"
+import { GNO_RPC_URL, getExplorerBaseUrl, isExplorerEnabled } from "../lib/config"
 import { queryRender } from "../lib/dao/shared"
 import { ChainMetricsBanner } from "../components/directory"
-import { DAOsTab, TokensTab, UsersTab, PackagesTab, RealmsTab, GovDAOTab, LeaderboardTab } from "../components/directory/tabs"
+import { DAOsTab, TokensTab, UsersTab, PackagesTab, RealmsTab, GovDAOTab, LeaderboardTab, ExplorerTab } from "../components/directory/tabs"
 import { trackPageVisit, trackDirectoryTab } from "../lib/quests"
 import { getDirectoryDAOs, fetchPackages, fetchRealms } from "../lib/directory"
 import type { DirectoryDAO, DirectoryPackage, DirectoryRealm } from "../lib/directory"
@@ -42,7 +42,17 @@ const TAB_DEFS: { key: DirectoryTab; label: string }[] = [
 export function Directory() {
     const navigate = useNetworkNav()
     const [urlState, setUrlState] = useDirectoryUrlState()
-    const tab = urlState.tab
+    // Explorer is the merged-in realm viewer, shown as a gated last tab. A deep-link
+    // to ?tab=explorer with the flag off falls back to the default tab, so there is
+    // never a dead nav button or a blank panel.
+    const explorerOn = isExplorerEnabled()
+    // Memoized so the useCallback below (which depends on it) keeps a stable
+    // identity — a fresh array each render would defeat the memo.
+    const tabDefs = useMemo(
+        () => explorerOn ? [...TAB_DEFS, { key: "explorer" as DirectoryTab, label: "🔎 Explorer" }] : TAB_DEFS,
+        [explorerOn],
+    )
+    const tab: DirectoryTab = resolveActiveTab(urlState.tab, explorerOn)
     const globalSearch = urlState.q
     const deferredGlobalSearch = useDeferredValue(globalSearch)
     const [realmPreview, setRealmPreview] = useState<{ path: string; content: string } | null>(null)
@@ -116,19 +126,19 @@ export function Directory() {
 
     // APG tabs pattern: Arrow/Home/End move between tabs (with a roving tabindex).
     const handleTabKeyDown = useCallback((e: ReactKeyboardEvent<HTMLButtonElement>, key: DirectoryTab) => {
-        const i = TAB_DEFS.findIndex(t => t.key === key)
+        const i = tabDefs.findIndex(t => t.key === key)
         let next: DirectoryTab | null = null
-        if (e.key === "ArrowRight") next = TAB_DEFS[(i + 1) % TAB_DEFS.length].key
-        else if (e.key === "ArrowLeft") next = TAB_DEFS[(i - 1 + TAB_DEFS.length) % TAB_DEFS.length].key
-        else if (e.key === "Home") next = TAB_DEFS[0].key
-        else if (e.key === "End") next = TAB_DEFS[TAB_DEFS.length - 1].key
+        if (e.key === "ArrowRight") next = tabDefs[(i + 1) % tabDefs.length].key
+        else if (e.key === "ArrowLeft") next = tabDefs[(i - 1 + tabDefs.length) % tabDefs.length].key
+        else if (e.key === "Home") next = tabDefs[0].key
+        else if (e.key === "End") next = tabDefs[tabDefs.length - 1].key
         if (next) {
             e.preventDefault()
             selectTab(next)
             const id = `tab-${next}`
             requestAnimationFrame(() => document.getElementById(id)?.focus())
         }
-    }, [selectTab])
+    }, [selectTab, tabDefs])
 
     return (
         <div className="dir-page">
@@ -246,7 +256,7 @@ export function Directory() {
             )}
 
             <div className="dir-tabs" role="tablist">
-                {TAB_DEFS.map(t => (
+                {tabDefs.map(t => (
                     <button
                         key={t.key}
                         id={`tab-${t.key}`}
@@ -272,6 +282,12 @@ export function Directory() {
                 {tab === "users" && <UsersTab navigate={navigate} />}
                 {tab === "govdao" && <GovDAOTab navigate={navigate} />}
                 {tab === "leaderboard" && <LeaderboardTab navigate={navigate} />}
+                {tab === "explorer" && explorerOn && (
+                    <ExplorerTab
+                        realm={urlState.realm}
+                        onRealmChange={(rel) => setUrlState({ tab: "explorer", realm: rel })}
+                    />
+                )}
             </div>
         </div>
     )

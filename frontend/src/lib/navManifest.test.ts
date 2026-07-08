@@ -9,7 +9,7 @@
  * but never surfaced in navigation — a recurring audit finding.
  */
 import { describe, it, expect } from 'vitest'
-import { NAV } from './navManifest'
+import { NAV, mobileMoreNav } from './navManifest'
 
 // Routes in App.tsx that are NOT expected to appear in the nav manifest.
 // Each must have a reason — if you add a route here, document why.
@@ -31,7 +31,14 @@ const EXCLUDED_ROUTES = new Set([
     'validators/valoper/:operatorAddress', // redirect
     'validators/:address',         // sub-route of /validators
 
-    // NFT sub-routes (parent is /nft in manifest)
+    // NFT + Services are redirect-only shells into the unified /marketplace
+    // (/nft → /marketplace/nfts, /services → /marketplace/services). They lost
+    // their standalone nav entries in the marketplace-menu consolidation
+    // (2026-07-08) — the single "Marketplace" entry covers them.
+    'nft',
+    'services',
+
+    // NFT sub-routes (reached from the marketplace NFT lane, not the sidebar)
     'nft/create',
     'nft/create/advanced',
     'nft/collection/:creator/:slug',
@@ -100,6 +107,17 @@ describe('navManifest completeness', () => {
                 manifestPaths.has(route),
                 `Route "${route}" is in EXCLUDED_ROUTES but exists in navManifest — remove it from EXCLUDED_ROUTES`
             ).toBe(false)
+        }
+    })
+
+    // With NFT/Services folded into the unified Marketplace, the Launch group
+    // must stay reachable on mobile through the "More" sheet (it has no primary
+    // tab), or NFTs/Services/Tokens become desktop-only.
+    it('the unified Marketplace + App Store are reachable in the mobile "More" sheet', () => {
+        for (const connected of [false, true]) {
+            const ids = new Set(mobileMoreNav(connected).map(e => e.id))
+            expect(ids.has('marketplace')).toBe(true)
+            expect(ids.has('appstore')).toBe(true)
         }
     })
 })

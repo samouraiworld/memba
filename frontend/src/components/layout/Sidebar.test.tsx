@@ -100,9 +100,11 @@ describe('W6.2 — 4-mode IA sections', () => {
 
     test('flag-gated Launch entries carry a pill (soon when the flag is off)', () => {
         renderSidebar({ connected: false })
-        // Test env has no VITE_ENABLE_* set → NFT/Services render as "soon".
+        // Test env has no VITE_ENABLE_* set → the flag-gated Launch entries
+        // (Marketplace, App Store) render as "soon". NFT/Services are no longer
+        // separate entries — they are tabs inside the unified Marketplace.
         const launch = document.querySelector('[data-testid="nav-mode-launch"]')!
-        expect(launch.textContent).toContain('NFT')
+        expect(launch.textContent).toContain('Marketplace')
         expect(launch.textContent).toContain('soon')
     })
 

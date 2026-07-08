@@ -20,6 +20,32 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Space Invaders — arcade game in the Store (#823, 2026-07-08)
+- A classic **Space Invaders** added to the Store, playable instantly in the browser with no wallet. Built on a pure, deterministic game engine (a fixed-timestep loop that carries sub-frame time, so it runs correctly on 60 / 120 / 144 Hz displays) with keyboard (←/→ · Space · P) and full touch controls (steer on the left, tap-and-hold to fire on the right). Lean-classic rules: a formation that marches, drops and reverses at the edges and accelerates as ranks thin, one player shot in flight, three lives, escalating waves, and a local high score.
+- Gated by `VITE_ENABLE_SPACE_INVADERS` — an ordinary flag (client-side only, no funds), off by default; reachable at `/game/space-invaders`. Listing it in the on-chain App Store (`memba_appstore_v2`) is a separate operator action.
+
+### gno.land public-sale announcement popup (#809, 2026-07-08)
+- A dismissible promo popup announcing the gno.land public **GNOT sale** (opens 2026-07-20, links to sale.gno.land), with a countdown that switches to "Now open" at the sale date. Shown once per campaign (localStorage), rendered via `AccessibleDialog` (focus trap, body-scroll lock, Esc), and suppressed while the onboarding wizard or activation gate is up so it never stacks on another modal.
+- Gated by `VITE_ENABLE_ICO_ANNOUNCEMENT` — an ordinary flag (read-only external link, no funds), off by default; the owner enables it for the sale window.
+
+### Explorer merged into the Directory (#811, 2026-07-08)
+- The read-only realm Explorer is now a gated **🔎 Explorer** tab inside the Directory instead of a separate `/explorer` feature — realm discovery is one place: browse (Packages / Realms / …) → deep-dive into a realm's live render, source, and functions. Canonical route is `/directory`; the active realm rides the URL as `?tab=explorer&realm=r/x/y`.
+- Legacy `/explorer/*` links redirect into the tab, preserving the realm path, so bookmarks and shares don't 404. The standalone Explorer nav entry is removed — the sidebar shows a single **Directory** entry.
+- Still gated by `VITE_ENABLE_EXPLORER`: the tab is hidden and a deep-link to `?tab=explorer` falls back to the default tab when the flag is off, so there's no dead button or blank panel.
+
+### Feature articles — product + engineering scope (#814, 2026-07-08)
+- Nine `/blog` articles, one per major feature (Directory + Explorer, unified Marketplace, App Store, social Feed, Block Party, DAO governance, Multisig, Validators, Quests/XP), each pairing a product framing with an engineering-scope section so it doubles as documentation. Ships via the existing static blog pipeline.
+
+### Marketplace menu consolidated to a single entry (#813, 2026-07-08)
+- NFTs, Services, and Tokens are tabs (lanes) inside the unified `/marketplace` page, so the sidebar's separate **NFT** and **Services** entries — redirect-only duplicates — are removed. One **Marketplace** menu entry now matches the one page; deep links to `/nft` and `/services` still redirect in.
+- Added a mobile "More"-sheet entry point for the Marketplace and App Store, which previously had no mobile navigation at all.
+
+### App Store — flagship redesign (2026-07-07)
+- **`/apps` reshaped into a world-class on-chain app store.** A real masthead ("Apps you can read before you run them") leads on the store's actual differentiator — every app is a public gno.land realm you can inspect before running — instead of a bare title. Adds a **featured hero** for the lead app, a responsive card grid that scales as listings grow, and designed loading (skeleton), empty, and error states.
+- **Per-app identity when no artwork exists.** Apps with an empty `iconCID` get a deterministic monogram over a gradient seeded (FNV-1a) from the realm path — stable, unique per app, and CSP-safe (computed inline, never fetched). The realm path itself is promoted to a first-class mono chip.
+- **App detail gains a trust panel** ("Read before you run") that names the publisher and points to the Explorer source — the reassurance a store of opaque binaries can't offer. Primary **Open app** CTA + secondary source link; first-party apps still open inline, third-party still open in a new tab (never an iframe).
+- Theme-aware (light + dark) and mobile-responsive via Kodera `--color-k-*` tokens only — no literal colors in `appstore.css` (passes the DESIGN_SYSTEM §13 guardrail); keyboard focus + reduced-motion respected. No backend/realm changes.
+
 ### App Store — de-gate + memba_appstore_v2 (2026-07-07)
 - **`VITE_ENABLE_APPSTORE` is no longer a safety-gated flag.** It was removed from `SAFETY_GATED_FLAGS` (frontend/src/lib/safeFlags.ts) now that `memba_appstore_v2` is deployed on test13 with a self-managed 2-of-2 admin and a **live-verified fee path** — a prod build with the flag enabled no longer fails. The `/apps` page can now ship to prod (Netlify flag flip is a separate operator action).
 - **Frontend repointed to `gno.land/r/samcrew/memba_appstore_v2`** (was `_v1`): `APPSTORE_REALM_PATH` and the `lib/appStore` reads now target the live v2 realm.
