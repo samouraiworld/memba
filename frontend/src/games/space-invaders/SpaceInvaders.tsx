@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type RefObject } from "react";
-import { newGame, type GameState } from "./engine";
+import { newGame, comboMultiplier10, type GameState } from "./engine";
 import { advanceWithEvents, drainAccumulator } from "./hooks/useGameLoop";
 import { useKeyboard } from "./hooks/useKeyboard";
 import { useTouch } from "./hooks/useTouch";
@@ -142,6 +142,11 @@ export default function SpaceInvaders({
         <span>Score {state.score}</span>
         <span>Best {best}</span>
         <span>Wave {state.wave}</span>
+        {state.combo >= 2 && (
+          <span className="si-combo" aria-label={`combo multiplier ${(comboMultiplier10(state.combo) / 10).toFixed(1)} times`}>
+            ×{(comboMultiplier10(state.combo) / 10).toFixed(1)}
+          </span>
+        )}
         <span aria-label={`${Math.max(0, state.lives)} lives`}>
           Lives {"◈".repeat(Math.max(0, state.lives))}
         </span>

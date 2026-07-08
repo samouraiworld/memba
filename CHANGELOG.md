@@ -52,6 +52,13 @@ Full changelogs are split by version range for easier navigation:
 - **Every run is now different** — each game seeds from a fresh random value instead of a fixed one, so the swarm's patterns change from run to run (a deliberate daily-challenge seed comes later).
 - Rendering is decoupled from React (drawn straight from the game loop) for smoother 60fps play, and all motion — particles, shake, scanline, the invulnerability blink — is disabled under **`prefers-reduced-motion`** for accessibility. Every cosmetic effect runs on its own separate randomness, so it can never affect a score that will be certified on-chain.
 - Still gated by `VITE_ENABLE_SPACE_INVADERS` (client-side only, no funds), off by default.
+
+### Space Invaders — skill-based scoring (combo, accuracy, bonuses) (2026-07-08)
+<!-- categories: memba -->
+- Scoring now rewards **skill, not grinding** — the foundation for a competitive leaderboard. A **no-miss combo** builds a live score multiplier (×1 → ×1.5 → ×2 → ×3 → ×4) that **resets the moment you miss a shot**, so accuracy under pressure separates a good run from a great one. The active multiplier shows in the HUD.
+- Two end-of-game bonuses — an **accuracy bonus** (high hit-rate) and a **surviving-lives bonus** — and top-row aliens are now worth more (40/30/20/20/10), so going for the hard targets pays off.
+- All scoring lives inside the pure, deterministic engine using integer-only math, so a score can be **re-computed and verified byte-for-byte** — the basis for the upcoming on-chain certification. Controls unchanged; still gated by `VITE_ENABLE_SPACE_INVADERS`.
+
 <!-- categories: memba -->
 - Added a `.gitattributes` rule (`CHANGELOG.md merge=union`) so that when several independent PRs each append an entry to `[Unreleased]`, git keeps **both** sides instead of raising a conflict on every merge. Removes the recurring manual changelog-conflict resolution when a batch of PRs lands together. No product change.
 
