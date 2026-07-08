@@ -15,7 +15,7 @@ import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect, useCallback, useMemo, useDeferredValue, useRef } from "react"
 import type { KeyboardEvent as ReactKeyboardEvent } from "react"
 import { useDirectoryUrlState } from "../hooks/useDirectoryUrlState"
-import { type DirectoryTab, DEFAULT_DIRECTORY_TAB } from "../lib/directoryUrl"
+import { type DirectoryTab, resolveActiveTab } from "../lib/directoryUrl"
 import { GNO_RPC_URL, getExplorerBaseUrl, isExplorerEnabled } from "../lib/config"
 import { queryRender } from "../lib/dao/shared"
 import { ChainMetricsBanner } from "../components/directory"
@@ -47,7 +47,7 @@ export function Directory() {
     // never a dead nav button or a blank panel.
     const explorerOn = isExplorerEnabled()
     const tabDefs = explorerOn ? [...TAB_DEFS, { key: "explorer" as DirectoryTab, label: "🔎 Explorer" }] : TAB_DEFS
-    const tab: DirectoryTab = urlState.tab === "explorer" && !explorerOn ? DEFAULT_DIRECTORY_TAB : urlState.tab
+    const tab: DirectoryTab = resolveActiveTab(urlState.tab, explorerOn)
     const globalSearch = urlState.q
     const deferredGlobalSearch = useDeferredValue(globalSearch)
     const [realmPreview, setRealmPreview] = useState<{ path: string; content: string } | null>(null)

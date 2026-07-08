@@ -3,7 +3,7 @@
  * W5.2: Packages is the default tab (most-filled on test13).
  */
 import { describe, test, expect } from "vitest"
-import { parseDirectoryUrl, serializeDirectoryUrl, DIRECTORY_TAB_KEYS, DEFAULT_DIRECTORY_TAB } from "./directoryUrl"
+import { parseDirectoryUrl, serializeDirectoryUrl, resolveActiveTab, DIRECTORY_TAB_KEYS, DEFAULT_DIRECTORY_TAB } from "./directoryUrl"
 
 describe("parseDirectoryUrl", () => {
     test("defaults to the packages tab + empty query for an empty URL", () => {
@@ -79,5 +79,22 @@ describe("directory URL realm axis (merged Explorer)", () => {
     test("round-trips an explorer view through serialize → parse", () => {
         const s = { tab: "explorer" as const, q: "", realm: "r/samcrew/memba_feed_v1" }
         expect(parseDirectoryUrl(serializeDirectoryUrl(s))).toEqual(s)
+    })
+})
+
+describe("resolveActiveTab (explorer gating fallback)", () => {
+    test("explorer tab renders as explorer when the flag is ON", () => {
+        expect(resolveActiveTab("explorer", true)).toBe("explorer")
+    })
+    test("explorer tab falls back to the default tab when the flag is OFF", () => {
+        // Deep-link to ?tab=explorer with VITE_ENABLE_EXPLORER off must not leave a
+        // dead nav button or a blank panel — it collapses to packages.
+        expect(resolveActiveTab("explorer", false)).toBe(DEFAULT_DIRECTORY_TAB)
+    })
+    test("non-explorer tabs are unaffected by the flag", () => {
+        for (const t of DIRECTORY_TAB_KEYS.filter(k => k !== "explorer")) {
+            expect(resolveActiveTab(t, false)).toBe(t)
+            expect(resolveActiveTab(t, true)).toBe(t)
+        }
     })
 })

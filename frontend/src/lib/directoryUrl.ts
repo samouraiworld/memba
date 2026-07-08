@@ -49,6 +49,13 @@ export function parseDirectoryUrl(params: URLSearchParams): DirectoryUrlState {
     return { tab, q, realm }
 }
 
+/** The tab to actually render: `explorer` collapses to the default tab when the
+ *  Explorer flag is off, so a deep-link to `?tab=explorer` with the feature
+ *  disabled never yields a dead nav button or a blank panel. */
+export function resolveActiveTab(tab: DirectoryTab, explorerEnabled: boolean): DirectoryTab {
+    return tab === "explorer" && !explorerEnabled ? DEFAULT_DIRECTORY_TAB : tab
+}
+
 /** Serialize directory state to `URLSearchParams`, omitting defaults. */
 export function serializeDirectoryUrl(s: DirectoryUrlState): URLSearchParams {
     const out = new URLSearchParams()
