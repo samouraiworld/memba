@@ -18,9 +18,25 @@ export interface InputIntent {
   pause: boolean;
 }
 
+// Deterministic events emitted by step() — a pure function of (state, input).
+// The single seam that feeds the cosmetic juice layer, audio, and the
+// verification hash. Consumers must never write back into the simulation.
+export type GameEvent =
+  | { type: "playerFired"; x: number }
+  | { type: "alienKilled"; x: number; y: number; row: number }
+  | { type: "playerHit" }
+  | { type: "lifeLost" }
+  | { type: "waveCleared" }
+  | { type: "alienStep"; dir: 1 | -1 };
+
 export interface GameState {
   phase: Phase;
+  // Immutable seed passed to newGame — retained for certification/replay
+  // (rng mutates every alien-fire; seed does not).
+  seed: number;
   rng: number;
+  // Monotonic count of step() calls — the canonical replay timeline.
+  tick: number;
   player: Rect;
   lives: number;
   invulnMs: number;
@@ -32,4 +48,6 @@ export interface GameState {
   playerBullet: Bullet | null;
   alienBullets: Bullet[];
   alienFireMs: number;
+  // Events produced by the step that yielded this state (reset each step).
+  events: GameEvent[];
 }

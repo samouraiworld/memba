@@ -38,7 +38,9 @@ Full changelogs are split by version range for easier navigation:
 - A classic **Space Invaders** added to the Store, playable instantly in the browser with no wallet. Built on a pure, deterministic game engine (a fixed-timestep loop that carries sub-frame time, so it runs correctly on 60 / 120 / 144 Hz displays) with keyboard (←/→ · Space · P) and full touch controls (steer on the left, tap-and-hold to fire on the right). Lean-classic rules: a formation that marches, drops and reverses at the edges and accelerates as ranks thin, one player shot in flight, three lives, escalating waves, and a local high score.
 - Gated by `VITE_ENABLE_SPACE_INVADERS` — an ordinary flag (client-side only, no funds), off by default; reachable at `/game/space-invaders`. Listing it in the on-chain App Store (`memba_appstore_v2`) is a separate operator action.
 
-### Tooling — changelog conflicts auto-resolve (2026-07-08)
+### Space Invaders — deterministic engine spine for certified scores (2026-07-08)
+<!-- categories: memba -->
+- Internal groundwork for the upcoming on-chain leaderboard and game juice: the pure `step` reducer now emits a deterministic event stream (kills, fires, hits, wave clears) and carries a monotonic `tick`, retains its `seed`, and the loop advances by an exact integer step count — removing a float round-trip (`steps * FIXED_MS` re-divided) that could run one step short and desync a replay. Added a tick-indexed input-log recorder (the backbone for server-side replay verification). Seed is now injectable. **No product change** — identical gameplay; substrate only.
 <!-- categories: memba -->
 - Added a `.gitattributes` rule (`CHANGELOG.md merge=union`) so that when several independent PRs each append an entry to `[Unreleased]`, git keeps **both** sides instead of raising a conflict on every merge. Removes the recurring manual changelog-conflict resolution when a batch of PRs lands together. No product change.
 
