@@ -1,0 +1,7 @@
+# Auto-resolve CHANGELOG conflicts by keeping BOTH sides (git's built-in `union`
+# merge driver). Many independent PRs append entries to CHANGELOG.md's
+# [Unreleased] section at the same spot, so without this every merge conflicts
+# every other open PR on this one file. `union` concatenates both sides' hunks
+# instead of raising a conflict — order within [Unreleased] is cosmetic and the
+# /changelogs parser keys on `### ` headings, so this is safe.
+CHANGELOG.md merge=union
