@@ -31,7 +31,14 @@ const EXCLUDED_ROUTES = new Set([
     'validators/valoper/:operatorAddress', // redirect
     'validators/:address',         // sub-route of /validators
 
-    // NFT sub-routes (parent is /nft in manifest)
+    // NFT + Services are redirect-only shells into the unified /marketplace
+    // (/nft → /marketplace/nfts, /services → /marketplace/services). They lost
+    // their standalone nav entries in the marketplace-menu consolidation
+    // (2026-07-08) — the single "Marketplace" entry covers them.
+    'nft',
+    'services',
+
+    // NFT sub-routes (reached from the marketplace NFT lane, not the sidebar)
     'nft/create',
     'nft/create/advanced',
     'nft/collection/:creator/:slug',

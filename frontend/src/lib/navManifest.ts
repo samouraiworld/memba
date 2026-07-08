@@ -15,7 +15,7 @@ import type { Icon } from '@phosphor-icons/react'
 import {
     House, ChartBar, Buildings, Coins, FolderOpen,
     LinkSimpleHorizontal, Bell, Briefcase, Heart, GameController,
-    PuzzlePiece, Robot, Handshake, ImageSquare,
+    PuzzlePiece, Robot,
     User, Gear, Bank, Megaphone,
     UsersThree, Trophy, ClockCounterClockwise, ShieldStar, Newspaper,
     ChatCircle, MagnifyingGlass, Storefront,
@@ -74,9 +74,11 @@ export const NAV: NavEntry[] = [
     { id: 'leaderboard', to: '/leaderboard', label: 'Leaderboard', Icon: Trophy, group: 'account', showOn: 'both' },
     { id: 'extensions', to: '/extensions', label: 'Extensions', Icon: PuzzlePiece, group: 'account', showOn: 'both' },
     { id: 'organizations', to: '/organizations', label: 'Organizations', Icon: UsersThree, group: 'govern', showOn: 'both', requiresAuth: true },
+    // One Marketplace entry — NFTs, Services, and Tokens are tabs (lanes) inside
+    // the unified /marketplace shell, not separate nav items. The former standalone
+    // NFT + Services entries were redirect-only duplicates (/nft → /marketplace/nfts,
+    // /services → /marketplace/services), so they were removed here (2026-07-08).
     { id: 'marketplace', to: '/marketplace', label: 'Marketplace', Icon: Robot, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_MARKETPLACE' },
-    { id: 'services', to: '/services', label: 'Services', Icon: Handshake, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_SERVICES' },
-    { id: 'nft', to: '/nft', label: 'NFT', Icon: ImageSquare, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_NFT' },
     { id: 'appstore', to: '/apps', label: 'App Store', Icon: Storefront, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_APPSTORE' },
 
     // ── Account ─────────────────────────────────────────────────────
