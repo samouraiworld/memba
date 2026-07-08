@@ -91,13 +91,48 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
     }
   }
 
-  // Advance player bullets; resolve alien hits and misses (rapid fire — several
-  // bullets may be in flight, each resolved independently this step).
+  // ── Mystery UFO: seeded spawn timer, drifts across the top ──
+  {
+    let ufo = s.ufo;
+    let timer = s.ufoTimerMs;
+    if (ufo && ufo.alive) {
+      const nx = ufo.x + ufo.dir * CONFIG.ufo.speedPxPerMs * dtMs;
+      if (nx > CONFIG.arena.w || nx + ufo.w < 0) {
+        ufo = null; // drifted off-screen — reset the cooldown
+        timer = CONFIG.ufo.spawnMs;
+      } else {
+        ufo = { ...ufo, x: nx };
+      }
+    } else {
+      timer -= dtMs;
+      if (timer <= 0) {
+        const pick = rngFloat(s.rng);
+        const dir: 1 | -1 = pick.value < 0.5 ? 1 : -1;
+        ufo = {
+          x: dir === 1 ? -CONFIG.ufo.w : CONFIG.arena.w,
+          y: CONFIG.ufo.y,
+          w: CONFIG.ufo.w,
+          h: CONFIG.ufo.h,
+          dir,
+          alive: true,
+        };
+        timer = CONFIG.ufo.spawnMs;
+        s = { ...s, rng: pick.state };
+        events.push({ type: "ufoSpawned" });
+      }
+    }
+    s = { ...s, ufo, ufoTimerMs: timer };
+  }
+
+  // Advance player bullets; resolve alien / UFO hits and misses (rapid fire —
+  // several bullets may be in flight, each resolved independently this step).
   if (s.playerBullets.length > 0) {
     let aliens = s.aliens;
     let combo = s.combo;
     let hits = s.hits;
     let score = s.score;
+    let ufo = s.ufo;
+    let rng = s.rng;
     const survivors: typeof s.playerBullets = [];
     for (const pb of s.playerBullets) {
       const b = { ...pb, y: pb.y - CONFIG.bullet.playerSpeedPxPerMs * dtMs };
@@ -125,11 +160,22 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
         hits += 1;
         aliens = aliens.map((x, i) => (i === hitIdx ? { ...x, alive: false } : x));
         events.push({ type: "alienKilled", x: a.x, y: a.y, row: a.row });
+      } else if (ufo && ufo.alive && aabb(b, ufo)) {
+        // Mystery UFO hit: a flat bonus (seeded base value, or the 300 bonus if
+        // this is a parity-th shot). Not combo-multiplied — it's its own reward.
+        const rp = rngFloat(rng);
+        rng = rp.state;
+        const base = CONFIG.ufo.points[Math.floor(rp.value * CONFIG.ufo.points.length)];
+        const pts = s.shots % CONFIG.ufo.parityShot === 0 ? CONFIG.ufo.bonusPoints : base;
+        score += pts;
+        hits += 1;
+        events.push({ type: "ufoKilled", x: ufo.x, y: ufo.y, points: pts });
+        ufo = null;
       } else {
         survivors.push(b);
       }
     }
-    s = { ...s, aliens, playerBullets: survivors, combo, hits, score };
+    s = { ...s, aliens, playerBullets: survivors, combo, hits, score, ufo, rng };
   }
 
   // Invulnerability countdown.

@@ -12,6 +12,12 @@ export interface Bullet extends Rect {
   alive: boolean;
 }
 
+// Mystery UFO drifting across the top of the arena.
+export interface Ufo extends Rect {
+  dir: 1 | -1;
+  alive: boolean;
+}
+
 export interface InputIntent {
   move: -1 | 0 | 1;
   fire: boolean;
@@ -28,7 +34,9 @@ export type GameEvent =
   | { type: "playerHit" }
   | { type: "lifeLost" }
   | { type: "waveCleared" }
-  | { type: "alienStep"; dir: 1 | -1 };
+  | { type: "alienStep"; dir: 1 | -1 }
+  | { type: "ufoSpawned" }
+  | { type: "ufoKilled"; x: number; y: number; points: number };
 
 export interface GameState {
   phase: Phase;
@@ -57,6 +65,9 @@ export interface GameState {
   fireCd: number;
   alienBullets: Bullet[];
   alienFireMs: number;
+  // Mystery UFO (null when none on screen) and the countdown to the next spawn.
+  ufo: Ufo | null;
+  ufoTimerMs: number;
   // Events produced by the step that yielded this state (reset each step).
   events: GameEvent[];
 }

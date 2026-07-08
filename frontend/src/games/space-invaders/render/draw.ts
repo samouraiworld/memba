@@ -10,6 +10,7 @@ const COLORS = {
   alien: "#e6f7ef",
   bullet: "#ffd24d",
   popup: "#ffd24d",
+  ufo: "#ff6b8a",
 } as const;
 
 const FX_COLORS: Record<FxColor, string> = {
@@ -35,6 +36,11 @@ export function draw(ctx: CanvasRenderingContext2D, state: GameState, fx: FxStat
 
   ctx.fillStyle = COLORS.alien;
   for (const a of state.aliens) if (a.alive) ctx.fillRect(a.x, a.y, a.w, a.h);
+
+  if (state.ufo && state.ufo.alive) {
+    ctx.fillStyle = COLORS.ufo;
+    ctx.fillRect(state.ufo.x, state.ufo.y, state.ufo.w, state.ufo.h);
+  }
 
   ctx.fillStyle = COLORS.bullet;
   for (const b of state.playerBullets) ctx.fillRect(b.x, b.y, b.w, b.h);
