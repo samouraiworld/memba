@@ -48,6 +48,9 @@ Full changelogs are split by version range for easier navigation:
 ### Performance — Clerk no longer ships to anonymous visitors (2026-07-08)
 <!-- categories: memba -->
 - **The Clerk auth SDK (~72 KB gz) stopped loading for everyone.** It's only used by the admin-panel link, which renders solely on your own authenticated profile — but `ProfilePage` imported it statically (through the profile barrel) and `ProfilePage` is prefetched on every load, so every anonymous visitor downloaded Clerk. `AdminPanelLink` is now lazy-imported (and dropped from the profile barrel), so Clerk loads only when the admin link actually renders (or on the Alerts route that also uses it). Verified against the prod build: `ProfilePage`'s chunk has no static Clerk import, and the main entry doesn't either.
+### Performance — token dashboard caching (2026-07-08)
+<!-- categories: memba -->
+- **`/tokens` stops re-reading the whole token set on every visit.** The dashboard fetched the factory token list (plus one on-chain `getTokenInfo` per token, and a balance per token when connected) with bare `useState`/`useEffect`, so every navigation to the page — and every wallet connect — re-ran the entire fan-out with no cache. It now reads through React Query: the list and balances are cached (60s / 30s) and deduped, Refresh is an explicit refetch, and balances re-read only when the wallet or token set changes. Behavior unchanged (characterization tests added first, kept green across the refactor).
 
 ### Feature articles — product + engineering scope (#814, 2026-07-08)
 - Nine `/blog` articles, one per major feature (Directory + Explorer, unified Marketplace, App Store, social Feed, Block Party, DAO governance, Multisig, Validators, Quests/XP), each pairing a product framing with an engineering-scope section so it doubles as documentation. Ships via the existing static blog pipeline.

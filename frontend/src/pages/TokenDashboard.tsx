@@ -1,8 +1,9 @@
-import { useState, useEffect, useCallback } from "react"
+import { useMemo } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
-import { listFactoryTokens, getTokenInfo, getTokenBalance, formatTokenAmount, type TokenInfo } from "../lib/grc20"
+import { listFactoryTokens, getTokenInfo, getTokenBalance, formatTokenAmount } from "../lib/grc20"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { LayoutContext } from "../types/layout"
 import "./tokendashboard.css"
@@ -11,57 +12,37 @@ export function TokenDashboard() {
     const navigate = useNetworkNav()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
-    const [tokens, setTokens] = useState<TokenInfo[]>([])
-    const [balances, setBalances] = useState<Record<string, bigint>>({})
-    const [balancesStale, setBalancesStale] = useState(false)
-    const [loading, setLoading] = useState(true)
-
-    // Fetch token list (public data — independent of wallet connection)
-    const fetchTokenList = useCallback(async () => {
-        setLoading(true)
-        try {
-            // List all factory tokens
+    // Token list (public — independent of the wallet). Cached + deduped by React
+    // Query, so navigating back to /tokens no longer re-reads the whole list on
+    // every mount; Refresh is an explicit refetch.
+    const tokensQuery = useQuery({
+        queryKey: ["tokens", "list", GNO_RPC_URL],
+        queryFn: async () => {
             const list = await listFactoryTokens(GNO_RPC_URL)
+            // Enrich every token in parallel (getTokenInfo per symbol).
+            return Promise.all(list.map(async (t) => (await getTokenInfo(GNO_RPC_URL, t.symbol)) || t))
+        },
+        staleTime: 60_000,
+    })
+    const tokens = useMemo(() => tokensQuery.data ?? [], [tokensQuery.data])
+    const loading = tokensQuery.isLoading
 
-            // Enrich all tokens in parallel (was sequential N+1)
-            const enriched = await Promise.all(
-                list.map(async (t) => {
-                    const info = await getTokenInfo(GNO_RPC_URL, t.symbol)
-                    return info || t
-                })
+    // User balances (wallet-specific). Keyed on the address + the token set, so it
+    // re-reads when the wallet or the list changes and is cached otherwise.
+    const symbols = useMemo(() => tokens.map(t => t.symbol), [tokens])
+    const balancesQuery = useQuery({
+        queryKey: ["tokens", "balances", GNO_RPC_URL, adena.address, symbols],
+        queryFn: async () => {
+            const entries = await Promise.all(
+                symbols.map(async (s) => [s, await getTokenBalance(GNO_RPC_URL, s, adena.address)] as const),
             )
-            setTokens(enriched)
-        } catch (err) {
-            console.error("Failed to fetch tokens:", err)
-        } finally {
-            setLoading(false)
-        }
-    }, [])
-
-    useEffect(() => {
-        fetchTokenList()
-    }, [fetchTokenList])
-
-    // Fetch user balances (wallet-specific — runs when wallet connects or token list loads)
-    useEffect(() => {
-        if (!adena.connected || !adena.address || tokens.length === 0) return
-        let stale = false
-        setBalancesStale(false)
-        Promise.all(
-            tokens.map(async (t) => {
-                const bal = await getTokenBalance(GNO_RPC_URL, t.symbol, adena.address)
-                return [t.symbol, bal] as const
-            })
-        )
-            .then(entries => { if (!stale) setBalances(Object.fromEntries(entries)) })
-            .catch((err) => {
-                if (!stale) {
-                    console.warn("[TokenDashboard] Balance fetch failed:", err)
-                    setBalancesStale(true)
-                }
-            })
-        return () => { stale = true }
-    }, [tokens, adena.connected, adena.address])
+            return Object.fromEntries(entries) as Record<string, bigint>
+        },
+        enabled: adena.connected && !!adena.address && symbols.length > 0,
+        staleTime: 30_000,
+    })
+    const balances = balancesQuery.data ?? {}
+    const balancesStale = balancesQuery.isError
 
     return (
         <div className="animate-fade-in token-dashboard">
@@ -175,8 +156,8 @@ export function TokenDashboard() {
             {/* Refresh */}
             <div className="token-refresh-row">
                 <button
-                    onClick={fetchTokenList}
-                    disabled={loading}
+                    onClick={() => { void tokensQuery.refetch(); void balancesQuery.refetch() }}
+                    disabled={tokensQuery.isFetching}
                     className="token-refresh-btn"
                 >
                     ↻ Refresh
