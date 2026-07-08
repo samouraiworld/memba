@@ -51,7 +51,10 @@ export interface GameState {
   aliens: Alien[];
   dir: 1 | -1;
   stepAccumMs: number;
-  playerBullet: Bullet | null;
+  // Player shots in flight (rapid fire, capped at CONFIG.player.maxBullets);
+  // fireCd is the remaining fire-rate cooldown in ms.
+  playerBullets: Bullet[];
+  fireCd: number;
   alienBullets: Bullet[];
   alienFireMs: number;
   // Events produced by the step that yielded this state (reset each step).

@@ -59,6 +59,14 @@ Full changelogs are split by version range for easier navigation:
 - Two end-of-game bonuses — an **accuracy bonus** (high hit-rate) and a **surviving-lives bonus** — and top-row aliens are now worth more (40/30/20/20/10), so going for the hard targets pays off.
 - All scoring lives inside the pure, deterministic engine using integer-only math, so a score can be **re-computed and verified byte-for-byte** — the basis for the upcoming on-chain certification. Controls unchanged; still gated by `VITE_ENABLE_SPACE_INVADERS`.
 
+### Space Invaders — rapid fire (2026-07-08)
+<!-- categories: memba -->
+- Firing feels **faster and more energetic**: hold to stream shots (one every ~140ms) with **up to three bullets on screen at once**, and bullets travel noticeably quicker. More offense — but with combo scoring a missed shot still breaks your multiplier, so it rewards aggression *and* aim. Deterministic and integer-only like the rest of the engine; still gated by `VITE_ENABLE_SPACE_INVADERS`.
+
+### Space Invaders — deeper waves that actually get harder (2026-07-08)
+<!-- categories: memba -->
+- Later waves now ramp up **real difficulty**: the aliens **fire faster each wave** (cooldown tightens toward a floor), and shots come from the **bottom-most alien of a column** — so cover disappears the way the arcade original intended, instead of raining from mid-formation. The formation also **stops descending past a safe cap**, so deep waves are hard because they're *fast*, not because they spawn on top of you. Still deterministic/integer-only; gated by `VITE_ENABLE_SPACE_INVADERS`.
+
 <!-- categories: memba -->
 - Added a `.gitattributes` rule (`CHANGELOG.md merge=union`) so that when several independent PRs each append an entry to `[Unreleased]`, git keeps **both** sides instead of raising a conflict on every merge. Removes the recurring manual changelog-conflict resolution when a batch of PRs lands together. No product change.
 
