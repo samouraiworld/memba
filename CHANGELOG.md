@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### App Store reviews — community reviews on the App Store detail page (B2b, 2026-07-08)
+<!-- categories: memba -->
+- App Store listings can now carry **community reviews and ratings**. The App Store detail page mounts the shared reviews experience — a compact rating summary in the hero plus the full reviews section (post a rating, reply, like/dislike, flag, moderate) — pointed at the reputation-isolated App Store reviews realm, so an app's reputation is scored independently of the validator/profile web-of-trust. A **product-integrity** rule keeps early ratings honest: a listing with fewer than three reviews shows a neutral "New" chip with the review count instead of a headline star average, so one or two reviews can't present as a confident 5.0. Gated behind the new `VITE_ENABLE_APP_REVIEWS` flag (off by default; the app-reviews realm is deployed to test13 but the front end stays dark until it's switched on).
+
 ### App Store reviews — realm-path threading in the reviews client (B2a, 2026-07-08)
 <!-- categories: memba -->
 - Groundwork for community reviews on App Store listings: the subject-agnostic reviews data client (`lib/reviews.ts`) now threads an optional `realmPath` argument through every read and write builder, defaulting to the existing validator/profile web-of-trust realm. This lets a caller target the reputation-isolated App Store reviews realm by path alone, with no behavior change for existing callers (verified: the full validator/profile reviews suite still passes). No user-visible change yet — the App Store detail page wiring follows.

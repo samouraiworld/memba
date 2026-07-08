@@ -20,6 +20,10 @@ import { useParams, useNavigate, Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { useNetwork } from "../hooks/useNetwork"
 import { fetchLiveApps, fetchApp, isSafeRealmPath, type AppListing } from "../lib/appStore"
+import { fetchSummary } from "../lib/reviews"
+import { MEMBA_DAO, isAppReviewsEnabled } from "../lib/config"
+import { ReviewsSection } from "../components/reviews/ReviewsSection"
+import { AppReviewStars } from "../components/reviews/AppReviewStars"
 import "./appstore.css"
 
 export function AppStore() {
@@ -245,9 +249,21 @@ function shortAddr(addr: string): string {
 function AppDetail({ pkgPath }: { pkgPath: string }) {
     const { networkKey } = useNetwork()
     const rel = relPath(pkgPath)
+    const appReviews = isAppReviewsEnabled()
     const { data: app, isPending, isError } = useQuery({
         queryKey: ["appStore", "detail", pkgPath],
         queryFn: () => fetchApp(pkgPath),
+        staleTime: 60_000,
+        gcTime: 300_000,
+        retry: 1,
+    })
+    // Compact at-a-glance rating for the hero. The review subject is the app's own realm path.
+    // Only fetched when community reviews are enabled (the app-reviews realm is deployed but
+    // gated behind VITE_ENABLE_APP_REVIEWS until wired live).
+    const { data: reviewSummary } = useQuery({
+        queryKey: ["appReviews", "summary", pkgPath],
+        queryFn: () => fetchSummary(pkgPath, MEMBA_DAO.appReviewsPath),
+        enabled: appReviews,
         staleTime: 60_000,
         gcTime: 300_000,
         retry: 1,
@@ -274,6 +290,13 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
                             )}
                             <h1 className="appdetail__name">{app.name}</h1>
                             {app.tagline && <p className="appdetail__tag">{app.tagline}</p>}
+                            {appReviews && reviewSummary && (
+                                <AppReviewStars
+                                    count={reviewSummary.count}
+                                    average={reviewSummary.average}
+                                    className="appdetail__stars"
+                                />
+                            )}
                             <code className="apppath">{app.pkgPath}</code>
                         </div>
                     </div>
@@ -297,6 +320,12 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
                             )}
                         </p>
                     </aside>
+
+                    {appReviews && (
+                        <div className="appdetail__reviews">
+                            <ReviewsSection subject={pkgPath} realmPath={MEMBA_DAO.appReviewsPath} />
+                        </div>
+                    )}
                 </article>
             )}
         </div>

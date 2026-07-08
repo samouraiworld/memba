@@ -375,6 +375,16 @@
     overflow-wrap: break-word;
     margin: var(--space-6, 1.5rem) 0 0;
 }
+/* Compact rating glance in the hero, sits between the tagline and the realm path. */
+.appdetail__stars {
+    margin: var(--space-2, 0.5rem) 0 var(--space-1, 0.25rem);
+}
+/* Full reviews section on the detail page — divider above, matched to the trust card width. */
+.appdetail__reviews {
+    margin-top: var(--space-7, 2rem);
+    padding-top: var(--space-6, 1.5rem);
+    border-top: 1px solid var(--color-k-edge);
+}
 .appdetail__actions {
     display: flex;
     align-items: center;
