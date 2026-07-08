@@ -23,7 +23,7 @@ import { fetchLiveApps, fetchApp, isSafeRealmPath, type AppListing } from "../li
 import { fetchSummary } from "../lib/reviews"
 import { MEMBA_DAO, isAppReviewsEnabled } from "../lib/config"
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
-import { AppReviewStars } from "../components/reviews/AppReviewStars"
+import { AppReviewStars, MIN_RATED_COUNT } from "../components/reviews/AppReviewStars"
 import "./appstore.css"
 
 export function AppStore() {
@@ -290,7 +290,10 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
                             )}
                             <h1 className="appdetail__name">{app.name}</h1>
                             {app.tagline && <p className="appdetail__tag">{app.tagline}</p>}
-                            {appReviews && reviewSummary && (
+                            {/* Only in the hero once there's at least one review — the section
+                                below owns the empty "be the first" affordance, so we don't
+                                double up "No reviews yet" on every fresh listing. */}
+                            {appReviews && reviewSummary && reviewSummary.count > 0 && (
                                 <AppReviewStars
                                     count={reviewSummary.count}
                                     average={reviewSummary.average}
@@ -323,7 +326,11 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
 
                     {appReviews && (
                         <div className="appdetail__reviews">
-                            <ReviewsSection subject={pkgPath} realmPath={MEMBA_DAO.appReviewsPath} />
+                            <ReviewsSection
+                                subject={pkgPath}
+                                realmPath={MEMBA_DAO.appReviewsPath}
+                                minRatedCount={MIN_RATED_COUNT}
+                            />
                         </div>
                     )}
                 </article>
