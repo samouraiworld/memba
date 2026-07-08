@@ -51,6 +51,9 @@ Full changelogs are split by version range for easier navigation:
 ### Performance — token dashboard caching (2026-07-08)
 <!-- categories: memba -->
 - **`/tokens` stops re-reading the whole token set on every visit.** The dashboard fetched the factory token list (plus one on-chain `getTokenInfo` per token, and a balance per token when connected) with bare `useState`/`useEffect`, so every navigation to the page — and every wallet connect — re-ran the entire fan-out with no cache. It now reads through React Query: the list and balances are cached (60s / 30s) and deduped, Refresh is an explicit refetch, and balances re-read only when the wallet or token set changes. Behavior unchanged (characterization tests added first, kept green across the refactor).
+### Performance — app shell (2026-07-08)
+<!-- categories: memba -->
+- **The whole app stops re-rendering on every background poll, and scrolling is smoother.** The Layout handed routed pages a fresh Outlet-context object on every render, so a balance/notification poll (every 30s) re-rendered every page underneath it; the context (and its auth slice) is now memoized so only real input changes propagate. Separately, the sticky top bar used a `backdrop-filter: blur(16px)` over an already-85%-opaque background — a full-viewport GPU re-blur on every scroll frame for a barely-visible frost; it now uses an opaque elevated surface token (theme-aware), removing the scroll cost with a near-identical look. Non-scrolling frosted surfaces (menus, modals) keep their glass.
 
 ### Feature articles — product + engineering scope (#814, 2026-07-08)
 - Nine `/blog` articles, one per major feature (Directory + Explorer, unified Marketplace, App Store, social Feed, Block Party, DAO governance, Multisig, Validators, Quests/XP), each pairing a product framing with an engineering-scope section so it doubles as documentation. Ships via the existing static blog pipeline.

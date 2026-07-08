@@ -278,13 +278,21 @@ export function Layout() {
     // The auth slice handed to routes (via the Outlet context) and to the mobile
     // tab bar's Act FAB (for live pending-action badges). One source so the two
     // can't drift.
-    const layoutAuth = {
+    const layoutAuth = useMemo(() => ({
         token: auth.token,
         isAuthenticated: auth.isAuthenticated,
         address: auth.address,
         loading: authLoading || auth.loading,
         error: authError,
-    }
+    }), [auth.token, auth.isAuthenticated, auth.address, authLoading, auth.loading, authError])
+
+    // Memoize the Outlet context so a Layout re-render from an unrelated poll
+    // (notifications, wallet-switch toast) doesn't mint a new context object and
+    // re-render every routed page. Only its real inputs change the identity.
+    const outletContext = useMemo(
+        () => ({ adena, balance, rawUgnot, auth: layoutAuth, isLoggingIn, syncTimedOut }),
+        [adena, balance, rawUgnot, layoutAuth, isLoggingIn, syncTimedOut],
+    )
 
     // The main-column content (top bar, banners, routed page, footer) is shared
     // by both shells. Desktop wraps it alongside the Sidebar; mobile renders it
@@ -344,7 +352,7 @@ export function Layout() {
                 {isLoggingIn ? (
                     <ConnectingLoader />
                 ) : (
-                    <Outlet context={{ adena, balance, rawUgnot, auth: layoutAuth, isLoggingIn, syncTimedOut }} />
+                    <Outlet context={outletContext} />
                 )}
             </main>
 
