@@ -1,5 +1,6 @@
 import { CONFIG, formationStepMs } from "./config";
 import type { GameState, InputIntent } from "./types";
+import { aabb } from "./collision";
 
 // Tracks whether the previous frame's pause was held, to detect a rising edge.
 // Encoded in phase transitions rather than extra state: we treat any frame with
@@ -30,6 +31,20 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
     s = { ...s, player: { ...s.player, x } };
   }
 
+  // Fire: spawn one bullet if none is live.
+  if (input.fire && !s.playerBullet) {
+    s = {
+      ...s,
+      playerBullet: {
+        x: s.player.x + s.player.w / 2 - CONFIG.bullet.w / 2,
+        y: s.player.y - CONFIG.bullet.h,
+        w: CONFIG.bullet.w,
+        h: CONFIG.bullet.h,
+        alive: true,
+      },
+    };
+  }
+
   // ── Formation march (fixed-cadence, accelerating as ranks thin) ──
   const living = s.aliens.filter((a) => a.alive);
   if (living.length > 0) {
@@ -57,6 +72,28 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
       }
     } else {
       s = { ...s, stepAccumMs: accum };
+    }
+  }
+
+  // Advance the player bullet and resolve alien hits.
+  if (s.playerBullet) {
+    const b = { ...s.playerBullet, y: s.playerBullet.y - CONFIG.bullet.playerSpeedPxPerMs * dtMs };
+    if (b.y + b.h < 0) {
+      s = { ...s, playerBullet: null };
+    } else {
+      let hitScore = 0;
+      let hit = false;
+      const aliens = s.aliens.map((a) => {
+        if (!hit && a.alive && aabb(b, a)) {
+          hit = true;
+          hitScore = CONFIG.points[a.row] ?? CONFIG.points[CONFIG.points.length - 1];
+          return { ...a, alive: false };
+        }
+        return a;
+      });
+      s = hit
+        ? { ...s, aliens, playerBullet: null, score: s.score + hitScore }
+        : { ...s, playerBullet: b };
     }
   }
 
