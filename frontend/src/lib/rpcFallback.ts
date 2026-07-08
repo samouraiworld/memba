@@ -15,6 +15,14 @@ import { GNO_RPC_URL, GNO_FALLBACK_RPC_URLS } from "./config"
 /** Timeout for a single RPC attempt (ms). */
 const RPC_TIMEOUT = 8_000
 
+/** W3.4: extra attempts on the SAME url before failing over, and the backoff
+ *  between them. One retry absorbs a transient blip on a healthy primary so it
+ *  isn't demoted to a fallback; timeouts/aborts are never retried here. */
+const SAME_URL_RETRIES = 1
+const SAME_URL_RETRY_BACKOFF_MS = 150
+
+const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout(resolve, ms))
+
 /** In-memory cache of the last working RPC URL (resets on page reload). */
 let _lastWorkingRpcUrl: string | null = null
 
@@ -48,35 +56,56 @@ export async function resilientFetch(
     let lastError: Error | null = null
 
     for (const rpcUrl of urls) {
-        try {
-            const { url, init } = buildRequest(rpcUrl)
-            const controller = new AbortController()
-            const timeout = setTimeout(() => controller.abort(), RPC_TIMEOUT)
+        // W3.4: retry the SAME url on a fast transient failure (a network blip
+        // or a 5xx) before failing over, so one hiccup on a healthy primary
+        // doesn't demote it to a fallback. A timeout/abort is NOT retried (the
+        // url already spent its full budget, or the caller cancelled) — we fail
+        // over to the next url instead.
+        for (let attempt = 0; ; attempt++) {
+            let retryable = false
+            try {
+                const { url, init } = buildRequest(rpcUrl)
+                const controller = new AbortController()
+                const timeout = setTimeout(() => controller.abort(), RPC_TIMEOUT)
 
-            // Combine external signal with timeout
-            if (signal) {
-                signal.addEventListener("abort", () => controller.abort(), { once: true })
+                // Combine external signal with timeout
+                if (signal) {
+                    signal.addEventListener("abort", () => controller.abort(), { once: true })
+                }
+
+                let res: Response
+                try {
+                    res = await fetch(url, { ...init, signal: controller.signal })
+                } finally {
+                    clearTimeout(timeout)
+                }
+
+                if (res.ok) {
+                    // Mark this URL as working for future calls
+                    if (rpcUrl !== GNO_RPC_URL) {
+                        _lastWorkingRpcUrl = rpcUrl
+                    } else {
+                        // Primary is back — reset fallback preference
+                        _lastWorkingRpcUrl = null
+                    }
+                    return res
+                }
+
+                lastError = new Error(`HTTP ${res.status}`)
+                // 5xx is a server-side transient → worth a same-url retry;
+                // a 4xx won't change on retry → fail over.
+                retryable = res.status >= 500
+            } catch (err) {
+                lastError = err instanceof Error ? err : new Error(String(err))
+                // Retry a genuine network error, but not a timeout/abort.
+                retryable = lastError.name !== "AbortError"
             }
 
-            const res = await fetch(url, { ...init, signal: controller.signal })
-            clearTimeout(timeout)
-
-            if (!res.ok) {
-                throw new Error(`HTTP ${res.status}`)
+            if (retryable && attempt < SAME_URL_RETRIES) {
+                await sleep(SAME_URL_RETRY_BACKOFF_MS)
+                continue
             }
-
-            // Mark this URL as working for future calls
-            if (rpcUrl !== GNO_RPC_URL) {
-                _lastWorkingRpcUrl = rpcUrl
-            } else {
-                // Primary is back — reset fallback preference
-                _lastWorkingRpcUrl = null
-            }
-
-            return res
-        } catch (err) {
-            lastError = err instanceof Error ? err : new Error(String(err))
-            // Continue to next fallback
+            break // give up on this url, fail over to the next
         }
     }
 
@@ -122,14 +151,43 @@ export function abciErrorPresent(e: unknown): boolean {
     return true
 }
 
+/** W3.3: in-flight ABCI reads keyed by path+data, so concurrent identical
+ *  queries share one round-trip. Cleared on settle → coalescing, not caching. */
+const _inflightAbci = new Map<string, Promise<AbciQueryResult>>()
+
 /**
  * ABCI query with automatic RPC failover, returning a DISCRIMINATED result
  * (W2.2, R2-CHN-D): a set `ResponseBase.Error` (realm missing, bad path, VM
  * panic) is reported as `abci-error`, an absent `Data` as `empty`, and a
  * transport failure (all endpoints down) THROWS — the three cases were
  * previously conflated into one falsy return.
+ *
+ * W3.3: concurrent identical reads are coalesced. The same qrender/qeval fires
+ * from several unrelated call-sites during a render pass; this collapses them to
+ * one round-trip. Signal-less, so there is no per-caller abort to share. The
+ * in-flight entry is removed once the read settles, so a later call re-reads the
+ * chain — this is coalescing, never a stale cache.
  */
 export async function resilientAbciQueryDetailed(
+    path: string,
+    data: string,
+): Promise<AbciQueryResult> {
+    const key = path + "\u0000" + data
+    const existing = _inflightAbci.get(key)
+    if (existing) return existing
+
+    // Kick off the read; the promise is registered synchronously (before any
+    // await) so a same-tick duplicate observes it and coalesces.
+    const p = abciQueryDetailedUncoalesced(path, data)
+    _inflightAbci.set(key, p)
+    try {
+        return await p
+    } finally {
+        _inflightAbci.delete(key)
+    }
+}
+
+async function abciQueryDetailedUncoalesced(
     path: string,
     data: string,
 ): Promise<AbciQueryResult> {
