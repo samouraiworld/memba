@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, lazy, Suspense } from "react"
 import { useParams, useOutletContext, useSearchParams } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
@@ -10,7 +10,13 @@ import { GNOLOVE_API_URL, GITHUB_OAUTH_CLIENT_ID, API_BASE_URL, getExplorerBaseU
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import { resolveAvatarUrl } from "../lib/ipfs"
 import { fetchUserProfile, updateBackendProfile, type UserProfile } from "../lib/profile"
-import { MetaChip, SocialLink, ContribStat, EditField, RegisterUsernameForm, MyVotesSection, AdminPanelLink } from "../components/profile"
+import { MetaChip, SocialLink, ContribStat, EditField, RegisterUsernameForm, MyVotesSection } from "../components/profile"
+// Lazy — AdminPanelLink pulls in the Clerk SDK (~72KB gz via useClerkAuth). It
+// only renders on your OWN authenticated profile, and this page is prefetched on
+// every load, so importing it statically shipped Clerk to every anonymous
+// visitor. Loaded on demand instead.
+const AdminPanelLink = lazy(() =>
+    import("../components/profile/AdminPanelLink").then(m => ({ default: m.AdminPanelLink })))
 import { DAOMembershipsCard } from "../components/profile/DAOMembershipsCard"
 import { ProfileAssets } from "../components/profile/ProfileAssets"
 import { AvatarUploader } from "../components/profile/AvatarUploader"
@@ -192,7 +198,7 @@ export function ProfilePage() {
                                     <button onClick={startEditing} className="profile-edit-btn">
                                         ✏️ Edit
                                     </button>
-                                    <AdminPanelLink />
+                                    <Suspense fallback={null}><AdminPanelLink /></Suspense>
                                 </div>
                             )}
                             {saveSuccess && (
