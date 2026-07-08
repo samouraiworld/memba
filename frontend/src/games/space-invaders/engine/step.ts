@@ -1,4 +1,4 @@
-import { CONFIG } from "./config";
+import { CONFIG, formationStepMs } from "./config";
 import type { GameState, InputIntent } from "./types";
 
 // Tracks whether the previous frame's pause was held, to detect a rising edge.
@@ -28,6 +28,36 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
     const maxX = CONFIG.arena.w - s.player.w;
     const x = Math.max(0, Math.min(maxX, s.player.x + dx));
     s = { ...s, player: { ...s.player, x } };
+  }
+
+  // ── Formation march (fixed-cadence, accelerating as ranks thin) ──
+  const living = s.aliens.filter((a) => a.alive);
+  if (living.length > 0) {
+    const cadence = formationStepMs(living.length, s.aliens.length);
+    let accum = s.stepAccumMs + dtMs;
+    if (accum >= cadence) {
+      accum -= cadence;
+      const minX = Math.min(...living.map((a) => a.x));
+      const maxX = Math.max(...living.map((a) => a.x + a.w));
+      const dx = s.dir * CONFIG.formation.stepDx;
+      const hitsEdge = minX + dx < 0 || maxX + dx > CONFIG.arena.w;
+      if (hitsEdge) {
+        s = {
+          ...s,
+          dir: (s.dir * -1) as 1 | -1,
+          aliens: s.aliens.map((a) => (a.alive ? { ...a, y: a.y + CONFIG.formation.dropY } : a)),
+          stepAccumMs: accum,
+        };
+      } else {
+        s = {
+          ...s,
+          aliens: s.aliens.map((a) => (a.alive ? { ...a, x: a.x + dx } : a)),
+          stepAccumMs: accum,
+        };
+      }
+    } else {
+      s = { ...s, stepAccumMs: accum };
+    }
   }
 
   return s;
