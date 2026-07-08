@@ -2,9 +2,11 @@ import { CONFIG } from "./config";
 import type { Alien, GameState } from "./types";
 
 export function spawnWave(wave: number): { aliens: Alien[] } {
-  const { rows, cols, w, h, gapX, gapY, marginX, startY } = CONFIG.alien;
+  const { rows, cols, w, h, gapX, gapY, marginX, startY, startYMaxDrop } = CONFIG.alien;
   const dropPerWave = 10;
-  const yBase = startY + (wave - 1) * dropPerWave;
+  // Cap the descent so deep waves never spawn inside the player's kill line —
+  // difficulty comes from faster alien fire, not an unwinnable start position.
+  const yBase = startY + Math.min((wave - 1) * dropPerWave, startYMaxDrop);
   const aliens: Alien[] = [];
   for (let row = 0; row < rows; row++) {
     for (let col = 0; col < cols; col++) {
