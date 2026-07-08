@@ -112,11 +112,12 @@ const resolve = (ids: string[]): NavEntry[] => ids.map(byId).filter((e): e is Na
 
 const PRIMARY_TABS_VISITOR = ['home', 'dao', 'tokens', 'directory']
 const PRIMARY_TABS_MEMBER = ['home', 'dao', 'tokens', 'alerts']
-// Overflow nav for the "More" sheet. Includes `directory` + `quests` so every
-// sidebar destination is reachable on mobile (they aren't primary tabs); the
-// per-audience primary tabs are filtered out at render time so nothing is shown
+// Overflow nav for the "More" sheet. Carries every sidebar destination that
+// isn't a primary tab so nothing is desktop-only — including the Launch group
+// (`marketplace`, `appstore`), which otherwise had no mobile entry point at all.
+// Per-audience primary tabs are filtered out at render time so nothing is shown
 // twice (see mobileMoreNav).
-const MORE_NAV_IDS = ['dashboard', 'directory', 'validators', 'gnolove', 'quests', 'feed', 'blog', 'changelogs', 'extensions', 'alerts']
+const MORE_NAV_IDS = ['dashboard', 'directory', 'marketplace', 'appstore', 'validators', 'gnolove', 'quests', 'feed', 'blog', 'changelogs', 'extensions', 'alerts']
 const MORE_ACCOUNT_IDS = ['profile', 'settings', 'multisig', 'feedback']
 
 const visibleFor = (connected: boolean) => (e: NavEntry) => !e.requiresAuth || connected
