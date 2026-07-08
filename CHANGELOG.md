@@ -64,6 +64,11 @@ Full changelogs are split by version range for easier navigation:
 ### Space Invaders — sound (2026-07-08)
 <!-- categories: memba -->
 - The game now has **sound**: synthesized shoot / explosion / hit / wave / UFO effects and the iconic accelerating **4-note march**, all driven off the same deterministic event stream as the visual juice (so audio can never affect a certified score). A **mute toggle** in the HUD remembers your choice, and audio unlocks on your first tap/key to respect mobile autoplay rules. Cosmetic-only and safely absent where WebAudio isn't available.
+
+### Space Invaders — better touch controls (2026-07-08)
+<!-- categories: memba -->
+- Mobile steering is now **proportional** — how far you drag decides how fast the ship moves, so fine dodges are possible instead of the old all-or-nothing ±1. And the **control zones are now visible** on the start screen (a labelled "drag to steer | tap · fire" split), so the touch scheme is discoverable instead of a guess. Keyboard play is unchanged, and the change is deterministic-safe (the on-chain scoring corpus is unaffected).
+
 <!-- categories: memba -->
 - Scoring now rewards **skill, not grinding** — the foundation for a competitive leaderboard. A **no-miss combo** builds a live score multiplier (×1 → ×1.5 → ×2 → ×3 → ×4) that **resets the moment you miss a shot**, so accuracy under pressure separates a good run from a great one. The active multiplier shows in the HUD.
 - Two end-of-game bonuses — an **accuracy bonus** (high hit-rate) and a **surviving-lives bonus** — and top-row aliens are now worth more (40/30/20/20/10), so going for the hard targets pays off.

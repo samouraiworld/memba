@@ -72,7 +72,7 @@ export default function SpaceInvaders({
     const k = getKeyInput();
     const t = getTouchInput();
     return {
-      move: (k.move || t.move) as -1 | 0 | 1,
+      move: k.move || t.move,
       fire: k.fire || t.fire,
       pause: k.pause,
     };
@@ -194,9 +194,15 @@ export default function SpaceInvaders({
       <div className="si-stage" ref={areaRef}>
         <Canvas canvasRef={canvasRef} />
         {state.phase === "ready" && (
+          <div className="si-touch-hints" aria-hidden="true">
+            <div className="si-touch-zone si-touch-steer">◀ drag to steer ▶</div>
+            <div className="si-touch-zone si-touch-fire">tap · fire</div>
+          </div>
+        )}
+        {state.phase === "ready" && (
           <div className="si-overlay">
             <p>◀ ▶ move · Space fire</p>
-            <p className="si-hint">On mobile: steer on the left, tap right to fire</p>
+            <p className="si-hint">On mobile: drag on the left to steer, tap right to fire</p>
           </div>
         )}
         {state.phase === "paused" && <div className="si-overlay"><p>Paused</p></div>}
