@@ -635,6 +635,10 @@ export const isNftEnabled = (): boolean => import.meta.env.VITE_ENABLE_NFT === "
 /** Services (escrow) feature flag (VITE_ENABLE_SERVICES) — canonical reader, mirrors
  * isNftEnabled. The unified marketplace lane registry ANDs this with isEscrowValid(). */
 export const isMarketplaceEnabled = (): boolean => import.meta.env.VITE_ENABLE_MARKETPLACE === "true"
+/** Marketplace v2 rebuild (in-progress build-out). Ordinary flag — gates the new
+ * unified marketplace experience; OFF in prod until the full version is complete +
+ * reviewed, then flipped at cutover. Literal reader (prod-bundle safe). */
+export const isMarketplaceV2Enabled = (): boolean => import.meta.env.VITE_ENABLE_MARKETPLACE_V2 === "true"
 export const isServicesEnabled = (): boolean => import.meta.env.VITE_ENABLE_SERVICES === "true"
 export const isTokensEnabled = (): boolean => import.meta.env.VITE_ENABLE_TOKENS === "true"
 export const isAgentsEnabled = (): boolean => import.meta.env.VITE_ENABLE_AGENTS === "true"
