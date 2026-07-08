@@ -86,6 +86,11 @@ Full changelogs are split by version range for easier navigation:
 ### Space Invaders — replay verifier (onchain-leaderboard groundwork) (2026-07-08)
 <!-- categories: memba -->
 - Internal groundwork for **certified scores**: a deterministic replay verifier that re-runs the game engine from a recorded input log and re-derives the *authoritative* score plus an integer, cross-language-portable state hash. This is the anti-cheat backbone — the server (and, later, a Gno realm) recompute the score rather than trusting any number the client sends. Proven by a round-trip test (a recorded run replays to the identical score and hash). **No product change** — substrate for the upcoming on-chain leaderboard.
+
+### Space Invaders — determinism corpus (scoring model frozen) (2026-07-08)
+<!-- categories: memba -->
+- Committed a set of **golden test vectors** (`engine/testdata/game_vectors.json`) — canonical input scripts pinned to their exact final score and state hash. This **freezes the scoring model**: any accidental change to scoring or determinism now fails CI, and a future Go/Gno engine port loads the *same* file and must reproduce it byte-for-byte (the cross-language equivalence the on-chain verifier relies on). Mirrors the Block Party corpus pattern. **No product change.**
+
 - Added a `.gitattributes` rule (`CHANGELOG.md merge=union`) so that when several independent PRs each append an entry to `[Unreleased]`, git keeps **both** sides instead of raising a conflict on every merge. Removes the recurring manual changelog-conflict resolution when a batch of PRs lands together. No product change.
 
 ### gno.land public-sale announcement popup (#809, 2026-07-08)
