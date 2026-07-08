@@ -62,24 +62,24 @@ export default function SpaceInvaders({ initialState }: { initialState?: Partial
       const { steps, acc } = drainAccumulator(accRef.current, frameMs);
       accRef.current = acc;
       if (steps > 0) {
-        const next = advance(stateRef.current, steps * FIXED_MS, {
+        const prev = stateRef.current;
+        const next = advance(prev, steps * FIXED_MS, {
           move: input.move,
           fire: input.fire,
           pause: false,
         });
         stateRef.current = next;
         setState(next);
+        // Persist the high score exactly on the transition into game over.
+        if (next.phase === "gameover" && prev.phase !== "gameover") {
+          setBest(saveBest(next.score));
+        }
       }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [getInput]);
-
-  // Persist best on game over.
-  useEffect(() => {
-    if (state.phase === "gameover") setBest(saveBest(state.score));
-  }, [state.phase, state.score]);
 
   const restart = () => {
     const fresh = newGame(SEED);
