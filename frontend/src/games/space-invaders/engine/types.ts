@@ -24,6 +24,7 @@ export interface InputIntent {
 export type GameEvent =
   | { type: "playerFired"; x: number }
   | { type: "alienKilled"; x: number; y: number; row: number }
+  | { type: "shotMissed" }
   | { type: "playerHit" }
   | { type: "lifeLost" }
   | { type: "waveCleared" }
@@ -41,6 +42,11 @@ export interface GameState {
   lives: number;
   invulnMs: number;
   score: number;
+  // No-miss streak (consecutive hits without a missed shot) — drives the score
+  // multiplier. shots/hits accumulate for the end-of-game accuracy bonus.
+  combo: number;
+  shots: number;
+  hits: number;
   wave: number;
   aliens: Alien[];
   dir: 1 | -1;

@@ -7,10 +7,26 @@ export const CONFIG = {
   alienFire: { cooldownMs: 900 },
   lives: 3,
   respawnInvulnMs: 1500,
-  points: [30, 20, 20, 10, 10] as const, // by row index; top row worth most
+  points: [40, 30, 20, 20, 10] as const, // by row index; top row worth most
+  // End-of-game bonuses (integer). accuracyBonusK is the max accuracy award
+  // (floor(hits*K/shots)); livesBonus is per surviving life.
+  scoring: { accuracyBonusK: 500, livesBonus: 500 },
 } as const;
 
 export function formationStepMs(alive: number, total: number): number {
   const t = total <= 0 ? 1 : 1 - Math.max(0, Math.min(alive, total)) / total;
   return CONFIG.formation.stepMsMax + (CONFIG.formation.stepMsMin - CONFIG.formation.stepMsMax) * t;
+}
+
+// No-miss combo → score multiplier, expressed as an integer ×10 numerator so
+// scoring stays integer-only (JS number == Go float64 divergence-proof): the
+// caller does floor(basePoints * comboMultiplier10(combo) / 10). The multiplier
+// applies to the kill that *produces* the given (post-increment) combo, so the
+// first kill (combo 1) is ×1.0 and preserves the original base-point scoring.
+export function comboMultiplier10(combo: number): number {
+  if (combo >= 10) return 40; // ×4.0
+  if (combo >= 7) return 30; // ×3.0
+  if (combo >= 4) return 20; // ×2.0
+  if (combo >= 2) return 15; // ×1.5
+  return 10; // ×1.0
 }

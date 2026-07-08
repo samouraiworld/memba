@@ -1,8 +1,16 @@
-import { CONFIG, formationStepMs } from "./config";
+import { CONFIG, formationStepMs, comboMultiplier10 } from "./config";
 import type { GameState, GameEvent, InputIntent } from "./types";
 import { aabb } from "./collision";
 import { rngFloat } from "./prng";
 import { spawnWave } from "./spawn";
+
+// Apply end-of-game bonuses (accuracy + surviving lives) and enter gameover.
+// Integer-only so the future Go replay verifier reproduces it exactly.
+function finalize(s: GameState): GameState {
+  const accuracy = s.shots > 0 ? Math.floor((s.hits * CONFIG.scoring.accuracyBonusK) / s.shots) : 0;
+  const livesBonus = Math.max(0, s.lives) * CONFIG.scoring.livesBonus;
+  return { ...s, phase: "gameover", score: s.score + accuracy + livesBonus };
+}
 
 // This reducer stays pure: it has no memory of the previous frame's pause
 // state. Callers are expected to send pause:true for a single frame only
@@ -39,6 +47,7 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
     const bx = s.player.x + s.player.w / 2 - CONFIG.bullet.w / 2;
     s = {
       ...s,
+      shots: s.shots + 1,
       playerBullet: {
         x: bx,
         y: s.player.y - CONFIG.bullet.h,
@@ -85,7 +94,9 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
   if (s.playerBullet) {
     const b = { ...s.playerBullet, y: s.playerBullet.y - CONFIG.bullet.playerSpeedPxPerMs * dtMs };
     if (b.y + b.h < 0) {
-      s = { ...s, playerBullet: null };
+      // Shot left the top without a kill → the no-miss combo breaks.
+      s = { ...s, playerBullet: null, combo: 0 };
+      events.push({ type: "shotMissed" });
     } else {
       let hitScore = 0;
       let hit = false;
@@ -100,7 +111,11 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
         return a;
       });
       if (hit && killed) {
-        s = { ...s, aliens, playerBullet: null, score: s.score + hitScore };
+        // combo increments first; the multiplier applies to this kill, so the
+        // first hit is ×1.0 (preserves base-point scoring).
+        const combo = s.combo + 1;
+        const gain = Math.floor((hitScore * comboMultiplier10(combo)) / 10);
+        s = { ...s, aliens, playerBullet: null, score: s.score + gain, combo, hits: s.hits + 1 };
         events.push({ type: "alienKilled", ...(killed as { x: number; y: number; row: number }) });
       } else {
         s = { ...s, playerBullet: b };
@@ -155,11 +170,11 @@ export function step(state: GameState, dtMs: number, input: InputIntent): GameSt
 
   // ── Resolve end-of-frame conditions ──
   if (s.lives <= 0) {
-    return { ...s, phase: "gameover" };
+    return finalize(s);
   }
   const alive = s.aliens.filter((a) => a.alive);
   if (alive.some((a) => a.y + a.h >= s.player.y)) {
-    return { ...s, phase: "gameover" };
+    return finalize(s);
   }
   if (alive.length === 0) {
     const nextWave = s.wave + 1;
