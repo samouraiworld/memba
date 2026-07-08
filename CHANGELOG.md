@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Space Invaders — arcade game in the Store (#823, 2026-07-08)
+- A classic **Space Invaders** added to the Store, playable instantly in the browser with no wallet. Built on a pure, deterministic game engine (a fixed-timestep loop that carries sub-frame time, so it runs correctly on 60 / 120 / 144 Hz displays) with keyboard (←/→ · Space · P) and full touch controls (steer on the left, tap-and-hold to fire on the right). Lean-classic rules: a formation that marches, drops and reverses at the edges and accelerates as ranks thin, one player shot in flight, three lives, escalating waves, and a local high score.
+- Gated by `VITE_ENABLE_SPACE_INVADERS` — an ordinary flag (client-side only, no funds), off by default; reachable at `/game/space-invaders`. Listing it in the on-chain App Store (`memba_appstore_v2`) is a separate operator action.
+
 ### Tooling — changelog conflicts auto-resolve (2026-07-08)
 <!-- categories: memba -->
 - Added a `.gitattributes` rule (`CHANGELOG.md merge=union`) so that when several independent PRs each append an entry to `[Unreleased]`, git keeps **both** sides instead of raising a conflict on every merge. Removes the recurring manual changelog-conflict resolution when a batch of PRs lands together. No product change.
@@ -35,6 +39,21 @@ Full changelogs are split by version range for easier navigation:
 ### Performance — feed render (2026-07-08)
 <!-- categories: memba -->
 - **Reading the feed no longer churns the main thread.** Each post card ran its own 15-second clock and re-ran the body's markdown + on-chain-unfurl parsing on every render, and cards weren't memoized — so a 200-post timeline meant 200 timers all re-parsing on each poll/scroll. Now the ticking relative-time is isolated to a tiny leaf (only the timestamp text updates every 15s), the body markdown and unfurl parsing are memoized per body, `PostCard`/`PostUnfurls` are `React.memo`'d, and the feed's row callbacks are stabilized so an unchanged card doesn't re-render on a timeline poll. Pure render-perf; no behavior change (all 30 feed unit tests unchanged and green). Behind `VITE_ENABLE_FEED`.
+### Performance — backend read pool (2026-07-08)
+<!-- categories: memba -->
+- **Reads no longer queue behind the indexer's writes.** The SQLite connection pool was capped at a single connection (`SetMaxOpenConns(1)`), so every RPC read had to wait for the one connection the in-process indexer tailers use for writes — the dominant source of the intermittent backend lag. The pool now opens several connections over WAL (one writer runs concurrently with multiple readers; `busy_timeout` still serializes the rare write-vs-write overlap). Plain in-memory databases (tests) stay single-connection since they're private per connection; production is always file-backed and gets the full pool. Verified by a concurrency test proving a read completes while a write transaction is held open (which times out under the old single-connection cap).
+### Performance — home snapshot: dedup + parallel sources (2026-07-08)
+<!-- categories: memba -->
+- **The landing page's server snapshot got much cheaper to build.** `GetHomeSnapshot` is cached for 30s, but on a cache miss it assembled the payload from **8 network/DB sources run one after another**, and every request that arrived during that assembly (a burst on cold start, or on each 30s expiry) re-ran all of them — a thundering herd against the pinned RPC node. Now concurrent misses per chain collapse to a **single assembly** via `singleflight` (the rest share its result), and the 8 sources are fetched **concurrently** instead of sequentially, so a miss costs the slowest single source instead of their sum. Behavior is unchanged — each source is still independently fault-tolerant and its failures still surface in `stale_sources` (verified under `-race`).
+### Performance — right-size oversized icons & social image (2026-07-08)
+<!-- categories: memba -->
+- **~1.1 MB off first load.** Three images were shipped at ~10× the bytes they needed: the favicon (`memba-icon.png`, 414 KB at 777px but displayed 32px), `apple-touch-icon.png` (414 KB, displayed 180px), and the Open Graph card (`og-image.png`, 408 KB). Resized to sane dimensions and re-encoded the OG card as JPEG: **58 KB / 31 KB / 53 KB** respectively (the favicon downloads on every first paint). OG/Twitter meta now points at `og-image.jpg` with an explicit `og:image:type`.
+### Performance — Clerk no longer ships to anonymous visitors (2026-07-08)
+<!-- categories: memba -->
+- **The Clerk auth SDK (~72 KB gz) stopped loading for everyone.** It's only used by the admin-panel link, which renders solely on your own authenticated profile — but `ProfilePage` imported it statically (through the profile barrel) and `ProfilePage` is prefetched on every load, so every anonymous visitor downloaded Clerk. `AdminPanelLink` is now lazy-imported (and dropped from the profile barrel), so Clerk loads only when the admin link actually renders (or on the Alerts route that also uses it). Verified against the prod build: `ProfilePage`'s chunk has no static Clerk import, and the main entry doesn't either.
+### Performance — token dashboard caching (2026-07-08)
+<!-- categories: memba -->
+- **`/tokens` stops re-reading the whole token set on every visit.** The dashboard fetched the factory token list (plus one on-chain `getTokenInfo` per token, and a balance per token when connected) with bare `useState`/`useEffect`, so every navigation to the page — and every wallet connect — re-ran the entire fan-out with no cache. It now reads through React Query: the list and balances are cached (60s / 30s) and deduped, Refresh is an explicit refetch, and balances re-read only when the wallet or token set changes. Behavior unchanged (characterization tests added first, kept green across the refactor).
 
 ### Feature articles — product + engineering scope (#814, 2026-07-08)
 - Nine `/blog` articles, one per major feature (Directory + Explorer, unified Marketplace, App Store, social Feed, Block Party, DAO governance, Multisig, Validators, Quests/XP), each pairing a product framing with an engineering-scope section so it doubles as documentation. Ships via the existing static blog pipeline.

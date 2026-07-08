@@ -10,6 +10,7 @@ import { ConnectingLoader } from "./components/ui/ConnectingLoader"
 import { NftGate } from "./components/ui/NftGate"
 import { FeedGate } from "./components/ui/FeedGate"
 import { GameGate } from "./components/ui/GameGate"
+import { SpaceInvadersGate } from "./components/ui/SpaceInvadersGate"
 import { AppStoreGate } from "./components/ui/AppStoreGate"
 import { ValoperRouteRedirect } from "./components/validators/ValoperRouteRedirect"
 import { NETWORKS, DEFAULT_NETWORK } from "./lib/config"
@@ -82,6 +83,9 @@ const AlertsPage = lazy(() => import("./pages/AlertsPage"))
 
 // ── Block Party game (lazy — gated behind VITE_ENABLE_GAME) ──
 const BlockPartyGame = lazy(() => import("./pages/BlockPartyGame"))
+
+// ── Space Invaders game (lazy — gated behind VITE_ENABLE_SPACE_INVADERS) ──
+const SpaceInvadersGame = lazy(() => import("./pages/SpaceInvadersGame"))
 
 // ── Organizations page (lazy — v2.22.0) ──
 const OrganizationsPage = lazy(() => import("./pages/OrganizationsPage"))
@@ -307,6 +311,9 @@ function App() {
 
           {/* Block Party — Daily puzzle game (gated behind VITE_ENABLE_GAME) */}
           <Route path="game" element={<Suspense fallback={<PageLoader />}><GameGate><BlockPartyGame /></GameGate></Suspense>} />
+
+          {/* Space Invaders — arcade game (gated behind VITE_ENABLE_SPACE_INVADERS) */}
+          <Route path="game/space-invaders" element={<Suspense fallback={<PageLoader />}><SpaceInvadersGate><SpaceInvadersGame /></SpaceInvadersGate></Suspense>} />
 
           {/* Candidature — Memba DAO membership application (v2.28) */}
           <Route path="candidature" element={<Suspense fallback={<PageLoader />}><CandidaturePage /></Suspense>} />

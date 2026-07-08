@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -68,27 +69,43 @@ func (s *MultisigService) cachedHomeSnapshot(
 	// The snapshot is single-network (test13) per spec §6, so the same RPC URL
 	// serves every chain_id today. A future multi-chain deployment would resolve
 	// the RPC URL from chainID here instead of calling homeSnapshotRPCURL().
-	// NOTE: concurrent cache misses may each call assemble — deliberate (mirrors
-	// HandleMarketplaceAgentsProxy pattern); bounded by the endpoint's rate limit.
-	// A singleflight.Group is a future option if thundering-herd becomes an issue.
-	fresh := assemble(ctx, homeSnapshotRPCURL()) // MISS
-	if fresh == nil {
-		// Serve stale if we have any prior value.
+	//
+	// Collapse concurrent misses per chain_id: only one assembly (8 network/DB
+	// reads) runs at a time; the rest wait and share its result. Prevents a
+	// thundering herd against the pinned RPC node when the cache expires.
+	v, _, _ := s.homeGroup.Do(chainID, func() (any, error) {
+		// Re-check under the flight — a just-finished winner may have filled the
+		// cache while this goroutine was queued behind it.
 		s.homeCacheMu.RLock()
-		stale := s.homeCached[chainID]
+		c, ok := s.homeCached[chainID]
+		cAt := s.homeCachedAt[chainID]
 		s.homeCacheMu.RUnlock()
-		if stale != nil {
-			slog.Warn("home snapshot assemble failed; serving stale", "chain_id", chainID)
-			return stale
+		if ok && c != nil && time.Since(cAt) < ttl {
+			return c, nil
 		}
-		return nil
+
+		fresh := assemble(ctx, homeSnapshotRPCURL()) // MISS
+		if fresh != nil {
+			s.homeCacheMu.Lock()
+			s.homeCached[chainID] = fresh
+			s.homeCachedAt[chainID] = time.Now()
+			s.homeCacheMu.Unlock()
+		}
+		return fresh, nil
+	})
+	if fresh, _ := v.(*membav1.HomeSnapshot); fresh != nil {
+		return fresh
 	}
 
-	s.homeCacheMu.Lock()
-	s.homeCached[chainID] = fresh
-	s.homeCachedAt[chainID] = time.Now()
-	s.homeCacheMu.Unlock()
-	return fresh
+	// Assembly produced nothing — serve the last-good value if we have one.
+	s.homeCacheMu.RLock()
+	stale := s.homeCached[chainID]
+	s.homeCacheMu.RUnlock()
+	if stale != nil {
+		slog.Warn("home snapshot assemble failed; serving stale", "chain_id", chainID)
+		return stale
+	}
+	return nil
 }
 
 // GetHomeSnapshot returns the cached, server-assembled global home payload.
@@ -124,66 +141,104 @@ func (s *MultisigService) assembleHomeSnapshot(ctx context.Context, rpcURL strin
 		Counts:      &membav1.EcosystemCounts{}, // initialise once; failed sources leave their field 0
 	}
 
+	// Fetch every source concurrently — they're independent (RPC + DB reads).
+	// Each goroutine writes only its own result vars; the snapshot is merged
+	// after all complete, so there's no shared-write race and the stale_sources
+	// ordering stays deterministic. Wall-clock drops from the SUM of the source
+	// latencies to the slowest single source (previously ~6 sequential on-chain
+	// reads on every cache miss).
+	var (
+		pulse           *membav1.NetworkPulse
+		pulseErr        error
+		vh              *membav1.ValidatorsHealth
+		vhErr           error
+		tokens          uint32
+		tokensErr       error
+		agents          uint32
+		agentsErr       error
+		collections     uint32
+		collectionsErr  error
+		indexerBlock    int64
+		indexerBlockErr error
+		dao             *membav1.FeaturedDao
+		daoErr          error
+		members         []*membav1.DirectoryMember
+		membersErr      error
+	)
+	var wg sync.WaitGroup
+	wg.Add(8)
+	go func() { defer wg.Done(); pulse, pulseErr = fetchNetworkPulse(ctx, rpcURL) }()
+	go func() { defer wg.Done(); vh, vhErr = fetchValidatorsHealth(ctx, rpcURL) }()
+	go func() { defer wg.Done(); tokens, tokensErr = s.countTokens(ctx, rpcURL) }()
+	go func() { defer wg.Done(); agents, agentsErr = s.countAgents(ctx, rpcURL) }()
+	go func() { defer wg.Done(); collections, collectionsErr = s.countCollections(ctx) }()
+	go func() { defer wg.Done(); indexerBlock, indexerBlockErr = s.maxIndexerBlock(ctx) }()
+	go func() { defer wg.Done(); dao, daoErr = s.fetchFeaturedDao(ctx, rpcURL) }()
+	go func() { defer wg.Done(); members, membersErr = s.fetchDirectoryMembers(ctx, rpcURL, 4) }()
+	wg.Wait()
+
+	// Merge in a fixed order so stale_sources is deterministic.
+
 	// RPC source: network pulse (block height) from /status.
-	if p, err := fetchNetworkPulse(ctx, rpcURL); err != nil {
+	if pulseErr != nil {
 		snap.StaleSources = append(snap.StaleSources, "network")
 	} else {
-		snap.Network = p
-		snap.AsOfBlock = p.BlockHeight
+		snap.Network = pulse
+		snap.AsOfBlock = pulse.BlockHeight
 	}
 
 	// RPC source: validator-set health from /validators.
-	if v, err := fetchValidatorsHealth(ctx, rpcURL); err != nil {
+	if vhErr != nil {
 		snap.StaleSources = append(snap.StaleSources, "validators")
 	} else {
-		snap.ValidatorsHealth = v
-		snap.Counts.Validators = v.Total
+		snap.ValidatorsHealth = vh
+		snap.Counts.Validators = vh.Total
 		// Surface the validator count on the network pulse too: the home
 		// StatusStrip / NetworkPulse panel reads snap.Network.ValidatorsTotal
-		// (frontend useNetworkPulse), not Counts.Validators. Network is fetched
+		// (frontend useNetworkPulse), not Counts.Validators. Network is merged
 		// just above, so it's already set here when /status succeeded.
 		if snap.Network != nil {
-			snap.Network.ValidatorsTotal = v.Total
+			snap.Network.ValidatorsTotal = vh.Total
 		}
 	}
 
 	// On-chain source: token count from tokenfactory_v2 render.
-	if n, err := s.countTokens(ctx, rpcURL); err != nil {
+	if tokensErr != nil {
 		snap.StaleSources = append(snap.StaleSources, "tokens")
 	} else {
-		snap.Counts.Tokens = n
+		snap.Counts.Tokens = tokens
 	}
 
 	// On-chain source: agent count from agent_registry render.
-	if n, err := s.countAgents(ctx, rpcURL); err != nil {
+	if agentsErr != nil {
 		snap.StaleSources = append(snap.StaleSources, "agents")
 	} else {
-		snap.Counts.Agents = n
+		snap.Counts.Agents = agents
 	}
 
 	// DB source: collection count.
-	if n, err := s.countCollections(ctx); err != nil {
+	if collectionsErr != nil {
 		snap.StaleSources = append(snap.StaleSources, "collections")
 	} else {
-		snap.Counts.Collections = n
+		snap.Counts.Collections = collections
 	}
 
 	// DB source: highest block seen by the NFT indexer.
-	if b, err := s.maxIndexerBlock(ctx); err != nil {
+	if indexerBlockErr != nil {
 		snap.StaleSources = append(snap.StaleSources, "indexer_block")
 	} else {
-		snap.IndexerLastBlock = b
+		snap.IndexerLastBlock = indexerBlock
 	}
 
 	// On-chain source: featured DAO summary (name, open proposals, treasury).
-	if dao, err := s.fetchFeaturedDao(ctx, rpcURL); err != nil {
+	if daoErr != nil {
 		snap.StaleSources = append(snap.StaleSources, "featured_dao")
 	} else {
 		snap.FeaturedDao = dao
 	}
 
 	// On-chain source: directory members preview (up to 4 entries).
-	if members, err := s.fetchDirectoryMembers(ctx, rpcURL, 4); err != nil {
+	if membersErr != nil {
 		snap.StaleSources = append(snap.StaleSources, "directory_members")
 	} else {
 		snap.DirectoryMembers = members

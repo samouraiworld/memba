@@ -1,6 +1,7 @@
 package db
 
 import (
+	"path/filepath"
 	"testing"
 
 	_ "modernc.org/sqlite"
@@ -34,15 +35,26 @@ func TestOpen_InMemory(t *testing.T) {
 }
 
 func TestOpen_MaxConnections(t *testing.T) {
-	database, err := Open(":memory:")
+	// File-backed (production) uses the multi-connection WAL pool so reads run
+	// concurrently with the single writer instead of serializing behind it.
+	fileDB, err := Open(filepath.Join(t.TempDir(), "conns.db"))
 	if err != nil {
-		t.Fatal("failed to open database:", err)
+		t.Fatal("failed to open file database:", err)
 	}
-	t.Cleanup(func() { _ = database.Close() })
+	t.Cleanup(func() { _ = fileDB.Close() })
+	if got := fileDB.Stats().MaxOpenConnections; got != maxOpenConns {
+		t.Fatalf("file-backed: expected MaxOpenConnections=%d, got %d", maxOpenConns, got)
+	}
 
-	stats := database.Stats()
-	if stats.MaxOpenConnections != 1 {
-		t.Fatalf("expected MaxOpenConnections=1 (SQLite single writer), got %d", stats.MaxOpenConnections)
+	// A plain in-memory database is private to its connection, so it stays
+	// single-connection to keep shared state (tests rely on this).
+	memDB, err := Open(":memory:")
+	if err != nil {
+		t.Fatal("failed to open in-memory database:", err)
+	}
+	t.Cleanup(func() { _ = memDB.Close() })
+	if got := memDB.Stats().MaxOpenConnections; got != 1 {
+		t.Fatalf("in-memory: expected MaxOpenConnections=1, got %d", got)
 	}
 }
 
