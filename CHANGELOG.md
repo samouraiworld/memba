@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### App Store reviews — realm-path threading in the reviews client (B2a, 2026-07-08)
+<!-- categories: memba -->
+- Groundwork for community reviews on App Store listings: the subject-agnostic reviews data client (`lib/reviews.ts`) now threads an optional `realm` argument through every read and write builder, defaulting to the existing validator/profile web-of-trust realm. This lets a caller target the reputation-isolated App Store reviews realm by path alone, with no behavior change for existing callers (verified: the full validator/profile reviews suite still passes). No user-visible change yet — the App Store detail page wiring follows.
+
 ### Fix — Treasury shows GNOT in whole units, not raw ugnot (2026-07-08)
 <!-- categories: memba -->
 - The DAO **Treasury** page rendered the GNOT balance from raw micro-units (ugnot), so a treasury holding **1 GNOT** displayed as **"1,000,000"** — off by a factor of a million and misleading. It now shows the human-readable, decimal-scaled amount (**"1"**, or **"123.456789"** for sub-unit balances), with thousands still comma-grouped. GRC-20 token rows are unaffected.
