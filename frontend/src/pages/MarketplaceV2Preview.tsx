@@ -10,15 +10,26 @@
  */
 import { Navigate } from "react-router-dom"
 import ListingGrid from "../components/marketplace/ListingGrid"
+import { LaneToolbar } from "../components/marketplace/LaneToolbar"
 import { seedNftToCard, seedServiceToCard, seedTokenToCard } from "../lib/marketplace/adapters/seedToCard"
 import { seedNfts, seedServices, seedTokens } from "../lib/marketplace/seed/foundingSupply.seed"
+import { useMarketFilters } from "../lib/marketplace/useMarketFilters"
+import { applyFilters } from "../lib/marketplace/marketFilters"
 import { isMarketplaceV2Enabled } from "../lib/config"
 
 const NFT_CARDS = seedNfts.map(seedNftToCard)
 const SERVICE_CARDS = seedServices.map(seedServiceToCard)
 const TOKEN_CARDS = seedTokens.map(seedTokenToCard)
+const LANES = [
+    { key: "NFT", cards: NFT_CARDS },
+    { key: "Services", cards: SERVICE_CARDS },
+    { key: "Tokens", cards: TOKEN_CARDS },
+] as const
 
 export default function MarketplaceV2Preview() {
+    // Shared discovery state (URL-synced). Hook must run before any early return.
+    const { filters, setFilters } = useMarketFilters()
+
     // Dev-only harness — never reachable in prod (flag off).
     if (!isMarketplaceV2Enabled()) return <Navigate to="../marketplace" replace />
 
@@ -27,24 +38,21 @@ export default function MarketplaceV2Preview() {
             <header style={{ marginBottom: "var(--space-6, 24px)" }}>
                 <h1 style={{ fontFamily: "var(--font-sans)", margin: 0 }}>Marketplace v2 — design preview</h1>
                 <p className="k-text-muted" style={{ margin: "var(--space-2, 8px) 0 0" }}>
-                    Founding-Supply seed catalog rendered through the new MarketCard / ListingGrid. Seed data — not live inventory.
+                    Founding-Supply seed catalog through the new MarketCard / ListingGrid, filtered by the shared LaneToolbar. Seed data — not live inventory.
                 </p>
             </header>
 
-            <section style={{ marginBottom: "var(--space-8, 32px)" }}>
-                <h2 style={{ fontFamily: "var(--font-sans)" }}>NFT · {NFT_CARDS.length}</h2>
-                <ListingGrid items={NFT_CARDS} />
-            </section>
+            <LaneToolbar filters={filters} onChange={setFilters} />
 
-            <section style={{ marginBottom: "var(--space-8, 32px)" }}>
-                <h2 style={{ fontFamily: "var(--font-sans)" }}>Services · {SERVICE_CARDS.length}</h2>
-                <ListingGrid items={SERVICE_CARDS} />
-            </section>
-
-            <section style={{ marginBottom: "var(--space-8, 32px)" }}>
-                <h2 style={{ fontFamily: "var(--font-sans)" }}>Tokens · {TOKEN_CARDS.length}</h2>
-                <ListingGrid items={TOKEN_CARDS} />
-            </section>
+            {LANES.map(({ key, cards }) => {
+                const shown = applyFilters(cards, filters)
+                return (
+                    <section key={key} style={{ marginBottom: "var(--space-8, 32px)" }}>
+                        <h2 style={{ fontFamily: "var(--font-sans)" }}>{key} · {shown.length}</h2>
+                        <ListingGrid items={shown} />
+                    </section>
+                )
+            })}
         </div>
     )
 }

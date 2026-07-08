@@ -315,11 +315,12 @@ Status: **foundation built** (2.1 + 2.2 + seed adapters); lane wiring + virtuali
 - *Acceptance (met for the foundation):* codec never throws into render; `useLaneQuery` caches + soft-fails; no `0 GNOT` masquerade. Remaining acceptance (every lane through Query, no raw setState) lands with the Phase 7 lane rebuilds.
 
 ## Phase 3 — Unified discovery (filters / search / sort / taxonomy)
-- **Task 3.1** `useMarketFilters()` — URL-synced (`q` debounced, `lane`, `category`, `sort`, `verifiedOnly`, `priceMin/Max`, `cursor`). *Test:* state ↔ URL round-trip; debounce.
-- **Task 3.2** `<LaneToolbar>` — search + category chips (from taxonomy §3) + sort + verified toggle + price filter; each lane declares supported facets. *Test:* toolbar reflects/updates filters; a11y labels on all controls.
-- **Task 3.3** Honest search — either aggregate across live lanes or scoped-with-label; wire `q`/filters into `useLaneQuery`. *Test:* searching filters the active lane's actual items (not names-only silently); scope label correct.
-- **Task 3.4** Curated shelves (Trending / New / Movers / Verified Founders) from taxonomy + seed. *Test:* shelves render from fixture data.
-- *Acceptance:* browse-by-intent works on every lane; search never lies about scope; filters/sort share one state.
+Status: **core built** (3.1 + 3.2 + 3.3); shelves (3.4) + price-range facet deferred to Phase 7.
+- **Task 3.1 ✅ DONE** — `marketFilters.ts` (pure `applyFilters` + `parseFilters`/`filtersToParams`, `MarketFilters` = q/category/sort/verifiedOnly) + `useMarketFilters()` (URL-synced via `useSearchParams`, merge-patch, `clear`). `CardModel` gained `category?`/`priceValue?`; seed adapters populate them. Tests: 8 logic + 4 hook. *(price-range facet + cursor deferred — cursor waits on the server-side-pagination realm ask §10.)*
+- **Task 3.2 ✅ DONE** — `<LaneToolbar>`: debounced search (no per-keystroke writes), category chips (aria-pressed), labelled sort `<select>`, verified toggle, optional result count; tokens-only CSS, all controls labelled. Tests: 5.
+- **Task 3.3 ✅ DONE (honest search)** — `applyFilters` filters the lane's ACTUAL items (title + seller + category), not names-only-silently; wired into the preview harness across all lanes with the shared toolbar. Wiring into live lanes lands with the Phase 7 rebuilds (via `useLaneQuery` + `applyFilters`).
+- **Task 3.4 — DEFERRED to Phase 7** — curated shelves (Trending / New / Movers / Verified Founders); need real ranking data + the live lanes. The sort/filter foundation they sit on is done.
+- *Acceptance (met for core):* filters/sort share one URL-synced state; search filters real items with a clear scope. Shelves + per-lane facet declaration land in Phase 7.
 
 ## Phase 4 — Shell & IA (one front door, sell-anything, mobile nav)
 - **Task 4.1** Collapse sidebar to one **Marketplace** entry (`navManifest.ts:77-80`); App Store stays separate. *Test:* nav shows one marketplace entry; no dead routes.

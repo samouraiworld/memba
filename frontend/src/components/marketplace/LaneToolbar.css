@@ -1,0 +1,88 @@
+/**
+ * LaneToolbar.css — shared discovery bar. Tokens only; --font-sans (chrome).
+ */
+.lane-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    font-family: var(--font-sans);
+    margin-bottom: var(--space-4, 16px);
+}
+
+.lane-toolbar__search {
+    flex: 1 1 220px;
+    min-width: 180px;
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    font-size: 1rem; /* >=16px avoids iOS zoom */
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 10px);
+}
+
+.lane-toolbar__search:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 1px;
+}
+
+.lane-toolbar__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-2, 8px);
+}
+
+.lane-toolbar__chip {
+    padding: var(--space-1, 4px) var(--space-3, 12px);
+    min-height: var(--mb-touch-min, 36px);
+    font-size: 0.85rem;
+    font-family: var(--font-sans);
+    color: var(--color-text-muted);
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-full, 999px);
+    cursor: pointer;
+}
+
+.lane-toolbar__chip--active {
+    color: var(--color-k-on-accent);
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+}
+
+.lane-toolbar__controls {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 12px);
+}
+
+.lane-toolbar__sort {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    font-size: 0.85rem;
+    color: var(--color-text-muted);
+}
+
+.lane-toolbar__sort select {
+    padding: var(--space-1, 4px) var(--space-2, 8px);
+    font-family: var(--font-sans);
+    color: var(--color-text);
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md, 10px);
+}
+
+.lane-toolbar__verified {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    font-size: 0.85rem;
+    color: var(--color-text);
+    cursor: pointer;
+}
+
+.lane-toolbar__count {
+    font-size: 0.8rem;
+}

@@ -123,6 +123,10 @@ export interface CardModel {
     id: string
     lane: AssetType
     title: string
+    /** Taxonomy category (for browse-by-category chips); optional. */
+    category?: string
+    /** Numeric price for sorting/filtering (GNOT). Distinct from the display `priceLabel`. */
+    priceValue?: number
     media: CardMedia
     /** Authoritative curation flag — see TRUST INVARIANT above. */
     verified: boolean
