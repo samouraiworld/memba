@@ -51,6 +51,8 @@ export function newGame(seed: number): GameState {
     fireCd: 0,
     alienBullets: [],
     alienFireMs: CONFIG.alienFire.cooldownMs,
+    ufo: null,
+    ufoTimerMs: CONFIG.ufo.spawnMs,
     events: [],
   };
 }

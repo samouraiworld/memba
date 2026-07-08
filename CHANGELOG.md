@@ -67,6 +67,10 @@ Full changelogs are split by version range for easier navigation:
 <!-- categories: memba -->
 - Later waves now ramp up **real difficulty**: the aliens **fire faster each wave** (cooldown tightens toward a floor), and shots come from the **bottom-most alien of a column** — so cover disappears the way the arcade original intended, instead of raining from mid-formation. The formation also **stops descending past a safe cap**, so deep waves are hard because they're *fast*, not because they spawn on top of you. Still deterministic/integer-only; gated by `VITE_ENABLE_SPACE_INVADERS`.
 
+### Space Invaders — mystery UFO (2026-07-08)
+<!-- categories: memba -->
+- The **mystery UFO** is back: it drifts across the top of the screen every so often for bonus points. Base value varies, but land the hit on the right shot and it pays the classic **300** — a risk/reward hook that rewards players who track their shot count and break rhythm to snipe it. Deterministic and integer-only like the rest of the engine; gated by `VITE_ENABLE_SPACE_INVADERS`.
+
 <!-- categories: memba -->
 - Added a `.gitattributes` rule (`CHANGELOG.md merge=union`) so that when several independent PRs each append an entry to `[Unreleased]`, git keeps **both** sides instead of raising a conflict on every merge. Removes the recurring manual changelog-conflict resolution when a batch of PRs lands together. No product change.
 
