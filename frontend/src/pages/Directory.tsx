@@ -46,7 +46,12 @@ export function Directory() {
     // to ?tab=explorer with the flag off falls back to the default tab, so there is
     // never a dead nav button or a blank panel.
     const explorerOn = isExplorerEnabled()
-    const tabDefs = explorerOn ? [...TAB_DEFS, { key: "explorer" as DirectoryTab, label: "🔎 Explorer" }] : TAB_DEFS
+    // Memoized so the useCallback below (which depends on it) keeps a stable
+    // identity — a fresh array each render would defeat the memo.
+    const tabDefs = useMemo(
+        () => explorerOn ? [...TAB_DEFS, { key: "explorer" as DirectoryTab, label: "🔎 Explorer" }] : TAB_DEFS,
+        [explorerOn],
+    )
     const tab: DirectoryTab = resolveActiveTab(urlState.tab, explorerOn)
     const globalSearch = urlState.q
     const deferredGlobalSearch = useDeferredValue(globalSearch)
