@@ -14,6 +14,14 @@
 :root {
     /* ── Colors ─────────────────────────────────────────── */
     --color-primary: var(--color-k-accent);
+    /* ── Marketplace v2: per-lane accent scale (dark theme). One accent per asset
+       lane so the shell can tint tabs/cards by lane. nft = brand teal; the rest are
+       distinct hues bright enough on the dark bg. Light variants below. AA on the
+       card bg is re-verified in Phase 8. ── */
+    --color-k-lane-nft: var(--color-k-accent);
+    --color-k-lane-service: hsl(219 84% 66%);
+    --color-k-lane-token: hsl(35 92% 60%);
+    --color-k-lane-agent: hsl(268 74% 72%);
     --color-primary-bg: rgba(0, 212, 170, 0.08);
     --color-primary-border: rgba(0, 212, 170, 0.15);
     --color-primary-hover: rgba(0, 212, 170, 0.12);
@@ -53,7 +61,7 @@
 
     /* ── Typography ─────────────────────────────────────── */
     --font-mono: 'JetBrains Mono', monospace;
-    --font-sans: system-ui, -apple-system, sans-serif;
+    --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
 
     /* ── Modular Type Scale (1.25 ratio) ────────────────── */
     --text-xs: 0.64rem;    /* ~10px */
@@ -136,6 +144,11 @@
 /* ── Light Theme Overrides ──────────────────────────────── */
 [data-theme="light"] {
     --color-primary: var(--color-k-accent);
+    /* Marketplace v2 per-lane accents (light theme) — darker for AA on the light bg. */
+    --color-k-lane-nft: var(--color-k-accent);
+    --color-k-lane-service: hsl(219 72% 48%);
+    --color-k-lane-token: hsl(32 88% 40%);
+    --color-k-lane-agent: hsl(268 56% 50%);
     --color-primary-bg: rgba(0, 168, 138, 0.08);
     --color-primary-border: rgba(0, 168, 138, 0.18);
     --color-primary-hover: rgba(0, 168, 138, 0.12);
