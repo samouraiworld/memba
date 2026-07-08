@@ -45,6 +45,9 @@ Full changelogs are split by version range for easier navigation:
 ### Performance — right-size oversized icons & social image (2026-07-08)
 <!-- categories: memba -->
 - **~1.1 MB off first load.** Three images were shipped at ~10× the bytes they needed: the favicon (`memba-icon.png`, 414 KB at 777px but displayed 32px), `apple-touch-icon.png` (414 KB, displayed 180px), and the Open Graph card (`og-image.png`, 408 KB). Resized to sane dimensions and re-encoded the OG card as JPEG: **58 KB / 31 KB / 53 KB** respectively (the favicon downloads on every first paint). OG/Twitter meta now points at `og-image.jpg` with an explicit `og:image:type`.
+### Performance — Clerk no longer ships to anonymous visitors (2026-07-08)
+<!-- categories: memba -->
+- **The Clerk auth SDK (~72 KB gz) stopped loading for everyone.** It's only used by the admin-panel link, which renders solely on your own authenticated profile — but `ProfilePage` imported it statically (through the profile barrel) and `ProfilePage` is prefetched on every load, so every anonymous visitor downloaded Clerk. `AdminPanelLink` is now lazy-imported (and dropped from the profile barrel), so Clerk loads only when the admin link actually renders (or on the Alerts route that also uses it). Verified against the prod build: `ProfilePage`'s chunk has no static Clerk import, and the main entry doesn't either.
 
 ### Feature articles — product + engineering scope (#814, 2026-07-08)
 - Nine `/blog` articles, one per major feature (Directory + Explorer, unified Marketplace, App Store, social Feed, Block Party, DAO governance, Multisig, Validators, Quests/XP), each pairing a product framing with an engineering-scope section so it doubles as documentation. Ships via the existing static blog pipeline.
