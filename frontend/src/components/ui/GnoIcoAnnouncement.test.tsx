@@ -4,7 +4,8 @@ import { render, screen, act, cleanup } from "@testing-library/react"
 // The component self-gates on this flag reader — mock it so tests control the gate.
 vi.mock("../../lib/config", () => ({ isIcoAnnouncementEnabled: vi.fn(() => true) }))
 
-import { GnoIcoAnnouncement, daysUntilSale, saleStatusLabel } from "./GnoIcoAnnouncement"
+import { GnoIcoAnnouncement } from "./GnoIcoAnnouncement"
+import { daysUntilSale, saleStatusLabel } from "../../lib/gnoIcoSale"
 
 // Sale opens 2026-07-20 00:00 UTC.
 const SALE_START = Date.UTC(2026, 6, 20, 0, 0, 0)

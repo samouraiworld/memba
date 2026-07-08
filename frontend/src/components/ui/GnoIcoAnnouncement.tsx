@@ -18,13 +18,12 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { AccessibleDialog } from "../AccessibleDialog"
 import { isIcoAnnouncementEnabled } from "../../lib/config"
+import { daysUntilSale, saleStatusLabel } from "../../lib/gnoIcoSale"
 
 /** Bump to re-announce (e.g. a later sale phase). Old dismissals won't suppress a new id. */
 const CAMPAIGN_ID = "gno-ico-2026-07"
 const STORAGE_KEY = "memba_gno_ico_seen"
 const SALE_URL = "https://sale.gno.land/"
-/** Sale opens 2026-07-20 (UTC). Drives the "opens in N days" / "now open" copy. */
-const SALE_START_MS = Date.UTC(2026, 6, 20, 0, 0, 0)
 const SHOW_DELAY_MS = 1500
 const EXIT_MS = 200
 
@@ -42,27 +41,12 @@ function markDismissed(): void {
     } catch { /* quota / SSR */ }
 }
 
-/** Whole days until the sale opens; 0 or negative once it's live. Uses a passed-in
- *  `now` so it's testable (Date.now() is fine at runtime). */
-export function daysUntilSale(now: number): number {
-    return Math.ceil((SALE_START_MS - now) / 86_400_000)
-}
-
-/** The status line shown under the title, based on time-to-open. Copy stays
- *  deliberately non-committal once the window opens: it points to the official
- *  portal for the real status rather than asserting the sale is participatable
- *  this instant (the day boundary here is UTC and the true open time lives on the
- *  sale site). */
-export function saleStatusLabel(days: number): string {
-    if (days > 1) return `Opens in ${days} days · July 20`
-    if (days === 1) return "Opens tomorrow · July 20"
-    if (days === 0) return "Opening today · July 20"
-    return "Now open — visit the sale"
-}
-
 export function GnoIcoAnnouncement({ suppressed = false }: { suppressed?: boolean }) {
     const [visible, setVisible] = useState(false)
     const [exiting, setExiting] = useState(false)
+    // The status line is computed once when the popup is shown (not during render)
+    // so the read of the current time stays out of the render path.
+    const [status, setStatus] = useState("")
     const cardRef = useRef<HTMLDivElement>(null)
     const exitTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -70,7 +54,10 @@ export function GnoIcoAnnouncement({ suppressed = false }: { suppressed?: boolea
         if (suppressed) return
         if (!isIcoAnnouncementEnabled()) return
         if (alreadyDismissed()) return
-        const timer = setTimeout(() => setVisible(true), SHOW_DELAY_MS)
+        const timer = setTimeout(() => {
+            setStatus(saleStatusLabel(daysUntilSale(Date.now())))
+            setVisible(true)
+        }, SHOW_DELAY_MS)
         return () => clearTimeout(timer)
     }, [suppressed])
 
@@ -96,8 +83,6 @@ export function GnoIcoAnnouncement({ suppressed = false }: { suppressed?: boolea
     // Never render while suppressed, even if already visible — a higher-priority
     // modal (wizard / activation gate) must win and this must not stack under it.
     if (!visible || suppressed) return null
-
-    const status = saleStatusLabel(daysUntilSale(Date.now()))
 
     return (
         <>
