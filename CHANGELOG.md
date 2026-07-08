@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Marketplace menu consolidated to a single entry (#813, 2026-07-08)
+- NFTs, Services, and Tokens are tabs (lanes) inside the unified `/marketplace` page, so the sidebar's separate **NFT** and **Services** entries — redirect-only duplicates — are removed. One **Marketplace** menu entry now matches the one page; deep links to `/nft` and `/services` still redirect in.
+- Added a mobile "More"-sheet entry point for the Marketplace and App Store, which previously had no mobile navigation at all.
+
 ### App Store — flagship redesign (2026-07-07)
 - **`/apps` reshaped into a world-class on-chain app store.** A real masthead ("Apps you can read before you run them") leads on the store's actual differentiator — every app is a public gno.land realm you can inspect before running — instead of a bare title. Adds a **featured hero** for the lead app, a responsive card grid that scales as listings grow, and designed loading (skeleton), empty, and error states.
 - **Per-app identity when no artwork exists.** Apps with an empty `iconCID` get a deterministic monogram over a gradient seeded (FNV-1a) from the realm path — stable, unique per app, and CSP-safe (computed inline, never fetched). The realm path itself is promoted to a first-class mono chip.
