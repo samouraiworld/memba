@@ -1121,9 +1121,12 @@ body {
   position: sticky;
   top: 0;
   height: var(--topbar-height);
-  background: var(--color-k-glass, rgba(0, 0, 0, 0.85));
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
+  /* Opaque elevated surface instead of translucent glass + backdrop-blur. The
+     bar was already 85% opaque, so the frost was barely visible, but
+     backdrop-filter forced a full-viewport GPU re-blur on every scroll frame
+     (app-wide scroll jank). An opaque token drops that cost with a near-identical
+     look. Non-scrolling frosted surfaces keep .k-glass. */
+  background: var(--color-k-elevated);
   border-bottom: 1px solid var(--color-k-edge);
   z-index: 50;
   display: flex;
