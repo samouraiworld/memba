@@ -71,6 +71,10 @@ Full changelogs are split by version range for easier navigation:
 <!-- categories: memba -->
 - Mobile steering is now **proportional** — how far you drag decides how fast the ship moves, so fine dodges are possible instead of the old all-or-nothing ±1. And the **control zones are now visible** on the start screen (a labelled "drag to steer | tap · fire" split), so the touch scheme is discoverable instead of a guess. Keyboard play is unchanged, and the change is deterministic-safe (the on-chain scoring corpus is unaffected).
 
+### Space Invaders — App Store listing prep (2026-07-09)
+<!-- categories: memba -->
+- Refreshed the Space Invaders store card to reflect the finished game (combos, rapid fire, mystery UFO, bunkers, sound) and added a proper on-brand **app icon** (`space-invaders-icon.svg`) in place of the emoji placeholder. The live App Store listing is registered on-chain by the operator — the exact copy, icon, and steps are in `docs/planning/SPACE_INVADERS_LISTING_2026-07-09.md`.
+
 <!-- categories: memba -->
 - Scoring now rewards **skill, not grinding** — the foundation for a competitive leaderboard. A **no-miss combo** builds a live score multiplier (×1 → ×1.5 → ×2 → ×3 → ×4) that **resets the moment you miss a shot**, so accuracy under pressure separates a good run from a great one. The active multiplier shows in the HUD.
 - Two end-of-game bonuses — an **accuracy bonus** (high hit-rate) and a **surviving-lives bonus** — and top-row aliens are now worth more (40/30/20/20/10), so going for the hard targets pays off.
