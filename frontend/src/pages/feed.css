@@ -414,6 +414,21 @@
     display: flex;
     flex-direction: column;
     gap: var(--space-2, 8px);
+    /* Skip layout + paint for off-screen cards so a long timeline stays smooth
+       without a windowing library. `contain-intrinsic-size: auto …` remembers
+       each card's REAL rendered height, so variable-height posts and unfurl
+       cards that resize after they load don't shift the scrollbar on re-scroll. */
+    content-visibility: auto;
+    contain-intrinsic-size: auto 160px;
+}
+
+/* content-visibility:auto implies `contain: paint`, which clips anything drawn
+   outside the card box. Opt out the short fixed cards (no benefit) and any card
+   whose own-post manage menu is open (it drops below the card and would clip). */
+.feed-post--tombstone,
+.feed-post--skeleton,
+.feed-post--cv-off {
+    content-visibility: visible;
 }
 
 .feed-post:hover:has(.feed-post__overlay) {

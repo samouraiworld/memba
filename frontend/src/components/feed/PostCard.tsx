@@ -185,7 +185,7 @@ function PostCardInner({
     }
 
     return (
-        <article className={"feed-post" + (post.optimistic ? " feed-post--pending" : "")}>
+        <article className={"feed-post" + (post.optimistic ? " feed-post--pending" : "") + (menuOpen ? " feed-post--cv-off" : "")}>
             {showOverlay && (
                 <button
                     type="button"

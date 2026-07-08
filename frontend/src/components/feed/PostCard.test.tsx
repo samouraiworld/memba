@@ -137,6 +137,16 @@ describe("PostCard author edit / delete", () => {
         expect(screen.queryByTestId("feed-post-menu")).toBeNull()
     })
 
+    it("disables paint containment while the manage menu is open (so the dropdown isn't clipped)", () => {
+        const { container } = render(<PostCard post={basePost({})} {...own} />)
+        const article = container.querySelector("article.feed-post")!
+        // Closed: content-visibility containment is active (no opt-out class).
+        expect(article.className).not.toContain("feed-post--cv-off")
+        fireEvent.click(screen.getByTestId("feed-post-menu"))
+        // Open: containment disabled so the downward dropdown can overflow the card.
+        expect(article.className).toContain("feed-post--cv-off")
+    })
+
     it("edits: broadcasts EditPost and optimistically shows the new body", async () => {
         mockSubmit.mockResolvedValueOnce("hash")
         render(<PostCard post={basePost({})} {...own} />)
