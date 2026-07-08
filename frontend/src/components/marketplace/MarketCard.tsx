@@ -27,6 +27,11 @@ function truncAddr(addr: string): string {
     return addr.length > 14 ? `${addr.slice(0, 8)}…${addr.slice(-4)}` : addr
 }
 
+/** True when a "handle" is really an address form (no resolved human name). */
+function handleIsAddress(handle: string): boolean {
+    return /^g1/.test(handle) && handle.includes("…")
+}
+
 export interface MarketCardProps {
     model: CardModel
 }
@@ -63,7 +68,12 @@ function MarketCardImpl({ model }: MarketCardProps) {
                 </div>
 
                 <div className="mkt-card__seller">
-                    <span className="mkt-card__handle">{seller.handle}</span>
+                    {/* Only show the handle when it's a real name — for sellers with no
+                        resolved handle (e.g. NFT collections) it's an address form, so we
+                        show the address once instead of twice. */}
+                    {!handleIsAddress(seller.handle) && (
+                        <span className="mkt-card__handle">{seller.handle}</span>
+                    )}
                     <span className="mkt-card__addr" title={seller.address}>
                         {truncAddr(seller.address)}
                     </span>

@@ -18,7 +18,8 @@ function shortAddr(a: string): string {
 }
 
 export function nftToCard(col: HubCollection, network: string): CardModel {
-    const floor = `${formatGnotCompact(col.floorUgnot)} GNOT`
+    // formatGnotCompact already includes the "GNOT" unit — do NOT append it again.
+    const floor = formatGnotCompact(col.floorUgnot)
     return {
         id: col.id,
         lane: "nft",
@@ -29,7 +30,7 @@ export function nftToCard(col: HubCollection, network: string): CardModel {
         seller: { handle: shortAddr(col.creator), address: col.creator, reputation: null },
         stats: [
             { label: "Floor", value: floor, mono: true },
-            { label: "Volume", value: `${formatGnotCompact(col.volumeUgnot)} GNOT`, mono: true },
+            { label: "Volume", value: formatGnotCompact(col.volumeUgnot), mono: true },
         ],
         priceLabel: floor,
         href: `/${network}/nft/collection/${col.id}`,

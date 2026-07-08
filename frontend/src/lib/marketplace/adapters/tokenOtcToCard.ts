@@ -16,7 +16,8 @@ function shortAddr(a: string): string {
 }
 
 export function tokenOtcToCard(l: OtcListing, network: string): CardModel {
-    const unit = `${formatGnotCompact(l.expectedUnitPrice)} GNOT`
+    // formatGnotCompact already includes the "GNOT" unit — don't append it again.
+    const unit = formatGnotCompact(l.expectedUnitPrice)
     return {
         id: l.id,
         lane: "token",

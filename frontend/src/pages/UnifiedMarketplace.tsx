@@ -167,20 +167,24 @@ export default function UnifiedMarketplace() {
                         </NavLink>
                     )}
                 </nav>
-                <div className="um-search">
-                    <input
-                        type="search"
-                        placeholder="Search marketplace..."
-                        defaultValue={searchParams.get("q") || ""}
-                        onChange={(e) => {
-                            if (e.target.value) {
-                                setSearchParams({ q: e.target.value })
-                            } else {
-                                setSearchParams({})
-                            }
-                        }}
-                    />
-                </div>
+                {/* v2 lanes own their search via the LaneToolbar — hide the shell search
+                    to avoid two boxes bound to the same ?q. */}
+                {!isMarketplaceV2Enabled() && (
+                    <div className="um-search">
+                        <input
+                            type="search"
+                            placeholder="Search marketplace..."
+                            defaultValue={searchParams.get("q") || ""}
+                            onChange={(e) => {
+                                if (e.target.value) {
+                                    setSearchParams({ q: e.target.value })
+                                } else {
+                                    setSearchParams({})
+                                }
+                            }}
+                        />
+                    </div>
+                )}
             </div>
 
             {/* ── Lane Content (routes for live lanes only) ─────── */}

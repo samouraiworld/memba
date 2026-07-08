@@ -20,7 +20,8 @@ describe("tokenOtcToCard", () => {
         expect(c.title).toBe("FORGE")
         expect(c.seller.address).toBe(listing.seller)
         expect(c.seller.reputation).toBeNull()
-        expect(c.priceLabel).toMatch(/\/ea$/)
+        expect(c.priceLabel).toBe("1.5 GNOT/ea")
+        expect(c.priceLabel).not.toMatch(/GNOT\s+GNOT/) // no doubled unit
         expect(c.stats.some((s) => s.label === "Available")).toBe(true)
         expect(c.href).toBe("/test13/tokens/FORGE")
     })

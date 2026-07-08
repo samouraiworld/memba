@@ -24,7 +24,9 @@ describe("nftToCard", () => {
         expect(c.href).toBe("/test13/nft/collection/gnomes/genesis")
         expect(c.stats.some((s) => s.label === "Floor")).toBe(true)
         expect(c.stats.some((s) => s.label === "Volume")).toBe(true)
-        expect(c.priceLabel).toMatch(/GNOT/)
+        expect(c.priceLabel).toBe("12 GNOT")
+        expect(c.priceLabel).not.toMatch(/GNOT\s+GNOT/) // no doubled unit
+        expect(c.stats.find((s) => s.label === "Floor")?.value).not.toMatch(/GNOT\s+GNOT/)
         expect(c.priceValue).toBe(12_000_000)
     })
 
