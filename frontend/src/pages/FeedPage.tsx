@@ -97,6 +97,13 @@ export default function FeedPage() {
         if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" })
     }, [timeline])
 
+    // Stable callbacks so the memoized PostCards don't re-render on every
+    // FeedPage render (poll/optimistic updates) just because the handlers were
+    // freshly allocated inline.
+    const onRefetch = useCallback(() => void timeline.refetch(), [timeline])
+    const openThread = useCallback((id: bigint) => nav(`/feed/post/${id.toString()}`), [nav])
+    const openProfile = useCallback((addr: string) => nav(`/feed/user/${addr}`), [nav])
+
     return (
         <div className="feed-page" data-testid="feed-page">
             <header className="feed-header">
@@ -106,7 +113,7 @@ export default function FeedPage() {
 
             <div className="feed-page__notifs">
                 {connected && address && (
-                    <FeedNotifications address={address} onOpenThread={(pid) => nav(`/feed/post/${pid.toString()}`)} />
+                    <FeedNotifications address={address} onOpenThread={openThread} />
                 )}
             </div>
 
@@ -124,7 +131,7 @@ export default function FeedPage() {
                         <span><b>{stats.data.totalAuthors.toString()}</b> authors</span>
                     </p>
                 )}
-                <FeedTrending posts={stats.data?.mostReplied ?? []} onOpenThread={(id) => nav(`/feed/post/${id.toString()}`)} />
+                <FeedTrending posts={stats.data?.mostReplied ?? []} onOpenThread={openThread} />
             </aside>
 
             <div className="feed-main">
@@ -140,10 +147,10 @@ export default function FeedPage() {
                     loading={timeline.isLoading}
                     connected={connected}
                     selfAddress={address}
-                    onRefetch={() => void timeline.refetch()}
+                    onRefetch={onRefetch}
                     onConnect={connect}
-                    onOpenThread={(id) => nav(`/feed/post/${id.toString()}`)}
-                    onOpenProfile={(addr) => nav(`/feed/user/${addr}`)}
+                    onOpenThread={openThread}
+                    onOpenProfile={openProfile}
                 />
 
                 {timeline.hasNextPage && (

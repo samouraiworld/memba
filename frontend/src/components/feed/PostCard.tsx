@@ -14,7 +14,7 @@
  * @module components/feed/PostCard
  */
 
-import { useCallback, useState } from "react"
+import { memo, useCallback, useMemo, useState } from "react"
 import { Flag, ChatCircle, DotsThreeVertical, PencilSimple, Trash } from "@phosphor-icons/react"
 import { submitFeedMsg, buildFlagPostMsg, buildEditPostMsg, buildDeletePostMsg } from "../../lib/feed"
 import type { UiPost } from "../../lib/feedTypes"
@@ -45,7 +45,18 @@ function writeErrorMessage(msg: string, fallback: string): string {
     return msg.replace(/^.*?panic:\s*/i, "").trim() || fallback
 }
 
-export function PostCard({
+/**
+ * RelativeTime — isolates the ticking clock to a leaf so a live "3m / 2h"
+ * timestamp updating every 15s re-renders only this text node, not the whole
+ * PostCard (body markdown, unfurl cards, reaction bar). Falls back to the block
+ * label when no relative time applies.
+ */
+const RelativeTime = memo(function RelativeTime({ blockTs, fallback }: { blockTs: bigint; fallback: string }) {
+    const now = useNow()
+    return <>{relativeTime(blockTs, now) || fallback}</>
+})
+
+function PostCardInner({
     post,
     connected,
     selfAddress,
@@ -88,7 +99,6 @@ export function PostCard({
 
     const isOwn = selfAddress === post.author
     const canManage = isOwn && !post.optimistic
-    const now = useNow()
 
     const flag = useCallback(async () => {
         if (post.optimistic || flagging || flagged) return
@@ -152,8 +162,10 @@ export function PostCard({
     const showOverlay = canOpen && !editing && !confirmingDelete
     const openThread = () => canOpen && onOpenThread!(post.id)
     const name = displayName || shortAddr(post.author)
-    const rel = post.optimistic ? "" : relativeTime(post.blockTs, now)
     const displayBody = localBody ?? post.body
+    // Escape + URL-sanitize once per body change, not on every render — the feed
+    // re-renders on poll/scroll and this regex chain was re-running each time.
+    const bodyHtml = useMemo(() => renderPostBody(displayBody), [displayBody])
 
     // Client-side moderation suppression + optimistic self-delete. GetFeedThread
     // returns a thread root in ANY state — a flag-hidden or deleted root reaches
@@ -201,7 +213,9 @@ export function PostCard({
                 </button>
                 <div className="feed-post__headright">
                     <span className="feed-post__meta" title={post.optimistic ? undefined : `block ${post.blockH.toString()}`}>
-                        {post.optimistic ? "posting…" : rel || `block ${post.blockH.toString()}`}
+                        {post.optimistic
+                            ? "posting…"
+                            : <RelativeTime blockTs={post.blockTs} fallback={`block ${post.blockH.toString()}`} />}
                         {(post.editedAt > 0n || localBody !== null) && !post.optimistic && " · edited"}
                     </span>
                     {canManage && (
@@ -266,7 +280,7 @@ export function PostCard({
                     // Inline-only, XSS-safe markdown (escapes + URL-sanitizes; see
                     // renderPostBody). Only reached for LIVE posts — the tombstone
                     // branch above returns first, so a hidden/deleted body is never rendered.
-                    dangerouslySetInnerHTML={{ __html: renderPostBody(displayBody) }}
+                    dangerouslySetInnerHTML={{ __html: bodyHtml }}
                     data-testid="feed-post-body"
                 />
             )}
@@ -335,3 +349,10 @@ export function PostCard({
         </article>
     )
 }
+
+/**
+ * Memoized so a timeline poll/append or a sibling card's state change doesn't
+ * re-render every card. Combined with the isolated RelativeTime clock and the
+ * memoized body/unfurl parsing, an idle feed no longer churns the main thread.
+ */
+export const PostCard = memo(PostCardInner)
