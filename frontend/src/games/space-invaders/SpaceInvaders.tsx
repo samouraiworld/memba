@@ -9,6 +9,7 @@ import { createFx, fxConsume, fxUpdate, type FxState } from "./render/fx";
 import { loadBest, saveBest } from "./lib/highScore";
 import { newRunSeed } from "./lib/seed";
 import { vibrate } from "./lib/haptics";
+import { createAudioEngine, soundsForEvents, loadMuted, type AudioEngine } from "./lib/audio";
 import "./space-invaders.css";
 
 function prefersReducedMotion(): boolean {
@@ -39,10 +40,27 @@ export default function SpaceInvaders({
   const [best, setBest] = useState(() => loadBest());
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fxRef = useRef<FxState>(createFx(runSeed, { reducedMotion }));
+  const audioRef = useRef<AudioEngine>(createAudioEngine());
+  const [muted, setMuted] = useState(() => loadMuted());
 
   useEffect(() => {
     stateRef.current = state;
   }, [state]);
+
+  // Unlock WebAudio on the first user gesture (mobile autoplay policy).
+  useEffect(() => {
+    const unlock = () => {
+      audioRef.current.unlock();
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+    window.addEventListener("pointerdown", unlock);
+    window.addEventListener("keydown", unlock);
+    return () => {
+      window.removeEventListener("pointerdown", unlock);
+      window.removeEventListener("keydown", unlock);
+    };
+  }, []);
 
   const areaRef = useRef<HTMLDivElement>(null);
   const getKeyInput = useKeyboard();
@@ -96,6 +114,7 @@ export default function SpaceInvaders({
         });
         stateRef.current = next;
         fxConsume(fxRef.current, events);
+        for (const s of soundsForEvents(events)) audioRef.current.play(s);
         if (events.some((e) => e.type === "playerHit")) vibrate(40);
         else if (events.some((e) => e.type === "waveCleared")) vibrate([15, 30, 15]);
         setState(next);
@@ -150,6 +169,18 @@ export default function SpaceInvaders({
         <span aria-label={`${Math.max(0, state.lives)} lives`}>
           Lives {"◈".repeat(Math.max(0, state.lives))}
         </span>
+        <button
+          type="button"
+          className="si-pause"
+          onClick={() => {
+            const m = !muted;
+            audioRef.current.setMuted(m);
+            setMuted(m);
+          }}
+          aria-label={muted ? "Unmute" : "Mute"}
+        >
+          {muted ? "🔇" : "🔊"}
+        </button>
         <button
           type="button"
           className="si-pause"
