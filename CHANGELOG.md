@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Multisig — "Unverified" no longer reads as an alarm on legacy signatures (2026-07-09)
+- Signatures collected before server-side verification existed can never be re-checked, but their badge read simply "Unverified" — indistinguishable from a real mismatch. The badge now explains itself on hover: legacy rows are expected and advisory, and the "Verified" badge states what was actually checked.
+
 ### Blog — articles become first-class for search engines and social shares (2026-07-09)
 - **Every article now has its own URL in the sitemap** with its publication date as `lastmod` — previously only `/blog` itself was listed, so the 12 articles were invisible to crawlers except via the JS-rendered list and RSS.
 - **Sharing an article now shows that article** — each `/blog/:slug` sets its own og:title/description/twitter meta and a `BlogPosting` JSON-LD record (headline, date, keywords, author), instead of every article sharing one generic "Blog — Memba" preview. Feed readers can also auto-discover the RSS feed from any page.

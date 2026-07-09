@@ -229,6 +229,18 @@ describe("TransactionView — per-signature verified (A3 log-only window)", () =
         expect(screen.getByText("Unverified")).toBeInTheDocument()
     })
 
+    it("disambiguates 'Unverified' — legacy rows are expected, not failures", async () => {
+        await renderTx(makeTx({ signatures: twoSigs(true, false) }))
+        expect(screen.getByText("Unverified")).toHaveAttribute(
+            "title",
+            expect.stringContaining("predates server-side verification"),
+        )
+        expect(screen.getByText("Verified")).toHaveAttribute(
+            "title",
+            expect.stringContaining("checked out"),
+        )
+    })
+
     it("flags a quorum that contains unverified signatures", async () => {
         await renderTx(makeTx({ signatures: twoSigs(true, false) }))
         expect(screen.getByText(/quorum includes unverified signatures/i)).toBeInTheDocument()
