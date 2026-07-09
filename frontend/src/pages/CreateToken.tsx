@@ -97,6 +97,17 @@ export function CreateToken() {
     const overCap = !mintError && totalSupply > MAX_INT64
     const symUpper = symbol.trim().toUpperCase() || "TOKEN"
 
+    // Faucet is optional whole-token input; validate it live too so a bad value
+    // blocks submit up front instead of failing on the New() call.
+    let faucetBase = 0n
+    let faucetError: string | null = null
+    try {
+        faucetBase = parseTokenAmount(faucetAmount, previewDec)
+    } catch (e) {
+        faucetError = e instanceof Error ? e.message : "Invalid amount"
+    }
+    const faucetOverCap = !faucetError && faucetBase > MAX_INT64
+
     const handleCreate = async () => {
         if (!auth.isAuthenticated || !auth.token) {
             setError("Connect your wallet first")
@@ -374,8 +385,16 @@ export function CreateToken() {
                         onChange={(e) => setFaucetAmount(e.target.value.replace(/[^0-9.]/g, ""))}
                         placeholder="0 = disabled"
                         style={inputStyle(loading)} disabled={loading}
+                        aria-invalid={!!faucetError || faucetOverCap}
                     />
                     <p style={hintStyle}>Free tokens anyone can claim per request. 0 = faucet off (recommended for real tokens).</p>
+                    {faucetError ? (
+                        <p style={{ ...hintStyle, color: "var(--color-warning)" }}>⚠ {faucetError}</p>
+                    ) : faucetOverCap ? (
+                        <p style={{ ...hintStyle, color: "var(--color-warning)" }}>
+                            ⚠ Too large. Max at {previewDec} decimals is ~{maxWholeTokens(previewDec)} {symUpper}.
+                        </p>
+                    ) : null}
                 </div>
 
                 {/* Multisig selector */}
@@ -442,7 +461,7 @@ export function CreateToken() {
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
                     <span style={{ color: "var(--color-text-secondary)" }}>Messages</span>
-                    <span style={{ color: "var(--color-text-secondary)" }}>{parsedMint > 0n ? "2 (create + fee)" : "1 (create)"}</span>
+                    <span style={{ color: "var(--color-text-secondary)" }}>1 (create)</span>
                 </div>
                 {fee > 0n && !mintError && !overCap && (
                     <>
@@ -461,7 +480,7 @@ export function CreateToken() {
             {/* Submit */}
             <button
                 onClick={handleCreate}
-                disabled={loading || !auth.isAuthenticated || !name.trim() || !symbol.trim() || !!mintError || overCap}
+                disabled={loading || !auth.isAuthenticated || !name.trim() || !symbol.trim() || !!mintError || overCap || !!faucetError || faucetOverCap}
                 style={{
                     width: "100%", height: 44, borderRadius: 8,
                     background: loading ? "var(--color-k-edge)" : "var(--color-k-accent)",
@@ -469,7 +488,7 @@ export function CreateToken() {
                     fontFamily: "JetBrains Mono, monospace", fontSize: 14, fontWeight: 600,
                     border: "none", cursor: loading ? "not-allowed" : "pointer",
                     transition: "all 0.15s", letterSpacing: "-0.01em",
-                    opacity: (!auth.isAuthenticated || !name.trim() || !symbol.trim() || !!mintError || overCap) ? 0.4 : 1,
+                    opacity: (!auth.isAuthenticated || !name.trim() || !symbol.trim() || !!mintError || overCap || !!faucetError || faucetOverCap) ? 0.4 : 1,
                 }}
             >
                 {loading ? "Creating..." : adminMode === "multisig" ? "Propose Token Creation" : "Create Token"}
