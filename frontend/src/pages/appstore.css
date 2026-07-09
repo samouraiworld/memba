@@ -509,3 +509,10 @@
     border-left-width: 3px;
     border-radius: var(--radius-md, 10px);
 }
+
+/* ── Report app (B1b community safety valve) ─────────────────── */
+.appreport { display: block; margin-top: 10px; }
+.appreport__confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.appreport__copy { font-size: 12px; color: var(--color-text-secondary); flex-basis: 100%; }
+.appreport--done { font-size: 12px; color: var(--color-text-secondary); }
+.appreport__error { display: block; margin-top: 6px; font-size: 12px; color: var(--color-danger); }
