@@ -111,19 +111,19 @@ export default function NftLane() {
                             style={{
                                 display: "flex", flexDirection: "column", padding: 0, overflow: "hidden",
                                 textDecoration: "none", transition: "transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), box-shadow 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), border-color 0.3s",
-                                border: "1px solid rgba(255, 255, 255, 0.05)",
+                                border: "1px solid var(--color-border)",
                                 borderRadius: "16px",
                                 background: "var(--color-bg-secondary)"
                             }}
                             onMouseEnter={(e) => {
                                 e.currentTarget.style.transform = "translateY(-6px)"
-                                e.currentTarget.style.boxShadow = "0 20px 40px rgba(0,0,0,0.4)"
+                                e.currentTarget.style.boxShadow = "var(--shadow-lg)"
                                 e.currentTarget.style.borderColor = "var(--color-primary)"
                             }}
                             onMouseLeave={(e) => {
                                 e.currentTarget.style.transform = "translateY(0)"
                                 e.currentTarget.style.boxShadow = "none"
-                                e.currentTarget.style.borderColor = "rgba(255, 255, 255, 0.05)"
+                                e.currentTarget.style.borderColor = "var(--color-border)"
                             }}
                         >
                             {/* Full-bleed banner */}
@@ -178,7 +178,7 @@ export default function NftLane() {
                                         borderBottom: i < activity.length - 1 ? "1px solid var(--color-border)" : "none",
                                         transition: "background 0.2s"
                                     }}
-                                    onMouseEnter={(e) => e.currentTarget.style.background = "rgba(255,255,255,0.02)"}
+                                    onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-k-hover-surface)"}
                                     onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                                 >
                                     <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>

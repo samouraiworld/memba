@@ -27,7 +27,7 @@ export function CreditSection({ agentId, address, onError }: {
                     role="alert"
                     style={{
                         padding: "12px 16px", borderRadius: 8, fontSize: 12,
-                        background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.25)",
+                        background: "var(--color-k-amber-subtle)", border: "1px solid var(--color-k-amber-border)",
                         fontFamily: "JetBrains Mono, monospace", color: "var(--color-accent-gold)",
                         lineHeight: 1.6,
                     }}
