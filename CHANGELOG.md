@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Marketplace — lane tabs actually switch lanes again (2026-07-09)
+- **Clicking a marketplace lane tab navigated to a bounced URL and landed back on the lane you were already on.** Under react-router 7 the shell's relative tab links resolve against the full current URL (`/marketplace/nfts` + `services` → `/marketplace/nfts/services`), which the catch-all redirect sends straight back to the default lane. Tab links are now absolute. Invisible in prod today only because a single lane is live there; on any network with two or more live lanes the tab bar was unusable.
+
 ### App Store — read-side groundwork for the v3 realm (B1, 2026-07-09)
 <!-- categories: memba -->
 - Prepares the App Store front end for the next-generation listing realm (`memba_appstore_v3`, which adds a proper submission lifecycle) **without touching the live experience**. The realm the App Store reads is now env-selectable (`VITE_APPSTORE_REALM_PATH`) and still defaults to the current `v2` realm, so nothing changes until an operator points it at `v3` after that realm is deployed and migrated. When pointed at `v3`, the store gains an **opt-in "Apps pending review" disclosure** — apps that have paid the listing fee but haven't been vetted by a curator are hidden by default behind an amber-cautioned toggle (never shown as a peer of the verified apps), and the listing client can now read per-status windows and the richer v3 fields (screenshots, reject reasons). No user-visible change on the current realm.
