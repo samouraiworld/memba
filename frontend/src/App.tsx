@@ -75,6 +75,7 @@ const FeedProfile = lazy(() => import("./pages/FeedProfile"))
 const Explorer = lazy(() => import("./pages/Explorer").then(m => ({ default: m.Explorer })))
 const AppStore = lazy(() => import("./pages/AppStore").then(m => ({ default: m.AppStore })))
 const AppSubmit = lazy(() => import("./pages/AppSubmit").then(m => ({ default: m.AppSubmit })))
+const AppCurator = lazy(() => import("./pages/AppCurator").then(m => ({ default: m.AppCurator })))
 const QuestHub = lazy(() => import("./pages/QuestHub"))
 const QuestDetail = lazy(() => import("./pages/QuestDetail"))
 const QuestAdmin = lazy(() => import("./pages/QuestAdmin"))
@@ -251,6 +252,7 @@ function App() {
               so without this /apps/submit would fall through to the grid. The page itself is
               additionally gated on VITE_ENABLE_APPSTORE_SUBMIT (SAFETY-GATED) + the v3 realm. */}
           <Route path="apps/submit" element={<AppStoreGate><Suspense fallback={<PageLoader />}><AppSubmit /></Suspense></AppStoreGate>} />
+          <Route path="apps/review" element={<AppStoreGate><Suspense fallback={<PageLoader />}><AppCurator /></Suspense></AppStoreGate>} />
           <Route path="apps/*" element={<AppStoreGate><Suspense fallback={<PageLoader />}><AppStore /></Suspense></AppStoreGate>} />
 
           {/* Validators suite (v2.14) — order: /validators, /validators/hacker, /validators/:address */}
