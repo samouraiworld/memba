@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Home — the front page catches up with what actually shipped (2026-07-09)
+- **"Coming soon" no longer contradicts reality.** The below-the-fold "explore" and "coming soon" sections were static June lists — the Marketplace shipped weeks ago but Home still teased it as "not live yet", while the App Store, Blog, and Space Invaders never appeared at all. Both sections now derive from one flag-aware surface manifest: whatever a deployment enables shows as a live link, whatever it gates shows as "soon", and the two can never disagree again.
+- **"Live across gno.land" understands Memba's own realms.** Feed posts, App Store submissions/reports, and OTC token trades used to render as anonymous "Calls"; they now classify and read as human sentences ("Posted on the feed", "Submitted an app", "Traded tokens OTC") with a new **Apps** filter chip.
+- **Ecosystem at a glance now shows NFT collections** — the backend snapshot counted them all along; the band just never rendered the number.
+- Visitor hero copy and the value strip mention apps & games (the value strip's fourth card only appears where the App Store is actually enabled).
+
 ### Marketplace v2 — unified lane pipeline (dark, behind `VITE_ENABLE_MARKETPLACE_V2`) (2026-07-09)
 - **One shared pipeline for every marketplace lane** (`LaneView` → cached `useLaneQuery` → validated codec → per-source `toCard` adapters → `LaneToolbar` + `ListingGrid`/`MarketCard`): NFT and Token lanes read real test13 data, the Services lane ships the labeled Founding-Supply seed catalogue. Buyer-first "You pay" pricing, honest URL-driven search/filters/sort, no fabricated trust signals. Off in prod until the owner's cutover flip.
 - **Tab a11y (WAI-ARIA tabs):** roving tabindex with Arrow/Home/End keyboard navigation, `aria-controls`/`tabpanel` wiring on the lane outlet.

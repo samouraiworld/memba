@@ -15,7 +15,7 @@
  * @module components/home/ActivityFeed
  */
 import { useState } from "react"
-import { Coins, Package, Scales, ShieldCheck, ArrowsLeftRight, Play, Cube, ArrowClockwise, Palette, ChatCircle, Vault } from "@phosphor-icons/react"
+import { Coins, Package, Scales, ShieldCheck, ArrowsLeftRight, Play, Cube, ArrowClockwise, Palette, ChatCircle, Vault, SquaresFour } from "@phosphor-icons/react"
 import { useRecentActivity } from "../../hooks/home/useRecentActivity"
 import { useChainHealth } from "../../hooks/home/useChainHealth"
 import { useNow } from "../../hooks/home/useNow"
@@ -36,6 +36,7 @@ const KIND_ICON: Record<ActivityKind, typeof Coins> = {
     nft: Palette,
     post: ChatCircle,
     multisig: Vault,
+    app: SquaresFour,
 }
 
 /** Short, human chip labels per kind (for the filter row + per-row category). */
@@ -50,10 +51,11 @@ const KIND_LABEL: Record<ActivityKind, string> = {
     nft: "NFTs",
     post: "Posts",
     multisig: "Multisig",
+    app: "Apps",
 }
 
 /** Priority order for showing filter chips (most interesting first). */
-const KIND_ORDER: ActivityKind[] = ["governance", "token", "nft", "deploy", "transfer", "multisig", "post", "validator", "run", "call"]
+const KIND_ORDER: ActivityKind[] = ["governance", "token", "nft", "app", "deploy", "transfer", "multisig", "post", "validator", "run", "call"]
 
 /** Realm link on gnoweb for an item with a package path; null otherwise. */
 function itemHref(item: ActivityItem): string | null {
