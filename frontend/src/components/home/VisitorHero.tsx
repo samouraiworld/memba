@@ -28,7 +28,7 @@ export function VisitorHero() {
                 {ACTIVE_HEADLINE}
             </h1>
             <p className="visitor-hero__subtitle">
-                Governance, treasury, tokens, services, and collectibles — all on gno.land.
+                Governance, treasury, tokens, collectibles, apps, and games — all on gno.land.
             </p>
 
             <div className="visitor-hero__ctas">

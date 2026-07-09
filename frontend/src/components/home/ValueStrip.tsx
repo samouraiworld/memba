@@ -11,7 +11,8 @@
  * @module components/home/ValueStrip
  */
 import { Link } from "react-router-dom"
-import { UsersThree, Rocket, Pulse } from "@phosphor-icons/react"
+import { UsersThree, Rocket, Pulse, SquaresFour } from "@phosphor-icons/react"
+import { isAppStoreEnabled } from "../../lib/config"
 import "./home.css"
 
 export interface ValueStripProps {
@@ -31,6 +32,10 @@ export function ValueStrip({ networkKey }: ValueStripProps) {
         { key: "vote", title: "Join a community and vote", sub: "find a DAO and have a say", href: `/${networkKey}/dao`, Icon: UsersThree },
         { key: "launch", title: "Launch a token", sub: "create one in minutes", href: `/${networkKey}/tokens`, Icon: Rocket },
         { key: "track", title: "Track the network", sub: "validators, blocks, activity", href: `/${networkKey}/validators`, Icon: Pulse },
+        // Flag-gated 4th rung: only offered where the App Store is actually live.
+        ...(isAppStoreEnabled()
+            ? [{ key: "apps", title: "Explore apps & games", sub: "community apps, on-chain", href: `/${networkKey}/apps`, Icon: SquaresFour }]
+            : []),
     ]
 
     return (
