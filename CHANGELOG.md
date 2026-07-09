@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Blog — articles become first-class for search engines and social shares (2026-07-09)
+- **Every article now has its own URL in the sitemap** with its publication date as `lastmod` — previously only `/blog` itself was listed, so the 12 articles were invisible to crawlers except via the JS-rendered list and RSS.
+- **Sharing an article now shows that article** — each `/blog/:slug` sets its own og:title/description/twitter meta and a `BlogPosting` JSON-LD record (headline, date, keywords, author), instead of every article sharing one generic "Blog — Memba" preview. Feed readers can also auto-discover the RSS feed from any page.
+- **Articles can now include images** (`![alt](url)` on its own line): rendered lazily, protocol-whitelisted, and clamped to the article column. Deliberately opt-in for the blog only — untrusted realm output and feed posts keep the image-free renderer (the feed's media wave is gated on its moderation lever).
+
 ### Backend resilience — an indexer crash can no longer take down the API (2026-07-09)
 - **A panic inside any indexer cycle (NFT tailer, feed tailer, NFT poller) no longer kills the whole backend process.** The three indexers run in-process with the RPC server, so a single bad block or parse bug used to take API serving down with them. Each cycle is now panic-isolated: the cycle is skipped, logged with a stack trace, counted in a new `memba_indexer_cycle_panics_total` metric (alert on nonzero), and the loop retries on its next tick.
 - **The public leaderboard no longer recomputes itself on the request path.** When the rank cache lagged behind quest completions, every read paid a full re-aggregation before responding. A stale (non-empty) cache is now served immediately while a single background repair rebuilds it; only a completely empty cache (first boot) still computes synchronously.

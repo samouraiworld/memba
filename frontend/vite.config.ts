@@ -38,8 +38,8 @@ function sitemapPlugin(): PluginOption {
     closeBundle() {
       const lastmod = new Date().toISOString().slice(0, 10)
       mkdirSync('dist', { recursive: true })
-      writeFileSync('dist/sitemap.xml', buildSitemapXml(undefined, undefined, undefined, lastmod))
-      // W6.4: RSS feed from content/blog (same pure-module pattern as the sitemap).
+      // W6.4: blog articles from content/blog feed BOTH the RSS feed and the
+      // sitemap's per-article entries (article date = truthful lastmod).
       const blogDir = 'content/blog'
       const files: Record<string, string> = {}
       try {
@@ -47,7 +47,10 @@ function sitemapPlugin(): PluginOption {
           if (f.endsWith('.md')) files[f] = readFileSync(`${blogDir}/${f}`, 'utf-8')
         }
       } catch { /* no blog dir → empty feed */ }
-      writeFileSync('dist/blog.rss', buildRssXml(SITE_ORIGIN, SITEMAP_NETWORK, parseBlogArticles(files)))
+      const articles = parseBlogArticles(files)
+      writeFileSync('dist/sitemap.xml', buildSitemapXml(undefined, undefined, undefined, lastmod,
+        articles.map(a => ({ path: `/blog/${a.slug}`, lastmod: a.date }))))
+      writeFileSync('dist/blog.rss', buildRssXml(SITE_ORIGIN, SITEMAP_NETWORK, articles))
     },
   }
 }

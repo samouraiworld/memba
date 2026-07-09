@@ -47,20 +47,35 @@ function escapeXml(s: string): string {
     return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
 }
 
+/** A dynamic sitemap entry with its own lastmod (e.g. a blog article: the
+ *  article date is a truthful lastmod, unlike the build date). */
+export interface SitemapEntry {
+    /** network-relative path, e.g. "/blog/inside-memba" */
+    path: string
+    /** ISO date (YYYY-MM-DD); falls back to the build-wide lastmod */
+    lastmod?: string
+}
+
 /** Render the sitemap XML. `lastmod` = ISO date (YYYY-MM-DD), injected by the
- *  caller (the build plugin passes the build date). */
+ *  caller (the build plugin passes the build date). `extra` appends dynamic
+ *  entries (blog articles) after the static routes, each with its own lastmod. */
 export function buildSitemapXml(
     origin: string = SITE_ORIGIN,
     network: string = SITEMAP_NETWORK,
     paths: readonly string[] = SITEMAP_PATHS,
     lastmod?: string,
+    extra: readonly SitemapEntry[] = [],
 ): string {
-    const urls = paths.map(p => {
-        const loc = escapeXml(`${origin}/${network}${p === "/" ? "/" : p}`)
+    const entries: SitemapEntry[] = [
+        ...paths.map(p => ({ path: p, lastmod })),
+        ...extra.map(e => ({ path: e.path, lastmod: e.lastmod ?? lastmod })),
+    ]
+    const urls = entries.map(({ path, lastmod: mod }) => {
+        const loc = escapeXml(`${origin}/${network}${path === "/" ? "/" : path}`)
         return [
             "  <url>",
             `    <loc>${loc}</loc>`,
-            ...(lastmod ? [`    <lastmod>${lastmod}</lastmod>`] : []),
+            ...(mod ? [`    <lastmod>${mod}</lastmod>`] : []),
             "  </url>",
         ].join("\n")
     })

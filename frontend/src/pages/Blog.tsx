@@ -12,6 +12,7 @@ import DOMPurify from "dompurify"
 import { Rss, ArrowLeft } from "@phosphor-icons/react"
 import { useBlogArticles, useBlogArticle } from "../lib/blogSource"
 import { renderMarkdown } from "../lib/markdownLite"
+import { applyArticleHeadMeta, clearArticleHeadMeta } from "../lib/blogMeta"
 import { useNetworkKey } from "../hooks/useNetworkNav"
 import "./blog.css"
 
@@ -105,6 +106,11 @@ export function BlogArticlePage() {
 
     useEffect(() => {
         document.title = article ? `${article.title} — Memba` : "Blog — Memba"
+        if (!article) return
+        // Per-article OG/description + BlogPosting JSON-LD (wins over the
+        // generic /blog payload — see lib/blogMeta.ts for the ordering contract).
+        applyArticleHeadMeta(article, window.location.href)
+        return clearArticleHeadMeta
     }, [article])
 
     if (!article) {
@@ -132,7 +138,7 @@ export function BlogArticlePage() {
             <div
                 className="blog-body"
                 data-testid="blog-body"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(article.body)) }}
+                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(article.body, { images: true })) }}
             />
         </article>
     )
