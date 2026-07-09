@@ -65,6 +65,20 @@ var (
 	})
 )
 
+// IndexerCyclePanics counts recovered panics inside indexer cycles
+// (nft_tailer / feed_tailer / nft_poller). The indexers run in-process with
+// the RPC server, so before the runRecovered guard a single cycle panic took
+// down API serving with it (W1.5 mitigation). The cycle is skipped and
+// retried on the next tick — but any increment is a bug to investigate, so
+// alert on nonzero.
+var IndexerCyclePanics = promauto.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "memba_indexer_cycle_panics_total",
+		Help: "Recovered panics inside indexer cycles, by indexer — any increment is a bug; alert on nonzero.",
+	},
+	[]string{"indexer"},
+)
+
 // QuestRateLimitExceeded counts per-address quest rate-limit rejections by
 // endpoint (quest_write / quest_claim). A rising rate is the farming/sybil signal
 // to watch before the badge mint carries value (Q-03/Q-16): a single wallet

@@ -609,23 +609,30 @@ func (s *MultisigService) GetLeaderboard(ctx context.Context, req *connect.Reque
 	}
 
 	// Staleness check: if the cache holds fewer users than exist in
-	// quest_completions, it's incomplete/stale — rebuild from source rather than
-	// serving a short or wrong page. (Previously the recompute only fired when
-	// the cache was entirely empty, so a partially-populated cache could
-	// silently diverge from quest_completions.)
+	// quest_completions, it's incomplete/stale (e.g. a completion written
+	// without updating the cache).
 	var cachedCount uint32
 	if err := s.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM user_ranks`).Scan(&cachedCount); err != nil {
 		return nil, internalError("GetLeaderboard.cacheCount", err)
 	}
 	if cachedCount < totalCount {
-		entries, err := s.computeLeaderboard(ctx, limit, offset)
-		if err != nil {
-			return nil, err
+		if cachedCount == 0 {
+			// Empty cache (first boot): compute synchronously — there is
+			// nothing usable to serve.
+			entries, err := s.computeLeaderboard(ctx, limit, offset)
+			if err != nil {
+				return nil, err
+			}
+			return connect.NewResponse(&membav1.GetLeaderboardResponse{
+				Entries:    entries,
+				TotalCount: totalCount,
+			}), nil
 		}
-		return connect.NewResponse(&membav1.GetLeaderboardResponse{
-			Entries:    entries,
-			TotalCount: totalCount,
-		}), nil
+		// W1.3: stale but non-empty — serve the current cache immediately and
+		// repair it in the background. The old synchronous rebuild ran the
+		// full quest_completions aggregation on the read path, so every read
+		// after any cache divergence paid the recompute.
+		s.rebuildLeaderboardAsync()
 	}
 
 	// Fast path: read from the (fresh) cache with deterministic ordering so
@@ -660,6 +667,27 @@ func (s *MultisigService) GetLeaderboard(ctx context.Context, req *connect.Reque
 		Entries:    entries,
 		TotalCount: totalCount,
 	}), nil
+}
+
+// rebuildLeaderboardAsync kicks one background user_ranks rebuild; no-op if a
+// rebuild is already in flight. Detached from the request context so a client
+// disconnect cannot abort the cache repair; bounded so a wedged rebuild frees
+// the guard.
+func (s *MultisigService) rebuildLeaderboardAsync() {
+	if !s.lbRebuilding.CompareAndSwap(false, true) {
+		return
+	}
+	go func() {
+		defer s.lbRebuilding.Store(false)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Minute)
+		defer cancel()
+		// computeLeaderboard repopulates the whole cache regardless of the
+		// page it returns; the returned page is discarded here.
+		if _, err := s.computeLeaderboard(ctx, 1, 0); err != nil {
+			slog.Warn("leaderboard: background rebuild failed (cache stays stale until the next trigger)",
+				"error", err)
+		}
+	}()
 }
 
 // computeLeaderboard computes the leaderboard from quest_completions using

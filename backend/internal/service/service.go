@@ -12,6 +12,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"connectrpc.com/connect"
@@ -66,6 +67,12 @@ type MultisigService struct {
 	// production via SetBlockParty from BLOCKPARTY_ENABLED / BLOCKPARTY_SEED_RPC_URL.
 	blockPartyEnabled bool
 	blockPartySeedRPC string
+
+	// lbRebuilding guards the background user_ranks rebuild (perf W1.3): a
+	// stale-cache leaderboard read serves the current cache and triggers at
+	// most one detached recompute instead of paying the full aggregation on
+	// the request path. See GetLeaderboard / rebuildLeaderboardAsync.
+	lbRebuilding atomic.Bool
 }
 
 // parseAcceptedChainIDs splits a comma-separated env value into a trimmed,

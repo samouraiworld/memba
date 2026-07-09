@@ -57,7 +57,7 @@ func StartNFTPoller(ctx context.Context, database *sql.DB, cfg Config) {
 		)
 
 		// Immediate first poll so the cache is warm shortly after boot.
-		pollOnce(ctx, database, cfg)
+		runRecovered(cfg.Logger, "nft_poller", func() { pollOnce(ctx, database, cfg) })
 
 		ticker := time.NewTicker(cfg.Interval)
 		defer ticker.Stop()
@@ -68,7 +68,7 @@ func StartNFTPoller(ctx context.Context, database *sql.DB, cfg Config) {
 				cfg.Logger.Info("nft indexer: stopped")
 				return
 			case <-ticker.C:
-				pollOnce(ctx, database, cfg)
+				runRecovered(cfg.Logger, "nft_poller", func() { pollOnce(ctx, database, cfg) })
 			}
 		}
 	}()

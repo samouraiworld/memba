@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Backend resilience — an indexer crash can no longer take down the API (2026-07-09)
+- **A panic inside any indexer cycle (NFT tailer, feed tailer, NFT poller) no longer kills the whole backend process.** The three indexers run in-process with the RPC server, so a single bad block or parse bug used to take API serving down with them. Each cycle is now panic-isolated: the cycle is skipped, logged with a stack trace, counted in a new `memba_indexer_cycle_panics_total` metric (alert on nonzero), and the loop retries on its next tick.
+- **The public leaderboard no longer recomputes itself on the request path.** When the rank cache lagged behind quest completions, every read paid a full re-aggregation before responding. A stale (non-empty) cache is now served immediately while a single background repair rebuilds it; only a completely empty cache (first boot) still computes synchronously.
+
 ### Marketplace v2 — unified lane pipeline (dark, behind `VITE_ENABLE_MARKETPLACE_V2`) (2026-07-09)
 - **One shared pipeline for every marketplace lane** (`LaneView` → cached `useLaneQuery` → validated codec → per-source `toCard` adapters → `LaneToolbar` + `ListingGrid`/`MarketCard`): NFT and Token lanes read real test13 data, the Services lane ships the labeled Founding-Supply seed catalogue. Buyer-first "You pay" pricing, honest URL-driven search/filters/sort, no fabricated trust signals. Off in prod until the owner's cutover flip.
 - **Tab a11y (WAI-ARIA tabs):** roving tabindex with Arrow/Home/End keyboard navigation, `aria-controls`/`tabpanel` wiring on the lane outlet.
