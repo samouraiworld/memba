@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Fix — token amounts no longer overflow, and are entered in whole tokens (2026-07-09)
+<!-- categories: memba -->
+- Launching a token with a large supply used to fail with an opaque error (`strconv.ParseInt: value out of range`). Token amounts are stored on-chain as 64-bit integers, but the **Create Token** form and the token **Transfer / Mint / Burn** actions accepted amounts in the smallest unit with no upper limit, so a large-but-reasonable-looking number silently exceeded the ceiling and the transaction was rejected. Amounts are now **entered in whole tokens** (e.g. `1000000` = one million tokens, not one token) with a live readout of the exact on-chain value and, for mints, the 2.5% platform fee and resulting total supply. Anything above the ~9.2-quintillion-unit ceiling is caught **before** you sign, with a clear message and a disabled submit button instead of a failed transaction. The multisig **Propose Transaction** builder (where amounts stay in the smallest unit for raw-proposal review) gains the same ceiling guard so an over-limit proposal is rejected up front rather than failing when co-signers execute it.
+- The Create Token page also gains a **"New to tokens?" primer** explaining, in plain language, what decimals, initial supply, the platform fee, the faucet, the admin, and the maximum supply mean — so first-time creators understand the tokenomics they're setting.
 ### Marketplace — lane tabs actually switch lanes again (2026-07-09)
 - **Clicking a marketplace lane tab navigated to a bounced URL and landed back on the lane you were already on.** Under react-router 7 the shell's relative tab links resolve against the full current URL (`/marketplace/nfts` + `services` → `/marketplace/nfts/services`), which the catch-all redirect sends straight back to the default lane. Tab links are now absolute. Invisible in prod today only because a single lane is live there; on any network with two or more live lanes the tab bar was unusable.
 ### Multisig — per-signature verification badge (2026-07-09)

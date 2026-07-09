@@ -5,7 +5,7 @@ import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { GNO_CHAIN_ID, UGNOT_PER_GNOT } from "../lib/config"
 import { fetchAccountInfo } from "../lib/account"
-import { buildTransferMsg, buildMintMsgs, buildBurnMsg, buildApproveMsg, feeDisclosure, type AminoMsg } from "../lib/grc20"
+import { buildTransferMsg, buildMintMsgs, buildBurnMsg, buildApproveMsg, feeDisclosure, calculateFee, MAX_INT64, type AminoMsg } from "../lib/grc20"
 import { buildCanonicalProposePayload } from "../lib/multisigTx"
 import type { LayoutContext } from "../types/layout"
 import "./proposetransaction.css"
@@ -126,24 +126,29 @@ export function ProposeTransaction() {
             const trimAmt = grcAmount.trim()
             if (!trimSym) { setError("Token symbol required"); return }
 
+            if (!trimTo || !trimAmt) { setError(txType === "grc20-approve" ? "Spender and amount required" : "Address and amount required"); return }
+
+            // Amounts are entered in the token's smallest unit and stored on-chain
+            // as int64. Above that ceiling the proposed tx fails on-chain with an
+            // opaque "strconv.ParseInt: value out of range", so guard it here.
+            let grcAmt: bigint
+            try { grcAmt = BigInt(trimAmt) } catch { setError("Invalid amount — must be a whole number"); return }
+            if (grcAmt > MAX_INT64) { setError(`Amount is too large — the on-chain maximum is ${MAX_INT64} (smallest unit).`); return }
+
             let grcMsgs: AminoMsg[]
             switch (txType) {
                 case "grc20-transfer":
-                    if (!trimTo || !trimAmt) { setError("Address and amount required"); return }
-                    grcMsgs = [buildTransferMsg(address, trimSym, trimTo, trimAmt)]
+                    grcMsgs = [buildTransferMsg(address, trimSym, trimTo, String(grcAmt))]
                     break
                 case "grc20-mint":
-                    if (!trimTo || !trimAmt) { setError("Address and amount required"); return }
-                    try { grcMsgs = buildMintMsgs(address, trimSym, trimTo, BigInt(trimAmt)) }
-                    catch { setError("Invalid amount — must be a whole number"); return }
+                    if (grcAmt + calculateFee(grcAmt) > MAX_INT64) { setError(`Amount is too large — the 2.5% mint fee pushes total supply past the on-chain maximum (${MAX_INT64}).`); return }
+                    grcMsgs = buildMintMsgs(address, trimSym, trimTo, grcAmt)
                     break
                 case "grc20-burn":
-                    if (!trimTo || !trimAmt) { setError("Address and amount required"); return }
-                    grcMsgs = [buildBurnMsg(address, trimSym, trimTo, trimAmt)]
+                    grcMsgs = [buildBurnMsg(address, trimSym, trimTo, String(grcAmt))]
                     break
                 case "grc20-approve":
-                    if (!trimTo || !trimAmt) { setError("Spender and amount required"); return }
-                    grcMsgs = [buildApproveMsg(address, trimSym, trimTo, trimAmt)]
+                    grcMsgs = [buildApproveMsg(address, trimSym, trimTo, String(grcAmt))]
                     break
                 default: return
             }
@@ -324,9 +329,16 @@ export function ProposeTransaction() {
                         onChange={e => setGrcAmount(e.target.value.replace(/[^0-9]/g, ""))}
                         placeholder="e.g. 1000000" disabled={loading}
                         className="ptx-input"
+                        aria-invalid={BigInt(grcAmount.trim() || "0") > MAX_INT64}
                     />
+                    {/* int64 ceiling warning */}
+                    {BigInt(grcAmount.trim() || "0") > MAX_INT64 && (
+                        <div className="ptx-fee-disclosure" style={{ color: "var(--color-warning)" }}>
+                            ⚠ Amount exceeds the on-chain maximum ({MAX_INT64}). This proposal would fail when executed.
+                        </div>
+                    )}
                     {/* Mint fee disclosure */}
-                    {txType === "grc20-mint" && grcAmount.trim() && BigInt(grcAmount.trim() || "0") > 0n && (
+                    {txType === "grc20-mint" && grcAmount.trim() && BigInt(grcAmount.trim() || "0") > 0n && BigInt(grcAmount.trim() || "0") <= MAX_INT64 && (
                         <div className="ptx-fee-disclosure">
                             💰 {feeDisclosure(BigInt(grcAmount.trim()), grcSymbol.trim() || "TOKEN")}
                         </div>
