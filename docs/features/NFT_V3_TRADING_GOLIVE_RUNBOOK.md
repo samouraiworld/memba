@@ -2,7 +2,7 @@
 
 > **Scope:** activating the **v3 trading engine** (`memba_nft_market_v3` + `memba_collections`) on test13.
 > **Status:** v3 deployed but **NOT `RegisterMarket`-ed and NOT frontend-wired** (by design).
-> **Supersedes** the legacy v1 gallery plan in [`NFT_ACTIVATION.md`](NFT_ACTIVATION.md) for everything trading-related.
+> **Supersedes** the legacy v1 gallery activation plan (Apr 2026, `VITE_ENABLE_NFT` flag-gating of the read-only gallery — deleted in the 2026-07-09 docs house-cleaning) for everything trading-related.
 > **Audience:** operator + multisig signers. Every step has a verify + a gate; do not skip-ahead.
 > **Source of truth for the audit context:** `docs/planning/NFT_FEATURE_AUDIT_AND_AAA_PLAN_2026-06-24.md`.
 
