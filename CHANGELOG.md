@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Fix — token amounts no longer overflow, and are entered in whole tokens (2026-07-09)
+<!-- categories: memba -->
+- Launching a token with a large supply used to fail with an opaque error (`strconv.ParseInt: value out of range`). Token amounts are stored on-chain as 64-bit integers, but the **Create Token** form and the token **Transfer / Mint / Burn** actions accepted amounts in the smallest unit with no upper limit, so a large-but-reasonable-looking number silently exceeded the ceiling and the transaction was rejected. Amounts are now **entered in whole tokens** (e.g. `1000000` = one million tokens, not one token) with a live readout of the exact on-chain value and, for mints, the 2.5% platform fee and resulting total supply. Anything above the ~9.2-quintillion-unit ceiling is caught **before** you sign, with a clear message and a disabled submit button instead of a failed transaction.
+- The Create Token page also gains a **"New to tokens?" primer** explaining, in plain language, what decimals, initial supply, the platform fee, the faucet, the admin, and the maximum supply mean — so first-time creators understand the tokenomics they're setting.
+
 ### App Store — read-side groundwork for the v3 realm (B1, 2026-07-09)
 <!-- categories: memba -->
 - Prepares the App Store front end for the next-generation listing realm (`memba_appstore_v3`, which adds a proper submission lifecycle) **without touching the live experience**. The realm the App Store reads is now env-selectable (`VITE_APPSTORE_REALM_PATH`) and still defaults to the current `v2` realm, so nothing changes until an operator points it at `v3` after that realm is deployed and migrated. When pointed at `v3`, the store gains an **opt-in "Apps pending review" disclosure** — apps that have paid the listing fee but haven't been vetted by a curator are hidden by default behind an amber-cautioned toggle (never shown as a peer of the verified apps), and the listing client can now read per-status windows and the richer v3 fields (screenshots, reject reasons). No user-visible change on the current realm.
