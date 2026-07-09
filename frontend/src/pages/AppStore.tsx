@@ -21,7 +21,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useNetwork } from "../hooks/useNetwork"
 import { fetchLiveApps, fetchApp, fetchByStatus, isSafeRealmPath, isAppStoreV3, type AppListing } from "../lib/appStore"
 import { fetchSummary } from "../lib/reviews"
-import { MEMBA_DAO, isAppReviewsEnabled } from "../lib/config"
+import { MEMBA_DAO, isAppReviewsEnabled, isAppStoreSubmitEnabled } from "../lib/config"
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import { ReportAppButton } from "../components/appstore/ReportAppButton"
 import { AppReviewStars, MIN_RATED_COUNT } from "../components/reviews/AppReviewStars"
@@ -145,6 +145,13 @@ function AppGrid() {
                         <span className="appstore__dot" aria-hidden="true">·</span>
                         <span>source-readable</span>
                     </div>
+                )}
+                {/* Self-service listing (B3) — the submit route only exists meaningfully on the
+                    v3 realm, and the flag is SAFETY-GATED until its fee path is verified. */}
+                {isAppStoreSubmitEnabled() && isAppStoreV3() && (
+                    <Link className="appbtn appbtn--ghost appstore__submit-cta" to={`/${networkKey}/apps/submit`}>
+                        Submit your app
+                    </Link>
                 )}
             </header>
 
