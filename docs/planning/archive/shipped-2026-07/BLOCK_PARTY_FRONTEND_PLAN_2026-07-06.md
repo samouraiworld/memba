@@ -1,5 +1,9 @@
 # Block Party — Sub-plan 3: Frontend UI — Implementation Plan
 
+> **ARCHIVED 2026-07-09 — SHIPPED** via #781 (2026-07-06).
+
+> **ARCHIVED 2026-07-09 — SHIPPED** via #781 (2026-07-06).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the playable Block Party UI in the Memba React app: a chain-seeded daily 2048 board (ranked, move-budgeted) + an endless Practice mode, with touch+keyboard controls, wallet-optional score submission, daily leaderboard + streak, and a Wordle-style share — all native to the Kodera design system and shipped dark behind `VITE_ENABLE_GAME`. Opens with a small backend prereq that makes the ranked move budget server-authoritative.

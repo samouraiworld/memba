@@ -7,9 +7,14 @@ export function SpaceInvadersGate({ children }: { children: ReactNode }) {
     return (
       <ComingSoonGate
         title="Space Invaders"
-        icon="🛸"
-        description="Defend the baseline. A classic arcade shooter, playable instantly in your browser."
-        features={["Keyboard & touch controls", "Play instantly, no wallet", "Escalating waves", "Local high score"]}
+        icon="👾"
+        description="The arcade classic, rebuilt for Memba — rapid-fire waves, skill combos, a mystery UFO, and an on-chain leaderboard on the way."
+        features={[
+          "Skill scoring: no-miss combos & the 300-point UFO",
+          "Rapid fire, destructible bunkers, escalating waves",
+          "Sound, haptics & a bigger CRT screen",
+          "Plays instantly — keyboard or thumbs, no wallet",
+        ]}
       />
     );
   }

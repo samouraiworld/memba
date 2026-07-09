@@ -20,7 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### App Store reviews — community reviews on the App Store detail page (B2b, 2026-07-08)
+### App Store — read-side groundwork for the v3 realm (B1, 2026-07-09)
+<!-- categories: memba -->
+- Prepares the App Store front end for the next-generation listing realm (`memba_appstore_v3`, which adds a proper submission lifecycle) **without touching the live experience**. The realm the App Store reads is now env-selectable (`VITE_APPSTORE_REALM_PATH`) and still defaults to the current `v2` realm, so nothing changes until an operator points it at `v3` after that realm is deployed and migrated. When pointed at `v3`, the store gains an **opt-in "Apps pending review" disclosure** — apps that have paid the listing fee but haven't been vetted by a curator are hidden by default behind an amber-cautioned toggle (never shown as a peer of the verified apps), and the listing client can now read per-status windows and the richer v3 fields (screenshots, reject reasons). No user-visible change on the current realm.
 <!-- categories: memba -->
 - App Store listings can now carry **community reviews and ratings**. The App Store detail page mounts the shared reviews experience — a compact rating summary in the hero plus the full reviews section (post a rating, reply, like/dislike, flag, moderate) — pointed at the reputation-isolated App Store reviews realm, so an app's reputation is scored independently of the validator/profile web-of-trust. A **product-integrity** rule keeps early ratings honest: a listing with fewer than three reviews shows a neutral "New" chip with the review count instead of a headline star average, so one or two reviews can't present as a confident 5.0. Gated behind the new `VITE_ENABLE_APP_REVIEWS` flag (off by default; the app-reviews realm is deployed to test13 but the front end stays dark until it's switched on).
 
@@ -61,7 +63,18 @@ Full changelogs are split by version range for easier navigation:
 - Rendering is decoupled from React (drawn straight from the game loop) for smoother 60fps play, and all motion — particles, shake, scanline, the invulnerability blink — is disabled under **`prefers-reduced-motion`** for accessibility. Every cosmetic effect runs on its own separate randomness, so it can never affect a score that will be certified on-chain.
 - Still gated by `VITE_ENABLE_SPACE_INVADERS` (client-side only, no funds), off by default.
 
-### Space Invaders — skill-based scoring (combo, accuracy, bonuses) (2026-07-08)
+### Space Invaders — sound (2026-07-08)
+<!-- categories: memba -->
+- The game now has **sound**: synthesized shoot / explosion / hit / wave / UFO effects and the iconic accelerating **4-note march**, all driven off the same deterministic event stream as the visual juice (so audio can never affect a certified score). A **mute toggle** in the HUD remembers your choice, and audio unlocks on your first tap/key to respect mobile autoplay rules. Cosmetic-only and safely absent where WebAudio isn't available.
+
+### Space Invaders — better touch controls (2026-07-08)
+<!-- categories: memba -->
+- Mobile steering is now **proportional** — how far you drag decides how fast the ship moves, so fine dodges are possible instead of the old all-or-nothing ±1. And the **control zones are now visible** on the start screen (a labelled "drag to steer | tap · fire" split), so the touch scheme is discoverable instead of a guess. Keyboard play is unchanged, and the change is deterministic-safe (the on-chain scoring corpus is unaffected).
+
+### Space Invaders — App Store listing prep (2026-07-09)
+<!-- categories: memba -->
+- Refreshed the Space Invaders store card to reflect the finished game (combos, rapid fire, mystery UFO, bunkers, sound) and added a proper on-brand **app icon** (`space-invaders-icon.svg`) in place of the emoji placeholder. The live App Store listing is registered on-chain by the operator — the exact copy, icon, and steps are in `docs/planning/SPACE_INVADERS_LISTING_2026-07-09.md`.
+
 <!-- categories: memba -->
 - Scoring now rewards **skill, not grinding** — the foundation for a competitive leaderboard. A **no-miss combo** builds a live score multiplier (×1 → ×1.5 → ×2 → ×3 → ×4) that **resets the moment you miss a shot**, so accuracy under pressure separates a good run from a great one. The active multiplier shows in the HUD.
 - Two end-of-game bonuses — an **accuracy bonus** (high hit-rate) and a **surviving-lives bonus** — and top-row aliens are now worth more (40/30/20/20/10), so going for the hard targets pays off.

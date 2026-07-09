@@ -1,5 +1,9 @@
 # Block Party — Design Spec
 
+> **ARCHIVED 2026-07-09 — SHIPPED** via #781 (2026-07-06). Ships dark behind `VITE_ENABLE_GAME` + backend `BLOCKPARTY_ENABLED` (do not enable without the owner).
+
+> **ARCHIVED 2026-07-09 — SHIPPED** via #781 (2026-07-06). Ships dark behind `VITE_ENABLE_GAME` + backend `BLOCKPARTY_ENABLED` (do not enable without the owner).
+
 - **Status:** Design approved (brainstorm complete) — pending user review before implementation planning
 - **Date:** 2026-07-06
 - **Branch:** `feat/block-party-game` (isolated worktree; ships dark behind `VITE_ENABLE_GAME=false`)
