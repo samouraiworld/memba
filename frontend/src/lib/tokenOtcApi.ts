@@ -1,35 +1,16 @@
 import { queryEval } from "./dao/shared"
 import { MEMBA_DAO, GNO_RPC_URL } from "./config"
+import { decodeOtcCsv, type OtcListing } from "./marketplace/codec"
 
-export interface OtcListing {
-    id: string
-    seller: string
-    symbol: string
-    expectedUnitPrice: bigint
-    amountAvailable: bigint
-}
+// OtcListing now lives with the codec that validates it; re-export for existing consumers.
+export type { OtcListing }
 
 export async function fetchOtcListings(): Promise<OtcListing[]> {
     const raw = await queryEval(GNO_RPC_URL, MEMBA_DAO.tokenOtcPath, "GetListingsCSV()")
     if (!raw) return []
-    // Expected format: "ID|Seller|Symbol|Price|Amount,ID2|..."
-    // Clean up quotes from the Amino string evaluation.
-    const cleanRaw = raw.replace(/^"|"$/g, "")
-    if (!cleanRaw) return []
-    const parts = cleanRaw.split(",")
-    const listings: OtcListing[] = []
-    for (const part of parts) {
-        if (!part) continue
-        const [id, seller, symbol, expectedUnitPriceStr, amountAvailableStr] = part.split("|")
-        listings.push({
-            id,
-            seller,
-            symbol,
-            expectedUnitPrice: BigInt(expectedUnitPriceStr),
-            amountAvailable: BigInt(amountAvailableStr),
-        })
-    }
-    return listings
+    // Validated decode — a malformed row is dropped rather than throwing into render.
+    const decoded = decodeOtcCsv(raw)
+    return decoded.ok ? decoded.value : []
 }
 
 export async function getTokenAllowance(symbol: string, owner: string, spender: string): Promise<bigint> {

@@ -1,8 +1,9 @@
 /**
- * PriceBreakdown.test.tsx — Tests for the PriceBreakdown component.
+ * PriceBreakdown.test.tsx — the buyer-first price breakdown (marketplace-v2 Phase 1.5c).
  *
- * Task 2: Pure presentational component that displays price breakdown rows:
- * Price, Platform fee (with %), Creator royalty, Seller receives.
+ * Leads with the all-in "You pay" total (the buyer pays exactly the listed price;
+ * platform fee + creator royalty come out of the SELLER's proceeds). The fee/royalty/
+ * seller rows are informational ("where it goes"), plus a no-refund recourse line.
  */
 
 import { describe, it, expect } from "vitest"
@@ -10,49 +11,45 @@ import { render, screen, within } from "@testing-library/react"
 import { PriceBreakdown } from "./PriceBreakdown"
 
 describe("PriceBreakdown", () => {
-    it("computes and displays correct breakdown for priceUgnot=2_000_000, feeBps=200, royaltyBps=500", () => {
+    it("leads with the all-in 'You pay' total and shows where the payment goes", () => {
         const priceUgnot = 2_000_000
         const feeBps = 200 // 2.0%
         const royaltyBps = 500 // 5.0%
 
-        // Expected computation:
-        // platformFee = Math.floor(2_000_000 * 200 / 10000) = Math.floor(40000) = 40000 ugnot = 0.04 GNOT
-        // royaltyFee = Math.floor(2_000_000 * 500 / 10000) = Math.floor(100000) = 100000 ugnot = 0.1 GNOT
-        // sellerReceives = 2_000_000 - 40000 - 100000 = 1_860_000 ugnot = 1.86 GNOT
-
+        // platformFee = 40000 (0.04 GNOT); royaltyFee = 100000 (0.1 GNOT);
+        // sellerReceives = 1_860_000 (1.86 GNOT); buyer all-in = price = 2 GNOT.
         render(<PriceBreakdown priceUgnot={priceUgnot} feeBps={feeBps} royaltyBps={royaltyBps} />)
 
-        // Check that all rows are rendered with correct labels
-        expect(screen.getByText("Price")).toBeInTheDocument()
-        expect(screen.getByText(/Creator Royalty/)).toBeInTheDocument()
-        expect(screen.getByText("Seller Receives")).toBeInTheDocument()
+        // Headline: the buyer's all-in cost.
+        expect(screen.getByText("You pay")).toBeInTheDocument()
+        expect(screen.getByText("2 GNOT")).toBeInTheDocument() // unique — only the You-pay total
 
-        // Check platform fee shows fee % in label
+        // Informational breakdown.
         expect(screen.getByText(/Platform Fee/)).toBeInTheDocument()
         expect(screen.getByText(/2\.0%/)).toBeInTheDocument()
+        expect(screen.getByText(/Creator Royalty/)).toBeInTheDocument()
+        expect(screen.getByText("Seller Receives")).toBeInTheDocument()
+        expect(screen.getByText("0.04 GNOT")).toBeInTheDocument() // platform fee
+        expect(screen.getByText("0.1 GNOT")).toBeInTheDocument() // royalty
+        expect(screen.getByText("1.86 GNOT")).toBeInTheDocument() // seller receives
 
-        // Check exact amounts rendered: "0.04 GNOT", "0.1 GNOT", "1.86 GNOT", "2 GNOT"
-        expect(screen.getByText("2 GNOT")).toBeInTheDocument() // Price
-        expect(screen.getByText("0.04 GNOT")).toBeInTheDocument() // Platform fee
-        expect(screen.getByText("0.1 GNOT")).toBeInTheDocument() // Royalty
-        expect(screen.getByText("1.86 GNOT")).toBeInTheDocument() // Seller receives
+        // Honest recourse copy (CTO review #5).
+        expect(screen.getByText(/no refunds/i)).toBeInTheDocument()
     })
 
     it("handles zero fees correctly", () => {
         const { container } = render(<PriceBreakdown priceUgnot={1_000_000} feeBps={0} royaltyBps={0} />)
         const view = within(container)
 
-        expect(view.getByText("Price")).toBeInTheDocument()
-        expect(view.getByText(/Platform Fee/)).toBeInTheDocument()
+        expect(view.getByText("You pay")).toBeInTheDocument()
         expect(view.getByText("Seller Receives")).toBeInTheDocument()
-        expect(view.getAllByText("1 GNOT")).toHaveLength(2) // Price and Seller receives (both 1 GNOT)
-        expect(view.getAllByText("0 GNOT")).toHaveLength(2) // Platform fee and Creator royalty (both 0 GNOT)
+        // You-pay total and Seller-receives are both 1 GNOT when there are no fees.
+        expect(view.getAllByText("1 GNOT")).toHaveLength(2)
+        expect(view.getAllByText("0 GNOT")).toHaveLength(2) // platform fee + royalty
     })
 
     it("displays fee percentages correctly in labels", () => {
         render(<PriceBreakdown priceUgnot={1_000_000} feeBps={250} royaltyBps={1000} />)
-
-        // feeBps 250 = 2.5%, royaltyBps 1000 = 10%
         expect(screen.getByText(/2\.5%/)).toBeInTheDocument()
         expect(screen.getByText(/10\.0%/)).toBeInTheDocument()
     })

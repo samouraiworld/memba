@@ -89,13 +89,20 @@ test.describe('Marketplace lane gating (W0.1 route-wiring)', () => {
         await expect(tabbar.locator('a[role="tab"]', { hasText: 'NFTs' })).toBeVisible()
         await expect(page.locator('.um-hero-title')).toHaveText('Digital Assets')
 
-        // The lazy NftLane actually mounted (proves lazy + Suspense resolves in a real
-        // browser — the exact thing jsdom couldn't do). Content depends on live RPC, so
-        // accept any of its states: loading, loaded, or a load error.
-        await expect(page.locator('.um-main')).toContainText(
-            /Loading collections|Trending Collections|Failed to load collections/,
-            { timeout: 15_000 },
-        )
+        // The lazy NFT lane actually mounted (proves lazy + Suspense resolves in a real
+        // browser — the exact thing jsdom couldn't do). Mode-aware so the spec holds on
+        // both sides of the cutover flag:
+        //  - v1 NftLane: content depends on live RPC — accept loading/loaded/error text.
+        //  - v2 NftLaneV2 (VITE_ENABLE_MARKETPLACE_V2 pinned in .env.e2e on the v2
+        //    branch): the LaneView pipeline mounts its toolbar synchronously
+        //    regardless of RPC state.
+        await expect(
+            page.locator('.um-main .lane-toolbar').or(
+                page.locator('.um-main', {
+                    hasText: /Loading collections|Trending Collections|Failed to load collections/,
+                }),
+            ).first(),
+        ).toBeVisible({ timeout: 15_000 })
     })
 
     test('gated lane tabs (Tokens, Agents) are absent from the tab bar', async ({ page }) => {

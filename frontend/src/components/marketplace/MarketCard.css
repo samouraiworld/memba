@@ -1,0 +1,194 @@
+/**
+ * MarketCard.css — styling for the one marketplace card.
+ * Tokens only (no hardcoded colors; monogram gradient is inline in the component).
+ * Hover is 100% CSS (no JS handlers). Inter/--font-sans on chrome; mono on data only.
+ */
+
+/* ── Grid — the single marketplace grid metric (used by every lane) ──────── */
+.mkt-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: var(--space-4, 16px);
+}
+
+/* Per-lane accent — one local var driven by the card's data-lane. */
+.mkt-card { --mkt-accent: var(--color-k-lane-nft); }
+.mkt-card[data-lane="service"] { --mkt-accent: var(--color-k-lane-service); }
+.mkt-card[data-lane="token"] { --mkt-accent: var(--color-k-lane-token); }
+.mkt-card[data-lane="agent"] { --mkt-accent: var(--color-k-lane-agent); }
+
+.mkt-card {
+    display: flex;
+    flex-direction: column;
+    background: var(--color-bg-secondary, var(--color-bg-tertiary));
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg, 12px);
+    overflow: hidden;
+    text-decoration: none;
+    color: var(--color-text);
+    font-family: var(--font-sans);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease;
+    will-change: transform;
+}
+
+.mkt-card:hover {
+    transform: translateY(-2px);
+    border-color: var(--mkt-accent);
+    box-shadow: var(--shadow-md);
+}
+
+.mkt-card:focus-visible {
+    outline: 2px solid var(--mkt-accent);
+    outline-offset: 2px;
+}
+
+/* ── Media zone ─────────────────────────────────────────────────────────── */
+.mkt-card__media {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    background: var(--color-bg-tertiary);
+    overflow: hidden;
+}
+
+.mkt-card__art {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.mkt-card__monogram {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.mkt-card__monogram-glyph {
+    font-family: var(--font-sans);
+    font-weight: 800;
+    font-size: 2.6rem;
+    color: var(--color-k-on-accent);
+    letter-spacing: -0.02em;
+}
+
+/* ── Body ──────────────────────────────────────────────────────────────── */
+.mkt-card__body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 8px);
+    padding: var(--space-4, 16px);
+    flex: 1;
+}
+
+.mkt-card__title-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    min-width: 0;
+}
+
+.mkt-card__title {
+    margin: 0;
+    font-family: var(--font-sans);
+    font-size: 1.05rem;
+    font-weight: 700;
+    line-height: 1.25;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mkt-card__seller {
+    display: flex;
+    align-items: baseline;
+    gap: var(--space-2, 8px);
+    min-width: 0;
+    font-size: 0.8rem;
+}
+
+.mkt-card__handle {
+    color: var(--color-text);
+    font-weight: 600;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mkt-card__addr {
+    font-family: var(--font-mono);
+    font-size: 0.72rem;
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+}
+
+/* ── Reputation ────────────────────────────────────────────────────────── */
+.mkt-card__rep {
+    display: flex;
+    align-items: center;
+    min-height: 1.1rem;
+}
+
+/* ── Stats ─────────────────────────────────────────────────────────────── */
+.mkt-card__stats {
+    display: flex;
+    gap: var(--space-4, 16px);
+    margin: var(--space-1, 4px) 0 0;
+}
+
+.mkt-card__stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.mkt-card__stat-label {
+    font-size: 0.68rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--color-text-muted);
+}
+
+.mkt-card__stat-value {
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-text);
+}
+
+.mkt-card__stat-value--mono {
+    font-family: var(--font-mono);
+    font-weight: 500;
+}
+
+/* ── Footer ────────────────────────────────────────────────────────────── */
+.mkt-card__footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2, 8px);
+    margin-top: auto;
+    padding-top: var(--space-3, 12px);
+}
+
+.mkt-card__price {
+    font-family: var(--font-sans);
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.mkt-card__action {
+    flex-shrink: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .mkt-card {
+        transition: none;
+    }
+    .mkt-card:hover {
+        transform: none;
+    }
+}

@@ -1,0 +1,77 @@
+/**
+ * MarketplaceV2Preview — a dev-only visual harness (marketplace-v2 Phase 2).
+ *
+ * Renders the Founding-Supply seed catalog through the new `MarketCard` / `ListingGrid`
+ * so the design system can be validated in the browser before the lanes are rebuilt on
+ * it (Phase 7). Gated behind `VITE_ENABLE_MARKETPLACE_V2` (off in prod) — it is not part
+ * of the shipped IA. Renders seed data identically to how real UnifiedListings will.
+ *
+ * @module pages/MarketplaceV2Preview
+ */
+import { Navigate, useParams } from "react-router-dom"
+import ListingGrid from "../components/marketplace/ListingGrid"
+import { LaneToolbar } from "../components/marketplace/LaneToolbar"
+import { SellAnythingButton } from "../components/marketplace/SellAnythingButton"
+import NftLaneV2 from "../components/marketplace/NftLaneV2"
+import { seedNftToCard, seedServiceToCard, seedTokenToCard } from "../lib/marketplace/adapters/seedToCard"
+import { seedNfts, seedServices, seedTokens } from "../lib/marketplace/seed/foundingSupply.seed"
+import { useMarketFilters } from "../lib/marketplace/useMarketFilters"
+import { applyFilters } from "../lib/marketplace/marketFilters"
+import { buildSellOptions } from "../lib/marketplace/sellOptions"
+import { isMarketplaceV2Enabled } from "../lib/config"
+
+const NFT_CARDS = seedNfts.map(seedNftToCard)
+const SERVICE_CARDS = seedServices.map(seedServiceToCard)
+const TOKEN_CARDS = seedTokens.map(seedTokenToCard)
+const LANES = [
+    { key: "NFT", cards: NFT_CARDS },
+    { key: "Services", cards: SERVICE_CARDS },
+    { key: "Tokens", cards: TOKEN_CARDS },
+] as const
+
+export default function MarketplaceV2Preview() {
+    // Shared discovery state (URL-synced). Hooks must run before any early return.
+    const { filters, setFilters } = useMarketFilters()
+    const { network = "test13" } = useParams()
+    // Demo: show all three sell options (real shell derives these from live-lane flags).
+    const sellOptions = buildSellOptions(network, { nft: true, service: true, token: true })
+
+    // Dev-only harness — never reachable in prod (flag off).
+    if (!isMarketplaceV2Enabled()) return <Navigate to="../marketplace" replace />
+
+    return (
+        <div className="mktv2-preview" style={{ maxWidth: "1200px", margin: "0 auto", padding: "var(--space-6, 24px)" }}>
+            <header style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: "var(--space-4, 16px)", marginBottom: "var(--space-6, 24px)" }}>
+                <div>
+                    <h1 style={{ fontFamily: "var(--font-sans)", margin: 0 }}>Marketplace v2 — design preview</h1>
+                    <p className="k-text-muted" style={{ margin: "var(--space-2, 8px) 0 0" }}>
+                        Founding-Supply seed catalog through the new MarketCard / ListingGrid, filtered by the shared LaneToolbar. Seed data — not live inventory.
+                    </p>
+                </div>
+                <SellAnythingButton options={sellOptions} />
+            </header>
+
+            <section style={{ marginBottom: "var(--space-8, 32px)" }}>
+                <h2 style={{ fontFamily: "var(--font-sans)" }}>Live NFT lane — real test13 data</h2>
+                <p className="k-text-muted" style={{ margin: "0 0 var(--space-3, 12px)" }}>
+                    Rendered via <code>NftLaneV2</code> = <code>LaneView</code> + <code>nftToCard</code> + the real <code>fetchVerifiedCollections</code> read (its own toolbar; skeleton → data / retry-on-error).
+                </p>
+                <NftLaneV2 />
+            </section>
+
+            <hr style={{ border: "none", borderTop: "1px solid var(--color-border)", margin: "var(--space-6, 24px) 0" }} />
+            <h2 style={{ fontFamily: "var(--font-sans)" }}>Seed catalog (design fixtures)</h2>
+            <LaneToolbar filters={filters} onChange={setFilters} />
+
+            {LANES.map(({ key, cards }) => {
+                const shown = applyFilters(cards, filters)
+                return (
+                    <section key={key} style={{ marginBottom: "var(--space-8, 32px)" }}>
+                        <h2 style={{ fontFamily: "var(--font-sans)" }}>{key} · {shown.length}</h2>
+                        <ListingGrid items={shown} />
+                    </section>
+                )
+            })}
+        </div>
+    )
+}

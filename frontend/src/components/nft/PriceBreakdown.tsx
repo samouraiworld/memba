@@ -1,11 +1,10 @@
 /**
- * PriceBreakdown.tsx — Pure presentational component for NFT price breakdown.
+ * PriceBreakdown.tsx — buyer-first NFT price breakdown (marketplace-v2 Phase 1.5c).
  *
- * Task 2: Displays a price breakdown with:
- * - Price (priceUgnot in GNOT)
- * - Platform fee (with percentage)
- * - Creator royalty
- * - Seller receives
+ * Leads with the all-in "You pay" total — the buyer pays exactly the listed price
+ * (+ network gas); the platform fee and creator royalty are deducted from the
+ * SELLER's proceeds. The fee/royalty/seller rows are shown as informational
+ * ("where it goes"), followed by an honest no-refund recourse line.
  *
  * Imports its own PriceBreakdown.css for layout and token-based styling.
  */
@@ -31,10 +30,16 @@ export function PriceBreakdown({ priceUgnot, feeBps, royaltyBps }: PriceBreakdow
 
     return (
         <div className="price-breakdown">
-            <div className="price-breakdown__row">
-                <span>Price</span>
+            {/* Buyer's all-in cost is the headline. Platform fee + creator royalty are
+                deducted from the SELLER's proceeds, so the buyer pays exactly the listed
+                price (+ network gas). Leading with "Seller Receives" hid this. */}
+            <div className="price-breakdown__row price-breakdown__row--total price-breakdown__youpay">
+                <span>You pay</span>
                 <span>{formatGnotCompact(priceUgnot)}</span>
             </div>
+            <p className="price-breakdown__note">+ network gas fee</p>
+
+            <div className="price-breakdown__where">Where it goes</div>
             <div className="price-breakdown__row price-breakdown__row--fee">
                 <span>Platform Fee ({feePercent}%)</span>
                 <span>{formatGnotCompact(platformFee)}</span>
@@ -43,10 +48,12 @@ export function PriceBreakdown({ priceUgnot, feeBps, royaltyBps }: PriceBreakdow
                 <span>Creator Royalty ({royaltyPercent}%)</span>
                 <span>{formatGnotCompact(royaltyFee)}</span>
             </div>
-            <div className="price-breakdown__row price-breakdown__row--seller price-breakdown__row--total">
+            <div className="price-breakdown__row price-breakdown__row--seller">
                 <span>Seller Receives</span>
                 <span>{formatGnotCompact(sellerReceives)}</span>
             </div>
+
+            <p className="price-breakdown__recourse">On-chain sales are final — no refunds.</p>
         </div>
     )
 }
