@@ -10,6 +10,8 @@ Rules:
 
 ---
 
+2026-07-09 · Lane B · Wave 0.3 blog SEO pack (plan #862) · START→STOP (single session) · frontend: lib/sitemap.ts (+test, SitemapEntry), lib/blogMeta.ts (+test, new), lib/markdownLite.ts (+test, opt-in images — feed/realm renderers UNCHANGED), pages/Blog.tsx + blog.css, index.html (RSS autodiscovery), vite.config.ts (articles → sitemap) · CHANGELOG.md (single-writer: registered) · branch feat/blog-seo-pack · B3 files still untouched (that session's PR = #864)
+
 2026-07-09 · Lane B · Wave 0 execution (plan #862, owner go): #851 merged; backend perf PR; Home de-stale pack · START · frontend: components/home/{homeSurfaces.tsx(new),ExploreGrid,ComingSoon,ValueStrip,VisitorHero,EcosystemBand,ActivityFeed}(+tests), lib/activity.ts(+test) · backend: internal/indexer/{recover.go(new),tailer,feed_tailer,poller}, internal/service/{quest_rpc,service,leaderboard_test}, internal/metrics · CHANGELOG.md (single-writer: registered) · **B3 session detected LIVE (launch.json edit ~14:15): NOT touching lib/appStore.ts / pages/AppStore.tsx / .env.example / safeFlags — Wave 0.6 App Store S-wins ON HOLD until B3 lands** · branches fix/indexer-recover-leaderboard, feat/home-destale
 
 2026-07-09 · Lane B · next-cycle kickoff: 12-lane audit → consolidated plan (docs only) · START→STOP (single session) · docs/planning/MEMBA_NEXT_CYCLE_AUDIT_AND_PLAN_2026-07-09.md (new) + this registration · no source changes; plan awaits owner review before any implementation · docs/next-cycle-plan-2026-07-09

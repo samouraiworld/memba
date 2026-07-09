@@ -171,3 +171,37 @@ describe("renderPostBody (inline-only, untrusted feed posts)", () => {
         expect(renderPostBody("")).toBe("")
     })
 })
+
+describe("renderMarkdown — opt-in images", () => {
+    it("renders a standalone image line as <img> ONLY when opted in", () => {
+        const md = "intro\n\n![diagram](/blog/diagram.png)\n\noutro"
+        const on = renderMarkdown(md, { images: true })
+        expect(on).toContain('<img class="md-img" src="/blog/diagram.png" alt="diagram" loading="lazy" />')
+        // Default (untrusted realm output) must NOT gain image rendering.
+        const off = renderMarkdown(md)
+        expect(off).not.toContain("<img")
+    })
+
+    it("rejects unsafe image protocols even when opted in", () => {
+        const on = renderMarkdown("![x](javascript:alert(1))", { images: true })
+        expect(on).not.toContain("<img")
+        expect(on).not.toContain("javascript:")
+        const data = renderMarkdown("![x](data:text/html;base64,AAA)", { images: true })
+        expect(data).not.toContain("<img")
+    })
+
+    it("allows https and relative image sources", () => {
+        expect(renderMarkdown("![a](https://x.test/i.png)", { images: true })).toContain('src="https://x.test/i.png"')
+        expect(renderMarkdown("![a](/local/i.png)", { images: true })).toContain('src="/local/i.png"')
+    })
+
+    it("escapes the alt text", () => {
+        const h = renderMarkdown('!["><script>x</script>](/i.png)', { images: true })
+        expect(h).not.toContain("<script>")
+        expect(h).toContain("&lt;script&gt;")
+    })
+
+    it("feed post bodies can never render an image (inline-only path)", () => {
+        expect(renderPostBody("![x](https://x.test/i.png)")).not.toContain("<img")
+    })
+})

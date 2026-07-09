@@ -97,7 +97,22 @@ export function renderPostBody(body: string): string {
 
 // ── Block Processing ────────────────────────────────────────
 
-export function renderMarkdown(md: string): string {
+/** Standalone image line: `![alt](url)` alone on its own line. */
+const IMAGE_LINE_RE = /^\s*!\[([^\]]*)\]\(([^)\s]+)\)\s*$/
+
+export interface RenderMarkdownOpts {
+    /**
+     * Render standalone `![alt](url)` lines as <img>. OPT-IN and deliberately
+     * off by default: renderMarkdown also renders UNTRUSTED realm Render()
+     * output (directory drawer, explorer), and the feed's media wave is gated
+     * on a serving-blocklist — only first-party, repo-reviewed content (the
+     * blog) may enable this. URLs go through the same protocol whitelist as
+     * links; a rejected URL renders as escaped text, never an <img>.
+     */
+    images?: boolean
+}
+
+export function renderMarkdown(md: string, opts?: RenderMarkdownOpts): string {
     if (!md) return ""
 
     const lines = md.split("\n")
@@ -106,6 +121,20 @@ export function renderMarkdown(md: string): string {
 
     while (i < lines.length) {
         const line = lines[i]
+
+        // Standalone image (opt-in; see RenderMarkdownOpts.images)
+        if (opts?.images) {
+            const img = line.match(IMAGE_LINE_RE)
+            if (img) {
+                const src = sanitizeUrl(img[2])
+                if (src !== "#") {
+                    blocks.push(`<img class="md-img" src="${src}" alt="${escapeHtml(img[1])}" loading="lazy" />`)
+                    i++
+                    continue
+                }
+                // Rejected protocol → fall through to paragraph (escaped text).
+            }
+        }
 
         // Fenced code block
         if (line.startsWith("```")) {
