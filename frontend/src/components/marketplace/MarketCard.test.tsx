@@ -2,9 +2,9 @@
  * MarketCard.test.tsx — the ONE marketplace card (marketplace-v2 Phase 1).
  * Renders any lane's CardModel; no per-lane branching; CSS-only hover.
  */
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
-import { describe, it, expect } from "vitest"
+import { afterEach, describe, it, expect, vi } from "vitest"
 import MarketCard from "./MarketCard"
 import type { CardModel } from "../../lib/marketplace/types"
 
@@ -40,6 +40,21 @@ const renderCard = (m: CardModel) =>
     render(<MemoryRouter><MarketCard model={m} /></MemoryRouter>)
 
 describe("MarketCard", () => {
+    afterEach(() => {
+        delete (window as { plausible?: unknown }).plausible
+    })
+
+    it("fires the funnel detail event on click (lane only — never id/seller)", () => {
+        const plausible = vi.fn()
+        ;(window as { plausible?: typeof plausible }).plausible = plausible
+        renderCard(monogramModel)
+        fireEvent.click(screen.getByRole("link"))
+        expect(plausible).toHaveBeenCalledWith("Marketplace Card Opened", { props: { lane: "nft" } })
+        const payload = JSON.stringify(plausible.mock.calls)
+        expect(payload).not.toContain(monogramModel.id)
+        expect(payload).not.toContain(monogramModel.seller.address)
+    })
+
     it("renders title, seller handle, stats and price", () => {
         renderCard(monogramModel)
         expect(screen.getByText("Gnomes Genesis")).toBeInTheDocument()

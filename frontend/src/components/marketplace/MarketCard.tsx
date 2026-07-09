@@ -10,6 +10,7 @@
  */
 import { memo } from "react"
 import { Link } from "react-router-dom"
+import { trackEvent } from "../../lib/analytics"
 import { VerifiedBadge } from "../nft/VerifiedBadge"
 import { ReputationBadge } from "./ReputationBadge"
 import type { CardModel } from "../../lib/marketplace/types"
@@ -41,7 +42,13 @@ function MarketCardImpl({ model }: MarketCardProps) {
     const hue = seedHue(media.seed ?? model.id)
 
     return (
-        <Link to={model.href} className="mkt-card" data-lane={model.lane}>
+        <Link
+            to={model.href}
+            className="mkt-card"
+            data-lane={model.lane}
+            // Funnel stage 2 (detail): lane only — never the listing id/seller.
+            onClick={() => trackEvent("Marketplace Card Opened", { lane: model.lane })}
+        >
             <div className="mkt-card__media">
                 {media.kind === "art" && media.src ? (
                     <img className="mkt-card__art" src={media.src} alt="" loading="lazy" />

@@ -8,6 +8,8 @@
  *
  * @module components/marketplace/LaneView
  */
+import { useEffect } from "react"
+import { trackEvent } from "../../lib/analytics"
 import { useLaneQuery } from "../../lib/marketplace/useLaneQuery"
 import { useMarketFilters } from "../../lib/marketplace/useMarketFilters"
 import { applyFilters } from "../../lib/marketplace/marketFilters"
@@ -40,6 +42,12 @@ export function LaneView<T>({ lane, fetchFn, toCard, categories = [], enabled = 
     const { filters, setFilters } = useMarketFilters()
     const { cards, isLoading, isError, refetch } = useLaneQuery(lane, fetchFn, toCard, { enabled })
     const shown = applyFilters(cards, filters)
+
+    // Funnel stage 1 (view): once per lane visit. Name + lane only — no
+    // addresses, no amounts (fire-and-forget Plausible; no-op when blocked).
+    useEffect(() => {
+        trackEvent("Marketplace Lane Viewed", { lane })
+    }, [lane])
 
     return (
         <div className="lane-view">

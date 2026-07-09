@@ -5,7 +5,7 @@ import type { ReactNode } from "react"
 import { render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import { describe, it, expect } from "vitest"
+import { afterEach, describe, it, expect, vi } from "vitest"
 import { LaneView } from "./LaneView"
 import type { CardModel } from "../../lib/marketplace/types"
 
@@ -33,6 +33,19 @@ const wrapAt = (initial = "/m") => {
 }
 
 describe("LaneView", () => {
+    afterEach(() => {
+        delete (window as { plausible?: unknown }).plausible
+    })
+
+    it("fires the funnel view event once per lane visit (lane only, no listing data)", async () => {
+        const plausible = vi.fn()
+        ;(window as { plausible?: typeof plausible }).plausible = plausible
+        render(<LaneView lane="nft" fetchFn={async () => [1]} toCard={toCard} />, { wrapper: wrapAt() })
+        expect(await screen.findByText("Item 1")).toBeInTheDocument()
+        expect(plausible).toHaveBeenCalledWith("Marketplace Lane Viewed", { props: { lane: "nft" } })
+        expect(plausible).toHaveBeenCalledTimes(1)
+    })
+
     it("renders adapter-mapped cards after loading", async () => {
         render(<LaneView lane="nft" fetchFn={async () => [1, 2, 3]} toCard={toCard} />, { wrapper: wrapAt() })
         expect(await screen.findByText("Item 1")).toBeInTheDocument()

@@ -107,6 +107,23 @@ beforeEach(() => {
 // ── Tests ──────────────────────────────────────────────────────
 
 describe("TradeModal — buy (v3)", () => {
+    it("fires the sign/settle funnel events around the broadcast (engine tier only)", async () => {
+        const plausible = vi.fn()
+        ;(window as { plausible?: typeof plausible }).plausible = plausible
+        render(<TradeModal {...makeProps({ action: "buy", source: "v3" })} />)
+        fireEvent.click(screen.getByRole("button", { name: /confirm purchase/i }))
+        await waitFor(() => expect(mockDoContractBroadcast).toHaveBeenCalledOnce())
+        expect(plausible).toHaveBeenCalledWith("Marketplace Trade Signed", { props: { action: "buy", engine: "v3" } })
+        await waitFor(() =>
+            expect(plausible).toHaveBeenCalledWith("Marketplace Trade Settled", { props: { action: "buy", engine: "v3" } }),
+        )
+        // Privacy: no token id, price, or address ever reaches analytics.
+        const payload = JSON.stringify(plausible.mock.calls)
+        expect(payload).not.toContain(String(PRICE_UGNOT))
+        expect(payload).not.toContain(CALLER)
+        delete (window as { plausible?: unknown }).plausible
+    })
+
     it("(a) calls buildBuyNFTV3Msg with (caller, collectionID, tokenId, priceUgnot) then broadcasts", async () => {
         const onSuccess = vi.fn()
         render(<TradeModal {...makeProps({ action: "buy", source: "v3", onSuccess })} />)
