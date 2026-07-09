@@ -10,6 +10,8 @@ Rules:
 
 ---
 
+2026-07-09 · Lane B · next-cycle kickoff: 12-lane audit → consolidated plan (docs only) · START→STOP (single session) · docs/planning/MEMBA_NEXT_CYCLE_AUDIT_AND_PLAN_2026-07-09.md (new) + this registration · no source changes; plan awaits owner review before any implementation · docs/next-cycle-plan-2026-07-09
+
 2026-07-09 · Lane B · App Store B1b Report/FlagApp write-side · START→STOP (single session) · frontend: components/appstore/ReportAppButton.{tsx,test.tsx} (new), lib/appStore.ts (buildFlagAppMsg), pages/AppStore.tsx (mount in apptrust, flaggable states only), pages/appstore.css · CHANGELOG.md (single-writer: registered) · active-realm write (v2 now, v3 after repoint); no new flag · feat/appstore-report-app
 
 2026-07-09 · Lane B · validator-name resilience P0-B (plan: VALIDATOR_NAMING_RESILIENCE_PLAN_2026-07-08) · START→STOP (single session) · frontend: lib/gnomonitoring.ts (any-endpoint seeding, isRealMoniker, 7d last-good localStorage cache) + gnomonitoring.test.ts, lib/validators.ts (guarded moniker adoption ×3, keying note) · CHANGELOG.md (single-writer: registered) · gnomonitoring root fix = PR #116 (separate repo, owner deploys VPS) · fix/validator-name-resilience
