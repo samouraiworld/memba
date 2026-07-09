@@ -120,7 +120,7 @@ func (s *MultisigService) GetTransaction(
 
 	// Load signatures for this transaction.
 	sigRows, err := s.db.QueryContext(ctx,
-		"SELECT transaction_id, user_address, signature, body_bytes, created_at FROM signatures WHERE transaction_id = ?",
+		"SELECT transaction_id, user_address, signature, body_bytes, created_at, verified FROM signatures WHERE transaction_id = ?",
 		txID,
 	)
 	if err != nil {
@@ -136,7 +136,7 @@ func (s *MultisigService) GetTransaction(
 		var ignoredID uint32
 		var sig membav1.Signature
 		var bodyBytes []byte
-		if err := sigRows.Scan(&ignoredID, &sig.UserAddress, &sig.Value, &bodyBytes, &sig.CreatedAt); err != nil {
+		if err := sigRows.Scan(&ignoredID, &sig.UserAddress, &sig.Value, &bodyBytes, &sig.CreatedAt, &sig.Verified); err != nil {
 			slog.Warn("GetTransaction: sig scan error", "error", err)
 			continue
 		}
@@ -246,7 +246,7 @@ func (s *MultisigService) Transactions(
 		}
 
 		sigQuery := fmt.Sprintf(
-			"SELECT transaction_id, user_address, signature, body_bytes, created_at FROM signatures WHERE transaction_id IN (%s)",
+			"SELECT transaction_id, user_address, signature, body_bytes, created_at, verified FROM signatures WHERE transaction_id IN (%s)",
 			strings.Join(placeholders, ","),
 		)
 
@@ -264,7 +264,7 @@ func (s *MultisigService) Transactions(
 			var txID uint32
 			var sig membav1.Signature
 			var bodyBytes []byte
-			if err := sigRows.Scan(&txID, &sig.UserAddress, &sig.Value, &bodyBytes, &sig.CreatedAt); err != nil {
+			if err := sigRows.Scan(&txID, &sig.UserAddress, &sig.Value, &bodyBytes, &sig.CreatedAt, &sig.Verified); err != nil {
 				continue
 			}
 			sig.BodyBytes = bodyBytes
@@ -335,6 +335,9 @@ func (s *MultisigService) SignTransaction(
 	// stored tx fields — never from client body_bytes. Two-phase (lockout-safe): in
 	// log-only mode a failure is recorded on the multisig_sig_verify gate signal but
 	// still accepted; set MEMBA_ENFORCE_MULTISIG_SIG_VERIFY=1 to reject failures.
+	// The verdict is stored on the row either way so quorum displays can
+	// distinguish verified signatures from merely-submitted ones.
+	sigVerified := false
 	if verr := auth.VerifyMultisigMemberSignature(multisigPubkeyJSON, userAddress, sig, txf); verr != nil {
 		if auth.EnforceMultisigSigVerify() {
 			metrics.MultisigSigVerifyTotal.WithLabelValues("rejected").Inc()
@@ -348,15 +351,16 @@ func (s *MultisigService) SignTransaction(
 			"hint", "accepted in log-only mode; set "+auth.EnforceMultisigSigVerifyEnv+"=1 to enforce")
 	} else {
 		metrics.MultisigSigVerifyTotal.WithLabelValues("ok").Inc()
+		sigVerified = true
 		slog.Info("multisig_sig_verify", "metric", "multisig_sig_verify", "result", "ok",
 			"tx_id", txID, "signer", userAddress)
 	}
 
 	_, err = s.db.ExecContext(ctx,
-		`INSERT INTO signatures (transaction_id, user_address, signature, body_bytes)
-		 VALUES (?, ?, ?, ?)
-		 ON CONFLICT (transaction_id, user_address) DO UPDATE SET signature = excluded.signature, body_bytes = excluded.body_bytes`,
-		txID, userAddress, sig, bodyBytes,
+		`INSERT INTO signatures (transaction_id, user_address, signature, body_bytes, verified)
+		 VALUES (?, ?, ?, ?, ?)
+		 ON CONFLICT (transaction_id, user_address) DO UPDATE SET signature = excluded.signature, body_bytes = excluded.body_bytes, verified = excluded.verified`,
+		txID, userAddress, sig, bodyBytes, sigVerified,
 	)
 	if err != nil {
 		return nil, internalError("SignTransaction: insert sig", err)
