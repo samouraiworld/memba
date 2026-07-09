@@ -5,8 +5,9 @@ import { ArrowsClockwise } from "@phosphor-icons/react"
 import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
 import {
     getTokenInfo, getTokenBalance, buildTransferMsg, buildFaucetMsg,
-    buildMintMsgs, buildBurnMsg, calculateFee, feeDisclosure,
+    buildMintMsgs, buildBurnMsg, calculateFee,
     doContractBroadcast, formatTokenAmount,
+    parseTokenAmount, maxWholeTokens, formatSupply, MAX_INT64,
     type TokenInfo, type AminoMsg,
 } from "../lib/grc20"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
@@ -73,7 +74,7 @@ export function TokenView() {
     const isAdmin = auth.isAuthenticated && token?.admin === adena.address
 
     const handleAction = async () => {
-        if (!auth.isAuthenticated || !symbol) return
+        if (!auth.isAuthenticated || !symbol || !token) return
         setTxLoading(true)
         setError(null)
         setSuccess(null)
@@ -82,23 +83,35 @@ export function TokenView() {
             const caller = adena.address
             let msgs: AminoMsg[]
 
+            // Amount is entered in WHOLE tokens; convert to base units (int64)
+            // once for whichever action needs it. Above the int64 ceiling the tx
+            // fails on-chain with an opaque "strconv.ParseInt: value out of range".
+            const overCapMsg = `Amount is too large. The max at ${token.decimals} decimals is ~${maxWholeTokens(token.decimals)} ${token.symbol}.`
+
             switch (actionTab) {
                 case "transfer": {
                     if (!toAddress.trim() || !amount.trim()) { setError("Recipient and amount required"); setTxLoading(false); return }
                     if (!/^g(no)?1[a-z0-9]{38,}$/.test(toAddress.trim())) { setError("Invalid address"); setTxLoading(false); return }
-                    msgs = [buildTransferMsg(caller, symbol, toAddress.trim(), amount.trim())]
+                    let amt: bigint
+                    try { amt = parseTokenAmount(amount, token.decimals) } catch (e) { setError(e instanceof Error ? e.message : "Invalid amount"); setTxLoading(false); return }
+                    if (amt > MAX_INT64) { setError(overCapMsg); setTxLoading(false); return }
+                    msgs = [buildTransferMsg(caller, symbol, toAddress.trim(), String(amt))]
                     break
                 }
                 case "mint": {
                     if (!toAddress.trim() || !amount.trim()) { setError("Recipient and amount required"); setTxLoading(false); return }
                     let mintAmount: bigint
-                    try { mintAmount = BigInt(amount.trim()) } catch { setError("Invalid amount"); setTxLoading(false); return }
+                    try { mintAmount = parseTokenAmount(amount, token.decimals) } catch (e) { setError(e instanceof Error ? e.message : "Invalid amount"); setTxLoading(false); return }
+                    if (mintAmount + calculateFee(mintAmount) > MAX_INT64) { setError(overCapMsg); setTxLoading(false); return }
                     msgs = buildMintMsgs(caller, symbol, toAddress.trim(), mintAmount)
                     break
                 }
                 case "burn": {
                     if (!toAddress.trim() || !amount.trim()) { setError("Address and amount required"); setTxLoading(false); return }
-                    msgs = [buildBurnMsg(caller, symbol, toAddress.trim(), amount.trim())]
+                    let amt: bigint
+                    try { amt = parseTokenAmount(amount, token.decimals) } catch (e) { setError(e instanceof Error ? e.message : "Invalid amount"); setTxLoading(false); return }
+                    if (amt > MAX_INT64) { setError(overCapMsg); setTxLoading(false); return }
+                    msgs = [buildBurnMsg(caller, symbol, toAddress.trim(), String(amt))]
                     break
                 }
                 case "faucet": {
@@ -144,9 +157,18 @@ export function TokenView() {
         )
     }
 
-    let mintAmount = 0n
-    try { mintAmount = actionTab === "mint" && amount.trim() ? BigInt(amount.trim()) : 0n } catch { /* invalid input */ }
-    const fee = mintAmount > 0n ? calculateFee(mintAmount) : 0n
+    // Amount is entered in whole tokens; convert to base units for the live
+    // preview + int64 guardrails (token.decimals is known for an existing token).
+    let amountBase = 0n
+    let amountError: string | null = null
+    if (actionTab !== "faucet" && amount.trim()) {
+        try { amountBase = parseTokenAmount(amount, token.decimals) }
+        catch (e) { amountError = e instanceof Error ? e.message : "Invalid amount" }
+    }
+    const fee = actionTab === "mint" && amountBase > 0n ? calculateFee(amountBase) : 0n
+    const amountOverCap = !amountError && (
+        actionTab === "mint" ? amountBase + fee > MAX_INT64 : amountBase > MAX_INT64
+    )
 
     return (
         <div className="animate-fade-in tv-page">
@@ -241,27 +263,40 @@ export function TokenView() {
                                     />
                                 </div>
                                 <div>
-                                    <label className="tv-label">Amount (smallest unit)</label>
+                                    <label className="tv-label">Amount (whole ${token.symbol})</label>
                                     <input
                                         type="text" value={amount}
-                                        onChange={e => setAmount(e.target.value.replace(/[^0-9]/g, ""))}
+                                        onChange={e => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
                                         placeholder="e.g. 1000000"
                                         className="tv-input" disabled={txLoading}
+                                        aria-invalid={!!amountError || amountOverCap}
                                     />
+                                    {/* Live base-unit conversion + guardrail feedback */}
+                                    {amountError ? (
+                                        <p className="tv-action-form__hint" style={{ color: "var(--color-warning)" }}>⚠ {amountError}</p>
+                                    ) : amountOverCap ? (
+                                        <p className="tv-action-form__hint" style={{ color: "var(--color-warning)" }}>
+                                            ⚠ Too large. Max at {token.decimals} decimals is ~{maxWholeTokens(token.decimals)} ${token.symbol}.
+                                        </p>
+                                    ) : amountBase > 0n ? (
+                                        <p className="tv-action-form__hint">
+                                            = {formatSupply(String(amountBase), token.decimals)} ${token.symbol} ({String(amountBase)} base units)
+                                        </p>
+                                    ) : null}
                                 </div>
                             </>
                         )}
 
                         {/* Mint fee disclosure */}
-                        {actionTab === "mint" && fee > 0n && (
+                        {actionTab === "mint" && fee > 0n && !amountError && !amountOverCap && (
                             <div className="tv-fee-disclosure">
-                                💰 {feeDisclosure(mintAmount, token.symbol)}
+                                💰 A 2.5% platform fee ({formatSupply(String(fee), token.decimals)} ${token.symbol}) is minted on top and supports Samouraï Coop development &amp; maintenance.
                             </div>
                         )}
 
                         <button
                             onClick={handleAction}
-                            disabled={txLoading}
+                            disabled={txLoading || !!amountError || amountOverCap}
                             className="tv-submit-btn"
                         >
                             {txLoading ? "Processing..." : actionTab}
