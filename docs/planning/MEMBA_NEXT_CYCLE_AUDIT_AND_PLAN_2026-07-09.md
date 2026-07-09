@@ -1,6 +1,9 @@
 # Memba Next-Cycle Audit & Implementation Plan — 2026-07-09
 
-> **Status: DRAFT — owner review pending. NOTHING from §5 is coded.**
+> **Status: APPROVED by owner 2026-07-09 ("go") — in execution.** Decisions adopted as
+> recommended: D1 #851 MERGED (`ebf1f7f`) · D2 Option A · D3 deletions approved · D5
+> discourse-first · D6 B3 restarted fresh · D7 arcade realm greenlit. D4 flip + D8 remain
+> owner-gated/deferred. Wave progress is tracked in CHANGELOG + SESSION_SYNC.
 > Built per the kickoff ritual in `BACKLOG_NOTES_2026-07-09.md`: every one of the 16 owner
 > items (plus all open carry-overs) was investigated at HEAD `1d6baea` by a 12-lane
 > multi-perspective audit (App Store, Home, Feed, Marketplace, Blog, Docs, Mobile+Themes,
