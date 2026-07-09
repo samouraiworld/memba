@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useCallback } from "react"
 import { fetchOtcListings, type OtcListing } from "../lib/tokenOtcApi"
 import { EmptyState } from "../components/ui/EmptyState"
 import { formatGnotCompact } from "../lib/formatGnot"
@@ -15,25 +15,24 @@ export function TokenLane() {
     // Modal state
     const [modalProps, setModalProps] = useState<Omit<TokenTradeModalProps, "onClose" | "onSuccess"> | null>(null)
 
-    useEffect(() => {
-        let cancelled = false
-        fetchOtcListings()
-            .then((res) => {
-                if (!cancelled) {
-                    setListings(res)
-                    setLoading(false)
-                }
-            })
-            .catch((err: unknown) => {
-                if (!cancelled) {
-                    setError(err instanceof Error ? err.message : String(err))
-                    setLoading(false)
-                }
-            })
-        return () => {
-            cancelled = true
+    // Loads (or reloads) the OTC book. Called on mount and after a successful
+    // trade — replacing the old window.location.reload() (Phase 2 will move this
+    // to a TanStack Query invalidation).
+    const load = useCallback(async () => {
+        setLoading(true)
+        setError(null)
+        try {
+            setListings(await fetchOtcListings())
+        } catch (err: unknown) {
+            setError(err instanceof Error ? err.message : String(err))
+        } finally {
+            setLoading(false)
         }
     }, [])
+
+    useEffect(() => {
+        void load()
+    }, [load])
 
     if (loading) return <p className="mhub-loading">Loading token listings…</p>
     if (error) return <div className="mhub-error" role="alert">Failed to load: {error}</div>
@@ -44,10 +43,12 @@ export function TokenLane() {
                 <button 
                     className="mhub-launch-link"
                     onClick={() => {
+                        // TODO(marketplace-v2 Phase 5): replace alert() with connect-then-continue.
                         if (!address) return alert("Please connect your wallet first.")
                         setModalProps({
                             action: "list",
-                            symbol: "MEMBATEST", // Defaulting for v1.1
+                            // TODO(marketplace-v2 Phase 7.3): replace hardcoded symbol with a real token select (OTC Block Desk rebuild).
+                            symbol: "MEMBATEST",
                             callerAddress: address,
                         })
                     }}
@@ -107,8 +108,7 @@ export function TokenLane() {
                     onClose={() => setModalProps(null)}
                     onSuccess={() => {
                         setModalProps(null)
-                        // Trigger a reload
-                        window.location.reload()
+                        void load()
                     }}
                 />
             )}

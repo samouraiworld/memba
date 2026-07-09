@@ -46,7 +46,9 @@ export default function AgentLane() {
                                 <div>
                                     <h3 style={{ margin: 0, fontSize: "20px", color: "var(--color-text)", display: "flex", alignItems: "center", gap: "8px" }}>
                                         {agent.name}
-                                        {agent.verified && <span style={{ color: "var(--color-primary)", fontSize: "14px" }}>✓</span>}
+                                        {/* Verified/reputation badges intentionally removed here: they were sourced from
+                                            mock SEED_AGENTS data (fabricated trust signal). Reintroduced in Phase 6, read
+                                            ONLY from the authoritative, purchase-gated reputation realm keyed by address. */}
                                     </h3>
                                     <div style={{ fontSize: "12px", color: "var(--color-text-muted)", marginTop: "4px" }}>
                                         by {agent.creatorName || agent.creator.slice(0, 8)}
@@ -70,7 +72,8 @@ export default function AgentLane() {
                                 </div>
                                 <div style={{ fontSize: "12px", color: "var(--color-text-muted)", textAlign: "right" }}>
                                     <div>{agent.totalCalls.toLocaleString()} calls</div>
-                                    <div>★ {agent.rating.toFixed(1)} ({agent.ratingCount})</div>
+                                    {/* Star rating removed: it was fabricated from mock SEED_AGENTS and was not
+                                        purchase-gated. Reputation returns in Phase 6 from the authoritative realm. */}
                                 </div>
                             </div>
 

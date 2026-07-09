@@ -25,6 +25,7 @@ import { TransactionView } from "./pages/TransactionView"
 // ── Critical Lazy Pages (Prefetched for Performance) ──
 const ProfilePage = lazy(() => import("./pages/ProfilePage").then(m => ({ default: m.ProfilePage })))
 const UnifiedMarketplace = lazy(() => import("./pages/UnifiedMarketplace"))
+const MarketplaceV2Preview = lazy(() => import("./pages/MarketplaceV2Preview"))
 const DAOList = lazy(() => import("./pages/DAOList").then(m => ({ default: m.DAOList })))
 const TokenDashboard = lazy(() => import("./pages/TokenDashboard").then(m => ({ default: m.TokenDashboard })))
 
@@ -283,6 +284,9 @@ function App() {
 
           {/* Unified Marketplace (v3.0) */}
           <Route path="marketplace/*" element={<Suspense fallback={<PageLoader />}><UnifiedMarketplace /></Suspense>} />
+
+          {/* Marketplace v2 design preview — dev-only, gated by VITE_ENABLE_MARKETPLACE_V2 (off in prod) */}
+          <Route path="marketplace-v2-preview" element={<Suspense fallback={<PageLoader />}><MarketplaceV2Preview /></Suspense>} />
 
           {/* Alerts — Professional alerting (v2.18.0) */}
           <Route path="alerts" element={<Suspense fallback={<PageLoader />}><AlertsPage /></Suspense>} />

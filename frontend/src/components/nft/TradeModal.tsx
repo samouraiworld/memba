@@ -25,6 +25,7 @@ import { routeNftV3 } from "../../lib/marketplace/router"
 import { fetchLaneFeeBps } from "../../lib/marketplace/v3Reads"
 import { isApprovedForAll } from "../../lib/grc721"
 import { friendlyError } from "../../lib/errorMessages"
+import { trackEvent } from "../../lib/analytics"
 import type { AminoMsg } from "../../lib/grc20"
 import { NFTMedia } from "./NFTMedia"
 import { PriceBreakdown } from "./PriceBreakdown"
@@ -151,6 +152,9 @@ export function TradeModal({
     const handleBuy = async () => {
         setConfirming(true)
         setError(null)
+        // Funnel stage 3 (sign): the buyer committed to the wallet flow.
+        // Engine tier only — never the token, price, or addresses.
+        trackEvent("Marketplace Trade Signed", { action: "buy", engine: engine.engine })
         try {
             const { doContractBroadcast } = await import("../../lib/grc20")
             const msgs =
@@ -158,6 +162,8 @@ export function TradeModal({
                     ? routeNftV3({ collectionID, tokenId, action: "buy", caller: callerAddress, amountUgnot: priceUgnot! })
                     : [buildBuyNFTMsg(callerAddress, engine.marketPath, collectionID, tokenId, priceUgnot || 0)]
             await doContractBroadcast(msgs, `Buy ${collectionID}/${tokenId}`)
+            // Funnel stage 4 (settle): the buy broadcast was accepted on-chain.
+            trackEvent("Marketplace Trade Settled", { action: "buy", engine: engine.engine })
             if (import.meta.env.MODE === "test") {
                 onSuccess()
                 return

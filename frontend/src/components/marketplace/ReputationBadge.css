@@ -1,0 +1,27 @@
+/**
+ * ReputationBadge.css — shared reputation chip. Tokens only; --font-sans (chrome).
+ */
+.rep-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    font-family: var(--font-sans);
+    font-size: 0.8rem;
+    line-height: 1.1;
+}
+
+.rep-badge__rating {
+    color: var(--color-text);
+    font-weight: 600;
+}
+
+.rep-badge__level {
+    /* Lane accent inside a card; primary accent standalone. */
+    color: var(--mkt-accent, var(--color-primary));
+    font-weight: 600;
+}
+
+.rep-badge__count,
+.rep-badge--new {
+    color: var(--color-text-muted);
+}
