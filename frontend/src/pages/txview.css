@@ -174,6 +174,12 @@
   color: var(--color-k-accent-text);
   font-family: 'JetBrains Mono', monospace;
 }
+/* Signature stored but failed (or predates) server-side verification. */
+.k-txview__signed-badge--unverified {
+  background: var(--color-k-amber-subtle);
+  color: var(--color-k-warning);
+  border: 1px solid var(--color-k-amber-border);
+}
 
 /* ── Empty State ─────────────────────────────────────────────── */
 

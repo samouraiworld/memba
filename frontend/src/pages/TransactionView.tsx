@@ -257,6 +257,7 @@ export function TransactionView() {
                 <h3 className="k-txview__section-title">Signature Progress</h3>
                 <ProgressBar
                     current={tx.signatures.length}
+                    verified={tx.signatures.filter(s => s.verified).length}
                     threshold={tx.threshold}
                     total={tx.membersCount}
                 />
@@ -278,7 +279,11 @@ export function TransactionView() {
                         tx.signatures.map((sig, i) => (
                             <div key={i} className="k-txview__signer-row">
                                 <CopyableAddress address={sig.userAddress} fontSize={12} />
-                                <span className="k-txview__signed-badge">Signed</span>
+                                <span className={sig.verified
+                                    ? "k-txview__signed-badge"
+                                    : "k-txview__signed-badge k-txview__signed-badge--unverified"}>
+                                    {sig.verified ? "Verified" : "Unverified"}
+                                </span>
                             </div>
                         ))
                     )}

@@ -22,6 +22,8 @@ Full changelogs are split by version range for easier navigation:
 
 ### Marketplace — lane tabs actually switch lanes again (2026-07-09)
 - **Clicking a marketplace lane tab navigated to a bounced URL and landed back on the lane you were already on.** Under react-router 7 the shell's relative tab links resolve against the full current URL (`/marketplace/nfts` + `services` → `/marketplace/nfts/services`), which the catch-all redirect sends straight back to the default lane. Tab links are now absolute. Invisible in prod today only because a single lane is live there; on any network with two or more live lanes the tab bar was unusable.
+### Multisig — per-signature verification badge (2026-07-09)
+- **Quorum displays now distinguish cryptographically verified signatures from merely-submitted ones.** The backend's server-side signature check (A3) already ran on every submission; its verdict is now recorded per signature (`signatures.verified`, proto `Signature.verified`) and surfaced as a badge in the transaction view. Signatures stored before this change (or failing verification during the log-only `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY` window) show as unverified.
 
 ### App Store — read-side groundwork for the v3 realm (B1, 2026-07-09)
 <!-- categories: memba -->

@@ -204,6 +204,11 @@ message Signature {
   string user_address = 2;
   bytes body_bytes = 3;
   string created_at = 4;
+  // verified: the backend's server-side signature check (A3) passed for this
+  // signature at submission time. Recorded in both log-only and enforce modes;
+  // false = stored but not cryptographically verified — including all rows
+  // submitted before this field existed.
+  bool verified = 5;
 }
 
 enum ExecutionState {
