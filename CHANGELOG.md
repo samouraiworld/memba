@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Marketplace — light-theme parity for cards and warnings (2026-07-09)
+- Marketplace card borders, hover shadows/surfaces, the agent-credits warning tint, and three v2 CSS fallbacks used hardcoded dark-theme colors — invisible hovers and washed-out frames on the light theme. All now use the shared theme tokens (`--color-border`, `--shadow-lg`, `--color-k-hover-surface`, `--color-k-amber-*`, `--color-success`). The service-card image scrim stays a constant overlay by design (it sits on imagery, not on a themed surface).
+
 ### Home — the front page catches up with what actually shipped (2026-07-09)
 - **"Coming soon" no longer contradicts reality.** The below-the-fold "explore" and "coming soon" sections were static June lists — the Marketplace shipped weeks ago but Home still teased it as "not live yet", while the App Store, Blog, and Space Invaders never appeared at all. Both sections now derive from one flag-aware surface manifest: whatever a deployment enables shows as a live link, whatever it gates shows as "soon", and the two can never disagree again.
 - **"Live across gno.land" understands Memba's own realms.** Feed posts, App Store submissions/reports, and OTC token trades used to render as anonymous "Calls"; they now classify and read as human sentences ("Posted on the feed", "Submitted an app", "Traded tokens OTC") with a new **Apps** filter chip.
