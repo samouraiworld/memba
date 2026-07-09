@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Marketplace v2 — unified lane pipeline (dark, behind `VITE_ENABLE_MARKETPLACE_V2`) (2026-07-09)
+- **One shared pipeline for every marketplace lane** (`LaneView` → cached `useLaneQuery` → validated codec → per-source `toCard` adapters → `LaneToolbar` + `ListingGrid`/`MarketCard`): NFT and Token lanes read real test13 data, the Services lane ships the labeled Founding-Supply seed catalogue. Buyer-first "You pay" pricing, honest URL-driven search/filters/sort, no fabricated trust signals. Off in prod until the owner's cutover flip.
+- **Tab a11y (WAI-ARIA tabs):** roving tabindex with Arrow/Home/End keyboard navigation, `aria-controls`/`tabpanel` wiring on the lane outlet.
+- **Lane tabs fixed under react-router 7:** relative tab links inside the splat-mounted shell resolved against the full URL (`/marketplace/nfts` + `services` → `/nfts/services`) and the catch-all bounced them back — switching lanes via the tabs never navigated. Tab links are now absolute.
+
 ### Performance — feed reply counts (2026-07-08)
 <!-- categories: memba -->
 - The social feed now serves each post's reply count from a maintained column instead of recomputing it per row on every read, and ranks "most replied" posts from that column instead of an on-the-fly sort. This trims the work behind the timeline, thread, and feed-stats endpoints — most visible under load — with no change to the counts shown (they stay correct across reply delete / hide / unhide / operator-blocklist / chain-reorg).

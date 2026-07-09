@@ -50,3 +50,11 @@ When a token resolves to a colored fill (badge/pill/tag), text on it must use th
 ## Status (§13 sweep)
 
 Light token contrast is AA-tuned (this doc + the `#4b5563`/`#16161d` bump). The remaining work is replacing the ~1,800 hardcoded color usages across components with tokens, audit-driven, area by area — tracked in `docs/planning/HOME_AAA_REDESIGN_AND_AUDIT_PLAN_2026-06-25.md` §13.
+
+## Marketplace v2 surface (behind `VITE_ENABLE_MARKETPLACE_V2`)
+
+- **Lane accents:** `--color-k-lane-nft / -service / -token / -agent` (defined in `frontend/src/tokens.css`). Used for the hero accent, tab underline, and `MarketCard`'s lane chip — never for text.
+- **`MarketCard`** (`components/marketplace/MarketCard.tsx`) is CSS-only: no inline styles, no JS hover state. The seeded monogram gradient is the one sanctioned inline-color exception (deterministic per listing id).
+- **Type:** Inter (`--font-sans`) for all marketplace copy; mono stays data-only (prices, addresses, counts) per the global rule.
+- **Tabs:** WAI-ARIA tabs pattern — `role="tablist"` with roving tabindex (Arrow/Home/End), `aria-selected` + `aria-controls="um-lane-panel"`, and the route outlet as the single `role="tabpanel"`. Tab links must stay **absolute** (`${marketplaceBase}/<slug>`): react-router 7 resolves relative links in the splat-mounted shell against the full URL and the catch-all bounces them.
+- **No fabricated trust signals:** `ReputationBadge` renders only purchase-gated data (Phase 6) or "New seller" — never an ungated score.

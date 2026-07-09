@@ -11,7 +11,7 @@
  * redirect to — so we prove the security property deterministically without depending
  * on React.lazy/Suspense resolution inside the test (which is flaky in jsdom).
  */
-import { render, screen } from "@testing-library/react"
+import { fireEvent, render, screen } from "@testing-library/react"
 import { MemoryRouter, Routes, Route } from "react-router-dom"
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
@@ -127,4 +127,48 @@ describe("UnifiedMarketplace — route gating decision (W0.1)", () => {
     // the routing decision (isLaneSlugLive / getDefaultLaneSlug) the component wires its
     // routes + catch-all redirect to. Real-browser direct-URL gating is a recommended E2E
     // follow-up (Playwright handles lazy correctly where jsdom cannot).
+})
+
+describe("UnifiedMarketplace — tablist a11y (Phase 8: roving tabindex + panel wiring)", () => {
+    beforeEach(onlyNftAndServicesLive)
+
+    it("selected tab is the only one in the tab order and points at the lane panel", () => {
+        mountAt("/nfts")
+        const nfts = screen.getByRole("tab", { name: /NFTs/i })
+        const services = screen.getByRole("tab", { name: /Services/i })
+        expect(nfts).toHaveAttribute("tabindex", "0")
+        expect(services).toHaveAttribute("tabindex", "-1")
+        expect(nfts).toHaveAttribute("aria-controls", "um-lane-panel")
+        const panel = screen.getByRole("tabpanel")
+        expect(panel).toHaveAttribute("id", "um-lane-panel")
+        expect(panel).toHaveAttribute("aria-labelledby", "um-tab-nfts")
+    })
+
+    it("ArrowRight/ArrowLeft rove focus across tabs (wrapping) without navigating", () => {
+        mountAt("/nfts")
+        const tablist = screen.getByRole("tablist")
+        const nfts = screen.getByRole("tab", { name: /NFTs/i })
+        const services = screen.getByRole("tab", { name: /Services/i })
+        nfts.focus()
+        fireEvent.keyDown(tablist, { key: "ArrowRight" })
+        expect(services).toHaveFocus()
+        fireEvent.keyDown(tablist, { key: "ArrowRight" }) // wraps
+        expect(nfts).toHaveFocus()
+        fireEvent.keyDown(tablist, { key: "ArrowLeft" }) // wraps back
+        expect(services).toHaveFocus()
+        // Focus moved, selection didn't — activation stays on Enter/click.
+        expect(nfts).toHaveAttribute("aria-selected", "true")
+        expect(services).toHaveAttribute("aria-selected", "false")
+    })
+
+    it("Home/End jump to the first/last tab", () => {
+        mountAt("/services")
+        const nfts = screen.getByRole("tab", { name: /NFTs/i })
+        const services = screen.getByRole("tab", { name: /Services/i })
+        services.focus()
+        fireEvent.keyDown(screen.getByRole("tablist"), { key: "Home" })
+        expect(nfts).toHaveFocus()
+        fireEvent.keyDown(screen.getByRole("tablist"), { key: "End" })
+        expect(services).toHaveFocus()
+    })
 })

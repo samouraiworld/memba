@@ -1,4 +1,4 @@
-import { Suspense, lazy, type ComponentType } from "react"
+import { Suspense, lazy, type ComponentType, type KeyboardEvent } from "react"
 import { Routes, Route, Navigate, NavLink, useLocation, useSearchParams } from "react-router-dom"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { getLiveLanes, getDefaultLaneSlug } from "../lib/marketplace/lanes"
@@ -47,6 +47,23 @@ const LANE_COMPONENTS: Record<AssetType, ComponentType> = isMarketplaceV2Enabled
           token: TokenLane,
           agent: AgentLane,
       }
+
+// WAI-ARIA tabs keyboard pattern (roving tabindex): Left/Right move focus
+// between tabs (wrapping), Home/End jump to the edges. Activation stays on
+// Enter/Space — these tabs are router links, so focus alone must not navigate.
+function onTablistKeyDown(e: KeyboardEvent<HTMLElement>) {
+    if (!["ArrowRight", "ArrowLeft", "Home", "End"].includes(e.key)) return
+    const tabs = Array.from(e.currentTarget.querySelectorAll<HTMLElement>('[role="tab"]'))
+    const current = tabs.indexOf(document.activeElement as HTMLElement)
+    if (current === -1) return
+    e.preventDefault()
+    const next =
+        e.key === "Home" ? 0
+        : e.key === "End" ? tabs.length - 1
+        : e.key === "ArrowRight" ? (current + 1) % tabs.length
+        : (current - 1 + tabs.length) % tabs.length
+    tabs[next].focus()
+}
 
 const LANE_TAB_ICONS: Record<AssetType, Icon> = {
     nft: Image,
@@ -109,6 +126,17 @@ export default function UnifiedMarketplace() {
 
     const defaultSlug = getDefaultLaneSlug() ?? liveLanes[0].slug
 
+    // Roving tabindex (WAI-ARIA tabs): exactly one tab is in the page tab order —
+    // the selected one, or the first tab while the shell is mid-redirect and no
+    // lane is selected yet (all -1 would make the tablist keyboard-unreachable).
+    const activeSlug = pathname.endsWith(`/${MY_LISTINGS_SLUG}`)
+        ? MY_LISTINGS_SLUG
+        : liveLanes.find(l => pathname.endsWith(`/${l.slug}`))?.slug
+    const rovingSlug =
+        activeSlug && (activeSlug !== MY_LISTINGS_SLUG || showMyListings)
+            ? activeSlug
+            : liveLanes[0].slug
+
     // Absolute path to the default lane. The catch-all redirect below lives INSIDE the
     // splat <Route path="*">, so a relative <Navigate to={defaultSlug}> would resolve
     // against the growing matched splat (/marketplace/tokens → …/tokens/nfts → …/nfts/nfts)
@@ -146,15 +174,22 @@ export default function UnifiedMarketplace() {
 
             {/* ── Navigation Tabs (live lanes only) & Search ────── */}
             <div className="um-nav-container">
-                <nav className="um-tabs" role="tablist">
+                <nav className="um-tabs" role="tablist" aria-label="Marketplace lanes" onKeyDown={onTablistKeyDown}>
                     {liveLanes.map((lane) => {
                         const LaneIcon = LANE_TAB_ICONS[lane.assetType]
                         return (
                             <NavLink
                                 key={lane.assetType}
+                                id={`um-tab-${lane.slug}`}
                                 role="tab"
-                                to={lane.slug}
+                                // Absolute on purpose: under react-router 7, a relative `to`
+                                // inside this splat-mounted shell resolves against the full
+                                // current URL (/marketplace/nfts + "services" → /nfts/services),
+                                // which the catch-all bounces straight back — tabs never switch.
+                                to={`${marketplaceBase}/${lane.slug}`}
                                 aria-selected={pathname.endsWith(`/${lane.slug}`)}
+                                aria-controls="um-lane-panel"
+                                tabIndex={rovingSlug === lane.slug ? 0 : -1}
                                 className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}
                             >
                                 <span className="um-tab-icon" aria-hidden="true"><LaneIcon size={16} weight="bold" /></span> {lane.label}
@@ -163,9 +198,12 @@ export default function UnifiedMarketplace() {
                     })}
                     {showMyListings && (
                         <NavLink
+                            id={`um-tab-${MY_LISTINGS_SLUG}`}
                             role="tab"
-                            to={MY_LISTINGS_SLUG}
+                            to={`${marketplaceBase}/${MY_LISTINGS_SLUG}`}
                             aria-selected={pathname.endsWith(`/${MY_LISTINGS_SLUG}`)}
+                            aria-controls="um-lane-panel"
+                            tabIndex={rovingSlug === MY_LISTINGS_SLUG ? 0 : -1}
                             className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}
                             data-testid="my-listings-tab"
                         >
@@ -194,7 +232,14 @@ export default function UnifiedMarketplace() {
             </div>
 
             {/* ── Lane Content (routes for live lanes only) ─────── */}
-            <main className="um-main">
+            {/* One tabpanel for the whole route outlet: exactly one lane renders at
+                a time, and every tab points here via aria-controls. */}
+            <main
+                className="um-main"
+                role="tabpanel"
+                id="um-lane-panel"
+                aria-labelledby={activeSlug ? `um-tab-${activeSlug}` : undefined}
+            >
                 <Suspense fallback={<ConnectingLoader minHeight="40vh" />}>
                     <Routes>
                         <Route path="/" element={<Navigate to={defaultLanePath} replace />} />
