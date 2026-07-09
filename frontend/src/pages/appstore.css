@@ -638,3 +638,44 @@
 .appsubmit__status--rejected { color: var(--color-danger); border-color: var(--color-danger); }
 .appsubmit__reject { margin: 0; font-size: 13px; color: var(--color-danger); line-height: 1.5; }
 .appsubmit__resubmit { align-self: flex-start; }
+
+/* ── Curator review queue (B4) ───────────────────────────────── */
+.appcurator__tagline { margin: 0; font-size: 0.9rem; }
+.appcurator__meta { margin: 0; font-size: 12px; color: var(--color-text-secondary); }
+.appcurator__flags { color: var(--color-k-warning-text); font-weight: 600; }
+.appcurator__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    margin-top: 4px;
+}
+.appcurator__rejectbox {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: var(--space-3, 0.75rem);
+    border: 1px solid var(--color-k-amber-border);
+    border-radius: var(--radius-md, 10px);
+}
+.appcurator__rejectbox label {
+    font-size: var(--text-xs, 0.7rem);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-secondary);
+    font-family: var(--font-mono);
+}
+.appcurator__rejectbox textarea {
+    padding: 10px 12px;
+    border-radius: var(--radius-md, 10px);
+    border: 1px solid var(--color-k-edge);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: 0.9rem;
+    resize: vertical;
+}
+.appcurator__rejectbox textarea:focus {
+    outline: none;
+    border-color: var(--color-k-edge-hover);
+}
