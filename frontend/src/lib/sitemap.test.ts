@@ -36,3 +36,25 @@ describe("buildSitemapXml", () => {
         }
     })
 })
+
+describe("buildSitemapXml — dynamic entries (blog articles)", () => {
+    it("appends extra entries with their own lastmod after the static routes", () => {
+        const xml = buildSitemapXml(undefined, undefined, undefined, "2026-07-09", [
+            { path: "/blog/inside-memba", lastmod: "2026-07-04" },
+            { path: "/blog/no-date" },
+        ])
+        expect((xml.match(/<url>/g) || [])).toHaveLength(SITEMAP_PATHS.length + 2)
+        expect(xml).toContain(`<loc>${SITE_ORIGIN}/${SITEMAP_NETWORK}/blog/inside-memba</loc>`)
+        // The article's own date wins over the build date…
+        const article = xml.slice(xml.indexOf("/blog/inside-memba"))
+        expect(article).toContain("<lastmod>2026-07-04</lastmod>")
+        // …and an entry without one falls back to the build date.
+        const fallback = xml.slice(xml.indexOf("/blog/no-date"))
+        expect(fallback).toContain("<lastmod>2026-07-09</lastmod>")
+    })
+
+    it("escapes XML-special characters in extra paths", () => {
+        const xml = buildSitemapXml("https://x.test", "net", [], undefined, [{ path: "/blog/a&b" }])
+        expect(xml).toContain("<loc>https://x.test/net/blog/a&amp;b</loc>")
+    })
+})

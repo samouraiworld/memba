@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Blog — articles become first-class for search engines and social shares (2026-07-09)
+- **Every article now has its own URL in the sitemap** with its publication date as `lastmod` — previously only `/blog` itself was listed, so the 12 articles were invisible to crawlers except via the JS-rendered list and RSS.
+- **Sharing an article now shows that article** — each `/blog/:slug` sets its own og:title/description/twitter meta and a `BlogPosting` JSON-LD record (headline, date, keywords, author), instead of every article sharing one generic "Blog — Memba" preview. Feed readers can also auto-discover the RSS feed from any page.
+- **Articles can now include images** (`![alt](url)` on its own line): rendered lazily, protocol-whitelisted, and clamped to the article column. Deliberately opt-in for the blog only — untrusted realm output and feed posts keep the image-free renderer (the feed's media wave is gated on its moderation lever).
+
 ### Home — the front page catches up with what actually shipped (2026-07-09)
 - **"Coming soon" no longer contradicts reality.** The below-the-fold "explore" and "coming soon" sections were static June lists — the Marketplace shipped weeks ago but Home still teased it as "not live yet", while the App Store, Blog, and Space Invaders never appeared at all. Both sections now derive from one flag-aware surface manifest: whatever a deployment enables shows as a live link, whatever it gates shows as "soon", and the two can never disagree again.
 - **"Live across gno.land" understands Memba's own realms.** Feed posts, App Store submissions/reports, and OTC token trades used to render as anonymous "Calls"; they now classify and read as human sentences ("Posted on the feed", "Submitted an app", "Traded tokens OTC") with a new **Apps** filter chip.

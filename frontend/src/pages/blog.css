@@ -296,6 +296,16 @@
     margin: 0 0 16px;
 }
 
+/* Article images (markdownLite opt-in): never overflow, quiet frame. */
+.blog-body .md-img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 0 16px;
+    border-radius: 8px;
+    border: 1px solid var(--color-k-edge, rgba(128, 128, 128, 0.25));
+}
+
 .blog-body a {
     color: var(--color-primary);
     text-decoration: underline;
