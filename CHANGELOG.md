@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Blog — on-chain source, dark (behind `VITE_ENABLE_ONCHAIN_BLOG`) (2026-07-09)
+- **/blog can now read articles from the `memba_blog_v1` realm** (backlog item 8): flag-gated reads with the static build-time pipeline as a permanent fallback — on-chain wins its slug, static-only articles stay visible mid-migration, and a realm outage renders the static set (never a blank page). `/blog/<slug>` URLs are unchanged. Off in prod until the realm is deployed and the articles are migrated.
+
 ### Fix — token amounts no longer overflow, and are entered in whole tokens (2026-07-09)
 <!-- categories: memba -->
 - Launching a token with a large supply used to fail with an opaque error (`strconv.ParseInt: value out of range`). Token amounts are stored on-chain as 64-bit integers, but the **Create Token** form and the token **Transfer / Mint / Burn** actions accepted amounts in the smallest unit with no upper limit, so a large-but-reasonable-looking number silently exceeded the ceiling and the transaction was rejected. Amounts are now **entered in whole tokens** (e.g. `1000000` = one million tokens, not one token) with a live readout of the exact on-chain value and, for mints, the 2.5% platform fee and resulting total supply. Anything above the ~9.2-quintillion-unit ceiling is caught **before** you sign, with a clear message and a disabled submit button instead of a failed transaction. The multisig **Propose Transaction** builder (where amounts stay in the smallest unit for raw-proposal review) gains the same ceiling guard so an over-limit proposal is rejected up front rather than failing when co-signers execute it.

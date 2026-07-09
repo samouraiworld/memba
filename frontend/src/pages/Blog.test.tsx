@@ -2,17 +2,23 @@
 import { describe, it, expect } from "vitest"
 import { render, screen } from "@testing-library/react"
 import { MemoryRouter, Routes, Route } from "react-router-dom"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { BlogList, BlogArticlePage } from "./Blog"
 import { BLOG_ARTICLES } from "../lib/blog"
 
 function renderAt(path: string) {
+    // useBlogArticles goes through TanStack Query (flag-gated on-chain source;
+    // static passthrough when off) — the page needs a provider either way.
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     return render(
+        <QueryClientProvider client={qc}>
         <MemoryRouter initialEntries={[path]}>
             <Routes>
                 <Route path="/:network/blog" element={<BlogList />} />
                 <Route path="/:network/blog/:slug" element={<BlogArticlePage />} />
             </Routes>
-        </MemoryRouter>,
+        </MemoryRouter>
+        </QueryClientProvider>,
     )
 }
 

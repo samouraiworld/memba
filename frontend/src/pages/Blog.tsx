@@ -10,7 +10,7 @@ import { useEffect } from "react"
 import { useParams, Link } from "react-router-dom"
 import DOMPurify from "dompurify"
 import { Rss, ArrowLeft } from "@phosphor-icons/react"
-import { BLOG_ARTICLES, getArticle } from "../lib/blog"
+import { useBlogArticles, useBlogArticle } from "../lib/blogSource"
 import { renderMarkdown } from "../lib/markdownLite"
 import { useNetworkKey } from "../hooks/useNetworkNav"
 import "./blog.css"
@@ -31,7 +31,8 @@ export function BlogList() {
     const nk = useNetworkKey()
     useEffect(() => { document.title = "Blog — Memba" }, [])
 
-    const [featured, ...rest] = BLOG_ARTICLES
+    const { articles } = useBlogArticles()
+    const [featured, ...rest] = articles
 
     return (
         <div id="blog-page" className="blog-shell">
@@ -47,7 +48,7 @@ export function BlogList() {
                 </a>
             </header>
 
-            {BLOG_ARTICLES.length === 0 && (
+            {articles.length === 0 && (
                 <p className="blog-empty">No articles yet.</p>
             )}
 
@@ -100,7 +101,7 @@ export function BlogList() {
 export function BlogArticlePage() {
     const { slug } = useParams<{ slug: string }>()
     const nk = useNetworkKey()
-    const article = slug ? getArticle(slug) : undefined
+    const article = useBlogArticle(slug)
 
     useEffect(() => {
         document.title = article ? `${article.title} — Memba` : "Blog — Memba"
