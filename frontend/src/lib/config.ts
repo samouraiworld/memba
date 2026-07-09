@@ -668,6 +668,10 @@ export const isExplorerEnabled = (): boolean => import.meta.env.VITE_ENABLE_EXPL
 /** App Store (W9). SAFETY-GATED — the realm's RegisterApp fee path is not yet
  * verified on-chain (see SAFETY_GATED_FLAGS). Literal reader (prod-bundle safe). */
 export const isAppStoreEnabled = (): boolean => import.meta.env.VITE_ENABLE_APPSTORE === "true"
+/** App Store self-service submission (B3). SAFETY-GATED — RegisterApp attaches real coins
+ * and the memba_appstore_v3 fee path is not yet deployed/verified (see SAFETY_GATED_FLAGS).
+ * Literal reader (prod-bundle safe). */
+export const isAppStoreSubmitEnabled = (): boolean => import.meta.env.VITE_ENABLE_APPSTORE_SUBMIT === "true"
 /** gno.land public-sale announcement popup. Ordinary flag — a dismissible promo
  * linking out to the official sale portal, moves no funds. Literal reader (prod-bundle safe). */
 export const isIcoAnnouncementEnabled = (): boolean => import.meta.env.VITE_ENABLE_ICO_ANNOUNCEMENT === "true"

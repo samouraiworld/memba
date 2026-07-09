@@ -516,3 +516,125 @@
 .appreport__copy { font-size: 12px; color: var(--color-text-secondary); flex-basis: 100%; }
 .appreport--done { font-size: 12px; color: var(--color-text-secondary); }
 .appreport__error { display: block; margin-top: 6px; font-size: 12px; color: var(--color-danger); }
+
+/* ── Submit your app (B3 self-service listing) ───────────────── */
+.appstore__submit-cta {
+    margin-top: var(--space-4, 1rem);
+    align-self: flex-start;
+}
+.appsubmit__masthead { padding-bottom: var(--space-5, 1.25rem); }
+.appsubmit__form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-4, 1rem);
+    max-width: 640px;
+}
+.appsubmit__field { display: flex; flex-direction: column; gap: 6px; }
+.appsubmit__field label {
+    font-size: var(--text-xs, 0.7rem);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--color-text-secondary);
+    font-family: var(--font-mono);
+}
+.appsubmit__req { color: var(--color-k-accent-text); }
+.appsubmit__field input,
+.appsubmit__field textarea {
+    padding: 10px 12px;
+    border-radius: var(--radius-md, 10px);
+    border: 1px solid var(--color-k-edge);
+    background: var(--color-surface);
+    color: var(--color-text);
+    font-size: 0.9rem;
+    resize: vertical;
+    transition: border-color 0.15s ease;
+}
+.appsubmit__field input:focus,
+.appsubmit__field textarea:focus {
+    outline: none;
+    border-color: var(--color-k-edge-hover);
+}
+.appsubmit__field input:disabled { opacity: 0.6; cursor: not-allowed; }
+.appsubmit__hint { margin: 0; font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; }
+.appsubmit__error { margin: 0; font-size: 12px; color: var(--color-danger); line-height: 1.5; }
+.appsubmit__txerror { margin: 0; font-size: 13px; color: var(--color-danger); }
+/* The fee disclosure must be read before signing — amber, same visual weight as the
+   pending-review cautions elsewhere in the store. */
+.appsubmit__fee {
+    padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    color: var(--color-k-warning-text);
+    background: var(--color-k-amber-subtle);
+    border: 1px solid var(--color-k-amber-border);
+    border-left-width: 3px;
+    border-radius: var(--radius-md, 10px);
+}
+.appsubmit__fee--error { color: var(--color-danger); }
+.appsubmit__submit { align-self: flex-start; }
+.appsubmit__editnote {
+    padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
+    font-size: 0.9rem;
+    line-height: 1.55;
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-md, 10px);
+    color: var(--color-text-secondary);
+}
+.appsubmit__linkbtn {
+    background: none;
+    border: none;
+    padding: 0;
+    font: inherit;
+    color: var(--color-k-accent-text);
+    text-decoration: underline;
+    cursor: pointer;
+}
+.appsubmit__done { text-align: left; }
+.appsubmit__done .appbtn { margin-top: var(--space-3, 0.75rem); }
+.appsubmit__minelist {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3, 0.75rem);
+    max-width: 640px;
+}
+.appsubmit__mineitem {
+    padding: var(--space-4, 1rem);
+    border: 1px solid var(--color-k-edge);
+    border-radius: var(--radius-md, 10px);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.appsubmit__minehead {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.appsubmit__minename { font-weight: 600; }
+.appsubmit__status {
+    font-size: var(--text-xs, 0.64rem);
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid var(--color-k-edge);
+    color: var(--color-text-secondary);
+    white-space: nowrap;
+}
+.appsubmit__status--pending {
+    background: var(--color-k-amber-tint);
+    border-color: var(--color-k-amber-border);
+    color: var(--color-k-warning-text);
+}
+.appsubmit__status--live {
+    border-color: var(--color-k-accent-text);
+    color: var(--color-k-accent-text);
+}
+.appsubmit__status--rejected { color: var(--color-danger); border-color: var(--color-danger); }
+.appsubmit__reject { margin: 0; font-size: 13px; color: var(--color-danger); line-height: 1.5; }
+.appsubmit__resubmit { align-self: flex-start; }

@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { isSafeRealmPath, isV3Path, isAppStoreV3, APPSTORE_REALM_PATH, fetchLiveApps, fetchByStatus } from "./appStore"
+import {
+    isSafeRealmPath,
+    isV3Path,
+    isAppStoreV3,
+    APPSTORE_REALM_PATH,
+    fetchLiveApps,
+    fetchByStatus,
+    fetchByPublisher,
+} from "./appStore"
 import * as shared from "./dao/shared"
 
 describe("APPSTORE_REALM_PATH", () => {
@@ -63,6 +71,36 @@ describe("fetchByStatus (v3 per-status window)", () => {
         vi.spyOn(shared, "queryEval").mockResolvedValue("")
         const apps = await fetchByStatus("live", 0, 20)
         expect(apps).toEqual([])
+    })
+})
+
+describe("fetchByPublisher (v3 my-submissions window)", () => {
+    beforeEach(() => vi.restoreAllMocks())
+    afterEach(() => vi.restoreAllMocks())
+
+    it("queries ListByPublisherJSON with the JSON-encoded address and coerces the window", async () => {
+        const qe = vi.spyOn(shared, "queryEval").mockResolvedValue("[unused]")
+        vi.spyOn(shared, "parseQevalJSON").mockReturnValue([
+            { id: 5, pkgPath: "gno.land/r/samcrew/mine_v1", name: "Mine", status: "rejected", rejectReason: "no descr" },
+        ])
+        const mine = await fetchByPublisher("g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0", 0, 50)
+        expect(mine).toHaveLength(1)
+        expect(mine[0].rejectReason).toBe("no descr")
+        const expr = qe.mock.calls[0][2]
+        expect(expr).toContain("ListByPublisherJSON")
+        expect(expr).toContain('"g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0"')
+    })
+
+    it("refuses to query with a non-address-shaped publisher (qeval injection guard)", async () => {
+        const qe = vi.spyOn(shared, "queryEval").mockResolvedValue("[unused]")
+        await expect(fetchByPublisher(`g1x") + Evil("`, 0, 50)).resolves.toEqual([])
+        await expect(fetchByPublisher("", 0, 50)).resolves.toEqual([])
+        expect(qe).not.toHaveBeenCalled()
+    })
+
+    it("returns [] when the realm/getter yields nothing (e.g. v2 has no ListByPublisherJSON)", async () => {
+        vi.spyOn(shared, "queryEval").mockResolvedValue("")
+        await expect(fetchByPublisher("g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0", 0, 50)).resolves.toEqual([])
     })
 })
 

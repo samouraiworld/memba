@@ -11,6 +11,7 @@ const appStoreRoutes = <Routes><Route path="/:network/apps/*" element={<AppStore
 // Control the realm generation + the network reads so we can assert the v3-only pending disclosure
 // without hitting a chain. isAppStoreV3 is a plain fn here, flipped per-test via `v3`.
 let v3 = true
+let submitEnabled = false
 const fetchByStatus = vi.fn()
 const fetchApp = vi.fn()
 
@@ -23,6 +24,10 @@ vi.mock("../lib/appStore", async (importActual) => {
         fetchByStatus: (...a: unknown[]) => fetchByStatus(...a),
         fetchApp: (...a: unknown[]) => fetchApp(...a),
     }
+})
+vi.mock("../lib/config", async (importActual) => {
+    const actual = await importActual<typeof import("../lib/config")>()
+    return { ...actual, isAppStoreSubmitEnabled: () => submitEnabled }
 })
 
 function listing(over: Partial<AppListing>): AppListing {
@@ -64,6 +69,30 @@ describe("AppStore — pending-review disclosure (v3, opt-in)", () => {
         // let the live query settle
         await waitFor(() => expect(screen.getByTestId("appstore-root")).toBeInTheDocument())
         expect(screen.queryByRole("button", { name: /apps pending review/i })).not.toBeInTheDocument()
+    })
+})
+
+describe("AppStore — submit-your-app CTA (B3, dark until the flag flips)", () => {
+    beforeEach(() => { v3 = true; submitEnabled = true })
+
+    it("links to /apps/submit when submissions are enabled on the v3 realm", async () => {
+        renderWithProviders(<AppStore />, { route: "/test13/apps" })
+        const cta = await screen.findByRole("link", { name: /submit your app/i })
+        expect(cta).toHaveAttribute("href", "/test13/apps/submit")
+    })
+
+    it("stays hidden while VITE_ENABLE_APPSTORE_SUBMIT is off", async () => {
+        submitEnabled = false
+        renderWithProviders(<AppStore />, { route: "/test13/apps" })
+        await waitFor(() => expect(screen.getByTestId("appstore-root")).toBeInTheDocument())
+        expect(screen.queryByRole("link", { name: /submit your app/i })).not.toBeInTheDocument()
+    })
+
+    it("stays hidden on the v2 realm even with the flag on (no submission path there)", async () => {
+        v3 = false
+        renderWithProviders(<AppStore />, { route: "/test13/apps" })
+        await waitFor(() => expect(screen.getByTestId("appstore-root")).toBeInTheDocument())
+        expect(screen.queryByRole("link", { name: /submit your app/i })).not.toBeInTheDocument()
     })
 })
 

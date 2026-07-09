@@ -140,6 +140,28 @@ export async function fetchByStatus(status: AppStatus, offset: number, limit: nu
     return parsed.map(coerce).filter((x): x is AppListing => x !== null)
 }
 
+/** A bech32 account address — the only shape we'll put in a qeval expr as a publisher. */
+const ADDRESS_RE = /^g1[0-9a-z]{10,80}$/
+
+/**
+ * Fetch a bounded window of one publisher's listings (v3 `ListByPublisherJSON`) — the
+ * My-Submissions read. Returns [] on any error, an address that isn't address-shaped (defense
+ * against qeval-expression injection; the value is also JSON-encoded), or a realm without the
+ * getter (v2).
+ */
+export async function fetchByPublisher(publisher: string, offset: number, limit: number): Promise<AppListing[]> {
+    if (!ADDRESS_RE.test(publisher)) return []
+    const raw = await queryEval(
+        GNO_RPC_URL,
+        APPSTORE_REALM_PATH,
+        `ListByPublisherJSON(${JSON.stringify(publisher)}, ${offset | 0}, ${limit | 0})`,
+    )
+    if (!raw) return []
+    const parsed = parseQevalJSON(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.map(coerce).filter((x): x is AppListing => x !== null)
+}
+
 /** Fetch one listing by package path, or null if missing / path is unsafe. */
 export async function fetchApp(pkgPath: string): Promise<AppListing | null> {
     if (!isSafeRealmPath(pkgPath)) return null

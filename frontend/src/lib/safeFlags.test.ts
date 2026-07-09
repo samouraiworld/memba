@@ -27,7 +27,23 @@ describe("assertSafeFlags", () => {
     })
 
     it("guards the fund-moving and incomplete-enforcement flags", () => {
-        expect([...SAFETY_GATED_FLAGS]).toEqual(["VITE_ENABLE_TREASURY_SPEND", "VITE_ENABLE_AGENT_CREDITS"])
+        expect([...SAFETY_GATED_FLAGS]).toEqual([
+            "VITE_ENABLE_TREASURY_SPEND",
+            "VITE_ENABLE_AGENT_CREDITS",
+            "VITE_ENABLE_APPSTORE_SUBMIT",
+        ])
+    })
+})
+
+describe("VITE_ENABLE_APPSTORE_SUBMIT (B3 money path — gated until the v3 fee path is verified)", () => {
+    it("fails the prod build when enabled", () => {
+        // RegisterApp attaches real coins (exact-fee ugnot send). The v3 realm is merged but NOT
+        // deployed/migrated, and its fee-path runbook hasn't run — shipping this enabled could
+        // move funds against an unverified path. De-gate ONLY after the owner's checklist passes.
+        expect(SAFETY_GATED_FLAGS).toContain("VITE_ENABLE_APPSTORE_SUBMIT")
+        expect(() => assertSafeFlags({ VITE_ENABLE_APPSTORE_SUBMIT: "true" })).toThrow(
+            /VITE_ENABLE_APPSTORE_SUBMIT/,
+        )
     })
 })
 

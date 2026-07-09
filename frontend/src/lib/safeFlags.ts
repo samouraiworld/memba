@@ -19,6 +19,10 @@ export const SAFETY_GATED_FLAGS = [
     // VITE_ENABLE_APPSTORE de-gated 2026-07-07 after memba_appstore_v2 deployed on
     // test13 with a self-managed 2-of-2 admin and a live-verified fee path. The flag
     // now legitimately turns the App Store lane on in prod.
+    // B3 self-service submission: RegisterApp attaches real coins (exact-fee ugnot
+    // send) against memba_appstore_v3, which is merged but NOT yet deployed/migrated
+    // and whose fee-path runbook hasn't run. De-gate only after that checklist passes.
+    "VITE_ENABLE_APPSTORE_SUBMIT",
 ] as const
 
 /**
