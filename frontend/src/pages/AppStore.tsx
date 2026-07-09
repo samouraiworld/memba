@@ -23,6 +23,7 @@ import { fetchLiveApps, fetchApp, fetchByStatus, isSafeRealmPath, isAppStoreV3, 
 import { fetchSummary } from "../lib/reviews"
 import { MEMBA_DAO, isAppReviewsEnabled } from "../lib/config"
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
+import { ReportAppButton } from "../components/appstore/ReportAppButton"
 import { AppReviewStars, MIN_RATED_COUNT } from "../components/reviews/AppReviewStars"
 import "./appstore.css"
 
@@ -393,6 +394,11 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
                                 <> Published by <code className="apptrust__addr">{shortAddr(app.publisher)}</code>.</>
                             )}
                         </p>
+                        {/* Community safety valve (B1b): flaggable states only — the realm
+                            rejects flags on rejected/delisted apps anyway. */}
+                        {(app.status === "live" || app.status === "pending") && (
+                            <ReportAppButton pkgPath={app.pkgPath} />
+                        )}
                     </aside>
 
                     {appReviews && (

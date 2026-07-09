@@ -13,6 +13,7 @@
  */
 
 import { queryEval, parseQevalJSON } from "./dao/shared"
+import type { AminoMsg } from "./grc20"
 import { GNO_RPC_URL } from "./config"
 
 // The active App Store realm. Env-overridable so the front end can be pointed at the v3
@@ -62,6 +63,21 @@ const REALM_PATH_RE = /^gno\.land\/[rp]\/[a-zA-Z0-9_./-]+$/
 
 export function isSafeRealmPath(p: string): boolean {
     return REALM_PATH_RE.test(p) && p.length <= 200
+}
+
+/**
+ * FlagApp(pkgPath) — the community report action. One flag per address per
+ * listing (the realm dedupes and panics "already flagged"); at the realm's
+ * hide threshold the listing drops from the public lists for curator review.
+ * Same guard as the read path: pkgPath is validated before it becomes a
+ * broadcast argument.
+ */
+export function buildFlagAppMsg(caller: string, pkgPath: string): AminoMsg {
+    if (!isSafeRealmPath(pkgPath)) throw new Error("invalid app path")
+    return {
+        type: "vm/MsgCall",
+        value: { caller, send: "", pkg_path: APPSTORE_REALM_PATH, func: "FlagApp", args: [pkgPath] },
+    }
 }
 
 function coerce(o: unknown): AppListing | null {

@@ -654,6 +654,11 @@ export const isAppReviewsEnabled = (): boolean => import.meta.env.VITE_ENABLE_AP
 /** Social feed (W7.2). Ordinary flag — no funds. Literal reader (dynamic
  * import.meta.env[key] is undefined in prod bundles). */
 export const isFeedEnabled = (): boolean => import.meta.env.VITE_ENABLE_FEED === "true"
+
+/** On-chain blog (memba_blog_v1 reads with static fallback). Ordinary flag —
+ * read-only surface, no money path. Off by default until the realm is
+ * deployed + articles migrated. */
+export const isOnchainBlogEnabled = (): boolean => import.meta.env.VITE_ENABLE_ONCHAIN_BLOG === "true"
 export const isGameEnabled = (): boolean => import.meta.env.VITE_ENABLE_GAME === "true"
 export const isSpaceInvadersEnabled = (): boolean =>
   import.meta.env.VITE_ENABLE_SPACE_INVADERS === "true"

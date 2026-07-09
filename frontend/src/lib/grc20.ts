@@ -439,6 +439,51 @@ export function buildFaucetMsg(caller: string, symbol: string): AminoMsg {
     return buildMsgCall("Faucet", [symbol], caller)
 }
 
+// ── Supply Bounds & Amount Parsing ────────────────────────────
+
+/**
+ * Largest value the on-chain tokenfactory can hold. Token amounts (initial
+ * mint, faucet, per-account balances, total supply) are Gno `int64`, so any
+ * argument above this overflows at the VM's argument-decoding step and the tx
+ * fails with `strconv.ParseInt: value out of range` before the realm even runs.
+ * The browser uses unbounded BigInt, so this ceiling MUST be enforced here.
+ */
+export const MAX_INT64 = 9223372036854775807n
+
+/**
+ * Parse a human-entered token amount (in whole tokens, optionally with a
+ * decimal point) into base units — the integer the contract actually stores.
+ *
+ * e.g. parseTokenAmount("1000000", 6)  → 1000000000000n  (1M tokens)
+ *      parseTokenAmount("1.5", 6)      → 1500000n        (1.5 tokens)
+ *      parseTokenAmount("", 6)         → 0n
+ *
+ * Throws an Error with a user-facing message on malformed input or more
+ * fractional digits than the token's `decimals` allow.
+ */
+export function parseTokenAmount(input: string, decimals: number): bigint {
+    const s = input.trim()
+    if (!s) return 0n
+    if (!/^\d+(\.\d+)?$/.test(s)) {
+        throw new Error("Enter a plain number like 1000000 or 1.5 — no commas, units, or scientific notation")
+    }
+    const [whole, frac = ""] = s.split(".")
+    if (frac.length > decimals) {
+        throw new Error(`Too many decimal places — this token supports at most ${decimals}`)
+    }
+    return BigInt(whole + frac.padEnd(decimals, "0"))
+}
+
+/**
+ * Largest whole-token supply that fits the int64 ceiling at a given decimals,
+ * as a grouped display string (e.g. 6 decimals → "9,223,372,036,854"). Used to
+ * tell the user the cap in the units they typed in.
+ */
+export function maxWholeTokens(decimals: number): string {
+    const whole = (MAX_INT64 / 10n ** BigInt(decimals)).toString()
+    return whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")
+}
+
 // ── Fee Calculation ───────────────────────────────────────────
 
 /** Calculate 2.5% platform fee. Rounds down. */

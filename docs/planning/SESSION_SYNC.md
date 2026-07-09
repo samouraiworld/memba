@@ -10,6 +10,11 @@ Rules:
 
 ---
 
+2026-07-09 · Lane B · App Store B1b Report/FlagApp write-side · START→STOP (single session) · frontend: components/appstore/ReportAppButton.{tsx,test.tsx} (new), lib/appStore.ts (buildFlagAppMsg), pages/AppStore.tsx (mount in apptrust, flaggable states only), pages/appstore.css · CHANGELOG.md (single-writer: registered) · active-realm write (v2 now, v3 after repoint); no new flag · feat/appstore-report-app
+
+2026-07-09 · Lane B · validator-name resilience P0-B (plan: VALIDATOR_NAMING_RESILIENCE_PLAN_2026-07-08) · START→STOP (single session) · frontend: lib/gnomonitoring.ts (any-endpoint seeding, isRealMoniker, 7d last-good localStorage cache) + gnomonitoring.test.ts, lib/validators.ts (guarded moniker adoption ×3, keying note) · CHANGELOG.md (single-writer: registered) · gnomonitoring root fix = PR #116 (separate repo, owner deploys VPS) · fix/validator-name-resilience
+2026-07-09 · Lane B · on-chain blog reader (backlog item 8, realm = deployer PR #74) · START→STOP (single session) · frontend: lib/blogOnchain.ts + blogSource.ts + blogOnchain.test.ts (new), lib/config.ts (isOnchainBlogEnabled), pages/Blog.tsx (source hook), pages/Blog.test.tsx (QueryClient harness), .env.example (single-writer: registered) · behind VITE_ENABLE_ONCHAIN_BLOG (off; realm not deployed) · feat/onchain-blog-reader
+
 2026-07-09 · Lane B · repo hygiene session · START→STOP (single session) · docs/planning archive sweep (shipped plans → archive/shipped-2026-07 with status banners), rescue VALIDATOR_NAMING_RESILIENCE_PLAN + SPACE_INVADERS_AAA_PLAN into git, BACKLOG_PLAN status header; test deflake PostCard.test.tsx (fix/postcard-edit-test-flake); marketplace-v2 branch pushed + draft PR #851 (no source changes to it); stale worktrees/branches pruned · CHANGELOG.md untouched (docs+test only) · docs/planning-rescue-and-archive
 
 2026-07-09 · Lane C · per-signature verified badge (finishing the Jul-3 WIP) · START→STOP (single session) · api/memba/v1/memba.proto (Signature.verified=5) + buf regen (backend/gen, frontend/src/gen) · backend: internal/service/tx_rpc.go (store+read verdict), tx_sig_verified_test.go (new), migrations/023_sig_verified.sql (new) · frontend: multisig/ProgressBar.tsx, TransactionView.{tsx,test.tsx}, txview.css · CHANGELOG.md (single-writer: registered) · fix/per-signature-verified-flag

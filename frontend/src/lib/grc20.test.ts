@@ -20,6 +20,9 @@ import {
     toAdenaMessages,
     formatTokenAmount,
     formatSupply,
+    parseTokenAmount,
+    maxWholeTokens,
+    MAX_INT64,
     PLATFORM_FEE_RATE,
     FEE_RECIPIENT,
     GRC20_FACTORY_PATH,
@@ -244,6 +247,63 @@ describe('formatSupply', () => {
 
     it('handles 0 decimals (whole-unit token)', () => {
         expect(formatSupply('21000000', 0)).toBe('21,000,000')
+    })
+})
+
+// ── parseTokenAmount (whole tokens → base units, int64-safe) ──────
+
+describe('parseTokenAmount', () => {
+    it('converts whole tokens to base units at the given decimals', () => {
+        expect(parseTokenAmount('1000000', 6)).toBe(1000000000000n)
+    })
+
+    it('handles fractional token amounts', () => {
+        expect(parseTokenAmount('1.5', 6)).toBe(1500000n)
+        expect(parseTokenAmount('0.000001', 6)).toBe(1n)
+    })
+
+    it('treats empty input as zero', () => {
+        expect(parseTokenAmount('', 6)).toBe(0n)
+        expect(parseTokenAmount('   ', 6)).toBe(0n)
+    })
+
+    it('handles 0 decimals (whole-unit token)', () => {
+        expect(parseTokenAmount('21000000', 0)).toBe(21000000n)
+    })
+
+    it('rejects more fractional digits than decimals allow', () => {
+        expect(() => parseTokenAmount('1.1234567', 6)).toThrow(/decimal places/)
+    })
+
+    it('rejects commas, scientific notation, and junk', () => {
+        expect(() => parseTokenAmount('1,000', 6)).toThrow()
+        expect(() => parseTokenAmount('1e18', 6)).toThrow()
+        expect(() => parseTokenAmount('abc', 6)).toThrow()
+    })
+
+    it('parses a huge but valid supply without loss (BigInt, not float)', () => {
+        // 9,000,000,000,000 tokens @ 6 decimals = 9e18 base units, fits int64
+        expect(parseTokenAmount('9000000000000', 6)).toBe(9000000000000000000n)
+    })
+
+    it('reproduces the reported overflow: a valid parse that exceeds int64', () => {
+        // The original bug: "100000000000000000000000000000" (1e29) base units.
+        // parseTokenAmount at 0 decimals returns it faithfully; the caller's
+        // MAX_INT64 guard is what must reject it (parse itself never overflows).
+        const parsed = parseTokenAmount('100000000000000000000000000000', 0)
+        expect(parsed).toBe(100000000000000000000000000000n)
+        expect(parsed > MAX_INT64).toBe(true)
+    })
+})
+
+describe('MAX_INT64 / maxWholeTokens', () => {
+    it('MAX_INT64 is the int64 ceiling', () => {
+        expect(MAX_INT64).toBe(9223372036854775807n)
+    })
+
+    it('maxWholeTokens groups the whole-token cap at the given decimals', () => {
+        expect(maxWholeTokens(6)).toBe('9,223,372,036,854')
+        expect(maxWholeTokens(0)).toBe('9,223,372,036,854,775,807')
     })
 })
 
