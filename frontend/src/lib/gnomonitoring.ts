@@ -381,10 +381,65 @@ export async function fetchMonitoringTxContribution(
     return filtered
 }
 
+// ── Moniker resilience (2026-07-09, VALIDATOR_NAMING_RESILIENCE_PLAN) ─────────
+//
+// Names are slowly-changing reference data: metrics may degrade, identity must
+// not. Three layers keep names on screen when gnomonitoring misbehaves:
+//   1. ANY moniker-bearing endpoint seeds the map (not just /Participation —
+//      one endpoint failing no longer blanks every name).
+//   2. A moniker that is empty, "unknown", or shaped like an address is not a
+//      name (isRealMoniker) — the backend's addr-fallback can never reach the UI.
+//   3. A last-good localStorage cache (7d TTL) backfills names during outages.
+
+/** True when `m` is an actual human moniker — not empty, not the "unknown"
+ * placeholder, not the validator's own address, and not address-shaped. */
+export function isRealMoniker(m: string | null | undefined, addr?: string): boolean {
+    if (!m) return false
+    const t = m.trim()
+    if (!t || t.toLowerCase() === "unknown") return false
+    if (addr && t.toLowerCase() === addr.toLowerCase()) return false
+    if (/^g1[0-9a-z]{10,}$/i.test(t)) return false // bech32-shaped ⇒ an address, not a name
+    return true
+}
+
+const MONIKER_CACHE_KEY = "memba_validator_monikers_v1"
+const MONIKER_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000 // 7d — names change rarely
+
+type MonikerCache = Record<string, { m: string; t: number }>
+
+function loadMonikerCache(): MonikerCache {
+    try {
+        const raw = localStorage.getItem(MONIKER_CACHE_KEY)
+        if (!raw) return {}
+        const parsed = JSON.parse(raw) as MonikerCache
+        const now = Date.now()
+        const fresh: MonikerCache = {}
+        for (const [k, v] of Object.entries(parsed)) {
+            if (v && typeof v.m === "string" && now - v.t < MONIKER_CACHE_TTL_MS) fresh[k] = v
+        }
+        return fresh
+    } catch {
+        return {} // storage unavailable / corrupt — cache is best-effort only
+    }
+}
+
+function saveMonikerCache(cache: MonikerCache): void {
+    try {
+        localStorage.setItem(MONIKER_CACHE_KEY, JSON.stringify(cache))
+    } catch {
+        // quota/unavailable — losing the cache only loses the outage fallback
+    }
+}
+
 /**
  * Fetch all monitoring data (7 endpoints) in parallel.
  * Merges by address. Returns a Map for O(1) lookup.
  * Returns empty Map on failure — graceful degradation.
+ *
+ * Resilient naming: every endpoint carries (addr, moniker), so ANY of them can
+ * seed an entry; address-shaped "monikers" are rejected; a last-good cache
+ * backfills names when every endpoint degrades. Metrics still only come from
+ * their own endpoint — resilience applies to identity, not numbers.
  */
 export async function fetchAllMonitoringData(
     signal?: AbortSignal,
@@ -401,109 +456,83 @@ export async function fetchAllMonitoringData(
         fetchMonitoringTxContribution(signal),
     ])
 
-    if (!participation) return result
-
-    // Build map from participation data (has moniker + addr)
-    for (const p of participation) {
-        result.set(p.addr.toLowerCase(), {
-            addr: p.addr,
-            moniker: p.moniker,
-            participationRate: p.participationRate,
-            uptime: null,
-            firstSeen: null,
-            missedBlocks: null,
-            incidents: [],
-            operationTime: null,
-            lastDownDate: null,
-            txContrib: null,
-        })
+    // Seed-or-get an entry from any (addr, moniker) pair. A later real moniker
+    // upgrades an entry seeded with a junk one, never the other way around.
+    const ensure = (addr: string, moniker: string): MonitoringValidatorData => {
+        const key = addr.toLowerCase()
+        let entry = result.get(key)
+        if (!entry) {
+            entry = {
+                addr,
+                moniker: isRealMoniker(moniker, addr) ? moniker : "",
+                participationRate: 0,
+                uptime: null,
+                firstSeen: null,
+                missedBlocks: null,
+                incidents: [],
+                operationTime: null,
+                lastDownDate: null,
+                txContrib: null,
+            }
+            result.set(key, entry)
+        } else if (!isRealMoniker(entry.moniker, entry.addr) && isRealMoniker(moniker, addr)) {
+            entry.moniker = moniker
+        }
+        return entry
     }
 
-    // Merge uptime data
+    if (participation) {
+        for (const p of participation) {
+            ensure(p.addr, p.moniker).participationRate = p.participationRate
+        }
+    }
     if (uptime) {
         for (const u of uptime) {
-            const existing = result.get(u.addr.toLowerCase())
-            if (existing) {
-                existing.uptime = u.uptime
-            }
+            ensure(u.addr, u.moniker).uptime = u.uptime
         }
     }
-
-    // Merge first-seen data
     if (firstSeen) {
         for (const fs of firstSeen) {
-            const existing = result.get(fs.addr.toLowerCase())
-            if (existing) {
-                existing.firstSeen = fs.firstSeen
-            } else {
-                result.set(fs.addr.toLowerCase(), {
-                    addr: fs.addr,
-                    moniker: fs.moniker,
-                    participationRate: 0,
-                    uptime: null,
-                    firstSeen: fs.firstSeen,
-                    missedBlocks: null,
-                    incidents: [],
-                    operationTime: null,
-                    lastDownDate: null, // Added lastDownDate
-                    txContrib: null,
-                })
-            }
+            ensure(fs.addr, fs.moniker).firstSeen = fs.firstSeen
         }
     }
-
-    // Merge incidents — create entries for validators not yet in result
     if (incidents) {
         for (const inc of incidents) {
-            const key = inc.addr.toLowerCase()
-            if (!result.has(key)) {
-                result.set(key, {
-                    addr: inc.addr,
-                    moniker: inc.moniker,
-                    participationRate: 0,
-                    uptime: null,
-                    firstSeen: null,
-                    missedBlocks: null,
-                    incidents: [],
-                    operationTime: null,
-                    lastDownDate: null,
-                    txContrib: null,
-                })
-            }
-            result.get(key)!.incidents.push(inc)
+            ensure(inc.addr, inc.moniker).incidents.push(inc)
         }
     }
-
-    // Merge missing blocks
     if (missingBlocks) {
         for (const mb of missingBlocks) {
-            const existing = result.get(mb.addr.toLowerCase())
-            if (existing) {
-                existing.missedBlocks = mb.missedBlocks
-            }
+            ensure(mb.addr, mb.moniker).missedBlocks = mb.missedBlocks
         }
     }
-
-    // Merge operation time
     if (operationTime) {
         for (const ot of operationTime) {
-            const existing = result.get(ot.addr.toLowerCase())
-            if (existing) {
-                existing.operationTime = ot.operationTime
-                existing.lastDownDate = ot.lastDownDate
-            }
+            const entry = ensure(ot.addr, ot.moniker)
+            entry.operationTime = ot.operationTime
+            entry.lastDownDate = ot.lastDownDate
+        }
+    }
+    if (txContrib) {
+        for (const tc of txContrib) {
+            ensure(tc.addr, tc.moniker).txContrib = tc.txContrib
         }
     }
 
-    // Merge TX contribution
-    if (txContrib) {
-        for (const tc of txContrib) {
-            const existing = result.get(tc.addr.toLowerCase())
-            if (existing) {
-                existing.txContrib = tc.txContrib
-            }
+    // Last-good cache: backfill missing names from the previous session, then
+    // persist every real name we saw this round.
+    const cache = loadMonikerCache()
+    let dirty = false
+    for (const [key, entry] of result) {
+        if (!isRealMoniker(entry.moniker, entry.addr)) {
+            const cached = cache[key]
+            if (cached && isRealMoniker(cached.m, entry.addr)) entry.moniker = cached.m
+        } else if (cache[key]?.m !== entry.moniker) {
+            cache[key] = { m: entry.moniker, t: Date.now() }
+            dirty = true
         }
     }
+    if (dirty) saveMonikerCache(cache)
 
     return result
 }

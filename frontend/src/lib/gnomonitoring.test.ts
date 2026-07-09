@@ -229,3 +229,111 @@ describe("gnomonitoring", () => {
         expect(a!.firstSeen).toBeNull()  // failed gracefully
     })
 })
+
+// ── Moniker resilience (VALIDATOR_NAMING_RESILIENCE_PLAN, P0-B) ───────────────
+//
+// The 2026-07-08 incident: /Participation failing (or returning addr-as-moniker
+// fallbacks) blanked EVERY validator name. These tests pin the three layers:
+// any-endpoint seeding, the addr-shaped-moniker guard, and the last-good cache.
+
+describe("moniker resilience", () => {
+    let sessionStore: Record<string, string>
+    let localStore: Record<string, string>
+
+    beforeEach(() => {
+        sessionStore = {}
+        localStore = {}
+        vi.stubGlobal("sessionStorage", {
+            getItem: (key: string) => sessionStore[key] ?? null,
+            setItem: (key: string, val: string) => { sessionStore[key] = val },
+            removeItem: (key: string) => { delete sessionStore[key] },
+        })
+        vi.stubGlobal("localStorage", {
+            getItem: (key: string) => localStore[key] ?? null,
+            setItem: (key: string, val: string) => { localStore[key] = val },
+            removeItem: (key: string) => { delete localStore[key] },
+            clear: () => { localStore = {} },
+        })
+        vi.stubGlobal("fetch", vi.fn())
+    })
+
+    afterEach(() => {
+        vi.restoreAllMocks()
+        vi.resetModules()
+    })
+
+    it("isRealMoniker rejects placeholders, addresses, and address-shaped strings", async () => {
+        const { isRealMoniker } = await import("./gnomonitoring")
+        expect(isRealMoniker("gfanton-1")).toBe(true)
+        expect(isRealMoniker("Validator One")).toBe(true)
+        expect(isRealMoniker("")).toBe(false)
+        expect(isRealMoniker(null)).toBe(false)
+        expect(isRealMoniker("unknown")).toBe(false)
+        expect(isRealMoniker("g15sysllqvjyqxy9tdd0z9wcfnjeuxx6vwpves")).toBe(false)
+        expect(isRealMoniker("g1abc", "g1abc")).toBe(false) // equals its own addr
+    })
+
+    it("participation DOWN: names still seed from any other moniker-bearing endpoint", async () => {
+        const mod = await import("./gnomonitoring")
+        vi.mocked(fetch).mockImplementation(async (url) => {
+            const u = typeof url === "string" ? url : (url as Request).url
+            if (u.includes("/Participation")) return { ok: false } as Response
+            if (u.includes("/uptime")) {
+                return { ok: true, json: () => Promise.resolve([{ addr: "g1aaa", moniker: "validator-a", uptime: 99.9 }]) } as Response
+            }
+            return { ok: false } as Response
+        })
+
+        const result = await mod.fetchAllMonitoringData()
+        expect(result.get("g1aaa")?.moniker).toBe("validator-a")
+        expect(result.get("g1aaa")?.uptime).toBe(99.9)
+    })
+
+    it("address-shaped monikers from the backend never reach the UI", async () => {
+        const mod = await import("./gnomonitoring")
+        vi.mocked(fetch).mockImplementation(async (url) => {
+            const u = typeof url === "string" ? url : (url as Request).url
+            if (u.includes("/Participation")) {
+                // The backend addr-fallback bug shape: moniker === addr.
+                return { ok: true, json: () => Promise.resolve([{ addr: "g1aaabbbcccdddeee", moniker: "g1aaabbbcccdddeee", participationRate: 95 }]) } as Response
+            }
+            return { ok: false } as Response
+        })
+
+        const result = await mod.fetchAllMonitoringData()
+        expect(result.get("g1aaabbbcccdddeee")?.moniker).toBe("")
+        expect(result.get("g1aaabbbcccdddeee")?.participationRate).toBe(95)
+    })
+
+    it("persists real names and backfills them from the last-good cache during an outage", async () => {
+        const mod = await import("./gnomonitoring")
+
+        // Round 1 — healthy: names persist to the last-good cache.
+        vi.mocked(fetch).mockImplementation(async (url) => {
+            const u = typeof url === "string" ? url : (url as Request).url
+            if (u.includes("/Participation")) {
+                return { ok: true, json: () => Promise.resolve(mockParticipation) } as Response
+            }
+            return { ok: false } as Response
+        })
+        let result = await mod.fetchAllMonitoringData()
+        expect(result.get("g1aaa")?.moniker).toBe("validator-a")
+        expect(localStore["memba_validator_monikers_v1"]).toContain("validator-a")
+
+        // Round 2 — degraded: the endpoint now returns addr-as-moniker rows
+        // (sessionStorage HTTP cache is fresh, so clear it to force the refetch).
+        sessionStore = {}
+        vi.mocked(fetch).mockImplementation(async (url) => {
+            const u = typeof url === "string" ? url : (url as Request).url
+            if (u.includes("/Participation")) {
+                return { ok: true, json: () => Promise.resolve([
+                    { addr: "g1aaa", moniker: "g1aaa", participationRate: 12 },
+                ]) } as Response
+            }
+            return { ok: false } as Response
+        })
+        result = await mod.fetchAllMonitoringData()
+        expect(result.get("g1aaa")?.moniker).toBe("validator-a") // last-good name, not the address
+        expect(result.get("g1aaa")?.participationRate).toBe(12) // metrics stay live
+    })
+})
