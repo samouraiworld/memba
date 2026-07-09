@@ -136,7 +136,12 @@ export default function UnifiedMarketplace() {
                         <NavLink
                             key={lane.assetType}
                             role="tab"
-                            to={lane.slug}
+                            // Absolute on purpose: under react-router 7, a relative `to`
+                            // inside this splat-mounted shell resolves against the full
+                            // current URL (/marketplace/nfts + "services" → /nfts/services),
+                            // which the catch-all bounces straight back — so switching
+                            // lanes via the tabs never navigated.
+                            to={`${marketplaceBase}/${lane.slug}`}
                             className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}
                         >
                             <span className="um-tab-icon">{LANE_TAB_ICONS[lane.assetType]}</span> {lane.label}
@@ -145,7 +150,7 @@ export default function UnifiedMarketplace() {
                     {showMyListings && (
                         <NavLink
                             role="tab"
-                            to={MY_LISTINGS_SLUG}
+                            to={`${marketplaceBase}/${MY_LISTINGS_SLUG}`}
                             className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}
                             data-testid="my-listings-tab"
                         >

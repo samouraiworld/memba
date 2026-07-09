@@ -114,4 +114,20 @@ test.describe('Marketplace lane gating (W0.1 route-wiring)', () => {
         await expect(tabbar.locator('a[role="tab"]', { hasText: 'Tokens' })).toHaveCount(0)
         await expect(tabbar.locator('a[role="tab"]', { hasText: 'Agents' })).toHaveCount(0)
     })
+
+    test('clicking a lane tab actually switches lanes (router-7 relative-link regression)', async ({ page }) => {
+        const network = await resolveNetwork(page)
+
+        await page.goto(`/${network}/marketplace/nfts`, { waitUntil: 'domcontentloaded' })
+        const servicesTab = page.locator('a[role="tab"]', { hasText: 'Services' })
+        await expect(servicesTab).toBeVisible()
+
+        // Regression: under react-router 7, a RELATIVE tab link resolves against the
+        // full current URL (/marketplace/nfts + 'services' → …/nfts/services), which
+        // the shell's catch-all bounces straight back to the default lane — the click
+        // "did nothing". The tab must land on the services lane and STAY there.
+        await servicesTab.click()
+        await expect(page).toHaveURL(new RegExp(`/${network}/marketplace/services`), { timeout: 10_000 })
+        await expect(servicesTab).toHaveClass(/active/)
+    })
 })
