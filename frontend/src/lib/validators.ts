@@ -5,6 +5,7 @@ import { hexToBech32 } from "./dao/realmAddress"
 import { fetchValoperListPaged } from "./valopers"
 import { getExplorerBaseUrl } from "./config"
 import { resilientRpcCall, directRpcCall } from "./rpcFallback"
+import { isRealMoniker } from "./gnomonitoring"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -197,7 +198,10 @@ export function mergeWithMonitoringData(
         if (match) {
             return {
                 ...v,
-                moniker: v.moniker || match.moniker,
+                // Never adopt an address-shaped/placeholder "name" from the
+                // monitoring layer — an empty moniker renders as a truncated
+                // address, which is honest; a fake moniker is not.
+                moniker: v.moniker || (isRealMoniker(match.moniker, match.addr) ? match.moniker : ""),
                 participationRate: match.participationRate,
                 uptimePercent: match.uptime,
                 startTime: match.firstSeen ?? v.startTime,
@@ -272,8 +276,14 @@ export function mergeValoperMonikers(
     if (monikerMap.size === 0) return validators
 
     return validators.map(v => {
+        // NOTE (keying): the valoper map is keyed by OPERATOR address (that is
+        // what the roster Render exposes), while v.gnoAddr is the consensus
+        // SIGNING address — the lookup only hits when a valoper signs with its
+        // operator account. Full signing-address keying needs the per-valoper
+        // detail page (N+1 realm reads) and lives in gnomonitoring instead,
+        // which already keys both; this path is defense-in-depth only.
         const moniker = v.gnoAddr ? monikerMap.get(v.gnoAddr.toLowerCase()) : undefined
-        if (moniker && !v.moniker) {
+        if (moniker && !v.moniker && isRealMoniker(moniker, v.gnoAddr)) {
             return { ...v, moniker }
         }
         return v
@@ -848,7 +858,7 @@ export function mergePeerLists(lists: PeerInfo[][]): PeerInfo[] {
             existing.seenByCount += 1
             // Backfill fields a later, better-informed node may have that an
             // earlier one left blank (e.g. moniker, rpcAddr).
-            if (!existing.moniker && peer.moniker) existing.moniker = peer.moniker
+            if (!existing.moniker && isRealMoniker(peer.moniker)) existing.moniker = peer.moniker
             if (!existing.rpcAddr && peer.rpcAddr) existing.rpcAddr = peer.rpcAddr
             if (!existing.ip && peer.ip) existing.ip = peer.ip
         }
