@@ -11,8 +11,11 @@ import {
     buildCreateTokenMsgs,
     buildCreateTokenWithAdminMsgs,
     calculateFee,
-    feeDisclosure,
     doContractBroadcast,
+    parseTokenAmount,
+    maxWholeTokens,
+    formatSupply,
+    MAX_INT64,
     GRC20_FACTORY_PATH,
 } from "../lib/grc20"
 import type { LayoutContext } from "../types/layout"
@@ -33,6 +36,7 @@ export function CreateToken() {
     const [selectedMultisig, setSelectedMultisig] = useState("")
     const [multisigs, setMultisigs] = useState<{ address: string; name: string }[]>([])
     const [memo, setMemo] = useState("")
+    const [showGuide, setShowGuide] = useState(false)
 
     // State
     const [loading, setLoading] = useState(false)
@@ -72,13 +76,26 @@ export function CreateToken() {
         )
     }
 
+    // Supply & faucet are entered in WHOLE tokens; the contract stores base
+    // units (whole × 10^decimals). Decimals fall back to 6 for the live preview
+    // until the field is validated on submit.
+    const previewDec = (() => {
+        const d = parseInt(decimals, 10)
+        return isNaN(d) || d < 0 || d > 18 ? 6 : d
+    })()
+
     let parsedMint = 0n
+    let mintError: string | null = null
     try {
-        parsedMint = initialMint.trim() ? BigInt(initialMint.trim()) : 0n
-    } catch {
-        // Non-numeric input (e.g., pasted "1,000" or "1e18") — treat as 0 until validated in handleCreate
+        parsedMint = parseTokenAmount(initialMint, previewDec)
+    } catch (e) {
+        mintError = e instanceof Error ? e.message : "Invalid amount"
     }
     const fee = parsedMint > 0n ? calculateFee(parsedMint) : 0n
+    // The realm mints initialMint + fee as total supply — both must fit int64.
+    const totalSupply = parsedMint + fee
+    const overCap = !mintError && totalSupply > MAX_INT64
+    const symUpper = symbol.trim().toUpperCase() || "TOKEN"
 
     const handleCreate = async () => {
         if (!auth.isAuthenticated || !auth.token) {
@@ -95,14 +112,28 @@ export function CreateToken() {
         if (!/^[A-Z0-9]{1,10}$/.test(trimSymbol)) { setError("Symbol must be 1-10 uppercase letters/digits"); return }
         const dec = parseInt(decimals, 10)
         if (isNaN(dec) || dec < 0 || dec > 18) { setError("Decimals must be 0-18"); return }
-        if (parsedMint < 0n) { setError("Initial mint must be ≥ 0"); return }
+
+        // Supply/faucet are in whole tokens → convert to base units and enforce
+        // the int64 ceiling here. Above it the tx fails on-chain with an opaque
+        // "strconv.ParseInt: value out of range" before the realm ever runs.
+        let mint = 0n
+        try {
+            mint = parseTokenAmount(initialMint, dec)
+        } catch (e) {
+            setError(e instanceof Error ? e.message : "Invalid initial supply"); return
+        }
+        if (mint + calculateFee(mint) > MAX_INT64) {
+            setError(`Initial supply is too large. The max at ${dec} decimals is ~${maxWholeTokens(dec)} ${trimSymbol} (the 2.5% fee is minted on top, so leave headroom).`); return
+        }
         let faucet = 0n
         try {
-            faucet = BigInt(faucetAmount.trim() || "0")
-        } catch {
-            setError("Faucet amount must be a valid number"); return
+            faucet = parseTokenAmount(faucetAmount, dec)
+        } catch (e) {
+            setError(e instanceof Error ? `Faucet amount: ${e.message}` : "Invalid faucet amount"); return
         }
-        if (faucet < 0n) { setError("Faucet amount must be ≥ 0"); return }
+        if (faucet > MAX_INT64) {
+            setError(`Faucet amount is too large. The max at ${dec} decimals is ~${maxWholeTokens(dec)} ${trimSymbol}.`); return
+        }
 
         if (adminMode === "multisig" && !selectedMultisig) {
             setError("Select a multisig wallet")
@@ -121,7 +152,7 @@ export function CreateToken() {
                 // ── Multisig admin: create TX proposal ──
                 const msgs = buildCreateTokenWithAdminMsgs(
                     callerAddress, trimName, trimSymbol, dec,
-                    parsedMint, faucet, selectedMultisig,
+                    mint, faucet, selectedMultisig,
                 )
 
                 // Fetch account info for multisig
@@ -153,7 +184,7 @@ export function CreateToken() {
                 // ── Single user: sign + broadcast via Adena DoContract ──
                 const msgs = buildCreateTokenMsgs(
                     callerAddress, trimName, trimSymbol, dec,
-                    parsedMint, faucet,
+                    mint, faucet,
                 )
 
                 setDeployStep("signing")
@@ -189,9 +220,45 @@ export function CreateToken() {
                 </button>
                 <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Create a Token</h2>
                 <p style={{ color: "var(--color-text-secondary)", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
-                    Deploy a GRC20 token on {GNO_CHAIN_ID} via grc20factory
+                    Deploy your own GRC20 token on {GNO_CHAIN_ID} — a standard, tradeable coin with a name, supply, and holders.
                 </p>
+                <button
+                    onClick={() => setShowGuide((v) => !v)}
+                    style={{
+                        marginTop: 12, background: "none", border: "1px solid var(--color-k-edge)",
+                        borderRadius: 8, padding: "6px 12px", cursor: "pointer",
+                        color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", fontSize: 11,
+                    }}
+                >
+                    {showGuide ? "▼" : "▶"} New to tokens? Read this first
+                </button>
             </div>
+
+            {/* Education / tokenomics primer */}
+            {showGuide && (
+                <div className="k-card" style={{ padding: 22, display: "flex", flexDirection: "column", gap: 14 }}>
+                    <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--color-k-text)", fontFamily: "JetBrains Mono, monospace", margin: 0 }}>
+                        A token is a coin you define and control. You pick its name, how many exist,
+                        and who can create more. Here's what each setting means:
+                    </p>
+                    {[
+                        ["Decimals", "How finely one token can be split. 6 (the default) means a token divides into 1,000,000 pieces — like cents in a dollar, but smaller. You almost never need to change this."],
+                        ["Initial supply", "How many tokens are minted to you (the admin) the moment the token is created. This is your starting stack — use it for the team, treasury, liquidity, airdrops, or sale."],
+                        ["Platform fee (2.5%)", "On every mint, an extra 2.5% is created and sent to the Samouraï Coop to fund the platform. Mint 1,000,000 → 25,000 extra go to the Coop; total supply becomes 1,025,000."],
+                        ["Faucet", "Optional. If set, anyone can claim this fixed amount for free (handy for testnets or community distribution). Leave at 0 to keep it off — the tokens would be minted from thin air each claim."],
+                        ["Admin", "The address allowed to mint more or burn tokens later. Your wallet by default. Choose a multisig for shared, harder-to-abuse control — or renounce admin later to lock supply forever (a credible 'fixed supply' promise)."],
+                        ["Max supply", `Amounts are stored as a 64-bit integer on-chain, so the hard ceiling is ~9.2 quintillion base units. At 6 decimals that's ~${maxWholeTokens(6)} whole tokens. Go above it and the transaction fails.`],
+                    ].map(([term, body]) => (
+                        <div key={term} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--color-k-accent)", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.04em" }}>{term}</span>
+                            <span style={{ fontSize: 12, lineHeight: 1.55, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>{body}</span>
+                        </div>
+                    ))}
+                    <p style={{ fontSize: 11, lineHeight: 1.55, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", margin: 0, borderTop: "1px solid var(--color-k-edge)", paddingTop: 12 }}>
+                        Tokenomics in one line: decide the total supply and who holds it, keep decimals at 6 unless you have a reason, and be deliberate about who stays admin — that's what holders will judge.
+                    </p>
+                </div>
+            )}
 
             {!auth.isAuthenticated && (
                 <div className="k-dashed" style={{ background: "var(--color-k-elevated)", padding: 32, textAlign: "center" }}>
@@ -268,31 +335,47 @@ export function CreateToken() {
                         min={0} max={18}
                         style={inputStyle(loading)} disabled={loading}
                     />
-                    <p style={hintStyle}>Precision (6 = 1 token = 1,000,000 smallest unit)</p>
+                    <p style={hintStyle}>How divisible each token is. 6 is standard (1 token = 1,000,000 units). Range 0–18.</p>
                 </div>
 
-                {/* Initial Mint */}
+                {/* Initial Supply */}
                 <div>
-                    <label style={labelStyle}>Initial Mint (smallest unit)</label>
+                    <label style={labelStyle}>Initial Supply (whole {symUpper})</label>
                     <input
                         type="text" value={initialMint}
-                        onChange={(e) => setInitialMint(e.target.value.replace(/[^0-9]/g, ""))}
+                        onChange={(e) => setInitialMint(e.target.value.replace(/[^0-9.]/g, ""))}
                         placeholder="e.g. 1000000 (optional)"
                         style={inputStyle(loading)} disabled={loading}
+                        aria-invalid={!!mintError || overCap}
                     />
-                    <p style={hintStyle}>Tokens minted to the admin on creation. Leave empty for 0.</p>
+                    <p style={hintStyle}>Number of whole tokens minted to the admin now. Leave empty for 0.</p>
+                    {/* Live conversion + fee/total preview */}
+                    {mintError ? (
+                        <p style={{ ...hintStyle, color: "var(--color-warning)" }}>⚠ {mintError}</p>
+                    ) : overCap ? (
+                        <p style={{ ...hintStyle, color: "var(--color-warning)" }}>
+                            ⚠ Too large. Max at {previewDec} decimals is ~{maxWholeTokens(previewDec)} {symUpper}.
+                        </p>
+                    ) : parsedMint > 0n ? (
+                        <p style={{ ...hintStyle, color: "var(--color-text-secondary)" }}>
+                            = {formatSupply(String(parsedMint), previewDec)} {symUpper}
+                            {" "}({String(parsedMint)} base units)
+                            {" · "}+{formatSupply(String(fee), previewDec) ?? "0"} fee
+                            {" → "}total supply {formatSupply(String(totalSupply), previewDec)} {symUpper}
+                        </p>
+                    ) : null}
                 </div>
 
                 {/* Faucet Amount */}
                 <div>
-                    <label style={labelStyle}>Faucet Amount (per request)</label>
+                    <label style={labelStyle}>Faucet Amount (whole {symUpper} per claim)</label>
                     <input
                         type="text" value={faucetAmount}
-                        onChange={(e) => setFaucetAmount(e.target.value.replace(/[^0-9]/g, ""))}
+                        onChange={(e) => setFaucetAmount(e.target.value.replace(/[^0-9.]/g, ""))}
                         placeholder="0 = disabled"
                         style={inputStyle(loading)} disabled={loading}
                     />
-                    <p style={hintStyle}>Public faucet amount. 0 = faucet disabled.</p>
+                    <p style={hintStyle}>Free tokens anyone can claim per request. 0 = faucet off (recommended for real tokens).</p>
                 </div>
 
                 {/* Multisig selector */}
@@ -337,13 +420,13 @@ export function CreateToken() {
             </div>
 
             {/* Fee disclosure */}
-            {parsedMint > 0n && (
+            {parsedMint > 0n && !mintError && !overCap && (
                 <div style={{
                     padding: "14px 18px", borderRadius: 8,
                     background: "var(--color-k-amber-subtle)", border: "1px solid var(--color-k-amber-border)",
                     fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-warning)",
                 }}>
-                    💰 {feeDisclosure(parsedMint, symbol.trim().toUpperCase() || "TOKEN")}
+                    💰 A 2.5% platform fee ({formatSupply(String(fee), previewDec) ?? "0"} {symUpper}) is minted on top and supports Samouraï Coop development & maintenance.
                 </div>
             )}
 
@@ -361,18 +444,24 @@ export function CreateToken() {
                     <span style={{ color: "var(--color-text-secondary)" }}>Messages</span>
                     <span style={{ color: "var(--color-text-secondary)" }}>{parsedMint > 0n ? "2 (create + fee)" : "1 (create)"}</span>
                 </div>
-                {fee > 0n && (
-                    <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
-                        <span style={{ color: "var(--color-text-secondary)" }}>Platform fee (2.5%)</span>
-                        <span style={{ color: "var(--color-warning)" }}>{String(fee)} {symbol.trim().toUpperCase() || "TOKEN"}</span>
-                    </div>
+                {fee > 0n && !mintError && !overCap && (
+                    <>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                            <span style={{ color: "var(--color-text-secondary)" }}>Platform fee (2.5%)</span>
+                            <span style={{ color: "var(--color-warning)" }}>{formatSupply(String(fee), previewDec)} {symUpper}</span>
+                        </div>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                            <span style={{ color: "var(--color-text-secondary)" }}>Total supply</span>
+                            <span style={{ color: "var(--color-k-text)" }}>{formatSupply(String(totalSupply), previewDec)} {symUpper}</span>
+                        </div>
+                    </>
                 )}
             </div>
 
             {/* Submit */}
             <button
                 onClick={handleCreate}
-                disabled={loading || !auth.isAuthenticated || !name.trim() || !symbol.trim()}
+                disabled={loading || !auth.isAuthenticated || !name.trim() || !symbol.trim() || !!mintError || overCap}
                 style={{
                     width: "100%", height: 44, borderRadius: 8,
                     background: loading ? "var(--color-k-edge)" : "var(--color-k-accent)",
@@ -380,7 +469,7 @@ export function CreateToken() {
                     fontFamily: "JetBrains Mono, monospace", fontSize: 14, fontWeight: 600,
                     border: "none", cursor: loading ? "not-allowed" : "pointer",
                     transition: "all 0.15s", letterSpacing: "-0.01em",
-                    opacity: (!auth.isAuthenticated || !name.trim() || !symbol.trim()) ? 0.4 : 1,
+                    opacity: (!auth.isAuthenticated || !name.trim() || !symbol.trim() || !!mintError || overCap) ? 0.4 : 1,
                 }}
             >
                 {loading ? "Creating..." : adminMode === "multisig" ? "Propose Token Creation" : "Create Token"}
