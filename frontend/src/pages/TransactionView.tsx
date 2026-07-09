@@ -279,9 +279,14 @@ export function TransactionView() {
                         tx.signatures.map((sig, i) => (
                             <div key={i} className="k-txview__signer-row">
                                 <CopyableAddress address={sig.userAddress} fontSize={12} />
-                                <span className={sig.verified
-                                    ? "k-txview__signed-badge"
-                                    : "k-txview__signed-badge k-txview__signed-badge--unverified"}>
+                                <span
+                                    className={sig.verified
+                                        ? "k-txview__signed-badge"
+                                        : "k-txview__signed-badge k-txview__signed-badge--unverified"}
+                                    title={sig.verified
+                                        ? "The server re-derived this signature from the stored transaction and it checked out."
+                                        : "Stored but not cryptographically verified — this signature either predates server-side verification (older transactions can never be re-checked) or did not match. Expected for legacy transactions; verification is advisory until enforcement is switched on."}
+                                >
                                     {sig.verified ? "Verified" : "Unverified"}
                                 </span>
                             </div>

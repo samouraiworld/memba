@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Multisig — "Unverified" no longer reads as an alarm on legacy signatures (2026-07-09)
+- Signatures collected before server-side verification existed can never be re-checked, but their badge read simply "Unverified" — indistinguishable from a real mismatch. The badge now explains itself on hover: legacy rows are expected and advisory, and the "Verified" badge states what was actually checked.
+
 ### Marketplace — light-theme parity for cards and warnings (2026-07-09)
 - Marketplace card borders, hover shadows/surfaces, the agent-credits warning tint, and three v2 CSS fallbacks used hardcoded dark-theme colors — invisible hovers and washed-out frames on the light theme. All now use the shared theme tokens (`--color-border`, `--shadow-lg`, `--color-k-hover-surface`, `--color-k-amber-*`, `--color-success`). The service-card image scrim stays a constant overlay by design (it sits on imagery, not on a themed surface).
 ### Blog — articles become first-class for search engines and social shares (2026-07-09)
