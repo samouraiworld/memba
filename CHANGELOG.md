@@ -22,6 +22,8 @@ Full changelogs are split by version range for easier navigation:
 
 ### Blog — on-chain source, dark (behind `VITE_ENABLE_ONCHAIN_BLOG`) (2026-07-09)
 - **/blog can now read articles from the `memba_blog_v1` realm** (backlog item 8): flag-gated reads with the static build-time pipeline as a permanent fallback — on-chain wins its slug, static-only articles stay visible mid-migration, and a realm outage renders the static set (never a blank page). `/blog/<slug>` URLs are unchanged. Off in prod until the realm is deployed and the articles are migrated.
+### App Store — community "Report app" (B1b) (2026-07-09)
+- **Any user can now report a live or pending listing from its detail page** (one on-chain flag per address; the realm hides a listing from public lists at its flag threshold, pending curator review). The confirm step discloses the on-chain permanence before any wallet prompt; disconnected visitors get connect-on-action; the realm's "already flagged" dedupe reads as success. Targets whichever App Store realm is active (`VITE_APPSTORE_REALM_PATH`), so it works on v2 today and v3 after the migration.
 
 ### Fix — token amounts no longer overflow, and are entered in whole tokens (2026-07-09)
 <!-- categories: memba -->
