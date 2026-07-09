@@ -127,11 +127,14 @@ describe("TradeModal — buy (v3)", () => {
     it("shows PriceBreakdown with price, fee and royalty rows", () => {
         render(<TradeModal {...makeProps({ action: "buy", source: "v3" })} />)
 
-        // PriceBreakdown renders "Price", "Platform Fee", "Creator Royalty", "Seller Receives"
-        expect(screen.getByText("Price")).toBeInTheDocument()
+        // Buyer-first breakdown (Phase 1.5c): the all-in "You pay" headline leads,
+        // fees/royalty read as deductions from the seller's proceeds, and the
+        // no-refund recourse line is always present.
+        expect(screen.getByText("You pay")).toBeInTheDocument()
         expect(screen.getByText(/Platform Fee/)).toBeInTheDocument()
         expect(screen.getByText(/Creator Royalty/)).toBeInTheDocument()
         expect(screen.getByText("Seller Receives")).toBeInTheDocument()
+        expect(screen.getByText(/no refunds/i)).toBeInTheDocument()
     })
 
     it("fee row mirrors the on-chain rate from memba_market_config (not the static default)", async () => {
