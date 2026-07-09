@@ -43,6 +43,24 @@ describe("parseActivity", () => {
         expect(items[0].kind).toBe("governance")
     })
 
+    it("classifies a memba_feed call as a post event with a human verb", () => {
+        const items = parseActivity([tx(110, "h10", [call("g1p", "gno.land/r/samcrew/memba_feed_v1", "CreatePost")])], new Map())
+        expect(items[0].kind).toBe("post")
+        expect(items[0].title).toBe("Posted on the feed")
+    })
+
+    it("classifies a memba_appstore call as an app event with a human verb", () => {
+        const items = parseActivity([tx(111, "h11", [call("g1q", "gno.land/r/samcrew/memba_appstore_v2", "RegisterApp")])], new Map())
+        expect(items[0].kind).toBe("app")
+        expect(items[0].title).toBe("Submitted an app")
+    })
+
+    it("classifies a token_otc fill as a token trade", () => {
+        const items = parseActivity([tx(112, "h12", [call("g1r", "gno.land/r/samcrew/memba_token_otc_v2", "Fill")])], new Map())
+        expect(items[0].kind).toBe("token")
+        expect(items[0].title).toBe("Traded tokens OTC")
+    })
+
     it("maps MsgAddPackage to a deploy item with the package path", () => {
         const items = parseActivity([tx(104, "h5", [addpkg("g1f", "gno.land/r/demo/foo")])], new Map())
         expect(items[0]).toMatchObject({ kind: "deploy", actor: "g1f", pkgPath: "gno.land/r/demo/foo" })

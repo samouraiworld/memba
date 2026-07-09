@@ -84,12 +84,15 @@ export function EcosystemBand({ networkKey }: EcosystemBandProps) {
     const showTokens = tokensLoading || tokens.length > 0
     const showValidators = validatorsLoading || validators.length > 0
 
-    // Agents stays a count-only tile (omitted at 0 — never a fabricated 0).
-    const agentTiles: Tile[] = [
+    // Agents and NFT collections stay count-only tiles (omitted at 0 — never a
+    // fabricated 0). Collections was computed by the snapshot all along but
+    // never rendered here (next-cycle plan, Wave 0.2).
+    const countTiles: Tile[] = [
         { key: "agents", label: "agents", value: counts?.agents },
+        { key: "collections", label: "NFT collections", value: counts?.collections },
     ].filter((t): t is Tile => typeof t.value === "number" && t.value > 0)
 
-    if (!showTokens && !showValidators && agentTiles.length === 0) return null
+    if (!showTokens && !showValidators && countTiles.length === 0) return null
 
     const topValidators = validators.slice(0, VALIDATOR_TOP_N)
 
@@ -186,7 +189,7 @@ export function EcosystemBand({ networkKey }: EcosystemBandProps) {
                     </div>
                 )}
 
-                {agentTiles.map((t) => (
+                {countTiles.map((t) => (
                     <div key={t.key} className="ecosystem-section ecosystem-section--tile" data-testid={`eco-${t.key}`}>
                         <div className="ecosystem-section__header ecosystem-section__header--static">
                             <span className="ecosystem-section__count">{t.value}</span>

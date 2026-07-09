@@ -12,7 +12,7 @@
 
 export type ActivityKind =
     | "token" | "deploy" | "governance" | "validator" | "transfer" | "run" | "call"
-    | "nft" | "post" | "multisig"
+    | "nft" | "post" | "multisig" | "app"
 
 /** A single message's decoded value, as returned by the indexer message union. */
 export interface IndexerMessageValue {
@@ -62,9 +62,11 @@ function shortPath(p: string): string {
 function classifyCall(pkgPath: string): ActivityKind {
     if (/\/gnops\/valopers(\/|$)/.test(pkgPath)) return "validator"
     if (/(nft_market|memba_nft|memba_collections|nft_launchpad)/.test(pkgPath)) return "nft"
+    if (/memba_appstore/.test(pkgPath)) return "app"
+    if (/memba_feed/.test(pkgPath)) return "post"
     if (/multisig/.test(pkgPath)) return "multisig"
     if (/\/gov\/dao(\/|$)/.test(pkgPath) || /_dao(\/|$)/.test(pkgPath) || /\/dao(\/|$)/.test(pkgPath)) return "governance"
-    if (/tokenfactory/.test(pkgPath)) return "token"
+    if (/tokenfactory|token_otc/.test(pkgPath)) return "token"
     if (/\/boards(\/|$)|\/social(\/|$)/.test(pkgPath)) return "post"
     return "call"
 }
@@ -82,7 +84,16 @@ function callTitle(kind: ActivityKind, pkgPath: string, func: string): string {
         if (/^New/i.test(func)) return "Launched a token"
         if (/^Mint/i.test(func)) return "Minted tokens"
         if (/^Burn/i.test(func)) return "Burned tokens"
+        if (/^Fill/i.test(func)) return "Traded tokens OTC"
+        if (/offer/i.test(func)) return "Offered tokens OTC"
         return `Token · ${func}`
+    }
+    if (kind === "app") {
+        if (/^Register/i.test(func)) return "Submitted an app"
+        if (/^Approve/i.test(func)) return "Approved an app listing"
+        if (/^Flag/i.test(func)) return "Reported an app"
+        if (/review/i.test(func)) return "Reviewed an app"
+        return `App Store · ${func}`
     }
     if (kind === "governance") {
         if (/vote/i.test(func)) return "Voted on governance"
@@ -102,7 +113,14 @@ function callTitle(kind: ActivityKind, pkgPath: string, func: string): string {
         if (/propos/i.test(func)) return "Proposed a multisig tx"
         return `Multisig · ${func}`
     }
-    if (kind === "post") return `Posted on ${shortPath(pkgPath)}`
+    if (kind === "post") {
+        if (/^CreatePost/i.test(func)) return "Posted on the feed"
+        if (/reaction/i.test(func)) return "Reacted on the feed"
+        if (/^EditPost/i.test(func)) return "Edited a feed post"
+        if (/^DeletePost/i.test(func)) return "Deleted a feed post"
+        if (/^Flag/i.test(func)) return "Flagged a feed post"
+        return `Posted on ${shortPath(pkgPath)}`
+    }
     return `${func} · ${shortPath(pkgPath)}`
 }
 
