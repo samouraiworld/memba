@@ -1,5 +1,7 @@
 # Memba — Backlog Plan (work starting 2026-07-08)
 
+> **Status 2026-07-09:** 0 ✅ (#809) · 1 ✅ P0 CLOSED on test13 (deployer #63/#64/#68/#70, memba #821 — mainnet deploy still owner-gated) · 4 ✅ (#811) · 5 ✅ (#813, superseded by the deeper `feat/marketplace-v2` rebuild, #851 draft) · 6 🟡 Space Invaders shipped dark (#828–#850; Tetris not started) · 7 ✅ (#814, 9 articles) · 2/3/8 ⬜ not started. Prompts doc archived → `archive/shipped-2026-07/PARALLEL_SESSION_PROMPTS_2026-07-08.md`.
+
 Captured 2026-07-07. Governing roadmap remains `MEMBA_ROADMAP_COMPOUND_2026-07.md` (#735); this plan is the near-term execution slice for the items zxxma dictated. **AMM/Dex is explicitly out** (major milestone, deferred).
 
 ## Session split (2026-07-08)

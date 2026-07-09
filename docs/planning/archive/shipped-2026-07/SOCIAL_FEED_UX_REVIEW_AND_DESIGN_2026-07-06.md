@@ -1,5 +1,8 @@
 # Social Feed — Deep UX / UI / Code Review + Design Proposals
 
+> **ARCHIVED 2026-07-09 — SHIPPED**: Wave 1 (#775) + Wave 2 (#777/#779/#780) + reactions/unfurls/link-previews/rich-text (through #805), behind `VITE_ENABLE_FEED`.
+
+> **ARCHIVED 2026-07-09 — SHIPPED**: Wave 1 (#775) + Wave 2 (#777
 **Date:** 2026-07-06 · **Scope:** `/feed` (memba_feed_v1 → indexer → RPC → UI) · **Reviewed against:** `origin/main @ f9793e4` (PR #763 P1.5 merged 08:13)
 **Author:** CTO review pass · **Status:** for owner decision (proposals, not yet implemented)
 

@@ -1,5 +1,7 @@
 # Parallel focused-session prompts — 2026-07-08
 
+> **ARCHIVED 2026-07-09 — session artifact; items executed or superseded.** Deployer P0 audit → closed (deployer #63/#64, memba #821); marketplace → `feat/marketplace-v2` (#851); Space Invaders → #828–#850; App Store reviews → #841/#845/#848. Remaining state lives in `BACKLOG_PLAN_2026-07-08.md`.
+
 Copy-paste each block into its own Claude Code session. They are designed to run
 **concurrently without conflicts**. Companion to `BACKLOG_PLAN_2026-07-08.md`.
 

@@ -1,5 +1,7 @@
 # Feed rich link previews — design & security spec (2026-07-06)
 
+> **ARCHIVED 2026-07-09 — SHIPPED** with the feed link-preview/rich-text wave (through #805).
+
 Status: **DESIGN — awaiting security sign-off before implementation.**
 Owner action: review §4 (SSRF threat model) and §10 (security checklist), then approve to build.
 

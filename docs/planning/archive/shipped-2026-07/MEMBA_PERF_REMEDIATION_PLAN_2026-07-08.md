@@ -1,5 +1,7 @@
 # Memba — Performance Remediation Plan — 2026-07-08
 
+> **ARCHIVED 2026-07-09 — ALL CODE TIERS MERGED** (#810/#812/#815–#820/#830/#832/#833 + enablers #822/#825/#831). Only W1.5 (indexer → own process) remains — an owner architecture decision, tracked in `BACKLOG_PLAN_2026-07-08.md`.
+
 Investigation trigger: "the app is sometimes laggy." Root causes were confirmed by
 four parallel perf-expert **code** audits (frontend-render, network/on-chain,
 backend/SQLite, bundle/load) plus inline call-site reads — not a live trace (the
