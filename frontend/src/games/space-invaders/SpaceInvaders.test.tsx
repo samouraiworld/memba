@@ -5,7 +5,8 @@ import SpaceInvaders from "./SpaceInvaders";
 beforeEach(() => {
   const ctx = {
     clearRect: vi.fn(), fillRect: vi.fn(), save: vi.fn(), restore: vi.fn(),
-    fillStyle: "", set globalAlpha(_v: number) {},
+    translate: vi.fn(), fillText: vi.fn(),
+    fillStyle: "", set globalAlpha(_v: number) {}, set font(_v: string) {}, set textAlign(_v: string) {},
   } as unknown as CanvasRenderingContext2D;
   HTMLCanvasElement.prototype.getContext = vi.fn(() => ctx) as never;
   // deterministic rAF: run one frame then stop

@@ -153,6 +153,10 @@ describe("PostCard author edit / delete", () => {
         fireEvent.click(screen.getByTestId("feed-post-menu"))
         fireEvent.click(screen.getByTestId("feed-post-edit"))
         fireEvent.change(screen.getByTestId("feed-edit-input"), { target: { value: "edited body" } })
+        // Wait for the controlled input's re-render to commit before saving: under CI
+        // load React can time-slice that render, and clicking early submits a stale
+        // saveEdit closure holding the old body (the Node-20 main flake of 2026-07-08).
+        await waitFor(() => expect(screen.getByTestId("feed-edit-input")).toHaveValue("edited body"))
         fireEvent.click(screen.getByTestId("feed-edit-save"))
         await waitFor(() => expect(mockSubmit).toHaveBeenCalledTimes(1))
         expect(await screen.findByText("edited body")).toBeInTheDocument()

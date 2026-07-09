@@ -177,6 +177,46 @@ describe("Treasury kill-switch (A1.a)", () => {
     })
 })
 
+describe("Treasury — GNOT balance formatting", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    async function renderWithGnotBalance(ugnotDecoded: string) {
+        const { resilientFetch } = await import("../lib/rpcFallback")
+        vi.mocked(resilientFetch).mockResolvedValueOnce({
+            json: () => Promise.resolve({
+                result: { response: { ResponseBase: { Value: btoa(ugnotDecoded) } } },
+            }),
+        } as Response)
+
+        const { Treasury } = await import("./Treasury")
+        renderInRoute(<Treasury />)
+        await waitFor(() => expect(screen.getByText("💰 Treasury")).toBeDefined(), { timeout: 3000 })
+    }
+
+    it("renders GNOT as the scaled whole-unit amount, not raw ugnot", async () => {
+        // 7_000_000 ugnot = 7 GNOT — must NOT show comma-grouped ugnot ("7,000,000").
+        await renderWithGnotBalance("7000000ugnot")
+        expect(screen.getByText("7")).toBeDefined()
+        expect(screen.queryByText("7,000,000")).toBeNull()
+    })
+
+    it("comma-groups the whole part of the scaled GNOT amount", async () => {
+        // 1_234_567_000_000 ugnot = 1,234,567 GNOT (not "1,234,567,000,000").
+        await renderWithGnotBalance("1234567000000ugnot")
+        expect(screen.getByText("1,234,567")).toBeDefined()
+        expect(screen.queryByText("1,234,567,000,000")).toBeNull()
+    })
+
+    it("preserves the fractional part of a sub-unit GNOT amount", async () => {
+        // 123_456_789 ugnot = 123.456789 GNOT (not "123,456,789").
+        await renderWithGnotBalance("123456789ugnot")
+        expect(screen.getByText("123.456789")).toBeDefined()
+        expect(screen.queryByText("123,456,789")).toBeNull()
+    })
+})
+
 describe("Treasury — partial-failure honesty (P1-7)", () => {
     beforeEach(() => {
         vi.clearAllMocks()

@@ -15,11 +15,15 @@
  * @module pages/AppStore
  */
 
-import { Suspense, type CSSProperties } from "react"
+import { Suspense, useState, type CSSProperties } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { useNetwork } from "../hooks/useNetwork"
-import { fetchLiveApps, fetchApp, isSafeRealmPath, type AppListing } from "../lib/appStore"
+import { fetchLiveApps, fetchApp, fetchByStatus, isSafeRealmPath, isAppStoreV3, type AppListing } from "../lib/appStore"
+import { fetchSummary } from "../lib/reviews"
+import { MEMBA_DAO, isAppReviewsEnabled } from "../lib/config"
+import { ReviewsSection } from "../components/reviews/ReviewsSection"
+import { AppReviewStars, MIN_RATED_COUNT } from "../components/reviews/AppReviewStars"
 import "./appstore.css"
 
 export function AppStore() {
@@ -176,6 +180,10 @@ function AppGrid() {
                     )}
                 </>
             )}
+
+            {/* Verified (live) apps are the default view above. On v3, pending-review apps are an
+                opt-in disclosure only — never a peer of the verified grid. */}
+            {isAppStoreV3() && <PendingReviewSection networkKey={networkKey} />}
         </div>
     )
 }
@@ -209,16 +217,16 @@ function FeaturedApp({ app, networkKey }: { app: AppListing; networkKey: string 
     )
 }
 
-function AppCard({ app, networkKey }: { app: AppListing; networkKey: string }) {
+function AppCard({ app, networkKey, pending }: { app: AppListing; networkKey: string; pending?: boolean }) {
     const navigate = useNavigate()
     const rel = relPath(app.pkgPath)
     const go = () => navigate(`/${networkKey}/apps/${rel}`)
     return (
         <div
-            className="appcard"
+            className={`appcard${pending ? " appcard--pending" : ""}`}
             role="button"
             tabIndex={0}
-            aria-label={`${app.name}${app.category ? `, ${app.category}` : ""}`}
+            aria-label={`${app.name}${app.category ? `, ${app.category}` : ""}${pending ? ", pending review" : ""}`}
             onClick={go}
             onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
@@ -229,12 +237,71 @@ function AppCard({ app, networkKey }: { app: AppListing; networkKey: string }) {
         >
             <div className="appcard__top">
                 <Monogram app={app} size="md" />
-                {app.category && <CatChip category={app.category} />}
+                {pending ? <span className="appcard__pending-chip">Pending review</span> : app.category && <CatChip category={app.category} />}
             </div>
             <div className="appcard__name">{app.name}</div>
             {app.tagline && <p className="appcard__tag">{app.tagline}</p>}
             <code className="apppath appcard__path">{app.pkgPath}</code>
         </div>
+    )
+}
+
+/**
+ * Pending-review apps — an OPT-IN, off-by-default disclosure (v3 only). These listings have
+ * paid the fee but haven't been vetted by a curator, so they must never sit as a peer of the
+ * verified grid; the user has to explicitly ask to see them, and every card is amber-chipped
+ * with a caution. Lazily fetched only once expanded.
+ */
+function PendingReviewSection({ networkKey }: { networkKey: string }) {
+    const [open, setOpen] = useState(false)
+    const { data: pending, isPending, isError } = useQuery({
+        queryKey: ["appStore", "pending"],
+        queryFn: () => fetchByStatus("pending", 0, 30),
+        enabled: open,
+        staleTime: 60_000,
+        gcTime: 300_000,
+        retry: 1,
+    })
+
+    return (
+        <section className="appstore__section appstore__pending">
+            <button
+                type="button"
+                className="appstore__pending-toggle"
+                aria-expanded={open}
+                aria-controls="appstore-pending-list"
+                onClick={() => setOpen((v) => !v)}
+            >
+                <span aria-hidden="true">{open ? "▾" : "▸"}</span> Apps pending review
+                <span className="appstore__pending-hint">— not yet vetted by a curator</span>
+            </button>
+
+            {open && (
+                <div id="appstore-pending-list">
+                    {isPending ? (
+                        <p className="appstore__muted">Loading…</p>
+                    ) : isError ? (
+                        <p className="appstore__muted">Couldn't load pending apps. Reload to retry.</p>
+                    ) : !pending || pending.length === 0 ? (
+                        <p className="appstore__muted">Nothing pending review right now.</p>
+                    ) : (
+                        <>
+                            <p className="appstore__pending-caution" role="note">
+                                These apps have been submitted but not reviewed. Treat them with extra
+                                caution and read the source before you connect a wallet.
+                            </p>
+                            <ul className="appstore__grid">
+                                {pending.map((app) => (
+                                    <li key={app.pkgPath}>
+                                        <AppCard app={app} networkKey={networkKey} pending />
+                                    </li>
+                                ))}
+                            </ul>
+                        </>
+                    )}
+                </div>
+            )}
+        </section>
     )
 }
 
@@ -245,9 +312,21 @@ function shortAddr(addr: string): string {
 function AppDetail({ pkgPath }: { pkgPath: string }) {
     const { networkKey } = useNetwork()
     const rel = relPath(pkgPath)
+    const appReviews = isAppReviewsEnabled()
     const { data: app, isPending, isError } = useQuery({
         queryKey: ["appStore", "detail", pkgPath],
         queryFn: () => fetchApp(pkgPath),
+        staleTime: 60_000,
+        gcTime: 300_000,
+        retry: 1,
+    })
+    // Compact at-a-glance rating for the hero. The review subject is the app's own realm path.
+    // Only fetched when community reviews are enabled (the app-reviews realm is deployed but
+    // gated behind VITE_ENABLE_APP_REVIEWS until wired live).
+    const { data: reviewSummary } = useQuery({
+        queryKey: ["appReviews", "summary", pkgPath],
+        queryFn: () => fetchSummary(pkgPath, MEMBA_DAO.appReviewsPath),
+        enabled: appReviews,
         staleTime: 60_000,
         gcTime: 300_000,
         retry: 1,
@@ -266,6 +345,14 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
                 </div>
             ) : (
                 <article className="appdetail">
+                    {/* An unvetted listing must carry its caution onto the detail page too — otherwise
+                        a pending app looks identical to a curated one once you click through. */}
+                    {app.status === "pending" && (
+                        <div className="appdetail__pending-banner" role="note">
+                            <strong>Pending review.</strong> This app has been submitted but not yet
+                            vetted by a curator. Read its source before you connect a wallet.
+                        </div>
+                    )}
                     <div className="appdetail__hero">
                         <Monogram app={app} size="lg" />
                         <div className="appdetail__heroText">
@@ -274,6 +361,16 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
                             )}
                             <h1 className="appdetail__name">{app.name}</h1>
                             {app.tagline && <p className="appdetail__tag">{app.tagline}</p>}
+                            {/* Only in the hero once there's at least one review — the section
+                                below owns the empty "be the first" affordance, so we don't
+                                double up "No reviews yet" on every fresh listing. */}
+                            {appReviews && reviewSummary && reviewSummary.count > 0 && (
+                                <AppReviewStars
+                                    count={reviewSummary.count}
+                                    average={reviewSummary.average}
+                                    className="appdetail__stars"
+                                />
+                            )}
                             <code className="apppath">{app.pkgPath}</code>
                         </div>
                     </div>
@@ -297,6 +394,16 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
                             )}
                         </p>
                     </aside>
+
+                    {appReviews && (
+                        <div className="appdetail__reviews">
+                            <ReviewsSection
+                                subject={pkgPath}
+                                realmPath={MEMBA_DAO.appReviewsPath}
+                                minRatedCount={MIN_RATED_COUNT}
+                            />
+                        </div>
+                    )}
                 </article>
             )}
         </div>

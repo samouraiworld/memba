@@ -10,6 +10,10 @@ Rules:
 
 ---
 
+2026-07-09 · Lane B · repo hygiene session · START→STOP (single session) · docs/planning archive sweep (shipped plans → archive/shipped-2026-07 with status banners), rescue VALIDATOR_NAMING_RESILIENCE_PLAN + SPACE_INVADERS_AAA_PLAN into git, BACKLOG_PLAN status header; test deflake PostCard.test.tsx (fix/postcard-edit-test-flake); marketplace-v2 branch pushed + draft PR #851 (no source changes to it); stale worktrees/branches pruned · CHANGELOG.md untouched (docs+test only) · docs/planning-rescue-and-archive
+
+2026-07-09 · Lane C · per-signature verified badge (finishing the Jul-3 WIP) · START→STOP (single session) · api/memba/v1/memba.proto (Signature.verified=5) + buf regen (backend/gen, frontend/src/gen) · backend: internal/service/tx_rpc.go (store+read verdict), tx_sig_verified_test.go (new), migrations/023_sig_verified.sql (new) · frontend: multisig/ProgressBar.tsx, TransactionView.{tsx,test.tsx}, txview.css · CHANGELOG.md (single-writer: registered) · fix/per-signature-verified-flag
+
 2026-07-05 · Lane A · feed P1.5 thread/profile views · START→STOP (single session) · frontend: components/feed/{PostCard,FeedComposer}.tsx (new, extracted), lib/feedTypes.ts + feedTypes.test.ts (new), pages/FeedPage.tsx (refactor to shared components + nav), pages/FeedThread.tsx + FeedProfile.tsx (new), App.tsx routes (feed/post/:id, feed/user/:address), pages/feed.css, e2e/feed-gating.spec.ts (sub-route gating) · CHANGELOG.md (single-writer: registered) · reads live GetFeedThread/GetUserFeed RPCs — no realm/backend change; behind VITE_ENABLE_FEED · branch feat/w72-feed-thread-view
 
 2026-07-04 · Lane A · UX polish (owner-requested): nav placement + marketplace/blog redesign + validator reviews fix · START→STOP (single session) · frontend: lib/navManifest.ts, components/layout/Sidebar.tsx (+test), pages/UnifiedMarketplace.tsx + unified-marketplace.css, pages/Blog.tsx + blog.css, pages/Validators.tsx, components/validators/{ValidatorReviewStars.tsx,validatorReviewsData.ts} (+test) · CHANGELOG.md (single-writer: registered) · no auth/sig paths; no api/**; no shared tx hooks · branch feat/ux-polish-jul4
@@ -21,6 +25,7 @@ Rules:
 2026-07-04 · Lane A · W7.2 feed P1 /feed UI · START→STOP (single session) · frontend: pages/FeedPage.tsx + feed.css (new), components/ui/FeedGate.tsx (new), lib/feed.ts + feedApi.ts + feedConstants.ts (new), lib/config.ts (isFeedEnabled + feedPath), components/layout/Sidebar.tsx (FLAG_ON += VITE_ENABLE_FEED), lib/navManifest.ts (feed entry + MORE_NAV_IDS), lib/routeMeta.ts + lib/sitemap.ts (paired), App.tsx route, .env.example ×2 + .env.e2e, e2e/feed-gating.spec.ts (new) · CHANGELOG.md (single-writer: registered) · behind VITE_ENABLE_FEED (off by default; realm not yet deployed) · branch feat/w72-feed-ui
 
 2026-07-04 · Lane B · W7.2 feed slice 1 · backend P0 DONE + MERGED #753 (proto: 3 NEW Feed RPCs + messages, NOT sig/verified fields; buf regen; migration 018_feed.sql; feed_tailer/feed_dispatch in internal/indexer; feed_rpc.go; main.go wiring behind FEED_WATCHED_REALMS) · deployer memba_feed_v1 realm MERGED (#56).
+2026-07-04 · Lane A · stale-chunk crash fix (owner-reported, mobile) · START→STOP (single session) · frontend: lib/staleChunk.ts (new — matcher + reload budget), components/ErrorBoundary.{tsx,test.tsx} (WebKit phrasings), main.tsx (vite:preloadError one-shot reload) · CHANGELOG.md (single-writer: registered) · fix/chunk-error-auto-recovery
 
 2026-07-04 · Lane B · W6.1 PR3 changelog CI gate · START→STOP (single session) · .github/workflows/changelog.yml (new; check name "Changelog entry" — owner U-9 adds it to required checks) · ci/changelog-check
 

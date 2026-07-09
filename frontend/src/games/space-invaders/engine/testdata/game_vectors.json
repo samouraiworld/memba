@@ -1,0 +1,37 @@
+[
+  {
+    "name": "idle-600",
+    "seed": 1,
+    "finalTick": 600,
+    "score": 0,
+    "hash": 2071939104
+  },
+  {
+    "name": "hold-fire-900",
+    "seed": 2,
+    "finalTick": 900,
+    "score": 615,
+    "hash": 4031802807
+  },
+  {
+    "name": "sweep-and-fire-1300",
+    "seed": 2026,
+    "finalTick": 1300,
+    "score": 600,
+    "hash": 1757792400
+  },
+  {
+    "name": "left-hold-fire-700",
+    "seed": 7,
+    "finalTick": 700,
+    "score": 390,
+    "hash": 3243484506
+  },
+  {
+    "name": "zigzag-1100",
+    "seed": 24301,
+    "finalTick": 1100,
+    "score": 635,
+    "hash": 711872287
+  }
+]

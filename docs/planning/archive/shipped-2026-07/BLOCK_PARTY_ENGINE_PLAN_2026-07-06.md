@@ -1,5 +1,9 @@
 # Block Party — Sub-plan 1: Pure TS Engine — Implementation Plan
 
+> **ARCHIVED 2026-07-09 — SHIPPED** via #781 (2026-07-06).
+
+> **ARCHIVED 2026-07-09 — SHIPPED** via #781 (2026-07-06).
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build the deterministic, framework-free TypeScript game engine for Block Party (mulberry32 PRNG + 2048 rules + a pure `replay()`), plus the golden vectors that the Go verifier (Sub-plan 2) and Gno realm (Sub-plan 4) will mirror byte-for-byte.

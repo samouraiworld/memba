@@ -32,7 +32,7 @@ describe("newGame", () => {
     expect(s.score).toBe(0);
     expect(s.wave).toBe(1);
     expect(s.aliens.length).toBe(CONFIG.alien.rows * CONFIG.alien.cols);
-    expect(s.playerBullet).toBeNull();
+    expect(s.playerBullets).toEqual([]);
     expect(s.alienBullets).toEqual([]);
     expect(s.rng).toBe(42);
   });

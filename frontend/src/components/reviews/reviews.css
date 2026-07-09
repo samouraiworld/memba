@@ -381,6 +381,33 @@
   color: var(--color-k-dim);
 }
 
+/* ── AppReviewStars (compact at-a-glance rating) ──────────────────────── */
+.appreviewstars {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--text-sm, 0.8rem);
+}
+.appreviewstars__average {
+  font-weight: 700;
+  color: var(--color-k-text);
+}
+.appreviewstars__count {
+  color: var(--color-k-dim);
+}
+.appreviewstars--empty {
+  color: var(--color-k-muted);
+}
+.appreviewstars--new .appreviewstars__new-chip {
+  font-size: var(--text-xs, 0.64rem);
+  font-weight: 600;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--color-k-hover-surface);
+  border: 1px solid var(--color-k-edge);
+  color: var(--color-k-dim);
+}
+
 /* ── Write form ───────────────────────────────────────────────────────── */
 .reviews-section__form {
   background: var(--color-k-panel);

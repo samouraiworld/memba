@@ -1067,11 +1067,16 @@ func (x *MultisigsResponse) GetMultisigs() []*Multisig {
 }
 
 type Signature struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Value         string                 `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
-	UserAddress   string                 `protobuf:"bytes,2,opt,name=user_address,json=userAddress,proto3" json:"user_address,omitempty"`
-	BodyBytes     []byte                 `protobuf:"bytes,3,opt,name=body_bytes,json=bodyBytes,proto3" json:"body_bytes,omitempty"`
-	CreatedAt     string                 `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	state       protoimpl.MessageState `protogen:"open.v1"`
+	Value       string                 `protobuf:"bytes,1,opt,name=value,proto3" json:"value,omitempty"`
+	UserAddress string                 `protobuf:"bytes,2,opt,name=user_address,json=userAddress,proto3" json:"user_address,omitempty"`
+	BodyBytes   []byte                 `protobuf:"bytes,3,opt,name=body_bytes,json=bodyBytes,proto3" json:"body_bytes,omitempty"`
+	CreatedAt   string                 `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
+	// verified: the backend's server-side signature check (A3) passed for this
+	// signature at submission time. Recorded in both log-only and enforce modes;
+	// false = stored but not cryptographically verified — including all rows
+	// submitted before this field existed.
+	Verified      bool `protobuf:"varint,5,opt,name=verified,proto3" json:"verified,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1132,6 +1137,13 @@ func (x *Signature) GetCreatedAt() string {
 		return x.CreatedAt
 	}
 	return ""
+}
+
+func (x *Signature) GetVerified() bool {
+	if x != nil {
+		return x.Verified
+	}
+	return false
 }
 
 type Transaction struct {
@@ -8025,14 +8037,15 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\n" +
 	"join_state\x18\x05 \x01(\x0e2\x13.memba.v1.JoinStateR\tjoinState\"E\n" +
 	"\x11MultisigsResponse\x120\n" +
-	"\tmultisigs\x18\x01 \x03(\v2\x12.memba.v1.MultisigR\tmultisigs\"\x82\x01\n" +
+	"\tmultisigs\x18\x01 \x03(\v2\x12.memba.v1.MultisigR\tmultisigs\"\x9e\x01\n" +
 	"\tSignature\x12\x14\n" +
 	"\x05value\x18\x01 \x01(\tR\x05value\x12!\n" +
 	"\fuser_address\x18\x02 \x01(\tR\vuserAddress\x12\x1d\n" +
 	"\n" +
 	"body_bytes\x18\x03 \x01(\fR\tbodyBytes\x12\x1d\n" +
 	"\n" +
-	"created_at\x18\x04 \x01(\tR\tcreatedAt\"\xb3\x04\n" +
+	"created_at\x18\x04 \x01(\tR\tcreatedAt\x12\x1a\n" +
+	"\bverified\x18\x05 \x01(\bR\bverified\"\xb3\x04\n" +
 	"\vTransaction\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\rR\x02id\x12\x1d\n" +
 	"\n" +

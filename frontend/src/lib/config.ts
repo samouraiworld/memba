@@ -562,6 +562,9 @@ export const MEMBA_DAO = {
     nftCollectionsPath: "gno.land/r/samcrew/memba_collections", // Phase 2 launchpad registry (pending deploy)
     badgesPath: "gno.land/r/samcrew/gnobuilders_badges_v2",
     reviewsPath: import.meta.env.VITE_REVIEWS_REALM_PATH || "gno.land/r/samcrew/memba_reviews_v1",
+    // Reputation-isolated App Store reviews realm (shares the reviews engine but keeps its
+    // reputation graph separate from the validator/profile web-of-trust). Deployed to test13.
+    appReviewsPath: import.meta.env.VITE_APPSTORE_REVIEWS_REALM_PATH || "gno.land/r/samcrew/memba_appstore_reviews_v1",
     feedPath: import.meta.env.VITE_FEED_REALM_PATH || "gno.land/r/samcrew/memba_feed_v1",
     tokenOtcPath: "gno.land/r/samcrew/memba_token_otc_v1",
     deployFee: 10_000_000, // 10 GNOT in ugnot
@@ -644,6 +647,10 @@ export const isTokensEnabled = (): boolean => import.meta.env.VITE_ENABLE_TOKENS
 export const isAgentsEnabled = (): boolean => import.meta.env.VITE_ENABLE_AGENTS === "true"
 export const isReviewsEnabled = (): boolean => import.meta.env.VITE_ENABLE_REVIEWS === "true"
 export const isReviewsValid = (): boolean => isRealmValid(MEMBA_DAO.reviewsPath)
+/** Community reviews on App Store listings (B2b). Ordinary flag — the App Store reviews
+ * realm moves no funds (reputation graph only). Literal reader (prod-bundle safe). Gates the
+ * ReviewsSection mount + AppReviewStars on the App Store detail page. */
+export const isAppReviewsEnabled = (): boolean => import.meta.env.VITE_ENABLE_APP_REVIEWS === "true"
 /** Social feed (W7.2). Ordinary flag — no funds. Literal reader (dynamic
  * import.meta.env[key] is undefined in prod bundles). */
 export const isFeedEnabled = (): boolean => import.meta.env.VITE_ENABLE_FEED === "true"

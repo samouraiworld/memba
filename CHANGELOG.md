@@ -24,6 +24,24 @@ Full changelogs are split by version range for easier navigation:
 - **One shared pipeline for every marketplace lane** (`LaneView` → cached `useLaneQuery` → validated codec → per-source `toCard` adapters → `LaneToolbar` + `ListingGrid`/`MarketCard`): NFT and Token lanes read real test13 data, the Services lane ships the labeled Founding-Supply seed catalogue. Buyer-first "You pay" pricing, honest URL-driven search/filters/sort, no fabricated trust signals. Off in prod until the owner's cutover flip.
 - **Tab a11y (WAI-ARIA tabs):** roving tabindex with Arrow/Home/End keyboard navigation, `aria-controls`/`tabpanel` wiring on the lane outlet.
 - **Lane tabs fixed under react-router 7:** relative tab links inside the splat-mounted shell resolved against the full URL (`/marketplace/nfts` + `services` → `/nfts/services`) and the catch-all bounced them back — switching lanes via the tabs never navigated. Tab links are now absolute.
+### Marketplace — lane tabs actually switch lanes again (2026-07-09)
+- **Clicking a marketplace lane tab navigated to a bounced URL and landed back on the lane you were already on.** Under react-router 7 the shell's relative tab links resolve against the full current URL (`/marketplace/nfts` + `services` → `/marketplace/nfts/services`), which the catch-all redirect sends straight back to the default lane. Tab links are now absolute. Invisible in prod today only because a single lane is live there; on any network with two or more live lanes the tab bar was unusable.
+### Multisig — per-signature verification badge (2026-07-09)
+- **Quorum displays now distinguish cryptographically verified signatures from merely-submitted ones.** The backend's server-side signature check (A3) already ran on every submission; its verdict is now recorded per signature (`signatures.verified`, proto `Signature.verified`) and surfaced as a badge in the transaction view. Signatures stored before this change (or failing verification during the log-only `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY` window) show as unverified.
+
+### App Store — read-side groundwork for the v3 realm (B1, 2026-07-09)
+<!-- categories: memba -->
+- Prepares the App Store front end for the next-generation listing realm (`memba_appstore_v3`, which adds a proper submission lifecycle) **without touching the live experience**. The realm the App Store reads is now env-selectable (`VITE_APPSTORE_REALM_PATH`) and still defaults to the current `v2` realm, so nothing changes until an operator points it at `v3` after that realm is deployed and migrated. When pointed at `v3`, the store gains an **opt-in "Apps pending review" disclosure** — apps that have paid the listing fee but haven't been vetted by a curator are hidden by default behind an amber-cautioned toggle (never shown as a peer of the verified apps), and the listing client can now read per-status windows and the richer v3 fields (screenshots, reject reasons). No user-visible change on the current realm.
+<!-- categories: memba -->
+- App Store listings can now carry **community reviews and ratings**. The App Store detail page mounts the shared reviews experience — a compact rating summary in the hero plus the full reviews section (post a rating, reply, like/dislike, flag, moderate) — pointed at the reputation-isolated App Store reviews realm, so an app's reputation is scored independently of the validator/profile web-of-trust. A **product-integrity** rule keeps early ratings honest: a listing with fewer than three reviews shows a neutral "New" chip with the review count instead of a headline star average, so one or two reviews can't present as a confident 5.0. Gated behind the new `VITE_ENABLE_APP_REVIEWS` flag (off by default; the app-reviews realm is deployed to test13 but the front end stays dark until it's switched on).
+
+### App Store reviews — realm-path threading in the reviews client (B2a, 2026-07-08)
+<!-- categories: memba -->
+- Groundwork for community reviews on App Store listings: the subject-agnostic reviews data client (`lib/reviews.ts`) now threads an optional `realmPath` argument through every read and write builder, defaulting to the existing validator/profile web-of-trust realm. This lets a caller target the reputation-isolated App Store reviews realm by path alone, with no behavior change for existing callers (verified: the full validator/profile reviews suite still passes). No user-visible change yet — the App Store detail page wiring follows.
+
+### Fix — Treasury shows GNOT in whole units, not raw ugnot (2026-07-08)
+<!-- categories: memba -->
+- The DAO **Treasury** page rendered the GNOT balance from raw micro-units (ugnot), so a treasury holding **1 GNOT** displayed as **"1,000,000"** — off by a factor of a million and misleading. It now shows the human-readable, decimal-scaled amount (**"1"**, or **"123.456789"** for sub-unit balances), with thousands still comma-grouped. GRC-20 token rows are unaffected.
 
 ### Performance — feed reply counts (2026-07-08)
 <!-- categories: memba -->
@@ -43,8 +61,58 @@ Full changelogs are split by version range for easier navigation:
 - A classic **Space Invaders** added to the Store, playable instantly in the browser with no wallet. Built on a pure, deterministic game engine (a fixed-timestep loop that carries sub-frame time, so it runs correctly on 60 / 120 / 144 Hz displays) with keyboard (←/→ · Space · P) and full touch controls (steer on the left, tap-and-hold to fire on the right). Lean-classic rules: a formation that marches, drops and reverses at the edges and accelerates as ranks thin, one player shot in flight, three lives, escalating waves, and a local high score.
 - Gated by `VITE_ENABLE_SPACE_INVADERS` — an ordinary flag (client-side only, no funds), off by default; reachable at `/game/space-invaders`. Listing it in the on-chain App Store (`memba_appstore_v2`) is a separate operator action.
 
-### Tooling — changelog conflicts auto-resolve (2026-07-08)
+### Space Invaders — deterministic engine spine for certified scores (2026-07-08)
 <!-- categories: memba -->
+- Internal groundwork for the upcoming on-chain leaderboard and game juice: the pure `step` reducer now emits a deterministic event stream (kills, fires, hits, wave clears) and carries a monotonic `tick`, retains its `seed`, and the loop advances by an exact integer step count — removing a float round-trip (`steps * FIXED_MS` re-divided) that could run one step short and desync a replay. Added a tick-indexed input-log recorder (the backbone for server-side replay verification). Seed is now injectable. **No product change** — identical gameplay; substrate only.
+
+### Space Invaders — game feel: juice, a bigger CRT screen, and fresh runs (2026-07-08)
+<!-- categories: memba -->
+- The game now **feels alive**: killing an alien throws a burst of particles and a floating `+points`, hits and wave-clears kick a short screen-shake, and the whole thing plays on a **noticeably bigger arcade screen** (near-full-width on phones, up to ~480px on desktop) framed with a subtle **CRT scanline** and bezel glow. Mobile gets **haptic feedback** on hits and wave clears.
+- **Every run is now different** — each game seeds from a fresh random value instead of a fixed one, so the swarm's patterns change from run to run (a deliberate daily-challenge seed comes later).
+- Rendering is decoupled from React (drawn straight from the game loop) for smoother 60fps play, and all motion — particles, shake, scanline, the invulnerability blink — is disabled under **`prefers-reduced-motion`** for accessibility. Every cosmetic effect runs on its own separate randomness, so it can never affect a score that will be certified on-chain.
+- Still gated by `VITE_ENABLE_SPACE_INVADERS` (client-side only, no funds), off by default.
+
+### Space Invaders — sound (2026-07-08)
+<!-- categories: memba -->
+- The game now has **sound**: synthesized shoot / explosion / hit / wave / UFO effects and the iconic accelerating **4-note march**, all driven off the same deterministic event stream as the visual juice (so audio can never affect a certified score). A **mute toggle** in the HUD remembers your choice, and audio unlocks on your first tap/key to respect mobile autoplay rules. Cosmetic-only and safely absent where WebAudio isn't available.
+
+### Space Invaders — better touch controls (2026-07-08)
+<!-- categories: memba -->
+- Mobile steering is now **proportional** — how far you drag decides how fast the ship moves, so fine dodges are possible instead of the old all-or-nothing ±1. And the **control zones are now visible** on the start screen (a labelled "drag to steer | tap · fire" split), so the touch scheme is discoverable instead of a guess. Keyboard play is unchanged, and the change is deterministic-safe (the on-chain scoring corpus is unaffected).
+
+### Space Invaders — App Store listing prep (2026-07-09)
+<!-- categories: memba -->
+- Refreshed the Space Invaders store card to reflect the finished game (combos, rapid fire, mystery UFO, bunkers, sound) and added a proper on-brand **app icon** (`space-invaders-icon.svg`) in place of the emoji placeholder. The live App Store listing is registered on-chain by the operator — the exact copy, icon, and steps are in `docs/planning/SPACE_INVADERS_LISTING_2026-07-09.md`.
+
+<!-- categories: memba -->
+- Scoring now rewards **skill, not grinding** — the foundation for a competitive leaderboard. A **no-miss combo** builds a live score multiplier (×1 → ×1.5 → ×2 → ×3 → ×4) that **resets the moment you miss a shot**, so accuracy under pressure separates a good run from a great one. The active multiplier shows in the HUD.
+- Two end-of-game bonuses — an **accuracy bonus** (high hit-rate) and a **surviving-lives bonus** — and top-row aliens are now worth more (40/30/20/20/10), so going for the hard targets pays off.
+- All scoring lives inside the pure, deterministic engine using integer-only math, so a score can be **re-computed and verified byte-for-byte** — the basis for the upcoming on-chain certification. Controls unchanged; still gated by `VITE_ENABLE_SPACE_INVADERS`.
+
+### Space Invaders — rapid fire (2026-07-08)
+<!-- categories: memba -->
+- Firing feels **faster and more energetic**: hold to stream shots (one every ~140ms) with **up to three bullets on screen at once**, and bullets travel noticeably quicker. More offense — but with combo scoring a missed shot still breaks your multiplier, so it rewards aggression *and* aim. Deterministic and integer-only like the rest of the engine; still gated by `VITE_ENABLE_SPACE_INVADERS`.
+
+### Space Invaders — deeper waves that actually get harder (2026-07-08)
+<!-- categories: memba -->
+- Later waves now ramp up **real difficulty**: the aliens **fire faster each wave** (cooldown tightens toward a floor), and shots come from the **bottom-most alien of a column** — so cover disappears the way the arcade original intended, instead of raining from mid-formation. The formation also **stops descending past a safe cap**, so deep waves are hard because they're *fast*, not because they spawn on top of you. Still deterministic/integer-only; gated by `VITE_ENABLE_SPACE_INVADERS`.
+
+### Space Invaders — mystery UFO (2026-07-08)
+<!-- categories: memba -->
+- The **mystery UFO** is back: it drifts across the top of the screen every so often for bonus points. Base value varies, but land the hit on the right shot and it pays the classic **300** — a risk/reward hook that rewards players who track their shot count and break rhythm to snipe it. Deterministic and integer-only like the rest of the engine; gated by `VITE_ENABLE_SPACE_INVADERS`.
+
+### Space Invaders — destructible bunkers (2026-07-08)
+<!-- categories: memba -->
+- The classic **bunkers** are here: rows of destructible cover between you and the swarm. They soak up alien fire (three hits per block) — but you erode your *own* cover when you shoot through it, so positioning matters. Cover **refreshes each wave**. The tactical layer that makes "do I burn my shield to snipe the UFO?" a real decision. Deterministic/integer-only; gated by `VITE_ENABLE_SPACE_INVADERS`.
+
+### Space Invaders — replay verifier (onchain-leaderboard groundwork) (2026-07-08)
+<!-- categories: memba -->
+- Internal groundwork for **certified scores**: a deterministic replay verifier that re-runs the game engine from a recorded input log and re-derives the *authoritative* score plus an integer, cross-language-portable state hash. This is the anti-cheat backbone — the server (and, later, a Gno realm) recompute the score rather than trusting any number the client sends. Proven by a round-trip test (a recorded run replays to the identical score and hash). **No product change** — substrate for the upcoming on-chain leaderboard.
+
+### Space Invaders — determinism corpus (scoring model frozen) (2026-07-08)
+<!-- categories: memba -->
+- Committed a set of **golden test vectors** (`engine/testdata/game_vectors.json`) — canonical input scripts pinned to their exact final score and state hash. This **freezes the scoring model**: any accidental change to scoring or determinism now fails CI, and a future Go/Gno engine port loads the *same* file and must reproduce it byte-for-byte (the cross-language equivalence the on-chain verifier relies on). Mirrors the Block Party corpus pattern. **No product change.**
+
 - Added a `.gitattributes` rule (`CHANGELOG.md merge=union`) so that when several independent PRs each append an entry to `[Unreleased]`, git keeps **both** sides instead of raising a conflict on every merge. Removes the recurring manual changelog-conflict resolution when a batch of PRs lands together. No product change.
 
 ### gno.land public-sale announcement popup (#809, 2026-07-08)
@@ -201,6 +269,9 @@ Full changelogs are split by version range for easier navigation:
 ### Social feed — W7.2 P0: indexer + timeline API (2026-07-04)
 - **Feed indexer** — a new, fully decoupled event-tailing indexer for the `memba_feed_v1` realm (its own goroutine, cursor `feed_indexer_state`, and raw ledger `feed_raw_events`, separate from the NFT money-path tailer so neither can stall or corrupt the other). Projects `PostCreated`/`Edited`/`Deleted`/`Flagged`/`AutoHidden`/`ModAction` events into `feed_posts`; idempotent writes, single-block reorg-safe rollback. Off by default — starts only when `FEED_WATCHED_REALMS` is set (safe while the realm is pre-deploy).
 - **Timeline RPCs (public, no auth):** `GetFeedTimeline` (home timeline — newest top-level posts, cursor-paginated, visibility-filtered; replies are read per-thread), `GetUserFeed` (one author), `GetFeedThread` (a post + its live replies, oldest-first, with a deleted-parent tombstone root). These serve the low-latency indexed projection for optimistic UI; the realm stays the source of truth. Reposts are deferred to P1 (the proto field is reserved, not shipped as an always-empty field).
+
+### Stability — stale-deploy chunk crash on mobile fixed (2026-07-04)
+- **"'text/html' is not a valid JavaScript MIME type" no longer crashes navigation** (owner-reported, frequent on mobile): after every deploy the autoUpdate service worker purges the previous build's chunks from live tabs, and the next lazy route load imports the SPA-fallback `index.html` as JS. The root ErrorBoundary already auto-reloaded for Chrome's phrasing of that failure but missed iOS Safari's — mobile users got the generic error card once per deploy. The matcher now covers WebKit's phrasings, and a new `vite:preloadError` handler recovers preload-stage failures before they throw. Both paths share a one-reload-per-session budget, so a genuinely broken deploy still shows the error card instead of loop-reloading.
 
 ### Blog — articles 2–3 + Wave 6 closure (2026-07-04)
 - Published *Gno core pulse* (builder's digest of the verified upstream window: interrealm-v2 in production, NewBanker hardening, realm.Sub status, AddPackage strictness, event-attr caps) and *Why Memba* (the thesis: readable governance, fees to the DAO treasury, safety as code, honest progressive decentralization).

@@ -1,5 +1,6 @@
 import { Component, type ReactNode, type ErrorInfo } from "react"
 import * as Sentry from "@sentry/react"
+import { CHUNK_RELOAD_KEY, isStaleChunkError } from "../lib/staleChunk"
 
 interface Props {
     children: ReactNode
@@ -9,20 +10,6 @@ interface Props {
 interface State {
     hasError: boolean
     error: Error | null
-}
-
-/** SessionStorage key for stale chunk reload guard. */
-const CHUNK_RELOAD_KEY = "memba_chunk_reload"
-
-/** Detect if an error is a Vite stale chunk failure (dynamic import 404 after deploy). */
-function isStaleChunkError(error: Error): boolean {
-    const msg = error.message || ""
-    return (
-        msg.includes("dynamically imported module") ||
-        msg.includes("Failed to fetch") ||
-        msg.includes("Loading chunk") ||
-        msg.includes("Loading CSS chunk")
-    )
 }
 
 /**
@@ -77,8 +64,13 @@ export class ErrorBoundary extends Component<Props, State> {
     }
 
     componentDidMount() {
-        // Clear the stale chunk reload flag on successful mount (page loaded OK)
-        sessionStorage.removeItem(CHUNK_RELOAD_KEY)
+        // Clear the stale chunk reload flag on successful mount (page loaded OK).
+        // Only on an error-free mount: when a child dies during the initial
+        // render, React runs this mount hook BEFORE componentDidCatch, and an
+        // unconditional clear would erase the reload budget right before the
+        // catch reads it — a genuinely broken deploy would reload-loop on boot
+        // instead of showing the update card.
+        if (!this.state.hasError) sessionStorage.removeItem(CHUNK_RELOAD_KEY)
     }
 
     render() {

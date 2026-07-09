@@ -1,10 +1,52 @@
 .si-root { display: flex; flex-direction: column; align-items: center; gap: 12px; padding: 16px; color: var(--color-k-text); }
 .si-hud { display: flex; gap: 16px; align-items: center; font-variant-numeric: tabular-nums; font-size: 14px; }
 .si-pause { background: transparent; border: 1px solid var(--color-k-edge); color: inherit; border-radius: var(--radius-md); padding: 2px 8px; cursor: pointer; }
-.si-stage { position: relative; width: 320px; max-width: 100%; touch-action: none; user-select: none; }
+/* No-miss combo multiplier — brand gold, theme-aware (§13: HUD chrome sits
+   outside the dark arcade screen, so it must stay legible in light theme too). */
+.si-combo { color: var(--color-k-govdao-text); font-weight: 700; letter-spacing: 0.02em; }
+/* Bigger arcade screen: near-full-width on phones, up to ~480px on desktop.
+   The internal buffer stays 320x400 (see Canvas/CONFIG) and upscales cleanly
+   via image-rendering: pixelated, so gameplay + determinism are unchanged. */
+.si-stage {
+  position: relative;
+  width: min(96vw, 480px);
+  max-width: 100%;
+  touch-action: none;
+  user-select: none;
+  overscroll-behavior: contain;
+  /* Bezel glow ties the "cabinet" to the app's featured-app language. */
+  box-shadow: 0 14px 48px -26px color-mix(in srgb, var(--color-k-accent) 60%, transparent);
+  border-radius: var(--radius-md);
+}
 /* The play area is an arcade screen: intentionally dark in both themes, matching the canvas paint color in Canvas.tsx (COLORS.bg). */
 .si-canvas { width: 100%; height: auto; display: block; background: #04120f; border: 1px solid var(--color-k-edge); border-radius: var(--radius-md); image-rendering: pixelated; }
+/* CRT scanline overlay on the bezel layer (above the canvas, below overlays).
+   Cosmetic; disabled under reduced motion. */
+.si-stage::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: var(--radius-md);
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0.16) 0,
+    rgba(0, 0, 0, 0.16) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: multiply;
+  z-index: 1;
+}
+.si-overlay { z-index: 2; }
+@media (prefers-reduced-motion: reduce) {
+  .si-stage::after { display: none; }
+}
 .si-overlay { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; text-align: center; background: var(--color-k-scrim); border-radius: var(--radius-md); color: var(--color-k-text); }
 .si-overlay button { padding: 8px 16px; border-radius: var(--radius-md); border: 1px solid transparent; background: var(--color-k-accent); color: var(--color-k-on-accent); cursor: pointer; }
 .si-hint { font-size: 12px; opacity: 0.7; }
+/* Visible touch affordances on the ready screen: shows the steer|fire split. */
+.si-touch-hints { position: absolute; inset: 0; display: flex; pointer-events: none; z-index: 1; }
+.si-touch-zone { flex: 1; display: flex; align-items: flex-end; justify-content: center; padding-bottom: 14px; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-k-text); opacity: 0.55; }
+.si-touch-steer { border-right: 1px dashed var(--color-k-edge); }
 .si-gameover h2 { margin: 0; }

@@ -1,5 +1,9 @@
 # Block Party — Sub-plan 2: Go Verifier + Backend RPCs — Implementation Plan
 
+> **ARCHIVED 2026-07-09 — SHIPPED** via #781 (2026-07-06).
+
+> **ARCHIVED 2026-07-09 — SHIPPED** via #781 (2026-07-06).
+
 > **STATUS (2026-07-06): IMPLEMENTED & REVIEWED.** All 16 tasks (A1–A7, B1–B9) built via subagent-driven development, each spec+quality reviewed, final opus security review passed ("with fixes" — no Critical). Whole feature suite green; `go build ./...` + `golangci-lint` clean. Ships dark behind `BLOCKPARTY_ENABLED`.
 >
 > ## Known v1 gaps — PRE-ENABLE / PRE-PHASE-3 CHECKLIST (from the final security review)

@@ -1,21 +1,55 @@
-import { step, type GameState, type InputIntent } from "../engine";
+import { step, type GameState, type GameEvent, type InputIntent } from "../engine";
 
 export const FIXED_MS = 1000 / 60;
 export const MAX_FRAME_MS = 250; // clamp to avoid spiral-of-death
 
+// Run exactly `nSteps` fixed sub-steps. The game loop passes the integer step
+// count from drainAccumulator straight through — never `nSteps * FIXED_MS`
+// re-divided as a float, which could run nSteps±1 under rounding error and
+// desync an onchain replay. This is the canonical stepping primitive.
+export function advanceSteps(
+  state: GameState,
+  nSteps: number,
+  input: InputIntent,
+  fixedMs: number = FIXED_MS
+): GameState {
+  let s = state;
+  for (let i = 0; i < nSteps; i++) {
+    s = step(s, fixedMs, input);
+  }
+  return s;
+}
+
+// Like advanceSteps, but also returns every event emitted across the sub-steps
+// (each step() resets its own events). The cosmetic/audio layer consumes these;
+// the returned state is byte-identical to advanceSteps.
+export function advanceWithEvents(
+  state: GameState,
+  nSteps: number,
+  input: InputIntent,
+  fixedMs: number = FIXED_MS
+): { state: GameState; events: GameEvent[] } {
+  let s = state;
+  const events: GameEvent[] = [];
+  for (let i = 0; i < nSteps; i++) {
+    s = step(s, fixedMs, input);
+    for (const e of s.events) events.push(e);
+  }
+  return { state: s, events };
+}
+
+// Convenience wrapper: derive the integer step count from a wall-clock frame
+// (clamped) and run them. Kept for callers/tests that think in milliseconds;
+// internally it defers to advanceSteps so there is a single stepping path.
 export function advance(
   state: GameState,
   frameMs: number,
   input: InputIntent,
   fixedMs: number = FIXED_MS
 ): GameState {
-  let remaining = Math.min(Math.max(0, frameMs), MAX_FRAME_MS);
-  let s = state;
-  while (remaining >= fixedMs) {
-    s = step(s, fixedMs, input);
-    remaining -= fixedMs;
-  }
-  return s;
+  const clamped = Math.min(Math.max(0, frameMs), MAX_FRAME_MS);
+  const nSteps = Math.floor(clamped / fixedMs);
+  return advanceSteps(state, nSteps, input, fixedMs);
 }
 
 // Carry leftover sub-step time across frames so high-refresh displays (frame
