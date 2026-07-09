@@ -20,6 +20,8 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Marketplace — light-theme parity for cards and warnings (2026-07-09)
+- Marketplace card borders, hover shadows/surfaces, the agent-credits warning tint, and three v2 CSS fallbacks used hardcoded dark-theme colors — invisible hovers and washed-out frames on the light theme. All now use the shared theme tokens (`--color-border`, `--shadow-lg`, `--color-k-hover-surface`, `--color-k-amber-*`, `--color-success`). The service-card image scrim stays a constant overlay by design (it sits on imagery, not on a themed surface).
 ### Blog — articles become first-class for search engines and social shares (2026-07-09)
 - **Every article now has its own URL in the sitemap** with its publication date as `lastmod` — previously only `/blog` itself was listed, so the 12 articles were invisible to crawlers except via the JS-rendered list and RSS.
 - **Sharing an article now shows that article** — each `/blog/:slug` sets its own og:title/description/twitter meta and a `BlogPosting` JSON-LD record (headline, date, keywords, author), instead of every article sharing one generic "Blog — Memba" preview. Feed readers can also auto-discover the RSS feed from any page.
