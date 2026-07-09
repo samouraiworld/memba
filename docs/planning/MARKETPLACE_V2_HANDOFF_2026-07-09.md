@@ -4,7 +4,7 @@
 
 ## TL;DR
 - **Branch:** `feat/marketplace-v2` — worktree at `/Users/zxxma/Desktop/Code/Gno/Memba-worktrees/marketplace-v2`.
-- **State:** 20 commits, **clean working tree**, **120 marketplace tests green**, `npm run build` green.
+- **State (updated 2026-07-09 PM):** 24 commits (incl. main merge-back), **clean working tree**, 119 marketplace unit tests + 5 Playwright e2e green, `npm run build` green. Draft PR **#851**.
 - **Behind** `VITE_ENABLE_MARKETPLACE_V2` (off in prod) — nothing user-facing until the flag flips. Safe to leave as-is.
 - **Foundation (Phases 0–4) + lane rebuilds (Phase 7) DONE** and cut over (flag-gated). NFT lane verified rendering real test13 data in the browser.
 - **Remaining** all have external gates: Phase 5 (needs a real listing to verify), Phase 6 (needs a deployer realm getter), Phase 8 (e2e/docs/cutover-flip).
@@ -54,7 +54,7 @@ lane component (NftLaneV2 / TokenLaneV2 / ServiceLaneV2)
    - **GATE:** to verify the money path you need a **real NFT listing** on test13 (current collections have floor 0 / no listings). Either list one, or use e2e with a fixture. Do NOT change the live money-path modal without browser/e2e verification.
 2. **Phase 6 — purchase-gated reviews.** Wire `ReputationBadge` to real data + gate `PostReview` to a settled on-chain trade.
    - **GATE (deployer task):** `nft_market_v3_1` persists sales (`salesLog`) but exposes **no purchase-query getter**. Need a **new engine version `nft_market_v3_2`** adding `HasPurchased(buyer, seller)` / `GetSalesByBuyer` (+ `salesLog` state migration). Build on the shipped `p/samcrew/memba_reviews_core_v1` engine via a new `memba_marketplace_reviews_v1` consumer (do NOT fork/redeploy frozen realms). Until then, reputation display stays deferred (ungated data is sybil-prone — "worse than none").
-3. **Phase 8 — finish.** Roving `tabindex` + `aria-controls`/tabpanel on tabs; funnel instrumentation (view→detail→sign→settle); Playwright e2e (per-lane browse on desktop + iphone/pixel; gating); update `CHANGELOG.md` + `DESIGN_SYSTEM.md`; **then flip `VITE_ENABLE_MARKETPLACE_V2=true` = the real cutover** (owner call).
+3. **Phase 8 — mostly DONE (2026-07-09 PM).** ✅ Roving `tabindex` + `aria-controls`/tabpanel (WAI-ARIA keyboard nav, unit-tested); ✅ Playwright `e2e/marketplace-v2.spec.ts` (5 tests: v2 pipeline markers, seed-fed Services browse + URL search, keyboard roving + Enter, gated-lane redirect, 375px no-h-scroll) — `.env.e2e` pins `VITE_ENABLE_MARKETPLACE_V2=true` for the :5174 server; ✅ `CHANGELOG.md` + `DESIGN_SYSTEM.md`; ✅ **P1 tab-link bug found & fixed** (react-router 7 relative-splat resolution made lane tabs bounce back — fixed absolute here AND hotfixed on main as #857). ⬜ Remaining: funnel instrumentation (view→detail→sign→settle); **then the flag flip = the real cutover (owner call)**.
 4. **Agents v2 lane** — not built (secondary). `AgentLaneV2` on `LaneView` + an `agentToCard` when wanted.
 5. **Services/Tokens de-gate** — separate milestone: needs `escrow_v3`/`token_otc_v2` live (they are, P0-guarded) + the money-path hard-gate trio (sig-verify flip + restore drill + fund-recovery e2e) + real seed→on-chain supply (`seedToOnchain` script, Task 7.4 — not built).
 
