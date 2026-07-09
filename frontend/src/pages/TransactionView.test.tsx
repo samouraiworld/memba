@@ -206,6 +206,48 @@ describe("TransactionView — two-step confirmation (W2.4)", () => {
     })
 })
 
+describe("TransactionView — per-signature verified (A3 log-only window)", () => {
+    // During the log-only rollout (MEMBA_ENFORCE_MULTISIG_SIG_VERIFY unset) the
+    // backend stores signatures that FAILED server-side verification. The UI
+    // must distinguish verified from merely-submitted so quorum is not
+    // misrepresented — while leaving the broadcast gate itself unchanged
+    // (gate-on-verified is blocked on the A3 sign-byte fix).
+    const twoSigs = (aliceVerified: boolean, bobVerified: boolean) => [
+        { userAddress: "g1alice00000000000000000000000000000000", value: "s1", bodyBytes: new Uint8Array(), createdAt: "", verified: aliceVerified },
+        { userAddress: "g1bob0000000000000000000000000000000000", value: "s2", bodyBytes: new Uint8Array(), createdAt: "", verified: bobVerified },
+    ]
+
+    it("shows verified vs submitted counts in the signature progress", async () => {
+        await renderTx(makeTx({ signatures: twoSigs(true, false) }))
+        expect(screen.getByText("1/2 verified")).toBeInTheDocument()
+        expect(screen.getByText("2 submitted")).toBeInTheDocument()
+    })
+
+    it("labels each signer row Verified or Unverified", async () => {
+        await renderTx(makeTx({ signatures: twoSigs(true, false) }))
+        expect(screen.getByText("Verified")).toBeInTheDocument()
+        expect(screen.getByText("Unverified")).toBeInTheDocument()
+    })
+
+    it("flags a quorum that contains unverified signatures", async () => {
+        await renderTx(makeTx({ signatures: twoSigs(true, false) }))
+        expect(screen.getByText(/quorum includes unverified signatures/i)).toBeInTheDocument()
+        expect(screen.queryByText("Ready to broadcast")).not.toBeInTheDocument()
+    })
+
+    it("shows Ready to broadcast when the quorum is fully verified", async () => {
+        await renderTx(makeTx({ signatures: twoSigs(true, true) }))
+        expect(screen.getByText("2/2 verified")).toBeInTheDocument()
+        expect(screen.getByText("Ready to broadcast")).toBeInTheDocument()
+        expect(screen.queryByText(/quorum includes unverified/i)).not.toBeInTheDocument()
+    })
+
+    it("does NOT change the broadcast gate: submitted quorum still enables broadcast", async () => {
+        await renderTx(makeTx({ signatures: twoSigs(true, false) }))
+        expect(screen.getByText("Broadcast to Chain")).toBeInTheDocument()
+    })
+})
+
 describe("TransactionView — completion + W2.3 verified flag", () => {
     it("shows VERIFIED ON-CHAIN when the backend reconciled the hash", async () => {
         await renderTx(makeTx({ finalHash: "ABCDEF", verified: true }))
