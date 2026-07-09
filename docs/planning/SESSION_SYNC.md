@@ -11,6 +11,7 @@ Rules:
 ---
 
 2026-07-09 · Lane B · validator-name resilience P0-B (plan: VALIDATOR_NAMING_RESILIENCE_PLAN_2026-07-08) · START→STOP (single session) · frontend: lib/gnomonitoring.ts (any-endpoint seeding, isRealMoniker, 7d last-good localStorage cache) + gnomonitoring.test.ts, lib/validators.ts (guarded moniker adoption ×3, keying note) · CHANGELOG.md (single-writer: registered) · gnomonitoring root fix = PR #116 (separate repo, owner deploys VPS) · fix/validator-name-resilience
+2026-07-09 · Lane B · on-chain blog reader (backlog item 8, realm = deployer PR #74) · START→STOP (single session) · frontend: lib/blogOnchain.ts + blogSource.ts + blogOnchain.test.ts (new), lib/config.ts (isOnchainBlogEnabled), pages/Blog.tsx (source hook), pages/Blog.test.tsx (QueryClient harness), .env.example (single-writer: registered) · behind VITE_ENABLE_ONCHAIN_BLOG (off; realm not deployed) · feat/onchain-blog-reader
 
 2026-07-09 · Lane B · repo hygiene session · START→STOP (single session) · docs/planning archive sweep (shipped plans → archive/shipped-2026-07 with status banners), rescue VALIDATOR_NAMING_RESILIENCE_PLAN + SPACE_INVADERS_AAA_PLAN into git, BACKLOG_PLAN status header; test deflake PostCard.test.tsx (fix/postcard-edit-test-flake); marketplace-v2 branch pushed + draft PR #851 (no source changes to it); stale worktrees/branches pruned · CHANGELOG.md untouched (docs+test only) · docs/planning-rescue-and-archive
 
