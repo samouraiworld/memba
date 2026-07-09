@@ -70,7 +70,9 @@ func StartFeedTailer(ctx context.Context, database *sql.DB, cfg FeedTailerConfig
 		ticker := time.NewTicker(cfg.Interval)
 		defer ticker.Stop()
 		for {
-			feedTailOnce(ctx, database, cfg, watched, src)
+			runRecovered(cfg.Logger, "feed_tailer", func() {
+				feedTailOnce(ctx, database, cfg, watched, src)
+			})
 			select {
 			case <-ctx.Done():
 				cfg.Logger.Info("feed tailer: stopped")

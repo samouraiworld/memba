@@ -124,7 +124,9 @@ func StartNFTTailer(ctx context.Context, database *sql.DB, cfg TailerConfig) {
 		defer ticker.Stop()
 
 		for {
-			tailOnce(ctx, database, cfg, watched, saleVolumeSet, src)
+			runRecovered(cfg.Logger, "nft_tailer", func() {
+				tailOnce(ctx, database, cfg, watched, saleVolumeSet, src)
+			})
 			select {
 			case <-ctx.Done():
 				cfg.Logger.Info("nft tailer: stopped")

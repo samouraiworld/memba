@@ -58,10 +58,11 @@ func TestGetLeaderboard_OrdersByXPDesc(t *testing.T) {
 }
 
 // When quest_completions has users absent from the user_ranks cache (e.g. a
-// completion written without updating the cache), GetLeaderboard must rebuild
-// the cache rather than serve a stale/short page. Previously the recompute only
-// fired when the cache was entirely empty.
-func TestGetLeaderboard_RecomputesWhenCacheStale(t *testing.T) {
+// completion written without updating the cache), GetLeaderboard serves the
+// current cache immediately and repairs it in the background (W1.3) — the
+// recompute must not run on the request path. A follow-up read after the
+// repair sees the full board.
+func TestGetLeaderboard_StaleCacheServesThenRepairs(t *testing.T) {
 	h := setup(t)
 	ctx := context.Background()
 
@@ -78,21 +79,76 @@ func TestGetLeaderboard_RecomputesWhenCacheStale(t *testing.T) {
 		t.Fatal("seed bob completion:", err)
 	}
 
+	// First read: truth totalCount, stale (short) page, rebuild triggered.
 	resp, err := h.svc.GetLeaderboard(ctx, connect.NewRequest(&membav1.GetLeaderboardRequest{Limit: 50}))
 	if err != nil {
 		t.Fatal("GetLeaderboard:", err)
 	}
 	if resp.Msg.TotalCount != 2 {
-		t.Fatalf("expected totalCount 2, got %d", resp.Msg.TotalCount)
+		t.Fatalf("expected totalCount 2 (from quest_completions), got %d", resp.Msg.TotalCount)
 	}
-	if len(resp.Msg.Entries) != 2 {
-		t.Fatalf("expected 2 entries after stale-cache recompute, got %d", len(resp.Msg.Entries))
+	if len(resp.Msg.Entries) != 1 {
+		t.Fatalf("expected the stale 1-entry cache page on first read, got %d entries", len(resp.Msg.Entries))
+	}
+
+	// The background repair fills user_ranks; poll with a deadline.
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var cached int
+		if err := h.db.QueryRowContext(ctx, `SELECT COUNT(*) FROM user_ranks`).Scan(&cached); err != nil {
+			t.Fatal("count user_ranks:", err)
+		}
+		if cached == 2 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("background rebuild did not repair the cache (still %d rows)", cached)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+
+	// Second read serves the repaired board.
+	resp2, err := h.svc.GetLeaderboard(ctx, connect.NewRequest(&membav1.GetLeaderboardRequest{Limit: 50}))
+	if err != nil {
+		t.Fatal("GetLeaderboard (after repair):", err)
+	}
+	if len(resp2.Msg.Entries) != 2 {
+		t.Fatalf("expected 2 entries after repair, got %d", len(resp2.Msg.Entries))
 	}
 	seen := map[string]bool{}
-	for _, e := range resp.Msg.Entries {
+	for _, e := range resp2.Msg.Entries {
 		seen[e.Address] = true
 	}
 	if !seen["g1alice"] || !seen["g1bob"] {
 		t.Fatalf("expected both alice and bob, got %v", seen)
+	}
+}
+
+// An entirely empty cache (first boot) must still compute synchronously —
+// there is nothing usable to serve while a background rebuild runs.
+func TestGetLeaderboard_EmptyCacheComputesSynchronously(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+
+	now := time.Now().UTC().Format(time.RFC3339)
+	for _, seed := range []struct{ addr, quest string }{
+		{"g1alice", "connect-wallet"},
+		{"g1bob", "submit-feedback"},
+	} {
+		if _, err := h.db.ExecContext(ctx,
+			`INSERT INTO quest_completions (address, quest_id, completed_at) VALUES (?, ?, ?)`,
+			seed.addr, seed.quest, now,
+		); err != nil {
+			t.Fatalf("seed %s completion: %v", seed.addr, err)
+		}
+	}
+
+	resp, err := h.svc.GetLeaderboard(ctx, connect.NewRequest(&membav1.GetLeaderboardRequest{Limit: 50}))
+	if err != nil {
+		t.Fatal("GetLeaderboard:", err)
+	}
+	if resp.Msg.TotalCount != 2 || len(resp.Msg.Entries) != 2 {
+		t.Fatalf("expected 2/2 on empty-cache synchronous compute, got total=%d entries=%d",
+			resp.Msg.TotalCount, len(resp.Msg.Entries))
 	}
 }
