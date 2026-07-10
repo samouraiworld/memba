@@ -7,11 +7,11 @@
 
 ---
 
-## Current Status (2026-06-30)
+## Current Status (2026-07-10)
 
 | Metric | Value |
 |--------|-------|
-| **Latest Release** | v7.2.0 (cut 2026-06-29); includes NFT marketplace, GnoBuilders on-chain attestation, Wave 0/1 hygiene & security hardening. |
+| **Latest Release** | v7.2.0 (cut 2026-06-29) + a large `[Unreleased]` wave (#851–#872: marketplace-v2 shell, App Store submit/curator/reviews, blog SEO + on-chain reader, perf & indexer hardening). |
 | **Shipped Versions** | 51+ (v0.1.0 → v7.2.0) + ongoing feature branches |
 | **Test Suite** | **3,000+ automated tests (CI-enforced)** — 243 Vitest files + 64 Go test files (auth/db/indexer/points/service, incl. `FuzzMakeADR36SignDoc`) + pinned-gno template compile gate + 27 Playwright E2E specs. CI is the source of truth for exact counts. |
 | **Coverage** | Frontend/Backend CI-enforced thresholds (aggregate bump deferred) |
@@ -22,7 +22,7 @@
 | **AI Analyst** | 10 free models via OpenRouter, DAO-level + proposal-level, cached 6h |
 | **GnoBuilders** | 85 quests, 8-tier rank system, leaderboard, badge NFTs (GRC721 `gnobuilders_badges_v2`), **XP cryptographically settled on-chain** |
 | **Active program** | [Program "Compound" (Waves 5+)](docs/planning/MEMBA_ROADMAP_COMPOUND_2026-07.md) — v7.2.x AAA remediation Waves 0–4 delivered (#732, 2026-07-03) |
-| **Next Priority** | Wave 5 session-side ✅ (gate: owner U-1/U-2/U-3) · Wave 6: W6.1 ✅ W6.2-PR1 ✅ W6.3 ✅, W6.4 blog owner-gated (#748) · next build: Wave 7 (feed realm, marketplace polish, activity bot) |
+| **Next Priority** | **Owner: finish the test13 ceremony** (blog republish → appstore v3 + migration → NFT v3.2 → fee-path checklist → submit de-gate; SSOT `samcrew-deployer/projects/memba/TEST13_CEREMONY_2026-07-10.md`) · **Code: next-cycle plan Waves A–F** ([MEMBA_NEXT_CYCLE_AUDIT_AND_PLAN_2026-07-09.md](docs/planning/MEMBA_NEXT_CYCLE_AUDIT_AND_PLAN_2026-07-09.md)) |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 
@@ -55,7 +55,7 @@ Review findings feed into the **next version's RFC** as action items.
 ## v7.1 Phase 0 — Audit Unblock & Security Hardening ✅ COMPLETE (2026-05-11)
 
 > Plan: [`docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md`](docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md) §4
-> Signoff: [`docs/reports/v7.1-phase0-signoff.md`](docs/reports/v7.1-phase0-signoff.md) (immutable audit record)
+> Signoff: [`docs/reports/archive/v7.1-phase0-signoff.md`](docs/reports/archive/v7.1-phase0-signoff.md) (immutable audit record)
 > Releases: `v6.0.2` (#331), `v6.0.3` (#332 + hotfix #333)
 
 | Workstream | Outcome | PRs |

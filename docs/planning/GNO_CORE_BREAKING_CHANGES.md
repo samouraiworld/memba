@@ -1,6 +1,6 @@
 # Gno Core PRs — Breaking Change Impact Assessment
 
-> **Date:** 2026-07-03 (re-baselined; originally 2026-03-30) · **Memba:** v7.2.x · **Status:** re-baselined per the verified audit plan §5 ([MEMBA_VERIFIED_AUDIT_AND_AAA_PLAN_2026-07-01.md](MEMBA_VERIFIED_AUDIT_AND_AAA_PLAN_2026-07-01.md))
+> **Date:** 2026-07-03 (re-baselined; originally 2026-03-30) · **Memba:** v7.2.x · **Status:** re-baselined per the verified audit plan §5 ([MEMBA_VERIFIED_AUDIT_AND_AAA_PLAN_2026-07-01.md](archive/shipped-2026-07/MEMBA_VERIFIED_AUDIT_AND_AAA_PLAN_2026-07-01.md))
 >
 > **2026-06-24 update:** the NFT-relevant upstream PRs (#5747 / #5792 / #5745) and a chain-feature matrix (test13 / master / gnoland1.1) are tracked in [GNO_CORE_COMPAT.md § 2026-06-24](../GNO_CORE_COMPAT.md#2026-06-24--nft-relevant-upstream-prs--chain-feature-matrix). Mainnet is gated on gnoland1 upgrading to ≥ #5669 (interrealm-v2 Phase 3).
 >
