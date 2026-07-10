@@ -4,6 +4,7 @@ import { Routes, Route } from "react-router-dom"
 import { AppStore } from "./AppStore"
 import { renderWithProviders } from "../test/test-utils"
 import type { AppListing } from "../lib/appStore"
+import { MEMBA_DAO } from "../lib/config"
 
 // Detail routes need the splat param populated, which requires a matching <Route>.
 const appStoreRoutes = <Routes><Route path="/:network/apps/*" element={<AppStore />} /></Routes>
@@ -180,6 +181,7 @@ describe("AppGrid — review stars on cards (W0.6)", () => {
         expect(screen.queryByText(/No reviews yet/)).not.toBeInTheDocument()
         // One batched fetch for all visible cards, against the app-reviews realm.
         expect(fetchSummaries).toHaveBeenCalledTimes(1)
+        expect(fetchSummaries.mock.calls[0][1]).toBe(MEMBA_DAO.appReviewsPath)
         expect(fetchSummaries.mock.calls[0][0]).toEqual([
             "gno.land/r/samcrew/rated",
             "gno.land/r/samcrew/fresh",

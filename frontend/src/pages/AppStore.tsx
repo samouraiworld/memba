@@ -223,7 +223,9 @@ function AppGrid() {
                 </div>
             ) : (
                 <>
-                    {featured && <FeaturedApp app={featured} networkKey={networkKey} summary={summaries?.get(featured.pkgPath)} />}
+                    {/* Keyed by pkgPath so AppIcon's failed-image state can't leak from one
+                        featured app to its successor across a refetch. */}
+                    {featured && <FeaturedApp key={featured.pkgPath} app={featured} networkKey={networkKey} summary={summaries?.get(featured.pkgPath)} />}
                     {rest.length > 0 && (
                         <section className="appstore__section">
                             <h2 className="appstore__section-title">All apps</h2>
