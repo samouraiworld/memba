@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### App Store — cards catch up with the reviews and realm data that already exist (2026-07-10)
+- **Review stars reach the grid.** Community ratings only showed after clicking into an app's detail page; reviewed apps now carry their star summary (same ≥3-review integrity rule — small samples show a "New" chip and the count, never a fake-confident average) on the featured banner and every grid card. All visible cards are fetched as one concurrency-capped batch, not a per-card query burst.
+- **The masthead counts the realm, not the fetched window.** "N apps" came from whatever one page-load happened to fetch; it now reads the realm's own `GetStatsJSON` (works on v2 today and v3 after the ceremony repoint) and additionally discloses total submissions once they exceed the live count.
+- **Publisher-pinned icons render.** A listing with an `iconCID` finally shows its artwork (IPFS gateway, CID shape-validated, lazy-loaded); the deterministic monogram stays as the fallback for missing, malformed, or unloadable icons — a broken gateway can never leave a blank tile.
+
 ### Multisig — "Unverified" no longer reads as an alarm on legacy signatures (2026-07-09)
 - Signatures collected before server-side verification existed can never be re-checked, but their badge read simply "Unverified" — indistinguishable from a real mismatch. The badge now explains itself on hover: legacy rows are expected and advisory, and the "Verified" badge states what was actually checked.
 

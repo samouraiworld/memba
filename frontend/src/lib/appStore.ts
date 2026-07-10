@@ -170,3 +170,30 @@ export async function fetchApp(pkgPath: string): Promise<AppListing | null> {
     if (!raw) return null
     return coerce(parseQevalJSON(raw))
 }
+
+/** Realm-level catalog stats. v3's GetStatsJSON is a superset (adds per-status
+ * counts); only the fields both generations expose are kept. */
+export interface AppStoreStats {
+    total: number
+    live: number
+    registrationFee: number
+    paused: boolean
+}
+
+/** Fetch catalog stats (`GetStatsJSON` — exposed by v2 AND v3, so this survives the
+ * env-driven repoint). Returns null on any error so the masthead can fall back to
+ * counting the fetched window instead of showing nothing. */
+export async function fetchAppStoreStats(): Promise<AppStoreStats | null> {
+    const raw = await queryEval(GNO_RPC_URL, APPSTORE_REALM_PATH, "GetStatsJSON()")
+    if (!raw) return null
+    const parsed = parseQevalJSON(raw)
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null
+    const r = parsed as Record<string, unknown>
+    if (typeof r.total !== "number" || typeof r.live !== "number") return null
+    return {
+        total: r.total,
+        live: r.live,
+        registrationFee: Number(r.registrationFee) || 0,
+        paused: r.paused === true,
+    }
+}

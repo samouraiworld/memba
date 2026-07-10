@@ -7,6 +7,7 @@ import {
     fetchLiveApps,
     fetchByStatus,
     fetchByPublisher,
+    fetchAppStoreStats,
 } from "./appStore"
 import * as shared from "./dao/shared"
 
@@ -140,5 +141,42 @@ describe("isSafeRealmPath (qeval-expression injection guard)", () => {
         expect(isSafeRealmPath("gno.land/x/y")).toBe(false) // not r/ or p/
         expect(isSafeRealmPath("")).toBe(false)
         expect(isSafeRealmPath("gno.land/r/" + "a".repeat(300))).toBe(false) // over length cap
+    })
+})
+
+describe("fetchAppStoreStats (masthead counts via GetStatsJSON)", () => {
+    beforeEach(() => vi.restoreAllMocks())
+    afterEach(() => vi.restoreAllMocks())
+
+    it("queries GetStatsJSON and parses the v2 shape", async () => {
+        const qe = vi.spyOn(shared, "queryEval").mockResolvedValue("[raw]")
+        vi.spyOn(shared, "parseQevalJSON").mockReturnValue({
+            total: 2, live: 2, registrationFee: 1000000, paused: false,
+        })
+        const stats = await fetchAppStoreStats()
+        expect(qe).toHaveBeenCalledWith(expect.anything(), APPSTORE_REALM_PATH, "GetStatsJSON()")
+        expect(stats).toEqual({ total: 2, live: 2, registrationFee: 1000000, paused: false })
+    })
+
+    it("tolerates the v3 superset shape (extra per-status counts ignored)", async () => {
+        vi.spyOn(shared, "queryEval").mockResolvedValue("[raw]")
+        vi.spyOn(shared, "parseQevalJSON").mockReturnValue({
+            total: 5, live: 2, pending: 2, rejected: 1, delisted: 0,
+            registrationFee: 1000000, paused: true,
+        })
+        const stats = await fetchAppStoreStats()
+        expect(stats).toEqual({ total: 5, live: 2, registrationFee: 1000000, paused: true })
+    })
+
+    it("returns null on empty qeval, non-object payloads, or missing counts", async () => {
+        const qe = vi.spyOn(shared, "queryEval").mockResolvedValue("")
+        expect(await fetchAppStoreStats()).toBeNull()
+
+        qe.mockResolvedValue("[raw]")
+        const pj = vi.spyOn(shared, "parseQevalJSON")
+        for (const bad of [null, [], "nope", { total: "2", live: 2 }, { live: 3 }]) {
+            pj.mockReturnValue(bad)
+            expect(await fetchAppStoreStats()).toBeNull()
+        }
     })
 })
