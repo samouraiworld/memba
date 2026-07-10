@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Backend — NFT indexer defaults stop pointing at the retired v3 engine (2026-07-11)
+- **Booting without `NFT_WATCHED_REALMS`/`NFT_SALE_VOLUME_REALMS` no longer indexes a dead realm.** The code defaults still named `memba_nft_market_v3` — deauthorized 2026-06-27 — so an unset env silently watched a realm that could never trade again; this is how v3.1 sales went un-indexed in prod until 2026-07-11. Defaults now cover the v2 pair plus the v3.1/v3.2 engines, with v3.x volume counted from `Sale` events only (v3.2's seeded history emits `SaleSeeded`, which the dispatcher ignores — no double-count). A test pins the default sets so the next engine retirement must update them deliberately.
+- **The prod realm sets are now versioned in `backend/fly.toml` `[env]`** instead of living only as unversioned Fly secrets. Note for the operator: secrets override `[env]` — drop the two secrets once this deploys so the file is the single source of truth.
+
 ### NFT marketplace — trading moves to the v3.2 engine (2026-07-10 ceremony)
 - **The active trading engine is now `memba_nft_market_v3_2`** — deployed, registered on the collections registry, and carrying v3.1's full sales history (seeded from the tx-indexer and permanently sealed). v3.2 adds machine-readable solvency (`TotalLiabilities()` reconciled against the realm balance), two-step ownership handoff, and a fee-recipient guard. Approval flows now authorize the v3.2 engine address.
 - **v3.1 is paused, not gone**: it stays callable through the wind-down so its two open offers can exit escrow (cancel/expired-claim); new trades route to v3.2. **Existing listings do not migrate — sellers re-list on the new engine.**

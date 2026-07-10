@@ -208,7 +208,6 @@ func main() {
 	// Start the NFT marketplace state-polling indexer (test13 realms).
 	// NOTE: the NFT realms live on test13, so this uses its OWN rpc env
 	// (NFT_RPC_URL) — NOT the testnet12-defaulted GNO_RPC_URL.
-	const defaultV3Market = "gno.land/r/samcrew/memba_nft_market_v3"
 	nftRPCURL := envOr("NFT_RPC_URL", "https://rpc.test13.testnets.gno.land:443")
 	collectionRealm := envOr("NFT_COLLECTION_REALM", "gno.land/r/samcrew/memba_nft_v2")
 	marketRealm := envOr("NFT_MARKET_REALM", "gno.land/r/samcrew/memba_nft_market_v2")
@@ -246,8 +245,8 @@ func main() {
 	// ownership. This is the source of truth for floor, activity and portfolio.
 	indexer.StartNFTTailer(ctx, database, indexer.TailerConfig{
 		RPCURL:           nftRPCURL,
-		WatchedRealms:    splitOrigins(envOr("NFT_WATCHED_REALMS", marketRealm+","+collectionRealm+","+defaultV3Market)),
-		SaleVolumeRealms: splitOrigins(envOr("NFT_SALE_VOLUME_REALMS", defaultV3Market)),
+		WatchedRealms:    splitOrigins(envOr("NFT_WATCHED_REALMS", defaultNFTWatchedRealms(marketRealm, collectionRealm))),
+		SaleVolumeRealms: splitOrigins(envOr("NFT_SALE_VOLUME_REALMS", defaultNFTSaleVolumeRealms())),
 		StartBlock:       int64Or("NFT_START_BLOCK", 260000),
 		Confirmations:    int64Or("NFT_CONFIRMATIONS", 5),
 		Interval:         durationOr("NFT_TAILER_INTERVAL", 3*time.Second),
@@ -499,6 +498,29 @@ func parseSeedCursorSpec(s string) ([]SeedSpec, []error) {
 		specs = append(specs, SeedSpec{Realm: realm, Height: height})
 	}
 	return specs, errs
+}
+
+// The two live NFT trading engines (2026-07-10 ceremony): v3.1 is paused and
+// winding down its open offers, v3.2 is the active engine. The old v3 engine
+// (memba_nft_market_v3) was deauthorized 2026-06-27 and must never re-enter
+// these defaults — it lingered here and pointed unset-env deployments at a
+// dead realm, hiding every v3.1 sale from the backend until 2026-07-11.
+const (
+	nftMarketV31Realm = "gno.land/r/samcrew/memba_nft_market_v3_1"
+	nftMarketV32Realm = "gno.land/r/samcrew/memba_nft_market_v3_2"
+)
+
+// defaultNFTWatchedRealms is the NFT_WATCHED_REALMS fallback: the v2 pair plus
+// both post-ceremony engines. Prod pins the same set in backend/fly.toml [env].
+func defaultNFTWatchedRealms(marketRealm, collectionRealm string) string {
+	return strings.Join([]string{marketRealm, collectionRealm, nftMarketV31Realm, nftMarketV32Realm}, ",")
+}
+
+// defaultNFTSaleVolumeRealms is the NFT_SALE_VOLUME_REALMS fallback: engines
+// whose volume comes from Sale events only. v3.2's seeded history emits
+// "SaleSeeded", which the event dispatcher ignores — seeding cannot double-count.
+func defaultNFTSaleVolumeRealms() string {
+	return nftMarketV31Realm + "," + nftMarketV32Realm
 }
 
 // splitOrigins splits a comma-separated CORS_ORIGINS string, trimming whitespace.
