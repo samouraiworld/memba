@@ -1,6 +1,6 @@
 /**
  * myListings — read + cancel the connected wallet's own active marketplace
- * listings across the live lanes (NFT v3.1 + Token OTC). Read-only aggregation
+ * listings across the live lanes (NFT v3 + Token OTC). Read-only aggregation
  * over the existing per-lane readers, filtered client-side by seller; cancel
  * reuses the existing delist/cancel MsgCall builders + the ordinary Adena
  * broadcast (no multisig paths).
