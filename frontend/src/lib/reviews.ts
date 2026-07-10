@@ -203,6 +203,35 @@ export async function fetchSummary(subject: string, realmPath: string = REVIEWS_
 }
 
 /**
+ * Batch fetchSummary over many subjects with a small concurrency cap — per-card
+ * summaries for a grid without an unbounded qeval burst. A failed subject yields
+ * the zero summary rather than failing the batch; repeats are deduplicated.
+ * NOTE: the honest fix for large catalogs is a realm-side batch getter
+ * (next-cycle plan Wave A.5); the cap just keeps this N+1 polite until then.
+ */
+export async function fetchSummaries(
+    subjects: string[],
+    realmPath: string = REVIEWS_PKG_PATH,
+    concurrency = 4,
+): Promise<Map<string, SubjectSummary>> {
+    const out = new Map<string, SubjectSummary>()
+    const queue = [...new Set(subjects)]
+    const workers = Array.from({ length: Math.max(1, Math.min(concurrency, queue.length)) }, async () => {
+        for (;;) {
+            const subject = queue.shift()
+            if (subject === undefined) return
+            try {
+                out.set(subject, await fetchSummary(subject, realmPath))
+            } catch {
+                out.set(subject, { count: 0, average: 0, sum: 0 })
+            }
+        }
+    })
+    await Promise.all(workers)
+    return out
+}
+
+/**
  * Fetch on-chain reputation score for an address.
  * GetReputation returns a bare int64 wrapped as `(N int64)`.
  */

@@ -19,8 +19,9 @@ import { Suspense, useState, type CSSProperties } from "react"
 import { useParams, useNavigate, Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { useNetwork } from "../hooks/useNetwork"
-import { fetchLiveApps, fetchApp, fetchByStatus, isSafeRealmPath, isAppStoreV3, type AppListing } from "../lib/appStore"
-import { fetchSummary } from "../lib/reviews"
+import { fetchLiveApps, fetchApp, fetchByStatus, fetchAppStoreStats, isSafeRealmPath, isAppStoreV3, type AppListing } from "../lib/appStore"
+import { fetchSummary, fetchSummaries, type SubjectSummary } from "../lib/reviews"
+import { getIpfsGatewayUrl, isValidCid } from "../lib/ipfs"
 import { MEMBA_DAO, isAppReviewsEnabled, isAppStoreSubmitEnabled } from "../lib/config"
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import { ReportAppButton } from "../components/appstore/ReportAppButton"
@@ -80,6 +81,26 @@ function Monogram({ app, size }: { app: AppListing; size: "md" | "lg" }) {
     )
 }
 
+// AppIcon prefers publisher-pinned artwork (iconCID → IPFS gateway) and falls back
+// to the deterministic monogram when the CID is absent, malformed, or the gateway
+// fails — a broken image must never leave a blank square on a card. The CID is
+// shape-validated before it becomes a URL.
+function AppIcon({ app, size }: { app: AppListing; size: "md" | "lg" }) {
+    const [failed, setFailed] = useState(false)
+    if (!app.iconCID || !isValidCid(app.iconCID) || failed) {
+        return <Monogram app={app} size={size} />
+    }
+    return (
+        <img
+            className={`appmono appmono--${size} appicon`}
+            src={getIpfsGatewayUrl(app.iconCID)}
+            alt=""
+            loading="lazy"
+            onError={() => setFailed(true)}
+        />
+    )
+}
+
 function CatChip({ category }: { category: string }) {
     // Facet color is content-driven: money-flavored categories borrow the govdao
     // gold, everything else the house teal. Extend the map as the store grows.
@@ -115,9 +136,32 @@ function relPath(pkgPath: string): string {
 
 function AppGrid() {
     const { networkKey } = useNetwork()
+    const appReviews = isAppReviewsEnabled()
     const { data: apps, isPending, isError } = useQuery({
         queryKey: ["appStore", "live"],
         queryFn: () => fetchLiveApps(0, 30),
+        staleTime: 60_000,
+        gcTime: 300_000,
+        retry: 1,
+    })
+
+    // Realm-level counts for the masthead (GetStatsJSON exists on v2 AND v3).
+    // Falls back to the fetched window's length when the getter errors.
+    const { data: stats } = useQuery({
+        queryKey: ["appStore", "stats"],
+        queryFn: fetchAppStoreStats,
+        staleTime: 60_000,
+        gcTime: 300_000,
+        retry: 1,
+    })
+
+    // One batched, concurrency-capped summaries fetch for every visible card —
+    // not a per-card query (plan A.5's realm-side batch getter is the real fix).
+    const subjects = (apps ?? []).map((a) => a.pkgPath)
+    const { data: summaries } = useQuery({
+        queryKey: ["appStore", "summaries", subjects],
+        queryFn: () => fetchSummaries(subjects, MEMBA_DAO.appReviewsPath),
+        enabled: appReviews && subjects.length > 0,
         staleTime: 60_000,
         gcTime: 300_000,
         retry: 1,
@@ -139,7 +183,13 @@ function AppGrid() {
                 </p>
                 {!isPending && !isError && apps && apps.length > 0 && (
                     <div className="appstore__stats">
-                        <span><strong>{apps.length}</strong> {apps.length === 1 ? "app" : "apps"}</span>
+                        <span><strong>{stats?.live ?? apps.length}</strong> {(stats?.live ?? apps.length) === 1 ? "app" : "apps"}</span>
+                        {stats && stats.total > stats.live && (
+                            <>
+                                <span className="appstore__dot" aria-hidden="true">·</span>
+                                <span><strong>{stats.total}</strong> submitted</span>
+                            </>
+                        )}
                         <span className="appstore__dot" aria-hidden="true">·</span>
                         <span>on gno.land</span>
                         <span className="appstore__dot" aria-hidden="true">·</span>
@@ -173,14 +223,16 @@ function AppGrid() {
                 </div>
             ) : (
                 <>
-                    {featured && <FeaturedApp app={featured} networkKey={networkKey} />}
+                    {/* Keyed by pkgPath so AppIcon's failed-image state can't leak from one
+                        featured app to its successor across a refetch. */}
+                    {featured && <FeaturedApp key={featured.pkgPath} app={featured} networkKey={networkKey} summary={summaries?.get(featured.pkgPath)} />}
                     {rest.length > 0 && (
                         <section className="appstore__section">
                             <h2 className="appstore__section-title">All apps</h2>
                             <ul className="appstore__grid">
                                 {rest.map((app) => (
                                     <li key={app.pkgPath}>
-                                        <AppCard app={app} networkKey={networkKey} />
+                                        <AppCard app={app} networkKey={networkKey} summary={summaries?.get(app.pkgPath)} />
                                     </li>
                                 ))}
                             </ul>
@@ -196,7 +248,7 @@ function AppGrid() {
     )
 }
 
-function FeaturedApp({ app, networkKey }: { app: AppListing; networkKey: string }) {
+function FeaturedApp({ app, networkKey, summary }: { app: AppListing; networkKey: string; summary?: SubjectSummary }) {
     const rel = relPath(app.pkgPath)
     return (
         <section className="appfeatured" aria-label={`Featured: ${app.name}`}>
@@ -204,12 +256,17 @@ function FeaturedApp({ app, networkKey }: { app: AppListing; networkKey: string 
                 <span className="appfeatured__star" aria-hidden="true">★</span> Featured
             </p>
             <div className="appfeatured__body">
-                <Monogram app={app} size="lg" />
+                <AppIcon app={app} size="lg" />
                 <div className="appfeatured__content">
                     {app.category && (
                         <div className="appfeatured__cats"><CatChip category={app.category} /></div>
                     )}
                     <h2 className="appfeatured__name">{app.name}</h2>
+                    {/* Same integrity rule as the detail hero: only render once there IS a
+                        review — zero-review listings get no "No reviews yet" noise on cards. */}
+                    {summary && summary.count > 0 && (
+                        <AppReviewStars count={summary.count} average={summary.average} className="appfeatured__stars" />
+                    )}
                     {app.tagline && <p className="appfeatured__tag">{app.tagline}</p>}
                     {app.descr && <p className="appfeatured__descr">{app.descr}</p>}
                     <div className="appfeatured__actions">
@@ -225,7 +282,7 @@ function FeaturedApp({ app, networkKey }: { app: AppListing; networkKey: string 
     )
 }
 
-function AppCard({ app, networkKey, pending }: { app: AppListing; networkKey: string; pending?: boolean }) {
+function AppCard({ app, networkKey, pending, summary }: { app: AppListing; networkKey: string; pending?: boolean; summary?: SubjectSummary }) {
     const navigate = useNavigate()
     const rel = relPath(app.pkgPath)
     const go = () => navigate(`/${networkKey}/apps/${rel}`)
@@ -244,10 +301,13 @@ function AppCard({ app, networkKey, pending }: { app: AppListing; networkKey: st
             }}
         >
             <div className="appcard__top">
-                <Monogram app={app} size="md" />
+                <AppIcon app={app} size="md" />
                 {pending ? <span className="appcard__pending-chip">Pending review</span> : app.category && <CatChip category={app.category} />}
             </div>
             <div className="appcard__name">{app.name}</div>
+            {summary && summary.count > 0 && (
+                <AppReviewStars count={summary.count} average={summary.average} className="appcard__stars" />
+            )}
             {app.tagline && <p className="appcard__tag">{app.tagline}</p>}
             <code className="apppath appcard__path">{app.pkgPath}</code>
         </div>
@@ -362,7 +422,7 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
                         </div>
                     )}
                     <div className="appdetail__hero">
-                        <Monogram app={app} size="lg" />
+                        <AppIcon app={app} size="lg" />
                         <div className="appdetail__heroText">
                             {app.category && (
                                 <div className="appdetail__cats"><CatChip category={app.category} /></div>

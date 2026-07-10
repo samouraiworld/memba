@@ -1,5 +1,6 @@
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi, afterEach } from "vitest"
 import {
+    fetchSummaries,
     unwrapQeval,
     parseReviews,
     sortByTrust,
@@ -20,6 +21,7 @@ import {
     upsertReviewByAuthor,
     type OnChainReview,
 } from "./reviews"
+import * as shared from "./dao/shared"
 
 function review(over: Partial<OnChainReview>): OnChainReview {
     return {
@@ -249,5 +251,50 @@ describe("buildHideReviewMsg", () => {
         expect(m.value.args).toEqual(["99"])
         expect(m.value.caller).toBe("g1mod")
         expect(m.value.pkg_path).toBe(REVIEWS_PKG_PATH)
+    })
+})
+
+describe("fetchSummaries (batched per-card summaries, capped concurrency)", () => {
+    afterEach(() => vi.restoreAllMocks())
+
+    const summaryJSON = (count: number, average: number) =>
+        `("{\\"count\\":${count},\\"average\\":${average},\\"sum\\":${count * average}}" string)`
+
+    it("returns a map keyed by subject, deduplicating repeats", async () => {
+        const qe = vi.spyOn(shared, "queryEval").mockImplementation(async (_rpc, _realm, expr) => {
+            const s = String(expr)
+            if (s.includes("app-a")) return summaryJSON(4, 4.5)
+            return summaryJSON(0, 0)
+        })
+        const out = await fetchSummaries(["gno.land/r/x/app-a", "gno.land/r/x/app-b", "gno.land/r/x/app-a"])
+        expect(out.get("gno.land/r/x/app-a")).toEqual({ count: 4, average: 4.5, sum: 18 })
+        expect(out.get("gno.land/r/x/app-b")).toEqual({ count: 0, average: 0, sum: 0 })
+        expect(qe).toHaveBeenCalledTimes(2) // dedup: app-a fetched once
+    })
+
+    it("never runs more than `concurrency` fetches at once", async () => {
+        let inFlight = 0
+        let peak = 0
+        vi.spyOn(shared, "queryEval").mockImplementation(async () => {
+            inFlight++
+            peak = Math.max(peak, inFlight)
+            await new Promise((r) => setTimeout(r, 5))
+            inFlight--
+            return summaryJSON(1, 5)
+        })
+        const subjects = Array.from({ length: 9 }, (_, i) => `gno.land/r/x/app-${i}`)
+        const out = await fetchSummaries(subjects, undefined, 3)
+        expect(out.size).toBe(9)
+        expect(peak).toBeLessThanOrEqual(3)
+    })
+
+    it("a failing subject yields the zero summary without failing the batch", async () => {
+        vi.spyOn(shared, "queryEval").mockImplementation(async (_rpc, _realm, expr) => {
+            if (String(expr).includes("bad")) throw new Error("rpc down")
+            return summaryJSON(3, 4)
+        })
+        const out = await fetchSummaries(["gno.land/r/x/good", "gno.land/r/x/bad"])
+        expect(out.get("gno.land/r/x/good")).toEqual({ count: 3, average: 4, sum: 12 })
+        expect(out.get("gno.land/r/x/bad")).toEqual({ count: 0, average: 0, sum: 0 })
     })
 })

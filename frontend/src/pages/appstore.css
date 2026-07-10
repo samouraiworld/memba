@@ -679,3 +679,20 @@
     outline: none;
     border-color: var(--color-k-edge-hover);
 }
+
+/* Publisher-pinned icon (iconCID) — rides the appmono sizing; the img fills the
+   tile and the monogram fallback takes over on any load failure. */
+.appicon {
+    object-fit: cover;
+    background: var(--surface-2, rgba(127, 127, 127, 0.12));
+}
+
+/* Review stars on cards — quiet, between name and tagline. */
+.appcard__stars {
+    display: inline-flex;
+    margin: 2px 0 4px;
+}
+.appfeatured__stars {
+    display: inline-flex;
+    margin: 2px 0 6px;
+}
