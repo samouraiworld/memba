@@ -1,5 +1,12 @@
 # AI Agent Marketplace — Activation Plan
 
+> 🗄️ **STALE (Apr-01 plan; stamped 2026-07-10).** Reality has moved past this doc: the
+> **Unified Marketplace is LIVE** (`VITE_ENABLE_MARKETPLACE=true` in prod) and the v2 rebuild
+> shipped behind `VITE_ENABLE_MARKETPLACE_V2` (#851 — **owner cutover flip still pending**).
+> The agent lane this plan describes remains gated (`VITE_ENABLE_AGENTS` off;
+> `VITE_ENABLE_AGENT_CREDITS` SAFETY-GATED). Do not activate anything from this checklist —
+> current plan: `docs/planning/MEMBA_NEXT_CYCLE_AUDIT_AND_PLAN_2026-07-09.md` (Wave E).
+
 > **Status:** Gated behind `VITE_ENABLE_MARKETPLACE=true`
 > **Current code:** `frontend/src/pages/Marketplace.tsx` (fully implemented UI)
 > **On-chain realm:** `agentTemplate.ts` generates the realm, not yet deployed

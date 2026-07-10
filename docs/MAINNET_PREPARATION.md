@@ -15,7 +15,7 @@ This document tracks items to be addressed before the mainnet release.
 
 | Phase | Status | Anchor |
 |-------|--------|--------|
-| Phase 0 — Audit unblock + AUTH-CHAINID-01 | ✅ Closed 2026-05-11 | [`docs/reports/v7.1-phase0-signoff.md`](reports/v7.1-phase0-signoff.md) |
+| Phase 0 — Audit unblock + AUTH-CHAINID-01 | ✅ Closed 2026-05-11 | [`docs/reports/archive/v7.1-phase0-signoff.md`](reports/archive/v7.1-phase0-signoff.md) |
 | Phase 1 — Auth hardening + Custody spec + stale-doc refresh | 🚧 In progress | [`docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md`](planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md) §5 |
 | Phases 2–6 — Channels v3, RQ migration, betanet activation, release polish | ⏳ Pending Phase 1 close | Plan §§6-10 |
 

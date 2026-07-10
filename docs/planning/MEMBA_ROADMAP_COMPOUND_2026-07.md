@@ -1,6 +1,6 @@
 # Memba Long-Term Roadmap & Implementation Plan — Program "Compound"
 
-**Date:** 2026-07-03 · **Status:** PROPOSED (awaiting owner sign-off) · **Supersedes:** `MEMBA_VERIFIED_AUDIT_AND_AAA_PLAN_2026-07-01.md` §6.4+ forward-looking sections (Waves 0–4 of that plan are DELIVERED as of PR #732; this document is the successor program and owns Waves 5+).
+**Date:** 2026-07-03 · **Status:** PROPOSED (awaiting owner sign-off) · **Supersedes:** `archive/shipped-2026-07/MEMBA_VERIFIED_AUDIT_AND_AAA_PLAN_2026-07-01.md` §6.4+ forward-looking sections (Waves 0–4 of that plan are DELIVERED as of PR #732; this document is the successor program and owns Waves 5+).
 
 **Baseline at time of writing (updated 2026-07-03 evening):** Memba `main` = `6311ac2` — the day closed with #734 (A3 golden parity: flip now metric-gated), #736 (NetworkSync first-visit reload fixed, e2e `workers: 2` restored → O-5 closed), and #737 (react-hooks ratchet 56→52 → O-9 in motion) all merged. samcrew-deployer `main` = `31f7597` (W3.4, #55). Upstream gno = `dfe49509f` — no breaking changes for test13 realms since go-live. 12 realms live-verified on test13 (2026-06-28). 0 open Dependabot alerts. Lane C's per-signature-verified work remains active in its worktree.
 
@@ -30,7 +30,7 @@
 
 | Area | Evidence |
 |---|---|
-| Waves 0–4 remediation | #696–#732 merged; final review `docs/reports/v7.2.x-final-review-2026-07-03.md` |
+| Waves 0–4 remediation | #696–#732 merged; final review `docs/reports/archive/v7.2.x-final-review-2026-07-03.md` |
 | Deploy pipeline | deployer W3.4: `--deferred` path deleted (hard-fail); `verify-client-templates` fail-closed (`REQUIRE_GNO=1`); escrow parity script with 7 invariants incl. contract-level dispute freeze |
 | Chain deps | gnodaokit pinned `pr-64` (test13-ported); tokenfactory_v2 live (never redeploy); upstream gno in sync, no test13-breaking commits Jun 16 → Jul 3 |
 | Security posture | CodeQL JS/TS + Go live; gosec/govulncheck/golangci/flyctl pinned; prod unsigned-auth enforcing; 0 Dependabot alerts |
@@ -424,7 +424,7 @@ Lane C OFF-LIMITS while active (external: #734 / per-sig-verified):
 - **Hardening ✅ #757** — 4-angle deep review (feed 5-layer realm→indexer→sqlite→RPC→UI contract, broadcast-builder/flag audit, adversarial security, docs): came back clean on correctness; **added `feed.test.ts`** pinning the Amino wire contract for all five feed builders (the exact coverage gap that let the OTC wrong-type ship) + badge-mint round-trips; made activity-bot success-path state-save failure loud.
 - **Guard ✅ #758** — My Listings NFT delist routed through `routeNftV3()` so it passes the same `isRealmValid(NFT_MARKETPLACE_V3_PATH)` allowlist every other v3 write-site uses (broadcast layer doesn't check engine paths — that guard is the invariant).
 - **UX polish ✅ #759** (owner-requested) — Feed under Home in nav; Leaderboard + Extensions to the utility tail by Feedback; marketplace/services/NFT terminal-header hero (no fabricated metrics); blog editorial redesign; **validator-reviews subject fix** — the table queried each row's *signing* address, but reviews key to the *operator* address once a valoper registers; now resolves to that canonical subject (signing addr merged as alias) so every reviewed validator shows ratings.
-- **Docs ✅ #760 / #761** — post-Wave-7 `OWNER_UNLOCKS_2026-07-04.md` (step-by-step feed turn-on + Wave-8 gates); feed-deploy command corrected to the `REALM=` filter. Deployer tooling **✅ #58** (`REALM=` single-realm deploy filter — pins `memba_feed_v1` so a bare `make deploy` can't co-deploy the fund-moving `memba_token_otc_v1`) and **✅ #59** (post-deploy verification honors `REALM=`).
+- **Docs ✅ #760 / #761** — post-Wave-7 `archive/shipped-2026-07/OWNER_UNLOCKS_2026-07-04.md` (step-by-step feed turn-on + Wave-8 gates); feed-deploy command corrected to the `REALM=` filter. Deployer tooling **✅ #58** (`REALM=` single-realm deploy filter — pins `memba_feed_v1` so a bare `make deploy` can't co-deploy the fund-moving `memba_token_otc_v1`) and **✅ #59** (post-deploy verification honors `REALM=`).
 
 **Feed turn-on (OWNER_UNLOCKS §A) — status 2026-07-06:**
 - **A.1 realm ✅ LIVE** — `memba_feed_v1` deployed to test13 via 2-of-2 multisig (zooma + adena-zxxma); `qrender` confirms it renders (`Live posts: 0`). Holds no funds (no banker) — plain addpkg, no fee-path risk.

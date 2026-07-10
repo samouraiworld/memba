@@ -1,5 +1,9 @@
 # Freelance Services — Activation Plan
 
+> 🗄️ **STALE (Apr-01 plan; stamped 2026-07-10).** Escrow functionality shipped inside the
+> **Unified Marketplace** instead; `VITE_ENABLE_SERVICES` stays off and the services lane is
+> a marketplace lane now. Kept as design history only.
+
 > **Status:** Gated behind `VITE_ENABLE_SERVICES=true`
 > **Current code:** `frontend/src/pages/FreelanceServices.tsx` (fully implemented UI)
 > **On-chain realm:** `escrowTemplate.ts` generates milestone-based escrow

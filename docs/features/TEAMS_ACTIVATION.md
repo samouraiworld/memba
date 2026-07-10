@@ -1,5 +1,8 @@
 # Teams (Organizations) — Activation Plan
 
+> 🗄️ **DONE (stamped 2026-07-10).** Teams activated long ago (`VITE_ENABLE_TEAMS=true`).
+> Historical activation checklist only.
+
 > **Status:** Gated behind `VITE_ENABLE_TEAMS=true`
 > **Current code:** `frontend/src/pages/OrganizationsPage.tsx` + `components/org/OrgContent.tsx`
 > **On-chain realm:** No dedicated realm — uses backend + localStorage

@@ -1,5 +1,9 @@
 # IBC Transfer Integration — Activation Plan
 
+> 🗄️ **STALE (Apr-01 plan; stamped 2026-07-10).** IBC transfers have not shipped and this
+> checklist predates test13, interrealm-v2 and the current deployer safety gates — re-derive
+> from scratch if/when IBC lands on gno.land; do not drive activation from this file.
+
 > **Status:** Gated as "Coming Soon"
 > **Blocked by:** Gno IBC2 production readiness, gnoland1 relaunch
 > **Feature flag:** N/A (requires code implementation, not just a toggle)

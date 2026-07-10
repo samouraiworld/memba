@@ -4,7 +4,7 @@
 > NEXT work cycle. The first task of that cycle is to investigate each item, add engineering
 > findings + suggestions, and produce ONE fresh implementation plan from the result
 > (per the usual method: multi-perspective audit → consolidated plan → owner review → go).
-> Companion state: `BACKLOG_PLAN_2026-07-08.md` (items 2/3 still open there) and the
+> Companion state: `archive/shipped-2026-07/BACKLOG_PLAN_2026-07-08.md` (items 2/3 still open there) and the
 > per-feature plans referenced below.
 
 ## A. Feature improvements (owner-dictated)
