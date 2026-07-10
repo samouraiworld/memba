@@ -247,7 +247,13 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // engine reads its DAO fee/treasury from memba_market_config. isNftMarketV3Valid()
         // keys off this path; the trade surface ALSO requires VITE_ENABLE_NFT=true, so
         // prod stays dark (flag is force-false there) until the deploy-preview G1 verify.
+        // v3.1 stays allowlisted through the wind-down: it is PAUSED (no new trades)
+        // but 2 open offers hold escrow — value-exits (CancelOffer/ClaimExpiredOffer)
+        // must remain callable. Remove once its escrow drains to zero.
         "gno.land/r/samcrew/memba_nft_market_v3_1",
+        // The ACTIVE engine since the 2026-07-10 ceremony (deployed, registered,
+        // salesLog seeded from v3.1 and SEALED; solvency getters live).
+        "gno.land/r/samcrew/memba_nft_market_v3_2",
         // ── Phase 11 Token OTC ────────────────────────────────────────────────
         "gno.land/r/samcrew/memba_token_otc_v1",
     ],
