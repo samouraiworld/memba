@@ -31,7 +31,10 @@ export const NFT_COLLECTIONS_PATH = "gno.land/r/samcrew/memba_collections"
 export const NFT_MARKET_ADDR = "g15unfxh9zfm75puw2lqmsun2lv8c397e0efkp2u"
 
 /**
- * On-chain path to the v3.1 NFT marketplace engine (memba_nft_market_v3_1).
+ * On-chain path to the ACTIVE NFT marketplace engine.
+ * 2026-07-10 ceremony: repointed v3.1 → v3.2 (solvency getters, 2-step ownership,
+ * sealed salesLog seeded with v3.1's history). v3.1 is PAUSED but stays registered
+ * on memba_collections until its 2 open offers drain (wind-down — cancel via CLI).
  *
  * v3.1 is a NEW path: the original memba_nft_market_v3 (g1pucv5…) is occupied + was
  * never registered, and gno paths are immutable, so the config-reading engine deploys
@@ -39,14 +42,16 @@ export const NFT_MARKET_ADDR = "g15unfxh9zfm75puw2lqmsun2lv8c397e0efkp2u"
  * deployed + registered — so isNftMarketV3Valid() stays false and the trade surface
  * stays dark. Flip the constant + the allowlist entry TOGETHER at go-live (runbook §5.2).
  */
-export const NFT_MARKETPLACE_V3_PATH = "gno.land/r/samcrew/memba_nft_market_v3_1"
+export const NFT_MARKETPLACE_V3_PATH = "gno.land/r/samcrew/memba_nft_market_v3_2"
 
 /**
- * Bech32 address of the v3.1 marketplace engine (deterministic from the new path; also
- * returned live by memba_nft_market_v3_1.MarketAddress()). Used as `operator` in
- * SetApprovalForAll calls on memba_collections.
+ * Bech32 address of the ACTIVE (v3.2) marketplace engine (deterministic from the
+ * path; verified live via memba_nft_market_v3_2.MarketAddress() at the 2026-07-10
+ * ceremony). Used as `operator` in SetApprovalForAll calls on memba_collections —
+ * this MUST move in lockstep with NFT_MARKETPLACE_V3_PATH or approvals authorize
+ * the wrong engine.
  */
-export const NFT_MARKET_V3_ADDR = "g1hu6u2qrt69umc85g8vjuvp7dhfkfexw9tteef0"
+export const NFT_MARKET_V3_ADDR = "g1y4y37dvtvj7vgnt93pxq2typjcwdf62kdlg8u7"
 
 /**
  * DAO fee spine — the per-lane protocol fee + treasury every engine reads at settlement.

@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### NFT marketplace — trading moves to the v3.2 engine (2026-07-10 ceremony)
+- **The active trading engine is now `memba_nft_market_v3_2`** — deployed, registered on the collections registry, and carrying v3.1's full sales history (seeded from the tx-indexer and permanently sealed). v3.2 adds machine-readable solvency (`TotalLiabilities()` reconciled against the realm balance), two-step ownership handoff, and a fee-recipient guard. Approval flows now authorize the v3.2 engine address.
+- **v3.1 is paused, not gone**: it stays callable through the wind-down so its two open offers can exit escrow (cancel/expired-claim); new trades route to v3.2. **Existing listings do not migrate — sellers re-list on the new engine.**
+- Backend indexer docs: watch both engines; v3.2's seeded history emits `SaleSeeded` (not `Sale`), so volume cannot double-count.
+
 ### App Store — cards catch up with the reviews and realm data that already exist (2026-07-10)
 - **Review stars reach the grid.** Community ratings only showed after clicking into an app's detail page; reviewed apps now carry their star summary (same ≥3-review integrity rule — small samples show a "New" chip and the count, never a fake-confident average) on the featured banner and every grid card. All visible cards are fetched as one concurrency-capped batch, not a per-card query burst.
 - **The masthead counts the realm, not the fetched window.** "N apps" came from whatever one page-load happened to fetch; it now reads the realm's own `GetStatsJSON` (works on v2 today and v3 after the ceremony repoint) and additionally discloses total submissions once they exceed the live count.
