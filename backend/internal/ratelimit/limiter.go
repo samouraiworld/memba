@@ -27,7 +27,8 @@ func DefaultConfigs() map[string]Config {
 		"tx":             {MaxRequests: 10, Window: time.Minute},  // Sign/Complete transaction — stricter
 		"oauth":          {MaxRequests: 5, Window: time.Minute},   // OAuth flows — strict
 		"analyst":        {MaxRequests: 10, Window: time.Minute},  // DAO analyst — LLM calls are expensive
-		"upload":         {MaxRequests: 5, Window: time.Minute},   // IPFS avatar upload — strict
+		"upload":         {MaxRequests: 5, Window: time.Minute},   // IPFS avatar upload — strict (single downscaled avatar)
+		"upload_image":   {MaxRequests: 20, Window: time.Minute},  // App Store media — one listing is up to 7 files (icon + 6 screenshots), so > the strict avatar bucket, plus retries
 		"nft":            {MaxRequests: 60, Window: time.Minute},  // NFT image/metadata proxy — cacheable reads
 		"marketplace":    {MaxRequests: 30, Window: time.Minute},  // Marketplace agents/escrow render
 		"token_launches": {MaxRequests: 60, Window: time.Minute},  // cached token launch-date map (read)
@@ -43,6 +44,11 @@ const (
 	QuestClaimEndpoint = "quest_claim"
 	// BlockPartySubmitEndpoint gates per-address SubmitScore.
 	BlockPartySubmitEndpoint = "blockparty_submit"
+	// ImageUploadEndpoint gates per-authenticated-address App Store media uploads
+	// (icon + screenshots). Layered under the per-IP `upload_image` bucket: per-IP
+	// stops one host flooding; this per-wallet cap stops one authenticated wallet
+	// rotating IPs to burn the Lighthouse quota.
+	ImageUploadEndpoint = "image_upload"
 )
 
 // PerUserQuestConfigs returns the per-address quest rate limits (Q-03). Defaults:
@@ -61,7 +67,10 @@ func PerUserQuestConfigs(envInt func(name string, def int) int) map[string]Confi
 		QuestWriteEndpoint:       {MaxRequests: envInt("MEMBA_QUEST_WRITE_RPM", 10), Window: time.Minute},
 		QuestClaimEndpoint:       {MaxRequests: envInt("MEMBA_QUEST_CLAIM_RPM", 5), Window: time.Minute},
 		BlockPartySubmitEndpoint: {MaxRequests: envInt("MEMBA_BLOCKPARTY_SUBMIT_RPM", 10), Window: time.Minute},
-		"default":                {MaxRequests: 10, Window: time.Minute},
+		// Per-wallet App Store media cap: comfortably covers one full listing (7 files)
+		// plus retries, but bounds a single authenticated wallet's Lighthouse fan-out.
+		ImageUploadEndpoint: {MaxRequests: envInt("MEMBA_IMAGE_UPLOAD_RPM", 30), Window: time.Minute},
+		"default":           {MaxRequests: 10, Window: time.Minute},
 	}
 }
 

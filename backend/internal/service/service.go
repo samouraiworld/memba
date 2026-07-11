@@ -214,11 +214,33 @@ func (s *MultisigService) authenticate(token *membav1.Token) (string, error) {
 // ValidateRESTToken validates a JSON-encoded auth token from an Authorization header.
 // Used by REST endpoints (IPFS upload, analyst) that can't use ConnectRPC's token field.
 func (s *MultisigService) ValidateRESTToken(tokenJSON string) error {
+	_, err := s.ValidateRESTTokenAddress(tokenJSON)
+	return err
+}
+
+// ValidateRESTTokenAddress is ValidateRESTToken that also returns the token's user
+// address on success — for REST callers that need the authenticated identity (e.g.
+// the per-wallet image-upload cap). Same validation contract as ValidateRESTToken.
+func (s *MultisigService) ValidateRESTTokenAddress(tokenJSON string) (string, error) {
 	var token membav1.Token
 	if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
-		return fmt.Errorf("invalid token format: %w", err)
+		return "", fmt.Errorf("invalid token format: %w", err)
 	}
-	return auth.ValidateToken(s.publicKey, &token, s.acceptedChainIDs...)
+	if err := auth.ValidateToken(s.publicKey, &token, s.acceptedChainIDs...); err != nil {
+		return "", err
+	}
+	return token.UserAddress, nil
+}
+
+// AllowUpload applies the per-authenticated-wallet App Store media-upload cap using
+// the shared per-user limiter (same AllowKey machinery as the quest per-wallet caps).
+// Returns true when the wallet is under quota — or when no limiter is configured
+// (the default in tests), so it's a no-op there.
+func (s *MultisigService) AllowUpload(addr string) bool {
+	if s.userLimiter == nil {
+		return true
+	}
+	return s.userLimiter.AllowKey(addr, ratelimit.ImageUploadEndpoint)
 }
 
 // internalError logs the real error and returns a sanitized connect error.

@@ -330,6 +330,10 @@ func main() {
 	// IPFS upload proxy — keeps Lighthouse API key server-side
 	// v6 SEC-02: auth required to prevent API key abuse
 	mux.Handle("/api/upload/avatar", rateLimitMiddleware("upload", requireAuthMiddleware(svc, service.HandleIPFSUpload())))
+	// App Store media (2b): icons + screenshots, 5MB. Its own per-IP bucket (>7, since
+	// one listing is up to 7 files) AND a per-authenticated-wallet cap layered inside
+	// the auth middleware — a sybil rotating IPs still shares one bucket per address.
+	mux.Handle("/api/upload/image", rateLimitMiddleware("upload_image", requireAuthUploadMiddleware(svc, service.HandleIPFSUploadImage())))
 
 	// NFT media proxy — fetches from Lighthouse/IPFS gateways, caches server-side.
 	// Public read endpoints (no auth); rate-limited.
@@ -582,6 +586,35 @@ func requireAuthMiddleware(svc *service.MultisigService, next http.Handler) http
 		if err := svc.ValidateRESTToken(tokenJSON); err != nil {
 			slog.Warn("REST auth failed", "error", err)
 			http.Error(w, `{"error":"invalid or expired token"}`, http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// requireAuthUploadMiddleware is requireAuthMiddleware PLUS a per-authenticated-wallet
+// upload cap. Auth itself is UNCHANGED — the same ValidateRESTToken contract — it just
+// also recovers the address (ValidateRESTTokenAddress) to key the per-wallet
+// AllowKey limiter (svc.AllowUpload). The per-IP `upload_image` bucket wraps this on
+// the outside; this inner cap stops one authenticated wallet rotating IPs to burn the
+// shared Lighthouse quota.
+func requireAuthUploadMiddleware(svc *service.MultisigService, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			http.Error(w, `{"error":"authorization required"}`, http.StatusUnauthorized)
+			return
+		}
+		tokenJSON := strings.TrimPrefix(authHeader, "Bearer ")
+		addr, err := svc.ValidateRESTTokenAddress(tokenJSON)
+		if err != nil {
+			slog.Warn("REST auth failed", "error", err)
+			http.Error(w, `{"error":"invalid or expired token"}`, http.StatusUnauthorized)
+			return
+		}
+		if !svc.AllowUpload(addr) {
+			slog.Warn("upload rate limited (per-wallet)", "address", addr)
+			http.Error(w, `{"error":"upload rate limit exceeded — slow down and retry shortly"}`, http.StatusTooManyRequests)
 			return
 		}
 		next.ServeHTTP(w, r)
