@@ -618,12 +618,13 @@ export const isTokenFactoryValid = () => isRealmValid(GRC20_FACTORY_PATH)
 export const isEscrowValid = () => isRealmValid(MEMBA_DAO.escrowPath)
 export const isNftMarketValid = () => isRealmValid(MEMBA_DAO.nftMarketPath)
 /**
- * v3 NFT market (memba_nft_market_v3) validity. Pages that trade on the v3 engine
- * (e.g. CollectionPublic, source="v3") MUST gate on this, not isNftMarketValid()
- * (which checks the v2 path). The v3 path is intentionally excluded from
- * REALM_ALLOWLIST until v3.1 is registered (Marketplace plan W1.2), so this returns
- * false today and the v3-trading surface stays correctly dark — closing the audit's
- * top 🔴 (a page rendering live Buy/List against a realm the allowlist rejects).
+ * v3 NFT market validity. NFT_MARKETPLACE_V3_PATH now points at memba_nft_market_v3_2
+ * (the active engine since the 2026-07-10 ceremony). Pages that trade on the v3 engine
+ * (e.g. CollectionPublic, source="v3") MUST gate on this, not isNftMarketValid() (which
+ * checks the retired v2 path). The v3 path IS allowlisted on test13 (v3_2 registered;
+ * v3_1 kept through its escrow wind-down), so this returns true there. The v3-trading
+ * surface stays dark in prod via the VITE_ENABLE_NFT flag (force-false there), which
+ * every trade page ANDs with this predicate — not via allowlist exclusion.
  */
 export const isNftMarketV3Valid = () => isRealmValid(NFT_MARKETPLACE_V3_PATH)
 /** Phase 2 launchpad — backed by the canonical memba_collections registry. */
