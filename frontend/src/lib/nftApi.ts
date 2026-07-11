@@ -127,3 +127,42 @@ export function nftMetadataUrl(uri: string): string {
     const base = API_BASE_URL || ""
     return `${base}/api/nft/metadata?uri=${encodeURIComponent(uri)}`
 }
+
+// ── Genesis mint launch endpoints ────────────────────────────────────────────
+// Both endpoints are env-gated server-side and 404 until ceremony time; null
+// means "curated mint flow is off / wallet not allowlisted" — callers hide the
+// affordance, they never treat null as an error.
+
+export interface MintTicket {
+    tid: number
+    edition: number
+    tokenURI: string
+}
+
+export interface AllowlistProof {
+    root: string
+    maxQty: number
+    proof: string
+}
+
+async function getJsonOrNull<T>(url: string): Promise<T | null> {
+    try {
+        const res = await fetch(url)
+        if (!res.ok) return null
+        return (await res.json()) as T
+    } catch {
+        return null
+    }
+}
+
+/** Next suggested tokenURI for the curated Membas mint; null = endpoint off. */
+export function fetchMintTicket(): Promise<MintTicket | null> {
+    const base = API_BASE_URL || ""
+    return getJsonOrNull<MintTicket>(`${base}/api/nft/mint-ticket`)
+}
+
+/** Merkle proof for the Genesis allowlist; null = not allowlisted / off. */
+export function fetchAllowlistProof(address: string): Promise<AllowlistProof | null> {
+    const base = API_BASE_URL || ""
+    return getJsonOrNull<AllowlistProof>(`${base}/api/nft/allowlist-proof?address=${encodeURIComponent(address)}`)
+}
