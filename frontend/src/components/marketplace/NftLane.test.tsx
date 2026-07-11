@@ -56,3 +56,17 @@ describe("NftLane — result-count badge (A5)", () => {
         expect(badge).toHaveTextContent("3")
     })
 })
+
+describe("NftLane — skeleton loaders (A6)", () => {
+    it("renders shared skeleton cards while the chain read is in flight, not plain text", () => {
+        // Never resolves → the lane stays in its loading state for the assertion.
+        fetchVerifiedCollections.mockReturnValueOnce(new Promise<HubCollection[]>(() => {}))
+        renderWithProviders(<NftLane />, { route: "/test13/marketplace/nfts" })
+
+        const loading = screen.getByTestId("nft-loading")
+        expect(loading).toHaveAttribute("aria-busy", "true")
+        // The old "Loading collections…" copy is gone, replaced by SkeletonCards.
+        expect(screen.queryByText(/Loading collections/i)).not.toBeInTheDocument()
+        expect(loading.querySelectorAll(".k-card").length).toBeGreaterThan(1)
+    })
+})

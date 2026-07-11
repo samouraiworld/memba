@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
 import { EmptyState } from "../ui/EmptyState"
+import { SkeletonCard } from "../ui/LoadingSkeleton"
 import { NFTMedia } from "../nft/NFTMedia"
 import { VerifiedBadge } from "../nft/VerifiedBadge"
 import { fetchVerifiedCollections, fetchRecentActivity, type HubCollection } from "../../lib/nftHub"
@@ -61,7 +62,11 @@ export default function NftLane() {
         return sorted
     }, [collections, query, verifiedOnly, sortBy])
 
-    if (loading) return <p style={{ color: "var(--color-text-muted)", padding: "40px", textAlign: "center" }}>Loading collections…</p>
+    if (loading) return (
+        <div className="um-grid" data-testid="nft-loading" aria-busy="true" aria-label="Loading collections">
+            {Array.from({ length: 6 }, (_, i) => <SkeletonCard key={i} />)}
+        </div>
+    )
     if (error) return <div className="k-card" style={{ color: "var(--color-error)", padding: "24px" }}>Failed to load collections: {error}</div>
 
     return (
