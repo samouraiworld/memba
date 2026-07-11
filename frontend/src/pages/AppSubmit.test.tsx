@@ -9,6 +9,7 @@ let submitEnabled = true
 let v3 = true
 let adena = { connected: true, address: "g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0", connect: vi.fn() }
 const fetchByPublisher = vi.fn()
+const fetchApp = vi.fn()
 const fetchRegistrationFee = vi.fn()
 const doContractBroadcast = vi.fn()
 const uploadImage = vi.fn()
@@ -24,6 +25,7 @@ vi.mock("../lib/appStore", async (importActual) => {
         ...actual,
         isAppStoreV3: () => v3,
         fetchByPublisher: (...a: unknown[]) => fetchByPublisher(...a),
+        fetchApp: (...a: unknown[]) => fetchApp(...a),
     }
 })
 vi.mock("../lib/appStoreSubmit", async (importActual) => {
@@ -63,6 +65,7 @@ beforeEach(() => {
     v3 = true
     adena = { connected: true, address: "g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0", connect: vi.fn() }
     fetchByPublisher.mockReset().mockResolvedValue([])
+    fetchApp.mockReset().mockResolvedValue(null)
     fetchRegistrationFee.mockReset().mockResolvedValue(1_000_000)
     doContractBroadcast.mockReset().mockResolvedValue({ hash: "0xabc" })
 })
@@ -160,15 +163,16 @@ describe("AppSubmit — my submissions (B5 lite)", () => {
     })
 
     it("resubmits a rejected listing for free via EditListing (no coin attach)", async () => {
-        fetchByPublisher.mockResolvedValue([
-            mine({ pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", status: "rejected", rejectReason: "broken link" }),
-        ])
+        const row = mine({ pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", status: "rejected", rejectReason: "broken link" })
+        fetchByPublisher.mockResolvedValue([row])
+        // The edit form seeds from full on-chain detail (GetListingJSON), not the list-window row.
+        fetchApp.mockResolvedValue({ ...row, descr: "Full description.", screenshotCIDs: [] })
         renderWithProviders(<AppSubmit />, { route: "/test13/apps/submit" })
         await screen.findByText("Bad App")
         fireEvent.click(screen.getByRole("button", { name: /fix & resubmit/i }))
         // The form is prefilled from the rejected listing and switches to the free edit path.
         const name = screen.getByLabelText(/^name/i) as HTMLInputElement
-        expect(name.value).toBe("Bad App")
+        await waitFor(() => expect(name.value).toBe("Bad App"))
         await waitFor(() => expect(screen.getByTestId("appsubmit-submit")).toBeEnabled())
         fireEvent.click(screen.getByTestId("appsubmit-submit"))
         await waitFor(() => expect(doContractBroadcast).toHaveBeenCalledTimes(1))
@@ -176,6 +180,63 @@ describe("AppSubmit — my submissions (B5 lite)", () => {
         expect(msgs[0].value.func).toBe("EditListing")
         expect(msgs[0].value.send).toBe("")
         expect(msgs[0].value.args[0]).toBe("gno.land/r/samcrew/bad_v1")
+    })
+
+    it("seeds the resubmit form from full on-chain detail so EditListing can't wipe descr + screenshots", async () => {
+        // ListByPublisherJSON (the My-Submissions list window) omits descr + screenshots, but
+        // EditListing overwrites EVERY field. Seeding the form from the list row would blank the
+        // description and screenshots on-chain — the form MUST come from GetListingJSON (full detail).
+        const row = mine({ pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", status: "rejected" })
+        fetchByPublisher.mockResolvedValue([row])
+        fetchApp.mockResolvedValue({
+            ...row,
+            descr: "The full description the curator needs.",
+            iconCID: "bafyicon",
+            screenshotCIDs: ["bafyshot1", "bafyshot2"],
+        })
+        renderWithProviders(<AppSubmit />, { route: "/test13/apps/submit" })
+        await screen.findByText("Bad App")
+        fireEvent.click(screen.getByRole("button", { name: /fix & resubmit/i }))
+        // The description textarea is populated from full detail, not left blank.
+        await waitFor(() =>
+            expect((screen.getByLabelText(/description/i) as HTMLTextAreaElement).value)
+                .toBe("The full description the curator needs."))
+        await waitFor(() => expect(screen.getByTestId("appsubmit-submit")).toBeEnabled())
+        fireEvent.click(screen.getByTestId("appsubmit-submit"))
+        await waitFor(() => expect(doContractBroadcast).toHaveBeenCalledTimes(1))
+        // wireArgs order: [pkgPath, name, tagline, descr, category, iconCID, screenshotsCSV, appURL]
+        const args = (doContractBroadcast.mock.calls[0][0] as { value: { args: string[] } }[])[0].value.args
+        expect(args[3]).toBe("The full description the curator needs.") // descr preserved
+        expect(args[5]).toBe("bafyicon")                                 // icon preserved
+        expect(args[6]).toBe("bafyshot1,bafyshot2")                      // screenshots preserved
+    })
+
+    it("aborts the resubmit with an error (no data-losing edit) when full detail can't be loaded", async () => {
+        fetchByPublisher.mockResolvedValue([
+            mine({ pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", status: "rejected" }),
+        ])
+        fetchApp.mockResolvedValue(null) // transient read failure
+        renderWithProviders(<AppSubmit />, { route: "/test13/apps/submit" })
+        await screen.findByText("Bad App")
+        fireEvent.click(screen.getByRole("button", { name: /fix & resubmit/i }))
+        // Surfaces an error and does NOT enter edit mode with blanked fields.
+        expect(await screen.findByText(/couldn't load/i)).toBeInTheDocument()
+        expect(screen.queryByText(/resubmitting is free/i)).not.toBeInTheDocument()
+        expect(doContractBroadcast).not.toHaveBeenCalled()
+    })
+
+    it("shows a loading state on the resubmit button while full detail is fetched", async () => {
+        let resolveFetch!: (v: AppListing) => void
+        fetchApp.mockReturnValue(new Promise((r) => { resolveFetch = r }))
+        const row = mine({ pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", status: "rejected" })
+        fetchByPublisher.mockResolvedValue([row])
+        renderWithProviders(<AppSubmit />, { route: "/test13/apps/submit" })
+        await screen.findByText("Bad App")
+        fireEvent.click(screen.getByRole("button", { name: /fix & resubmit/i }))
+        // While the fetch is in-flight the button shows a loading label and is disabled (no double-fetch).
+        expect(await screen.findByRole("button", { name: /loading/i })).toBeDisabled()
+        resolveFetch({ ...row, descr: "d", screenshotCIDs: [] })
+        await waitFor(() => expect(screen.getByLabelText(/^name/i)).toHaveValue("Bad App"))
     })
 })
 
