@@ -1,0 +1,54 @@
+.bar-shell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 12px;
+    max-width: 480px;
+    margin: 0 auto;
+}
+
+.bar-canvas {
+    width: 100%;
+    max-width: 420px;
+    aspect-ratio: 3 / 5;
+    border: 2px solid var(--color-border, #2a3145);
+    border-radius: 10px;
+    touch-action: manipulation;
+    background: #10131c;
+}
+
+.bar-controls {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    min-height: 42px;
+}
+
+.bar-controls button {
+    min-width: 96px;
+}
+
+.bar-results {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.bar-results h2 {
+    margin: 0;
+}
+
+.bar-hint {
+    opacity: 0.75;
+    font-size: 0.85rem;
+    text-align: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .bar-canvas {
+        transition: none;
+    }
+}
