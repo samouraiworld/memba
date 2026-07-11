@@ -23,7 +23,8 @@ vi.mock("../../lib/nftHub", () => ({
     fetchRecentActivity: (...a: unknown[]) => fetchRecentActivity(...a),
 }))
 
-import NftLane, { orderByFeatured } from "./NftLane"
+import NftLane from "./NftLane"
+import { orderByFeatured } from "./featured"
 
 function col(over: Partial<HubCollection> & { id: string; name: string }): HubCollection {
     return {
