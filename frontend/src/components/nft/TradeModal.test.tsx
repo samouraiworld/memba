@@ -199,7 +199,7 @@ describe("TradeModal — list (v3, not approved)", () => {
 
         // The first broadcast must be approval with the correct arg order, NOT listing.
         // v3 signature: buildSetApprovalForAllV3Msg(caller, collectionID, operatorAddr, approved)
-        // operator = engine.marketAddr = NFT_MARKET_V3_ADDR (the v3.1 engine address).
+        // operator = engine.marketAddr = NFT_MARKET_V3_ADDR (the active v3 engine address).
         expect(mockBuildSetApprovalForAllV3Msg).toHaveBeenCalledWith(
             CALLER,
             COLLECTION_ID,

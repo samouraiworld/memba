@@ -10,12 +10,12 @@ vi.mock("./config", () => ({
     isTokensEnabled: vi.fn(() => true),
     isTokenOtcValid: vi.fn(() => true),
 }))
-// The builders + broadcast + nftConfig are imported by the module but not
-// exercised by these read-path tests; stub them so the import graph resolves.
+// The builders + broadcast are imported by the module but not exercised by
+// these read-path tests; stub them so the import graph resolves. nftConfig
+// stays real (pure constants) so the v3 path tracks the live engine.
 vi.mock("./nftMarketplace", () => ({ buildDelistMsg: vi.fn() }))
 vi.mock("./tokenOtc", () => ({ buildCancelListingMsg: vi.fn() }))
 vi.mock("./grc20", () => ({ doContractBroadcast: vi.fn() }))
-vi.mock("./nftConfig", () => ({ NFT_MARKETPLACE_V3_PATH: "gno.land/r/samcrew/memba_nft_market_v3_1" }))
 
 import { fetchMyListings, anyListingLaneLive } from "./myListings"
 import * as v3 from "./marketplace/v3Reads"
