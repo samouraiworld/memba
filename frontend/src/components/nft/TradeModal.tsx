@@ -468,7 +468,7 @@ export function TradeModal({
                                     <input
                                         id="trade-list-price"
                                         type="number"
-                                        min="0.000001"
+                                        min="0.001"
                                         step="0.1"
                                         placeholder="0.00"
                                         value={listPrice}
@@ -525,7 +525,7 @@ export function TradeModal({
                             <input
                                 id="trade-offer-amount"
                                 type="number"
-                                min="0.000001"
+                                min="0.001"
                                 step="0.1"
                                 placeholder="0.00"
                                 value={offerAmount}
@@ -541,7 +541,7 @@ export function TradeModal({
                                 or use "Claim Expired Offer" after the window closes.
                             </p>
                             <p className="trade-modal__hint">
-                                Minimum offer: &gt;0 GNOT. Submitting a higher offer than the listed price will trigger an
+                                Minimum offer: 0.001 GNOT. Submitting a higher offer than the listed price will trigger an
                                 immediate sale.
                             </p>
                         </div>

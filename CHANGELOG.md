@@ -20,9 +20,8 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Sign-in & trading polish — human answers instead of raw errors (2026-07-11)
-- **Adena session accounts get a clear answer at sign-in.** The backend rejects session/subaccount pubkey payloads by design (fail-closed, `AUTH-SESSION-REJECT-01`), but the raw rejection leaked an internal code and a backend env-var name into the UI. Both sign-in surfaces (main layout, Block Party) now say: "Session accounts aren't supported yet — switch Adena to your main account and try again."
-- **NFT list/offer amounts below the realm floor can no longer be signed.** The trade modal gated on "more than zero" while the v3.2 engine rejects anything under 1000 ugnot (0.001 GNOT) — a sub-floor amount passed the wallet then reverted on-chain. The floor is now enforced before signing.
+### NFT trading — the listing floor is enforced before signing (2026-07-11)
+- **List/offer amounts below the realm floor can no longer be signed.** The trade modal gated on "more than zero" while the v3.2 engine rejects anything under 1000 ugnot (0.001 GNOT) — a sub-floor amount passed the wallet, then reverted on-chain (money-path audit F-2). The floor is now enforced before signing, and the offer hint states the real minimum instead of "&gt;0 GNOT".
 
 ## [v7.3.0] — 2026-07-11
 

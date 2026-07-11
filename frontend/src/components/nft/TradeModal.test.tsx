@@ -340,3 +340,34 @@ describe("TradeModal — general", () => {
         await waitFor(() => expect(screen.getByRole("alert")).toBeInTheDocument())
     })
 })
+
+describe("TradeModal — realm price floor (MinPrice = 1000 ugnot)", () => {
+    // memba_nft_market_v3_2 params.gno: MinPrice = 1000 ugnot. A sub-floor amount
+    // used to pass the wallet then revert on-chain (audit 2.0 F-2) — the modal
+    // must refuse to sign it.
+    it("list: sub-floor asking price keeps 'List for Sale' disabled; the floor enables it", async () => {
+        render(<TradeModal {...makeProps({ action: "list", source: "v3" })} />)
+
+        const input = await screen.findByLabelText(/asking price/i)
+        const listBtn = screen.getByRole("button", { name: /list for sale/i })
+
+        fireEvent.change(input, { target: { value: "0.0005" } }) // 500 ugnot
+        expect(listBtn).toBeDisabled()
+
+        fireEvent.change(input, { target: { value: "0.001" } }) // exactly the floor
+        expect(listBtn).not.toBeDisabled()
+    })
+
+    it("offer: sub-floor amount keeps the offer button disabled; the floor enables it", () => {
+        render(<TradeModal {...makeProps({ action: "offer", source: "v3" })} />)
+
+        const input = screen.getByLabelText(/your offer/i)
+        const offerBtn = screen.getByRole("button", { name: /offer .* gnot/i })
+
+        fireEvent.change(input, { target: { value: "0.0005" } })
+        expect(offerBtn).toBeDisabled()
+
+        fireEvent.change(input, { target: { value: "0.001" } })
+        expect(offerBtn).not.toBeDisabled()
+    })
+})
