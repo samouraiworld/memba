@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { useAdena } from "../../hooks/useAdena"
+import { EmptyState } from "../ui/EmptyState"
 import { formatGnotCompact } from "../../lib/formatGnot"
 import { nftFallbackUri } from "../../lib/nftFallbackArt"
 import { HireServiceModal, type Service } from "./HireServiceModal"
@@ -29,9 +30,11 @@ export default function ServiceLane() {
             </div>
             
             {SERVICES.length === 0 && (
-                <div role="status" style={{ padding: "48px 24px", textAlign: "center", color: "var(--color-text-muted)" }}>
-                    No services are listed yet — the Services lane is coming soon.
-                </div>
+                <EmptyState
+                    icon="ti-briefcase"
+                    title="No services yet"
+                    body="The Services lane is coming soon — real on-chain listings will appear here."
+                />
             )}
 
             <div className="um-grid">
