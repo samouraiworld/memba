@@ -20,7 +20,8 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-- Next release in progress.
+### NFT trading — the listing floor is enforced before signing (2026-07-11)
+- **List/offer amounts below the realm floor can no longer be signed.** The trade modal gated on "more than zero" while the v3.2 engine rejects anything under 1000 ugnot (0.001 GNOT) — a sub-floor amount passed the wallet, then reverted on-chain (money-path audit F-2). The floor is now enforced before signing, and the offer hint states the real minimum instead of "&gt;0 GNOT".
 
 ## [v7.3.0] — 2026-07-11
 
