@@ -341,7 +341,7 @@ func main() {
 	// the mint-ticket collection config.
 	allowlistPath := os.Getenv("MEMBA_ALLOWLIST_PROOFS_PATH")
 	if allowlistPath != "" {
-		if _, err := os.Stat(allowlistPath); err != nil {
+		if _, err := os.Stat(allowlistPath); err != nil { // #nosec G703 -- operator-set deployment env (same trust as DB_PATH), never request input
 			slog.Warn("MEMBA_ALLOWLIST_PROOFS_PATH is set but unreadable — allowlist-proof endpoint stays disabled", "path", allowlistPath, "error", err)
 		}
 	}
