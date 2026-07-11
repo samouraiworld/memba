@@ -173,12 +173,12 @@ export async function preprocessImage(file: File): Promise<Blob> {
  * @param file - File or Blob to upload
  * @returns Pin result with CID and gateway URL
  */
-async function uploadViaProxy(file: File | Blob): Promise<IpfsPinResult> {
+async function uploadViaProxy(file: File | Blob, endpoint: string, fallbackName: string): Promise<IpfsPinResult> {
     const { API_BASE_URL } = await import("./config")
     const backendUrl = API_BASE_URL || ""
 
     const formData = new FormData()
-    const filename = file instanceof File ? file.name : "avatar.webp"
+    const filename = file instanceof File ? file.name : fallbackName
     formData.append("file", file, filename)
 
     // v6 SEC-02: auth required to prevent API key abuse
@@ -188,7 +188,7 @@ async function uploadViaProxy(file: File | Blob): Promise<IpfsPinResult> {
         headers["Authorization"] = `Bearer ${tokenRaw}`
     }
 
-    const response = await fetch(`${backendUrl}/api/upload/avatar`, {
+    const response = await fetch(`${backendUrl}${endpoint}`, {
         method: "POST",
         headers,
         body: formData,
@@ -196,7 +196,7 @@ async function uploadViaProxy(file: File | Blob): Promise<IpfsPinResult> {
 
     if (!response.ok) {
         const text = await response.text().catch(() => "Unknown error")
-        throw new Error(`Avatar upload failed (${response.status}): ${text}`)
+        throw new Error(`Upload failed (${response.status}): ${text}`)
     }
 
     const data = await response.json()
@@ -224,7 +224,27 @@ async function uploadViaProxy(file: File | Blob): Promise<IpfsPinResult> {
  * @returns Pin result with CID and gateway URL
  */
 export async function uploadToLighthouse(file: File | Blob): Promise<IpfsPinResult> {
-    return uploadViaProxy(file)
+    return uploadViaProxy(file, "/api/upload/avatar", "avatar.webp")
+}
+
+/**
+ * Upload a full-resolution image (App Store icon / screenshot) via the auth-gated
+ * backend proxy (/api/upload/image), keeping the Lighthouse key server-side.
+ *
+ * Unlike {@link uploadAvatar} this does NOT downscale to 256²/512KB — store artwork
+ * should stay crisp; the 5MB cap + raster-only validation live on the server. Returns
+ * the BARE CID (no ipfs:// prefix, no gateway URL) — that is exactly what the App Store
+ * realm stores in iconCID / the screenshots CSV, and what {@link isValidCid} expects.
+ *
+ * @param file - image File to upload
+ * @returns the bare IPFS CID string
+ */
+export async function uploadImage(file: File): Promise<string> {
+    if (!isValidImageMime(file.type)) {
+        throw new Error(`Unsupported image type: ${file.type}. Use JPEG, PNG, WebP, or GIF.`)
+    }
+    const { cid } = await uploadViaProxy(file, "/api/upload/image", "image")
+    return cid
 }
 
 // ── High-level Upload Flow ────────────────────────────────────
