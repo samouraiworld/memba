@@ -132,6 +132,30 @@ func TestHandleIPFSUploadImage_PNGLabeledSVGBody400(t *testing.T) {
 	}
 }
 
+// Magic-byte deny: sneakier framings a naive leading-token scan would miss — a leading
+// XML comment and UTF-16 (LE/BE) BOMs. All labeled image/png; all must be rejected.
+func TestHandleIPFSUploadImage_MarkupBypassVariants400(t *testing.T) {
+	t.Setenv("LIGHTHOUSE_API_KEY", "k")
+
+	cases := map[string][]byte{
+		"comment-prefixed": []byte("<!-- x --><svg onload=\"alert(1)\"></svg>"),
+		"utf16-le-bom":     append([]byte{0xFF, 0xFE}, []byte("<svg/>")...),
+		"utf16-be-bom":     append([]byte{0xFE, 0xFF}, []byte("<svg/>")...),
+	}
+	for name, payload := range cases {
+		t.Run(name, func(t *testing.T) {
+			body, ct := buildUploadBody(t, "image/png", payload) // lies about being a PNG
+			req := httptest.NewRequest(http.MethodPost, "/api/upload/image", body)
+			req.Header.Set("Content-Type", ct)
+			rec := httptest.NewRecorder()
+			HandleIPFSUploadImage().ServeHTTP(rec, req)
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("%s: expected 400, got %d (body=%q)", name, rec.Code, rec.Body.String())
+			}
+		})
+	}
+}
+
 func TestHandleIPFSUploadImage_Oversize413(t *testing.T) {
 	t.Setenv("LIGHTHOUSE_API_KEY", "k")
 

@@ -238,6 +238,11 @@ func isAcceptedRasterType(mediaType string) bool {
 // Content-Type can't bypass: a raster image never begins with these tokens, but an
 // SVG/HTML payload (the XSS vector) does.
 func looksLikeMarkup(head []byte) bool {
+	// A UTF-16 document (BOM FE FF / FF FE) is never a raster image and can carry an
+	// SVG/HTML payload the UTF-8 prefix scan below would miss — reject it outright.
+	if bytes.HasPrefix(head, []byte{0xFE, 0xFF}) || bytes.HasPrefix(head, []byte{0xFF, 0xFE}) {
+		return true
+	}
 	head = bytes.TrimPrefix(head, []byte{0xEF, 0xBB, 0xBF}) // UTF-8 BOM
 	head = bytes.TrimLeft(head, " \t\r\n\f\v")
 	lower := bytes.ToLower(head)
@@ -246,6 +251,7 @@ func looksLikeMarkup(head []byte) bool {
 		[]byte("<svg"),
 		[]byte("<!doctype"),
 		[]byte("<html"),
+		[]byte("<!--"), // comment-prefixed markup, e.g. `<!-- x --><svg onload=…>`
 	} {
 		if bytes.HasPrefix(lower, sig) {
 			return true
