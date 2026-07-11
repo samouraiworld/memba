@@ -176,13 +176,11 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
     s.enemies = s.enemies.map((e) => ({ ...e, pos: e.pos + e.speed }))
 
     // 3. Combat: player lane front target, turret lanes, armed crowd.
-    let kills = 0
     let scrapGain = 0
     let rallyGain = 0
     const applyDamage = (lane: number, dmg: number) => {
-        const [next, k, sc, ra] = damageFront(s.enemies, lane, dmg)
+        const [next, , sc, ra] = damageFront(s.enemies, lane, dmg)
         s.enemies = next
-        kills += k
         scrapGain += sc
         rallyGain += ra
     }

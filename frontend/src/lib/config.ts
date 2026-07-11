@@ -668,6 +668,10 @@ export const isOnchainBlogEnabled = (): boolean => import.meta.env.VITE_ENABLE_O
 export const isGameEnabled = (): boolean => import.meta.env.VITE_ENABLE_GAME === "true"
 export const isSpaceInvadersEnabled = (): boolean =>
   import.meta.env.VITE_ENABLE_SPACE_INVADERS === "true"
+/** MEMBA: BARRICADE (G1 preview). Ordinary flag — funds-free arcade game, no
+ * wallet, no money path. Off by default; owner flips at reveal time. */
+export const isBarricadeEnabled = (): boolean =>
+  import.meta.env.VITE_ENABLE_BARRICADE === "true"
 /** Realm Explorer (W9 P0). Ordinary flag — read-only (qrender/qfile/qfuncs), no
  * funds. Literal reader (dynamic import.meta.env[key] is undefined in prod bundles). */
 export const isExplorerEnabled = (): boolean => import.meta.env.VITE_ENABLE_EXPLORER === "true"

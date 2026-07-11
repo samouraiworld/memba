@@ -8,6 +8,9 @@
  *  - sim never imports from render/, hooks/, React, or the DOM
  * The server-side verifier (G3) re-runs this exact code over an input log;
  * any behavior change must bump SIM_VERSION.
+ *
+ * React shell note: repo lint enforces react-hooks/set-state-in-effect —
+ * derive from props/state instead of mirroring via useEffect+setState.
  */
 
 export const TICKS_PER_SECOND = 60
