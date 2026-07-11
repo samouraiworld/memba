@@ -8,6 +8,8 @@
 >
 > **2026-07-03 (W5.6) upstream sweep:** post-test13-go-live window (Jun 16 → Jul 3, master `dfe49509f`) reviewed commit-by-commit — see [Upstream sweep](#upstream-sweep-jun-16--jul-3-2026) below. **No breaking changes for realms already deployed on test13**; three forward-looking rules for NEW realm code.
 >
+> **2026-07-11 (v7.3.0 cut) sweep note:** master advanced past the Jul-3 window — local checkout `aacc2be88` plus 17 further origin commits as of 2026-07-11 (VM correctness #5899/#5920/#5739; genesis/fork/hardfork tooling #5924–#5928; grc20reg slug cap #5911; pkg-path-vs-package-name lint #5048). **Still zero breaking changes for deployed test13 realms** — all deltas bind future deploys only. Pre-mainnet gates (tracked, not urgent): bump the CI `GNO_PIN` past #5048/#5911, migrate `contracts/memba_nft_offers_v1/offers.gno` off the interrealm-v1 banker API before it ever deploys, extend the sweep table to HEAD.
+>
 > Migration playbook: [GNO_CORE_COMPAT.md](../GNO_CORE_COMPAT.md)
 
 ## Interrealm-v2 stdlib migration — ✅ COMPLETED

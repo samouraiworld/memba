@@ -72,8 +72,8 @@ The byte-parity evidence backing this flip lives in `backend/internal/auth/testd
 ### 3.1 Deploy pipeline
 
 * **Backend**: push to `main` triggers `.github/workflows/deploy-backend.yml` (path-filtered on `backend/**`). The workflow gates on `ci-backend` (build + race-test + govulncheck), then `flyctl deploy --remote-only` with `[deploy] strategy = "rolling"` (per `fly.toml`). After deploy, the Fly image is mirrored to `ghcr.io/samouraiworld/memba-backend:<git-describe>` as a rollback insurance copy (see §4.1).
-* **Frontend**: push to `main` triggers `.github/workflows/deploy-frontend.yml` (path-filtered on `frontend/**`). The workflow gates on `ci-frontend` (typecheck + lint + test + build + `npm audit --omit=dev` — **no `|| true`**), then `nwtgck/actions-netlify@v3` does a production deploy. `SENTRY_AUTH_TOKEN` is passed in env so the Vite plugin can upload source maps; an explicit guard step asserts that `dist/assets/*.js.map` files were produced.
-* **Concurrency**: both deploy workflows use `cancel-in-progress: false` — rapid second pushes **queue** rather than canceling an in-flight deploy mid-traffic-flip.
+* **Frontend**: production deploys are **Netlify-native** (Git integration; `netlify.toml` → `npm run build`, publish `frontend/dist` — this is what applies the SPA fallback, the CSP/security headers, and the Clerk proxy). A push to `main` touching `frontend/**` additionally triggers `.github/workflows/deploy-frontend.yml` as a **CI gate only** (typecheck + lint + safety-gate + build + test + bundle-size + `npm audit --omit=dev` — **no `|| true`**); its Actions deploy job (`nwtgck/actions-netlify`) was hard-disabled 2026-06-25 and **removed 2026-07-11** — it bypassed `netlify.toml`. Sentry source-map upload rides the Netlify production build via the Vite plugin when `SENTRY_AUTH_TOKEN` is set in the Netlify env (the plugin no-ops gracefully when unset).
+* **Concurrency**: deploy-backend uses `cancel-in-progress: false` — rapid second pushes **queue** rather than canceling an in-flight deploy mid-traffic-flip. Frontend build serialization is Netlify's own deploy queue.
 
 ### 3.2 SLO (operational definition of "broken")
 

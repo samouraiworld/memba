@@ -208,7 +208,7 @@ corpus, leaderboard realm funds-free, cosmetics use their own RNG.
 Effort: S ≤ half-day · M 1-2d · L multi-day. Each wave = independently shippable PRs, dark or
 low-risk by default. Waves A-C are parallelizable lanes after Wave 0.
 
-### Wave 0 — Unblock + de-stale + quick wins (all S, ~2-3 days total)
+### Wave 0 — Unblock + de-stale + quick wins — ✅ SHIPPED (all 8 items, #863–#877 + the 2026-07-10 ceremony; v7.3.0 cut #878)
 1. **#851 merge** (after D1) + post-merge follow-ups: 10 theme-token fixes, mobile QA at 375px.
 2. **Home de-stale pack** (frontend-only): fix `ComingSoon` contradiction, extend `ExploreGrid`
    with the 5 shipped surfaces, render `Counts.Collections` in EcosystemBand, refresh

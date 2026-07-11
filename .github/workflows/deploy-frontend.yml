@@ -1,4 +1,11 @@
-name: Deploy Frontend
+name: Frontend main-push gate
+
+# Production deploys happen via Netlify's NATIVE Git integration (netlify.toml →
+# `npm run build`, publish frontend/dist): it applies the SPA fallback, the
+# CSP/security headers, and the Clerk auth proxy. The old Actions deploy job
+# (nwtgck/actions-netlify) bypassed all three, was hard-disabled 2026-06-25, and
+# was REMOVED 2026-07-11 — it sat one deleted `if:` line from re-arming against
+# prod. This workflow is now purely the push-to-main CI gate for frontend/**.
 
 on:
   push:
@@ -73,80 +80,3 @@ jobs:
 
       - name: Security audit
         run: npm audit --audit-level=high --omit=dev
-
-  deploy:
-    name: Deploy to Netlify
-    # DISABLED 2026-06-25: production deploys via Netlify's NATIVE Git integration
-    # (netlify.toml → `npm run build`, publish frontend/dist), which applies the
-    # SPA fallback, CSP/security headers, and the Clerk auth proxy. This Action runs
-    # nwtgck/actions-netlify from working-directory: frontend, so it does NOT apply
-    # netlify.toml — publishing through it serves the app with no route fallback
-    # (every deep link 404s) and no security headers. Hard-disabled so it can never
-    # publish a broken production build. (The ci-frontend gate above still runs.)
-    if: ${{ false }}
-    runs-on: ubuntu-latest
-    needs: [ci-frontend]
-    defaults:
-      run:
-        working-directory: frontend
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: '22'
-          cache: 'npm'
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install
-        run: npm ci --ignore-scripts
-
-      - name: Build
-        run: npm run build
-        env:
-          VITE_API_URL: ${{ secrets.VITE_API_URL }}
-          # test13 cutover: VITE_GNO_CHAIN_ID is the NETWORK KEY ("test13"); its
-          # on-wire chainId ("test-13") + RPC resolve from NETWORKS["test13"] in
-          # lib/config.ts. (VITE_GNO_RPC_URL is currently unused by src/ — the
-          # active RPC comes from the resolved network; kept in sync for clarity.)
-          VITE_GNO_CHAIN_ID: test13
-          VITE_GNO_RPC_URL: https://rpc.testnet13.samourai.live:443
-          VITE_DAO_REALM_PATH: gno.land/r/samcrew/memba_dao
-          VITE_GITHUB_CLIENT_ID: ${{ secrets.VITE_GITHUB_CLIENT_ID }}
-          VITE_CLERK_PUBLISHABLE_KEY: ${{ secrets.VITE_CLERK_PUBLISHABLE_KEY }}
-          VITE_GNOLOVE_API_URL: https://backend.gnolove.world
-          VITE_GNO_MONITORING_API_URL: https://monitoring.gnolove.world
-          # Sentry release + source-map upload (Phase 0a CR2-07 fix).
-          # If this env is empty the @sentry/vite-plugin no-ops gracefully
-          # (see frontend/vite.config.ts conditional). If it's set, the
-          # plugin uploads maps to Sentry and deletes them from dist via
-          # `filesToDeleteAfterUpload`. Build success with token set =
-          # successful upload (the plugin throws on upload errors).
-          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-
-      # Sanity-log the upload intent so a missing/expired secret is
-      # noticed early. We deliberately do not assert on local *.map
-      # files: the Sentry plugin cleans them up after upload (privacy
-      # hardening — maps must not ship to Netlify). Verify uploads via
-      # Sentry UI: https://sentry.samourai.pro → memba → Releases.
-      # TODO(v7.2): replace this with a Sentry API check that the release
-      # has artifacts attached.
-      - name: Sentry release intent
-        run: |
-          set -u
-          if [ -z "${SENTRY_TOKEN_SET:-}" ]; then
-            echo "::warning::SENTRY_AUTH_TOKEN was empty — Sentry release for this build has no source maps. Verify the secret in repo settings."
-          else
-            echo "SENTRY_AUTH_TOKEN was set — @sentry/vite-plugin should have uploaded maps for memba@$(node -p "require('./package.json').version")."
-          fi
-        env:
-          SENTRY_TOKEN_SET: ${{ secrets.SENTRY_AUTH_TOKEN != '' && 'yes' || '' }}
-
-      - name: Deploy
-        uses: nwtgck/actions-netlify@v4
-        with:
-          publish-dir: frontend/dist
-          production-deploy: true
-        env:
-          NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
-          NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
