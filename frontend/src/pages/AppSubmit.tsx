@@ -30,6 +30,7 @@ import {
     validateSubmission,
     buildRegisterAppMsg,
     buildEditListingMsg,
+    buildDelistAppMsg,
     fetchRegistrationFee,
     formatGnot,
     type AppSubmission,
@@ -105,6 +106,36 @@ export function AppSubmit() {
             } else {
                 setTxError("The transaction didn't go through. Nothing was charged — please try again.")
             }
+        },
+    })
+
+    // Delist: publisher-initiated, free — but ONE-WAY from the publisher's side
+    // (only a curator's RestoreApp revives it, and RegisterApp's duplicate check
+    // is status-blind, so the pkgPath stays taken). Hence the armed confirm.
+    const [delistArm, setDelistArm] = useState<string | null>(null)
+    const delist = useMutation({
+        mutationFn: async (pkgPath: string) => {
+            const { doContractBroadcast } = await import("../lib/grc20")
+            return doContractBroadcast([buildDelistAppMsg(address, pkgPath)], "Delist app")
+        },
+        onSuccess: (_res, pkgPath) => {
+            // Optimistic flip — the chain read lags the broadcast, so do NOT
+            // invalidate "mine" here (a refetch would resurrect the old status);
+            // the next natural refetch reconciles. Pending is invalidated so a
+            // delisted pending app leaves the curator queue promptly.
+            qc.setQueryData<AppListing[]>(["appStore", "mine", address], (prev) =>
+                (prev ?? []).map((l) => (l.pkgPath === pkgPath ? { ...l, status: "delisted" } : l)),
+            )
+            void qc.invalidateQueries({ queryKey: ["appStore", "pending"] })
+            setDelistArm(null)
+            setTxError(null)
+        },
+        onError: (e: unknown) => {
+            const msg = e instanceof Error ? e.message : String(e)
+            setTxError(/denied|rejected by user|cancel/i.test(msg)
+                ? null
+                : "The delist transaction didn't go through — please try again.")
+            setDelistArm(null)
         },
     })
 
@@ -312,7 +343,14 @@ export function AppSubmit() {
                 </form>
             )}
 
-            <MySubmissions list={mineList} onResubmit={startResubmit} />
+            <MySubmissions
+                list={mineList}
+                onResubmit={startResubmit}
+                delistArm={delistArm}
+                onArmDelist={setDelistArm}
+                onConfirmDelist={(pkgPath) => delist.mutate(pkgPath)}
+                delisting={delist.isPending}
+            />
         </Shell>
     )
 }
@@ -356,10 +394,14 @@ const STATUS_LABEL: Record<string, string> = {
     delisted: "Delisted",
 }
 
-/** B5 lite — the caller's own listings: status at a glance, curator reject reasons, free resubmit. */
-function MySubmissions({ list, onResubmit }: {
+/** B5 — the caller's own listings: status at a glance, curator reject reasons, free resubmit, delist. */
+function MySubmissions({ list, onResubmit, delistArm, onArmDelist, onConfirmDelist, delisting }: {
     list: AppListing[] | undefined
     onResubmit: (l: AppListing) => void
+    delistArm: string | null
+    onArmDelist: (pkgPath: string | null) => void
+    onConfirmDelist: (pkgPath: string) => void
+    delisting: boolean
 }) {
     if (!list || list.length === 0) return null
     return (
@@ -386,6 +428,32 @@ function MySubmissions({ list, onResubmit }: {
                                 {l.status === "rejected" ? "Fix & resubmit (free)" : "Edit listing"}
                             </button>
                         )}
+                        {l.status === "live" && (
+                            <p className="appsubmit__hint">
+                                Live listings are locked for edits — ask a curator to update a verified app.
+                            </p>
+                        )}
+                        {l.status !== "delisted" && (delistArm === l.pkgPath ? (
+                            <div className="appsubmit__delistconfirm" role="alert" data-testid="delist-confirm">
+                                <p>
+                                    Delisting is one-way for you: only a curator can restore it, and the
+                                    package path stays taken. Remove “{l.name}” from the store?
+                                </p>
+                                <button type="button" className="appbtn appbtn--danger" disabled={delisting}
+                                    onClick={() => onConfirmDelist(l.pkgPath)}>
+                                    {delisting ? "Delisting…" : "Yes, delist"}
+                                </button>
+                                <button type="button" className="appbtn appbtn--ghost" disabled={delisting}
+                                    onClick={() => onArmDelist(null)}>
+                                    Keep it
+                                </button>
+                            </div>
+                        ) : (
+                            <button type="button" className="appbtn appbtn--ghost appsubmit__delist"
+                                onClick={() => onArmDelist(l.pkgPath)}>
+                                Delist
+                            </button>
+                        ))}
                     </li>
                 ))}
             </ul>

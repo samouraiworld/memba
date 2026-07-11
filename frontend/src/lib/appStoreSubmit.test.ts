@@ -11,6 +11,7 @@ import {
     validateSubmission,
     buildRegisterAppMsg,
     buildEditListingMsg,
+    buildDelistAppMsg,
     fetchRegistrationFee,
     formatGnot,
     type AppSubmission,
@@ -187,5 +188,21 @@ describe("formatGnot", () => {
         expect(formatGnot(1_500_000)).toBe("1.5")
         expect(formatGnot(250_000)).toBe("0.25")
         expect(formatGnot(0)).toBe("0")
+    })
+})
+
+describe("buildDelistAppMsg (free, one-way for the publisher)", () => {
+    it("builds the DelistApp call with no coins and just the pkgPath", () => {
+        const m = buildDelistAppMsg(CALLER, "gno.land/r/samcrew/my_app_v1")
+        expect(m.type).toBe("vm/MsgCall")
+        expect(m.value.func).toBe("DelistApp")
+        expect(m.value.pkg_path).toBe(APPSTORE_REALM_PATH)
+        expect(m.value.send).toBe("")
+        expect(m.value.args).toEqual(["gno.land/r/samcrew/my_app_v1"])
+        expect(m.value.caller).toBe(CALLER)
+    })
+
+    it("refuses an empty pkgPath", () => {
+        expect(() => buildDelistAppMsg(CALLER, "  ")).toThrow()
     })
 })
