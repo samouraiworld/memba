@@ -167,11 +167,12 @@ export default function NftLane() {
             {activity.length > 0 && (
                 <div style={{ marginTop: "60px" }}>
                     <h2 className="um-lane-title" style={{ marginBottom: "24px" }}>Recent Activity</h2>
-                    <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
+                    <div className="k-card" data-testid="nft-recent-activity" style={{ padding: 0, overflow: "hidden" }}>
                         <div style={{ display: "flex", flexDirection: "column" }}>
                             {activity.map((item, i) => (
-                                <div 
-                                    key={i} 
+                                <div
+                                    key={i}
+                                    className="um-activity-row"
                                     style={{
                                         display: "flex", alignItems: "center", justifyContent: "space-between",
                                         padding: "16px 20px", textDecoration: "none", color: "var(--color-text)",
@@ -181,11 +182,11 @@ export default function NftLane() {
                                     onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-k-hover-surface)"}
                                     onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                                 >
-                                    <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "16px", minWidth: 0 }}>
                                         <div style={{ width: "48px", height: "48px", borderRadius: "8px", overflow: "hidden", flexShrink: 0, backgroundColor: "var(--color-bg-tertiary)" }}>
                                             <NFTMedia uri={""} alt={`NFT #${item.tokenId}`} seed={item.tokenId} />
                                         </div>
-                                        <div>
+                                        <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>
                                             <div style={{ fontSize: "14px", fontWeight: 500 }}>
                                                 {item.kind === "SALE" ? "Sold" : "Offer Accepted"} · NFT #{item.tokenId}
                                             </div>

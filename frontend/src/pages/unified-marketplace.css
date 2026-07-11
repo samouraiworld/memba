@@ -159,6 +159,12 @@
         -webkit-overflow-scrolling: touch; /* iOS momentum scroll */
     }
     .um-tabs::-webkit-scrollbar { display: none; } /* WebKit/Blink: hide the bar */
+
+    /* NFT Recent Activity rows: on a phone the avatar+text / price+time pair can't
+       fit one line, so allow it to wrap (the price/time block drops below) rather
+       than clip. Paired with minWidth:0 on the text blocks (inline) so the text can
+       shrink first. Desktop keeps the single-line space-between layout. */
+    .um-activity-row { flex-wrap: wrap; gap: 8px 12px; }
 }
 
 /* Unified Navigation Tabs & Search */
