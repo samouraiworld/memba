@@ -23,7 +23,7 @@ vi.mock("../../lib/nftHub", () => ({
     fetchRecentActivity: (...a: unknown[]) => fetchRecentActivity(...a),
 }))
 
-import NftLane from "./NftLane"
+import NftLane, { orderByFeatured } from "./NftLane"
 
 function col(over: Partial<HubCollection> & { id: string; name: string }): HubCollection {
     return {
@@ -54,6 +54,32 @@ describe("NftLane — result-count badge (A5)", () => {
         await waitFor(() => expect(screen.getByText("Trending Collections")).toBeInTheDocument())
         const badge = screen.getByTestId("nft-count-badge")
         expect(badge).toHaveTextContent("3")
+    })
+})
+
+describe("orderByFeatured — curated-first, FULL-ID match only (A8)", () => {
+    const real = { id: "g1REALcreatoraddr000000000000000000000/genesis", name: "Genesis" }
+    const beta = { id: "g1OTHERaddr00000000000000000000000000/beta", name: "Beta" }
+    // Same 'genesis' SLUG, different creator address — the impersonation vector:
+    // any creator can CreateCollection("genesis") from their own address.
+    const imposter = { id: "g1EVILaddr000000000000000000000000000/genesis", name: "Genesis" }
+
+    it("pins a featured full-id to the front, keeping the rest in incoming order", () => {
+        const out = orderByFeatured([beta, real], [real.id])
+        expect(out[0]).toBe(real)
+        expect(out[1]).toBe(beta)
+    })
+
+    it("does NOT feature a same-slug / different-address collection", () => {
+        // Featured list holds the REAL genesis id. The imposter shares only the slug.
+        const out = orderByFeatured([imposter, real], [real.id])
+        expect(out[0]).toBe(real) // real id floats up
+        expect(out[1]).toBe(imposter) // imposter stays behind — slug is never matched
+    })
+
+    it("is a no-op (same reference) when nothing is curated", () => {
+        const list = [beta, real]
+        expect(orderByFeatured(list, [])).toBe(list)
     })
 })
 
