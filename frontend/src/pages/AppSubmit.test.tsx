@@ -194,6 +194,21 @@ describe("AppSubmit — delist (one-way, armed confirm)", () => {
         expect(screen.queryByRole("button", { name: /^delist$/i })).not.toBeInTheDocument()
     })
 
+    it("a failed delist shows the error in the confirm box and stays armed for retry", async () => {
+        doContractBroadcast.mockRejectedValueOnce(new Error("network exploded"))
+        fetchByPublisher.mockResolvedValue([mine({ status: "live", name: "Mine" })])
+        renderWithProviders(<AppSubmit />, { route: "/test13/apps/submit" })
+        fireEvent.click(await screen.findByRole("button", { name: /^delist$/i }))
+        fireEvent.click(screen.getByRole("button", { name: /yes, delist/i }))
+        // Error renders INSIDE the still-armed confirm box (review F-1: the
+        // page-level txError is invisible once the done panel shows).
+        await waitFor(() =>
+            expect(screen.getByTestId("delist-confirm").textContent).toMatch(/didn't go through/i)
+        )
+        expect(screen.getByRole("button", { name: /yes, delist/i })).toBeEnabled()
+        expect(screen.queryByText("Delisted")).not.toBeInTheDocument()
+    })
+
     it("'Keep it' disarms without signing; delisted rows offer no delist button", async () => {
         fetchByPublisher.mockResolvedValue([
             mine({ status: "delisted" }),

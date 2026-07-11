@@ -113,6 +113,7 @@ export function AppSubmit() {
     // (only a curator's RestoreApp revives it, and RegisterApp's duplicate check
     // is status-blind, so the pkgPath stays taken). Hence the armed confirm.
     const [delistArm, setDelistArm] = useState<string | null>(null)
+    const [delistError, setDelistError] = useState<string | null>(null)
     const delist = useMutation({
         mutationFn: async (pkgPath: string) => {
             const { doContractBroadcast } = await import("../lib/grc20")
@@ -128,14 +129,16 @@ export function AppSubmit() {
             )
             void qc.invalidateQueries({ queryKey: ["appStore", "pending"] })
             setDelistArm(null)
-            setTxError(null)
+            setDelistError(null)
         },
         onError: (e: unknown) => {
             const msg = e instanceof Error ? e.message : String(e)
-            setTxError(/denied|rejected by user|cancel/i.test(msg)
+            // Stay armed so the error (and a one-click retry) shows exactly where
+            // the user acted — the page-level txError is invisible once the "done"
+            // panel replaces the form (review F-1). Wallet dismissal stays silent.
+            setDelistError(/denied|rejected by user|cancel/i.test(msg)
                 ? null
                 : "The delist transaction didn't go through — please try again.")
-            setDelistArm(null)
         },
     })
 
@@ -347,7 +350,8 @@ export function AppSubmit() {
                 list={mineList}
                 onResubmit={startResubmit}
                 delistArm={delistArm}
-                onArmDelist={setDelistArm}
+                delistError={delistError}
+                onArmDelist={(p) => { setDelistArm(p); setDelistError(null) }}
                 onConfirmDelist={(pkgPath) => delist.mutate(pkgPath)}
                 delisting={delist.isPending}
             />
@@ -395,10 +399,11 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 /** B5 — the caller's own listings: status at a glance, curator reject reasons, free resubmit, delist. */
-function MySubmissions({ list, onResubmit, delistArm, onArmDelist, onConfirmDelist, delisting }: {
+function MySubmissions({ list, onResubmit, delistArm, delistError, onArmDelist, onConfirmDelist, delisting }: {
     list: AppListing[] | undefined
     onResubmit: (l: AppListing) => void
     delistArm: string | null
+    delistError: string | null
     onArmDelist: (pkgPath: string | null) => void
     onConfirmDelist: (pkgPath: string) => void
     delisting: boolean
@@ -430,7 +435,7 @@ function MySubmissions({ list, onResubmit, delistArm, onArmDelist, onConfirmDeli
                         )}
                         {l.status === "live" && (
                             <p className="appsubmit__hint">
-                                Live listings are locked for edits — ask a curator to update a verified app.
+                                Live listings are locked for edits — ask a curator to unlock it for re-review.
                             </p>
                         )}
                         {l.status !== "delisted" && (delistArm === l.pkgPath ? (
@@ -447,6 +452,9 @@ function MySubmissions({ list, onResubmit, delistArm, onArmDelist, onConfirmDeli
                                     onClick={() => onArmDelist(null)}>
                                     Keep it
                                 </button>
+                                {delistError && (
+                                    <p className="appsubmit__reject" role="alert">{delistError}</p>
+                                )}
                             </div>
                         ) : (
                             <button type="button" className="appbtn appbtn--ghost appsubmit__delist"
