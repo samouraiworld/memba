@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Backend — Membas Genesis launch plumbing (2026-07-11)
+- **Launchpad mints now index.** The event dispatcher projects `MintPublic`/`MintAllowlist` from `memba_collections` exactly like the admin `Mint` (the paid events carry no `to` attr — the minter receives, which the projection already handles), and the launchpad realm joins the default `NFT_WATCHED_REALMS` set (code default + `fly.toml`). Without this, every paid Genesis mint would be invisible to collection pages and portfolios.
+- **Two mint-flow endpoints, off by default.** `/api/nft/allowlist-proof` serves per-wallet Merkle proofs for the allowlist phase (from the generator's proofs file, `MEMBA_ALLOWLIST_PROOFS_PATH`); `/api/nft/mint-ticket` suggests the next free `tokenURI` from our own indexer projection with short in-process reservations (`MEMBA_TICKET_COLLECTION_ID`/`_URI_BASE`/`_PREFIX`), narrowing the concurrent-mint URI race. Both return 404 until their envs are set at ceremony time.
+
 ### Backend — authenticated RPCs stop echoing token internals (2026-07-11)
 - **The last auth surface still copying raw validation errors onto the wire is sealed.** `authenticate()` — the guard in front of every token-authenticated RPC — returned `ValidateToken`'s reason verbatim: an expired / bad-signature / wrong-chain oracle plus wrapped decode detail. It now matches the sign-in hygiene: message-less `Unauthenticated` on the wire, full reason in server logs. No client parsed these messages (the REST endpoints were already sanitized), and a wire-contract test pins it.
 - **The multisig signature-verify rejection is pre-sanitized for the enforce flip.** In enforce mode (off today, log-only) a failed member signature echoed the verifier's reconstruction detail onto the wire; it now returns static "re-sign the transaction" copy with the detail in logs — clearing the flip's last code prerequisite.
