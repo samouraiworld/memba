@@ -17,8 +17,20 @@ describe("ServiceLane — no fake listings (W0.2)", () => {
     it("shows an empty/coming-soon state and does NOT render mock services or dummy addresses", () => {
         renderWithProviders(<ServiceLane />)
 
-        expect(screen.getByText(/coming soon|no services|not available/i)).toBeInTheDocument()
+        // The empty state is now the shared EmptyState (title + body), so the
+        // coming-soon signal spans two nodes — assert at least one carries it.
+        expect(screen.getAllByText(/coming soon|no services|not available/i).length).toBeGreaterThan(0)
         expect(screen.queryByText("Smart Contract Audit")).not.toBeInTheDocument()
         expect(screen.queryByText(/g1samouraicoop|g1frontenddev/)).not.toBeInTheDocument()
+    })
+})
+
+describe("ServiceLane — shared EmptyState parity (A7)", () => {
+    it("renders the shared EmptyState component (not a raw one-line div)", () => {
+        const { container } = renderWithProviders(<ServiceLane />)
+        // The shared component always emits the .emptystate wrapper + title/body.
+        expect(container.querySelector(".emptystate")).toBeInTheDocument()
+        expect(container.querySelector(".emptystate__title")).toBeInTheDocument()
+        expect(container.querySelector(".emptystate__body")).toBeInTheDocument()
     })
 })
