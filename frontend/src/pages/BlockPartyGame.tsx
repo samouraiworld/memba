@@ -147,7 +147,11 @@ export default function BlockPartyGame() {
       });
       const infoJson = JSON.stringify(info);
 
-      await auth.getToken(infoJson, signature);
+      const token = await auth.getToken(infoJson, signature);
+      // getToken returns null on ordinary rejections (session-account rejections
+      // throw with human copy) — without this check a failed sign-in was a
+      // silent no-op on this surface.
+      if (!token) throw new Error("Sign-in failed — please try again.");
     } catch (err) {
       console.error("[Memba] Block Party login failed:", err);
       setAuthError(err instanceof Error ? err.message : "Sign-in failed");

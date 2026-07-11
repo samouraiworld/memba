@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Sign-in — Adena session accounts get a real answer (2026-07-11)
+- **Signing in with an Adena session account now explains itself.** The backend keeps rejecting session/subaccount pubkey payloads fail-closed, but the rejection now rides the wire as a bare code (`AUTH-SESSION-REJECT-01` — no internals, no env-var hint; the operator guidance stays in server logs), and the app maps it to: "Session accounts aren't supported yet — switch Adena to your main account and try again." Previously users hit a dead-end "Authentication failed".
+- **Block Party's silent sign-in failure is fixed** — a rejected token exchange on that surface used to be a no-op; it now surfaces an error like every other sign-in path.
+
 ### NFT trading — the listing floor is enforced before signing (2026-07-11)
 - **List/offer amounts below the realm floor can no longer be signed.** The trade modal gated on "more than zero" while the v3.2 engine rejects anything under 1000 ugnot (0.001 GNOT) — a sub-floor amount passed the wallet, then reverted on-chain (money-path audit F-2). The floor is now enforced before signing, and the offer hint states the real minimum instead of "&gt;0 GNOT".
 

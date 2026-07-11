@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
 import { api } from "../lib/api";
+import { SESSION_REJECT_CODE, SESSION_ACCOUNT_LOGIN_MSG } from "../lib/loginErrors";
 import type { Token } from "../gen/memba/v1/memba_pb";
 
 const TOKEN_KEY = "memba_auth_token";
@@ -102,6 +103,14 @@ export function useAuth() {
                 return token;
             } catch (err) {
                 const message = err instanceof Error ? err.message : "Auth failed";
+                // AUTH-SESSION-REJECT-01 rides the wire as a bare code (backend
+                // tokenDenied) — rethrow the human mapping so every sign-in
+                // surface shows real guidance. All other failures keep the
+                // null-return contract existing callers rely on.
+                if (message.includes(SESSION_REJECT_CODE)) {
+                    setState((s) => ({ ...s, loading: false, error: SESSION_ACCOUNT_LOGIN_MSG }));
+                    throw new Error(SESSION_ACCOUNT_LOGIN_MSG);
+                }
                 setState((s) => ({ ...s, loading: false, error: message }));
                 return null;
             }

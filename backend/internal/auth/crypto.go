@@ -188,6 +188,12 @@ func ValidateChallenge(publicKey ed25519.PublicKey, challenge *membav1.Challenge
 // window during the v7.1 rollout — clients pre-PR0b don't send chain_id).
 // The effective chainID is recorded in both the ADR-036 signDoc and the
 // returned token.ChainId.
+// SessionRejectCode tags the strict-unmarshal rejection of session/subaccount
+// pubkey payloads. Exported: the RPC layer puts this BARE code on the wire so
+// the frontend can show human guidance — it names no env var and no internals
+// (the operator opt-in hint stays in server logs only).
+const SessionRejectCode = "AUTH-SESSION-REJECT-01"
+
 // SessionPubkeyOptInEnv toggles AUTH-SESSION-REJECT-01. Setting it to "1" or
 // "true" relaxes TokenRequestInfo unmarshal from strict back to lenient so a
 // future Adena release that adds session metadata fields can be accepted
@@ -268,11 +274,11 @@ func MakeToken(
 	var info membav1.TokenRequestInfo
 	unmarshaler := protojson.UnmarshalOptions{DiscardUnknown: sessionPubkeysAccepted()}
 	if err := unmarshaler.Unmarshal(infoBytes, &info); err != nil {
-		slog.Warn("AUTH-SESSION-REJECT-01: TokenRequestInfo unmarshal failed",
+		slog.Warn(SessionRejectCode+": TokenRequestInfo unmarshal failed",
 			"err", err.Error(),
 			"opt_in_env", SessionPubkeyOptInEnv,
 			"hint", "if this is an Adena 1.20+ session signature, set MEMBA_ACCEPT_SESSION_PUBKEYS=1 to opt in")
-		return nil, errors.Wrap(err, "failed to unmarshal token request info (AUTH-SESSION-REJECT-01: strict — set "+SessionPubkeyOptInEnv+"=1 to opt in)")
+		return nil, errors.Wrap(err, "failed to unmarshal token request info ("+SessionRejectCode+": strict — set "+SessionPubkeyOptInEnv+"=1 to opt in)")
 	}
 
 	if info.Kind != ClientMagic {
