@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Marketplace — mobile polish + merchandising (2026-07-11)
+- **The marketplace no longer scrolls sideways on a phone.** At 375px the lane tabs scroll in place instead of stretching the page off-screen, collection cards stack to a single column, and the NFT "Recent Activity" rows wrap instead of clipping the address/price.
+- **The NFT lane reads more like a storefront.** A result-count badge sits beside "Trending Collections", a live "N collections" count rides the hero status line, and loading now shows skeleton cards instead of a bare "Loading…" line. The Services lane gets the same shared empty-state treatment the NFT lane already uses.
+- **Curated collections can be pinned to the front** of the NFT lane — matched strictly by full on-chain collection id (creator address + slug), so a look-alike collection reusing a name or slug from another address can't jump the queue.
+
 ### Backend — authenticated RPCs stop echoing token internals (2026-07-11)
 - **The last auth surface still copying raw validation errors onto the wire is sealed.** `authenticate()` — the guard in front of every token-authenticated RPC — returned `ValidateToken`'s reason verbatim: an expired / bad-signature / wrong-chain oracle plus wrapped decode detail. It now matches the sign-in hygiene: message-less `Unauthenticated` on the wire, full reason in server logs. No client parsed these messages (the REST endpoints were already sanitized), and a wire-contract test pins it.
 - **The multisig signature-verify rejection is pre-sanitized for the enforce flip.** In enforce mode (off today, log-only) a failed member signature echoed the verifier's reconstruction detail onto the wire; it now returns static "re-sign the transaction" copy with the detail in logs — clearing the flip's last code prerequisite.
