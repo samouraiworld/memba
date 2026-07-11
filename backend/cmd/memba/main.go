@@ -336,6 +336,21 @@ func main() {
 	// SSRF-hardened: only ipfs:// and https:// public hosts are permitted.
 	mux.Handle("/api/nft/image", rateLimitMiddleware("nft", service.HandleNFTImage()))
 	mux.Handle("/api/nft/metadata", rateLimitMiddleware("nft", service.HandleNFTMetadata()))
+	// Membas Genesis mint plumbing — both endpoints are OFF (404) until their
+	// envs are set at ceremony time (brief §8): the allowlist proofs file and
+	// the mint-ticket collection config.
+	allowlistPath := os.Getenv("MEMBA_ALLOWLIST_PROOFS_PATH")
+	if allowlistPath != "" {
+		if _, err := os.Stat(allowlistPath); err != nil { // #nosec G703 -- operator-set deployment env (same trust as DB_PATH), never request input
+			slog.Warn("MEMBA_ALLOWLIST_PROOFS_PATH is set but unreadable — allowlist-proof endpoint stays disabled", "path", allowlistPath, "error", err)
+		}
+	}
+	mux.Handle("/api/nft/allowlist-proof", rateLimitMiddleware("nft", service.HandleAllowlistProof(allowlistPath)))
+	mux.Handle("/api/nft/mint-ticket", rateLimitMiddleware("nft", service.HandleMintTicket(database, service.TicketConfig{
+		CollectionID: os.Getenv("MEMBA_TICKET_COLLECTION_ID"),
+		URIBase:      os.Getenv("MEMBA_TICKET_URI_BASE"),
+		Prefix:       envOr("MEMBA_TICKET_PREFIX", "Memba"),
+	})))
 	// Feed link-preview image proxy — serves only images vetted by GetLinkPreview
 	// (signed token). SSRF-hardened via the shared safeTransport; gated by
 	// MEMBA_ENABLE_LINK_PREVIEWS (returns 404 when off).
@@ -508,12 +523,17 @@ func parseSeedCursorSpec(s string) ([]SeedSpec, []error) {
 const (
 	nftMarketV31Realm = "gno.land/r/samcrew/memba_nft_market_v3_1"
 	nftMarketV32Realm = "gno.land/r/samcrew/memba_nft_market_v3_2"
+	// nftCollectionsRealm is the canonical collection registry + launchpad;
+	// its CollectionCreated/Mint/MintPublic/MintAllowlist/RoyaltySet events
+	// feed the token projection. NOT a sale-volume realm (mints ≠ sales).
+	nftCollectionsRealm = "gno.land/r/samcrew/memba_collections"
 )
 
-// defaultNFTWatchedRealms is the NFT_WATCHED_REALMS fallback: the v2 pair plus
-// both post-ceremony engines. Prod pins the same set in backend/fly.toml [env].
+// defaultNFTWatchedRealms is the NFT_WATCHED_REALMS fallback: the v2 pair,
+// both post-ceremony engines, and the launchpad registry. Prod pins the same
+// set in backend/fly.toml [env].
 func defaultNFTWatchedRealms(marketRealm, collectionRealm string) string {
-	return strings.Join([]string{marketRealm, collectionRealm, nftMarketV31Realm, nftMarketV32Realm}, ",")
+	return strings.Join([]string{marketRealm, collectionRealm, nftMarketV31Realm, nftMarketV32Realm, nftCollectionsRealm}, ",")
 }
 
 // defaultNFTSaleVolumeRealms is the NFT_SALE_VOLUME_REALMS fallback: engines

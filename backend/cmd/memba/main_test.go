@@ -278,6 +278,9 @@ func TestDefaultNFTTailerRealms(t *testing.T) {
 		collection,
 		"gno.land/r/samcrew/memba_nft_market_v3_1",
 		"gno.land/r/samcrew/memba_nft_market_v3_2",
+		// Launchpad registry: CollectionCreated / Mint / MintPublic /
+		// MintAllowlist / RoyaltySet all come from this realm.
+		"gno.land/r/samcrew/memba_collections",
 	}
 	if !slices.Equal(watched, wantWatched) {
 		t.Errorf("default watched realms = %v, want %v", watched, wantWatched)
