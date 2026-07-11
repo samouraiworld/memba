@@ -93,3 +93,16 @@ func TestAuthenticateWireContract(t *testing.T) {
 		})
 	}
 }
+
+// sigVerifyDenied guards the enforce-mode multisig rejection (tx_rpc.go A3):
+// the wire must carry ONLY the static copy — the verifier's reconstruction
+// detail lives in the adjacent log line, never on the wire.
+func TestSigVerifyDeniedWireContract(t *testing.T) {
+	cerr := sigVerifyDenied()
+	if cerr.Code() != connect.CodeInvalidArgument {
+		t.Fatalf("code = %v, want invalid_argument", cerr.Code())
+	}
+	if got := cerr.Message(); got != "signature verification failed — re-sign the transaction and try again" {
+		t.Fatalf("wire message = %q, want the static copy only", got)
+	}
+}

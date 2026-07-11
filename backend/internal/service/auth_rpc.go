@@ -61,3 +61,13 @@ func tokenDenied(err error) *connect.Error {
 	}
 	return connect.NewError(connect.CodePermissionDenied, nil)
 }
+
+// sigVerifyDenied maps an enforce-mode multisig signature-verification failure
+// (tx_rpc.go A3 path) to its wire error. The verifier's reason — sign-bytes
+// reconstruction internals — stays in the adjacent log line; the wire carries
+// only static, actionable copy: useless to a forger probing the reconstruction,
+// sufficient for a legitimate signer whose wallet produced a stale signature.
+func sigVerifyDenied() *connect.Error {
+	return connect.NewError(connect.CodeInvalidArgument,
+		errors.New("signature verification failed — re-sign the transaction and try again"))
+}

@@ -343,7 +343,9 @@ func (s *MultisigService) SignTransaction(
 			metrics.MultisigSigVerifyTotal.WithLabelValues("rejected").Inc()
 			slog.Warn("multisig_sig_verify", "metric", "multisig_sig_verify", "result", "rejected",
 				"tx_id", txID, "signer", userAddress, "err", verr.Error())
-			return nil, connect.NewError(connect.CodeInvalidArgument, verr)
+			// Wire hygiene (#883 review follow-up): the verifier's reason stays in
+			// the Warn above — the wire gets static copy only (sigVerifyDenied).
+			return nil, sigVerifyDenied()
 		}
 		metrics.MultisigSigVerifyTotal.WithLabelValues("mismatch").Inc()
 		slog.Warn("multisig_sig_verify", "metric", "multisig_sig_verify", "result", "mismatch",

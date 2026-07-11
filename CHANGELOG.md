@@ -22,6 +22,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Backend — authenticated RPCs stop echoing token internals (2026-07-11)
 - **The last auth surface still copying raw validation errors onto the wire is sealed.** `authenticate()` — the guard in front of every token-authenticated RPC — returned `ValidateToken`'s reason verbatim: an expired / bad-signature / wrong-chain oracle plus wrapped decode detail. It now matches the sign-in hygiene: message-less `Unauthenticated` on the wire, full reason in server logs. No client parsed these messages (the REST endpoints were already sanitized), and a wire-contract test pins it.
+- **The multisig signature-verify rejection is pre-sanitized for the enforce flip.** In enforce mode (off today, log-only) a failed member signature echoed the verifier's reconstruction detail onto the wire; it now returns static "re-sign the transaction" copy with the detail in logs — clearing the flip's last code prerequisite.
 
 ### App Store — publishers can delist their own apps (2026-07-11)
 - **"My submissions" gains Delist** (any non-delisted listing, free): an armed two-step confirm spells out the honest contract before signing — delisting is one-way for the publisher, only a curator can restore it, and the package path stays taken. A failed delist shows its error right in the confirm box and stays armed for retry. Live rows also explain why they can't be edited (verified content is locked; a curator can unlock it for re-review).
