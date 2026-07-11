@@ -10,7 +10,7 @@
 
 import { applyEvent, initState, tick } from "./engine"
 import { buildWaves } from "./waves"
-import { RUN_MAX_TICKS, SIM_VERSION, type SimEvent, type SimState } from "./types"
+import { SIM_VERSION, type SimEvent, type SimState } from "./types"
 
 export type ReplayResult = {
     score: number
@@ -65,7 +65,11 @@ export function runReplay(seed: string, events: SimEvent[]): ReplayResult {
         .sort((a, b) => a.tick - b.tick)
     let s = initState(seed)
     let cursor = 0
-    while (s.phase !== "won" && s.phase !== "lost" && s.tick < RUN_MAX_TICKS) {
+    // Terminal-phase only — NO tick bound here. tick() itself flips to "lost"
+    // at RUN_MAX_TICKS; an outer `s.tick < cap` clause would exit one call
+    // early and diverge from the live loop's terminal phase (and thus the
+    // stateHash) on every capped run. Found in review; parity test pins it.
+    while (s.phase !== "won" && s.phase !== "lost") {
         while (cursor < sorted.length && sorted[cursor].tick === s.tick) {
             s = applyEvent(s, sorted[cursor])
             cursor++

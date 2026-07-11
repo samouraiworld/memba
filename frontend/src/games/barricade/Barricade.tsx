@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { applyEvent, initState, tick } from "./sim/engine"
-import { buildWaves, type WaveScript } from "./sim/waves"
+import { buildWaves, WAVE_TOTAL, type WaveScript } from "./sim/waves"
 import { runReplay } from "./sim/replay"
 import { LANES, type Choice, type SimEvent, type SimState } from "./sim/types"
 import { draw } from "./render/draw"
@@ -76,7 +76,7 @@ export default function Barricade() {
                 setResult({
                     score: s.score,
                     won: s.phase === "won",
-                    waves: Math.min(s.wave + 1, 13),
+                    waves: Math.min(s.wave + 1, WAVE_TOTAL),
                     // The recorded log must reproduce the live run exactly —
                     // this is the same check the server verifier performs.
                     verified: replay.score === s.score && replay.won === (s.phase === "won"),
@@ -125,9 +125,9 @@ export default function Barricade() {
             {status === "ready" && (
                 <div className="bar-results">
                     <p className="bar-hint">
-                        Hold the line for 13 waves. Tap a lane to move your rebel; kills fill the
-                        rally meter; between waves, spend scrap on repairs, a turret, or arming the
-                        crowd. Same daily seed for everyone.
+                        Hold the line to the Broadcast Tower — {WAVE_TOTAL} waves. Tap a lane to
+                        move your rebel; kills fill the rally meter; between waves, spend scrap on
+                        repairs, a turret, or arming the crowd. Same daily seed for everyone.
                     </p>
                     <div className="bar-controls">
                         <button className="btn-primary" onClick={() => start(true)}>
@@ -170,7 +170,7 @@ export default function Barricade() {
                 <div className="bar-results">
                     <h2>{result.won ? "THE LINE HELD" : "THE LINE FELL"}</h2>
                     <p>
-                        Score <strong>{result.score}</strong> · waves {result.waves}/13 ·{" "}
+                        Score <strong>{result.score}</strong> · waves {result.waves}/{WAVE_TOTAL} ·{" "}
                         {result.verified ? "run verified ✓" : "verification mismatch"}
                     </p>
                     <p className="bar-hint">

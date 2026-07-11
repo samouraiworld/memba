@@ -4,7 +4,7 @@
  * Placeholder art (flat shapes) — the chibi sprite pipeline lands in G2.
  */
 
-import { ARCHETYPES } from "../sim/waves"
+import { ARCHETYPES, WAVE_TOTAL } from "../sim/waves"
 import { BARRICADE_MAX_HP, LANES, LANE_LENGTH, RALLY_FULL, type SimState } from "../sim/types"
 
 export type ViewSize = { width: number; height: number }
@@ -82,7 +82,7 @@ export function draw(ctx: CanvasRenderingContext2D, s: SimState, view: ViewSize)
     ctx.fillStyle = PAPER
     ctx.font = "bold 14px system-ui, sans-serif"
     ctx.fillText(`SCORE ${s.score}`, 8, hudH - 10)
-    ctx.fillText(`WAVE ${Math.min(s.wave + 1, 13)}/13`, Math.floor(w * 0.38), hudH - 10)
+    ctx.fillText(`WAVE ${Math.min(s.wave + 1, WAVE_TOTAL)}/${WAVE_TOTAL}`, Math.floor(w * 0.38), hudH - 10)
     ctx.fillText(`SCRAP ${s.scrap}`, Math.floor(w * 0.68), hudH - 10)
     const rallyFrac = Math.min(1, s.rallyMeter / RALLY_FULL)
     ctx.fillStyle = INK
