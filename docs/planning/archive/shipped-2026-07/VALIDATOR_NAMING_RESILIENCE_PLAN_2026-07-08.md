@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-08
 **Author:** engineering (with cross-perspective expert panel)
-**Status:** DRAFT — owner review pending. Nothing coded yet.
+**Status:** ARCHIVED 2026-07-11 — SHIPPED: P0-B Memba frontend safety net (#858) + P0-A gnomonitoring moniker fallback (gnomonitoring #116). REMAINING: P1 observability alert (>10% addr-shaped monikers) — lives with gnomonitoring/infra, owner-deployed.
 **Symptom:** On `/test13/validators`, `/test13/validators/:addr`, and everywhere validators/candidates render, active-validator **names collapsed to bare addresses** ("g15sys…vwpves" instead of "gfanton-1"). Broke overnight 2026-07-07→08, self-healed, flapping.
 
 ---
