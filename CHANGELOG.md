@@ -20,6 +20,15 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+- Next release in progress.
+
+## [v7.3.0] — 2026-07-11
+
+### ⚠️ Behavior changes to know (migration notes)
+- **NFT: existing listings did NOT migrate to the v3.2 engine — sellers re-list on v3.2.** v3.1's two open offers exit escrow via CLI cancel / expired-claim only.
+- **Tokens: amounts are now entered in whole tokens** (no longer smallest units) — double-check the amount before signing.
+- **Treasury: GNOT balances display in whole GNOT** (previously raw ugnot).
+
 ### Backend — NFT indexer defaults stop pointing at the retired v3 engine (2026-07-11)
 - **Booting without `NFT_WATCHED_REALMS`/`NFT_SALE_VOLUME_REALMS` no longer indexes a dead realm.** The code defaults still named `memba_nft_market_v3` — deauthorized 2026-06-27 — so an unset env silently watched a realm that could never trade again; this is how v3.1 sales went un-indexed in prod until 2026-07-11. Defaults now cover the v2 pair plus the v3.1/v3.2 engines, with v3.x volume counted from `Sale` events only (v3.2's seeded history emits `SaleSeeded`, which the dispatcher ignores — no double-count). A test pins the default sets so the next engine retirement must update them deliberately.
 - **The prod realm sets are now versioned in `backend/fly.toml` `[env]`** instead of living only as unversioned Fly secrets. Note for the operator: secrets override `[env]` — drop the two secrets once this deploys so the file is the single source of truth.

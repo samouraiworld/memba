@@ -11,8 +11,8 @@
 
 | Metric | Value |
 |--------|-------|
-| **Latest Release** | v7.2.0 (cut 2026-06-29) + a large `[Unreleased]` wave (#851–#872: marketplace-v2 shell, App Store submit/curator/reviews, blog SEO + on-chain reader, perf & indexer hardening). |
-| **Shipped Versions** | 51+ (v0.1.0 → v7.2.0) + ongoing feature branches |
+| **Latest Release** | v7.3.0 (cut 2026-07-11) — App Store self-service submissions live (1 GNOT), NFT trading on the v3.2 engine, Home/Blog/nav refresh, whole-token amount entry, backend resilience (#692–#877). |
+| **Shipped Versions** | 52+ (v0.1.0 → v7.3.0) + ongoing feature branches |
 | **Test Suite** | **3,000+ automated tests (CI-enforced)** — 243 Vitest files + 64 Go test files (auth/db/indexer/points/service, incl. `FuzzMakeADR36SignDoc`) + pinned-gno template compile gate + 27 Playwright E2E specs. CI is the source of truth for exact counts. |
 | **Coverage** | Frontend/Backend CI-enforced thresholds (aggregate bump deferred) |
 | **Networks** | **test13 is the prod default — cutover DONE**; all `_v2` and `v3_1` realms LIVE (DAO + commerce + feedback + NFT launchpad) |

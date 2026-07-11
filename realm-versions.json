@@ -1,7 +1,7 @@
 {
   "$schema": "Tracks deployed realm versions per network. Updated after each realm deployment. Deployed-state claims (blocks, txHashes, ACL notes) are verified against the live chain — never from prose. See docs/planning/MEMBA_AAA_IMPLEMENTATION_PLAN.md §3.1 / G5.",
-  "lastVerified": "2026-06-28",
-  "verifiedDuring": "Wave-0 hygiene audit (2026-06-28). .env.example synced with live realm state (v3 retired → v3.1); quest attestation added; lastVerified bumped.",
+  "lastVerified": "2026-07-11",
+  "verifiedDuring": "v7.3.0 release cut (2026-07-11): backfilled the 2026-07-10 test13 ceremony — memba_appstore_v3 + memba_nft_market_v3_2 added (ceremony verify-sweep 21/21, samcrew-deployer .ceremony/test13.state); v3.1 note corrected to paused/wind-down.",
   "verificationMethod": "Per realm: `vm/qfile <pkgpath>` for live source + ACL guard counts; `/block?height=<block>` for the deploy tx, hashed as base64(sha256(txbytes)).",
   "pendingFields": "Per-entry deployer commit SHA + gno toolchain commit are NOT yet pinned (deploy-time git/build metadata is not recoverable from chain) — tracked under E10 / decision Q2 (F10.1 scrub). samcrew-deployer is the canonical realm source.",
   "test12": {
@@ -176,7 +176,21 @@
       "version": "v3.1",
       "date": "2026-06-27",
       "liveVerified": "2026-06-27",
-      "note": "Config-reading NFT engine, addr g1hu6u2qrt69umc85g8vjuvp7dhfkfexw9tteef0 (MarketAddress() verified). Reads fee/treasury from memba_market_config; settles via memba_market_core_v2.SplitProceedsBPS. SOLE registered market on memba_collections (IsRegisteredMarket=true verified). Deployed multisig seq 53. Frontend-wired + allowlisted (memba#612)."
+      "note": "Config-reading NFT engine, addr g1hu6u2qrt69umc85g8vjuvp7dhfkfexw9tteef0 (MarketAddress() verified). Reads fee/treasury from memba_market_config; settles via memba_market_core_v2.SplitProceedsBPS. PAUSED 2026-07-10 (ceremony wind-down): v3.2 is now the active engine; v3.1 stays registered on memba_collections ONLY until its 2 open offers (11 GNOT escrow) exit via cancel/expired-claim, then UnregisterMarket. No new trades; existing listings did not migrate. Deployed multisig seq 53."
+    },
+    "memba_nft_market_v3_2": {
+      "path": "gno.land/r/samcrew/memba_nft_market_v3_2",
+      "version": "v3.2",
+      "date": "2026-07-10",
+      "liveVerified": "2026-07-11",
+      "note": "ACTIVE trading engine since the 2026-07-10 ceremony (verify-sweep 21/21, samcrew-deployer .ceremony/test13.state). Addr g1y4y37dvtvj7vgnt93pxq2typjcwdf62kdlg8u7 (balance 0 verified 2026-07-11). Adds TotalLiabilities() solvency reconciliation, two-step ownership handoff, and a fee-recipient guard. Carries v3.1's sealed sales history (seeded from the tx-indexer; emits SaleSeeded, ignored by volume indexing — no double-count). Registered on memba_collections alongside paused v3.1 during wind-down. Frontend-wired; sellers re-list here."
+    },
+    "memba_appstore_v3": {
+      "path": "gno.land/r/samcrew/memba_appstore_v3",
+      "version": "v3",
+      "date": "2026-07-10",
+      "liveVerified": "2026-07-11",
+      "note": "LIVE App Store money path since the 2026-07-10 ceremony: 1 GNOT registration fee (client reads GetRegistrationFee() live, exact coin match), curator review queue, free EditListing resubmit. v2 catalog seeded then SEALED (FinalizeSeed — the fee-free seeding door is permanently shut). Fee-path checklist verified live from a plain wallet (wrong-fee refund, exact-fee accept, reject→free-resubmit, curator approve, flag dedupe, sealed-seed panic). Frontend repointed via VITE_APPSTORE_REALM_PATH; /apps/submit de-gated (#874)."
     }
   },
   "gnoland1": {},
