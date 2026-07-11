@@ -152,6 +152,20 @@ export function buildEditListingMsg(caller: string, s: AppSubmission): AminoMsg 
 }
 
 /**
+ * DelistApp(pkgPath) — publisher (or curator), free, idempotent on the realm.
+ * ⚠️ ONE-WAY for the publisher: only a curator's `RestoreApp` can bring a
+ * delisted app back, and the package path stays taken (`RegisterApp`'s
+ * duplicate check is status-blind). The UI must warn before signing.
+ */
+export function buildDelistAppMsg(caller: string, pkgPath: string): AminoMsg {
+    if (!pkgPath.trim()) throw new Error("missing package path")
+    return {
+        type: "vm/MsgCall",
+        value: { caller, send: "", pkg_path: APPSTORE_REALM_PATH, func: "DelistApp", args: [pkgPath] },
+    }
+}
+
+/**
  * Read the live registration fee (ugnot) from the realm. Returns null on any failure —
  * callers MUST block submission on null rather than guess (exact-coin match required).
  */

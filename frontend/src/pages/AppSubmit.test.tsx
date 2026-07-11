@@ -171,3 +171,56 @@ describe("AppSubmit — my submissions (B5 lite)", () => {
         expect(msgs[0].value.args[0]).toBe("gno.land/r/samcrew/bad_v1")
     })
 })
+
+describe("AppSubmit — delist (one-way, armed confirm)", () => {
+    it("arms a warning first, then broadcasts DelistApp and flips the row to Delisted", async () => {
+        fetchByPublisher.mockResolvedValue([mine({ status: "live", name: "Mine" })])
+        renderWithProviders(<AppSubmit />, { route: "/test13/apps/submit" })
+
+        fireEvent.click(await screen.findByRole("button", { name: /^delist$/i }))
+        // Nothing signed yet — the honest-contract warning is showing.
+        expect(doContractBroadcast).not.toHaveBeenCalled()
+        expect(screen.getByTestId("delist-confirm").textContent).toMatch(/only a curator can restore/i)
+        expect(screen.getByTestId("delist-confirm").textContent).toMatch(/package path stays taken/i)
+
+        fireEvent.click(screen.getByRole("button", { name: /yes, delist/i }))
+        await waitFor(() => expect(doContractBroadcast).toHaveBeenCalledTimes(1))
+        const [msgs] = doContractBroadcast.mock.calls[0]
+        expect(msgs[0].value.func).toBe("DelistApp")
+        expect(msgs[0].value.send).toBe("")
+        expect(msgs[0].value.args).toEqual(["gno.land/r/samcrew/mine_v1"])
+        // Optimistic flip: the row now reads Delisted and offers no further delist.
+        await waitFor(() => expect(screen.getByText("Delisted")).toBeInTheDocument())
+        expect(screen.queryByRole("button", { name: /^delist$/i })).not.toBeInTheDocument()
+    })
+
+    it("a failed delist shows the error in the confirm box and stays armed for retry", async () => {
+        doContractBroadcast.mockRejectedValueOnce(new Error("network exploded"))
+        fetchByPublisher.mockResolvedValue([mine({ status: "live", name: "Mine" })])
+        renderWithProviders(<AppSubmit />, { route: "/test13/apps/submit" })
+        fireEvent.click(await screen.findByRole("button", { name: /^delist$/i }))
+        fireEvent.click(screen.getByRole("button", { name: /yes, delist/i }))
+        // Error renders INSIDE the still-armed confirm box (review F-1: the
+        // page-level txError is invisible once the done panel shows).
+        await waitFor(() =>
+            expect(screen.getByTestId("delist-confirm").textContent).toMatch(/didn't go through/i)
+        )
+        expect(screen.getByRole("button", { name: /yes, delist/i })).toBeEnabled()
+        expect(screen.queryByText("Delisted")).not.toBeInTheDocument()
+    })
+
+    it("'Keep it' disarms without signing; delisted rows offer no delist button", async () => {
+        fetchByPublisher.mockResolvedValue([
+            mine({ status: "delisted" }),
+            mine({ id: 2, pkgPath: "gno.land/r/samcrew/two_v1", name: "Two", status: "pending" }),
+        ])
+        renderWithProviders(<AppSubmit />, { route: "/test13/apps/submit" })
+        // Only the pending row offers Delist (the delisted one can't go further).
+        const btns = await screen.findAllByRole("button", { name: /^delist$/i })
+        expect(btns).toHaveLength(1)
+        fireEvent.click(btns[0])
+        fireEvent.click(screen.getByRole("button", { name: /keep it/i }))
+        expect(doContractBroadcast).not.toHaveBeenCalled()
+        expect(screen.queryByTestId("delist-confirm")).not.toBeInTheDocument()
+    })
+})
