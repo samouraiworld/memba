@@ -14,6 +14,7 @@ import {
     getIpfsGatewayUrls,
     resolveAvatarUrl,
     uploadToLighthouse,
+    uploadImage,
 } from "./ipfs"
 
 // ── isValidImageMime ──────────────────────────────────────────
@@ -150,5 +151,42 @@ describe("uploadToLighthouse (N2 — no client-side key)", () => {
         expect(res.cid).toContain("bafybei")
         expect(calls.some(u => u.includes("/api/upload/avatar"))).toBe(true)
         expect(calls.some(u => u.includes("node.lighthouse.storage"))).toBe(false)
+    })
+})
+
+// ── uploadImage — App Store media via the /api/upload/image proxy ─────────────
+
+describe("uploadImage (2b — App Store media, bare CID)", () => {
+    afterEach(() => { vi.unstubAllGlobals() })
+
+    it("POSTs to /api/upload/image (never node.lighthouse.storage) and returns a bare CID", async () => {
+        const calls: string[] = []
+        const cid = "bafybei" + "c".repeat(52)
+        vi.stubGlobal("fetch", vi.fn(async (url: unknown) => {
+            calls.push(String(url))
+            return { ok: true, json: async () => ({ cid }) } as Response
+        }))
+
+        const file = new File(["icon-bytes"], "icon.png", { type: "image/png" })
+        const result = await uploadImage(file)
+
+        // Bare CID: not ipfs://-prefixed, not a gateway URL — exactly what the realm stores.
+        expect(result).toBe(cid)
+        expect(result.startsWith("ipfs://")).toBe(false)
+        expect(result.startsWith("http")).toBe(false)
+        expect(isValidCid(result)).toBe(true)
+
+        expect(calls.some(u => u.includes("/api/upload/image"))).toBe(true)
+        expect(calls.some(u => u.includes("/api/upload/avatar"))).toBe(false)
+        expect(calls.some(u => u.includes("node.lighthouse.storage"))).toBe(false)
+    })
+
+    it("client-rejects a non-image (SVG) before any network call", async () => {
+        const fetchSpy = vi.fn()
+        vi.stubGlobal("fetch", fetchSpy)
+
+        const svg = new File(["<svg/>"], "x.svg", { type: "image/svg+xml" })
+        await expect(uploadImage(svg)).rejects.toThrow(/unsupported image type/i)
+        expect(fetchSpy).not.toHaveBeenCalled()
     })
 })

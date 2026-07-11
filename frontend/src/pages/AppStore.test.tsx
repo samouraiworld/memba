@@ -5,6 +5,7 @@ import { AppStore } from "./AppStore"
 import { renderWithProviders } from "../test/test-utils"
 import type { AppListing } from "../lib/appStore"
 import { MEMBA_DAO } from "../lib/config"
+import { getIpfsGatewayUrl } from "../lib/ipfs"
 
 // Detail routes need the splat param populated, which requires a matching <Route>.
 const appStoreRoutes = <Routes><Route path="/:network/apps/*" element={<AppStore />} /></Routes>
@@ -196,16 +197,31 @@ describe("AppGrid — review stars on cards (W0.6)", () => {
     })
 })
 
-describe("AppIcon — pinned artwork with monogram fallback (W0.6)", () => {
+describe("AppIcon — hardened proxy render with monogram fallback (W0.6 / B7)", () => {
     const CID = "bafybeigdyrzt5sfp7udm7hu76uh7y26nf3efuylqabf3oclgtqy55fbzdi"
 
-    it("renders the IPFS gateway image for a valid iconCID", async () => {
+    it("renders the icon through the hardened /api/nft/image proxy, NOT the raw gateway", async () => {
         fetchLiveApps.mockResolvedValue([listing({ pkgPath: "gno.land/r/samcrew/pretty", name: "Pretty App", iconCID: CID, status: "live" })])
         const { container } = renderWithProviders(<AppStore />, { route: "/test13/apps" })
         await screen.findByText("Pretty App")
         const img = container.querySelector("img.appicon")
         expect(img).not.toBeNull()
+        // <img>-only + routed through the SSRF/raster-hardened proxy (not a raw gateway).
+        expect(img!.tagName).toBe("IMG")
+        expect(img!.getAttribute("src")).toContain("/api/nft/image?cid=")
         expect(img!.getAttribute("src")).toContain(CID)
+        expect(img!.getAttribute("src")).not.toContain("gateway.lighthouse.storage")
+    })
+
+    it("falls back to the direct gateway when the proxy image errors (proxy down / octet-stream)", async () => {
+        fetchLiveApps.mockResolvedValue([listing({ pkgPath: "gno.land/r/samcrew/pretty", name: "Pretty App", iconCID: CID, status: "live" })])
+        const { container } = renderWithProviders(<AppStore />, { route: "/test13/apps" })
+        await screen.findByText("Pretty App")
+        const img = container.querySelector("img.appicon") as HTMLImageElement
+        expect(img.getAttribute("src")).toContain("/api/nft/image?cid=")
+        // Simulate the proxy image failing to load → one retry against the direct gateway.
+        fireEvent.error(img)
+        await waitFor(() => expect(img.getAttribute("src")).toBe(getIpfsGatewayUrl(CID)))
     })
 
     it("keeps the deterministic monogram when iconCID is empty or junk", async () => {
@@ -217,5 +233,22 @@ describe("AppIcon — pinned artwork with monogram fallback (W0.6)", () => {
         await screen.findByText("Plain App")
         expect(container.querySelector("img.appicon")).toBeNull()
         expect(container.querySelectorAll(".appmono").length).toBeGreaterThanOrEqual(2)
+    })
+
+    it("renders detail-page screenshots through the hardened <img>-only proxy", async () => {
+        const S1 = "bafybei" + "a".repeat(52)
+        const S2 = "bafybei" + "b".repeat(52)
+        fetchApp.mockResolvedValue(listing({
+            pkgPath: "gno.land/r/samcrew/shots", name: "Shots App", status: "live",
+            screenshotCIDs: [S1, S2, "not-a-cid"], // the junk CID must be dropped
+        }))
+        const { container } = renderWithProviders(appStoreRoutes, { route: "/test13/apps/r/samcrew/shots" })
+        await screen.findByText("Shots App")
+        const shots = container.querySelectorAll("img.appdetail__shot")
+        expect(shots).toHaveLength(2) // only the two valid CIDs render
+        shots.forEach((img) => {
+            expect(img.tagName).toBe("IMG")
+            expect(img.getAttribute("src")).toContain("/api/nft/image?cid=")
+        })
     })
 })

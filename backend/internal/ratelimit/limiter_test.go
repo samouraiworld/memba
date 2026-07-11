@@ -288,3 +288,73 @@ func TestPerUserQuestConfigs_DefaultsAndOverride(t *testing.T) {
 		t.Fatalf("env override not applied: %+v", over)
 	}
 }
+
+// maxUploadsPerListing mirrors the frontend cap (1 icon + MAX_SCREENSHOTS=6).
+// The per-IP `upload_image` bucket MUST admit at least this many so a legitimate
+// full-listing submission from one host never trips the limiter.
+const maxUploadsPerListing = 7
+
+// TestUploadImageBucket_AdmitsFullListing proves the per-IP App Store media bucket
+// is wider than one full listing's file count (unlike the strict avatar bucket).
+func TestUploadImageBucket_AdmitsFullListing(t *testing.T) {
+	cfg := DefaultConfigs()["upload_image"]
+	if cfg.MaxRequests <= maxUploadsPerListing {
+		t.Fatalf("upload_image bucket (%d/min) must exceed one full listing (%d files) + retries", cfg.MaxRequests, maxUploadsPerListing)
+	}
+	// And it must be more permissive than the single-file avatar bucket.
+	if cfg.MaxRequests <= DefaultConfigs()["upload"].MaxRequests {
+		t.Fatalf("upload_image (%d) should be wider than the avatar `upload` bucket (%d)", cfg.MaxRequests, DefaultConfigs()["upload"].MaxRequests)
+	}
+
+	l := New(t.Context(), nil)
+	const ip = "203.0.113.9"
+	for i := 0; i < maxUploadsPerListing; i++ {
+		if !l.Allow(ip, "upload_image") {
+			t.Fatalf("request %d/%d should be admitted for a full listing", i+1, maxUploadsPerListing)
+		}
+	}
+}
+
+// TestImageUploadEndpoint_PerUserCap proves the per-wallet AllowKey cap: a wallet is
+// blocked once it exceeds ImageUploadEndpoint's quota, while a different wallet keeps
+// its own independent bucket.
+func TestImageUploadEndpoint_PerUserCap(t *testing.T) {
+	// ImageUploadEndpoint must be present in the per-user config (else AllowKey silently
+	// falls back to "default" and the intended cap is not what we think).
+	cfg := PerUserQuestConfigs(nil)
+	if _, ok := cfg[ImageUploadEndpoint]; !ok {
+		t.Fatal("PerUserQuestConfigs must define ImageUploadEndpoint")
+	}
+	if cfg[ImageUploadEndpoint].MaxRequests <= maxUploadsPerListing {
+		t.Fatalf("per-wallet image cap (%d) must cover a full listing (%d) + retries", cfg[ImageUploadEndpoint].MaxRequests, maxUploadsPerListing)
+	}
+
+	// Tiny quota so the enforcement path is fast + deterministic.
+	l := New(t.Context(), map[string]Config{
+		ImageUploadEndpoint: {MaxRequests: 2, Window: time.Minute},
+	})
+	const alice, bob = "g1alice", "g1bob"
+	if !l.AllowKey(alice, ImageUploadEndpoint) {
+		t.Fatal("first upload for a wallet should pass")
+	}
+	if !l.AllowKey(alice, ImageUploadEndpoint) {
+		t.Fatal("second upload for a wallet should pass")
+	}
+	if l.AllowKey(alice, ImageUploadEndpoint) {
+		t.Fatal("third upload for the same wallet should be blocked")
+	}
+	if !l.AllowKey(bob, ImageUploadEndpoint) {
+		t.Fatal("a different wallet must have its own bucket")
+	}
+
+	// Env override wires through for ops tuning.
+	over := PerUserQuestConfigs(func(name string, d int) int {
+		if name == "MEMBA_IMAGE_UPLOAD_RPM" {
+			return 4
+		}
+		return d
+	})
+	if over[ImageUploadEndpoint].MaxRequests != 4 {
+		t.Fatalf("MEMBA_IMAGE_UPLOAD_RPM override not applied: %+v", over[ImageUploadEndpoint])
+	}
+}

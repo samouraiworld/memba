@@ -22,7 +22,7 @@ import { useNetwork } from "../hooks/useNetwork"
 import { fetchLiveApps, fetchApp, fetchByStatus, fetchAppStoreStats, isSafeRealmPath, isAppStoreV3, type AppListing } from "../lib/appStore"
 import { fetchSummary, fetchSummaries, type SubjectSummary } from "../lib/reviews"
 import { getIpfsGatewayUrl, isValidCid } from "../lib/ipfs"
-import { MEMBA_DAO, isAppReviewsEnabled, isAppStoreSubmitEnabled } from "../lib/config"
+import { MEMBA_DAO, API_BASE_URL, isAppReviewsEnabled, isAppStoreSubmitEnabled } from "../lib/config"
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import { ReportAppButton } from "../components/appstore/ReportAppButton"
 import { AppReviewStars, MIN_RATED_COUNT } from "../components/reviews/AppReviewStars"
@@ -81,8 +81,45 @@ function Monogram({ app, size }: { app: AppListing; size: "md" | "lg" }) {
     )
 }
 
-// AppIcon prefers publisher-pinned artwork (iconCID → IPFS gateway) and falls back
-// to the deterministic monogram when the CID is absent, malformed, or the gateway
+// nftImageUrl routes a bare CID through the SSRF/raster-hardened backend proxy
+// (/api/nft/image): it re-fetches server-side, mirrors only raster Content-Types,
+// serves non-raster (incl. SVG) as application/octet-stream + nosniff, and neutralizes
+// active content. Prefixed with API_BASE_URL so it hits the backend, not the SPA host.
+function nftImageUrl(cid: string): string {
+    return `${API_BASE_URL}/api/nft/image?cid=${encodeURIComponent(cid)}`
+}
+
+// ProxyImage renders IPFS media through the hardened proxy as an <img> ONLY — never
+// <object>/<iframe>/<embed>/inline-SVG/dangerouslySetInnerHTML — so even an SVG served
+// by the fallback gateway can't execute script (<img> disables SVG scripting). On a
+// proxy error OR an octet-stream body (the proxy neutralizes non-raster to
+// application/octet-stream, which fails to decode → onError), it retries the direct
+// gateway ONCE, then reports final failure so the caller can show its own fallback.
+function ProxyImage({ cid, alt, className, loading, onFinalError }: {
+    cid: string
+    alt: string
+    className?: string
+    loading?: "eager" | "lazy"
+    onFinalError?: () => void
+}) {
+    const [stage, setStage] = useState<"proxy" | "gateway">("proxy")
+    const src = stage === "proxy" ? nftImageUrl(cid) : getIpfsGatewayUrl(cid)
+    return (
+        <img
+            className={className}
+            src={src}
+            alt={alt}
+            loading={loading}
+            onError={() => {
+                if (stage === "proxy") setStage("gateway")
+                else onFinalError?.()
+            }}
+        />
+    )
+}
+
+// AppIcon prefers publisher-pinned artwork (iconCID via the hardened proxy) and falls
+// back to the deterministic monogram when the CID is absent, malformed, or every source
 // fails — a broken image must never leave a blank square on a card. The CID is
 // shape-validated before it becomes a URL.
 function AppIcon({ app, size }: { app: AppListing; size: "md" | "lg" }) {
@@ -91,12 +128,30 @@ function AppIcon({ app, size }: { app: AppListing; size: "md" | "lg" }) {
         return <Monogram app={app} size={size} />
     }
     return (
-        <img
+        <ProxyImage
+            key={app.iconCID}
             className={`appmono appmono--${size} appicon`}
-            src={getIpfsGatewayUrl(app.iconCID)}
+            cid={app.iconCID}
             alt=""
             loading="lazy"
-            onError={() => setFailed(true)}
+            onFinalError={() => setFailed(true)}
+        />
+    )
+}
+
+// Screenshot renders one detail-page screenshot through the same hardened <img>-only
+// proxy path, self-hiding when every source fails.
+function Screenshot({ cid, name }: { cid: string; name: string }) {
+    const [failed, setFailed] = useState(false)
+    if (failed) return null
+    return (
+        <ProxyImage
+            key={cid}
+            className="appdetail__shot"
+            cid={cid}
+            alt={`${name} screenshot`}
+            loading="lazy"
+            onFinalError={() => setFailed(true)}
         />
     )
 }
@@ -444,6 +499,14 @@ function AppDetail({ pkgPath }: { pkgPath: string }) {
                     </div>
 
                     {app.descr && <p className="appdetail__descr">{app.descr}</p>}
+
+                    {app.screenshotCIDs && app.screenshotCIDs.some(isValidCid) && (
+                        <section className="appdetail__shots" aria-label="Screenshots" data-testid="appdetail-shots">
+                            {app.screenshotCIDs.filter(isValidCid).map((cid) => (
+                                <Screenshot key={cid} cid={cid} name={app.name} />
+                            ))}
+                        </section>
+                    )}
 
                     <div className="appdetail__actions">
                         {app.appURL && <OpenApp url={app.appURL} networkKey={networkKey} />}

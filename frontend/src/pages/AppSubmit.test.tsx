@@ -11,6 +11,7 @@ let adena = { connected: true, address: "g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu
 const fetchByPublisher = vi.fn()
 const fetchRegistrationFee = vi.fn()
 const doContractBroadcast = vi.fn()
+const uploadImage = vi.fn()
 
 vi.mock("../hooks/useAdena", () => ({ useAdena: () => adena }))
 vi.mock("../lib/config", async (importActual) => {
@@ -32,6 +33,12 @@ vi.mock("../lib/appStoreSubmit", async (importActual) => {
 vi.mock("../lib/grc20", async (importActual) => {
     const actual = await importActual<typeof import("../lib/grc20")>()
     return { ...actual, doContractBroadcast: (...a: unknown[]) => doContractBroadcast(...a) }
+})
+// Keep the REAL isValidImageMime (the uploader's client-side reject must be exercised);
+// only stub the network-touching uploadImage.
+vi.mock("../lib/ipfs", async (importActual) => {
+    const actual = await importActual<typeof import("../lib/ipfs")>()
+    return { ...actual, uploadImage: (...a: unknown[]) => uploadImage(...a) }
 })
 
 const { AppSubmit } = await import("./AppSubmit")
@@ -222,5 +229,68 @@ describe("AppSubmit — delist (one-way, armed confirm)", () => {
         fireEvent.click(screen.getByRole("button", { name: /keep it/i }))
         expect(doContractBroadcast).not.toHaveBeenCalled()
         expect(screen.queryByTestId("delist-confirm")).not.toBeInTheDocument()
+    })
+})
+
+describe("AppSubmit — artwork uploaders (B6, bare CID → wireArgs)", () => {
+    const AUTHED = JSON.stringify({
+        userAddress: "g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0",
+        nonce: "n", expiration: "2999-01-01T00:00:00Z", serverSignature: "s",
+    })
+    beforeEach(() => {
+        uploadImage.mockReset()
+        localStorage.setItem("memba_auth_token", AUTHED) // backend-auth prerequisite met
+    })
+    afterEach(() => { localStorage.clear() })
+
+    // wireArgs order: [pkgPath, name, tagline, descr, category, iconCID, screenshotsCSV, appURL]
+    function argsOf(): string[] {
+        return (doContractBroadcast.mock.calls[0][0] as { value: { args: string[] } }[])[0].value.args
+    }
+
+    it("pins an icon and threads its BARE CID through RegisterApp (index 5)", async () => {
+        const ICON = "bafybei" + "i".repeat(52)
+        uploadImage.mockResolvedValue(ICON)
+        renderWithProviders(<AppSubmit />, { route: "/test13/apps/submit" })
+        await screen.findByTestId("appsubmit-fee")
+        fillRequired()
+
+        fireEvent.change(screen.getByTestId("appsubmit-icon-input"), {
+            target: { files: [new File(["icon"], "icon.png", { type: "image/png" })] },
+        })
+        await screen.findByTestId("appsubmit-icon-current") // form.iconCID now set
+
+        fireEvent.click(screen.getByTestId("appsubmit-submit"))
+        await waitFor(() => expect(doContractBroadcast).toHaveBeenCalled())
+        const args = argsOf()
+        expect(args[5]).toBe(ICON)
+        expect(args[5].startsWith("ipfs://")).toBe(false)
+        expect(args[5].startsWith("http")).toBe(false)
+    })
+
+    it("adds a screenshot as a BARE CID into the screenshots CSV (index 6)", async () => {
+        const SHOT = "bafybei" + "s".repeat(52)
+        uploadImage.mockResolvedValue(SHOT)
+        renderWithProviders(<AppSubmit />, { route: "/test13/apps/submit" })
+        await screen.findByTestId("appsubmit-fee")
+        fillRequired()
+
+        fireEvent.change(screen.getByTestId("appsubmit-shot-input"), {
+            target: { files: [new File(["shot"], "shot.png", { type: "image/png" })] },
+        })
+        await screen.findByTestId("appsubmit-shots")
+
+        fireEvent.click(screen.getByTestId("appsubmit-submit"))
+        await waitFor(() => expect(doContractBroadcast).toHaveBeenCalled())
+        expect(argsOf()[6]).toBe(SHOT)
+    })
+
+    it("surfaces the sign-in prerequisite and disables the picker when unauthenticated", async () => {
+        localStorage.removeItem("memba_auth_token")
+        renderWithProviders(<AppSubmit />, { route: "/test13/apps/submit" })
+        await screen.findByTestId("appsubmit-fee")
+        expect(screen.getByTestId("appsubmit-art-authnote")).toBeInTheDocument()
+        expect(screen.getByTestId("appsubmit-icon-choose")).toBeDisabled()
+        expect(uploadImage).not.toHaveBeenCalled()
     })
 })

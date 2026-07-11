@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### App Store — self-service media pipeline (2026-07-11)
+- **Listings can carry real artwork now.** The submit form gains an icon uploader and a multi-screenshot uploader; each image is pinned to IPFS through a new auth-gated backend proxy (`/api/upload/image`, 5 MB) that keeps the Lighthouse key server-side and refuses non-raster uploads by BOTH the declared type AND a magic-byte sniff — a PNG-labeled SVG is rejected, closing the client-`Content-Type`-trust gap. The bare CIDs flow unchanged into `RegisterApp`/`EditListing`. Uploads get their own per-IP bucket plus a per-wallet cap, so one full listing (icon + up to 6 screenshots) never trips the limiter while a rotating-IP sybil stays bounded.
+- **Store artwork renders hardened.** App icons and detail-page screenshots load through the SSRF/raster-hardened `/api/nft/image` proxy as `<img>` only — so even an SVG served by the fallback gateway can't execute script — with a direct-gateway fallback when the proxy errors or neutralizes a body to octet-stream. Dropped the stale client-side `VITE_LIGHTHOUSE_API_KEY` from `.env.example`; the pinning key is server-side only.
+
 ### Marketplace — mobile polish + merchandising (2026-07-11)
 - **The marketplace no longer scrolls sideways on a phone.** At 375px the lane tabs scroll in place instead of stretching the page off-screen, collection cards stack to a single column, and the NFT "Recent Activity" rows wrap instead of clipping the address/price.
 - **The NFT lane reads more like a storefront.** A result-count badge sits beside "Trending Collections", and loading now shows skeleton cards instead of a bare "Loading…" line. The Services lane gets the same shared empty-state treatment the NFT lane already uses.
