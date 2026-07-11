@@ -48,7 +48,10 @@ export function buildWaves(seed: string): WaveScript[] {
             ;[atTick, s] = rngInt(s, window)
             ;[lane, s] = rngInt(s, LANES)
             ;[pick, s] = rngInt(s, pool.length)
-            spawns.push({ atTick, lane, archetype: pool[pick] })
+            // +1: wave-local time starts at 1 on a wave's first processed tick
+            // (the engine increments tick before spawning), so atTick 0 would
+            // never fire for wave 0. Boss-wave spawns keep explicit ticks.
+            spawns.push({ atTick: atTick + 1, lane, archetype: pool[pick] })
         }
         // Lane-coverage pass (waves >= 1): every lane must appear, so a run can
         // never be decided by an empty lane. Deterministic round-robin reassign
