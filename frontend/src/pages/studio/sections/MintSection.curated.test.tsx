@@ -54,10 +54,26 @@ describe("MintSection — curated ticket flow", () => {
     it("shows the ticket edition and hides the public-form manual URI input", async () => {
         renderMint()
         await waitFor(() => expect(screen.getByText(/Memba #0004/)).toBeInTheDocument())
+        // The ticket request is scoped to THIS collection (multi-tenant Studio).
+        expect(mockFetchMintTicket).toHaveBeenCalledWith(ID)
         // public/allowlist manual URI inputs are gone (their distinct placeholder)…
         expect(screen.queryByPlaceholderText(/leave blank for on-chain default/i)).toBeNull()
         // …while the admin card's URI input (different placeholder) remains.
         expect(screen.getByPlaceholderText(/or any URI/i)).toBeInTheDocument()
+    })
+
+    it("ignores rapid double-clicks while a mint is in flight", async () => {
+        let releaseRun: () => void = () => {}
+        const run = vi.fn().mockImplementation(
+            () => new Promise<void>((resolve) => (releaseRun = resolve)),
+        )
+        renderMint(run)
+        await waitFor(() => expect(screen.getByText(/Memba #0004/)).toBeInTheDocument())
+        const btn = screen.getByRole("button", { name: /^Mint \(20 GNOT\)$/ })
+        fireEvent.click(btn)
+        fireEvent.click(btn) // second click during the pending broadcast
+        releaseRun()
+        await waitFor(() => expect(run).toHaveBeenCalledTimes(1))
     })
 
     it("public mint uses the ticket URI", async () => {

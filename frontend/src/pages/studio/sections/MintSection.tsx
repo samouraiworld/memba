@@ -17,7 +17,7 @@
  * detected as a tid jump after our mint and surfaced as a "Misprint" notice.
  */
 
-import { useState, useCallback, useEffect } from "react"
+import { useState, useCallback, useEffect, useRef } from "react"
 import type { CollectionDetail as CollectionInfo } from "../../../lib/launchpad"
 import {
     buildAdminMintMsg,
@@ -222,32 +222,65 @@ function AllowlistMintForm({
 export function MintSection({ id, caller, col, run }: MintSectionProps) {
     const [mintTo, setMintTo] = useState(caller)
     const [mintUri, setMintUri] = useState("")
-    const [ticket, setTicket] = useState<MintTicket | null>(null)
-    const [serverProof, setServerProof] = useState<AllowlistProof | null>(null)
+    // Ticket/proof are stored KEYED BY COLLECTION and derived against the
+    // current `id`: switching collections in the multi-tenant Studio instantly
+    // yields null (no stale curated state can leak into another collection's
+    // mint form), and the backend additionally scopes tickets server-side.
+    const [ticketFor, setTicketFor] = useState<{ id: string; ticket: MintTicket } | null>(null)
+    const [proofFor, setProofFor] = useState<{ id: string; proof: AllowlistProof } | null>(null)
     const [misprint, setMisprint] = useState(false)
+    const ticket = ticketFor?.id === id ? ticketFor.ticket : null
+    const serverProof = proofFor?.id === id ? proofFor.proof : null
+
+    const aliveRef = useRef(true)
+    useEffect(() => {
+        aliveRef.current = true
+        return () => {
+            aliveRef.current = false
+        }
+    }, [])
 
     useEffect(() => {
         let alive = true
-        void fetchMintTicket().then((t) => alive && setTicket(t))
-        void fetchAllowlistProof(caller).then((p) => alive && setServerProof(p))
+        void fetchMintTicket(id).then((t) => {
+            if (!alive) return
+            setTicketFor(t ? { id, ticket: t } : null)
+            // The ticket doubles as the "is this the curated collection?"
+            // signal — only then is the Genesis allowlist proof relevant.
+            if (t) {
+                void fetchAllowlistProof(caller).then((p) => alive && setProofFor(p ? { id, proof: p } : null))
+            } else {
+                setProofFor(null)
+            }
+        })
         return () => {
             alive = false
         }
-    }, [caller])
+    }, [caller, id])
 
     // Refresh the ticket after every mint attempt; a tid jump past ours means a
     // concurrent mint landed while ours was printing (possible Misprint).
+    // In-flight guard: a second click before the refresh lands would reuse the
+    // same stale ticket URI and mint duplicate metadata.
+    const mintingRef = useRef(false)
     const runAndRefresh = useCallback(
         async (msg: AminoMsg, memo: string) => {
-            const before = ticket?.tid ?? null
-            await run(msg, memo)
-            const next = await fetchMintTicket()
-            setTicket(next)
-            if (before !== null && next !== null && next.tid > before + 1) {
-                setMisprint(true)
+            if (mintingRef.current) return
+            mintingRef.current = true
+            try {
+                const before = ticket?.tid ?? null
+                await run(msg, memo)
+                const next = await fetchMintTicket(id)
+                if (!aliveRef.current) return
+                setTicketFor(next ? { id, ticket: next } : null)
+                if (before !== null && next !== null && next.tid > before + 1) {
+                    setMisprint(true)
+                }
+            } finally {
+                mintingRef.current = false
             }
         },
-        [run, ticket],
+        [run, ticket, id],
     )
 
     // Derive native price for public/allowlist mint builders

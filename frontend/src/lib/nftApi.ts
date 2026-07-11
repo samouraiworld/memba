@@ -155,10 +155,12 @@ async function getJsonOrNull<T>(url: string): Promise<T | null> {
     }
 }
 
-/** Next suggested tokenURI for the curated Membas mint; null = endpoint off. */
-export function fetchMintTicket(): Promise<MintTicket | null> {
+/** Next suggested tokenURI for the curated mint of `collectionID`; null =
+ * endpoint off OR this collection isn't the curated one (the backend 404s any
+ * collection other than its configured id — tickets never leak cross-collection). */
+export function fetchMintTicket(collectionID: string): Promise<MintTicket | null> {
     const base = API_BASE_URL || ""
-    return getJsonOrNull<MintTicket>(`${base}/api/nft/mint-ticket`)
+    return getJsonOrNull<MintTicket>(`${base}/api/nft/mint-ticket?collection=${encodeURIComponent(collectionID)}`)
 }
 
 /** Merkle proof for the Genesis allowlist; null = not allowlisted / off. */
