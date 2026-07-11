@@ -346,6 +346,11 @@ func main() {
 		}
 	}
 	mux.Handle("/api/nft/allowlist-proof", rateLimitMiddleware("nft", service.HandleAllowlistProof(allowlistPath)))
+	mux.Handle("/api/nft/mint-ticket", rateLimitMiddleware("nft", service.HandleMintTicket(database, service.TicketConfig{
+		CollectionID: os.Getenv("MEMBA_TICKET_COLLECTION_ID"),
+		URIBase:      os.Getenv("MEMBA_TICKET_URI_BASE"),
+		Prefix:       envOr("MEMBA_TICKET_PREFIX", "Memba"),
+	})))
 	// Feed link-preview image proxy — serves only images vetted by GetLinkPreview
 	// (signed token). SSRF-hardened via the shared safeTransport; gated by
 	// MEMBA_ENABLE_LINK_PREVIEWS (returns 404 when off).
