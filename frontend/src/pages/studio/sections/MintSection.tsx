@@ -122,22 +122,24 @@ function AllowlistMintForm({
     const [listText, setListText] = useState("")
     const [uri, setUri] = useState("")
     const [status, setStatus] = useState<string | null>(null)
-    const [derived, setDerived] = useState<{ maxQty: number; proof: string[] } | null>(null)
+    const [pasteDerived, setPasteDerived] = useState<{ maxQty: number; proof: string[] } | null>(null)
 
-    // Server-side proof (Genesis flow): no pasting needed — the backend serves
-    // the wallet's Merkle proof directly.
-    useEffect(() => {
-        if (!serverProof) return
-        setDerived({
-            maxQty: serverProof.maxQty,
-            proof: serverProof.proof === "" ? [] : serverProof.proof.split(","),
-        })
-        setStatus(`✓ Allowlisted for ${serverProof.maxQty}. Proof loaded — ready to mint.`)
-    }, [serverProof])
+    // Server-side proof (Genesis flow): derived straight from the prop — no
+    // pasting needed, and no state mirroring (react-hooks/set-state-in-effect).
+    const derived = serverProof
+        ? {
+              maxQty: serverProof.maxQty,
+              proof: serverProof.proof === "" ? [] : serverProof.proof.split(","),
+          }
+        : pasteDerived
+    const shownStatus =
+        serverProof != null
+            ? `✓ Allowlisted for ${serverProof.maxQty}. Proof loaded — ready to mint.`
+            : status
 
     const check = useCallback(async () => {
         setStatus(null)
-        setDerived(null)
+        setPasteDerived(null)
         const entries = parseAllowlistText(listText)
         if (entries.length === 0) {
             setStatus("No valid entries in the pasted list.")
@@ -148,7 +150,7 @@ function AllowlistMintForm({
             setStatus("Your address is not on this allowlist.")
             return
         }
-        setDerived(p)
+        setPasteDerived(p)
         setStatus(`✓ Allowlisted for ${p.maxQty}. Ready to mint.`)
     }, [listText, caller])
 
@@ -174,7 +176,7 @@ function AllowlistMintForm({
                     <button onClick={() => void check()}>Check allowlist</button>
                 </>
             )}
-            {status && <small className="form-hint">{status}</small>}
+            {shownStatus && <small className="form-hint">{shownStatus}</small>}
             {derived && (
                 <>
                     {ticket ? (
