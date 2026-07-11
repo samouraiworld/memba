@@ -1,9 +1,9 @@
 # Backlog Notes — captured 2026-07-09 (owner-dictated)
 
-> **Status: PARKED — not for the current session.** These are the owner's raw notes for the
-> NEXT work cycle. The first task of that cycle is to investigate each item, add engineering
-> findings + suggestions, and produce ONE fresh implementation plan from the result
-> (per the usual method: multi-perspective audit → consolidated plan → owner review → go).
+> **Status: ARCHIVED 2026-07-11.** That investigation happened: all 16 items are folded into
+> [MEMBA_NEXT_CYCLE_AUDIT_AND_PLAN_2026-07-09.md](../../MEMBA_NEXT_CYCLE_AUDIT_AND_PLAN_2026-07-09.md)
+> (Waves 0/A–F; Wave 0 shipped as #863–#877 + the 2026-07-10 ceremony; v7.3.0 cut #878).
+> Kept for the owner's raw wording.
 > Companion state: `archive/shipped-2026-07/BACKLOG_PLAN_2026-07-08.md` (items 2/3 still open there) and the
 > per-feature plans referenced below.
 
