@@ -22,7 +22,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Marketplace — mobile polish + merchandising (2026-07-11)
 - **The marketplace no longer scrolls sideways on a phone.** At 375px the lane tabs scroll in place instead of stretching the page off-screen, collection cards stack to a single column, and the NFT "Recent Activity" rows wrap instead of clipping the address/price.
-- **The NFT lane reads more like a storefront.** A result-count badge sits beside "Trending Collections", a live "N collections" count rides the hero status line, and loading now shows skeleton cards instead of a bare "Loading…" line. The Services lane gets the same shared empty-state treatment the NFT lane already uses.
+- **The NFT lane reads more like a storefront.** A result-count badge sits beside "Trending Collections", and loading now shows skeleton cards instead of a bare "Loading…" line. The Services lane gets the same shared empty-state treatment the NFT lane already uses.
 - **Curated collections can be pinned to the front** of the NFT lane — matched strictly by full on-chain collection id (creator address + slug), so a look-alike collection reusing a name or slug from another address can't jump the queue.
 ### Backend — Membas Genesis launch plumbing (2026-07-11)
 - **Launchpad mints now index.** The event dispatcher projects `MintPublic`/`MintAllowlist` from `memba_collections` exactly like the admin `Mint` (the paid events carry no `to` attr — the minter receives, which the projection already handles), and the launchpad realm joins the default `NFT_WATCHED_REALMS` set (code default + `fly.toml`). Without this, every paid Genesis mint would be invisible to collection pages and portfolios.
