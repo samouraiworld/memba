@@ -4,7 +4,7 @@
 > [MEMBA_NEXT_CYCLE_AUDIT_AND_PLAN_2026-07-09.md](../../MEMBA_NEXT_CYCLE_AUDIT_AND_PLAN_2026-07-09.md)
 > (Waves 0/A–F; Wave 0 shipped as #863–#877 + the 2026-07-10 ceremony; v7.3.0 cut #878).
 > Kept for the owner's raw wording.
-> Companion state: `archive/shipped-2026-07/BACKLOG_PLAN_2026-07-08.md` (items 2/3 still open there) and the
+> Companion state: `BACKLOG_PLAN_2026-07-08.md` (same directory; items 2/3 still open there) and the
 > per-feature plans referenced below.
 
 ## A. Feature improvements (owner-dictated)
