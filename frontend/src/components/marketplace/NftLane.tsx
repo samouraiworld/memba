@@ -68,7 +68,21 @@ export default function NftLane() {
         <div className="animate-fade-in">
             {/* Toolbar */}
             <div className="um-lane-header" style={{ flexWrap: "wrap", gap: "16px" }}>
-                <h2 className="um-lane-title">Trending Collections</h2>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <h2 className="um-lane-title">Trending Collections</h2>
+                    <span
+                        data-testid="nft-count-badge"
+                        aria-label={`${filteredCollections.length} collections`}
+                        style={{
+                            fontSize: "13px", fontWeight: 600, color: "var(--color-text-muted)",
+                            background: "var(--color-bg-tertiary)", border: "1px solid var(--color-border)",
+                            borderRadius: "999px", padding: "2px 10px", lineHeight: 1.6,
+                            fontVariantNumeric: "tabular-nums",
+                        }}
+                    >
+                        {filteredCollections.length}
+                    </span>
+                </div>
                 <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
                     <select
                         value={sortBy}
