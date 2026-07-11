@@ -165,6 +165,11 @@
        than clip. Paired with minWidth:0 on the text blocks (inline) so the text can
        shrink first. Desktop keeps the single-line space-between layout. */
     .um-activity-row { flex-wrap: wrap; gap: 8px 12px; }
+
+    /* Card grid steps down to one column on a phone: the base minmax(300px,1fr)
+       can otherwise force a >300px track inside a sub-300px content box and push
+       the page wide. Mobile-only; desktop keeps the auto-fill multi-column grid. */
+    .um-grid { grid-template-columns: 1fr; }
 }
 
 /* Unified Navigation Tabs & Search */
