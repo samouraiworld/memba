@@ -22,7 +22,7 @@ import { useAdena } from "../hooks/useAdena"
 import { useAuth } from "../hooks/useAuth"
 import { useNetwork } from "../hooks/useNetwork"
 import { isAppStoreSubmitEnabled } from "../lib/config"
-import { isAppStoreV3, fetchByPublisher, type AppListing } from "../lib/appStore"
+import { isAppStoreV3, fetchByPublisher, fetchApp, type AppListing } from "../lib/appStore"
 import {
     MAX_NAME_LEN,
     MAX_TAGLINE_LEN,
@@ -62,6 +62,8 @@ export function AppSubmit() {
     const [mode, setMode] = useState<Mode>({ kind: "register" })
     const [done, setDone] = useState<Mode["kind"] | null>(null)
     const [txError, setTxError] = useState<string | null>(null)
+    // pkgPath whose full detail is being fetched to open the edit form (null = idle).
+    const [editLoading, setEditLoading] = useState<string | null>(null)
 
     const submitOpen = isAppStoreSubmitEnabled()
     const v3 = isAppStoreV3()
@@ -201,20 +203,31 @@ export function AppSubmit() {
     const feeOk = typeof fee === "number"
     const canSubmit = valid && !broadcast.isPending && (mode.kind === "edit" || feeOk)
 
-    const startResubmit = (l: AppListing) => {
-        setMode({ kind: "edit", pkgPath: l.pkgPath })
-        setDone(null)
+    // Open the free edit/resubmit form for a pending/rejected listing. The My-Submissions list
+    // window (ListByPublisherJSON) omits descr + screenshots, and EditListing overwrites EVERY
+    // field — so the form MUST be seeded from full on-chain detail (GetListingJSON), never the
+    // list row, or a resubmit would silently blank the description and screenshots. If that read
+    // fails we abort rather than open a form that would wipe them (fail-closed, like the fee).
+    const startResubmit = async (l: AppListing) => {
+        setEditLoading(l.pkgPath)
         setTxError(null)
+        const full = await fetchApp(l.pkgPath).catch(() => null)
+        setEditLoading(null)
+        if (!full) {
+            setTxError("Couldn't load this listing's saved details — please try again.")
+            return
+        }
+        setMode({ kind: "edit", pkgPath: full.pkgPath })
+        setDone(null)
         setForm({
-            pkgPath: l.pkgPath,
-            name: l.name,
-            tagline: l.tagline,
-            descr: l.descr ?? "",
-            category: l.category,
-            // Preserve artwork the wire form doesn't expose — EditListing overwrites every field.
-            iconCID: l.iconCID,
-            screenshotsCSV: (l.screenshotCIDs ?? []).join(","),
-            appURL: l.appURL,
+            pkgPath: full.pkgPath,
+            name: full.name,
+            tagline: full.tagline,
+            descr: full.descr ?? "",
+            category: full.category,
+            iconCID: full.iconCID,
+            screenshotsCSV: (full.screenshotCIDs ?? []).join(","),
+            appURL: full.appURL,
         })
     }
 
@@ -360,7 +373,8 @@ export function AppSubmit() {
 
             <MySubmissions
                 list={mineList}
-                onResubmit={startResubmit}
+                onResubmit={(l) => { void startResubmit(l) }}
+                editLoading={editLoading}
                 delistArm={delistArm}
                 delistError={delistError}
                 onArmDelist={(p) => { setDelistArm(p); setDelistError(null) }}
@@ -517,9 +531,10 @@ const STATUS_LABEL: Record<string, string> = {
 }
 
 /** B5 — the caller's own listings: status at a glance, curator reject reasons, free resubmit, delist. */
-function MySubmissions({ list, onResubmit, delistArm, delistError, onArmDelist, onConfirmDelist, delisting }: {
+function MySubmissions({ list, onResubmit, editLoading, delistArm, delistError, onArmDelist, onConfirmDelist, delisting }: {
     list: AppListing[] | undefined
     onResubmit: (l: AppListing) => void
+    editLoading: string | null
     delistArm: string | null
     delistError: string | null
     onArmDelist: (pkgPath: string | null) => void
@@ -547,8 +562,11 @@ function MySubmissions({ list, onResubmit, delistArm, delistError, onArmDelist, 
                         )}
                         {(l.status === "rejected" || l.status === "pending") && (
                             <button type="button" className="appbtn appbtn--ghost appsubmit__resubmit"
+                                disabled={editLoading === l.pkgPath}
                                 onClick={() => onResubmit(l)}>
-                                {l.status === "rejected" ? "Fix & resubmit (free)" : "Edit listing"}
+                                {editLoading === l.pkgPath
+                                    ? "Loading…"
+                                    : l.status === "rejected" ? "Fix & resubmit (free)" : "Edit listing"}
                             </button>
                         )}
                         {l.status === "live" && (

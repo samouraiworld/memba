@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### App Store — resubmitting a listing preserves its description + screenshots (2026-07-12)
+- **Fixing a rejected listing (or editing a pending one) no longer silently wipes its description and screenshots on-chain.** The "My submissions" list window omits those two fields, but `EditListing` overwrites every field — so the resubmit form was seeding them from the empty list row and blanking them the moment a publisher changed anything else. The form now loads the listing's full on-chain detail before opening (with a brief loading state), and if that read fails it declines to open the editor rather than risk wiping the fields.
+
 ### App Store — self-service media pipeline (2026-07-11)
 - **Listings can carry real artwork now.** The submit form gains an icon uploader and a multi-screenshot uploader; each image is pinned to IPFS through a new auth-gated backend proxy (`/api/upload/image`, 5 MB) that keeps the Lighthouse key server-side and refuses non-raster uploads by BOTH the declared type AND a magic-byte sniff — a PNG-labeled SVG is rejected, closing the client-`Content-Type`-trust gap. The bare CIDs flow unchanged into `RegisterApp`/`EditListing`. Uploads get their own per-IP bucket plus a per-wallet cap, so one full listing (icon + up to 6 screenshots) never trips the limiter while a rotating-IP sybil stays bounded.
 - **Store artwork renders hardened.** App icons and detail-page screenshots load through the SSRF/raster-hardened `/api/nft/image` proxy as `<img>` only — so even an SVG served by the fallback gateway can't execute script — with a direct-gateway fallback when the proxy errors or neutralizes a body to octet-stream. Dropped the stale client-side `VITE_LIGHTHOUSE_API_KEY` from `.env.example`; the pinning key is server-side only.
