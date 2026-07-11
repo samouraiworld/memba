@@ -336,6 +336,16 @@ func main() {
 	// SSRF-hardened: only ipfs:// and https:// public hosts are permitted.
 	mux.Handle("/api/nft/image", rateLimitMiddleware("nft", service.HandleNFTImage()))
 	mux.Handle("/api/nft/metadata", rateLimitMiddleware("nft", service.HandleNFTMetadata()))
+	// Membas Genesis mint plumbing — both endpoints are OFF (404) until their
+	// envs are set at ceremony time (brief §8): the allowlist proofs file and
+	// the mint-ticket collection config.
+	allowlistPath := os.Getenv("MEMBA_ALLOWLIST_PROOFS_PATH")
+	if allowlistPath != "" {
+		if _, err := os.Stat(allowlistPath); err != nil {
+			slog.Warn("MEMBA_ALLOWLIST_PROOFS_PATH is set but unreadable — allowlist-proof endpoint stays disabled", "path", allowlistPath, "error", err)
+		}
+	}
+	mux.Handle("/api/nft/allowlist-proof", rateLimitMiddleware("nft", service.HandleAllowlistProof(allowlistPath)))
 	// Feed link-preview image proxy — serves only images vetted by GetLinkPreview
 	// (signed token). SSRF-hardened via the shared safeTransport; gated by
 	// MEMBA_ENABLE_LINK_PREVIEWS (returns 404 when off).
