@@ -148,6 +148,28 @@
         mask-image: none;
         opacity: 0.4;
     }
+    /* The lane tab strip scrolls INSIDE itself on a phone instead of widening the
+       viewport: the base .um-tabs is a no-wrap flex row (gap:32px) with no overflow,
+       so 3+ tabs push past 375px. Mobile-only — desktop and the (future) v2 shell,
+       which share this class, keep the base rule untouched. */
+    .um-tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        scrollbar-width: none;            /* Firefox: no scrollbar track */
+        -webkit-overflow-scrolling: touch; /* iOS momentum scroll */
+    }
+    .um-tabs::-webkit-scrollbar { display: none; } /* WebKit/Blink: hide the bar */
+
+    /* NFT Recent Activity rows: on a phone the avatar+text / price+time pair can't
+       fit one line, so allow it to wrap (the price/time block drops below) rather
+       than clip. Paired with minWidth:0 on the text blocks (inline) so the text can
+       shrink first. Desktop keeps the single-line space-between layout. */
+    .um-activity-row { flex-wrap: wrap; gap: 8px 12px; }
+
+    /* Card grid steps down to one column on a phone: the base minmax(300px,1fr)
+       can otherwise force a >300px track inside a sub-300px content box and push
+       the page wide. Mobile-only; desktop keeps the auto-fill multi-column grid. */
+    .um-grid { grid-template-columns: 1fr; }
 }
 
 /* Unified Navigation Tabs & Search */

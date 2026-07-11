@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react"
 import { Link, useNavigate, useSearchParams } from "react-router-dom"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
 import { EmptyState } from "../ui/EmptyState"
+import { SkeletonCard } from "../ui/LoadingSkeleton"
 import { NFTMedia } from "../nft/NFTMedia"
 import { VerifiedBadge } from "../nft/VerifiedBadge"
 import { fetchVerifiedCollections, fetchRecentActivity, type HubCollection } from "../../lib/nftHub"
@@ -9,6 +10,7 @@ import { formatGnotCompact } from "../../lib/formatGnot"
 import { relativeTime } from "../../lib/format"
 import type { NFTActivityItem } from "../../lib/nftApi"
 import "../../pages/unified-marketplace.css"
+import { FEATURED_COLLECTION_IDS, orderByFeatured } from "./featured"
 
 export default function NftLane() {
     const np = useNetworkPath()
@@ -58,17 +60,37 @@ export default function NftLane() {
         if (sortBy === "floor") sorted.sort((a, b) => (b.floorUgnot > a.floorUgnot ? 1 : b.floorUgnot < a.floorUgnot ? -1 : 0))
         else if (sortBy === "volume") sorted.sort((a, b) => (b.volumeUgnot > a.volumeUgnot ? 1 : b.volumeUgnot < a.volumeUgnot ? -1 : 0))
         else sorted.sort((a, b) => a.name.localeCompare(b.name))
-        return sorted
+        // Curated collections float to the front (full-id match only), the rest keep
+        // the volume/floor/name order above. No-op while FEATURED_COLLECTION_IDS is empty.
+        return orderByFeatured(sorted, FEATURED_COLLECTION_IDS)
     }, [collections, query, verifiedOnly, sortBy])
 
-    if (loading) return <p style={{ color: "var(--color-text-muted)", padding: "40px", textAlign: "center" }}>Loading collections…</p>
+    if (loading) return (
+        <div className="um-grid" data-testid="nft-loading" aria-busy="true" aria-label="Loading collections">
+            {Array.from({ length: 6 }, (_, i) => <SkeletonCard key={i} />)}
+        </div>
+    )
     if (error) return <div className="k-card" style={{ color: "var(--color-error)", padding: "24px" }}>Failed to load collections: {error}</div>
 
     return (
         <div className="animate-fade-in">
             {/* Toolbar */}
             <div className="um-lane-header" style={{ flexWrap: "wrap", gap: "16px" }}>
-                <h2 className="um-lane-title">Trending Collections</h2>
+                <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                    <h2 className="um-lane-title">Trending Collections</h2>
+                    <span
+                        data-testid="nft-count-badge"
+                        aria-label={`${filteredCollections.length} collections`}
+                        style={{
+                            fontSize: "13px", fontWeight: 600, color: "var(--color-text-muted)",
+                            background: "var(--color-bg-tertiary)", border: "1px solid var(--color-border)",
+                            borderRadius: "999px", padding: "2px 10px", lineHeight: 1.6,
+                            fontVariantNumeric: "tabular-nums",
+                        }}
+                    >
+                        {filteredCollections.length}
+                    </span>
+                </div>
                 <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
                     <select
                         value={sortBy}
@@ -167,11 +189,12 @@ export default function NftLane() {
             {activity.length > 0 && (
                 <div style={{ marginTop: "60px" }}>
                     <h2 className="um-lane-title" style={{ marginBottom: "24px" }}>Recent Activity</h2>
-                    <div className="k-card" style={{ padding: 0, overflow: "hidden" }}>
+                    <div className="k-card" data-testid="nft-recent-activity" style={{ padding: 0, overflow: "hidden" }}>
                         <div style={{ display: "flex", flexDirection: "column" }}>
                             {activity.map((item, i) => (
-                                <div 
-                                    key={i} 
+                                <div
+                                    key={i}
+                                    className="um-activity-row"
                                     style={{
                                         display: "flex", alignItems: "center", justifyContent: "space-between",
                                         padding: "16px 20px", textDecoration: "none", color: "var(--color-text)",
@@ -181,11 +204,11 @@ export default function NftLane() {
                                     onMouseEnter={(e) => e.currentTarget.style.background = "var(--color-k-hover-surface)"}
                                     onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
                                 >
-                                    <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "16px", minWidth: 0 }}>
                                         <div style={{ width: "48px", height: "48px", borderRadius: "8px", overflow: "hidden", flexShrink: 0, backgroundColor: "var(--color-bg-tertiary)" }}>
                                             <NFTMedia uri={""} alt={`NFT #${item.tokenId}`} seed={item.tokenId} />
                                         </div>
-                                        <div>
+                                        <div style={{ minWidth: 0, overflowWrap: "anywhere" }}>
                                             <div style={{ fontSize: "14px", fontWeight: 500 }}>
                                                 {item.kind === "SALE" ? "Sold" : "Offer Accepted"} · NFT #{item.tokenId}
                                             </div>
