@@ -7,8 +7,8 @@
  * that is disclosed before signing AND after broadcast. Rejected listings show the
  * curator's reason here and can be fixed + resubmitted for free (`EditListing`, no coin).
  *
- * Triple-gated: `VITE_ENABLE_APPSTORE_SUBMIT` (SAFETY-GATED — build fails if enabled
- * before the v3 fee-path checklist passes), v3 realm active (`isAppStoreV3`), and a
+ * Triple-gated: `VITE_ENABLE_APPSTORE_SUBMIT` (ordinary flag — de-gated 2026-07-10
+ * after the v3 fee-path checklist passed live), v3 realm active (`isAppStoreV3`), and a
  * connected wallet. Validation mirrors the realm's rules so a transaction the realm
  * would reject is never signed.
  *

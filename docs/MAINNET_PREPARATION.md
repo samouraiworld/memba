@@ -6,7 +6,7 @@ This document tracks items to be addressed before the mainnet release.
 
 | Chain | Status | Notes |
 |-------|--------|-------|
-| **testnet13** | ✅ Active | Primary development target. All samcrew realms deployed including `memba_quest_attestation_v1`, `memba_nft_market_v3_1`. Memba RPC: `rpc.testnet13.samourai.live`. |
+| **testnet13** | ✅ Active | Primary development target. All samcrew realms deployed including `memba_quest_attestation_v1`, `memba_appstore_v3`, and the active NFT engine `memba_nft_market_v3_2` (v3.1 paused, wind-down — 2026-07-10 ceremony). Memba RPC: `rpc.testnet13.samourai.live`. |
 | **testnet12** | 🔴 Retired | Migration complete. See `TEST12_WINDDOWN_RUNBOOK.md`. |
 | **gnoland1 (betanet)** | 🟡 Live, transfer-locked | Chain is running; transfers gated by `params/bank:p:restricted_denoms` (gno #5629). Memba RPC: `rpc.gnoland1.samourai.live` (+ 3 community fallbacks). No samcrew realms deployed yet — activation planned for v7.1 Phase 5. |
 | **portal-loop** | ✅ Active | Used for validator monitoring. Unstable (frequent resets). |

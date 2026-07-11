@@ -250,7 +250,8 @@ function App() {
           <Route path="explorer/*" element={<Suspense fallback={<PageLoader />}><Explorer /></Suspense>} />
           {/* Explicit submit route BEFORE the splat — /apps/* parses its splat as a pkgPath,
               so without this /apps/submit would fall through to the grid. The page itself is
-              additionally gated on VITE_ENABLE_APPSTORE_SUBMIT (SAFETY-GATED) + the v3 realm. */}
+              additionally gated on VITE_ENABLE_APPSTORE_SUBMIT (ordinary flag — de-gated
+              2026-07-10 after the live fee-path ceremony) + the v3 realm. */}
           <Route path="apps/submit" element={<AppStoreGate><Suspense fallback={<PageLoader />}><AppSubmit /></Suspense></AppStoreGate>} />
           <Route path="apps/review" element={<AppStoreGate><Suspense fallback={<PageLoader />}><AppCurator /></Suspense></AppStoreGate>} />
           <Route path="apps/*" element={<AppStoreGate><Suspense fallback={<PageLoader />}><AppStore /></Suspense></AppStoreGate>} />

@@ -100,6 +100,7 @@ describe("parseChangelogMarkdown — THE REAL FILE (drift tripwire)", () => {
         expect(entries.length).toBeGreaterThanOrEqual(8)
         // Newest-first file order preserved
         const versions = entries.map(e => e.version).filter(Boolean)
+        expect(versions).toContain("v7.3.0")
         expect(versions).toContain("v7.2.0")
         expect(versions).toContain("v6.0.2")
     })
@@ -131,5 +132,12 @@ describe("parseChangelogMarkdown — THE REAL FILE (drift tripwire)", () => {
         const v72 = parseChangelogMarkdown(real).find(e => e.version === "v7.2.0")!
         expect(v72.date).toBe("2026-06-29")
         expect(v72.items.length).toBeGreaterThanOrEqual(5)
+    })
+
+    it("v7.3.0 carries its date and leads with the migration-notes digest", () => {
+        const v73 = parseChangelogMarkdown(real).find(e => e.version === "v7.3.0")!
+        expect(v73.date).toBe("2026-07-11")
+        expect(v73.items.length).toBeGreaterThanOrEqual(5)
+        expect(v73.items[0]).toContain("Behavior changes")
     })
 })
