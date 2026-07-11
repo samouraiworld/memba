@@ -1,9 +1,10 @@
-import { Suspense, lazy, type ComponentType, type KeyboardEvent } from "react"
+import { Suspense, lazy, useEffect, useState, type ComponentType, type KeyboardEvent } from "react"
 import { Routes, Route, Navigate, NavLink, useLocation, useSearchParams } from "react-router-dom"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { getLiveLanes, getDefaultLaneSlug } from "../lib/marketplace/lanes"
 import { useAdena } from "../hooks/useAdena"
 import { isMarketplaceV2Enabled } from "../lib/config"
+import { fetchCollectionList } from "../lib/launchpadReads"
 import { Image, Briefcase, Coins, Robot, Tag, type Icon } from "@phosphor-icons/react"
 import type { AssetType } from "../lib/marketplace/types"
 
@@ -106,6 +107,25 @@ export default function UnifiedMarketplace() {
     // Single source of truth: only lanes that are live on this network render.
     const liveLanes = getLiveLanes()
 
+    // Live "N collections" for the NFT hero eyebrow. The shell reads the raw
+    // collection LIST (one lightweight render call — not the lane's per-collection
+    // enriched read), gated to the active+live NFT lane. Fail-safe: any error, or a
+    // non-NFT/absent lane, leaves the count null so the eyebrow just omits it.
+    const isNftsLane = !(pathname.includes("/services") || pathname.includes("/agents") || pathname.includes("/tokens"))
+    const nftLaneLive = liveLanes.some((l) => l.assetType === "nft")
+    const [nftCount, setNftCount] = useState<number | null>(null)
+    useEffect(() => {
+        if (!isNftsLane || !nftLaneLive) {
+            setNftCount(null)
+            return
+        }
+        let cancelled = false
+        fetchCollectionList()
+            .then((rows) => { if (!cancelled) setNftCount(rows.length) })
+            .catch(() => { if (!cancelled) setNftCount(null) })
+        return () => { cancelled = true }
+    }, [isNftsLane, nftLaneLive])
+
     // Show the "My Listings" tab only to a connected wallet with a live lane to
     // manage. The route itself stays mounted (it renders a connect prompt when
     // disconnected) so a shared/bookmarked URL still works.
@@ -161,6 +181,11 @@ export default function UnifiedMarketplace() {
                     <div className="um-hero__eyebrow">
                         <span className="um-hero__pulse" aria-hidden="true" />
                         Live on gno.land
+                        {laneKey === "nfts" && nftCount != null && nftCount > 0 && (
+                            <span data-testid="hero-nft-count" style={{ opacity: 0.7 }}>
+                                {nftCount} collection{nftCount === 1 ? "" : "s"}
+                            </span>
+                        )}
                     </div>
                     <h1 className="um-hero-title">{hero.title}</h1>
                     <p className="um-hero-subtitle">{hero.subtitle}</p>
