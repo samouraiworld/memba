@@ -32,6 +32,18 @@ primary_region = 'cdg'
   # fixes (#457/#462) tripped that public node's per-IP rate limit (403 on the Fly
   # egress IP; 200 elsewhere); our own node doesn't throttle us.
   NFT_RPC_URL = 'https://rpc.testnet13.samourai.live:443'
+  # NFT tailer realm sets — versioned here so prod can never silently fall back
+  # to the code defaults (that's exactly how the retired memba_nft_market_v3
+  # stayed indexed while v3.1 sales went missing until 2026-07-11). Watched =
+  # the v2 pair + both post-ceremony engines (v3.1 winding down, v3.2 active);
+  # volume comes from Sale events only on the v3.x engines (v3.2's seeded
+  # history emits SaleSeeded, which the dispatcher ignores — no double-count).
+  # PRECEDENCE (2026-07-11): both keys also exist as Fly SECRETS set by the
+  # owner, and secrets override [env]. Once this lands, drop them so this file
+  # is the single source of truth:
+  #   flyctl secrets unset NFT_WATCHED_REALMS NFT_SALE_VOLUME_REALMS -a memba-backend
+  NFT_WATCHED_REALMS = 'gno.land/r/samcrew/memba_nft_market_v2,gno.land/r/samcrew/memba_nft_v2,gno.land/r/samcrew/memba_nft_market_v3_1,gno.land/r/samcrew/memba_nft_market_v3_2'
+  NFT_SALE_VOLUME_REALMS = 'gno.land/r/samcrew/memba_nft_market_v3_1,gno.land/r/samcrew/memba_nft_market_v3_2'
   # AUTH ENFORCEMENT — fail-closed by default since Wave 1 (2026-06-28).
   # MEMBA_ALLOW_UNSIGNED_AUTH no longer needed (default rejects unsigned auth).
   # Set to '1' ONLY in dev/staging if you need unsigned auth for testing.

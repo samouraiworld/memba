@@ -4,6 +4,7 @@ import (
 	"maps"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -255,5 +256,44 @@ func TestLitestreamManaged(t *testing.T) {
 		if got != want {
 			t.Errorf("litestreamManaged(%q) = %v, want %v", val, got, want)
 		}
+	}
+}
+
+// The NFT tailer's default realm sets are an operator contract: a machine
+// booted with NFT_WATCHED_REALMS / NFT_SALE_VOLUME_REALMS unset must index the
+// engines that are actually live. The old default kept pointing at
+// memba_nft_market_v3 (deauthorized 2026-06-27), so prod silently indexed a
+// dead realm and missed every v3.1 sale until 2026-07-11. Changing these sets
+// means changing this test AND backend/fly.toml [env] — deliberately.
+func TestDefaultNFTTailerRealms(t *testing.T) {
+	const (
+		market     = "gno.land/r/samcrew/memba_nft_market_v2"
+		collection = "gno.land/r/samcrew/memba_nft_v2"
+		retiredV3  = "gno.land/r/samcrew/memba_nft_market_v3"
+	)
+
+	watched := splitOrigins(defaultNFTWatchedRealms(market, collection))
+	wantWatched := []string{
+		market,
+		collection,
+		"gno.land/r/samcrew/memba_nft_market_v3_1",
+		"gno.land/r/samcrew/memba_nft_market_v3_2",
+	}
+	if !slices.Equal(watched, wantWatched) {
+		t.Errorf("default watched realms = %v, want %v", watched, wantWatched)
+	}
+
+	saleVolume := splitOrigins(defaultNFTSaleVolumeRealms())
+	wantSaleVolume := []string{
+		"gno.land/r/samcrew/memba_nft_market_v3_1",
+		"gno.land/r/samcrew/memba_nft_market_v3_2",
+	}
+	if !slices.Equal(saleVolume, wantSaleVolume) {
+		t.Errorf("default sale-volume realms = %v, want %v", saleVolume, wantSaleVolume)
+	}
+
+	// The retired engine must never re-enter either default.
+	if slices.Contains(watched, retiredV3) || slices.Contains(saleVolume, retiredV3) {
+		t.Errorf("retired realm %s must not appear in the default sets", retiredV3)
 	}
 }
