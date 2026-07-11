@@ -120,6 +120,11 @@ func dispatchEventScoped(ctx context.Context, db *sql.DB, ev GnoEvent, blockHash
 		return applyMarketTransfer(ctx, db, ev)
 	case "Mint":
 		return applyMint(ctx, db, ev)
+	case "MintPublic", "MintAllowlist":
+		// Launchpad paid mints (memba_collections): same projection as the
+		// admin Mint. These events carry no "to" attr — the minter receives —
+		// which applyMint already covers via its firstAttr("to", "minter").
+		return applyMint(ctx, db, ev)
 	case "CollectionCreated":
 		return applyCollectionCreated(ctx, db, ev)
 	case "RoyaltyChanged", "RoyaltySet":

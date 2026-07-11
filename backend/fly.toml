@@ -42,7 +42,7 @@ primary_region = 'cdg'
   # owner, and secrets override [env]. Once this lands, drop them so this file
   # is the single source of truth:
   #   flyctl secrets unset NFT_WATCHED_REALMS NFT_SALE_VOLUME_REALMS -a memba-backend
-  NFT_WATCHED_REALMS = 'gno.land/r/samcrew/memba_nft_market_v2,gno.land/r/samcrew/memba_nft_v2,gno.land/r/samcrew/memba_nft_market_v3_1,gno.land/r/samcrew/memba_nft_market_v3_2'
+  NFT_WATCHED_REALMS = 'gno.land/r/samcrew/memba_nft_market_v2,gno.land/r/samcrew/memba_nft_v2,gno.land/r/samcrew/memba_nft_market_v3_1,gno.land/r/samcrew/memba_nft_market_v3_2,gno.land/r/samcrew/memba_collections'
   NFT_SALE_VOLUME_REALMS = 'gno.land/r/samcrew/memba_nft_market_v3_1,gno.land/r/samcrew/memba_nft_market_v3_2'
   # AUTH ENFORCEMENT — fail-closed by default since Wave 1 (2026-06-28).
   # MEMBA_ALLOW_UNSIGNED_AUTH no longer needed (default rejects unsigned auth).
