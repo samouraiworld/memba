@@ -52,8 +52,11 @@ func TestAllowUpload_PerWalletCap(t *testing.T) {
 		ratelimit.ImageUploadEndpoint: {MaxRequests: 2, Window: time.Minute},
 	}))
 
-	if !h.svc.AllowUpload("g1alice") || !h.svc.AllowUpload("g1alice") {
-		t.Fatal("first two uploads for a wallet should pass")
+	if !h.svc.AllowUpload("g1alice") {
+		t.Fatal("first upload for a wallet should pass")
+	}
+	if !h.svc.AllowUpload("g1alice") {
+		t.Fatal("second upload for a wallet should pass")
 	}
 	if h.svc.AllowUpload("g1alice") {
 		t.Fatal("third upload for the same wallet should be blocked")

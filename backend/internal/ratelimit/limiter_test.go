@@ -334,8 +334,11 @@ func TestImageUploadEndpoint_PerUserCap(t *testing.T) {
 		ImageUploadEndpoint: {MaxRequests: 2, Window: time.Minute},
 	})
 	const alice, bob = "g1alice", "g1bob"
-	if !l.AllowKey(alice, ImageUploadEndpoint) || !l.AllowKey(alice, ImageUploadEndpoint) {
-		t.Fatal("first two uploads for a wallet should pass")
+	if !l.AllowKey(alice, ImageUploadEndpoint) {
+		t.Fatal("first upload for a wallet should pass")
+	}
+	if !l.AllowKey(alice, ImageUploadEndpoint) {
+		t.Fatal("second upload for a wallet should pass")
 	}
 	if l.AllowKey(alice, ImageUploadEndpoint) {
 		t.Fatal("third upload for the same wallet should be blocked")
