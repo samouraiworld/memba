@@ -3,6 +3,7 @@ import { useAdena } from "../hooks/useAdena";
 import { useAuth } from "../hooks/useAuth";
 import { useNetwork } from "../hooks/useNetwork";
 import { buildTokenRequestInfo } from "../lib/loginChallenge";
+import { humanizeLoginError } from "../lib/loginErrors";
 import { useDailyChallenge } from "../game/hooks/useDailyChallenge";
 import { useGame, type GameMode } from "../game/hooks/useGame";
 import { useKeyboard } from "../game/hooks/useKeyboard";
@@ -150,7 +151,7 @@ export default function BlockPartyGame() {
       await auth.getToken(infoJson, signature);
     } catch (err) {
       console.error("[Memba] Block Party login failed:", err);
-      setAuthError(err instanceof Error ? err.message : "Sign-in failed");
+      setAuthError(humanizeLoginError(err, "Sign-in failed"));
     } finally {
       authBusyRef.current = false;
     }

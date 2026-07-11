@@ -140,12 +140,17 @@ export function TradeModal({
     }, [action, callerAddress, collectionID, engine.collectionPath, engine.marketAddr])
 
     // ── Derived values for list breakdown ───────────────────
+    // Realm floor: memba_nft_market_v3_2 rejects prices under MinPrice = 1000
+    // ugnot (params.gno — "prevents fee truncation to zero"). Gate here so a
+    // sub-floor amount is never signed then reverted on-chain (audit 2.0 F-2);
+    // also a dust-listing guard on the legacy engines.
+    const MIN_PRICE_UGNOT = 1000
     const listPriceUgnot = Math.floor(parseFloat(listPrice || "0") * 1_000_000)
-    const isListValid = listPriceUgnot > 0
+    const isListValid = listPriceUgnot >= MIN_PRICE_UGNOT
 
     // ── Derived values for offer ────────────────────────────
     const offerAmountUgnot = Math.floor(parseFloat(offerAmount || "0") * 1_000_000)
-    const isOfferValid = offerAmountUgnot > 0
+    const isOfferValid = offerAmountUgnot >= MIN_PRICE_UGNOT
 
     // ── Handlers ─────────────────────────────────────────────
 

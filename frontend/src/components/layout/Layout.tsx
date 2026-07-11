@@ -10,6 +10,7 @@ import { useNotifications } from "../../hooks/useNotifications"
 import { getSavedDAOs } from "../../lib/daoSlug"
 import { APP_VERSION } from "../../lib/config"
 import { buildTokenRequestInfo } from "../../lib/loginChallenge"
+import { humanizeLoginError } from "../../lib/loginErrors"
 import { syncQuestsToBackend, completeQuest, setQuestWalletAddress, checkAndSetLegacyEligibility } from "../../lib/quests"
 import { DesktopShell } from "./DesktopShell"
 import { MobileShell } from "./MobileShell"
@@ -141,7 +142,7 @@ export function Layout() {
             // of read-only browsing. Surface the error + a Retry action (retryLogin);
             // reserve disconnect() for explicit logout and the changedAccount handler.
             console.error("[Memba] Login failed:", err)
-            setAuthError(err instanceof Error ? err.message : "Login failed")
+            setAuthError(humanizeLoginError(err))
         } finally {
             setAuthLoading(false)
         }
