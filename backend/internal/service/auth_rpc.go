@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	"log/slog"
 
@@ -41,7 +43,21 @@ func (s *MultisigService) GetToken(
 	token, err := auth.MakeToken(s.privateKey, s.publicKey, auth.DefaultTokenDuration, req.Msg.GetInfoJson(), req.Msg.GetUserSignature(), s.chainID)
 	if err != nil {
 		slog.Warn("GetToken: auth failed", "error", err)
-		return nil, connect.NewError(connect.CodePermissionDenied, nil)
+		return nil, tokenDenied(err)
 	}
 	return connect.NewResponse(&membav1.GetTokenResponse{AuthToken: token}), nil
+}
+
+// tokenDenied maps a MakeToken failure to its wire error. Deliberately
+// message-less (2026-02 audit hygiene: auth internals never reach clients),
+// with ONE narrow exception: the session-account rejection surfaces
+// auth.SessionRejectCode — the bare code and nothing else — so the UI can tell
+// the user to switch off a session account instead of dead-ending on a
+// generic. The code names no env var and discloses nothing actionable (the
+// strict/lenient opt-in hint stays in server logs only).
+func tokenDenied(err error) *connect.Error {
+	if err != nil && strings.Contains(err.Error(), auth.SessionRejectCode) {
+		return connect.NewError(connect.CodePermissionDenied, errors.New(auth.SessionRejectCode))
+	}
+	return connect.NewError(connect.CodePermissionDenied, nil)
 }
