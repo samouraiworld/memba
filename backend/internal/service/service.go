@@ -196,10 +196,17 @@ func (s *MultisigService) rateLimitUser(addr, endpoint string) error {
 	return nil
 }
 
-// authenticate validates a token and returns the user address.
+// authenticate validates a token and returns the user address. The rejection
+// reason goes to logs ONLY — the wire carries a message-less Unauthenticated,
+// same hygiene as GetToken's tokenDenied (2026-02 b64fd7f): token state
+// (expired vs bad signature vs wrong chain, plus wrapped decode detail) is an
+// oracle clients don't need, and no frontend parses these messages. If a
+// client ever needs to distinguish a case, use the bare-code pattern
+// (see auth.SessionRejectCode) — never the raw error.
 func (s *MultisigService) authenticate(token *membav1.Token) (string, error) {
 	if err := auth.ValidateToken(s.publicKey, token, s.acceptedChainIDs...); err != nil {
-		return "", connect.NewError(connect.CodeUnauthenticated, err)
+		slog.Warn("authenticate: token rejected", "error", err)
+		return "", connect.NewError(connect.CodeUnauthenticated, nil)
 	}
 	return token.UserAddress, nil
 }

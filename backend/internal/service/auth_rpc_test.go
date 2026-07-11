@@ -1,11 +1,13 @@
 package service
 
 import (
+	"crypto/ed25519"
 	"errors"
 	"strings"
 	"testing"
 
 	"connectrpc.com/connect"
+	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
 	"github.com/samouraiworld/memba/backend/internal/auth"
 )
 
@@ -54,4 +56,40 @@ func TestTokenDeniedWireContract(t *testing.T) {
 			t.Fatalf("wire message = %q, want empty", got)
 		}
 	})
+}
+
+// authenticate guards all token-authenticated RPCs. Whatever ValidateToken's
+// reason is — expired, bad signature, wrong chain, decode garbage — the wire
+// must stay a message-less Unauthenticated (the reason is logged server-side).
+func TestAuthenticateWireContract(t *testing.T) {
+	pub, _, err := ed25519.GenerateKey(nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &MultisigService{publicKey: pub, acceptedChainIDs: []string{"test13"}}
+
+	cases := map[string]*membav1.Token{
+		"nil token":              nil,
+		"garbage expiration+sig": {UserAddress: "g1attacker", Expiration: "not-a-time", ServerSignature: "!!!"},
+		"expired token":          {UserAddress: "g1x", Expiration: "2020-01-01T00:00:00Z", ServerSignature: ""},
+		"unsigned wrong-chain":   {UserAddress: "g1x", Expiration: "2999-01-01T00:00:00Z", ChainId: "evil-1"},
+	}
+	for name, tok := range cases {
+		t.Run(name, func(t *testing.T) {
+			_, aerr := s.authenticate(tok)
+			if aerr == nil {
+				t.Fatal("want rejection")
+			}
+			var cerr *connect.Error
+			if !errors.As(aerr, &cerr) {
+				t.Fatalf("want *connect.Error, got %T", aerr)
+			}
+			if cerr.Code() != connect.CodeUnauthenticated {
+				t.Fatalf("code = %v, want unauthenticated", cerr.Code())
+			}
+			if got := cerr.Message(); got != "" {
+				t.Fatalf("wire message = %q, want empty — authenticate must never echo ValidateToken's reason", got)
+			}
+		})
+	}
 }

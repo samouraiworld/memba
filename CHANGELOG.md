@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Backend — authenticated RPCs stop echoing token internals (2026-07-11)
+- **The last auth surface still copying raw validation errors onto the wire is sealed.** `authenticate()` — the guard in front of every token-authenticated RPC — returned `ValidateToken`'s reason verbatim: an expired / bad-signature / wrong-chain oracle plus wrapped decode detail. It now matches the sign-in hygiene: message-less `Unauthenticated` on the wire, full reason in server logs. No client parsed these messages (the REST endpoints were already sanitized), and a wire-contract test pins it.
+
 ### Sign-in — Adena session accounts get a real answer (2026-07-11)
 - **Signing in with an Adena session account now explains itself.** The backend keeps rejecting session/subaccount pubkey payloads fail-closed, but the rejection now rides the wire as a bare code (`AUTH-SESSION-REJECT-01` — no internals, no env-var hint; the operator guidance stays in server logs), and the app maps it to: "Session accounts aren't supported yet — switch Adena to your main account and try again." Previously users hit a dead-end "Authentication failed".
 - **Block Party's silent sign-in failure is fixed** — a rejected token exchange on that surface used to be a no-op; it now surfaces an error like every other sign-in path.
