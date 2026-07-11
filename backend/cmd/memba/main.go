@@ -508,12 +508,17 @@ func parseSeedCursorSpec(s string) ([]SeedSpec, []error) {
 const (
 	nftMarketV31Realm = "gno.land/r/samcrew/memba_nft_market_v3_1"
 	nftMarketV32Realm = "gno.land/r/samcrew/memba_nft_market_v3_2"
+	// nftCollectionsRealm is the canonical collection registry + launchpad;
+	// its CollectionCreated/Mint/MintPublic/MintAllowlist/RoyaltySet events
+	// feed the token projection. NOT a sale-volume realm (mints ≠ sales).
+	nftCollectionsRealm = "gno.land/r/samcrew/memba_collections"
 )
 
-// defaultNFTWatchedRealms is the NFT_WATCHED_REALMS fallback: the v2 pair plus
-// both post-ceremony engines. Prod pins the same set in backend/fly.toml [env].
+// defaultNFTWatchedRealms is the NFT_WATCHED_REALMS fallback: the v2 pair,
+// both post-ceremony engines, and the launchpad registry. Prod pins the same
+// set in backend/fly.toml [env].
 func defaultNFTWatchedRealms(marketRealm, collectionRealm string) string {
-	return strings.Join([]string{marketRealm, collectionRealm, nftMarketV31Realm, nftMarketV32Realm}, ",")
+	return strings.Join([]string{marketRealm, collectionRealm, nftMarketV31Realm, nftMarketV32Realm, nftCollectionsRealm}, ",")
 }
 
 // defaultNFTSaleVolumeRealms is the NFT_SALE_VOLUME_REALMS fallback: engines
