@@ -2,6 +2,7 @@ package service
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"os"
 	"sync"
@@ -31,15 +32,24 @@ func HandleAllowlistProof(path string) http.Handler {
 		}
 		raw, err := os.ReadFile(path)
 		if err != nil {
-			return // stays disabled; the startup warning in main.go surfaces this
+			// Endpoint stays disabled. Logged here (not only at the main.go
+			// boot Stat) so a file that turns unreadable after boot still
+			// leaves a signal.
+			slog.Warn("allowlist proofs: failed to read file", "path", path, "error", err)
+			return
 		}
 		var f allowlistFile
 		if err := json.Unmarshal(raw, &f); err != nil {
+			slog.Warn("allowlist proofs: failed to parse JSON", "path", path, "error", err)
 			return
 		}
 		data = &f
 	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		once.Do(load)
 		addr := r.URL.Query().Get("address")
 		if data == nil || addr == "" {

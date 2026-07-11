@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
@@ -37,7 +38,19 @@ func HandleMintTicket(db *sql.DB, cfg TicketConfig) http.Handler {
 	var mu sync.Mutex
 	reserved := map[int64]time.Time{} // tid -> reservation expiry
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		if db == nil || cfg.CollectionID == "" || cfg.URIBase == "" {
+			http.NotFound(w, r)
+			return
+		}
+		// Tickets are scoped to THE curated collection: the client must name
+		// the collection it is minting for, and anything else 404s. Studio is
+		// multi-tenant — without this, the Membas ticket would leak into every
+		// other collection's mint form.
+		if r.URL.Query().Get("collection") != cfg.CollectionID {
 			http.NotFound(w, r)
 			return
 		}
@@ -45,6 +58,7 @@ func HandleMintTicket(db *sql.DB, cfg TicketConfig) http.Handler {
 		if err := db.QueryRow(
 			`SELECT COUNT(*) FROM nft_tokens WHERE collection_id = ?`, cfg.CollectionID,
 		).Scan(&minted); err != nil {
+			slog.Error("mint ticket: count query failed", "collection_id", cfg.CollectionID, "error", err)
 			http.Error(w, "ticket source unavailable", http.StatusServiceUnavailable)
 			return
 		}

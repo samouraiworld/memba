@@ -30,8 +30,13 @@ func ticketTestDB(t *testing.T, minted int) *sql.DB {
 
 func getTicket(t *testing.T, h http.Handler) (code int, tid, edition int64, uri string) {
 	t.Helper()
+	return getTicketFor(t, h, "g1creator/membas")
+}
+
+func getTicketFor(t *testing.T, h http.Handler, collection string) (code int, tid, edition int64, uri string) {
+	t.Helper()
 	rr := httptest.NewRecorder()
-	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/nft/mint-ticket", nil))
+	h.ServeHTTP(rr, httptest.NewRequest(http.MethodGet, "/api/nft/mint-ticket?collection="+collection, nil))
 	if rr.Code != http.StatusOK {
 		return rr.Code, 0, 0, ""
 	}
@@ -67,5 +72,23 @@ func TestMintTicket_DisabledWithoutConfig(t *testing.T) {
 	code, _, _, _ := getTicket(t, h)
 	if code != http.StatusNotFound {
 		t.Fatalf("disabled: status = %d, want 404", code)
+	}
+}
+
+func TestMintTicket_ScopedToTheCuratedCollection(t *testing.T) {
+	db := ticketTestDB(t, 0)
+	h := HandleMintTicket(db, TicketConfig{
+		CollectionID: "g1creator/membas", URIBase: "ipfs://CID/", Prefix: "Memba",
+	})
+	// Studio is multi-tenant: any other collection asking for a ticket gets a
+	// 404 (curated flow off for it), and so does an unscoped request.
+	if code, _, _, _ := getTicketFor(t, h, "g1someoneelse/other"); code != http.StatusNotFound {
+		t.Fatalf("other collection: status = %d, want 404", code)
+	}
+	if code, _, _, _ := getTicketFor(t, h, ""); code != http.StatusNotFound {
+		t.Fatalf("unscoped request: status = %d, want 404", code)
+	}
+	if code, tid, _, _ := getTicket(t, h); code != http.StatusOK || tid != 0 {
+		t.Fatalf("matching collection: code=%d tid=%d, want 200/0", code, tid)
 	}
 }
