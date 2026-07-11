@@ -148,6 +148,17 @@
         mask-image: none;
         opacity: 0.4;
     }
+    /* The lane tab strip scrolls INSIDE itself on a phone instead of widening the
+       viewport: the base .um-tabs is a no-wrap flex row (gap:32px) with no overflow,
+       so 3+ tabs push past 375px. Mobile-only — desktop and the (future) v2 shell,
+       which share this class, keep the base rule untouched. */
+    .um-tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+        scrollbar-width: none;            /* Firefox: no scrollbar track */
+        -webkit-overflow-scrolling: touch; /* iOS momentum scroll */
+    }
+    .um-tabs::-webkit-scrollbar { display: none; } /* WebKit/Blink: hide the bar */
 }
 
 /* Unified Navigation Tabs & Search */
