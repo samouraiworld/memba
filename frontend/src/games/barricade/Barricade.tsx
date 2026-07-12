@@ -1,5 +1,5 @@
 /**
- * MEMBA: BARRICADE — G1 playable shell + G2 "First Feel" juice.
+ * MEMBA: BARRICADE — playable shell (Memba-native visual pass).
  *
  * The sim lives entirely in refs (60 canvas paints/sec never touch React);
  * React state only carries the run lifecycle + a low-frequency HUD mirror for
@@ -7,9 +7,10 @@
  * log IS the run, and the results screen re-verifies it through runReplay
  * (the same code path the G3 server verifier will use).
  *
- * The juice layer (screenshake, particles, flashes, sound) is derived from the
- * sim each frame and rendered in onFrame ONLY — it never feeds back into the
- * sim or the input log, so it cannot change a replay (see render/fx.parity.test).
+ * The juice + render layer (screenshake, particles, silhouettes, the attract
+ * idle scene) is derived from the sim each frame and painted in render loops
+ * ONLY — it never feeds back into the sim or the input log, so it cannot change
+ * a replay (see render/fx.parity.test).
  */
 
 import { useCallback, useEffect, useRef, useState } from "react"
@@ -17,12 +18,16 @@ import { applyEvent, initState, tick } from "./sim/engine"
 import { buildWaves, WAVE_TOTAL, type WaveScript } from "./sim/waves"
 import { runReplay } from "./sim/replay"
 import { LANES, type Choice, type SimEvent, type SimState } from "./sim/types"
-import { draw } from "./render/draw"
+import { draw, drawAttract } from "./render/draw"
 import { deriveFxEvents } from "./render/fxEvents"
 import { initFx, layout, pushFxEvents, stepFx, type FxState } from "./render/fx"
 import { GameAudio } from "./render/audio"
 import { useGameLoop } from "./hooks/useGameLoop"
 import "./barricade.css"
+
+// Logical canvas coordinate space; the backing store is scaled by devicePixelRatio.
+const CW = 390
+const CH = 650
 
 type RunStatus = "ready" | "playing" | "done"
 type HudMirror = { phase: string; rallyReady: boolean; scrap: number }
@@ -39,6 +44,18 @@ function prefersReducedMotion(): boolean {
         typeof window.matchMedia === "function" &&
         window.matchMedia("(prefers-reduced-motion: reduce)").matches
     )
+}
+
+/** Size the backing store to device pixels (crisp on retina) and draw in CSS px. */
+function prepCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): void {
+    const dpr = Math.min(2, (typeof window !== "undefined" && window.devicePixelRatio) || 1)
+    const bw = Math.round(CW * dpr)
+    const bh = Math.round(CH * dpr)
+    if (canvas.width !== bw || canvas.height !== bh) {
+        canvas.width = bw
+        canvas.height = bh
+    }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0)
 }
 
 export default function Barricade() {
@@ -127,20 +144,45 @@ export default function Barricade() {
         const canvas = canvasRef.current
         const ctx = canvas?.getContext("2d")
         if (!canvas || !ctx) return
+        prepCanvas(canvas, ctx)
         const s = stateRef.current
         const fx = fxRef.current
         const events = deriveFxEvents(prevStateRef.current, s)
         if (events.length > 0) {
-            pushFxEvents(fx, events, layout(canvas.width, canvas.height))
+            const lay = layout(CW, CH)
             const audio = audioRef.current
-            if (audio) for (const ev of events) audio.onFxEvent(ev, fx.combo)
+            // Fold events one at a time so the audio pitch reads the combo AS OF
+            // each kill (a batch would replay the final pitch for the whole frame).
+            for (const ev of events) {
+                pushFxEvents(fx, [ev], lay)
+                audio?.onFxEvent(ev, fx.combo)
+            }
         }
         stepFx(fx)
-        draw(ctx, s, { width: canvas.width, height: canvas.height }, fx)
+        draw(ctx, s, { width: CW, height: CH }, fx)
         prevStateRef.current = s
     }, [])
 
     useGameLoop(status === "playing", onSteps, onFrame)
+
+    // Attract / idle scene on the ready screen — the game at rest, so the first
+    // thing a player sees is alive, not a dead black box. Render-only.
+    useEffect(() => {
+        if (status !== "ready") return
+        const canvas = canvasRef.current
+        const ctx = canvas?.getContext("2d")
+        if (!canvas || !ctx) return
+        const rm = prefersReducedMotion()
+        const t0 = performance.now()
+        let raf = 0
+        const paint = (now: number) => {
+            prepCanvas(canvas, ctx)
+            drawAttract(ctx, { width: CW, height: CH }, (now - t0) / 1000, rm)
+            raf = requestAnimationFrame(paint)
+        }
+        raf = requestAnimationFrame(paint)
+        return () => cancelAnimationFrame(raf)
+    }, [status])
 
     // Low-frequency HUD mirror for the DOM buttons (never per-frame setState).
     useEffect(() => {
@@ -171,49 +213,67 @@ export default function Barricade() {
 
     return (
         <div className="bar-shell">
-            <h1>MEMBA: BARRICADE</h1>
+            <header className="bar-wordmark">
+                <span className="bar-eyebrow">Daily run · Season 0</span>
+                <h1 className="bar-title">
+                    MEMBA: <span className="bar-title__accent">BARRICADE</span>
+                </h1>
+            </header>
+
+            <div className="bar-stage">
+                <canvas
+                    ref={canvasRef}
+                    className="bar-canvas"
+                    aria-label="Barricade play area"
+                    onPointerDown={onCanvasPointer}
+                />
+            </div>
 
             {status === "ready" && (
-                <div className="bar-results">
+                <div className="bar-panel">
                     <p className="bar-hint">
-                        Hold the line to the Broadcast Tower — {WAVE_TOTAL} waves. Tap a lane to
-                        move your rebel; kills fill the rally meter; between waves, spend scrap on
-                        repairs, a turret, or arming the crowd. Same daily seed for everyone.
+                        Hold the line to the Broadcast Tower — {WAVE_TOTAL} waves. Tap a lane to move your
+                        rebel; kills fill the rally meter; between waves, spend scrap on repairs, a turret,
+                        or arming the crowd. Same daily seed for everyone.
                     </p>
                     <div className="bar-controls">
-                        <button className="btn-primary" onClick={() => start(true)}>
+                        <button className="k-btn-primary" onClick={() => start(true)}>
                             Daily run
                         </button>
-                        <button onClick={() => start(false)}>Practice</button>
+                        <button className="k-btn-secondary" onClick={() => start(false)}>
+                            Practice
+                        </button>
                     </div>
                 </div>
             )}
 
-            <canvas
-                ref={canvasRef}
-                width={390}
-                height={650}
-                className="bar-canvas"
-                aria-label="Barricade play area"
-                onPointerDown={onCanvasPointer}
-            />
-
             {status === "playing" && (
                 <div className="bar-controls">
-                    <button className="btn-primary" disabled={!hud.rallyReady} onClick={() => record({ type: "rally" })}>
+                    <button
+                        className={`k-btn-primary${hud.rallyReady ? " bar-rally-ready" : ""}`}
+                        disabled={!hud.rallyReady}
+                        onClick={() => record({ type: "rally" })}
+                    >
                         Rally!
                     </button>
-                    <button aria-label={muted ? "Unmute" : "Mute"} onClick={toggleMute}>
-                        {muted ? "Sound off" : "Sound on"}
+                    <button
+                        className="k-btn-secondary"
+                        aria-pressed={!muted}
+                        aria-label={muted ? "Turn sound on" : "Turn sound off"}
+                        onClick={toggleMute}
+                    >
+                        {muted ? "🔇" : "🔊"}
                     </button>
                     {hud.phase === "choice" && (
                         <>
-                            <button onClick={() => choose("repair")}>Repair</button>
-                            <button disabled={hud.scrap < 40} onClick={() => choose("turret")}>
-                                Turret (40)
+                            <button className="bar-choice" onClick={() => choose("repair")}>
+                                Repair
                             </button>
-                            <button disabled={hud.scrap < 30} onClick={() => choose("arm")}>
-                                Arm crowd (30)
+                            <button className="bar-choice" disabled={hud.scrap < 40} onClick={() => choose("turret")}>
+                                Turret <span className="bar-choice__cost">◆ 40</span>
+                            </button>
+                            <button className="bar-choice" disabled={hud.scrap < 30} onClick={() => choose("arm")}>
+                                Arm crowd <span className="bar-choice__cost">◆ 30</span>
                             </button>
                         </>
                     )}
@@ -221,11 +281,20 @@ export default function Barricade() {
             )}
 
             {status === "done" && result && (
-                <div className="bar-results">
-                    <h2>{result.won ? "THE LINE HELD" : "THE LINE FELL"}</h2>
-                    <p>
-                        Score <strong>{result.score}</strong> · waves {result.waves}/{WAVE_TOTAL} ·{" "}
-                        {result.verified ? "run verified ✓" : "verification mismatch"}
+                <div className="bar-poster">
+                    <p className="bar-poster__eyebrow">Memba · Barricade · {dailySeed().slice(-10)}</p>
+                    <h2 className={`bar-poster__verdict ${result.won ? "is-won" : "is-lost"}`}>
+                        {result.won ? "THE LINE HELD" : "THE LINE FELL"}
+                    </h2>
+                    <div className="bar-poster__score">{result.score.toLocaleString()}</div>
+                    <p className="bar-poster__stats">
+                        <span>
+                            WAVE <strong>{result.waves}/{WAVE_TOTAL}</strong>
+                        </span>
+                        <span className="bar-poster__dot">·</span>
+                        <span className={result.verified ? "bar-verified" : "bar-mismatch"}>
+                            {result.verified ? "VERIFIED ✓" : "MISMATCH"}
+                        </span>
                     </p>
                     <p className="bar-hint">
                         {isDaily
@@ -233,10 +302,12 @@ export default function Barricade() {
                             : "Practice run — scores don't count."}
                     </p>
                     <div className="bar-controls">
-                        <button className="btn-primary" onClick={() => start(isDaily)}>
+                        <button className="k-btn-primary" onClick={() => start(isDaily)}>
                             {isDaily ? "Run it again" : "New practice"}
                         </button>
-                        <button onClick={() => setStatus("ready")}>Back</button>
+                        <button className="k-btn-secondary" onClick={() => setStatus("ready")}>
+                            Back
+                        </button>
                     </div>
                 </div>
             )}
