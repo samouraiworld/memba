@@ -82,77 +82,96 @@ function poolFor(wave: number): ArchetypeId[] {
     return pool
 }
 
+/**
+ * Spend a budget on spawns from a pool (each pick draws archetype + tick +
+ * lane from the rng), then guarantee lane coverage. Shared by the core arc
+ * and the overtime siege — rng state threads through so buildWaves' cross-wave
+ * sequence is byte-identical to the pre-refactor scripts. Returns the spawns
+ * plus the advanced rng state.
+ */
+function buildSpawns(
+    rng: number,
+    budget: number,
+    pool: ArchetypeId[],
+    window: number,
+    coverage: boolean,
+): [Spawn[], number] {
+    let s = rng
+    const spawns: Spawn[] = []
+    // Guard bounds the loop (cheapest cost is 8); cost > 0 keeps a hand-placed
+    // archetype (cost 0: broadcast, marshal, kettle) from becoming an infinite
+    // free pick if one is ever added to a pool.
+    for (let guard = 0; guard < 400; guard++) {
+        const affordable = pool.filter((a) => THREAT_COST[a] > 0 && THREAT_COST[a] <= budget)
+        if (affordable.length === 0) break
+        let atTick: number, lane: number, pick: number
+        ;[pick, s] = rngInt(s, affordable.length)
+        const archetype = affordable[pick]
+        budget -= THREAT_COST[archetype]
+        ;[atTick, s] = rngInt(s, window)
+        ;[lane, s] = rngInt(s, LANES)
+        // +1: wave-local time starts at 1 on a wave's first processed tick
+        // (the engine increments tick before spawning), so atTick 0 would
+        // never fire for wave 0. Boss-wave spawns keep explicit ticks.
+        spawns.push({ atTick: atTick + 1, lane, archetype })
+    }
+    // Lane-coverage pass: every lane must appear, so a run can never be decided
+    // by an empty lane. Deterministic reassign of the last spawns — but only
+    // from a DONOR lane that keeps another occupant, or the pass vacates the
+    // very lane it robs (review finding: a sole-occupant donor emptied a lane
+    // on ~2.4% of real daily seeds, incl. the served barricade-2026-07-04).
+    if (coverage) {
+        const counts = new Array(LANES).fill(0)
+        for (const sp of spawns) counts[sp.lane]++
+        let cursor = spawns.length - 1
+        for (let lane = 0; lane < LANES; lane++) {
+            if (counts[lane] > 0) continue
+            while (cursor >= 0 && counts[spawns[cursor].lane] < 2) cursor--
+            if (cursor < 0) break // no safe donor left → stop, never emit a malformed spawn
+            counts[spawns[cursor].lane]--
+            counts[lane]++
+            spawns[cursor] = { ...spawns[cursor], lane }
+            cursor--
+        }
+    }
+    return [spawns, s]
+}
+
+/**
+ * Synchrony clamp + final ordering (shared): spread same-lane spawns so a
+ * shared seed can never hand the player an unsurvivable burst in one reaction
+ * window (>= SYNC_GAP ticks apart; original-index tiebreak keeps equal-atTick
+ * pairs total), then sort on the (atTick, lane) total key.
+ */
+function spreadAndSort(spawns: Spawn[]): void {
+    for (let lane = 0; lane < LANES; lane++) {
+        const inLane = spawns
+            .map((sp, i) => ({ sp, i }))
+            .filter((x) => x.sp.lane === lane)
+            .sort((a, b) => a.sp.atTick - b.sp.atTick || a.i - b.i)
+        let prev = -SYNC_GAP
+        for (const { sp } of inLane) {
+            if (sp.atTick < prev + SYNC_GAP) sp.atTick = prev + SYNC_GAP
+            prev = sp.atTick
+        }
+    }
+    spawns.sort((a, b) => a.atTick - b.atTick || a.lane - b.lane)
+}
+
 export function buildWaves(seed: string): WaveScript[] {
     let s = seedToState(`waves|${seed}`)
     const waves: WaveScript[] = []
 
     for (let w = 0; w < NORMAL_WAVES; w++) {
         const window = 240 + w * 30 // ticks the wave's spawns spread across
-        const pool = poolFor(w)
-        const spawns: Spawn[] = []
-        // Spend the wave budget on affordable spawns; each pick also draws a
-        // tick + lane. Guard bounds the loop (cheapest cost is 8).
-        let budget = waveBudget(w)
-        for (let guard = 0; guard < 400; guard++) {
-            // cost > 0 keeps a hand-placed archetype (cost 0: broadcast,
-            // marshal, kettle) from becoming an infinite free pick if one is
-            // ever added to a pool — the guard would mint hundreds of them.
-            const affordable = pool.filter((a) => THREAT_COST[a] > 0 && THREAT_COST[a] <= budget)
-            if (affordable.length === 0) break
-            let atTick: number, lane: number, pick: number
-            ;[pick, s] = rngInt(s, affordable.length)
-            const archetype = affordable[pick]
-            budget -= THREAT_COST[archetype]
-            ;[atTick, s] = rngInt(s, window)
-            ;[lane, s] = rngInt(s, LANES)
-            // +1: wave-local time starts at 1 on a wave's first processed tick
-            // (the engine increments tick before spawning), so atTick 0 would
-            // never fire for wave 0. Boss-wave spawns keep explicit ticks.
-            spawns.push({ atTick: atTick + 1, lane, archetype })
-        }
-        // Lane-coverage pass (waves >= 1): every lane must appear, so a run can
-        // never be decided by an empty lane. Deterministic reassign of the last
-        // spawns — but only from a DONOR lane that keeps another occupant, or
-        // the pass vacates the very lane it robs (review finding: a sole-occupant
-        // donor emptied a lane on ~2.4% of real daily seeds, incl. the served
-        // barricade-2026-07-04).
-        if (w >= 1) {
-            const counts = new Array(LANES).fill(0)
-            for (const sp of spawns) counts[sp.lane]++
-            let cursor = spawns.length - 1
-            for (let lane = 0; lane < LANES; lane++) {
-                if (counts[lane] > 0) continue
-                while (cursor >= 0 && counts[spawns[cursor].lane] < 2) cursor--
-                if (cursor < 0) break // no safe donor left → stop, never emit a malformed spawn
-                counts[spawns[cursor].lane]--
-                counts[lane]++
-                spawns[cursor] = { ...spawns[cursor], lane }
-                cursor--
-            }
-        }
+        let spawns: Spawn[]
+        ;[spawns, s] = buildSpawns(s, waveBudget(w), poolFor(w), window, w >= 1)
         // Mini-bosses are hand-placed (never budgeted), center lane, mid-window —
         // BEFORE the synchrony clamp so they partake in the spacing and the final
         // sort's (atTick, lane) key stays a total order.
         if (w === 4) spawns.push({ atTick: 180, lane: 1, archetype: "marshal" })
         if (w === 8) spawns.push({ atTick: 240, lane: 1, archetype: "kettle" })
-        // Synchrony clamp: spread same-lane spawns so a shared seed can never hand
-        // the player an unsurvivable burst in one reaction window. Deterministically
-        // push clustered same-lane spawns later (>= SYNC_GAP ticks apart). The
-        // original-index tiebreak keeps equal-atTick pairs total: which spawn is
-        // pushed later must not depend on sort stability (same defect class as the
-        // replay event sort, fixed in review).
-        for (let lane = 0; lane < LANES; lane++) {
-            const inLane = spawns
-                .map((sp, i) => ({ sp, i }))
-                .filter((x) => x.sp.lane === lane)
-                .sort((a, b) => a.sp.atTick - b.sp.atTick || a.i - b.i)
-            let prev = -SYNC_GAP
-            for (const { sp } of inLane) {
-                if (sp.atTick < prev + SYNC_GAP) sp.atTick = prev + SYNC_GAP
-                prev = sp.atTick
-            }
-        }
-        spawns.sort((a, b) => a.atTick - b.atTick || a.lane - b.lane)
+        spreadAndSort(spawns)
         waves.push({ wave: w, spawns })
     }
 
@@ -164,4 +183,34 @@ export function buildWaves(seed: string): WaveScript[] {
     waves.push({ wave: BOSS_WAVE, spawns: bossSpawns })
 
     return waves
+}
+
+// Each siege round's spawns land inside this window — short, relentless rounds.
+const OVERTIME_WINDOW = 600
+
+// Pure-function cache: a round's script is asked for every tick it runs, and
+// its content is a pure function of (seed, round), so caching is safe. Cleared
+// wholesale when it grows silly (test sweeps touch many seeds).
+const overtimeCache = new Map<string, WaveScript>()
+
+/**
+ * The Overtime Siege (v2): once the Broadcast Tower falls, rounds keep coming —
+ * each seeded independently (`overtime|seed|round`, so generation is
+ * call-count-independent), budgeted by the SAME compounding curve continuing
+ * past the arc, drawing from the FULL pool. The engine lifts the hp/speed
+ * escalation caps out here, so difficulty out-scales any clear rate: death —
+ * and thus termination — is guaranteed by design (GDD-v2 §1/§6). The share
+ * card headlines how deep you stood.
+ */
+export function overtimeWave(seed: string, round: number): WaveScript {
+    const key = seed + "|" + round
+    const hit = overtimeCache.get(key)
+    if (hit) return hit
+    if (overtimeCache.size > 4_096) overtimeCache.clear()
+    const rng = seedToState(`overtime|${seed}|${round}`)
+    const [spawns] = buildSpawns(rng, waveBudget(BOSS_WAVE + round), poolFor(NORMAL_WAVES), OVERTIME_WINDOW, true)
+    spreadAndSort(spawns)
+    const w: WaveScript = { wave: BOSS_WAVE + round, spawns }
+    overtimeCache.set(key, w)
+    return w
 }

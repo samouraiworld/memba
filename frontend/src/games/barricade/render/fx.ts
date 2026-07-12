@@ -208,7 +208,7 @@ export function pushFxEvents(fx: FxState, events: FxEvent[], lay: Layout, rng: R
                 if (ev.phase === "boss") {
                     addShake(fx, 0.9)
                     fx.flash = Math.max(fx.flash, 0.4)
-                } else if (ev.phase === "won" || ev.phase === "lost") {
+                } else if (ev.phase === "lost") {
                     fx.flash = Math.max(fx.flash, 0.5)
                 }
                 break

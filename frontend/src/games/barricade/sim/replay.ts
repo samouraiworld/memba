@@ -9,12 +9,13 @@
  */
 
 import { applyEvent, initState, tick } from "./engine"
-import { buildWaves } from "./waves"
+import { BOSS_WAVE, buildWaves } from "./waves"
 import { SIM_VERSION, type SimEvent, type SimState } from "./types"
 
 export type ReplayResult = {
     score: number
-    won: boolean
+    won: boolean // the Core Arc was cleared — the terminal wave got past the boss
+    overtimeRound: number // deepest siege round reached (0 = fell during the arc)
     ticks: number
     stateHash: string
     simVersion: number
@@ -118,7 +119,8 @@ export function runReplay(seed: string, events: SimEvent[]): ReplayResult {
     // at RUN_MAX_TICKS; an outer `s.tick < cap` clause would exit one call
     // early and diverge from the live loop's terminal phase (and thus the
     // stateHash) on every capped run. Found in review; parity test pins it.
-    while (s.phase !== "won" && s.phase !== "lost") {
+    // (v2 Overtime: "lost" is the ONLY terminal — every siege ends.)
+    while (s.phase !== "lost") {
         while (cursor < sorted.length && sorted[cursor].tick === s.tick) {
             s = applyEvent(s, sorted[cursor])
             cursor++
@@ -130,7 +132,8 @@ export function runReplay(seed: string, events: SimEvent[]): ReplayResult {
     }
     return {
         score: s.score,
-        won: s.phase === "won",
+        won: s.wave > BOSS_WAVE,
+        overtimeRound: Math.max(0, s.wave - BOSS_WAVE),
         ticks: s.tick,
         stateHash: hashState(s),
         simVersion: SIM_VERSION,
