@@ -41,6 +41,10 @@ export const ARCHETYPE_WEIGHT: Record<ArchetypeId, number> = {
     broadcast: 4,
     testudo: 3,
     swarm: 1,
+    rampart: 3,
+    charger: 2,
+    flanker: 1,
+    mortar: 2,
 }
 
 /**

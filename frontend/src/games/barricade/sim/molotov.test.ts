@@ -8,10 +8,10 @@ import type { WaveScript } from "./waves"
 const NO_SPAWNS: WaveScript[] = [{ wave: 0, spawns: [] }]
 // A stationary, effectively-immortal decoy keeps the wave from clearing (which
 // would flip to the choice phase and halt charge regen).
-const DECOY: Enemy = { id: 99, archetype: "drone", lane: 2, pos: 10_000, hp: 9_999_999, speed: 0 }
+const DECOY: Enemy = { id: 99, archetype: "drone", lane: 2, pos: 10_000, hp: 9_999_999, speed: 0, bornTick: 0, hasFlanked: false }
 
 function drone(id: number, lane: number, pos: number): Enemy {
-    return { id, archetype: "drone", lane, pos, hp: 3_000, speed: 0 }
+    return { id, archetype: "drone", lane, pos, hp: 3_000, speed: 0, bornTick: 0, hasFlanked: false }
 }
 
 describe("molotov throw", () => {

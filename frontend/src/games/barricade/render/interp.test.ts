@@ -5,7 +5,7 @@ import type { ArchetypeId, Enemy, SimState } from "../sim/types"
 import { interpPositions } from "./interp"
 
 function enemy(id: number, archetype: ArchetypeId, lane: number, pos: number): Enemy {
-    return { id, archetype, lane, pos, hp: ARCHETYPES[archetype].hp, speed: ARCHETYPES[archetype].speed }
+    return { id, archetype, lane, pos, hp: ARCHETYPES[archetype].hp, speed: ARCHETYPES[archetype].speed, bornTick: 0, hasFlanked: false }
 }
 
 function stateWith(enemies: Enemy[]): SimState {

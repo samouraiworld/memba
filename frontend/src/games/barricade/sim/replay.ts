@@ -36,7 +36,9 @@ export function hashState(state: SimState): string {
         .sort((a, b) => a.id - b.id)
         // speed included as insurance: v2 adds "modifier" machines, and a future
         // mechanic that writes enemy.speed directly must not slip past the hash.
-        .map((e) => `${e.id},${e.archetype},${e.lane},${e.pos},${e.hp},${e.speed}`)
+        // bornTick drives cadence behaviors (mortar volleys); hasFlanked is the
+        // flanker's one-shot latch — both shape future evolution, so both hash.
+        .map((e) => `${e.id},${e.archetype},${e.lane},${e.pos},${e.hp},${e.speed},${e.bornTick},${e.hasFlanked}`)
         .join(";")
     const projectiles = state.projectiles
         .slice()

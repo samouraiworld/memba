@@ -21,10 +21,13 @@ export const ARCHETYPES: Record<ArchetypeId, { hp: number; speed: number; damage
     netter: { hp: 5_000, speed: 600, damage: 3_000, scrap: 20 },
     siege: { hp: 26_000, speed: 250, damage: 18_000, scrap: 60 },
     broadcast: { hp: 90_000, speed: 120, damage: 25_000, scrap: 0 },
-    // v2 machines (not yet scripted into waves — the threat-budget model in a
-    // following PR schedules them; behaviours live in engine.ts).
     testudo: { hp: 14_000, speed: 280, damage: 8_000, scrap: 40 }, // shielded vs frontal fire
     swarm: { hp: 1_000, speed: 650, damage: 2_000, scrap: 5 }, // fragile + fast, arrives in numbers
+    // The rest of the Core six (B2) — each forces a DIFFERENT verb (GDD-v2 §3).
+    rampart: { hp: 40_000, speed: 200, damage: 12_000, scrap: 50 }, // HP sponge: soaks single-target fire
+    charger: { hp: 7_000, speed: 500, damage: 10_000, scrap: 30 }, // doubles speed past the charge line
+    flanker: { hp: 5_000, speed: 550, damage: 6_000, scrap: 25 }, // hops lanes once mid-field
+    mortar: { hp: 12_000, speed: 260, damage: 9_000, scrap: 45 }, // halts + shells from standoff (contact damage ~unreachable)
 }
 
 const NORMAL_WAVES = 10 // v2: a longer Core Arc (was 7)
@@ -39,9 +42,13 @@ export const THREAT_COST: Record<ArchetypeId, number> = {
     swarm: 8,
     drone: 10,
     netter: 14,
+    flanker: 20,
     walker: 22,
+    charger: 28,
     phalanx: 35,
+    mortar: 40,
     testudo: 45,
+    rampart: 50,
     siege: 60,
     broadcast: 0, // boss, hand-placed, never budgeted
 }
@@ -59,9 +66,11 @@ function poolFor(wave: number): ArchetypeId[] {
     if (wave >= 1) pool.push("swarm")
     if (wave >= 2) pool.push("netter")
     if (wave >= 3) pool.push("walker")
-    if (wave >= 4) pool.push("phalanx")
+    if (wave >= 4) pool.push("phalanx", "charger")
     if (wave >= 5) pool.push("testudo")
-    if (wave >= 6) pool.push("siege")
+    if (wave >= 6) pool.push("siege", "flanker")
+    if (wave >= 7) pool.push("rampart")
+    if (wave >= 8) pool.push("mortar")
     return pool
 }
 

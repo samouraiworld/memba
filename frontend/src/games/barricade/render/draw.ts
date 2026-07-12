@@ -49,6 +49,10 @@ const MACHINE_COLOR: Record<ArchetypeId, string> = {
     broadcast: "#2b2748",
     testudo: "#4a5ba0", // shield-wall steel
     swarm: "#9fb4e8", // pale flyer
+    rampart: "#3d4f86", // heavy slab armor
+    charger: "#7c96d4", // raked wedge
+    flanker: "#8aa2dc", // crab-drone
+    mortar: "#51639c", // artillery rig
 }
 
 /** Fill the current path, then a paper rim-light on the up-left edge, then ink it. */
@@ -194,6 +198,64 @@ function drawMachine(ctx: CanvasRenderingContext2D, kind: ArchetypeId, x: number
             inkCircle(ctx, x + s * 0.38, y - s * 0.08, s * 0.1, color, 2)
             inkRect(ctx, x - s * 0.14, y - s * 0.05, s * 0.28, s * 0.26, color, 2) // body
             eye(ctx, x, y + s * 0.07, s * 0.08)
+            break
+        }
+        case "rampart": { // armored slab crawler — heavy-wide silhouette = HP sponge
+            inkCircle(ctx, x - s * 0.34, y + s * 0.42, s * 0.13, WHEEL, 2.5)
+            inkCircle(ctx, x, y + s * 0.42, s * 0.13, WHEEL, 2.5)
+            inkCircle(ctx, x + s * 0.34, y + s * 0.42, s * 0.13, WHEEL, 2.5)
+            inkRect(ctx, x - s * 0.5, y - s * 0.24, s, s * 0.62, color, 3.5) // the slab
+            inkRect(ctx, x - s * 0.4, y - s * 0.38, s * 0.8, s * 0.16, color, 2.5) // upper plate
+            ctx.strokeStyle = INK_LINE // armor seams
+            ctx.lineWidth = 2
+            for (let i = -1; i <= 1; i++) {
+                ctx.beginPath()
+                ctx.moveTo(x + i * s * 0.25, y - s * 0.24)
+                ctx.lineTo(x + i * s * 0.25, y + s * 0.38)
+                ctx.stroke()
+            }
+            eye(ctx, x, y - s * 0.31, s * 0.07) // a narrow view slit
+            break
+        }
+        case "charger": { // forward-raked ram wedge — reads FAST, hits the wall hard
+            ctx.beginPath()
+            ctx.moveTo(x - s * 0.34, y - s * 0.4)
+            ctx.lineTo(x + s * 0.34, y - s * 0.4)
+            ctx.lineTo(x, y + s * 0.52) // the ram point, raked toward the barricade
+            ctx.closePath()
+            inkFill(ctx, color, 3)
+            inkRect(ctx, x - s * 0.2, y - s * 0.5, s * 0.4, s * 0.14, color, 2.5) // engine block
+            eye(ctx, x, y - s * 0.12, s * 0.09)
+            break
+        }
+        case "flanker": { // vaulting crab-drone — wide legs read sideways-mobile
+            ctx.strokeStyle = INK_LINE // splayed legs first, body inks over them
+            ctx.lineWidth = 3
+            for (const sx of [-1, 1]) {
+                ctx.beginPath()
+                ctx.moveTo(x + sx * s * 0.16, y + s * 0.02)
+                ctx.lineTo(x + sx * s * 0.46, y - s * 0.18)
+                ctx.lineTo(x + sx * s * 0.52, y + s * 0.3)
+                ctx.stroke()
+            }
+            ctx.beginPath()
+            ctx.ellipse(x, y + s * 0.02, s * 0.3, s * 0.22, 0, 0, TAU)
+            inkFill(ctx, color, 3)
+            eye(ctx, x - s * 0.09, y, s * 0.07)
+            eye(ctx, x + s * 0.09, y, s * 0.07)
+            break
+        }
+        case "mortar": { // standoff artillery — barrel-forward silhouette, parked
+            inkCircle(ctx, x - s * 0.26, y + s * 0.42, s * 0.14, WHEEL, 2.5)
+            inkCircle(ctx, x + s * 0.26, y + s * 0.42, s * 0.14, WHEEL, 2.5)
+            inkRect(ctx, x - s * 0.4, y + s * 0.06, s * 0.8, s * 0.34, color, 3) // carriage
+            ctx.save() // the tube, angled at the barricade
+            ctx.translate(x, y + s * 0.1)
+            ctx.rotate(0.5)
+            inkRect(ctx, -s * 0.09, -s * 0.62, s * 0.18, s * 0.62, color, 2.5)
+            inkCircle(ctx, 0, -s * 0.62, s * 0.11, "#2b3350", 2)
+            ctx.restore()
+            eye(ctx, x - s * 0.26, y + s * 0.16, s * 0.08)
             break
         }
     }

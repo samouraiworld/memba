@@ -8,7 +8,7 @@ function mk(overrides: Partial<SimState>): SimState {
 }
 
 function en(id: number, archetype: Enemy["archetype"], lane: number, pos: number, speed = 100, hp = 1000): Enemy {
-    return { id, archetype, lane, pos, hp, speed }
+    return { id, archetype, lane, pos, hp, speed, bornTick: 0, hasFlanked: false }
 }
 
 describe("deriveFxEvents", () => {

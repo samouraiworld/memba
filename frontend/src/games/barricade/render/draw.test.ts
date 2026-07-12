@@ -55,14 +55,17 @@ function stubCtx() {
 }
 
 function withEnemies(): SimState {
-    const kinds: ArchetypeId[] = ["drone", "netter", "walker", "phalanx", "siege", "broadcast"]
+    // Every archetype, so a missing silhouette case can never ship silently.
+    const kinds = Object.keys(ARCHETYPES) as ArchetypeId[]
     const enemies: Enemy[] = kinds.map((k, i) => ({
         id: i,
         archetype: k,
         lane: i % 3,
-        pos: 20_000 + i * 10_000,
+        pos: 20_000 + i * 5_000,
         hp: ARCHETYPES[k].hp,
         speed: ARCHETYPES[k].speed,
+        bornTick: 0,
+        hasFlanked: false,
     }))
     return { ...initState("draw-test"), enemies }
 }
@@ -88,7 +91,16 @@ describe("draw", () => {
 
     it("draws an enemy at its interpolated position when an interp map is passed", () => {
         const enemies: Enemy[] = [
-            { id: 7, archetype: "drone", lane: 1, pos: 20_000, hp: ARCHETYPES.drone.hp, speed: ARCHETYPES.drone.speed },
+            {
+                id: 7,
+                archetype: "drone",
+                lane: 1,
+                pos: 20_000,
+                hp: ARCHETYPES.drone.hp,
+                speed: ARCHETYPES.drone.speed,
+                bornTick: 0,
+                hasFlanked: false,
+            },
         ]
         const state = { ...initState("draw-test"), enemies }
         const before = JSON.stringify(state)
@@ -111,7 +123,18 @@ describe("draw", () => {
     it("draws a wind-up telegraph for a front unit near the barricade", () => {
         const mk = (pos: number): SimState => ({
             ...initState("draw-test"),
-            enemies: [{ id: 1, archetype: "walker", lane: 1, pos, hp: ARCHETYPES.walker.hp, speed: ARCHETYPES.walker.speed }],
+            enemies: [
+                {
+                    id: 1,
+                    archetype: "walker",
+                    lane: 1,
+                    pos,
+                    hp: ARCHETYPES.walker.hp,
+                    speed: ARCHETYPES.walker.speed,
+                    bornTick: 0,
+                    hasFlanked: false,
+                },
+            ],
         })
         const near = stubCtx()
         draw(near.ctx, mk(96_000), { width: 390, height: 700 }) // frac 0.96 → telegraph fires
