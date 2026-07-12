@@ -28,6 +28,9 @@ function stubCtx() {
                 calls.arc++
             },
             fill() {},
+            createPattern() {
+                return null // halftone pass safely skips when no pattern is available
+            },
             stroke() {
                 calls.stroke++
             },

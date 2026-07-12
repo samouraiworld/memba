@@ -190,6 +190,50 @@ function groundShadow(ctx: CanvasRenderingContext2D, x: number, y: number, s: nu
     ctx.fill()
 }
 
+// ── Halftone screen (the collection's screen-print signature) ────────────────
+// A cached offscreen dot-tile, laid over the field as a faint repeating pattern
+// so the dark ground reads as printed ink rather than a flat fill. Built once,
+// browser-only — jsdom has no real canvas, so this returns null and the pass
+// no-ops in tests. Purely decorative; nothing here touches the sim.
+let halftoneTile: HTMLCanvasElement | null | undefined
+function getHalftoneTile(): HTMLCanvasElement | null {
+    if (halftoneTile !== undefined) return halftoneTile
+    if (typeof document === "undefined") return (halftoneTile = null)
+    try {
+        const tile = document.createElement("canvas")
+        tile.width = 6
+        tile.height = 6
+        const tctx = tile.getContext("2d")
+        if (!tctx) return (halftoneTile = null)
+        // Two dots on the tile diagonal → a 45° halftone lattice when repeated.
+        tctx.fillStyle = PAPER
+        for (const [cx, cy] of [
+            [1.5, 1.5],
+            [4.5, 4.5],
+        ]) {
+            tctx.beginPath()
+            tctx.arc(cx, cy, 0.9, 0, TAU)
+            tctx.fill()
+        }
+        return (halftoneTile = tile)
+    } catch {
+        return (halftoneTile = null)
+    }
+}
+
+/** Lay the cached halftone screen over a rect (no-op when no tile is available). */
+function paintHalftone(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+    const half = getHalftoneTile()
+    if (!half) return
+    const pat = ctx.createPattern(half, "repeat")
+    if (!pat) return
+    ctx.save()
+    ctx.globalAlpha = 0.09
+    ctx.fillStyle = pat
+    ctx.fillRect(x, y, w, h)
+    ctx.restore()
+}
+
 export function draw(
     ctx: CanvasRenderingContext2D,
     s: SimState,
@@ -217,6 +261,10 @@ export function draw(
         ctx.fillStyle = DIVIDER
         ctx.fillRect(Math.round(lane * laneW), fieldTop, 1, fieldH)
     }
+
+    // Halftone screen over the field — the riso screen-print signature. Fixed to
+    // the "paper" (before the shake group) so it stays put while the scene shakes.
+    paintHalftone(ctx, 0, fieldTop, w, fieldH)
 
     // ── Shaken scene group. ──────────────────────────────────────────────────
     ctx.save()
@@ -463,6 +511,7 @@ export function drawAttract(ctx: CanvasRenderingContext2D, view: ViewSize, t: nu
         ctx.fillStyle = DIVIDER
         ctx.fillRect(Math.round(lane * laneW), fieldTop, 1, fieldH)
     }
+    paintHalftone(ctx, 0, fieldTop, w, fieldH) // same screen-print grain as in play
     ctx.fillStyle = "#100c1e"
     ctx.fillRect(0, 0, w, hudH)
 
