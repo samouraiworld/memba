@@ -15,7 +15,7 @@
  */
 
 import { ARCHETYPES, WAVE_TOTAL } from "../sim/waves"
-import { MARSHAL_CYCLE, MARSHAL_UP, MOLOTOV_COST, MOLOTOV_MAX } from "../sim/engine"
+import { MARSHAL_CYCLE, MARSHAL_UP, MOLOTOV_COST, MOLOTOV_MAX, panopticonMode } from "../sim/engine"
 import { BARRICADE_MAX_HP, LANES, LANE_LENGTH, RALLY_FULL, type ArchetypeId, type SimState } from "../sim/types"
 import { layout, laneCenterX, yFromFrac, type FxState, type Layout } from "./fx"
 import { laneThreats } from "./telegraph"
@@ -59,6 +59,7 @@ const MACHINE_COLOR: Record<ArchetypeId, string> = {
     carrier: "#455890", // riot-van spawner
     jammer: "#96aade", // jam-ring mast
     mender: "#7d94cc", // welding nurse-drone
+    panopticon: "#232043", // the apex watchtower
 }
 
 /** Fill the current path, then a paper rim-light on the up-left edge, then ink it. */
@@ -364,6 +365,23 @@ function drawMachine(
             eye(ctx, x - s * 0.2, y - s * 0.12, s * 0.08)
             break
         }
+        case "panopticon": { // the apex — a walking watchtower ringed with eyes
+            inkCircle(ctx, x - s * 0.3, y + s * 0.48, s * 0.13, WHEEL, 2.5)
+            inkCircle(ctx, x + s * 0.3, y + s * 0.48, s * 0.13, WHEEL, 2.5)
+            ctx.beginPath() // tapering tower
+            ctx.moveTo(x - s * 0.34, y + s * 0.44)
+            ctx.lineTo(x - s * 0.16, y - s * 0.44)
+            ctx.lineTo(x + s * 0.16, y - s * 0.44)
+            ctx.lineTo(x + s * 0.34, y + s * 0.44)
+            ctx.closePath()
+            inkFill(ctx, color, 3.5)
+            inkRect(ctx, x - s * 0.3, y - s * 0.58, s * 0.6, s * 0.18, color, 3) // the observation crown
+            eye(ctx, x - s * 0.18, y - s * 0.49, s * 0.06) // the ring of eyes
+            eye(ctx, x, y - s * 0.49, s * 0.07)
+            eye(ctx, x + s * 0.18, y - s * 0.49, s * 0.06)
+            eye(ctx, x, y - s * 0.1, s * 0.1) // the central gaze
+            break
+        }
     }
 }
 
@@ -579,6 +597,17 @@ export function draw(
         groundShadow(ctx, x, y, size)
         const shieldOpen = e.archetype === "marshal" && (s.tick - e.bornTick) % MARSHAL_CYCLE >= MARSHAL_UP
         drawMachine(ctx, e.archetype, x, y, size, MACHINE_COLOR[e.archetype], shieldOpen)
+        // The Panopticon telegraphs its rotation: four pips over the crown, the
+        // active denial mode lit vermilion — reading the clock IS the counterplay.
+        if (e.archetype === "panopticon") {
+            const mode = panopticonMode(e, s.tick)
+            for (let m = 0; m < 4; m++) {
+                ctx.fillStyle = m === mode ? VERMILION : "rgba(239,231,212,0.25)"
+                ctx.beginPath()
+                ctx.arc(x - size * 0.24 + m * size * 0.16, y - size * 0.72, size * 0.05, 0, TAU)
+                ctx.fill()
+            }
+        }
     }
 
     // Fire zones — a scorch decal + flat-cel riso flames (no gradients: nested

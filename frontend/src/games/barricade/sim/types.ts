@@ -28,6 +28,11 @@ export const RALLY_FULL = 1_000
 // released on v2 until the season-boundary cutover).
 export const SIM_VERSION = 2
 
+// The Panopticon (siege apex) — constants live here because both waves.ts
+// (placement) and engine.ts (behavior) need them, and types has no imports.
+export const PANOPTICON_EVERY = 5 // it walks in every 5th siege round
+export const PANOPTICON_PHASE = 240 // ticks per denial mode (shield → douse → jam → lock)
+
 export type ArchetypeId =
     | "drone"
     | "walker"
@@ -47,6 +52,7 @@ export type ArchetypeId =
     | "carrier" // riot-van spawner: marches while deploying adds into its + neighbor lanes (siege)
     | "jammer" // jam-ring mast: freezes rally fill + the turret in its lane while alive (siege)
     | "mender" // welding nurse-drone: trails behind and heals the machine it follows (siege)
+    | "panopticon" // the siege apex: cycles every tool-denial on a telegraphed clock
 
 export type Enemy = {
     id: number

@@ -3,7 +3,7 @@ import {
     initState,
     tick,
     CARRIER_PERIOD,
-    CARRIER_LITTER,
+    CARRIER_MAX_LITTER,
     MENDER_PERIOD,
     MENDER_HEAL,
     BROADCAST_P2_HP,
@@ -34,7 +34,7 @@ describe("carrier (mobile spawner)", () => {
         let s = { ...initState("c1"), enemies: [mk(0, "carrier", 1, 30_000)], nextEnemyId: 1 }
         for (let i = 0; i < CARRIER_PERIOD; i++) s = tick(s, NO_SPAWNS)
         const kids = s.enemies.filter((e) => e.id !== 0)
-        expect(kids.length).toBe(CARRIER_LITTER)
+        expect(kids.length).toBe(CARRIER_MAX_LITTER) // center lane → all three lanes served
         const lanes = new Set(kids.map((k) => k.lane))
         expect(lanes.has(1)).toBe(true) // its own lane…
         expect(lanes.size).toBeGreaterThan(1) // …and a neighbor
@@ -63,6 +63,7 @@ describe("jammer (presence denial)", () => {
         }
         s = tick(s, NO_SPAWNS)
         expect(s.enemies.some((e) => e.id === 1)).toBe(true) // the lane-1 turret did nothing
+        expect(s.turrets[1]).toBe(900) // …and its timer PAUSED (denied, not burned)
     })
 })
 
@@ -91,6 +92,24 @@ describe("mender (rear-guard healer)", () => {
         for (let i = 0; i < MENDER_PERIOD; i++) s = tick(s, NO_SPAWNS)
         expect(s.enemies.find((e) => e.id === 1)?.hp).toBe(ARCHETYPES.walker.hp)
         expect(s.enemies.find((e) => e.id === 2)?.hp).toBe(1_000)
+    })
+})
+
+describe("mender exclusions (load-bearing for P3 monotonicity)", () => {
+    it("never heals another mender, and never the broadcast tower", () => {
+        let s = {
+            ...initState("c1"),
+            playerLane: 2,
+            enemies: [
+                mk(0, "mender", 1, 20_000),
+                mk(1, "mender", 1, 28_000, { hp: 1_000 }), // hurt mender in band
+                mk(2, "broadcast", 1, 30_000, { hp: 20_000 }), // hurt tower in band
+                DECOY,
+            ],
+        }
+        for (let i = 0; i < MENDER_PERIOD; i++) s = tick(s, NO_SPAWNS)
+        expect(s.enemies.find((e) => e.id === 1)?.hp).toBe(1_000)
+        expect(s.enemies.find((e) => e.id === 2)?.hp).toBe(20_000)
     })
 })
 

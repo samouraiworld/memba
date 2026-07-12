@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { applyEvent, initState, PATCH_HP, REPAIR_COST, tick } from "./engine"
+import { applyEvent, initState, panopticonMode, PATCH_HP, REPAIR_COST, tick } from "./engine"
 import { BOSS_WAVE, buildWaves } from "./waves"
 import { BARRICADE_MAX_HP, LANE_LENGTH, RALLY_FULL, RUN_MAX_TICKS, type SimEvent, type SimState } from "./types"
 
@@ -44,10 +44,16 @@ function decide(view: SimState): SimEvent | null {
         }
     }
     if (lane < 0) return null
-    // A kettled street can't be entered — no human taps a visibly locked lane;
-    // they lob into it from outside (tap-to-lob targets ANY lane by design).
-    const kettled = view.enemies.some((e) => e.archetype === "kettle" && e.lane === lane)
-    if (view.playerLane !== lane && !kettled) return { tick: 0, type: "move", lane }
+    // A locked street can't be entered (kettle, or the apex in lock mode) — no
+    // human taps a visibly locked lane; they lob into it from outside
+    // (tap-to-lob targets ANY lane by design). Mode read from the STALE view,
+    // consistent with the perception-latency model.
+    const locked = view.enemies.some(
+        (e) =>
+            e.lane === lane &&
+            (e.archetype === "kettle" || (e.archetype === "panopticon" && panopticonMode(e, view.tick) === 3)),
+    )
+    if (view.playerLane !== lane && !locked) return { tick: 0, type: "move", lane }
     if (view.molotovCharge >= MOLOTOV_COST && view.tick >= view.molotovReadyAt) {
         // Lead the throw from the STALE view — where the front was, plus a guess.
         return { tick: 0, type: "throw", lane, dist: Math.min(LANE_LENGTH, front + 10_000) }
@@ -109,11 +115,10 @@ describe("winnability (fairness on a shared daily seed)", () => {
             expect(final.tick, seed).toBeLessThan(RUN_MAX_TICKS * 0.8)
             if (minHp < worstMargin) worstMargin = minHp
         }
-        // A floor that BINDS: with the B3 mini-bosses in the arc the honest
-        // player's worst live-quarter margin measures ~25k (a quarter of the
-        // barricade on the tightest day — harder, still clearly fair). The
-        // floor sits at 10% so a retune that pushes any real seed toward
-        // unwinnable trips CI before it ships.
+        // A floor that BINDS: the honest player's worst live-quarter ARC
+        // margin measures ~59k at current tuning (review-measured, stable
+        // through B3/B4/C1). The floor sits at 10% so a retune that pushes any
+        // real seed toward unwinnable trips CI before it ships.
         expect(worstMargin).toBeGreaterThan(10_000)
         // …and an anti-vacuity ceiling: if no seed ever scratches the honest
         // player, this sweep proves nothing about fairness under pressure
