@@ -94,7 +94,10 @@ export function buildWaves(seed: string): WaveScript[] {
         // tick + lane. Guard bounds the loop (cheapest cost is 8).
         let budget = waveBudget(w)
         for (let guard = 0; guard < 400; guard++) {
-            const affordable = pool.filter((a) => THREAT_COST[a] <= budget)
+            // cost > 0 keeps a hand-placed archetype (cost 0: broadcast,
+            // marshal, kettle) from becoming an infinite free pick if one is
+            // ever added to a pool — the guard would mint hundreds of them.
+            const affordable = pool.filter((a) => THREAT_COST[a] > 0 && THREAT_COST[a] <= budget)
             if (affordable.length === 0) break
             let atTick: number, lane: number, pick: number
             ;[pick, s] = rngInt(s, affordable.length)

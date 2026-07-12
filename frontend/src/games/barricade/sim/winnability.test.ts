@@ -44,7 +44,10 @@ function decide(view: SimState): SimEvent | null {
         }
     }
     if (lane < 0) return null
-    if (view.playerLane !== lane) return { tick: 0, type: "move", lane }
+    // A kettled street can't be entered — no human taps a visibly locked lane;
+    // they lob into it from outside (tap-to-lob targets ANY lane by design).
+    const kettled = view.enemies.some((e) => e.archetype === "kettle" && e.lane === lane)
+    if (view.playerLane !== lane && !kettled) return { tick: 0, type: "move", lane }
     if (view.molotovCharge >= MOLOTOV_COST && view.tick >= view.molotovReadyAt) {
         // Lead the throw from the STALE view — where the front was, plus a guess.
         return { tick: 0, type: "throw", lane, dist: Math.min(LANE_LENGTH, front + 10_000) }

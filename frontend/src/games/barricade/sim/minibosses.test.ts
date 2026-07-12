@@ -84,11 +84,28 @@ describe("kettle (swarm spawner + lane lock)", () => {
         expect(applyEvent(inside, { tick: 0, type: "move", lane: 0 }).playerLane).toBe(0) // leaving allowed
     })
 
-    it("death unlocks the lane", () => {
-        const s = { ...initState("b3"), playerLane: 0, enemies: [mk(0, "kettle", 1, 40_000, { hp: 0 - 1 })] }
-        // (a dead kettle never sits in the array in real play; emulate post-kill state)
-        const cleared = { ...s, enemies: [] }
-        expect(applyEvent(cleared, { tick: 0, type: "move", lane: 1 }).playerLane).toBe(1)
+    it("killing the kettle unlocks the lane", () => {
+        // The player parks ON the kettle's lane… no — entry is blocked, so park
+        // the kettle IN the player's lane (it marched there), let auto-fire kill
+        // it, then verify a previously-blocked entry from outside now works.
+        let s = { ...initState("b3"), playerLane: 1, enemies: [mk(0, "kettle", 1, 40_000, { hp: 2_000 })] }
+        s = tick(s, NO_SPAWNS) // auto-fire 2500 ≥ 2000 → dead this tick
+        expect(s.enemies.some((e) => e.archetype === "kettle")).toBe(false)
+        const outside = { ...s, playerLane: 0 }
+        expect(applyEvent(outside, { tick: outside.tick, type: "move", lane: 1 }).playerLane).toBe(1)
+    })
+
+    it("a kettle arrives deploying — the litter cadence includes its own spawn tick", () => {
+        // (tick − bornTick) % PERIOD passes at birth (0 % PERIOD === 0), and the
+        // litter step runs after script spawns in the same tick: wave 9's kettle
+        // shows up with an instant escort. Deliberate — pinned so a future edit
+        // is a conscious replay-shape decision, not an accident.
+        const script: WaveScript[] = [{ wave: 0, spawns: [{ atTick: 3, lane: 1, archetype: "kettle" }] }]
+        let s = initState("b3")
+        for (let i = 0; i < 3; i++) s = tick(s, script)
+        expect(s.enemies.filter((e) => e.archetype === "kettle").length).toBe(1)
+        expect(s.enemies.filter((e) => e.archetype === "swarm").length).toBe(KETTLE_LITTER)
+        expect(s.enemies.filter((e) => e.archetype === "swarm").every((e) => e.bornTick === 3)).toBe(true)
     })
 })
 

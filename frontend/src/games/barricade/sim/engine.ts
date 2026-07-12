@@ -127,9 +127,10 @@ export function applyEvent(state: SimState, ev: SimEvent): SimState {
             // verifier. isInteger rejects NaN/null/float identically on both sides.
             if (!Number.isInteger(ev.lane)) return state
             if (ev.lane < 0 || ev.lane >= LANES || ev.lane === state.playerLane) return state
-            // A living kettle "kettles" its street: entry is blocked while it
-            // stands (leaving is always allowed) — counter it from outside with
-            // a lob or a turret.
+            // A kettle on the field "kettles" its street: entry is blocked
+            // while it stands (leaving is always allowed) — counter it from
+            // outside with a lob or a turret. Presence-based: kills leave the
+            // array immediately, so present ⇒ standing.
             for (const e of state.enemies) {
                 if (e.archetype === "kettle" && e.lane === ev.lane) return state
             }
@@ -420,6 +421,8 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
 
     // 1b. Kettles deploy swarm children into their lane on their born-tick
     // cadence (snapshot iteration: a newborn child never litters its own tick).
+    // NOTE the cadence INCLUDES the kettle's own spawn tick (0 % PERIOD === 0):
+    // it arrives deploying its first escort — deliberate, pinned by test.
     // The global cap bounds the field — spawners refuse to mint past it, so the
     // verifier's per-tick cost stays bounded no matter the log (GDD §6).
     if (s.enemies.some((e) => e.archetype === "kettle")) {

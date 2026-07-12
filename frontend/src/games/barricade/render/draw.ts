@@ -15,7 +15,7 @@
  */
 
 import { ARCHETYPES, WAVE_TOTAL } from "../sim/waves"
-import { MOLOTOV_COST, MOLOTOV_MAX } from "../sim/engine"
+import { MARSHAL_CYCLE, MARSHAL_UP, MOLOTOV_COST, MOLOTOV_MAX } from "../sim/engine"
 import { BARRICADE_MAX_HP, LANES, LANE_LENGTH, RALLY_FULL, type ArchetypeId, type SimState } from "../sim/types"
 import { layout, laneCenterX, yFromFrac, type FxState, type Layout } from "./fx"
 import { laneThreats } from "./telegraph"
@@ -94,7 +94,15 @@ function eye(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): 
     ctx.fill()
 }
 
-function drawMachine(ctx: CanvasRenderingContext2D, kind: ArchetypeId, x: number, y: number, s: number, color: string): void {
+function drawMachine(
+    ctx: CanvasRenderingContext2D,
+    kind: ArchetypeId,
+    x: number,
+    y: number,
+    s: number,
+    color: string,
+    shieldOpen = false, // marshal only: the pavise visibly lowers in its open window
+): void {
     switch (kind) {
         case "drone": { // surveillance quad-drone — rotor bar + discs + a camera eye
             inkRect(ctx, x - s * 0.5, y - s * 0.36, s, s * 0.09, color, 2)
@@ -265,17 +273,22 @@ function drawMachine(ctx: CanvasRenderingContext2D, kind: ArchetypeId, x: number
             inkRect(ctx, x - s * 0.24, y - s * 0.34, s * 0.48, s * 0.84, color, 3.5) // body
             inkRect(ctx, x - s * 0.16, y - s * 0.5, s * 0.32, s * 0.2, color, 2.5) // command head
             eye(ctx, x, y - s * 0.4, s * 0.08)
-            inkRect(ctx, x - s * 0.5, y - s * 0.42, s, s * 0.94, SHIELD, 3.5) // the pavise
+            // The pavise: raised = full cover; open window = visibly LOWERED,
+            // exposing the body — "timing is the counterplay" needs a tell.
+            const shTop = shieldOpen ? y + s * 0.06 : y - s * 0.42
+            const shH = shieldOpen ? s * 0.46 : s * 0.94
+            inkRect(ctx, x - s * 0.5, shTop, s, shH, SHIELD, 3.5)
             ctx.strokeStyle = INK_LINE // shield chevrons (rank marks)
             ctx.lineWidth = 2.5
+            const chevY = shieldOpen ? s * 0.3 : 0
             for (let i = 0; i <= 1; i++) {
                 ctx.beginPath()
-                ctx.moveTo(x - s * 0.3, y - s * 0.1 + i * s * 0.24)
-                ctx.lineTo(x, y + s * 0.08 + i * s * 0.24)
-                ctx.lineTo(x + s * 0.3, y - s * 0.1 + i * s * 0.24)
+                ctx.moveTo(x - s * 0.3, y + chevY - s * 0.1 + i * s * 0.24)
+                ctx.lineTo(x, y + chevY + s * 0.08 + i * s * 0.24)
+                ctx.lineTo(x + s * 0.3, y + chevY - s * 0.1 + i * s * 0.24)
                 ctx.stroke()
             }
-            eye(ctx, x, y - s * 0.24, s * 0.07) // sensor over the shield rim
+            if (!shieldOpen) eye(ctx, x, y - s * 0.24, s * 0.07) // sensor over the rim
             break
         }
         case "kettle": { // kettling rig — a wide corral frame with a brood bay
@@ -522,7 +535,8 @@ export function draw(
         const x = laneCenterX(lay, e.lane)
         const y = yFromFrac(lay, frac)
         groundShadow(ctx, x, y, size)
-        drawMachine(ctx, e.archetype, x, y, size, MACHINE_COLOR[e.archetype])
+        const shieldOpen = e.archetype === "marshal" && (s.tick - e.bornTick) % MARSHAL_CYCLE >= MARSHAL_UP
+        drawMachine(ctx, e.archetype, x, y, size, MACHINE_COLOR[e.archetype], shieldOpen)
     }
 
     // Fire zones — a scorch decal + flat-cel riso flames (no gradients: nested
