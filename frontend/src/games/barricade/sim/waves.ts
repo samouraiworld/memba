@@ -21,6 +21,10 @@ export const ARCHETYPES: Record<ArchetypeId, { hp: number; speed: number; damage
     netter: { hp: 5_000, speed: 600, damage: 3_000, scrap: 20 },
     siege: { hp: 26_000, speed: 250, damage: 18_000, scrap: 60 },
     broadcast: { hp: 90_000, speed: 120, damage: 25_000, scrap: 0 },
+    // v2 machines (not yet scripted into waves — the threat-budget model in a
+    // following PR schedules them; behaviours live in engine.ts).
+    testudo: { hp: 14_000, speed: 280, damage: 8_000, scrap: 40 }, // shielded vs frontal fire
+    swarm: { hp: 1_000, speed: 650, damage: 2_000, scrap: 5 }, // fragile + fast, arrives in numbers
 }
 
 const NORMAL_WAVES = 7

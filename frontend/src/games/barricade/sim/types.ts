@@ -25,7 +25,15 @@ export const RALLY_FULL = 1_000
 // released on v2 until the season-boundary cutover).
 export const SIM_VERSION = 2
 
-export type ArchetypeId = "drone" | "walker" | "phalanx" | "netter" | "siege" | "broadcast"
+export type ArchetypeId =
+    | "drone"
+    | "walker"
+    | "phalanx"
+    | "netter"
+    | "siege"
+    | "broadcast"
+    | "testudo" // shield-wall: near-immune to frontal fire, full damage from molotov burst/burn
+    | "swarm" // fragile fast flyer that arrives in numbers
 
 export type Enemy = {
     id: number
@@ -64,6 +72,7 @@ export type SimEvent =
     | { tick: number; type: "rally" }
     | { tick: number; type: "choice"; choice: Choice }
     | { tick: number; type: "throw"; lane: number; dist: number }
+    | { tick: number; type: "shove"; lane: number }
 
 export type SimPhase = "wave" | "choice" | "boss" | "won" | "lost"
 
@@ -90,4 +99,5 @@ export type SimState = {
     molotovCharge: number // 0..MOLOTOV_MAX; a throw costs MOLOTOV_COST
     molotovReadyAt: number // tick until which throwing is on cooldown
     nextThrowId: number // monotonic projectile id (never reused)
+    shoveReadyAt: number // tick until which shove is on cooldown
 }

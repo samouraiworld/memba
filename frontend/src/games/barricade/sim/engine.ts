@@ -53,6 +53,10 @@ const FIRE_DPS = 500 // burn milli-HP per tick
 const FIRE_DURATION = 180 // burn ticks (~3s)
 const FIRE_SLOW_NUM = 3 // machines caught in fire move at 3/5 speed (−40%)
 const FIRE_SLOW_DEN = 5
+// ── shove + shield (v2) ──────────────────────────────────────────────────────
+const SHOVE_DISTANCE = 15_000 // knock the front machine back this far (milli-units)
+const SHOVE_CD = 180 // ticks between shoves (~3s)
+const SHIELD_REDUCT_PCT = 40 // testudo takes (100−40)% from frontal fire; molotov ignores it
 // Wave spawn windows come from waves.ts; a wave "ends" when its script is
 // exhausted and no enemies remain on the field.
 
@@ -79,6 +83,7 @@ export function initState(seed: string): SimState {
         molotovCharge: MOLOTOV_MAX,
         molotovReadyAt: 0,
         nextThrowId: 0,
+        shoveReadyAt: 0,
     }
 }
 
@@ -161,6 +166,24 @@ export function applyEvent(state: SimState, ev: SimEvent): SimState {
                 nextThrowId: state.nextThrowId + 1,
             }
         }
+        case "shove": {
+            if (state.phase === "choice") return state
+            if (state.tick < state.shoveReadyAt) return state
+            if (!Number.isInteger(ev.lane) || ev.lane < 0 || ev.lane >= LANES) return state
+            // Knock the front (nearest-barricade) machine of the lane back — no
+            // damage, just tempo to buy a throw. A whiff (empty lane) is a no-op
+            // with no cooldown spent.
+            let frontIdx = -1
+            for (let i = 0; i < state.enemies.length; i++) {
+                const e = state.enemies[i]
+                if (e.lane !== ev.lane) continue
+                if (frontIdx === -1 || e.pos > state.enemies[frontIdx].pos) frontIdx = i
+            }
+            if (frontIdx === -1) return state
+            const enemies = state.enemies.slice()
+            enemies[frontIdx] = { ...enemies[frontIdx], pos: Math.max(0, enemies[frontIdx].pos - SHOVE_DISTANCE) }
+            return { ...state, enemies, shoveReadyAt: state.tick + SHOVE_CD }
+        }
     }
 }
 
@@ -178,7 +201,10 @@ function damageFront(
     }
     if (frontIdx === -1) return [enemies, 0, 0, 0]
     const target = enemies[frontIdx]
-    const hp = target.hp - dmg
+    // Testudo's raised shield blunts frontal fire (auto-fire / turret / crowd);
+    // molotov burst + burn go through burstDamage/burnTick and ignore it.
+    const eff = target.archetype === "testudo" ? Math.floor((dmg * (100 - SHIELD_REDUCT_PCT)) / 100) : dmg
+    const hp = target.hp - eff
     if (hp > 0) {
         const next = enemies.slice()
         next[frontIdx] = { ...target, hp }

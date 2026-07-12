@@ -66,6 +66,7 @@ export function hashState(state: SimState): string {
         state.molotovCharge,
         state.molotovReadyAt,
         state.nextThrowId,
+        state.shoveReadyAt,
         projectiles,
         hazards,
     ].join("|")
