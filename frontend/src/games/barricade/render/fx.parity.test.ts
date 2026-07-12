@@ -4,6 +4,7 @@ import { buildWaves } from "../sim/waves"
 import { SIM_VERSION, type SimState } from "../sim/types"
 import { deriveFxEvents } from "./fxEvents"
 import { initFx, layout, pushFxEvents, stepFx, type Rng } from "./fx"
+import { interpPositions } from "./interp"
 
 // The whole point of the FX layer: it is render-only and can NEVER change a
 // replay. This drives a full daily run twice — once bare, once with the entire
@@ -34,6 +35,11 @@ function runSim(seed: string, withFx: boolean): { final: SimState; checksum: num
         if (withFx) {
             pushFxEvents(fx, deriveFxEvents(prev, s), lay, rng)
             stepFx(fx, rng)
+            // The interpolation render model must be side-effect-free on the sim
+            // too: exercise it every tick with a varying alpha. If it ever mutated
+            // an enemy's pos, the next tick would read the corrupted value and the
+            // trajectory would diverge from the bare run below.
+            interpPositions(prev, s, (s.tick % 4) / 4)
         }
     }
     return { final: s, checksum }

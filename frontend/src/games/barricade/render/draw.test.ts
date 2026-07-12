@@ -6,7 +6,7 @@ import { draw } from "./draw"
 import { initFx, layout, pushFxEvents } from "./fx"
 
 function stubCtx() {
-    const calls = { fillRect: 0, arc: 0, fillText: 0, stroke: 0 }
+    const calls = { fillRect: 0, arc: 0, fillText: 0, stroke: 0, ellipseYs: [] as number[] }
     return {
         ctx: {
             save() {},
@@ -21,7 +21,9 @@ function stubCtx() {
             quadraticCurveTo() {},
             closePath() {},
             rect() {},
-            ellipse() {},
+            ellipse(_x: number, cy: number) {
+                calls.ellipseYs.push(cy) // ground shadows — one per drawn actor, at its y
+            },
             arc() {
                 calls.arc++
             },
@@ -79,6 +81,28 @@ describe("draw", () => {
         const before = JSON.stringify(state)
         expect(() => draw(ctx, state, { width: 390, height: 700 })).not.toThrow()
         expect(JSON.stringify(state)).toEqual(before)
+    })
+
+    it("draws an enemy at its interpolated position when an interp map is passed", () => {
+        const enemies: Enemy[] = [
+            { id: 7, archetype: "drone", lane: 1, pos: 20_000, hp: ARCHETYPES.drone.hp, speed: ARCHETYPES.drone.speed },
+        ]
+        const state = { ...initState("draw-test"), enemies }
+        const before = JSON.stringify(state)
+
+        const raw = stubCtx()
+        draw(raw.ctx, state, { width: 390, height: 700 })
+
+        const interpDraw = stubCtx()
+        const interp = new Map<number, number>([[7, 90_000]]) // shove it far closer to the barricade
+        const mapBefore = JSON.stringify([...interp])
+        draw(interpDraw.ctx, state, { width: 390, height: 700 }, undefined, interp)
+
+        // The interpolated position moves the unit's ground shadow down the field.
+        expect(interpDraw.calls.ellipseYs).not.toEqual(raw.calls.ellipseYs)
+        // draw is pure: it mutates neither the interp map nor the sim state.
+        expect(JSON.stringify([...interp])).toBe(mapBefore)
+        expect(JSON.stringify(state)).toBe(before)
     })
 
     it("renders the fx layer (particles + floaters) without touching it", () => {
