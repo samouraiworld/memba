@@ -67,14 +67,30 @@ describe("jammer (presence denial)", () => {
 })
 
 describe("mender (rear-guard healer)", () => {
-    it("heals the machine directly ahead of it on its cadence, never past max", () => {
+    it("heals the nearest machine in its reach band on its cadence", () => {
         let s = {
             ...initState("c1"),
             playerLane: 2,
-            enemies: [mk(0, "mender", 1, 20_000), mk(1, "walker", 1, 40_000, { hp: 2_000 }), DECOY],
+            enemies: [mk(0, "mender", 1, 20_000), mk(1, "walker", 1, 30_000, { hp: 2_000 }), DECOY],
         }
         for (let i = 0; i < MENDER_PERIOD; i++) s = tick(s, NO_SPAWNS)
         expect(s.enemies.find((e) => e.id === 1)?.hp).toBe(2_000 + MENDER_HEAL)
+    })
+
+    it("never heals past the target's max, and ignores machines outside the band", () => {
+        let s = {
+            ...initState("c1"),
+            playerLane: 2,
+            enemies: [
+                mk(0, "mender", 1, 20_000),
+                mk(1, "walker", 1, 30_000, { hp: ARCHETYPES.walker.hp }), // already full
+                mk(2, "walker", 1, 90_000, { hp: 1_000 }), // hurt but out of reach
+                DECOY,
+            ],
+        }
+        for (let i = 0; i < MENDER_PERIOD; i++) s = tick(s, NO_SPAWNS)
+        expect(s.enemies.find((e) => e.id === 1)?.hp).toBe(ARCHETYPES.walker.hp)
+        expect(s.enemies.find((e) => e.id === 2)?.hp).toBe(1_000)
     })
 })
 

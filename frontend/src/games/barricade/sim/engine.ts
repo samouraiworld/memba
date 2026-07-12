@@ -87,6 +87,7 @@ export const CARRIER_PERIOD = 180 // ticks between carrier deployments
 export const CARRIER_LITTER = 3 // one drone into each valid lane of [lane−1, lane, lane+1]
 export const MENDER_PERIOD = 90 // ticks between heals, phased by bornTick
 export const MENDER_HEAL = 800 // milli-HP restored per heal (capped at the target's escalated max)
+export const MENDER_RANGE = 15_000 // heal reach — a BAND, so the slow trailer screens what it follows
 export const BROADCAST_P2_HP = 60_000 // at/below: the tower starts deploying menders
 export const BROADCAST_P3_HP = 30_000 // at/below: it ALSO shells the barricade itself
 export const BROADCAST_MENDER_PERIOD = 150
@@ -544,19 +545,32 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         return { ...e, pos }
     })
 
-    // 2a'. Menders heal the machine DIRECTLY AHEAD of them (lowest pos strictly
-    // greater than theirs, same lane; array order breaks pos ties) on their
-    // born-tick cadence, capped at the target's escalated spawn maximum so a
-    // long-lived pair can't grow HP without bound.
+    // 2a'. Menders heal the nearest same-lane machine inside their reach band
+    // (|Δpos| ≤ MENDER_RANGE; nearer wins, ahead beats behind on exact ties,
+    // then array order) on their born-tick cadence, capped at the target's
+    // escalated spawn maximum so a long-lived pair can't grow HP without bound.
+    // The mender is slower than everything it screens, so it naturally trails
+    // its column — and a boss-deployed one lingers at the tower, screening it.
     if (s.enemies.some((e) => e.archetype === "mender")) {
         const [hpMul] = escalation(s.wave)
         for (const m of s.enemies) {
             if (m.archetype !== "mender" || (s.tick - m.bornTick) % MENDER_PERIOD !== 0) continue
             let targetIdx = -1
+            let bestDist = MENDER_RANGE + 1
             for (let i = 0; i < s.enemies.length; i++) {
                 const e = s.enemies[i]
-                if (e.lane !== m.lane || e.pos <= m.pos || e.archetype === "mender") continue
-                if (targetIdx === -1 || e.pos < s.enemies[targetIdx].pos) targetIdx = i
+                // Menders don't heal each other, and never the Broadcast Tower:
+                // the tower is infrastructure, not a patient — its menders
+                // screen the COLUMN, and phase 3 stays monotonic once entered
+                // (a self-healing boss would flap across the threshold).
+                if (e.lane !== m.lane || e.archetype === "mender" || e.archetype === "broadcast") continue
+                const dist = Math.abs(e.pos - m.pos)
+                if (dist > MENDER_RANGE) continue
+                const better = dist < bestDist || (dist === bestDist && targetIdx !== -1 && e.pos > s.enemies[targetIdx].pos)
+                if (better) {
+                    bestDist = dist
+                    targetIdx = i
+                }
             }
             if (targetIdx === -1) continue
             const t = s.enemies[targetIdx]

@@ -35,7 +35,7 @@ export const ARCHETYPES: Record<ArchetypeId, { hp: number; speed: number; damage
     // Stretch machines (C1) — siege-pool only: the deep rounds get new problems.
     carrier: { hp: 30_000, speed: 220, damage: 14_000, scrap: 55 }, // marching spawner
     jammer: { hp: 10_000, speed: 320, damage: 5_000, scrap: 35 }, // rally + turret denial
-    mender: { hp: 8_000, speed: 300, damage: 4_000, scrap: 40 }, // rear-guard healer
+    mender: { hp: 8_000, speed: 140, damage: 4_000, scrap: 40 }, // rear-guard healer: slower than everything it screens
 }
 
 const NORMAL_WAVES = 10 // v2: a longer Core Arc (was 7)
