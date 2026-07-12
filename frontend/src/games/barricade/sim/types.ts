@@ -16,7 +16,7 @@
 export const TICKS_PER_SECOND = 60
 export const LANES = 3
 export const BARRICADE_MAX_HP = 100_000 // milli-HP
-export const RUN_MAX_TICKS = 180 * TICKS_PER_SECOND // v2: room for the longer Core Arc
+export const RUN_MAX_TICKS = 240 * TICKS_PER_SECOND // v2: the longer Core Arc + ten 4s spend windows
 export const LANE_LENGTH = 100_000 // milli-units, spawn (0) -> barricade
 export const RALLY_FULL = 1_000
 // v2: the "deepening" — adds the molotov (active player verb) + follow-on
@@ -44,7 +44,9 @@ export type Enemy = {
     speed: number // milli-units per tick
 }
 
-export type Choice = "repair" | "turret" | "arm"
+// The between-wave shop verbs (v2 economy): purchases stack inside one window;
+// "patch" is the once-per-run free emergency repair; "done" leaves the shop.
+export type Choice = "repair" | "patch" | "turret" | "arm" | "refill" | "done"
 
 // A molotov in flight. Resolution needs only the impact tick — the visual arc is
 // render-only and never read back into the sim (keeps it float-free).
@@ -100,4 +102,5 @@ export type SimState = {
     molotovReadyAt: number // tick until which throwing is on cooldown
     nextThrowId: number // monotonic projectile id (never reused)
     shoveReadyAt: number // tick until which shove is on cooldown
+    patchUsed: boolean // the free emergency micro-repair is once per run
 }

@@ -31,6 +31,11 @@ const SCRIPT: SimEvent[] = [
     { tick: 150, type: "throw", lane: 1, dist: 20_000 },
     { tick: 400, type: "move", lane: 2 },
     { tick: 430, type: "throw", lane: 2, dist: 70_000 },
+    // Shop verbs (v2 economy) — no-ops unless a spend window is open at that
+    // tick on the seed at hand; deterministic either way, and identical in the
+    // bare and juiced runs.
+    { tick: 700, type: "choice", choice: "repair" },
+    { tick: 715, type: "choice", choice: "done" },
 ]
 
 function runSim(seed: string, withFx: boolean): { final: SimState; checksum: number } {
