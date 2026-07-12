@@ -28,11 +28,17 @@ const ARMED_DPS_PER_TICK = 600 // crowd allies, every lane
 const RALLY_FILL_PER_KILL = 60
 const RALLY_CLEAR_PCT = 40 // % of each lane cleared, farthest-first
 const NETTER_STUN_TICKS = 45
-const CHOICE_PHASE_TICKS = 120
+const SPEND_PHASE_TICKS = 240 // the between-wave shop window (4s, leavable via "done")
+// v2 economy: repairs cost scrap (the free safe-pick is dead) with ONE free
+// emergency patch per run as the anti-death-spiral valve; scrap also buys a
+// molotov refill, so the purse competes across repair/turret/arm/refill.
+export const REPAIR_COST = 25
 const REPAIR_HP = 18_000
-const TURRET_COST = 40
+export const PATCH_HP = 8_000
+export const REFILL_COST = 20
+export const TURRET_COST = 40
 const TURRET_TICKS = 900
-const ARM_COST = 30
+export const ARM_COST = 30
 const ARM_TICKS = 600
 const SCORE_PER_SCRAP = 10
 const WAVE_CLEAR_BONUS = 5_000
@@ -90,6 +96,7 @@ export function initState(seed: string): SimState {
         molotovReadyAt: 0,
         nextThrowId: 0,
         shoveReadyAt: 0,
+        patchUsed: false,
     }
 }
 
@@ -135,23 +142,59 @@ export function applyEvent(state: SimState, ev: SimEvent): SimState {
             }
         }
         case "choice": {
+            // The between-wave shop (v2 economy): a purchase no longer ends the
+            // phase — the player buys until the purse runs dry, the timer
+            // lapses, or they leave via "done". Unaffordable / forged choices
+            // are no-ops, exactly like every other verb.
             if (state.phase !== "choice") return state
-            if (ev.choice === "repair") {
-                return {
-                    ...state,
-                    barricadeHp: Math.min(BARRICADE_MAX_HP, state.barricadeHp + REPAIR_HP),
-                    phase: "wave",
+            switch (ev.choice) {
+                case "repair": {
+                    if (state.scrap < REPAIR_COST) return state
+                    return {
+                        ...state,
+                        barricadeHp: Math.min(BARRICADE_MAX_HP, state.barricadeHp + REPAIR_HP),
+                        scrap: state.scrap - REPAIR_COST,
+                    }
                 }
+                case "patch": {
+                    // The one free emergency micro-repair per run — the
+                    // anti-spiral valve now that real repairs cost scrap.
+                    if (state.patchUsed) return state
+                    return {
+                        ...state,
+                        barricadeHp: Math.min(BARRICADE_MAX_HP, state.barricadeHp + PATCH_HP),
+                        patchUsed: true,
+                    }
+                }
+                case "turret": {
+                    if (state.scrap < TURRET_COST) return state
+                    const turrets = state.turrets.slice()
+                    turrets[state.playerLane] = TURRET_TICKS
+                    return { ...state, turrets, scrap: state.scrap - TURRET_COST }
+                }
+                case "arm": {
+                    if (state.scrap < ARM_COST) return state
+                    return { ...state, armed: ARM_TICKS, scrap: state.scrap - ARM_COST }
+                }
+                case "refill": {
+                    // One molotov's worth of charge; a no-op at a full bank so
+                    // the button can never be a pure scrap sink.
+                    if (state.scrap < REFILL_COST) return state
+                    if (state.molotovCharge >= MOLOTOV_MAX) return state
+                    return {
+                        ...state,
+                        molotovCharge: Math.min(MOLOTOV_MAX, state.molotovCharge + MOLOTOV_COST),
+                        scrap: state.scrap - REFILL_COST,
+                    }
+                }
+                case "done":
+                    // Leave the shop: hand control to the standard timer exit on
+                    // the NEXT tick, so early leavers and lingerers get the same
+                    // wave-local clock origin (spawn timing identical).
+                    return { ...state, phaseUntil: state.tick + 1 }
+                default:
+                    return state // forged choice string: no-op
             }
-            if (ev.choice === "turret" && state.scrap >= TURRET_COST) {
-                const turrets = state.turrets.slice()
-                turrets[state.playerLane] = TURRET_TICKS
-                return { ...state, turrets, scrap: state.scrap - TURRET_COST, phase: "wave" }
-            }
-            if (ev.choice === "arm" && state.scrap >= ARM_COST) {
-                return { ...state, armed: ARM_TICKS, scrap: state.scrap - ARM_COST, phase: "wave" }
-            }
-            return state
         }
         case "throw": {
             // No-op (state unchanged) if it can't legally fire — exactly like a
@@ -311,9 +354,11 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         hazards: state.hazards.slice(),
     }
 
-    // Choice phase: frozen field, waiting for the player (or the timer).
+    // Choice phase: frozen field while the shop is open (or until the timer).
+    // The exit decides the next phase: the shop before the last wave hands off
+    // to the boss entrance, every other one to a normal wave.
     if (s.phase === "choice") {
-        if (s.tick >= s.phaseUntil) s = { ...s, phase: "wave" }
+        if (s.tick >= s.phaseUntil) s = { ...s, phase: s.wave === BOSS_WAVE ? "boss" : "wave" }
         else return s
     }
 
@@ -466,13 +511,15 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         if (s.wave === BOSS_WAVE) {
             return { ...s, score: s.score + waveBonus + WIN_BONUS, phase: "won" }
         }
-        // Between waves: a short choice window, then the next wave. phaseUntil
-        // doubles as the next wave's start tick (wave-local time origin).
+        // Between waves: the spend window, then the next wave (the choice-exit
+        // path routes to "boss" before the last wave, so the pre-boss shop is a
+        // real window too — it used to be silently skipped). phaseUntil doubles
+        // as the next wave's start tick (wave-local time origin).
         return {
             ...s,
             wave: s.wave + 1,
-            phase: s.wave + 1 === BOSS_WAVE ? "boss" : "choice",
-            phaseUntil: s.tick + CHOICE_PHASE_TICKS,
+            phase: "choice",
+            phaseUntil: s.tick + SPEND_PHASE_TICKS,
             score: s.score + waveBonus,
             cleanWave: true,
         }

@@ -18,7 +18,7 @@ import { applyEvent, initState, tick } from "./sim/engine"
 import { buildWaves, WAVE_TOTAL, type WaveScript } from "./sim/waves"
 import { MAX_REPLAY_EVENTS, runReplay } from "./sim/replay"
 import { LANES, LANE_LENGTH, type Choice, type SimEvent, type SimState } from "./sim/types"
-import { MOLOTOV_COST } from "./sim/engine"
+import { ARM_COST, MOLOTOV_COST, REFILL_COST, REPAIR_COST, TURRET_COST } from "./sim/engine"
 import { draw, drawAttract } from "./render/draw"
 import { deriveFxEvents } from "./render/fxEvents"
 import { initFx, layout, pushFxEvents, stepFx, type FxState } from "./render/fx"
@@ -33,7 +33,7 @@ const CW = 390
 const CH = 650
 
 type RunStatus = "ready" | "playing" | "done"
-type HudMirror = { phase: string; rallyReady: boolean; molotovReady: boolean; scrap: number }
+type HudMirror = { phase: string; rallyReady: boolean; molotovReady: boolean; scrap: number; patchUsed: boolean }
 // Omit over a discriminated union collapses to common members — distribute it.
 type SimEventInput =
     | { type: "move"; lane: number }
@@ -87,7 +87,13 @@ export default function Barricade() {
     const [muted, setMuted] = useState(true)
     const [copied, setCopied] = useState(false)
     const [armed, setArmed] = useState(false) // molotov aim mode: next canvas tap lobs
-    const [hud, setHud] = useState<HudMirror>({ phase: "wave", rallyReady: false, molotovReady: false, scrap: 0 })
+    const [hud, setHud] = useState<HudMirror>({
+        phase: "wave",
+        rallyReady: false,
+        molotovReady: false,
+        scrap: 0,
+        patchUsed: false,
+    })
     const [result, setResult] = useState<{
         score: number
         won: boolean
@@ -220,6 +226,7 @@ export default function Barricade() {
                 rallyReady: s.rallyMeter >= 1000,
                 molotovReady: s.molotovCharge >= MOLOTOV_COST,
                 scrap: s.scrap,
+                patchUsed: s.patchUsed,
             })
         }, 200)
         return () => clearInterval(t)
@@ -299,8 +306,9 @@ export default function Barricade() {
                 <div className="bar-panel">
                     <p className="bar-hint">
                         Hold the line to the Broadcast Tower — {WAVE_TOTAL} waves. Tap a lane to move your
-                        rebel; kills fill the rally meter; between waves, spend scrap on repairs, a turret,
-                        or arming the crowd. Same daily seed for everyone.
+                        rebel; kills fill the rally meter; between waves the shop opens — repairs cost
+                        scrap now (one free patch a run), and it also sells turrets, crowd arms, and
+                        molotov refills. Same daily seed for everyone.
                     </p>
                     <div className="bar-controls">
                         <button className="k-btn-primary" onClick={() => start(true)}>
@@ -343,14 +351,25 @@ export default function Barricade() {
                     </button>
                     {hud.phase === "choice" && (
                         <>
-                            <button className="bar-choice" onClick={() => choose("repair")}>
-                                Repair
+                            <button className="bar-choice" disabled={hud.scrap < REPAIR_COST} onClick={() => choose("repair")}>
+                                Repair <span className="bar-choice__cost">◆ {REPAIR_COST}</span>
                             </button>
-                            <button className="bar-choice" disabled={hud.scrap < 40} onClick={() => choose("turret")}>
-                                Turret <span className="bar-choice__cost">◆ 40</span>
+                            {!hud.patchUsed && (
+                                <button className="bar-choice" onClick={() => choose("patch")}>
+                                    Patch <span className="bar-choice__cost">free ×1</span>
+                                </button>
+                            )}
+                            <button className="bar-choice" disabled={hud.scrap < TURRET_COST} onClick={() => choose("turret")}>
+                                Turret <span className="bar-choice__cost">◆ {TURRET_COST}</span>
                             </button>
-                            <button className="bar-choice" disabled={hud.scrap < 30} onClick={() => choose("arm")}>
-                                Arm crowd <span className="bar-choice__cost">◆ 30</span>
+                            <button className="bar-choice" disabled={hud.scrap < ARM_COST} onClick={() => choose("arm")}>
+                                Arm crowd <span className="bar-choice__cost">◆ {ARM_COST}</span>
+                            </button>
+                            <button className="bar-choice" disabled={hud.scrap < REFILL_COST} onClick={() => choose("refill")}>
+                                Refill <span className="bar-choice__cost">◆ {REFILL_COST}</span>
+                            </button>
+                            <button className="bar-choice" onClick={() => choose("done")}>
+                                To the wall →
                             </button>
                         </>
                     )}

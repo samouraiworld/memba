@@ -1,9 +1,10 @@
 import { describe, expect, it } from "vitest"
-import { applyEvent, initState, tick } from "./engine"
+import { applyEvent, initState, PATCH_HP, REPAIR_COST, tick } from "./engine"
 import { buildWaves } from "./waves"
-import { LANE_LENGTH, RALLY_FULL, RUN_MAX_TICKS, type SimEvent, type SimState } from "./types"
+import { BARRICADE_MAX_HP, LANE_LENGTH, RALLY_FULL, RUN_MAX_TICKS, type SimEvent, type SimState } from "./types"
 
 const MOLOTOV_COST = 1_000 // mirrors engine.ts
+const REPAIR_HP_WORTH = 9_000 // repair only when at least half of the +18k lands
 
 /**
  * A deterministic greedy REFERENCE player: repair between waves, defend the most-
@@ -23,7 +24,16 @@ const MOLOTOV_COST = 1_000 // mirrors engine.ts
  * difficulty/economy retune.
  */
 function decide(view: SimState): SimEvent | null {
-    if (view.phase === "choice") return { tick: 0, type: "choice", choice: "repair" }
+    if (view.phase === "choice") {
+        // The shop (v2 economy): repair while it's worth the scrap, fall back to
+        // the free patch, then get back on the wall. One buy per action tick —
+        // shopping takes taps too.
+        if (view.barricadeHp <= BARRICADE_MAX_HP - REPAIR_HP_WORTH && view.scrap >= REPAIR_COST)
+            return { tick: 0, type: "choice", choice: "repair" }
+        if (!view.patchUsed && view.barricadeHp <= BARRICADE_MAX_HP - PATCH_HP)
+            return { tick: 0, type: "choice", choice: "patch" }
+        return { tick: 0, type: "choice", choice: "done" }
+    }
     if (view.rallyMeter >= RALLY_FULL) return { tick: 0, type: "rally" }
     let lane = -1
     let front = -1

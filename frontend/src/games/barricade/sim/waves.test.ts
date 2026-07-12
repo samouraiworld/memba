@@ -32,7 +32,7 @@ describe("wave scripts", () => {
         // faster), NOT vs player-inflicted fire-slow/shove — but stalling is the
         // player's own choice, which a fairness bound may ignore. Swept over ten
         // years of production-format seeds (buildWaves is cheap), not ad-hoc ones.
-        const CHOICE_TICKS = 120
+        const CHOICE_TICKS = 240 // mirrors SPEND_PHASE_TICKS in engine.ts
         const start = Date.UTC(2026, 0, 1)
         for (let d = 0; d < 3_650; d++) {
             const seed = `barricade-${new Date(start + d * 86_400_000).toISOString().slice(0, 10)}`
