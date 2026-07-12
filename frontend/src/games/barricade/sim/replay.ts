@@ -34,7 +34,9 @@ export function hashState(state: SimState): string {
     const enemies = state.enemies
         .slice()
         .sort((a, b) => a.id - b.id)
-        .map((e) => `${e.id},${e.archetype},${e.lane},${e.pos},${e.hp}`)
+        // speed included as insurance: v2 adds "modifier" machines, and a future
+        // mechanic that writes enemy.speed directly must not slip past the hash.
+        .map((e) => `${e.id},${e.archetype},${e.lane},${e.pos},${e.hp},${e.speed}`)
         .join(";")
     const projectiles = state.projectiles
         .slice()

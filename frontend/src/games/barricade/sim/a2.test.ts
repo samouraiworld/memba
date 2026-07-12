@@ -69,20 +69,58 @@ describe("testudo shield + swarm", () => {
         expect(s.enemies.some((e) => e.id === 0)).toBe(false)
     })
 
-    it("shoveReadyAt is in the replay hash; a shove that lands changes the run and replays deterministically", () => {
+    it("shoveReadyAt is hashed; a landed shove changes the run; the replay path stays deterministic", () => {
         const base = initState("a2")
         expect(hashState({ ...base, shoveReadyAt: 42 })).not.toBe(hashState(base))
 
-        // A shove only changes state when it LANDS on a machine (a whiff is a
-        // no-op), so drive to a tick with a front enemy, then shove all lanes to
-        // guarantee a hit — the run must diverge from the un-shoved one and stay
-        // deterministic on re-sim.
+        // Controlled divergence (no reliance on wave RNG): a high-HP machine off
+        // the player's lane so ONLY the shove moves it — 15k back vs un-shoved.
+        const start: ReturnType<typeof initState> = { ...initState("a2"), enemies: [enemy(0, "drone", 1, 90_000, 9_999_999, 700)] }
+        let shoved = applyEvent(start, { tick: 0, type: "shove", lane: 1 })
+        let plain = start
+        for (let i = 0; i < 3; i++) {
+            shoved = tick(shoved, NO_SPAWNS)
+            plain = tick(plain, NO_SPAWNS)
+        }
+        expect(hashState(shoved)).not.toBe(hashState(plain)) // the shove mattered
+
+        // The cooldown is GLOBAL (one scalar, like the molotov's) — a shove in any
+        // lane blocks all lanes for SHOVE_CD ticks. Replay stays deterministic.
         const seed = "barricade-2026-07-12"
-        const shoveEvery: SimEvent[] = []
-        for (let t = 40; t <= 120; t += 10) for (let lane = 0; lane < 3; lane++) shoveEvery.push({ tick: t, type: "shove", lane })
-        const a = runReplay(seed, shoveEvery)
-        expect(a.stateHash).toBe(runReplay(seed, shoveEvery).stateHash) // deterministic
-        expect(a.stateHash).not.toBe(runReplay(seed, []).stateHash) // shoves actually landed + mattered
-        expect(a.simVersion).toBe(2)
+        const events: SimEvent[] = [
+            { tick: 40, type: "shove", lane: 0 },
+            { tick: 80, type: "shove", lane: 1 },
+        ]
+        expect(runReplay(seed, events).stateHash).toBe(runReplay(seed, events).stateHash)
+        expect(runReplay(seed, events).simVersion).toBe(2)
+    })
+
+    it("shove and frontal fire break a same-pos tie deterministically (front = array / lowest id)", () => {
+        let s: ReturnType<typeof initState> = {
+            ...initState("a2"),
+            enemies: [enemy(3, "drone", 0, 60_000, 3_000), enemy(7, "drone", 0, 60_000, 3_000)],
+        }
+        s = applyEvent(s, { tick: 0, type: "shove", lane: 0 })
+        expect(s.enemies.find((e) => e.id === 3)?.pos).toBe(45_000) // lower id (array order) is the front
+        expect(s.enemies.find((e) => e.id === 7)?.pos).toBe(60_000)
+    })
+
+    it("frontal fire still kills a testudo through the shield and credits its scrap once", () => {
+        let s: ReturnType<typeof initState> = { ...initState("a2"), enemies: [enemy(0, "testudo", 0, 50_000, 3_000), DECOY] }
+        s = tick(s, NO_SPAWNS) // shielded 1500 → hp 1500
+        expect(s.enemies.find((e) => e.id === 0)?.hp).toBe(1_500)
+        s = tick(s, NO_SPAWNS) // 1500 → dead
+        expect(s.enemies.some((e) => e.id === 0)).toBe(false)
+        expect(s.scrap).toBe(ARCHETYPES.testudo.scrap)
+    })
+
+    it("shove works in the boss phase (only choice / terminal block it)", () => {
+        let s: ReturnType<typeof initState> = {
+            ...initState("a2"),
+            phase: "boss" as const,
+            enemies: [enemy(0, "drone", 0, 60_000, 3_000)],
+        }
+        s = applyEvent(s, { tick: 0, type: "shove", lane: 0 })
+        expect(s.enemies[0].pos).toBe(45_000)
     })
 })
