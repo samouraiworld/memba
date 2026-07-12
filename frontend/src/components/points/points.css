@@ -1,0 +1,162 @@
+/* points.css — reputation (MP) UI: tier badges, personal rank, leaderboard.
+   Outline pills + neutral surfaces so it reads cleanly on both the light and dark themes. */
+
+.tier-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 8px;
+    border: 1px solid currentColor;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    line-height: 1.5;
+    white-space: nowrap;
+}
+.tier-badge--bronze { color: #b87333; }
+.tier-badge--silver { color: #8c98a8; }
+.tier-badge--gold { color: #c9a227; }
+.tier-badge--platinum { color: #5fa8b8; }
+.tier-badge--diamond { color: #3fb6d3; }
+.tier-badge--default { color: var(--color-text-muted, #7a8290); }
+
+/* Personal rank ------------------------------------------------------------ */
+.personal-rank {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 6px 14px;
+}
+.personal-rank__standing {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+}
+.personal-rank__hash {
+    font-size: 15px;
+    opacity: 0.6;
+}
+.personal-rank__value {
+    font-size: 28px;
+    font-weight: 700;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+}
+.personal-rank__of {
+    font-size: 13px;
+    opacity: 0.65;
+}
+.personal-rank__unranked {
+    font-size: 18px;
+    font-weight: 600;
+    opacity: 0.7;
+}
+.personal-rank__meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+.personal-rank__points {
+    font-size: 13px;
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.85;
+}
+
+/* Leaderboard -------------------------------------------------------------- */
+.points-leaderboard__list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+.points-leaderboard__row {
+    display: grid;
+    grid-template-columns: 3.5rem 1fr auto auto;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: 8px;
+    font-size: 13px;
+}
+.points-leaderboard__row:nth-child(odd) {
+    background: var(--color-surface-subtle, rgba(127, 127, 127, 0.06));
+}
+.points-leaderboard__row.is-me {
+    outline: 1px solid var(--color-accent-gold, #c9a227);
+    outline-offset: -1px;
+}
+.points-leaderboard__rank {
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.8;
+}
+.points-leaderboard__addr {
+    font-family: var(--font-mono, ui-monospace, monospace);
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.points-leaderboard__points {
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+}
+.points-leaderboard__state {
+    padding: 20px 10px;
+    text-align: center;
+    font-size: 13px;
+    opacity: 0.7;
+}
+.points-leaderboard__pager {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    margin-top: 12px;
+}
+.points-leaderboard__pagebtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 5px 10px;
+    border: 1px solid var(--color-border, rgba(127, 127, 127, 0.3));
+    border-radius: 8px;
+    background: transparent;
+    color: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+.points-leaderboard__pagebtn:hover:not(:disabled) {
+    background: var(--color-surface-subtle, rgba(127, 127, 127, 0.08));
+}
+.points-leaderboard__pagebtn:disabled {
+    opacity: 0.4;
+    cursor: default;
+}
+.points-leaderboard__page {
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    opacity: 0.7;
+}
+
+/* Panel -------------------------------------------------------------------- */
+.points-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.points-panel__title {
+    margin: 0;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+@media (max-width: 480px) {
+    .points-leaderboard__row {
+        grid-template-columns: 2.75rem 1fr auto;
+    }
+    /* On the narrowest screens the tier pill yields to rank/addr/points. */
+    .points-leaderboard__row .tier-badge {
+        display: none;
+    }
+}

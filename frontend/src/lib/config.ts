@@ -642,6 +642,10 @@ export const isAgentRegistryValid = () => isRealmValid(MEMBA_DAO.agentRegistryPa
  * predicate (e.g. isNftMarketValid) where a tx targets a specific realm.
  */
 export const isNftEnabled = (): boolean => import.meta.env.VITE_ENABLE_NFT === "true"
+/** Reputation Points (MP) feature flag (VITE_ENABLE_POINTS) — canonical reader for the on-chain
+ * points / tiers / leaderboard surface. Read-only (NOT safety-gated): it gates a display surface, not
+ * a money path, so it stays OUT of SAFETY_GATED_FLAGS. Off until memba_points_v1 is deployed + wired. */
+export const isPointsEnabled = (): boolean => import.meta.env.VITE_ENABLE_POINTS === "true"
 /** Services (escrow) feature flag (VITE_ENABLE_SERVICES) — canonical reader, mirrors
  * isNftEnabled. The unified marketplace lane registry ANDs this with isEscrowValid(). */
 export const isMarketplaceEnabled = (): boolean => import.meta.env.VITE_ENABLE_MARKETPLACE === "true"
