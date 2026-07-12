@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { ARCHETYPES, buildWaves, WAVE_TOTAL } from "./waves"
+import { ARCHETYPES, buildWaves, THREAT_COST, WAVE_TOTAL } from "./waves"
 import { LANE_LENGTH, RUN_MAX_TICKS } from "./types"
 
 describe("wave scripts", () => {
@@ -13,8 +13,12 @@ describe("wave scripts", () => {
         expect(waves).toHaveLength(WAVE_TOTAL)
         const last = waves[WAVE_TOTAL - 1]
         expect(last.spawns.filter((s) => s.archetype === "broadcast")).toHaveLength(1)
+        // v2: the threat DELIVERED per wave (sum of spawn costs) rises with the
+        // budget — raw spawn count no longer does, since later waves buy pricier
+        // machines for the same budget.
+        const threat = (w: (typeof waves)[number]) => w.spawns.reduce((t, sp) => t + THREAT_COST[sp.archetype], 0)
         for (let i = 1; i < WAVE_TOTAL - 1; i++) {
-            expect(waves[i].spawns.length).toBeGreaterThanOrEqual(waves[i - 1].spawns.length)
+            expect(threat(waves[i])).toBeGreaterThanOrEqual(threat(waves[i - 1]))
         }
     })
 
