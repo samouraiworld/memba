@@ -55,7 +55,7 @@ describe("replay determinism", () => {
 
     it("terminates: never exceeds RUN_MAX_TICKS", () => {
         const r = runReplay("stall", [])
-        expect(r.ticks).toBeLessThanOrEqual(120 * 60)
+        expect(r.ticks).toBeLessThanOrEqual(RUN_MAX_TICKS)
     })
 
     it("matches a live-style loop exactly, including the terminal phase", () => {

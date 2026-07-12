@@ -57,6 +57,12 @@ const FIRE_SLOW_DEN = 5
 const SHOVE_DISTANCE = 15_000 // knock the front machine back this far (milli-units)
 const SHOVE_CD = 180 // ticks between shoves (~3s)
 const SHIELD_REDUCT_PCT = 40 // testudo takes (100−40)% from frontal fire; molotov ignores it
+// ── per-wave escalation (v2): machines get tougher + faster as waves climb.
+// Speed is capped so travel-time never outruns kill-time (the winnability guard).
+const ESCALATE_HP_PER_WAVE = 6 // +6% HP per wave …
+const ESCALATE_HP_CAP = 160 // … up to +60%
+const ESCALATE_SPD_PER_WAVE = 2 // +2% speed per wave …
+const ESCALATE_SPD_CAP = 130 // … up to +30% (the guardrail)
 // Wave spawn windows come from waves.ts; a wave "ends" when its script is
 // exhausted and no enemies remain on the field.
 
@@ -307,13 +313,15 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
     for (const sp of script.spawns) {
         if (sp.atTick === waveLocal) {
             const a = ARCHETYPES[sp.archetype]
+            const hpMul = Math.min(100 + ESCALATE_HP_PER_WAVE * s.wave, ESCALATE_HP_CAP)
+            const spdMul = Math.min(100 + ESCALATE_SPD_PER_WAVE * s.wave, ESCALATE_SPD_CAP)
             s.enemies.push({
                 id: s.nextEnemyId++,
                 archetype: sp.archetype,
                 lane: sp.lane,
                 pos: 0,
-                hp: a.hp,
-                speed: a.speed,
+                hp: Math.floor((a.hp * hpMul) / 100),
+                speed: Math.floor((a.speed * spdMul) / 100),
             })
         }
     }

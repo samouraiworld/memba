@@ -16,7 +16,7 @@
 export const TICKS_PER_SECOND = 60
 export const LANES = 3
 export const BARRICADE_MAX_HP = 100_000 // milli-HP
-export const RUN_MAX_TICKS = 120 * TICKS_PER_SECOND
+export const RUN_MAX_TICKS = 180 * TICKS_PER_SECOND // v2: room for the longer Core Arc
 export const LANE_LENGTH = 100_000 // milli-units, spawn (0) -> barricade
 export const RALLY_FULL = 1_000
 // v2: the "deepening" — adds the molotov (active player verb) + follow-on
