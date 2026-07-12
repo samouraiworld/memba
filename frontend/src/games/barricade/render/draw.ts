@@ -730,7 +730,9 @@ export function draw(
         ctx.globalAlpha = 0.75 * fade
         for (let i = 0; i < 9; i++) {
             const cxp = w * (0.06 + i * 0.11)
-            const bob = ((s.tick >> 3) + i) % 2 === 0 ? 0 : 1.5
+            // The crowd-bob stills under reduced motion like every other mover
+            // in this file (review finding: it was the only one that kept going).
+            const bob = fx?.reducedMotion ? 0 : ((s.tick >> 3) + i) % 2 === 0 ? 0 : 1.5
             ctx.fillStyle = PAPER
             ctx.beginPath()
             ctx.arc(cxp, fieldBottom - 4 + bob, 2.6, 0, TAU)
