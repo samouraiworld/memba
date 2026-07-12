@@ -131,9 +131,15 @@ export default function Barricade() {
         const fx = fxRef.current
         const events = deriveFxEvents(prevStateRef.current, s)
         if (events.length > 0) {
-            pushFxEvents(fx, events, layout(canvas.width, canvas.height))
+            const lay = layout(canvas.width, canvas.height)
             const audio = audioRef.current
-            if (audio) for (const ev of events) audio.onFxEvent(ev, fx.combo)
+            // Fold events one at a time so the audio pitch-ladder reads the combo
+            // AS OF each kill; a single batched call would replay the final pitch
+            // for every kill in the frame.
+            for (const ev of events) {
+                pushFxEvents(fx, [ev], lay)
+                audio?.onFxEvent(ev, fx.combo)
+            }
         }
         stepFx(fx)
         draw(ctx, s, { width: canvas.width, height: canvas.height }, fx)

@@ -62,13 +62,13 @@ export class GameAudio {
 
     resume(): void {
         const ctx = this.ensure()
-        if (ctx && ctx.state === "suspended") void ctx.resume()
+        if (ctx && ctx.state === "suspended") ctx.resume().catch(() => {})
     }
 
     /** Release the audio context on unmount. */
     close(): void {
         if (this.ctx) {
-            void this.ctx.close()
+            this.ctx.close().catch(() => {})
             this.ctx = null
         }
     }
