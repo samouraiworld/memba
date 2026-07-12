@@ -38,6 +38,9 @@ export type ArchetypeId =
     | "charger" // wedge ram-bot: doubles speed past the charge line — intercept it early
     | "flanker" // vaulting crab-drone: hops once to the least-crowded lane mid-field
     | "mortar" // standoff siege-mortar: halts up-field and shells the barricade on a cadence
+    | "marshal" // W5 mini-boss: a frontal shield that only DROPS in timed windows
+    | "kettle" // W9 mini-boss: kettles its street (no entry) + deploys swarm on a cadence
+    | "dampener" // water-cannon tanker: douses molotov ground-fire in its lane
 
 export type Enemy = {
     id: number

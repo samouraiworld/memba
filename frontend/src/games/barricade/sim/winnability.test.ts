@@ -44,7 +44,10 @@ function decide(view: SimState): SimEvent | null {
         }
     }
     if (lane < 0) return null
-    if (view.playerLane !== lane) return { tick: 0, type: "move", lane }
+    // A kettled street can't be entered — no human taps a visibly locked lane;
+    // they lob into it from outside (tap-to-lob targets ANY lane by design).
+    const kettled = view.enemies.some((e) => e.archetype === "kettle" && e.lane === lane)
+    if (view.playerLane !== lane && !kettled) return { tick: 0, type: "move", lane }
     if (view.molotovCharge >= MOLOTOV_COST && view.tick >= view.molotovReadyAt) {
         // Lead the throw from the STALE view — where the front was, plus a guess.
         return { tick: 0, type: "throw", lane, dist: Math.min(LANE_LENGTH, front + 10_000) }
@@ -95,9 +98,16 @@ describe("winnability (fairness on a shared daily seed)", () => {
             expect(final.phase, `seed ${seed}: ${final.phase} @tick ${final.tick}, hp ${final.barricadeHp}`).toBe("won")
             if (minHp < worstMargin) worstMargin = minHp
         }
-        // A floor that BINDS: the old assert (5%) sat 20x below the measured
-        // worst margin, so a retune could erode 95% of real headroom unseen.
-        // Keep this within ~2x of the measured worst so drift is visible.
-        expect(worstMargin).toBeGreaterThan(50_000)
+        // A floor that BINDS: with the B3 mini-bosses in the arc the honest
+        // player's worst live-quarter margin measures ~25k (a quarter of the
+        // barricade on the tightest day — harder, still clearly fair). The
+        // floor sits at 10% so a retune that pushes any real seed toward
+        // unwinnable trips CI before it ships.
+        expect(worstMargin).toBeGreaterThan(10_000)
+        // …and an anti-vacuity ceiling: if no seed ever scratches the honest
+        // player, this sweep proves nothing about fairness under pressure
+        // (review finding — pre-B3 the reference player was never touched and
+        // the gate was inert). A retune that trivializes the game trips this.
+        expect(worstMargin).toBeLessThan(BARRICADE_MAX_HP)
     }, 20_000)
 })

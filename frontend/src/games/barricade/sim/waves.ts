@@ -28,6 +28,10 @@ export const ARCHETYPES: Record<ArchetypeId, { hp: number; speed: number; damage
     charger: { hp: 7_000, speed: 500, damage: 10_000, scrap: 30 }, // doubles speed past the charge line
     flanker: { hp: 5_000, speed: 550, damage: 6_000, scrap: 25 }, // hops lanes once mid-field
     mortar: { hp: 12_000, speed: 260, damage: 9_000, scrap: 45 }, // halts + shells from standoff (contact damage ~unreachable)
+    // Mini-bosses (B3, hand-placed W5/W9) + the anti-molotov governor.
+    marshal: { hp: 60_000, speed: 220, damage: 20_000, scrap: 70 }, // windowed frontal shield
+    kettle: { hp: 50_000, speed: 180, damage: 15_000, scrap: 60 }, // lane lock + swarm spawner
+    dampener: { hp: 18_000, speed: 240, damage: 10_000, scrap: 45 }, // douses lane fire
 }
 
 const NORMAL_WAVES = 10 // v2: a longer Core Arc (was 7)
@@ -47,10 +51,13 @@ export const THREAT_COST: Record<ArchetypeId, number> = {
     charger: 28,
     phalanx: 35,
     mortar: 40,
+    dampener: 42,
     testudo: 45,
     rampart: 50,
     siege: 60,
     broadcast: 0, // boss, hand-placed, never budgeted
+    marshal: 0, // W5 mini-boss, hand-placed
+    kettle: 0, // W9 mini-boss, hand-placed
 }
 
 /** Per-wave threat budget (0-indexed): modest floor, compounds ~+18%/wave. */
@@ -71,6 +78,7 @@ function poolFor(wave: number): ArchetypeId[] {
     if (wave >= 6) pool.push("siege", "flanker")
     if (wave >= 7) pool.push("rampart")
     if (wave >= 8) pool.push("mortar")
+    if (wave >= 9) pool.push("dampener")
     return pool
 }
 
@@ -86,7 +94,10 @@ export function buildWaves(seed: string): WaveScript[] {
         // tick + lane. Guard bounds the loop (cheapest cost is 8).
         let budget = waveBudget(w)
         for (let guard = 0; guard < 400; guard++) {
-            const affordable = pool.filter((a) => THREAT_COST[a] <= budget)
+            // cost > 0 keeps a hand-placed archetype (cost 0: broadcast,
+            // marshal, kettle) from becoming an infinite free pick if one is
+            // ever added to a pool — the guard would mint hundreds of them.
+            const affordable = pool.filter((a) => THREAT_COST[a] > 0 && THREAT_COST[a] <= budget)
             if (affordable.length === 0) break
             let atTick: number, lane: number, pick: number
             ;[pick, s] = rngInt(s, affordable.length)
@@ -119,6 +130,11 @@ export function buildWaves(seed: string): WaveScript[] {
                 cursor--
             }
         }
+        // Mini-bosses are hand-placed (never budgeted), center lane, mid-window —
+        // BEFORE the synchrony clamp so they partake in the spacing and the final
+        // sort's (atTick, lane) key stays a total order.
+        if (w === 4) spawns.push({ atTick: 180, lane: 1, archetype: "marshal" })
+        if (w === 8) spawns.push({ atTick: 240, lane: 1, archetype: "kettle" })
         // Synchrony clamp: spread same-lane spawns so a shared seed can never hand
         // the player an unsurvivable burst in one reaction window. Deterministically
         // push clustered same-lane spawns later (>= SYNC_GAP ticks apart). The
