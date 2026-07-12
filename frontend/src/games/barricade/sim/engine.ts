@@ -2,12 +2,13 @@
  * Core engine: initState / applyEvent / tick. Pure — every function returns a
  * new state object and never mutates its input; all arithmetic is integer.
  *
- * Tick order (fixed): spawn due enemies -> kettle litters -> flanker lane-hops
- * -> drop expired fire + flag slowed (post-hop lanes) -> advance (charger
- * doubling, mortar standoff cap) -> molotov impacts due -> burn -> dampener
- * douse -> mortar shelling accrues -> combat (marshal window) -> contact
- * (+ shell damage) -> meters/score -> terminal + wave bookkeeping.
- * Changing this order changes replays: bump SIM_VERSION.
+ * Tick order (fixed): spawn due enemies -> spawner litters (kettle/carrier/
+ * boss-P2 menders) -> flanker lane-hops -> drop expired fire + flag slowed
+ * (post-hop lanes) -> advance (charger doubling, mortar standoff cap) ->
+ * mender heals -> molotov impacts due -> burn -> dampener douse -> shelling
+ * accrues (mortars + boss P3) -> combat (marshal window, jammed turrets hold)
+ * -> contact (+ shell damage) -> meters/score (rally jam) -> terminal + wave
+ * bookkeeping. Changing this order changes replays: bump SIM_VERSION.
  */
 
 import { seedToState } from "./rng"
@@ -18,6 +19,7 @@ import {
     LANES,
     RALLY_FULL,
     RUN_MAX_TICKS,
+    type ArchetypeId,
     type Enemy,
     type FireField,
     type Projectile,
@@ -80,6 +82,16 @@ export const MARSHAL_REDUCT_PCT = 85 // … blunting frontal fire this hard (win
 export const KETTLE_PERIOD = 120 // ticks between swarm deployments, phased by bornTick
 export const KETTLE_LITTER = 2 // swarm children per deployment
 export const ENEMY_CAP = 80 // global live-enemy cap: spawners refuse to mint past it (verifier cost)
+// ── C1 stretch machines (siege pools) + the boss's later phases ─────────────
+export const CARRIER_PERIOD = 180 // ticks between carrier deployments
+export const CARRIER_LITTER = 3 // one drone into each valid lane of [lane−1, lane, lane+1]
+export const MENDER_PERIOD = 90 // ticks between heals, phased by bornTick
+export const MENDER_HEAL = 800 // milli-HP restored per heal (capped at the target's escalated max)
+export const BROADCAST_P2_HP = 60_000 // at/below: the tower starts deploying menders
+export const BROADCAST_P3_HP = 30_000 // at/below: it ALSO shells the barricade itself
+export const BROADCAST_MENDER_PERIOD = 150
+export const BROADCAST_SHELL = 2_000 // barricade milli-HP per tower volley
+export const BROADCAST_SHELL_PERIOD = 180
 // ── per-wave escalation (v2): machines get tougher + faster as waves climb.
 // Speed is capped so travel-time never outruns kill-time (the winnability guard)
 // — but ONLY through the core arc: the Overtime Siege lifts both caps, so the
@@ -409,6 +421,12 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
     // function of seed + round, cached) — the siege never runs out of script.
     const script = s.wave < waves.length ? waves[s.wave] : overtimeWave(s.seed, s.wave - waves.length + 1)
     const bossAlive = s.enemies.some((e) => e.archetype === "broadcast")
+    // Jammer denial (presence-derived, like bossAlive — computed pre-spawn, so
+    // a newborn jammer bites from the NEXT tick): rally fill freezes while any
+    // jammer stands; the turret in a jammed lane holds its fire AND its timer.
+    const rallyJammed = s.enemies.some((e) => e.archetype === "jammer")
+    const jammedLanes = new Set<number>()
+    if (rallyJammed) for (const e of s.enemies) if (e.archetype === "jammer") jammedLanes.add(e.lane)
 
     // 1. Spawn: this wave's script entries due at the wave-local tick.
     //    waveStartTick is tracked via phaseUntil when a wave begins (see below);
@@ -431,29 +449,43 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         }
     }
 
-    // 1b. Kettles deploy swarm children into their lane on their born-tick
-    // cadence (snapshot iteration: a newborn child never litters its own tick).
-    // NOTE the cadence INCLUDES the kettle's own spawn tick (0 % PERIOD === 0):
-    // it arrives deploying its first escort — deliberate, pinned by test.
-    // The global cap bounds the field — spawners refuse to mint past it, so the
-    // verifier's per-tick cost stays bounded no matter the log (GDD §6).
-    if (s.enemies.some((e) => e.archetype === "kettle")) {
+    // 1b. Spawner machines deploy children on their born-tick cadences
+    // (snapshot iteration: a newborn child never litters its own tick; the
+    // cadence INCLUDES the parent's own spawn tick — it arrives deploying,
+    // deliberate + pinned). The global cap bounds the field — spawners refuse
+    // to mint past it, so verifier per-tick cost stays bounded (GDD §6).
+    //  - kettle: KETTLE_LITTER swarm into its own lane
+    //  - carrier: one drone into each valid lane of [lane−1, lane, lane+1]
+    //  - broadcast (phase 2, hp ≤ BROADCAST_P2_HP): one mender into its lane
+    if (s.enemies.some((e) => e.archetype === "kettle" || e.archetype === "carrier" || e.archetype === "broadcast")) {
         const [hpMul, spdMul] = escalation(s.wave)
+        const mint = (archetype: ArchetypeId, lane: number, pos: number) => {
+            if (s.enemies.length >= ENEMY_CAP) return
+            const a = ARCHETYPES[archetype]
+            s.enemies.push({
+                id: s.nextEnemyId++,
+                archetype,
+                lane,
+                pos,
+                hp: Math.floor((a.hp * hpMul) / 100),
+                speed: Math.floor((a.speed * spdMul) / 100),
+                bornTick: s.tick,
+                hasFlanked: false,
+            })
+        }
         for (const e of s.enemies.slice()) {
-            if (e.archetype !== "kettle") continue
-            if ((s.tick - e.bornTick) % KETTLE_PERIOD !== 0) continue
-            const a = ARCHETYPES.swarm
-            for (let i = 0; i < KETTLE_LITTER && s.enemies.length < ENEMY_CAP; i++) {
-                s.enemies.push({
-                    id: s.nextEnemyId++,
-                    archetype: "swarm",
-                    lane: e.lane,
-                    pos: e.pos,
-                    hp: Math.floor((a.hp * hpMul) / 100),
-                    speed: Math.floor((a.speed * spdMul) / 100),
-                    bornTick: s.tick,
-                    hasFlanked: false,
-                })
+            if (e.archetype === "kettle" && (s.tick - e.bornTick) % KETTLE_PERIOD === 0) {
+                for (let i = 0; i < KETTLE_LITTER; i++) mint("swarm", e.lane, e.pos)
+            } else if (e.archetype === "carrier" && (s.tick - e.bornTick) % CARRIER_PERIOD === 0) {
+                for (const lane of [e.lane - 1, e.lane, e.lane + 1]) {
+                    if (lane >= 0 && lane < LANES) mint("drone", lane, e.pos)
+                }
+            } else if (
+                e.archetype === "broadcast" &&
+                e.hp <= BROADCAST_P2_HP &&
+                (s.tick - e.bornTick) % BROADCAST_MENDER_PERIOD === 0
+            ) {
+                mint("mender", e.lane, e.pos)
             }
         }
     }
@@ -512,6 +544,28 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         return { ...e, pos }
     })
 
+    // 2a'. Menders heal the machine DIRECTLY AHEAD of them (lowest pos strictly
+    // greater than theirs, same lane; array order breaks pos ties) on their
+    // born-tick cadence, capped at the target's escalated spawn maximum so a
+    // long-lived pair can't grow HP without bound.
+    if (s.enemies.some((e) => e.archetype === "mender")) {
+        const [hpMul] = escalation(s.wave)
+        for (const m of s.enemies) {
+            if (m.archetype !== "mender" || (s.tick - m.bornTick) % MENDER_PERIOD !== 0) continue
+            let targetIdx = -1
+            for (let i = 0; i < s.enemies.length; i++) {
+                const e = s.enemies[i]
+                if (e.lane !== m.lane || e.pos <= m.pos || e.archetype === "mender") continue
+                if (targetIdx === -1 || e.pos < s.enemies[targetIdx].pos) targetIdx = i
+            }
+            if (targetIdx === -1) continue
+            const t = s.enemies[targetIdx]
+            const cap = Math.floor((ARCHETYPES[t.archetype].hp * hpMul) / 100)
+            if (t.hp >= cap) continue
+            s.enemies[targetIdx] = { ...t, hp: Math.min(cap, t.hp + MENDER_HEAL) }
+        }
+    }
+
     let scrapGain = 0
     let rallyGain = 0
     let killCount = 0 // burst + combat kills this tick → feeds the molotov charge
@@ -563,11 +617,15 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
 
     // 2d. Standoff shelling: every halted mortar volleys the barricade on its
     // own born-tick cadence (after burn — a burn-killed mortar never fires;
-    // before combat, matching the burn-before-contact discipline).
+    // before combat, matching the burn-before-contact discipline). A phase-3
+    // Broadcast Tower (hp ≤ BROADCAST_P3_HP) turns its own array on the line.
     let shellDamage = 0
     for (const e of s.enemies) {
-        if (e.archetype !== "mortar" || e.pos < MORTAR_STANDOFF) continue
-        if ((s.tick - e.bornTick) % MORTAR_PERIOD === 0) shellDamage += MORTAR_SHELL
+        if (e.archetype === "mortar" && e.pos >= MORTAR_STANDOFF) {
+            if ((s.tick - e.bornTick) % MORTAR_PERIOD === 0) shellDamage += MORTAR_SHELL
+        } else if (e.archetype === "broadcast" && e.hp <= BROADCAST_P3_HP) {
+            if ((s.tick - e.bornTick) % BROADCAST_SHELL_PERIOD === 0) shellDamage += BROADCAST_SHELL
+        }
     }
 
     // 3. Combat: player lane front target, turret lanes, armed crowd.
@@ -580,7 +638,9 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
     }
     applyDamage(s.playerLane, PLAYER_DPS_PER_TICK)
     for (let lane = 0; lane < LANES; lane++) {
-        if (s.turrets[lane] > 0) {
+        // A jammer freezes its lane's turret — no fire, and the timer HOLDS
+        // (the purchase isn't wasted, just denied while the mast stands).
+        if (s.turrets[lane] > 0 && !jammedLanes.has(lane)) {
             s.turrets[lane]--
             applyDamage(lane, TURRET_DPS_PER_TICK)
         }
@@ -624,7 +684,7 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         stunnedUntil,
         cleanWave,
         scrap: s.scrap + scrapGain,
-        rallyMeter: Math.min(RALLY_FULL, s.rallyMeter + Math.floor(rallyGain / bossFactor)),
+        rallyMeter: Math.min(RALLY_FULL, s.rallyMeter + (rallyJammed ? 0 : Math.floor(rallyGain / bossFactor))),
         molotovCharge: Math.min(MOLOTOV_MAX, s.molotovCharge + MOLOTOV_REGEN + killCount * MOLOTOV_PER_KILL),
         score: s.score + scrapGain * SCORE_PER_SCRAP,
     }
