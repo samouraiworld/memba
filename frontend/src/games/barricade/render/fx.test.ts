@@ -30,6 +30,17 @@ describe("fx presentation layer", () => {
         expect(fx.particles.length).toBe(0)
         expect(fx.shakeMag).toBe(0)
         expect(fx.flash).toBe(0)
+        expect(fx.deaths.length).toBe(0)
+    })
+
+    it("a kill spawns a squashed death animation that arcs away and expires", () => {
+        const fx = initFx(false)
+        pushFxEvents(fx, [kill], lay, seededRng())
+        expect(fx.deaths.length).toBe(1)
+        expect(fx.deaths[0].sy).toBeLessThan(1) // squashed on the impact frame
+        const rng = seededRng(3)
+        for (let i = 0; i < 30; i++) stepFx(fx, rng)
+        expect(fx.deaths.length).toBe(0) // fully expired
     })
 
     it("a barricade hit resets the combo and shakes", () => {

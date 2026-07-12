@@ -8,13 +8,29 @@
  * (never in sim/), where it is safe.
  */
 
-import { LANES } from "../sim/types"
+import { LANES, type ArchetypeId } from "../sim/types"
 import type { FxEvent } from "./fxEvents"
 
 export type Rng = () => number
 
 export type Particle = { x: number; y: number; vx: number; vy: number; life: number; maxLife: number; color: string; size: number }
 export type Floater = { x: number; y: number; life: number; maxLife: number; text: string; color: string }
+// A dying machine flung off the field — squashes on impact, then arcs away
+// spinning and fading. Rendered by re-drawing its silhouette (draw.ts).
+export type DeathAnim = {
+    x: number
+    y: number
+    vx: number
+    vy: number
+    rot: number
+    vr: number
+    sx: number
+    sy: number
+    size: number
+    archetype: ArchetypeId
+    life: number
+    maxLife: number
+}
 
 export type FxState = {
     shakeMag: number // 0..1, decays
@@ -27,6 +43,7 @@ export type FxState = {
     combo: number // render-side kill streak (onomatopoeia + audio pitch)
     particles: Particle[]
     floaters: Floater[]
+    deaths: DeathAnim[]
     reducedMotion: boolean
 }
 
@@ -40,6 +57,7 @@ const PAPER = "#efe7d4"
 
 const MAX_PARTICLES = 220
 const MAX_FLOATERS = 12
+const MAX_DEATHS = 40
 const MAX_SHAKE_PX = 10
 const MAX_SHAKE_ROT = 0.014 // ~0.8° at full magnitude — "reads as force", not a glitch
 const SHAKE_DECAY = 0.8
@@ -72,6 +90,7 @@ export function initFx(reducedMotion = false): FxState {
         combo: 0,
         particles: [],
         floaters: [],
+        deaths: [],
         reducedMotion,
     }
 }
@@ -97,6 +116,36 @@ function spawnBurst(fx: FxState, x: number, y: number, n: number, colors: string
             size: 1.5 + rng() * 2,
         })
     }
+}
+
+function spawnDeath(
+    fx: FxState,
+    x: number,
+    y: number,
+    archetype: ArchetypeId,
+    weight: number,
+    lane: number,
+    posFrac: number,
+    laneW: number,
+    rng: Rng,
+): void {
+    if (fx.deaths.length >= MAX_DEATHS) return
+    const base = archetype === "broadcast" ? 0.66 : 0.4
+    const size = base * laneW * (0.62 + 0.38 * posFrac) * 0.55
+    fx.deaths.push({
+        x,
+        y,
+        vx: (lane - 1) * 1.4 + (rng() - 0.5) * 2.4,
+        vy: -3 - weight * 0.5,
+        rot: 0,
+        vr: (rng() - 0.5) * 0.32,
+        sx: 1.4, // squash wide on the impact frame…
+        sy: 0.6, // …then ease back to 1 in stepFx
+        size,
+        archetype,
+        life: 22,
+        maxLife: 22,
+    })
 }
 
 function pushFloater(fx: FxState, x: number, y: number, text: string, color: string): void {
@@ -128,6 +177,7 @@ export function pushFxEvents(fx: FxState, events: FxEvent[], lay: Layout, rng: R
                 const x = laneCenterX(lay, ev.lane)
                 const y = yFromFrac(lay, ev.posFrac)
                 spawnBurst(fx, x, y, 3 + ev.weight, [INK, VERMILION], rng, 2 + ev.weight)
+                spawnDeath(fx, x, y, ev.archetype, ev.weight, ev.lane, ev.posFrac, lay.laneW, rng)
                 fx.playerLean = Math.max(-1, Math.min(1, ev.lane - 1)) * 0.4
                 if (fx.combo % 5 === 0) pushFloater(fx, x, y, COMBO_WORDS[(fx.combo / 5) % COMBO_WORDS.length | 0], VERMILION)
                 break
@@ -220,4 +270,18 @@ export function stepFx(fx: FxState, rng: Rng = Math.random): void {
         if (f.life > 0) fx.floaters[fw++] = f
     }
     fx.floaters.length = fw
+
+    let dw = 0
+    for (let i = 0; i < fx.deaths.length; i++) {
+        const d = fx.deaths[i]
+        d.x += d.vx
+        d.y += d.vy
+        d.vy += GRAVITY
+        d.rot += d.vr
+        d.sx += (1 - d.sx) * 0.3 // ease the squash back to round
+        d.sy += (1 - d.sy) * 0.3
+        d.life--
+        if (d.life > 0) fx.deaths[dw++] = d
+    }
+    fx.deaths.length = dw
 }

@@ -14,6 +14,7 @@ function stubCtx() {
             clearRect() {},
             translate() {},
             rotate() {},
+            scale() {},
             beginPath() {},
             moveTo() {},
             lineTo() {},
