@@ -106,12 +106,16 @@ export function applyEvent(state: SimState, ev: SimEvent): SimState {
             return { ...state, playerLane: ev.lane }
         }
         case "rally": {
+            if (state.phase === "choice") return state // frozen field: the wave only ends clear, so this would waste the meter
             if (state.rallyMeter < RALLY_FULL) return state
             // Clear RALLY_CLEAR_PCT% of each lane, farthest-first (closest to
-            // the barricade are pushed back hardest by the crowd surge).
+            // the barricade are pushed back hardest by the crowd surge). The id
+            // tiebreak keeps pos ties total — which of two stacked machines
+            // survives must come from the state, not from sort stability
+            // (shove/fire-slow make same-pos pairs reachable in honest play).
             const survivors: Enemy[] = []
             for (let lane = 0; lane < LANES; lane++) {
-                const inLane = state.enemies.filter((e) => e.lane === lane).sort((a, b) => b.pos - a.pos)
+                const inLane = state.enemies.filter((e) => e.lane === lane).sort((a, b) => b.pos - a.pos || a.id - b.id)
                 const cleared = Math.floor((inLane.length * RALLY_CLEAR_PCT) / 100)
                 survivors.push(...inLane.slice(cleared))
             }
@@ -175,7 +179,12 @@ export function applyEvent(state: SimState, ev: SimEvent): SimState {
         case "shove": {
             if (state.phase === "choice") return state
             if (state.tick < state.shoveReadyAt) return state
-            if (!Number.isInteger(ev.lane) || ev.lane < 0 || ev.lane >= LANES) return state
+            // The UI can only shove the player's own lane (Barricade.tsx). An
+            // off-lane shove is a forged-log-only capability — two-lane defense
+            // from one lane, and the only verb a netter stun couldn't pin — so
+            // anything else, including NaN/float junk, is a no-op. Equality
+            // against playerLane subsumes the integer/range guards.
+            if (ev.lane !== state.playerLane) return state
             // Knock the front (nearest-barricade) machine of the lane back — no
             // damage, just tempo to buy a throw. A whiff (empty lane) is a no-op
             // with no cooldown spent.
@@ -190,6 +199,11 @@ export function applyEvent(state: SimState, ev: SimEvent): SimState {
             enemies[frontIdx] = { ...enemies[frontIdx], pos: Math.max(0, enemies[frontIdx].pos - SHOVE_DISTANCE) }
             return { ...state, enemies, shoveReadyAt: state.tick + SHOVE_CD }
         }
+        default:
+            // The log is untrusted JSON on the verifier path: an unknown event
+            // type must be a no-op (a malformed submission can only hurt its own
+            // score), never fall off the switch and return undefined.
+            return state
     }
 }
 
@@ -405,15 +419,21 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
     }
     if (s.armed > 0) s.armed--
 
-    // 4. Contact: enemies reaching the barricade deal damage and despawn.
+    // 4. Contact: enemies reaching the barricade deal damage and despawn. The
+    // act boss is existential: if the Broadcast Tower reaches the line, the
+    // stand is over — otherwise contact would despawn it like any mob (25k
+    // damage, max boss-wave total 49k) and parking in one lane would SKIP the
+    // boss and still collect WAVE_CLEAR + WIN_BONUS (review finding).
     let hp = s.barricadeHp
     let stunnedUntil = s.stunnedUntil
     let cleanWave = s.cleanWave
+    let bossReached = false
     const remaining: Enemy[] = []
     for (const e of s.enemies) {
         if (e.pos >= LANE_LENGTH) {
             hp -= ARCHETYPES[e.archetype].damage
             cleanWave = false
+            if (e.archetype === "broadcast") bossReached = true
             if (e.archetype === "netter" && e.lane === s.playerLane) {
                 stunnedUntil = s.tick + NETTER_STUN_TICKS
             }
@@ -438,6 +458,7 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
 
     // 6. Terminal + wave bookkeeping.
     if (s.barricadeHp <= 0) return { ...s, barricadeHp: 0, phase: "lost" }
+    if (bossReached) return { ...s, phase: "lost" }
 
     const scriptDone = script.spawns.every((sp) => sp.atTick < waveLocal)
     if (scriptDone && s.enemies.length === 0) {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { applyEvent, initState, tick } from "./engine"
 import { buildWaves } from "./waves"
-import { BARRICADE_MAX_HP, type SimEvent } from "./types"
+import { BARRICADE_MAX_HP, RALLY_FULL, type SimEvent } from "./types"
 
 const run = (seed: string, ticks: number, events: SimEvent[] = []) => {
     const waves = buildWaves(seed)
@@ -49,6 +49,32 @@ describe("engine", () => {
         const a = run("div", 4000, [{ tick: 100, type: "move", lane: 2 }])
         const b = run("div", 4000, [{ tick: 100, type: "move", lane: 1 }])
         expect(JSON.stringify(a)).not.toEqual(JSON.stringify(b))
+    })
+
+    it("rally is frozen during the choice phase like every other verb", () => {
+        // The field is always empty between waves (a wave only ends clear), so a
+        // choice-phase rally would burn the full meter for zero kills. The button
+        // is live in the DOM — the sim must protect the meter, same as throw/shove.
+        const s = { ...initState("x"), phase: "choice" as const, rallyMeter: RALLY_FULL }
+        const after = applyEvent(s, { tick: 0, type: "rally" })
+        expect(after.rallyMeter).toBe(RALLY_FULL)
+    })
+
+    it("the broadcast tower reaching the barricade ends the run — the boss cannot be tanked", () => {
+        // Contact used to despawn the boss like any mob (25k damage) and the wave
+        // then paid WAVE_CLEAR + WIN_BONUS: the maximum boss-wave damage (boss +
+        // 6 escorts = 49k) is structurally unable to kill a half-repaired
+        // barricade, so parking in one lane SKIPPED the boss and won. The act
+        // boss must be existential: it reaches the line → the line falls.
+        const waves = buildWaves("boss-contact")
+        const s = {
+            ...initState("boss-contact"),
+            wave: waves.length - 1,
+            phase: "boss" as const,
+            enemies: [{ id: 0, archetype: "broadcast" as const, lane: 1, pos: 100_000, hp: 144_000, speed: 144 }],
+        }
+        const after = tick(s, waves)
+        expect(after.phase).toBe("lost")
     })
 
     it("tick and applyEvent never mutate their input", () => {

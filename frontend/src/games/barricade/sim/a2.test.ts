@@ -20,6 +20,7 @@ describe("shove", () => {
     it("knocks the front machine of a lane back and goes on cooldown", () => {
         let s: ReturnType<typeof initState> = {
             ...initState("a2"),
+            playerLane: 1,
             enemies: [enemy(0, "drone", 1, 40_000, 3_000), enemy(1, "drone", 1, 70_000, 3_000)],
         }
         s = applyEvent(s, { tick: 0, type: "shove", lane: 1 })
@@ -41,7 +42,21 @@ describe("shove", () => {
             50_000,
         )
         expect(applyEvent(base, { tick: 0, type: "shove", lane: 9 }).enemies[0].pos).toBe(50_000)
-        expect(applyEvent(base, { tick: 0, type: "shove", lane: 2 }).shoveReadyAt).toBe(0) // whiff → no CD
+        expect(applyEvent({ ...base, playerLane: 2 }, { tick: 0, type: "shove", lane: 2 }).shoveReadyAt).toBe(0) // whiff → no CD
+    })
+
+    it("only the player's own lane can be shoved (the UI contract, enforced in-sim)", () => {
+        // The UI always shoves playerLane (Barricade.tsx). An off-lane shove is a
+        // forged-log-only capability — two-lane defense from one lane, and the only
+        // verb a netter stun wouldn't pin — so the engine rejects it: no knockback,
+        // no cooldown spent, verifier and client identical.
+        const s: ReturnType<typeof initState> = {
+            ...initState("a2"),
+            enemies: [enemy(0, "drone", 1, 70_000, 3_000)],
+        } // playerLane is 0
+        const after = applyEvent(s, { tick: 0, type: "shove", lane: 1 })
+        expect(after.enemies[0].pos).toBe(70_000)
+        expect(after.shoveReadyAt).toBe(0)
     })
 })
 
@@ -73,9 +88,13 @@ describe("testudo shield + swarm", () => {
         const base = initState("a2")
         expect(hashState({ ...base, shoveReadyAt: 42 })).not.toBe(hashState(base))
 
-        // Controlled divergence (no reliance on wave RNG): a high-HP machine off
+        // Controlled divergence (no reliance on wave RNG): a high-HP machine in
         // the player's lane so ONLY the shove moves it — 15k back vs un-shoved.
-        const start: ReturnType<typeof initState> = { ...initState("a2"), enemies: [enemy(0, "drone", 1, 90_000, 9_999_999, 700)] }
+        const start: ReturnType<typeof initState> = {
+            ...initState("a2"),
+            playerLane: 1,
+            enemies: [enemy(0, "drone", 1, 90_000, 9_999_999, 700)],
+        }
         let shoved = applyEvent(start, { tick: 0, type: "shove", lane: 1 })
         let plain = start
         for (let i = 0; i < 3; i++) {
@@ -84,12 +103,15 @@ describe("testudo shield + swarm", () => {
         }
         expect(hashState(shoved)).not.toBe(hashState(plain)) // the shove mattered
 
-        // The cooldown is GLOBAL (one scalar, like the molotov's) — a shove in any
-        // lane blocks all lanes for SHOVE_CD ticks. Replay stays deterministic.
+        // The cooldown is GLOBAL (one scalar, like the molotov's). The log mixes a
+        // landed own-lane shove, a move, and an off-lane no-op shove — replay must
+        // stay deterministic through all three.
         const seed = "barricade-2026-07-12"
         const events: SimEvent[] = [
             { tick: 40, type: "shove", lane: 0 },
-            { tick: 80, type: "shove", lane: 1 },
+            { tick: 79, type: "move", lane: 1 },
+            { tick: 80, type: "shove", lane: 2 }, // off-lane → no-op
+            { tick: 300, type: "shove", lane: 1 },
         ]
         expect(runReplay(seed, events).stateHash).toBe(runReplay(seed, events).stateHash)
         expect(runReplay(seed, events).simVersion).toBe(2)

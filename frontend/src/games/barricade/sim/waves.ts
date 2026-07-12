@@ -91,26 +91,38 @@ export function buildWaves(seed: string): WaveScript[] {
             spawns.push({ atTick: atTick + 1, lane, archetype })
         }
         // Lane-coverage pass (waves >= 1): every lane must appear, so a run can
-        // never be decided by an empty lane. Deterministic round-robin reassign
-        // of the last spawns.
+        // never be decided by an empty lane. Deterministic reassign of the last
+        // spawns — but only from a DONOR lane that keeps another occupant, or
+        // the pass vacates the very lane it robs (review finding: a sole-occupant
+        // donor emptied a lane on ~2.4% of real daily seeds, incl. the served
+        // barricade-2026-07-04).
         if (w >= 1) {
-            const used = new Set(spawns.map((sp) => sp.lane))
+            const counts = new Array(LANES).fill(0)
+            for (const sp of spawns) counts[sp.lane]++
             let cursor = spawns.length - 1
             for (let lane = 0; lane < LANES; lane++) {
-                if (!used.has(lane)) {
-                    if (cursor < 0) break // fewer spawns than lanes → stop, never emit a malformed spawn
-                    spawns[cursor] = { ...spawns[cursor], lane }
-                    cursor--
-                }
+                if (counts[lane] > 0) continue
+                while (cursor >= 0 && counts[spawns[cursor].lane] < 2) cursor--
+                if (cursor < 0) break // no safe donor left → stop, never emit a malformed spawn
+                counts[spawns[cursor].lane]--
+                counts[lane]++
+                spawns[cursor] = { ...spawns[cursor], lane }
+                cursor--
             }
         }
         // Synchrony clamp: spread same-lane spawns so a shared seed can never hand
         // the player an unsurvivable burst in one reaction window. Deterministically
-        // push clustered same-lane spawns later (>= SYNC_GAP ticks apart).
+        // push clustered same-lane spawns later (>= SYNC_GAP ticks apart). The
+        // original-index tiebreak keeps equal-atTick pairs total: which spawn is
+        // pushed later must not depend on sort stability (same defect class as the
+        // replay event sort, fixed in review).
         for (let lane = 0; lane < LANES; lane++) {
-            const inLane = spawns.filter((sp) => sp.lane === lane).sort((a, b) => a.atTick - b.atTick)
+            const inLane = spawns
+                .map((sp, i) => ({ sp, i }))
+                .filter((x) => x.sp.lane === lane)
+                .sort((a, b) => a.sp.atTick - b.sp.atTick || a.i - b.i)
             let prev = -SYNC_GAP
-            for (const sp of inLane) {
+            for (const { sp } of inLane) {
                 if (sp.atTick < prev + SYNC_GAP) sp.atTick = prev + SYNC_GAP
                 prev = sp.atTick
             }

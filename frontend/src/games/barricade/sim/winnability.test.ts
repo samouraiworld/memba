@@ -1,48 +1,58 @@
 import { describe, expect, it } from "vitest"
 import { applyEvent, initState, tick } from "./engine"
 import { buildWaves } from "./waves"
-import { LANE_LENGTH, RALLY_FULL, RUN_MAX_TICKS, type SimState } from "./types"
+import { LANE_LENGTH, RALLY_FULL, RUN_MAX_TICKS, type SimEvent, type SimState } from "./types"
 
 const MOLOTOV_COST = 1_000 // mirrors engine.ts
 
 /**
  * A deterministic greedy REFERENCE player: repair between waves, defend the most-
- * pressured lane, molotov the front cluster, rally when full. `reactEvery`
- * handicaps reaction speed — 1 acts every tick (near-perfect), 2 acts every other
- * tick (closer to a human). Returns the terminal state + the lowest barricade HP
- * reached (the survival margin).
+ * pressured lane, molotov the front cluster, rally when full.
  *
- * If a human-PACED player clears every REAL daily seed with margin, the shared
- * daily seed is fair — nobody is handed an unsurvivable run. This is the fairness
- * guard that gates every future difficulty/economy retune.
+ * Honesty contract (review-hardened — the gate is only as good as this model):
+ *  - ONE event per action tick. The old model could emit rally+move+throw in a
+ *    single tick (up to 90 events/sec) — no human does that.
+ *  - `reactEvery` is the action cadence in ticks; 15 ≈ 4 actions/sec.
+ *  - Decisions read a SNAPSHOT one reaction interval old (perception latency):
+ *    the player aims at where things were ~250ms ago, so the lead is naturally
+ *    imperfect. applyEvent's own guards make stale-illegal actions no-ops,
+ *    exactly like a mistimed human tap.
+ *
+ * If THIS player clears every real daily seed with a margin, the shared daily
+ * seed is fair — nobody is handed an unsurvivable run. This gates every future
+ * difficulty/economy retune.
  */
-function play(seed: string, reactEvery = 1): { final: SimState; minHp: number } {
+function decide(view: SimState): SimEvent | null {
+    if (view.phase === "choice") return { tick: 0, type: "choice", choice: "repair" }
+    if (view.rallyMeter >= RALLY_FULL) return { tick: 0, type: "rally" }
+    let lane = -1
+    let front = -1
+    for (const e of view.enemies) {
+        if (e.pos > front) {
+            front = e.pos
+            lane = e.lane
+        }
+    }
+    if (lane < 0) return null
+    if (view.playerLane !== lane) return { tick: 0, type: "move", lane }
+    if (view.molotovCharge >= MOLOTOV_COST && view.tick >= view.molotovReadyAt) {
+        // Lead the throw from the STALE view — where the front was, plus a guess.
+        return { tick: 0, type: "throw", lane, dist: Math.min(LANE_LENGTH, front + 10_000) }
+    }
+    return null
+}
+
+function play(seed: string, reactEvery = 15): { final: SimState; minHp: number } {
     let s = initState(seed)
     const waves = buildWaves(seed)
     let minHp = s.barricadeHp
+    let lagged = s // what the player last "saw" — one reaction interval stale
     let guard = 0
     while (s.phase !== "won" && s.phase !== "lost" && guard++ < RUN_MAX_TICKS + 50) {
-        if (s.phase === "choice") {
-            s = applyEvent(s, { tick: s.tick, type: "choice", choice: "repair" })
-        } else if (s.tick % reactEvery === 0) {
-            if (s.rallyMeter >= RALLY_FULL) s = applyEvent(s, { tick: s.tick, type: "rally" })
-            let lane = -1
-            let best = -1
-            for (const e of s.enemies) {
-                if (e.pos > best) {
-                    best = e.pos
-                    lane = e.lane
-                }
-            }
-            if (lane >= 0) {
-                if (s.playerLane !== lane) s = applyEvent(s, { tick: s.tick, type: "move", lane })
-                let front = -1
-                for (const e of s.enemies) if (e.lane === lane && e.pos > front) front = e.pos
-                if (front >= 0 && s.molotovCharge >= MOLOTOV_COST && s.tick >= s.molotovReadyAt) {
-                    // Lead the throw so the burst + fire land on the advancing front.
-                    s = applyEvent(s, { tick: s.tick, type: "throw", lane, dist: Math.min(LANE_LENGTH, front + 10_000) })
-                }
-            }
+        if (s.tick % reactEvery === 0) {
+            const act = decide(lagged)
+            if (act) s = applyEvent(s, { ...act, tick: s.tick } as SimEvent)
+            lagged = s
         }
         s = tick(s, waves)
         if (s.barricadeHp < minHp) minHp = s.barricadeHp
@@ -51,32 +61,33 @@ function play(seed: string, reactEvery = 1): { final: SimState; minHp: number } 
 }
 
 // The real production seed format is `barricade-${ISO date}` (see Barricade.tsx
-// dailySeed()) — sample the seeds that will actually be PLAYED, not ad-hoc strings.
-function dailySeeds(count: number): string[] {
+// dailySeed()) — sample the seeds that will actually be PLAYED. The window is
+// fixed (deterministic CI) but covers the LIVE quarter; advance it each season.
+function dailySeeds(count: number, startUtc: number): string[] {
     const out: string[] = []
-    const start = Date.UTC(2026, 0, 1)
-    for (let d = 0; d < count; d++) out.push(`barricade-${new Date(start + d * 86_400_000).toISOString().slice(0, 10)}`)
+    for (let d = 0; d < count; d++) out.push(`barricade-${new Date(startUtc + d * 86_400_000).toISOString().slice(0, 10)}`)
     return out
 }
 
 describe("winnability (fairness on a shared daily seed)", () => {
-    it("a competent reference player clears assorted seeds", () => {
+    it("a fast competent player clears assorted seeds", () => {
         for (const seed of ["barricade-2026-07-12", "a", "membas", "zzz", "42"]) {
-            expect(play(seed).final.phase, `seed ${seed}`).toBe("won")
+            expect(play(seed, 2).final.phase, `seed ${seed}`).toBe("won")
         }
     })
 
-    // 90 real daily seeds is a strong fairness sample; the explicit timeout keeps
-    // the full-game sweep from flaking on a slow CI runner (it runs ~3s there).
-    it("a human-paced player clears every real daily seed for a quarter, keeping a margin", () => {
+    // 90 real daily seeds covering the live quarter; the explicit timeout keeps
+    // the full-game sweep from flaking on a slow CI runner.
+    it("a human-paced player (4 acts/sec, ~250ms latency) clears every real daily seed for the live quarter, keeping a margin", () => {
         let worstMargin = Infinity
-        for (const seed of dailySeeds(90)) {
-            const { final, minHp } = play(seed, 2) // acts every other tick
+        for (const seed of dailySeeds(90, Date.UTC(2026, 6, 1))) {
+            const { final, minHp } = play(seed)
             expect(final.phase, `seed ${seed}: ${final.phase} @tick ${final.tick}, hp ${final.barricadeHp}`).toBe("won")
             if (minHp < worstMargin) worstMargin = minHp
         }
-        // A real cushion, not a photo-finish: even the tightest day never drops
-        // below ~5% barricade for the human-paced player.
-        expect(worstMargin).toBeGreaterThan(5_000)
+        // A floor that BINDS: the old assert (5%) sat 20x below the measured
+        // worst margin, so a retune could erode 95% of real headroom unseen.
+        // Keep this within ~2x of the measured worst so drift is visible.
+        expect(worstMargin).toBeGreaterThan(50_000)
     }, 20_000)
 })

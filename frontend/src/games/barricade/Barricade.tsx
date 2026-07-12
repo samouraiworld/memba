@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useRef, useState } from "react"
 import { applyEvent, initState, tick } from "./sim/engine"
 import { buildWaves, WAVE_TOTAL, type WaveScript } from "./sim/waves"
-import { runReplay } from "./sim/replay"
+import { MAX_REPLAY_EVENTS, runReplay } from "./sim/replay"
 import { LANES, LANE_LENGTH, type Choice, type SimEvent, type SimState } from "./sim/types"
 import { MOLOTOV_COST } from "./sim/engine"
 import { draw, drawAttract } from "./render/draw"
@@ -125,6 +125,10 @@ export default function Barricade() {
     const record = useCallback((ev: SimEventInput) => {
         const s = stateRef.current
         if (s.phase === "won" || s.phase === "lost") return
+        // The replay truncates at MAX_REPLAY_EVENTS (verifier cost bound), so
+        // stop recording AND applying at the same cap — live play and the
+        // re-verified log must never disagree. Unreachable by human tapping.
+        if (eventsRef.current.length >= MAX_REPLAY_EVENTS) return
         const stamped = { ...ev, tick: s.tick } as SimEvent
         eventsRef.current.push(stamped)
         stateRef.current = applyEvent(s, stamped)
