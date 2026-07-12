@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
-import { initState, tick } from "../sim/engine"
+import { applyEvent, initState, tick } from "../sim/engine"
 import { buildWaves } from "../sim/waves"
-import { SIM_VERSION, type SimState } from "../sim/types"
+import { SIM_VERSION, type SimEvent, type SimState } from "../sim/types"
 import { deriveFxEvents } from "./fxEvents"
 import { initFx, layout, pushFxEvents, stepFx, type Rng } from "./fx"
 import { interpPositions } from "./interp"
@@ -21,6 +21,18 @@ function seededRng(seed = 1): Rng {
     }
 }
 
+// A fixed input script so the parity run exercises the PLAYER verbs too —
+// molotov flight/impact/fire, a shove, lane moves — not just an idle field.
+// (Review found the original parity run never threw a single molotov.)
+const SCRIPT: SimEvent[] = [
+    { tick: 30, type: "throw", lane: 0, dist: 40_000 },
+    { tick: 90, type: "move", lane: 1 },
+    { tick: 105, type: "shove", lane: 1 },
+    { tick: 150, type: "throw", lane: 1, dist: 20_000 },
+    { tick: 400, type: "move", lane: 2 },
+    { tick: 430, type: "throw", lane: 2, dist: 70_000 },
+]
+
 function runSim(seed: string, withFx: boolean): { final: SimState; checksum: number } {
     let s = initState(seed)
     const waves = buildWaves(seed)
@@ -30,6 +42,7 @@ function runSim(seed: string, withFx: boolean): { final: SimState; checksum: num
     let checksum = 0
     let guard = 0
     while (s.phase !== "won" && s.phase !== "lost" && guard++ < 20_000) {
+        for (const ev of SCRIPT) if (ev.tick === s.tick) s = applyEvent(s, ev)
         const prev = s
         s = tick(s, waves)
         checksum = (Math.imul(checksum, 31) + s.score + s.barricadeHp + s.tick + s.enemies.length) | 0

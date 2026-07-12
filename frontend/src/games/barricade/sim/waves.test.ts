@@ -28,21 +28,38 @@ describe("wave scripts", () => {
         // bound must hold for ANY seed: per wave, the last possible spawn +
         // a full crossing of the slowest archetype in that wave's pool +
         // the between-wave choice window.
+        // Base speed is conservative vs escalation (escalated speed is only ever
+        // faster), NOT vs player-inflicted fire-slow/shove — but stalling is the
+        // player's own choice, which a fairness bound may ignore. Swept over ten
+        // years of production-format seeds (buildWaves is cheap), not ad-hoc ones.
         const CHOICE_TICKS = 120
-        for (const seed of ["a", "b", "membas-2026"]) {
+        const start = Date.UTC(2026, 0, 1)
+        for (let d = 0; d < 3_650; d++) {
+            const seed = `barricade-${new Date(start + d * 86_400_000).toISOString().slice(0, 10)}`
             let total = 0
             for (const w of buildWaves(seed)) {
                 const lastSpawn = Math.max(...w.spawns.map((s) => s.atTick))
                 const slowest = Math.min(...w.spawns.map((s) => ARCHETYPES[s.archetype].speed))
                 total += lastSpawn + Math.ceil(LANE_LENGTH / slowest) + CHOICE_TICKS
             }
-            expect(total).toBeLessThan(RUN_MAX_TICKS * 0.95)
+            expect(total, seed).toBeLessThan(RUN_MAX_TICKS * 0.95)
         }
     })
 
-    it("uses every lane from wave 2 on", () => {
-        for (const w of buildWaves("lanes").slice(1)) {
-            expect(new Set(w.spawns.map((s) => s.lane)).size).toBe(3)
+    it("uses every lane from wave 2 on — swept over ten years of real daily seeds", () => {
+        // Review finding: the coverage pass computed `used` once and then donated
+        // the LAST spawn to a missing lane without checking the donor lane kept
+        // another occupant — so on ~2.4% of production seeds it emptied the lane
+        // it robbed (hit the served seed barricade-2026-07-04). One ad-hoc seed
+        // here kept CI green; sweep the real seed format instead (buildWaves only,
+        // runs in milliseconds).
+        const start = Date.UTC(2026, 0, 1)
+        for (let d = 0; d < 3_650; d++) {
+            const seed = `barricade-${new Date(start + d * 86_400_000).toISOString().slice(0, 10)}`
+            for (const w of buildWaves(seed).slice(1, WAVE_TOTAL - 1)) {
+                const lanes = new Set(w.spawns.map((s) => s.lane))
+                expect(lanes.size, `${seed} wave ${w.wave}`).toBe(3)
+            }
         }
     })
 

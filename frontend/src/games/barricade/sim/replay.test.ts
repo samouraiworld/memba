@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { RUN_MAX_TICKS, type SimEvent } from "./types"
 import { initState, tick } from "./engine"
 import { buildWaves } from "./waves"
-import { hashState, runReplay } from "./replay"
+import { hashState, MAX_REPLAY_EVENTS, runReplay } from "./replay"
 
 const events: SimEvent[] = [
     { tick: 60, type: "move", lane: 1 },
@@ -56,6 +56,36 @@ describe("replay determinism", () => {
     it("terminates: never exceeds RUN_MAX_TICKS", () => {
         const r = runReplay("stall", [])
         expect(r.ticks).toBeLessThanOrEqual(RUN_MAX_TICKS)
+    })
+
+    it("treats a forged unknown-type event as a no-op, not a crash", () => {
+        // The verifier re-runs untrusted JSON. "A malformed log can only hurt its
+        // own score" only holds if an alien event type can't blow up the replay —
+        // applyEvent must return the state unchanged instead of falling off the
+        // switch (undefined → TypeError on the next tick).
+        const forged = [
+            { tick: 0, type: "boom" },
+            { tick: 5, type: "" },
+            null, // a null entry must not crash the sort comparator
+            { type: "rally" }, // missing tick
+            { tick: NaN, type: "rally" }, // NaN tick must not stall the cursor…
+            { tick: 60, type: "move", lane: 1 }, // …and this legal event must still apply
+        ] as unknown as SimEvent[]
+        const withLegalOnly = runReplay("daily", [{ tick: 60, type: "move", lane: 1 }])
+        const result = runReplay("daily", forged)
+        expect(result.stateHash).toBe(withLegalOnly.stateHash)
+        expect(result.score).toBe(withLegalOnly.score)
+    })
+
+    it("ignores everything past MAX_REPLAY_EVENTS (verifier cost bound)", () => {
+        // A crafted submission with a huge events[] must not buy unbounded
+        // verifier work: the log is truncated at a cap no honest run can reach
+        // (the shell stops recording at the same constant, so live and replay
+        // stay identical).
+        const spam: SimEvent[] = []
+        for (let i = 0; i < MAX_REPLAY_EVENTS; i++) spam.push({ tick: 0, type: "rally" }) // empty-meter no-ops
+        spam.push({ tick: 0, type: "move", lane: 2 }) // just past the cap → must be dropped
+        expect(runReplay("daily", spam).stateHash).toBe(runReplay("daily", []).stateHash)
     })
 
     it("matches a live-style loop exactly, including the terminal phase", () => {

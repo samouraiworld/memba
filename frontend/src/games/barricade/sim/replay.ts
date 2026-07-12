@@ -77,12 +77,35 @@ export function hashState(state: SimState): string {
     return a.toString(16).padStart(8, "0") + b.toString(16).padStart(8, "0")
 }
 
+/**
+ * Hard ceiling on the events a submission may carry. An honest run is a few
+ * hundred taps; the shell stops recording at this same constant, so live play
+ * and the (truncated) replay can never disagree. Everything past the cap is
+ * ignored, which bounds the verifier's sort + apply cost per submission.
+ */
+export const MAX_REPLAY_EVENTS = 20_000
+
+const EVENT_TYPES = new Set(["move", "rally", "choice", "throw", "shove"])
+
 /** Run a full game from (seed, events) to its terminal state. */
 export function runReplay(seed: string, events: SimEvent[]): ReplayResult {
     const waves = buildWaves(seed)
+    // The log is untrusted JSON: cap it first (cost bound), then drop entries
+    // that aren't {integer tick >= 0, known type} — a null entry would crash the
+    // sort comparator, a NaN tick would stall the cursor and silently disable
+    // every later event, and an alien type used to fall off applyEvent's switch.
+    // Honest logs pass untouched, so live and replay stay identical.
+    const sane = events.slice(0, MAX_REPLAY_EVENTS).filter(
+        (e): e is SimEvent =>
+            typeof e === "object" &&
+            e !== null &&
+            Number.isInteger((e as { tick?: unknown }).tick) &&
+            (e as { tick: number }).tick >= 0 &&
+            EVENT_TYPES.has((e as { type?: string }).type ?? ""),
+    )
     // Total order: tick, then original log index — a same-tick tiebreak that does
     // not rely on Array.prototype.sort being stable across JS engines.
-    const sorted = events
+    const sorted = sane
         .map((e, i) => ({ e, i }))
         .sort((a, b) => a.e.tick - b.e.tick || a.i - b.i)
         .map((x) => x.e)
