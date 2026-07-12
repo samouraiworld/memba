@@ -16,13 +16,13 @@
  */
 
 import { useState } from "react"
-import { Link } from "react-router-dom"
+import { Link, useLocation } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useAdena } from "../hooks/useAdena"
 import { useAuth } from "../hooks/useAuth"
 import { useNetwork } from "../hooks/useNetwork"
 import { isAppStoreSubmitEnabled } from "../lib/config"
-import { isAppStoreV3, fetchByPublisher, fetchApp, type AppListing } from "../lib/appStore"
+import { isAppStoreV3, fetchByPublisher, type AppListing } from "../lib/appStore"
 import {
     MAX_NAME_LEN,
     MAX_TAGLINE_LEN,
@@ -35,10 +35,12 @@ import {
     buildEditListingMsg,
     buildDelistAppMsg,
     fetchRegistrationFee,
+    loadEditForm,
     formatGnot,
     type AppSubmission,
 } from "../lib/appStoreSubmit"
 import { ImageUploader } from "../components/media/ImageUploader"
+import { PublisherListings } from "../components/appstore/PublisherListings"
 import "./appstore.css"
 
 /** Parse the screenshots CSV into a bare-CID array (blanks dropped). */
@@ -58,8 +60,14 @@ export function AppSubmit() {
     const { connected, address, connect } = useAdena()
     const auth = useAuth()
     const qc = useQueryClient()
-    const [form, setForm] = useState<AppSubmission>(EMPTY)
-    const [mode, setMode] = useState<Mode>({ kind: "register" })
+    // A console "Edit" hands us the fully-seeded form in router state (already fetched via
+    // loadEditForm), so initialise straight into edit mode — read once here, never in an effect
+    // (keeps the lint ratchet clean).
+    const editFromState = (useLocation().state as { editForm?: AppSubmission } | null)?.editForm ?? null
+    const [form, setForm] = useState<AppSubmission>(editFromState ?? EMPTY)
+    const [mode, setMode] = useState<Mode>(
+        editFromState ? { kind: "edit", pkgPath: editFromState.pkgPath } : { kind: "register" },
+    )
     const [done, setDone] = useState<Mode["kind"] | null>(null)
     const [txError, setTxError] = useState<string | null>(null)
     // pkgPath whose full detail is being fetched to open the edit form (null = idle).
@@ -211,24 +219,15 @@ export function AppSubmit() {
     const startResubmit = async (l: AppListing) => {
         setEditLoading(l.pkgPath)
         setTxError(null)
-        const full = await fetchApp(l.pkgPath).catch(() => null)
+        const seeded = await loadEditForm(l.pkgPath)
         setEditLoading(null)
-        if (!full) {
+        if (!seeded) {
             setTxError("Couldn't load this listing's saved details — please try again.")
             return
         }
-        setMode({ kind: "edit", pkgPath: full.pkgPath })
+        setMode({ kind: "edit", pkgPath: seeded.pkgPath })
         setDone(null)
-        setForm({
-            pkgPath: full.pkgPath,
-            name: full.name,
-            tagline: full.tagline,
-            descr: full.descr ?? "",
-            category: full.category,
-            iconCID: full.iconCID,
-            screenshotsCSV: (full.screenshotCIDs ?? []).join(","),
-            appURL: full.appURL,
-        })
+        setForm(seeded)
     }
 
     const resetToRegister = () => {
@@ -371,16 +370,27 @@ export function AppSubmit() {
                 </form>
             )}
 
-            <MySubmissions
-                list={mineList}
-                onResubmit={(l) => { void startResubmit(l) }}
-                editLoading={editLoading}
-                delistArm={delistArm}
-                delistError={delistError}
-                onArmDelist={(p) => { setDelistArm(p); setDelistError(null) }}
-                onConfirmDelist={(pkgPath) => delist.mutate(pkgPath)}
-                delisting={delist.isPending}
-            />
+            {mineList && mineList.length > 0 && (
+                <section className="appstore__section appsubmit__mine" data-testid="appsubmit-mine">
+                    <div className="appsubmit__mineheader">
+                        <h2 className="appstore__section-title">My submissions</h2>
+                        <Link className="appsubmit__managelink" to={`/${networkKey}/apps/my-submissions`}>
+                            Manage all →
+                        </Link>
+                    </div>
+                    <PublisherListings
+                        list={mineList}
+                        networkKey={networkKey}
+                        onResubmit={(l) => { void startResubmit(l) }}
+                        editLoading={editLoading}
+                        delistArm={delistArm}
+                        delistError={delistError}
+                        onArmDelist={(p) => { setDelistArm(p); setDelistError(null) }}
+                        onConfirmDelist={(pkgPath) => delist.mutate(pkgPath)}
+                        delisting={delist.isPending}
+                    />
+                </section>
+            )}
         </Shell>
     )
 }
@@ -519,88 +529,6 @@ function ArtworkSection({ form, setForm, authed }: {
             </div>
 
             {artError && <p className="appsubmit__error" role="alert" data-testid="appsubmit-art-error">{artError}</p>}
-        </section>
-    )
-}
-
-const STATUS_LABEL: Record<string, string> = {
-    pending: "Pending review",
-    live: "Live",
-    rejected: "Rejected",
-    delisted: "Delisted",
-}
-
-/** B5 — the caller's own listings: status at a glance, curator reject reasons, free resubmit, delist. */
-function MySubmissions({ list, onResubmit, editLoading, delistArm, delistError, onArmDelist, onConfirmDelist, delisting }: {
-    list: AppListing[] | undefined
-    onResubmit: (l: AppListing) => void
-    editLoading: string | null
-    delistArm: string | null
-    delistError: string | null
-    onArmDelist: (pkgPath: string | null) => void
-    onConfirmDelist: (pkgPath: string) => void
-    delisting: boolean
-}) {
-    if (!list || list.length === 0) return null
-    return (
-        <section className="appstore__section appsubmit__mine" data-testid="appsubmit-mine">
-            <h2 className="appstore__section-title">My submissions</h2>
-            <ul className="appsubmit__minelist">
-                {list.map((l) => (
-                    <li key={l.pkgPath} className="appsubmit__mineitem">
-                        <div className="appsubmit__minehead">
-                            <span className="appsubmit__minename">{l.name}</span>
-                            <span className={`appsubmit__status appsubmit__status--${l.status}`}>
-                                {STATUS_LABEL[l.status] ?? l.status}
-                            </span>
-                        </div>
-                        <code className="apppath">{l.pkgPath}</code>
-                        {l.status === "rejected" && (
-                            <p className="appsubmit__reject">
-                                Not approved{l.rejectReason ? <>: {l.rejectReason}</> : "."}
-                            </p>
-                        )}
-                        {(l.status === "rejected" || l.status === "pending") && (
-                            <button type="button" className="appbtn appbtn--ghost appsubmit__resubmit"
-                                disabled={editLoading === l.pkgPath}
-                                onClick={() => onResubmit(l)}>
-                                {editLoading === l.pkgPath
-                                    ? "Loading…"
-                                    : l.status === "rejected" ? "Fix & resubmit (free)" : "Edit listing"}
-                            </button>
-                        )}
-                        {l.status === "live" && (
-                            <p className="appsubmit__hint">
-                                Live listings are locked for edits — ask a curator to unlock it for re-review.
-                            </p>
-                        )}
-                        {l.status !== "delisted" && (delistArm === l.pkgPath ? (
-                            <div className="appsubmit__delistconfirm" role="alert" data-testid="delist-confirm">
-                                <p>
-                                    Delisting is one-way for you: only a curator can restore it, and the
-                                    package path stays taken. Remove “{l.name}” from the store?
-                                </p>
-                                <button type="button" className="appbtn appbtn--danger" disabled={delisting}
-                                    onClick={() => onConfirmDelist(l.pkgPath)}>
-                                    {delisting ? "Delisting…" : "Yes, delist"}
-                                </button>
-                                <button type="button" className="appbtn appbtn--ghost" disabled={delisting}
-                                    onClick={() => onArmDelist(null)}>
-                                    Keep it
-                                </button>
-                                {delistError && (
-                                    <p className="appsubmit__reject" role="alert">{delistError}</p>
-                                )}
-                            </div>
-                        ) : (
-                            <button type="button" className="appbtn appbtn--ghost appsubmit__delist"
-                                onClick={() => onArmDelist(l.pkgPath)}>
-                                Delist
-                            </button>
-                        ))}
-                    </li>
-                ))}
-            </ul>
         </section>
     )
 }

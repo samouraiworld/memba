@@ -20,7 +20,7 @@
 import { queryEval } from "./dao/shared"
 import type { AminoMsg } from "./grc20"
 import { GNO_RPC_URL } from "./config"
-import { APPSTORE_REALM_PATH, isSafeRealmPath } from "./appStore"
+import { APPSTORE_REALM_PATH, isSafeRealmPath, fetchApp, type AppListing } from "./appStore"
 
 // Field limits — MUST stay equal to the memba_appstore_v3 realm constants.
 export const MAX_NAME_LEN = 80
@@ -30,6 +30,8 @@ export const MAX_CATEGORY_LEN = 40
 export const MAX_URL_LEN = 400
 export const MAX_CID_LEN = 100
 export const MAX_SCREENSHOTS = 6
+// MAX_RESUBMITS mirrors the realm: a listing can be edited/resubmitted at most this many times.
+export const MAX_RESUBMITS = 5
 
 /** The 8 wire fields of RegisterApp/EditListing, in realm signature order. */
 export interface AppSubmission {
@@ -41,6 +43,34 @@ export interface AppSubmission {
     iconCID: string
     screenshotsCSV: string
     appURL: string
+}
+
+/**
+ * Map a full listing (from GetListingJSON / fetchApp) to the editable submission form. A missing
+ * descr / screenshots coerce to empty strings so the form renders blank rather than "undefined".
+ */
+export function listingToSubmission(l: AppListing): AppSubmission {
+    return {
+        pkgPath: l.pkgPath,
+        name: l.name,
+        tagline: l.tagline,
+        descr: l.descr ?? "",
+        category: l.category,
+        iconCID: l.iconCID,
+        screenshotsCSV: (l.screenshotCIDs ?? []).join(","),
+        appURL: l.appURL,
+    }
+}
+
+/**
+ * Load a listing's FULL on-chain detail (GetListingJSON) and map it to the edit form. Returns null
+ * when the listing can't be read. This is the single seam that stops EditListing from wiping fields:
+ * the My-Submissions list window omits descr + screenshots, and EditListing overwrites EVERY field,
+ * so an edit MUST be seeded from full detail — callers abort (never open the form) on null.
+ */
+export async function loadEditForm(pkgPath: string): Promise<AppSubmission | null> {
+    const full = await fetchApp(pkgPath).catch(() => null)
+    return full ? listingToSubmission(full) : null
 }
 
 /**

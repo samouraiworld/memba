@@ -77,6 +77,7 @@ const Explorer = lazy(() => import("./pages/Explorer").then(m => ({ default: m.E
 const AppStore = lazy(() => import("./pages/AppStore").then(m => ({ default: m.AppStore })))
 const AppSubmit = lazy(() => import("./pages/AppSubmit").then(m => ({ default: m.AppSubmit })))
 const AppCurator = lazy(() => import("./pages/AppCurator").then(m => ({ default: m.AppCurator })))
+const PublisherConsole = lazy(() => import("./pages/PublisherConsole").then(m => ({ default: m.PublisherConsole })))
 const QuestHub = lazy(() => import("./pages/QuestHub"))
 const QuestDetail = lazy(() => import("./pages/QuestDetail"))
 const QuestAdmin = lazy(() => import("./pages/QuestAdmin"))
@@ -258,6 +259,7 @@ function App() {
               2026-07-10 after the live fee-path ceremony) + the v3 realm. */}
           <Route path="apps/submit" element={<AppStoreGate><Suspense fallback={<PageLoader />}><AppSubmit /></Suspense></AppStoreGate>} />
           <Route path="apps/review" element={<AppStoreGate><Suspense fallback={<PageLoader />}><AppCurator /></Suspense></AppStoreGate>} />
+          <Route path="apps/my-submissions" element={<AppStoreGate><Suspense fallback={<PageLoader />}><PublisherConsole /></Suspense></AppStoreGate>} />
           <Route path="apps/*" element={<AppStoreGate><Suspense fallback={<PageLoader />}><AppStore /></Suspense></AppStoreGate>} />
 
           {/* Validators suite (v2.14) — order: /validators, /validators/hacker, /validators/:address */}
