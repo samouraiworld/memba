@@ -109,11 +109,10 @@ describe("winnability (fairness on a shared daily seed)", () => {
             expect(final.tick, seed).toBeLessThan(RUN_MAX_TICKS * 0.8)
             if (minHp < worstMargin) worstMargin = minHp
         }
-        // A floor that BINDS: with the B3 mini-bosses in the arc the honest
-        // player's worst live-quarter margin measures ~25k (a quarter of the
-        // barricade on the tightest day — harder, still clearly fair). The
-        // floor sits at 10% so a retune that pushes any real seed toward
-        // unwinnable trips CI before it ships.
+        // A floor that BINDS: the honest player's worst live-quarter ARC
+        // margin measures ~59k at current tuning (review-measured, stable
+        // through B3/B4/C1). The floor sits at 10% so a retune that pushes any
+        // real seed toward unwinnable trips CI before it ships.
         expect(worstMargin).toBeGreaterThan(10_000)
         // …and an anti-vacuity ceiling: if no seed ever scratches the honest
         // player, this sweep proves nothing about fairness under pressure

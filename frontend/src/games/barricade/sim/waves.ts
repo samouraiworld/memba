@@ -5,7 +5,7 @@
  */
 
 import { rngInt, seedToState } from "./rng"
-import { LANES, type ArchetypeId } from "./types"
+import { LANES, PANOPTICON_EVERY, type ArchetypeId } from "./types"
 
 export type Spawn = { atTick: number; lane: number; archetype: ArchetypeId }
 export type WaveScript = { wave: number; spawns: Spawn[] }
@@ -36,6 +36,7 @@ export const ARCHETYPES: Record<ArchetypeId, { hp: number; speed: number; damage
     carrier: { hp: 30_000, speed: 220, damage: 14_000, scrap: 55 }, // marching spawner
     jammer: { hp: 10_000, speed: 320, damage: 5_000, scrap: 35 }, // rally + turret denial
     mender: { hp: 8_000, speed: 140, damage: 4_000, scrap: 40 }, // rear-guard healer: slower than everything it screens
+    panopticon: { hp: 120_000, speed: 100, damage: 30_000, scrap: 150 }, // the siege apex (hand-placed)
 }
 
 const NORMAL_WAVES = 10 // v2: a longer Core Arc (was 7)
@@ -65,6 +66,7 @@ export const THREAT_COST: Record<ArchetypeId, number> = {
     broadcast: 0, // boss, hand-placed, never budgeted
     marshal: 0, // W5 mini-boss, hand-placed
     kettle: 0, // W9 mini-boss, hand-placed
+    panopticon: 0, // siege apex, hand-placed every PANOPTICON_EVERY rounds
 }
 
 /** Per-wave threat budget (0-indexed): modest floor, compounds ~+18%/wave. */
@@ -220,6 +222,9 @@ export function overtimeWave(seed: string, round: number): WaveScript {
     if (overtimeCache.size > 4_096) overtimeCache.clear()
     const rng = seedToState(`overtime|${seed}|${round}`)
     const [spawns] = buildSpawns(rng, waveBudget(BOSS_WAVE + round), poolFor(NORMAL_WAVES), OVERTIME_WINDOW, true)
+    // Every PANOPTICON_EVERY-th round, the apex walks in — hand-placed like the
+    // mini-bosses, center lane, before the clamp so ordering stays total.
+    if (round % PANOPTICON_EVERY === 0) spawns.push({ atTick: 1, lane: 1, archetype: "panopticon" })
     spreadAndSort(spawns)
     const w: WaveScript = { wave: BOSS_WAVE + round, spawns }
     // Frozen: the cache hands the SAME object to every caller (live loop AND

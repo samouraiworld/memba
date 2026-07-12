@@ -15,6 +15,7 @@ import { seedToState } from "./rng"
 import { ARCHETYPES, BOSS_WAVE, overtimeWave, type WaveScript } from "./waves"
 import {
     BARRICADE_MAX_HP,
+    PANOPTICON_PHASE,
     LANE_LENGTH,
     LANES,
     RALLY_FULL,
@@ -84,7 +85,7 @@ export const KETTLE_LITTER = 2 // swarm children per deployment
 export const ENEMY_CAP = 80 // global live-enemy cap: spawners refuse to mint past it (verifier cost)
 // ── C1 stretch machines (siege pools) + the boss's later phases ─────────────
 export const CARRIER_PERIOD = 180 // ticks between carrier deployments
-export const CARRIER_LITTER = 3 // one drone into each valid lane of [lane−1, lane, lane+1]
+export const CARRIER_MAX_LITTER = 3 // one drone per valid lane of [lane−1, lane, lane+1] (edge carriers mint 2)
 export const MENDER_PERIOD = 90 // ticks between heals, phased by bornTick
 export const MENDER_HEAL = 800 // milli-HP restored per heal (capped at the target's escalated max)
 export const MENDER_RANGE = 15_000 // heal reach — a BAND, so the slow trailer screens what it follows
@@ -101,6 +102,17 @@ const ESCALATE_HP_PER_WAVE = 6 // +6% HP per wave …
 const ESCALATE_HP_CAP = 160 // … up to +60% (core arc)
 const ESCALATE_SPD_PER_WAVE = 2 // +2% speed per wave …
 const ESCALATE_SPD_CAP = 130 // … up to +30% (core arc — the guardrail)
+
+/**
+ * The Panopticon's current denial mode on its born-tick clock: 0 = shield
+ * (frontal fire blunted), 1 = douse (its lane's fire dies), 2 = jam (rally
+ * frozen + its lane's turret held), 3 = lock (its street can't be entered).
+ * The renderer telegraphs the same derivation — timing the rotation IS the
+ * counterplay.
+ */
+export function panopticonMode(e: Enemy, tick: number): number {
+    return Math.floor((tick - e.bornTick) / PANOPTICON_PHASE) % 4
+}
 
 /** hp/speed multipliers for a wave — capped in the arc, uncapped in the siege. */
 function escalation(wave: number): [number, number] {
@@ -156,7 +168,9 @@ export function applyEvent(state: SimState, ev: SimEvent): SimState {
             // outside with a lob or a turret. Presence-based: kills leave the
             // array immediately, so present ⇒ standing.
             for (const e of state.enemies) {
-                if (e.archetype === "kettle" && e.lane === ev.lane) return state
+                if (e.lane !== ev.lane) continue
+                if (e.archetype === "kettle") return state
+                if (e.archetype === "panopticon" && panopticonMode(e, state.tick) === 3) return state
             }
             return { ...state, playerLane: ev.lane }
         }
@@ -322,6 +336,8 @@ function damageFront(
         eff = Math.floor((dmg * (100 - SHIELD_REDUCT_PCT)) / 100)
     } else if (target.archetype === "marshal" && (tick - target.bornTick) % MARSHAL_CYCLE < MARSHAL_UP) {
         eff = Math.floor((dmg * (100 - MARSHAL_REDUCT_PCT)) / 100)
+    } else if (target.archetype === "panopticon" && panopticonMode(target, tick) === 0) {
+        eff = Math.floor((dmg * (100 - MARSHAL_REDUCT_PCT)) / 100) // apex shield mode
     }
     const hp = target.hp - eff
     if (hp > 0) {
@@ -425,9 +441,11 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
     // Jammer denial (presence-derived, like bossAlive — computed pre-spawn, so
     // a newborn jammer bites from the NEXT tick): rally fill freezes while any
     // jammer stands; the turret in a jammed lane holds its fire AND its timer.
-    const rallyJammed = s.enemies.some((e) => e.archetype === "jammer")
+    const isJamming = (e: Enemy) =>
+        e.archetype === "jammer" || (e.archetype === "panopticon" && panopticonMode(e, s.tick) === 2)
+    const rallyJammed = s.enemies.some(isJamming)
     const jammedLanes = new Set<number>()
-    if (rallyJammed) for (const e of s.enemies) if (e.archetype === "jammer") jammedLanes.add(e.lane)
+    if (rallyJammed) for (const e of s.enemies) if (isJamming(e)) jammedLanes.add(e.lane)
 
     // 1. Spawn: this wave's script entries due at the wave-local tick.
     //    waveStartTick is tracked via phaseUntil when a wave begins (see below);
@@ -549,8 +567,9 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
     // (|Δpos| ≤ MENDER_RANGE; nearer wins, ahead beats behind on exact ties,
     // then array order) on their born-tick cadence, capped at the target's
     // escalated spawn maximum so a long-lived pair can't grow HP without bound.
-    // The mender is slower than everything it screens, so it naturally trails
-    // its column — and a boss-deployed one lingers at the tower, screening it.
+    // The mender is slower than the column it trails; a boss-deployed one
+    // (escalated ~168/tick vs the tower's ~144) edges AHEAD of the tower —
+    // which is exactly what screens it: damageFront targets the highest pos.
     if (s.enemies.some((e) => e.archetype === "mender")) {
         const [hpMul] = escalation(s.wave)
         for (const m of s.enemies) {
@@ -622,9 +641,11 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         // 2c'. Dampeners douse their lane AFTER the burn: a field gets exactly
         // one last burn tick (the flash), then dies — the water-cannon is the
         // molotov's governor, not a retroactive shield.
-        if (s.enemies.some((e) => e.archetype === "dampener")) {
+        const isDousing = (e: Enemy) =>
+            e.archetype === "dampener" || (e.archetype === "panopticon" && panopticonMode(e, s.tick) === 1)
+        if (s.enemies.some(isDousing)) {
             const doused = new Set<number>()
-            for (const e of s.enemies) if (e.archetype === "dampener") doused.add(e.lane)
+            for (const e of s.enemies) if (isDousing(e)) doused.add(e.lane)
             s.hazards = s.hazards.filter((h) => !doused.has(h.lane))
         }
     }
