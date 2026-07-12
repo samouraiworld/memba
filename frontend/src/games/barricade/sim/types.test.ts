@@ -6,6 +6,6 @@ describe("sim constants", () => {
         expect(TICKS_PER_SECOND).toBe(60)
         expect(LANES).toBe(3)
         expect(Number.isInteger(BARRICADE_MAX_HP + LANE_LENGTH + RUN_MAX_TICKS)).toBe(true)
-        expect(SIM_VERSION).toBe(1)
+        expect(SIM_VERSION).toBe(2)
     })
 })

@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### MEMBA: BARRICADE — v2 groundwork: the molotov, sim only, behind the flag (2026-07-12)
+- **The foundation of the game's first active weapon.** Behind `VITE_ENABLE_BARRICADE` (still off), the deterministic sim gains a molotov cocktail — an aimed, area, integer-only throw with a charge meter that fills over time and from kills — as the first step of the BARRICADE "deepening" (longer, progressively harder, more machines). It isn't wired to a control yet, so there's no visible change; the sim version steps to 2 and every new field is covered by the replay hash, so verified runs stay verifiable.
+
 ### MEMBA: BARRICADE — a Memba-native visual pass, behind the flag (2026-07-12)
 - **The daily-run game now looks like it belongs in Memba.** Behind `VITE_ENABLE_BARRICADE` (still off), the playable canvas moves to a dark "ink-ground" riso look mounted in the app's arcade-cabinet frame (teal bezel), with real per-archetype enemy silhouettes and bold ink outlines instead of flat squares, a devicePixelRatio-crisp canvas, an attract/idle scene so the ready screen is alive instead of a blank box, and a JetBrains-Mono HUD with teal/gold accents. The controls now use the app's real button and card components, and the results screen is a poster. The light "Riso Protest" stays the collection + share-card look. Render/DOM only — verified replays are unchanged.
 - **The Order now reads as riot apparatus.** The enemies are recognizable mechanized riot units — a surveillance quad-drone, riot-shield troopers, a shield-wall, a net-cannon rig, an armoured water-cannon van on wheels, and a surveillance tower on treads — so the authoritarian force is legible while staying machines (the deliberate "no depicting violence against real people" shield).

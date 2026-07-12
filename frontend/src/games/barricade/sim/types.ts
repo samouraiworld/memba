@@ -19,7 +19,11 @@ export const BARRICADE_MAX_HP = 100_000 // milli-HP
 export const RUN_MAX_TICKS = 120 * TICKS_PER_SECOND
 export const LANE_LENGTH = 100_000 // milli-units, spawn (0) -> barricade
 export const RALLY_FULL = 1_000
-export const SIM_VERSION = 1
+// v2: the "deepening" — adds the molotov (active player verb) + follow-on
+// mechanics. A breaking sim-shape change; the verifier routes frozen v1 seasons
+// by the tagged build. Stays 2 across the in-development Phase-A PRs (nothing is
+// released on v2 until the season-boundary cutover).
+export const SIM_VERSION = 2
 
 export type ArchetypeId = "drone" | "walker" | "phalanx" | "netter" | "siege" | "broadcast"
 
@@ -34,10 +38,20 @@ export type Enemy = {
 
 export type Choice = "repair" | "turret" | "arm"
 
+// A molotov in flight. Resolution needs only the impact tick — the visual arc is
+// render-only and never read back into the sim (keeps it float-free).
+export type Projectile = {
+    id: number
+    lane: number
+    dist: number // target pos in milli-units (0 = spawn end, LANE_LENGTH = barricade)
+    impactTick: number
+}
+
 export type SimEvent =
     | { tick: number; type: "move"; lane: number }
     | { tick: number; type: "rally" }
     | { tick: number; type: "choice"; choice: Choice }
+    | { tick: number; type: "throw"; lane: number; dist: number }
 
 export type SimPhase = "wave" | "choice" | "boss" | "won" | "lost"
 
@@ -58,4 +72,9 @@ export type SimState = {
     cleanWave: boolean // no barricade damage so far this wave
     turrets: number[] // remaining ticks per lane, 0 = none
     armed: number // crowd-allies ticks remaining (all lanes)
+    // ── molotov (v2) ──────────────────────────────────────────────────────────
+    projectiles: Projectile[] // molotovs in flight, resolved at impactTick
+    molotovCharge: number // 0..MOLOTOV_MAX; a throw costs MOLOTOV_COST
+    molotovReadyAt: number // tick until which throwing is on cooldown
+    nextThrowId: number // monotonic projectile id (never reused)
 }
