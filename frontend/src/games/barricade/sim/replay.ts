@@ -60,6 +60,8 @@ export function hashState(state: SimState): string {
         state.score,
         state.turrets.join(","),
         state.armed,
+        state.cleanWave,
+        state.nextEnemyId,
         enemies,
         state.molotovCharge,
         state.molotovReadyAt,
@@ -75,9 +77,12 @@ export function hashState(state: SimState): string {
 /** Run a full game from (seed, events) to its terminal state. */
 export function runReplay(seed: string, events: SimEvent[]): ReplayResult {
     const waves = buildWaves(seed)
+    // Total order: tick, then original log index — a same-tick tiebreak that does
+    // not rely on Array.prototype.sort being stable across JS engines.
     const sorted = events
-        .slice()
-        .sort((a, b) => a.tick - b.tick)
+        .map((e, i) => ({ e, i }))
+        .sort((a, b) => a.e.tick - b.e.tick || a.i - b.i)
+        .map((x) => x.e)
     let s = initState(seed)
     let cursor = 0
     // Terminal-phase only — NO tick bound here. tick() itself flips to "lost"

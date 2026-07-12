@@ -75,4 +75,12 @@ describe("molotov fire zone", () => {
         const withFire = { ...base, hazards: [{ id: 0, lane: 0, posLo: 1, posHi: 2, dmgPerTick: 3, expiresAtTick: 4 }] }
         expect(hashState(withFire)).not.toBe(hashState(base))
     })
+
+    it("burns on the impact tick too — a machine at the center takes burst + one burn", () => {
+        // High HP survives the burst, so the same-tick burn is observable.
+        let s: ReturnType<typeof initState> = { ...initState("f"), enemies: [at(0, 1, 50_000, 100_000), DECOY] }
+        s = applyEvent(s, { tick: 0, type: "throw", lane: 1, dist: 50_000 })
+        for (let i = 0; i < 21; i++) s = tick(s, NO_SPAWNS) // impact at tick 21
+        expect(s.enemies.find((e) => e.id === 0)?.hp).toBe(100_000 - 6_000 - 500)
+    })
 })

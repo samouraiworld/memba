@@ -87,6 +87,10 @@ export function applyEvent(state: SimState, ev: SimEvent): SimState {
     switch (ev.type) {
         case "move": {
             if (state.tick < state.stunnedUntil) return state
+            // Integer guard: a non-integer/NaN lane slips past magnitude checks and,
+            // once the log crosses JSON (NaN→null), diverges the client from the
+            // verifier. isInteger rejects NaN/null/float identically on both sides.
+            if (!Number.isInteger(ev.lane)) return state
             if (ev.lane < 0 || ev.lane >= LANES || ev.lane === state.playerLane) return state
             return { ...state, playerLane: ev.lane }
         }
@@ -137,10 +141,13 @@ export function applyEvent(state: SimState, ev: SimEvent): SimState {
         case "throw": {
             // No-op (state unchanged) if it can't legally fire — exactly like a
             // move-while-stunned — so a spoofed log is rejected by the verifier.
+            if (state.phase === "choice") return state // frozen field: no throwing
             if (state.tick < state.molotovReadyAt) return state
             if (state.molotovCharge < MOLOTOV_COST) return state
-            if (ev.lane < 0 || ev.lane >= LANES) return state
-            if (ev.dist < 0 || ev.dist > LANE_LENGTH) return state
+            // Integer guards (see move): NaN/null/float dist would diverge the
+            // client (NaN, projectile dropped) from the verifier (null→0, impacts).
+            if (!Number.isInteger(ev.lane) || ev.lane < 0 || ev.lane >= LANES) return state
+            if (!Number.isInteger(ev.dist) || ev.dist < 0 || ev.dist > LANE_LENGTH) return state
             // Farther throws hang longer, so you lead more. Integer division.
             const flight = FLIGHT_BASE + Math.floor(((LANE_LENGTH - ev.dist) * FLIGHT_PER_DIST) / LANE_LENGTH)
             return {
