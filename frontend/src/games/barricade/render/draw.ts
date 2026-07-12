@@ -17,6 +17,7 @@
 import { ARCHETYPES, WAVE_TOTAL } from "../sim/waves"
 import { BARRICADE_MAX_HP, LANES, LANE_LENGTH, RALLY_FULL, type ArchetypeId, type SimState } from "../sim/types"
 import { layout, laneCenterX, yFromFrac, type FxState } from "./fx"
+import { laneThreats } from "./telegraph"
 
 export type ViewSize = { width: number; height: number }
 
@@ -234,6 +235,45 @@ export function draw(
     const rendered = s.enemies
         .map((e) => ({ e, pos: interp?.get(e.id) ?? e.pos }))
         .sort((a, b) => a.pos - b.pos)
+
+    // Wind-up telegraph: the front unit of each lane that's about to reach the
+    // barricade gets a pulsing vermilion aim-line + chevron so the incoming lane
+    // is readable in time. Drawn behind the units (they sit atop their warning);
+    // pure render (positions + tick only) — the pulse stills under reduced motion
+    // but the warning stays.
+    const threats = laneThreats(rendered.map((r) => ({ lane: r.e.lane, pos: r.pos })))
+    if (threats.length > 0) {
+        const pulse = fx?.reducedMotion ? 1 : 0.55 + 0.45 * Math.sin(s.tick * 0.25)
+        ctx.strokeStyle = VERMILION
+        ctx.lineJoin = "round"
+        ctx.lineCap = "round"
+        for (const t of threats) {
+            const cx = laneCenterX(lay, t.lane)
+            const y = yFromFrac(lay, t.frac)
+            // Floor keeps a near-barricade threat legible at the pulse trough;
+            // the pulse adds the eye-catching throb. Faint when it first crosses
+            // the band (low intensity), strong at the line.
+            const alpha = t.intensity * (0.5 + 0.45 * pulse)
+            // aim-line down to the barricade
+            ctx.globalAlpha = alpha * 0.6
+            ctx.lineWidth = 2
+            ctx.beginPath()
+            ctx.moveTo(cx, y)
+            ctx.lineTo(cx, fieldBottom)
+            ctx.stroke()
+            // chevron at the line — "incoming here"
+            ctx.globalAlpha = alpha
+            ctx.lineWidth = 3
+            const cwid = laneW * 0.16
+            ctx.beginPath()
+            ctx.moveTo(cx - cwid, fieldBottom - 12)
+            ctx.lineTo(cx, fieldBottom - 3)
+            ctx.lineTo(cx + cwid, fieldBottom - 12)
+            ctx.stroke()
+        }
+        ctx.globalAlpha = 1
+    }
+
     for (const { e, pos } of rendered) {
         const frac = Math.min(1, pos / LANE_LENGTH)
         const a = ARCHETYPES[e.archetype]
