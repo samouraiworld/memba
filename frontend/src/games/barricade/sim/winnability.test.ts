@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { applyEvent, initState, PATCH_HP, REPAIR_COST, tick } from "./engine"
+import { applyEvent, initState, panopticonMode, PATCH_HP, REPAIR_COST, tick } from "./engine"
 import { BOSS_WAVE, buildWaves } from "./waves"
 import { BARRICADE_MAX_HP, LANE_LENGTH, RALLY_FULL, RUN_MAX_TICKS, type SimEvent, type SimState } from "./types"
 
@@ -44,10 +44,16 @@ function decide(view: SimState): SimEvent | null {
         }
     }
     if (lane < 0) return null
-    // A kettled street can't be entered — no human taps a visibly locked lane;
-    // they lob into it from outside (tap-to-lob targets ANY lane by design).
-    const kettled = view.enemies.some((e) => e.archetype === "kettle" && e.lane === lane)
-    if (view.playerLane !== lane && !kettled) return { tick: 0, type: "move", lane }
+    // A locked street can't be entered (kettle, or the apex in lock mode) — no
+    // human taps a visibly locked lane; they lob into it from outside
+    // (tap-to-lob targets ANY lane by design). Mode read from the STALE view,
+    // consistent with the perception-latency model.
+    const locked = view.enemies.some(
+        (e) =>
+            e.lane === lane &&
+            (e.archetype === "kettle" || (e.archetype === "panopticon" && panopticonMode(e, view.tick) === 3)),
+    )
+    if (view.playerLane !== lane && !locked) return { tick: 0, type: "move", lane }
     if (view.molotovCharge >= MOLOTOV_COST && view.tick >= view.molotovReadyAt) {
         // Lead the throw from the STALE view — where the front was, plus a guess.
         return { tick: 0, type: "throw", lane, dist: Math.min(LANE_LENGTH, front + 10_000) }

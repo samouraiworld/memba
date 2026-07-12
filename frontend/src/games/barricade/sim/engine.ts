@@ -80,6 +80,7 @@ export const MORTAR_SHELL = 3_000 // barricade milli-HP per volley
 export const MARSHAL_CYCLE = 135 // shield cycle length in ticks, phased by bornTick
 export const MARSHAL_UP = 90 // shield raised for this slice of the cycle …
 export const MARSHAL_REDUCT_PCT = 85 // … blunting frontal fire this hard (window teaches timing)
+export const PANOPTICON_REDUCT_PCT = 85 // the apex's shield mode — its OWN knob, so a marshal retune can't silently retune the apex
 export const KETTLE_PERIOD = 120 // ticks between swarm deployments, phased by bornTick
 export const KETTLE_LITTER = 2 // swarm children per deployment
 export const ENEMY_CAP = 80 // global live-enemy cap: spawners refuse to mint past it (verifier cost)
@@ -337,7 +338,7 @@ function damageFront(
     } else if (target.archetype === "marshal" && (tick - target.bornTick) % MARSHAL_CYCLE < MARSHAL_UP) {
         eff = Math.floor((dmg * (100 - MARSHAL_REDUCT_PCT)) / 100)
     } else if (target.archetype === "panopticon" && panopticonMode(target, tick) === 0) {
-        eff = Math.floor((dmg * (100 - MARSHAL_REDUCT_PCT)) / 100) // apex shield mode
+        eff = Math.floor((dmg * (100 - PANOPTICON_REDUCT_PCT)) / 100) // apex shield mode
     }
     const hp = target.hp - eff
     if (hp > 0) {
