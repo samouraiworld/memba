@@ -15,7 +15,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { applyEvent, initState, tick } from "./sim/engine"
-import { buildWaves, WAVE_TOTAL, type WaveScript } from "./sim/waves"
+import { BOSS_WAVE, buildWaves, WAVE_TOTAL, type WaveScript } from "./sim/waves"
 import { MAX_REPLAY_EVENTS, runReplay } from "./sim/replay"
 import { LANES, LANE_LENGTH, type Choice, type SimEvent, type SimState } from "./sim/types"
 import { ARM_COST, MOLOTOV_COST, REFILL_COST, REPAIR_COST, TURRET_COST } from "./sim/engine"
@@ -98,6 +98,7 @@ export default function Barricade() {
         score: number
         won: boolean
         waves: number
+        overtimeRound: number
         verified: boolean
     } | null>(null)
 
@@ -130,7 +131,7 @@ export default function Barricade() {
 
     const record = useCallback((ev: SimEventInput) => {
         const s = stateRef.current
-        if (s.phase === "won" || s.phase === "lost") return
+        if (s.phase === "lost") return
         // The replay truncates at MAX_REPLAY_EVENTS (verifier cost bound), so
         // stop recording AND applying at the same cap — live play and the
         // re-verified log must never disagree. Unreachable by human tapping.
@@ -147,20 +148,24 @@ export default function Barricade() {
             for (let i = 0; i < steps; i++) {
                 prevTick = s
                 s = tick(s, wavesRef.current)
-                if (s.phase === "won" || s.phase === "lost") break
+                if (s.phase === "lost") break
             }
             stateRef.current = s
             // The state one tick back is the interpolation anchor for onFrame.
             tickPrevRef.current = prevTick
-            if (s.phase === "won" || s.phase === "lost") {
+            if (s.phase === "lost") {
+                // Every run ends "lost" now (the siege always wins eventually);
+                // holding the line = the terminal wave got past the boss.
+                const wonArc = s.wave > BOSS_WAVE
                 const replay = runReplay(seedRef.current, eventsRef.current)
                 setResult({
                     score: s.score,
-                    won: s.phase === "won",
+                    won: wonArc,
                     waves: Math.min(s.wave + 1, WAVE_TOTAL),
+                    overtimeRound: Math.max(0, s.wave - BOSS_WAVE),
                     // The recorded log must reproduce the live run exactly —
                     // this is the same check the server verifier performs.
-                    verified: replay.score === s.score && replay.won === (s.phase === "won"),
+                    verified: replay.score === s.score && replay.won === wonArc,
                 })
                 setStatus("done")
             }
@@ -271,6 +276,7 @@ export default function Barricade() {
             won: result.won,
             waves: result.waves,
             total: WAVE_TOTAL,
+            overtimeRound: result.overtimeRound,
             date: dailySeed().slice(-10),
         })
         const clip = typeof navigator !== "undefined" ? navigator.clipboard : undefined
@@ -387,6 +393,14 @@ export default function Barricade() {
                         <span>
                             WAVE <strong>{result.waves}/{WAVE_TOTAL}</strong>
                         </span>
+                        {result.overtimeRound > 0 && (
+                            <>
+                                <span className="bar-poster__dot">·</span>
+                                <span>
+                                    SIEGE <strong>r{result.overtimeRound}</strong>
+                                </span>
+                            </>
+                        )}
                         <span className="bar-poster__dot">·</span>
                         <span className={result.verified ? "bar-verified" : "bar-mismatch"}>
                             {result.verified ? "VERIFIED ✓" : "MISMATCH"}

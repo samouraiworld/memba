@@ -46,7 +46,7 @@ function runSim(seed: string, withFx: boolean): { final: SimState; checksum: num
     const rng = seededRng(99)
     let checksum = 0
     let guard = 0
-    while (s.phase !== "won" && s.phase !== "lost" && guard++ < 20_000) {
+    while (s.phase !== "lost" && guard++ < 60_000) {
         for (const ev of SCRIPT) if (ev.tick === s.tick) s = applyEvent(s, ev)
         const prev = s
         s = tick(s, waves)

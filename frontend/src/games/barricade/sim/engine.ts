@@ -11,7 +11,7 @@
  */
 
 import { seedToState } from "./rng"
-import { ARCHETYPES, BOSS_WAVE, type WaveScript } from "./waves"
+import { ARCHETYPES, BOSS_WAVE, overtimeWave, type WaveScript } from "./waves"
 import {
     BARRICADE_MAX_HP,
     LANE_LENGTH,
@@ -81,17 +81,28 @@ export const KETTLE_PERIOD = 120 // ticks between swarm deployments, phased by b
 export const KETTLE_LITTER = 2 // swarm children per deployment
 export const ENEMY_CAP = 80 // global live-enemy cap: spawners refuse to mint past it (verifier cost)
 // ── per-wave escalation (v2): machines get tougher + faster as waves climb.
-// Speed is capped so travel-time never outruns kill-time (the winnability guard).
+// Speed is capped so travel-time never outruns kill-time (the winnability guard)
+// — but ONLY through the core arc: the Overtime Siege lifts both caps, so the
+// siege out-scales any clear rate and every run terminates (GDD-v2 §1/§6).
 const ESCALATE_HP_PER_WAVE = 6 // +6% HP per wave …
-const ESCALATE_HP_CAP = 160 // … up to +60%
+const ESCALATE_HP_CAP = 160 // … up to +60% (core arc)
 const ESCALATE_SPD_PER_WAVE = 2 // +2% speed per wave …
-const ESCALATE_SPD_CAP = 130 // … up to +30% (the guardrail)
+const ESCALATE_SPD_CAP = 130 // … up to +30% (core arc — the guardrail)
+
+/** hp/speed multipliers for a wave — capped in the arc, uncapped in the siege. */
+function escalation(wave: number): [number, number] {
+    const hp = 100 + ESCALATE_HP_PER_WAVE * wave
+    const spd = 100 + ESCALATE_SPD_PER_WAVE * wave
+    if (wave > BOSS_WAVE) return [hp, spd]
+    return [Math.min(hp, ESCALATE_HP_CAP), Math.min(spd, ESCALATE_SPD_CAP)]
+}
 // Wave spawn windows come from waves.ts; a wave "ends" when its script is
 // exhausted and no enemies remain on the field.
 
 export function initState(seed: string): SimState {
     return {
         tick: 0,
+        seed,
         rngState: seedToState(`engine|${seed}`),
         playerLane: 0,
         stunnedUntil: 0,
@@ -118,7 +129,7 @@ export function initState(seed: string): SimState {
 }
 
 export function applyEvent(state: SimState, ev: SimEvent): SimState {
-    if (state.phase === "won" || state.phase === "lost") return state
+    if (state.phase === "lost") return state
     switch (ev.type) {
         case "move": {
             if (state.tick < state.stunnedUntil) return state
@@ -374,7 +385,7 @@ function burnTick(enemies: Enemy[], hazards: FireField[]): [Enemy[], number, num
 }
 
 export function tick(state: SimState, waves: WaveScript[]): SimState {
-    if (state.phase === "won" || state.phase === "lost") return state
+    if (state.phase === "lost") return state
     if (state.tick >= RUN_MAX_TICKS) return { ...state, phase: "lost" }
 
     let s: SimState = {
@@ -394,7 +405,9 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         else return s
     }
 
-    const script = waves[s.wave]
+    // Past the authored arc, rounds come from the overtime generator (pure
+    // function of seed + round, cached) — the siege never runs out of script.
+    const script = s.wave < waves.length ? waves[s.wave] : overtimeWave(s.seed, s.wave - waves.length + 1)
     const bossAlive = s.enemies.some((e) => e.archetype === "broadcast")
 
     // 1. Spawn: this wave's script entries due at the wave-local tick.
@@ -404,8 +417,7 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
     for (const sp of script.spawns) {
         if (sp.atTick === waveLocal) {
             const a = ARCHETYPES[sp.archetype]
-            const hpMul = Math.min(100 + ESCALATE_HP_PER_WAVE * s.wave, ESCALATE_HP_CAP)
-            const spdMul = Math.min(100 + ESCALATE_SPD_PER_WAVE * s.wave, ESCALATE_SPD_CAP)
+            const [hpMul, spdMul] = escalation(s.wave)
             s.enemies.push({
                 id: s.nextEnemyId++,
                 archetype: sp.archetype,
@@ -426,8 +438,7 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
     // The global cap bounds the field — spawners refuse to mint past it, so the
     // verifier's per-tick cost stays bounded no matter the log (GDD §6).
     if (s.enemies.some((e) => e.archetype === "kettle")) {
-        const hpMul = Math.min(100 + ESCALATE_HP_PER_WAVE * s.wave, ESCALATE_HP_CAP)
-        const spdMul = Math.min(100 + ESCALATE_SPD_PER_WAVE * s.wave, ESCALATE_SPD_CAP)
+        const [hpMul, spdMul] = escalation(s.wave)
         for (const e of s.enemies.slice()) {
             if (e.archetype !== "kettle") continue
             if ((s.tick - e.bornTick) % KETTLE_PERIOD !== 0) continue
@@ -625,19 +636,21 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
     const scriptDone = script.spawns.every((sp) => sp.atTick < waveLocal)
     if (scriptDone && s.enemies.length === 0) {
         const waveBonus = WAVE_CLEAR_BONUS + (s.cleanWave ? CLEAN_WAVE_BONUS : 0)
-        if (s.wave === BOSS_WAVE) {
-            return { ...s, score: s.score + waveBonus + WIN_BONUS, phase: "won" }
-        }
-        // Between waves: the spend window, then the next wave (the choice-exit
-        // path routes to "boss" before the last wave, so the pre-boss shop is a
-        // real window too — it used to be silently skipped). phaseUntil doubles
+        // Clearing the Broadcast Tower pays the arc's WIN bonus exactly once —
+        // and opens the Overtime Siege instead of ending the run: the shop,
+        // then endless escalating rounds until the line falls. "The line held"
+        // now means the terminal wave got PAST the boss.
+        const winBonus = s.wave === BOSS_WAVE ? WIN_BONUS : 0
+        // Between waves (arc and siege alike): the spend window, then the next
+        // wave (the choice-exit path routes to "boss" before the last authored
+        // wave, so the pre-boss shop is a real window too). phaseUntil doubles
         // as the next wave's start tick (wave-local time origin).
         return {
             ...s,
             wave: s.wave + 1,
             phase: "choice",
             phaseUntil: s.tick + SPEND_PHASE_TICKS,
-            score: s.score + waveBonus,
+            score: s.score + waveBonus + winBonus,
             cleanWave: true,
         }
     }

@@ -16,7 +16,10 @@
 export const TICKS_PER_SECOND = 60
 export const LANES = 3
 export const BARRICADE_MAX_HP = 100_000 // milli-HP
-export const RUN_MAX_TICKS = 240 * TICKS_PER_SECOND // v2: the longer Core Arc + ten 4s spend windows
+// v2: the Core Arc (+ spend windows) plus the Overtime Siege tail. The siege's
+// uncapped escalation guarantees death long before this, so the cap is the
+// verifier's hard cost ceiling (GDD §6 "~15 min"), not a gameplay boundary.
+export const RUN_MAX_TICKS = 900 * TICKS_PER_SECOND
 export const LANE_LENGTH = 100_000 // milli-units, spawn (0) -> barricade
 export const RALLY_FULL = 1_000
 // v2: the "deepening" — adds the molotov (active player verb) + follow-on
@@ -85,10 +88,14 @@ export type SimEvent =
     | { tick: number; type: "throw"; lane: number; dist: number }
     | { tick: number; type: "shove"; lane: number }
 
-export type SimPhase = "wave" | "choice" | "boss" | "won" | "lost"
+// "won" is gone (v2 Overtime): clearing the boss opens the endless siege
+// instead of ending the run — every run terminates "lost" (or at the tick
+// cap), and "the line held" means the terminal wave got PAST the boss.
+export type SimPhase = "wave" | "choice" | "boss" | "lost"
 
 export type SimState = {
     tick: number
+    seed: string // the run's seed — lets the engine synthesize overtime waves on demand
     rngState: number
     playerLane: number
     stunnedUntil: number // tick until which lane-moves are ignored (netter hit)

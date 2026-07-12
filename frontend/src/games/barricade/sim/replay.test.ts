@@ -96,7 +96,7 @@ describe("replay determinism", () => {
         for (const seed of ["stall", "daily-2026-07-11"]) {
             const waves = buildWaves(seed)
             let live = initState(seed)
-            while (live.phase !== "won" && live.phase !== "lost") {
+            while (live.phase !== "lost") {
                 live = tick(live, waves)
             }
             expect(runReplay(seed, []).stateHash).toEqual(hashState(live))

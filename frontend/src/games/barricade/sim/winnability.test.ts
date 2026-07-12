@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest"
 import { applyEvent, initState, PATCH_HP, REPAIR_COST, tick } from "./engine"
-import { buildWaves } from "./waves"
+import { BOSS_WAVE, buildWaves } from "./waves"
 import { BARRICADE_MAX_HP, LANE_LENGTH, RALLY_FULL, RUN_MAX_TICKS, type SimEvent, type SimState } from "./types"
 
 const MOLOTOV_COST = 1_000 // mirrors engine.ts
@@ -61,14 +61,16 @@ function play(seed: string, reactEvery = 15): { final: SimState; minHp: number }
     let minHp = s.barricadeHp
     let lagged = s // what the player last "saw" — one reaction interval stale
     let guard = 0
-    while (s.phase !== "won" && s.phase !== "lost" && guard++ < RUN_MAX_TICKS + 50) {
+    while (s.phase !== "lost" && guard++ < RUN_MAX_TICKS + 50) {
         if (s.tick % reactEvery === 0) {
             const act = decide(lagged)
             if (act) s = applyEvent(s, { ...act, tick: s.tick } as SimEvent)
             lagged = s
         }
         s = tick(s, waves)
-        if (s.barricadeHp < minHp) minHp = s.barricadeHp
+        // The fairness margin is an ARC property: overtime damage is designed
+        // death, so the tightest moment BEFORE the boss falls is what counts.
+        if (s.wave <= BOSS_WAVE && s.barricadeHp < minHp) minHp = s.barricadeHp
     }
     return { final: s, minHp }
 }
@@ -83,9 +85,11 @@ function dailySeeds(count: number, startUtc: number): string[] {
 }
 
 describe("winnability (fairness on a shared daily seed)", () => {
-    it("a fast competent player clears assorted seeds", () => {
+    it("a fast competent player clears the arc on assorted seeds (then the siege takes them all)", () => {
         for (const seed of ["barricade-2026-07-12", "a", "membas", "zzz", "42"]) {
-            expect(play(seed, 2).final.phase, `seed ${seed}`).toBe("won")
+            const { final } = play(seed, 2)
+            expect(final.wave, `seed ${seed}`).toBeGreaterThan(BOSS_WAVE) // the arc was cleared
+            expect(final.phase, `seed ${seed}`).toBe("lost") // …and the siege ended it, as designed
         }
     })
 
@@ -95,7 +99,14 @@ describe("winnability (fairness on a shared daily seed)", () => {
         let worstMargin = Infinity
         for (const seed of dailySeeds(90, Date.UTC(2026, 6, 1))) {
             const { final, minHp } = play(seed)
-            expect(final.phase, `seed ${seed}: ${final.phase} @tick ${final.tick}, hp ${final.barricadeHp}`).toBe("won")
+            expect(final.wave, `seed ${seed}: wave ${final.wave} @tick ${final.tick}, hp ${final.barricadeHp}`).toBeGreaterThan(
+                BOSS_WAVE,
+            )
+            // Death must come FROM THE SIEGE, never the tick cap: a retune that
+            // drags honest runs toward the 15-minute ceiling would turn every
+            // ending into an arbitrary cutoff — trip CI well before that.
+            expect(final.phase, seed).toBe("lost")
+            expect(final.tick, seed).toBeLessThan(RUN_MAX_TICKS * 0.8)
             if (minHp < worstMargin) worstMargin = minHp
         }
         // A floor that BINDS: with the B3 mini-bosses in the arc the honest
@@ -109,5 +120,5 @@ describe("winnability (fairness on a shared daily seed)", () => {
         // (review finding — pre-B3 the reference player was never touched and
         // the gate was inert). A retune that trivializes the game trips this.
         expect(worstMargin).toBeLessThan(BARRICADE_MAX_HP)
-    }, 20_000)
+    }, 40_000) // the sweep now plays every seed THROUGH its overtime death
 })

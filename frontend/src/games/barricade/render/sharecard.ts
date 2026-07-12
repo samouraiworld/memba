@@ -11,9 +11,10 @@
 
 export type ShareResult = {
     score: number
-    won: boolean
-    waves: number // 1-indexed wave reached (where it ended)
+    won: boolean // the Core Arc was cleared (the siege always falls eventually)
+    waves: number // 1-indexed wave reached (where it ended), capped at total
     total: number // WAVE_TOTAL
+    overtimeRound?: number // deepest siege round reached — the Wordle-style headline
     date: string // e.g. "2026-07-12"
     url?: string // optional link, appended when the game is public
 }
@@ -30,9 +31,12 @@ export function buildShareText(r: ShareResult): string {
         return UNREACHED
     }).join("")
     const verdict = r.won ? "THE LINE HELD" : "THE LINE FELL"
+    // The siege round is the headline stat (GDD: "Reached Siege Round N — beat
+    // that"); the arc score stays secondary.
+    const tail = r.won && r.overtimeRound && r.overtimeRound > 0 ? ` · SIEGE r${r.overtimeRound}` : ""
     const lines = [
         `MEMBA: BARRICADE — ${r.date}`,
-        `${verdict} · ${r.score.toLocaleString()} · wave ${r.waves}/${r.total}`,
+        `${verdict}${tail} · ${r.score.toLocaleString()} · wave ${r.waves}/${r.total}`,
         grid,
     ]
     if (r.url) lines.push(r.url)
