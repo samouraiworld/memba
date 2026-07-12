@@ -15,6 +15,7 @@ import {
     RALLY_FULL,
     RUN_MAX_TICKS,
     type Enemy,
+    type FireField,
     type Projectile,
     type SimEvent,
     type SimState,
@@ -47,6 +48,11 @@ const MOLOTOV_RADIUS = 12_000 // same-lane burst reach (milli-units)
 const MOLOTOV_BURST = 6_000 // burst milli-HP dealt on impact
 const FLIGHT_BASE = 12 // min flight ticks (a throw at the barricade)
 const FLIGHT_PER_DIST = 18 // extra flight ticks for a max-distance throw
+const FIRE_RADIUS = 9_000 // fire-zone half-width (milli-units)
+const FIRE_DPS = 500 // burn milli-HP per tick
+const FIRE_DURATION = 180 // burn ticks (~3s)
+const FIRE_SLOW_NUM = 3 // machines caught in fire move at 3/5 speed (−40%)
+const FIRE_SLOW_DEN = 5
 // Wave spawn windows come from waves.ts; a wave "ends" when its script is
 // exhausted and no enemies remain on the field.
 
@@ -69,6 +75,7 @@ export function initState(seed: string): SimState {
         turrets: new Array(LANES).fill(0),
         armed: 0,
         projectiles: [],
+        hazards: [],
         molotovCharge: MOLOTOV_MAX,
         molotovReadyAt: 0,
         nextThrowId: 0,
@@ -207,6 +214,37 @@ function burstDamage(
     return [next, kills, scrap, rally]
 }
 
+/**
+ * Fire tick: every machine takes the SUM of the fire fields covering it (so
+ * overlapping fields and iteration order can't change the result). Returns
+ * [enemies, kills, scrap, rally].
+ */
+function burnTick(enemies: Enemy[], hazards: FireField[]): [Enemy[], number, number, number] {
+    let kills = 0
+    let scrap = 0
+    let rally = 0
+    const next: Enemy[] = []
+    for (const e of enemies) {
+        let dmg = 0
+        for (const h of hazards) {
+            if (h.lane === e.lane && e.pos >= h.posLo && e.pos <= h.posHi) dmg += h.dmgPerTick
+        }
+        if (dmg === 0) {
+            next.push(e)
+            continue
+        }
+        const hp = e.hp - dmg
+        if (hp > 0) {
+            next.push({ ...e, hp })
+        } else {
+            kills++
+            scrap += ARCHETYPES[e.archetype].scrap
+            rally += RALLY_FILL_PER_KILL
+        }
+    }
+    return [next, kills, scrap, rally]
+}
+
 export function tick(state: SimState, waves: WaveScript[]): SimState {
     if (state.phase === "won" || state.phase === "lost") return state
     if (state.tick >= RUN_MAX_TICKS) return { ...state, phase: "lost" }
@@ -217,6 +255,7 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         enemies: state.enemies.slice(),
         turrets: state.turrets.slice(),
         projectiles: state.projectiles.slice(),
+        hazards: state.hazards.slice(),
     }
 
     // Choice phase: frozen field, waiting for the player (or the timer).
@@ -246,8 +285,25 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         }
     }
 
-    // 2. Advance.
-    s.enemies = s.enemies.map((e) => ({ ...e, pos: e.pos + e.speed }))
+    // Fire zones: drop burnt-out fields, then flag machines caught inside one so
+    // they advance slowed this tick (computed on pre-advance positions; a field
+    // spawned by this tick's impact only slows from next tick).
+    s.hazards = s.hazards.filter((h) => s.tick < h.expiresAtTick)
+    const slowed = new Set<number>()
+    for (const e of s.enemies) {
+        for (const h of s.hazards) {
+            if (h.lane === e.lane && e.pos >= h.posLo && e.pos <= h.posHi) {
+                slowed.add(e.id)
+                break
+            }
+        }
+    }
+
+    // 2. Advance (fire slows any machine caught in a burn zone).
+    s.enemies = s.enemies.map((e) => ({
+        ...e,
+        pos: e.pos + (slowed.has(e.id) ? Math.floor((e.speed * FIRE_SLOW_NUM) / FIRE_SLOW_DEN) : e.speed),
+    }))
 
     let scrapGain = 0
     let rallyGain = 0
@@ -267,8 +323,27 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
             killCount += k
             scrapGain += sc
             rallyGain += ra
+            // Leave a lingering fire zone at the impact point.
+            s.hazards.push({
+                id: p.id,
+                lane: p.lane,
+                posLo: p.dist - FIRE_RADIUS,
+                posHi: p.dist + FIRE_RADIUS,
+                dmgPerTick: FIRE_DPS,
+                expiresAtTick: s.tick + FIRE_DURATION,
+            })
         }
         s.projectiles = flying
+    }
+
+    // 2c. Burn: fire zones damage every machine caught in them (after impacts,
+    // before combat), so a burn-lethal machine dies before it can contact-damage.
+    if (s.hazards.length > 0) {
+        const [next, k, sc, ra] = burnTick(s.enemies, s.hazards)
+        s.enemies = next
+        killCount += k
+        scrapGain += sc
+        rallyGain += ra
     }
 
     // 3. Combat: player lane front target, turret lanes, armed crowd.

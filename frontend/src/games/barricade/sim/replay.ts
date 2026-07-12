@@ -41,6 +41,11 @@ export function hashState(state: SimState): string {
         .sort((a, b) => a.id - b.id)
         .map((p) => `${p.id},${p.lane},${p.dist},${p.impactTick}`)
         .join(";")
+    const hazards = state.hazards
+        .slice()
+        .sort((a, b) => a.id - b.id)
+        .map((h) => `${h.id},${h.lane},${h.posLo},${h.posHi},${h.dmgPerTick},${h.expiresAtTick}`)
+        .join(";")
     const canonical = [
         state.tick,
         state.rngState,
@@ -60,6 +65,7 @@ export function hashState(state: SimState): string {
         state.molotovReadyAt,
         state.nextThrowId,
         projectiles,
+        hazards,
     ].join("|")
     const a = fnv1a(canonical, 0x811c9dc5)
     const b = fnv1a(canonical, 0x01234567)
