@@ -56,6 +56,9 @@ const MACHINE_COLOR: Record<ArchetypeId, string> = {
     marshal: "#35437a", // command shield-bearer
     kettle: "#2f3c6e", // kettling rig
     dampener: "#6d87c8", // water-cannon tanker
+    carrier: "#455890", // riot-van spawner
+    jammer: "#96aade", // jam-ring mast
+    mender: "#7d94cc", // welding nurse-drone
 }
 
 /** Fill the current path, then a paper rim-light on the up-left edge, then ink it. */
@@ -301,6 +304,45 @@ function drawMachine(
             eye(ctx, x - s * 0.1, y + s * 0.14, s * 0.05) // hatchlings' eyes inside
             eye(ctx, x + s * 0.1, y + s * 0.14, s * 0.05)
             eye(ctx, x, y - s * 0.22, s * 0.09)
+            break
+        }
+        case "carrier": { // riot-van spawner — a boxy transport with side hatches
+            inkCircle(ctx, x - s * 0.3, y + s * 0.42, s * 0.14, WHEEL, 2.5)
+            inkCircle(ctx, x + s * 0.3, y + s * 0.42, s * 0.14, WHEEL, 2.5)
+            inkRect(ctx, x - s * 0.5, y - s * 0.26, s, s * 0.62, color, 3.5) // hull
+            inkRect(ctx, x - s * 0.5, y - s * 0.02, s * 0.16, s * 0.3, "#141026", 2.5) // left hatch
+            inkRect(ctx, x + s * 0.34, y - s * 0.02, s * 0.16, s * 0.3, "#141026", 2.5) // right hatch
+            inkRect(ctx, x - s * 0.14, y - s * 0.42, s * 0.28, s * 0.18, color, 2.5) // cab
+            eye(ctx, x, y - s * 0.33, s * 0.08)
+            break
+        }
+        case "jammer": { // jam-ring mast — a thin pylon under a broadcast ring
+            inkRect(ctx, x - s * 0.2, y + s * 0.24, s * 0.4, s * 0.24, color, 2.5) // base
+            inkRect(ctx, x - s * 0.05, y - s * 0.34, s * 0.1, s * 0.6, color, 2.5) // mast
+            ctx.beginPath() // the ring
+            ctx.ellipse(x, y - s * 0.38, s * 0.3, s * 0.14, 0, 0, TAU)
+            ctx.lineWidth = 3
+            ctx.strokeStyle = color
+            ctx.stroke()
+            ctx.strokeStyle = INK_LINE
+            ctx.lineWidth = 1.5
+            ctx.stroke()
+            eye(ctx, x, y - s * 0.06, s * 0.08)
+            break
+        }
+        case "mender": { // welding nurse-drone — a stubby body with tool arms forward
+            inkCircle(ctx, x, y, s * 0.28, color, 3) // pod body
+            ctx.strokeStyle = INK_LINE // twin tool arms reaching up-lane
+            ctx.lineWidth = 3
+            for (const sx of [-1, 1]) {
+                ctx.beginPath()
+                ctx.moveTo(x + sx * s * 0.18, y - s * 0.14)
+                ctx.lineTo(x + sx * s * 0.3, y - s * 0.44)
+                ctx.stroke()
+            }
+            inkCircle(ctx, x - s * 0.3, y - s * 0.46, s * 0.07, OCHRE, 1.5) // welding tips
+            inkCircle(ctx, x + s * 0.3, y - s * 0.46, s * 0.07, OCHRE, 1.5)
+            eye(ctx, x, y - s * 0.04, s * 0.08)
             break
         }
         case "dampener": { // water-cannon tanker — a barrel body and a hose snout

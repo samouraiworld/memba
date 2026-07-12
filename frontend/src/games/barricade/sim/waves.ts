@@ -32,6 +32,10 @@ export const ARCHETYPES: Record<ArchetypeId, { hp: number; speed: number; damage
     marshal: { hp: 60_000, speed: 220, damage: 20_000, scrap: 70 }, // windowed frontal shield
     kettle: { hp: 50_000, speed: 180, damage: 15_000, scrap: 60 }, // lane lock + swarm spawner
     dampener: { hp: 18_000, speed: 240, damage: 10_000, scrap: 45 }, // douses lane fire
+    // Stretch machines (C1) — siege-pool only: the deep rounds get new problems.
+    carrier: { hp: 30_000, speed: 220, damage: 14_000, scrap: 55 }, // marching spawner
+    jammer: { hp: 10_000, speed: 320, damage: 5_000, scrap: 35 }, // rally + turret denial
+    mender: { hp: 8_000, speed: 140, damage: 4_000, scrap: 40 }, // rear-guard healer: slower than everything it screens
 }
 
 const NORMAL_WAVES = 10 // v2: a longer Core Arc (was 7)
@@ -50,10 +54,13 @@ export const THREAT_COST: Record<ArchetypeId, number> = {
     walker: 22,
     charger: 28,
     phalanx: 35,
+    jammer: 30,
+    mender: 38,
     mortar: 40,
     dampener: 42,
     testudo: 45,
     rampart: 50,
+    carrier: 55,
     siege: 60,
     broadcast: 0, // boss, hand-placed, never budgeted
     marshal: 0, // W5 mini-boss, hand-placed
@@ -79,6 +86,10 @@ function poolFor(wave: number): ArchetypeId[] {
     if (wave >= 7) pool.push("rampart")
     if (wave >= 8) pool.push("mortar")
     if (wave >= 9) pool.push("dampener")
+    // Stretch machines join only PAST the authored arc (wave index ≥ NORMAL_WAVES
+    // = overtime pools): the daily arc keeps its tuned roster; the deep siege
+    // gets new problems.
+    if (wave >= NORMAL_WAVES) pool.push("carrier", "jammer", "mender")
     return pool
 }
 

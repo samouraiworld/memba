@@ -44,6 +44,9 @@ export type ArchetypeId =
     | "marshal" // W5 mini-boss: a frontal shield that only DROPS in timed windows
     | "kettle" // W9 mini-boss: kettles its street (no entry) + deploys swarm on a cadence
     | "dampener" // water-cannon tanker: douses molotov ground-fire in its lane
+    | "carrier" // riot-van spawner: marches while deploying adds into its + neighbor lanes (siege)
+    | "jammer" // jam-ring mast: freezes rally fill + the turret in its lane while alive (siege)
+    | "mender" // welding nurse-drone: trails behind and heals the machine it follows (siege)
 
 export type Enemy = {
     id: number
