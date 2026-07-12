@@ -50,16 +50,22 @@ export const ARCHETYPE_WEIGHT: Record<ArchetypeId, number> = {
 export function deriveFxEvents(prev: SimState, next: SimState): FxEvent[] {
     const events: FxEvent[] = []
 
-    // Deaths. An id in prev but not in next either died in combat or reached the
-    // barricade. Combat runs before contact each tick, so an enemy that could
-    // not have crossed the line this step (pos + speed < LANE_LENGTH) is an
-    // unambiguous kill. Boundary enemies are treated as "reached" and covered by
-    // the barricadeHit event instead — this never emits a false kill.
+    // Deaths vs. reaching the barricade. An id in prev but not in next either
+    // died in combat (kill → particle) or reached the barricade (already covered
+    // by the barricadeHit event below). The barricade-HP delta is the authority
+    // on whether ANY enemy reached this frame: if it did not drop, every
+    // disappeared enemy is a kill — including a front enemy killed in combat right
+    // at the line, which would otherwise emit nothing. When it did drop, enemies
+    // within one step of the line are the ones that reached. Under a rare
+    // multi-tick frame (post tab-sleep, up to ~15 ticks collapse into one) a
+    // straggler that truly reached can still be tagged a kill — one stray particle
+    // burst, purely cosmetic; it never suppresses a real hit.
+    const reachedDamage = prev.barricadeHp - next.barricadeHp
     const nextIds = new Set<number>()
     for (const e of next.enemies) nextIds.add(e.id)
     for (const e of prev.enemies) {
         if (nextIds.has(e.id)) continue
-        if (e.pos + e.speed >= LANE_LENGTH) continue
+        if (reachedDamage > 0 && e.pos + e.speed >= LANE_LENGTH) continue
         events.push({
             kind: "kill",
             lane: e.lane,

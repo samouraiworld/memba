@@ -55,71 +55,115 @@ function inkFill(ctx: CanvasRenderingContext2D, fill: string, lw = 3): void {
     ctx.stroke()
 }
 
-// ── Per-archetype silhouettes (ctx path commands; no Path2D so jsdom tests run).
-// Each builds a closed path centred on (x,y), sized by s, then callers ink it.
-function machinePath(ctx: CanvasRenderingContext2D, kind: ArchetypeId, x: number, y: number, s: number): void {
+// ── Riot-machine silhouettes ─────────────────────────────────────────────────
+// The Order is mechanized riot apparatus — shields, vans, drones, water cannons —
+// so it reads as the state cracking down while staying MACHINES (GDD §4: no
+// depicting violence against real people). ctx path commands only (no Path2D, so
+// jsdom tests run). Each draws its parts back-to-front, then inks them.
+const WHEEL = "#131022"
+const SHIELD = "#8ea6dd"
+
+function inkRect(ctx: CanvasRenderingContext2D, x0: number, y0: number, ww: number, hh: number, fill: string, lw = 3): void {
     ctx.beginPath()
+    ctx.rect(x0, y0, ww, hh)
+    inkFill(ctx, fill, lw)
+}
+function inkCircle(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number, fill: string, lw = 2.5): void {
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, 0, TAU)
+    inkFill(ctx, fill, lw)
+}
+function eye(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): void {
+    ctx.fillStyle = VERMILION
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, 0, TAU)
+    ctx.fill()
+}
+
+function drawMachine(ctx: CanvasRenderingContext2D, kind: ArchetypeId, x: number, y: number, s: number, color: string): void {
     switch (kind) {
-        case "drone": // fast dart / downward chevron
-            ctx.moveTo(x, y + s * 0.52)
-            ctx.lineTo(x - s * 0.42, y - s * 0.34)
-            ctx.lineTo(x, y - s * 0.12)
-            ctx.lineTo(x + s * 0.42, y - s * 0.34)
-            ctx.closePath()
-            break
-        case "netter": // wide trapezoid + two claw prongs
-            ctx.moveTo(x - s * 0.5, y - s * 0.28)
-            ctx.lineTo(x + s * 0.5, y - s * 0.28)
-            ctx.lineTo(x + s * 0.34, y + s * 0.22)
-            ctx.lineTo(x + s * 0.44, y + s * 0.5)
-            ctx.lineTo(x + s * 0.2, y + s * 0.26)
-            ctx.lineTo(x - s * 0.2, y + s * 0.26)
-            ctx.lineTo(x - s * 0.44, y + s * 0.5)
-            ctx.lineTo(x - s * 0.34, y + s * 0.22)
-            ctx.closePath()
-            break
-        case "walker": // riot-trooper tombstone + squared shoulders
-            ctx.moveTo(x - s * 0.36, y + s * 0.5)
-            ctx.lineTo(x - s * 0.36, y - s * 0.16)
-            ctx.quadraticCurveTo(x, y - s * 0.62, x + s * 0.36, y - s * 0.16)
-            ctx.lineTo(x + s * 0.36, y + s * 0.5)
-            ctx.closePath()
-            break
-        case "phalanx": { // wide hexagon shield
-            const wd = s * 0.6
-            const ht = s * 0.42
-            ctx.moveTo(x - wd, y)
-            ctx.lineTo(x - wd * 0.55, y - ht)
-            ctx.lineTo(x + wd * 0.55, y - ht)
-            ctx.lineTo(x + wd, y)
-            ctx.lineTo(x + wd * 0.55, y + ht)
-            ctx.lineTo(x - wd * 0.55, y + ht)
-            ctx.closePath()
+        case "drone": { // surveillance quad-drone — rotor bar + discs + a camera eye
+            inkRect(ctx, x - s * 0.5, y - s * 0.36, s, s * 0.09, color, 2)
+            inkCircle(ctx, x - s * 0.46, y - s * 0.31, s * 0.14, color, 2)
+            inkCircle(ctx, x + s * 0.46, y - s * 0.31, s * 0.14, color, 2)
+            inkRect(ctx, x - s * 0.2, y - s * 0.28, s * 0.4, s * 0.36, color, 3)
+            eye(ctx, x, y + s * 0.02, s * 0.11)
             break
         }
-        case "siege": // heavy octagon with a pointed ram nose
-            ctx.moveTo(x - s * 0.24, y - s * 0.5)
-            ctx.lineTo(x + s * 0.24, y - s * 0.5)
-            ctx.lineTo(x + s * 0.5, y - s * 0.18)
-            ctx.lineTo(x + s * 0.5, y + s * 0.14)
-            ctx.lineTo(x + s * 0.2, y + s * 0.32)
-            ctx.lineTo(x, y + s * 0.54) // ram nose
-            ctx.lineTo(x - s * 0.2, y + s * 0.32)
-            ctx.lineTo(x - s * 0.5, y + s * 0.14)
-            ctx.lineTo(x - s * 0.5, y - s * 0.18)
+        case "netter": { // net-cannon / kettling rig — launcher + a net mouth
+            inkRect(ctx, x - s * 0.4, y - s * 0.36, s * 0.8, s * 0.42, color, 3)
+            ctx.beginPath()
+            ctx.moveTo(x - s * 0.5, y + s * 0.5)
+            ctx.lineTo(x - s * 0.3, y + s * 0.06)
+            ctx.lineTo(x + s * 0.3, y + s * 0.06)
+            ctx.lineTo(x + s * 0.5, y + s * 0.5)
             ctx.closePath()
+            inkFill(ctx, "#2b3350", 3)
+            ctx.strokeStyle = "rgba(239,231,212,0.35)"
+            ctx.lineWidth = 1
+            for (let i = -1; i <= 1; i++) {
+                ctx.beginPath()
+                ctx.moveTo(x + i * s * 0.18, y + s * 0.08)
+                ctx.lineTo(x + i * s * 0.34, y + s * 0.48)
+                ctx.stroke()
+            }
+            eye(ctx, x, y - s * 0.14, s * 0.1)
             break
-        case "broadcast": { // tall stacked tower + antenna
-            const bw = s * 0.34
-            ctx.moveTo(x - bw, y + s * 0.5)
-            ctx.lineTo(x - bw * 0.6, y - s * 0.2)
-            ctx.lineTo(x - s * 0.12, y - s * 0.2)
-            ctx.lineTo(x - s * 0.05, y - s * 0.5) // antenna
-            ctx.lineTo(x + s * 0.05, y - s * 0.5)
-            ctx.lineTo(x + s * 0.12, y - s * 0.2)
-            ctx.lineTo(x + bw * 0.6, y - s * 0.2)
-            ctx.lineTo(x + bw, y + s * 0.5)
+        }
+        case "walker": { // riot-shield trooper mech — body + a raised riot shield
+            ctx.beginPath()
+            ctx.moveTo(x - s * 0.3, y + s * 0.5)
+            ctx.lineTo(x - s * 0.3, y - s * 0.16)
+            ctx.quadraticCurveTo(x, y - s * 0.62, x + s * 0.3, y - s * 0.16)
+            ctx.lineTo(x + s * 0.3, y + s * 0.5)
             ctx.closePath()
+            inkFill(ctx, color, 3)
+            eye(ctx, x, y - s * 0.3, s * 0.09)
+            inkRect(ctx, x - s * 0.34, y - s * 0.02, s * 0.68, s * 0.56, SHIELD, 3)
+            ctx.strokeStyle = INK_LINE
+            ctx.lineWidth = 2
+            ctx.beginPath()
+            ctx.moveTo(x - s * 0.34, y + s * 0.22)
+            ctx.lineTo(x + s * 0.34, y + s * 0.22)
+            ctx.stroke()
+            break
+        }
+        case "phalanx": { // riot shield-wall — a line of interlocked shields
+            for (let i = -1; i <= 1; i++) {
+                inkRect(ctx, x + i * s * 0.4 - s * 0.17, y - s * 0.4, s * 0.34, s * 0.8, i === 0 ? color : SHIELD, 3)
+            }
+            eye(ctx, x, y - s * 0.16, s * 0.1)
+            break
+        }
+        case "siege": { // armoured riot van / water cannon on wheels
+            inkCircle(ctx, x - s * 0.28, y + s * 0.34, s * 0.17, WHEEL, 2.5)
+            inkCircle(ctx, x + s * 0.28, y + s * 0.34, s * 0.17, WHEEL, 2.5)
+            inkRect(ctx, x - s * 0.46, y - s * 0.3, s * 0.92, s * 0.6, color, 3)
+            inkRect(ctx, x - s * 0.09, y - s * 0.52, s * 0.18, s * 0.24, color, 2.5)
+            inkCircle(ctx, x, y - s * 0.52, s * 0.09, "#2b3350", 2)
+            eye(ctx, x - s * 0.24, y - s * 0.06, s * 0.09)
+            break
+        }
+        case "broadcast": { // surveillance / propaganda tower on treads
+            inkRect(ctx, x - s * 0.44, y + s * 0.28, s * 0.88, s * 0.22, "#1f1b35", 3)
+            inkCircle(ctx, x - s * 0.28, y + s * 0.5, s * 0.12, WHEEL, 2.5)
+            inkCircle(ctx, x, y + s * 0.5, s * 0.12, WHEEL, 2.5)
+            inkCircle(ctx, x + s * 0.28, y + s * 0.5, s * 0.12, WHEEL, 2.5)
+            ctx.beginPath()
+            ctx.moveTo(x - s * 0.28, y + s * 0.3)
+            ctx.lineTo(x - s * 0.15, y - s * 0.34)
+            ctx.lineTo(x + s * 0.15, y - s * 0.34)
+            ctx.lineTo(x + s * 0.28, y + s * 0.3)
+            ctx.closePath()
+            inkFill(ctx, color, 3)
+            ctx.strokeStyle = INK_LINE
+            ctx.lineWidth = 2
+            ctx.beginPath()
+            ctx.moveTo(x, y - s * 0.34)
+            ctx.lineTo(x, y - s * 0.56)
+            ctx.stroke()
+            inkCircle(ctx, x + s * 0.13, y - s * 0.5, s * 0.1, color, 2)
+            eye(ctx, x, y - s * 0.06, s * 0.15)
             break
         }
     }
@@ -189,13 +233,7 @@ export function draw(ctx: CanvasRenderingContext2D, s: SimState, view: ViewSize,
         const x = laneCenterX(lay, e.lane)
         const y = yFromFrac(lay, frac)
         groundShadow(ctx, x, y, size)
-        machinePath(ctx, e.archetype, x, y, size)
-        inkFill(ctx, MACHINE_COLOR[e.archetype], 3)
-        // lone vermilion sensor eye — a surveillance state
-        ctx.fillStyle = VERMILION
-        ctx.beginPath()
-        ctx.arc(x, y - size * (e.archetype === "broadcast" ? 0.18 : 0.06), size * 0.1, 0, TAU)
-        ctx.fill()
+        drawMachine(ctx, e.archetype, x, y, size, MACHINE_COLOR[e.archetype])
     }
 
     // Turrets (deployed) — small outlined ochre emplacements.
@@ -372,12 +410,7 @@ export function drawAttract(ctx: CanvasRenderingContext2D, view: ViewSize, t: nu
         const x = laneCenterX(lay, lane)
         const y = yFromFrac(lay, frac)
         groundShadow(ctx, x, y, size)
-        machinePath(ctx, k, x, y, size)
-        inkFill(ctx, MACHINE_COLOR[k], 3)
-        ctx.fillStyle = VERMILION
-        ctx.beginPath()
-        ctx.arc(x, y - size * 0.06, size * 0.1, 0, TAU)
-        ctx.fill()
+        drawMachine(ctx, k, x, y, size, MACHINE_COLOR[k])
     })
 
     const bob = Math.sin(tt * 2) * 2
