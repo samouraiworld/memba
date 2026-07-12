@@ -254,9 +254,14 @@ function AppGrid() {
                 {/* Self-service listing (B3) — the submit route only exists meaningfully on the
                     v3 realm, and the flag is SAFETY-GATED until its fee path is verified. */}
                 {isAppStoreSubmitEnabled() && isAppStoreV3() && (
-                    <Link className="appbtn appbtn--ghost appstore__submit-cta" to={`/${networkKey}/apps/submit`}>
-                        Submit your app
-                    </Link>
+                    <>
+                        <Link className="appbtn appbtn--ghost appstore__submit-cta" to={`/${networkKey}/apps/submit`}>
+                            Submit your app
+                        </Link>
+                        <Link className="appbtn appbtn--ghost appstore__submit-cta" to={`/${networkKey}/apps/my-submissions`}>
+                            My submissions
+                        </Link>
+                    </>
                 )}
             </header>
 

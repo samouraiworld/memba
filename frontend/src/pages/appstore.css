@@ -665,6 +665,36 @@
 .appsubmit__status--rejected { color: var(--color-danger); border-color: var(--color-danger); }
 .appsubmit__reject { margin: 0; font-size: 13px; color: var(--color-danger); line-height: 1.5; }
 .appsubmit__resubmit { align-self: flex-start; }
+.appsubmit__flags {
+    font-size: var(--text-xs, 0.64rem);
+    font-weight: 600;
+    color: var(--color-k-warning-text);
+    white-space: nowrap;
+}
+.appsubmit__viewlink { align-self: flex-start; font-size: 13px; }
+.appsubmit__editrow {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 0.75rem);
+    flex-wrap: wrap;
+}
+.appsubmit__editsleft { font-size: 12px; color: var(--color-text-secondary); }
+/* Publisher console — section header (heading + "manage all" link) + pager */
+.appsubmit__mineheader {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.appsubmit__managelink { font-size: 13px; white-space: nowrap; }
+.appsubmit__pager {
+    display: flex;
+    align-items: center;
+    gap: var(--space-3, 0.75rem);
+    margin-top: var(--space-4, 1rem);
+}
+.appsubmit__pagenum { font-size: 13px; color: var(--color-text-secondary); }
 
 /* ── Curator review queue (B4) ───────────────────────────────── */
 .appcurator__tagline { margin: 0; font-size: 0.9rem; }

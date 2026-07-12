@@ -7,16 +7,20 @@ import {
     MAX_URL_LEN,
     MAX_CID_LEN,
     MAX_SCREENSHOTS,
+    MAX_RESUBMITS,
     validateAppURL,
     validateSubmission,
     buildRegisterAppMsg,
     buildEditListingMsg,
     buildDelistAppMsg,
     fetchRegistrationFee,
+    listingToSubmission,
+    loadEditForm,
     formatGnot,
     type AppSubmission,
 } from "./appStoreSubmit"
-import { APPSTORE_REALM_PATH } from "./appStore"
+import { APPSTORE_REALM_PATH, type AppListing } from "./appStore"
+import * as appStore from "./appStore"
 import * as shared from "./dao/shared"
 
 const CALLER = "g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0"
@@ -44,6 +48,7 @@ describe("field limits mirror the memba_appstore_v3 realm", () => {
         expect(MAX_URL_LEN).toBe(400)
         expect(MAX_CID_LEN).toBe(100)
         expect(MAX_SCREENSHOTS).toBe(6)
+        expect(MAX_RESUBMITS).toBe(5)
     })
 })
 
@@ -204,5 +209,47 @@ describe("buildDelistAppMsg (free, one-way for the publisher)", () => {
 
     it("refuses an empty pkgPath", () => {
         expect(() => buildDelistAppMsg(CALLER, "  ")).toThrow()
+    })
+})
+
+describe("listingToSubmission (map a full listing to the editable form — never drop artwork/descr)", () => {
+    const base: AppListing = {
+        id: 1, pkgPath: "gno.land/r/samcrew/a_v1", name: "A", tagline: "t", category: "C",
+        iconCID: "i", appURL: "/a", publisher: CALLER, status: "pending", flagCount: 0, createdAt: 0,
+    }
+
+    it("copies every editable field, joining screenshots into the CSV wire form", () => {
+        expect(listingToSubmission({ ...base, descr: "d", screenshotCIDs: ["x", "y"] })).toEqual({
+            pkgPath: "gno.land/r/samcrew/a_v1", name: "A", tagline: "t", descr: "d",
+            category: "C", iconCID: "i", screenshotsCSV: "x,y", appURL: "/a",
+        })
+    })
+
+    it("coerces a missing descr / screenshots to empty strings (form shows blank, not 'undefined')", () => {
+        expect(listingToSubmission(base)).toMatchObject({ descr: "", screenshotsCSV: "" })
+    })
+})
+
+describe("loadEditForm (fetch full detail before editing so EditListing can't wipe descr + screenshots)", () => {
+    beforeEach(() => vi.restoreAllMocks())
+    afterEach(() => vi.restoreAllMocks())
+
+    it("reads GetListingJSON (fetchApp) and returns the mapped, edit-ready submission", async () => {
+        const full: AppListing = {
+            id: 3, pkgPath: "gno.land/r/samcrew/app_v1", name: "App", tagline: "tag", category: "Tools",
+            iconCID: "bafyicon", appURL: "/x", publisher: CALLER, status: "rejected", flagCount: 0,
+            createdAt: 1, descr: "Full description.", screenshotCIDs: ["s1", "s2"],
+        }
+        const spy = vi.spyOn(appStore, "fetchApp").mockResolvedValue(full)
+        await expect(loadEditForm("gno.land/r/samcrew/app_v1")).resolves.toEqual({
+            pkgPath: "gno.land/r/samcrew/app_v1", name: "App", tagline: "tag", descr: "Full description.",
+            category: "Tools", iconCID: "bafyicon", screenshotsCSV: "s1,s2", appURL: "/x",
+        })
+        expect(spy).toHaveBeenCalledWith("gno.land/r/samcrew/app_v1")
+    })
+
+    it("returns null when the listing can't be read — the caller MUST abort, never open a wiping form", async () => {
+        vi.spyOn(appStore, "fetchApp").mockResolvedValue(null)
+        await expect(loadEditForm("gno.land/r/samcrew/app_v1")).resolves.toBeNull()
     })
 })
