@@ -39,8 +39,8 @@ const WAVE_CLEAR_BONUS = 5_000
 const CLEAN_WAVE_BONUS = 3_000
 const WIN_BONUS = 25_000
 // ── molotov (v2), integers only ──────────────────────────────────────────────
-const MOLOTOV_MAX = 3_000 // charge cap (banks ~3 throws)
-const MOLOTOV_COST = 1_000 // charge spent per throw
+export const MOLOTOV_MAX = 3_000 // charge cap (banks ~3 throws)
+export const MOLOTOV_COST = 1_000 // charge spent per throw
 const MOLOTOV_REGEN = 4 // charge regained per tick (time)
 const MOLOTOV_PER_KILL = 80 // charge per kill (skill-fed, so every player has it)
 const MOLOTOV_CD = 30 // ticks between throws (can't dump a full bank in one frame)

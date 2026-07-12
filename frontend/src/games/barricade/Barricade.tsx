@@ -17,7 +17,8 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { applyEvent, initState, tick } from "./sim/engine"
 import { buildWaves, WAVE_TOTAL, type WaveScript } from "./sim/waves"
 import { runReplay } from "./sim/replay"
-import { LANES, type Choice, type SimEvent, type SimState } from "./sim/types"
+import { LANES, LANE_LENGTH, type Choice, type SimEvent, type SimState } from "./sim/types"
+import { MOLOTOV_COST } from "./sim/engine"
 import { draw, drawAttract } from "./render/draw"
 import { deriveFxEvents } from "./render/fxEvents"
 import { initFx, layout, pushFxEvents, stepFx, type FxState } from "./render/fx"
@@ -32,9 +33,14 @@ const CW = 390
 const CH = 650
 
 type RunStatus = "ready" | "playing" | "done"
-type HudMirror = { phase: string; rallyReady: boolean; scrap: number }
+type HudMirror = { phase: string; rallyReady: boolean; molotovReady: boolean; scrap: number }
 // Omit over a discriminated union collapses to common members — distribute it.
-type SimEventInput = { type: "move"; lane: number } | { type: "rally" } | { type: "choice"; choice: Choice }
+type SimEventInput =
+    | { type: "move"; lane: number }
+    | { type: "rally" }
+    | { type: "choice"; choice: Choice }
+    | { type: "throw"; lane: number; dist: number }
+    | { type: "shove"; lane: number }
 
 function dailySeed(): string {
     return `barricade-${new Date().toISOString().slice(0, 10)}`
@@ -80,7 +86,8 @@ export default function Barricade() {
     const [isDaily, setIsDaily] = useState(true)
     const [muted, setMuted] = useState(true)
     const [copied, setCopied] = useState(false)
-    const [hud, setHud] = useState<HudMirror>({ phase: "wave", rallyReady: false, scrap: 0 })
+    const [armed, setArmed] = useState(false) // molotov aim mode: next canvas tap lobs
+    const [hud, setHud] = useState<HudMirror>({ phase: "wave", rallyReady: false, molotovReady: false, scrap: 0 })
     const [result, setResult] = useState<{
         score: number
         won: boolean
@@ -204,7 +211,12 @@ export default function Barricade() {
         if (status !== "playing") return
         const t = setInterval(() => {
             const s = stateRef.current
-            setHud({ phase: s.phase, rallyReady: s.rallyMeter >= 1000, scrap: s.scrap })
+            setHud({
+                phase: s.phase,
+                rallyReady: s.rallyMeter >= 1000,
+                molotovReady: s.molotovCharge >= MOLOTOV_COST,
+                scrap: s.scrap,
+            })
         }, 200)
         return () => clearInterval(t)
     }, [status])
@@ -214,12 +226,24 @@ export default function Barricade() {
             if (status !== "playing") return
             const rect = e.currentTarget.getBoundingClientRect()
             const lane = Math.min(LANES - 1, Math.max(0, Math.floor(((e.clientX - rect.left) / rect.width) * LANES)))
-            record({ type: "move", lane })
+            if (armed) {
+                // Tap-to-lob: the tap's y is the target distance up the lane
+                // (top = spawn end, bottom = barricade). One throw, then disarm.
+                const lay = layout(CW, CH)
+                const canvasY = ((e.clientY - rect.top) / rect.height) * CH
+                const dist = Math.round(Math.max(0, Math.min(1, (canvasY - lay.hudH) / lay.fieldH)) * LANE_LENGTH)
+                record({ type: "throw", lane, dist })
+                setArmed(false)
+            } else {
+                record({ type: "move", lane })
+            }
         },
-        [record, status],
+        [record, status, armed],
     )
 
     const choose = useCallback((choice: Choice) => record({ type: "choice", choice }), [record])
+    const shove = useCallback(() => record({ type: "shove", lane: stateRef.current.playerLane }), [record])
+    const toggleArm = useCallback(() => setArmed((a) => !a), [])
 
     const toggleMute = useCallback(() => {
         audioRef.current?.resume() // unlock the audio context inside the user gesture
@@ -293,6 +317,17 @@ export default function Barricade() {
                         onClick={() => record({ type: "rally" })}
                     >
                         Rally!
+                    </button>
+                    <button
+                        className={`k-btn-primary${armed ? " bar-rally-ready" : ""}`}
+                        disabled={!hud.molotovReady && !armed}
+                        aria-pressed={armed}
+                        onClick={toggleArm}
+                    >
+                        {armed ? "Aim — tap a lane 🔥" : "Molotov"}
+                    </button>
+                    <button className="k-btn-secondary" onClick={shove}>
+                        Shove
                     </button>
                     <button
                         className="k-btn-secondary"
