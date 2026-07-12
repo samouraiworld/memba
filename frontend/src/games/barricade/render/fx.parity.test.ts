@@ -1,0 +1,55 @@
+import { describe, expect, it } from "vitest"
+import { initState, tick } from "../sim/engine"
+import { buildWaves } from "../sim/waves"
+import { SIM_VERSION, type SimState } from "../sim/types"
+import { deriveFxEvents } from "./fxEvents"
+import { initFx, layout, pushFxEvents, stepFx, type Rng } from "./fx"
+
+// The whole point of the FX layer: it is render-only and can NEVER change a
+// replay. This drives a full daily run twice — once bare, once with the entire
+// FX pipeline (derive → push → step) running every tick — and asserts the sim
+// trajectory is byte-identical. If it ever diverges, the verifier (G3) would
+// reject legitimate scores, so this test is load-bearing.
+
+function seededRng(seed = 1): Rng {
+    let s = seed >>> 0
+    return () => {
+        s = (Math.imul(s, 1103515245) + 12345) & 0x7fffffff
+        return s / 0x7fffffff
+    }
+}
+
+function runSim(seed: string, withFx: boolean): { final: SimState; checksum: number } {
+    let s = initState(seed)
+    const waves = buildWaves(seed)
+    const fx = initFx(false)
+    const lay = layout(390, 650)
+    const rng = seededRng(99)
+    let checksum = 0
+    let guard = 0
+    while (s.phase !== "won" && s.phase !== "lost" && guard++ < 20_000) {
+        const prev = s
+        s = tick(s, waves)
+        checksum = (Math.imul(checksum, 31) + s.score + s.barricadeHp + s.tick + s.enemies.length) | 0
+        if (withFx) {
+            pushFxEvents(fx, deriveFxEvents(prev, s), lay, rng)
+            stepFx(fx, rng)
+        }
+    }
+    return { final: s, checksum }
+}
+
+describe("fx determinism parity", () => {
+    it("does not touch SIM_VERSION", () => {
+        expect(SIM_VERSION).toBe(1)
+    })
+
+    it("produces an identical sim trajectory with FX on vs off (multiple seeds)", () => {
+        for (const seed of ["barricade-2026-07-12", "practice-1", "barricade-2026-12-25"]) {
+            const bare = runSim(seed, false)
+            const juiced = runSim(seed, true)
+            expect(juiced.checksum).toBe(bare.checksum)
+            expect(JSON.stringify(juiced.final)).toBe(JSON.stringify(bare.final))
+        }
+    })
+})
