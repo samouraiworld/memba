@@ -116,6 +116,27 @@ describe("draw", () => {
         }
     })
 
+    it("the barricade shows its build-up: a deployed turret and an armed crowd add visible structure", () => {
+        // The stake must be VISIBLE (GDD-v2 §5): buying defense changes the wall.
+        const bare = stubCtx()
+        draw(bare.ctx, { ...initState("draw-test"), enemies: [] }, { width: 390, height: 700 })
+        const bareOps = bare.calls.fillRect + bare.calls.arc + bare.calls.stroke
+
+        const turreted = stubCtx()
+        draw(
+            turreted.ctx,
+            { ...initState("draw-test"), enemies: [], turrets: [900, 0, 900] },
+            { width: 390, height: 700 },
+        )
+        expect(turreted.calls.fillRect + turreted.calls.arc + turreted.calls.stroke).toBeGreaterThan(bareOps)
+
+        const armed = stubCtx()
+        draw(armed.ctx, { ...initState("draw-test"), enemies: [], armed: 600 }, { width: 390, height: 700 })
+        // A real CROWD behind the wall (many flecks), not the old single strip:
+        // arming the neighborhood has to look like people showed up.
+        expect(armed.calls.fillRect + armed.calls.arc + armed.calls.stroke).toBeGreaterThanOrEqual(bareOps + 6)
+    })
+
     it("draws an enemy at its interpolated position when an interp map is passed", () => {
         const enemies: Enemy[] = [
             {
