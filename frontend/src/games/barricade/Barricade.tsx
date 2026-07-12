@@ -22,6 +22,7 @@ import { draw, drawAttract } from "./render/draw"
 import { deriveFxEvents } from "./render/fxEvents"
 import { initFx, layout, pushFxEvents, stepFx, type FxState } from "./render/fx"
 import { interpPositions } from "./render/interp"
+import { buildShareText } from "./render/sharecard"
 import { GameAudio } from "./render/audio"
 import { useGameLoop } from "./hooks/useGameLoop"
 import "./barricade.css"
@@ -78,6 +79,7 @@ export default function Barricade() {
     const [status, setStatus] = useState<RunStatus>("ready")
     const [isDaily, setIsDaily] = useState(true)
     const [muted, setMuted] = useState(true)
+    const [copied, setCopied] = useState(false)
     const [hud, setHud] = useState<HudMirror>({ phase: "wave", rallyReady: false, scrap: 0 })
     const [result, setResult] = useState<{
         score: number
@@ -224,6 +226,29 @@ export default function Barricade() {
         setMuted((m) => !m)
     }, [])
 
+    // Copy a spoiler-free, Wordle-style share card to the clipboard — the growth
+    // engine. Explicit tap only, never auto-shared. No-ops where clipboard is
+    // unavailable (e.g. insecure context).
+    const share = useCallback(() => {
+        if (!result) return
+        const text = buildShareText({
+            score: result.score,
+            won: result.won,
+            waves: result.waves,
+            total: WAVE_TOTAL,
+            date: dailySeed().slice(-10),
+        })
+        const clip = typeof navigator !== "undefined" ? navigator.clipboard : undefined
+        if (!clip?.writeText) return
+        clip.writeText(text).then(
+            () => {
+                setCopied(true)
+                window.setTimeout(() => setCopied(false), 2000)
+            },
+            () => {},
+        )
+    }, [result])
+
     return (
         <div className="bar-shell">
             <header className="bar-wordmark">
@@ -318,6 +343,11 @@ export default function Barricade() {
                         <button className="k-btn-primary" onClick={() => start(isDaily)}>
                             {isDaily ? "Run it again" : "New practice"}
                         </button>
+                        {isDaily && (
+                            <button className="k-btn-secondary" onClick={share}>
+                                {copied ? "Copied ✓" : "Share"}
+                            </button>
+                        )}
                         <button className="k-btn-secondary" onClick={() => setStatus("ready")}>
                             Back
                         </button>
