@@ -16,8 +16,9 @@
 
 import { ARCHETYPES, WAVE_TOTAL } from "../sim/waves"
 import { BARRICADE_MAX_HP, LANES, LANE_LENGTH, RALLY_FULL, type ArchetypeId, type SimState } from "../sim/types"
-import { layout, laneCenterX, yFromFrac, type FxState } from "./fx"
+import { layout, laneCenterX, yFromFrac, type FxState, type Layout } from "./fx"
 import { laneThreats } from "./telegraph"
+import { buildSkyline } from "./nightsky"
 
 export type ViewSize = { width: number; height: number }
 
@@ -34,6 +35,8 @@ const VERMILION = "#e0392b" // the rebel + sensor eyes + hit flash
 const OCHRE = "#dba43c" // barricade timber
 const TEAL = "#00d4aa" // --color-brand — Memba signature accent (rally-ready)
 const GOLD = "#f5a623" // scrap currency (matches app gold)
+const SKYLINE_INK = "#0a0816" // city silhouette on the horizon (darker than the stock)
+const SEARCHLIGHT = "#9fb4e0" // cold surveillance beam
 
 // Order machines — cold steels, brightened to read on the dark stock.
 const MACHINE_COLOR: Record<ArchetypeId, string> = {
@@ -221,6 +224,53 @@ function getHalftoneTile(): HTMLCanvasElement | null {
     }
 }
 
+/**
+ * Night backdrop at the horizon — a city skyline silhouette with a few lit
+ * windows and two cold searchlights sweeping down the street. `tick` drives the
+ * sweep (integer sim tick in play, a wall-clock proxy on the attract screen);
+ * the beams still under reduced motion while the city stays. Pure render.
+ */
+function drawNightSky(ctx: CanvasRenderingContext2D, lay: Layout, tick: number, reducedMotion: boolean): void {
+    const { w, hudH, fieldH } = lay
+    const skyH = fieldH * 0.16
+    const horizonY = hudH + skyH
+
+    // Searchlights — faint beams sweeping down the street from the city.
+    ctx.fillStyle = SEARCHLIGHT
+    for (const b of [
+        { x: 0.28, ph: 0 },
+        { x: 0.72, ph: 2.2 },
+    ]) {
+        const sweep = reducedMotion ? 0 : Math.sin(tick * 0.008 + b.ph)
+        const ox = b.x * w
+        const ang = Math.PI / 2 + sweep * 0.42 // pointing down-field, sweeping
+        const len = fieldH * 0.5
+        const spread = 0.075
+        ctx.globalAlpha = 0.05
+        ctx.beginPath()
+        ctx.moveTo(ox, horizonY)
+        ctx.lineTo(ox + Math.cos(ang - spread) * len, horizonY + Math.sin(ang - spread) * len)
+        ctx.lineTo(ox + Math.cos(ang + spread) * len, horizonY + Math.sin(ang + spread) * len)
+        ctx.closePath()
+        ctx.fill()
+    }
+    ctx.globalAlpha = 1
+
+    // Skyline silhouette, then a few lit windows.
+    const sky = buildSkyline()
+    ctx.fillStyle = SKYLINE_INK
+    for (const bld of sky) {
+        ctx.fillRect(bld.x * w, horizonY - bld.h * skyH, bld.w * w, bld.h * skyH)
+    }
+    ctx.fillStyle = "rgba(219,164,60,0.5)" // faint lit windows (gold)
+    for (const bld of sky) {
+        const bh = bld.h * skyH
+        for (const wy of bld.windows) {
+            ctx.fillRect(bld.x * w + bld.w * w * 0.35, horizonY - bh + wy * bh, Math.max(1, bld.w * w * 0.14), 1.5)
+        }
+    }
+}
+
 /** Lay the cached halftone screen over a rect (no-op when no tile is available). */
 function paintHalftone(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
     const half = getHalftoneTile()
@@ -262,8 +312,10 @@ export function draw(
         ctx.fillRect(Math.round(lane * laneW), fieldTop, 1, fieldH)
     }
 
-    // Halftone screen over the field — the riso screen-print signature. Fixed to
-    // the "paper" (before the shake group) so it stays put while the scene shakes.
+    // Night backdrop (skyline + searchlights) at the horizon, then the halftone
+    // screen over the whole field — both fixed to the "paper" (before the shake
+    // group) so they stay put while the scene shakes on top.
+    drawNightSky(ctx, lay, s.tick, fx?.reducedMotion ?? false)
     paintHalftone(ctx, 0, fieldTop, w, fieldH)
 
     // ── Shaken scene group. ──────────────────────────────────────────────────
@@ -511,6 +563,7 @@ export function drawAttract(ctx: CanvasRenderingContext2D, view: ViewSize, t: nu
         ctx.fillStyle = DIVIDER
         ctx.fillRect(Math.round(lane * laneW), fieldTop, 1, fieldH)
     }
+    drawNightSky(ctx, lay, tt * 60, reducedMotion) // same backdrop as in play
     paintHalftone(ctx, 0, fieldTop, w, fieldH) // same screen-print grain as in play
     ctx.fillStyle = "#100c1e"
     ctx.fillRect(0, 0, w, hudH)
