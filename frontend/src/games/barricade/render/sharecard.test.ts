@@ -19,7 +19,8 @@ describe("buildShareText", () => {
     it("appends a url only when provided", () => {
         expect(buildShareText({ score: 1, won: false, waves: 1, total: 8, date: "d" })).not.toMatch(/https?:/)
         const withUrl = buildShareText({ score: 1, won: false, waves: 1, total: 8, date: "d", url: "https://memba.example" })
-        expect(withUrl.endsWith("https://memba.example")).toBe(true)
+        const lines = withUrl.split("\n")
+        expect(lines[lines.length - 1]).toBe("https://memba.example") // url is its own trailing line
     })
 
     it("stays spoiler-free — no seed, enemy, or lane details", () => {
