@@ -46,6 +46,8 @@ const MACHINE_COLOR: Record<ArchetypeId, string> = {
     phalanx: "#5870b0",
     siege: "#42568f",
     broadcast: "#2b2748",
+    testudo: "#4a5ba0", // shield-wall steel
+    swarm: "#9fb4e8", // pale flyer
 }
 
 /** Fill the current path, then a paper rim-light on the up-left edge, then ink it. */
