@@ -8,12 +8,14 @@
  * way from prev→cur that this frame falls (the loop's leftover accumulator over
  * FIXED_MS) — we return the smoothed position for each live enemy id.
  *
- * Only `pos` moves between ticks: an enemy's lane is fixed at spawn and its pos
- * advances by a constant `speed` each tick (engine.ts step 2), so a straight
- * lerp reproduces exact constant-velocity motion. Enemies with no match in prev
- * (spawned this tick) snap to their current pos; enemies gone from cur (killed
- * or reached the barricade) are simply absent — their exit is the death-anim
- * layer's job, not this one's.
+ * Only `pos` is lerped: pos advances by a per-tick speed (engine.ts step 2 —
+ * constant except a charger's doubling or a fire-slow, both step functions a
+ * one-tick lerp reproduces faithfully). A lane is fixed at spawn for every
+ * machine EXCEPT the flanker, whose one-shot hop teleports the sprite sideways
+ * on that frame — deliberately abrupt (it's a vault); a dedicated hop FX cue is
+ * a Phase-D polish item. Enemies with no match in prev (spawned this tick) snap
+ * to their current pos; enemies gone from cur (killed or reached the barricade)
+ * are simply absent — their exit is the death-anim layer's job, not this one's.
  *
  * DETERMINISM: this reads sim state and never mutates it, and its output feeds
  * only the renderer — it can never change a replay. It touches no clock and no

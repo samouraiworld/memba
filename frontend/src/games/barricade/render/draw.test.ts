@@ -55,14 +55,17 @@ function stubCtx() {
 }
 
 function withEnemies(): SimState {
-    const kinds: ArchetypeId[] = ["drone", "netter", "walker", "phalanx", "siege", "broadcast"]
+    // Every archetype, so a missing silhouette case can never ship silently.
+    const kinds = Object.keys(ARCHETYPES) as ArchetypeId[]
     const enemies: Enemy[] = kinds.map((k, i) => ({
         id: i,
         archetype: k,
         lane: i % 3,
-        pos: 20_000 + i * 10_000,
+        pos: 20_000 + i * 5_000,
         hp: ARCHETYPES[k].hp,
         speed: ARCHETYPES[k].speed,
+        bornTick: 0,
+        hasFlanked: false,
     }))
     return { ...initState("draw-test"), enemies }
 }
@@ -86,9 +89,45 @@ describe("draw", () => {
         expect(JSON.stringify(state)).toEqual(before)
     })
 
+    it("every archetype actually draws shape ops — a missing silhouette case cannot pass silently", () => {
+        // drawMachine's switch has no default, so a forgotten case would draw
+        // NOTHING and the no-throw test above would still pass (review finding).
+        // Diff the stub's op counts per archetype against an empty-field render.
+        // Count only silhouette ops (stroke outlines + arc eyes/wheels): the
+        // ground shadow is an ellipse and draws for EVERY actor, so it can't
+        // vouch for the silhouette itself.
+        const empty = stubCtx()
+        draw(empty.ctx, { ...initState("draw-test"), enemies: [] }, { width: 390, height: 700 })
+        const baseline = empty.calls.arc + empty.calls.stroke
+        for (const k of Object.keys(ARCHETYPES) as ArchetypeId[]) {
+            const { ctx, calls } = stubCtx()
+            const one: Enemy = {
+                id: 1,
+                archetype: k,
+                lane: 1,
+                pos: 50_000,
+                hp: ARCHETYPES[k].hp,
+                speed: ARCHETYPES[k].speed,
+                bornTick: 0,
+                hasFlanked: false,
+            }
+            draw(ctx, { ...initState("draw-test"), enemies: [one] }, { width: 390, height: 700 })
+            expect(calls.arc + calls.stroke, `archetype ${k} drew nothing`).toBeGreaterThan(baseline)
+        }
+    })
+
     it("draws an enemy at its interpolated position when an interp map is passed", () => {
         const enemies: Enemy[] = [
-            { id: 7, archetype: "drone", lane: 1, pos: 20_000, hp: ARCHETYPES.drone.hp, speed: ARCHETYPES.drone.speed },
+            {
+                id: 7,
+                archetype: "drone",
+                lane: 1,
+                pos: 20_000,
+                hp: ARCHETYPES.drone.hp,
+                speed: ARCHETYPES.drone.speed,
+                bornTick: 0,
+                hasFlanked: false,
+            },
         ]
         const state = { ...initState("draw-test"), enemies }
         const before = JSON.stringify(state)
@@ -111,7 +150,18 @@ describe("draw", () => {
     it("draws a wind-up telegraph for a front unit near the barricade", () => {
         const mk = (pos: number): SimState => ({
             ...initState("draw-test"),
-            enemies: [{ id: 1, archetype: "walker", lane: 1, pos, hp: ARCHETYPES.walker.hp, speed: ARCHETYPES.walker.speed }],
+            enemies: [
+                {
+                    id: 1,
+                    archetype: "walker",
+                    lane: 1,
+                    pos,
+                    hp: ARCHETYPES.walker.hp,
+                    speed: ARCHETYPES.walker.speed,
+                    bornTick: 0,
+                    hasFlanked: false,
+                },
+            ],
         })
         const near = stubCtx()
         draw(near.ctx, mk(96_000), { width: 390, height: 700 }) // frac 0.96 → telegraph fires

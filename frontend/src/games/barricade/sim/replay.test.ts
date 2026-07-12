@@ -34,7 +34,7 @@ describe("replay determinism", () => {
         expect(
             hashState({
                 ...base,
-                enemies: [{ id: 0, archetype: "drone", lane: 0, pos: 1, hp: 1, speed: 1 }],
+                enemies: [{ id: 0, archetype: "drone", lane: 0, pos: 1, hp: 1, speed: 1, bornTick: 0, hasFlanked: false }],
             }),
         ).not.toEqual(h)
     })

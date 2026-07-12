@@ -2,8 +2,11 @@
  * Core engine: initState / applyEvent / tick. Pure — every function returns a
  * new state object and never mutates its input; all arithmetic is integer.
  *
- * Tick order (fixed): spawn due enemies -> advance -> combat -> contact ->
- * wave/phase bookkeeping. Changing this order changes replays: bump SIM_VERSION.
+ * Tick order (fixed): spawn due enemies -> flanker lane-hops -> drop expired
+ * fire + flag slowed (post-hop lanes) -> advance (charger doubling, mortar
+ * standoff cap) -> molotov impacts due -> burn -> mortar shelling accrues ->
+ * combat -> contact (+ shell damage) -> meters/score -> terminal + wave
+ * bookkeeping. Changing this order changes replays: bump SIM_VERSION.
  */
 
 import { seedToState } from "./rng"
@@ -63,6 +66,12 @@ const FIRE_SLOW_DEN = 5
 const SHOVE_DISTANCE = 15_000 // knock the front machine back this far (milli-units)
 const SHOVE_CD = 180 // ticks between shoves (~3s)
 const SHIELD_REDUCT_PCT = 40 // testudo takes (100−40)% from frontal fire; molotov ignores it
+// ── B2 machine behaviors (v2), integers only ─────────────────────────────────
+export const CHARGE_AT = 60_000 // a charger past this pos moves at double speed
+export const FLANK_AT = 50_000 // a flanker at/past this pos hops lanes (once)
+export const MORTAR_STANDOFF = 60_000 // a mortar halts here and shells from range
+export const MORTAR_PERIOD = 150 // ticks between volleys, phased by bornTick
+export const MORTAR_SHELL = 3_000 // barricade milli-HP per volley
 // ── per-wave escalation (v2): machines get tougher + faster as waves climb.
 // Speed is capped so travel-time never outruns kill-time (the winnability guard).
 const ESCALATE_HP_PER_WAVE = 6 // +6% HP per wave …
@@ -381,13 +390,39 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
                 pos: 0,
                 hp: Math.floor((a.hp * hpMul) / 100),
                 speed: Math.floor((a.speed * spdMul) / 100),
+                bornTick: s.tick,
+                hasFlanked: false,
             })
         }
     }
 
+    // 1b. Flankers hop lanes — BEFORE the fire-slow flags and advance, in array
+    // order, so an earlier flanker's hop counts in the next one's crowd math
+    // (pure function of state: least-crowded lane, lowest index on ties,
+    // one-shot per machine). Hopping first also means the slow flag below
+    // reflects the lane a machine actually advances in (review finding: the
+    // old order let a hop carry a one-tick-stale slow flag across lanes).
+    if (s.enemies.some((e) => e.archetype === "flanker" && !e.hasFlanked && e.pos >= FLANK_AT)) {
+        const next: Enemy[] = []
+        const counts = new Array(LANES).fill(0)
+        for (const e of s.enemies) counts[e.lane]++
+        for (const e of s.enemies) {
+            if (e.archetype !== "flanker" || e.hasFlanked || e.pos < FLANK_AT) {
+                next.push(e)
+                continue
+            }
+            let target = 0
+            for (let lane = 1; lane < LANES; lane++) if (counts[lane] < counts[target]) target = lane
+            counts[e.lane]--
+            counts[target]++
+            next.push({ ...e, lane: target, hasFlanked: true })
+        }
+        s.enemies = next
+    }
+
     // Fire zones: drop burnt-out fields, then flag machines caught inside one so
-    // they advance slowed this tick (computed on pre-advance positions; a field
-    // spawned by this tick's impact only slows from next tick).
+    // they advance slowed this tick (computed on pre-advance positions, post-hop
+    // lanes; a field spawned by this tick's impact only slows from next tick).
     s.hazards = s.hazards.filter((h) => s.tick < h.expiresAtTick)
     const slowed = new Set<number>()
     for (const e of s.enemies) {
@@ -399,11 +434,21 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         }
     }
 
-    // 2. Advance (fire slows any machine caught in a burn zone).
-    s.enemies = s.enemies.map((e) => ({
-        ...e,
-        pos: e.pos + (slowed.has(e.id) ? Math.floor((e.speed * FIRE_SLOW_NUM) / FIRE_SLOW_DEN) : e.speed),
-    }))
+    // 2. Advance. Fire slows any machine caught in a burn zone; a charger past
+    // the charge line moves at double speed (the slow composes on top); a
+    // mortar never advances past its standoff line.
+    s.enemies = s.enemies.map((e) => {
+        let speed = e.speed
+        if (e.archetype === "charger" && e.pos >= CHARGE_AT) speed *= 2
+        if (slowed.has(e.id)) speed = Math.floor((speed * FIRE_SLOW_NUM) / FIRE_SLOW_DEN)
+        let pos = e.pos + speed
+        // Cap the mortar's MARCH at the standoff line. NOTE: this also clamps a
+        // mortar somehow past the line BACK to it — unreachable today (spawn 0,
+        // capped every tick, shove only reduces pos), but a future forward-
+        // displacement mechanic must not silently rewind mortars through here.
+        if (e.archetype === "mortar" && pos > MORTAR_STANDOFF) pos = MORTAR_STANDOFF
+        return { ...e, pos }
+    })
 
     let scrapGain = 0
     let rallyGain = 0
@@ -446,6 +491,15 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         rallyGain += ra
     }
 
+    // 2d. Standoff shelling: every halted mortar volleys the barricade on its
+    // own born-tick cadence (after burn — a burn-killed mortar never fires;
+    // before combat, matching the burn-before-contact discipline).
+    let shellDamage = 0
+    for (const e of s.enemies) {
+        if (e.archetype !== "mortar" || e.pos < MORTAR_STANDOFF) continue
+        if ((s.tick - e.bornTick) % MORTAR_PERIOD === 0) shellDamage += MORTAR_SHELL
+    }
+
     // 3. Combat: player lane front target, turret lanes, armed crowd.
     const applyDamage = (lane: number, dmg: number) => {
         const [next, k, sc, ra] = damageFront(s.enemies, lane, dmg)
@@ -473,6 +527,10 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
     let stunnedUntil = s.stunnedUntil
     let cleanWave = s.cleanWave
     let bossReached = false
+    if (shellDamage > 0) {
+        hp -= shellDamage
+        cleanWave = false
+    }
     const remaining: Enemy[] = []
     for (const e of s.enemies) {
         if (e.pos >= LANE_LENGTH) {

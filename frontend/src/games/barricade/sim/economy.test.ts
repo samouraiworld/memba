@@ -9,7 +9,7 @@ const NO_SPAWNS: WaveScript[] = [{ wave: 0, spawns: [] }]
 // An immortal, stationary machine in an untouched lane keeps the wave open
 // after the shop closes (an empty script + empty field would instantly end
 // wave 0 and re-enter the next shop).
-const DECOY = { id: 99, archetype: "drone" as const, lane: 2, pos: 10_000, hp: 9_999_999, speed: 0 }
+const DECOY = { id: 99, archetype: "drone" as const, lane: 2, pos: 10_000, hp: 9_999_999, speed: 0, bornTick: 0, hasFlanked: false }
 
 /** A state parked in the spend phase with a known purse and a dented barricade. */
 function inSpendPhase(scrap: number) {

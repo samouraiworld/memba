@@ -71,7 +71,9 @@ describe("engine", () => {
             ...initState("boss-contact"),
             wave: waves.length - 1,
             phase: "boss" as const,
-            enemies: [{ id: 0, archetype: "broadcast" as const, lane: 1, pos: 100_000, hp: 144_000, speed: 144 }],
+            enemies: [
+                { id: 0, archetype: "broadcast" as const, lane: 1, pos: 100_000, hp: 144_000, speed: 144, bornTick: 0, hasFlanked: false },
+            ],
         }
         const after = tick(s, waves)
         expect(after.phase).toBe("lost")

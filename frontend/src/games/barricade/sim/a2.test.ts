@@ -6,7 +6,7 @@ import type { ArchetypeId, Enemy, SimEvent } from "./types"
 import type { WaveScript } from "./waves"
 
 const NO_SPAWNS: WaveScript[] = [{ wave: 0, spawns: [] }]
-const DECOY: Enemy = { id: 99, archetype: "drone", lane: 2, pos: 10_000, hp: 9_999_999, speed: 0 }
+const DECOY: Enemy = { id: 99, archetype: "drone", lane: 2, pos: 10_000, hp: 9_999_999, speed: 0, bornTick: 0, hasFlanked: false }
 const enemy = (id: number, archetype: ArchetypeId, lane: number, pos: number, hp: number, speed = 0): Enemy => ({
     id,
     archetype,
@@ -14,6 +14,8 @@ const enemy = (id: number, archetype: ArchetypeId, lane: number, pos: number, hp
     pos,
     hp,
     speed,
+    bornTick: 0,
+    hasFlanked: false,
 })
 
 describe("shove", () => {

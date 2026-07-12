@@ -34,6 +34,10 @@ export type ArchetypeId =
     | "broadcast"
     | "testudo" // shield-wall: near-immune to frontal fire, full damage from molotov burst/burn
     | "swarm" // fragile fast flyer that arrives in numbers
+    | "rampart" // slab tread-crawler: an HP sponge that monopolizes single-target fire
+    | "charger" // wedge ram-bot: doubles speed past the charge line — intercept it early
+    | "flanker" // vaulting crab-drone: hops once to the least-crowded lane mid-field
+    | "mortar" // standoff siege-mortar: halts up-field and shells the barricade on a cadence
 
 export type Enemy = {
     id: number
@@ -42,6 +46,8 @@ export type Enemy = {
     pos: number // milli-units from spawn (0) toward barricade (LANE_LENGTH)
     hp: number // milli-HP
     speed: number // milli-units per tick
+    bornTick: number // spawn tick — drives cadence behaviors (mortar volleys)
+    hasFlanked: boolean // a flanker's lane-hop is one-shot
 }
 
 // The between-wave shop verbs (v2 economy): purchases stack inside one window;
