@@ -6,24 +6,26 @@ import { LANE_LENGTH, RALLY_FULL, RUN_MAX_TICKS, type SimState } from "./types"
 const MOLOTOV_COST = 1_000 // mirrors engine.ts
 
 /**
- * A deterministic greedy REFERENCE player. It is not optimal — a real player has
- * more finesse — but it is competent: repair between waves, defend the most-
- * pressured lane, molotov the front cluster, rally when the meter is full. If
- * THIS can clear the daily curve on every sampled seed, the curve is fair: a
- * shared daily seed never hands anyone an unsurvivable run. This replaces the
- * old makespan bound with an actual playability proof, and it gates every future
- * difficulty/economy retune.
+ * A deterministic greedy REFERENCE player: repair between waves, defend the most-
+ * pressured lane, molotov the front cluster, rally when full. `reactEvery`
+ * handicaps reaction speed — 1 acts every tick (near-perfect), 2 acts every other
+ * tick (closer to a human). Returns the terminal state + the lowest barricade HP
+ * reached (the survival margin).
+ *
+ * If a human-PACED player clears every REAL daily seed with margin, the shared
+ * daily seed is fair — nobody is handed an unsurvivable run. This is the fairness
+ * guard that gates every future difficulty/economy retune.
  */
-function play(seed: string): SimState {
+function play(seed: string, reactEvery = 1): { final: SimState; minHp: number } {
     let s = initState(seed)
     const waves = buildWaves(seed)
+    let minHp = s.barricadeHp
     let guard = 0
     while (s.phase !== "won" && s.phase !== "lost" && guard++ < RUN_MAX_TICKS + 50) {
         if (s.phase === "choice") {
             s = applyEvent(s, { tick: s.tick, type: "choice", choice: "repair" })
-        } else {
+        } else if (s.tick % reactEvery === 0) {
             if (s.rallyMeter >= RALLY_FULL) s = applyEvent(s, { tick: s.tick, type: "rally" })
-            // Most-pressured lane = the one whose front machine is nearest the barricade.
             let lane = -1
             let best = -1
             for (const e of s.enemies) {
@@ -43,19 +45,36 @@ function play(seed: string): SimState {
             }
         }
         s = tick(s, waves)
+        if (s.barricadeHp < minHp) minHp = s.barricadeHp
     }
-    return s
+    return { final: s, minHp }
+}
+
+// The real production seed format is `barricade-${ISO date}` (see Barricade.tsx
+// dailySeed()) — sample the seeds that will actually be PLAYED, not ad-hoc strings.
+function dailySeeds(count: number): string[] {
+    const out: string[] = []
+    const start = Date.UTC(2026, 0, 1)
+    for (let d = 0; d < count; d++) out.push(`barricade-${new Date(start + d * 86_400_000).toISOString().slice(0, 10)}`)
+    return out
 }
 
 describe("winnability (fairness on a shared daily seed)", () => {
-    it("a greedy reference player clears the daily curve on every sampled seed", () => {
-        const seeds = ["barricade-2026-07-12", "a", "b", "membas", "day-9", "seed-xyz", "2026-01-01", "zzz", "hello", "42"]
-        for (const seed of seeds) {
-            const final = play(seed)
-            expect(
-                final.phase,
-                `seed "${seed}" ended ${final.phase} at tick ${final.tick}, barricade ${final.barricadeHp}, wave ${final.wave}`,
-            ).toBe("won")
+    it("a competent reference player clears assorted seeds", () => {
+        for (const seed of ["barricade-2026-07-12", "a", "membas", "zzz", "42"]) {
+            expect(play(seed).final.phase, `seed ${seed}`).toBe("won")
         }
+    })
+
+    it("a human-paced player clears every real daily seed for ~6 months, keeping a margin", () => {
+        let worstMargin = Infinity
+        for (const seed of dailySeeds(180)) {
+            const { final, minHp } = play(seed, 2) // acts every other tick
+            expect(final.phase, `seed ${seed}: ${final.phase} @tick ${final.tick}, hp ${final.barricadeHp}`).toBe("won")
+            if (minHp < worstMargin) worstMargin = minHp
+        }
+        // A real cushion, not a photo-finish: even the tightest day never drops
+        // below ~5% barricade for the human-paced player.
+        expect(worstMargin).toBeGreaterThan(5_000)
     })
 })

@@ -28,6 +28,7 @@ export const ARCHETYPES: Record<ArchetypeId, { hp: number; speed: number; damage
 }
 
 const NORMAL_WAVES = 10 // v2: a longer Core Arc (was 7)
+const SYNC_GAP = 15 // min ticks between same-lane spawns (synchrony clamp)
 export const BOSS_WAVE = NORMAL_WAVES // 0-based index -> the last wave
 export const WAVE_TOTAL = NORMAL_WAVES + 1
 
@@ -97,9 +98,21 @@ export function buildWaves(seed: string): WaveScript[] {
             let cursor = spawns.length - 1
             for (let lane = 0; lane < LANES; lane++) {
                 if (!used.has(lane)) {
+                    if (cursor < 0) break // fewer spawns than lanes → stop, never emit a malformed spawn
                     spawns[cursor] = { ...spawns[cursor], lane }
                     cursor--
                 }
+            }
+        }
+        // Synchrony clamp: spread same-lane spawns so a shared seed can never hand
+        // the player an unsurvivable burst in one reaction window. Deterministically
+        // push clustered same-lane spawns later (>= SYNC_GAP ticks apart).
+        for (let lane = 0; lane < LANES; lane++) {
+            const inLane = spawns.filter((sp) => sp.lane === lane).sort((a, b) => a.atTick - b.atTick)
+            let prev = -SYNC_GAP
+            for (const sp of inLane) {
+                if (sp.atTick < prev + SYNC_GAP) sp.atTick = prev + SYNC_GAP
+                prev = sp.atTick
             }
         }
         spawns.sort((a, b) => a.atTick - b.atTick || a.lane - b.lane)
