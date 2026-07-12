@@ -102,6 +102,11 @@ describe("winnability (fairness on a shared daily seed)", () => {
             expect(final.wave, `seed ${seed}: wave ${final.wave} @tick ${final.tick}, hp ${final.barricadeHp}`).toBeGreaterThan(
                 BOSS_WAVE,
             )
+            // Death must come FROM THE SIEGE, never the tick cap: a retune that
+            // drags honest runs toward the 15-minute ceiling would turn every
+            // ending into an arbitrary cutoff — trip CI well before that.
+            expect(final.phase, seed).toBe("lost")
+            expect(final.tick, seed).toBeLessThan(RUN_MAX_TICKS * 0.8)
             if (minHp < worstMargin) worstMargin = minHp
         }
         // A floor that BINDS: with the B3 mini-bosses in the arc the honest

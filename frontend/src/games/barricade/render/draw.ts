@@ -719,7 +719,13 @@ export function draw(
     ctx.textAlign = "right"
     ctx.fillStyle = "#c9c2b0"
     ctx.font = "600 11px 'JetBrains Mono', monospace"
-    ctx.fillText(`WAVE ${Math.min(s.wave + 1, WAVE_TOTAL)}/${WAVE_TOTAL}`, w - 10, 22)
+    // Past the boss, the HUD switches to the headline stat: the siege round.
+    if (s.wave >= WAVE_TOTAL) {
+        ctx.fillStyle = VERMILION
+        ctx.fillText(`SIEGE r${s.wave - (WAVE_TOTAL - 1)}`, w - 10, 22)
+    } else {
+        ctx.fillText(`WAVE ${Math.min(s.wave + 1, WAVE_TOTAL)}/${WAVE_TOTAL}`, w - 10, 22)
+    }
     ctx.fillStyle = GOLD
     ctx.fillText(`◆ ${s.scrap.toLocaleString()}`, w - 10, 40)
     ctx.textAlign = "start"

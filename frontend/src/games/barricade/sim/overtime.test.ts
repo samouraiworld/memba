@@ -72,7 +72,11 @@ describe("overtime siege (the endless tail)", () => {
         expect(final.score).toBeGreaterThan(25_000)
     })
 
-    it("hash coverage: the seed rides SimState and two different-seed states differ", () => {
+    it("different seeds hash differently (via rngState — seed itself is deliberately unhashed)", () => {
+        // SimState.seed is the protocol INPUT both sides agree on, with no write
+        // sites — it never evolves, so it stays out of the canonical hash. Do
+        // NOT "fix" this by adding it: that silently invalidates every stored
+        // hash without a SIM_VERSION bump. rngState already differs per seed.
         expect(hashState(initState("a"))).not.toBe(hashState(initState("b")))
     })
 

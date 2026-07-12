@@ -211,6 +211,13 @@ export function overtimeWave(seed: string, round: number): WaveScript {
     const [spawns] = buildSpawns(rng, waveBudget(BOSS_WAVE + round), poolFor(NORMAL_WAVES), OVERTIME_WINDOW, true)
     spreadAndSort(spawns)
     const w: WaveScript = { wave: BOSS_WAVE + round, spawns }
+    // Frozen: the cache hands the SAME object to every caller (live loop AND
+    // the in-browser replay). An in-place tweak would corrupt later runs — and
+    // the self-check would share the corruption while a fresh-process verifier
+    // diverged. Freezing turns that future bug into an immediate throw.
+    for (const sp of spawns) Object.freeze(sp)
+    Object.freeze(spawns)
+    Object.freeze(w)
     overtimeCache.set(key, w)
     return w
 }
