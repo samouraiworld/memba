@@ -142,4 +142,51 @@ describe("new fields + determinism", () => {
         const b = runReplay(seed, [{ tick: 100, type: "move", lane: 1 }])
         expect(a.stateHash).toBe(b.stateHash)
     })
+
+    it("integration: every new behavior ACTIVATES in a scripted wave and the run stays deterministic", () => {
+        // Review finding: the seeded sweeps kill everything so early that no
+        // charger ever doubled, no flanker hopped, and no mortar volleyed —
+        // fairness evidence for the behaviors was vacuous. Force a wave where
+        // they all provably fire, with a passive player parked in lane 0.
+        const script: WaveScript[] = [
+            {
+                wave: 0,
+                spawns: [
+                    { atTick: 1, lane: 1, archetype: "mortar" },
+                    { atTick: 1, lane: 1, archetype: "charger" },
+                    { atTick: 1, lane: 2, archetype: "flanker" },
+                    { atTick: 1, lane: 2, archetype: "drone" }, // makes lane 2 the crowded one
+                ],
+            },
+        ]
+        const run = () => {
+            let s = initState("activation")
+            let chargerDoubled = false
+            let hopped = false
+            let volleys = 0
+            let lastHp = s.barricadeHp
+            for (let t = 0; t < 900 && s.phase === "wave"; t++) {
+                const prev = new Map(s.enemies.map((e) => [e.id, e]))
+                s = tick(s, script)
+                for (const e of s.enemies) {
+                    const was = prev.get(e.id)
+                    if (!was) continue
+                    if (e.archetype === "charger" && e.pos - was.pos >= ARCHETYPES.charger.speed * 2) chargerDoubled = true
+                    if (e.archetype === "flanker" && e.hasFlanked && !was.hasFlanked) hopped = true
+                }
+                // A drop of exactly one shell = a mortar volley (contacts land
+                // bigger, different-tick hits in this fixture).
+                if (lastHp - s.barricadeHp === MORTAR_SHELL) volleys++
+                lastHp = s.barricadeHp
+            }
+            return { s, chargerDoubled, hopped, volleys }
+        }
+        const a = run()
+        const b = run()
+        expect(a.chargerDoubled, "charger never doubled").toBe(true)
+        expect(a.hopped, "flanker never hopped").toBe(true)
+        expect(a.volleys, "mortar never volleyed").toBeGreaterThanOrEqual(3)
+        expect(a.s.enemies.some((e) => e.archetype === "mortar" && e.pos === 60_000)).toBe(true)
+        expect(hashState(a.s)).toBe(hashState(b.s)) // byte-identical reruns
+    })
 })

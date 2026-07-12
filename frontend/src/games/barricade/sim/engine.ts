@@ -2,11 +2,11 @@
  * Core engine: initState / applyEvent / tick. Pure — every function returns a
  * new state object and never mutates its input; all arithmetic is integer.
  *
- * Tick order (fixed): spawn due enemies -> drop expired fire + flag slowed ->
- * flanker lane-hops -> advance (charger doubling, mortar standoff cap) ->
- * molotov impacts due -> burn -> mortar shelling accrues -> combat -> contact
- * (+ shell damage) -> meters/score -> terminal + wave bookkeeping.
- * Changing this order changes replays: bump SIM_VERSION.
+ * Tick order (fixed): spawn due enemies -> flanker lane-hops -> drop expired
+ * fire + flag slowed (post-hop lanes) -> advance (charger doubling, mortar
+ * standoff cap) -> molotov impacts due -> burn -> mortar shelling accrues ->
+ * combat -> contact (+ shell damage) -> meters/score -> terminal + wave
+ * bookkeeping. Changing this order changes replays: bump SIM_VERSION.
  */
 
 import { seedToState } from "./rng"
@@ -396,23 +396,12 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         }
     }
 
-    // Fire zones: drop burnt-out fields, then flag machines caught inside one so
-    // they advance slowed this tick (computed on pre-advance positions; a field
-    // spawned by this tick's impact only slows from next tick).
-    s.hazards = s.hazards.filter((h) => s.tick < h.expiresAtTick)
-    const slowed = new Set<number>()
-    for (const e of s.enemies) {
-        for (const h of s.hazards) {
-            if (h.lane === e.lane && e.pos >= h.posLo && e.pos <= h.posHi) {
-                slowed.add(e.id)
-                break
-            }
-        }
-    }
-
-    // 1b. Flankers hop lanes — BEFORE advance, in array order, so an earlier
-    // flanker's hop counts in the next one's crowd math (pure function of
-    // state: least-crowded lane, lowest index on ties, one-shot per machine).
+    // 1b. Flankers hop lanes — BEFORE the fire-slow flags and advance, in array
+    // order, so an earlier flanker's hop counts in the next one's crowd math
+    // (pure function of state: least-crowded lane, lowest index on ties,
+    // one-shot per machine). Hopping first also means the slow flag below
+    // reflects the lane a machine actually advances in (review finding: the
+    // old order let a hop carry a one-tick-stale slow flag across lanes).
     if (s.enemies.some((e) => e.archetype === "flanker" && !e.hasFlanked && e.pos >= FLANK_AT)) {
         const next: Enemy[] = []
         const counts = new Array(LANES).fill(0)
@@ -431,6 +420,20 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         s.enemies = next
     }
 
+    // Fire zones: drop burnt-out fields, then flag machines caught inside one so
+    // they advance slowed this tick (computed on pre-advance positions, post-hop
+    // lanes; a field spawned by this tick's impact only slows from next tick).
+    s.hazards = s.hazards.filter((h) => s.tick < h.expiresAtTick)
+    const slowed = new Set<number>()
+    for (const e of s.enemies) {
+        for (const h of s.hazards) {
+            if (h.lane === e.lane && e.pos >= h.posLo && e.pos <= h.posHi) {
+                slowed.add(e.id)
+                break
+            }
+        }
+    }
+
     // 2. Advance. Fire slows any machine caught in a burn zone; a charger past
     // the charge line moves at double speed (the slow composes on top); a
     // mortar never advances past its standoff line.
@@ -439,6 +442,10 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         if (e.archetype === "charger" && e.pos >= CHARGE_AT) speed *= 2
         if (slowed.has(e.id)) speed = Math.floor((speed * FIRE_SLOW_NUM) / FIRE_SLOW_DEN)
         let pos = e.pos + speed
+        // Cap the mortar's MARCH at the standoff line. NOTE: this also clamps a
+        // mortar somehow past the line BACK to it — unreachable today (spawn 0,
+        // capped every tick, shove only reduces pos), but a future forward-
+        // displacement mechanic must not silently rewind mortars through here.
         if (e.archetype === "mortar" && pos > MORTAR_STANDOFF) pos = MORTAR_STANDOFF
         return { ...e, pos }
     })

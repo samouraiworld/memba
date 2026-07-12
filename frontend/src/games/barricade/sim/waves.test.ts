@@ -32,6 +32,10 @@ describe("wave scripts", () => {
         // faster), NOT vs player-inflicted fire-slow/shove — but stalling is the
         // player's own choice, which a fairness bound may ignore. Swept over ten
         // years of production-format seeds (buildWaves is cheap), not ad-hoc ones.
+        // NOTE: the mortar never crosses (it halts at its standoff line), so its
+        // "crossing time" term here is fictitious — w8+ win-reachability rests on
+        // the winnability sweep (the player must KILL mortars to end the wave),
+        // with RUN_MAX_TICKS as the hard stop for passive runs.
         const CHOICE_TICKS = 240 // mirrors SPEND_PHASE_TICKS in engine.ts
         const start = Date.UTC(2026, 0, 1)
         for (let d = 0; d < 3_650; d++) {
