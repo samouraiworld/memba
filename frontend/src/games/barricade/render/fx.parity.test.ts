@@ -5,6 +5,7 @@ import { SIM_VERSION, type SimState } from "../sim/types"
 import { deriveFxEvents } from "./fxEvents"
 import { initFx, layout, pushFxEvents, stepFx, type Rng } from "./fx"
 import { interpPositions } from "./interp"
+import { laneThreats } from "./telegraph"
 
 // The whole point of the FX layer: it is render-only and can NEVER change a
 // replay. This drives a full daily run twice — once bare, once with the entire
@@ -40,6 +41,8 @@ function runSim(seed: string, withFx: boolean): { final: SimState; checksum: num
             // an enemy's pos, the next tick would read the corrupted value and the
             // trajectory would diverge from the bare run below.
             interpPositions(prev, s, (s.tick % 4) / 4)
+            // Same contract for the telegraph selection: pure + read-only.
+            laneThreats(s.enemies.map((e) => ({ lane: e.lane, pos: e.pos })))
         }
     }
     return { final: s, checksum }

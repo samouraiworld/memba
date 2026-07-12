@@ -105,6 +105,20 @@ describe("draw", () => {
         expect(JSON.stringify(state)).toBe(before)
     })
 
+    it("draws a wind-up telegraph for a front unit near the barricade", () => {
+        const mk = (pos: number): SimState => ({
+            ...initState("draw-test"),
+            enemies: [{ id: 1, archetype: "walker", lane: 1, pos, hp: ARCHETYPES.walker.hp, speed: ARCHETYPES.walker.speed }],
+        })
+        const near = stubCtx()
+        draw(near.ctx, mk(96_000), { width: 390, height: 700 }) // frac 0.96 → telegraph fires
+        const far = stubCtx()
+        draw(far.ctx, mk(20_000), { width: 390, height: 700 }) // frac 0.20 → no telegraph
+        // Same unit + archetype ⇒ identical silhouette strokes; the extra strokes
+        // near the barricade are the aim-line + chevron telegraph.
+        expect(near.calls.stroke).toBeGreaterThan(far.calls.stroke)
+    })
+
     it("renders the fx layer (particles + floaters) without touching it", () => {
         const { ctx, calls } = stubCtx()
         const state = initState("draw-test")
