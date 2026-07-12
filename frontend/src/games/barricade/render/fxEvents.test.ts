@@ -28,6 +28,15 @@ describe("deriveFxEvents", () => {
         expect(evs).toContainEqual({ kind: "barricadeHit", damageFrac: 4_000 / BARRICADE_MAX_HP })
     })
 
+    it("emits a kill for a front enemy killed in combat at the line (no barricade damage)", () => {
+        // Same boundary position, but the barricade took NO damage this frame, so
+        // it died in combat and must still pop — previously it emitted nothing.
+        const prev = mk({ enemies: [en(1, "drone", 0, LANE_LENGTH - 50, 700)], barricadeHp: BARRICADE_MAX_HP })
+        const next = mk({ enemies: [], barricadeHp: BARRICADE_MAX_HP })
+        const posFrac = Math.min(1, (LANE_LENGTH - 50) / LANE_LENGTH)
+        expect(deriveFxEvents(prev, next)).toContainEqual({ kind: "kill", lane: 0, posFrac, weight: 1, archetype: "drone" })
+    })
+
     it("emits barricadeHit with the damage fraction", () => {
         const prev = mk({ barricadeHp: BARRICADE_MAX_HP })
         const next = mk({ barricadeHp: BARRICADE_MAX_HP - 9_000 })
