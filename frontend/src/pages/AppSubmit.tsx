@@ -77,24 +77,30 @@ export function AppSubmit() {
     })
 
     const broadcast = useMutation({
-        mutationFn: async () => {
+        // The submission is passed as the mutation VARIABLE (not closed over): `mutate(form)` is
+        // evaluated in the submit handler's committed-fiber closure, so the broadcast always signs
+        // the latest committed form. Closing over `form` here could read a stale render (react-query
+        // holds the mutationFn from whichever render last ran setOptions), which rarely dropped a
+        // just-uploaded iconCID/screenshot from the wire args.
+        mutationFn: async (submission: AppSubmission) => {
             const { doContractBroadcast } = await import("../lib/grc20")
             const msg = mode.kind === "edit"
-                ? buildEditListingMsg(address, form)
-                : buildRegisterAppMsg(address, fee ?? Number.NaN, form)
+                ? buildEditListingMsg(address, submission)
+                : buildRegisterAppMsg(address, fee ?? Number.NaN, submission)
             return doContractBroadcast([msg], mode.kind === "edit" ? "Resubmit app" : "Submit app")
         },
-        onSuccess: () => {
-            // The freshly-signed listing is pending — reflect it immediately (the chain read
-            // lags the broadcast), then let the next refetch reconcile.
+        onSuccess: (_res, submission) => {
+            // The freshly-signed listing is pending — reflect it immediately (the chain read lags
+            // the broadcast), then let the next refetch reconcile. Uses the submitted form (the
+            // mutation variable), not a closure, so it matches exactly what was signed.
             const optimistic: AppListing = {
-                id: 0, pkgPath: form.pkgPath, name: form.name, tagline: form.tagline,
-                category: form.category, iconCID: form.iconCID, appURL: form.appURL,
-                publisher: address, status: "pending", flagCount: 0, createdAt: 0, descr: form.descr,
+                id: 0, pkgPath: submission.pkgPath, name: submission.name, tagline: submission.tagline,
+                category: submission.category, iconCID: submission.iconCID, appURL: submission.appURL,
+                publisher: address, status: "pending", flagCount: 0, createdAt: 0, descr: submission.descr,
             }
             qc.setQueryData<AppListing[]>(["appStore", "mine", address], (prev) => [
                 optimistic,
-                ...(prev ?? []).filter((l) => l.pkgPath !== form.pkgPath),
+                ...(prev ?? []).filter((l) => l.pkgPath !== submission.pkgPath),
             ])
             void qc.invalidateQueries({ queryKey: ["appStore", "pending"] })
             setDone(mode.kind)
@@ -251,7 +257,7 @@ export function AppSubmit() {
                     className="appsubmit__form"
                     onSubmit={(e) => {
                         e.preventDefault()
-                        if (canSubmit) broadcast.mutate()
+                        if (canSubmit) broadcast.mutate(form)
                     }}
                 >
                     {mode.kind === "edit" && (
