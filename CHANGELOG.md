@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Reputation — on-chain MP reader + tier & leaderboard UI, dark (2026-07-12)
+- **The client for the on-chain reputation ledger, ahead of its launch.** Behind a new `VITE_ENABLE_POINTS` (off), a read-only `points.ts` reads the `memba_points_v1` realm over qeval — a member's exact standing ("#47 of 1,203"), their status tier, and the paginated leaderboard — taking tier and rank as canonical from the chain rather than re-deriving them client-side. New `TierBadge`, `PersonalRank`, `PointsLeaderboard`, and a drop-in `PointsPanel` render it; every payload is shape-validated and the address is injection-guarded before any query. Nothing is visible yet — the realm isn't deployed and the flag is off — so this is groundwork, unit-tested only.
+
 ### MEMBA: BARRICADE — v2 groundwork: the molotov, sim only, behind the flag (2026-07-12)
 - **The foundation of the game's first active weapon.** Behind `VITE_ENABLE_BARRICADE` (still off), the deterministic sim gains a molotov cocktail — an aimed, area, integer-only throw with a charge meter that fills over time and from kills — as the first step of the BARRICADE "deepening" (longer, progressively harder, more machines). It isn't wired to a control yet, so there's no visible change; the sim version steps to 2 and every new field is covered by the replay hash, so verified runs stay verifiable.
 - **The molotov now leaves fire.** A hit spawns a lingering fire zone on the lane that both burns machines caught in it each tick and slows them to 60% speed until it burns out — so throwing ahead of a rush cooks and stalls it, not just the units it lands on. Still sim only (no control wired yet); integer-deterministic and covered by the replay hash.
