@@ -9,7 +9,6 @@ let adena = { connected: true, address: "g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu
 const fetchByPublisher = vi.fn()
 const loadEditForm = vi.fn()
 const doContractBroadcast = vi.fn()
-const navigate = vi.fn()
 
 vi.mock("../hooks/useAdena", () => ({ useAdena: () => adena }))
 vi.mock("../lib/config", async (a) => ({
@@ -25,9 +24,6 @@ vi.mock("../lib/appStoreSubmit", async (a) => {
 })
 vi.mock("../lib/grc20", async (a) => ({
     ...await a<typeof import("../lib/grc20")>(), doContractBroadcast: (...x: unknown[]) => doContractBroadcast(...x),
-}))
-vi.mock("react-router-dom", async (a) => ({
-    ...await a<typeof import("react-router-dom")>(), useNavigate: () => navigate,
 }))
 
 const { PublisherConsole } = await import("./PublisherConsole")
@@ -46,7 +42,6 @@ beforeEach(() => {
     fetchByPublisher.mockReset().mockResolvedValue([])
     loadEditForm.mockReset().mockResolvedValue(null)
     doContractBroadcast.mockReset().mockResolvedValue({ hash: "0x" })
-    navigate.mockReset()
 })
 
 describe("PublisherConsole — gates", () => {
@@ -79,30 +74,54 @@ describe("PublisherConsole — listings", () => {
     })
 })
 
-describe("PublisherConsole — edit navigates into the prefilled submit form", () => {
-    it("loads full detail then navigates to /apps/submit with the seeded form in router state", async () => {
+describe("PublisherConsole — inline edit", () => {
+    it("opens an inline edit form seeded from full detail, then broadcasts EditListing on submit", async () => {
         fetchByPublisher.mockResolvedValue([listing({ pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", status: "rejected" })])
-        const form = {
+        loadEditForm.mockResolvedValue({
             pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", tagline: "", descr: "D",
             category: "", iconCID: "", screenshotsCSV: "s1,s2", appURL: "",
-        }
-        loadEditForm.mockResolvedValue(form)
+        })
         renderWithProviders(<PublisherConsole />, { route: "/test13/apps/my-submissions" })
         await screen.findByText("Bad App")
         fireEvent.click(screen.getByRole("button", { name: /fix & resubmit/i }))
-        await waitFor(() =>
-            expect(navigate).toHaveBeenCalledWith("/test13/apps/submit", { state: { editForm: form } }))
+        // The edit form opens IN PLACE, seeded from full on-chain detail — no navigation away.
+        expect(await screen.findByLabelText(/description/i)).toHaveValue("D")
         expect(loadEditForm).toHaveBeenCalledWith("gno.land/r/samcrew/bad_v1")
+        fireEvent.click(screen.getByRole("button", { name: /resubmit for review/i }))
+        await waitFor(() => expect(doContractBroadcast).toHaveBeenCalledTimes(1))
+        const [msgs] = doContractBroadcast.mock.calls[0]
+        expect(msgs[0].value.func).toBe("EditListing")
+        expect(msgs[0].value.send).toBe("")
+        // descr + screenshots round-trip (the whole point of loadEditForm)
+        expect(msgs[0].value.args[3]).toBe("D")
+        expect(msgs[0].value.args[6]).toBe("s1,s2")
     })
 
-    it("shows an error and does not navigate when full detail can't be loaded", async () => {
+    it("shows an error and does NOT open the edit form when full detail can't be loaded", async () => {
         fetchByPublisher.mockResolvedValue([listing({ pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", status: "rejected" })])
         loadEditForm.mockResolvedValue(null)
         renderWithProviders(<PublisherConsole />, { route: "/test13/apps/my-submissions" })
         await screen.findByText("Bad App")
         fireEvent.click(screen.getByRole("button", { name: /fix & resubmit/i }))
         expect(await screen.findByText(/couldn't load/i)).toBeInTheDocument()
-        expect(navigate).not.toHaveBeenCalled()
+        expect(screen.queryByTestId("console-editform")).not.toBeInTheDocument()
+        expect(doContractBroadcast).not.toHaveBeenCalled()
+    })
+
+    it("Cancel closes the inline edit form without broadcasting", async () => {
+        fetchByPublisher.mockResolvedValue([listing({ pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", status: "rejected" })])
+        loadEditForm.mockResolvedValue({
+            pkgPath: "gno.land/r/samcrew/bad_v1", name: "Bad App", tagline: "", descr: "D",
+            category: "", iconCID: "", screenshotsCSV: "", appURL: "",
+        })
+        renderWithProviders(<PublisherConsole />, { route: "/test13/apps/my-submissions" })
+        await screen.findByText("Bad App")
+        fireEvent.click(screen.getByRole("button", { name: /fix & resubmit/i }))
+        await screen.findByTestId("console-editform")
+        fireEvent.click(screen.getByRole("button", { name: /^cancel$/i }))
+        expect(screen.queryByTestId("console-editform")).not.toBeInTheDocument()
+        expect(doContractBroadcast).not.toHaveBeenCalled()
+        expect(screen.getByText("Bad App")).toBeInTheDocument() // back to the list
     })
 })
 

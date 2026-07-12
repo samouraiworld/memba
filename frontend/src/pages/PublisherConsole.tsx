@@ -3,10 +3,10 @@
  *
  * A first-class, paginated view of the connected wallet's own listings (any status): status at a
  * glance, curator reject reasons, remaining free edits, community flag counts, a link to the live
- * store page, plus the free resubmit and one-way delist actions. Editing deep-links into the
- * `/apps/submit` form with the listing's FULL on-chain detail already loaded (via `loadEditForm`)
- * and handed over in router state — so `EditListing` never overwrites a field with a blank, and no
- * `setState` runs inside an effect (keeping the lint ratchet clean).
+ * store page, plus the free resubmit and one-way delist actions. Editing happens **in place**: the
+ * console loads the listing's FULL on-chain detail (`loadEditForm`) and opens the shared
+ * `ListingFields` form right here, so `EditListing` never overwrites a field with a blank and the
+ * publisher never leaves the console.
  *
  * Gated exactly like the rest of the publisher surface: `VITE_ENABLE_APPSTORE_SUBMIT`, the v3 realm,
  * and a connected wallet. Read-only for a disconnected visitor beyond the connect prompt.
@@ -15,13 +15,17 @@
  */
 
 import { useState } from "react"
-import { Link, useNavigate } from "react-router-dom"
+import { Link } from "react-router-dom"
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query"
 import { useAdena } from "../hooks/useAdena"
+import { useAuth } from "../hooks/useAuth"
 import { useNetwork } from "../hooks/useNetwork"
 import { isAppStoreSubmitEnabled } from "../lib/config"
 import { isAppStoreV3, fetchByPublisher, type AppListing } from "../lib/appStore"
-import { loadEditForm, buildDelistAppMsg } from "../lib/appStoreSubmit"
+import {
+    loadEditForm, buildDelistAppMsg, buildEditListingMsg, validateSubmission, type AppSubmission,
+} from "../lib/appStoreSubmit"
+import { ListingFields } from "../components/appstore/ListingFields"
 import { PublisherListings } from "../components/appstore/PublisherListings"
 import "./appstore.css"
 
@@ -30,11 +34,13 @@ const PAGE_SIZE = 20
 export function PublisherConsole() {
     const { networkKey } = useNetwork()
     const { connected, address, connect } = useAdena()
-    const navigate = useNavigate()
+    const auth = useAuth()
     const qc = useQueryClient()
     const [page, setPage] = useState(0)
     const [editLoading, setEditLoading] = useState<string | null>(null)
     const [editError, setEditError] = useState<string | null>(null)
+    const [editForm, setEditForm] = useState<AppSubmission | null>(null)
+    const [txError, setTxError] = useState<string | null>(null)
     const [delistArm, setDelistArm] = useState<string | null>(null)
     const [delistError, setDelistError] = useState<string | null>(null)
 
@@ -72,9 +78,38 @@ export function PublisherConsole() {
         },
     })
 
-    // Load the listing's FULL detail, then hand the seeded form to /apps/submit via router state.
-    // Doing the fetch here (not in an effect on the submit page) keeps the form seeded from full
-    // detail AND avoids a setState-in-effect. Abort on a failed read — never open a wiping form.
+    // EditListing — free resubmit of the edited listing. Optimistically flip the row back to pending
+    // (with the edited fields) and close the inline form; the next refetch reconciles with the chain.
+    const resubmit = useMutation({
+        mutationFn: async (form: AppSubmission) => {
+            const { doContractBroadcast } = await import("../lib/grc20")
+            return doContractBroadcast([buildEditListingMsg(address, form)], "Resubmit app")
+        },
+        onSuccess: (_res, form) => {
+            qc.setQueryData<AppListing[]>(queryKey, (prev) =>
+                (prev ?? []).map((l) => (l.pkgPath === form.pkgPath
+                    ? {
+                        ...l, status: "pending", name: form.name, tagline: form.tagline,
+                        category: form.category, iconCID: form.iconCID, appURL: form.appURL,
+                        descr: form.descr, rejectReason: undefined,
+                    }
+                    : l)))
+            void qc.invalidateQueries({ queryKey: ["appStore", "pending"] })
+            setEditForm(null)
+            setTxError(null)
+        },
+        onError: (e: unknown) => {
+            const msg = e instanceof Error ? e.message : String(e)
+            setTxError(/denied|rejected by user|cancel/i.test(msg)
+                ? null
+                : "The transaction didn't go through — please try again.")
+        },
+    })
+
+    // Load the listing's FULL detail and open the inline edit form seeded from it. The list window
+    // omits descr + screenshots and EditListing overwrites every field, so seeding from full detail
+    // is the only thing that stops a resubmit blanking them. Abort on a failed read — never open a
+    // form that would wipe the fields (fail-closed, like the fee).
     const startEdit = async (l: AppListing) => {
         setEditLoading(l.pkgPath)
         setEditError(null)
@@ -84,7 +119,16 @@ export function PublisherConsole() {
             setEditError("Couldn't load this listing's saved details — please try again.")
             return
         }
-        navigate(`/${networkKey}/apps/submit`, { state: { editForm: form } })
+        setTxError(null)
+        setEditForm(form)
+    }
+
+    // Adapt the nullable editForm state to ListingFields' non-null setter (edit form is open here).
+    const setEditFormFields: React.Dispatch<React.SetStateAction<AppSubmission>> = (update) => {
+        setEditForm((prev) => {
+            if (!prev) return prev
+            return typeof update === "function" ? (update as (f: AppSubmission) => AppSubmission)(prev) : update
+        })
     }
 
     if (!submitOpen) {
@@ -125,6 +169,9 @@ export function PublisherConsole() {
 
     const items = listings ?? []
     const hasNext = items.length === PAGE_SIZE
+    const editErrors = editForm ? validateSubmission(editForm) : {}
+    const canResubmit = !!editForm && editForm.pkgPath !== "" && editForm.name !== ""
+        && Object.keys(editErrors).length === 0 && !resubmit.isPending
 
     return (
         <Shell networkKey={networkKey}>
@@ -139,7 +186,31 @@ export function PublisherConsole() {
 
             {editError && <p className="appsubmit__txerror" role="alert">{editError}</p>}
 
-            {items.length === 0 ? (
+            {editForm ? (
+                <form
+                    className="appsubmit__form"
+                    data-testid="console-editform"
+                    onSubmit={(e) => { e.preventDefault(); if (canResubmit) resubmit.mutate(editForm) }}
+                >
+                    <div className="appsubmit__editnote" role="note">
+                        Fixing <code className="apppath">{editForm.pkgPath}</code> — resubmitting is free and
+                        sends it back to review.{" "}
+                        <button type="button" className="appsubmit__linkbtn"
+                            onClick={() => { setEditForm(null); setTxError(null) }}>
+                            Cancel
+                        </button>
+                    </div>
+                    <ListingFields
+                        form={editForm} setForm={setEditFormFields} errors={editErrors}
+                        authed={auth.isAuthenticated} pkgPathDisabled
+                    />
+                    {txError && <p className="appsubmit__txerror" role="alert">{txError}</p>}
+                    <button type="submit" className="appbtn appbtn--primary appsubmit__submit"
+                        data-testid="console-resubmit" disabled={!canResubmit}>
+                        {resubmit.isPending ? "Waiting for wallet…" : "Resubmit for review (free)"}
+                    </button>
+                </form>
+            ) : items.length === 0 ? (
                 isLoading ? (
                     <p className="appstore__muted" data-testid="console-loading">Loading your submissions…</p>
                 ) : (
