@@ -1,24 +1,26 @@
 /* points.css — reputation (MP) UI: tier badges, personal rank, leaderboard.
-   Outline pills + neutral surfaces so it reads cleanly on both the light and dark themes. */
+   Text uses theme-aware tokens (§13) so it stays legible on both light and dark; tier identity is
+   carried by the pill's border colour (a non-text property), not by low-contrast coloured text. */
 
 .tier-badge {
     display: inline-flex;
     align-items: center;
     padding: 1px 8px;
-    border: 1px solid currentColor;
+    border: 1px solid var(--color-text-muted);
     border-radius: 999px;
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.02em;
     line-height: 1.5;
     white-space: nowrap;
+    color: var(--color-text-secondary);
 }
-.tier-badge--bronze { color: #b87333; }
-.tier-badge--silver { color: #8c98a8; }
-.tier-badge--gold { color: #c9a227; }
-.tier-badge--platinum { color: #5fa8b8; }
-.tier-badge--diamond { color: #3fb6d3; }
-.tier-badge--default { color: var(--color-text-muted, #7a8290); }
+.tier-badge--bronze { border-color: var(--color-accent-bronze); }
+.tier-badge--silver { border-color: var(--color-text-secondary); }
+.tier-badge--gold { border-color: var(--color-accent-gold); }
+.tier-badge--platinum { border-color: var(--color-accent-teal); }
+.tier-badge--diamond { border-color: var(--color-accent-blue-bright); }
+.tier-badge--default { border-color: var(--color-text-muted); }
 
 /* Personal rank ------------------------------------------------------------ */
 .personal-rank {
@@ -82,7 +84,7 @@
     background: var(--color-surface-subtle, rgba(127, 127, 127, 0.06));
 }
 .points-leaderboard__row.is-me {
-    outline: 1px solid var(--color-accent-gold, #c9a227);
+    outline: 2px solid var(--color-accent-gold);
     outline-offset: -1px;
 }
 .points-leaderboard__rank {

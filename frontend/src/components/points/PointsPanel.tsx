@@ -8,7 +8,7 @@
  */
 
 import { useState } from "react"
-import { useQuery } from "@tanstack/react-query"
+import { useQuery, keepPreviousData } from "@tanstack/react-query"
 import { isPointsEnabled } from "../../lib/config"
 import { getProfile, getTopNPage } from "../../lib/points"
 import { PersonalRank } from "./PersonalRank"
@@ -31,12 +31,19 @@ function PointsPanelInner({ address }: { address?: string }) {
         queryFn: () => getProfile(address ?? ""),
         enabled: !!address,
     })
+    // Fetch ONE extra row so `hasMore` is truthful — never a "Next" that leads to an empty page.
+    // strict=true so a real RPC/ABCI failure surfaces as board.isError (a distinct "couldn't load"
+    // state) instead of masquerading as an empty leaderboard. keepPreviousData keeps the current page
+    // mounted while the next loads, so paging doesn't drop keyboard focus or shift layout.
     const board = useQuery({
         queryKey: ["points", "board", page],
-        queryFn: () => getTopNPage(page * PAGE_SIZE, PAGE_SIZE),
+        queryFn: () => getTopNPage(page * PAGE_SIZE, PAGE_SIZE + 1, true),
+        placeholderData: keepPreviousData,
     })
 
-    const rows = board.data ?? []
+    const fetched = board.data ?? []
+    const rows = fetched.slice(0, PAGE_SIZE)
+    const hasMore = fetched.length > PAGE_SIZE
     return (
         <section className="points-panel" data-testid="points-panel">
             <h2 className="points-panel__title">Reputation</h2>
@@ -44,8 +51,9 @@ function PointsPanelInner({ address }: { address?: string }) {
             <PointsLeaderboard
                 rows={rows}
                 loading={board.isLoading}
+                error={board.isError}
                 page={page}
-                hasMore={rows.length === PAGE_SIZE}
+                hasMore={hasMore}
                 onPageChange={setPage}
                 highlightAddr={address}
             />

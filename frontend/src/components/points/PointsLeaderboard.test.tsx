@@ -27,11 +27,27 @@ describe("PointsLeaderboard", () => {
         expect(screen.getByTestId("leaderboard-loading")).toBeInTheDocument()
     })
 
+    it("shows an error state distinct from empty", () => {
+        render(<PointsLeaderboard rows={[]} error />)
+        expect(screen.getByTestId("leaderboard-error")).toBeInTheDocument()
+        expect(screen.queryByTestId("leaderboard-empty")).toBeNull()
+    })
+
     it("pages via the callback and disables Prev on page 0", () => {
         const onPageChange = vi.fn()
         render(<PointsLeaderboard rows={rows} page={0} hasMore onPageChange={onPageChange} />)
         expect(screen.getByLabelText("Previous page")).toBeDisabled()
         fireEvent.click(screen.getByLabelText("Next page"))
+        expect(onPageChange).toHaveBeenCalledWith(1)
+    })
+
+    it("keeps a working Prev on an empty non-first page (no dead-end)", () => {
+        const onPageChange = vi.fn()
+        render(<PointsLeaderboard rows={[]} page={2} hasMore={false} onPageChange={onPageChange} />)
+        expect(screen.getByTestId("leaderboard-empty")).toBeInTheDocument()
+        const prev = screen.getByLabelText("Previous page")
+        expect(prev).toBeEnabled()
+        fireEvent.click(prev)
         expect(onPageChange).toHaveBeenCalledWith(1)
     })
 
