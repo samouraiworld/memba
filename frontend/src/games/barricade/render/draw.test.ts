@@ -122,6 +122,23 @@ describe("draw", () => {
         expect(near.calls.stroke).toBeGreaterThan(far.calls.stroke)
     })
 
+    it("renders molotov fire zones and projectiles when present", () => {
+        const base = initState("draw-test")
+        const withMolotov = {
+            ...base,
+            hazards: [{ id: 0, lane: 1, posLo: 40_000, posHi: 60_000, dmgPerTick: 500, expiresAtTick: 9_999 }],
+            projectiles: [{ id: 0, lane: 0, dist: 50_000, impactTick: 9_999 }],
+        }
+        const bare = stubCtx()
+        draw(bare.ctx, base, { width: 390, height: 700 })
+        const fx = stubCtx()
+        const before = JSON.stringify(withMolotov)
+        expect(() => draw(fx.ctx, withMolotov, { width: 390, height: 700 })).not.toThrow()
+        expect(fx.calls.fillRect).toBeGreaterThan(bare.calls.fillRect) // fire scorch adds a fillRect
+        expect(fx.calls.arc).toBeGreaterThan(bare.calls.arc) // the bottle is drawn as arcs
+        expect(JSON.stringify(withMolotov)).toBe(before) // draw never mutates the sim
+    })
+
     it("renders the fx layer (particles + floaters) without touching it", () => {
         const { ctx, calls } = stubCtx()
         const state = initState("draw-test")

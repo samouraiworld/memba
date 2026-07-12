@@ -15,6 +15,7 @@
  */
 
 import { ARCHETYPES, WAVE_TOTAL } from "../sim/waves"
+import { MOLOTOV_COST, MOLOTOV_MAX } from "../sim/engine"
 import { BARRICADE_MAX_HP, LANES, LANE_LENGTH, RALLY_FULL, type ArchetypeId, type SimState } from "../sim/types"
 import { layout, laneCenterX, yFromFrac, type FxState, type Layout } from "./fx"
 import { laneThreats } from "./telegraph"
@@ -170,6 +171,29 @@ function drawMachine(ctx: CanvasRenderingContext2D, kind: ArchetypeId, x: number
             ctx.stroke()
             inkCircle(ctx, x + s * 0.13, y - s * 0.5, s * 0.1, color, 2)
             eye(ctx, x, y - s * 0.06, s * 0.15)
+            break
+        }
+        case "testudo": { // tower-shield bot — a big raised riot shield up front
+            inkRect(ctx, x - s * 0.26, y - s * 0.28, s * 0.52, s * 0.74, color, 3) // body
+            eye(ctx, x, y - s * 0.36, s * 0.08)
+            inkRect(ctx, x - s * 0.44, y - s * 0.46, s * 0.88, s * 0.9, SHIELD, 3) // full frontal shield
+            ctx.strokeStyle = INK_LINE
+            ctx.lineWidth = 2
+            for (let i = -1; i <= 1; i++) {
+                ctx.beginPath()
+                ctx.moveTo(x + i * s * 0.29, y - s * 0.46)
+                ctx.lineTo(x + i * s * 0.29, y + s * 0.44)
+                ctx.stroke()
+            }
+            eye(ctx, x, y - s * 0.02, s * 0.06) // a sensor slit peers over the shield
+            break
+        }
+        case "swarm": { // small fast quad-copter — arrives in numbers
+            inkRect(ctx, x - s * 0.4, y - s * 0.11, s * 0.8, s * 0.07, color, 2) // rotor bar
+            inkCircle(ctx, x - s * 0.38, y - s * 0.08, s * 0.1, color, 2)
+            inkCircle(ctx, x + s * 0.38, y - s * 0.08, s * 0.1, color, 2)
+            inkRect(ctx, x - s * 0.14, y - s * 0.05, s * 0.28, s * 0.26, color, 2) // body
+            eye(ctx, x, y + s * 0.07, s * 0.08)
             break
         }
     }
@@ -388,6 +412,58 @@ export function draw(
         drawMachine(ctx, e.archetype, x, y, size, MACHINE_COLOR[e.archetype])
     }
 
+    // Fire zones — a scorch decal + flat-cel riso flames (no gradients: nested
+    // vermilion → ochre → paper tongues, flickering on the sim tick).
+    for (const hz of s.hazards) {
+        const cx = laneCenterX(lay, hz.lane)
+        const yLo = yFromFrac(lay, Math.min(1, hz.posLo / LANE_LENGTH))
+        const yHi = yFromFrac(lay, Math.min(1, hz.posHi / LANE_LENGTH))
+        const bandW = laneW * 0.72
+        ctx.globalAlpha = 0.32
+        ctx.fillStyle = "#180d08"
+        ctx.fillRect(cx - bandW / 2, yLo, bandW, yHi - yLo) // scorch
+        const life = Math.max(0.2, Math.min(1, (hz.expiresAtTick - s.tick) / 60)) // guttering fade
+        const flick = fx?.reducedMotion ? 0 : Math.sin(s.tick * 0.6 + hz.id) * 3
+        const midY = (yLo + yHi) / 2
+        ctx.globalAlpha = 0.85 * (fx?.reducedMotion ? 0.7 : 1)
+        for (const t of [
+            { col: VERMILION, sc: 1 },
+            { col: OCHRE, sc: 0.6 },
+            { col: PAPER, sc: 0.28 },
+        ]) {
+            const fw = bandW * 0.5 * t.sc * (0.7 + 0.3 * life)
+            const fh = (yHi - yLo) * 0.95 * t.sc * life
+            ctx.fillStyle = t.col
+            ctx.beginPath()
+            ctx.moveTo(cx - fw, midY + fh * 0.4)
+            ctx.quadraticCurveTo(cx - fw * 0.3, midY - fh + flick, cx, midY - fh * 1.15 + flick)
+            ctx.quadraticCurveTo(cx + fw * 0.3, midY - fh + flick, cx + fw, midY + fh * 0.4)
+            ctx.closePath()
+            ctx.fill()
+        }
+        ctx.globalAlpha = 1
+    }
+
+    // Molotovs in flight — a bottle arcing from the barricade toward its target.
+    for (const p of s.projectiles) {
+        const cx = laneCenterX(lay, p.lane)
+        const targetY = yFromFrac(lay, Math.min(1, p.dist / LANE_LENGTH))
+        const prog = Math.max(0, Math.min(1, 1 - Math.max(0, p.impactTick - s.tick) / 24))
+        const py = fieldBottom + (targetY - fieldBottom) * prog - Math.sin(prog * Math.PI) * fieldH * 0.12
+        ctx.save()
+        ctx.translate(cx, py)
+        ctx.rotate(prog * 6)
+        ctx.fillStyle = OCHRE
+        ctx.beginPath()
+        ctx.arc(0, 0, Math.max(2, laneW * 0.05), 0, TAU)
+        ctx.fill()
+        ctx.fillStyle = VERMILION // the lit rag
+        ctx.beginPath()
+        ctx.arc(0, -laneW * 0.05, Math.max(1, laneW * 0.022), 0, TAU)
+        ctx.fill()
+        ctx.restore()
+    }
+
     // Dying machines — flung off the field, squashing + spinning + fading.
     if (fx) {
         for (const d of fx.deaths) {
@@ -488,6 +564,16 @@ export function draw(
     ctx.fillRect(0, 0, w, hudH)
     ctx.fillStyle = DIVIDER
     ctx.fillRect(0, hudH - 1, w, 1)
+    // molotov charge — a vermilion bar with a notch at each throw threshold.
+    const chargeFrac = Math.min(1, s.molotovCharge / MOLOTOV_MAX)
+    ctx.fillStyle = "rgba(224,57,43,0.15)"
+    ctx.fillRect(10, hudH - 22, w - 20, 5)
+    ctx.fillStyle = VERMILION
+    ctx.fillRect(10, hudH - 22, Math.floor((w - 20) * chargeFrac), 5)
+    ctx.fillStyle = STOCK
+    for (let i = 1; i * MOLOTOV_COST < MOLOTOV_MAX; i++) {
+        ctx.fillRect(10 + Math.floor(((w - 20) * (i * MOLOTOV_COST)) / MOLOTOV_MAX), hudH - 22, 1, 5)
+    }
     // rally meter — a real charge bar; teal track, ochre→vermilion fill, teal-ready.
     const rallyFrac = Math.min(1, s.rallyMeter / RALLY_FULL)
     const ready = rallyFrac >= 1
