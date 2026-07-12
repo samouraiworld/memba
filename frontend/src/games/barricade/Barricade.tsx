@@ -21,6 +21,7 @@ import { LANES, type Choice, type SimEvent, type SimState } from "./sim/types"
 import { draw, drawAttract } from "./render/draw"
 import { deriveFxEvents } from "./render/fxEvents"
 import { initFx, layout, pushFxEvents, stepFx, type FxState } from "./render/fx"
+import { interpPositions } from "./render/interp"
 import { GameAudio } from "./render/audio"
 import { useGameLoop } from "./hooks/useGameLoop"
 import "./barricade.css"
@@ -69,6 +70,9 @@ export default function Barricade() {
     // Seeded with its own idle state (never read another ref during render); the
     // real previous-frame state is set in start() and updated each onFrame.
     const prevStateRef = useRef<SimState>(initState("idle"))
+    // The sim state one tick before the current one — the anchor for sub-tick
+    // position interpolation so enemy motion stays smooth above 60Hz.
+    const tickPrevRef = useRef<SimState>(initState("idle"))
     const audioRef = useRef<GameAudio | null>(null)
 
     const [status, setStatus] = useState<RunStatus>("ready")
@@ -103,6 +107,7 @@ export default function Barricade() {
         eventsRef.current = []
         fxRef.current = initFx(prefersReducedMotion())
         prevStateRef.current = stateRef.current
+        tickPrevRef.current = stateRef.current
         setIsDaily(daily)
         setResult(null)
         setStatus("playing")
@@ -119,11 +124,15 @@ export default function Barricade() {
     const onSteps = useCallback(
         (steps: number) => {
             let s = stateRef.current
+            let prevTick = s
             for (let i = 0; i < steps; i++) {
+                prevTick = s
                 s = tick(s, wavesRef.current)
                 if (s.phase === "won" || s.phase === "lost") break
             }
             stateRef.current = s
+            // The state one tick back is the interpolation anchor for onFrame.
+            tickPrevRef.current = prevTick
             if (s.phase === "won" || s.phase === "lost") {
                 const replay = runReplay(seedRef.current, eventsRef.current)
                 setResult({
@@ -140,7 +149,7 @@ export default function Barricade() {
         [],
     )
 
-    const onFrame = useCallback(() => {
+    const onFrame = useCallback((alpha: number) => {
         const canvas = canvasRef.current
         const ctx = canvas?.getContext("2d")
         if (!canvas || !ctx) return
@@ -159,7 +168,11 @@ export default function Barricade() {
             }
         }
         stepFx(fx)
-        draw(ctx, s, { width: CW, height: CH }, fx)
+        // Smooth enemy motion between fixed 60Hz ticks — render-only, so the sim
+        // and its replay are untouched. tickPrevRef is the state one tick back;
+        // alpha is this frame's fraction of the way to the current tick.
+        const interp = interpPositions(tickPrevRef.current, s, alpha)
+        draw(ctx, s, { width: CW, height: CH }, fx, interp)
         prevStateRef.current = s
     }, [])
 

@@ -189,7 +189,13 @@ function groundShadow(ctx: CanvasRenderingContext2D, x: number, y: number, s: nu
     ctx.fill()
 }
 
-export function draw(ctx: CanvasRenderingContext2D, s: SimState, view: ViewSize, fx?: FxState): void {
+export function draw(
+    ctx: CanvasRenderingContext2D,
+    s: SimState,
+    view: ViewSize,
+    fx?: FxState,
+    interp?: Map<number, number>,
+): void {
     const { width: w, height: h } = view
     const lay = layout(w, h)
     const { hudH, barricadeH, fieldH, laneW } = lay
@@ -222,10 +228,14 @@ export function draw(ctx: CanvasRenderingContext2D, s: SimState, view: ViewSize,
     }
 
     // Enemies, far-first so nearer units overlap correctly; size grows with
-    // depth (nearer = bigger) as well as HP → the lane reads as receding.
-    const sorted = [...s.enemies].sort((a, b) => a.pos - b.pos)
-    for (const e of sorted) {
-        const frac = Math.min(1, e.pos / LANE_LENGTH)
+    // depth (nearer = bigger) as well as HP → the lane reads as receding. Each
+    // unit is drawn at its INTERPOLATED position (smooth above 60Hz); we sort by
+    // that same value so the z-order matches what's actually painted.
+    const rendered = s.enemies
+        .map((e) => ({ e, pos: interp?.get(e.id) ?? e.pos }))
+        .sort((a, b) => a.pos - b.pos)
+    for (const { e, pos } of rendered) {
+        const frac = Math.min(1, pos / LANE_LENGTH)
         const a = ARCHETYPES[e.archetype]
         const hpFrac = Math.max(0.55, e.hp / a.hp)
         const depth = 0.62 + 0.38 * frac
