@@ -19,6 +19,8 @@ import { MARSHAL_CYCLE, MARSHAL_UP, MOLOTOV_COST, MOLOTOV_MAX, panopticonMode } 
 import { BARRICADE_MAX_HP, LANES, LANE_LENGTH, RALLY_FULL, type ArchetypeId, type SimState } from "../sim/types"
 import { layout, laneCenterX, yFromFrac, type FxState, type Layout } from "./fx"
 import { laneThreats } from "./telegraph"
+import { paletteFor, type Plate } from "./palette"
+import { spriteFor } from "./sprites"
 import { buildSkyline } from "./nightsky"
 
 export type ViewSize = { width: number; height: number }
@@ -107,6 +109,14 @@ function drawMachine(
     color: string,
     shieldOpen = false, // marshal only: the pavise visibly lowers in its open window
 ): void {
+    // The hand-inked atlas seam: registered art replaces the shape grammar for
+    // that machine, same (x, y, size) contract — everything downstream (death
+    // anims, interp, telegraphs) is untouched. Empty registry → procedural.
+    const sprite = spriteFor(kind)
+    if (sprite) {
+        ctx.drawImage(sprite, x - s * 0.55, y - s * 0.55, s * 1.1, s * 1.1)
+        return
+    }
     switch (kind) {
         case "drone": { // surveillance quad-drone — rotor bar + discs + a camera eye
             inkRect(ctx, x - s * 0.5, y - s * 0.36, s, s * 0.09, color, 2)
@@ -442,7 +452,13 @@ function getHalftoneTile(): HTMLCanvasElement | null {
  * sweep (integer sim tick in play, a wall-clock proxy on the attract screen);
  * the beams still under reduced motion while the city stays. Pure render.
  */
-function drawNightSky(ctx: CanvasRenderingContext2D, lay: Layout, tick: number, reducedMotion: boolean): void {
+function drawNightSky(
+    ctx: CanvasRenderingContext2D,
+    lay: Layout,
+    tick: number,
+    reducedMotion: boolean,
+    plate?: Plate,
+): void {
     const { w, hudH, fieldH } = lay
     const skyH = fieldH * 0.16
     const horizonY = hudH + skyH
@@ -474,11 +490,28 @@ function drawNightSky(ctx: CanvasRenderingContext2D, lay: Layout, tick: number, 
     for (const bld of sky) {
         ctx.fillRect(bld.x * w, horizonY - bld.h * skyH, bld.w * w, bld.h * skyH)
     }
-    ctx.fillStyle = "rgba(219,164,60,0.5)" // faint lit windows (gold)
+    ctx.fillStyle = plate ? plate.windowGlow + "80" : "rgba(219,164,60,0.5)" // faint lit windows
     for (const bld of sky) {
         const bh = bld.h * skyH
         for (const wy of bld.windows) {
             ctx.fillRect(bld.x * w + bld.w * w * 0.35, horizonY - bh + wy * bh, Math.max(1, bld.w * w * 0.14), 1.5)
+        }
+    }
+
+    // Something is burning in the city: two halftone smoke columns drifting off
+    // fixed rooftops — pure function of the tick, stilled under reduced motion.
+    ctx.fillStyle = "rgba(239,231,212,0.06)"
+    for (const col of [
+        { x: 0.18, ph: 0 },
+        { x: 0.63, ph: 3.1 },
+    ]) {
+        for (let puff = 0; puff < 5; puff++) {
+            const t = reducedMotion ? 0 : tick * 0.01 + col.ph + puff * 1.3
+            const drift = Math.sin(t) * w * 0.015 * (puff + 1)
+            const py = horizonY - skyH * 0.5 - puff * skyH * 0.28
+            ctx.beginPath()
+            ctx.arc(col.x * w + drift, py, 3 + puff * 2.2, 0, TAU)
+            ctx.fill()
         }
     }
 }
@@ -509,15 +542,18 @@ export function draw(
     const fieldTop = hudH
     const fieldBottom = hudH + fieldH
 
-    // ── Dark ink ground (full canvas; the shake never reveals a gap). ─────────
+    // ── Dark ink ground (full canvas; the shake never reveals a gap). Tonight's
+    // ambience plate comes from the seed — the mood shifts daily, the meaning
+    // of every color never does (palette.ts). ────────────────────────────────
+    const plate = paletteFor(s.seed)
     ctx.clearRect(0, 0, w, h)
     ctx.fillStyle = STOCK
     ctx.fillRect(0, 0, w, h)
-    ctx.fillStyle = HORIZON
+    ctx.fillStyle = plate.horizon
     ctx.fillRect(0, fieldTop, w, fieldH * 0.16) // a darker sky band = a horizon
     for (let lane = 0; lane < LANES; lane++) {
         if (lane % 2 === 1) {
-            ctx.fillStyle = STOCK_ALT
+            ctx.fillStyle = plate.stockAlt
             ctx.fillRect(lane * laneW, fieldTop, laneW, fieldH)
         }
         ctx.fillStyle = DIVIDER
@@ -527,7 +563,7 @@ export function draw(
     // Night backdrop (skyline + searchlights) at the horizon, then the halftone
     // screen over the whole field — both fixed to the "paper" (before the shake
     // group) so they stay put while the scene shakes on top.
-    drawNightSky(ctx, lay, s.tick, fx?.reducedMotion ?? false)
+    drawNightSky(ctx, lay, s.tick, fx?.reducedMotion ?? false, plate)
     paintHalftone(ctx, 0, fieldTop, w, fieldH)
 
     // ── Shaken scene group. ──────────────────────────────────────────────────
@@ -686,9 +722,32 @@ export function draw(
         }
     }
     if (s.armed > 0) {
-        ctx.fillStyle = TEAL
-        ctx.globalAlpha = 0.5
-        ctx.fillRect(0, fieldBottom - 5, w, 3)
+        // The armed neighborhood is PEOPLE at the wall, not a status strip:
+        // a row of paper head-flecks with raised teal fists, fading as the
+        // arming winds down. Fixed positions (no rng — determinism habit even
+        // in render), bobbing on the sim tick.
+        const fade = Math.min(1, s.armed / 120)
+        ctx.globalAlpha = 0.75 * fade
+        for (let i = 0; i < 9; i++) {
+            const cxp = w * (0.06 + i * 0.11)
+            const bob = ((s.tick >> 3) + i) % 2 === 0 ? 0 : 1.5
+            ctx.fillStyle = PAPER
+            ctx.beginPath()
+            ctx.arc(cxp, fieldBottom - 4 + bob, 2.6, 0, TAU)
+            ctx.fill()
+            if (i % 3 === 1) {
+                ctx.strokeStyle = TEAL
+                ctx.lineWidth = 2
+                ctx.beginPath()
+                ctx.moveTo(cxp + 4, fieldBottom - 3 + bob)
+                ctx.lineTo(cxp + 7, fieldBottom - 12 + bob)
+                ctx.stroke()
+                ctx.fillStyle = TEAL
+                ctx.beginPath()
+                ctx.arc(cxp + 7.5, fieldBottom - 13 + bob, 2, 0, TAU)
+                ctx.fill()
+            }
+        }
         ctx.globalAlpha = 1
     }
 
