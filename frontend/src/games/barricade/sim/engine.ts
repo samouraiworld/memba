@@ -2,11 +2,12 @@
  * Core engine: initState / applyEvent / tick. Pure — every function returns a
  * new state object and never mutates its input; all arithmetic is integer.
  *
- * Tick order (fixed): spawn due enemies -> flanker lane-hops -> drop expired
- * fire + flag slowed (post-hop lanes) -> advance (charger doubling, mortar
- * standoff cap) -> molotov impacts due -> burn -> mortar shelling accrues ->
- * combat -> contact (+ shell damage) -> meters/score -> terminal + wave
- * bookkeeping. Changing this order changes replays: bump SIM_VERSION.
+ * Tick order (fixed): spawn due enemies -> kettle litters -> flanker lane-hops
+ * -> drop expired fire + flag slowed (post-hop lanes) -> advance (charger
+ * doubling, mortar standoff cap) -> molotov impacts due -> burn -> dampener
+ * douse -> mortar shelling accrues -> combat (marshal window) -> contact
+ * (+ shell damage) -> meters/score -> terminal + wave bookkeeping.
+ * Changing this order changes replays: bump SIM_VERSION.
  */
 
 import { seedToState } from "./rng"
@@ -72,6 +73,13 @@ export const FLANK_AT = 50_000 // a flanker at/past this pos hops lanes (once)
 export const MORTAR_STANDOFF = 60_000 // a mortar halts here and shells from range
 export const MORTAR_PERIOD = 150 // ticks between volleys, phased by bornTick
 export const MORTAR_SHELL = 3_000 // barricade milli-HP per volley
+// ── B3 mini-bosses + governor (v2), integers only ────────────────────────────
+export const MARSHAL_CYCLE = 135 // shield cycle length in ticks, phased by bornTick
+export const MARSHAL_UP = 90 // shield raised for this slice of the cycle …
+export const MARSHAL_REDUCT_PCT = 85 // … blunting frontal fire this hard (window teaches timing)
+export const KETTLE_PERIOD = 120 // ticks between swarm deployments, phased by bornTick
+export const KETTLE_LITTER = 2 // swarm children per deployment
+export const ENEMY_CAP = 80 // global live-enemy cap: spawners refuse to mint past it (verifier cost)
 // ── per-wave escalation (v2): machines get tougher + faster as waves climb.
 // Speed is capped so travel-time never outruns kill-time (the winnability guard).
 const ESCALATE_HP_PER_WAVE = 6 // +6% HP per wave …
@@ -119,6 +127,12 @@ export function applyEvent(state: SimState, ev: SimEvent): SimState {
             // verifier. isInteger rejects NaN/null/float identically on both sides.
             if (!Number.isInteger(ev.lane)) return state
             if (ev.lane < 0 || ev.lane >= LANES || ev.lane === state.playerLane) return state
+            // A living kettle "kettles" its street: entry is blocked while it
+            // stands (leaving is always allowed) — counter it from outside with
+            // a lob or a turret.
+            for (const e of state.enemies) {
+                if (e.archetype === "kettle" && e.lane === ev.lane) return state
+            }
             return { ...state, playerLane: ev.lane }
         }
         case "rally": {
@@ -264,6 +278,7 @@ function damageFront(
     enemies: Enemy[],
     lane: number,
     dmg: number,
+    tick: number,
 ): [Enemy[], number, number, number] {
     let frontIdx = -1
     for (let i = 0; i < enemies.length; i++) {
@@ -273,9 +288,16 @@ function damageFront(
     }
     if (frontIdx === -1) return [enemies, 0, 0, 0]
     const target = enemies[frontIdx]
-    // Testudo's raised shield blunts frontal fire (auto-fire / turret / crowd);
-    // molotov burst + burn go through burstDamage/burnTick and ignore it.
-    const eff = target.archetype === "testudo" ? Math.floor((dmg * (100 - SHIELD_REDUCT_PCT)) / 100) : dmg
+    // Raised shields blunt frontal fire (auto-fire / turret / crowd); molotov
+    // burst + burn go through burstDamage/burnTick and ignore them. Testudo's
+    // shield is permanent; the Marshal's cycles on its born-tick clock — full
+    // damage only lands in the open window (timing is the counterplay).
+    let eff = dmg
+    if (target.archetype === "testudo") {
+        eff = Math.floor((dmg * (100 - SHIELD_REDUCT_PCT)) / 100)
+    } else if (target.archetype === "marshal" && (tick - target.bornTick) % MARSHAL_CYCLE < MARSHAL_UP) {
+        eff = Math.floor((dmg * (100 - MARSHAL_REDUCT_PCT)) / 100)
+    }
     const hp = target.hp - eff
     if (hp > 0) {
         const next = enemies.slice()
@@ -396,7 +418,33 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         }
     }
 
-    // 1b. Flankers hop lanes — BEFORE the fire-slow flags and advance, in array
+    // 1b. Kettles deploy swarm children into their lane on their born-tick
+    // cadence (snapshot iteration: a newborn child never litters its own tick).
+    // The global cap bounds the field — spawners refuse to mint past it, so the
+    // verifier's per-tick cost stays bounded no matter the log (GDD §6).
+    if (s.enemies.some((e) => e.archetype === "kettle")) {
+        const hpMul = Math.min(100 + ESCALATE_HP_PER_WAVE * s.wave, ESCALATE_HP_CAP)
+        const spdMul = Math.min(100 + ESCALATE_SPD_PER_WAVE * s.wave, ESCALATE_SPD_CAP)
+        for (const e of s.enemies.slice()) {
+            if (e.archetype !== "kettle") continue
+            if ((s.tick - e.bornTick) % KETTLE_PERIOD !== 0) continue
+            const a = ARCHETYPES.swarm
+            for (let i = 0; i < KETTLE_LITTER && s.enemies.length < ENEMY_CAP; i++) {
+                s.enemies.push({
+                    id: s.nextEnemyId++,
+                    archetype: "swarm",
+                    lane: e.lane,
+                    pos: e.pos,
+                    hp: Math.floor((a.hp * hpMul) / 100),
+                    speed: Math.floor((a.speed * spdMul) / 100),
+                    bornTick: s.tick,
+                    hasFlanked: false,
+                })
+            }
+        }
+    }
+
+    // 1c. Flankers hop lanes — BEFORE the fire-slow flags and advance, in array
     // order, so an earlier flanker's hop counts in the next one's crowd math
     // (pure function of state: least-crowded lane, lowest index on ties,
     // one-shot per machine). Hopping first also means the slow flag below
@@ -489,6 +537,14 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         killCount += k
         scrapGain += sc
         rallyGain += ra
+        // 2c'. Dampeners douse their lane AFTER the burn: a field gets exactly
+        // one last burn tick (the flash), then dies — the water-cannon is the
+        // molotov's governor, not a retroactive shield.
+        if (s.enemies.some((e) => e.archetype === "dampener")) {
+            const doused = new Set<number>()
+            for (const e of s.enemies) if (e.archetype === "dampener") doused.add(e.lane)
+            s.hazards = s.hazards.filter((h) => !doused.has(h.lane))
+        }
     }
 
     // 2d. Standoff shelling: every halted mortar volleys the barricade on its
@@ -502,7 +558,7 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
 
     // 3. Combat: player lane front target, turret lanes, armed crowd.
     const applyDamage = (lane: number, dmg: number) => {
-        const [next, k, sc, ra] = damageFront(s.enemies, lane, dmg)
+        const [next, k, sc, ra] = damageFront(s.enemies, lane, dmg, s.tick)
         s.enemies = next
         killCount += k
         scrapGain += sc
