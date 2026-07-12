@@ -49,8 +49,8 @@ function runSim(seed: string, withFx: boolean): { final: SimState; checksum: num
 }
 
 describe("fx determinism parity", () => {
-    it("does not touch SIM_VERSION", () => {
-        expect(SIM_VERSION).toBe(1)
+    it("is pinned to the current SIM_VERSION", () => {
+        expect(SIM_VERSION).toBe(2)
     })
 
     it("produces an identical sim trajectory with FX on vs off (multiple seeds)", () => {

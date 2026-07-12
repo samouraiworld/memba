@@ -15,6 +15,7 @@ import {
     RALLY_FULL,
     RUN_MAX_TICKS,
     type Enemy,
+    type Projectile,
     type SimEvent,
     type SimState,
 } from "./types"
@@ -36,6 +37,16 @@ const SCORE_PER_SCRAP = 10
 const WAVE_CLEAR_BONUS = 5_000
 const CLEAN_WAVE_BONUS = 3_000
 const WIN_BONUS = 25_000
+// ── molotov (v2), integers only ──────────────────────────────────────────────
+const MOLOTOV_MAX = 3_000 // charge cap (banks ~3 throws)
+const MOLOTOV_COST = 1_000 // charge spent per throw
+const MOLOTOV_REGEN = 4 // charge regained per tick (time)
+const MOLOTOV_PER_KILL = 80 // charge per kill (skill-fed, so every player has it)
+const MOLOTOV_CD = 30 // ticks between throws (can't dump a full bank in one frame)
+const MOLOTOV_RADIUS = 12_000 // same-lane burst reach (milli-units)
+const MOLOTOV_BURST = 6_000 // burst milli-HP dealt on impact
+const FLIGHT_BASE = 12 // min flight ticks (a throw at the barricade)
+const FLIGHT_PER_DIST = 18 // extra flight ticks for a max-distance throw
 // Wave spawn windows come from waves.ts; a wave "ends" when its script is
 // exhausted and no enemies remain on the field.
 
@@ -57,6 +68,10 @@ export function initState(seed: string): SimState {
         cleanWave: true,
         turrets: new Array(LANES).fill(0),
         armed: 0,
+        projectiles: [],
+        molotovCharge: MOLOTOV_MAX,
+        molotovReadyAt: 0,
+        nextThrowId: 0,
     }
 }
 
@@ -112,6 +127,26 @@ export function applyEvent(state: SimState, ev: SimEvent): SimState {
             }
             return state
         }
+        case "throw": {
+            // No-op (state unchanged) if it can't legally fire — exactly like a
+            // move-while-stunned — so a spoofed log is rejected by the verifier.
+            if (state.tick < state.molotovReadyAt) return state
+            if (state.molotovCharge < MOLOTOV_COST) return state
+            if (ev.lane < 0 || ev.lane >= LANES) return state
+            if (ev.dist < 0 || ev.dist > LANE_LENGTH) return state
+            // Farther throws hang longer, so you lead more. Integer division.
+            const flight = FLIGHT_BASE + Math.floor(((LANE_LENGTH - ev.dist) * FLIGHT_PER_DIST) / LANE_LENGTH)
+            return {
+                ...state,
+                molotovCharge: state.molotovCharge - MOLOTOV_COST,
+                molotovReadyAt: state.tick + MOLOTOV_CD,
+                projectiles: [
+                    ...state.projectiles,
+                    { id: state.nextThrowId, lane: ev.lane, dist: ev.dist, impactTick: state.tick + flight },
+                ],
+                nextThrowId: state.nextThrowId + 1,
+            }
+        }
     }
 }
 
@@ -139,11 +174,50 @@ function damageFront(
     return [next, 1, ARCHETYPES[target.archetype].scrap, RALLY_FILL_PER_KILL]
 }
 
+/**
+ * Molotov burst: damage every enemy in `lane` within `radius` of `center`.
+ * Per-enemy damage is independent, so iteration order can't change the result
+ * (keep it that way — no shared splash pool). Returns [enemies, kills, scrap, rally].
+ */
+function burstDamage(
+    enemies: Enemy[],
+    lane: number,
+    center: number,
+    radius: number,
+    dmg: number,
+): [Enemy[], number, number, number] {
+    let kills = 0
+    let scrap = 0
+    let rally = 0
+    const next: Enemy[] = []
+    for (const e of enemies) {
+        if (e.lane !== lane || Math.abs(e.pos - center) > radius) {
+            next.push(e)
+            continue
+        }
+        const hp = e.hp - dmg
+        if (hp > 0) {
+            next.push({ ...e, hp })
+        } else {
+            kills++
+            scrap += ARCHETYPES[e.archetype].scrap
+            rally += RALLY_FILL_PER_KILL
+        }
+    }
+    return [next, kills, scrap, rally]
+}
+
 export function tick(state: SimState, waves: WaveScript[]): SimState {
     if (state.phase === "won" || state.phase === "lost") return state
     if (state.tick >= RUN_MAX_TICKS) return { ...state, phase: "lost" }
 
-    let s: SimState = { ...state, tick: state.tick + 1, enemies: state.enemies.slice(), turrets: state.turrets.slice() }
+    let s: SimState = {
+        ...state,
+        tick: state.tick + 1,
+        enemies: state.enemies.slice(),
+        turrets: state.turrets.slice(),
+        projectiles: state.projectiles.slice(),
+    }
 
     // Choice phase: frozen field, waiting for the player (or the timer).
     if (s.phase === "choice") {
@@ -175,12 +249,33 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
     // 2. Advance.
     s.enemies = s.enemies.map((e) => ({ ...e, pos: e.pos + e.speed }))
 
-    // 3. Combat: player lane front target, turret lanes, armed crowd.
     let scrapGain = 0
     let rallyGain = 0
+    let killCount = 0 // burst + combat kills this tick → feeds the molotov charge
+
+    // 2b. Molotov impacts due this tick — same-lane integer burst AoE (resolved
+    // after advance, before combat, per the fixed tick order).
+    if (s.projectiles.length > 0) {
+        const flying: Projectile[] = []
+        for (const p of s.projectiles) {
+            if (p.impactTick !== s.tick) {
+                if (p.impactTick > s.tick) flying.push(p) // still airborne (drop stale past-due)
+                continue
+            }
+            const [next, k, sc, ra] = burstDamage(s.enemies, p.lane, p.dist, MOLOTOV_RADIUS, MOLOTOV_BURST)
+            s.enemies = next
+            killCount += k
+            scrapGain += sc
+            rallyGain += ra
+        }
+        s.projectiles = flying
+    }
+
+    // 3. Combat: player lane front target, turret lanes, armed crowd.
     const applyDamage = (lane: number, dmg: number) => {
-        const [next, , sc, ra] = damageFront(s.enemies, lane, dmg)
+        const [next, k, sc, ra] = damageFront(s.enemies, lane, dmg)
         s.enemies = next
+        killCount += k
         scrapGain += sc
         rallyGain += ra
     }
@@ -221,6 +316,7 @@ export function tick(state: SimState, waves: WaveScript[]): SimState {
         cleanWave,
         scrap: s.scrap + scrapGain,
         rallyMeter: Math.min(RALLY_FULL, s.rallyMeter + Math.floor(rallyGain / bossFactor)),
+        molotovCharge: Math.min(MOLOTOV_MAX, s.molotovCharge + MOLOTOV_REGEN + killCount * MOLOTOV_PER_KILL),
         score: s.score + scrapGain * SCORE_PER_SCRAP,
     }
 

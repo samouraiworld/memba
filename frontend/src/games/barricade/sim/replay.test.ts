@@ -17,7 +17,7 @@ describe("replay determinism", () => {
         const b = runReplay("daily-2026-07-11", events)
         expect(a.stateHash).toEqual(b.stateHash)
         expect(a.score).toEqual(b.score)
-        expect(a.simVersion).toBe(1)
+        expect(a.simVersion).toBe(2)
     })
 
     it("hash discriminates every state field the verifier relies on", () => {
