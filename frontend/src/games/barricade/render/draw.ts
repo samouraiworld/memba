@@ -236,6 +236,20 @@ export function draw(ctx: CanvasRenderingContext2D, s: SimState, view: ViewSize,
         drawMachine(ctx, e.archetype, x, y, size, MACHINE_COLOR[e.archetype])
     }
 
+    // Dying machines — flung off the field, squashing + spinning + fading.
+    if (fx) {
+        for (const d of fx.deaths) {
+            ctx.save()
+            ctx.globalAlpha = Math.max(0, d.life / d.maxLife)
+            ctx.translate(d.x, d.y)
+            ctx.rotate(d.rot)
+            ctx.scale(d.sx, d.sy)
+            drawMachine(ctx, d.archetype, 0, 0, d.size, MACHINE_COLOR[d.archetype])
+            ctx.restore()
+        }
+        ctx.globalAlpha = 1
+    }
+
     // Turrets (deployed) — small outlined ochre emplacements.
     for (let lane = 0; lane < LANES; lane++) {
         if (s.turrets[lane] > 0) {
