@@ -1,54 +1,212 @@
+/* MEMBA: BARRICADE — Memba-native chrome. Dark riso game canvas mounted in the
+   Space-Invaders "cabinet" idiom, styled with app tokens (JetBrains Mono, teal
+   accent, gold scrap). The light "Riso Protest" stays the collection + share-card
+   look; this is the in-app playable surface only. */
+
 .bar-shell {
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 12px;
-    padding: 12px;
-    max-width: 480px;
+    gap: var(--space-4, 16px);
+    padding: var(--space-4, 16px);
+    max-width: 460px;
     margin: 0 auto;
+    color: var(--color-k-text, #e8e4ee);
 }
 
-.bar-canvas {
-    width: 100%;
-    max-width: 420px;
-    aspect-ratio: 3 / 5;
-    border: 2px solid var(--color-border, #2a3145);
-    border-radius: 10px;
-    touch-action: manipulation;
-    background: #10131c;
-}
-
-.bar-controls {
-    display: flex;
-    gap: 8px;
-    flex-wrap: wrap;
-    justify-content: center;
-    min-height: 42px;
-}
-
-.bar-controls button {
-    min-width: 96px;
-}
-
-.bar-results {
+/* ── Wordmark ─────────────────────────────────────────────────────────────── */
+.bar-wordmark {
     text-align: center;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 2px;
+}
+.bar-eyebrow {
+    font-family: var(--font-mono, monospace);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-accent-gold, #f5a623);
+}
+.bar-title {
+    margin: 0;
+    font-family: var(--font-sans, sans-serif);
+    font-size: clamp(1.5rem, 5vw, 2rem);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--color-k-text, #e8e4ee);
+}
+.bar-title__accent {
+    color: var(--color-brand, #00d4aa);
 }
 
-.bar-results h2 {
+/* ── Cabinet (mirrors space-invaders .si-stage) ───────────────────────────── */
+.bar-stage {
+    position: relative;
+    width: min(96vw, 420px);
+    max-width: 100%;
+    border-radius: var(--radius-lg, 12px);
+    box-shadow: 0 14px 48px -26px color-mix(in srgb, var(--color-k-accent, #00d4aa) 60%, transparent);
+}
+.bar-canvas {
+    display: block;
+    width: 100%;
+    aspect-ratio: 3 / 5;
+    background: #141026;
+    border: 1px solid var(--color-k-edge, #2a2536);
+    border-radius: var(--radius-lg, 12px);
+    touch-action: manipulation;
+    user-select: none;
+}
+
+/* ── Panels + hint ────────────────────────────────────────────────────────── */
+.bar-panel {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-3, 12px);
+    width: 100%;
+}
+.bar-hint {
+    max-width: 420px;
+    text-align: center;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: var(--color-k-dim, #9a94a6);
     margin: 0;
 }
 
-.bar-hint {
-    opacity: 0.75;
-    font-size: 0.85rem;
+/* ── Controls ─────────────────────────────────────────────────────────────── */
+.bar-controls {
+    display: flex;
+    gap: var(--space-2, 8px);
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    min-height: 44px;
+}
+
+/* Between-wave scrap spend — a token-styled action with a gold cost chip. */
+.bar-choice {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2, 8px);
+    min-height: 40px;
+    padding: 0 14px;
+    border-radius: var(--radius-md, 8px);
+    background: var(--color-surface, rgba(255, 255, 255, 0.03));
+    border: 1px solid var(--color-k-edge, #2a2536);
+    font-family: var(--font-mono, monospace);
+    font-size: 13px;
+    color: var(--color-k-text, #e8e4ee);
+    cursor: pointer;
+    transition: background 0.15s ease, transform 0.1s ease;
+}
+.bar-choice:hover {
+    background: var(--color-surface-hover, rgba(255, 255, 255, 0.06));
+}
+.bar-choice:active {
+    transform: scale(0.97);
+}
+.bar-choice:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+}
+.bar-choice__cost {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--color-accent-gold, #f5a623);
+    padding: 2px 7px;
+    border-radius: var(--radius-full, 9999px);
+    background: var(--color-warning-bg, rgba(245, 166, 35, 0.08));
+}
+
+/* Rally-ready: pull the primary button to vermilion + a pulse. */
+.bar-rally-ready {
+    background: #e0392b !important;
+    border-color: #e0392b !important;
+    color: #fff !important;
+    animation: barRallyPulse 1s ease-in-out infinite;
+}
+@keyframes barRallyPulse {
+    50% {
+        box-shadow: 0 0 16px rgba(224, 57, 43, 0.55);
+    }
+}
+
+/* ── Results poster (k-card) ──────────────────────────────────────────────── */
+.bar-poster {
+    width: 100%;
+    max-width: 420px;
+    padding: var(--space-6, 24px);
     text-align: center;
+    background: var(--color-bg-card, #16121f);
+    border: 1px solid var(--color-k-edge, #2a2536);
+    border-radius: var(--radius-lg, 12px);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2, 8px);
+}
+.bar-poster__eyebrow {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-accent-gold, #f5a623);
+    margin: 0;
+}
+.bar-poster__verdict {
+    margin: var(--space-2, 8px) 0 0;
+    font-family: var(--font-sans, sans-serif);
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    font-size: clamp(1.9rem, 7vw, 2.6rem);
+    line-height: 1;
+}
+.bar-poster__verdict.is-won {
+    color: var(--color-brand, #00d4aa);
+}
+.bar-poster__verdict.is-lost {
+    color: var(--color-danger, #ff4757);
+}
+.bar-poster__score {
+    font-family: var(--font-mono, monospace);
+    font-weight: 700;
+    font-size: var(--text-4xl, 3rem);
+    line-height: 1;
+    color: var(--color-k-text, #e8e4ee);
+    font-variant-numeric: tabular-nums;
+}
+.bar-poster__stats {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-family: var(--font-mono, monospace);
+    font-size: 0.8rem;
+    color: var(--color-k-muted, #7d7788);
+    margin: var(--space-3, 12px) 0 0;
+}
+.bar-poster__stats strong {
+    color: var(--color-k-text, #e8e4ee);
+    font-weight: 700;
+}
+.bar-poster__dot {
+    opacity: 0.5;
+}
+.bar-verified {
+    color: var(--color-brand, #00d4aa);
+    font-weight: 700;
+}
+.bar-mismatch {
+    color: var(--color-danger, #ff4757);
+    font-weight: 700;
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .bar-canvas {
-        transition: none;
+    .bar-rally-ready {
+        animation: none;
     }
 }
