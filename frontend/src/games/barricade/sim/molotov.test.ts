@@ -88,5 +88,29 @@ describe("molotov throw", () => {
         expect(hashState({ ...base, molotovReadyAt: 99 })).not.toBe(hashState(base))
         expect(hashState({ ...base, nextThrowId: 5 })).not.toBe(hashState(base))
         expect(hashState({ ...base, projectiles: [{ id: 0, lane: 0, dist: 1, impactTick: 2 }] })).not.toBe(hashState(base))
+        expect(hashState({ ...base, cleanWave: !base.cleanWave })).not.toBe(hashState(base))
+        expect(hashState({ ...base, nextEnemyId: 7 })).not.toBe(hashState(base))
+    })
+
+    it("is a no-op during the choice phase", () => {
+        const s = { ...initState("m"), phase: "choice" as const }
+        expect(applyEvent(s, { tick: 0, type: "throw", lane: 0, dist: 0 }).projectiles).toHaveLength(0)
+    })
+
+    it("rejects a NaN/float throw identically across the JSON submission boundary", () => {
+        const seed = "barricade-2026-07-12"
+        // A buggy client emits a NaN (and a float) dist; the integer guard no-ops
+        // both. Submitting crosses JSON: NaN -> null. The verifier must reach the
+        // SAME state, or it would false-reject an honest run.
+        const clientLog: SimEvent[] = [
+            { tick: 30, type: "throw", lane: 1, dist: NaN },
+            { tick: 45, type: "throw", lane: 0, dist: 40_000.5 },
+            { tick: 60, type: "throw", lane: 1, dist: 40_000 }, // a legal throw, for signal
+        ]
+        const submitted = JSON.parse(JSON.stringify(clientLog)) as SimEvent[] // NaN -> null
+        const client = runReplay(seed, clientLog)
+        const verifier = runReplay(seed, submitted)
+        expect(verifier.stateHash).toBe(client.stateHash)
+        expect(verifier.score).toBe(client.score)
     })
 })

@@ -47,6 +47,18 @@ export type Projectile = {
     impactTick: number
 }
 
+// A lingering fire zone on one lane (left by a molotov impact). Each tick it
+// damages and slows any machine whose pos falls in [posLo, posHi], until it
+// burns out at expiresAtTick.
+export type FireField = {
+    id: number
+    lane: number
+    posLo: number
+    posHi: number
+    dmgPerTick: number
+    expiresAtTick: number
+}
+
 export type SimEvent =
     | { tick: number; type: "move"; lane: number }
     | { tick: number; type: "rally" }
@@ -74,6 +86,7 @@ export type SimState = {
     armed: number // crowd-allies ticks remaining (all lanes)
     // ── molotov (v2) ──────────────────────────────────────────────────────────
     projectiles: Projectile[] // molotovs in flight, resolved at impactTick
+    hazards: FireField[] // active fire zones (burn + slow)
     molotovCharge: number // 0..MOLOTOV_MAX; a throw costs MOLOTOV_COST
     molotovReadyAt: number // tick until which throwing is on cooldown
     nextThrowId: number // monotonic projectile id (never reused)
