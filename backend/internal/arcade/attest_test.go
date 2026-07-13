@@ -373,6 +373,31 @@ func TestGnokeyBroadcaster_ParsesTxHash(t *testing.T) {
 	}
 }
 
+func TestGnokeyBroadcaster_BoundsBroadcastByTimeout(t *testing.T) {
+	// A black-holed RPC must not block the (single-goroutine) attester forever —
+	// each broadcast has its own deadline.
+	b := &gnokeyBroadcaster{
+		cfg: AttesterConfig{KeyName: "k", Timeout: 20 * time.Millisecond},
+		exec: func(ctx context.Context, _ []string, _ string) (string, error) {
+			<-ctx.Done() // a hung call — only the per-broadcast timeout releases it
+			return "", ctx.Err()
+		},
+	}
+	done := make(chan error, 1)
+	go func() {
+		_, e := b.AttestScore(context.Background(), Run{LogHash: "x"})
+		done <- e
+	}()
+	select {
+	case e := <-done:
+		if e == nil {
+			t.Fatal("a hung broadcast must error via the timeout")
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("AttestScore did not honor the per-broadcast timeout")
+	}
+}
+
 func TestGnokeyBroadcaster_SurfacesExecError(t *testing.T) {
 	b := &gnokeyBroadcaster{
 		cfg:  AttesterConfig{KeyName: "k"},

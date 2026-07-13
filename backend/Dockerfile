@@ -45,14 +45,17 @@ RUN chmod +x /app/start.sh
 RUN mkdir -p /data && chown memba:memba /data && \
     chown memba:memba /etc/litestream.yml /app/start.sh
 
-# Ephemeral, writable keyring home for the arcade attester. HOME is where gnokey
-# defaults its keyring (~/.gnokey), and BOTH the start.sh key-import and the Go
-# broadcaster (which passes no -home) resolve it the same way. On the ephemeral
+# Ephemeral, writable keyring home for the arcade attester. GNOHOME PINS gnokey's
+# keyring (keybase at $GNOHOME/data/keys.db); BOTH the start.sh key-import and the
+# Go broadcaster (neither passes -home) resolve this same path. Pinning it makes
+# the location deterministic — independent of os.UserConfigDir()/XDG, and free of
+# the HOME-unset panic that gnokey's default resolution has. On the ephemeral
 # rootfs (NOT the /data volume), so the Fly-secret mnemonic stays the single
 # source of truth and no derived key persists on a backed-up volume — start.sh
-# re-imports it each boot.
-RUN mkdir -p /home/memba && chown -R memba:memba /home/memba
+# re-imports it each boot. HOME is set too for any other HOME-relative behavior.
+RUN mkdir -p /home/memba/.gnokey && chown -R memba:memba /home/memba
 ENV HOME=/home/memba
+ENV GNOHOME=/home/memba/.gnokey
 
 USER memba
 

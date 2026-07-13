@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -51,8 +52,9 @@ type AttesterConfig struct {
 	// single-user keyring this is a gnokey formality, not a security control — the
 	// key material lives in the Fly secret + the keyring, never in this process.
 	KeyringPassword string
-	GasWanted       int // default 5_000_000
-	GasFeeUgnot     int // default 1_000_000
+	GasWanted       int           // default 5_000_000
+	GasFeeUgnot     int           // default 1_000_000
+	Timeout         time.Duration // per-broadcast wall clock; default 60s
 }
 
 func (c AttesterConfig) withDefaults() AttesterConfig {
@@ -64,6 +66,9 @@ func (c AttesterConfig) withDefaults() AttesterConfig {
 	}
 	if c.GasFeeUgnot <= 0 {
 		c.GasFeeUgnot = 1_000_000
+	}
+	if c.Timeout <= 0 {
+		c.Timeout = 60 * time.Second
 	}
 	return c
 }
@@ -89,9 +94,14 @@ func NewGnokeyBroadcaster(cfg AttesterConfig) Broadcaster {
 }
 
 func (b *gnokeyBroadcaster) AttestScore(ctx context.Context, run Run) (string, error) {
+	// Bound each broadcast: a black-holed RPC would otherwise block this call with
+	// no deadline, and since the batcher is a single goroutine, one hung gnokey
+	// would wedge every later attestation cycle.
+	cctx, cancel := context.WithTimeout(ctx, b.cfg.Timeout)
+	defer cancel()
 	// gnokey reads the keyring password from the first line of stdin (there's no
 	// TTY); the argv carries -insecure-password-stdin.
-	out, err := b.exec(ctx, b.attestScoreArgv(run), b.cfg.KeyringPassword+"\n")
+	out, err := b.exec(cctx, b.attestScoreArgv(run), b.cfg.KeyringPassword+"\n")
 	if err != nil {
 		// Classify the realm's rejection so the batcher converges instead of
 		// retrying a deterministically-failing tx forever. These substrings mirror

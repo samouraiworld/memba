@@ -58,6 +58,12 @@ if [ "${MEMBA_ARCADE_ATTESTER_ENABLED:-}" = "1" ] || [ "${MEMBA_ARCADE_ATTESTER_
     fi
 fi
 
+# Belt-and-suspenders: drop the attester mnemonic from the environment
+# UNCONDITIONALLY here (not only on the import path) so it can never be inherited
+# by the long-lived litestream/app process — e.g. when the secret is set but the
+# attester is disabled, or gnokey is absent. The app never reads it.
+unset ARCADE_ATTESTER_MNEMONIC
+
 # Litestream owns WAL checkpointing from here on; the app must not checkpoint
 # (see litestreamManaged in cmd/memba/main.go).
 export LITESTREAM_MANAGED=1
