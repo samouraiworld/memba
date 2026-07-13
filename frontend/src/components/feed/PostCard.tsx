@@ -15,8 +15,9 @@
  */
 
 import { memo, useCallback, useMemo, useState } from "react"
-import { Flag, ChatCircle, DotsThreeVertical, PencilSimple, Trash } from "@phosphor-icons/react"
+import { Flag, ChatCircle, DotsThreeVertical, PencilSimple, Trash, LinkSimple, Check } from "@phosphor-icons/react"
 import { submitFeedMsg, buildFlagPostMsg, buildEditPostMsg, buildDeletePostMsg } from "../../lib/feed"
+import { feedPostPermalink } from "../../lib/feedPermalink"
 import type { UiPost } from "../../lib/feedTypes"
 import { relativeTime } from "../../lib/relativeTime"
 import { useNow } from "../../hooks/home/useNow"
@@ -43,6 +44,28 @@ function flagErrorMessage(msg: string): string {
 function writeErrorMessage(msg: string, fallback: string): string {
     if (/reject|cancel|denied/i.test(msg)) return ""
     return msg.replace(/^.*?panic:\s*/i, "").trim() || fallback
+}
+
+/**
+ * Clipboard fallback for insecure contexts / older Safari where
+ * navigator.clipboard is unavailable. Returns whether the copy succeeded.
+ */
+function legacyCopy(text: string): boolean {
+    if (typeof document === "undefined") return false
+    try {
+        const ta = document.createElement("textarea")
+        ta.value = text
+        ta.style.position = "fixed"
+        ta.style.opacity = "0"
+        document.body.appendChild(ta)
+        ta.focus()
+        ta.select()
+        const ok = document.execCommand("copy")
+        document.body.removeChild(ta)
+        return ok
+    } catch {
+        return false
+    }
 }
 
 /**
@@ -85,6 +108,19 @@ function PostCardInner({
     const [flagged, setFlagged] = useState(false)
     const [flagBump, setFlagBump] = useState(0)
     const [flagError, setFlagError] = useState<string | null>(null)
+    const [copied, setCopied] = useState(false)
+
+    const copyLink = () => {
+        const url = feedPostPermalink(post.id)
+        const done = () => { setCopied(true); setTimeout(() => setCopied(false), 1500) }
+        try {
+            if (navigator.clipboard?.writeText) {
+                navigator.clipboard.writeText(url).then(done).catch(() => legacyCopy(url) && done())
+            } else if (legacyCopy(url)) {
+                done()
+            }
+        } catch { /* clipboard unavailable — silently no-op */ }
+    }
 
     // Author manage state (edit / delete), with optimistic local overrides that
     // hold until the indexer-backed refetch reflects the real edit/delete.
@@ -308,6 +344,19 @@ function PostCardInner({
                 >
                     <ChatCircle size={15} /> {post.replyCount}
                 </button>
+                {!post.optimistic && (
+                    <button
+                        type="button"
+                        className="feed-post__stat feed-post__stat--btn feed-post__copy"
+                        onClick={copyLink}
+                        aria-label="Copy link to this post"
+                        title={copied ? "Copied" : "Copy link"}
+                        data-testid="feed-copy-link-btn"
+                    >
+                        {copied ? <Check size={15} weight="bold" /> : <LinkSimple size={15} />}
+                        {copied ? "Copied" : "Copy link"}
+                    </button>
+                )}
                 {!isOwn && !post.optimistic && (
                     <button
                         type="button"

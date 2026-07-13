@@ -23,10 +23,12 @@ import { FeedComposer } from "../components/feed/FeedComposer"
 import { PostCard } from "../components/feed/PostCard"
 import { FeedNotifications } from "../components/feed/FeedNotifications"
 import { FeedTrending } from "../components/feed/FeedTrending"
+import { FeedEcosystem } from "../components/feed/FeedEcosystem"
 import { useActorUsernames } from "../hooks/home/useActorUsernames"
+import { useNow } from "../hooks/home/useNow"
 import { fetchFeedTimeline, fetchFeedStats } from "../lib/feedApi"
 import { countNewer } from "../lib/feedPaging"
-import { sameContent, type UiPost } from "../lib/feedTypes"
+import { reconciles, isStaleOptimistic, type UiPost } from "../lib/feedTypes"
 import { FEED_POLL_MS, RECONCILE_MS } from "../lib/feedConstants"
 import "./feed.css"
 
@@ -67,29 +69,42 @@ export default function FeedPage() {
     const newestLoadedId = serverPosts[0]?.id ?? 0n
     const newCount = countNewer(newestLoadedId, head.data?.posts ?? [])
 
+    // Posts vs Ecosystem view. Default "posts" (the least-surprising landing —
+    // "Feed" means posts) with the ecosystem activity spine one tap away. The
+    // plan's D18 "ecosystem-first while volume is low" is intentionally left as
+    // an owner toggle rather than a silent default flip.
+    const [tab, setTab] = useState<"posts" | "ecosystem">("posts")
+
     const [optimistic, setOptimistic] = useState<UiPost[]>([])
     const reconcileTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     useEffect(() => () => { if (reconcileTimer.current) clearTimeout(reconcileTimer.current) }, [])
 
+    // Ticks so a stuck optimistic row crosses its TTL and drops without a manual
+    // refresh (state-based, not Date.now()-in-render).
+    const now = useNow(15_000)
     const posts: UiPost[] = [
-        ...optimistic.filter(o => !serverPosts.some(s => sameContent(o, s))),
+        ...optimistic.filter(o => !isStaleOptimistic(o, now) && !serverPosts.some(s => reconciles(o, s))),
         ...serverPosts,
     ]
 
     const onPosted = useCallback((post: UiPost) => {
-        setOptimistic(prev =>
-            prev.some(o => o.author === post.author && o.body === post.body) ? prev : [post, ...prev],
-        )
+        // Stamp the baseline (newest id known now) + a wall-clock time so the row
+        // reconciles only against a genuinely newer server row, and clears via TTL
+        // if its server row never appears. Dedup on the synthetic id (unique per
+        // nonce) so a legitimate second identical post is NOT swallowed.
+        const stamped: UiPost = { ...post, sinceId: newestLoadedId, optimisticAt: Date.now() }
+        setOptimistic(prev => (prev.some(o => o.id === stamped.id) ? prev : [stamped, ...prev]))
         if (reconcileTimer.current) clearTimeout(reconcileTimer.current)
         const poke = async (n: number) => {
             const res = await timeline.refetch()
             const server = res.data?.pages.flatMap(p => p.posts) ?? []
-            setOptimistic(prev => prev.filter(o => !server.some(s => sameContent(o, s))))
+            const t = Date.now()
+            setOptimistic(prev => prev.filter(o => !isStaleOptimistic(o, t) && !server.some(s => reconciles(o, s))))
             if (n > 0) reconcileTimer.current = setTimeout(() => void poke(n - 1), RECONCILE_MS)
         }
         reconcileTimer.current = setTimeout(() => void poke(3), RECONCILE_MS)
-    }, [timeline])
+    }, [timeline, newestLoadedId])
 
     // Pull the newest posts into view (refetches loaded pages on explicit action).
     const showNewest = useCallback(() => {
@@ -135,34 +150,63 @@ export default function FeedPage() {
             </aside>
 
             <div className="feed-main">
-                {newCount > 0 && (
-                    <button type="button" className="feed-newpill" onClick={showNewest} data-testid="feed-new-pill">
-                        <ArrowUp size={14} weight="bold" />
-                        {newCount >= 20 ? "20+ new posts" : `${newCount} new post${newCount === 1 ? "" : "s"}`}
-                    </button>
-                )}
-
-                <FeedList
-                    posts={posts}
-                    loading={timeline.isLoading}
-                    connected={connected}
-                    selfAddress={address}
-                    onRefetch={onRefetch}
-                    onConnect={connect}
-                    onOpenThread={openThread}
-                    onOpenProfile={openProfile}
-                />
-
-                {timeline.hasNextPage && (
+                <div className="feed-tabs" role="tablist" aria-label="Feed view">
                     <button
                         type="button"
-                        className="feed-loadmore"
-                        onClick={() => void timeline.fetchNextPage()}
-                        disabled={timeline.isFetchingNextPage}
-                        data-testid="feed-load-more"
+                        role="tab"
+                        aria-selected={tab === "posts"}
+                        className={`feed-tab${tab === "posts" ? " feed-tab--active" : ""}`}
+                        onClick={() => setTab("posts")}
+                        data-testid="feed-tab-posts"
                     >
-                        {timeline.isFetchingNextPage ? "Loading…" : "Load older posts"}
+                        Posts
                     </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={tab === "ecosystem"}
+                        className={`feed-tab${tab === "ecosystem" ? " feed-tab--active" : ""}`}
+                        onClick={() => setTab("ecosystem")}
+                        data-testid="feed-tab-ecosystem"
+                    >
+                        Ecosystem
+                    </button>
+                </div>
+
+                {tab === "ecosystem" ? (
+                    <FeedEcosystem />
+                ) : (
+                    <>
+                        {newCount > 0 && (
+                            <button type="button" className="feed-newpill" onClick={showNewest} data-testid="feed-new-pill">
+                                <ArrowUp size={14} weight="bold" />
+                                {newCount >= 20 ? "20+ new posts" : `${newCount} new post${newCount === 1 ? "" : "s"}`}
+                            </button>
+                        )}
+
+                        <FeedList
+                            posts={posts}
+                            loading={timeline.isLoading}
+                            connected={connected}
+                            selfAddress={address}
+                            onRefetch={onRefetch}
+                            onConnect={connect}
+                            onOpenThread={openThread}
+                            onOpenProfile={openProfile}
+                        />
+
+                        {timeline.hasNextPage && (
+                            <button
+                                type="button"
+                                className="feed-loadmore"
+                                onClick={() => void timeline.fetchNextPage()}
+                                disabled={timeline.isFetchingNextPage}
+                                data-testid="feed-load-more"
+                            >
+                                {timeline.isFetchingNextPage ? "Loading…" : "Load older posts"}
+                            </button>
+                        )}
+                    </>
                 )}
             </div>
         </div>

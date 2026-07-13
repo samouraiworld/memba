@@ -322,6 +322,47 @@
 
 /* ── Infinite scroll: "new posts" pill + load-more ────────── */
 
+/* Posts / Ecosystem view switch — a pill segmented control at the top of the
+   main column. Token-only so it themes light + dark like the rest of the feed. */
+.feed-tabs {
+    display: inline-flex;
+    gap: 4px;
+    align-self: flex-start;
+    margin-bottom: 8px;
+    padding: 4px;
+    border: 1px solid var(--color-border);
+    border-radius: 999px;
+    background: var(--color-surface);
+}
+.feed-tab {
+    border: none;
+    background: none;
+    border-radius: 999px;
+    padding: 6px 16px;
+    font: inherit;
+    font-weight: 600;
+    font-size: var(--text-sm, 0.875rem);
+    color: var(--color-text-secondary);
+    cursor: pointer;
+}
+.feed-tab:hover {
+    color: var(--color-text);
+}
+.feed-tab--active {
+    background: color-mix(in srgb, var(--color-primary) 14%, var(--color-surface));
+    color: var(--color-primary);
+}
+.feed-tab:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+}
+.feed-ecosystem__intro {
+    margin: 0 0 10px;
+    color: var(--color-text-secondary);
+    font-size: var(--text-sm, 0.875rem);
+    line-height: 1.5;
+}
+
 .feed-newpill {
     align-self: center;
     display: inline-flex;
@@ -874,6 +915,7 @@
 .feed-post__actions {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: var(--space-3, 12px);
     color: var(--color-text-secondary);
     font-size: var(--text-sm, 0.875rem);

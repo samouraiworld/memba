@@ -1,0 +1,194 @@
+package arcade
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"os/exec"
+	"strconv"
+	"strings"
+	"time"
+)
+
+var (
+	// ErrAlreadyOnChain: the realm rejected the attestation because this
+	// address/day already holds an entry at an equal-or-better score — the goal
+	// (the best run on-chain) is already met. Benign: it happens on crash
+	// recovery (a broadcast that succeeded before MarkAttested ran). The batcher
+	// marks the run attested instead of retrying the same panicking tx forever.
+	ErrAlreadyOnChain = errors.New("arcade: entry already on-chain (not improved)")
+	// ErrLogBoundElsewhere: the input log is bound on-chain to a DIFFERENT
+	// address — this run can never be attested for us. The batcher retires it
+	// ('skipped') rather than retrying a permanently-failing tx every cycle.
+	ErrLogBoundElsewhere = errors.New("arcade: input log bound to another address on-chain")
+	// ErrPermanentReject: the realm rejected the entry on a DETERMINISTIC shape
+	// check (score/waves/overtimeRound out of range, malformed day, non-positive
+	// simVersion, empty hash). Re-simulated backend data should never hit these,
+	// but if one does it will fail identically forever — the batcher retires it
+	// instead of dripping gas on an unwinnable retry.
+	ErrPermanentReject = errors.New("arcade: realm rejected the entry (permanent shape failure)")
+)
+
+// Broadcaster attests a verified run to the on-chain leaderboard realm. The only
+// implementation is a gnokey subprocess (see below); it's an interface so the
+// batcher is testable without a chain and so a future in-process signer can drop in.
+type Broadcaster interface {
+	// AttestScore writes (or improves) the run's entry on the realm's competitive
+	// daily board and returns the broadcast tx hash.
+	AttestScore(ctx context.Context, run Run) (txHash string, err error)
+}
+
+// AttesterConfig describes the realm + the attester key. The key is a gnokey
+// keyring NAME (never a raw secret in this process); the ceremony that funds it
+// and adds it to the realm's attester allowlist is an OWNER step.
+type AttesterConfig struct {
+	Realm     string // e.g. gno.land/r/samcrew/memba_arcade_leaderboard_v1
+	ChainID   string // e.g. test-13
+	Remote    string // RPC endpoint
+	KeyName   string // gnokey keyring name of the dedicated low-privilege attester key
+	GnokeyBin string // default "gnokey"
+	// KeyringPassword unlocks the on-disk gnokey keyring to SIGN, fed to gnokey on
+	// stdin (there is no TTY in the container). On an ephemeral, container-only,
+	// single-user keyring this is a gnokey formality, not a security control — the
+	// key material lives in the Fly secret + the keyring, never in this process.
+	KeyringPassword string
+	GasWanted       int           // default 5_000_000
+	GasFeeUgnot     int           // default 1_000_000
+	Timeout         time.Duration // per-broadcast wall clock; default 60s
+}
+
+func (c AttesterConfig) withDefaults() AttesterConfig {
+	if c.GnokeyBin == "" {
+		c.GnokeyBin = "gnokey"
+	}
+	if c.GasWanted <= 0 {
+		c.GasWanted = 5_000_000
+	}
+	if c.GasFeeUgnot <= 0 {
+		c.GasFeeUgnot = 1_000_000
+	}
+	if c.Timeout <= 0 {
+		c.Timeout = 60 * time.Second
+	}
+	return c
+}
+
+// attesterExecFn runs gnokey with args and the given stdin (the keyring password
+// for -insecure-password-stdin).
+type attesterExecFn func(ctx context.Context, args []string, stdin string) (string, error)
+
+// gnokeyBroadcaster shells out to `gnokey maketx call … -broadcast <key>`,
+// mirroring cmd/activitybot's testnet broadcaster. The dedicated attester key
+// lives only in the gnokey keyring — this process never handles a raw secret.
+type gnokeyBroadcaster struct {
+	cfg  AttesterConfig
+	exec attesterExecFn
+}
+
+// NewGnokeyBroadcaster builds the production broadcaster.
+func NewGnokeyBroadcaster(cfg AttesterConfig) Broadcaster {
+	cfg = cfg.withDefaults()
+	b := &gnokeyBroadcaster{cfg: cfg}
+	b.exec = b.runGnokey
+	return b
+}
+
+func (b *gnokeyBroadcaster) AttestScore(ctx context.Context, run Run) (string, error) {
+	// Bound each broadcast: a black-holed RPC would otherwise block this call with
+	// no deadline, and since the batcher is a single goroutine, one hung gnokey
+	// would wedge every later attestation cycle.
+	cctx, cancel := context.WithTimeout(ctx, b.cfg.Timeout)
+	defer cancel()
+	// gnokey reads the keyring password from the first line of stdin (there's no
+	// TTY); the argv carries -insecure-password-stdin.
+	out, err := b.exec(cctx, b.attestScoreArgv(run), b.cfg.KeyringPassword+"\n")
+	if err != nil {
+		// Classify the realm's rejection so the batcher converges instead of
+		// retrying a deterministically-failing tx forever. These substrings mirror
+		// the panic() literals in the FROZEN realm
+		// samcrew-deployer/projects/memba/realms/memba_arcade_leaderboard_v1/leaderboard.gno
+		// (AttestScore + assertEntryShape). If that realm is ever un-frozen and its
+		// messages change, update these — TestGnokeyBroadcaster_ClassifiesRealmPanics
+		// pins the current strings.
+		lo := strings.ToLower(out)
+		switch {
+		case strings.Contains(lo, "existing entry is not improved"):
+			// Benign: our target is already on-chain at an equal-or-better score.
+			return "", ErrAlreadyOnChain
+		case strings.Contains(lo, "already bound to another address"),
+			strings.Contains(lo, "already attested for another address"):
+			// The log is bound to a different address — never ours.
+			return "", ErrLogBoundElsewhere
+		case strings.Contains(lo, "out of range"),
+			strings.Contains(lo, "must be non-empty"),
+			strings.Contains(lo, "must be yyyy-mm-dd"),
+			strings.Contains(lo, "must be positive"):
+			// A deterministic shape rejection — retrying can never succeed.
+			return "", ErrPermanentReject
+		}
+		return "", fmt.Errorf("arcade attest: gnokey failed: %w (%s)", err, strings.TrimSpace(out))
+	}
+	return parseTxHash(out), nil
+}
+
+// attestScoreArgv builds the maketx-call argv for the realm's AttestScore, whose
+// parameters (after the implicit cur) are, in order: addr, day, seed, score,
+// waves, won, overtimeRound, simVersion, stateHash, logHash. gnokey coerces each
+// string -arg to the function's param type.
+func (b *gnokeyBroadcaster) attestScoreArgv(run Run) []string {
+	argv := []string{
+		"maketx", "call",
+		"-pkgpath", b.cfg.Realm,
+		"-func", "AttestScore",
+		"-args", run.Addr,
+		"-args", run.Day,
+		"-args", run.Seed,
+		"-args", strconv.FormatInt(run.Score, 10),
+		"-args", strconv.FormatInt(run.Waves, 10),
+		"-args", boolArg(run.Won),
+		"-args", strconv.FormatInt(run.OvertimeRound, 10),
+		"-args", strconv.FormatInt(run.SimVersion, 10),
+		"-args", run.StateHash,
+		"-args", run.LogHash,
+		"-gas-fee", strconv.Itoa(b.cfg.GasFeeUgnot) + "ugnot",
+		"-gas-wanted", strconv.Itoa(b.cfg.GasWanted),
+		"-chainid", b.cfg.ChainID,
+		"-remote", b.cfg.Remote,
+		"-insecure-password-stdin", // read the keyring password from stdin (no TTY)
+		"-broadcast",
+		b.cfg.KeyName,
+	}
+	return argv
+}
+
+func (b *gnokeyBroadcaster) runGnokey(ctx context.Context, args []string, stdin string) (string, error) {
+	cmd := exec.CommandContext(ctx, b.cfg.GnokeyBin, args...) // #nosec G204 -- gnokey bin + realm-attestation args built from re-simulated data, never raw request input
+	cmd.Stdin = strings.NewReader(stdin)
+	out, err := cmd.CombinedOutput()
+	return string(out), err
+}
+
+// parseTxHash pulls the tx hash out of gnokey's broadcast output ("TX HASH: …"),
+// falling back to the first non-empty line. Best-effort — the hash is a stored
+// breadcrumb, not load-bearing.
+func parseTxHash(out string) string {
+	for line := range strings.SplitSeq(out, "\n") {
+		line = strings.TrimSpace(line)
+		if rest, ok := strings.CutPrefix(line, "TX HASH:"); ok {
+			return strings.TrimSpace(rest)
+		}
+	}
+	for line := range strings.SplitSeq(out, "\n") {
+		if s := strings.TrimSpace(line); s != "" {
+			return s
+		}
+	}
+	return ""
+}
+
+func boolArg(b bool) string {
+	if b {
+		return "true"
+	}
+	return "false"
+}

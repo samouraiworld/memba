@@ -682,6 +682,12 @@ export const isSpaceInvadersEnabled = (): boolean =>
  * wallet, no money path. Off by default; owner flips at reveal time. */
 export const isBarricadeEnabled = (): boolean =>
   import.meta.env.VITE_ENABLE_BARRICADE === "true"
+/** BARRICADE on-chain certify (G3). Read-only/opt-in surface: the certify action
+ * re-submits a re-simulated run to the backend and reads the leaderboard realm —
+ * no funds move, so NOT safety-gated (same rationale as isPointsEnabled). Off by
+ * default; play stays no-wallet regardless. Separate from VITE_ENABLE_BARRICADE. */
+export const isBarricadeCertifyEnabled = (): boolean =>
+  import.meta.env.VITE_ENABLE_BARRICADE_CERTIFY === "true"
 /** Realm Explorer (W9 P0). Ordinary flag — read-only (qrender/qfile/qfuncs), no
  * funds. Literal reader (dynamic import.meta.env[key] is undefined in prod bundles). */
 export const isExplorerEnabled = (): boolean => import.meta.env.VITE_ENABLE_EXPLORER === "true"
