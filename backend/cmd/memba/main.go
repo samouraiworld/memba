@@ -409,11 +409,15 @@ func main() {
 			slog.Warn("MEMBA_ARCADE_ATTESTER_ENABLED set but GNO_CHAIN_ID or the RPC URL is empty — attester stays dormant (every broadcast would fail)", "chainID", chainID, "remote", remote)
 		default:
 			bcfg := arcade.AttesterConfig{
-				Realm:     envOr("MEMBA_ARCADE_REALM", "gno.land/r/samcrew/memba_arcade_leaderboard_v1"),
-				ChainID:   chainID,
-				Remote:    remote,
-				KeyName:   attesterKey,
-				GnokeyBin: gnokeyBin,
+				Realm:   envOr("MEMBA_ARCADE_REALM", "gno.land/r/samcrew/memba_arcade_leaderboard_v1"),
+				ChainID: chainID,
+				Remote:  remote,
+				KeyName: attesterKey,
+				// The keyring password gnokey uses to SIGN, fed on stdin. Must match
+				// the password start.sh imported the key with (same env var). On the
+				// ephemeral container-only keyring this is a gnokey formality.
+				KeyringPassword: envOr("MEMBA_ARCADE_KEYRING_PW", "arcade"),
+				GnokeyBin:       gnokeyBin,
 			}
 			arcade.StartDayCloseBatcher(ctx, arcade.NewStore(database), arcade.NewGnokeyBroadcaster(bcfg), arcade.BatcherConfig{
 				Enabled:     true,

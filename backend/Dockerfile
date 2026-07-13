@@ -12,6 +12,13 @@ COPY . .
 ARG APP_VERSION=dev
 RUN CGO_ENABLED=0 go build -ldflags="-s -w -X main.appVersion=${APP_VERSION}" -o /memba ./cmd/memba
 
+# gnokey stage — the CLI the BARRICADE day-close attester (internal/arcade) uses
+# to sign + broadcast board attestations. Pinned to the deployer toolchain version.
+# It's inert unless MEMBA_ARCADE_ATTESTER_ENABLED + the key are set.
+FROM golang:1.25.12-alpine AS gnokey
+RUN apk add --no-cache git
+RUN go install github.com/gnolang/gno/gno.land/cmd/gnokey@v1.1.0
+
 # Litestream stage
 FROM litestream/litestream:0.3.13 AS litestream
 
@@ -30,12 +37,22 @@ WORKDIR /app
 
 COPY --from=builder /memba .
 COPY --from=litestream /usr/local/bin/litestream /usr/local/bin/litestream
+COPY --from=gnokey /go/bin/gnokey /usr/local/bin/gnokey
 COPY litestream.yml /etc/litestream.yml
 COPY start.sh /app/start.sh
 RUN chmod +x /app/start.sh
 
 RUN mkdir -p /data && chown memba:memba /data && \
     chown memba:memba /etc/litestream.yml /app/start.sh
+
+# Ephemeral, writable keyring home for the arcade attester. HOME is where gnokey
+# defaults its keyring (~/.gnokey), and BOTH the start.sh key-import and the Go
+# broadcaster (which passes no -home) resolve it the same way. On the ephemeral
+# rootfs (NOT the /data volume), so the Fly-secret mnemonic stays the single
+# source of truth and no derived key persists on a backed-up volume — start.sh
+# re-imports it each boot.
+RUN mkdir -p /home/memba && chown -R memba:memba /home/memba
+ENV HOME=/home/memba
 
 USER memba
 

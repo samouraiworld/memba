@@ -32,6 +32,32 @@ else
     litestream restore -v -if-replica-exists -config /etc/litestream.yml -o "$DB" "$DB" || true
 fi
 
+# ── BARRICADE attester key ──────────────────────────────────────────────────
+# Import the dedicated low-privilege attester key into the ephemeral gnokey
+# keyring (HOME = /home/memba, set in the Dockerfile — the same home the Go
+# broadcaster resolves), then DROP the mnemonic from the environment so the
+# long-lived app process never inherits it. Runs BEFORE the app so the key is
+# present before the day-close batcher's first cycle. Idempotent across restarts
+# via --force. Only when the attester is enabled + the secret is present; a
+# failure just logs and lets the attester self-disable (never blocks boot).
+if [ "${MEMBA_ARCADE_ATTESTER_ENABLED:-}" = "1" ] || [ "${MEMBA_ARCADE_ATTESTER_ENABLED:-}" = "true" ]; then
+    if [ -n "${ARCADE_ATTESTER_MNEMONIC:-}" ] && command -v gnokey >/dev/null 2>&1; then
+        KEY="${MEMBA_ARCADE_ATTESTER_KEY:-arcade-attester}"
+        PW="${MEMBA_ARCADE_KEYRING_PW:-arcade}"
+        # mnemonic on line 1, then the password twice (confirm) — fed on stdin, so
+        # it is never in argv / ps / logs.
+        if printf '%s\n%s\n%s\n' "$ARCADE_ATTESTER_MNEMONIC" "$PW" "$PW" \
+            | gnokey add -recover -insecure-password-stdin --force "$KEY" >/dev/null 2>&1; then
+            echo "arcade attester key '$KEY' imported into the keyring"
+        else
+            echo "WARNING: arcade attester key import failed — the attester will self-disable"
+        fi
+        unset ARCADE_ATTESTER_MNEMONIC
+    else
+        echo "WARNING: MEMBA_ARCADE_ATTESTER_ENABLED set but ARCADE_ATTESTER_MNEMONIC/gnokey missing — attester will self-disable"
+    fi
+fi
+
 # Litestream owns WAL checkpointing from here on; the app must not checkpoint
 # (see litestreamManaged in cmd/memba/main.go).
 export LITESTREAM_MANAGED=1

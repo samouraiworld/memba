@@ -228,7 +228,7 @@ func TestGnokeyBroadcaster_ClassifiesRealmPanics(t *testing.T) {
 	for out, want := range cases {
 		b := &gnokeyBroadcaster{
 			cfg:  AttesterConfig{KeyName: "k"},
-			exec: func(_ context.Context, _ []string) (string, error) { return out, errors.New("exit 1") },
+			exec: func(_ context.Context, _ []string, _ string) (string, error) { return out, errors.New("exit 1") },
 		}
 		_, err := b.AttestScore(context.Background(), Run{LogHash: "x"})
 		if !errors.Is(err, want) {
@@ -237,8 +237,10 @@ func TestGnokeyBroadcaster_ClassifiesRealmPanics(t *testing.T) {
 	}
 	// An unclassified failure stays a generic (retryable) error.
 	b := &gnokeyBroadcaster{
-		cfg:  AttesterConfig{KeyName: "k"},
-		exec: func(_ context.Context, _ []string) (string, error) { return "connection refused", errors.New("exit 1") },
+		cfg: AttesterConfig{KeyName: "k"},
+		exec: func(_ context.Context, _ []string, _ string) (string, error) {
+			return "connection refused", errors.New("exit 1")
+		},
 	}
 	_, err := b.AttestScore(context.Background(), Run{LogHash: "x"})
 	if err == nil || errors.Is(err, ErrAlreadyOnChain) || errors.Is(err, ErrLogBoundElsewhere) {
@@ -326,6 +328,7 @@ func TestGnokeyBroadcaster_Argv(t *testing.T) {
 		"-gas-wanted", "3000000",
 		"-chainid", "test-13",
 		"-remote", "https://rpc.example:443",
+		"-insecure-password-stdin",
 		"-broadcast",
 		"arcade-attester",
 	}
@@ -334,10 +337,30 @@ func TestGnokeyBroadcaster_Argv(t *testing.T) {
 	}
 }
 
+func TestGnokeyBroadcaster_PipesKeyringPasswordOnStdin(t *testing.T) {
+	// gnokey signs non-interactively by reading the keyring password from stdin
+	// (there is no TTY in the container). The broadcaster must feed exactly the
+	// configured password as the first line.
+	var gotStdin string
+	b := &gnokeyBroadcaster{
+		cfg: AttesterConfig{KeyName: "arcade-attester", KeyringPassword: "s3cret"},
+		exec: func(_ context.Context, _ []string, stdin string) (string, error) {
+			gotStdin = stdin
+			return "TX HASH: ok\n", nil
+		},
+	}
+	if _, err := b.AttestScore(context.Background(), Run{LogHash: "x"}); err != nil {
+		t.Fatalf("attest: %v", err)
+	}
+	if gotStdin != "s3cret\n" {
+		t.Fatalf("keyring password not piped as the first stdin line, got %q", gotStdin)
+	}
+}
+
 func TestGnokeyBroadcaster_ParsesTxHash(t *testing.T) {
 	b := &gnokeyBroadcaster{
 		cfg: AttesterConfig{KeyName: "k"},
-		exec: func(_ context.Context, _ []string) (string, error) {
+		exec: func(_ context.Context, _ []string, _ string) (string, error) {
 			return "OK!\nTX HASH:   abc123==\nGAS USED: 42\n", nil
 		},
 	}
@@ -353,7 +376,7 @@ func TestGnokeyBroadcaster_ParsesTxHash(t *testing.T) {
 func TestGnokeyBroadcaster_SurfacesExecError(t *testing.T) {
 	b := &gnokeyBroadcaster{
 		cfg:  AttesterConfig{KeyName: "k"},
-		exec: func(_ context.Context, _ []string) (string, error) { return "boom", errors.New("exit 1") },
+		exec: func(_ context.Context, _ []string, _ string) (string, error) { return "boom", errors.New("exit 1") },
 	}
 	if _, err := b.AttestScore(context.Background(), Run{LogHash: "x"}); err == nil {
 		t.Fatal("a gnokey failure must be an error")
