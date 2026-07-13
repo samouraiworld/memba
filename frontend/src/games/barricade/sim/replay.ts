@@ -92,14 +92,18 @@ export const MAX_REPLAY_EVENTS = 20_000
 
 const EVENT_TYPES = new Set(["move", "rally", "choice", "throw", "shove"])
 
-/** Run a full game from (seed, events) to its terminal state. */
-export function runReplay(seed: string, events: SimEvent[]): ReplayResult {
-    const waves = buildWaves(seed)
-    // The log is untrusted JSON: cap it first (cost bound), then drop entries
-    // that aren't {integer tick >= 0, known type} — a null entry would crash the
-    // sort comparator, a NaN tick would stall the cursor and silently disable
-    // every later event, and an alien type used to fall off applyEvent's switch.
-    // Honest logs pass untouched, so live and replay stay identical.
+/**
+ * The exact event stream the sim consumes: the untrusted log capped (cost
+ * bound), stripped of entries that aren't {integer tick >= 0, known type} — a
+ * null entry would crash the sort comparator, a NaN tick would stall the cursor
+ * and silently disable every later event, and an alien type used to fall off
+ * applyEvent's switch — then given a total order (tick, then original index; a
+ * same-tick tiebreak that does not rely on Array.prototype.sort being stable
+ * across JS engines). Honest logs pass untouched, so live and replay stay
+ * identical. Shared by runReplay and canonicalLog so the certify commitment is
+ * over exactly what was simulated.
+ */
+export function sanitizeEvents(events: SimEvent[]): SimEvent[] {
     const sane = events.slice(0, MAX_REPLAY_EVENTS).filter(
         (e): e is SimEvent =>
             typeof e === "object" &&
@@ -108,12 +112,47 @@ export function runReplay(seed: string, events: SimEvent[]): ReplayResult {
             (e as { tick: number }).tick >= 0 &&
             EVENT_TYPES.has((e as { type?: string }).type ?? ""),
     )
-    // Total order: tick, then original log index — a same-tick tiebreak that does
-    // not rely on Array.prototype.sort being stable across JS engines.
-    const sorted = sane
+    return sane
         .map((e, i) => ({ e, i }))
         .sort((a, b) => a.e.tick - b.e.tick || a.i - b.i)
         .map((x) => x.e)
+}
+
+/**
+ * Canonical, byte-representation-invariant line for one event: a fixed field
+ * order, so a log's JSON key order / whitespace / number spelling / string
+ * escapes can never change it. Two byte-variants of the same run collapse here.
+ */
+function canonicalEventLine(e: SimEvent): string {
+    switch (e.type) {
+        case "move":
+            return `${e.tick}|move|${e.lane}`
+        case "rally":
+            return `${e.tick}|rally`
+        case "choice":
+            return `${e.tick}|choice|${e.choice}`
+        case "throw":
+            return `${e.tick}|throw|${e.lane}|${e.dist}`
+        case "shove":
+            return `${e.tick}|shove|${e.lane}`
+    }
+}
+
+/**
+ * The canonical input-log string — the sanitized event stream in a fixed,
+ * JSON-independent serialization. The certify backend hashes THIS (not the raw
+ * request bytes) so a run's on-chain commitment binds to the run itself: any
+ * semantically-neutral re-encoding of the same log yields the same string, so it
+ * can't be resubmitted under another wallet to dodge the first-submitter bind.
+ */
+export function canonicalLog(events: SimEvent[]): string {
+    return sanitizeEvents(events).map(canonicalEventLine).join(";")
+}
+
+/** Run a full game from (seed, events) to its terminal state. */
+export function runReplay(seed: string, events: SimEvent[]): ReplayResult {
+    const waves = buildWaves(seed)
+    const sorted = sanitizeEvents(events)
     let s = initState(seed)
     let cursor = 0
     // Terminal-phase only — NO tick bound here. tick() itself flips to "lost"

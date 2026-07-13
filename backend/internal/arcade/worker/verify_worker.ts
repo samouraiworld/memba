@@ -17,8 +17,8 @@
  * non-zero exit / timeout / unparseable stdout as an infrastructure error
  * (retryable) and `{ok:false}` as a verification rejection (terminal).
  */
-import { runReplay } from "../../../../frontend/src/games/barricade/sim/replay"
-import { MAX_REPLAY_EVENTS } from "../../../../frontend/src/games/barricade/sim/replay"
+import { createHash } from "node:crypto"
+import { canonicalLog, MAX_REPLAY_EVENTS, runReplay } from "../../../../frontend/src/games/barricade/sim/replay"
 import { SIM_VERSION, type SimEvent } from "../../../../frontend/src/games/barricade/sim/types"
 
 type Job = { seed: string; simVersion: number; events: unknown[] }
@@ -30,6 +30,7 @@ function ok(r: {
     overtimeRound: number
     stateHash: string
     simVersion: number
+    logHash: string
 }): string {
     return JSON.stringify({ ok: true, ...r })
 }
@@ -69,7 +70,19 @@ export function processJob(raw: string): string {
     if (job.events.length > MAX_REPLAY_EVENTS) {
         return fail(`too many events: ${job.events.length} > ${MAX_REPLAY_EVENTS}`)
     }
-    const r = runReplay(job.seed, job.events as SimEvent[])
+    const events = job.events as SimEvent[]
+    const r = runReplay(job.seed, events)
+    // The certify commitment binds the SEED and the CANONICAL sanitized log (the
+    // exact stream the sim consumed) — never the raw request bytes. Binding the
+    // seed keeps two identical logs on different seeds distinct (e.g. two empty
+    // runs on different days must not collide in the realm's global hashOwners),
+    // while a theft — a valid log copied for the SAME shared daily seed — still
+    // collides and is caught. Hashed here (Node) because the sim runs sync in the
+    // browser too, where sha256 isn't synchronous. The seed charset (validated
+    // backend-side) excludes '\n', so the separator is unambiguous.
+    const logHash = createHash("sha256")
+        .update(job.seed + "\n" + canonicalLog(events))
+        .digest("hex")
     return ok({
         score: r.score,
         waves: r.waves,
@@ -77,6 +90,7 @@ export function processJob(raw: string): string {
         overtimeRound: r.overtimeRound,
         stateHash: r.stateHash,
         simVersion: r.simVersion,
+        logHash,
     })
 }
 

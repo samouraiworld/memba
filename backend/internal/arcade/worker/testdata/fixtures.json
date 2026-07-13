@@ -5,7 +5,7 @@
     {
       "name": "empty-daily",
       "job": { "seed": "barricade-2026-07-13", "simVersion": 2, "events": [] },
-      "expected": { "ok": true, "score": 27150, "waves": 5, "won": false, "overtimeRound": 0, "stateHash": "e8532dc207e3cb24", "simVersion": 2 }
+      "expected": { "ok": true, "score": 27150, "waves": 5, "won": false, "overtimeRound": 0, "stateHash": "e8532dc207e3cb24", "simVersion": 2, "logHash": "ff7801f8f7b8543e2edd62bb5528a4c5cfa046d484b087c8c72f0ee110e8b8eb" }
     },
     {
       "name": "mixed-events-daily",
@@ -19,7 +19,7 @@
           { "tick": 2000, "type": "choice", "choice": "repair" }
         ]
       },
-      "expected": { "ok": true, "score": 21550, "waves": 4, "won": false, "overtimeRound": 0, "stateHash": "4245c2648ee4e926", "simVersion": 2 }
+      "expected": { "ok": true, "score": 21550, "waves": 4, "won": false, "overtimeRound": 0, "stateHash": "4245c2648ee4e926", "simVersion": 2, "logHash": "cb7662d255f615765e1cf4e9334698d5eed0858a672dca196a0ce954de70c1ed" }
     },
     {
       "name": "practice-with-throw",
@@ -32,12 +32,12 @@
           { "tick": 300, "type": "throw", "lane": 1, "dist": 40 }
         ]
       },
-      "expected": { "ok": true, "score": 21000, "waves": 4, "won": false, "overtimeRound": 0, "stateHash": "8a137d72d30a7db4", "simVersion": 2 }
+      "expected": { "ok": true, "score": 21000, "waves": 4, "won": false, "overtimeRound": 0, "stateHash": "8a137d72d30a7db4", "simVersion": 2, "logHash": "5e0a51a16b7127950cf79353ed999600b3fe02910af632cde248919b5c8e91cf" }
     },
     {
       "name": "empty-daily-alt-seed",
       "job": { "seed": "barricade-2026-07-04", "simVersion": 2, "events": [] },
-      "expected": { "ok": true, "score": 26600, "waves": 5, "won": false, "overtimeRound": 0, "stateHash": "a5d29e6fdd05fd91", "simVersion": 2 }
+      "expected": { "ok": true, "score": 26600, "waves": 5, "won": false, "overtimeRound": 0, "stateHash": "a5d29e6fdd05fd91", "simVersion": 2, "logHash": "c8abd9979094d5ce0cb43474dbae451b71f1843376c85979616601d61e28c0c1" }
     },
     {
       "name": "all-five-event-types",
@@ -52,7 +52,7 @@
           { "tick": 2000, "type": "choice", "choice": "repair" }
         ]
       },
-      "expected": { "ok": true, "score": 27150, "waves": 5, "won": false, "overtimeRound": 0, "stateHash": "6673652addabdccc", "simVersion": 2 }
+      "expected": { "ok": true, "score": 27150, "waves": 5, "won": false, "overtimeRound": 0, "stateHash": "6673652addabdccc", "simVersion": 2, "logHash": "79a9e8cab213843ce0e42144e8415411c9290bcdcf8f392ee101c9d33b1112e7" }
     }
   ]
 }

@@ -55,9 +55,14 @@ func newStore(t *testing.T) *arcade.Store {
 	return arcade.NewStore(database)
 }
 
-// okResult is a plausible verified daily run for 2026-07-13.
+// okResult is a plausible verified daily run for 2026-07-13. LogHash is the
+// worker's CANONICAL commitment — the handler stores/dedups on this, never on a
+// hash of the raw request bytes.
 func okResult() arcade.Result {
-	return arcade.Result{OK: true, Score: 27150, Waves: 5, Won: false, OvertimeRound: 0, StateHash: "e8532dc207e3cb24", SimVersion: 2}
+	return arcade.Result{
+		OK: true, Score: 27150, Waves: 5, Won: false, OvertimeRound: 0,
+		StateHash: "e8532dc207e3cb24", SimVersion: 2, LogHash: "canonicaldigestabc",
+	}
 }
 
 func submitReq(t *testing.T, h http.Handler, token, body string) *httptest.ResponseRecorder {
@@ -287,21 +292,25 @@ func TestSubmit_DuplicateSameAddrIsIdempotent(t *testing.T) {
 }
 
 func TestSubmit_DuplicateDifferentAddrIsRejected(t *testing.T) {
-	// Alice submits a log; Mallory replays the identical log under her address.
-	// The realm binds a log to its first submitter — the backend must reject the
-	// theft rather than store or attest it.
+	// Alice submits a log; Mallory replays it under her address — and crucially,
+	// with a BYTE-MUTATED body (reordered fields / different whitespace). Because
+	// the commitment is the worker's CANONICAL log hash (the same fake result
+	// here, as the real worker would produce for a semantically-identical log),
+	// the theft still collides and is rejected. The realm binds a log to its
+	// first submitter; a re-encoding must not dodge that.
 	store := newStore(t)
 	v := &fakeVerifier{res: okResult()}
-	body := dailyBody(t, 27150, "e8532dc207e3cb24")
+	aliceBody := dailyBody(t, 27150, "e8532dc207e3cb24")
+	malloryBody := `{"claimedHash":"e8532dc207e3cb24","claimedScore":27150,"simVersion":2,"events":[],"seed":"barricade-2026-07-13"}` // same run, keys reordered
 
 	alice := arcade.HandleSubmit(arcade.SubmitConfig{Enabled: true, Store: store, Auth: fakeAuth{addr: "g1alice"}, Verifier: v, Now: fixedNow})
-	if rr := submitReq(t, alice, "tok", body); rr.Code != http.StatusOK {
+	if rr := submitReq(t, alice, "tok", aliceBody); rr.Code != http.StatusOK {
 		t.Fatalf("alice submit must 200, got %d", rr.Code)
 	}
 	mallory := arcade.HandleSubmit(arcade.SubmitConfig{Enabled: true, Store: store, Auth: fakeAuth{addr: "g1mallory"}, Verifier: v, Now: fixedNow})
-	rr := submitReq(t, mallory, "tok", body)
+	rr := submitReq(t, mallory, "tok", malloryBody)
 	if rr.Code != http.StatusConflict {
-		t.Fatalf("a stolen log must 409, got %d", rr.Code)
+		t.Fatalf("a re-encoded stolen log must still 409, got %d", rr.Code)
 	}
 }
 

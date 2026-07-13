@@ -42,6 +42,9 @@ type Result struct {
 	OvertimeRound int64  `json:"overtimeRound"`
 	StateHash     string `json:"stateHash"`
 	SimVersion    int64  `json:"simVersion"`
+	// LogHash is the canonical input-log commitment (sha256 of the sanitized
+	// event stream) — the realm's replay-theft key and the backend's dedup key.
+	LogHash string `json:"logHash"`
 }
 
 // Config tunes the runner. Zero values fall back to safe defaults.
@@ -179,8 +182,8 @@ func (r *Runner) Verify(ctx context.Context, job Job) (Result, error) {
 	// regressed worker or a stdout prefixer) unmarshals to a ZEROED, attestable
 	// Result — reject it as an implausible worker output rather than let a
 	// score:0/empty-hash "verified" run through.
-	if res.OK && (res.StateHash == "" || res.SimVersion != CurrentSimVersion) {
-		return Result{}, fmt.Errorf("arcade: implausible worker result (ok=true, hash=%q, simVersion=%d)", res.StateHash, res.SimVersion)
+	if res.OK && (res.StateHash == "" || res.LogHash == "" || res.SimVersion != CurrentSimVersion) {
+		return Result{}, fmt.Errorf("arcade: implausible worker result (ok=true, stateHash=%q, logHash=%q, simVersion=%d)", res.StateHash, res.LogHash, res.SimVersion)
 	}
 	return res, nil
 }

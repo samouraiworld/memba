@@ -3,8 +3,6 @@ package arcade
 import (
 	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -136,8 +134,10 @@ func HandleSubmit(cfg SubmitConfig) http.Handler {
 			writeReject(w, "rejected: "+res.Error)
 			return
 		}
-		// The whole point: the client's claimed result must match the re-simulation.
-		// A mismatch is a stale client or a cheat — reject, do not store.
+		// A stale-client / cheat guard (NOT the integrity boundary — integrity is
+		// that every stored field comes from `res`, never the claim): require the
+		// client's claimed result to match the re-simulation, so a client on an old
+		// sim build is told its number is wrong rather than silently attested.
 		if res.Score != req.ClaimedScore || res.StateHash != req.ClaimedHash {
 			slog.Warn("arcade submit: claim mismatch", "addr", addr, "claimedScore", req.ClaimedScore,
 				"computedScore", res.Score, "claimedHash", req.ClaimedHash, "computedHash", res.StateHash)
@@ -145,11 +145,11 @@ func HandleSubmit(cfg SubmitConfig) http.Handler {
 			return
 		}
 
-		logHash, err := hashLog(req.Events)
-		if err != nil {
-			writeErr(w, http.StatusBadRequest, "invalid events")
-			return
-		}
+		// The commitment is the worker's CANONICAL log hash (over the sanitized
+		// event stream), never a hash of the raw request bytes — so a run binds to
+		// one identity no matter how its JSON is re-encoded (the realm's
+		// first-submitter guard would otherwise be dodgeable by a byte-mutation).
+		logHash := res.LogHash
 
 		run := Run{
 			LogHash: logHash, Addr: addr, Day: day, Mode: mode, Seed: req.Seed,
@@ -165,7 +165,9 @@ func HandleSubmit(cfg SubmitConfig) http.Handler {
 				// binds a log to its first submitter).
 				existing, ok, gerr := cfg.Store.GetRunByLogHash(logHash)
 				if gerr == nil && ok && existing.Addr == addr {
-					writeVerified(w, logHash, day, mode, res)
+					// Echo the STORED row's day/mode (the same log resubmitted on a
+					// later day must report its original attribution, not today's).
+					writeVerified(w, logHash, existing.Day, existing.Mode, res)
 					return
 				}
 				slog.Warn("arcade submit: duplicate log from a different address", "addr", addr, "logHash", logHash)
@@ -211,17 +213,6 @@ func bearer(r *http.Request) string {
 		return ""
 	}
 	return strings.TrimPrefix(h, "Bearer ")
-}
-
-// hashLog is the input-log commitment: sha256 of the compact-JSON events. It is
-// what the attester writes on-chain and the replay-theft dedupe key.
-func hashLog(events json.RawMessage) (string, error) {
-	var buf bytes.Buffer
-	if err := json.Compact(&buf, events); err != nil {
-		return "", err
-	}
-	sum := sha256.Sum256(buf.Bytes())
-	return hex.EncodeToString(sum[:]), nil
 }
 
 func compact(events json.RawMessage) string {
