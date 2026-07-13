@@ -75,12 +75,10 @@ func checkProCredits(userAddr string) int64 {
 		return 0
 	}
 
-	registryPath := os.Getenv("AGENT_REGISTRY_REALM")
-	if registryPath == "" {
-		// agent_registry_v2 — MUST match where the frontend deposits credits
-		// (agentRegistryPath), else paid credits are invisible to pro-gating.
-		registryPath = "gno.land/r/samcrew/agent_registry_v2"
-	}
+	// Shared single source of truth (see AgentRegistryRealmPath) — MUST match
+	// where the frontend deposits credits, else paid credits are invisible to
+	// pro-gating.
+	registryPath := AgentRegistryRealmPath()
 
 	expr := fmt.Sprintf(`GetCredits(%q, %q)`, daoAnalystAgentID, userAddr)
 	// vm/qeval wire format: "<pkgpath>.<expression>" (dot separator). The shared

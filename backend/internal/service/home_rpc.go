@@ -256,9 +256,22 @@ func tokenfactoryRealmPath() string {
 	return "gno.land/r/samcrew/tokenfactory_v2"
 }
 
-// agentRegistryRealmPath returns the on-chain path for the Memba agent registry.
-// Reuses the same env name as analyst.go (AGENT_REGISTRY_REALM).
-func agentRegistryRealmPath() string {
+// AgentRegistryRealmPath is the single source of truth for the Memba
+// agent-registry realm path, shared by every backend call site: the home
+// snapshot's countAgents (here), analyst.checkProCredits, and the
+// /api/marketplace/agents proxy wired up in cmd/memba/main.go.
+//
+// Precedence: AGENT_REGISTRY_REALM_PATH (canonical) → AGENT_REGISTRY_REALM
+// (legacy, kept for one release so an operator who set only the old name isn't
+// broken by the rename) → the IsUserCall-guarded v2 realm default. Keep the
+// default in sync with the frontend agentRegistryPath binding.
+//
+// TODO(2026-09): drop the AGENT_REGISTRY_REALM fallback once operators have had
+// one release (≥ v7.4.0) to migrate to AGENT_REGISTRY_REALM_PATH.
+func AgentRegistryRealmPath() string {
+	if v := os.Getenv("AGENT_REGISTRY_REALM_PATH"); v != "" {
+		return v
+	}
 	if v := os.Getenv("AGENT_REGISTRY_REALM"); v != "" {
 		return v
 	}
@@ -295,7 +308,7 @@ func (s *MultisigService) countTokens(ctx context.Context, rpcURL string) (uint3
 // ≥5 non-empty trimmed columns AND have a markdown link in the name column.
 // The empty-state render ("*No agents registered yet.*") yields 0.
 func (s *MultisigService) countAgents(ctx context.Context, rpcURL string) (uint32, error) {
-	realmPath := agentRegistryRealmPath()
+	realmPath := AgentRegistryRealmPath()
 	data := realmPath + ":"
 	raw, err := s.homeQuery(rpcURL, "vm/qrender", data)
 	if err != nil {
