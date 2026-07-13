@@ -1614,6 +1614,19 @@ body {
 
 .k-mobile-tab .k-mobile-tab-icon {
   font-size: 20px;
+  position: relative;
+}
+
+/* Unread-reply dot on the Feed tab (the come-back loop). */
+.k-mobile-tab-dot {
+  position: absolute;
+  top: -3px;
+  right: -6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--color-primary);
+  border: 1.5px solid var(--color-k-elevated, #0c0c0c);
 }
 
 /* ── Bottom Sheet ──────────────────────────────────────────────── */

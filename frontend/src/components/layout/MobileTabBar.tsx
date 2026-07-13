@@ -23,9 +23,10 @@ interface MobileTabBarProps {
         networks: Record<string, { label: string }>
         switchNetwork: (key: string) => void
     }
+    feedReplyUnread?: number
 }
 
-export function MobileTabBar({ connected, address, auth, network }: MobileTabBarProps) {
+export function MobileTabBar({ connected, address, auth, network, feedReplyUnread = 0 }: MobileTabBarProps) {
     const location = useLocation()
     const nk = useNetworkKey()
     const [sheetOpen, setSheetOpen] = useState(false)
@@ -97,7 +98,12 @@ export function MobileTabBar({ connected, address, auth, network }: MobileTabBar
                         className={`k-mobile-tab${isTabActive(tab.to) ? " active" : ""}`}
                         aria-current={isTabActive(tab.to) ? "page" : undefined}
                     >
-                        <span className="k-mobile-tab-icon"><tab.Icon size={20} /></span>
+                        <span className="k-mobile-tab-icon">
+                            <tab.Icon size={20} />
+                            {tab.id === "feed" && feedReplyUnread > 0 && (
+                                <span className="k-mobile-tab-dot" aria-label={`${feedReplyUnread} new replies`} />
+                            )}
+                        </span>
                         <span>{TAB_LABEL_OVERRIDE[tab.id] ?? tab.label}</span>
                     </Link>
                 ))}

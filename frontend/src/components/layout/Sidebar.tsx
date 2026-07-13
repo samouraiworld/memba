@@ -125,11 +125,12 @@ interface SidebarProps {
     address: string | null
     unvotedCount: number
     notifUnreadCount: number
+    feedReplyUnread?: number
     collapsed: boolean
     onToggleCollapse: () => void
 }
 
-export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, collapsed, onToggleCollapse }: SidebarProps) {
+export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, feedReplyUnread = 0, collapsed, onToggleCollapse }: SidebarProps) {
     const nk = useNetworkKey()
 
     return (
@@ -166,11 +167,14 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, co
                 {(() => {
                     const feed = navById("feed")
                     const flagOn = navFlagOn(feed.flag)
+                    // Unread replies-to-you take over the badge (capped 9+) so the
+                    // come-back loop is visible from any page; otherwise the flag pill.
+                    const hasReplies = feedReplyUnread > 0
                     return (
                         <ManifestLink
                             id="feed"
-                            badgeText={flagOn ? "new" : "soon"}
-                            badgeInactive={!flagOn}
+                            badgeText={hasReplies ? (feedReplyUnread > 9 ? "9+" : String(feedReplyUnread)) : (flagOn ? "new" : "soon")}
+                            badgeInactive={hasReplies ? false : !flagOn}
                             connected={connected}
                             collapsed={collapsed}
                         />

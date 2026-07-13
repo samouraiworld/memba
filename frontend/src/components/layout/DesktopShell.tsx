@@ -6,6 +6,7 @@ interface DesktopShellProps {
     address: string | null
     unvotedCount: number
     notifUnreadCount: number
+    feedReplyUnread?: number
     collapsed: boolean
     onToggleCollapse: () => void
     children: ReactNode
@@ -24,6 +25,7 @@ export function DesktopShell({
     address,
     unvotedCount,
     notifUnreadCount,
+    feedReplyUnread = 0,
     collapsed,
     onToggleCollapse,
     children,
@@ -35,6 +37,7 @@ export function DesktopShell({
                 address={address}
                 unvotedCount={unvotedCount}
                 notifUnreadCount={notifUnreadCount}
+                feedReplyUnread={feedReplyUnread}
                 collapsed={collapsed}
                 onToggleCollapse={onToggleCollapse}
             />
