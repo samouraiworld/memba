@@ -67,6 +67,13 @@ func StartFeedTailer(ctx context.Context, database *sql.DB, cfg FeedTailerConfig
 			"watched_realms", cfg.WatchedRealms,
 			"start_block", cfg.StartBlock,
 		)
+		// One-time opportunistic backfill of block_ts for posts created before
+		// migration 019 (block_ts=0 → the UI rendered "block 12345" instead of a
+		// relative time). Idempotent and bounded; retried on restart if the RPC
+		// was unavailable. Panic-isolated so a bad block never stops the tailer.
+		runRecovered(cfg.Logger, "feed_blockts_backfill", func() {
+			backfillMissingBlockTimes(ctx, database, src, cfg.Logger)
+		})
 		ticker := time.NewTicker(cfg.Interval)
 		defer ticker.Stop()
 		for {
@@ -265,6 +272,64 @@ func rollbackFeedFromHeight(ctx context.Context, db *sql.DB, height int64) error
 		}
 	}
 	return tx.Commit()
+}
+
+// maxBlockTimeBackfillPerRun bounds the opportunistic block_ts backfill so a
+// large pre-migration backlog can't fire an unbounded burst of /block reads at
+// startup. Remaining rows fill on the next restart (idempotent).
+const maxBlockTimeBackfillPerRun = 500
+
+// backfillMissingBlockTimes fills block_ts for feed_posts rows created before
+// migration 019 (block_ts=0, block_h>0). It reads the block header time — the
+// SAME deterministic source as ingest — so a backfilled value survives a later
+// rebuild-from-raw. One /block read per distinct height; per-height failures are
+// logged and skipped (not fatal); already-stamped rows are never touched.
+func backfillMissingBlockTimes(ctx context.Context, db *sql.DB, src blockSource, log *slog.Logger) {
+	rows, err := db.QueryContext(ctx, `
+		SELECT DISTINCT block_h FROM feed_posts
+		WHERE block_ts = 0 AND block_h > 0
+		ORDER BY block_h
+		LIMIT ?`, maxBlockTimeBackfillPerRun)
+	if err != nil {
+		log.Warn("feed tailer: block_ts backfill query failed", "error", err)
+		return
+	}
+	var heights []int64
+	for rows.Next() {
+		var h int64
+		if err := rows.Scan(&h); err != nil {
+			log.Warn("feed tailer: block_ts backfill scan failed", "error", err)
+			continue
+		}
+		heights = append(heights, h)
+	}
+	// Close before issuing writes: sqlite serializes an open read cursor against
+	// a write on the same connection.
+	_ = rows.Close()
+	if len(heights) == 0 {
+		return
+	}
+
+	filled := 0
+	for _, h := range heights {
+		ts, err := src.BlockTime(ctx, h)
+		if err != nil {
+			log.Warn("feed tailer: block_ts backfill time fetch failed", "height", h, "error", err)
+			continue
+		}
+		if ts <= 0 {
+			continue
+		}
+		if _, err := db.ExecContext(ctx,
+			`UPDATE feed_posts SET block_ts = ? WHERE block_h = ? AND block_ts = 0`, ts, h); err != nil {
+			log.Warn("feed tailer: block_ts backfill update failed", "height", h, "error", err)
+			continue
+		}
+		filled++
+	}
+	if filled > 0 {
+		log.Info("feed tailer: backfilled block_ts for pre-migration posts", "heights_filled", filled)
+	}
 }
 
 // FeedIndexerLastBlock returns the max last_processed_block across the feed
