@@ -77,7 +77,9 @@ func checkProCredits(userAddr string) int64 {
 
 	registryPath := os.Getenv("AGENT_REGISTRY_REALM")
 	if registryPath == "" {
-		registryPath = "gno.land/r/samcrew/agent_registry"
+		// agent_registry_v2 — MUST match where the frontend deposits credits
+		// (agentRegistryPath), else paid credits are invisible to pro-gating.
+		registryPath = "gno.land/r/samcrew/agent_registry_v2"
 	}
 
 	expr := fmt.Sprintf(`GetCredits(%q, %q)`, daoAnalystAgentID, userAddr)

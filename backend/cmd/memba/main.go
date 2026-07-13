@@ -301,13 +301,15 @@ func main() {
 	// Marketplace — cached realm proxies (60s server-side TTL)
 	agentRegistryPath := os.Getenv("AGENT_REGISTRY_REALM_PATH")
 	if agentRegistryPath == "" {
-		agentRegistryPath = "gno.land/r/samcrew/agent_registry"
+		// agent_registry_v2 = the IsUserCall-guarded successor (v1 UseCredit was
+		// unguarded); keep in sync with the frontend agentRegistryPath binding.
+		agentRegistryPath = "gno.land/r/samcrew/agent_registry_v2"
 	}
 	escrowRealmPath := os.Getenv("ESCROW_REALM_PATH")
 	if escrowRealmPath == "" {
-		// escrow (v1) was redeployed to escrow_v2 on test13; the v1 path returns
-		// InvalidPkgPathError there. gno paths are immutable, hence the _v2 suffix.
-		escrowRealmPath = "gno.land/r/samcrew/escrow_v2"
+		// escrow_v3 = the IsUserCall-guarded successor (v2 FundMilestone was
+		// unguarded); keep in sync with the frontend escrowPath binding.
+		escrowRealmPath = "gno.land/r/samcrew/escrow_v3"
 	}
 	mux.Handle("/api/marketplace/agents", rateLimitMiddleware("marketplace", service.HandleMarketplaceAgentsProxy(agentRegistryPath)))
 	mux.Handle("/api/marketplace/escrow", rateLimitMiddleware("marketplace", service.HandleMarketplaceAgentsProxy(escrowRealmPath)))
