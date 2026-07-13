@@ -255,7 +255,10 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // salesLog seeded from v3.1 and SEALED; solvency getters live).
         "gno.land/r/samcrew/memba_nft_market_v3_2",
         // ── Phase 11 Token OTC ────────────────────────────────────────────────
-        "gno.land/r/samcrew/memba_token_otc_v1",
+        // v2 = the IsUserCall-guarded Fill successor — deployed + live on test13.
+        // v1's unguarded OriginSend Fill was never deployed and is mainnet-blocked
+        // by the deployer fund-safety gate, so the lane targets the guarded realm.
+        "gno.land/r/samcrew/memba_token_otc_v2",
     ],
 }
 
@@ -572,7 +575,7 @@ export const MEMBA_DAO = {
     // reputation graph separate from the validator/profile web-of-trust). Deployed to test13.
     appReviewsPath: import.meta.env.VITE_APPSTORE_REVIEWS_REALM_PATH || "gno.land/r/samcrew/memba_appstore_reviews_v1",
     feedPath: import.meta.env.VITE_FEED_REALM_PATH || "gno.land/r/samcrew/memba_feed_v1",
-    tokenOtcPath: "gno.land/r/samcrew/memba_token_otc_v1",
+    tokenOtcPath: "gno.land/r/samcrew/memba_token_otc_v2",
     deployFee: 10_000_000, // 10 GNOT in ugnot
 } as const
 
