@@ -20,8 +20,9 @@ import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { FeedComposer } from "../components/feed/FeedComposer"
 import { PostCard } from "../components/feed/PostCard"
 import { useActorUsernames } from "../hooks/home/useActorUsernames"
+import { useNow } from "../hooks/home/useNow"
 import { fetchFeedThread } from "../lib/feedApi"
-import { sameContent, type UiPost } from "../lib/feedTypes"
+import { reconciles, isStaleOptimistic, type UiPost } from "../lib/feedTypes"
 import { FEED_POLL_MS, RECONCILE_MS } from "../lib/feedConstants"
 import "./feed.css"
 
@@ -71,24 +72,29 @@ export default function FeedThread() {
     useEffect(() => () => { if (reconcileTimer.current) clearTimeout(reconcileTimer.current) }, [idKey])
 
     const serverReplies = query.data?.replies ?? []
+    // Replies are oldest-first → the newest loaded reply is the last one. Fed to
+    // onReplied's deps so the optimistic baseline is current at post time.
+    const newestReplyId = serverReplies.length > 0 ? serverReplies[serverReplies.length - 1].id : 0n
+
+    const now = useNow(15_000)
     const replies: UiPost[] = [
         ...serverReplies,
-        ...optimistic.filter(o => !serverReplies.some(s => sameContent(o, s))),
+        ...optimistic.filter(o => !isStaleOptimistic(o, now) && !serverReplies.some(s => reconciles(o, s))),
     ]
 
     const onReplied = useCallback((post: UiPost) => {
-        setOptimistic(prev =>
-            prev.some(o => o.author === post.author && o.body === post.body) ? prev : [...prev, post],
-        )
+        const stamped: UiPost = { ...post, sinceId: newestReplyId, optimisticAt: Date.now() }
+        setOptimistic(prev => (prev.some(o => o.id === stamped.id) ? prev : [...prev, stamped]))
         if (reconcileTimer.current) clearTimeout(reconcileTimer.current)
         const poke = async (n: number) => {
             const res = await query.refetch()
             const server = res.data?.replies ?? []
-            setOptimistic(prev => prev.filter(o => !server.some(s => sameContent(o, s))))
+            const t = Date.now()
+            setOptimistic(prev => prev.filter(o => !isStaleOptimistic(o, t) && !server.some(s => reconciles(o, s))))
             if (n > 0) reconcileTimer.current = setTimeout(() => void poke(n - 1), RECONCILE_MS)
         }
         reconcileTimer.current = setTimeout(() => void poke(3), RECONCILE_MS)
-    }, [query])
+    }, [query, newestReplyId])
 
     const names = useActorUsernames([
         ...(query.data?.root ? [query.data.root.author] : []),
