@@ -388,6 +388,37 @@ func main() {
 		Verifier: arcadeVerifier,
 		Limiter:  svc,
 	})))
+
+	// BARRICADE day-close attester — writes the competitive board on-chain via a
+	// dedicated low-privilege gnokey key (attester-pays). DORMANT until BOTH
+	// MEMBA_ARCADE_ATTESTER_ENABLED and MEMBA_ARCADE_ATTESTER_KEY are set; the key
+	// ceremony (generate + fund the key, AddAttester it on the realm) is an OWNER
+	// step. Never the deploy multisig. Needs gnokey on PATH.
+	if os.Getenv("MEMBA_ARCADE_ATTESTER_ENABLED") == "1" || os.Getenv("MEMBA_ARCADE_ATTESTER_ENABLED") == "true" {
+		attesterKey := os.Getenv("MEMBA_ARCADE_ATTESTER_KEY")
+		gnokeyBin := envOr("MEMBA_ARCADE_GNOKEY_BIN", "gnokey")
+		_, gnokeyErr := exec.LookPath(gnokeyBin)
+		switch {
+		case attesterKey == "":
+			slog.Warn("MEMBA_ARCADE_ATTESTER_ENABLED set but MEMBA_ARCADE_ATTESTER_KEY empty — attester stays dormant")
+		case gnokeyErr != nil:
+			slog.Warn("MEMBA_ARCADE_ATTESTER_ENABLED set but gnokey not on PATH — attester stays dormant", "gnokeyBin", gnokeyBin, "error", gnokeyErr)
+		default:
+			bcfg := arcade.AttesterConfig{
+				Realm:     envOr("MEMBA_ARCADE_REALM", "gno.land/r/samcrew/memba_arcade_leaderboard_v1"),
+				ChainID:   os.Getenv("GNO_CHAIN_ID"),
+				Remote:    envOr("MEMBA_ARCADE_RPC_URL", os.Getenv("GNO_RPC_URL")),
+				KeyName:   attesterKey,
+				GnokeyBin: gnokeyBin,
+			}
+			arcade.StartDayCloseBatcher(ctx, arcade.NewStore(database), arcade.NewGnokeyBroadcaster(bcfg), arcade.BatcherConfig{
+				Enabled:     true,
+				MaxPerCycle: envInt("MEMBA_ARCADE_ATTEST_MAX_PER_CYCLE", 100),
+				Interval:    durationOr("MEMBA_ARCADE_ATTEST_INTERVAL", 15*time.Minute),
+			})
+			slog.Info("arcade day-close attester enabled", "realm", bcfg.Realm, "key", attesterKey, "chainID", bcfg.ChainID)
+		}
+	}
 	// Feed link-preview image proxy — serves only images vetted by GetLinkPreview
 	// (signed token). SSRF-hardened via the shared safeTransport; gated by
 	// MEMBA_ENABLE_LINK_PREVIEWS (returns 404 when off).

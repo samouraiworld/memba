@@ -61,6 +61,89 @@ func (s *Store) InsertRun(r Run) error {
 	return err
 }
 
+// PendingDailyDays returns the distinct CLOSED days (day < beforeDay, typically
+// today UTC) that still hold a verified-but-unattested competitive daily run,
+// ascending — the day-close batcher's work list.
+func (s *Store) PendingDailyDays(beforeDay string) ([]string, error) {
+	rows, err := s.db.Query(
+		`SELECT DISTINCT day FROM arcade_runs
+		 WHERE mode = 'daily' AND status = 'verified' AND day < ?
+		 ORDER BY day`, beforeDay)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	var days []string
+	for rows.Next() {
+		var d string
+		if err := rows.Scan(&d); err != nil {
+			return nil, err
+		}
+		days = append(days, d)
+	}
+	return days, rows.Err()
+}
+
+// BestVerifiedDaily returns a day's competitive board to attest: the BEST
+// verified-but-unattested run per address (score desc, total-order tiebreak).
+// One row per address, because the realm's board is one-entry-per-address-per-day
+// and AttestScore PANICS on a non-improving re-attest — so the backend must never
+// attest a wallet's worse run after its better one.
+func (s *Store) BestVerifiedDaily(day string, limit int) ([]Run, error) {
+	if limit <= 0 {
+		limit = 500
+	}
+	// The correlated subquery picks each address's max verified score for the day;
+	// GROUP BY addr collapses ties (same addr, same score, different logs) to one.
+	rows, err := s.db.Query(
+		`SELECT input_log_sha256, addr, day, mode, seed, sim_version, score, waves, won,
+			 overtime_round, state_hash, events, status,
+			 COALESCE(attested_txhash, ''), created_at, COALESCE(attested_at, 0)
+		 FROM arcade_runs r
+		 WHERE day = ? AND mode = 'daily' AND status = 'verified'
+		   AND score = (SELECT MAX(score) FROM arcade_runs r2
+		                WHERE r2.addr = r.addr AND r2.day = r.day
+		                  AND r2.mode = 'daily' AND r2.status = 'verified')
+		 GROUP BY addr
+		 ORDER BY score DESC, created_at ASC, input_log_sha256 ASC
+		 LIMIT ?`, day, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	var out []Run
+	for rows.Next() {
+		r, _, serr := scanRun(rows)
+		if serr != nil {
+			return nil, serr
+		}
+		out = append(out, r)
+	}
+	return out, rows.Err()
+}
+
+// MarkAttested flips a run to 'attested' and records the attestation tx. Idempotent
+// on repeat (the "don't re-attest" guard is the verified-status filter in the
+// selection queries, not this write).
+func (s *Store) MarkAttested(logHash, txHash string, at int64) error {
+	_, err := s.db.Exec(
+		`UPDATE arcade_runs SET status = 'attested', attested_txhash = ?, attested_at = ?
+		 WHERE input_log_sha256 = ?`, txHash, at, logHash)
+	return err
+}
+
+// ResolveSupersededDaily marks an address's OTHER verified daily runs for a day as
+// 'skipped' once its best has been attested — so the below-best runs don't keep the
+// day pending (and can't trigger the realm's non-improving panic). Called only
+// after a successful attestation of keepLogHash.
+func (s *Store) ResolveSupersededDaily(day, addr, keepLogHash string) error {
+	_, err := s.db.Exec(
+		`UPDATE arcade_runs SET status = 'skipped'
+		 WHERE day = ? AND addr = ? AND mode = 'daily' AND status = 'verified'
+		   AND input_log_sha256 != ?`, day, addr, keepLogHash)
+	return err
+}
+
 // GetRunByLogHash returns the run for an input-log hash, or ok=false if none.
 func (s *Store) GetRunByLogHash(logHash string) (Run, bool, error) {
 	row := s.db.QueryRow(
