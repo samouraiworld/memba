@@ -11,6 +11,11 @@ import type { ReactNode } from "react"
 vi.mock("../hooks/useAdena", () => ({ useAdena: () => ({ address: undefined, connected: false, connect: vi.fn() }) }))
 vi.mock("../hooks/useNetworkNav", () => ({ useNetworkNav: () => vi.fn() }))
 vi.mock("../hooks/home/useActorUsernames", () => ({ useActorUsernames: () => new Map() }))
+// Stub the Ecosystem tab so its activity stack (tx-indexer) never runs here —
+// the tab-switch behavior is what FeedPage owns and is what we assert.
+vi.mock("../components/feed/FeedEcosystem", () => ({
+    FeedEcosystem: () => <div data-testid="feed-ecosystem">ecosystem activity</div>,
+}))
 vi.mock("../lib/feedApi", () => ({
     fetchFeedTimeline: vi.fn(),
     fetchFeedStats: vi.fn(async () => ({ livePosts: 0n, totalReplies: 0n, totalAuthors: 0n, mostReplied: [] })),
@@ -56,6 +61,30 @@ describe("FeedPage infinite scroll", () => {
         expect(screen.getByText("newest post")).toBeInTheDocument()
         // Cursor pagination reached the end → the button is gone.
         await waitFor(() => expect(screen.queryByTestId("feed-load-more")).toBeNull())
+    })
+})
+
+describe("FeedPage Posts/Ecosystem tabs", () => {
+    it("defaults to the Posts tab (timeline visible, ecosystem hidden)", async () => {
+        renderWithClient(<FeedPage />)
+        await screen.findByText("newest post")
+        expect(screen.getByTestId("feed-tab-posts")).toHaveAttribute("aria-selected", "true")
+        expect(screen.queryByTestId("feed-ecosystem")).toBeNull()
+    })
+
+    it("switches to the Ecosystem tab and back", async () => {
+        renderWithClient(<FeedPage />)
+        await screen.findByText("newest post")
+
+        fireEvent.click(screen.getByTestId("feed-tab-ecosystem"))
+        expect(screen.getByTestId("feed-ecosystem")).toBeInTheDocument()
+        // The post timeline is unmounted while Ecosystem is active.
+        expect(screen.queryByText("newest post")).toBeNull()
+        expect(screen.getByTestId("feed-tab-ecosystem")).toHaveAttribute("aria-selected", "true")
+
+        fireEvent.click(screen.getByTestId("feed-tab-posts"))
+        expect(await screen.findByText("newest post")).toBeInTheDocument()
+        expect(screen.queryByTestId("feed-ecosystem")).toBeNull()
     })
 })
 
