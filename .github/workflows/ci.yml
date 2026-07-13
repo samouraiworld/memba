@@ -86,6 +86,20 @@ jobs:
       - name: Install
         run: npm ci
 
+      - name: "Determinism gate: BARRICADE verify-worker bundle is fresh"
+        run: |
+          # The attester's verify worker (backend/internal/arcade/worker) is an
+          # esbuild bundle of the frontend sim, committed and go:embed'd. Rebuild
+          # it and fail on any diff — a stale bundle could attest a result the
+          # current frontend sim no longer produces. Rebuild locally with:
+          #   node backend/internal/arcade/worker/build.mjs
+          node ../backend/internal/arcade/worker/build.mjs
+          if ! git diff --exit-code -- ../backend/internal/arcade/worker/bundle/verify-worker.cjs; then
+            echo "::error::verify-worker.cjs is stale. Run 'node backend/internal/arcade/worker/build.mjs' and commit the result."
+            exit 1
+          fi
+          echo "✅ verify-worker.cjs matches its source"
+
       - name: Type check
         run: npx tsc --noEmit
 
