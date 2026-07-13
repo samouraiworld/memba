@@ -19,10 +19,19 @@ export function getLastSeenReply(address: string): bigint {
     }
 }
 
+/** Event fired when the last-seen reply id advances, so a same-tab listener
+ *  (the nav reply badge) re-reads immediately instead of waiting for a poll. */
+export const FEED_LASTSEEN_EVENT = "memba:feed-lastseen"
+
 export function setLastSeenReply(address: string, id: bigint): void {
     try {
         localStorage.setItem(key(address), id.toString())
     } catch {
         /* storage unavailable — the badge just won't persist "seen" */
+    }
+    try {
+        window.dispatchEvent(new CustomEvent(FEED_LASTSEEN_EVENT, { detail: { address } }))
+    } catch {
+        /* no window (SSR/test) — same-tab listeners simply won't fire */
     }
 }

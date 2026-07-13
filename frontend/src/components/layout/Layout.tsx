@@ -7,6 +7,7 @@ import { useAuth } from "../../hooks/useAuth"
 import { useNetwork } from "../../hooks/useNetwork"
 import { useUnvotedCount } from "../../hooks/useUnvotedCount"
 import { useNotifications } from "../../hooks/useNotifications"
+import { useFeedReplyBadge } from "../../hooks/useFeedReplyBadge"
 import { getSavedDAOs } from "../../lib/daoSlug"
 import { APP_VERSION } from "../../lib/config"
 import { buildTokenRequestInfo } from "../../lib/loginChallenge"
@@ -255,6 +256,9 @@ export function Layout() {
 
     const isLoggingIn = !syncTimedOut && (adena.loading || authLoading || auth.loading || adena.reconnecting)
     const { unvotedCount } = useUnvotedCount(adena.connected ? adena.address : null)
+    // Unread replies-to-you, for the Feed nav badge (the come-back loop when the
+    // user isn't on /feed). Shares FeedNotifications' poll; 0 when disconnected.
+    const feedReplyUnread = useFeedReplyBadge(adena.connected ? (auth.address || adena.address) : null)
 
     // ── Onboarding wizard: show once per wallet on first login ──
     const [showWizard, setShowWizard] = useState(false)
@@ -415,6 +419,7 @@ export function Layout() {
                         address={auth.address || adena.address}
                         unvotedCount={unvotedCount}
                         notifUnreadCount={notifs.unreadCount}
+                        feedReplyUnread={feedReplyUnread}
                         collapsed={sidebarCollapsed}
                         onToggleCollapse={handleToggleCollapse}
                     >
@@ -428,6 +433,7 @@ export function Layout() {
                     address={auth.address || adena.address}
                     auth={layoutAuth}
                     network={network}
+                    feedReplyUnread={feedReplyUnread}
                 />
 
                 {/* ── Command Palette (Cmd+K) ─────────────────────── */}
