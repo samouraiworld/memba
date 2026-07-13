@@ -262,7 +262,7 @@ func agentRegistryRealmPath() string {
 	if v := os.Getenv("AGENT_REGISTRY_REALM"); v != "" {
 		return v
 	}
-	return "gno.land/r/samcrew/agent_registry"
+	return "gno.land/r/samcrew/agent_registry_v2"
 }
 
 var reTokenCount = regexp.MustCompile(`(\d+)\s+tokens?`)

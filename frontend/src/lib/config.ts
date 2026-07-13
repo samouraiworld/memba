@@ -226,10 +226,12 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         "gno.land/r/samcrew/memba_dao_candidature_v2", // paused; kept so the 2 legacy applicants can still Withdraw
         "gno.land/r/samcrew/memba_dao_candidature_v3", // IsUserCall-guarded successor (P0 fund-drain fix) — canonical
         "gno.land/r/samcrew/memba_dao_channels_v2",
-        "gno.land/r/samcrew/agent_registry",
+        "gno.land/r/samcrew/agent_registry", // v1 (unguarded UseCredit); superseded by agent_registry_v2, empty on test13 — kept defensively
+        "gno.land/r/samcrew/agent_registry_v2", // IsUserCall-guarded successor — canonical (active agentRegistryPath)
         // Commerce realms redeployed to interrealm-v2 _v2 paths (2026-06-16).
         "gno.land/r/samcrew/tokenfactory_v2",
-        "gno.land/r/samcrew/escrow_v2",
+        "gno.land/r/samcrew/escrow_v2", // superseded by escrow_v3; empty on test13, kept allowlisted defensively (no UI targets it)
+        "gno.land/r/samcrew/escrow_v3", // IsUserCall-guarded successor — canonical (active escrowPath)
         "gno.land/r/samcrew/gnobuilders_badges_v2",
         "gno.land/r/samcrew/memba_feedback_v2",
         // NFT realms deployed 2026-06-16.
@@ -565,8 +567,8 @@ export const MEMBA_DAO = {
     realmPath: "gno.land/r/samcrew/memba_dao",
     channelsPath: import.meta.env.VITE_CHANNELS_REALM_PATH || "gno.land/r/samcrew/memba_dao_channels_v2",
     candidaturePath: import.meta.env.VITE_CANDIDATURE_REALM_PATH || "gno.land/r/samcrew/memba_dao_candidature_v3",
-    agentRegistryPath: "gno.land/r/samcrew/agent_registry",
-    escrowPath: "gno.land/r/samcrew/escrow_v2",
+    agentRegistryPath: "gno.land/r/samcrew/agent_registry_v2", // IsUserCall-guarded (v1 UseCredit was unguarded)
+    escrowPath: "gno.land/r/samcrew/escrow_v3", // IsUserCall-guarded (v2 FundMilestone was unguarded)
     nftMarketPath: "gno.land/r/samcrew/memba_nft_market_v2",
     nftCollectionsPath: "gno.land/r/samcrew/memba_collections", // Phase 2 launchpad registry (pending deploy)
     badgesPath: "gno.land/r/samcrew/gnobuilders_badges_v2",
