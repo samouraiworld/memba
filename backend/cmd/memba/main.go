@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"runtime"
@@ -23,6 +24,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/cors"
 	membav1connect "github.com/samouraiworld/memba/backend/gen/memba/v1/membav1connect"
+	"github.com/samouraiworld/memba/backend/internal/arcade"
 	"github.com/samouraiworld/memba/backend/internal/attestation"
 	"github.com/samouraiworld/memba/backend/internal/auth"
 	"github.com/samouraiworld/memba/backend/internal/db"
@@ -356,6 +358,35 @@ func main() {
 		CollectionID: os.Getenv("MEMBA_TICKET_COLLECTION_ID"),
 		URIBase:      os.Getenv("MEMBA_TICKET_URI_BASE"),
 		Prefix:       envOr("MEMBA_TICKET_PREFIX", "Memba"),
+	})))
+
+	// BARRICADE on-chain certify — the run-submit endpoint. OFF (404) until the
+	// operator sets MEMBA_ARCADE_SUBMIT_ENABLED. Each submission is re-simulated in
+	// a node subprocess (internal/arcade), so it also needs `node` on PATH; if it's
+	// missing (or the worker can't init) the endpoint stays disabled with a warning
+	// rather than 500ing at request time.
+	arcadeEnabled := os.Getenv("MEMBA_ARCADE_SUBMIT_ENABLED") == "1" || os.Getenv("MEMBA_ARCADE_SUBMIT_ENABLED") == "true"
+	var arcadeVerifier arcade.Verifier
+	if arcadeEnabled {
+		nodeBin := envOr("MEMBA_ARCADE_NODE_BIN", "node")
+		if _, err := exec.LookPath(nodeBin); err != nil {
+			slog.Warn("MEMBA_ARCADE_SUBMIT_ENABLED set but node not on PATH — arcade submit stays disabled", "nodeBin", nodeBin, "error", err)
+			arcadeEnabled = false
+		} else if runner, err := arcade.NewRunner(arcade.Config{NodeBin: nodeBin}); err != nil {
+			slog.Error("arcade verify worker init failed — arcade submit disabled", "error", err)
+			arcadeEnabled = false
+		} else {
+			arcadeVerifier = runner
+			defer func() { _ = runner.Close() }()
+			slog.Info("arcade submit endpoint enabled", "nodeBin", nodeBin)
+		}
+	}
+	mux.Handle("/api/arcade/submit", rateLimitMiddleware("arcade_submit", arcade.HandleSubmit(arcade.SubmitConfig{
+		Enabled:  arcadeEnabled,
+		Store:    arcade.NewStore(database),
+		Auth:     svc,
+		Verifier: arcadeVerifier,
+		Limiter:  svc,
 	})))
 	// Feed link-preview image proxy — serves only images vetted by GetLinkPreview
 	// (signed token). SSRF-hardened via the shared safeTransport; gated by

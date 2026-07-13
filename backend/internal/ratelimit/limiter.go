@@ -30,6 +30,7 @@ func DefaultConfigs() map[string]Config {
 		"upload":         {MaxRequests: 5, Window: time.Minute},   // IPFS avatar upload — strict (single downscaled avatar)
 		"upload_image":   {MaxRequests: 20, Window: time.Minute},  // App Store media — one listing is up to 7 files (icon + 6 screenshots), so > the strict avatar bucket, plus retries
 		"nft":            {MaxRequests: 60, Window: time.Minute},  // NFT image/metadata proxy — cacheable reads
+		"arcade_submit":  {MaxRequests: 20, Window: time.Minute},  // BARRICADE run certify — each triggers a CPU-heavy node re-sim, so per-IP strict
 		"marketplace":    {MaxRequests: 30, Window: time.Minute},  // Marketplace agents/escrow render
 		"token_launches": {MaxRequests: 60, Window: time.Minute},  // cached token launch-date map (read)
 		"default":        {MaxRequests: 100, Window: time.Minute}, // Fallback for unknown endpoints
@@ -49,6 +50,11 @@ const (
 	// stops one host flooding; this per-wallet cap stops one authenticated wallet
 	// rotating IPs to burn the Lighthouse quota.
 	ImageUploadEndpoint = "image_upload"
+	// ArcadeSubmitEndpoint gates per-authenticated-address BARRICADE run submits.
+	// Layered under the per-IP `arcade_submit` bucket: per-IP stops one host
+	// flooding; this per-wallet cap stops one authenticated wallet rotating IPs to
+	// fan out the CPU-heavy re-simulation.
+	ArcadeSubmitEndpoint = "arcade_submit"
 )
 
 // PerUserQuestConfigs returns the per-address quest rate limits (Q-03). Defaults:
@@ -70,7 +76,10 @@ func PerUserQuestConfigs(envInt func(name string, def int) int) map[string]Confi
 		// Per-wallet App Store media cap: comfortably covers one full listing (7 files)
 		// plus retries, but bounds a single authenticated wallet's Lighthouse fan-out.
 		ImageUploadEndpoint: {MaxRequests: envInt("MEMBA_IMAGE_UPLOAD_RPM", 30), Window: time.Minute},
-		"default":           {MaxRequests: 10, Window: time.Minute},
+		// Per-wallet BARRICADE submit cap: a player certifies a handful of runs a
+		// day, so this bounds one wallet's re-simulation fan-out across rotated IPs.
+		ArcadeSubmitEndpoint: {MaxRequests: envInt("MEMBA_ARCADE_SUBMIT_RPM", 20), Window: time.Minute},
+		"default":            {MaxRequests: 10, Window: time.Minute},
 	}
 }
 
