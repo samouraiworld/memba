@@ -2,6 +2,7 @@ package arcade
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"time"
 )
@@ -100,8 +101,26 @@ func RunBatchOnce(ctx context.Context, store *Store, b Broadcaster, maxPerCycle 
 				return attested, nil // drain the rest next cycle
 			}
 			txHash, err := b.AttestScore(ctx, run)
-			if err != nil {
-				// Leave the run pending for the next cycle; don't abort the batch.
+			switch {
+			case err == nil:
+				// broadcast succeeded — fall through to mark+resolve below.
+			case errors.Is(err, ErrAlreadyOnChain):
+				// The entry is already on-chain at an equal-or-better score
+				// (crash recovery, or a better run already attested). Our target
+				// is met — mark done so we don't retry a deterministically-
+				// panicking tx forever.
+				txHash = "already-onchain"
+			case errors.Is(err, ErrLogBoundElsewhere):
+				// This run's log is bound on-chain to another address; it can
+				// never be attested for us. Retire it so it stops retrying.
+				if e := store.MarkSkipped(run.LogHash); e != nil {
+					slog.Error("arcade mark-skipped failed", "logHash", run.LogHash, "error", e)
+				}
+				slog.Warn("arcade attest: log bound to another address on-chain — skipping run", "day", day, "addr", run.Addr, "logHash", run.LogHash)
+				continue
+			default:
+				// Transient (network/gas/other): leave 'verified' to retry next
+				// cycle; don't abort the batch.
 				slog.Warn("arcade attest failed — will retry next cycle", "day", day, "addr", run.Addr, "error", err)
 				continue
 			}

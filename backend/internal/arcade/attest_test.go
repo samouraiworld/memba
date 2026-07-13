@@ -43,14 +43,19 @@ func mustInsert(t *testing.T, s *Store, logHash, day string, score int64) {
 	mustInsertAddr(t, s, logHash, "g1"+logHash, day, score)
 }
 
-// fakeBroadcaster records attestations and can be made to fail.
+// fakeBroadcaster records attestations and can be made to fail or to return a
+// classified sentinel per logHash.
 type fakeBroadcaster struct {
-	calls   []Run
-	failFor map[string]bool // logHash -> error
-	txN     int
+	calls    []Run
+	failFor  map[string]bool  // logHash -> transient error
+	errorFor map[string]error // logHash -> specific (sentinel) error
+	txN      int
 }
 
 func (f *fakeBroadcaster) AttestScore(_ context.Context, run Run) (string, error) {
+	if e, ok := f.errorFor[run.LogHash]; ok {
+		return "", e
+	}
 	if f.failFor[run.LogHash] {
 		return "", errors.New("broadcast failed")
 	}
@@ -161,6 +166,77 @@ func TestRunBatchOnce_BroadcastFailureLeavesRunPending(t *testing.T) {
 	n2, _ := RunBatchOnce(context.Background(), s, b, 10, atFixedDay)
 	if n2 != 1 {
 		t.Fatalf("recovered cycle must attest the previously-failed run, got %d", n2)
+	}
+}
+
+func TestRunBatchOnce_AlreadyOnChainConverges(t *testing.T) {
+	// Crash recovery: the run was broadcast on a prior boot but never marked, so
+	// the realm now rejects the re-attest as "not improved". The batcher must
+	// treat that as done (mark attested) rather than retry the same panicking tx
+	// forever and wedge the day.
+	s := batchStore(t)
+	mustInsert(t, s, "x", "2026-07-10", 500)
+	b := &fakeBroadcaster{errorFor: map[string]error{"x": ErrAlreadyOnChain}}
+
+	n, err := RunBatchOnce(context.Background(), s, b, 10, atFixedDay)
+	if err != nil {
+		t.Fatalf("batch: %v", err)
+	}
+	if n != 1 {
+		t.Fatalf("an already-on-chain run must resolve, got %d", n)
+	}
+	if r, _, _ := s.GetRunByLogHash("x"); r.Status != "attested" {
+		t.Fatalf("already-on-chain must mark attested, got %q", r.Status)
+	}
+	// No forever-retry: the day is drained.
+	if n2, _ := RunBatchOnce(context.Background(), s, b, 10, atFixedDay); n2 != 0 {
+		t.Fatalf("second cycle must attest nothing, got %d", n2)
+	}
+}
+
+func TestRunBatchOnce_LogBoundElsewhereIsSkipped(t *testing.T) {
+	// The log is bound on-chain to another address — it can never be attested for
+	// us, so it's retired ('skipped'), not retried forever.
+	s := batchStore(t)
+	mustInsert(t, s, "stolen", "2026-07-10", 500)
+	b := &fakeBroadcaster{errorFor: map[string]error{"stolen": ErrLogBoundElsewhere}}
+
+	n, _ := RunBatchOnce(context.Background(), s, b, 10, atFixedDay)
+	if n != 0 {
+		t.Fatalf("a permanently-rejected run does not count as attested, got %d", n)
+	}
+	if r, _, _ := s.GetRunByLogHash("stolen"); r.Status != "skipped" {
+		t.Fatalf("a log bound elsewhere must be skipped, got %q", r.Status)
+	}
+	if n2, _ := RunBatchOnce(context.Background(), s, b, 10, atFixedDay); n2 != 0 {
+		t.Fatalf("a skipped run must not be retried, got %d", n2)
+	}
+}
+
+func TestGnokeyBroadcaster_ClassifiesRealmPanics(t *testing.T) {
+	cases := map[string]error{
+		"panic: existing entry is not improved":                            ErrAlreadyOnChain,
+		"panic: duplicate input log: already bound to another address":     ErrLogBoundElsewhere,
+		"panic: duplicate input log: already attested for another address": ErrLogBoundElsewhere,
+	}
+	for out, want := range cases {
+		b := &gnokeyBroadcaster{
+			cfg:  AttesterConfig{KeyName: "k"},
+			exec: func(_ context.Context, _ []string) (string, error) { return out, errors.New("exit 1") },
+		}
+		_, err := b.AttestScore(context.Background(), Run{LogHash: "x"})
+		if !errors.Is(err, want) {
+			t.Errorf("output %q: expected %v, got %v", out, want, err)
+		}
+	}
+	// An unclassified failure stays a generic (retryable) error.
+	b := &gnokeyBroadcaster{
+		cfg:  AttesterConfig{KeyName: "k"},
+		exec: func(_ context.Context, _ []string) (string, error) { return "connection refused", errors.New("exit 1") },
+	}
+	_, err := b.AttestScore(context.Background(), Run{LogHash: "x"})
+	if err == nil || errors.Is(err, ErrAlreadyOnChain) || errors.Is(err, ErrLogBoundElsewhere) {
+		t.Fatalf("a transient failure must be a generic error, got %v", err)
 	}
 }
 

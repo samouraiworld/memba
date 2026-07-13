@@ -2,10 +2,24 @@ package arcade
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os/exec"
 	"strconv"
 	"strings"
+)
+
+var (
+	// ErrAlreadyOnChain: the realm rejected the attestation because this
+	// address/day already holds an entry at an equal-or-better score — the goal
+	// (the best run on-chain) is already met. Benign: it happens on crash
+	// recovery (a broadcast that succeeded before MarkAttested ran). The batcher
+	// marks the run attested instead of retrying the same panicking tx forever.
+	ErrAlreadyOnChain = errors.New("arcade: entry already on-chain (not improved)")
+	// ErrLogBoundElsewhere: the input log is bound on-chain to a DIFFERENT
+	// address — this run can never be attested for us. The batcher retires it
+	// ('skipped') rather than retrying a permanently-failing tx every cycle.
+	ErrLogBoundElsewhere = errors.New("arcade: input log bound to another address on-chain")
 )
 
 // Broadcaster attests a verified run to the on-chain leaderboard realm. The only
@@ -64,6 +78,19 @@ func NewGnokeyBroadcaster(cfg AttesterConfig) Broadcaster {
 func (b *gnokeyBroadcaster) AttestScore(ctx context.Context, run Run) (string, error) {
 	out, err := b.exec(ctx, b.attestScoreArgv(run))
 	if err != nil {
+		// Classify the realm's rejection so the batcher can converge instead of
+		// retrying a deterministically-failing tx forever. The realm panics with
+		// stable messages (leaderboard.gno); a benign "not improved" means our
+		// target is already on-chain, and a cross-address "duplicate/bound" means
+		// this run can never be ours.
+		lo := strings.ToLower(out)
+		switch {
+		case strings.Contains(lo, "existing entry is not improved"):
+			return "", ErrAlreadyOnChain
+		case strings.Contains(lo, "already bound to another address"),
+			strings.Contains(lo, "already attested for another address"):
+			return "", ErrLogBoundElsewhere
+		}
 		return "", fmt.Errorf("arcade attest: gnokey failed: %w (%s)", err, strings.TrimSpace(out))
 	}
 	return parseTxHash(out), nil

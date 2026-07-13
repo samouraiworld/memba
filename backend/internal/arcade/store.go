@@ -132,6 +132,15 @@ func (s *Store) MarkAttested(logHash, txHash string, at int64) error {
 	return err
 }
 
+// MarkSkipped retires a single run ('skipped') without attesting it — used when
+// a run can never be attested (its log is bound on-chain to another address) so
+// it stops being retried every cycle.
+func (s *Store) MarkSkipped(logHash string) error {
+	_, err := s.db.Exec(
+		`UPDATE arcade_runs SET status = 'skipped' WHERE input_log_sha256 = ? AND status = 'verified'`, logHash)
+	return err
+}
+
 // ResolveSupersededDaily marks an address's OTHER verified daily runs for a day as
 // 'skipped' once its best has been attested — so the below-best runs don't keep the
 // day pending (and can't trigger the realm's non-improving panic). Called only
