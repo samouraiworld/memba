@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Feed — copy a link to any post (2026-07-13)
+- **Every post now has a "Copy link" action** that puts its shareable permalink (`…/<network>/feed/post/<id>`) on the clipboard, with a brief "Copied" confirmation. It's available on all posts (not just your own) and needs no wallet — the smallest, most reliable way to share a post off-platform ahead of richer OG/share cards. The link carries the current network prefix so it opens the right chain, and there's a textarea fallback for browsers without the async clipboard API. Behind `VITE_ENABLE_FEED`.
+
 ### Feed — an "Ecosystem" tab so the feed feels alive (2026-07-13)
 - **The feed now has two views: Posts and Ecosystem.** A quiet post timeline made the feed look empty; the new **Ecosystem** tab reuses the same "live across gno.land" activity stream that the Home page already shows — proposals, token mints, validator changes, NFT sales, and feed posts themselves, with per-kind filter chips — so there's always something happening even when few people have posted. Pure reuse of the existing tx-indexer-backed `ActivityFeed`: no new data path, no realm change, and it degrades gracefully (a "couldn't reach the indexer · retry" state) when the indexer is unreachable. The default view stays **Posts** (a proper tab switch, keyboard-accessible, themed light + dark, no 375px overflow). Behind `VITE_ENABLE_FEED`.
 
