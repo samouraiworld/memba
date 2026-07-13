@@ -34,9 +34,12 @@ Everything below is off/404/dormant until these steps run. Do them in order.
 ### 1. Deploy the realm (test13)
 
 The realm `memba_arcade_leaderboard_v1` is source-only in `samcrew-deployer`
-(deployer #111) and FROZEN. Deploy it to test13 through the normal deployer
-ceremony (multisig `samcrew-core-test1`, 2-of-2). Record its package path
-(default `gno.land/r/samcrew/memba_arcade_leaderboard_v1`).
+(deployer #111) and FROZEN. It's on the deploy manifest (`explicit` lane), so from
+`samcrew-deployer/projects/memba/` (after `git pull`):
+
+```bash
+MULTISIG_SIGNERS=zooma,adena-zxxma REALM=memba_arcade_leaderboard_v1 ./deploy.sh test13
+```
 
 ### 2. The attester key ceremony (a NEW dedicated, low-privilege key)
 
@@ -44,44 +47,41 @@ ceremony (multisig `samcrew-core-test1`, 2-of-2). Record its package path
 leaks, the worst case is forged *board* entries (the realm is funds-free — no
 banker, no transfer, no OriginSend), and the owner can `RemoveAttester` it.
 
-1. Generate a fresh key in a gnokey keyring:
-   `gnokey add arcade-attester` (or `add -recover` from a stored mnemonic).
-   Note its bech32 address.
-2. **Fund it** for gas only (a small faucet drip on test13).
-3. Allowlist it on the realm, signed by the owner multisig:
-   `AddAttester("<attester-addr>")`.
-4. Keep the mnemonic in the operator secret store (see step 3). The BACKEND
-   process never holds a raw secret — only the gnokey keyring does.
+1. Generate a fresh key: `gnokey add arcade-attester`. **Record the printed
+   mnemonic + address ONCE** — the mnemonic becomes the Fly secret, the address is
+   funded + allowlisted.
+2. **Fund it** for gas only (a small faucet drip: https://faucet.gno.land).
+3. Allowlist it on the realm via the multisig admin script (from `samcrew-deployer/`):
+   ```bash
+   ./samcrew-arcade-admin.sh add-attester <attester-addr> test13   # verifies IsAttester==true
+   ```
+4. The mnemonic goes to the Fly secret in step 3 below. The BACKEND process never
+   holds a raw secret — only the container's gnokey keyring does (imported at boot).
 
 ### 3. Enable the backend (Fly)
 
-1. **Add gnokey to the runtime image.** `gnokey` has no apk package; add a build
-   stage to `backend/Dockerfile` and copy the binary into the runtime stage
-   (pin the same version as the deployer toolchain, gnokey@v1.1.0):
-   ```dockerfile
-   FROM golang:1.25.12-alpine AS gnokey
-   RUN apk add --no-cache git && go install github.com/gnolang/gno/gno.land/cmd/gnokey@v1.1.0
-   # …in the runtime stage:
-   COPY --from=gnokey /go/bin/gnokey /usr/local/bin/gnokey
-   ```
-   node is already in the runtime image (the verify worker needs it).
-2. **Import the attester key into the container's keyring at startup** (e.g. a
-   `start.sh` step: `gnokey add -recover -insecure-password-stdin arcade-attester`
-   fed from a Fly secret mnemonic), or bake a keyring the container reads.
-3. **Set the Fly secrets/env:**
-   ```
-   flyctl secrets set \
-     MEMBA_ARCADE_SUBMIT_ENABLED=1 \
-     MEMBA_ARCADE_ATTESTER_ENABLED=1 \
-     MEMBA_ARCADE_ATTESTER_KEY=arcade-attester \
-     -a memba-backend
-   # MEMBA_ARCADE_REALM defaults to the known path; GNO_CHAIN_ID / GNO_RPC_URL
-   # are already set. Optional: MEMBA_ARCADE_ATTEST_INTERVAL, *_MAX_PER_CYCLE.
-   ```
-   Both features self-disable with a warning if `node`/`gnokey` are missing or a
-   required var is empty — check the boot logs for "arcade submit endpoint
-   enabled" and "arcade day-close attester enabled".
-4. Deploy. (Rolling deploy; the submit endpoint and attester come up dark→live.)
+The `gnokey@v1.1.0` build stage + the boot-time key import (`start.sh`) + the
+ephemeral keyring `HOME` are **already baked into the image** — no Dockerfile edit.
+Enabling is just secrets + deploy:
+
+```bash
+flyctl secrets set \
+  MEMBA_ARCADE_SUBMIT_ENABLED=1 \
+  MEMBA_ARCADE_ATTESTER_ENABLED=1 \
+  MEMBA_ARCADE_ATTESTER_KEY=arcade-attester \
+  ARCADE_ATTESTER_MNEMONIC="<the mnemonic from step 2.1>" \
+  -a memba-backend
+# MEMBA_ARCADE_REALM defaults to the known path; GNO_CHAIN_ID / GNO_RPC_URL are
+# already set. Optional: MEMBA_ARCADE_KEYRING_PW (default "arcade"),
+# MEMBA_ARCADE_ATTEST_INTERVAL, MEMBA_ARCADE_ATTEST_MAX_PER_CYCLE.
+flyctl deploy -a memba-backend
+```
+
+At boot, `start.sh` imports the mnemonic into the keyring (idempotent via
+`--force`) and unsets it. Check the boot logs for `arcade attester key … imported`,
+`arcade submit endpoint enabled`, and `arcade day-close attester enabled`. Each
+feature self-disables with a warning if `node`/`gnokey`/the key/chain are missing —
+so a partial config is safe, never a 500.
 
 ### 4. Enable the frontend (Netlify)
 

@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"time"
 )
 
 var (
@@ -41,13 +42,19 @@ type Broadcaster interface {
 // keyring NAME (never a raw secret in this process); the ceremony that funds it
 // and adds it to the realm's attester allowlist is an OWNER step.
 type AttesterConfig struct {
-	Realm       string // e.g. gno.land/r/samcrew/memba_arcade_leaderboard_v1
-	ChainID     string // e.g. test-13
-	Remote      string // RPC endpoint
-	KeyName     string // gnokey keyring name of the dedicated low-privilege attester key
-	GnokeyBin   string // default "gnokey"
-	GasWanted   int    // default 5_000_000
-	GasFeeUgnot int    // default 1_000_000
+	Realm     string // e.g. gno.land/r/samcrew/memba_arcade_leaderboard_v1
+	ChainID   string // e.g. test-13
+	Remote    string // RPC endpoint
+	KeyName   string // gnokey keyring name of the dedicated low-privilege attester key
+	GnokeyBin string // default "gnokey"
+	// KeyringPassword unlocks the on-disk gnokey keyring to SIGN, fed to gnokey on
+	// stdin (there is no TTY in the container). On an ephemeral, container-only,
+	// single-user keyring this is a gnokey formality, not a security control — the
+	// key material lives in the Fly secret + the keyring, never in this process.
+	KeyringPassword string
+	GasWanted       int           // default 5_000_000
+	GasFeeUgnot     int           // default 1_000_000
+	Timeout         time.Duration // per-broadcast wall clock; default 60s
 }
 
 func (c AttesterConfig) withDefaults() AttesterConfig {
@@ -60,10 +67,15 @@ func (c AttesterConfig) withDefaults() AttesterConfig {
 	if c.GasFeeUgnot <= 0 {
 		c.GasFeeUgnot = 1_000_000
 	}
+	if c.Timeout <= 0 {
+		c.Timeout = 60 * time.Second
+	}
 	return c
 }
 
-type attesterExecFn func(ctx context.Context, args []string) (string, error)
+// attesterExecFn runs gnokey with args and the given stdin (the keyring password
+// for -insecure-password-stdin).
+type attesterExecFn func(ctx context.Context, args []string, stdin string) (string, error)
 
 // gnokeyBroadcaster shells out to `gnokey maketx call … -broadcast <key>`,
 // mirroring cmd/activitybot's testnet broadcaster. The dedicated attester key
@@ -82,7 +94,14 @@ func NewGnokeyBroadcaster(cfg AttesterConfig) Broadcaster {
 }
 
 func (b *gnokeyBroadcaster) AttestScore(ctx context.Context, run Run) (string, error) {
-	out, err := b.exec(ctx, b.attestScoreArgv(run))
+	// Bound each broadcast: a black-holed RPC would otherwise block this call with
+	// no deadline, and since the batcher is a single goroutine, one hung gnokey
+	// would wedge every later attestation cycle.
+	cctx, cancel := context.WithTimeout(ctx, b.cfg.Timeout)
+	defer cancel()
+	// gnokey reads the keyring password from the first line of stdin (there's no
+	// TTY); the argv carries -insecure-password-stdin.
+	out, err := b.exec(cctx, b.attestScoreArgv(run), b.cfg.KeyringPassword+"\n")
 	if err != nil {
 		// Classify the realm's rejection so the batcher converges instead of
 		// retrying a deterministically-failing tx forever. These substrings mirror
@@ -135,14 +154,16 @@ func (b *gnokeyBroadcaster) attestScoreArgv(run Run) []string {
 		"-gas-wanted", strconv.Itoa(b.cfg.GasWanted),
 		"-chainid", b.cfg.ChainID,
 		"-remote", b.cfg.Remote,
+		"-insecure-password-stdin", // read the keyring password from stdin (no TTY)
 		"-broadcast",
 		b.cfg.KeyName,
 	}
 	return argv
 }
 
-func (b *gnokeyBroadcaster) runGnokey(ctx context.Context, args []string) (string, error) {
+func (b *gnokeyBroadcaster) runGnokey(ctx context.Context, args []string, stdin string) (string, error) {
 	cmd := exec.CommandContext(ctx, b.cfg.GnokeyBin, args...) // #nosec G204 -- gnokey bin + realm-attestation args built from re-simulated data, never raw request input
+	cmd.Stdin = strings.NewReader(stdin)
 	out, err := cmd.CombinedOutput()
 	return string(out), err
 }

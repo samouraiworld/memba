@@ -20,7 +20,8 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Feed — copy a link to any post (2026-07-13)
+### MEMBA: BARRICADE — the attester is now deployable (still dormant) (2026-07-13)
+- **The last piece before the certify beta can go live.** The day-close attester's signing path is now production-ready: the container image ships `gnokey`, imports the dedicated attester key from a Fly-secret mnemonic into an ephemeral keyring at boot (idempotent, then drops the secret from the process env), and the broadcaster signs non-interactively (there's no TTY in the container). It stays completely dormant until the operator sets the enable flags + the key — enabling is now just `flyctl secrets set … && flyctl deploy`, no image edits. The realm gained deploy + admin tooling in the deployer (`samcrew-arcade-admin.sh`). No behavior change ships enabled.
 - **Every post now has a "Copy link" action** that puts its shareable permalink (`…/<network>/feed/post/<id>`) on the clipboard, with a brief "Copied" confirmation. It's available on all posts (not just your own) and needs no wallet — the smallest, most reliable way to share a post off-platform ahead of richer OG/share cards. The link carries the current network prefix so it opens the right chain, and there's a textarea fallback for browsers without the async clipboard API. Behind `VITE_ENABLE_FEED`.
 
 ### Feed — an "Ecosystem" tab so the feed feels alive (2026-07-13)
