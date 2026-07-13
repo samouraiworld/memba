@@ -915,6 +915,7 @@
 .feed-post__actions {
     display: flex;
     align-items: center;
+    flex-wrap: wrap;
     gap: var(--space-3, 12px);
     color: var(--color-text-secondary);
     font-size: var(--text-sm, 0.875rem);

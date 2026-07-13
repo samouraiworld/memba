@@ -56,6 +56,28 @@ describe("PostCard moderation suppression", () => {
         expect(screen.queryByTestId("feed-post-tombstone")).toBeNull()
     })
 
+    it("copies a permalink to the clipboard and confirms, on any post (no wallet needed)", async () => {
+        const writeText = vi.fn(() => Promise.resolve())
+        Object.assign(navigator, { clipboard: { writeText } })
+        render(<PostCard post={basePost({ id: 42n })} connected={false} selfAddress={undefined} onRefetch={noop} />)
+
+        const btn = screen.getByTestId("feed-copy-link-btn")
+        fireEvent.click(btn)
+        expect(writeText).toHaveBeenCalledTimes(1)
+        expect(writeText.mock.calls[0][0]).toMatch(/\/feed\/post\/42$/)
+        // transient "Copied" confirmation
+        expect(await screen.findByText("Copied")).toBeInTheDocument()
+    })
+
+    it("offers copy-link on an optimistic post only once it has a real id", () => {
+        const { rerender } = render(
+            <PostCard post={basePost({ optimistic: true })} connected={false} selfAddress={undefined} onRefetch={noop} />,
+        )
+        expect(screen.queryByTestId("feed-copy-link-btn")).toBeNull()
+        rerender(<PostCard post={basePost({ optimistic: false })} connected={false} selfAddress={undefined} onRefetch={noop} />)
+        expect(screen.getByTestId("feed-copy-link-btn")).toBeInTheDocument()
+    })
+
     it("does not offer a flag action on a hidden post even to a connected non-author", () => {
         render(
             <PostCard
