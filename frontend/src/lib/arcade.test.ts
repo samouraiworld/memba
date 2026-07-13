@@ -36,6 +36,14 @@ describe("arcade board reader (qeval)", () => {
         expect(rows).toEqual([])
         expect(qe.mock.calls[0][2]).toBe(`GetBoardJSON("2026-07-13", 0, 100)`)
     })
+
+    it("never throws on a malformed realm payload", async () => {
+        vi.spyOn(shared, "queryEval").mockResolvedValue(`("x" string)`)
+        for (const bad of [null, {}, { entries: null }, { entries: "nope" }, { entries: 42 }, 7, "str"]) {
+            vi.spyOn(shared, "parseQevalJSON").mockReturnValueOnce(bad as never)
+            await expect(getBoard("2026-07-13", 0, 50)).resolves.toEqual([])
+        }
+    })
 })
 
 describe("arcade submitRun (REST)", () => {
