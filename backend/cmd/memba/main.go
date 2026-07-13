@@ -301,12 +301,10 @@ func main() {
 	mux.Handle("/api/token-launches", rateLimitMiddleware("token_launches", service.HandleTokenLaunches()))
 
 	// Marketplace — cached realm proxies (60s server-side TTL)
-	agentRegistryPath := os.Getenv("AGENT_REGISTRY_REALM_PATH")
-	if agentRegistryPath == "" {
-		// agent_registry_v2 = the IsUserCall-guarded successor (v1 UseCredit was
-		// unguarded); keep in sync with the frontend agentRegistryPath binding.
-		agentRegistryPath = "gno.land/r/samcrew/agent_registry_v2"
-	}
+	// Single source of truth shared with the analyst credit check and the home
+	// snapshot's agent count (AGENT_REGISTRY_REALM_PATH canonical, legacy
+	// AGENT_REGISTRY_REALM honored for one release, v2 default).
+	agentRegistryPath := service.AgentRegistryRealmPath()
 	escrowRealmPath := os.Getenv("ESCROW_REALM_PATH")
 	if escrowRealmPath == "" {
 		// escrow_v3 = the IsUserCall-guarded successor (v2 FundMilestone was
