@@ -1,7 +1,7 @@
 ---
 title: A social feed that unfurls the chain
 date: 2026-07-08
-description: Memba's feed turns on-chain objects — proposals, tokens, validators — into rich previews, with reactions and moderation settled against realms. The product and the indexer behind it.
+description: Memba's feed turns on-chain objects — proposals, tokens, validators — into rich, typed previews pulled from the chain. The product and the indexer behind it.
 tags: memba, feed, engineering
 ---
 
@@ -11,11 +11,12 @@ object into a post, it *unfurls* into a live, typed preview.
 
 ## What you get (product)
 
-Post, reply, react. Paste a proposal, a token, or a validator and the feed
+Post and reply. Paste a proposal, a token, or a validator and the feed
 renders a rich card for it — pulled from the chain, not a link scraper. A
 two-pane desktop rail keeps trending and context beside the thread. Reactions
-and link previews are first-class, and there's a serving-blocklist lever for
-legal and safety operations. Every post carries an honest permanence disclosure —
+and rich link previews are built and ship behind their own flags, lighting up
+as the realm layer lands, and there's a serving-blocklist lever for legal and
+safety operations. Every post carries an honest permanence disclosure —
 on a public chain, "delete" is not what people assume, and the UI says so.
 
 ## Under the hood (engineering scope)
@@ -26,12 +27,13 @@ previews, rather than fetching an arbitrary URL. External link previews are
 guarded against SSRF — the backend, not the browser, fetches them, and only
 after validating the target.
 
-Reactions are backed by a feed reactions realm; the indexer tails feed events
-and reconstructs counts with reorg-safety (it stays a few blocks behind the
-chain tip). Posts carry block-time timestamps so ordering matches the chain, not
-the server clock. The whole surface is gated behind `VITE_ENABLE_FEED` and ships
-dark until the feed realm is deployed and the backend's watched-realm
-configuration is set — an ordinary flag, no funds move through it.
+The reaction subsystem — realm entrypoints, an indexer projection, and the UI —
+is built end-to-end and ships dark, waiting on the next feed-realm deploy that
+carries the reaction entrypoints on-chain; the indexer tails feed events and
+reconstructs counts with reorg-safety (it stays a few blocks behind the chain
+tip). Posts carry block-time timestamps so ordering matches the chain, not the
+server clock. The whole surface is gated behind `VITE_ENABLE_FEED` — an ordinary
+flag, no funds move through it.
 
 Everything landed test-first and flag-gated, so the feed can mature in
 production behind the flag without exposing an unfinished surface.
