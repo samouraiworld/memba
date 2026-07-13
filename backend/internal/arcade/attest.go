@@ -20,6 +20,12 @@ var (
 	// address — this run can never be attested for us. The batcher retires it
 	// ('skipped') rather than retrying a permanently-failing tx every cycle.
 	ErrLogBoundElsewhere = errors.New("arcade: input log bound to another address on-chain")
+	// ErrPermanentReject: the realm rejected the entry on a DETERMINISTIC shape
+	// check (score/waves/overtimeRound out of range, malformed day, non-positive
+	// simVersion, empty hash). Re-simulated backend data should never hit these,
+	// but if one does it will fail identically forever — the batcher retires it
+	// instead of dripping gas on an unwinnable retry.
+	ErrPermanentReject = errors.New("arcade: realm rejected the entry (permanent shape failure)")
 )
 
 // Broadcaster attests a verified run to the on-chain leaderboard realm. The only
@@ -78,18 +84,28 @@ func NewGnokeyBroadcaster(cfg AttesterConfig) Broadcaster {
 func (b *gnokeyBroadcaster) AttestScore(ctx context.Context, run Run) (string, error) {
 	out, err := b.exec(ctx, b.attestScoreArgv(run))
 	if err != nil {
-		// Classify the realm's rejection so the batcher can converge instead of
-		// retrying a deterministically-failing tx forever. The realm panics with
-		// stable messages (leaderboard.gno); a benign "not improved" means our
-		// target is already on-chain, and a cross-address "duplicate/bound" means
-		// this run can never be ours.
+		// Classify the realm's rejection so the batcher converges instead of
+		// retrying a deterministically-failing tx forever. These substrings mirror
+		// the panic() literals in the FROZEN realm
+		// samcrew-deployer/projects/memba/realms/memba_arcade_leaderboard_v1/leaderboard.gno
+		// (AttestScore + assertEntryShape). If that realm is ever un-frozen and its
+		// messages change, update these — TestGnokeyBroadcaster_ClassifiesRealmPanics
+		// pins the current strings.
 		lo := strings.ToLower(out)
 		switch {
 		case strings.Contains(lo, "existing entry is not improved"):
+			// Benign: our target is already on-chain at an equal-or-better score.
 			return "", ErrAlreadyOnChain
 		case strings.Contains(lo, "already bound to another address"),
 			strings.Contains(lo, "already attested for another address"):
+			// The log is bound to a different address — never ours.
 			return "", ErrLogBoundElsewhere
+		case strings.Contains(lo, "out of range"),
+			strings.Contains(lo, "must be non-empty"),
+			strings.Contains(lo, "must be yyyy-mm-dd"),
+			strings.Contains(lo, "must be positive"):
+			// A deterministic shape rejection — retrying can never succeed.
+			return "", ErrPermanentReject
 		}
 		return "", fmt.Errorf("arcade attest: gnokey failed: %w (%s)", err, strings.TrimSpace(out))
 	}

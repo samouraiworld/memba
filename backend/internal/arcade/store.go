@@ -133,11 +133,21 @@ func (s *Store) MarkAttested(logHash, txHash string, at int64) error {
 }
 
 // MarkSkipped retires a single run ('skipped') without attesting it — used when
-// a run can never be attested (its log is bound on-chain to another address) so
-// it stops being retried every cycle.
+// a run can never be attested (its log is bound on-chain to another address, or
+// a deterministic shape rejection) so it stops being retried every cycle.
 func (s *Store) MarkSkipped(logHash string) error {
 	_, err := s.db.Exec(
 		`UPDATE arcade_runs SET status = 'skipped' WHERE input_log_sha256 = ? AND status = 'verified'`, logHash)
+	return err
+}
+
+// MarkErrored parks a run ('errored') after too many transient attestation
+// failures — a dead-letter so one poisoned row can't drip gas or wedge its day
+// forever. Distinct from 'skipped' (a deliberate retire) so ops can requeue an
+// 'errored' run (flip it back to 'verified') once the cause is fixed.
+func (s *Store) MarkErrored(logHash string) error {
+	_, err := s.db.Exec(
+		`UPDATE arcade_runs SET status = 'errored' WHERE input_log_sha256 = ? AND status = 'verified'`, logHash)
 	return err
 }
 

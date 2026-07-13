@@ -397,17 +397,21 @@ func main() {
 	if os.Getenv("MEMBA_ARCADE_ATTESTER_ENABLED") == "1" || os.Getenv("MEMBA_ARCADE_ATTESTER_ENABLED") == "true" {
 		attesterKey := os.Getenv("MEMBA_ARCADE_ATTESTER_KEY")
 		gnokeyBin := envOr("MEMBA_ARCADE_GNOKEY_BIN", "gnokey")
+		chainID := os.Getenv("GNO_CHAIN_ID")
+		remote := envOr("MEMBA_ARCADE_RPC_URL", os.Getenv("GNO_RPC_URL"))
 		_, gnokeyErr := exec.LookPath(gnokeyBin)
 		switch {
 		case attesterKey == "":
 			slog.Warn("MEMBA_ARCADE_ATTESTER_ENABLED set but MEMBA_ARCADE_ATTESTER_KEY empty — attester stays dormant")
 		case gnokeyErr != nil:
 			slog.Warn("MEMBA_ARCADE_ATTESTER_ENABLED set but gnokey not on PATH — attester stays dormant", "gnokeyBin", gnokeyBin, "error", gnokeyErr)
+		case chainID == "" || remote == "":
+			slog.Warn("MEMBA_ARCADE_ATTESTER_ENABLED set but GNO_CHAIN_ID or the RPC URL is empty — attester stays dormant (every broadcast would fail)", "chainID", chainID, "remote", remote)
 		default:
 			bcfg := arcade.AttesterConfig{
 				Realm:     envOr("MEMBA_ARCADE_REALM", "gno.land/r/samcrew/memba_arcade_leaderboard_v1"),
-				ChainID:   os.Getenv("GNO_CHAIN_ID"),
-				Remote:    envOr("MEMBA_ARCADE_RPC_URL", os.Getenv("GNO_RPC_URL")),
+				ChainID:   chainID,
+				Remote:    remote,
 				KeyName:   attesterKey,
 				GnokeyBin: gnokeyBin,
 			}

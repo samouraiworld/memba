@@ -4,7 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"strings"
+	"reflect"
 	"testing"
 	"time"
 
@@ -214,10 +214,16 @@ func TestRunBatchOnce_LogBoundElsewhereIsSkipped(t *testing.T) {
 }
 
 func TestGnokeyBroadcaster_ClassifiesRealmPanics(t *testing.T) {
+	// The outputs are the realm's ACTUAL panic literals (leaderboard.gno) so this
+	// doubles as a drift guard against the classifier's substrings.
 	cases := map[string]error{
-		"panic: existing entry is not improved":                            ErrAlreadyOnChain,
-		"panic: duplicate input log: already bound to another address":     ErrLogBoundElsewhere,
-		"panic: duplicate input log: already attested for another address": ErrLogBoundElsewhere,
+		"panic: existing entry is not improved":                                  ErrAlreadyOnChain,
+		"panic: duplicate input log: already bound to another address":           ErrLogBoundElsewhere,
+		"panic: duplicate input log: already attested for another address today": ErrLogBoundElsewhere,
+		"panic: score out of range":                                              ErrPermanentReject,
+		"panic: day must be YYYY-MM-DD":                                          ErrPermanentReject,
+		"panic: simVersion must be positive":                                     ErrPermanentReject,
+		"panic: stateHash and inputLogSha256 must be non-empty":                  ErrPermanentReject,
 	}
 	for out, want := range cases {
 		b := &gnokeyBroadcaster{
@@ -240,31 +246,91 @@ func TestGnokeyBroadcaster_ClassifiesRealmPanics(t *testing.T) {
 	}
 }
 
+func TestRunBatchOnce_PermanentRejectIsSkipped(t *testing.T) {
+	// A deterministic shape rejection can never succeed — retire it, don't retry.
+	s := batchStore(t)
+	mustInsert(t, s, "bad", "2026-07-10", 500)
+	b := &fakeBroadcaster{errorFor: map[string]error{"bad": ErrPermanentReject}}
+
+	if n, _ := RunBatchOnce(context.Background(), s, b, 10, atFixedDay); n != 0 {
+		t.Fatalf("a permanent reject does not count as attested, got %d", n)
+	}
+	if r, _, _ := s.GetRunByLogHash("bad"); r.Status != "skipped" {
+		t.Fatalf("a permanent reject must be skipped, got %q", r.Status)
+	}
+}
+
+func TestBatcher_TransientFailureIsParkedAfterMaxRetries(t *testing.T) {
+	// A run that fails transiently every cycle must be parked ('errored') after
+	// maxAttestRetries so it can't retry (and drip gas) forever. Uses the internal
+	// runBatchOnce with a persistent failure counter (as the loop does).
+	s := batchStore(t)
+	mustInsert(t, s, "flaky", "2026-07-10", 500)
+	b := &fakeBroadcaster{failFor: map[string]bool{"flaky": true}} // generic (retryable) error
+	failures := map[string]int{}
+
+	for i := range maxAttestRetries {
+		if r, _, _ := s.GetRunByLogHash("flaky"); r.Status != "verified" {
+			t.Fatalf("cycle %d: run must still be pending, got %q", i, r.Status)
+		}
+		if _, err := runBatchOnce(context.Background(), s, b, 10, atFixedDay, failures); err != nil {
+			t.Fatalf("cycle %d: %v", i, err)
+		}
+	}
+	if r, _, _ := s.GetRunByLogHash("flaky"); r.Status != "errored" {
+		t.Fatalf("after %d transient failures the run must be parked 'errored', got %q", maxAttestRetries, r.Status)
+	}
+	// A transient failure that later SUCCEEDS resets the counter (no premature park).
+	s2 := batchStore(t)
+	mustInsert(t, s2, "recover", "2026-07-10", 500)
+	b2 := &fakeBroadcaster{failFor: map[string]bool{"recover": true}}
+	f2 := map[string]int{}
+	_, _ = runBatchOnce(context.Background(), s2, b2, 10, atFixedDay, f2) // fail once
+	b2.failFor = nil
+	_, _ = runBatchOnce(context.Background(), s2, b2, 10, atFixedDay, f2) // then succeed
+	if r, _, _ := s2.GetRunByLogHash("recover"); r.Status != "attested" {
+		t.Fatalf("a recovered run must attest, got %q", r.Status)
+	}
+	if f2["recover"] != 0 {
+		t.Fatalf("the failure counter must reset on success, got %d", f2["recover"])
+	}
+}
+
 func TestGnokeyBroadcaster_Argv(t *testing.T) {
 	b := &gnokeyBroadcaster{cfg: AttesterConfig{
 		Realm: "gno.land/r/samcrew/memba_arcade_leaderboard_v1", ChainID: "test-13",
 		Remote: "https://rpc.example:443", KeyName: "arcade-attester", GasWanted: 3000000, GasFeeUgnot: 1000000,
 	}}
+	// Every numeric field is DISTINCT (score/waves and overtimeRound/simVersion
+	// are adjacent same-type args) so an exact-slice compare catches a transposition
+	// that a substring check would miss.
 	run := Run{
-		Addr: "g1abc", Day: "2026-07-10", Seed: "barricade-2026-07-10", Score: 27150, Waves: 5,
-		Won: true, OvertimeRound: 2, SimVersion: 2, StateHash: "e8532dc207e3cb24", LogHash: "deadbeef",
+		Addr: "g1abc", Day: "2026-07-10", Seed: "barricade-2026-07-10", Score: 27150, Waves: 7,
+		Won: true, OvertimeRound: 3, SimVersion: 2, StateHash: "e8532dc207e3cb24", LogHash: "deadbeef",
 	}
-	argv := b.attestScoreArgv(run)
-	joined := strings.Join(argv, " ")
-	// Function + realm + the 10 typed args in the realm's order + broadcast + key.
-	for _, want := range []string{
-		"maketx call", "-pkgpath gno.land/r/samcrew/memba_arcade_leaderboard_v1", "-func AttestScore",
-		"-args g1abc", "-args 2026-07-10", "-args barricade-2026-07-10", "-args 27150", "-args 5",
-		"-args true", "-args 2", "-args e8532dc207e3cb24", "-args deadbeef",
-		"-chainid test-13", "-remote https://rpc.example:443", "-broadcast", "arcade-attester",
-	} {
-		if !strings.Contains(joined, want) {
-			t.Errorf("argv missing %q\n  got: %s", want, joined)
-		}
+	want := []string{
+		"maketx", "call",
+		"-pkgpath", "gno.land/r/samcrew/memba_arcade_leaderboard_v1",
+		"-func", "AttestScore",
+		"-args", "g1abc", // addr
+		"-args", "2026-07-10", // day
+		"-args", "barricade-2026-07-10", // seed
+		"-args", "27150", // score
+		"-args", "7", // waves
+		"-args", "true", // won
+		"-args", "3", // overtimeRound
+		"-args", "2", // simVersion
+		"-args", "e8532dc207e3cb24", // stateHash
+		"-args", "deadbeef", // logHash
+		"-gas-fee", "1000000ugnot",
+		"-gas-wanted", "3000000",
+		"-chainid", "test-13",
+		"-remote", "https://rpc.example:443",
+		"-broadcast",
+		"arcade-attester",
 	}
-	// The last arg is the key (gnokey convention).
-	if argv[len(argv)-1] != "arcade-attester" {
-		t.Fatalf("key must be the final arg, got %q", argv[len(argv)-1])
+	if !reflect.DeepEqual(b.attestScoreArgv(run), want) {
+		t.Fatalf("argv mismatch\n got: %v\nwant: %v", b.attestScoreArgv(run), want)
 	}
 }
 
