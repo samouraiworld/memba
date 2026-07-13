@@ -18,7 +18,11 @@ FROM litestream/litestream:0.3.13 AS litestream
 # Runtime stage
 FROM alpine:3.19
 
-RUN apk add --no-cache ca-certificates tzdata
+# nodejs runs the BARRICADE verify worker (internal/arcade): the Go binary
+# go:embed's the esbuild bundle and execs `node` to re-simulate a submitted run.
+# node reads the extracted .cjs as a data file (it is the executable itself), so
+# no node_modules and no exec perms on /tmp are needed.
+RUN apk add --no-cache ca-certificates tzdata nodejs
 
 RUN addgroup -S memba && adduser -S memba -G memba
 

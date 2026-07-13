@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { RUN_MAX_TICKS, type SimEvent } from "./types"
 import { initState, tick } from "./engine"
-import { buildWaves } from "./waves"
+import { BOSS_WAVE, buildWaves } from "./waves"
 import { hashState, MAX_REPLAY_EVENTS, runReplay } from "./replay"
 
 const events: SimEvent[] = [
@@ -107,5 +107,24 @@ describe("replay determinism", () => {
         const waves = buildWaves("cap")
         const capped = { ...initState("cap"), tick: RUN_MAX_TICKS }
         expect(tick(capped, waves).phase).toBe("lost")
+    })
+
+    it("surfaces the terminal wave the realm ledger stores as Waves", () => {
+        // The on-chain Entry stores `Waves` (and the results poster shows
+        // `wave N/…`). The attester's verify worker must read that from the
+        // authoritative replay, not recompute it — so runReplay exposes the
+        // terminal `s.wave` directly. overtimeRound already derives from it
+        // (wave − BOSS_WAVE), but during the arc the wave isn't recoverable
+        // from overtimeRound alone (it's clamped to 0), so waves is its own field.
+        for (const seed of ["stall", "daily-2026-07-11"]) {
+            const waves = buildWaves(seed)
+            let live = initState(seed)
+            while (live.phase !== "lost") {
+                live = tick(live, waves)
+            }
+            const r = runReplay(seed, [])
+            expect(r.waves).toBe(live.wave)
+            expect(r.overtimeRound).toBe(Math.max(0, live.wave - BOSS_WAVE))
+        }
     })
 })

@@ -15,6 +15,7 @@ import { SIM_VERSION, type SimEvent, type SimState } from "./types"
 export type ReplayResult = {
     score: number
     won: boolean // the Core Arc was cleared — the terminal wave got past the boss
+    waves: number // the terminal wave reached (the realm Entry's Waves; poster's "wave N")
     overtimeRound: number // deepest siege round reached (0 = fell during the arc)
     ticks: number
     stateHash: string
@@ -133,6 +134,7 @@ export function runReplay(seed: string, events: SimEvent[]): ReplayResult {
     return {
         score: s.score,
         won: s.wave > BOSS_WAVE,
+        waves: s.wave,
         overtimeRound: Math.max(0, s.wave - BOSS_WAVE),
         ticks: s.tick,
         stateHash: hashState(s),
