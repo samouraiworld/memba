@@ -1,7 +1,10 @@
 # Memba Feed v2 — The Definitive Implementation Plan
 
 **Date:** 2026-07-13
-**Status:** **FOR OWNER REVIEW — no implementation until owner go**
+**Status:** **APPROVED — owner accepted the §10 defaults 2026-07-13 ("OK go"); implementation underway.**
+
+> **Progress (2026-07-13):** Wave A0 code items shipped — mobile tab-bar reachability + honest FeedGate/routeMeta copy (#926), `block_ts` backfill for pre-migration posts (#927), and this blog truth-up (A0.4). **Still owner-gated (NOT autonomous):** ① set + drill `FEED_MODERATION_BEARER` on Fly prod (P0), ② the `memba_feed_v2` realm deploy ceremony (§4.2), ③ the points_v1 `AddAwarder` grant (D6/D.2), ④ final sign-off on public blog wording (A0.4). Next up: Wave A1 (Ecosystem content floor + OG/share distribution) and the pre-Jul-20 subset of Wave B.
+
 **Supersedes / continues:** `docs/planning/archive/shipped-2026-07/SOCIAL_FEED_UX_REVIEW_AND_DESIGN_2026-07-06.md` (§6–§10) and the roadmap annex `docs/planning/MEMBA_ROADMAP_COMPOUND_2026-07.md` (Part 4.1).
 **Provenance:** synthesized from **4 ground-truth audits** (frontend, backend, realm, docs), an **8-lens expert panel** (social-product · ux · ui-visual · cto · gno-core · onchain-social · trust-safety · memba-ecosystem), and **3 live-prod verifiers** (feed is LIVE, moderation bearer UNSET, block_ts defect visible). Every capability claim in §1–§2 was verified in code this session; the panel's disagreements are preserved in the Appendix. **Revised after 3 adversarial verifiers (all GO_WITH_CHANGES); their required changes applied 2026-07-13.**
 
