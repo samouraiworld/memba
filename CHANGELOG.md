@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Feed — reachable on mobile, and the launch copy tells the truth (2026-07-13)
+- **The Feed is now a primary tab on mobile.** The social feed is live in the app, but on phones it was buried in the "More" overflow sheet while every other flagship surface sat in the bottom bar. It now sits right after Home in the mobile bottom-tab bar for both visitors and members (Home · Feed · DAOs · Tokens · Directory · More), matching its top-of-nav placement on desktop — five tabs plus "More" share the bar evenly with no clipping at 375px. It's removed from the "More" sheet so it never appears twice.
+- **The feed's teaser and share copy no longer promise features that aren't there.** The Coming-Soon gate advertised "flag, hide, and appeal" and "Follows and reposts (coming next)" — but there is no appeal flow, and follows/reposts are gated on a future realm — so the bullets now describe what actually ships (post/reply on-chain, a single global community timeline, flag-for-operator-review, and the rich on-chain unfurls that are the real differentiator). The page's share/SEO description drops "follow the conversation" (which implies a follow graph that doesn't exist) for "post, reply, and discuss."
+
 ### Governance — candidature quest verifier repointed to the guarded realm (2026-07-13)
 - **The candidature quest now verifies against the realm applicants actually use.** Server-side quest verification read `memba_dao_candidature_v2` for a member's application, while the app has applicants apply through `memba_dao_candidature_v3` (the `IsUserCall`-guarded successor) — so anyone who applied via v3 would fail the candidature quest. The verifier now reads v3, mirroring the frontend `candidaturePath`. Read-only realm parity confirmed (identical `application/<addr>` render).
 

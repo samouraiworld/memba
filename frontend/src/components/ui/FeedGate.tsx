@@ -23,9 +23,9 @@ export function FeedGate({ children }: { children: ReactNode }) {
                 description="A global, on-chain social feed for the Memba community — post, reply, and discuss, all on gno.land."
                 features={[
                     "Post and reply on-chain, no gatekeepers",
-                    "A single global timeline of ecosystem activity",
-                    "Community moderation — flag, hide, and appeal",
-                    "Follows and reposts (coming next)",
+                    "A single global timeline for the community",
+                    "Flag posts for operator review",
+                    "Rich on-chain unfurls — proposals, tokens, validators",
                 ]}
             />
         )
