@@ -18,12 +18,18 @@ import { fileURLToPath } from "node:url"
 import path from "node:path"
 
 const here = path.dirname(fileURLToPath(import.meta.url))
-const frontendReq = createRequire(path.join(here, "../../../../frontend/package.json"))
+const repoRoot = path.join(here, "../../../..")
+const frontendReq = createRequire(path.join(repoRoot, "frontend/package.json"))
 const esbuild = frontendReq("esbuild")
 
 await esbuild.build({
     entryPoints: [path.join(here, "verify_worker.ts")],
     outfile: path.join(here, "bundle/verify-worker.cjs"),
+    // Pin the working dir to the repo root so esbuild's embedded source-path
+    // comments (e.g. "// frontend/src/games/barricade/sim/rng.ts") are always
+    // relative to the SAME base — otherwise the bytes depend on the cwd the
+    // build ran from (repo root vs frontend/ in CI), breaking the freshness gate.
+    absWorkingDir: repoRoot,
     bundle: true,
     platform: "node",
     format: "cjs",
