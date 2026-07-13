@@ -25,9 +25,10 @@ import { FeedNotifications } from "../components/feed/FeedNotifications"
 import { FeedTrending } from "../components/feed/FeedTrending"
 import { FeedEcosystem } from "../components/feed/FeedEcosystem"
 import { useActorUsernames } from "../hooks/home/useActorUsernames"
+import { useNow } from "../hooks/home/useNow"
 import { fetchFeedTimeline, fetchFeedStats } from "../lib/feedApi"
 import { countNewer } from "../lib/feedPaging"
-import { sameContent, type UiPost } from "../lib/feedTypes"
+import { reconciles, isStaleOptimistic, type UiPost } from "../lib/feedTypes"
 import { FEED_POLL_MS, RECONCILE_MS } from "../lib/feedConstants"
 import "./feed.css"
 
@@ -79,24 +80,31 @@ export default function FeedPage() {
 
     useEffect(() => () => { if (reconcileTimer.current) clearTimeout(reconcileTimer.current) }, [])
 
+    // Ticks so a stuck optimistic row crosses its TTL and drops without a manual
+    // refresh (state-based, not Date.now()-in-render).
+    const now = useNow(15_000)
     const posts: UiPost[] = [
-        ...optimistic.filter(o => !serverPosts.some(s => sameContent(o, s))),
+        ...optimistic.filter(o => !isStaleOptimistic(o, now) && !serverPosts.some(s => reconciles(o, s))),
         ...serverPosts,
     ]
 
     const onPosted = useCallback((post: UiPost) => {
-        setOptimistic(prev =>
-            prev.some(o => o.author === post.author && o.body === post.body) ? prev : [post, ...prev],
-        )
+        // Stamp the baseline (newest id known now) + a wall-clock time so the row
+        // reconciles only against a genuinely newer server row, and clears via TTL
+        // if its server row never appears. Dedup on the synthetic id (unique per
+        // nonce) so a legitimate second identical post is NOT swallowed.
+        const stamped: UiPost = { ...post, sinceId: newestLoadedId, optimisticAt: Date.now() }
+        setOptimistic(prev => (prev.some(o => o.id === stamped.id) ? prev : [stamped, ...prev]))
         if (reconcileTimer.current) clearTimeout(reconcileTimer.current)
         const poke = async (n: number) => {
             const res = await timeline.refetch()
             const server = res.data?.pages.flatMap(p => p.posts) ?? []
-            setOptimistic(prev => prev.filter(o => !server.some(s => sameContent(o, s))))
+            const t = Date.now()
+            setOptimistic(prev => prev.filter(o => !isStaleOptimistic(o, t) && !server.some(s => reconciles(o, s))))
             if (n > 0) reconcileTimer.current = setTimeout(() => void poke(n - 1), RECONCILE_MS)
         }
         reconcileTimer.current = setTimeout(() => void poke(3), RECONCILE_MS)
-    }, [timeline])
+    }, [timeline, newestLoadedId])
 
     // Pull the newest posts into view (refetches loaded pages on explicit action).
     const showNewest = useCallback(() => {
