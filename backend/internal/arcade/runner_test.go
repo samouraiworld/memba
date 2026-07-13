@@ -17,7 +17,7 @@ func testJob() Job {
 
 func okStdout(t *testing.T, score int64) []byte {
 	t.Helper()
-	b, err := json.Marshal(Result{OK: true, Score: score, Waves: 5, StateHash: "deadbeefdeadbeef", SimVersion: 2})
+	b, err := json.Marshal(Result{OK: true, Score: score, Waves: 5, StateHash: "deadbeefdeadbeef", SimVersion: 2, LogHash: "cafebabecafebabe"})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
@@ -90,9 +90,10 @@ func TestRunner_RejectsImplausibleOkResultAsError(t *testing.T) {
 	// must not be treated as a valid result — a zeroed, empty-hash "verified"
 	// run is exactly what must never be attested.
 	for name, stdout := range map[string]string{
-		"empty hash": `{"ok":true,"score":100,"simVersion":2}`,
-		"wrong sim":  `{"ok":true,"score":100,"stateHash":"abc","simVersion":1}`,
-		"bare ok":    `{"ok":true}`,
+		"empty state hash": `{"ok":true,"score":100,"simVersion":2,"logHash":"abc"}`,
+		"empty log hash":   `{"ok":true,"score":100,"stateHash":"abc","simVersion":2}`,
+		"wrong sim":        `{"ok":true,"score":100,"stateHash":"abc","logHash":"abc","simVersion":1}`,
+		"bare ok":          `{"ok":true}`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			r := newRunnerWithExec(Config{}, func(_ context.Context, _ []byte) ([]byte, error) {

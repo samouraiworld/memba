@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { RUN_MAX_TICKS, type SimEvent } from "./types"
 import { initState, tick } from "./engine"
 import { BOSS_WAVE, buildWaves } from "./waves"
-import { hashState, MAX_REPLAY_EVENTS, runReplay } from "./replay"
+import { canonicalLog, hashState, MAX_REPLAY_EVENTS, runReplay } from "./replay"
 
 const events: SimEvent[] = [
     { tick: 60, type: "move", lane: 1 },
@@ -107,6 +107,33 @@ describe("replay determinism", () => {
         const waves = buildWaves("cap")
         const capped = { ...initState("cap"), tick: RUN_MAX_TICKS }
         expect(tick(capped, waves).phase).toBe("lost")
+    })
+
+    it("canonicalLog collapses byte-variants of the same run to one string", () => {
+        // The certify commitment hashes canonicalLog, not the raw request bytes.
+        // A reordered array, a dropped invalid entry, and the same events must all
+        // produce the SAME canonical string — otherwise a run could be resubmitted
+        // under another wallet to dodge the realm's first-submitter bind.
+        const base: SimEvent[] = [
+            { tick: 60, type: "move", lane: 1 },
+            { tick: 300, type: "throw", lane: 1, dist: 40 },
+            { tick: 120, type: "shove", lane: 1 },
+        ]
+        const variant = [
+            { tick: 300, type: "throw", lane: 1, dist: 40 },
+            { tick: 120, type: "shove", lane: 1 },
+            { tick: 5, type: "bogus" }, // dropped by sanitize
+            { tick: 60, type: "move", lane: 1 },
+        ] as unknown as SimEvent[]
+        expect(canonicalLog(variant)).toBe(canonicalLog(base))
+    })
+
+    it("canonicalLog distinguishes runs that actually differ", () => {
+        expect(canonicalLog([{ tick: 60, type: "move", lane: 1 }])).not.toBe(
+            canonicalLog([{ tick: 60, type: "move", lane: 2 }]),
+        )
+        // A different tick for the same action is a different run.
+        expect(canonicalLog([{ tick: 60, type: "rally" }])).not.toBe(canonicalLog([{ tick: 61, type: "rally" }]))
     })
 
     it("surfaces the terminal wave the realm ledger stores as Waves", () => {

@@ -243,6 +243,16 @@ func (s *MultisigService) AllowUpload(addr string) bool {
 	return s.userLimiter.AllowKey(addr, ratelimit.ImageUploadEndpoint)
 }
 
+// AllowArcadeSubmit applies the per-authenticated-wallet BARRICADE submit cap
+// (same AllowKey machinery). Returns true when the wallet is under quota — or
+// when no limiter is configured (the default in tests), so it's a no-op there.
+func (s *MultisigService) AllowArcadeSubmit(addr string) bool {
+	if s.userLimiter == nil {
+		return true
+	}
+	return s.userLimiter.AllowKey(addr, ratelimit.ArcadeSubmitEndpoint)
+}
+
 // internalError logs the real error and returns a sanitized connect error.
 func internalError(ctx string, err error) error {
 	slog.Error(ctx, "error", err)

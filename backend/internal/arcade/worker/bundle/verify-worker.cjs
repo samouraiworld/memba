@@ -24,6 +24,7 @@ __export(verify_worker_exports, {
   processJob: () => processJob
 });
 module.exports = __toCommonJS(verify_worker_exports);
+var import_node_crypto = require("node:crypto");
 
 // frontend/src/games/barricade/sim/rng.ts
 function rngNext(state) {
@@ -798,12 +799,32 @@ function hashState(state) {
 }
 var MAX_REPLAY_EVENTS = 2e4;
 var EVENT_TYPES = /* @__PURE__ */ new Set(["move", "rally", "choice", "throw", "shove"]);
-function runReplay(seed, events) {
-  const waves = buildWaves(seed);
+function sanitizeEvents(events) {
   const sane = events.slice(0, MAX_REPLAY_EVENTS).filter(
     (e) => typeof e === "object" && e !== null && Number.isInteger(e.tick) && e.tick >= 0 && EVENT_TYPES.has(e.type ?? "")
   );
-  const sorted = sane.map((e, i) => ({ e, i })).sort((a, b) => a.e.tick - b.e.tick || a.i - b.i).map((x) => x.e);
+  return sane.map((e, i) => ({ e, i })).sort((a, b) => a.e.tick - b.e.tick || a.i - b.i).map((x) => x.e);
+}
+function canonicalEventLine(e) {
+  switch (e.type) {
+    case "move":
+      return `${e.tick}|move|${e.lane}`;
+    case "rally":
+      return `${e.tick}|rally`;
+    case "choice":
+      return `${e.tick}|choice|${e.choice}`;
+    case "throw":
+      return `${e.tick}|throw|${e.lane}|${e.dist}`;
+    case "shove":
+      return `${e.tick}|shove|${e.lane}`;
+  }
+}
+function canonicalLog(events) {
+  return sanitizeEvents(events).map(canonicalEventLine).join(";");
+}
+function runReplay(seed, events) {
+  const waves = buildWaves(seed);
+  const sorted = sanitizeEvents(events);
   let s = initState(seed);
   let cursor = 0;
   while (s.phase !== "lost") {
@@ -855,14 +876,17 @@ function processJob(raw) {
   if (job.events.length > MAX_REPLAY_EVENTS) {
     return fail(`too many events: ${job.events.length} > ${MAX_REPLAY_EVENTS}`);
   }
-  const r = runReplay(job.seed, job.events);
+  const events = job.events;
+  const r = runReplay(job.seed, events);
+  const logHash = (0, import_node_crypto.createHash)("sha256").update(job.seed + "\n" + canonicalLog(events)).digest("hex");
   return ok({
     score: r.score,
     waves: r.waves,
     won: r.won,
     overtimeRound: r.overtimeRound,
     stateHash: r.stateHash,
-    simVersion: r.simVersion
+    simVersion: r.simVersion,
+    logHash
   });
 }
 function readStdin() {

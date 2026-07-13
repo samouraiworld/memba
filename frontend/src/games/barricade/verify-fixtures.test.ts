@@ -1,7 +1,8 @@
+import { createHash } from "node:crypto"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { describe, expect, it } from "vitest"
-import { runReplay } from "./sim/replay"
+import { canonicalLog, runReplay } from "./sim/replay"
 import { SIM_VERSION, type SimEvent } from "./sim/types"
 
 /**
@@ -28,7 +29,15 @@ type Fixture = {
         overtimeRound: number
         stateHash: string
         simVersion: number
+        logHash: string
     }
+}
+
+/** The certify commitment, as the worker computes it: sha256(seed \n canonicalLog). */
+function commitment(seed: string, events: SimEvent[]): string {
+    return createHash("sha256")
+        .update(seed + "\n" + canonicalLog(events))
+        .digest("hex")
 }
 
 const fixtures = JSON.parse(
@@ -54,6 +63,8 @@ describe("verify worker fixtures — frontend sim reproduces the pinned results"
             expect(r.overtimeRound).toBe(fx.expected.overtimeRound)
             expect(r.stateHash).toBe(fx.expected.stateHash)
             expect(r.simVersion).toBe(fx.expected.simVersion)
+            // The canonical commitment the certify backend/worker will bind on-chain.
+            expect(commitment(fx.job.seed, fx.job.events)).toBe(fx.expected.logHash)
         })
     })
 })
