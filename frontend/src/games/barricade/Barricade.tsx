@@ -13,7 +13,8 @@
  * a replay (see render/fx.parity.test).
  */
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
+import { isBarricadeCertifyEnabled } from "../../lib/config"
 import { applyEvent, initState, tick } from "./sim/engine"
 import { BOSS_WAVE, buildWaves, WAVE_TOTAL, type WaveScript } from "./sim/waves"
 import { MAX_REPLAY_EVENTS, runReplay } from "./sim/replay"
@@ -27,6 +28,11 @@ import { buildShareText } from "./render/sharecard"
 import { GameAudio } from "./render/audio"
 import { useGameLoop } from "./hooks/useGameLoop"
 import "./barricade.css"
+
+// The on-chain certify control is a lazy chunk: it pulls in the wallet hooks, so
+// it must never load on the no-wallet play path (only when the flag is on and a
+// verified daily run is on the poster).
+const BarricadeCertify = lazy(() => import("./BarricadeCertify"))
 
 // Logical canvas coordinate space; the backing store is scaled by devicePixelRatio.
 const CW = 390
@@ -100,6 +106,10 @@ export default function Barricade() {
         waves: number
         overtimeRound: number
         verified: boolean
+        stateHash: string
+        simVersion: number
+        seed: string
+        events: SimEvent[]
     } | null>(null)
 
     useEffect(() => {
@@ -166,6 +176,14 @@ export default function Barricade() {
                     // The recorded log must reproduce the live run exactly —
                     // this is the same check the server verifier performs.
                     verified: replay.score === s.score && replay.won === wonArc,
+                    // Carried for the opt-in on-chain certify claim (the server
+                    // re-simulates and must match these). Snapshotted into state
+                    // here (not read from refs during render — refs are unstable
+                    // and reading them in JSX trips react-hooks/refs).
+                    stateHash: replay.stateHash,
+                    simVersion: replay.simVersion,
+                    seed: seedRef.current,
+                    events: eventsRef.current.slice(),
                 })
                 setStatus("done")
             }
@@ -424,6 +442,21 @@ export default function Barricade() {
                             Back
                         </button>
                     </div>
+                    {isBarricadeCertifyEnabled() && isDaily && result.verified && (
+                        <div className="bar-certify">
+                            <Suspense fallback={null}>
+                                <BarricadeCertify
+                                    run={{
+                                        seed: result.seed,
+                                        simVersion: result.simVersion,
+                                        events: result.events,
+                                        claimedScore: result.score,
+                                        claimedHash: result.stateHash,
+                                    }}
+                                />
+                            </Suspense>
+                        </div>
+                    )}
                 </div>
             )}
         </div>
