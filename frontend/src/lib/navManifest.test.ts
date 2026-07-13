@@ -9,7 +9,7 @@
  * but never surfaced in navigation — a recurring audit finding.
  */
 import { describe, it, expect } from 'vitest'
-import { NAV, mobileMoreNav } from './navManifest'
+import { NAV, mobileMoreNav, mobilePrimaryTabs } from './navManifest'
 
 // Routes in App.tsx that are NOT expected to appear in the nav manifest.
 // Each must have a reason — if you add a route here, document why.
@@ -118,6 +118,28 @@ describe('navManifest completeness', () => {
             const ids = new Set(mobileMoreNav(connected).map(e => e.id))
             expect(ids.has('marketplace')).toBe(true)
             expect(ids.has('appstore')).toBe(true)
+        }
+    })
+
+    // The Feed is the flagship social surface (VITE_ENABLE_FEED live in prod).
+    // It must be a primary mobile bottom-tab, not buried under "More" — and
+    // therefore must NOT also appear in the "More" sheet (mobileMoreNav filters
+    // out primary ids, so a duplicate would be a regression).
+    it('Feed is a primary mobile bottom-tab for both visitor and member', () => {
+        for (const connected of [false, true]) {
+            const primaryIds = new Set(mobilePrimaryTabs(connected).map(e => e.id))
+            expect(primaryIds.has('feed')).toBe(true)
+            const moreIds = new Set(mobileMoreNav(connected).map(e => e.id))
+            expect(moreIds.has('feed')).toBe(false)
+        }
+    })
+
+    // Bottom bar renders the primary tabs + a "More" button. Keep the primary
+    // count bounded so 375px doesn't clip labels (flex:1 shares width; 5 tabs +
+    // More = 6 slots is the ceiling we've validated).
+    it('mobile primary tabs stay within the 5-tab layout budget', () => {
+        for (const connected of [false, true]) {
+            expect(mobilePrimaryTabs(connected).length).toBeLessThanOrEqual(5)
         }
     })
 })

@@ -111,8 +111,11 @@ export function navForGroup(group: NavGroup): NavEntry[] {
 const byId = (id: string): NavEntry | undefined => NAV.find((e) => e.id === id)
 const resolve = (ids: string[]): NavEntry[] => ids.map(byId).filter((e): e is NavEntry => !!e)
 
-const PRIMARY_TABS_VISITOR = ['home', 'dao', 'tokens', 'directory']
-const PRIMARY_TABS_MEMBER = ['home', 'dao', 'tokens', 'alerts']
+// Feed sits right after Home (its top-of-nav companion) so the flagship social
+// surface is a primary bottom-tab, not buried under "More". 5 tabs + the "More"
+// button = 6 flex:1 slots — the validated 375px ceiling (see navManifest.test).
+const PRIMARY_TABS_VISITOR = ['home', 'feed', 'dao', 'tokens', 'directory']
+const PRIMARY_TABS_MEMBER = ['home', 'feed', 'dao', 'tokens', 'alerts']
 // Overflow nav for the "More" sheet. Carries every sidebar destination that
 // isn't a primary tab so nothing is desktop-only — including the Launch group
 // (`marketplace`, `appstore`), which otherwise had no mobile entry point at all.
