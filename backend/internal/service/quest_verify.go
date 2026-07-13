@@ -74,7 +74,7 @@ var questVerification = map[string]string{
 // test13 realm paths used by server-side verification (mirror config.ts).
 const (
 	verifyUserRegistryPath = "gno.land/r/sys/users"
-	verifyCandidaturePath  = "gno.land/r/samcrew/memba_dao_candidature_v2"
+	verifyCandidaturePath  = "gno.land/r/samcrew/memba_dao_candidature_v3" // applicants apply via v3 (config.ts); v2 is the paused legacy realm
 )
 
 // questRPCURL returns the RPC endpoint for server-side quest verification. It

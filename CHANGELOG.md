@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Governance — candidature quest verifier repointed to the guarded realm (2026-07-13)
+- **The candidature quest now verifies against the realm applicants actually use.** Server-side quest verification read `memba_dao_candidature_v2` for a member's application, while the app has applicants apply through `memba_dao_candidature_v3` (the `IsUserCall`-guarded successor) — so anyone who applied via v3 would fail the candidature quest. The verifier now reads v3, mirroring the frontend `candidaturePath`. Read-only realm parity confirmed (identical `application/<addr>` render).
+
 ### Marketplace — Token OTC lane repointed to the guarded realm (2026-07-13)
 - **The OTC desk now trades against the fund-safe realm.** The Tokens (OTC) lane pointed at `memba_token_otc_v1`, which was never deployed to test13 and whose `Fill` reads the attached coins without the direct-user-call guard. It now targets the deployed, `IsUserCall`-guarded `memba_token_otc_v2` — identical trading API, so listing, filling, and cancelling are unchanged; the lane simply resolves to a realm that exists and can't be phantom-deposit drained.
 
