@@ -93,6 +93,11 @@ jobs:
           # it and fail on any diff — a stale bundle could attest a result the
           # current frontend sim no longer produces. Rebuild locally with:
           #   node backend/internal/arcade/worker/build.mjs
+          # NOTE: a sim BEHAVIOR change surfaces here as a bundle diff (and a
+          # fixtures.json diff). Regenerating those is not enough on a LIVE season
+          # — it must be paired with a SIM_VERSION bump so old attestations stay
+          # partitioned by their frozen build. That decision is the owner-gated
+          # season-cutover ceremony (SIM_VERSION is still unreleased at v2).
           node ../backend/internal/arcade/worker/build.mjs
           if ! git diff --exit-code -- ../backend/internal/arcade/worker/bundle/verify-worker.cjs; then
             echo "::error::verify-worker.cjs is stale. Run 'node backend/internal/arcade/worker/build.mjs' and commit the result."

@@ -40,12 +40,12 @@ func TestValidateJob_RejectsUnsupportedSimVersion(t *testing.T) {
 
 func TestValidateJob_RejectsBadSeeds(t *testing.T) {
 	cases := map[string]string{
-		"empty":       "",
-		"too long":    strings.Repeat("a", MaxSeedLen+1),
-		"newline":     "barricade-2026\n07-13",
-		"quote":       `barricade-"drop"`,
-		"control":     "seed\x00null",
-		"space":       "barricade 2026",
+		"empty":    "",
+		"too long": strings.Repeat("a", MaxSeedLen+1),
+		"newline":  "barricade-2026\n07-13",
+		"quote":    `barricade-"drop"`,
+		"control":  "seed\x00null",
+		"space":    "barricade 2026",
 	}
 	for name, seed := range cases {
 		if err := ValidateJob(seed, CurrentSimVersion, json.RawMessage(`[]`)); err == nil {

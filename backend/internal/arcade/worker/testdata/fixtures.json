@@ -1,5 +1,5 @@
 {
-  "note": "Cross-boundary determinism fixtures for the BARRICADE verify worker. Each `expected` was produced by the esbuild-bundled worker running under node; the frontend test (frontend/src/games/barricade/verify-fixtures.test.ts) asserts runReplay() reproduces the same values (frontend sim == expected), and the Go test (runner_boundary_test.go) asserts the real node worker reproduces them too (bundle+node == expected). Together they prove the frontend sim and the attester's worker agree byte-for-byte. Regenerate the expecteds if the sim intentionally changes (SIM_VERSION bump): run each job through `node backend/internal/arcade/worker/dist/verify-worker.cjs`.",
+  "note": "Cross-boundary determinism fixtures for the BARRICADE verify worker. Each `expected` was produced by the esbuild-bundled worker running under node; the frontend test (frontend/src/games/barricade/verify-fixtures.test.ts) asserts runReplay() reproduces the same values (frontend sim == expected), and the Go test (runner_boundary_test.go) asserts the real node worker reproduces them too (bundle+node == expected). Together they prove the frontend sim and the attester's worker agree byte-for-byte. Regenerate the expecteds if the sim intentionally changes (a SIM_VERSION bump — an owner-gated season cutover): pipe each job through `node backend/internal/arcade/worker/bundle/verify-worker.cjs`.",
   "simVersion": 2,
   "cases": [
     {
@@ -38,6 +38,21 @@
       "name": "empty-daily-alt-seed",
       "job": { "seed": "barricade-2026-07-04", "simVersion": 2, "events": [] },
       "expected": { "ok": true, "score": 26600, "waves": 5, "won": false, "overtimeRound": 0, "stateHash": "a5d29e6fdd05fd91", "simVersion": 2 }
+    },
+    {
+      "name": "all-five-event-types",
+      "job": {
+        "seed": "practice-allverbs-1",
+        "simVersion": 2,
+        "events": [
+          { "tick": 60, "type": "move", "lane": 1 },
+          { "tick": 120, "type": "shove", "lane": 1 },
+          { "tick": 200, "type": "rally" },
+          { "tick": 300, "type": "throw", "lane": 1, "dist": 30 },
+          { "tick": 2000, "type": "choice", "choice": "repair" }
+        ]
+      },
+      "expected": { "ok": true, "score": 27150, "waves": 5, "won": false, "overtimeRound": 0, "stateHash": "6673652addabdccc", "simVersion": 2 }
     }
   ]
 }

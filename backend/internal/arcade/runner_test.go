@@ -63,6 +63,48 @@ func TestRunner_TreatsWorkerRejectionAsAResultNotAnError(t *testing.T) {
 	}
 }
 
+func TestRunner_RejectsInvalidJobWithoutSpawningNode(t *testing.T) {
+	// An invalid submission (here: an unsupported sim version) is a clean
+	// rejection — Verify must return OK=false with nil error and, crucially,
+	// must NOT spawn the worker (it cost-bounds before node, so a garbage
+	// payload can't reach node's parser).
+	var spawned bool
+	r := newRunnerWithExec(Config{}, func(_ context.Context, _ []byte) ([]byte, error) {
+		spawned = true
+		return okStdout(t, 1), nil
+	})
+	res, err := r.Verify(context.Background(), Job{Seed: "x", SimVersion: 1, Events: json.RawMessage(`[]`)})
+	if err != nil {
+		t.Fatalf("invalid input must be a rejection, not an error: %v", err)
+	}
+	if res.OK {
+		t.Fatal("expected OK=false for an invalid job")
+	}
+	if spawned {
+		t.Fatal("node must not be spawned for an invalid job")
+	}
+}
+
+func TestRunner_RejectsImplausibleOkResultAsError(t *testing.T) {
+	// A worker that claims ok:true but omits the state hash (or the sim version)
+	// must not be treated as a valid result — a zeroed, empty-hash "verified"
+	// run is exactly what must never be attested.
+	for name, stdout := range map[string]string{
+		"empty hash": `{"ok":true,"score":100,"simVersion":2}`,
+		"wrong sim":  `{"ok":true,"score":100,"stateHash":"abc","simVersion":1}`,
+		"bare ok":    `{"ok":true}`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			r := newRunnerWithExec(Config{}, func(_ context.Context, _ []byte) ([]byte, error) {
+				return []byte(stdout), nil
+			})
+			if _, err := r.Verify(context.Background(), testJob()); err == nil {
+				t.Fatalf("expected an error for an implausible ok result: %s", stdout)
+			}
+		})
+	}
+}
+
 func TestRunner_SurfacesExecFailureAsError(t *testing.T) {
 	// A non-zero exit / timeout / missing node is an infrastructure error the
 	// caller must NOT confuse with a verification rejection.

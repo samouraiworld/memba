@@ -141,3 +141,27 @@ func TestVerifyWorker_OutputCapKillsPromptly(t *testing.T) {
 		t.Fatal("Verify hung on an over-cap child instead of killing it promptly")
 	}
 }
+
+func TestVerifyWorker_TimeoutIsAnInfraErrorNotARejection(t *testing.T) {
+	bin := os.Getenv("MEMBA_ARCADE_NODE_BIN")
+	if bin == "" {
+		bin = "node"
+	}
+	if _, err := exec.LookPath(bin); err != nil {
+		t.Skipf("node (%q) not on PATH", bin)
+	}
+	// A wall-clock the real worker cannot beat (node startup alone is tens of ms)
+	// forces the timeout path with a real process. It must surface as an ERROR —
+	// a crashed/killed worker must never be mistaken for a clean OK=false
+	// rejection or (worse) a valid result.
+	r, err := NewRunner(Config{NodeBin: bin, Timeout: 1 * time.Millisecond})
+	if err != nil {
+		t.Fatalf("NewRunner: %v", err)
+	}
+	t.Cleanup(func() { _ = r.Close() })
+
+	res, verr := r.Verify(context.Background(), Job{Seed: "barricade-2026-07-13", SimVersion: CurrentSimVersion, Events: json.RawMessage(`[]`)})
+	if verr == nil {
+		t.Fatalf("a timed-out worker must be an infra error, got result %+v", res)
+	}
+}

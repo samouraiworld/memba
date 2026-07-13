@@ -66,8 +66,8 @@ type Runner struct {
 	cfg        Config
 	sem        chan struct{}
 	exec       execFn
-	workerPath string   // extracted bundle path (empty when exec is injected in tests)
-	cleanup    func()   // removes the extracted bundle
+	workerPath string // extracted bundle path (empty when exec is injected in tests)
+	cleanup    func() // removes the extracted bundle
 }
 
 // NewRunner extracts the embedded worker bundle to a private temp file and wires
@@ -137,6 +137,16 @@ func (r *Runner) Close() error {
 // the worker returns an error; a worker that ran and rejected returns a Result
 // with OK=false and nil error.
 func (r *Runner) Verify(ctx context.Context, job Job) (Result, error) {
+	// Cost-bound + shape-check BEFORE taking a slot or spawning node: an invalid
+	// submission is a clean rejection, not infrastructure work. Verify is the
+	// spawn point, so it enforces the "bounded before node" contract itself
+	// rather than trusting every caller to have called ValidateJob first — the
+	// worker's own parse runs over the WHOLE stdin before its event cap, so an
+	// unbounded events payload would otherwise OOM node before it could reject it.
+	if err := ValidateJob(job.Seed, job.SimVersion, job.Events); err != nil {
+		return Result{OK: false, Error: err.Error()}, nil
+	}
+
 	// Queue behind the concurrency cap, but bail out if the caller's context is
 	// cancelled while waiting (don't block a request goroutine forever).
 	select {
@@ -162,6 +172,15 @@ func (r *Runner) Verify(ctx context.Context, job Job) (Result, error) {
 	var res Result
 	if err := json.Unmarshal(bytes.TrimSpace(stdout), &res); err != nil {
 		return Result{}, fmt.Errorf("arcade: unparseable worker output (%d bytes): %w", len(stdout), err)
+	}
+	// Output-side sanity on a trust surface: a genuine verified result always
+	// carries a non-empty state-hash digest and the current sim version. A shape
+	// that claims ok:true without them (e.g. a partial `{"ok":true}` from a
+	// regressed worker or a stdout prefixer) unmarshals to a ZEROED, attestable
+	// Result — reject it as an implausible worker output rather than let a
+	// score:0/empty-hash "verified" run through.
+	if res.OK && (res.StateHash == "" || res.SimVersion != CurrentSimVersion) {
+		return Result{}, fmt.Errorf("arcade: implausible worker result (ok=true, hash=%q, simVersion=%d)", res.StateHash, res.SimVersion)
 	}
 	return res, nil
 }
