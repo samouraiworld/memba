@@ -62,6 +62,16 @@ type MultisigService struct {
 	// assembly (8 network/DB reads) runs at a time — the rest share its result.
 	homeGroup singleflight.Group
 
+	// Feed stats cache (B.5) — a single global entry (the stats have no chain_id
+	// dimension), in-memory, serve-stale-on-error. feedStatsGroup collapses
+	// concurrent cache misses so only one 4-query DB fan-out (3× COUNT + the
+	// most-replied query) runs per TTL — protects the DB from the concurrent-
+	// reader thundering herd of a traffic spike. See GetFeedStats in feed_rpc.go.
+	feedStatsMu       sync.RWMutex
+	feedStatsCached   *membav1.GetFeedStatsResponse
+	feedStatsCachedAt time.Time
+	feedStatsGroup    singleflight.Group
+
 	// Block Party (B6): feature flag + seed RPC source for the daily-challenge
 	// block fetcher. Disabled (false, empty seed) by default; wired in
 	// production via SetBlockParty from BLOCKPARTY_ENABLED / BLOCKPARTY_SEED_RPC_URL.

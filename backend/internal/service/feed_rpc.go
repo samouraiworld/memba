@@ -3,6 +3,9 @@ package service
 import (
 	"context"
 	"database/sql"
+	"log/slog"
+	"os"
+	"time"
 
 	"connectrpc.com/connect"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
@@ -264,9 +267,79 @@ func (s *MultisigService) GetReplyNotifications(ctx context.Context, req *connec
 	}), nil
 }
 
-// GetFeedStats returns feed-wide live counters for the header/rail. Public read
-// — no auth. All counts exclude hidden + deleted rows.
-func (s *MultisigService) GetFeedStats(ctx context.Context, req *connect.Request[membav1.GetFeedStatsRequest]) (*connect.Response[membav1.GetFeedStatsResponse], error) {
+// feedStatsTTL is the feed-stats cache window (default 30s, env FEED_STATS_TTL
+// as a Go duration). Kept short so the header/rail counters stay near-live.
+func feedStatsTTL() time.Duration {
+	if v := os.Getenv("FEED_STATS_TTL"); v != "" {
+		if d, err := time.ParseDuration(v); err == nil {
+			return d
+		}
+	}
+	return 30 * time.Second
+}
+
+// cachedFeedStats serves the stats from cache within the TTL, re-assembles on
+// expiry under a singleflight, and serves the last-good value if a re-assembly
+// errors (stale). Mirrors cachedHomeSnapshot. A cold-cache assemble error is
+// propagated (no last-good to fall back on), preserving the pre-cache contract.
+func (s *MultisigService) cachedFeedStats(
+	ctx context.Context,
+	assemble func(context.Context) (*membav1.GetFeedStatsResponse, error),
+) (*membav1.GetFeedStatsResponse, error) {
+	ttl := feedStatsTTL()
+
+	s.feedStatsMu.RLock()
+	cached := s.feedStatsCached
+	at := s.feedStatsCachedAt
+	s.feedStatsMu.RUnlock()
+	if cached != nil && time.Since(at) < ttl {
+		return cached, nil // HIT
+	}
+
+	// Collapse concurrent misses: only one 4-query fan-out runs at a time; the
+	// rest wait and share its result. Prevents a thundering herd of COUNT(*)
+	// scans against the DB when the cache expires under a traffic spike.
+	v, err, _ := s.feedStatsGroup.Do("feed_stats", func() (any, error) {
+		// Re-check under the flight — a just-finished winner may have filled the
+		// cache while this goroutine was queued behind it.
+		s.feedStatsMu.RLock()
+		c := s.feedStatsCached
+		cAt := s.feedStatsCachedAt
+		s.feedStatsMu.RUnlock()
+		if c != nil && time.Since(cAt) < ttl {
+			return c, nil
+		}
+
+		fresh, err := assemble(ctx) // MISS
+		if err != nil {
+			return nil, err
+		}
+		s.feedStatsMu.Lock()
+		s.feedStatsCached = fresh
+		s.feedStatsCachedAt = time.Now()
+		s.feedStatsMu.Unlock()
+		return fresh, nil
+	})
+	if err != nil {
+		// Assembly failed — serve the last-good value if we have one (resilience
+		// during a transient DB blip under load), else propagate the error.
+		s.feedStatsMu.RLock()
+		stale := s.feedStatsCached
+		s.feedStatsMu.RUnlock()
+		if stale != nil {
+			slog.Warn("feed stats assemble failed; serving stale", "err", err)
+			return stale, nil
+		}
+		return nil, err
+	}
+	fresh, _ := v.(*membav1.GetFeedStatsResponse)
+	return fresh, nil
+}
+
+// assembleFeedStats runs the 3 COUNT(*) + most-replied queries that back the
+// feed header/rail. Split out from GetFeedStats so cachedFeedStats can dedupe
+// and cache the whole fan-out. All counts exclude hidden + deleted + blocklisted.
+func (s *MultisigService) assembleFeedStats(ctx context.Context) (*membav1.GetFeedStatsResponse, error) {
 	var livePosts, totalReplies, totalAuthors int64
 	if err := s.db.QueryRowContext(ctx,
 		`SELECT COUNT(*) FROM feed_posts WHERE reply_to = 0 AND hidden = 0 AND deleted = 0 AND post_id NOT IN (SELECT post_id FROM feed_blocklist)`).
@@ -300,12 +373,23 @@ func (s *MultisigService) GetFeedStats(ctx context.Context, req *connect.Request
 		return nil, internalError("GetFeedStats/mostReplied-scan", err)
 	}
 
-	return connect.NewResponse(&membav1.GetFeedStatsResponse{
+	return &membav1.GetFeedStatsResponse{
 		LivePosts:    u64(livePosts),
 		TotalReplies: u64(totalReplies),
 		TotalAuthors: u64(totalAuthors),
 		MostReplied:  mostReplied,
-	}), nil
+	}, nil
+}
+
+// GetFeedStats returns feed-wide live counters for the header/rail. Public read
+// — no auth. Served from a short-TTL, singleflight-deduped cache so concurrent
+// readers (a traffic spike) collapse to one DB fan-out per window.
+func (s *MultisigService) GetFeedStats(ctx context.Context, req *connect.Request[membav1.GetFeedStatsRequest]) (*connect.Response[membav1.GetFeedStatsResponse], error) {
+	stats, err := s.cachedFeedStats(ctx, s.assembleFeedStats)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(stats), nil
 }
 
 // nextCursor returns the paging cursor for a descending window: the last
