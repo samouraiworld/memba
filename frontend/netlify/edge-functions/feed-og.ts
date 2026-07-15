@@ -42,7 +42,8 @@ export default async function handler(request: Request, context: EdgeContext): P
     }
 
     const url = new URL(request.url)
-    const id = url.pathname.split("/").pop() ?? ""
+    // filter(Boolean) so a trailing slash (/feed/post/123/) still yields "123".
+    const id = url.pathname.split("/").filter(Boolean).pop() ?? ""
     if (!/^\d+$/.test(id)) {
         return context.next()
     }
@@ -82,8 +83,12 @@ export default async function handler(request: Request, context: EdgeContext): P
         status: 200,
         headers: {
             "content-type": "text/html; charset=utf-8",
-            // Short CDN cache; Vary on UA so a bot card is never served to a human.
-            "cache-control": "public, max-age=60",
+            // `private` keeps this OUT of shared CDN caches, so a post moderated
+            // after a card was built isn't served stale to later crawlers — the
+            // takedown takes effect on the next fetch. A short client-side max-age
+            // still coalesces a single crawler's rapid re-requests. Vary on UA is
+            // belt-and-suspenders so a bot card is never keyed to a human.
+            "cache-control": "private, max-age=60",
             vary: "user-agent",
         },
     })

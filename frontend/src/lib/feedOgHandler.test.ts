@@ -63,6 +63,15 @@ describe("feed-og handler routing", () => {
         expect(html).toContain("/feed/post/1")
     })
 
+    it("still serves a card when the permalink has a trailing slash", async () => {
+        stubFetch({ root: { id: "1", author: "g1x", body: "Hi there" } })
+        const c = ctx()
+        const res = await handler(req("/feed/post/1/", BOT), c)
+        expect(c.next).not.toHaveBeenCalled()
+        expect(res.status).toBe(200)
+        expect(await res.text()).toContain(`content="Hi there"`)
+    })
+
     it("(P0) never leaks a tombstoned body to a bot", async () => {
         stubFetch({ root: { id: "7", author: "g1x", body: "LEAK-ME", hidden: true } })
         const c = ctx()

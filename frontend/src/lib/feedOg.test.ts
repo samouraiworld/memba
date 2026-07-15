@@ -137,6 +137,17 @@ describe("renderOgPage — TOMBSTONE must never leak the body (P0)", () => {
             expect(html).toContain("no longer available")
         })
     }
+
+    it("does not throw on a live post whose body field is OMITTED (proto3 empty default)", () => {
+        // The Connect codec omits an empty-string body, so root arrives with NO
+        // body key. renderOgPage must coalesce, not crash, and show a generic card.
+        const noBody: OgPost = { id: "9", author: live.author }
+        expect(() =>
+            renderOgPage({ root: noBody, permalink: "https://memba.samourai.app/feed/post/9", ogImage: "https://memba.samourai.app/og-image.jpg" }),
+        ).not.toThrow()
+        const html = renderOgPage({ root: noBody, permalink: "https://memba.samourai.app/feed/post/9", ogImage: "https://memba.samourai.app/og-image.jpg" })
+        expect(html).toContain("no longer available")
+    })
 })
 
 describe("renderOgPage — escaping & length", () => {

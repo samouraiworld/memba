@@ -17,11 +17,13 @@
  */
 
 /** The subset of a FeedPost the OG card needs. Field names match the Connect
- *  JSON of `GetFeedThread` (camelCase; hidden/deleted omitted when false). */
+ *  JSON of `GetFeedThread` (camelCase). The default codec OMITS proto3 defaults,
+ *  so `body` is ABSENT for an empty-body post and `hidden`/`deleted` are absent
+ *  when false — hence all three are optional here. */
 export interface OgPost {
     id: string
     author: string
-    body: string
+    body?: string
     hidden?: boolean
     deleted?: boolean
     replyCount?: number
@@ -105,11 +107,14 @@ const TOMBSTONE_DESC = "This post is no longer available on Memba."
  */
 export function renderOgPage(opts: { root: OgPost; permalink: string; ogImage: string }): string {
     const { root, permalink, ogImage } = opts
-    const tomb = isTombstone(root) || root.body.trim() === ""
+    // `body` is absent for an empty-body post (proto3 default omission) — coalesce
+    // before touching it so a live empty post renders a generic card, not a crash.
+    const body = root.body ?? ""
+    const tomb = isTombstone(root) || body.trim() === ""
 
     const author = shortAddress(root.author)
     const title = tomb ? TOMBSTONE_TITLE : `Post by ${author} · ${SITE_NAME}`
-    const description = tomb ? TOMBSTONE_DESC : truncate(root.body, 200)
+    const description = tomb ? TOMBSTONE_DESC : truncate(body, 200)
 
     const eTitle = escapeHtml(title)
     const eDesc = escapeHtml(description)
