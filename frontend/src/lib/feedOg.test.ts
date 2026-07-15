@@ -50,6 +50,19 @@ describe("isBotUserAgent", () => {
         expect(isBotUserAgent(null)).toBe(false)
         expect(isBotUserAgent(undefined)).toBe(false)
     })
+
+    it("does NOT misclassify a human in a Pinterest/Flipboard in-app browser", () => {
+        // Documented: these in-app browsers carry the bare brand token, so a bare
+        // `pinterest`/`flipboard` substring would hand a real human the crawler stub.
+        expect(isBotUserAgent("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) [Pinterest/iOS]")).toBe(false)
+        expect(isBotUserAgent("Mozilla/5.0 (Linux; Android 13) Flipboard/4.1.13/4342")).toBe(false)
+    })
+
+    it("still matches the Pinterest/Flipboard/WhatsApp CRAWLERS (proxy/version forms)", () => {
+        expect(isBotUserAgent("Pinterestbot/1.0 (+https://www.pinterest.com/bot.html)")).toBe(true)
+        expect(isBotUserAgent("FlipboardProxy/1.2 (+http://flipboard.com/browserproxy)")).toBe(true)
+        expect(isBotUserAgent("WhatsApp/2.22.20.72 A")).toBe(true)
+    })
 })
 
 describe("isTombstone", () => {
