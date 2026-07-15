@@ -3,6 +3,7 @@ package indexer
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -73,6 +74,11 @@ func StartFeedTailer(ctx context.Context, database *sql.DB, cfg FeedTailerConfig
 		// was unavailable. Panic-isolated so a bad block never stops the tailer.
 		runRecovered(cfg.Logger, "feed_blockts_backfill", func() {
 			backfillMissingBlockTimes(ctx, database, src, cfg.Logger)
+		})
+		// Recover flagger addresses for flags that predate the feed_flags
+		// projection (migration 025). Reads only feed_raw_events — no RPC.
+		runRecovered(cfg.Logger, "feed_flags_backfill", func() {
+			backfillFeedFlags(ctx, database, cfg.Logger)
 		})
 		ticker := time.NewTicker(cfg.Interval)
 		defer ticker.Stop()
@@ -266,6 +272,7 @@ func rollbackFeedFromHeight(ctx context.Context, db *sql.DB, height int64) error
 	for _, stmt := range []string{
 		`DELETE FROM feed_raw_events WHERE event_block >= ?`,
 		`DELETE FROM feed_posts WHERE created_event_block >= ?`,
+		`DELETE FROM feed_flags WHERE event_block >= ?`,
 	} {
 		if _, err := tx.ExecContext(ctx, stmt, height); err != nil {
 			return err
@@ -329,6 +336,69 @@ func backfillMissingBlockTimes(ctx context.Context, db *sql.DB, src blockSource,
 	}
 	if filled > 0 {
 		log.Info("feed tailer: backfilled block_ts for pre-migration posts", "heights_filled", filled)
+	}
+}
+
+// backfillFeedFlags projects the flagger address of historical PostFlagged
+// events into feed_flags for flags that predate migration 025 (the dispatcher
+// discarded the flagger before this). Source is feed_raw_events (the immutable
+// ledger) — the flagger sits in attrs_json — so no RPC is needed and a
+// backfilled row survives rebuild-from-raw. Idempotent (INSERT OR IGNORE on the
+// (post_id, flagger) key); malformed rows (no flagger) are skipped. Cheap at
+// feed scale (one indexed pass), so it runs opportunistically each startup.
+func backfillFeedFlags(ctx context.Context, db *sql.DB, log *slog.Logger) {
+	rows, err := db.QueryContext(ctx,
+		`SELECT attrs_json, event_block FROM feed_raw_events WHERE event_name = 'PostFlagged'`)
+	if err != nil {
+		log.Warn("feed tailer: feed_flags backfill query failed", "error", err)
+		return
+	}
+	type flag struct {
+		postID  int64
+		flagger string
+		block   int64
+	}
+	var flags []flag
+	for rows.Next() {
+		var attrs string
+		var block int64
+		if err := rows.Scan(&attrs, &block); err != nil {
+			log.Warn("feed tailer: feed_flags backfill scan failed", "error", err)
+			continue
+		}
+		var m map[string]string
+		if err := json.Unmarshal([]byte(attrs), &m); err != nil {
+			continue
+		}
+		flagger := m["flagger"]
+		if flagger == "" {
+			continue
+		}
+		id, ok := atoiStrict(m["postId"])
+		if !ok {
+			continue
+		}
+		flags = append(flags, flag{id, flagger, block})
+	}
+	// Close the read cursor before writing: sqlite serializes an open read
+	// against a write on the same connection.
+	_ = rows.Close()
+
+	inserted := 0
+	for _, f := range flags {
+		res, err := db.ExecContext(ctx,
+			`INSERT OR IGNORE INTO feed_flags (post_id, flagger_addr, event_block) VALUES (?, ?, ?)`,
+			f.postID, f.flagger, f.block)
+		if err != nil {
+			log.Warn("feed tailer: feed_flags backfill insert failed", "post", f.postID, "error", err)
+			continue
+		}
+		if n, _ := res.RowsAffected(); n > 0 {
+			inserted++
+		}
+	}
+	if inserted > 0 {
+		log.Info("feed tailer: backfilled feed_flags from raw events", "flags_inserted", inserted)
 	}
 }
 

@@ -135,10 +135,24 @@ func applyFeedPostFlagged(ctx context.Context, db *sql.DB, ev GnoEvent) error {
 		return nil
 	}
 	count := atoiSafe(ev.Attr("flagCount"))
-	_, err := db.ExecContext(ctx, `
+	if _, err := db.ExecContext(ctx, `
 		UPDATE feed_posts SET flag_count = ?, updated_at = CURRENT_TIMESTAMP
-		WHERE post_id = ?`, count, id)
-	return err
+		WHERE post_id = ?`, count, id); err != nil {
+		return err
+	}
+	// Project the flagger address (C.1). memba_feed_v1 emits it in every
+	// PostFlagged ("flagger", caller); a malformed / older event may omit it —
+	// skip those (the aggregate count above is still applied). One row per
+	// (post, flagger) mirrors the realm's flag tree, so INSERT OR IGNORE makes
+	// re-processing the tail idempotent.
+	if flagger := ev.Attr("flagger"); flagger != "" {
+		if _, err := db.ExecContext(ctx, `
+			INSERT OR IGNORE INTO feed_flags (post_id, flagger_addr, event_block)
+			VALUES (?, ?, ?)`, id, flagger, ev.Block); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // applyFeedReactionAdded records one (post, emoji, reactor) reaction. Idempotent
