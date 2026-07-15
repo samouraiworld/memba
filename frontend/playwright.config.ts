@@ -55,6 +55,16 @@ export default defineConfig({
             reuseExistingServer: !process.env.CI,
             timeout: 60_000,
         },
+        // Third dev server with the FEED flag ON (`vite --mode e2e-feed` loads
+        // .env.e2e-feed → VITE_ENABLE_FEED=true). Only feed-live.spec.ts targets it
+        // (baseURL :5175). Kept separate from :5174 because feed-gating.spec asserts
+        // the feed is GATED there.
+        {
+            command: 'npm run dev:e2e-feed',
+            url: 'http://localhost:5175',
+            reuseExistingServer: !process.env.CI,
+            timeout: 60_000,
+        },
     ],
 })
 
