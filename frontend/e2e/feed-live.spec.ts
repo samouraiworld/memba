@@ -9,11 +9,10 @@ import { stubFeedBackend, FEED_AUTHORS, TOMBSTONE_ID, TOMBSTONE_BODY, BUSY_THREA
  * renders past the gate, a moderated (tombstoned) root NEVER leaks its body into
  * any route, and no feed route overflows the 375px mobile viewport.
  *
- * Scoped out (covered elsewhere / awaiting deps): the N-new pill and nav reply
- * badge are timing/wallet-connected-dependent and unit-covered
- * (FeedPage.test.tsx, useFeedReplyBadge.test.tsx); the thread "show more"
- * affordance awaits B.2 (thread reply pagination), so this asserts the large
- * reply set renders, not the pager.
+ * Scoped out (covered elsewhere): the N-new pill and nav reply badge are
+ * timing/wallet-connected-dependent and unit-covered (FeedPage.test.tsx,
+ * useFeedReplyBadge.test.tsx). The busy-thread test exercises the "show more"
+ * pager (B.2, thread reply pagination) end-to-end against the 51-reply fixture.
  */
 
 test.use({ baseURL: 'http://localhost:5175' })
@@ -89,6 +88,12 @@ test.describe('Feed live (VITE_ENABLE_FEED=true, stubbed backend)', () => {
         // The first page of replies (up to 50) is rendered.
         await expect(page.getByText('Reply 1 in the busy thread.')).toBeVisible()
         await expect(page.getByText('Reply 50 in the busy thread.')).toBeVisible()
+        // Reply 51 is on the next page — the older single-window view dropped it.
+        // "Show more replies" pages it in (B.2), then the control retires at the end.
+        await expect(page.getByText('Reply 51 in the busy thread.')).toHaveCount(0)
+        await page.getByTestId('feed-thread-load-more').click()
+        await expect(page.getByText('Reply 51 in the busy thread.')).toBeVisible({ timeout: 10_000 })
+        await expect(page.getByTestId('feed-thread-load-more')).toHaveCount(0)
     })
 
     test('a user profile timeline renders that author’s posts', async ({ page }) => {

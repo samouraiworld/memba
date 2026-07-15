@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams } from "react-router-dom"
-import { useQuery } from "@tanstack/react-query"
+import { useInfiniteQuery } from "@tanstack/react-query"
 import { ArrowLeft } from "@phosphor-icons/react"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useAdena } from "../hooks/useAdena"
@@ -43,9 +43,14 @@ export default function FeedThread() {
     const { address, connected, connect } = useAdena()
     const nav = useNetworkNav()
 
-    const query = useQuery({
+    // Keyset pagination: page 0 is the oldest reply window; each page advances
+    // `nextCursor` toward the newest reply. Older code fetched a single 50-reply
+    // window and discarded `nextCursor`, silently dropping replies 51+ (B.2).
+    const query = useInfiniteQuery({
         queryKey: ["feed", "thread", postId?.toString() ?? ""],
-        queryFn: () => fetchFeedThread(postId as bigint, 0n, 50),
+        queryFn: ({ pageParam }) => fetchFeedThread(postId as bigint, pageParam, 50),
+        initialPageParam: 0n,
+        getNextPageParam: (last) => (last.nextCursor && last.nextCursor > 0n ? last.nextCursor : undefined),
         enabled: postId !== null,
         refetchInterval: FEED_POLL_MS,
         staleTime: 5_000,
@@ -71,7 +76,7 @@ export default function FeedThread() {
     // Clear any pending reconcile poke when the thread id changes or on unmount.
     useEffect(() => () => { if (reconcileTimer.current) clearTimeout(reconcileTimer.current) }, [idKey])
 
-    const serverReplies = query.data?.replies ?? []
+    const serverReplies = query.data?.pages.flatMap(p => p.replies) ?? []
     // Replies are oldest-first → the newest loaded reply is the last one. Fed to
     // onReplied's deps so the optimistic baseline is current at post time.
     const newestReplyId = serverReplies.length > 0 ? serverReplies[serverReplies.length - 1].id : 0n
@@ -88,7 +93,7 @@ export default function FeedThread() {
         if (reconcileTimer.current) clearTimeout(reconcileTimer.current)
         const poke = async (n: number) => {
             const res = await query.refetch()
-            const server = res.data?.replies ?? []
+            const server = res.data?.pages.flatMap(p => p.replies) ?? []
             const t = Date.now()
             setOptimistic(prev => prev.filter(o => !isStaleOptimistic(o, t) && !server.some(s => reconciles(o, s))))
             if (n > 0) reconcileTimer.current = setTimeout(() => void poke(n - 1), RECONCILE_MS)
@@ -96,8 +101,9 @@ export default function FeedThread() {
         reconcileTimer.current = setTimeout(() => void poke(3), RECONCILE_MS)
     }, [query, newestReplyId])
 
+    const rootPost = query.data?.pages[0]?.root ?? null
     const names = useActorUsernames([
-        ...(query.data?.root ? [query.data.root.author] : []),
+        ...(rootPost ? [rootPost.author] : []),
         ...serverReplies.map(r => r.author),
     ])
 
@@ -116,7 +122,7 @@ export default function FeedThread() {
         )
     }
 
-    const root = query.data?.root ?? null
+    const root = rootPost
 
     return (
         <div className="feed-page" data-testid="feed-thread">
@@ -168,6 +174,18 @@ export default function FeedThread() {
                                     displayName={names.get(r.author)}
                                 />
                             ))
+                        )}
+
+                        {query.hasNextPage && (
+                            <button
+                                type="button"
+                                className="feed-loadmore"
+                                onClick={() => void query.fetchNextPage()}
+                                disabled={query.isFetchingNextPage}
+                                data-testid="feed-thread-load-more"
+                            >
+                                {query.isFetchingNextPage ? "Loading…" : "Show more replies"}
+                            </button>
                         )}
                     </div>
                 </>

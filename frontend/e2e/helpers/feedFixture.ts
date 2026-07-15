@@ -12,8 +12,8 @@ import type { Page, Route } from '@playwright/test'
  *  - 25 live top-level posts (ids 1..25), one carrying a gno.land unfurl link.
  *  - a TOMBSTONE thread root (id 900, hidden, body retained) — proves a
  *    moderated root never leaks its body into the thread view.
- *  - a busy thread (root 500) with 51 replies — proves the thread view holds a
- *    large reply set (the "show more" affordance itself awaits B.2).
+ *  - a busy thread (root 500) with 51 replies — drives the "show more" pager
+ *    (B.2): page 0 serves 50 replies + a cursor, page 1 serves the 51st.
  *
  * JSON wire notes: uint64 fields (id/blockTs/cursor/…) are strings, uint32
  * (flag/reply counts) are numbers — matching the live backend verified by curl.
