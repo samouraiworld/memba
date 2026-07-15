@@ -97,6 +97,7 @@ export function FeedComposer({
             <textarea
                 className="feed-composer__input"
                 placeholder={placeholder}
+                aria-label={replyTo === 0n ? "Write a post" : "Write a reply"}
                 value={body}
                 maxLength={MAX_FEED_BODY + 100 /* allow paste, then show over-limit */}
                 rows={replyTo === 0n ? 3 : 2}

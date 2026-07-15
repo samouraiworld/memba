@@ -169,6 +169,21 @@ describe("PostCard author edit / delete", () => {
         expect(article.className).toContain("feed-post--cv-off")
     })
 
+    it("closes the manage menu on Escape (useDismissable)", () => {
+        render(<PostCard post={basePost({})} {...own} />)
+        fireEvent.click(screen.getByTestId("feed-post-menu"))
+        expect(screen.getByTestId("feed-post-edit")).toBeInTheDocument()
+        fireEvent.keyDown(document, { key: "Escape" })
+        expect(screen.queryByTestId("feed-post-edit")).toBeNull()
+    })
+
+    it("labels the edit textarea for assistive tech", () => {
+        render(<PostCard post={basePost({})} {...own} />)
+        fireEvent.click(screen.getByTestId("feed-post-menu"))
+        fireEvent.click(screen.getByTestId("feed-post-edit"))
+        expect(screen.getByLabelText("Edit your post")).toBeInTheDocument()
+    })
+
     it("edits: broadcasts EditPost and optimistically shows the new body", async () => {
         mockSubmit.mockResolvedValueOnce("hash")
         render(<PostCard post={basePost({})} {...own} />)

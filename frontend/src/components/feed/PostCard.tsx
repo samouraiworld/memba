@@ -14,13 +14,14 @@
  * @module components/feed/PostCard
  */
 
-import { memo, useCallback, useMemo, useState } from "react"
+import { memo, useCallback, useMemo, useRef, useState } from "react"
 import { Flag, ChatCircle, DotsThreeVertical, PencilSimple, Trash, LinkSimple, Check } from "@phosphor-icons/react"
 import { submitFeedMsg, buildFlagPostMsg, buildEditPostMsg, buildDeletePostMsg } from "../../lib/feed"
 import { feedPostPermalink } from "../../lib/feedPermalink"
 import type { UiPost } from "../../lib/feedTypes"
 import { relativeTime } from "../../lib/relativeTime"
 import { useNow } from "../../hooks/home/useNow"
+import { useDismissable } from "../../hooks/useDismissable"
 import { FeedAvatar } from "./FeedAvatar"
 import { FeedShareCard } from "./FeedShareCard"
 import { PostUnfurls } from "./PostUnfurls"
@@ -126,6 +127,9 @@ function PostCardInner({
     // Author manage state (edit / delete), with optimistic local overrides that
     // hold until the indexer-backed refetch reflects the real edit/delete.
     const [menuOpen, setMenuOpen] = useState(false)
+    const menuRef = useRef<HTMLDivElement | null>(null)
+    const closeMenu = useCallback(() => setMenuOpen(false), [])
+    useDismissable(menuRef, menuOpen, closeMenu)
     const [editing, setEditing] = useState(false)
     const [editBody, setEditBody] = useState(post.body)
     const [confirmingDelete, setConfirmingDelete] = useState(false)
@@ -256,7 +260,7 @@ function PostCardInner({
                         {(post.editedAt > 0n || localBody !== null) && !post.optimistic && " · edited"}
                     </span>
                     {canManage && (
-                        <div className="feed-post__menu-wrap">
+                        <div className="feed-post__menu-wrap" ref={menuRef}>
                             <button
                                 type="button"
                                 className="feed-post__menu"
@@ -300,6 +304,7 @@ function PostCardInner({
                         value={editBody}
                         onChange={(e) => setEditBody(e.target.value)}
                         rows={3}
+                        aria-label="Edit your post"
                         data-testid="feed-edit-input"
                     />
                     <div className="feed-post__edit-row">
