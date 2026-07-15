@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Reputation — the Memba Points surface is wired to a route, dark until launch (2026-07-13)
+- **The reputation UI is one flag-flip from live.** A new `/points` route (nav label "Reputation", in the Account group) mounts the `<PointsPanel>` — the connected member's rank plus the paginated on-chain leaderboard, read from `memba_points_v1` over qeval. It's gated by `VITE_ENABLE_POINTS` (off): the nav shows a "soon" pill and the page a coming-soon card until the flag flips — the same treatment Feed / Marketplace / App Store had before their launches. This lands the route + nav + page ahead of the points_v1 ceremony, so going live is just the Netlify flag flip, with no last-minute wiring.
+
 ### MEMBA: BARRICADE — the attester is now deployable (still dormant) (2026-07-13)
 - **The last piece before the certify beta can go live.** The day-close attester's signing path is now production-ready: the container image ships `gnokey`, imports the dedicated attester key from a Fly-secret mnemonic into an ephemeral keyring at boot (idempotent, then drops the secret from the process env), and the broadcaster signs non-interactively (there's no TTY in the container). It stays completely dormant until the operator sets the enable flags + the key — enabling is now just `flyctl secrets set … && flyctl deploy`, no image edits. The realm gained deploy + admin tooling in the deployer (`samcrew-arcade-admin.sh`). No behavior change ships enabled.
 ### Feed — posting a duplicate no longer makes your new post vanish (2026-07-13)

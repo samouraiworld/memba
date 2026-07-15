@@ -236,6 +236,11 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, fe
                     )}
                     {/* Utility tail — public tools clustered next to Feedback. */}
                     <ManifestLink id="leaderboard" connected={connected} collapsed={collapsed} />
+                    {/* Reputation (points_v1): flag-gated → "soon" pill + inactive until VITE_ENABLE_POINTS. */}
+                    {(() => {
+                        const on = navFlagOn("VITE_ENABLE_POINTS")
+                        return <ManifestLink id="points" connected={connected} collapsed={collapsed} badgeText={on ? "new" : "soon"} badgeInactive={!on} />
+                    })()}
                     <ManifestLink id="extensions" connected={connected} collapsed={collapsed} />
                     <ManifestLink id="feedback" connected={connected} collapsed={collapsed} />
                 </div>

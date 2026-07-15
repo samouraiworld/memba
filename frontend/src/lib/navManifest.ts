@@ -18,7 +18,7 @@ import {
     PuzzlePiece, ShoppingBag,
     User, Gear, Bank, Megaphone,
     UsersThree, Trophy, ClockCounterClockwise, ShieldStar, Newspaper,
-    ChatCircle, Storefront,
+    ChatCircle, Storefront, Medal,
 } from '@phosphor-icons/react'
 
 /** W6.2 4-mode IA: the nav IS the positioning statement. Every primary
@@ -73,6 +73,9 @@ export const NAV: NavEntry[] = [
     // Leaderboard + Extensions live with the account/utility tail (near Feedback
     // in the bottom-pinned sidebar block), not in a discovery mode section.
     { id: 'leaderboard', to: '/leaderboard', label: 'Leaderboard', Icon: Trophy, group: 'account', showOn: 'both' },
+    // Reputation = the on-chain Memba Points surface (personal rank + global board).
+    // Flag-gated: "soon" pill until VITE_ENABLE_POINTS flips at the points_v1 launch.
+    { id: 'points', to: '/points', label: 'Reputation', Icon: Medal, group: 'account', showOn: 'both', flag: 'VITE_ENABLE_POINTS' },
     { id: 'extensions', to: '/extensions', label: 'Extensions', Icon: PuzzlePiece, group: 'account', showOn: 'both' },
     { id: 'organizations', to: '/organizations', label: 'Organizations', Icon: UsersThree, group: 'govern', showOn: 'both', requiresAuth: true },
     // One Marketplace entry — NFTs, Services, and Tokens are tabs (lanes) inside
@@ -122,7 +125,7 @@ const PRIMARY_TABS_MEMBER = ['home', 'feed', 'dao', 'tokens', 'alerts']
 // Per-audience primary tabs are filtered out at render time so nothing is shown
 // twice (see mobileMoreNav).
 const MORE_NAV_IDS = ['dashboard', 'directory', 'marketplace', 'appstore', 'validators', 'gnolove', 'quests', 'feed', 'blog', 'changelogs', 'extensions', 'alerts']
-const MORE_ACCOUNT_IDS = ['profile', 'settings', 'multisig', 'feedback']
+const MORE_ACCOUNT_IDS = ['profile', 'points', 'settings', 'multisig', 'feedback']
 
 const visibleFor = (connected: boolean) => (e: NavEntry) => !e.requiresAuth || connected
 

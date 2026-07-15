@@ -24,6 +24,7 @@ import {
     GridFour,
     Briefcase,
     PuzzlePiece,
+    Medal,
 } from "@phosphor-icons/react"
 import {
     isMarketplaceEnabled,
@@ -33,6 +34,7 @@ import {
     isGameEnabled,
     isServicesEnabled,
     isAgentsEnabled,
+    isPointsEnabled,
 } from "../../lib/config"
 
 export interface HomeSurface {
@@ -64,6 +66,7 @@ export const HOME_SURFACES: HomeSurface[] = [
     { key: "game", route: "game", label: "Block Party", sub: "chain-seeded daily puzzle", Icon: GridFour, live: isGameEnabled },
     { key: "services", route: "marketplace/services", label: "Services", sub: "freelance marketplace", Icon: Briefcase, live: isServicesEnabled },
     { key: "agents", route: "marketplace/agents", label: "Agent credits", sub: "on-chain AI agents", Icon: PuzzlePiece, live: isAgentsEnabled },
+    { key: "points", route: "points", label: "Reputation", sub: "rank & reputation", Icon: Medal, live: isPointsEnabled },
 ]
 
 /** Surfaces that are live under the current flags — rendered by <ExploreGrid>. */
