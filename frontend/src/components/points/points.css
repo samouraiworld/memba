@@ -147,18 +147,72 @@
     flex-direction: column;
     gap: 14px;
 }
-.points-panel__title {
-    margin: 0;
-    font-size: 15px;
-    font-weight: 700;
+@media (max-width: 480px) {
+    /* Keep all four columns incl. the tier pill (a core concept of the board);
+       the address column truncates harder to make room. */
+    .points-leaderboard__row {
+        grid-template-columns: 2.25rem minmax(0, 1fr) auto auto;
+        gap: 8px;
+    }
 }
 
-@media (max-width: 480px) {
-    .points-leaderboard__row {
-        grid-template-columns: 2.75rem 1fr auto;
-    }
-    /* On the narrowest screens the tier pill yields to rank/addr/points. */
-    .points-leaderboard__row .tier-badge {
-        display: none;
-    }
+/* ── PointsPage container (route wrapper for PointsPanel) ────────────── */
+.points-page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 16px 12px;
+}
+.points-page__soon {
+    text-align: center;
+    padding: 32px 20px;
+}
+.points-page__header {
+    margin-bottom: 16px;
+}
+.points-page__title {
+    margin: 0 0 6px;
+    font-size: 22px;
+    font-weight: 700;
+}
+.points-page__subtitle {
+    margin: 0 0 10px;
+    font-size: 14px;
+    color: var(--color-text-secondary);
+}
+.points-page__disclaimer {
+    margin: 0;
+    padding: 8px 12px;
+    border-radius: 8px;
+    background: var(--color-surface-subtle, rgba(127, 127, 127, 0.06));
+    font-size: 12px;
+    line-height: 1.5;
+    color: var(--color-text-secondary);
+}
+.points-page__soon-text {
+    margin: 0;
+    color: var(--color-text-secondary);
+}
+.points-leaderboard__retry {
+    margin-left: 10px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--color-text-muted);
+    background: transparent;
+    font-size: 12px;
+    cursor: pointer;
+    color: var(--color-text-secondary);
+}
+/* Visually-hidden (SR-only). /points is a sibling route that never mounts GnoloveLayout,
+   so under Vite CSS-splitting it does NOT load gnolove's `.gl-sr-only`; the surface ships
+   its own rule (same per-route pattern as blockparty.css). */
+.points-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
 }

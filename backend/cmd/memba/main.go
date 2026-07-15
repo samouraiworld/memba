@@ -438,14 +438,7 @@ func main() {
 	mux.Handle("/github/oauth/exchange", rateLimitMiddleware("oauth", service.HandleGitHubOAuthExchange(oauthStore)))
 
 	// CORS – use connectrpc.com/cors helpers for correct header lists.
-	c := cors.New(cors.Options{
-		AllowedOrigins:   splitOrigins(corsOrigins),
-		AllowedMethods:   connectcors.AllowedMethods(),
-		AllowedHeaders:   connectcors.AllowedHeaders(),
-		ExposedHeaders:   connectcors.ExposedHeaders(),
-		AllowCredentials: false,
-		MaxAge:           7200,
-	})
+	c := cors.New(corsOptions(corsOrigins))
 
 	server := &http.Server{
 		Addr:         ":" + port,
@@ -615,6 +608,22 @@ func defaultNFTWatchedRealms(marketRealm, collectionRealm string) string {
 // "SaleSeeded", which the event dispatcher ignores — seeding cannot double-count.
 func defaultNFTSaleVolumeRealms() string {
 	return nftMarketV31Realm + "," + nftMarketV32Realm
+}
+
+// corsOptions builds the HTTP server's CORS config. AllowedHeaders extends the
+// Connect protocol header set with "Authorization": REST endpoints that
+// authenticate via a raw `Authorization: Bearer` header (e.g. /api/arcade/submit)
+// otherwise fail their cross-origin preflight, because connectcors.AllowedHeaders()
+// is tuned for the Connect protocol and omits Authorization.
+func corsOptions(corsOrigins string) cors.Options {
+	return cors.Options{
+		AllowedOrigins:   splitOrigins(corsOrigins),
+		AllowedMethods:   connectcors.AllowedMethods(),
+		AllowedHeaders:   append(connectcors.AllowedHeaders(), "Authorization"),
+		ExposedHeaders:   connectcors.ExposedHeaders(),
+		AllowCredentials: false,
+		MaxAge:           7200,
+	}
 }
 
 // splitOrigins splits a comma-separated CORS_ORIGINS string, trimming whitespace.

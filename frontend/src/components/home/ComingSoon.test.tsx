@@ -40,6 +40,7 @@ describe("ComingSoon", () => {
             "VITE_ENABLE_GAME",
             "VITE_ENABLE_SERVICES",
             "VITE_ENABLE_AGENTS",
+            "VITE_ENABLE_POINTS",
         ]) {
             vi.stubEnv(flag, "true")
         }

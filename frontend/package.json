@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "dev:e2e": "vite --mode e2e --port 5174 --strictPort",
+    "dev:e2e-feed": "vite --mode e2e-feed --port 5175 --strictPort",
     "build": "tsc -b && vite build",
     "lint": "eslint . --max-warnings=55",
     "preview": "vite preview",

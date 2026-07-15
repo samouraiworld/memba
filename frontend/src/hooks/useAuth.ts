@@ -12,18 +12,24 @@ interface AuthState {
     error: string | null;
 }
 
-function saveToken(token: Token) {
+// Exported for round-trip tests. MUST persist every field the backend signs
+// over (nonce, userAddress, expiration, chainId) — the REST endpoints send this
+// stored JSON verbatim as a Bearer token, and the server re-verifies the
+// signature over the reconstructed proto. Dropping any signed field (chainId was
+// added by AUTH-CHAINID-01) makes the recomputed signature mismatch → 401.
+export function saveToken(token: Token) {
     try {
         localStorage.setItem(TOKEN_KEY, JSON.stringify({
             nonce: token.nonce,
             userAddress: token.userAddress,
             expiration: token.expiration,
+            chainId: token.chainId,
             serverSignature: token.serverSignature,
         }));
     } catch { /* localStorage unavailable */ }
 }
 
-function loadToken(): Token | null {
+export function loadToken(): Token | null {
     try {
         const raw = localStorage.getItem(TOKEN_KEY);
         if (!raw) return null;

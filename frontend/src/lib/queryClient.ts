@@ -34,6 +34,15 @@ export const queryClient = new QueryClient({
                     error: error instanceof Error ? error.message : String(error),
                 },
             })
+            // The live reputation board reads test13 directly; a failure there is otherwise silent
+            // (a breadcrumb only surfaces if some OTHER capture fires in the same session). The public
+            // board erroring for all users deserves its own alert. Scoped to points board queries only.
+            const key = query.queryKey
+            if (Array.isArray(key) && key[0] === "points" && key[1] === "board") {
+                Sentry.captureException(error instanceof Error ? error : new Error(String(error)), {
+                    tags: { feature: "points", surface: "leaderboard" },
+                })
+            }
         },
     }),
     defaultOptions: {

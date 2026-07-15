@@ -7,6 +7,8 @@ import (
 	"slices"
 	"strings"
 	"testing"
+
+	"github.com/rs/cors"
 )
 
 // SEC-2: /metrics is gated by METRICS_BEARER when set. When unset it stays open
@@ -60,6 +62,33 @@ func TestMetricsAuthMiddleware(t *testing.T) {
 			}
 		}
 	})
+}
+
+// The certify endpoint (/api/arcade/submit) authenticates with a raw
+// `Authorization: Bearer` header. That header is NOT in connectcors.AllowedHeaders(),
+// so a browser's cross-origin preflight for it must still be allowed by our CORS
+// config — otherwise rs/cors rejects the preflight (no Access-Control-Allow-Origin)
+// and the browser blocks the submit ("Failed to fetch"). Regression guard for the
+// prod CORS breakage on 2026-07-15.
+func TestCORSOptionsAllowAuthorizationHeader(t *testing.T) {
+	const origin = "https://memba.samourai.app"
+	next := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { w.WriteHeader(http.StatusOK) })
+	handler := cors.New(corsOptions(origin)).Handler(next)
+
+	req := httptest.NewRequest(http.MethodOptions, "/api/arcade/submit", nil)
+	req.Header.Set("Origin", origin)
+	req.Header.Set("Access-Control-Request-Method", http.MethodPost)
+	req.Header.Set("Access-Control-Request-Headers", "authorization,content-type")
+	rr := httptest.NewRecorder()
+	handler.ServeHTTP(rr, req)
+
+	if got := rr.Header().Get("Access-Control-Allow-Origin"); got != origin {
+		t.Fatalf("preflight requesting the Authorization header was rejected: "+
+			"Access-Control-Allow-Origin = %q, want %q (Authorization missing from AllowedHeaders)", got, origin)
+	}
+	if allowed := rr.Header().Get("Access-Control-Allow-Headers"); !strings.Contains(strings.ToLower(allowed), "authorization") {
+		t.Fatalf("Access-Control-Allow-Headers = %q, want it to include authorization", allowed)
+	}
 }
 
 func TestParseSeedCursorSpec(t *testing.T) {
