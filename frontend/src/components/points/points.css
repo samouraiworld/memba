@@ -202,3 +202,17 @@
     cursor: pointer;
     color: var(--color-text-secondary);
 }
+/* Visually-hidden (SR-only). /points is a sibling route that never mounts GnoloveLayout,
+   so under Vite CSS-splitting it does NOT load gnolove's `.gl-sr-only`; the surface ships
+   its own rule (same per-route pattern as blockparty.css). */
+.points-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

@@ -80,7 +80,7 @@ export function PointsLeaderboard({
                                 <span className="points-leaderboard__rank">#{r.rank.toLocaleString()}</span>
                                 <span className="points-leaderboard__addr" title={r.addr}>
                                     {truncateAddr(r.addr)}
-                                    {isMe && <span className="gl-sr-only"> (you)</span>}
+                                    {isMe && <span className="points-sr-only"> (you)</span>}
                                 </span>
                                 <TierBadge tier={r.tier} />
                                 <span className="points-leaderboard__points">{r.points.toLocaleString()} MP</span>
