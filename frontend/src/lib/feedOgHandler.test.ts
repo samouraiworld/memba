@@ -1,11 +1,16 @@
 /**
- * Integration test for the feed-og edge handler. The handler uses only Web APIs
- * (Request/Response/fetch/URL/AbortController), all available under vitest's Node
- * runtime, so the bot/human/404/error routing is verified here even though there
- * is no Netlify Deno harness locally. The card CONTENT is covered by feedOg.test.
+ * Integration test for the feed-og edge handler. Lives under src/ (NOT next to
+ * the function) because Netlify treats every top-level file in
+ * netlify/edge-functions/ as an edge function to deploy — a *.test.ts there
+ * imports vitest, which the Deno edge bundler can't resolve, failing the deploy.
+ *
+ * The handler uses only Web APIs (Request/Response/fetch/URL/AbortController),
+ * all available under vitest's Node runtime, so the bot/human/404/error routing
+ * is verified here even though there is no Netlify Deno harness locally. The card
+ * CONTENT is covered by feedOg.test.
  */
 import { describe, it, expect, vi, afterEach } from "vitest"
-import handler, { config } from "./feed-og"
+import handler, { config } from "../../netlify/edge-functions/feed-og"
 
 const BOT = "Twitterbot/1.0"
 const HUMAN =
