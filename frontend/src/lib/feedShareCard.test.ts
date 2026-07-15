@@ -94,4 +94,20 @@ describe("drawFeedShareCard", () => {
         expect(bodyLines.length).toBeLessThanOrEqual(7)
         expect(ctx._texts.some((t) => t.endsWith("…"))).toBe(true)
     })
+
+    it("hard-breaks a space-less body (long URL / CJK) so no line overflows the card", () => {
+        const ctx = mockCtx()
+        // mockCtx measures width as length*12; the card body area is 1200 - 84*2 = 1032,
+        // so any painted line longer than 86 chars would run off the canvas.
+        const MAX_W = 1200 - 84 * 2
+        const noSpace = "x".repeat(700)
+        drawFeedShareCard(ctx as unknown as CanvasRenderingContext2D, buildShareCardModel({ ...live, body: noSpace }, "https://memba.samourai.app/feed/post/9"))
+        const bodyLines = ctx._texts.filter((t) => t.startsWith("x"))
+        expect(bodyLines.length).toBeGreaterThan(1) // it got broken up, not painted as one run
+        for (const l of bodyLines) {
+            expect(l.replace(/…$/, "").length * 12, `line "${l.slice(0, 12)}…" overflows`).toBeLessThanOrEqual(MAX_W)
+        }
+        // 700 chars / ~86 per line > 6 lines → clamped with an ellipsis.
+        expect(ctx._texts.some((t) => t.endsWith("…"))).toBe(true)
+    })
 })
