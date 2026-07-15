@@ -45,8 +45,7 @@ function PointsPanelInner({ address }: { address?: string }) {
     const rows = fetched.slice(0, PAGE_SIZE)
     const hasMore = fetched.length > PAGE_SIZE
     return (
-        <section className="points-panel" data-testid="points-panel">
-            <h2 className="points-panel__title">Reputation</h2>
+        <section className="points-panel" data-testid="points-panel" aria-label="Reputation">
             {address && profile.data && <PersonalRank profile={profile.data} />}
             <PointsLeaderboard
                 rows={rows}
@@ -55,6 +54,7 @@ function PointsPanelInner({ address }: { address?: string }) {
                 page={page}
                 hasMore={hasMore}
                 onPageChange={setPage}
+                onRetry={() => board.refetch()}
                 highlightAddr={address}
             />
         </section>

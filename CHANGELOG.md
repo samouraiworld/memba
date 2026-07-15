@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Reputation — live-surface polish: disclaimer, a11y, and board-error alerting (2026-07-15)
+- **Made the just-launched Reputation page clearer and safer.** A four-lens review of the live surface drove: a persistent **disclaimer** ("Memba Points are soulbound reputation — not a token, no cash value, non-transferable, and not a claim on any airdrop or token distribution") so nobody mistakes MP for a token or an airdrop claim; a real page **`<h1>`** + subtitle (the enabled state had regressed to a bare 15px `<h2>` with no copy — an a11y level-A defect that also read unfinished); the **tier pill restored on the mobile board** (it was hidden under 480px despite fitting); `aria-current` + a screen-reader "(you)" on the connected member's own row; a **Retry** button on the board's error state; and a scoped `Sentry.captureException` so the leaderboard failing to load for all users raises an alert instead of a silent breadcrumb. No realm or behavior change — a reads-only surface.
+
 ### MEMBA: BARRICADE — "certify on-chain" now works from the app (2026-07-15)
 - **Fixed the certify submit being blocked by the browser.** With the certify beta enabled, tapping **Certify on-chain** after a verified run failed with "Failed to fetch": the submit endpoint authenticates with an `Authorization: Bearer` header, but the backend's CORS allowed-headers list (tuned for the Connect protocol) omitted `Authorization`, so the browser's cross-origin preflight to `/api/arcade/submit` was rejected before the request was ever sent. The backend now allows the `Authorization` header, so a verified run can be certified from `memba.samourai.app`. Config-only, no funds path; covered by a preflight regression test.
 

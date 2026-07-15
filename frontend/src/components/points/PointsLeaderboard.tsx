@@ -23,6 +23,8 @@ interface Props {
     /** Whether a next page exists (the container fetches PAGE_SIZE+1 to know this truthfully). */
     hasMore?: boolean
     onPageChange?: (page: number) => void
+    /** Retry the leaderboard query (rendered as a button in the error state). */
+    onRetry?: () => void
     /** Highlight this address's row (the connected member). */
     highlightAddr?: string
 }
@@ -34,6 +36,7 @@ export function PointsLeaderboard({
     page = 0,
     hasMore = false,
     onPageChange,
+    onRetry,
     highlightAddr,
 }: Props) {
     if (loading) {
@@ -46,7 +49,12 @@ export function PointsLeaderboard({
     if (error) {
         return (
             <div className="points-leaderboard__state" data-testid="leaderboard-error">
-                Couldn’t load the leaderboard. Try again shortly.
+                <span>Couldn’t load the leaderboard.</span>
+                {onRetry && (
+                    <button type="button" className="points-leaderboard__retry" onClick={onRetry}>
+                        Try again
+                    </button>
+                )}
             </div>
         )
     }
@@ -61,19 +69,24 @@ export function PointsLeaderboard({
                 </div>
             ) : (
                 <ol className="points-leaderboard__list" role="list">
-                    {rows.map((r) => (
-                        <li
-                            key={r.addr}
-                            className={`points-leaderboard__row${highlightAddr === r.addr ? " is-me" : ""}`}
-                        >
-                            <span className="points-leaderboard__rank">#{r.rank.toLocaleString()}</span>
-                            <span className="points-leaderboard__addr" title={r.addr}>
-                                {truncateAddr(r.addr)}
-                            </span>
-                            <TierBadge tier={r.tier} />
-                            <span className="points-leaderboard__points">{r.points.toLocaleString()} MP</span>
-                        </li>
-                    ))}
+                    {rows.map((r) => {
+                        const isMe = highlightAddr === r.addr
+                        return (
+                            <li
+                                key={r.addr}
+                                className={`points-leaderboard__row${isMe ? " is-me" : ""}`}
+                                aria-current={isMe ? "true" : undefined}
+                            >
+                                <span className="points-leaderboard__rank">#{r.rank.toLocaleString()}</span>
+                                <span className="points-leaderboard__addr" title={r.addr}>
+                                    {truncateAddr(r.addr)}
+                                    {isMe && <span className="gl-sr-only"> (you)</span>}
+                                </span>
+                                <TierBadge tier={r.tier} />
+                                <span className="points-leaderboard__points">{r.points.toLocaleString()} MP</span>
+                            </li>
+                        )
+                    })}
                 </ol>
             )}
             {showPager && (
