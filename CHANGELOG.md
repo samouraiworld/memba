@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Feed — long threads now load all their replies (2026-07-15)
+- **Threads no longer stop at 50 replies.** The post page fetched a single window of replies and threw away the pagination cursor, so a busy thread silently hid every reply past the first 50. It now pages like the main timeline: a **"Show more replies"** button loads the next batch until the whole conversation is shown, and disappears once you've reached the end. No behaviour change for threads under 50 replies. Behind `VITE_ENABLE_FEED`.
+
 ### Reputation — live-surface polish: disclaimer, a11y, and board-error alerting (2026-07-15)
 - **Made the just-launched Reputation page clearer and safer.** A four-lens review of the live surface drove: a persistent **disclaimer** ("Memba Points are soulbound reputation — not a token, no cash value, non-transferable, and not a claim on any airdrop or token distribution") so nobody mistakes MP for a token or an airdrop claim; a real page **`<h1>`** + subtitle (the enabled state had regressed to a bare 15px `<h2>` with no copy — an a11y level-A defect that also read unfinished); the **tier pill restored on the mobile board** (it was hidden under 480px despite fitting); `aria-current` + a screen-reader "(you)" on the connected member's own row; a **Retry** button on the board's error state; and a scoped `Sentry.captureException` so the leaderboard failing to load for all users raises an alert instead of a silent breadcrumb. No realm or behavior change — a reads-only surface.
 ### Auth — REST sign-in (certify, uploads) fixed: the stored token kept its chain id (2026-07-15)
