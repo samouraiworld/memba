@@ -22,6 +22,7 @@ import type { UiPost } from "../../lib/feedTypes"
 import { relativeTime } from "../../lib/relativeTime"
 import { useNow } from "../../hooks/home/useNow"
 import { FeedAvatar } from "./FeedAvatar"
+import { FeedShareCard } from "./FeedShareCard"
 import { PostUnfurls } from "./PostUnfurls"
 import { ReactionBar } from "./ReactionBar"
 import { renderPostBody } from "../../lib/markdownLite"
@@ -357,6 +358,7 @@ function PostCardInner({
                         {copied ? "Copied" : "Copy link"}
                     </button>
                 )}
+                {!post.optimistic && <FeedShareCard post={post} />}
                 {!isOwn && !post.optimistic && (
                     <button
                         type="button"
