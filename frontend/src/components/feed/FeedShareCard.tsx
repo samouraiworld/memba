@@ -8,7 +8,7 @@
  * The image is drawn from the tombstone-safe model in lib/feedShareCard — a
  * hidden/deleted post can never be painted onto a shareable image.
  */
-import { useRef, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { ShareNetwork, Check } from "@phosphor-icons/react"
 import { feedPostPermalink } from "../../lib/feedPermalink"
 import { buildShareCardModel, drawFeedShareCard, type ShareCardModel } from "../../lib/feedShareCard"
@@ -53,6 +53,9 @@ export function FeedShareCard({ post }: { post: SharePostInput }) {
     const [busy, setBusy] = useState(false)
     const [done, setDone] = useState(false)
     const doneTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+
+    // Clear the "Shared" flash timer if the card unmounts mid-flash.
+    useEffect(() => () => clearTimeout(doneTimer.current), [])
 
     const flash = () => {
         setDone(true)

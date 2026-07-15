@@ -61,32 +61,61 @@ const H = 630
 const PAD = 84
 const BODY_MAX_LINES = 6
 
-/** Greedy word-wrap using the ctx font metrics; clamps to maxLines with an
- *  ellipsis on the final line. */
+/** Split on whitespace, then hard-break any single token wider than maxWidth into
+ *  character chunks — so a long URL or a space-less (e.g. CJK) body can't paint a
+ *  line that runs off the card. Uses [...w] so surrogate pairs aren't split. */
+function tokenize(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+    const fits = (s: string) => ctx.measureText(s).width <= maxWidth
+    const out: string[] = []
+    for (const w of text.split(/\s+/).filter(Boolean)) {
+        if (fits(w)) {
+            out.push(w)
+            continue
+        }
+        let chunk = ""
+        for (const ch of [...w]) {
+            if (chunk && !fits(chunk + ch)) {
+                out.push(chunk)
+                chunk = ch
+            } else {
+                chunk += ch
+            }
+        }
+        if (chunk) out.push(chunk)
+    }
+    return out
+}
+
+/** Trim a line until it plus an ellipsis fits maxWidth, then append the ellipsis. */
+function ellipsize(ctx: CanvasRenderingContext2D, line: string, maxWidth: number): string {
+    let s = line
+    while (s && ctx.measureText(s + "…").width > maxWidth) s = s.slice(0, -1)
+    return s.replace(/\s+$/, "") + "…"
+}
+
+/** Greedy word-wrap using the ctx font metrics; clamps to maxLines, ellipsizing
+ *  the final line when text remains. Every returned line fits maxWidth. */
 function wrapLines(ctx: CanvasRenderingContext2D, text: string, maxWidth: number, maxLines: number): string[] {
-    const words = text.split(" ")
+    const fits = (s: string) => ctx.measureText(s).width <= maxWidth
+    const tokens = tokenize(ctx, text, maxWidth)
     const lines: string[] = []
     let line = ""
-    for (const w of words) {
-        const trial = line ? `${line} ${w}` : w
-        if (ctx.measureText(trial).width <= maxWidth || line === "") {
+    for (let i = 0; i < tokens.length; i++) {
+        const trial = line ? `${line} ${tokens[i]}` : tokens[i]
+        if (fits(trial) || !line) {
             line = trial
-        } else {
-            lines.push(line)
-            line = w
-            if (lines.length === maxLines - 1) break
+            continue
         }
-    }
-    if (lines.length < maxLines) lines.push(line)
-    // If we broke early there is more text → ellipsize the last line.
-    const consumed = lines.join(" ").split(" ").length
-    if (consumed < words.length) {
-        let last = lines[lines.length - 1]
-        while (last && ctx.measureText(last + "…").width > maxWidth) {
-            last = last.slice(0, -1)
+        // Token doesn't fit the current line. If this line is already the last
+        // one allowed, there is more text than fits → ellipsize and stop.
+        if (lines.length + 1 >= maxLines) {
+            lines.push(ellipsize(ctx, line, maxWidth))
+            return lines
         }
-        lines[lines.length - 1] = last.replace(/\s+$/, "") + "…"
+        lines.push(line)
+        line = tokens[i]
     }
+    if (line) lines.push(line)
     return lines
 }
 
