@@ -207,6 +207,26 @@ func TestBackfillFeedFlags_FromRaw(t *testing.T) {
 	}
 }
 
+// C′.3: a reorg drops projected reactions at/above the reorged height too (the
+// rollback had an index for it but never issued the DELETE — latent until
+// reactions go live on v2, but a v2-cutover / rebuild correctness dependency).
+func TestFeedRollback_DeletesFeedReactions(t *testing.T) {
+	db := openTestDB(t)
+	mustDispatch(t, db, feedEv("PostCreated", 300, 0, 0, map[string]string{"postId": "1", "author": "g1a", "body": "x"}))
+	mustDispatch(t, db, feedEv("ReactionAdded", 300, 0, 1, map[string]string{"postId": "1", "emoji": "👍", "by": "g1old"}))
+	mustDispatch(t, db, feedEv("ReactionAdded", 305, 0, 0, map[string]string{"postId": "1", "emoji": "🔥", "by": "g1new"}))
+
+	if err := rollbackFeedFromHeight(context.Background(), db, 305); err != nil {
+		t.Fatal(err)
+	}
+	if n := countRows(t, db, `SELECT COUNT(*) FROM feed_reactions WHERE reactor='g1new'`); n != 0 {
+		t.Fatal("a reaction at/above the reorg height must be deleted")
+	}
+	if n := countRows(t, db, `SELECT COUNT(*) FROM feed_reactions WHERE reactor='g1old'`); n != 1 {
+		t.Fatal("a reaction below the reorg height must survive")
+	}
+}
+
 func TestFeedDispatch_MalformedSkipped(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()

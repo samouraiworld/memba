@@ -259,7 +259,8 @@ func saveFeedCursor(ctx context.Context, db *sql.DB, realms []string, height int
 }
 
 // rollbackFeedFromHeight deletes feed rows at or above `height`: the raw-ledger
-// rows and any posts CREATED in those blocks. Mutations (edits/deletes/flags)
+// rows, any posts CREATED in those blocks, and the event-block-keyed projections
+// (feed_flags, feed_reactions) written in them. Mutations (edits/deletes/flags)
 // applied in rolled-back blocks are re-applied idempotently on replay; see the
 // KNOWN LIMITATION in StartFeedTailer for the residual edit-reorg case.
 func rollbackFeedFromHeight(ctx context.Context, db *sql.DB, height int64) error {
@@ -273,6 +274,7 @@ func rollbackFeedFromHeight(ctx context.Context, db *sql.DB, height int64) error
 		`DELETE FROM feed_raw_events WHERE event_block >= ?`,
 		`DELETE FROM feed_posts WHERE created_event_block >= ?`,
 		`DELETE FROM feed_flags WHERE event_block >= ?`,
+		`DELETE FROM feed_reactions WHERE event_block >= ?`,
 	} {
 		if _, err := tx.ExecContext(ctx, stmt, height); err != nil {
 			return err
