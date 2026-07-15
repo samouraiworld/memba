@@ -10,7 +10,7 @@
  *
  * @module lib/navFlags
  */
-import { isNftEnabled, isServicesEnabled, isMarketplaceEnabled, isFeedEnabled, isAppStoreEnabled } from "./config"
+import { isNftEnabled, isServicesEnabled, isMarketplaceEnabled, isFeedEnabled, isAppStoreEnabled, isPointsEnabled } from "./config"
 
 // VITE_ENABLE_EXPLORER is intentionally absent: the Explorer is no longer a nav
 // entry (merged into the Directory as a gated tab, 2026-07-08), so no nav pill
@@ -21,6 +21,7 @@ const FLAG_READERS: Record<string, () => boolean> = {
     VITE_ENABLE_NFT: isNftEnabled,
     VITE_ENABLE_FEED: isFeedEnabled,
     VITE_ENABLE_APPSTORE: isAppStoreEnabled,
+    VITE_ENABLE_POINTS: isPointsEnabled,
 }
 
 /** True when the entry has no flag (always on) or its flag reader returns true. */

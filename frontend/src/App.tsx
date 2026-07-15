@@ -54,6 +54,9 @@ const Settings = lazy(() => import("./pages/Settings").then(m => ({ default: m.S
 // ── Directory page (lazy) ──
 const Directory = lazy(() => import("./pages/Directory").then(m => ({ default: m.Directory })))
 
+// ── Reputation (points_v1) page (lazy, default export) ──
+const PointsPage = lazy(() => import("./pages/PointsPage"))
+
 // ── Validators pages (lazy) — ORDER MATTERS: /hacker before /:address ──
 // CRITICAL: /validators/hacker must be declared before /validators/:address,
 // otherwise React Router will match the literal string "hacker" as an :address param.
@@ -326,6 +329,7 @@ function App() {
           <Route path="quests/:questId" element={<Suspense fallback={<PageLoader />}><QuestDetail /></Suspense>} />
           <Route path="quest-admin" element={<Suspense fallback={<PageLoader />}><QuestAdmin /></Suspense>} />
           <Route path="leaderboard" element={<Suspense fallback={<PageLoader />}><Leaderboard /></Suspense>} />
+          <Route path="points" element={<Suspense fallback={<PageLoader />}><PointsPage /></Suspense>} />
 
           {/* Block Party — Daily puzzle game (gated behind VITE_ENABLE_GAME) */}
           <Route path="game" element={<Suspense fallback={<PageLoader />}><GameGate><BlockPartyGame /></GameGate></Suspense>} />
