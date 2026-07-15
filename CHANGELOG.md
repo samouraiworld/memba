@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### MEMBA: BARRICADE — "certify on-chain" now works from the app (2026-07-15)
+- **Fixed the certify submit being blocked by the browser.** With the certify beta enabled, tapping **Certify on-chain** after a verified run failed with "Failed to fetch": the submit endpoint authenticates with an `Authorization: Bearer` header, but the backend's CORS allowed-headers list (tuned for the Connect protocol) omitted `Authorization`, so the browser's cross-origin preflight to `/api/arcade/submit` was rejected before the request was ever sent. The backend now allows the `Authorization` header, so a verified run can be certified from `memba.samourai.app`. Config-only, no funds path; covered by a preflight regression test.
+
 ### Reputation — the Memba Points surface is wired to a route, dark until launch (2026-07-13)
 - **The reputation UI is one flag-flip from live.** A new `/points` route (nav label "Reputation", in the Account group) mounts the `<PointsPanel>` — the connected member's rank plus the paginated on-chain leaderboard, read from `memba_points_v1` over qeval. It's gated by `VITE_ENABLE_POINTS` (off): the nav shows a "soon" pill and the page a coming-soon card until the flag flips — the same treatment Feed / Marketplace / App Store had before their launches. This lands the route + nav + page ahead of the points_v1 ceremony, so going live is just the Netlify flag flip, with no last-minute wiring.
 
