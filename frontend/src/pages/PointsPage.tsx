@@ -23,7 +23,20 @@ export default function PointsPage() {
     return (
         <div className="points-page animate-fade-in">
             {isPointsEnabled() ? (
-                <PointsPanel address={auth.address || undefined} />
+                <>
+                    <header className="points-page__header">
+                        <h1 className="points-page__title">Reputation</h1>
+                        <p className="points-page__subtitle">
+                            Soulbound, on-chain reputation for contributions to the Memba ecosystem.
+                        </p>
+                        <p className="points-page__disclaimer" role="note">
+                            Memba Points (MP) are soulbound reputation — <strong>not a token</strong>: no cash
+                            value, non-transferable, and <strong>not a claim</strong> on any airdrop or token
+                            distribution.
+                        </p>
+                    </header>
+                    <PointsPanel address={auth.address || undefined} />
+                </>
             ) : (
                 <div className="k-card points-page__soon">
                     <h1 className="points-page__title">Reputation</h1>
