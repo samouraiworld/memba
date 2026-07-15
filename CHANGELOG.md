@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Auth — REST sign-in (certify, uploads) fixed: the stored token kept its chain id (2026-07-15)
+- **Fixed a 401 "invalid or expired token" on wallet-authenticated REST calls.** The saved session token dropped its `chainId` field before writing to storage. The server signs the token over every field including `chainId`, so when a REST endpoint replayed the stored token as a bearer, the reconstructed token no longer matched its signature and was rejected — even for a freshly minted, unexpired token, which is why re-logging-in didn't help. (The app's main ConnectRPC calls were unaffected: they send the in-memory token object, which kept `chainId`.) The stored token now persists `chainId`, so BARRICADE "Certify on-chain", App Store media uploads, and the DAO analyst report all authenticate again. Regression-tested; users must sign in once more to mint a token that carries the field.
+
 ### MEMBA: BARRICADE — "certify on-chain" now works from the app (2026-07-15)
 - **Fixed the certify submit being blocked by the browser.** With the certify beta enabled, tapping **Certify on-chain** after a verified run failed with "Failed to fetch": the submit endpoint authenticates with an `Authorization: Bearer` header, but the backend's CORS allowed-headers list (tuned for the Connect protocol) omitted `Authorization`, so the browser's cross-origin preflight to `/api/arcade/submit` was rejected before the request was ever sent. The backend now allows the `Authorization` header, so a verified run can be certified from `memba.samourai.app`. Config-only, no funds path; covered by a preflight regression test.
 
