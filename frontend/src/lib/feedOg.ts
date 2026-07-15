@@ -31,6 +31,11 @@ export interface OgPost {
 
 // Case-insensitive tokens that identify the link-unfurl crawlers. Kept as
 // lowercase substrings so a version suffix (Twitterbot/1.0) still matches.
+// IMPORTANT: use crawler-SPECIFIC forms for platforms whose in-app browser also
+// carries the bare brand name — `Pinterestbot`/`FlipboardProxy` (not the bare
+// `pinterest`/`flipboard`, which appear in `[Pinterest/iOS]` and `Flipboard/4.x`
+// human in-app-browser UAs) and `whatsapp/` (version-anchored to the crawler
+// `WhatsApp/2.x`) — so a real human never gets served the crawler stub.
 const BOT_TOKENS = [
     "facebookexternalhit",
     "facebookcatalog",
@@ -38,9 +43,9 @@ const BOT_TOKENS = [
     "telegrambot",
     "discordbot",
     "slackbot",
-    "whatsapp",
+    "whatsapp/",
     "linkedinbot",
-    "pinterest",
+    "pinterestbot",
     "redditbot",
     "googlebot",
     "bingbot",
@@ -48,7 +53,7 @@ const BOT_TOKENS = [
     "embedly",
     "vkshare",
     "skypeuripreview",
-    "flipboard",
+    "flipboardproxy",
     "nuzzel",
     "bitlybot",
     "mastodon",
