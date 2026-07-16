@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Trust — honest copy on the verified badge and the "Treasury" DAO preset (2026-07-17)
+- **Removed two overstated capability claims.** The collection "Verified" badge's tooltip said the team curates "against published criteria" — but no such criteria document exists, so it now simply reads "curated by the Memba team." And the Create-DAO wizard's **Treasury** preset called itself a "Treasury DAO," implying on-chain fund custody the generated DAO doesn't have; its description now states plainly that it's governance-only (roles + higher thresholds + longer voting) and that the DAO doesn't custody funds on-chain. Copy only — no behaviour change.
+
 ### Barricade — an experimental 2.5D "front line" view, for the renderer bake-off (Phase 0 arm A, off by default, 2026-07-16)
 - **Added a throwaway 2.5D comparator renderer for the Barricade game — a fake-perspective "front line" (three lanes receding to the horizon and fanning out toward a defender's parapet in the foreground, with a rebel bust, a looming horizon boss, and distance fog) — behind a new `VITE_ENABLE_BARRICADE_25D` flag (off) / `?r25d=1` override, with no user-visible change.** It re-composes the **same** frozen game through an aggressive perspective while reusing the exact 2D unit art, so a phone side-by-side can answer whether the game reads "cheap" because of *dimensionality* (needs real 3D) or *composition + hero art* (a far cheaper pass fixes it) — before committing to a full 3D build. The shipped 2D renderer stays the default and is unchanged; the deterministic sim, its replay log, and the on-chain verifier are untouched.
 

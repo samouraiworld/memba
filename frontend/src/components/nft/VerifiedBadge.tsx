@@ -23,7 +23,7 @@ export function VerifiedBadge({ verified, compact = false }: Props) {
             className="verified-badge"
             role="img"
             aria-label="Verified collection"
-            title="Verified — curated by the Memba team against published criteria"
+            title="Verified — curated by the Memba team"
         >
             ✔︎{compact ? "" : " Verified"}
         </span>
