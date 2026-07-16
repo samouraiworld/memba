@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Mobile — money-path modals now scroll so the action button stays reachable (2026-07-16)
+- **Fixed the trade / offer / hire / deploy modals cutting off their action button on small screens.** The shared modal shell is centered by its overlay but never capped its height or scrolled its body, so on a phone (or with the on-screen keyboard up) the Confirm / List / Buy button could sit below the fold with no way to reach it — the modal itself wouldn't scroll and neither would the page behind it. It now caps at the viewport height and scrolls its own body, the same fix already used by the transaction-confirmation modal. **One change covers all six money-path modals** (NFT trade, make/accept collection offer, token trade, hire service, deploy agent), and a regression test locks the behavior in.
+
 ### Deploy — a clearer error when your wallet isn't registered to deploy (2026-07-16)
 - **A failed realm deploy (Create DAO, Deploy Plugin) now explains what to do instead of dumping a raw VM error.** Deploying a realm to gno.land requires a registered `@username` namespace; without one the chain rejects the transaction with `/vm.UnauthorizedUserError`, which the app surfaced verbatim (and, had it matched the generic "unauthorized" case, would have wrongly told you to check your wallet). The error-translation layer now maps the namespace-authorization and CLA cases to actionable guidance — *"register a gno.land username / sign the CLA, then try again"* — and the Create DAO + Deploy Plugin flows route their failures through the friendly translator so the raw error no longer reaches users.
 
