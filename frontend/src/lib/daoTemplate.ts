@@ -148,7 +148,7 @@ export const DAO_PRESETS: DAOPreset[] = [
         id: "treasury",
         name: "Treasury",
         icon: "💰",
-        description: "Treasury DAO with admin, finance, and member roles. 66% threshold, 50% quorum.",
+        description: "Admin, finance, and member roles with a 66% threshold and longer voting for high-stakes decisions. Governance only — the generated DAO doesn't custody funds on-chain.",
         roles: ["admin", "finance", "member"],
         threshold: 66,
         quorum: 50,
