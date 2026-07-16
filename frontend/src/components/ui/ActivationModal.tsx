@@ -42,7 +42,7 @@ export function ActivationModal({ address, rawUgnot, faucetUrl, onSuccess }: Act
 
     return (
         <div className="activation-modal-overlay">
-            <div className="activation-modal k-modal-glass">
+            <div className="activation-modal">
                 <div className="activation-modal-header">
                     <div className="activation-icon-ring">
                         <ShieldCheck size={32} weight="duotone" className="text-accent" />
