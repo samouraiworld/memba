@@ -42,6 +42,24 @@ const ERROR_PATTERNS: ErrorPattern[] = [
         message: "Not enough GNOT in your wallet to complete this transaction.",
         hint: "Top up your wallet or reduce the transaction amount.",
     },
+    // ── Deploy / namespace authorization ─────────────────
+    // gno's VM raises UnauthorizedUserError only on the AddPackage (deploy)
+    // path — either the wallet hasn't registered a gno.land @username namespace,
+    // or it hasn't signed the CLA. These MUST precede the generic /unauthorized/
+    // below, whose "correct wallet" hint is actively misleading here (the wallet
+    // is fine; it's unregistered). Note the deploy message says "not authorized"
+    // (with a space), so it does NOT match /unauthorized/ anyway — without these
+    // patterns it fell through to a raw passthrough (the cryptic error users saw).
+    {
+        match: /not authorized to deploy|deploy packages to namespace/i,
+        message: "You need to register a gno.land username before you can deploy this.",
+        hint: "Register a username on gno.land (the r/sys/users registry), then try again.",
+    },
+    {
+        match: /signed the required CLA|required CLA|contributor.{0,20}agreement/i,
+        message: "You need to sign the gno.land contributor agreement (CLA) before deploying.",
+        hint: "Sign the CLA on gno.land, then try again.",
+    },
     {
         match: /unauthorized/i,
         message: "You don't have permission to perform this action.",

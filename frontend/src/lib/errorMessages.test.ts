@@ -46,6 +46,39 @@ describe("friendlyError", () => {
         expect(msg).toContain("already exists")
     })
 
+    // ── Deploy / namespace authorization (UnauthorizedUserError) ──
+    it("translates namespace deploy authorization to register-username guidance", () => {
+        const msg = friendlyError(
+            "g1abc23 is not authorized to deploy packages to namespace `g1abc23`",
+        )
+        expect(msg).toMatch(/username/i)
+        // Must beat the generic /unauthorized/ pattern, whose "correct wallet"
+        // hint is actively misleading here (the wallet is fine; it's unregistered).
+        expect(msg).not.toContain("correct wallet")
+        // Don't echo the raw address back to the user.
+        expect(msg).not.toContain("g1abc23")
+    })
+
+    it("also matches the raw /vm.UnauthorizedUserError deploy log form", () => {
+        // The exact string a failing MsgAddPackage surfaces (as seen on Discord).
+        const msg = friendlyError(
+            "/vm.UnauthorizedUserError: g1abc23 is not authorized to deploy packages to namespace `g1abc23`",
+        )
+        expect(msg).toMatch(/username/i)
+    })
+
+    it("translates the CLA signature requirement on deploy", () => {
+        const msg = friendlyError("address g1abc23 has not signed the required CLA")
+        expect(msg).toMatch(/agreement/i)
+        expect(msg).not.toContain("g1abc23")
+        expect(msg).not.toContain("correct wallet")
+    })
+
+    it("keeps the generic permission message for non-deploy unauthorized errors", () => {
+        const msg = friendlyError("unauthorized to call this function")
+        expect(msg).toContain("permission")
+    })
+
     // ── Adena / Wallet errors ────────────────────────────
     it("translates user rejected", () => {
         const msg = friendlyError("user rejected the request")
