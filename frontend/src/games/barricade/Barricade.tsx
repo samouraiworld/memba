@@ -14,13 +14,14 @@
  */
 
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
-import { isBarricadeCertifyEnabled } from "../../lib/config"
+import { isBarricade25DEnabled, isBarricadeCertifyEnabled } from "../../lib/config"
 import { applyEvent, initState, tick } from "./sim/engine"
 import { BOSS_WAVE, buildWaves, WAVE_TOTAL, type WaveScript } from "./sim/waves"
 import { MAX_REPLAY_EVENTS, runReplay } from "./sim/replay"
 import { LANES, LANE_LENGTH, type Choice, type SimEvent, type SimState } from "./sim/types"
 import { ARM_COST, MOLOTOV_COST, REFILL_COST, REPAIR_COST, TURRET_COST } from "./sim/engine"
 import { draw, drawAttract } from "./render/draw"
+import { draw25d } from "./render/draw25d"
 import { deriveFxEvents } from "./render/fxEvents"
 import { initFx, layout, pushFxEvents, stepFx, type FxState } from "./render/fx"
 import { interpPositions } from "./render/interp"
@@ -37,6 +38,28 @@ const BarricadeCertify = lazy(() => import("./BarricadeCertify"))
 // Logical canvas coordinate space; the backing store is scaled by devicePixelRatio.
 const CW = 390
 const CH = 650
+
+// Phase-0 bake-off: the throwaway 2.5D comparator renderer (arm A). Chosen ONCE at
+// module load from the flag or a runtime ?r25d=1 / localStorage override; the shipped
+// 2D path is the default everyone sees. Render-only — the sim is untouched either way.
+function resolve25dRenderer(): boolean {
+    // An explicit ?r25d / localStorage override wins over the env flag (deliberate
+    // opt-in/out on prod, and so a side-by-side A/B is one URL apart).
+    if (typeof window !== "undefined") {
+        try {
+            const q = new URLSearchParams(window.location.search).get("r25d")
+            if (q === "1") return true
+            if (q === "0") return false
+            const ls = window.localStorage.getItem("barricade_r25d")
+            if (ls === "1") return true
+            if (ls === "0") return false
+        } catch {
+            /* privacy mode / no window — fall through to the flag */
+        }
+    }
+    return isBarricade25DEnabled()
+}
+const RENDER_25D = resolve25dRenderer()
 
 type RunStatus = "ready" | "playing" | "done"
 type HudMirror = { phase: string; rallyReady: boolean; molotovReady: boolean; scrap: number; patchUsed: boolean }
@@ -214,7 +237,8 @@ export default function Barricade() {
         // and its replay are untouched. tickPrevRef is the state one tick back;
         // alpha is this frame's fraction of the way to the current tick.
         const interp = interpPositions(tickPrevRef.current, s, alpha)
-        draw(ctx, s, { width: CW, height: CH }, fx, interp)
+        if (RENDER_25D) draw25d(ctx, s, { width: CW, height: CH }, fx, interp)
+        else draw(ctx, s, { width: CW, height: CH }, fx, interp)
         prevStateRef.current = s
     }, [])
 
