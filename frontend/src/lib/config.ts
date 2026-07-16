@@ -649,8 +649,15 @@ export const isAgentRegistryValid = () => isRealmValid(MEMBA_DAO.agentRegistryPa
 export const isNftEnabled = (): boolean => import.meta.env.VITE_ENABLE_NFT === "true"
 /** Reputation Points (MP) feature flag (VITE_ENABLE_POINTS) — canonical reader for the on-chain
  * points / tiers / leaderboard surface. Read-only (NOT safety-gated): it gates a display surface, not
- * a money path, so it stays OUT of SAFETY_GATED_FLAGS. Off until memba_points_v1 is deployed + wired. */
-export const isPointsEnabled = (): boolean => import.meta.env.VITE_ENABLE_POINTS === "true"
+ * a money path, so it stays OUT of SAFETY_GATED_FLAGS.
+ *
+ * DEFERRED 2026-07-16 — the feature is not relevant right now, so it is hard-off regardless of the
+ * Netlify flag: the whole surface goes dark (nav → "soon", /points → coming-soon, home tile → "soon").
+ * The realm (test13, live) + full UI (route, PointsPanel, PersonalRank, leaderboard) all stay in place.
+ * To re-enable: set POINTS_FEATURE_DEFERRED = false (then VITE_ENABLE_POINTS governs again). */
+const POINTS_FEATURE_DEFERRED = true
+export const isPointsEnabled = (): boolean =>
+    !POINTS_FEATURE_DEFERRED && import.meta.env.VITE_ENABLE_POINTS === "true"
 /** Services (escrow) feature flag (VITE_ENABLE_SERVICES) — canonical reader, mirrors
  * isNftEnabled. The unified marketplace lane registry ANDs this with isEscrowValid(). */
 export const isMarketplaceEnabled = (): boolean => import.meta.env.VITE_ENABLE_MARKETPLACE === "true"

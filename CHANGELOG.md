@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Reputation — deferred (hidden) for now (2026-07-16)
+- **The Reputation (Memba Points) surface is hidden until it's relevant again.** A one-line hard-off (`POINTS_FEATURE_DEFERRED`) turns the whole surface dark regardless of the Netlify flag — the `/points` nav entry, home tile, and page all revert to the standard "coming soon" state. The on-chain realm (test13) and the full UI (route, `PointsPanel`, leaderboard, tiers) stay in place; re-enabling is flipping one boolean.
+
 ### Feed — long threads now load all their replies (2026-07-15)
 - **Threads no longer stop at 50 replies.** The post page fetched a single window of replies and threw away the pagination cursor, so a busy thread silently hid every reply past the first 50. It now pages like the main timeline: a **"Show more replies"** button loads the next batch until the whole conversation is shown, and disappears once you've reached the end. No behaviour change for threads under 50 replies. Behind `VITE_ENABLE_FEED`.
 
