@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CompleteQuestRequest, CompleteQuestResponse, CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateServiceListingRequest, CreateServiceListingResponse, CreateTeamRequest, CreateTeamResponse, CreateTransactionRequest, CreateTransactionResponse, FavoriteAgentRequest, FavoriteAgentResponse, GetAgentStatsRequest, GetAgentStatsResponse, GetAttestationVouchersRequest, GetAttestationVouchersResponse, GetChallengeRequest, GetChallengeResponse, GetDailyChallengeRequest, GetDailyChallengeResponse, GetDailyLeaderboardRequest, GetDailyLeaderboardResponse, GetFavoritesRequest, GetFavoritesResponse, GetFeedStatsRequest, GetFeedStatsResponse, GetFeedThreadRequest, GetFeedThreadResponse, GetFeedTimelineRequest, GetFeedTimelineResponse, GetHomeSnapshotRequest, GetHomeSnapshotResponse, GetLeaderboardRequest, GetLeaderboardResponse, GetLinkPreviewRequest, GetLinkPreviewResponse, GetMyTeamsRequest, GetMyTeamsResponse, GetNFTActivityRequest, GetNFTActivityResponse, GetNFTCollectionRequest, GetNFTCollectionResponse, GetNFTPortfolioRequest, GetNFTPortfolioResponse, GetPostReactionsRequest, GetPostReactionsResponse, GetProfileRequest, GetProfileResponse, GetReplyNotificationsRequest, GetReplyNotificationsResponse, GetServiceListingsRequest, GetServiceListingsResponse, GetStreakRequest, GetStreakResponse, GetTeamRequest, GetTeamResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, GetUserFeedRequest, GetUserFeedResponse, GetUserQuestsRequest, GetUserQuestsResponse, GetUserRankRequest, GetUserRankResponse, JoinTeamRequest, JoinTeamResponse, LeaveTeamRequest, LeaveTeamResponse, ListNFTTokensRequest, ListNFTTokensResponse, ListPendingClaimsRequest, ListPendingClaimsResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, ReviewQuestClaimRequest, ReviewQuestClaimResponse, SignTransactionRequest, SignTransactionResponse, SubmitQuestClaimRequest, SubmitQuestClaimResponse, SubmitScoreRequest, SubmitScoreResponse, SyncQuestsRequest, SyncQuestsResponse, TransactionsRequest, TransactionsResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateServiceListingRequest, UpdateServiceListingResponse, UpdateTeamMemberRoleRequest, UpdateTeamMemberRoleResponse } from "./memba_pb.js";
+import { CompleteQuestRequest, CompleteQuestResponse, CompleteTransactionRequest, CompleteTransactionResponse, CreateOrJoinMultisigRequest, CreateOrJoinMultisigResponse, CreateServiceListingRequest, CreateServiceListingResponse, CreateTeamRequest, CreateTeamResponse, CreateTransactionRequest, CreateTransactionResponse, FavoriteAgentRequest, FavoriteAgentResponse, GetAgentStatsRequest, GetAgentStatsResponse, GetAttestationVouchersRequest, GetAttestationVouchersResponse, GetChallengeRequest, GetChallengeResponse, GetDailyChallengeRequest, GetDailyChallengeResponse, GetDailyLeaderboardRequest, GetDailyLeaderboardResponse, GetFavoritesRequest, GetFavoritesResponse, GetFeedStatsRequest, GetFeedStatsResponse, GetFeedThreadRequest, GetFeedThreadResponse, GetFeedTimelineRequest, GetFeedTimelineResponse, GetHomeSnapshotRequest, GetHomeSnapshotResponse, GetLeaderboardRequest, GetLeaderboardResponse, GetLinkPreviewRequest, GetLinkPreviewResponse, GetModerationLogRequest, GetModerationLogResponse, GetMyTeamsRequest, GetMyTeamsResponse, GetNFTActivityRequest, GetNFTActivityResponse, GetNFTCollectionRequest, GetNFTCollectionResponse, GetNFTPortfolioRequest, GetNFTPortfolioResponse, GetPostReactionsRequest, GetPostReactionsResponse, GetProfileRequest, GetProfileResponse, GetReplyNotificationsRequest, GetReplyNotificationsResponse, GetServiceListingsRequest, GetServiceListingsResponse, GetStreakRequest, GetStreakResponse, GetTeamRequest, GetTeamResponse, GetTokenRequest, GetTokenResponse, GetTransactionRequest, GetTransactionResponse, GetUserFeedRequest, GetUserFeedResponse, GetUserQuestsRequest, GetUserQuestsResponse, GetUserRankRequest, GetUserRankResponse, JoinTeamRequest, JoinTeamResponse, LeaveTeamRequest, LeaveTeamResponse, ListNFTTokensRequest, ListNFTTokensResponse, ListPendingClaimsRequest, ListPendingClaimsResponse, MultisigInfoRequest, MultisigInfoResponse, MultisigsRequest, MultisigsResponse, ReviewQuestClaimRequest, ReviewQuestClaimResponse, SignTransactionRequest, SignTransactionResponse, SubmitQuestClaimRequest, SubmitQuestClaimResponse, SubmitScoreRequest, SubmitScoreResponse, SyncQuestsRequest, SyncQuestsResponse, TransactionsRequest, TransactionsResponse, UpdateProfileRequest, UpdateProfileResponse, UpdateServiceListingRequest, UpdateServiceListingResponse, UpdateTeamMemberRoleRequest, UpdateTeamMemberRoleResponse } from "./memba_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -469,6 +469,20 @@ export const MultisigService = {
       name: "GetFeedStats",
       I: GetFeedStatsRequest,
       O: GetFeedStatsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Public, BODY-FREE moderation transparency log (feed v2 plan C.3): the
+     * on-chain moderation events (flags / auto-hides / mod actions) as ids +
+     * reasons only, never post bodies. Backs the public transparency view and the
+     * console's audit tab. Sourced from the immutable raw ledger.
+     *
+     * @generated from rpc memba.v1.MultisigService.GetModerationLog
+     */
+    getModerationLog: {
+      name: "GetModerationLog",
+      I: GetModerationLogRequest,
+      O: GetModerationLogResponse,
       kind: MethodKind.Unary,
     },
     /**
