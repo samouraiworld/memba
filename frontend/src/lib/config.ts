@@ -703,6 +703,13 @@ export const isBarricadeCertifyEnabled = (): boolean =>
  * an env flip (see render/three/caps.ts). Literal reader (prod-bundle safe). */
 export const isBarricade3DEnabled = (): boolean =>
   import.meta.env.VITE_ENABLE_BARRICADE_3D === "true"
+/** BARRICADE 2.5D comparator (Phase 0 bake-off, arm A) — a THROWAWAY fake-perspective
+ * renderer for the composition-vs-dimensionality question. Ordinary flag, render-ONLY
+ * (sim frozen), off by default; the shipped 2D renderer is unchanged and is the path
+ * everyone still sees. A runtime ?r25d=1 override opts a device into it without an env
+ * flip. Literal reader (prod-bundle safe). */
+export const isBarricade25DEnabled = (): boolean =>
+  import.meta.env.VITE_ENABLE_BARRICADE_25D === "true"
 /** Realm Explorer (W9 P0). Ordinary flag — read-only (qrender/qfile/qfuncs), no
  * funds. Literal reader (dynamic import.meta.env[key] is undefined in prod bundles). */
 export const isExplorerEnabled = (): boolean => import.meta.env.VITE_ENABLE_EXPLORER === "true"

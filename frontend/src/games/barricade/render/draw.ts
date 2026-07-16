@@ -42,7 +42,9 @@ const SKYLINE_INK = "#0a0816" // city silhouette on the horizon (darker than the
 const SEARCHLIGHT = "#9fb4e0" // cold surveillance beam
 
 // Order machines — cold steels, brightened to read on the dark stock.
-const MACHINE_COLOR: Record<ArchetypeId, string> = {
+// Exported so the throwaway 2.5D comparator (draw25d.ts) reuses the exact same
+// archetype art — holding art constant so the bake-off isolates composition.
+export const MACHINE_COLOR: Record<ArchetypeId, string> = {
     drone: "#8fa8e0",
     netter: "#7f9fd8",
     walker: "#6b82c0",
@@ -100,7 +102,7 @@ function eye(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): 
     ctx.fill()
 }
 
-function drawMachine(
+export function drawMachine(
     ctx: CanvasRenderingContext2D,
     kind: ArchetypeId,
     x: number,
@@ -408,7 +410,7 @@ function rebelPath(ctx: CanvasRenderingContext2D, x: number, y: number, s: numbe
     ctx.closePath()
 }
 
-function groundShadow(ctx: CanvasRenderingContext2D, x: number, y: number, s: number): void {
+export function groundShadow(ctx: CanvasRenderingContext2D, x: number, y: number, s: number): void {
     ctx.fillStyle = "rgba(6,4,12,0.4)"
     ctx.beginPath()
     ctx.ellipse(x, y + s * 0.52, s * 0.42, s * 0.14, 0, 0, TAU)
@@ -452,7 +454,7 @@ function getHalftoneTile(): HTMLCanvasElement | null {
  * sweep (integer sim tick in play, a wall-clock proxy on the attract screen);
  * the beams still under reduced motion while the city stays. Pure render.
  */
-function drawNightSky(
+export function drawNightSky(
     ctx: CanvasRenderingContext2D,
     lay: Layout,
     tick: number,
@@ -517,7 +519,7 @@ function drawNightSky(
 }
 
 /** Lay the cached halftone screen over a rect (no-op when no tile is available). */
-function paintHalftone(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+export function paintHalftone(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
     const half = getHalftoneTile()
     if (!half) return
     const pat = ctx.createPattern(half, "repeat")
