@@ -47,14 +47,14 @@ func (s *MultisigService) GetModerationLog(ctx context.Context, req *connect.Req
 			return nil, internalError("GetModerationLog/scan", err)
 		}
 		rowCount++
-		lastSeq = uint64(seq)
+		lastSeq = u64(seq)
 		m := map[string]string{}
 		_ = json.Unmarshal([]byte(attrs), &m)
 		entry := moderationEntryFrom(name, m)
 		if entry == nil {
 			continue // a non-moderation ModAction variant (e.g. a future action)
 		}
-		entry.Seq = uint64(seq)
+		entry.Seq = u64(seq)
 		entry.BlockH = block
 		entries = append(entries, entry)
 	}
