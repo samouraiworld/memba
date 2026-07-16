@@ -3,6 +3,7 @@ import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { NotePencil } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
+import { friendlyError } from "../lib/errorMessages"
 import { DeploymentPipeline, type DeployStep, type DeploymentResult } from "../components/ui/DeploymentPipeline"
 import { WizardStepPreset } from "../components/dao/WizardStepPreset"
 import { WizardStepMembers } from "../components/dao/WizardStepMembers"
@@ -288,7 +289,7 @@ export function CreateDAO() {
             })
             setDeployStep("complete")
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Deployment failed")
+            setError(friendlyError(err))
             setDeployStep("error")
         } finally {
             setDeploying(false)

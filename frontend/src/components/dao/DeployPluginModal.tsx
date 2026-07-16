@@ -7,6 +7,7 @@
 import { useState } from "react"
 import { generateChannelCode, buildDeployChannelMsg, defaultChannelConfig, isValidChannelName } from "../../lib/channelTemplate"
 import { doContractBroadcast } from "../../lib/grc20"
+import { friendlyError } from "../../lib/errorMessages"
 import { inputStyle } from "../dao/wizardShared"
 
 interface Props {
@@ -59,7 +60,7 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
 
             onDeployed()
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Deployment failed")
+            setError(friendlyError(err))
         } finally {
             setDeploying(false)
         }

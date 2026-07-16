@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Deploy — a clearer error when your wallet isn't registered to deploy (2026-07-16)
+- **A failed realm deploy (Create DAO, Deploy Plugin) now explains what to do instead of dumping a raw VM error.** Deploying a realm to gno.land requires a registered `@username` namespace; without one the chain rejects the transaction with `/vm.UnauthorizedUserError`, which the app surfaced verbatim (and, had it matched the generic "unauthorized" case, would have wrongly told you to check your wallet). The error-translation layer now maps the namespace-authorization and CLA cases to actionable guidance — *"register a gno.land username / sign the CLA, then try again"* — and the Create DAO + Deploy Plugin flows route their failures through the friendly translator so the raw error no longer reaches users.
+
 ### Reputation — deferred (hidden) for now (2026-07-16)
 - **The Reputation (Memba Points) surface is hidden until it's relevant again.** A one-line hard-off (`POINTS_FEATURE_DEFERRED`) turns the whole surface dark regardless of the Netlify flag — the `/points` nav entry, home tile, and page all revert to the standard "coming soon" state. The on-chain realm (test13) and the full UI (route, `PointsPanel`, leaderboard, tiers) stay in place; re-enabling is flipping one boolean.
 
