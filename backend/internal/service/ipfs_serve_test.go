@@ -659,6 +659,49 @@ func TestNFTCachesAreByteBounded(t *testing.T) {
 	}
 }
 
+func TestLRUCache_ReplaceAdjustsBytes(t *testing.T) {
+	// The trickiest accounting path: replacing a key must apply the size DELTA.
+	c := newLRUCacheBounded(1000, 1000)
+	c.set("k", cacheEntry{body: make([]byte, 100), fetchedAt: time.Now()})
+	if c.curBytes != 100 {
+		t.Fatalf("curBytes = %d after insert, want 100", c.curBytes)
+	}
+	c.set("k", cacheEntry{body: make([]byte, 40), fetchedAt: time.Now()}) // shrink
+	if c.curBytes != 40 {
+		t.Errorf("curBytes = %d after shrinking replace, want 40", c.curBytes)
+	}
+	c.set("k", cacheEntry{body: make([]byte, 250), fetchedAt: time.Now()}) // grow
+	if c.curBytes != 250 {
+		t.Errorf("curBytes = %d after growing replace, want 250", c.curBytes)
+	}
+}
+
+func TestLRUCache_OversizedReplaceEvictsExisting(t *testing.T) {
+	// Replacing a resident key with a body bigger than the whole budget must
+	// drop the entry AND zero out its bytes (the oversized-skip branch).
+	c := newLRUCacheBounded(1000, 100)
+	c.set("k", cacheEntry{body: make([]byte, 50), fetchedAt: time.Now()})
+	c.set("k", cacheEntry{body: make([]byte, 200), fetchedAt: time.Now()})
+	if _, ok := c.get("k"); ok {
+		t.Error("oversized replacement should have evicted the existing entry")
+	}
+	if c.curBytes != 0 {
+		t.Errorf("curBytes = %d, want 0", c.curBytes)
+	}
+}
+
+func TestLRUCache_TTLExpiryAdjustsBytes(t *testing.T) {
+	// A TTL-expired entry removed on read must also release its bytes.
+	c := newLRUCacheBounded(1000, 1000)
+	c.set("k", cacheEntry{body: make([]byte, 100), fetchedAt: time.Now().Add(-nftCacheTTL - time.Minute)})
+	if _, ok := c.get("k"); ok {
+		t.Error("expected TTL-expired entry to miss")
+	}
+	if c.curBytes != 0 {
+		t.Errorf("curBytes = %d after TTL expiry, want 0", c.curBytes)
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // validateCIDChars tests
 // ──────────────────────────────────────────────────────────────────────────────
