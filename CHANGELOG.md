@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### NFT — removed a fabricated, non-functional collection-offers surface (2026-07-16)
+- **Deleted the "collection offers" UI that showed invented bidders and pointed at a realm that was never deployed.** Behind the (currently-off) NFT flag, a collection page rendered a hardcoded "Executable Depth" list of fake offers, with Make/Accept buttons that broadcast to an offers realm which doesn't exist on-chain (and no longer compiles under the current VM). Presenting invented data as on-chain truth — and wiring a fund-bearing action to a non-existent contract — is exactly what a chain-connected app must never do, so the whole surface (the offers list, the make/accept modals, and their message builders) has been removed. Collection offers will return only against a deployed, fund-safe engine. No user-facing change: the NFT trading surface is off in production.
+
 ### Onboarding — the first-time activation screen renders correctly again (2026-07-16)
 - **Fixed the wallet-activation modal showing as a near-invisible, borderless card for brand-new users.** The modal every faucet-funded newcomer must see before they can do anything referenced a set of colour variables (`--surface-*`, `--text-primary`, `--accent-rgb`, `--danger-rgb`, `--danger`) that don't exist in the design system, so the browser dropped its background, border and shadow — leaving text floating over the dimmed page and reading like a broken overlay. It now uses the real `--color-k-*` design tokens (correct in both light and dark themes), and a regression test asserts every colour variable it references is actually defined, so this can't recur. A dead, undefined `k-modal-glass` class was removed too.
 

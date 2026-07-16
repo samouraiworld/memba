@@ -41,10 +41,6 @@ import { isNftEnabled, isNftMarketV3Valid } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 import "./marketplace-v2.css"
 
-import { FloorOffersList, type FloorOffer } from "../components/nft/FloorOffersList"
-import { MakeFloorOfferModal } from "../components/nft/MakeFloorOfferModal"
-import { AcceptFloorOfferModal } from "../components/nft/AcceptFloorOfferModal"
-
 // ── Tab types ─────────────────────────────────────────────────────────
 
 type Tab = "items" | "activity" | "about"
@@ -117,8 +113,6 @@ function CollectionPublicContent() {
 
     const [activeTab, setActiveTab] = useState<Tab>("items")
     const [modal, setModal] = useState<ModalState | null>(null)
-    const [showMakeFloorOffer, setShowMakeFloorOffer] = useState(false)
-    const [floorOfferToAccept, setFloorOfferToAccept] = useState<FloorOffer | null>(null)
 
     // ── Loading ─────────────────────────────────────────────────────
     if (loading) {
@@ -161,9 +155,6 @@ function CollectionPublicContent() {
         reload()
     }
 
-    // All tokens owned by the viewer (to sell into a floor offer)
-    const myOwnedTokens = tokens.filter(t => t.owner === me)
-
     return (
         <div className="cpub">
             {/* ── Header ──────────────────────────────────────────── */}
@@ -174,11 +165,6 @@ function CollectionPublicContent() {
                         <NFTMedia uri={firstTokenUri} alt={detail.name} seed={id} className="cpub-avatar__img" />
                     </div>
                     <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-                        {me !== "" && (
-                            <button className="k-btn k-btn--secondary" onClick={() => setShowMakeFloorOffer(true)}>
-                                Make Collection Offer
-                            </button>
-                        )}
                         {isAdmin && (
                             <Link to={np(`nft/studio/${id}`)} className="cpub-studio-link">
                                 Manage in Studio
@@ -233,12 +219,6 @@ function CollectionPublicContent() {
             {/* Items */}
             {activeTab === "items" && (
                 <section className="cpub-panel">
-                    <div className="cpub-floor-offers-section" style={{ marginBottom: "32px" }}>
-                        <FloorOffersList 
-                            collectionId={id} 
-                            onAcceptRequest={(offer) => setFloorOfferToAccept(offer)} 
-                        />
-                    </div>
                     {tokens.length === 0 ? (
                         <EmptyState
                             icon="ti-photo"
@@ -493,30 +473,6 @@ function CollectionPublicContent() {
                 />
             )}
 
-            {/* ── Floor Offer Modals ───────────────────────────────── */}
-            {showMakeFloorOffer && me !== "" && (
-                <MakeFloorOfferModal
-                    collectionID={id}
-                    onClose={() => setShowMakeFloorOffer(false)}
-                    onSuccess={() => {
-                        setShowMakeFloorOffer(false)
-                        reload()
-                    }}
-                />
-            )}
-
-            {floorOfferToAccept && me !== "" && (
-                <AcceptFloorOfferModal
-                    collectionID={id}
-                    offer={floorOfferToAccept}
-                    availableTokens={myOwnedTokens}
-                    onClose={() => setFloorOfferToAccept(null)}
-                    onSuccess={() => {
-                        setFloorOfferToAccept(null)
-                        reload()
-                    }}
-                />
-            )}
         </div>
     )
 }
