@@ -193,6 +193,14 @@ jobs:
             echo "::warning::Total JS ${TOTAL_KB}KB exceeds 3MB — review lazy loading"
           fi
 
+      - name: "Bundle gate: BARRICADE 3D chunk isolated + precache-excluded"
+        # Fails the build if the three / react-three-fiber / postprocessing stack
+        # ever leaks out of its lazy async chunk — into the eager entry graph or
+        # the Workbox precache manifest. That is the cost firewall behind
+        # VITE_ENABLE_BARRICADE_3D (0 bytes for the main app / 2D-mode users).
+        # Inert-but-passing until the 3D renderer actually imports three (PR-0c).
+        run: npm run check:bundle
+
       # Lighthouse is gated to the Node 22 leg only (it exercises the built
       # bundle in a static preview; the Node *runner* version is irrelevant).
       # The full Playwright E2E used to run here too — it has been moved to its

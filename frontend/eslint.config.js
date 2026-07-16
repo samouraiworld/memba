@@ -46,4 +46,16 @@ export default defineConfig([
     files: ['src/components/ui/JitsiPiPOverlay.tsx'],
     rules: { 'no-restricted-properties': 'off' },
   },
+  {
+    // BARRICADE 3D renderer (react-three-fiber). Scoped relaxations so the
+    // R3F idioms don't fight the repo ratchet: typed uniform bags / shader
+    // material definitions need `any`, and scene modules legitimately export
+    // helper functions alongside their components (breaks only-export-components).
+    // Confined to the lazy render/three subtree; the rest of the app is unchanged.
+    files: ['src/games/barricade/render/three/**/*.{ts,tsx}'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      'react-refresh/only-export-components': 'off',
+    },
+  },
 ])

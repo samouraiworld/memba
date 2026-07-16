@@ -695,6 +695,14 @@ export const isBarricadeEnabled = (): boolean =>
  * default; play stays no-wallet regardless. Separate from VITE_ENABLE_BARRICADE. */
 export const isBarricadeCertifyEnabled = (): boolean =>
   import.meta.env.VITE_ENABLE_BARRICADE_CERTIFY === "true"
+/** BARRICADE 3D "front line" renderer (Phase 0 bake-off). Ordinary flag — a
+ * render-ONLY presentation swap over the frozen SIM_VERSION 2 sim; it moves no
+ * funds and touches no replay/verifier surface, so it is NOT safety-gated. Off by
+ * default; the 2D renderer stays as the required WebGL2 fallback. A runtime
+ * ?r3d=1 / localStorage override can opt a single device into 3D on prod without
+ * an env flip (see render/three/caps.ts). Literal reader (prod-bundle safe). */
+export const isBarricade3DEnabled = (): boolean =>
+  import.meta.env.VITE_ENABLE_BARRICADE_3D === "true"
 /** Realm Explorer (W9 P0). Ordinary flag — read-only (qrender/qfile/qfuncs), no
  * funds. Literal reader (dynamic import.meta.env[key] is undefined in prod bundles). */
 export const isExplorerEnabled = (): boolean => import.meta.env.VITE_ENABLE_EXPLORER === "true"

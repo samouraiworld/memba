@@ -73,6 +73,14 @@ export default defineConfig({
           // ConnectRPC + protobuf client stack — app-wide, long-lived; split out of the
           // eager index chunk to keep it under the 600KB budget (cached across deploys).
           'vendor-rpc': ['@connectrpc/connect', '@connectrpc/connect-web', '@bufbuild/protobuf'],
+          // NOTE (BARRICADE 3D): the three/R3F/postprocessing stack is deliberately
+          // NOT grouped here. This is the OBJECT form, where each listed module is a
+          // ROOT that Rollup force-bundles even if unimported — which would drag the
+          // ~180KB three stack into the EAGER graph while it has no importer. The
+          // dedicated `vendor-three` async chunk is created in the renderer PR
+          // (function-form rule) at the point three is lazily imported, so isolation
+          // is verified end-to-end. The Workbox exclusion + bundle CI gate below are
+          // wired ahead of it.
         },
       },
     },
@@ -108,10 +116,20 @@ export default defineConfig({
       workbox: {
         navigateFallback: '/index.html',
         globPatterns: ['**/*.{js,css,html,woff2}'],
+        // The BARRICADE 3D renderer chunk is precache-EXCLUDED: globPatterns above
+        // precaches **/*.js ≤4MB, so without this every user — including 2D-mode
+        // users who never load three — would download the ~300-360KB three stack on
+        // SW install. It is fetched on demand and cached at runtime (below) instead.
+        // Wired ahead of the renderer: the vendor-three chunk itself is created when
+        // the 3D renderer lands and lazily imports three.
+        globIgnores: ['**/vendor-three-*.js'],
         // recharts/jspdf chunks are large; allow them into the precache.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
           { urlPattern: /\/fonts\//, handler: 'CacheFirst', options: { cacheName: 'fonts' } },
+          // The precache-excluded 3D chunk: cache-on-first-use so repeat 3D sessions
+          // stay offline-capable without burdening the install-time precache.
+          { urlPattern: /vendor-three-.*\.js$/, handler: 'StaleWhileRevalidate', options: { cacheName: 'barricade-3d' } },
           // NEVER cache auth/tx / RPC writes — always hit the network.
           { urlPattern: ({ url }) => url.pathname.startsWith('/memba.v1.'), handler: 'NetworkOnly' },
         ],
