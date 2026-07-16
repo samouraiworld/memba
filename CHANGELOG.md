@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Onboarding — the first-time activation screen renders correctly again (2026-07-16)
+- **Fixed the wallet-activation modal showing as a near-invisible, borderless card for brand-new users.** The modal every faucet-funded newcomer must see before they can do anything referenced a set of colour variables (`--surface-*`, `--text-primary`, `--accent-rgb`, `--danger-rgb`, `--danger`) that don't exist in the design system, so the browser dropped its background, border and shadow — leaving text floating over the dimmed page and reading like a broken overlay. It now uses the real `--color-k-*` design tokens (correct in both light and dark themes), and a regression test asserts every colour variable it references is actually defined, so this can't recur. A dead, undefined `k-modal-glass` class was removed too.
+
 ### Mobile — money-path modals now scroll so the action button stays reachable (2026-07-16)
 - **Fixed the trade / offer / hire / deploy modals cutting off their action button on small screens.** The shared modal shell is centered by its overlay but never capped its height or scrolled its body, so on a phone (or with the on-screen keyboard up) the Confirm / List / Buy button could sit below the fold with no way to reach it — the modal itself wouldn't scroll and neither would the page behind it. It now caps at the viewport height and scrolls its own body, the same fix already used by the transaction-confirmation modal. **One change covers all six money-path modals** (NFT trade, make/accept collection offer, token trade, hire service, deploy agent), and a regression test locks the behavior in.
 
