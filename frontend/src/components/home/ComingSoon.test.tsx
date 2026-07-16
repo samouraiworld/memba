@@ -31,7 +31,9 @@ describe("ComingSoon", () => {
         expect(container.querySelectorAll("a").length).toBe(0)
     })
 
-    it("renders nothing at all when every surface is live", () => {
+    it("still shows the deferred Reputation surface when every other surface is live", () => {
+        // points_v1 is hard-deferred (POINTS_FEATURE_DEFERRED in config.ts), so it stays a "soon"
+        // tile regardless of VITE_ENABLE_POINTS; every OTHER flag-gated surface is live here.
         for (const flag of [
             "VITE_ENABLE_MARKETPLACE",
             "VITE_ENABLE_APPSTORE",
@@ -44,7 +46,8 @@ describe("ComingSoon", () => {
         ]) {
             vi.stubEnv(flag, "true")
         }
-        const { container } = render(<ComingSoon />)
-        expect(container.firstChild).toBeNull()
+        render(<ComingSoon />)
+        expect(screen.getByTestId("soon-points")).toBeInTheDocument()
+        expect(screen.getAllByTestId(/^soon-/)).toHaveLength(1)
     })
 })
