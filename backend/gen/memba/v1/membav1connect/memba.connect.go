@@ -173,6 +173,9 @@ const (
 	// MultisigServiceGetFeedStatsProcedure is the fully-qualified name of the MultisigService's
 	// GetFeedStats RPC.
 	MultisigServiceGetFeedStatsProcedure = "/memba.v1.MultisigService/GetFeedStats"
+	// MultisigServiceGetModerationLogProcedure is the fully-qualified name of the MultisigService's
+	// GetModerationLog RPC.
+	MultisigServiceGetModerationLogProcedure = "/memba.v1.MultisigService/GetModerationLog"
 	// MultisigServiceGetLinkPreviewProcedure is the fully-qualified name of the MultisigService's
 	// GetLinkPreview RPC.
 	MultisigServiceGetLinkPreviewProcedure = "/memba.v1.MultisigService/GetLinkPreview"
@@ -249,6 +252,11 @@ type MultisigServiceClient interface {
 	GetReplyNotifications(context.Context, *connect.Request[v1.GetReplyNotificationsRequest]) (*connect.Response[v1.GetReplyNotificationsResponse], error)
 	// Feed-wide live stats for the header/rail (post + author counts).
 	GetFeedStats(context.Context, *connect.Request[v1.GetFeedStatsRequest]) (*connect.Response[v1.GetFeedStatsResponse], error)
+	// Public, BODY-FREE moderation transparency log (feed v2 plan C.3): the
+	// on-chain moderation events (flags / auto-hides / mod actions) as ids +
+	// reasons only, never post bodies. Backs the public transparency view and the
+	// console's audit tab. Sourced from the immutable raw ledger.
+	GetModerationLog(context.Context, *connect.Request[v1.GetModerationLogRequest]) (*connect.Response[v1.GetModerationLogResponse], error)
 	// Server-side rich preview for an external URL — OG/Twitter-card metadata via
 	// an SSRF-guarded fetch, with the image proxied through a signed token. Public
 	// read, no auth; rate-limited; returns ok=false (never an error) so the UI can
@@ -552,6 +560,12 @@ func NewMultisigServiceClient(httpClient connect.HTTPClient, baseURL string, opt
 			connect.WithSchema(multisigServiceMethods.ByName("GetFeedStats")),
 			connect.WithClientOptions(opts...),
 		),
+		getModerationLog: connect.NewClient[v1.GetModerationLogRequest, v1.GetModerationLogResponse](
+			httpClient,
+			baseURL+MultisigServiceGetModerationLogProcedure,
+			connect.WithSchema(multisigServiceMethods.ByName("GetModerationLog")),
+			connect.WithClientOptions(opts...),
+		),
 		getLinkPreview: connect.NewClient[v1.GetLinkPreviewRequest, v1.GetLinkPreviewResponse](
 			httpClient,
 			baseURL+MultisigServiceGetLinkPreviewProcedure,
@@ -616,6 +630,7 @@ type multisigServiceClient struct {
 	getStreak              *connect.Client[v1.GetStreakRequest, v1.GetStreakResponse]
 	getReplyNotifications  *connect.Client[v1.GetReplyNotificationsRequest, v1.GetReplyNotificationsResponse]
 	getFeedStats           *connect.Client[v1.GetFeedStatsRequest, v1.GetFeedStatsResponse]
+	getModerationLog       *connect.Client[v1.GetModerationLogRequest, v1.GetModerationLogResponse]
 	getLinkPreview         *connect.Client[v1.GetLinkPreviewRequest, v1.GetLinkPreviewResponse]
 	getPostReactions       *connect.Client[v1.GetPostReactionsRequest, v1.GetPostReactionsResponse]
 }
@@ -855,6 +870,11 @@ func (c *multisigServiceClient) GetFeedStats(ctx context.Context, req *connect.R
 	return c.getFeedStats.CallUnary(ctx, req)
 }
 
+// GetModerationLog calls memba.v1.MultisigService.GetModerationLog.
+func (c *multisigServiceClient) GetModerationLog(ctx context.Context, req *connect.Request[v1.GetModerationLogRequest]) (*connect.Response[v1.GetModerationLogResponse], error) {
+	return c.getModerationLog.CallUnary(ctx, req)
+}
+
 // GetLinkPreview calls memba.v1.MultisigService.GetLinkPreview.
 func (c *multisigServiceClient) GetLinkPreview(ctx context.Context, req *connect.Request[v1.GetLinkPreviewRequest]) (*connect.Response[v1.GetLinkPreviewResponse], error) {
 	return c.getLinkPreview.CallUnary(ctx, req)
@@ -933,6 +953,11 @@ type MultisigServiceHandler interface {
 	GetReplyNotifications(context.Context, *connect.Request[v1.GetReplyNotificationsRequest]) (*connect.Response[v1.GetReplyNotificationsResponse], error)
 	// Feed-wide live stats for the header/rail (post + author counts).
 	GetFeedStats(context.Context, *connect.Request[v1.GetFeedStatsRequest]) (*connect.Response[v1.GetFeedStatsResponse], error)
+	// Public, BODY-FREE moderation transparency log (feed v2 plan C.3): the
+	// on-chain moderation events (flags / auto-hides / mod actions) as ids +
+	// reasons only, never post bodies. Backs the public transparency view and the
+	// console's audit tab. Sourced from the immutable raw ledger.
+	GetModerationLog(context.Context, *connect.Request[v1.GetModerationLogRequest]) (*connect.Response[v1.GetModerationLogResponse], error)
 	// Server-side rich preview for an external URL — OG/Twitter-card metadata via
 	// an SSRF-guarded fetch, with the image proxied through a signed token. Public
 	// read, no auth; rate-limited; returns ok=false (never an error) so the UI can
@@ -1232,6 +1257,12 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 		connect.WithSchema(multisigServiceMethods.ByName("GetFeedStats")),
 		connect.WithHandlerOptions(opts...),
 	)
+	multisigServiceGetModerationLogHandler := connect.NewUnaryHandler(
+		MultisigServiceGetModerationLogProcedure,
+		svc.GetModerationLog,
+		connect.WithSchema(multisigServiceMethods.ByName("GetModerationLog")),
+		connect.WithHandlerOptions(opts...),
+	)
 	multisigServiceGetLinkPreviewHandler := connect.NewUnaryHandler(
 		MultisigServiceGetLinkPreviewProcedure,
 		svc.GetLinkPreview,
@@ -1340,6 +1371,8 @@ func NewMultisigServiceHandler(svc MultisigServiceHandler, opts ...connect.Handl
 			multisigServiceGetReplyNotificationsHandler.ServeHTTP(w, r)
 		case MultisigServiceGetFeedStatsProcedure:
 			multisigServiceGetFeedStatsHandler.ServeHTTP(w, r)
+		case MultisigServiceGetModerationLogProcedure:
+			multisigServiceGetModerationLogHandler.ServeHTTP(w, r)
 		case MultisigServiceGetLinkPreviewProcedure:
 			multisigServiceGetLinkPreviewHandler.ServeHTTP(w, r)
 		case MultisigServiceGetPostReactionsProcedure:
@@ -1539,6 +1572,10 @@ func (UnimplementedMultisigServiceHandler) GetReplyNotifications(context.Context
 
 func (UnimplementedMultisigServiceHandler) GetFeedStats(context.Context, *connect.Request[v1.GetFeedStatsRequest]) (*connect.Response[v1.GetFeedStatsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetFeedStats is not implemented"))
+}
+
+func (UnimplementedMultisigServiceHandler) GetModerationLog(context.Context, *connect.Request[v1.GetModerationLogRequest]) (*connect.Response[v1.GetModerationLogResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("memba.v1.MultisigService.GetModerationLog is not implemented"))
 }
 
 func (UnimplementedMultisigServiceHandler) GetLinkPreview(context.Context, *connect.Request[v1.GetLinkPreviewRequest]) (*connect.Response[v1.GetLinkPreviewResponse], error) {

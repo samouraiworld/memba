@@ -84,6 +84,11 @@ service MultisigService {
   rpc GetReplyNotifications(GetReplyNotificationsRequest) returns (GetReplyNotificationsResponse);
   // Feed-wide live stats for the header/rail (post + author counts).
   rpc GetFeedStats(GetFeedStatsRequest) returns (GetFeedStatsResponse);
+  // Public, BODY-FREE moderation transparency log (feed v2 plan C.3): the
+  // on-chain moderation events (flags / auto-hides / mod actions) as ids +
+  // reasons only, never post bodies. Backs the public transparency view and the
+  // console's audit tab. Sourced from the immutable raw ledger.
+  rpc GetModerationLog(GetModerationLogRequest) returns (GetModerationLogResponse);
   // Server-side rich preview for an external URL — OG/Twitter-card metadata via
   // an SSRF-guarded fetch, with the image proxied through a signed token. Public
   // read, no auth; rate-limited; returns ok=false (never an error) so the UI can
@@ -917,6 +922,27 @@ message GetFeedStatsResponse {
   uint64 total_authors = 3; // distinct authors of visible posts
   // Most-replied visible top-level posts, reply-count-descending (trending).
   repeated FeedPost most_replied = 4;
+}
+
+message GetModerationLogRequest {
+  uint64 cursor = 1; // return entries strictly older than this seq; 0 = newest
+  uint32 limit = 2; // default 20, max 100
+}
+
+// One moderation event — BODY-FREE by construction (ids + reasons only). Sourced
+// from the immutable raw ledger (PostFlagged / PostAutoHidden / ModAction), so a
+// takedown's reason is auditable without re-exposing the offending content.
+message ModerationLogEntry {
+  uint64 seq = 1; // opaque monotonic cursor (newest = highest)
+  uint64 post_id = 2;
+  string action = 3; // "flagged" | "auto_hidden" | "mod_removed" | "mod_unhidden"
+  string actor = 4; // flagger / moderator address; "" when the event carries none
+  int64 block_h = 5; // event block height
+}
+
+message GetModerationLogResponse {
+  repeated ModerationLogEntry entries = 1;
+  uint64 next_cursor = 2; // pass as cursor for the next page; 0 = end
 }
 
 message GetLinkPreviewRequest {
