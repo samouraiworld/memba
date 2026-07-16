@@ -611,6 +611,54 @@ func TestLRUCache_MissOnUnknownKey(t *testing.T) {
 	}
 }
 
+func TestLRUCache_EvictsByBytes(t *testing.T) {
+	// Count limit generous so the byte budget is what binds.
+	c := newLRUCacheBounded(1000, 300)
+	now := time.Now()
+	put := func(k string, n int) {
+		c.set(k, cacheEntry{body: make([]byte, n), fetchedAt: now})
+	}
+	put("a", 100)
+	put("b", 100)
+	put("c", 100) // 300 bytes total — exactly at budget
+	put("d", 100) // 400 would exceed → LRU "a" evicted back to 300
+
+	if _, ok := c.get("a"); ok {
+		t.Error("expected 'a' evicted by the byte budget")
+	}
+	for _, k := range []string{"b", "c", "d"} {
+		if _, ok := c.get(k); !ok {
+			t.Errorf("expected %q to still be cached", k)
+		}
+	}
+	if c.curBytes > 300 {
+		t.Errorf("curBytes = %d, must not exceed maxBytes 300", c.curBytes)
+	}
+}
+
+func TestLRUCache_SkipsOversizedEntry(t *testing.T) {
+	// An entry bigger than the whole budget must not be cached — otherwise it
+	// force-evicts everything and is still over budget.
+	c := newLRUCacheBounded(1000, 100)
+	c.set("big", cacheEntry{body: make([]byte, 200), fetchedAt: time.Now()})
+	if _, ok := c.get("big"); ok {
+		t.Error("an entry larger than the whole byte budget must not be cached")
+	}
+	if c.curBytes != 0 {
+		t.Errorf("curBytes = %d, want 0", c.curBytes)
+	}
+}
+
+func TestNFTCachesAreByteBounded(t *testing.T) {
+	// The prod image/metadata caches MUST carry a positive byte budget, or a
+	// flood of distinct large CIDs OOMs the 512MB VM (256 entries × 15MB × 2 ≈ 7.7GB).
+	for name, c := range map[string]*lruCache{"image": nftImageCache, "metadata": nftMetadataCache} {
+		if c.maxBytes != nftCacheMaxBytes || c.maxBytes <= 0 {
+			t.Errorf("%s cache maxBytes=%d, want positive %d", name, c.maxBytes, nftCacheMaxBytes)
+		}
+	}
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // validateCIDChars tests
 // ──────────────────────────────────────────────────────────────────────────────

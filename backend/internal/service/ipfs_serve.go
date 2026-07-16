@@ -33,6 +33,12 @@ const (
 	// nftCacheMaxEntries is the maximum number of cache entries (image + metadata combined).
 	nftCacheMaxEntries = 256
 
+	// nftCacheMaxBytes caps the total body bytes held by EACH media cache (image
+	// and metadata). Bounding by entry count alone let 256 entries × 15MB × 2
+	// caches (~7.7GB) OOM the 512MB VM under a flood of distinct large CIDs; the
+	// byte budget makes eviction size-aware. 64MB each → 128MB combined, safe on 512MB.
+	nftCacheMaxBytes = 64 * 1024 * 1024
+
 	// nftCacheTTL is how long an entry stays warm in the in-memory cache.
 	nftCacheTTL = 24 * time.Hour
 
@@ -62,11 +68,13 @@ type cacheEntry struct {
 
 // lruCache is a minimal, thread-safe LRU cache backed by a map + doubly linked list.
 type lruCache struct {
-	mu      sync.Mutex
-	maxSize int
-	items   map[string]*lruNode
-	head    *lruNode // most recently used
-	tail    *lruNode // least recently used
+	mu       sync.Mutex
+	maxSize  int
+	maxBytes int // total-body-bytes ceiling; 0 disables byte-based eviction
+	curBytes int // running sum of cached body bytes
+	items    map[string]*lruNode
+	head     *lruNode // most recently used
+	tail     *lruNode // least recently used
 }
 
 type lruNode struct {
@@ -76,10 +84,18 @@ type lruNode struct {
 	next  *lruNode
 }
 
+// newLRUCache builds a cache bounded only by entry count (no byte ceiling).
 func newLRUCache(maxSize int) *lruCache {
+	return newLRUCacheBounded(maxSize, 0)
+}
+
+// newLRUCacheBounded builds a cache bounded by BOTH entry count and total body
+// bytes. A maxBytes of 0 disables the byte ceiling (count-only).
+func newLRUCacheBounded(maxSize, maxBytes int) *lruCache {
 	return &lruCache{
-		maxSize: maxSize,
-		items:   make(map[string]*lruNode),
+		maxSize:  maxSize,
+		maxBytes: maxBytes,
+		items:    make(map[string]*lruNode),
 	}
 }
 
@@ -91,6 +107,7 @@ func (c *lruCache) get(key string) (cacheEntry, bool) {
 		return cacheEntry{}, false
 	}
 	if time.Since(node.value.fetchedAt) > nftCacheTTL {
+		c.curBytes -= len(node.value.body)
 		c.removeNode(node)
 		delete(c.items, key)
 		return cacheEntry{}, false
@@ -102,20 +119,39 @@ func (c *lruCache) get(key string) (cacheEntry, bool) {
 func (c *lruCache) set(key string, entry cacheEntry) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	if node, ok := c.items[key]; ok {
-		node.value = entry
-		c.moveToFront(node)
+	newLen := len(entry.body)
+	// An entry larger than the whole byte budget is never cached: it would
+	// force-evict everything else and still be over. Drop any stale copy + skip.
+	if c.maxBytes > 0 && newLen > c.maxBytes {
+		if node, ok := c.items[key]; ok {
+			c.curBytes -= len(node.value.body)
+			delete(c.items, key)
+			c.removeNode(node)
+		}
 		return
 	}
-	node := &lruNode{key: key, value: entry}
-	c.items[key] = node
-	c.pushFront(node)
-	if len(c.items) > c.maxSize {
-		// evict LRU
-		if c.tail != nil {
-			delete(c.items, c.tail.key)
-			c.removeNode(c.tail)
-		}
+	if node, ok := c.items[key]; ok {
+		c.curBytes += newLen - len(node.value.body)
+		node.value = entry
+		c.moveToFront(node)
+	} else {
+		node := &lruNode{key: key, value: entry}
+		c.items[key] = node
+		c.curBytes += newLen
+		c.pushFront(node)
+	}
+	c.evict()
+}
+
+// evict removes least-recently-used entries until BOTH the entry-count and (when
+// set) the byte budget hold. The just-inserted entry sits at the head and is
+// ≤ maxBytes, so it is never the one evicted.
+func (c *lruCache) evict() {
+	for c.tail != nil && (len(c.items) > c.maxSize || (c.maxBytes > 0 && c.curBytes > c.maxBytes)) {
+		lru := c.tail
+		c.curBytes -= len(lru.value.body)
+		delete(c.items, lru.key)
+		c.removeNode(lru)
 	}
 }
 
@@ -159,8 +195,8 @@ func (c *lruCache) moveToFront(node *lruNode) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 var (
-	nftImageCache    = newLRUCache(nftCacheMaxEntries)
-	nftMetadataCache = newLRUCache(nftCacheMaxEntries)
+	nftImageCache    = newLRUCacheBounded(nftCacheMaxEntries, nftCacheMaxBytes)
+	nftMetadataCache = newLRUCacheBounded(nftCacheMaxEntries, nftCacheMaxBytes)
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
