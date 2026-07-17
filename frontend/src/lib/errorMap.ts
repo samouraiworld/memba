@@ -151,6 +151,16 @@ const ERROR_PATTERNS: ErrorPattern[] = [
             action: "Ensure you are signing directly with Adena.",
         },
     },
+    // Wallet not connected — MUST precede the generic "wallet" pattern below, or a
+    // "connect your wallet" gate wrongly reads as a rejected/unavailable wallet.
+    {
+        test: (m) => m.includes("connect your wallet") || m.includes("connect a wallet") || m.includes("wallet not connected"),
+        result: {
+            title: "Connect your wallet",
+            message: "Connect your Adena wallet to continue.",
+            action: "Use the wallet button in the top bar.",
+        },
+    },
     // Adena wallet errors
     {
         test: (m) => m.includes("adena") || m.includes("wallet") || m.includes("rejected"),

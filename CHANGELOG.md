@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Marketplace — the "connect your wallet" prompt is an in-app toast, not a native pop-up (2026-07-17)
+- **Replaced the jarring native `alert()` on the Services and Token lanes' wallet gates with the app's own toast.** Trying to hire a service or trade a token without a connected wallet previously fired a browser `alert("Please connect your wallet first.")` — a blocking, unstyled system dialog inconsistent with the rest of the app. It now shows the in-app toast with a clear "Connect your wallet" heading and a pointer to the wallet button, via a new error-map entry so a not-connected gate no longer reads as a generic "wallet error." (The post-action success alerts and a fuller connect-then-continue flow remain follow-ups.)
+
 ### Trust — honest copy on the verified badge and the "Treasury" DAO preset (2026-07-17)
 - **Removed two overstated capability claims.** The collection "Verified" badge's tooltip said the team curates "against published criteria" — but no such criteria document exists, so it now simply reads "curated by the Memba team." And the Create-DAO wizard's **Treasury** preset called itself a "Treasury DAO," implying on-chain fund custody the generated DAO doesn't have; its description now states plainly that it's governance-only (roles + higher thresholds + longer voting) and that the DAO doesn't custody funds on-chain. Copy only — no behaviour change.
 
