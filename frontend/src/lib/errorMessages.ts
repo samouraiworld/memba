@@ -56,7 +56,7 @@ const ERROR_PATTERNS: ErrorPattern[] = [
         hint: "Register a username on gno.land (the r/sys/users registry), then try again.",
     },
     {
-        match: /signed the required CLA|required CLA|contributor.{0,20}agreement/i,
+        match: /signed the required CLA|contributor.{0,20}agreement/i,
         message: "You need to sign the gno.land contributor agreement (CLA) before deploying.",
         hint: "Sign the CLA on gno.land, then try again.",
     },

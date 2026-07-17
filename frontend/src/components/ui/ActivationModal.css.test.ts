@@ -25,7 +25,10 @@ const tokenCss =
 /** Custom properties referenced via var(--name) in the modal's stylesheet. */
 const usedVars = [...modalCss.matchAll(/var\(\s*(--[a-z0-9-]+)/gi)].map((m) => m[1])
 /** Custom properties declared (--name:) anywhere in the token files. */
-const declaredVars = new Set([...tokenCss.matchAll(/(--[a-z0-9-]+)\s*:/gi)].map((m) => m[1]))
+// Anchor to declaration position (line start or after `{`/`;`) so BEM modifiers
+// in selectors like `.k-stat-card--clickable:hover` aren't mistaken for declared
+// custom properties (which would let a genuinely-orphaned var slip the guard).
+const declaredVars = new Set([...tokenCss.matchAll(/(?:^|[{;])\s*(--[a-z0-9-]+)\s*:/gim)].map((m) => m[1]))
 
 describe("ActivationModal.css — design-system token integrity (UX-2)", () => {
     it("uses at least one custom property (sanity)", () => {
