@@ -22,6 +22,8 @@ import { LANES, LANE_LENGTH, type Choice, type SimEvent, type SimState } from ".
 import { ARM_COST, MOLOTOV_COST, REFILL_COST, REPAIR_COST, TURRET_COST } from "./sim/engine"
 import { draw, drawAttract } from "./render/draw"
 import { draw25d } from "./render/draw25d"
+import { resolveRenderer } from "./render/three/caps"
+import { useSimSnapshots } from "./render/three/bridge/useSimSnapshots"
 import { deriveFxEvents } from "./render/fxEvents"
 import { initFx, layout, pushFxEvents, stepFx, type FxState } from "./render/fx"
 import { interpPositions } from "./render/interp"
@@ -34,6 +36,9 @@ import "./barricade.css"
 // it must never load on the no-wallet play path (only when the flag is on and a
 // verified daily run is on the poster).
 const BarricadeCertify = lazy(() => import("./BarricadeCertify"))
+// Lazy so the three / react-three-fiber stack lands in the async vendor-three chunk
+// (bundle CI gate + Workbox precache-exclusion enforce it), never the eager bundle.
+const Barricade3D = lazy(() => import("./render/three/Barricade3D"))
 
 // Logical canvas coordinate space; the backing store is scaled by devicePixelRatio.
 const CW = 390
@@ -60,6 +65,11 @@ function resolve25dRenderer(): boolean {
     return isBarricade25DEnabled()
 }
 const RENDER_25D = resolve25dRenderer()
+
+// Phase-0 bake-off arm B: the real 3D renderer. resolveRenderer() folds the flag,
+// the ?r3d override, and the WebGL2 probe (caps.ts), chosen once at module load. 3D
+// takes precedence over the 2.5D comparator if both are somehow enabled.
+const RENDER_3D = resolveRenderer() === "3d"
 
 type RunStatus = "ready" | "playing" | "done"
 type HudMirror = { phase: string; rallyReady: boolean; molotovReady: boolean; scrap: number; patchUsed: boolean }
@@ -214,33 +224,46 @@ export default function Barricade() {
         [],
     )
 
-    const onFrame = useCallback((alpha: number) => {
-        const canvas = canvasRef.current
-        const ctx = canvas?.getContext("2d")
-        if (!canvas || !ctx) return
-        prepCanvas(canvas, ctx)
-        const s = stateRef.current
-        const fx = fxRef.current
-        const events = deriveFxEvents(prevStateRef.current, s)
-        if (events.length > 0) {
-            const lay = layout(CW, CH)
-            const audio = audioRef.current
-            // Fold events one at a time so the audio pitch reads the combo AS OF
-            // each kill (a batch would replay the final pitch for the whole frame).
-            for (const ev of events) {
-                pushFxEvents(fx, [ev], lay)
-                audio?.onFxEvent(ev, fx.combo)
+    const snapStore = useSimSnapshots()
+
+    const onFrame = useCallback(
+        (alpha: number) => {
+            const s = stateRef.current
+            const fx = fxRef.current
+            const events = deriveFxEvents(prevStateRef.current, s)
+            if (events.length > 0) {
+                const lay = layout(CW, CH)
+                const audio = audioRef.current
+                // Fold events one at a time so the audio pitch reads the combo AS OF
+                // each kill (a batch would replay the final pitch for the whole frame).
+                for (const ev of events) {
+                    pushFxEvents(fx, [ev], lay)
+                    audio?.onFxEvent(ev, fx.combo)
+                }
             }
-        }
-        stepFx(fx)
-        // Smooth enemy motion between fixed 60Hz ticks — render-only, so the sim
-        // and its replay are untouched. tickPrevRef is the state one tick back;
-        // alpha is this frame's fraction of the way to the current tick.
-        const interp = interpPositions(tickPrevRef.current, s, alpha)
-        if (RENDER_25D) draw25d(ctx, s, { width: CW, height: CH }, fx, interp)
-        else draw(ctx, s, { width: CW, height: CH }, fx, interp)
-        prevStateRef.current = s
-    }, [])
+            stepFx(fx)
+            // 3D: publish the two latest sim states + sub-tick alpha for the R3F scene
+            // to read in its own loop. The sim still advances in exactly ONE place
+            // (useGameLoop → onSteps); this is a pure read-side handoff, no 2D canvas.
+            if (RENDER_3D) {
+                snapStore.publish(tickPrevRef.current, s, alpha)
+                prevStateRef.current = s
+                return
+            }
+            const canvas = canvasRef.current
+            const ctx = canvas?.getContext("2d")
+            if (!canvas || !ctx) return
+            prepCanvas(canvas, ctx)
+            // Smooth enemy motion between fixed 60Hz ticks — render-only, so the sim
+            // and its replay are untouched. tickPrevRef is the state one tick back;
+            // alpha is this frame's fraction of the way to the current tick.
+            const interp = interpPositions(tickPrevRef.current, s, alpha)
+            if (RENDER_25D) draw25d(ctx, s, { width: CW, height: CH }, fx, interp)
+            else draw(ctx, s, { width: CW, height: CH }, fx, interp)
+            prevStateRef.current = s
+        },
+        [snapStore],
+    )
 
     useGameLoop(status === "playing", onSteps, onFrame)
 
@@ -299,6 +322,21 @@ export default function Barricade() {
         [record, status, armed],
     )
 
+    // 3D ground tap → the SAME move/throw the 2D pointer records, from the raycast's
+    // integer (lane, dist). Guarded to "playing" exactly like onCanvasPointer.
+    const handleGroundTap = useCallback(
+        (lane: number, dist: number) => {
+            if (status !== "playing") return
+            if (armed) {
+                record({ type: "throw", lane, dist })
+                setArmed(false)
+            } else {
+                record({ type: "move", lane })
+            }
+        },
+        [record, status, armed],
+    )
+
     const choose = useCallback((choice: Choice) => record({ type: "choice", choice }), [record])
     const shove = useCallback(() => record({ type: "shove", lane: stateRef.current.playerLane }), [record])
     const toggleArm = useCallback(() => setArmed((a) => !a), [])
@@ -342,12 +380,18 @@ export default function Barricade() {
             </header>
 
             <div className="bar-stage">
-                <canvas
-                    ref={canvasRef}
-                    className="bar-canvas"
-                    aria-label="Barricade play area"
-                    onPointerDown={onCanvasPointer}
-                />
+                {RENDER_3D ? (
+                    <Suspense fallback={<div className="bar-canvas" aria-label="Barricade play area" />}>
+                        <Barricade3D store={snapStore} onGroundTap={handleGroundTap} />
+                    </Suspense>
+                ) : (
+                    <canvas
+                        ref={canvasRef}
+                        className="bar-canvas"
+                        aria-label="Barricade play area"
+                        onPointerDown={onCanvasPointer}
+                    />
+                )}
             </div>
 
             {status === "ready" && (
