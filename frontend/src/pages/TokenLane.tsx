@@ -4,6 +4,7 @@ import { EmptyState } from "../components/ui/EmptyState"
 import { formatGnotCompact } from "../lib/formatGnot"
 import { useAuth } from "../hooks/useAuth"
 import { TokenTradeModal, type TokenTradeModalProps } from "../components/nft/TokenTradeModal"
+import { ErrorToast } from "../components/ui/ErrorToast"
 import "./marketplace-v2.css"
 
 export function TokenLane() {
@@ -14,6 +15,7 @@ export function TokenLane() {
 
     // Modal state
     const [modalProps, setModalProps] = useState<Omit<TokenTradeModalProps, "onClose" | "onSuccess"> | null>(null)
+    const [toast, setToast] = useState<string | null>(null)
 
     // Loads (or reloads) the OTC book. Called on mount and after a successful
     // trade — replacing the old window.location.reload() (Phase 2 will move this
@@ -43,8 +45,8 @@ export function TokenLane() {
                 <button 
                     className="mhub-launch-link"
                     onClick={() => {
-                        // TODO(marketplace-v2 Phase 5): replace alert() with connect-then-continue.
-                        if (!address) return alert("Please connect your wallet first.")
+                        // TODO(marketplace-v2 Phase 5): replace the toast with a connect-then-continue flow.
+                        if (!address) { setToast("Please connect your wallet first."); return }
                         setModalProps({
                             action: "list",
                             // TODO(marketplace-v2 Phase 7.3): replace hardcoded symbol with a real token select (OTC Block Desk rebuild).
@@ -81,7 +83,7 @@ export function TokenLane() {
                                         className="trade-modal__confirm" 
                                         style={{ width: '100%', padding: '0.5rem' }}
                                         onClick={() => {
-                                            if (!address) return alert("Please connect your wallet first.")
+                                            if (!address) { setToast("Please connect your wallet first."); return }
                                             setModalProps({
                                                 action: "buy",
                                                 listingId: item.id,
@@ -112,6 +114,7 @@ export function TokenLane() {
                     }}
                 />
             )}
+            <ErrorToast message={toast} onDismiss={() => setToast(null)} />
         </section>
     )
 }

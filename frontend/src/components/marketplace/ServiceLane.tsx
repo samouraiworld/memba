@@ -4,6 +4,7 @@ import { EmptyState } from "../ui/EmptyState"
 import { formatGnotCompact } from "../../lib/formatGnot"
 import { nftFallbackUri } from "../../lib/nftFallbackArt"
 import { HireServiceModal, type Service } from "./HireServiceModal"
+import { ErrorToast } from "../ui/ErrorToast"
 
 // Real service listings will come from the on-chain services engine once the lane is
 // production-ready. Until then the lane renders an honest empty state — never fake
@@ -14,10 +15,11 @@ export default function ServiceLane() {
     const adena = useAdena()
     
     const [hiringService, setHiringService] = useState<Service | null>(null)
+    const [toast, setToast] = useState<string | null>(null)
 
     const handleHireClick = (service: Service) => {
         if (!adena.connected || !adena.address) {
-            alert("Please connect your wallet first.")
+            setToast("Please connect your wallet first.")
             return
         }
         setHiringService(service)
@@ -82,6 +84,7 @@ export default function ServiceLane() {
                     }}
                 />
             )}
+            <ErrorToast message={toast} onDismiss={() => setToast(null)} />
         </div>
     )
 }
