@@ -65,22 +65,19 @@ export default defineConfig({
     sourcemap: true, // Required for Sentry source map uploads
     rollupOptions: {
       output: {
-        manualChunks: {
-          // Long-lived vendor chunks — cached across deploys
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-ui': ['@phosphor-icons/react'],
-          'vendor-sentry': ['@sentry/react'],
-          // ConnectRPC + protobuf client stack — app-wide, long-lived; split out of the
-          // eager index chunk to keep it under the 600KB budget (cached across deploys).
-          'vendor-rpc': ['@connectrpc/connect', '@connectrpc/connect-web', '@bufbuild/protobuf'],
-          // NOTE (BARRICADE 3D): the three/R3F/postprocessing stack is deliberately
-          // NOT grouped here. This is the OBJECT form, where each listed module is a
-          // ROOT that Rollup force-bundles even if unimported — which would drag the
-          // ~180KB three stack into the EAGER graph while it has no importer. The
-          // dedicated `vendor-three` async chunk is created in the renderer PR
-          // (function-form rule) at the point three is lazily imported, so isolation
-          // is verified end-to-end. The Workbox exclusion + bundle CI gate below are
-          // wired ahead of it.
+        // Function form (BARRICADE 3D, PR-0c): unlike the object form, a module is
+        // grouped ONLY when it is actually in the graph — so three / react-three-fiber
+        // land in `vendor-three` EXCLUSIVELY via the lazy Barricade3D import (async),
+        // never force-bundled into the eager graph the way object-form roots would be.
+        // The Workbox precache-exclusion + bundle CI gate below keep it isolated
+        // end-to-end. The other groups replicate the previous long-lived vendor chunks.
+        manualChunks(id) {
+          if (!id.includes('node_modules')) return
+          if (/[\\/]node_modules[\\/](three|@react-three)[\\/]/.test(id)) return 'vendor-three'
+          if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|@remix-run[\\/]router|scheduler)[\\/]/.test(id)) return 'vendor-react'
+          if (/[\\/]node_modules[\\/]@phosphor-icons[\\/]/.test(id)) return 'vendor-ui'
+          if (/[\\/]node_modules[\\/]@sentry[\\/]/.test(id)) return 'vendor-sentry'
+          if (/[\\/]node_modules[\\/](@connectrpc|@bufbuild)[\\/]/.test(id)) return 'vendor-rpc'
         },
       },
     },
