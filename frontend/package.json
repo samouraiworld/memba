@@ -46,7 +46,7 @@
     "@axe-core/playwright": "^4.12.1",
     "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.61.1",
-    "@remotion/cli": "^4.0.490",
+    "@remotion/cli": "^4.0.495",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/node": "^25.9.5",
