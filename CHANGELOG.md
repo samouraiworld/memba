@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Network — Topaz (topaz-1) testnet registered (#983, 2026-07-21)
+<!-- categories: network -->
+- **Added the Topaz network to the frontend configuration.** Memba now shows Topaz (topaz-1) in the network selector alongside Testnet 13 and Betanet. The 9 core ceremony realms (DAO, candidature_v3, channels_v2, agent_registry_v2, reviews, quest_attestation, feed, appstore v1/v2) are allowlisted; commerce realms are deferred to the commerce-v2 ceremony. No CSP, auth, or backend changes needed — existing trusted-domain and multi-chain auth patterns already cover Topaz RPCs.
+
 ### Marketplace — the "connect your wallet" prompt is an in-app toast, not a native pop-up (2026-07-17)
 - **Replaced the jarring native `alert()` on the Services and Token lanes' wallet gates with the app's own toast.** Trying to hire a service or trade a token without a connected wallet previously fired a browser `alert("Please connect your wallet first.")` — a blocking, unstyled system dialog inconsistent with the rest of the app. It now shows the in-app toast with a clear "Connect your wallet" heading and a pointer to the wallet button, via a new error-map entry so a not-connected gate no longer reads as a generic "wallet error." (The post-action success alerts and a fuller connect-then-continue flow remain follow-ups.)
 
