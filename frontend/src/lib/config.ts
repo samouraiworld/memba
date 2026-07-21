@@ -130,6 +130,29 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "https://faucet.gno.land",
     },
+    // ── Topaz (topaz-1) ──────────────────────────────────────────────────
+    // The new official Gno testnet (successor to test13). Memba's core realm
+    // set (memba_dao, candidature_v3, channels_v2, agent_registry_v2, reviews,
+    // quest_attestation, feed, appstore v1/v2) + gnodaokit deployed here via
+    // the 2026-07-21 ceremony (21 artifacts, multisig). Commerce realms
+    // (escrow, NFT, OTC, tokenfactory) are NOT yet deployed — deferred to
+    // the commerce-v2 ceremony.
+    topaz: {
+        chainId: "topaz-1",
+        rpcUrl: import.meta.env.VITE_TOPAZ_RPC_URL || "https://rpc.topaz.testnets.gno.land:443",
+        fallbackRpcUrls: [
+            "https://rpc.topaz.samourai.live:443",
+        ],
+        // No full-topology telemetry node identified yet for topaz-1;
+        // Validators view will show partial data. Revisit when gno core
+        // or our infra team stands up a full-topology sentry.
+        telemetryRpcUrls: [],
+        // No tx-indexer endpoint yet — activity feed self-hides (indexerUrl
+        // is optional). Revisit when gno core ships a topaz indexer.
+        label: "Topaz",
+        userRegistryPath: "gno.land/r/sys/users",
+        faucetUrl: "https://faucet.gno.land",
+    },
     gnoland1: {
         chainId: "gnoland1",
         rpcUrl: "https://rpc.gnoland1.samourai.live:443",
@@ -261,6 +284,19 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // v1's unguarded OriginSend Fill was never deployed and is mainnet-blocked
         // by the deployer fund-safety gate, so the lane targets the guarded realm.
         "gno.land/r/samcrew/memba_token_otc_v2",
+    ],
+    // Topaz (topaz-1) — ceremony scope (2026-07-21): 9 Memba realms.
+    // Commerce realms NOT listed — deferred to commerce-v2 ceremony.
+    topaz: [
+        "gno.land/r/samcrew/memba_dao",
+        "gno.land/r/samcrew/memba_dao_candidature_v3",
+        "gno.land/r/samcrew/memba_dao_channels_v2",
+        "gno.land/r/samcrew/agent_registry_v2",
+        "gno.land/r/samcrew/memba_reviews_v1",
+        "gno.land/r/samcrew/memba_quest_attestation_v1",
+        "gno.land/r/samcrew/memba_feed_v1",
+        "gno.land/r/samcrew/memba_appstore_v1",
+        "gno.land/r/samcrew/memba_appstore_v2",
     ],
 }
 
@@ -463,6 +499,7 @@ export interface GnoSwapPaths {
 /** Per-chain GnoSwap contract paths. Empty strings = not deployed on that chain. */
 export const GNOSWAP_PATHS: Record<string, GnoSwapPaths> = {
     test13: { pool: "", router: "", position: "", gns: "" },
+    topaz: { pool: "", router: "", position: "", gns: "" },
     gnoland1: { pool: "", router: "", position: "", gns: "" },
 }
 
@@ -600,6 +637,7 @@ export const SNAPSHOT_NETWORK = "test13"
  */
 export const FEATURED_DAO_REALM: Record<string, string | null> = {
     test13: MEMBA_DAO.realmPath, // "gno.land/r/samcrew/memba_dao" — live on test13
+    topaz: MEMBA_DAO.realmPath,  // "gno.land/r/samcrew/memba_dao" — live on topaz-1 (2026-07-21 ceremony)
     gnoland1: null,
 }
 

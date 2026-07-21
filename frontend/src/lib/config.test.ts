@@ -316,10 +316,10 @@ describe('getTelemetryRpcUrls', () => {
     })
 })
 
-describe('network reduction — test13 + gnoland1 only', () => {
-    it('exposes only test13 and gnoland1', () => {
+describe('network reduction — test13 + topaz + gnoland1 only', () => {
+    it('exposes only test13, topaz, and gnoland1', () => {
         const keys = Object.keys(NETWORKS).sort()
-        expect(keys).toEqual(['gnoland1', 'test13'])
+        expect(keys).toEqual(['gnoland1', 'test13', 'topaz'])
     })
     it('defaults to test13', () => {
         expect(DEFAULT_NETWORK).toBe('test13')
