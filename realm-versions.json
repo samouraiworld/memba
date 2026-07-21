@@ -1,7 +1,7 @@
 {
   "$schema": "Tracks deployed realm versions per network. Updated after each realm deployment. Deployed-state claims (blocks, txHashes, ACL notes) are verified against the live chain — never from prose. See docs/planning/MEMBA_AAA_IMPLEMENTATION_PLAN.md §3.1 / G5.",
-  "lastVerified": "2026-07-11",
-  "verifiedDuring": "v7.3.0 release cut (2026-07-11): backfilled the 2026-07-10 test13 ceremony — memba_appstore_v3 + memba_nft_market_v3_2 added (ceremony verify-sweep 21/21, samcrew-deployer .ceremony/test13.state); v3.1 note corrected to paused/wind-down.",
+  "lastVerified": "2026-07-21",
+  "verifiedDuring": "topaz-1 ceremony (2026-07-21): 21/22 artifacts deployed via multisig direct-drive (samcrew-core-test1 seq 0-24). 5 deps + 7 gnodaokit + 9 memba realms — all post-deploy verified (render). deps/demo/profile failed (AVL import mismatch, fixed PR #130). Frontend topaz config merged PR #983.",
   "verificationMethod": "Per realm: `vm/qfile <pkgpath>` for live source + ACL guard counts; `/block?height=<block>` for the deploy tx, hashed as base64(sha256(txbytes)).",
   "pendingFields": "Per-entry deployer commit SHA + gno toolchain commit are NOT yet pinned (deploy-time git/build metadata is not recoverable from chain) — tracked under E10 / decision Q2 (F10.1 scrub). samcrew-deployer is the canonical realm source.",
   "test12": {
@@ -191,6 +191,97 @@
       "date": "2026-07-10",
       "liveVerified": "2026-07-11",
       "note": "LIVE App Store money path since the 2026-07-10 ceremony: 1 GNOT registration fee (client reads GetRegistrationFee() live, exact coin match), curator review queue, free EditListing resubmit. v2 catalog seeded then SEALED (FinalizeSeed — the fee-free seeding door is permanently shut). Fee-path checklist verified live from a plain wallet (wrong-fee refund, exact-fee accept, reject→free-resubmit, curator approve, flag dedupe, sealed-seed panic). Frontend repointed via VITE_APPSTORE_REALM_PATH; /apps/submit de-gated (#874)."
+    }
+  },
+  "topaz": {
+    "_comment": "Deployed 2026-07-21 via samcrew-deployer direct-drive (multisig samcrew-core-test1 = zooma + adena-zxxma, addr g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0, sequences 0-24). 21/22 artifacts deployed; deps/demo/profile failed (AVL import mismatch — non-blocking, fixed in PR #130). Commerce realms deferred to commerce-v2 ceremony.",
+    "_deps": {
+      "avl":            { "path": "gno.land/p/samcrew/avl",                "sourceCommit": "5947829", "seq": 0 },
+      "avl_rotree":     { "path": "gno.land/p/samcrew/avl/rotree",         "sourceCommit": "5947829", "seq": 1 },
+      "avl_pager":      { "path": "gno.land/p/samcrew/avl/pager",          "sourceCommit": "5947829", "seq": 2 },
+      "uint256":        { "path": "gno.land/p/samcrew/deps/onbloc/uint256","sourceCommit": "5947829", "seq": 3 },
+      "json":           { "path": "gno.land/p/samcrew/deps/onbloc/json",   "sourceCommit": "5947829", "seq": 4 }
+    },
+    "_gnodaokit": {
+      "realmid":  { "path": "gno.land/p/samcrew/realmid",  "sourceCommit": "0eb8518", "seq": 8 },
+      "daocond":  { "path": "gno.land/p/samcrew/daocond",  "sourceCommit": "0eb8518", "seq": 9 },
+      "daokit":   { "path": "gno.land/p/samcrew/daokit",   "sourceCommit": "0eb8518", "seq": 10 },
+      "basedao":  { "path": "gno.land/p/samcrew/basedao",  "sourceCommit": "0eb8518", "seq": 11 },
+      "simple_dao":       { "path": "gno.land/r/samcrew/daodemo/simple_dao",       "sourceCommit": "0eb8518", "seq": 12 },
+      "custom_condition": { "path": "gno.land/r/samcrew/daodemo/custom_condition", "sourceCommit": "0eb8518", "seq": 13 },
+      "custom_resource":  { "path": "gno.land/r/samcrew/daodemo/custom_resource",  "sourceCommit": "0eb8518", "seq": 14 }
+    },
+    "memba_dao": {
+      "path": "gno.land/r/samcrew/memba_dao",
+      "version": "v1 (v2-ported)",
+      "date": "2026-07-21",
+      "sourceCommit": "5947829",
+      "seq": 15,
+      "note": "Featured DAO on topaz-1. DAO core (read/propose/vote) live. Post-deploy verified: realm renders."
+    },
+    "memba_dao_candidature_v3": {
+      "path": "gno.land/r/samcrew/memba_dao_candidature_v3",
+      "version": "v3",
+      "date": "2026-07-21",
+      "sourceCommit": "5947829",
+      "seq": 16,
+      "note": "IsUserCall-guarded Apply (P0 fund-drain fix). Post-deploy verified: realm renders."
+    },
+    "memba_dao_channels_v2": {
+      "path": "gno.land/r/samcrew/memba_dao_channels_v2",
+      "version": "v2",
+      "date": "2026-07-21",
+      "sourceCommit": "5947829",
+      "seq": 17,
+      "note": "Security-fixed channels. Post-deploy verified: realm renders."
+    },
+    "agent_registry_v2": {
+      "path": "gno.land/r/samcrew/agent_registry_v2",
+      "version": "v2",
+      "date": "2026-07-21",
+      "sourceCommit": "5947829",
+      "seq": 18,
+      "note": "IsUserCall-guarded DepositCredits. Post-deploy verified: realm renders."
+    },
+    "memba_reviews_v1": {
+      "path": "gno.land/r/samcrew/memba_reviews_v1",
+      "version": "v1",
+      "date": "2026-07-21",
+      "sourceCommit": "5947829",
+      "seq": 19,
+      "note": "Web-of-trust reviews. Post-deploy verified: realm renders."
+    },
+    "memba_quest_attestation_v1": {
+      "path": "gno.land/r/samcrew/memba_quest_attestation_v1",
+      "version": "v1",
+      "date": "2026-07-21",
+      "sourceCommit": "5947829",
+      "seq": 20,
+      "note": "On-chain quest/XP attestation. Post-deploy verified: realm renders."
+    },
+    "memba_feed_v1": {
+      "path": "gno.land/r/samcrew/memba_feed_v1",
+      "version": "v1",
+      "date": "2026-07-21",
+      "sourceCommit": "5947829",
+      "seq": 21,
+      "note": "Global social feed. Post-deploy verified: realm renders."
+    },
+    "memba_appstore_v1": {
+      "path": "gno.land/r/samcrew/memba_appstore_v1",
+      "version": "v1",
+      "date": "2026-07-21",
+      "sourceCommit": "5947829",
+      "seq": 22,
+      "note": "Curated app store. Post-deploy verified: realm renders."
+    },
+    "memba_appstore_v2": {
+      "path": "gno.land/r/samcrew/memba_appstore_v2",
+      "version": "v2",
+      "date": "2026-07-21",
+      "sourceCommit": "5947829",
+      "seq": 23,
+      "note": "Self-managed admin app store. Post-deploy verified: realm renders."
     }
   },
   "gnoland1": {},
