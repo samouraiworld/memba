@@ -74,6 +74,18 @@ interface NetworkConfig {
     /** Official tx-indexer GraphQL endpoint for recent on-chain activity. Optional —
      *  when absent (e.g. networks without a public indexer) the activity feed hides. */
     indexerUrl?: string
+    /** The key gnomonitoring knows this network by, when it differs from `chainId`.
+     *
+     *  These are NOT the same namespace: `chainId` is the on-chain genesis id that
+     *  transactions are signed with, while this is a label chosen by whoever
+     *  registered the network with the monitoring service. They coincided for
+     *  test-13 and gnoland1, so the distinction went unnoticed until topaz, which
+     *  is `topaz-1` on chain but registered as `topaz` — and the API rejects the
+     *  chain id outright:
+     *    GET /Participation?chain=topaz-1 -> `invalid chain ID: "topaz-1"`
+     *    GET /Participation?chain=topaz   -> [{moniker:"samourai-crew-1",…}, …]
+     *  Optional; defaults to `chainId`. */
+    monitoringChain?: string
     label: string
     userRegistryPath: string
     faucetUrl: string
@@ -139,6 +151,10 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // the commerce-v2 ceremony.
     topaz: {
         chainId: "topaz-1",
+        // gnomonitoring registered this network as "topaz", not "topaz-1" — see
+        // monitoringChain above. Without this the validator moniker lookup fails
+        // and every row falls back to a truncated address.
+        monitoringChain: "topaz",
         rpcUrl: import.meta.env.VITE_TOPAZ_RPC_URL || "https://rpc.topaz.testnets.gno.land:443",
         fallbackRpcUrls: [
             "https://rpc.topaz.samourai.live:443",
@@ -321,6 +337,13 @@ export function isRealmValid(realmPath: string): boolean {
 
 /** Gno chain ID for all RPC calls. */
 export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test-13"
+
+/** The key gnomonitoring knows the active network by — NOT the on-chain chain id.
+ *  Defaults to chainId, which is right wherever the two coincide (test-13,
+ *  gnoland1). Use this for gnomonitoring API calls ONLY; anything that reaches
+ *  the chain or the wallet must keep using GNO_CHAIN_ID. */
+export const GNO_MONITORING_CHAIN =
+    NETWORKS[_activeNetwork]?.monitoringChain || GNO_CHAIN_ID
 
 /**
  * Network-scope a storage key for CHAIN-DERIVED state (W2.2). Anything cached

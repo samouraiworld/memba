@@ -11,7 +11,7 @@
  *   4. Graceful degradation: if monitoring API unavailable, fall back to hex addresses
  */
 
-import { GNO_CHAIN_ID, GNO_MONITORING_API_URL } from "./config"
+import { GNO_CHAIN_ID, GNO_MONITORING_CHAIN, GNO_MONITORING_API_URL } from "./config"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -97,6 +97,9 @@ export interface MonitoringValidatorData {
 
 // ── Session Cache ────────────────────────────────────────────
 
+// Keyed by GNO_CHAIN_ID, not GNO_MONITORING_CHAIN, on purpose: this namespaces
+// the cache by MEMBA's network identity. Two Memba networks could legitimately
+// map to the same monitoring key, and they must not share cached rows.
 const CACHE_KEY = `memba_monitoring_cache:${GNO_CHAIN_ID}`
 const CACHE_TTL_MS = 30_000 // 30s
 
@@ -180,7 +183,7 @@ export async function fetchMonitoringParticipation(
 
     const data = await monitoringFetch<(MonitoringParticipation | null)[]>(
         "/Participation",
-        { period: "current_month", chain: GNO_CHAIN_ID },
+        { period: "current_month", chain: GNO_MONITORING_CHAIN },
         signal,
     )
     if (!data) return null
@@ -203,7 +206,7 @@ export async function fetchMonitoringUptime(
 
     const data = await monitoringFetch<(MonitoringUptime | null)[]>(
         "/uptime",
-        { chain: GNO_CHAIN_ID },
+        { chain: GNO_MONITORING_CHAIN },
         signal,
     )
     if (!data) return null
@@ -226,7 +229,7 @@ export async function fetchMonitoringFirstSeen(
 
     const data = await monitoringFetch<(MonitoringFirstSeen | null)[]>(
         "/first_seen",
-        { chain: GNO_CHAIN_ID },
+        { chain: GNO_MONITORING_CHAIN },
         signal,
     )
     if (!data) return null
@@ -253,7 +256,7 @@ export async function fetchMonitoringIncidents(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await monitoringFetch<any[]>(
         "/latest_incidents",
-        { period, chain: GNO_CHAIN_ID },
+        { period, chain: GNO_MONITORING_CHAIN },
         signal,
     )
     if (!data) return null
@@ -289,7 +292,7 @@ export async function fetchMonitoringMissingBlocks(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await monitoringFetch<any[]>(
         "/missing_block",
-        { period, chain: GNO_CHAIN_ID },
+        { period, chain: GNO_MONITORING_CHAIN },
         signal,
     )
     if (!data) return null
@@ -324,7 +327,7 @@ export async function fetchMonitoringOperationTime(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await monitoringFetch<any[]>(
         "/operation_time",
-        { chain: GNO_CHAIN_ID },
+        { chain: GNO_MONITORING_CHAIN },
         signal,
     )
     if (!data) return null
@@ -362,7 +365,7 @@ export async function fetchMonitoringTxContribution(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await monitoringFetch<any[]>(
         "/tx_contrib",
-        { period: "current_month", chain: GNO_CHAIN_ID },
+        { period: "current_month", chain: GNO_MONITORING_CHAIN },
         signal,
     )
     if (!data) return null

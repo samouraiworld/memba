@@ -13,8 +13,15 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
 // ── Mock config before importing the module ──────────────────
+// GNO_MONITORING_CHAIN is deliberately DIFFERENT from GNO_CHAIN_ID here. They
+// coincided on test-13 and gnoland1, which is why topaz ("topaz-1" on chain,
+// registered as "topaz") was the first network to break — the API answers
+// `invalid chain ID: "topaz-1"` and every validator moniker falls back to a
+// truncated address. Mocking them apart is what makes the assertion below able
+// to tell the two apart at all.
 vi.mock("./config", () => ({
     GNO_CHAIN_ID: "test-chain-42",
+    GNO_MONITORING_CHAIN: "monitoring-key-99",
     GNO_MONITORING_API_URL: "https://mock-monitoring.example.com",
 }))
 
@@ -187,7 +194,9 @@ describe("gnomonitoring", () => {
         await mod.fetchMonitoringParticipation()
 
         const calledUrl = vi.mocked(fetch).mock.calls[0][0] as string
-        expect(calledUrl).toContain("chain=test-chain-42")
+        expect(calledUrl).toContain("chain=monitoring-key-99")
+        // The on-chain id must NOT be what goes to the monitoring API.
+        expect(calledUrl).not.toContain("chain=test-chain-42")
     })
 
     it("fetchMonitoringFirstSeen filters null entries", async () => {
