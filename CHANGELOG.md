@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Network — validator names are back on Topaz (#988, 2026-07-22)
+<!-- categories: network -->
+- **Fixed blank validator names on Topaz.** Validators showed as truncated addresses (`g1a0h6w0…`) instead of names like `samourai-crew-1`, because Memba asked the monitoring service for the chain by its on-chain id, `topaz-1`, and the service knows that network as `topaz` — so it rejected every request and the name lookup quietly returned nothing. Those are two different names for the same network: the on-chain id is what transactions are signed with, while the monitoring key is a label chosen when the network was registered. They happen to match on Testnet 13 and Betanet, so Topaz is the first network where it mattered. Networks can now carry a separate monitoring key, defaulting to the chain id, and only the monitoring lookups use it — everything that talks to the chain or your wallet still uses the real chain id.
+
 ### Network — Topaz (topaz-1) testnet registered (#983, 2026-07-21)
 <!-- categories: network -->
 - **Added the Topaz network to the frontend configuration.** Memba now shows Topaz (topaz-1) in the network selector alongside Testnet 13 and Betanet. The 9 core ceremony realms (DAO, candidature_v3, channels_v2, agent_registry_v2, reviews, quest_attestation, feed, appstore v1/v2) are allowlisted; commerce realms are deferred to the commerce-v2 ceremony. No CSP, auth, or backend changes needed — existing trusted-domain and multi-chain auth patterns already cover Topaz RPCs.
