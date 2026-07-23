@@ -67,7 +67,6 @@ describe("TokenTradeModal — list flow spender/allowance targeting", () => {
         mocks.getOtcEngineAddress.mockResolvedValue(ENGINE_ADDRESS)
         mocks.getTokenAllowance.mockResolvedValue(0n) // forces the "approve" step
 
-        
         render(
             <TokenTradeModal
                 action="list" symbol="FORGE" callerAddress="g1caller"
@@ -87,7 +86,6 @@ describe("TokenTradeModal — list flow spender/allowance targeting", () => {
     it("refuses to send an approval when the engine address can't be resolved, instead of mis-targeting it", async () => {
         mocks.getOtcEngineAddress.mockRejectedValue(new Error("network down"))
 
-        
         render(
             <TokenTradeModal
                 action="list" symbol="FORGE" callerAddress="g1caller"
