@@ -27,6 +27,13 @@ vi.mock("./config", () => ({
     GNO_MONITORING_API_URL: "https://mock-monitoring.example.com",
 }))
 
+const sentryMocks = vi.hoisted(() => ({ captureMessage: vi.fn() }))
+
+vi.mock("@sentry/react", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("@sentry/react")>()),
+    captureMessage: sentryMocks.captureMessage,
+}))
+
 // ── Helpers ──────────────────────────────────────────────────
 
 const mockParticipation = [
@@ -346,5 +353,102 @@ describe("moniker resilience", () => {
         result = await mod.fetchAllMonitoringData()
         expect(result.get("g1aaa")?.moniker).toBe("validator-a") // last-good name, not the address
         expect(result.get("g1aaa")?.participationRate).toBe(12) // metrics stay live
+    })
+})
+
+// ── Rejection observability (2026-07-23 fast-follow) ──────────────────────
+//
+// The topaz monitoring-key flip (fixed in #989) broke silently twice in 24h —
+// caught only by a human noticing blank monikers, because a 4xx here is
+// indistinguishable from any other graceful-degradation path. A 4xx from
+// gnomonitoring is a deterministic misconfiguration (our configured chain key
+// doesn't match its registry) and will not self-heal; a 5xx or network error
+// is typically transient. These tests pin that distinction: warn once per
+// (chain, endpoint, status) on 4xx, stay silent on 5xx/network errors (the
+// cases this path is designed to swallow), and return null in every case —
+// the graceful-degradation contract itself must not change.
+describe("gnomonitoring rejection observability", () => {
+    let sessionStore: Record<string, string>
+
+    beforeEach(() => {
+        sessionStore = {}
+        vi.stubGlobal("sessionStorage", {
+            getItem: (key: string) => sessionStore[key] ?? null,
+            setItem: (key: string, val: string) => { sessionStore[key] = val },
+            removeItem: (key: string) => { delete sessionStore[key] },
+        })
+        vi.stubGlobal("fetch", vi.fn())
+        sentryMocks.captureMessage.mockClear()
+    })
+
+    afterEach(() => {
+        vi.restoreAllMocks()
+        vi.resetModules()
+    })
+
+    it("warns once on a 4xx response, naming the endpoint, chain, and status", async () => {
+        const mod = await import("./gnomonitoring")
+        vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 400 } as Response)
+
+        const result = await mod.fetchMonitoringParticipation()
+
+        expect(result).toBeNull() // graceful degradation unchanged
+        expect(sentryMocks.captureMessage).toHaveBeenCalledTimes(1)
+        const [message, context] = sentryMocks.captureMessage.mock.calls[0]
+        expect(message).toContain("monitoring-key-99")
+        expect(message).toContain("/Participation")
+        expect(message).toContain("400")
+        expect(context).toMatchObject({ level: "warning" })
+    })
+
+    it("does NOT warn on a 5xx response — treated as transient, not a misconfiguration", async () => {
+        const mod = await import("./gnomonitoring")
+        vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 503 } as Response)
+
+        const result = await mod.fetchMonitoringParticipation()
+
+        expect(result).toBeNull()
+        expect(sentryMocks.captureMessage).not.toHaveBeenCalled()
+    })
+
+    it("does NOT warn on a 429 — rate-limiting is transient even though it's a 4xx", async () => {
+        const mod = await import("./gnomonitoring")
+        vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 429 } as Response)
+
+        const result = await mod.fetchMonitoringParticipation()
+
+        expect(result).toBeNull()
+        expect(sentryMocks.captureMessage).not.toHaveBeenCalled()
+    })
+
+    it("does NOT warn on a network error/timeout — the case this path exists to swallow", async () => {
+        const mod = await import("./gnomonitoring")
+        vi.mocked(fetch).mockRejectedValueOnce(new TypeError("Failed to fetch"))
+
+        const result = await mod.fetchMonitoringParticipation()
+
+        expect(result).toBeNull()
+        expect(sentryMocks.captureMessage).not.toHaveBeenCalled()
+    })
+
+    it("does not repeat the warning for the same endpoint+status within a session", async () => {
+        const mod = await import("./gnomonitoring")
+        vi.mocked(fetch).mockResolvedValue({ ok: false, status: 400 } as Response)
+
+        await mod.fetchMonitoringParticipation()
+        sessionStore = {} // clear the (never-populated) HTTP cache defensively
+        await mod.fetchMonitoringParticipation()
+
+        expect(sentryMocks.captureMessage).toHaveBeenCalledTimes(1)
+    })
+
+    it("warns independently per distinct endpoint — a single broken key breaking all 7 calls surfaces as 7 signals, not 1", async () => {
+        const mod = await import("./gnomonitoring")
+        vi.mocked(fetch).mockResolvedValue({ ok: false, status: 400 } as Response)
+
+        await mod.fetchAllMonitoringData()
+
+        // 7 gnomonitoring endpoints, each hit once by fetchAllMonitoringData.
+        expect(sentryMocks.captureMessage).toHaveBeenCalledTimes(7)
     })
 })

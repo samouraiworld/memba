@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Network — a silently-rejected monitoring key is now visible, not just a blank name (2026-07-23)
+<!-- categories: network -->
+- **Added a signal for when gnomonitoring rejects the chain key Memba asks it for.** #989 fixed Topaz's validator names by correcting the key Memba sends, but the underlying gap was that a rejection from the monitoring service — a deterministic misconfiguration that won't fix itself — looked identical to any other unreachable-service hiccup: both just fell back to blank names, silently. This had already happened twice within 24 hours before anyone noticed in the product. Memba now reports a rejection as soon as it happens (once per affected check, not repeatedly), while still showing the same graceful fallback in the UI — nothing changes for end users, but the team finds out immediately instead of waiting for someone to spot missing names. Ordinary network hiccups (a timeout, a brief outage) are unaffected and stay silent as before, since those resolve on their own.
+
 ### Network — validator names are back on Topaz, again (#989, 2026-07-23)
 <!-- categories: network -->
 - **Fixed blank validator names on Topaz — the monitoring registry flipped back.** #988 (2026-07-22) taught Memba to ask the monitoring service for Topaz validators by `topaz` instead of the chain id `topaz-1`, because the service had registered the network under that shorter label. Within a day, the service's registration flipped back to `topaz-1` — so that same override started causing the exact blank-names symptom it was written to fix, just in the opposite direction. Topaz no longer needs an override at all: its monitoring key now matches its chain id directly, same as every other network. The underlying mechanism (a per-network monitoring key, defaulting to the chain id) is unchanged — this only removes a value that stopped being correct.
