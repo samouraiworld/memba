@@ -25,7 +25,9 @@ async function fetchOtcListingsWithDecimals(): Promise<OtcListingWithDecimals[]>
     const rows = await fetchOtcListings()
     const symbols = [...new Set(rows.map((l) => l.symbol))]
     const decimalsBySymbol = new Map<string, number>(
-        await Promise.all(symbols.map(async (s) => [s, await getTokenDecimals(GNO_RPC_URL, s)] as const)),
+        // Display-only: a failed lookup (null) falls back to 6 HERE, at the
+        // call site — getTokenDecimals itself no longer guesses.
+        await Promise.all(symbols.map(async (s) => [s, (await getTokenDecimals(GNO_RPC_URL, s)) ?? 6] as const)),
     )
     return rows.map((l) => ({ ...l, decimals: decimalsBySymbol.get(l.symbol) ?? 6 }))
 }

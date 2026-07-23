@@ -316,19 +316,26 @@ export async function getTokenInfo(rpcUrl: string, symbol: string): Promise<Toke
 const decimalsCache = new Map<string, number>()
 
 /**
- * Cached decimals lookup for a tokenfactory_v2 symbol. Falls back to
- * getTokenInfo's own default (6) if the token can't be found/parsed — never
- * throws, so a lookup failure degrades to "assume 6" rather than blocking the
- * caller; callers that move funds should gate on knowing decimals loaded
- * successfully rather than trust the fallback silently.
+ * Cached decimals lookup for a tokenfactory_v2 symbol.
+ *
+ * Returns `null` when the lookup genuinely failed (RPC down, token not found
+ * — getTokenInfo returned null) — the caller MUST decide what that means, it
+ * is never silently coerced to a guessed value here. A fund-moving caller
+ * (e.g. before converting a trade amount to base units) must treat `null` as
+ * "unknown, do not proceed" — only a display-only caller may choose to show a
+ * `?? 6` fallback, and even then that choice is visible at the call site, not
+ * buried in this function. Never throws. Failures are NOT cached (a transient
+ * RPC hiccup should be retryable on the next call, not stuck at a wrong
+ * cached guess); only a genuine resolution is cached, since decimals are
+ * immutable once a token is created.
  */
-export async function getTokenDecimals(rpcUrl: string, symbol: string): Promise<number> {
+export async function getTokenDecimals(rpcUrl: string, symbol: string): Promise<number | null> {
     const cached = decimalsCache.get(symbol)
     if (cached !== undefined) return cached
     const info = await getTokenInfo(rpcUrl, symbol)
-    const decimals = info?.decimals ?? 6
-    decimalsCache.set(symbol, decimals)
-    return decimals
+    if (info === null) return null
+    decimalsCache.set(symbol, info.decimals)
+    return info.decimals
 }
 
 /** Test-only: clears the module-level decimals cache. */

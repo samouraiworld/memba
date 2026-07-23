@@ -49,6 +49,24 @@ function parseAmountSafe(input: string, decimals: number): { value: bigint; erro
     }
 }
 
+/** Loading/error banner for the decimals lookup, shared by both flows. Error
+ *  gets a retry action rather than silently letting the trade proceed at a
+ *  guessed scale (T3.2 review finding). */
+function DecimalsStatusHint({ loading, failed, onRetry }: { loading: boolean; failed: boolean; onRetry: () => void }) {
+    if (loading) return <p className="trade-modal__hint">Loading token info…</p>
+    if (failed) {
+        return (
+            <p className="trade-modal__error" role="alert">
+                Could not look up this token&apos;s decimal precision — refusing to guess on a trade.{" "}
+                <button type="button" className="trade-modal__retry-link" onClick={onRetry}>
+                    Retry
+                </button>
+            </p>
+        )
+    }
+    return null
+}
+
 export function TokenTradeModal({
     action,
     listingId,
@@ -75,19 +93,39 @@ export function TokenTradeModal({
 
     // T3.2: the token's decimals determine the human<->base-unit conversion for
     // EVERY amount/price field below. Both buy and list need it before any
-    // amount math is trustworthy, so this runs regardless of `action` and both
-    // flows gate their confirm buttons on `decimals !== null` (never fall back
-    // to a guessed default for a fund-moving action — display-only paths may
-    // use getTokenDecimals's own internal 6-decimals fallback, but a
-    // trade confirmation must know the real value).
-    const [decimals, setDecimals] = useState<number | null>(null)
+    // amount math is trustworthy, so this runs regardless of `action`.
+    //
+    // getTokenDecimals returns `number | null` — null means the lookup
+    // genuinely FAILED (RPC down, token not found), not "decimals happen to
+    // be 6". A three-state machine (not `number | null` collapsed into one
+    // optional) is deliberate: an independent review caught that treating
+    // "still loading" and "lookup failed, defaulted to 6" as the same state
+    // would let a fund-moving trade silently proceed at the wrong scale on a
+    // transient RPC hiccup — exactly the bug class this file exists to fix.
+    // Both flows gate their confirm buttons on status === "ready"; "error"
+    // shows a retry action instead of silently assuming 6.
+    type DecimalsState = { status: "loading" } | { status: "error" } | { status: "ready"; value: number }
+    const [decimalsState, setDecimalsState] = useState<DecimalsState>({ status: "loading" })
+    const [decimalsRetryTick, setDecimalsRetryTick] = useState(0)
+    // Reset to "loading" the moment `symbol` changes — adjusted DURING RENDER
+    // (React's own pattern for this, same idiom MyListingsView uses for its
+    // per-wallet reset), not inside the effect below: a synchronous setState
+    // as the first line of an effect trips this repo's set-state-in-effect
+    // lint gate, and more importantly the effect's async fetch would otherwise
+    // leave the PREVIOUS token's decimals value readable for one render.
+    const [prevSymbolForDecimals, setPrevSymbolForDecimals] = useState(symbol)
+    if (symbol !== prevSymbolForDecimals) {
+        setPrevSymbolForDecimals(symbol)
+        setDecimalsState({ status: "loading" })
+    }
     useEffect(() => {
         let cancelled = false
         getTokenDecimals(GNO_RPC_URL, symbol).then((d) => {
-            if (!cancelled) setDecimals(d)
+            if (cancelled) return
+            setDecimalsState(d === null ? { status: "error" } : { status: "ready", value: d })
         })
         return () => { cancelled = true }
-    }, [symbol])
+    }, [symbol, decimalsRetryTick])
 
     // ── list ────────────────────────────────────────────────
     const [listPrice, setListPrice] = useState("")
@@ -144,8 +182,13 @@ export function TokenTradeModal({
     // 10^decimals to become that per-base-unit price; ceilDiv means it can
     // never silently round to 0 (which the realm would reject outright) and
     // never under-collects relative to what the seller typed.
-    const decimalsLoaded = decimals !== null
-    const effectiveDecimals = decimals ?? 6
+    const decimalsLoaded = decimalsState.status === "ready"
+    const decimalsFailed = decimalsState.status === "error"
+    // Safe for DISPLAY-only use before/without a successful load (e.g. sizing
+    // the amount input's step) — every FUND-MOVING computation below is also
+    // gated on `decimalsLoaded` via isListValid/isBuyValid, so a guessed 6
+    // here can never reach a submitted transaction.
+    const effectiveDecimals = decimalsState.status === "ready" ? decimalsState.value : 6
     const baseUnitScale = 10n ** BigInt(effectiveDecimals)
 
     const listPriceParsed = parseAmountSafe(listPrice, 6) // GNOT itself is 6-decimal (== ugnot)
@@ -170,13 +213,20 @@ export function TokenTradeModal({
 
     const buyParsed = parseAmountSafe(buyAmount, effectiveDecimals)
     const buyAmountBaseUnits = buyParsed.value
+    const buyCostUgnot = buyAmountBaseUnits * (unitPriceUgnot ?? 0n)
+    // A listing's Amount*UnitPrice is never checked against int64 range by
+    // ListTokens, so a pathological listing could make a large-but-partial
+    // fill overflow here. The realm's own cost/qty!=UnitPrice guard catches
+    // it (clean panic, no fund loss) — this client-side check just turns that
+    // into a friendly refusal instead of a failed broadcast + wasted gas.
+    const buyOverflow = buyAmountBaseUnits > MAX_INT64 || buyCostUgnot > MAX_INT64
     const isBuyValid =
         decimalsLoaded &&
         !buyParsed.error &&
+        !buyOverflow &&
         buyAmountBaseUnits > 0n &&
         available !== undefined &&
         buyAmountBaseUnits <= available
-    const buyCostUgnot = buyAmountBaseUnits * (unitPriceUgnot ?? 0n)
 
     // ── Handlers ─────────────────────────────────────────────
 
@@ -279,7 +329,17 @@ export function TokenTradeModal({
                 {/* ── BUY ─────────────────────────────────────────── */}
                 {action === "buy" && (
                     <div className="trade-modal__section">
-                        {!decimalsLoaded && <p className="trade-modal__hint">Loading token info…</p>}
+                        <DecimalsStatusHint
+                            loading={decimalsState.status === "loading"}
+                            failed={decimalsFailed}
+                            onRetry={() => {
+                                // Synchronous setState in a click handler is fine (unlike in an
+                                // effect) — shows "Loading…" immediately instead of leaving the
+                                // stale error banner up until the retry resolves.
+                                setDecimalsState({ status: "loading" })
+                                setDecimalsRetryTick((t) => t + 1)
+                            }}
+                        />
                         <div className="trade-modal__field">
                             <label htmlFor="trade-buy-amount">Quantity to Buy</label>
                             <input
@@ -345,7 +405,17 @@ export function TokenTradeModal({
 
                         {(listStep === "list" || listStep === "submitting-list") && (
                             <div className="trade-modal__section">
-                                {!decimalsLoaded && <p className="trade-modal__hint">Loading token info…</p>}
+                                <DecimalsStatusHint
+                            loading={decimalsState.status === "loading"}
+                            failed={decimalsFailed}
+                            onRetry={() => {
+                                // Synchronous setState in a click handler is fine (unlike in an
+                                // effect) — shows "Loading…" immediately instead of leaving the
+                                // stale error banner up until the retry resolves.
+                                setDecimalsState({ status: "loading" })
+                                setDecimalsRetryTick((t) => t + 1)
+                            }}
+                        />
                                 <div className="trade-modal__field">
                                     <label htmlFor="trade-list-amount">Quantity to List</label>
                                     <input

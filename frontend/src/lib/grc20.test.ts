@@ -496,11 +496,30 @@ describe('getTokenDecimals', () => {
         vi.unstubAllGlobals()
     })
 
-    it('falls back to 6 when the token cannot be found', async () => {
+    it('returns null (never a guessed default) when the lookup fails', async () => {
+        // T3.2 review finding: a fund-moving caller must be able to tell
+        // "genuinely 6 decimals" apart from "lookup failed" — collapsing both
+        // into 6 let a trade silently proceed at the wrong scale on an RPC
+        // hiccup. null is the only honest signal for "failed".
         __resetTokenDecimalsCache()
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
 
-        expect(await getTokenDecimals('http://rpc', 'GHOST')).toBe(6)
+        expect(await getTokenDecimals('http://rpc', 'GHOST')).toBeNull()
+
+        vi.unstubAllGlobals()
+    })
+
+    it('does not cache a failed lookup — a later retry can still succeed', async () => {
+        __resetTokenDecimalsCache()
+        const fetchSpy = vi
+            .fn()
+            .mockResolvedValueOnce({ ok: true, json: async () => ({}) }) // transient failure
+            .mockResolvedValueOnce(mockRenderResponse('# Forge ($FORGE)\n\n* **Decimals**: 9\n'))
+        vi.stubGlobal('fetch', fetchSpy)
+
+        expect(await getTokenDecimals('http://rpc', 'FORGE')).toBeNull()
+        expect(await getTokenDecimals('http://rpc', 'FORGE')).toBe(9)
+        expect(fetchSpy).toHaveBeenCalledTimes(2) // NOT served from cache after a failure
 
         vi.unstubAllGlobals()
     })

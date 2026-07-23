@@ -44,15 +44,17 @@ export function TokenLane() {
         void load()
     }, [load])
 
-    // Resolve decimals for every distinct symbol currently listed. Best-effort:
-    // a lookup failure for one symbol doesn't block the others (allSettled),
-    // and getTokenDecimals itself never throws (falls back to 6 internally) —
-    // this loop exists purely to WARM the shared cache + populate display state.
+    // Resolve decimals for every distinct symbol currently listed. Best-effort,
+    // display-only surface: a lookup failure for one symbol doesn't block the
+    // others (allSettled), and a null result falls back to 6 HERE, explicitly
+    // — getTokenDecimals itself no longer guesses (a fund-moving caller like
+    // TokenTradeModal must see the null and refuse to trade, not this view).
+    // This loop exists purely to WARM the shared cache + populate display state.
     useEffect(() => {
         const symbols = [...new Set(listings.map((l) => l.symbol))].filter((s) => !(s in decimalsBySymbol))
         if (symbols.length === 0) return
         let cancelled = false
-        Promise.allSettled(symbols.map((s) => getTokenDecimals(GNO_RPC_URL, s).then((d) => [s, d] as const))).then(
+        Promise.allSettled(symbols.map((s) => getTokenDecimals(GNO_RPC_URL, s).then((d) => [s, d ?? 6] as const))).then(
             (results) => {
                 if (cancelled) return
                 const next: Record<string, number> = {}

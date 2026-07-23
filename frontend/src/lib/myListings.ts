@@ -82,7 +82,11 @@ async function fetchMyTokenListings(address: string): Promise<MyListing[]> {
     // calls too), not one per listing.
     const symbols = [...new Set(mine.map(l => l.symbol))]
     const decimalsBySymbol = new Map<string, number>(
-        await Promise.all(symbols.map(async (s) => [s, await getTokenDecimals(GNO_RPC_URL, s)] as const)),
+        // Display-only surface: a failed lookup (null) falls back to 6 HERE,
+        // explicitly, at the call site — getTokenDecimals itself no longer
+        // guesses (a fund-moving caller like TokenTradeModal must see the
+        // null and refuse to trade, not this list-only view).
+        await Promise.all(symbols.map(async (s) => [s, (await getTokenDecimals(GNO_RPC_URL, s)) ?? 6] as const)),
     )
     return mine.map(l => ({
         kind: "token" as const,
