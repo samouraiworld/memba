@@ -4,9 +4,8 @@ import { friendlyError } from "../../lib/errorMessages"
 import { formatGnotCompact } from "../../lib/formatGnot"
 import { buildListTokensMsg, buildFillListingMsg } from "../../lib/tokenOtc"
 import { buildApproveMsg } from "../../lib/grc20"
-import { MEMBA_DAO } from "../../lib/config"
 import { fetchLaneFeeBps } from "../../lib/marketplace/v3Reads"
-import { getTokenAllowance } from "../../lib/tokenOtcApi"
+import { getTokenAllowance, getOtcEngineAddress } from "../../lib/tokenOtcApi"
 import "./TradeModal.css" // Reuse existing modal styles
 
 type TokenTradeAction = "buy" | "list"
@@ -71,13 +70,22 @@ export function TokenTradeModal({
         return () => window.removeEventListener("keydown", handleKeyDown)
     }, [onClose, confirming, listStep, successMsg])
 
-    // ── List: check approval on mount ────────────────────────
+    // ── List: resolve the OTC engine's real address, then check approval ────
+    // Approve/Allowance take an on-chain `address`, not a package path — the
+    // realm checks allowance against its own resolved address (WAVE1
+    // TR-P0-4), so that address must be resolved before either check makes
+    // sense. If resolution fails, engineAddress stays null and handleApprove
+    // below refuses to send a broken approval instead of silently mis-targeting it.
+    const [engineAddress, setEngineAddress] = useState<string | null>(null)
     useEffect(() => {
         if (action !== "list") return
         let cancelled = false
         const init = async () => {
             try {
-                const allowance = await getTokenAllowance(symbol, callerAddress, MEMBA_DAO.tokenOtcPath)
+                const addr = await getOtcEngineAddress()
+                if (cancelled) return
+                setEngineAddress(addr)
+                const allowance = await getTokenAllowance(symbol, callerAddress, addr)
                 // If allowance is large enough, go straight to list.
                 // For simplicity, if > 0, we assume it's approved for *something*, but to be perfectly safe,
                 // we should check it against the listAmount later. We'll set "approve" initially if 0.
@@ -123,12 +131,16 @@ export function TokenTradeModal({
     }
 
     const handleApprove = async () => {
+        if (!engineAddress) {
+            setError("Could not resolve the OTC engine's address — please close and retry.")
+            return
+        }
         setListStep("submitting-approve")
         setError(null)
         try {
             const { doContractBroadcast } = await import("../../lib/grc20")
             // Approve a large amount so they don't have to re-approve
-            const msg = buildApproveMsg(callerAddress, symbol, MEMBA_DAO.tokenOtcPath, "1000000000")
+            const msg = buildApproveMsg(callerAddress, symbol, engineAddress, "1000000000")
             await doContractBroadcast([msg], `Approve ${symbol} for OTC`)
             setListStep("list")
         } catch (err) {

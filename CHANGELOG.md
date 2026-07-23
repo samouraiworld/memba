@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Trading — fixed the OTC token approval so listing and buying actually work (2026-07-23)
+<!-- categories: memba -->
+- **Fixed a bug where approving your tokens for the OTC desk never actually let a listing or purchase go through.** Behind the scenes, the one-time approval step was targeting the OTC desk by its name in the registry rather than its real on-chain account — two different things that happen to look similar but aren't interchangeable here. The desk's own check is against the real account, so the approval it recorded never matched, and both listing tokens and buying them would fail after the approval step appeared to succeed. Memba now resolves and uses the desk's real account throughout, and if that resolution ever fails, you'll see a clear message asking you to retry rather than a broken approval going through.
+
 ### Network — a silently-rejected monitoring key is now visible, not just a blank name (2026-07-23)
 <!-- categories: network -->
 - **Added a signal for when gnomonitoring rejects the chain key Memba asks it for.** #989 fixed Topaz's validator names by correcting the key Memba sends, but the underlying gap was that a rejection from the monitoring service — a deterministic misconfiguration that won't fix itself — looked identical to any other unreachable-service hiccup: both just fell back to blank names, silently. This had already happened twice within 24 hours before anyone noticed in the product. Memba now reports a rejection as soon as it happens (once per affected check, not repeatedly), while still showing the same graceful fallback in the UI — nothing changes for end users, but the team finds out immediately instead of waiting for someone to spot missing names. Ordinary network hiccups (a timeout, a brief outage) are unaffected and stay silent as before, since those resolve on their own.
