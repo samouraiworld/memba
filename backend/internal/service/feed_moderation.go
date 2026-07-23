@@ -78,6 +78,12 @@ func HandleFeedModeration(db *sql.DB) http.Handler {
 }
 
 func feedModBearerOK(r *http.Request, want string) bool {
-	got := strings.TrimSpace(strings.TrimPrefix(r.Header.Get("Authorization"), "Bearer "))
+	return feedModBearerOKHeader(r.Header, want)
+}
+
+// feedModBearerOKHeader is the header-only variant shared with ConnectRPC
+// handlers (connect.Request exposes http.Header, not a full *http.Request).
+func feedModBearerOKHeader(h http.Header, want string) bool {
+	got := strings.TrimSpace(strings.TrimPrefix(h.Get("Authorization"), "Bearer "))
 	return subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1
 }

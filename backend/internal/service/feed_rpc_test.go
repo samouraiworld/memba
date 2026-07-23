@@ -281,3 +281,109 @@ func TestGetFeedThread_ViewerHasFlagged(t *testing.T) {
 		}
 	}
 }
+
+// bumpFlagCount sets feed_posts.flag_count directly for handler tests (the
+// dispatcher normally increments it; seedFeedPost doesn't take it).
+func bumpFlagCount(t *testing.T, h *testHarness, postID int64, n int) {
+	t.Helper()
+	if _, err := h.db.Exec(`UPDATE feed_posts SET flag_count = ? WHERE post_id = ?`, n, postID); err != nil {
+		t.Fatal("bump flag_count:", err)
+	}
+}
+
+func flaggedPostsReq(bearer string, cursor uint64, limit uint32) *connect.Request[membav1.GetFlaggedPostsRequest] {
+	req := connect.NewRequest(&membav1.GetFlaggedPostsRequest{Cursor: cursor, Limit: limit})
+	if bearer != "" {
+		req.Header().Set("Authorization", "Bearer "+bearer)
+	}
+	return req
+}
+
+func TestGetFlaggedPosts_FailClosedWithoutBearerConfigured(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	seedFeedPost(t, h, 1, "g1a", "flagged", 0, false, false)
+	bumpFlagCount(t, h, 1, 3)
+
+	t.Setenv("FEED_MODERATION_BEARER", "")
+	if _, err := h.svc.GetFlaggedPosts(ctx, flaggedPostsReq("anything", 0, 0)); err == nil {
+		t.Fatal("must reject when FEED_MODERATION_BEARER is unset, even with a bearer header present")
+	}
+}
+
+func TestGetFlaggedPosts_RejectsMissingOrWrongBearer(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	seedFeedPost(t, h, 1, "g1a", "flagged", 0, false, false)
+	bumpFlagCount(t, h, 1, 3)
+	t.Setenv("FEED_MODERATION_BEARER", "s3cret")
+
+	if _, err := h.svc.GetFlaggedPosts(ctx, flaggedPostsReq("", 0, 0)); err == nil {
+		t.Fatal("no Authorization header must be rejected")
+	}
+	if _, err := h.svc.GetFlaggedPosts(ctx, flaggedPostsReq("nope", 0, 0)); err == nil {
+		t.Fatal("wrong bearer must be rejected")
+	}
+}
+
+func TestGetFlaggedPosts_ReturnsFlaggedAndHiddenExcludesClean(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	t.Setenv("FEED_MODERATION_BEARER", "s3cret")
+
+	seedFeedPost(t, h, 1, "g1a", "clean post", 0, false, false)
+	seedFeedPost(t, h, 2, "g1b", "flagged but not hidden", 0, false, false)
+	bumpFlagCount(t, h, 2, 2)
+	seedFeedPost(t, h, 3, "g1c", "auto-hidden", 0, true, false) // hidden, flag_count still 0
+	seedFeedPost(t, h, 4, "g1d", "deleted", 0, false, true)     // author self-deleted — resolved, not a queue item
+	bumpFlagCount(t, h, 4, 5)
+
+	resp, err := h.svc.GetFlaggedPosts(ctx, flaggedPostsReq("s3cret", 0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := map[uint64]bool{}
+	for _, p := range resp.Msg.Posts {
+		ids[p.Id] = true
+	}
+	if ids[1] {
+		t.Fatal("a clean post (no flags, not hidden) must not appear in the queue")
+	}
+	if !ids[2] {
+		t.Fatal("a flagged-but-not-yet-hidden post must appear in the queue")
+	}
+	if !ids[3] {
+		t.Fatal("a hidden post must appear in the queue even with flag_count=0 (mod-hidden case)")
+	}
+	if ids[4] {
+		t.Fatal("a deleted post must not appear — the author already resolved it, nothing left to moderate")
+	}
+	// The queue is for REVIEW — unlike GetModerationLog, the body must be present.
+	for _, p := range resp.Msg.Posts {
+		if p.Id == 2 && p.Body == "" {
+			t.Fatal("GetFlaggedPosts must return the post body — a moderator needs to read what was flagged")
+		}
+	}
+}
+
+func TestGetFlaggedPosts_ExcludesBlocklisted(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	t.Setenv("FEED_MODERATION_BEARER", "s3cret")
+
+	seedFeedPost(t, h, 1, "g1a", "already actioned", 0, true, false)
+	bumpFlagCount(t, h, 1, 10)
+	if _, err := h.db.Exec(`INSERT INTO feed_blocklist (post_id, reason, added_by) VALUES (1, 'illegal', 'ops')`); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := h.svc.GetFlaggedPosts(ctx, flaggedPostsReq("s3cret", 0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range resp.Msg.Posts {
+		if p.Id == 1 {
+			t.Fatal("an already-blocklisted post is resolved — it must not still show up in the open queue")
+		}
+	}
+}

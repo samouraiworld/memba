@@ -268,6 +268,55 @@ func (s *MultisigService) GetFeedThread(ctx context.Context, req *connect.Reques
 	}), nil
 }
 
+// GetFlaggedPosts returns the moderation QUEUE — visible-but-flagged and
+// hidden posts (excluding already-deleted or already-blocklisted ones, which
+// are resolved and no longer need review) — newest-first, WITH full bodies (a
+// moderator has to read what was flagged; contrast GetModerationLog, which is
+// deliberately body-free for its public audit-log role).
+//
+// Because it carries body content of potentially-objectionable posts, this is
+// Authorization: Bearer <FEED_MODERATION_BEARER>-gated and FAIL-CLOSED (feed v2
+// plan C.3), the same posture and the same secret as the existing
+// /api/feed/moderation action endpoint: an unset bearer and a
+// missing/mismatched header both reject uniformly, so neither state is
+// distinguishable from the outside.
+func (s *MultisigService) GetFlaggedPosts(ctx context.Context, req *connect.Request[membav1.GetFlaggedPostsRequest]) (*connect.Response[membav1.GetFlaggedPostsResponse], error) {
+	bearer := strings.TrimSpace(os.Getenv("FEED_MODERATION_BEARER"))
+	if bearer == "" || !feedModBearerOKHeader(req.Header(), bearer) {
+		return nil, connect.NewError(connect.CodeUnauthenticated, nil)
+	}
+
+	limit := feedLimit(req.Msg.Limit)
+	cursor := req.Msg.Cursor
+
+	q := feedPostSelect + `
+		WHERE (p.flag_count > 0 OR p.hidden = 1) AND p.deleted = 0
+		AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)`
+	args := []any{}
+	if cursor != 0 {
+		q += ` AND p.post_id < ?`
+		args = append(args, cursor)
+	}
+	q += ` ORDER BY p.post_id DESC LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := s.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, internalError("GetFlaggedPosts", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	posts, err := scanFeedPosts(rows)
+	if err != nil {
+		return nil, internalError("GetFlaggedPosts/scan", err)
+	}
+
+	return connect.NewResponse(&membav1.GetFlaggedPostsResponse{
+		Posts:      posts,
+		NextCursor: nextCursor(posts, limit),
+	}), nil
+}
+
 // GetReplyNotifications returns live replies to the caller's OWN posts, by
 // OTHER people, newest-first — the "someone replied to you" surface. unread is
 // the count with id > since_id (the client's last-seen), latest_id advances the

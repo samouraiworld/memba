@@ -89,6 +89,13 @@ service MultisigService {
   // reasons only, never post bodies. Backs the public transparency view and the
   // console's audit tab. Sourced from the immutable raw ledger.
   rpc GetModerationLog(GetModerationLogRequest) returns (GetModerationLogResponse);
+  // Flagged/hidden post QUEUE for the moderation console (feed v2 plan C.3) —
+  // unlike GetModerationLog this carries full post bodies (a moderator must be
+  // able to read what was flagged), so it is Authorization: Bearer
+  // <FEED_MODERATION_BEARER>-gated and FAIL-CLOSED, same posture as
+  // /api/feed/moderation: unset bearer or a mismatched/missing header both
+  // reject uniformly (never distinguishes "disabled" from "wrong token").
+  rpc GetFlaggedPosts(GetFlaggedPostsRequest) returns (GetFlaggedPostsResponse);
   // Server-side rich preview for an external URL — OG/Twitter-card metadata via
   // an SSRF-guarded fetch, with the image proxied through a signed token. Public
   // read, no auth; rate-limited; returns ok=false (never an error) so the UI can
@@ -954,6 +961,16 @@ message ModerationLogEntry {
 
 message GetModerationLogResponse {
   repeated ModerationLogEntry entries = 1;
+  uint64 next_cursor = 2; // pass as cursor for the next page; 0 = end
+}
+
+message GetFlaggedPostsRequest {
+  uint64 cursor = 1; // return posts strictly older than this id; 0 = newest
+  uint32 limit = 2; // default 20, max 100
+}
+
+message GetFlaggedPostsResponse {
+  repeated FeedPost posts = 1;
   uint64 next_cursor = 2; // pass as cursor for the next page; 0 = end
 }
 
