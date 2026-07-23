@@ -107,7 +107,22 @@ function PostCardInner({
     clickable?: boolean
 }) {
     const [flagging, setFlagging] = useState(false)
-    const [flagged, setFlagged] = useState(false)
+    // C.1: seeded from the durable feed_flags projection (viewerHasFlagged),
+    // not just local component state — previously this forgot across every
+    // reload/remount, and a returning viewer could tap Flag again only to have
+    // the realm panic "already flagged" with no prior indication.
+    //
+    // PostCard is keyed by post id (not wallet address), so switching accounts
+    // while a card stays mounted delivers a fresh `post.viewerHasFlagged` via
+    // props without remounting — resync `flagged` to it whenever it changes
+    // (adjust-state-during-render, not an effect) so a card never keeps
+    // showing a DIFFERENT wallet's flagged state after an account switch.
+    const [flagged, setFlagged] = useState(post.viewerHasFlagged)
+    const [syncedViewerFlag, setSyncedViewerFlag] = useState(post.viewerHasFlagged)
+    if (post.viewerHasFlagged !== syncedViewerFlag) {
+        setSyncedViewerFlag(post.viewerHasFlagged)
+        setFlagged(post.viewerHasFlagged)
+    }
     const [flagBump, setFlagBump] = useState(0)
     const [flagError, setFlagError] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)

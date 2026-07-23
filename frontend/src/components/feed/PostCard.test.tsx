@@ -30,6 +30,7 @@ const basePost = (over: Partial<UiPost>): UiPost => ({
     hidden: false,
     deleted: false,
     replyCount: 3,
+    viewerHasFlagged: false,
     ...over,
 })
 
@@ -145,6 +146,31 @@ describe("PostCard flag that responds", () => {
         fireEvent.click(screen.getByTestId("feed-flag-btn"))
         await waitFor(() => expect(screen.getByText("Flag")).toBeInTheDocument())
         expect(screen.queryByTestId("feed-flag-error")).toBeNull()
+    })
+
+    // C.1: durable have-I-flagged, seeded from the server (feed_flags
+    // projection via viewerHasFlagged) — not just ephemeral click state that
+    // forgets on reload.
+    it("shows Flagged on mount when the post is already viewerHasFlagged, without a click", () => {
+        render(<PostCard post={basePost({ viewerHasFlagged: true })} {...connectedOther} />)
+        expect(screen.getByText("Flagged")).toBeInTheDocument()
+        expect(mockSubmit).not.toHaveBeenCalled()
+    })
+
+    it("clicking an already-flagged (server-seeded) post does not re-submit", () => {
+        render(<PostCard post={basePost({ viewerHasFlagged: true })} {...connectedOther} />)
+        fireEvent.click(screen.getByTestId("feed-flag-btn"))
+        expect(mockSubmit).not.toHaveBeenCalled()
+    })
+
+    it("resyncs to a fresh viewerHasFlagged when the post prop changes (e.g. wallet switch), same mounted card", () => {
+        const { rerender } = render(<PostCard post={basePost({ viewerHasFlagged: false })} {...connectedOther} />)
+        expect(screen.getByText("Flag")).toBeInTheDocument()
+
+        // Same card stays mounted (post id unchanged) but a fresh fetch under a
+        // different wallet reports this OTHER wallet already flagged it.
+        rerender(<PostCard post={basePost({ viewerHasFlagged: true })} {...connectedOther} />)
+        expect(screen.getByText("Flagged")).toBeInTheDocument()
     })
 })
 

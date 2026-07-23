@@ -36,9 +36,11 @@ export default function FeedPage() {
     const { address, connected, connect } = useAdena()
     const nav = useNetworkNav()
 
+    // address in the query key: switching wallets must refetch, not keep
+    // serving the previous wallet's viewerHasFlagged state from cache.
     const timeline = useInfiniteQuery({
-        queryKey: ["feed", "timeline"],
-        queryFn: ({ pageParam }) => fetchFeedTimeline(pageParam, 20),
+        queryKey: ["feed", "timeline", address ?? ""],
+        queryFn: ({ pageParam }) => fetchFeedTimeline(pageParam, 20, address),
         initialPageParam: 0n,
         getNextPageParam: (last) => (last.nextCursor && last.nextCursor > 0n ? last.nextCursor : undefined),
         staleTime: 5_000,
@@ -47,8 +49,8 @@ export default function FeedPage() {
 
     // Freshness poll — page 0 only. Never refetches the loaded deep pages.
     const head = useQuery({
-        queryKey: ["feed", "head"],
-        queryFn: () => fetchFeedTimeline(0n, 20),
+        queryKey: ["feed", "head", address ?? ""],
+        queryFn: () => fetchFeedTimeline(0n, 20, address),
         refetchInterval: FEED_POLL_MS,
         staleTime: 5_000,
         retry: false,

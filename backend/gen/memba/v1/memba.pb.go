@@ -6337,20 +6337,28 @@ func (x *GetHomeSnapshotResponse) GetSnapshot() *HomeSnapshot {
 // Hidden/deleted posts are omitted from timeline reads; a thread read may
 // include a deleted PARENT as a tombstone so replies keep their context.
 type FeedPost struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Id            uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                             // realm post id (monotonic)
-	Author        string                 `protobuf:"bytes,2,opt,name=author,proto3" json:"author,omitempty"`                      // g1... address
-	Body          string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`                          // empty when deleted
-	ReplyTo       uint64                 `protobuf:"varint,4,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`    // 0 = top-level
-	BlockH        int64                  `protobuf:"varint,6,opt,name=block_h,json=blockH,proto3" json:"block_h,omitempty"`       // block height the post was created at
-	EditedAt      int64                  `protobuf:"varint,7,opt,name=edited_at,json=editedAt,proto3" json:"edited_at,omitempty"` // block height of last edit, 0 = never
-	FlagCount     uint32                 `protobuf:"varint,8,opt,name=flag_count,json=flagCount,proto3" json:"flag_count,omitempty"`
-	Hidden        bool                   `protobuf:"varint,9,opt,name=hidden,proto3" json:"hidden,omitempty"`
-	Deleted       bool                   `protobuf:"varint,10,opt,name=deleted,proto3" json:"deleted,omitempty"`
-	ReplyCount    uint32                 `protobuf:"varint,11,opt,name=reply_count,json=replyCount,proto3" json:"reply_count,omitempty"` // live replies indexed under this post
-	BlockTs       int64                  `protobuf:"varint,12,opt,name=block_ts,json=blockTs,proto3" json:"block_ts,omitempty"`          // block header time (unix seconds); 0 = unknown. The
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state      protoimpl.MessageState `protogen:"open.v1"`
+	Id         uint64                 `protobuf:"varint,1,opt,name=id,proto3" json:"id,omitempty"`                             // realm post id (monotonic)
+	Author     string                 `protobuf:"bytes,2,opt,name=author,proto3" json:"author,omitempty"`                      // g1... address
+	Body       string                 `protobuf:"bytes,3,opt,name=body,proto3" json:"body,omitempty"`                          // empty when deleted
+	ReplyTo    uint64                 `protobuf:"varint,4,opt,name=reply_to,json=replyTo,proto3" json:"reply_to,omitempty"`    // 0 = top-level
+	BlockH     int64                  `protobuf:"varint,6,opt,name=block_h,json=blockH,proto3" json:"block_h,omitempty"`       // block height the post was created at
+	EditedAt   int64                  `protobuf:"varint,7,opt,name=edited_at,json=editedAt,proto3" json:"edited_at,omitempty"` // block height of last edit, 0 = never
+	FlagCount  uint32                 `protobuf:"varint,8,opt,name=flag_count,json=flagCount,proto3" json:"flag_count,omitempty"`
+	Hidden     bool                   `protobuf:"varint,9,opt,name=hidden,proto3" json:"hidden,omitempty"`
+	Deleted    bool                   `protobuf:"varint,10,opt,name=deleted,proto3" json:"deleted,omitempty"`
+	ReplyCount uint32                 `protobuf:"varint,11,opt,name=reply_count,json=replyCount,proto3" json:"reply_count,omitempty"` // live replies indexed under this post
+	BlockTs    int64                  `protobuf:"varint,12,opt,name=block_ts,json=blockTs,proto3" json:"block_ts,omitempty"`          // block header time (unix seconds); 0 = unknown. The
+	// DETERMINISTIC display timestamp — NOT the indexer's
+	// ingest wall-clock (which re-stamps on rebuild-from-raw).
+	// viewer_has_flagged (feed v2 plan C.1): true when the REQUESTING viewer
+	// (GetFeedTimelineRequest.viewer_address / GetFeedThreadRequest.viewer_address)
+	// previously flagged this post, from the durable feed_flags projection —
+	// replaces the per-mount localStorage state that forgot across reloads.
+	// Always false when the request carried no viewer_address (anonymous read).
+	ViewerHasFlagged bool `protobuf:"varint,13,opt,name=viewer_has_flagged,json=viewerHasFlagged,proto3" json:"viewer_has_flagged,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *FeedPost) Reset() {
@@ -6460,10 +6468,21 @@ func (x *FeedPost) GetBlockTs() int64 {
 	return 0
 }
 
+func (x *FeedPost) GetViewerHasFlagged() bool {
+	if x != nil {
+		return x.ViewerHasFlagged
+	}
+	return false
+}
+
 type GetFeedTimelineRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Cursor        uint64                 `protobuf:"varint,1,opt,name=cursor,proto3" json:"cursor,omitempty"` // return posts strictly older than this id; 0 = newest
-	Limit         uint32                 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`   // default 20, max 100
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	Cursor uint64                 `protobuf:"varint,1,opt,name=cursor,proto3" json:"cursor,omitempty"` // return posts strictly older than this id; 0 = newest
+	Limit  uint32                 `protobuf:"varint,2,opt,name=limit,proto3" json:"limit,omitempty"`   // default 20, max 100
+	// Optional (empty = anonymous). NOT auth — the address is not a secret and
+	// this is a public read, same posture as GetReplyNotifications's author
+	// param; it only shapes viewer_has_flagged on the returned posts.
+	ViewerAddress string `protobuf:"bytes,3,opt,name=viewer_address,json=viewerAddress,proto3" json:"viewer_address,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6510,6 +6529,13 @@ func (x *GetFeedTimelineRequest) GetLimit() uint32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *GetFeedTimelineRequest) GetViewerAddress() string {
+	if x != nil {
+		return x.ViewerAddress
+	}
+	return ""
 }
 
 type GetFeedTimelineResponse struct {
@@ -6685,10 +6711,12 @@ func (x *GetUserFeedResponse) GetNextCursor() uint64 {
 }
 
 type GetFeedThreadRequest struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	PostId        uint64                 `protobuf:"varint,1,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"` // the root/parent post
-	Cursor        uint64                 `protobuf:"varint,2,opt,name=cursor,proto3" json:"cursor,omitempty"`               // replies strictly after this id; 0 = from the start
-	Limit         uint32                 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	PostId uint64                 `protobuf:"varint,1,opt,name=post_id,json=postId,proto3" json:"post_id,omitempty"` // the root/parent post
+	Cursor uint64                 `protobuf:"varint,2,opt,name=cursor,proto3" json:"cursor,omitempty"`               // replies strictly after this id; 0 = from the start
+	Limit  uint32                 `protobuf:"varint,3,opt,name=limit,proto3" json:"limit,omitempty"`
+	// Optional (empty = anonymous) — see GetFeedTimelineRequest.viewer_address.
+	ViewerAddress string `protobuf:"bytes,4,opt,name=viewer_address,json=viewerAddress,proto3" json:"viewer_address,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -6742,6 +6770,13 @@ func (x *GetFeedThreadRequest) GetLimit() uint32 {
 		return x.Limit
 	}
 	return 0
+}
+
+func (x *GetFeedThreadRequest) GetViewerAddress() string {
+	if x != nil {
+		return x.ViewerAddress
+	}
+	return ""
 }
 
 type GetFeedThreadResponse struct {
@@ -8632,7 +8667,7 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\x16GetHomeSnapshotRequest\x12\x19\n" +
 	"\bchain_id\x18\x01 \x01(\tR\achainId\"M\n" +
 	"\x17GetHomeSnapshotResponse\x122\n" +
-	"\bsnapshot\x18\x01 \x01(\v2\x16.memba.v1.HomeSnapshotR\bsnapshot\"\xb5\x02\n" +
+	"\bsnapshot\x18\x01 \x01(\v2\x16.memba.v1.HomeSnapshotR\bsnapshot\"\xe3\x02\n" +
 	"\bFeedPost\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\x04R\x02id\x12\x16\n" +
 	"\x06author\x18\x02 \x01(\tR\x06author\x12\x12\n" +
@@ -8647,10 +8682,12 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	" \x01(\bR\adeleted\x12\x1f\n" +
 	"\vreply_count\x18\v \x01(\rR\n" +
 	"replyCount\x12\x19\n" +
-	"\bblock_ts\x18\f \x01(\x03R\ablockTsJ\x04\b\x05\x10\x06R\trepost_of\"F\n" +
+	"\bblock_ts\x18\f \x01(\x03R\ablockTs\x12,\n" +
+	"\x12viewer_has_flagged\x18\r \x01(\bR\x10viewerHasFlaggedJ\x04\b\x05\x10\x06R\trepost_of\"m\n" +
 	"\x16GetFeedTimelineRequest\x12\x16\n" +
 	"\x06cursor\x18\x01 \x01(\x04R\x06cursor\x12\x14\n" +
-	"\x05limit\x18\x02 \x01(\rR\x05limit\"\x92\x01\n" +
+	"\x05limit\x18\x02 \x01(\rR\x05limit\x12%\n" +
+	"\x0eviewer_address\x18\x03 \x01(\tR\rviewerAddress\"\x92\x01\n" +
 	"\x17GetFeedTimelineResponse\x12(\n" +
 	"\x05posts\x18\x01 \x03(\v2\x12.memba.v1.FeedPostR\x05posts\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\x04R\n" +
@@ -8663,11 +8700,12 @@ const file_memba_v1_memba_proto_rawDesc = "" +
 	"\x13GetUserFeedResponse\x12(\n" +
 	"\x05posts\x18\x01 \x03(\v2\x12.memba.v1.FeedPostR\x05posts\x12\x1f\n" +
 	"\vnext_cursor\x18\x02 \x01(\x04R\n" +
-	"nextCursor\"]\n" +
+	"nextCursor\"\x84\x01\n" +
 	"\x14GetFeedThreadRequest\x12\x17\n" +
 	"\apost_id\x18\x01 \x01(\x04R\x06postId\x12\x16\n" +
 	"\x06cursor\x18\x02 \x01(\x04R\x06cursor\x12\x14\n" +
-	"\x05limit\x18\x03 \x01(\rR\x05limit\"\x8e\x01\n" +
+	"\x05limit\x18\x03 \x01(\rR\x05limit\x12%\n" +
+	"\x0eviewer_address\x18\x04 \x01(\tR\rviewerAddress\"\x8e\x01\n" +
 	"\x15GetFeedThreadResponse\x12&\n" +
 	"\x04root\x18\x01 \x01(\v2\x12.memba.v1.FeedPostR\x04root\x12,\n" +
 	"\areplies\x18\x02 \x03(\v2\x12.memba.v1.FeedPostR\areplies\x12\x1f\n" +
