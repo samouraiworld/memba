@@ -87,10 +87,13 @@ interface NetworkConfig {
      *  `topaz`, needing an override here; 2026-07-23: it flipped back, so the
      *  override became wrong and was removed). Before trusting or changing a
      *  `monitoringChain` value, re-verify live:
-     *    GET https://monitoring.gnolove.world/Participation?chain=<candidate>
-     *  A 200 with real monikers means that value is currently correct; a
-     *  `"invalid chain ID"` body means it isn't. Do not assume this file is
-     *  in sync with gnomonitoring's live registry.
+     *    GET https://monitoring.gnolove.world/uptime?chain=<candidate>
+     *  (use `/uptime`, not `/Participation` — the latter 400s with "Missing
+     *  period" unless you also pass `period=current_month`, which reads like
+     *  a chain-id rejection if you're not expecting it.) A 200 with real
+     *  monikers means that value is currently correct; a `"invalid chain ID"`
+     *  body means it isn't. Do not assume this file is in sync with
+     *  gnomonitoring's live registry.
      *  Optional; defaults to `chainId`. */
     monitoringChain?: string
     label: string
