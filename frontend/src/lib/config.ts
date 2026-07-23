@@ -659,6 +659,13 @@ export const FEEDBACK_REALM_PATH = "gno.land/r/samcrew/memba_feedback_v2"
 /**
  * The network key the backend home snapshot is scoped to.
  * useHomeSnapshot gates its query on this key so it never fires on other networks.
+ *
+ * ⚠️ Topaz cutover: this stays "test13" in the default-flip PR ON PURPOSE — it must
+ * move in lockstep with the backend `homeSnapshotRPCURL` env (a Fly secret, not in
+ * this repo). Until then the home snapshot simply self-disables on topaz (safe
+ * degradation: the home page renders without the snapshot enrichment). Flip it
+ * together with the backend env — and update useHomeSnapshot.test.ts's
+ * "on SNAPSHOT_NETWORK" fixtures — as a follow-up. See the Topaz cutover plan.
  */
 export const SNAPSHOT_NETWORK = "test13"
 
