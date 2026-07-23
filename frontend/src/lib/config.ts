@@ -78,12 +78,19 @@ interface NetworkConfig {
      *
      *  These are NOT the same namespace: `chainId` is the on-chain genesis id that
      *  transactions are signed with, while this is a label chosen by whoever
-     *  registered the network with the monitoring service. They coincided for
-     *  test-13 and gnoland1, so the distinction went unnoticed until topaz, which
-     *  is `topaz-1` on chain but registered as `topaz` — and the API rejects the
-     *  chain id outright:
-     *    GET /Participation?chain=topaz-1 -> `invalid chain ID: "topaz-1"`
-     *    GET /Participation?chain=topaz   -> [{moniker:"samourai-crew-1",…}, …]
+     *  registered the network with the monitoring service — an admin-editable,
+     *  un-versioned registry on gnomonitoring's own VPS, not something Memba
+     *  controls or can assume is stable.
+     *
+     *  ⚠️ This value is NOT settled fact — it has flipped for topaz twice within
+     *  24h of each other (2026-07-22: gnomonitoring registered `topaz-1` as
+     *  `topaz`, needing an override here; 2026-07-23: it flipped back, so the
+     *  override became wrong and was removed). Before trusting or changing a
+     *  `monitoringChain` value, re-verify live:
+     *    GET https://monitoring.gnolove.world/Participation?chain=<candidate>
+     *  A 200 with real monikers means that value is currently correct; a
+     *  `"invalid chain ID"` body means it isn't. Do not assume this file is
+     *  in sync with gnomonitoring's live registry.
      *  Optional; defaults to `chainId`. */
     monitoringChain?: string
     label: string
@@ -151,10 +158,12 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // the commerce-v2 ceremony.
     topaz: {
         chainId: "topaz-1",
-        // gnomonitoring registered this network as "topaz", not "topaz-1" — see
-        // monitoringChain above. Without this the validator moniker lookup fails
-        // and every row falls back to a truncated address.
-        monitoringChain: "topaz",
+        // No monitoringChain override: gnomonitoring's registry currently
+        // resolves "topaz-1" directly (verified live 2026-07-23). It briefly
+        // needed an override to "topaz" (#988, 2026-07-22) — that flipped back
+        // within 24h. See the monitoringChain doc-comment above before
+        // re-adding one; re-verify live first, don't restore #988's value from
+        // memory.
         rpcUrl: import.meta.env.VITE_TOPAZ_RPC_URL || "https://rpc.topaz.testnets.gno.land:443",
         fallbackRpcUrls: [
             "https://rpc.topaz.samourai.live:443",

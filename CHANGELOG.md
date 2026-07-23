@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Network — validator names are back on Topaz, again (2026-07-23)
+<!-- categories: network -->
+- **Fixed blank validator names on Topaz — the monitoring registry flipped back.** #988 (2026-07-22) taught Memba to ask the monitoring service for Topaz validators by `topaz` instead of the chain id `topaz-1`, because the service had registered the network under that shorter label. Within a day, the service's registration flipped back to `topaz-1` — so that same override started causing the exact blank-names symptom it was written to fix, just in the opposite direction. Topaz no longer needs an override at all: its monitoring key now matches its chain id directly, same as every other network. The underlying mechanism (a per-network monitoring key, defaulting to the chain id) is unchanged — this only removes a value that stopped being correct.
+
 ### Network — validator names are back on Topaz (#988, 2026-07-22)
 <!-- categories: network -->
 - **Fixed blank validator names on Topaz.** Validators showed as truncated addresses (`g1a0h6w0…`) instead of names like `samourai-crew-1`, because Memba asked the monitoring service for the chain by its on-chain id, `topaz-1`, and the service knows that network as `topaz` — so it rejected every request and the name lookup quietly returned nothing. Those are two different names for the same network: the on-chain id is what transactions are signed with, while the monitoring key is a label chosen when the network was registered. They happen to match on Testnet 13 and Betanet, so Topaz is the first network where it mattered. Networks can now carry a separate monitoring key, defaulting to the chain id, and only the monitoring lookups use it — everything that talks to the chain or your wallet still uses the real chain id.
