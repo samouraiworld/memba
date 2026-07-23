@@ -99,7 +99,7 @@ func applyViewerFlags(ctx context.Context, db *sql.DB, posts []*membav1.FeedPost
 		if err := rows.Scan(&id); err != nil {
 			return err
 		}
-		flagged[uint64(id)] = true
+		flagged[u64(id)] = true // post_id is non-negative by construction on-chain (see u64's doc)
 	}
 	if err := rows.Err(); err != nil {
 		return err
