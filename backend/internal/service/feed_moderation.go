@@ -20,9 +20,19 @@ import (
 	"strings"
 )
 
-// HandleFeedModeration adds/removes a post from the serving-blocklist.
-//   POST /api/feed/moderation  Authorization: Bearer <FEED_MODERATION_BEARER>
-//   body: {"post_id": <id>, "action": "block"|"unblock", "reason": "...", "by": "..."}
+// HandleFeedModeration is the operator moderation endpoint.
+//
+//	POST /api/feed/moderation  Authorization: Bearer <FEED_MODERATION_BEARER>
+//	body: {"post_id": <id>, "action": "...", "reason": "...", "by": "..."}
+//
+// Actions:
+//   - "block" / "unblock":  add/remove a post from the serving-blocklist (hard,
+//     out-of-band takedown that every read path honors; block also clears any
+//     serving override so it can never be resurrected by a later unblock).
+//   - "override_serve" / "clear_override" (feed v2 C.2): force a wrongly
+//     flag-brigaded post back to full visibility, or revert. Refused (409) on a
+//     deleted or blocklisted post — a serve-override can never re-serve
+//     must-not-serve content.
 func HandleFeedModeration(db *sql.DB) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		bearer := strings.TrimSpace(os.Getenv("FEED_MODERATION_BEARER"))
@@ -53,17 +63,60 @@ func HandleFeedModeration(db *sql.DB) http.Handler {
 		var err error
 		switch body.Action {
 		case "block":
-			_, err = db.ExecContext(r.Context(), `
-				INSERT INTO feed_blocklist (post_id, reason, added_by)
-				VALUES (?, ?, ?)
-				ON CONFLICT(post_id) DO UPDATE SET reason = excluded.reason, added_by = excluded.added_by`,
-				body.PostID, body.Reason, body.By)
+			// Blocklist AND clear any serving override ATOMICALLY: block is
+			// authoritative, and a partial apply (blocklist committed but the
+			// override left behind) would let a later unblock resurrect the post as
+			// overridden-visible (C.2 / G9).
+			if tx, txErr := db.BeginTx(r.Context(), nil); txErr != nil {
+				err = txErr
+			} else {
+				if _, err = tx.ExecContext(r.Context(), `
+					INSERT INTO feed_blocklist (post_id, reason, added_by)
+					VALUES (?, ?, ?)
+					ON CONFLICT(post_id) DO UPDATE SET reason = excluded.reason, added_by = excluded.added_by`,
+					body.PostID, body.Reason, body.By); err == nil {
+					_, err = tx.ExecContext(r.Context(), `DELETE FROM feed_serving_overrides WHERE post_id = ?`, body.PostID)
+				}
+				if err == nil {
+					err = tx.Commit()
+				} else {
+					_ = tx.Rollback()
+				}
+			}
 			slog.Warn("feed moderation: post blocklisted", "postId", body.PostID, "by", body.By, "reason", body.Reason)
 		case "unblock":
 			_, err = db.ExecContext(r.Context(), `DELETE FROM feed_blocklist WHERE post_id = ?`, body.PostID)
 			slog.Warn("feed moderation: post un-blocklisted", "postId", body.PostID, "by", body.By)
+		case "override_serve":
+			// Force a wrongly flag-brigaded post back to full visibility (feed v2
+			// C.2). A serve-override is valid ONLY for a post that EXISTS and is
+			// neither a deleted tombstone nor blocklisted — you can't vouch for
+			// content you can't see, and read-path precedence keeps deleted/
+			// blocklisted above an override anyway. Rejecting at the write boundary
+			// keeps "only reviewable content is restored" an invariant and avoids a
+			// dangling override that would pre-emptively auto-restore a future post.
+			// (block stays pre-emptive: suppression is the safe direction.)
+			var canServe bool
+			if err = db.QueryRowContext(r.Context(), `
+				SELECT EXISTS(SELECT 1 FROM feed_posts WHERE post_id = ? AND deleted = 0)
+				   AND NOT EXISTS(SELECT 1 FROM feed_blocklist WHERE post_id = ?)`,
+				body.PostID, body.PostID).Scan(&canServe); err == nil && !canServe {
+				http.Error(w, "post not found, deleted, or blocklisted; cannot serve-override", http.StatusConflict)
+				return
+			}
+			if err == nil {
+				_, err = db.ExecContext(r.Context(), `
+					INSERT INTO feed_serving_overrides (post_id, reason, added_by)
+					VALUES (?, ?, ?)
+					ON CONFLICT(post_id) DO UPDATE SET reason = excluded.reason, added_by = excluded.added_by`,
+					body.PostID, body.Reason, body.By)
+				slog.Warn("feed moderation: post serve-override set", "postId", body.PostID, "by", body.By, "reason", body.Reason)
+			}
+		case "clear_override":
+			_, err = db.ExecContext(r.Context(), `DELETE FROM feed_serving_overrides WHERE post_id = ?`, body.PostID)
+			slog.Warn("feed moderation: post serve-override cleared", "postId", body.PostID, "by", body.By)
 		default:
-			http.Error(w, `action must be "block" or "unblock"`, http.StatusBadRequest)
+			http.Error(w, `action must be "block", "unblock", "override_serve", or "clear_override"`, http.StatusBadRequest)
 			return
 		}
 		if err != nil {

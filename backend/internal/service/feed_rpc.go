@@ -44,8 +44,8 @@ func scanFeedPosts(rows *sql.Rows) ([]*membav1.FeedPost, error) {
 	for rows.Next() {
 		var (
 			id, replyTo, blockH, blockTs, editedAt, flagCount, replyCount sql.NullInt64
-			author, body                                                 sql.NullString
-			hidden, deleted                                              sql.NullBool
+			author, body                                                  sql.NullString
+			hidden, deleted                                               sql.NullBool
 		)
 		if err := rows.Scan(&id, &author, &body, &replyTo, &blockH, &blockTs,
 			&editedAt, &flagCount, &hidden, &deleted, &replyCount); err != nil {
@@ -120,6 +120,30 @@ const feedPostSelect = `
 	       p.edited_at, p.flag_count, p.hidden, p.deleted, p.reply_count
 	FROM feed_posts p`
 
+// feedPostServedSelect mirrors feedPostSelect but returns the EFFECTIVE hidden
+// flag — hidden=1 AND NOT force-served — so an operator-overridden post (feed v2
+// C.2) presents hidden=false and renders as a normal restored post on every
+// PUBLIC read path (timeline, profile, permalink, OG). The bearer-gated
+// GetFlaggedPosts queue deliberately keeps feedPostSelect (raw hidden) so a
+// moderator still sees the underlying state.
+const feedPostServedSelect = `
+	SELECT p.post_id, p.author, p.body, p.reply_to, p.block_h, p.block_ts,
+	       p.edited_at, p.flag_count,
+	       (p.hidden = 1 AND NOT EXISTS (SELECT 1 FROM feed_serving_overrides o WHERE o.post_id = p.post_id)) AS hidden,
+	       p.deleted, p.reply_count
+	FROM feed_posts p`
+
+// feedServedVisibility is the shared row filter for the PUBLIC read paths: a post
+// is served when it is not a deleted tombstone, not blocklisted, and either not
+// flag-hidden OR force-served by an operator override (feed v2 C.2). Blocklist and
+// deleted are checked here — ABOVE the override — so a serve-override can never
+// re-serve must-not-serve content (precedence: blocklist > deleted > serve-override
+// > hidden > live). The override set is tiny, so it stays a residual filter over the
+// idx_feed_posts_served index walk.
+const feedServedVisibility = `p.deleted = 0
+	AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)
+	AND (p.hidden = 0 OR EXISTS (SELECT 1 FROM feed_serving_overrides o WHERE o.post_id = p.post_id))`
+
 // GetFeedTimeline returns the newest visible TOP-LEVEL posts (reply_to = 0),
 // id-descending, strictly older than cursor (0 = from the newest). Public read
 // — no auth. Replies are seen in a post's thread (GetFeedThread), not inline in
@@ -130,8 +154,8 @@ func (s *MultisigService) GetFeedTimeline(ctx context.Context, req *connect.Requ
 	cursor := req.Msg.Cursor
 
 	// cursor == 0 → newest window; else strictly older than the cursor id.
-	q := feedPostSelect + `
-		WHERE p.reply_to = 0 AND p.hidden = 0 AND p.deleted = 0 AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)`
+	q := feedPostServedSelect + `
+		WHERE p.reply_to = 0 AND ` + feedServedVisibility
 	args := []any{}
 	if cursor != 0 {
 		q += ` AND p.post_id < ?`
@@ -171,8 +195,8 @@ func (s *MultisigService) GetUserFeed(ctx context.Context, req *connect.Request[
 	limit := feedLimit(req.Msg.Limit)
 	cursor := req.Msg.Cursor
 
-	q := feedPostSelect + `
-		WHERE p.author = ? AND p.hidden = 0 AND p.deleted = 0 AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)`
+	q := feedPostServedSelect + `
+		WHERE p.author = ? AND ` + feedServedVisibility
 	args := []any{author}
 	if cursor != 0 {
 		q += ` AND p.post_id < ?`
@@ -209,8 +233,10 @@ func (s *MultisigService) GetFeedThread(ctx context.Context, req *connect.Reques
 	limit := feedLimit(req.Msg.Limit)
 	cursor := req.Msg.Cursor
 
-	// Root (any state — a deleted parent still anchors its thread).
-	rootRows, err := s.db.QueryContext(ctx, feedPostSelect+` WHERE p.post_id = ? AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)`, postID)
+	// Root (any state — a deleted parent still anchors its thread; a flag-hidden
+	// root stays a tombstone unless force-served, via feedPostServedSelect's
+	// effective-hidden). Only a blocklist excludes the root entirely.
+	rootRows, err := s.db.QueryContext(ctx, feedPostServedSelect+` WHERE p.post_id = ? AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)`, postID)
 	if err != nil {
 		return nil, internalError("GetFeedThread/root", err)
 	}
@@ -223,9 +249,9 @@ func (s *MultisigService) GetFeedThread(ctx context.Context, req *connect.Reques
 		return nil, connect.NewError(connect.CodeNotFound, nil)
 	}
 
-	// Live replies, oldest first, strictly after the cursor.
-	q := feedPostSelect + `
-		WHERE p.reply_to = ? AND p.hidden = 0 AND p.deleted = 0 AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)`
+	// Live (or force-served) replies, oldest first, strictly after the cursor.
+	q := feedPostServedSelect + `
+		WHERE p.reply_to = ? AND ` + feedServedVisibility
 	args := []any{postID}
 	if cursor != 0 {
 		q += ` AND p.post_id > ?`
