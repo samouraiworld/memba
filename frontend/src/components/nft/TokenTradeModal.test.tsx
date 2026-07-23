@@ -21,6 +21,10 @@ const mocks = vi.hoisted(() => ({
         type: "vm/MsgCall", value: { caller, spender, symbol, amount },
     })),
     doContractBroadcast: vi.fn().mockResolvedValue(undefined),
+    // T3.2: TokenTradeModal now looks up decimals before enabling either flow's
+    // confirm button. Default 6 (the codebase-wide fallback) so pre-existing
+    // tests below — which don't care about decimals — don't have to wait on it.
+    getTokenDecimals: vi.fn().mockResolvedValue(6),
 }))
 
 vi.mock("../../lib/tokenOtcApi", () => ({
@@ -28,10 +32,18 @@ vi.mock("../../lib/tokenOtcApi", () => ({
     getOtcEngineAddress: mocks.getOtcEngineAddress,
 }))
 
-vi.mock("../../lib/grc20", () => ({
-    buildApproveMsg: mocks.buildApproveMsg,
-    doContractBroadcast: mocks.doContractBroadcast,
-}))
+vi.mock("../../lib/grc20", async (importOriginal) => {
+    // parseTokenAmount/formatTokenAmount/MAX_INT64 are pure — keep the real
+    // implementations so the modal's amount math is genuinely exercised, not
+    // stubbed into meaninglessness. Only the network-touching calls are mocked.
+    const actual = await importOriginal<typeof import("../../lib/grc20")>()
+    return {
+        ...actual,
+        buildApproveMsg: mocks.buildApproveMsg,
+        doContractBroadcast: mocks.doContractBroadcast,
+        getTokenDecimals: mocks.getTokenDecimals,
+    }
+})
 
 vi.mock("../../lib/marketplace/v3Reads", () => ({
     fetchLaneFeeBps: vi.fn().mockResolvedValue(50),

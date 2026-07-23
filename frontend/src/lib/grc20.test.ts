@@ -31,7 +31,20 @@ import {
     setTxConfirmationCallback,
     assertWalletBroadcastSafe,
     UNVERIFIED_CHAIN_ID,
+    getTokenDecimals,
+    __resetTokenDecimalsCache,
 } from './grc20'
+
+// getTokenDecimals -> getTokenInfo -> queryRender -> abciQuery, which is a
+// module-private fetch() call (not imported from ./dao/shared) — mock fetch
+// directly rather than trying to intercept an internal function reference.
+function mockRenderResponse(markdown: string) {
+    const data = btoa(markdown)
+    return {
+        ok: true,
+        json: async () => ({ result: { response: { ResponseBase: { Data: data } } } }),
+    }
+}
 
 // ── Fee Calculation (v2.1a: 2.5%) ───────────────────────────────
 
@@ -460,5 +473,49 @@ describe('doContractBroadcast — deploy gas budget (W2.1)', () => {
         delete (window as any).adena
         setTxConfirmationCallback(null)
         setWalletRpcContext(null, false, null)
+    })
+})
+
+// ── getTokenDecimals (T3.2: OTC decimals fix) ──────────────────
+
+describe('getTokenDecimals', () => {
+    it('parses decimals out of the token Render and caches per symbol', async () => {
+        __resetTokenDecimalsCache()
+        const fetchSpy = vi.fn().mockResolvedValue(
+            mockRenderResponse('# Forge ($FORGE)\n\n* **Decimals**: 9\n* **Total supply**: 100\n'),
+        )
+        vi.stubGlobal('fetch', fetchSpy)
+
+        const first = await getTokenDecimals('http://rpc', 'FORGE')
+        const second = await getTokenDecimals('http://rpc', 'FORGE')
+
+        expect(first).toBe(9)
+        expect(second).toBe(9)
+        expect(fetchSpy).toHaveBeenCalledTimes(1) // second call served from cache
+
+        vi.unstubAllGlobals()
+    })
+
+    it('falls back to 6 when the token cannot be found', async () => {
+        __resetTokenDecimalsCache()
+        vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
+
+        expect(await getTokenDecimals('http://rpc', 'GHOST')).toBe(6)
+
+        vi.unstubAllGlobals()
+    })
+
+    it('caches distinct symbols independently', async () => {
+        __resetTokenDecimalsCache()
+        const fetchSpy = vi.fn()
+            .mockResolvedValueOnce(mockRenderResponse('# A ($A)\n\n* **Decimals**: 0\n'))
+            .mockResolvedValueOnce(mockRenderResponse('# B ($B)\n\n* **Decimals**: 18\n'))
+        vi.stubGlobal('fetch', fetchSpy)
+
+        expect(await getTokenDecimals('http://rpc', 'A')).toBe(0)
+        expect(await getTokenDecimals('http://rpc', 'B')).toBe(18)
+        expect(fetchSpy).toHaveBeenCalledTimes(2)
+
+        vi.unstubAllGlobals()
     })
 })
