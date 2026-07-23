@@ -20,7 +20,7 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Network — validator names are back on Topaz, again (2026-07-23)
+### Network — validator names are back on Topaz, again (#989, 2026-07-23)
 <!-- categories: network -->
 - **Fixed blank validator names on Topaz — the monitoring registry flipped back.** #988 (2026-07-22) taught Memba to ask the monitoring service for Topaz validators by `topaz` instead of the chain id `topaz-1`, because the service had registered the network under that shorter label. Within a day, the service's registration flipped back to `topaz-1` — so that same override started causing the exact blank-names symptom it was written to fix, just in the opposite direction. Topaz no longer needs an override at all: its monitoring key now matches its chain id directly, same as every other network. The underlying mechanism (a per-network monitoring key, defaulting to the chain id) is unchanged — this only removes a value that stopped being correct.
 
