@@ -14,11 +14,13 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 
 // ── Mock config before importing the module ──────────────────
 // GNO_MONITORING_CHAIN is deliberately DIFFERENT from GNO_CHAIN_ID here. They
-// coincided on test-13 and gnoland1, which is why topaz ("topaz-1" on chain,
-// registered as "topaz") was the first network to break — the API answers
-// `invalid chain ID: "topaz-1"` and every validator moniker falls back to a
-// truncated address. Mocking them apart is what makes the assertion below able
-// to tell the two apart at all.
+// coincide for every network Memba currently ships (test-13, gnoland1, and
+// topaz-1 as of 2026-07-23 — see config.ts's monitoringChain doc-comment: this
+// key is admin-editable on gnomonitoring's side and has already flipped twice
+// in 24h, so no network's override is a safe long-term assumption). Mocking
+// them apart here is what makes the assertion below able to tell the two apart
+// at all — this test protects the GNO_MONITORING_CHAIN plumbing itself, not
+// any particular network's current value.
 vi.mock("./config", () => ({
     GNO_CHAIN_ID: "test-chain-42",
     GNO_MONITORING_CHAIN: "monitoring-key-99",
