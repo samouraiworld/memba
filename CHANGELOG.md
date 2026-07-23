@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Trading — fixed the OTC desk misreading how many tokens most tokens actually have (2026-07-23)
+<!-- categories: memba -->
+- **Fixed the OTC desk treating every token's quantity field as if it had no fractional units, regardless of how the token was actually set up.** Most tokens on Memba are created with decimal precision (so "1" really means one whole token, not one ten-millionth of one) — but the OTC listing and buying screens weren't reading that setting, so a listing for "10 tokens" could actually escrow a fraction of a single token instead, and the numbers shown for existing listings (both on the OTC desk and in "My Listings") were off by the same factor. Memba now looks up each token's real precision before you list or buy, converts your input correctly, and shows you the exact price that will be charged (which can round up very slightly for tokens with a lot of decimal places, and we now say so on screen) rather than a number that doesn't match what actually gets sent on-chain.
+
 ### Trading — fixed the OTC token approval so listing and buying actually work (2026-07-23)
 <!-- categories: memba -->
 - **Fixed a bug where approving your tokens for the OTC desk never actually let a listing or purchase go through.** Behind the scenes, the one-time approval step was targeting the OTC desk by its name in the registry rather than its real on-chain account — two different things that happen to look similar but aren't interchangeable here. The desk's own check is against the real account, so the approval it recorded never matched, and both listing tokens and buying them would fail after the approval step appeared to succeed. Memba now resolves and uses the desk's real account throughout, and if that resolution ever fails, you'll see a clear message asking you to retry rather than a broken approval going through.

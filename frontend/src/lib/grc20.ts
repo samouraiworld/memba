@@ -309,6 +309,40 @@ export async function getTokenInfo(rpcUrl: string, symbol: string): Promise<Toke
     }
 }
 
+// Module-level cache: a token's decimals are immutable once created (New/
+// NewWithAdmin have no setter), so caching per-symbol avoids a Render fetch on
+// every amount conversion. Reloads on network switch (module re-evaluates),
+// same lifetime as tokenOtcApi's cachedEngineAddress.
+const decimalsCache = new Map<string, number>()
+
+/**
+ * Cached decimals lookup for a tokenfactory_v2 symbol.
+ *
+ * Returns `null` when the lookup genuinely failed (RPC down, token not found
+ * — getTokenInfo returned null) — the caller MUST decide what that means, it
+ * is never silently coerced to a guessed value here. A fund-moving caller
+ * (e.g. before converting a trade amount to base units) must treat `null` as
+ * "unknown, do not proceed" — only a display-only caller may choose to show a
+ * `?? 6` fallback, and even then that choice is visible at the call site, not
+ * buried in this function. Never throws. Failures are NOT cached (a transient
+ * RPC hiccup should be retryable on the next call, not stuck at a wrong
+ * cached guess); only a genuine resolution is cached, since decimals are
+ * immutable once a token is created.
+ */
+export async function getTokenDecimals(rpcUrl: string, symbol: string): Promise<number | null> {
+    const cached = decimalsCache.get(symbol)
+    if (cached !== undefined) return cached
+    const info = await getTokenInfo(rpcUrl, symbol)
+    if (info === null) return null
+    decimalsCache.set(symbol, info.decimals)
+    return info.decimals
+}
+
+/** Test-only: clears the module-level decimals cache. */
+export function __resetTokenDecimalsCache(): void {
+    decimalsCache.clear()
+}
+
 /**
  * Fetch the server-computed {symbol: launchedAtISO} map of token creation times.
  * The realm stores no creation time; the backend resolves it from the tx-indexer

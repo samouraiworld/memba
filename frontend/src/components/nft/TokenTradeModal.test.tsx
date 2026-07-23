@@ -21,6 +21,10 @@ const mocks = vi.hoisted(() => ({
         type: "vm/MsgCall", value: { caller, spender, symbol, amount },
     })),
     doContractBroadcast: vi.fn().mockResolvedValue(undefined),
+    // T3.2: TokenTradeModal now looks up decimals before enabling either flow's
+    // confirm button. Default 6 (the codebase-wide fallback) so pre-existing
+    // tests below — which don't care about decimals — don't have to wait on it.
+    getTokenDecimals: vi.fn().mockResolvedValue(6),
 }))
 
 vi.mock("../../lib/tokenOtcApi", () => ({
@@ -28,10 +32,18 @@ vi.mock("../../lib/tokenOtcApi", () => ({
     getOtcEngineAddress: mocks.getOtcEngineAddress,
 }))
 
-vi.mock("../../lib/grc20", () => ({
-    buildApproveMsg: mocks.buildApproveMsg,
-    doContractBroadcast: mocks.doContractBroadcast,
-}))
+vi.mock("../../lib/grc20", async (importOriginal) => {
+    // parseTokenAmount/formatTokenAmount/MAX_INT64 are pure — keep the real
+    // implementations so the modal's amount math is genuinely exercised, not
+    // stubbed into meaninglessness. Only the network-touching calls are mocked.
+    const actual = await importOriginal<typeof import("../../lib/grc20")>()
+    return {
+        ...actual,
+        buildApproveMsg: mocks.buildApproveMsg,
+        doContractBroadcast: mocks.doContractBroadcast,
+        getTokenDecimals: mocks.getTokenDecimals,
+    }
+})
 
 vi.mock("../../lib/marketplace/v3Reads", () => ({
     fetchLaneFeeBps: vi.fn().mockResolvedValue(50),
@@ -100,6 +112,70 @@ describe("TokenTradeModal — list flow spender/allowance targeting", () => {
         // Must show the guard error, not call buildApproveMsg with a bad/missing spender.
         expect(await screen.findByRole("alert")).toHaveTextContent(/could not resolve/i)
         expect(mocks.buildApproveMsg).not.toHaveBeenCalled()
+        expect(mocks.doContractBroadcast).not.toHaveBeenCalled()
+    })
+})
+
+// T3.2 review finding: getTokenDecimals returning null (lookup failed) must
+// NEVER be treated the same as "decimals are 6" on a fund-moving path — these
+// tests pin the fail-closed behavior directly, since nothing previously
+// exercised this path (the gap the finding was about).
+describe("TokenTradeModal — decimals lookup failure is fail-closed, not fallback-to-6", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        mocks.doContractBroadcast.mockResolvedValue(undefined)
+        mocks.getOtcEngineAddress.mockResolvedValue(ENGINE_ADDRESS)
+        mocks.getTokenAllowance.mockResolvedValue(1_000_000_000n) // already approved -> reach the amount-entry step
+    })
+
+    it("shows a refuse-to-guess error and disables the amount input + confirm, never silently defaulting", async () => {
+        mocks.getTokenDecimals.mockResolvedValue(null)
+
+        render(
+            <TokenTradeModal
+                action="list" symbol="FORGE" callerAddress="g1caller"
+                onClose={vi.fn()} onSuccess={vi.fn()}
+            />,
+        )
+
+        expect(await screen.findByText(/refusing to guess/i)).toBeInTheDocument()
+
+        const amountInput = await screen.findByLabelText(/quantity to list/i)
+        expect(amountInput).toBeDisabled()
+        expect(screen.getByRole("button", { name: /list tokens/i })).toBeDisabled()
+        expect(mocks.doContractBroadcast).not.toHaveBeenCalled()
+    })
+
+    it("un-blocks after Retry once the lookup succeeds", async () => {
+        mocks.getTokenDecimals.mockResolvedValueOnce(null).mockResolvedValueOnce(6)
+
+        render(
+            <TokenTradeModal
+                action="list" symbol="FORGE" callerAddress="g1caller"
+                onClose={vi.fn()} onSuccess={vi.fn()}
+            />,
+        )
+
+        const retryBtn = await screen.findByRole("button", { name: /retry/i })
+        fireEvent.click(retryBtn)
+
+        await waitFor(() => expect(screen.queryByText(/refusing to guess/i)).not.toBeInTheDocument())
+        expect(await screen.findByLabelText(/quantity to list/i)).not.toBeDisabled()
+    })
+
+    it("buy flow also refuses to guess when decimals fail to resolve", async () => {
+        mocks.getTokenDecimals.mockResolvedValue(null)
+
+        render(
+            <TokenTradeModal
+                action="buy" symbol="FORGE" listingId="7" unitPriceUgnot={5n} available={1000n}
+                callerAddress="g1caller" onClose={vi.fn()} onSuccess={vi.fn()}
+            />,
+        )
+
+        expect(await screen.findByText(/refusing to guess/i)).toBeInTheDocument()
+        expect(await screen.findByLabelText(/quantity to buy/i)).toBeDisabled()
+        expect(screen.getByRole("button", { name: /confirm purchase/i })).toBeDisabled()
         expect(mocks.doContractBroadcast).not.toHaveBeenCalled()
     })
 })
