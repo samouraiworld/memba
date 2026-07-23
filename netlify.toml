@@ -34,7 +34,11 @@
   # infinite-looped the /:network redirects (/test12/test12/… → replaceState crash,
   # hit on mobile / private browsing). lib/config.ts also validates this against
   # NETWORKS as a code-level safety net.
-  VITE_GNO_CHAIN_ID = "test13"
+  # ⚠️ Topaz cutover (Phase B): merging this flips the PROD landing network to
+  # topaz-1. It is a COORDINATED change — the backend Fly env (MEMBA_ACCEPTED_CHAIN_IDS,
+  # GNO_CHAIN_ID, the RPC URLs, homeSnapshotRPCURL) and the mandatory indexer reset
+  # MUST land in the same window, or auth/feed/home break. See the Topaz cutover plan.
+  VITE_GNO_CHAIN_ID = "topaz"
 
 # CSP Dual-Config (v2.9):
 # This is the PRODUCTION CSP enforced by Netlify edge headers.
