@@ -172,6 +172,35 @@ describe("PostCard flag that responds", () => {
         rerender(<PostCard post={basePost({ viewerHasFlagged: true })} {...connectedOther} />)
         expect(screen.getByText("Flagged")).toBeInTheDocument()
     })
+
+    // Independent review finding: a background refetch can land
+    // viewerHasFlagged=true WHILE a click's submit is still in flight (this
+    // is genuinely the realm's "already flagged" case). The error-revert must
+    // not hardcode Flag back to clickable in that case — it must reflect
+    // server truth, or the resync latch gets permanently stuck.
+    it("stays Flagged (not reverted to Flag) when the submit fails AFTER a background refetch already confirmed the flag", async () => {
+        let rejectSubmit!: (e: Error) => void
+        mockSubmit.mockReturnValueOnce(new Promise((_resolve, reject) => { rejectSubmit = reject }))
+
+        const { rerender } = render(<PostCard post={basePost({ viewerHasFlagged: false })} {...connectedOther} />)
+        fireEvent.click(screen.getByTestId("feed-flag-btn"))
+        expect(screen.getByText("Flagged")).toBeInTheDocument() // optimistic
+
+        // A background poll lands first, now reporting the flag as confirmed
+        // server-side (the resync latch advances to true) — BEFORE the
+        // in-flight submit above has resolved.
+        rerender(<PostCard post={basePost({ viewerHasFlagged: true })} {...connectedOther} />)
+        expect(screen.getByText("Flagged")).toBeInTheDocument()
+
+        // The submit call now rejects (realm panic: "already flagged").
+        rejectSubmit(new Error("panic: already flagged"))
+        await waitFor(() => expect(screen.getByTestId("feed-flag-error")).toBeInTheDocument())
+
+        // Must still read Flagged (server truth), never re-offer a Flag click
+        // that would only panic again.
+        expect(screen.getByText("Flagged")).toBeInTheDocument()
+        expect(screen.queryByText("Flag")).toBeNull()
+    })
 })
 
 describe("PostCard author edit / delete", () => {
