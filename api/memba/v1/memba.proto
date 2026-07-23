@@ -811,11 +811,21 @@ message FeedPost {
   int64 block_ts = 12; // block header time (unix seconds); 0 = unknown. The
   // DETERMINISTIC display timestamp — NOT the indexer's
   // ingest wall-clock (which re-stamps on rebuild-from-raw).
+  // viewer_has_flagged (feed v2 plan C.1): true when the REQUESTING viewer
+  // (GetFeedTimelineRequest.viewer_address / GetFeedThreadRequest.viewer_address)
+  // previously flagged this post, from the durable feed_flags projection —
+  // replaces the per-mount localStorage state that forgot across reloads.
+  // Always false when the request carried no viewer_address (anonymous read).
+  bool viewer_has_flagged = 13;
 }
 
 message GetFeedTimelineRequest {
   uint64 cursor = 1; // return posts strictly older than this id; 0 = newest
   uint32 limit = 2; // default 20, max 100
+  // Optional (empty = anonymous). NOT auth — the address is not a secret and
+  // this is a public read, same posture as GetReplyNotifications's author
+  // param; it only shapes viewer_has_flagged on the returned posts.
+  string viewer_address = 3;
 }
 
 message GetFeedTimelineResponse {
@@ -839,6 +849,8 @@ message GetFeedThreadRequest {
   uint64 post_id = 1; // the root/parent post
   uint64 cursor = 2; // replies strictly after this id; 0 = from the start
   uint32 limit = 3;
+  // Optional (empty = anonymous) — see GetFeedTimelineRequest.viewer_address.
+  string viewer_address = 4;
 }
 
 message GetFeedThreadResponse {

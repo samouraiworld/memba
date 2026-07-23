@@ -30,6 +30,7 @@ const basePost = (over: Partial<UiPost>): UiPost => ({
     hidden: false,
     deleted: false,
     replyCount: 3,
+    viewerHasFlagged: false,
     ...over,
 })
 
@@ -145,6 +146,60 @@ describe("PostCard flag that responds", () => {
         fireEvent.click(screen.getByTestId("feed-flag-btn"))
         await waitFor(() => expect(screen.getByText("Flag")).toBeInTheDocument())
         expect(screen.queryByTestId("feed-flag-error")).toBeNull()
+    })
+
+    // C.1: durable have-I-flagged, seeded from the server (feed_flags
+    // projection via viewerHasFlagged) — not just ephemeral click state that
+    // forgets on reload.
+    it("shows Flagged on mount when the post is already viewerHasFlagged, without a click", () => {
+        render(<PostCard post={basePost({ viewerHasFlagged: true })} {...connectedOther} />)
+        expect(screen.getByText("Flagged")).toBeInTheDocument()
+        expect(mockSubmit).not.toHaveBeenCalled()
+    })
+
+    it("clicking an already-flagged (server-seeded) post does not re-submit", () => {
+        render(<PostCard post={basePost({ viewerHasFlagged: true })} {...connectedOther} />)
+        fireEvent.click(screen.getByTestId("feed-flag-btn"))
+        expect(mockSubmit).not.toHaveBeenCalled()
+    })
+
+    it("resyncs to a fresh viewerHasFlagged when the post prop changes (e.g. wallet switch), same mounted card", () => {
+        const { rerender } = render(<PostCard post={basePost({ viewerHasFlagged: false })} {...connectedOther} />)
+        expect(screen.getByText("Flag")).toBeInTheDocument()
+
+        // Same card stays mounted (post id unchanged) but a fresh fetch under a
+        // different wallet reports this OTHER wallet already flagged it.
+        rerender(<PostCard post={basePost({ viewerHasFlagged: true })} {...connectedOther} />)
+        expect(screen.getByText("Flagged")).toBeInTheDocument()
+    })
+
+    // Independent review finding: a background refetch can land
+    // viewerHasFlagged=true WHILE a click's submit is still in flight (this
+    // is genuinely the realm's "already flagged" case). The error-revert must
+    // not hardcode Flag back to clickable in that case — it must reflect
+    // server truth, or the resync latch gets permanently stuck.
+    it("stays Flagged (not reverted to Flag) when the submit fails AFTER a background refetch already confirmed the flag", async () => {
+        let rejectSubmit!: (e: Error) => void
+        mockSubmit.mockReturnValueOnce(new Promise((_resolve, reject) => { rejectSubmit = reject }))
+
+        const { rerender } = render(<PostCard post={basePost({ viewerHasFlagged: false })} {...connectedOther} />)
+        fireEvent.click(screen.getByTestId("feed-flag-btn"))
+        expect(screen.getByText("Flagged")).toBeInTheDocument() // optimistic
+
+        // A background poll lands first, now reporting the flag as confirmed
+        // server-side (the resync latch advances to true) — BEFORE the
+        // in-flight submit above has resolved.
+        rerender(<PostCard post={basePost({ viewerHasFlagged: true })} {...connectedOther} />)
+        expect(screen.getByText("Flagged")).toBeInTheDocument()
+
+        // The submit call now rejects (realm panic: "already flagged").
+        rejectSubmit(new Error("panic: already flagged"))
+        await waitFor(() => expect(screen.getByTestId("feed-flag-error")).toBeInTheDocument())
+
+        // Must still read Flagged (server truth), never re-offer a Flag click
+        // that would only panic again.
+        expect(screen.getByText("Flagged")).toBeInTheDocument()
+        expect(screen.queryByText("Flag")).toBeNull()
     })
 })
 

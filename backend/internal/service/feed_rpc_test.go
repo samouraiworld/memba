@@ -118,6 +118,58 @@ func TestGetFeedTimeline_CursorPagination(t *testing.T) {
 	}
 }
 
+// seedFeedFlag inserts one feed_flags row directly for handler tests.
+func seedFeedFlag(t *testing.T, h *testHarness, postID int64, flaggerAddr string, eventBlock int64) {
+	t.Helper()
+	_, err := h.db.Exec(`
+		INSERT INTO feed_flags (post_id, flagger_addr, event_block) VALUES (?, ?, ?)`,
+		postID, flaggerAddr, eventBlock)
+	if err != nil {
+		t.Fatal("seed feed flag:", err)
+	}
+}
+
+func TestGetFeedTimeline_ViewerHasFlagged(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+
+	seedFeedPost(t, h, 1, "g1a", "flagged by viewer", 0, false, false)
+	seedFeedPost(t, h, 2, "g1b", "flagged by someone else", 0, false, false)
+	seedFeedPost(t, h, 3, "g1c", "never flagged", 0, false, false)
+	seedFeedFlag(t, h, 1, "g1viewer", 1)
+	seedFeedFlag(t, h, 2, "g1other", 2)
+
+	resp, err := h.svc.GetFeedTimeline(ctx, connect.NewRequest(&membav1.GetFeedTimelineRequest{ViewerAddress: "g1viewer"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	byID := map[uint64]*membav1.FeedPost{}
+	for _, p := range resp.Msg.Posts {
+		byID[p.Id] = p
+	}
+	if !byID[1].ViewerHasFlagged {
+		t.Fatal("post 1 was flagged by the viewer — ViewerHasFlagged must be true")
+	}
+	if byID[2].ViewerHasFlagged {
+		t.Fatal("post 2 was flagged by a DIFFERENT address — ViewerHasFlagged must be false")
+	}
+	if byID[3].ViewerHasFlagged {
+		t.Fatal("post 3 was never flagged — ViewerHasFlagged must be false")
+	}
+
+	// No viewer_address (anonymous) → every post reports false, never leaks
+	// another viewer's state.
+	anon, err := h.svc.GetFeedTimeline(ctx, connect.NewRequest(&membav1.GetFeedTimelineRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range anon.Msg.Posts {
+		if p.ViewerHasFlagged {
+			t.Fatalf("anonymous request must never report ViewerHasFlagged=true, post %d did", p.Id)
+		}
+	}
+}
+
 func TestGetUserFeed(t *testing.T) {
 	h := setup(t)
 	ctx := context.Background()
@@ -181,5 +233,51 @@ func TestGetFeedThread(t *testing.T) {
 	}
 	if _, err := h.svc.GetFeedThread(ctx, connect.NewRequest(&membav1.GetFeedThreadRequest{PostId: 0})); err == nil {
 		t.Fatal("zero post id must be InvalidArgument")
+	}
+}
+
+func TestGetFeedThread_ViewerHasFlagged(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+
+	seedFeedPost(t, h, 1, "g1a", "root, flagged by viewer", 0, false, false)
+	seedFeedPost(t, h, 2, "g1b", "reply, flagged by viewer", 1, false, false)
+	seedFeedPost(t, h, 3, "g1c", "reply, not flagged", 1, false, false)
+	seedFeedFlag(t, h, 1, "g1viewer", 1)
+	seedFeedFlag(t, h, 2, "g1viewer", 2)
+
+	resp, err := h.svc.GetFeedThread(ctx, connect.NewRequest(&membav1.GetFeedThreadRequest{PostId: 1, ViewerAddress: "g1viewer"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !resp.Msg.Root.ViewerHasFlagged {
+		t.Fatal("root was flagged by the viewer — ViewerHasFlagged must be true")
+	}
+	if len(resp.Msg.Replies) != 2 {
+		t.Fatalf("expected 2 replies, got %d", len(resp.Msg.Replies))
+	}
+	byID := map[uint64]*membav1.FeedPost{}
+	for _, r := range resp.Msg.Replies {
+		byID[r.Id] = r
+	}
+	if !byID[2].ViewerHasFlagged {
+		t.Fatal("reply 2 was flagged by the viewer — ViewerHasFlagged must be true")
+	}
+	if byID[3].ViewerHasFlagged {
+		t.Fatal("reply 3 was never flagged — ViewerHasFlagged must be false")
+	}
+
+	// Anonymous read (no viewer_address) → root and replies all false.
+	anon, err := h.svc.GetFeedThread(ctx, connect.NewRequest(&membav1.GetFeedThreadRequest{PostId: 1}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if anon.Msg.Root.ViewerHasFlagged {
+		t.Fatal("anonymous thread read must never report ViewerHasFlagged=true on the root")
+	}
+	for _, r := range anon.Msg.Replies {
+		if r.ViewerHasFlagged {
+			t.Fatalf("anonymous thread read must never report ViewerHasFlagged=true, reply %d did", r.Id)
+		}
 	}
 }

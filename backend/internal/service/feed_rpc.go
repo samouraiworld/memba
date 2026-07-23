@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -67,6 +68,50 @@ func scanFeedPosts(rows *sql.Rows) ([]*membav1.FeedPost, error) {
 	return posts, rows.Err()
 }
 
+// applyViewerFlags sets ViewerHasFlagged on the posts a given viewer
+// previously flagged, via one batched query against feed_flags (never N+1).
+// No-op — every post stays false — when viewerAddr is empty (anonymous read)
+// or posts is empty; this is what keeps GetFeedTimeline/GetFeedThread public
+// reads with no address leaking any viewer's state by default (feed v2 plan
+// C.1 — replaces the per-mount localStorage state that forgot across reloads).
+func applyViewerFlags(ctx context.Context, db *sql.DB, posts []*membav1.FeedPost, viewerAddr string) error {
+	if viewerAddr == "" || len(posts) == 0 {
+		return nil
+	}
+	args := make([]any, 0, len(posts)+1)
+	args = append(args, viewerAddr)
+	placeholders := make([]string, len(posts))
+	for i, p := range posts {
+		placeholders[i] = "?"
+		args = append(args, p.Id)
+	}
+	q := `SELECT post_id FROM feed_flags WHERE flagger_addr = ? AND post_id IN (` +
+		strings.Join(placeholders, ",") + `)`
+	rows, err := db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+
+	flagged := make(map[uint64]bool, len(posts))
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+		flagged[u64(id)] = true // post_id is non-negative by construction on-chain (see u64's doc)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, p := range posts {
+		if flagged[p.Id] {
+			p.ViewerHasFlagged = true
+		}
+	}
+	return nil
+}
+
 // feedPostSelect is the shared column list. reply_count is the denormalized
 // count of live (not deleted, not hidden, not blocklisted) replies, maintained
 // by the triggers in migration 022 — was a per-row correlated subquery (W1.4).
@@ -104,6 +149,9 @@ func (s *MultisigService) GetFeedTimeline(ctx context.Context, req *connect.Requ
 	posts, err := scanFeedPosts(rows)
 	if err != nil {
 		return nil, internalError("GetFeedTimeline/scan", err)
+	}
+	if err := applyViewerFlags(ctx, s.db, posts, req.Msg.ViewerAddress); err != nil {
+		return nil, internalError("GetFeedTimeline/viewerFlags", err)
 	}
 
 	return connect.NewResponse(&membav1.GetFeedTimelineResponse{
@@ -195,6 +243,15 @@ func (s *MultisigService) GetFeedThread(ctx context.Context, req *connect.Reques
 	replies, err := scanFeedPosts(rows)
 	if err != nil {
 		return nil, internalError("GetFeedThread/replies-scan", err)
+	}
+
+	// One batched viewer-flag lookup across root + replies together (still a
+	// single query, not one per scan call).
+	allPosts := make([]*membav1.FeedPost, 0, len(rootPosts)+len(replies))
+	allPosts = append(allPosts, rootPosts...)
+	allPosts = append(allPosts, replies...)
+	if err := applyViewerFlags(ctx, s.db, allPosts, req.Msg.ViewerAddress); err != nil {
+		return nil, internalError("GetFeedThread/viewerFlags", err)
 	}
 
 	// Ascending order → next cursor is the last (largest) id when the window

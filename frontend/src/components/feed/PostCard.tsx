@@ -14,7 +14,7 @@
  * @module components/feed/PostCard
  */
 
-import { memo, useCallback, useMemo, useRef, useState } from "react"
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Flag, ChatCircle, DotsThreeVertical, PencilSimple, Trash, LinkSimple, Check } from "@phosphor-icons/react"
 import { submitFeedMsg, buildFlagPostMsg, buildEditPostMsg, buildDeletePostMsg } from "../../lib/feed"
 import { feedPostPermalink } from "../../lib/feedPermalink"
@@ -107,7 +107,34 @@ function PostCardInner({
     clickable?: boolean
 }) {
     const [flagging, setFlagging] = useState(false)
-    const [flagged, setFlagged] = useState(false)
+    // C.1: seeded from the durable feed_flags projection (viewerHasFlagged),
+    // not just local component state — previously this forgot across every
+    // reload/remount, and a returning viewer could tap Flag again only to have
+    // the realm panic "already flagged" with no prior indication.
+    //
+    // PostCard is keyed by post id (not wallet address), so switching accounts
+    // while a card stays mounted delivers a fresh `post.viewerHasFlagged` via
+    // props without remounting — resync `flagged` to it whenever it changes
+    // (adjust-state-during-render, not an effect) so a card never keeps
+    // showing a DIFFERENT wallet's flagged state after an account switch.
+    const [flagged, setFlagged] = useState(post.viewerHasFlagged)
+    const [syncedViewerFlag, setSyncedViewerFlag] = useState(post.viewerHasFlagged)
+    if (post.viewerHasFlagged !== syncedViewerFlag) {
+        setSyncedViewerFlag(post.viewerHasFlagged)
+        setFlagged(post.viewerHasFlagged)
+    }
+    // A `flag()` invocation already in flight closes over the `post` object
+    // from its OWN render — a later render's fresh `post.viewerHasFlagged`
+    // (e.g. a background refetch landing mid-submit) is invisible to that
+    // stale closure. This ref is kept current via an effect (mutating a ref
+    // directly during render is a React footgun the lint config here hard-
+    // errors on) so the catch block below can read the LIVE server truth
+    // instead of the value from whenever the click happened — the effect
+    // commits well before any later async catch runs.
+    const postRef = useRef(post)
+    useEffect(() => {
+        postRef.current = post
+    }, [post])
     const [flagBump, setFlagBump] = useState(0)
     const [flagError, setFlagError] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
@@ -155,7 +182,22 @@ function PostCardInner({
             await submitFeedMsg(buildFlagPostMsg(selfAddress, post.id), "flag post")
             onRefetch()
         } catch (e) {
-            setFlagged(false)
+            // Revert to the CURRENT server truth (via postRef, not the `post`
+            // closed over at click-time — see postRef's doc comment), not a
+            // hardcoded false. Independent review caught that a hardcoded
+            // false here can permanently desync from the adjust-during-render
+            // resync above: if a background refetch already landed
+            // viewerHasFlagged=true (e.g. this is genuinely the "already
+            // flagged" panic) BEFORE this catch runs, `syncedViewerFlag` has
+            // already latched to true, so hardcoding false here would leave
+            // `flagged` stuck at false — the resync guard only fires on a
+            // PROP change, and the prop isn't changing again on its own.
+            // Reverting to the live server value keeps flagged/synced/prop
+            // all agreeing, so a genuine failure (really not flagged) still
+            // re-enables the button, and an "already flagged" failure
+            // correctly leaves it showing Flagged instead of re-offering a
+            // retry that will only panic again.
+            setFlagged(postRef.current.viewerHasFlagged)
             setFlagBump(0)
             const line = flagErrorMessage(e instanceof Error ? e.message : String(e))
             if (line) setFlagError(line)

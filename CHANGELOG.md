@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Feed — the flag button now remembers you already flagged a post (2026-07-23)
+<!-- categories: memba -->
+- **Fixed the flag button forgetting you'd already flagged a post the moment you reloaded the page or switched wallets.** It used to track "did I flag this" only in the browser tab you were looking at, so a refresh or a revisit later showed every post as un-flagged again — you'd only find out you'd already flagged it if you tapped the button again and the network rejected it. Memba now remembers your flag durably on the server and shows the correct state from the moment a post loads, including if you switch to a different wallet mid-session.
+
 ### Trading — fixed the OTC desk misreading how many tokens most tokens actually have (2026-07-23)
 <!-- categories: memba -->
 - **Fixed the OTC desk treating every token's quantity field as if it had no fractional units, regardless of how the token was actually set up.** Most tokens on Memba are created with decimal precision (so "1" really means one whole token, not one ten-millionth of one) — but the OTC listing and buying screens weren't reading that setting, so a listing for "10 tokens" could actually escrow a fraction of a single token instead, and the numbers shown for existing listings (both on the OTC desk and in "My Listings") were off by the same factor. Memba now looks up each token's real precision before you list or buy, converts your input correctly, and shows you the exact price that will be charged (which can round up very slightly for tokens with a lot of decimal places, and we now say so on screen) rather than a number that doesn't match what actually gets sent on-chain.
