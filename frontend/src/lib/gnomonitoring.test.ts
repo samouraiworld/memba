@@ -411,6 +411,16 @@ describe("gnomonitoring rejection observability", () => {
         expect(sentryMocks.captureMessage).not.toHaveBeenCalled()
     })
 
+    it("does NOT warn on a 429 — rate-limiting is transient even though it's a 4xx", async () => {
+        const mod = await import("./gnomonitoring")
+        vi.mocked(fetch).mockResolvedValueOnce({ ok: false, status: 429 } as Response)
+
+        const result = await mod.fetchMonitoringParticipation()
+
+        expect(result).toBeNull()
+        expect(sentryMocks.captureMessage).not.toHaveBeenCalled()
+    })
+
     it("does NOT warn on a network error/timeout — the case this path exists to swallow", async () => {
         const mod = await import("./gnomonitoring")
         vi.mocked(fetch).mockRejectedValueOnce(new TypeError("Failed to fetch"))

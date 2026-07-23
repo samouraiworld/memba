@@ -143,9 +143,17 @@ const FETCH_TIMEOUT_MS = 8_000
 // in #989) because every gnomonitoring failure — 4xx, 5xx, timeout — looked
 // identical from the outside (graceful degradation to blank names). 5xx and
 // network errors stay silent on purpose: those ARE the transient cases this
-// path exists to swallow. Warned once per (chain, endpoint, status) per page
-// load so a single broken key doesn't spam 7 near-identical signals forever.
+// path exists to swallow. 429 is excluded too — rate-limiting is transient
+// like a 5xx, not a standing misconfiguration, even though it's a 4xx.
+// Warned once per (chain, endpoint, status) per tab session so a single
+// broken key doesn't spam 7 near-identical signals on every cache refresh.
 const warnedRejections = new Set<string>()
+
+/** 4xx statuses that indicate a standing misconfiguration (won't self-heal),
+ *  as opposed to a transient condition that happens to also be a 4xx. */
+function isMisconfigStatus(status: number): boolean {
+    return status >= 400 && status < 500 && status !== 429
+}
 
 function warnOnRejection(path: string, status: number): void {
     const key = `${GNO_MONITORING_CHAIN}:${path}:${status}`
@@ -183,7 +191,7 @@ async function monitoringFetch<T>(
             headers: { Accept: "application/json" },
         })
         if (!res.ok) {
-            if (res.status >= 400 && res.status < 500) warnOnRejection(path, res.status)
+            if (isMisconfigStatus(res.status)) warnOnRejection(path, res.status)
             return null
         }
         return await res.json() as T
