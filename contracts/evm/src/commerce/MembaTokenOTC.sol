@@ -9,6 +9,7 @@ import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/I
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
+import { MembaFees } from "../lib/MembaFees.sol";
 
 /**
  * @title MembaTokenOTC
@@ -181,7 +182,7 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
         }
 
         // Calculate fee
-        uint256 fee = (totalCost * $.platformFeeBps) / 10_000;
+        uint256 fee = MembaFees.feeOf(totalCost, $.platformFeeBps);
         uint256 sellerProceeds = totalCost - fee;
 
         // Transfer tokens to buyer

@@ -5,10 +5,7 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
-
-interface IMembaDAOMember {
-    function isMember(address addr) external view returns (bool);
-}
+import { IMembaDAO } from "../interfaces/IMembaDAO.sol";
 
 /**
  * @title MembaChannels
@@ -86,7 +83,7 @@ contract MembaChannels is UUPSUpgradeable, PausableUpgradeable, MembaUpgradeAuth
 
     modifier onlyMember() {
         ChannelsStorage storage $ = _getStorage();
-        if (!IMembaDAOMember($.daoContract).isMember(msg.sender)) revert NotMember();
+        if (!IMembaDAO($.daoContract).isMember(msg.sender)) revert NotMember();
         _;
     }
 

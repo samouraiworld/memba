@@ -5,6 +5,7 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
+import { MembaFees } from "../lib/MembaFees.sol";
 
 /**
  * @title MembaEscrow
@@ -293,7 +294,7 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         if (ms.status != MilestoneStatus.Completed) revert MilestoneNotCompleted();
 
         uint256 amount = ms.amount;
-        uint256 fee = (amount * $.platformFeeBps) / 10_000;
+        uint256 fee = MembaFees.feeOf(amount, $.platformFeeBps);
         uint256 netAmount = amount - fee;
 
         // CEI: state update BEFORE transfers
@@ -387,7 +388,7 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
                 Milestone storage ms = $.milestones[contractId][i];
                 if (ms.status == MilestoneStatus.Funded || ms.status == MilestoneStatus.Completed) {
                     uint256 amount = ms.amount;
-                    uint256 fee = (amount * $.platformFeeBps) / 10_000;
+                    uint256 fee = MembaFees.feeOf(amount, $.platformFeeBps);
                     uint256 netAmount = amount - fee;
 
                     ms.status = MilestoneStatus.Released;
@@ -409,7 +410,7 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
                     // which — paired with the seller-side path — made the escrow's
                     // entire fee model optional.
                     uint256 amount = ms.amount;
-                    uint256 fee = (amount * $.cancellationFeeBps) / 10_000;
+                    uint256 fee = MembaFees.feeOf(amount, $.cancellationFeeBps);
                     uint256 refundAmount = amount - fee;
 
                     ms.status = MilestoneStatus.Refunded;
@@ -467,7 +468,7 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
             if (ms.status == MilestoneStatus.Funded || (ms.status == MilestoneStatus.Completed && !cancelledByBuyer)) {
                 // Refund to buyer, minus the cancellation fee.
                 uint256 amount = ms.amount;
-                uint256 fee = (amount * $.cancellationFeeBps) / 10_000;
+                uint256 fee = MembaFees.feeOf(amount, $.cancellationFeeBps);
                 uint256 refundAmount = amount - fee;
 
                 ms.status = MilestoneStatus.Refunded;
@@ -482,7 +483,7 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
                 // fee. The fee was previously skipped on this path, which let a buyer
                 // and seller settle fee-free by cancelling instead of releasing.
                 uint256 amount = ms.amount;
-                uint256 fee = (amount * $.platformFeeBps) / 10_000;
+                uint256 fee = MembaFees.feeOf(amount, $.platformFeeBps);
                 uint256 netAmount = amount - fee;
 
                 ms.status = MilestoneStatus.Released;

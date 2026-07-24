@@ -5,11 +5,7 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
-
-interface IMembaDAO {
-    function isMember(address addr) external view returns (bool);
-    function addMember(address member, uint256 power, string[] calldata roles) external;
-}
+import { IMembaDAO } from "../interfaces/IMembaDAO.sol";
 
 /**
  * @title MembaCandidature

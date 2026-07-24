@@ -12,7 +12,7 @@
 > Severity/detail for security items: [SECURITY_FINDINGS.md](SECURITY_FINDINGS.md).
 > Status of individual defects: [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
-**Last swept:** 2026-07-24 (branch `feat/evm/remediation`, after A-2..A-8 + A-10)
+**Last swept:** 2026-07-24 (branch `feat/evm/remediation`, after A-2..A-8, A-10, A-9 part 1, C-6, C-7)
 
 ---
 
@@ -52,8 +52,8 @@
 | ~~C-2~~ | ~~`src/lib/MembaFees.sol`~~ | ✅ **deleted** 2026-07-24. Note the fee math it was meant to hold is still hand-rolled inline in five contracts — consolidating that is a separate, real task (now **C-6**). |
 | ~~C-3~~ | ~~`src/interfaces/IMembaDAO.sol`~~ | ✅ **deleted** 2026-07-24 — zero importers. `MembaCandidature` and `MembaChannels` still each declare their own local duplicate; consolidating those two is **C-7**. |
 | **C-4** | `src/core/MembaDAOFactory.sol` | `TODO: Implement per CONTRACT_SPECS`. Also the only non-upgradeable contract in the set, and `Deploy.s.sol` never calls `transferOwnership(safe)` — the deployer EOA keeps `setImplementation` forever. |
-| **C-6** | four contracts (was five) | Fee math (`amount * bps / 10_000`) is hand-rolled inline in Escrow, OTC, TokenFactory, Collections and AppStore, each with its own copy. §17.2 mandated formal verification of "the fee distribution logic" — which pointed at a file nothing imported. Consolidate into one tested helper. `MembaCollections._settle` is the first instance and the shape to copy. |
-| **C-7** | `MembaCandidature`, `MembaChannels` | Each declares its own local `IMembaDAO`/`IMembaDAOMember` duplicate. Two declarations of one interface will drift. |
+| ~~C-6~~ | ~~bps fee math hand-rolled inline~~ | ✅ **done** 2026-07-24 — `src/lib/MembaFees.sol` (`feeOf(amount, bps)`) now holds the formula; the 6 inline `amount * bps / 10_000` sites (Escrow ×5, OTC ×1) call it, byte-identical. `test/MembaFees.t.sol` incl. a fuzz test proving equivalence to the inline expression; all Escrow/OTC tests unchanged. Note: TokenFactory/AppStore/Collections use **flat** fees (no bps), and MembaDAO's `10_000` are voting ratios — correctly out of scope. ⬜ The 3 `_settle` refund helpers were **not** merged: each reverts a contract-specific error (`FeeTransferFailed` vs `TransferFailed`), so a shared helper would change revert selectors — deferred as A-10b if ever wanted. |
+| ~~C-7~~ | ~~`IMembaDAO`/`IMembaDAOMember` duplicated~~ | ✅ **done** 2026-07-24 — `src/interfaces/IMembaDAO.sol` is the single declaration; `MembaCandidature` and `MembaChannels` both import it (Channels used only `isMember`, the superset is harmless). No ABI change. |
 | **C-5** | `frontend/src/lib/chain/gno/GnoProvider.ts` (×6) | Unimplemented provider methods returning empty/null: `getTokenInfo`, `getTokenBalance`, `createToken`, `mintTokens`, escrow reads, native balance. Half the interface silently returns "no data" rather than "unsupported". |
 
 ## D. Test backlog (from the test-quality audit)
