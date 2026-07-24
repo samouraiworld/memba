@@ -102,14 +102,19 @@
 
 ## Phase 3: Frontend Integration (Weeks 8-14)
 
-- [ ] **S052-058**: Migrate all pages to `useChain()`
+- [x] **S052-055**: ABI generation + EvmProvider implementation
+  - [x] 15 contract ABIs extracted from Foundry artifacts → TypeScript `as const`
+  - [x] EvmProvider fully implemented with viem (reads + writes)
+  - [x] Contract addresses config (placeholder for deployment)
+  - [x] Error mapping (Solidity revert → ChainErrorCode)
+  - [x] viem installed as dependency
+- [ ] **S056-058**: Migrate all pages to `useChain()`
 - [ ] **S059**: Address display components
 - [ ] **S060-062**: Transaction flow adaptation
 - [ ] **S063**: Network selector
 - [ ] **S064**: Gas UI removal (EVM path)
 - [ ] **S065-066**: Notification system (events)
 - [ ] **S067**: Explorer links (Blockscout)
-- [ ] **S068**: Error mapping (EVM errors)
 - [ ] **S069-072**: Unit test adaptation
 
 ## Phase 4: Backend Integration (Weeks 10-14)

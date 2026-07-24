@@ -40,6 +40,7 @@
     "recharts": "^2.15.4",
     "remotion": "^4.0.490",
     "three": "0.185.1",
+    "viem": "^2.55.8",
     "zod": "^4.4.3"
   },
   "devDependencies": {
