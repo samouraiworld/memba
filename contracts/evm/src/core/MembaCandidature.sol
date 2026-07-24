@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
 
 interface IMembaDAO {
     function isMember(address addr) external view returns (bool);
@@ -17,7 +18,7 @@ interface IMembaDAO {
  *         Port of the Gno `memba_dao_candidature_v3` realm.
  * @dev UUPS-upgradeable. Deposit escalation: re-applications require 10x deposit.
  */
-contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
+contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable, MembaUpgradeAuthority {
     // ── Enums
     // ─────────────────────────────────────────────────────
     enum ApplicationStatus {
@@ -108,6 +109,7 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         CandidatureStorage storage $ = _getStorage();
         $.daoContract = _dao;
         $.admin = _admin;
+        __MembaUpgradeAuthority_init(_admin);
         $.minDeposit = _minDeposit;
         $.depositMultiplier = 10; // 10x per re-application
     }
@@ -278,7 +280,7 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
     // ── Internal
     // ──────────────────────────────────────────────────
 
-    function _authorizeUpgrade(address) internal override onlyAdmin { }
+    function _authorizeUpgrade(address) internal override onlyUpgrader { }
 
     /**
      * @dev Calculate required deposit: minDeposit * multiplier^(applyCount).

@@ -16,12 +16,13 @@ import { MembaRegistry } from "../src/core/MembaRegistry.sol";
 contract MembaQuestsTest is Test {
     MembaQuests public quests;
     address public verifier = makeAddr("verifier");
+    address public upgraderAddr = makeAddr("upgrader");
     address public alice = makeAddr("alice");
     address public outsider = makeAddr("outsider");
 
     function setUp() public {
         MembaQuests impl = new MembaQuests();
-        bytes memory initData = abi.encodeCall(MembaQuests.initialize, (verifier));
+        bytes memory initData = abi.encodeCall(MembaQuests.initialize, (verifier, upgraderAddr));
         address proxy = address(new ERC1967Proxy(address(impl), initData));
         quests = MembaQuests(proxy);
     }

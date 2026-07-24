@@ -399,6 +399,15 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
     // ── Internal
     // ──────────────────────────────────────────────────
 
+    /// @dev MembaDAO deliberately does NOT use MembaUpgradeAuthority.
+    ///
+    ///      Every other contract needed it because their upgrade rights were pinned to
+    ///      a single immutable address — on Badges and Quests, the backend hot key.
+    ///      MembaDAO already uses AccessControlUpgradeable, so DEFAULT_ADMIN_ROLE is
+    ///      grantable and revocable: the Safe can hand it to a TimelockController with
+    ///      grantRole/revokeRole, which is the same outcome by an existing mechanism.
+    ///      Adding a second, parallel authority here would give the contract two ways
+    ///      to be upgraded, which is strictly worse than one.
     function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) { }
 
     function _totalVotingPower() internal view returns (uint256 total) {

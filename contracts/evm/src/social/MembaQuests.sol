@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
 
 /**
  * @title MembaQuests
@@ -10,7 +11,7 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
  *         Backend verifier confirms criteria → records attestation on-chain.
  *         Port of the Gno `quest_attestation_v1` realm.
  */
-contract MembaQuests is UUPSUpgradeable {
+contract MembaQuests is UUPSUpgradeable, MembaUpgradeAuthority {
     struct Attestation {
         address user;
         string questId;
@@ -54,10 +55,15 @@ contract MembaQuests is UUPSUpgradeable {
         _disableInitializers();
     }
 
-    function initialize(address _verifier) external initializer {
+    /// @param _verifier Operational key (server-side). Must NOT be the upgrade authority.
+    /// @param _upgrader Address permitted to replace the implementation — the Safe,
+    ///        or a TimelockController in front of it. Separated because this used to
+    ///        be the same key, so a backend compromise meant contract takeover.
+    function initialize(address _verifier, address _upgrader) external initializer {
         if (_verifier == address(0)) revert InvalidParams();
         __UUPSUpgradeable_init();
         _getStorage().verifier = _verifier;
+        __MembaUpgradeAuthority_init(_upgrader);
     }
 
     function attest(address user, string calldata questId, uint256 xpValue, bytes32 proofHash)
@@ -107,5 +113,5 @@ contract MembaQuests is UUPSUpgradeable {
         return "1.0.0";
     }
 
-    function _authorizeUpgrade(address) internal override onlyVerifier { }
+    function _authorizeUpgrade(address) internal override onlyUpgrader { }
 }

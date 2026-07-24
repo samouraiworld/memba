@@ -6,6 +6,7 @@ import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/P
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import { MembaToken } from "./MembaToken.sol";
+import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
 
 /**
  * @title MembaTokenFactory
@@ -14,7 +15,7 @@ import { MembaToken } from "./MembaToken.sol";
  *         Port of the Gno `tokenfactory_v2` realm.
  * @dev UUPS-upgradeable. Fee recipient is the Samouraï Coop Safe multisig.
  */
-contract MembaTokenFactory is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
+contract MembaTokenFactory is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable, MembaUpgradeAuthority {
     // ── Constants
     // ─────────────────────────────────────────────────
     uint256 public constant MAX_SYMBOL_LENGTH = 10;
@@ -94,6 +95,7 @@ contract MembaTokenFactory is UUPSUpgradeable, PausableUpgradeable, ReentrancyGu
 
         TokenFactoryStorage storage $ = _getStorage();
         $.admin = _admin;
+        __MembaUpgradeAuthority_init(_admin);
         $.feeRecipient = _feeRecipient;
         $.creationFee = _creationFee;
     }
@@ -216,5 +218,5 @@ contract MembaTokenFactory is UUPSUpgradeable, PausableUpgradeable, ReentrancyGu
     // ── Internal
     // ──────────────────────────────────────────────────
 
-    function _authorizeUpgrade(address) internal override onlyAdmin { }
+    function _authorizeUpgrade(address) internal override onlyUpgrader { }
 }

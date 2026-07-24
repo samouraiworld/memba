@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
 
 /**
  * @title MembaEscrow
@@ -13,7 +14,7 @@ import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/
  * @dev UUPS-upgradeable. ReentrancyGuard on ALL fund-moving functions.
  *      CEI pattern strictly enforced. Highest-risk contract — holds real user funds.
  */
-contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
+contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable, MembaUpgradeAuthority {
     // ── Constants
     // ─────────────────────────────────────────────────
     uint256 public constant MAX_MILESTONES = 20;
@@ -179,6 +180,7 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
 
         EscrowStorage storage $ = _getStorage();
         $.admin = _admin;
+        __MembaUpgradeAuthority_init(_admin);
         $.feeRecipient = _feeRecipient;
         $.platformFeeBps = _platformFeeBps;
         $.cancellationFeeBps = _cancellationFeeBps;
@@ -601,7 +603,7 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
     // ── Internal
     // ──────────────────────────────────────────────────
 
-    function _authorizeUpgrade(address) internal override onlyAdmin { }
+    function _authorizeUpgrade(address) internal override onlyUpgrader { }
 
     function _checkAllReleased(EscrowStorage storage $, uint256 contractId, ServiceContract storage sc) internal {
         for (uint256 i = 0; i < sc.milestoneCount; i++) {

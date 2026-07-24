@@ -9,13 +9,14 @@ import { MembaBadges } from "../src/social/MembaBadges.sol";
 contract MembaBadgesTest is Test {
     MembaBadges public badges;
     address public minterAddr = makeAddr("minter");
+    address public upgraderAddr = makeAddr("upgrader");
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
     address public outsider = makeAddr("outsider");
 
     function setUp() public {
         MembaBadges impl = new MembaBadges();
-        bytes memory initData = abi.encodeCall(MembaBadges.initialize, (minterAddr));
+        bytes memory initData = abi.encodeCall(MembaBadges.initialize, (minterAddr, upgraderAddr));
         address proxy = address(new ERC1967Proxy(address(impl), initData));
         badges = MembaBadges(proxy);
     }

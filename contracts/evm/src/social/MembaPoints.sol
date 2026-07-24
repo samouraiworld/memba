@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
 
 /**
  * @title MembaPoints
@@ -10,7 +11,7 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
  *         Points awarded by authorized awarders. Tier bands configurable.
  *         Port of the Gno `memba_points_v1` realm.
  */
-contract MembaPoints is UUPSUpgradeable {
+contract MembaPoints is UUPSUpgradeable, MembaUpgradeAuthority {
     struct TierBand {
         string name;
         uint256 minPoints;
@@ -61,6 +62,7 @@ contract MembaPoints is UUPSUpgradeable {
         __UUPSUpgradeable_init();
         PointsStorage storage $ = _getStorage();
         $.admin = _admin;
+        __MembaUpgradeAuthority_init(_admin);
         $.awarders[_admin] = true;
 
         // Default tiers
@@ -110,5 +112,5 @@ contract MembaPoints is UUPSUpgradeable {
         return "1.0.0";
     }
 
-    function _authorizeUpgrade(address) internal override onlyAdmin { }
+    function _authorizeUpgrade(address) internal override onlyUpgrader { }
 }

@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
 
 /**
  * @title IERC5192
@@ -20,7 +21,7 @@ interface IERC5192 {
  * @notice Non-transferable achievement tokens (Soulbound per ERC-5192).
  *         Port of the Gno `gnobuilders_badges_v2` realm.
  */
-contract MembaBadges is ERC721Upgradeable, UUPSUpgradeable, IERC5192 {
+contract MembaBadges is ERC721Upgradeable, UUPSUpgradeable, IERC5192, MembaUpgradeAuthority {
     // ── Constants
     // ─────────────────────────────────────────────────
     uint256 public constant MAX_BATCH = 50;
@@ -77,11 +78,16 @@ contract MembaBadges is ERC721Upgradeable, UUPSUpgradeable, IERC5192 {
         _disableInitializers();
     }
 
-    function initialize(address _minter) external initializer {
+    /// @param _minter Operational key (server-side). Must NOT be the upgrade authority.
+    /// @param _upgrader Address permitted to replace the implementation — the Safe,
+    ///        or a TimelockController in front of it. Separated because this used to
+    ///        be the same key, so a backend compromise meant contract takeover.
+    function initialize(address _minter, address _upgrader) external initializer {
         if (_minter == address(0)) revert InvalidParams();
         __ERC721_init("Memba Badges", "BADGE");
         __UUPSUpgradeable_init();
         _getStorage().minter = _minter;
+        __MembaUpgradeAuthority_init(_upgrader);
     }
 
     // ── Minting
@@ -181,7 +187,7 @@ contract MembaBadges is ERC721Upgradeable, UUPSUpgradeable, IERC5192 {
     // ── Internal
     // ──────────────────────────────────────────────────
 
-    function _authorizeUpgrade(address) internal override onlyMinter { }
+    function _authorizeUpgrade(address) internal override onlyUpgrader { }
 
     /// @dev Block transfers of soulbound tokens.
     function _update(address to, uint256 tokenId, address auth) internal override returns (address) {

@@ -2,6 +2,7 @@
 pragma solidity ^0.8.28;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
+import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
 
 /**
  * @title MembaRegistry
@@ -9,7 +10,7 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
  * @notice Global directory of all deployed Memba DAOs and platform configuration.
  *         Cross-DAO discovery, search, and platform-wide fee/treasury settings.
  */
-contract MembaRegistry is UUPSUpgradeable {
+contract MembaRegistry is UUPSUpgradeable, MembaUpgradeAuthority {
     enum DAOCategory {
         Governance,
         Community,
@@ -72,6 +73,7 @@ contract MembaRegistry is UUPSUpgradeable {
         __UUPSUpgradeable_init();
         RegistryStorage storage $ = _getStorage();
         $.admin = _admin;
+        __MembaUpgradeAuthority_init(_admin);
         $.treasury = _treasury;
         $.defaultFeeBps = _defaultFeeBps;
     }
@@ -147,5 +149,5 @@ contract MembaRegistry is UUPSUpgradeable {
         return "1.0.0";
     }
 
-    function _authorizeUpgrade(address) internal override onlyAdmin { }
+    function _authorizeUpgrade(address) internal override onlyUpgrader { }
 }

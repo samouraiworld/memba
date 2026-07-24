@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
 
 /**
  * @title MembaAppStore
@@ -10,7 +11,7 @@ import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/P
  * @notice On-chain dApp registry with lifecycle: submit → review → live/rejected → delist.
  *         Port of the Gno `memba_appstore_v2` realm.
  */
-contract MembaAppStore is UUPSUpgradeable, PausableUpgradeable {
+contract MembaAppStore is UUPSUpgradeable, PausableUpgradeable, MembaUpgradeAuthority {
     enum AppStatus {
         Pending,
         Live,
@@ -81,6 +82,7 @@ contract MembaAppStore is UUPSUpgradeable, PausableUpgradeable {
         __Pausable_init();
         AppStoreStorage storage $ = _getStorage();
         $.admin = _admin;
+        __MembaUpgradeAuthority_init(_admin);
         $.feeRecipient = _feeRecipient;
         $.creationFee = _creationFee;
     }
@@ -180,5 +182,5 @@ contract MembaAppStore is UUPSUpgradeable, PausableUpgradeable {
     function unpause() external onlyAdmin {
         _unpause();
     }
-    function _authorizeUpgrade(address) internal override onlyAdmin { }
+    function _authorizeUpgrade(address) internal override onlyUpgrader { }
 }

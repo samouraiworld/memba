@@ -6,6 +6,7 @@ import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/P
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
 
 /**
  * @title MembaTokenOTC
@@ -14,7 +15,7 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
  *         Port of the Gno `token_otc_v2` realm.
  * @dev UUPS-upgradeable. SafeERC20 for all token transfers. ReentrancyGuard on fill/cancel.
  */
-contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
+contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable, MembaUpgradeAuthority {
     using SafeERC20 for IERC20;
 
     // ── Structs
@@ -89,6 +90,7 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
 
         OTCStorage storage $ = _getStorage();
         $.admin = _admin;
+        __MembaUpgradeAuthority_init(_admin);
         $.feeRecipient = _feeRecipient;
         $.platformFeeBps = _feeBps;
     }
@@ -224,5 +226,5 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
         return "1.0.0";
     }
 
-    function _authorizeUpgrade(address) internal override onlyAdmin { }
+    function _authorizeUpgrade(address) internal override onlyUpgrader { }
 }

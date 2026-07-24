@@ -4,6 +4,7 @@ pragma solidity ^0.8.28;
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
+import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
 
 interface IMembaDAOMember {
     function isMember(address addr) external view returns (bool);
@@ -17,7 +18,7 @@ interface IMembaDAOMember {
  *         Port of the Gno `memba_dao_channels_v2` realm.
  * @dev UUPS-upgradeable. Periodic Merkle roots anchor message batches on-chain.
  */
-contract MembaChannels is UUPSUpgradeable, PausableUpgradeable {
+contract MembaChannels is UUPSUpgradeable, PausableUpgradeable, MembaUpgradeAuthority {
     // ── Constants
     // ─────────────────────────────────────────────────
     uint256 public constant MAX_CHANNELS = 100;
@@ -102,6 +103,7 @@ contract MembaChannels is UUPSUpgradeable, PausableUpgradeable {
         ChannelsStorage storage $ = _getStorage();
         $.daoContract = _daoContract;
         $.admin = _admin;
+        __MembaUpgradeAuthority_init(_admin);
     }
 
     // ── Channel Management
@@ -200,5 +202,5 @@ contract MembaChannels is UUPSUpgradeable, PausableUpgradeable {
         _unpause();
     }
 
-    function _authorizeUpgrade(address) internal override onlyAdmin { }
+    function _authorizeUpgrade(address) internal override onlyUpgrader { }
 }

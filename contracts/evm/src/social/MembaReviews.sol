@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
 
 /**
  * @title MembaReviews
@@ -11,7 +12,7 @@ import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/P
  *         react (like/dislike), comment, and flag for moderation.
  *         Port of the Gno `memba_reviews_v1` realm.
  */
-contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
+contract MembaReviews is UUPSUpgradeable, PausableUpgradeable, MembaUpgradeAuthority {
     // ── Structs
     // ───────────────────────────────────────────────────
     struct Review {
@@ -107,6 +108,7 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
         __UUPSUpgradeable_init();
         __Pausable_init();
         _getStorage().admin = _admin;
+        __MembaUpgradeAuthority_init(_admin);
     }
 
     // ── Reviews
@@ -273,5 +275,5 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
     function unpause() external onlyAdmin {
         _unpause();
     }
-    function _authorizeUpgrade(address) internal override onlyAdmin { }
+    function _authorizeUpgrade(address) internal override onlyUpgrader { }
 }

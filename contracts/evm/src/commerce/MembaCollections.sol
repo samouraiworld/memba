@@ -7,6 +7,7 @@ import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 import { MembaNFT } from "./MembaNFT.sol";
+import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
 
 /**
  * @title MembaCollections
@@ -15,7 +16,7 @@ import { MembaNFT } from "./MembaNFT.sol";
  *         Merkle-proof allowlist minting, creation fee. Port of Gno `memba_collections`.
  * @dev UUPS-upgradeable. Deploys a MembaNFT sub-collection per registered collection.
  */
-contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
+contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable, MembaUpgradeAuthority {
     // ── Constants
     // ─────────────────────────────────────────────────
     uint8 public constant PHASE_DRAFT = 0;
@@ -115,6 +116,7 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
 
         CollectionsStorage storage $ = _getStorage();
         $.admin = _admin;
+        __MembaUpgradeAuthority_init(_admin);
         $.feeRecipient = _feeRecipient;
         $.creationFee = _creationFee;
         $.nftContract = _nftContract;
@@ -278,5 +280,5 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         return "1.0.0";
     }
 
-    function _authorizeUpgrade(address) internal override onlyAdmin { }
+    function _authorizeUpgrade(address) internal override onlyUpgrader { }
 }

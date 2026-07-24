@@ -8,6 +8,7 @@ import {
 import { ERC2981Upgradeable } from "@openzeppelin/contracts-upgradeable/token/common/ERC2981Upgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
 
 /**
  * @title MembaNFT
@@ -16,7 +17,13 @@ import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/P
  *         Port of the Gno `memba_nft_v2` realm.
  * @dev UUPS-upgradeable. Each collection has its own creator who controls minting.
  */
-contract MembaNFT is ERC721URIStorageUpgradeable, ERC2981Upgradeable, UUPSUpgradeable, PausableUpgradeable {
+contract MembaNFT is
+    ERC721URIStorageUpgradeable,
+    ERC2981Upgradeable,
+    UUPSUpgradeable,
+    PausableUpgradeable,
+    MembaUpgradeAuthority
+{
     // ── Constants
     // ─────────────────────────────────────────────────
     uint96 public constant MAX_ROYALTY_BPS = 1000; // 10%
@@ -94,6 +101,7 @@ contract MembaNFT is ERC721URIStorageUpgradeable, ERC2981Upgradeable, UUPSUpgrad
         __UUPSUpgradeable_init();
         __Pausable_init();
         _getStorage().admin = _admin;
+        __MembaUpgradeAuthority_init(_admin);
     }
 
     // ── Collections
@@ -217,7 +225,7 @@ contract MembaNFT is ERC721URIStorageUpgradeable, ERC2981Upgradeable, UUPSUpgrad
     // ── Internal overrides
     // ────────────────────────────────────────
 
-    function _authorizeUpgrade(address) internal override onlyAdmin { }
+    function _authorizeUpgrade(address) internal override onlyUpgrader { }
 
     function supportsInterface(bytes4 interfaceId)
         public

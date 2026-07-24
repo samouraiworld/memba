@@ -82,6 +82,36 @@ contract StorageSlotsTest is Test {
         _assertSlot("src/social/MembaQuests.sol", "memba.storage.MembaQuests");
         _assertSlot("src/social/MembaPoints.sol", "memba.storage.MembaPoints");
         _assertSlot("src/social/MembaAppStore.sol", "memba.storage.MembaAppStore");
+        // Shared base: upgrade authority lives in its own namespace so that adopting
+        // it did not have to disturb any existing contract's storage struct.
+        _assertSlot("src/lib/MembaUpgradeAuthority.sol", "memba.storage.MembaUpgradeAuthority");
+    }
+
+    /// @dev A namespace collision would silently alias two contracts' storage onto the
+    ///      same slot. Cheap to assert, catastrophic to miss.
+    function test_AllNamespacesAreDistinct() public pure {
+        string[15] memory namespaces = [
+            "memba.storage.MembaDAO",
+            "memba.storage.MembaCandidature",
+            "memba.storage.MembaChannels",
+            "memba.storage.MembaRegistry",
+            "memba.storage.MembaEscrow",
+            "memba.storage.MembaTokenFactory",
+            "memba.storage.MembaTokenOTC",
+            "memba.storage.MembaNFT",
+            "memba.storage.MembaCollections",
+            "memba.storage.MembaReviews",
+            "memba.storage.MembaBadges",
+            "memba.storage.MembaQuests",
+            "memba.storage.MembaPoints",
+            "memba.storage.MembaAppStore",
+            "memba.storage.MembaUpgradeAuthority"
+        ];
+        for (uint256 i = 0; i < namespaces.length; i++) {
+            for (uint256 j = i + 1; j < namespaces.length; j++) {
+                assertTrue(_erc7201(namespaces[i]) != _erc7201(namespaces[j]), "two namespaces derive to the same slot");
+            }
+        }
     }
 
     /// @dev Negative control: proves the assertion can actually fail.
