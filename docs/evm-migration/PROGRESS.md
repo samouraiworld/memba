@@ -58,7 +58,9 @@
 
 ## Phase 2: Core Smart Contracts (Weeks 5-10)
 
-- [ ] **S021-025**: MembaDAOFactory + MembaDAO (P0)
+- [x] **S021-025**: MembaDAOFactory + MembaDAO (P0)
+  - [x] Full implementation (membership, proposals, voting, execution, quorum, pausable)
+  - [x] 40/40 tests pass (init, factory, membership, proposals, voting, execution, cancel, config, pause, quorum)
 - [ ] **S026-027**: MembaCandidature (P0)
 - [ ] **S028-029**: MembaTokenFactory (P0)
 - [ ] **S030-032**: MembaEscrow (P0)
