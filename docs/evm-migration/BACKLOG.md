@@ -12,7 +12,7 @@
 > Severity/detail for security items: [SECURITY_FINDINGS.md](SECURITY_FINDINGS.md).
 > Status of individual defects: [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
-**Last swept:** 2026-07-24 (branch `feat/evm/remediation`, after A-2..A-8, A-10, A-9 part 1, C-6, C-7)
+**Last swept:** 2026-07-24 (branch `feat/evm/remediation`, after A-2..A-10 + C-6 + C-7 — all of section A closed)
 
 ---
 
@@ -30,7 +30,7 @@
 | ~~A-7~~ | ~~Backend: unauthenticated remote OOM-kill via attacker-chosen `count`~~ | ✅ **fixed** 2026-07-24 — `boundedMemberCount` rejects negative / int64-overflow / above-cap counts before the `make`; cap is `Config.MaxMembers` (default 1000 = MembaDAO.MAX_MEMBERS). `TestBoundedMemberCount` covers each branch. ⬜ A known-DAO **allowlist** is still worth adding (A-7b) — noted below. | — |
 | ~~A-8~~ | ~~Backend `evmrender` routes bypass middleware; no address validation~~ | ✅ **fixed** 2026-07-24 — `RegisterRoutes(mux, wrap Middleware)` now **requires** a middleware wrapper (impossible to register bare), and `requireAddr` rejects non-hex / cropped-hex path values with 400 before any read. `TestHandler_RejectsInvalidAddresses` covers aliasing + malformed inputs. Wiring into `main.go` with the real rate-limit/auth middleware is left to the founder decision on activating the EVM backend (still imported by nothing). | — |
 | **A-7b** | `evmreader` still accepts any DAO address from the URL path; the count cap bounds the blast radius but an allowlist of known DAO addresses would reject unknown targets outright. | Not started — needs the deployed DAO address set wired into `Config`. | `Config.KnownDAOs` allowlist; `resolveDAO`/handlers 404 an unknown address. |
-| **A-9** | Candidature strands ETH two ways. **(1) re-application overwrites an un-withdrawn deposit** — ✅ **fixed** 2026-07-24: `submitApplication` now reverts `OutstandingDeposit` if a prior application still holds a deposit, forcing withdraw-first; the stranding is gone and the deposit stays reclaimable. **(2) approved applicants can never withdraw** — ⛔ **BLOCKED on a founder decision**: does approval **forfeit** the deposit (membership fee) or **refund** it? | Half done. The remaining half needs the forfeit-vs-refund decision before code — do not guess the tokenomics. | Decision made, then either a forfeit sweep to the treasury or a withdraw-after-approval path, with tests. |
+| ~~A-9~~ | ~~Candidature strands ETH two ways~~ | ✅ **fully fixed** 2026-07-24. **(1)** `submitApplication` reverts `OutstandingDeposit` if a prior application still holds a deposit (withdraw-first). **(2)** Founder decision = **forfeit**: `markApproved` now sweeps the deposit to a `feeRecipient` treasury as a one-time membership fee (deposit zeroed → unwithdrawable, CEI + `nonReentrant`). Added `feeRecipient` to storage/init (mirrors the other fee contracts), `updateFeeRecipient`, a getter, and `DepositForfeited`/`FeeRecipientUpdated` events. `Deploy.s.sol` now passes `treasury`. Neither the DAO (no `receive`) nor the deployer could be the sink — the treasury is. 6 Candidature tests cover forfeit / can't-withdraw / rejecting-treasury / setter. | — |
 | ~~A-10~~ | ~~Overpayment confiscated on `MembaTokenFactory` and `MembaAppStore`~~ | ✅ **fixed** 2026-07-24 — both now use a `_settle(recipient, owed)` helper mirroring `MembaCollections` (pay the fee, refund `msg.value - owed`). `MembaAppStore` had **no reentrancy guard and no test file at all**; added `ReentrancyGuardUpgradeable` + `nonReentrant` on `registerApp`, and a first test suite. 9 tests across `MembaTokenFactory.moneypaths.t.sol` + `MembaAppStore.moneypaths.t.sol` (overpay refund, exact payment, fee-recipient rejection, refund-to-rejecting-caller). All three `_settle` instances (Collections/Factory/AppStore) are candidates to fold into the C-6 helper. | — |
 
 ## B. Open defects — auth / frontend
@@ -66,7 +66,7 @@ Target tiers — a global floor is not enough for funds-at-risk contracts:
 | T2 — authority | DAO, DAOFactory, Channels, Registry, Badges, NFT | ≥90% | ≥80% | 100% non-view |
 | T3 — social | Reviews, AppStore, Points, Quests | ≥85% | ≥70% | ≥90% |
 
-**Current: 81.15% line / 55.56% branch / 73.02% func.** CI floors are 79/52/71.
+**Current: 81.35% line / 56.12% branch / 73.21% func.** CI floors are 79/52/71.
 
 | ID | Item | Status |
 |---|---|---|

@@ -8,6 +8,7 @@ import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.so
 import { MembaDAO } from "../src/core/MembaDAO.sol";
 import { MembaDAOFactory } from "../src/core/MembaDAOFactory.sol";
 import { MembaCandidature } from "../src/core/MembaCandidature.sol";
+import { NoReceive } from "./mocks/Receivers.sol";
 
 /**
  * @title MembaCandidatureTest
@@ -18,6 +19,7 @@ contract MembaCandidatureTest is Test {
     MembaCandidature public candidature;
 
     address public adminAddr = makeAddr("admin");
+    address public feeWallet = makeAddr("feeWallet");
     address public applicant = makeAddr("applicant");
     address public outsider = makeAddr("outsider");
 
@@ -32,7 +34,8 @@ contract MembaCandidatureTest is Test {
 
         // Deploy Candidature behind proxy
         MembaCandidature candImpl = new MembaCandidature();
-        bytes memory initData = abi.encodeCall(MembaCandidature.initialize, (address(dao), adminAddr, MIN_DEPOSIT));
+        bytes memory initData =
+            abi.encodeCall(MembaCandidature.initialize, (address(dao), adminAddr, feeWallet, MIN_DEPOSIT));
         address candProxy = address(new ERC1967Proxy(address(candImpl), initData));
         candidature = MembaCandidature(candProxy);
 
@@ -60,7 +63,8 @@ contract MembaCandidatureTest is Test {
     function _deployUngranted() internal returns (MembaDAO d, MembaCandidature c) {
         MembaDAOFactory factory = new MembaDAOFactory(address(new MembaDAO()));
         d = MembaDAO(factory.createDAO("Ungranted", "desc", adminAddr, bytes32(uint256(2))));
-        bytes memory initData = abi.encodeCall(MembaCandidature.initialize, (address(d), adminAddr, MIN_DEPOSIT));
+        bytes memory initData =
+            abi.encodeCall(MembaCandidature.initialize, (address(d), adminAddr, feeWallet, MIN_DEPOSIT));
         c = MembaCandidature(address(new ERC1967Proxy(address(new MembaCandidature()), initData)));
     }
 
@@ -223,6 +227,64 @@ contract MembaCandidatureTest is Test {
 
         // Verify applicant is now a DAO member
         assertTrue(dao.isMember(applicant));
+    }
+
+    /// @notice A-9 part 2 (founder decision = forfeit): approval turns the deposit into a
+    ///         membership fee, swept to the treasury. The deposit is zeroed so nothing is left
+    ///         stranded, and the contract retains no ETH.
+    function test_A9_ApprovalForfeitsDepositToTreasury() public {
+        vm.prank(applicant);
+        candidature.submitApplication{ value: MIN_DEPOSIT }("Bio", "Skills");
+
+        uint256 treasuryBefore = feeWallet.balance;
+
+        vm.prank(adminAddr);
+        candidature.markApproved(applicant);
+
+        assertEq(feeWallet.balance - treasuryBefore, MIN_DEPOSIT, "treasury did not receive the forfeited deposit");
+        assertEq(candidature.getApplication(applicant).deposit, 0, "deposit not zeroed on forfeit");
+        assertEq(address(candidature).balance, 0, "contract retained ETH after forfeit");
+    }
+
+    /// @notice A forfeited (approved) deposit is gone — the member cannot later withdraw it.
+    function test_A9_ApprovedMemberCannotWithdrawForfeitedDeposit() public {
+        vm.prank(applicant);
+        candidature.submitApplication{ value: MIN_DEPOSIT }("Bio", "Skills");
+        vm.prank(adminAddr);
+        candidature.markApproved(applicant);
+
+        vm.prank(applicant);
+        vm.expectRevert(MembaCandidature.NotWithdrawable.selector);
+        candidature.withdraw();
+    }
+
+    /// @notice If the treasury rejects the forfeited ETH, approval reverts rather than
+    ///         silently swallowing the fee.
+    function test_A9_ForfeitToRejectingTreasuryReverts() public {
+        vm.prank(applicant);
+        candidature.submitApplication{ value: MIN_DEPOSIT }("Bio", "Skills");
+
+        NoReceive badTreasury = new NoReceive();
+        vm.prank(adminAddr);
+        candidature.updateFeeRecipient(address(badTreasury));
+
+        vm.prank(adminAddr);
+        vm.expectRevert(MembaCandidature.TransferFailed.selector);
+        candidature.markApproved(applicant);
+    }
+
+    function test_UpdateFeeRecipient() public {
+        vm.prank(adminAddr);
+        candidature.updateFeeRecipient(outsider);
+        assertEq(candidature.feeRecipient(), outsider);
+
+        vm.prank(outsider);
+        vm.expectRevert(MembaCandidature.NotAdmin.selector);
+        candidature.updateFeeRecipient(adminAddr);
+
+        vm.prank(adminAddr);
+        vm.expectRevert(MembaCandidature.InvalidParams.selector);
+        candidature.updateFeeRecipient(address(0));
     }
 
     function test_MarkRejected_Success() public {

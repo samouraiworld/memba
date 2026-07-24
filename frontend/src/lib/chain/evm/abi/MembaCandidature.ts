@@ -66,6 +66,19 @@ export const MembaCandidatureABI = [
   },
   {
     "type": "function",
+    "name": "feeRecipient",
+    "inputs": [],
+    "outputs": [
+      {
+        "name": "",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "stateMutability": "view"
+  },
+  {
+    "type": "function",
     "name": "getApplicants",
     "inputs": [],
     "outputs": [
@@ -158,6 +171,11 @@ export const MembaCandidatureABI = [
       },
       {
         "name": "_admin",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_feeRecipient",
         "type": "address",
         "internalType": "address"
       },
@@ -308,6 +326,19 @@ export const MembaCandidatureABI = [
   },
   {
     "type": "function",
+    "name": "updateFeeRecipient",
+    "inputs": [
+      {
+        "name": "newRecipient",
+        "type": "address",
+        "internalType": "address"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "updateMinDeposit",
     "inputs": [
       {
@@ -435,6 +466,25 @@ export const MembaCandidatureABI = [
   },
   {
     "type": "event",
+    "name": "DepositForfeited",
+    "inputs": [
+      {
+        "name": "applicant",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "amount",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "DepositWithdrawn",
     "inputs": [
       {
@@ -448,6 +498,25 @@ export const MembaCandidatureABI = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "FeeRecipientUpdated",
+    "inputs": [
+      {
+        "name": "oldRecipient",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
+      },
+      {
+        "name": "newRecipient",
+        "type": "address",
+        "indexed": false,
+        "internalType": "address"
       }
     ],
     "anonymous": false

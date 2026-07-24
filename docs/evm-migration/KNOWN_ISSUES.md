@@ -123,10 +123,10 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
 
 ## 🟡 Medium
 
-- Candidature stranded ETH two ways. **(1)** re-application overwriting an un-withdrawn deposit
-  — ✅ RESOLVED 2026-07-24 (`submitApplication` reverts `OutstandingDeposit`; withdraw-first).
-  **(2)** approved applicants can never withdraw — ⛔ **still open, blocked on a founder decision**:
-  approval must explicitly **forfeit** (fee) or **refund** the deposit before code.
+- ~~Candidature stranded ETH two ways~~ ✅ RESOLVED 2026-07-24. **(1)** re-application no longer
+  overwrites an un-withdrawn deposit (`OutstandingDeposit`, withdraw-first). **(2)** founder
+  decision = **forfeit**: `markApproved` sweeps the deposit to a treasury `feeRecipient` as a
+  membership fee (zeroed → unwithdrawable, CEI + `nonReentrant`). See Resolved below.
 - ~~`MembaTokenOTC.unitPrice` is decimals-unaware~~ ✅ RESOLVED 2026-07-24 — now priced per
   whole token with ceiling conversion through the token's decimals. See Resolved below.
 - ~~`MembaTokenOTC` accepts an unbounded `feeBps`~~ ✅ RESOLVED 2026-07-24 — `MAX_FEE_BPS` cap
@@ -175,6 +175,14 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
   requires `sc.status == Active` and rejects while Disputed; it also accepts Completed
   milestones so a seller cannot void the buyer's remedy by stalling. Covered by
   `test_H02_AutoRefundIsBlockedWhileDisputed`.
+- **A-9 (Candidature deposit stranding — both halves)** — re-application now reverts
+  `OutstandingDeposit` instead of overwriting a live deposit; and, per the founder decision to
+  **forfeit**, `markApproved` sweeps the deposit to a treasury `feeRecipient` as a one-time
+  membership fee (CEI: zeroed before the external calls; `nonReentrant`; reverts if the treasury
+  rejects the ETH). `feeRecipient` was added to storage + `initialize` (mirroring the other fee
+  contracts), with `updateFeeRecipient` + getter + `DepositForfeited`/`FeeRecipientUpdated`
+  events; `Deploy.s.sol` passes `treasury`. 6 new Candidature tests. The DAO has no `receive`
+  and the deployer owns nothing, so the treasury is the only correct sink.
 - **A-10 (overpayment confiscation — TokenFactory + AppStore)** — both forwarded the entire
   `msg.value` to the fee recipient after only checking `>= creationFee`. Now use a `_settle`
   helper (pay the fee, refund the excess) mirroring `MembaCollections`. `MembaAppStore` had no

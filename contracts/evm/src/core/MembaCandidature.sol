@@ -48,6 +48,9 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         mapping(address => Application) applications;
         address[] applicantList;
         mapping(address => uint256) applyCount;
+        // Treasury that receives a deposit forfeited on approval (A-9 part 2). Appended to
+        // the ERC-7201 struct, so the storage layout stays upgrade-safe.
+        address feeRecipient;
     }
 
     // keccak256(abi.encode(uint256(keccak256("memba.storage.MembaCandidature")) - 1)) & ~bytes32(uint256(0xff))
@@ -79,6 +82,8 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
     event ApplicationRejected(address indexed applicant, address indexed rejectedBy);
     event DepositWithdrawn(address indexed applicant, uint256 amount);
     event MinDepositUpdated(uint256 oldMin, uint256 newMin);
+    event DepositForfeited(address indexed applicant, uint256 amount);
+    event FeeRecipientUpdated(address oldRecipient, address newRecipient);
 
     // ── Modifiers
     // ─────────────────────────────────────────────────
@@ -96,8 +101,8 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
 
     // ── Initializer
     // ───────────────────────────────────────────────
-    function initialize(address _dao, address _admin, uint256 _minDeposit) external initializer {
-        if (_dao == address(0) || _admin == address(0)) revert InvalidParams();
+    function initialize(address _dao, address _admin, address _feeRecipient, uint256 _minDeposit) external initializer {
+        if (_dao == address(0) || _admin == address(0) || _feeRecipient == address(0)) revert InvalidParams();
 
         __UUPSUpgradeable_init();
         __Pausable_init();
@@ -107,6 +112,7 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         $.daoContract = _dao;
         $.admin = _admin;
         __MembaUpgradeAuthority_init(_admin);
+        $.feeRecipient = _feeRecipient;
         $.minDeposit = _minDeposit;
         $.depositMultiplier = 10; // 10x per re-application
     }
@@ -162,19 +168,30 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
     /**
      * @notice Approve a pending application. Adds the applicant as a DAO member.
      */
-    function markApproved(address applicant) external onlyAdmin whenNotPaused {
+    function markApproved(address applicant) external onlyAdmin whenNotPaused nonReentrant {
         CandidatureStorage storage $ = _getStorage();
         Application storage app = $.applications[applicant];
         if (app.status != ApplicationStatus.Pending) revert NotPending();
 
-        // CEI: update status BEFORE external call
+        // CEI: settle all state BEFORE external calls. On approval the deposit is forfeited
+        // as a one-time membership fee (A-9 part 2), so zero it here — this also makes it
+        // unwithdrawable — and remember the amount to sweep.
+        uint256 forfeited = app.deposit;
         app.status = ApplicationStatus.Approved;
         app.resolvedAt = block.timestamp;
+        app.deposit = 0;
 
         // Add to DAO
         string[] memory roles = new string[](1);
         roles[0] = "member";
         IMembaDAO($.daoContract).addMember(applicant, 1, roles);
+
+        // Sweep the forfeited deposit to the treasury.
+        if (forfeited > 0) {
+            (bool ok,) = payable($.feeRecipient).call{ value: forfeited }("");
+            if (!ok) revert TransferFailed();
+            emit DepositForfeited(applicant, forfeited);
+        }
 
         emit ApplicationApproved(applicant, msg.sender);
     }
@@ -238,6 +255,13 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         _getStorage().daoContract = newDAO;
     }
 
+    function updateFeeRecipient(address newRecipient) external onlyAdmin {
+        if (newRecipient == address(0)) revert InvalidParams();
+        CandidatureStorage storage $ = _getStorage();
+        emit FeeRecipientUpdated($.feeRecipient, newRecipient);
+        $.feeRecipient = newRecipient;
+    }
+
     function pause() external onlyAdmin {
         _pause();
     }
@@ -267,6 +291,10 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
 
     function daoContract() external view returns (address) {
         return _getStorage().daoContract;
+    }
+
+    function feeRecipient() external view returns (address) {
+        return _getStorage().feeRecipient;
     }
 
     function minDeposit() external view returns (uint256) {

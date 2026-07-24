@@ -71,7 +71,7 @@ contract Deploy is Script {
 
         vm.startBroadcast(deployerPrivateKey);
 
-        address firstDAO = _deployCore(safe);
+        address firstDAO = _deployCore(safe, treasury);
         address nftProxy = _deployCommerce(safe, treasury);
         _deployCollectionsAndOTC(safe, treasury, nftProxy);
         _deploySocial(safe, treasury, verifier, upgrader);
@@ -80,7 +80,7 @@ contract Deploy is Script {
         console.log("=== Deployment Complete (15 contracts) ===");
     }
 
-    function _deployCore(address safe) internal returns (address firstDAO) {
+    function _deployCore(address safe, address treasury) internal returns (address firstDAO) {
         MembaDAO daoImpl = new MembaDAO();
         MembaDAOFactory factory = new MembaDAOFactory(address(daoImpl));
         console.log("[Core] DAOFactory:", address(factory));
@@ -91,7 +91,7 @@ contract Deploy is Script {
         address candProxy = address(
             new ERC1967Proxy(
                 address(new MembaCandidature()),
-                abi.encodeCall(MembaCandidature.initialize, (firstDAO, safe, 0.01 ether))
+                abi.encodeCall(MembaCandidature.initialize, (firstDAO, safe, treasury, 0.01 ether))
             )
         );
         console.log("[Core] Candidature:", candProxy);
