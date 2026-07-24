@@ -75,6 +75,7 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
     error MintNotOpen();
     error MaxSupplyReached();
     error InsufficientPayment();
+    error NotNftCollectionOwner();
     error InvalidAllowlistProof();
     error InvalidParams();
     error RoyaltyTooHigh();
@@ -143,6 +144,17 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         bytes32 collHash = keccak256(bytes(slug));
         if ($.collections[collHash].creator != address(0)) revert CollectionExists();
 
+        // The caller must already own the MembaNFT sub-collection with this slug.
+        //
+        // This binding is what makes it safe for MembaNFT to authorise this contract
+        // to mint into collections it does not own. Without it, anyone could register
+        // slug "X" here and mint into someone else's MembaNFT collection "X". It also
+        // blunts slug front-running: squatting a launchpad slug now requires owning
+        // the sub-collection first.
+        if (MembaNFT($.nftContract).getCollectionInfo(slug).creator != msg.sender) {
+            revert NotNftCollectionOwner();
+        }
+
         $.collections[collHash] = Collection({
             creator: msg.sender,
             slug: slug,
@@ -161,13 +173,28 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         $.collectionHashes.push(collHash);
         $.collectionCount++;
 
-        // Collect creation fee
-        if (msg.value > 0) {
-            (bool ok,) = payable($.feeRecipient).call{ value: msg.value }("");
-            if (!ok) revert TransferFailed();
-        }
+        _settle($.feeRecipient, $.creationFee);
 
         emit CollectionRegistered(collHash, slug, msg.sender);
+    }
+
+    /// @dev Pay `owed` to `recipient` and return the rest of `msg.value` to the caller.
+    ///
+    ///      Both payable entry points previously forwarded the ENTIRE `msg.value` after
+    ///      only checking `msg.value >= owed`, so any overpayment was silently
+    ///      confiscated — 5 ETH sent for a 0.01 ETH fee was simply kept. The same
+    ///      pattern still exists in MembaTokenFactory and MembaAppStore (backlog A-10);
+    ///      MembaTokenOTC already refunds correctly.
+    function _settle(address recipient, uint256 owed) private {
+        if (owed > 0) {
+            (bool ok,) = payable(recipient).call{ value: owed }("");
+            if (!ok) revert TransferFailed();
+        }
+        uint256 excess = msg.value - owed;
+        if (excess > 0) {
+            (bool refunded,) = payable(msg.sender).call{ value: excess }("");
+            if (!refunded) revert TransferFailed();
+        }
     }
 
     // ── Phase Management
@@ -224,15 +251,12 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
 
         coll.mintCount++;
 
-        // Mint via the shared MembaNFT contract
-        // The collection creator must have pre-created the sub-collection on MembaNFT
+        // Mint via the shared MembaNFT contract. This contract is registered there as
+        // the authorised launchpad, and `createCollection` above proved the registrant
+        // owns the sub-collection, so the creator keeps royalty ownership.
         uint256 tokenId = MembaNFT(coll.nftContract).mint(coll.slug, msg.sender, tokenURI);
 
-        // Send mint revenue to collection creator
-        if (msg.value > 0) {
-            (bool ok,) = payable(coll.creator).call{ value: msg.value }("");
-            if (!ok) revert TransferFailed();
-        }
+        _settle(coll.creator, coll.mintPrice);
 
         emit NFTMintedFromLaunchpad(collectionHash, msg.sender, tokenId);
         return tokenId;

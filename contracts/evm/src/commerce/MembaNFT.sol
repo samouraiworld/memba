@@ -50,6 +50,13 @@ contract MembaNFT is
         mapping(bytes32 => CollectionInfo) collections;
         mapping(uint256 => bytes32) tokenCollection;
         bytes32[] collectionHashes;
+        /// @dev Contract authorised to mint into collections it does not own — the
+        ///      MembaCollections launchpad. Without this, the launchpad's mint could
+        ///      never succeed: it calls `mint` as the proxy, and `mint` required the
+        ///      caller to be the collection's creator. Authorising it here (rather
+        ///      than making the proxy the creator of every sub-collection) keeps the
+        ///      human creator as `royaltyRecipient`.
+        address launchpad;
     }
 
     /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaNFT")) - 1)) & ~bytes32(uint256(0xff))
@@ -71,11 +78,13 @@ contract MembaNFT is
     error RoyaltyTooHigh();
     error BatchTooLarge();
     error InvalidParams();
+    error NotCollectionCreatorOrLaunchpad();
 
     // ── Events
     // ────────────────────────────────────────────────────
     event CollectionCreated(bytes32 indexed collectionHash, string collectionID, address indexed creator);
     event NFTMinted(uint256 indexed tokenId, bytes32 indexed collectionHash, address indexed to);
+    event LaunchpadUpdated(address indexed oldLaunchpad, address indexed newLaunchpad);
 
     // ── Modifiers
     // ─────────────────────────────────────────────────
@@ -148,7 +157,12 @@ contract MembaNFT is
         NFTStorage storage $ = _getStorage();
         CollectionInfo storage coll = $.collections[collHash];
         if (coll.creator == address(0)) revert CollectionNotFound();
-        if (coll.creator != msg.sender) revert NotCollectionCreator();
+        // The launchpad mints on a creator's behalf. MembaCollections binds its
+        // registration to the sub-collection's owner, so an authorised launchpad
+        // cannot be used to mint into a collection its registrant does not own.
+        if (coll.creator != msg.sender && msg.sender != $.launchpad) {
+            revert NotCollectionCreatorOrLaunchpad();
+        }
 
         tokenId = $.nextTokenId++;
         $.tokenCollection[tokenId] = collHash;
@@ -176,7 +190,12 @@ contract MembaNFT is
         NFTStorage storage $ = _getStorage();
         CollectionInfo storage coll = $.collections[collHash];
         if (coll.creator == address(0)) revert CollectionNotFound();
-        if (coll.creator != msg.sender) revert NotCollectionCreator();
+        // The launchpad mints on a creator's behalf. MembaCollections binds its
+        // registration to the sub-collection's owner, so an authorised launchpad
+        // cannot be used to mint into a collection its registrant does not own.
+        if (coll.creator != msg.sender && msg.sender != $.launchpad) {
+            revert NotCollectionCreatorOrLaunchpad();
+        }
 
         firstId = $.nextTokenId;
 
@@ -224,6 +243,18 @@ contract MembaNFT is
 
     // ── Internal overrides
     // ────────────────────────────────────────
+
+    /// @notice Authorise a contract to mint into collections it does not own.
+    /// @dev Set to the MembaCollections proxy. address(0) disables it.
+    function setLaunchpad(address newLaunchpad) external onlyAdmin {
+        NFTStorage storage $ = _getStorage();
+        emit LaunchpadUpdated($.launchpad, newLaunchpad);
+        $.launchpad = newLaunchpad;
+    }
+
+    function launchpad() external view returns (address) {
+        return _getStorage().launchpad;
+    }
 
     function _authorizeUpgrade(address) internal override onlyUpgrader { }
 

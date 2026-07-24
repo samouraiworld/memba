@@ -73,7 +73,7 @@ contract MembaNFTTest is Test {
         _createCollection();
 
         vm.prank(outsider);
-        vm.expectRevert(MembaNFT.NotCollectionCreator.selector);
+        vm.expectRevert(MembaNFT.NotCollectionCreatorOrLaunchpad.selector);
         nft.mint("art-1", alice, "ipfs://hack");
     }
 
