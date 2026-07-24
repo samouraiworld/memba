@@ -61,11 +61,12 @@ jobs:
 
       # Ratchet, not a target — these may only ever be raised.
       #
-      # Measured at the time of writing: 74.24% line / 48.00% branch / 66.32% func.
-      # Branch started at 39.91% before the escrow money-path work; the floors below
-      # sit a point under the measurement so ordinary noise does not red the build,
-      # while still locking in the gain. Tiering (T1 funds-at-risk contracts to
-      # >=90% branch) is tracked in the remediation plan; raising these closes it.
+      # Measured 2026-07-24 after the Collections suite: 80.66% line / 53.20% branch
+      # / 72.97% func. Branch started at 39.91% before the escrow money-path work.
+      # Floors sit a point under the measurement so ordinary noise does not red the
+      # build, while still locking in the gain. Tier targets (T1 funds-at-risk
+      # contracts to >=90% branch) are tracked in docs/evm-migration/BACKLOG.md
+      # section D; raising these floors is what closes it.
       - name: Coverage ratchet
         run: |
           set -euo pipefail
@@ -74,9 +75,9 @@ jobs:
           FUNC=$(grep -E '^\| Total' coverage.txt | awk -F'|' '{print $6}' | grep -oE '[0-9]+\.[0-9]+' | head -1)
           echo "line=${LINE}% branch=${BRANCH}% func=${FUNC}%"
           fail=0
-          awk -v v="$LINE"   'BEGIN{exit !(v+0 < 74)}' && { echo "::error::line coverage ${LINE}% < 74% floor"; fail=1; }
-          awk -v v="$BRANCH" 'BEGIN{exit !(v+0 < 47)}' && { echo "::error::branch coverage ${BRANCH}% < 47% floor"; fail=1; }
-          awk -v v="$FUNC"   'BEGIN{exit !(v+0 < 65)}' && { echo "::error::function coverage ${FUNC}% < 65% floor"; fail=1; }
+          awk -v v="$LINE"   'BEGIN{exit !(v+0 < 79)}' && { echo "::error::line coverage ${LINE}% < 79% floor"; fail=1; }
+          awk -v v="$BRANCH" 'BEGIN{exit !(v+0 < 52)}' && { echo "::error::branch coverage ${BRANCH}% < 52% floor"; fail=1; }
+          awk -v v="$FUNC"   'BEGIN{exit !(v+0 < 71)}' && { echo "::error::function coverage ${FUNC}% < 71% floor"; fail=1; }
           exit $fail
 
       # Generated-artifact freshness. The checked-in TypeScript ABIs drifted silently

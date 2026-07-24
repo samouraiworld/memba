@@ -64,7 +64,7 @@ Target tiers — a global floor is not enough for funds-at-risk contracts:
 | T2 — authority | DAO, DAOFactory, Channels, Registry, Badges, NFT | ≥90% | ≥80% | 100% non-view |
 | T3 — social | Reviews, AppStore, Points, Quests | ≥85% | ≥70% | ≥90% |
 
-**Current: 74.98% line / 48.22% branch / 68.14% func.** CI floors are 74/47/65.
+**Current: 80.66% line / 53.20% branch / 72.97% func.** CI floors are 79/52/71.
 
 | ID | Item | Status |
 |---|---|---|
@@ -72,7 +72,7 @@ Target tiers — a global floor is not enough for funds-at-risk contracts:
 | **D-2** | Escrow reentrancy + negative tests | ✅ done (`MembaEscrow.moneypaths.t.sol`) |
 | **D-3** | Escrow invariant suite | ✅ done (`test/invariant/EscrowInvariants.t.sol`) |
 | **D-4** | Upgrade tests | ✅ done for Escrow/Badges/Quests (`UpgradeAuthority.t.sol`); **9 contracts still have none** |
-| **D-5** | `MembaCollections` test suite | ⬜ open — see A-1 |
+| **D-5** | `MembaCollections` test suite | ✅ done — 18 tests, incl. a real 2-leaf merkle tree |
 | **D-6** | OTC 18-decimal + fee-on-transfer suite | ⬜ open — see A-3, A-4 |
 | **D-7** | Replace 13 bare `vm.expectRevert()` with specific selectors | ⬜ open |
 | **D-8** | Delete/rewrite the 4 constant-assertion tests that assert literals against literals | ⬜ open |
@@ -88,7 +88,7 @@ Target tiers — a global floor is not enough for funds-at-risk contracts:
 |---|---|---|---|
 | **E-1** | Slither fails CI on **HIGH only**; MEDIUM/LOW are reported and uploaded but do not block. | First real run had 0 High / 0 Medium / 16 Low / 42 Info. Tightening before the Low queue is triaged would block every PR on pre-existing noise. | The 16 Lows are triaged (6 `calls-loop` already corroborated a real defect). |
 | **E-2** | Invariant runs split: default 32×64, CI 256×500. | CI depth takes ~280s; the default has to be fast enough to run on every local change. | If a defect is found that only the deep profile catches, raise the default. |
-| **E-3** | Coverage floors set a point below measurement (74/47/65 vs 74.98/48.22/68.14). | An exactly-equal floor reds the build on measurement noise. Ratchet still only moves up. | Each time coverage rises materially. |
+| **E-3** | Coverage floors set a point below measurement (79/52/71 vs 80.66/53.20/72.97). | An exactly-equal floor reds the build on measurement noise. Ratchet still only moves up. | Each time coverage rises materially. |
 | **E-4** | `MembaDAO` not converted to `MembaUpgradeAuthority`. | `AccessControl` already makes `DEFAULT_ADMIN_ROLE` grantable/revocable; two parallel upgrade paths are worse than one. Reasoning recorded at the call site. | Never, unless the DAO drops AccessControl. |
 | **E-5** | `TIMELOCK_DELAY` is opt-in in `Deploy.s.sol` (warns loudly when unset) rather than mandatory. | A mandatory delay would make local/testnet iteration painful. §17.2 requires it for **production**. | Mainnet — G4 in the stage gates must verify the timelock is live. |
 | **E-6** | Frontend `@/` imports converted to relative rather than adding a path alias. | The alias never existed in this repo; adding it needs `tsconfig` + `vite.config` + a new vitest config to stay in sync. That is a repo-wide convention change, not an EVM feature. | If the repo adopts `@/` deliberately. |
