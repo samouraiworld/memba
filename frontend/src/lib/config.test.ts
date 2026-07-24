@@ -362,3 +362,29 @@ describe('doContractBroadcast RPC guard', () => {
         await expect(doContractBroadcast([], 'test')).rejects.toThrow('Transaction blocked')
     })
 })
+
+describe('FEED_INDEXED_NETWORK — drift tripwire', () => {
+    it('names a real network', async () => {
+        const { NETWORKS, FEED_INDEXED_NETWORK } = await import('./config')
+        expect(NETWORKS[FEED_INDEXED_NETWORK]).toBeDefined()
+    })
+
+    it('matches DEFAULT_NETWORK, or the feed silently goes read-only for everyone', async () => {
+        const { DEFAULT_NETWORK, FEED_INDEXED_NETWORK } = await import('./config')
+        // isFeedWritable() compares the ACTIVE network to FEED_INDEXED_NETWORK.
+        // DEFAULT_NETWORK comes from VITE_GNO_CHAIN_ID (a Netlify build var);
+        // FEED_INDEXED_NETWORK is a source literal that must track the BACKEND's
+        // FEED_RPC_URL. Moving the frontend default without moving the backend
+        // indexer — precisely what a Topaz cutover does — would disable feed
+        // posting for every user with no build error and no runtime warning.
+        //
+        // If you are INTENTIONALLY cutting over: move the backend's FEED_RPC_URL
+        // in the same window, update FEED_INDEXED_NETWORK here, and reset the
+        // indexer cursor. If you are not, this failure is the bug.
+        expect(
+            FEED_INDEXED_NETWORK,
+            `FEED_INDEXED_NETWORK ("${FEED_INDEXED_NETWORK}") != DEFAULT_NETWORK ("${DEFAULT_NETWORK}") — ` +
+            `feed posting is disabled for every user on the default network. See the comment above this assertion.`,
+        ).toBe(DEFAULT_NETWORK)
+    })
+})

@@ -37,7 +37,7 @@ function shortAddr(a: string): string {
 /** Turn a realm flag panic into an actionable line (or "" to stay silent). */
 function flagErrorMessage(msg: string): string {
     if (/reject|cancel|denied/i.test(msg)) return "" // wallet rejection — not an error
-    if (/already flagged|budget|blocks ago|paused|deleted|hidden/i.test(msg)) {
+    if (/already flagged|budget|blocks ago|paused|deleted|hidden|not indexed/i.test(msg)) {
         return msg.replace(/^.*?panic:\s*/i, "").trim() || "Could not flag this post."
     }
     return "Could not flag this post. Please try again."

@@ -11,7 +11,7 @@
  *
  * @module lib/feed
  */
-import { MEMBA_DAO, FEED_INDEXED_NETWORK, NETWORKS, isFeedWritable } from "./config"
+import { isFeedWritable, FEED_INDEXED_NETWORK_LABEL, MEMBA_DAO } from "./config"
 import { doContractBroadcast, type AminoMsg } from "./grc20"
 
 export const FEED_PKG_PATH = MEMBA_DAO.feedPath
@@ -54,10 +54,6 @@ export function buildRemoveReactionMsg(caller: string, id: bigint, emoji: string
 
 /** The realm's fixed reaction set (must match memba_feed_v1.reactionEmojis). */
 export const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🔥", "🎉", "👀", "🚀"] as const
-
-/** Human-readable label for the one chain whose feed the backend indexes. */
-export const FEED_INDEXED_NETWORK_LABEL =
-    NETWORKS[FEED_INDEXED_NETWORK]?.label ?? FEED_INDEXED_NETWORK
 
 /**
  * Broadcast a single feed MsgCall via Adena. Returns the tx hash.

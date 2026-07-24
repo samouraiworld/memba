@@ -680,6 +680,10 @@ export const SNAPSHOT_NETWORK = "test13"
  */
 export const FEED_INDEXED_NETWORK = "test13"
 
+/** Human-readable label for the indexed network (for user-facing copy). */
+export const FEED_INDEXED_NETWORK_LABEL =
+    NETWORKS[FEED_INDEXED_NETWORK]?.label ?? FEED_INDEXED_NETWORK
+
 /**
  * Whether feed WRITES are safe on the active network — true only when the
  * backend indexes the chain we would be writing to.

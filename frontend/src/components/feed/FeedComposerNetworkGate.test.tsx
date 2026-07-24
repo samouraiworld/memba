@@ -15,16 +15,17 @@ import { render, screen, fireEvent } from "@testing-library/react"
 const writable = vi.fn(() => false)
 const switchNetwork = vi.fn()
 
+// Only isFeedWritable is overridden — FEED_INDEXED_NETWORK and its label come
+// from the real config, so a rename or a value change surfaces here instead of
+// being masked by a hardcoded duplicate.
 vi.mock("../../lib/config", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/config")>()),
     isFeedWritable: () => writable(),
-    FEED_INDEXED_NETWORK: "test13",
 }))
 vi.mock("../../hooks/useNetwork", () => ({ useNetwork: () => ({ switchNetwork }) }))
 vi.mock("../../lib/feed", () => ({
     submitFeedMsg: vi.fn(),
     buildCreatePostMsg: vi.fn(() => ({})),
-    FEED_INDEXED_NETWORK_LABEL: "Testnet 13",
 }))
 
 const { submitFeedMsg } = await import("../../lib/feed")
