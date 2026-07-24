@@ -149,41 +149,101 @@ jobs:
     name: Slither (static analysis)
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    # Uploading SARIF to code scanning needs security-events: write. Declared
+    # explicitly so a later tightening of the repo's default token scope can't
+    # quietly break the upload.
+    permissions:
+      contents: read
+      security-events: write
     steps:
       - uses: actions/checkout@v7
         with:
           submodules: recursive
 
+      # Slither compiles through crytic-compile -> `forge build`, and forge
+      # auto-fetches solc 0.8.28 per foundry.toml. So the ONLY toolchain slither
+      # needs is this stable forge. We deliberately do NOT use crytic/slither-action:
+      # it re-runs `foundryup` internally and pulls an UNPINNED NIGHTLY forge on
+      # every run, whose download is transient-flaky (a corrupt tarball once made
+      # the action exit non-zero, which the old gate misreported as "HIGH findings"
+      # when Slither had actually found 0 High — see G-7 in docs/evm-migration/BACKLOG).
       - uses: foundry-rs/foundry-toolchain@v1
         with:
           version: stable
 
-      # Plan §11.5 Gate 3 has always specified Slither. It had never been run:
-      # slither was not installed and no slither.config.json existed. A self-graded
-      # "AI security audit: 0 critical, 0 high" was recorded in its place.
-      #
-      # Failing on HIGH only to start. This is the first real run, so MEDIUM/LOW
-      # volume is unknown; the full report is uploaded either way and tightening
-      # the fail-on level is a follow-up, not a silent cap.
-      - name: Slither
-        uses: crytic/slither-action@v0.4.0
-        id: slither
-        continue-on-error: true
+      - uses: actions/setup-python@v5
         with:
-          target: contracts/evm
-          slither-config: contracts/evm/slither.config.json
-          fail-on: high
-          sarif: results.sarif
-          slither-args: --checklist --markdown-root ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.sha }}/
+          python-version: '3.11'
 
-      - name: Upload SARIF
-        if: always() && steps.slither.outputs.sarif != ''
+      # Pinned on purpose. A floating slither can add/re-classify detectors and
+      # red a green branch with no code change — the same moving-external-dependency
+      # failure class this whole change removes. Bump deliberately.
+      - name: Install Slither
+        run: pip install slither-analyzer==0.11.5
+
+      # slither.config.json's filter_paths are REPO-ROOT-relative
+      # (contracts/evm/lib/|contracts/evm/test/), so slither MUST run from the repo
+      # root with target contracts/evm or the filter silently no-ops. The
+      # workflow-level `defaults.run.working-directory: contracts/evm` would break
+      # that, so both run-steps below pin working-directory back to the workspace root.
+      #
+      # --fail-none makes the EXIT CODE mean "did the analysis run", never "found
+      # something": findings are read from results.json in the gate. That split is
+      # the point — "couldn't run" and "found a HIGH" become two distinct signals.
+      - name: Run Slither
+        id: slither
+        working-directory: ${{ github.workspace }}
+        # Pass trusted context through env (not inlined into the shell body) so this
+        # run-step contains no `${{ }}` interpolation — the safe convention even for
+        # trusted values like the repo slug and SHA.
+        env:
+          MARKDOWN_ROOT: ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.sha }}/
+        run: |
+          set -uo pipefail
+          slither contracts/evm \
+            --config-file contracts/evm/slither.config.json \
+            --sarif results.sarif \
+            --json results.json \
+            --fail-none \
+            --checklist \
+            --markdown-root "$MARKDOWN_ROOT"
+          code=$?
+          echo "exit_code=${code}" >> "$GITHUB_OUTPUT"
+          echo "Slither process exit code: ${code}"
+          exit 0
+
+      - name: Upload SARIF to code scanning
+        if: always() && hashFiles('results.sarif') != ''
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: ${{ steps.slither.outputs.sarif }}
+          sarif_file: results.sarif
+          category: slither
 
-      - name: Fail on HIGH findings
-        if: steps.slither.outcome == 'failure'
+      - name: "Gate: fail only on real HIGH findings"
+        working-directory: ${{ github.workspace }}
+        env:
+          SLITHER_EXIT: ${{ steps.slither.outputs.exit_code }}
         run: |
-          echo "::error::Slither reported HIGH severity findings — see the SARIF upload and the step log"
-          exit 1
+          set -euo pipefail
+          code="$SLITHER_EXIT"
+
+          # Distinguish "Slither couldn't run" from "Slither found something".
+          if [ ! -f results.json ]; then
+            echo "::error::Slither did not produce results.json (process exit ${code}). This is a TOOL/RUN failure (compilation or environment), NOT a findings failure — read the 'Run Slither' log."
+            exit 1
+          fi
+          if [ "$(jq -r '.success' results.json)" != "true" ]; then
+            echo "::error::Slither did not complete its analysis: $(jq -r '.error // "unknown error"' results.json). TOOL/RUN failure, NOT a findings failure."
+            exit 1
+          fi
+
+          # lib/ and test/ are already excluded by filter_paths.
+          high=$(jq '[.results.detectors[]? | select(.impact == "High")] | length' results.json)
+          echo "Slither completed. HIGH-severity findings: ${high}"
+
+          if [ "${high}" -gt 0 ]; then
+            echo "::error::Slither reported ${high} HIGH-severity finding(s). See the Security tab (code scanning) and the 'Run Slither' checklist."
+            jq -r '.results.detectors[]? | select(.impact == "High") | "  - [\(.check)] \(.description | gsub("\n"; " "))"' results.json || true
+            exit 1
+          fi
+          echo "Slither: analysis completed with 0 HIGH-severity findings."
