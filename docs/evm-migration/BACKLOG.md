@@ -66,7 +66,7 @@ Target tiers — a global floor is not enough for funds-at-risk contracts:
 | T2 — authority | DAO, DAOFactory, Channels, Registry, Badges, NFT | ≥90% | ≥80% | 100% non-view |
 | T3 — social | Reviews, AppStore, Points, Quests | ≥85% | ≥70% | ≥90% |
 
-**Current: 81.09% line / 55.36% branch / 72.92% func.** CI floors are 79/52/71.
+**Current: 81.15% line / 55.56% branch / 73.02% func.** CI floors are 79/52/71.
 
 | ID | Item | Status |
 |---|---|---|
