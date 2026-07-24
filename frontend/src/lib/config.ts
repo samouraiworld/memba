@@ -663,6 +663,40 @@ export const FEEDBACK_REALM_PATH = "gno.land/r/samcrew/memba_feedback_v2"
 export const SNAPSHOT_NETWORK = "test13"
 
 /**
+ * The network key the backend FEED INDEXER is scoped to — i.e. the one chain
+ * whose `memba_feed_v1` events become readable posts.
+ *
+ * The feed realm path is the SAME on every network Memba allowlists it on, but
+ * the backend tails exactly one chain (`FEED_RPC_URL`). So on any other network
+ * the app would read this chain's timeline while writing to that chain's realm:
+ * the tx succeeds, costs gas, is permanent on-chain, and the post is never
+ * visible anywhere. `isFeedWritable()` exists to make that unrepresentable.
+ *
+ * ⚠️ MUST match the chain behind the backend's `FEED_RPC_URL`. If that env moves
+ * (e.g. a Topaz cutover), change this in the SAME release or the feed silently
+ * gates off — or, worse, gates ON for a chain the indexer isn't watching.
+ * The durable fix is per-chain indexing (chain-scoped indexer state), after
+ * which this constant goes away.
+ */
+export const FEED_INDEXED_NETWORK = "test13"
+
+/** Human-readable label for the indexed network (for user-facing copy). */
+export const FEED_INDEXED_NETWORK_LABEL =
+    NETWORKS[FEED_INDEXED_NETWORK]?.label ?? FEED_INDEXED_NETWORK
+
+/**
+ * Whether feed WRITES are safe on the active network — true only when the
+ * backend indexes the chain we would be writing to.
+ *
+ * Reads `ACTIVE_NETWORK_KEY` (module-load config), which is correct because
+ * `useNetwork.switchNetwork` performs a full page load, so this value can never
+ * be stale relative to the selected network.
+ */
+export function isFeedWritable(): boolean {
+    return ACTIVE_NETWORK_KEY === FEED_INDEXED_NETWORK
+}
+
+/**
  * Featured DAO realm path per network key — the DAO surfaced on the home
  * StateBoard for everyone (members + visitors). Null means the panel
  * self-hides on that network.
