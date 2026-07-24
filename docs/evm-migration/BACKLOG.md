@@ -12,7 +12,7 @@
 > Severity/detail for security items: [SECURITY_FINDINGS.md](SECURITY_FINDINGS.md).
 > Status of individual defects: [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
-**Last swept:** 2026-07-24 (branch `feat/evm/remediation`, after A-3/A-4/A-5)
+**Last swept:** 2026-07-24 (branch `feat/evm/remediation`, after A-2 / A-3 / A-4 / A-5)
 
 ---
 
@@ -21,7 +21,7 @@
 | ID | Item | Why still open | Done when |
 |---|---|---|---|
 | ~~A-1~~ | ~~`MembaCollections.mintNFT` can never succeed~~ | ✅ **fixed** 2026-07-24 — `MembaNFT.setLaunchpad` authorises the proxy to mint (creator keeps royalties); `createCollection` binds registration to the sub-collection's owner so that authorisation cannot be abused. 18 tests, from zero. | — |
-| **A-2** | `Deploy.s.sol` never grants `ADMIN_ROLE` to `MembaCandidature`, so `markApproved` reverts 100% post-deploy. | Needs a **follow-up Safe transaction**, not just a script line — the DAO is created with `admin = safe`, so only the Safe can issue the grant. Requires a documented post-deploy ceremony step. | Script asserts the grant, or a documented Safe step exists and a test proves the un-granted deployment fails loudly. |
+| ~~A-2~~ | ~~`Deploy.s.sol` never grants `ADMIN_ROLE` to `MembaCandidature`~~ | ✅ **fixed** 2026-07-24 — documented Safe ceremony step (`docs/evm-migration/DEPLOY_CEREMONY.md` step 1), the deploy script now prints an `ACTION REQUIRED (Safe tx)` line with the DAO + grantee addresses, and two tests pin the behaviour: `test_A2_MarkApprovedRevertsWithoutDAOAdminGrant` (un-granted deploy fails loudly with `AccessControlUnauthorizedAccount`) and `…SucceedsAfterSafeGrant`. **Found a sibling:** the A-1 Collections launchpad also needs a Safe `setLaunchpad` — documented as ceremony step 2 + its own `ACTION REQUIRED` line. | — |
 | ~~A-3~~ | ~~`MembaTokenOTC`: fee-on-transfer/rebasing tokens let one listing's fill drain another seller's escrowed tokens~~ | ✅ **fixed** 2026-07-24 — `list` now records the amount **actually received** (balance-delta), so every listing's `totalAmount` is backed by real balance and the sum of open escrows can never exceed the contract's holdings. Fee-on-transfer / rebasing / returns-false / fully-confiscating mocks added (`test/mocks/Tokens.sol`). ⚠️ A downward rebase remains an inherent shared-pool limitation — noted below. | — |
 | ~~A-4~~ | ~~`MembaTokenOTC.unitPrice` is per **base unit** and decimals-unaware~~ | ✅ **fixed** 2026-07-24 — `unitPrice` is now wei per **whole token**; `fill` converts through the token's decimals (snapshotted at `list`) via `Math.mulDiv(..., Rounding.Ceil)` so rounding never favours the buyer. Missing `decimals()` falls back to per-base-unit. Tested with an 18-decimal factory token. | — |
 | ~~A-5~~ | ~~`MembaTokenOTC` accepts an unbounded `feeBps` at init with no `MAX_FEE_BPS` and no setter~~ | ✅ **fixed** 2026-07-24 — `MAX_FEE_BPS = 2000` checked at init and in a new `setPlatformFee` admin setter (mirrors `MembaEscrow`). | — |

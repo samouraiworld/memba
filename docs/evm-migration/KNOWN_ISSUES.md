@@ -95,11 +95,13 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
 - ~~**ISSUE-006**~~ ✅ RESOLVED · `MembaCollections.mintNFT` can never succeed — the Collections proxy is
   not the creator of the `MembaNFT` sub-collection it mints into, and nothing makes it so.
   The launchpad's only revenue function is inert. Hidden by 0% coverage.
-- **ISSUE-007** · `Deploy.s.sol` never grants `ADMIN_ROLE` to `MembaCandidature`, so
-  `markApproved` reverts 100% post-deploy. The test suite does this grant explicitly
-  (`MembaCandidature.t.sol:40-43`); the script does not. Because the DAO is created with
-  `admin = safe`, **only the Safe can issue it** — this needs a follow-up multisig
-  transaction, not just a script line.
+- ~~**ISSUE-007**~~ ✅ RESOLVED 2026-07-24 · `Deploy.s.sol` never granted `ADMIN_ROLE` to
+  `MembaCandidature`, so `markApproved` reverted 100% post-deploy. The DAO is created with
+  `admin = safe`, so only the Safe can issue it — now a **documented ceremony step**
+  (`DEPLOY_CEREMONY.md` step 1) with an `ACTION REQUIRED` deploy-log line and two regression
+  tests (un-granted fails loudly / granted succeeds). Same audit surfaced a sibling: the A-1
+  Collections launchpad needs a Safe `MembaNFT.setLaunchpad` too (ceremony step 2). See
+  Resolved below.
 - ~~**ISSUE-008**~~ ✅ RESOLVED · `MembaTokenOTC` recorded `totalAmount` before transferring
   and filled from a shared un-partitioned pool, so a fee-on-transfer token let one listing's
   fill drain another seller's escrowed tokens. `list` now records the amount **actually
@@ -168,6 +170,12 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
   requires `sc.status == Active` and rejects while Disputed; it also accepts Completed
   milestones so a seller cannot void the buyer's remedy by stalling. Covered by
   `test_H02_AutoRefundIsBlockedWhileDisputed`.
+- **ISSUE-007 (Candidature ADMIN_ROLE grant) + A-1 launchpad wiring** — both are post-deploy
+  Safe steps the deployer EOA cannot perform, now captured as a runbook
+  (`DEPLOY_CEREMONY.md`): step 1 grants the Candidature proxy `ADMIN_ROLE` on the DAO, step 2
+  calls `MembaNFT.setLaunchpad(Collections)`. `Deploy.s.sol` prints an `ACTION REQUIRED
+  (Safe tx)` line for each with the exact addresses. Regression tests pin the un-granted
+  Candidature deployment failing loudly and the grant fixing it.
 - **ISSUE-008 (OTC cross-listing drain) + OTC decimals + OTC unbounded fee** — `list` records
   the amount **actually received** via a balance-delta measurement, so a fee-on-transfer
   token can no longer let one listing's fill drain another seller's escrow; `unitPrice` is now

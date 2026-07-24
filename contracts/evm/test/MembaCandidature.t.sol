@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import { Test } from "forge-std/Test.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
+import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 
 import { MembaDAO } from "../src/core/MembaDAO.sol";
 import { MembaDAOFactory } from "../src/core/MembaDAOFactory.sol";
@@ -43,6 +44,61 @@ contract MembaCandidatureTest is Test {
         // Fund applicants
         vm.deal(applicant, 100 ether);
         vm.deal(outsider, 100 ether);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // A-2 — post-deploy ADMIN_ROLE grant is a required Safe ceremony step
+    // ══════════════════════════════════════════════════════════════
+    //
+    // `setUp` grants ADMIN_ROLE to the Candidature proxy, mirroring a *correctly
+    // ceremonied* deployment — which is exactly why the original 15 tests never caught
+    // that `Deploy.s.sol` omits the grant. These two tests deploy the way the script
+    // actually does (no grant) and pin the DOA-on-arrival behaviour + its remedy.
+
+    /// @dev Deploys DAO + Candidature exactly as `Deploy.s.sol` does, WITHOUT granting the
+    ///      Candidature proxy ADMIN_ROLE on the DAO. Reproduces the real post-deploy state.
+    function _deployUngranted() internal returns (MembaDAO d, MembaCandidature c) {
+        MembaDAOFactory factory = new MembaDAOFactory(address(new MembaDAO()));
+        d = MembaDAO(factory.createDAO("Ungranted", "desc", adminAddr, bytes32(uint256(2))));
+        bytes memory initData = abi.encodeCall(MembaCandidature.initialize, (address(d), adminAddr, MIN_DEPOSIT));
+        c = MembaCandidature(address(new ERC1967Proxy(address(new MembaCandidature()), initData)));
+    }
+
+    /// @notice Without the Safe granting ADMIN_ROLE to the Candidature proxy, approving any
+    ///         applicant reverts — the whole membership flow is dead on arrival. Proving it
+    ///         fails LOUDLY (a specific AccessControl revert, not a silent no-op) is what makes
+    ///         the ceremony step in docs/evm-migration/DEPLOY_CEREMONY.md non-optional.
+    function test_A2_MarkApprovedRevertsWithoutDAOAdminGrant() public {
+        (MembaDAO d, MembaCandidature c) = _deployUngranted();
+
+        vm.prank(applicant);
+        c.submitApplication{ value: MIN_DEPOSIT }("bio", "skills");
+
+        // Hoist the ADMIN_ROLE read: as a call argument it would consume the prank below.
+        bytes32 adminRole = d.ADMIN_ROLE();
+        vm.expectRevert(
+            abi.encodeWithSelector(IAccessControl.AccessControlUnauthorizedAccount.selector, address(c), adminRole)
+        );
+        vm.prank(adminAddr);
+        c.markApproved(applicant);
+    }
+
+    /// @notice After the Safe performs the documented grant, the same approval succeeds.
+    function test_A2_MarkApprovedSucceedsAfterSafeGrant() public {
+        (MembaDAO d, MembaCandidature c) = _deployUngranted();
+
+        vm.prank(applicant);
+        c.submitApplication{ value: MIN_DEPOSIT }("bio", "skills");
+
+        // The documented ceremony step: the DAO admin (Safe) grants ADMIN_ROLE. Hoist the
+        // role read so it doesn't consume the prank.
+        bytes32 adminRole = d.ADMIN_ROLE();
+        vm.prank(adminAddr);
+        d.grantRole(adminRole, address(c));
+
+        vm.prank(adminAddr);
+        c.markApproved(applicant);
+        assertTrue(d.isMember(applicant), "applicant becomes a DAO member after the grant");
     }
 
     // ══════════════════════════════════════════════════════════════

@@ -95,6 +95,13 @@ contract Deploy is Script {
             )
         );
         console.log("[Core] Candidature:", candProxy);
+        // The Candidature proxy calls DAO.addMember, which is `onlyRole(ADMIN_ROLE)`. The DAO
+        // was created with admin = safe, so ONLY the safe can grant it — the deployer EOA
+        // cannot. Without this grant `markApproved` reverts 100% and the membership flow is
+        // dead on arrival. See docs/evm-migration/DEPLOY_CEREMONY.md (step 1).
+        console.log("ACTION REQUIRED (Safe tx): MembaDAO.grantRole(ADMIN_ROLE, Candidature)");
+        console.log("  on DAO:", firstDAO);
+        console.log("  grantee:", candProxy);
 
         address channelsProxy = address(
             new ERC1967Proxy(address(new MembaChannels()), abi.encodeCall(MembaChannels.initialize, (firstDAO, safe)))
@@ -135,6 +142,13 @@ contract Deploy is Script {
             )
         );
         console.log("[Commerce] Collections:", collectionsProxy);
+        // Collections mints into MembaNFT via the launchpad hook, which is gated on
+        // `msg.sender == $.launchpad`. MembaNFT was initialized with admin = safe and its
+        // launchpad is unset, so the launchpad mint reverts until the safe wires it. The
+        // deployer EOA is not the NFT admin and cannot do this. See DEPLOY_CEREMONY.md (step 2).
+        console.log("ACTION REQUIRED (Safe tx): MembaNFT.setLaunchpad(Collections)");
+        console.log("  on NFT:", nftProxy);
+        console.log("  launchpad:", collectionsProxy);
 
         address otcProxy = address(
             new ERC1967Proxy(
