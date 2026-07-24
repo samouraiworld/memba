@@ -300,6 +300,21 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         return _getStorage().collectionCount;
     }
 
+    /// @notice The MembaNFT this launchpad mints into. Exposed so the critical
+    ///         Collections→NFT deploy wiring (and the required `setLaunchpad` ceremony)
+    ///         is verifiable on-chain by anyone.
+    function nftContract() external view returns (address) {
+        return _getStorage().nftContract;
+    }
+
+    function feeRecipient() external view returns (address) {
+        return _getStorage().feeRecipient;
+    }
+
+    function creationFee() external view returns (uint256) {
+        return _getStorage().creationFee;
+    }
+
     function version() external pure returns (string memory) {
         return "1.0.0";
     }

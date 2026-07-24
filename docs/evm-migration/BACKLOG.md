@@ -78,11 +78,11 @@ Target tiers — a global floor is not enough for funds-at-risk contracts:
 | **D-6** | OTC 18-decimal + fee-on-transfer suite | ✅ done — `test/MembaTokenOTC.moneypaths.t.sol` (13 tests: cross-listing drain, whole-token pricing, ceiling rounding, fee-cap, plus rebasing/returns-false/no-decimals mocks) |
 | **D-7** | Replace 13 bare `vm.expectRevert()` with specific selectors | ⬜ open |
 | **D-8** | Delete/rewrite the 4 constant-assertion tests that assert literals against literals | ⬜ open |
-| **D-9** | Event assertions — **1 `vm.expectEmit` in the whole suite**, against ~45 events. Events are the indexer's only data source. | ⬜ open |
+| **D-9** | Event assertions — was 1 `vm.expectEmit` against ~45 events. | 🟡 partial — the two **indexer-load-bearing** events now have full `expectEmit` assertions (`MembaDAOFactory.DAOCreated` = discovery root, `MembaDAO.MemberAdded` = membership feed) in `test/Deploy.t.sol`. The ~43 money/social events remain a follow-up ratchet, best attached to their existing money-path tests. |
 | **D-10** | Access-control negative matrix (every privileged fn × unauthorised caller classes) | ⬜ open |
 | **D-11** | Cross-contract integration tests (Candidature→DAO, Collections→NFT, Factory→Token→OTC) | ⬜ open |
 | **D-12** | Gas/DoS tests at bounds (MAX_MILESTONES, MAX_MEMBERS, unbounded `roots`/`listDAOs`/`listApps` arrays) | ⬜ open |
-| **D-13** | `Deploy.s.sol` is 0% covered — a `test_DeployScript_WiresEverything` is the cheapest catch for a misconfigured mainnet deploy | ⬜ open |
+| ~~D-13~~ | ~~`Deploy.s.sol` is 0% covered~~ | ✅ **done** 2026-07-24 — extracted a non-broadcasting `deployAll(safe, treasury, verifier, timelockDelay) returns (Deployed)` (env/broadcast stay in `run()`), so a forge test drives the real deploy. `test/Deploy.t.sol` (5 tests) pins: ownership handoff (factory `pendingOwner==safe`, not yet accepted), the **ceremony boundary** deploy deliberately leaves undone (no Candidature `ADMIN_ROLE`, `NFT.launchpad()==0`), upgrade-authority separation (Safe vs a `TimelockController`, `verifier != upgrader`, delay+roles), fee/init params read from storage, and all-16-addresses non-zero/distinct. Added `MembaCollections.nftContract()/feeRecipient()/creationFee()` getters so the Collections→NFT wire is on-chain-verifiable (it was un-observable). |
 
 ## E. Deliberate caps and decisions — recorded, not hidden
 

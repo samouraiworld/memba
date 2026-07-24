@@ -34,6 +34,28 @@ import { TimelockController } from "@openzeppelin/contracts/governance/TimelockC
  *   forge script script/Deploy.s.sol --rpc-url $RPC_URL --broadcast --verify
  */
 contract Deploy is Script {
+    /// @notice Every address `deployAll` produces, so a test (and the deploy log) can verify
+    ///         the wiring instead of trusting a console line. `upgrader` is the Safe, or the
+    ///         `TimelockController` when `TIMELOCK_DELAY` is set.
+    struct Deployed {
+        address daoFactory;
+        address firstDAO;
+        address candidature;
+        address channels;
+        address registry;
+        address tokenFactory;
+        address escrow;
+        address nft;
+        address collections;
+        address otc;
+        address reviews;
+        address badges;
+        address quests;
+        address points;
+        address appStore;
+        address upgrader;
+    }
+
     function run() external {
         uint256 deployerPrivateKey = vm.envUint("DEPLOYER_PRIVATE_KEY");
         address safe = vm.envAddress("SAFE_MULTISIG_ADDRESS");
@@ -43,155 +65,171 @@ contract Deploy is Script {
         // leaving it unset silently made the Safe the minter, so minting just failed.
         // Required explicitly now — no default that is wrong either way.
         address verifier = vm.envAddress("BACKEND_VERIFIER");
-
-        // Upgrade authority. §17.2 makes a 48h timelock on upgrades mandatory, and
-        // nothing implemented one — a single Safe transaction could swap the
-        // implementation of a fund-holding contract instantly, with no user exit
-        // window. Set TIMELOCK_DELAY to deploy a TimelockController (Safe as proposer
-        // and executor) and use it as the authority; otherwise the Safe holds it
-        // directly and the handoff can be done later via transferUpgrader/acceptUpgrader.
+        // Upgrade authority. §17.2 makes a timelock on upgrades mandatory. Set
+        // TIMELOCK_DELAY to deploy a TimelockController and use it as the authority;
+        // otherwise the Safe holds it directly (handoff later via transferUpgrader).
         uint256 timelockDelay = vm.envOr("TIMELOCK_DELAY", uint256(0));
-        address upgrader = safe;
+
+        console.log("=== Memba EVM Deployment ===");
+        console.log("Deployer:", vm.addr(deployerPrivateKey));
+        if (timelockDelay == 0) console.log("WARNING: no TIMELOCK_DELAY set - upgrades are immediate.");
+
+        vm.startBroadcast(deployerPrivateKey);
+        Deployed memory d = deployAll(safe, treasury, verifier, timelockDelay);
+        vm.stopBroadcast();
+
+        console.log("=== Deployment Complete (15 contracts) ===");
+    }
+
+    /// @notice Deploys and wires the full 15-contract stack and returns every address.
+    /// @dev No `vm.startBroadcast` and no env reads, so a forge test can call it directly.
+    ///      Callers under a broadcast (i.e. `run`) still broadcast every CREATE/CALL.
+    function deployAll(address safe, address treasury, address verifier, uint256 timelockDelay)
+        public
+        returns (Deployed memory d)
+    {
+        d.upgrader = safe;
         if (timelockDelay > 0) {
             address[] memory proposers = new address[](1);
             proposers[0] = safe;
             address[] memory executors = new address[](1);
             executors[0] = safe;
             // admin = address(0): no one can bypass the delay by re-granting roles.
-            upgrader = address(new TimelockController(timelockDelay, proposers, executors, address(0)));
-            console.log("[Core] TimelockController:", upgrader);
-            console.log("       delay (seconds):", timelockDelay);
-        } else {
-            console.log("WARNING: no TIMELOCK_DELAY set - upgrades are immediate.");
+            d.upgrader = address(new TimelockController(timelockDelay, proposers, executors, address(0)));
+            console.log("[Core] TimelockController:", d.upgrader);
         }
-        require(verifier != upgrader, "BACKEND_VERIFIER must not be the upgrade authority");
+        require(verifier != d.upgrader, "BACKEND_VERIFIER must not be the upgrade authority");
 
-        console.log("=== Memba EVM Deployment ===");
-        console.log("Deployer:", vm.addr(deployerPrivateKey));
-
-        vm.startBroadcast(deployerPrivateKey);
-
-        address firstDAO = _deployCore(safe, treasury);
-        address nftProxy = _deployCommerce(safe, treasury);
-        _deployCollectionsAndOTC(safe, treasury, nftProxy);
-        _deploySocial(safe, treasury, verifier, upgrader);
-
-        vm.stopBroadcast();
-        console.log("=== Deployment Complete (15 contracts) ===");
+        (d.daoFactory, d.firstDAO, d.candidature, d.channels, d.registry) = _deployCore(safe, treasury);
+        (d.tokenFactory, d.escrow, d.nft) = _deployCommerce(safe, treasury);
+        (d.collections, d.otc) = _deployCollectionsAndOTC(safe, treasury, d.nft);
+        (d.reviews, d.badges, d.quests, d.points, d.appStore) = _deploySocial(safe, treasury, verifier, d.upgrader);
     }
 
-    function _deployCore(address safe, address treasury) internal returns (address firstDAO) {
-        MembaDAO daoImpl = new MembaDAO();
-        MembaDAOFactory factory = new MembaDAOFactory(address(daoImpl));
-        console.log("[Core] DAOFactory:", address(factory));
+    function _deployCore(address safe, address treasury)
+        internal
+        returns (address factory, address firstDAO, address candidature, address channels, address registry)
+    {
+        MembaDAOFactory f = new MembaDAOFactory(address(new MembaDAO()));
+        factory = address(f);
+        console.log("[Core] DAOFactory:", factory);
 
-        firstDAO = factory.createDAO("Samourai Coop", "Official Memba DAO", safe, bytes32(uint256(1)));
+        firstDAO = f.createDAO("Samourai Coop", "Official Memba DAO", safe, bytes32(uint256(1)));
         console.log("[Core] First DAO:", firstDAO);
 
-        address candProxy = address(
+        candidature = address(
             new ERC1967Proxy(
                 address(new MembaCandidature()),
                 abi.encodeCall(MembaCandidature.initialize, (firstDAO, safe, treasury, 0.01 ether))
             )
         );
-        console.log("[Core] Candidature:", candProxy);
+        console.log("[Core] Candidature:", candidature);
         // The Candidature proxy calls DAO.addMember, which is `onlyRole(ADMIN_ROLE)`. The DAO
         // was created with admin = safe, so ONLY the safe can grant it — the deployer EOA
         // cannot. Without this grant `markApproved` reverts 100% and the membership flow is
         // dead on arrival. See docs/evm-migration/DEPLOY_CEREMONY.md (step 1).
         console.log("ACTION REQUIRED (Safe tx): MembaDAO.grantRole(ADMIN_ROLE, Candidature)");
         console.log("  on DAO:", firstDAO);
-        console.log("  grantee:", candProxy);
+        console.log("  grantee:", candidature);
 
-        address channelsProxy = address(
+        channels = address(
             new ERC1967Proxy(address(new MembaChannels()), abi.encodeCall(MembaChannels.initialize, (firstDAO, safe)))
         );
-        console.log("[Core] Channels:", channelsProxy);
+        console.log("[Core] Channels:", channels);
 
-        address registryProxy = address(
+        registry = address(
             new ERC1967Proxy(address(new MembaRegistry()), abi.encodeCall(MembaRegistry.initialize, (safe, safe, 200)))
         );
-        console.log("[Core] Registry:", registryProxy);
+        console.log("[Core] Registry:", registry);
 
         // C-4: nominate the Safe as factory owner. The factory is non-upgradeable and
         // `setImplementation` (which repoints the DAO template used by every FUTURE
         // createDAO) is onlyOwner. It is created owned by the deployer EOA, so hand it off.
         // Ownable2Step → this only sets pendingOwner; the Safe must acceptOwnership() to
         // finish (DEPLOY_CEREMONY.md step 3). Until then the deployer stays owner.
-        factory.transferOwnership(safe);
+        f.transferOwnership(safe);
         console.log("ACTION REQUIRED (Safe tx): MembaDAOFactory.acceptOwnership()");
-        console.log("  on Factory:", address(factory));
+        console.log("  on Factory:", factory);
         console.log("  new owner:", safe);
     }
 
-    function _deployCommerce(address safe, address treasury) internal returns (address nftProxy) {
-        address tokenFactoryProxy = address(
+    function _deployCommerce(address safe, address treasury)
+        internal
+        returns (address tokenFactory, address escrow, address nft)
+    {
+        tokenFactory = address(
             new ERC1967Proxy(
                 address(new MembaTokenFactory()),
                 abi.encodeCall(MembaTokenFactory.initialize, (safe, treasury, 0.001 ether))
             )
         );
-        console.log("[Commerce] TokenFactory:", tokenFactoryProxy);
+        console.log("[Commerce] TokenFactory:", tokenFactory);
 
-        address escrowProxy = address(
+        escrow = address(
             new ERC1967Proxy(
                 address(new MembaEscrow()), abi.encodeCall(MembaEscrow.initialize, (safe, treasury, 200, 500, 30 days))
             )
         );
-        console.log("[Commerce] Escrow:", escrowProxy);
+        console.log("[Commerce] Escrow:", escrow);
 
-        nftProxy = address(new ERC1967Proxy(address(new MembaNFT()), abi.encodeCall(MembaNFT.initialize, (safe))));
-        console.log("[Commerce] NFT:", nftProxy);
+        nft = address(new ERC1967Proxy(address(new MembaNFT()), abi.encodeCall(MembaNFT.initialize, (safe))));
+        console.log("[Commerce] NFT:", nft);
     }
 
-    function _deployCollectionsAndOTC(address safe, address treasury, address nftProxy) internal {
-        address collectionsProxy = address(
+    function _deployCollectionsAndOTC(address safe, address treasury, address nft)
+        internal
+        returns (address collections, address otc)
+    {
+        collections = address(
             new ERC1967Proxy(
                 address(new MembaCollections()),
-                abi.encodeCall(MembaCollections.initialize, (safe, treasury, 0.01 ether, nftProxy))
+                abi.encodeCall(MembaCollections.initialize, (safe, treasury, 0.01 ether, nft))
             )
         );
-        console.log("[Commerce] Collections:", collectionsProxy);
+        console.log("[Commerce] Collections:", collections);
         // Collections mints into MembaNFT via the launchpad hook, which is gated on
         // `msg.sender == $.launchpad`. MembaNFT was initialized with admin = safe and its
         // launchpad is unset, so the launchpad mint reverts until the safe wires it. The
         // deployer EOA is not the NFT admin and cannot do this. See DEPLOY_CEREMONY.md (step 2).
         console.log("ACTION REQUIRED (Safe tx): MembaNFT.setLaunchpad(Collections)");
-        console.log("  on NFT:", nftProxy);
-        console.log("  launchpad:", collectionsProxy);
+        console.log("  on NFT:", nft);
+        console.log("  launchpad:", collections);
 
-        address otcProxy = address(
+        otc = address(
             new ERC1967Proxy(
                 address(new MembaTokenOTC()), abi.encodeCall(MembaTokenOTC.initialize, (safe, treasury, 100))
             )
         );
-        console.log("[Commerce] OTC:", otcProxy);
+        console.log("[Commerce] OTC:", otc);
     }
 
-    function _deploySocial(address safe, address treasury, address verifier, address upgrader) internal {
-        address reviewsProxy =
-            address(new ERC1967Proxy(address(new MembaReviews()), abi.encodeCall(MembaReviews.initialize, (safe))));
-        console.log("[Social] Reviews:", reviewsProxy);
+    function _deploySocial(address safe, address treasury, address verifier, address upgrader)
+        internal
+        returns (address reviews, address badges, address quests, address points, address appStore)
+    {
+        reviews = address(
+            new ERC1967Proxy(address(new MembaReviews()), abi.encodeCall(MembaReviews.initialize, (safe)))
+        );
+        console.log("[Social] Reviews:", reviews);
 
-        address badgesProxy = address(
+        badges = address(
             new ERC1967Proxy(address(new MembaBadges()), abi.encodeCall(MembaBadges.initialize, (verifier, upgrader)))
         );
-        console.log("[Social] Badges:", badgesProxy);
+        console.log("[Social] Badges:", badges);
 
-        address questsProxy = address(
+        quests = address(
             new ERC1967Proxy(address(new MembaQuests()), abi.encodeCall(MembaQuests.initialize, (verifier, upgrader)))
         );
-        console.log("[Social] Quests:", questsProxy);
+        console.log("[Social] Quests:", quests);
 
-        address pointsProxy =
-            address(new ERC1967Proxy(address(new MembaPoints()), abi.encodeCall(MembaPoints.initialize, (safe))));
-        console.log("[Social] Points:", pointsProxy);
+        points = address(new ERC1967Proxy(address(new MembaPoints()), abi.encodeCall(MembaPoints.initialize, (safe))));
+        console.log("[Social] Points:", points);
 
-        address appStoreProxy = address(
+        appStore = address(
             new ERC1967Proxy(
                 address(new MembaAppStore()), abi.encodeCall(MembaAppStore.initialize, (safe, treasury, 0.001 ether))
             )
         );
-        console.log("[Social] AppStore:", appStoreProxy);
+        console.log("[Social] AppStore:", appStore);
     }
 }
