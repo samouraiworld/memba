@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"log/slog"
 	"os"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -43,8 +44,8 @@ func scanFeedPosts(rows *sql.Rows) ([]*membav1.FeedPost, error) {
 	for rows.Next() {
 		var (
 			id, replyTo, blockH, blockTs, editedAt, flagCount, replyCount sql.NullInt64
-			author, body                                                 sql.NullString
-			hidden, deleted                                              sql.NullBool
+			author, body                                                  sql.NullString
+			hidden, deleted                                               sql.NullBool
 		)
 		if err := rows.Scan(&id, &author, &body, &replyTo, &blockH, &blockTs,
 			&editedAt, &flagCount, &hidden, &deleted, &replyCount); err != nil {
@@ -67,6 +68,50 @@ func scanFeedPosts(rows *sql.Rows) ([]*membav1.FeedPost, error) {
 	return posts, rows.Err()
 }
 
+// applyViewerFlags sets ViewerHasFlagged on the posts a given viewer
+// previously flagged, via one batched query against feed_flags (never N+1).
+// No-op — every post stays false — when viewerAddr is empty (anonymous read)
+// or posts is empty; this is what keeps GetFeedTimeline/GetFeedThread public
+// reads with no address leaking any viewer's state by default (feed v2 plan
+// C.1 — replaces the per-mount localStorage state that forgot across reloads).
+func applyViewerFlags(ctx context.Context, db *sql.DB, posts []*membav1.FeedPost, viewerAddr string) error {
+	if viewerAddr == "" || len(posts) == 0 {
+		return nil
+	}
+	args := make([]any, 0, len(posts)+1)
+	args = append(args, viewerAddr)
+	placeholders := make([]string, len(posts))
+	for i, p := range posts {
+		placeholders[i] = "?"
+		args = append(args, p.Id)
+	}
+	q := `SELECT post_id FROM feed_flags WHERE flagger_addr = ? AND post_id IN (` +
+		strings.Join(placeholders, ",") + `)`
+	rows, err := db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = rows.Close() }()
+
+	flagged := make(map[uint64]bool, len(posts))
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+		flagged[u64(id)] = true // post_id is non-negative by construction on-chain (see u64's doc)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, p := range posts {
+		if flagged[p.Id] {
+			p.ViewerHasFlagged = true
+		}
+	}
+	return nil
+}
+
 // feedPostSelect is the shared column list. reply_count is the denormalized
 // count of live (not deleted, not hidden, not blocklisted) replies, maintained
 // by the triggers in migration 022 — was a per-row correlated subquery (W1.4).
@@ -74,6 +119,30 @@ const feedPostSelect = `
 	SELECT p.post_id, p.author, p.body, p.reply_to, p.block_h, p.block_ts,
 	       p.edited_at, p.flag_count, p.hidden, p.deleted, p.reply_count
 	FROM feed_posts p`
+
+// feedPostServedSelect mirrors feedPostSelect but returns the EFFECTIVE hidden
+// flag — hidden=1 AND NOT force-served — so an operator-overridden post (feed v2
+// C.2) presents hidden=false and renders as a normal restored post on every
+// PUBLIC read path (timeline, profile, permalink, OG). The bearer-gated
+// GetFlaggedPosts queue deliberately keeps feedPostSelect (raw hidden) so a
+// moderator still sees the underlying state.
+const feedPostServedSelect = `
+	SELECT p.post_id, p.author, p.body, p.reply_to, p.block_h, p.block_ts,
+	       p.edited_at, p.flag_count,
+	       (p.hidden = 1 AND NOT EXISTS (SELECT 1 FROM feed_serving_overrides o WHERE o.post_id = p.post_id)) AS hidden,
+	       p.deleted, p.reply_count
+	FROM feed_posts p`
+
+// feedServedVisibility is the shared row filter for the PUBLIC read paths: a post
+// is served when it is not a deleted tombstone, not blocklisted, and either not
+// flag-hidden OR force-served by an operator override (feed v2 C.2). Blocklist and
+// deleted are checked here — ABOVE the override — so a serve-override can never
+// re-serve must-not-serve content (precedence: blocklist > deleted > serve-override
+// > hidden > live). The override set is tiny, so it stays a residual filter over the
+// idx_feed_posts_served index walk.
+const feedServedVisibility = `p.deleted = 0
+	AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)
+	AND (p.hidden = 0 OR EXISTS (SELECT 1 FROM feed_serving_overrides o WHERE o.post_id = p.post_id))`
 
 // GetFeedTimeline returns the newest visible TOP-LEVEL posts (reply_to = 0),
 // id-descending, strictly older than cursor (0 = from the newest). Public read
@@ -85,8 +154,8 @@ func (s *MultisigService) GetFeedTimeline(ctx context.Context, req *connect.Requ
 	cursor := req.Msg.Cursor
 
 	// cursor == 0 → newest window; else strictly older than the cursor id.
-	q := feedPostSelect + `
-		WHERE p.reply_to = 0 AND p.hidden = 0 AND p.deleted = 0 AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)`
+	q := feedPostServedSelect + `
+		WHERE p.reply_to = 0 AND ` + feedServedVisibility
 	args := []any{}
 	if cursor != 0 {
 		q += ` AND p.post_id < ?`
@@ -104,6 +173,9 @@ func (s *MultisigService) GetFeedTimeline(ctx context.Context, req *connect.Requ
 	posts, err := scanFeedPosts(rows)
 	if err != nil {
 		return nil, internalError("GetFeedTimeline/scan", err)
+	}
+	if err := applyViewerFlags(ctx, s.db, posts, req.Msg.ViewerAddress); err != nil {
+		return nil, internalError("GetFeedTimeline/viewerFlags", err)
 	}
 
 	return connect.NewResponse(&membav1.GetFeedTimelineResponse{
@@ -123,8 +195,8 @@ func (s *MultisigService) GetUserFeed(ctx context.Context, req *connect.Request[
 	limit := feedLimit(req.Msg.Limit)
 	cursor := req.Msg.Cursor
 
-	q := feedPostSelect + `
-		WHERE p.author = ? AND p.hidden = 0 AND p.deleted = 0 AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)`
+	q := feedPostServedSelect + `
+		WHERE p.author = ? AND ` + feedServedVisibility
 	args := []any{author}
 	if cursor != 0 {
 		q += ` AND p.post_id < ?`
@@ -161,8 +233,10 @@ func (s *MultisigService) GetFeedThread(ctx context.Context, req *connect.Reques
 	limit := feedLimit(req.Msg.Limit)
 	cursor := req.Msg.Cursor
 
-	// Root (any state — a deleted parent still anchors its thread).
-	rootRows, err := s.db.QueryContext(ctx, feedPostSelect+` WHERE p.post_id = ? AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)`, postID)
+	// Root (any state — a deleted parent still anchors its thread; a flag-hidden
+	// root stays a tombstone unless force-served, via feedPostServedSelect's
+	// effective-hidden). Only a blocklist excludes the root entirely.
+	rootRows, err := s.db.QueryContext(ctx, feedPostServedSelect+` WHERE p.post_id = ? AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)`, postID)
 	if err != nil {
 		return nil, internalError("GetFeedThread/root", err)
 	}
@@ -175,9 +249,9 @@ func (s *MultisigService) GetFeedThread(ctx context.Context, req *connect.Reques
 		return nil, connect.NewError(connect.CodeNotFound, nil)
 	}
 
-	// Live replies, oldest first, strictly after the cursor.
-	q := feedPostSelect + `
-		WHERE p.reply_to = ? AND p.hidden = 0 AND p.deleted = 0 AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)`
+	// Live (or force-served) replies, oldest first, strictly after the cursor.
+	q := feedPostServedSelect + `
+		WHERE p.reply_to = ? AND ` + feedServedVisibility
 	args := []any{postID}
 	if cursor != 0 {
 		q += ` AND p.post_id > ?`
@@ -197,6 +271,15 @@ func (s *MultisigService) GetFeedThread(ctx context.Context, req *connect.Reques
 		return nil, internalError("GetFeedThread/replies-scan", err)
 	}
 
+	// One batched viewer-flag lookup across root + replies together (still a
+	// single query, not one per scan call).
+	allPosts := make([]*membav1.FeedPost, 0, len(rootPosts)+len(replies))
+	allPosts = append(allPosts, rootPosts...)
+	allPosts = append(allPosts, replies...)
+	if err := applyViewerFlags(ctx, s.db, allPosts, req.Msg.ViewerAddress); err != nil {
+		return nil, internalError("GetFeedThread/viewerFlags", err)
+	}
+
 	// Ascending order → next cursor is the last (largest) id when the window
 	// filled; 0 signals the end. Compare in int space (limit ≤ 100).
 	var next uint64
@@ -208,6 +291,55 @@ func (s *MultisigService) GetFeedThread(ctx context.Context, req *connect.Reques
 		Root:       rootPosts[0],
 		Replies:    replies,
 		NextCursor: next,
+	}), nil
+}
+
+// GetFlaggedPosts returns the moderation QUEUE — visible-but-flagged and
+// hidden posts (excluding already-deleted or already-blocklisted ones, which
+// are resolved and no longer need review) — newest-first, WITH full bodies (a
+// moderator has to read what was flagged; contrast GetModerationLog, which is
+// deliberately body-free for its public audit-log role).
+//
+// Because it carries body content of potentially-objectionable posts, this is
+// Authorization: Bearer <FEED_MODERATION_BEARER>-gated and FAIL-CLOSED (feed v2
+// plan C.3), the same posture and the same secret as the existing
+// /api/feed/moderation action endpoint: an unset bearer and a
+// missing/mismatched header both reject uniformly, so neither state is
+// distinguishable from the outside.
+func (s *MultisigService) GetFlaggedPosts(ctx context.Context, req *connect.Request[membav1.GetFlaggedPostsRequest]) (*connect.Response[membav1.GetFlaggedPostsResponse], error) {
+	bearer := strings.TrimSpace(os.Getenv("FEED_MODERATION_BEARER"))
+	if bearer == "" || !feedModBearerOKHeader(req.Header(), bearer) {
+		return nil, connect.NewError(connect.CodeUnauthenticated, nil)
+	}
+
+	limit := feedLimit(req.Msg.Limit)
+	cursor := req.Msg.Cursor
+
+	q := feedPostSelect + `
+		WHERE (p.flag_count > 0 OR p.hidden = 1) AND p.deleted = 0
+		AND NOT EXISTS (SELECT 1 FROM feed_blocklist fb WHERE fb.post_id = p.post_id)`
+	args := []any{}
+	if cursor != 0 {
+		q += ` AND p.post_id < ?`
+		args = append(args, cursor)
+	}
+	q += ` ORDER BY p.post_id DESC LIMIT ?`
+	args = append(args, limit)
+
+	rows, err := s.db.QueryContext(ctx, q, args...)
+	if err != nil {
+		return nil, internalError("GetFlaggedPosts", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	posts, err := scanFeedPosts(rows)
+	if err != nil {
+		return nil, internalError("GetFlaggedPosts/scan", err)
+	}
+
+	return connect.NewResponse(&membav1.GetFlaggedPostsResponse{
+		Posts:      posts,
+		NextCursor: nextCursor(posts, limit),
 	}), nil
 }
 

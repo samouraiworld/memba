@@ -17,6 +17,18 @@ vi.mock("../../lib/tokenOtcApi", () => ({
     ),
 }))
 
+// T3.2 (#992) added a decimals lookup per listed symbol before rendering
+// cards — getTokenDecimals hits a real network endpoint if unmocked, which
+// resolves fast enough to pass locally but hangs past CI's test timeout
+// (observed: passes on a dev machine, times out in GitHub Actions on both
+// Node legs). Mock it so this test never depends on real network I/O; keep
+// the rest of the module real (tokenOtcToCard also calls formatTokenAmount
+// from here, a pure function this test should genuinely exercise).
+vi.mock("../../lib/grc20", async (importOriginal) => {
+    const actual = await importOriginal<typeof import("../../lib/grc20")>()
+    return { ...actual, getTokenDecimals: vi.fn(async () => 6) }
+})
+
 import TokenLaneV2 from "./TokenLaneV2"
 
 const wrap = () => {

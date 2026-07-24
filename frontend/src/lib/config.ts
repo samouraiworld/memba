@@ -74,6 +74,28 @@ interface NetworkConfig {
     /** Official tx-indexer GraphQL endpoint for recent on-chain activity. Optional —
      *  when absent (e.g. networks without a public indexer) the activity feed hides. */
     indexerUrl?: string
+    /** The key gnomonitoring knows this network by, when it differs from `chainId`.
+     *
+     *  These are NOT the same namespace: `chainId` is the on-chain genesis id that
+     *  transactions are signed with, while this is a label chosen by whoever
+     *  registered the network with the monitoring service — an admin-editable,
+     *  un-versioned registry on gnomonitoring's own VPS, not something Memba
+     *  controls or can assume is stable.
+     *
+     *  ⚠️ This value is NOT settled fact — it has flipped for topaz twice within
+     *  24h of each other (2026-07-22: gnomonitoring registered `topaz-1` as
+     *  `topaz`, needing an override here; 2026-07-23: it flipped back, so the
+     *  override became wrong and was removed). Before trusting or changing a
+     *  `monitoringChain` value, re-verify live:
+     *    GET https://monitoring.gnolove.world/uptime?chain=<candidate>
+     *  (use `/uptime`, not `/Participation` — the latter 400s with "Missing
+     *  period" unless you also pass `period=current_month`, which reads like
+     *  a chain-id rejection if you're not expecting it.) A 200 with real
+     *  monikers means that value is currently correct; a `"invalid chain ID"`
+     *  body means it isn't. Do not assume this file is in sync with
+     *  gnomonitoring's live registry.
+     *  Optional; defaults to `chainId`. */
+    monitoringChain?: string
     label: string
     userRegistryPath: string
     faucetUrl: string
@@ -127,6 +149,35 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // Official test13 tx-indexer (gno-core, 2026-06-24). Env-overridable.
         indexerUrl: import.meta.env.VITE_TEST13_INDEXER_URL || "https://indexer.test13.testnets.gno.land/graphql/query",
         label: "Testnet 13",
+        userRegistryPath: "gno.land/r/sys/users",
+        faucetUrl: "https://faucet.gno.land",
+    },
+    // ── Topaz (topaz-1) ──────────────────────────────────────────────────
+    // The new official Gno testnet (successor to test13). Memba's core realm
+    // set (memba_dao, candidature_v3, channels_v2, agent_registry_v2, reviews,
+    // quest_attestation, feed, appstore v1/v2) + gnodaokit deployed here via
+    // the 2026-07-21 ceremony (21 artifacts, multisig). Commerce realms
+    // (escrow, NFT, OTC, tokenfactory) are NOT yet deployed — deferred to
+    // the commerce-v2 ceremony.
+    topaz: {
+        chainId: "topaz-1",
+        // No monitoringChain override: gnomonitoring's registry currently
+        // resolves "topaz-1" directly (verified live 2026-07-23). It briefly
+        // needed an override to "topaz" (#988, 2026-07-22) — that flipped back
+        // within 24h. See the monitoringChain doc-comment above before
+        // re-adding one; re-verify live first, don't restore #988's value from
+        // memory.
+        rpcUrl: import.meta.env.VITE_TOPAZ_RPC_URL || "https://rpc.topaz.testnets.gno.land:443",
+        fallbackRpcUrls: [
+            "https://rpc.topaz.samourai.live:443",
+        ],
+        // No full-topology telemetry node identified yet for topaz-1;
+        // Validators view will show partial data. Revisit when gno core
+        // or our infra team stands up a full-topology sentry.
+        telemetryRpcUrls: [],
+        // No tx-indexer endpoint yet — activity feed self-hides (indexerUrl
+        // is optional). Revisit when gno core ships a topaz indexer.
+        label: "Topaz",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "https://faucet.gno.land",
     },
@@ -262,6 +313,19 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // by the deployer fund-safety gate, so the lane targets the guarded realm.
         "gno.land/r/samcrew/memba_token_otc_v2",
     ],
+    // Topaz (topaz-1) — ceremony scope (2026-07-21): 9 Memba realms.
+    // Commerce realms NOT listed — deferred to commerce-v2 ceremony.
+    topaz: [
+        "gno.land/r/samcrew/memba_dao",
+        "gno.land/r/samcrew/memba_dao_candidature_v3",
+        "gno.land/r/samcrew/memba_dao_channels_v2",
+        "gno.land/r/samcrew/agent_registry_v2",
+        "gno.land/r/samcrew/memba_reviews_v1",
+        "gno.land/r/samcrew/memba_quest_attestation_v1",
+        "gno.land/r/samcrew/memba_feed_v1",
+        "gno.land/r/samcrew/memba_appstore_v1",
+        "gno.land/r/samcrew/memba_appstore_v2",
+    ],
 }
 
 /**
@@ -285,6 +349,13 @@ export function isRealmValid(realmPath: string): boolean {
 
 /** Gno chain ID for all RPC calls. */
 export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test-13"
+
+/** The key gnomonitoring knows the active network by — NOT the on-chain chain id.
+ *  Defaults to chainId, which is right wherever the two coincide (test-13,
+ *  gnoland1). Use this for gnomonitoring API calls ONLY; anything that reaches
+ *  the chain or the wallet must keep using GNO_CHAIN_ID. */
+export const GNO_MONITORING_CHAIN =
+    NETWORKS[_activeNetwork]?.monitoringChain || GNO_CHAIN_ID
 
 /**
  * Network-scope a storage key for CHAIN-DERIVED state (W2.2). Anything cached
@@ -463,6 +534,7 @@ export interface GnoSwapPaths {
 /** Per-chain GnoSwap contract paths. Empty strings = not deployed on that chain. */
 export const GNOSWAP_PATHS: Record<string, GnoSwapPaths> = {
     test13: { pool: "", router: "", position: "", gns: "" },
+    topaz: { pool: "", router: "", position: "", gns: "" },
     gnoland1: { pool: "", router: "", position: "", gns: "" },
 }
 
@@ -591,6 +663,40 @@ export const FEEDBACK_REALM_PATH = "gno.land/r/samcrew/memba_feedback_v2"
 export const SNAPSHOT_NETWORK = "test13"
 
 /**
+ * The network key the backend FEED INDEXER is scoped to — i.e. the one chain
+ * whose `memba_feed_v1` events become readable posts.
+ *
+ * The feed realm path is the SAME on every network Memba allowlists it on, but
+ * the backend tails exactly one chain (`FEED_RPC_URL`). So on any other network
+ * the app would read this chain's timeline while writing to that chain's realm:
+ * the tx succeeds, costs gas, is permanent on-chain, and the post is never
+ * visible anywhere. `isFeedWritable()` exists to make that unrepresentable.
+ *
+ * ⚠️ MUST match the chain behind the backend's `FEED_RPC_URL`. If that env moves
+ * (e.g. a Topaz cutover), change this in the SAME release or the feed silently
+ * gates off — or, worse, gates ON for a chain the indexer isn't watching.
+ * The durable fix is per-chain indexing (chain-scoped indexer state), after
+ * which this constant goes away.
+ */
+export const FEED_INDEXED_NETWORK = "test13"
+
+/** Human-readable label for the indexed network (for user-facing copy). */
+export const FEED_INDEXED_NETWORK_LABEL =
+    NETWORKS[FEED_INDEXED_NETWORK]?.label ?? FEED_INDEXED_NETWORK
+
+/**
+ * Whether feed WRITES are safe on the active network — true only when the
+ * backend indexes the chain we would be writing to.
+ *
+ * Reads `ACTIVE_NETWORK_KEY` (module-load config), which is correct because
+ * `useNetwork.switchNetwork` performs a full page load, so this value can never
+ * be stale relative to the selected network.
+ */
+export function isFeedWritable(): boolean {
+    return ACTIVE_NETWORK_KEY === FEED_INDEXED_NETWORK
+}
+
+/**
  * Featured DAO realm path per network key — the DAO surfaced on the home
  * StateBoard for everyone (members + visitors). Null means the panel
  * self-hides on that network.
@@ -600,6 +706,7 @@ export const SNAPSHOT_NETWORK = "test13"
  */
 export const FEATURED_DAO_REALM: Record<string, string | null> = {
     test13: MEMBA_DAO.realmPath, // "gno.land/r/samcrew/memba_dao" — live on test13
+    topaz: MEMBA_DAO.realmPath,  // "gno.land/r/samcrew/memba_dao" — live on topaz-1 (2026-07-21 ceremony)
     gnoland1: null,
 }
 

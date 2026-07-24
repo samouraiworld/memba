@@ -22,10 +22,12 @@ primary_region = 'cdg'
   CORS_ORIGINS = 'https://memba.samourai.app,http://localhost:5173'
   DB_PATH = '/data/memba.db'
   GNO_CHAIN_ID = 'test-13'
-  # Token chain-id allowlist (validation). HARD CUTOVER to test13: test12 dropped.
-  # This 401s any lingering test12 client — intended (test12 is retired). If a
-  # brief overlap is wanted, temporarily set 'test-13,test12' then drop test12.
-  MEMBA_ACCEPTED_CHAIN_IDS = 'test-13'
+  # Token chain-id allowlist (validation). Comma-separated → parseAcceptedChainIDs
+  # (service.go) splits it into a set; ValidateToken 401s any token whose chain
+  # isn't listed. Topaz cutover PHASE A (dual-run): accept BOTH test-13 and
+  # topaz-1 so Topaz logins succeed while it's opt-in via the network selector —
+  # zero regression to test13. Drop 'test-13' only after test13 is retired (Phase C).
+  MEMBA_ACCEPTED_CHAIN_IDS = 'test-13,topaz-1'
   GNO_RPC_URL = 'https://rpc.testnet13.samourai.live:443'
   # NFT indexer RPC — pinned to samourai's own node (default is the public
   # rpc.test13.testnets.gno.land). The fast catch-up after the tailer block-hash

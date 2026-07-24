@@ -72,6 +72,7 @@
     "loader-utils": "2.0.4",
     "@clerk/shared": "^3.47.6",
     "dompurify": "^3.4.2",
-    "postcss": ">=8.5.10"
+    "postcss": ">=8.5.10",
+    "fast-uri": "^3.1.4"
   }
 }

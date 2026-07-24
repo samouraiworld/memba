@@ -227,6 +227,29 @@ func TestFeedRollback_DeletesFeedReactions(t *testing.T) {
 	}
 }
 
+// C.2: a serving override is out-of-band operator state (sibling of
+// feed_blocklist), NOT derived from chain events — a reorg must NEVER delete it,
+// or a routine single-block reorg would silently wipe operator restore decisions.
+func TestFeedRollback_PreservesServingOverrides(t *testing.T) {
+	db := openTestDB(t)
+	mustDispatch(t, db, feedEv("PostCreated", 300, 0, 0, map[string]string{"postId": "1", "author": "g1a", "body": "x"}))
+	mustDispatch(t, db, feedEv("PostFlagged", 305, 0, 0, map[string]string{"postId": "1", "flagger": "g1n", "flagCount": "2"}))
+	if _, err := db.Exec(`INSERT INTO feed_serving_overrides (post_id, reason, added_by) VALUES (1, 'restore', 'ops')`); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := rollbackFeedFromHeight(context.Background(), db, 305); err != nil {
+		t.Fatal(err)
+	}
+	// The flag at 305 is rolled back (proving the reorg ran); the override survives.
+	if n := countRows(t, db, `SELECT COUNT(*) FROM feed_flags WHERE flagger_addr='g1n'`); n != 0 {
+		t.Fatal("the flag at the reorg height should have been rolled back")
+	}
+	if n := countRows(t, db, `SELECT COUNT(*) FROM feed_serving_overrides WHERE post_id=1`); n != 1 {
+		t.Fatal("a serving override (out-of-band operator state) must survive a reorg")
+	}
+}
+
 func TestFeedDispatch_MalformedSkipped(t *testing.T) {
 	db := openTestDB(t)
 	ctx := context.Background()

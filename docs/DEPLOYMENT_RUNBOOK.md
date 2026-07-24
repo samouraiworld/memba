@@ -393,7 +393,10 @@ npm run build              # verify build succeeds
 
 | Key | Type | Address | Signers |
 |-----|------|---------|---------|
-| `samcrew-core-test1` | 2-of-2 multisig | `g10kw7e55e9wc8j8v6904ck29dqwr9fm9u280juh` | zooma, adena-zxxma |
+| `samcrew-core-test1` | 2-of-2 multisig | `g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0` | zooma, adena-zxxma |
+
+> `g10kw7e55e9wc8j8v6904ck29dqwr9fm9u280juh` is a **different** key — `samourai-crew`,
+> the 7-signer fee-spine/treasury multisig. Do not use it as the deploy key.
 
 ### Safety features
 
