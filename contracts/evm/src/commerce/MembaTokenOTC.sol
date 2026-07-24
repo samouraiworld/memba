@@ -47,6 +47,10 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
         uint16 platformFeeBps;
         uint256 listingCount;
         mapping(uint256 => OTCListing) listings;
+        // Pull-payment ledger (mirrors MembaEscrow). A failed ETH push credits here instead of
+        // reverting the fill, so a seller/fee-recipient contract that rejects ETH cannot brick
+        // trading (A-3b). APPEND-ONLY — StorageSlots.t.sol pins only the namespace root.
+        mapping(address => uint256) withdrawable;
     }
 
     /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaTokenOTC")) - 1)) & ~bytes32(uint256(0xff))
@@ -69,6 +73,7 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
     error TransferFailed();
     error ZeroQuantity();
     error InvalidFeeBps();
+    error NothingToWithdraw();
 
     // ── Events
     // ────────────────────────────────────────────────────
@@ -79,6 +84,9 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
     event Cancelled(uint256 indexed listingId, uint256 returnedAmount);
     event FeeCollected(uint256 indexed listingId, uint256 feeAmount);
     event PlatformFeeUpdated(uint16 newFeeBps);
+    event PayoutCredited(address indexed to, uint256 amount);
+    event Withdrawn(address indexed to, uint256 amount);
+    event FeeRecipientUpdated(address indexed oldRecipient, address indexed newRecipient);
 
     // ── Modifiers
     // ─────────────────────────────────────────────────
@@ -185,27 +193,38 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
         uint256 fee = MembaFees.feeOf(totalCost, $.platformFeeBps);
         uint256 sellerProceeds = totalCost - fee;
 
-        // Transfer tokens to buyer
+        // Token leg REVERTS on failure: a listing whose token can't be delivered has no
+        // valid fill, and SafeERC20 surfaces that cleanly.
         IERC20(listing.token).safeTransfer(msg.sender, qty);
 
-        // Transfer ETH to seller
-        (bool ok,) = payable(listing.seller).call{ value: sellerProceeds }("");
-        if (!ok) revert TransferFailed();
-
-        // Transfer fee
-        if (fee > 0) {
-            (bool feeOk,) = payable($.feeRecipient).call{ value: fee }("");
-            if (!feeOk) revert TransferFailed();
-        }
-
-        // Refund excess ETH
+        // ETH legs push first and credit on failure (A-3b) so no single recipient can brick
+        // the fill: a seller contract that rejects ETH would otherwise veto its own listing
+        // (locking the buyer's tokens), and a reverting shared feeRecipient would brick every
+        // listing at once. The buyer's own excess refund is credited too, so a buyer contract
+        // that must overpay (ceil rounding) is never excluded from trading.
+        _payout($, listing.seller, sellerProceeds);
+        _payout($, $.feeRecipient, fee);
         if (msg.value > totalCost) {
-            (bool refundOk,) = payable(msg.sender).call{ value: msg.value - totalCost }("");
-            if (!refundOk) revert TransferFailed();
+            _payout($, msg.sender, msg.value - totalCost);
         }
 
         emit Filled(listingId, msg.sender, qty, totalCost);
+        // NOTE: `FeeCollected` fires whether the fee was pushed to the recipient or credited to
+        // `withdrawable` (rejecting recipient). It means "accrued to the protocol", not
+        // "delivered to the wallet" — reconcile with `PayoutCredited`/`Withdrawn` off-chain.
         if (fee > 0) emit FeeCollected(listingId, fee);
+    }
+
+    /// @dev Push `amount` to `to`; on failure credit it for later `withdraw()` instead of
+    ///      reverting. The 30_000-gas stipend stops a recipient burning the filler's gas to
+    ///      force the credit path. Mirrors MembaEscrow._payout.
+    function _payout(OTCStorage storage $, address to, uint256 amount) private {
+        if (amount == 0) return;
+        (bool ok,) = payable(to).call{ value: amount, gas: 30_000 }("");
+        if (!ok) {
+            $.withdrawable[to] += amount;
+            emit PayoutCredited(to, amount);
+        }
     }
 
     // ── Cancel
@@ -230,8 +249,39 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
         emit Cancelled(listingId, remaining);
     }
 
+    // ── Pull payments
+    // ─────────────────────────────────────────────
+
+    /// @notice Withdraw ETH credited after a failed push during a fill.
+    /// @dev NOT pausable — a user must always be able to reclaim their own money. Full-gas
+    ///      (user pulling own funds); CEI + nonReentrant guard against reentrancy.
+    function withdraw() external nonReentrant {
+        OTCStorage storage $ = _getStorage();
+        uint256 amount = $.withdrawable[msg.sender];
+        if (amount == 0) revert NothingToWithdraw();
+
+        $.withdrawable[msg.sender] = 0; // CEI: zero before the call
+        (bool ok,) = payable(msg.sender).call{ value: amount }("");
+        if (!ok) revert TransferFailed();
+
+        emit Withdrawn(msg.sender, amount);
+    }
+
+    /// @notice Point protocol fees at a new recipient. Without this, a reverting fee recipient
+    ///         (now credited rather than bricking fills) would be unrecoverable. Mirrors escrow.
+    function setFeeRecipient(address newRecipient) external onlyAdmin {
+        if (newRecipient == address(0)) revert InvalidParams();
+        OTCStorage storage $ = _getStorage();
+        emit FeeRecipientUpdated($.feeRecipient, newRecipient);
+        $.feeRecipient = newRecipient;
+    }
+
     // ── View
     // ──────────────────────────────────────────────────────
+
+    function withdrawable(address who) external view returns (uint256) {
+        return _getStorage().withdrawable[who];
+    }
 
     function getListing(uint256 id) external view returns (OTCListing memory) {
         return _getStorage().listings[id];
