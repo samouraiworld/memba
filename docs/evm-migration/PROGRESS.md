@@ -61,7 +61,9 @@
 - [x] **S021-025**: MembaDAOFactory + MembaDAO (P0)
   - [x] Full implementation (membership, proposals, voting, execution, quorum, pausable)
   - [x] 40/40 tests pass (init, factory, membership, proposals, voting, execution, cancel, config, pause, quorum)
-- [ ] **S026-027**: MembaCandidature (P0)
+- [x] **S026-027**: MembaCandidature (P0)
+  - [x] Full implementation (apply with deposit, approve/reject, withdraw CEI-safe, 10x escalation)
+  - [x] 15/15 tests pass
 - [ ] **S028-029**: MembaTokenFactory (P0)
 - [ ] **S030-032**: MembaEscrow (P0)
 - [ ] **S033-036**: MembaNFT + MembaNFTMarket (P1)
