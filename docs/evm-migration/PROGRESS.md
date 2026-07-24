@@ -47,7 +47,8 @@
   - [x] `frontend/src/lib/chain/gno/GnoProvider.ts` — full adapter
 - [x] **S010-012**: EvmProvider stub (structural, ready for wagmi/viem)
   - [x] `frontend/src/lib/chain/evm/EvmProvider.ts` — typed stub
-- [ ] **S013-014**: Auth abstraction (dual SIWE / ADR-036)
+- [x] **S013-014**: Auth abstraction (dual SIWE / ADR-036)
+  - [x] `frontend/src/lib/chain/auth.ts` — types + SIWE builder
 - [x] **S015**: React context + `useChain()` hook (done in S006)
 - [x] **S016**: Network config extension (done in S006: `registry.ts`)
 - [ ] **S017-018**: Backend dual-auth verifier

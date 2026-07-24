@@ -54,3 +54,12 @@ export {
     getNetworksByFamily,
     type ProviderFactory,
 } from "./registry"
+
+// Auth
+export type {
+    LoginChallenge,
+    LoginProof,
+    AuthResult,
+    AuthStrategy,
+} from "./auth"
+export { buildSiweMessage } from "./auth"
