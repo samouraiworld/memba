@@ -87,10 +87,18 @@
 - [x] **S045**: MembaBadges (P2)
   - [x] Soulbound tokens (ERC-5192): quest dedup, batch mint, transfer blocking
   - [x] 8/8 tests pass
-- [ ] **S046**: MembaQuests (P2)
-- [ ] **S047**: MembaPoints (P2)
-- [ ] **S048-049**: MembaAppStore (P2)
-- [ ] **S050-051**: MembaRegistry + Config + Feed (P2)
+- [x] **S046**: MembaQuests (P2)
+  - [x] On-chain quest attestation: verifier-gated, XP tracking, deduplication
+  - [x] 4/4 tests pass
+- [x] **S047**: MembaPoints (P2)
+  - [x] Reputation points ledger: tier bands (Bronze→Diamond), authorized awarders
+  - [x] 6/6 tests pass
+- [x] **S048-049**: MembaAppStore (P2)
+  - [x] dApp registry: lifecycle (pending→live/rejected→delisted), creation fee, flagging
+  - [x] 5/5 tests pass
+- [x] **S050-051**: MembaRegistry + Config (P2)
+  - [x] Global DAO directory: categories, verification, platform config (treasury, fees)
+  - [x] 6/6 tests pass
 
 ## Phase 3: Frontend Integration (Weeks 8-14)
 
