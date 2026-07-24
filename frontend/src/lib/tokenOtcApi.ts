@@ -20,3 +20,29 @@ export async function getTokenAllowance(symbol: string, owner: string, spender: 
     const match = raw.match(/\((\d+)\s+int64\)/)
     return match ? BigInt(match[1]) : 0n
 }
+
+// The OTC realm's Approve/Allowance calls need the engine's actual on-chain
+// address, not its package path (WAVE1 TR-P0-4): the frontend was passing
+// MEMBA_DAO.tokenOtcPath as the `spender` — a path string like
+// "gno.land/r/samcrew/memba_token_otc_v2" — but the realm checks allowance
+// against its own resolved address (`cur.Address()`), which the path is not.
+// Approval never matched, and both List and Fill reverted. EngineAddress()
+// (exposed by the realm precisely so callers don't have to hardcode the
+// derived address) resolves the real spender. Cached module-level: this
+// address is fixed for the lifetime of a given deployed realm instance,
+// and (like GNO_RPC_URL/MEMBA_DAO) the module reloads on network switch.
+let cachedEngineAddress: string | null = null
+
+/** Test-only: clears the module-level engine-address cache. */
+export function __resetOtcEngineAddressCache(): void {
+    cachedEngineAddress = null
+}
+
+export async function getOtcEngineAddress(): Promise<string> {
+    if (cachedEngineAddress) return cachedEngineAddress
+    const raw = await queryEval(GNO_RPC_URL, MEMBA_DAO.tokenOtcPath, "EngineAddress()")
+    const match = raw?.match(/"(g1[a-z0-9]+)"/)
+    if (!match) throw new Error("Could not resolve the OTC engine address")
+    cachedEngineAddress = match[1]
+    return cachedEngineAddress
+}

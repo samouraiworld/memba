@@ -47,8 +47,10 @@ export default function FeedThread() {
     // `nextCursor` toward the newest reply. Older code fetched a single 50-reply
     // window and discarded `nextCursor`, silently dropping replies 51+ (B.2).
     const query = useInfiniteQuery({
-        queryKey: ["feed", "thread", postId?.toString() ?? ""],
-        queryFn: ({ pageParam }) => fetchFeedThread(postId as bigint, pageParam, 50),
+        // address in the query key: switching wallets must refetch, not keep
+        // serving the previous wallet's viewerHasFlagged state from cache.
+        queryKey: ["feed", "thread", postId?.toString() ?? "", address ?? ""],
+        queryFn: ({ pageParam }) => fetchFeedThread(postId as bigint, pageParam, 50, address),
         initialPageParam: 0n,
         getNextPageParam: (last) => (last.nextCursor && last.nextCursor > 0n ? last.nextCursor : undefined),
         enabled: postId !== null,

@@ -1,7 +1,13 @@
 import { MEMBA_DAO } from "./config"
 import type { AminoMsg } from "./grc20"
 
-export function buildListTokensMsg(caller: string, symbol: string, amount: number, unitPrice: number): AminoMsg {
+// amount/unitPrice/qty/costUgnot are bigint — both the token amount (base
+// units, up to 10^18 scale for an 18-decimal token) and the ugnot cost can
+// exceed Number.MAX_SAFE_INTEGER once scaled by decimals; a JS `number` would
+// silently lose precision on a large order. See lib/grc20.ts's
+// parseTokenAmount/formatTokenAmount, the callers' source of these values.
+
+export function buildListTokensMsg(caller: string, symbol: string, amount: bigint, unitPrice: bigint): AminoMsg {
     return {
         type: "vm/MsgCall",
         value: {
@@ -27,7 +33,7 @@ export function buildCancelListingMsg(caller: string, listingId: string): AminoM
     }
 }
 
-export function buildFillListingMsg(caller: string, listingId: string, qty: number, expectedUnitPrice: number, costUgnot: number): AminoMsg {
+export function buildFillListingMsg(caller: string, listingId: string, qty: bigint, expectedUnitPrice: bigint, costUgnot: bigint): AminoMsg {
     return {
         type: "vm/MsgCall",
         value: {

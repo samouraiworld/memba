@@ -11,8 +11,8 @@ import { fetchListingsPage } from "./marketplace/v3Reads"
 import { fetchOtcListings } from "./tokenOtcApi"
 import { routeNftV3 } from "./marketplace/router"
 import { buildCancelListingMsg } from "./tokenOtc"
-import { doContractBroadcast } from "./grc20"
-import { isNftEnabled, isNftMarketV3Valid, isTokensEnabled, isTokenOtcValid } from "./config"
+import { doContractBroadcast, getTokenDecimals } from "./grc20"
+import { isNftEnabled, isNftMarketV3Valid, isTokensEnabled, isTokenOtcValid, GNO_RPC_URL } from "./config"
 
 export type MyListing =
     | {
@@ -29,6 +29,11 @@ export type MyListing =
           symbol: string
           unitPriceUgnot: bigint
           amount: bigint
+          /** T3.2: base-unit -> human conversion factor for `amount` (and to
+           *  recover the per-whole-token price from `unitPriceUgnot`, which is
+           *  stored per BASE UNIT on-chain). Resolved via getTokenDecimals,
+           *  which never throws (falls back to 6 internally). */
+          decimals: number
       }
 
 // Paginate the global v3 listing set (there is no per-seller server query) and
@@ -72,16 +77,26 @@ async function fetchMyNftListings(address: string): Promise<MyListing[]> {
 
 async function fetchMyTokenListings(address: string): Promise<MyListing[]> {
     const rows = await fetchOtcListings()
-    return rows
-        .filter(l => l.seller === address)
-        .map(l => ({
-            kind: "token" as const,
-            key: `token:${l.id}`,
-            id: l.id,
-            symbol: l.symbol,
-            unitPriceUgnot: l.expectedUnitPrice,
-            amount: l.amountAvailable,
-        }))
+    const mine = rows.filter(l => l.seller === address)
+    // One decimals lookup per DISTINCT symbol (cached in getTokenDecimals across
+    // calls too), not one per listing.
+    const symbols = [...new Set(mine.map(l => l.symbol))]
+    const decimalsBySymbol = new Map<string, number>(
+        // Display-only surface: a failed lookup (null) falls back to 6 HERE,
+        // explicitly, at the call site — getTokenDecimals itself no longer
+        // guesses (a fund-moving caller like TokenTradeModal must see the
+        // null and refuse to trade, not this list-only view).
+        await Promise.all(symbols.map(async (s) => [s, (await getTokenDecimals(GNO_RPC_URL, s)) ?? 6] as const)),
+    )
+    return mine.map(l => ({
+        kind: "token" as const,
+        key: `token:${l.id}`,
+        id: l.id,
+        symbol: l.symbol,
+        unitPriceUgnot: l.expectedUnitPrice,
+        amount: l.amountAvailable,
+        decimals: decimalsBySymbol.get(l.symbol) ?? 6,
+    }))
 }
 
 /**
