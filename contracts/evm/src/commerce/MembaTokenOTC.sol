@@ -5,7 +5,9 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import { IERC20Metadata } from "@openzeppelin/contracts/token/ERC20/extensions/IERC20Metadata.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
+import { Math } from "@openzeppelin/contracts/utils/math/Math.sol";
 import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
 
 /**
@@ -18,14 +20,19 @@ import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
 contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable, MembaUpgradeAuthority {
     using SafeERC20 for IERC20;
 
+    /// @dev Same 20% ceiling as MembaEscrow. An unbounded init parameter previously
+    ///      let a fat-fingered deploy brick the desk permanently (no setter existed).
+    uint16 public constant MAX_FEE_BPS = 2000;
+
     // ── Structs
     // ───────────────────────────────────────────────────
     struct OTCListing {
         address seller;
         address token;
-        uint256 totalAmount;
-        uint256 filledAmount;
-        uint256 unitPrice; // wei per token unit
+        uint256 totalAmount; // base units actually escrowed (measured on receipt)
+        uint256 filledAmount; // base units already sold
+        uint256 unitPrice; // wei per WHOLE token (per 10**tokenDecimals base units)
+        uint8 tokenDecimals; // snapshot of the token's decimals at listing time
         bool active;
         uint256 createdAt;
     }
@@ -60,6 +67,7 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
     error InvalidParams();
     error TransferFailed();
     error ZeroQuantity();
+    error InvalidFeeBps();
 
     // ── Events
     // ────────────────────────────────────────────────────
@@ -69,6 +77,7 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
     event Filled(uint256 indexed listingId, address indexed buyer, uint256 qty, uint256 totalCost);
     event Cancelled(uint256 indexed listingId, uint256 returnedAmount);
     event FeeCollected(uint256 indexed listingId, uint256 feeAmount);
+    event PlatformFeeUpdated(uint16 newFeeBps);
 
     // ── Modifiers
     // ─────────────────────────────────────────────────
@@ -84,6 +93,7 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
 
     function initialize(address _admin, address _feeRecipient, uint16 _feeBps) external initializer {
         if (_admin == address(0) || _feeRecipient == address(0)) revert InvalidParams();
+        if (_feeBps > MAX_FEE_BPS) revert InvalidFeeBps();
         __UUPSUpgradeable_init();
         __Pausable_init();
         __ReentrancyGuard_init();
@@ -98,26 +108,51 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
     // ── Listing
     // ───────────────────────────────────────────────────
 
-    function list(address token, uint256 amount, uint256 unitPrice) external whenNotPaused returns (uint256 listingId) {
+    function list(address token, uint256 amount, uint256 unitPrice)
+        external
+        nonReentrant
+        whenNotPaused
+        returns (uint256 listingId)
+    {
         if (token == address(0) || amount == 0 || unitPrice == 0) revert InvalidParams();
 
         OTCStorage storage $ = _getStorage();
+
+        // Measure the amount ACTUALLY received. Fee-on-transfer/rebasing tokens deliver
+        // less than `amount`; recording the requested figure would let this listing's
+        // fills draw against tokens escrowed for a *different* seller (A-3). Every
+        // listing's `totalAmount` is now backed by real balance, so the sum of open
+        // escrows can never exceed the contract's holdings.
+        IERC20 t = IERC20(token);
+        uint256 balBefore = t.balanceOf(address(this));
+        t.safeTransferFrom(msg.sender, address(this), amount);
+        uint256 received = t.balanceOf(address(this)) - balBefore;
+        if (received == 0) revert InvalidParams();
+
         listingId = $.listingCount++;
 
         $.listings[listingId] = OTCListing({
             seller: msg.sender,
             token: token,
-            totalAmount: amount,
+            totalAmount: received,
             filledAmount: 0,
             unitPrice: unitPrice,
+            tokenDecimals: _tokenDecimals(token),
             active: true,
             createdAt: block.timestamp
         });
 
-        // Transfer tokens to contract (requires prior approval)
-        IERC20(token).safeTransferFrom(msg.sender, address(this), amount);
+        emit Listed(listingId, msg.sender, token, received, unitPrice);
+    }
 
-        emit Listed(listingId, msg.sender, token, amount, unitPrice);
+    /// @dev `decimals()` is an optional ERC-20 extension; fall back to 0 (per-base-unit
+    ///      pricing) for tokens that do not implement it, matching the legacy behaviour.
+    function _tokenDecimals(address token) private view returns (uint8) {
+        try IERC20Metadata(token).decimals() returns (uint8 d) {
+            return d;
+        } catch {
+            return 0;
+        }
     }
 
     // ── Filling
@@ -133,7 +168,10 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
         uint256 available = listing.totalAmount - listing.filledAmount;
         if (qty > available) revert ExceedsAvailable();
 
-        uint256 totalCost = qty * listing.unitPrice;
+        // `unitPrice` is wei per WHOLE token; `qty` is base units. Convert through the
+        // token's decimals, rounding UP so a sub-unit purchase can never round to a free
+        // buy (A-4, the EVM twin of the Gno OTC bug fixed in memba#992).
+        uint256 totalCost = Math.mulDiv(qty, listing.unitPrice, 10 ** listing.tokenDecimals, Math.Rounding.Ceil);
         if (msg.value < totalCost) revert InsufficientPayment();
 
         // CEI: state update BEFORE transfers
@@ -212,6 +250,12 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
 
     function platformFeeBps() external view returns (uint16) {
         return _getStorage().platformFeeBps;
+    }
+
+    function setPlatformFee(uint16 newFeeBps) external onlyAdmin {
+        if (newFeeBps > MAX_FEE_BPS) revert InvalidFeeBps();
+        _getStorage().platformFeeBps = newFeeBps;
+        emit PlatformFeeUpdated(newFeeBps);
     }
 
     function pause() external onlyAdmin {

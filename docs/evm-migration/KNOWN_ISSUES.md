@@ -100,9 +100,10 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
   (`MembaCandidature.t.sol:40-43`); the script does not. Because the DAO is created with
   `admin = safe`, **only the Safe can issue it** — this needs a follow-up multisig
   transaction, not just a script line.
-- **ISSUE-008** · `MembaTokenOTC` records `totalAmount` before transferring and fills from a
-  shared un-partitioned pool, so a fee-on-transfer token lets one listing's fill drain
-  another seller's escrowed tokens.
+- ~~**ISSUE-008**~~ ✅ RESOLVED · `MembaTokenOTC` recorded `totalAmount` before transferring
+  and filled from a shared un-partitioned pool, so a fee-on-transfer token let one listing's
+  fill drain another seller's escrowed tokens. `list` now records the amount **actually
+  received** (balance-delta), so the books can never over-claim the pool. See Resolved below.
 - ~~**ISSUE-009**~~ ✅ RESOLVED · Frontend `EvmProvider` calls four DAO functions that do not exist
   (`createProposal`→`propose`, `executeProposal`→`execute`, `votingThreshold`→`thresholdBps`,
   `getMemberByIndex`→`getMember`); `createToken` omits the required `salt` and `value`;
@@ -121,12 +122,11 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
 - Candidature strands ETH two ways (re-application overwrites an un-withdrawn deposit;
   approved applicants can never withdraw). No `receive`/`fallback`/sweep exists anywhere, so
   it is unreachable short of an upgrade.
-- `MembaTokenOTC.unitPrice` is per base unit and decimals-unaware — the EVM twin of the Gno
-  OTC bug fixed in memba#992. The test fixture uses `decimals=0`, which is why it was never
-  found.
-- `MembaTokenOTC` accepts an unbounded `feeBps` at init with no `MAX_FEE_BPS` and no setter;
-  a fat-fingered deploy parameter bricks the contract permanently.
-- Overpayment confiscated on three paths (Collections create + mint, TokenFactory, AppStore).
+- ~~`MembaTokenOTC.unitPrice` is decimals-unaware~~ ✅ RESOLVED 2026-07-24 — now priced per
+  whole token with ceiling conversion through the token's decimals. See Resolved below.
+- ~~`MembaTokenOTC` accepts an unbounded `feeBps`~~ ✅ RESOLVED 2026-07-24 — `MAX_FEE_BPS` cap
+  at init + `setPlatformFee` setter. See Resolved below.
+- Overpayment confiscated on two remaining paths (TokenFactory, AppStore — Collections fixed).
 - Auth: the new `Verifier` interface takes only a raw nonce, so it cannot express challenge
   authenticity, expiry, single-use or chain binding — re-opening `AUTH-CHAINID-01`. EVM login
   is currently blind `personal_sign`, not SIWE.
@@ -168,6 +168,15 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
   requires `sc.status == Active` and rejects while Disputed; it also accepts Completed
   milestones so a seller cannot void the buyer's remedy by stalling. Covered by
   `test_H02_AutoRefundIsBlockedWhileDisputed`.
+- **ISSUE-008 (OTC cross-listing drain) + OTC decimals + OTC unbounded fee** — `list` records
+  the amount **actually received** via a balance-delta measurement, so a fee-on-transfer
+  token can no longer let one listing's fill drain another seller's escrow; `unitPrice` is now
+  wei per whole token, converted through the token's snapshotted decimals with ceiling
+  rounding (buyer never underpays); `MAX_FEE_BPS = 2000` is enforced at init and via a new
+  `setPlatformFee` admin setter. Covered by `test/MembaTokenOTC.moneypaths.t.sol` (13 tests,
+  incl. fee-on-transfer, rebasing, returns-false, no-decimals, and fully-confiscating mocks).
+  ⚠️ A **downward** rebase remains an inherent shared-pool limitation (BACKLOG A-3b/C-6), and
+  a hostile fee-recipient can still freeze `fill` (BACKLOG A-3b — no `setFeeRecipient` yet).
 - **ISSUE-005 (hostile recipient freezes funds)** — payouts fall back to a withdrawable
   credit instead of reverting the whole call, and `setFeeRecipient` now exists. Covered
   by `test_H03_*`.

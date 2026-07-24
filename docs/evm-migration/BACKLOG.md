@@ -12,7 +12,7 @@
 > Severity/detail for security items: [SECURITY_FINDINGS.md](SECURITY_FINDINGS.md).
 > Status of individual defects: [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
-**Last swept:** 2026-07-24 (branch `feat/evm/remediation`, after A-1)
+**Last swept:** 2026-07-24 (branch `feat/evm/remediation`, after A-3/A-4/A-5)
 
 ---
 
@@ -22,9 +22,10 @@
 |---|---|---|---|
 | ~~A-1~~ | ~~`MembaCollections.mintNFT` can never succeed~~ | ✅ **fixed** 2026-07-24 — `MembaNFT.setLaunchpad` authorises the proxy to mint (creator keeps royalties); `createCollection` binds registration to the sub-collection's owner so that authorisation cannot be abused. 18 tests, from zero. | — |
 | **A-2** | `Deploy.s.sol` never grants `ADMIN_ROLE` to `MembaCandidature`, so `markApproved` reverts 100% post-deploy. | Needs a **follow-up Safe transaction**, not just a script line — the DAO is created with `admin = safe`, so only the Safe can issue the grant. Requires a documented post-deploy ceremony step. | Script asserts the grant, or a documented Safe step exists and a test proves the un-granted deployment fails loudly. |
-| **A-3** | `MembaTokenOTC`: fee-on-transfer/rebasing tokens let one listing's fill drain another seller's escrowed tokens (records `totalAmount` before transferring, fills from a shared pool). | Not started. | Balance-delta accounting or a per-token escrow ledger; mock fee-on-transfer + rebasing + returns-false tokens in the suite. |
-| **A-4** | `MembaTokenOTC.unitPrice` is per **base unit** and decimals-unaware — the EVM twin of the Gno OTC bug fixed in memba#992. | Not started. The existing test fixture uses `decimals = 0`, which is exactly why it was never found. | Price defined per `10**decimals()`, ceiling division so rounding never favours the buyer, and a test using an 18-decimal factory token. |
-| **A-5** | `MembaTokenOTC` accepts an unbounded `feeBps` at init with no `MAX_FEE_BPS` and no setter — a fat-fingered deploy parameter bricks the contract permanently. | Not started. | Cap at init + admin setter with the same cap (mirroring `MembaEscrow`). |
+| ~~A-3~~ | ~~`MembaTokenOTC`: fee-on-transfer/rebasing tokens let one listing's fill drain another seller's escrowed tokens~~ | ✅ **fixed** 2026-07-24 — `list` now records the amount **actually received** (balance-delta), so every listing's `totalAmount` is backed by real balance and the sum of open escrows can never exceed the contract's holdings. Fee-on-transfer / rebasing / returns-false / fully-confiscating mocks added (`test/mocks/Tokens.sol`). ⚠️ A downward rebase remains an inherent shared-pool limitation — noted below. | — |
+| ~~A-4~~ | ~~`MembaTokenOTC.unitPrice` is per **base unit** and decimals-unaware~~ | ✅ **fixed** 2026-07-24 — `unitPrice` is now wei per **whole token**; `fill` converts through the token's decimals (snapshotted at `list`) via `Math.mulDiv(..., Rounding.Ceil)` so rounding never favours the buyer. Missing `decimals()` falls back to per-base-unit. Tested with an 18-decimal factory token. | — |
+| ~~A-5~~ | ~~`MembaTokenOTC` accepts an unbounded `feeBps` at init with no `MAX_FEE_BPS` and no setter~~ | ✅ **fixed** 2026-07-24 — `MAX_FEE_BPS = 2000` checked at init and in a new `setPlatformFee` admin setter (mirrors `MembaEscrow`). | — |
+| **A-3b** | `MembaTokenOTC` has **no `setFeeRecipient`** and `fill` reverts the whole call if the fee recipient rejects ETH (the escrow ISSUE-005 pattern, un-ported to OTC). Deliberately out of A-5's scope to keep the change reviewable. | Not started. | Port the escrow pull-payment escape hatch + `setFeeRecipient` to OTC, or fold into C-6 fee-helper work. |
 | **A-6** | Backend `evmreader.GetDAOMembers` can **never** return a member (asserts geth's unpacked tuple against an untagged struct; tags are part of Go type identity). Returns `[]` with a nil error. | Not started. | Decode via `UnpackIntoInterface` or `abigen` bindings; the `!ok` branch returns an error rather than `continue`. |
 | **A-7** | Backend: unauthenticated remote OOM-kill — `make([]DAOMember, 0, count)` where `count` comes from an attacker-chosen contract address in the URL path. | Not started. | Allowlist of known DAO addresses, hard cap on `count`, `IsInt64()` guard, pagination. |
 | **A-8** | Backend `evmrender` routes bypass the repo's `rateLimitMiddleware`/`requireAuthMiddleware` convention; no address validation (`common.HexToAddress` never errors, and a 64-hex string is cropped to a valid address — address aliasing). | Not started. | Routes exposed as plain handlers and wrapped in `main.go` like every other route; `common.IsHexAddress` validation returning 400. |
@@ -64,7 +65,7 @@ Target tiers — a global floor is not enough for funds-at-risk contracts:
 | T2 — authority | DAO, DAOFactory, Channels, Registry, Badges, NFT | ≥90% | ≥80% | 100% non-view |
 | T3 — social | Reviews, AppStore, Points, Quests | ≥85% | ≥70% | ≥90% |
 
-**Current: 80.66% line / 53.20% branch / 72.97% func.** CI floors are 79/52/71.
+**Current: 80.97% line / 53.71% branch / 72.73% func.** CI floors are 79/52/71.
 
 | ID | Item | Status |
 |---|---|---|
@@ -73,7 +74,7 @@ Target tiers — a global floor is not enough for funds-at-risk contracts:
 | **D-3** | Escrow invariant suite | ✅ done (`test/invariant/EscrowInvariants.t.sol`) |
 | **D-4** | Upgrade tests | ✅ done for Escrow/Badges/Quests (`UpgradeAuthority.t.sol`); **9 contracts still have none** |
 | **D-5** | `MembaCollections` test suite | ✅ done — 18 tests, incl. a real 2-leaf merkle tree |
-| **D-6** | OTC 18-decimal + fee-on-transfer suite | ⬜ open — see A-3, A-4 |
+| **D-6** | OTC 18-decimal + fee-on-transfer suite | ✅ done — `test/MembaTokenOTC.moneypaths.t.sol` (13 tests: cross-listing drain, whole-token pricing, ceiling rounding, fee-cap, plus rebasing/returns-false/no-decimals mocks) |
 | **D-7** | Replace 13 bare `vm.expectRevert()` with specific selectors | ⬜ open |
 | **D-8** | Delete/rewrite the 4 constant-assertion tests that assert literals against literals | ⬜ open |
 | **D-9** | Event assertions — **1 `vm.expectEmit` in the whole suite**, against ~45 events. Events are the indexer's only data source. | ⬜ open |
