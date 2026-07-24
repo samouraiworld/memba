@@ -11,9 +11,11 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { PaperPlaneTilt } from "@phosphor-icons/react"
-import { buildCreatePostMsg, submitFeedMsg } from "../../lib/feed"
+import { buildCreatePostMsg, submitFeedMsg, FEED_INDEXED_NETWORK_LABEL } from "../../lib/feed"
 import { makeOptimisticPost, type UiPost } from "../../lib/feedTypes"
 import { MAX_FEED_BODY } from "../../lib/feedConstants"
+import { isFeedWritable, FEED_INDEXED_NETWORK } from "../../lib/config"
+import { useNetwork } from "../../hooks/useNetwork"
 
 export function FeedComposer({
     connected,
@@ -34,6 +36,8 @@ export function FeedComposer({
     placeholder?: string
     submitLabel?: string
 }) {
+    const { switchNetwork } = useNetwork()
+    const writable = isFeedWritable()
     const [body, setBody] = useState("")
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -94,6 +98,30 @@ export function FeedComposer({
 
     return (
         <div className="feed-composer">
+            {!writable ? (
+                // The realm exists on this network, so a post WOULD succeed — and
+                // would then be invisible forever, because the indexer only tails
+                // one chain. Explain and offer the switch rather than let the user
+                // spend gas on a post nobody can see.
+                <div className="feed-composer__network-gate" data-testid="feed-composer-network-gate">
+                    <p className="feed-composer__network-gate-title">
+                        The feed is only indexed on {FEED_INDEXED_NETWORK_LABEL}.
+                    </p>
+                    <p className="feed-composer__hint">
+                        You're viewing {FEED_INDEXED_NETWORK_LABEL}'s timeline. Posting from this
+                        network would cost gas and never appear — so posting is disabled here.
+                    </p>
+                    <button
+                        type="button"
+                        className="feed-btn feed-btn--primary"
+                        onClick={() => switchNetwork(FEED_INDEXED_NETWORK)}
+                        data-testid="feed-composer-switch-btn"
+                    >
+                        Switch to {FEED_INDEXED_NETWORK_LABEL}
+                    </button>
+                </div>
+            ) : (
+            <>
             <textarea
                 className="feed-composer__input"
                 placeholder={placeholder}
@@ -127,6 +155,8 @@ export function FeedComposer({
                 Posts are public and permanent on-chain. Deleting removes a post
                 from Memba, but the original text stays recorded on gno.land.
             </p>
+            </>
+            )}
         </div>
     )
 }

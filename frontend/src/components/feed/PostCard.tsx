@@ -17,6 +17,7 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Flag, ChatCircle, DotsThreeVertical, PencilSimple, Trash, LinkSimple, Check } from "@phosphor-icons/react"
 import { submitFeedMsg, buildFlagPostMsg, buildEditPostMsg, buildDeletePostMsg } from "../../lib/feed"
+import { isFeedWritable } from "../../lib/config"
 import { feedPostPermalink } from "../../lib/feedPermalink"
 import type { UiPost } from "../../lib/feedTypes"
 import { relativeTime } from "../../lib/relativeTime"
@@ -166,7 +167,12 @@ function PostCardInner({
     const [localDeleted, setLocalDeleted] = useState(false)
 
     const isOwn = selfAddress === post.author
-    const canManage = isOwn && !post.optimistic
+    // Write affordances are hidden entirely off the indexed network: these posts
+    // come from the chain the backend indexes, so a flag/edit/delete issued from
+    // another network would carry this post's id to a DIFFERENT post that happens
+    // to share it. submitFeedMsg refuses anyway — this keeps the UI honest.
+    const feedWritable = isFeedWritable()
+    const canManage = isOwn && !post.optimistic && feedWritable
 
     const flag = useCallback(async () => {
         if (post.optimistic || flagging || flagged) return
@@ -406,7 +412,7 @@ function PostCardInner({
                     </button>
                 )}
                 {!post.optimistic && <FeedShareCard post={post} />}
-                {!isOwn && !post.optimistic && (
+                {!isOwn && !post.optimistic && feedWritable && (
                     <button
                         type="button"
                         className="feed-post__flag"
