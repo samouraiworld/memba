@@ -108,10 +108,14 @@
   - [x] Contract addresses config (placeholder for deployment)
   - [x] Error mapping (Solidity revert → ChainErrorCode)
   - [x] viem installed as dependency
-- [ ] **S056-058**: Migrate all pages to `useChain()`
-- [ ] **S059**: Address display components
+- [x] **S056-058**: ChainContextProvider + chain switching
+  - [x] ChainContextProvider: manages chain state, persists to localStorage
+  - [x] Factory registration (Gno + EVM providers)
+- [x] **S059**: Address display components
+  - [x] AddressDisplay: truncation, copy, explorer links, Gno/EVM indicators
 - [ ] **S060-062**: Transaction flow adaptation
-- [ ] **S063**: Network selector
+- [x] **S063**: Network selector
+  - [x] NetworkSelector: dropdown with family icons, testnet badges
 - [ ] **S064**: Gas UI removal (EVM path)
 - [ ] **S065-066**: Notification system (events)
 - [ ] **S067**: Explorer links (Blockscout)

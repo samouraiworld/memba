@@ -43,6 +43,7 @@ export { ChainError, type ChainErrorCode } from "./provider"
 
 // React context & hook
 export { ChainContext, useChain, type ChainContextValue } from "./context"
+export { ChainContextProvider, type ChainContextProviderProps } from "./ChainContextProvider"
 
 // Registry
 export {
