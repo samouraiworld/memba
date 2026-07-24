@@ -14,10 +14,12 @@ pragma solidity ^0.8.28;
  *      No floating point — integer math only.
  */
 abstract contract MembaFees {
-    // ── Constants ─────────────────────────────────────────────────
+    // ── Constants
+    // ─────────────────────────────────────────────────
     uint16 internal constant BPS_DENOMINATOR = 10_000;
 
-    // ── Errors ────────────────────────────────────────────────────
+    // ── Errors
+    // ────────────────────────────────────────────────────
     error FeeTransferFailed();
     error InvalidFeeBps();
 
@@ -28,10 +30,7 @@ abstract contract MembaFees {
      * @param recipient The fee recipient (Samouraï Coop Safe).
      * @return netAmount The amount remaining after fee deduction.
      */
-    function _collectFee(uint256 amount, uint16 feeBps, address recipient)
-        internal
-        returns (uint256 netAmount)
-    {
+    function _collectFee(uint256 amount, uint16 feeBps, address recipient) internal returns (uint256 netAmount) {
         if (feeBps > BPS_DENOMINATOR) revert InvalidFeeBps();
         if (feeBps == 0 || amount == 0) return amount;
 

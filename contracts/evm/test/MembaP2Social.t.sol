@@ -137,7 +137,9 @@ contract MembaAppStoreTest is Test {
 
     function _registerApp() internal {
         vm.prank(publisher);
-        appStore.registerApp{value: 0.001 ether}("gno.land/r/app1", "App One", "Tagline", "DeFi", "QmIcon", "https://app1.io");
+        appStore.registerApp{ value: 0.001 ether }(
+            "gno.land/r/app1", "App One", "Tagline", "DeFi", "QmIcon", "https://app1.io"
+        );
     }
 
     function test_RegisterApp_Success() public {
@@ -153,7 +155,7 @@ contract MembaAppStoreTest is Test {
     function test_RegisterApp_InsufficientFeeReverts() public {
         vm.prank(publisher);
         vm.expectRevert(MembaAppStore.InsufficientFee.selector);
-        appStore.registerApp{value: 0}("gno.land/r/app2", "App Two", "Tag", "Cat", "Qm", "url");
+        appStore.registerApp{ value: 0 }("gno.land/r/app2", "App Two", "Tag", "Cat", "Qm", "url");
     }
 
     function test_ApproveApp() public {

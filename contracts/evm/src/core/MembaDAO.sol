@@ -4,8 +4,7 @@ pragma solidity ^0.8.28;
 import { AccessControlUpgradeable } from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import { ReentrancyGuardUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 /**
  * @title MembaDAO
@@ -16,7 +15,8 @@ import { ReentrancyGuardUpgradeable } from
  *      Upgrade authority is the DEFAULT_ADMIN_ROLE (Samouraï Coop Safe).
  */
 contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
-    // ── Constants ─────────────────────────────────────────────────
+    // ── Constants
+    // ─────────────────────────────────────────────────
     bytes32 public constant ADMIN_ROLE = keccak256("ADMIN_ROLE");
     bytes32 public constant MEMBER_ROLE = keccak256("MEMBER_ROLE");
 
@@ -24,11 +24,22 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
     uint256 public constant MAX_MEMBERS = 1000;
     uint256 public constant DEFAULT_VOTING_PERIOD = 7 days;
 
-    // ── Enums ─────────────────────────────────────────────────────
-    enum ProposalCategory { Governance, Treasury, Membership, Operations }
-    enum VoteType { Against, For, Abstain }
+    // ── Enums
+    // ─────────────────────────────────────────────────────
+    enum ProposalCategory {
+        Governance,
+        Treasury,
+        Membership,
+        Operations
+    }
+    enum VoteType {
+        Against,
+        For,
+        Abstain
+    }
 
-    // ── Structs ───────────────────────────────────────────────────
+    // ── Structs
+    // ───────────────────────────────────────────────────
     struct MemberInfo {
         uint256 votingPower;
         string[] roles;
@@ -50,16 +61,17 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
         bool cancelled;
     }
 
-    // ── Storage (ERC-7201) ────────────────────────────────────────
+    // ── Storage (ERC-7201)
+    // ────────────────────────────────────────
     /// @custom:storage-location erc7201:memba.storage.MembaDAO
     struct DAOStorage {
         string name;
         string description;
-        uint16 thresholdBps;      // 5100 = 51%
-        uint16 quorumBps;         // 0 = disabled
+        uint16 thresholdBps; // 5100 = 51%
+        uint16 quorumBps; // 0 = disabled
         uint256 proposalCount;
         uint256 memberCount;
-        uint256 votingPeriod;     // in seconds
+        uint256 votingPeriod; // in seconds
         mapping(address => MemberInfo) members;
         address[] memberList;
         mapping(uint256 => Proposal) proposals;
@@ -77,7 +89,8 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
         assembly { $.slot := loc }
     }
 
-    // ── Errors ────────────────────────────────────────────────────
+    // ── Errors
+    // ────────────────────────────────────────────────────
     error InvalidThreshold();
     error InvalidQuorum();
     error AlreadyMember();
@@ -94,7 +107,8 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
     error CannotRemoveSelf();
     error EmptyTitle();
 
-    // ── Events ────────────────────────────────────────────────────
+    // ── Events
+    // ────────────────────────────────────────────────────
     event DAOInitialized(string name, address indexed creator);
     event MemberAdded(address indexed member, uint256 votingPower, string[] roles);
     event MemberRemoved(address indexed member);
@@ -108,18 +122,16 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
     event ThresholdUpdated(uint16 oldThreshold, uint16 newThreshold);
     event QuorumUpdated(uint16 oldQuorum, uint16 newQuorum);
 
-    // ── Constructor ───────────────────────────────────────────────
+    // ── Constructor
+    // ───────────────────────────────────────────────
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    // ── Initializer ───────────────────────────────────────────────
-    function initialize(
-        string calldata _name,
-        string calldata _description,
-        address _admin
-    ) external initializer {
+    // ── Initializer
+    // ───────────────────────────────────────────────
+    function initialize(string calldata _name, string calldata _description, address _admin) external initializer {
         __AccessControl_init();
         __UUPSUpgradeable_init();
         __Pausable_init();
@@ -129,7 +141,7 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
         $.name = _name;
         $.description = _description;
         $.thresholdBps = 5100; // 51% default
-        $.quorumBps = 0;       // disabled by default
+        $.quorumBps = 0; // disabled by default
         $.votingPeriod = DEFAULT_VOTING_PERIOD;
 
         // Admin is also a member
@@ -139,12 +151,7 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
 
         string[] memory adminRoles = new string[](1);
         adminRoles[0] = "admin";
-        $.members[_admin] = MemberInfo({
-            votingPower: 1,
-            roles: adminRoles,
-            active: true,
-            joinedAt: block.timestamp
-        });
+        $.members[_admin] = MemberInfo({ votingPower: 1, roles: adminRoles, active: true, joinedAt: block.timestamp });
         $.memberList.push(_admin);
         $.memberCount = 1;
 
@@ -152,13 +159,10 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
         emit MemberAdded(_admin, 1, adminRoles);
     }
 
-    // ── Membership ────────────────────────────────────────────────
+    // ── Membership
+    // ────────────────────────────────────────────────
 
-    function addMember(
-        address member,
-        uint256 votingPower,
-        string[] calldata roles
-    ) external onlyRole(ADMIN_ROLE) {
+    function addMember(address member, uint256 votingPower, string[] calldata roles) external onlyRole(ADMIN_ROLE) {
         DAOStorage storage $ = _getStorage();
         if ($.members[member].active) revert AlreadyMember();
         if (votingPower == 0 || votingPower > MAX_VOTING_POWER) revert InvalidVotingPower();
@@ -172,12 +176,8 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
             storedRoles[i] = roles[i];
         }
 
-        $.members[member] = MemberInfo({
-            votingPower: votingPower,
-            roles: storedRoles,
-            active: true,
-            joinedAt: block.timestamp
-        });
+        $.members[member] =
+            MemberInfo({ votingPower: votingPower, roles: storedRoles, active: true, joinedAt: block.timestamp });
         $.memberList.push(member);
         $.memberCount++;
 
@@ -205,13 +205,15 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
         emit MemberRemoved(member);
     }
 
-    // ── Proposals ─────────────────────────────────────────────────
+    // ── Proposals
+    // ─────────────────────────────────────────────────
 
-    function propose(
-        string calldata title,
-        string calldata description,
-        ProposalCategory category
-    ) external onlyRole(MEMBER_ROLE) whenNotPaused returns (uint256) {
+    function propose(string calldata title, string calldata description, ProposalCategory category)
+        external
+        onlyRole(MEMBER_ROLE)
+        whenNotPaused
+        returns (uint256)
+    {
         if (bytes(title).length == 0) revert EmptyTitle();
 
         DAOStorage storage $ = _getStorage();
@@ -235,12 +237,10 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
         return proposalId;
     }
 
-    // ── Voting ────────────────────────────────────────────────────
+    // ── Voting
+    // ────────────────────────────────────────────────────
 
-    function vote(
-        uint256 proposalId,
-        VoteType support
-    ) external onlyRole(MEMBER_ROLE) whenNotPaused {
+    function vote(uint256 proposalId, VoteType support) external onlyRole(MEMBER_ROLE) whenNotPaused {
         DAOStorage storage $ = _getStorage();
         Proposal storage proposal = $.proposals[proposalId];
 
@@ -264,7 +264,8 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
         emit Voted(proposalId, msg.sender, support, weight);
     }
 
-    // ── Execution ─────────────────────────────────────────────────
+    // ── Execution
+    // ─────────────────────────────────────────────────
 
     function execute(uint256 proposalId) external onlyRole(MEMBER_ROLE) nonReentrant whenNotPaused {
         DAOStorage storage $ = _getStorage();
@@ -294,10 +295,11 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
         emit ProposalCancelled(proposalId);
     }
 
-    // ── Admin Config ──────────────────────────────────────────────
+    // ── Admin Config
+    // ──────────────────────────────────────────────
 
     function updateThreshold(uint16 newThresholdBps) external onlyRole(ADMIN_ROLE) {
-        if (newThresholdBps == 0 || newThresholdBps > 10000) revert InvalidThreshold();
+        if (newThresholdBps == 0 || newThresholdBps > 10_000) revert InvalidThreshold();
         DAOStorage storage $ = _getStorage();
         uint16 old = $.thresholdBps;
         $.thresholdBps = newThresholdBps;
@@ -305,7 +307,7 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
     }
 
     function updateQuorum(uint16 newQuorumBps) external onlyRole(ADMIN_ROLE) {
-        if (newQuorumBps > 10000) revert InvalidQuorum();
+        if (newQuorumBps > 10_000) revert InvalidQuorum();
         DAOStorage storage $ = _getStorage();
         uint16 old = $.quorumBps;
         $.quorumBps = newQuorumBps;
@@ -320,7 +322,8 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
         _unpause();
     }
 
-    // ── View Functions ────────────────────────────────────────────
+    // ── View Functions
+    // ────────────────────────────────────────────
 
     function proposalPassed(uint256 proposalId) public view returns (bool) {
         DAOStorage storage $ = _getStorage();
@@ -332,7 +335,7 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
         // Quorum check: total votes / total voting power >= quorumBps / 10000
         if ($.quorumBps > 0) {
             uint256 totalPower = _totalVotingPower();
-            if (totalPower > 0 && totalVotes * 10000 < uint256($.quorumBps) * totalPower) {
+            if (totalPower > 0 && totalVotes * 10_000 < uint256($.quorumBps) * totalPower) {
                 return false;
             }
         }
@@ -342,7 +345,7 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
         uint256 decisive = proposal.forVotes + proposal.againstVotes;
         if (decisive == 0) return false; // Only abstains → not passed
 
-        return proposal.forVotes * 10000 >= uint256($.thresholdBps) * decisive;
+        return proposal.forVotes * 10_000 >= uint256($.thresholdBps) * decisive;
     }
 
     function getProposal(uint256 proposalId) external view returns (Proposal memory) {
@@ -393,7 +396,8 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
         return "1.0.0";
     }
 
-    // ── Internal ──────────────────────────────────────────────────
+    // ── Internal
+    // ──────────────────────────────────────────────────
 
     function _authorizeUpgrade(address) internal override onlyRole(DEFAULT_ADMIN_ROLE) { }
 

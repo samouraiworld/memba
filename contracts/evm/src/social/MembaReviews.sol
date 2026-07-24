@@ -12,7 +12,8 @@ import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/P
  *         Port of the Gno `memba_reviews_v1` realm.
  */
 contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
-    // ── Structs ───────────────────────────────────────────────────
+    // ── Structs
+    // ───────────────────────────────────────────────────
     struct Review {
         uint256 id;
         string subject;
@@ -41,7 +42,8 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
         uint256 sum;
     }
 
-    // ── Storage (ERC-7201) ────────────────────────────────────────
+    // ── Storage (ERC-7201)
+    // ────────────────────────────────────────
     /// @custom:storage-location erc7201:memba.storage.MembaReviews
     struct ReviewsStorage {
         address admin;
@@ -67,7 +69,8 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
         assembly { $.slot := loc }
     }
 
-    // ── Errors ────────────────────────────────────────────────────
+    // ── Errors
+    // ────────────────────────────────────────────────────
     error NotAdmin();
     error NotAuthor();
     error InvalidRating();
@@ -80,7 +83,8 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
     error CooldownNotElapsed();
     error AlreadyReviewedSubject();
 
-    // ── Events ────────────────────────────────────────────────────
+    // ── Events
+    // ────────────────────────────────────────────────────
     event ReviewPosted(uint256 indexed id, string subject, address indexed author, uint8 rating);
     event ReviewEdited(uint256 indexed id, uint8 newRating);
     event ReviewDeleted(uint256 indexed id);
@@ -94,7 +98,9 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() { _disableInitializers(); }
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize(address _admin) external initializer {
         if (_admin == address(0)) revert InvalidParams();
@@ -103,9 +109,14 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
         _getStorage().admin = _admin;
     }
 
-    // ── Reviews ───────────────────────────────────────────────────
+    // ── Reviews
+    // ───────────────────────────────────────────────────
 
-    function postReview(string calldata subject, uint8 rating, string calldata body) external whenNotPaused returns (uint256 id) {
+    function postReview(string calldata subject, uint8 rating, string calldata body)
+        external
+        whenNotPaused
+        returns (uint256 id)
+    {
         if (rating < 1 || rating > 5) revert InvalidRating();
         if (bytes(body).length == 0) revert EmptyBody();
 
@@ -183,7 +194,8 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
         emit ReviewDeleted(id);
     }
 
-    // ── Reactions ─────────────────────────────────────────────────
+    // ── Reactions
+    // ─────────────────────────────────────────────────
 
     function react(uint256 id, bool isLike) external {
         ReviewsStorage storage $ = _getStorage();
@@ -193,12 +205,14 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
         if ($.hasReacted[id][msg.sender]) revert AlreadyReacted();
 
         $.hasReacted[id][msg.sender] = true;
-        if (isLike) { r.likes++; } else { r.dislikes++; }
+        if (isLike) r.likes++;
+        else r.dislikes++;
 
         emit Reacted(id, msg.sender, isLike);
     }
 
-    // ── Comments ──────────────────────────────────────────────────
+    // ── Comments
+    // ──────────────────────────────────────────────────
 
     function addComment(uint256 reviewId, string calldata body) external whenNotPaused returns (uint256 commentId) {
         if (bytes(body).length == 0) revert EmptyBody();
@@ -218,7 +232,8 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
         emit CommentAdded(commentId, reviewId, msg.sender);
     }
 
-    // ── Flagging ──────────────────────────────────────────────────
+    // ── Flagging
+    // ──────────────────────────────────────────────────
 
     function flag(uint256 id, string calldata reason) external {
         ReviewsStorage storage $ = _getStorage();
@@ -228,7 +243,8 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
         emit ReviewFlagged(id, msg.sender, reason);
     }
 
-    // ── View ──────────────────────────────────────────────────────
+    // ── View
+    // ──────────────────────────────────────────────────────
 
     function getReview(uint256 id) external view returns (Review memory) {
         return _getStorage().reviews[id];
@@ -238,11 +254,24 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
         return _getStorage().summaries[keccak256(bytes(subject))];
     }
 
-    function admin() external view returns (address) { return _getStorage().admin; }
-    function reviewCount() external view returns (uint256) { return _getStorage().nextReviewId; }
-    function version() external pure returns (string memory) { return "1.0.0"; }
+    function admin() external view returns (address) {
+        return _getStorage().admin;
+    }
 
-    function pause() external onlyAdmin { _pause(); }
-    function unpause() external onlyAdmin { _unpause(); }
+    function reviewCount() external view returns (uint256) {
+        return _getStorage().nextReviewId;
+    }
+
+    function version() external pure returns (string memory) {
+        return "1.0.0";
+    }
+
+    function pause() external onlyAdmin {
+        _pause();
+    }
+
+    function unpause() external onlyAdmin {
+        _unpause();
+    }
     function _authorizeUpgrade(address) internal override onlyAdmin { }
 }

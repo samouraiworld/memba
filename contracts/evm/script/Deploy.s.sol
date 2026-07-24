@@ -61,88 +61,84 @@ contract Deploy is Script {
         firstDAO = factory.createDAO("Samourai Coop", "Official Memba DAO", safe, bytes32(uint256(1)));
         console.log("[Core] First DAO:", firstDAO);
 
-        address candProxy = address(new ERC1967Proxy(
-            address(new MembaCandidature()),
-            abi.encodeCall(MembaCandidature.initialize, (firstDAO, safe, 0.01 ether))
-        ));
+        address candProxy = address(
+            new ERC1967Proxy(
+                address(new MembaCandidature()),
+                abi.encodeCall(MembaCandidature.initialize, (firstDAO, safe, 0.01 ether))
+            )
+        );
         console.log("[Core] Candidature:", candProxy);
 
-        address channelsProxy = address(new ERC1967Proxy(
-            address(new MembaChannels()),
-            abi.encodeCall(MembaChannels.initialize, (firstDAO, safe))
-        ));
+        address channelsProxy = address(
+            new ERC1967Proxy(address(new MembaChannels()), abi.encodeCall(MembaChannels.initialize, (firstDAO, safe)))
+        );
         console.log("[Core] Channels:", channelsProxy);
 
-        address registryProxy = address(new ERC1967Proxy(
-            address(new MembaRegistry()),
-            abi.encodeCall(MembaRegistry.initialize, (safe, safe, 200))
-        ));
+        address registryProxy = address(
+            new ERC1967Proxy(address(new MembaRegistry()), abi.encodeCall(MembaRegistry.initialize, (safe, safe, 200)))
+        );
         console.log("[Core] Registry:", registryProxy);
     }
 
     function _deployCommerce(address safe, address treasury) internal returns (address nftProxy) {
-        address tokenFactoryProxy = address(new ERC1967Proxy(
-            address(new MembaTokenFactory()),
-            abi.encodeCall(MembaTokenFactory.initialize, (safe, treasury, 0.001 ether))
-        ));
+        address tokenFactoryProxy = address(
+            new ERC1967Proxy(
+                address(new MembaTokenFactory()),
+                abi.encodeCall(MembaTokenFactory.initialize, (safe, treasury, 0.001 ether))
+            )
+        );
         console.log("[Commerce] TokenFactory:", tokenFactoryProxy);
 
-        address escrowProxy = address(new ERC1967Proxy(
-            address(new MembaEscrow()),
-            abi.encodeCall(MembaEscrow.initialize, (safe, treasury, 200, 500, 30 days))
-        ));
+        address escrowProxy = address(
+            new ERC1967Proxy(
+                address(new MembaEscrow()), abi.encodeCall(MembaEscrow.initialize, (safe, treasury, 200, 500, 30 days))
+            )
+        );
         console.log("[Commerce] Escrow:", escrowProxy);
 
-        nftProxy = address(new ERC1967Proxy(
-            address(new MembaNFT()),
-            abi.encodeCall(MembaNFT.initialize, (safe))
-        ));
+        nftProxy = address(new ERC1967Proxy(address(new MembaNFT()), abi.encodeCall(MembaNFT.initialize, (safe))));
         console.log("[Commerce] NFT:", nftProxy);
     }
 
     function _deployCollectionsAndOTC(address safe, address treasury, address nftProxy) internal {
-        address collectionsProxy = address(new ERC1967Proxy(
-            address(new MembaCollections()),
-            abi.encodeCall(MembaCollections.initialize, (safe, treasury, 0.01 ether, nftProxy))
-        ));
+        address collectionsProxy = address(
+            new ERC1967Proxy(
+                address(new MembaCollections()),
+                abi.encodeCall(MembaCollections.initialize, (safe, treasury, 0.01 ether, nftProxy))
+            )
+        );
         console.log("[Commerce] Collections:", collectionsProxy);
 
-        address otcProxy = address(new ERC1967Proxy(
-            address(new MembaTokenOTC()),
-            abi.encodeCall(MembaTokenOTC.initialize, (safe, treasury, 100))
-        ));
+        address otcProxy = address(
+            new ERC1967Proxy(
+                address(new MembaTokenOTC()), abi.encodeCall(MembaTokenOTC.initialize, (safe, treasury, 100))
+            )
+        );
         console.log("[Commerce] OTC:", otcProxy);
     }
 
     function _deploySocial(address safe, address treasury, address verifier) internal {
-        address reviewsProxy = address(new ERC1967Proxy(
-            address(new MembaReviews()),
-            abi.encodeCall(MembaReviews.initialize, (safe))
-        ));
+        address reviewsProxy =
+            address(new ERC1967Proxy(address(new MembaReviews()), abi.encodeCall(MembaReviews.initialize, (safe))));
         console.log("[Social] Reviews:", reviewsProxy);
 
-        address badgesProxy = address(new ERC1967Proxy(
-            address(new MembaBadges()),
-            abi.encodeCall(MembaBadges.initialize, (verifier))
-        ));
+        address badgesProxy =
+            address(new ERC1967Proxy(address(new MembaBadges()), abi.encodeCall(MembaBadges.initialize, (verifier))));
         console.log("[Social] Badges:", badgesProxy);
 
-        address questsProxy = address(new ERC1967Proxy(
-            address(new MembaQuests()),
-            abi.encodeCall(MembaQuests.initialize, (verifier))
-        ));
+        address questsProxy =
+            address(new ERC1967Proxy(address(new MembaQuests()), abi.encodeCall(MembaQuests.initialize, (verifier))));
         console.log("[Social] Quests:", questsProxy);
 
-        address pointsProxy = address(new ERC1967Proxy(
-            address(new MembaPoints()),
-            abi.encodeCall(MembaPoints.initialize, (safe))
-        ));
+        address pointsProxy =
+            address(new ERC1967Proxy(address(new MembaPoints()), abi.encodeCall(MembaPoints.initialize, (safe))));
         console.log("[Social] Points:", pointsProxy);
 
-        address appStoreProxy = address(new ERC1967Proxy(
-            address(new MembaAppStore()),
-            abi.encodeCall(MembaAppStore.initialize, (safe, treasury, 0.001 ether))
-        ));
+        address appStoreProxy = address(
+            new ERC1967Proxy(
+                address(new MembaAppStore()), abi.encodeCall(MembaAppStore.initialize, (safe, treasury, 0.001 ether))
+            )
+        );
         console.log("[Social] AppStore:", appStoreProxy);
     }
 }

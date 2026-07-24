@@ -241,13 +241,13 @@ contract MembaDAOTest is Test {
         dao.propose("Prop", "Desc", MembaDAO.ProposalCategory.Governance);
 
         vm.prank(admin);
-        dao.vote(0, MembaDAO.VoteType.For);       // power = 1
+        dao.vote(0, MembaDAO.VoteType.For); // power = 1
 
         vm.prank(alice);
-        dao.vote(0, MembaDAO.VoteType.Against);    // power = 10
+        dao.vote(0, MembaDAO.VoteType.Against); // power = 10
 
         vm.prank(bob);
-        dao.vote(0, MembaDAO.VoteType.Abstain);    // power = 10
+        dao.vote(0, MembaDAO.VoteType.Abstain); // power = 10
 
         MembaDAO.Proposal memory p = dao.getProposal(0);
         assertEq(p.forVotes, 1);
@@ -404,7 +404,7 @@ contract MembaDAOTest is Test {
 
         vm.prank(admin);
         vm.expectRevert(MembaDAO.InvalidThreshold.selector);
-        dao.updateThreshold(10001);
+        dao.updateThreshold(10_001);
     }
 
     function test_UpdateQuorum_Success() public {
@@ -416,7 +416,7 @@ contract MembaDAOTest is Test {
     function test_UpdateQuorum_InvalidReverts() public {
         vm.prank(admin);
         vm.expectRevert(MembaDAO.InvalidQuorum.selector);
-        dao.updateQuorum(10001);
+        dao.updateQuorum(10_001);
     }
 
     function test_UpdateConfig_NonAdminReverts() public {

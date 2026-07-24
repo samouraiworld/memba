@@ -21,10 +21,12 @@ interface IERC5192 {
  *         Port of the Gno `gnobuilders_badges_v2` realm.
  */
 contract MembaBadges is ERC721Upgradeable, UUPSUpgradeable, IERC5192 {
-    // ── Constants ─────────────────────────────────────────────────
+    // ── Constants
+    // ─────────────────────────────────────────────────
     uint256 public constant MAX_BATCH = 50;
 
-    // ── Structs ───────────────────────────────────────────────────
+    // ── Structs
+    // ───────────────────────────────────────────────────
     struct BadgeInfo {
         string questId;
         string tokenURI;
@@ -32,7 +34,8 @@ contract MembaBadges is ERC721Upgradeable, UUPSUpgradeable, IERC5192 {
         uint256 mintedAt;
     }
 
-    // ── Storage (ERC-7201) ────────────────────────────────────────
+    // ── Storage (ERC-7201)
+    // ────────────────────────────────────────
     /// @custom:storage-location erc7201:memba.storage.MembaBadges
     struct BadgeStorage {
         address minter;
@@ -51,7 +54,8 @@ contract MembaBadges is ERC721Upgradeable, UUPSUpgradeable, IERC5192 {
         assembly { $.slot := loc }
     }
 
-    // ── Errors ────────────────────────────────────────────────────
+    // ── Errors
+    // ────────────────────────────────────────────────────
     error NotMinter();
     error AlreadyMinted();
     error SoulboundTransfer();
@@ -59,7 +63,8 @@ contract MembaBadges is ERC721Upgradeable, UUPSUpgradeable, IERC5192 {
     error ArrayLengthMismatch();
     error InvalidParams();
 
-    // ── Events ────────────────────────────────────────────────────
+    // ── Events
+    // ────────────────────────────────────────────────────
     event BadgeMinted(uint256 indexed tokenId, address indexed to, string questId, bool soulbound);
 
     modifier onlyMinter() {
@@ -68,7 +73,9 @@ contract MembaBadges is ERC721Upgradeable, UUPSUpgradeable, IERC5192 {
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() { _disableInitializers(); }
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize(address _minter) external initializer {
         if (_minter == address(0)) revert InvalidParams();
@@ -77,14 +84,14 @@ contract MembaBadges is ERC721Upgradeable, UUPSUpgradeable, IERC5192 {
         _getStorage().minter = _minter;
     }
 
-    // ── Minting ───────────────────────────────────────────────────
+    // ── Minting
+    // ───────────────────────────────────────────────────
 
-    function mint(
-        address to,
-        string calldata questId,
-        string calldata uri,
-        bool soulbound
-    ) external onlyMinter returns (uint256 tokenId) {
+    function mint(address to, string calldata questId, string calldata uri, bool soulbound)
+        external
+        onlyMinter
+        returns (uint256 tokenId)
+    {
         BadgeStorage storage $ = _getStorage();
 
         bytes32 dedupKey = keccak256(abi.encodePacked(to, questId));
@@ -93,12 +100,8 @@ contract MembaBadges is ERC721Upgradeable, UUPSUpgradeable, IERC5192 {
         tokenId = $.nextTokenId++;
         $.minted[dedupKey] = true;
 
-        $.badges[tokenId] = BadgeInfo({
-            questId: questId,
-            tokenURI: uri,
-            soulbound: soulbound,
-            mintedAt: block.timestamp
-        });
+        $.badges[tokenId] =
+            BadgeInfo({ questId: questId, tokenURI: uri, soulbound: soulbound, mintedAt: block.timestamp });
         $.userBadges[to].push(tokenId);
 
         _safeMint(to, tokenId);
@@ -115,7 +118,9 @@ contract MembaBadges is ERC721Upgradeable, UUPSUpgradeable, IERC5192 {
         string[] calldata uris,
         bool soulbound
     ) external onlyMinter {
-        if (recipients.length != questIds.length || questIds.length != uris.length) revert ArrayLengthMismatch();
+        if (recipients.length != questIds.length || questIds.length != uris.length) {
+            revert ArrayLengthMismatch();
+        }
         if (recipients.length > MAX_BATCH) revert BatchTooLarge();
 
         BadgeStorage storage $ = _getStorage();
@@ -127,12 +132,8 @@ contract MembaBadges is ERC721Upgradeable, UUPSUpgradeable, IERC5192 {
             uint256 tokenId = $.nextTokenId++;
             $.minted[dedupKey] = true;
 
-            $.badges[tokenId] = BadgeInfo({
-                questId: questIds[i],
-                tokenURI: uris[i],
-                soulbound: soulbound,
-                mintedAt: block.timestamp
-            });
+            $.badges[tokenId] =
+                BadgeInfo({ questId: questIds[i], tokenURI: uris[i], soulbound: soulbound, mintedAt: block.timestamp });
             $.userBadges[recipients[i]].push(tokenId);
 
             _safeMint(recipients[i], tokenId);
@@ -142,13 +143,15 @@ contract MembaBadges is ERC721Upgradeable, UUPSUpgradeable, IERC5192 {
         }
     }
 
-    // ── ERC-5192 ──────────────────────────────────────────────────
+    // ── ERC-5192
+    // ──────────────────────────────────────────────────
 
     function locked(uint256 tokenId) external view override returns (bool) {
         return _getStorage().badges[tokenId].soulbound;
     }
 
-    // ── View ──────────────────────────────────────────────────────
+    // ── View
+    // ──────────────────────────────────────────────────────
 
     function getUserBadges(address user) external view returns (uint256[] memory) {
         return _getStorage().userBadges[user];
@@ -163,20 +166,25 @@ contract MembaBadges is ERC721Upgradeable, UUPSUpgradeable, IERC5192 {
         return _getStorage().badges[tokenId].tokenURI;
     }
 
-    function minter() external view returns (address) { return _getStorage().minter; }
-    function nextTokenId() external view returns (uint256) { return _getStorage().nextTokenId; }
-    function version() external pure returns (string memory) { return "1.0.0"; }
+    function minter() external view returns (address) {
+        return _getStorage().minter;
+    }
 
-    // ── Internal ──────────────────────────────────────────────────
+    function nextTokenId() external view returns (uint256) {
+        return _getStorage().nextTokenId;
+    }
+
+    function version() external pure returns (string memory) {
+        return "1.0.0";
+    }
+
+    // ── Internal
+    // ──────────────────────────────────────────────────
 
     function _authorizeUpgrade(address) internal override onlyMinter { }
 
     /// @dev Block transfers of soulbound tokens.
-    function _update(address to, uint256 tokenId, address auth)
-        internal
-        override
-        returns (address)
-    {
+    function _update(address to, uint256 tokenId, address auth) internal override returns (address) {
         address from = _ownerOf(tokenId);
         // Allow minting (from=0) and burning (to=0), block transfers of soulbound
         if (from != address(0) && to != address(0)) {

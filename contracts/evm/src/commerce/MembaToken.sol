@@ -14,13 +14,11 @@ import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
 contract MembaToken is ERC20, ERC20Permit, Ownable {
     uint8 private immutable _tokenDecimals;
 
-    constructor(
-        string memory name_,
-        string memory symbol_,
-        uint8 decimals_,
-        uint256 initialSupply,
-        address tokenAdmin
-    ) ERC20(name_, symbol_) ERC20Permit(name_) Ownable(tokenAdmin) {
+    constructor(string memory name_, string memory symbol_, uint8 decimals_, uint256 initialSupply, address tokenAdmin)
+        ERC20(name_, symbol_)
+        ERC20Permit(name_)
+        Ownable(tokenAdmin)
+    {
         _tokenDecimals = decimals_;
         if (initialSupply > 0) {
             _mint(tokenAdmin, initialSupply);

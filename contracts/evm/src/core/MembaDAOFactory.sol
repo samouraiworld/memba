@@ -16,16 +16,19 @@ import { MembaDAO } from "./MembaDAO.sol";
  * TODO: Implement per docs/evm-migration/CONTRACT_SPECS/MembaDAO.spec.md (factory section)
  */
 contract MembaDAOFactory is Ownable {
-    // ── Storage ───────────────────────────────────────────────────
+    // ── Storage
+    // ───────────────────────────────────────────────────
     address public daoImplementation;
     uint256 public daoCount;
     mapping(uint256 => address) public daos;
 
-    // ── Events ────────────────────────────────────────────────────
+    // ── Events
+    // ────────────────────────────────────────────────────
     event DAOCreated(uint256 indexed daoId, address indexed daoAddress, address indexed creator, string name);
     event ImplementationUpdated(address indexed oldImpl, address indexed newImpl);
 
-    // ── Errors ────────────────────────────────────────────────────
+    // ── Errors
+    // ────────────────────────────────────────────────────
     error InvalidImplementation();
     error DeploymentFailed();
 

@@ -11,7 +11,10 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
  *         Port of the Gno `memba_points_v1` realm.
  */
 contract MembaPoints is UUPSUpgradeable {
-    struct TierBand { string name; uint256 minPoints; }
+    struct TierBand {
+        string name;
+        uint256 minPoints;
+    }
 
     /// @custom:storage-location erc7201:memba.storage.MembaPoints
     struct PointsStorage {
@@ -26,6 +29,7 @@ contract MembaPoints is UUPSUpgradeable {
     /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaPoints")) - 1)) & ~bytes32(uint256(0xff))
     /// @dev Asserted against its derivation in test/StorageSlots.t.sol — never edit by hand.
     bytes32 private constant STORAGE_LOCATION = 0x71f7b67fd09da12e84a20be9ab8db0d779ae7ab777b5cef22bb5f7180653af00;
+
     function _getStorage() private pure returns (PointsStorage storage $) {
         bytes32 loc = STORAGE_LOCATION;
         assembly { $.slot := loc }
@@ -38,11 +42,19 @@ contract MembaPoints is UUPSUpgradeable {
     event PointsAwarded(address indexed user, uint256 amount, uint256 total);
     event AwarderUpdated(address indexed awarder, bool authorized);
 
-    modifier onlyAdmin() { if (msg.sender != _getStorage().admin) revert NotAdmin(); _; }
-    modifier onlyAwarder() { if (!_getStorage().awarders[msg.sender]) revert NotAwarder(); _; }
+    modifier onlyAdmin() {
+        if (msg.sender != _getStorage().admin) revert NotAdmin();
+        _;
+    }
+    modifier onlyAwarder() {
+        if (!_getStorage().awarders[msg.sender]) revert NotAwarder();
+        _;
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() { _disableInitializers(); }
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize(address _admin) external initializer {
         if (_admin == address(0)) revert InvalidParams();
@@ -62,7 +74,8 @@ contract MembaPoints is UUPSUpgradeable {
         if (user == address(0) || amount == 0) revert InvalidParams();
         PointsStorage storage $ = _getStorage();
         $.points[user] += amount;
-        if (!$.isHolder[user]) { $.holders.push(user); $.isHolder[user] = true; }
+        if (!$.isHolder[user]) $.holders.push(user);
+        $.isHolder[user] = true;
         emit PointsAwarded(user, amount, $.points[user]);
     }
 
@@ -71,7 +84,9 @@ contract MembaPoints is UUPSUpgradeable {
         emit AwarderUpdated(awarder, authorized);
     }
 
-    function getPoints(address user) external view returns (uint256) { return _getStorage().points[user]; }
+    function getPoints(address user) external view returns (uint256) {
+        return _getStorage().points[user];
+    }
 
     function getTier(address user) external view returns (string memory) {
         PointsStorage storage $ = _getStorage();
@@ -83,9 +98,17 @@ contract MembaPoints is UUPSUpgradeable {
         return tier;
     }
 
-    function getHolderCount() external view returns (uint256) { return _getStorage().holders.length; }
-    function admin() external view returns (address) { return _getStorage().admin; }
-    function version() external pure returns (string memory) { return "1.0.0"; }
+    function getHolderCount() external view returns (uint256) {
+        return _getStorage().holders.length;
+    }
+
+    function admin() external view returns (address) {
+        return _getStorage().admin;
+    }
+
+    function version() external pure returns (string memory) {
+        return "1.0.0";
+    }
 
     function _authorizeUpgrade(address) internal override onlyAdmin { }
 }

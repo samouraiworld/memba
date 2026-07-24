@@ -20,16 +20,14 @@ contract MembaEscrowTest is Test {
     address public seller = makeAddr("seller");
     address public outsider = makeAddr("outsider");
 
-    uint16 public constant PLATFORM_FEE = 200;      // 2%
-    uint16 public constant CANCEL_FEE = 500;         // 5%
+    uint16 public constant PLATFORM_FEE = 200; // 2%
+    uint16 public constant CANCEL_FEE = 500; // 5%
     uint256 public constant AUTO_REFUND = 30 days;
 
     function setUp() public {
         MembaEscrow impl = new MembaEscrow();
-        bytes memory initData = abi.encodeCall(
-            MembaEscrow.initialize,
-            (adminAddr, feeWallet, PLATFORM_FEE, CANCEL_FEE, AUTO_REFUND)
-        );
+        bytes memory initData =
+            abi.encodeCall(MembaEscrow.initialize, (adminAddr, feeWallet, PLATFORM_FEE, CANCEL_FEE, AUTO_REFUND));
         address proxy = address(new ERC1967Proxy(address(impl), initData));
         escrow = MembaEscrow(proxy);
 
@@ -115,7 +113,7 @@ contract MembaEscrowTest is Test {
         _createContract();
 
         vm.prank(buyer);
-        escrow.fundMilestone{value: 1 ether}(0, 0);
+        escrow.fundMilestone{ value: 1 ether }(0, 0);
 
         MembaEscrow.Milestone memory ms = escrow.getMilestone(0, 0);
         assertEq(uint8(ms.status), uint8(MembaEscrow.MilestoneStatus.Funded));
@@ -127,7 +125,7 @@ contract MembaEscrowTest is Test {
 
         vm.prank(buyer);
         vm.expectRevert(MembaEscrow.InsufficientFunding.selector);
-        escrow.fundMilestone{value: 0.5 ether}(0, 0);
+        escrow.fundMilestone{ value: 0.5 ether }(0, 0);
     }
 
     function test_FundMilestone_NonBuyerReverts() public {
@@ -135,18 +133,18 @@ contract MembaEscrowTest is Test {
 
         vm.prank(outsider);
         vm.expectRevert(MembaEscrow.NotBuyer.selector);
-        escrow.fundMilestone{value: 1 ether}(0, 0);
+        escrow.fundMilestone{ value: 1 ether }(0, 0);
     }
 
     function test_FundMilestone_AlreadyFundedReverts() public {
         _createContract();
 
         vm.prank(buyer);
-        escrow.fundMilestone{value: 1 ether}(0, 0);
+        escrow.fundMilestone{ value: 1 ether }(0, 0);
 
         vm.prank(buyer);
         vm.expectRevert(MembaEscrow.MilestoneNotPending.selector);
-        escrow.fundMilestone{value: 1 ether}(0, 0);
+        escrow.fundMilestone{ value: 1 ether }(0, 0);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -156,7 +154,7 @@ contract MembaEscrowTest is Test {
     function test_CompleteMilestone_Success() public {
         _createContract();
         vm.prank(buyer);
-        escrow.fundMilestone{value: 1 ether}(0, 0);
+        escrow.fundMilestone{ value: 1 ether }(0, 0);
 
         vm.prank(seller);
         escrow.completeMilestone(0, 0);
@@ -168,7 +166,7 @@ contract MembaEscrowTest is Test {
     function test_CompleteMilestone_NonSellerReverts() public {
         _createContract();
         vm.prank(buyer);
-        escrow.fundMilestone{value: 1 ether}(0, 0);
+        escrow.fundMilestone{ value: 1 ether }(0, 0);
 
         vm.prank(outsider);
         vm.expectRevert(MembaEscrow.NotSeller.selector);
@@ -178,7 +176,7 @@ contract MembaEscrowTest is Test {
     function test_ReleaseFunds_Success() public {
         _createContract();
         vm.prank(buyer);
-        escrow.fundMilestone{value: 1 ether}(0, 0);
+        escrow.fundMilestone{ value: 1 ether }(0, 0);
         vm.prank(seller);
         escrow.completeMilestone(0, 0);
 
@@ -189,7 +187,7 @@ contract MembaEscrowTest is Test {
         escrow.releaseFunds(0, 0);
 
         // 2% fee
-        uint256 expectedFee = 1 ether * uint256(PLATFORM_FEE) / 10000;
+        uint256 expectedFee = 1 ether * uint256(PLATFORM_FEE) / 10_000;
         uint256 expectedNet = 1 ether - expectedFee;
 
         assertEq(seller.balance, sellerBefore + expectedNet);
@@ -202,11 +200,11 @@ contract MembaEscrowTest is Test {
     function test_ReleaseFunds_FeeCalculation() public {
         _createContract();
         vm.prank(buyer);
-        escrow.fundMilestone{value: 1 ether}(0, 0);
+        escrow.fundMilestone{ value: 1 ether }(0, 0);
         vm.prank(seller);
         escrow.completeMilestone(0, 0);
 
-        uint256 fee = 1 ether * uint256(PLATFORM_FEE) / 10000; // 0.02 ETH
+        uint256 fee = 1 ether * uint256(PLATFORM_FEE) / 10_000; // 0.02 ETH
         assertEq(fee, 0.02 ether);
     }
 
@@ -215,14 +213,14 @@ contract MembaEscrowTest is Test {
 
         // Fund and complete both milestones
         vm.prank(buyer);
-        escrow.fundMilestone{value: 1 ether}(0, 0);
+        escrow.fundMilestone{ value: 1 ether }(0, 0);
         vm.prank(seller);
         escrow.completeMilestone(0, 0);
         vm.prank(buyer);
         escrow.releaseFunds(0, 0);
 
         vm.prank(buyer);
-        escrow.fundMilestone{value: 2 ether}(0, 1);
+        escrow.fundMilestone{ value: 2 ether }(0, 1);
         vm.prank(seller);
         escrow.completeMilestone(0, 1);
         vm.prank(buyer);
@@ -235,7 +233,7 @@ contract MembaEscrowTest is Test {
     function test_ReleaseFunds_AlreadyReleasedReverts() public {
         _createContract();
         vm.prank(buyer);
-        escrow.fundMilestone{value: 1 ether}(0, 0);
+        escrow.fundMilestone{ value: 1 ether }(0, 0);
         vm.prank(seller);
         escrow.completeMilestone(0, 0);
         vm.prank(buyer);
@@ -278,7 +276,7 @@ contract MembaEscrowTest is Test {
     function test_Dispute_FreezesActions() public {
         _createContract();
         vm.prank(buyer);
-        escrow.fundMilestone{value: 1 ether}(0, 0);
+        escrow.fundMilestone{ value: 1 ether }(0, 0);
 
         vm.prank(buyer);
         escrow.dispute(0);
@@ -292,7 +290,7 @@ contract MembaEscrowTest is Test {
     function test_ResolveDispute_ReleaseToSeller() public {
         _createContract();
         vm.prank(buyer);
-        escrow.fundMilestone{value: 1 ether}(0, 0);
+        escrow.fundMilestone{ value: 1 ether }(0, 0);
         vm.prank(buyer);
         escrow.dispute(0);
 
@@ -302,14 +300,14 @@ contract MembaEscrowTest is Test {
         escrow.resolveDispute(0, true);
 
         // Seller received funds minus fee
-        uint256 fee = 1 ether * uint256(PLATFORM_FEE) / 10000;
+        uint256 fee = 1 ether * uint256(PLATFORM_FEE) / 10_000;
         assertEq(seller.balance, sellerBefore + 1 ether - fee);
     }
 
     function test_ResolveDispute_RefundToBuyer() public {
         _createContract();
         vm.prank(buyer);
-        escrow.fundMilestone{value: 1 ether}(0, 0);
+        escrow.fundMilestone{ value: 1 ether }(0, 0);
         vm.prank(buyer);
         escrow.dispute(0);
 
@@ -341,11 +339,11 @@ contract MembaEscrowTest is Test {
 
         // Fund milestone 0
         vm.prank(buyer);
-        escrow.fundMilestone{value: 1 ether}(0, 0);
+        escrow.fundMilestone{ value: 1 ether }(0, 0);
 
         // Fund and complete milestone 1
         vm.prank(buyer);
-        escrow.fundMilestone{value: 2 ether}(0, 1);
+        escrow.fundMilestone{ value: 2 ether }(0, 1);
         vm.prank(seller);
         escrow.completeMilestone(0, 1);
 
@@ -356,7 +354,7 @@ contract MembaEscrowTest is Test {
         escrow.cancelContract(0);
 
         // MS 0 (Funded): refund to buyer minus 5% cancel fee
-        uint256 cancelFee0 = 1 ether * uint256(CANCEL_FEE) / 10000;
+        uint256 cancelFee0 = 1 ether * uint256(CANCEL_FEE) / 10_000;
         // MS 1 (Completed): release to seller (no fee, work was done)
         assertEq(buyer.balance, buyerBefore + 1 ether - cancelFee0);
         assertEq(seller.balance, sellerBefore + 2 ether);
@@ -379,7 +377,7 @@ contract MembaEscrowTest is Test {
     function test_AutoRefund_Success() public {
         _createContract();
         vm.prank(buyer);
-        escrow.fundMilestone{value: 1 ether}(0, 0);
+        escrow.fundMilestone{ value: 1 ether }(0, 0);
 
         // Fast-forward past timeout
         vm.warp(block.timestamp + AUTO_REFUND + 1);
@@ -394,7 +392,7 @@ contract MembaEscrowTest is Test {
     function test_AutoRefund_BeforeTimeoutReverts() public {
         _createContract();
         vm.prank(buyer);
-        escrow.fundMilestone{value: 1 ether}(0, 0);
+        escrow.fundMilestone{ value: 1 ether }(0, 0);
 
         vm.prank(buyer);
         vm.expectRevert(MembaEscrow.AutoRefundNotReady.selector);

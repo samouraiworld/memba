@@ -3,8 +3,7 @@ pragma solidity ^0.8.28;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import { ReentrancyGuardUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 import { MembaToken } from "./MembaToken.sol";
 
@@ -16,17 +15,19 @@ import { MembaToken } from "./MembaToken.sol";
  * @dev UUPS-upgradeable. Fee recipient is the Samouraï Coop Safe multisig.
  */
 contract MembaTokenFactory is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
-    // ── Constants ─────────────────────────────────────────────────
+    // ── Constants
+    // ─────────────────────────────────────────────────
     uint256 public constant MAX_SYMBOL_LENGTH = 10;
     uint256 public constant MAX_NAME_LENGTH = 64;
     uint8 public constant MAX_DECIMALS = 18;
 
-    // ── Storage (ERC-7201) ────────────────────────────────────────
+    // ── Storage (ERC-7201)
+    // ────────────────────────────────────────
     /// @custom:storage-location erc7201:memba.storage.MembaTokenFactory
     struct TokenFactoryStorage {
         address admin;
         address feeRecipient;
-        uint256 creationFee;      // flat ETH fee for creating a token
+        uint256 creationFee; // flat ETH fee for creating a token
         uint256 tokenCount;
         mapping(uint256 => address) tokens;
         mapping(address => bool) isMembaToken;
@@ -44,7 +45,8 @@ contract MembaTokenFactory is UUPSUpgradeable, PausableUpgradeable, ReentrancyGu
         assembly { $.slot := loc }
     }
 
-    // ── Errors ────────────────────────────────────────────────────
+    // ── Errors
+    // ────────────────────────────────────────────────────
     error NotAdmin();
     error InvalidRecipient();
     error InvalidParams();
@@ -52,7 +54,8 @@ contract MembaTokenFactory is UUPSUpgradeable, PausableUpgradeable, ReentrancyGu
     error InsufficientFee();
     error FeeTransferFailed();
 
-    // ── Events ────────────────────────────────────────────────────
+    // ── Events
+    // ────────────────────────────────────────────────────
     event TokenCreated(
         uint256 indexed tokenId,
         address indexed tokenAddress,
@@ -66,24 +69,23 @@ contract MembaTokenFactory is UUPSUpgradeable, PausableUpgradeable, ReentrancyGu
     event FeeRecipientUpdated(address indexed oldRecipient, address indexed newRecipient);
     event CreationFeeUpdated(uint256 oldFee, uint256 newFee);
 
-    // ── Modifiers ─────────────────────────────────────────────────
+    // ── Modifiers
+    // ─────────────────────────────────────────────────
     modifier onlyAdmin() {
         if (msg.sender != _getStorage().admin) revert NotAdmin();
         _;
     }
 
-    // ── Constructor ───────────────────────────────────────────────
+    // ── Constructor
+    // ───────────────────────────────────────────────
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    // ── Initializer ───────────────────────────────────────────────
-    function initialize(
-        address _admin,
-        address _feeRecipient,
-        uint256 _creationFee
-    ) external initializer {
+    // ── Initializer
+    // ───────────────────────────────────────────────
+    function initialize(address _admin, address _feeRecipient, uint256 _creationFee) external initializer {
         if (_admin == address(0) || _feeRecipient == address(0)) revert InvalidParams();
 
         __UUPSUpgradeable_init();
@@ -96,7 +98,8 @@ contract MembaTokenFactory is UUPSUpgradeable, PausableUpgradeable, ReentrancyGu
         $.creationFee = _creationFee;
     }
 
-    // ── Token Creation ────────────────────────────────────────────
+    // ── Token Creation
+    // ────────────────────────────────────────────
 
     /**
      * @notice Deploy a new ERC-20 token via CREATE2.
@@ -133,9 +136,7 @@ contract MembaTokenFactory is UUPSUpgradeable, PausableUpgradeable, ReentrancyGu
         uint256 tokenId = $.tokenCount++;
 
         // Deploy token via CREATE2
-        token = address(
-            new MembaToken{salt: salt}(name_, symbol_, decimals_, initialSupply, msg.sender)
-        );
+        token = address(new MembaToken{ salt: salt }(name_, symbol_, decimals_, initialSupply, msg.sender));
 
         $.tokens[tokenId] = token;
         $.isMembaToken[token] = true;
@@ -145,13 +146,14 @@ contract MembaTokenFactory is UUPSUpgradeable, PausableUpgradeable, ReentrancyGu
 
         // Collect fee (if any)
         if (msg.value > 0) {
-            (bool ok,) = payable($.feeRecipient).call{value: msg.value}("");
+            (bool ok,) = payable($.feeRecipient).call{ value: msg.value }("");
             if (!ok) revert FeeTransferFailed();
             emit FeeCollected(msg.sender, msg.value);
         }
     }
 
-    // ── Admin ─────────────────────────────────────────────────────
+    // ── Admin
+    // ─────────────────────────────────────────────────────
 
     function updateFeeRecipient(address newRecipient) external onlyAdmin {
         if (newRecipient == address(0)) revert InvalidRecipient();
@@ -176,7 +178,8 @@ contract MembaTokenFactory is UUPSUpgradeable, PausableUpgradeable, ReentrancyGu
         _unpause();
     }
 
-    // ── View Functions ────────────────────────────────────────────
+    // ── View Functions
+    // ────────────────────────────────────────────
 
     function getToken(uint256 index) external view returns (address) {
         return _getStorage().tokens[index];
@@ -210,7 +213,8 @@ contract MembaTokenFactory is UUPSUpgradeable, PausableUpgradeable, ReentrancyGu
         return "1.0.0";
     }
 
-    // ── Internal ──────────────────────────────────────────────────
+    // ── Internal
+    // ──────────────────────────────────────────────────
 
     function _authorizeUpgrade(address) internal override onlyAdmin { }
 }

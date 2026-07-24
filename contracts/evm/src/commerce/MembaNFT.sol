@@ -2,10 +2,10 @@
 pragma solidity ^0.8.28;
 
 import { ERC721Upgradeable } from "@openzeppelin/contracts-upgradeable/token/ERC721/ERC721Upgradeable.sol";
-import { ERC721URIStorageUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
-import { ERC2981Upgradeable } from
-    "@openzeppelin/contracts-upgradeable/token/common/ERC2981Upgradeable.sol";
+import {
+    ERC721URIStorageUpgradeable
+} from "@openzeppelin/contracts-upgradeable/token/ERC721/extensions/ERC721URIStorageUpgradeable.sol";
+import { ERC2981Upgradeable } from "@openzeppelin/contracts-upgradeable/token/common/ERC2981Upgradeable.sol";
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
 
@@ -17,11 +17,13 @@ import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/P
  * @dev UUPS-upgradeable. Each collection has its own creator who controls minting.
  */
 contract MembaNFT is ERC721URIStorageUpgradeable, ERC2981Upgradeable, UUPSUpgradeable, PausableUpgradeable {
-    // ── Constants ─────────────────────────────────────────────────
-    uint96 public constant MAX_ROYALTY_BPS = 1000;   // 10%
+    // ── Constants
+    // ─────────────────────────────────────────────────
+    uint96 public constant MAX_ROYALTY_BPS = 1000; // 10%
     uint256 public constant MAX_BATCH_MINT = 50;
 
-    // ── Structs ───────────────────────────────────────────────────
+    // ── Structs
+    // ───────────────────────────────────────────────────
     struct CollectionInfo {
         string collectionID;
         address creator;
@@ -32,7 +34,8 @@ contract MembaNFT is ERC721URIStorageUpgradeable, ERC2981Upgradeable, UUPSUpgrad
         address royaltyRecipient;
     }
 
-    // ── Storage (ERC-7201) ────────────────────────────────────────
+    // ── Storage (ERC-7201)
+    // ────────────────────────────────────────
     /// @custom:storage-location erc7201:memba.storage.MembaNFT
     struct NFTStorage {
         address admin;
@@ -51,7 +54,8 @@ contract MembaNFT is ERC721URIStorageUpgradeable, ERC2981Upgradeable, UUPSUpgrad
         assembly { $.slot := loc }
     }
 
-    // ── Errors ────────────────────────────────────────────────────
+    // ── Errors
+    // ────────────────────────────────────────────────────
     error NotAdmin();
     error NotCollectionCreator();
     error CollectionAlreadyExists();
@@ -61,23 +65,27 @@ contract MembaNFT is ERC721URIStorageUpgradeable, ERC2981Upgradeable, UUPSUpgrad
     error BatchTooLarge();
     error InvalidParams();
 
-    // ── Events ────────────────────────────────────────────────────
+    // ── Events
+    // ────────────────────────────────────────────────────
     event CollectionCreated(bytes32 indexed collectionHash, string collectionID, address indexed creator);
     event NFTMinted(uint256 indexed tokenId, bytes32 indexed collectionHash, address indexed to);
 
-    // ── Modifiers ─────────────────────────────────────────────────
+    // ── Modifiers
+    // ─────────────────────────────────────────────────
     modifier onlyAdmin() {
         if (msg.sender != _getStorage().admin) revert NotAdmin();
         _;
     }
 
-    // ── Constructor ───────────────────────────────────────────────
+    // ── Constructor
+    // ───────────────────────────────────────────────
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    // ── Initializer ───────────────────────────────────────────────
+    // ── Initializer
+    // ───────────────────────────────────────────────
     function initialize(address _admin) external initializer {
         if (_admin == address(0)) revert InvalidParams();
         __ERC721_init("Memba NFT", "MNFT");
@@ -88,7 +96,8 @@ contract MembaNFT is ERC721URIStorageUpgradeable, ERC2981Upgradeable, UUPSUpgrad
         _getStorage().admin = _admin;
     }
 
-    // ── Collections ───────────────────────────────────────────────
+    // ── Collections
+    // ───────────────────────────────────────────────
 
     function createCollection(
         string calldata collectionID,
@@ -117,13 +126,14 @@ contract MembaNFT is ERC721URIStorageUpgradeable, ERC2981Upgradeable, UUPSUpgrad
         emit CollectionCreated(collHash, collectionID, msg.sender);
     }
 
-    // ── Minting ───────────────────────────────────────────────────
+    // ── Minting
+    // ───────────────────────────────────────────────────
 
-    function mint(
-        string calldata collectionID,
-        address to,
-        string calldata uri
-    ) external whenNotPaused returns (uint256 tokenId) {
+    function mint(string calldata collectionID, address to, string calldata uri)
+        external
+        whenNotPaused
+        returns (uint256 tokenId)
+    {
         if (bytes(uri).length == 0) revert EmptyTokenURI();
 
         bytes32 collHash = keccak256(bytes(collectionID));
@@ -147,11 +157,11 @@ contract MembaNFT is ERC721URIStorageUpgradeable, ERC2981Upgradeable, UUPSUpgrad
         emit NFTMinted(tokenId, collHash, to);
     }
 
-    function batchMint(
-        string calldata collectionID,
-        address to,
-        string[] calldata uris
-    ) external whenNotPaused returns (uint256 firstId) {
+    function batchMint(string calldata collectionID, address to, string[] calldata uris)
+        external
+        whenNotPaused
+        returns (uint256 firstId)
+    {
         if (uris.length == 0 || uris.length > MAX_BATCH_MINT) revert BatchTooLarge();
 
         bytes32 collHash = keccak256(bytes(collectionID));
@@ -180,7 +190,8 @@ contract MembaNFT is ERC721URIStorageUpgradeable, ERC2981Upgradeable, UUPSUpgrad
         }
     }
 
-    // ── View Functions ────────────────────────────────────────────
+    // ── View Functions
+    // ────────────────────────────────────────────
 
     function getCollectionInfo(string calldata collectionID) external view returns (CollectionInfo memory) {
         bytes32 collHash = keccak256(bytes(collectionID));
@@ -199,9 +210,12 @@ contract MembaNFT is ERC721URIStorageUpgradeable, ERC2981Upgradeable, UUPSUpgrad
         return _getStorage().nextTokenId;
     }
 
-    function version() external pure returns (string memory) { return "1.0.0"; }
+    function version() external pure returns (string memory) {
+        return "1.0.0";
+    }
 
-    // ── Internal overrides ────────────────────────────────────────
+    // ── Internal overrides
+    // ────────────────────────────────────────
 
     function _authorizeUpgrade(address) internal override onlyAdmin { }
 
@@ -214,12 +228,7 @@ contract MembaNFT is ERC721URIStorageUpgradeable, ERC2981Upgradeable, UUPSUpgrad
         return super.supportsInterface(interfaceId);
     }
 
-    function tokenURI(uint256 tokenId)
-        public
-        view
-        override(ERC721URIStorageUpgradeable)
-        returns (string memory)
-    {
+    function tokenURI(uint256 tokenId) public view override(ERC721URIStorageUpgradeable) returns (string memory) {
         return super.tokenURI(tokenId);
     }
 }

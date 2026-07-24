@@ -31,9 +31,7 @@ contract MembaCandidatureTest is Test {
 
         // Deploy Candidature behind proxy
         MembaCandidature candImpl = new MembaCandidature();
-        bytes memory initData = abi.encodeCall(
-            MembaCandidature.initialize, (address(dao), adminAddr, MIN_DEPOSIT)
-        );
+        bytes memory initData = abi.encodeCall(MembaCandidature.initialize, (address(dao), adminAddr, MIN_DEPOSIT));
         address candProxy = address(new ERC1967Proxy(address(candImpl), initData));
         candidature = MembaCandidature(candProxy);
 
@@ -69,7 +67,7 @@ contract MembaCandidatureTest is Test {
 
     function test_Apply_Success() public {
         vm.prank(applicant);
-        candidature.submitApplication{value: MIN_DEPOSIT}("My bio", "Solidity,Rust");
+        candidature.submitApplication{ value: MIN_DEPOSIT }("My bio", "Solidity,Rust");
 
         MembaCandidature.Application memory app = candidature.getApplication(applicant);
         assertEq(uint8(app.status), uint8(MembaCandidature.ApplicationStatus.Pending));
@@ -82,16 +80,16 @@ contract MembaCandidatureTest is Test {
     function test_Apply_InsufficientDepositReverts() public {
         vm.prank(applicant);
         vm.expectRevert(MembaCandidature.InsufficientDeposit.selector);
-        candidature.submitApplication{value: MIN_DEPOSIT - 1}("Bio", "Skills");
+        candidature.submitApplication{ value: MIN_DEPOSIT - 1 }("Bio", "Skills");
     }
 
     function test_Apply_AlreadyPendingReverts() public {
         vm.prank(applicant);
-        candidature.submitApplication{value: MIN_DEPOSIT}("Bio", "Skills");
+        candidature.submitApplication{ value: MIN_DEPOSIT }("Bio", "Skills");
 
         vm.prank(applicant);
         vm.expectRevert(MembaCandidature.AlreadyPending.selector);
-        candidature.submitApplication{value: MIN_DEPOSIT}("Bio2", "Skills2");
+        candidature.submitApplication{ value: MIN_DEPOSIT }("Bio2", "Skills2");
     }
 
     function test_Apply_AlreadyMemberReverts() public {
@@ -99,13 +97,13 @@ contract MembaCandidatureTest is Test {
         vm.deal(adminAddr, 1 ether);
         vm.prank(adminAddr);
         vm.expectRevert(MembaCandidature.AlreadyMember.selector);
-        candidature.submitApplication{value: MIN_DEPOSIT}("Bio", "Skills");
+        candidature.submitApplication{ value: MIN_DEPOSIT }("Bio", "Skills");
     }
 
     function test_Apply_ReApplicationRequires10xDeposit() public {
         // First application
         vm.prank(applicant);
-        candidature.submitApplication{value: MIN_DEPOSIT}("Bio", "Skills");
+        candidature.submitApplication{ value: MIN_DEPOSIT }("Bio", "Skills");
 
         // Reject
         vm.prank(adminAddr);
@@ -118,11 +116,11 @@ contract MembaCandidatureTest is Test {
         // Try with original deposit — should fail
         vm.prank(applicant);
         vm.expectRevert(MembaCandidature.InsufficientDeposit.selector);
-        candidature.submitApplication{value: MIN_DEPOSIT}("Bio2", "Skills2");
+        candidature.submitApplication{ value: MIN_DEPOSIT }("Bio2", "Skills2");
 
         // Apply with 10x deposit — should succeed
         vm.prank(applicant);
-        candidature.submitApplication{value: required}("Bio2", "Skills2");
+        candidature.submitApplication{ value: required }("Bio2", "Skills2");
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -131,7 +129,7 @@ contract MembaCandidatureTest is Test {
 
     function test_MarkApproved_Success() public {
         vm.prank(applicant);
-        candidature.submitApplication{value: MIN_DEPOSIT}("Bio", "Skills");
+        candidature.submitApplication{ value: MIN_DEPOSIT }("Bio", "Skills");
 
         vm.prank(adminAddr);
         candidature.markApproved(applicant);
@@ -145,7 +143,7 @@ contract MembaCandidatureTest is Test {
 
     function test_MarkRejected_Success() public {
         vm.prank(applicant);
-        candidature.submitApplication{value: MIN_DEPOSIT}("Bio", "Skills");
+        candidature.submitApplication{ value: MIN_DEPOSIT }("Bio", "Skills");
 
         vm.prank(adminAddr);
         candidature.markRejected(applicant);
@@ -156,7 +154,7 @@ contract MembaCandidatureTest is Test {
 
     function test_MarkApproved_NonAdminReverts() public {
         vm.prank(applicant);
-        candidature.submitApplication{value: MIN_DEPOSIT}("Bio", "Skills");
+        candidature.submitApplication{ value: MIN_DEPOSIT }("Bio", "Skills");
 
         vm.prank(outsider);
         vm.expectRevert(MembaCandidature.NotAdmin.selector);
@@ -176,7 +174,7 @@ contract MembaCandidatureTest is Test {
 
     function test_Withdraw_FromPending() public {
         vm.prank(applicant);
-        candidature.submitApplication{value: MIN_DEPOSIT}("Bio", "Skills");
+        candidature.submitApplication{ value: MIN_DEPOSIT }("Bio", "Skills");
 
         uint256 balBefore = applicant.balance;
 
@@ -191,7 +189,7 @@ contract MembaCandidatureTest is Test {
 
     function test_Withdraw_FromRejected() public {
         vm.prank(applicant);
-        candidature.submitApplication{value: MIN_DEPOSIT}("Bio", "Skills");
+        candidature.submitApplication{ value: MIN_DEPOSIT }("Bio", "Skills");
 
         vm.prank(adminAddr);
         candidature.markRejected(applicant);
@@ -205,7 +203,7 @@ contract MembaCandidatureTest is Test {
 
     function test_Withdraw_ApprovedReverts() public {
         vm.prank(applicant);
-        candidature.submitApplication{value: MIN_DEPOSIT}("Bio", "Skills");
+        candidature.submitApplication{ value: MIN_DEPOSIT }("Bio", "Skills");
 
         vm.prank(adminAddr);
         candidature.markApproved(applicant);

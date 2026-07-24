@@ -3,8 +3,7 @@ pragma solidity ^0.8.28;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import { ReentrancyGuardUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 interface IMembaDAO {
     function isMember(address addr) external view returns (bool);
@@ -19,10 +18,18 @@ interface IMembaDAO {
  * @dev UUPS-upgradeable. Deposit escalation: re-applications require 10x deposit.
  */
 contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
-    // ── Enums ─────────────────────────────────────────────────────
-    enum ApplicationStatus { None, Pending, Approved, Rejected, Withdrawn }
+    // ── Enums
+    // ─────────────────────────────────────────────────────
+    enum ApplicationStatus {
+        None,
+        Pending,
+        Approved,
+        Rejected,
+        Withdrawn
+    }
 
-    // ── Structs ───────────────────────────────────────────────────
+    // ── Structs
+    // ───────────────────────────────────────────────────
     struct Application {
         string bio;
         string skills;
@@ -32,7 +39,8 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         uint256 resolvedAt;
     }
 
-    // ── Storage (ERC-7201) ────────────────────────────────────────
+    // ── Storage (ERC-7201)
+    // ────────────────────────────────────────
     /// @custom:storage-location erc7201:memba.storage.MembaCandidature
     struct CandidatureStorage {
         address daoContract;
@@ -55,7 +63,8 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         assembly { $.slot := loc }
     }
 
-    // ── Errors ────────────────────────────────────────────────────
+    // ── Errors
+    // ────────────────────────────────────────────────────
     error AlreadyPending();
     error AlreadyMember();
     error InsufficientDeposit();
@@ -65,31 +74,31 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
     error TransferFailed();
     error InvalidParams();
 
-    // ── Events ────────────────────────────────────────────────────
+    // ── Events
+    // ────────────────────────────────────────────────────
     event ApplicationSubmitted(address indexed applicant, uint256 deposit, uint256 applyCount);
     event ApplicationApproved(address indexed applicant, address indexed approvedBy);
     event ApplicationRejected(address indexed applicant, address indexed rejectedBy);
     event DepositWithdrawn(address indexed applicant, uint256 amount);
     event MinDepositUpdated(uint256 oldMin, uint256 newMin);
 
-    // ── Modifiers ─────────────────────────────────────────────────
+    // ── Modifiers
+    // ─────────────────────────────────────────────────
     modifier onlyAdmin() {
         if (msg.sender != _getStorage().admin) revert NotAdmin();
         _;
     }
 
-    // ── Constructor ───────────────────────────────────────────────
+    // ── Constructor
+    // ───────────────────────────────────────────────
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    // ── Initializer ───────────────────────────────────────────────
-    function initialize(
-        address _dao,
-        address _admin,
-        uint256 _minDeposit
-    ) external initializer {
+    // ── Initializer
+    // ───────────────────────────────────────────────
+    function initialize(address _dao, address _admin, uint256 _minDeposit) external initializer {
         if (_dao == address(0) || _admin == address(0)) revert InvalidParams();
 
         __UUPSUpgradeable_init();
@@ -103,7 +112,8 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         $.depositMultiplier = 10; // 10x per re-application
     }
 
-    // ── Application ───────────────────────────────────────────────
+    // ── Application
+    // ───────────────────────────────────────────────
 
     /**
      * @notice Submit a candidature with a bio and skills description.
@@ -140,7 +150,8 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         emit ApplicationSubmitted(msg.sender, msg.value, $.applyCount[msg.sender]);
     }
 
-    // ── Admin Actions ─────────────────────────────────────────────
+    // ── Admin Actions
+    // ─────────────────────────────────────────────
 
     /**
      * @notice Approve a pending application. Adds the applicant as a DAO member.
@@ -176,7 +187,8 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         emit ApplicationRejected(applicant, msg.sender);
     }
 
-    // ── Withdrawal ────────────────────────────────────────────────
+    // ── Withdrawal
+    // ────────────────────────────────────────────────
 
     /**
      * @notice Withdraw deposit from a pending or rejected application.
@@ -199,13 +211,14 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         app.deposit = 0;
 
         // Transfer ETH
-        (bool ok,) = payable(msg.sender).call{value: amount}("");
+        (bool ok,) = payable(msg.sender).call{ value: amount }("");
         if (!ok) revert TransferFailed();
 
         emit DepositWithdrawn(msg.sender, amount);
     }
 
-    // ── Admin Config ──────────────────────────────────────────────
+    // ── Admin Config
+    // ──────────────────────────────────────────────
 
     function updateMinDeposit(uint256 newMin) external onlyAdmin {
         CandidatureStorage storage $ = _getStorage();
@@ -227,7 +240,8 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         _unpause();
     }
 
-    // ── View Functions ────────────────────────────────────────────
+    // ── View Functions
+    // ────────────────────────────────────────────
 
     function getApplication(address applicant) external view returns (Application memory) {
         return _getStorage().applications[applicant];
@@ -261,7 +275,8 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         return "1.0.0";
     }
 
-    // ── Internal ──────────────────────────────────────────────────
+    // ── Internal
+    // ──────────────────────────────────────────────────
 
     function _authorizeUpgrade(address) internal override onlyAdmin { }
 

@@ -10,7 +10,13 @@ import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils
  *         Cross-DAO discovery, search, and platform-wide fee/treasury settings.
  */
 contract MembaRegistry is UUPSUpgradeable {
-    enum DAOCategory { Governance, Community, Treasury, DeFi, Infrastructure }
+    enum DAOCategory {
+        Governance,
+        Community,
+        Treasury,
+        DeFi,
+        Infrastructure
+    }
 
     struct DAOEntry {
         address daoContract;
@@ -36,6 +42,7 @@ contract MembaRegistry is UUPSUpgradeable {
     /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaRegistry")) - 1)) & ~bytes32(uint256(0xff))
     /// @dev Asserted against its derivation in test/StorageSlots.t.sol — never edit by hand.
     bytes32 private constant STORAGE_LOCATION = 0x1f56a7a989766a2e7194c25108ab26986e03385bef2acbe6990b494e95e56c00;
+
     function _getStorage() private pure returns (RegistryStorage storage $) {
         bytes32 loc = STORAGE_LOCATION;
         assembly { $.slot := loc }
@@ -50,10 +57,15 @@ contract MembaRegistry is UUPSUpgradeable {
     event DAOVerified(uint256 indexed id);
     event ConfigUpdated(address treasury, uint16 feeBps);
 
-    modifier onlyAdmin() { if (msg.sender != _getStorage().admin) revert NotAdmin(); _; }
+    modifier onlyAdmin() {
+        if (msg.sender != _getStorage().admin) revert NotAdmin();
+        _;
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() { _disableInitializers(); }
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize(address _admin, address _treasury, uint16 _defaultFeeBps) external initializer {
         if (_admin == address(0)) revert InvalidParams();
@@ -64,11 +76,10 @@ contract MembaRegistry is UUPSUpgradeable {
         $.defaultFeeBps = _defaultFeeBps;
     }
 
-    function registerDAO(
-        address daoContract,
-        string calldata name,
-        DAOCategory category
-    ) external returns (uint256 id) {
+    function registerDAO(address daoContract, string calldata name, DAOCategory category)
+        external
+        returns (uint256 id)
+    {
         if (daoContract == address(0) || bytes(name).length == 0) revert InvalidParams();
         RegistryStorage storage $ = _getStorage();
         if ($.daoToId[daoContract] != 0 && $.entries[$.daoToId[daoContract]].daoContract != address(0)) {
@@ -104,16 +115,37 @@ contract MembaRegistry is UUPSUpgradeable {
         emit ConfigUpdated(_treasury, _feeBps);
     }
 
-    function getDAO(uint256 id) external view returns (DAOEntry memory) { return _getStorage().entries[id]; }
+    function getDAO(uint256 id) external view returns (DAOEntry memory) {
+        return _getStorage().entries[id];
+    }
+
     function getDAOByAddress(address dao) external view returns (DAOEntry memory) {
         return _getStorage().entries[_getStorage().daoToId[dao]];
     }
-    function listDAOs() external view returns (uint256[] memory) { return _getStorage().entryIds; }
-    function entryCount() external view returns (uint256) { return _getStorage().entryCount; }
-    function treasury() external view returns (address) { return _getStorage().treasury; }
-    function defaultFeeBps() external view returns (uint16) { return _getStorage().defaultFeeBps; }
-    function admin() external view returns (address) { return _getStorage().admin; }
-    function version() external pure returns (string memory) { return "1.0.0"; }
+
+    function listDAOs() external view returns (uint256[] memory) {
+        return _getStorage().entryIds;
+    }
+
+    function entryCount() external view returns (uint256) {
+        return _getStorage().entryCount;
+    }
+
+    function treasury() external view returns (address) {
+        return _getStorage().treasury;
+    }
+
+    function defaultFeeBps() external view returns (uint16) {
+        return _getStorage().defaultFeeBps;
+    }
+
+    function admin() external view returns (address) {
+        return _getStorage().admin;
+    }
+
+    function version() external pure returns (string memory) {
+        return "1.0.0";
+    }
 
     function _authorizeUpgrade(address) internal override onlyAdmin { }
 }

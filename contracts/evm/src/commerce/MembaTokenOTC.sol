@@ -3,8 +3,7 @@ pragma solidity ^0.8.28;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import { ReentrancyGuardUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { IERC20 } from "@openzeppelin/contracts/token/ERC20/IERC20.sol";
 import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
@@ -18,18 +17,20 @@ import { SafeERC20 } from "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.s
 contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
     using SafeERC20 for IERC20;
 
-    // ── Structs ───────────────────────────────────────────────────
+    // ── Structs
+    // ───────────────────────────────────────────────────
     struct OTCListing {
         address seller;
         address token;
         uint256 totalAmount;
         uint256 filledAmount;
-        uint256 unitPrice;        // wei per token unit
+        uint256 unitPrice; // wei per token unit
         bool active;
         uint256 createdAt;
     }
 
-    // ── Storage (ERC-7201) ────────────────────────────────────────
+    // ── Storage (ERC-7201)
+    // ────────────────────────────────────────
     /// @custom:storage-location erc7201:memba.storage.MembaTokenOTC
     struct OTCStorage {
         address admin;
@@ -48,7 +49,8 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
         assembly { $.slot := loc }
     }
 
-    // ── Errors ────────────────────────────────────────────────────
+    // ── Errors
+    // ────────────────────────────────────────────────────
     error NotAdmin();
     error NotSeller();
     error ListingNotActive();
@@ -58,20 +60,26 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
     error TransferFailed();
     error ZeroQuantity();
 
-    // ── Events ────────────────────────────────────────────────────
-    event Listed(uint256 indexed listingId, address indexed seller, address indexed token, uint256 amount, uint256 unitPrice);
+    // ── Events
+    // ────────────────────────────────────────────────────
+    event Listed(
+        uint256 indexed listingId, address indexed seller, address indexed token, uint256 amount, uint256 unitPrice
+    );
     event Filled(uint256 indexed listingId, address indexed buyer, uint256 qty, uint256 totalCost);
     event Cancelled(uint256 indexed listingId, uint256 returnedAmount);
     event FeeCollected(uint256 indexed listingId, uint256 feeAmount);
 
-    // ── Modifiers ─────────────────────────────────────────────────
+    // ── Modifiers
+    // ─────────────────────────────────────────────────
     modifier onlyAdmin() {
         if (msg.sender != _getStorage().admin) revert NotAdmin();
         _;
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() { _disableInitializers(); }
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize(address _admin, address _feeRecipient, uint16 _feeBps) external initializer {
         if (_admin == address(0) || _feeRecipient == address(0)) revert InvalidParams();
@@ -85,7 +93,8 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
         $.platformFeeBps = _feeBps;
     }
 
-    // ── Listing ───────────────────────────────────────────────────
+    // ── Listing
+    // ───────────────────────────────────────────────────
 
     function list(address token, uint256 amount, uint256 unitPrice) external whenNotPaused returns (uint256 listingId) {
         if (token == address(0) || amount == 0 || unitPrice == 0) revert InvalidParams();
@@ -109,7 +118,8 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
         emit Listed(listingId, msg.sender, token, amount, unitPrice);
     }
 
-    // ── Filling ───────────────────────────────────────────────────
+    // ── Filling
+    // ───────────────────────────────────────────────────
 
     function fill(uint256 listingId, uint256 qty) external payable nonReentrant whenNotPaused {
         if (qty == 0) revert ZeroQuantity();
@@ -131,25 +141,25 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
         }
 
         // Calculate fee
-        uint256 fee = (totalCost * $.platformFeeBps) / 10000;
+        uint256 fee = (totalCost * $.platformFeeBps) / 10_000;
         uint256 sellerProceeds = totalCost - fee;
 
         // Transfer tokens to buyer
         IERC20(listing.token).safeTransfer(msg.sender, qty);
 
         // Transfer ETH to seller
-        (bool ok,) = payable(listing.seller).call{value: sellerProceeds}("");
+        (bool ok,) = payable(listing.seller).call{ value: sellerProceeds }("");
         if (!ok) revert TransferFailed();
 
         // Transfer fee
         if (fee > 0) {
-            (bool feeOk,) = payable($.feeRecipient).call{value: fee}("");
+            (bool feeOk,) = payable($.feeRecipient).call{ value: fee }("");
             if (!feeOk) revert TransferFailed();
         }
 
         // Refund excess ETH
         if (msg.value > totalCost) {
-            (bool refundOk,) = payable(msg.sender).call{value: msg.value - totalCost}("");
+            (bool refundOk,) = payable(msg.sender).call{ value: msg.value - totalCost }("");
             if (!refundOk) revert TransferFailed();
         }
 
@@ -157,7 +167,8 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
         if (fee > 0) emit FeeCollected(listingId, fee);
     }
 
-    // ── Cancel ────────────────────────────────────────────────────
+    // ── Cancel
+    // ────────────────────────────────────────────────────
 
     function cancel(uint256 listingId) external nonReentrant {
         OTCStorage storage $ = _getStorage();
@@ -178,7 +189,8 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
         emit Cancelled(listingId, remaining);
     }
 
-    // ── View ──────────────────────────────────────────────────────
+    // ── View
+    // ──────────────────────────────────────────────────────
 
     function getListing(uint256 id) external view returns (OTCListing memory) {
         return _getStorage().listings[id];
@@ -188,13 +200,29 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
         return _getStorage().listingCount;
     }
 
-    function admin() external view returns (address) { return _getStorage().admin; }
-    function feeRecipient() external view returns (address) { return _getStorage().feeRecipient; }
-    function platformFeeBps() external view returns (uint16) { return _getStorage().platformFeeBps; }
+    function admin() external view returns (address) {
+        return _getStorage().admin;
+    }
 
-    function pause() external onlyAdmin { _pause(); }
-    function unpause() external onlyAdmin { _unpause(); }
-    function version() external pure returns (string memory) { return "1.0.0"; }
+    function feeRecipient() external view returns (address) {
+        return _getStorage().feeRecipient;
+    }
+
+    function platformFeeBps() external view returns (uint16) {
+        return _getStorage().platformFeeBps;
+    }
+
+    function pause() external onlyAdmin {
+        _pause();
+    }
+
+    function unpause() external onlyAdmin {
+        _unpause();
+    }
+
+    function version() external pure returns (string memory) {
+        return "1.0.0";
+    }
 
     function _authorizeUpgrade(address) internal override onlyAdmin { }
 }

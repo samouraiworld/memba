@@ -3,8 +3,7 @@ pragma solidity ^0.8.28;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import { ReentrancyGuardUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 
 /**
  * @title MembaEscrow
@@ -15,17 +14,31 @@ import { ReentrancyGuardUpgradeable } from
  *      CEI pattern strictly enforced. Highest-risk contract — holds real user funds.
  */
 contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
-    // ── Constants ─────────────────────────────────────────────────
+    // ── Constants
+    // ─────────────────────────────────────────────────
     uint256 public constant MAX_MILESTONES = 20;
     uint256 public constant MAX_TITLE_LEN = 256;
     uint256 public constant MIN_MILESTONE_AMOUNT = 0.001 ether;
     uint16 public constant MAX_FEE_BPS = 2000; // 20% cap
 
-    // ── Enums ─────────────────────────────────────────────────────
-    enum ContractStatus { Active, Completed, Cancelled, Disputed }
-    enum MilestoneStatus { Pending, Funded, Completed, Released, Refunded }
+    // ── Enums
+    // ─────────────────────────────────────────────────────
+    enum ContractStatus {
+        Active,
+        Completed,
+        Cancelled,
+        Disputed
+    }
+    enum MilestoneStatus {
+        Pending,
+        Funded,
+        Completed,
+        Released,
+        Refunded
+    }
 
-    // ── Structs ───────────────────────────────────────────────────
+    // ── Structs
+    // ───────────────────────────────────────────────────
     struct ServiceContract {
         address buyer;
         address seller;
@@ -46,7 +59,8 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         uint256 fundedAt;
     }
 
-    // ── Storage (ERC-7201) ────────────────────────────────────────
+    // ── Storage (ERC-7201)
+    // ────────────────────────────────────────
     /// @custom:storage-location erc7201:memba.storage.MembaEscrow
     struct EscrowStorage {
         address admin;
@@ -69,7 +83,8 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         assembly { $.slot := loc }
     }
 
-    // ── Errors ────────────────────────────────────────────────────
+    // ── Errors
+    // ────────────────────────────────────────────────────
     error NotBuyer();
     error NotSeller();
     error NotParty();
@@ -91,8 +106,11 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
     error InvalidFeeBps();
     error InvalidParams();
 
-    // ── Events ────────────────────────────────────────────────────
-    event ContractCreated(uint256 indexed id, address indexed buyer, address indexed seller, string title, uint256 milestoneCount);
+    // ── Events
+    // ────────────────────────────────────────────────────
+    event ContractCreated(
+        uint256 indexed id, address indexed buyer, address indexed seller, string title, uint256 milestoneCount
+    );
     event MilestoneFunded(uint256 indexed contractId, uint256 indexed milestoneIdx, uint256 amount);
     event MilestoneCompleted(uint256 indexed contractId, uint256 indexed milestoneIdx);
     event FundsReleased(uint256 indexed contractId, uint256 indexed milestoneIdx, uint256 netAmount, uint256 fee);
@@ -102,19 +120,22 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
     event ContractCancelled(uint256 indexed contractId, address indexed cancelledBy);
     event AutoRefundClaimed(uint256 indexed contractId, uint256 indexed milestoneIdx, uint256 amount);
 
-    // ── Modifiers ─────────────────────────────────────────────────
+    // ── Modifiers
+    // ─────────────────────────────────────────────────
     modifier onlyAdmin() {
         if (msg.sender != _getStorage().admin) revert NotAdmin();
         _;
     }
 
-    // ── Constructor ───────────────────────────────────────────────
+    // ── Constructor
+    // ───────────────────────────────────────────────
     /// @custom:oz-upgrades-unsafe-allow constructor
     constructor() {
         _disableInitializers();
     }
 
-    // ── Initializer ───────────────────────────────────────────────
+    // ── Initializer
+    // ───────────────────────────────────────────────
     function initialize(
         address _admin,
         address _feeRecipient,
@@ -137,7 +158,8 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         $.autoRefundTimeout = _autoRefundTimeout;
     }
 
-    // ── Contract Creation ─────────────────────────────────────────
+    // ── Contract Creation
+    // ─────────────────────────────────────────
 
     function createContract(
         address seller,
@@ -169,22 +191,17 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         for (uint256 i = 0; i < milestoneTitles.length; i++) {
             if (milestoneAmounts[i] < MIN_MILESTONE_AMOUNT) revert AmountTooSmall();
             $.milestones[contractId][i] = Milestone({
-                title: milestoneTitles[i],
-                amount: milestoneAmounts[i],
-                status: MilestoneStatus.Pending,
-                fundedAt: 0
+                title: milestoneTitles[i], amount: milestoneAmounts[i], status: MilestoneStatus.Pending, fundedAt: 0
             });
         }
 
         emit ContractCreated(contractId, msg.sender, seller, title, milestoneTitles.length);
     }
 
-    // ── Funding ───────────────────────────────────────────────────
+    // ── Funding
+    // ───────────────────────────────────────────────────
 
-    function fundMilestone(
-        uint256 contractId,
-        uint256 milestoneIdx
-    ) external payable nonReentrant whenNotPaused {
+    function fundMilestone(uint256 contractId, uint256 milestoneIdx) external payable nonReentrant whenNotPaused {
         EscrowStorage storage $ = _getStorage();
         ServiceContract storage sc = $.contracts[contractId];
 
@@ -204,12 +221,10 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         emit MilestoneFunded(contractId, milestoneIdx, msg.value);
     }
 
-    // ── Completion ────────────────────────────────────────────────
+    // ── Completion
+    // ────────────────────────────────────────────────
 
-    function completeMilestone(
-        uint256 contractId,
-        uint256 milestoneIdx
-    ) external whenNotPaused {
+    function completeMilestone(uint256 contractId, uint256 milestoneIdx) external whenNotPaused {
         EscrowStorage storage $ = _getStorage();
         ServiceContract storage sc = $.contracts[contractId];
 
@@ -226,12 +241,10 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         emit MilestoneCompleted(contractId, milestoneIdx);
     }
 
-    // ── Release ───────────────────────────────────────────────────
+    // ── Release
+    // ───────────────────────────────────────────────────
 
-    function releaseFunds(
-        uint256 contractId,
-        uint256 milestoneIdx
-    ) external nonReentrant whenNotPaused {
+    function releaseFunds(uint256 contractId, uint256 milestoneIdx) external nonReentrant whenNotPaused {
         EscrowStorage storage $ = _getStorage();
         ServiceContract storage sc = $.contracts[contractId];
 
@@ -244,7 +257,7 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         if (ms.status != MilestoneStatus.Completed) revert MilestoneNotCompleted();
 
         uint256 amount = ms.amount;
-        uint256 fee = (amount * $.platformFeeBps) / 10000;
+        uint256 fee = (amount * $.platformFeeBps) / 10_000;
         uint256 netAmount = amount - fee;
 
         // CEI: state update BEFORE transfers
@@ -252,12 +265,12 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         sc.totalReleased += netAmount;
 
         // Transfer to seller
-        (bool ok,) = payable(sc.seller).call{value: netAmount}("");
+        (bool ok,) = payable(sc.seller).call{ value: netAmount }("");
         if (!ok) revert TransferFailed();
 
         // Transfer fee
         if (fee > 0) {
-            (bool feeOk,) = payable($.feeRecipient).call{value: fee}("");
+            (bool feeOk,) = payable($.feeRecipient).call{ value: fee }("");
             if (!feeOk) revert TransferFailed();
         }
 
@@ -267,7 +280,8 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         _checkAllReleased($, contractId, sc);
     }
 
-    // ── Dispute ───────────────────────────────────────────────────
+    // ── Dispute
+    // ───────────────────────────────────────────────────
 
     function dispute(uint256 contractId) external whenNotPaused {
         EscrowStorage storage $ = _getStorage();
@@ -282,10 +296,7 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         emit DisputeRaised(contractId, msg.sender);
     }
 
-    function resolveDispute(
-        uint256 contractId,
-        bool releaseFundsToSeller
-    ) external onlyAdmin nonReentrant {
+    function resolveDispute(uint256 contractId, bool releaseFundsToSeller) external onlyAdmin nonReentrant {
         EscrowStorage storage $ = _getStorage();
         ServiceContract storage sc = $.contracts[contractId];
 
@@ -300,16 +311,16 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
                 Milestone storage ms = $.milestones[contractId][i];
                 if (ms.status == MilestoneStatus.Funded || ms.status == MilestoneStatus.Completed) {
                     uint256 amount = ms.amount;
-                    uint256 fee = (amount * $.platformFeeBps) / 10000;
+                    uint256 fee = (amount * $.platformFeeBps) / 10_000;
                     uint256 netAmount = amount - fee;
 
                     ms.status = MilestoneStatus.Released;
                     sc.totalReleased += netAmount;
 
-                    (bool ok,) = payable(sc.seller).call{value: netAmount}("");
+                    (bool ok,) = payable(sc.seller).call{ value: netAmount }("");
                     if (!ok) revert TransferFailed();
                     if (fee > 0) {
-                        (bool feeOk,) = payable($.feeRecipient).call{value: fee}("");
+                        (bool feeOk,) = payable($.feeRecipient).call{ value: fee }("");
                         if (!feeOk) revert TransferFailed();
                     }
 
@@ -325,7 +336,7 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
                     ms.status = MilestoneStatus.Refunded;
                     sc.totalRefunded += amount;
 
-                    (bool ok,) = payable(sc.buyer).call{value: amount}("");
+                    (bool ok,) = payable(sc.buyer).call{ value: amount }("");
                     if (!ok) revert TransferFailed();
 
                     emit FundsRefunded(contractId, i, amount);
@@ -336,7 +347,8 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         emit DisputeResolved(contractId, releaseFundsToSeller, msg.sender);
     }
 
-    // ── Cancellation ──────────────────────────────────────────────
+    // ── Cancellation
+    // ──────────────────────────────────────────────
 
     /**
      * @notice Cancel an active contract. Only buyer or seller can cancel.
@@ -360,16 +372,16 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
             if (ms.status == MilestoneStatus.Funded) {
                 // Refund to buyer (minus cancellation fee)
                 uint256 amount = ms.amount;
-                uint256 fee = (amount * $.cancellationFeeBps) / 10000;
+                uint256 fee = (amount * $.cancellationFeeBps) / 10_000;
                 uint256 refundAmount = amount - fee;
 
                 ms.status = MilestoneStatus.Refunded;
                 sc.totalRefunded += refundAmount;
 
-                (bool ok,) = payable(sc.buyer).call{value: refundAmount}("");
+                (bool ok,) = payable(sc.buyer).call{ value: refundAmount }("");
                 if (!ok) revert TransferFailed();
                 if (fee > 0) {
-                    (bool feeOk,) = payable($.feeRecipient).call{value: fee}("");
+                    (bool feeOk,) = payable($.feeRecipient).call{ value: fee }("");
                     if (!feeOk) revert TransferFailed();
                 }
 
@@ -380,7 +392,7 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
                 ms.status = MilestoneStatus.Released;
                 sc.totalReleased += amount;
 
-                (bool ok,) = payable(sc.seller).call{value: amount}("");
+                (bool ok,) = payable(sc.seller).call{ value: amount }("");
                 if (!ok) revert TransferFailed();
 
                 emit FundsReleased(contractId, i, amount, 0);
@@ -391,12 +403,10 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         emit ContractCancelled(contractId, msg.sender);
     }
 
-    // ── Auto-Refund ───────────────────────────────────────────────
+    // ── Auto-Refund
+    // ───────────────────────────────────────────────
 
-    function claimAutoRefund(
-        uint256 contractId,
-        uint256 milestoneIdx
-    ) external nonReentrant {
+    function claimAutoRefund(uint256 contractId, uint256 milestoneIdx) external nonReentrant {
         EscrowStorage storage $ = _getStorage();
         ServiceContract storage sc = $.contracts[contractId];
 
@@ -413,13 +423,14 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         ms.status = MilestoneStatus.Refunded;
         sc.totalRefunded += amount;
 
-        (bool ok,) = payable(sc.buyer).call{value: amount}("");
+        (bool ok,) = payable(sc.buyer).call{ value: amount }("");
         if (!ok) revert TransferFailed();
 
         emit AutoRefundClaimed(contractId, milestoneIdx, amount);
     }
 
-    // ── Admin Config ──────────────────────────────────────────────
+    // ── Admin Config
+    // ──────────────────────────────────────────────
 
     function updateFees(uint16 newPlatformBps, uint16 newCancellationBps) external onlyAdmin {
         if (newPlatformBps > MAX_FEE_BPS || newCancellationBps > MAX_FEE_BPS) revert InvalidFeeBps();
@@ -432,10 +443,16 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         _getStorage().autoRefundTimeout = newAutoRefund;
     }
 
-    function pause() external onlyAdmin { _pause(); }
-    function unpause() external onlyAdmin { _unpause(); }
+    function pause() external onlyAdmin {
+        _pause();
+    }
 
-    // ── View Functions ────────────────────────────────────────────
+    function unpause() external onlyAdmin {
+        _unpause();
+    }
+
+    // ── View Functions
+    // ────────────────────────────────────────────
 
     function getContract(uint256 contractId) external view returns (ServiceContract memory) {
         return _getStorage().contracts[contractId];
@@ -445,16 +462,36 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         return _getStorage().milestones[contractId][idx];
     }
 
-    function admin() external view returns (address) { return _getStorage().admin; }
-    function feeRecipient() external view returns (address) { return _getStorage().feeRecipient; }
-    function platformFeeBps() external view returns (uint16) { return _getStorage().platformFeeBps; }
-    function cancellationFeeBps() external view returns (uint16) { return _getStorage().cancellationFeeBps; }
-    function autoRefundTimeout() external view returns (uint256) { return _getStorage().autoRefundTimeout; }
-    function contractCount() external view returns (uint256) { return _getStorage().contractCount; }
+    function admin() external view returns (address) {
+        return _getStorage().admin;
+    }
 
-    function version() external pure returns (string memory) { return "1.0.0"; }
+    function feeRecipient() external view returns (address) {
+        return _getStorage().feeRecipient;
+    }
 
-    // ── Internal ──────────────────────────────────────────────────
+    function platformFeeBps() external view returns (uint16) {
+        return _getStorage().platformFeeBps;
+    }
+
+    function cancellationFeeBps() external view returns (uint16) {
+        return _getStorage().cancellationFeeBps;
+    }
+
+    function autoRefundTimeout() external view returns (uint256) {
+        return _getStorage().autoRefundTimeout;
+    }
+
+    function contractCount() external view returns (uint256) {
+        return _getStorage().contractCount;
+    }
+
+    function version() external pure returns (string memory) {
+        return "1.0.0";
+    }
+
+    // ── Internal
+    // ──────────────────────────────────────────────────
 
     function _authorizeUpgrade(address) internal override onlyAdmin { }
 

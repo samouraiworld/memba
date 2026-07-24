@@ -18,13 +18,20 @@ interface IMembaDAOMember {
  * @dev UUPS-upgradeable. Periodic Merkle roots anchor message batches on-chain.
  */
 contract MembaChannels is UUPSUpgradeable, PausableUpgradeable {
-    // ── Constants ─────────────────────────────────────────────────
+    // ── Constants
+    // ─────────────────────────────────────────────────
     uint256 public constant MAX_CHANNELS = 100;
 
-    // ── Enums ─────────────────────────────────────────────────────
-    enum ChannelType { Text, Announcements, ReadOnly }
+    // ── Enums
+    // ─────────────────────────────────────────────────────
+    enum ChannelType {
+        Text,
+        Announcements,
+        ReadOnly
+    }
 
-    // ── Structs ───────────────────────────────────────────────────
+    // ── Structs
+    // ───────────────────────────────────────────────────
     struct ChannelConfig {
         string name;
         ChannelType channelType;
@@ -33,7 +40,8 @@ contract MembaChannels is UUPSUpgradeable, PausableUpgradeable {
         uint256 createdAt;
     }
 
-    // ── Storage (ERC-7201) ────────────────────────────────────────
+    // ── Storage (ERC-7201)
+    // ────────────────────────────────────────
     /// @custom:storage-location erc7201:memba.storage.MembaChannels
     struct ChannelsStorage {
         address daoContract;
@@ -53,7 +61,8 @@ contract MembaChannels is UUPSUpgradeable, PausableUpgradeable {
         assembly { $.slot := loc }
     }
 
-    // ── Errors ────────────────────────────────────────────────────
+    // ── Errors
+    // ────────────────────────────────────────────────────
     error NotAdmin();
     error NotMember();
     error ChannelNotFound();
@@ -61,12 +70,14 @@ contract MembaChannels is UUPSUpgradeable, PausableUpgradeable {
     error TooManyChannels();
     error InvalidParams();
 
-    // ── Events ────────────────────────────────────────────────────
+    // ── Events
+    // ────────────────────────────────────────────────────
     event ChannelCreated(uint256 indexed channelId, string name, ChannelType channelType);
     event ChannelArchived(uint256 indexed channelId);
     event MessagesAnchored(uint256 indexed channelId, bytes32 merkleRoot, uint256 timestamp);
 
-    // ── Modifiers ─────────────────────────────────────────────────
+    // ── Modifiers
+    // ─────────────────────────────────────────────────
     modifier onlyAdmin() {
         if (msg.sender != _getStorage().admin) revert NotAdmin();
         _;
@@ -79,7 +90,9 @@ contract MembaChannels is UUPSUpgradeable, PausableUpgradeable {
     }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() { _disableInitializers(); }
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize(address _daoContract, address _admin) external initializer {
         if (_daoContract == address(0) || _admin == address(0)) revert InvalidParams();
@@ -91,13 +104,15 @@ contract MembaChannels is UUPSUpgradeable, PausableUpgradeable {
         $.admin = _admin;
     }
 
-    // ── Channel Management ────────────────────────────────────────
+    // ── Channel Management
+    // ────────────────────────────────────────
 
-    function createChannel(
-        string calldata name,
-        ChannelType channelType,
-        bytes32 aclHash
-    ) external onlyAdmin whenNotPaused returns (uint256 channelId) {
+    function createChannel(string calldata name, ChannelType channelType, bytes32 aclHash)
+        external
+        onlyAdmin
+        whenNotPaused
+        returns (uint256 channelId)
+    {
         if (bytes(name).length == 0) revert InvalidParams();
 
         ChannelsStorage storage $ = _getStorage();
@@ -105,11 +120,7 @@ contract MembaChannels is UUPSUpgradeable, PausableUpgradeable {
 
         channelId = $.channelCount++;
         $.channels[channelId] = ChannelConfig({
-            name: name,
-            channelType: channelType,
-            aclHash: aclHash,
-            active: true,
-            createdAt: block.timestamp
+            name: name, channelType: channelType, aclHash: aclHash, active: true, createdAt: block.timestamp
         });
 
         emit ChannelCreated(channelId, name, channelType);
@@ -122,12 +133,10 @@ contract MembaChannels is UUPSUpgradeable, PausableUpgradeable {
         emit ChannelArchived(channelId);
     }
 
-    // ── Message Anchoring ─────────────────────────────────────────
+    // ── Message Anchoring
+    // ─────────────────────────────────────────
 
-    function anchorMessages(
-        uint256 channelId,
-        bytes32 merkleRoot
-    ) external onlyMember whenNotPaused {
+    function anchorMessages(uint256 channelId, bytes32 merkleRoot) external onlyMember whenNotPaused {
         ChannelsStorage storage $ = _getStorage();
         if (channelId >= $.channelCount) revert ChannelNotFound();
         if (!$.channels[channelId].active) revert ChannelInactive();
@@ -138,21 +147,22 @@ contract MembaChannels is UUPSUpgradeable, PausableUpgradeable {
         emit MessagesAnchored(channelId, merkleRoot, block.timestamp);
     }
 
-    // ── Verification ──────────────────────────────────────────────
+    // ── Verification
+    // ──────────────────────────────────────────────
 
-    function verifyMessage(
-        uint256 channelId,
-        uint256 rootIndex,
-        bytes32[] calldata proof,
-        bytes32 leaf
-    ) external view returns (bool) {
+    function verifyMessage(uint256 channelId, uint256 rootIndex, bytes32[] calldata proof, bytes32 leaf)
+        external
+        view
+        returns (bool)
+    {
         ChannelsStorage storage $ = _getStorage();
         bytes32[] storage roots = $.messageRoots[channelId];
         if (rootIndex >= roots.length) return false;
         return MerkleProof.verify(proof, roots[rootIndex], leaf);
     }
 
-    // ── View ──────────────────────────────────────────────────────
+    // ── View
+    // ──────────────────────────────────────────────────────
 
     function getChannel(uint256 channelId) external view returns (ChannelConfig memory) {
         return _getStorage().channels[channelId];
@@ -166,13 +176,29 @@ contract MembaChannels is UUPSUpgradeable, PausableUpgradeable {
         return _getStorage().rootTimestamps[channelId];
     }
 
-    function channelCount() external view returns (uint256) { return _getStorage().channelCount; }
-    function admin() external view returns (address) { return _getStorage().admin; }
-    function daoContract() external view returns (address) { return _getStorage().daoContract; }
-    function version() external pure returns (string memory) { return "1.0.0"; }
+    function channelCount() external view returns (uint256) {
+        return _getStorage().channelCount;
+    }
 
-    function pause() external onlyAdmin { _pause(); }
-    function unpause() external onlyAdmin { _unpause(); }
+    function admin() external view returns (address) {
+        return _getStorage().admin;
+    }
+
+    function daoContract() external view returns (address) {
+        return _getStorage().daoContract;
+    }
+
+    function version() external pure returns (string memory) {
+        return "1.0.0";
+    }
+
+    function pause() external onlyAdmin {
+        _pause();
+    }
+
+    function unpause() external onlyAdmin {
+        _unpause();
+    }
 
     function _authorizeUpgrade(address) internal override onlyAdmin { }
 }

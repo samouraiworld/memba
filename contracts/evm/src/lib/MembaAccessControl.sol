@@ -10,7 +10,8 @@ pragma solidity ^0.8.28;
  * TODO: Implement shared access patterns used across multiple Memba contracts.
  */
 abstract contract MembaAccessControl {
-    // ── Errors ────────────────────────────────────────────────────
+    // ── Errors
+    // ────────────────────────────────────────────────────
     error Unauthorized();
     error InvalidAddress();
 

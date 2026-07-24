@@ -68,11 +68,11 @@ contract MembaTokenOTCTest is Test {
     function test_Fill_Full() public {
         _createListing(100);
 
-        uint256 totalCost = 100 * UNIT_PRICE ; // 100 * 0.01 = 1 ETH
+        uint256 totalCost = 100 * UNIT_PRICE; // 100 * 0.01 = 1 ETH
         uint256 sellerBefore = seller.balance;
 
         vm.prank(buyer);
-        otc.fill{value: totalCost}(0, 100);
+        otc.fill{ value: totalCost }(0, 100);
 
         // Buyer got tokens
         assertEq(token.balanceOf(buyer), 100);
@@ -91,10 +91,10 @@ contract MembaTokenOTCTest is Test {
     function test_Fill_Partial() public {
         _createListing(100);
 
-        uint256 cost = 50 * UNIT_PRICE ; // 50 * 0.01 = 0.5 ETH
+        uint256 cost = 50 * UNIT_PRICE; // 50 * 0.01 = 0.5 ETH
 
         vm.prank(buyer);
-        otc.fill{value: cost}(0, 50);
+        otc.fill{ value: cost }(0, 50);
 
         assertEq(token.balanceOf(buyer), 50);
 
@@ -108,7 +108,7 @@ contract MembaTokenOTCTest is Test {
 
         vm.prank(buyer);
         vm.expectRevert(MembaTokenOTC.InsufficientPayment.selector);
-        otc.fill{value: 0.001 ether}(0, 100); // too little
+        otc.fill{ value: 0.001 ether }(0, 100); // too little
     }
 
     function test_Fill_ExceedsAvailableReverts() public {
@@ -117,7 +117,7 @@ contract MembaTokenOTCTest is Test {
         uint256 cost = 200 * UNIT_PRICE;
         vm.prank(buyer);
         vm.expectRevert(MembaTokenOTC.ExceedsAvailable.selector);
-        otc.fill{value: cost}(0, 200);
+        otc.fill{ value: cost }(0, 200);
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -143,7 +143,7 @@ contract MembaTokenOTCTest is Test {
         // Partial fill of 30
         uint256 cost = 30 * UNIT_PRICE;
         vm.prank(buyer);
-        otc.fill{value: cost}(0, 30);
+        otc.fill{ value: cost }(0, 30);
 
         uint256 sellerBefore = token.balanceOf(seller);
 
@@ -169,11 +169,11 @@ contract MembaTokenOTCTest is Test {
     function test_Fee_ExactCalculation() public {
         _createListing(100);
 
-        uint256 totalCost = 100 * UNIT_PRICE ; // 1 ETH
+        uint256 totalCost = 100 * UNIT_PRICE; // 1 ETH
         uint256 expectedFee = totalCost / 100; // 1% = 0.01 ETH
 
         vm.prank(buyer);
-        otc.fill{value: totalCost}(0, 100);
+        otc.fill{ value: totalCost }(0, 100);
 
         assertEq(feeWallet.balance, expectedFee);
         assertEq(expectedFee, 0.01 ether);

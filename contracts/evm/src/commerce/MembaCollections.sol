@@ -3,8 +3,7 @@ pragma solidity ^0.8.28;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
-import { ReentrancyGuardUpgradeable } from
-    "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { MerkleProof } from "@openzeppelin/contracts/utils/cryptography/MerkleProof.sol";
 
 import { MembaNFT } from "./MembaNFT.sol";
@@ -17,37 +16,40 @@ import { MembaNFT } from "./MembaNFT.sol";
  * @dev UUPS-upgradeable. Deploys a MembaNFT sub-collection per registered collection.
  */
 contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable {
-    // ── Constants ─────────────────────────────────────────────────
+    // ── Constants
+    // ─────────────────────────────────────────────────
     uint8 public constant PHASE_DRAFT = 0;
     uint8 public constant PHASE_ALLOWLIST = 1;
     uint8 public constant PHASE_PUBLIC = 2;
     uint8 public constant PHASE_CLOSED = 3;
     uint96 public constant MAX_ROYALTY_BPS = 1000; // 10%
 
-    // ── Structs ───────────────────────────────────────────────────
+    // ── Structs
+    // ───────────────────────────────────────────────────
     struct Collection {
         address creator;
         string slug;
         string name;
         string symbol;
         string description;
-        uint256 maxSupply;       // 0 = unlimited
-        uint256 mintPrice;       // wei
+        uint256 maxSupply; // 0 = unlimited
+        uint256 mintPrice; // wei
         uint96 royaltyBps;
         uint8 phase;
         bytes32 allowlistRoot;
         bool verified;
         uint256 mintCount;
-        address nftContract;     // MembaNFT used for this collection
+        address nftContract; // MembaNFT used for this collection
     }
 
-    // ── Storage (ERC-7201) ────────────────────────────────────────
+    // ── Storage (ERC-7201)
+    // ────────────────────────────────────────
     /// @custom:storage-location erc7201:memba.storage.MembaCollections
     struct CollectionsStorage {
         address admin;
         address feeRecipient;
         uint256 creationFee;
-        address nftContract;     // Shared MembaNFT for all collections
+        address nftContract; // Shared MembaNFT for all collections
         uint256 collectionCount;
         mapping(bytes32 => Collection) collections;
         bytes32[] collectionHashes;
@@ -62,7 +64,8 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         assembly { $.slot := loc }
     }
 
-    // ── Errors ────────────────────────────────────────────────────
+    // ── Errors
+    // ────────────────────────────────────────────────────
     error NotAdmin();
     error NotCreator();
     error CollectionExists();
@@ -76,30 +79,36 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
     error RoyaltyTooHigh();
     error TransferFailed();
 
-    // ── Events ────────────────────────────────────────────────────
+    // ── Events
+    // ────────────────────────────────────────────────────
     event CollectionRegistered(bytes32 indexed collectionHash, string slug, address indexed creator);
     event PhaseChanged(bytes32 indexed collectionHash, uint8 phase);
     event NFTMintedFromLaunchpad(bytes32 indexed collectionHash, address indexed minter, uint256 tokenId);
     event CollectionVerified(bytes32 indexed collectionHash);
 
-    // ── Modifiers ─────────────────────────────────────────────────
+    // ── Modifiers
+    // ─────────────────────────────────────────────────
     modifier onlyAdmin() {
         if (msg.sender != _getStorage().admin) revert NotAdmin();
         _;
     }
 
-    // ── Constructor ───────────────────────────────────────────────
+    // ── Constructor
+    // ───────────────────────────────────────────────
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() { _disableInitializers(); }
+    constructor() {
+        _disableInitializers();
+    }
 
-    // ── Initializer ───────────────────────────────────────────────
-    function initialize(
-        address _admin,
-        address _feeRecipient,
-        uint256 _creationFee,
-        address _nftContract
-    ) external initializer {
-        if (_admin == address(0) || _feeRecipient == address(0) || _nftContract == address(0)) revert InvalidParams();
+    // ── Initializer
+    // ───────────────────────────────────────────────
+    function initialize(address _admin, address _feeRecipient, uint256 _creationFee, address _nftContract)
+        external
+        initializer
+    {
+        if (_admin == address(0) || _feeRecipient == address(0) || _nftContract == address(0)) {
+            revert InvalidParams();
+        }
         __UUPSUpgradeable_init();
         __Pausable_init();
         __ReentrancyGuard_init();
@@ -111,7 +120,8 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         $.nftContract = _nftContract;
     }
 
-    // ── Collection Registration ───────────────────────────────────
+    // ── Collection Registration
+    // ───────────────────────────────────
 
     function createCollection(
         string calldata slug,
@@ -151,14 +161,15 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
 
         // Collect creation fee
         if (msg.value > 0) {
-            (bool ok,) = payable($.feeRecipient).call{value: msg.value}("");
+            (bool ok,) = payable($.feeRecipient).call{ value: msg.value }("");
             if (!ok) revert TransferFailed();
         }
 
         emit CollectionRegistered(collHash, slug, msg.sender);
     }
 
-    // ── Phase Management ──────────────────────────────────────────
+    // ── Phase Management
+    // ──────────────────────────────────────────
 
     function setPhase(bytes32 collectionHash, uint8 phase) external {
         CollectionsStorage storage $ = _getStorage();
@@ -180,13 +191,16 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         coll.allowlistRoot = root;
     }
 
-    // ── Minting ───────────────────────────────────────────────────
+    // ── Minting
+    // ───────────────────────────────────────────────────
 
-    function mintNFT(
-        bytes32 collectionHash,
-        string calldata tokenURI,
-        bytes32[] calldata proof
-    ) external payable nonReentrant whenNotPaused returns (uint256) {
+    function mintNFT(bytes32 collectionHash, string calldata tokenURI, bytes32[] calldata proof)
+        external
+        payable
+        nonReentrant
+        whenNotPaused
+        returns (uint256)
+    {
         CollectionsStorage storage $ = _getStorage();
         Collection storage coll = $.collections[collectionHash];
         if (coll.creator == address(0)) revert CollectionNotFound();
@@ -214,7 +228,7 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
 
         // Send mint revenue to collection creator
         if (msg.value > 0) {
-            (bool ok,) = payable(coll.creator).call{value: msg.value}("");
+            (bool ok,) = payable(coll.creator).call{ value: msg.value }("");
             if (!ok) revert TransferFailed();
         }
 
@@ -222,7 +236,8 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         return tokenId;
     }
 
-    // ── Admin ─────────────────────────────────────────────────────
+    // ── Admin
+    // ─────────────────────────────────────────────────────
 
     function verifyCollection(bytes32 collectionHash) external onlyAdmin {
         CollectionsStorage storage $ = _getStorage();
@@ -232,10 +247,16 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         emit CollectionVerified(collectionHash);
     }
 
-    function pause() external onlyAdmin { _pause(); }
-    function unpause() external onlyAdmin { _unpause(); }
+    function pause() external onlyAdmin {
+        _pause();
+    }
 
-    // ── View ──────────────────────────────────────────────────────
+    function unpause() external onlyAdmin {
+        _unpause();
+    }
+
+    // ── View
+    // ──────────────────────────────────────────────────────
 
     function getCollection(bytes32 collectionHash) external view returns (Collection memory) {
         return _getStorage().collections[collectionHash];
@@ -245,9 +266,17 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         return _getStorage().collectionHashes;
     }
 
-    function admin() external view returns (address) { return _getStorage().admin; }
-    function collectionCount() external view returns (uint256) { return _getStorage().collectionCount; }
-    function version() external pure returns (string memory) { return "1.0.0"; }
+    function admin() external view returns (address) {
+        return _getStorage().admin;
+    }
+
+    function collectionCount() external view returns (uint256) {
+        return _getStorage().collectionCount;
+    }
+
+    function version() external pure returns (string memory) {
+        return "1.0.0";
+    }
 
     function _authorizeUpgrade(address) internal override onlyAdmin { }
 }

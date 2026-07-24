@@ -24,9 +24,7 @@ contract MembaTokenFactoryTest is Test {
 
     function setUp() public {
         MembaTokenFactory impl = new MembaTokenFactory();
-        bytes memory initData = abi.encodeCall(
-            MembaTokenFactory.initialize, (adminAddr, feeWallet, CREATION_FEE)
-        );
+        bytes memory initData = abi.encodeCall(MembaTokenFactory.initialize, (adminAddr, feeWallet, CREATION_FEE));
         address proxy = address(new ERC1967Proxy(address(impl), initData));
         factory = MembaTokenFactory(proxy);
 
@@ -51,9 +49,8 @@ contract MembaTokenFactoryTest is Test {
 
     function test_CreateToken_Success() public {
         vm.prank(alice);
-        address token = factory.createToken{value: CREATION_FEE}(
-            "Test Token", "TEST", 18, 1000e18, bytes32(uint256(1))
-        );
+        address token =
+            factory.createToken{ value: CREATION_FEE }("Test Token", "TEST", 18, 1000e18, bytes32(uint256(1)));
 
         assertTrue(token != address(0));
         assertEq(factory.getTokenCount(), 1);
@@ -64,9 +61,8 @@ contract MembaTokenFactoryTest is Test {
 
     function test_CreateToken_ERC20Compliance() public {
         vm.prank(alice);
-        address tokenAddr = factory.createToken{value: CREATION_FEE}(
-            "My Token", "MYT", 6, 1_000_000e6, bytes32(uint256(1))
-        );
+        address tokenAddr =
+            factory.createToken{ value: CREATION_FEE }("My Token", "MYT", 6, 1_000_000e6, bytes32(uint256(1)));
 
         MembaToken token = MembaToken(tokenAddr);
         assertEq(token.name(), "My Token");
@@ -78,32 +74,25 @@ contract MembaTokenFactoryTest is Test {
 
     function test_CreateToken_InitialSupplyMintedToCreator() public {
         vm.prank(alice);
-        address tokenAddr = factory.createToken{value: CREATION_FEE}(
-            "Supply Test", "SUP", 18, 500e18, bytes32(uint256(1))
-        );
+        address tokenAddr =
+            factory.createToken{ value: CREATION_FEE }("Supply Test", "SUP", 18, 500e18, bytes32(uint256(1)));
 
         assertEq(IERC20(tokenAddr).balanceOf(alice), 500e18);
     }
 
     function test_CreateToken_ZeroInitialSupply() public {
         vm.prank(alice);
-        address tokenAddr = factory.createToken{value: CREATION_FEE}(
-            "No Supply", "NONE", 18, 0, bytes32(uint256(1))
-        );
+        address tokenAddr = factory.createToken{ value: CREATION_FEE }("No Supply", "NONE", 18, 0, bytes32(uint256(1)));
 
         assertEq(IERC20(tokenAddr).totalSupply(), 0);
     }
 
     function test_CreateToken_DeterministicAddresses() public {
         vm.prank(alice);
-        address token1 = factory.createToken{value: CREATION_FEE}(
-            "Token A", "TKNA", 18, 0, bytes32(uint256(100))
-        );
+        address token1 = factory.createToken{ value: CREATION_FEE }("Token A", "TKNA", 18, 0, bytes32(uint256(100)));
 
         vm.prank(alice);
-        address token2 = factory.createToken{value: CREATION_FEE}(
-            "Token B", "TKNB", 18, 0, bytes32(uint256(200))
-        );
+        address token2 = factory.createToken{ value: CREATION_FEE }("Token B", "TKNB", 18, 0, bytes32(uint256(200)));
 
         assertTrue(token1 != token2);
         assertEq(factory.getTokenCount(), 2);
@@ -117,9 +106,7 @@ contract MembaTokenFactoryTest is Test {
         uint256 feeBefore = feeWallet.balance;
 
         vm.prank(alice);
-        factory.createToken{value: CREATION_FEE}(
-            "Fee Test", "FEE", 18, 0, bytes32(uint256(1))
-        );
+        factory.createToken{ value: CREATION_FEE }("Fee Test", "FEE", 18, 0, bytes32(uint256(1)));
 
         assertEq(feeWallet.balance, feeBefore + CREATION_FEE);
     }
@@ -127,9 +114,7 @@ contract MembaTokenFactoryTest is Test {
     function test_CreateToken_InsufficientFeeReverts() public {
         vm.prank(alice);
         vm.expectRevert(MembaTokenFactory.InsufficientFee.selector);
-        factory.createToken{value: CREATION_FEE - 1}(
-            "Cheap Token", "CHEAP", 18, 0, bytes32(uint256(1))
-        );
+        factory.createToken{ value: CREATION_FEE - 1 }("Cheap Token", "CHEAP", 18, 0, bytes32(uint256(1)));
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -138,15 +123,11 @@ contract MembaTokenFactoryTest is Test {
 
     function test_CreateToken_DuplicateSymbolReverts() public {
         vm.prank(alice);
-        factory.createToken{value: CREATION_FEE}(
-            "First", "DUP", 18, 0, bytes32(uint256(1))
-        );
+        factory.createToken{ value: CREATION_FEE }("First", "DUP", 18, 0, bytes32(uint256(1)));
 
         vm.prank(alice);
         vm.expectRevert(MembaTokenFactory.SymbolAlreadyUsed.selector);
-        factory.createToken{value: CREATION_FEE}(
-            "Second", "DUP", 18, 0, bytes32(uint256(2))
-        );
+        factory.createToken{ value: CREATION_FEE }("Second", "DUP", 18, 0, bytes32(uint256(2)));
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -156,17 +137,13 @@ contract MembaTokenFactoryTest is Test {
     function test_CreateToken_EmptyNameReverts() public {
         vm.prank(alice);
         vm.expectRevert(MembaTokenFactory.InvalidParams.selector);
-        factory.createToken{value: CREATION_FEE}(
-            "", "SYM", 18, 0, bytes32(uint256(1))
-        );
+        factory.createToken{ value: CREATION_FEE }("", "SYM", 18, 0, bytes32(uint256(1)));
     }
 
     function test_CreateToken_ExcessiveDecimalsReverts() public {
         vm.prank(alice);
         vm.expectRevert(MembaTokenFactory.InvalidParams.selector);
-        factory.createToken{value: CREATION_FEE}(
-            "Bad Decimals", "BAD", 19, 0, bytes32(uint256(1))
-        );
+        factory.createToken{ value: CREATION_FEE }("Bad Decimals", "BAD", 19, 0, bytes32(uint256(1)));
     }
 
     // ══════════════════════════════════════════════════════════════
@@ -192,9 +169,7 @@ contract MembaTokenFactoryTest is Test {
 
     function test_ChildToken_AdminCanMint() public {
         vm.prank(alice);
-        address tokenAddr = factory.createToken{value: CREATION_FEE}(
-            "Mintable", "MINT", 18, 0, bytes32(uint256(1))
-        );
+        address tokenAddr = factory.createToken{ value: CREATION_FEE }("Mintable", "MINT", 18, 0, bytes32(uint256(1)));
 
         MembaToken token = MembaToken(tokenAddr);
         vm.prank(alice); // alice is the token owner
@@ -205,9 +180,7 @@ contract MembaTokenFactoryTest is Test {
 
     function test_ChildToken_NonAdminCannotMint() public {
         vm.prank(alice);
-        address tokenAddr = factory.createToken{value: CREATION_FEE}(
-            "Guarded", "GUARD", 18, 0, bytes32(uint256(1))
-        );
+        address tokenAddr = factory.createToken{ value: CREATION_FEE }("Guarded", "GUARD", 18, 0, bytes32(uint256(1)));
 
         MembaToken token = MembaToken(tokenAddr);
         vm.prank(outsider);
@@ -225,8 +198,6 @@ contract MembaTokenFactoryTest is Test {
 
         vm.prank(alice);
         vm.expectRevert();
-        factory.createToken{value: CREATION_FEE}(
-            "Paused", "PAUSE", 18, 0, bytes32(uint256(1))
-        );
+        factory.createToken{ value: CREATION_FEE }("Paused", "PAUSE", 18, 0, bytes32(uint256(1)));
     }
 }

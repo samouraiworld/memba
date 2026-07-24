@@ -11,7 +11,12 @@ import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/P
  *         Port of the Gno `memba_appstore_v2` realm.
  */
 contract MembaAppStore is UUPSUpgradeable, PausableUpgradeable {
-    enum AppStatus { Pending, Live, Rejected, Delisted }
+    enum AppStatus {
+        Pending,
+        Live,
+        Rejected,
+        Delisted
+    }
 
     struct AppInfo {
         address publisher;
@@ -39,6 +44,7 @@ contract MembaAppStore is UUPSUpgradeable, PausableUpgradeable {
     /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaAppStore")) - 1)) & ~bytes32(uint256(0xff))
     /// @dev Asserted against its derivation in test/StorageSlots.t.sol — never edit by hand.
     bytes32 private constant STORAGE_LOCATION = 0x1b76022bc8d05912a3da534c83104e9a39b1db879fc38932cb1a571eaa0a3c00;
+
     function _getStorage() private pure returns (AppStoreStorage storage $) {
         bytes32 loc = STORAGE_LOCATION;
         assembly { $.slot := loc }
@@ -59,10 +65,15 @@ contract MembaAppStore is UUPSUpgradeable, PausableUpgradeable {
     event AppDelisted(bytes32 indexed appHash);
     event AppFlagged(bytes32 indexed appHash, address indexed flagger);
 
-    modifier onlyAdmin() { if (msg.sender != _getStorage().admin) revert NotAdmin(); _; }
+    modifier onlyAdmin() {
+        if (msg.sender != _getStorage().admin) revert NotAdmin();
+        _;
+    }
 
     /// @custom:oz-upgrades-unsafe-allow constructor
-    constructor() { _disableInitializers(); }
+    constructor() {
+        _disableInitializers();
+    }
 
     function initialize(address _admin, address _feeRecipient, uint256 _creationFee) external initializer {
         if (_admin == address(0) || _feeRecipient == address(0)) revert InvalidParams();
@@ -105,7 +116,7 @@ contract MembaAppStore is UUPSUpgradeable, PausableUpgradeable {
         $.appCount++;
 
         if (msg.value > 0) {
-            (bool ok,) = payable($.feeRecipient).call{value: msg.value}("");
+            (bool ok,) = payable($.feeRecipient).call{ value: msg.value }("");
             if (!ok) revert TransferFailed();
         }
 
@@ -142,13 +153,32 @@ contract MembaAppStore is UUPSUpgradeable, PausableUpgradeable {
         emit AppFlagged(appHash, msg.sender);
     }
 
-    function getApp(bytes32 appHash) external view returns (AppInfo memory) { return _getStorage().apps[appHash]; }
-    function listApps() external view returns (bytes32[] memory) { return _getStorage().appHashes; }
-    function appCount() external view returns (uint256) { return _getStorage().appCount; }
-    function admin() external view returns (address) { return _getStorage().admin; }
-    function version() external pure returns (string memory) { return "1.0.0"; }
+    function getApp(bytes32 appHash) external view returns (AppInfo memory) {
+        return _getStorage().apps[appHash];
+    }
 
-    function pause() external onlyAdmin { _pause(); }
-    function unpause() external onlyAdmin { _unpause(); }
+    function listApps() external view returns (bytes32[] memory) {
+        return _getStorage().appHashes;
+    }
+
+    function appCount() external view returns (uint256) {
+        return _getStorage().appCount;
+    }
+
+    function admin() external view returns (address) {
+        return _getStorage().admin;
+    }
+
+    function version() external pure returns (string memory) {
+        return "1.0.0";
+    }
+
+    function pause() external onlyAdmin {
+        _pause();
+    }
+
+    function unpause() external onlyAdmin {
+        _unpause();
+    }
     function _authorizeUpgrade(address) internal override onlyAdmin { }
 }
