@@ -13,11 +13,18 @@ function shortAddr(a: string): string {
 }
 
 /**
- * The PUBLIC, body-free moderation audit log (feed v2 C.5/C.4). Renders ids +
+ * The PUBLIC, body-free moderation audit log (feed v2 C.4/C.5). Renders ids +
  * actions + actor addresses only — never a post body, by construction (the RPC
  * carries none), so this surface can be shown without the bearer.
+ *
+ * `hideFlagger` masks the actor of community-flag events (shown as "community
+ * flag") so the PUBLIC transparency page discloses *that* a post was flagged
+ * without doxxing *who* flagged it (retaliation / chilling-effect guard).
+ * Moderator actions still show the acting address — they carry accountability.
+ * The moderation console (C.4) omits the prop, so operators see flaggers for
+ * brigade review.
  */
-export default function FeedModAuditLog() {
+export default function FeedModAuditLog({ hideFlagger = false }: { hideFlagger?: boolean }) {
     const q = useInfiniteQuery({
         queryKey: ["moderation", "log"],
         queryFn: ({ pageParam }) => fetchModerationLog(pageParam, 50),
@@ -45,9 +52,13 @@ export default function FeedModAuditLog() {
                         {ACTION_LABEL[e.action] ?? e.action}
                     </span>
                     <span className="feed-mod__log-post">post #{String(e.postId)}</span>
-                    <span className="feed-mod__log-actor" title={e.actor}>
-                        {shortAddr(e.actor)}
-                    </span>
+                    {hideFlagger && e.action === "flagged" ? (
+                        <span className="feed-mod__log-actor">community flag</span>
+                    ) : (
+                        <span className="feed-mod__log-actor" title={e.actor}>
+                            {shortAddr(e.actor)}
+                        </span>
+                    )}
                     <span className="feed-mod__log-block">@{String(e.blockH)}</span>
                 </li>
             ))}
