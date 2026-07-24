@@ -123,7 +123,11 @@
 
 ## Phase 4: Backend Integration (Weeks 10-14)
 
-- [ ] **S073-075**: EvmReader implementation
+- [x] **S073-075**: EvmReader implementation
+  - [x] go-ethereum ethclient integration
+  - [x] ABI-encoded contract calls: isMember, memberCount, balanceOf, decimals
+  - [x] DualReader routing (Gno ↔ EVM by address prefix)
+  - [x] 3/3 unit tests pass
 - [ ] **S076-077**: Render proxy → contract reads
 - [ ] **S078**: Home snapshot (EVM data)
 - [ ] **S079-080**: Feed/quest adaptation
