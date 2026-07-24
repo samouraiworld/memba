@@ -51,8 +51,10 @@
   - [x] `frontend/src/lib/chain/auth.ts` — types + SIWE builder
 - [x] **S015**: React context + `useChain()` hook (done in S006)
 - [x] **S016**: Network config extension (done in S006: `registry.ts`)
-- [ ] **S017-018**: Backend dual-auth verifier
-- [ ] **S019-020**: Backend ChainReader interface
+- [x] **S017-018**: Backend dual-auth verifier
+  - [x] `backend/internal/chainauth/` — DualVerifier + 4 tests
+- [x] **S019-020**: Backend ChainReader interface
+  - [x] `backend/internal/chainreader/` — DualReader + 3 tests
 
 ## Phase 2: Core Smart Contracts (Weeks 5-10)
 
