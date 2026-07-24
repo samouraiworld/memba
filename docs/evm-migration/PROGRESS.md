@@ -67,7 +67,9 @@
 - [x] **S028-029**: MembaTokenFactory (P0)
   - [x] Full implementation (MembaToken ERC-20, CREATE2 factory, symbol uniqueness, fee collection)
   - [x] 16/16 tests pass
-- [ ] **S030-032**: MembaEscrow (P0)
+- [x] **S030-032**: MembaEscrow (P0)
+  - [x] Full implementation (milestone escrow, disputes, cancellation, auto-refund, fees, CEI)
+  - [x] 26/26 tests pass
 - [ ] **S033-036**: MembaNFT + MembaNFTMarket (P1)
 - [ ] **S037-038**: MembaCollections (P1)
 - [ ] **S039-040**: MembaTokenOTC (P1)

@@ -40,7 +40,7 @@ contract Deploy is Script {
         // 3. Deploy MembaTokenFactory behind proxy
         MembaTokenFactory tokenFactoryImpl = new MembaTokenFactory();
         bytes memory tokenFactoryInit =
-            abi.encodeCall(MembaTokenFactory.initialize, (safeMultisig, safeMultisig));
+            abi.encodeCall(MembaTokenFactory.initialize, (safeMultisig, safeMultisig, 0.001 ether));
         ERC1967Proxy tokenFactoryProxy = new ERC1967Proxy(address(tokenFactoryImpl), tokenFactoryInit);
         console.log("MembaTokenFactory proxy:", address(tokenFactoryProxy));
 
