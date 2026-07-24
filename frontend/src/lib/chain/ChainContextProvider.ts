@@ -20,20 +20,9 @@ import type { ChainId, CALNetworkConfig } from "./types"
 import { getProvider, getNetworkConfig, ALL_NETWORKS, registerProviderFactory } from "./registry"
 import { createGnoProvider } from "./gno/GnoProvider"
 import { createEvmProvider } from "./evm/EvmProvider"
-
-// ── Storage key for persistence ──────────────────────────────
-
-const CHAIN_STORAGE_KEY = "memba:activeChainId"
-
-function getStoredChainId(): ChainId | null {
-    if (typeof window === "undefined") return null
-    return localStorage.getItem(CHAIN_STORAGE_KEY) as ChainId | null
-}
-
-function storeChainId(chainId: ChainId): void {
-    if (typeof window === "undefined") return
-    localStorage.setItem(CHAIN_STORAGE_KEY, chainId)
-}
+import { ACTIVE_NETWORK_KEY } from "../config"
+import { chainIdToConfigKey, configKeyToChainId } from "./gnoBridge"
+import { switchGnoNetwork } from "../networkSwitch"
 
 // ── Register factories (once) ────────────────────────────────
 
@@ -60,7 +49,10 @@ export function ChainContextProvider({
     ensureFactories()
 
     const [activeChainId, setActiveChainId] = useState<ChainId>(() => {
-        return getStoredChainId() ?? defaultChainId
+        // The CAL's active Gno chain follows config.ts's already-resolved active network
+        // (which reads the shared `memba_network` key). config.ts is the single source of
+        // truth — the CAL no longer keeps a separate `memba:activeChainId` (B-3).
+        return configKeyToChainId(ACTIVE_NETWORK_KEY) ?? defaultChainId
     })
     const [isLoading, setIsLoading] = useState(false)
 
@@ -73,13 +65,26 @@ export function ChainContextProvider({
     const provider = useMemo(() => getProvider(network), [network])
 
     const switchChain = useCallback(async (chainId: ChainId) => {
+        // Disconnect the current provider first, regardless of family.
+        if (provider.isConnected()) {
+            await provider.disconnect()
+        }
+
+        const key = chainIdToConfigKey(chainId)
+        if (key) {
+            // Gno: persist to `memba_network` and navigate, so config.ts re-runs and re-freezes
+            // GNO_CHAIN_ID/GNO_RPC_URL to the new network. This is what keeps
+            // `assertWalletBroadcastSafe` comparing the wallet against the correct chain after a
+            // switch — an in-place swap (the old behaviour) left the frozen guard rejecting every
+            // broadcast (B-3). The navigation unloads the page, so nothing below runs.
+            switchGnoNetwork(key)
+            return
+        }
+
+        // EVM: no config.ts entry, and the Gno broadcast guard does not apply to EVM. EVM chain
+        // switching rides the (deferred) EVM/CAL activation, not the Gno reload — swap in place.
         setIsLoading(true)
         try {
-            // Disconnect current provider
-            if (provider.isConnected()) {
-                await provider.disconnect()
-            }
-            storeChainId(chainId)
             setActiveChainId(chainId)
         } finally {
             setIsLoading(false)

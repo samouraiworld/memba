@@ -9,6 +9,7 @@
 
 import type { ChainProvider } from "./provider"
 import type { ChainFamily, ChainId, CALNetworkConfig, NativeToken } from "./types"
+import { NETWORKS } from "../config"
 
 // ── Provider Factory ─────────────────────────────────────────
 
@@ -63,42 +64,43 @@ const ETH_NATIVE_TOKEN: NativeToken = {
 }
 
 /**
- * All available networks across both chain families.
- *
- * Gno networks mirror the existing NETWORKS config in config.ts.
- * EVM networks will be populated as Robinhood Chain testnet/mainnet go live.
+ * Gno networks are DERIVED from config.ts's NETWORKS, so the CAL and the rest of the app can
+ * never disagree on which Gno networks exist or their RPC endpoints. Previously this was a
+ * hand-copied parallel list that could (and did) drift from config (B-3). config.ts stays the
+ * single source of truth; the CAL just adds the family/explorer/native-token fields it needs.
  */
-export const ALL_NETWORKS: CALNetworkConfig[] = [
-    // ── Gno Networks ─────────────────────────────────────────
-    {
-        chainId: "topaz-1",
-        family: "gno",
-        label: "Topaz",
-        rpcUrl: "https://rpc.topaz.testnets.gno.land:443",
-        fallbackRpcUrls: ["https://rpc.topaz.samourai.live:443"],
-        explorerTxUrl: "https://gnoscan.io/transactions/{hash}",
-        explorerAddressUrl: "https://gnoscan.io/accounts/{address}",
-        nativeToken: GNO_NATIVE_TOKEN,
-        isTestnet: true,
-        faucetUrl: "https://faucet.gno.land",
-        userRegistryPath: "gno.land/r/sys/users",
-    },
-    {
-        chainId: "test-13",
-        family: "gno",
-        label: "Testnet 13",
-        rpcUrl: "https://rpc.test13.testnets.gno.land:443",
-        fallbackRpcUrls: ["https://test13.rpc.onbloc.xyz:443"],
-        explorerTxUrl: "https://gnoscan.io/transactions/{hash}?chainId=test-13",
-        explorerAddressUrl: "https://gnoscan.io/accounts/{address}?chainId=test-13",
-        nativeToken: GNO_NATIVE_TOKEN,
-        isTestnet: true,
-        faucetUrl: "https://faucet.gno.land",
-        userRegistryPath: "gno.land/r/sys/users",
-        indexerUrl: "https://indexer.test13.testnets.gno.land/graphql/query",
-    },
+function deriveGnoNetworks(): CALNetworkConfig[] {
+    // Derived from the FULL NETWORKS map (not VISIBLE_NETWORKS) so getNetworkConfig can resolve
+    // whatever config.ts resolves as active — including a `hidden` network reached by direct
+    // localStorage/URL. There are no hidden networks today; if one is added, the CAL selector
+    // (which currently shows all of availableNetworks) must filter it, mirroring config's
+    // NETWORKS-vs-VISIBLE_NETWORKS split.
+    return Object.values(NETWORKS).map((n): CALNetworkConfig => {
+        // gnoscan defaults to topaz-1; every other chain needs the ?chainId= query.
+        const suffix = n.chainId === "topaz-1" ? "" : `?chainId=${n.chainId}`
+        return {
+            // config types chainId as `string`; every entry is in fact a ChainId union member.
+            chainId: n.chainId as ChainId,
+            family: "gno",
+            label: n.label,
+            rpcUrl: n.rpcUrl,
+            fallbackRpcUrls: n.fallbackRpcUrls ?? [],
+            explorerTxUrl: `https://gnoscan.io/transactions/{hash}${suffix}`,
+            explorerAddressUrl: `https://gnoscan.io/accounts/{address}${suffix}`,
+            nativeToken: GNO_NATIVE_TOKEN,
+            isTestnet: true,
+            faucetUrl: n.faucetUrl || undefined,
+            userRegistryPath: n.userRegistryPath,
+            indexerUrl: n.indexerUrl,
+        }
+    })
+}
 
-    // ── EVM Networks (Robinhood Chain) ────────────────────────
+/**
+ * EVM networks (Robinhood Chain) have no config.ts entry — they ride the EVM/CAL activation,
+ * not the Gno network config. Kept here until that work lands.
+ */
+const EVM_NETWORKS: CALNetworkConfig[] = [
     {
         chainId: "rh-testnet-46630",
         family: "evm",
@@ -124,6 +126,9 @@ export const ALL_NETWORKS: CALNetworkConfig[] = [
         evmChainId: 4663,
     },
 ]
+
+/** All available networks across both chain families (Gno derived from config, EVM static). */
+export const ALL_NETWORKS: CALNetworkConfig[] = [...deriveGnoNetworks(), ...EVM_NETWORKS]
 
 /** Get a network config by chainId. */
 export function getNetworkConfig(chainId: ChainId): CALNetworkConfig | undefined {
