@@ -316,8 +316,14 @@ contract MembaEscrowTest is Test {
         vm.prank(adminAddr);
         escrow.resolveDispute(0, false);
 
-        // Buyer gets full refund (no fee on dispute refund)
-        assertEq(buyer.balance, buyerBefore + 1 ether);
+        // Buyer is refunded net of the cancellation fee.
+        //
+        // This assertion changed. A full, fee-free refund here meant a buyer could
+        // dispute purely to exit without paying the fee `cancelContract` charges —
+        // which, combined with the seller-side path, made the escrow's entire fee
+        // model optional. The same fee now applies however the contract unwinds.
+        uint256 cancelFee = 1 ether * uint256(CANCEL_FEE) / 10_000;
+        assertEq(buyer.balance, buyerBefore + 1 ether - cancelFee);
     }
 
     function test_ResolveDispute_NonAdminReverts() public {
@@ -353,11 +359,25 @@ contract MembaEscrowTest is Test {
         vm.prank(buyer);
         escrow.cancelContract(0);
 
-        // MS 0 (Funded): refund to buyer minus 5% cancel fee
+        // MS 0 (Funded): refund to buyer minus the 5% cancellation fee.
         uint256 cancelFee0 = 1 ether * uint256(CANCEL_FEE) / 10_000;
-        // MS 1 (Completed): release to seller (no fee, work was done)
         assertEq(buyer.balance, buyerBefore + 1 ether - cancelFee0);
-        assertEq(seller.balance, sellerBefore + 2 ether);
+
+        // MS 1 (Completed), cancelled by the BUYER: released to the seller, net of
+        // the platform fee.
+        //
+        // This assertion changed. It previously expected the seller to receive the
+        // full 2 ether with no fee, which was the specification bug behind the
+        // critical fund-theft path: since `completeMilestone` is a unilateral seller
+        // assertion, a seller could self-certify every milestone, call
+        // `cancelContract`, and take 100% of the escrow fee-free. This test never
+        // caught it only because it always cancelled as the buyer.
+        //
+        // Two things changed in the contract: the canceller can no longer direct
+        // funds to themselves (a seller-initiated cancel refunds the buyer), and the
+        // buyer-accepts path now charges the platform fee like `releaseFunds` does.
+        uint256 platformFee1 = 2 ether * uint256(PLATFORM_FEE) / 10_000;
+        assertEq(seller.balance, sellerBefore + 2 ether - platformFee1);
 
         MembaEscrow.ServiceContract memory sc = escrow.getContract(0);
         assertEq(uint8(sc.status), uint8(MembaEscrow.ContractStatus.Cancelled));

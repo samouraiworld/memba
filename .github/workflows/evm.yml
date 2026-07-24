@@ -59,10 +59,13 @@ jobs:
       - name: Coverage
         run: forge coverage --ir-minimum --no-match-coverage "script" --report lcov --report summary | tee coverage.txt
 
-      # Ratchet, not a target. These floors are the measured values at the time
-      # this workflow landed; they may only ever be raised. Tiering (T1 funds-at-risk
-      # contracts to >=90% branch) is tracked in the remediation plan — raising the
-      # global floor is what closes it.
+      # Ratchet, not a target — these may only ever be raised.
+      #
+      # Measured at the time of writing: 74.24% line / 48.00% branch / 66.32% func.
+      # Branch started at 39.91% before the escrow money-path work; the floors below
+      # sit a point under the measurement so ordinary noise does not red the build,
+      # while still locking in the gain. Tiering (T1 funds-at-risk contracts to
+      # >=90% branch) is tracked in the remediation plan; raising these closes it.
       - name: Coverage ratchet
         run: |
           set -euo pipefail
@@ -72,8 +75,8 @@ jobs:
           echo "line=${LINE}% branch=${BRANCH}% func=${FUNC}%"
           fail=0
           awk -v v="$LINE"   'BEGIN{exit !(v+0 < 74)}' && { echo "::error::line coverage ${LINE}% < 74% floor"; fail=1; }
-          awk -v v="$BRANCH" 'BEGIN{exit !(v+0 < 39)}' && { echo "::error::branch coverage ${BRANCH}% < 39% floor"; fail=1; }
-          awk -v v="$FUNC"   'BEGIN{exit !(v+0 < 63)}' && { echo "::error::function coverage ${FUNC}% < 63% floor"; fail=1; }
+          awk -v v="$BRANCH" 'BEGIN{exit !(v+0 < 47)}' && { echo "::error::branch coverage ${BRANCH}% < 47% floor"; fail=1; }
+          awk -v v="$FUNC"   'BEGIN{exit !(v+0 < 65)}' && { echo "::error::function coverage ${FUNC}% < 65% floor"; fail=1; }
           exit $fail
 
       - name: Upload coverage

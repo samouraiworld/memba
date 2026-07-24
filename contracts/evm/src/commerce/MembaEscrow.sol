@@ -20,6 +20,10 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
     uint256 public constant MAX_TITLE_LEN = 256;
     uint256 public constant MIN_MILESTONE_AMOUNT = 0.001 ether;
     uint16 public constant MAX_FEE_BPS = 2000; // 20% cap
+    /// @dev Bounds on the auto-refund window. Unbounded before: an admin could set 0
+    ///      and make every funded milestone instantly refundable.
+    uint256 public constant MIN_AUTO_REFUND = 1 days;
+    uint256 public constant MAX_AUTO_REFUND = 365 days;
 
     // ── Enums
     // ─────────────────────────────────────────────────────
@@ -57,6 +61,13 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         uint256 amount;
         MilestoneStatus status;
         uint256 fundedAt;
+        /// @dev Auto-refund deadline snapshotted when the milestone is funded.
+        ///      Previously the deadline was computed from the CURRENT global timeout
+        ///      at claim time, so `updateTimeouts` retroactively changed the terms of
+        ///      milestones that were already funded — setting it to 0 made every live
+        ///      milestone instantly refundable. What a buyer is promised at funding
+        ///      is now what they get.
+        uint256 refundableAt;
     }
 
     // ── Storage (ERC-7201)
@@ -71,7 +82,17 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         uint256 contractCount;
         mapping(uint256 => ServiceContract) contracts;
         mapping(uint256 => mapping(uint256 => Milestone)) milestones;
+        /// @dev Pull-payment ledger. Every payout is attempted as a push first; if
+        ///      the recipient rejects it, the amount is credited here instead of
+        ///      reverting the whole transaction. Without this, a counterparty that is
+        ///      a contract can arm `receive()` to revert and permanently freeze the
+        ///      other party's funds — release, cancel and dispute resolution all
+        ///      abort together, and there is no third path out.
+        mapping(address => uint256) withdrawable;
     }
+
+    // NOTE ON UPGRADES: fields in these structs are APPEND-ONLY. Inserting or
+    // reordering a field relocates every field after it. See test/StorageSlots.t.sol.
 
     // keccak256(abi.encode(uint256(keccak256("memba.storage.MembaEscrow")) - 1)) & ~bytes32(uint256(0xff))
     /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaEscrow")) - 1)) & ~bytes32(uint256(0xff))
@@ -105,6 +126,8 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
     error TransferFailed();
     error InvalidFeeBps();
     error InvalidParams();
+    error NothingToWithdraw();
+    error ContractDisputed();
 
     // ── Events
     // ────────────────────────────────────────────────────
@@ -119,6 +142,10 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
     event DisputeResolved(uint256 indexed contractId, bool releasedToSeller, address indexed resolver);
     event ContractCancelled(uint256 indexed contractId, address indexed cancelledBy);
     event AutoRefundClaimed(uint256 indexed contractId, uint256 indexed milestoneIdx, uint256 amount);
+    event PayoutCredited(address indexed to, uint256 amount);
+    event Withdrawn(address indexed to, uint256 amount);
+    event FeeRecipientUpdated(address indexed oldRecipient, address indexed newRecipient);
+    event TimeoutsUpdated(uint256 newAutoRefund);
 
     // ── Modifiers
     // ─────────────────────────────────────────────────
@@ -191,7 +218,11 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         for (uint256 i = 0; i < milestoneTitles.length; i++) {
             if (milestoneAmounts[i] < MIN_MILESTONE_AMOUNT) revert AmountTooSmall();
             $.milestones[contractId][i] = Milestone({
-                title: milestoneTitles[i], amount: milestoneAmounts[i], status: MilestoneStatus.Pending, fundedAt: 0
+                title: milestoneTitles[i],
+                amount: milestoneAmounts[i],
+                status: MilestoneStatus.Pending,
+                fundedAt: 0,
+                refundableAt: 0
             });
         }
 
@@ -216,6 +247,9 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
 
         ms.status = MilestoneStatus.Funded;
         ms.fundedAt = block.timestamp;
+        // Snapshot the deadline so a later updateTimeouts cannot rewrite the terms
+        // of a milestone that is already funded.
+        ms.refundableAt = block.timestamp + $.autoRefundTimeout;
         sc.totalFunded += msg.value;
 
         emit MilestoneFunded(contractId, milestoneIdx, msg.value);
@@ -224,7 +258,7 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
     // ── Completion
     // ────────────────────────────────────────────────
 
-    function completeMilestone(uint256 contractId, uint256 milestoneIdx) external whenNotPaused {
+    function completeMilestone(uint256 contractId, uint256 milestoneIdx) external nonReentrant whenNotPaused {
         EscrowStorage storage $ = _getStorage();
         ServiceContract storage sc = $.contracts[contractId];
 
@@ -264,15 +298,8 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         ms.status = MilestoneStatus.Released;
         sc.totalReleased += netAmount;
 
-        // Transfer to seller
-        (bool ok,) = payable(sc.seller).call{ value: netAmount }("");
-        if (!ok) revert TransferFailed();
-
-        // Transfer fee
-        if (fee > 0) {
-            (bool feeOk,) = payable($.feeRecipient).call{ value: fee }("");
-            if (!feeOk) revert TransferFailed();
-        }
+        _payout($, sc.seller, netAmount);
+        _payout($, $.feeRecipient, fee);
 
         emit FundsReleased(contractId, milestoneIdx, netAmount, fee);
 
@@ -280,10 +307,57 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         _checkAllReleased($, contractId, sc);
     }
 
+    // ── Payouts
+    // ───────────────────────────────────────────────────
+
+    /// @dev Pay `to`, and if the push fails, credit it for later withdrawal.
+    ///
+    ///      Every payout used to be `call{value:}` followed by `revert TransferFailed()`.
+    ///      That gives any counterparty who is a contract a veto: arm `receive()` to
+    ///      revert and `releaseFunds`, `cancelContract` and `resolveDispute` all abort
+    ///      together, freezing the other party's funds with no way out. Worse, a
+    ///      reverting `feeRecipient` bricked releases for every contract at once.
+    ///
+    ///      Crediting instead of reverting keeps one bad recipient from taking the
+    ///      whole flow down. A fixed gas stipend stops a recipient burning the
+    ///      caller's gas to force the credit path.
+    function _payout(EscrowStorage storage $, address to, uint256 amount) private {
+        if (amount == 0) return;
+        (bool ok,) = payable(to).call{ value: amount, gas: 30_000 }("");
+        if (!ok) {
+            $.withdrawable[to] += amount;
+            emit PayoutCredited(to, amount);
+        }
+    }
+
+    /// @notice Withdraw funds credited after a failed push.
+    /// @dev Not pausable: a user must always be able to reclaim their own money.
+    function withdraw() external nonReentrant {
+        EscrowStorage storage $ = _getStorage();
+        uint256 amount = $.withdrawable[msg.sender];
+        if (amount == 0) revert NothingToWithdraw();
+
+        $.withdrawable[msg.sender] = 0; // CEI
+        (bool ok,) = payable(msg.sender).call{ value: amount }("");
+        if (!ok) revert TransferFailed();
+
+        emit Withdrawn(msg.sender, amount);
+    }
+
+    /// @notice Point protocol fees at a new recipient.
+    /// @dev There was no setter at all. A compromised, destroyed or reverting fee
+    ///      recipient was therefore unrecoverable without a contract upgrade.
+    function setFeeRecipient(address newRecipient) external onlyAdmin {
+        if (newRecipient == address(0)) revert InvalidParams();
+        EscrowStorage storage $ = _getStorage();
+        emit FeeRecipientUpdated($.feeRecipient, newRecipient);
+        $.feeRecipient = newRecipient;
+    }
+
     // ── Dispute
     // ───────────────────────────────────────────────────
 
-    function dispute(uint256 contractId) external whenNotPaused {
+    function dispute(uint256 contractId) external nonReentrant whenNotPaused {
         EscrowStorage storage $ = _getStorage();
         ServiceContract storage sc = $.contracts[contractId];
 
@@ -317,12 +391,8 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
                     ms.status = MilestoneStatus.Released;
                     sc.totalReleased += netAmount;
 
-                    (bool ok,) = payable(sc.seller).call{ value: netAmount }("");
-                    if (!ok) revert TransferFailed();
-                    if (fee > 0) {
-                        (bool feeOk,) = payable($.feeRecipient).call{ value: fee }("");
-                        if (!feeOk) revert TransferFailed();
-                    }
+                    _payout($, sc.seller, netAmount);
+                    _payout($, $.feeRecipient, fee);
 
                     emit FundsReleased(contractId, i, netAmount, fee);
                 }
@@ -332,14 +402,21 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
             for (uint256 i = 0; i < sc.milestoneCount; i++) {
                 Milestone storage ms = $.milestones[contractId][i];
                 if (ms.status == MilestoneStatus.Funded || ms.status == MilestoneStatus.Completed) {
+                    // Charge the same cancellation fee `cancelContract` charges. A
+                    // full refund here let a buyer dispute purely to exit fee-free,
+                    // which — paired with the seller-side path — made the escrow's
+                    // entire fee model optional.
                     uint256 amount = ms.amount;
+                    uint256 fee = (amount * $.cancellationFeeBps) / 10_000;
+                    uint256 refundAmount = amount - fee;
+
                     ms.status = MilestoneStatus.Refunded;
-                    sc.totalRefunded += amount;
+                    sc.totalRefunded += refundAmount;
 
-                    (bool ok,) = payable(sc.buyer).call{ value: amount }("");
-                    if (!ok) revert TransferFailed();
+                    _payout($, sc.buyer, refundAmount);
+                    _payout($, $.feeRecipient, fee);
 
-                    emit FundsRefunded(contractId, i, amount);
+                    emit FundsRefunded(contractId, i, refundAmount);
                 }
             }
         }
@@ -351,10 +428,25 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
     // ──────────────────────────────────────────────
 
     /**
-     * @notice Cancel an active contract. Only buyer or seller can cancel.
-     *         Funded milestones → refunded to buyer (minus cancellation fee).
-     *         Completed milestones → released to seller (full amount, no fee).
-     *         Pending milestones → no action.
+     * @notice Cancel an active contract. Either party may cancel.
+     *
+     *         Funded milestones always refund to the buyer, minus the cancellation fee.
+     *
+     *         Completed milestones depend on WHO cancels:
+     *           - buyer cancels  → released to the seller. The buyer is accepting the
+     *                              work, so this is a real acceptance signal.
+     *           - seller cancels → refunded to the buyer. The seller is walking away;
+     *                              contested work must go through `dispute()`.
+     *
+     * @dev This asymmetry closes a critical fund-theft path. `completeMilestone` is a
+     *      unilateral seller assertion — no buyer acceptance, no proof, no timelock —
+     *      and the Completed branch here used to pay the seller the FULL amount with
+     *      no fee. So a seller could self-certify every milestone, cancel, and leave
+     *      with 100% of the escrow having delivered nothing, while the buyer's
+     *      remedies (`dispute`, `claimAutoRefund`) both reverted.
+     *
+     *      The rule is simply: the party who cancels cannot direct funds to themselves.
+     *
      * @dev NOT pausable — users must always be able to exit.
      */
     function cancelContract(uint256 contractId) external nonReentrant {
@@ -364,13 +456,14 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         if (msg.sender != sc.buyer && msg.sender != sc.seller) revert NotParty();
         if (sc.status != ContractStatus.Active) revert ContractNotActive();
 
+        bool cancelledByBuyer = msg.sender == sc.buyer;
         sc.status = ContractStatus.Cancelled;
 
         for (uint256 i = 0; i < sc.milestoneCount; i++) {
             Milestone storage ms = $.milestones[contractId][i];
 
-            if (ms.status == MilestoneStatus.Funded) {
-                // Refund to buyer (minus cancellation fee)
+            if (ms.status == MilestoneStatus.Funded || (ms.status == MilestoneStatus.Completed && !cancelledByBuyer)) {
+                // Refund to buyer, minus the cancellation fee.
                 uint256 amount = ms.amount;
                 uint256 fee = (amount * $.cancellationFeeBps) / 10_000;
                 uint256 refundAmount = amount - fee;
@@ -378,24 +471,25 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
                 ms.status = MilestoneStatus.Refunded;
                 sc.totalRefunded += refundAmount;
 
-                (bool ok,) = payable(sc.buyer).call{ value: refundAmount }("");
-                if (!ok) revert TransferFailed();
-                if (fee > 0) {
-                    (bool feeOk,) = payable($.feeRecipient).call{ value: fee }("");
-                    if (!feeOk) revert TransferFailed();
-                }
+                _payout($, sc.buyer, refundAmount);
+                _payout($, $.feeRecipient, fee);
 
                 emit FundsRefunded(contractId, i, refundAmount);
             } else if (ms.status == MilestoneStatus.Completed) {
-                // Release to seller (work was done)
+                // Buyer is accepting the work — pay the seller, net of the platform
+                // fee. The fee was previously skipped on this path, which let a buyer
+                // and seller settle fee-free by cancelling instead of releasing.
                 uint256 amount = ms.amount;
+                uint256 fee = (amount * $.platformFeeBps) / 10_000;
+                uint256 netAmount = amount - fee;
+
                 ms.status = MilestoneStatus.Released;
-                sc.totalReleased += amount;
+                sc.totalReleased += netAmount;
 
-                (bool ok,) = payable(sc.seller).call{ value: amount }("");
-                if (!ok) revert TransferFailed();
+                _payout($, sc.seller, netAmount);
+                _payout($, $.feeRecipient, fee);
 
-                emit FundsReleased(contractId, i, amount, 0);
+                emit FundsReleased(contractId, i, netAmount, fee);
             }
             // Pending → no action (no funds held)
         }
@@ -411,11 +505,22 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         ServiceContract storage sc = $.contracts[contractId];
 
         if (msg.sender != sc.buyer) revert NotBuyer();
+        // Every other fund-moving function checks the contract status; this one did
+        // not. A buyer could raise a dispute, wait out the timeout, and drain the
+        // contract before the arbiter ruled — making `resolveDispute` unenforceable.
+        if (sc.status == ContractStatus.Disputed) revert ContractDisputed();
+        if (sc.status != ContractStatus.Active) revert ContractNotActive();
         if (milestoneIdx >= sc.milestoneCount) revert InvalidMilestoneIndex();
 
         Milestone storage ms = $.milestones[contractId][milestoneIdx];
-        if (ms.status != MilestoneStatus.Funded) revert MilestoneNotFunded();
-        if (block.timestamp < ms.fundedAt + $.autoRefundTimeout) revert AutoRefundNotReady();
+        // Completed counts too: otherwise a seller could void the buyer's only
+        // unilateral remedy just by marking work done and then doing nothing. A
+        // seller who has genuinely delivered protects their claim with `dispute()`,
+        // which freezes this path.
+        if (ms.status != MilestoneStatus.Funded && ms.status != MilestoneStatus.Completed) {
+            revert MilestoneNotFunded();
+        }
+        if (block.timestamp < ms.refundableAt) revert AutoRefundNotReady();
 
         uint256 amount = ms.amount;
 
@@ -423,8 +528,7 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         ms.status = MilestoneStatus.Refunded;
         sc.totalRefunded += amount;
 
-        (bool ok,) = payable(sc.buyer).call{ value: amount }("");
-        if (!ok) revert TransferFailed();
+        _payout($, sc.buyer, amount);
 
         emit AutoRefundClaimed(contractId, milestoneIdx, amount);
     }
@@ -440,7 +544,11 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
     }
 
     function updateTimeouts(uint256 newAutoRefund) external onlyAdmin {
+        // Bounded, and forward-only: milestones snapshot their own `refundableAt` at
+        // funding time, so this can no longer rewrite the terms of live escrows.
+        if (newAutoRefund < MIN_AUTO_REFUND || newAutoRefund > MAX_AUTO_REFUND) revert InvalidParams();
         _getStorage().autoRefundTimeout = newAutoRefund;
+        emit TimeoutsUpdated(newAutoRefund);
     }
 
     function pause() external onlyAdmin {

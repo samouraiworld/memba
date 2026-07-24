@@ -27,9 +27,22 @@ quote_style = "double"
 tab_width = 4
 wrap_comments = true
 
+# Invariant suites are slow (the escrow handler explores ~128k calls at CI depth).
+# Keep the default light enough to run locally on every change, and let CI do the
+# thorough sweep.
+[profile.default.invariant]
+runs = 32
+depth = 64
+fail_on_revert = false
+
 [profile.ci]
 verbosity = 2
 fuzz = { runs = 1000 }
+
+[profile.ci.invariant]
+runs = 256
+depth = 500
+fail_on_revert = false
 
 [rpc_endpoints]
 robinhood_mainnet = "${ROBINHOOD_MAINNET_RPC_URL}"
