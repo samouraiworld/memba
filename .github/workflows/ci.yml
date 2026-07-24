@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    branches: [main, dev/v2]
+    branches: [main, dev/v2, dev/evm-migration]
   push:
-    branches: [main, dev/v2]
+    branches: [main, dev/v2, dev/evm-migration]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -105,8 +105,12 @@ jobs:
           fi
           echo "✅ verify-worker.cjs matches its source"
 
+      # `npx tsc --noEmit` type-checked NOTHING here: tsconfig.json is a solution
+      # file (`{"files": [], "references": [...]}`), so tsc had no inputs and always
+      # exited 0. It sat green over 22 real type errors. `tsc -b` follows the
+      # project references; --force defeats stale .tsbuildinfo caching.
       - name: Type check
-        run: npx tsc --noEmit
+        run: npx tsc -b --force
 
       - name: Lint
         run: npm run lint

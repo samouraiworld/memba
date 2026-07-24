@@ -1,0 +1,14 @@
+{
+  "//": "Plan §11.5 Gate 3 has always specified `slither . --config slither.config.json`. This file did not exist and slither had never been run; a self-graded 'AI security audit: 0 critical, 0 high' was recorded instead. Filters below scope analysis to code we own.",
+  "filter_paths": "contracts/evm/lib/|contracts/evm/test/",
+  "solc_remaps": [
+    "forge-std/=contracts/evm/lib/forge-std/src/",
+    "@openzeppelin/contracts/=contracts/evm/lib/openzeppelin-contracts/contracts/",
+    "@openzeppelin/contracts-upgradeable/=contracts/evm/lib/openzeppelin-contracts-upgradeable/contracts/"
+  ],
+  "detectors_to_exclude": "naming-convention,solc-version,pragma",
+  "exclude_informational": false,
+  "exclude_low": false,
+  "exclude_medium": false,
+  "exclude_high": false
+}

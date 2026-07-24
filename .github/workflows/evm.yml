@@ -1,0 +1,168 @@
+name: EVM Contracts
+
+# Why this workflow exists.
+#
+# Until now no workflow referenced contracts/evm at all, so `forge` never ran in
+# CI. For 21 commits the quality gates existed only as prose in a session handoff
+# table, self-reported by the agent being gated — and one of them (`tsc --noEmit`)
+# was a no-op that could not fail. A gate that cannot fail is worse than no gate:
+# it manufactures confidence and licenses skipping review.
+#
+# Everything here runs on the runner, so a claim in a PR description is never
+# evidence. The check run is.
+
+on:
+  pull_request:
+    branches: [main, dev/v2, dev/evm-migration]
+    paths:
+      - 'contracts/evm/**'
+      - '.github/workflows/evm.yml'
+  push:
+    branches: [main, dev/v2, dev/evm-migration]
+    paths:
+      - 'contracts/evm/**'
+      - '.github/workflows/evm.yml'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: contracts/evm
+
+jobs:
+  build-test:
+    name: Build · Test · Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Build
+        run: forge build --force
+
+      - name: Format check
+        run: forge fmt --check
+
+      - name: Test
+        run: forge test -vv
+
+      # `forge coverage` cannot run without --ir-minimum on this codebase:
+      # Deploy.s.sol already trips stack-too-deep with the optimizer disabled.
+      - name: Coverage
+        run: forge coverage --ir-minimum --no-match-coverage "script" --report lcov --report summary | tee coverage.txt
+
+      # Ratchet, not a target. These floors are the measured values at the time
+      # this workflow landed; they may only ever be raised. Tiering (T1 funds-at-risk
+      # contracts to >=90% branch) is tracked in the remediation plan — raising the
+      # global floor is what closes it.
+      - name: Coverage ratchet
+        run: |
+          set -euo pipefail
+          LINE=$(grep -E '^\| Total' coverage.txt | awk -F'|' '{print $3}' | grep -oE '[0-9]+\.[0-9]+' | head -1)
+          BRANCH=$(grep -E '^\| Total' coverage.txt | awk -F'|' '{print $5}' | grep -oE '[0-9]+\.[0-9]+' | head -1)
+          FUNC=$(grep -E '^\| Total' coverage.txt | awk -F'|' '{print $6}' | grep -oE '[0-9]+\.[0-9]+' | head -1)
+          echo "line=${LINE}% branch=${BRANCH}% func=${FUNC}%"
+          fail=0
+          awk -v v="$LINE"   'BEGIN{exit !(v+0 < 74)}' && { echo "::error::line coverage ${LINE}% < 74% floor"; fail=1; }
+          awk -v v="$BRANCH" 'BEGIN{exit !(v+0 < 39)}' && { echo "::error::branch coverage ${BRANCH}% < 39% floor"; fail=1; }
+          awk -v v="$FUNC"   'BEGIN{exit !(v+0 < 63)}' && { echo "::error::function coverage ${FUNC}% < 63% floor"; fail=1; }
+          exit $fail
+
+      - name: Upload coverage
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: evm-coverage
+          path: contracts/evm/lcov.info
+          if-no-files-found: ignore
+
+  # Negative controls. A gate never observed failing is not a gate — these assert
+  # that the storage-slot gate and the compiler actually reject bad input, so a
+  # silently-broken check cannot sit green for another 21 commits.
+  canary:
+    name: Gate canaries (must fail on bad input)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      - name: Storage-slot gate rejects a fabricated constant
+        run: |
+          set -euo pipefail
+          CORRECT=0x06c2baaba768e2c688920095b37ec66d19b5cffc74cdb69dc62cd18fcd71bd00
+          FABRICATED=0xb4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a50000
+          sed -i "s/${CORRECT}/${FABRICATED}/" src/commerce/MembaEscrow.sol
+          if forge test --match-test test_AllStorageSlotsMatchTheirDerivation >/dev/null 2>&1; then
+            echo "::error::storage-slot gate PASSED on a fabricated constant — the gate is broken"
+            exit 1
+          fi
+          echo "✅ storage-slot gate correctly rejects a fabricated constant"
+          git checkout -- src/commerce/MembaEscrow.sol
+
+      - name: Compiler gate rejects a deliberate error
+        run: |
+          set -euo pipefail
+          printf '\ncontract _CanaryShouldNotCompile { uint256 x = "not a number"; }\n' >> src/lib/MembaFees.sol
+          if forge build --force >/dev/null 2>&1; then
+            echo "::error::forge build PASSED on invalid Solidity — the gate is broken"
+            exit 1
+          fi
+          echo "✅ compiler gate correctly rejects invalid Solidity"
+          git checkout -- src/lib/MembaFees.sol
+
+  slither:
+    name: Slither (static analysis)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          submodules: recursive
+
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: stable
+
+      # Plan §11.5 Gate 3 has always specified Slither. It had never been run:
+      # slither was not installed and no slither.config.json existed. A self-graded
+      # "AI security audit: 0 critical, 0 high" was recorded in its place.
+      #
+      # Failing on HIGH only to start. This is the first real run, so MEDIUM/LOW
+      # volume is unknown; the full report is uploaded either way and tightening
+      # the fail-on level is a follow-up, not a silent cap.
+      - name: Slither
+        uses: crytic/slither-action@v0.4.0
+        id: slither
+        continue-on-error: true
+        with:
+          target: contracts/evm
+          slither-config: contracts/evm/slither.config.json
+          fail-on: high
+          sarif: results.sarif
+          slither-args: --checklist --markdown-root ${{ github.server_url }}/${{ github.repository }}/blob/${{ github.sha }}/
+
+      - name: Upload SARIF
+        if: always() && steps.slither.outputs.sarif != ''
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: ${{ steps.slither.outputs.sarif }}
+
+      - name: Fail on HIGH findings
+        if: steps.slither.outcome == 'failure'
+        run: |
+          echo "::error::Slither reported HIGH severity findings — see the SARIF upload and the step log"
+          exit 1
