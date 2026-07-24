@@ -20,18 +20,19 @@
   - [x] 4 P0 contract specs written
   - [x] Template spec created
   - [x] docs/evm-migration/ structure bootstrapped
-- [ ] **SESSION 002-005**: Write remaining CONTRACT_SPECS (11 specs)
-  - [ ] MembaCandidature.sol — already done (SESSION 001)
-  - [ ] MembaNFT.spec.md
-  - [ ] MembaNFTMarket.spec.md
-  - [ ] MembaCollections.spec.md
-  - [ ] MembaTokenOTC.spec.md
-  - [ ] MembaChannels.spec.md
-  - [ ] MembaReviews.spec.md
-  - [ ] MembaBadges.spec.md
-  - [ ] MembaQuests.spec.md
-  - [ ] MembaPoints.spec.md
-  - [ ] MembaAppStore.spec.md
+- [x] **SESSION 002-005**: Write remaining CONTRACT_SPECS (11 specs)
+  - [x] MembaCandidature.sol — done in SESSION 001
+  - [x] MembaNFT.spec.md
+  - [x] MembaNFTMarket.spec.md
+  - [x] MembaCollections.spec.md
+  - [x] MembaTokenOTC.spec.md
+  - [x] MembaChannels.spec.md
+  - [x] MembaReviews.spec.md
+  - [x] MembaBadges.spec.md
+  - [x] MembaQuests.spec.md
+  - [x] MembaPoints.spec.md
+  - [x] MembaAppStore.spec.md
+  - [x] MembaRegistry.spec.md
 - [ ] **SESSION 006**: Design CAL interfaces (`types.ts`, `provider.ts`)
 
 ## Phase 1: Chain Abstraction Layer (Weeks 3-6)
