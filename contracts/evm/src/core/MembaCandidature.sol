@@ -74,6 +74,7 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
     error NotAdmin();
     error TransferFailed();
     error InvalidParams();
+    error OutstandingDeposit();
 
     // ── Events
     // ────────────────────────────────────────────────────
@@ -128,8 +129,15 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         // Cannot apply if already a DAO member
         if (IMembaDAO($.daoContract).isMember(msg.sender)) revert AlreadyMember();
 
+        Application storage existing = $.applications[msg.sender];
+
         // Cannot apply if already pending
-        if ($.applications[msg.sender].status == ApplicationStatus.Pending) revert AlreadyPending();
+        if (existing.status == ApplicationStatus.Pending) revert AlreadyPending();
+
+        // A prior application (e.g. Rejected) may still hold an un-withdrawn deposit.
+        // Overwriting it here would strand that ETH — the deposit reference is lost while
+        // the funds stay in the contract (A-9). Require the applicant to withdraw first.
+        if (existing.deposit > 0) revert OutstandingDeposit();
 
         // Check deposit
         uint256 required = _requiredDeposit($, msg.sender);

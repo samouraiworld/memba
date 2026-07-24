@@ -665,6 +665,11 @@ export const MembaCandidatureABI = [
   },
   {
     "type": "error",
+    "name": "OutstandingDeposit",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "ReentrancyGuardReentrantCall",
     "inputs": []
   },

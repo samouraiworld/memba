@@ -123,9 +123,10 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
 
 ## 🟡 Medium
 
-- Candidature strands ETH two ways (re-application overwrites an un-withdrawn deposit;
-  approved applicants can never withdraw). No `receive`/`fallback`/sweep exists anywhere, so
-  it is unreachable short of an upgrade.
+- Candidature stranded ETH two ways. **(1)** re-application overwriting an un-withdrawn deposit
+  — ✅ RESOLVED 2026-07-24 (`submitApplication` reverts `OutstandingDeposit`; withdraw-first).
+  **(2)** approved applicants can never withdraw — ⛔ **still open, blocked on a founder decision**:
+  approval must explicitly **forfeit** (fee) or **refund** the deposit before code.
 - ~~`MembaTokenOTC.unitPrice` is decimals-unaware~~ ✅ RESOLVED 2026-07-24 — now priced per
   whole token with ceiling conversion through the token's decimals. See Resolved below.
 - ~~`MembaTokenOTC` accepts an unbounded `feeBps`~~ ✅ RESOLVED 2026-07-24 — `MAX_FEE_BPS` cap

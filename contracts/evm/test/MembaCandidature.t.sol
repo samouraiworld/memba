@@ -165,6 +165,11 @@ contract MembaCandidatureTest is Test {
         vm.prank(adminAddr);
         candidature.markRejected(applicant);
 
+        // A-9: the rejected deposit must be reclaimed before re-applying, otherwise the
+        // re-application would overwrite (and strand) it.
+        vm.prank(applicant);
+        candidature.withdraw();
+
         // Re-apply requires 10x
         uint256 required = candidature.getRequiredDeposit(applicant);
         assertEq(required, MIN_DEPOSIT * 10);
@@ -177,6 +182,29 @@ contract MembaCandidatureTest is Test {
         // Apply with 10x deposit — should succeed
         vm.prank(applicant);
         candidature.submitApplication{ value: required }("Bio2", "Skills2");
+    }
+
+    /// @notice A-9: re-applying while a prior (rejected) application still holds an
+    ///         un-withdrawn deposit must revert, not silently overwrite and strand the ETH.
+    function test_A9_ReApplicationWithOutstandingDepositReverts() public {
+        vm.prank(applicant);
+        candidature.submitApplication{ value: MIN_DEPOSIT }("Bio", "Skills");
+
+        vm.prank(adminAddr);
+        candidature.markRejected(applicant);
+
+        // Deposit is still in the contract (not withdrawn). Re-applying — even overpaying the
+        // 10x requirement — must be rejected until the applicant withdraws.
+        uint256 required = candidature.getRequiredDeposit(applicant);
+        vm.prank(applicant);
+        vm.expectRevert(MembaCandidature.OutstandingDeposit.selector);
+        candidature.submitApplication{ value: required }("Bio2", "Skills2");
+
+        // The original deposit is still fully reclaimable — nothing was stranded.
+        uint256 balBefore = applicant.balance;
+        vm.prank(applicant);
+        candidature.withdraw();
+        assertEq(applicant.balance - balBefore, MIN_DEPOSIT, "rejected deposit remained reclaimable");
     }
 
     // ══════════════════════════════════════════════════════════════
