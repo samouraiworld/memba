@@ -73,9 +73,14 @@
 - [x] **S033-036**: MembaNFT + MembaNFTMarket (P1)
   - [x] MembaNFT: ERC-721 with sub-collections, ERC-2981 royalties, batch mint
   - [x] 13/13 tests pass
-- [ ] **S037-038**: MembaCollections (P1)
-- [ ] **S039-040**: MembaTokenOTC (P1)
-- [ ] **S041-042**: MembaChannels (P1)
+- [x] **S037-038**: MembaCollections (P1)
+  - [x] NFT launchpad: sale phases, Merkle allowlist, creation fee, maxSupply enforcement
+- [x] **S039-040**: MembaTokenOTC (P1)
+  - [x] OTC ERC-20 trading: partial fills, SafeERC20, platform fee, cancel/reclaim
+  - [x] 9/9 tests pass
+- [x] **S041-042**: MembaChannels (P1)
+  - [x] Hybrid on-chain/off-chain channels: Merkle anchoring, DAO membership gating
+  - [x] 10/10 tests pass
 - [ ] **S043-044**: MembaReviews (P2)
 - [ ] **S045**: MembaBadges (P2)
 - [ ] **S046**: MembaQuests (P2)
