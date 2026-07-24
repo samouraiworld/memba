@@ -109,5 +109,5 @@ Target tiers — a global floor is not enough for funds-at-risk contracts:
 | **G-2** | `MembaNFTMarket.sol` does not exist but was ticked complete. One of four named revenue lines. | ⬜ open — PROGRESS.md corrected; contract still unwritten |
 | **G-3** | PROGRESS.md is not machine-checked — a tick should require a script mapping it to an artifact and a test. | ⬜ open |
 | **G-4** | `go-ethereum` + 15 indirect deps are in the **production** `backend/go.mod` for code imported by nothing (incl. `ProjectZKM/Ziren` at an untagged pseudo-version, pulled via geth crypto). | ⬜ open — revert until wired, or move the EVM backend to its own module |
-| **G-5** | Session handoff docs stop at SESSION_007-012 (4 docs for 77 claimed sessions). | ⬜ open |
+| **G-5** | Session handoff docs stopped at SESSION_007-012 (4 docs for 77 claimed sessions). Partially addressed: `sessions/SESSION_REMEDIATION_2026-07-24.md` covers this session. The 65-session gap in the original branch remains undocumented. | 🟡 partial |
 | ~~G-6~~ | Checked-in frontend ABIs drift silently — 13 of 15 were stale after a round of contract changes, so the frontend encoded calls against a shape that no longer existed. | ✅ **fixed** 2026-07-24 — `contracts/evm/script/gen-abis.sh` + a CI determinism gate mirroring the repo's `verify-worker.cjs` one. |
