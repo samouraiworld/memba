@@ -44,7 +44,9 @@ contract MembaChannels is UUPSUpgradeable, PausableUpgradeable {
         mapping(uint256 => uint256[]) rootTimestamps;
     }
 
-    bytes32 private constant STORAGE_LOCATION = 0xe1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d00000;
+    /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaChannels")) - 1)) & ~bytes32(uint256(0xff))
+    /// @dev Asserted against its derivation in test/StorageSlots.t.sol — never edit by hand.
+    bytes32 private constant STORAGE_LOCATION = 0xefd4cc714872068fcaf50e6e4816644d1ecf737c25c131dd17e94515be9e4d00;
 
     function _getStorage() private pure returns (ChannelsStorage storage $) {
         bytes32 loc = STORAGE_LOCATION;

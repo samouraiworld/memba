@@ -29,7 +29,9 @@ contract MembaQuests is UUPSUpgradeable {
         mapping(address => uint256[]) userAttestations;
     }
 
-    bytes32 private constant STORAGE_LOCATION = 0xb5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a40000;
+    /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaQuests")) - 1)) & ~bytes32(uint256(0xff))
+    /// @dev Asserted against its derivation in test/StorageSlots.t.sol — never edit by hand.
+    bytes32 private constant STORAGE_LOCATION = 0x6b0fac96b9921adf0380192087ba83f39c3b18a2ac3fa6dff545fd8aeb875500;
     function _getStorage() private pure returns (QuestsStorage storage $) {
         bytes32 loc = STORAGE_LOCATION;
         assembly { $.slot := loc }

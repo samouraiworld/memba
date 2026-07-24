@@ -35,7 +35,9 @@ contract MembaTokenFactory is UUPSUpgradeable, PausableUpgradeable, ReentrancyGu
     }
 
     // keccak256(abi.encode(uint256(keccak256("memba.storage.MembaTokenFactory")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant STORAGE_LOCATION = 0xa3b2c1d0e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f90000;
+    /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaTokenFactory")) - 1)) & ~bytes32(uint256(0xff))
+    /// @dev Asserted against its derivation in test/StorageSlots.t.sol — never edit by hand.
+    bytes32 private constant STORAGE_LOCATION = 0x3a6683e2357b6a0ba9e020627aa3272b6d3f4e20ff245486e869a996fdf39600;
 
     function _getStorage() private pure returns (TokenFactoryStorage storage $) {
         bytes32 loc = STORAGE_LOCATION;

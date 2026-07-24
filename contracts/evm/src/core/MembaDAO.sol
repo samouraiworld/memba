@@ -68,7 +68,9 @@ contract MembaDAO is AccessControlUpgradeable, UUPSUpgradeable, PausableUpgradea
     }
 
     // keccak256(abi.encode(uint256(keccak256("memba.storage.MembaDAO")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant STORAGE_LOCATION = 0xf1febbf8c34d7aafb68e8e841cb1906ffbdd88e41f0fb2355cfeec24929cf800;
+    /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaDAO")) - 1)) & ~bytes32(uint256(0xff))
+    /// @dev Asserted against its derivation in test/StorageSlots.t.sol — never edit by hand.
+    bytes32 private constant STORAGE_LOCATION = 0x4d261dff0204067ecac5468a17cb3aa60be901272bc3a7a1e45f7ad10c8a7000;
 
     function _getStorage() private pure returns (DAOStorage storage $) {
         bytes32 loc = STORAGE_LOCATION;

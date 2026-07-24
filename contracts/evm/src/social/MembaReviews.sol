@@ -58,7 +58,9 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
         uint256 reviewCooldownSec;
     }
 
-    bytes32 private constant STORAGE_LOCATION = 0xf1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e00000;
+    /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaReviews")) - 1)) & ~bytes32(uint256(0xff))
+    /// @dev Asserted against its derivation in test/StorageSlots.t.sol — never edit by hand.
+    bytes32 private constant STORAGE_LOCATION = 0x30cddc07d289e84f800efe9a64f93094295b102ef93e43cfea29890d61703f00;
 
     function _getStorage() private pure returns (ReviewsStorage storage $) {
         bytes32 loc = STORAGE_LOCATION;

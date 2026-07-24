@@ -60,7 +60,9 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
     }
 
     // keccak256(abi.encode(uint256(keccak256("memba.storage.MembaEscrow")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant STORAGE_LOCATION = 0xb4c3d2e1f0a9b8c7d6e5f4a3b2c1d0e9f8a7b6c5d4e3f2a1b0c9d8e7f6a50000;
+    /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaEscrow")) - 1)) & ~bytes32(uint256(0xff))
+    /// @dev Asserted against its derivation in test/StorageSlots.t.sol — never edit by hand.
+    bytes32 private constant STORAGE_LOCATION = 0x06c2baaba768e2c688920095b37ec66d19b5cffc74cdb69dc62cd18fcd71bd00;
 
     function _getStorage() private pure returns (EscrowStorage storage $) {
         bytes32 loc = STORAGE_LOCATION;

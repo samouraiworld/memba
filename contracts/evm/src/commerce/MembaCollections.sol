@@ -53,7 +53,9 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         bytes32[] collectionHashes;
     }
 
-    bytes32 private constant STORAGE_LOCATION = 0xc1d2e3f4a5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b00000;
+    /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaCollections")) - 1)) & ~bytes32(uint256(0xff))
+    /// @dev Asserted against its derivation in test/StorageSlots.t.sol — never edit by hand.
+    bytes32 private constant STORAGE_LOCATION = 0x9305ff2aa454f75116534abd4793b2e16ee5ef40558ef36715bb229960c11d00;
 
     function _getStorage() private pure returns (CollectionsStorage storage $) {
         bytes32 loc = STORAGE_LOCATION;

@@ -46,7 +46,9 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
     }
 
     // keccak256(abi.encode(uint256(keccak256("memba.storage.MembaCandidature")) - 1)) & ~bytes32(uint256(0xff))
-    bytes32 private constant STORAGE_LOCATION = 0x9e0f70f3a93d2a0b3be05d1c3c58e4a26f59c5f77b4c5b0a89ddd3ee5b2a8e00;
+    /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaCandidature")) - 1)) & ~bytes32(uint256(0xff))
+    /// @dev Asserted against its derivation in test/StorageSlots.t.sol — never edit by hand.
+    bytes32 private constant STORAGE_LOCATION = 0x8dc58e254924b3e44bdbe5e11a7535b7d83b344ef599a2bf919f1467e6283800;
 
     function _getStorage() private pure returns (CandidatureStorage storage $) {
         bytes32 loc = STORAGE_LOCATION;

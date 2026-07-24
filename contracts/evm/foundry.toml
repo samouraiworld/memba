@@ -9,6 +9,9 @@ optimizer_runs = 200
 via_ir = false
 ffi = false
 gas_reports = ["*"]
+# test/StorageSlots.t.sol reads contract sources to pin each ERC-7201 constant
+# to its derivation. Read-only, src/ only.
+fs_permissions = [{ access = "read", path = "./src" }]
 
 # Arbitrum Nitro supports 96KB contracts (4x Ethereum's 24KB)
 # but we target 24KB for cross-chain compatibility

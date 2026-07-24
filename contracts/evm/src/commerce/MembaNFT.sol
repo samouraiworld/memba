@@ -42,7 +42,9 @@ contract MembaNFT is ERC721URIStorageUpgradeable, ERC2981Upgradeable, UUPSUpgrad
         bytes32[] collectionHashes;
     }
 
-    bytes32 private constant STORAGE_LOCATION = 0xa1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f4a5b6c7d8e9f00000;
+    /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaNFT")) - 1)) & ~bytes32(uint256(0xff))
+    /// @dev Asserted against its derivation in test/StorageSlots.t.sol — never edit by hand.
+    bytes32 private constant STORAGE_LOCATION = 0x1d310fecbad391109a38e0aceee48b95b8d8009517fb982ac3f0e464df30bb00;
 
     function _getStorage() private pure returns (NFTStorage storage $) {
         bytes32 loc = STORAGE_LOCATION;

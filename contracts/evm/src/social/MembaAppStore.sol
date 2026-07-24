@@ -36,7 +36,9 @@ contract MembaAppStore is UUPSUpgradeable, PausableUpgradeable {
         bytes32[] appHashes;
     }
 
-    bytes32 private constant STORAGE_LOCATION = 0xd7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c60000;
+    /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaAppStore")) - 1)) & ~bytes32(uint256(0xff))
+    /// @dev Asserted against its derivation in test/StorageSlots.t.sol — never edit by hand.
+    bytes32 private constant STORAGE_LOCATION = 0x1b76022bc8d05912a3da534c83104e9a39b1db879fc38932cb1a571eaa0a3c00;
     function _getStorage() private pure returns (AppStoreStorage storage $) {
         bytes32 loc = STORAGE_LOCATION;
         assembly { $.slot := loc }

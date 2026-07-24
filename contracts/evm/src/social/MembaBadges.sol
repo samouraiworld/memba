@@ -42,7 +42,9 @@ contract MembaBadges is ERC721Upgradeable, UUPSUpgradeable, IERC5192 {
         mapping(bytes32 => bool) minted; // keccak256(abi.encodePacked(addr, questId))
     }
 
-    bytes32 private constant STORAGE_LOCATION = 0xa5b6c7d8e9f0a1b2c3d4e5f6a7b8c9d0e1f2a3b4c5d6e7f8a9b0c1d2e3f40000;
+    /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaBadges")) - 1)) & ~bytes32(uint256(0xff))
+    /// @dev Asserted against its derivation in test/StorageSlots.t.sol — never edit by hand.
+    bytes32 private constant STORAGE_LOCATION = 0xbb49f4bf643904effa3d73089e634cb555f035ad96377f2ed5bc5e3d237b9b00;
 
     function _getStorage() private pure returns (BadgeStorage storage $) {
         bytes32 loc = STORAGE_LOCATION;

@@ -23,7 +23,9 @@ contract MembaPoints is UUPSUpgradeable {
         TierBand[] tiers; // sorted ascending by minPoints
     }
 
-    bytes32 private constant STORAGE_LOCATION = 0xc6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b50000;
+    /// @dev keccak256(abi.encode(uint256(keccak256("memba.storage.MembaPoints")) - 1)) & ~bytes32(uint256(0xff))
+    /// @dev Asserted against its derivation in test/StorageSlots.t.sol — never edit by hand.
+    bytes32 private constant STORAGE_LOCATION = 0x71f7b67fd09da12e84a20be9ab8db0d779ae7ab777b5cef22bb5f7180653af00;
     function _getStorage() private pure returns (PointsStorage storage $) {
         bytes32 loc = STORAGE_LOCATION;
         assembly { $.slot := loc }
