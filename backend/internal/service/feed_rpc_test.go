@@ -118,6 +118,58 @@ func TestGetFeedTimeline_CursorPagination(t *testing.T) {
 	}
 }
 
+// seedFeedFlag inserts one feed_flags row directly for handler tests.
+func seedFeedFlag(t *testing.T, h *testHarness, postID int64, flaggerAddr string, eventBlock int64) {
+	t.Helper()
+	_, err := h.db.Exec(`
+		INSERT INTO feed_flags (post_id, flagger_addr, event_block) VALUES (?, ?, ?)`,
+		postID, flaggerAddr, eventBlock)
+	if err != nil {
+		t.Fatal("seed feed flag:", err)
+	}
+}
+
+func TestGetFeedTimeline_ViewerHasFlagged(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+
+	seedFeedPost(t, h, 1, "g1a", "flagged by viewer", 0, false, false)
+	seedFeedPost(t, h, 2, "g1b", "flagged by someone else", 0, false, false)
+	seedFeedPost(t, h, 3, "g1c", "never flagged", 0, false, false)
+	seedFeedFlag(t, h, 1, "g1viewer", 1)
+	seedFeedFlag(t, h, 2, "g1other", 2)
+
+	resp, err := h.svc.GetFeedTimeline(ctx, connect.NewRequest(&membav1.GetFeedTimelineRequest{ViewerAddress: "g1viewer"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	byID := map[uint64]*membav1.FeedPost{}
+	for _, p := range resp.Msg.Posts {
+		byID[p.Id] = p
+	}
+	if !byID[1].ViewerHasFlagged {
+		t.Fatal("post 1 was flagged by the viewer — ViewerHasFlagged must be true")
+	}
+	if byID[2].ViewerHasFlagged {
+		t.Fatal("post 2 was flagged by a DIFFERENT address — ViewerHasFlagged must be false")
+	}
+	if byID[3].ViewerHasFlagged {
+		t.Fatal("post 3 was never flagged — ViewerHasFlagged must be false")
+	}
+
+	// No viewer_address (anonymous) → every post reports false, never leaks
+	// another viewer's state.
+	anon, err := h.svc.GetFeedTimeline(ctx, connect.NewRequest(&membav1.GetFeedTimelineRequest{}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range anon.Msg.Posts {
+		if p.ViewerHasFlagged {
+			t.Fatalf("anonymous request must never report ViewerHasFlagged=true, post %d did", p.Id)
+		}
+	}
+}
+
 func TestGetUserFeed(t *testing.T) {
 	h := setup(t)
 	ctx := context.Background()
@@ -181,5 +233,157 @@ func TestGetFeedThread(t *testing.T) {
 	}
 	if _, err := h.svc.GetFeedThread(ctx, connect.NewRequest(&membav1.GetFeedThreadRequest{PostId: 0})); err == nil {
 		t.Fatal("zero post id must be InvalidArgument")
+	}
+}
+
+func TestGetFeedThread_ViewerHasFlagged(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+
+	seedFeedPost(t, h, 1, "g1a", "root, flagged by viewer", 0, false, false)
+	seedFeedPost(t, h, 2, "g1b", "reply, flagged by viewer", 1, false, false)
+	seedFeedPost(t, h, 3, "g1c", "reply, not flagged", 1, false, false)
+	seedFeedFlag(t, h, 1, "g1viewer", 1)
+	seedFeedFlag(t, h, 2, "g1viewer", 2)
+
+	resp, err := h.svc.GetFeedThread(ctx, connect.NewRequest(&membav1.GetFeedThreadRequest{PostId: 1, ViewerAddress: "g1viewer"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !resp.Msg.Root.ViewerHasFlagged {
+		t.Fatal("root was flagged by the viewer — ViewerHasFlagged must be true")
+	}
+	if len(resp.Msg.Replies) != 2 {
+		t.Fatalf("expected 2 replies, got %d", len(resp.Msg.Replies))
+	}
+	byID := map[uint64]*membav1.FeedPost{}
+	for _, r := range resp.Msg.Replies {
+		byID[r.Id] = r
+	}
+	if !byID[2].ViewerHasFlagged {
+		t.Fatal("reply 2 was flagged by the viewer — ViewerHasFlagged must be true")
+	}
+	if byID[3].ViewerHasFlagged {
+		t.Fatal("reply 3 was never flagged — ViewerHasFlagged must be false")
+	}
+
+	// Anonymous read (no viewer_address) → root and replies all false.
+	anon, err := h.svc.GetFeedThread(ctx, connect.NewRequest(&membav1.GetFeedThreadRequest{PostId: 1}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if anon.Msg.Root.ViewerHasFlagged {
+		t.Fatal("anonymous thread read must never report ViewerHasFlagged=true on the root")
+	}
+	for _, r := range anon.Msg.Replies {
+		if r.ViewerHasFlagged {
+			t.Fatalf("anonymous thread read must never report ViewerHasFlagged=true, reply %d did", r.Id)
+		}
+	}
+}
+
+// bumpFlagCount sets feed_posts.flag_count directly for handler tests (the
+// dispatcher normally increments it; seedFeedPost doesn't take it).
+func bumpFlagCount(t *testing.T, h *testHarness, postID int64, n int) {
+	t.Helper()
+	if _, err := h.db.Exec(`UPDATE feed_posts SET flag_count = ? WHERE post_id = ?`, n, postID); err != nil {
+		t.Fatal("bump flag_count:", err)
+	}
+}
+
+func flaggedPostsReq(bearer string, cursor uint64, limit uint32) *connect.Request[membav1.GetFlaggedPostsRequest] {
+	req := connect.NewRequest(&membav1.GetFlaggedPostsRequest{Cursor: cursor, Limit: limit})
+	if bearer != "" {
+		req.Header().Set("Authorization", "Bearer "+bearer)
+	}
+	return req
+}
+
+func TestGetFlaggedPosts_FailClosedWithoutBearerConfigured(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	seedFeedPost(t, h, 1, "g1a", "flagged", 0, false, false)
+	bumpFlagCount(t, h, 1, 3)
+
+	t.Setenv("FEED_MODERATION_BEARER", "")
+	if _, err := h.svc.GetFlaggedPosts(ctx, flaggedPostsReq("anything", 0, 0)); err == nil {
+		t.Fatal("must reject when FEED_MODERATION_BEARER is unset, even with a bearer header present")
+	}
+}
+
+func TestGetFlaggedPosts_RejectsMissingOrWrongBearer(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	seedFeedPost(t, h, 1, "g1a", "flagged", 0, false, false)
+	bumpFlagCount(t, h, 1, 3)
+	t.Setenv("FEED_MODERATION_BEARER", "s3cret")
+
+	if _, err := h.svc.GetFlaggedPosts(ctx, flaggedPostsReq("", 0, 0)); err == nil {
+		t.Fatal("no Authorization header must be rejected")
+	}
+	if _, err := h.svc.GetFlaggedPosts(ctx, flaggedPostsReq("nope", 0, 0)); err == nil {
+		t.Fatal("wrong bearer must be rejected")
+	}
+}
+
+func TestGetFlaggedPosts_ReturnsFlaggedAndHiddenExcludesClean(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	t.Setenv("FEED_MODERATION_BEARER", "s3cret")
+
+	seedFeedPost(t, h, 1, "g1a", "clean post", 0, false, false)
+	seedFeedPost(t, h, 2, "g1b", "flagged but not hidden", 0, false, false)
+	bumpFlagCount(t, h, 2, 2)
+	seedFeedPost(t, h, 3, "g1c", "auto-hidden", 0, true, false) // hidden, flag_count still 0
+	seedFeedPost(t, h, 4, "g1d", "deleted", 0, false, true)     // author self-deleted — resolved, not a queue item
+	bumpFlagCount(t, h, 4, 5)
+
+	resp, err := h.svc.GetFlaggedPosts(ctx, flaggedPostsReq("s3cret", 0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	ids := map[uint64]bool{}
+	for _, p := range resp.Msg.Posts {
+		ids[p.Id] = true
+	}
+	if ids[1] {
+		t.Fatal("a clean post (no flags, not hidden) must not appear in the queue")
+	}
+	if !ids[2] {
+		t.Fatal("a flagged-but-not-yet-hidden post must appear in the queue")
+	}
+	if !ids[3] {
+		t.Fatal("a hidden post must appear in the queue even with flag_count=0 (mod-hidden case)")
+	}
+	if ids[4] {
+		t.Fatal("a deleted post must not appear — the author already resolved it, nothing left to moderate")
+	}
+	// The queue is for REVIEW — unlike GetModerationLog, the body must be present.
+	for _, p := range resp.Msg.Posts {
+		if p.Id == 2 && p.Body == "" {
+			t.Fatal("GetFlaggedPosts must return the post body — a moderator needs to read what was flagged")
+		}
+	}
+}
+
+func TestGetFlaggedPosts_ExcludesBlocklisted(t *testing.T) {
+	h := setup(t)
+	ctx := context.Background()
+	t.Setenv("FEED_MODERATION_BEARER", "s3cret")
+
+	seedFeedPost(t, h, 1, "g1a", "already actioned", 0, true, false)
+	bumpFlagCount(t, h, 1, 10)
+	if _, err := h.db.Exec(`INSERT INTO feed_blocklist (post_id, reason, added_by) VALUES (1, 'illegal', 'ops')`); err != nil {
+		t.Fatal(err)
+	}
+
+	resp, err := h.svc.GetFlaggedPosts(ctx, flaggedPostsReq("s3cret", 0, 0))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, p := range resp.Msg.Posts {
+		if p.Id == 1 {
+			t.Fatal("an already-blocklisted post is resolved — it must not still show up in the open queue")
+		}
 	}
 }

@@ -17,6 +17,7 @@ import { Plus } from "@phosphor-icons/react"
 import { useQuery } from "@tanstack/react-query"
 import { fetchPostReactions } from "../../lib/feedApi"
 import { buildAddReactionMsg, buildRemoveReactionMsg, submitFeedMsg, REACTION_EMOJIS } from "../../lib/feed"
+import { isFeedWritable } from "../../lib/config"
 
 interface ReactionBarProps {
     postId: bigint
@@ -27,6 +28,10 @@ interface ReactionBarProps {
 
 export function ReactionBar(props: ReactionBarProps) {
     if (import.meta.env.VITE_ENABLE_REACTIONS !== "true") return null
+    // Off the indexed network every reaction would be refused by submitFeedMsg
+    // and swallowed by the catch below, leaving buttons that look live and do
+    // nothing forever. Don't render them.
+    if (!isFeedWritable()) return null
     return <ReactionBarInner {...props} />
 }
 

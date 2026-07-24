@@ -13,6 +13,7 @@ import { useAdena } from "../../hooks/useAdena"
 import { EmptyState } from "../ui/EmptyState"
 import { ConnectingLoader } from "../ui/ConnectingLoader"
 import { formatGnotCompact } from "../../lib/formatGnot"
+import { formatTokenAmount } from "../../lib/grc20"
 import { fetchMyListings, cancelListing, anyListingLaneLive, type MyListing } from "../../lib/myListings"
 
 export default function MyListingsView() {
@@ -173,10 +174,12 @@ function ListingRow({
                 ) : (
                     <>
                         <span className="um-mylistings-title">
-                            {listing.amount.toString()} {listing.symbol}
+                            {formatTokenAmount(listing.amount, listing.decimals)} {listing.symbol}
                         </span>
                         <span className="um-mylistings-price">
-                            {formatGnotCompact(listing.unitPriceUgnot)} / unit
+                            {/* unitPriceUgnot is stored PER BASE UNIT on-chain — scale up by
+                                decimals for the per-whole-token figure the seller expects. */}
+                            {formatGnotCompact(listing.unitPriceUgnot * 10n ** BigInt(listing.decimals))} / token
                         </span>
                     </>
                 )}

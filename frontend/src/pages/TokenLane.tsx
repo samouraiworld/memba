@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback } from "react"
 import { fetchOtcListings, type OtcListing } from "../lib/tokenOtcApi"
 import { EmptyState } from "../components/ui/EmptyState"
 import { formatGnotCompact } from "../lib/formatGnot"
+import { getTokenDecimals, formatTokenAmount } from "../lib/grc20"
+import { GNO_RPC_URL } from "../lib/config"
 import { useAuth } from "../hooks/useAuth"
 import { TokenTradeModal, type TokenTradeModalProps } from "../components/nft/TokenTradeModal"
 import { ErrorToast } from "../components/ui/ErrorToast"
@@ -12,6 +14,12 @@ export function TokenLane() {
     const [listings, setListings] = useState<OtcListing[]>([])
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
+    // T3.2: amountAvailable/expectedUnitPrice are BASE UNITS / ugnot-per-base-unit
+    // on the wire — decimals-per-symbol is needed to display them honestly (and
+    // to seed the trade modal's own lookup with a warm cache). Keyed by symbol
+    // since multiple listings can share one; missing entries mean "not loaded
+    // yet" and fall back to raw-unit display rather than guessing.
+    const [decimalsBySymbol, setDecimalsBySymbol] = useState<Record<string, number>>({})
 
     // Modal state
     const [modalProps, setModalProps] = useState<Omit<TokenTradeModalProps, "onClose" | "onSuccess"> | null>(null)
@@ -35,6 +43,30 @@ export function TokenLane() {
     useEffect(() => {
         void load()
     }, [load])
+
+    // Resolve decimals for every distinct symbol currently listed. Best-effort,
+    // display-only surface: a lookup failure for one symbol doesn't block the
+    // others (allSettled), and a null result falls back to 6 HERE, explicitly
+    // — getTokenDecimals itself no longer guesses (a fund-moving caller like
+    // TokenTradeModal must see the null and refuse to trade, not this view).
+    // This loop exists purely to WARM the shared cache + populate display state.
+    useEffect(() => {
+        const symbols = [...new Set(listings.map((l) => l.symbol))].filter((s) => !(s in decimalsBySymbol))
+        if (symbols.length === 0) return
+        let cancelled = false
+        Promise.allSettled(symbols.map((s) => getTokenDecimals(GNO_RPC_URL, s).then((d) => [s, d ?? 6] as const))).then(
+            (results) => {
+                if (cancelled) return
+                const next: Record<string, number> = {}
+                for (const r of results) {
+                    if (r.status === "fulfilled") next[r.value[0]] = r.value[1]
+                }
+                if (Object.keys(next).length > 0) setDecimalsBySymbol((prev) => ({ ...prev, ...next }))
+            },
+        )
+        return () => { cancelled = true }
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- decimalsBySymbol read only to compute the diff, not a dependency (avoids a refetch loop)
+    }, [listings])
 
     if (loading) return <p className="mhub-loading">Loading token listings…</p>
     if (error) return <div className="mhub-error" role="alert">Failed to load: {error}</div>
@@ -69,14 +101,26 @@ export function TokenLane() {
                 />
             ) : (
                 <div className="mhub-grid">
-                    {listings.map((item) => (
+                    {listings.map((item) => {
+                        // T3.2: amountAvailable is BASE UNITS, expectedUnitPrice is ugnot PER
+                        // BASE UNIT — formatGnotCompact (a ugnot/1e6 formatter) was previously
+                        // misapplied to amountAvailable, which isn't ugnot-denominated at all.
+                        const decimals = decimalsBySymbol[item.symbol]
+                        const decimalsLoaded = decimals !== undefined
+                        const amountLabel = decimalsLoaded
+                            ? `${formatTokenAmount(item.amountAvailable, decimals)} ${item.symbol}`
+                            : `${item.amountAvailable.toString()} (base units) ${item.symbol}` // honest placeholder, never a wrong number
+                        const priceLabel = decimalsLoaded
+                            ? formatGnotCompact(item.expectedUnitPrice * 10n ** BigInt(decimals))
+                            : formatGnotCompact(item.expectedUnitPrice) // per-base-unit fallback pre-load
+                        return (
                         <div key={item.id} className="mhub-collection-card" style={{ cursor: 'default' }}>
                             <div className="mhub-collection-card__body">
                                 <div className="mhub-collection-card__name-row">
                                     <span className="mhub-collection-card__name">{item.symbol}</span>
                                 </div>
                                 <div className="mhub-collection-card__stats">
-                                    {formatGnotCompact(item.amountAvailable)} available @ {formatGnotCompact(item.expectedUnitPrice)}/ea
+                                    {amountLabel} available @ {priceLabel}/ea
                                 </div>
                                 <div style={{ marginTop: '1rem' }}>
                                     <button 
@@ -88,8 +132,8 @@ export function TokenLane() {
                                                 action: "buy",
                                                 listingId: item.id,
                                                 symbol: item.symbol,
-                                                unitPriceUgnot: Number(item.expectedUnitPrice),
-                                                available: Number(item.amountAvailable),
+                                                unitPriceUgnot: item.expectedUnitPrice,
+                                                available: item.amountAvailable,
                                                 seller: item.seller,
                                                 callerAddress: address,
                                             })
@@ -100,7 +144,8 @@ export function TokenLane() {
                                 </div>
                             </div>
                         </div>
-                    ))}
+                        )
+                    })}
                 </div>
             )}
 

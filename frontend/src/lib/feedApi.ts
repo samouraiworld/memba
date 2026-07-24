@@ -19,10 +19,12 @@ export interface TimelinePage {
     indexerLastBlock: bigint
 }
 
-/** Home timeline — newest top-level posts. cursor 0n = from the newest. */
-export async function fetchFeedTimeline(cursor = 0n, limit = 20): Promise<TimelinePage> {
+/** Home timeline — newest top-level posts. cursor 0n = from the newest.
+ *  `viewer` (optional) fills each post's viewerHasFlagged from the durable
+ *  feed_flags projection — omit for an anonymous/disconnected read. */
+export async function fetchFeedTimeline(cursor = 0n, limit = 20, viewer?: string): Promise<TimelinePage> {
     try {
-        const res = await api.getFeedTimeline({ cursor, limit })
+        const res = await api.getFeedTimeline({ cursor, limit, viewerAddress: viewer ?? "" })
         return {
             posts: res.posts ?? [],
             nextCursor: res.nextCursor ?? 0n,
@@ -43,10 +45,12 @@ export async function fetchUserFeed(author: string, cursor = 0n, limit = 20): Pr
     }
 }
 
-/** A post and its live replies (oldest-first). root is null when not found. */
-export async function fetchFeedThread(postId: bigint, cursor = 0n, limit = 50): Promise<{ root: FeedPost | null; replies: FeedPost[]; nextCursor: bigint }> {
+/** A post and its live replies (oldest-first). root is null when not found.
+ *  `viewer` (optional) fills viewerHasFlagged on root + replies — see
+ *  fetchFeedTimeline. */
+export async function fetchFeedThread(postId: bigint, cursor = 0n, limit = 50, viewer?: string): Promise<{ root: FeedPost | null; replies: FeedPost[]; nextCursor: bigint }> {
     try {
-        const res = await api.getFeedThread({ postId, cursor, limit })
+        const res = await api.getFeedThread({ postId, cursor, limit, viewerAddress: viewer ?? "" })
         return { root: res.root ?? null, replies: res.replies ?? [], nextCursor: res.nextCursor ?? 0n }
     } catch {
         return { root: null, replies: [], nextCursor: 0n }

@@ -9,13 +9,16 @@ vi.mock("./config", () => ({
     isNftMarketV3Valid: vi.fn(() => true),
     isTokensEnabled: vi.fn(() => true),
     isTokenOtcValid: vi.fn(() => true),
+    GNO_RPC_URL: "http://rpc.test",
 }))
 // The builders + broadcast are imported by the module but not exercised by
 // these read-path tests; stub them so the import graph resolves. nftConfig
 // stays real (pure constants) so the v3 path tracks the live engine.
 vi.mock("./nftMarketplace", () => ({ buildDelistMsg: vi.fn() }))
 vi.mock("./tokenOtc", () => ({ buildCancelListingMsg: vi.fn() }))
-vi.mock("./grc20", () => ({ doContractBroadcast: vi.fn() }))
+// getTokenDecimals: myListings' token lane now resolves decimals per symbol
+// (T3.2) before attaching listings — stub it so the lane doesn't reject.
+vi.mock("./grc20", () => ({ doContractBroadcast: vi.fn(), getTokenDecimals: vi.fn().mockResolvedValue(6) }))
 
 import { fetchMyListings, anyListingLaneLive } from "./myListings"
 import * as v3 from "./marketplace/v3Reads"
@@ -63,6 +66,11 @@ describe("fetchMyListings", () => {
         const mine = await fetchMyListings(ME)
         expect(mine.map(l => l.key).sort()).toEqual(["nft:art/1", "nft:art/3", "token:11"])
         expect(mine.every(l => (l.kind === "nft" ? true : l.id === "11"))).toBe(true)
+
+        // T3.2: the token listing carries a resolved `decimals` — needed by
+        // MyListingsView to display amount/price at the right scale.
+        const tokenListing = mine.find(l => l.kind === "token")
+        expect(tokenListing?.kind === "token" && tokenListing.decimals).toBe(6)
     })
 
     it("paginates the NFT book until a short page", async () => {
