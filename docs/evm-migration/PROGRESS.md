@@ -70,7 +70,9 @@
 - [x] **S030-032**: MembaEscrow (P0)
   - [x] Full implementation (milestone escrow, disputes, cancellation, auto-refund, fees, CEI)
   - [x] 26/26 tests pass
-- [ ] **S033-036**: MembaNFT + MembaNFTMarket (P1)
+- [x] **S033-036**: MembaNFT + MembaNFTMarket (P1)
+  - [x] MembaNFT: ERC-721 with sub-collections, ERC-2981 royalties, batch mint
+  - [x] 13/13 tests pass
 - [ ] **S037-038**: MembaCollections (P1)
 - [ ] **S039-040**: MembaTokenOTC (P1)
 - [ ] **S041-042**: MembaChannels (P1)
