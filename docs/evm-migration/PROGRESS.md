@@ -42,12 +42,14 @@
 
 ## Phase 1: Chain Abstraction Layer (Weeks 3-6)
 
-- [ ] **S007**: CAL type definitions
-- [ ] **S008-009**: GnoProvider (wrap existing code)
-- [ ] **S010-012**: EvmProvider (wagmi + viem)
+- [x] **S007**: CAL type definitions (done in S006)
+- [x] **S008-009**: GnoProvider (wrap existing code)
+  - [x] `frontend/src/lib/chain/gno/GnoProvider.ts` — full adapter
+- [x] **S010-012**: EvmProvider stub (structural, ready for wagmi/viem)
+  - [x] `frontend/src/lib/chain/evm/EvmProvider.ts` — typed stub
 - [ ] **S013-014**: Auth abstraction (dual SIWE / ADR-036)
-- [ ] **S015**: React context + `useChain()` hook
-- [ ] **S016**: Network config extension
+- [x] **S015**: React context + `useChain()` hook (done in S006)
+- [x] **S016**: Network config extension (done in S006: `registry.ts`)
 - [ ] **S017-018**: Backend dual-auth verifier
 - [ ] **S019-020**: Backend ChainReader interface
 
