@@ -25,8 +25,14 @@ Content-Type: application/json
 - **If `FEED_MODERATION_BEARER` is unset the endpoint returns `404`, not `401`.**
   A 404 here means *the capability is switched off*, not *wrong URL*. This is
   fail-closed by design: no bearer ⇒ no takedown capability at all.
-- `reason` and `by` are free text and are stored. Keep them factual — they are
-  operator notes retained in the database.
+- `reason` and `by` are free text. They are **stored** for `block` and
+  `override_serve` (columns on `feed_blocklist` / `feed_serving_overrides`); for
+  `unblock` and `clear_override` the row is deleted, so they survive only in the
+  application log. Keep them factual — the stored ones are operator notes in the
+  production database.
+- Response codes: no bearer configured → **404** (feature off). Bearer set but
+  header wrong/missing → **401**. Right bearer, wrong method → **405**. Don't
+  read a 401 as "the feature is disabled".
 
 ### Actions — exact names
 
@@ -96,11 +102,22 @@ The growth gate counts this item as done at **drill**, not at merge.
    - The permalink page and its **link-preview / OG edge function** — this one is
      served from Netlify's edge with a 60s `private` cache, so allow up to a
      minute before concluding it leaked.
-4. `unblock` it. Verify it returns on all of the above.
-5. Record the date, who ran it, and anything surprising, in §7 below.
+4. Confirm the two paths a blocklist **cannot** filter still serve it, so you are
+   never surprised by them during an incident:
+   ```bash
+   curl -s "$MEMBA_API/api/render?realm=gno.land/r/samcrew/memba_feed_v1&path=post/<id>"
+   ```
+   `/api/render` relays the realm's own `Render()` output and `/api/indexer`
+   passes through to the public tx-indexer — **neither consults
+   `feed_blocklist`.** For genuinely must-not-serve content, blocklisting is not
+   sufficient on its own: it must be paired with an on-chain `ModRemovePost`,
+   which clears the body from contract state. Treat the blocklist as the fast
+   first move and the on-chain removal as the one that closes these two paths.
+5. `unblock` it. Verify it returns on all of the above.
+6. Record the date, who ran it, and anything surprising, in §7 below.
 
 **A drill that only checks the timeline is not a drill.** The thread-as-reply and
-OG-preview paths are where a leak actually hides.
+OG-preview paths are where a leak hides; `/api/render` is where it is guaranteed.
 
 ---
 

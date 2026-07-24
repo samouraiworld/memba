@@ -17,7 +17,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
 import { ArrowUp } from "@phosphor-icons/react"
 import { Link } from "react-router-dom"
-import { useNetworkNav, useNetworkKey } from "../hooks/useNetworkNav"
+import { useNetworkNav, useNetworkPath } from "../hooks/useNetworkNav"
 import { useAdena } from "../hooks/useAdena"
 import { EmptyState } from "../components/ui/EmptyState"
 import { FeedComposer } from "../components/feed/FeedComposer"
@@ -36,7 +36,7 @@ import "./feed.css"
 export default function FeedPage() {
     const { address, connected, connect } = useAdena()
     const nav = useNetworkNav()
-    const networkKey = useNetworkKey()
+    const networkPath = useNetworkPath()
 
     // address in the query key: switching wallets must refetch, not keep
     // serving the previous wallet's viewerHasFlagged state from cache.
@@ -132,7 +132,7 @@ export default function FeedPage() {
                     {/* The transparency log is the accountability half of "disclosed
                         labeling, not silent deletion" — it only works if it is
                         reachable without knowing the URL. */}
-                    <Link className="feed-subtitle__link" to={`/${networkKey}/feed/transparency`}>
+                    <Link className="feed-subtitle__link" to={networkPath("feed/transparency")}>
                         Moderation &amp; transparency
                     </Link>
                 </p>
