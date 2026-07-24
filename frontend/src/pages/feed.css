@@ -75,6 +75,17 @@
     margin: 4px 0 0;
 }
 
+.feed-subtitle__link {
+    color: var(--color-text-secondary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
+.feed-subtitle__link:hover,
+.feed-subtitle__link:focus-visible {
+    color: var(--color-text);
+}
+
 /* Live feed counters under the header. */
 .feed-stats {
     display: flex;

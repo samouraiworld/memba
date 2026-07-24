@@ -35,17 +35,39 @@ tamper-evident log (shown at `/feed/transparency`).
    incentive to flag). Moderator actions, which carry accountability, do show the
    acting address.
 5. **The chain is permanent.** Because bodies live on-chain forever, suppression is
-   a serving-layer decision. For a true right-to-erasure request, contact us (below);
-   erasure additionally scrubs the projection so a rebuild cannot resurface it.
+   a serving-layer decision — and that is the limit of what any operator, including
+   us, can promise. See **Erasure requests** below for exactly what we can and
+   cannot do.
+
+## Erasure requests — what we can and cannot do
+
+We state this precisely rather than generally, because the difference matters.
+
+**What we do on a valid erasure request:** we **blocklist** the post. That
+permanently stops it being served through every Memba surface — timeline, thread,
+profile, permalink, search, link previews and the public API. The blocklist is
+authoritative and operator-only: it is not derived from chain events, no on-chain
+activity can reverse it, and it **survives a full rebuild of our index**.
+
+**What we cannot do:**
+
+- **We cannot remove the body from the chain.** The Gno blockchain is public,
+  permanent and outside our control. Anyone running a node, block explorer or
+  third-party indexer retains the content regardless of what we do. This policy
+  covers **Memba's own serving infrastructure only**.
+- **We do not yet scrub our internal raw-event store.** Alongside the served
+  index, we retain the raw on-chain events we ingested, which include post
+  bodies. Blocklisting stops all serving, but the body remains in that internal
+  store. Scrubbing it is planned work, not a capability we have today, and we
+  would rather say so than imply otherwise.
+
+If you need content erased, or believe a post was wrongly hidden or removed,
+email **security@samourai.coop** — the same monitored inbox as our security
+disclosures. Wrongful auto-hides are restored quickly. Blocklist and erasure
+decisions are made by the operators against this policy.
 
 ## Old tombstones
 
-Removed/blocklisted posts leave a tombstone so threads keep their shape. Operators
-can **sweep** old tombstones — permanently purging them on-chain — so suppressed
-content need not linger in the projection.
-
-## Appeals & contact
-
-If you believe a post was wrongly hidden or removed, or you need content erased,
-contact the Samourai team. Wrongful auto-hides are restored quickly; erasure and
-blocklist decisions are made by the operators against this policy.
+Removed and blocklisted posts leave a tombstone so threads keep their shape. The
+feed realm supports permanently purging old tombstones on-chain, but **Memba does
+not currently operate that sweep in production** — tombstones persist until it is.

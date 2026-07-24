@@ -20,7 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Feed — the flag button now remembers you already flagged a post (2026-07-23)
+### Feed — the moderation policy now states what we can actually do about erasure (2026-07-24)
+<!-- categories: memba -->
+- **Corrected the published moderation policy, which promised two things Memba cannot currently do.** It stated that an erasure request "scrubs the projection so a rebuild cannot resurface it," and that operators can sweep old tombstones to purge them on-chain — neither capability is built today. The policy now says precisely what happens instead: a valid erasure request blocklists the post, which permanently stops it being served on every Memba surface and survives a full rebuild of our index, while the body remains on the public chain (outside anyone's control) and, for now, in our internal raw-event store — which we say plainly rather than imply otherwise. It also now names a real contact address for erasure requests and wrongful-takedown appeals instead of pointing vaguely at "the Samourai team," and notes that the tombstone sweep exists in the feed realm but is not operated in production. The public transparency log is now reachable from a link in the feed header, where before it could only be found by typing the URL. No moderation behaviour changed — this corrects what we claimed about it.
 <!-- categories: memba -->
 - **Fixed the flag button forgetting you'd already flagged a post the moment you reloaded the page or switched wallets.** It used to track "did I flag this" only in the browser tab you were looking at, so a refresh or a revisit later showed every post as un-flagged again — you'd only find out you'd already flagged it if you tapped the button again and the network rejected it. Memba now remembers your flag durably on the server and shows the correct state from the moment a post loads, including if you switch to a different wallet mid-session.
 

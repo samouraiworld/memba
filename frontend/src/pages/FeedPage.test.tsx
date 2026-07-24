@@ -6,10 +6,11 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor, within } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import { MemoryRouter } from "react-router-dom"
 import type { ReactNode } from "react"
 
 vi.mock("../hooks/useAdena", () => ({ useAdena: () => ({ address: undefined, connected: false, connect: vi.fn() }) }))
-vi.mock("../hooks/useNetworkNav", () => ({ useNetworkNav: () => vi.fn() }))
+vi.mock("../hooks/useNetworkNav", () => ({ useNetworkNav: () => vi.fn(), useNetworkKey: () => "test13" }))
 vi.mock("../hooks/home/useActorUsernames", () => ({ useActorUsernames: () => new Map() }))
 // Stub the Ecosystem tab so its activity stack (tx-indexer) never runs here —
 // the tab-switch behavior is what FeedPage owns and is what we assert.
@@ -32,7 +33,14 @@ const post = (id: bigint, body: string) => ({
 
 function renderWithClient(ui: ReactNode) {
     const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>)
+    // MemoryRouter: the header renders a real <Link> to the transparency log,
+    // which needs router context. useNetworkKey is mocked, so the prefix is
+    // deterministic and this stays a pure component test.
+    return render(
+        <MemoryRouter>
+            <QueryClientProvider client={qc}>{ui}</QueryClientProvider>
+        </MemoryRouter>,
+    )
 }
 
 beforeEach(() => {
@@ -106,5 +114,16 @@ describe("FeedPage two-pane rail", () => {
         expect(within(rail).getByTestId("feed-trending")).toBeInTheDocument()
         // The timeline still renders its posts in the main column.
         expect(await screen.findByText("newest post")).toBeInTheDocument()
+    })
+})
+
+describe("FeedPage moderation transparency link", () => {
+    it("links to the public transparency log from the feed header", async () => {
+        renderWithClient(<FeedPage />)
+
+        const link = await screen.findByRole("link", { name: /moderation/i })
+        // Network-prefixed absolute path — the routes are flat siblings under
+        // /:network, so this must not rely on relative resolution.
+        expect(link).toHaveAttribute("href", "/test13/feed/transparency")
     })
 })
