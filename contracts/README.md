@@ -38,3 +38,23 @@ All realms are deployed via 2-of-2 multisig using `samcrew-deployer`.
 
 See [`/realm-versions.json`](../realm-versions.json) — the chain-verified ledger of what is actually
 deployed per network (paths, blocks, full txHashes, and ACL notes derived from live `vm/qfile`).
+
+## EVM Contracts (Solidity)
+
+The `evm/` subdirectory contains Solidity contracts for the EVM migration
+(Robinhood Chain / Arbitrum Nitro). This is a separate Foundry project with
+its own toolchain, dependencies, and test suite.
+
+```
+contracts/
+├── README.md                    ← this file
+├── evm/                         ← Solidity contracts (Foundry project)
+│   ├── foundry.toml
+│   ├── src/                     ← Contract source
+│   ├── test/                    ← Forge tests
+│   ├── script/                  ← Deployment scripts
+│   └── lib/                     ← Dependencies (OZ v5, forge-std)
+└── memba_nft_offers_v1/         ← Legacy Gno stub (reference only)
+```
+
+See [`docs/evm-migration/`](../docs/evm-migration/) for architecture, contract specs, and progress tracking.

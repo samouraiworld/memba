@@ -1,0 +1,110 @@
+# Memba EVM Migration — Progress Tracker
+
+> Living checklist updated by AI agents after each session.
+> Last updated: 2026-07-24 (Session 001)
+
+## Phase 0: Foundation & Decision (Weeks 1-2)
+
+- [x] Founder reviews audit → GO decision (2026-07-24)
+- [ ] Contact RH Chain dev relations (`chain-developers-group@robinhood.com`)
+- [ ] Apply to Arbitrum Foundation LTIPP grant
+- [x] **SESSION 001**: Foundry project scaffold + contract specs
+  - [x] Git branches: `dev/evm-migration` + `feat/evm/foundation`
+  - [x] Foundry project in `contracts/evm/`
+  - [x] OpenZeppelin v5.3.0 installed
+  - [x] 4 P0 contract stubs (MembaDAO, MembaDAOFactory, MembaTokenFactory, MembaEscrow)
+  - [x] Shared libraries (MembaAccessControl, MembaFees)
+  - [x] IMembaDAO interface
+  - [x] Deploy script skeleton
+  - [x] Test skeleton (MembaDAO.t.sol)
+  - [x] 4 P0 contract specs written
+  - [x] Template spec created
+  - [x] docs/evm-migration/ structure bootstrapped
+- [ ] **SESSION 002-005**: Write remaining CONTRACT_SPECS (11 specs)
+  - [ ] MembaCandidature.sol — already done (SESSION 001)
+  - [ ] MembaNFT.spec.md
+  - [ ] MembaNFTMarket.spec.md
+  - [ ] MembaCollections.spec.md
+  - [ ] MembaTokenOTC.spec.md
+  - [ ] MembaChannels.spec.md
+  - [ ] MembaReviews.spec.md
+  - [ ] MembaBadges.spec.md
+  - [ ] MembaQuests.spec.md
+  - [ ] MembaPoints.spec.md
+  - [ ] MembaAppStore.spec.md
+- [ ] **SESSION 006**: Design CAL interfaces (`types.ts`, `provider.ts`)
+
+## Phase 1: Chain Abstraction Layer (Weeks 3-6)
+
+- [ ] **S007**: CAL type definitions
+- [ ] **S008-009**: GnoProvider (wrap existing code)
+- [ ] **S010-012**: EvmProvider (wagmi + viem)
+- [ ] **S013-014**: Auth abstraction (dual SIWE / ADR-036)
+- [ ] **S015**: React context + `useChain()` hook
+- [ ] **S016**: Network config extension
+- [ ] **S017-018**: Backend dual-auth verifier
+- [ ] **S019-020**: Backend ChainReader interface
+
+## Phase 2: Core Smart Contracts (Weeks 5-10)
+
+- [ ] **S021-025**: MembaDAOFactory + MembaDAO (P0)
+- [ ] **S026-027**: MembaCandidature (P0)
+- [ ] **S028-029**: MembaTokenFactory (P0)
+- [ ] **S030-032**: MembaEscrow (P0)
+- [ ] **S033-036**: MembaNFT + MembaNFTMarket (P1)
+- [ ] **S037-038**: MembaCollections (P1)
+- [ ] **S039-040**: MembaTokenOTC (P1)
+- [ ] **S041-042**: MembaChannels (P1)
+- [ ] **S043-044**: MembaReviews (P2)
+- [ ] **S045**: MembaBadges (P2)
+- [ ] **S046**: MembaQuests (P2)
+- [ ] **S047**: MembaPoints (P2)
+- [ ] **S048-049**: MembaAppStore (P2)
+- [ ] **S050-051**: MembaRegistry + Config + Feed (P2)
+
+## Phase 3: Frontend Integration (Weeks 8-14)
+
+- [ ] **S052-058**: Migrate all pages to `useChain()`
+- [ ] **S059**: Address display components
+- [ ] **S060-062**: Transaction flow adaptation
+- [ ] **S063**: Network selector
+- [ ] **S064**: Gas UI removal (EVM path)
+- [ ] **S065-066**: Notification system (events)
+- [ ] **S067**: Explorer links (Blockscout)
+- [ ] **S068**: Error mapping (EVM errors)
+- [ ] **S069-072**: Unit test adaptation
+
+## Phase 4: Backend Integration (Weeks 10-14)
+
+- [ ] **S073-075**: EvmReader implementation
+- [ ] **S076-077**: Render proxy → contract reads
+- [ ] **S078**: Home snapshot (EVM data)
+- [ ] **S079-080**: Feed/quest adaptation
+- [ ] **S081-082**: NFT/marketplace reads
+- [ ] **S083-084**: Multisig (Safe API)
+
+## Phase 5: Security & Audit (Weeks 14-18)
+
+- [ ] Internal Slither/Mythril scan
+- [ ] AI security review
+- [ ] Code4rena competitive audit
+- [ ] Professional audit (DAO + Escrow + Token)
+- [ ] Bug bounty program launch
+- [ ] Penetration test
+
+## Phase 6: Testnet Soak (Weeks 16-20)
+
+- [ ] Deploy to RH Chain testnet (46630)
+- [ ] Verify on Blockscout
+- [ ] Internal QA (all 47 features)
+- [ ] Stress test
+- [ ] Gasless onboarding test (Alchemy)
+
+## Phase 7: Mainnet Launch (Weeks 20-24)
+
+- [ ] Deploy to RH Chain mainnet (4663)
+- [ ] Verify contracts
+- [ ] $MEMBA token launch (Uniswap)
+- [ ] Gasless onboarding live
+- [ ] Documentation update
+- [ ] Marketing: "Memba is multi-chain"

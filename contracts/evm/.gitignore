@@ -1,0 +1,15 @@
+# Compiler output
+/out/
+/cache/
+
+# Broadcast artifacts
+/broadcast/
+
+# Docs
+/docs/
+
+# Dotenv
+.env
+
+# Coverage
+lcov.info
