@@ -119,6 +119,10 @@ func main() {
 	// Expose the connection-pool stats on /metrics (read-only; W6.5). On SQLite
 	// with one writer, wait_count/wait_duration are the DB-contention signal.
 	metrics.RegisterDBStats(prometheus.DefaultRegisterer, database)
+	// Feed abuse-signal gauges (flags/hour, unique flaggers/day, auto-hides/day,
+	// posting authors/hour) on the same METRICS_BEARER-gated /metrics (C.7).
+	// GaugeFunc closures read on scrape, so registering before Migrate is safe.
+	metrics.RegisterFeedAbuseStats(prometheus.DefaultRegisterer, database)
 
 	if err := db.Migrate(database); err != nil {
 		slog.Error("failed to run migrations", "error", err)

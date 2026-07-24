@@ -75,6 +75,13 @@
     margin: 4px 0 0;
 }
 
+/* Inherits the global accent link colour (index.css) — only the underline
+   offset is tuned, so it reads as a link like every other link in the app. */
+.feed-subtitle__link {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
 /* Live feed counters under the header. */
 .feed-stats {
     display: flex;
@@ -1017,4 +1024,19 @@
     flex-direction: column;
     gap: 4px;
     margin-bottom: 4px;
+}
+
+/* Shown instead of the composer when the active network is not the one the
+   backend indexes — a post here would succeed on-chain and never be visible. */
+.feed-composer__network-gate {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: var(--space-2, 8px);
+}
+
+.feed-composer__network-gate-title {
+    font-weight: 600;
+    color: var(--color-text);
+    margin: 0;
 }
