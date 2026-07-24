@@ -81,8 +81,12 @@
 - [x] **S041-042**: MembaChannels (P1)
   - [x] Hybrid on-chain/off-chain channels: Merkle anchoring, DAO membership gating
   - [x] 10/10 tests pass
-- [ ] **S043-044**: MembaReviews (P2)
-- [ ] **S045**: MembaBadges (P2)
+- [x] **S043-044**: MembaReviews (P2)
+  - [x] Subject-agnostic reputation engine: post/edit/delete, reactions, comments, flagging
+  - [x] 10/10 tests pass
+- [x] **S045**: MembaBadges (P2)
+  - [x] Soulbound tokens (ERC-5192): quest dedup, batch mint, transfer blocking
+  - [x] 8/8 tests pass
 - [ ] **S046**: MembaQuests (P2)
 - [ ] **S047**: MembaPoints (P2)
 - [ ] **S048-049**: MembaAppStore (P2)
