@@ -1,0 +1,56 @@
+/**
+ * Chain Abstraction Layer (CAL) — Public API
+ *
+ * Re-exports all public types, interfaces, hooks, and utilities
+ * from the chain/ module. UI components import from here:
+ *
+ *   import { useChain, type ChainProvider, type CALProposal } from "@/lib/chain"
+ *
+ * @module lib/chain
+ */
+
+// Types
+export type {
+    ChainFamily,
+    ChainId,
+    ChainAddress,
+    TxResult,
+    TxStatus,
+    ContractRef,
+    TokenInfo,
+    NativeToken,
+    CALMember,
+    CALProposal,
+    CALDAOConfig,
+    CALNFT,
+    CALEscrowContract,
+    CALMilestone,
+    EscrowContractStatus,
+    EscrowMilestoneStatus,
+    CALNetworkConfig,
+} from "./types"
+
+// Utilities
+export {
+    isGnoAddress,
+    isEvmAddress,
+    formatAddress,
+} from "./types"
+
+// Provider interface & errors
+export type { ChainProvider, WalletState } from "./provider"
+export { ChainError, type ChainErrorCode } from "./provider"
+
+// React context & hook
+export { ChainContext, useChain, type ChainContextValue } from "./context"
+
+// Registry
+export {
+    registerProviderFactory,
+    getProvider,
+    clearProviderCache,
+    ALL_NETWORKS,
+    getNetworkConfig,
+    getNetworksByFamily,
+    type ProviderFactory,
+} from "./registry"

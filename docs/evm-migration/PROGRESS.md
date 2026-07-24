@@ -33,7 +33,12 @@
   - [x] MembaPoints.spec.md
   - [x] MembaAppStore.spec.md
   - [x] MembaRegistry.spec.md
-- [ ] **SESSION 006**: Design CAL interfaces (`types.ts`, `provider.ts`)
+- [x] **SESSION 006**: Design CAL interfaces (`types.ts`, `provider.ts`)
+  - [x] `frontend/src/lib/chain/types.ts` — chain-agnostic types
+  - [x] `frontend/src/lib/chain/provider.ts` — ChainProvider interface
+  - [x] `frontend/src/lib/chain/context.ts` — React context + useChain() hook
+  - [x] `frontend/src/lib/chain/registry.ts` — Provider factory + network configs
+  - [x] `frontend/src/lib/chain/index.ts` — Barrel export
 
 ## Phase 1: Chain Abstraction Layer (Weeks 3-6)
 
