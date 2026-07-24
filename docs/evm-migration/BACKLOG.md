@@ -12,7 +12,7 @@
 > Severity/detail for security items: [SECURITY_FINDINGS.md](SECURITY_FINDINGS.md).
 > Status of individual defects: [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
-**Last swept:** 2026-07-24 (branch `feat/evm/remediation`, after A-2 / A-3 / A-4 / A-5 / A-6 / A-7 / A-8)
+**Last swept:** 2026-07-24 (branch `feat/evm/remediation`, after A-2..A-8 + A-10)
 
 ---
 
@@ -31,7 +31,7 @@
 | ~~A-8~~ | ~~Backend `evmrender` routes bypass middleware; no address validation~~ | ✅ **fixed** 2026-07-24 — `RegisterRoutes(mux, wrap Middleware)` now **requires** a middleware wrapper (impossible to register bare), and `requireAddr` rejects non-hex / cropped-hex path values with 400 before any read. `TestHandler_RejectsInvalidAddresses` covers aliasing + malformed inputs. Wiring into `main.go` with the real rate-limit/auth middleware is left to the founder decision on activating the EVM backend (still imported by nothing). | — |
 | **A-7b** | `evmreader` still accepts any DAO address from the URL path; the count cap bounds the blast radius but an allowlist of known DAO addresses would reject unknown targets outright. | Not started — needs the deployed DAO address set wired into `Config`. | `Config.KnownDAOs` allowlist; `resolveDAO`/handlers 404 an unknown address. |
 | **A-9** | Candidature strands ETH two ways: re-applying after rejection overwrites an un-withdrawn deposit, and approved applicants can never withdraw. No `receive`/`fallback`/sweep exists anywhere, so it is unreachable short of an upgrade. | Not started. | Reject re-application while a deposit is outstanding (or accumulate); decide explicitly whether approval forfeits or refunds, and implement the chosen one. |
-| **A-10** | Overpayment confiscated. ✅ **`MembaCollections` fixed** (both paths, via `_settle`). ⬜ **`MembaTokenFactory` and `MembaAppStore` still confiscate.** | Partially done. | `_settle`-equivalent on the remaining two. |
+| ~~A-10~~ | ~~Overpayment confiscated on `MembaTokenFactory` and `MembaAppStore`~~ | ✅ **fixed** 2026-07-24 — both now use a `_settle(recipient, owed)` helper mirroring `MembaCollections` (pay the fee, refund `msg.value - owed`). `MembaAppStore` had **no reentrancy guard and no test file at all**; added `ReentrancyGuardUpgradeable` + `nonReentrant` on `registerApp`, and a first test suite. 9 tests across `MembaTokenFactory.moneypaths.t.sol` + `MembaAppStore.moneypaths.t.sol` (overpay refund, exact payment, fee-recipient rejection, refund-to-rejecting-caller). All three `_settle` instances (Collections/Factory/AppStore) are candidates to fold into the C-6 helper. | — |
 
 ## B. Open defects — auth / frontend
 
@@ -66,7 +66,7 @@ Target tiers — a global floor is not enough for funds-at-risk contracts:
 | T2 — authority | DAO, DAOFactory, Channels, Registry, Badges, NFT | ≥90% | ≥80% | 100% non-view |
 | T3 — social | Reviews, AppStore, Points, Quests | ≥85% | ≥70% | ≥90% |
 
-**Current: 80.97% line / 53.71% branch / 72.73% func.** CI floors are 79/52/71.
+**Current: 81.09% line / 55.36% branch / 72.92% func.** CI floors are 79/52/71.
 
 | ID | Item | Status |
 |---|---|---|

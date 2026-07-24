@@ -146,11 +146,23 @@ contract MembaTokenFactory is UUPSUpgradeable, PausableUpgradeable, ReentrancyGu
 
         emit TokenCreated(tokenId, token, msg.sender, name_, symbol_, decimals_, initialSupply);
 
-        // Collect fee (if any)
-        if (msg.value > 0) {
-            (bool ok,) = payable($.feeRecipient).call{ value: msg.value }("");
+        // Collect the fee and refund any overpayment (A-10).
+        _settle($.feeRecipient, $.creationFee);
+    }
+
+    /// @dev Pays `owed` to `recipient` and refunds `msg.value - owed` to the caller. The
+    ///      caller must have already required `msg.value >= owed`. Mirrors
+    ///      MembaCollections._settle so overpayment is never confiscated.
+    function _settle(address recipient, uint256 owed) private {
+        if (owed > 0) {
+            (bool ok,) = payable(recipient).call{ value: owed }("");
             if (!ok) revert FeeTransferFailed();
-            emit FeeCollected(msg.sender, msg.value);
+            emit FeeCollected(msg.sender, owed);
+        }
+        uint256 excess = msg.value - owed;
+        if (excess > 0) {
+            (bool refunded,) = payable(msg.sender).call{ value: excess }("");
+            if (!refunded) revert FeeTransferFailed();
         }
     }
 

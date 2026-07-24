@@ -646,6 +646,11 @@ export const MembaAppStoreABI = [
   },
   {
     "type": "error",
+    "name": "ReentrancyGuardReentrantCall",
+    "inputs": []
+  },
+  {
+    "type": "error",
     "name": "TransferFailed",
     "inputs": []
   },

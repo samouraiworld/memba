@@ -3,6 +3,7 @@ pragma solidity ^0.8.28;
 
 import { UUPSUpgradeable } from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import { PausableUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/PausableUpgradeable.sol";
+import { ReentrancyGuardUpgradeable } from "@openzeppelin/contracts-upgradeable/utils/ReentrancyGuardUpgradeable.sol";
 import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
 
 /**
@@ -11,7 +12,7 @@ import { MembaUpgradeAuthority } from "../lib/MembaUpgradeAuthority.sol";
  * @notice On-chain dApp registry with lifecycle: submit → review → live/rejected → delist.
  *         Port of the Gno `memba_appstore_v2` realm.
  */
-contract MembaAppStore is UUPSUpgradeable, PausableUpgradeable, MembaUpgradeAuthority {
+contract MembaAppStore is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpgradeable, MembaUpgradeAuthority {
     enum AppStatus {
         Pending,
         Live,
@@ -80,6 +81,7 @@ contract MembaAppStore is UUPSUpgradeable, PausableUpgradeable, MembaUpgradeAuth
         if (_admin == address(0) || _feeRecipient == address(0)) revert InvalidParams();
         __UUPSUpgradeable_init();
         __Pausable_init();
+        __ReentrancyGuard_init();
         AppStoreStorage storage $ = _getStorage();
         $.admin = _admin;
         __MembaUpgradeAuthority_init(_admin);
@@ -94,7 +96,7 @@ contract MembaAppStore is UUPSUpgradeable, PausableUpgradeable, MembaUpgradeAuth
         string calldata category,
         string calldata iconCID,
         string calldata appURL
-    ) external payable whenNotPaused {
+    ) external payable whenNotPaused nonReentrant {
         if (bytes(name).length == 0 || bytes(pkgPath).length == 0) revert InvalidParams();
         AppStoreStorage storage $ = _getStorage();
         if (msg.value < $.creationFee) revert InsufficientFee();
@@ -117,12 +119,25 @@ contract MembaAppStore is UUPSUpgradeable, PausableUpgradeable, MembaUpgradeAuth
         $.appHashes.push(appHash);
         $.appCount++;
 
-        if (msg.value > 0) {
-            (bool ok,) = payable($.feeRecipient).call{ value: msg.value }("");
-            if (!ok) revert TransferFailed();
-        }
+        // Collect the fee and refund any overpayment (A-10).
+        _settle($.feeRecipient, $.creationFee);
 
         emit AppRegistered(appHash, name, msg.sender);
+    }
+
+    /// @dev Pays `owed` to `recipient` and refunds `msg.value - owed` to the caller. The
+    ///      caller must have already required `msg.value >= owed`. Mirrors
+    ///      MembaCollections._settle so overpayment is never confiscated.
+    function _settle(address recipient, uint256 owed) private {
+        if (owed > 0) {
+            (bool ok,) = payable(recipient).call{ value: owed }("");
+            if (!ok) revert TransferFailed();
+        }
+        uint256 excess = msg.value - owed;
+        if (excess > 0) {
+            (bool refunded,) = payable(msg.sender).call{ value: excess }("");
+            if (!refunded) revert TransferFailed();
+        }
     }
 
     function approveApp(bytes32 appHash) external onlyAdmin {

@@ -130,7 +130,9 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
   whole token with ceiling conversion through the token's decimals. See Resolved below.
 - ~~`MembaTokenOTC` accepts an unbounded `feeBps`~~ ✅ RESOLVED 2026-07-24 — `MAX_FEE_BPS` cap
   at init + `setPlatformFee` setter. See Resolved below.
-- Overpayment confiscated on two remaining paths (TokenFactory, AppStore — Collections fixed).
+- ~~Overpayment confiscated (TokenFactory, AppStore)~~ ✅ RESOLVED 2026-07-24 — both refund the
+  excess via a `_settle` helper; AppStore also gained a reentrancy guard and its first tests.
+  See Resolved below.
 - Auth: the new `Verifier` interface takes only a raw nonce, so it cannot express challenge
   authenticity, expiry, single-use or chain binding — re-opening `AUTH-CHAINID-01`. EVM login
   is currently blind `personal_sign`, not SIWE.
@@ -172,6 +174,12 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
   requires `sc.status == Active` and rejects while Disputed; it also accepts Completed
   milestones so a seller cannot void the buyer's remedy by stalling. Covered by
   `test_H02_AutoRefundIsBlockedWhileDisputed`.
+- **A-10 (overpayment confiscation — TokenFactory + AppStore)** — both forwarded the entire
+  `msg.value` to the fee recipient after only checking `>= creationFee`. Now use a `_settle`
+  helper (pay the fee, refund the excess) mirroring `MembaCollections`. `MembaAppStore` had no
+  reentrancy guard and no tests; added `ReentrancyGuardUpgradeable` + `nonReentrant` and a first
+  suite. 9 tests incl. hostile fee-recipient and refund-to-rejecting-caller paths. Branch
+  coverage 53.71 → 55.36.
 - **ISSUE-010 (backend evmreader/evmrender — three defects)** — (1) `GetDAOMembers` decode now
   goes through `abi.ConvertType` (which handles geth's tag-carrying anonymous tuple struct)
   and **returns an error on any shape mismatch** instead of silently `continue`-ing, so it can
