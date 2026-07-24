@@ -15,6 +15,8 @@ Severity and detail for contract findings: [SECURITY_FINDINGS.md](SECURITY_FINDI
 
 ## 🔴 Blocking — no deployment of any kind until closed
 
+_All four original blockers are now closed; entries retained below for the record._
+
 ### ~~ISSUE-001~~ ✅ RESOLVED 2026-07-24 — see Resolved below
 
 <details><summary>original report</summary>
@@ -58,8 +60,8 @@ for the duration of a dispute so `dispute()` cannot be used as a stalling device
 
 ---
 
-### ISSUE-003: Upgrade authority is a backend hot key, and cannot be rotated
-**Severity**: 🔴 CRITICAL · **Status**: ⬜ Open · **Owner**: Human (key policy) + AI (code)
+### ~~ISSUE-003~~ ✅ RESOLVED 2026-07-24: Upgrade authority is a backend hot key, and cannot be rotated
+**Severity**: 🔴 CRITICAL · **Status**: ✅ Resolved · **Owner**: Human (key policy) + AI (code)
 
 `MembaBadges.sol:170` gates `_authorizeUpgrade` on `onlyMinter`; `MembaQuests.sol:82` on
 `onlyVerifier`. `Deploy.s.sol:40` sets both from `BACKEND_VERIFIER` — the Fly.io
@@ -75,8 +77,8 @@ admin transfer everywhere; upgrade authority = Safe behind a timelock.
 
 ---
 
-### ISSUE-004: No timelock anywhere
-**Severity**: 🔴 CRITICAL · **Status**: ⬜ Open · **Owner**: AI
+### ~~ISSUE-004~~ ✅ RESOLVED 2026-07-24: No timelock anywhere
+**Severity**: 🔴 CRITICAL · **Status**: ✅ Resolved · **Owner**: AI
 
 `grep -ri timelock contracts/evm/src` → zero hits. Plan §17.2 made "Timelock on all contract
 upgrades (48h minimum)" a **mandatory** CSO requirement. All 14 upgradeable contracts are
@@ -135,6 +137,20 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
 
 ## ✅ Resolved
 
+- **ISSUE-003 (upgrade authority = backend hot key, non-rotatable)** — `MembaUpgradeAuthority`
+  gives upgrade rights their own ERC-7201 namespace, separate from every operational role,
+  with two-step rotation. All 13 non-DAO contracts gate `_authorizeUpgrade` on
+  `onlyUpgrader`; Badges/Quests now take an explicit `_upgrader`. `MembaDAO` keeps
+  `DEFAULT_ADMIN_ROLE` (already grantable/revocable — reasoning recorded at the call site).
+  `Deploy.s.sol` requires `BACKEND_VERIFIER` explicitly and rejects it equalling the
+  upgrade authority. Covered by `test/UpgradeAuthority.t.sol`.
+- **ISSUE-004 (no timelock)** — `Deploy.s.sol` deploys a `TimelockController` when
+  `TIMELOCK_DELAY` is set (Safe as proposer/executor, `admin = address(0)` so the delay
+  cannot be re-granted around), and warns loudly when it is not.
+  `test_TimelockEnforcesDelayOnUpgrade` proves the delay actually blocks an early upgrade.
+- **H-2 (no upgrade tests existed)** — `upgradeToAndCall` had never been called anywhere.
+  Now covered: storage survives V1→V2, an unauthorised caller is rejected, and rotation
+  requires the nominee to accept.
 - **ISSUE-001 (seller drains 100% of escrow)** — `cancelContract` no longer lets the
   canceller direct funds to themselves; a seller-initiated cancel refunds the buyer and
   contested work must go through `dispute()`. The buyer-accepts path now charges the
