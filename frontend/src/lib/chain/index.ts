@@ -64,3 +64,23 @@ export type {
     AuthStrategy,
 } from "./auth"
 export { buildSiweMessage } from "./auth"
+
+// Transactions
+export {
+    useTransaction,
+    createTxNotification,
+    getExplorerName,
+    formatTxHash,
+    type TxState,
+    type TxNotification,
+    type TxNotificationType,
+} from "./tx"
+
+// Events & Notifications
+export {
+    useNotifications,
+    eventToNotification,
+    type ChainEvent,
+    type EventFilter,
+    type NotificationItem,
+} from "./events"

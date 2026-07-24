@@ -113,12 +113,21 @@
   - [x] Factory registration (Gno + EVM providers)
 - [x] **S059**: Address display components
   - [x] AddressDisplay: truncation, copy, explorer links, Gno/EVM indicators
-- [ ] **S060-062**: Transaction flow adaptation
+- [x] **S060-062**: Transaction flow adaptation
+  - [x] useTransaction hook: submit/track/reset lifecycle
+  - [x] TransactionStatus component: spinner, success, error
+  - [x] createTxNotification: tx state → notification
 - [x] **S063**: Network selector
   - [x] NetworkSelector: dropdown with family icons, testnet badges
-- [ ] **S064**: Gas UI removal (EVM path)
-- [ ] **S065-066**: Notification system (events)
-- [ ] **S067**: Explorer links (Blockscout)
+- [x] **S064**: Gas UI removal (EVM path)
+  - [x] GasInfo component: hidden on EVM (gasless), visible on Gno
+- [x] **S065-066**: Notification system (events)
+  - [x] useNotifications hook: push/dismiss/markRead/clearAll
+  - [x] NotificationCenter component: bell, unread badge, panel
+  - [x] eventToNotification: maps 15 contract events to readable titles
+- [x] **S067**: Explorer links (Blockscout)
+  - [x] ExplorerLink component: auto-detects GnoScan vs Blockscout
+  - [x] getExplorerName/formatTxHash utilities
 - [ ] **S069-072**: Unit test adaptation
 
 ## Phase 4: Backend Integration (Weeks 10-14)
@@ -128,7 +137,10 @@
   - [x] ABI-encoded contract calls: isMember, memberCount, balanceOf, decimals
   - [x] DualReader routing (Gno ↔ EVM by address prefix)
   - [x] 3/3 unit tests pass
-- [ ] **S076-077**: Render proxy → contract reads
+- [x] **S076-077**: EVM render proxy → contract reads
+  - [x] HTTP handlers: DAO members, membership, token balance, native balance
+  - [x] Routes mirror Gno render proxy for seamless switching
+  - [x] 2/2 unit tests pass
 - [ ] **S078**: Home snapshot (EVM data)
 - [ ] **S079-080**: Feed/quest adaptation
 - [ ] **S081-082**: NFT/marketplace reads
