@@ -53,6 +53,9 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
         mapping(bytes32 => SubjectSummary) summaries;
         mapping(uint256 => mapping(address => bool)) hasReacted;
         mapping(address => uint256) authorReviewCount;
+        mapping(address => uint256) lastReviewTime;
+        mapping(bytes32 => mapping(address => bool)) hasReviewedSubject;
+        uint256 reviewCooldownSec;
     }
 
     bytes32 private constant STORAGE_LOCATION = 0xf1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e00000;
@@ -72,6 +75,8 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
     error AlreadyReacted();
     error ReviewNotFound();
     error InvalidParams();
+    error CooldownNotElapsed();
+    error AlreadyReviewedSubject();
 
     // ── Events ────────────────────────────────────────────────────
     event ReviewPosted(uint256 indexed id, string subject, address indexed author, uint8 rating);
@@ -103,8 +108,20 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
         if (bytes(body).length == 0) revert EmptyBody();
 
         ReviewsStorage storage $ = _getStorage();
+        bytes32 subjHash_ = keccak256(bytes(subject));
+
+        // Rate limit: one review per subject per author
+        if ($.hasReviewedSubject[subjHash_][msg.sender]) revert AlreadyReviewedSubject();
+
+        // Rate limit: global cooldown per author (default 60s, skip first-ever review)
+        uint256 lastTime = $.lastReviewTime[msg.sender];
+        if (lastTime > 0) {
+            uint256 cooldown = $.reviewCooldownSec > 0 ? $.reviewCooldownSec : 60;
+            if (block.timestamp - lastTime < cooldown) revert CooldownNotElapsed();
+        }
+
         id = $.nextReviewId++;
-        bytes32 subjHash = keccak256(bytes(subject));
+        bytes32 subjHash = subjHash_;
 
         $.reviews[id] = Review({
             id: id,
@@ -124,6 +141,8 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable {
         $.summaries[subjHash].count++;
         $.summaries[subjHash].sum += rating;
         $.authorReviewCount[msg.sender]++;
+        $.lastReviewTime[msg.sender] = block.timestamp;
+        $.hasReviewedSubject[subjHash][msg.sender] = true;
 
         emit ReviewPosted(id, subject, msg.sender, rating);
     }

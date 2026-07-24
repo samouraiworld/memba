@@ -11,12 +11,18 @@ contract MembaReviewsTest is Test {
     address public adminAddr = makeAddr("admin");
     address public alice = makeAddr("alice");
     address public bob = makeAddr("bob");
+    address public carol = makeAddr("carol");
 
     function setUp() public {
         MembaReviews impl = new MembaReviews();
         bytes memory initData = abi.encodeCall(MembaReviews.initialize, (adminAddr));
         address proxy = address(new ERC1967Proxy(address(impl), initData));
         reviews = MembaReviews(proxy);
+    }
+
+    /// @dev Advance time past the cooldown (default 60s).
+    function _skipCooldown() internal {
+        vm.warp(block.timestamp + 61);
     }
 
     function test_PostReview_Success() public {
@@ -34,16 +40,37 @@ contract MembaReviewsTest is Test {
     function test_PostReview_InvalidRatingReverts() public {
         vm.prank(alice);
         vm.expectRevert(MembaReviews.InvalidRating.selector);
-        reviews.postReview("subj", 0, "Bad rating");
+        reviews.postReview("subj1", 0, "Bad rating");
 
         vm.prank(alice);
         vm.expectRevert(MembaReviews.InvalidRating.selector);
-        reviews.postReview("subj", 6, "Too high");
+        reviews.postReview("subj1", 6, "Too high");
+    }
+
+    function test_PostReview_DuplicateSubjectReverts() public {
+        vm.prank(alice);
+        reviews.postReview("subj-dup", 3, "First review");
+
+        _skipCooldown();
+
+        vm.prank(alice);
+        vm.expectRevert(MembaReviews.AlreadyReviewedSubject.selector);
+        reviews.postReview("subj-dup", 4, "Second review");
+    }
+
+    function test_PostReview_CooldownReverts() public {
+        vm.prank(alice);
+        reviews.postReview("subj-a", 3, "First");
+
+        // Immediately try another review (different subject) — should fail
+        vm.prank(alice);
+        vm.expectRevert(MembaReviews.CooldownNotElapsed.selector);
+        reviews.postReview("subj-b", 4, "Too fast");
     }
 
     function test_EditReview_Success() public {
         vm.prank(alice);
-        reviews.postReview("subj", 3, "Original");
+        reviews.postReview("subj-edit", 3, "Original");
 
         vm.prank(alice);
         reviews.editReview(0, 4, "Updated");
@@ -56,7 +83,7 @@ contract MembaReviewsTest is Test {
 
     function test_EditReview_NotAuthorReverts() public {
         vm.prank(alice);
-        reviews.postReview("subj", 3, "Mine");
+        reviews.postReview("subj-auth", 3, "Mine");
 
         vm.prank(bob);
         vm.expectRevert(MembaReviews.NotAuthor.selector);
@@ -65,7 +92,7 @@ contract MembaReviewsTest is Test {
 
     function test_DeleteReview_Success() public {
         vm.prank(alice);
-        reviews.postReview("subj", 4, "Will delete");
+        reviews.postReview("subj-del", 4, "Will delete");
 
         vm.prank(alice);
         reviews.deleteReview(0);
@@ -73,13 +100,13 @@ contract MembaReviewsTest is Test {
         assertTrue(reviews.getReview(0).deleted);
 
         // Summary count decremented
-        MembaReviews.SubjectSummary memory s = reviews.getSummary("subj");
+        MembaReviews.SubjectSummary memory s = reviews.getSummary("subj-del");
         assertEq(s.count, 0);
     }
 
     function test_React_Like() public {
         vm.prank(alice);
-        reviews.postReview("subj", 4, "Content");
+        reviews.postReview("subj-like", 4, "Content");
 
         vm.prank(bob);
         reviews.react(0, true);
@@ -89,7 +116,7 @@ contract MembaReviewsTest is Test {
 
     function test_React_OwnReviewReverts() public {
         vm.prank(alice);
-        reviews.postReview("subj", 4, "Self");
+        reviews.postReview("subj-react", 4, "Self");
 
         vm.prank(alice);
         vm.expectRevert(MembaReviews.CannotReactOnOwn.selector);
@@ -98,7 +125,7 @@ contract MembaReviewsTest is Test {
 
     function test_React_DoubleReverts() public {
         vm.prank(alice);
-        reviews.postReview("subj", 4, "Content");
+        reviews.postReview("subj-dbl", 4, "Content");
 
         vm.prank(bob);
         reviews.react(0, true);
@@ -109,19 +136,22 @@ contract MembaReviewsTest is Test {
     }
 
     function test_Summary_AverageRating() public {
+        // Alice reviews "subj-avg"
         vm.prank(alice);
-        reviews.postReview("subj", 5, "Five star");
-        vm.prank(bob);
-        reviews.postReview("subj", 3, "Three star");
+        reviews.postReview("subj-avg", 5, "Five star");
 
-        MembaReviews.SubjectSummary memory s = reviews.getSummary("subj");
+        // Bob reviews same subject (different author — allowed)
+        vm.prank(bob);
+        reviews.postReview("subj-avg", 3, "Three star");
+
+        MembaReviews.SubjectSummary memory s = reviews.getSummary("subj-avg");
         assertEq(s.count, 2);
         assertEq(s.sum, 8); // avg = 4.0
     }
 
     function test_Flag_Success() public {
         vm.prank(alice);
-        reviews.postReview("subj", 1, "Spam");
+        reviews.postReview("subj-flag", 1, "Spam");
 
         vm.prank(bob);
         reviews.flag(0, "spam");
