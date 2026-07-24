@@ -14,7 +14,7 @@
  * @module lib/chain/auth
  */
 
-import type { ChainFamily, ChainAddress } from "../types"
+import type { ChainFamily, ChainAddress } from "./types"
 
 // ── Auth Types ───────────────────────────────────────────────
 
@@ -145,4 +145,4 @@ export {
     buildLoginChallengeDoc,
     adenaPubKeyToJSON,
     buildTokenRequestInfo,
-} from "../../loginChallenge"
+} from "../loginChallenge"

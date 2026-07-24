@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from "react"
-import type { NotificationItem } from "@/lib/chain/events"
+import type { NotificationItem } from "../../lib/chain/events"
 
 export interface NotificationCenterProps {
     notifications: NotificationItem[]

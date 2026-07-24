@@ -13,7 +13,7 @@
  */
 
 import React, { useState, useCallback, useRef, useEffect } from "react"
-import { useChain, type ChainId } from "@/lib/chain"
+import { useChain, type ChainId } from "../../lib/chain"
 
 export function NetworkSelector() {
     const { network, switchChain, availableNetworks, isLoading } = useChain()

@@ -8,9 +8,9 @@
  */
 
 import React from "react"
-import { useChain } from "@/lib/chain"
-import type { TxState } from "@/lib/chain/tx"
-import { getExplorerName, formatTxHash } from "@/lib/chain/tx"
+import { useChain } from "../../lib/chain"
+import type { TxState } from "../../lib/chain/tx"
+import { getExplorerName, formatTxHash } from "../../lib/chain/tx"
 
 export interface TransactionStatusProps {
     state: TxState

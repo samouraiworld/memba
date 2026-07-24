@@ -43,6 +43,7 @@ import {
 import {
     doContractBroadcast,
     listFactoryTokens,
+    GRC20_FACTORY_PATH,
     type AminoMsg,
 } from "../../grc20"
 
@@ -52,7 +53,6 @@ import {
     getTokenURI,
 } from "../../grc721"
 
-import { GNO_RPC_URL } from "../../config"
 
 // ── GnoProvider Implementation ───────────────────────────────
 
@@ -158,7 +158,7 @@ export function createGnoProvider(config: CALNetworkConfig): ChainProvider {
 
         // ── Auth ─────────────────────────────────────────────
 
-        async signLoginChallenge(challenge: string): Promise<string> {
+        async signLoginChallenge(_challenge: string): Promise<string> {
             // Delegates to useAdena().signLogin() which builds an ADR-036 document.
             // The actual signing is done via the hook; this is a bridge method.
             throw new ChainError(
@@ -178,7 +178,14 @@ export function createGnoProvider(config: CALNetworkConfig): ChainProvider {
             return {
                 name: daoConfig.name,
                 description: daoConfig.description,
-                threshold: parseInt(daoConfig.threshold, 10) || 5100,
+                // `daoConfig.threshold` is a display string such as "66%", and is ""
+                // when the render omits it. `parseInt("66%") || 5100` read that as
+                // 66 basis points (0.66%), and turned an absent value into a
+                // fabricated 51% — the exact default parseDaoThreshold() refuses to
+                // invent. Convert percent to basis points, or report null.
+                threshold: daoConfig.threshold
+                    ? Math.round(parseFloat(daoConfig.threshold) * 100)
+                    : null,
                 quorum: 0, // Gno DAOs don't have a separate quorum setting
                 memberCount: daoConfig.memberCount,
             }
@@ -244,10 +251,11 @@ export function createGnoProvider(config: CALNetworkConfig): ChainProvider {
 
         async vote(dao: ContractRef, proposalId: number, support: "yes" | "no" | "abstain"): Promise<TxResult> {
             if (!_walletAddress) throw new ChainError("Wallet not connected", "WALLET_NOT_CONNECTED", "gno")
-            // Map CAL vote to Gno vote (true = yes, false = no)
-            // Note: Gno basedao only supports yes/no, not abstain
-            const isYes = support === "yes"
-            const msg = buildVoteMsg(_walletAddress, dao.id, proposalId, isYes)
+            // `buildVoteMsg` has always accepted "YES" | "NO" | "ABSTAIN".
+            // A previous comment here claimed Gno basedao supports only yes/no and
+            // passed a boolean, which would have recorded every abstention as a NO.
+            const GNO_VOTE = { yes: "YES", no: "NO", abstain: "ABSTAIN" } as const
+            const msg = buildVoteMsg(_walletAddress, dao.id, proposalId, GNO_VOTE[support])
             return broadcast([msg], `Vote ${support} on proposal #${proposalId}`)
         },
 
@@ -259,7 +267,14 @@ export function createGnoProvider(config: CALNetworkConfig): ChainProvider {
 
         async addMember(dao: ContractRef, address: ChainAddress, votingPower: number, roles: string[]): Promise<TxResult> {
             if (!_walletAddress) throw new ChainError("Wallet not connected", "WALLET_NOT_CONNECTED", "gno")
-            const msg = buildProposeAddMemberMsg(_walletAddress, dao.id, address.raw)
+            // `buildProposeAddMemberMsg` takes (caller, realmPath, target, power, roles).
+            // The previous call passed only the first three, silently dropping the
+            // caller's chosen voting power and roles — onboarding every member at
+            // whatever the realm defaults to. `roles` is a comma-separated string here,
+            // not an array.
+            const msg = buildProposeAddMemberMsg(
+                _walletAddress, dao.id, address.raw, votingPower, roles.join(","),
+            )
             return broadcast([msg], `Propose add member ${address.raw}`)
         },
 
@@ -284,12 +299,18 @@ export function createGnoProvider(config: CALNetworkConfig): ChainProvider {
         async listTokens(): Promise<TokenInfo[]> {
             try {
                 const tokens = await listFactoryTokens(rpcUrl)
+                // grc20.TokenInfo carries no `path` — reading `t.path` yielded
+                // `id: undefined` for every token. The factory addresses a token by
+                // its symbol (`<factory path>:SYMBOL`), so that is the stable id.
+                // `decimals`/`totalSupply` are left as the list view reports them
+                // (the factory render omits both; they are filled by a per-token
+                // query). Hardcoding decimals to 6 here misreported every token.
                 return tokens.map(t => ({
-                    id: t.path,
+                    id: `${GRC20_FACTORY_PATH}:${t.symbol}`,
                     name: t.name,
                     symbol: t.symbol,
-                    decimals: 6, // Gno GRC20 default
-                    totalSupply: "0",
+                    decimals: t.decimals,
+                    totalSupply: t.totalSupply,
                 }))
             } catch {
                 return []
@@ -330,8 +351,16 @@ export function createGnoProvider(config: CALNetworkConfig): ChainProvider {
 
         async getNFT(collection: ContractRef, tokenId: string): Promise<CALNFT | null> {
             try {
-                const owner = await getNFTOwner(rpcUrl, collection.id, "default", tokenId)
-                const uri = await getTokenURI(rpcUrl, collection.id, "default", tokenId)
+                // These take (collectionPath, collectionID, tokenId) — the leading
+                // rpcUrl argument was never part of the signature.
+                //
+                // KNOWN LIMITATION: grc721 resolves the RPC endpoint from its own
+                // module-level GNO_RPC_URL, so `config.rpcUrl` is ignored here and
+                // every NFT read hits whatever network the app booted on. Tracked in
+                // KNOWN_ISSUES.md — fixing it requires threading the endpoint through
+                // grc721, which is a separate change.
+                const owner = await getNFTOwner(collection.id, "default", tokenId)
+                const uri = await getTokenURI(collection.id, "default", tokenId)
                 if (!owner) return null
                 return {
                     tokenId,

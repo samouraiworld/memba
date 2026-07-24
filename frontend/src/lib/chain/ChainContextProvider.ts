@@ -14,7 +14,7 @@
  * @module lib/chain/ChainContextProvider
  */
 
-import React, { useState, useCallback, useMemo, useEffect, type ReactNode } from "react"
+import React, { useState, useCallback, useMemo, type ReactNode } from "react"
 import { ChainContext, type ChainContextValue } from "./context"
 import type { ChainId, CALNetworkConfig } from "./types"
 import { getProvider, getNetworkConfig, ALL_NETWORKS, registerProviderFactory } from "./registry"

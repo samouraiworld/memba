@@ -3,7 +3,7 @@
  * Auto-generated from Foundry artifacts.
  *
  * Usage:
- *   import { MembaDAOABI } from "@/lib/chain/evm/abi"
+ *   import { MembaDAOABI } from "../../lib/chain/evm/abi"
  *
  * @module lib/chain/evm/abi
  */

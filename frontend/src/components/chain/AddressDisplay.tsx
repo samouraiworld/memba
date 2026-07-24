@@ -8,7 +8,7 @@
  */
 
 import React, { useState, useCallback } from "react"
-import { type ChainAddress, formatAddress, isGnoAddress, isEvmAddress, useChain } from "@/lib/chain"
+import { type ChainAddress, formatAddress, isGnoAddress, isEvmAddress, useChain } from "../../lib/chain"
 
 export interface AddressDisplayProps {
     address: ChainAddress

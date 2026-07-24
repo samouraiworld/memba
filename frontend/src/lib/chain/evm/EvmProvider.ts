@@ -15,8 +15,13 @@ import {
     createPublicClient,
     http,
     formatEther,
-    parseEther,
+    keccak256,
+    stringToHex,
     getAddress,
+    type Abi,
+    type Chain,
+    type ContractFunctionName,
+    type ContractFunctionArgs,
     type PublicClient,
     type WalletClient,
     type Hash,
@@ -81,10 +86,25 @@ function mapError(err: unknown): ChainError {
 
 // ── Vote type mapping ────────────────────────────────────────
 
-const VOTE_MAP = { yes: 0, no: 1, abstain: 2 } as const
-const STATUS_MAP = ["open", "passed", "rejected", "executed"] as const
+// These MUST mirror the Solidity enums exactly. They are positional and the
+// compiler cannot check them, so each one names its source enum. Changing the
+// order of a Solidity enum without updating the map here silently corrupts data.
+
+/** Mirrors `MembaDAO.VoteType { Against, For, Abstain }` — NOT alphabetical.
+ *  This was previously `{ yes: 0, no: 1, abstain: 2 }`, which sent every YES
+ *  vote as Against and every NO vote as For. */
+const VOTE_MAP = { no: 0, yes: 1, abstain: 2 } as const
+
+/** Mirrors `MembaEscrow.ContractStatus { Active, Completed, Cancelled, Disputed }`. */
 const ESCROW_STATUS_MAP = ["active", "completed", "cancelled", "disputed"] as const
+
+/** Mirrors `MembaEscrow.MilestoneStatus { Pending, Funded, Completed, Released, Refunded }`.
+ *  The contract has no per-milestone "disputed" state — disputes are contract-level —
+ *  even though `EscrowMilestoneStatus` permits that value. */
 const MILESTONE_STATUS_MAP = ["pending", "funded", "completed", "released", "refunded"] as const
+
+/** Mirrors `MembaDAO.ProposalCategory { Governance, Treasury, Membership, Operations }`. */
+const CATEGORY_MAP = ["governance", "treasury", "membership", "operations"] as const
 
 // ── Provider Factory ─────────────────────────────────────────
 
@@ -104,7 +124,30 @@ export function createEvmProvider(config: CALNetworkConfig, opts?: EvmProviderOp
     setWalletClient(wc: WalletClient | null): void
 } {
     // ── Clients ──────────────────────────────────────────────
+
+    // Define the chain rather than omitting it. Without this viem never compares
+    // the RPC's reported chain id against `config.evmChainId`, so a misconfigured
+    // or hostile endpoint is trusted silently — and every write has to opt out of
+    // the chain check entirely. Declaring it also enables multicall batching.
+    if (config.evmChainId === undefined) {
+        throw new ChainError(
+            `Network ${config.chainId} is missing evmChainId`, "UNKNOWN", "evm",
+        )
+    }
+    const chain = {
+        id: config.evmChainId,
+        name: config.label,
+        nativeCurrency: {
+            name: config.nativeToken.name,
+            symbol: config.nativeToken.symbol,
+            decimals: config.nativeToken.decimals,
+        },
+        rpcUrls: { default: { http: [config.rpcUrl, ...config.fallbackRpcUrls] } },
+        testnet: config.isTestnet,
+    } as const satisfies Chain
+
     const publicClient: PublicClient = createPublicClient({
+        chain,
         transport: http(config.rpcUrl),
     })
 
@@ -124,17 +167,35 @@ export function createEvmProvider(config: CALNetworkConfig, opts?: EvmProviderOp
         return addresses
     }
 
-    /** Write to contract and wait for receipt. */
-    async function writeAndWait(params: {
+    /**
+     * Write to a contract and wait for the receipt.
+     *
+     * Generic over the ABI on purpose. This previously took
+     * `abi: readonly unknown[]` and cast the whole params object, which discarded
+     * the `as const` inference the generated ABIs already provide — so every write
+     * was unchecked. Four calls addressed functions that do not exist
+     * (`createProposal`, `executeProposal`) or omitted required arguments
+     * (`createToken` missing `salt` and its payable `value`), and the compiler had
+     * no way to say so. Typing it this way turns each of those into a build error.
+     */
+    async function writeAndWait<
+        const TAbi extends Abi,
+        TFn extends ContractFunctionName<TAbi, "nonpayable" | "payable">,
+    >(params: {
         address: Address
-        abi: readonly unknown[]
-        functionName: string
-        args?: readonly unknown[]
+        abi: TAbi
+        functionName: TFn
+        args?: ContractFunctionArgs<TAbi, "nonpayable" | "payable", TFn>
         value?: bigint
     }): Promise<TxResult> {
         const wc = requireWallet()
         try {
-            const hash = await wc.writeContract(params as Parameters<typeof wc.writeContract>[0])
+            const [account] = await wc.getAddresses()
+            const hash = await wc.writeContract({
+                ...params,
+                account,
+                chain,
+            } as Parameters<typeof wc.writeContract>[0])
             const receipt = await publicClient.waitForTransactionReceipt({ hash: hash as Hash })
             return mapTxResult(receipt)
         } catch (err) {
@@ -200,7 +261,7 @@ export function createEvmProvider(config: CALNetworkConfig, opts?: EvmProviderOp
                 const [name, desc, threshold, quorum, memberCount] = await Promise.all([
                     publicClient.readContract({ address: addr, abi: MembaDAOABI, functionName: "name" }),
                     publicClient.readContract({ address: addr, abi: MembaDAOABI, functionName: "description" }),
-                    publicClient.readContract({ address: addr, abi: MembaDAOABI, functionName: "votingThreshold" }),
+                    publicClient.readContract({ address: addr, abi: MembaDAOABI, functionName: "thresholdBps" }),
                     publicClient.readContract({ address: addr, abi: MembaDAOABI, functionName: "quorumBps" }),
                     publicClient.readContract({ address: addr, abi: MembaDAOABI, functionName: "memberCount" }),
                 ])
@@ -219,23 +280,27 @@ export function createEvmProvider(config: CALNetworkConfig, opts?: EvmProviderOp
         async getDAOMembers(dao: ContractRef): Promise<CALMember[]> {
             try {
                 const addr = toAddress(dao)
-                const count = (await publicClient.readContract({
-                    address: addr, abi: MembaDAOABI, functionName: "memberCount",
-                })) as bigint
+                // The contract exposes `getMembers() -> address[]` and `getMember(address)`.
+                // There is no index-based accessor; the previous `getMemberByIndex` call
+                // would have reverted with an unknown-selector error on every invocation.
+                const addresses = await publicClient.readContract({
+                    address: addr, abi: MembaDAOABI, functionName: "getMembers",
+                })
 
-                const members: CALMember[] = []
-                for (let i = 0n; i < count; i++) {
-                    const member = (await publicClient.readContract({
-                        address: addr, abi: MembaDAOABI, functionName: "getMemberByIndex",
-                        args: [i],
-                    })) as { addr: string; votingPower: bigint; roles: string[] }
-                    members.push({
-                        address: toChainAddress(member.addr),
-                        votingPower: Number(member.votingPower),
-                        roles: member.roles,
-                    })
-                }
-                return members
+                // Fetch details concurrently rather than in an awaited loop.
+                return await Promise.all(
+                    addresses.map(async (memberAddr) => {
+                        const m = await publicClient.readContract({
+                            address: addr, abi: MembaDAOABI, functionName: "getMember",
+                            args: [memberAddr],
+                        })
+                        return {
+                            address: toChainAddress(memberAddr),
+                            votingPower: Number(m.votingPower),
+                            roles: [...m.roles],
+                        }
+                    }),
+                )
             } catch (err) {
                 throw mapError(err)
             }
@@ -262,31 +327,49 @@ export function createEvmProvider(config: CALNetworkConfig, opts?: EvmProviderOp
         async getDAOProposal(dao: ContractRef, proposalId: number): Promise<CALProposal | null> {
             try {
                 const addr = toAddress(dao)
-                const p = (await publicClient.readContract({
+                // The real tuple is
+                //   { proposer, title, description, category(uint8), createdAt,
+                //     votingDeadline, forVotes, againstVotes, abstainVotes,
+                //     executed, cancelled }
+                // The previous cast claimed `status`, `yesVotes`, `noVotes` and
+                // `totalVoters`, none of which exist — so every proposal rendered
+                // as permanently "open" with NaN vote counts.
+                const p = await publicClient.readContract({
                     address: addr, abi: MembaDAOABI, functionName: "getProposal",
                     args: [BigInt(proposalId)],
-                })) as {
-                    title: string
-                    description: string
-                    category: string
-                    status: number
-                    proposer: string
-                    yesVotes: bigint
-                    noVotes: bigint
-                    abstainVotes: bigint
-                    totalVoters: bigint
+                })
+
+                // There is no `status` field; it has to be derived. `proposalPassed`
+                // is only meaningful once voting has closed.
+                let status: CALProposal["status"]
+                if (p.cancelled) {
+                    status = "rejected"
+                } else if (p.executed) {
+                    status = "executed"
+                } else if (BigInt(Math.floor(Date.now() / 1000)) <= p.votingDeadline) {
+                    status = "open"
+                } else {
+                    const passed = await publicClient.readContract({
+                        address: addr, abi: MembaDAOABI, functionName: "proposalPassed",
+                        args: [BigInt(proposalId)],
+                    })
+                    status = passed ? "passed" : "rejected"
                 }
+
                 return {
                     id: proposalId,
                     title: p.title,
                     description: p.description,
-                    category: p.category,
-                    status: STATUS_MAP[p.status] ?? "open",
+                    category: CATEGORY_MAP[p.category] ?? String(p.category),
+                    status,
                     proposer: toChainAddress(p.proposer),
-                    yesVotes: Number(p.yesVotes),
-                    noVotes: Number(p.noVotes),
+                    yesVotes: Number(p.forVotes),
+                    noVotes: Number(p.againstVotes),
                     abstainVotes: Number(p.abstainVotes),
-                    totalVoters: Number(p.totalVoters),
+                    // The contract records weighted voting power, not a headcount, and
+                    // exposes no voter count. This is the total power cast.
+                    totalVoters: Number(p.forVotes + p.againstVotes + p.abstainVotes),
+                    createdAt: new Date(Number(p.createdAt) * 1000).toISOString(),
                 }
             } catch (err) {
                 throw mapError(err)
@@ -307,9 +390,19 @@ export function createEvmProvider(config: CALNetworkConfig, opts?: EvmProviderOp
         // ── Writes (DAO) ─────────────────────────────────────
 
         async propose(dao: ContractRef, title: string, description: string, category: string): Promise<TxResult> {
+            // The function is `propose(string,string,uint8)`. There is no
+            // `createProposal`, and no deadline argument — the voting period is a
+            // contract constant (DEFAULT_VOTING_PERIOD), not a caller input.
+            const categoryIndex = CATEGORY_MAP.indexOf(category.toLowerCase() as typeof CATEGORY_MAP[number])
+            if (categoryIndex < 0) {
+                throw new ChainError(
+                    `Unknown proposal category "${category}" (expected one of ${CATEGORY_MAP.join(", ")})`,
+                    "CONTRACT_REVERT", "evm",
+                )
+            }
             return writeAndWait({
-                address: toAddress(dao), abi: MembaDAOABI, functionName: "createProposal",
-                args: [title, description, category, BigInt(7 * 24 * 60 * 60)], // 7 day default deadline
+                address: toAddress(dao), abi: MembaDAOABI, functionName: "propose",
+                args: [title, description, categoryIndex],
             })
         },
 
@@ -322,7 +415,8 @@ export function createEvmProvider(config: CALNetworkConfig, opts?: EvmProviderOp
 
         async executeProposal(dao: ContractRef, proposalId: number): Promise<TxResult> {
             return writeAndWait({
-                address: toAddress(dao), abi: MembaDAOABI, functionName: "executeProposal",
+                // The function is `execute(uint256)`; `executeProposal` does not exist.
+                address: toAddress(dao), abi: MembaDAOABI, functionName: "execute",
                 args: [BigInt(proposalId)],
             })
         },
@@ -386,9 +480,20 @@ export function createEvmProvider(config: CALNetworkConfig, opts?: EvmProviderOp
 
         async createToken(name: string, symbol: string, decimals: number, initialSupply: string): Promise<TxResult> {
             const addrs = requireAddresses()
+            // `createToken` is payable and takes a CREATE2 salt. The previous call
+            // omitted both, so it could not encode and would have reverted on the
+            // fee check regardless.
+            const fee = await publicClient.readContract({
+                address: addrs.tokenFactory, abi: MembaTokenFactoryABI, functionName: "creationFee",
+            })
+            // Deterministic per (name, symbol). `msg.sender` is part of the child's
+            // init code, so two creators using the same salt do not collide; only the
+            // same creator reusing it for identical params does, which reverts cleanly.
+            const salt = keccak256(stringToHex(`${name}:${symbol}`))
             return writeAndWait({
                 address: addrs.tokenFactory, abi: MembaTokenFactoryABI, functionName: "createToken",
-                args: [name, symbol, decimals, BigInt(initialSupply)],
+                args: [name, symbol, decimals, BigInt(initialSupply), salt],
+                value: fee,
             })
         },
 

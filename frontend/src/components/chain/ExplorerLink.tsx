@@ -8,9 +8,9 @@
  */
 
 import React from "react"
-import { useChain } from "@/lib/chain"
-import { getExplorerName, formatTxHash } from "@/lib/chain/tx"
-import type { ChainAddress } from "@/lib/chain"
+import { useChain } from "../../lib/chain"
+import { getExplorerName, formatTxHash } from "../../lib/chain/tx"
+import type { ChainAddress } from "../../lib/chain"
 
 export interface ExplorerLinkProps {
     /** The type of link. */

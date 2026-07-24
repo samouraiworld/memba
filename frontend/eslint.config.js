@@ -26,6 +26,17 @@ export default defineConfig([
       // are clean (violations fixed) and enforced. set-state-in-effect still
       // has ~56 legacy occurrences: it stays a WARNING ratchet — visible in
       // every lint run and PR annotation; burn down before flipping to error.
+      // Formalises a convention the codebase already uses (e.g. validators.ts
+      // `_rpcUrl`): a leading underscore marks a parameter or binding that is
+      // deliberately unused — most often to satisfy an interface whose shape is
+      // fixed. Without this, the default `args: after-used` only tolerated such
+      // params in trailing position, so stub implementations of a shared
+      // interface were unfixable without deleting the parameter names.
+      '@typescript-eslint/no-unused-vars': ['error', {
+        argsIgnorePattern: '^_',
+        varsIgnorePattern: '^_',
+        caughtErrorsIgnorePattern: '^_',
+      }],
       'react-hooks/set-state-in-effect': 'warn',
       'react-hooks/immutability': 'error',
       'react-hooks/preserve-manual-memoization': 'error',

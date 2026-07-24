@@ -4,7 +4,7 @@
  * Re-exports all public types, interfaces, hooks, and utilities
  * from the chain/ module. UI components import from here:
  *
- *   import { useChain, type ChainProvider, type CALProposal } from "@/lib/chain"
+ *   import { useChain, type ChainProvider, type CALProposal } from "../../lib/chain"
  *
  * @module lib/chain
  */

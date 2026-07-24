@@ -154,7 +154,11 @@ export interface CALProposal {
 export interface CALDAOConfig {
     name: string
     description: string
-    threshold: number           // basis points (5100 = 51%)
+    /** Basis points (5100 = 51%). `null` when the chain does not report it —
+     *  never substitute a default: basedao's own 60% is wrong for any DAO that
+     *  overrides it (memba_dao runs at 66%), and a fabricated threshold silently
+     *  misstates whether a proposal passes. */
+    threshold: number | null
     quorum: number              // basis points (0 = disabled)
     memberCount: number
 }

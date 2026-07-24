@@ -9,8 +9,8 @@
  * @module lib/chain/events
  */
 
-import { useState, useEffect, useCallback, useRef } from "react"
-import type { ChainFamily, ChainAddress } from "./types"
+import { useState, useCallback } from "react"
+import type { ChainFamily } from "./types"
 
 // ── Event Types ──────────────────────────────────────────────
 
