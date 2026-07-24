@@ -223,3 +223,34 @@ func TestMigrate_013_RawLedgerAndColumns(t *testing.T) {
 		}
 	}
 }
+
+func TestMigrate_026_ServingOverrides(t *testing.T) {
+	database, err := Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+	if err := Migrate(database); err != nil {
+		t.Fatal("migrate:", err)
+	}
+
+	// The out-of-band serving-override table exists and accepts a row.
+	if _, err := database.Exec(`INSERT INTO feed_serving_overrides
+		(post_id, reason, added_by) VALUES (7, 'false-positive brigade', 'ops')`); err != nil {
+		t.Fatalf("feed_serving_overrides insert: %v", err)
+	}
+	// post_id is the primary key — a second row for the same post is rejected
+	// (the endpoint upserts; the schema must enforce one row per post).
+	if _, err := database.Exec(`INSERT INTO feed_serving_overrides (post_id) VALUES (7)`); err == nil {
+		t.Fatal("expected PRIMARY KEY violation on duplicate post_id")
+	}
+
+	// The covering index that keeps the widened home-timeline read off a
+	// TEMP B-TREE sort is present.
+	var idxName string
+	if err := database.QueryRow(
+		`SELECT name FROM sqlite_master WHERE type='index' AND name='idx_feed_posts_served'`,
+	).Scan(&idxName); err != nil {
+		t.Fatalf("idx_feed_posts_served missing: %v", err)
+	}
+}

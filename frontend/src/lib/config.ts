@@ -74,6 +74,28 @@ interface NetworkConfig {
     /** Official tx-indexer GraphQL endpoint for recent on-chain activity. Optional —
      *  when absent (e.g. networks without a public indexer) the activity feed hides. */
     indexerUrl?: string
+    /** The key gnomonitoring knows this network by, when it differs from `chainId`.
+     *
+     *  These are NOT the same namespace: `chainId` is the on-chain genesis id that
+     *  transactions are signed with, while this is a label chosen by whoever
+     *  registered the network with the monitoring service — an admin-editable,
+     *  un-versioned registry on gnomonitoring's own VPS, not something Memba
+     *  controls or can assume is stable.
+     *
+     *  ⚠️ This value is NOT settled fact — it has flipped for topaz twice within
+     *  24h of each other (2026-07-22: gnomonitoring registered `topaz-1` as
+     *  `topaz`, needing an override here; 2026-07-23: it flipped back, so the
+     *  override became wrong and was removed). Before trusting or changing a
+     *  `monitoringChain` value, re-verify live:
+     *    GET https://monitoring.gnolove.world/uptime?chain=<candidate>
+     *  (use `/uptime`, not `/Participation` — the latter 400s with "Missing
+     *  period" unless you also pass `period=current_month`, which reads like
+     *  a chain-id rejection if you're not expecting it.) A 200 with real
+     *  monikers means that value is currently correct; a `"invalid chain ID"`
+     *  body means it isn't. Do not assume this file is in sync with
+     *  gnomonitoring's live registry.
+     *  Optional; defaults to `chainId`. */
+    monitoringChain?: string
     label: string
     userRegistryPath: string
     faucetUrl: string
@@ -139,6 +161,12 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // the commerce-v2 ceremony.
     topaz: {
         chainId: "topaz-1",
+        // No monitoringChain override: gnomonitoring's registry currently
+        // resolves "topaz-1" directly (verified live 2026-07-23). It briefly
+        // needed an override to "topaz" (#988, 2026-07-22) — that flipped back
+        // within 24h. See the monitoringChain doc-comment above before
+        // re-adding one; re-verify live first, don't restore #988's value from
+        // memory.
         rpcUrl: import.meta.env.VITE_TOPAZ_RPC_URL || "https://rpc.topaz.testnets.gno.land:443",
         fallbackRpcUrls: [
             "https://rpc.topaz.samourai.live:443",
@@ -321,6 +349,13 @@ export function isRealmValid(realmPath: string): boolean {
 
 /** Gno chain ID for all RPC calls. */
 export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test-13"
+
+/** The key gnomonitoring knows the active network by — NOT the on-chain chain id.
+ *  Defaults to chainId, which is right wherever the two coincide (test-13,
+ *  gnoland1). Use this for gnomonitoring API calls ONLY; anything that reaches
+ *  the chain or the wallet must keep using GNO_CHAIN_ID. */
+export const GNO_MONITORING_CHAIN =
+    NETWORKS[_activeNetwork]?.monitoringChain || GNO_CHAIN_ID
 
 /**
  * Network-scope a storage key for CHAIN-DERIVED state (W2.2). Anything cached
@@ -626,6 +661,40 @@ export const FEEDBACK_REALM_PATH = "gno.land/r/samcrew/memba_feedback_v2"
  * useHomeSnapshot gates its query on this key so it never fires on other networks.
  */
 export const SNAPSHOT_NETWORK = "test13"
+
+/**
+ * The network key the backend FEED INDEXER is scoped to — i.e. the one chain
+ * whose `memba_feed_v1` events become readable posts.
+ *
+ * The feed realm path is the SAME on every network Memba allowlists it on, but
+ * the backend tails exactly one chain (`FEED_RPC_URL`). So on any other network
+ * the app would read this chain's timeline while writing to that chain's realm:
+ * the tx succeeds, costs gas, is permanent on-chain, and the post is never
+ * visible anywhere. `isFeedWritable()` exists to make that unrepresentable.
+ *
+ * ⚠️ MUST match the chain behind the backend's `FEED_RPC_URL`. If that env moves
+ * (e.g. a Topaz cutover), change this in the SAME release or the feed silently
+ * gates off — or, worse, gates ON for a chain the indexer isn't watching.
+ * The durable fix is per-chain indexing (chain-scoped indexer state), after
+ * which this constant goes away.
+ */
+export const FEED_INDEXED_NETWORK = "test13"
+
+/** Human-readable label for the indexed network (for user-facing copy). */
+export const FEED_INDEXED_NETWORK_LABEL =
+    NETWORKS[FEED_INDEXED_NETWORK]?.label ?? FEED_INDEXED_NETWORK
+
+/**
+ * Whether feed WRITES are safe on the active network — true only when the
+ * backend indexes the chain we would be writing to.
+ *
+ * Reads `ACTIVE_NETWORK_KEY` (module-load config), which is correct because
+ * `useNetwork.switchNetwork` performs a full page load, so this value can never
+ * be stale relative to the selected network.
+ */
+export function isFeedWritable(): boolean {
+    return ACTIVE_NETWORK_KEY === FEED_INDEXED_NETWORK
+}
 
 /**
  * Featured DAO realm path per network key — the DAO surfaced on the home

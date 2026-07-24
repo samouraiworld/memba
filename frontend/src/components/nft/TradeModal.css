@@ -170,6 +170,17 @@
     margin: 0;
 }
 
+.trade-modal__retry-link {
+    background: none;
+    border: none;
+    padding: 0;
+    color: inherit;
+    text-decoration: underline;
+    font: inherit;
+    font-size: var(--text-sm);
+    cursor: pointer;
+}
+
 /* ── Actions row ─────────────────────────────────────────────── */
 
 .trade-modal__actions {

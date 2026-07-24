@@ -17,6 +17,10 @@ const (
 	// ActionTransfer sends a small ugnot amount to a recipient (value-moving —
 	// counts against MaxTransfersPerDay + MaxTransferUgnot).
 	ActionTransfer ActionType = "transfer"
+	// ActionSweep calls <FeedRealm>.SweepTombstones(limit) — permanently purges
+	// the oldest `Limit` on-chain feed tombstones (permissionless state-hygiene,
+	// so old removed/blocklisted content doesn't linger). Not value-moving.
+	ActionSweep ActionType = "sweep"
 )
 
 // Action is one planned unit of activity.
@@ -29,6 +33,11 @@ type Action struct {
 	// ActionTransfer
 	ToAddress string `json:"to,omitempty"`
 	Ugnot     int64  `json:"ugnot,omitempty"`
+
+	// ActionSweep: max tombstones to purge this run. Keep small (1..10) — a
+	// reply-heavy parent makes one sweep step do many removes, so the realm
+	// bounds the fan-out; re-run to drain the next batch (idempotent).
+	Limit int `json:"limit,omitempty"`
 }
 
 // Scenario is the data-driven activity plan. The bot walks Actions in order up
@@ -89,6 +98,13 @@ func (s *Scenario) validate() error {
 			}
 			if a.Ugnot > MaxTransferUgnot {
 				return fmt.Errorf("action %d: transfer %dugnot exceeds MaxTransferUgnot (%d)", i, a.Ugnot, MaxTransferUgnot)
+			}
+		case ActionSweep:
+			if s.FeedRealm == "" {
+				return fmt.Errorf("action %d: sweep needs a feedRealm", i)
+			}
+			if a.Limit < 1 || a.Limit > 10 {
+				return fmt.Errorf("action %d: sweep limit must be 1..10 (realm reply-fanout bound), got %d", i, a.Limit)
 			}
 		default:
 			return fmt.Errorf("action %d: unknown type %q", i, a.Type)

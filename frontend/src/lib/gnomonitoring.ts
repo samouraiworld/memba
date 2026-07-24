@@ -11,7 +11,8 @@
  *   4. Graceful degradation: if monitoring API unavailable, fall back to hex addresses
  */
 
-import { GNO_CHAIN_ID, GNO_MONITORING_API_URL } from "./config"
+import * as Sentry from "@sentry/react"
+import { GNO_CHAIN_ID, GNO_MONITORING_CHAIN, GNO_MONITORING_API_URL } from "./config"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -97,6 +98,9 @@ export interface MonitoringValidatorData {
 
 // ── Session Cache ────────────────────────────────────────────
 
+// Keyed by GNO_CHAIN_ID, not GNO_MONITORING_CHAIN, on purpose: this namespaces
+// the cache by MEMBA's network identity. Two Memba networks could legitimately
+// map to the same monitoring key, and they must not share cached rows.
 const CACHE_KEY = `memba_monitoring_cache:${GNO_CHAIN_ID}`
 const CACHE_TTL_MS = 30_000 // 30s
 
@@ -131,6 +135,36 @@ function setCache<T>(key: string, data: T): void {
 
 const FETCH_TIMEOUT_MS = 8_000
 
+// A 4xx from gnomonitoring means it rejected something about the request
+// itself — almost always our configured GNO_MONITORING_CHAIN not matching
+// its own (admin-edited, un-versioned) chain registry, per config.ts's
+// monitoringChain doc-comment. That's a deterministic misconfiguration, not
+// a blip: it will not self-heal, and it broke silently twice in 24h (fixed
+// in #989) because every gnomonitoring failure — 4xx, 5xx, timeout — looked
+// identical from the outside (graceful degradation to blank names). 5xx and
+// network errors stay silent on purpose: those ARE the transient cases this
+// path exists to swallow. 429 is excluded too — rate-limiting is transient
+// like a 5xx, not a standing misconfiguration, even though it's a 4xx.
+// Warned once per (chain, endpoint, status) per tab session so a single
+// broken key doesn't spam 7 near-identical signals on every cache refresh.
+const warnedRejections = new Set<string>()
+
+/** 4xx statuses that indicate a standing misconfiguration (won't self-heal),
+ *  as opposed to a transient condition that happens to also be a 4xx. */
+function isMisconfigStatus(status: number): boolean {
+    return status >= 400 && status < 500 && status !== 429
+}
+
+function warnOnRejection(path: string, status: number): void {
+    const key = `${GNO_MONITORING_CHAIN}:${path}:${status}`
+    if (warnedRejections.has(key)) return
+    warnedRejections.add(key)
+    Sentry.captureMessage(
+        `gnomonitoring rejected chain "${GNO_MONITORING_CHAIN}" on ${path} (HTTP ${status})`,
+        { level: "warning", tags: { memba_path: "gnomonitoring", endpoint: path, status: String(status) } },
+    )
+}
+
 async function monitoringFetch<T>(
     path: string,
     params?: Record<string, string>,
@@ -156,7 +190,10 @@ async function monitoringFetch<T>(
             signal: combinedSignal,
             headers: { Accept: "application/json" },
         })
-        if (!res.ok) return null
+        if (!res.ok) {
+            if (isMisconfigStatus(res.status)) warnOnRejection(path, res.status)
+            return null
+        }
         return await res.json() as T
     } catch {
         return null // network error, timeout, or abort — graceful degradation
@@ -180,7 +217,7 @@ export async function fetchMonitoringParticipation(
 
     const data = await monitoringFetch<(MonitoringParticipation | null)[]>(
         "/Participation",
-        { period: "current_month", chain: GNO_CHAIN_ID },
+        { period: "current_month", chain: GNO_MONITORING_CHAIN },
         signal,
     )
     if (!data) return null
@@ -203,7 +240,7 @@ export async function fetchMonitoringUptime(
 
     const data = await monitoringFetch<(MonitoringUptime | null)[]>(
         "/uptime",
-        { chain: GNO_CHAIN_ID },
+        { chain: GNO_MONITORING_CHAIN },
         signal,
     )
     if (!data) return null
@@ -226,7 +263,7 @@ export async function fetchMonitoringFirstSeen(
 
     const data = await monitoringFetch<(MonitoringFirstSeen | null)[]>(
         "/first_seen",
-        { chain: GNO_CHAIN_ID },
+        { chain: GNO_MONITORING_CHAIN },
         signal,
     )
     if (!data) return null
@@ -253,7 +290,7 @@ export async function fetchMonitoringIncidents(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await monitoringFetch<any[]>(
         "/latest_incidents",
-        { period, chain: GNO_CHAIN_ID },
+        { period, chain: GNO_MONITORING_CHAIN },
         signal,
     )
     if (!data) return null
@@ -289,7 +326,7 @@ export async function fetchMonitoringMissingBlocks(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await monitoringFetch<any[]>(
         "/missing_block",
-        { period, chain: GNO_CHAIN_ID },
+        { period, chain: GNO_MONITORING_CHAIN },
         signal,
     )
     if (!data) return null
@@ -324,7 +361,7 @@ export async function fetchMonitoringOperationTime(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await monitoringFetch<any[]>(
         "/operation_time",
-        { chain: GNO_CHAIN_ID },
+        { chain: GNO_MONITORING_CHAIN },
         signal,
     )
     if (!data) return null
@@ -362,7 +399,7 @@ export async function fetchMonitoringTxContribution(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const data = await monitoringFetch<any[]>(
         "/tx_contrib",
-        { period: "current_month", chain: GNO_CHAIN_ID },
+        { period: "current_month", chain: GNO_MONITORING_CHAIN },
         signal,
     )
     if (!data) return null
