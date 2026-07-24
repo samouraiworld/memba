@@ -64,7 +64,9 @@
 - [x] **S026-027**: MembaCandidature (P0)
   - [x] Full implementation (apply with deposit, approve/reject, withdraw CEI-safe, 10x escalation)
   - [x] 15/15 tests pass
-- [ ] **S028-029**: MembaTokenFactory (P0)
+- [x] **S028-029**: MembaTokenFactory (P0)
+  - [x] Full implementation (MembaToken ERC-20, CREATE2 factory, symbol uniqueness, fee collection)
+  - [x] 16/16 tests pass
 - [ ] **S030-032**: MembaEscrow (P0)
 - [ ] **S033-036**: MembaNFT + MembaNFTMarket (P1)
 - [ ] **S037-038**: MembaCollections (P1)
