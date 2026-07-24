@@ -15,6 +15,10 @@ Severity and detail for contract findings: [SECURITY_FINDINGS.md](SECURITY_FINDI
 
 ## 🔴 Blocking — no deployment of any kind until closed
 
+### ~~ISSUE-001~~ ✅ RESOLVED 2026-07-24 — see Resolved below
+
+<details><summary>original report</summary>
+
 ### ISSUE-001: Seller can take 100% of escrowed ETH
 **Severity**: 🔴 CRITICAL · **Found in**: independent audit 2026-07-24 · **Status**: ⬜ Open · **Owner**: AI
 
@@ -50,6 +54,8 @@ the admin's later `resolveDispute` finds nothing left to award.
 **Fix direction**: require `sc.status == Active`, and freeze/extend the auto-refund clock
 for the duration of a dispute so `dispute()` cannot be used as a stalling device.
 
+</details>
+
 ---
 
 ### ISSUE-003: Upgrade authority is a backend hot key, and cannot be rotated
@@ -80,7 +86,7 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
 
 ## 🟠 High — blocks testnet deployment
 
-- **ISSUE-005** · `MembaEscrow` push payments have no pull escape hatch. A seller contract
+- ~~**ISSUE-005**~~ ✅ RESOLVED · `MembaEscrow` push payments have no pull escape hatch. A seller contract
   arming `receive()` to revert blocks `releaseFunds`, `cancelContract` and
   `resolveDispute(true)`; a reverting `feeRecipient` bricks releases protocol-wide, and
   **there is no `setFeeRecipient`**. Slither corroborates (`calls-loop` ×6).
@@ -113,15 +119,12 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
 - Candidature strands ETH two ways (re-application overwrites an un-withdrawn deposit;
   approved applicants can never withdraw). No `receive`/`fallback`/sweep exists anywhere, so
   it is unreachable short of an upgrade.
-- Both parties can evade all fees (seller via ISSUE-001, buyer via `dispute` →
-  `resolveDispute(false)`).
 - `MembaTokenOTC.unitPrice` is per base unit and decimals-unaware — the EVM twin of the Gno
   OTC bug fixed in memba#992. The test fixture uses `decimals=0`, which is why it was never
   found.
 - `MembaTokenOTC` accepts an unbounded `feeBps` at init with no `MAX_FEE_BPS` and no setter;
   a fat-fingered deploy parameter bricks the contract permanently.
 - Overpayment confiscated on three paths (Collections create + mint, TokenFactory, AppStore).
-- `updateTimeouts` is unbounded and applies retroactively to already-funded milestones.
 - Auth: the new `Verifier` interface takes only a raw nonce, so it cannot express challenge
   authenticity, expiry, single-use or chain binding — re-opening `AUTH-CHAINID-01`. EVM login
   is currently blind `personal_sign`, not SIWE.
@@ -131,6 +134,22 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
 ---
 
 ## ✅ Resolved
+
+- **ISSUE-001 (seller drains 100% of escrow)** — `cancelContract` no longer lets the
+  canceller direct funds to themselves; a seller-initiated cancel refunds the buyer and
+  contested work must go through `dispute()`. The buyer-accepts path now charges the
+  platform fee. Covered by `test_C01_SellerCannotSelfCompleteThenCancelToDrainEscrow`.
+- **ISSUE-002 (auto-refund bypasses the dispute freeze)** — `claimAutoRefund` now
+  requires `sc.status == Active` and rejects while Disputed; it also accepts Completed
+  milestones so a seller cannot void the buyer's remedy by stalling. Covered by
+  `test_H02_AutoRefundIsBlockedWhileDisputed`.
+- **ISSUE-005 (hostile recipient freezes funds)** — payouts fall back to a withdrawable
+  credit instead of reverting the whole call, and `setFeeRecipient` now exists. Covered
+  by `test_H03_*`.
+- **Retroactive `updateTimeouts` / fee evasion via dispute / unguarded mutators** —
+  milestones snapshot `refundableAt` at funding, the window is bounded, the
+  cancellation fee applies on every unwind path, and `completeMilestone`/`dispute` are
+  `nonReentrant`.
 
 - **ERC-7201 storage constants** — all 14 were fabricated rather than derived (`MembaDAO`'s
   came from `cast index`, a mapping-slot helper; the rest were hand-typed patterns). Now
