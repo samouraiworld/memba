@@ -112,6 +112,16 @@ contract Deploy is Script {
             new ERC1967Proxy(address(new MembaRegistry()), abi.encodeCall(MembaRegistry.initialize, (safe, safe, 200)))
         );
         console.log("[Core] Registry:", registryProxy);
+
+        // C-4: nominate the Safe as factory owner. The factory is non-upgradeable and
+        // `setImplementation` (which repoints the DAO template used by every FUTURE
+        // createDAO) is onlyOwner. It is created owned by the deployer EOA, so hand it off.
+        // Ownable2Step → this only sets pendingOwner; the Safe must acceptOwnership() to
+        // finish (DEPLOY_CEREMONY.md step 3). Until then the deployer stays owner.
+        factory.transferOwnership(safe);
+        console.log("ACTION REQUIRED (Safe tx): MembaDAOFactory.acceptOwnership()");
+        console.log("  on Factory:", address(factory));
+        console.log("  new owner:", safe);
     }
 
     function _deployCommerce(address safe, address treasury) internal returns (address nftProxy) {

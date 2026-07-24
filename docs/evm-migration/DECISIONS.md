@@ -72,3 +72,17 @@
 - Independent toolchain (Foundry has its own config)
 - Avoids confusion — `contracts/README.md` explains the dual structure
 - `contracts/evm/` is self-contained (src, test, script, lib, remappings)
+
+---
+
+## ADR-005: MembaDAOFactory Stays Non-Upgradeable
+
+**Date**: 2026-07-24  
+**Status**: ✅ Accepted  
+**Context**: `MembaDAOFactory` is the only non-proxy, non-upgradeable contract in the set. C-4 raised whether to make it upgradeable while fixing its ownership handover.  
+**Decision**: Keep the factory non-upgradeable. Hand ownership to the Safe via `Ownable2Step` (see DEPLOY_CEREMONY.md step 3); do not proxy it.  
+**Rationale**:
+- It holds no funds and no per-DAO authority. Each DAO is an independent `ERC1967Proxy` that copies the implementation into its own ERC-1967 slot at construction, so the factory retains no upgrade power over already-created DAOs.
+- The one "upgrade" it plausibly needs — swapping the DAO template — is already served by `setImplementation` (owner-gated) without proxying the factory.
+- CREATE2 pre-computation of DAO addresses depends on the factory's address and init code staying fixed; making it upgradeable would break that stability for zero benefit and add attack surface (same E-4 reasoning as MembaDAO keeping AccessControl over a second upgrade path).
+- Ownership is rotatable (two-step) but not renounceable: `renounceOwnership` reverts `OwnershipCannotBeRenounced`, so authority can never be destroyed (which would freeze `setImplementation` forever).

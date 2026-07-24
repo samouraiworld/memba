@@ -5,6 +5,8 @@ import { Test } from "forge-std/Test.sol";
 import { ERC1967Proxy } from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 import { IAccessControl } from "@openzeppelin/contracts/access/IAccessControl.sol";
 
+import { Ownable } from "@openzeppelin/contracts/access/Ownable.sol";
+
 import { MembaDAO } from "../src/core/MembaDAO.sol";
 import { MembaDAOFactory } from "../src/core/MembaDAOFactory.sol";
 
@@ -23,6 +25,14 @@ contract MembaDAOTest is Test {
     address public bob = makeAddr("bob");
     address public carol = makeAddr("carol");
     address public outsider = makeAddr("outsider");
+    address public safe = makeAddr("safe");
+
+    // ERC-1967 implementation slot: keccak256("eip1967.proxy.implementation") - 1.
+    bytes32 internal constant IMPL_SLOT = 0x360894a13ba1a3210667c828492db98dca3e2076cc3735a920a3ca505d382bbc;
+
+    function _implOf(address proxy) internal view returns (address) {
+        return address(uint160(uint256(vm.load(proxy, IMPL_SLOT))));
+    }
 
     function setUp() public {
         impl = new MembaDAO();
@@ -96,6 +106,105 @@ contract MembaDAOTest is Test {
         vm.prank(outsider);
         vm.expectRevert();
         factory.setImplementation(address(newImpl));
+    }
+
+    // ── C-4: ownership handover to the Safe (Ownable2Step) ──────────
+    // setUp makes this test contract the initial owner, so the handover tests transfer to
+    // `safe` then prank it to accept. Deploy any `new MembaDAO()` on its OWN line before a
+    // prank — a contract creation on the pranked line consumes the prank (this repo has been
+    // bitten by that twice).
+
+    function test_C4_TransferOwnership_SetsPendingOnly() public {
+        factory.transferOwnership(safe);
+        assertEq(factory.pendingOwner(), safe, "safe should be pending owner");
+        assertEq(factory.owner(), address(this), "owner must not change until accept");
+    }
+
+    function test_C4_OldOwnerRetainsControlUntilAccept() public {
+        factory.transferOwnership(safe);
+
+        // Old owner can still set the implementation until the handover completes.
+        MembaDAO ni = new MembaDAO();
+        factory.setImplementation(address(ni));
+        assertEq(factory.daoImplementation(), address(ni));
+
+        // The pending owner cannot yet.
+        MembaDAO ni2 = new MembaDAO();
+        vm.prank(safe);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, safe));
+        factory.setImplementation(address(ni2));
+    }
+
+    function test_C4_AcceptOwnership_CompletesHandover() public {
+        factory.transferOwnership(safe);
+        vm.prank(safe);
+        factory.acceptOwnership();
+        assertEq(factory.owner(), safe);
+        assertEq(factory.pendingOwner(), address(0));
+    }
+
+    function test_C4_NonPendingCannotAccept() public {
+        factory.transferOwnership(safe);
+        vm.prank(outsider);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, outsider));
+        factory.acceptOwnership();
+    }
+
+    /// @notice Headline: once the Safe owns the factory, a compromised deployer key can no
+    ///         longer repoint the DAO template.
+    function test_C4_DeployerCannotSetImplementationAfterHandover() public {
+        address deployer = address(this);
+        factory.transferOwnership(safe);
+        vm.prank(safe);
+        factory.acceptOwnership();
+
+        MembaDAO ni = new MembaDAO();
+        vm.prank(deployer);
+        vm.expectRevert(abi.encodeWithSelector(Ownable.OwnableUnauthorizedAccount.selector, deployer));
+        factory.setImplementation(address(ni));
+    }
+
+    function test_C4_SafeCanRotateImplementationAfterHandover() public {
+        factory.transferOwnership(safe);
+        vm.prank(safe);
+        factory.acceptOwnership();
+
+        MembaDAO ni = new MembaDAO();
+        vm.expectEmit(true, true, false, false, address(factory));
+        emit MembaDAOFactory.ImplementationUpdated(address(impl), address(ni));
+        vm.prank(safe);
+        factory.setImplementation(address(ni));
+        assertEq(factory.daoImplementation(), address(ni));
+    }
+
+    function test_C4_SetImplementationRejectsZero() public {
+        vm.expectRevert(MembaDAOFactory.InvalidImplementation.selector);
+        factory.setImplementation(address(0));
+    }
+
+    /// @notice Risk-scoping proof: rotating the template affects only FUTURE DAOs; an already
+    ///         created DAO keeps its own implementation.
+    function test_C4_ImplementationSwapDoesNotAffectExistingDAOs() public {
+        assertEq(_implOf(address(dao)), address(impl), "DAO A starts on v1");
+
+        MembaDAO implV2 = new MembaDAO();
+        factory.setImplementation(address(implV2));
+
+        assertEq(_implOf(address(dao)), address(impl), "existing DAO A must stay on v1");
+
+        address daoB = factory.createDAO("B", "d", admin, bytes32(uint256(7)));
+        assertEq(_implOf(daoB), address(implV2), "new DAO B uses v2");
+    }
+
+    function test_C4_RenounceOwnershipDisabled() public {
+        vm.expectRevert(MembaDAOFactory.OwnershipCannotBeRenounced.selector);
+        factory.renounceOwnership();
+        assertEq(factory.owner(), address(this), "owner unchanged");
+    }
+
+    function test_C4_SpecGettersMatchPublicVars() public view {
+        assertEq(factory.getDaoCount(), factory.daoCount());
+        assertEq(factory.getDao(0), factory.daos(0));
     }
 
     // ══════════════════════════════════════════════════════════════

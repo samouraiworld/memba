@@ -69,10 +69,39 @@ integration wiring is exercised there.
 
 ---
 
+## Step 3 — Accept ownership of the DAO factory  (closes C-4)
+
+`MembaDAOFactory` is non-upgradeable and `setImplementation` — which repoints the DAO
+template used by every **future** `createDAO` — is `onlyOwner`. The factory is created owned
+by the deployer EOA, so `Deploy.s.sol` calls `factory.transferOwnership(safe)`. Because the
+factory uses **`Ownable2Step`**, that only *nominates* the Safe; the deployer stays owner
+until the Safe accepts. Two-step is deliberate: a one-step transfer to a typo'd
+`SAFE_MULTISIG_ADDRESS` would strand the factory and freeze `setImplementation` forever.
+**Until this step completes, a compromised deployer key can still swap the DAO template.**
+
+**Safe transaction**
+
+```
+target: <DAOFactory address>         // [Core] DAOFactory
+function: acceptOwnership()
+```
+
+**Verify**
+
+```
+MembaDAOFactory(factory).owner() == safe
+MembaDAOFactory(factory).pendingOwner() == address(0)
+```
+
+Regression guard: `test/MembaDAO.t.sol::test_C4_*` (handover, deployer-locked-out after accept,
+existing DAOs unaffected).
+
+---
+
 ## Before you finish
 
 - Re-read the deploy log and confirm **every** `ACTION REQUIRED` line has a matching executed
   Safe transaction. If a future contract change adds a new one, add a step here in the same PR.
 - If `TIMELOCK_DELAY` was set, upgrades now route through the `TimelockController` — the
-  ceremony above uses `grantRole`/`setLaunchpad`, which are **not** upgrades and are not
-  time-locked, so they take effect immediately.
+  ceremony above uses `grantRole`/`setLaunchpad`/`acceptOwnership`, which are **not** upgrades
+  and are not time-locked, so they take effect immediately.
