@@ -92,7 +92,7 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
   arming `receive()` to revert blocks `releaseFunds`, `cancelContract` and
   `resolveDispute(true)`; a reverting `feeRecipient` bricks releases protocol-wide, and
   **there is no `setFeeRecipient`**. Slither corroborates (`calls-loop` ×6).
-- **ISSUE-006** · `MembaCollections.mintNFT` can never succeed — the Collections proxy is
+- ~~**ISSUE-006**~~ ✅ RESOLVED · `MembaCollections.mintNFT` can never succeed — the Collections proxy is
   not the creator of the `MembaNFT` sub-collection it mints into, and nothing makes it so.
   The launchpad's only revenue function is inert. Hidden by 0% coverage.
 - **ISSUE-007** · `Deploy.s.sol` never grants `ADMIN_ROLE` to `MembaCandidature`, so
@@ -137,6 +137,11 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
 
 ## ✅ Resolved
 
+- **ISSUE-006 (Collections mint unreachable, 0% coverage)** — MembaNFT now authorises a
+  launchpad to mint into collections it does not own (creator keeps royalties), and
+  MembaCollections binds registration to the sub-collection's owner so that authorisation
+  cannot be abused. 18 tests added, from zero. Overpayment on both payable paths now
+  refunded via `_settle`.
 - **ISSUE-009 (EvmProvider called non-existent functions)** — `writeAndWait` is now generic
   over the ABI, so the four bad calls became compile errors and were fixed
   (`propose`/`execute`/`createToken` salt+value). `getDAOProposal` derives status from the

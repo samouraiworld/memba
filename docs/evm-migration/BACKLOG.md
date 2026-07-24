@@ -12,7 +12,7 @@
 > Severity/detail for security items: [SECURITY_FINDINGS.md](SECURITY_FINDINGS.md).
 > Status of individual defects: [KNOWN_ISSUES.md](KNOWN_ISSUES.md).
 
-**Last swept:** 2026-07-24 (branch `feat/evm/remediation`)
+**Last swept:** 2026-07-24 (branch `feat/evm/remediation`, after A-1)
 
 ---
 
@@ -20,7 +20,7 @@
 
 | ID | Item | Why still open | Done when |
 |---|---|---|---|
-| **A-1** | `MembaCollections.mintNFT` can never succeed — the Collections proxy is not the creator of the `MembaNFT` sub-collection it mints into. Contract has **no test file at all** (251 LOC, 0% coverage). | Next in queue. | Mint path works end-to-end; full test suite exists; coverage above the T1 tier. |
+| ~~A-1~~ | ~~`MembaCollections.mintNFT` can never succeed~~ | ✅ **fixed** 2026-07-24 — `MembaNFT.setLaunchpad` authorises the proxy to mint (creator keeps royalties); `createCollection` binds registration to the sub-collection's owner so that authorisation cannot be abused. 18 tests, from zero. | — |
 | **A-2** | `Deploy.s.sol` never grants `ADMIN_ROLE` to `MembaCandidature`, so `markApproved` reverts 100% post-deploy. | Needs a **follow-up Safe transaction**, not just a script line — the DAO is created with `admin = safe`, so only the Safe can issue the grant. Requires a documented post-deploy ceremony step. | Script asserts the grant, or a documented Safe step exists and a test proves the un-granted deployment fails loudly. |
 | **A-3** | `MembaTokenOTC`: fee-on-transfer/rebasing tokens let one listing's fill drain another seller's escrowed tokens (records `totalAmount` before transferring, fills from a shared pool). | Not started. | Balance-delta accounting or a per-token escrow ledger; mock fee-on-transfer + rebasing + returns-false tokens in the suite. |
 | **A-4** | `MembaTokenOTC.unitPrice` is per **base unit** and decimals-unaware — the EVM twin of the Gno OTC bug fixed in memba#992. | Not started. The existing test fixture uses `decimals = 0`, which is exactly why it was never found. | Price defined per `10**decimals()`, ceiling division so rounding never favours the buyer, and a test using an 18-decimal factory token. |
@@ -29,7 +29,7 @@
 | **A-7** | Backend: unauthenticated remote OOM-kill — `make([]DAOMember, 0, count)` where `count` comes from an attacker-chosen contract address in the URL path. | Not started. | Allowlist of known DAO addresses, hard cap on `count`, `IsInt64()` guard, pagination. |
 | **A-8** | Backend `evmrender` routes bypass the repo's `rateLimitMiddleware`/`requireAuthMiddleware` convention; no address validation (`common.HexToAddress` never errors, and a 64-hex string is cropped to a valid address — address aliasing). | Not started. | Routes exposed as plain handlers and wrapped in `main.go` like every other route; `common.IsHexAddress` validation returning 400. |
 | **A-9** | Candidature strands ETH two ways: re-applying after rejection overwrites an un-withdrawn deposit, and approved applicants can never withdraw. No `receive`/`fallback`/sweep exists anywhere, so it is unreachable short of an upgrade. | Not started. | Reject re-application while a deposit is outstanding (or accumulate); decide explicitly whether approval forfeits or refunds, and implement the chosen one. |
-| **A-10** | Overpayment confiscated on three paths (`MembaCollections` create + mint, `MembaTokenFactory`, `MembaAppStore`) — the entire `msg.value` is forwarded when only the fee was owed. `MembaTokenOTC.fill` does it correctly, so this is inconsistency, not house style. | Not started. | Refund `msg.value - fee` on all three. |
+| **A-10** | Overpayment confiscated. ✅ **`MembaCollections` fixed** (both paths, via `_settle`). ⬜ **`MembaTokenFactory` and `MembaAppStore` still confiscate.** | Partially done. | `_settle`-equivalent on the remaining two. |
 
 ## B. Open defects — auth / frontend
 
@@ -50,7 +50,7 @@
 | ~~C-2~~ | ~~`src/lib/MembaFees.sol`~~ | ✅ **deleted** 2026-07-24. Note the fee math it was meant to hold is still hand-rolled inline in five contracts — consolidating that is a separate, real task (now **C-6**). |
 | ~~C-3~~ | ~~`src/interfaces/IMembaDAO.sol`~~ | ✅ **deleted** 2026-07-24 — zero importers. `MembaCandidature` and `MembaChannels` still each declare their own local duplicate; consolidating those two is **C-7**. |
 | **C-4** | `src/core/MembaDAOFactory.sol` | `TODO: Implement per CONTRACT_SPECS`. Also the only non-upgradeable contract in the set, and `Deploy.s.sol` never calls `transferOwnership(safe)` — the deployer EOA keeps `setImplementation` forever. |
-| **C-6** | five contracts | Fee math (`amount * bps / 10_000`) is hand-rolled inline in Escrow, OTC, TokenFactory, Collections and AppStore, each with its own copy. §17.2 mandated formal verification of "the fee distribution logic" — which pointed at a file nothing imported. Consolidate into one tested helper. |
+| **C-6** | four contracts (was five) | Fee math (`amount * bps / 10_000`) is hand-rolled inline in Escrow, OTC, TokenFactory, Collections and AppStore, each with its own copy. §17.2 mandated formal verification of "the fee distribution logic" — which pointed at a file nothing imported. Consolidate into one tested helper. `MembaCollections._settle` is the first instance and the shape to copy. |
 | **C-7** | `MembaCandidature`, `MembaChannels` | Each declares its own local `IMembaDAO`/`IMembaDAOMember` duplicate. Two declarations of one interface will drift. |
 | **C-5** | `frontend/src/lib/chain/gno/GnoProvider.ts` (×6) | Unimplemented provider methods returning empty/null: `getTokenInfo`, `getTokenBalance`, `createToken`, `mintTokens`, escrow reads, native balance. Half the interface silently returns "no data" rather than "unsupported". |
 
@@ -110,3 +110,4 @@ Target tiers — a global floor is not enough for funds-at-risk contracts:
 | **G-3** | PROGRESS.md is not machine-checked — a tick should require a script mapping it to an artifact and a test. | ⬜ open |
 | **G-4** | `go-ethereum` + 15 indirect deps are in the **production** `backend/go.mod` for code imported by nothing (incl. `ProjectZKM/Ziren` at an untagged pseudo-version, pulled via geth crypto). | ⬜ open — revert until wired, or move the EVM backend to its own module |
 | **G-5** | Session handoff docs stop at SESSION_007-012 (4 docs for 77 claimed sessions). | ⬜ open |
+| ~~G-6~~ | Checked-in frontend ABIs drift silently — 13 of 15 were stale after a round of contract changes, so the frontend encoded calls against a shape that no longer existed. | ✅ **fixed** 2026-07-24 — `contracts/evm/script/gen-abis.sh` + a CI determinism gate mirroring the repo's `verify-worker.cjs` one. |
