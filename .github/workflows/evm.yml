@@ -119,13 +119,13 @@ jobs:
       - name: Compiler gate rejects a deliberate error
         run: |
           set -euo pipefail
-          printf '\ncontract _CanaryShouldNotCompile { uint256 x = "not a number"; }\n' >> src/lib/MembaFees.sol
+          printf '\ncontract _CanaryShouldNotCompile { uint256 x = "not a number"; }\n' >> src/lib/MembaUpgradeAuthority.sol
           if forge build --force >/dev/null 2>&1; then
             echo "::error::forge build PASSED on invalid Solidity — the gate is broken"
             exit 1
           fi
           echo "✅ compiler gate correctly rejects invalid Solidity"
-          git checkout -- src/lib/MembaFees.sol
+          git checkout -- src/lib/MembaUpgradeAuthority.sol
 
   slither:
     name: Slither (static analysis)

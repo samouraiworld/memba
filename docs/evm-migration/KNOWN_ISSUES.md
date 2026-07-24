@@ -103,7 +103,7 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
 - **ISSUE-008** · `MembaTokenOTC` records `totalAmount` before transferring and fills from a
   shared un-partitioned pool, so a fee-on-transfer token lets one listing's fill drain
   another seller's escrowed tokens.
-- **ISSUE-009** · Frontend `EvmProvider` calls four DAO functions that do not exist
+- ~~**ISSUE-009**~~ ✅ RESOLVED · Frontend `EvmProvider` calls four DAO functions that do not exist
   (`createProposal`→`propose`, `executeProposal`→`execute`, `votingThreshold`→`thresholdBps`,
   `getMemberByIndex`→`getMember`); `createToken` omits the required `salt` and `value`;
   `getDAOProposal` destructures fields absent from the ABI (→ `NaN` votes, permanently
@@ -137,6 +137,10 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
 
 ## ✅ Resolved
 
+- **ISSUE-009 (EvmProvider called non-existent functions)** — `writeAndWait` is now generic
+  over the ABI, so the four bad calls became compile errors and were fixed
+  (`propose`/`execute`/`createToken` salt+value). `getDAOProposal` derives status from the
+  real tuple. Also fixed an inverted `VOTE_MAP` that sent every YES as Against.
 - **ISSUE-003 (upgrade authority = backend hot key, non-rotatable)** — `MembaUpgradeAuthority`
   gives upgrade rights their own ERC-7201 namespace, separate from every operational role,
   with two-step rotation. All 13 non-DAO contracts gate `_authorizeUpgrade` on
