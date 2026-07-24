@@ -4,12 +4,17 @@
  * and "Load older posts" appends the next cursor page.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, fireEvent, waitFor, within } from "@testing-library/react"
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
-import type { ReactNode } from "react"
+import { screen, fireEvent, waitFor, within } from "@testing-library/react"
+import { renderWithProviders } from "../test/test-utils"
+import type { ReactElement } from "react"
 
 vi.mock("../hooks/useAdena", () => ({ useAdena: () => ({ address: undefined, connected: false, connect: vi.fn() }) }))
-vi.mock("../hooks/useNetworkNav", () => ({ useNetworkNav: () => vi.fn() }))
+// Whole-module mock: any export NOT listed here is undefined, so this must stay
+// in sync with what FeedPage imports.
+vi.mock("../hooks/useNetworkNav", () => ({
+    useNetworkNav: () => vi.fn(),
+    useNetworkPath: () => (p: string) => `/test13/${p}`,
+}))
 vi.mock("../hooks/home/useActorUsernames", () => ({ useActorUsernames: () => new Map() }))
 // Stub the Ecosystem tab so its activity stack (tx-indexer) never runs here —
 // the tab-switch behavior is what FeedPage owns and is what we assert.
@@ -30,9 +35,11 @@ const post = (id: bigint, body: string) => ({
     editedAt: 0n, flagCount: 0, hidden: false, deleted: false, replyCount: 0,
 })
 
-function renderWithClient(ui: ReactNode) {
-    const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-    return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>)
+// The shared helper supplies QueryClient + MemoryRouter (the header renders a
+// real <Link>, which needs router context). Rendered at the route FeedPage
+// actually mounts on, so the harness doesn't quietly diverge from production.
+function renderWithClient(ui: ReactElement) {
+    return renderWithProviders(ui, { route: "/test13/feed" })
 }
 
 beforeEach(() => {
@@ -106,5 +113,18 @@ describe("FeedPage two-pane rail", () => {
         expect(within(rail).getByTestId("feed-trending")).toBeInTheDocument()
         // The timeline still renders its posts in the main column.
         expect(await screen.findByText("newest post")).toBeInTheDocument()
+    })
+})
+
+describe("FeedPage moderation transparency link", () => {
+    it("links to the public transparency log from the feed header", async () => {
+        renderWithClient(<FeedPage />)
+
+        // Exact name, not /moderation/i: a "Moderation console" link to
+        // /feed/mod would otherwise make findByRole throw on multiple matches
+        // and fail this test for an unrelated reason.
+        const link = await screen.findByRole("link", { name: "Moderation & transparency" })
+        // Built via useNetworkPath, so the /:network prefix is the app's, not ad-hoc.
+        expect(link).toHaveAttribute("href", "/test13/feed/transparency")
     })
 })

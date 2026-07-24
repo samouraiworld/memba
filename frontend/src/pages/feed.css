@@ -75,6 +75,13 @@
     margin: 4px 0 0;
 }
 
+/* Inherits the global accent link colour (index.css) — only the underline
+   offset is tuned, so it reads as a link like every other link in the app. */
+.feed-subtitle__link {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+}
+
 /* Live feed counters under the header. */
 .feed-stats {
     display: flex;
