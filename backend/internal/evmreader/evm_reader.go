@@ -28,14 +28,24 @@ type ContractAddresses struct {
 type Config struct {
 	RPCURL    string
 	Addresses ContractAddresses
+	// MaxMembers caps how many members GetDAOMembers will iterate/allocate for. A DAO
+	// address is caller-supplied (URL path), so a hostile or misconfigured contract can
+	// report an enormous memberCount; without a cap that becomes an unauthenticated
+	// remote OOM. Defaults to defaultMaxMembers when zero.
+	MaxMembers int64
 }
+
+// defaultMaxMembers mirrors MembaDAO.MAX_MEMBERS (1000). A legitimate DAO cannot exceed
+// it, so a larger reported count means the target is not a real Memba DAO.
+const defaultMaxMembers = 1000
 
 // EvmReader implements chainreader.ChainReader for EVM chains.
 type EvmReader struct {
-	client    *ethclient.Client
-	addresses ContractAddresses
-	daoABI    abi.ABI
-	erc20ABI  abi.ABI
+	client     *ethclient.Client
+	addresses  ContractAddresses
+	daoABI     abi.ABI
+	erc20ABI   abi.ABI
+	maxMembers int64
 }
 
 // ── Minimal ABIs (only the functions we need) ────────────────
@@ -68,11 +78,17 @@ func New(cfg Config) (*EvmReader, error) {
 		return nil, fmt.Errorf("evmreader: parse ERC20 ABI: %w", err)
 	}
 
+	maxMembers := cfg.MaxMembers
+	if maxMembers <= 0 {
+		maxMembers = defaultMaxMembers
+	}
+
 	return &EvmReader{
-		client:    client,
-		addresses: cfg.Addresses,
-		daoABI:    parsedDAO,
-		erc20ABI:  parsedERC20,
+		client:     client,
+		addresses:  cfg.Addresses,
+		daoABI:     parsedDAO,
+		erc20ABI:   parsedERC20,
+		maxMembers: maxMembers,
 	}, nil
 }
 
@@ -121,7 +137,15 @@ func (r *EvmReader) GetDAOMembers(ctx context.Context, daoID string) ([]chainrea
 	if err != nil {
 		return nil, fmt.Errorf("evmreader: unpack memberCount: %w", err)
 	}
-	count := countOut[0].(*big.Int).Int64()
+
+	rawCount, ok := countOut[0].(*big.Int)
+	if !ok {
+		return nil, fmt.Errorf("evmreader: memberCount: unexpected return type")
+	}
+	count, err := boundedMemberCount(rawCount, r.maxMembers)
+	if err != nil {
+		return nil, fmt.Errorf("evmreader: memberCount from %s: %w", daoAddr.Hex(), err)
+	}
 
 	members := make([]chainreader.DAOMember, 0, count)
 	for i := int64(0); i < count; i++ {
@@ -134,38 +158,66 @@ func (r *EvmReader) GetDAOMembers(ctx context.Context, daoID string) ([]chainrea
 			return nil, fmt.Errorf("evmreader: call getMemberByIndex(%d): %w", i, err)
 		}
 
-		// The struct is returned as a tuple
-		out, err := r.daoABI.Unpack("getMemberByIndex", result)
+		member, err := decodeMemberView(r.daoABI, result)
 		if err != nil {
-			return nil, fmt.Errorf("evmreader: unpack getMemberByIndex(%d): %w", i, err)
+			return nil, fmt.Errorf("evmreader: getMemberByIndex(%d): %w", i, err)
 		}
-
-		if len(out) > 0 {
-			// out[0] is the struct as anonymous struct
-			memberTuple := out[0]
-			type memberView struct {
-				Addr        common.Address
-				VotingPower *big.Int
-				Roles       []string
-			}
-			mv, ok := memberTuple.(struct {
-				Addr        common.Address
-				VotingPower *big.Int
-				Roles       []string
-			})
-			if !ok {
-				continue
-			}
-			_ = memberView{}
-			members = append(members, chainreader.DAOMember{
-				Address:     strings.ToLower(mv.Addr.Hex()),
-				Roles:       mv.Roles,
-				VotingPower: mv.VotingPower.Int64(),
-			})
-		}
+		members = append(members, member)
 	}
 
 	return members, nil
+}
+
+// boundedMemberCount converts a contract-reported member count to a trusted int64,
+// rejecting negatives, int64 overflow, and any value above max. `max` is the cap that
+// prevents an attacker-chosen contract address from triggering a giant allocation.
+func boundedMemberCount(raw *big.Int, max int64) (int64, error) {
+	if raw.Sign() < 0 {
+		return 0, fmt.Errorf("negative count %s", raw.String())
+	}
+	if !raw.IsInt64() {
+		return 0, fmt.Errorf("count %s overflows int64", raw.String())
+	}
+	n := raw.Int64()
+	if n > max {
+		return 0, fmt.Errorf("count %d exceeds max %d (not a Memba DAO?)", n, max)
+	}
+	return n, nil
+}
+
+// decodeMemberView decodes a getMemberByIndex tuple return into a DAOMember.
+//
+// The tuple must be converted with abi.ConvertType, not a direct type assertion: geth
+// unpacks a tuple into an anonymous struct whose fields carry `json:"…"` tags, and struct
+// tags are part of Go type identity, so a plain `v.(struct{…})` against an untagged literal
+// never matches. The previous code did exactly that and swallowed the miss with `continue`,
+// so GetDAOMembers always returned an empty slice with a nil error.
+func decodeMemberView(daoABI abi.ABI, result []byte) (chainreader.DAOMember, error) {
+	out, err := daoABI.Unpack("getMemberByIndex", result)
+	if err != nil {
+		return chainreader.DAOMember{}, fmt.Errorf("unpack: %w", err)
+	}
+	if len(out) == 0 {
+		return chainreader.DAOMember{}, fmt.Errorf("empty return")
+	}
+
+	type memberView struct {
+		Addr        common.Address
+		VotingPower *big.Int
+		Roles       []string
+	}
+	mv, ok := abi.ConvertType(out[0], new(memberView)).(*memberView)
+	if !ok || mv == nil {
+		return chainreader.DAOMember{}, fmt.Errorf("unexpected return shape")
+	}
+	if mv.VotingPower == nil {
+		return chainreader.DAOMember{}, fmt.Errorf("nil voting power")
+	}
+	return chainreader.DAOMember{
+		Address:     strings.ToLower(mv.Addr.Hex()),
+		Roles:       mv.Roles,
+		VotingPower: mv.VotingPower.Int64(),
+	}, nil
 }
 
 // GetTokenBalance returns the ERC-20 balance for an address.

@@ -14,9 +14,15 @@ import (
 	"net/http"
 	"strconv"
 
+	"github.com/ethereum/go-ethereum/common"
+
 	"github.com/samouraiworld/memba/backend/internal/chainreader"
 	"github.com/samouraiworld/memba/backend/internal/evmreader"
 )
+
+// Middleware wraps a handler with cross-cutting behaviour (rate limiting, auth). The `name`
+// labels the route for the limiter, matching the repo convention in cmd/memba/main.go.
+type Middleware func(name string, h http.Handler) http.Handler
 
 // Handler holds the EVM render proxy state.
 type Handler struct {
@@ -29,21 +35,41 @@ func New(reader *evmreader.EvmReader, logger *slog.Logger) *Handler {
 	return &Handler{reader: reader, logger: logger}
 }
 
-// RegisterRoutes attaches EVM-specific render proxy routes to a mux.
-func (h *Handler) RegisterRoutes(mux *http.ServeMux) {
-	mux.HandleFunc("GET /api/evm/dao/{daoAddr}/members", h.handleDAOMembers)
-	mux.HandleFunc("GET /api/evm/dao/{daoAddr}/member/{memberAddr}", h.handleDAOMember)
-	mux.HandleFunc("GET /api/evm/token/{tokenAddr}/balance/{userAddr}", h.handleTokenBalance)
-	mux.HandleFunc("GET /api/evm/native/balance/{userAddr}", h.handleNativeBalance)
-	mux.HandleFunc("GET /api/evm/health", h.handleHealth)
+// RegisterRoutes attaches EVM-specific render proxy routes to a mux, wrapping each with the
+// supplied middleware. `wrap` is mandatory: passing it by argument (rather than reaching for a
+// package-level mux) makes it impossible to register these routes without the repo's
+// rate-limit/auth middleware, which is the A-8 defect this closes.
+func (h *Handler) RegisterRoutes(mux *http.ServeMux, wrap Middleware) {
+	reg := func(pattern, name string, hf http.HandlerFunc) {
+		mux.Handle(pattern, wrap(name, hf))
+	}
+	reg("GET /api/evm/dao/{daoAddr}/members", "evm_render", h.handleDAOMembers)
+	reg("GET /api/evm/dao/{daoAddr}/member/{memberAddr}", "evm_render", h.handleDAOMember)
+	reg("GET /api/evm/token/{tokenAddr}/balance/{userAddr}", "evm_render", h.handleTokenBalance)
+	reg("GET /api/evm/native/balance/{userAddr}", "evm_render", h.handleNativeBalance)
+	reg("GET /api/evm/health", "evm_render", h.handleHealth)
+}
+
+// requireAddr validates a path value as a 20-byte hex address, writing a 400 and returning
+// false if not. common.HexToAddress never errors and silently crops an over-long hex string,
+// so validation must be explicit (A-8).
+func requireAddr(w http.ResponseWriter, name, value string) bool {
+	if value == "" {
+		http.Error(w, "missing "+name, http.StatusBadRequest)
+		return false
+	}
+	if !common.IsHexAddress(value) {
+		http.Error(w, "invalid "+name+": not a hex address", http.StatusBadRequest)
+		return false
+	}
+	return true
 }
 
 // ── Handlers ─────────────────────────────────────────────────
 
 func (h *Handler) handleDAOMembers(w http.ResponseWriter, r *http.Request) {
 	daoAddr := r.PathValue("daoAddr")
-	if daoAddr == "" {
-		http.Error(w, "missing daoAddr", http.StatusBadRequest)
+	if !requireAddr(w, "daoAddr", daoAddr) {
 		return
 	}
 
@@ -60,8 +86,7 @@ func (h *Handler) handleDAOMembers(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleDAOMember(w http.ResponseWriter, r *http.Request) {
 	daoAddr := r.PathValue("daoAddr")
 	memberAddr := r.PathValue("memberAddr")
-	if daoAddr == "" || memberAddr == "" {
-		http.Error(w, "missing daoAddr or memberAddr", http.StatusBadRequest)
+	if !requireAddr(w, "daoAddr", daoAddr) || !requireAddr(w, "memberAddr", memberAddr) {
 		return
 	}
 
@@ -81,8 +106,7 @@ func (h *Handler) handleDAOMember(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) handleTokenBalance(w http.ResponseWriter, r *http.Request) {
 	tokenAddr := r.PathValue("tokenAddr")
 	userAddr := r.PathValue("userAddr")
-	if tokenAddr == "" || userAddr == "" {
-		http.Error(w, "missing tokenAddr or userAddr", http.StatusBadRequest)
+	if !requireAddr(w, "tokenAddr", tokenAddr) || !requireAddr(w, "userAddr", userAddr) {
 		return
 	}
 
@@ -98,8 +122,7 @@ func (h *Handler) handleTokenBalance(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleNativeBalance(w http.ResponseWriter, r *http.Request) {
 	userAddr := r.PathValue("userAddr")
-	if userAddr == "" {
-		http.Error(w, "missing userAddr", http.StatusBadRequest)
+	if !requireAddr(w, "userAddr", userAddr) {
 		return
 	}
 

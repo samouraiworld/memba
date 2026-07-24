@@ -112,10 +112,12 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
   `getDAOProposal` destructures fields absent from the ABI (→ `NaN` votes, permanently
   "open" status). Root cause: `writeAndWait` types `abi` as `readonly unknown[]` and casts,
   discarding `as const` inference.
-- **ISSUE-010** · Backend `evmreader.GetDAOMembers` can never return a member — it asserts
-  geth's unpacked tuple against an untagged struct, and tags are part of Go type identity.
-  Returns `[]` with a nil error. Plus an unauthenticated OOM-kill via an attacker-chosen
-  contract address, and routes that bypass the repo's rate-limit/auth middleware.
+- ~~**ISSUE-010**~~ ✅ RESOLVED 2026-07-24 · Backend `evmreader.GetDAOMembers` could never
+  return a member (untagged-struct assertion), had an unauthenticated OOM-kill via an
+  attacker-chosen contract address, and served routes that bypassed the rate-limit/auth
+  middleware with no address validation. All three fixed — decode via `abi.ConvertType` with
+  a hard error on shape mismatch, `boundedMemberCount` cap before allocation, mandatory
+  middleware wrapper on `RegisterRoutes`, and `requireAddr` 400 validation. See Resolved below.
 
 ---
 
@@ -170,6 +172,17 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
   requires `sc.status == Active` and rejects while Disputed; it also accepts Completed
   milestones so a seller cannot void the buyer's remedy by stalling. Covered by
   `test_H02_AutoRefundIsBlockedWhileDisputed`.
+- **ISSUE-010 (backend evmreader/evmrender — three defects)** — (1) `GetDAOMembers` decode now
+  goes through `abi.ConvertType` (which handles geth's tag-carrying anonymous tuple struct)
+  and **returns an error on any shape mismatch** instead of silently `continue`-ing, so it can
+  no longer return an empty slice with a nil error. (2) `boundedMemberCount` rejects negative,
+  int64-overflowing, and above-cap member counts before the `make([]…, 0, count)`, closing the
+  attacker-chosen-address OOM (cap = `Config.MaxMembers`, default 1000). (3) `RegisterRoutes`
+  now requires a `Middleware` wrapper argument (a route cannot be registered without the repo's
+  rate-limit/auth), and `requireAddr` rejects non-hex/cropped-hex path values with 400 before
+  any read. Unit tests: `evm_reader_test.go` (decode round-trip, count-bound matrix) and
+  `handler_test.go` (invalid-address matrix). ⚠️ Still unwired into `main.go` (imported by
+  nothing) and a known-DAO allowlist (A-7b) remains open.
 - **ISSUE-007 (Candidature ADMIN_ROLE grant) + A-1 launchpad wiring** — both are post-deploy
   Safe steps the deployer EOA cannot perform, now captured as a runbook
   (`DEPLOY_CEREMONY.md`): step 1 grants the Candidature proxy `ADMIN_ROLE` on the DAO, step 2
