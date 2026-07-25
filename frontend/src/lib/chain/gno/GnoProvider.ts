@@ -56,17 +56,28 @@ import {
 
 // ── GnoProvider Implementation ───────────────────────────────
 
+/** Wallet state pushed into the provider by the React layer (B-5 Phase 0).
+ *  Object (not a bare string) so future fields — pubkey, chainId — are
+ *  additive rather than signature breaks. */
+export interface GnoWalletBridgeState {
+    /** Connected wallet address (g1…). */
+    address: string
+}
+
 /**
  * Create a GnoProvider for the given network configuration.
  *
- * NOTE: Wallet connection is managed externally by the useAdena hook.
- * This provider reads wallet state from the hook's global state.
+ * NOTE: Wallet CONNECTION is managed externally by the useAdena hook (Adena's
+ * AddEstablish/GetAccount flow, RPC-trust validation, reconnect persistence).
+ * The provider only needs the resulting address to build MsgCall messages —
+ * broadcast itself rides the existing doContractBroadcast path, which takes
+ * its safety context from the hook's setWalletRpcContext. The React layer
+ * (ChainContextProvider, wired in B-5 Phase 1) pushes the hook's state in via
+ * setWalletBridge — the exact counterpart of EvmProvider.setWalletClient.
  */
-export function createGnoProvider(config: CALNetworkConfig): ChainProvider {
+export function createGnoProvider(config: CALNetworkConfig): GnoProviderExtended {
     const rpcUrl = config.rpcUrl
 
-    // Wallet state is managed by useAdena hook; this is read from module-level state.
-    // The hook calls setWalletRpcContext() which is used by doContractBroadcast.
     let _walletAddress: string | null = null
     let _connected = false
 
@@ -122,11 +133,16 @@ export function createGnoProvider(config: CALNetworkConfig): ChainProvider {
 
     // ── Provider Object ──────────────────────────────────────
 
-    const provider: ChainProvider = {
+    const provider: GnoProviderExtended = {
         family: "gno",
         network: config,
 
         // ── Wallet ───────────────────────────────────────────
+
+        setWalletBridge(wallet: GnoWalletBridgeState | null) {
+            _walletAddress = wallet?.address || null
+            _connected = _walletAddress !== null
+        },
 
         async connect(): Promise<ChainAddress> {
             // Wallet connection is managed by useAdena hook.
@@ -420,18 +436,13 @@ export function createGnoProvider(config: CALNetworkConfig): ChainProvider {
         },
     }
 
-    // ── Sync wallet state from useAdena ──────────────────────
-    // The GnoProvider exposes a method to update wallet state from the hook.
-    // This is called by the ChainContextProvider when useAdena state changes.
-    ;(provider as GnoProviderExtended).setWalletState = (address: string | null, connected: boolean) => {
-        _walletAddress = address
-        _connected = connected
-    }
-
     return provider
 }
 
-/** Extended GnoProvider with wallet state setter (used by ChainContextProvider). */
+/** Provider type with the wallet bridge (what createGnoProvider returns).
+ *  Replaces the old cast-attached `setWalletState` extension, which was
+ *  invisible in the return type and called by nothing. */
 export interface GnoProviderExtended extends ChainProvider {
-    setWalletState(address: string | null, connected: boolean): void
+    /** Inject/update the wallet state (called by the useAdena bridge in Phase 1). */
+    setWalletBridge(wallet: GnoWalletBridgeState | null): void
 }

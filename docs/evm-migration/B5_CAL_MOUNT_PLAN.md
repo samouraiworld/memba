@@ -1,9 +1,19 @@
-# B-5 — Mounting the Chain Abstraction Layer: migration plan (DRAFT for owner review)
+# B-5 — Mounting the Chain Abstraction Layer: migration plan
 
-> **Status: PROPOSAL — nothing here is implemented.** This is the plan the owner asked to
-> review before any live-app mounting happens. Every phase below is separately shippable and
-> separately revertable. Written 2026-07-25, after B-3 (network-model reconciliation),
-> B-4 (real per-network endpoints) and B-6 (first provider tests) landed.
+> **Status: APPROVED 2026-07-25** — owner took recommendations on all four decision points
+> (D1 UnifiedMarketplace NFT path first; D2 ≥1-week soak + zero CAL-attributed Sentry
+> events before money paths; D3 `VITE_ENABLE_CAL` in `SAFETY_GATED_FLAGS` until Phase 3
+> completes; D4 Path B revisited after Phase 3).
+>
+> **Phase 0: ✅ DONE 2026-07-25** — G1 `setWalletBridge` (typed, replaces the uncalled
+> cast-attached `setWalletState` vestige; 10 write/bridge tests incl. vote-string mapping
+> and addMember power/roles threading), G2 network-scoped username cache/registry
+> (`registryContextFor`; unknown endpoints never cached; 5 tests). App behavior unchanged —
+> CAL still unmounted. Next: Phase 1 (inert mount behind `VITE_ENABLE_CAL`).
+>
+> Every phase below is separately shippable and separately revertable. Written 2026-07-25,
+> after B-3 (network-model reconciliation), B-4 (real per-network endpoints) and B-6
+> (first provider tests) landed.
 >
 > Companion records: BACKLOG B-1/B-2/B-5, KNOWN_ISSUES (pre-B-5 landmine), ADR log.
 

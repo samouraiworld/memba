@@ -8,7 +8,7 @@
  */
 
 import type { AminoMsg } from "../grc20"
-import { getUserRegistryPath, networkScopedKey } from "../config"
+import { getUserRegistryPath, networkScopedKey, NETWORKS } from "../config"
 import { resilientAbciQuery, abciQueryAt, isActivePrimaryRpcUrl } from "../rpcFallback"
 
 // ── Types ─────────────────────────────────────────────────────
@@ -156,13 +156,13 @@ async function abciQuery(rpcUrl: string, path: string, data: string, strict = fa
 
 // ── Username Resolution ───────────────────────────────────────
 
-/** User registry realm path on gno.land. */
+/** User registry realm path on gno.land (ACTIVE network). */
 const USER_REGISTRY = getUserRegistryPath()
 
 /** Username cache key in localStorage (W2.2: network-scoped — usernames are
- *  resolved from the ACTIVE chain's r/sys/users; a test12 resolution must not
- *  be served while the app targets test13). Legacy unscoped entries just age
- *  out — the cache has a 1h TTL, no migration needed. */
+ *  resolved from the chain that was QUERIED; a test12 resolution must not be
+ *  served while reading test13). Legacy unscoped entries just age out — the
+ *  cache has a 1h TTL, no migration needed. */
 const USERNAME_CACHE_KEY = networkScopedKey("memba_usernames")
 
 /** Cache TTL: 1 hour (in ms). */
@@ -172,10 +172,41 @@ interface UsernameCache {
     entries: Record<string, { username: string; ts: number }>
 }
 
+/**
+ * B-5 Phase 0 (G2): resolve the cache key + registry path for the network the
+ * caller is actually QUERYING. Before B-4 the rpcUrl argument was decorative,
+ * so keying the cache to the active network was harmlessly equivalent; now a
+ * CAL read against another network is real, and writing its results under the
+ * ACTIVE network's key would poison it with foreign-chain usernames.
+ *
+ *   active endpoint  → the existing key + registry constant (byte-identical);
+ *   known network    → that network's chainId-scoped key + its registry path;
+ *   unknown endpoint → NO cache at all (never write under a guessed identity).
+ *
+ * The known-network match is EXACT-string on purpose (vs the active check's
+ * light normalization): a cosmetic variant of a known network's url falls to
+ * the unknown branch — fail-safe, the right endpoint is still queried and
+ * nothing is cached. Widening the match would risk caching under the wrong
+ * identity, which is the exact bug this function exists to prevent.
+ */
+function registryContextFor(rpcUrl: string): { cacheKey: string | null; registryPath: string } {
+    if (isActivePrimaryRpcUrl(rpcUrl)) {
+        return { cacheKey: USERNAME_CACHE_KEY, registryPath: USER_REGISTRY }
+    }
+    const net = Object.values(NETWORKS).find((n) => n.rpcUrl === rpcUrl)
+    if (net) {
+        return {
+            cacheKey: `memba_usernames::${net.chainId}`,
+            registryPath: net.userRegistryPath || "gno.land/r/sys/users",
+        }
+    }
+    return { cacheKey: null, registryPath: "gno.land/r/sys/users" }
+}
+
 /** Read username cache from localStorage. */
-function readUsernameCache(): UsernameCache {
+function readUsernameCache(cacheKey: string): UsernameCache {
     try {
-        const raw = localStorage.getItem(USERNAME_CACHE_KEY)
+        const raw = localStorage.getItem(cacheKey)
         if (!raw) return { entries: {} }
         const parsed = JSON.parse(raw)
         if (typeof parsed === "object" && parsed.entries) return parsed as UsernameCache
@@ -184,9 +215,9 @@ function readUsernameCache(): UsernameCache {
 }
 
 /** Write username cache to localStorage. */
-function writeUsernameCache(cache: UsernameCache): void {
+function writeUsernameCache(cacheKey: string, cache: UsernameCache): void {
     try {
-        localStorage.setItem(USERNAME_CACHE_KEY, JSON.stringify(cache))
+        localStorage.setItem(cacheKey, JSON.stringify(cache))
     } catch { /* quota exceeded */ }
 }
 
@@ -195,9 +226,9 @@ function writeUsernameCache(cache: UsernameCache): void {
  * Queries Render(address) which returns: "# User - `username`"
  * Returns "@username" or empty string if not registered.
  */
-async function resolveUsername(rpcUrl: string, address: string): Promise<string> {
+async function resolveUsername(rpcUrl: string, registryPath: string, address: string): Promise<string> {
     try {
-        const data = await queryRender(rpcUrl, USER_REGISTRY, address)
+        const data = await queryRender(rpcUrl, registryPath, address)
         if (!data) return ""
         // Primary format (r/gnoland/users/v1): "# User - `username`"
         // Secondary format (r/sys/users): may differ — try fallback patterns
@@ -218,7 +249,8 @@ async function resolveUsername(rpcUrl: string, address: string): Promise<string>
  * Resolves cache misses in parallel for speed.
  */
 export async function resolveUsernames(rpcUrl: string, members: DAOMember[]): Promise<void> {
-    const cache = readUsernameCache()
+    const { cacheKey, registryPath } = registryContextFor(rpcUrl)
+    const cache = cacheKey ? readUsernameCache(cacheKey) : { entries: {} }
     const now = Date.now()
     const toResolve: number[] = [] // indices of members needing ABCI resolution
 
@@ -236,14 +268,14 @@ export async function resolveUsernames(rpcUrl: string, members: DAOMember[]): Pr
     // Phase 2: resolve cache misses in parallel
     if (toResolve.length > 0) {
         const results = await Promise.all(
-            toResolve.map((idx) => resolveUsername(rpcUrl, members[idx].address)),
+            toResolve.map((idx) => resolveUsername(rpcUrl, registryPath, members[idx].address)),
         )
         results.forEach((username, j) => {
             const idx = toResolve[j]
             members[idx].username = username
             cache.entries[members[idx].address] = { username, ts: now }
         })
-        writeUsernameCache(cache)
+        if (cacheKey) writeUsernameCache(cacheKey, cache)
     }
 }
 

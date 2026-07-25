@@ -150,13 +150,13 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
   callers pinned to `GNO_RPC_URL` (ValidatorsHacker ×2, useEcosystemValidators,
   useDirectoryHighlights, useGovDao, useYourWorlds — the last two found by the post-impl
   adversarial review via the `NETWORKS[networkKey].rpcUrl` indirection). See BACKLOG B-4.
-- ⚠️ **Pre-B-5 landmine — username cache poisoning on cross-network CAL reads.**
-  `dao/shared.resolveUsernames` writes to a localStorage cache scoped to the **active**
-  network (`networkScopedKey("memba_usernames")`) and queries the active network's user
-  registry constant. A CAL `getDAOMembers(config.rpcUrl, …)` against a DIVERGENT network
-  would now really read that network (B-4) and poison the active network's username cache
-  with foreign-chain resolutions. Dead code today (CAL unmounted); must be fixed (key the
-  cache and registry path by the queried network) before B-5 wires cross-network reads.
+- ~~Pre-B-5 landmine — username cache poisoning on cross-network CAL reads~~ ✅ RESOLVED
+  2026-07-25 (B-5 Phase 0, G2). `resolveUsernames` now derives its cache key AND registry
+  path from the network it actually queries (`registryContextFor`): active endpoint →
+  byte-identical old behavior; known non-active network → its own chainId-scoped key + its
+  registry path; **unknown endpoint → no cache at all** (never write under a guessed
+  identity). Pinned by `shared.usernames.test.ts` incl. the cross-network-poisoning case
+  through the real transport routing.
 
 ---
 

@@ -5,10 +5,9 @@
  * tests pin (1) that every read threads the provider's PER-NETWORK rpcUrl into
  * the wrapped readers (the B-4 contract — before it, config.rpcUrl was
  * silently ignored), (2) the CAL-shape mappings (ChainAddress family,
- * threshold %→bps, username ""→undefined), and (3) the current wallet
- * dead-end: nothing can set _walletAddress, so every write throws
- * WALLET_NOT_CONNECTED — a real B-5 gap (EvmProvider has setWalletClient;
- * GnoProvider has no equivalent injection path).
+ * threshold %→bps, username ""→undefined), and (3) the setWalletBridge
+ * injection path (B-5 Phase 0) and the write/error-mapping pins behind it —
+ * vote-string mapping, addMember arg threading, broadcast error codes.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { createGnoProvider } from "./GnoProvider"
@@ -37,12 +36,16 @@ vi.mock("../../grc721", () => ({
     getTokenURI: vi.fn(),
 }))
 
-import { getDAOConfig, getDAOMembers, getProposalDetail } from "../../dao"
+import { getDAOConfig, getDAOMembers, getProposalDetail, buildVoteMsg, buildProposeAddMemberMsg } from "../../dao"
+import { doContractBroadcast } from "../../grc20"
 import { listCollectionTokens, getNFTOwner, getTokenURI } from "../../grc721"
 
 const mockGetDAOConfig = vi.mocked(getDAOConfig)
 const mockGetDAOMembers = vi.mocked(getDAOMembers)
 const mockGetProposalDetail = vi.mocked(getProposalDetail)
+const mockBuildVoteMsg = vi.mocked(buildVoteMsg)
+const mockBuildProposeAddMemberMsg = vi.mocked(buildProposeAddMemberMsg)
+const mockDoContractBroadcast = vi.mocked(doContractBroadcast)
 const mockListCollectionTokens = vi.mocked(listCollectionTokens)
 const mockGetNFTOwner = vi.mocked(getNFTOwner)
 const mockGetTokenURI = vi.mocked(getTokenURI)
@@ -173,13 +176,11 @@ describe("GnoProvider — CAL-shape mappings", () => {
     })
 })
 
-describe("GnoProvider — wallet dead-end (documented B-5 gap)", () => {
-    // Nothing can set the provider's internal _walletAddress (connect() throws
-    // by design, and unlike EvmProvider.setWalletClient there is no injection
-    // path), so EVERY write throws WALLET_NOT_CONNECTED today. When B-5 wires
-    // the useAdena bridge, these pins must be replaced with real write tests
-    // (vote mapping yes→"YES", addMember power/roles threading, …).
-    it("every write path throws WALLET_NOT_CONNECTED", async () => {
+describe("GnoProvider — wallet bridge (B-5 Phase 0, G1)", () => {
+    // Wallet state is injected via setWalletBridge (mirroring
+    // EvmProvider.setWalletClient) — connection itself stays useAdena's job
+    // (Phase 1 wires ChainContextProvider to push the hook's state in).
+    it("writes without an injected wallet throw WALLET_NOT_CONNECTED", async () => {
         const p = createGnoProvider(NETWORK)
         const addr = { raw: "g1x", family: "gno" as const }
         for (const call of [
@@ -193,10 +194,76 @@ describe("GnoProvider — wallet dead-end (documented B-5 gap)", () => {
         }
     })
 
-    it("connect() itself is a documented no-op that throws toward useAdena", async () => {
+    it("setWalletBridge injects the wallet; clearing it disconnects", () => {
         const p = createGnoProvider(NETWORK)
-        await expect(p.connect()).rejects.toBeInstanceOf(ChainError)
+        expect(p.isConnected()).toBe(false)
+        p.setWalletBridge({ address: "g1me" })
+        expect(p.isConnected()).toBe(true)
+        expect(p.getWalletState()).toEqual({
+            connected: true, address: { raw: "g1me", family: "gno" }, family: "gno",
+        })
+        p.setWalletBridge(null)
         expect(p.isConnected()).toBe(false)
         expect(p.getWalletState()).toEqual({ connected: false, address: null, family: "gno" })
+    })
+
+    it("connect() still throws toward useAdena — connection is the hook's job", async () => {
+        const p = createGnoProvider(NETWORK)
+        await expect(p.connect()).rejects.toBeInstanceOf(ChainError)
+    })
+})
+
+describe("GnoProvider — writes through the bridge (regression pins)", () => {
+    function connected() {
+        const p = createGnoProvider(NETWORK)
+        p.setWalletBridge({ address: "g1caller" })
+        return p
+    }
+
+    beforeEach(() => {
+        mockDoContractBroadcast.mockResolvedValue({ hash: "0xabc" })
+    })
+
+    it("vote maps yes/no/abstain to the basedao vote strings — abstain must NOT become a NO", async () => {
+        const p = connected()
+        mockBuildVoteMsg.mockReturnValue({ type: "vm/MsgCall", value: {} } as never)
+
+        await p.vote(DAO, 7, "yes")
+        expect(mockBuildVoteMsg).toHaveBeenLastCalledWith("g1caller", DAO.id, 7, "YES")
+        await p.vote(DAO, 7, "no")
+        expect(mockBuildVoteMsg).toHaveBeenLastCalledWith("g1caller", DAO.id, 7, "NO")
+        await p.vote(DAO, 7, "abstain")
+        expect(mockBuildVoteMsg).toHaveBeenLastCalledWith("g1caller", DAO.id, 7, "ABSTAIN")
+    })
+
+    it("addMember threads votingPower and comma-joins roles — the args a previous version silently dropped", async () => {
+        const p = connected()
+        mockBuildProposeAddMemberMsg.mockReturnValue({ type: "vm/MsgCall", value: {} } as never)
+        await p.addMember(DAO, { raw: "g1new", family: "gno" }, 3, ["member", "reviewer"])
+        expect(mockBuildProposeAddMemberMsg).toHaveBeenCalledWith(
+            "g1caller", DAO.id, "g1new", 3, "member,reviewer",
+        )
+    })
+
+    it("a successful broadcast maps to a TxResult", async () => {
+        const p = connected()
+        mockBuildVoteMsg.mockReturnValue({ type: "vm/MsgCall", value: {} } as never)
+        const res = await p.vote(DAO, 1, "yes")
+        expect(res).toMatchObject({ hash: "0xabc", success: true })
+        expect(mockDoContractBroadcast).toHaveBeenCalledTimes(1)
+    })
+
+    it.each([
+        ["user rejected the request", "USER_REJECTED"],
+        ["insufficient funds for fee", "INSUFFICIENT_FUNDS"],
+        ["caller is not a member", "CONTRACT_REVERT"],
+        ["wallet not available", "WALLET_NOT_CONNECTED"],
+        ["request timeout", "NETWORK_ERROR"],
+        ["something exotic", "UNKNOWN"],
+    ] as const)("broadcast failure %j maps to ChainError %s", async (message, code) => {
+        const p = connected()
+        mockBuildVoteMsg.mockReturnValue({ type: "vm/MsgCall", value: {} } as never)
+        mockDoContractBroadcast.mockRejectedValue(new Error(message))
+        await expect(p.vote(DAO, 1, "yes")).rejects.toMatchObject({ code, family: "gno" })
     })
 })
