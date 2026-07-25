@@ -30,7 +30,18 @@ describe("assertSafeFlags", () => {
         expect([...SAFETY_GATED_FLAGS]).toEqual([
             "VITE_ENABLE_TREASURY_SPEND",
             "VITE_ENABLE_AGENT_CREDITS",
+            "VITE_ENABLE_CAL",
         ])
+    })
+
+    it("VITE_ENABLE_CAL is gated until the B-5 migration completes (owner decision D3)", () => {
+        // The CAL mount is inert (zero consumers) but sits on the wallet/broadcast
+        // path once pages migrate — prod stays flag-off until Phase 3 is done.
+        // Deploy-previews/branch-deploys stay exempt via shouldEnforceFlagGate,
+        // which is exactly where flag-on validation happens.
+        expect(() => assertSafeFlags({ VITE_ENABLE_CAL: "true" })).toThrow(/VITE_ENABLE_CAL/)
+        expect(() => assertSafeFlags({ VITE_ENABLE_CAL: "false" })).not.toThrow()
+        expect(() => assertSafeFlags({})).not.toThrow()
     })
 })
 

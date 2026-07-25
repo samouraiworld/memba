@@ -1,4 +1,4 @@
-import { StrictMode } from 'react'
+import { StrictMode, type ReactNode } from 'react'
 import { createRoot } from 'react-dom/client'
 import * as Sentry from '@sentry/react'
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -7,6 +7,8 @@ import { CHUNK_RELOAD_KEY } from './lib/staleChunk'
 import { TxConfirmationProvider } from './components/ui/TxConfirmation'
 import { initTheme } from './lib/themeStore'
 import { queryClient } from './lib/queryClient'
+import { isCalEnabled } from './lib/config'
+import { ChainContextProvider } from './lib/chain/ChainContextProvider'
 // Vendored woff2 fonts — latin subset, no OFL npm dep
 import './fonts.css'
 import './tokens.css'
@@ -74,12 +76,20 @@ if (SENTRY_DSN) {
   })
 }
 
+// ── Chain Abstraction Layer mount (B-5 Phase 1) ───────────────
+// Inert when mounted: zero pages consume useChain() yet. Flag-off (the prod
+// default — VITE_ENABLE_CAL is SAFETY_GATED) renders the exact pre-CAL tree.
+// The provider itself is Gno-only at boot; the EVM/viem stack loads lazily
+// and never rides the eager entry graph (scripts/check-evm-chunk.mjs).
+const withCal = (children: ReactNode) =>
+  isCalEnabled() ? <ChainContextProvider>{children}</ChainContextProvider> : children
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TxConfirmationProvider>
-          <App />
+          {withCal(<App />)}
         </TxConfirmationProvider>
       </QueryClientProvider>
     </ErrorBoundary>

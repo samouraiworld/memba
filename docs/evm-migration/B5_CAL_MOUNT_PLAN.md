@@ -9,7 +9,23 @@
 > cast-attached `setWalletState` vestige; 10 write/bridge tests incl. vote-string mapping
 > and addMember power/roles threading), G2 network-scoped username cache/registry
 > (`registryContextFor`; unknown endpoints never cached; 5 tests). App behavior unchanged —
-> CAL still unmounted. Next: Phase 1 (inert mount behind `VITE_ENABLE_CAL`).
+> CAL still unmounted.
+>
+> **Phase 1: ✅ DONE 2026-07-25** — `ChainContextProvider` mounts in `main.tsx` behind
+> `VITE_ENABLE_CAL` (SAFETY_GATED per D3; deploy-previews exempt = the flag-on validation
+> surface). Wallet bridge wired (useAdena → `setWalletBridge`). EVM factory registration is
+> now LAZY (dynamic `EvmProvider` import; interim factory throws until the chunk loads —
+> unreachable, EVM networks are hidden till Phase 4). viem rides the async `vendor-evm`
+> chunk: manualChunks + Workbox precache-exclusion + a new CI gate
+> (`scripts/check-evm-chunk.mjs`, wired into `check:bundle`) mirror the vendor-three cost
+> firewall. The gate caught a real leak on its first run: Rollup colocated Vite's shared
+> preload-helper into vendor-evm, statically coupling EVERY chunk to viem — fixed by pinning
+> the helper to its own chunk. **Flag-off build: the entire CAL graph is dead-code-eliminated
+> (zero bytes shipped; vendor-evm emitted as an unreferenced, precache-excluded orphan).**
+> Flag-on preview verified in-browser: clean boot with zero console errors, vendor-evm lazily
+> fetched, test13→topaz→test13 network switch reloads correctly per the B-3 contract.
+> 4 provider tests added (bridge sync, active-network seeding). Next: Phase 2 (first page —
+> UnifiedMarketplace NFT path, per D1).
 >
 > Every phase below is separately shippable and separately revertable. Written 2026-07-25,
 > after B-3 (network-model reconciliation), B-4 (real per-network endpoints) and B-6
@@ -76,6 +92,12 @@
 - **Rollback:** flag off (or unmount — one line).
 
 ### Phase 2 — first page end-to-end (the plan's Phase-V validation)
+- **Prerequisite (found by the Phase-1 adversarial review):** the root
+  `ChainContextProvider`'s useAdena instance never cross-syncs with other instances —
+  it misses interactive connects (until a `visibilitychange` retry) and never sees
+  disconnects, so the wallet bridge can go stale. Before any page relies on CAL
+  *writes*, hoist a shared wallet source (single useAdena at the root feeding both the
+  bridge and the app, or a subscribable store). Reads are unaffected.
 - **Recommended first page: `UnifiedMarketplace`'s NFT read path** (or its smallest
   self-contained subview). Rationale: it exercises the grc721 read seam B-4 just made
   per-network (highest verification value), it is read-heavy with ONE bounded write

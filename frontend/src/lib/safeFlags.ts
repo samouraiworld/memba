@@ -24,6 +24,12 @@ export const SAFETY_GATED_FLAGS = [
     // live on test13 from a plain wallet (exact-fee refund/accept, reject/resubmit
     // credit, flag dedupe, sealed-seed panic). The flag now legitimately opens
     // /apps/submit in prod.
+    // VITE_ENABLE_CAL gated 2026-07-25 (B-5 owner decision D3): mounts the Chain
+    // Abstraction Layer. Inert at first (zero consumers), but it sits on the
+    // wallet/broadcast path as pages migrate — stays build-gated until the B-5
+    // Phase 3 migration completes and soaks. Deploy-previews stay exempt, which
+    // is where flag-on validation happens.
+    "VITE_ENABLE_CAL",
 ] as const
 
 /**

@@ -72,8 +72,19 @@ export default defineConfig({
         // The Workbox precache-exclusion + bundle CI gate below keep it isolated
         // end-to-end. The other groups replicate the previous long-lived vendor chunks.
         manualChunks(id) {
+          // Vite's preload-helper runtime is imported by EVERY chunk that lazy-loads.
+          // Left to Rollup it gets colocated into some vendor chunk — it landed in
+          // vendor-evm when that chunk appeared, which made every chunk statically
+          // import vendor-evm and dragged viem into the eager graph for all users
+          // (caught by check-evm-chunk.mjs). Pin it to its own tiny shared chunk so
+          // helper placement can never couple unrelated vendor chunks again.
+          if (id.includes('vite/preload-helper')) return 'preload-helper'
           if (!id.includes('node_modules')) return
           if (/[\\/]node_modules[\\/](three|@react-three)[\\/]/.test(id)) return 'vendor-three'
+          // viem (EVM/CAL stack, B-5 Phase 1): reached ONLY via the lazy
+          // EvmProvider import in ChainContextProvider — same isolation contract
+          // as vendor-three (precache-excluded + CI gate check-evm-chunk.mjs).
+          if (/[\\/]node_modules[\\/](viem|ox|abitype)[\\/]/.test(id)) return 'vendor-evm'
           if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|@remix-run[\\/]router|scheduler)[\\/]/.test(id)) return 'vendor-react'
           if (/[\\/]node_modules[\\/]@phosphor-icons[\\/]/.test(id)) return 'vendor-ui'
           if (/[\\/]node_modules[\\/]@sentry[\\/]/.test(id)) return 'vendor-sentry'
@@ -119,7 +130,7 @@ export default defineConfig({
         // SW install. It is fetched on demand and cached at runtime (below) instead.
         // Wired ahead of the renderer: the vendor-three chunk itself is created when
         // the 3D renderer lands and lazily imports three.
-        globIgnores: ['**/vendor-three-*.js'],
+        globIgnores: ['**/vendor-three-*.js', '**/vendor-evm-*.js'],
         // recharts/jspdf chunks are large; allow them into the precache.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [
@@ -127,6 +138,9 @@ export default defineConfig({
           // The precache-excluded 3D chunk: cache-on-first-use so repeat 3D sessions
           // stay offline-capable without burdening the install-time precache.
           { urlPattern: /vendor-three-.*\.js$/, handler: 'StaleWhileRevalidate', options: { cacheName: 'barricade-3d' } },
+          // The precache-excluded EVM/viem chunk: cache-on-first-use, mirrors
+          // vendor-three — only CAL-flag-on sessions ever fetch it.
+          { urlPattern: /vendor-evm-.*\.js$/, handler: 'StaleWhileRevalidate', options: { cacheName: 'cal-evm' } },
           // NEVER cache auth/tx / RPC writes — always hit the network.
           { urlPattern: ({ url }) => url.pathname.startsWith('/memba.v1.'), handler: 'NetworkOnly' },
         ],

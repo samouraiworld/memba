@@ -720,6 +720,12 @@ export const isAgentRegistryValid = () => isRealmValid(MEMBA_DAO.agentRegistryPa
  * predicate (e.g. isNftMarketValid) where a tx targets a specific realm.
  */
 export const isNftEnabled = (): boolean => import.meta.env.VITE_ENABLE_NFT === "true"
+/** Chain Abstraction Layer mount flag (VITE_ENABLE_CAL — B-5 Phase 1). Gates the
+ * ChainContextProvider mount in main.tsx. SAFETY-GATED (safeFlags.ts) until the
+ * B-5 Phase 3 page migration completes: the mount is inert today, but it sits on
+ * the wallet/broadcast path as pages adopt useChain(). Flag-on validation
+ * happens on deploy-previews, which the build gate exempts. */
+export const isCalEnabled = (): boolean => import.meta.env.VITE_ENABLE_CAL === "true"
 /** Reputation Points (MP) feature flag (VITE_ENABLE_POINTS) — canonical reader for the on-chain
  * points / tiers / leaderboard surface. Read-only (NOT safety-gated): it gates a display surface, not
  * a money path, so it stays OUT of SAFETY_GATED_FLAGS.
