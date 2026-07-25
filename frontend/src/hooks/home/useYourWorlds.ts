@@ -30,7 +30,7 @@ import { useQueries } from "@tanstack/react-query"
 import type { DoorState } from "../../components/home/Door"
 import { getSavedDAOsForOrg } from "../../lib/daoSlug"
 import { getDAOConfig, getDAOProposals, getMemberRole, deriveRoleLabel } from "../../lib/dao"
-import { NETWORKS } from "../../lib/config"
+import { GNO_RPC_URL } from "../../lib/config"
 import { useAuth } from "../useAuth"
 
 export interface YourWorld {
@@ -58,7 +58,10 @@ export interface YourWorldsResult {
  */
 export function useYourWorlds(networkKey: string, orgId: string | null): YourWorldsResult {
     const savedDAOs = getSavedDAOsForOrg(orgId)
-    const rpcUrl: string = NETWORKS[networkKey]?.rpcUrl ?? ""
+    // B-4: pinned to GNO_RPC_URL — networkKey can transiently diverge from the
+    // frozen active network pre-NetworkSync-reload, and these reads must keep
+    // their pre-B-4 behavior (active network, resilient chain). See useGovDao.
+    const rpcUrl: string = GNO_RPC_URL
     const { address, isAuthenticated } = useAuth()
     const connectedAddress = isAuthenticated ? (address || null) : null
 

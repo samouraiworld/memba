@@ -139,6 +139,24 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
   is currently blind `personal_sign`, not SIWE.
 - CAL `switchChain` conflicts with the frozen-at-import network model in `config.ts`; mounting
   `NetworkSelector` would hard-block every Gno broadcast via `assertWalletBroadcastSafe`.
+- ~~grc721 / CAL: `config.rpcUrl` had no effect on NFT reads~~ ✅ RESOLVED 2026-07-25 (B-4).
+  Root cause was deeper: `dao/shared.abciQuery` discarded its rpcUrl argument, so every
+  explicit endpoint on the **ABCI read lane** was decorative (the Tendermint-RPC lane —
+  `getValidators`/`getNodeStatus`/etc. — still discards rpcUrl; separate follow-up if ever
+  needed). Now routed: active-network endpoint → resilient chain (unchanged, byte-identical
+  lane); divergent endpoint → `abciQueryAt` (direct, no cross-network failover, no
+  `_lastWorkingRpcUrl` writes, endpoint-keyed coalescing). grc721 read helpers take rpcUrl
+  first; legacy overload split into `getLegacyCollectionInfo`. Five latent divergent-URL
+  callers pinned to `GNO_RPC_URL` (ValidatorsHacker ×2, useEcosystemValidators,
+  useDirectoryHighlights, useGovDao, useYourWorlds — the last two found by the post-impl
+  adversarial review via the `NETWORKS[networkKey].rpcUrl` indirection). See BACKLOG B-4.
+- ⚠️ **Pre-B-5 landmine — username cache poisoning on cross-network CAL reads.**
+  `dao/shared.resolveUsernames` writes to a localStorage cache scoped to the **active**
+  network (`networkScopedKey("memba_usernames")`) and queries the active network's user
+  registry constant. A CAL `getDAOMembers(config.rpcUrl, …)` against a DIVERGENT network
+  would now really read that network (B-4) and poison the active network's username cache
+  with foreign-chain resolutions. Dead code today (CAL unmounted); must be fixed (key the
+  cache and registry path by the queried network) before B-5 wires cross-network reads.
 
 ---
 

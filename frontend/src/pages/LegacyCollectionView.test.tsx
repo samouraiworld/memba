@@ -16,7 +16,7 @@ import { LegacyCollectionView } from "./LegacyCollectionView"
 // ── Mock dependencies ────────────────────────────────────────────────
 
 vi.mock("../lib/grc721", () => ({
-    getCollectionInfo: vi.fn(),
+    getLegacyCollectionInfo: vi.fn(),
 }))
 
 vi.mock("../lib/dao/shared", () => ({
@@ -44,9 +44,9 @@ const FIXTURE_RENDER_OUTPUT = "# My Gallery\n## Tokens\nToken A\nToken B"
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-import { getCollectionInfo } from "../lib/grc721"
+import { getLegacyCollectionInfo } from "../lib/grc721"
 import { queryRender } from "../lib/dao/shared"
-const mockGetCollectionInfo = getCollectionInfo as ReturnType<typeof vi.fn>
+const mockGetCollectionInfo = getLegacyCollectionInfo as ReturnType<typeof vi.fn>
 const mockQueryRender = queryRender as ReturnType<typeof vi.fn>
 
 function renderView(realmPath = "gno.land%2Fr%2Ftest%2Fmynft") {
@@ -118,10 +118,10 @@ describe("LegacyCollectionView — sanitized render output", () => {
         })
     })
 
-    it("calls getCollectionInfo with the decoded realmPath", async () => {
+    it("calls getLegacyCollectionInfo with the rpc url and decoded realmPath", async () => {
         renderView()
         await waitFor(() => {
-            expect(mockGetCollectionInfo).toHaveBeenCalledWith("gno.land/r/test/mynft")
+            expect(mockGetCollectionInfo).toHaveBeenCalledWith("https://rpc.test.gno.land", "gno.land/r/test/mynft")
         })
     })
 })

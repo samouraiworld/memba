@@ -187,35 +187,44 @@ export async function resilientAbciQueryDetailed(
     }
 }
 
-async function abciQueryDetailedUncoalesced(
-    path: string,
-    data: string,
-): Promise<AbciQueryResult> {
-    const b64Data = btoa(data)
-    const res = await resilientFetch((rpcUrl) => ({
-        url: rpcUrl,
-        init: {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                jsonrpc: "2.0",
-                id: "memba-dao",
-                method: "abci_query",
-                params: { path, data: b64Data },
-            }),
-        },
-    }))
-    const json = await res.json()
-    const base = json?.result?.response?.ResponseBase
+/** Build the JSON-RPC abci_query request init for a given path+data. */
+function abciRequestInit(path: string, data: string): RequestInit {
+    return {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            jsonrpc: "2.0",
+            id: "memba-dao",
+            method: "abci_query",
+            params: { path, data: btoa(data) },
+        }),
+    }
+}
+
+/** Discriminate an abci_query JSON body into ok / empty / abci-error. */
+function parseAbciResponseJson(json: unknown, path: string): AbciQueryResult {
+    const base = (json as { result?: { response?: { ResponseBase?: { Error?: unknown; Log?: unknown; Data?: string } } } })
+        ?.result?.response?.ResponseBase
     if (abciErrorPresent(base?.Error)) {
         const log = typeof base?.Log === "string" ? base.Log : ""
-        return { kind: "abci-error", error: new AbciQueryError(path, base.Error, log) }
+        return { kind: "abci-error", error: new AbciQueryError(path, base?.Error, log) }
     }
     const value = base?.Data
     if (!value) return { kind: "empty" } // realm rendered nothing — legitimate
     const binaryStr = atob(value)
     const bytes = Uint8Array.from(binaryStr, (c) => c.charCodeAt(0))
     return { kind: "ok", text: new TextDecoder().decode(bytes) }
+}
+
+async function abciQueryDetailedUncoalesced(
+    path: string,
+    data: string,
+): Promise<AbciQueryResult> {
+    const res = await resilientFetch((rpcUrl) => ({
+        url: rpcUrl,
+        init: abciRequestInit(path, data),
+    }))
+    return parseAbciResponseJson(await res.json(), path)
 }
 
 /**
@@ -242,6 +251,138 @@ export async function resilientAbciQuery(
         }
         return null // legitimate empty
     } catch (err) {
+        if (strict) throw err instanceof Error ? err : new Error(String(err))
+        return null
+    }
+}
+
+// ── B-4: explicit-endpoint ABCI reads ────────────────────────────────────────
+
+/** Light URL canonicalization for endpoint identity: lowercases scheme+host,
+ *  drops a default port (:443/:80), strips a trailing slash. NOT a general
+ *  normalizer — just enough that cosmetic variants of the same endpoint
+ *  (env-var `:443` vs config without it) compare equal. */
+function normalizeRpcUrl(url: string): string {
+    try {
+        const u = new URL(url)
+        // URL already lowercases protocol/host and drops a scheme-default port.
+        const port = u.port ? `:${u.port}` : ""
+        const pathname = u.pathname.replace(/\/+$/, "")
+        // userinfo + query stay: two gateway-style urls differing only in
+        // ?net=… are DIFFERENT endpoints — conflating them here would both
+        // misroute the lane choice and let the coalescing key serve one
+        // network's response as another's.
+        const userinfo = u.username ? `${u.username}${u.password ? ":" + u.password : ""}@` : ""
+        return `${u.protocol}//${userinfo}${u.hostname}${port}${pathname}${u.search}`
+    } catch {
+        return url
+    }
+}
+
+/**
+ * Lane discriminator for rpcUrl-threading callers (dao/shared.abciQuery):
+ * `true` → the caller targets the ACTIVE network, and must get the resilient
+ * chain (primary + same-network fallbacks + last-working memo) — a strict
+ * behavioral superset for that network. `false` → a genuinely different
+ * endpoint; reads must go through {@link abciQueryAt}, never the chain.
+ *
+ * Equality (not a mode flag) is deliberate: the registry derives per-network
+ * rpcUrls from the same NETWORKS object config.ts freezes, so "am I the active
+ * network" IS string identity — light normalization guards the cosmetic drift
+ * (trailing slash, explicit :443) that would otherwise silently demote the
+ * active network to the single-node lane.
+ */
+export function isActivePrimaryRpcUrl(url: string | null | undefined): boolean {
+    if (url == null || url === "") return true
+    if (url === GNO_RPC_URL) return true
+    return normalizeRpcUrl(url) === normalizeRpcUrl(GNO_RPC_URL)
+}
+
+async function abciQueryAtDetailedUncoalesced(
+    rpcUrl: string,
+    path: string,
+    data: string,
+): Promise<AbciQueryResult> {
+    // Same per-attempt semantics as resilientFetch (8s timeout, one same-url
+    // retry on a transient non-abort failure) but ONE endpoint only, and it
+    // NEVER touches _lastWorkingRpcUrl: recording a foreign-network node as
+    // "last working" would reorder the ACTIVE network's failover chain onto
+    // another chain — silent cross-network data, not resilience.
+    let lastError: Error | null = null
+    let ok: Response | null = null
+    for (let attempt = 0; ; attempt++) {
+        let retryable = false
+        try {
+            const controller = new AbortController()
+            const timeout = setTimeout(() => controller.abort(), RPC_TIMEOUT)
+            let res: Response
+            try {
+                res = await fetch(rpcUrl, { ...abciRequestInit(path, data), signal: controller.signal })
+            } finally {
+                clearTimeout(timeout)
+            }
+            if (res.ok) {
+                ok = res
+                break
+            }
+            lastError = new Error(`HTTP ${res.status}`)
+            retryable = res.status >= 500
+        } catch (err) {
+            lastError = err instanceof Error ? err : new Error(String(err))
+            retryable = lastError.name !== "AbortError"
+        }
+        if (retryable && attempt < SAME_URL_RETRIES) {
+            await sleep(SAME_URL_RETRY_BACKOFF_MS)
+            continue
+        }
+        break
+    }
+    if (!ok) throw lastError || new Error(`RPC endpoint unreachable: ${rpcUrl}`)
+    // Body parse deliberately OUTSIDE the retry loop (mirrors resilientFetch):
+    // a 200 with a garbage body is a parse failure, not a transient — retrying
+    // it would issue a request resilientFetch never makes.
+    return parseAbciResponseJson(await ok.json(), path)
+}
+
+/**
+ * ABCI query against ONE SPECIFIC endpoint — no cross-network failover.
+ *
+ * The explicit-endpoint counterpart of {@link resilientAbciQuery}, with the
+ * same strict semantics (abci-error → throw when strict, else null; transport
+ * failure → throw when strict, else null; empty render → null). Used by
+ * dao/shared.abciQuery when a caller passes a NON-active-network endpoint
+ * (e.g. the CAL's per-network config.rpcUrl) — falling over to the global
+ * primary would silently answer from a different chain (same rationale as
+ * {@link directRpcCall}).
+ *
+ * Coalescing: keyed by endpoint+path+data (two NULs), so identical concurrent
+ * reads at the SAME endpoint share one round-trip while the same read at two
+ * endpoints never mixes — and the key shape can never collide with the
+ * resilient lane's path+data (one NUL) keys.
+ */
+export async function abciQueryAt(
+    rpcUrl: string,
+    path: string,
+    data: string,
+    strict = false,
+): Promise<string | null> {
+    const key = normalizeRpcUrl(rpcUrl) + "\u0000" + path + "\u0000" + data
+    let p = _inflightAbci.get(key) as Promise<AbciQueryResult> | undefined
+    if (!p) {
+        p = abciQueryAtDetailedUncoalesced(rpcUrl, path, data)
+        _inflightAbci.set(key, p)
+        p.finally(() => _inflightAbci.delete(key)).catch(() => { /* observed by callers */ })
+    }
+    try {
+        const result = await p
+        if (result.kind === "ok") return result.text
+        if (result.kind === "abci-error") {
+            if (strict) throw result.error
+            return null
+        }
+        return null // legitimate empty
+    } catch (err) {
+        if (err instanceof AbciQueryError) throw err // already handled above; strict rethrow
         if (strict) throw err instanceof Error ? err : new Error(String(err))
         return null
     }

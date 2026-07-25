@@ -335,7 +335,7 @@ export function createGnoProvider(config: CALNetworkConfig): ChainProvider {
             try {
                 // Use listCollectionTokens and filter by owner
                 // collection.id format: "realmPath" — we use "default" as collectionID
-                const tokens = await listCollectionTokens(collection.id, "default")
+                const tokens = await listCollectionTokens(rpcUrl, collection.id, "default")
                 return tokens
                     .filter(t => t.owner === owner.raw)
                     .map(t => ({
@@ -351,16 +351,12 @@ export function createGnoProvider(config: CALNetworkConfig): ChainProvider {
 
         async getNFT(collection: ContractRef, tokenId: string): Promise<CALNFT | null> {
             try {
-                // These take (collectionPath, collectionID, tokenId) — the leading
-                // rpcUrl argument was never part of the signature.
-                //
-                // KNOWN LIMITATION: grc721 resolves the RPC endpoint from its own
-                // module-level GNO_RPC_URL, so `config.rpcUrl` is ignored here and
-                // every NFT read hits whatever network the app booted on. Tracked in
-                // KNOWN_ISSUES.md — fixing it requires threading the endpoint through
-                // grc721, which is a separate change.
-                const owner = await getNFTOwner(collection.id, "default", tokenId)
-                const uri = await getTokenURI(collection.id, "default", tokenId)
+                // B-4: grc721 reads take rpcUrl first and thread it to the
+                // transport, so this provider's per-network endpoint is honored
+                // (dao/shared routes a non-active endpoint through abciQueryAt —
+                // direct, no cross-network failover).
+                const owner = await getNFTOwner(rpcUrl, collection.id, "default", tokenId)
+                const uri = await getTokenURI(rpcUrl, collection.id, "default", tokenId)
                 if (!owner) return null
                 return {
                     tokenId,

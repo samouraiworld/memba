@@ -24,7 +24,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { Link } from "react-router-dom"
-import { GNO_CHAIN_ID, getTelemetryRpcUrl, getTelemetryRpcUrls } from "../lib/config"
+import { GNO_CHAIN_ID, GNO_RPC_URL, getTelemetryRpcUrl, getTelemetryRpcUrls } from "../lib/config"
 import {
     getConsensusState,
     getAggregatedNetPeers,
@@ -142,7 +142,11 @@ export default function ValidatorsHacker() {
                 getNodeStatus(rpcUrl, ctrl.signal),
                 getNetworkStats(rpcUrl, undefined, ctrl.signal),
                 getValidators(rpcUrl),
-                fetchValoperMonikers(rpcUrl),            // v2.17.2: was missing in hacker view
+                // Monikers are CHAIN state, not node-local telemetry: read them via the
+                // active network's resilient chain, not the sentry node (B-4 made the
+                // endpoint argument real — the telemetry url here would now pin the read
+                // to a single node for zero benefit).
+                fetchValoperMonikers(GNO_RPC_URL),       // v2.17.2: was missing in hacker view
                 fetchMonitoringIncidents(ctrl.signal),   // v2.17.2: was sequential
                 fetchAllMonitoringData(ctrl.signal),     // v2.17.2: was sequential
             ])
@@ -250,7 +254,7 @@ export default function ValidatorsHacker() {
             try {
                 const [valData, valoperMap, monData] = await Promise.all([
                     getValidators(rpcUrl),
-                    fetchValoperMonikers(rpcUrl),
+                    fetchValoperMonikers(GNO_RPC_URL), // chain state — see the burst above
                     fetchAllMonitoringData(abortCs.signal),
                 ])
                 if (abortCs.signal.aborted) return

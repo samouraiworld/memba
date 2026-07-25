@@ -16,6 +16,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { getDAOProposals } from "./proposals"
 import { resilientAbciQuery } from "../rpcFallback"
+import { GNO_RPC_URL } from "../config"
 
 vi.mock("../rpcFallback", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../rpcFallback")>()),
@@ -24,7 +25,12 @@ vi.mock("../rpcFallback", async (importOriginal) => ({
 
 const mockQuery = vi.mocked(resilientAbciQuery)
 
-const RPC = "https://rpc.example"
+// The ACTIVE network's primary, not an arbitrary fixture url: since B-4,
+// abciQuery honors its rpcUrl argument — a non-primary url would route to the
+// direct lane (abciQueryAt) and bypass the resilientAbciQuery mock below,
+// escaping to real network I/O. The probe behavior under test is the
+// active-network resilient lane.
+const RPC = GNO_RPC_URL
 
 /** Minimal GovDAO v3 Render("") page in the format parseProposalList handles. */
 const GOVDAO_RENDER_PAGE = `# GovDAO

@@ -9,7 +9,7 @@
 
 import type { AminoMsg } from "../grc20"
 import { getUserRegistryPath, networkScopedKey } from "../config"
-import { resilientAbciQuery } from "../rpcFallback"
+import { resilientAbciQuery, abciQueryAt, isActivePrimaryRpcUrl } from "../rpcFallback"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -138,12 +138,20 @@ export function sanitize(str: string): string {
     return str.replace(/[^a-zA-Z0-9_./:\-?=&]/g, "")
 }
 
-/** Low-level ABCI query with automatic RPC failover.
- *  Uses TextDecoder for proper UTF-8 handling (atob alone corrupts multi-byte chars like em dash).
- *  The rpcUrl parameter is kept for API compatibility but the resilient layer
- *  handles failover to backup endpoints automatically. */
-async function abciQuery(_rpcUrl: string, path: string, data: string, strict = false): Promise<string | null> {
-    return resilientAbciQuery(path, data, strict)
+/** Low-level ABCI query. Uses TextDecoder for proper UTF-8 handling (atob
+ *  alone corrupts multi-byte chars like em dash). */
+async function abciQuery(rpcUrl: string, path: string, data: string, strict = false): Promise<string | null> {
+    // B-4: the rpcUrl argument used to be DISCARDED here — every caller's
+    // "explicit endpoint" silently routed to the active network's resilient
+    // chain. It now discriminates two lanes:
+    //   active-network endpoint (or null) → resilientAbciQuery, byte-identical
+    //     to the old behavior (failover chain, memo, coalescing);
+    //   any other endpoint → abciQueryAt, which queries exactly that endpoint —
+    //     failing over to the primary would answer from a DIFFERENT CHAIN.
+    if (isActivePrimaryRpcUrl(rpcUrl)) {
+        return resilientAbciQuery(path, data, strict)
+    }
+    return abciQueryAt(rpcUrl, path, data, strict)
 }
 
 // ── Username Resolution ───────────────────────────────────────

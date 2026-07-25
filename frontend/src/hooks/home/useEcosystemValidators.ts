@@ -26,6 +26,7 @@
 import { useQuery } from "@tanstack/react-query"
 import { useNetwork } from "../useNetwork"
 import { getValidators, fetchValoperMonikers, type ValidatorInfo } from "../../lib/validators"
+import { GNO_RPC_URL } from "../../lib/config"
 import { fetchMonitoringParticipation } from "../../lib/gnomonitoring"
 
 const STALE_TIME = 60_000 // 1 minute (matches useValidatorHealth)
@@ -73,7 +74,11 @@ export function useEcosystemValidators(): EcosystemValidators {
             // (MH-16), so the band shows "gno-core-val-01" instead of "g1zhmw…".
             const [validators, valoperMonikers, participation] = await Promise.all([
                 getValidators(rpcUrl),
-                fetchValoperMonikers(rpcUrl).catch(() => new Map<string, string>()),
+                // B-4: pinned to GNO_RPC_URL — useNetwork().rpcUrl can transiently
+                // diverge from the frozen active network pre-NetworkSync-reload,
+                // and this read must keep its pre-B-4 behavior (active network,
+                // resilient chain). See useDirectoryHighlights for the same note.
+                fetchValoperMonikers(GNO_RPC_URL).catch(() => new Map<string, string>()),
                 fetchMonitoringParticipation().catch(() => null),
             ])
             let named = applyMonikers(validators, valoperMonikers)

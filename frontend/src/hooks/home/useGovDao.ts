@@ -16,7 +16,7 @@
 import { useQuery } from "@tanstack/react-query"
 import type { DoorState } from "../../components/home/Door"
 import { getDAOConfig, getDAOProposals, type DAOProposal } from "../../lib/dao"
-import { NETWORKS } from "../../lib/config"
+import { GNO_RPC_URL } from "../../lib/config"
 
 /** Chain-level governance DAO realm path (same as GovDAOTab / DAORouter). */
 export const GOVDAO_REALM_PATH = "gno.land/r/gov/dao"
@@ -64,7 +64,12 @@ export interface GovDaoResult {
 }
 
 export function useGovDao(networkKey: string): GovDaoResult {
-    const rpcUrl: string = NETWORKS[networkKey]?.rpcUrl ?? ""
+    // B-4 made the endpoint argument real. networkKey follows the /:network URL
+    // param and can transiently diverge from the frozen active network before
+    // NetworkSync reconciles-and-reloads; pin reads to GNO_RPC_URL so this hook
+    // keeps its pre-B-4 behavior (active network, resilient chain). Honoring
+    // the *viewed* network properly is CAL/B-5 territory.
+    const rpcUrl: string = GNO_RPC_URL
     const href = `/${networkKey}/dao/${GOVDAO_REALM_PATH}`
 
     const query = useQuery({

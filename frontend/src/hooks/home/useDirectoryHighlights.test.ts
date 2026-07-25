@@ -39,6 +39,8 @@ vi.mock("../../lib/directory", () => ({
 vi.mock("../../lib/config", () => ({
     getUserRegistryPath: vi.fn(() => "gno.land/r/sys/users"),
     isRealmValidOn: vi.fn(() => true),
+    // B-4: the hook pins its registry read to the active network's primary.
+    GNO_RPC_URL: "https://rpc.test13.gno.land",
 }))
 
 vi.mock("../useNetwork", () => ({

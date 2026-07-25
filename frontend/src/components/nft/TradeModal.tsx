@@ -24,6 +24,7 @@ import { buildBuyNFTMsg, buildListForSaleMsg, buildMakeOfferMsg, buildAcceptOffe
 import { routeNftV3 } from "../../lib/marketplace/router"
 import { fetchLaneFeeBps } from "../../lib/marketplace/v3Reads"
 import { isApprovedForAll } from "../../lib/grc721"
+import { GNO_RPC_URL } from "../../lib/config"
 import { friendlyError } from "../../lib/errorMessages"
 import { trackEvent } from "../../lib/analytics"
 import type { AminoMsg } from "../../lib/grc20"
@@ -125,6 +126,7 @@ export function TradeModal({
         const init = async () => {
             try {
                 const approved = await isApprovedForAll(
+                    GNO_RPC_URL,
                     engine.collectionPath,
                     collectionID,
                     callerAddress,

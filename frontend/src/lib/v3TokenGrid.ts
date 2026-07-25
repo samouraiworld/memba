@@ -94,8 +94,8 @@ export async function fetchV3Tokens(
             chunk.map(async (tid) => {
                 try {
                     const [owner, uri] = await Promise.all([
-                        getNFTOwner(collectionPath, collectionID, tid),
-                        getTokenURI(collectionPath, collectionID, tid),
+                        getNFTOwner(GNO_RPC_URL, collectionPath, collectionID, tid),
+                        getTokenURI(GNO_RPC_URL, collectionPath, collectionID, tid),
                     ])
                     if (owner) {
                         tokens.push({ tokenId: tid, owner, uri: uri ?? "" })

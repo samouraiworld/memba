@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from "vitest"
-import { resilientAbciQuery, resilientAbciQueryDetailed, getRpcUrlsInOrder, AbciQueryError, abciErrorPresent } from "./rpcFallback"
+import { resilientAbciQuery, resilientAbciQueryDetailed, getRpcUrlsInOrder, AbciQueryError, abciErrorPresent, abciQueryAt, isActivePrimaryRpcUrl } from "./rpcFallback"
+import { GNO_RPC_URL } from "./config"
 
 afterEach(() => {
     vi.restoreAllMocks()
@@ -200,5 +201,110 @@ describe("resilientFetch — same-URL retry before failover (W3.4)", () => {
         await expect(resilientAbciQueryDetailed("vm/qrender", "gno.land/r/x:")).rejects.toThrow()
         // Each url attempted (1 + SAME_URL_RETRIES) times.
         expect(fetchMock).toHaveBeenCalledTimes(getRpcUrlsInOrder().length * 2)
+    })
+})
+
+// ── B-4: explicit-endpoint reads (abciQueryAt) ───────────────────────────────
+//
+// The CAL's per-network `config.rpcUrl` was silently ignored: shared.ts's
+// abciQuery discarded its rpcUrl argument and every read went to the ACTIVE
+// network's resilient chain. abciQueryAt is the direct lane: it queries exactly
+// the endpoint it is given — cross-network failover to the primary would be a
+// data-corruption bug, not resilience (same rationale as directRpcCall).
+
+describe("isActivePrimaryRpcUrl — lane discriminator", () => {
+    it("treats null/undefined as the primary lane", () => {
+        expect(isActivePrimaryRpcUrl(null)).toBe(true)
+        expect(isActivePrimaryRpcUrl(undefined)).toBe(true)
+    })
+
+    it("matches the primary URL exactly", () => {
+        expect(isActivePrimaryRpcUrl(GNO_RPC_URL)).toBe(true)
+    })
+
+    it("matches the primary URL through light normalization (trailing slash, default port)", () => {
+        expect(isActivePrimaryRpcUrl(GNO_RPC_URL.replace(/\/?$/, "/"))).toBe(true)
+        if (GNO_RPC_URL.startsWith("https://")) {
+            const withPort = GNO_RPC_URL.includes(":443")
+                ? GNO_RPC_URL.replace(":443", "")
+                : GNO_RPC_URL.replace(/^https:\/\/([^/]+)/, "https://$1:443")
+            expect(isActivePrimaryRpcUrl(withPort)).toBe(true)
+        }
+    })
+
+    it("rejects a genuinely different endpoint", () => {
+        expect(isActivePrimaryRpcUrl("https://rpc.other-network.example")).toBe(false)
+    })
+
+    it("treats gateway-style query-string variants as DIFFERENT endpoints", () => {
+        // ?net=… style gateways multiplex networks on one host — conflating them
+        // would misroute the lane choice and mix networks in the coalescing key.
+        expect(isActivePrimaryRpcUrl(`${GNO_RPC_URL}?net=other`)).toBe(false)
+    })
+})
+
+describe("abciQueryAt — direct single-endpoint lane", () => {
+    const OTHER = "https://rpc.other-network.example"
+
+    it("queries exactly the endpoint it was given", async () => {
+        const fetchMock = vi.fn().mockResolvedValue(okData("# from other"))
+        vi.stubGlobal("fetch", fetchMock)
+        await expect(abciQueryAt(OTHER, "vm/qrender", "gno.land/r/x:")).resolves.toBe("# from other")
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+        expect(fetchMock.mock.calls[0][0]).toBe(OTHER)
+    })
+
+    it("NEVER fails over to the primary chain — every attempt stays on the given endpoint", async () => {
+        const fetchMock = vi.fn().mockRejectedValue(new Error("ECONNREFUSED"))
+        vi.stubGlobal("fetch", fetchMock)
+        await expect(abciQueryAt(OTHER, "vm/qrender", "gno.land/r/x:")).resolves.toBeNull()
+        for (const call of fetchMock.mock.calls) expect(call[0]).toBe(OTHER)
+        expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1)
+    })
+
+    it("throws on transport failure when strict=true", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockRejectedValue(new Error("ECONNREFUSED")))
+        await expect(abciQueryAt(OTHER, "vm/qrender", "gno.land/r/x:", true)).rejects.toThrow()
+    })
+
+    it("surfaces ABCI-level errors per strict flag (null vs AbciQueryError)", async () => {
+        const abciErr = () => ({ ok: true, json: async () => ({ result: { response: { ResponseBase: { Error: "realm not found", Log: "no such realm" } } } }) })
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(abciErr()))
+        await expect(abciQueryAt(OTHER, "vm/qrender", "gno.land/r/x:")).resolves.toBeNull()
+        await expect(abciQueryAt(OTHER, "vm/qrender", "gno.land/r/x:", true)).rejects.toBeInstanceOf(AbciQueryError)
+    })
+
+    it("never writes the _lastWorkingRpcUrl memo — a foreign-network success must not reorder the primary chain", async () => {
+        const before = getRpcUrlsInOrder()
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(okData("# from other")))
+        await abciQueryAt(OTHER, "vm/qrender", "gno.land/r/x:")
+        const after = getRpcUrlsInOrder()
+        expect(after).toEqual(before)
+        expect(after[0]).not.toBe(OTHER)
+    })
+
+    it("coalesces concurrent identical reads at the SAME endpoint into one round-trip", async () => {
+        const fetchMock = vi.fn().mockResolvedValue(okData("# once"))
+        vi.stubGlobal("fetch", fetchMock)
+        const [a, b] = await Promise.all([
+            abciQueryAt(OTHER, "vm/qrender", "gno.land/r/x:"),
+            abciQueryAt(OTHER, "vm/qrender", "gno.land/r/x:"),
+        ])
+        expect(a).toBe("# once")
+        expect(b).toBe("# once")
+        expect(fetchMock).toHaveBeenCalledTimes(1)
+    })
+
+    it("does NOT coalesce the same path+data across DIFFERENT endpoints — that would serve one network's data as another's", async () => {
+        const fetchMock = vi.fn()
+            .mockResolvedValueOnce(okData("# net A"))
+            .mockResolvedValueOnce(okData("# net B"))
+        vi.stubGlobal("fetch", fetchMock)
+        const [a, b] = await Promise.all([
+            abciQueryAt("https://rpc.net-a.example", "vm/qrender", "gno.land/r/x:"),
+            abciQueryAt("https://rpc.net-b.example", "vm/qrender", "gno.land/r/x:"),
+        ])
+        expect(fetchMock).toHaveBeenCalledTimes(2)
+        expect(new Set([a, b])).toEqual(new Set(["# net A", "# net B"]))
     })
 })

@@ -12,7 +12,7 @@
 
 import { useState, useEffect } from "react"
 import { useParams } from "react-router-dom"
-import { getCollectionInfo, type NFTCollection } from "../lib/grc721"
+import { getLegacyCollectionInfo, type NFTCollection } from "../lib/grc721"
 import { queryRender } from "../lib/dao/shared"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -37,7 +37,7 @@ export function LegacyCollectionView() {
         const load = async () => {
             try {
                 const [info, raw] = await Promise.all([
-                    getCollectionInfo(realmPath),
+                    getLegacyCollectionInfo(GNO_RPC_URL, realmPath),
                     queryRender(GNO_RPC_URL, realmPath, ""),
                 ])
                 if (!cancelled) {

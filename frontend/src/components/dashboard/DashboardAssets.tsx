@@ -98,7 +98,7 @@ export function DashboardAssets({ address, gnotBalance }: DashboardAssetsProps) 
                 const balances = await Promise.all(
                     batch.map(async (col) => {
                         try {
-                            const bal = await getNFTBalance(NFT_COLLECTIONS_PATH, col.id, address)
+                            const bal = await getNFTBalance(GNO_RPC_URL, NFT_COLLECTIONS_PATH, col.id, address)
                             if (bal > 0) {
                                 return {
                                     symbol: "NFT",

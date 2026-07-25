@@ -11,7 +11,6 @@
  */
 
 import { queryRender, queryEval } from "./dao/shared"
-import { GNO_RPC_URL } from "./config"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -178,39 +177,50 @@ export function parseIsApprovedForAllResult(result: string): boolean {
 }
 
 // ── ABCI Queries (collectionID-aware) ────────────────────────
+//
+// B-4: every read helper takes rpcUrl as its FIRST argument (the
+// queryRender/queryEval convention) and threads it through, so callers —
+// notably the CAL's GnoProvider with its per-network config.rpcUrl — actually
+// control which network is read. App code targeting the active network passes
+// GNO_RPC_URL and keeps the resilient failover chain.
 
 /**
  * Fetch collection info by querying `Render(collectionID)`.
  * Returns null on error or missing realm.
  */
 export async function getCollectionInfo(
+    rpcUrl: string,
     collectionPath: string,
     collectionID: string,
-): Promise<NFTCollectionV2 | null>
+): Promise<NFTCollectionV2 | null> {
+    try {
+        const raw = await queryRender(rpcUrl, collectionPath, collectionID)
+        if (!raw) return null
+        return parseCollectionRenderV2(raw, collectionPath, collectionID)
+    } catch {
+        return null
+    }
+}
 
 /**
- * Legacy overload: single-arg call for old callers using realmPath only.
- * Reads `Render("")` and maps to NFTCollection (legacy type).
- * @deprecated Use the two-arg form (collectionPath, collectionID) instead.
+ * Legacy single-collection read for old callers using realmPath only
+ * (NFTCollectionView). Reads `Render("")` and maps to NFTCollection.
+ *
+ * A named function, NOT an overload of getCollectionInfo: with rpcUrl-first
+ * both signatures would be (string, string), so an un-migrated v2 call
+ * `getCollectionInfo(collectionPath, collectionID)` would still typecheck,
+ * treat a realm path as an RPC URL, and fail silently through the catch.
+ *
+ * @deprecated for new code — use getCollectionInfo(rpcUrl, collectionPath, collectionID).
  */
-export async function getCollectionInfo(realmPath: string): Promise<NFTCollection | null>
-
-export async function getCollectionInfo(
-    collectionPathOrRealm: string,
-    collectionID?: string,
-): Promise<NFTCollectionV2 | NFTCollection | null> {
+export async function getLegacyCollectionInfo(
+    rpcUrl: string,
+    realmPath: string,
+): Promise<NFTCollection | null> {
     try {
-        if (collectionID !== undefined) {
-            // v2 path: query Render(collectionID)
-            const raw = await queryRender(GNO_RPC_URL, collectionPathOrRealm, collectionID)
-            if (!raw) return null
-            return parseCollectionRenderV2(raw, collectionPathOrRealm, collectionID)
-        } else {
-            // Legacy path: query Render("") for old callers (NFTCollectionView)
-            const raw = await queryRender(GNO_RPC_URL, collectionPathOrRealm, "")
-            if (!raw) return null
-            return parseLegacyCollectionRender(raw, collectionPathOrRealm)
-        }
+        const raw = await queryRender(rpcUrl, realmPath, "")
+        if (!raw) return null
+        return parseLegacyCollectionRender(raw, realmPath)
     } catch {
         return null
     }
@@ -221,13 +231,14 @@ export async function getCollectionInfo(
  * Returns null if the token doesn't exist or the query fails.
  */
 export async function getNFTOwner(
+    rpcUrl: string,
     collectionPath: string,
     collectionID: string,
     tokenId: string,
 ): Promise<string | null> {
     try {
         const result = await queryEval(
-            GNO_RPC_URL,
+            rpcUrl,
             collectionPath,
             `OwnerOf("${collectionID}", "${tokenId}")`,
         )
@@ -242,13 +253,14 @@ export async function getNFTOwner(
  * Query balance of an address via qeval `BalanceOf(collectionID, owner)`.
  */
 export async function getNFTBalance(
+    rpcUrl: string,
     collectionPath: string,
     collectionID: string,
     owner: string,
 ): Promise<number> {
     try {
         const result = await queryEval(
-            GNO_RPC_URL,
+            rpcUrl,
             collectionPath,
             `BalanceOf("${collectionID}", "${owner}")`,
         )
@@ -264,13 +276,14 @@ export async function getNFTBalance(
  * Query token URI via qeval `TokenURI(collectionID, tokenId)`.
  */
 export async function getTokenURI(
+    rpcUrl: string,
     collectionPath: string,
     collectionID: string,
     tokenId: string,
 ): Promise<string | null> {
     try {
         const result = await queryEval(
-            GNO_RPC_URL,
+            rpcUrl,
             collectionPath,
             `TokenURI("${collectionID}", "${tokenId}")`,
         )
@@ -286,6 +299,7 @@ export async function getTokenURI(
  * in the given collection via qeval `IsApprovedForAll(collectionID, owner, operator)`.
  */
 export async function isApprovedForAll(
+    rpcUrl: string,
     collectionPath: string,
     collectionID: string,
     owner: string,
@@ -293,7 +307,7 @@ export async function isApprovedForAll(
 ): Promise<boolean> {
     try {
         const result = await queryEval(
-            GNO_RPC_URL,
+            rpcUrl,
             collectionPath,
             `IsApprovedForAll("${collectionID}", "${owner}", "${operator}")`,
         )
@@ -313,10 +327,11 @@ export async function isApprovedForAll(
  * Returns an array of NFTTokenInfo sorted by tokenId string.
  */
 export async function listCollectionTokens(
+    rpcUrl: string,
     collectionPath: string,
     collectionID: string,
 ): Promise<NFTTokenInfo[]> {
-    const info = await getCollectionInfo(collectionPath, collectionID)
+    const info = await getCollectionInfo(rpcUrl, collectionPath, collectionID)
     if (!info || info.totalSupply === 0) return []
 
     const supply = info.totalSupply
@@ -325,7 +340,7 @@ export async function listCollectionTokens(
     await Promise.all(
         Array.from({ length: supply }, (_, i) => String(i + 1)).map(async (tid) => {
             try {
-                const raw = await queryRender(GNO_RPC_URL, collectionPath, `${collectionID}/${tid}`)
+                const raw = await queryRender(rpcUrl, collectionPath, `${collectionID}/${tid}`)
                 if (!raw) return
                 const token = parseTokenRender(raw, tid)
                 // Skip tokens with no owner (burned/non-existent gap)

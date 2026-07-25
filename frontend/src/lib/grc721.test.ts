@@ -9,7 +9,7 @@
  *  5. isApprovedForAll result parsing
  */
 
-import { describe, it, expect } from "vitest"
+import { describe, it, expect, vi, beforeEach } from "vitest"
 import {
     buildMintMsg,
     buildTransferMsg,
@@ -22,8 +22,16 @@ import {
     parseOwnerOfResult,
     parseTokenURIResult,
     parseIsApprovedForAllResult,
+    getCollectionInfo,
+    getLegacyCollectionInfo,
+    getNFTOwner,
+    getNFTBalance,
+    getTokenURI,
+    isApprovedForAll,
+    listCollectionTokens,
 } from "./grc721"
 import { toAdenaMessages } from "./grc20"
+import { queryRender, queryEval } from "./dao/shared"
 
 // ── Sample on-chain Render output ────────────────────────────
 
@@ -210,5 +218,77 @@ describe("grc721 builders — broadcast path", () => {
         const msg = buildMintMsg(caller, realm, caller, "tok-1", "ipfs://uri")
         expect(msg.type).toBe("vm/MsgCall")
         expect(msg.value.func).toBe("Mint")
+    })
+})
+
+// ── B-4: endpoint threading ──────────────────────────────────
+//
+// The read helpers used to resolve their endpoint from module-level
+// GNO_RPC_URL, so the CAL's per-network config.rpcUrl was silently ignored.
+// They now take rpcUrl as their FIRST argument (the queryRender/queryEval
+// convention) and must thread it through verbatim.
+
+vi.mock("./dao/shared", () => ({
+    queryRender: vi.fn(),
+    queryEval: vi.fn(),
+}))
+
+describe("read helpers thread the rpcUrl through (B-4)", () => {
+    const RPC = "https://rpc.some-network.example"
+    const mockRender = vi.mocked(queryRender)
+    const mockEval = vi.mocked(queryEval)
+
+    beforeEach(() => {
+        mockRender.mockReset()
+        mockEval.mockReset()
+    })
+
+    it("getCollectionInfo passes rpcUrl to queryRender", async () => {
+        mockRender.mockResolvedValue(GENESIS_COLLECTION_RENDER)
+        await getCollectionInfo(RPC, "gno.land/r/samcrew/memba_nft_v2", "genesis")
+        expect(mockRender).toHaveBeenCalledWith(RPC, "gno.land/r/samcrew/memba_nft_v2", "genesis")
+    })
+
+    it("getLegacyCollectionInfo passes rpcUrl to queryRender", async () => {
+        mockRender.mockResolvedValue("# Legacy\nSymbol: LGC\nTotal Supply: 1\n")
+        const info = await getLegacyCollectionInfo(RPC, "gno.land/r/test/legacy")
+        expect(mockRender).toHaveBeenCalledWith(RPC, "gno.land/r/test/legacy", "")
+        expect(info?.symbol).toBe("LGC")
+    })
+
+    it("getNFTOwner passes rpcUrl to queryEval", async () => {
+        mockEval.mockResolvedValue(QEVAL_OWNER_RESULT)
+        const owner = await getNFTOwner(RPC, "gno.land/r/x/nft", "genesis", "1")
+        expect(mockEval).toHaveBeenCalledWith(RPC, "gno.land/r/x/nft", 'OwnerOf("genesis", "1")')
+        expect(owner).toBe("g1multisig0000000000000000000000000")
+    })
+
+    it("getNFTBalance passes rpcUrl to queryEval", async () => {
+        mockEval.mockResolvedValue("(2 uint64)")
+        const bal = await getNFTBalance(RPC, "gno.land/r/x/nft", "genesis", "g1owner")
+        expect(mockEval).toHaveBeenCalledWith(RPC, "gno.land/r/x/nft", 'BalanceOf("genesis", "g1owner")')
+        expect(bal).toBe(2)
+    })
+
+    it("getTokenURI passes rpcUrl to queryEval", async () => {
+        mockEval.mockResolvedValue(QEVAL_URI_RESULT)
+        await getTokenURI(RPC, "gno.land/r/x/nft", "genesis", "1")
+        expect(mockEval).toHaveBeenCalledWith(RPC, "gno.land/r/x/nft", 'TokenURI("genesis", "1")')
+    })
+
+    it("isApprovedForAll passes rpcUrl to queryEval", async () => {
+        mockEval.mockResolvedValue(QEVAL_APPROVED_TRUE)
+        await isApprovedForAll(RPC, "gno.land/r/x/nft", "genesis", "g1owner", "g1operator")
+        expect(mockEval).toHaveBeenCalledWith(RPC, "gno.land/r/x/nft", 'IsApprovedForAll("genesis", "g1owner", "g1operator")')
+    })
+
+    it("listCollectionTokens threads rpcUrl into BOTH the info read and every token read", async () => {
+        mockRender.mockImplementation(async (_rpc: string, _path: string, renderPath: string) => {
+            if (renderPath === "genesis") return GENESIS_COLLECTION_RENDER // supply 3
+            return `# Token\n\nOwner: g1owner00000000000000000000000000000\nURI: ipfs://x\n`
+        })
+        const tokens = await listCollectionTokens(RPC, "gno.land/r/samcrew/memba_nft_v2", "genesis")
+        expect(tokens).toHaveLength(3)
+        for (const call of mockRender.mock.calls) expect(call[0]).toBe(RPC)
     })
 })

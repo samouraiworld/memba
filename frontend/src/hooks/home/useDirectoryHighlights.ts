@@ -33,7 +33,7 @@ import { useHomeSnapshot } from "./useHomeSnapshot"
 import { fetchTractionMetrics } from "../../lib/traction"
 import { parseUserRegistry, fetchRealms, fetchPackages, type DirectoryUser } from "../../lib/directory"
 import { queryRender } from "../../lib/dao/shared"
-import { isRealmValidOn, getUserRegistryPath } from "../../lib/config"
+import { isRealmValidOn, getUserRegistryPath, GNO_RPC_URL } from "../../lib/config"
 import type { DirectoryMember } from "../../gen/memba/v1/memba_pb"
 
 const STALE_TIME = 300_000 // 5 minutes
@@ -68,7 +68,6 @@ function mapSnapshotMembers(members: DirectoryMember[]): DirectoryUser[] {
 
 async function fetchRegistryMembers(
     networkKey: string,
-    rpcUrl: string,
 ): Promise<DirectoryUser[]> {
     const registryPath = getUserRegistryPath()
     const registryValid = isRealmValidOn(networkKey, registryPath)
@@ -76,7 +75,12 @@ async function fetchRegistryMembers(
     if (!registryValid) return []
 
     try {
-        const raw = await queryRender(rpcUrl, registryPath, "")
+        // B-4 made the endpoint argument real. useNetwork().rpcUrl follows the
+        // /:network URL param and can transiently diverge from the frozen active
+        // network before NetworkSync reconciles-and-reloads; pin to GNO_RPC_URL
+        // so this read keeps its pre-B-4 behavior (active network, resilient
+        // chain). Honoring the *viewed* network properly is CAL/B-5 territory.
+        const raw = await queryRender(GNO_RPC_URL, registryPath, "")
         return raw ? parseUserRegistry(raw).slice(0, MEMBER_PREVIEW_COUNT) : []
     } catch {
         return []
@@ -90,7 +94,7 @@ async function fetchRegistryMembers(
  * Degrades gracefully: count 0 / members [] on any failure.
  */
 export function useDirectoryHighlights(): DirectoryHighlights {
-    const { networkKey, rpcUrl } = useNetwork()
+    const { networkKey } = useNetwork()
     const { snapshot, usable } = useHomeSnapshot()
 
     // Composition counts from the synchronous seed lists (same source the
@@ -109,7 +113,7 @@ export function useDirectoryHighlights(): DirectoryHighlights {
     // Registry members query — disabled when snapshot is usable
     const registryQuery = useQuery({
         queryKey: ["home", "directory-registry", networkKey],
-        queryFn: () => fetchRegistryMembers(networkKey, rpcUrl),
+        queryFn: () => fetchRegistryMembers(networkKey),
         staleTime: STALE_TIME,
         enabled: !usable,
     })

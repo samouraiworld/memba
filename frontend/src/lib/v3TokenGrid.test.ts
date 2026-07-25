@@ -34,7 +34,7 @@ describe("fetchV3Tokens — windowing + chunked concurrency", () => {
         ownerCalls = []
         maxInFlight = 0
         let inFlight = 0
-        vi.spyOn(grc721, "getNFTOwner").mockImplementation(async (_path, _cid, tid) => {
+        vi.spyOn(grc721, "getNFTOwner").mockImplementation(async (_rpc, _path, _cid, tid) => {
             inFlight++
             maxInFlight = Math.max(maxInFlight, inFlight)
             await Promise.resolve() // yield a microtask so overlap is observable
@@ -42,7 +42,7 @@ describe("fetchV3Tokens — windowing + chunked concurrency", () => {
             inFlight--
             return tid === "404" ? "" : `g1owner_${tid}`
         })
-        vi.spyOn(grc721, "getTokenURI").mockImplementation(async (_p, _c, tid) => `ipfs://${tid}`)
+        vi.spyOn(grc721, "getTokenURI").mockImplementation(async (_rpc, _p, _c, tid) => `ipfs://${tid}`)
     })
 
     it("caps enumeration at the default window for a large supply (no O(supply) fan-out)", async () => {
