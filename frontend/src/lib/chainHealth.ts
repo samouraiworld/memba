@@ -106,8 +106,12 @@ export async function checkChainHealth(
  * Returns the first reachable network key, or null if all are down.
  */
 export function getSuggestedFallback(currentNetworkKey: string): string | null {
-    // Priority order for fallback suggestion
-    const fallbackOrder = ["test13", "gnoland1"]
+    // Priority order for fallback suggestion. Only networks where Memba's realms
+    // are actually deployed belong here — steering a user to a chain with no
+    // Memba realms (e.g. Betanet/gnoland1) is worse than no suggestion. test13
+    // and topaz both carry the core realm set (topaz since the Phase A cutover);
+    // gnoland1 is a last resort only.
+    const fallbackOrder = ["test13", "topaz", "gnoland1"]
     for (const key of fallbackOrder) {
         if (key !== currentNetworkKey && NETWORKS[key]) {
             return key

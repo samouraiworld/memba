@@ -3,7 +3,8 @@
  *
  * C-02 fix: Probes the active chain on network switch. If all RPC endpoints
  * (primary + fallbacks) are unreachable, shows a dismissible banner with
- * an auto-suggest button to switch to a reachable network.
+ * an auto-suggest button to switch to a reachable network. Every network is
+ * probed, test13 included — its public RPCs are not guaranteed up.
  *
  * Architecture: This component uses the chainHealth module for RPC probing
  * and integrates with the network switcher for one-click fallback.
@@ -53,11 +54,13 @@ export function ChainHaltedBanner({ networkKey, onSwitchNetwork }: ChainHaltedBa
         }
     }, [])
 
-    // Trigger probe on network change
+    // Trigger probe on network change. Every network is probed — including
+    // test13. The probe (checkChainHealth) races the primary + all fallbacks and
+    // reports unreachable only when ALL of them fail, so this never fires while
+    // the app can still reach the chain through any endpoint. The old
+    // `networkKey === "test13"` skip assumed test13's RPC was always up; when its
+    // public endpoints went down, test13 users got a broken app with no notice.
     useEffect(() => {
-        // Skip known-good networks (test13 is primary)
-        if (networkKey === "test13") return
-
         const signal = { cancelled: false }
         probeHealth(networkKey, signal)
 
