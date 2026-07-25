@@ -1,7 +1,11 @@
 #!/usr/bin/env node
 /**
  * Self-test for audit-gate.mjs. Plain node, no framework — run:
- *   node scripts/audit-gate.test.mjs
+ *   node scripts/audit-gate.selftest.mjs
+ *
+ * Named ".selftest.mjs", NOT ".test.mjs": vitest's default include glob
+ * collects any *.test.* file project-wide, and a plain-node script with no
+ * describe/it fails its run with "No test suite found".
  *
  * Each case feeds the gate a fixture `npm audit --json` document via --input
  * and a fixture allowlist via --allowlist, then asserts on exit code + output.

@@ -221,7 +221,7 @@ jobs:
       - name: Security audit
         if: matrix.node-version == '22'
         run: |
-          node scripts/audit-gate.test.mjs
+          node scripts/audit-gate.selftest.mjs
           node scripts/audit-gate.mjs
 
       - name: Lighthouse CI
