@@ -214,10 +214,15 @@ jobs:
       # `Frontend E2E (chromium)` to branch protection's required checks.
 
       # Dependency audit is Node-version-independent — run once (Node 22), not
-      # on both matrix legs.
+      # on both matrix legs. Gate script instead of bare `npm audit` so a
+      # published advisory whose vulnerable path this app cannot reach can be
+      # waived — scoped to one GHSA id, fully documented, and self-expiring
+      # (a stale waiver fails the gate). See scripts/audit-allowlist.json (G-8).
       - name: Security audit
         if: matrix.node-version == '22'
-        run: npm audit --audit-level=high --omit=dev
+        run: |
+          node scripts/audit-gate.test.mjs
+          node scripts/audit-gate.mjs
 
       - name: Lighthouse CI
         if: matrix.node-version == '22'

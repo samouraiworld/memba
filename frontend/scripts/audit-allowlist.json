@@ -1,0 +1,13 @@
+{
+  "_readme": "Scoped npm-audit waivers, enforced by scripts/audit-gate.mjs (BACKLOG G-8). An entry waives ONE GHSA advisory, and only for as long as npm audit still reports it — a stale entry FAILS CI so waivers cannot outlive their reason. Every entry must document: id, package, severity, reason (why the vulnerable path is unreachable here), added (date), removeWhen (the concrete removal condition).",
+  "allow": [
+    {
+      "id": "GHSA-qwww-vcr4-c8h2",
+      "package": "react-router",
+      "severity": "high",
+      "reason": "React Router 'RSC Mode CSRF Bypass' (affects 7.12.0-8.2.0; installed react-router-dom ^7.18.1). The vulnerable path requires RSC/framework mode with server actions; this app is a client-only Vite SPA using BrowserRouter with no server runtime, so the path is unreachable. The only npm-suggested fix is a breaking downgrade to react-router-dom@7.11.0, which the app cannot take (it relies on 7.12+ relative-splat routing behaviour). Owner-approved waiver 2026-07-25.",
+      "added": "2026-07-25",
+      "removeWhen": "react-router publishes a patched 7.x release: bump react-router-dom, then delete this entry (the gate's stale-entry check will fail CI as a reminder once the advisory stops being reported)."
+    }
+  ]
+}
