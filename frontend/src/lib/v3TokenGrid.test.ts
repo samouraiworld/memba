@@ -9,6 +9,7 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { listingKey, fetchV3Tokens, DEFAULT_TOKEN_WINDOW } from "./v3TokenGrid"
+import { NFT_COLLECTIONS_PATH } from "./nftConfig"
 import { parseMarketplaceRender } from "./nftMarketplace"
 import * as grc721 from "./grc721"
 
@@ -128,5 +129,47 @@ describe("fetchV3Listings — listing map build logic", () => {
         const { listings } = parseMarketplaceRender(RENDER_OUTPUT)
         const listing = listings.find((l) => l.tokenId === "0")
         expect(listing?.seller).toBe("g1seller1234")
+    })
+})
+
+// ── B-5 Phase 2b: injectable token reader (CAL migration seam) ───────────────
+
+describe("fetchV3Tokens — readToken seam", () => {
+    it("routes every token read through a supplied readToken and produces output IDENTICAL to the default reader", async () => {
+        // Default-path fixture behavior (grc721 spies from the outer suite):
+        // odd ids burned. Build the same world through a custom reader and
+        // pin parity — windowing/skip/sort logic is shared, so the outputs
+        // must match element-for-element.
+        vi.spyOn(grc721, "getNFTOwner").mockImplementation(async (_rpc, _p, _c, tid) =>
+            parseInt(tid, 10) % 2 === 1 ? "" : `g1owner_${tid}`)
+        vi.spyOn(grc721, "getTokenURI").mockImplementation(async (_rpc, _p, _c, tid) => `ipfs://${tid}`)
+        const viaDefault = await fetchV3Tokens("creator/slug", 10)
+
+        const readCalls: string[] = []
+        const viaReader = await fetchV3Tokens("creator/slug", 10, undefined, {
+            readToken: async (path, cid, tid) => {
+                readCalls.push(`${path}|${cid}|${tid}`)
+                return {
+                    owner: parseInt(tid, 10) % 2 === 1 ? null : `g1owner_${tid}`,
+                    uri: `ipfs://${tid}`,
+                }
+            },
+        })
+
+        expect(viaReader).toEqual(viaDefault)
+        expect(viaReader.map(t => t.tokenId)).toEqual(["0", "2", "4", "6", "8"])
+        // Every read went through the injected reader with the right args.
+        expect(readCalls).toHaveLength(10)
+        expect(readCalls[0]).toBe(`${NFT_COLLECTIONS_PATH}|creator/slug|0`)
+    })
+
+    it("a throwing readToken skips the token (gap semantics preserved)", async () => {
+        const viaReader = await fetchV3Tokens("creator/slug", 3, undefined, {
+            readToken: async (_p, _c, tid) => {
+                if (tid === "1") throw new Error("boom")
+                return { owner: `g1_${tid}`, uri: "" }
+            },
+        })
+        expect(viaReader.map(t => t.tokenId)).toEqual(["0", "2"])
     })
 })

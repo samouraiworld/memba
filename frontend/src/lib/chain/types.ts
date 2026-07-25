@@ -93,6 +93,16 @@ export interface ContractRef {
     readonly id: string
     /** Chain family. */
     readonly family: ChainFamily
+    /**
+     * Sub-collection selector WITHIN the contract (B-5 Phase 2b). Gno NFT
+     * realms (memba_nft_v2 and successors) multiplex collections inside one
+     * realm and address tokens as (collectionID, tokenId); GnoProvider uses
+     * `subId ?? "default"`. A typed field, not an id-string encoding, so `id`
+     * stays a pure realm path/address for comparisons — and it maps cleanly
+     * onto future EVM multi-token classes (ERC-1155) in Phase 4. Currently
+     * meaningful for NFT collection refs only; other refs ignore it.
+     */
+    readonly subId?: string
 }
 
 // ── Token Abstraction ────────────────────────────────────────

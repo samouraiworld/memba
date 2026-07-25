@@ -18,6 +18,7 @@
 import { createContext, useContext } from "react"
 import type { ChainProvider } from "./provider"
 import type { ChainFamily, ChainId, CALNetworkConfig } from "./types"
+import { isCalEnabled } from "../config"
 
 // ── Context Value ────────────────────────────────────────────
 
@@ -82,4 +83,22 @@ export function useChain(): ChainContextValue {
         )
     }
     return ctx
+}
+
+/**
+ * Flag-tolerant variant for the B-5 migration window: returns null when the
+ * CAL is not mounted (VITE_ENABLE_CAL off — the prod default until Phase 3
+ * completes) so a migrated call site can fall back to its direct-lib path.
+ * The flag check comes FIRST and is build-time constant, so flag-off builds
+ * fold this to `null` and the minifier drops the caller's CAL branch.
+ *
+ * This is THE access pattern for pages migrating under the flag — do not mix
+ * it with bare useContext(ChainContext) at call sites.
+ */
+export function useChainOptional(): ChainContextValue | null {
+    // Unconditional hook call (rules-of-hooks clean); the flag gates the
+    // RESULT. Flag-off the provider isn't mounted anyway, so ctx is already
+    // null — the explicit check makes the contract independent of mount state.
+    const ctx = useContext(ChainContext)
+    return isCalEnabled() ? ctx : null
 }

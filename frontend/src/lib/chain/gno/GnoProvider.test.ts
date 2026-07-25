@@ -174,6 +174,34 @@ describe("GnoProvider — CAL-shape mappings", () => {
         const p = createGnoProvider(NETWORK)
         await expect(p.getNFT({ id: "gno.land/r/x/nft", family: "gno" }, "404")).resolves.toBeNull()
     })
+
+    it("getNFT/getNFTsByOwner address the sub-collection via ContractRef.subId (B-5 Phase 2b)", async () => {
+        mockGetNFTOwner.mockResolvedValue("g1owner")
+        mockGetTokenURI.mockResolvedValue("ipfs://x")
+        mockListCollectionTokens.mockResolvedValue([])
+        const p = createGnoProvider(NETWORK)
+        const ref = { id: "gno.land/r/samcrew/memba_nft_v2", family: "gno" as const, subId: "genesis" }
+        await p.getNFT(ref, "7")
+        expect(mockGetNFTOwner).toHaveBeenCalledWith(NETWORK.rpcUrl, ref.id, "genesis", "7")
+        expect(mockGetTokenURI).toHaveBeenCalledWith(NETWORK.rpcUrl, ref.id, "genesis", "7")
+        await p.getNFTsByOwner(ref, { raw: "g1me", family: "gno" })
+        expect(mockListCollectionTokens).toHaveBeenCalledWith(NETWORK.rpcUrl, ref.id, "genesis")
+    })
+
+    it("getNFT reads owner and URI in PARALLEL (one round-trip wave, not two)", async () => {
+        // The v3 grid enumerates through this per token — sequential awaits
+        // would double the grid's load time (design-panel finding v).
+        let ownerResolve!: (v: string) => void
+        const ownerGate = new Promise<string>((res) => { ownerResolve = res })
+        mockGetNFTOwner.mockReturnValue(ownerGate)
+        mockGetTokenURI.mockResolvedValue("ipfs://x")
+        const p = createGnoProvider(NETWORK)
+        const pending = p.getNFT({ id: "gno.land/r/x/nft", family: "gno" }, "1")
+        // URI must have been requested BEFORE the owner read resolves.
+        await vi.waitFor(() => expect(mockGetTokenURI).toHaveBeenCalledTimes(1))
+        ownerResolve("g1owner")
+        await expect(pending).resolves.toMatchObject({ tokenId: "1" })
+    })
 })
 
 describe("GnoProvider — wallet bridge (B-5 Phase 0, G1)", () => {

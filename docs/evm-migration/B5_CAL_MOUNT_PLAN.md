@@ -20,12 +20,40 @@
 > (`scripts/check-evm-chunk.mjs`, wired into `check:bundle`) mirror the vendor-three cost
 > firewall. The gate caught a real leak on its first run: Rollup colocated Vite's shared
 > preload-helper into vendor-evm, statically coupling EVERY chunk to viem — fixed by pinning
-> the helper to its own chunk. **Flag-off build: the entire CAL graph is dead-code-eliminated
-> (zero bytes shipped; vendor-evm emitted as an unreferenced, precache-excluded orphan).**
+> the helper to its own chunk. **Flag-off build: the CAL provider graph is
+> dead-code-eliminated (vendor-evm emitted as an unreferenced, precache-excluded orphan).**
+> Phase-2 truth-up of "zero bytes": with pages consuming `useChainOptional()`, the tiny
+> context module and the walletBus ride the flag-off bundle — inert bytes (context null,
+> publishes unread), zero behavior change; the provider/EVM graph stays DCE'd.
 > Flag-on preview verified in-browser: clean boot with zero console errors, vendor-evm lazily
 > fetched, test13→topaz→test13 network switch reloads correctly per the B-3 contract.
 > 4 provider tests added (bridge sync, active-network seeding). Next: Phase 2 (first page —
 > UnifiedMarketplace NFT path, per D1).
+>
+> **Phase 2: ✅ DONE 2026-07-25** — **(2a)** `lib/walletBus` is the shared wallet source:
+> every `useAdena` instance publishes its identity TRANSITIONS (connect success /
+> disconnect / account change on wallet network switch — mount defaults never publish, so
+> a fresh disconnected instance can't clobber a connected bus; publishes are
+> equality-guarded no-ops); the root provider consumes it via `useSyncExternalStore`,
+> dropping its own useAdena instance (and with it the duplicated silent GetAccount +
+> analytics event). Closes the Phase-1 stale-bridge finding — cross-instance connects and
+> disconnects now reach the bridge without a remount (pinned by tests). **(2b)** first
+> page slice per D1: `useCollectionPublic` threads a CAL `readToken` into
+> `fetchV3Tokens` when the CAL is mounted (`useChainOptional()` — THE migration access
+> pattern; flag-off returns null and the direct-grc721 default runs, byte-identical).
+> `ContractRef` gained a typed `subId` for Gno sub-collections (no id-string encodings);
+> `GnoProvider.getNFT` reads owner+URI in parallel (was sequential — 2× grid cost).
+> Windowing/burn-skip logic stays single-sourced in `fetchV3Tokens` for both paths.
+> Listings/offers/detail reads and ALL writes stay on the direct path — the slice is
+> deliberately read-only. The post-impl adversarial review caught a real flag-on bug,
+> fixed + mutation-tested: `Adena.On` has no unsubscribe, so unmounted useAdena instances
+> keep ZOMBIE `changedNetwork` handlers with a frozen connected stateRef — a network
+> switch after disconnect would have re-armed the bus/bridge with a live address; the
+> publish is now double-guarded (`stateRef && wasConnected()`, localStorage being current
+> truth). Distinct from the known-deferred silent-reconnect race (`saveConnected`
+> resurrects the flag), which is pre-existing useAdena behavior the bus merely mirrors —
+> that one is revisited in Phase 3 with CAL writes. Next: Phase 3 wave 1 (read-mostly
+> pages).
 >
 > Every phase below is separately shippable and separately revertable. Written 2026-07-25,
 > after B-3 (network-model reconciliation), B-4 (real per-network endpoints) and B-6

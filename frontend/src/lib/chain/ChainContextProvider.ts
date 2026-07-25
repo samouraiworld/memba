@@ -14,7 +14,7 @@
  * @module lib/chain/ChainContextProvider
  */
 
-import React, { useState, useCallback, useMemo, useEffect, type ReactNode } from "react"
+import React, { useState, useCallback, useMemo, useEffect, useSyncExternalStore, type ReactNode } from "react"
 import { ChainContext, type ChainContextValue } from "./context"
 import { ChainError } from "./provider"
 import type { ChainId, CALNetworkConfig } from "./types"
@@ -23,7 +23,7 @@ import { createGnoProvider, type GnoProviderExtended } from "./gno/GnoProvider"
 import { ACTIVE_NETWORK_KEY } from "../config"
 import { chainIdToConfigKey, configKeyToChainId } from "./gnoBridge"
 import { switchGnoNetwork } from "../networkSwitch"
-import { useAdena } from "../../hooks/useAdena"
+import { getWalletSnapshot, subscribe } from "../walletBus"
 
 // ── Register factories (once) ────────────────────────────────
 
@@ -83,22 +83,21 @@ export function ChainContextProvider({
     // Push useAdena's wallet state into the GnoProvider so CAL writes carry
     // the connected address. Connection itself stays the hook's job; this is
     // one-way state sync, the Gno counterpart of wagmi → setWalletClient.
-    // KNOWN GAP (recorded as a Phase-2 prerequisite in B5_CAL_MOUNT_PLAN):
-    // useAdena instances are per-hook-instance and never cross-sync, so THIS
-    // root instance misses interactive connects made through another instance
-    // (until a visibilitychange retry) and never sees disconnects. Harmless
-    // while the CAL has zero consumers; a shared wallet source must land
-    // before any page uses CAL writes.
-    const { connected: adenaConnected, address: adenaAddress } = useAdena()
+    // B-5 Phase 2a: wallet identity comes from the walletBus — the shared
+    // source every useAdena instance publishes its transitions to — NOT from
+    // an own useAdena instance (which could never see connects/disconnects
+    // made through other instances, and duplicated the silent reconnect +
+    // analytics event; the Phase-1 review's finding, closed here).
+    const wallet = useSyncExternalStore(subscribe, getWalletSnapshot)
     useEffect(() => {
         if (provider.family !== "gno") return
         const gno = provider as GnoProviderExtended
-        gno.setWalletBridge(adenaConnected && adenaAddress ? { address: adenaAddress } : null)
+        gno.setWalletBridge(wallet.connected && wallet.address ? { address: wallet.address } : null)
         // Cleanup clears the OLD provider's bridge when the provider swaps
         // (EVM switch, Phase 4) so a registry-cached gno provider can't keep a
         // frozen address.
         return () => { gno.setWalletBridge(null) }
-    }, [provider, adenaConnected, adenaAddress])
+    }, [provider, wallet])
 
     const switchChain = useCallback(async (chainId: ChainId) => {
         // Disconnect the current provider first, regardless of family.

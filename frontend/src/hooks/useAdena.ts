@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { isTrustedRpcDomain, networkScopedKey } from "../lib/config";
 import { setWalletRpcContext, UNVERIFIED_CHAIN_ID } from "../lib/grc20";
+import { publishWalletState } from "../lib/walletBus";
 import { buildAdenaMultisigDoc, type CanonicalSignDoc } from "../lib/multisigTx";
 import { trackEvent } from "../lib/analytics";
 import { buildLoginChallengeDoc, adenaPubKeyToJSON } from "../lib/loginChallenge";
@@ -236,6 +237,10 @@ export function useAdena() {
                 rpcUrl,
                 rpcTrusted,
             });
+            // B-5 Phase 2a: identity TRANSITIONS feed the CAL wallet bridge via
+            // the walletBus (mount defaults never publish). Write-only — no
+            // useAdena consumer reads the bus, so app behavior is unchanged.
+            publishWalletState({ connected: true, address });
             return true;
         } catch (err) {
             logWalletEvent("connect-error", err instanceof Error ? err.message : "unknown");
@@ -437,6 +442,7 @@ export function useAdena() {
             rpcUrl: "",
             rpcTrusted: false,
         });
+        publishWalletState({ connected: false, address: "" }); // B-5 Phase 2a
     }, []);
 
     // SECURITY: Listen for network changes in Adena — re-validate RPC immediately.
@@ -474,6 +480,20 @@ export function useAdena() {
                             address: acct.data.address,
                             chainId: acct.data.chainId,
                         }));
+                        // B-5 Phase 2a: a wallet-side network switch can land on
+                        // a DIFFERENT account — the third identity transition.
+                        // Guarded TWICE: stateRef (this instance believes it is
+                        // connected) AND wasConnected() (localStorage, current
+                        // truth). Adena.On has no unsubscribe, so unmounted
+                        // instances keep zombie handlers with stateRef frozen
+                        // at connected=true — without the storage check, a
+                        // network switch after disconnect would resurrect the
+                        // bus (and the CAL bridge) with a live address.
+                        // disconnect() clears the flag synchronously, so this
+                        // also closes the disconnect-vs-async-handler race.
+                        if (stateRef.current.connected && wasConnected()) {
+                            publishWalletState({ connected: true, address: acct.data.address });
+                        }
                     }
                 } catch { /* keep the fail-closed sentinel */ }
 

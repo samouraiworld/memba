@@ -21,10 +21,11 @@
  * @module pages/useCollectionPublic
  */
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, useMemo } from "react"
 import { fetchCollectionDetail, isCollectionVerified } from "../lib/launchpadReads"
 import { fetchNFTCollection, fetchNFTActivity } from "../lib/nftApi"
-import { fetchV3Tokens, fetchV3Listings, type V3Token, type V3ListingMap } from "../lib/v3TokenGrid"
+import { fetchV3Tokens, fetchV3Listings, type V3Token, type V3ListingMap, type V3TokenRead } from "../lib/v3TokenGrid"
+import { useChainOptional } from "../lib/chain/context"
 import { fetchOffersForToken, type TokenOffer } from "../lib/marketplace/v3Reads"
 import { tradeEngineFor } from "../lib/tradeEngine"
 import type { CollectionDetail } from "../lib/launchpad"
@@ -75,6 +76,27 @@ export function useCollectionPublic(id: string, viewer = ""): CollectionPublicRe
 
     // Incrementing this triggers a re-fetch without changing `id`.
     const [fetchEpoch, setFetchEpoch] = useState(0)
+
+    // ── B-5 Phase 2b: token enumeration through the CAL when mounted ─────────
+    // The FIRST page slice on the Chain Abstraction Layer (owner decision D1).
+    // With VITE_ENABLE_CAL on, per-token owner/URI reads go through
+    // provider.getNFT (ContractRef.subId addresses the sub-collection); the
+    // windowing/burn-skip logic stays in fetchV3Tokens for both paths. Flag
+    // off (prod default), useChainOptional() is null and the default direct
+    // grc721 reader runs — byte-identical pre-CAL behavior. Only Gno gets a
+    // reader; listings/offers/detail reads are NOT migrated in this slice.
+    const cal = useChainOptional()
+    const calProvider = cal && cal.family === "gno" ? cal.provider : null
+    const calReadToken = useMemo(
+        () =>
+            calProvider
+                ? async (path: string, cid: string, tid: string): Promise<V3TokenRead> => {
+                      const nft = await calProvider.getNFT({ id: path, family: "gno", subId: cid }, tid)
+                      return { owner: nft?.owner.raw ?? null, uri: nft?.tokenURI ?? null }
+                  }
+                : undefined,
+        [calProvider],
+    )
 
     useEffect(() => {
         let active = true
@@ -131,7 +153,7 @@ export function useCollectionPublic(id: string, viewer = ""): CollectionPublicRe
                     // Windowed to DEFAULT_TOKEN_WINDOW to bound RPC fan-out (W0.3);
                     // true per-page enumeration + "load more" lands with the v3.1
                     // paginated getter in W1.2.
-                    const toks = await fetchV3Tokens(id, supply, collectionPath)
+                    const toks = await fetchV3Tokens(id, supply, collectionPath, { readToken: calReadToken })
                     if (!active) return
                     setTokens(toks)
                     await loadOffers(toks)
@@ -171,7 +193,7 @@ export function useCollectionPublic(id: string, viewer = ""): CollectionPublicRe
         return () => {
             active = false
         }
-    }, [id, viewer, fetchEpoch])
+    }, [id, viewer, fetchEpoch, calReadToken])
 
     const reload = useCallback(() => {
         setFetchEpoch((n) => n + 1)

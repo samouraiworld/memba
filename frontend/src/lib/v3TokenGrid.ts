@@ -49,6 +49,12 @@ export const DEFAULT_TOKEN_WINDOW = 60
 /** Max RPC requests in flight at once while enumerating a window. */
 export const DEFAULT_TOKEN_CONCURRENCY = 12
 
+/** Per-token read result for the {@link FetchV3TokensOpts.readToken} seam. */
+export interface V3TokenRead {
+    owner: string | null
+    uri: string | null
+}
+
 export interface FetchV3TokensOpts {
     /** First tokenId to enumerate (default 0). */
     offset?: number
@@ -56,6 +62,14 @@ export interface FetchV3TokensOpts {
     limit?: number
     /** Max concurrent RPC requests (default DEFAULT_TOKEN_CONCURRENCY). */
     concurrency?: number
+    /**
+     * Per-token read override (B-5 Phase 2b). Default = the direct grc721
+     * OwnerOf+TokenURI pair against the active network. The CAL migration
+     * injects a provider-backed reader here so the windowing / concurrency /
+     * burn-skip logic stays single-sourced in this function for BOTH paths.
+     * A falsy/absent owner marks a gap (skipped); a throw is a gap too.
+     */
+    readToken?: (collectionPath: string, collectionID: string, tokenId: string) => Promise<V3TokenRead>
 }
 
 /**
@@ -88,15 +102,22 @@ export async function fetchV3Tokens(
     const tokens: V3Token[] = []
     // Chunked concurrency: process at most `concurrency` ids per wave so a large
     // window can't spike thousands of simultaneous RPC calls.
+    const readToken =
+        opts.readToken ??
+        (async (path: string, cid: string, tid: string): Promise<V3TokenRead> => {
+            const [owner, uri] = await Promise.all([
+                getNFTOwner(GNO_RPC_URL, path, cid, tid),
+                getTokenURI(GNO_RPC_URL, path, cid, tid),
+            ])
+            return { owner, uri }
+        })
+
     for (let i = 0; i < ids.length; i += concurrency) {
         const chunk = ids.slice(i, i + concurrency)
         await Promise.all(
             chunk.map(async (tid) => {
                 try {
-                    const [owner, uri] = await Promise.all([
-                        getNFTOwner(GNO_RPC_URL, collectionPath, collectionID, tid),
-                        getTokenURI(GNO_RPC_URL, collectionPath, collectionID, tid),
-                    ])
+                    const { owner, uri } = await readToken(collectionPath, collectionID, tid)
                     if (owner) {
                         tokens.push({ tokenId: tid, owner, uri: uri ?? "" })
                     }

@@ -71,6 +71,7 @@ function clearAdena() {
 import { useAdena } from "./useAdena"
 import { doContractBroadcast, setWalletRpcContext } from "../lib/grc20"
 import { GNO_CHAIN_ID } from "../lib/config"
+import { getWalletSnapshot, publishWalletState, resetWalletBusForTests } from "../lib/walletBus"
 
 beforeEach(() => {
     sessionStorage.clear() // setup.ts only clears localStorage; the hook uses sessionStorage
@@ -600,5 +601,77 @@ describe("useAdena — W5.1 visibility-driven reconnect retry", () => {
         fireVisibility()
         await act(async () => { await Promise.resolve() })
         expect(adena.GetAccount).not.toHaveBeenCalled()
+    })
+})
+
+// ── B-5 Phase 2a: walletBus publishing (feeds the CAL wallet bridge) ─────────
+
+describe("useAdena — walletBus identity transitions", () => {
+    it("publishes connected+address on connect success, and cleared state on disconnect", async () => {
+        resetWalletBusForTests()
+        setAdena(makeAdena())
+        const { result } = renderHook(() => useAdena())
+
+        await act(async () => { await result.current.connect() })
+        expect(getWalletSnapshot()).toEqual({ connected: true, address: okAccount().data.address })
+
+        act(() => { result.current.disconnect() })
+        expect(getWalletSnapshot()).toEqual({ connected: false, address: "" })
+    })
+
+    it("a freshly-mounted DISCONNECTED instance never clobbers a connected bus (mount defaults don't publish)", async () => {
+        resetWalletBusForTests()
+        publishWalletState({ connected: true, address: "g1already" })
+        // No wallet session for this instance: no adena, no stored flag.
+        renderHook(() => useAdena())
+        await act(async () => { await Promise.resolve() })
+        expect(getWalletSnapshot()).toEqual({ connected: true, address: "g1already" })
+    })
+})
+
+describe("useAdena — walletBus on changedNetwork (zombie-handler guard)", () => {
+    function captureHandler() {
+        let changedHandler: (() => void | Promise<void>) | undefined
+        const adena = makeAdena({
+            On: vi.fn((event: string, cb: () => void | Promise<void>) => {
+                if (event === "changedNetwork") changedHandler = cb
+                return true
+            }),
+            GetAccount: vi.fn().mockResolvedValue(okAccount()),
+        })
+        setAdena(adena)
+        return { adena, getHandler: () => changedHandler }
+    }
+
+    it("publishes the (possibly new) account on a wallet network switch while connected", async () => {
+        resetWalletBusForTests()
+        const { getHandler } = captureHandler()
+        const { result } = renderHook(() => useAdena())
+        await act(async () => { await result.current.connect() })
+        expect(getWalletSnapshot().connected).toBe(true)
+
+        await act(async () => { await getHandler()?.() })
+        expect(getWalletSnapshot()).toEqual({ connected: true, address: okAccount().data.address })
+    })
+
+    it("a ZOMBIE handler (instance unmounted, user disconnected elsewhere) must NOT resurrect the bus", async () => {
+        resetWalletBusForTests()
+        const { getHandler } = captureHandler()
+        const { result, unmount } = renderHook(() => useAdena())
+        await act(async () => { await result.current.connect() })
+
+        // Instance unmounts while connected: Adena.On has no unsubscribe, so
+        // the handler survives with stateRef frozen at connected=true.
+        unmount()
+        // The user disconnects through ANOTHER instance — clearing the shared
+        // localStorage flag and the bus.
+        localStorage.removeItem(SESSION_KEY)
+        publishWalletState({ connected: false, address: "" })
+
+        // A later wallet-side network switch fires the zombie handler. Without
+        // the wasConnected() guard this re-armed the CAL bridge with a live
+        // address while every mounted hook said disconnected.
+        await act(async () => { await getHandler()?.() })
+        expect(getWalletSnapshot()).toEqual({ connected: false, address: "" })
     })
 })

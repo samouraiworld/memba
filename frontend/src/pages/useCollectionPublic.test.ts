@@ -11,8 +11,10 @@
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { renderHook, waitFor, act } from "@testing-library/react"
+import { createElement, type ReactNode } from "react"
 import { useCollectionPublic } from "./useCollectionPublic"
 import { listingKey } from "../lib/v3TokenGrid"
+import { ChainContext } from "../lib/chain/context"
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -165,7 +167,9 @@ describe("useCollectionPublic — happy path", () => {
         await waitFor(() => expect(result.current.loading).toBe(false))
 
         // supply = detail.minted = 3
-        expect(mockFetchV3Tokens).toHaveBeenCalledWith(COL_ID, 3, expect.anything())
+        // 4th arg (B-5 Phase 2b): { readToken } — undefined reader when the CAL
+        // is unmounted/flag-off, so the default direct-grc721 path runs.
+        expect(mockFetchV3Tokens).toHaveBeenCalledWith(COL_ID, 3, expect.anything(), { readToken: undefined })
     })
 
     it("exposes the on-chain verified flag (true when the collection is verified)", async () => {
@@ -325,5 +329,83 @@ describe("useCollectionPublic — reload()", () => {
 
         await waitFor(() => expect(result.current.loading).toBe(false))
         expect(mockFetchCollectionDetail).toHaveBeenCalledTimes(2)
+    })
+})
+
+// ── B-5 Phase 2b: CAL-mounted token enumeration ──────────────────────────────
+// useChainOptional() gates on isCalEnabled(), which reads the (unset in tests)
+// build flag — force it on so the CAL branch is exercisable.
+vi.mock("../lib/config", async (orig) => ({
+    ...(await orig<typeof import("../lib/config")>()),
+    isCalEnabled: () => true,
+}))
+
+function primeCalMocks() {
+    mockFetchCollectionDetail.mockResolvedValue({ ...BASE_DETAIL })
+    mockFetchNFTCollection.mockResolvedValue({ ...BASE_STATS })
+    mockFetchV3Listings.mockResolvedValue(new Map(BASE_LISTINGS))
+    mockFetchNFTActivity.mockResolvedValue([...BASE_ACTIVITY])
+}
+
+describe("useCollectionPublic — CAL reader (B-5 Phase 2b)", () => {
+    it("with a mounted Gno CAL, threads a readToken that routes through provider.getNFT with subId", async () => {
+        primeCalMocks()
+        // The mocked fetchV3Tokens captures the injected reader so we can
+        // exercise it directly and pin the ContractRef shape.
+        let captured: ((p: string, c: string, t: string) => Promise<{ owner: string | null; uri: string | null }>) | undefined
+        mockFetchV3Tokens.mockImplementation(async (_id, _supply, _path, opts) => {
+            captured = (opts as { readToken?: typeof captured })?.readToken
+            return BASE_TOKENS
+        })
+        const getNFT = vi.fn().mockResolvedValue({
+            tokenId: "5",
+            owner: { raw: "g1calowner", family: "gno" },
+            tokenURI: "ipfs://cal5",
+            collection: { id: "gno.land/r/x", family: "gno" },
+        })
+        const provider = { family: "gno", getNFT } as never
+        const value = {
+            provider,
+            family: "gno",
+            network: {},
+            switchChain: vi.fn(),
+            availableNetworks: [],
+            isLoading: false,
+        } as never
+        const wrapper = ({ children }: { children: ReactNode }) =>
+            createElement(ChainContext.Provider, { value }, children)
+
+        const { result } = renderHook(() => useCollectionPublic(COL_ID), { wrapper })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(captured).toBeDefined()
+        const read = await captured!("gno.land/r/samcrew/memba_collections", COL_ID, "5")
+        expect(getNFT).toHaveBeenCalledWith(
+            { id: "gno.land/r/samcrew/memba_collections", family: "gno", subId: COL_ID },
+            "5",
+        )
+        expect(read).toEqual({ owner: "g1calowner", uri: "ipfs://cal5" })
+    })
+
+    it("with a mounted EVM CAL, does NOT inject a reader (Gno-only slice)", async () => {
+        primeCalMocks()
+        let sawOpts: unknown = "unset"
+        mockFetchV3Tokens.mockImplementation(async (_id, _supply, _path, opts) => {
+            sawOpts = opts
+            return BASE_TOKENS
+        })
+        const value = {
+            provider: { family: "evm" },
+            family: "evm",
+            network: {},
+            switchChain: vi.fn(),
+            availableNetworks: [],
+            isLoading: false,
+        } as never
+        const wrapper = ({ children }: { children: ReactNode }) =>
+            createElement(ChainContext.Provider, { value }, children)
+        const { result } = renderHook(() => useCollectionPublic(COL_ID), { wrapper })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+        expect(sawOpts).toEqual({ readToken: undefined })
     })
 })

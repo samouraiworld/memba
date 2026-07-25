@@ -349,9 +349,10 @@ export function createGnoProvider(config: CALNetworkConfig): GnoProviderExtended
 
         async getNFTsByOwner(collection: ContractRef, owner: ChainAddress): Promise<CALNFT[]> {
             try {
-                // Use listCollectionTokens and filter by owner
-                // collection.id format: "realmPath" — we use "default" as collectionID
-                const tokens = await listCollectionTokens(rpcUrl, collection.id, "default")
+                // Use listCollectionTokens and filter by owner. The realm
+                // multiplexes collections; ContractRef.subId selects one
+                // (B-5 Phase 2b) — absent means the "default" collection.
+                const tokens = await listCollectionTokens(rpcUrl, collection.id, collection.subId ?? "default")
                 return tokens
                     .filter(t => t.owner === owner.raw)
                     .map(t => ({
@@ -370,9 +371,14 @@ export function createGnoProvider(config: CALNetworkConfig): GnoProviderExtended
                 // B-4: grc721 reads take rpcUrl first and thread it to the
                 // transport, so this provider's per-network endpoint is honored
                 // (dao/shared routes a non-active endpoint through abciQueryAt —
-                // direct, no cross-network failover).
-                const owner = await getNFTOwner(rpcUrl, collection.id, "default", tokenId)
-                const uri = await getTokenURI(rpcUrl, collection.id, "default", tokenId)
+                // direct, no cross-network failover). Owner+URI in PARALLEL —
+                // the v3 grid enumerates through this per token, so sequential
+                // awaits would double its load time (B-5 Phase 2b).
+                const subId = collection.subId ?? "default"
+                const [owner, uri] = await Promise.all([
+                    getNFTOwner(rpcUrl, collection.id, subId, tokenId),
+                    getTokenURI(rpcUrl, collection.id, subId, tokenId),
+                ])
                 if (!owner) return null
                 return {
                     tokenId,
