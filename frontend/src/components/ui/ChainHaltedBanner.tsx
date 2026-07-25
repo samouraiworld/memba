@@ -16,6 +16,13 @@ import { useState, useEffect, useCallback } from "react"
 import { checkChainHealth, getSuggestedFallback } from "../../lib/chainHealth"
 import { NETWORKS } from "../../lib/config"
 
+/** Delay before the confirming re-probe. A single point-in-time sample can be a
+ *  transient blip (TLS warm-up, a backgrounded tab, the slowest endpoint just
+ *  over the timeout); we only conclude "unreachable" after two consecutive
+ *  failures so a blip can't latch the banner for the whole session — this
+ *  matters because test13 (the default network) is now probed. */
+export const PROBE_RETRY_DELAY_MS = 2500
+
 interface ChainHaltedBannerProps {
     /** Active network key (e.g. "gnoland1", "test13") */
     networkKey: string
@@ -43,8 +50,17 @@ export function ChainHaltedBanner({ networkKey, onSwitchNetwork }: ChainHaltedBa
     const probeHealth = useCallback(async (key: string, signal: { cancelled: boolean }) => {
         setChecking(true)
         try {
-            const result = await checkChainHealth(key, 6000)
+            let result = await checkChainHealth(key, 6000)
             if (signal.cancelled) return
+            // Two-strikes: confirm a first-probe failure with a second probe after
+            // a short delay before showing the banner. A real outage still surfaces
+            // (in ~PROBE_RETRY_DELAY_MS); a one-off blip does not latch.
+            if (!result.reachable) {
+                await new Promise((resolve) => setTimeout(resolve, PROBE_RETRY_DELAY_MS))
+                if (signal.cancelled) return
+                result = await checkChainHealth(key, 6000)
+                if (signal.cancelled) return
+            }
             setHalted(!result.reachable)
         } catch {
             if (signal.cancelled) return

@@ -10,7 +10,7 @@
  * checkChainHealth (the network probe) is mocked; getSuggestedFallback stays
  * REAL so the fallback-ordering fix (prefer topaz over Betanet) is exercised.
  */
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { render, screen, waitFor } from "@testing-library/react"
 
 const checkChainHealth = vi.fn()
@@ -19,20 +19,33 @@ vi.mock("../../lib/chainHealth", async (importOriginal) => ({
     checkChainHealth: (key: string, timeout?: number) => checkChainHealth(key, timeout),
 }))
 
-const { ChainHaltedBanner } = await import("./ChainHaltedBanner")
+const { ChainHaltedBanner, PROBE_RETRY_DELAY_MS } = await import("./ChainHaltedBanner")
 
 const reachable = { reachable: true, respondingRpc: "x", latencyMs: 1, chainId: "test-13", blockHeight: 1 }
 const unreachable = { reachable: false, respondingRpc: null, latencyMs: null, chainId: "test-13", blockHeight: 0 }
 
-beforeEach(() => checkChainHealth.mockReset())
+// Fake timers so the two-strikes retry delay doesn't make the suite wait in
+// real time. shouldAdvanceTime lets testing-library's async utilities still run.
+beforeEach(() => {
+    checkChainHealth.mockReset()
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+})
+afterEach(() => vi.useRealTimers())
+
+/** Drive both probes of the two-strikes cycle to completion. */
+async function settleTwoStrikes() {
+    await waitFor(() => expect(checkChainHealth).toHaveBeenCalledTimes(1))
+    await vi.advanceTimersByTimeAsync(PROBE_RETRY_DELAY_MS)
+}
 
 describe("ChainHaltedBanner — test13 is not exempt", () => {
-    it("probes test13 and shows the banner when every endpoint is unreachable", async () => {
+    it("probes test13 and shows the banner when every endpoint is unreachable (twice)", async () => {
         checkChainHealth.mockResolvedValue(unreachable)
         render(<ChainHaltedBanner networkKey="test13" onSwitchNetwork={() => {}} />)
 
         // The probe must actually run for test13 (it used to be skipped).
-        await waitFor(() => expect(checkChainHealth).toHaveBeenCalledWith("test13", expect.any(Number)))
+        await settleTwoStrikes()
+        await waitFor(() => expect(checkChainHealth).toHaveBeenCalledTimes(2))
         expect(await screen.findByRole("alert")).toHaveTextContent(/unreachable/i)
     })
 
@@ -41,8 +54,20 @@ describe("ChainHaltedBanner — test13 is not exempt", () => {
         render(<ChainHaltedBanner networkKey="test13" onSwitchNetwork={() => {}} />)
 
         await waitFor(() => expect(checkChainHealth).toHaveBeenCalled())
-        // Give any state flush a tick; the banner must stay absent.
-        await new Promise((r) => setTimeout(r, 0))
+        await vi.advanceTimersByTimeAsync(0)
+        // A reachable first probe means no retry and no banner.
+        expect(checkChainHealth).toHaveBeenCalledTimes(1)
+        expect(screen.queryByRole("alert")).toBeNull()
+    })
+
+    it("does NOT latch the banner on a one-off blip (fail then recover)", async () => {
+        // First probe fails, the confirming re-probe succeeds → transient, no banner.
+        checkChainHealth.mockResolvedValueOnce(unreachable).mockResolvedValueOnce(reachable)
+        render(<ChainHaltedBanner networkKey="test13" onSwitchNetwork={() => {}} />)
+
+        await settleTwoStrikes()
+        await waitFor(() => expect(checkChainHealth).toHaveBeenCalledTimes(2))
+        await vi.advanceTimersByTimeAsync(0)
         expect(screen.queryByRole("alert")).toBeNull()
     })
 })
@@ -52,6 +77,7 @@ describe("ChainHaltedBanner — fallback suggestion", () => {
         checkChainHealth.mockResolvedValue(unreachable)
         render(<ChainHaltedBanner networkKey="test13" onSwitchNetwork={() => {}} />)
 
+        await settleTwoStrikes()
         const alert = await screen.findByRole("alert")
         // Topaz has Memba's core realms; Betanet/gnoland1 does not — never steer there.
         expect(alert).toHaveTextContent(/topaz/i)
