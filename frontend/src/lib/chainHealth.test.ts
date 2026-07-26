@@ -13,6 +13,12 @@ vi.mock("./config", () => ({
             ],
             label: "Testnet 13",
         },
+        topaz: {
+            chainId: "topaz-1",
+            rpcUrl: "https://rpc.topaz.testnets.gno.land:443",
+            fallbackRpcUrls: ["https://rpc.topaz.samourai.live:443"],
+            label: "Topaz",
+        },
         gnoland1: {
             chainId: "gnoland1",
             rpcUrl: "https://rpc.gnoland1.samourai.live:443",
@@ -103,8 +109,10 @@ describe("chainHealth", () => {
             expect(getSuggestedFallback("gnoland1")).toBe("test13")
         })
 
-        it("suggests gnoland1 for test13", () => {
-            expect(getSuggestedFallback("test13")).toBe("gnoland1")
+        it("suggests topaz (Memba realms live) for test13, not Betanet", () => {
+            // topaz carries the core realm set since the Phase A cutover; gnoland1
+            // (Betanet) has no Memba realms and must never be the first suggestion.
+            expect(getSuggestedFallback("test13")).toBe("topaz")
         })
 
         it("suggests test13 for unknown network", () => {

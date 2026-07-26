@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Network — you're now warned when Testnet 13 is unreachable, and pointed somewhere that works (2026-07-24)
+<!-- categories: memba -->
+- **Fixed Memba staying silent when Testnet 13's servers are unreachable.** Every other network already showed a banner when it couldn't be reached, but Testnet 13 was hardcoded as "always up" and skipped that check — so when its public nodes went down, the app just failed to load data with nothing to explain why. Memba now checks Testnet 13 the same as any other network: it only warns when *every* endpoint it knows is unreachable (so a single node being down, which Memba already routes around, still shows nothing), and when it does warn it now suggests switching to **Topaz** — where Memba's features are actually available — instead of Betanet, where they aren't.
 ### Security — patched a denial-of-service dependency and tightened the audit gate (2026-07-25)
 <!-- categories: memba -->
 - **Patched a bundled dependency (`brace-expansion`) with a denial-of-service flaw and made the security audit that guards every release smarter.** The flaw could let a maliciously crafted pattern exhaust memory; it's a transitive library used by our tooling, now updated to a fixed version. Separately, our automated dependency audit was flagging a React Router advisory that only affects apps using its server-components mode — which Memba does not (it's a single-page app) — and whose only "fix" is a downgrade. The audit now runs through a small gate that acknowledges that specific, non-applicable advisory with a written justification while still failing on any new high-severity issue, so a real vulnerability can't slip through and an inapplicable one can't block unrelated work. No user-facing behaviour changed.
