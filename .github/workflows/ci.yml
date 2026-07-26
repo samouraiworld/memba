@@ -210,10 +210,13 @@ jobs:
       # `Frontend E2E (chromium)` to branch protection's required checks.
 
       # Dependency audit is Node-version-independent — run once (Node 22), not
-      # on both matrix legs.
+      # on both matrix legs. Uses the audit:ci gate (scripts/audit-ci.mjs): a
+      # prod `npm audit --audit-level=high` minus a small, justified allowlist of
+      # advisories that don't apply to Memba (e.g. React Router's RSC-mode CSRF —
+      # Memba is a Vite SPA). Fails on any un-allowlisted high/critical.
       - name: Security audit
         if: matrix.node-version == '22'
-        run: npm audit --audit-level=high --omit=dev
+        run: npm run audit:ci
 
       - name: Lighthouse CI
         if: matrix.node-version == '22'
