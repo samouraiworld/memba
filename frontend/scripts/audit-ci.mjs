@@ -14,16 +14,20 @@
  *
  * Exit 0 = clean (or only allowlisted high/critical remain). Exit 1 = a
  * non-allowlisted high/critical advisory exists, OR the audit could not be read
- * (fail-closed).
+ * (fail-closed — a registry/network failure must NEVER read as "no vulns").
+ *
+ * The pure helpers are exported for unit tests; the audit is only run when this
+ * file is executed directly.
  */
 
 import { execFileSync } from "node:child_process"
+import { pathToFileURL } from "node:url"
 
 /**
  * Acknowledged advisories. KEY = GHSA id (as it appears in the advisory URL).
  * Keep this list minimal; prefer fixing or upgrading over allowlisting.
  */
-const ALLOWLIST = {
+export const ALLOWLIST = {
     "GHSA-qwww-vcr4-c8h2": {
         package: "react-router / react-router-dom",
         reason:
@@ -37,32 +41,23 @@ const ALLOWLIST = {
     },
 }
 
-function readAudit() {
-    // npm audit exits non-zero when advisories are found, so capture stdout even
-    // on a non-zero exit. A genuine failure to produce JSON is fail-closed below.
-    try {
-        const out = execFileSync(
-            "npm",
-            ["audit", "--json", "--audit-level=high", "--omit=dev"],
-            { encoding: "utf8", maxBuffer: 32 * 1024 * 1024, stdio: ["ignore", "pipe", "ignore"] },
-        )
-        return JSON.parse(out)
-    } catch (err) {
-        // execFileSync throws on non-zero exit; the JSON is still on stdout.
-        if (err && typeof err.stdout === "string" && err.stdout.trim()) {
-            try {
-                return JSON.parse(err.stdout)
-            } catch {
-                /* fall through to fail-closed */
-            }
-        }
-        console.error("audit-ci: could not run or parse `npm audit --json`:", err?.message || err)
-        process.exit(1)
-    }
+/**
+ * A successful `npm audit --json` always carries BOTH a `metadata` block and a
+ * `vulnerabilities` map. A registry/network failure emits `{error|message,...}`
+ * with neither — so anything missing that shape is unusable, not clean. This is
+ * the load-bearing fail-closed check: treating a failed audit as "no vulns"
+ * would turn the gate green while auditing nothing.
+ */
+export function isUsableReport(report) {
+    return !!report && !report.error && !!report.metadata && typeof report.vulnerabilities === "object"
 }
 
-/** Pull every distinct GHSA advisory (with metadata) at high/critical severity. */
-function collectHighAdvisories(report) {
+/** Pull every distinct GHSA advisory (with metadata) at high/critical severity.
+ *  Advisory OBJECTS live on the package an advisory targets; downstream packages
+ *  back-reference by STRING (e.g. react-router-dom via:["react-router"]). We
+ *  collect objects across all packages, so every advisory is counted exactly
+ *  once and a string-only back-reference can't hide a real high/critical. */
+export function collectHighAdvisories(report) {
     const found = new Map() // ghsa -> { title, url, severity }
     const vulns = report?.vulnerabilities || {}
     for (const v of Object.values(vulns)) {
@@ -78,35 +73,85 @@ function collectHighAdvisories(report) {
     return found
 }
 
-const report = readAudit()
-const advisories = collectHighAdvisories(report)
-
-const acknowledged = []
-const blocking = []
-for (const [ghsa, info] of advisories) {
-    if (ALLOWLIST[ghsa]) acknowledged.push([ghsa, info])
-    else blocking.push([ghsa, info])
+/** Split the high/critical advisories into acknowledged (allowlisted) vs blocking. */
+export function classify(report, allowlist = ALLOWLIST) {
+    const acknowledged = []
+    const blocking = []
+    for (const [ghsa, info] of collectHighAdvisories(report)) {
+        ;(allowlist[ghsa] ? acknowledged : blocking).push([ghsa, info])
+    }
+    return { acknowledged, blocking }
 }
 
-if (acknowledged.length) {
-    console.log(`audit-ci: ${acknowledged.length} acknowledged (allowlisted) high/critical advisory(ies):`)
-    for (const [ghsa, info] of acknowledged) {
-        const a = ALLOWLIST[ghsa]
-        console.log(`  • ${ghsa} [${info.severity}] ${a.package} — ${info.title}`)
-        console.log(`      justification (${a.added}): ${a.reason}`)
-    }
-}
-
-if (blocking.length) {
-    console.error(`\naudit-ci: ${blocking.length} BLOCKING high/critical advisory(ies) with no allowlist entry:`)
-    for (const [ghsa, info] of blocking) {
-        console.error(`  ✗ ${ghsa} [${info.severity}] ${info.title}`)
-        console.error(`      ${info.url}`)
-    }
-    console.error("\nFix the dependency (npm audit fix), or — only if it genuinely does not apply —")
-    console.error("add a justified entry to ALLOWLIST in frontend/scripts/audit-ci.mjs.")
+function failClosed(msg, detail) {
+    console.error(`audit-ci: ${msg} — failing closed.`)
+    if (detail) console.error(String(detail).slice(0, 800))
     process.exit(1)
 }
 
-console.log(`\naudit-ci: no un-allowlisted high/critical advisories. OK.`)
-process.exit(0)
+function readAudit() {
+    // npm audit exits non-zero both when advisories are found (JSON on stdout,
+    // the normal case) AND when it errors. Capture stderr too so the diagnostic
+    // isn't swallowed.
+    let raw = ""
+    let stderr = ""
+    try {
+        raw = execFileSync(
+            "npm",
+            ["audit", "--json", "--audit-level=high", "--omit=dev"],
+            { encoding: "utf8", maxBuffer: 32 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] },
+        )
+    } catch (err) {
+        raw = typeof err?.stdout === "string" ? err.stdout : ""
+        stderr = typeof err?.stderr === "string" ? err.stderr : ""
+        if (!raw.trim()) failClosed("`npm audit --json` produced no output", stderr || err?.message)
+    }
+
+    let report
+    try {
+        report = JSON.parse(raw)
+    } catch {
+        failClosed("could not parse `npm audit --json` output", stderr || raw)
+    }
+
+    if (!isUsableReport(report)) {
+        failClosed(
+            "npm audit did not return a vulnerabilities report (error or unknown shape)",
+            JSON.stringify(report?.error ?? report?.message ?? report) + (stderr ? `\n${stderr}` : ""),
+        )
+    }
+    return report
+}
+
+function main() {
+    const { acknowledged, blocking } = classify(readAudit())
+
+    if (acknowledged.length) {
+        console.log(`audit-ci: ${acknowledged.length} acknowledged (allowlisted) high/critical advisory(ies):`)
+        for (const [ghsa, info] of acknowledged) {
+            const a = ALLOWLIST[ghsa]
+            console.log(`  • ${ghsa} [${info.severity}] ${a.package} — ${info.title}`)
+            console.log(`      justification (${a.added}): ${a.reason}`)
+        }
+    }
+
+    if (blocking.length) {
+        console.error(`\naudit-ci: ${blocking.length} BLOCKING high/critical advisory(ies) with no allowlist entry:`)
+        for (const [ghsa, info] of blocking) {
+            console.error(`  ✗ ${ghsa} [${info.severity}] ${info.title}`)
+            console.error(`      ${info.url}`)
+        }
+        console.error("\nFix the dependency (npm audit fix), or — only if it genuinely does not apply —")
+        console.error("add a justified entry to ALLOWLIST in frontend/scripts/audit-ci.mjs.")
+        process.exit(1)
+    }
+
+    console.log(`\naudit-ci: no un-allowlisted high/critical advisories. OK.`)
+    process.exit(0)
+}
+
+// Run the audit only when executed directly (`node scripts/audit-ci.mjs`), not
+// when imported by the unit test.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+    main()
+}
