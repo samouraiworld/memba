@@ -25,9 +25,9 @@ import (
 type queryFunc func(rpcURL, path, data string) (string, error)
 
 // homeSnapshotRPCURL returns the RPC the home snapshot reads. The default is the
-// pinned samourai node (matching fly.toml) — NOT the public test13 node, which
+// pinned samourai node (matching fly.toml) — NOT the public node, which
 // rate-limits the Fly egress IP (#466); an unset env must not silently re-trigger
-// that. do not use gnoRPCURL() here — both now point at test13, but keeping the
+// that. do not use gnoRPCURL() here — both now point at topaz, but keeping the
 // home var separate avoids accidental coupling if GNO_RPC_URL is repurposed.
 func homeSnapshotRPCURL() string {
 	if v := os.Getenv("HOME_SNAPSHOT_RPC_URL"); v != "" {
@@ -36,7 +36,7 @@ func homeSnapshotRPCURL() string {
 	if v := os.Getenv("NFT_RPC_URL"); v != "" {
 		return v
 	}
-	return "https://rpc.testnet13.samourai.live:443"
+	return "https://rpc.topaz.samourai.live:443"
 }
 
 // homeSnapshotTTL is the cache window (default 30s, env HOME_SNAPSHOT_TTL as a Go duration).

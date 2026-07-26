@@ -21,22 +21,20 @@ import (
 // deferred (the realistic fast-fail outage already fails over near-instantly).
 const rpcAttemptTimeout = 8 * time.Second
 
-// defaultTest13Fallbacks are the backup test13 RPC nodes tried, in order, when
-// the primary endpoint is unreachable. They mirror the trusted test13 nodes the
-// frontend already fails over to (frontend/src/lib/config.ts test13 rpcUrl +
-// fallbackRpcUrls + telemetry nodes). Used ONLY on a transport error from the
+// defaultTopazFallbacks are the backup topaz RPC nodes tried, in order, when
+// the primary endpoint is unreachable. They mirror the trusted topaz nodes the
+// frontend already fails over to (frontend/src/lib/config.ts topaz rpcUrl +
+// fallbackRpcUrls). Used ONLY on a transport error from the
 // primary — a valid "no record" answer never triggers failover.
-var defaultTest13Fallbacks = []string{
-	"https://rpc.test13.testnets.gno.land:443", // public canonical
-	"https://test13.rpc.onbloc.xyz:443",        // onbloc
-	// aeddi's rpc.test-13-aeddi-1 node was dropped here: it's on the deprecating
-	// *.test-13.gnoland.network family (gno core, 2026-06-24). Set RPC_FALLBACK_URLS
-	// to add nodes without a code change.
+var defaultTopazFallbacks = []string{
+	"https://rpc.topaz.testnets.gno.land:443", // public canonical
+	"https://rpc.topaz.samourai.live:443",     // samourai sentry
+	// Set RPC_FALLBACK_URLS to add nodes without a code change.
 }
 
 // rpcFallbackURLs returns the ordered backup node list. RPC_FALLBACK_URLS
 // (comma-separated) overrides the built-in list; blank entries are dropped and
-// surrounding whitespace trimmed. An unset/empty env yields the test13 default.
+// surrounding whitespace trimmed. An unset/empty env yields the topaz default.
 func rpcFallbackURLs() []string {
 	if v := strings.TrimSpace(os.Getenv("RPC_FALLBACK_URLS")); v != "" {
 		out := make([]string, 0, 4)
@@ -47,7 +45,7 @@ func rpcFallbackURLs() []string {
 		}
 		return out
 	}
-	return defaultTest13Fallbacks
+	return defaultTopazFallbacks
 }
 
 // rpcURLsInOrder returns [primary, ...fallbacks] with duplicates removed and

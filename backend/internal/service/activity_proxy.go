@@ -17,7 +17,7 @@ func indexerURL() string {
 	if v := os.Getenv("INDEXER_GRAPHQL_URL"); v != "" {
 		return v
 	}
-	return "https://indexer.test13.testnets.gno.land/graphql/query"
+	return "https://indexer.topaz.testnets.gno.land/graphql/query"
 }
 
 const (
