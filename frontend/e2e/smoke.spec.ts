@@ -88,8 +88,10 @@ test.describe('v1.4.0 — DAO Page', () => {
 })
 
 test.describe('v1.4.0 — CreateToken Placeholders', () => {
+    // /test13: form renders only where the factory realm is allowlist-valid;
+    // topaz gates it until the commerce ceremony (see token.spec.ts).
     test('neutral placeholders used', async ({ page }) => {
-        await page.goto('/create-token')
+        await page.goto('/test13/create-token')
         // Check that new placeholders are present
         const nameInput = page.locator('input[placeholder*="Your Token Name"]')
         await expect(nameInput).toBeVisible()
