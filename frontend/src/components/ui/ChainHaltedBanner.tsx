@@ -3,7 +3,8 @@
  *
  * C-02 fix: Probes the active chain on network switch. If all RPC endpoints
  * (primary + fallbacks) are unreachable, shows a dismissible banner with
- * an auto-suggest button to switch to a reachable network.
+ * an auto-suggest button to switch to a reachable network. Every network is
+ * probed, test13 included — its public RPCs are not guaranteed up.
  *
  * Architecture: This component uses the chainHealth module for RPC probing
  * and integrates with the network switcher for one-click fallback.
@@ -14,6 +15,13 @@
 import { useState, useEffect, useCallback } from "react"
 import { checkChainHealth, getSuggestedFallback } from "../../lib/chainHealth"
 import { NETWORKS } from "../../lib/config"
+
+/** Delay before the confirming re-probe. A single point-in-time sample can be a
+ *  transient blip (TLS warm-up, a backgrounded tab, the slowest endpoint just
+ *  over the timeout); we only conclude "unreachable" after two consecutive
+ *  failures so a blip can't latch the banner for the whole session — this
+ *  matters because test13 (the default network) is now probed. */
+export const PROBE_RETRY_DELAY_MS = 2500
 
 interface ChainHaltedBannerProps {
     /** Active network key (e.g. "gnoland1", "test13") */
@@ -42,8 +50,17 @@ export function ChainHaltedBanner({ networkKey, onSwitchNetwork }: ChainHaltedBa
     const probeHealth = useCallback(async (key: string, signal: { cancelled: boolean }) => {
         setChecking(true)
         try {
-            const result = await checkChainHealth(key, 6000)
+            let result = await checkChainHealth(key, 6000)
             if (signal.cancelled) return
+            // Two-strikes: confirm a first-probe failure with a second probe after
+            // a short delay before showing the banner. A real outage still surfaces
+            // (in ~PROBE_RETRY_DELAY_MS); a one-off blip does not latch.
+            if (!result.reachable) {
+                await new Promise((resolve) => setTimeout(resolve, PROBE_RETRY_DELAY_MS))
+                if (signal.cancelled) return
+                result = await checkChainHealth(key, 6000)
+                if (signal.cancelled) return
+            }
             setHalted(!result.reachable)
         } catch {
             if (signal.cancelled) return
@@ -53,11 +70,13 @@ export function ChainHaltedBanner({ networkKey, onSwitchNetwork }: ChainHaltedBa
         }
     }, [])
 
-    // Trigger probe on network change
+    // Trigger probe on network change. Every network is probed — including
+    // test13. The probe (checkChainHealth) races the primary + all fallbacks and
+    // reports unreachable only when ALL of them fail, so this never fires while
+    // the app can still reach the chain through any endpoint. The old
+    // `networkKey === "test13"` skip assumed test13's RPC was always up; when its
+    // public endpoints went down, test13 users got a broken app with no notice.
     useEffect(() => {
-        // Skip known-good networks (test13 is primary)
-        if (networkKey === "test13") return
-
         const signal = { cancelled: false }
         probeHealth(networkKey, signal)
 
