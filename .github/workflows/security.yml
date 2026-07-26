@@ -22,7 +22,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: cd frontend && npm ci
       - name: npm audit (production)
-        run: cd frontend && npm audit --production --audit-level=high
+        run: cd frontend && npm run audit:ci
 
   # backend-audit removed (v7.1 plan §4.2 a.2): govulncheck is run by
   # ci.yml on every PR and govulncheck.yml on cron. Running here on a third

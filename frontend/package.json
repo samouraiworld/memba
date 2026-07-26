@@ -9,6 +9,7 @@
     "dev:e2e-feed": "vite --mode e2e-feed --port 5175 --strictPort",
     "build": "tsc -b && vite build",
     "check:bundle": "node scripts/check-three-chunk.mjs",
+    "audit:ci": "node scripts/audit-ci.mjs",
     "lint": "eslint . --max-warnings=55",
     "preview": "vite preview",
     "test": "vitest run",
