@@ -19,16 +19,18 @@ import type { Page } from '@playwright/test'
  */
 
 /**
- * The test13 primary + fallback gno RPC hosts — i.e. GNO_RPC_URL and
- * GNO_FALLBACK_RPC_URLS for the default (test13) network in
- * frontend/src/lib/config.ts. This is deliberately test13-scoped and RPC-only:
- * it does NOT cover the gnoland1 RPC/telemetry hosts (samourai.live, p2p.team,
- * aeddi.org) or the browser-proxied indexer (config.ts getIndexerUrl routes it
- * through `${API_BASE_URL}/api/indexer`, so it's never hit at one of these hosts).
- * Sufficient for treasury/test13 reads; EXTEND this list before reusing
- * abortOnchainReads on a spec that reads a gnoland1 or indexer-backed surface.
+ * The default-network (topaz) primary + fallback gno RPC hosts — i.e. GNO_RPC_URL
+ * and GNO_FALLBACK_RPC_URLS in frontend/src/lib/config.ts. samourai.live is in
+ * the list because topaz's FALLBACK RPC lives there: aborting only the primary
+ * made the app fail over to a LIVE samourai read and reintroduced exactly the
+ * shared-infra race this helper exists to kill (found via CI flake on the topaz
+ * cutover PR). Still RPC-only and not a blanket stub: it does NOT cover p2p.team /
+ * aeddi.org (gnoland1 telemetry) or the browser-proxied indexer (config.ts
+ * getIndexerUrl routes through `${API_BASE_URL}/api/indexer`, never these hosts).
+ * EXTEND this list before reusing abortOnchainReads on a spec that reads a
+ * surface backed by hosts outside it.
  */
-export const GNO_RPC_HOSTS = [/\.gno\.land/, /testnets\.gno\.land/, /gnoland\.network/, /\.onbloc\.xyz/]
+export const GNO_RPC_HOSTS = [/\.gno\.land/, /testnets\.gno\.land/, /gnoland\.network/, /\.onbloc\.xyz/, /\.samourai\.live/]
 
 /** True if the URL points at one of the gno RPC hosts in GNO_RPC_HOSTS. */
 export function isOnchainRead(url: string): boolean {
