@@ -109,9 +109,9 @@ export function getSuggestedFallback(currentNetworkKey: string): string | null {
     // Priority order for fallback suggestion. Only networks where Memba's realms
     // are actually deployed belong here — steering a user to a chain with no
     // Memba realms (e.g. Betanet/gnoland1) is worse than no suggestion. test13
-    // and topaz both carry the core realm set (topaz since the Phase A cutover);
+    // was retired 2026-07-26 (RPCs dead) so it no longer belongs in the list;
     // gnoland1 is a last resort only.
-    const fallbackOrder = ["test13", "topaz", "gnoland1"]
+    const fallbackOrder = ["topaz", "gnoland1"]
     for (const key of fallbackOrder) {
         if (key !== currentNetworkKey && NETWORKS[key]) {
             return key

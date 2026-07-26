@@ -50,9 +50,17 @@ describe('config constants', () => {
         expect(NETWORKS.test13.userRegistryPath).toBe('gno.land/r/sys/users')
     })
 
-    it('test13 is visible in the selector (now the official testnet)', () => {
-        expect(NETWORKS.test13.hidden).toBeFalsy()
-        expect(Object.keys(VISIBLE_NETWORKS)).toContain('test13')
+    it('test13 is hidden from the selector (retired 2026-07-26) but still resolvable', () => {
+        expect(NETWORKS.test13.hidden).toBe(true)
+        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('test13')
+        // Still in NETWORKS so deep links / stored selections resolve instead of
+        // crash-looping the /:network redirects.
+        expect(NETWORKS.test13).toBeDefined()
+    })
+
+    it('topaz is visible in the selector (the official testnet after cutover)', () => {
+        expect(NETWORKS.topaz.hidden).toBeFalsy()
+        expect(Object.keys(VISIBLE_NETWORKS)).toContain('topaz')
     })
 
     it('test13 points at the official testnets.gno.land RPC', () => {
@@ -100,12 +108,12 @@ describe('config constants', () => {
         expect(g1.faucetUrl).toBe('')
     })
 
-    it('DEFAULT_NETWORK is test13 (post-cutover default)', () => {
-        expect(DEFAULT_NETWORK).toBe('test13')
+    it('DEFAULT_NETWORK is topaz (post-topaz-cutover default)', () => {
+        expect(DEFAULT_NETWORK).toBe('topaz')
     })
 
     it('getUserRegistryPath returns r/sys/users for the default network', () => {
-        // Default active network is test13, which uses r/sys/users
+        // Default active network is topaz, which uses r/sys/users
         expect(getUserRegistryPath()).toBe('gno.land/r/sys/users')
     })
 
@@ -143,18 +151,22 @@ describe('NFT v3 market gating (gate the page on the engine it trades)', () => {
         expect(isRealmValidOn('test13', NFT_MARKETPLACE_PATH)).toBe(true)
     })
 
-    it('isNftMarketV3Valid() is true on the active (test13) network (v3.2 registered)', () => {
-        // Default active network is test13 (see DEFAULT_NETWORK + getUserRegistryPath test).
-        // The realm being valid does NOT alone surface the page — isNftEnabled() (the
-        // VITE_ENABLE_NFT flag) is the remaining gate, force-false in prod.
-        expect(isNftMarketV3Valid()).toBe(true)
+    it('isNftMarketV3Valid() is false on the active (topaz) network until the commerce ceremony', () => {
+        // Post-cutover the default active network is topaz, where the commerce
+        // realms (incl. memba_nft_market_v3_2) are NOT yet deployed — the
+        // allowlist self-gates the trade surface. Flips true after the topaz
+        // commerce ceremony (P1-0).
+        expect(isNftMarketV3Valid()).toBe(false)
     })
 
     it('v2 and v3 are distinct predicates (the bug was gating v3 trading on the v2 predicate)', () => {
-        // Both are valid on test13 now, but they remain separate functions keyed off
+        // Both remain allowlisted on (retired) test13; on active topaz both gate
+        // off until the commerce ceremony. They stay separate functions keyed off
         // distinct paths — the v3-trading page must never depend on the v2 predicate.
-        expect(isNftMarketValid()).toBe(true)
-        expect(isNftMarketV3Valid()).toBe(true)
+        expect(isNftMarketValid()).toBe(false)
+        expect(isNftMarketV3Valid()).toBe(false)
+        expect(isRealmValidOn('test13', NFT_MARKETPLACE_PATH)).toBe(true)
+        expect(isRealmValidOn('test13', NFT_MARKETPLACE_V3_PATH)).toBe(true)
     })
 })
 
@@ -321,8 +333,8 @@ describe('network reduction — test13 + topaz + gnoland1 only', () => {
         const keys = Object.keys(NETWORKS).sort()
         expect(keys).toEqual(['gnoland1', 'test13', 'topaz'])
     })
-    it('defaults to test13', () => {
-        expect(DEFAULT_NETWORK).toBe('test13')
+    it('defaults to topaz', () => {
+        expect(DEFAULT_NETWORK).toBe('topaz')
     })
     it('no longer references test12 / staging / portal', () => {
         const keys = Object.keys(NETWORKS)
@@ -336,13 +348,13 @@ describe('network reduction — test13 + topaz + gnoland1 only', () => {
     // infinite-looped (/test12/test12/…) until the browser throttled replaceState and
     // the app crashed (mobile / private browsing, where localStorage can't override it).
     it('resolveDefaultNetwork falls back to a valid network for a removed env value', () => {
-        expect(resolveDefaultNetwork('test12')).toBe('test13')
+        expect(resolveDefaultNetwork('test12')).toBe('topaz')
         expect(NETWORKS[resolveDefaultNetwork('test12')]).toBeDefined()
     })
     it('resolveDefaultNetwork passes through a valid env network; falls back when empty', () => {
         expect(resolveDefaultNetwork('gnoland1')).toBe('gnoland1')
-        expect(resolveDefaultNetwork(undefined)).toBe('test13')
-        expect(resolveDefaultNetwork('')).toBe('test13')
+        expect(resolveDefaultNetwork(undefined)).toBe('topaz')
+        expect(resolveDefaultNetwork('')).toBe('topaz')
     })
     it('DEFAULT_NETWORK is always a valid NETWORKS entry (never crash-loops)', () => {
         expect(NETWORKS[DEFAULT_NETWORK]).toBeDefined()
