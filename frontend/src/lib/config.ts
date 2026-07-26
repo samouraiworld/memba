@@ -122,12 +122,13 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // dropped as a generic fallback; kept below only as a telemetry full-topology
     // source until gno core names a replacement.)
     //
-    // The official Gno testnet. Memba's frozen realm set (memba_dao,
-    // candidature_v2, channels_v2, agent_registry) + gnodaokit are deployed here
-    // (interrealm-v2, 2026-06-16), so DAO features are live — realmsDeployed
-    // omitted (defaults to deployed).
+    // RETIRED (2026-07-26): test13 was wound down by gno core — its RPCs and
+    // indexer refuse connections. Kept in NETWORKS (hidden) so deep links and
+    // stored selections resolve instead of crash-looping the /:network
+    // redirects; remove the entry once nothing references it.
     test13: {
         chainId: "test-13",
+        hidden: true,
         rpcUrl: import.meta.env.VITE_TEST13_RPC_URL || "https://rpc.test13.testnets.gno.land:443",
         fallbackRpcUrls: [
             "https://test13.rpc.onbloc.xyz:443",
@@ -175,8 +176,9 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // Validators view will show partial data. Revisit when gno core
         // or our infra team stands up a full-topology sentry.
         telemetryRpcUrls: [],
-        // No tx-indexer endpoint yet — activity feed self-hides (indexerUrl
-        // is optional). Revisit when gno core ships a topaz indexer.
+        // Official topaz tx-indexer (live-verified 2026-07-26, GraphQL POST 200).
+        // Env-overridable like the other networks.
+        indexerUrl: import.meta.env.VITE_TOPAZ_INDEXER_URL || "https://indexer.topaz.testnets.gno.land/graphql/query",
         label: "Topaz",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "https://faucet.gno.land",
@@ -211,7 +213,7 @@ export const VISIBLE_NETWORKS: Record<string, NetworkConfig> = Object.fromEntrie
  * network to override it. Exported for tests.
  */
 export function resolveDefaultNetwork(envKey: string | undefined): string {
-    return envKey && NETWORKS[envKey] ? envKey : "test13"
+    return envKey && NETWORKS[envKey] ? envKey : "topaz"
 }
 
 /** Default network key (always a valid NETWORKS entry — see resolveDefaultNetwork). */
@@ -348,7 +350,7 @@ export function isRealmValid(realmPath: string): boolean {
 
 
 /** Gno chain ID for all RPC calls. */
-export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "test-13"
+export const GNO_CHAIN_ID = NETWORKS[_activeNetwork]?.chainId || "topaz-1"
 
 /** The key gnomonitoring knows the active network by — NOT the on-chain chain id.
  *  Defaults to chainId, which is right wherever the two coincide (test-13,
@@ -372,7 +374,7 @@ export function networkScopedKey(base: string): string {
  * Normal Gno RPC endpoint for standard ABCI queries and broadcasting.
  * Defaults to the active network's RPC URL.
  */
-export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.test13.testnets.gno.land:443"
+export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.topaz.testnets.gno.land:443"
 
 /** Fallback RPC URLs for the active network (tried in order if primary fails). */
 export const GNO_FALLBACK_RPC_URLS: string[] = NETWORKS[_activeNetwork]?.fallbackRpcUrls || []
@@ -684,8 +686,11 @@ export const SNAPSHOT_NETWORK = "test13"
  * gates off — or, worse, gates ON for a chain the indexer isn't watching.
  * The durable fix is per-chain indexing (chain-scoped indexer state), after
  * which this constant goes away.
+ *
+ * Topaz cutover (2026-07-26): flipped to "topaz" in the SAME release that flips
+ * VITE_GNO_CHAIN_ID and the backend FEED_RPC_URL/FEED_START_BLOCK envs.
  */
-export const FEED_INDEXED_NETWORK = "test13"
+export const FEED_INDEXED_NETWORK = "topaz"
 
 /** Human-readable label for the indexed network (for user-facing copy). */
 export const FEED_INDEXED_NETWORK_LABEL =

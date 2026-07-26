@@ -105,18 +105,24 @@ describe("chainHealth", () => {
     })
 
     describe("getSuggestedFallback", () => {
-        it("suggests test13 for gnoland1", () => {
-            expect(getSuggestedFallback("gnoland1")).toBe("test13")
+        it("suggests topaz for gnoland1", () => {
+            expect(getSuggestedFallback("gnoland1")).toBe("topaz")
         })
 
         it("suggests topaz (Memba realms live) for test13, not Betanet", () => {
-            // topaz carries the core realm set since the Phase A cutover; gnoland1
-            // (Betanet) has no Memba realms and must never be the first suggestion.
+            // topaz carries the core realm set; gnoland1 (Betanet) has no Memba
+            // realms and must never be the first suggestion. Retired test13 is
+            // no longer in the fallback order at all (RPCs dead 2026-07-26).
             expect(getSuggestedFallback("test13")).toBe("topaz")
         })
 
-        it("suggests test13 for unknown network", () => {
-            expect(getSuggestedFallback("unknown")).toBe("test13")
+        it("never suggests retired test13", () => {
+            expect(getSuggestedFallback("topaz")).not.toBe("test13")
+            expect(getSuggestedFallback("unknown")).not.toBe("test13")
+        })
+
+        it("suggests topaz for unknown network", () => {
+            expect(getSuggestedFallback("unknown")).toBe("topaz")
         })
 
         it("does not suggest self", () => {
