@@ -175,7 +175,7 @@
 - 🛡️ **Input sanitization** — JSON-safe ABCI queries, realm content sanitization, template sanitizer
 - ⚡ Adena reconnect optimization (5s polling, `GetNetwork()` cached)
 - 🏠 **Dashboard guard** — hidden when disconnected, auto-redirect to landing
-- 🌐 Network selector (test13 ↔ gnoland1) with chain mismatch detection
+- 🌐 Network selector (Topaz ↔ gnoland1) with chain mismatch detection
 - 📱 Mobile responsive (320px+) with sidebar collapse at 1024px, tab bar below 768px
 - ♿ **Keyboard navigation** — `:focus-visible` outlines on all interactive elements (WCAG 2.1 AA)
 - ⚡ Code splitting (496KB main, 145KB gzip, lazy-loaded DAO/token/directory/channel/NFT chunks)
@@ -264,7 +264,8 @@ cd backend && go test -race -count=1 -cover ./...
 
 | Network | RPC | Chain ID |
 |---------|-----|----------|
-| test13 ⭐ | `https://rpc.test13.testnets.gno.land:443` | `test-13` |
+| Topaz ⭐ | `https://rpc.topaz.testnets.gno.land:443` | `topaz-1` |
+| test13 (retired 2026-07-26) | — endpoints refuse connections | `test-13` |
 | gnoland1 (Betanet) | `https://rpc.gnoland1.samourai.live:443` | `gnoland1` |
 
 ## Target Multisig
