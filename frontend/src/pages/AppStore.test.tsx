@@ -100,9 +100,9 @@ describe("AppStore — submit-your-app CTA (B3, dark until the flag flips)", () 
     beforeEach(() => { v3 = true; submitEnabled = true })
 
     it("links to /apps/submit when submissions are enabled on the v3 realm", async () => {
-        renderWithProviders(<AppStore />, { route: "/test13/apps" })
+        renderWithProviders(<AppStore />, { route: "/topaz/apps" })
         const cta = await screen.findByRole("link", { name: /submit your app/i })
-        expect(cta).toHaveAttribute("href", "/test13/apps/submit")
+        expect(cta).toHaveAttribute("href", "/topaz/apps/submit")
     })
 
     it("stays hidden while VITE_ENABLE_APPSTORE_SUBMIT is off", async () => {

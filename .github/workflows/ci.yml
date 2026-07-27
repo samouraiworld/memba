@@ -210,10 +210,13 @@ jobs:
       # `Frontend E2E (chromium)` to branch protection's required checks.
 
       # Dependency audit is Node-version-independent — run once (Node 22), not
-      # on both matrix legs.
+      # on both matrix legs. Uses the audit:ci gate (scripts/audit-ci.mjs): a
+      # prod `npm audit --audit-level=high` minus a small, justified allowlist of
+      # advisories that don't apply to Memba (e.g. React Router's RSC-mode CSRF —
+      # Memba is a Vite SPA). Fails on any un-allowlisted high/critical.
       - name: Security audit
         if: matrix.node-version == '22'
-        run: npm audit --audit-level=high --omit=dev
+        run: npm run audit:ci
 
       - name: Lighthouse CI
         if: matrix.node-version == '22'
@@ -332,6 +335,14 @@ jobs:
           lint: true
           breaking: true
           breaking_against: 'https://github.com/samouraiworld/memba.git#branch=main'
+          # Dependabot PRs run with a READ-ONLY GITHUB_TOKEN (GitHub forces this
+          # for the pull_request event from dependabot[bot], and workflow-level
+          # `permissions:` can't grant it back). buf-action's default
+          # `pr_comment: true` then fails with "Resource not accessible by
+          # integration" AFTER lint/breaking pass — turning this required check
+          # red on every dependabot PR for a comment it can't post. Skip the
+          # comment for dependabot; the lint/breaking gates still run and gate.
+          pr_comment: ${{ github.actor != 'dependabot[bot]' }}
 
   docker:
     name: Docker Build

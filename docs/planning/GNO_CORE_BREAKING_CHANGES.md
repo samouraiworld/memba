@@ -41,6 +41,11 @@ the deployed test13 realm set.** Three items bind FUTURE code:
 |------|-----|------|--------|-------------|
 | 🔴 P0 | [#5858](https://github.com/gnolang/gno/pull/5858) `chain.emit` hard-caps attr values → panic | MED (state-breaking, forward-looking) | 1-2h | Before any mainnet / post-#5858-network redeploy |
 | 🟡 P1 | [#5857](https://github.com/gnolang/gno/pull/5857) `MaxEventAttrLen` 1024→4096 | LOW (config; pairs with #5858) | 0 | Monitor |
+| 🟡 P1 | [#5908](https://github.com/gnolang/gno/pull/5908) `grc20.NewToken` 5-arg signature change | MED | 1h | On GNO_PIN bump past this commit. Deployer already adapted; templates don't call directly. |
+| 🟡 P1 | [#5907](https://github.com/gnolang/gno/pull/5907) `grc20reg` path overwrite prevention | LOW (defensive) | 0 | No regression expected |
+| 🟡 P1 | [#5890](https://github.com/gnolang/gno/pull/5890) `realm.Sub` + `NewBanker` `IsCurrent()` enforcement | LOW | 0 | Standing rule: `NewBanker(cur)` only. Deployed realms already comply. |
+| 🟢 P2 | [#5867](https://github.com/gnolang/gno/pull/5867) `apd` → `math/big.Rat` | NONE (VM-internal) | 0 | Zero realm impact |
+| 🟢 P2 | [#6009](https://github.com/gnolang/gno/pull/6009) `p/nt/groups/v0` group/role membership | LOW | 0 | Monitor for API surface changes. Latest gno HEAD (`cfcbaf48`). |
 | 🔴 P0 | [#5037](https://github.com/gnolang/gno/pull/5037) boards2 safe functions + `hub` sub-realm | HIGH | 2-4h | When merged |
 | 🔴 P0 | [#5222](https://github.com/gnolang/gno/pull/5222) govdao T1 multisig rewiring | MED-HIGH | 0-4h | When merged |
 | 🟡 P1 | [#5139](https://github.com/gnolang/gno/pull/5139) boards2 members via GovDAO proposals | MED | 0-1h | When deployed |

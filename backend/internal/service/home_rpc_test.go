@@ -66,11 +66,11 @@ func TestFetchValidatorsHealth_FailsOver(t *testing.T) {
 	}
 }
 
-func TestHomeSnapshotRPCURL_DefaultsToTest13(t *testing.T) {
+func TestHomeSnapshotRPCURL_DefaultsToTopaz(t *testing.T) {
 	t.Setenv("HOME_SNAPSHOT_RPC_URL", "")
 	t.Setenv("NFT_RPC_URL", "")
-	if got := homeSnapshotRPCURL(); got != "https://rpc.testnet13.samourai.live:443" {
-		t.Fatalf("default = %q, want the pinned test13 rpc (not the rate-limited public node)", got)
+	if got := homeSnapshotRPCURL(); got != "https://rpc.topaz.samourai.live:443" {
+		t.Fatalf("default = %q, want the pinned topaz rpc (not the rate-limited public node)", got)
 	}
 }
 
