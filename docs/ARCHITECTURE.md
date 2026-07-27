@@ -174,7 +174,7 @@ The `/validators` suite consists of three fully independent routes:
 ```
 getTelemetryRpcUrl()
   ├── VITE_SAMOURAI_SENTRY_RPC_URL (if set → preferred for Hacker View)
-  └── VITE_GNO_RPC_URL (public fallback)
+  └── the active network's rpcUrl/fallbackRpcUrls from config.ts NETWORKS
 ```
 
 Samourai Coop operates `samourai-crew-1`, `samourai-crew-2` (validators) and `samourai-dev-sentry` on gnoland1. The sentry node exposes unrestricted `/dump_consensus_state` and `/net_info` — endpoints that public RPCs often block.

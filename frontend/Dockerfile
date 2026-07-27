@@ -12,8 +12,9 @@ RUN npm ci
 COPY frontend/ .
 COPY CHANGELOG.md /CHANGELOG.md
 ARG VITE_API_URL=""
-ARG VITE_GNO_CHAIN_ID="test12"
-ARG VITE_GNO_RPC_URL="https://rpc.testnet12.samourai.live:443"
+ARG VITE_GNO_CHAIN_ID="topaz"
+# No VITE_GNO_RPC_URL ARG: no code reads that variable. The RPC comes from the
+# per-network entry in config.ts (override with VITE_TOPAZ_RPC_URL if needed).
 ARG VITE_GNO_BECH32_PREFIX="g"
 RUN npm run build
 
