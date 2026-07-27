@@ -17,8 +17,14 @@
 export const SITE_ORIGIN = "https://memba.samourai.app"
 
 /** Network prefix baked into public URLs. Bump on default-network change
- *  (single source for the sitemap; runtime code derives its own). */
-export const SITEMAP_NETWORK = "test13"
+ *  (single source for the sitemap AND blog.rss; runtime code derives its own).
+ *
+ *  ⚠️ Keep this equal to netlify.toml's VITE_GNO_CHAIN_ID. It is NOT derived
+ *  from it, so a default-network change that misses this file silently
+ *  publishes a sitemap + RSS feed pointing at the OLD network — which is
+ *  exactly what happened across the topaz cutover (27 indexed URLs left
+ *  pointing at retired test13). */
+export const SITEMAP_NETWORK = "topaz"
 
 /**
  * Public, indexable, STATIC routes (network-relative). Auth-gated pages
