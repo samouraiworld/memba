@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### SEO — search results and the blog feed now point at Topaz, not the retired testnet (#1013, 2026-07-27)
+<!-- categories: memba -->
+- **Fixed every public link we publish still pointing at the retired Testnet 13.** The sitemap we give search engines listed 27 pages under `/test13/`, and the blog's RSS feed linked there too — so anyone arriving from a search result or a feed reader landed on a network that no longer runs, and saw an unreachable-network notice instead of the page. Both now point at Topaz. The `llms.txt` file that describes Memba to AI agents was also still naming Testnet 13 and its dead endpoints; it now names Topaz.
+
 ### Home — the home page gets its fast summary back on Topaz (#1011, 2026-07-27)
 <!-- categories: memba -->
 - **Re-enabled the home page's pre-assembled summary on Topaz.** Memba's home page can load its headline numbers — block height, validator count, featured DAO, collections — from a single fast server-side summary instead of many separate chain reads. That summary was deliberately switched off during the move to Topaz, because it must always point at the same network the server reads, and moving the two halves separately would have shown you figures from the wrong chain. The server side moved with the Topaz cutover; this reconnects the front end, so the home page is quick and fully populated again instead of falling back to the slower per-panel reads.
