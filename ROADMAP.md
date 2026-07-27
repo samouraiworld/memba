@@ -15,14 +15,14 @@
 | **Shipped Versions** | 52+ (v0.1.0 → v7.3.0) + ongoing feature branches |
 | **Test Suite** | **3,000+ automated tests (CI-enforced)** — 243 Vitest files + 64 Go test files (auth/db/indexer/points/service, incl. `FuzzMakeADR36SignDoc`) + pinned-gno template compile gate + 27 Playwright E2E specs. CI is the source of truth for exact counts. |
 | **Coverage** | Frontend/Backend CI-enforced thresholds (aggregate bump deferred) |
-| **Networks** | **test13 is the prod default — cutover DONE**; all `_v2` and `v3_1` realms LIVE (DAO + commerce + feedback + NFT launchpad) |
+| **Networks** | **Topaz (`topaz-1`) is the prod default — cutover DONE 2026-07-26** (#1008/#1009). test13 retired by gno-core; hidden from the selector but still resolvable so old deep links don't break. |
 | **Architecture** | Go 1.25.x + ConnectRPC backend (Fly rolling deploys + GHCR mirror + Litestream backups), React 19 + Vite frontend, SQLite, OpenRouter AI |
 | **Security** | Auth: `MEMBA_ALLOW_UNSIGNED_AUTH=0` (fail-closed); 0 open Dependabot alerts on `main` after Wave 1 hardening; 1 own advisory (MEMBA-2026-001) |
-| **On-Chain** | Full Memba realm set live on test13 (`memba_dao`, `memba_quest_attestation_v1`, `memba_market_core_v2`, `memba_nft_market_v3_1`, etc.) |
+| **On-Chain** | Core realm set live on Topaz (`memba_dao`, `candidature_v3`, `channels_v2`, `agent_registry_v2`, `memba_reviews_v1`, `memba_quest_attestation_v1`, `memba_feed_v1`, `memba_appstore_v1/v2`). Commerce realms (tokenfactory, escrow, NFT, OTC) await the Topaz commerce ceremony — the UI self-gates on them via `isRealmValidOn()`. |
 | **AI Analyst** | 10 free models via OpenRouter, DAO-level + proposal-level, cached 6h |
 | **GnoBuilders** | 85 quests, 8-tier rank system, leaderboard, badge NFTs (GRC721 `gnobuilders_badges_v2`), **XP cryptographically settled on-chain** |
 | **Active program** | [Program "Compound" (Waves 5+)](docs/planning/MEMBA_ROADMAP_COMPOUND_2026-07.md) — v7.2.x AAA remediation Waves 0–4 delivered (#732, 2026-07-03) |
-| **Next Priority** | **Owner: finish the test13 ceremony** (blog republish → appstore v3 + migration → NFT v3.2 → fee-path checklist → submit de-gate; SSOT `samcrew-deployer/projects/memba/TEST13_CEREMONY_2026-07-10.md`) · **Code: next-cycle plan Waves A–F** ([MEMBA_NEXT_CYCLE_AUDIT_AND_PLAN_2026-07-09.md](docs/planning/MEMBA_NEXT_CYCLE_AUDIT_AND_PLAN_2026-07-09.md)) |
+| **Next Priority** | **Owner: the Topaz commerce ceremony** — deploy the commerce/NFT/escrow/OTC realms to `topaz-1`, then de-gate the lanes · **Code: next-cycle plan Waves A–F** ([MEMBA_NEXT_CYCLE_AUDIT_AND_PLAN_2026-07-09.md](docs/planning/MEMBA_NEXT_CYCLE_AUDIT_AND_PLAN_2026-07-09.md)) |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 
