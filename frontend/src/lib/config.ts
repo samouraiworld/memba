@@ -662,14 +662,15 @@ export const FEEDBACK_REALM_PATH = "gno.land/r/samcrew/memba_feedback_v2"
  * The network key the backend home snapshot is scoped to.
  * useHomeSnapshot gates its query on this key so it never fires on other networks.
  *
- * ⚠️ Topaz cutover: this stays "test13" in the default-flip PR ON PURPOSE — it must
- * move in lockstep with the backend `homeSnapshotRPCURL` env (a Fly secret, not in
- * this repo). Until then the home snapshot simply self-disables on topaz (safe
- * degradation: the home page renders without the snapshot enrichment). Flip it
- * together with the backend env — and update useHomeSnapshot.test.ts's
- * "on SNAPSHOT_NETWORK" fixtures — as a follow-up. See the Topaz cutover plan.
+ * Held at "test13" through the default-flip PR on purpose: it must move in
+ * lockstep with the backend's `homeSnapshotRPCURL`, or the frontend asks for a
+ * snapshot of a chain the backend isn't reading. That lockstep is now satisfied
+ * — #1009 moved `homeSnapshotRPCURL()` to topaz and prod serves live topaz
+ * snapshot data — so this moves to "topaz" here. Between the two, the hook
+ * simply self-disabled (safe degradation: the home page rendered without the
+ * snapshot enrichment).
  */
-export const SNAPSHOT_NETWORK = "test13"
+export const SNAPSHOT_NETWORK = "topaz"
 
 /**
  * The network key the backend FEED INDEXER is scoped to — i.e. the one chain

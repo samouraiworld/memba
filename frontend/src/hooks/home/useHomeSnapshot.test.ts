@@ -22,10 +22,10 @@ vi.mock("../../lib/homeApi", () => ({
 
 vi.mock("../useNetwork", () => ({
     useNetwork: vi.fn(() => ({
-        networkKey: "test13",
-        chainId: "test-13",
-        rpcUrl: "https://rpc.test13.testnets.gno.land:443",
-        label: "Testnet 13",
+        networkKey: "topaz",
+        chainId: "topaz-1",
+        rpcUrl: "https://rpc.topaz.testnets.gno.land:443",
+        label: "Topaz",
     })),
 }))
 
@@ -49,10 +49,10 @@ describe("useHomeSnapshot — on SNAPSHOT_NETWORK with populated snapshot", () =
     beforeEach(() => {
         vi.clearAllMocks()
         vi.mocked(networkMod.useNetwork).mockReturnValue({
-            networkKey: "test13",
-            chainId: "test-13",
-            rpcUrl: "https://rpc.test13.testnets.gno.land:443",
-            label: "Testnet 13",
+            networkKey: "topaz",
+            chainId: "topaz-1",
+            rpcUrl: "https://rpc.topaz.testnets.gno.land:443",
+            label: "Topaz",
             switchNetwork: vi.fn(),
             networks: {},
         })
@@ -81,10 +81,10 @@ describe("useHomeSnapshot — on a different network", () => {
     beforeEach(() => {
         vi.clearAllMocks()
         vi.mocked(networkMod.useNetwork).mockReturnValue({
-            networkKey: "test12",
-            chainId: "test12",
-            rpcUrl: "https://rpc.testnet12.samourai.live:443",
-            label: "Testnet 12",
+            networkKey: "test13",
+            chainId: "test-13",
+            rpcUrl: "https://rpc.test13.testnets.gno.land:443",
+            label: "Testnet 13",
             switchNetwork: vi.fn(),
             networks: {},
         })
@@ -109,10 +109,10 @@ describe("useHomeSnapshot — snapshot resolves to null", () => {
     beforeEach(() => {
         vi.clearAllMocks()
         vi.mocked(networkMod.useNetwork).mockReturnValue({
-            networkKey: "test13",
-            chainId: "test-13",
-            rpcUrl: "https://rpc.test13.testnets.gno.land:443",
-            label: "Testnet 13",
+            networkKey: "topaz",
+            chainId: "topaz-1",
+            rpcUrl: "https://rpc.topaz.testnets.gno.land:443",
+            label: "Topaz",
             switchNetwork: vi.fn(),
             networks: {},
         })
@@ -134,10 +134,10 @@ describe("useHomeSnapshot — snapshot is the empty failure shell", () => {
     beforeEach(() => {
         vi.clearAllMocks()
         vi.mocked(networkMod.useNetwork).mockReturnValue({
-            networkKey: "test13",
-            chainId: "test-13",
-            rpcUrl: "https://rpc.test13.testnets.gno.land:443",
-            label: "Testnet 13",
+            networkKey: "topaz",
+            chainId: "topaz-1",
+            rpcUrl: "https://rpc.topaz.testnets.gno.land:443",
+            label: "Topaz",
             switchNetwork: vi.fn(),
             networks: {},
         })
