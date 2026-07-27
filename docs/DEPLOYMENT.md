@@ -40,7 +40,7 @@ npm run dev
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `VITE_API_URL` | `""` (same-origin) | Backend ConnectRPC base URL |
-| `VITE_GNO_RPC_URL` | `https://rpc.topaz.testnets.gno.land:443` | Gno chain RPC |
+| `VITE_TOPAZ_RPC_URL` | `https://rpc.topaz.testnets.gno.land:443` | Override Topaz's RPC. Optional — the endpoint is baked into `config.ts`. (There is no `VITE_GNO_RPC_URL`: no code reads it.) |
 | `VITE_DAO_REALM_PATH` | `gno.land/r/samcrew/memba_dao` | Canonical Memba dApp DAO realm path on-chain |
 | `VITE_GNOLOVE_API_URL` | `https://backend.gnolove.world` | Gnolove Go API (scoreboard, reports, analytics) |
 
@@ -72,7 +72,6 @@ buf generate
 ```
 VITE_API_URL = https://memba-backend.fly.dev
 VITE_GNO_CHAIN_ID = topaz
-VITE_GNO_RPC_URL = https://rpc.topaz.testnets.gno.land:443
 VITE_DAO_REALM_PATH = gno.land/r/samcrew/memba_dao
 VITE_GITHUB_CLIENT_ID = <GitHub OAuth App Client ID>
 VITE_GNOLOVE_API_URL = https://backend.gnolove.world

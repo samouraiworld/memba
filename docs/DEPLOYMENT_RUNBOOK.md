@@ -272,7 +272,7 @@ When a new Gno network launches (e.g., topaz, mainnet):
 | 7 | **Verify artifacts** | `./samcrew-status.sh <network>` |
 | 8 | **Render() checks** | Manual `vm/qrender` per realm |
 | 9 | **Add to Memba frontend** | `frontend/src/lib/config.ts` — add to NETWORKS |
-| 10 | **Update env vars** | Netlify: `VITE_GNO_CHAIN_ID`, `VITE_GNO_RPC_URL` |
+| 10 | **Update env vars** | Netlify: `VITE_GNO_CHAIN_ID` (the RPC is baked into `config.ts`; override only via `VITE_<NETWORK>_RPC_URL`) |
 | 11 | **Frontend smoke test** | Connect wallet, switch network, verify DAO |
 | 12 | **Update docs** | DEPLOYMENT.md, README.md chain table |
 
@@ -365,8 +365,8 @@ Add a new entry to the `NETWORKS` object with:
 ### 2. Update environment variables
 
 For production (Netlify):
-- `VITE_GNO_CHAIN_ID` — default network chain ID
-- `VITE_GNO_RPC_URL` — default network RPC
+- `VITE_GNO_CHAIN_ID` — default network KEY (e.g. `topaz`)
+- `VITE_<NETWORK>_RPC_URL` — optional per-network RPC override (e.g. `VITE_TOPAZ_RPC_URL`). There is no `VITE_GNO_RPC_URL` — no code reads it.
 
 ### 3. Deploy frontend
 
