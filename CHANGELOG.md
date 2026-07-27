@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Home — the home page gets its fast summary back on Topaz (#1011, 2026-07-27)
+<!-- categories: memba -->
+- **Re-enabled the home page's pre-assembled summary on Topaz.** Memba's home page can load its headline numbers — block height, validator count, featured DAO, collections — from a single fast server-side summary instead of many separate chain reads. That summary was deliberately switched off during the move to Topaz, because it must always point at the same network the server reads, and moving the two halves separately would have shown you figures from the wrong chain. The server side moved with the Topaz cutover; this reconnects the front end, so the home page is quick and fully populated again instead of falling back to the slower per-panel reads.
+
 ### Network — Memba now lives on Topaz; retired Testnet 13 is hidden (#1008, #1009, 2026-07-26)
 <!-- categories: memba, network -->
 - **Memba's default network is now Topaz.** gno core wound down Testnet 13 — its servers refuse connections — so landing there meant a broken app. New visits and fresh devices now land on Topaz, where Memba's core features (DAO, channels, reviews, quests, feed, app store) are live. Testnet 13 is hidden from the network selector; old deep links still resolve instead of crashing, and if a network is unreachable Memba now only ever suggests switching to networks that are actually up.
