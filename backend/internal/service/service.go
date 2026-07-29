@@ -176,11 +176,11 @@ func (s *MultisigService) SetBlockParty(enabled bool, seedRPC string) {
 }
 
 // blockPartyFetcher returns the httpBlockFetcher configured for this service,
-// falling back to the default test13 seed RPC when none has been set.
+// falling back to the default topaz seed RPC when none has been set.
 func (s *MultisigService) blockPartyFetcher() httpBlockFetcher {
 	url := s.blockPartySeedRPC
 	if url == "" {
-		url = "https://rpc.testnet13.samourai.live:443"
+		url = "https://rpc.topaz.samourai.live:443"
 	}
 	return httpBlockFetcher{rpcURL: url}
 }

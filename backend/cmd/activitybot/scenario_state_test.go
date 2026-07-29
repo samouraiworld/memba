@@ -24,6 +24,10 @@ func TestScenarioValidate(t *testing.T) {
 		{"transfer to leading dash", Scenario{Actions: []Action{{Type: ActionTransfer, ToAddress: "-x", Ugnot: 100}}}, true},
 		{"valid feed", Scenario{FeedRealm: "r", Actions: []Action{{Type: ActionFeedPost, Body: "hi"}}}, false},
 		{"valid transfer at cap", Scenario{Actions: []Action{{Type: ActionTransfer, ToAddress: "g1x", Ugnot: MaxTransferUgnot}}}, false},
+		{"sweep without realm", Scenario{Actions: []Action{{Type: ActionSweep, Limit: 5}}}, true},
+		{"sweep zero limit", Scenario{FeedRealm: "r", Actions: []Action{{Type: ActionSweep, Limit: 0}}}, true},
+		{"sweep over reply-fanout cap", Scenario{FeedRealm: "r", Actions: []Action{{Type: ActionSweep, Limit: 11}}}, true},
+		{"valid sweep", Scenario{FeedRealm: "r", Actions: []Action{{Type: ActionSweep, Limit: 5}}}, false},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

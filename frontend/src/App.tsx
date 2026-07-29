@@ -76,6 +76,8 @@ const FeedbackPage = lazy(() => import("./pages/FeedbackPage"))
 const FeedPage = lazy(() => import("./pages/FeedPage"))
 const FeedThread = lazy(() => import("./pages/FeedThread"))
 const FeedProfile = lazy(() => import("./pages/FeedProfile"))
+const FeedMod = lazy(() => import("./pages/FeedMod"))
+const FeedTransparency = lazy(() => import("./pages/FeedTransparency"))
 const Explorer = lazy(() => import("./pages/Explorer").then(m => ({ default: m.Explorer })))
 const AppStore = lazy(() => import("./pages/AppStore").then(m => ({ default: m.AppStore })))
 const AppSubmit = lazy(() => import("./pages/AppSubmit").then(m => ({ default: m.AppSubmit })))
@@ -349,6 +351,8 @@ function App() {
           <Route path="feed" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedPage /></Suspense></FeedGate>} />
           <Route path="feed/post/:id" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedThread /></Suspense></FeedGate>} />
           <Route path="feed/user/:address" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedProfile /></Suspense></FeedGate>} />
+          <Route path="feed/mod" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedMod /></Suspense></FeedGate>} />
+          <Route path="feed/transparency" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedTransparency /></Suspense></FeedGate>} />
 
           {/* Changelogs (v2.14) */}
           <Route path="changelogs" element={<Suspense fallback={<PageLoader />}><Changelogs /></Suspense>} />

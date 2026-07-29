@@ -119,6 +119,10 @@ func main() {
 	// Expose the connection-pool stats on /metrics (read-only; W6.5). On SQLite
 	// with one writer, wait_count/wait_duration are the DB-contention signal.
 	metrics.RegisterDBStats(prometheus.DefaultRegisterer, database)
+	// Feed abuse-signal gauges (flags/hour, unique flaggers/day, auto-hides/day,
+	// posting authors/hour) on the same METRICS_BEARER-gated /metrics (C.7).
+	// GaugeFunc closures read on scrape, so registering before Migrate is safe.
+	metrics.RegisterFeedAbuseStats(prometheus.DefaultRegisterer, database)
 
 	if err := db.Migrate(database); err != nil {
 		slog.Error("failed to run migrations", "error", err)
@@ -207,20 +211,33 @@ func main() {
 	// integrity-check + quarantine/restore (#719) covers corruption.
 	// Restore procedure + RPO/RTO: docs/OPS_RUNBOOK.md §4.7.
 
-	// Start the NFT marketplace state-polling indexer (test13 realms).
-	// NOTE: the NFT realms live on test13, so this uses its OWN rpc env
-	// (NFT_RPC_URL) — NOT the testnet12-defaulted GNO_RPC_URL.
-	nftRPCURL := envOr("NFT_RPC_URL", "https://rpc.test13.testnets.gno.land:443")
+	// Start the NFT marketplace state-polling indexer. NOTE: the NFT realms use
+	// their OWN rpc env (NFT_RPC_URL) — NOT GNO_RPC_URL.
+	//
+	// NFT_INDEXER_DISABLED=1 skips the poller AND the event tailer entirely:
+	// the NFT realms are not yet deployed on topaz (commerce ceremony pending),
+	// and running the tailer against a chain without them only burns RPC calls —
+	// while its chain-agnostic nft_indexer_state cursor would mix heights across
+	// chains. Re-enable at the ceremony (seed cursors via NFT_SEED_REALM_CURSOR;
+	// the 260000 NFT_START_BLOCK default below is a test13-era height — set it
+	// explicitly when re-enabling).
+	nftDisabled := os.Getenv("NFT_INDEXER_DISABLED") == "1"
+	if nftDisabled {
+		slog.Info("NFT indexer disabled (NFT_INDEXER_DISABLED=1)")
+	}
+	nftRPCURL := envOr("NFT_RPC_URL", "https://rpc.topaz.testnets.gno.land:443")
 	collectionRealm := envOr("NFT_COLLECTION_REALM", "gno.land/r/samcrew/memba_nft_v2")
 	marketRealm := envOr("NFT_MARKET_REALM", "gno.land/r/samcrew/memba_nft_market_v2")
-	indexer.StartNFTPoller(ctx, database, indexer.Config{
-		RPCURL:          nftRPCURL,
-		CollectionRealm: collectionRealm,
-		MarketRealm:     marketRealm,
-		CollectionID:    envOr("NFT_COLLECTION_ID", "genesis"),
-		Interval:        durationOr("NFT_POLL_INTERVAL", 60*time.Second),
-		Logger:          logger,
-	})
+	if !nftDisabled {
+		indexer.StartNFTPoller(ctx, database, indexer.Config{
+			RPCURL:          nftRPCURL,
+			CollectionRealm: collectionRealm,
+			MarketRealm:     marketRealm,
+			CollectionID:    envOr("NFT_COLLECTION_ID", "genesis"),
+			Interval:        durationOr("NFT_POLL_INTERVAL", 60*time.Second),
+			Logger:          logger,
+		})
+	}
 
 	// Seed realm cursors from NFT_SEED_REALM_CURSOR (one-time operator backfill
 	// lever). Format: comma-separated "realm@deployHeight" pairs. Each call is
@@ -245,15 +262,17 @@ func main() {
 	// Start the event-tailing indexer: polls /block_results, parses chain.Emit
 	// GnoEvents from the NFT realms, and writes normalized listings/sales/offers/
 	// ownership. This is the source of truth for floor, activity and portfolio.
-	indexer.StartNFTTailer(ctx, database, indexer.TailerConfig{
-		RPCURL:           nftRPCURL,
-		WatchedRealms:    splitOrigins(envOr("NFT_WATCHED_REALMS", defaultNFTWatchedRealms(marketRealm, collectionRealm))),
-		SaleVolumeRealms: splitOrigins(envOr("NFT_SALE_VOLUME_REALMS", defaultNFTSaleVolumeRealms())),
-		StartBlock:       int64Or("NFT_START_BLOCK", 260000),
-		Confirmations:    int64Or("NFT_CONFIRMATIONS", 5),
-		Interval:         durationOr("NFT_TAILER_INTERVAL", 3*time.Second),
-		Logger:           logger,
-	})
+	if !nftDisabled {
+		indexer.StartNFTTailer(ctx, database, indexer.TailerConfig{
+			RPCURL:           nftRPCURL,
+			WatchedRealms:    splitOrigins(envOr("NFT_WATCHED_REALMS", defaultNFTWatchedRealms(marketRealm, collectionRealm))),
+			SaleVolumeRealms: splitOrigins(envOr("NFT_SALE_VOLUME_REALMS", defaultNFTSaleVolumeRealms())),
+			StartBlock:       int64Or("NFT_START_BLOCK", 260000),
+			Confirmations:    int64Or("NFT_CONFIRMATIONS", 5),
+			Interval:         durationOr("NFT_TAILER_INTERVAL", 3*time.Second),
+			Logger:           logger,
+		})
+	}
 
 	// Start the social-feed indexer (W7.2): a separate goroutine + cursor +
 	// raw ledger, decoupled from the NFT money-path tailer. Projects
@@ -263,7 +282,12 @@ func main() {
 		indexer.StartFeedTailer(ctx, database, indexer.FeedTailerConfig{
 			RPCURL:        envOr("FEED_RPC_URL", nftRPCURL),
 			WatchedRealms: splitOrigins(feedRealms),
-			StartBlock:    int64Or("FEED_START_BLOCK", 260000),
+			// Default = the topaz memba_feed_v1 deploy block (add_package tx at
+			// 94093, verified 2026-07-26). A start block ABOVE the chain head
+			// silently indexes nothing — set FEED_START_BLOCK explicitly on any
+			// chain switch (the old test13-era default 260000 did exactly that
+			// hazard on topaz, whose head was ~212k at cutover).
+			StartBlock:    int64Or("FEED_START_BLOCK", 94093),
 			Confirmations: int64Or("FEED_CONFIRMATIONS", 5),
 			Interval:      durationOr("FEED_TAILER_INTERVAL", 3*time.Second),
 			Logger:        logger,

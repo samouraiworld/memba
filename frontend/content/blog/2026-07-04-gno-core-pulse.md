@@ -52,5 +52,5 @@ boundary before you redeploy on a post-change network.
 ---
 
 Everything above is tracked with commit references in our
-[breaking-changes assessment](https://github.com/samouraiworld/memba/blob/main/docs/planning/GNO_CORE_BREAKING_CHANGES.md),
+[breaking-changes assessment](https://github.com/samouraiworld/memba/blob/main/docs/GNO_CORE_BREAKING_CHANGES.md),
 fact-checked against the gno repo before it lands in the doc.

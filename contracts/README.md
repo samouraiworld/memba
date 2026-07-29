@@ -4,7 +4,7 @@
 > the **samcrew-deployer** repository. The deployed on-chain state (paths, blocks,
 > txHashes, ACL status) is tracked in [`/realm-versions.json`](../realm-versions.json),
 > which is **verified against the live chain** (not from prose — see
-> `docs/planning/MEMBA_AAA_IMPLEMENTATION_PLAN.md` §3.1 / G5).
+> the internal planning archive (private) §3.1 / G5).
 
 ## Template validation moved (W1.2)
 

@@ -10,7 +10,7 @@ monitoring on the [Gno](https://gno.land) blockchain. Built by [Samourai.world](
 
 - **Live:** https://memba.samourai.app
 - **Repo:** https://github.com/samouraiworld/memba
-- **Chain:** Gno test13 (chain id `test-13`, gno-core's official endpoints), gnoland1 (betanet)
+- **Chain:** Gno Topaz (chain id `topaz-1`, gno-core's official endpoints), gnoland1 (betanet). Testnet 13 was retired 2026-07-26 — its RPC and indexer refuse connections.
 
 ## Architecture
 
@@ -25,32 +25,41 @@ monitoring on the [Gno](https://gno.land) blockchain. Built by [Samourai.world](
 
 All on-chain data is queried via JSON-RPC POST to the Gno RPC endpoint.
 
-**Default RPC:** `https://rpc.test13.testnets.gno.land:443`
+**Default RPC:** `https://rpc.topaz.testnets.gno.land:443`
+
+> ⚠️ `data` MUST be **base64-encoded**, and the separator is a **colon** (`pkgpath:path`
+> for `vm/qrender`, `pkgpath.Expr()` for `vm/qeval`). Passing the raw string — as these
+> examples did before 2026-07-27 — fails with `illegal base64 data at input byte 3`.
+> The reply's `result.response.ResponseBase.Data` is base64 too; decode it to read the output.
 
 #### Query a realm's Render() output
 ```bash
-curl -s https://rpc.test13.testnets.gno.land:443 \
+DATA=$(printf 'gno.land/r/samcrew/memba_dao:' | base64)
+curl -s https://rpc.topaz.testnets.gno.land:443 \
   -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"vm/qrender","data":"gno.land/r/gov/dao\n"}}'
+  -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"abci_query\",\"params\":{\"path\":\"vm/qrender\",\"data\":\"$DATA\"}}"
 ```
 
 #### Query with a path argument (e.g., proposal #42)
 ```bash
-curl -s https://rpc.test13.testnets.gno.land:443 \
+DATA=$(printf 'gno.land/r/gov/dao:42' | base64)
+curl -s https://rpc.topaz.testnets.gno.land:443 \
   -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"vm/qrender","data":"gno.land/r/gov/dao\n42"}}'
+  -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"abci_query\",\"params\":{\"path\":\"vm/qrender\",\"data\":\"$DATA\"}}"
 ```
 
-#### Evaluate a function (e.g., check if DAO is archived)
+#### Evaluate a function (e.g., is the feed realm paused?)
 ```bash
-curl -s https://rpc.test13.testnets.gno.land:443 \
+DATA=$(printf 'gno.land/r/samcrew/memba_feed_v1.IsPaused()' | base64)
+curl -s https://rpc.topaz.testnets.gno.land:443 \
   -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"vm/qeval","data":"gno.land/r/samcrew/memba_dao\nIsArchived()"}}'
+  -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"abci_query\",\"params\":{\"path\":\"vm/qeval\",\"data\":\"$DATA\"}}"
+# → ResponseBase.Data (base64) decodes to: (false bool)
 ```
 
 #### Get GNOT balance
 ```bash
-curl -s https://rpc.test13.testnets.gno.land:443 \
+curl -s https://rpc.topaz.testnets.gno.land:443 \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"bank/balances/g1ADDRESS"}}'
 ```
@@ -74,7 +83,7 @@ curl -s https://memba-backend.fly.dev/memba.v1.MultisigService/GetProfile \
 curl -s https://memba-backend.fly.dev/memba.v1.MultisigService/Multisigs \
   -H 'Content-Type: application/json' \
   -H 'Authorization: Bearer TOKEN' \
-  -d '{"userAddress":"g1ADDRESS","chainId":"test-13"}'
+  -d '{"userAddress":"g1ADDRESS","chainId":"topaz-1"}'
 ```
 
 ### Gnolove API (Contributor Data)
@@ -196,5 +205,6 @@ cd backend && go test -race ./...    # Backend tests
 
 | Network | Chain ID | RPC |
 |---------|----------|-----|
-| Testnet 13 (current) | test-13 | https://rpc.test13.testnets.gno.land:443 |
+| Topaz (current) | topaz-1 | https://rpc.topaz.testnets.gno.land:443 |
+| Testnet 13 (RETIRED 2026-07-26 — endpoints refuse connections) | test-13 | — |
 | Betanet | gnoland1 | https://rpc.gnoland1.samourai.live:443 |

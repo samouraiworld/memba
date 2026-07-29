@@ -3,7 +3,7 @@
 > Versioned roadmap for Memba, the standalone Gno multisig & DAO wallet.
 > Each version includes scope, acceptance criteria, engineering gates, and cross-perspective review checkpoints.
 
-> **Active long-term program (2026-07-03 →):** [Program "Compound" — Waves 5+](docs/planning/MEMBA_ROADMAP_COMPOUND_2026-07.md), the successor to the v7.2.x AAA remediation plan (Waves 0–4 delivered, PR #732). All forward planning lives there; the sections below are the historical version-by-version record.
+> **Active long-term program (2026-07-03 →):** Program "Compound" — Waves 5+, the successor to the v7.2.x AAA remediation plan (Waves 0–4 delivered, PR #732). All forward planning lives there; the sections below are the historical version-by-version record.
 
 ---
 
@@ -15,14 +15,14 @@
 | **Shipped Versions** | 52+ (v0.1.0 → v7.3.0) + ongoing feature branches |
 | **Test Suite** | **3,000+ automated tests (CI-enforced)** — 243 Vitest files + 64 Go test files (auth/db/indexer/points/service, incl. `FuzzMakeADR36SignDoc`) + pinned-gno template compile gate + 27 Playwright E2E specs. CI is the source of truth for exact counts. |
 | **Coverage** | Frontend/Backend CI-enforced thresholds (aggregate bump deferred) |
-| **Networks** | **test13 is the prod default — cutover DONE**; all `_v2` and `v3_1` realms LIVE (DAO + commerce + feedback + NFT launchpad) |
+| **Networks** | **Topaz (`topaz-1`) is the prod default — cutover DONE 2026-07-26** (#1008/#1009). test13 retired by gno-core; hidden from the selector but still resolvable so old deep links don't break. |
 | **Architecture** | Go 1.25.x + ConnectRPC backend (Fly rolling deploys + GHCR mirror + Litestream backups), React 19 + Vite frontend, SQLite, OpenRouter AI |
 | **Security** | Auth: `MEMBA_ALLOW_UNSIGNED_AUTH=0` (fail-closed); 0 open Dependabot alerts on `main` after Wave 1 hardening; 1 own advisory (MEMBA-2026-001) |
-| **On-Chain** | Full Memba realm set live on test13 (`memba_dao`, `memba_quest_attestation_v1`, `memba_market_core_v2`, `memba_nft_market_v3_1`, etc.) |
+| **On-Chain** | Core realm set live on Topaz (`memba_dao`, `candidature_v3`, `channels_v2`, `agent_registry_v2`, `memba_reviews_v1`, `memba_quest_attestation_v1`, `memba_feed_v1`, `memba_appstore_v1/v2`). Commerce realms (tokenfactory, escrow, NFT, OTC) await the Topaz commerce ceremony — the UI self-gates on them via `isRealmValidOn()`. |
 | **AI Analyst** | 10 free models via OpenRouter, DAO-level + proposal-level, cached 6h |
 | **GnoBuilders** | 85 quests, 8-tier rank system, leaderboard, badge NFTs (GRC721 `gnobuilders_badges_v2`), **XP cryptographically settled on-chain** |
-| **Active program** | [Program "Compound" (Waves 5+)](docs/planning/MEMBA_ROADMAP_COMPOUND_2026-07.md) — v7.2.x AAA remediation Waves 0–4 delivered (#732, 2026-07-03) |
-| **Next Priority** | **Owner: finish the test13 ceremony** (blog republish → appstore v3 + migration → NFT v3.2 → fee-path checklist → submit de-gate; SSOT `samcrew-deployer/projects/memba/TEST13_CEREMONY_2026-07-10.md`) · **Code: next-cycle plan Waves A–F** ([MEMBA_NEXT_CYCLE_AUDIT_AND_PLAN_2026-07-09.md](docs/planning/MEMBA_NEXT_CYCLE_AUDIT_AND_PLAN_2026-07-09.md)) |
+| **Active program** | Program "Compound" (Waves 5+) — v7.2.x AAA remediation Waves 0–4 delivered (#732, 2026-07-03) |
+| **Next Priority** | **Owner: the Topaz commerce ceremony** — deploy the commerce/NFT/escrow/OTC realms to `topaz-1`, then de-gate the lanes · **Code: next-cycle plan Waves A–F** |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 
@@ -54,8 +54,8 @@ Review findings feed into the **next version's RFC** as action items.
 
 ## v7.1 Phase 0 — Audit Unblock & Security Hardening ✅ COMPLETE (2026-05-11)
 
-> Plan: [`docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md`](docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md) §4
-> Signoff: [`docs/reports/archive/v7.1-phase0-signoff.md`](docs/reports/archive/v7.1-phase0-signoff.md) (immutable audit record)
+> Plan: internal (private planning repo) §4
+> Signoff: internal (private planning repo) — immutable audit record
 > Releases: `v6.0.2` (#331), `v6.0.3` (#332 + hotfix #333)
 
 | Workstream | Outcome | PRs |
@@ -76,7 +76,7 @@ Review findings feed into the **next version's RFC** as action items.
 
 ## v7.1 Phase 1 — Auth Hardening + Custody + Stale-Doc Refresh 🚧 IN PROGRESS
 
-> Plan: [`docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md`](docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md) §5
+> Plan: internal (private planning repo) §5
 > Gate: Phase 1 PRs touching auth, secrets, or chain probes require a secondary CODEOWNERS reviewer (Q-A). The AD-15 self-merge pattern from Phase 0 is **not** repeated.
 
 | PR | Scope | Status |
@@ -88,10 +88,10 @@ Review findings feed into the **next version's RFC** as action items.
 | **SECRETS_ROTATION.md** expansion + **SECURITY.md** update | PGP fingerprint, GHSA enablement, Resolved Advisories table seeded with `MEMBA-2026-001` | Open |
 | `chainHealth` fallback + gnoland1 transfer-lock probe | Corrected probe path `params/bank:p:restricted_denoms` (gno #5629). Updates `GNO_CORE_BREAKING_CHANGES.md`. | Hold (Q-A) |
 | **Stale-doc refresh** (this PR) | `DEPLOYMENT_RUNBOOK.md`, `MAINNET_PREPARATION.md`, `ROADMAP.md`, `realm-versions.json`, `PROGRESSIVE_DECENTRALIZATION.md` | In review |
-| `docs/planning/V7_1_DOCS_INVENTORY.md` + `V7_1_KT.md` | Doc inventory + knowledge-transfer doc | Pending |
+| Doc inventory + KT log (private planning repo) | Doc inventory + knowledge-transfer doc | Pending |
 | CODEOWNERS audit + branch-protection screenshot | Confirm Q-A reviewer mapping + immutable evidence of branch rules | Pending |
 
-Phase 1 close-of-phase deliverable: [`docs/reports/v7.1-phase1-signoff.md`](docs/reports/v7.1-phase1-signoff.md) mirroring Phase 0's shape (goal vs outcome, PRs merged, advisories, DoD).
+Phase 1 close-of-phase deliverable: a signoff report in the private planning repo, mirroring Phase 0's shape (goal vs outcome, PRs merged, advisories, DoD).
 
 ---
 

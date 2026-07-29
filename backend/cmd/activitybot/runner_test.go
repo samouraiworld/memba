@@ -159,3 +159,37 @@ func TestBuildArgv_GasWithinCeilings(t *testing.T) {
 		t.Fatalf("argv must broadcast with the key name: %s", joined)
 	}
 }
+
+func TestBuildArgv_Sweep(t *testing.T) {
+	s := &Scenario{FeedRealm: "gno.land/r/samcrew/memba_feed_v2"}
+	r, _ := newRunner(s, &State{}, false, nil)
+	argv := r.buildArgv(Action{Type: ActionSweep, Limit: 5})
+	joined := strings.Join(argv, " ")
+	// Exactly one -args (the limit); cur realm is VM-injected, not passed.
+	if !strings.Contains(joined, "maketx call") ||
+		!strings.Contains(joined, "-func SweepTombstones") ||
+		!strings.Contains(joined, "-args 5") {
+		t.Fatalf("sweep argv wrong: %s", joined)
+	}
+	if strings.Count(joined, "-args") != 1 {
+		t.Fatalf("sweep must pass exactly one -args (the limit): %s", joined)
+	}
+	if !strings.Contains(joined, "-pkgpath gno.land/r/samcrew/memba_feed_v2") ||
+		!strings.Contains(joined, "-broadcast activitybot") {
+		t.Fatalf("sweep argv must target the feed realm + broadcast with the key: %s", joined)
+	}
+}
+
+// A sweep is state-hygiene, not value-moving: broadcasting it must NOT consume
+// the daily transfer budget.
+func TestRun_SweepDoesNotSpendTransferBudget(t *testing.T) {
+	st := &State{DayUTC: dayKey(time.Now())}
+	sc := &Scenario{FeedRealm: "gno.land/r/samcrew/memba_feed_v2", Actions: []Action{{Type: ActionSweep, Limit: 3}}}
+	r, _ := newRunner(sc, st, true /* broadcast */, func([]string) (string, error) { return "ok", nil })
+	if _, err := r.Run(10); err != nil {
+		t.Fatal(err)
+	}
+	if st.TransfersToday != 0 {
+		t.Fatalf("sweep must not spend the transfer budget, got TransfersToday=%d", st.TransfersToday)
+	}
+}

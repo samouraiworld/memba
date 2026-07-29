@@ -87,8 +87,8 @@ The **Kodera design system** uses Vanilla CSS with design tokens and custom comp
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `VITE_API_URL` | Backend API URL | (empty = Vite proxy) |
-| `VITE_GNO_CHAIN_ID` | Gno chain ID | `test11` |
-| `VITE_GNO_RPC_URL` | Gno RPC endpoint | testnet RPC |
+| `VITE_GNO_CHAIN_ID` | Network KEY the app defaults to | `topaz` |
+| `VITE_TOPAZ_RPC_URL` | Override Topaz's RPC endpoint | `https://rpc.topaz.testnets.gno.land:443` |
 | `VITE_GITHUB_CLIENT_ID` | GitHub OAuth Client ID | — |
 | `VITE_DAO_REALM_PATH` | DAO realm path | `gno.land/r/samcrew/samourai_dao` |
 | `VITE_GNOLOVE_API_URL` | Gnolove API URL | `https://gnolove.world` |

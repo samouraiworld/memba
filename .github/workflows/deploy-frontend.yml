@@ -79,4 +79,4 @@ jobs:
           fi
 
       - name: Security audit
-        run: npm audit --audit-level=high --omit=dev
+        run: npm run audit:ci

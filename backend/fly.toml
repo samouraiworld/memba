@@ -21,17 +21,26 @@ primary_region = 'cdg'
 [env]
   CORS_ORIGINS = 'https://memba.samourai.app,http://localhost:5173'
   DB_PATH = '/data/memba.db'
-  GNO_CHAIN_ID = 'test-13'
-  # Token chain-id allowlist (validation). HARD CUTOVER to test13: test12 dropped.
-  # This 401s any lingering test12 client — intended (test12 is retired). If a
-  # brief overlap is wanted, temporarily set 'test-13,test12' then drop test12.
-  MEMBA_ACCEPTED_CHAIN_IDS = 'test-13'
-  GNO_RPC_URL = 'https://rpc.testnet13.samourai.live:443'
-  # NFT indexer RPC — pinned to samourai's own node (default is the public
-  # rpc.test13.testnets.gno.land). The fast catch-up after the tailer block-hash
-  # fixes (#457/#462) tripped that public node's per-IP rate limit (403 on the Fly
-  # egress IP; 200 elsewhere); our own node doesn't throttle us.
-  NFT_RPC_URL = 'https://rpc.testnet13.samourai.live:443'
+  GNO_CHAIN_ID = 'topaz-1'
+  # Token chain-id allowlist (validation). Comma-separated → parseAcceptedChainIDs
+  # (service.go) splits it into a set; ValidateToken 401s any token whose chain
+  # isn't listed. Topaz cutover PHASE B (2026-07-26): test13 is DEAD (RPCs refuse
+  # connections) but already-issued test-13 tokens stay valid until expiry —
+  # keep the dual-run through the transition, drop 'test-13' in Phase C.
+  MEMBA_ACCEPTED_CHAIN_IDS = 'test-13,topaz-1'
+  GNO_RPC_URL = 'https://rpc.topaz.samourai.live:443'
+  # NFT indexer — DISABLED for the topaz cutover (2026-07-26): the NFT realms
+  # are not yet deployed on topaz (commerce ceremony pending), and the tailer's
+  # chain-agnostic nft_indexer_state cursor must not advance against the wrong
+  # chain. Re-enable at the ceremony: drop this flag, seed cursors via
+  # NFT_SEED_REALM_CURSOR, and set NFT_START_BLOCK to the topaz deploy height.
+  NFT_INDEXER_DISABLED = '1'
+  # NFT indexer RPC — pinned to samourai's own node (the public node
+  # rate-limited the Fly egress IP during fast catch-up, #457/#462; our own
+  # node doesn't throttle us). Dormant while NFT_INDEXER_DISABLED=1, but also
+  # the fallback for FEED_RPC_URL/QUEST_RPC_URL-style lookups, so it must
+  # point at a LIVE chain.
+  NFT_RPC_URL = 'https://rpc.topaz.samourai.live:443'
   # NFT tailer realm sets — versioned here so prod can never silently fall back
   # to the code defaults (that's exactly how the retired memba_nft_market_v3
   # stayed indexed while v3.1 sales went missing until 2026-07-11). Watched =

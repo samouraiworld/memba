@@ -107,6 +107,26 @@ throwaway addresses.
 - The bot wallet is disposable by design — if it's ever compromised, the blast
   radius is at most `MaxTransfersPerDay * MaxTransferUgnot` of faucet funds.
 
+## Sweeping tombstones (Wave C.6)
+
+Removed/blocklisted posts leave a tombstone; a periodic sweep permanently purges
+the oldest ones on-chain (permissionless state-hygiene, so suppressed content
+doesn't linger). Add a `sweep` action to a scenario:
+
+```json
+{ "type": "sweep", "limit": 5 }
+```
+
+- `limit` is the max tombstones to purge this run (**1–10** — a reply-heavy parent
+  makes one step do many removes, so the realm bounds the fan-out; re-run to drain
+  the next batch, idempotent).
+- The scenario's `feedRealm` must be the deployed feed realm (e.g.
+  `gno.land/r/samcrew/memba_feed_v2`).
+- Sweep is **not value-moving** — it never counts against the daily transfer budget.
+- Like every action it is **dry-run by default**: run without `-broadcast` to print
+  the `gnokey` command; add `-broadcast` to send. A *paused* feed realm makes the tx
+  panic (`assertNotPaused`), which stops the run cleanly.
+
 ## Definition of done (verify before leaving it running)
 
 - A 24h run produces visible feed/marketplace activity, **zero errors**.

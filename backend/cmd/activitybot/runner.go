@@ -103,6 +103,19 @@ func (r *Runner) buildArgv(a Action) []string {
 			"-broadcast",
 			r.key,
 		}
+	case ActionSweep:
+		return []string{
+			"maketx", "call",
+			"-pkgpath", r.scenario.FeedRealm,
+			"-func", "SweepTombstones",
+			"-args", strconv.Itoa(a.Limit), // cur realm is VM-injected; only limit is passed
+			"-gas-fee", gasFee,
+			"-gas-wanted", gasWanted,
+			"-chainid", r.chainID,
+			"-remote", r.remote,
+			"-broadcast",
+			r.key,
+		}
 	default:
 		// validate() already rejected unknown types; defensive.
 		return []string{"# unknown action type: " + string(a.Type)}

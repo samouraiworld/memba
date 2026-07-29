@@ -2,7 +2,7 @@
 
 > **Scope**: day-to-day operational procedures, recurring tasks, and incident playbooks for `memba.samourai.app` (frontend) and `memba-backend.fly.dev` (backend).
 > **Owner**: zxxma (currently sole code owner — see v7.1 plan §1.8 for the planned reviewer-recruitment follow-up).
-> **Audit trail**: see `docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md` (live plan) and `docs/planning/archive/v7.1-phase0/` (Phase 0 expert reviews + PR triage) for the rationale behind the procedures below.
+> **Audit trail**: see the internal planning archive (private) (live plan) and the internal planning archive (private) (Phase 0 expert reviews + PR triage) for the rationale behind the procedures below.
 
 ---
 
@@ -16,7 +16,7 @@
 | Quarterly | Domain renewal check: `samourai.app` and `samourai.live` — autopay on, expiry ≥ 30 days out. | v7.1 plan §19 Q18 |
 | Quarterly | Secret rotation drill — see `docs/SECRETS_ROTATION.md` for the per-secret playbook. Includes `FLY_API_TOKEN`, `NETLIFY_AUTH_TOKEN`, `SENTRY_AUTH_TOKEN`, `SLACK_WEBHOOK_URL`, `ED25519_SEED`, Clerk pair, GPG signing keys, admin multisig keys. | Phase 1.12 |
 | Annual | Emergency multisig custody rotation (channels v3 two-tier pause guard) — see `docs/MAINNET_PREPARATION.md` §Custody. | Phase 1.11 |
-| Annual | Rollback drill — see §4 below; record results in `docs/reports/v7.1-rollback-drill-YYYY.md`. | Phase 5 prereq |
+| Annual | Rollback drill — see §4 below; record results in the internal planning archive (private). | Phase 5 prereq |
 
 ---
 
@@ -26,14 +26,14 @@
 |---------|-----|------|---------------|
 | Frontend | `memba.samourai.app` | React + Vite SPA | Netlify (`memba-multisig` site) |
 | Backend | `memba-backend.fly.dev` | Go + ConnectRPC | Fly.io (app `memba-backend`, region `cdg`, 1 shared-cpu-1x machine, `min_machines_running=1`, volume `memba_data` mounted at `/data`) |
-| Chain | `test-13` (live); `gnoland1` after Phase 5 | Gno | Official RPC: `rpc.test13.testnets.gno.land`; betanet: `rpc.gnoland1.samourai.live` |
+| Chain | `topaz-1` (live since 2026-07-26); `gnoland1` after Phase 5 | Gno | Official RPC: `rpc.topaz.testnets.gno.land`; samourai sentry: `rpc.topaz.samourai.live`; betanet: `rpc.gnoland1.samourai.live` |
 
 ### Critical environment variables
 
 | Var | Surface | Owner | Notes |
 |-----|---------|-------|-------|
 | `ED25519_SEED` | Fly | server-keypair | If empty, ephemeral keypair → every restart logs out all users. See `backend/internal/service/service.go`. |
-| `GNO_CHAIN_ID` | Fly | auth | Required for AUTH-CHAINID-01 enforcement; set to `test-13` in prod. No hardcoded default — `service.go` reads it from env and logs a warning if empty. |
+| `GNO_CHAIN_ID` | Fly | auth | Required for AUTH-CHAINID-01 enforcement; set to `topaz-1` in prod (was `test-13` before 2026-07-26 cutover). No hardcoded default — `service.go` reads it from env and logs a warning if empty. |
 | `FLY_API_TOKEN` | GitHub Actions | deploys + GHCR mirror | |
 | `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` | GitHub Actions | Netlify deploy | |
 | `SENTRY_AUTH_TOKEN` | GitHub Actions | source-map upload | Required by `@sentry/vite-plugin`; was unwired before `v6.0.2`. |
@@ -84,7 +84,7 @@ The byte-parity evidence backing this flip lives in `backend/internal/auth/testd
 | Login flow (connect wallet → main app) | > 99 % | Sentry breadcrumbs (Phase 4 instrumentation) |
 | Deploy MTTR (detection → rollback complete) | < 10 min | §4 below |
 
-A breach pages zxxma (Slack webhook), triggers a change freeze, and requires a post-mortem in `docs/reports/`.
+A breach pages zxxma (Slack webhook), triggers a change freeze, and requires a post-mortem in the private planning repo.
 
 ### 3.3 Observability
 
@@ -221,7 +221,7 @@ Users will be logged out (their auth tokens are in localStorage, but the server'
 1. `git revert` the release commit; re-tag the previous good as `v7.1.0-rollback`.
 2. Fly rollback via §4.1 GHCR mirror.
 3. Netlify rollback via §4.2 previous deploy.
-4. File post-mortem at `docs/reports/v7.1-postmortem.md`.
+4. File post-mortem at the internal planning archive (private).
 
 ### 4.6 Realm incidents (exploit / abuse on a deployed realm)
 
@@ -319,7 +319,7 @@ Until a secondary owner is recruited (v7.1 plan §1.8 / R-12):
 
 ```bash
 # Live chain probes (used in Phase 0/1 acceptance + every release)
-curl -s https://rpc.test13.testnets.gno.land/status | jq .result.sync_info.latest_block_height
+curl -s https://rpc.topaz.testnets.gno.land/status | jq .result.sync_info.latest_block_height
 curl -s https://rpc.gnoland1.samourai.live/status | jq .result.sync_info.latest_block_height
 
 # Transfer-lock probe (Phase 1.5 / Phase 5 gate)

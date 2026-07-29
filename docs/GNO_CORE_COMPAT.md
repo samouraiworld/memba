@@ -236,4 +236,4 @@ cd backend && go test -race -count=1 ./...
 | **#5745** realm-qualified collection IDs in grc721 events | grc721 | The indexer keys on the **memba-layer** event IDs (`collectionID`/`collection`, the creator/slug form), not the grc721 realm-qualified `token` field — unaffected. | ✅ verified non-issue |
 | **#5792** grc721 owner-gated `SetTokenMetadata` | grc721 | The fork lacked the guard, but it's unreachable (no `memba_collections` wrapper exposes it; mint uses owner-gated `SetTokenURI`). | ✅ ported (samcrew-deployer #34), forward-safety for the next deploy |
 
-> Verified in the 2026-06-24 NFT audit — see `docs/planning/NFT_FEATURE_AUDIT_AND_AAA_PLAN_2026-06-24.md`.
+> Verified in the 2026-06-24 NFT audit — see the internal planning archive (private).

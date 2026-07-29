@@ -7,6 +7,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, fireEvent, waitFor } from "@testing-library/react"
 
+// Pin the feed write-gate ON: these suites assert the normal composer/actions.
+// Without this they resolve isFeedWritable() from ambient env (vite envDir:".."),
+// so a root .env with VITE_GNO_CHAIN_ID=topaz would fail them locally while CI
+// (which has no root .env) stayed green.
+vi.mock("../../lib/config", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/config")>()),
+    isFeedWritable: () => true,
+}))
 vi.mock("../../lib/feed", () => ({
     submitFeedMsg: vi.fn(),
     buildCreatePostMsg: vi.fn(() => ({})),
