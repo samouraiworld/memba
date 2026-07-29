@@ -2,7 +2,7 @@
 
 > How Memba will reduce its reliance on centralized infrastructure over time.
 
-> **Naming note**: "Phase N" in this document refers to *decentralization phases* (long-horizon tracks for moving state on-chain). These are **independent** of the v7.x release-phase numbering used in [`ROADMAP.md`](../ROADMAP.md) and [`docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md`](planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md). The two numbering schemes will not be aligned.
+> **Naming note**: "Phase N" in this document refers to *decentralization phases* (long-horizon tracks for moving state on-chain). These are **independent** of the v7.x release-phase numbering used in [`ROADMAP.md`](../ROADMAP.md) and [the internal planning archive (private)](planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md). The two numbering schemes will not be aligned.
 
 ---
 

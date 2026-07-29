@@ -49,7 +49,7 @@ When a token resolves to a colored fill (badge/pill/tag), text on it must use th
 
 ## Status (§13 sweep)
 
-Light token contrast is AA-tuned (this doc + the `#4b5563`/`#16161d` bump). The remaining work is replacing the ~1,800 hardcoded color usages across components with tokens, audit-driven, area by area — tracked in `docs/planning/HOME_AAA_REDESIGN_AND_AUDIT_PLAN_2026-06-25.md` §13.
+Light token contrast is AA-tuned (this doc + the `#4b5563`/`#16161d` bump). The remaining work is replacing the ~1,800 hardcoded color usages across components with tokens, audit-driven, area by area — tracked in the internal planning archive (private) §13.
 
 ## Marketplace v2 surface (behind `VITE_ENABLE_MARKETPLACE_V2`)
 

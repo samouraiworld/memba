@@ -57,3 +57,11 @@ docs/screenshots/
 
 # activitybot compiled binary (built via `go build ./cmd/activitybot`)
 /backend/activitybot
+
+# Internal org/method material — lives in the PRIVATE memba-internal repo.
+# This repo stays focused on code + product documentation.
+docs/planning/
+docs/reports/
+docs/superpowers/
+docs/comms/
+CONFIDENTIAL_*

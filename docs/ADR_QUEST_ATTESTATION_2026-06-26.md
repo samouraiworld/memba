@@ -1,7 +1,7 @@
 # ADR — On-chain Quest/XP Attestation (Track A)
 
 **Status:** ACCEPTED (prototype, test13) · **Date:** 2026-06-26 · **Owner:** CTO + Gno-core + security
-**Context doc:** `docs/planning/QUESTS_AUDIT_AND_DELIVERY_PLAN_2026-06-26.md` (§14 decision #3, §17 validation)
+**Context doc:** the internal planning archive (private) (§14 decision #3, §17 validation)
 **Issue:** Q-05 (quest XP is a centralized backend ledger; the chain holds no verifiable record)
 
 ## 1. Context

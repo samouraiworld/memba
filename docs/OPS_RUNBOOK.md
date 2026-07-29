@@ -2,7 +2,7 @@
 
 > **Scope**: day-to-day operational procedures, recurring tasks, and incident playbooks for `memba.samourai.app` (frontend) and `memba-backend.fly.dev` (backend).
 > **Owner**: zxxma (currently sole code owner — see v7.1 plan §1.8 for the planned reviewer-recruitment follow-up).
-> **Audit trail**: see `docs/planning/MEMBA_V7_1_IMPLEMENTATION_PLAN.md` (live plan) and `docs/planning/archive/v7.1-phase0/` (Phase 0 expert reviews + PR triage) for the rationale behind the procedures below.
+> **Audit trail**: see the internal planning archive (private) (live plan) and the internal planning archive (private) (Phase 0 expert reviews + PR triage) for the rationale behind the procedures below.
 
 ---
 
@@ -16,7 +16,7 @@
 | Quarterly | Domain renewal check: `samourai.app` and `samourai.live` — autopay on, expiry ≥ 30 days out. | v7.1 plan §19 Q18 |
 | Quarterly | Secret rotation drill — see `docs/SECRETS_ROTATION.md` for the per-secret playbook. Includes `FLY_API_TOKEN`, `NETLIFY_AUTH_TOKEN`, `SENTRY_AUTH_TOKEN`, `SLACK_WEBHOOK_URL`, `ED25519_SEED`, Clerk pair, GPG signing keys, admin multisig keys. | Phase 1.12 |
 | Annual | Emergency multisig custody rotation (channels v3 two-tier pause guard) — see `docs/MAINNET_PREPARATION.md` §Custody. | Phase 1.11 |
-| Annual | Rollback drill — see §4 below; record results in `docs/reports/v7.1-rollback-drill-YYYY.md`. | Phase 5 prereq |
+| Annual | Rollback drill — see §4 below; record results in the internal planning archive (private). | Phase 5 prereq |
 
 ---
 
@@ -84,7 +84,7 @@ The byte-parity evidence backing this flip lives in `backend/internal/auth/testd
 | Login flow (connect wallet → main app) | > 99 % | Sentry breadcrumbs (Phase 4 instrumentation) |
 | Deploy MTTR (detection → rollback complete) | < 10 min | §4 below |
 
-A breach pages zxxma (Slack webhook), triggers a change freeze, and requires a post-mortem in `docs/reports/`.
+A breach pages zxxma (Slack webhook), triggers a change freeze, and requires a post-mortem in the private planning repo.
 
 ### 3.3 Observability
 
@@ -221,7 +221,7 @@ Users will be logged out (their auth tokens are in localStorage, but the server'
 1. `git revert` the release commit; re-tag the previous good as `v7.1.0-rollback`.
 2. Fly rollback via §4.1 GHCR mirror.
 3. Netlify rollback via §4.2 previous deploy.
-4. File post-mortem at `docs/reports/v7.1-postmortem.md`.
+4. File post-mortem at the internal planning archive (private).
 
 ### 4.6 Realm incidents (exploit / abuse on a deployed realm)
 
