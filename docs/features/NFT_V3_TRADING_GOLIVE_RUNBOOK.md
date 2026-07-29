@@ -4,7 +4,7 @@
 > **Status:** v3 deployed but **NOT `RegisterMarket`-ed and NOT frontend-wired** (by design).
 > **Supersedes** the legacy v1 gallery activation plan (Apr 2026, `VITE_ENABLE_NFT` flag-gating of the read-only gallery — deleted in the 2026-07-09 docs house-cleaning) for everything trading-related.
 > **Audience:** operator + multisig signers. Every step has a verify + a gate; do not skip-ahead.
-> **Source of truth for the audit context:** `docs/planning/NFT_FEATURE_AUDIT_AND_AAA_PLAN_2026-06-24.md`.
+> **Source of truth for the audit context:** the internal planning archive (private).
 
 A reviewer must be able to execute go-live **and** abort from this doc alone.
 
