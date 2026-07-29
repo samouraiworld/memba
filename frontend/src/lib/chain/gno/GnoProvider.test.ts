@@ -36,11 +36,12 @@ vi.mock("../../grc721", () => ({
     getTokenURI: vi.fn(),
 }))
 
-import { getDAOConfig, getDAOMembers, getProposalDetail, buildVoteMsg, buildProposeAddMemberMsg } from "../../dao"
+import { getDAOConfig, getDAOMembers, getDAOProposals, getProposalDetail, buildVoteMsg, buildProposeAddMemberMsg } from "../../dao"
 import { doContractBroadcast } from "../../grc20"
 import { listCollectionTokens, getNFTOwner, getTokenURI } from "../../grc721"
 
 const mockGetDAOConfig = vi.mocked(getDAOConfig)
+const mockGetDAOProposals = vi.mocked(getDAOProposals)
 const mockGetDAOMembers = vi.mocked(getDAOMembers)
 const mockGetProposalDetail = vi.mocked(getProposalDetail)
 const mockBuildVoteMsg = vi.mocked(buildVoteMsg)
@@ -293,5 +294,71 @@ describe("GnoProvider — writes through the bridge (regression pins)", () => {
         mockBuildVoteMsg.mockReturnValue({ type: "vm/MsgCall", value: {} } as never)
         mockDoContractBroadcast.mockRejectedValue(new Error(message))
         await expect(p.vote(DAO, 1, "yes")).rejects.toMatchObject({ code, family: "gno" })
+    })
+})
+
+describe("B-7 — the CAL relays what the chain reported, and never derives it", () => {
+    const cfg: CALNetworkConfig = {
+        chainId: "topaz-1", family: "gno", name: "Topaz",
+        rpcUrl: "https://rpc.topaz.example", explorerUrl: "https://ex.example",
+    } as CALNetworkConfig
+
+    it("relays the realm's own yes/no percentages instead of recomputing them from votes", async () => {
+        // Deliberately inconsistent: the realm says 90/10 while the raw counts
+        // imply 50/50 (weighted voting). Deriving would display 50 and disagree
+        // with the realm on whether the proposal is passing.
+        mockGetDAOProposals.mockResolvedValue([{
+            id: 1, title: "T", description: "", category: "governance", status: "open",
+            author: "@alice", authorProfile: "", tiers: [],
+            yesPercent: 90, noPercent: 10,
+            yesVotes: 1, noVotes: 1, abstainVotes: 0, totalVoters: 2,
+            proposer: "g1abc",
+        }] as never)
+
+        const [p] = await createGnoProvider(cfg).getDAOProposals({ id: "gno.land/r/x/dao" })
+        expect(p.yesPercent).toBe(90)
+        expect(p.noPercent).toBe(10)
+        expect(p.author).toBe("@alice")
+        // the raw counts still ride along, untouched
+        expect(p.yesVotes).toBe(1)
+        expect(p.totalVoters).toBe(2)
+    })
+
+    it("marks votes unavailable so a failed vote RPC cannot read as a zero-vote proposal", async () => {
+        mockGetDAOProposals.mockResolvedValue([{
+            id: 2, title: "T", description: "", category: "", status: "open",
+            author: "", authorProfile: "", tiers: [],
+            yesPercent: 0, noPercent: 0,
+            yesVotes: 0, noVotes: 0, abstainVotes: 0, totalVoters: 0,
+            proposer: "g1abc", enrichFailed: true,
+        }] as never)
+
+        const [p] = await createGnoProvider(cfg).getDAOProposals({ id: "gno.land/r/x/dao" })
+        expect(p.votesUnavailable).toBe(true)
+        expect(p.author).toBeUndefined()   // "" is absence, not a name
+    })
+
+    it("carries the threshold label verbatim and refuses to invent a number for a non-numeric one", async () => {
+        mockGetDAOConfig.mockResolvedValue({
+            name: "D", description: "", threshold: "supermajority",
+            memberCount: 3, memberstorePath: "", tierDistribution: [], isArchived: false,
+        } as never)
+
+        const c = await createGnoProvider(cfg).getDAOConfig({ id: "gno.land/r/x/dao" })
+        // parseFloat("supermajority") is NaN; NaN is neither a threshold nor honest.
+        expect(c.threshold).toBeNull()
+        expect(Number.isNaN(c.threshold as number)).toBe(false)
+        expect(c.thresholdLabel).toBe("supermajority")
+    })
+
+    it("still converts a numeric threshold to basis points, and keeps the wording", async () => {
+        mockGetDAOConfig.mockResolvedValue({
+            name: "D", description: "", threshold: "66.5%",
+            memberCount: 3, memberstorePath: "", tierDistribution: [], isArchived: false,
+        } as never)
+
+        const c = await createGnoProvider(cfg).getDAOConfig({ id: "gno.land/r/x/dao" })
+        expect(c.threshold).toBe(6650)
+        expect(c.thresholdLabel).toBe("66.5%")
     })
 })

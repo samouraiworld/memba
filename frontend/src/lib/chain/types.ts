@@ -158,6 +158,29 @@ export interface CALProposal {
     abstainVotes: number
     totalVoters: number
     createdAt?: string
+
+    // ── Reported-not-derived fields (B-7) ────────────────────────────────
+    // These carry what the CHAIN reports. They are `undefined` when a chain does
+    // not report them — never computed from the vote counts above.
+    //
+    // Why: the Gno realm publishes its own vote percentages, and re-deriving
+    // `yesVotes / totalVoters` can disagree with it under weighted voting or
+    // rounding. On a surface that tells a user whether a proposal passed, a
+    // number the chain does not agree with is a correctness bug. So the CAL
+    // relays the chain's figure and omits it when there isn't one.
+
+    /** Display identity as the chain reports it (`@username` or an address).
+     *  Distinct from `proposer`, which is the typed address. `undefined` when
+     *  the chain exposes only an address (EVM). */
+    author?: string
+    /** Yes share 0–100 **as reported by the chain**. `undefined` when unreported. */
+    yesPercent?: number
+    /** No share 0–100 **as reported by the chain**. `undefined` when unreported. */
+    noPercent?: number
+    /** True when the vote figures could not be loaded, so `yesVotes`/`noVotes`
+     *  being 0 means "unknown", not "nobody voted". Without this a failed RPC
+     *  renders as a genuine zero-vote proposal. */
+    votesUnavailable?: boolean
 }
 
 /** Chain-agnostic DAO configuration. */
@@ -169,6 +192,12 @@ export interface CALDAOConfig {
      *  overrides it (memba_dao runs at 66%), and a fabricated threshold silently
      *  misstates whether a proposal passes. */
     threshold: number | null
+    /** The threshold exactly as the chain worded it (e.g. `"66%"`), for display.
+     *  `threshold` above stays the canonical machine value; this is what the
+     *  chain actually said, so the UI never has to re-render a number back into
+     *  a string and risk disagreeing with the realm. `undefined` when the chain
+     *  reports no label (EVM exposes `thresholdBps` and nothing else). */
+    thresholdLabel?: string
     quorum: number              // basis points (0 = disabled)
     memberCount: number
 }

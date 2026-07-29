@@ -17,6 +17,8 @@ import { useQuery } from "@tanstack/react-query"
 import type { DoorState } from "../../components/home/Door"
 import { getDAOConfig, getDAOProposals, type DAOProposal } from "../../lib/dao"
 import { GNO_RPC_URL } from "../../lib/config"
+import { useChainOptional } from "../../lib/chain/context"
+import type { ChainProvider } from "../../lib/chain/provider"
 
 /** Chain-level governance DAO realm path (same as GovDAOTab / DAORouter). */
 export const GOVDAO_REALM_PATH = "gno.land/r/gov/dao"
@@ -47,6 +49,88 @@ export interface GovDaoProposalPreview {
 /** How many proposals the "latest governance" rail shows. */
 const PREVIEW_COUNT = 4
 
+// ── B-5 Phase 3 wave 1: the reader seam ──────────────────────────────────
+// The card's projection logic below is single-sourced and consumes ONE shape.
+// Two readers produce it: the direct lib path (flag-off, unchanged) and the CAL
+// path. This mirrors the Phase-2 `fetchV3Tokens(readToken)` seam — inject the
+// reader, never duplicate the logic.
+
+/** One proposal, already normalised to what the rail renders. */
+interface GovDaoSourceProposal {
+    id: number
+    title: string
+    status: DAOProposal["status"]
+    author?: string
+    yesPercent?: number
+    noPercent?: number
+    createdAt?: string
+}
+
+/** The card's whole read, in the one shape the projection consumes. */
+interface GovDaoSource {
+    name: string
+    memberCount: number
+    /** The realm's own threshold wording; "" when unreported. */
+    thresholdLabel: string
+    /** Newest-first, as both readers return it. */
+    proposals: GovDaoSourceProposal[]
+}
+
+/** Percent is surfaced only when non-zero — a 0 in a list render means
+ *  "not carried here", not "nobody voted for it". Shared by both readers so
+ *  they cannot drift. */
+const pct = (v: number | undefined): number | undefined => (v !== undefined && v > 0 ? v : undefined)
+
+/** Direct-lib reader — the flag-off path. Behaviour identical to pre-migration. */
+async function readViaLib(rpcUrl: string): Promise<GovDaoSource> {
+    const [config, proposals] = await Promise.all([
+        getDAOConfig(rpcUrl, GOVDAO_REALM_PATH),
+        getDAOProposals(rpcUrl, GOVDAO_REALM_PATH),
+    ])
+    return {
+        name: config?.name || "GovDAO",
+        memberCount: config?.memberCount ?? 0,
+        thresholdLabel: config?.threshold?.trim() || "",
+        proposals: proposals.map((p) => ({
+            id: p.id,
+            title: p.title,
+            status: p.status,
+            author: p.author?.trim() || undefined,
+            yesPercent: pct(p.yesPercent),
+            noPercent: pct(p.noPercent),
+            createdAt: p.createdAt?.trim() || undefined,
+        })),
+    }
+}
+
+/** CAL reader — reads through the provider for the network actually being viewed.
+ *  `yesPercent`/`noPercent`/`author` are relayed by the provider exactly as the
+ *  chain reported them (B-7); a chain that reports none leaves them undefined and
+ *  the rail omits the figure rather than showing a derived one. */
+async function readViaCal(provider: ChainProvider): Promise<GovDaoSource> {
+    const dao = { id: GOVDAO_REALM_PATH, family: provider.family }
+    const [config, proposals] = await Promise.all([
+        provider.getDAOConfig(dao),
+        provider.getDAOProposals(dao),
+    ])
+    return {
+        name: config.name || "GovDAO",
+        memberCount: config.memberCount ?? 0,
+        thresholdLabel: config.thresholdLabel?.trim() || "",
+        proposals: proposals.map((p) => ({
+            id: p.id,
+            title: p.title,
+            status: p.status,
+            author: p.author?.trim() || undefined,
+            // Suppress the figures entirely when the provider flagged the vote
+            // read as failed, so "unknown" never renders as a real tally.
+            yesPercent: p.votesUnavailable ? undefined : pct(p.yesPercent),
+            noPercent: p.votesUnavailable ? undefined : pct(p.noPercent),
+            createdAt: p.createdAt?.trim() || undefined,
+        })),
+    }
+}
+
 export interface GovDaoResult {
     state: DoorState
     name: string
@@ -69,39 +153,43 @@ export function useGovDao(networkKey: string): GovDaoResult {
     // NetworkSync reconciles-and-reloads; pin reads to GNO_RPC_URL so this hook
     // keeps its pre-B-4 behavior (active network, resilient chain). Honoring
     // the *viewed* network properly is CAL/B-5 territory.
+    // B-5 Phase 3 wave 1. Flag-off this is null and the direct-lib reader runs,
+    // behaviour unchanged. Flag-on the provider reads the network actually being
+    // VIEWED, which is what the B-4 pin below was a placeholder for.
+    const cal = useChainOptional()
     const rpcUrl: string = GNO_RPC_URL
     const href = `/${networkKey}/dao/${GOVDAO_REALM_PATH}`
 
     const query = useQuery({
-        queryKey: ["useGovDao", networkKey],
+        // The CAL's chain id joins the key: with the CAL mounted, two networks can
+        // be read in one session, and an un-scoped key would serve one network's
+        // governance from another's cache.
+        queryKey: ["useGovDao", networkKey, cal?.network.chainId ?? "direct"],
         queryFn: async () => {
-            const [config, proposals] = await Promise.all([
-                getDAOConfig(rpcUrl, GOVDAO_REALM_PATH),
-                getDAOProposals(rpcUrl, GOVDAO_REALM_PATH),
-            ])
-            const openCount = proposals.filter((p) => p.status === "open").length
-            const members = config?.memberCount ?? 0
-            // getDAOProposals returns newest-first (sorted by id desc), so [0] is
-            // the most recent proposal. Omit when there are none (honesty).
-            const newest = proposals[0]
-            const threshold = config?.threshold?.trim() || ""
+            const src = cal ? await readViaCal(cal.provider) : await readViaLib(rpcUrl)
+            const openCount = src.proposals.filter((p) => p.status === "open").length
+            const members = src.memberCount
+            // Readers return newest-first (sorted by id desc), so [0] is the most
+            // recent proposal. Omit when there are none (honesty).
+            const newest = src.proposals[0]
+            const threshold = src.thresholdLabel
             // Top-N newest proposals for the card's "latest governance" rail.
-            // Every richer field is omitted when absent (empty author, 0 vote%,
-            // missing date) so the rail never shows fabricated data.
-            const latestProposals: GovDaoProposalPreview[] = proposals
+            // Every richer field is already omitted-when-absent by the readers,
+            // so the rail never shows fabricated data.
+            const latestProposals: GovDaoProposalPreview[] = src.proposals
                 .slice(0, PREVIEW_COUNT)
                 .map((p) => ({
                     id: p.id,
                     title: p.title,
                     status: p.status,
-                    author: p.author?.trim() || undefined,
-                    yesPercent: p.yesPercent > 0 ? p.yesPercent : undefined,
-                    noPercent: p.noPercent > 0 ? p.noPercent : undefined,
-                    createdAt: p.createdAt?.trim() || undefined,
+                    author: p.author,
+                    yesPercent: p.yesPercent,
+                    noPercent: p.noPercent,
+                    createdAt: p.createdAt,
                     href: `${href}/proposal/${p.id}`,
                 }))
             return {
-                name: config?.name || "GovDAO",
+                name: src.name,
                 openCount: openCount > 0 ? openCount : undefined,
                 members: members > 0 ? members : undefined,
                 threshold: threshold || undefined,

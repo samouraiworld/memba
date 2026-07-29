@@ -370,6 +370,15 @@ export function createEvmProvider(config: CALNetworkConfig, opts?: EvmProviderOp
                     // exposes no voter count. This is the total power cast.
                     totalVoters: Number(p.forVotes + p.againstVotes + p.abstainVotes),
                     createdAt: new Date(Number(p.createdAt) * 1000).toISOString(),
+                    // `author`, `yesPercent`, `noPercent` are DELIBERATELY absent.
+                    // MembaDAO exposes an address and raw vote counts — it does not
+                    // publish a display name or its own percentages. Those fields
+                    // mean "the chain reported this"; computing them here would
+                    // manufacture agreement that does not exist (B-7). Consumers
+                    // already treat `undefined` as "not reported" and omit the
+                    // figure rather than showing a fabricated one.
+                    // `votesUnavailable` likewise stays unset: a failed read throws
+                    // here, it does not return a zero-vote proposal.
                 }
             } catch (err) {
                 throw mapError(err)

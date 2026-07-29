@@ -19,7 +19,10 @@ vi.mock("../../lib/dao", () => ({
 
 vi.mock("../../lib/config", async (importOriginal) => {
     const actual = await importOriginal<typeof import("../../lib/config")>()
-    return { ...actual, NETWORKS: { test13: { rpcUrl: "https://rpc.test13.example" } } }
+    // isCalEnabled reads a build flag that is unset in tests; force it on so the
+    // CAL branch is exercisable. The direct-path tests below mount no
+    // ChainContext, so useChainOptional() still returns null for them.
+    return { ...actual, NETWORKS: { test13: { rpcUrl: "https://rpc.test13.example" } }, isCalEnabled: () => true }
 })
 
 const daoMod = await import("../../lib/dao")
@@ -117,5 +120,79 @@ describe("useGovDao", () => {
         expect(result.current.name).toBe("GovDAO")
         expect(result.current.href).toBe("/test13/dao/gno.land/r/gov/dao")
         expect(typeof result.current.refetch).toBe("function")
+    })
+})
+
+describe("useGovDao — CAL path (B-5 Phase 3 wave 1)", () => {
+    /** Mounts the hook with a fake CAL provider injected via ChainContext. */
+    async function renderWithCal(provider: unknown) {
+        const { ChainContext } = await import("../../lib/chain/context")
+        const { useGovDao } = await import("./useGovDao")
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        const wrapper = ({ children }: { children: ReactNode }) =>
+            React.createElement(QueryClientProvider, { client },
+                React.createElement(ChainContext.Provider, {
+                    value: {
+                        provider,
+                        family: "gno",
+                        network: { chainId: "topaz-1", family: "gno", name: "Topaz" },
+                        switchChain: vi.fn(),
+                        availableNetworks: [],
+                        isLoading: false,
+                    } as never,
+                }, children))
+        return renderHook(() => useGovDao("topaz"), { wrapper })
+    }
+
+    it("reads through the provider and relays the chain's own percentages", async () => {
+        const provider = {
+            family: "gno",
+            getDAOConfig: vi.fn().mockResolvedValue({
+                name: "GovDAO", description: "", threshold: 6600,
+                thresholdLabel: "66%", quorum: 0, memberCount: 61,
+            }),
+            getDAOProposals: vi.fn().mockResolvedValue([{
+                id: 9, title: "P9", description: "", category: "governance", status: "open",
+                proposer: { address: "g1a", family: "gno" },
+                yesVotes: 1, noVotes: 1, abstainVotes: 0, totalVoters: 2,
+                author: "@alice", yesPercent: 90, noPercent: 10,
+            }]),
+        }
+        const { result } = await renderWithCal(provider)
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+
+        // the direct-lib readers must NOT have been used
+        expect(vi.mocked(daoMod.getDAOConfig)).not.toHaveBeenCalled()
+        expect(vi.mocked(daoMod.getDAOProposals)).not.toHaveBeenCalled()
+
+        expect(result.current.members).toBe(61)
+        expect(result.current.threshold).toBe("66%")   // the realm's wording, not "6600"
+        const row = result.current.latestProposals?.[0]
+        expect(row?.yesPercent).toBe(90)               // relayed, not 50 from the counts
+        expect(row?.noPercent).toBe(10)
+        expect(row?.author).toBe("@alice")
+    })
+
+    it("omits the vote figures entirely when the provider flags them unavailable", async () => {
+        const provider = {
+            family: "gno",
+            getDAOConfig: vi.fn().mockResolvedValue({
+                name: "GovDAO", description: "", threshold: null,
+                thresholdLabel: undefined, quorum: 0, memberCount: 3,
+            }),
+            getDAOProposals: vi.fn().mockResolvedValue([{
+                id: 1, title: "P1", description: "", category: "", status: "open",
+                proposer: { address: "g1a", family: "gno" },
+                yesVotes: 0, noVotes: 0, abstainVotes: 0, totalVoters: 0,
+                yesPercent: 0, noPercent: 0, votesUnavailable: true,
+            }]),
+        }
+        const { result } = await renderWithCal(provider)
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+
+        const row = result.current.latestProposals?.[0]
+        expect(row?.yesPercent).toBeUndefined()
+        expect(row?.noPercent).toBeUndefined()
+        expect(result.current.threshold).toBeUndefined()  // no label → omitted, not "null"
     })
 })

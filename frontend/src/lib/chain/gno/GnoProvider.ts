@@ -199,9 +199,18 @@ export function createGnoProvider(config: CALNetworkConfig): GnoProviderExtended
                 // 66 basis points (0.66%), and turned an absent value into a
                 // fabricated 51% — the exact default parseDaoThreshold() refuses to
                 // invent. Convert percent to basis points, or report null.
-                threshold: daoConfig.threshold
-                    ? Math.round(parseFloat(daoConfig.threshold) * 100)
-                    : null,
+                // A non-numeric threshold (e.g. "supermajority") made parseFloat
+                // return NaN, which Math.round passed straight through — so
+                // `threshold` could be NaN, which is neither a number nor the
+                // honest `null`. Guard it: unparseable means unreported.
+                threshold: (() => {
+                    if (!daoConfig.threshold) return null
+                    const pct = parseFloat(daoConfig.threshold)
+                    return Number.isFinite(pct) ? Math.round(pct * 100) : null
+                })(),
+                // Relay the realm's own wording so the UI shows what the chain
+                // said rather than a re-rendering of the number above.
+                thresholdLabel: daoConfig.threshold?.trim() || undefined,
                 quorum: 0, // Gno DAOs don't have a separate quorum setting
                 memberCount: daoConfig.memberCount,
             }
@@ -231,6 +240,16 @@ export function createGnoProvider(config: CALNetworkConfig): GnoProviderExtended
                 abstainVotes: p.abstainVotes,
                 totalVoters: p.totalVoters,
                 createdAt: p.createdAt,
+                // Reported-not-derived (B-7). The realm publishes its own vote
+                // percentages and a display author; relay them rather than
+                // recomputing from the counts, which can disagree under
+                // weighted voting or rounding. `enrichFailed` becomes
+                // `votesUnavailable` so a failed vote RPC cannot render as a
+                // genuine zero-vote proposal.
+                author: p.author?.trim() || undefined,
+                yesPercent: p.yesPercent,
+                noPercent: p.noPercent,
+                votesUnavailable: p.enrichFailed || undefined,
             }))
         },
 
