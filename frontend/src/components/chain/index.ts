@@ -4,6 +4,6 @@
  */
 export { AddressDisplay, type AddressDisplayProps } from "./AddressDisplay"
 export { NetworkSelector } from "./NetworkSelector"
-export { ExplorerLink, type ExplorerLinkProps } from "./ExplorerLink"
+export { ChainExplorerLink, type ChainExplorerLinkProps } from "./ChainExplorerLink"
 export { TransactionStatus, GasInfo, type TransactionStatusProps, type GasInfoProps } from "./TransactionStatus"
 export { NotificationCenter, type NotificationCenterProps } from "./NotificationCenter"

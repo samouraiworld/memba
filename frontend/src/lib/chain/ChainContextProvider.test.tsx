@@ -100,9 +100,15 @@ describe("ChainContextProvider — inert mount (B-5 Phase 1)", () => {
         })
     })
 
-    it("lists all networks (gno + evm) for future selectors without creating any EVM provider", () => {
+    it("does NOT offer EVM networks — they are gated on SIWE auth (B-1/B-2)", () => {
         const { value } = renderWithCapture()
-        expect(value.availableNetworks.some((n) => n.family === "evm")).toBe(true)
+        // Inverted 2026-07-29. This previously asserted EVM networks were PRESENT.
+        // EVM login is a blind personal_sign with no verifier, so offering
+        // rh-mainnet-4663 in a switcher would front an unauthenticated signature
+        // path with Robinhood mainnet. See EVM_NETWORKS_SELECTABLE.
+        expect(value.availableNetworks.some((n) => n.family === "evm")).toBe(false)
+        expect(value.availableNetworks.length).toBeGreaterThan(0)
+        expect(value.availableNetworks.every((n) => n.family === "gno")).toBe(true)
         // Creating an EVM provider is Phase 4 — the mount alone must not do it.
         // (The eager-graph bundle gate pins that viem stays out of the entry chunk.)
     })

@@ -12,7 +12,7 @@ import { useChain } from "../../lib/chain"
 import { getExplorerName, formatTxHash } from "../../lib/chain/tx"
 import type { ChainAddress } from "../../lib/chain"
 
-export interface ExplorerLinkProps {
+export interface ChainExplorerLinkProps {
     /** The type of link. */
     type: "tx" | "address"
     /** Transaction hash or address. */
@@ -23,7 +23,7 @@ export interface ExplorerLinkProps {
     className?: string
 }
 
-export function ExplorerLink({ type, value, label, className = "" }: ExplorerLinkProps) {
+export function ChainExplorerLink({ type, value, label, className = "" }: ChainExplorerLinkProps) {
     const { provider, family } = useChain()
     const explorerName = getExplorerName(family)
 

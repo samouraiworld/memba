@@ -49,7 +49,45 @@ export default defineConfig([
         { object: 'window', property: 'innerWidth', message: 'Use the useIsMobile() hook for viewport/breakpoint logic instead of window.innerWidth.' },
         { object: 'window', property: 'innerHeight', message: 'Use the useIsMobile() hook for viewport/breakpoint logic instead of window.innerHeight.' },
       ],
+      // B-5 Phase 3 guard. `useChain()` THROWS when ChainContextProvider is not
+      // mounted — which is the production default, because VITE_ENABLE_CAL is
+      // safety-gated off. App code must use `useChainOptional()`, which returns
+      // null flag-off so the direct-lib path runs unchanged.
+      //
+      // ERROR, not warning: the 55-warning ratchet would happily absorb this,
+      // and the failure mode is a white screen in production. Phase 3 repeats
+      // this exact edit across ~27 files, so one slip is one outage.
+      'no-restricted-imports': ['error', {
+        paths: [
+          {
+            name: '../lib/chain',
+            importNames: ['useChain'],
+            message: 'Use useChainOptional() — useChain() throws when the CAL is unmounted (the prod default). Import it from lib/chain/context, not the barrel.',
+          },
+          {
+            name: '../../lib/chain',
+            importNames: ['useChain'],
+            message: 'Use useChainOptional() — useChain() throws when the CAL is unmounted (the prod default). Import it from lib/chain/context, not the barrel.',
+          },
+          {
+            name: '../lib/chain/context',
+            importNames: ['useChain'],
+            message: 'Use useChainOptional() — useChain() throws when the CAL is unmounted (the prod default).',
+          },
+          {
+            name: '../../lib/chain/context',
+            importNames: ['useChain'],
+            message: 'Use useChainOptional() — useChain() throws when the CAL is unmounted (the prod default).',
+          },
+        ],
+      }],
     },
+  },
+  {
+    // The CAL itself, and the chain-specific components that are only ever
+    // rendered INSIDE ChainContextProvider, may use the throwing `useChain()`.
+    files: ['src/lib/chain/**/*.{ts,tsx}', 'src/components/chain/**/*.{ts,tsx}'],
+    rules: { 'no-restricted-imports': 'off' },
   },
   {
     // JitsiPiPOverlay reads window.innerWidth/innerHeight for drag-bound clamping

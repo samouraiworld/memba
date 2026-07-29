@@ -25,6 +25,31 @@ import { chainIdToConfigKey, configKeyToChainId } from "./gnoBridge"
 import { switchGnoNetwork } from "../networkSwitch"
 import { getWalletSnapshot, subscribe } from "../walletBus"
 
+/**
+ * Whether EVM networks may be offered to a user.
+ *
+ * **Currently false, and this is a security control, not a feature flag.** EVM
+ * login is a blind `personal_sign` of a bare nonce — not SIWE — and no
+ * `chainauth.Verifier` implementation exists, so the challenge carries no
+ * expiry, single-use or chain binding (BACKLOG B-1/B-2 · AUTH-CHAINID-01).
+ * Offering `rh-mainnet-4663` in a switcher before that closes would put
+ * Robinhood **mainnet** in front of an unauthenticated signature path.
+ *
+ * A prior revision of the migration plan claimed `NetworkSelector` already
+ * filtered `family === "evm"`. It did not — the provider passed `ALL_NETWORKS`
+ * straight through, and a test pinned EVM networks as *present*. The only thing
+ * preventing exposure was that the component happened to be imported nowhere.
+ * This constant makes the guarantee real.
+ *
+ * Flip to `true` only when B-1/B-2 have landed and contracts are deployed.
+ */
+const EVM_NETWORKS_SELECTABLE = false
+
+/** Networks a user may actually switch to. See {@link EVM_NETWORKS_SELECTABLE}. */
+const SELECTABLE_NETWORKS = EVM_NETWORKS_SELECTABLE
+    ? ALL_NETWORKS
+    : ALL_NETWORKS.filter((n) => n.family !== "evm")
+
 // ── Register factories (once) ────────────────────────────────
 
 let factoriesRegistered = false
@@ -100,6 +125,17 @@ export function ChainContextProvider({
     }, [provider, wallet])
 
     const switchChain = useCallback(async (chainId: ChainId) => {
+        // EVM networks are not selectable yet. Enforced here as well as in
+        // `availableNetworks` so a caller holding a raw ChainId (a deep link, a
+        // restored localStorage value, a test) cannot route around the list.
+        if (!EVM_NETWORKS_SELECTABLE && !chainIdToConfigKey(chainId)) {
+            throw new ChainError(
+                `EVM networks are not selectable until SIWE auth lands (BACKLOG B-1/B-2): ${chainId}`,
+                "UNKNOWN",
+                "evm",
+            )
+        }
+
         // Disconnect the current provider first, regardless of family.
         if (provider.isConnected()) {
             await provider.disconnect()
@@ -131,7 +167,7 @@ export function ChainContextProvider({
         family: network.family,
         network,
         switchChain,
-        availableNetworks: ALL_NETWORKS,
+        availableNetworks: SELECTABLE_NETWORKS,
         isLoading,
     }), [provider, network, switchChain, isLoading])
 
