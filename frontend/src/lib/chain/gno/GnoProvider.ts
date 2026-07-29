@@ -33,6 +33,7 @@ import {
     getDAOMembers as gnoGetDAOMembers,
     getDAOProposals as gnoGetDAOProposals,
     getProposalDetail as gnoGetProposalDetail,
+    getMemberRole as gnoGetMemberRole,
     buildVoteMsg,
     buildExecuteMsg,
     buildProposeMsg,
@@ -86,6 +87,37 @@ export function createGnoProvider(config: CALNetworkConfig): GnoProviderExtended
      */
     function toChainAddress(raw: string): ChainAddress {
         return { raw, family: "gno" }
+    }
+
+    /**
+     * Memberstore realm path for a DAO, resolved once per provider instance.
+     *
+     * Tier DAOs hold membership in a separate realm whose path the DAO's own
+     * config reports. That path is fixed configuration for a deployed realm — it
+     * does not change between renders — so caching it for the provider's
+     * lifetime is safe, and it keeps `getDAOMember` from paying an extra config
+     * read on every lookup (this hook runs once per saved DAO card).
+     *
+     * A DAO that does not render, or reports no memberstore, resolves to
+     * `undefined`; `getMemberRole` then falls back to parsing the DAO's own
+     * member list, exactly as the direct path does.
+     */
+    const memberstoreCache = new Map<string, string | undefined>()
+    async function resolveMemberstorePath(daoId: string): Promise<string | undefined> {
+        if (memberstoreCache.has(daoId)) return memberstoreCache.get(daoId)
+        let path: string | undefined
+        try {
+            const cfg = await gnoGetDAOConfig(rpcUrl, daoId)
+            path = cfg?.memberstorePath?.trim() || undefined
+        } catch {
+            // A failed config read must not fail the membership lookup — fall
+            // through to the render-parse path rather than reporting "not a
+            // member", which would silently strip someone's role badge.
+            path = undefined
+            return path
+        }
+        memberstoreCache.set(daoId, path)
+        return path
     }
 
     /**
@@ -274,6 +306,25 @@ export function createGnoProvider(config: CALNetworkConfig): GnoProviderExtended
         async isDAOMember(dao: ContractRef, address: ChainAddress): Promise<boolean> {
             const members = await gnoGetDAOMembers(rpcUrl, dao.id)
             return members.some(m => m.address === address.raw)
+        },
+
+        async getDAOMember(dao: ContractRef, address: ChainAddress): Promise<CALMember | null> {
+            // Gno tier DAOs (GovDAO and friends) keep membership in a SEPARATE
+            // memberstore realm, and the lookup has to be routed there. That path
+            // lives in the DAO's own config, so the caller would otherwise have to
+            // fetch the config, carry a Gno-only `memberstorePath`, and hand it
+            // back — which is precisely the chain detail this layer absorbs.
+            const memberstorePath = await resolveMemberstorePath(dao.id)
+            const member = await gnoGetMemberRole(rpcUrl, dao.id, address.raw, memberstorePath)
+            if (!member) return null
+            return {
+                address: toChainAddress(member.address),
+                roles: member.roles ?? [],
+                votingPower: member.votingPower ?? 0,
+                // "" is absence, not an empty name/tier — omit rather than relay a blank.
+                username: member.username?.trim() || undefined,
+                tier: member.tier?.trim() || undefined,
+            }
         },
 
         // ── Writes (DAO) ─────────────────────────────────────

@@ -16,6 +16,7 @@ import type { CALNetworkConfig } from "../types"
 
 vi.mock("../../dao", () => ({
     getDAOConfig: vi.fn(),
+    getMemberRole: vi.fn(),
     getDAOMembers: vi.fn(),
     getDAOProposals: vi.fn(),
     getProposalDetail: vi.fn(),
@@ -36,12 +37,13 @@ vi.mock("../../grc721", () => ({
     getTokenURI: vi.fn(),
 }))
 
-import { getDAOConfig, getDAOMembers, getDAOProposals, getProposalDetail, buildVoteMsg, buildProposeAddMemberMsg } from "../../dao"
+import { getDAOConfig, getDAOMembers, getDAOProposals, getMemberRole, getProposalDetail, buildVoteMsg, buildProposeAddMemberMsg } from "../../dao"
 import { doContractBroadcast } from "../../grc20"
 import { listCollectionTokens, getNFTOwner, getTokenURI } from "../../grc721"
 
 const mockGetDAOConfig = vi.mocked(getDAOConfig)
 const mockGetDAOProposals = vi.mocked(getDAOProposals)
+const mockGetMemberRole = vi.mocked(getMemberRole)
 const mockGetDAOMembers = vi.mocked(getDAOMembers)
 const mockGetProposalDetail = vi.mocked(getProposalDetail)
 const mockBuildVoteMsg = vi.mocked(buildVoteMsg)
@@ -360,5 +362,59 @@ describe("B-7 — the CAL relays what the chain reported, and never derives it",
         const c = await createGnoProvider(cfg).getDAOConfig({ id: "gno.land/r/x/dao" })
         expect(c.threshold).toBe(6650)
         expect(c.thresholdLabel).toBe("66.5%")
+    })
+})
+
+describe("getDAOMember — the provider absorbs Gno's memberstore routing", () => {
+    const cfg: CALNetworkConfig = {
+        chainId: "topaz-1", family: "gno", name: "Topaz",
+        rpcUrl: "https://rpc.topaz.example", explorerUrl: "https://ex.example",
+    } as CALNetworkConfig
+    const addr = { raw: "g1abc", family: "gno" as const }
+    const daoRef = { id: "gno.land/r/gov/dao", family: "gno" as const }
+
+    it("resolves the memberstore path from config and passes it to the lookup — the caller never sees it", async () => {
+        mockGetDAOConfig.mockResolvedValue({
+            name: "GovDAO", description: "", threshold: "66%", memberCount: 3,
+            memberstorePath: "gno.land/r/gov/dao/memberstore", tierDistribution: [], isArchived: false,
+        } as never)
+        mockGetMemberRole.mockResolvedValue({
+            address: "g1abc", roles: [], tier: "T2", votingPower: 20, username: "",
+        } as never)
+
+        const m = await createGnoProvider(cfg).getDAOMember(daoRef, addr)
+        expect(mockGetMemberRole).toHaveBeenCalledWith(
+            "https://rpc.topaz.example", "gno.land/r/gov/dao", "g1abc",
+            "gno.land/r/gov/dao/memberstore",
+        )
+        expect(m?.tier).toBe("T2")
+        expect(m?.votingPower).toBe(20)
+        expect(m?.username).toBeUndefined()   // "" is absence, not a blank name
+    })
+
+    it("caches the memberstore path — a second lookup does not re-read the config", async () => {
+        mockGetDAOConfig.mockResolvedValue({
+            name: "GovDAO", description: "", threshold: "", memberCount: 1,
+            memberstorePath: "gno.land/r/gov/dao/memberstore", tierDistribution: [], isArchived: false,
+        } as never)
+        mockGetMemberRole.mockResolvedValue(null as never)
+
+        const p = createGnoProvider(cfg)
+        await p.getDAOMember(daoRef, addr)
+        await p.getDAOMember(daoRef, addr)
+        expect(mockGetDAOConfig).toHaveBeenCalledTimes(1)
+    })
+
+    it("returns null for a non-member, and survives a failed config read", async () => {
+        mockGetDAOConfig.mockRejectedValue(new Error("all RPCs down"))
+        mockGetMemberRole.mockResolvedValue(null as never)
+
+        // A config failure must not surface as "not a member" by throwing — it
+        // falls back to the render-parse path, exactly like the direct reader.
+        const m = await createGnoProvider(cfg).getDAOMember(daoRef, addr)
+        expect(m).toBeNull()
+        expect(mockGetMemberRole).toHaveBeenCalledWith(
+            "https://rpc.topaz.example", "gno.land/r/gov/dao", "g1abc", undefined,
+        )
     })
 })

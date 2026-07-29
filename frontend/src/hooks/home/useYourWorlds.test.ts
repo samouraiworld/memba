@@ -44,6 +44,10 @@ vi.mock("../../lib/config", async (importOriginal) => {
             test13: { rpcUrl: "https://rpc.test13.example" },
         },
         DEFAULT_NETWORK: "test13",
+        // isCalEnabled reads a build flag unset in tests. Forced on so the CAL
+        // branch is exercisable; the pre-existing specs mount no ChainContext,
+        // so useChainOptional() still returns null for them.
+        isCalEnabled: () => true,
     }
 })
 
@@ -400,5 +404,97 @@ describe("useYourWorlds — refetch is always exposed", () => {
 
         await waitFor(() => expect(result.current.state).toBe("ready"))
         expect(typeof result.current.refetch).toBe("function")
+    })
+})
+
+describe("useYourWorlds — CAL path (B-5 Phase 3 wave 1)", () => {
+    // The file-level beforeEach does not clear; only the first describe does, so
+    // call counts would leak in from earlier specs and defeat the not-called
+    // assertions below.
+    beforeEach(() => { vi.clearAllMocks() })
+
+    async function renderWithCal(provider: unknown) {
+        const { ChainContext } = await import("../../lib/chain/context")
+        const { useYourWorlds } = await import("./useYourWorlds")
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        const wrapper = ({ children }: { children: ReactNode }) =>
+            React.createElement(QueryClientProvider, { client },
+                React.createElement(ChainContext.Provider, {
+                    value: {
+                        provider, family: "gno",
+                        network: { chainId: "topaz-1", family: "gno", name: "Topaz" },
+                        switchChain: vi.fn(), availableNetworks: [], isLoading: false,
+                    } as never,
+                }, children))
+        return renderHook(() => useYourWorlds("topaz", null), { wrapper })
+    }
+
+    it("reads config, proposals AND the role through the provider — never threading a memberstorePath", async () => {
+        vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue([
+            { realmPath: "gno.land/r/gov/dao", name: "GovDAO", addedAt: 1000, network: "topaz" },
+        ] as never)
+        vi.mocked(authMod.useAuth).mockReturnValue({
+            isAuthenticated: true, address: "g1abc", token: null, loading: false, error: null,
+        } as never)
+        vi.mocked(daoMod.deriveRoleLabel).mockReturnValue("council")
+
+        const getDAOMember = vi.fn().mockResolvedValue({
+            address: { raw: "g1abc", family: "gno" }, roles: ["council"], votingPower: 10, tier: "T1",
+        })
+        const provider = {
+            family: "gno",
+            getDAOConfig: vi.fn().mockResolvedValue({
+                name: "GovDAO", description: "", threshold: 6600, thresholdLabel: "66%",
+                quorum: 0, memberCount: 61,
+            }),
+            getDAOProposals: vi.fn().mockResolvedValue([
+                { id: 1, title: "P", description: "", category: "", status: "open",
+                  proposer: { raw: "g1x", family: "gno" }, yesVotes: 0, noVotes: 0,
+                  abstainVotes: 0, totalVoters: 0 },
+            ]),
+            getDAOMember,
+        }
+
+        const { result } = await renderWithCal(provider)
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        await waitFor(() => expect(result.current.worlds[0]?.role).toBe("council"))
+
+        // the direct-lib readers must not have run
+        expect(vi.mocked(daoMod.getDAOConfig)).not.toHaveBeenCalled()
+        expect(vi.mocked(daoMod.getMemberRole)).not.toHaveBeenCalled()
+
+        // the provider is asked for the member directly — the memberstore realm
+        // is its problem, and no Gno-only path crosses this boundary
+        expect(getDAOMember).toHaveBeenCalledWith(
+            { id: "gno.land/r/gov/dao", family: "gno" },
+            { raw: "g1abc", family: "gno" },
+        )
+        expect(result.current.worlds[0]?.members).toBe(61)
+        expect(result.current.worlds[0]?.openCount).toBe(1)
+    })
+
+    it("keeps a realm that does not render here from becoming an error card", async () => {
+        // The provider THROWS where the direct reader returns null. The hook must
+        // soften that back, or `resolved:false` loses its meaning and the E-F9
+        // drop for entries saved on another testnet stops working.
+        vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue([
+            { realmPath: "gno.land/r/legacy/dao", name: "Legacy", addedAt: 1 },
+        ] as never)
+        vi.mocked(authMod.useAuth).mockReturnValue({
+            isAuthenticated: false, address: "", token: null, loading: false, error: null,
+        } as never)
+
+        const { ChainError } = await import("../../lib/chain/provider")
+        const provider = {
+            family: "gno",
+            getDAOConfig: vi.fn().mockRejectedValue(new ChainError("DAO not found", "CONTRACT_REVERT", "gno")),
+            getDAOProposals: vi.fn().mockResolvedValue([]),
+            getDAOMember: vi.fn(),
+        }
+
+        const { result } = await renderWithCal(provider)
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        // untagged + did not resolve here → dropped, not shown as a dead card
+        expect(result.current.worlds).toHaveLength(0)
     })
 })

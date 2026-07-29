@@ -143,6 +143,11 @@ export interface CALMember {
     roles: string[]
     votingPower: number
     username?: string
+    /** Membership class as the chain reports it (Gno tier DAOs: "T1"/"T2"/"T3").
+     *  Reported-not-derived per ADR-006 — `undefined` when the chain has no tier
+     *  concept, which is the case for `MembaDAO` on EVM. Consumers fall back to
+     *  `roles` first and only use this when there are none. */
+    tier?: string
 }
 
 /** Chain-agnostic proposal. */

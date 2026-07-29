@@ -125,6 +125,22 @@ export interface ChainProvider {
     /** Check if an address is a DAO member. */
     isDAOMember(dao: ContractRef, address: ChainAddress): Promise<boolean>
 
+    /**
+     * One member's standing in a DAO — roles, voting power, tier — or `null`
+     * when the address is not a member.
+     *
+     * Distinct from `getDAOMembers`, which enumerates: this answers "what is
+     * *this* address", and both families have a direct read for it, so it does
+     * not pay the cost of listing everyone.
+     *
+     * **The chain-specific routing is the implementation's problem, not the
+     * caller's.** Gno tier DAOs hold membership in a separate memberstore realm
+     * whose path comes from the DAO's own config; `GnoProvider` resolves that
+     * internally. A caller that had to pass a `memberstorePath` would be holding
+     * a Gno concept, which is exactly what this layer exists to absorb.
+     */
+    getDAOMember(dao: ContractRef, address: ChainAddress): Promise<CALMember | null>
+
     // ── Writes (DAO) ─────────────────────────────────────────
 
     /** Create a proposal. Returns tx result. */

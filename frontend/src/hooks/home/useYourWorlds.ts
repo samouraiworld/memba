@@ -31,6 +31,8 @@ import type { DoorState } from "../../components/home/Door"
 import { getSavedDAOsForOrg } from "../../lib/daoSlug"
 import { getDAOConfig, getDAOProposals, getMemberRole, deriveRoleLabel } from "../../lib/dao"
 import { GNO_RPC_URL } from "../../lib/config"
+import { useChainOptional } from "../../lib/chain/context"
+import { ChainError } from "../../lib/chain/provider"
 import { useAuth } from "../useAuth"
 
 export interface YourWorld {
@@ -58,6 +60,8 @@ export interface YourWorldsResult {
  */
 export function useYourWorlds(networkKey: string, orgId: string | null): YourWorldsResult {
     const savedDAOs = getSavedDAOsForOrg(orgId)
+    // B-5 Phase 3 wave 1. Null flag-off → the direct-lib readers run unchanged.
+    const cal = useChainOptional()
     // B-4: pinned to GNO_RPC_URL — networkKey can transiently diverge from the
     // frozen active network pre-NetworkSync-reload, and these reads must keep
     // their pre-B-4 behavior (active network, resilient chain). See useGovDao.
@@ -69,23 +73,51 @@ export function useYourWorlds(networkKey: string, orgId: string | null): YourWor
     // board state. rules-of-hooks safe (count may be 0).
     const configQueries = useQueries({
         queries: savedDAOs.map((dao) => ({
-            queryKey: ["useYourWorlds", networkKey, dao.realmPath],
+            queryKey: ["useYourWorlds", networkKey, dao.realmPath, cal?.network.chainId ?? "direct"],
             queryFn: async () => {
-                const [config, proposals] = await Promise.all([
-                    getDAOConfig(rpcUrl, dao.realmPath),
-                    getDAOProposals(rpcUrl, dao.realmPath),
-                ])
+                // CAL path. `getDAOConfig` THROWS where the direct reader returns
+                // null, so soften it back to null: `resolved:false` has to keep
+                // meaning "this realm did not render here" for the E-F9 drop to
+                // work. Both paths therefore also share the direct reader's
+                // pre-existing conflation of "not deployed here" with "RPC down"
+                // (BACKLOG B-9) — this migration preserves it rather than
+                // quietly changing which cards disappear.
+                let config: { name: string; memberCount: number } | null
+                let proposals: { status: string }[]
+                // `memberstorePath` is a Gno realm-routing detail. The DIRECT role
+                // query still needs it threaded through from here; the CAL role
+                // query does not, because the provider resolves it internally.
+                let memberstorePath = ""
+
+                if (cal) {
+                    const ref = { id: dao.realmPath, family: cal.provider.family }
+                    const [c, p] = await Promise.all([
+                        cal.provider.getDAOConfig(ref)
+                            .catch((err) => { if (err instanceof ChainError) return null; throw err }),
+                        cal.provider.getDAOProposals(ref),
+                    ])
+                    config = c
+                    proposals = p
+                } else {
+                    const [c, p] = await Promise.all([
+                        getDAOConfig(rpcUrl, dao.realmPath),
+                        getDAOProposals(rpcUrl, dao.realmPath),
+                    ])
+                    config = c
+                    proposals = p
+                    memberstorePath = c?.memberstorePath || ""
+                }
+
                 const openCount = proposals.filter((p) => p.status === "open").length
                 const memberCount = config?.memberCount ?? 0
                 return {
-                    // resolved=false means the realm did not render on this network
-                    // (getDAOConfig returned null without throwing). Used to drop
-                    // untagged legacy entries saved on another testnet (E-F9).
+                    // resolved=false means the realm did not render on this network.
+                    // Used to drop untagged legacy entries saved on another testnet (E-F9).
                     resolved: config != null,
                     name: config?.name ?? dao.name,
                     members: memberCount > 0 ? memberCount : undefined,
                     openCount: openCount > 0 ? openCount : undefined,
-                    memberstorePath: config?.memberstorePath || "",
+                    memberstorePath,
                 }
             },
             staleTime: 60_000,
@@ -97,8 +129,27 @@ export function useYourWorlds(networkKey: string, orgId: string | null): YourWor
     // config query has resolved (its memberstorePath routes the lookup).
     const roleQueries = useQueries({
         queries: savedDAOs.map((dao, i) => ({
-            queryKey: ["useYourWorldsRole", networkKey, dao.realmPath, connectedAddress],
+            queryKey: ["useYourWorldsRole", networkKey, dao.realmPath, connectedAddress, cal?.network.chainId ?? "direct"],
             queryFn: async () => {
+                if (cal) {
+                    // The provider resolves the memberstore realm itself, so this
+                    // branch never touches `memberstorePath` — the Gno routing
+                    // detail stays inside the provider. The direct branch below
+                    // still threads it, which is why the config query keeps it.
+                    const m = await cal.provider.getDAOMember(
+                        { id: dao.realmPath, family: cal.provider.family },
+                        { raw: connectedAddress as string, family: cal.provider.family },
+                    )
+                    return m
+                        ? deriveRoleLabel({
+                            address: m.address.raw,
+                            roles: m.roles,
+                            tier: m.tier ?? "",
+                            votingPower: m.votingPower,
+                            username: m.username ?? "",
+                        }) ?? null
+                        : null
+                }
                 const member = await getMemberRole(
                     rpcUrl,
                     dao.realmPath,

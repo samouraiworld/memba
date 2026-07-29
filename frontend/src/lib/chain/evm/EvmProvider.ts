@@ -277,6 +277,30 @@ export function createEvmProvider(config: CALNetworkConfig, opts?: EvmProviderOp
             }
         },
 
+        async getDAOMember(dao: ContractRef, address: ChainAddress): Promise<CALMember | null> {
+            try {
+                const daoAddr = toAddress(dao)
+                const m = await publicClient.readContract({
+                    address: daoAddr, abi: MembaDAOABI, functionName: "getMember",
+                    args: [address.raw as `0x${string}`],
+                })
+                // MembaDAO returns a zeroed struct for an address that was never a
+                // member, and keeps `active: false` for one that was removed. Both
+                // mean "not a member now" — relaying either as a member with 0
+                // voting power would put a phantom role badge on screen.
+                if (!m.active) return null
+                return {
+                    address: toChainAddress(address.raw),
+                    roles: [...m.roles],
+                    votingPower: Number(m.votingPower),
+                    // No username or tier concept on MembaDAO — omitted rather than
+                    // fabricated (ADR-006).
+                }
+            } catch (err) {
+                throw mapError(err)
+            }
+        },
+
         async getDAOMembers(dao: ContractRef): Promise<CALMember[]> {
             try {
                 const addr = toAddress(dao)
