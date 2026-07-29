@@ -241,6 +241,11 @@ export const MembaNFTABI = [
         "name": "_admin",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "_upgrader",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],

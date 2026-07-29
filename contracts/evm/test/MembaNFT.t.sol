@@ -18,7 +18,7 @@ contract MembaNFTTest is Test {
 
     function setUp() public {
         MembaNFT impl = new MembaNFT();
-        bytes memory initData = abi.encodeCall(MembaNFT.initialize, (adminAddr));
+        bytes memory initData = abi.encodeCall(MembaNFT.initialize, (adminAddr, adminAddr));
         address proxy = address(new ERC1967Proxy(address(impl), initData));
         nft = MembaNFT(proxy);
     }

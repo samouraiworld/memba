@@ -15,7 +15,7 @@ contract MembaReviewsTest is Test {
 
     function setUp() public {
         MembaReviews impl = new MembaReviews();
-        bytes memory initData = abi.encodeCall(MembaReviews.initialize, (adminAddr));
+        bytes memory initData = abi.encodeCall(MembaReviews.initialize, (adminAddr, adminAddr));
         address proxy = address(new ERC1967Proxy(address(impl), initData));
         reviews = MembaReviews(proxy);
     }

@@ -77,14 +77,17 @@ contract MembaAppStore is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
         _disableInitializers();
     }
 
-    function initialize(address _admin, address _feeRecipient, uint256 _creationFee) external initializer {
+    function initialize(address _admin, address _feeRecipient, uint256 _creationFee, address _upgrader)
+        external
+        initializer
+    {
         if (_admin == address(0) || _feeRecipient == address(0)) revert InvalidParams();
         __UUPSUpgradeable_init();
         __Pausable_init();
         __ReentrancyGuard_init();
         AppStoreStorage storage $ = _getStorage();
         $.admin = _admin;
-        __MembaUpgradeAuthority_init(_admin);
+        __MembaUpgradeAuthority_init(_upgrader);
         $.feeRecipient = _feeRecipient;
         $.creationFee = _creationFee;
     }

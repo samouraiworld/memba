@@ -27,7 +27,7 @@ contract MembaTokenOTCMoneyPathsTest is Test {
 
     function setUp() public {
         MembaTokenOTC impl = new MembaTokenOTC();
-        bytes memory initData = abi.encodeCall(MembaTokenOTC.initialize, (adminAddr, feeWallet, 100)); // 1%
+        bytes memory initData = abi.encodeCall(MembaTokenOTC.initialize, (adminAddr, feeWallet, 100, adminAddr)); // 1%
         otc = MembaTokenOTC(address(new ERC1967Proxy(address(impl), initData)));
 
         vm.deal(buyer, 1000 ether);
@@ -205,14 +205,14 @@ contract MembaTokenOTCMoneyPathsTest is Test {
     ///         parameter cannot brick the desk permanently.
     function test_A5_InitRejectsFeeAboveCap() public {
         MembaTokenOTC impl = new MembaTokenOTC();
-        bytes memory bad = abi.encodeCall(MembaTokenOTC.initialize, (adminAddr, feeWallet, 2001));
+        bytes memory bad = abi.encodeCall(MembaTokenOTC.initialize, (adminAddr, feeWallet, 2001, adminAddr));
         vm.expectRevert(MembaTokenOTC.InvalidFeeBps.selector);
         new ERC1967Proxy(address(impl), bad);
     }
 
     function test_A5_InitAcceptsFeeAtCap() public {
         MembaTokenOTC impl = new MembaTokenOTC();
-        bytes memory ok = abi.encodeCall(MembaTokenOTC.initialize, (adminAddr, feeWallet, 2000));
+        bytes memory ok = abi.encodeCall(MembaTokenOTC.initialize, (adminAddr, feeWallet, 2000, adminAddr));
         MembaTokenOTC capped = MembaTokenOTC(address(new ERC1967Proxy(address(impl), ok)));
         assertEq(capped.platformFeeBps(), 2000);
     }

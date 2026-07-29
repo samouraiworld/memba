@@ -100,13 +100,13 @@ contract Deploy is Script {
         }
         require(verifier != d.upgrader, "BACKEND_VERIFIER must not be the upgrade authority");
 
-        (d.daoFactory, d.firstDAO, d.candidature, d.channels, d.registry) = _deployCore(safe, treasury);
-        (d.tokenFactory, d.escrow, d.nft) = _deployCommerce(safe, treasury);
-        (d.collections, d.otc) = _deployCollectionsAndOTC(safe, treasury, d.nft);
+        (d.daoFactory, d.firstDAO, d.candidature, d.channels, d.registry) = _deployCore(safe, treasury, d.upgrader);
+        (d.tokenFactory, d.escrow, d.nft) = _deployCommerce(safe, treasury, d.upgrader);
+        (d.collections, d.otc) = _deployCollectionsAndOTC(safe, treasury, d.nft, d.upgrader);
         (d.reviews, d.badges, d.quests, d.points, d.appStore) = _deploySocial(safe, treasury, verifier, d.upgrader);
     }
 
-    function _deployCore(address safe, address treasury)
+    function _deployCore(address safe, address treasury, address upgrader)
         internal
         returns (address factory, address firstDAO, address candidature, address channels, address registry)
     {
@@ -120,7 +120,7 @@ contract Deploy is Script {
         candidature = address(
             new ERC1967Proxy(
                 address(new MembaCandidature()),
-                abi.encodeCall(MembaCandidature.initialize, (firstDAO, safe, treasury, 0.01 ether))
+                abi.encodeCall(MembaCandidature.initialize, (firstDAO, safe, treasury, 0.01 ether, upgrader))
             )
         );
         console.log("[Core] Candidature:", candidature);
@@ -133,12 +133,16 @@ contract Deploy is Script {
         console.log("  grantee:", candidature);
 
         channels = address(
-            new ERC1967Proxy(address(new MembaChannels()), abi.encodeCall(MembaChannels.initialize, (firstDAO, safe)))
+            new ERC1967Proxy(
+                address(new MembaChannels()), abi.encodeCall(MembaChannels.initialize, (firstDAO, safe, upgrader))
+            )
         );
         console.log("[Core] Channels:", channels);
 
         registry = address(
-            new ERC1967Proxy(address(new MembaRegistry()), abi.encodeCall(MembaRegistry.initialize, (safe, safe, 200)))
+            new ERC1967Proxy(
+                address(new MembaRegistry()), abi.encodeCall(MembaRegistry.initialize, (safe, safe, 200, upgrader))
+            )
         );
         console.log("[Core] Registry:", registry);
 
@@ -153,37 +157,38 @@ contract Deploy is Script {
         console.log("  new owner:", safe);
     }
 
-    function _deployCommerce(address safe, address treasury)
+    function _deployCommerce(address safe, address treasury, address upgrader)
         internal
         returns (address tokenFactory, address escrow, address nft)
     {
         tokenFactory = address(
             new ERC1967Proxy(
                 address(new MembaTokenFactory()),
-                abi.encodeCall(MembaTokenFactory.initialize, (safe, treasury, 0.001 ether))
+                abi.encodeCall(MembaTokenFactory.initialize, (safe, treasury, 0.001 ether, upgrader))
             )
         );
         console.log("[Commerce] TokenFactory:", tokenFactory);
 
         escrow = address(
             new ERC1967Proxy(
-                address(new MembaEscrow()), abi.encodeCall(MembaEscrow.initialize, (safe, treasury, 200, 500, 30 days))
+                address(new MembaEscrow()),
+                abi.encodeCall(MembaEscrow.initialize, (safe, treasury, 200, 500, 30 days, upgrader))
             )
         );
         console.log("[Commerce] Escrow:", escrow);
 
-        nft = address(new ERC1967Proxy(address(new MembaNFT()), abi.encodeCall(MembaNFT.initialize, (safe))));
+        nft = address(new ERC1967Proxy(address(new MembaNFT()), abi.encodeCall(MembaNFT.initialize, (safe, upgrader))));
         console.log("[Commerce] NFT:", nft);
     }
 
-    function _deployCollectionsAndOTC(address safe, address treasury, address nft)
+    function _deployCollectionsAndOTC(address safe, address treasury, address nft, address upgrader)
         internal
         returns (address collections, address otc)
     {
         collections = address(
             new ERC1967Proxy(
                 address(new MembaCollections()),
-                abi.encodeCall(MembaCollections.initialize, (safe, treasury, 0.01 ether, nft))
+                abi.encodeCall(MembaCollections.initialize, (safe, treasury, 0.01 ether, nft, upgrader))
             )
         );
         console.log("[Commerce] Collections:", collections);
@@ -197,7 +202,7 @@ contract Deploy is Script {
 
         otc = address(
             new ERC1967Proxy(
-                address(new MembaTokenOTC()), abi.encodeCall(MembaTokenOTC.initialize, (safe, treasury, 100))
+                address(new MembaTokenOTC()), abi.encodeCall(MembaTokenOTC.initialize, (safe, treasury, 100, upgrader))
             )
         );
         console.log("[Commerce] OTC:", otc);
@@ -208,7 +213,7 @@ contract Deploy is Script {
         returns (address reviews, address badges, address quests, address points, address appStore)
     {
         reviews = address(
-            new ERC1967Proxy(address(new MembaReviews()), abi.encodeCall(MembaReviews.initialize, (safe)))
+            new ERC1967Proxy(address(new MembaReviews()), abi.encodeCall(MembaReviews.initialize, (safe, upgrader)))
         );
         console.log("[Social] Reviews:", reviews);
 
@@ -222,12 +227,15 @@ contract Deploy is Script {
         );
         console.log("[Social] Quests:", quests);
 
-        points = address(new ERC1967Proxy(address(new MembaPoints()), abi.encodeCall(MembaPoints.initialize, (safe))));
+        points = address(
+            new ERC1967Proxy(address(new MembaPoints()), abi.encodeCall(MembaPoints.initialize, (safe, upgrader)))
+        );
         console.log("[Social] Points:", points);
 
         appStore = address(
             new ERC1967Proxy(
-                address(new MembaAppStore()), abi.encodeCall(MembaAppStore.initialize, (safe, treasury, 0.001 ether))
+                address(new MembaAppStore()),
+                abi.encodeCall(MembaAppStore.initialize, (safe, treasury, 0.001 ether, upgrader))
             )
         );
         console.log("[Social] AppStore:", appStore);

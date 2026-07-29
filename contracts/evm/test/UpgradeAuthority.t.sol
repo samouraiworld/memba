@@ -47,7 +47,8 @@ contract UpgradeAuthorityTest is Test {
         escrow = MembaEscrow(
             address(
                 new ERC1967Proxy(
-                    address(eImpl), abi.encodeCall(MembaEscrow.initialize, (adminAddr, feeWallet, 200, 500, 30 days))
+                    address(eImpl),
+                    abi.encodeCall(MembaEscrow.initialize, (adminAddr, feeWallet, 200, 500, 30 days, adminAddr))
                 )
             )
         );

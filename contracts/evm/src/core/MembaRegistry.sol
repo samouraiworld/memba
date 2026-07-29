@@ -68,12 +68,15 @@ contract MembaRegistry is UUPSUpgradeable, MembaUpgradeAuthority {
         _disableInitializers();
     }
 
-    function initialize(address _admin, address _treasury, uint16 _defaultFeeBps) external initializer {
+    function initialize(address _admin, address _treasury, uint16 _defaultFeeBps, address _upgrader)
+        external
+        initializer
+    {
         if (_admin == address(0)) revert InvalidParams();
         __UUPSUpgradeable_init();
         RegistryStorage storage $ = _getStorage();
         $.admin = _admin;
-        __MembaUpgradeAuthority_init(_admin);
+        __MembaUpgradeAuthority_init(_upgrader);
         $.treasury = _treasury;
         $.defaultFeeBps = _defaultFeeBps;
     }

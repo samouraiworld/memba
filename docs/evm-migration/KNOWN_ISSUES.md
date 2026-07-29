@@ -77,7 +77,45 @@ admin transfer everywhere; upgrade authority = Safe behind a timelock.
 
 ---
 
-### ~~ISSUE-004~~ ✅ RESOLVED 2026-07-24: No timelock anywhere
+### ISSUE-004 — ⚠️ REOPENED 2026-07-29, then ✅ FULLY RESOLVED: timelock reached only 2 of 14 proxies
+
+**The 2026-07-24 closure was wrong.** `Deploy.s.sol` computed a `TimelockController`
+and then passed it to `_deploySocial` **only**, so exactly two proxies —
+`MembaBadges` and `MembaQuests` — routed upgrades through the delay. The other
+eleven called `__MembaUpgradeAuthority_init(_admin)` with `_admin = safe`, which
+made the Safe both operational admin *and* upgrade authority — re-coupling the two
+roles that ISSUE-003 exists to separate.
+
+**That included every fund-custody contract:** `MembaEscrow` (`Deploy.s.sol:170`),
+`MembaTokenOTC` (`:200`) and `MembaCandidature` (`:123`). The Safe could replace a
+fund-holding implementation in a single transaction, with no user exit window —
+verbatim the scenario this issue was filed for.
+
+**Why the tests missed it:** `test_DeployScript_TimelockAuthorityWhenDelaySet`
+asserted Badges and Quests and stopped there. `test_TimelockEnforcesDelayOnUpgrade`
+passed only because the *test itself* performed the wiring the deploy omitted
+(`UpgradeAuthority.t.sol` calls `escrow.transferUpgrader(address(timelock))`).
+
+**Fix (2026-07-29).** `initialize` on all eleven contracts now takes an explicit
+`address _upgrader` as its final parameter — the shape `MembaBadges`/`MembaQuests`
+already used — and `Deploy.s.sol` threads `d.upgrader` through `_deployCore`,
+`_deployCommerce` and `_deployCollectionsAndOTC`. Upgrade authority is therefore
+correct from block one; it is not a post-deploy ceremony step that can be skipped.
+Zero-address is rejected by `__MembaUpgradeAuthority_init`'s existing
+`InvalidUpgrader()` guard, so no per-contract check was added.
+
+**Pinned by** `test_ISSUE004_EveryProxyRoutesUpgradesThroughTheTimelock` (asserts all
+13 upgradeable proxies by name, so a future contract cannot be added and forgotten)
+and `test_ISSUE004_WithoutTimelockEveryProxyRoutesToTheSafe`. Mutation-checked:
+restoring `__MembaUpgradeAuthority_init(_admin)` in `MembaEscrow` fails the suite
+with `escrow: upgrade authority must be the timelock, not the Safe`.
+
+**Lesson worth keeping:** a per-contract assertion list beats a spot check. The
+original test named two proxies and read as if it covered the property.
+
+<details><summary>original 2026-07-24 entry</summary>
+
+### ~~ISSUE-004~~ RESOLVED 2026-07-24: No timelock anywhere
 **Severity**: 🔴 CRITICAL · **Status**: ✅ Resolved · **Owner**: AI
 
 `grep -ri timelock contracts/evm/src` → zero hits. Plan §17.2 made "Timelock on all contract
@@ -182,6 +220,8 @@ instantly upgradeable, including those custodying user ETH, with no user exit wi
   `TIMELOCK_DELAY` is set (Safe as proposer/executor, `admin = address(0)` so the delay
   cannot be re-granted around), and warns loudly when it is not.
   `test_TimelockEnforcesDelayOnUpgrade` proves the delay actually blocks an early upgrade.
+
+</details>
 - **H-2 (no upgrade tests existed)** — `upgradeToAndCall` had never been called anywhere.
   Now covered: storage survives V1→V2, an unauthorised caller is rejected, and rotation
   requires the nominee to accept.

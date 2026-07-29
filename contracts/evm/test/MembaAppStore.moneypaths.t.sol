@@ -22,7 +22,8 @@ contract MembaAppStoreMoneyPathsTest is Test {
 
     function setUp() public {
         MembaAppStore impl = new MembaAppStore();
-        bytes memory initData = abi.encodeCall(MembaAppStore.initialize, (adminAddr, feeWallet, CREATION_FEE));
+        bytes memory initData =
+            abi.encodeCall(MembaAppStore.initialize, (adminAddr, feeWallet, CREATION_FEE, adminAddr));
         store = MembaAppStore(address(new ERC1967Proxy(address(impl), initData)));
         vm.deal(publisher, 10 ether);
     }
@@ -58,7 +59,7 @@ contract MembaAppStoreMoneyPathsTest is Test {
         NoReceive badRecipient = new NoReceive();
         MembaAppStore impl = new MembaAppStore();
         bytes memory initData =
-            abi.encodeCall(MembaAppStore.initialize, (adminAddr, address(badRecipient), CREATION_FEE));
+            abi.encodeCall(MembaAppStore.initialize, (adminAddr, address(badRecipient), CREATION_FEE, adminAddr));
         MembaAppStore badStore = MembaAppStore(address(new ERC1967Proxy(address(impl), initData)));
 
         vm.deal(publisher, 10 ether);

@@ -169,7 +169,8 @@ contract EscrowInvariantsTest is StdInvariant, Test {
 
     function setUp() public {
         MembaEscrow impl = new MembaEscrow();
-        bytes memory initData = abi.encodeCall(MembaEscrow.initialize, (adminAddr, feeWallet, 200, 500, 30 days));
+        bytes memory initData =
+            abi.encodeCall(MembaEscrow.initialize, (adminAddr, feeWallet, 200, 500, 30 days, adminAddr));
         escrow = MembaEscrow(address(new ERC1967Proxy(address(impl), initData)));
 
         handler = new EscrowHandler(escrow, adminAddr, feeWallet);

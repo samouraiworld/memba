@@ -103,12 +103,12 @@ contract MembaReviews is UUPSUpgradeable, PausableUpgradeable, MembaUpgradeAutho
         _disableInitializers();
     }
 
-    function initialize(address _admin) external initializer {
+    function initialize(address _admin, address _upgrader) external initializer {
         if (_admin == address(0)) revert InvalidParams();
         __UUPSUpgradeable_init();
         __Pausable_init();
         _getStorage().admin = _admin;
-        __MembaUpgradeAuthority_init(_admin);
+        __MembaUpgradeAuthority_init(_upgrader);
     }
 
     // ── Reviews

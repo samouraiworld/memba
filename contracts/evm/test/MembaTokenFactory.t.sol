@@ -24,7 +24,8 @@ contract MembaTokenFactoryTest is Test {
 
     function setUp() public {
         MembaTokenFactory impl = new MembaTokenFactory();
-        bytes memory initData = abi.encodeCall(MembaTokenFactory.initialize, (adminAddr, feeWallet, CREATION_FEE));
+        bytes memory initData =
+            abi.encodeCall(MembaTokenFactory.initialize, (adminAddr, feeWallet, CREATION_FEE, adminAddr));
         address proxy = address(new ERC1967Proxy(address(impl), initData));
         factory = MembaTokenFactory(proxy);
 

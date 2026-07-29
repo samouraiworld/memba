@@ -100,7 +100,7 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
         _disableInitializers();
     }
 
-    function initialize(address _admin, address _feeRecipient, uint16 _feeBps) external initializer {
+    function initialize(address _admin, address _feeRecipient, uint16 _feeBps, address _upgrader) external initializer {
         if (_admin == address(0) || _feeRecipient == address(0)) revert InvalidParams();
         if (_feeBps > MAX_FEE_BPS) revert InvalidFeeBps();
         __UUPSUpgradeable_init();
@@ -109,7 +109,7 @@ contract MembaTokenOTC is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardU
 
         OTCStorage storage $ = _getStorage();
         $.admin = _admin;
-        __MembaUpgradeAuthority_init(_admin);
+        __MembaUpgradeAuthority_init(_upgrader);
         $.feeRecipient = _feeRecipient;
         $.platformFeeBps = _feeBps;
     }

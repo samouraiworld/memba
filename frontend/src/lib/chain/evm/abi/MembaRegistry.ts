@@ -184,6 +184,11 @@ export const MembaRegistryABI = [
         "name": "_defaultFeeBps",
         "type": "uint16",
         "internalType": "uint16"
+      },
+      {
+        "name": "_upgrader",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],

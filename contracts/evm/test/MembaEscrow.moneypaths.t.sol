@@ -31,8 +31,9 @@ contract MembaEscrowMoneyPathsTest is Test {
 
     function setUp() public {
         MembaEscrow impl = new MembaEscrow();
-        bytes memory initData =
-            abi.encodeCall(MembaEscrow.initialize, (adminAddr, feeWallet, PLATFORM_FEE, CANCEL_FEE, AUTO_REFUND));
+        bytes memory initData = abi.encodeCall(
+            MembaEscrow.initialize, (adminAddr, feeWallet, PLATFORM_FEE, CANCEL_FEE, AUTO_REFUND, adminAddr)
+        );
         escrow = MembaEscrow(address(new ERC1967Proxy(address(impl), initData)));
 
         vm.deal(buyer, 100 ether);

@@ -45,14 +45,18 @@ contract MembaCollectionsTest is Test {
 
     function setUp() public {
         MembaNFT nftImpl = new MembaNFT();
-        nft = MembaNFT(address(new ERC1967Proxy(address(nftImpl), abi.encodeCall(MembaNFT.initialize, (adminAddr)))));
+        nft = MembaNFT(
+            address(new ERC1967Proxy(address(nftImpl), abi.encodeCall(MembaNFT.initialize, (adminAddr, adminAddr))))
+        );
 
         MembaCollections lpImpl = new MembaCollections();
         launchpad = MembaCollections(
             address(
                 new ERC1967Proxy(
                     address(lpImpl),
-                    abi.encodeCall(MembaCollections.initialize, (adminAddr, feeWallet, CREATION_FEE, address(nft)))
+                    abi.encodeCall(
+                        MembaCollections.initialize, (adminAddr, feeWallet, CREATION_FEE, address(nft), adminAddr)
+                    )
                 )
             )
         );

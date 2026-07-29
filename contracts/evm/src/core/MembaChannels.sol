@@ -92,7 +92,7 @@ contract MembaChannels is UUPSUpgradeable, PausableUpgradeable, MembaUpgradeAuth
         _disableInitializers();
     }
 
-    function initialize(address _daoContract, address _admin) external initializer {
+    function initialize(address _daoContract, address _admin, address _upgrader) external initializer {
         if (_daoContract == address(0) || _admin == address(0)) revert InvalidParams();
         __UUPSUpgradeable_init();
         __Pausable_init();
@@ -100,7 +100,7 @@ contract MembaChannels is UUPSUpgradeable, PausableUpgradeable, MembaUpgradeAuth
         ChannelsStorage storage $ = _getStorage();
         $.daoContract = _daoContract;
         $.admin = _admin;
-        __MembaUpgradeAuthority_init(_admin);
+        __MembaUpgradeAuthority_init(_upgrader);
     }
 
     // ── Channel Management

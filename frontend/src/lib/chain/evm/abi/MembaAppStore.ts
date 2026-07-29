@@ -179,6 +179,11 @@ export const MembaAppStoreABI = [
         "name": "_creationFee",
         "type": "uint256",
         "internalType": "uint256"
+      },
+      {
+        "name": "_upgrader",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],

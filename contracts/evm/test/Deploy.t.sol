@@ -23,6 +23,13 @@ import { MembaQuests } from "../src/social/MembaQuests.sol";
 ///         deploy-time-only, funds/authority defect with no runtime error. One deterministic
 ///         test pins the whole wiring — including what deploy deliberately does NOT do (the
 ///         three Safe ceremony steps), so those stay non-optional.
+
+/// @dev Minimal view onto MembaUpgradeAuthority, so this test can assert the
+///      upgrade authority of every proxy without importing all thirteen.
+interface IUpgraderView {
+    function upgrader() external view returns (address);
+}
+
 contract DeployTest is Test {
     Deploy internal deployer;
 
@@ -123,6 +130,65 @@ contract DeployTest is Test {
     }
 
     // ── D-13: timelock branch (upgrader is a fresh TimelockController) ─
+
+    /// ISSUE-004 (reopened 2026-07-29). The timelock was wired to Badges and Quests
+    /// only; the other eleven proxies — including MembaEscrow, MembaTokenOTC and
+    /// MembaCandidature, which custody user ETH — initialised their upgrade
+    /// authority from `_admin`, so the Safe could swap a fund-holding
+    /// implementation in a single transaction with no user exit window.
+    function test_ISSUE004_EveryProxyRoutesUpgradesThroughTheTimelock() public {
+        uint256 delay = 48 hours;
+        Deploy.Deployed memory d = deployer.deployAll(safe, treasury, verifier, delay);
+
+        address[13] memory proxies = [
+            d.candidature,
+            d.channels,
+            d.registry,
+            d.tokenFactory,
+            d.escrow,
+            d.nft,
+            d.collections,
+            d.otc,
+            d.reviews,
+            d.badges,
+            d.quests,
+            d.points,
+            d.appStore
+        ];
+        string[13] memory names = [
+            "candidature",
+            "channels",
+            "registry",
+            "tokenFactory",
+            "escrow",
+            "nft",
+            "collections",
+            "otc",
+            "reviews",
+            "badges",
+            "quests",
+            "points",
+            "appStore"
+        ];
+
+        for (uint256 i = 0; i < proxies.length; i++) {
+            assertEq(
+                IUpgraderView(proxies[i]).upgrader(),
+                d.upgrader,
+                string.concat(names[i], ": upgrade authority must be the timelock, not the Safe")
+            );
+        }
+    }
+
+    /// Without a delay configured the Safe is the upgrade authority everywhere —
+    /// still uniform, still not the operational admin by accident.
+    function test_ISSUE004_WithoutTimelockEveryProxyRoutesToTheSafe() public {
+        Deploy.Deployed memory d = deployer.deployAll(safe, treasury, verifier, 0);
+        assertEq(d.upgrader, safe, "no delay configured: the Safe is the authority");
+        assertEq(IUpgraderView(d.escrow).upgrader(), safe, "escrow");
+        assertEq(IUpgraderView(d.otc).upgrader(), safe, "otc");
+        assertEq(IUpgraderView(d.candidature).upgrader(), safe, "candidature");
+    }
 
     function test_DeployScript_TimelockAuthorityWhenDelaySet() public {
         uint256 delay = 48 hours;

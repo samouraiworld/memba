@@ -170,7 +170,8 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
         address _feeRecipient,
         uint16 _platformFeeBps,
         uint16 _cancellationFeeBps,
-        uint256 _autoRefundTimeout
+        uint256 _autoRefundTimeout,
+        address _upgrader
     ) external initializer {
         if (_admin == address(0) || _feeRecipient == address(0)) revert InvalidParams();
         if (_platformFeeBps > MAX_FEE_BPS || _cancellationFeeBps > MAX_FEE_BPS) revert InvalidFeeBps();
@@ -181,7 +182,7 @@ contract MembaEscrow is UUPSUpgradeable, PausableUpgradeable, ReentrancyGuardUpg
 
         EscrowStorage storage $ = _getStorage();
         $.admin = _admin;
-        __MembaUpgradeAuthority_init(_admin);
+        __MembaUpgradeAuthority_init(_upgrader);
         $.feeRecipient = _feeRecipient;
         $.platformFeeBps = _platformFeeBps;
         $.cancellationFeeBps = _cancellationFeeBps;

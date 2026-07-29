@@ -35,7 +35,7 @@ contract MembaCandidatureTest is Test {
         // Deploy Candidature behind proxy
         MembaCandidature candImpl = new MembaCandidature();
         bytes memory initData =
-            abi.encodeCall(MembaCandidature.initialize, (address(dao), adminAddr, feeWallet, MIN_DEPOSIT));
+            abi.encodeCall(MembaCandidature.initialize, (address(dao), adminAddr, feeWallet, MIN_DEPOSIT, adminAddr));
         address candProxy = address(new ERC1967Proxy(address(candImpl), initData));
         candidature = MembaCandidature(candProxy);
 
@@ -64,7 +64,7 @@ contract MembaCandidatureTest is Test {
         MembaDAOFactory factory = new MembaDAOFactory(address(new MembaDAO()));
         d = MembaDAO(factory.createDAO("Ungranted", "desc", adminAddr, bytes32(uint256(2))));
         bytes memory initData =
-            abi.encodeCall(MembaCandidature.initialize, (address(d), adminAddr, feeWallet, MIN_DEPOSIT));
+            abi.encodeCall(MembaCandidature.initialize, (address(d), adminAddr, feeWallet, MIN_DEPOSIT, adminAddr));
         c = MembaCandidature(address(new ERC1967Proxy(address(new MembaCandidature()), initData)));
     }
 

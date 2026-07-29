@@ -174,6 +174,11 @@ export const MembaTokenOTCABI = [
         "name": "_feeBps",
         "type": "uint16",
         "internalType": "uint16"
+      },
+      {
+        "name": "_upgrader",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],

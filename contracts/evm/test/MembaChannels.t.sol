@@ -31,7 +31,7 @@ contract MembaChannelsTest is Test {
 
         // Deploy Channels
         MembaChannels impl = new MembaChannels();
-        bytes memory initData = abi.encodeCall(MembaChannels.initialize, (address(dao), adminAddr));
+        bytes memory initData = abi.encodeCall(MembaChannels.initialize, (address(dao), adminAddr, adminAddr));
         address proxy = address(new ERC1967Proxy(address(impl), initData));
         channels = MembaChannels(proxy);
     }

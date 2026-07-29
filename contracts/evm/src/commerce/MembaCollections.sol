@@ -104,10 +104,13 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
 
     // ── Initializer
     // ───────────────────────────────────────────────
-    function initialize(address _admin, address _feeRecipient, uint256 _creationFee, address _nftContract)
-        external
-        initializer
-    {
+    function initialize(
+        address _admin,
+        address _feeRecipient,
+        uint256 _creationFee,
+        address _nftContract,
+        address _upgrader
+    ) external initializer {
         if (_admin == address(0) || _feeRecipient == address(0) || _nftContract == address(0)) {
             revert InvalidParams();
         }
@@ -117,7 +120,7 @@ contract MembaCollections is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
 
         CollectionsStorage storage $ = _getStorage();
         $.admin = _admin;
-        __MembaUpgradeAuthority_init(_admin);
+        __MembaUpgradeAuthority_init(_upgrader);
         $.feeRecipient = _feeRecipient;
         $.creationFee = _creationFee;
         $.nftContract = _nftContract;

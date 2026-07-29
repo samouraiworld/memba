@@ -71,7 +71,7 @@ contract MembaPointsTest is Test {
 
     function setUp() public {
         MembaPoints impl = new MembaPoints();
-        bytes memory initData = abi.encodeCall(MembaPoints.initialize, (adminAddr));
+        bytes memory initData = abi.encodeCall(MembaPoints.initialize, (adminAddr, adminAddr));
         address proxy = address(new ERC1967Proxy(address(impl), initData));
         points = MembaPoints(proxy);
 
@@ -130,7 +130,7 @@ contract MembaAppStoreTest is Test {
 
     function setUp() public {
         MembaAppStore impl = new MembaAppStore();
-        bytes memory initData = abi.encodeCall(MembaAppStore.initialize, (adminAddr, feeWallet, 0.001 ether));
+        bytes memory initData = abi.encodeCall(MembaAppStore.initialize, (adminAddr, feeWallet, 0.001 ether, adminAddr));
         address proxy = address(new ERC1967Proxy(address(impl), initData));
         appStore = MembaAppStore(proxy);
         vm.deal(publisher, 1 ether);
@@ -195,7 +195,7 @@ contract MembaRegistryTest is Test {
 
     function setUp() public {
         MembaRegistry impl = new MembaRegistry();
-        bytes memory initData = abi.encodeCall(MembaRegistry.initialize, (adminAddr, treasury, 200));
+        bytes memory initData = abi.encodeCall(MembaRegistry.initialize, (adminAddr, treasury, 200, adminAddr));
         address proxy = address(new ERC1967Proxy(address(impl), initData));
         registry = MembaRegistry(proxy);
     }

@@ -23,7 +23,8 @@ contract MembaTokenOTCTest is Test {
     function setUp() public {
         // Deploy OTC
         MembaTokenOTC impl = new MembaTokenOTC();
-        bytes memory initData = abi.encodeCall(MembaTokenOTC.initialize, (adminAddr, feeWallet, 100)); // 1% fee
+        bytes memory initData = abi.encodeCall(MembaTokenOTC.initialize, (adminAddr, feeWallet, 100, adminAddr)); // 1%
+        // fee
         address proxy = address(new ERC1967Proxy(address(impl), initData));
         otc = MembaTokenOTC(proxy);
 

@@ -294,6 +294,11 @@ export const MembaCollectionsABI = [
         "name": "_nftContract",
         "type": "address",
         "internalType": "address"
+      },
+      {
+        "name": "_upgrader",
+        "type": "address",
+        "internalType": "address"
       }
     ],
     "outputs": [],

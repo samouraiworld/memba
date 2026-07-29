@@ -101,7 +101,10 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
 
     // ── Initializer
     // ───────────────────────────────────────────────
-    function initialize(address _dao, address _admin, address _feeRecipient, uint256 _minDeposit) external initializer {
+    function initialize(address _dao, address _admin, address _feeRecipient, uint256 _minDeposit, address _upgrader)
+        external
+        initializer
+    {
         if (_dao == address(0) || _admin == address(0) || _feeRecipient == address(0)) revert InvalidParams();
 
         __UUPSUpgradeable_init();
@@ -111,7 +114,7 @@ contract MembaCandidature is UUPSUpgradeable, PausableUpgradeable, ReentrancyGua
         CandidatureStorage storage $ = _getStorage();
         $.daoContract = _dao;
         $.admin = _admin;
-        __MembaUpgradeAuthority_init(_admin);
+        __MembaUpgradeAuthority_init(_upgrader);
         $.feeRecipient = _feeRecipient;
         $.minDeposit = _minDeposit;
         $.depositMultiplier = 10; // 10x per re-application

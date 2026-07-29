@@ -102,7 +102,7 @@ contract MembaNFT is
 
     // ── Initializer
     // ───────────────────────────────────────────────
-    function initialize(address _admin) external initializer {
+    function initialize(address _admin, address _upgrader) external initializer {
         if (_admin == address(0)) revert InvalidParams();
         __ERC721_init("Memba NFT", "MNFT");
         __ERC721URIStorage_init();
@@ -110,7 +110,7 @@ contract MembaNFT is
         __UUPSUpgradeable_init();
         __Pausable_init();
         _getStorage().admin = _admin;
-        __MembaUpgradeAuthority_init(_admin);
+        __MembaUpgradeAuthority_init(_upgrader);
     }
 
     // ── Collections

@@ -22,7 +22,8 @@ contract MembaTokenFactoryMoneyPathsTest is Test {
 
     function setUp() public {
         MembaTokenFactory impl = new MembaTokenFactory();
-        bytes memory initData = abi.encodeCall(MembaTokenFactory.initialize, (adminAddr, feeWallet, CREATION_FEE));
+        bytes memory initData =
+            abi.encodeCall(MembaTokenFactory.initialize, (adminAddr, feeWallet, CREATION_FEE, adminAddr));
         factory = MembaTokenFactory(address(new ERC1967Proxy(address(impl), initData)));
         vm.deal(alice, 10 ether);
     }
