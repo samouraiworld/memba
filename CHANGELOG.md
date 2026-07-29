@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Security — patched a networking library flaw that was also blocking every release (#1021, 2026-07-29)
+<!-- categories: memba -->
+- **Updated a bundled networking library (`grpc`) carrying a published vulnerability, and in doing so unblocked releases.** The flaw is in a transitive dependency reached through Memba's generated API code, so our automated vulnerability scan correctly flagged it as reachable. Because that same scan guards both the merge gate and the backend deployment pipeline, the advisory had frozen *all* work: every open pull request failed the check — including ones touching only the front end — and the backend could not be deployed at all, so an urgent fix could not have shipped. The library is now on the patched version; the scan is clean and releases flow again. No user-facing behaviour changed.
+
 ### SEO — search results and the blog feed now point at Topaz, not the retired testnet (#1013, 2026-07-27)
 <!-- categories: memba -->
 - **Fixed every public link we publish still pointing at the retired Testnet 13.** The sitemap we give search engines listed 27 pages under `/test13/`, and the blog's RSS feed linked there too — so anyone arriving from a search result or a feed reader landed on a network that no longer runs, and saw an unreachable-network notice instead of the page. Both now point at Topaz. The `llms.txt` file that describes Memba to AI agents was also still naming Testnet 13 and its dead endpoints; it now names Topaz.
