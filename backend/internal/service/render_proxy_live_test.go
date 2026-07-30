@@ -56,7 +56,7 @@ func TestLive_HandleRenderProxy_ReturnsData(t *testing.T) {
 	requireLiveRPC(t)
 	t.Setenv("GNO_RPC_URL", liveTest13RPC)
 	rec := httptest.NewRecorder()
-	HandleRenderProxy().ServeHTTP(rec,
+	HandleRenderProxy(nil).ServeHTTP(rec,
 		httptest.NewRequest(http.MethodGet, "/api/render?realm=gno.land/r/samcrew/memba_dao", nil))
 
 	if rec.Code != http.StatusOK {

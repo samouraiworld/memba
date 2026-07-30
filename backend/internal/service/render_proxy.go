@@ -1,22 +1,112 @@
 package service
 
 import (
+	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"os"
 	"regexp"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/samouraiworld/memba/backend/internal/metrics"
 )
 
 // safePathRe validates render path and agent ID parameters.
 // Only allows alphanumeric, slashes, dashes, underscores, dots, colons, and equals.
 var safePathRe = regexp.MustCompile(`^[a-zA-Z0-9/_\-.:=?&]*$`)
+
+// feedPostPathRe matches the feed realm's per-post render path ("post/<id>").
+// MODERATION_POLICY.md documents that this proxy relays the chain directly and
+// so cannot be filtered by feed_blocklist like our own indexed reads — a
+// blocklisted post is otherwise still readable here even after suppression
+// (the realm's own Hidden/Deleted state is untouched by an operator
+// blocklist, which is deliberately off-chain, see 021_feed_blocklist.sql).
+// This closes that gap for the one render path it's cheap to close: a
+// specific post is addressable, so it can be blocklist-checked before the
+// chain is ever queried.
+var feedPostPathRe = regexp.MustCompile(`^post/([0-9]+)$`)
+
+// feedWatchedRealms returns the realm paths FEED_WATCHED_REALMS indexes
+// (comma-separated, same convention as CORS_ORIGINS). Only these realms'
+// post/<id> path is blocklist-checked — that render-path convention belongs
+// to the feed realm; matching it against an unrelated realm would be a
+// coincidence, not a moderation decision.
+func feedWatchedRealms() []string {
+	raw := os.Getenv("FEED_WATCHED_REALMS")
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	realms := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			realms = append(realms, p)
+		}
+	}
+	return realms
+}
+
+func isWatchedFeedRealm(realm string) bool {
+	for _, w := range feedWatchedRealms() {
+		if w == realm {
+			return true
+		}
+	}
+	return false
+}
+
+// feedRenderSuppressed reports whether rendering postID would serve any
+// operator-blocklisted body (see 021_feed_blocklist.sql) — a suppression that
+// never comes from chain events and that no on-chain action can reverse.
+//
+// It checks the post itself AND its direct replies, because the realm's
+// renderPost inlines reply bodies in full (memba_feed_v1.gno:1132-1138,
+// identical in v2) and knows nothing about an off-chain blocklist: the realm
+// drops chain-hidden replies from its live index, but a blocklisted-only reply
+// is still in that index and still rendered. Checking just the root would
+// leave a blocklisted REPLY fully readable via its parent — the very bypass
+// this gate exists to close.
+//
+// We relay the realm's text opaquely and cannot excise one reply from it, so a
+// blocklisted reply suppresses the whole parent render. That over-suppresses
+// (the realm only inlines the 20 newest replies, and our served thread endpoint
+// filters per-post correctly) but this is a takedown lever for illegal content:
+// over-suppressing one render path is the right side to err on.
+func feedRenderSuppressed(ctx context.Context, db *sql.DB, postID uint64) (bool, error) {
+	if db == nil {
+		return false, errors.New("feed blocklist: nil database handle")
+	}
+	var exists int
+	err := db.QueryRowContext(ctx,
+		`SELECT 1 FROM feed_blocklist
+		  WHERE post_id = ?
+		     OR post_id IN (SELECT post_id FROM feed_posts WHERE reply_to = ?)
+		  LIMIT 1`, postID, postID).Scan(&exists)
+	switch {
+	case errors.Is(err, sql.ErrNoRows):
+		return false, nil
+	case err != nil:
+		return false, err
+	default:
+		return true, nil
+	}
+}
+
+// feedPostUnavailableBody mirrors the feed realm's own renderPost suppression
+// text so a blocklisted post reads identically to one the realm itself already
+// hides — the caller cannot distinguish an operator takedown from an on-chain
+// hide/delete, which is the point. Verified byte-identical in both
+// memba_feed_v1.gno (the realm deployed on topaz) and memba_feed_v2.gno.
+const feedPostUnavailableBody = "# Post unavailable\n\n*This post has been hidden or removed.*\n"
 
 // gnoRPCURL returns the RPC endpoint for the generic render/balance proxies.
 // Overridable via GNO_RPC_URL (set to the pinned samourai topaz node in
@@ -188,8 +278,10 @@ func abciQueryOnce(rpcURL, path, data string) (string, error) {
 //   - realm: The realm path (required, e.g., "gno.land/r/gov/dao")
 //   - path: The render path argument (optional, e.g., "42" for proposal #42)
 //
-// Returns: plain text Render() output, or JSON error.
-func HandleRenderProxy() http.Handler {
+// Returns: plain text Render() output, or JSON error. A blocklisted feed post
+// (feed_blocklist, see MODERATION_POLICY.md) is suppressed before the chain
+// is queried — see feedBlocklisted.
+func HandleRenderProxy(db *sql.DB) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
@@ -213,6 +305,45 @@ func HandleRenderProxy() http.Handler {
 			http.Error(w, `{"error":"invalid path characters"}`, http.StatusBadRequest)
 			return
 		}
+
+		if isWatchedFeedRealm(realm) {
+			if m := feedPostPathRe.FindStringSubmatch(renderPath); m != nil {
+				// ParseUint cannot fail here: feedPostPathRe already pinned the
+				// capture to digits. An overflowing id (>2^64) is not a post the
+				// realm can render either, so treat it as unfiltered.
+				if postID, perr := strconv.ParseUint(m[1], 10, 64); perr == nil {
+					blocked, err := feedRenderSuppressed(r.Context(), db, postID)
+					// FAIL CLOSED. This is a takedown lever for illegal content:
+					// serving a post we cannot prove is unblocked would reopen
+					// the exact bypass this check exists to close. The cost is
+					// bounded — it suppresses only per-post feed renders, and
+					// the blocklist lives in the same DB every feed read path
+					// already depends on, so a DB failure has the feed down
+					// regardless.
+					if err != nil {
+						slog.Error("render proxy: blocklist check failed, suppressing post", "realm", realm, "post_id", postID, "error", err)
+					}
+					if err != nil || blocked {
+						// Distinguishable in metrics but NOT on the wire: a
+						// db_error suppression looks exactly like a real
+						// takedown to the caller, by design. Without this
+						// counter a persistent DB fault silently converts every
+						// per-post render into "hidden or removed" with no
+						// alert path.
+						reason := "blocked"
+						if err != nil {
+							reason = "db_error"
+						}
+						metrics.RenderBlocklistSuppressedTotal.WithLabelValues(reason).Inc()
+						w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+						w.Header().Set("Cache-Control", "no-store")
+						_, _ = fmt.Fprint(w, feedPostUnavailableBody)
+						return
+					}
+				}
+			}
+		}
+
 		// vm/qrender wire format: "<pkgpath>:<renderpath>" (colon separator).
 		data := realm + ":" + renderPath
 

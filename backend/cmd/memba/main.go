@@ -292,6 +292,13 @@ func main() {
 			Interval:      durationOr("FEED_TAILER_INTERVAL", 3*time.Second),
 			Logger:        logger,
 		})
+		// The same var gates the /api/render per-post blocklist check
+		// (service.isWatchedFeedRealm). Log it: unset or typo'd, that
+		// moderation control silently disappears, and a takedown lever that
+		// fails open without a signal is worse than one that is absent.
+		slog.Info("feed realms watched (indexer + render blocklist gate)", "realms", feedRealms)
+	} else {
+		slog.Warn("FEED_WATCHED_REALMS unset: feed indexer OFF and the /api/render per-post blocklist check is INACTIVE")
 	}
 
 	// Initialize OAuth state store with app context for clean shutdown.
@@ -314,7 +321,7 @@ func main() {
 	// Render proxy — REST endpoints for ABCI queries (no auth, per-endpoint rate-limited)
 	// NOTE: /api/eval was removed in v6 (SEC-01) — it allowed arbitrary qeval on any realm.
 	// Use /api/render for legitimate read-only queries.
-	mux.Handle("/api/render", rateLimitMiddleware("render", service.HandleRenderProxy()))
+	mux.Handle("/api/render", rateLimitMiddleware("render", service.HandleRenderProxy(database)))
 	mux.Handle("/api/balance", rateLimitMiddleware("balance", service.HandleBalanceProxy()))
 	// Recent-activity feed: forwards GraphQL to the FIXED gno tx-indexer server-side
 	// (the browser can't reach it — no CORS). Target is not client-controlled.

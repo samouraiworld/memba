@@ -102,22 +102,35 @@ The growth gate counts this item as done at **drill**, not at merge.
    - The permalink page and its **link-preview / OG edge function** — this one is
      served from Netlify's edge with a 60s `private` cache, so allow up to a
      minute before concluding it leaked.
-4. Confirm the two paths a blocklist **cannot** filter still serve it, so you are
-   never surprised by them during an incident:
+4. Check the chain-relay paths. Since #1031 these are **partly** filtered — know
+   exactly which part, because the unfiltered ones still leak the full body:
    ```bash
+   # FILTERED since #1031 → expect "# Post unavailable"
    curl -s "$MEMBA_API/api/render?realm=gno.land/r/samcrew/memba_feed_v1&path=post/<id>"
+
+   # NOT filtered → expect the body to still be present
+   curl -s "$MEMBA_API/api/render?realm=gno.land/r/samcrew/memba_feed_v1"          # page 1
+   curl -s "$MEMBA_API/api/render?realm=gno.land/r/samcrew/memba_feed_v1&path=page/1"
+   curl -s "$MEMBA_API/api/render?realm=gno.land/r/samcrew/memba_feed_v1&path=user/<author>"
    ```
-   `/api/render` relays the realm's own `Render()` output and `/api/indexer`
-   passes through to the public tx-indexer — **neither consults
-   `feed_blocklist`.** For genuinely must-not-serve content, blocklisting is not
-   sufficient on its own: it must be paired with an on-chain `ModRemovePost`,
-   which clears the body from contract state. Treat the blocklist as the fast
-   first move and the on-chain removal as the one that closes these two paths.
+   The **direct per-post path** consults `feed_blocklist` before querying the
+   chain (it also suppresses a parent whose *reply* is blocklisted, since the
+   realm inlines reply bodies). Everything else — the page and per-user
+   listings, and all of `/api/indexer` — still relays whatever the chain holds
+   and **does not consult `feed_blocklist`.**
+
+   > **This does not make blocklisting sufficient.** For genuinely
+   > must-not-serve content the blocklist must still be paired with an on-chain
+   > `ModRemovePost`, which clears the body from contract state — that is the
+   > only step that closes the listing paths above. A clean per-post render is
+   > **not** evidence the takedown is complete. Treat the blocklist as the fast
+   > first move and the on-chain removal as the one that finishes the job.
 5. `unblock` it. Verify it returns on all of the above.
 6. Record the date, who ran it, and anything surprising, in §7 below.
 
 **A drill that only checks the timeline is not a drill.** The thread-as-reply and
-OG-preview paths are where a leak hides; `/api/render` is where it is guaranteed.
+OG-preview paths are where a leak hides; the `page/` and `user/` render paths are
+where it is guaranteed.
 
 ---
 
