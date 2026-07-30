@@ -640,9 +640,11 @@ describe("useAdena — disconnect racing an in-flight connect (F-24)", () => {
         expect(returned).toBe(false)
         expect(result.current.connected).toBe(false)
         expect(result.current.address).toBe("")
-        // The aborted connect must not have republished the RPC context either:
-        // a follow-up broadcast attempt must still see "no wallet RPC".
-        expect(localStorage.getItem(SESSION_KEY)).toBeNull()
+        // The aborted connect must not have republished the RPC context —
+        // a follow-up broadcast attempt must still see "no wallet RPC" —
+        // and must not have resurrected the RPC cache the disconnect cleared.
+        await expect(doContractBroadcast([], "post-abort")).rejects.toThrow()
+        expect(sessionStorage.length).toBe(0)
     })
 
     it("a silent connect never re-writes the session flag a disconnect cleared during GetAccount", async () => {
@@ -687,5 +689,73 @@ describe("useAdena — disconnect racing an in-flight connect (F-24)", () => {
 
         expect(result.current.connected).toBe(true)
         expect(localStorage.getItem(SESSION_KEY)).toBe("true")
+    })
+
+    it("aborts an INTERACTIVE connect when the disconnect lands during AddEstablish (the longest window)", async () => {
+        // The human-paced window: the Adena approval popup is open for seconds.
+        // A disconnect here (Layout also calls disconnect() programmatically on
+        // changedAccount) must not be erased by the connect completing with the
+        // pre-disconnect account.
+        let releaseEstablish!: (v: unknown) => void
+        const establishGate = new Promise((r) => { releaseEstablish = r })
+        const adena = makeAdena({
+            GetAccount: vi
+                .fn()
+                .mockResolvedValueOnce({ status: "failure", data: null }) // silent probe fails → popup flow
+                .mockResolvedValue(okAccount()),
+            AddEstablish: vi.fn().mockReturnValue(establishGate),
+        })
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await waitFor(() => expect(result.current.reconnecting).toBe(false))
+
+        let connectPromise!: Promise<boolean>
+        act(() => { connectPromise = result.current.connect() }) // interactive
+        await waitFor(() => expect(adena.AddEstablish).toHaveBeenCalled())
+
+        act(() => { result.current.disconnect() })
+
+        let returned: boolean | undefined
+        await act(async () => {
+            releaseEstablish({ status: "success" })
+            returned = await connectPromise
+        })
+
+        expect(returned).toBe(false)
+        expect(result.current.connected).toBe(false)
+        // The disconnect's clear must stand: the connect may not re-assert the
+        // session flag it snapshotted before the popup.
+        expect(localStorage.getItem(SESSION_KEY)).toBeNull()
+    })
+
+    it("still connects when localStorage is unusable (privacy-hardened browser)", async () => {
+        // wasConnected() returns false when storage throws; the abort guard
+        // must treat that as "no cross-tab signal", not as "user disconnected",
+        // or every connect in a storage-blocked browser dies silently.
+        const setSpy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+            throw new DOMException("QuotaExceededError")
+        })
+        const getSpy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
+            throw new DOMException("SecurityError")
+        })
+        try {
+            const adena = makeAdena()
+            setAdena(adena)
+
+            const { result } = renderHook(() => useAdena())
+
+            let returned: boolean | undefined
+            await act(async () => {
+                returned = await result.current.connect() // interactive
+            })
+
+            expect(returned).toBe(true)
+            expect(result.current.connected).toBe(true)
+            expect(result.current.address).toBe(ADDR)
+        } finally {
+            setSpy.mockRestore()
+            getSpy.mockRestore()
+        }
     })
 })
