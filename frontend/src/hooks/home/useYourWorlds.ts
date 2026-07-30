@@ -31,6 +31,7 @@ import type { DoorState } from "../../components/home/Door"
 import { getSavedDAOsForOrg } from "../../lib/daoSlug"
 import { getDAOConfig, getDAOProposals, getMemberRole, deriveRoleLabel } from "../../lib/dao"
 import { NETWORKS } from "../../lib/config"
+import { AbciQueryError } from "../../lib/rpcFallback"
 import { useAuth } from "../useAuth"
 
 export interface YourWorld {
@@ -69,15 +70,27 @@ export function useYourWorlds(networkKey: string, orgId: string | null): YourWor
             queryKey: ["useYourWorlds", networkKey, dao.realmPath],
             queryFn: async () => {
                 const [config, proposals] = await Promise.all([
-                    getDAOConfig(rpcUrl, dao.realmPath),
+                    // Strict read (B-9): an all-RPCs-down outage THROWS instead of
+                    // returning null. Non-strict null conflated "not deployed on
+                    // this network" with "no RPC answered", and the E-F9 dropping
+                    // below silently removed saved DAOs during transient outages.
+                    getDAOConfig(rpcUrl, dao.realmPath, true).catch((err: unknown) => {
+                        // The chain answered: realm not deployed here → the E-F9
+                        // "saved on another testnet" signal. Anything else is
+                        // transport — rethrow so the card degrades instead.
+                        if (err instanceof AbciQueryError) return null
+                        throw err
+                    }),
                     getDAOProposals(rpcUrl, dao.realmPath),
                 ])
                 const openCount = proposals.filter((p) => p.status === "open").length
                 const memberCount = config?.memberCount ?? 0
                 return {
-                    // resolved=false means the realm did not render on this network
-                    // (getDAOConfig returned null without throwing). Used to drop
-                    // untagged legacy entries saved on another testnet (E-F9).
+                    // resolved=false means the chain ANSWERED and the realm did not
+                    // render on this network (null render or AbciQueryError). Used
+                    // to drop untagged legacy entries saved on another testnet
+                    // (E-F9). A transport outage never reaches here — it rejects
+                    // the query and the card degrades instead.
                     resolved: config != null,
                     name: config?.name ?? dao.name,
                     members: memberCount > 0 ? memberCount : undefined,
@@ -135,9 +148,10 @@ export function useYourWorlds(networkKey: string, orgId: string | null): YourWor
     // Network-scope (MH2): a saved DAO is shown only when it belongs to the active
     // network. Entries tagged for this network always show (degraded on RPC error);
     // entries tagged for another network are excluded; legacy (untagged) entries
-    // show only when their config actually resolves here — so DAOs saved on a
-    // different testnet (e.g. retired test11) drop off instead of rendering as dead
-    // "degraded" cards.
+    // drop only when the chain ANSWERS that their realm does not render here — so
+    // DAOs saved on a different testnet (e.g. retired test11) drop off instead of
+    // rendering as dead "degraded" cards, while a transport outage (nothing
+    // answered) degrades them instead of silently deleting the user's board (B-9).
     const worlds: YourWorld[] = savedDAOs.flatMap((dao, i): YourWorld[] => {
         const q = configQueries[i]
         const href = `/${networkKey}/dao/${dao.realmPath}`
@@ -147,10 +161,13 @@ export function useYourWorlds(networkKey: string, orgId: string | null): YourWor
         if (dao.network && !onThisNetwork) return []
 
         if (q?.isError || !q?.data) {
-            // No config (failed/pending): keep known-this-network entries as
-            // degraded cards (transient RPC error); drop untagged entries that
-            // don't resolve here (presumed saved on another network).
-            return onThisNetwork ? [{ name: dao.name, href, degraded: true }] : []
+            // No config (transport outage or still pending): we could not ask the
+            // chain, so a foreign-network entry is indistinguishable from a local
+            // one. Keep the card degraded rather than silently dropping saved
+            // DAOs (B-9) — entries tagged for another network were already
+            // excluded above, and untagged foreign relics still drop once the
+            // chain answers (resolved=false below).
+            return [{ name: dao.name, href, degraded: true }]
         }
 
         // Untagged legacy entry whose realm did NOT render on the active network →
