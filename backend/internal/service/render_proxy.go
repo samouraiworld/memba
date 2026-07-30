@@ -282,12 +282,22 @@ func HandleRenderProxy(db *sql.DB) http.Handler {
 
 		if isWatchedFeedRealm(realm) {
 			if m := feedPostPathRe.FindStringSubmatch(renderPath); m != nil {
-				postID, err := strconv.ParseUint(m[1], 10, 64)
-				if err == nil {
+				// ParseUint cannot fail here: feedPostPathRe already pinned the
+				// capture to digits. An overflowing id (>2^64) is not a post the
+				// realm can render either, so treat it as unfiltered.
+				if postID, perr := strconv.ParseUint(m[1], 10, 64); perr == nil {
 					blocked, err := feedBlocklisted(db, postID)
+					// FAIL CLOSED. This is a takedown lever for illegal content:
+					// serving a post we cannot prove is unblocked would reopen
+					// the exact bypass this check exists to close. The cost is
+					// bounded — it suppresses only per-post feed renders, and
+					// the blocklist lives in the same DB every feed read path
+					// already depends on, so a DB failure has the feed down
+					// regardless.
 					if err != nil {
-						slog.Warn("render proxy: blocklist check failed", "realm", realm, "post_id", postID, "error", err)
-					} else if blocked {
+						slog.Error("render proxy: blocklist check failed, suppressing post", "realm", realm, "post_id", postID, "error", err)
+					}
+					if err != nil || blocked {
 						w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 						w.Header().Set("Cache-Control", "no-store")
 						_, _ = fmt.Fprint(w, feedPostUnavailableBody)

@@ -190,6 +190,32 @@ func TestHandleRenderProxy_NonBlocklistedFeedPost_StillProxies(t *testing.T) {
 	}
 }
 
+func TestHandleRenderProxy_BlocklistCheckError_FailsClosed(t *testing.T) {
+	rpcURL, hits := fakeRenderRPC(t, "SHOULD NOT BE SERVED")
+	t.Setenv("GNO_RPC_URL", rpcURL)
+	t.Setenv("FEED_WATCHED_REALMS", testFeedRealm)
+
+	// A DB with no feed_blocklist table: the lookup errors rather than
+	// answering. We must not serve a post we cannot prove is unblocked.
+	db, err := sql.Open("sqlite", ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = db.Close() })
+	handler := HandleRenderProxy(db)
+
+	req := httptest.NewRequest(http.MethodGet, "/api/render?realm="+testFeedRealm+"&path=post/42", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Body.String() != feedPostUnavailableBody {
+		t.Errorf("expected the suppressed body when the blocklist is unreadable, got %q", rec.Body.String())
+	}
+	if got := atomic.LoadInt32(hits); got != 0 {
+		t.Errorf("expected the chain relay never to be called, got %d requests", got)
+	}
+}
+
 func TestHandleRenderProxy_UnwatchedRealm_SkipsBlocklistCheck(t *testing.T) {
 	rpcURL, hits := fakeRenderRPC(t, "DAO CONTENT")
 	t.Setenv("GNO_RPC_URL", rpcURL)
