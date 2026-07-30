@@ -9,6 +9,9 @@
  * 3. no saved worlds → state:"empty", worlds: []
  * 4. per-DAO source erroring for ONE world doesn't crash the board (degrades that card)
  * 5. loading → state:"loading"
+ * 6. B-9 self-recovery: unverified worlds (never answered + errored) re-poll
+ *    on an interval and recover once the chain answers; answered worlds
+ *    (resolved or chain-declared-dead) never poll
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
@@ -466,5 +469,74 @@ describe("useYourWorlds — refetch is always exposed", () => {
 
         await waitFor(() => expect(result.current.state).toBe("ready"))
         expect(typeof result.current.refetch).toBe("function")
+    })
+})
+
+// Self-recovery (B-9): the app pins refetchOnWindowFocus:false and its global
+// retry predicate ignores plain transport errors, so without a re-poll a
+// degraded world card would only ever recover on a full component remount —
+// the #1024 CHANGELOG promise ("recover on their own once the network is
+// reachable again") was not actually delivered. Unverified config queries
+// (never answered + errored) re-poll on an interval; answered queries —
+// resolved, or chain-declared-dead — must never poll.
+describe("useYourWorlds — degraded cards self-recover", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.useFakeTimers({ shouldAdvanceTime: true })
+        vi.mocked(daoMod.getDAOProposals).mockResolvedValue(MOCK_PROPOSALS)
+    })
+
+    afterEach(() => {
+        vi.useRealTimers()
+    })
+
+    it("re-polls an unverified world and clears the degraded flag once the chain answers", async () => {
+        vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue([
+            { realmPath: "gno.land/r/gov/dao", name: "GovDAO", addedAt: 1000, network: "test13" },
+        ])
+        vi.mocked(daoMod.getDAOConfig).mockRejectedValue(new Error("All RPC endpoints unreachable"))
+
+        const { useYourWorlds } = await import("./useYourWorlds")
+        const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        expect(result.current.worlds[0]?.degraded).toBe(true)
+        expect(daoMod.getDAOConfig).toHaveBeenCalledTimes(1)
+
+        // Still down at the next poll: card stays degraded, polling continues.
+        await vi.advanceTimersByTimeAsync(30_000)
+        await waitFor(() => expect(daoMod.getDAOConfig).toHaveBeenCalledTimes(2))
+        expect(result.current.worlds[0]?.degraded).toBe(true)
+
+        // The outage ends: the next poll answers, the card recovers fully.
+        vi.mocked(daoMod.getDAOConfig).mockResolvedValue(MOCK_DAO_CONFIG)
+        await vi.advanceTimersByTimeAsync(30_000)
+        await waitFor(() => expect(result.current.worlds[0]?.degraded).toBeUndefined())
+        expect(result.current.worlds[0]?.name).toBe("GovDAO")
+        expect(result.current.worlds[0]?.members).toBe(5)
+        expect(result.current.worlds[0]?.openCount).toBe(1)
+
+        // Recovered (data retained) → the poll gate closes again.
+        const settled = vi.mocked(daoMod.getDAOConfig).mock.calls.length
+        await vi.advanceTimersByTimeAsync(90_000)
+        expect(vi.mocked(daoMod.getDAOConfig).mock.calls.length).toBe(settled)
+    })
+
+    it("never polls worlds the chain already answered (resolved or not-deployed)", async () => {
+        vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue(SAVED_DAOS)
+        // GovDAO resolves; the untagged MyOrg relic gets the chain's own
+        // "not deployed here" answer (null config → E-F9 drop).
+        vi.mocked(daoMod.getDAOConfig).mockImplementation(async (_rpc, path) =>
+            path === "gno.land/r/gov/dao" ? MOCK_DAO_CONFIG : null,
+        )
+
+        const { useYourWorlds } = await import("./useYourWorlds")
+        const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        await waitFor(() => expect(result.current.worlds).toHaveLength(1))
+        expect(daoMod.getDAOConfig).toHaveBeenCalledTimes(2)
+
+        // No unverified queries → no polling for anyone.
+        await vi.advanceTimersByTimeAsync(90_000)
+        expect(daoMod.getDAOConfig).toHaveBeenCalledTimes(2)
     })
 })
