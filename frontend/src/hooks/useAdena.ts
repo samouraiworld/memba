@@ -200,7 +200,12 @@ export function useAdena() {
                 });
             }
 
-            saveConnected();
+            // F-24: only an INTERACTIVE connect may (re)assert the session flag —
+            // it is fresh user intent. A silent reconnect merely acts on a flag
+            // that was already true when it started; re-writing it here would
+            // resurrect a flag that a disconnect cleared while the GetAccount /
+            // AddEstablish awaits above were in flight.
+            if (!opts?.silent) saveConnected();
             trackEvent("Wallet Connected");
             logWalletEvent("connected", opts?.silent ? "silent" : "interactive");
 
@@ -223,6 +228,18 @@ export function useAdena() {
                 const cached = getCachedRpc();
                 if (cached) { rpcUrl = cached.url; rpcTrusted = cached.trusted; }
             }
+            // F-24: a disconnect (this tab's button, or another tab clearing the
+            // session flag) may have landed while the awaits above were in
+            // flight. localStorage is the current truth — completing this
+            // connect would silently undo the user's disconnect. Same rule as
+            // the changedNetwork publish guard: check storage after the awaits,
+            // before anything is published.
+            if (!wasConnected()) {
+                logWalletEvent("connect-aborted", "disconnected during connect");
+                setState((s) => ({ ...s, loading: false, reconnecting: false }));
+                return false;
+            }
+
             setWalletRpcContext(rpcUrl || null, rpcTrusted, chainId || null);
 
             setState({

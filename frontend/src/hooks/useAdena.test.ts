@@ -602,3 +602,90 @@ describe("useAdena — W5.1 visibility-driven reconnect retry", () => {
         expect(adena.GetAccount).not.toHaveBeenCalled()
     })
 })
+
+describe("useAdena — disconnect racing an in-flight connect (F-24)", () => {
+    // The live race: connect()'s awaits (GetAccount / GetNetwork) leave a window
+    // in which a disconnect — this tab's button or another tab clearing the
+    // session flag — can land. Completing the connect afterwards silently undoes
+    // the user's disconnect. Storage is the current truth (same rule as the
+    // changedNetwork publish guard): a connect that finds the flag gone after
+    // its awaits must abort, and a SILENT connect must never (re)write the flag
+    // it merely acted on.
+
+    it("aborts when a disconnect lands during the GetNetwork await", async () => {
+        let releaseNet!: (v: unknown) => void
+        const netGate = new Promise((r) => { releaseNet = r })
+        const adena = makeAdena({ GetNetwork: vi.fn().mockReturnValue(netGate) })
+        setAdena(adena)
+
+        // Render with no session flag so the mount auto-reconnect stays inert,
+        // then establish the flag as a prior session would have.
+        const { result } = renderHook(() => useAdena())
+        await waitFor(() => expect(result.current.reconnecting).toBe(false))
+        localStorage.setItem(SESSION_KEY, "true")
+
+        let connectPromise!: Promise<boolean>
+        act(() => { connectPromise = result.current.connect({ silent: true }) })
+        await waitFor(() => expect(adena.GetNetwork).toHaveBeenCalled())
+
+        // The user's disconnect lands while GetNetwork is still in flight.
+        act(() => { result.current.disconnect() })
+
+        let returned: boolean | undefined
+        await act(async () => {
+            releaseNet({ status: "success", data: { rpcUrl: TRUSTED_RPC } })
+            returned = await connectPromise
+        })
+
+        expect(returned).toBe(false)
+        expect(result.current.connected).toBe(false)
+        expect(result.current.address).toBe("")
+        // The aborted connect must not have republished the RPC context either:
+        // a follow-up broadcast attempt must still see "no wallet RPC".
+        expect(localStorage.getItem(SESSION_KEY)).toBeNull()
+    })
+
+    it("a silent connect never re-writes the session flag a disconnect cleared during GetAccount", async () => {
+        let releaseAcct!: (v: unknown) => void
+        const acctGate = new Promise((r) => { releaseAcct = r })
+        const adena = makeAdena({ GetAccount: vi.fn().mockReturnValue(acctGate) })
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await waitFor(() => expect(result.current.reconnecting).toBe(false))
+        localStorage.setItem(SESSION_KEY, "true")
+
+        let connectPromise!: Promise<boolean>
+        act(() => { connectPromise = result.current.connect({ silent: true }) })
+        await waitFor(() => expect(adena.GetAccount).toHaveBeenCalled())
+
+        // Disconnect lands while the silent GetAccount is still in flight —
+        // BEFORE the point where connect() historically marked the session.
+        act(() => { result.current.disconnect() })
+
+        let returned: boolean | undefined
+        await act(async () => {
+            releaseAcct(okAccount())
+            returned = await connectPromise
+        })
+
+        expect(returned).toBe(false)
+        expect(result.current.connected).toBe(false)
+        // The regression this pins: saveConnected() used to run here and
+        // resurrect the flag the disconnect had just cleared.
+        expect(localStorage.getItem(SESSION_KEY)).toBeNull()
+    })
+
+    it("an interactive connect still persists the session flag", async () => {
+        const adena = makeAdena()
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await act(async () => {
+            await result.current.connect() // interactive: explicit user intent
+        })
+
+        expect(result.current.connected).toBe(true)
+        expect(localStorage.getItem(SESSION_KEY)).toBe("true")
+    })
+})
