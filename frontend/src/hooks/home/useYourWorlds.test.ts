@@ -521,6 +521,36 @@ describe("useYourWorlds — degraded cards self-recover", () => {
         expect(vi.mocked(daoMod.getDAOConfig).mock.calls.length).toBe(settled)
     })
 
+    it("does not poll a world that answered and only later hit a transport error", async () => {
+        // Pins the `data === undefined` conjunct in the refetchInterval predicate:
+        // a status-only check (`status === "error"`) would restart the 30s poll
+        // here even though react-query retains the prior data — the card is not
+        // degraded (see the "previous data on a background failure" comment
+        // above) and so has nothing to recover, but a weaker predicate can't
+        // tell the difference and polls forever.
+        vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue([
+            { realmPath: "gno.land/r/gov/dao", name: "GovDAO", addedAt: 1000, network: "test13" },
+        ])
+        vi.mocked(daoMod.getDAOConfig).mockResolvedValue(MOCK_DAO_CONFIG)
+
+        const { useYourWorlds } = await import("./useYourWorlds")
+        const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        expect(result.current.worlds[0]?.degraded).toBeUndefined()
+        expect(daoMod.getDAOConfig).toHaveBeenCalledTimes(1)
+
+        // A later refetch hits a transport error; the previous data is retained
+        // (not degraded), so the re-poll gate must stay closed.
+        vi.mocked(daoMod.getDAOConfig).mockRejectedValue(new Error("All RPC endpoints unreachable"))
+        result.current.refetch()
+        await waitFor(() => expect(daoMod.getDAOConfig).toHaveBeenCalledTimes(2))
+        expect(result.current.worlds[0]?.degraded).toBeUndefined()
+
+        const afterFailedRefetch = vi.mocked(daoMod.getDAOConfig).mock.calls.length
+        await vi.advanceTimersByTimeAsync(90_000)
+        expect(vi.mocked(daoMod.getDAOConfig).mock.calls.length).toBe(afterFailedRefetch)
+    })
+
     it("never polls worlds the chain already answered (resolved or not-deployed)", async () => {
         vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue(SAVED_DAOS)
         // GovDAO resolves; the untagged MyOrg relic gets the chain's own
