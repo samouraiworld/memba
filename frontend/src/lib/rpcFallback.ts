@@ -206,7 +206,21 @@ async function abciQueryDetailedUncoalesced(
         },
     }))
     const json = await res.json()
+    // A node can answer HTTP 200 with a TOP-LEVEL JSON-RPC error (not synced,
+    // internal error, a proxy's JSON error body). That is a NODE failure, not
+    // a VM answer: it must throw like a transport error — never map to
+    // AbciQueryError (callers read that as the chain saying "not deployed
+    // here" and drop saved entries, B-9) and never read as an empty render.
+    // Mirrors resilientRpcCall below and the backend's render_proxy.
+    if (json?.error) {
+        throw new Error(`RPC error: ${json.error.message || JSON.stringify(json.error)}`)
+    }
     const base = json?.result?.response?.ResponseBase
+    // No ResponseBase at all is a malformed reply (proxy garbage), not a
+    // legitimate empty render — same transport-class treatment.
+    if (!base) {
+        throw new Error("Malformed abci_query response: missing ResponseBase")
+    }
     if (abciErrorPresent(base?.Error)) {
         const log = typeof base?.Log === "string" ? base.Log : ""
         return { kind: "abci-error", error: new AbciQueryError(path, base.Error, log) }

@@ -202,3 +202,53 @@ describe("resilientFetch — same-URL retry before failover (W3.4)", () => {
         expect(fetchMock).toHaveBeenCalledTimes(getRpcUrlsInOrder().length * 2)
     })
 })
+
+// B-9 follow-up: a node that answers HTTP 200 with a TOP-LEVEL JSON-RPC error
+// (not synced, internal error, a proxy's JSON error body) previously fell
+// through to "empty" — strict callers got null, which reads exactly like
+// "realm not deployed" and E-F9-drops the user's saved DAO entries during a
+// node failure. Node-level errors are TRANSPORT-class: they must throw a
+// PLAIN Error — never an AbciQueryError, which callers treat as the chain's
+// own "not deployed here" answer. Mirrors resilientRpcCall and the backend's
+// render_proxy (rpc error → hard failure, not empty).
+describe("resilientAbciQuery — node-level JSON-RPC errors are transport failures", () => {
+    const rpcErrorResp = () => ({
+        ok: true,
+        json: async () => ({ jsonrpc: "2.0", id: "memba-dao", error: { code: -32603, message: "node is catching up" } }),
+    })
+    const noBaseResp = () => ({
+        ok: true,
+        json: async () => ({ result: {} }),
+    })
+
+    it("strict=true: throws a PLAIN error (never AbciQueryError) on a top-level JSON-RPC error", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(rpcErrorResp()))
+        let thrown: unknown
+        try {
+            await resilientAbciQuery("vm/qrender", "gno.land/r/nodeerr-a:", true)
+        } catch (err) { thrown = err }
+        expect(thrown).toBeInstanceOf(Error)
+        expect(thrown).not.toBeInstanceOf(AbciQueryError)
+        expect((thrown as Error).message).toMatch(/catching up/)
+    })
+
+    it("strict=false: returns null on a top-level JSON-RPC error (unchanged caller contract)", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(rpcErrorResp()))
+        await expect(resilientAbciQuery("vm/qrender", "gno.land/r/nodeerr-b:", false)).resolves.toBeNull()
+    })
+
+    it("strict=true: throws a PLAIN error on a malformed response with no ResponseBase", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(noBaseResp()))
+        let thrown: unknown
+        try {
+            await resilientAbciQuery("vm/qrender", "gno.land/r/nodeerr-c:", true)
+        } catch (err) { thrown = err }
+        expect(thrown).toBeInstanceOf(Error)
+        expect(thrown).not.toBeInstanceOf(AbciQueryError)
+    })
+
+    it("detailed: rejects (never kind=empty) on a top-level JSON-RPC error", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(rpcErrorResp()))
+        await expect(resilientAbciQueryDetailed("vm/qrender", "gno.land/r/nodeerr-d:")).rejects.toThrow(/catching up/)
+    })
+})

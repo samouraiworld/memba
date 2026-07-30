@@ -398,6 +398,36 @@ describe("useYourWorlds — network scoping (MH2): untagged that renders nothing
     })
 })
 
+describe("useYourWorlds — a chain-declared-dead relic must not resurrect on a refetch error", () => {
+    // React Query retains the previous data when a background refetch fails.
+    // The chain's own verdict (resolved:false → E-F9 drop) outranks a later
+    // transient error: checking isError before retained data resurrected the
+    // dead card as "degraded" on any RPC blip after the first successful read.
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue([
+            { realmPath: "gno.land/r/test/retired", name: "Retired DAO", addedAt: 1000 },
+        ])
+        vi.mocked(daoMod.getDAOConfig).mockResolvedValue(null) // chain: not deployed here
+        vi.mocked(daoMod.getDAOProposals).mockResolvedValue([])
+    })
+
+    it("keeps the dead untagged entry dropped when a later refetch hits a transport error", async () => {
+        const { useYourWorlds } = await import("./useYourWorlds")
+        const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        expect(result.current.worlds).toHaveLength(0) // E-F9 drop on the chain's answer
+
+        // The next read fails at the transport layer; the retained answer wins.
+        vi.mocked(daoMod.getDAOConfig).mockRejectedValue(new Error("All RPC endpoints unreachable"))
+        result.current.refetch()
+        await waitFor(() => expect(daoMod.getDAOConfig).toHaveBeenCalledTimes(2))
+        // Let the rejection settle into the query cache before asserting.
+        await new Promise((r) => setTimeout(r, 50))
+        expect(result.current.worlds).toHaveLength(0)
+    })
+})
+
 describe("useYourWorlds — loading state", () => {
     beforeEach(() => {
         vi.clearAllMocks()

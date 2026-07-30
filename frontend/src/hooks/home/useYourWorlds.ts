@@ -160,22 +160,29 @@ export function useYourWorlds(networkKey: string, orgId: string | null): YourWor
         // Tagged for a different network → not ours.
         if (dao.network && !onThisNetwork) return []
 
-        if (q?.isError || !q?.data) {
-            // No config (transport outage or still pending): we could not ask the
-            // chain, so a foreign-network entry is indistinguishable from a local
-            // one. Keep the card degraded rather than silently dropping saved
-            // DAOs (B-9) — entries tagged for another network were already
-            // excluded above, and untagged foreign relics still drop once the
-            // chain answers (resolved=false below).
+        // Decide on retained DATA first, not the error flag: React Query keeps
+        // the previous data when a background refetch fails, and that answer —
+        // the chain's own verdict — outranks a transient error.
+        const data = q?.data
+
+        if (!data) {
+            // Never got an answer (transport outage or still pending): we could
+            // not ask the chain, so a foreign-network entry is indistinguishable
+            // from a local one. Keep the card degraded rather than silently
+            // dropping saved DAOs (B-9) — entries tagged for another network
+            // were already excluded above, and untagged foreign relics still
+            // drop once the chain answers (resolved=false below).
             return [{ name: dao.name, href, degraded: true }]
         }
 
         // Untagged legacy entry whose realm did NOT render on the active network →
         // saved on another testnet (e.g. retired test11/test12). Drop it instead of
-        // rendering a dead card (E-F9). Tagged-this-network entries fall through.
-        if (!dao.network && !q.data.resolved) return []
+        // rendering a dead card (E-F9). This must win over a later refetch error:
+        // once the chain has said "not here", an RPC blip may not resurrect the
+        // dead card. Tagged-this-network entries fall through.
+        if (!dao.network && !data.resolved) return []
 
-        const { name, members, openCount } = q.data
+        const { name, members, openCount } = data
         const role = roleQueries[i]?.data || undefined
         return [{ name, href, members, openCount, role }]
     })
