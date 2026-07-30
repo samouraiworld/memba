@@ -1,4 +1,5 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
+import { fulfillOnchainReads, mockChainStatus } from './helpers/onchain'
 
 // Live-RPC suite: runs serial (single worker) so its on-chain reads don't
 // double-load the public test13 RPC under parallel workers. See playwright.config.ts.
@@ -10,7 +11,54 @@ test.describe.configure({ mode: 'serial' })
  *
  * Some assertions depend on chain state (proposals existing, health score, etc.)
  * and are gracefully skipped on fresh chains with no governance activity.
+ * The two structure-only GovDAO tests (stat-chip row geometry, Treasury
+ * section) instead fulfill their reads offline — see fulfillGovDaoHome.
  */
+
+/**
+ * Fulfill the GovDAO home reads with a deterministic offline payload.
+ *
+ * Why fulfill and not abort: with reads merely aborted, DAOHome still settles
+ * (strict getDAOConfig throws → catch clears configLoading) and renders the
+ * stat grid + Treasury heading — but with NO tierDistribution there is no
+ * PowerDonut, so nothing competes with `.k-stat-grid--compact` for the flex
+ * row and the starved-sliver regression the mobile test guards can't
+ * reproduce (the assertion would pass vacuously). The GovDAO Render body
+ * (name + memberstore link) plus the memberstore tier render (3 tiers,
+ * total power 17) puts the donut back next to the grid. Everything else
+ * resolves empty: 0 proposals → no per-proposal enrichment fan-out, and the
+ * Members chip falls back to config.memberCount (10, summed from the tiers).
+ */
+async function fulfillGovDaoHome(page: Page) {
+    const GOVDAO_RENDER = [
+        '# GovDAO',
+        '',
+        'Gno chain governance — proposals and membership management.',
+        '',
+        // getDAOConfig derives the memberstore realm path from this link.
+        '[> Go to Memberstore <](https://gno.land/r/gov/dao/v3/memberstore)',
+        '',
+        '## Proposals',
+        '',
+        '_No active proposals._',
+        '',
+    ].join('\n')
+    const MEMBERSTORE_RENDER = [
+        '# GovDAO Memberstore',
+        '',
+        // parseMemberstoreTiers shape: "Tier <name> contains <n> members with power: <p>"
+        'Tier T1 contains 2 members with power: 6',
+        'Tier T2 contains 3 members with power: 6',
+        'Tier T3 contains 5 members with power: 5',
+        '',
+    ].join('\n')
+    await fulfillOnchainReads(page, ({ method, path, arg }) => {
+        if (path === 'vm/qrender' && arg === 'gno.land/r/gov/dao:') return GOVDAO_RENDER
+        if (path === 'vm/qrender' && arg === 'gno.land/r/gov/dao/v3/memberstore:') return MEMBERSTORE_RENDER
+        if (method === 'status') return mockChainStatus()
+        return null
+    })
+}
 
 test.describe('DAO Hub', () => {
     test('DAO hub shows GovDAO featured card', async ({ page }) => {
@@ -59,10 +107,18 @@ test.describe('GovDAO Page', () => {
     })
 
     test('mobile: stat chips get the full row (no mid-word wrap next to the donut)', async ({ page }) => {
+        // Offline fixture (2026-07-30): pure geometry assertion, and the mock's
+        // tier render guarantees the PowerDonut — the flex sibling this
+        // regression is about — is actually in the row.
+        await fulfillGovDaoHome(page)
         await page.setViewportSize({ width: 375, height: 812 })
         await page.goto('/dao/gno.land~r~gov~dao')
         const grid = page.locator('.k-stat-grid--compact')
         await expect(grid).toBeVisible({ timeout: 20_000 })
+        // Guard the guard: the donut must be present, or the width assertion
+        // below passes vacuously with nothing competing for the flex row.
+        // (PowerDonut has no class/testid; it is the only svg in the left column.)
+        await expect(page.locator('.dao-card-columns__left svg').first()).toBeVisible()
         // Starved-flex-sliver regression: the grid must take (nearly) the full
         // card row, not the ~70px leftover beside the power donut.
         const width = (await grid.boundingBox())?.width ?? 0
@@ -76,6 +132,12 @@ test.describe('GovDAO Page', () => {
     })
 
     test('treasury section accessible', async ({ page }) => {
+        // Offline fixture (2026-07-30): the Treasury heading renders
+        // unconditionally once the config load settles (DAOTreasuryCard takes
+        // only the slug) — the assertion is structural, so no live read is
+        // worth flaking on. The heading previously raced the live getDAOConfig
+        // against the 10s expect budget.
+        await fulfillGovDaoHome(page)
         await page.goto('/dao/gno.land~r~gov~dao')
         await expect(page.locator('body')).toContainText('Treasury')
     })
