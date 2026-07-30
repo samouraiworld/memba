@@ -51,6 +51,11 @@ export async function getDAOConfig(
 ): Promise<DAOConfig | null> {
     // strict=true surfaces an all-RPC-down failure (throws) instead of returning
     // null, so a failed read shows an error+retry rather than a blank DAO (FE-2).
+    // ⚠️ strict must reach ONLY this first read. The follow-up reads below
+    // (getMemberstoreTiers, the IsArchived qeval) stay non-strict on purpose:
+    // realms that don't export them (GovDAO has no IsArchived) answer with a VM
+    // error, and a strict throw there would make a DEPLOYED realm look like
+    // AbciQueryError → "not deployed here" → E-F9-dropped by useYourWorlds.
     const data = await queryRender(rpcUrl, realmPath, "", strict)
     if (!data) return null
 

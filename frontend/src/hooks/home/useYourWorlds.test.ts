@@ -16,6 +16,7 @@ import { renderHook, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { ReactNode } from "react"
 import React from "react"
+import { AbciQueryError } from "../../lib/rpcFallback"
 
 // ── Module-level mocks ────────────────────────────────────────
 
@@ -265,29 +266,64 @@ describe("useYourWorlds — no saved worlds", () => {
 })
 
 describe("useYourWorlds — network scoping (MH2)", () => {
-    // Legacy untagged entries: shown only if the realm resolves on the active
-    // network. One that fails to resolve is treated as saved-on-another-network
-    // (e.g. retired test11) and dropped — NOT rendered as a dead degraded card.
-    describe("legacy untagged: unreachable here is dropped, not degraded", () => {
+    // B-9: a transport outage (every RPC down — the strict getDAOConfig read
+    // THROWS a plain Error) says nothing about which network an entry belongs
+    // to. Untagged entries must survive it as degraded cards; only a chain-level
+    // "not deployed here" answer (AbciQueryError, or a null render) may drop
+    // them (E-F9).
+    describe("legacy untagged during a transport outage: kept as degraded (B-9)", () => {
         beforeEach(() => {
             vi.clearAllMocks()
             vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue(SAVED_DAOS)
-            // First (GovDAO) fails to resolve here; second (MyOrg) succeeds.
+            // First (GovDAO) hits an all-RPCs-down outage; second (MyOrg) succeeds.
             vi.mocked(daoMod.getDAOConfig)
-                .mockRejectedValueOnce(new Error("RPC timeout"))
+                .mockRejectedValueOnce(new Error("All RPC endpoints unreachable"))
                 .mockResolvedValueOnce({ ...MOCK_DAO_CONFIG, name: "MyOrg DAO" })
-            vi.mocked(daoMod.getDAOProposals)
-                .mockRejectedValueOnce(new Error("RPC timeout"))
-                .mockResolvedValueOnce(MOCK_PROPOSALS)
+            vi.mocked(daoMod.getDAOProposals).mockResolvedValue(MOCK_PROPOSALS)
         })
 
-        it("board state stays 'ready' when one world fails to resolve", async () => {
+        it("board state stays 'ready' when one world hits the outage", async () => {
             const { useYourWorlds } = await import("./useYourWorlds")
             const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
             await waitFor(() => expect(result.current.state).toBe("ready"))
         })
 
-        it("drops the unreachable untagged world (only the resolving one remains)", async () => {
+        it("keeps the unreachable untagged world as a degraded card instead of dropping it", async () => {
+            const { useYourWorlds } = await import("./useYourWorlds")
+            const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+            await waitFor(() => expect(result.current.state).toBe("ready"))
+            await waitFor(() => expect(result.current.worlds).toHaveLength(2))
+            expect(result.current.worlds[0].name).toBe("GovDAO")
+            expect(result.current.worlds[0].degraded).toBe(true)
+            expect(result.current.worlds[0].href).toBe("/test13/dao/gno.land/r/gov/dao")
+            expect(result.current.worlds[1].name).toBe("MyOrg DAO")
+            expect(result.current.worlds[1].degraded).toBeUndefined()
+        })
+
+        it("asks getDAOConfig for the strict read (outage must throw, not null)", async () => {
+            const { useYourWorlds } = await import("./useYourWorlds")
+            const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+            await waitFor(() => expect(result.current.state).toBe("ready"))
+            expect(daoMod.getDAOConfig).toHaveBeenCalledWith(
+                "https://rpc.test13.example", "gno.land/r/gov/dao", true,
+            )
+        })
+    })
+
+    // E-F9 under the strict read: the chain ANSWERED and said the realm is not
+    // deployed here (AbciQueryError). That is the one signal that may drop an
+    // untagged entry — it was saved on another testnet.
+    describe("legacy untagged that the chain says is not deployed here: dropped (E-F9)", () => {
+        beforeEach(() => {
+            vi.clearAllMocks()
+            vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue(SAVED_DAOS)
+            vi.mocked(daoMod.getDAOConfig)
+                .mockRejectedValueOnce(new AbciQueryError("vm/qrender", "not found", "invalid package path"))
+                .mockResolvedValueOnce({ ...MOCK_DAO_CONFIG, name: "MyOrg DAO" })
+            vi.mocked(daoMod.getDAOProposals).mockResolvedValue(MOCK_PROPOSALS)
+        })
+
+        it("drops the not-deployed untagged world (only the resolving one remains)", async () => {
             const { useYourWorlds } = await import("./useYourWorlds")
             const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
             await waitFor(() => expect(result.current.state).toBe("ready"))
@@ -358,6 +394,36 @@ describe("useYourWorlds — network scoping (MH2): untagged that renders nothing
         const { useYourWorlds } = await import("./useYourWorlds")
         const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
         await waitFor(() => expect(result.current.state).toBe("ready"))
+        expect(result.current.worlds).toHaveLength(0)
+    })
+})
+
+describe("useYourWorlds — a chain-declared-dead relic must not resurrect on a refetch error", () => {
+    // React Query retains the previous data when a background refetch fails.
+    // The chain's own verdict (resolved:false → E-F9 drop) outranks a later
+    // transient error: checking isError before retained data resurrected the
+    // dead card as "degraded" on any RPC blip after the first successful read.
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(daoSlugMod.getSavedDAOsForOrg).mockReturnValue([
+            { realmPath: "gno.land/r/test/retired", name: "Retired DAO", addedAt: 1000 },
+        ])
+        vi.mocked(daoMod.getDAOConfig).mockResolvedValue(null) // chain: not deployed here
+        vi.mocked(daoMod.getDAOProposals).mockResolvedValue([])
+    })
+
+    it("keeps the dead untagged entry dropped when a later refetch hits a transport error", async () => {
+        const { useYourWorlds } = await import("./useYourWorlds")
+        const { result } = renderHook(() => useYourWorlds("test13", null), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.state).toBe("ready"))
+        expect(result.current.worlds).toHaveLength(0) // E-F9 drop on the chain's answer
+
+        // The next read fails at the transport layer; the retained answer wins.
+        vi.mocked(daoMod.getDAOConfig).mockRejectedValue(new Error("All RPC endpoints unreachable"))
+        result.current.refetch()
+        await waitFor(() => expect(daoMod.getDAOConfig).toHaveBeenCalledTimes(2))
+        // Let the rejection settle into the query cache before asserting.
+        await new Promise((r) => setTimeout(r, 50))
         expect(result.current.worlds).toHaveLength(0)
     })
 })
