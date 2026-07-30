@@ -1,18 +1,24 @@
 import { test, expect, type Page } from '@playwright/test'
 import { fulfillOnchainReads, mockChainStatus } from './helpers/onchain'
 
-// Live-RPC suite: runs serial (single worker) so its on-chain reads don't
-// double-load the public test13 RPC under parallel workers. See playwright.config.ts.
-test.describe.configure({ mode: 'serial' })
-
 /**
  * DAO E2E — verifies DAO Hub, GovDAO page, Create DAO, and proposal pages.
  * No wallet required — tests page structure and ABCI data rendering.
  *
- * Some assertions depend on chain state (proposals existing, health score, etc.)
- * and are gracefully skipped on fresh chains with no governance activity.
- * The two structure-only GovDAO tests (stat-chip row geometry, Treasury
- * section) instead fulfill their reads offline — see fulfillGovDaoHome.
+ * Fully offline (2026-07-30): EVERY spec fulfills its on-chain reads via the
+ * file-level beforeEach below. This file used to be a serial live-RPC suite
+ * with only two specs fulfilled; the rest raced live topaz reads (~12s
+ * healthy) against 10–20s expect budgets, and one loss cascaded "did not
+ * run" through the whole serial chain — under concurrent CI suites (three
+ * cycles at once, 2026-07-30, run 30566702351) that redded back-button /
+ * View-All / Treasury on every overlapping run while each solo re-run stayed
+ * green. With zero live reads the serial worker-cap is pointless too, so the
+ * file runs fully parallel and a failure stays scoped to its own spec.
+ *
+ * The proposal-conditional probes (Health Score, pagination, EXECUTE badge)
+ * see the fixture's 0-proposal chain and skip deterministically — same
+ * outcome they already had on live topaz, which has no GovDAO proposals.
+ * The live-resolution smoke stays in directory-live.spec.ts, alone by design.
  */
 
 /**
@@ -28,6 +34,10 @@ test.describe.configure({ mode: 'serial' })
  * total power 17) puts the donut back next to the grid. Everything else
  * resolves empty: 0 proposals → no per-proposal enrichment fan-out, and the
  * Members chip falls back to config.memberCount (10, summed from the tiers).
+ *
+ * The empty default also serves the non-GovDAO pages this file visits: the
+ * hub's per-DAO resolution reads and the members page's detail reads settle
+ * as null/[] and render their deterministic fallbacks.
  */
 async function fulfillGovDaoHome(page: Page) {
     const GOVDAO_RENDER = [
@@ -59,6 +69,12 @@ async function fulfillGovDaoHome(page: Page) {
         return null
     })
 }
+
+// Every spec in this file runs against the offline GovDAO fixture. Register
+// before each test (routes are per-context) and before any goto.
+test.beforeEach(async ({ page }) => {
+    await fulfillGovDaoHome(page)
+})
 
 test.describe('DAO Hub', () => {
     test('DAO hub shows GovDAO featured card', async ({ page }) => {
@@ -107,10 +123,8 @@ test.describe('GovDAO Page', () => {
     })
 
     test('mobile: stat chips get the full row (no mid-word wrap next to the donut)', async ({ page }) => {
-        // Offline fixture (2026-07-30): pure geometry assertion, and the mock's
-        // tier render guarantees the PowerDonut — the flex sibling this
-        // regression is about — is actually in the row.
-        await fulfillGovDaoHome(page)
+        // Pure geometry assertion; the fixture's tier render guarantees the
+        // PowerDonut — the flex sibling this regression is about — is in the row.
         await page.setViewportSize({ width: 375, height: 812 })
         await page.goto('/dao/gno.land~r~gov~dao')
         const grid = page.locator('.k-stat-grid--compact')
@@ -132,12 +146,8 @@ test.describe('GovDAO Page', () => {
     })
 
     test('treasury section accessible', async ({ page }) => {
-        // Offline fixture (2026-07-30): the Treasury heading renders
-        // unconditionally once the config load settles (DAOTreasuryCard takes
-        // only the slug) — the assertion is structural, so no live read is
-        // worth flaking on. The heading previously raced the live getDAOConfig
-        // against the 10s expect budget.
-        await fulfillGovDaoHome(page)
+        // The Treasury heading renders unconditionally once the config load
+        // settles (DAOTreasuryCard takes only the slug) — structural assertion.
         await page.goto('/dao/gno.land~r~gov~dao')
         await expect(page.locator('body')).toContainText('Treasury')
     })

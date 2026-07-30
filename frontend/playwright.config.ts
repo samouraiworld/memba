@@ -7,9 +7,10 @@ export default defineConfig({
     retries: process.env.CI ? 2 : 0,
     // 2 workers in CI (matches the 2-vCPU ubuntu runner). The
     // deterministic specs run fully parallel; the live-RPC specs (validators,
-    // dao, directory, gnolove*) opt into serial mode per-file so a single file
+    // directory, gnolove*) opt into serial mode per-file so a single file
     // never splits its on-chain reads across both workers and double-loads the
-    // public test13 RPC / gnolove API.
+    // public test13 RPC / gnolove API. (dao.spec.ts left this club 2026-07-30:
+    // it is fully offline via its file-level fulfill fixture.)
     // History: this was dropped to 1 because first-attempt pass-rate regressed.
     // Root cause (found 2026-07-03, not worker-count itself): NetworkSync fired
     // window.location.reload() on EVERY fresh browser context (stored network
