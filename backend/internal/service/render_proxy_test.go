@@ -216,6 +216,30 @@ func TestHandleRenderProxy_BlocklistCheckError_FailsClosed(t *testing.T) {
 	}
 }
 
+func TestHandleRenderProxy_RealmMatchIsExact_NotPrefix(t *testing.T) {
+	rpcURL, hits := fakeRenderRPC(t, "ARCHIVE REALM CONTENT")
+	t.Setenv("GNO_RPC_URL", rpcURL)
+	t.Setenv("FEED_WATCHED_REALMS", testFeedRealm)
+	db := blocklistTestDB(t, 42)
+	handler := HandleRenderProxy(db)
+
+	// A DIFFERENT realm that merely starts with the watched one. gno does not
+	// normalise pkgpaths (verified against topaz-1: a trailing slash, dot
+	// segment or case change all yield InvalidPkgPathError), so exact equality
+	// is the correct match — a prefix match would suppress posts belonging to
+	// an unrelated realm that happens to share the name stem.
+	req := httptest.NewRequest(http.MethodGet, "/api/render?realm="+testFeedRealm+"_archive&path=post/42", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+
+	if rec.Code != http.StatusOK || rec.Body.String() != "ARCHIVE REALM CONTENT" {
+		t.Fatalf("a prefix-sharing realm must not be suppressed, got %d (body=%q)", rec.Code, rec.Body.String())
+	}
+	if got := atomic.LoadInt32(hits); got != 1 {
+		t.Errorf("expected exactly one chain relay call, got %d", got)
+	}
+}
+
 func TestHandleRenderProxy_UnwatchedRealm_SkipsBlocklistCheck(t *testing.T) {
 	rpcURL, hits := fakeRenderRPC(t, "DAO CONTENT")
 	t.Setenv("GNO_RPC_URL", rpcURL)

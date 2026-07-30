@@ -77,9 +77,10 @@ func feedBlocklisted(db *sql.DB, postID uint64) (bool, error) {
 }
 
 // feedPostUnavailableBody mirrors the feed realm's own renderPost suppression
-// text (memba_feed_v2.gno) so a blocklisted post reads identically to one the
-// realm itself already hides — the caller cannot distinguish an operator
-// takedown from an on-chain hide/delete, which is the point.
+// text so a blocklisted post reads identically to one the realm itself already
+// hides — the caller cannot distinguish an operator takedown from an on-chain
+// hide/delete, which is the point. Verified byte-identical in both
+// memba_feed_v1.gno (the realm deployed on topaz) and memba_feed_v2.gno.
 const feedPostUnavailableBody = "# Post unavailable\n\n*This post has been hidden or removed.*\n"
 
 // gnoRPCURL returns the RPC endpoint for the generic render/balance proxies.
