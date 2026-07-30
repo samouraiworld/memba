@@ -812,6 +812,25 @@ describe("useAdena — disconnect racing an in-flight connect (F-24)", () => {
         }
     })
 
+    it("re-derives RPC trust from the allowlist on cache read — a stored verdict is never replayed", async () => {
+        // The cache stores only the URL; trust is recomputed on read. A legacy
+        // (or tampered) entry claiming trusted:true for a non-allowlisted URL
+        // must come back UNtrusted when GetNetwork is unavailable.
+        const rpcCacheKey = `memba_adena_rpc::${GNO_CHAIN_ID}`
+        sessionStorage.setItem(rpcCacheKey, JSON.stringify({ url: UNTRUSTED_RPC, trusted: true }))
+        const adena = makeAdena({ GetNetwork: undefined }) // force the cached path
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await act(async () => {
+            await result.current.connect()
+        })
+
+        expect(result.current.connected).toBe(true)
+        expect(result.current.rpcUrl).toBe(UNTRUSTED_RPC)
+        expect(result.current.rpcTrusted).toBe(false) // re-judged, not replayed
+    })
+
     it("storage-blocked AND a mid-connect disconnect: the epoch still aborts it", async () => {
         // The property that stops storage tolerance from re-opening F-24: with
         // the flag clause inert (storage unusable), the epoch alone must carry

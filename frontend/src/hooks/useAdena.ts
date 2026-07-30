@@ -81,16 +81,22 @@ function clearConnected() {
     } catch { /* no-op */ }
 }
 
-/** Cache GetNetwork result for faster reconnect. */
+/** Cache the GetNetwork URL for faster reconnect. Only the URL is stored —
+ *  the TRUST verdict is re-derived from the allowlist on every read, so a
+ *  stale or tampered cache entry can never replay `trusted: true` for a URL
+ *  the allowlist would reject today. (Old entries that still carry a
+ *  `trusted` field are read for their URL and re-judged the same way.) */
 function getCachedRpc(): { url: string; trusted: boolean } | null {
     try {
         const raw = sessionStorage.getItem(SESSION_RPC_KEY);
         if (!raw) return null;
-        return JSON.parse(raw);
+        const url = JSON.parse(raw)?.url;
+        if (!url || typeof url !== "string") return null;
+        return { url, trusted: isTrustedRpcDomain(url) };
     } catch { return null; }
 }
-function setCachedRpc(url: string, trusted: boolean) {
-    try { sessionStorage.setItem(SESSION_RPC_KEY, JSON.stringify({ url, trusted })); } catch { /* no-op */ }
+function setCachedRpc(url: string) {
+    try { sessionStorage.setItem(SESSION_RPC_KEY, JSON.stringify({ url })); } catch { /* no-op */ }
 }
 
 export function useAdena() {
@@ -257,7 +263,7 @@ export function useAdena() {
             if (!opts?.silent) saveConnected();
             trackEvent("Wallet Connected");
             logWalletEvent("connected", opts?.silent ? "silent" : "interactive");
-            if (gotFreshNetwork) setCachedRpc(rpcUrl, rpcTrusted);
+            if (gotFreshNetwork) setCachedRpc(rpcUrl);
 
             setWalletRpcContext(rpcUrl || null, rpcTrusted, chainId || null);
 
