@@ -47,12 +47,18 @@ test.describe('Directory — live chain resolution (smoke)', () => {
         test.skip(browserName !== 'chromium', 'live smoke runs on one browser to halve public-RPC load')
         test.setTimeout(75_000)
 
+        // Since #1027 an unreachable chain no longer DROPS a DAO — it renders
+        // a degraded card (same dao-card testid, plus a dao-degraded chip). A
+        // bare dao-card wait would therefore pass with the RPC fully down;
+        // live resolution is only proven by a card WITHOUT the degraded chip.
+        const resolvedCard = page.locator('[data-testid="dao-card"]:not(:has([data-testid="dao-degraded"]))')
+
         await page.goto('/directory?tab=daos')
         try {
             // At least one seed DAO (e.g. GovDAO) resolves on the active
             // network. The exact count depends on live resolution, so assert
             // the floor.
-            await page.locator('[data-testid="dao-card"]').first().waitFor({ state: 'visible', timeout: 30_000 })
+            await resolvedCard.first().waitFor({ state: 'visible', timeout: 30_000 })
         } catch (err) {
             // The read shape the page just failed on, against every URL the
             // app's failover would try. ANY 200 proves the infra could have
@@ -74,6 +80,6 @@ test.describe('Directory — live chain resolution (smoke)', () => {
             test.skip(!answers.some(Boolean), 'topaz RPC (primary + fallback) unreachable — live resolution cannot be smoked')
             throw err
         }
-        expect(await page.locator('[data-testid="dao-card"]').count()).toBeGreaterThanOrEqual(1)
+        expect(await resolvedCard.count()).toBeGreaterThanOrEqual(1)
     })
 })

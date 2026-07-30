@@ -104,11 +104,16 @@ test.describe('Directory — DAOs Tab', () => {
     test('resolved DAO cards render as a grid', async ({ page }) => {
         // Every seed DAO resolves under the fixture; assert the ≥1 floor (the
         // seed list's size is not this test's contract). The live-network
-        // resolution proof is the smoke below, not this test.
+        // resolution proof is the smoke in directory-live.spec.ts.
         await page.locator('[data-testid="dao-card"]').first().waitFor({ state: 'visible', timeout: 10_000 })
         const cards = page.locator('[data-testid="dao-card"]')
         const count = await cards.count()
         expect(count).toBeGreaterThanOrEqual(1)
+        // Fixture-integrity guard: every read is answered offline, so no card
+        // may carry the #1027 'couldn't reach chain' chip — if the fixture
+        // rots and reads go unanswered, cards would DEGRADE (not disappear)
+        // and this block would otherwise keep passing on degraded shells.
+        await expect(page.locator('[data-testid="dao-degraded"]')).toHaveCount(0)
     })
 
     test('DAO search filters results', async ({ page }) => {
