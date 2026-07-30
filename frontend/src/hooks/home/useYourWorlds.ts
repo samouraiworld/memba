@@ -14,6 +14,9 @@
  *   - members/openCount omitted (undefined) when the value is 0 or absent
  *   - role omitted when the wallet is disconnected or not a member
  *   - name/href always present (from localStorage as fallback when RPC fails)
+ *   - degraded cards self-recover: an unverified config query (transport
+ *     outage — never answered) re-polls on an interval until the chain
+ *     answers; answered queries never poll (B-9)
  *
  * State contract:
  *   - "empty"   → no saved DAOs (UI shows only the "Add a world" invitation)
@@ -33,6 +36,14 @@ import { getDAOConfig, getDAOProposals, getMemberRole, deriveRoleLabel } from ".
 import { NETWORKS } from "../../lib/config"
 import { AbciQueryError } from "../../lib/rpcFallback"
 import { useAuth } from "../useAuth"
+
+/** Re-poll cadence for UNVERIFIED config queries only (transport error, no
+ *  answer yet). The app pins refetchOnWindowFocus:false and its global retry
+ *  ignores plain transport errors, so without this a degraded card would
+ *  recover only on a full component remount. Answered queries (resolved or
+ *  chain-declared-dead) never poll, and refetchIntervalInBackground stays
+ *  false app-wide, so a hidden tab never drains the network. */
+const DEGRADED_REPOLL_MS = 30_000
 
 export interface YourWorld {
     name: string
@@ -99,6 +110,13 @@ export function useYourWorlds(networkKey: string, orgId: string | null): YourWor
                 }
             },
             staleTime: 60_000,
+            // B-9 self-recovery: only unverified queries (never answered AND
+            // currently errored) re-poll; the chain's answers — a resolved
+            // config or "not deployed here" — close the gate for good.
+            refetchInterval: (query: { state: { data: unknown; status: string } }) =>
+                query.state.data === undefined && query.state.status === "error"
+                    ? DEGRADED_REPOLL_MS
+                    : false,
         })),
     })
 

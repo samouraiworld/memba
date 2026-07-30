@@ -20,9 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Home — your saved worlds no longer vanish when the network hiccups (#1024, 2026-07-30)
+### Home — your saved worlds no longer vanish when the network hiccups (#1024, #1029, 2026-07-30)
 <!-- categories: memba -->
-- **Fixed saved DAO cards silently disappearing from the home page's "Your Worlds" board during a temporary network outage.** The board could not tell the difference between "this DAO does not exist on the current network" and "no RPC server answered just now", and treated both like stale entries from a retired testnet — so a brief outage made your saved worlds vanish until the connection recovered. The two cases are now distinguished: when the chain itself answers that a world is not deployed on the active network, a stale entry is still cleaned up as before; when nothing answers at all, your cards stay on the board in a degraded state and recover on their own once the network is reachable again.
+- **Fixed saved DAO cards silently disappearing from the home page's "Your Worlds" board during a temporary network outage.** The board could not tell the difference between "this DAO does not exist on the current network" and "no RPC server answered just now", and treated both like stale entries from a retired testnet — so a brief outage made your saved worlds vanish until the connection recovered. The two cases are now distinguished: when the chain itself answers that a world is not deployed on the active network, a stale entry is still cleaned up as before; when nothing answers at all, your cards stay on the board in a degraded state and recover on their own once the network is reachable again — the board quietly re-checks unanswered worlds every half minute until the chain responds, so recovery no longer needs a page reload.
 
 ### Wallet — disconnecting now sticks, even mid-reconnect (#1025, 2026-07-30)
 <!-- categories: memba -->
