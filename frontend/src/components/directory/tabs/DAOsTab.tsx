@@ -27,7 +27,9 @@ export function DAOsTab({ navigate }: TabProps) {
     // network. Resolve each on-chain and show only the ones that render here.
     // W3.2: the hook returns card metadata from the same Render("") it uses to
     // resolve, so DAOsTab no longer runs a second per-DAO metadata fan-out.
-    const { daos: resolvedDAOs, metadata, loading: resolving } = useResolvedDirectoryDaos(allDAOs, GNO_RPC_URL)
+    // B-9: `degraded` marks DAOs kept unverified during a transport outage —
+    // they render as cards with a reach note instead of silently vanishing.
+    const { daos: resolvedDAOs, metadata, degraded, loading: resolving } = useResolvedDirectoryDaos(allDAOs, GNO_RPC_URL)
 
     const filtered = useMemo(() =>
         deferredSearch
@@ -80,6 +82,7 @@ export function DAOsTab({ navigate }: TabProps) {
                             isSaved={dao.isSaved}
                             category={dao.category}
                             metadata={metadata.get(dao.path)}
+                            degraded={degraded.has(dao.path)}
                             onClick={() => navigate(`/dao/${encodeSlug(dao.path)}`)}
                             onSave={() => setDaoRefreshKey(k => k + 1)}
                         />

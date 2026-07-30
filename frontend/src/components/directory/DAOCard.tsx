@@ -25,11 +25,13 @@ interface DAOCardProps {
     isSaved: boolean
     category?: DAOCategory
     metadata?: DAOMetadata
+    /** B-9: unverified during a transport outage — render with a reach note. */
+    degraded?: boolean
     onClick: () => void
     onSave?: () => void
 }
 
-export function DAOCard({ name, path, isSaved, category, metadata, onClick, onSave }: DAOCardProps) {
+export function DAOCard({ name, path, isSaved, category, metadata, degraded, onClick, onSave }: DAOCardProps) {
     const handleSave = (e: React.MouseEvent) => {
         e.stopPropagation()
         if (isSaved) return
@@ -88,6 +90,11 @@ export function DAOCard({ name, path, isSaved, category, metadata, onClick, onSa
                     )}
                 </div>
                 <div className="dir-card-path">{path}</div>
+                {degraded && (
+                    <div className="dir-card-degraded" data-testid="dao-degraded">
+                        couldn&apos;t reach chain
+                    </div>
+                )}
                 {metadata && (metadata.memberCount > 0 || metadata.proposalCount > 0) && (
                     <div className="dir-card-meta">
                         {metadata.memberCount > 0 && (

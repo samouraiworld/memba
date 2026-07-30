@@ -37,6 +37,8 @@ vi.mock("../../../lib/dao/shared", () => ({
     ),
 }))
 
+const shared = await import("../../../lib/dao/shared")
+
 // ── Wrapper ───────────────────────────────────────────────────
 
 function makeWrapper() {
@@ -72,5 +74,45 @@ describe("DAOsTab — resolve filter (R2-D2)", () => {
         await waitFor(() => expect(screen.getByText("GovDAO")).toBeInTheDocument())
         // …then the stale one must be absent.
         expect(screen.queryByText("FOUFOU DAO CLUB")).not.toBeInTheDocument()
+    })
+})
+
+// B-9: a transport outage (strict render throws a plain Error — no RPC
+// answered) must not silently empty the tab of the user's saved DAOs. The
+// unverified entry stays visible as a card with a degraded note; only the
+// chain's own "not deployed here" answer may drop it (covered above).
+describe("DAOsTab — transport outage keeps unverified DAOs visible (B-9)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(shared.queryRender).mockImplementation(async (_rpc: string, path: string) => {
+            if (path === REAL.path) return "# GovDAO\n\nCore governance DAO\n\nMembers: 3\n"
+            throw new Error("All RPC endpoints unreachable")
+        })
+    })
+
+    it("renders the unreachable DAO as a degraded card, not a silent drop", async () => {
+        const { DAOsTab } = await import("./DAOsTab")
+        render(<DAOsTab navigate={vi.fn()} />, { wrapper: makeWrapper() })
+
+        // The unreachable saved DAO is still on the board…
+        await waitFor(() => expect(screen.getByText("FOUFOU DAO CLUB")).toBeInTheDocument())
+        // …carrying the standard degraded note (same copy as the home board)…
+        expect(screen.getByTestId("dao-degraded")).toHaveTextContent("couldn't reach chain")
+        // …while the healthy DAO renders normally, without the note.
+        expect(screen.getByText("GovDAO")).toBeInTheDocument()
+        expect(screen.getAllByTestId("dao-degraded")).toHaveLength(1)
+    })
+
+    it("shows a full grid of degraded cards during a total outage — never \"No DAOs found\"", async () => {
+        // The literal B-9 regression scenario: EVERY render read fails.
+        vi.mocked(shared.queryRender).mockRejectedValue(new Error("All RPC endpoints unreachable"))
+
+        const { DAOsTab } = await import("./DAOsTab")
+        render(<DAOsTab navigate={vi.fn()} />, { wrapper: makeWrapper() })
+
+        await waitFor(() => expect(screen.getAllByTestId("dao-degraded")).toHaveLength(2))
+        expect(screen.getByText("GovDAO")).toBeInTheDocument()
+        expect(screen.getByText("FOUFOU DAO CLUB")).toBeInTheDocument()
+        expect(screen.queryByText("No DAOs found")).not.toBeInTheDocument()
     })
 })
