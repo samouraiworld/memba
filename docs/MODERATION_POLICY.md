@@ -64,11 +64,17 @@ We state this precisely rather than generally, because the difference matters.
   explorer or third-party indexer keeps that copy regardless of what we do. Step
   2 changes the contract's current state, not the history behind it.
 - **Two of our endpoints relay the chain directly, and a blocklist cannot filter
-  them.** `/api/render` returns a realm's own `Render()` output, and
-  `/api/indexer` passes queries through to a public transaction indexer. They
-  serve what the chain still holds rather than our index — so until step 2 is
-  executed, a blocklisted body can still be read through them. We would rather
-  document that than let "blocklisted" imply a completeness it does not have.
+  most of what they serve.** `/api/render` returns a realm's own `Render()`
+  output, and `/api/indexer` passes queries through to a public transaction
+  indexer. They serve what the chain still holds rather than our index — so
+  until step 2 is executed, a blocklisted body can still be read through most
+  of what they serve. The one exception: `/api/render`'s direct per-post path
+  (`?path=post/<id>`) is addressable by post id, so it *is* blocklist-checked
+  before the chain is queried — a blocklisted post reads there exactly as a
+  chain-hidden one does. Everything else through these two endpoints —
+  `/api/render`'s page and per-user listings, and all of `/api/indexer` — is
+  not filtered. We would rather document that than let "blocklisted" imply a
+  completeness it does not have.
 - **We do not yet scrub the stored copies.** Blocklisting suppresses a post at
   read time rather than deleting it, so the body remains **both in our served
   index and in the raw-event ledger** of ingested chain events. Scrubbing both is

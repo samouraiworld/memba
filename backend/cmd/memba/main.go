@@ -314,7 +314,7 @@ func main() {
 	// Render proxy — REST endpoints for ABCI queries (no auth, per-endpoint rate-limited)
 	// NOTE: /api/eval was removed in v6 (SEC-01) — it allowed arbitrary qeval on any realm.
 	// Use /api/render for legitimate read-only queries.
-	mux.Handle("/api/render", rateLimitMiddleware("render", service.HandleRenderProxy()))
+	mux.Handle("/api/render", rateLimitMiddleware("render", service.HandleRenderProxy(database)))
 	mux.Handle("/api/balance", rateLimitMiddleware("balance", service.HandleBalanceProxy()))
 	// Recent-activity feed: forwards GraphQL to the FIXED gno tx-indexer server-side
 	// (the browser can't reach it — no CORS). Target is not client-controlled.
