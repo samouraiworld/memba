@@ -22,6 +22,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Home — your saved worlds no longer vanish when the network hiccups (#1024, #1029, 2026-07-30)
 ### Feed — closed part of the moderation blocklist bypass on the public render API (#XXXX, 2026-07-30)
+### Feed — closed part of the moderation blocklist bypass on the public render API (#1031, 2026-07-30)
 <!-- categories: memba -->
 - **A blocklisted feed post could still be read in full through `/api/render`'s direct per-post path, bypassing the operator takedown.** `MODERATION_POLICY.md` already documented that this endpoint relays the chain directly and isn't filtered by our serving-side blocklist — honest, but incomplete: a single post is addressable by id (`?path=post/<id>`), so that one path is now checked against the blocklist before the chain is ever queried. A blocklisted post reads there exactly as a chain-hidden one does. Page and per-user listings through the same endpoint, and `/api/indexer`, are unchanged — still a direct chain relay, as documented.
 
