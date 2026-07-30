@@ -1,7 +1,14 @@
-import { test, expect } from '@playwright/test'
+import { test, expect, type Page } from '@playwright/test'
+import { fulfillOnchainReads, mockChainStatus } from './helpers/onchain'
 
-// Live-RPC suite: runs serial (single worker) so its on-chain reads don't
-// double-load the public test13 RPC under parallel workers. See playwright.config.ts.
+// Serial (single worker): the realm source view still ASSERTS on live public-
+// RPC reads, and ChainMetricsBanner (mounted unconditionally on /directory)
+// makes every non-fulfilled navigation in this file read /status +
+// /validators + /block live — single-worker keeps that load off two parallel
+// workers. The DAO-card blocks fulfill their reads offline, which removes the
+// ASSERTION coupling to the RPC, not all RPC traffic. The live-resolution
+// smoke lives in directory-live.spec.ts (its own file, so its failure can't
+// cascade through this serial group). See playwright.config.ts.
 test.describe.configure({ mode: 'serial' })
 
 /**
@@ -9,13 +16,34 @@ test.describe.configure({ mode: 'serial' })
  * correctly and interactive elements (tabs, search, cards) work.
  *
  * Note: since PR #549 (useResolvedDirectoryDaos), DAO cards are resolved
- * against the ACTIVE NETWORK — each seed/saved DAO is confirmed live via
- * getDAOConfig and dropped if it doesn't resolve. So the rendered DAO count
- * is environment-dependent (it depends on which realms answer on the live
- * chain at run time); these tests assert a `>= 1` floor and the search
- * MECHANISM rather than a fixed count. Token and User tabs require ABCI
- * queries to the network.
+ * against the ACTIVE NETWORK — each seed/saved DAO is confirmed live via a
+ * per-DAO Render("") and dropped if it doesn't resolve. The DAO-card blocks
+ * below assert tab STRUCTURE (grid, search mechanism, badges), so they fulfill
+ * that resolution offline (fulfillSeedDaoRenders) — under public-RPC
+ * contention the live reads blew their 10s budgets across unrelated PRs
+ * (2026-07-30: five concurrent CI suites vs the topaz RPC while the
+ * samourai.live fallback served 503). The end-to-end proof that seed DAOs
+ * really resolve on the live network is exactly one test, in
+ * directory-live.spec.ts.
  */
+
+/**
+ * Fulfill the DAOs tab's per-DAO resolution reads — one vm/qrender Render("")
+ * per seed/saved DAO (useResolvedDirectoryDaos) — so every seed DAO resolves
+ * offline. Card name/category come from the static seed list and the render
+ * body only feeds parseDAORender metadata (description, member/proposal
+ * counts), so one generic body per pkgpath keeps the tab's structure
+ * byte-deterministic. Everything else answers empty (null on the client).
+ */
+async function fulfillSeedDaoRenders(page: Page) {
+    await fulfillOnchainReads(page, ({ method, path }) => {
+        if (path === 'vm/qrender') {
+            return '# DAO\n\nDeterministic e2e directory fixture — this realm resolves on every network.\n\nMembers: 12\nProposals: 3\n'
+        }
+        if (method === 'status') return mockChainStatus()
+        return null
+    })
+}
 
 test.describe('Directory Page', () => {
     test.beforeEach(async ({ page }) => {
@@ -58,6 +86,8 @@ test.describe('Directory Page', () => {
 
 test.describe('Directory — DAOs Tab', () => {
     test.beforeEach(async ({ page }) => {
+        // Structure-only block: resolution is fulfilled offline (see header).
+        await fulfillSeedDaoRenders(page)
         // W5.2: DAOs is no longer the landing tab — deep-link to it.
         await page.goto('/directory?tab=daos')
     })
@@ -71,10 +101,10 @@ test.describe('Directory — DAOs Tab', () => {
         expect(count).toBeGreaterThanOrEqual(1)
     })
 
-    test('resolved DAO cards are visible', async ({ page }) => {
-        // At least one seed DAO (e.g. GovDAO) resolves on the active network.
-        // The exact count depends on live resolution (PR #549), so assert the
-        // floor, not a fixed number.
+    test('resolved DAO cards render as a grid', async ({ page }) => {
+        // Every seed DAO resolves under the fixture; assert the ≥1 floor (the
+        // seed list's size is not this test's contract). The live-network
+        // resolution proof is the smoke below, not this test.
         await page.locator('[data-testid="dao-card"]').first().waitFor({ state: 'visible', timeout: 10_000 })
         const cards = page.locator('[data-testid="dao-card"]')
         const count = await cards.count()
@@ -165,6 +195,12 @@ test.describe('Directory — Mobile', () => {
 
 // M4 fix: E2E assertions for v2.2b badge features
 test.describe('Directory — v2.2b Badges', () => {
+    test.beforeEach(async ({ page }) => {
+        // Badges come from the static seed list's category — structure-only,
+        // so resolution is fulfilled offline like the DAOs Tab block.
+        await fulfillSeedDaoRenders(page)
+    })
+
     test('DAO cards display category badges', async ({ page }) => {
         // W5.2: DAO cards live behind the daos deep link now.
         await page.goto('/directory?tab=daos')
