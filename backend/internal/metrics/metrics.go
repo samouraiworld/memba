@@ -142,3 +142,19 @@ var RPCInFlight = promauto.NewGauge(prometheus.GaugeOpts{
 	Name: "memba_rpc_in_flight",
 	Help: "Connect RPCs currently being handled (real-time saturation signal).",
 })
+
+// RenderBlocklistSuppressedTotal counts /api/render per-post responses replaced
+// by the "post unavailable" body, by reason. reason ∈ {blocked, db_error}:
+// `blocked` is a real operator takedown (feed_blocklist); `db_error` is the
+// FAIL-CLOSED path — the blocklist could not be read, so the post was
+// suppressed rather than served. The two are deliberately indistinguishable on
+// the wire, which is exactly why they must be distinguishable here: without
+// this, a persistent DB fault silently converts every per-post feed render into
+// "hidden or removed" with no alert path. Alert on db_error > 0.
+var RenderBlocklistSuppressedTotal = promauto.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "memba_render_blocklist_suppressed_total",
+		Help: "Per-post /api/render responses suppressed, by reason; db_error>0 means the fail-closed path is firing.",
+	},
+	[]string{"reason"},
+)

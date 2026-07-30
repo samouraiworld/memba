@@ -292,6 +292,13 @@ func main() {
 			Interval:      durationOr("FEED_TAILER_INTERVAL", 3*time.Second),
 			Logger:        logger,
 		})
+		// The same var gates the /api/render per-post blocklist check
+		// (service.isWatchedFeedRealm). Log it: unset or typo'd, that
+		// moderation control silently disappears, and a takedown lever that
+		// fails open without a signal is worse than one that is absent.
+		slog.Info("feed realms watched (indexer + render blocklist gate)", "realms", feedRealms)
+	} else {
+		slog.Warn("FEED_WATCHED_REALMS unset: feed indexer OFF and the /api/render per-post blocklist check is INACTIVE")
 	}
 
 	// Initialize OAuth state store with app context for clean shutdown.

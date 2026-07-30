@@ -11,8 +11,9 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-// blocklistTestDB builds an in-memory DB with just feed_blocklist, optionally
-// pre-seeded with a takedown for postID.
+// blocklistTestDB builds an in-memory DB with the two tables the render gate
+// reads, optionally pre-seeded with a takedown for blockedPostID. Callers that
+// exercise the reply path add rows to feed_posts themselves.
 func blocklistTestDB(t *testing.T, blockedPostID uint64) *sql.DB {
 	t.Helper()
 	db, err := sql.Open("sqlite", ":memory:")
@@ -23,12 +24,28 @@ func blocklistTestDB(t *testing.T, blockedPostID uint64) *sql.DB {
 	if _, err := db.Exec(`CREATE TABLE feed_blocklist (post_id INTEGER PRIMARY KEY, reason TEXT)`); err != nil {
 		t.Fatal(err)
 	}
+	// Mirrors the columns feedRenderSuppressed's sub-select needs (018_feed.sql).
+	if _, err := db.Exec(`CREATE TABLE feed_posts (post_id INTEGER PRIMARY KEY, reply_to INTEGER NOT NULL DEFAULT 0)`); err != nil {
+		t.Fatal(err)
+	}
 	if blockedPostID != 0 {
 		if _, err := db.Exec(`INSERT INTO feed_blocklist (post_id, reason) VALUES (?, 'test')`, blockedPostID); err != nil {
 			t.Fatal(err)
 		}
 	}
 	return db
+}
+
+// renderProxyCase drives one request against a fake RPC and reports whether the
+// handler suppressed (short-circuited, 0 relay hits) or relayed to the chain.
+func renderProxyCase(t *testing.T, db *sql.DB, realm, path string) (body string, relayHits int32) {
+	t.Helper()
+	rpcURL, hits := fakeRenderRPC(t, "CHAIN BODY")
+	t.Setenv("GNO_RPC_URL", rpcURL)
+	rec := httptest.NewRecorder()
+	HandleRenderProxy(db).ServeHTTP(rec,
+		httptest.NewRequest(http.MethodGet, "/api/render?realm="+realm+"&path="+path, nil))
+	return rec.Body.String(), atomic.LoadInt32(hits)
 }
 
 func TestGnoRPCURL_DefaultsToTopaz(t *testing.T) {
@@ -213,6 +230,109 @@ func TestHandleRenderProxy_BlocklistCheckError_FailsClosed(t *testing.T) {
 	}
 	if got := atomic.LoadInt32(hits); got != 0 {
 		t.Errorf("expected the chain relay never to be called, got %d requests", got)
+	}
+}
+
+// A blocklisted REPLY is inlined in full by the realm's renderPost, which knows
+// nothing about an off-chain blocklist — so suppressing only the requested id
+// would leave the reply readable through its parent.
+func TestHandleRenderProxy_BlocklistedReply_SuppressesParentRender(t *testing.T) {
+	t.Setenv("FEED_WATCHED_REALMS", testFeedRealm)
+	db := blocklistTestDB(t, 99) // reply 99 is blocked...
+	if _, err := db.Exec(`INSERT INTO feed_posts (post_id, reply_to) VALUES (99, 7), (7, 0)`); err != nil {
+		t.Fatal(err)
+	}
+
+	// ...so requesting its PARENT (7, itself unblocked) must also suppress.
+	body, hits := renderProxyCase(t, db, testFeedRealm, "post/7")
+	if body != feedPostUnavailableBody {
+		t.Errorf("parent of a blocklisted reply must be suppressed, got %q", body)
+	}
+	if hits != 0 {
+		t.Errorf("expected no chain relay, got %d", hits)
+	}
+}
+
+func TestHandleRenderProxy_UnrelatedParent_StillProxies(t *testing.T) {
+	t.Setenv("FEED_WATCHED_REALMS", testFeedRealm)
+	db := blocklistTestDB(t, 99)
+	// 99 replies to 7; post 8 is a different thread and must be unaffected.
+	if _, err := db.Exec(`INSERT INTO feed_posts (post_id, reply_to) VALUES (99, 7), (7, 0), (8, 0)`); err != nil {
+		t.Fatal(err)
+	}
+
+	body, hits := renderProxyCase(t, db, testFeedRealm, "post/8")
+	if body != "CHAIN BODY" || hits != 1 {
+		t.Errorf("an unrelated thread must relay, got body=%q hits=%d", body, hits)
+	}
+}
+
+// Leading zeros normalise to the same id on BOTH sides (our ParseUint and the
+// realm's), so post/0042 must suppress exactly as post/42 does. Anchoring cases
+// must NOT suppress — the realm 404s them, and over-matching would let an
+// unrelated path be silently replaced by a moderation message.
+func TestHandleRenderProxy_PostPathMatching(t *testing.T) {
+	cases := []struct {
+		path            string
+		wantSuppression bool
+	}{
+		{"post/42", true},
+		{"post/0042", true},
+		{"post/000000000000000000042", true},
+		{"post/42x", false},
+		{"x/post/42", false},
+		{"post/42/", false},
+		{"post/42:", false},
+		{"POST/42", false},
+		{"page/1", false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.path, func(t *testing.T) {
+			t.Setenv("FEED_WATCHED_REALMS", testFeedRealm)
+			body, hits := renderProxyCase(t, blocklistTestDB(t, 42), testFeedRealm, tc.path)
+			if tc.wantSuppression {
+				if body != feedPostUnavailableBody || hits != 0 {
+					t.Errorf("%q must be suppressed, got body=%q hits=%d", tc.path, body, hits)
+				}
+			} else if body != "CHAIN BODY" || hits != 1 {
+				t.Errorf("%q must relay to the chain, got body=%q hits=%d", tc.path, body, hits)
+			}
+		})
+	}
+}
+
+// The gate is keyed on FEED_WATCHED_REALMS. Unset, it is inert — pinned here so
+// that is a deliberate, visible property rather than an accident (main.go logs a
+// warning at startup for the same reason).
+func TestHandleRenderProxy_WatchedRealmsUnset_NoSuppression(t *testing.T) {
+	t.Setenv("FEED_WATCHED_REALMS", "")
+	body, hits := renderProxyCase(t, blocklistTestDB(t, 42), testFeedRealm, "post/42")
+	if body != "CHAIN BODY" || hits != 1 {
+		t.Errorf("unset FEED_WATCHED_REALMS must leave the gate inert, got body=%q hits=%d", body, hits)
+	}
+}
+
+func TestHandleRenderProxy_SuppressedResponseIsNotCacheable(t *testing.T) {
+	rpcURL, _ := fakeRenderRPC(t, "SHOULD NOT BE SERVED")
+	t.Setenv("GNO_RPC_URL", rpcURL)
+	t.Setenv("FEED_WATCHED_REALMS", testFeedRealm)
+	rec := httptest.NewRecorder()
+	HandleRenderProxy(blocklistTestDB(t, 42)).ServeHTTP(rec,
+		httptest.NewRequest(http.MethodGet, "/api/render?realm="+testFeedRealm+"&path=post/42", nil))
+
+	// The normal relay sets `public, max-age=5`; a takedown must never inherit it.
+	if got := rec.Header().Get("Cache-Control"); got != "no-store" {
+		t.Errorf("suppressed response must be no-store, got %q", got)
+	}
+}
+
+// The suppression text must stay byte-identical to the realm's own, so a caller
+// cannot tell an operator takedown from an on-chain hide. Realm source of truth:
+// memba_feed_v1.gno:1118 (deployed on topaz) and memba_feed_v2.gno:1134.
+func TestFeedPostUnavailableBody_MatchesRealmLiteral(t *testing.T) {
+	const realmLiteral = "# Post unavailable\n\n*This post has been hidden or removed.*\n"
+	if feedPostUnavailableBody != realmLiteral {
+		t.Errorf("suppression text drifted from the realm's:\n got %q\nwant %q", feedPostUnavailableBody, realmLiteral)
 	}
 }
 

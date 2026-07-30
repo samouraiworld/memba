@@ -1,9 +1,11 @@
 package service
 
 import (
+	"context"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -14,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/samouraiworld/memba/backend/internal/metrics"
 )
 
 // safePathRe validates render path and agent ID parameters.
@@ -60,14 +64,35 @@ func isWatchedFeedRealm(realm string) bool {
 	return false
 }
 
-// feedBlocklisted reports whether postID has an operator takedown recorded in
-// feed_blocklist (see 021_feed_blocklist.sql) — a suppression that never
-// comes from chain events and that no on-chain action can reverse.
-func feedBlocklisted(db *sql.DB, postID uint64) (bool, error) {
+// feedRenderSuppressed reports whether rendering postID would serve any
+// operator-blocklisted body (see 021_feed_blocklist.sql) — a suppression that
+// never comes from chain events and that no on-chain action can reverse.
+//
+// It checks the post itself AND its direct replies, because the realm's
+// renderPost inlines reply bodies in full (memba_feed_v1.gno:1132-1138,
+// identical in v2) and knows nothing about an off-chain blocklist: the realm
+// drops chain-hidden replies from its live index, but a blocklisted-only reply
+// is still in that index and still rendered. Checking just the root would
+// leave a blocklisted REPLY fully readable via its parent — the very bypass
+// this gate exists to close.
+//
+// We relay the realm's text opaquely and cannot excise one reply from it, so a
+// blocklisted reply suppresses the whole parent render. That over-suppresses
+// (the realm only inlines the 20 newest replies, and our served thread endpoint
+// filters per-post correctly) but this is a takedown lever for illegal content:
+// over-suppressing one render path is the right side to err on.
+func feedRenderSuppressed(ctx context.Context, db *sql.DB, postID uint64) (bool, error) {
+	if db == nil {
+		return false, errors.New("feed blocklist: nil database handle")
+	}
 	var exists int
-	err := db.QueryRow(`SELECT 1 FROM feed_blocklist WHERE post_id = ?`, postID).Scan(&exists)
+	err := db.QueryRowContext(ctx,
+		`SELECT 1 FROM feed_blocklist
+		  WHERE post_id = ?
+		     OR post_id IN (SELECT post_id FROM feed_posts WHERE reply_to = ?)
+		  LIMIT 1`, postID, postID).Scan(&exists)
 	switch {
-	case err == sql.ErrNoRows:
+	case errors.Is(err, sql.ErrNoRows):
 		return false, nil
 	case err != nil:
 		return false, err
@@ -287,7 +312,7 @@ func HandleRenderProxy(db *sql.DB) http.Handler {
 				// capture to digits. An overflowing id (>2^64) is not a post the
 				// realm can render either, so treat it as unfiltered.
 				if postID, perr := strconv.ParseUint(m[1], 10, 64); perr == nil {
-					blocked, err := feedBlocklisted(db, postID)
+					blocked, err := feedRenderSuppressed(r.Context(), db, postID)
 					// FAIL CLOSED. This is a takedown lever for illegal content:
 					// serving a post we cannot prove is unblocked would reopen
 					// the exact bypass this check exists to close. The cost is
@@ -299,6 +324,17 @@ func HandleRenderProxy(db *sql.DB) http.Handler {
 						slog.Error("render proxy: blocklist check failed, suppressing post", "realm", realm, "post_id", postID, "error", err)
 					}
 					if err != nil || blocked {
+						// Distinguishable in metrics but NOT on the wire: a
+						// db_error suppression looks exactly like a real
+						// takedown to the caller, by design. Without this
+						// counter a persistent DB fault silently converts every
+						// per-post render into "hidden or removed" with no
+						// alert path.
+						reason := "blocked"
+						if err != nil {
+							reason = "db_error"
+						}
+						metrics.RenderBlocklistSuppressedTotal.WithLabelValues(reason).Inc()
 						w.Header().Set("Content-Type", "text/plain; charset=utf-8")
 						w.Header().Set("Cache-Control", "no-store")
 						_, _ = fmt.Fprint(w, feedPostUnavailableBody)
