@@ -640,11 +640,45 @@ describe("useAdena — disconnect racing an in-flight connect (F-24)", () => {
         expect(returned).toBe(false)
         expect(result.current.connected).toBe(false)
         expect(result.current.address).toBe("")
-        // The aborted connect must not have republished the RPC context —
-        // a follow-up broadcast attempt must still see "no wallet RPC" —
-        // and must not have resurrected the RPC cache the disconnect cleared.
-        await expect(doContractBroadcast([], "post-abort")).rejects.toThrow()
+        // The aborted connect must not have republished the RPC context — a
+        // follow-up broadcast must die on the NULL-context message specifically
+        // (a republish would flip it to trusted and fail some other way, e.g.
+        // the chain gate's own "Transaction blocked" or missing DoContract, so
+        // only this exact message discriminates) — and must not have
+        // resurrected the RPC cache the disconnect cleared.
+        await expect(doContractBroadcast([], "post-abort"))
+            .rejects.toThrow(/Unable to verify your wallet's RPC URL/)
         expect(sessionStorage.length).toBe(0)
+    })
+
+    it("aborts when ANOTHER tab clears the session flag mid-await (no local disconnect)", async () => {
+        // The cross-tab half of the guard: no epoch bump here — only the flag
+        // comparison can catch it. This spec is what keeps the
+        // `hadFlag && !wasConnected()` clause from being deleted.
+        let releaseNet!: (v: unknown) => void
+        const netGate = new Promise((r) => { releaseNet = r })
+        const adena = makeAdena({ GetNetwork: vi.fn().mockReturnValue(netGate) })
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await waitFor(() => expect(result.current.reconnecting).toBe(false))
+        localStorage.setItem(SESSION_KEY, "true")
+
+        let connectPromise!: Promise<boolean>
+        act(() => { connectPromise = result.current.connect({ silent: true }) })
+        await waitFor(() => expect(adena.GetNetwork).toHaveBeenCalled())
+
+        // The other tab, verbatim: storage clears with no local disconnect().
+        act(() => { localStorage.removeItem(SESSION_KEY) })
+
+        let returned: boolean | undefined
+        await act(async () => {
+            releaseNet({ status: "success", data: { rpcUrl: TRUSTED_RPC } })
+            returned = await connectPromise
+        })
+
+        expect(returned).toBe(false)
+        expect(result.current.connected).toBe(false)
     })
 
     it("a silent connect never re-writes the session flag a disconnect cleared during GetAccount", async () => {
@@ -729,16 +763,36 @@ describe("useAdena — disconnect racing an in-flight connect (F-24)", () => {
         expect(localStorage.getItem(SESSION_KEY)).toBeNull()
     })
 
+    /** Replace window.localStorage with a throwing stand-in (Safari "Block all
+     *  cookies" / quota-exceeded shape). Storage.prototype spies do NOT
+     *  intercept jsdom's localStorage — the object must be swapped. Returns a
+     *  restore function. */
+    function blockLocalStorage(): () => void {
+        const real = window.localStorage
+        Object.defineProperty(window, "localStorage", {
+            value: {
+                getItem: () => { throw new DOMException("SecurityError") },
+                setItem: () => { throw new DOMException("QuotaExceededError") },
+                removeItem: () => { throw new DOMException("SecurityError") },
+                clear: () => { throw new DOMException("SecurityError") },
+                key: () => null,
+                length: 0,
+            },
+            configurable: true,
+            writable: true,
+        })
+        return () => {
+            Object.defineProperty(window, "localStorage", {
+                value: real, configurable: true, writable: true,
+            })
+        }
+    }
+
     it("still connects when localStorage is unusable (privacy-hardened browser)", async () => {
         // wasConnected() returns false when storage throws; the abort guard
         // must treat that as "no cross-tab signal", not as "user disconnected",
         // or every connect in a storage-blocked browser dies silently.
-        const setSpy = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
-            throw new DOMException("QuotaExceededError")
-        })
-        const getSpy = vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => {
-            throw new DOMException("SecurityError")
-        })
+        const restore = blockLocalStorage()
         try {
             const adena = makeAdena()
             setAdena(adena)
@@ -754,8 +808,39 @@ describe("useAdena — disconnect racing an in-flight connect (F-24)", () => {
             expect(result.current.connected).toBe(true)
             expect(result.current.address).toBe(ADDR)
         } finally {
-            setSpy.mockRestore()
-            getSpy.mockRestore()
+            restore()
+        }
+    })
+
+    it("storage-blocked AND a mid-connect disconnect: the epoch still aborts it", async () => {
+        // The property that stops storage tolerance from re-opening F-24: with
+        // the flag clause inert (storage unusable), the epoch alone must carry
+        // the abort.
+        const restore = blockLocalStorage()
+        try {
+            let releaseNet!: (v: unknown) => void
+            const netGate = new Promise((r) => { releaseNet = r })
+            const adena = makeAdena({ GetNetwork: vi.fn().mockReturnValue(netGate) })
+            setAdena(adena)
+
+            const { result } = renderHook(() => useAdena())
+
+            let connectPromise!: Promise<boolean>
+            act(() => { connectPromise = result.current.connect() }) // interactive
+            await waitFor(() => expect(adena.GetNetwork).toHaveBeenCalled())
+
+            act(() => { result.current.disconnect() })
+
+            let returned: boolean | undefined
+            await act(async () => {
+                releaseNet({ status: "success", data: { rpcUrl: TRUSTED_RPC } })
+                returned = await connectPromise
+            })
+
+            expect(returned).toBe(false)
+            expect(result.current.connected).toBe(false)
+        } finally {
+            restore()
         }
     })
 })
