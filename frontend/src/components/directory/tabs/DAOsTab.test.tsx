@@ -102,4 +102,17 @@ describe("DAOsTab — transport outage keeps unverified DAOs visible (B-9)", () 
         expect(screen.getByText("GovDAO")).toBeInTheDocument()
         expect(screen.getAllByTestId("dao-degraded")).toHaveLength(1)
     })
+
+    it("shows a full grid of degraded cards during a total outage — never \"No DAOs found\"", async () => {
+        // The literal B-9 regression scenario: EVERY render read fails.
+        vi.mocked(shared.queryRender).mockRejectedValue(new Error("All RPC endpoints unreachable"))
+
+        const { DAOsTab } = await import("./DAOsTab")
+        render(<DAOsTab navigate={vi.fn()} />, { wrapper: makeWrapper() })
+
+        await waitFor(() => expect(screen.getAllByTestId("dao-degraded")).toHaveLength(2))
+        expect(screen.getByText("GovDAO")).toBeInTheDocument()
+        expect(screen.getByText("FOUFOU DAO CLUB")).toBeInTheDocument()
+        expect(screen.queryByText("No DAOs found")).not.toBeInTheDocument()
+    })
 })

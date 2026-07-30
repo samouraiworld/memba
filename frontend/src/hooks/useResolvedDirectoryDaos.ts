@@ -49,6 +49,14 @@ import { AbciQueryError } from "../lib/rpcFallback"
 import { parseDAORender, type DAOMetadata } from "../lib/daoMetadata"
 import type { DirectoryDAO } from "../lib/directory"
 
+/** Re-poll cadence for UNVERIFIED queries only (transport error, no answer
+ *  yet). The app pins refetchOnWindowFocus:false and its global retry ignores
+ *  plain transport errors, so without this a degraded card would recover only
+ *  on a full tab remount. Answered queries (resolved or chain-declared-dead)
+ *  never poll, and refetchIntervalInBackground stays false app-wide, so a
+ *  hidden tab never drains the network. */
+const DEGRADED_REPOLL_MS = 30_000
+
 export interface ResolvedDirectoryDaosResult {
     /**
      * DAOs confirmed to render on the active network (input metadata
@@ -94,6 +102,13 @@ export function useResolvedDirectoryDaos(daos: DirectoryDAO[], rpcUrl: string): 
                 }
             },
             staleTime: 60_000,
+            // Self-recovery (B-9): only while unverified — never answered AND
+            // errored. The moment any answer lands (data set, even null) the
+            // gate closes and this query stops polling.
+            refetchInterval: (query: { state: { data: unknown; status: string } }) =>
+                query.state.data === undefined && query.state.status === "error"
+                    ? DEGRADED_REPOLL_MS
+                    : false,
         })),
     })
 

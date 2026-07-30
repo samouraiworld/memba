@@ -21,7 +21,7 @@
  *      and it is the STRICT read (an outage must throw, not return null)
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest"
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import { renderHook, waitFor } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { ReactNode } from "react"
@@ -152,6 +152,32 @@ describe("useResolvedDirectoryDaos", () => {
         expect(result.current.degraded.size).toBe(0)
     })
 
+    // The symmetric twin of the no-resurrect test below: a healthy resolved
+    // card must SURVIVE a failed background refetch. React Query retains the
+    // truthy render body, and that answer outranks the transient error — a
+    // background blip may not flip resolved cards to degraded.
+    it("keeps a resolved DAO resolved (with metadata) when a refetch hits transport", async () => {
+        vi.mocked(shared.queryRender).mockResolvedValue(REAL_RENDER)
+
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        const wrapper = function Wrapper({ children }: { children: ReactNode }) {
+            return React.createElement(QueryClientProvider, { client }, children)
+        }
+        const { useResolvedDirectoryDaos } = await import("./useResolvedDirectoryDaos")
+        const { result } = renderHook(() => useResolvedDirectoryDaos([REAL], RPC_URL), { wrapper })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+        expect(result.current.daos.map(d => d.path)).toEqual([REAL.path])
+
+        // The next read fails at the transport layer; the retained body wins.
+        vi.mocked(shared.queryRender).mockRejectedValue(new Error("All RPC endpoints unreachable"))
+        await client.refetchQueries()
+        await waitFor(() => expect(vi.mocked(shared.queryRender)).toHaveBeenCalledTimes(2))
+
+        expect(result.current.daos.map(d => d.path)).toEqual([REAL.path])
+        expect(result.current.degraded.size).toBe(0)
+        expect(result.current.metadata.get(REAL.path)?.memberCount).toBe(3)
+    })
+
     // React Query retains previous data when a background refetch fails. The
     // chain's own verdict (null render → not deployed here) outranks a later
     // transient error: the dead entry must not resurrect as a degraded card.
@@ -229,5 +255,63 @@ describe("useResolvedDirectoryDaos", () => {
         for (const d of daos) {
             expect(vi.mocked(shared.queryRender)).toHaveBeenCalledWith(RPC_URL, d.path, "", true)
         }
+    })
+})
+
+// Self-recovery (B-9): the app pins refetchOnWindowFocus:false and its global
+// retry predicate ignores plain transport errors, so without a re-poll a
+// degraded card would only ever recover on a full tab remount. Unverified
+// queries (never answered + errored) re-poll on an interval; answered queries
+// — resolved, or chain-declared-dead — must never poll.
+describe("useResolvedDirectoryDaos — degraded cards self-recover", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.useFakeTimers({ shouldAdvanceTime: true })
+    })
+
+    afterEach(() => {
+        vi.useRealTimers()
+    })
+
+    it("re-polls an unverified DAO and clears the degraded flag once the chain answers", async () => {
+        vi.mocked(shared.queryRender).mockRejectedValue(new Error("All RPC endpoints unreachable"))
+
+        const { useResolvedDirectoryDaos } = await import("./useResolvedDirectoryDaos")
+        const { result } = renderHook(() => useResolvedDirectoryDaos([REAL], RPC_URL), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+        expect(result.current.degraded.has(REAL.path)).toBe(true)
+        expect(vi.mocked(shared.queryRender)).toHaveBeenCalledTimes(1)
+
+        // Still down at the next poll: card stays degraded, polling continues.
+        await vi.advanceTimersByTimeAsync(30_000)
+        await waitFor(() => expect(vi.mocked(shared.queryRender)).toHaveBeenCalledTimes(2))
+        expect(result.current.degraded.has(REAL.path)).toBe(true)
+
+        // The outage ends: the next poll resolves, the card recovers fully.
+        vi.mocked(shared.queryRender).mockResolvedValue(REAL_RENDER)
+        await vi.advanceTimersByTimeAsync(30_000)
+        await waitFor(() => expect(result.current.degraded.size).toBe(0))
+        expect(result.current.daos.map(d => d.path)).toEqual([REAL.path])
+        expect(result.current.metadata.get(REAL.path)?.memberCount).toBe(3)
+
+        // Recovered (data retained) → the poll gate closes again.
+        const settled = vi.mocked(shared.queryRender).mock.calls.length
+        await vi.advanceTimersByTimeAsync(90_000)
+        expect(vi.mocked(shared.queryRender).mock.calls.length).toBe(settled)
+    })
+
+    it("never polls DAOs the chain already answered (resolved or not-deployed)", async () => {
+        vi.mocked(shared.queryRender).mockImplementation(async (_rpc, path) =>
+            path === REAL.path ? REAL_RENDER : null,
+        )
+
+        const { useResolvedDirectoryDaos } = await import("./useResolvedDirectoryDaos")
+        const { result } = renderHook(() => useResolvedDirectoryDaos([REAL, STALE], RPC_URL), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+        expect(vi.mocked(shared.queryRender)).toHaveBeenCalledTimes(2)
+
+        // No unverified queries → no polling for anyone.
+        await vi.advanceTimersByTimeAsync(90_000)
+        expect(vi.mocked(shared.queryRender)).toHaveBeenCalledTimes(2)
     })
 })
