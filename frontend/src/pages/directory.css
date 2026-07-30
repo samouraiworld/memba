@@ -209,6 +209,15 @@
     white-space: nowrap;
 }
 
+/* B-9: unverified-during-outage note — same warning token as the home board's
+   degraded world cards (.your-worlds-door__stats--degraded). */
+.dir-card-degraded {
+    font-size: 10px;
+    font-family: "JetBrains Mono", monospace;
+    color: var(--color-k-warning-text);
+    margin-top: 2px;
+}
+
 .dir-card-desc {
     font-size: 10px;
     font-family: "JetBrains Mono", monospace;
