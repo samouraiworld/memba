@@ -81,16 +81,22 @@ function clearConnected() {
     } catch { /* no-op */ }
 }
 
-/** Cache GetNetwork result for faster reconnect. */
+/** Cache the GetNetwork URL for faster reconnect. Only the URL is stored —
+ *  the TRUST verdict is re-derived from the allowlist on every read, so a
+ *  stale or tampered cache entry can never replay `trusted: true` for a URL
+ *  the allowlist would reject today. (Old entries that still carry a
+ *  `trusted` field are read for their URL and re-judged the same way.) */
 function getCachedRpc(): { url: string; trusted: boolean } | null {
     try {
         const raw = sessionStorage.getItem(SESSION_RPC_KEY);
         if (!raw) return null;
-        return JSON.parse(raw);
+        const url = JSON.parse(raw)?.url;
+        if (!url || typeof url !== "string") return null;
+        return { url, trusted: isTrustedRpcDomain(url) };
     } catch { return null; }
 }
-function setCachedRpc(url: string, trusted: boolean) {
-    try { sessionStorage.setItem(SESSION_RPC_KEY, JSON.stringify({ url, trusted })); } catch { /* no-op */ }
+function setCachedRpc(url: string) {
+    try { sessionStorage.setItem(SESSION_RPC_KEY, JSON.stringify({ url })); } catch { /* no-op */ }
 }
 
 export function useAdena() {
@@ -110,6 +116,11 @@ export function useAdena() {
     // Live view of state for event handlers registered once (visibility retry).
     const stateRef = useRef(state);
     stateRef.current = state;
+    // F-24: bumped by disconnect(). An in-flight connect() compares it against
+    // the value it snapshotted before its awaits — a mismatch means the user
+    // disconnected mid-connect and the connect must stand down, whatever the
+    // storage state says.
+    const disconnectEpoch = useRef(0);
 
     // Extensions inject globals after page load — poll to detect.
     // Adena can take up to 5-10s depending on browser load.
@@ -153,6 +164,17 @@ export function useAdena() {
         }
 
         setState((s) => ({ ...s, loading: true, error: null }));
+
+        // F-24: snapshot the disconnect state BEFORE any await. The epoch
+        // catches this instance's own disconnect() — the button, or Layout's
+        // programmatic one on changedAccount — landing anywhere in the awaits
+        // below, including the human-paced AddEstablish window. The flag
+        // snapshot catches another tab or another hook instance clearing the
+        // session; the `hadFlag &&` in the guard keeps that clause inert when
+        // storage is unavailable (privacy-hardened browsers) or on a
+        // first-time connect, so neither can produce a spurious abort.
+        const epoch = disconnectEpoch.current;
+        const hadFlag = wasConnected();
 
         try {
             // Silent reconnect: try GetAccount() first — if the user already
@@ -200,19 +222,16 @@ export function useAdena() {
                 });
             }
 
-            saveConnected();
-            trackEvent("Wallet Connected");
-            logWalletEvent("connected", opts?.silent ? "silent" : "interactive");
-
             // SECURITY: Read wallet's active RPC URL via GetNetwork()
             let rpcUrl = "";
             let rpcTrusted = false;
+            let gotFreshNetwork = false;
             try {
                 if (typeof adena.GetNetwork === "function") {
                     const netRes = await adena.GetNetwork();
                     rpcUrl = netRes?.data?.rpcUrl || "";
                     rpcTrusted = rpcUrl ? isTrustedRpcDomain(rpcUrl) : false;
-                    setCachedRpc(rpcUrl, rpcTrusted);
+                    gotFreshNetwork = true; // cache write deferred past the guard
                 } else {
                     // GetNetwork unavailable → try cached value from previous session
                     const cached = getCachedRpc();
@@ -223,6 +242,29 @@ export function useAdena() {
                 const cached = getCachedRpc();
                 if (cached) { rpcUrl = cached.url; rpcTrusted = cached.trusted; }
             }
+
+            // F-24: a disconnect may have landed while the awaits above were in
+            // flight — this instance's disconnect() (epoch mismatch) or another
+            // tab/instance clearing the session flag. Completing would silently
+            // undo the user's disconnect, so stand down BEFORE anything is
+            // persisted or published (same storage-is-truth rule as the
+            // changedNetwork publish guard). Everything with a side effect —
+            // session flag, analytics, RPC cache, wallet RPC context, state —
+            // sits below this line.
+            if (disconnectEpoch.current !== epoch || (hadFlag && !wasConnected())) {
+                logWalletEvent("connect-aborted", "disconnected during connect");
+                setState((s) => ({ ...s, loading: false, reconnecting: false }));
+                return false;
+            }
+
+            // Only an INTERACTIVE connect asserts the session flag — it is
+            // fresh user intent. A silent reconnect merely acts on a flag that
+            // was already true when it started.
+            if (!opts?.silent) saveConnected();
+            trackEvent("Wallet Connected");
+            logWalletEvent("connected", opts?.silent ? "silent" : "interactive");
+            if (gotFreshNetwork) setCachedRpc(rpcUrl);
+
             setWalletRpcContext(rpcUrl || null, rpcTrusted, chainId || null);
 
             setState({
@@ -424,6 +466,10 @@ export function useAdena() {
 
     const disconnect = useCallback(() => {
         logWalletEvent("disconnect", "user");
+        // F-24: invalidate any connect() currently sitting in its awaits —
+        // storage alone can't signal this (saveConnected may not have run yet,
+        // and storage can be unavailable entirely).
+        disconnectEpoch.current++;
         clearConnected();
         setWalletRpcContext(null, false);
         setState({

@@ -602,3 +602,264 @@ describe("useAdena — W5.1 visibility-driven reconnect retry", () => {
         expect(adena.GetAccount).not.toHaveBeenCalled()
     })
 })
+
+describe("useAdena — disconnect racing an in-flight connect (F-24)", () => {
+    // The live race: connect()'s awaits (GetAccount / GetNetwork) leave a window
+    // in which a disconnect — this tab's button or another tab clearing the
+    // session flag — can land. Completing the connect afterwards silently undoes
+    // the user's disconnect. Storage is the current truth (same rule as the
+    // changedNetwork publish guard): a connect that finds the flag gone after
+    // its awaits must abort, and a SILENT connect must never (re)write the flag
+    // it merely acted on.
+
+    it("aborts when a disconnect lands during the GetNetwork await", async () => {
+        let releaseNet!: (v: unknown) => void
+        const netGate = new Promise((r) => { releaseNet = r })
+        const adena = makeAdena({ GetNetwork: vi.fn().mockReturnValue(netGate) })
+        setAdena(adena)
+
+        // Render with no session flag so the mount auto-reconnect stays inert,
+        // then establish the flag as a prior session would have.
+        const { result } = renderHook(() => useAdena())
+        await waitFor(() => expect(result.current.reconnecting).toBe(false))
+        localStorage.setItem(SESSION_KEY, "true")
+
+        let connectPromise!: Promise<boolean>
+        act(() => { connectPromise = result.current.connect({ silent: true }) })
+        await waitFor(() => expect(adena.GetNetwork).toHaveBeenCalled())
+
+        // The user's disconnect lands while GetNetwork is still in flight.
+        act(() => { result.current.disconnect() })
+
+        let returned: boolean | undefined
+        await act(async () => {
+            releaseNet({ status: "success", data: { rpcUrl: TRUSTED_RPC } })
+            returned = await connectPromise
+        })
+
+        expect(returned).toBe(false)
+        expect(result.current.connected).toBe(false)
+        expect(result.current.address).toBe("")
+        // The aborted connect must not have republished the RPC context — a
+        // follow-up broadcast must die on the NULL-context message specifically
+        // (a republish would flip it to trusted and fail some other way, e.g.
+        // the chain gate's own "Transaction blocked" or missing DoContract, so
+        // only this exact message discriminates) — and must not have
+        // resurrected the RPC cache the disconnect cleared.
+        await expect(doContractBroadcast([], "post-abort"))
+            .rejects.toThrow(/Unable to verify your wallet's RPC URL/)
+        expect(sessionStorage.length).toBe(0)
+    })
+
+    it("aborts when ANOTHER tab clears the session flag mid-await (no local disconnect)", async () => {
+        // The cross-tab half of the guard: no epoch bump here — only the flag
+        // comparison can catch it. This spec is what keeps the
+        // `hadFlag && !wasConnected()` clause from being deleted.
+        let releaseNet!: (v: unknown) => void
+        const netGate = new Promise((r) => { releaseNet = r })
+        const adena = makeAdena({ GetNetwork: vi.fn().mockReturnValue(netGate) })
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await waitFor(() => expect(result.current.reconnecting).toBe(false))
+        localStorage.setItem(SESSION_KEY, "true")
+
+        let connectPromise!: Promise<boolean>
+        act(() => { connectPromise = result.current.connect({ silent: true }) })
+        await waitFor(() => expect(adena.GetNetwork).toHaveBeenCalled())
+
+        // The other tab, verbatim: storage clears with no local disconnect().
+        act(() => { localStorage.removeItem(SESSION_KEY) })
+
+        let returned: boolean | undefined
+        await act(async () => {
+            releaseNet({ status: "success", data: { rpcUrl: TRUSTED_RPC } })
+            returned = await connectPromise
+        })
+
+        expect(returned).toBe(false)
+        expect(result.current.connected).toBe(false)
+    })
+
+    it("a silent connect never re-writes the session flag a disconnect cleared during GetAccount", async () => {
+        let releaseAcct!: (v: unknown) => void
+        const acctGate = new Promise((r) => { releaseAcct = r })
+        const adena = makeAdena({ GetAccount: vi.fn().mockReturnValue(acctGate) })
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await waitFor(() => expect(result.current.reconnecting).toBe(false))
+        localStorage.setItem(SESSION_KEY, "true")
+
+        let connectPromise!: Promise<boolean>
+        act(() => { connectPromise = result.current.connect({ silent: true }) })
+        await waitFor(() => expect(adena.GetAccount).toHaveBeenCalled())
+
+        // Disconnect lands while the silent GetAccount is still in flight —
+        // BEFORE the point where connect() historically marked the session.
+        act(() => { result.current.disconnect() })
+
+        let returned: boolean | undefined
+        await act(async () => {
+            releaseAcct(okAccount())
+            returned = await connectPromise
+        })
+
+        expect(returned).toBe(false)
+        expect(result.current.connected).toBe(false)
+        // The regression this pins: saveConnected() used to run here and
+        // resurrect the flag the disconnect had just cleared.
+        expect(localStorage.getItem(SESSION_KEY)).toBeNull()
+    })
+
+    it("an interactive connect still persists the session flag", async () => {
+        const adena = makeAdena()
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await act(async () => {
+            await result.current.connect() // interactive: explicit user intent
+        })
+
+        expect(result.current.connected).toBe(true)
+        expect(localStorage.getItem(SESSION_KEY)).toBe("true")
+    })
+
+    it("aborts an INTERACTIVE connect when the disconnect lands during AddEstablish (the longest window)", async () => {
+        // The human-paced window: the Adena approval popup is open for seconds.
+        // A disconnect here (Layout also calls disconnect() programmatically on
+        // changedAccount) must not be erased by the connect completing with the
+        // pre-disconnect account.
+        let releaseEstablish!: (v: unknown) => void
+        const establishGate = new Promise((r) => { releaseEstablish = r })
+        const adena = makeAdena({
+            GetAccount: vi
+                .fn()
+                .mockResolvedValueOnce({ status: "failure", data: null }) // silent probe fails → popup flow
+                .mockResolvedValue(okAccount()),
+            AddEstablish: vi.fn().mockReturnValue(establishGate),
+        })
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await waitFor(() => expect(result.current.reconnecting).toBe(false))
+
+        let connectPromise!: Promise<boolean>
+        act(() => { connectPromise = result.current.connect() }) // interactive
+        await waitFor(() => expect(adena.AddEstablish).toHaveBeenCalled())
+
+        act(() => { result.current.disconnect() })
+
+        let returned: boolean | undefined
+        await act(async () => {
+            releaseEstablish({ status: "success" })
+            returned = await connectPromise
+        })
+
+        expect(returned).toBe(false)
+        expect(result.current.connected).toBe(false)
+        // The disconnect's clear must stand: the connect may not re-assert the
+        // session flag it snapshotted before the popup.
+        expect(localStorage.getItem(SESSION_KEY)).toBeNull()
+    })
+
+    /** Replace window.localStorage with a throwing stand-in (Safari "Block all
+     *  cookies" / quota-exceeded shape). Storage.prototype spies do NOT
+     *  intercept jsdom's localStorage — the object must be swapped. Returns a
+     *  restore function. */
+    function blockLocalStorage(): () => void {
+        const real = window.localStorage
+        Object.defineProperty(window, "localStorage", {
+            value: {
+                getItem: () => { throw new DOMException("SecurityError") },
+                setItem: () => { throw new DOMException("QuotaExceededError") },
+                removeItem: () => { throw new DOMException("SecurityError") },
+                clear: () => { throw new DOMException("SecurityError") },
+                key: () => null,
+                length: 0,
+            },
+            configurable: true,
+            writable: true,
+        })
+        return () => {
+            Object.defineProperty(window, "localStorage", {
+                value: real, configurable: true, writable: true,
+            })
+        }
+    }
+
+    it("still connects when localStorage is unusable (privacy-hardened browser)", async () => {
+        // wasConnected() returns false when storage throws; the abort guard
+        // must treat that as "no cross-tab signal", not as "user disconnected",
+        // or every connect in a storage-blocked browser dies silently.
+        const restore = blockLocalStorage()
+        try {
+            const adena = makeAdena()
+            setAdena(adena)
+
+            const { result } = renderHook(() => useAdena())
+
+            let returned: boolean | undefined
+            await act(async () => {
+                returned = await result.current.connect() // interactive
+            })
+
+            expect(returned).toBe(true)
+            expect(result.current.connected).toBe(true)
+            expect(result.current.address).toBe(ADDR)
+        } finally {
+            restore()
+        }
+    })
+
+    it("re-derives RPC trust from the allowlist on cache read — a stored verdict is never replayed", async () => {
+        // The cache stores only the URL; trust is recomputed on read. A legacy
+        // (or tampered) entry claiming trusted:true for a non-allowlisted URL
+        // must come back UNtrusted when GetNetwork is unavailable.
+        const rpcCacheKey = `memba_adena_rpc::${GNO_CHAIN_ID}`
+        sessionStorage.setItem(rpcCacheKey, JSON.stringify({ url: UNTRUSTED_RPC, trusted: true }))
+        const adena = makeAdena({ GetNetwork: undefined }) // force the cached path
+        setAdena(adena)
+
+        const { result } = renderHook(() => useAdena())
+        await act(async () => {
+            await result.current.connect()
+        })
+
+        expect(result.current.connected).toBe(true)
+        expect(result.current.rpcUrl).toBe(UNTRUSTED_RPC)
+        expect(result.current.rpcTrusted).toBe(false) // re-judged, not replayed
+    })
+
+    it("storage-blocked AND a mid-connect disconnect: the epoch still aborts it", async () => {
+        // The property that stops storage tolerance from re-opening F-24: with
+        // the flag clause inert (storage unusable), the epoch alone must carry
+        // the abort.
+        const restore = blockLocalStorage()
+        try {
+            let releaseNet!: (v: unknown) => void
+            const netGate = new Promise((r) => { releaseNet = r })
+            const adena = makeAdena({ GetNetwork: vi.fn().mockReturnValue(netGate) })
+            setAdena(adena)
+
+            const { result } = renderHook(() => useAdena())
+
+            let connectPromise!: Promise<boolean>
+            act(() => { connectPromise = result.current.connect() }) // interactive
+            await waitFor(() => expect(adena.GetNetwork).toHaveBeenCalled())
+
+            act(() => { result.current.disconnect() })
+
+            let returned: boolean | undefined
+            await act(async () => {
+                releaseNet({ status: "success", data: { rpcUrl: TRUSTED_RPC } })
+                returned = await connectPromise
+            })
+
+            expect(returned).toBe(false)
+            expect(result.current.connected).toBe(false)
+        } finally {
+            restore()
+        }
+    })
+})
