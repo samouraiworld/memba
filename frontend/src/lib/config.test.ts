@@ -537,28 +537,56 @@ describe('topaz commerce-v2 allowlist — funds-free realms only', () => {
         expect(isRealmValidOn('topaz', MEMBA_DAO.badgesPath), 'badges').toBe(true)
     })
 
-    it('keeps every FUND-CUSTODY realm gated on topaz', async () => {
+    it('keeps every HELD-BACK commerce realm gated on topaz', async () => {
         const { isRealmValidOn, MEMBA_DAO } = await import('./config')
-        const { NFT_MARKETPLACE_V3_PATH } = await import('./nftConfig')
-        // Each of these has `unsafe.OriginSend()` in and `SendCoins` out in its
-        // realm source. escrow_v3 + memba_token_otc_v2 are additionally blocked on
-        // the unverified "old realms paused + reconciliation-drained" precondition.
-        const fundCustody: Record<string, string> = {
+        const { NFT_MARKETPLACE_V3_PATH, NFT_COLLECTION_PATH, MEMBA_MARKET_CONFIG_PATH } = await import('./nftConfig')
+        // Held back for TWO different reasons — do not conflate them:
+        //   custodyFunds        — `unsafe.OriginSend()` in, `SendCoins` out in the
+        //                         realm source. escrow_v3 + memba_token_otc_v2 are
+        //                         additionally blocked on the unverified "old
+        //                         realms paused + reconciliation-drained" ceremony
+        //                         precondition.
+        //   fundsFreeButCoupled — measurably ZERO fund primitives; held only
+        //                         because the NFT stack must move as ONE unit
+        //                         (listing them alone gives a half-wired launchpad).
+        const custodyFunds: Record<string, string> = {
             escrow: MEMBA_DAO.escrowPath,
             tokenOtc: MEMBA_DAO.tokenOtcPath,
             nftMarketV2: MEMBA_DAO.nftMarketPath,
-            nftMarketV3: NFT_MARKETPLACE_V3_PATH,
+            nftMarketV3_2: NFT_MARKETPLACE_V3_PATH,
             nftCollections: MEMBA_DAO.nftCollectionsPath,
-            nftCollectionV2: 'gno.land/r/samcrew/memba_nft_v2',
+            // No exported constant for v3_1 (wind-down only), so this stays a
+            // literal — the test13 anchor below is what makes a typo in it fail.
             nftMarketV3_1: 'gno.land/r/samcrew/memba_nft_market_v3_1',
-            marketConfig: 'gno.land/r/samcrew/memba_market_config',
         }
-        for (const [name, path] of Object.entries(fundCustody)) {
+        const fundsFreeButCoupled: Record<string, string> = {
+            nftCollectionV2: NFT_COLLECTION_PATH,
+        }
+        for (const [name, path] of Object.entries({ ...custodyFunds, ...fundsFreeButCoupled })) {
             expect(isRealmValidOn('topaz', path), `${name} (${path}) must stay gated on topaz`).toBe(false)
+            // TWO-WAY ANCHOR. `isRealmValidOn` returns false for ANY string that is
+            // not listed, so a topaz-only assertion passes just as happily on a
+            // TYPO'D path — it would be asserting "this string is unknown", not
+            // "this realm is gated", and could never detect the real path being
+            // added to topaz. Requiring the same literal to be VALID on test13
+            // makes a typo fail loudly. (Verified: typo'ing one without this line
+            // leaves the whole suite green.)
+            expect(isRealmValidOn('test13', path), `${name} (${path}) — typo guard: must be a real, test13-listed path`).toBe(true)
         }
+
+        // memba_market_config is listed on NEITHER network, so no test13 anchor is
+        // available; the imported constant is the typo guard instead — TypeScript
+        // rejects a misspelled import, which a bare string literal would not.
+        expect(isRealmValidOn('topaz', MEMBA_MARKET_CONFIG_PATH), 'marketConfig must stay gated on topaz').toBe(false)
     })
 
     it('leaves the commerce PREDICATES false on topaz', async () => {
+        // HERMETIC: these read the module-load `_activeNetwork`, so without
+        // stubbing they describe whatever VITE_GNO_CHAIN_ID the machine happens to
+        // have. Under the repo's untracked .env (test13) every one of them is TRUE
+        // and the assertions would be about the wrong network entirely.
+        vi.stubEnv('VITE_GNO_CHAIN_ID', 'topaz')
+        vi.resetModules()
         // The predicates are what the pages actually read — assert those directly,
         // not just the paths, so a predicate repointed at a listed path is caught.
         const cfg = await import('./config')
@@ -570,6 +598,8 @@ describe('topaz commerce-v2 allowlist — funds-free realms only', () => {
         // …and the two this PR intentionally opens.
         expect(cfg.isTokenFactoryValid()).toBe(true)
         expect(cfg.isFeedbackValid()).toBe(true)
+        vi.unstubAllEnvs()
+        vi.resetModules()
     })
 
     it('does not touch the test13 allowlist', async () => {

@@ -513,9 +513,14 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // (`grc20.ts` sends ""). The remaining commerce realms — the NFT stack,
         // escrow_v3 and memba_token_otc_v2 — DO custody funds and are deliberately
         // held back to separate PRs; see the note above this map.
-        "gno.land/r/samcrew/tokenfactory_v2",       // de-gates isTokenFactoryValid
-        "gno.land/r/samcrew/memba_feedback_v2",     // de-gates isFeedbackValid
-        "gno.land/r/samcrew/gnobuilders_badges_v2", // no predicate; badges surface
+        "gno.land/r/samcrew/tokenfactory_v2",   // de-gates isTokenFactoryValid
+        "gno.land/r/samcrew/memba_feedback_v2", // de-gates isFeedbackValid
+        // INERT — listed defensively, changes no behaviour today. The badges
+        // reader (lib/badges.ts) uses its own BADGE_REALM_PATH constant and is
+        // guarded by NO isRealmValid predicate, so it already queried this realm on
+        // topaz. Listed so the allowlist stays a truthful record of what is
+        // deployed, and so adding a guard later cannot silently gate it off.
+        "gno.land/r/samcrew/gnobuilders_badges_v2",
     ],
 }
 

@@ -37,15 +37,20 @@ test.describe('Create Token Page', () => {
     })
 
     test('admin field visible', async ({ page }) => {
+        // Boot straight onto test13 (same reason as the 375px case below): CI has
+        // no .env, so the app defaults to topaz and this URL would render a topaz
+        // document first, then NetworkSync-reload into test13.
+        //
+        // That two-document dance used to be HARMLESS here and is now a trap. The
+        // previous comment argued 'Multisig Admin' could not go green early
+        // "because the FIRST document is the ComingSoonGate" — true only while
+        // tokenfactory_v2 was absent from REALM_ALLOWLIST.topaz. This PR adds it,
+        // so the topaz document now renders the REAL form, 'Multisig Admin' and
+        // all, and the assertion would pass without test13 ever loading — the
+        // exact false-green class #1032 hardened this test against. Seeding the
+        // key the module-load resolver reads makes it a single, unambiguous load.
+        await page.addInitScript(() => localStorage.setItem('memba_network', 'test13'))
         await page.goto('/test13/create-token')
-        // "Multisig Admin" is the admin-mode tab, which only the real form
-        // renders. The old /Admin|Factory|grc20factory/ was satisfied by the
-        // ComingSoonGate's own "Token Factory" heading — and CI hits that gate
-        // for real: with no .env the app boots topaz, where the factory realm is
-        // not allowlist-valid, so the FIRST document is the gate and only the
-        // NetworkSync reload into test13 brings up the form (measured: 2 loads).
-        // The old regex could therefore go green on the gate before the form
-        // ever existed. This one cannot.
         await expect(page.locator('body')).toContainText('Multisig Admin')
     })
 
