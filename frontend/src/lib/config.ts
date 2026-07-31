@@ -434,6 +434,19 @@ export function areRealmsDeployed(): boolean {
  * ⚠️ Adding a path here DE-GATES that lane on that network — `isRealmValidOn` is
  * the only gate most of them have. This is not bookkeeping: only add a path once
  * the realm is verified live on the chain.
+ *
+ * STILL HELD BACK on topaz after the 2026-07-31 commerce-v2 ceremony — all are
+ * deployed and verified live on-chain, but each CUSTODIES FUNDS (`OriginSend` in,
+ * `SendCoins` out), so listing them opens a money path:
+ *   - escrow_v3, memba_token_otc_v2 — blocked on an unverified ceremony
+ *     precondition ("old realms paused + reconciliation-drained"). The deployer
+ *     does not check it. Confirm before listing, or funds can sit in a superseded
+ *     realm while the UI points at the new one.
+ *   - memba_nft_v2, memba_collections, memba_market_config,
+ *     memba_nft_market_v2, memba_nft_market_v3_1, memba_nft_market_v3_2 — the NFT
+ *     stack. It should move as ONE unit (partial listing gives inconsistent
+ *     surfaces), and note VITE_ENABLE_NFT was removed from SAFETY_GATED_FLAGS on
+ *     2026-06-27, so the allowlist is the only structural gate left on it.
  */
 const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
     // Betanet: Memba deploys nothing here. An EXPLICIT empty list, not an
@@ -471,6 +484,10 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // v3.1 stays allowlisted through the wind-down: it is PAUSED (no new trades)
         // but 2 open offers hold escrow — value-exits (CancelOffer/ClaimExpiredOffer)
         // must remain callable. Remove once its escrow drains to zero.
+        // ⚠️ When you do: `config.test.ts`'s held-back block anchors the topaz
+        // gating assertions on "this path is valid on test13", so dropping this
+        // entry reds that test with a message about a typo. Remove the path from
+        // that test's anchor loop in the same commit — do not delete the anchor.
         "gno.land/r/samcrew/memba_nft_market_v3_1",
         // The ACTIVE engine since the 2026-07-10 ceremony (deployed, registered,
         // salesLog seeded from v3.1 and SEALED; solvency getters live).
@@ -482,7 +499,6 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         "gno.land/r/samcrew/memba_token_otc_v2",
     ],
     // Topaz (topaz-1) — ceremony scope (2026-07-21): 9 Memba realms.
-    // Commerce realms NOT listed — deferred to commerce-v2 ceremony.
     topaz: [
         "gno.land/r/samcrew/memba_dao",
         "gno.land/r/samcrew/memba_dao_candidature_v3",
@@ -493,6 +509,22 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         "gno.land/r/samcrew/memba_feed_v1",
         "gno.land/r/samcrew/memba_appstore_v1",
         "gno.land/r/samcrew/memba_appstore_v2",
+        // ── commerce-v2 ceremony (2026-07-31), FUNDS-FREE realms only ─────────
+        // 13 artifacts went live on topaz-1 in that ceremony; only these three are
+        // listed here. Each was verified funds-free on BOTH sides before listing:
+        // the realm source contains no `banker.NewBanker`, no `unsafe.OriginSend()`
+        // and no `SendCoins`, and the frontend client attaches no coins
+        // (`grc20.ts` sends ""). The remaining commerce realms — the NFT stack,
+        // escrow_v3 and memba_token_otc_v2 — DO custody funds and are deliberately
+        // held back to separate PRs; see the note above this map.
+        "gno.land/r/samcrew/tokenfactory_v2",   // de-gates isTokenFactoryValid
+        "gno.land/r/samcrew/memba_feedback_v2", // de-gates isFeedbackValid
+        // INERT — listed defensively, changes no behaviour today. The badges
+        // reader (lib/badges.ts) uses its own BADGE_REALM_PATH constant and is
+        // guarded by NO isRealmValid predicate, so it already queried this realm on
+        // topaz. Listed so the allowlist stays a truthful record of what is
+        // deployed, and so adding a guard later cannot silently gate it off.
+        "gno.land/r/samcrew/gnobuilders_badges_v2",
     ],
 }
 

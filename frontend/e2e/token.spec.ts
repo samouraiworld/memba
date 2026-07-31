@@ -17,10 +17,14 @@ test.describe('Token Dashboard', () => {
     })
 })
 
-// Pinned to /test13: the factory realm is allowlist-valid there, so the real
-// form renders (statically — no chain read gates it). On the default network
-// (topaz) the page correctly shows the ComingSoonGate until the commerce
-// ceremony deploys tokenfactory_v2 — repoint these to the default route then.
+// These stay pinned to /test13, where the factory realm has long been
+// allowlist-valid so the real form renders (statically — no chain read gates it).
+// The commerce ceremony (2026-07-31) has since made tokenfactory_v2 valid on the
+// DEFAULT network too, which the last test in this block now asserts. Repointing
+// these three to the default route is worthwhile follow-up cleanup — test13 is a
+// retired chain — but it changes the redirect/document-load behaviour the mobile
+// case below carefully pins, so it is deliberately not bundled into the
+// allowlist change.
 test.describe('Create Token Page', () => {
     test('form fields present', async ({ page }) => {
         await page.goto('/test13/create-token')
@@ -33,15 +37,20 @@ test.describe('Create Token Page', () => {
     })
 
     test('admin field visible', async ({ page }) => {
+        // Boot straight onto test13 (same reason as the 375px case below): CI has
+        // no .env, so the app defaults to topaz and this URL would render a topaz
+        // document first, then NetworkSync-reload into test13.
+        //
+        // That two-document dance used to be HARMLESS here and is now a trap. The
+        // previous comment argued 'Multisig Admin' could not go green early
+        // "because the FIRST document is the ComingSoonGate" — true only while
+        // tokenfactory_v2 was absent from REALM_ALLOWLIST.topaz. This PR adds it,
+        // so the topaz document now renders the REAL form, 'Multisig Admin' and
+        // all, and the assertion would pass without test13 ever loading — the
+        // exact false-green class #1032 hardened this test against. Seeding the
+        // key the module-load resolver reads makes it a single, unambiguous load.
+        await page.addInitScript(() => localStorage.setItem('memba_network', 'test13'))
         await page.goto('/test13/create-token')
-        // "Multisig Admin" is the admin-mode tab, which only the real form
-        // renders. The old /Admin|Factory|grc20factory/ was satisfied by the
-        // ComingSoonGate's own "Token Factory" heading — and CI hits that gate
-        // for real: with no .env the app boots topaz, where the factory realm is
-        // not allowlist-valid, so the FIRST document is the gate and only the
-        // NetworkSync reload into test13 brings up the form (measured: 2 loads).
-        // The old regex could therefore go green on the gate before the form
-        // ever existed. This one cannot.
         await expect(page.locator('body')).toContainText('Multisig Admin')
     })
 
@@ -66,8 +75,17 @@ test.describe('Create Token Page', () => {
         expect(bodyWidth).toBeLessThanOrEqual(380)
     })
 
-    test('default network shows the coming-soon gate until the commerce ceremony', async ({ page }) => {
+    test('the DEFAULT network renders the real factory — tokenfactory_v2 is live on topaz', async ({ page }) => {
+        // Was: "default network shows the coming-soon gate UNTIL the commerce
+        // ceremony". That ceremony ran on 2026-07-31 — tokenfactory_v2 is live on
+        // topaz-1 and now in REALM_ALLOWLIST.topaz, so isTokenFactoryValid() is
+        // true and CreateToken renders the form instead of the gate. CI caught the
+        // old assertion the moment the allowlist changed, which is the point of it.
+        //
+        // Assert the FORM, not merely the absence of the gate copy — absence alone
+        // is satisfied by a blank page or a Suspense fallback.
         await page.goto('/create-token')
-        await expect(page.locator('body')).toContainText(/isn't available on this network yet/)
+        await expect(page.locator('input[placeholder*="Token"]').first()).toBeVisible()
+        await expect(page.locator('body')).not.toContainText(/isn't available on this network yet/)
     })
 })

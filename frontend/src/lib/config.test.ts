@@ -523,6 +523,116 @@ describe('Betanet gating — fails CLOSED, not open (F-28)', () => {
     })
 })
 
+describe('topaz commerce-v2 allowlist — funds-free realms only', () => {
+    // The 2026-07-31 ceremony put 13 artifacts live on topaz-1. Adding a path to
+    // REALM_ALLOWLIST DE-GATES its lane (isRealmValidOn is the only gate most of
+    // them have), so this PR lists ONLY the three that move no money. The rest
+    // custody funds and are held to separate PRs — this pins that boundary so a
+    // fund-custody realm cannot be slipped in without a failing test.
+
+    it('de-gates the funds-free lanes on topaz', async () => {
+        const { isRealmValidOn, GRC20_FACTORY_PATH, FEEDBACK_REALM_PATH, MEMBA_DAO } = await import('./config')
+        expect(isRealmValidOn('topaz', GRC20_FACTORY_PATH), 'token factory').toBe(true)
+        expect(isRealmValidOn('topaz', FEEDBACK_REALM_PATH), 'feedback').toBe(true)
+        expect(isRealmValidOn('topaz', MEMBA_DAO.badgesPath), 'badges').toBe(true)
+    })
+
+    it('keeps every HELD-BACK commerce realm gated on topaz', async () => {
+        const { isRealmValidOn, MEMBA_DAO } = await import('./config')
+        const { NFT_MARKETPLACE_V3_PATH, NFT_COLLECTION_PATH, MEMBA_MARKET_CONFIG_PATH } = await import('./nftConfig')
+        // Held back for TWO different reasons — do not conflate them:
+        //   custodyFunds        — `unsafe.OriginSend()` in, `SendCoins` out in the
+        //                         realm source. escrow_v3 + memba_token_otc_v2 are
+        //                         additionally blocked on the unverified "old
+        //                         realms paused + reconciliation-drained" ceremony
+        //                         precondition.
+        //   fundsFreeButCoupled — measurably ZERO fund primitives; held only
+        //                         because the NFT stack must move as ONE unit
+        //                         (listing them alone gives a half-wired launchpad).
+        const custodyFunds: Record<string, string> = {
+            escrow: MEMBA_DAO.escrowPath,
+            tokenOtc: MEMBA_DAO.tokenOtcPath,
+            nftMarketV2: MEMBA_DAO.nftMarketPath,
+            nftMarketV3_2: NFT_MARKETPLACE_V3_PATH,
+            nftCollections: MEMBA_DAO.nftCollectionsPath,
+            // No exported constant for v3_1 (wind-down only), so this stays a
+            // literal — the test13 anchor below is what makes a typo in it fail.
+            nftMarketV3_1: 'gno.land/r/samcrew/memba_nft_market_v3_1',
+        }
+        const fundsFreeButCoupled: Record<string, string> = {
+            nftCollectionV2: NFT_COLLECTION_PATH,
+            // Same measurement as nftCollectionV2 (zero fund primitives); held for
+            // the same reason. It is the one path listed on NEITHER network, so
+            // the test13 anchor below cannot cover it — the shape guard does.
+            marketConfig: MEMBA_MARKET_CONFIG_PATH,
+        }
+
+        // The ONE held-back path that test13 does not list, single-sourced so the
+        // exclusion is stated exactly once. Everything else gets BOTH guards by
+        // default — a new entry added above cannot silently miss the anchor.
+        const notOnTest13 = new Set<string>([MEMBA_MARKET_CONFIG_PATH])
+
+        for (const [name, path] of Object.entries({ ...custodyFunds, ...fundsFreeButCoupled })) {
+            // GUARD 1 — SHAPE, checked first. Catches a mistyped CONSTANT name,
+            // which a dynamic `await import()` destructure yields as `undefined`
+            // rather than an error; `isRealmValidOn(x, undefined)` then quietly
+            // returns false and the gating assertion goes green for the wrong
+            // reason. An earlier version of this comment claimed TypeScript would
+            // catch that — it does NOT: `tsconfig.app.json` excludes
+            // `src/**/*.test.ts`, so `npm run build` never typechecks this file.
+            expect(path, `${name}: must be a real realm path, not undefined`).toMatch(/^gno\.land\/r\/samcrew\/[a-z0-9_]+$/)
+
+            expect(isRealmValidOn('topaz', path), `${name} (${path}) must stay gated on topaz`).toBe(false)
+
+            // GUARD 2 — TWO-WAY ANCHOR. These are NOT redundant: they catch
+            // disjoint mistakes. `isRealmValidOn` returns false for ANY unlisted
+            // string, so the topaz assertion above passes just as happily on a
+            // TYPO'D literal — asserting "this string is unknown" rather than
+            // "this realm is gated", and unable to detect the real path being
+            // added to topaz. Guard 1 does not help there: `…_v3_1_typooo` matches
+            // the shape perfectly. Requiring the same literal to be VALID on
+            // test13 is what makes a typo fail loudly.
+            //
+            // ⚠️ This borrows a guarantee from a RETIRED chain. If a path is
+            // removed from REALM_ALLOWLIST.test13 — `config.ts` instructs exactly
+            // that for memba_nft_market_v3_1 once its escrow drains — this reds
+            // with a message that is then misleading (the path is real; only
+            // test13's bookkeeping changed). Add it to `notOnTest13` above rather
+            // than deleting the assertion.
+            if (notOnTest13.has(path)) continue
+            expect(isRealmValidOn('test13', path), `${name} (${path}) — typo guard: must be a real, test13-listed path`).toBe(true)
+        }
+    })
+
+    it('leaves the commerce PREDICATES false on topaz', async () => {
+        // HERMETIC: these read the module-load `_activeNetwork`, so without
+        // stubbing they describe whatever VITE_GNO_CHAIN_ID the machine happens to
+        // have. Under the repo's untracked .env (test13) every one of them is TRUE
+        // and the assertions would be about the wrong network entirely.
+        vi.stubEnv('VITE_GNO_CHAIN_ID', 'topaz')
+        vi.resetModules()
+        // The predicates are what the pages actually read — assert those directly,
+        // not just the paths, so a predicate repointed at a listed path is caught.
+        const cfg = await import('./config')
+        expect(cfg.isEscrowValid()).toBe(false)
+        expect(cfg.isTokenOtcValid()).toBe(false)
+        expect(cfg.isNftMarketValid()).toBe(false)
+        expect(cfg.isNftMarketV3Valid()).toBe(false)
+        expect(cfg.isNftLaunchpadValid()).toBe(false)
+        // …and the two this PR intentionally opens.
+        expect(cfg.isTokenFactoryValid()).toBe(true)
+        expect(cfg.isFeedbackValid()).toBe(true)
+        vi.unstubAllEnvs()
+        vi.resetModules()
+    })
+
+    it('does not touch the test13 allowlist', async () => {
+        const { isRealmValidOn, MEMBA_DAO } = await import('./config')
+        expect(isRealmValidOn('test13', MEMBA_DAO.escrowPath)).toBe(true)
+        expect(isRealmValidOn('test13', MEMBA_DAO.tokenOtcPath)).toBe(true)
+    })
+})
+
 describe('resolveStoredNetworkKey — hiding a network must not strand anyone', () => {
     // HERMETIC ON PURPOSE. DEFAULT_NETWORK is computed at module load from
     // VITE_GNO_CHAIN_ID, and the repo-root .env is untracked and pins test13 on

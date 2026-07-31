@@ -66,11 +66,16 @@ export function CreateToken() {
     // fail with "unexpected node …:0:0"). Gate the whole page instead of letting
     // the user submit a tx that's guaranteed to fail.
     if (!isTokenFactoryValid()) {
+        // The description used to promise the factory "arrives on Topaz with the
+        // commerce ceremony". That ceremony ran on 2026-07-31 and tokenfactory_v2
+        // is now allowlisted on topaz, so this gate never renders there — the
+        // promise would only ever be read by someone on a network where it is
+        // already false (e.g. Betanet).
         return (
             <ComingSoonGate
                 title="Token Factory"
                 icon="🪙"
-                description="Token creation isn't available on this network yet. The token factory arrives on Topaz with the commerce ceremony."
+                description="Token creation isn't available on this network yet. Switch to a network where the token factory is deployed."
                 features={["Create GRC20 tokens", "Mint, transfer & burn", "Built-in faucet & DAO treasury minting"]}
             />
         )
