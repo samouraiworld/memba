@@ -73,7 +73,7 @@ test.describe("Gnolove Team Hub canary", () => {
         // satisfied by an empty DOM, and NetworkSync hard-reloads when the
         // /:network segment disagrees with the build's network — so without
         // this the assertion passed mid-reload and could never fail.
-        await expect(page.locator(".gl-thub-header-chips")).toBeVisible({ timeout: 20_000 })
+        await expect(page.locator(".gl-thub-header-chips")).toBeVisible({ timeout: 10_000 })
         await expect(page.locator(".gl-thub-chip-network")).toHaveCount(0)
 
         // test13 = test chain → chip present.

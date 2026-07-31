@@ -124,8 +124,7 @@ export function parseGnowebListing(html: string, gnowebBaseUrl: string, kind: "r
  * @param gnowebBaseUrl - Base gnoweb URL (e.g., "https://gnoweb.test12.moul.p2p.team")
  * @param namespace - Namespace path (e.g., "samcrew")
  * @returns Array of deployed realm items, or empty array on error
- */
-/**
+ *
  * ⚠️ gnoweb sends NO `Access-Control-Allow-Origin` header on any network
  * (verified 2026-07-31 against topaz, betanet and mainnet with an explicit
  * Origin). A browser `fetch()` here is therefore CORS-blocked — `no-cors`
@@ -149,15 +148,22 @@ export async function fetchNamespaceRealms(gnowebBaseUrl: string, namespace: str
     try {
         const url = `${gnowebBaseUrl}/r/${namespace}`
         const response = await fetch(url, { signal: AbortSignal.timeout(10_000) })
-        if (!response.ok) { setCache(cacheKey, []); return [] }
+        // Cache a definitive rejection only. A 5xx/429 is transient and must not
+        // blackhole the next 5 minutes once a same-origin proxy makes this reachable.
+        if (!response.ok) {
+            if (response.status < 500 && response.status !== 429) setCache(cacheKey, [])
+            return []
+        }
 
         const html = await response.text()
         const items = parseGnowebListing(html, gnowebBaseUrl, "r")
         setCache(cacheKey, items)
         return items
-    } catch {
-        // Negative-cache: CORS rejection is permanent, not transient.
-        setCache(cacheKey, [])
+    } catch (err) {
+        // Only a CORS/network rejection (TypeError) is permanent for this host.
+        // AbortSignal.timeout(10s) raises AbortError, which is transient — caching
+        // that would turn one slow response into a 5-minute blackhole.
+        if (err instanceof TypeError) setCache(cacheKey, [])
         return []
     }
 }
@@ -165,6 +171,8 @@ export async function fetchNamespaceRealms(gnowebBaseUrl: string, namespace: str
 /**
  * Fetch all deployed packages under a namespace from gnoweb.
  * Returns cached results if available (5-min TTL).
+ *
+ * Subject to the same CORS limitation as fetchNamespaceRealms above.
  */
 export async function fetchNamespacePackages(gnowebBaseUrl: string, namespace: string): Promise<NamespaceItem[]> {
     const cacheKey = `${gnowebBaseUrl}_packages_${namespace}`
@@ -174,15 +182,22 @@ export async function fetchNamespacePackages(gnowebBaseUrl: string, namespace: s
     try {
         const url = `${gnowebBaseUrl}/p/${namespace}`
         const response = await fetch(url, { signal: AbortSignal.timeout(10_000) })
-        if (!response.ok) { setCache(cacheKey, []); return [] }
+        // Cache a definitive rejection only. A 5xx/429 is transient and must not
+        // blackhole the next 5 minutes once a same-origin proxy makes this reachable.
+        if (!response.ok) {
+            if (response.status < 500 && response.status !== 429) setCache(cacheKey, [])
+            return []
+        }
 
         const html = await response.text()
         const items = parseGnowebListing(html, gnowebBaseUrl, "p")
         setCache(cacheKey, items)
         return items
-    } catch {
-        // Negative-cache: CORS rejection is permanent, not transient.
-        setCache(cacheKey, [])
+    } catch (err) {
+        // Only a CORS/network rejection (TypeError) is permanent for this host.
+        // AbortSignal.timeout(10s) raises AbortError, which is transient — caching
+        // that would turn one slow response into a 5-minute blackhole.
+        if (err instanceof TypeError) setCache(cacheKey, [])
         return []
     }
 }
