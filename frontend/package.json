@@ -69,11 +69,12 @@
     "vite-plugin-pwa": "^1.3.0",
     "vitest": "^4.1.9"
   },
+  "_comment_overrides": "Several of these are SECURITY FLOORS for transitive dependencies. A floor below the advisory's patched version is silently inert \u2014 >= permits an upgrade without compelling one \u2014 so raise it to the patched version when you clear an advisory. postcss sat at >=8.5.10 while two HIGH advisories needed 8.5.12 and 8.5.18. Same rule as the pnpm overrides in the repo-root package.json.",
   "overrides": {
     "loader-utils": "2.0.4",
     "@clerk/shared": "^3.47.6",
     "dompurify": "^3.4.2",
-    "postcss": ">=8.5.10",
+    "postcss": ">=8.5.18",
     "fast-uri": "^3.1.4"
   }
 }
