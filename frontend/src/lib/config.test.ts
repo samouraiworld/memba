@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import pkg from '../../package.json'
 import {
     APP_VERSION,
@@ -359,7 +359,12 @@ describe('network reduction — test13 + topaz + gnoland1 only', () => {
         expect(NETWORKS[resolveDefaultNetwork('test12')]).toBeDefined()
     })
     it('resolveDefaultNetwork passes through a valid env network; falls back when empty', () => {
+        // NOTE gnoland1 is `hidden` since 2026-07-31 and still passes through:
+        // NETWORKS membership is the only requirement, deliberately. Pinning a
+        // hidden network as the default is how the :5174/:5175 e2e servers run
+        // (.env.e2e → test13). See resolveDefaultNetwork's doc before "fixing".
         expect(resolveDefaultNetwork('gnoland1')).toBe('gnoland1')
+        expect(resolveDefaultNetwork('test13')).toBe('test13')
         expect(resolveDefaultNetwork(undefined)).toBe('topaz')
         expect(resolveDefaultNetwork('')).toBe('topaz')
     })
@@ -508,41 +513,96 @@ describe('Betanet gating — fails CLOSED, not open (F-28)', () => {
 })
 
 describe('resolveStoredNetworkKey — hiding a network must not strand anyone', () => {
-    it('self-heals a STORED hidden network to the default', async () => {
-        const { resolveStoredNetworkKey, DEFAULT_NETWORK } = await import('./config')
-        // The trap: test13 and gnoland1 are both hidden, so VISIBLE_NETWORKS has
-        // ONE entry — and a one-option <select> cannot fire onChange. Restoring a
-        // hidden key from localStorage would pin the user there permanently.
-        expect(resolveStoredNetworkKey('gnoland1')).toBe(DEFAULT_NETWORK)
-        expect(resolveStoredNetworkKey('test13')).toBe(DEFAULT_NETWORK)
+    // HERMETIC ON PURPOSE. DEFAULT_NETWORK is computed at module load from
+    // VITE_GNO_CHAIN_ID, and the repo-root .env is untracked and pins test13 on
+    // dev machines — so an un-stubbed assertion here passes in CI and fails
+    // locally for reasons that have nothing to do with the code under test. Stub
+    // the env and re-import so each case states which build it is describing.
+    afterEach(() => {
+        localStorage.removeItem('memba_network')
+        vi.unstubAllEnvs()
+        vi.resetModules()
+    })
+
+    /** config as a SHIPPED build sees it (prod, deploy previews, CI's :5173). */
+    async function shippedBuild() {
+        vi.stubEnv('VITE_GNO_CHAIN_ID', 'topaz')
+        vi.resetModules()
+        return await import('./config')
+    }
+
+    it('heals a stored hidden network to one the switcher actually OFFERS', async () => {
+        const { resolveStoredNetworkKey, NETWORKS, VISIBLE_NETWORKS } = await shippedBuild()
+        // Assert the PROPERTY, not the identity. `toBe(DEFAULT_NETWORK)` was
+        // vacuous — it passes while returning a HIDDEN key, which is exactly the
+        // failure mode it was meant to catch (healing one hidden network to
+        // another leaves the user precisely where they started).
+        for (const stored of ['gnoland1', 'test13']) {
+            const healed = resolveStoredNetworkKey(stored)
+            expect(NETWORKS[healed], `${stored} must heal to a real network`).toBeDefined()
+            expect(NETWORKS[healed].hidden, `${stored} must heal to a VISIBLE network`).not.toBe(true)
+            expect(VISIBLE_NETWORKS[healed], `${stored} must heal INTO the switcher`).toBeDefined()
+        }
+    })
+
+    it('never restores Betanet, whatever the build default is', async () => {
+        // Env-independent: holds in a shipped build AND on the pinned e2e servers.
+        const { resolveStoredNetworkKey } = await import('./config')
+        expect(resolveStoredNetworkKey('gnoland1')).not.toBe('gnoland1')
     })
 
     it('keeps a stored VISIBLE network', async () => {
-        const { resolveStoredNetworkKey } = await import('./config')
+        const { resolveStoredNetworkKey } = await shippedBuild()
         expect(resolveStoredNetworkKey('topaz')).toBe('topaz')
     })
 
     it('falls back for unknown/empty input rather than throwing', async () => {
-        const { resolveStoredNetworkKey, DEFAULT_NETWORK } = await import('./config')
+        const { resolveStoredNetworkKey, DEFAULT_NETWORK } = await shippedBuild()
         for (const v of ['no-such-network', '', null, undefined]) {
             expect(resolveStoredNetworkKey(v)).toBe(DEFAULT_NETWORK)
         }
     })
 
+    it('a build that PINS a hidden network keeps it as the default (.env.e2e contract)', async () => {
+        // Locks behaviour a reviewer asked to invert. Root `.env.e2e` sets
+        // VITE_GNO_CHAIN_ID=test13, and marketplace-gating.spec.ts (:5174) depends
+        // on landing there: on topaz neither memba_nft_market_v3_2 nor escrow_v3
+        // is allowlisted, so BOTH "live" lanes would gate and the spec's default
+        // landing lane would vanish. Adding `!hidden` to resolveDefaultNetwork
+        // would therefore red the e2e suite for no user-facing gain.
+        vi.stubEnv('VITE_GNO_CHAIN_ID', 'test13')
+        vi.resetModules()
+        const { DEFAULT_NETWORK, NETWORKS, selectableNetworksFor, isRealmValidOn, MEMBA_DAO } = await import('./config')
+        expect(DEFAULT_NETWORK).toBe('test13')
+        expect(NETWORKS.test13.hidden).toBe(true)
+        // The premise above, asserted rather than assumed.
+        expect(isRealmValidOn('test13', MEMBA_DAO.escrowPath)).toBe(true)
+        expect(isRealmValidOn('topaz', MEMBA_DAO.escrowPath)).toBe(false)
+        // Safe because the ESCAPE HATCH — not the heal — is what prevents
+        // stranding: the active hidden network is still offered, alongside topaz.
+        const offered = selectableNetworksFor('test13')
+        expect(offered.test13).toBeDefined()
+        expect(Object.keys(offered).length).toBeGreaterThan(1)
+    })
 
     it('the MODULE-LOAD key still honours a stored hidden network (deep links)', async () => {
-        // Regression guard: self-healing getActiveNetworkKey too made config
-        // initialise on topaz while a /test13/* URL said test13 — NetworkSync
-        // then reloaded and the realm-gated UI rendered the wrong network.
-        // The CreateToken e2e specs seed localStorage exactly this way (#1032).
-        // Self-healing belongs in the NAVIGATION resolvers, not here.
-        const { NETWORKS } = await import('./config')
-        expect(NETWORKS.test13).toBeDefined()
-        expect(NETWORKS.test13.hidden).toBe(true)
-        // resolveStoredNetworkKey heals; the module-load path must not.
-        const { resolveStoredNetworkKey } = await import('./config')
+        // Regression guard for the self-inflicted break CI caught: self-healing
+        // getActiveNetworkKey too made config initialise on topaz while a
+        // /test13/* URL said test13 — NetworkSync then reloaded and the
+        // realm-gated UI rendered the wrong network's state. The CreateToken e2e
+        // specs seed localStorage exactly this way (#1032). Self-healing belongs
+        // in the NAVIGATION resolvers only.
+        vi.stubEnv('VITE_GNO_CHAIN_ID', 'topaz')
+        localStorage.setItem('memba_network', 'test13')
+        vi.resetModules()
+        const { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, resolveStoredNetworkKey } = await import('./config')
+        // Module-load config initialises on the STORED hidden network…
+        expect(ACTIVE_NETWORK_KEY).toBe('test13')
+        expect(GNO_CHAIN_ID).toBe('test-13')
+        // …while the navigation resolver heals away from it.
         expect(resolveStoredNetworkKey('test13')).not.toBe('test13')
     })
+
     it('every hidden network is still resolvable by explicit URL', async () => {
         const { NETWORKS } = await import('./config')
         // Self-healing applies to STORED keys only — deep links must still work.
@@ -550,5 +610,66 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
             expect(NETWORKS[k], `${k} must stay in NETWORKS for deep links`).toBeDefined()
             expect(NETWORKS[k].hidden).toBe(true)
         }
+    })
+})
+
+describe('selectableNetworksFor — the switcher escape hatch', () => {
+    it('offers the ACTIVE network even when it is hidden', async () => {
+        const { selectableNetworksFor } = await import('./config')
+        for (const hidden of ['test13', 'gnoland1']) {
+            const offered = selectableNetworksFor(hidden)
+            expect(offered[hidden], `${hidden} must stay selectable while active`).toBeDefined()
+            // A one-option <select> cannot fire onChange — there must be somewhere to go.
+            expect(Object.keys(offered).length).toBeGreaterThan(1)
+        }
+    })
+
+    it('is the plain visible set for a visible active network', async () => {
+        const { selectableNetworksFor, VISIBLE_NETWORKS } = await import('./config')
+        expect(selectableNetworksFor('topaz')).toBe(VISIBLE_NETWORKS)
+    })
+
+    it('does not invent an option for an unknown network', async () => {
+        const { selectableNetworksFor, VISIBLE_NETWORKS } = await import('./config')
+        expect(selectableNetworksFor('no-such-network')).toBe(VISIBLE_NETWORKS)
+    })
+})
+
+describe('selectableChainIdOptions — a saved chain id stays addressable', () => {
+    // Drives WebhookForm's chain <select>, which is keyed by CHAIN ID. Hiding
+    // gnoland1 stranded the EDIT case: a webhook scoped to it had no matching
+    // <option>, so the control rendered blank (selectedIndex -1) while state kept
+    // submitting `gnoland1` — the same "shows the wrong thing, can't be
+    // corrected" failure as the network switcher.
+    it('keeps a HIDDEN chain selectable when it is the current value', async () => {
+        const { selectableChainIdOptions, VISIBLE_NETWORKS, NETWORKS } = await import('./config')
+        const match = selectableChainIdOptions('gnoland1').find(o => o.value === 'gnoland1')
+        expect(match, 'a hidden chain must still have an option when selected').toBeDefined()
+        expect(match!.label).toContain('no longer offered')
+        // Falsifiability: the visible set alone does NOT contain it.
+        expect(NETWORKS.gnoland1.hidden).toBe(true)
+        expect(Object.values(VISIBLE_NETWORKS).some(n => n.chainId === 'gnoland1')).toBe(false)
+    })
+
+    it('keeps an UNRECOGNISED chain id selectable rather than blanking the control', async () => {
+        // e.g. a webhook saved against test-13 before that network was retired.
+        const { selectableChainIdOptions } = await import('./config')
+        const match = selectableChainIdOptions('some-old-chain').find(o => o.value === 'some-old-chain')
+        expect(match).toBeDefined()
+        expect(match!.label).toContain('unrecognised chain')
+    })
+
+    it('adds nothing for a visible chain or for the empty "all chains" value', async () => {
+        const { selectableChainIdOptions, VISIBLE_NETWORKS, NETWORKS } = await import('./config')
+        const visibleCount = Object.keys(VISIBLE_NETWORKS).length
+        expect(selectableChainIdOptions('')).toHaveLength(visibleCount)
+        expect(selectableChainIdOptions(NETWORKS.topaz.chainId)).toHaveLength(visibleCount)
+        expect(selectableChainIdOptions(NETWORKS.topaz.chainId).filter(o => o.value === NETWORKS.topaz.chainId)).toHaveLength(1)
+    })
+
+    it('offers every visible network', async () => {
+        const { selectableChainIdOptions, VISIBLE_NETWORKS } = await import('./config')
+        const values = selectableChainIdOptions('').map(o => o.value)
+        for (const net of Object.values(VISIBLE_NETWORKS)) expect(values).toContain(net.chainId)
     })
 })

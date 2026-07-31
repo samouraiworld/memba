@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { SunDim, Moon } from "@phosphor-icons/react"
 import { CopyableAddress } from "../ui/CopyableAddress"
-import { validateActiveRpcDomain, VISIBLE_NETWORKS, NETWORKS } from "../../lib/config"
+import { validateActiveRpcDomain, selectableNetworksFor } from "../../lib/config"
 import { NotificationBell } from "./NotificationBell"
 import type { Notification } from "../../lib/notifications"
 import { completeQuest, getQuestWalletAddress } from "../../lib/quests"
@@ -53,18 +53,6 @@ interface TopBarProps {
 }
 
 // ── TopBar Component ───────────────────────────────────────────────────
-/** Always offer the ACTIVE network, even when it is hidden.
- *
- *  A hidden network stays reachable by explicit URL, but a <select> whose only
- *  option is a DIFFERENT network cannot fire onChange — the control would
- *  display the wrong network and switching away would be impossible. Prepending
- *  the active network keeps the escape hatch open. */
-function selectableNetworksFor(activeKey: string) {
-    return NETWORKS[activeKey] && !VISIBLE_NETWORKS[activeKey]
-        ? { [activeKey]: NETWORKS[activeKey], ...VISIBLE_NETWORKS }
-        : VISIBLE_NETWORKS
-}
-
 export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, authError, onDisconnect, onClearError, onRetry, notifications, addAndSwitchWalletNetwork, onWalletSwitchSuccess, onToggleSidebar }: TopBarProps) {
     return (
         <>

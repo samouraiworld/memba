@@ -2,6 +2,15 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 import { checkChainHealth, getSuggestedFallback } from "./chainHealth"
 
 // Mock NETWORKS used by chainHealth
+//
+// DELIBERATE DIVERGENCE FROM REALITY: no entry carries `hidden`, even though the
+// real gnoland1 and test13 both do. getSuggestedFallback filters on BOTH
+// `!net.hidden` AND `networkHasRealms(key)`; if the mock's gnoland1 were also
+// hidden, deleting either clause would still leave it filtered by the other and
+// the suite would pass with half the fix gone. Keeping the mock's gnoland1
+// realm-less-but-visible isolates the `networkHasRealms` clause, and the
+// "hidden networks are never suggested" case below isolates `!net.hidden` by
+// hiding topaz for the duration of one test.
 vi.mock("./config", () => ({
     // getSuggestedFallback now refuses to steer users to a chain with no Memba
     // realms (its comment always said so; the code did not). Mirror the real
@@ -146,6 +155,23 @@ describe("getSuggestedFallback never steers into a realm-less chain", () => {
     })
 
     it("still suggests topaz from the realm-less chain itself", () => {
+        expect(getSuggestedFallback("gnoland1")).toBe("topaz")
+    })
+
+    it("never suggests a HIDDEN network, even one whose realms are deployed", async () => {
+        // Isolates the `!net.hidden` half of the filter. Suggesting a hidden
+        // network is a dead end: it is absent from the switcher, so a user sent
+        // there by the banner could only leave via the active-network escape
+        // hatch. topaz has realms in this mock, so networkHasRealms cannot be
+        // what rejects it — only `!net.hidden` can.
+        const { NETWORKS } = await import("./config") as { NETWORKS: Record<string, { hidden?: boolean }> }
+        NETWORKS.topaz.hidden = true
+        try {
+            expect(getSuggestedFallback("gnoland1")).toBeNull()
+        } finally {
+            delete NETWORKS.topaz.hidden
+        }
+        // …and the suggestion comes back once it is visible again.
         expect(getSuggestedFallback("gnoland1")).toBe("topaz")
     })
 })

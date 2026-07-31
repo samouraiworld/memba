@@ -5,17 +5,24 @@
  * /:storedNetwork/path, preserving the original path and search params.
  *
  * Examples:
- *   /dashboard → /test12/dashboard
- *   /dao/gno.land~r~gov~dao → /test12/dao/gno.land~r~gov~dao
- *   /gnolove/teams → /test12/gnolove/teams
+ *   /dashboard → /topaz/dashboard
+ *   /dao/gno.land~r~gov~dao → /topaz/dao/gno.land~r~gov~dao
+ *   /gnolove/teams → /topaz/gnolove/teams
  */
 import { Navigate, useLocation } from "react-router-dom"
-import { NETWORKS, DEFAULT_NETWORK } from "../../lib/config"
+import { resolveStoredNetworkKey } from "../../lib/config"
 
 export function LegacyRedirect() {
     const location = useLocation()
-    const stored = localStorage.getItem("memba_network")
-    const network = (stored && NETWORKS[stored]) ? stored : DEFAULT_NETWORK
+    // Self-heals away from a hidden network — see resolveStoredNetworkKey.
+    //
+    // This is a NAVIGATION resolver and must use the same rule as RootRedirect.
+    // It used to inline `(stored && NETWORKS[stored]) ? stored : DEFAULT_NETWORK`,
+    // which has no `hidden` check — and since NetworkGate routes EVERY legacy /
+    // bookmarked URL through here, a stored `gnoland1` sent `/directory` to
+    // `/gnoland1/directory` while `/` correctly healed to `/topaz/`. Bookmarks
+    // stayed pinned to a network the switcher no longer offers.
+    const network = resolveStoredNetworkKey(localStorage.getItem("memba_network"))
 
     // Preserve path + search + hash
     const target = `/${network}${location.pathname}${location.search}${location.hash}`
