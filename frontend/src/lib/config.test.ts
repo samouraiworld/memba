@@ -567,33 +567,39 @@ describe('topaz commerce-v2 allowlist — funds-free realms only', () => {
             marketConfig: MEMBA_MARKET_CONFIG_PATH,
         }
 
-        for (const [name, path] of Object.entries({ ...custodyFunds, ...fundsFreeButCoupled })) {
-            // SHAPE GUARD, checked FIRST. Catches a mistyped CONSTANT name, which a
-            // dynamic `await import()` destructure yields as `undefined` rather
-            // than an error — and `isRealmValidOn(x, undefined)` quietly returns
-            // false, turning the gating assertion green for the wrong reason.
-            // An earlier version of this comment claimed TypeScript would catch
-            // that. It does not: `tsconfig.app.json` excludes `src/**/*.test.ts`,
-            // so `npm run build` never typechecks this file at all.
-            expect(path, `${name}: must be a real realm path, not undefined`).toMatch(/^gno\.land\/r\/samcrew\/[a-z0-9_]+$/)
-            expect(isRealmValidOn('topaz', path), `${name} (${path}) must stay gated on topaz`).toBe(false)
-        }
+        // The ONE held-back path that test13 does not list, single-sourced so the
+        // exclusion is stated exactly once. Everything else gets BOTH guards by
+        // default — a new entry added above cannot silently miss the anchor.
+        const notOnTest13 = new Set<string>([MEMBA_MARKET_CONFIG_PATH])
 
-        // TWO-WAY ANCHOR for every path test13 lists. `isRealmValidOn` returns
-        // false for ANY string that is not listed, so a topaz-only assertion
-        // passes just as happily on a TYPO'D literal — it would be asserting
-        // "this string is unknown", not "this realm is gated", and could never
-        // detect the real path being added to topaz. Requiring the same literal to
-        // be VALID on test13 makes a typo fail loudly. (Verified: without this,
-        // typo'ing a path leaves the whole suite green.)
-        //
-        // ⚠️ This borrows a guarantee from a RETIRED chain. If a path is removed
-        // from REALM_ALLOWLIST.test13 — `config.ts` instructs exactly that for
-        // memba_nft_market_v3_1 once its escrow drains — this reds with a message
-        // that is then misleading (the path is real; only test13's bookkeeping
-        // changed). Update this list rather than deleting the assertion; the shape
-        // guard above does NOT catch a typo'd literal, only an undefined constant.
-        for (const [name, path] of Object.entries({ ...custodyFunds, nftCollectionV2: NFT_COLLECTION_PATH })) {
+        for (const [name, path] of Object.entries({ ...custodyFunds, ...fundsFreeButCoupled })) {
+            // GUARD 1 — SHAPE, checked first. Catches a mistyped CONSTANT name,
+            // which a dynamic `await import()` destructure yields as `undefined`
+            // rather than an error; `isRealmValidOn(x, undefined)` then quietly
+            // returns false and the gating assertion goes green for the wrong
+            // reason. An earlier version of this comment claimed TypeScript would
+            // catch that — it does NOT: `tsconfig.app.json` excludes
+            // `src/**/*.test.ts`, so `npm run build` never typechecks this file.
+            expect(path, `${name}: must be a real realm path, not undefined`).toMatch(/^gno\.land\/r\/samcrew\/[a-z0-9_]+$/)
+
+            expect(isRealmValidOn('topaz', path), `${name} (${path}) must stay gated on topaz`).toBe(false)
+
+            // GUARD 2 — TWO-WAY ANCHOR. These are NOT redundant: they catch
+            // disjoint mistakes. `isRealmValidOn` returns false for ANY unlisted
+            // string, so the topaz assertion above passes just as happily on a
+            // TYPO'D literal — asserting "this string is unknown" rather than
+            // "this realm is gated", and unable to detect the real path being
+            // added to topaz. Guard 1 does not help there: `…_v3_1_typooo` matches
+            // the shape perfectly. Requiring the same literal to be VALID on
+            // test13 is what makes a typo fail loudly.
+            //
+            // ⚠️ This borrows a guarantee from a RETIRED chain. If a path is
+            // removed from REALM_ALLOWLIST.test13 — `config.ts` instructs exactly
+            // that for memba_nft_market_v3_1 once its escrow drains — this reds
+            // with a message that is then misleading (the path is real; only
+            // test13's bookkeeping changed). Add it to `notOnTest13` above rather
+            // than deleting the assertion.
+            if (notOnTest13.has(path)) continue
             expect(isRealmValidOn('test13', path), `${name} (${path}) — typo guard: must be a real, test13-listed path`).toBe(true)
         }
     })
