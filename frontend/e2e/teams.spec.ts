@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { MOBILE_375, expectNoMobileOverflow } from './helpers/overflow'
 
 /**
  * Teams E2E — verifies organizations page renders.
@@ -26,9 +27,12 @@ test.describe('Teams Page', () => {
 
 test.describe('Teams — Mobile', () => {
     test('organizations page at 375px — no horizontal scroll', async ({ page }) => {
-        await page.setViewportSize({ width: 375, height: 667 })
+        await page.setViewportSize(MOBILE_375)
         await page.goto('/organizations')
-        const bodyWidth = await page.evaluate(() => document.body.scrollWidth)
-        expect(bodyWidth).toBeLessThanOrEqual(380)
+        // Both renderings of this route title their h1 "Teams" — the ComingSoonGate
+        // (CI, where VITE_ENABLE_TEAMS is unset) and the real page (flag on). One
+        // locator therefore anchors the measurement in either environment.
+        await expect(page.getByRole('heading', { name: 'Teams', level: 1 })).toBeVisible()
+        await expectNoMobileOverflow(page)
     })
 })

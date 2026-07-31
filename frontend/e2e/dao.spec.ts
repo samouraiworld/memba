@@ -1,5 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import { fulfillOnchainReads, mockChainStatus } from './helpers/onchain'
+import { MOBILE_375, expectNoMobileOverflow } from './helpers/overflow'
 
 /**
  * DAO E2E — verifies DAO Hub, GovDAO page, Create DAO, and proposal pages.
@@ -275,16 +276,22 @@ test.describe('Proposal Types (ProposeDAO)', () => {
 
 test.describe('DAO — Mobile (375px)', () => {
     test('DAO hub at 375px — no overflow', async ({ page }) => {
-        await page.setViewportSize({ width: 375, height: 667 })
+        await page.setViewportSize(MOBILE_375)
         await page.goto('/dao')
-        const bodyWidth = await page.evaluate(() => document.body.scrollWidth)
-        expect(bodyWidth).toBeLessThanOrEqual(380)
+        await expect(page.getByRole('heading', { name: /DAO Governance/ })).toBeVisible()
+        // Wait for a resolved card too, not just the heading: the cards arrive
+        // after per-DAO config resolution, so measuring on the heading alone was
+        // a coin flip — it passed solo and caught a real clip under parallel load.
+        await expect(page.locator('.k-dao-card').first()).toBeVisible()
+        await expectNoMobileOverflow(page)
     })
 
     test('GovDAO page at 375px — no overflow', async ({ page }) => {
-        await page.setViewportSize({ width: 375, height: 667 })
+        await page.setViewportSize(MOBILE_375)
         await page.goto('/dao/gno.land~r~gov~dao')
-        const bodyWidth = await page.evaluate(() => document.body.scrollWidth)
-        expect(bodyWidth).toBeLessThanOrEqual(380)
+        // The stat grid + PowerDonut the file fixture exists to populate are what
+        // compete for this row at 375px; wait for the page proper before measuring.
+        await expect(page.getByRole('heading', { name: 'GovDAO' })).toBeVisible()
+        await expectNoMobileOverflow(page)
     })
 })

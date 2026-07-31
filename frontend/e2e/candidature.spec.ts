@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { MOBILE_375, expectNoMobileOverflow } from './helpers/overflow'
 
 /**
  * Candidature E2E — verifies candidature page renders.
@@ -44,9 +45,11 @@ test.describe('Candidature — XP Gate', () => {
 
 test.describe('Candidature — Mobile', () => {
     test('candidature page at 375px — no horizontal scroll', async ({ page }) => {
-        await page.setViewportSize({ width: 375, height: 667 })
+        await page.setViewportSize(MOBILE_375)
         await page.goto('/candidature')
-        const bodyWidth = await page.evaluate(() => document.body.scrollWidth)
-        expect(bodyWidth).toBeLessThanOrEqual(380)
+        // Measure the rendered page, not the layout shell: without this the
+        // evaluate ran while only the topbar existed (~304 chars, vs 620 settled).
+        await expect(page.getByRole('heading', { name: 'Memba DAO Candidature' })).toBeVisible()
+        await expectNoMobileOverflow(page)
     })
 })

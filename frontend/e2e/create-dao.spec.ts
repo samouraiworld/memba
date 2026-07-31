@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { MOBILE_375, expectNoMobileOverflow } from './helpers/overflow'
 
 /**
  * Create DAO E2E — verifies the 5-step DAO creation wizard.
@@ -27,9 +28,11 @@ test.describe('Create DAO Wizard', () => {
     })
 
     test('create DAO at 375px — no overflow', async ({ page }) => {
-        await page.setViewportSize({ width: 375, height: 667 })
+        await page.setViewportSize(MOBILE_375)
         await page.goto('/dao/create')
-        const bodyWidth = await page.evaluate(() => document.body.scrollWidth)
-        expect(bodyWidth).toBeLessThanOrEqual(380)
+        // The wizard header + step rail are the widest things on this route;
+        // measuring before they exist proved nothing (~304 chars vs 1089 settled).
+        await expect(page.getByRole('heading', { name: /Create a DAO/ })).toBeVisible()
+        await expectNoMobileOverflow(page)
     })
 })

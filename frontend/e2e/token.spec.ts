@@ -34,8 +34,15 @@ test.describe('Create Token Page', () => {
 
     test('admin field visible', async ({ page }) => {
         await page.goto('/test13/create-token')
-        // Should show admin or factory info
-        await expect(page.locator('body')).toContainText(/Admin|Factory|grc20factory/)
+        // "Multisig Admin" is the admin-mode tab, which only the real form
+        // renders. The old /Admin|Factory|grc20factory/ was satisfied by the
+        // ComingSoonGate's own "Token Factory" heading — and CI hits that gate
+        // for real: with no .env the app boots topaz, where the factory realm is
+        // not allowlist-valid, so the FIRST document is the gate and only the
+        // NetworkSync reload into test13 brings up the form (measured: 2 loads).
+        // The old regex could therefore go green on the gate before the form
+        // ever existed. This one cannot.
+        await expect(page.locator('body')).toContainText('Multisig Admin')
     })
 
     test('form at 375px — no overflow', async ({ page }) => {
