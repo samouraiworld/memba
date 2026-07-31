@@ -81,7 +81,12 @@ describe("GnoProvider — per-network rpcUrl threading (B-4 contract)", () => {
         })
         const p = createGnoProvider(NETWORK)
         await p.getDAOConfig(DAO)
-        expect(mockGetDAOConfig).toHaveBeenCalledWith(NETWORK.rpcUrl, DAO.id)
+        // strict=true is load-bearing, not incidental: it is what lets the
+        // provider tell a chain-answered miss (AbciQueryError -> CONTRACT_REVERT)
+        // apart from an all-RPCs-down outage (-> NETWORK_ERROR). Without it both
+        // collapse to null and useYourWorlds deletes the user's saved DAO during
+        // a transient outage — that is B-9, closed on main (#1024/#1027/#1029).
+        expect(mockGetDAOConfig).toHaveBeenCalledWith(NETWORK.rpcUrl, DAO.id, true)
     })
 
     it("getNFT threads config.rpcUrl into grc721 owner + URI reads", async () => {
@@ -416,5 +421,45 @@ describe("getDAOMember — the provider absorbs Gno's memberstore routing", () =
         expect(mockGetMemberRole).toHaveBeenCalledWith(
             "https://rpc.topaz.example", "gno.land/r/gov/dao", "g1abc", undefined,
         )
+    })
+})
+
+// ── B-9 / ADR-006: the provider must RELAY which failure the chain reported ──
+//
+// Before this, getDAOConfig read non-strict, so "realm absent" and "every RPC
+// down" both returned null and both surfaced as CONTRACT_REVERT. useYourWorlds
+// drops a saved DAO on CONTRACT_REVERT, so a transient outage silently deleted
+// the user's saved worlds. main closed that (#1024/#1027/#1029); flattening here
+// would reintroduce it on merge.
+describe("GnoProvider — outage vs absent must not collapse (B-9)", () => {
+    const NET: CALNetworkConfig = {
+        chainId: "topaz-1", family: "gno", label: "Topaz",
+        rpcUrl: "https://rpc.topaz.example", fallbackRpcUrls: [],
+        explorerTxUrl: "", explorerAddressUrl: "",
+        nativeToken: { symbol: "GNOT", decimals: 6, name: "Gno" },
+        isTestnet: true,
+    }
+    const DAO = { id: "gno.land/r/samcrew/memba_dao", family: "gno" as const }
+
+    it("maps a CHAIN-ANSWERED miss to CONTRACT_REVERT (safe to drop the card)", async () => {
+        const { AbciQueryError } = await import("../../rpcFallback")
+        mockGetDAOConfig.mockRejectedValueOnce(new AbciQueryError("realm not found"))
+        const p = createGnoProvider(NET)
+        await expect(p.getDAOConfig(DAO)).rejects.toMatchObject({
+            name: "ChainError",
+            code: "CONTRACT_REVERT",
+        })
+    })
+
+    it("maps a TRANSPORT failure to NETWORK_ERROR, never CONTRACT_REVERT", async () => {
+        mockGetDAOConfig.mockRejectedValueOnce(new Error("all RPC endpoints unreachable"))
+        const p = createGnoProvider(NET)
+        await expect(p.getDAOConfig(DAO)).rejects.toMatchObject({
+            name: "ChainError",
+            code: "NETWORK_ERROR",
+        })
+        // The whole point: an outage must NOT look like a chain-answered miss,
+        // or useYourWorlds deletes saved DAOs during a blip.
+        await expect(p.getDAOConfig(DAO).catch((e) => e.code)).resolves.not.toBe("CONTRACT_REVERT")
     })
 })

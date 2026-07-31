@@ -78,10 +78,14 @@ export function useYourWorlds(networkKey: string, orgId: string | null): YourWor
                 // CAL path. `getDAOConfig` THROWS where the direct reader returns
                 // null, so soften it back to null: `resolved:false` has to keep
                 // meaning "this realm did not render here" for the E-F9 drop to
-                // work. Both paths therefore also share the direct reader's
-                // pre-existing conflation of "not deployed here" with "RPC down"
-                // (BACKLOG B-9) — this migration preserves it rather than
-                // quietly changing which cards disappear.
+                // work. It is softened ONLY for a chain-answered miss.
+                //
+                // This block previously said it preserved the B-9 conflation of
+                // "not deployed here" with "RPC down". `main` has since CLOSED
+                // B-9 (#1024/#1027/#1029) with a strict read, so preserving it
+                // would regress a shipped fix on merge. GnoProvider now relays
+                // the two apart (CONTRACT_REVERT vs NETWORK_ERROR) and this path
+                // honours that, matching the direct path's semantics.
                 let config: { name: string; memberCount: number } | null
                 let proposals: { status: string }[]
                 // `memberstorePath` is a Gno realm-routing detail. The DIRECT role
@@ -93,7 +97,17 @@ export function useYourWorlds(networkKey: string, orgId: string | null): YourWor
                     const ref = { id: dao.realmPath, family: cal.provider.family }
                     const [c, p] = await Promise.all([
                         cal.provider.getDAOConfig(ref)
-                            .catch((err) => { if (err instanceof ChainError) return null; throw err }),
+                            .catch((err) => {
+                                // B-9: only a CHAIN-ANSWERED "not deployed here"
+                                // may become null, because null feeds the E-F9
+                                // drop below and deletes the user's saved DAO.
+                                // NETWORK_ERROR/TIMEOUT mean nothing answered —
+                                // rethrow so the card degrades and re-polls
+                                // instead of disappearing. The provider now
+                                // relays the distinction (ADR-006).
+                                if (err instanceof ChainError && err.code === "CONTRACT_REVERT") return null
+                                throw err
+                            }),
                         cal.provider.getDAOProposals(ref),
                     ])
                     config = c

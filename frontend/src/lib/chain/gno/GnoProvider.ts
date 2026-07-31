@@ -12,6 +12,7 @@
 
 import type { ChainProvider, WalletState } from "../provider"
 import { ChainError } from "../provider"
+import { AbciQueryError } from "../../rpcFallback"
 import type {
     ChainAddress,
     TxResult,
@@ -219,7 +220,30 @@ export function createGnoProvider(config: CALNetworkConfig): GnoProviderExtended
         // ── Reads (DAO) ──────────────────────────────────────
 
         async getDAOConfig(dao: ContractRef): Promise<CALDAOConfig> {
-            const daoConfig = await gnoGetDAOConfig(rpcUrl, dao.id)
+            // ADR-006 — RELAY which failure the chain reported; do not flatten it.
+            //
+            // This read `gnoGetDAOConfig(rpcUrl, dao.id)` non-strict, so a realm
+            // that is absent and an RPC set that is entirely down BOTH returned
+            // null and BOTH surfaced as CONTRACT_REVERT. Callers cannot tell them
+            // apart, and `useYourWorlds` drops a saved DAO on CONTRACT_REVERT —
+            // so a transient outage silently deleted the user's saved worlds.
+            // That is B-9, closed on `main` (#1024/#1027/#1029) via the strict
+            // reader; flattening here would reintroduce it the moment this branch
+            // merges.
+            //
+            // strict=true makes the distinction observable: the chain answering
+            // "not found" raises AbciQueryError, anything else is transport.
+            let daoConfig
+            try {
+                daoConfig = await gnoGetDAOConfig(rpcUrl, dao.id, true)
+            } catch (err) {
+                if (err instanceof AbciQueryError) {
+                    // The chain answered: this realm is not deployed here.
+                    throw new ChainError(`DAO not found: ${dao.id}`, "CONTRACT_REVERT", "gno", err)
+                }
+                // Nothing answered — transport. Callers must degrade, not delete.
+                throw new ChainError(`RPC unreachable reading ${dao.id}`, "NETWORK_ERROR", "gno", err)
+            }
             if (!daoConfig) {
                 throw new ChainError(`DAO not found: ${dao.id}`, "CONTRACT_REVERT", "gno")
             }
