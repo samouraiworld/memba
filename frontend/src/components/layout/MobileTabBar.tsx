@@ -4,7 +4,7 @@ import { BottomSheet } from "./BottomSheet"
 import { ActFab } from "./ActFab"
 import { getPlugins } from "../../plugins"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
-import { VISIBLE_NETWORKS } from "../../lib/config"
+import { VISIBLE_NETWORKS, NETWORKS } from "../../lib/config"
 import { getTheme, setTheme, type Theme } from "../../lib/themeStore"
 import { mobilePrimaryTabs, mobileMoreNav, mobileMoreAccount, type NavEntry } from "../../lib/navManifest"
 import { navFlagOn } from "../../lib/navFlags"
@@ -24,6 +24,18 @@ interface MobileTabBarProps {
         switchNetwork: (key: string) => void
     }
     feedReplyUnread?: number
+}
+
+/** Always offer the ACTIVE network, even when it is hidden.
+ *
+ *  A hidden network stays reachable by explicit URL, but a <select> whose only
+ *  option is a DIFFERENT network cannot fire onChange — the control would
+ *  display the wrong network and switching away would be impossible. Prepending
+ *  the active network keeps the escape hatch open. */
+function selectableNetworksFor(activeKey: string) {
+    return NETWORKS[activeKey] && !VISIBLE_NETWORKS[activeKey]
+        ? { [activeKey]: NETWORKS[activeKey], ...VISIBLE_NETWORKS }
+        : VISIBLE_NETWORKS
 }
 
 export function MobileTabBar({ connected, address, auth, network, feedReplyUnread = 0 }: MobileTabBarProps) {
@@ -203,7 +215,7 @@ export function MobileTabBar({ connected, address, auth, network, feedReplyUnrea
                                     outline: "none",
                                 }}
                             >
-                                {Object.entries(VISIBLE_NETWORKS).map(([key, net]) => (
+                                {Object.entries(selectableNetworksFor(network.networkKey)).map(([key, net]) => (
                                     <option key={key} value={key} style={{ background: "var(--color-border)", color: "var(--color-text-secondary)" }}>
                                         {net.label}
                                     </option>

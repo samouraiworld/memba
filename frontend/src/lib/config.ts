@@ -228,7 +228,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "",
         // Hidden from the selector, and declared realm-free (F-28/F-29).
-        // Memba deploys NOTHING to Betanet — MEMBA_DAO_BY_NETWORK maps it to
+        // Memba deploys NOTHING to Betanet — FEATURED_DAO_REALM.gnoland1 is
         // null — yet it was the one selectable network with no REALM_ALLOWLIST
         // entry, and isRealmValidOn fails OPEN on a missing entry. Every
         // commerce predicate therefore returned true here, so
@@ -279,10 +279,26 @@ export const DEFAULT_NETWORK = resolveDefaultNetwork(import.meta.env.VITE_GNO_CH
  *  WARNING: shared.ts and profile.ts compute USER_REGISTRY at module load time.
  *  useNetwork.ts MUST call window.location.reload() on network switch to re-initialize.
  */
+/** Resolve a STORED network selection, self-healing away from hidden networks.
+ *
+ *  A stored key must also be VISIBLE. Hidden networks stay resolvable by
+ *  explicit URL (deep links keep working) but must never be restored from
+ *  localStorage, because a hidden network has no option in the switcher — and
+ *  when only one network is visible, a single-option <select> cannot fire
+ *  `onChange` at all. A user whose stored key was hidden would be pinned to it
+ *  with no in-app way out, on this visit and every future one. Self-healing the
+ *  stored value is what makes hiding a network safe.
+ *
+ *  Exported so `useNetwork` and `RootRedirect` resolve identically — three
+ *  copies of this rule previously drifted. */
+export function resolveStoredNetworkKey(stored: string | null | undefined): string {
+    if (stored && NETWORKS[stored] && !NETWORKS[stored].hidden) return stored
+    return DEFAULT_NETWORK
+}
+
 function getActiveNetworkKey(): string {
     try {
-        const stored = localStorage.getItem("memba_network")
-        if (stored && NETWORKS[stored]) return stored
+        return resolveStoredNetworkKey(localStorage.getItem("memba_network"))
     } catch { /* SSR or missing localStorage */ }
     return DEFAULT_NETWORK
 }

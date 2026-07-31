@@ -3,6 +3,10 @@ import { checkChainHealth, getSuggestedFallback } from "./chainHealth"
 
 // Mock NETWORKS used by chainHealth
 vi.mock("./config", () => ({
+    // getSuggestedFallback now refuses to steer users to a chain with no Memba
+    // realms (its comment always said so; the code did not). Mirror the real
+    // predicate: realmsDeployed !== false.
+    networkHasRealms: (k: string) => ({ test13: true, topaz: true, gnoland1: false })[k] ?? true,
     NETWORKS: {
         test13: {
             chainId: "test-13",
@@ -129,5 +133,19 @@ describe("chainHealth", () => {
             const fallback = getSuggestedFallback("gnoland1")
             expect(fallback).not.toBe("gnoland1")
         })
+    })
+})
+
+describe("getSuggestedFallback never steers into a realm-less chain", () => {
+    it("returns null rather than suggesting Betanet when topaz is the degraded one", () => {
+        // The regression this guards: fallbackOrder = ["topaz","gnoland1"], so a
+        // degraded topaz returned "gnoland1" — and ChainHaltedBanner rendered a
+        // one-click switch to a chain with no Memba realms. Combined with hiding
+        // Betanet, that click used to be unrecoverable.
+        expect(getSuggestedFallback("topaz")).toBeNull()
+    })
+
+    it("still suggests topaz from the realm-less chain itself", () => {
+        expect(getSuggestedFallback("gnoland1")).toBe("topaz")
     })
 })

@@ -506,3 +506,35 @@ describe('Betanet gating — fails CLOSED, not open (F-28)', () => {
         expect(isRealmValidOn('topaz', MEMBA_DAO.channelsPath)).toBe(true)
     })
 })
+
+describe('resolveStoredNetworkKey — hiding a network must not strand anyone', () => {
+    it('self-heals a STORED hidden network to the default', async () => {
+        const { resolveStoredNetworkKey, DEFAULT_NETWORK } = await import('./config')
+        // The trap: test13 and gnoland1 are both hidden, so VISIBLE_NETWORKS has
+        // ONE entry — and a one-option <select> cannot fire onChange. Restoring a
+        // hidden key from localStorage would pin the user there permanently.
+        expect(resolveStoredNetworkKey('gnoland1')).toBe(DEFAULT_NETWORK)
+        expect(resolveStoredNetworkKey('test13')).toBe(DEFAULT_NETWORK)
+    })
+
+    it('keeps a stored VISIBLE network', async () => {
+        const { resolveStoredNetworkKey } = await import('./config')
+        expect(resolveStoredNetworkKey('topaz')).toBe('topaz')
+    })
+
+    it('falls back for unknown/empty input rather than throwing', async () => {
+        const { resolveStoredNetworkKey, DEFAULT_NETWORK } = await import('./config')
+        for (const v of ['no-such-network', '', null, undefined]) {
+            expect(resolveStoredNetworkKey(v)).toBe(DEFAULT_NETWORK)
+        }
+    })
+
+    it('every hidden network is still resolvable by explicit URL', async () => {
+        const { NETWORKS } = await import('./config')
+        // Self-healing applies to STORED keys only — deep links must still work.
+        for (const k of ['test13', 'gnoland1']) {
+            expect(NETWORKS[k], `${k} must stay in NETWORKS for deep links`).toBeDefined()
+            expect(NETWORKS[k].hidden).toBe(true)
+        }
+    })
+})

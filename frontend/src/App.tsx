@@ -14,7 +14,7 @@ import { SpaceInvadersGate } from "./components/ui/SpaceInvadersGate"
 import { BarricadeGate } from "./components/ui/BarricadeGate"
 import { AppStoreGate } from "./components/ui/AppStoreGate"
 import { ValoperRouteRedirect } from "./components/validators/ValoperRouteRedirect"
-import { NETWORKS, DEFAULT_NETWORK } from "./lib/config"
+import { NETWORKS, resolveStoredNetworkKey } from "./lib/config"
 
 // ── Core multisig pages (small, always needed) ──
 import { CreateMultisig } from "./pages/CreateMultisig"
@@ -165,8 +165,8 @@ function DashboardRedirect() {
 
 /** Redirects bare / to /:defaultNetwork/ */
 function RootRedirect() {
-  const stored = localStorage.getItem("memba_network")
-  const network = (stored && NETWORKS[stored]) ? stored : DEFAULT_NETWORK
+  // Self-heals away from a hidden network — see resolveStoredNetworkKey.
+  const network = resolveStoredNetworkKey(localStorage.getItem("memba_network"))
   return <Navigate to={`/${network}/`} replace />
 }
 

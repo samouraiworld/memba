@@ -1,13 +1,13 @@
 import { useState, useCallback } from "react"
 import { useParams } from "react-router-dom"
-import { NETWORKS, DEFAULT_NETWORK } from "../lib/config"
+import { NETWORKS, DEFAULT_NETWORK, resolveStoredNetworkKey } from "../lib/config"
 
 const STORAGE_KEY = "memba_network"
 
 function getStoredNetwork(): string {
     try {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored && NETWORKS[stored]) return stored
+        // Self-heals away from a hidden network — see resolveStoredNetworkKey.
+        return resolveStoredNetworkKey(localStorage.getItem(STORAGE_KEY))
     } catch { /* ignore */ }
     return DEFAULT_NETWORK
 }
