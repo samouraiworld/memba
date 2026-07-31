@@ -7,8 +7,12 @@
  *     `config/teams.yaml` mtime on the backend, NOT the data sync clock
  *     used by metrics / activity / repos (those refresh on their own
  *     cadence and aren't surfaced here).
- *   - "Roster updated: <relative>" tells the user when the team config was
- *     last deployed.
+ *   - "Data: mainnet" discloses that the roster and its metrics come from
+ *     gnolove's mainnet-backed source, not from the chain the app is pointed
+ *     at. `useGnoloveTeams()` takes no network argument, so this holds on
+ *     every network and the chip is unconditional. It was gated on
+ *     `networkKey === "test13"` until the Phase C sweep, which silently
+ *     dropped the disclosure at the topaz cutover.
  *
  * @module components/gnolove/teams/TeamHubHeader
  */
@@ -23,7 +27,6 @@ import {
     type TeamHubPeriod,
 } from "../../../lib/gnolovePeriod"
 import { formatRelativeTime } from "../../../lib/gnoloveTime"
-import { useNetworkKey } from "../../../hooks/useNetworkNav"
 
 interface Props {
     team: Team
@@ -35,7 +38,6 @@ interface Props {
 
 export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, backToTeamsHref }: Props) {
     const [nowMs] = useState(() => Date.now())
-    const networkKey = useNetworkKey()
     const stripeColor = TEAM_CSS_COLORS[team.color]
     return (
         <header className="gl-thub-header" style={{ borderLeftColor: stripeColor }}>
@@ -50,11 +52,9 @@ export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, back
                     >
                         Roster updated: {formatRelativeTime(lastSyncedAt, nowMs)}
                     </span>
-                    {networkKey === "test13" && (
-                        <span className="gl-thub-chip gl-thub-chip-network" role="note">
-                            Data: mainnet
-                        </span>
-                    )}
+                    <span className="gl-thub-chip gl-thub-chip-network" role="note">
+                        Data: mainnet
+                    </span>
                 </div>
             </div>
 

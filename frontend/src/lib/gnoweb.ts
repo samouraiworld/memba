@@ -7,6 +7,8 @@
  * Uses sessionStorage caching with 5-minute TTL.
  */
 
+import { NETWORKS } from "./config"
+
 // ── Types ────────────────────────────────────────────────────
 
 export interface NamespaceItem {
@@ -20,21 +22,23 @@ export interface NamespaceItem {
 
 // ── Configuration ────────────────────────────────────────────
 
-/** Gnoweb URLs per network chain ID. */
-const GNOWEB_URLS: Record<string, string> = {
-    // Official test13 gnoweb (verified live). Without this, getGnowebUrl("test13")
-    // was undefined → home traction DAO-count read 0 and directory drawers fell
-    // back to generic gno.land. Env-overridable to match the test13 RPC config.
-    test13: import.meta.env.VITE_TEST13_GNOWEB_URL || "https://test13.testnets.gno.land",
-    gnoland1: "https://gno.land",
-}
-
 /**
- * Get the gnoweb base URL for a given chain ID.
- * Returns undefined if no gnoweb is configured for the chain.
+ * Get the gnoweb base URL for a network KEY (e.g. "topaz" — NOT a chain id
+ * like "topaz-1"). Returns undefined when the key is unknown; every caller
+ * already treats that as "skip namespace discovery".
+ *
+ * Reads `NETWORKS[key].explorerUrl` rather than keeping a second map. There
+ * used to be a local `GNOWEB_URLS` here holding only `test13` and `gnoland1`,
+ * so after the topaz cutover `getGnowebUrl("topaz")` returned undefined: the
+ * directory drawers fell back to `https://gno.land` (MAINNET, where our realms
+ * 404) and `lib/directory`'s namespace discovery silently stopped marking
+ * anything `deploymentStatus: "live"`. That is the exact regression the old
+ * comment here said the `test13` entry existed to prevent — reintroduced for
+ * the next network because the map had to be updated by hand. Deriving it from
+ * NETWORKS means adding a network cannot reintroduce it a third time.
  */
-export function getGnowebUrl(chainId: string): string | undefined {
-    return GNOWEB_URLS[chainId]
+export function getGnowebUrl(networkKey: string): string | undefined {
+    return NETWORKS[networkKey]?.explorerUrl
 }
 
 // ── Caching ──────────────────────────────────────────────────

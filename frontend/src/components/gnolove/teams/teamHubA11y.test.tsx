@@ -40,7 +40,6 @@ describe("TeamHubHeader period tablist (P1 — Plan §7)", () => {
                     period="monthly"
                     onPeriodChange={() => {}}
                     lastSyncedAt="2026-05-19T10:00:00Z"
-                    networkKey="gnoland1"
                     backToTeamsHref="/gnoland1/gnolove/teams"
                 />
             </MemoryRouter>,
@@ -62,7 +61,6 @@ describe("TeamHubHeader period tablist (P1 — Plan §7)", () => {
                     period="monthly"
                     onPeriodChange={() => {}}
                     lastSyncedAt={null}
-                    networkKey="gnoland1"
                     backToTeamsHref="/gnoland1/gnolove/teams"
                 />
             </MemoryRouter>,
@@ -124,5 +122,43 @@ describe("Skeleton fidelity (P1 — Plan §7)", () => {
         // Two summary lines + one toggle bar.
         expect(container.querySelectorAll(".gl-thub-skel-airpt-summary").length).toBe(2)
         expect(container.querySelector(".gl-thub-skel-airpt-toggle")).toBeInTheDocument()
+    })
+})
+
+describe('TeamHubHeader "Data: mainnet" disclosure', () => {
+    // This chip was rendered only when `useNetworkKey() === "test13"`. The topaz
+    // cutover therefore removed the disclosure from every user without touching
+    // it: the roster still comes from gnolove's mainnet-backed source
+    // (`useGnoloveTeams()` takes no network argument), but the app stopped
+    // saying so. It is unconditional now — assert that, on a router with no
+    // network segment at all, which is what the old condition failed on.
+    it("renders regardless of the active network", () => {
+        render(
+            <MemoryRouter>
+                <TeamHubHeader
+                    team={team}
+                    period="monthly"
+                    onPeriodChange={() => {}}
+                    lastSyncedAt="2026-05-19T10:00:00Z"
+                    backToTeamsHref="/gnoland1/gnolove/teams"
+                />
+            </MemoryRouter>,
+        )
+        expect(screen.getByText("Data: mainnet")).toBeInTheDocument()
+    })
+
+    it("still renders on a test13 deep link", () => {
+        render(
+            <MemoryRouter initialEntries={["/test13/gnolove/teams/onbloc"]}>
+                <TeamHubHeader
+                    team={team}
+                    period="monthly"
+                    onPeriodChange={() => {}}
+                    lastSyncedAt="2026-05-19T10:00:00Z"
+                    backToTeamsHref="/test13/gnolove/teams"
+                />
+            </MemoryRouter>,
+        )
+        expect(screen.getByText("Data: mainnet")).toBeInTheDocument()
     })
 })

@@ -10,7 +10,7 @@
 
 import { queryRender } from "./dao/shared"
 import { getSavedDAOs, type SavedDAO } from "./daoSlug"
-import { GNO_RPC_URL, getUserRegistryPath } from "./config"
+import { DEFAULT_NETWORK, GNO_RPC_URL, getUserRegistryPath } from "./config"
 import { getGnowebUrl, fetchNamespaceRealms, fetchNamespacePackages } from "./gnoweb"
 import { listFactoryTokens } from "./grc20"
 
@@ -130,7 +130,10 @@ function _activeNetworkKey(): string {
         const stored = localStorage.getItem("memba_network")
         if (stored) return stored
     } catch { /* SSR */ }
-    return "test13"
+    // Derive from config, never a literal: this returned "test13" until the
+    // Phase C sweep, so a user with no stored selection had their gnoweb
+    // lookups pinned to the retired testnet.
+    return DEFAULT_NETWORK
 }
 
 // ── Known Seed DAOs ──────────────────────────────────────────

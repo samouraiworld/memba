@@ -14,7 +14,7 @@ import { fetchOtcListings } from "../../lib/tokenOtcApi"
 import type { OtcListing } from "../../lib/marketplace/codec"
 import { tokenOtcToCard } from "../../lib/marketplace/adapters/tokenOtcToCard"
 import { getTokenDecimals } from "../../lib/grc20"
-import { GNO_RPC_URL } from "../../lib/config"
+import { DEFAULT_NETWORK, GNO_RPC_URL } from "../../lib/config"
 
 type OtcListingWithDecimals = OtcListing & { decimals: number }
 
@@ -33,7 +33,7 @@ async function fetchOtcListingsWithDecimals(): Promise<OtcListingWithDecimals[]>
 }
 
 export default function TokenLaneV2() {
-    const { network = "test13" } = useParams()
+    const { network = DEFAULT_NETWORK } = useParams()
     return (
         <LaneView<OtcListingWithDecimals>
             lane="token"

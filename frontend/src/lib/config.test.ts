@@ -400,3 +400,46 @@ describe('FEED_INDEXED_NETWORK — drift tripwire', () => {
         ).toBe(DEFAULT_NETWORK)
     })
 })
+
+describe('explorerUrl — the host every "view on gnoweb" link is built from', () => {
+    it('is declared by every network', async () => {
+        const { NETWORKS } = await import('./config')
+        const missing = Object.entries(NETWORKS)
+            .filter(([, cfg]) => !cfg.explorerUrl)
+            .map(([k]) => k)
+        expect(missing, `networks with no explorerUrl: ${missing.join(', ')}`).toEqual([])
+    })
+
+    it('is never the chainId-derived host that broke topaz', async () => {
+        const { NETWORKS } = await import('./config')
+        // getExplorerBaseUrl used to return `https://${chainId}.testnets.gno.land`.
+        // That is right only where the network KEY equals the chain id. On topaz
+        // (key "topaz", chainId "topaz-1") it produced topaz-1.testnets.gno.land,
+        // which does not resolve — so every explorer link in the app 404'd from
+        // the cutover until 2026-07-31 and nothing failed.
+        for (const [key, cfg] of Object.entries(NETWORKS)) {
+            expect(
+                cfg.explorerUrl,
+                `${key}: explorerUrl is the chainId-derived host. That form is only ` +
+                `valid when the network key equals the chain id ("${key}" vs "${cfg.chainId}").`,
+            ).not.toBe(`https://${cfg.chainId}.testnets.gno.land`)
+        }
+    })
+
+    it('resolves the active network to a real host', async () => {
+        const { getExplorerBaseUrl, DEFAULT_NETWORK, NETWORKS } = await import('./config')
+        expect(getExplorerBaseUrl()).toBe(NETWORKS[DEFAULT_NETWORK].explorerUrl)
+        expect(getExplorerBaseUrl()).toMatch(/^https:\/\/[a-z0-9.-]+$/)
+    })
+
+    it('still resolves retired test13, so old deep links degrade instead of crossing chains', async () => {
+        const { getExplorerBaseUrlFor } = await import('./config')
+        expect(getExplorerBaseUrlFor('test13')).toBe('https://test13.testnets.gno.land')
+    })
+
+    it('never yields undefined for an unknown key — that renders "https://undefined/r/..."', async () => {
+        const { getExplorerBaseUrlFor, DEFAULT_NETWORK, NETWORKS } = await import('./config')
+        expect(getExplorerBaseUrlFor('no-such-network')).toBe(NETWORKS[DEFAULT_NETWORK].explorerUrl)
+        expect(`${getExplorerBaseUrlFor('no-such-network')}/r/x`).not.toContain('undefined')
+    })
+})
