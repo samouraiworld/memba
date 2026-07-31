@@ -65,9 +65,15 @@ test.describe("Gnolove Team Hub canary", () => {
     })
 
     test("network chip is hidden on gnoland1 and shown on test13", async ({ page }) => {
-        // gnoland1 = real chain → no "Data: mainnet" chip.
+        // gnoland1 = real chain → no "Data: mainnet" chip. The chip is gated on
+        // NETWORKS[key].isTestnet (lib/config), which gnoland1 does not set.
         await page.goto(HUB_PATH)
         await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => {})
+        // Wait for the header to actually exist first. `toHaveCount(0)` is
+        // satisfied by an empty DOM, and NetworkSync hard-reloads when the
+        // /:network segment disagrees with the build's network — so without
+        // this the assertion passed mid-reload and could never fail.
+        await expect(page.locator(".gl-thub-header-chips")).toBeVisible({ timeout: 20_000 })
         await expect(page.locator(".gl-thub-chip-network")).toHaveCount(0)
 
         // test13 = test chain → chip present.
