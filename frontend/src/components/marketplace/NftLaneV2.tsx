@@ -12,9 +12,10 @@ import { useParams } from "react-router-dom"
 import { LaneView } from "./LaneView"
 import { fetchVerifiedCollections, type HubCollection } from "../../lib/nftHub"
 import { nftToCard } from "../../lib/marketplace/adapters/nftToCard"
+import { DEFAULT_NETWORK } from "../../lib/config"
 
 export default function NftLaneV2() {
-    const { network = "test13" } = useParams()
+    const { network = DEFAULT_NETWORK } = useParams()
     return (
         <LaneView<HubCollection>
             lane="nft"

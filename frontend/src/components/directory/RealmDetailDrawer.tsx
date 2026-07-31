@@ -13,9 +13,8 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import DOMPurify from "dompurify"
-import { GNO_RPC_URL } from "../../lib/config"
+import { GNO_RPC_URL, getExplorerBaseUrlFor } from "../../lib/config"
 import { queryRender } from "../../lib/dao/shared"
-import { getGnowebUrl } from "../../lib/gnoweb"
 import { useNetwork } from "../../hooks/useNetwork"
 import { fetchRealmSourceSmart } from "../../lib/gnowebSource"
 import type { RealmSource } from "../../lib/gnowebSource"
@@ -71,7 +70,7 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
 
     // Derive gnoweb URL from chain config if not provided
     // P1 fix: use active network key instead of hardcoded "gnoland1"
-    const resolvedGnowebUrl = gnowebUrl || getGnowebUrl(networkKey) || "https://gno.land"
+    const resolvedGnowebUrl = gnowebUrl || getExplorerBaseUrlFor(networkKey)
 
     // Fetch Render() output
     useEffect(() => {

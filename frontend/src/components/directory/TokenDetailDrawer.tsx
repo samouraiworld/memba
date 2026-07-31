@@ -11,7 +11,7 @@ import { useState, useEffect, useCallback } from "react"
 import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { useNetwork } from "../../hooks/useNetwork"
 import type { DirectoryToken } from "../../lib/directory"
-import { getGnowebUrl } from "../../lib/gnoweb"
+import { getExplorerBaseUrlFor } from "../../lib/config"
 
 interface TokenDetailDrawerProps {
     token: DirectoryToken
@@ -41,7 +41,7 @@ export function TokenDetailDrawer({ token, onClose }: TokenDetailDrawerProps) {
     }, [handleClose])
 
     // P1 fix: use active network key instead of hardcoded "gnoland1"
-    const gnowebBase = getGnowebUrl(networkKey) || "https://gno.land"
+    const gnowebBase = getExplorerBaseUrlFor(networkKey)
     const tokenPath = token.path.replace("gno.land", "")
 
     return (

@@ -7,6 +7,8 @@
  * Uses sessionStorage caching with 5-minute TTL.
  */
 
+import { NETWORKS } from "./config"
+
 // ── Types ────────────────────────────────────────────────────
 
 export interface NamespaceItem {
@@ -20,21 +22,23 @@ export interface NamespaceItem {
 
 // ── Configuration ────────────────────────────────────────────
 
-/** Gnoweb URLs per network chain ID. */
-const GNOWEB_URLS: Record<string, string> = {
-    // Official test13 gnoweb (verified live). Without this, getGnowebUrl("test13")
-    // was undefined → home traction DAO-count read 0 and directory drawers fell
-    // back to generic gno.land. Env-overridable to match the test13 RPC config.
-    test13: import.meta.env.VITE_TEST13_GNOWEB_URL || "https://test13.testnets.gno.land",
-    gnoland1: "https://gno.land",
-}
-
 /**
- * Get the gnoweb base URL for a given chain ID.
- * Returns undefined if no gnoweb is configured for the chain.
+ * Get the gnoweb base URL for a network KEY (e.g. "topaz" — NOT a chain id
+ * like "topaz-1"). Returns undefined when the key is unknown; every caller
+ * already treats that as "skip namespace discovery".
+ *
+ * Reads `NETWORKS[key].explorerUrl` rather than keeping a second map. There
+ * used to be a local `GNOWEB_URLS` here holding only `test13` and `gnoland1`,
+ * so after the topaz cutover `getGnowebUrl("topaz")` returned undefined: the
+ * directory drawers fell back to `https://gno.land` (MAINNET, where our realms
+ * 404) and `lib/directory`'s namespace discovery silently stopped marking
+ * anything `deploymentStatus: "live"`. That is the exact regression the old
+ * comment here said the `test13` entry existed to prevent — reintroduced for
+ * the next network because the map had to be updated by hand. Deriving it from
+ * NETWORKS means adding a network cannot reintroduce it a third time.
  */
-export function getGnowebUrl(chainId: string): string | undefined {
-    return GNOWEB_URLS[chainId]
+export function getGnowebUrl(networkKey: string): string | undefined {
+    return NETWORKS[networkKey]?.explorerUrl
 }
 
 // ── Caching ──────────────────────────────────────────────────
@@ -120,22 +124,46 @@ export function parseGnowebListing(html: string, gnowebBaseUrl: string, kind: "r
  * @param gnowebBaseUrl - Base gnoweb URL (e.g., "https://gnoweb.test12.moul.p2p.team")
  * @param namespace - Namespace path (e.g., "samcrew")
  * @returns Array of deployed realm items, or empty array on error
+ *
+ * ⚠️ gnoweb sends NO `Access-Control-Allow-Origin` header on any network
+ * (verified 2026-07-31 against topaz, betanet and mainnet with an explicit
+ * Origin). A browser `fetch()` here is therefore CORS-blocked — `no-cors`
+ * returns an opaque body that cannot be parsed. So the two fetchers below
+ * cannot succeed from the app today, on ANY network, and never could;
+ * `deploymentStatus: "live"` has never actually been reachable in a browser.
+ *
+ * They are kept (rather than deleted) because they work verbatim behind a
+ * same-origin proxy — the route `/api/indexer` already takes for the tx-indexer,
+ * which has the same restriction. Until such a proxy exists, every call fails.
+ * The failure paths below therefore cache their empty result: without that, each
+ * Directory tab mount re-fired two requests that can only ever fail, uncached.
  */
 export async function fetchNamespaceRealms(gnowebBaseUrl: string, namespace: string): Promise<NamespaceItem[]> {
-    const cacheKey = `realms_${namespace}`
+    // Scope by host: the key omitted it, so a listing cached on one network was
+    // served after switching to another (sessionStorage survives NetworkSync's reload).
+    const cacheKey = `${gnowebBaseUrl}_realms_${namespace}`
     const cached = getCached<NamespaceItem[]>(cacheKey)
     if (cached) return cached
 
     try {
         const url = `${gnowebBaseUrl}/r/${namespace}`
         const response = await fetch(url, { signal: AbortSignal.timeout(10_000) })
-        if (!response.ok) return []
+        // Cache a definitive rejection only. A 5xx/429 is transient and must not
+        // blackhole the next 5 minutes once a same-origin proxy makes this reachable.
+        if (!response.ok) {
+            if (response.status < 500 && response.status !== 429) setCache(cacheKey, [])
+            return []
+        }
 
         const html = await response.text()
         const items = parseGnowebListing(html, gnowebBaseUrl, "r")
         setCache(cacheKey, items)
         return items
-    } catch {
+    } catch (err) {
+        // Only a CORS/network rejection (TypeError) is permanent for this host.
+        // AbortSignal.timeout(10s) raises AbortError, which is transient — caching
+        // that would turn one slow response into a 5-minute blackhole.
+        if (err instanceof TypeError) setCache(cacheKey, [])
         return []
     }
 }
@@ -143,22 +171,33 @@ export async function fetchNamespaceRealms(gnowebBaseUrl: string, namespace: str
 /**
  * Fetch all deployed packages under a namespace from gnoweb.
  * Returns cached results if available (5-min TTL).
+ *
+ * Subject to the same CORS limitation as fetchNamespaceRealms above.
  */
 export async function fetchNamespacePackages(gnowebBaseUrl: string, namespace: string): Promise<NamespaceItem[]> {
-    const cacheKey = `packages_${namespace}`
+    const cacheKey = `${gnowebBaseUrl}_packages_${namespace}`
     const cached = getCached<NamespaceItem[]>(cacheKey)
     if (cached) return cached
 
     try {
         const url = `${gnowebBaseUrl}/p/${namespace}`
         const response = await fetch(url, { signal: AbortSignal.timeout(10_000) })
-        if (!response.ok) return []
+        // Cache a definitive rejection only. A 5xx/429 is transient and must not
+        // blackhole the next 5 minutes once a same-origin proxy makes this reachable.
+        if (!response.ok) {
+            if (response.status < 500 && response.status !== 429) setCache(cacheKey, [])
+            return []
+        }
 
         const html = await response.text()
         const items = parseGnowebListing(html, gnowebBaseUrl, "p")
         setCache(cacheKey, items)
         return items
-    } catch {
+    } catch (err) {
+        // Only a CORS/network rejection (TypeError) is permanent for this host.
+        // AbortSignal.timeout(10s) raises AbortError, which is transient — caching
+        // that would turn one slow response into a 5-minute blackhole.
+        if (err instanceof TypeError) setCache(cacheKey, [])
         return []
     }
 }

@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from "vitest"
 import { render, screen } from "@testing-library/react"
-import { MemoryRouter } from "react-router-dom"
+import { MemoryRouter, Routes, Route } from "react-router-dom"
 import { TeamHubHeader } from "./TeamHubHeader"
 import { TeamHubMetricsGrid } from "./TeamHubMetricsGrid"
 import { TeamHubActiveReposCard } from "./TeamHubActiveReposCard"
@@ -40,7 +40,6 @@ describe("TeamHubHeader period tablist (P1 — Plan §7)", () => {
                     period="monthly"
                     onPeriodChange={() => {}}
                     lastSyncedAt="2026-05-19T10:00:00Z"
-                    networkKey="gnoland1"
                     backToTeamsHref="/gnoland1/gnolove/teams"
                 />
             </MemoryRouter>,
@@ -62,7 +61,6 @@ describe("TeamHubHeader period tablist (P1 — Plan §7)", () => {
                     period="monthly"
                     onPeriodChange={() => {}}
                     lastSyncedAt={null}
-                    networkKey="gnoland1"
                     backToTeamsHref="/gnoland1/gnolove/teams"
                 />
             </MemoryRouter>,
@@ -124,5 +122,81 @@ describe("Skeleton fidelity (P1 — Plan §7)", () => {
         // Two summary lines + one toggle bar.
         expect(container.querySelectorAll(".gl-thub-skel-airpt-summary").length).toBe(2)
         expect(container.querySelector(".gl-thub-skel-airpt-toggle")).toBeInTheDocument()
+    })
+})
+
+describe('TeamHubHeader "Data: mainnet" disclosure', () => {
+    // The chip was gated on `useNetworkKey() === "test13"`, so the topaz cutover
+    // silently dropped the disclosure. It now keys off NETWORKS[...].isTestnet,
+    // which covers topaz. The rule it must NOT break: gnolove-team-hub e2e
+    // asserts the chip is ABSENT on gnoland1 ("real chain") — see the third case.
+    it("renders on topaz, the network the test13 literal missed", () => {
+        render(
+            <MemoryRouter>
+                <TeamHubHeader
+                    team={team}
+                    period="monthly"
+                    onPeriodChange={() => {}}
+                    lastSyncedAt="2026-05-19T10:00:00Z"
+                    backToTeamsHref="/gnoland1/gnolove/teams"
+                />
+            </MemoryRouter>,
+        )
+        expect(screen.getByText("Data: mainnet")).toBeInTheDocument()
+    })
+
+    // A bare <MemoryRouter initialEntries={["/test13/..."]}> does NOT bind a
+    // :network param — with no matching <Route>, useParams() returns {} and the
+    // old condition read DEFAULT_NETWORK, making this indistinguishable from the
+    // case above. The <Routes> wrapper is what actually puts "test13" in params.
+    // Control: passes on the OLD code too (params bind test13, so the old literal
+    // matched). Kept to prove the fix did not regress the case that already worked.
+    it("still renders on a real test13 deep link (control)", () => {
+        render(
+            <MemoryRouter initialEntries={["/test13/gnolove/teams/onbloc"]}>
+                <Routes>
+                    <Route
+                        path="/:network/gnolove/teams/:slug"
+                        element={
+                            <TeamHubHeader
+                                team={team}
+                                period="monthly"
+                                onPeriodChange={() => {}}
+                                lastSyncedAt="2026-05-19T10:00:00Z"
+                                backToTeamsHref="/test13/gnolove/teams"
+                            />
+                        }
+                    />
+                </Routes>
+            </MemoryRouter>,
+        )
+        expect(screen.getByText("Data: mainnet")).toBeInTheDocument()
+    })
+})
+
+describe('TeamHubHeader chip stays hidden on a real chain', () => {
+    // gnolove-team-hub.spec.ts asserts `.gl-thub-chip-network` has count 0 on
+    // gnoland1. An unconditional chip would break that e2e — this is the unit
+    // guard so the contradiction is caught in seconds, not in a browser run.
+    it("does NOT render on gnoland1", () => {
+        render(
+            <MemoryRouter initialEntries={["/gnoland1/gnolove/teams/onbloc"]}>
+                <Routes>
+                    <Route
+                        path="/:network/gnolove/teams/:slug"
+                        element={
+                            <TeamHubHeader
+                                team={team}
+                                period="monthly"
+                                onPeriodChange={() => {}}
+                                lastSyncedAt="2026-05-19T10:00:00Z"
+                                backToTeamsHref="/gnoland1/gnolove/teams"
+                            />
+                        }
+                    />
+                </Routes>
+            </MemoryRouter>,
+        )
+        expect(screen.queryByText("Data: mainnet")).not.toBeInTheDocument()
     })
 })

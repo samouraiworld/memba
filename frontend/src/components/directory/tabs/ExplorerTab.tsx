@@ -17,9 +17,8 @@
 
 import { useState, useEffect, useMemo, type FormEvent } from "react"
 import DOMPurify from "dompurify"
-import { GNO_RPC_URL } from "../../../lib/config"
+import { GNO_RPC_URL, getExplorerBaseUrlFor } from "../../../lib/config"
 import { queryRender } from "../../../lib/dao/shared"
-import { getGnowebUrl } from "../../../lib/gnoweb"
 import { useNetwork } from "../../../hooks/useNetwork"
 import { fetchRealmSourceSmart, type RealmSource } from "../../../lib/gnowebSource"
 import { renderMarkdown } from "../../../lib/markdownLite"
@@ -112,7 +111,7 @@ function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
     const [activeFile, setActiveFile] = useState("")
     const [funcs, setFuncs] = useState<GnoFunc[] | null>(null)
 
-    const gnowebUrl = getGnowebUrl(networkKey) || "https://gno.land"
+    const gnowebUrl = getExplorerBaseUrlFor(networkKey)
     const relPath = path.replace(/^gno\.land/, "")
     const shortName = path.split("/").pop() || path
 

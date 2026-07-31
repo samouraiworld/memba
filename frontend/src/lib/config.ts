@@ -99,8 +99,30 @@ interface NetworkConfig {
     label: string
     userRegistryPath: string
     faucetUrl: string
+    /** gnoweb base URL — on gno this one host is both the block explorer and the
+     *  namespace-discovery endpoint, so it serves `getExplorerBaseUrl()` and
+     *  `lib/gnoweb`'s lookups alike.
+     *
+     *  Declared per network rather than derived. It used to be built as
+     *  `https://${chainId}.testnets.gno.land`, which is only correct where the
+     *  network KEY and the chain id coincide. On topaz (key `topaz`, chain id
+     *  `topaz-1`) that produced `https://topaz-1.testnets.gno.land` — a host
+     *  that does not resolve — silently breaking every explorer link in the app
+     *  from the cutover until 2026-07-31. Verify a candidate against one of our
+     *  OWN realms (`/r/samcrew/memba_dao`), not just `/`: mainnet `gno.land`
+     *  answers 200 at the root and 404s our realms, so a root check passes on
+     *  exactly the wrong host. */
+    explorerUrl: string
     /** When true, the network is reachable by URL/env but hidden from the selector. */
     hidden?: boolean
+    /** True for experimental test chains. Drives disclosures that only make sense
+     *  off a production chain — e.g. Team Hub's "Data: mainnet" note, which says
+     *  the gnolove roster comes from a mainnet-backed source rather than the chain
+     *  you are on. Betanet is deliberately NOT a testnet here: `gnolove-team-hub`
+     *  e2e encodes "gnoland1 = real chain → no chip", and that product decision is
+     *  preserved. This replaces a `networkKey === "test13"` literal that silently
+     *  dropped the disclosure on topaz at the cutover. */
+    isTestnet?: boolean
     /** When false, Memba's realms are NOT deployed on this network — the app shows
      *  a notice instead of letting DAO/channel features fail with 404s. Omitted
      *  (or true) means the realms are deployed. */
@@ -129,6 +151,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     test13: {
         chainId: "test-13",
         hidden: true,
+        isTestnet: true,
         rpcUrl: import.meta.env.VITE_TEST13_RPC_URL || "https://rpc.test13.testnets.gno.land:443",
         fallbackRpcUrls: [
             "https://test13.rpc.onbloc.xyz:443",
@@ -152,6 +175,10 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         label: "Testnet 13",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "https://faucet.gno.land",
+        // Retired with the rest of test13 (host no longer resolves). Kept so an
+        // old deep link renders a dead link rather than a wrong one pointing at
+        // another chain. Env override retained.
+        explorerUrl: import.meta.env.VITE_TEST13_EXPLORER_URL || "https://test13.testnets.gno.land",
     },
     // ── Topaz (topaz-1) ──────────────────────────────────────────────────
     // The new official Gno testnet (successor to test13). Memba's core realm
@@ -162,6 +189,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // the commerce-v2 ceremony.
     topaz: {
         chainId: "topaz-1",
+        isTestnet: true,
         // No monitoringChain override: gnomonitoring's registry currently
         // resolves "topaz-1" directly (verified live 2026-07-23). It briefly
         // needed an override to "topaz" (#988, 2026-07-22) — that flipped back
@@ -182,6 +210,11 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         label: "Topaz",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "https://faucet.gno.land",
+        // Live-verified 2026-07-31: 200 on `/`, `/r/sys/users` AND
+        // `/r/samcrew/memba_dao` (our own realm — the check that actually
+        // proves it is the right chain's gnoweb). NOT `topaz-1.…`, which is
+        // what the old chainId-derived construction produced and does not exist.
+        explorerUrl: import.meta.env.VITE_TOPAZ_EXPLORER_URL || "https://topaz.testnets.gno.land",
     },
     gnoland1: {
         chainId: "gnoland1",
@@ -194,6 +227,13 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         label: "Betanet (gnoland1)",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "",
+        // Live-verified 2026-07-31: serves `<meta name="chainid" content="gnoland1">`,
+        // i.e. this really is Betanet's gnoweb. Both previous values were wrong in
+        // different directions — `getExplorerBaseUrl` returned `betanet.gno.land`
+        // (does not resolve) and `lib/gnoweb` returned `gno.land` (MAINNET, which
+        // answers 200 for shared paths like `/u/<name>` and would show a different
+        // chain's data with no visible failure).
+        explorerUrl: "https://betanet.testnets.gno.land",
     },
 }
 
@@ -454,13 +494,22 @@ export const GNO_FAUCET_URL = NETWORKS[_activeNetwork]?.faucetUrl || ""
 
 /** Explorer base URL for the active network (for user profile links, realm links, etc). */
 export function getExplorerBaseUrl(): string {
-    const chain = NETWORKS[_activeNetwork]?.chainId || "test-13"
-    switch (chain) {
-        case "gnoland1": return "https://betanet.gno.land"
-        // Official test13 gnoweb (verified live). Env override stays available.
-        case "test-13": return import.meta.env.VITE_TEST13_EXPLORER_URL || "https://test13.testnets.gno.land"
-        default: return `https://${chain}.testnets.gno.land`
-    }
+    return getExplorerBaseUrlFor(_activeNetwork)
+}
+
+/** True when the given network KEY is an experimental test chain. Unknown keys
+ *  are treated as NOT a testnet — the conservative answer for a disclosure, and
+ *  it keeps a stale stored key from flipping UI on. */
+export function isTestnetNetwork(networkKey: string): boolean {
+    return NETWORKS[networkKey]?.isTestnet === true
+}
+
+/** Explorer base URL for an explicit network KEY (not a chain id). Falls back to
+ *  the default network so an unknown key can never yield `undefined` in a
+ *  template literal — the failure mode that produced `https://undefined/r/...`
+ *  links. */
+export function getExplorerBaseUrlFor(networkKey: string): string {
+    return NETWORKS[networkKey]?.explorerUrl || NETWORKS[DEFAULT_NETWORK].explorerUrl
 }
 
 /** GraphQL endpoint the frontend POSTs indexer queries to. The browser cannot

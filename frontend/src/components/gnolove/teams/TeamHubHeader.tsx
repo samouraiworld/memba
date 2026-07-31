@@ -7,8 +7,13 @@
  *     `config/teams.yaml` mtime on the backend, NOT the data sync clock
  *     used by metrics / activity / repos (those refresh on their own
  *     cadence and aren't surfaced here).
- *   - "Roster updated: <relative>" tells the user when the team config was
- *     last deployed.
+ *   - "Data: mainnet" discloses that the roster and its metrics come from
+ *     gnolove's mainnet-backed source, not from the chain the app is pointed
+ *     at — a discrepancy worth surfacing on a test chain, which is why
+ *     `gnolove-team-hub` e2e asserts it is absent on gnoland1 ("real chain")
+ *     and present on test13. It was gated on the `test13` KEY, so the topaz
+ *     cutover silently dropped it; it now keys off `NETWORKS[...].isTestnet`,
+ *     which covers topaz and any future test chain without another literal.
  *
  * @module components/gnolove/teams/TeamHubHeader
  */
@@ -24,6 +29,7 @@ import {
 } from "../../../lib/gnolovePeriod"
 import { formatRelativeTime } from "../../../lib/gnoloveTime"
 import { useNetworkKey } from "../../../hooks/useNetworkNav"
+import { isTestnetNetwork } from "../../../lib/config"
 
 interface Props {
     team: Team
@@ -50,7 +56,7 @@ export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, back
                     >
                         Roster updated: {formatRelativeTime(lastSyncedAt, nowMs)}
                     </span>
-                    {networkKey === "test13" && (
+                    {isTestnetNetwork(networkKey) && (
                         <span className="gl-thub-chip gl-thub-chip-network" role="note">
                             Data: mainnet
                         </span>
