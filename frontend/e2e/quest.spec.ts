@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { MOBILE_375, expectNoMobileOverflow } from './helpers/overflow'
 
 /**
  * Quest Hub E2E — verifies quest widget on profile page.
@@ -38,9 +39,11 @@ test.describe('Quest Hub — Profile Page', () => {
 
 test.describe('Quest Hub — Mobile', () => {
     test('quest hub at 375px — no horizontal scroll', async ({ page }) => {
-        await page.setViewportSize({ width: 375, height: 667 })
+        await page.setViewportSize(MOBILE_375)
         await page.goto('/profile/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5')
-        const bodyWidth = await page.evaluate(() => document.body.scrollWidth)
-        expect(bodyWidth).toBeLessThanOrEqual(380)
+        // This spec is about the quest hub, so anchor on the hub itself rather
+        // than the page — otherwise it measures the profile shell without it.
+        await expect(page.getByTestId('quest-hub')).toBeVisible()
+        await expectNoMobileOverflow(page)
     })
 })

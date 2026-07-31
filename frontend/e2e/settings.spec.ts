@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { MOBILE_375, expectNoMobileOverflow } from './helpers/overflow'
 
 /**
  * Settings E2E — verifies settings page structure, collapsible sections,
@@ -43,9 +44,9 @@ test.describe('Settings Page', () => {
     })
 
     test('settings at 375px — no overflow', async ({ page }) => {
-        await page.setViewportSize({ width: 375, height: 667 })
+        await page.setViewportSize(MOBILE_375)
         await page.goto('/settings')
-        const bodyWidth = await page.evaluate(() => document.body.scrollWidth)
-        expect(bodyWidth).toBeLessThanOrEqual(380)
+        await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
+        await expectNoMobileOverflow(page)
     })
 })

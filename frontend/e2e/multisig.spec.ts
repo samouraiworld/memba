@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { MOBILE_375, expectNoMobileOverflow } from './helpers/overflow'
 
 /**
  * Multisig E2E — verifies multisig creation, import, and view pages.
@@ -29,10 +30,12 @@ test.describe('Create Multisig Page', () => {
     })
 
     test('mobile: create page at 375px — no overflow', async ({ page }) => {
-        await page.setViewportSize({ width: 375, height: 667 })
+        await page.setViewportSize(MOBILE_375)
         await page.goto('/create')
-        const bodyWidth = await page.evaluate(() => document.body.scrollWidth)
-        expect(bodyWidth).toBeLessThanOrEqual(380)
+        // Wait for the form itself — this route measured 0 chars of body text
+        // immediately after goto(), i.e. a completely blank page.
+        await expect(page.locator('input[placeholder*="our-super-cool-dao"]')).toBeVisible()
+        await expectNoMobileOverflow(page)
     })
 })
 

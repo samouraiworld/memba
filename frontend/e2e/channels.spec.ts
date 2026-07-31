@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { MOBILE_375, expectNoMobileOverflow } from './helpers/overflow'
 
 /**
  * Channels page E2E tests — verify the standalone channels route
@@ -64,10 +65,13 @@ test.describe('Channels — Navigation', () => {
 
 test.describe('Channels — Mobile', () => {
     test('renders at mobile viewport', async ({ page }) => {
-        await page.setViewportSize({ width: 375, height: 667 })
+        await page.setViewportSize(MOBILE_375)
         await page.goto('/dao/gno.land~r~gov~dao/channels')
-        // Should not have horizontal overflow
-        const bodyWidth = await page.evaluate(() => document.documentElement.scrollWidth)
-        expect(bodyWidth).toBeLessThanOrEqual(420)
+        // `.channels-header` exists ONLY in the settled branches — the loading
+        // branch renders `.channels-shimmer-header` instead — so this waits out
+        // the board resolve rather than measuring the skeleton. Generous budget:
+        // it is a live read (~2.5s locally) and the page has no offline fixture.
+        await expect(page.locator('.channels-header')).toBeVisible({ timeout: 20_000 })
+        await expectNoMobileOverflow(page)
     })
 })
