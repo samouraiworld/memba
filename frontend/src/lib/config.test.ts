@@ -561,23 +561,41 @@ describe('topaz commerce-v2 allowlist — funds-free realms only', () => {
         }
         const fundsFreeButCoupled: Record<string, string> = {
             nftCollectionV2: NFT_COLLECTION_PATH,
-        }
-        for (const [name, path] of Object.entries({ ...custodyFunds, ...fundsFreeButCoupled })) {
-            expect(isRealmValidOn('topaz', path), `${name} (${path}) must stay gated on topaz`).toBe(false)
-            // TWO-WAY ANCHOR. `isRealmValidOn` returns false for ANY string that is
-            // not listed, so a topaz-only assertion passes just as happily on a
-            // TYPO'D path — it would be asserting "this string is unknown", not
-            // "this realm is gated", and could never detect the real path being
-            // added to topaz. Requiring the same literal to be VALID on test13
-            // makes a typo fail loudly. (Verified: typo'ing one without this line
-            // leaves the whole suite green.)
-            expect(isRealmValidOn('test13', path), `${name} (${path}) — typo guard: must be a real, test13-listed path`).toBe(true)
+            // Same measurement as nftCollectionV2 (zero fund primitives); held for
+            // the same reason. It is the one path listed on NEITHER network, so
+            // the test13 anchor below cannot cover it — the shape guard does.
+            marketConfig: MEMBA_MARKET_CONFIG_PATH,
         }
 
-        // memba_market_config is listed on NEITHER network, so no test13 anchor is
-        // available; the imported constant is the typo guard instead — TypeScript
-        // rejects a misspelled import, which a bare string literal would not.
-        expect(isRealmValidOn('topaz', MEMBA_MARKET_CONFIG_PATH), 'marketConfig must stay gated on topaz').toBe(false)
+        for (const [name, path] of Object.entries({ ...custodyFunds, ...fundsFreeButCoupled })) {
+            // SHAPE GUARD, checked FIRST. Catches a mistyped CONSTANT name, which a
+            // dynamic `await import()` destructure yields as `undefined` rather
+            // than an error — and `isRealmValidOn(x, undefined)` quietly returns
+            // false, turning the gating assertion green for the wrong reason.
+            // An earlier version of this comment claimed TypeScript would catch
+            // that. It does not: `tsconfig.app.json` excludes `src/**/*.test.ts`,
+            // so `npm run build` never typechecks this file at all.
+            expect(path, `${name}: must be a real realm path, not undefined`).toMatch(/^gno\.land\/r\/samcrew\/[a-z0-9_]+$/)
+            expect(isRealmValidOn('topaz', path), `${name} (${path}) must stay gated on topaz`).toBe(false)
+        }
+
+        // TWO-WAY ANCHOR for every path test13 lists. `isRealmValidOn` returns
+        // false for ANY string that is not listed, so a topaz-only assertion
+        // passes just as happily on a TYPO'D literal — it would be asserting
+        // "this string is unknown", not "this realm is gated", and could never
+        // detect the real path being added to topaz. Requiring the same literal to
+        // be VALID on test13 makes a typo fail loudly. (Verified: without this,
+        // typo'ing a path leaves the whole suite green.)
+        //
+        // ⚠️ This borrows a guarantee from a RETIRED chain. If a path is removed
+        // from REALM_ALLOWLIST.test13 — `config.ts` instructs exactly that for
+        // memba_nft_market_v3_1 once its escrow drains — this reds with a message
+        // that is then misleading (the path is real; only test13's bookkeeping
+        // changed). Update this list rather than deleting the assertion; the shape
+        // guard above does NOT catch a typo'd literal, only an undefined constant.
+        for (const [name, path] of Object.entries({ ...custodyFunds, nftCollectionV2: NFT_COLLECTION_PATH })) {
+            expect(isRealmValidOn('test13', path), `${name} (${path}) — typo guard: must be a real, test13-listed path`).toBe(true)
+        }
     })
 
     it('leaves the commerce PREDICATES false on topaz', async () => {

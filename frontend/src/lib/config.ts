@@ -484,6 +484,10 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // v3.1 stays allowlisted through the wind-down: it is PAUSED (no new trades)
         // but 2 open offers hold escrow — value-exits (CancelOffer/ClaimExpiredOffer)
         // must remain callable. Remove once its escrow drains to zero.
+        // ⚠️ When you do: `config.test.ts`'s held-back block anchors the topaz
+        // gating assertions on "this path is valid on test13", so dropping this
+        // entry reds that test with a message about a typo. Remove the path from
+        // that test's anchor loop in the same commit — do not delete the anchor.
         "gno.land/r/samcrew/memba_nft_market_v3_1",
         // The ACTIVE engine since the 2026-07-10 ceremony (deployed, registered,
         // salesLog seeded from v3.1 and SEALED; solvency getters live).
