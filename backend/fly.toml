@@ -26,12 +26,27 @@ primary_region = 'cdg'
   # (service.go) splits it into a set; ValidateToken 401s any token whose chain
   # isn't listed. Topaz cutover PHASE B (2026-07-26) kept 'test-13' here so
   # already-issued test-13 tokens stayed valid until expiry.
-  # PHASE C (2026-07-31): dropped. Tokens live DefaultTokenDuration = 24h
-  # (auth/crypto.go, applied at auth_rpc.go MakeToken) and the frontend stopped
-  # issuing test-13 tokens at the cutover on 2026-07-26, so the last possible
-  # one expired 2026-07-27 — four days of margin before this landed. Narrowing
-  # this set is also what keeps a token minted for one chain from being replayed
-  # against another.
+  #
+  # PHASE C (2026-07-31): dropped. Note what this does and does NOT mean.
+  # test-13 tokens are STILL MINTABLE today: test13 is hidden in NETWORKS but
+  # deliberately still resolvable (deep links + stored `memba_network`), and
+  # MakeToken takes the chain id from the CLIENT (auth/crypto.go ~302,
+  # `effectiveChainID := info.ChainId`) — it never consults this list. So a
+  # returning pre-cutover visitor still on /test13/ authenticates fine and then
+  # 401s on every call ("token issued for a different chain", crypto.go ~507)
+  # until they switch to Topaz. It does NOT self-heal: useAuth only clears a
+  # token on natural expiry, and there is no global 401 interceptor.
+  #
+  # Accepted because test13's chain is dead (RPCs refuse connections),
+  # ChainHaltedBanner fires globally for it and its "switch to Topaz" works, and
+  # the identical failure ALREADY ships for gnoland1 — which is not hidden and
+  # whose tokens this list has been rejecting all along. This widens that set
+  # from {gnoland1} to {gnoland1, test-13}; it does not create the failure mode.
+  # The real fix is to validate the chain id at MINT time — see the follow-up.
+  #
+  # Watch after deploying: `auth: token chain mismatch` with
+  # token_chain_id=test-13. There is no metric for validation rejects
+  # (AuthLoginTotal counts mint attempts only), so logs are the only signal.
   MEMBA_ACCEPTED_CHAIN_IDS = 'topaz-1'
   GNO_RPC_URL = 'https://rpc.topaz.samourai.live:443'
   # NFT indexer — DISABLED for the topaz cutover (2026-07-26): the NFT realms
