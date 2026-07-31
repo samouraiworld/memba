@@ -158,22 +158,28 @@ describe('NFT v3 market gating (gate the page on the engine it trades)', () => {
         expect(isRealmValidOn('test13', NFT_MARKETPLACE_PATH)).toBe(true)
     })
 
-    it('isNftMarketV3Valid() is false on the active (topaz) network until the commerce ceremony', () => {
-        // Post-cutover the default active network is topaz, where the commerce
-        // realms (incl. memba_nft_market_v3_2) are NOT yet deployed — the
-        // allowlist self-gates the trade surface. Flips true after the topaz
-        // commerce ceremony (P1-0).
-        expect(isNftMarketV3Valid()).toBe(false)
+    it('isNftMarketV3Valid() is TRUE on topaz — the commerce ceremony has landed', () => {
+        // Was "false … until the commerce ceremony". That ceremony ran on
+        // 2026-07-31 and this PR allowlists memba_nft_market_v3_2 on topaz, so the
+        // trade surface is no longer self-gated by the allowlist. What still keeps
+        // it dark in prod is VITE_ENABLE_NFT, which every trade page ANDs with
+        // this predicate — and which is NO LONGER a SAFETY_GATED_FLAG (removed
+        // 2026-06-27), so it is now the ONLY remaining gate.
+        expect(isNftMarketV3Valid()).toBe(true)
     })
 
     it('v2 and v3 are distinct predicates (the bug was gating v3 trading on the v2 predicate)', () => {
-        // Both remain allowlisted on (retired) test13; on active topaz both gate
-        // off until the commerce ceremony. They stay separate functions keyed off
-        // distinct paths — the v3-trading page must never depend on the v2 predicate.
-        expect(isNftMarketValid()).toBe(false)
-        expect(isNftMarketV3Valid()).toBe(false)
+        // They stay separate functions keyed off distinct paths — the v3-trading
+        // page must never depend on the v2 predicate. Both are now allowlisted on
+        // topaz as well as test13, so assert the SEPARATION structurally rather
+        // than via two coincidentally-equal booleans.
+        expect(isNftMarketValid()).toBe(true)
+        expect(isNftMarketV3Valid()).toBe(true)
+        expect(NFT_MARKETPLACE_PATH).not.toBe(NFT_MARKETPLACE_V3_PATH)
         expect(isRealmValidOn('test13', NFT_MARKETPLACE_PATH)).toBe(true)
         expect(isRealmValidOn('test13', NFT_MARKETPLACE_V3_PATH)).toBe(true)
+        // Falsifiable both ways: an unlisted path must still gate on topaz.
+        expect(isRealmValidOn('topaz', 'gno.land/r/samcrew/nft_market')).toBe(false)
     })
 })
 
@@ -539,33 +545,18 @@ describe('topaz commerce-v2 allowlist — funds-free realms only', () => {
 
     it('keeps every HELD-BACK commerce realm gated on topaz', async () => {
         const { isRealmValidOn, MEMBA_DAO } = await import('./config')
-        const { NFT_MARKETPLACE_V3_PATH, NFT_COLLECTION_PATH, MEMBA_MARKET_CONFIG_PATH } = await import('./nftConfig')
-        // Held back for TWO different reasons — do not conflate them:
-        //   custodyFunds        — `unsafe.OriginSend()` in, `SendCoins` out in the
-        //                         realm source. escrow_v3 + memba_token_otc_v2 are
-        //                         additionally blocked on the unverified "old
-        //                         realms paused + reconciliation-drained" ceremony
-        //                         precondition.
-        //   fundsFreeButCoupled — measurably ZERO fund primitives; held only
-        //                         because the NFT stack must move as ONE unit
-        //                         (listing them alone gives a half-wired launchpad).
+        const { MEMBA_MARKET_CONFIG_PATH } = await import('./nftConfig')
+        // After PR C the NFT stack is listed, so the only realms still held back
+        // are escrow_v3 and memba_token_otc_v2 — blocked on the unverified "old
+        // realms paused + reconciliation-drained" ceremony precondition, which the
+        // deployer does not check. `fundsFreeButCoupled` is intentionally empty
+        // now; it is kept so the next held-back path lands in a labelled bucket
+        // rather than being conflated with the fund-custody ones.
         const custodyFunds: Record<string, string> = {
             escrow: MEMBA_DAO.escrowPath,
             tokenOtc: MEMBA_DAO.tokenOtcPath,
-            nftMarketV2: MEMBA_DAO.nftMarketPath,
-            nftMarketV3_2: NFT_MARKETPLACE_V3_PATH,
-            nftCollections: MEMBA_DAO.nftCollectionsPath,
-            // No exported constant for v3_1 (wind-down only), so this stays a
-            // literal — the test13 anchor below is what makes a typo in it fail.
-            nftMarketV3_1: 'gno.land/r/samcrew/memba_nft_market_v3_1',
         }
-        const fundsFreeButCoupled: Record<string, string> = {
-            nftCollectionV2: NFT_COLLECTION_PATH,
-            // Same measurement as nftCollectionV2 (zero fund primitives); held for
-            // the same reason. It is the one path listed on NEITHER network, so
-            // the test13 anchor below cannot cover it — the shape guard does.
-            marketConfig: MEMBA_MARKET_CONFIG_PATH,
-        }
+        const fundsFreeButCoupled: Record<string, string> = {}
 
         // The ONE held-back path that test13 does not list, single-sourced so the
         // exclusion is stated exactly once. Everything else gets BOTH guards by
@@ -616,12 +607,14 @@ describe('topaz commerce-v2 allowlist — funds-free realms only', () => {
         const cfg = await import('./config')
         expect(cfg.isEscrowValid()).toBe(false)
         expect(cfg.isTokenOtcValid()).toBe(false)
-        expect(cfg.isNftMarketValid()).toBe(false)
-        expect(cfg.isNftMarketV3Valid()).toBe(false)
-        expect(cfg.isNftLaunchpadValid()).toBe(false)
-        // …and the two this PR intentionally opens.
+
+        // …and the ones intentionally opened.
         expect(cfg.isTokenFactoryValid()).toBe(true)
         expect(cfg.isFeedbackValid()).toBe(true)
+        // PR C: the whole NFT stack de-gated together.
+        expect(cfg.isNftMarketValid()).toBe(true)
+        expect(cfg.isNftMarketV3Valid()).toBe(true)
+        expect(cfg.isNftLaunchpadValid()).toBe(true)
         vi.unstubAllEnvs()
         vi.resetModules()
     })

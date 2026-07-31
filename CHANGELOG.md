@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### The NFT marketplace and launchpad are now available on Topaz (2026-07-31)
+<!-- categories: memba -->
+- **The NFT collections registry, the launchpad and the trading engine work on Topaz.** All of them went live on Topaz in the 31 July deployment and the app now recognises them there, as one set — enabling only part of it would leave collections you could create but not trade, or a trading screen with no fee settings behind it.
+- These contracts hold your funds while an offer or sale is in progress. Whether the NFT screens are visible at all is still controlled separately by the NFT feature setting.
+
+
 ### Token Factory and Feedback are now available on Topaz (2026-07-31)
 <!-- categories: memba -->
 - **The Token Factory and the Feedback board work on Topaz.** Both contracts went live on Topaz in the 31 July deployment, and the app now recognises them there instead of treating them as missing. The GnoBuilders badges contract is recognised too.
