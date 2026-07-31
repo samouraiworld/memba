@@ -10,7 +10,7 @@
 
 import { describe, it, expect } from "vitest"
 import { render, screen } from "@testing-library/react"
-import { MemoryRouter } from "react-router-dom"
+import { MemoryRouter, Routes, Route } from "react-router-dom"
 import { TeamHubHeader } from "./TeamHubHeader"
 import { TeamHubMetricsGrid } from "./TeamHubMetricsGrid"
 import { TeamHubActiveReposCard } from "./TeamHubActiveReposCard"
@@ -147,16 +147,27 @@ describe('TeamHubHeader "Data: mainnet" disclosure', () => {
         expect(screen.getByText("Data: mainnet")).toBeInTheDocument()
     })
 
-    it("still renders on a test13 deep link", () => {
+    // A bare <MemoryRouter initialEntries={["/test13/..."]}> does NOT bind a
+    // :network param — with no matching <Route>, useParams() returns {} and the
+    // old condition read DEFAULT_NETWORK, making this indistinguishable from the
+    // case above. The <Routes> wrapper is what actually puts "test13" in params.
+    it("still renders on a real test13 deep link, where the old condition was TRUE", () => {
         render(
             <MemoryRouter initialEntries={["/test13/gnolove/teams/onbloc"]}>
-                <TeamHubHeader
-                    team={team}
-                    period="monthly"
-                    onPeriodChange={() => {}}
-                    lastSyncedAt="2026-05-19T10:00:00Z"
-                    backToTeamsHref="/test13/gnolove/teams"
-                />
+                <Routes>
+                    <Route
+                        path="/:network/gnolove/teams/:slug"
+                        element={
+                            <TeamHubHeader
+                                team={team}
+                                period="monthly"
+                                onPeriodChange={() => {}}
+                                lastSyncedAt="2026-05-19T10:00:00Z"
+                                backToTeamsHref="/test13/gnolove/teams"
+                            />
+                        }
+                    />
+                </Routes>
             </MemoryRouter>,
         )
         expect(screen.getByText("Data: mainnet")).toBeInTheDocument()
