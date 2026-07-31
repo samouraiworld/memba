@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Services escrow and the token OTC desk are now available on Topaz (2026-07-31)
+<!-- categories: memba -->
+- **The Services lane and the token OTC desk work on Topaz.** Both contracts went live on Topaz in the 31 July deployment and the app now recognises them there. These are the first Topaz features that hold your funds while a deal is in progress, so they were enabled separately from the rest, and only after confirming that the older versions of these contracts had been paused and emptied first.
+- The NFT marketplace and launchpad remain unavailable on Topaz for now.
+
+
 ### Token Factory and Feedback are now available on Topaz (2026-07-31)
 <!-- categories: memba -->
 - **The Token Factory and the Feedback board work on Topaz.** Both contracts went live on Topaz in the 31 July deployment, and the app now recognises them there instead of treating them as missing. The GnoBuilders badges contract is recognised too.

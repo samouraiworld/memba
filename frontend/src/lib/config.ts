@@ -438,10 +438,6 @@ export function areRealmsDeployed(): boolean {
  * STILL HELD BACK on topaz after the 2026-07-31 commerce-v2 ceremony — all are
  * deployed and verified live on-chain, but each CUSTODIES FUNDS (`OriginSend` in,
  * `SendCoins` out), so listing them opens a money path:
- *   - escrow_v3, memba_token_otc_v2 — blocked on an unverified ceremony
- *     precondition ("old realms paused + reconciliation-drained"). The deployer
- *     does not check it. Confirm before listing, or funds can sit in a superseded
- *     realm while the UI points at the new one.
  *   - memba_nft_v2, memba_collections, memba_market_config,
  *     memba_nft_market_v2, memba_nft_market_v3_1, memba_nft_market_v3_2 — the NFT
  *     stack. It should move as ONE unit (partial listing gives inconsistent
@@ -525,6 +521,20 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // topaz. Listed so the allowlist stays a truthful record of what is
         // deployed, and so adding a guard later cannot silently gate it off.
         "gno.land/r/samcrew/gnobuilders_badges_v2",
+        // ── 🔴 FUND-CUSTODY — de-gates the escrow and OTC money paths ─────────
+        // Both take user funds in (`unsafe.OriginSend()`) and pay out
+        // (`SendCoins`): escrow_v3 has 5 bankers / 20 OriginSend / 14 SendCoins,
+        // memba_token_otc_v2 has 1 / 15 / 2. Listing them turns isEscrowValid()
+        // and isTokenOtcValid() true, which opens the Services and Tokens
+        // marketplace lanes on Topaz.
+        //
+        // ⚠️ REQUIRES the ceremony precondition to be CONFIRMED first — Phase B
+        // printed "PRECONDITION: old realms paused + reconciliation-drained per
+        // the ceremony" and the deployer does NOT check it. If the superseded
+        // realms still hold balances, funds sit in a realm the UI no longer points
+        // at. This is a founder confirmation, not a code check.
+        "gno.land/r/samcrew/escrow_v3",
+        "gno.land/r/samcrew/memba_token_otc_v2",
     ],
 }
 
