@@ -126,13 +126,11 @@ describe("Skeleton fidelity (P1 — Plan §7)", () => {
 })
 
 describe('TeamHubHeader "Data: mainnet" disclosure', () => {
-    // This chip was rendered only when `useNetworkKey() === "test13"`. The topaz
-    // cutover therefore removed the disclosure from every user without touching
-    // it: the roster still comes from gnolove's mainnet-backed source
-    // (`useGnoloveTeams()` takes no network argument), but the app stopped
-    // saying so. It is unconditional now — assert that, on a router with no
-    // network segment at all, which is what the old condition failed on.
-    it("renders regardless of the active network", () => {
+    // The chip was gated on `useNetworkKey() === "test13"`, so the topaz cutover
+    // silently dropped the disclosure. It now keys off NETWORKS[...].isTestnet,
+    // which covers topaz. The rule it must NOT break: gnolove-team-hub e2e
+    // asserts the chip is ABSENT on gnoland1 ("real chain") — see the third case.
+    it("renders on topaz, the network the test13 literal missed", () => {
         render(
             <MemoryRouter>
                 <TeamHubHeader
@@ -151,7 +149,9 @@ describe('TeamHubHeader "Data: mainnet" disclosure', () => {
     // :network param — with no matching <Route>, useParams() returns {} and the
     // old condition read DEFAULT_NETWORK, making this indistinguishable from the
     // case above. The <Routes> wrapper is what actually puts "test13" in params.
-    it("still renders on a real test13 deep link, where the old condition was TRUE", () => {
+    // Control: passes on the OLD code too (params bind test13, so the old literal
+    // matched). Kept to prove the fix did not regress the case that already worked.
+    it("still renders on a real test13 deep link (control)", () => {
         render(
             <MemoryRouter initialEntries={["/test13/gnolove/teams/onbloc"]}>
                 <Routes>
@@ -171,5 +171,32 @@ describe('TeamHubHeader "Data: mainnet" disclosure', () => {
             </MemoryRouter>,
         )
         expect(screen.getByText("Data: mainnet")).toBeInTheDocument()
+    })
+})
+
+describe('TeamHubHeader chip stays hidden on a real chain', () => {
+    // gnolove-team-hub.spec.ts asserts `.gl-thub-chip-network` has count 0 on
+    // gnoland1. An unconditional chip would break that e2e — this is the unit
+    // guard so the contradiction is caught in seconds, not in a browser run.
+    it("does NOT render on gnoland1", () => {
+        render(
+            <MemoryRouter initialEntries={["/gnoland1/gnolove/teams/onbloc"]}>
+                <Routes>
+                    <Route
+                        path="/:network/gnolove/teams/:slug"
+                        element={
+                            <TeamHubHeader
+                                team={team}
+                                period="monthly"
+                                onPeriodChange={() => {}}
+                                lastSyncedAt="2026-05-19T10:00:00Z"
+                                backToTeamsHref="/gnoland1/gnolove/teams"
+                            />
+                        }
+                    />
+                </Routes>
+            </MemoryRouter>,
+        )
+        expect(screen.queryByText("Data: mainnet")).not.toBeInTheDocument()
     })
 })

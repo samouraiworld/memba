@@ -9,10 +9,11 @@
  *     cadence and aren't surfaced here).
  *   - "Data: mainnet" discloses that the roster and its metrics come from
  *     gnolove's mainnet-backed source, not from the chain the app is pointed
- *     at. `useGnoloveTeams()` takes no network argument, so this holds on
- *     every network and the chip is unconditional. It was gated on
- *     `networkKey === "test13"` until the Phase C sweep, which silently
- *     dropped the disclosure at the topaz cutover.
+ *     at — a discrepancy worth surfacing on a test chain, which is why
+ *     `gnolove-team-hub` e2e asserts it is absent on gnoland1 ("real chain")
+ *     and present on test13. It was gated on the `test13` KEY, so the topaz
+ *     cutover silently dropped it; it now keys off `NETWORKS[...].isTestnet`,
+ *     which covers topaz and any future test chain without another literal.
  *
  * @module components/gnolove/teams/TeamHubHeader
  */
@@ -27,6 +28,8 @@ import {
     type TeamHubPeriod,
 } from "../../../lib/gnolovePeriod"
 import { formatRelativeTime } from "../../../lib/gnoloveTime"
+import { useNetworkKey } from "../../../hooks/useNetworkNav"
+import { isTestnetNetwork } from "../../../lib/config"
 
 interface Props {
     team: Team
@@ -38,6 +41,7 @@ interface Props {
 
 export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, backToTeamsHref }: Props) {
     const [nowMs] = useState(() => Date.now())
+    const networkKey = useNetworkKey()
     const stripeColor = TEAM_CSS_COLORS[team.color]
     return (
         <header className="gl-thub-header" style={{ borderLeftColor: stripeColor }}>
@@ -52,9 +56,11 @@ export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, back
                     >
                         Roster updated: {formatRelativeTime(lastSyncedAt, nowMs)}
                     </span>
-                    <span className="gl-thub-chip gl-thub-chip-network" role="note">
-                        Data: mainnet
-                    </span>
+                    {isTestnetNetwork(networkKey) && (
+                        <span className="gl-thub-chip gl-thub-chip-network" role="note">
+                            Data: mainnet
+                        </span>
+                    )}
                 </div>
             </div>
 

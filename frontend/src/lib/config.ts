@@ -115,6 +115,14 @@ interface NetworkConfig {
     explorerUrl: string
     /** When true, the network is reachable by URL/env but hidden from the selector. */
     hidden?: boolean
+    /** True for experimental test chains. Drives disclosures that only make sense
+     *  off a production chain — e.g. Team Hub's "Data: mainnet" note, which says
+     *  the gnolove roster comes from a mainnet-backed source rather than the chain
+     *  you are on. Betanet is deliberately NOT a testnet here: `gnolove-team-hub`
+     *  e2e encodes "gnoland1 = real chain → no chip", and that product decision is
+     *  preserved. This replaces a `networkKey === "test13"` literal that silently
+     *  dropped the disclosure on topaz at the cutover. */
+    isTestnet?: boolean
     /** When false, Memba's realms are NOT deployed on this network — the app shows
      *  a notice instead of letting DAO/channel features fail with 404s. Omitted
      *  (or true) means the realms are deployed. */
@@ -143,6 +151,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     test13: {
         chainId: "test-13",
         hidden: true,
+        isTestnet: true,
         rpcUrl: import.meta.env.VITE_TEST13_RPC_URL || "https://rpc.test13.testnets.gno.land:443",
         fallbackRpcUrls: [
             "https://test13.rpc.onbloc.xyz:443",
@@ -180,6 +189,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // the commerce-v2 ceremony.
     topaz: {
         chainId: "topaz-1",
+        isTestnet: true,
         // No monitoringChain override: gnomonitoring's registry currently
         // resolves "topaz-1" directly (verified live 2026-07-23). It briefly
         // needed an override to "topaz" (#988, 2026-07-22) — that flipped back
@@ -217,14 +227,13 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         label: "Betanet (gnoland1)",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "",
-        // ⚠️ UNVERIFIED for betanet. `getExplorerBaseUrl` previously returned
-        // `https://betanet.gno.land` here, which does NOT resolve (checked
-        // 2026-07-31); `lib/gnoweb` separately used `https://gno.land` for this
-        // same network. Both cannot be right. Taking the host that at least
-        // resolves, so the two maps agree, but this points at MAINNET gnoweb —
-        // betanet realms will 404 through it. Confirm the real betanet gnoweb
-        // before relying on gnoland1 links.
-        explorerUrl: "https://gno.land",
+        // Live-verified 2026-07-31: serves `<meta name="chainid" content="gnoland1">`,
+        // i.e. this really is Betanet's gnoweb. Both previous values were wrong in
+        // different directions — `getExplorerBaseUrl` returned `betanet.gno.land`
+        // (does not resolve) and `lib/gnoweb` returned `gno.land` (MAINNET, which
+        // answers 200 for shared paths like `/u/<name>` and would show a different
+        // chain's data with no visible failure).
+        explorerUrl: "https://betanet.testnets.gno.land",
     },
 }
 
@@ -486,6 +495,13 @@ export const GNO_FAUCET_URL = NETWORKS[_activeNetwork]?.faucetUrl || ""
 /** Explorer base URL for the active network (for user profile links, realm links, etc). */
 export function getExplorerBaseUrl(): string {
     return getExplorerBaseUrlFor(_activeNetwork)
+}
+
+/** True when the given network KEY is an experimental test chain. Unknown keys
+ *  are treated as NOT a testnet — the conservative answer for a disclosure, and
+ *  it keeps a stale stored key from flipping UI on. */
+export function isTestnetNetwork(networkKey: string): boolean {
+    return NETWORKS[networkKey]?.isTestnet === true
 }
 
 /** Explorer base URL for an explicit network KEY (not a chain id). Falls back to

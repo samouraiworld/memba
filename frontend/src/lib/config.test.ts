@@ -417,7 +417,11 @@ describe('explorerUrl — the host every "view on gnoweb" link is built from', (
         // (key "topaz", chainId "topaz-1") it produced topaz-1.testnets.gno.land,
         // which does not resolve — so every explorer link in the app 404'd from
         // the cutover until 2026-07-31 and nothing failed.
+        // Only assert it where key !== chainId. Where they coincide, that host may
+        // legitimately BE the right one, and a blanket rule would fail a correct
+        // future network while claiming the correct value is wrong.
         for (const [key, cfg] of Object.entries(NETWORKS)) {
+            if (key === cfg.chainId) continue
             expect(
                 cfg.explorerUrl,
                 `${key}: explorerUrl is the chainId-derived host. That form is only ` +
@@ -426,10 +430,13 @@ describe('explorerUrl — the host every "view on gnoweb" link is built from', (
         }
     })
 
-    it('resolves the active network to a real host', async () => {
-        const { getExplorerBaseUrl, DEFAULT_NETWORK, NETWORKS } = await import('./config')
-        expect(getExplorerBaseUrl()).toBe(NETWORKS[DEFAULT_NETWORK].explorerUrl)
-        expect(getExplorerBaseUrl()).toMatch(/^https:\/\/[a-z0-9.-]+$/)
+    it('resolves the active network to the topaz gnoweb host, by value', async () => {
+        // Asserting against NETWORKS[DEFAULT_NETWORK].explorerUrl would be X === X
+        // (tests clear localStorage, so _activeNetwork IS DEFAULT_NETWORK) and would
+        // pass for any garbage value. Pin the literal instead: this is the host
+        // live-verified to serve our own realm, and the one the bug got wrong.
+        const { getExplorerBaseUrl } = await import('./config')
+        expect(getExplorerBaseUrl()).toBe('https://topaz.testnets.gno.land')
     })
 
     it('still resolves retired test13, so old deep links degrade instead of crossing chains', async () => {
@@ -441,5 +448,20 @@ describe('explorerUrl — the host every "view on gnoweb" link is built from', (
         const { getExplorerBaseUrlFor, DEFAULT_NETWORK, NETWORKS } = await import('./config')
         expect(getExplorerBaseUrlFor('no-such-network')).toBe(NETWORKS[DEFAULT_NETWORK].explorerUrl)
         expect(`${getExplorerBaseUrlFor('no-such-network')}/r/x`).not.toContain('undefined')
+    })
+})
+
+describe('isTestnetNetwork — drives the Team Hub mainnet-data disclosure', () => {
+    it('is true for the test chains and false for betanet', async () => {
+        const { isTestnetNetwork } = await import('./config')
+        expect(isTestnetNetwork('topaz')).toBe(true)
+        expect(isTestnetNetwork('test13')).toBe(true)
+        // gnolove-team-hub e2e encodes "gnoland1 = real chain -> no chip".
+        expect(isTestnetNetwork('gnoland1')).toBe(false)
+    })
+
+    it('is false for an unknown key rather than throwing', async () => {
+        const { isTestnetNetwork } = await import('./config')
+        expect(isTestnetNetwork('no-such-network')).toBe(false)
     })
 })

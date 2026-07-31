@@ -144,8 +144,12 @@ describe("getGnowebUrl", () => {
         expect(getGnowebUrl("test13")).toBe("https://test13.testnets.gno.land")
     })
 
-    it("returns URL for gnoland1", () => {
-        expect(getGnowebUrl("gnoland1")).toBe("https://gno.land")
+    it("returns betanet's own gnoweb for gnoland1 — NOT mainnet", () => {
+        // Was "https://gno.land": mainnet. It answers 200 for shared paths like
+        // /u/<name>, so a betanet link silently rendered another chain's data.
+        // betanet.testnets.gno.land serves <meta name="chainid" content="gnoland1">.
+        expect(getGnowebUrl("gnoland1")).toBe("https://betanet.testnets.gno.land")
+        expect(getGnowebUrl("gnoland1")).not.toBe("https://gno.land")
     })
 
     it("returns undefined for removed networks", () => {

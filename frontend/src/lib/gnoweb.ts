@@ -125,21 +125,39 @@ export function parseGnowebListing(html: string, gnowebBaseUrl: string, kind: "r
  * @param namespace - Namespace path (e.g., "samcrew")
  * @returns Array of deployed realm items, or empty array on error
  */
+/**
+ * ⚠️ gnoweb sends NO `Access-Control-Allow-Origin` header on any network
+ * (verified 2026-07-31 against topaz, betanet and mainnet with an explicit
+ * Origin). A browser `fetch()` here is therefore CORS-blocked — `no-cors`
+ * returns an opaque body that cannot be parsed. So the two fetchers below
+ * cannot succeed from the app today, on ANY network, and never could;
+ * `deploymentStatus: "live"` has never actually been reachable in a browser.
+ *
+ * They are kept (rather than deleted) because they work verbatim behind a
+ * same-origin proxy — the route `/api/indexer` already takes for the tx-indexer,
+ * which has the same restriction. Until such a proxy exists, every call fails.
+ * The failure paths below therefore cache their empty result: without that, each
+ * Directory tab mount re-fired two requests that can only ever fail, uncached.
+ */
 export async function fetchNamespaceRealms(gnowebBaseUrl: string, namespace: string): Promise<NamespaceItem[]> {
-    const cacheKey = `realms_${namespace}`
+    // Scope by host: the key omitted it, so a listing cached on one network was
+    // served after switching to another (sessionStorage survives NetworkSync's reload).
+    const cacheKey = `${gnowebBaseUrl}_realms_${namespace}`
     const cached = getCached<NamespaceItem[]>(cacheKey)
     if (cached) return cached
 
     try {
         const url = `${gnowebBaseUrl}/r/${namespace}`
         const response = await fetch(url, { signal: AbortSignal.timeout(10_000) })
-        if (!response.ok) return []
+        if (!response.ok) { setCache(cacheKey, []); return [] }
 
         const html = await response.text()
         const items = parseGnowebListing(html, gnowebBaseUrl, "r")
         setCache(cacheKey, items)
         return items
     } catch {
+        // Negative-cache: CORS rejection is permanent, not transient.
+        setCache(cacheKey, [])
         return []
     }
 }
@@ -149,20 +167,22 @@ export async function fetchNamespaceRealms(gnowebBaseUrl: string, namespace: str
  * Returns cached results if available (5-min TTL).
  */
 export async function fetchNamespacePackages(gnowebBaseUrl: string, namespace: string): Promise<NamespaceItem[]> {
-    const cacheKey = `packages_${namespace}`
+    const cacheKey = `${gnowebBaseUrl}_packages_${namespace}`
     const cached = getCached<NamespaceItem[]>(cacheKey)
     if (cached) return cached
 
     try {
         const url = `${gnowebBaseUrl}/p/${namespace}`
         const response = await fetch(url, { signal: AbortSignal.timeout(10_000) })
-        if (!response.ok) return []
+        if (!response.ok) { setCache(cacheKey, []); return [] }
 
         const html = await response.text()
         const items = parseGnowebListing(html, gnowebBaseUrl, "p")
         setCache(cacheKey, items)
         return items
     } catch {
+        // Negative-cache: CORS rejection is permanent, not transient.
+        setCache(cacheKey, [])
         return []
     }
 }
