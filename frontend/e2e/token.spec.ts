@@ -17,10 +17,14 @@ test.describe('Token Dashboard', () => {
     })
 })
 
-// Pinned to /test13: the factory realm is allowlist-valid there, so the real
-// form renders (statically — no chain read gates it). On the default network
-// (topaz) the page correctly shows the ComingSoonGate until the commerce
-// ceremony deploys tokenfactory_v2 — repoint these to the default route then.
+// These stay pinned to /test13, where the factory realm has long been
+// allowlist-valid so the real form renders (statically — no chain read gates it).
+// The commerce ceremony (2026-07-31) has since made tokenfactory_v2 valid on the
+// DEFAULT network too, which the last test in this block now asserts. Repointing
+// these three to the default route is worthwhile follow-up cleanup — test13 is a
+// retired chain — but it changes the redirect/document-load behaviour the mobile
+// case below carefully pins, so it is deliberately not bundled into the
+// allowlist change.
 test.describe('Create Token Page', () => {
     test('form fields present', async ({ page }) => {
         await page.goto('/test13/create-token')
@@ -66,8 +70,17 @@ test.describe('Create Token Page', () => {
         expect(bodyWidth).toBeLessThanOrEqual(380)
     })
 
-    test('default network shows the coming-soon gate until the commerce ceremony', async ({ page }) => {
+    test('the DEFAULT network renders the real factory — tokenfactory_v2 is live on topaz', async ({ page }) => {
+        // Was: "default network shows the coming-soon gate UNTIL the commerce
+        // ceremony". That ceremony ran on 2026-07-31 — tokenfactory_v2 is live on
+        // topaz-1 and now in REALM_ALLOWLIST.topaz, so isTokenFactoryValid() is
+        // true and CreateToken renders the form instead of the gate. CI caught the
+        // old assertion the moment the allowlist changed, which is the point of it.
+        //
+        // Assert the FORM, not merely the absence of the gate copy — absence alone
+        // is satisfied by a blank page or a Suspense fallback.
         await page.goto('/create-token')
-        await expect(page.locator('body')).toContainText(/isn't available on this network yet/)
+        await expect(page.locator('input[placeholder*="Token"]').first()).toBeVisible()
+        await expect(page.locator('body')).not.toContainText(/isn't available on this network yet/)
     })
 })
