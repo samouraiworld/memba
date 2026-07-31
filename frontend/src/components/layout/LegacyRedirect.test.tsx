@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from "vitest"
 import { render, screen, cleanup } from "@testing-library/react"
 import { MemoryRouter, Routes, Route, useLocation } from "react-router-dom"
 import { LegacyRedirect } from "./LegacyRedirect"
+import { RootRedirect } from "./RootRedirect"
 import { NETWORKS, DEFAULT_NETWORK, resolveStoredNetworkKey } from "../../lib/config"
 
 /**
@@ -39,6 +40,22 @@ function renderLegacy(entry: string) {
     return screen.getByTestId("landed").textContent ?? ""
 }
 
+/** The other half of the shared rule: App.tsx's `/` → `/:network/`. */
+function renderRoot() {
+    cleanup()
+    render(
+        <MemoryRouter initialEntries={["/"]}>
+            <Routes>
+                {Object.keys(NETWORKS).map(key => (
+                    <Route key={key} path={`/${key}/*`} element={<Landed />} />
+                ))}
+                <Route path="/" element={<RootRedirect />} />
+            </Routes>
+        </MemoryRouter>,
+    )
+    return screen.getByTestId("landed").textContent ?? ""
+}
+
 const networkOf = (path: string) => path.match(/^\/([^/]+)\//)?.[1]
 
 describe("LegacyRedirect — bookmarks must heal like / does", () => {
@@ -55,14 +72,25 @@ describe("LegacyRedirect — bookmarks must heal like / does", () => {
         // in config.test.ts; here the point is that the rule is SHARED, below.
     })
 
-    it("uses the SAME rule as RootRedirect for every stored value", () => {
-        // The actual invariant — one rule, not four drifting copies.
+    it("lands on the SAME network as RootRedirect for every stored value", () => {
+        // The actual invariant — ONE rule, not several drifting copies. This
+        // renders BOTH redirects and compares them to each other: the bug was
+        // that `/` and `/directory` disagreed, which no single-component test
+        // can see. (Comparing only against `resolveStoredNetworkKey` would
+        // co-drift with it — the two sides must be the two real components.)
         for (const stored of ["gnoland1", "test13", "topaz", "no-such-network"]) {
             localStorage.setItem("memba_network", stored)
-            const landed = renderLegacy("/directory")
-            expect(networkOf(landed), `stored=${stored}`).toBe(resolveStoredNetworkKey(stored))
+            const viaLegacy = networkOf(renderLegacy("/directory"))
+            const viaRoot = networkOf(renderRoot())
+            expect(viaLegacy, `stored=${stored}: / and /directory must agree`).toBe(viaRoot)
+            expect(viaLegacy, `stored=${stored}`).toBe(resolveStoredNetworkKey(stored))
             localStorage.removeItem("memba_network")
         }
+    })
+
+    it("RootRedirect itself does not restore Betanet", () => {
+        localStorage.setItem("memba_network", "gnoland1")
+        expect(networkOf(renderRoot())).not.toBe("gnoland1")
     })
 
     it("keeps a stored VISIBLE network", () => {
