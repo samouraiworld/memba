@@ -1,11 +1,9 @@
 import { useState, useEffect } from "react"
 import { SunDim, Moon } from "@phosphor-icons/react"
 import { CopyableAddress } from "../ui/CopyableAddress"
-import { validateActiveRpcDomain, VISIBLE_NETWORKS } from "../../lib/config"
+import { validateActiveRpcDomain, selectableNetworksFor } from "../../lib/config"
 import { NotificationBell } from "./NotificationBell"
 import type { Notification } from "../../lib/notifications"
-import { completeQuest, getQuestWalletAddress } from "../../lib/quests"
-import { trackNetworkVisit } from "../../lib/questVerifier"
 import { getTheme, toggleTheme, type Theme } from "../../lib/themeStore"
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -30,7 +28,7 @@ interface TopBarProps {
     network: {
         networkKey: string
         chainId: string
-        networks: Record<string, { label: string; chainId: string; rpcUrl: string }>
+        networks: Record<string, { label: string; chainId: string; rpcUrl: string; hidden?: boolean }>
         switchNetwork: (key: string) => void
     }
     isLoggingIn: boolean
@@ -83,15 +81,10 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                     <select
                         className="k-topbar-network-select"
                         value={network.networkKey}
-                        onChange={(e) => {
-                            completeQuest("switch-network")
-                            const addr = getQuestWalletAddress()
-                            if (addr) trackNetworkVisit(addr, e.target.value)
-                            network.switchNetwork(e.target.value)
-                        }}
+                        onChange={(e) => network.switchNetwork(e.target.value)}
                         title="Switch network"
                     >
-                        {Object.entries(VISIBLE_NETWORKS).map(([key, net]) => (
+                        {Object.entries(selectableNetworksFor(network.networkKey)).map(([key, net]) => (
                             <option key={key} value={key}>
                                 {net.label}
                             </option>
@@ -280,7 +273,7 @@ export function ChainMismatchBanner({
 }: {
     walletChainId: string
     membaChainId: string
-    networks: Record<string, { label: string; chainId: string; rpcUrl: string }>
+    networks: Record<string, { label: string; chainId: string; rpcUrl: string; hidden?: boolean }>
     switchMembaNetwork: (key: string) => void
     addAndSwitchWallet?: (chainId: string, chainName: string, rpcUrl: string) => Promise<boolean>
     onSwitchSuccess?: (chainName: string) => void
@@ -292,7 +285,14 @@ export function ChainMismatchBanner({
     // its KEY before treating it as a known network / calling switchMembaNetwork
     // (which takes a KEY). Looking it up as a key breaks only for test13.
     const walletKey = Object.keys(networks).find(k => networks[k].chainId === walletChainId)
-    const walletInMemba = !!walletKey
+    // Resolve against the FULL map so the banner still names the wallet's chain
+    // correctly — but only OFFER to follow it there when we still offer that
+    // network. This was the fourth surface that could put a user on Betanet, and
+    // the worst one: it renders only while a wallet is connected, i.e. exactly the
+    // cohort that hits F-29 (login succeeds on gnoland1, then every call 401s).
+    // For a hidden network the honest advice is the other branch — move the WALLET
+    // to the chain Memba is on.
+    const walletInMemba = !!walletKey && !networks[walletKey].hidden
     const membaNet = networks[Object.keys(networks).find(k => networks[k].chainId === membaChainId) || ""]
 
     const handleAddAndSwitch = async () => {

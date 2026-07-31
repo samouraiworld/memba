@@ -227,6 +227,22 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         label: "Betanet (gnoland1)",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "",
+        // Hidden from the selector, and declared realm-free (F-28/F-29).
+        // Memba deploys NOTHING to Betanet — FEATURED_DAO_REALM.gnoland1 is
+        // null — yet it was the one selectable network with no REALM_ALLOWLIST
+        // entry, and isRealmValidOn fails OPEN on a missing entry. Every
+        // commerce predicate therefore returned true here, so
+        // /gnoland1/marketplace/nfts rendered a live marketplace with a "Launch
+        // a collection" CTA on a chain with no realms (verified on production
+        // 2026-07-31). Auth fails the other way: this chain has never been in
+        // MEMBA_ACCEPTED_CHAIN_IDS, so a login succeeds and then every call
+        // 401s with no self-heal (F-29). Until both are properly fixed, do not
+        // offer it: `hidden` removes the selector path, `realmsDeployed:false`
+        // gives anyone on an old deep link the honest banner instead of a
+        // fake-live marketplace, and the allowlist entry below closes the
+        // fail-open. Deep links still RESOLVE — same treatment as test13.
+        hidden: true,
+        realmsDeployed: false,
         // Live-verified 2026-07-31: serves `<meta name="chainid" content="gnoland1">`,
         // i.e. this really is Betanet's gnoweb. Both previous values were wrong in
         // different directions — `getExplorerBaseUrl` returned `betanet.gno.land`
@@ -243,6 +259,45 @@ export const VISIBLE_NETWORKS: Record<string, NetworkConfig> = Object.fromEntrie
     Object.entries(NETWORKS).filter(([, n]) => !n.hidden),
 )
 
+/** The networks a switcher must offer while `activeKey` is active — always
+ *  including the ACTIVE one, even when it is hidden.
+ *
+ *  A hidden network stays reachable by explicit URL, but a <select> whose only
+ *  option is a DIFFERENT network cannot fire onChange — the control would display
+ *  the wrong network and switching away would be impossible. Prepending the active
+ *  network keeps the escape hatch open, and it is this — not the storage self-heal
+ *  — that guarantees a hidden network is always leavable (see
+ *  `resolveDefaultNetwork`, where the heal can legitimately be inert).
+ *
+ *  Lives here, not in a component: it was duplicated verbatim in TopBar and
+ *  MobileTabBar, and drifting copies of exactly this rule are what produced F-28. */
+export function selectableNetworksFor(activeKey: string): Record<string, NetworkConfig> {
+    return NETWORKS[activeKey] && !VISIBLE_NETWORKS[activeKey]
+        ? { [activeKey]: NETWORKS[activeKey], ...VISIBLE_NETWORKS }
+        : VISIBLE_NETWORKS
+}
+
+/** The same rule for a control keyed by CHAIN ID rather than network key —
+ *  options for a <select> whose current value is `currentChainId`.
+ *
+ *  Stored chain ids outlive the network list: a webhook saved against a chain we
+ *  later hid (Betanet) or retired has no option in VISIBLE_NETWORKS, and a
+ *  <select> whose value matches no option renders BLANK with selectedIndex -1
+ *  while state keeps — and resubmits — the old value. The user cannot see what it
+ *  is scoped to, nor change it. So the current value always gets an option,
+ *  labelled honestly. */
+export function selectableChainIdOptions(currentChainId: string): { value: string; label: string }[] {
+    const options = Object.values(VISIBLE_NETWORKS).map(net => ({ value: net.chainId, label: net.label }))
+    if (currentChainId && !options.some(o => o.value === currentChainId)) {
+        const known = Object.values(NETWORKS).find(n => n.chainId === currentChainId)
+        options.unshift({
+            value: currentChainId,
+            label: known ? `${known.label} — no longer offered` : `${currentChainId} — unrecognised chain`,
+        })
+    }
+    return options
+}
+
 /**
  * Resolves the default network key from VITE_GNO_CHAIN_ID, validated against
  * NETWORKS. A stale/removed env value (e.g. a retired "test12" left in a Netlify
@@ -251,6 +306,21 @@ export const VISIBLE_NETWORKS: Record<string, NetworkConfig> = Object.fromEntrie
  * bad key (/test12/test12/…) until the browser throttles replaceState and the app
  * crashes — hit on mobile / private browsing, where localStorage holds no valid
  * network to override it. Exported for tests.
+ *
+ * Membership in NETWORKS is the ONLY requirement — a `hidden` network is a valid
+ * default and is deliberately allowed through. Pinning one is how the pinned-flag
+ * e2e servers work: root `.env.e2e` sets `VITE_GNO_CHAIN_ID=test13`, and
+ * `marketplace-gating.spec.ts` (:5174) depends on landing there, because its
+ * live-vs-gated lane expectations are built on test13's REALM_ALLOWLIST — on
+ * topaz neither `memba_nft_market_v3_2` nor `escrow_v3` is allowlisted, so both
+ * "live" lanes would gate and the spec's default landing lane would vanish.
+ *
+ * Consequence, stated plainly: in such a build DEFAULT_NETWORK is hidden, so
+ * `resolveStoredNetworkKey` below heals one hidden network to another and layer 1
+ * is inert. That is SAFE and is not what prevents stranding — `selectableNetworksFor`
+ * is. It always prepends the ACTIVE network to the switcher, so a hidden active
+ * network still has an option and can still be left. Do not add a `!hidden` check
+ * here without moving that e2e contract first.
  */
 export function resolveDefaultNetwork(envKey: string | undefined): string {
     return envKey && NETWORKS[envKey] ? envKey : "topaz"
@@ -263,6 +333,46 @@ export const DEFAULT_NETWORK = resolveDefaultNetwork(import.meta.env.VITE_GNO_CH
  *  WARNING: shared.ts and profile.ts compute USER_REGISTRY at module load time.
  *  useNetwork.ts MUST call window.location.reload() on network switch to re-initialize.
  */
+/** Resolve a STORED network selection, self-healing away from hidden networks.
+ *
+ *  A stored key must also be VISIBLE. Hidden networks stay resolvable by
+ *  explicit URL (deep links keep working) but must never be restored from
+ *  localStorage, because a hidden network has no option in the switcher — and
+ *  when only one network is visible, a single-option <select> cannot fire
+ *  `onChange` at all. A user whose stored key was hidden would be pinned to it
+ *  with no in-app way out, on this visit and every future one.
+ *
+ *  PRECISELY what this guarantees: the stored key itself is never restored when
+ *  it is hidden. It does NOT guarantee a visible result — the fallback is
+ *  DEFAULT_NETWORK, which is visible in every shipped build (prod, deploy
+ *  previews, CI) but is deliberately HIDDEN on the pinned-flag e2e servers, where
+ *  `.env.e2e` sets test13. See `resolveDefaultNetwork` for why that stays. The
+ *  guarantee that nobody is stranded comes from `selectableNetworksFor`, which
+ *  always offers the active network; this heal is defence in depth on top of it.
+ *
+ *  Used by the NAVIGATION resolvers (`useNetwork`, `RootRedirect`,
+ *  `LegacyRedirect`) only — NOT by `getActiveNetworkKey` below, which must honour
+ *  a stored hidden key so deep links initialise on the right network. See that
+ *  function's comment. */
+export function resolveStoredNetworkKey(stored: string | null | undefined): string {
+    if (stored && NETWORKS[stored] && !NETWORKS[stored].hidden) return stored
+    return DEFAULT_NETWORK
+}
+
+/** Module-load active network. Deliberately does NOT self-heal away from a
+ *  hidden network — unlike the navigation resolvers.
+ *
+ *  This value initialises every RPC/realm constant in this file BEFORE the
+ *  router mounts, so it is the only signal a deep link has. Self-healing it
+ *  broke `/test13/*` visits: config would initialise on topaz while the URL said
+ *  test13, so NetworkSync reloaded and the realm-gated UI rendered the wrong
+ *  network's state (it took out the CreateToken e2e specs).
+ *
+ *  Stranding is prevented elsewhere and does not need this: RootRedirect no
+ *  longer restores a hidden key, so `/` goes to the default; the switcher always
+ *  lists the ACTIVE network, so you can leave one you reached by URL; and
+ *  NetworkSync writes the URL network to storage, so the one-time bounce
+ *  through a hidden network converges after a single reload. */
 function getActiveNetworkKey(): string {
     try {
         const stored = localStorage.getItem("memba_network")
@@ -293,7 +403,15 @@ export function getUserRegistryPath(): string {
  * official and reachable (e.g. test13) while Memba's own contracts are not yet
  * deployed there — in that case DAO/channel features would 404. Returns false
  * only when the network explicitly sets `realmsDeployed: false`; unknown
- * networks default to true (don't gate the UI on a typo'd key).
+ * networks default to true (don't gate the whole UI on a typo'd key).
+ *
+ * NOTE the deliberate asymmetry with `isRealmValidOn` below, which fails CLOSED
+ * on an unknown network. This one is a coarse banner signal, not a gate: it
+ * decides whether to show "realms not deployed here", and defaulting it closed
+ * would put that banner on every network we forgot to enumerate. The per-realm
+ * predicate is the one that gates fund-custody UI, and that is the one that must
+ * fail closed. Betanet is covered by BOTH (`realmsDeployed: false` + an explicit
+ * empty allowlist) — it does not rely on either default.
  */
 export function networkHasRealms(networkKey: string): boolean {
     return NETWORKS[networkKey]?.realmsDeployed !== false
@@ -310,10 +428,18 @@ export function areRealmsDeployed(): boolean {
  * deployed & valid (interrealm-v2) while others are stale v1 packages the v2 VM
  * can't evaluate (calls throw "unexpected node …:0:0") or simply absent. List
  * here ONLY the realms confirmed callable on that network; a network with no
- * entry = all realms assumed valid (gnoland1). When a realm is
+ * entry gates EVERYTHING (fail closed — see isRealmValidOn). When a realm is
  * (re)deployed to a new valid path, add that path here.
+ *
+ * ⚠️ Adding a path here DE-GATES that lane on that network — `isRealmValidOn` is
+ * the only gate most of them have. This is not bookkeeping: only add a path once
+ * the realm is verified live on the chain.
  */
 const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
+    // Betanet: Memba deploys nothing here. An EXPLICIT empty list, not an
+    // absent key — absent means "no allowlist", which isRealmValidOn used to
+    // read as "everything is valid" (F-28).
+    gnoland1: [],
     test13: [
         "gno.land/r/samcrew/memba_dao",
         "gno.land/r/samcrew/memba_dao_candidature_v2", // paused; kept so the 2 legacy applicants can still Withdraw
@@ -372,11 +498,19 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
 
 /**
  * Is a realm callable on the given network? Networks without an allowlist entry
- * default to true (don't gate gnoland1).
+ * gate everything — this fails CLOSED (see the body for why).
  */
 export function isRealmValidOn(networkKey: string, realmPath: string): boolean {
     const allow = REALM_ALLOWLIST[networkKey]
-    return !allow || allow.includes(realmPath)
+    // FAIL CLOSED. This read `!allow || allow.includes(...)`, so a network with
+    // no allowlist entry declared EVERY realm valid — and since these
+    // predicates gate the commerce lanes (escrow, OTC, NFT market, token
+    // factory), forgetting an entry silently un-gated fund-custody UI on that
+    // network. That is exactly what happened to Betanet. An unknown network is
+    // now treated as "we have deployed nothing there", which is the true
+    // statement for any network we have not explicitly provisioned.
+    if (!allow) return false
+    return allow.includes(realmPath)
 }
 
 /**

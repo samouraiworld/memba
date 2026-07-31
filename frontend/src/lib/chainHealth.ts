@@ -9,7 +9,7 @@
  * v3.0: Initial implementation for betanet fallback UX.
  */
 
-import { NETWORKS } from "./config"
+import { NETWORKS, networkHasRealms } from "./config"
 
 export interface ChainHealthResult {
     /** Whether at least one RPC endpoint responded successfully. */
@@ -111,9 +111,15 @@ export function getSuggestedFallback(currentNetworkKey: string): string | null {
     // Memba realms (e.g. Betanet/gnoland1) is worse than no suggestion. test13
     // was retired 2026-07-26 (RPCs dead) so it no longer belongs in the list;
     // gnoland1 is a last resort only.
+    // The comment above was the intent; the code did not implement it — this
+    // returned "gnoland1" whenever topaz was the degraded network, so
+    // ChainHaltedBanner offered a one-click switch to a chain with no Memba
+    // realms. Now filtered on the same signal the banner uses, and hidden
+    // networks are never suggested.
     const fallbackOrder = ["topaz", "gnoland1"]
     for (const key of fallbackOrder) {
-        if (key !== currentNetworkKey && NETWORKS[key]) {
+        const net = NETWORKS[key]
+        if (key !== currentNetworkKey && net && !net.hidden && networkHasRealms(key)) {
             return key
         }
     }

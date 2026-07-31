@@ -1,13 +1,15 @@
 import { useState, useCallback } from "react"
 import { useParams } from "react-router-dom"
-import { NETWORKS, DEFAULT_NETWORK } from "../lib/config"
+import { NETWORKS, DEFAULT_NETWORK, resolveStoredNetworkKey } from "../lib/config"
+import { completeQuest, getQuestWalletAddress } from "../lib/quests"
+import { trackNetworkVisit } from "../lib/questVerifier"
 
 const STORAGE_KEY = "memba_network"
 
 function getStoredNetwork(): string {
     try {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored && NETWORKS[stored]) return stored
+        // Self-heals away from a hidden network — see resolveStoredNetworkKey.
+        return resolveStoredNetworkKey(localStorage.getItem(STORAGE_KEY))
     } catch { /* ignore */ }
     return DEFAULT_NETWORK
 }
@@ -26,6 +28,26 @@ export function useNetwork() {
 
     const switchNetwork = useCallback((key: string) => {
         if (!NETWORKS[key]) return
+        // "Switching" to the network you are already on is not a switch: it would
+        // award the quest and trigger a full page load to the same URL. This guard
+        // used to live at the CALL SITES — five of them, each enforcing it a
+        // different way (an explicit check in Settings, "a <select> can't fire
+        // onChange for its current value", "the banner only renders on a
+        // mismatch", …). That is the drifting-copies shape this PR exists to
+        // remove, and the copies already disagree: FeedComposer gates on
+        // ACTIVE_NETWORK_KEY (module-load, storage-derived) while this compares
+        // networkKey (URL-derived), so before NetworkSync reloads they can differ.
+        if (key === networkKey) return
+        // Quest instrumentation lives HERE, not at the call sites. It used to sit
+        // in TopBar's onChange alone, so the other three switch surfaces
+        // (MobileTabBar, Settings, ChainMismatchBanner) silently dropped credit for
+        // the "Network Hopper" quest — and Settings only stopped being harmless
+        // because its button could not actually switch. One home, like the network
+        // resolution rule itself. Both writes are synchronous localStorage, so they
+        // land before the navigation below.
+        completeQuest("switch-network")
+        const questAddr = getQuestWalletAddress()
+        if (questAddr) trackNetworkVisit(questAddr, key)
         localStorage.setItem(STORAGE_KEY, key)
         // Navigate to the same path but with the new network prefix
         const currentPath = window.location.pathname
@@ -36,7 +58,7 @@ export function useNetwork() {
             ? "/" + segments.slice(1).join("/")
             : currentPath
         window.location.href = `/${key}${restPath || "/dashboard"}`
-    }, [])
+    }, [networkKey])
 
     return {
         networkKey,

@@ -4,7 +4,7 @@ import { BottomSheet } from "./BottomSheet"
 import { ActFab } from "./ActFab"
 import { getPlugins } from "../../plugins"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
-import { VISIBLE_NETWORKS } from "../../lib/config"
+import { selectableNetworksFor } from "../../lib/config"
 import { getTheme, setTheme, type Theme } from "../../lib/themeStore"
 import { mobilePrimaryTabs, mobileMoreNav, mobileMoreAccount, type NavEntry } from "../../lib/navManifest"
 import { navFlagOn } from "../../lib/navFlags"
@@ -203,7 +203,7 @@ export function MobileTabBar({ connected, address, auth, network, feedReplyUnrea
                                     outline: "none",
                                 }}
                             >
-                                {Object.entries(VISIBLE_NETWORKS).map(([key, net]) => (
+                                {Object.entries(selectableNetworksFor(network.networkKey)).map(([key, net]) => (
                                     <option key={key} value={key} style={{ background: "var(--color-border)", color: "var(--color-text-secondary)" }}>
                                         {net.label}
                                     </option>

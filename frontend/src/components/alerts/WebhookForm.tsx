@@ -8,7 +8,7 @@
  */
 
 import { useState } from "react"
-import { VISIBLE_NETWORKS } from "../../lib/config"
+import { selectableChainIdOptions } from "../../lib/config"
 import type { MonitoringWebhook, WebhookType } from "../../lib/monitoringAuth"
 
 interface Props {
@@ -143,8 +143,8 @@ export function WebhookForm({ initial, onSubmit, onCancel, loading }: Props) {
                     style={{ ...inputStyle, cursor: "pointer" }}
                 >
                     <option value="">All chains</option>
-                    {Object.entries(VISIBLE_NETWORKS).map(([key, net]) => (
-                        <option key={key} value={net.chainId}>{net.label}</option>
+                    {selectableChainIdOptions(chainId).map(o => (
+                        <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                 </select>
             </div>

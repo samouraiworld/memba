@@ -15,7 +15,8 @@
 
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect } from "react"
-import { NETWORKS, GNO_CHAIN_ID, APP_VERSION } from "../lib/config"
+import { GNO_CHAIN_ID, APP_VERSION, selectableNetworksFor } from "../lib/config"
+import { useNetwork } from "../hooks/useNetwork"
 import { Globe, FolderOpen, GasPump, User, Wrench, Gear, SunDim, Moon } from "@phosphor-icons/react"
 import { getTheme, setTheme, type Theme } from "../lib/themeStore"
 import { trackEvent } from "../lib/analytics"
@@ -97,7 +98,12 @@ function Section({ title, icon, defaultOpen = false, children }: {
 export function Settings() {
     const navigate = useNetworkNav()
     const [settings, setSettings] = useState(loadSettings)
-    const [network, setNetwork] = useState(GNO_CHAIN_ID)
+    // The THIRD network picker (after TopBar and MobileTabBar). It listed the full
+    // NETWORKS map, so it kept offering Betanet after `hidden` landed — and it
+    // compared a network KEY against GNO_CHAIN_ID (a chain ID: "topaz" vs
+    // "topaz-1"), so no button ever rendered as active. Both now go through the
+    // same helpers as the switcher.
+    const { networkKey, switchNetwork } = useNetwork()
     const [saved, setSaved] = useState(false)
     const [theme, setThemeState] = useState<Theme>(getTheme)
 
@@ -106,12 +112,17 @@ export function Settings() {
     }, [settings])
 
     const handleNetworkChange = (key: string) => {
-        setNetwork(key)
-        localStorage.setItem("memba_network", key)
-        setSaved(true)
+        // No local same-network guard: switchNetwork owns that rule now (it was
+        // enforced five different ways at five call sites). Analytics still fires
+        // only for a real switch because switchNetwork returns early otherwise —
+        // so keep this check for the trackEvent, not for the switch itself.
+        if (key === networkKey) return
         trackEvent("Network Switched", { to: key })
-        // Need page reload for network change to take effect
-        setTimeout(() => window.location.reload(), 500)
+        // Was: write storage + reload IN PLACE. That could not switch anything —
+        // the URL still carried the old /:network, so NetworkSync wrote it straight
+        // back and reloaded again. switchNetwork navigates to the new prefix, which
+        // is what the TopBar switcher has always done.
+        switchNetwork(key)
     }
 
     const handleClearCache = () => {
@@ -155,16 +166,16 @@ export function Settings() {
             {/* Network — open by default */}
             <Section title="Network" icon={<Globe size={18} />} defaultOpen>
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap", paddingTop: 8 }}>
-                    {Object.entries(NETWORKS).map(([key, net]) => (
+                    {Object.entries(selectableNetworksFor(networkKey)).map(([key, net]) => (
                         <button
                             key={key}
                             id={`network-${key}`}
                             onClick={() => handleNetworkChange(key)}
                             style={{
                                 ...btnStyle,
-                                background: network === key ? "var(--color-k-accent-tint)" : "var(--color-k-hover-surface)",
-                                color: network === key ? "var(--color-k-accent)" : "var(--color-k-dim)",
-                                border: `1px solid ${network === key ? "var(--color-k-accent-border)" : "var(--color-k-edge)"}`,
+                                background: networkKey === key ? "var(--color-k-accent-tint)" : "var(--color-k-hover-surface)",
+                                color: networkKey === key ? "var(--color-k-accent)" : "var(--color-k-dim)",
+                                border: `1px solid ${networkKey === key ? "var(--color-k-accent-border)" : "var(--color-k-edge)"}`,
                             }}
                         >
                             {net.label}

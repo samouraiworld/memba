@@ -17,10 +17,20 @@ test.describe('Settings Page', () => {
         await expect(page.locator('body')).toContainText(/v\d+/)
     })
 
-    test('network section shows chain options', async ({ page }) => {
+    test('network section offers the active network and NOT Betanet', async ({ page }) => {
         await page.goto('/settings')
-        // Network section is open by default
-        await expect(page.locator('body')).toContainText(/Testnet/)
+        // Network section is open by default.
+        //
+        // Was /Testnet/, which only ever passed because this picker listed the
+        // FULL NETWORKS map — the string came from the HIDDEN test13 entry, so
+        // the assertion silently depended on hidden networks being offered here
+        // (F-28's third picker). Assert the contract instead: the network you are
+        // actually on is offered, and Betanet is not.
+        const active = page.locator('#settings-page button[id^="network-"]')
+        await expect(active.first()).toBeVisible()
+        await expect(page.locator('#network-gnoland1')).toHaveCount(0)
+        const network = new URL(page.url()).pathname.split('/')[1]
+        await expect(page.locator(`#network-${network}`)).toBeVisible()
     })
 
     test('gas section accessible via accordion', async ({ page }) => {
