@@ -100,11 +100,18 @@ test.describe('TopBar (Desktop)', () => {
         await expect(versionBadge).toContainText(/v\d+/)
     })
 
-    test('network selector shows available networks', async ({ page }) => {
+    test('network selector offers the active network and NOT Betanet', async ({ page }) => {
         await page.goto('/')
         const selector = page.locator('[data-testid="topbar"] select')
         await expect(selector).toBeVisible()
-        await expect(selector).toContainText(/Testnet|Betanet/)
+        // Was /Testnet|Betanet/, which pinned the pre-2026-07-31 contents.
+        // Betanet is now hidden: it was selectable with no REALM_ALLOWLIST
+        // entry, and isRealmValidOn failed OPEN on a missing entry, so every
+        // commerce lane reported itself live on a chain with no realms (F-28).
+        // Assert the real contract instead of the old list — the option must
+        // NOT come back without someone reading this.
+        await expect(selector).toContainText(/Topaz/)
+        await expect(selector.locator('option', { hasText: /Betanet/ })).toHaveCount(0)
     })
 
     test('connect wallet button visible when disconnected', async ({ page }) => {
