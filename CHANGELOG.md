@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Token Factory and Feedback are now available on Topaz (2026-07-31)
+<!-- categories: memba -->
+- **The Token Factory and the Feedback board work on Topaz.** Both contracts went live on Topaz in the 31 July deployment, and the app now recognises them there instead of treating them as missing. The GnoBuilders badges contract is recognised too.
+- Deliberately **not** switched on yet: the NFT marketplace and launchpad, the services escrow, and the token OTC desk. Those contracts are deployed on Topaz, but each one holds user funds, so they are being enabled separately rather than as part of this change.
+
 ### Betanet — removed from the network switcher, and its realm gating no longer fails open (2026-07-31)
 <!-- categories: memba -->
 - **Fixed the app presenting a working marketplace on a chain where none of our contracts exist.** Betanet was selectable from the network switcher, but Memba deploys nothing there. The check that decides whether a contract is available on the current network treated "this network has no list of available contracts" as "everything is available" — so on Betanet every commerce feature reported itself as ready, and the NFT marketplace rendered in full, down to an invitation to launch a collection. Signing in there had the opposite problem: the login itself succeeded, then every subsequent request was rejected, with no way back other than switching networks by hand. Betanet is now hidden from the switcher and declares that our realms are not deployed on it, so anyone arriving from an old link sees a plain notice instead of a marketplace that cannot work. Existing Betanet links still resolve.

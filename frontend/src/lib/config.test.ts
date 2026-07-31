@@ -523,6 +523,62 @@ describe('Betanet gating — fails CLOSED, not open (F-28)', () => {
     })
 })
 
+describe('topaz commerce-v2 allowlist — funds-free realms only', () => {
+    // The 2026-07-31 ceremony put 13 artifacts live on topaz-1. Adding a path to
+    // REALM_ALLOWLIST DE-GATES its lane (isRealmValidOn is the only gate most of
+    // them have), so this PR lists ONLY the three that move no money. The rest
+    // custody funds and are held to separate PRs — this pins that boundary so a
+    // fund-custody realm cannot be slipped in without a failing test.
+
+    it('de-gates the funds-free lanes on topaz', async () => {
+        const { isRealmValidOn, GRC20_FACTORY_PATH, FEEDBACK_REALM_PATH, MEMBA_DAO } = await import('./config')
+        expect(isRealmValidOn('topaz', GRC20_FACTORY_PATH), 'token factory').toBe(true)
+        expect(isRealmValidOn('topaz', FEEDBACK_REALM_PATH), 'feedback').toBe(true)
+        expect(isRealmValidOn('topaz', MEMBA_DAO.badgesPath), 'badges').toBe(true)
+    })
+
+    it('keeps every FUND-CUSTODY realm gated on topaz', async () => {
+        const { isRealmValidOn, MEMBA_DAO } = await import('./config')
+        const { NFT_MARKETPLACE_V3_PATH } = await import('./nftConfig')
+        // Each of these has `unsafe.OriginSend()` in and `SendCoins` out in its
+        // realm source. escrow_v3 + memba_token_otc_v2 are additionally blocked on
+        // the unverified "old realms paused + reconciliation-drained" precondition.
+        const fundCustody: Record<string, string> = {
+            escrow: MEMBA_DAO.escrowPath,
+            tokenOtc: MEMBA_DAO.tokenOtcPath,
+            nftMarketV2: MEMBA_DAO.nftMarketPath,
+            nftMarketV3: NFT_MARKETPLACE_V3_PATH,
+            nftCollections: MEMBA_DAO.nftCollectionsPath,
+            nftCollectionV2: 'gno.land/r/samcrew/memba_nft_v2',
+            nftMarketV3_1: 'gno.land/r/samcrew/memba_nft_market_v3_1',
+            marketConfig: 'gno.land/r/samcrew/memba_market_config',
+        }
+        for (const [name, path] of Object.entries(fundCustody)) {
+            expect(isRealmValidOn('topaz', path), `${name} (${path}) must stay gated on topaz`).toBe(false)
+        }
+    })
+
+    it('leaves the commerce PREDICATES false on topaz', async () => {
+        // The predicates are what the pages actually read — assert those directly,
+        // not just the paths, so a predicate repointed at a listed path is caught.
+        const cfg = await import('./config')
+        expect(cfg.isEscrowValid()).toBe(false)
+        expect(cfg.isTokenOtcValid()).toBe(false)
+        expect(cfg.isNftMarketValid()).toBe(false)
+        expect(cfg.isNftMarketV3Valid()).toBe(false)
+        expect(cfg.isNftLaunchpadValid()).toBe(false)
+        // …and the two this PR intentionally opens.
+        expect(cfg.isTokenFactoryValid()).toBe(true)
+        expect(cfg.isFeedbackValid()).toBe(true)
+    })
+
+    it('does not touch the test13 allowlist', async () => {
+        const { isRealmValidOn, MEMBA_DAO } = await import('./config')
+        expect(isRealmValidOn('test13', MEMBA_DAO.escrowPath)).toBe(true)
+        expect(isRealmValidOn('test13', MEMBA_DAO.tokenOtcPath)).toBe(true)
+    })
+})
+
 describe('resolveStoredNetworkKey — hiding a network must not strand anyone', () => {
     // HERMETIC ON PURPOSE. DEFAULT_NETWORK is computed at module load from
     // VITE_GNO_CHAIN_ID, and the repo-root .env is untracked and pins test13 on
