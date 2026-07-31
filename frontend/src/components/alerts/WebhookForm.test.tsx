@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from "vitest"
-import { render, cleanup } from "@testing-library/react"
+import { render, cleanup, fireEvent, waitFor } from "@testing-library/react"
 import { WebhookForm } from "./WebhookForm"
 import { NETWORKS } from "../../lib/config"
 import type { MonitoringWebhook } from "../../lib/monitoringAuth"
@@ -65,5 +65,26 @@ describe("WebhookForm — the chain selector must never render blank", () => {
     it("treats a null ChainID as 'All chains'", () => {
         render(<WebhookForm initial={webhook(null)} onSubmit={vi.fn()} />)
         expect(getChainSelect().value).toBe("")
+    })
+
+    it("submits the hidden chain it displays — the other half of the bug", async () => {
+        // The blank control was only the visible symptom: state kept the old chain
+        // and resubmitted it on any unrelated edit. Pin that the value the user is
+        // now shown is the value that actually goes back.
+        const onSubmit = vi.fn().mockResolvedValue(true)
+        render(<WebhookForm initial={webhook("gnoland1")} onSubmit={onSubmit} />)
+        fireEvent.submit(document.querySelector("form")!)
+        await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ ChainID: "gnoland1" }))
+    })
+
+    it("submits a chain the user CHANGES it to", async () => {
+        const onSubmit = vi.fn().mockResolvedValue(true)
+        render(<WebhookForm initial={webhook("gnoland1")} onSubmit={onSubmit} />)
+        // Correctable — which is the whole point of keeping the value addressable.
+        fireEvent.change(getChainSelect(), { target: { value: NETWORKS.topaz.chainId } })
+        fireEvent.submit(document.querySelector("form")!)
+        await waitFor(() => expect(onSubmit).toHaveBeenCalled())
+        expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ ChainID: NETWORKS.topaz.chainId }))
     })
 })
