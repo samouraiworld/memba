@@ -529,6 +529,20 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
         }
     })
 
+
+    it('the MODULE-LOAD key still honours a stored hidden network (deep links)', async () => {
+        // Regression guard: self-healing getActiveNetworkKey too made config
+        // initialise on topaz while a /test13/* URL said test13 — NetworkSync
+        // then reloaded and the realm-gated UI rendered the wrong network.
+        // The CreateToken e2e specs seed localStorage exactly this way (#1032).
+        // Self-healing belongs in the NAVIGATION resolvers, not here.
+        const { NETWORKS } = await import('./config')
+        expect(NETWORKS.test13).toBeDefined()
+        expect(NETWORKS.test13.hidden).toBe(true)
+        // resolveStoredNetworkKey heals; the module-load path must not.
+        const { resolveStoredNetworkKey } = await import('./config')
+        expect(resolveStoredNetworkKey('test13')).not.toBe('test13')
+    })
     it('every hidden network is still resolvable by explicit URL', async () => {
         const { NETWORKS } = await import('./config')
         // Self-healing applies to STORED keys only — deep links must still work.

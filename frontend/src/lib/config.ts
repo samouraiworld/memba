@@ -289,16 +289,32 @@ export const DEFAULT_NETWORK = resolveDefaultNetwork(import.meta.env.VITE_GNO_CH
  *  with no in-app way out, on this visit and every future one. Self-healing the
  *  stored value is what makes hiding a network safe.
  *
- *  Exported so `useNetwork` and `RootRedirect` resolve identically — three
- *  copies of this rule previously drifted. */
+ *  Used by the NAVIGATION resolvers (`useNetwork`, `RootRedirect`) only —
+ *  NOT by `getActiveNetworkKey` below, which must honour a stored hidden key so
+ *  deep links initialise on the right network. See that function's comment. */
 export function resolveStoredNetworkKey(stored: string | null | undefined): string {
     if (stored && NETWORKS[stored] && !NETWORKS[stored].hidden) return stored
     return DEFAULT_NETWORK
 }
 
+/** Module-load active network. Deliberately does NOT self-heal away from a
+ *  hidden network — unlike the navigation resolvers.
+ *
+ *  This value initialises every RPC/realm constant in this file BEFORE the
+ *  router mounts, so it is the only signal a deep link has. Self-healing it
+ *  broke `/test13/*` visits: config would initialise on topaz while the URL said
+ *  test13, so NetworkSync reloaded and the realm-gated UI rendered the wrong
+ *  network's state (it took out the CreateToken e2e specs).
+ *
+ *  Stranding is prevented elsewhere and does not need this: RootRedirect no
+ *  longer restores a hidden key, so `/` goes to the default; the switcher always
+ *  lists the ACTIVE network, so you can leave one you reached by URL; and
+ *  NetworkSync writes the URL network to storage, so the one-time bounce
+ *  through a hidden network converges after a single reload. */
 function getActiveNetworkKey(): string {
     try {
-        return resolveStoredNetworkKey(localStorage.getItem("memba_network"))
+        const stored = localStorage.getItem("memba_network")
+        if (stored && NETWORKS[stored]) return stored
     } catch { /* SSR or missing localStorage */ }
     return DEFAULT_NETWORK
 }
