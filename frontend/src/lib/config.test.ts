@@ -90,9 +90,16 @@ describe('config constants', () => {
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/tokenfactory')).toBe(false)
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/memba_feedback')).toBe(false)
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/nft_market')).toBe(false)
-        // Networks with no allowlist entry (gnoland1, unknown keys) → everything valid.
-        expect(isRealmValidOn('gnoland1', 'gno.land/r/samcrew/tokenfactory')).toBe(true)
-        expect(isRealmValidOn('betanet', 'gno.land/r/samcrew/escrow')).toBe(true)
+        // Networks with no allowlist entry now gate EVERYTHING (was: everything
+        // valid). The old fail-open shipped a live bug: gnoland1 was selectable
+        // and had no entry, so every commerce predicate returned true and
+        // /gnoland1/marketplace/nfts rendered a live marketplace with a "Launch
+        // a collection" CTA on a chain with no realms (F-28, verified on prod
+        // 2026-07-31). gnoland1 now has an explicit empty list; an unknown key
+        // gates by default, which is the true statement for a network we have
+        // not provisioned.
+        expect(isRealmValidOn('gnoland1', 'gno.land/r/samcrew/tokenfactory')).toBe(false)
+        expect(isRealmValidOn('betanet', 'gno.land/r/samcrew/escrow')).toBe(false)
     })
 
     it('test13 and gnoland1 use r/sys/users registry', () => {
@@ -463,5 +470,39 @@ describe('isTestnetNetwork — drives the Team Hub mainnet-data disclosure', () 
     it('is false for an unknown key rather than throwing', async () => {
         const { isTestnetNetwork } = await import('./config')
         expect(isTestnetNetwork('no-such-network')).toBe(false)
+    })
+})
+
+describe('Betanet gating — fails CLOSED, not open (F-28)', () => {
+    it('gnoland1 is not offered in the selector', async () => {
+        const { VISIBLE_NETWORKS, NETWORKS } = await import('./config')
+        expect(NETWORKS.gnoland1).toBeDefined()          // deep links still resolve
+        expect(VISIBLE_NETWORKS.gnoland1).toBeUndefined() // but it is not offered
+    })
+
+    it('gnoland1 declares its realms are NOT deployed, so the banner fires', async () => {
+        const { networkHasRealms } = await import('./config')
+        expect(networkHasRealms('gnoland1')).toBe(false)
+    })
+
+    it('gates every commerce realm on gnoland1', async () => {
+        const { isRealmValidOn, MEMBA_DAO, GRC20_FACTORY_PATH } = await import('./config')
+        for (const path of [MEMBA_DAO.escrowPath, MEMBA_DAO.tokenOtcPath, MEMBA_DAO.nftMarketPath, GRC20_FACTORY_PATH]) {
+            expect(isRealmValidOn('gnoland1', path), `${path} must be gated on Betanet`).toBe(false)
+        }
+    })
+
+    it('an UNKNOWN network gates everything instead of allowing everything', async () => {
+        const { isRealmValidOn, MEMBA_DAO } = await import('./config')
+        // The old `!allow || ...` returned TRUE here, silently un-gating
+        // fund-custody UI on any network without an allowlist entry.
+        expect(isRealmValidOn('no-such-network', MEMBA_DAO.escrowPath)).toBe(false)
+    })
+
+    it('does not over-gate: topaz keeps its allowlisted realms valid', async () => {
+        const { isRealmValidOn, MEMBA_DAO } = await import('./config')
+        // REALM_ALLOWLIST is module-private, so assert through the predicate.
+        expect(isRealmValidOn('topaz', MEMBA_DAO.realmPath)).toBe(true)
+        expect(isRealmValidOn('topaz', MEMBA_DAO.channelsPath)).toBe(true)
     })
 })

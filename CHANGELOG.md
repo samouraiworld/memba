@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Betanet — removed from the network switcher, and its realm gating no longer fails open (2026-07-31)
+<!-- categories: memba -->
+- **Fixed the app presenting a working marketplace on a chain where none of our contracts exist.** Betanet was selectable from the network switcher, but Memba deploys nothing there. The check that decides whether a contract is available on the current network treated "this network has no list of available contracts" as "everything is available" — so on Betanet every commerce feature reported itself as ready, and the NFT marketplace rendered in full, down to an invitation to launch a collection. Signing in there had the opposite problem: the login itself succeeded, then every subsequent request was rejected, with no way back other than switching networks by hand. Betanet is now hidden from the switcher and declares that our realms are not deployed on it, so anyone arriving from an old link sees a plain notice instead of a marketplace that cannot work. Existing Betanet links still resolve.
+- The underlying check now **fails closed**: a network with no declared contract list gates everything rather than allowing everything. Betanet carries an explicit empty list, and the live networks are unaffected.
+
 ### Explorer links — every "view on gnoweb" link has been broken since the Topaz cutover (2026-07-31)
 <!-- categories: memba -->
 - **Fixed every external explorer link in the app pointing at a server that does not exist.** Links out to gnoweb — realm pages, user profiles, validator profiles, activity-feed entries, the Directory's realm previews — were built by pasting the chain's id into a hostname. That works only where a network's short name and its chain id are the same word. On Topaz they are not (`topaz` versus `topaz-1`), so since the cutover every one of those links pointed at a hostname that has never existed, and clicking any of them failed to load. The address is now recorded per network alongside its other endpoints rather than assembled from the chain id.

@@ -227,6 +227,22 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         label: "Betanet (gnoland1)",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "",
+        // Hidden from the selector, and declared realm-free (F-28/F-29).
+        // Memba deploys NOTHING to Betanet — MEMBA_DAO_BY_NETWORK maps it to
+        // null — yet it was the one selectable network with no REALM_ALLOWLIST
+        // entry, and isRealmValidOn fails OPEN on a missing entry. Every
+        // commerce predicate therefore returned true here, so
+        // /gnoland1/marketplace/nfts rendered a live marketplace with a "Launch
+        // a collection" CTA on a chain with no realms (verified on production
+        // 2026-07-31). Auth fails the other way: this chain has never been in
+        // MEMBA_ACCEPTED_CHAIN_IDS, so a login succeeds and then every call
+        // 401s with no self-heal (F-29). Until both are properly fixed, do not
+        // offer it: `hidden` removes the selector path, `realmsDeployed:false`
+        // gives anyone on an old deep link the honest banner instead of a
+        // fake-live marketplace, and the allowlist entry below closes the
+        // fail-open. Deep links still RESOLVE — same treatment as test13.
+        hidden: true,
+        realmsDeployed: false,
         // Live-verified 2026-07-31: serves `<meta name="chainid" content="gnoland1">`,
         // i.e. this really is Betanet's gnoweb. Both previous values were wrong in
         // different directions — `getExplorerBaseUrl` returned `betanet.gno.land`
@@ -314,6 +330,10 @@ export function areRealmsDeployed(): boolean {
  * (re)deployed to a new valid path, add that path here.
  */
 const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
+    // Betanet: Memba deploys nothing here. An EXPLICIT empty list, not an
+    // absent key — absent means "no allowlist", which isRealmValidOn used to
+    // read as "everything is valid" (F-28).
+    gnoland1: [],
     test13: [
         "gno.land/r/samcrew/memba_dao",
         "gno.land/r/samcrew/memba_dao_candidature_v2", // paused; kept so the 2 legacy applicants can still Withdraw
@@ -376,7 +396,15 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
  */
 export function isRealmValidOn(networkKey: string, realmPath: string): boolean {
     const allow = REALM_ALLOWLIST[networkKey]
-    return !allow || allow.includes(realmPath)
+    // FAIL CLOSED. This read `!allow || allow.includes(...)`, so a network with
+    // no allowlist entry declared EVERY realm valid — and since these
+    // predicates gate the commerce lanes (escrow, OTC, NFT market, token
+    // factory), forgetting an entry silently un-gated fund-custody UI on that
+    // network. That is exactly what happened to Betanet. An unknown network is
+    // now treated as "we have deployed nothing there", which is the true
+    // statement for any network we have not explicitly provisioned.
+    if (!allow) return false
+    return allow.includes(realmPath)
 }
 
 /**
