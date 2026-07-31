@@ -72,4 +72,17 @@ describe("useNetwork.switchNetwork — quest credit is awarded from EVERY surfac
         result.current.switchNetwork("test13")
         expect(window.location.href).toBe("/test13/settings")
     })
+
+    it("does nothing when 'switching' to the network already active", () => {
+        // Not a switch: it would award the quest and full-page-load to the same
+        // URL. The guard lives here rather than at the five call sites, which
+        // enforced it five different ways and already disagreed with each other.
+        const { result } = renderHook(() => useNetwork(), { wrapper })
+        expect(result.current.networkKey).toBe("topaz")
+        result.current.switchNetwork("topaz")
+        expect(completeQuest).not.toHaveBeenCalled()
+        expect(trackNetworkVisit).not.toHaveBeenCalled()
+        expect(window.location.href).toBe("")
+        expect(localStorage.getItem("memba_network")).toBeNull()
+    })
 })

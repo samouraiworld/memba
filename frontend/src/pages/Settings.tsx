@@ -112,6 +112,10 @@ export function Settings() {
     }, [settings])
 
     const handleNetworkChange = (key: string) => {
+        // No local same-network guard: switchNetwork owns that rule now (it was
+        // enforced five different ways at five call sites). Analytics still fires
+        // only for a real switch because switchNetwork returns early otherwise —
+        // so keep this check for the trackEvent, not for the switch itself.
         if (key === networkKey) return
         trackEvent("Network Switched", { to: key })
         // Was: write storage + reload IN PLACE. That could not switch anything —

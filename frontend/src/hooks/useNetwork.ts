@@ -28,6 +28,16 @@ export function useNetwork() {
 
     const switchNetwork = useCallback((key: string) => {
         if (!NETWORKS[key]) return
+        // "Switching" to the network you are already on is not a switch: it would
+        // award the quest and trigger a full page load to the same URL. This guard
+        // used to live at the CALL SITES — five of them, each enforcing it a
+        // different way (an explicit check in Settings, "a <select> can't fire
+        // onChange for its current value", "the banner only renders on a
+        // mismatch", …). That is the drifting-copies shape this PR exists to
+        // remove, and the copies already disagree: FeedComposer gates on
+        // ACTIVE_NETWORK_KEY (module-load, storage-derived) while this compares
+        // networkKey (URL-derived), so before NetworkSync reloads they can differ.
+        if (key === networkKey) return
         // Quest instrumentation lives HERE, not at the call sites. It used to sit
         // in TopBar's onChange alone, so the other three switch surfaces
         // (MobileTabBar, Settings, ChainMismatchBanner) silently dropped credit for
@@ -48,7 +58,7 @@ export function useNetwork() {
             ? "/" + segments.slice(1).join("/")
             : currentPath
         window.location.href = `/${key}${restPath || "/dashboard"}`
-    }, [])
+    }, [networkKey])
 
     return {
         networkKey,

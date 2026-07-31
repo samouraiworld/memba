@@ -393,6 +393,17 @@ describe('FEED_INDEXED_NETWORK — drift tripwire', () => {
         expect(NETWORKS[FEED_INDEXED_NETWORK]).toBeDefined()
     })
 
+    it('names a VISIBLE network — FeedComposer offers a one-click switch to it', async () => {
+        // FeedComposer renders a "switch to <FEED_INDEXED_NETWORK>" button when the
+        // active network can't write to the feed. That is a switch surface, and it
+        // is the only one with no `hidden` check of its own — it is safe today
+        // purely because this constant is a visible literal. Repointing it at a
+        // hidden network would turn that button into a one-click path into a chain
+        // the switcher no longer offers (F-28's whole failure mode).
+        const { NETWORKS, FEED_INDEXED_NETWORK } = await import('./config')
+        expect(NETWORKS[FEED_INDEXED_NETWORK].hidden).not.toBe(true)
+    })
+
     it('matches DEFAULT_NETWORK, or the feed silently goes read-only for everyone', async () => {
         const { DEFAULT_NETWORK, FEED_INDEXED_NETWORK } = await import('./config')
         // isFeedWritable() compares the ACTIVE network to FEED_INDEXED_NETWORK.
