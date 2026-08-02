@@ -525,6 +525,30 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // topaz. Listed so the allowlist stays a truthful record of what is
         // deployed, and so adding a guard later cannot silently gate it off.
         "gno.land/r/samcrew/gnobuilders_badges_v2",
+        // ── 🔴 NFT STACK — moves as ONE unit ─────────────────────────────────
+        // Listed together on purpose: a partial listing gives a half-wired
+        // launchpad (e.g. collections registered but no engine to trade them, or
+        // a trade surface whose fee/treasury config is unreachable).
+        //
+        // Four of the six custody funds (`unsafe.OriginSend()` in, `SendCoins`
+        // out): memba_collections 1/4/1, memba_nft_market_v2 3/16/7,
+        // memba_nft_market_v3_1 3/16/7, memba_nft_market_v3_2 3/19/7.
+        // memba_nft_v2 and memba_market_config measure 0/0/0 — funds-free, listed
+        // only because the stack needs them to function.
+        //
+        // ⚠️ `VITE_ENABLE_NFT` was REMOVED from SAFETY_GATED_FLAGS on 2026-06-27,
+        // so it can legitimately be "true" in a prod build. That makes this
+        // allowlist the ONLY structural gate left on NFT trading — after this,
+        // one env flip opens fund-custody NFT trading on Topaz with no further
+        // code review.
+        "gno.land/r/samcrew/memba_nft_v2",
+        "gno.land/r/samcrew/memba_collections",
+        "gno.land/r/samcrew/memba_market_config",
+        "gno.land/r/samcrew/memba_nft_market_v2",
+        // v3_1 is PAUSED but kept listed through its wind-down: open offers hold
+        // escrow and their value-exits must stay callable. Same rule as test13.
+        "gno.land/r/samcrew/memba_nft_market_v3_1",
+        "gno.land/r/samcrew/memba_nft_market_v3_2",
     ],
 }
 
