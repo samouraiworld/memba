@@ -195,7 +195,7 @@ export function lintWorkspace(root: string): { lines: string[]; exitOK: boolean 
 }
 
 /** Lint ONE self-contained package (vendoring its gno.land/p closure) in a scratch workspace. */
-export function lintPackage(name: string, code: string): { ok: boolean; lines: string[] } {
+export function lintPackage(name: string, code: string): { ok: boolean; lines: string[]; vendorMissing?: boolean } {
     const root = mkdtempSync(join(tmpdir(), "memba-probe-"))
     writePkg(root, name, code, `gno.land/r/samcrew/${name}`)
     try {
@@ -208,13 +208,23 @@ export function lintPackage(name: string, code: string): { ok: boolean; lines: s
         // file into "no tests" with a raw stack and no mention of GNO_PIN, which is the
         // misleading-local-failure experience this probe exists to remove.
         // Not hypothetical: `p/demo/avl` → `p/nt/avl/v0` has already happened once.
-        return { ok: false, lines: [`could not vendor a package the templates import: ${(e as Error).message}`] }
+        //
+        // Flagged distinctly, NOT folded into the drift verdict: "this GNOROOT no longer
+        // ships the package" and "this GNOROOT changed the signature" have completely
+        // different fixes, and drift's remediation is actively wrong here — it would tell
+        // you to rebuild a worktree at a pin you may already be on, or to migrate every
+        // generator to a one-value API that isn't the problem.
+        return {
+            ok: false,
+            vendorMissing: true,
+            lines: [`could not vendor a package the templates import: ${(e as Error).message}`],
+        }
     }
     const { lines, exitOK } = lintWorkspace(root)
     return { ok: exitOK && !lines.some((l) => ERROR_LINE.test(l)), lines }
 }
 
-export type ProbeReason = "no-gno" | "pre-interrealm-v2" | "stdlib-drift"
+export type ProbeReason = "no-gno" | "pre-interrealm-v2" | "vendor-missing" | "stdlib-drift"
 
 export interface ProbeVerdict {
     ok: boolean
@@ -227,12 +237,18 @@ export interface ProbeVerdict {
  * Pure verdict logic — kept separate from the toolchain calls so the classification is
  * testable without a gno on PATH.
  *
- * Order matters: a toolchain too old to lint interrealm-v2 will also fail the stdlib
- * contract probe, and "your gno predates interrealm-v2" is the actionable message in
- * that case. Only once v2 is understood does a contract failure mean drift.
+ * Order matters, and each step exists because the next one's message would be WRONG:
+ *  1. no gno at all — nothing else can be observed.
+ *  2. a package the templates import is absent from GNOROOT. Reported separately
+ *     because "absent" and "changed signature" have different fixes, and drift's
+ *     remediation (rebuild a worktree at the pin / migrate every generator) is actively
+ *     misleading for a package that simply moved.
+ *  3. too old for interrealm-v2. Such a toolchain will ALSO fail the stdlib contract
+ *     probe, and "your gno predates interrealm-v2" is the actionable message there.
+ *  4. only once v2 is understood does a contract failure mean drift.
  */
 export function classifyProbe(
-    r: { gnoPresent: boolean; interrealmOK: boolean; stdlibContractOK: boolean },
+    r: { gnoPresent: boolean; interrealmOK: boolean; stdlibContractOK: boolean; vendorMissing?: boolean },
     gnoRootPath: string | null = null,
     lines: string[] = [],
 ): ProbeVerdict {
@@ -241,6 +257,21 @@ export function classifyProbe(
             ok: false,
             reason: "no-gno",
             message: "`gno` is not on PATH — the gate cannot run. The authoritative run is CI's `Gno Test & Lint` job.",
+            lines,
+        }
+    }
+    if (r.vendorMissing) {
+        return {
+            ok: false,
+            reason: "vendor-missing",
+            message:
+                `this GNOROOT does not ship a \`gno.land/p/*\` package the templates import, so nothing could be ` +
+                `type-checked against it.\n` +
+                `  GNOROOT = ${gnoRootPath ?? "<unknown>"}\n` +
+                `This is NOT the drift case: the package is absent, not changed, so pointing GNOROOT at the pin ` +
+                `only helps if the pin is where it still exists. Most likely the package was renamed or moved ` +
+                `upstream (\`p/demo/avl\` → \`p/nt/avl/v0\` already happened once), in which case the import path ` +
+                `in the probe and in the generators is what must change. The underlying error is below.`,
             lines,
         }
     }
@@ -295,8 +326,19 @@ export function probeToolchain(): ProbeVerdict {
 
     const interrealm = lintPackage("gate_probe", INTERREALM_V2_PROBE)
     if (!interrealm.ok) {
-        return classifyProbe({ gnoPresent, interrealmOK: false, stdlibContractOK: false }, gnoRoot(), interrealm.lines)
+        // `vendorMissing` is passed through: INTERREALM_V2_PROBE imports no `gno.land/p/*`
+        // package today, so it is unreachable now — but if it ever gains one, "your gno
+        // predates interrealm-v2" would be the wrong diagnosis for an absent package.
+        return classifyProbe(
+            { gnoPresent, interrealmOK: false, stdlibContractOK: false, vendorMissing: interrealm.vendorMissing },
+            gnoRoot(),
+            interrealm.lines,
+        )
     }
     const contract = lintPackage("gate_probe_contract", STDLIB_CONTRACT_PROBE)
-    return classifyProbe({ gnoPresent, interrealmOK: true, stdlibContractOK: contract.ok }, gnoRoot(), contract.lines)
+    return classifyProbe(
+        { gnoPresent, interrealmOK: true, stdlibContractOK: contract.ok, vendorMissing: contract.vendorMissing },
+        gnoRoot(),
+        contract.lines,
+    )
 }

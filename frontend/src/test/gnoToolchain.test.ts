@@ -43,6 +43,13 @@ import { generateDAOCode } from "../lib/daoTemplate"
  */
 const TWO_VALUE_GET = /\w+,\s*\w+\s*:?=\s*[\w.]+\.Get\(/
 
+/**
+ * Content guards must read CODE, not commentary. A probe gutted of all executable code
+ * but retaining the tokens inside a `//` comment satisfies a naive text guard AND lints
+ * clean, so the positive control passes too and the direction goes silently green.
+ */
+const codeOnly = (gno: string) => gno.replace(/\/\/.*$/gm, "")
+
 // CI (REQUIRE_GNO=1) forbids the skip path for this file too. Without this, hiding gno
 // from PATH made the whole file report SUCCESS with its positive control, its negative
 // control and its integration test silently skipped — green while proving nothing,
@@ -64,7 +71,7 @@ describe("STDLIB_CONTRACT_PROBE tracks the contract the generators actually depe
     // form, this goes red and points at the probe that needs updating with them.
     it("the probe exercises two-value avl.Tree.Get", () => {
         expect(
-            TWO_VALUE_GET.test(STDLIB_CONTRACT_PROBE),
+            TWO_VALUE_GET.test(codeOnly(STDLIB_CONTRACT_PROBE)),
             "STDLIB_CONTRACT_PROBE no longer uses two-value `Get` — it can no longer detect the drift it exists to catch",
         ).toBe(true)
     })
@@ -78,10 +85,10 @@ describe("STDLIB_CONTRACT_PROBE tracks the contract the generators actually depe
         // pre-interrealm-v2 direction and restore the original W1.2 bug: a gate that
         // passes on a pre-v2 GNOROOT while checking nothing.
         expect(
-            INTERREALM_V2_PROBE,
+            codeOnly(INTERREALM_V2_PROBE),
             "INTERREALM_V2_PROBE no longer imports the interrealm-v2 stdlib — it would lint clean on a pre-v2 toolchain",
         ).toContain('import "chain/runtime/unsafe"')
-        expect(INTERREALM_V2_PROBE, "INTERREALM_V2_PROBE imports the v2 stdlib but never calls it").toMatch(/unsafe\.\w+\(/)
+        expect(codeOnly(INTERREALM_V2_PROBE), "INTERREALM_V2_PROBE imports the v2 stdlib but never calls it").toMatch(/unsafe\.\w+\(/)
     })
 
     it("the generators still emit two-value avl.Tree.Get, so that contract is still worth probing", () => {
@@ -134,6 +141,25 @@ describe("classifyProbe (pure verdict logic)", () => {
         const v = classifyProbe({ gnoPresent: true, interrealmOK: true, stdlibContractOK: false })
         expect(v.ok).toBe(false)
         expect(v.reason).toBe("stdlib-drift")
+    })
+
+    it("reports vendor-missing — NOT stdlib-drift — when a package the templates import is absent", () => {
+        // These have different fixes, so they must not share a message. Folding the
+        // absent-package case into stdlib-drift produced two confident remediations
+        // (rebuild a worktree at the pin you are already on; migrate every generator to
+        // a one-value API that is not the problem), neither of which applied — a milder
+        // repeat of the misdiagnosis this whole module exists to prevent.
+        const v = classifyProbe({ gnoPresent: true, interrealmOK: true, stdlibContractOK: false, vendorMissing: true })
+        expect(v.reason).toBe("vendor-missing")
+        expect(v.message).not.toContain("worktree add")
+        expect(v.message).not.toContain("#5314")
+    })
+
+    it("prefers vendor-missing over pre-interrealm-v2 when the package is what is absent", () => {
+        // A vendoring failure makes EVERY downstream probe fail, so an absent package
+        // would otherwise be reported as "your gno predates interrealm-v2".
+        const v = classifyProbe({ gnoPresent: true, interrealmOK: false, stdlibContractOK: false, vendorMissing: true })
+        expect(v.reason).toBe("vendor-missing")
     })
 
     it("passes only when the toolchain is present and BOTH probes hold", () => {
