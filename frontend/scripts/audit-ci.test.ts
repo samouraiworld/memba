@@ -9,6 +9,7 @@
 import { describe, it, expect } from "vitest"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
+import { load } from "js-yaml"
 import { isUsableReport, collectHighAdvisories, classify, ALLOWLIST } from "./audit-ci.mjs"
 
 const okReport = (vulnerabilities: Record<string, unknown> = {}) => ({
@@ -90,73 +91,54 @@ describe("the two dependency gates agree on what is acknowledged", () => {
      * acknowledged and that the PR was not fixing.
      *
      * A comment saying "keep these in sync" is not a mechanism. This is.
+     *
+     * PARSED STRUCTURALLY, and that is the point. Three earlier rounds of this guard
+     * used a regex over the raw text to avoid taking a dependency. Each round closed the
+     * previously-found holes and opened new ones, because a textual parse can only ever
+     * assert one SPELLING of a hazard, never the hazard: it read a decoy `allow-ghsas:`
+     * out of a `run:` block, missed a second review step, went blind to `warn-only:
+     * 'true'` / `True` / `if: ${{ false }}`, and false-redded on quoted values, inline
+     * comments and block scalars — all of which the real action reads correctly.
+     *
+     * The objection to js-yaml was that it was only a TRANSITIVE dep, so an unrelated
+     * bump could drop it. That objection is real, and DECLARING it is precisely the fix.
+     * It costs nothing else: js-yaml@4.3.0 was already resolved in the lockfile as
+     * dev-only, so the declaration adds a single line and no package. Its `argparse`
+     * dependency is Python-2.0, which is NOT in this workflow's `allow-licenses` — but
+     * `fail-on-scopes` defaults to `['runtime']` and we do not override it, so dev-scoped
+     * packages are never license-checked. `audit:ci` runs `--omit=dev`, and this import
+     * is test-only, so neither the prod audit surface nor the bundle changes.
      */
-    // Parsed with a targeted regex rather than a YAML library on purpose: js-yaml is
-    // only a TRANSITIVE dep here, so importing it would make this gate fail the day an
-    // unrelated bump drops it — and adding it directly means lockfile churn for one
-    // scalar line. The cost is that the parse is TEXTUAL, not structural, so every
-    // assumption it makes is asserted explicitly below rather than trusted.
-    const workflowText = readFileSync(join(import.meta.dirname, "../../.github/workflows/dependency-review.yml"), "utf8")
+    const workflow = load(readFileSync(join(import.meta.dirname, "../../.github/workflows/dependency-review.yml"), "utf8")) as {
+        jobs?: Record<string, { if?: unknown; steps?: { uses?: string; if?: unknown; with?: Record<string, unknown> }[] }>
+    }
 
-    // Match ALL occurrences, not just the first: `.exec()` would read step 1 and be
-    // blind to a second dependency-review step carrying a wider allowlist.
-    const ghsaLines = [...workflowText.matchAll(/^[ \t]*allow-ghsas:[ \t]*(.*)$/gm)].map((m) => m[1])
+    const reviewSteps = Object.entries(workflow.jobs ?? {}).flatMap(([jobName, job]) =>
+        (job.steps ?? [])
+            .filter((step) => typeof step.uses === "string" && step.uses.startsWith("actions/dependency-review-action"))
+            .map((step) => ({ jobName, job, step })),
+    )
 
-    /** Strip an inline `# comment` and surrounding quotes — both are legal YAML the action itself handles. */
-    const normalise = (raw: string) =>
-        raw
-            .replace(/\s+#.*$/, "")
-            .trim()
-            .replace(/^(['"])(.*)\1$/, "$2")
+    const only = reviewSteps.length === 1 ? reviewSteps[0] : null
 
-    const workflowGhsas = (ghsaLines.length === 1 ? normalise(ghsaLines[0]) : "")
+    const workflowGhsas = String(only?.step.with?.["allow-ghsas"] ?? "")
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean)
 
-    it("the workflow still has exactly one dependency-review step declaring exactly one allow-ghsas", () => {
-        // Every assumption the textual parse rests on, asserted — because when it is
-        // wrong the comparison below can pass while enforcing nothing.
-        //
-        // Anchored to `uses:` deliberately: matching the bare string would also count
-        // it inside COMMENTS, and the obvious next edit to this workflow is a comment
-        // naming the action. That reddened CI with "expected 2 to be 1", which is both
-        // false and misleading.
-        const steps = [...workflowText.matchAll(/^\s*uses:\s*actions\/dependency-review-action/gm)]
-        expect(steps.length, "expected exactly one dependency-review-action step — update this test if that changed").toBe(1)
-        expect(ghsaLines.length, "expected exactly one `allow-ghsas:` line in dependency-review.yml").toBe(1)
-        expect(workflowText, "dependency-review.yml no longer sets fail-on-severity — update this test").toMatch(
-            /^\s*fail-on-severity:/m,
-        )
-        // A block scalar (`>-` / `|`) would make the captured value the indicator itself
-        // rather than the advisory list — legal YAML the action reads correctly and this
-        // parse cannot. Fail with the reason rather than a confusing mismatch.
-        expect(ghsaLines[0]?.trim(), "allow-ghsas uses a YAML block scalar — this textual parse cannot read it").not.toMatch(
-            /^[|>]/,
-        )
-        // CLOSED set, not an open one. Matching `warn-only: true` looks sufficient and
-        // is not: the action funnels the value through `core.getBooleanInput`, which
-        // also accepts `'true'`, `True` and `TRUE`, and a step can be disabled with
-        // `if: ${{ false }}` as easily as `if: false`. Every one of those spellings
-        // silently neutered the gate while this test stayed green. Enumerating ways to
-        // disable a gate is a losing game, so assert the keys are ABSENT — this
-        // workflow legitimately has neither today, and adding one should be a
-        // deliberate edit that updates this test.
-        expect(
-            workflowText,
-            "dependency-review.yml now sets `warn-only` — the gate can no longer fail a PR. If that is intended, update this test.",
-        ).not.toMatch(/^\s*warn-only:/m)
-        expect(
-            workflowText,
-            "dependency-review.yml now carries an `if:` condition — a conditional gate is not a gate. If intended, update this test.",
-        ).not.toMatch(/^\s*if:/m)
-        // Same reasoning for `run:`: a shell block can contain a line that looks exactly
-        // like `allow-ghsas: …`, and the parse would read that decoy while the real key
-        // is absent. This workflow is pure `uses:`; keep it that way or teach the parse.
-        expect(
-            workflowText,
-            "dependency-review.yml now has a `run:` block — a line inside it could be misread as the real allow-ghsas. If intended, update this test.",
-        ).not.toMatch(/^\s*run:/m)
+    it("there is exactly one dependency-review step and it is actually enabled", () => {
+        // Scoped to the step, not the file. The previous text-scoped proxies fired on a
+        // `warn-only` belonging to a different action in a different job and reported
+        // "dependency-review is set to warn-only" — a guard that fails loudly with a
+        // wrong explanation teaches the next maintainer to delete the assertion rather
+        // than read it, which is worse than not asserting.
+        expect(reviewSteps.length, "expected exactly one dependency-review-action step — update this test if that changed").toBe(1)
+        expect(only?.step.with?.["fail-on-severity"], "the dependency-review step no longer sets fail-on-severity").toBeDefined()
+        // `warn-only` truthiness is the action's `core.getBooleanInput`, which accepts
+        // true / 'true' / True / TRUE. Requiring absence sidesteps every spelling.
+        expect(only?.step.with?.["warn-only"], "dependency-review sets `warn-only` — it can no longer fail a PR").toBeUndefined()
+        expect(only?.step.if, "the dependency-review step is conditional — a conditional gate is not a gate").toBeUndefined()
+        expect(only?.job.if, "the dependency-review JOB is conditional — a conditional gate is not a gate").toBeUndefined()
     })
 
     it("dependency-review.yml allow-ghsas matches audit-ci.mjs ALLOWLIST exactly", () => {
