@@ -19,6 +19,58 @@
 import { describe, it, expect } from "vitest"
 
 import { classifyProbe, hasGno, lintPackage, probeToolchain, INTERREALM_V2_PROBE, STDLIB_CONTRACT_PROBE } from "./gnoToolchain"
+import { generateEscrowCode } from "../lib/escrowTemplate"
+import { generateDAOCode } from "../lib/daoTemplate"
+
+/** The two-value `val, exists := tree.Get(k)` form the probe exists to defend. */
+const TWO_VALUE_GET = /\w+,\s*(?:exists|ok|found)\s*:?=\s*\w+\.Get\(/
+
+describe("STDLIB_CONTRACT_PROBE tracks the contract the generators actually depend on", () => {
+    // WHY: `probeToolchain`'s verdict is only as good as this constant. Weaken the probe
+    // source — drop the avl usage, say — and the integration test below still passes
+    // while the probe has gone blind. These assertions tie it to reality in both
+    // directions: the generators must still emit two-value `Get`, and the probe must
+    // still exercise it. If the templates ever migrate to gnolang/gno#5314's one-value
+    // form, this goes red and points at the probe that needs updating with them.
+    it("the probe exercises two-value avl.Tree.Get", () => {
+        expect(
+            TWO_VALUE_GET.test(STDLIB_CONTRACT_PROBE),
+            "STDLIB_CONTRACT_PROBE no longer uses two-value `Get` — it can no longer detect the drift it exists to catch",
+        ).toBe(true)
+    })
+
+    it("the generators still emit two-value avl.Tree.Get, so that contract is still worth probing", () => {
+        const escrow = generateEscrowCode({
+            realmPath: "gno.land/r/samcrew/probe_escrow",
+            adminAddress: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c",
+            platformFeePercent: 2,
+            cancellationFeePercent: 5,
+            autoRefundBlocks: 864000,
+            feeRecipient: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c",
+        })
+        const dao = generateDAOCode({
+            name: "Probe DAO",
+            description: "probe fixture",
+            realmPath: "gno.land/r/samcrew/probe_dao",
+            members: [{ address: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c", power: 1, roles: ["admin"] }],
+            threshold: 50,
+            roles: ["admin"],
+            quorum: 25,
+            proposalCategories: ["governance"],
+            votingPeriodBlocks: 151200,
+        })
+        for (const [name, code] of [
+            ["escrowTemplate", escrow],
+            ["daoTemplate", dao],
+        ] as const) {
+            expect(
+                TWO_VALUE_GET.test(code),
+                `${name} no longer emits two-value \`Get\` — if the generators migrated to the one-value ` +
+                    `API, STDLIB_CONTRACT_PROBE must migrate with them or it asserts a contract nothing depends on`,
+            ).toBe(true)
+        }
+    })
+})
 
 describe("classifyProbe (pure verdict logic)", () => {
     it("reports no-gno when the toolchain is absent, whatever the lint results say", () => {
