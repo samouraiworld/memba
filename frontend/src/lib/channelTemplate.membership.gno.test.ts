@@ -31,7 +31,6 @@ import { generateDAOCode } from "./daoTemplate"
 import { generateChannelCode } from "./channelTemplate"
 import { REQUIRE_GNO, probeToolchain, vendorGnolandDeps } from "../test/gnoToolchain"
 
-
 const ALICE = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c" // DAO member, NOT in roster
 const BOB = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" // total non-member (but roster-granted!)
 const CAROL = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq" // DAO member + roster dev,member

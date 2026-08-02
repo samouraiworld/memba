@@ -27,7 +27,6 @@ import { join } from "node:path"
 import { generateEscrowCode } from "./escrowTemplate"
 import { REQUIRE_GNO, probeToolchain, vendorGnolandDeps } from "../test/gnoToolchain"
 
-
 const ADMIN = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
 const FEE_RECIPIENT = "g15unfxh9zfm75puw2lqmsun2lv8c397e0efkp2u"
 const CLIENT = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
