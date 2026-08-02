@@ -94,25 +94,49 @@ describe("the two dependency gates agree on what is acknowledged", () => {
     // Parsed with a targeted regex rather than a YAML library on purpose: js-yaml is
     // only a TRANSITIVE dep here, so importing it would make this gate fail the day an
     // unrelated bump drops it — and adding it directly means lockfile churn for one
-    // scalar line. Both structural assumptions are asserted below, so a restructured
-    // workflow fails this test loudly instead of silently parsing to nothing.
+    // scalar line. The cost is that the parse is TEXTUAL, not structural, so every
+    // assumption it makes is asserted explicitly below rather than trusted.
     const workflowText = readFileSync(join(import.meta.dirname, "../../.github/workflows/dependency-review.yml"), "utf8")
 
-    const workflowGhsas = (/^\s*allow-ghsas:\s*(.+)$/m.exec(workflowText)?.[1] ?? "")
+    // Match ALL occurrences, not just the first: `.exec()` would read step 1 and be
+    // blind to a second dependency-review step carrying a wider allowlist.
+    const ghsaLines = [...workflowText.matchAll(/^[ \t]*allow-ghsas:[ \t]*(.*)$/gm)].map((m) => m[1])
+
+    /** Strip an inline `# comment` and surrounding quotes — both are legal YAML the action itself handles. */
+    const normalise = (raw: string) =>
+        raw
+            .replace(/\s+#.*$/, "")
+            .trim()
+            .replace(/^(['"])(.*)\1$/, "$2")
+
+    const workflowGhsas = (ghsaLines.length === 1 ? normalise(ghsaLines[0]) : "")
         .split(",")
         .map((s) => s.trim())
         .filter(Boolean)
 
-    it("still recognises the workflow's shape (guards the regex against silently matching nothing)", () => {
-        // Without this, a restructured workflow would make `workflowGhsas` silently
-        // empty, and the comparison below would then only pass when the JS allowlist is
-        // ALSO empty — a false green exactly when it matters least.
-        expect(workflowText, "dependency-review.yml no longer uses dependency-review-action — update this test").toContain(
-            "actions/dependency-review-action",
-        )
+    it("the workflow still has exactly one dependency-review step declaring exactly one allow-ghsas", () => {
+        // Every assumption the textual parse rests on, asserted. Without these, the
+        // comparison below can pass while enforcing nothing: a second step's allowlist
+        // stays invisible, a `warn-only` step never fails, and a disabled step is not a
+        // gate at all. A silent-empty parse is caught too — if the key is missing while
+        // ALLOWLIST is non-empty the comparison already reddens, but this says why.
+        const steps = [...workflowText.matchAll(/actions\/dependency-review-action/g)]
+        expect(steps.length, "expected exactly one dependency-review-action step — update this test if that changed").toBe(1)
+        expect(ghsaLines.length, "expected exactly one `allow-ghsas:` line in dependency-review.yml").toBe(1)
         expect(workflowText, "dependency-review.yml no longer sets fail-on-severity — update this test").toMatch(
             /^\s*fail-on-severity:/m,
         )
+        // A block scalar (`>-` / `|`) would make the captured value the indicator itself
+        // rather than the advisory list — legal YAML the action reads correctly and this
+        // parse cannot. Fail with the reason rather than a confusing mismatch.
+        expect(ghsaLines[0]?.trim(), "allow-ghsas uses a YAML block scalar — this textual parse cannot read it").not.toMatch(
+            /^[|>]/,
+        )
+        // These neuter the gate while leaving every string above intact.
+        expect(workflowText, "dependency-review is set to warn-only — it can no longer fail a PR").not.toMatch(
+            /^\s*warn-only:\s*true/m,
+        )
+        expect(workflowText, "the dependency-review job/step is conditionally disabled").not.toMatch(/^\s*if:\s*false/m)
     })
 
     it("dependency-review.yml allow-ghsas matches audit-ci.mjs ALLOWLIST exactly", () => {
