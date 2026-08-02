@@ -24,7 +24,6 @@ import { join } from "node:path"
 import { generateDAOCode } from "./daoTemplate"
 import { REQUIRE_GNO, probeToolchain, vendorGnolandDeps } from "../test/gnoToolchain"
 
-
 const ALICE = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
 const BOB = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 

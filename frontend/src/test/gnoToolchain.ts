@@ -23,10 +23,18 @@
  * pin to clear them, which would instead have made them real in CI.
  *
  * So: probe BOTH directions and name which one failed. Too old → fix the toolchain.
- * Too new → your GNOROOT disagrees with GNO_PIN; that is a local environment fact, not
- * a template defect, and bumping the pin is a breaking migration (18 two-value `Get`
- * call sites across four template generators, all of which emit realm code that gets
- * deployed on-chain).
+ * Too new → GNOROOT and GNO_PIN disagree, which is usually a local environment fact
+ * rather than a template defect. Note the probe observes the STDLIB, not the pin, so it
+ * cannot by itself tell "your GNOROOT drifted" from "the pin was bumped"; the message
+ * spells out both branches instead of asserting one.
+ *
+ * Either way, bumping GNO_PIN is not the cheap fix it looks like: the four generators
+ * (dao, agent, escrow, channels) read avl trees with two-value `Get` throughout, and
+ * they emit realm code that gets deployed ON-CHAIN. (Deliberately not quoting a call
+ * count here — three independent counts of "the same" thing disagreed, because the
+ * answer depends entirely on whether you count template source or generated output and
+ * on which receiver/variable spellings your pattern admits. A number that looks precise
+ * and isn't would just get quoted back as fact.)
  */
 import { execFileSync } from "node:child_process"
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync } from "node:fs"
@@ -35,6 +43,27 @@ import { join } from "node:path"
 
 /** CI's "Gno Test & Lint" job sets this; it forbids every skip path. */
 export const REQUIRE_GNO = process.env.REQUIRE_GNO === "1"
+
+const GNO_TEST_WORKFLOW = join(import.meta.dirname, "../../../.github/workflows/gno-test.yml")
+
+/**
+ * The pinned toolchain SHA, read from the workflow that declares it — the single
+ * source of truth. Copying it here would create a second one, free to drift from the
+ * pin it is supposed to describe.
+ *
+ * This is what makes the drift message actionable: `$GNO_PIN` is a *workflow*
+ * variable, unset in a developer's shell, and `git worktree add --detach <path>` with
+ * an empty commit-ish does NOT error — it silently defaults to HEAD. Telling someone
+ * to run that would hand them a worktree at master: the exact drifted stdlib they are
+ * trying to escape, and the identical failure.
+ */
+export function declaredGnoPin(): string | null {
+    try {
+        return /^\s*GNO_PIN:\s*([0-9a-f]{7,40})\b/m.exec(readFileSync(GNO_TEST_WORKFLOW, "utf8"))?.[1] ?? null
+    } catch {
+        return null
+    }
+}
 
 /** Any gno-reported error line. */
 export const ERROR_LINE = /code=gno\w*Error/
@@ -169,7 +198,18 @@ export function lintWorkspace(root: string): { lines: string[]; exitOK: boolean 
 export function lintPackage(name: string, code: string): { ok: boolean; lines: string[] } {
     const root = mkdtempSync(join(tmpdir(), "memba-probe-"))
     writePkg(root, name, code, `gno.land/r/samcrew/${name}`)
-    vendorGnolandDeps(root, [code])
+    try {
+        vendorGnolandDeps(root, [code])
+    } catch (e) {
+        // A GNOROOT that no longer SHIPS a package the templates import is the same
+        // class of problem as one that changed its signature: it cannot type-check our
+        // realms. Report it as a verdict rather than letting an ENOENT escape — this
+        // runs at module scope in five spec files, so an exception collapses the whole
+        // file into "no tests" with a raw stack and no mention of GNO_PIN, which is the
+        // misleading-local-failure experience this probe exists to remove.
+        // Not hypothetical: `p/demo/avl` → `p/nt/avl/v0` has already happened once.
+        return { ok: false, lines: [`could not vendor a package the templates import: ${(e as Error).message}`] }
+    }
     const { lines, exitOK } = lintWorkspace(root)
     return { ok: exitOK && !lines.some((l) => ERROR_LINE.test(l)), lines }
 }
@@ -215,20 +255,33 @@ export function classifyProbe(
         }
     }
     if (!r.stdlibContractOK) {
+        const pin = declaredGnoPin()
         return {
             ok: false,
             reason: "stdlib-drift",
             message:
-                `this gno understands interrealm-v2, but its stdlib no longer provides the API the templates target ` +
-                `(two-value \`avl.Tree.Get\`; see gnolang/gno#5314).\n` +
-                `GNOROOT = ${gnoRootPath ?? "<unknown>"}\n` +
-                `That GNOROOT has drifted from CI's GNO_PIN (.github/workflows/gno-test.yml). This is a LOCAL ` +
-                `ENVIRONMENT mismatch, not a template defect: against the pin these specs pass.\n` +
-                `Fix: run with GNOROOT pointed at the pinned toolchain, e.g.\n` +
-                `  git -C <your gno checkout> worktree add --detach /tmp/gno-at-pin $GNO_PIN\n` +
+                `this gno understands interrealm-v2, but the stdlib under its GNOROOT does not provide what the ` +
+                `templates target (two-value \`avl.Tree.Get\`; reduced to one value by gnolang/gno#5314).\n` +
+                `  GNOROOT  = ${gnoRootPath ?? "<unknown>"}\n` +
+                `  GNO_PIN  = ${pin ?? "<could not read .github/workflows/gno-test.yml>"}\n` +
+                `\n` +
+                `This probe observes the stdlib, not the pin, so it cannot tell these two apart — check which ` +
+                `applies before acting:\n` +
+                `\n` +
+                `(a) Your GNOROOT has drifted from GNO_PIN. Most likely: it points at a gno checkout that has ` +
+                `moved past the pin. This is a LOCAL ENVIRONMENT mismatch, not a template defect — against the ` +
+                `pin these specs pass. Run against the pinned toolchain instead:\n` +
+                (pin
+                    ? `  git -C <your gno checkout> worktree add --detach /tmp/gno-at-pin ${pin}\n`
+                    : `  git -C <your gno checkout> worktree add --detach /tmp/gno-at-pin <GNO_PIN from the workflow>\n`) +
                 `  GNOROOT=/tmp/gno-at-pin npm run test -- <spec>\n` +
-                `Do NOT "fix" this by bumping GNO_PIN — that is a breaking migration of every two-value ` +
-                `\`Get\` call site in the template generators, which emit realm code deployed on-chain.`,
+                `\n` +
+                `(b) GNO_PIN itself was bumped past gnolang/gno#5314. Then GNOROOT is correct and the message ` +
+                `above does not apply: the TEMPLATES are what must change. Every two-value \`Get\` call site ` +
+                `across the four generators (dao, agent, escrow, channels) has to migrate to the one-value API, ` +
+                `and this probe migrates with them. That is a breaking change to realm code that gets deployed ` +
+                `ON-CHAIN, so it also needs a ruling on which avl version the target chain serves — not a ` +
+                `drive-by fix.`,
             lines,
         }
     }

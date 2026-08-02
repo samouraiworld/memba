@@ -12,18 +12,48 @@
  *
  * So the probe must distinguish TWO drift directions, and say which one it found.
  *
- * Structure: `classifyProbe` is pure so the verdict logic is testable without a
- * toolchain; the lint mechanism is proven by a positive AND a negative control, so it
- * cannot rot into always-green the way the original probe did.
+ * Structure, and what each layer is actually worth:
+ *  - `classifyProbe` is pure, so the verdict logic is testable without a toolchain.
+ *  - The lint mechanism has a positive AND a negative control, so `lintPackage` cannot
+ *    silently start returning green for everything.
+ *  - Each probe SOURCE has a content guard. This is the layer that is easy to skip and
+ *    the one that matters most: a positive control alone is satisfied by any well-formed
+ *    package, so a probe gutted of the very thing it tests still passes it. Both probes
+ *    are guarded, or the "cannot rot into always-green" claim above is only half true.
  */
 import { describe, it, expect } from "vitest"
 
-import { classifyProbe, hasGno, lintPackage, probeToolchain, INTERREALM_V2_PROBE, STDLIB_CONTRACT_PROBE } from "./gnoToolchain"
+import {
+    classifyProbe,
+    hasGno,
+    lintPackage,
+    probeToolchain,
+    REQUIRE_GNO,
+    INTERREALM_V2_PROBE,
+    STDLIB_CONTRACT_PROBE,
+} from "./gnoToolchain"
 import { generateEscrowCode } from "../lib/escrowTemplate"
 import { generateDAOCode } from "../lib/daoTemplate"
 
-/** The two-value `val, exists := tree.Get(k)` form the probe exists to defend. */
-const TWO_VALUE_GET = /\w+,\s*(?:exists|ok|found)\s*:?=\s*\w+\.Get\(/
+/**
+ * The two-value `val, exists := tree.Get(k)` form the probe exists to defend.
+ * Second-variable spelling is unconstrained (`exists`, `ok`, `cexists`, `rok`, `_`, …)
+ * and the receiver may be dotted (`p.Votes.Get`) — an over-tight pattern here silently
+ * under-counts and weakens the guard below.
+ */
+const TWO_VALUE_GET = /\w+,\s*\w+\s*:?=\s*[\w.]+\.Get\(/
+
+// CI (REQUIRE_GNO=1) forbids the skip path for this file too. Without this, hiding gno
+// from PATH made the whole file report SUCCESS with its positive control, its negative
+// control and its integration test silently skipped — green while proving nothing,
+// which is the exact shape this module exists to eliminate, in the file whose only job
+// is to prove the mechanism. (The job stayed red via the other five specs; this closes
+// the file itself.)
+it("gno toolchain is present when the mechanism proof is required (REQUIRE_GNO=1)", () => {
+    if (REQUIRE_GNO) {
+        expect(hasGno(), "REQUIRE_GNO=1 but `gno` is not on PATH — the probe's mechanism cannot be proven").toBe(true)
+    }
+})
 
 describe("STDLIB_CONTRACT_PROBE tracks the contract the generators actually depend on", () => {
     // WHY: `probeToolchain`'s verdict is only as good as this constant. Weaken the probe
@@ -37,6 +67,21 @@ describe("STDLIB_CONTRACT_PROBE tracks the contract the generators actually depe
             TWO_VALUE_GET.test(STDLIB_CONTRACT_PROBE),
             "STDLIB_CONTRACT_PROBE no longer uses two-value `Get` — it can no longer detect the drift it exists to catch",
         ).toBe(true)
+    })
+
+    it("the interrealm-v2 probe still references the v2 stdlib path", () => {
+        // Symmetric guard, and it is NOT redundant with "the probe lints clean": an
+        // INTERREALM_V2_PROBE with its import deleted lints clean too, so the positive
+        // control alone passes on a probe that exercises nothing. Concretely — if
+        // upstream moves `chain/runtime/unsafe` again, the cheap way to "fix" the
+        // resulting red is to drop the import, which would permanently green the
+        // pre-interrealm-v2 direction and restore the original W1.2 bug: a gate that
+        // passes on a pre-v2 GNOROOT while checking nothing.
+        expect(
+            INTERREALM_V2_PROBE,
+            "INTERREALM_V2_PROBE no longer imports the interrealm-v2 stdlib — it would lint clean on a pre-v2 toolchain",
+        ).toContain('import "chain/runtime/unsafe"')
+        expect(INTERREALM_V2_PROBE, "INTERREALM_V2_PROBE imports the v2 stdlib but never calls it").toMatch(/unsafe\.\w+\(/)
     })
 
     it("the generators still emit two-value avl.Tree.Get, so that contract is still worth probing", () => {
@@ -121,8 +166,19 @@ describeGno("lintPackage (mechanism — must discriminate, not just return green
 
 describeGno("probeToolchain (integration)", () => {
     it("returns a verdict that matches what the stdlib contract probe actually does under this GNOROOT", () => {
+        const interrealmOK = lintPackage("gate_probe_v2", INTERREALM_V2_PROBE).ok
         const contractHolds = lintPackage("gate_probe_contract", STDLIB_CONTRACT_PROBE).ok
         const v = probeToolchain()
+
+        // Only meaningful once the interrealm direction passes: on a pre-v2 toolchain
+        // whose avl still has two-value `Get`, `contractHolds` is true while the verdict
+        // is correctly `pre-interrealm-v2` — asserting equality there would fail the
+        // probe for behaving exactly as designed.
+        if (!interrealmOK) {
+            expect(v.ok).toBe(false)
+            expect(v.reason).toBe("pre-interrealm-v2")
+            return
+        }
         // The verdict must agree with the mechanism it is built on — a probe that
         // reported OK while the contract fails is exactly the bug this guards.
         expect(v.ok).toBe(contractHolds)

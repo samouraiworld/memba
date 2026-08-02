@@ -25,6 +25,11 @@ on:
       # whole gate green-but-blind, so it must trigger the job too.
       - 'frontend/src/test/gnoToolchain.ts'
       - 'frontend/src/test/gnoToolchain.test.ts'
+      # Not a template, but its values are interpolated INTO emitted realm source
+      # (candidatureTemplate reads MEMBA_DAO.realmPath / MEMBA_TOKEN.symbol;
+      # daoTemplate gates which members are emitted on BECH32_PREFIX). Editing it
+      # changes generated on-chain code, so it must not bypass the compile gate.
+      - 'frontend/src/lib/config.ts'
       - '.github/workflows/gno-test.yml'
   push:
     branches: [main]
@@ -40,6 +45,12 @@ on:
       # whole gate green-but-blind, so it must trigger the job too.
       - 'frontend/src/test/gnoToolchain.ts'
       - 'frontend/src/test/gnoToolchain.test.ts'
+      # Not a template, but its values are interpolated INTO emitted realm source
+      # (candidatureTemplate reads MEMBA_DAO.realmPath / MEMBA_TOKEN.symbol;
+      # daoTemplate gates which members are emitted on BECH32_PREFIX). Editing it
+      # changes generated on-chain code, so it must not bypass the compile gate.
+      - 'frontend/src/lib/config.ts'
+      - '.github/workflows/gno-test.yml'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -52,8 +63,21 @@ env:
   # binary resolves GNOROOT to its own module cache, which ships the full
   # stdlibs + examples, so no GNOROOT env or repo checkout is needed.
   # Verified locally against this exact SHA (probe + 6 templates + negative
-  # control). Bump deliberately; the toolchain probe fails the job if the
-  # pinned gno can't lint interrealm-v2 code.
+  # control).
+  #
+  # 🔴 BUMPING THIS IS NOT A CHORE — READ FIRST. The probe now runs in BOTH
+  # directions: it fails the job if the pinned gno is too OLD to lint
+  # interrealm-v2, and equally if the stdlib it resolves no longer provides what
+  # the templates target. The pin currently predates gnolang/gno#5314, which
+  # reduced `avl.Tree.Get` from `(value any, exists bool)` to `any`. All four
+  # generators (dao, agent, escrow, channels) read avl trees with the two-value
+  # form, so moving the pin past that commit turns every gno spec red until the
+  # generators migrate — and they emit realm code that is deployed ON-CHAIN, so
+  # the migration also needs a ruling on which avl version the target chain
+  # serves. Bump only as a deliberate, reviewed migration.
+  #
+  # This value is parsed by frontend/src/test/gnoToolchain.ts (`declaredGnoPin`)
+  # so the drift message can quote the real SHA. Keep it a plain hex literal.
   GNO_PIN: 7b2888c3b43ad78f5dd78c1f6f99766610e84733
 
 jobs:
