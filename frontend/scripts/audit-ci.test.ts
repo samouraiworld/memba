@@ -115,12 +115,14 @@ describe("the two dependency gates agree on what is acknowledged", () => {
         .filter(Boolean)
 
     it("the workflow still has exactly one dependency-review step declaring exactly one allow-ghsas", () => {
-        // Every assumption the textual parse rests on, asserted. Without these, the
-        // comparison below can pass while enforcing nothing: a second step's allowlist
-        // stays invisible, a `warn-only` step never fails, and a disabled step is not a
-        // gate at all. A silent-empty parse is caught too — if the key is missing while
-        // ALLOWLIST is non-empty the comparison already reddens, but this says why.
-        const steps = [...workflowText.matchAll(/actions\/dependency-review-action/g)]
+        // Every assumption the textual parse rests on, asserted — because when it is
+        // wrong the comparison below can pass while enforcing nothing.
+        //
+        // Anchored to `uses:` deliberately: matching the bare string would also count
+        // it inside COMMENTS, and the obvious next edit to this workflow is a comment
+        // naming the action. That reddened CI with "expected 2 to be 1", which is both
+        // false and misleading.
+        const steps = [...workflowText.matchAll(/^\s*uses:\s*actions\/dependency-review-action/gm)]
         expect(steps.length, "expected exactly one dependency-review-action step — update this test if that changed").toBe(1)
         expect(ghsaLines.length, "expected exactly one `allow-ghsas:` line in dependency-review.yml").toBe(1)
         expect(workflowText, "dependency-review.yml no longer sets fail-on-severity — update this test").toMatch(
@@ -132,11 +134,29 @@ describe("the two dependency gates agree on what is acknowledged", () => {
         expect(ghsaLines[0]?.trim(), "allow-ghsas uses a YAML block scalar — this textual parse cannot read it").not.toMatch(
             /^[|>]/,
         )
-        // These neuter the gate while leaving every string above intact.
-        expect(workflowText, "dependency-review is set to warn-only — it can no longer fail a PR").not.toMatch(
-            /^\s*warn-only:\s*true/m,
-        )
-        expect(workflowText, "the dependency-review job/step is conditionally disabled").not.toMatch(/^\s*if:\s*false/m)
+        // CLOSED set, not an open one. Matching `warn-only: true` looks sufficient and
+        // is not: the action funnels the value through `core.getBooleanInput`, which
+        // also accepts `'true'`, `True` and `TRUE`, and a step can be disabled with
+        // `if: ${{ false }}` as easily as `if: false`. Every one of those spellings
+        // silently neutered the gate while this test stayed green. Enumerating ways to
+        // disable a gate is a losing game, so assert the keys are ABSENT — this
+        // workflow legitimately has neither today, and adding one should be a
+        // deliberate edit that updates this test.
+        expect(
+            workflowText,
+            "dependency-review.yml now sets `warn-only` — the gate can no longer fail a PR. If that is intended, update this test.",
+        ).not.toMatch(/^\s*warn-only:/m)
+        expect(
+            workflowText,
+            "dependency-review.yml now carries an `if:` condition — a conditional gate is not a gate. If intended, update this test.",
+        ).not.toMatch(/^\s*if:/m)
+        // Same reasoning for `run:`: a shell block can contain a line that looks exactly
+        // like `allow-ghsas: …`, and the parse would read that decoy while the real key
+        // is absent. This workflow is pure `uses:`; keep it that way or teach the parse.
+        expect(
+            workflowText,
+            "dependency-review.yml now has a `run:` block — a line inside it could be misread as the real allow-ghsas. If intended, update this test.",
+        ).not.toMatch(/^\s*run:/m)
     })
 
     it("dependency-review.yml allow-ghsas matches audit-ci.mjs ALLOWLIST exactly", () => {
