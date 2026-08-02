@@ -35,8 +35,14 @@ export const ALLOWLIST = {
             "using <BrowserRouter> + <Routes> (see frontend/src/App.tsx) and does " +
             "NOT use React Router's RSC/data-server APIs, so the vulnerable code " +
             "path is unreachable. npm's only 'fix' is a semver-major DOWNGRADE to " +
-            "7.11.0 (no forward patch exists in the 7.12–8.2 range yet), which we " +
-            "will not take. Re-evaluate when react-router ships a fixed >8.2.0.",
+            "7.11.0, which we will not take — and it is worse than it looks: the " +
+            "7.11.x range carries GHSA-49rj (unauthenticated RCE, <=7.14.1) and " +
+            "GHSA-h5cw (CSRF, <=7.11.0). Our pinned 7.18.1 is safe from both. " +
+            "TRIGGER FIRED: the original condition was 're-evaluate when " +
+            "react-router ships a fixed >8.2.0' — 8.3.0 now exists, so the real " +
+            "choice is the v8 major or keeping this allowlist. OWNER DECISION, " +
+            "open as of 2026-08-02. Mirrored in .github/workflows/dependency-" +
+            "review.yml's allow-ghsas; a test asserts the two stay identical.",
         added: "2026-07-25",
     },
 }
