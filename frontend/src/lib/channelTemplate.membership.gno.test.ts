@@ -22,15 +22,14 @@
  * gno.land/p/* deps vendored from GNOROOT/examples, GNOHOME isolated.
  */
 import { describe, it, expect, beforeAll } from "vitest"
-import { execFileSync, spawnSync } from "node:child_process"
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, rmSync } from "node:fs"
+import { spawnSync } from "node:child_process"
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import { generateDAOCode } from "./daoTemplate"
 import { generateChannelCode } from "./channelTemplate"
-
-const REQUIRE_GNO = process.env.REQUIRE_GNO === "1"
+import { REQUIRE_GNO, probeToolchain, vendorGnolandDeps } from "../test/gnoToolchain"
 
 const ALICE = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c" // DAO member, NOT in roster
 const BOB = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5" // total non-member (but roster-granted!)
@@ -188,66 +187,27 @@ func TestDAORemovalRevokesChannelAccess(cur realm, t *testing.T) {
 }
 `
 
-function hasGno(): boolean {
-    try {
-        execFileSync("gno", ["version"], { stdio: "ignore" })
-        return true
-    } catch {
-        return false
-    }
-}
+// Toolchain probe (shared, two-direction — see ../test/gnoToolchain). Catches a gno
+// that is too OLD to lint interrealm-v2 AND one whose GNOROOT has drifted NEWER than
+// CI's GNO_PIN; either way the membership proof below would be meaningless.
+const TOOLCHAIN = probeToolchain()
 
-function gnoRoot(): string | null {
-    try {
-        const out = execFileSync("gno", ["env", "GNOROOT"], { encoding: "utf8" }).trim()
-        return out !== "" ? out : null
-    } catch {
-        return null
-    }
-}
-
-function vendorGnolandDeps(root: string, sources: string[]): void {
-    const gr = gnoRoot()
-    if (!gr) throw new Error("cannot vendor gno.land/p deps: `gno env GNOROOT` returned nothing")
-    const scan = (src: string, into: Set<string>) => {
-        for (const m of src.matchAll(/"(gno\.land\/p\/[^"]+)"/g)) into.add(m[1])
-    }
-    const pending = new Set<string>()
-    sources.forEach((s) => scan(s, pending))
-    const vendored = new Set<string>()
-    while (pending.size > 0) {
-        const pkg: string = pending.values().next().value!
-        pending.delete(pkg)
-        if (vendored.has(pkg)) continue
-        vendored.add(pkg)
-        const srcDir = join(gr, "examples", pkg)
-        const dstDir = join(root, "vendored", pkg.replace(/\//g, "_"))
-        mkdirSync(dstDir, { recursive: true })
-        let wrote = 0
-        for (const f of readdirSync(srcDir)) {
-            if (!f.endsWith(".gno") || f.endsWith("_test.gno") || f.endsWith("_filetest.gno")) continue
-            const body = readFileSync(join(srcDir, f), "utf8")
-            writeFileSync(join(dstDir, f), body)
-            scan(body, pending)
-            wrote++
-        }
-        if (wrote === 0) throw new Error(`vendoring ${pkg}: no .gno sources found under ${srcDir}`)
-        writeFileSync(join(dstDir, "gnomod.toml"), `module = "${pkg}"\ngno = "0.9"\n`)
-    }
-}
-
-const GNO_AVAILABLE = hasGno()
-
-it("gno toolchain is present when the gate is required (REQUIRE_GNO=1)", () => {
+it("gno toolchain is coherent when the gate is required (REQUIRE_GNO=1)", () => {
     if (REQUIRE_GNO) {
-        expect(GNO_AVAILABLE, "REQUIRE_GNO=1 but `gno` is not on PATH — the membership proof cannot run").toBe(true)
+        expect(
+            TOOLCHAIN.ok,
+            `REQUIRE_GNO=1 but the gno toolchain cannot run the membership proof — ${TOOLCHAIN.message}\n${TOOLCHAIN.lines.join("\n")}`,
+        ).toBe(true)
     }
 })
 
-const describeGno = GNO_AVAILABLE ? describe : describe.skip
+const describeGno = TOOLCHAIN.ok ? describe : describe.skip
 
-if (!GNO_AVAILABLE && !REQUIRE_GNO) {
-    console.warn("[channels.membership] SKIPPED — `gno` not on PATH. The authoritative run is CI's `Gno Test & Lint` job.")
+if (!TOOLCHAIN.ok && !REQUIRE_GNO) {
+    console.warn(
+        `[channels.membership] SKIPPED — ${TOOLCHAIN.message}\nThe authoritative run is CI's \`Gno Test & Lint\` job.` +
+            (TOOLCHAIN.lines.length > 0 ? `\n${TOOLCHAIN.lines.join("\n")}` : ""),
+    )
 }
 
 describeGno("generated channels realm proves W1.5 membership under `gno test`", () => {
