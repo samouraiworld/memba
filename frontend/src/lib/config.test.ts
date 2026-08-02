@@ -550,8 +550,6 @@ describe('topaz commerce-v2 allowlist — funds-free realms only', () => {
         //                         because the NFT stack must move as ONE unit
         //                         (listing them alone gives a half-wired launchpad).
         const custodyFunds: Record<string, string> = {
-            escrow: MEMBA_DAO.escrowPath,
-            tokenOtc: MEMBA_DAO.tokenOtcPath,
             nftMarketV2: MEMBA_DAO.nftMarketPath,
             nftMarketV3_2: NFT_MARKETPLACE_V3_PATH,
             nftCollections: MEMBA_DAO.nftCollectionsPath,
@@ -614,14 +612,15 @@ describe('topaz commerce-v2 allowlist — funds-free realms only', () => {
         // The predicates are what the pages actually read — assert those directly,
         // not just the paths, so a predicate repointed at a listed path is caught.
         const cfg = await import('./config')
-        expect(cfg.isEscrowValid()).toBe(false)
-        expect(cfg.isTokenOtcValid()).toBe(false)
         expect(cfg.isNftMarketValid()).toBe(false)
         expect(cfg.isNftMarketV3Valid()).toBe(false)
         expect(cfg.isNftLaunchpadValid()).toBe(false)
-        // …and the two this PR intentionally opens.
+        // …and the ones intentionally opened.
         expect(cfg.isTokenFactoryValid()).toBe(true)
         expect(cfg.isFeedbackValid()).toBe(true)
+        // PR B: escrow + OTC de-gated once the drain precondition is confirmed.
+        expect(cfg.isEscrowValid()).toBe(true)
+        expect(cfg.isTokenOtcValid()).toBe(true)
         vi.unstubAllEnvs()
         vi.resetModules()
     })
@@ -693,12 +692,22 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
         // would therefore red the e2e suite for no user-facing gain.
         vi.stubEnv('VITE_GNO_CHAIN_ID', 'test13')
         vi.resetModules()
-        const { DEFAULT_NETWORK, NETWORKS, selectableNetworksFor, isRealmValidOn, MEMBA_DAO } = await import('./config')
+        const { DEFAULT_NETWORK, NETWORKS, selectableNetworksFor, isRealmValidOn } = await import('./config')
         expect(DEFAULT_NETWORK).toBe('test13')
         expect(NETWORKS.test13.hidden).toBe(true)
-        // The premise above, asserted rather than assumed.
-        expect(isRealmValidOn('test13', MEMBA_DAO.escrowPath)).toBe(true)
-        expect(isRealmValidOn('topaz', MEMBA_DAO.escrowPath)).toBe(false)
+        // The premise above, asserted rather than assumed. It used to cite
+        // escrow_v3; this PR allowlists that on topaz, so the Services lane would
+        // now survive a flip. The NFT lane still would not, so the premise holds —
+        // but ONLY until the NFT stack is listed too.
+        //
+        // ⚠️ WHEN THAT LANDS, THIS ARGUMENT EXPIRES. Both marketplace lanes would
+        // then be live on topaz, `.env.e2e` would no longer need to pin test13,
+        // and `resolveDefaultNetwork` could finally take the `!hidden` check that
+        // was rejected in #1037 *because* of this contract. Re-open that decision
+        // at that point rather than carrying this comment forward unexamined.
+        const { NFT_MARKETPLACE_V3_PATH } = await import('./nftConfig')
+        expect(isRealmValidOn('test13', NFT_MARKETPLACE_V3_PATH)).toBe(true)
+        expect(isRealmValidOn('topaz', NFT_MARKETPLACE_V3_PATH)).toBe(false)
         // Safe because the ESCAPE HATCH — not the heal — is what prevents
         // stranding: the active hidden network is still offered, alongside topaz.
         const offered = selectableNetworksFor('test13')
