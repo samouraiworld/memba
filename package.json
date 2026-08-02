@@ -1,16 +1,17 @@
 {
   "private": true,
+  "_comment": "These overrides are SECURITY FLOORS for transitive dependencies. Each value must be at or above the advisory's patched version — a floor below it silently stops enforcing anything, because >= permits an upgrade without compelling one. That is exactly how fast-uri, @hono/node-server and postcss stayed vulnerable here while an override for each was already present. When you clear an advisory, raise the floor to the patched version rather than relying on a re-resolve.",
   "pnpm": {
     "overrides": {
-      "fast-uri": ">=3.1.2",
-      "hono": ">=4.12.25",
-      "@hono/node-server": ">=1.19.13",
+      "fast-uri": ">=4.1.1",
+      "hono": ">=4.12.27",
+      "@hono/node-server": ">=2.0.10",
       "qs": ">=6.15.2",
       "ip-address": ">=10.1.1",
       "vite": ">=8.0.16",
       "esbuild": ">=0.28.1",
-      "postcss": ">=8.5.10",
-      "vitest": ">=3.2.6"
+      "postcss": ">=8.5.18",
+      "vitest": ">=4.1.0"
     }
   }
 }
