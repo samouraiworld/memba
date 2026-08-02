@@ -21,6 +21,10 @@ on:
       - 'frontend/src/lib/daoTemplate.reads.gno.test.ts'
       - 'frontend/src/lib/channelTemplate.membership.gno.test.ts'
       - 'frontend/src/lib/escrowTemplate.refunds.gno.test.ts'
+      # Shared toolchain probe every spec above gates on — a change here can turn the
+      # whole gate green-but-blind, so it must trigger the job too.
+      - 'frontend/src/test/gnoToolchain.ts'
+      - 'frontend/src/test/gnoToolchain.test.ts'
       - '.github/workflows/gno-test.yml'
   push:
     branches: [main]
@@ -32,6 +36,10 @@ on:
       - 'frontend/src/lib/daoTemplate.reads.gno.test.ts'
       - 'frontend/src/lib/channelTemplate.membership.gno.test.ts'
       - 'frontend/src/lib/escrowTemplate.refunds.gno.test.ts'
+      # Shared toolchain probe every spec above gates on — a change here can turn the
+      # whole gate green-but-blind, so it must trigger the job too.
+      - 'frontend/src/test/gnoToolchain.ts'
+      - 'frontend/src/test/gnoToolchain.test.ts'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -84,4 +92,8 @@ jobs:
 
       - name: Compile gate — real generator output, one workspace, fail-closed
         working-directory: frontend
-        run: REQUIRE_GNO=1 npx vitest run src/lib/templates.compile.test.ts src/lib/daoTemplate.governance.gno.test.ts src/lib/daoTemplate.reads.gno.test.ts src/lib/channelTemplate.membership.gno.test.ts src/lib/escrowTemplate.refunds.gno.test.ts
+        # `src/test/gnoToolchain.test.ts` runs here too so the shared probe's MECHANISM
+        # is proven against the pinned toolchain — its negative control asserts the probe
+        # still rejects code that cannot type-check, i.e. that it has not rotted into
+        # always-green. Every other spec in this list gates on that probe's verdict.
+        run: REQUIRE_GNO=1 npx vitest run src/test/gnoToolchain.test.ts src/lib/templates.compile.test.ts src/lib/daoTemplate.governance.gno.test.ts src/lib/daoTemplate.reads.gno.test.ts src/lib/channelTemplate.membership.gno.test.ts src/lib/escrowTemplate.refunds.gno.test.ts
