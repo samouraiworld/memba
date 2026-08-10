@@ -24,6 +24,27 @@ jobs:
       - name: npm audit (production)
         run: cd frontend && npm run audit:ci
 
+  workspaces-audit:
+    # The pnpm half of the same gate that ci.yml runs per-PR. This cron leg is
+    # not redundant with it — it is the leg that would actually have caught the
+    # incident. Of the 8 advisories found sitting in pnpm-lock.yaml, 7 were
+    # PUBLISHED AFTER the commit that last touched it: the lockfile never
+    # changed, so no PR ever ran, and a purely PR-triggered gate would have
+    # stayed green the whole time. Advisories land against a static tree; only
+    # a scheduled audit sees them.
+    name: pnpm workspaces — pnpm audit
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+      - name: pnpm audit (high/critical, fail-closed)
+        run: node scripts/pnpm-audit-ci.mjs
+
   # backend-audit removed (v7.1 plan §4.2 a.2): govulncheck is run by
   # ci.yml on every PR and govulncheck.yml on cron. Running here on a third
   # schedule (with a stale Go pin) produced inconsistent signal.

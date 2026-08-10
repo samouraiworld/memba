@@ -323,6 +323,58 @@ jobs:
       - name: Test all workspaces
         run: pnpm -r test
 
+  workspaces-audit:
+    # Nothing in CI had ever audited pnpm-lock.yaml: every audit gate in the
+    # repo (this workflow's frontend job, security.yml, deploy-frontend.yml)
+    # points at frontend/package-lock.json via `npm audit`. The workspace
+    # lockfile drifted unwatched until 8 advisories had accumulated in it — two
+    # high (ip-address GHSA-mwp4-54f8-5fhr, nanoid GHSA-2v37-7h3g-55p8, the
+    # latter never surfaced by dependabot at all).
+    #
+    # Deliberately a SEPARATE job from `workspaces` above, not another step in
+    # it: a vulnerable dependency and a broken build are different failures
+    # wanting different owners, and a distinct check name is what branch
+    # protection can require. It also needs no `pnpm install` — `pnpm audit`
+    # resolves straight from the committed lockfile — so it stays a ~20s job
+    # that reports independently of whether the build is green.
+    #
+    # NOT yet a required check: main's branch protection lists exact check
+    # names and this one isn't among them, so it reports on PRs without
+    # blocking. OWNER ACTION: add "pnpm audit (workspaces)" to the required
+    # checks — until then this reports and does not gate. Note the trade-off
+    # that comes with it: the gate fails CLOSED, so a registry outage blocks
+    # merges until re-run. That is the same trade-off already accepted for the
+    # frontend audit inside the required `Frontend (React · Node 22)` check.
+    name: pnpm audit (workspaces)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10
+
+      # No `cache: 'pnpm'` — this job never installs, so there is no store to
+      # restore and a cache miss/hit would only add wall-clock.
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+
+      # The gate's own decision logic, run before the gate itself so a
+      # regression in it surfaces as a test failure rather than as a silently
+      # permissive audit. Node's built-in runner — no dependencies, no install.
+      - name: Gate self-test (fail-closed logic)
+        run: node --test scripts/pnpm-audit-ci.test.mjs
+
+      # Fails on any high/critical advisory in pnpm-lock.yaml that isn't in the
+      # documented ALLOWLIST, and fails CLOSED if the audit can't be read — a
+      # registry or network error must never read as "no vulns". Notably does
+      # NOT use `pnpm audit --ignore-registry-errors`, which exits 0 and prints
+      # a bare non-JSON line when the registry is unreachable.
+      - name: pnpm audit (high/critical, fail-closed)
+        run: node scripts/pnpm-audit-ci.mjs
+
   proto:
     name: Proto (Buf)
     runs-on: ubuntu-latest
