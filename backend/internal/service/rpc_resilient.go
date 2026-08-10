@@ -28,7 +28,21 @@ const rpcAttemptTimeout = 8 * time.Second
 // primary — a valid "no record" answer never triggers failover.
 var defaultTopazFallbacks = []string{
 	"https://rpc.topaz.testnets.gno.land:443", // public canonical
-	"https://rpc.topaz.samourai.live:443",     // samourai sentry
+	"https://topaz.rpc.onbloc.xyz:443",        // onbloc test14 node
+	// Our own sentry (rpc.topaz.samourai.live) was retired on 2026-08-10 when
+	// the host was repurposed to sapphire-1; the DNS record is gone and the
+	// box now serves a cert for rpc.sapphire.samourai.live, so every attempt
+	// cost a failed TLS handshake. Replaced with onbloc's node rather than
+	// dropped, so topaz is not single-homed.
+	//
+	// ⚠️ MEASURED 2026-08-10: rpc.topaz.testnets.gno.land returns **HTTP 403**
+	// to the Fly egress IP under the feed tailer's poll rate (/status every 3s
+	// plus 2+ calls per block during catch-up). It blocked us after ~1,200
+	// blocks. This is the #457/#462/#466 behaviour, and it presents as 403, not
+	// 429. Low-volume reads through this list are unaffected — only sustained
+	// polling trips it. That is why FEED_RPC_URL must point at a DIFFERENT node
+	// than GNO_RPC_URL (currently onbloc's), and why the indexer having no
+	// failover of its own is a real gap rather than a theoretical one.
 	// Set RPC_FALLBACK_URLS to add nodes without a code change.
 }
 

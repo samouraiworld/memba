@@ -69,7 +69,7 @@ func TestFetchValidatorsHealth_FailsOver(t *testing.T) {
 func TestHomeSnapshotRPCURL_DefaultsToTopaz(t *testing.T) {
 	t.Setenv("HOME_SNAPSHOT_RPC_URL", "")
 	t.Setenv("NFT_RPC_URL", "")
-	if got := homeSnapshotRPCURL(); got != "https://rpc.topaz.samourai.live:443" {
+	if got := homeSnapshotRPCURL(); got != "https://rpc.topaz.testnets.gno.land:443" {
 		t.Fatalf("default = %q, want the pinned topaz rpc (not the rate-limited public node)", got)
 	}
 }

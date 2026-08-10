@@ -36,7 +36,11 @@ func homeSnapshotRPCURL() string {
 	if v := os.Getenv("NFT_RPC_URL"); v != "" {
 		return v
 	}
-	return "https://rpc.topaz.samourai.live:443"
+	// Was rpc.topaz.samourai.live until 2026-08-10, when that host was
+	// repurposed to sapphire-1 and its DNS record deleted — leaving this
+	// default pointing at a name that resolves nowhere (and, from inside Fly,
+	// at a box serving the wrong TLS cert).
+	return "https://rpc.topaz.testnets.gno.land:443"
 }
 
 // homeSnapshotTTL is the cache window (default 30s, env HOME_SNAPSHOT_TTL as a Go duration).

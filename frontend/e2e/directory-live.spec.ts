@@ -39,7 +39,7 @@ import { test, expect } from '@playwright/test'
 // elsewhere already breaks every live-chain spec in the suite.
 const TOPAZ_RPC_URLS = [
     'https://rpc.topaz.testnets.gno.land',
-    'https://rpc.topaz.samourai.live',
+    'https://topaz.rpc.onbloc.xyz',
 ]
 
 test.describe('Directory — live chain resolution (smoke)', () => {

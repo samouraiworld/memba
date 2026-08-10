@@ -27,6 +27,12 @@ Full changelogs are split by version range for easier navigation:
 - The cause was the stale-floor trap the manifest already warns about: `fast-uri` and `dompurify` each carried a version floor pinned *below* the version that fixed their advisory, which enforces nothing because a floor permits an upgrade without compelling one, and `brace-expansion` had no floor at all. All three now sit at or above their patched versions.
 - The `brace-expansion` floor is deliberately scoped rather than global. Its version 5 exports its function under a name, where versions 1 and 2 export the function itself, so raising every copy at once would hand ESLint's copy an object where it expects something to call and break linting outright. Only the line that already expects version 5 is raised; the older consumers are left alone.
 
+### Feed posts appear again after our Topaz node was retired (2026-08-10)
+<!-- categories: memba, network -->
+- **New feed posts stopped appearing for about six and a half hours on 10 August, and now work again.** The blockchain node we ran for Topaz was moved over to the new Sapphire test network that morning, which left the part of the backend that watches for new posts talking to an address that no longer existed. It kept retrying instead of switching to a working node, so the feed stayed frozen at the last post it had seen. Reading the app, browsing, and everything else carried on working normally throughout — only newly published posts were missing.
+- **The rest of the app was quietly running on the same retired address**, including the home page, the marketplace pages and quest verification. Those all had a working backup node to fall back on, so you would not have noticed, but every request was paying for a failed connection first. They now go straight to a node that works.
+- **Topaz has a second node again.** With our own node retired, Topaz was down to a single point of failure. It now falls back to Onbloc's public Topaz node, so a hiccup on one no longer means a failed read.
+
 ### Token Factory and Feedback are now available on Topaz (2026-07-31)
 <!-- categories: memba -->
 - **The Token Factory and the Feedback board work on Topaz.** Both contracts went live on Topaz in the 31 July deployment, and the app now recognises them there instead of treating them as missing. The GnoBuilders badges contract is recognised too.
