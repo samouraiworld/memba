@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Security — a router flaw is now fixed rather than accepted (#1049, #1043, 2026-08-10)
+<!-- categories: memba -->
+- **Updated React Router, which handles every page navigation in the app, to the release that fixes a cross-site request forgery flaw.** The flaw only affects a server-rendering mode Memba does not use, so it was never reachable here — which is why it had been formally accepted with a written justification rather than patched.
+- **That justification had expired.** It said the only available fix was a disruptive major upgrade. On 7 August the advisory was updated with a second affected range and a fix backported to the version line Memba already runs, so a plain patch update became possible.
+- **The acknowledgement has been removed from both security gates rather than left in place.** An accepted-advisory entry is recorded by identifier with no version attached, so leaving it would have gone on suppressing the same warning after the fix shipped — including if a future change quietly reintroduced an unfixed version. Both gates now hold no exceptions at all: every high-severity advisory has to be fixed.
+
 ### Security — three dependency floors had stopped enforcing their minimums (#1053, 2026-08-10)
 <!-- categories: memba -->
 - **Updated the HTML sanitiser Memba runs over user-supplied content.** `dompurify` — which cleans realm READMEs, source-code views, reviews, validator profiles and blog posts before any of it is rendered — sat one patch release behind a fix, and is now current.

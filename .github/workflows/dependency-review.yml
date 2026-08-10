@@ -34,18 +34,10 @@ jobs:
           # formally acknowledged and that the PR was not fixing — a false red
           # on unrelated work.
           #
-          # GHSA-qwww-vcr4-c8h2 (react-router / react-router-dom): RSC-mode CSRF.
-          # Memba is a Vite SPA on <BrowserRouter> + <Routes> and does not use
-          # React Router's RSC/data-server APIs, so the path is unreachable.
-          #
-          # NOTE: audit-ci.mjs records the re-evaluation trigger as "when
-          # react-router ships a fixed >8.2.0". 8.3.0 now exists, so that trigger
-          # HAS fired and the allowlist is pending an owner decision (the fix is a
-          # v8 major). This entry mirrors the existing decision; it does not make a
-          # new one. Do NOT resolve it by downgrading to 7.11.x — that range
-          # carries GHSA-49rj (unauthenticated RCE, <=7.14.1) and GHSA-h5cw
-          # (CSRF, <=7.11.0); the pinned 7.18.1 is safe from both.
-          allow-ghsas: GHSA-qwww-vcr4-c8h2
+          # There is currently NOTHING to allow: audit-ci.mjs's ALLOWLIST is empty,
+          # so no `allow-ghsas` key belongs here either. The two are asserted
+          # identical by frontend/scripts/audit-ci.test.ts — if you add an entry to
+          # one side, that test fails until you add it to the other.
           # Allow common permissive licenses. Reject everything else (unknown
           # OSS license = manual review). Add new licenses here only after a
           # case-by-case sign-off.

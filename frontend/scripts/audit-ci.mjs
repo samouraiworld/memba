@@ -28,23 +28,26 @@ import { pathToFileURL } from "node:url"
  * Keep this list minimal; prefer fixing or upgrading over allowlisting.
  */
 export const ALLOWLIST = {
-    "GHSA-qwww-vcr4-c8h2": {
-        package: "react-router / react-router-dom",
-        reason:
-            "RSC-mode CSRF (action executes before a 400). Memba is a Vite SPA " +
-            "using <BrowserRouter> + <Routes> (see frontend/src/App.tsx) and does " +
-            "NOT use React Router's RSC/data-server APIs, so the vulnerable code " +
-            "path is unreachable. npm's only 'fix' is a semver-major DOWNGRADE to " +
-            "7.11.0, which we will not take — and it is worse than it looks: the " +
-            "7.11.x range carries GHSA-49rj (unauthenticated RCE, <=7.14.1) and " +
-            "GHSA-h5cw (CSRF, <=7.11.0). Our pinned 7.18.1 is safe from both. " +
-            "TRIGGER FIRED: the original condition was 're-evaluate when " +
-            "react-router ships a fixed >8.2.0' — 8.3.0 now exists, so the real " +
-            "choice is the v8 major or keeping this allowlist. OWNER DECISION, " +
-            "open as of 2026-08-02. Mirrored in .github/workflows/dependency-" +
-            "review.yml's allow-ghsas; a test asserts the two stay identical.",
-        added: "2026-07-25",
-    },
+    // EMPTY, deliberately. Keep it that way unless an advisory genuinely has no
+    // forward fix.
+    //
+    // GHSA-qwww-vcr4-c8h2 (react-router / react-router-dom, RSC-mode CSRF) lived
+    // here from 2026-07-25 and was removed on 2026-08-10. Its justification said
+    // "npm's only 'fix' is a semver-major DOWNGRADE to 7.11.0" and framed the
+    // choice as "the v8 major or keeping this allowlist". Both became false when
+    // the advisory was updated on 2026-08-07 with a SECOND affected range and a
+    // v7 backport: `>=7.12.0 <7.18.2` is patched by **7.18.2**, alongside
+    // `>=8.0.0 <8.3.0` patched by 8.3.0. #1049 took 7.18.2, so the advisory is
+    // fixed rather than accepted, and keeping the entry would have silently
+    // suppressed any regression back into 7.12–7.18.1.
+    //
+    // ⛔ Never "resolve" a react-router advisory by moving to 7.11.x: that range
+    // carries GHSA-49rj (unauthenticated RCE, <=7.14.1) and GHSA-h5cw (CSRF,
+    // <=7.11.0).
+    //
+    // LESSON: an entry keyed only on a GHSA id has no version bound, so it keeps
+    // suppressing the advisory after the fix ships. Re-check the advisory's
+    // affected ranges before adding one — a range can gain a backport later.
 }
 
 /**

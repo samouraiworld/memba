@@ -63,10 +63,22 @@ describe("audit-ci — advisory collection & classification", () => {
     })
 
     it("acknowledges an allowlisted advisory and does NOT block on it", () => {
-        const report = okReport({ "react-router": { severity: "high", via: [highObj("GHSA-qwww-vcr4-c8h2")] } })
-        const { acknowledged, blocking } = classify(report)
-        expect(acknowledged.map(([g]) => g)).toEqual(["GHSA-qwww-vcr4-c8h2"])
+        // Uses an INJECTED allowlist, not the real one. The real ALLOWLIST is empty,
+        // and a test that read it would silently stop exercising the acknowledge
+        // branch the moment it emptied — asserting nothing while still passing.
+        const report = okReport({ "some-pkg": { severity: "high", via: [highObj("GHSA-ackd-0000-0000")] } })
+        const { acknowledged, blocking } = classify(report, { "GHSA-ackd-0000-0000": { reason: "test fixture" } })
+        expect(acknowledged.map(([g]) => g)).toEqual(["GHSA-ackd-0000-0000"])
         expect(blocking).toHaveLength(0)
+    })
+
+    it("with the real (empty) ALLOWLIST, that same advisory BLOCKS", () => {
+        // The other half of the pair: proves the acknowledge branch above is driven by
+        // the allowlist argument and not by something incidental in the report shape.
+        const report = okReport({ "some-pkg": { severity: "high", via: [highObj("GHSA-ackd-0000-0000")] } })
+        const { acknowledged, blocking } = classify(report)
+        expect(acknowledged).toHaveLength(0)
+        expect(blocking.map(([g]) => g)).toEqual(["GHSA-ackd-0000-0000"])
     })
 
     it("BLOCKS a new, non-allowlisted high advisory", () => {
@@ -75,9 +87,12 @@ describe("audit-ci — advisory collection & classification", () => {
         expect(blocking.map(([g]) => g)).toEqual(["GHSA-new-9999-9999"])
     })
 
-    it("the only allowlist entry is the documented react-router advisory", () => {
-        // A stray allowlist addition should be a visible, reviewed diff.
-        expect(Object.keys(ALLOWLIST)).toEqual(["GHSA-qwww-vcr4-c8h2"])
+    it("the allowlist is empty — every high/critical advisory must be fixed, not accepted", () => {
+        // A stray allowlist addition should be a visible, reviewed diff. GHSA-qwww-vcr4-c8h2
+        // was removed on 2026-08-10 once react-router 7.18.2 (a v7 backport, published
+        // 2026-08-07) actually fixed it — see the note on ALLOWLIST for why keeping a
+        // version-less entry after the fix is a silent regression risk.
+        expect(Object.keys(ALLOWLIST)).toEqual([])
     })
 })
 
