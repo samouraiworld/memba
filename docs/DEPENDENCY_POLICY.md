@@ -1,9 +1,11 @@
 # Memba — Dependency Policy
 
 > **Owner**: zxxma (sole maintainer at v7.1)
-> **Last updated**: 2026-05-11 (initial publication; PR0b of the v7.1 program)
-> **Scope**: every direct and transitive dependency of `frontend/`, `backend/`, `.github/workflows/`, `backend/Dockerfile`, `frontend/Dockerfile`. Also covers GitHub Actions used in CI.
+> **Last updated**: 2026-08-10 (added the pnpm workspaces to scope and gated them in CI)
+> **Scope**: every direct and transitive dependency of `frontend/`, `backend/`, the pnpm workspaces (`packages/*`, `mcp-server/`, `mcp-server-dao-analyst/` — resolved through the root `pnpm-lock.yaml`), `.github/workflows/`, `backend/Dockerfile`, `frontend/Dockerfile`. Also covers GitHub Actions used in CI.
 > **Audit trail**: see the internal planning archive (private) (live plan) and the internal planning archive (private) (Phase 0 expert reviews) for the threat model that motivated this policy.
+>
+> The pnpm workspaces were **out of scope until 2026-08-10**, and no CI job audited `pnpm-lock.yaml` — every audit gate pointed at `frontend/package-lock.json`. Eight advisories accumulated there unreported, two of them HIGH (`GHSA-mwp4-54f8-5fhr` in `ip-address`, `GHSA-2v37-7h3g-55p8` in `nanoid`, the latter never surfaced by Dependabot). Closed by `scripts/pnpm-audit-ci.mjs` (§2).
 
 ---
 
@@ -12,7 +14,8 @@
 1. Every published advisory at severity ≥ **HIGH** affecting a dependency Memba **uses in production** must be remediated within the SLA in §3, with traceable evidence (PR + advisory link) in the commit history.
 2. Every dependency bump must be tested (CI green, including the call-site regression suites in §6) **before** it lands on `main`.
 3. The policy is **enforceable**: it specifies who decides, who acts, by when, and what triggers an escalation.
-4. CI runs `npm audit` (production-only) and `govulncheck` (pinned version) on every PR — silent failure (`|| true`, `continue-on-error: true`, "warn instead of fail") is forbidden anywhere downstream of `main`.
+4. CI runs `npm audit` (production-only, `frontend/`), `pnpm audit` (the pnpm workspaces, via `scripts/pnpm-audit-ci.mjs`) and `govulncheck` (pinned version) on every PR — silent failure (`|| true`, `continue-on-error: true`, "warn instead of fail") is forbidden anywhere downstream of `main`.
+5. An audit gate must **fail closed**. If the audit itself cannot be read — registry error, network failure, unparseable output — the gate fails. A gate that reports "no vulnerabilities" because it never reached the registry is worse than no gate, because it is trusted. This specifically rules out `pnpm audit --ignore-registry-errors`, which exits 0 and emits a bare non-JSON line when the registry is unreachable.
 
 ## 2. Triage cadence
 
@@ -21,6 +24,8 @@
 | GitHub Dependabot opens a new PR | Within 5 business days of open | Review per §4; merge, defer (with tracker issue), or close (with rationale). Auto-merge is allowed only for the "patch-bump" group (§5) and only after CI is green. |
 | `govulncheck.yml` cron (Monday 08:00 UTC) reports a NEW finding | Per §3 SLA, starting from the cron run timestamp | Open a fix PR per §3. |
 | `npm audit --audit-level=high --omit=dev` returns non-zero in CI | Immediate | Block merge of the offending PR. If the failure is unrelated to the PR (pre-existing on `main`), open a follow-up unblock PR (per the Phase 0 pattern). |
+| `scripts/pnpm-audit-ci.mjs` returns non-zero in CI (`pnpm audit (workspaces)`) | Immediate | Same as the `npm audit` row. Fix by raising the floor in the root `package.json` `pnpm.overrides` to at or above the advisory's `patched_versions`, **then re-resolving and committing `pnpm-lock.yaml`** — a floor alone changes nothing while the locked version still satisfies the range. Allowlist only with a written justification. |
+| `security.yml` cron (Monday 06:00 UTC) reports a NEW pnpm workspace advisory | Per §3 SLA, starting from the cron run timestamp | Open a fix PR per §3. This leg matters independently of the PR gate: advisories are published against a lockfile that isn't changing, so a PR-triggered gate alone stays green (7 of the 8 advisories found in 2026-08 were published *after* the commit that last touched `pnpm-lock.yaml`). |
 | External report (email, GitHub Security Advisory inbound, partner notification) | Per §3 SLA, starting from receipt | Open an internal advisory under `docs/advisories/MEMBA-YYYY-NNN.md`, then a fix PR. |
 | Memba release | Always | Run `npm audit` + `govulncheck` against the release commit; record the result in the CHANGELOG. |
 
@@ -46,6 +51,7 @@ If the upstream fix is **not yet available** when the SLA clock starts, the oper
 | Surface | Owner | Backup |
 |---------|-------|--------|
 | Frontend deps (`frontend/package.json`, lockfile) | zxxma | TBD (post-v7.1 hire/recruit per v7.1 plan §1.8) |
+| pnpm workspace deps (root `package.json` `pnpm.overrides`, `pnpm-lock.yaml`) | zxxma | TBD |
 | Backend deps (`backend/go.mod`, `go.sum`) | zxxma | TBD |
 | Docker base images (`backend/Dockerfile`, `frontend/Dockerfile`) | zxxma | TBD |
 | GitHub Actions versions | zxxma | TBD |

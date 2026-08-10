@@ -1,6 +1,11 @@
 {
   "private": true,
-  "_comment": "These overrides are SECURITY FLOORS for transitive dependencies. Each value must be at or above the advisory's patched version — a floor below it silently stops enforcing anything, because >= permits an upgrade without compelling one. That is exactly how fast-uri, @hono/node-server and postcss stayed vulnerable here while an override for each was already present. When you clear an advisory, raise the floor to the patched version rather than relying on a re-resolve. nanoid is the one floor with an upper bound, and it must keep it: an override REPLACES the consumer's range, so a bare >=3.3.17 would resolve to nanoid 6, which is ESM-only, while its only consumer here is postcss, which reaches it through require('nanoid/non-secure'). Cap it below 4 and the advisory is still fixed. Do not 'tidy' the <4 away.",
+  "scripts": {
+    "audit:ci": "node scripts/pnpm-audit-ci.mjs",
+    "test:audit-ci": "node --test scripts/pnpm-audit-ci.test.mjs"
+  },
+  "_comment": "These overrides are SECURITY FLOORS for transitive dependencies. Each value must be at or above the advisory's patched version — a floor below it silently stops enforcing anything, because >= permits an upgrade without compelling one. That is exactly how fast-uri, @hono/node-server and postcss stayed vulnerable here while an override for each was already present. When you clear an advisory, raise the floor to the patched version rather than relying on a re-resolve. Raising a floor is also not enough on its own: pnpm-lock.yaml keeps the already-locked version whenever it still satisfies the range, so re-resolve and commit the lockfile too. `pnpm audit` reads the lockfile, and scripts/pnpm-audit-ci.mjs gates CI on it.",
+  "_comment_bounded": "A floor is left unbounded so it keeps tracking upstream security releases. Bound it only when an INCOMPATIBLE major already exists and a bare floor would select it: nanoid is capped at <4 because its only consumer here is postcss (which declares ^3.3.12) while nanoid@latest is 6.x, ESM-only and Node >=22. An unbounded nanoid floor would resolve 6.x into postcss's slot and break it.",
   "pnpm": {
     "overrides": {
       "fast-uri": ">=4.1.1",
