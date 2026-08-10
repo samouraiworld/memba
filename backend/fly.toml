@@ -55,11 +55,16 @@ primary_region = 'cdg'
   # chain. Re-enable at the ceremony: drop this flag, seed cursors via
   # NFT_SEED_REALM_CURSOR, and set NFT_START_BLOCK to the topaz deploy height.
   NFT_INDEXER_DISABLED = '1'
-  # NFT indexer RPC — pinned to samourai's own node (the public node
-  # rate-limited the Fly egress IP during fast catch-up, #457/#462; our own
-  # node doesn't throttle us). Dormant while NFT_INDEXER_DISABLED=1, but also
-  # the fallback for FEED_RPC_URL/QUEST_RPC_URL-style lookups, so it must
-  # point at a LIVE chain.
+  # NFT indexer RPC. Was pinned to samourai's own node (the public node
+  # rate-limited the Fly egress IP during fast catch-up, #457/#462); that node
+  # was retired to sapphire-1 on 2026-08-10, so this now points at the public
+  # canonical node. Dormant while NFT_INDEXER_DISABLED=1, but also the fallback
+  # for FEED_RPC_URL/QUEST_RPC_URL-style lookups, so it must point at a LIVE
+  # chain.
+  # ⚠️ The #457/#462 throttling is CONFIRMED STILL LIVE (2026-08-10): the public
+  # node 403s the Fly IP under sustained indexer polling. Low-volume reads are
+  # fine. If the NFT indexer is ever re-enabled, give it its own node rather
+  # than this default — see FEED_RPC_URL, which had to move to onbloc's node.
   NFT_RPC_URL = 'https://rpc.topaz.testnets.gno.land:443'
   # NFT tailer realm sets — versioned here so prod can never silently fall back
   # to the code defaults (that's exactly how the retired memba_nft_market_v3
