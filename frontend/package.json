@@ -70,15 +70,15 @@
     "vite-plugin-pwa": "^1.3.0",
     "vitest": "^4.1.9"
   },
-  "_comment_overrides": "Several of these are SECURITY FLOORS for transitive dependencies. A floor below the advisory's patched version is silently inert — >= permits an upgrade without compelling one — so raise it to the patched version when you clear an advisory. postcss sat at >=8.5.10 while two HIGH advisories needed 8.5.12 and 8.5.18. Same rule as the pnpm overrides in the repo-root package.json. DO NOT flatten the nested brace-expansion floor into a top-level one: minimatch is the only gateway to brace-expansion in this tree, and the majors are not interchangeable. brace-expansion v5 exports a NAMED `expand` (exports.expand = ...), while v1/v2 export the function itself (module.exports = expand). eslint, @eslint/eslintrc and @eslint/config-array all pull minimatch@^3.1.5, which requires brace-expansion@^1.1.7 and calls it as `expand(...)` — a top-level \"brace-expansion\": \"^5.0.9\" would hand those an object and break `npm run lint` at runtime. Scoping to minimatch@>=10 (the only range that declares brace-expansion@^5) raises the vulnerable prod copy under glob and leaves the 1.x/2.x consumers alone.",
+  "_comment_overrides": "Several of these are SECURITY FLOORS for transitive dependencies. A floor below the advisory's patched version is silently inert — >= permits an upgrade without compelling one — so raise it to the patched version when you clear an advisory. postcss sat at >=8.5.10 while two HIGH advisories needed 8.5.12 and 8.5.18; fast-uri sat at ^3.1.4 while GHSA-7p8r-x3mc-p8w7 needed 3.1.5, so the pin was itself inside the affected range. Same rule as the pnpm overrides in the repo-root package.json.",
+  "_comment_overrides_scoped": "A key of the form 'name@<range>' applies the floor only to dependents whose REQUESTED range intersects <range>, instead of collapsing every copy in the tree onto one version. Use it when the patched major is not drop-in for every consumer. brace-expansion is the live example: v1/v2 export a callable (module.exports = expand) but v5 exports an object ({ expand, ... }), so a blanket 'brace-expansion': '^5.0.9' hands minimatch@3.1.5 an object where minimatch.js:271 calls expand(pattern) and throws 'expand is not a function'. The scoped key covers the advisory's whole affected range (>=4.0.0) rather than just the ^5 consumers we happen to have today, so a future 4.x dependent cannot slip under the floor.",
+  "_comment_overrides_minimatch_history": "Several of these are SECURITY FLOORS for transitive dependencies. A floor below the advisory's patched version is silently inert — >= permits an upgrade without compelling one — so raise it to the patched version when you clear an advisory. postcss sat at >=8.5.10 while two HIGH advisories needed 8.5.12 and 8.5.18. Same rule as the pnpm overrides in the repo-root package.json. DO NOT flatten the nested brace-expansion floor into a top-level one: minimatch is the only gateway to brace-expansion in this tree, and the majors are not interchangeable. brace-expansion v5 exports a NAMED `expand` (exports.expand = ...), while v1/v2 export the function itself (module.exports = expand). eslint, @eslint/eslintrc and @eslint/config-array all pull minimatch@^3.1.5, which requires brace-expansion@^1.1.7 and calls it as `expand(...)` — a top-level \"brace-expansion\": \"^5.0.9\" would hand those an object and break `npm run lint` at runtime. Scoping to minimatch@>=10 (the only range that declares brace-expansion@^5) raises the vulnerable prod copy under glob and leaves the 1.x/2.x consumers alone.",
   "overrides": {
     "loader-utils": "2.0.4",
     "@clerk/shared": "^3.47.6",
     "dompurify": "^3.4.13",
     "postcss": ">=8.5.18",
     "fast-uri": "^3.1.5",
-    "minimatch@>=10": {
-      "brace-expansion": "^5.0.9"
-    }
+    "brace-expansion@>=4.0.0 <6.0.0": "^5.0.9"
   }
 }
