@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Security — three dependency floors had stopped enforcing their minimums (#1053, 2026-08-10)
+<!-- categories: memba -->
+- **Updated the HTML sanitiser Memba runs over user-supplied content.** `dompurify` — which cleans realm READMEs, source-code views, reviews, validator profiles and blog posts before any of it is rendered — sat one patch release behind a fix, and is now current.
+- **Cleared two high-severity advisories out of the build toolchain.** A denial-of-service in `brace-expansion` and a host-confusion flaw in `fast-uri` were both present in the tree the security audit inspects. Neither one ships to the browser — both arrive through the Sentry build plugin and run only while the app is being compiled — but they still failed the audit, and with it the CI of every open pull request, until they were cleared.
+- The cause was the stale-floor trap the manifest already warns about: `fast-uri` and `dompurify` each carried a version floor pinned *below* the version that fixed their advisory, which enforces nothing because a floor permits an upgrade without compelling one, and `brace-expansion` had no floor at all. All three now sit at or above their patched versions.
+- The `brace-expansion` floor is deliberately scoped rather than global. Its version 5 exports its function under a name, where versions 1 and 2 export the function itself, so raising every copy at once would hand ESLint's copy an object where it expects something to call and break linting outright. Only the line that already expects version 5 is raised; the older consumers are left alone.
+
 ### Token Factory and Feedback are now available on Topaz (2026-07-31)
 <!-- categories: memba -->
 - **The Token Factory and the Feedback board work on Topaz.** Both contracts went live on Topaz in the 31 July deployment, and the app now recognises them there instead of treating them as missing. The GnoBuilders badges contract is recognised too.

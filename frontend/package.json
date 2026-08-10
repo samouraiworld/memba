@@ -32,7 +32,7 @@
     "@tanstack/react-query": "^5.101.4",
     "@tanstack/react-query-persist-client": "^5.101.4",
     "date-fns": "^4.4.0",
-    "dompurify": "^3.4.12",
+    "dompurify": "^3.4.13",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.8",
     "react": "~19.2.8",
@@ -69,12 +69,15 @@
     "vite-plugin-pwa": "^1.3.0",
     "vitest": "^4.1.9"
   },
-  "_comment_overrides": "Several of these are SECURITY FLOORS for transitive dependencies. A floor below the advisory's patched version is silently inert — >= permits an upgrade without compelling one — so raise it to the patched version when you clear an advisory. postcss sat at >=8.5.10 while two HIGH advisories needed 8.5.12 and 8.5.18. Same rule as the pnpm overrides in the repo-root package.json.",
+  "_comment_overrides": "Several of these are SECURITY FLOORS for transitive dependencies. A floor below the advisory's patched version is silently inert — >= permits an upgrade without compelling one — so raise it to the patched version when you clear an advisory. postcss sat at >=8.5.10 while two HIGH advisories needed 8.5.12 and 8.5.18. Same rule as the pnpm overrides in the repo-root package.json. DO NOT flatten the nested brace-expansion floor into a top-level one: minimatch is the only gateway to brace-expansion in this tree, and the majors are not interchangeable. brace-expansion v5 exports a NAMED `expand` (exports.expand = ...), while v1/v2 export the function itself (module.exports = expand). eslint, @eslint/eslintrc and @eslint/config-array all pull minimatch@^3.1.5, which requires brace-expansion@^1.1.7 and calls it as `expand(...)` — a top-level \"brace-expansion\": \"^5.0.9\" would hand those an object and break `npm run lint` at runtime. Scoping to minimatch@>=10 (the only range that declares brace-expansion@^5) raises the vulnerable prod copy under glob and leaves the 1.x/2.x consumers alone.",
   "overrides": {
     "loader-utils": "2.0.4",
     "@clerk/shared": "^3.47.6",
-    "dompurify": "^3.4.12",
+    "dompurify": "^3.4.13",
     "postcss": ">=8.5.18",
-    "fast-uri": "^3.1.4"
+    "fast-uri": "^3.1.5",
+    "minimatch@>=10": {
+      "brace-expansion": "^5.0.9"
+    }
   }
 }
