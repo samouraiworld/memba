@@ -1,13 +1,14 @@
 {
   "private": true,
-  "_comment": "These overrides are SECURITY FLOORS for transitive dependencies. Each value must be at or above the advisory's patched version — a floor below it silently stops enforcing anything, because >= permits an upgrade without compelling one. That is exactly how fast-uri, @hono/node-server and postcss stayed vulnerable here while an override for each was already present. When you clear an advisory, raise the floor to the patched version rather than relying on a re-resolve.",
+  "_comment": "These overrides are SECURITY FLOORS for transitive dependencies. Each value must be at or above the advisory's patched version — a floor below it silently stops enforcing anything, because >= permits an upgrade without compelling one. That is exactly how fast-uri, @hono/node-server and postcss stayed vulnerable here while an override for each was already present. When you clear an advisory, raise the floor to the patched version rather than relying on a re-resolve. nanoid is the one floor with an upper bound, and it must keep it: an override REPLACES the consumer's range, so a bare >=3.3.17 would resolve to nanoid 6, which is ESM-only, while its only consumer here is postcss, which reaches it through require('nanoid/non-secure'). Cap it below 4 and the advisory is still fixed. Do not 'tidy' the <4 away.",
   "pnpm": {
     "overrides": {
       "fast-uri": ">=4.1.1",
-      "hono": ">=4.12.27",
+      "hono": ">=4.12.34",
       "@hono/node-server": ">=2.0.10",
       "qs": ">=6.15.2",
-      "ip-address": ">=10.1.1",
+      "ip-address": ">=10.3.1",
+      "nanoid": ">=3.3.17 <4",
       "vite": ">=8.0.16",
       "esbuild": ">=0.28.1",
       "postcss": ">=8.5.18",
