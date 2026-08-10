@@ -114,11 +114,19 @@ const feedPostUnavailableBody = "# Post unavailable\n\n*This post has been hidde
 // an environment that forgets to set GNO_RPC_URL reads the right chain. The public
 // node is reached only as a failover backup (see rpcURLsInOrder), which rate-
 // limits the Fly egress IP (#466), so it is never the primary.
+//
+// UPDATE 2026-08-10: that arrangement is no longer possible. Our own sentry
+// (rpc.topaz.samourai.live) was retired when its host moved to sapphire-1, so
+// the public node is now necessarily the default. The #466 rate-limit risk is
+// therefore live again — a 6.7k-block feed catch-up on 2026-08-10 completed
+// with zero 429s, but a full rescan is a different order of magnitude. If
+// throttling reappears, set GNO_RPC_URL to a dedicated node rather than
+// reverting this default to a name that no longer resolves.
 func gnoRPCURL() string {
 	if url := os.Getenv("GNO_RPC_URL"); url != "" {
 		return url
 	}
-	return "https://rpc.topaz.samourai.live:443"
+	return "https://rpc.topaz.testnets.gno.land:443"
 }
 
 // marketplaceRPCURL returns the RPC for the on-chain r/samcrew app realms read

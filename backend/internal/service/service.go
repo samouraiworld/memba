@@ -180,7 +180,14 @@ func (s *MultisigService) SetBlockParty(enabled bool, seedRPC string) {
 func (s *MultisigService) blockPartyFetcher() httpBlockFetcher {
 	url := s.blockPartySeedRPC
 	if url == "" {
-		url = "https://rpc.topaz.samourai.live:443"
+		// Was rpc.topaz.samourai.live until 2026-08-10 (host repurposed to
+		// sapphire-1, DNS record deleted).
+		// NOTE: the live BLOCKPARTY_SEED_RPC_URL secret still points at
+		// rpc.test13.testnets.gno.land, which is NXDOMAIN — so BlockParty is
+		// currently seeding from whatever the fallback chain reaches, i.e. a
+		// different chain than it is configured for. Fixing this default does
+		// not fix that; the secret needs an owner decision.
+		url = "https://rpc.topaz.testnets.gno.land:443"
 	}
 	return httpBlockFetcher{rpcURL: url}
 }

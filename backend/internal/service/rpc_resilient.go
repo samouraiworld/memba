@@ -28,7 +28,12 @@ const rpcAttemptTimeout = 8 * time.Second
 // primary — a valid "no record" answer never triggers failover.
 var defaultTopazFallbacks = []string{
 	"https://rpc.topaz.testnets.gno.land:443", // public canonical
-	"https://rpc.topaz.samourai.live:443",     // samourai sentry
+	"https://topaz.rpc.onbloc.xyz:443",        // onbloc test14 node
+	// Our own sentry (rpc.topaz.samourai.live) was retired on 2026-08-10 when
+	// the host was repurposed to sapphire-1; the DNS record is gone and the
+	// box now serves a cert for rpc.sapphire.samourai.live, so every attempt
+	// cost a failed TLS handshake. Replaced with onbloc's node rather than
+	// dropped, so topaz is not single-homed.
 	// Set RPC_FALLBACK_URLS to add nodes without a code change.
 }
 

@@ -48,7 +48,7 @@ primary_region = 'cdg'
   # token_chain_id=test-13. There is no metric for validation rejects
   # (AuthLoginTotal counts mint attempts only), so logs are the only signal.
   MEMBA_ACCEPTED_CHAIN_IDS = 'topaz-1'
-  GNO_RPC_URL = 'https://rpc.topaz.samourai.live:443'
+  GNO_RPC_URL = 'https://rpc.topaz.testnets.gno.land:443'
   # NFT indexer — DISABLED for the topaz cutover (2026-07-26): the NFT realms
   # are not yet deployed on topaz (commerce ceremony pending), and the tailer's
   # chain-agnostic nft_indexer_state cursor must not advance against the wrong
@@ -60,7 +60,7 @@ primary_region = 'cdg'
   # node doesn't throttle us). Dormant while NFT_INDEXER_DISABLED=1, but also
   # the fallback for FEED_RPC_URL/QUEST_RPC_URL-style lookups, so it must
   # point at a LIVE chain.
-  NFT_RPC_URL = 'https://rpc.topaz.samourai.live:443'
+  NFT_RPC_URL = 'https://rpc.topaz.testnets.gno.land:443'
   # NFT tailer realm sets — versioned here so prod can never silently fall back
   # to the code defaults (that's exactly how the retired memba_nft_market_v3
   # stayed indexed while v3.1 sales went missing until 2026-07-11). Watched =

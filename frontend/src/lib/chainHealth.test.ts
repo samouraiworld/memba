@@ -29,7 +29,7 @@ vi.mock("./config", () => ({
         topaz: {
             chainId: "topaz-1",
             rpcUrl: "https://rpc.topaz.testnets.gno.land:443",
-            fallbackRpcUrls: ["https://rpc.topaz.samourai.live:443"],
+            fallbackRpcUrls: ["https://topaz.rpc.onbloc.xyz:443"],
             label: "Topaz",
         },
         gnoland1: {

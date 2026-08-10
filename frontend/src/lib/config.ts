@@ -197,8 +197,14 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // re-adding one; re-verify live first, don't restore #988's value from
         // memory.
         rpcUrl: import.meta.env.VITE_TOPAZ_RPC_URL || "https://rpc.topaz.testnets.gno.land:443",
+        // Our own sentry (rpc.topaz.samourai.live) was retired 2026-08-10 — the
+        // host was repurposed to sapphire-1, the DNS record deleted, and it now
+        // serves a cert for rpc.sapphire.samourai.live. Replaced with onbloc's
+        // topaz-1 node (verified live 2026-08-10: network topaz-1, catching_up
+        // false, serves abci_query, archive depth reaches height 100000) so
+        // topaz keeps a second node instead of going single-homed.
         fallbackRpcUrls: [
-            "https://rpc.topaz.samourai.live:443",
+            "https://topaz.rpc.onbloc.xyz:443",
         ],
         // No full-topology telemetry node identified yet for topaz-1;
         // Validators view will show partial data. Revisit when gno core
