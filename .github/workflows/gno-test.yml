@@ -65,20 +65,36 @@ env:
   # Verified locally against this exact SHA (probe + 6 templates + negative
   # control).
   #
-  # 🔴 BUMPING THIS IS NOT A CHORE — READ FIRST. The probe now runs in BOTH
+  # 🔴 BUMPING THIS IS NOT A CHORE — READ FIRST. The probe runs in BOTH
   # directions: it fails the job if the pinned gno is too OLD to lint
   # interrealm-v2, and equally if the stdlib it resolves no longer provides what
-  # the templates target. The pin currently predates gnolang/gno#5314, which
-  # reduced `avl.Tree.Get` from `(value any, exists bool)` to `any`. All four
-  # generators (dao, agent, escrow, channels) read avl trees with the two-value
-  # form, so moving the pin past that commit turns every gno spec red until the
-  # generators migrate — and they emit realm code that is deployed ON-CHAIN, so
-  # the migration also needs a ruling on which avl version the target chain
-  # serves. Bump only as a deliberate, reviewed migration.
+  # the templates target.
+  #
+  # THE PIN MUST TRACK THE CHAIN WE DEPLOY TO. A pin no live chain runs makes
+  # this gate green against an ABI that does not exist on-chain — which is
+  # exactly how the two breaks below stayed hidden. Bumped 7b2888c3 (2026-07-02)
+  # → 1c6ac026, the sapphire RC, because #1057 retired the topaz node the app
+  # used to point at. (The intermediate topaz RC 697011c4 also passes; sapphire
+  # is chosen so the toolchain matches the chain the frontend targets.)
+  #
+  # Two BREAKING toolchain changes the old pin hid, both now satisfied:
+  #   1. `avl.Tree.Get` returns a SINGLE value (was `(any, bool)`) —
+  #      gnolang/gno#5314. Presence checks moved to `Has`, value reads to a
+  #      comma-ok type assertion. VERIFIED ON-CHAIN 2026-08-11: `vm/qfile
+  #      gno.land/p/nt/avl/v0/tree.gno` returns `Get(key string) any` and
+  #      `Has(key string) bool` on BOTH topaz-1 and sapphire-1, so the migrated
+  #      form is correct for either target and only this pin differs.
+  #   2. gnovm enforces package name == last path element
+  #      (ValidatePkgNameMatchesPath, gnolang/gno#5048) — candidatureTemplate
+  #      hardcoded `package candidature`, which cannot deploy at its real path
+  #      `.../memba_dao_candidature_v3`; it now derives the name from the realm
+  #      path like every other generator.
+  # Both are the same failure class: generated code that only type-checks
+  # against a stale pin. Re-run the gate locally before the next bump.
   #
   # This value is parsed by frontend/src/test/gnoToolchain.ts (`declaredGnoPin`)
   # so the drift message can quote the real SHA. Keep it a plain hex literal.
-  GNO_PIN: 7b2888c3b43ad78f5dd78c1f6f99766610e84733
+  GNO_PIN: 1c6ac026fb7bd70367c783f0d97ecbdac8f9c279
 
 jobs:
   gno-test:

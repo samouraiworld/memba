@@ -304,7 +304,13 @@ export function generateCandidatureCode(config: CandidatureConfig = defaultCandi
     // 0/NaN would let candidatures auto-pass in the generated realm.
     requireInt("requiredApprovals", config.requiredApprovals, 1, 1000)
 
-    return `package candidature
+    // gnovm rejects a deployed package whose name differs from the last element
+    // of its path (ValidatePkgNameMatchesPath, gnolang/gno#5048), so derive it
+    // from the realm path exactly as every other generator does — a hardcoded
+    // `package candidature` fails to deploy at `.../memba_dao_candidature_v3`.
+    const pkgName = config.candidatureRealmPath.split("/").pop() || "candidature"
+
+    return `package ${pkgName}
 
 import (
 \t"chain/runtime/unsafe"
