@@ -23,6 +23,21 @@ jobs:
         uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
+          # Acknowledged advisories — kept in sync with the ALLOWLIST in
+          # frontend/scripts/audit-ci.mjs, which carries the full written
+          # justification for each entry. The sync is ENFORCED by a test
+          # (frontend/scripts/audit-ci.test.ts), not by this comment.
+          #
+          # Why it matters that these two agree: `Dependency Review` only
+          # evaluates dependencies a PR CHANGES, so bumping react-router by a
+          # single patch made this job red over an advisory we had already
+          # formally acknowledged and that the PR was not fixing — a false red
+          # on unrelated work.
+          #
+          # There is currently NOTHING to allow: audit-ci.mjs's ALLOWLIST is empty,
+          # so no `allow-ghsas` key belongs here either. The two are asserted
+          # identical by frontend/scripts/audit-ci.test.ts — if you add an entry to
+          # one side, that test fails until you add it to the other.
           # Allow common permissive licenses. Reject everything else (unknown
           # OSS license = manual review). Add new licenses here only after a
           # case-by-case sign-off.
