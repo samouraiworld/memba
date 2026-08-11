@@ -36,12 +36,29 @@ import { generateEscrowCode } from "../lib/escrowTemplate"
 import { generateDAOCode } from "../lib/daoTemplate"
 
 /**
- * The two-value `val, exists := tree.Get(k)` form the probe exists to defend.
- * Second-variable spelling is unconstrained (`exists`, `ok`, `cexists`, `rok`, `_`, …)
- * and the receiver may be dotted (`p.Votes.Get`) — an over-tight pattern here silently
- * under-counts and weakens the guard below.
+ * `t.Get(k)` call, allowing one level of nested parens (`Get(padID(id))`) and a
+ * dotted receiver (`p.Votes.Get`). An over-tight pattern here silently
+ * under-matches and weakens every guard built on it.
  */
-const TWO_VALUE_GET = /\w+,\s*\w+\s*:?=\s*[\w.]+\.Get\(/
+const GET_CALL = String.raw`[\w.]+\.Get\((?:[^()]|\([^()]*\))*\)`
+
+/**
+ * The LEGACY two-value form, `val, exists := tree.Get(k)` — removed upstream by
+ * gnolang/gno#5314 and no longer valid on any chain we deploy to.
+ *
+ * ⚠️ The trailing negative lookahead is the whole point, and its absence was a
+ * real bug. The migrated code reads `v, ok := t.Get(k).(T)` — a comma-ok TYPE
+ * ASSERTION on a single-value return, which is textually near-identical to the
+ * two-value form it replaced. The original pattern stopped at `\.Get\(` and so
+ * matched BOTH. That made these guards assert the two-value contract still held
+ * while the generators had already migrated off it: they stayed green through
+ * exactly the change they were written to catch, and the comment promising "if
+ * the templates ever migrate ... this goes red" was not true.
+ */
+const LEGACY_TWO_VALUE_GET = new RegExp(String.raw`\w+,\s*\w+\s*:?=\s*${GET_CALL}(?!\s*\.\()`)
+
+/** The MIGRATED form: comma-ok type assertion over the single-value `Get`. */
+const COMMA_OK_GET = new RegExp(String.raw`\w+,\s*\w+\s*:?=\s*${GET_CALL}\.\(`)
 
 /**
  * Content guards must read CODE, not commentary. A probe gutted of all executable code
@@ -69,11 +86,22 @@ describe("STDLIB_CONTRACT_PROBE tracks the contract the generators actually depe
     // directions: the generators must still emit two-value `Get`, and the probe must
     // still exercise it. If the templates ever migrate to gnolang/gno#5314's one-value
     // form, this goes red and points at the probe that needs updating with them.
-    it("the probe exercises two-value avl.Tree.Get", () => {
+    it("the probe exercises the MIGRATED single-value avl API, and not the removed one", () => {
+        const code = codeOnly(STDLIB_CONTRACT_PROBE)
         expect(
-            TWO_VALUE_GET.test(codeOnly(STDLIB_CONTRACT_PROBE)),
-            "STDLIB_CONTRACT_PROBE no longer uses two-value `Get` — it can no longer detect the drift it exists to catch",
+            COMMA_OK_GET.test(code),
+            "STDLIB_CONTRACT_PROBE no longer does a comma-ok `Get(k).(T)` — it can no longer detect drift in the value-read half",
         ).toBe(true)
+        expect(
+            /\.Has\(/.test(code),
+            "STDLIB_CONTRACT_PROBE no longer calls `Has` — it can no longer detect drift in the existence-check half",
+        ).toBe(true)
+        // The direction that actually regressed once before: a revert to the
+        // removed two-value form must go RED here, not pass by resembling it.
+        expect(
+            LEGACY_TWO_VALUE_GET.test(code),
+            "STDLIB_CONTRACT_PROBE uses the two-value `Get` removed by gnolang/gno#5314 — it cannot type-check on any live chain",
+        ).toBe(false)
     })
 
     it("the interrealm-v2 probe still references the v2 stdlib path", () => {
@@ -91,7 +119,7 @@ describe("STDLIB_CONTRACT_PROBE tracks the contract the generators actually depe
         expect(codeOnly(INTERREALM_V2_PROBE), "INTERREALM_V2_PROBE imports the v2 stdlib but never calls it").toMatch(/unsafe\.\w+\(/)
     })
 
-    it("the generators still emit two-value avl.Tree.Get, so that contract is still worth probing", () => {
+    it("the generators emit the migrated avl API, so that contract is still worth probing", () => {
         const escrow = generateEscrowCode({
             realmPath: "gno.land/r/samcrew/probe_escrow",
             adminAddress: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c",
@@ -116,9 +144,15 @@ describe("STDLIB_CONTRACT_PROBE tracks the contract the generators actually depe
             ["daoTemplate", dao],
         ] as const) {
             expect(
-                TWO_VALUE_GET.test(code),
-                `${name} no longer emits two-value \`Get\` — if the generators migrated to the one-value ` +
-                    `API, STDLIB_CONTRACT_PROBE must migrate with them or it asserts a contract nothing depends on`,
+                LEGACY_TWO_VALUE_GET.test(code),
+                `${name} emits the two-value \`Get\` removed by gnolang/gno#5314 — the realm it generates ` +
+                    `cannot type-check on topaz-1 or sapphire-1, so it cannot be deployed`,
+            ).toBe(false)
+            expect(
+                COMMA_OK_GET.test(code) || /\.Has\(/.test(code),
+                `${name} reads avl trees in neither migrated form (\`Has\` / comma-ok \`Get(k).(T)\`) — ` +
+                    `if the read idiom changed again, STDLIB_CONTRACT_PROBE must change with it or it ` +
+                    `asserts a contract nothing depends on`,
             ).toBe(true)
         }
     })
