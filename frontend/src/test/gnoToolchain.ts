@@ -84,14 +84,26 @@ func Caller(cur realm) address {
 /**
  * The stdlib CONTRACT the templates depend on, reduced to its smallest form.
  *
- * Every template generator (`daoTemplate`, `channelTemplate`, `agentTemplate`,
- * `escrowTemplate`) reads an avl tree with the two-value form `val, exists := t.Get(k)`.
- * gnolang/gno#5314 reduced `Get` to a single return value. If that change is present in
- * this GNOROOT, this package stops type-checking — and so does every generated realm.
+ * MIGRATED 2026-08-11 in lockstep with the generators, exactly as the note below
+ * requires. It previously asserted the two-value form `val, exists := t.Get(k)`,
+ * which gnolang/gno#5314 removed. Now that `GNO_PIN` tracks a post-#5314 chain
+ * RC, leaving it would have been actively harmful rather than merely stale: the
+ * probe would fail against the pin, `TOOLCHAIN.ok` would go false, and the
+ * compile gate would SKIP every template spec — reporting green while checking
+ * nothing. Migrating the templates without this file does not fix the gate, it
+ * silences it.
  *
- * Keep this probe in lockstep with what the generators actually emit: if a template
- * stops using two-value `Get`, this probe must change with it, or it starts asserting
- * a contract nothing depends on.
+ * Verified on-chain 2026-08-11 (`vm/qfile gno.land/p/nt/avl/v0/tree.gno`): both
+ * topaz-1 and sapphire-1 serve `Get(key string) any` and `Has(key string) bool`,
+ * so this is the shape generated realms must use on either target.
+ *
+ * Exercises BOTH halves of what the generators now emit — `Has` for existence
+ * and a comma-ok type assertion for a value read — so a GNOROOT that provides
+ * only one of them cannot pass.
+ *
+ * Keep this probe in lockstep with what the generators actually emit: if a
+ * template changes how it reads an avl tree, this probe must change with it, or
+ * it starts asserting a contract nothing depends on.
  */
 export const STDLIB_CONTRACT_PROBE = `package gate_probe_contract
 
@@ -100,8 +112,15 @@ import "gno.land/p/nt/avl/v0"
 var contracts = avl.NewTree()
 
 func Probe(id string) bool {
-\t_, exists := contracts.Get(id)
-\treturn exists
+\treturn contracts.Has(id)
+}
+
+func ProbeValue(id string) string {
+\tv, ok := contracts.Get(id).(string)
+\tif !ok {
+\t\treturn ""
+\t}
+\treturn v
 }
 `
 

@@ -1,5 +1,11 @@
 # Build stage
-FROM golang:1.25.12-alpine AS builder
+#
+# Keep this in step with the `go` directive in backend/go.mod. Every CI
+# workflow reads go.mod via `go-version-file`, so CI follows a bump on its own
+# — this Dockerfile is the ONLY place a Go version is pinned by hand, which is
+# why raising go.mod alone fails here and nowhere else. That is what blocked
+# #1044 (cosmos-sdk 0.55.0 requires go >= 1.26.5).
+FROM golang:1.26.5-alpine AS builder
 
 WORKDIR /app
 
@@ -15,7 +21,7 @@ RUN CGO_ENABLED=0 go build -ldflags="-s -w -X main.appVersion=${APP_VERSION}" -o
 # gnokey stage — the CLI the BARRICADE day-close attester (internal/arcade) uses
 # to sign + broadcast board attestations. Pinned to the deployer toolchain version.
 # It's inert unless MEMBA_ARCADE_ATTESTER_ENABLED + the key are set.
-FROM golang:1.25.12-alpine AS gnokey
+FROM golang:1.26.5-alpine AS gnokey
 RUN apk add --no-cache git
 RUN go install github.com/gnolang/gno/gno.land/cmd/gnokey@v1.1.0
 

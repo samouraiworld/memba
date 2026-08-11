@@ -296,11 +296,11 @@ ${rolesInit}
 // ── Queries ───────────────────────────────────────────────
 
 func getProposal(id int) *Proposal {
-\tval, exists := proposals.Get(padID(id))
-\tif !exists {
+\tp, ok := proposals.Get(padID(id)).(*Proposal)
+\tif !ok {
 \t\treturn nil
 \t}
-\treturn val.(*Proposal)
+\treturn p
 }
 
 // ── Structured reads (W1.4) ───────────────────────────────
@@ -566,7 +566,7 @@ func VoteOnProposal(cur realm, id int, vote string) {
 \t}
 \t// Check for duplicate votes — O(log n) AVL lookup instead of O(n) scan
 \tvoterKey := string(caller)
-\tif _, exists := p.Votes.Get(voterKey); exists {
+\tif p.Votes.Has(voterKey) {
 \t\tpanic("already voted")
 \t}
 \tpower := getMemberPower(caller)
@@ -670,7 +670,7 @@ func ProposeAddMember(cur realm, targetAddr address, power int, roles string) in
 \tcaller := unsafe.PreviousRealm().Address()
 \tassertNotArchived()
 \tassertMember(caller)
-\tif _, exists := members.Get(string(targetAddr)); exists {
+\tif members.Has(string(targetAddr)) {
 \t\tpanic("address is already a member")
 \t}
 \t// W1.3: fail fast on bad power/roles at propose time (mirrors ProposeAssignRole
@@ -738,7 +738,7 @@ func executeAddMember(data string) {
 \t\t\tassertRole(r)
 \t\t}
 \t}
-\tif _, exists := members.Get(string(addr)); exists {
+\tif members.Has(string(addr)) {
 \t\tpanic("address is already a member")
 \t}
 \tmembers.Set(string(addr), &Member{Address: addr, Power: power, Roles: roles})
@@ -759,7 +759,7 @@ func executeRemoveMember(data string) {
 \t\t\tpanic("cannot remove the last admin")
 \t\t}
 \t}
-\tif _, exists := members.Get(string(addr)); !exists {
+\tif !members.Has(string(addr)) {
 \t\tpanic("member not found")
 \t}
 \tmembers.Remove(string(addr))
@@ -773,11 +773,10 @@ func executeAssignRole(data string) {
 \taddr := address(parts[0])
 \trole := parts[1]
 \tassertRole(role)
-\tval, exists := members.Get(string(addr))
-\tif !exists {
+\tm, ok := members.Get(string(addr)).(*Member)
+\tif !ok {
 \t\tpanic("member not found")
 \t}
-\tm := val.(*Member)
 \tfor _, r := range m.Roles {
 \t\tif r == role {
 \t\t\tpanic("role already assigned")
@@ -792,11 +791,10 @@ func AssignRole(cur realm, target address, role string) {
 \tcaller := unsafe.PreviousRealm().Address()
 \tassertAdmin(caller)
 \tassertRole(role)
-\tval, exists := members.Get(string(target))
-\tif !exists {
+\tm, ok := members.Get(string(target)).(*Member)
+\tif !ok {
 \t\tpanic("target is not a member")
 \t}
-\tm := val.(*Member)
 \tfor _, r := range m.Roles {
 \t\tif r == role {
 \t\t\tpanic("role already assigned")
@@ -821,11 +819,10 @@ func RemoveRole(cur realm, target address, role string) {
 \t\t\tpanic("cannot remove the last admin")
 \t\t}
 \t}
-\tval, exists := members.Get(string(target))
-\tif !exists {
+\tm, ok := members.Get(string(target)).(*Member)
+\tif !ok {
 \t\tpanic("target is not a member")
 \t}
-\tm := val.(*Member)
 \tnewRoles := []string{}
 \tfor _, r := range m.Roles {
 \t\tif r != role {
@@ -856,7 +853,7 @@ func assertNotArchived() {
 }
 
 func assertMember(addr address) {
-\tif _, exists := members.Get(string(addr)); !exists {
+\tif !members.Has(string(addr)) {
 \t\tpanic("not a member")
 \t}
 }
@@ -865,27 +862,25 @@ func assertMember(addr address) {
 // realm (e.g. the DAO's board/channels realm) can gate posting on DAO membership
 // via a cross-realm read call — see boardTemplate's assertIsMember.
 func IsMember(addr address) bool {
-\t_, exists := members.Get(string(addr))
-\treturn exists
+\treturn members.Has(string(addr))
 }
 
 func assertAdmin(addr address) {
-\tval, exists := members.Get(string(addr))
-\tif !exists {
+\tm, ok := members.Get(string(addr)).(*Member)
+\tif !ok {
 \t\tpanic("admin role required")
 \t}
-\tm := val.(*Member)
 \tif !hasRoleInternal(m, "admin") {
 \t\tpanic("admin role required")
 \t}
 }
 
 func hasRole(addr address, role string) bool {
-\tval, exists := members.Get(string(addr))
-\tif !exists {
+\tm, ok := members.Get(string(addr)).(*Member)
+\tif !ok {
 \t\treturn false
 \t}
-\treturn hasRoleInternal(val.(*Member), role)
+\treturn hasRoleInternal(m, role)
 }
 
 func hasRoleInternal(m *Member, role string) bool {
@@ -898,11 +893,11 @@ func hasRoleInternal(m *Member, role string) bool {
 }
 
 func getMemberPower(addr address) int {
-\tval, exists := members.Get(string(addr))
-\tif !exists {
+\tm, ok := members.Get(string(addr)).(*Member)
+\tif !ok {
 \t\treturn 0
 \t}
-\treturn val.(*Member).Power
+\treturn m.Power
 }
 
 func totalPower() int {

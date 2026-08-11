@@ -27,6 +27,12 @@ Full changelogs are split by version range for easier navigation:
 - **A webhook saved on a chain other than the one you're currently browsing no longer vanishes from the list.** It used to be silently created, then hidden — reachable by neither editing nor deleting it, with no error to explain why. All of your webhooks are shown regardless of chain, each carrying a badge naming which one it's scoped to.
 - **A rejected webhook now tells you why.** Something like an unsupported channel URL used to fail with no explanation; the alerting service's own reason is now shown in the form.
 - **An account with no webhooks configured yet now shows a message saying so**, instead of a blank panel.
+### Newly created DAOs, channels, agent registries and escrows will deploy again (2026-08-11)
+<!-- categories: memba, gno-core -->
+- **The contract code Memba writes for you when you create a DAO could no longer be published to the chain.** gno.land changed how contracts read their stored data — a lookup that used to answer with both "the value" and "was it there?" now answers with just the value, and there is a separate way to ask whether something exists. Memba was still writing the old form, so every contract it generated — DAOs, channels, agent registries and escrows — was rejected by the chain before it could go live. All four generators now use the new form.
+- **A second, independent rejection is fixed too.** The chain now insists a contract's internal name match the last part of its address. The candidature contract had its name written in by hand, which no longer matched, so it could not deploy either. It now derives the name from the address like every other generator.
+- **The check that was supposed to catch this had been passing against a version of gno.land no live chain runs.** It is now pinned to the same release the chain we deploy to actually runs, so it tests against reality. Both problems above had been invisible for exactly that reason.
+- Existing deployed contracts are unaffected — this only concerns newly generated ones.
 
 ### Security — a router flaw is now fixed rather than accepted (#1049, #1043, 2026-08-10)
 <!-- categories: memba -->
