@@ -348,26 +348,6 @@ export function selectableNetworksFor(activeKey: string): Record<string, Network
         : VISIBLE_NETWORKS
 }
 
-/** The same rule for a control keyed by CHAIN ID rather than network key —
- *  options for a <select> whose current value is `currentChainId`.
- *
- *  Stored chain ids outlive the network list: a webhook saved against a chain we
- *  later hid (Betanet) or retired has no option in VISIBLE_NETWORKS, and a
- *  <select> whose value matches no option renders BLANK with selectedIndex -1
- *  while state keeps — and resubmits — the old value. The user cannot see what it
- *  is scoped to, nor change it. So the current value always gets an option,
- *  labelled honestly. */
-export function selectableChainIdOptions(currentChainId: string): { value: string; label: string }[] {
-    const options = Object.values(VISIBLE_NETWORKS).map(net => ({ value: net.chainId, label: net.label }))
-    if (currentChainId && !options.some(o => o.value === currentChainId)) {
-        const known = Object.values(NETWORKS).find(n => n.chainId === currentChainId)
-        options.unshift({
-            value: currentChainId,
-            label: known ? `${known.label} — no longer offered` : `${currentChainId} — unrecognised chain`,
-        })
-    }
-    return options
-}
 
 /**
  * Resolves the default network key from VITE_GNO_CHAIN_ID, validated against

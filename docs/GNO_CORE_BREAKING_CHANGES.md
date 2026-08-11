@@ -10,6 +10,10 @@
 >
 > **2026-07-11 (v7.3.0 cut) sweep note:** master advanced past the Jul-3 window — local checkout `aacc2be88` plus 17 further origin commits as of 2026-07-11 (VM correctness #5899/#5920/#5739; genesis/fork/hardfork tooling #5924–#5928; grc20reg slug cap #5911; pkg-path-vs-package-name lint #5048). **Still zero breaking changes for deployed test13 realms** — all deltas bind future deploys only. Pre-mainnet gates (tracked, not urgent): bump the CI `GNO_PIN` past #5048/#5911, migrate `contracts/memba_nft_offers_v1/offers.gno` off the interrealm-v1 banker API before it ever deploys, extend the sweep table to HEAD.
 >
+> **2026-08-11 — `avl.Tree.Get` is single-value; CI pin bumped to the sapphire RC `1c6ac026fb7b`.** Upstream ([gnolang/gno#5314](https://github.com/gnolang/gno/pull/5314)) changed `p/nt/avl/v0` from `Get(key) (value any, exists bool)` to `Get(key) any` (absent key → `nil`; use `Has` for existence). **This is live on BOTH chains** — verified by `vm/qfile gno.land/p/nt/avl/v0/tree.gno` against `rpc.topaz.testnets.gno.land` *and* `rpc.sapphire.testnets.gno.land`, each returning `Get(key string) any` + `Has(key string) bool`. So the old two-value form no longer type-checks against any deploy target, and the migrated form is correct for either: **the template code is chain-independent, only the pin differs.** The generators are migrated (`Has` for existence, comma-ok `Get(k).(T)` for value reads) and `GNO_PIN` moved `7b2888c3b` → `1c6ac026fb7b` (sapphire RC) in the same commit. The bump also carries **#5048** (package name must equal the final path element), closing that pre-mainnet gate and fixing `candidatureTemplate`, which hardcoded `package candidature` instead of deriving it from the realm path.
+>
+> **Lesson — a stale pin makes the gate green while blessing templates the chain would reject.** Two follow-on traps found while doing it, both of which would have left the gate *silently* useless rather than red: (1) `STDLIB_CONTRACT_PROBE` still asserted the two-value form, so under the new pin the probe failed, `TOOLCHAIN.ok` went false, and the compile gate **skipped every template spec** — migrating the templates without the probe silences the gate instead of fixing it; (2) the interrealm-v2 positive control linted into a directory whose name did not match its `package` declaration, which #5048 turns into a hard error unrelated to interrealm-v2. Both are fixed. The gate was then confirmed to still discriminate by reintroducing a two-value `Get` at one call site and watching it go red.
+>
 > Migration playbook: [GNO_CORE_COMPAT.md](../GNO_CORE_COMPAT.md)
 
 ## Interrealm-v2 stdlib migration — ✅ COMPLETED
@@ -18,7 +22,7 @@ The interrealm-v2 stdlib move (`chain`/`runtime`/`unsafe` symbols, `NewBanker(+c
 `cross(cur)`) has **landed and Memba is migrated**: all deployed Memba realms on test13
 run interrealm-v2 (`_v2` / `v3_1` set), `samcrew-deployer` is coherent with them, and
 generated client templates are compile-gated in CI against a pinned interrealm-v2 gno
-toolchain (`7b2888c3b`, `.github/workflows/gno-test.yml`, `REQUIRE_GNO=1`). No further
+toolchain (`1c6ac026fb7b`, `.github/workflows/gno-test.yml`, `REQUIRE_GNO=1`). No further
 action for deployed realms. Residual (tracked in the audit plan, not here): the
 deprecated v1 realms still on the old API are quarantined, not redeployed.
 
@@ -39,6 +43,8 @@ the deployed test13 realm set.** Three items bind FUTURE code:
 
 | Prio | PR | Risk | Effort | When to act |
 |------|-----|------|--------|-------------|
+| ✅ done | [#5314](https://github.com/gnolang/gno/pull/5314) `p/nt/avl/v0` `Get` → single-value `Get(key) any` | **HIGH — every tree read in every template** | 2h | **Done 2026-08-11.** Live on topaz-1 AND sapphire-1 (both `vm/qfile`-verified); templates migrated + `GNO_PIN` → sapphire RC |
+| ✅ done | [#5048](https://github.com/gnolang/gno/pull/5048) package name must match final path element | MED | 0.5h | **Done 2026-08-11** with the pin bump; `candidatureTemplate` now derives its package name from the realm path |
 | 🔴 P0 | [#5858](https://github.com/gnolang/gno/pull/5858) `chain.emit` hard-caps attr values → panic | MED (state-breaking, forward-looking) | 1-2h | Before any mainnet / post-#5858-network redeploy |
 | 🟡 P1 | [#5857](https://github.com/gnolang/gno/pull/5857) `MaxEventAttrLen` 1024→4096 | LOW (config; pairs with #5858) | 0 | Monitor |
 | 🟡 P1 | [#5908](https://github.com/gnolang/gno/pull/5908) `grc20.NewToken` 5-arg signature change | MED | 1h | On GNO_PIN bump past this commit. Deployer already adapted; templates don't call directly. |

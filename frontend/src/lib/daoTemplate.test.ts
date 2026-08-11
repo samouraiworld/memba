@@ -47,7 +47,9 @@ describe('generateDAOCode', () => {
     it('exports IsMember(addr) bool for the companion board/channels realm', () => {
         const code = generateDAOCode(makeConfig())
         expect(code).toContain('func IsMember(addr address) bool')
-        expect(code).toMatch(/func IsMember\(addr address\) bool \{[\s\S]*members\.Get\(string\(addr\)\)[\s\S]*return exists/)
+        // Must answer from the members tree, never a constant. `avl.Tree.Get` returns
+        // a single value now, so presence is `Has` — see the AVL notes in daoTemplate.
+        expect(code).toMatch(/func IsMember\(addr address\) bool \{[\s\S]*?members\.Has\(string\(addr\)\)/)
     })
 
     it('imports chain/runtime', () => {

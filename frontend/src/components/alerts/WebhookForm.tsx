@@ -2,24 +2,31 @@
  * WebhookForm — Form for creating/editing webhooks.
  *
  * Uses native form state (no form library — Memba convention).
- * HTTPS URL validation, type selector, optional chain selector.
+ * Chain options come from gnomonitoring /info, not Memba's NETWORKS map:
+ * they are different namespaces and the service is the authority on which
+ * chain_id values it will accept.
  *
  * @module components/alerts/WebhookForm
  */
 
-import { useState } from "react"
-import { selectableChainIdOptions } from "../../lib/config"
-import type { MonitoringWebhook, WebhookType } from "../../lib/monitoringAuth"
+import { useEffect, useState } from "react"
+import { GNO_MONITORING_CHAIN } from "../../lib/config"
+import { fetchEnabledChains } from "../../lib/gnomonitoring"
+import { chainOptionsFor, validateWebhookUrl } from "../../lib/webhookForm"
+import type {
+    MonitoringWebhook,
+    MutationResult,
+    WebhookInput,
+    WebhookType,
+} from "../../lib/monitoringAuth"
 
 interface Props {
     /** If provided, form is in edit mode */
     initial?: MonitoringWebhook
-    onSubmit: (data: Omit<MonitoringWebhook, "ID"> & { ID?: number }) => Promise<boolean>
+    onSubmit: (data: WebhookInput) => Promise<MutationResult>
     onCancel?: () => void
     loading?: boolean
 }
-
-const WEBHOOK_URL_REGEX = /^https:\/\/.+/
 
 const inputStyle: React.CSSProperties = {
     width: "100%", padding: "8px 12px", borderRadius: 8,
@@ -51,42 +58,76 @@ export function WebhookForm({ initial, onSubmit, onCancel, loading }: Props) {
     const [type, setType] = useState<WebhookType>(initial?.Type || "discord")
     const [description, setDescription] = useState(initial?.Description || "")
     const [chainId, setChainId] = useState(initial?.ChainID || "")
+    const [chains, setChains] = useState<string[]>([])
+    const [chainsLoading, setChainsLoading] = useState(true)
     const [errors, setErrors] = useState<Record<string, string>>({})
+    const [submitError, setSubmitError] = useState<string | null>(null)
     const [submitting, setSubmitting] = useState(false)
+
+    useEffect(() => {
+        let cancelled = false
+        fetchEnabledChains().then(list => {
+            if (cancelled) return
+            setChains(list)
+            setChainsLoading(false)
+            // Preselect the chain Memba is pointed at, when the service offers
+            // it — chain_id is required, so an empty default on create is just
+            // a guaranteed validation error. CREATE ONLY: never invent a scope
+            // for an existing webhook, or editing an unrelated field would
+            // silently rescope a legacy row that has no chain.
+            if (!initial) {
+                setChainId(prev =>
+                    prev || (list.includes(GNO_MONITORING_CHAIN) ? GNO_MONITORING_CHAIN : ""))
+            }
+        })
+        return () => { cancelled = true }
+        // Mount-once: the registry is fetched a single time per form instance.
+        // `initial` is read only to decide the create-time preselect and must
+        // not retrigger the fetch. Same convention as AlertsPage's loader.
+    }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
     const validate = (): boolean => {
         const errs: Record<string, string> = {}
-        if (!url.trim()) errs.url = "URL is required"
-        else if (!WEBHOOK_URL_REGEX.test(url.trim())) errs.url = "Must be a valid HTTPS URL"
+        const urlError = validateWebhookUrl(type, url)
+        if (urlError) errs.url = urlError
         if (!description.trim()) errs.description = "Description is required"
+        // The server rejects an empty chain_id outright; catch it here so the
+        // user gets a field-level message instead of an opaque 400.
+        if (!chainId) errs.chain = "Chain is required"
         setErrors(errs)
         return Object.keys(errs).length === 0
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
+        setSubmitError(null)
         if (!validate()) return
 
         setSubmitting(true)
-        const success = await onSubmit({
+        const result = await onSubmit({
             ...(initial?.ID != null ? { ID: initial.ID } : {}),
             URL: url.trim(),
             Type: type,
             Description: description.trim(),
-            ChainID: chainId || null,
+            ChainID: chainId,
         })
-
         setSubmitting(false)
-        if (success && !initial) {
+
+        if (!result.ok) {
+            setSubmitError(result.error || "Could not save the webhook")
+            return
+        }
+
+        if (!initial) {
             // Reset form on successful create
             setUrl("")
             setDescription("")
-            setChainId("")
             setErrors({})
         }
     }
 
     const isEdit = initial != null
+    const chainOptions = chainOptionsFor(chains, chainId)
 
     return (
         <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: 12, paddingTop: 8 }}>
@@ -135,19 +176,32 @@ export function WebhookForm({ initial, onSubmit, onCancel, loading }: Props) {
 
             {/* Chain selector */}
             <div>
-                <label style={labelStyle}>Chain (optional — empty = all chains)</label>
+                <label style={labelStyle}>Chain</label>
                 <select
                     id="webhook-chain"
                     value={chainId}
                     onChange={e => setChainId(e.target.value)}
                     style={{ ...inputStyle, cursor: "pointer" }}
                 >
-                    <option value="">All chains</option>
-                    {selectableChainIdOptions(chainId).map(o => (
+                    {!chainId && (
+                        <option value="">
+                            {chainsLoading ? "Loading chains…" : "Select a chain"}
+                        </option>
+                    )}
+                    {chainOptions.map(o => (
                         <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                 </select>
+                {errors.chain && <div style={errorStyle}>{errors.chain}</div>}
+                {!chainsLoading && chains.length === 0 && (
+                    <div style={errorStyle}>
+                        Could not load available chains from the monitoring service.
+                    </div>
+                )}
             </div>
+
+            {/* Server-side refusal */}
+            {submitError && <div style={errorStyle}>{submitError}</div>}
 
             {/* Actions */}
             <div style={{ display: "flex", gap: 8, marginTop: 4 }}>

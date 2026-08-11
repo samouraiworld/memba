@@ -6,25 +6,78 @@
  * - No caching (webhook data is mutable, must always be fresh)
  * - 8s timeout with AbortSignal
  * - Graceful null return on failure
+ * - Webhook mutations (create/update) return a `MutationResult { ok, error? }`
+ *   instead of a bare boolean, so the server's refusal reason survives to the UI
  *
  * All endpoints are per-user (user ID extracted from JWT server-side).
  *
  * @module lib/monitoringAuth
  */
 
-import { GNO_MONITORING_API_URL, GNO_CHAIN_ID } from "./config"
+import { GNO_MONITORING_API_URL } from "./config"
 
 // ── Types ────────────────────────────────────────────────────
 
 export type WebhookKind = "govdao" | "validator"
 export type WebhookType = "discord" | "slack"
 
+/** Domain model used by the UI. NOT the wire format — see toWire/fromWire. */
 export interface MonitoringWebhook {
     ID: number
     Description: string
     URL: string
     Type: WebhookType
     ChainID?: string | null
+}
+
+/** A webhook as submitted by the form: no ID when creating, ID when editing. */
+export type WebhookInput = Omit<MonitoringWebhook, "ID"> & { ID?: number }
+
+/** Outcome of a mutating call, carrying the server's explanation on refusal. */
+export interface MutationResult {
+    ok: boolean
+    error?: string
+}
+
+/**
+ * gnomonitoring's JSON shape for a webhook.
+ *
+ * Server-side, ChainID is the ONLY field with a JSON tag (`json:"chain_id"`).
+ * The rest are untagged, so Go matches them case-insensitively against the Go
+ * field name — which is why the PascalCase keys here are correct and must not
+ * be "normalised" to snake_case.
+ */
+interface WebhookRow {
+    ID: number
+    Description: string
+    URL: string
+    Type: WebhookType
+    chain_id?: string | null
+}
+
+/** Domain → wire. Omits chain_id entirely when unset: the server rejects an
+ *  empty/null value ("chain_id is required") but reads an ABSENT one on PUT as
+ *  "leave the stored chain untouched". */
+function toWire(w: WebhookInput): Record<string, unknown> {
+    const wire: Record<string, unknown> = {
+        URL: w.URL,
+        Type: w.Type,
+        Description: w.Description,
+    }
+    if (w.ID != null) wire.ID = w.ID
+    if (w.ChainID) wire.chain_id = w.ChainID
+    return wire
+}
+
+/** Wire → domain. */
+function fromWire(row: WebhookRow): MonitoringWebhook {
+    return {
+        ID: row.ID,
+        Description: row.Description,
+        URL: row.URL,
+        Type: row.Type,
+        ChainID: row.chain_id ?? null,
+    }
 }
 
 export interface AlertContact {
@@ -78,75 +131,83 @@ async function authFetch<T>(
     }
 }
 
-/** Append chain query parameter to a path. */
-function withChain(path: string, chain?: string): string {
-    const chainId = chain || GNO_CHAIN_ID
-    const sep = path.includes("?") ? "&" : "?"
-    return `${path}${sep}chain=${encodeURIComponent(chainId)}`
-}
-
 // ── Webhooks (GovDAO + Validator) ────────────────────────────
 
+/**
+ * All of the user's webhooks of this kind, across every chain.
+ *
+ * Deliberately UNSCOPED. The server accepts an optional `?chain=` filter, but
+ * the chain selector offers every chain gnomonitoring accepts — which is not
+ * the same set as Memba's own networks. Filtering here would hide any webhook
+ * scoped to another chain, leaving it created-but-unreachable. The per-card
+ * chain badge is what tells them apart.
+ */
 export async function listWebhooks(
     token: string,
     kind: WebhookKind,
-    chain?: string,
 ): Promise<MonitoringWebhook[]> {
-    const data = await authFetch<MonitoringWebhook[]>(
-        withChain(`/webhooks/${kind}`, chain),
+    const data = await authFetch<WebhookRow[] | { message: string }>(
+        `/webhooks/${kind}`,
         token,
     )
-    return data || []
+    // With zero webhooks the server returns {"message":"no webhook found"} —
+    // an object, not an array. Never let that shape reach the UI.
+    if (!Array.isArray(data)) return []
+    return data.map(fromWire)
 }
 
-export async function createWebhook(
+/**
+ * POST/PUT a webhook, preserving the server's explanation on refusal.
+ *
+ * gnomonitoring answers refusals with a plain-text body ("chain_id is
+ * required", "webhook URL host ... is not allowed for type ..."). Collapsing
+ * that to a boolean is what made this class of bug undiagnosable from the UI.
+ */
+async function mutateWebhook(
     token: string,
     kind: WebhookKind,
-    payload: Omit<MonitoringWebhook, "ID">,
-): Promise<boolean> {
-    if (!GNO_MONITORING_API_URL) return false
+    method: "POST" | "PUT",
+    payload: WebhookInput,
+): Promise<MutationResult> {
+    if (!GNO_MONITORING_API_URL) {
+        return { ok: false, error: "Monitoring API is not configured" }
+    }
 
     try {
-        const url = `${GNO_MONITORING_API_URL}/webhooks/${kind}`
-        const res = await fetch(url, {
-            method: "POST",
+        const res = await fetch(`${GNO_MONITORING_API_URL}/webhooks/${kind}`, {
+            method,
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(toWire(payload)),
             signal: AbortSignal.timeout(8000),
         })
-        return res.ok
+
+        if (res.ok) return { ok: true }
+
+        const detail = (await res.text()).trim().slice(0, 200)
+        return { ok: false, error: detail || `Request failed (HTTP ${res.status})` }
     } catch (err) {
-        console.warn(`[monitoringAuth] createWebhook(${kind}) failed:`, err)
-        return false
+        console.warn(`[monitoringAuth] ${method} /webhooks/${kind} failed:`, err)
+        return { ok: false, error: "Network error — please try again" }
     }
 }
 
-export async function updateWebhook(
+export function createWebhook(
     token: string,
     kind: WebhookKind,
-    payload: MonitoringWebhook,
-): Promise<boolean> {
-    if (!GNO_MONITORING_API_URL) return false
+    payload: WebhookInput & { ChainID: string },
+): Promise<MutationResult> {
+    return mutateWebhook(token, kind, "POST", payload)
+}
 
-    try {
-        const url = `${GNO_MONITORING_API_URL}/webhooks/${kind}`
-        const res = await fetch(url, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(payload),
-            signal: AbortSignal.timeout(8000),
-        })
-        return res.ok
-    } catch (err) {
-        console.warn(`[monitoringAuth] updateWebhook(${kind}) failed:`, err)
-        return false
-    }
+export function updateWebhook(
+    token: string,
+    kind: WebhookKind,
+    payload: WebhookInput & { ID: number },
+): Promise<MutationResult> {
+    return mutateWebhook(token, kind, "PUT", payload)
 }
 
 export async function deleteWebhook(

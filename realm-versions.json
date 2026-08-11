@@ -1,9 +1,9 @@
 {
-  "$schema": "Tracks deployed realm versions per network. Updated after each realm deployment. Deployed-state claims (blocks, txHashes, ACL notes) are verified against the live chain — never from prose. See docs/planning/MEMBA_AAA_IMPLEMENTATION_PLAN.md §3.1 / G5.",
-  "lastVerified": "2026-07-21",
-  "verifiedDuring": "topaz-1 ceremony (2026-07-21): 21/22 artifacts deployed via multisig direct-drive (samcrew-core-test1 seq 0-24). 5 deps + 7 gnodaokit + 9 memba realms — all post-deploy verified (render). deps/demo/profile failed (AVL import mismatch, fixed PR #130). Frontend topaz config merged PR #983.",
+  "$schema": "Tracks deployed realm versions per network. Updated after each realm deployment. Deployed-state claims (blocks, txHashes, ACL notes) are verified against the live chain \u2014 never from prose. See docs/planning/MEMBA_AAA_IMPLEMENTATION_PLAN.md \u00a73.1 / G5.",
+  "lastVerified": "2026-08-11",
+  "verifiedDuring": "topaz-1 ceremony (2026-07-21): 21/22 artifacts deployed via multisig direct-drive (samcrew-core-test1 seq 0-24). 5 deps + 7 gnodaokit + 9 memba realms \u2014 all post-deploy verified (render). deps/demo/profile failed (AVL import mismatch, fixed PR #130). Frontend topaz config merged PR #983. | 2026-08-11 full vm/qfile parity sweep of the samcrew-deployer manifest (projects/memba/realms.manifest + projects/gnodaokit/manifest.toml + vendored deps) against topaz-1 and sapphire-1",
   "verificationMethod": "Per realm: `vm/qfile <pkgpath>` for live source + ACL guard counts; `/block?height=<block>` for the deploy tx, hashed as base64(sha256(txbytes)).",
-  "pendingFields": "Per-entry deployer commit SHA + gno toolchain commit are NOT yet pinned (deploy-time git/build metadata is not recoverable from chain) — tracked under E10 / decision Q2 (F10.1 scrub). samcrew-deployer is the canonical realm source.",
+  "pendingFields": "Per-entry deployer commit SHA + gno toolchain commit are NOT yet pinned (deploy-time git/build metadata is not recoverable from chain) \u2014 tracked under E10 / decision Q2 (F10.1 scrub). samcrew-deployer is the canonical realm source.",
   "test12": {
     "memba_dao": {
       "path": "gno.land/r/samcrew/memba_dao",
@@ -26,12 +26,12 @@
       "block": 237939,
       "date": "2026-04-09",
       "txHash": "FVK+yC9zxqt12g8Pvl87cN7dCBbCYNPsAQFwtQOMdF8=",
-      "note": "CORRECTION (G5, 2026-06-15): the prior 'zero ACL on all write functions' note was FALSE. Live `vm/qfile` source (778 lines) has 18 ACL guard sites: 4 assertCallerHasWriteAccess, 6 assertCallerIsOwner, 4 assertCallerIsAdminRole, 4 assertCallerIsMember. No emergency redeploy needed (see §3.1)."
+      "note": "CORRECTION (G5, 2026-06-15): the prior 'zero ACL on all write functions' note was FALSE. Live `vm/qfile` source (778 lines) has 18 ACL guard sites: 4 assertCallerHasWriteAccess, 6 assertCallerIsOwner, 4 assertCallerIsAdminRole, 4 assertCallerIsMember. No emergency redeploy needed (see \u00a73.1)."
     },
     "tokenfactory": {
       "path": "gno.land/r/samcrew/tokenfactory",
       "version": "v1",
-      "note": "Realm code not in the samcrew-deployer repo — deployed externally; block/txHash unrecorded."
+      "note": "Realm code not in the samcrew-deployer repo \u2014 deployed externally; block/txHash unrecorded."
     },
     "agent_registry": {
       "path": "gno.land/r/samcrew/agent_registry",
@@ -39,7 +39,7 @@
       "block": 231189,
       "date": "2026-04-03",
       "txHash": "pfTol4PB5zhVl/mjgwibgF2CMzprgF0k0YAg3rC3zwg=",
-      "note": "CONFIRMED (G5, 2026-06-15): UseCredit(cur realm, agentId, userAddr) has NO caller guard on the live source — anyone can burn any user's credits. Hardened source ready; awaiting redeploy (A5). Credits UI gated off for test12 in config.ts until then."
+      "note": "CONFIRMED (G5, 2026-06-15): UseCredit(cur realm, agentId, userAddr) has NO caller guard on the live source \u2014 anyone can burn any user's credits. Hardened source ready; awaiting redeploy (A5). Credits UI gated off for test12 in config.ts until then."
     },
     "escrow": {
       "path": "gno.land/r/samcrew/escrow",
@@ -54,7 +54,7 @@
       "block": 237926,
       "date": "2026-04-09",
       "txHash": "WtbFSzirgfg/A4DrUmUVsU0khYymhqBHu+6xRTgUGrQ=",
-      "note": "Block corrected 237929 → 237926 (G5: the recorded block held no tx; the deploy is at 237926). BuyNFT missing TransferFrom — feature-gated off."
+      "note": "Block corrected 237929 \u2192 237926 (G5: the recorded block held no tx; the deploy is at 237926). BuyNFT missing TransferFrom \u2014 feature-gated off."
     },
     "gnobuilders_badges": {
       "path": "gno.land/r/samcrew/gnobuilders_badges",
@@ -65,7 +65,7 @@
     }
   },
   "test13": {
-    "_comment": "Backfilled 2026-06-23. All 12 paths LIVE-VERIFIED via vm/qfile on rpc.test13.testnets.gno.land (each returns source → deployed & valid). Deploy block + txHash are PENDING chain-recovery (not in TEST13_GO_LIVE_NOTE.md) — recover from samcrew-deployer multisig logs or a chain scan, then fill per the methodology (/block?height=<block>, txHash=base64(sha256(txbytes))). Dates from the go-live note (interrealm-v2 wave 2026-06-16; NFT launchpad 2026-06-17). ACL per the canonical samcrew-deployer _v2 source.",
+    "_comment": "Backfilled 2026-06-23. All 12 paths LIVE-VERIFIED via vm/qfile on rpc.test13.testnets.gno.land (each returns source \u2192 deployed & valid). Deploy block + txHash are PENDING chain-recovery (not in TEST13_GO_LIVE_NOTE.md) \u2014 recover from samcrew-deployer multisig logs or a chain scan, then fill per the methodology (/block?height=<block>, txHash=base64(sha256(txbytes))). Dates from the go-live note (interrealm-v2 wave 2026-06-16; NFT launchpad 2026-06-17). ACL per the canonical samcrew-deployer _v2 source.",
     "memba_dao": {
       "path": "gno.land/r/samcrew/memba_dao",
       "version": "v1 (v2-ported)",
@@ -113,7 +113,7 @@
       "version": "v2",
       "date": "2026-06-16",
       "liveVerified": "2026-06-23",
-      "note": "Source file gnobuilders_badges.gno. Deployed but TotalSupply()=0 — never minted (no backend signer). Gated by VITE_ENABLE_BADGES."
+      "note": "Source file gnobuilders_badges.gno. Deployed but TotalSupply()=0 \u2014 never minted (no backend signer). Gated by VITE_ENABLE_BADGES."
     },
     "memba_feedback_v2": {
       "path": "gno.land/r/samcrew/memba_feedback_v2",
@@ -141,21 +141,21 @@
       "version": "v2",
       "date": "2026-06-16",
       "liveVerified": "2026-06-23",
-      "note": "Market engine (market/offers/admin). Legacy — superseded by v3.1 as the active engine; still on-chain."
+      "note": "Market engine (market/offers/admin). Legacy \u2014 superseded by v3.1 as the active engine; still on-chain."
     },
     "memba_collections": {
       "path": "gno.land/r/samcrew/memba_collections",
       "version": "v3-era",
       "date": "2026-06-17",
       "liveVerified": "2026-06-23",
-      "note": "Launchpad registry (multisig seq 43). IRREVERSIBLE — holds the NFT ledger. isNftLaunchpadValid() true."
+      "note": "Launchpad registry (multisig seq 43). IRREVERSIBLE \u2014 holds the NFT ledger. isNftLaunchpadValid() true."
     },
     "memba_nft_market_v3": {
       "path": "gno.land/r/samcrew/memba_nft_market_v3",
       "version": "v3",
       "date": "2026-06-17",
       "liveVerified": "2026-06-23",
-      "note": "v3 trading engine (addr g1pucv5exvs0pxlfe39qlyu4pge47llcx78nx5nj). Deployed but deliberately NOT frontend-wired — excluded from REALM_ALLOWLIST.test13 until the Phase-3 multi-engine router. RETIRED 2026-06-27: UnregisterMarket'd (IsRegisteredMarket=false) when v3.1 took over as the sole fee-routing engine; abandoned."
+      "note": "v3 trading engine (addr g1pucv5exvs0pxlfe39qlyu4pge47llcx78nx5nj). Deployed but deliberately NOT frontend-wired \u2014 excluded from REALM_ALLOWLIST.test13 until the Phase-3 multi-engine router. RETIRED 2026-06-27: UnregisterMarket'd (IsRegisteredMarket=false) when v3.1 took over as the sole fee-routing engine; abandoned."
     },
     "memba_market_core_v2": {
       "path": "gno.land/p/samcrew/memba_market_core_v2",
@@ -183,41 +183,29 @@
       "version": "v3.2",
       "date": "2026-07-10",
       "liveVerified": "2026-07-11",
-      "note": "ACTIVE trading engine since the 2026-07-10 ceremony (verify-sweep 21/21, samcrew-deployer .ceremony/test13.state). Addr g1y4y37dvtvj7vgnt93pxq2typjcwdf62kdlg8u7 (balance 0 verified 2026-07-11). Adds TotalLiabilities() solvency reconciliation, two-step ownership handoff, and a fee-recipient guard. Carries v3.1's sealed sales history (seeded from the tx-indexer; emits SaleSeeded, ignored by volume indexing — no double-count). Registered on memba_collections alongside paused v3.1 during wind-down. Frontend-wired; sellers re-list here."
+      "note": "ACTIVE trading engine since the 2026-07-10 ceremony (verify-sweep 21/21, samcrew-deployer .ceremony/test13.state). Addr g1y4y37dvtvj7vgnt93pxq2typjcwdf62kdlg8u7 (balance 0 verified 2026-07-11). Adds TotalLiabilities() solvency reconciliation, two-step ownership handoff, and a fee-recipient guard. Carries v3.1's sealed sales history (seeded from the tx-indexer; emits SaleSeeded, ignored by volume indexing \u2014 no double-count). Registered on memba_collections alongside paused v3.1 during wind-down. Frontend-wired; sellers re-list here."
     },
     "memba_appstore_v3": {
       "path": "gno.land/r/samcrew/memba_appstore_v3",
       "version": "v3",
       "date": "2026-07-10",
       "liveVerified": "2026-07-11",
-      "note": "LIVE App Store money path since the 2026-07-10 ceremony: 1 GNOT registration fee (client reads GetRegistrationFee() live, exact coin match), curator review queue, free EditListing resubmit. v2 catalog seeded then SEALED (FinalizeSeed — the fee-free seeding door is permanently shut). Fee-path checklist verified live from a plain wallet (wrong-fee refund, exact-fee accept, reject→free-resubmit, curator approve, flag dedupe, sealed-seed panic). Frontend repointed via VITE_APPSTORE_REALM_PATH; /apps/submit de-gated (#874)."
+      "note": "LIVE App Store money path since the 2026-07-10 ceremony: 1 GNOT registration fee (client reads GetRegistrationFee() live, exact coin match), curator review queue, free EditListing resubmit. v2 catalog seeded then SEALED (FinalizeSeed \u2014 the fee-free seeding door is permanently shut). Fee-path checklist verified live from a plain wallet (wrong-fee refund, exact-fee accept, reject\u2192free-resubmit, curator approve, flag dedupe, sealed-seed panic). Frontend repointed via VITE_APPSTORE_REALM_PATH; /apps/submit de-gated (#874)."
     }
   },
   "topaz": {
-    "_comment": "Deployed 2026-07-21 via samcrew-deployer direct-drive (multisig samcrew-core-test1 = zooma + adena-zxxma, addr g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0, sequences 0-24). 21/22 artifacts deployed; deps/demo/profile failed (AVL import mismatch — non-blocking, fixed in PR #130). Commerce realms deferred to commerce-v2 ceremony.",
-    "_deps": {
-      "avl":            { "path": "gno.land/p/samcrew/avl",                "sourceCommit": "5947829", "seq": 0 },
-      "avl_rotree":     { "path": "gno.land/p/samcrew/avl/rotree",         "sourceCommit": "5947829", "seq": 1 },
-      "avl_pager":      { "path": "gno.land/p/samcrew/avl/pager",          "sourceCommit": "5947829", "seq": 2 },
-      "uint256":        { "path": "gno.land/p/samcrew/deps/onbloc/uint256","sourceCommit": "5947829", "seq": 3 },
-      "json":           { "path": "gno.land/p/samcrew/deps/onbloc/json",   "sourceCommit": "5947829", "seq": 4 }
-    },
-    "_gnodaokit": {
-      "realmid":  { "path": "gno.land/p/samcrew/realmid",  "sourceCommit": "0eb8518", "seq": 8 },
-      "daocond":  { "path": "gno.land/p/samcrew/daocond",  "sourceCommit": "0eb8518", "seq": 9 },
-      "daokit":   { "path": "gno.land/p/samcrew/daokit",   "sourceCommit": "0eb8518", "seq": 10 },
-      "basedao":  { "path": "gno.land/p/samcrew/basedao",  "sourceCommit": "0eb8518", "seq": 11 },
-      "simple_dao":       { "path": "gno.land/r/samcrew/daodemo/simple_dao",       "sourceCommit": "0eb8518", "seq": 12 },
-      "custom_condition": { "path": "gno.land/r/samcrew/daodemo/custom_condition", "sourceCommit": "0eb8518", "seq": 13 },
-      "custom_resource":  { "path": "gno.land/r/samcrew/daodemo/custom_resource",  "sourceCommit": "0eb8518", "seq": 14 }
-    },
+    "_comment": "Deployed 2026-07-21 via samcrew-deployer direct-drive (multisig samcrew-core-test1 = zooma + adena-zxxma, addr g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0, sequences 0-24). 21/22 artifacts deployed; deps/demo/profile failed (AVL import mismatch \u2014 non-blocking, fixed in PR #130). Commerce realms deferred to commerce-v2 ceremony.",
+    "_chainVerified": "2026-08-11: every path below was confirmed on-chain by `vm/qfile` against rpc.topaz.testnets.gno.land. 32 samcrew artifacts are live; the file previously recorded only the 9 from the 2026-07-21 ceremony, so 23 had NO chain-verified record at all \u2014 parity was unknowable from source control. `fileCount` is the number of source files vm/qfile returned, which is what makes each record falsifiable: re-run the probe and the count must match. block/txHash/sourceCommit remain unrecovered for the newly-verified entries (see pendingFields) \u2014 the topaz tx-indexer's getTransactions returns null, so deploy metadata is not retrievable there today. Presence is verified; provenance is not.",
     "memba_dao": {
       "path": "gno.land/r/samcrew/memba_dao",
       "version": "v1 (v2-ported)",
       "date": "2026-07-21",
       "sourceCommit": "5947829",
       "seq": 15,
-      "note": "Featured DAO on topaz-1. DAO core (read/propose/vote) live. Post-deploy verified: realm renders."
+      "note": "Featured DAO on topaz-1. DAO core (read/propose/vote) live. Post-deploy verified: realm renders.",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 2
     },
     "memba_dao_candidature_v3": {
       "path": "gno.land/r/samcrew/memba_dao_candidature_v3",
@@ -225,7 +213,10 @@
       "date": "2026-07-21",
       "sourceCommit": "5947829",
       "seq": 16,
-      "note": "IsUserCall-guarded Apply (P0 fund-drain fix). Post-deploy verified: realm renders."
+      "note": "IsUserCall-guarded Apply (P0 fund-drain fix). Post-deploy verified: realm renders.",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 2
     },
     "memba_dao_channels_v2": {
       "path": "gno.land/r/samcrew/memba_dao_channels_v2",
@@ -233,7 +224,10 @@
       "date": "2026-07-21",
       "sourceCommit": "5947829",
       "seq": 17,
-      "note": "Security-fixed channels. Post-deploy verified: realm renders."
+      "note": "Security-fixed channels. Post-deploy verified: realm renders.",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 2
     },
     "agent_registry_v2": {
       "path": "gno.land/r/samcrew/agent_registry_v2",
@@ -241,7 +235,10 @@
       "date": "2026-07-21",
       "sourceCommit": "5947829",
       "seq": 18,
-      "note": "IsUserCall-guarded DepositCredits. Post-deploy verified: realm renders."
+      "note": "IsUserCall-guarded DepositCredits. Post-deploy verified: realm renders.",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 2
     },
     "memba_reviews_v1": {
       "path": "gno.land/r/samcrew/memba_reviews_v1",
@@ -249,7 +246,10 @@
       "date": "2026-07-21",
       "sourceCommit": "5947829",
       "seq": 19,
-      "note": "Web-of-trust reviews. Post-deploy verified: realm renders."
+      "note": "Web-of-trust reviews. Post-deploy verified: realm renders.",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 2
     },
     "memba_quest_attestation_v1": {
       "path": "gno.land/r/samcrew/memba_quest_attestation_v1",
@@ -257,7 +257,10 @@
       "date": "2026-07-21",
       "sourceCommit": "5947829",
       "seq": 20,
-      "note": "On-chain quest/XP attestation. Post-deploy verified: realm renders."
+      "note": "On-chain quest/XP attestation. Post-deploy verified: realm renders.",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 2
     },
     "memba_feed_v1": {
       "path": "gno.land/r/samcrew/memba_feed_v1",
@@ -265,7 +268,10 @@
       "date": "2026-07-21",
       "sourceCommit": "5947829",
       "seq": 21,
-      "note": "Global social feed. Post-deploy verified: realm renders."
+      "note": "Global social feed. Post-deploy verified: realm renders.",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 2
     },
     "memba_appstore_v1": {
       "path": "gno.land/r/samcrew/memba_appstore_v1",
@@ -273,7 +279,10 @@
       "date": "2026-07-21",
       "sourceCommit": "5947829",
       "seq": 22,
-      "note": "Curated app store. Post-deploy verified: realm renders."
+      "note": "Curated app store. Post-deploy verified: realm renders.",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 5
     },
     "memba_appstore_v2": {
       "path": "gno.land/r/samcrew/memba_appstore_v2",
@@ -281,9 +290,329 @@
       "date": "2026-07-21",
       "sourceCommit": "5947829",
       "seq": 23,
-      "note": "Self-managed admin app store. Post-deploy verified: realm renders."
+      "note": "Self-managed admin app store. Post-deploy verified: realm renders.",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 5
+    },
+    "escrow_v3": {
+      "path": "gno.land/r/samcrew/escrow_v3",
+      "lane": "flag=p0-guards",
+      "kind": "realm",
+      "project": "memba",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 3,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "memba_token_otc_v2": {
+      "path": "gno.land/r/samcrew/memba_token_otc_v2",
+      "lane": "flag=p0-guards",
+      "kind": "realm",
+      "project": "memba",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 2,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "gnobuilders_badges_v2": {
+      "path": "gno.land/r/samcrew/gnobuilders_badges_v2",
+      "lane": "flag=commerce-v2",
+      "kind": "realm",
+      "project": "memba",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 2,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "tokenfactory_v2": {
+      "path": "gno.land/r/samcrew/tokenfactory_v2",
+      "lane": "flag=commerce-v2",
+      "kind": "realm",
+      "project": "memba",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 2,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "memba_feedback_v2": {
+      "path": "gno.land/r/samcrew/memba_feedback_v2",
+      "lane": "flag=commerce-v2",
+      "kind": "realm",
+      "project": "memba",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 2,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "grc721": {
+      "path": "gno.land/p/samcrew/grc721",
+      "lane": "flag=commerce-v2",
+      "kind": "package",
+      "project": "memba",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 9,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "memba_nft_v2": {
+      "path": "gno.land/r/samcrew/memba_nft_v2",
+      "lane": "flag=commerce-v2",
+      "kind": "realm",
+      "project": "memba",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 5,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "memba_nft_market_v2": {
+      "path": "gno.land/r/samcrew/memba_nft_market_v2",
+      "lane": "flag=commerce-v2",
+      "kind": "realm",
+      "project": "memba",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 6,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "memba_collections": {
+      "path": "gno.land/r/samcrew/memba_collections",
+      "lane": "flag=commerce-v2",
+      "kind": "realm",
+      "project": "memba",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 10,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "memba_market_core_v2": {
+      "path": "gno.land/p/samcrew/memba_market_core_v2",
+      "lane": "flag=commerce-v2",
+      "kind": "package",
+      "project": "memba",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 4,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "memba_market_config": {
+      "path": "gno.land/r/samcrew/memba_market_config",
+      "lane": "flag=commerce-v2",
+      "kind": "realm",
+      "project": "memba",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 4,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "memba_nft_market_v3_1": {
+      "path": "gno.land/r/samcrew/memba_nft_market_v3_1",
+      "lane": "flag=commerce-v2",
+      "kind": "realm",
+      "project": "memba",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 7,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "memba_nft_market_v3_2": {
+      "path": "gno.land/r/samcrew/memba_nft_market_v3_2",
+      "lane": "explicit",
+      "kind": "realm",
+      "project": "memba",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 8,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "realmid": {
+      "path": "gno.land/p/samcrew/realmid",
+      "lane": "default",
+      "kind": "package",
+      "project": "gnodaokit",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 2,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "daocond": {
+      "path": "gno.land/p/samcrew/daocond",
+      "lane": "default",
+      "kind": "package",
+      "project": "gnodaokit",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 9,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "daokit": {
+      "path": "gno.land/p/samcrew/daokit",
+      "lane": "default",
+      "kind": "package",
+      "project": "gnodaokit",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 6,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "basedao": {
+      "path": "gno.land/p/samcrew/basedao",
+      "lane": "default",
+      "kind": "package",
+      "project": "gnodaokit",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 16,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "daodemo_simple_dao": {
+      "path": "gno.land/r/samcrew/daodemo/simple_dao",
+      "lane": "default",
+      "kind": "package",
+      "project": "gnodaokit",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 3,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "daodemo_custom_condition": {
+      "path": "gno.land/r/samcrew/daodemo/custom_condition",
+      "lane": "default",
+      "kind": "package",
+      "project": "gnodaokit",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 4,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "daodemo_custom_resource": {
+      "path": "gno.land/r/samcrew/daodemo/custom_resource",
+      "lane": "default",
+      "kind": "package",
+      "project": "gnodaokit",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 5,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "avl": {
+      "path": "gno.land/p/samcrew/avl",
+      "lane": "dep",
+      "kind": "package",
+      "project": "deps",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 7,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "avl_rotree": {
+      "path": "gno.land/p/samcrew/avl/rotree",
+      "lane": "dep",
+      "kind": "package",
+      "project": "deps",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 2,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "avl_pager": {
+      "path": "gno.land/p/samcrew/avl/pager",
+      "lane": "dep",
+      "kind": "package",
+      "project": "deps",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 3,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "r_demo_profile": {
+      "path": "gno.land/r/demo/profile",
+      "lane": "dep",
+      "kind": "package",
+      "project": "deps",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 4,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "p_onbloc_json": {
+      "path": "gno.land/p/onbloc/json",
+      "lane": "?",
+      "kind": "?",
+      "project": "?",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 24,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
+    },
+    "p_onbloc_uint256": {
+      "path": "gno.land/p/onbloc/uint256",
+      "lane": "?",
+      "kind": "?",
+      "project": "?",
+      "verifiedOn": "2026-08-11",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 17,
+      "block": null,
+      "txHash": null,
+      "sourceCommit": null
     }
   },
   "gnoland1": {},
-  "_note_stale_networks": "test11, portal-loop, staging removed 2026-06-28 (no Memba realms deployed; test12 retained for historical record)."
+  "_note_stale_networks": "test11, portal-loop, staging removed 2026-06-28 (no Memba realms deployed; test12 retained for historical record).",
+  "sapphire": {
+    "_comment": "2026-08-11: Memba has deployed NOTHING to sapphire-1. Every samcrew path in this file was probed with `vm/qfile` against rpc.sapphire.testnets.gno.land and returned InvalidFileError. Confirmed independently by gnoweb: 404 on /r/samcrew/memba_dao while topaz returns 200 for the same path, so this is genuine absence and not a broken probe. Frontend REALM_ALLOWLIST.sapphire is an explicit empty list to match.",
+    "_dependencyReadiness": "Third-party deps are ALREADY on sapphire-1 and need no republish: p/onbloc/json (24f), p/onbloc/uint256 (17f), and gno-core p/nt/* (avl/v0 10f, ufmt/v0 5f, seqid/v0 5f, mux/v0 10f) \u2014 all byte-for-byte the same file counts as topaz. The ONLY missing prerequisites are our three vendored packages: p/samcrew/avl (7f), p/samcrew/avl/rotree (2f) and p/samcrew/avl/pager (3f), all PRESENT on topaz and ABSENT here. They must lead the publish order \u2014 avl -> rotree -> pager (HARD ordering, MAINNET_READINESS.md) \u2014 because every generated realm imports them. This is W3-3b.",
+    "_artifacts": {}
+  }
 }

@@ -305,9 +305,22 @@ describe("defaultCandidatureConfig", () => {
 describe("generateCandidatureCode", () => {
     it("generates valid Gno code with Apply function", () => {
         const code = generateCandidatureCode()
-        expect(code).toContain("package candidature")
+        const lastElem = defaultCandidatureConfig.candidatureRealmPath.split("/").pop()
+        expect(code).toContain(`package ${lastElem}`)
         expect(code).toContain("func Apply")
         expect(code).toContain("func Render")
+    })
+
+    // gnovm rejects a deployed package whose name differs from the last element of
+    // its path (ValidatePkgNameMatchesPath). This generator used to hardcode
+    // `package candidature`, which cannot deploy at `.../memba_dao_candidature_v3`.
+    it("derives the package name from the realm path's last element", () => {
+        const code = generateCandidatureCode({
+            ...defaultCandidatureConfig,
+            candidatureRealmPath: "gno.land/r/samcrew/my_dao_candidature_v9",
+        })
+        expect(code).toContain("package my_dao_candidature_v9")
+        expect(code).not.toContain("package candidature\n")
     })
 
     it("includes duplicate submission prevention", () => {
