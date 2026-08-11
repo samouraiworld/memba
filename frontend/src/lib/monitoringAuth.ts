@@ -19,12 +19,63 @@ import { GNO_MONITORING_API_URL, GNO_CHAIN_ID } from "./config"
 export type WebhookKind = "govdao" | "validator"
 export type WebhookType = "discord" | "slack"
 
+/** Domain model used by the UI. NOT the wire format — see toWire/fromWire. */
 export interface MonitoringWebhook {
     ID: number
     Description: string
     URL: string
     Type: WebhookType
     ChainID?: string | null
+}
+
+/** A webhook as submitted by the form: no ID when creating, ID when editing. */
+export type WebhookInput = Omit<MonitoringWebhook, "ID"> & { ID?: number }
+
+/** Outcome of a mutating call, carrying the server's explanation on refusal. */
+export interface MutationResult {
+    ok: boolean
+    error?: string
+}
+
+/**
+ * gnomonitoring's JSON shape for a webhook.
+ *
+ * Server-side, ChainID is the ONLY field with a JSON tag (`json:"chain_id"`).
+ * The rest are untagged, so Go matches them case-insensitively against the Go
+ * field name — which is why the PascalCase keys here are correct and must not
+ * be "normalised" to snake_case.
+ */
+interface WebhookRow {
+    ID: number
+    Description: string
+    URL: string
+    Type: WebhookType
+    chain_id?: string | null
+}
+
+/** Domain → wire. Omits chain_id entirely when unset: the server rejects an
+ *  empty/null value ("chain_id is required") but reads an ABSENT one on PUT as
+ *  "leave the stored chain untouched". */
+function toWire(w: WebhookInput): Record<string, unknown> {
+    const wire: Record<string, unknown> = {
+        URL: w.URL,
+        Type: w.Type,
+        Description: w.Description,
+    }
+    if (w.ID != null) wire.ID = w.ID
+    if (w.ChainID) wire.chain_id = w.ChainID
+    return wire
+}
+
+/** Wire → domain. */
+function fromWire(row: WebhookRow): MonitoringWebhook {
+    return {
+        ID: row.ID,
+        Description: row.Description,
+        URL: row.URL,
+        Type: row.Type,
+        ChainID: row.chain_id ?? null,
+    }
 }
 
 export interface AlertContact {
@@ -92,17 +143,14 @@ export async function listWebhooks(
     kind: WebhookKind,
     chain?: string,
 ): Promise<MonitoringWebhook[]> {
-    const data = await authFetch<MonitoringWebhook[]>(
-        withChain(`/webhooks/${kind}`, chain),
-        token,
-    )
-    return data || []
+    const data = await authFetch<WebhookRow[]>(withChain(`/webhooks/${kind}`, chain), token)
+    return Array.isArray(data) ? data.map(fromWire) : []
 }
 
 export async function createWebhook(
     token: string,
     kind: WebhookKind,
-    payload: Omit<MonitoringWebhook, "ID">,
+    payload: WebhookInput,
 ): Promise<boolean> {
     if (!GNO_MONITORING_API_URL) return false
 
@@ -114,7 +162,7 @@ export async function createWebhook(
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(toWire(payload)),
             signal: AbortSignal.timeout(8000),
         })
         return res.ok
@@ -127,7 +175,7 @@ export async function createWebhook(
 export async function updateWebhook(
     token: string,
     kind: WebhookKind,
-    payload: MonitoringWebhook,
+    payload: WebhookInput,
 ): Promise<boolean> {
     if (!GNO_MONITORING_API_URL) return false
 
@@ -139,7 +187,7 @@ export async function updateWebhook(
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(toWire(payload)),
             signal: AbortSignal.timeout(8000),
         })
         return res.ok
