@@ -79,6 +79,7 @@
     "dompurify": "^3.4.13",
     "postcss": ">=8.5.18",
     "fast-uri": "^3.1.5",
+    "undici": ">=7.29.0 <8",
     "brace-expansion@>=4.0.0 <6.0.0": "^5.0.9"
   }
 }
