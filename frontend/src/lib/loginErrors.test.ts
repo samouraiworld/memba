@@ -6,7 +6,10 @@
  * backend's tokenDenied puts on the wire.
  */
 import { describe, it, expect } from "vitest"
-import { humanizeLoginError, SESSION_ACCOUNT_LOGIN_MSG, SESSION_REJECT_CODE } from "./loginErrors"
+import {
+    humanizeLoginError, SESSION_ACCOUNT_LOGIN_MSG, SESSION_REJECT_CODE,
+    CHAIN_MISMATCH_CODE, CHAIN_MISMATCH_LOGIN_MSG,
+} from "./loginErrors"
 
 describe("humanizeLoginError", () => {
     it("maps the wire-shaped ConnectError message to human guidance (no leaks)", () => {
@@ -31,5 +34,16 @@ describe("humanizeLoginError", () => {
         expect(humanizeLoginError(undefined)).toBe("Login failed")
         expect(humanizeLoginError(new Error(""))).toBe("Login failed")
         expect(humanizeLoginError({ weird: true }, "Sign-in failed")).toBe("Sign-in failed")
+    })
+
+    // F-29: the backend now REFUSES to mint for a chain it does not serve
+    // instead of issuing a token that 401s on every later call. The refusal is
+    // only useful if it reaches the user as something they can act on.
+    it("maps the chain-mismatch code to actionable guidance", () => {
+        expect(humanizeLoginError(new Error(CHAIN_MISMATCH_CODE))).toBe(CHAIN_MISMATCH_LOGIN_MSG)
+        expect(humanizeLoginError(`[permission_denied] ${CHAIN_MISMATCH_CODE}`)).toBe(CHAIN_MISMATCH_LOGIN_MSG)
+        // Tells the user what to DO, and leaks no server configuration.
+        expect(CHAIN_MISMATCH_LOGIN_MSG).toMatch(/switch networks/i)
+        expect(CHAIN_MISMATCH_LOGIN_MSG).not.toMatch(/topaz|sapphire|MEMBA_|GNO_CHAIN_ID/i)
     })
 })

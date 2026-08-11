@@ -1,9 +1,11 @@
 import { useState, useCallback, useEffect } from "react";
 import { api } from "../lib/api";
-import { SESSION_REJECT_CODE, SESSION_ACCOUNT_LOGIN_MSG } from "../lib/loginErrors";
+import {
+    SESSION_REJECT_CODE, SESSION_ACCOUNT_LOGIN_MSG,
+    CHAIN_MISMATCH_CODE, CHAIN_MISMATCH_LOGIN_MSG,
+} from "../lib/loginErrors";
+import { TOKEN_KEY, clearStoredToken, onSessionInvalidated } from "../lib/authSession";
 import type { Token } from "../gen/memba/v1/memba_pb";
-
-const TOKEN_KEY = "memba_auth_token";
 
 interface AuthState {
     token: Token | null;
@@ -53,9 +55,7 @@ export function loadToken(): Token | null {
     }
 }
 
-function clearToken() {
-    try { localStorage.removeItem(TOKEN_KEY); } catch { /* no-op */ }
-}
+const clearToken = clearStoredToken;
 
 export function useAuth() {
     const [state, setState] = useState<AuthState>(() => {
@@ -83,6 +83,17 @@ export function useAuth() {
         const timer = setInterval(checkExpiry, 60_000);
         return () => clearInterval(timer);
     }, [state.token]);
+
+    // F-29 self-heal: react to the SERVER rejecting the token, not just to
+    // expiry. The interval above is the only thing that used to clear a
+    // session, so a token the backend refuses (wrong chain, rotated key)
+    // survived until its natural expiry while every call 401'd behind a UI
+    // that still looked signed in. Subscribing unconditionally — not gated on
+    // state.token — because the stored token can be dropped by the interceptor
+    // before this effect re-runs.
+    useEffect(() => onSessionInvalidated((reason) => {
+        setState({ token: null, address: "", loading: false, error: reason });
+    }), []);
 
     const getChallenge = useCallback(async (userPubkeyJson?: string, chainId?: string) => {
         // AUTH-CHAINID-01: bind the challenge to the active chain so the server signs
@@ -116,6 +127,14 @@ export function useAuth() {
                 if (message.includes(SESSION_REJECT_CODE)) {
                     setState((s) => ({ ...s, loading: false, error: SESSION_ACCOUNT_LOGIN_MSG }));
                     throw new Error(SESSION_ACCOUNT_LOGIN_MSG);
+                }
+                // F-29: the server refused to mint for this chain. Surfaced the
+                // same way, because it is equally actionable — the user can fix
+                // it by switching network. Previously this request SUCCEEDED and
+                // the damage only appeared later, on every subsequent call.
+                if (message.includes(CHAIN_MISMATCH_CODE)) {
+                    setState((s) => ({ ...s, loading: false, error: CHAIN_MISMATCH_LOGIN_MSG }));
+                    throw new Error(CHAIN_MISMATCH_LOGIN_MSG);
                 }
                 setState((s) => ({ ...s, loading: false, error: message }));
                 return null;

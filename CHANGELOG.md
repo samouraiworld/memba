@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Signing in on the wrong network now fails honestly instead of half-working (2026-08-11)
+<!-- categories: memba -->
+- **A sign-in aimed at a network Memba isn't serving used to appear to succeed, and then nothing worked.** You would connect your wallet, get signed in, and every single action after that would be refused. Refreshing did not help and neither did signing in again, because the sign-in itself kept "succeeding" — the only way out was clearing the site's stored data. Memba now refuses that sign-in up front and tells you your wallet is on a different network than the page you are on, which is something you can fix in one click.
+- **A sign-in that has gone stale for any other reason now signs you out instead of leaving you stuck.** Previously the app only ever forgot a session when it reached its natural expiry time, so a session the server had already rejected sat there for hours with the app still showing you as signed in. It now notices the rejection and returns you to a signed-out state with a working "connect" button.
+- This matters right now because the Adena wallet has stopped offering the network Memba runs on and is moving people to a different one, so the mismatch this fixes is exactly what they would otherwise hit. It is also a prerequisite for moving Memba to Sapphire — without it, anyone with a bookmark of the current network would be locked out by the switch.
+
 ### Security — a router flaw is now fixed rather than accepted (#1049, #1043, 2026-08-10)
 <!-- categories: memba -->
 - **Updated React Router, which handles every page navigation in the app, to the release that fixes a cross-site request forgery flaw.** The flaw only affects a server-rendering mode Memba does not use, so it was never reachable here — which is why it had been formally accepted with a written justification rather than patched.

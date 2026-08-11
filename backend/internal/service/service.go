@@ -136,7 +136,18 @@ func NewMultisigService(db *sql.DB) (*MultisigService, error) {
 	}
 
 	acceptedChainIDs := parseAcceptedChainIDs(os.Getenv("MEMBA_ACCEPTED_CHAIN_IDS"), chainID)
-	slog.Info("auth: accepted token chain IDs", "chain_id", chainID, "accepted_chain_ids", acceptedChainIDs)
+	if len(acceptedChainIDs) == 0 {
+		// F-29b: this is not "chain checking is off", it is "EVERY chain is
+		// accepted". Reaching it needs MEMBA_ACCEPTED_CHAIN_IDS *and*
+		// GNO_CHAIN_ID both blank, which is exactly what someone does when they
+		// mean to disable the restriction — so it fails open at the moment an
+		// operator believes they are tightening it. Logged at WARN because the
+		// Info line it replaces made an accept-any server look routine.
+		slog.Warn("auth: NO accepted chain IDs configured — tokens from ANY chain will be accepted",
+			"hint", "set GNO_CHAIN_ID (and optionally MEMBA_ACCEPTED_CHAIN_IDS); never blank both to 'disable' the check")
+	} else {
+		slog.Info("auth: accepted token chain IDs", "chain_id", chainID, "accepted_chain_ids", acceptedChainIDs)
+	}
 
 	return &MultisigService{
 		db:               db,

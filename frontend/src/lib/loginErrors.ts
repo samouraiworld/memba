@@ -19,6 +19,19 @@ export const SESSION_ACCOUNT_LOGIN_MSG =
     "Session accounts aren't supported yet — switch Adena to your main account and try again."
 
 /**
+ * Backend rejection code for a login aimed at a chain the server does not serve
+ * (F-29). Second use of the same bare-code exception, added because the failure
+ * it replaces was invisible: the server used to MINT a token for whatever chain
+ * the client asked for and only reject it afterwards, on every call, so sign-in
+ * appeared to succeed and the app then behaved as if permanently broken.
+ */
+export const CHAIN_MISMATCH_CODE = "AUTH-CHAINID-MISMATCH-01"
+
+/** What a user should actually do about it. */
+export const CHAIN_MISMATCH_LOGIN_MSG =
+    "Your wallet is on a different network than this page — switch networks and try again."
+
+/**
  * Human copy for a failed sign-in: session-account rejections get the guidance
  * above; anything else passes through, with `fallback` covering non-Error
  * throws and empty messages.
@@ -27,5 +40,6 @@ export function humanizeLoginError(err: unknown, fallback = "Login failed"): str
     const msg = err instanceof Error ? err.message : typeof err === "string" ? err : ""
     if (!msg) return fallback
     if (msg.includes(SESSION_REJECT_CODE)) return SESSION_ACCOUNT_LOGIN_MSG
+    if (msg.includes(CHAIN_MISMATCH_CODE)) return CHAIN_MISMATCH_LOGIN_MSG
     return msg
 }
