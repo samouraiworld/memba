@@ -36,8 +36,16 @@ describe("chainOptionsFor", () => {
     })
 
     it("labels a chain Memba does not model with the raw id", () => {
-        const option = chainOptionsFor(enabled).find(o => o.value === "sapphire-1")!
-        expect(option.label).toBe("sapphire-1")
+        // Deliberately a chain id Memba will never model, NOT one merely absent
+        // from NETWORKS today. This assertion used to use "sapphire-1", which
+        // stopped being unmodelled the moment a hidden `sapphire` entry landed
+        // — the label became "Sapphire (sapphire-1)" and this went red for a
+        // BEHAVIOUR IMPROVEMENT. gnomonitoring's registry and Memba's NETWORKS
+        // drift independently in both directions, so pinning the case to a real
+        // id guarantees a recurrence every time either side grows.
+        const unmodelled = "definitely-not-a-memba-chain-1"
+        const option = chainOptionsFor([...enabled, unmodelled]).find(o => o.value === unmodelled)!
+        expect(option.label).toBe(unmodelled)
     })
 
     it("never duplicates the current value", () => {
