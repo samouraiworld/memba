@@ -175,11 +175,11 @@ func TestAddMemberEmptyRolesSucceeds(cur realm, t *testing.T) {
 \ttesting.SkipHeights(601)
 \tExecuteProposal(cross(cur), id)
 
-\tv, ok := members.Get(string(target))
+\tm, ok := members.Get(string(target)).(*Member)
 \tif !ok {
 \t\tt.Fatal("empty-roles member was not added")
 \t}
-\tif m := v.(*Member); len(m.Roles) != 0 || m.Power != 7 {
+\tif len(m.Roles) != 0 || m.Power != 7 {
 \t\tt.Fatalf("want power 7 with no roles, got power %d roles %v", m.Power, m.Roles)
 \t}
 }

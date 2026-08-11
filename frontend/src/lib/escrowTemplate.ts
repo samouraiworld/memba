@@ -567,11 +567,10 @@ func renderHome() string {
 }
 
 func renderContract(id string) string {
-	val, exists := contracts.Get(id)
-	if !exists {
+	c, ok := contracts.Get(id).(*Contract)
+	if !ok {
 		return "# 404\\nContract not found: " + id
 	}
-	c := val.(*Contract)
 
 	var sb strings.Builder
 	sb.WriteString("# " + c.Title + "\\n\\n")
@@ -592,11 +591,11 @@ func renderContract(id string) string {
 // ── Helpers ──────────────────────────────────────────────────
 
 func getContract(id string) *Contract {
-	val, exists := contracts.Get(id)
-	if !exists {
+	c, ok := contracts.Get(id).(*Contract)
+	if !ok {
 		panic("contract not found: " + id)
 	}
-	return val.(*Contract)
+	return c
 }
 
 func parseMilestones(input string) []Milestone {
