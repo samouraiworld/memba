@@ -100,3 +100,72 @@ describe("webhook wire format", () => {
         expect(list[0].ChainID).toBe("topaz-1")
     })
 })
+
+describe("webhook list robustness", () => {
+    afterEach(() => vi.unstubAllGlobals())
+
+    it("does NOT scope the request to the active chain", async () => {
+        // The selector offers every chain gnomonitoring accepts. Filtering the
+        // list by Memba's active chain would make a webhook created on any
+        // other chain invisible — and therefore uneditable and undeletable.
+        const fetchMock = vi.fn().mockResolvedValue(jsonResponse([]))
+        vi.stubGlobal("fetch", fetchMock)
+
+        await listWebhooks("tok", "validator")
+
+        expect(fetchMock.mock.calls[0][0]).toBe(
+            "https://mock-monitoring.example.com/webhooks/validator",
+        )
+    })
+
+    it("returns [] for the server's no-webhook OBJECT", async () => {
+        // With zero webhooks the server replies {"message":"no webhook found"},
+        // not []. Leaking that object gave it .length === undefined, so neither
+        // the list nor the empty state rendered — a blank panel.
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue(
+            jsonResponse({ message: "no webhook found" }),
+        ))
+
+        await expect(listWebhooks("tok", "govdao")).resolves.toEqual([])
+    })
+})
+
+describe("endpoint routing per kind", () => {
+    // The two kinds are separate server tables with independent primary keys.
+    // Routing a validator call to /webhooks/govdao would silently read or write
+    // the wrong table, so pin the mapping for every verb.
+    afterEach(() => vi.unstubAllGlobals())
+
+    const payload = {
+        URL: "https://discord.com/api/webhooks/abc",
+        Type: "discord" as const,
+        Description: "test",
+        ChainID: "topaz-1",
+    }
+
+    function urlOf(fetchMock: ReturnType<typeof vi.fn>): string {
+        return fetchMock.mock.calls[0][0] as string
+    }
+
+    it.each([
+        ["validator" as const, "https://mock-monitoring.example.com/webhooks/validator"],
+        ["govdao" as const, "https://mock-monitoring.example.com/webhooks/govdao"],
+    ])("routes %s reads and writes to its own endpoint", async (kind, expected) => {
+        const listMock = vi.fn().mockResolvedValue(jsonResponse([]))
+        vi.stubGlobal("fetch", listMock)
+        await listWebhooks("tok", kind)
+        expect(urlOf(listMock)).toBe(expected)
+
+        const createMock = vi.fn().mockResolvedValue(jsonResponse("", true, 201))
+        vi.stubGlobal("fetch", createMock)
+        await createWebhook("tok", kind, payload)
+        expect(urlOf(createMock)).toBe(expected)
+        expect((createMock.mock.calls[0][1] as RequestInit).method).toBe("POST")
+
+        const updateMock = vi.fn().mockResolvedValue(jsonResponse("", true, 200))
+        vi.stubGlobal("fetch", updateMock)
+        await updateWebhook("tok", kind, { ...payload, ID: 1 })
+        expect(urlOf(updateMock)).toBe(expected)
+        expect((updateMock.mock.calls[0][1] as RequestInit).method).toBe("PUT")
+    })
+})

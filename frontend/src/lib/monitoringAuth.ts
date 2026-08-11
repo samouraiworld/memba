@@ -12,7 +12,7 @@
  * @module lib/monitoringAuth
  */
 
-import { GNO_MONITORING_API_URL, GNO_CHAIN_ID } from "./config"
+import { GNO_MONITORING_API_URL } from "./config"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -129,22 +129,29 @@ async function authFetch<T>(
     }
 }
 
-/** Append chain query parameter to a path. */
-function withChain(path: string, chain?: string): string {
-    const chainId = chain || GNO_CHAIN_ID
-    const sep = path.includes("?") ? "&" : "?"
-    return `${path}${sep}chain=${encodeURIComponent(chainId)}`
-}
-
 // ── Webhooks (GovDAO + Validator) ────────────────────────────
 
+/**
+ * All of the user's webhooks of this kind, across every chain.
+ *
+ * Deliberately UNSCOPED. The server accepts an optional `?chain=` filter, but
+ * the chain selector offers every chain gnomonitoring accepts — which is not
+ * the same set as Memba's own networks. Filtering here would hide any webhook
+ * scoped to another chain, leaving it created-but-unreachable. The per-card
+ * chain badge is what tells them apart.
+ */
 export async function listWebhooks(
     token: string,
     kind: WebhookKind,
-    chain?: string,
 ): Promise<MonitoringWebhook[]> {
-    const data = await authFetch<WebhookRow[]>(withChain(`/webhooks/${kind}`, chain), token)
-    return Array.isArray(data) ? data.map(fromWire) : []
+    const data = await authFetch<WebhookRow[] | { message: string }>(
+        `/webhooks/${kind}`,
+        token,
+    )
+    // With zero webhooks the server returns {"message":"no webhook found"} —
+    // an object, not an array. Never let that shape reach the UI.
+    if (!Array.isArray(data)) return []
+    return data.map(fromWire)
 }
 
 export async function createWebhook(
