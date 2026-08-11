@@ -452,3 +452,54 @@ describe("gnomonitoring rejection observability", () => {
         expect(sentryMocks.captureMessage).toHaveBeenCalledTimes(7)
     })
 })
+
+describe("fetchEnabledChains", () => {
+    beforeEach(() => {
+        vi.stubGlobal("fetch", vi.fn())
+    })
+    afterEach(() => {
+        vi.unstubAllGlobals()
+        vi.clearAllMocks()
+    })
+
+    function infoResponse(body: unknown): Response {
+        return { ok: true, status: 200, json: async () => body } as unknown as Response
+    }
+
+    it("returns the enabled_chains list", async () => {
+        vi.mocked(fetch).mockResolvedValue(infoResponse({
+            enabled_chains: ["gnoland1", "sapphire-1", "topaz-1"],
+            chains: {},
+        }))
+
+        const { fetchEnabledChains } = await import("./gnomonitoring")
+        await expect(fetchEnabledChains()).resolves.toEqual([
+            "gnoland1", "sapphire-1", "topaz-1",
+        ])
+    })
+
+    it("calls the public /info endpoint", async () => {
+        vi.mocked(fetch).mockResolvedValue(infoResponse({ enabled_chains: [] }))
+
+        const { fetchEnabledChains } = await import("./gnomonitoring")
+        await fetchEnabledChains()
+
+        expect(vi.mocked(fetch).mock.calls[0][0]).toBe(
+            "https://mock-monitoring.example.com/info",
+        )
+    })
+
+    it("returns [] when the service is unreachable", async () => {
+        vi.mocked(fetch).mockRejectedValue(new Error("network down"))
+
+        const { fetchEnabledChains } = await import("./gnomonitoring")
+        await expect(fetchEnabledChains()).resolves.toEqual([])
+    })
+
+    it("returns [] when the payload is malformed", async () => {
+        vi.mocked(fetch).mockResolvedValue(infoResponse({ chains: {} }))
+
+        const { fetchEnabledChains } = await import("./gnomonitoring")
+        await expect(fetchEnabledChains()).resolves.toEqual([])
+    })
+})

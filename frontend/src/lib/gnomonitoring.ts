@@ -418,6 +418,35 @@ export async function fetchMonitoringTxContribution(
     return filtered
 }
 
+// ── Chain registry (/info) ───────────────────────────────────
+
+/** Shape of gnomonitoring's public `/info` response. */
+interface MonitoringInfo {
+    enabled_chains?: string[]
+    chains?: Record<string, unknown>
+}
+
+/**
+ * The chain ids gnomonitoring currently accepts, from its public `/info`
+ * endpoint (no auth required).
+ *
+ * This — NOT Memba's NETWORKS map — is the authoritative set of values a
+ * webhook's chain_id may take. The two are different namespaces and have
+ * already drifted: gnomonitoring serves `sapphire-1`, which Memba does not
+ * model at all, and knows Betanet as `gnoland1`. Deriving the options from
+ * NETWORKS would offer ids the service rejects while hiding ids it accepts.
+ *
+ * Returns [] on any failure — the caller degrades to a visible warning rather
+ * than a silently empty selector.
+ */
+export async function fetchEnabledChains(signal?: AbortSignal): Promise<string[]> {
+    const info = await monitoringFetch<MonitoringInfo>("/info", undefined, signal)
+    if (!info || !Array.isArray(info.enabled_chains)) return []
+    return info.enabled_chains.filter(
+        (c): c is string => typeof c === "string" && c.length > 0,
+    )
+}
+
 // ── Moniker resilience (2026-07-09, VALIDATOR_NAMING_RESILIENCE_PLAN) ─────────
 //
 // Names are slowly-changing reference data: metrics may degrade, identity must
