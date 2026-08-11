@@ -194,6 +194,46 @@ func ValidateChallenge(publicKey ed25519.PublicKey, challenge *membav1.Challenge
 // (the operator opt-in hint stays in server logs only).
 const SessionRejectCode = "AUTH-SESSION-REJECT-01"
 
+// ChainMismatchCode tags a login for a chain this server does not serve (F-29).
+//
+// Until this existed, MakeToken minted on whatever chain the CLIENT asked for
+// and never checked it against the accepted set, while ValidateToken enforces
+// that set on every subsequent call. The two disagreed, so the failure landed
+// in the worst possible place: login SUCCEEDED, a token was issued and
+// persisted, and then every authenticated call 401'd — permanently, because
+// useAuth only clears on natural expiry. The user saw a signed-in app where
+// nothing worked and no amount of retrying helped.
+//
+// Rejecting at mint turns that into one honest, immediate failure. Exported
+// and put BARE on the wire (same narrow exception as SessionRejectCode) so the
+// UI can say "your wallet is on the wrong network" instead of dead-ending on a
+// generic permission error. It names no env var and discloses no internals —
+// the accepted set stays in server logs only.
+//
+// This is a prerequisite for the sapphire cutover, which reproduces the bug for
+// every user bookmarked on /topaz/: their app supplies topaz-1, the server
+// accepts only sapphire-1, and without this they would be stranded exactly as
+// described above.
+const ChainMismatchCode = "AUTH-CHAINID-MISMATCH-01"
+
+// nonEmpty drops blank entries from a chain-id set.
+//
+// Shared by MakeToken (issue time) and ValidateToken (every call) so the two
+// cannot drift apart on what counts as "configured". That drift IS F-29: the
+// bug was not a wrong comparison, it was one side never comparing at all, and
+// two independent copies of this filtering would invite the same divergence
+// back. A set that is entirely blank collapses to len 0, i.e. legacy
+// accept-any — see the F-29b note in NewMultisigService.
+func nonEmpty(chainIDs []string) []string {
+	out := make([]string, 0, len(chainIDs))
+	for _, c := range chainIDs {
+		if c != "" {
+			out = append(out, c)
+		}
+	}
+	return out
+}
+
 // SessionPubkeyOptInEnv toggles AUTH-SESSION-REJECT-01. Setting it to "1" or
 // "true" relaxes TokenRequestInfo unmarshal from strict back to lenient so a
 // future Adena release that adds session metadata fields can be accepted
@@ -254,6 +294,7 @@ func MakeToken(
 	infoJSON string,
 	signatureBase64 string,
 	defaultChainID string,
+	acceptedChainIDs ...string,
 ) (*membav1.Token, error) {
 	infoBytes := []byte(infoJSON)
 
@@ -307,6 +348,31 @@ func MakeToken(
 		} else {
 			slog.Info("auth: using server default chain_id", "chain_id", effectiveChainID)
 		}
+	}
+
+	// F-29: refuse to mint for a chain we will not later validate.
+	//
+	// The mirror of the ValidateToken check, applied at issue time so the two
+	// cannot disagree. Deliberately identical in shape — same empty-value
+	// semantics, so behaviour is unchanged for every configuration that works
+	// today:
+	//   - empty accepted set  -> accept any chain (legacy/unconfigured mode)
+	//   - empty effective id  -> unreachable here unless BOTH the client value
+	//                            and defaultChainID are blank, which is the
+	//                            pre-existing legacy path ValidateToken also
+	//                            lets through
+	// A legacy client that sends no chain_id still succeeds: effectiveChainID
+	// has already fallen back to defaultChainID above, and the accepted set
+	// defaults to exactly that value (parseAcceptedChainIDs).
+	if accepted := nonEmpty(acceptedChainIDs); len(accepted) > 0 &&
+		effectiveChainID != "" && !slices.Contains(accepted, effectiveChainID) {
+		slog.Warn(ChainMismatchCode+": refusing to mint a token for an unserved chain",
+			"requested_chain_id", effectiveChainID,
+			"accepted_chain_ids", accepted,
+			"client_supplied", info.ChainId != "")
+		logAuthLogin("chain_mismatch", "", effectiveChainID)
+		return nil, errors.New("login is for a chain this server does not serve (" +
+			ChainMismatchCode + ")")
 	}
 
 	// If the challenge was bound to a chain (newer GetChallenge clients), it
@@ -498,12 +564,8 @@ func ValidateToken(publicKey ed25519.PublicKey, token *membav1.Token, acceptedCh
 	}
 
 	// AUTH-CHAINID-01: enforce chain binding against the accepted set.
-	accepted := make([]string, 0, len(acceptedChainIDs))
-	for _, c := range acceptedChainIDs {
-		if c != "" {
-			accepted = append(accepted, c)
-		}
-	}
+	// Shares nonEmpty with MakeToken's F-29 issue-time check on purpose.
+	accepted := nonEmpty(acceptedChainIDs)
 	if len(accepted) > 0 && token.ChainId != "" && !slices.Contains(accepted, token.ChainId) {
 		slog.Warn("auth: token chain mismatch",
 			"token_chain_id", token.ChainId,

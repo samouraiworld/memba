@@ -39,8 +39,11 @@ func (s *MultisigService) GetToken(
 	req *connect.Request[membav1.GetTokenRequest],
 ) (*connect.Response[membav1.GetTokenResponse], error) {
 	slog.Info("GetToken called")
-	// Pass server's default chainID for the AUTH-CHAINID-01 grace fallback.
-	token, err := auth.MakeToken(s.privateKey, s.publicKey, auth.DefaultTokenDuration, req.Msg.GetInfoJson(), req.Msg.GetUserSignature(), s.chainID)
+	// Pass server's default chainID for the AUTH-CHAINID-01 grace fallback, and
+	// the accepted set so a login for a chain we do not serve is refused HERE
+	// (F-29) rather than minting a token that ValidateToken then rejects on
+	// every call for the rest of its lifetime.
+	token, err := auth.MakeToken(s.privateKey, s.publicKey, auth.DefaultTokenDuration, req.Msg.GetInfoJson(), req.Msg.GetUserSignature(), s.chainID, s.acceptedChainIDs...)
 	if err != nil {
 		slog.Warn("GetToken: auth failed", "error", err)
 		return nil, tokenDenied(err)
@@ -58,6 +61,13 @@ func (s *MultisigService) GetToken(
 func tokenDenied(err error) *connect.Error {
 	if err != nil && strings.Contains(err.Error(), auth.SessionRejectCode) {
 		return connect.NewError(connect.CodePermissionDenied, errors.New(auth.SessionRejectCode))
+	}
+	// F-29: same narrow exception, same reasoning. The UI needs to distinguish
+	// "your wallet is on the wrong network" — which the user can fix in one
+	// click — from a generic denial they can only stare at. The bare code
+	// names no env var and does not reveal which chains we accept.
+	if err != nil && strings.Contains(err.Error(), auth.ChainMismatchCode) {
+		return connect.NewError(connect.CodePermissionDenied, errors.New(auth.ChainMismatchCode))
 	}
 	return connect.NewError(connect.CodePermissionDenied, nil)
 }

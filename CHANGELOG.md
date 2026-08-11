@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Signing in on the wrong network now fails honestly instead of half-working (2026-08-11)
+<!-- categories: memba -->
+- **A sign-in aimed at a network Memba isn't serving used to appear to succeed, and then nothing worked.** You would connect your wallet, get signed in, and every single action after that would be refused. Refreshing did not help and neither did signing in again, because the sign-in itself kept "succeeding" — the only way out was clearing the site's stored data. Memba now refuses that sign-in up front and tells you your wallet is on a different network than the page you are on, which is something you can fix in one click.
+- **A sign-in that has gone stale for any other reason now signs you out instead of leaving you stuck.** Previously the app only ever forgot a session when it reached its natural expiry time, so a session the server had already rejected sat there for hours with the app still showing you as signed in. It now notices the rejection and returns you to a signed-out state with a working "connect" button.
+- This matters right now because the Adena wallet has stopped offering the network Memba runs on and is moving people to a different one, so the mismatch this fixes is exactly what they would otherwise hit. It is also a prerequisite for moving Memba to Sapphire — without it, anyone with a bookmark of the current network would be locked out by the switch.
 ### Groundwork for the move to the Sapphire test network (2026-08-11)
 <!-- categories: memba, network -->
 - **Adena, the wallet Memba runs on, has stopped shipping Topaz.** Its 10 August release removes Topaz from the list of networks it offers and replaces it with a newer test network called Sapphire. When the wallet updates itself, anything it was holding for Topaz — the permission it remembered for Memba, your token list, and your signed-in session — is cleared, and the wallet moves you to Sapphire. Memba currently runs on Topaz, so as that update reaches people they will find their wallet and the app pointing at two different networks.
