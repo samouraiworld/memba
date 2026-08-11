@@ -47,7 +47,12 @@ import { AlertContactForm } from "../components/alerts/AlertContactForm"
 import { ReportScheduleForm } from "../components/alerts/ReportScheduleForm"
 import { TelegramBotCards } from "../components/alerts/TelegramBotCards"
 import * as api from "../lib/monitoringAuth"
-import type { MonitoringWebhook, WebhookKind } from "../lib/monitoringAuth"
+import type {
+    MonitoringWebhook,
+    MutationResult,
+    WebhookInput,
+    WebhookKind,
+} from "../lib/monitoringAuth"
 
 // ── Reusable section accordion (matches Settings.tsx) ────────
 function Section({ title, icon, defaultOpen = false, children }: {
@@ -128,26 +133,27 @@ function WebhookSection({ kind, label, token }: { kind: WebhookKind; label: stri
         setWebhooks(data)
     }, [token, kind])
 
-    const handleCreate = async (data: Omit<MonitoringWebhook, "ID"> & { ID?: number }) => {
+    const handleCreate = async (data: WebhookInput): Promise<MutationResult> => {
         const t = await token()
-        if (!t) return false
-        const ok = await api.createWebhook(t, kind, data)
-        if (ok) {
+        if (!t) return { ok: false, error: "Not signed in" }
+        const result = await api.createWebhook(t, kind, data)
+        if (result.ok) {
             await refreshWebhooks()
             setShowForm(false)
         }
-        return ok
+        return result
     }
 
-    const handleUpdate = async (data: Omit<MonitoringWebhook, "ID"> & { ID?: number }) => {
+    const handleUpdate = async (data: WebhookInput): Promise<MutationResult> => {
         const t = await token()
-        if (!t || data.ID == null) return false
-        const ok = await api.updateWebhook(t, kind, data as MonitoringWebhook)
-        if (ok) {
+        if (!t) return { ok: false, error: "Not signed in" }
+        if (data.ID == null) return { ok: false, error: "Missing webhook id" }
+        const result = await api.updateWebhook(t, kind, { ...data, ID: data.ID })
+        if (result.ok) {
             await refreshWebhooks()
             setEditing(null)
         }
-        return ok
+        return result
     }
 
     const handleDelete = async (id: number) => {
