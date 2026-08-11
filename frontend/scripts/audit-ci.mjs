@@ -1,6 +1,23 @@
 #!/usr/bin/env node
 /**
- * audit-ci — production `npm audit` gate with an explicit, documented allowlist.
+ * audit-ci — `npm audit` gate with an explicit, documented allowlist.
+ *
+ * TWO LANES, selected by `--include-dev`:
+ *   (default)       `npm audit --omit=dev`  → the PRODUCTION tree. Uses ALLOWLIST.
+ *   --include-dev   `npm audit`             → prod + dev, i.e. the BUILD tree.
+ *                                             Uses DEV_ALLOWLIST.
+ *
+ * Why the dev lane exists: `--omit=dev` is the conventional boundary, but "does
+ * not ship to the browser" is not the same claim as "cannot affect production".
+ * Anything running during compilation can alter the emitted bundle, so build
+ * tooling is a real supply-chain surface. Two high advisories (js-yaml
+ * GHSA-5p4m-2wfm-xmqj and undici GHSA-4cwx-7wf7-3272) sat open in 2026-08 and
+ * were invisible to the prod lane by construction — they surfaced only through
+ * Dependabot alerts. This lane closes that blind spot.
+ *
+ * The allowlists are deliberately SEPARATE. A shared list would let an entry
+ * justified as "dev-only, never shipped" silently suppress the same advisory in
+ * the production tree — the exact reasoning error this split prevents.
  *
  * Why this exists: `npm audit --audit-level=high` fails CI on ANY high/critical
  * advisory in the prod dependency tree, including advisories that (a) have no
@@ -51,6 +68,20 @@ export const ALLOWLIST = {
 }
 
 /**
+ * Acknowledged advisories for the DEV/BUILD tree (`--include-dev`). Separate from
+ * ALLOWLIST on purpose — see the header. A dev-scope waiver must never leak into
+ * the production lane.
+ *
+ * Bar for an entry here is lower than prod but still real: build tooling can
+ * modify the shipped bundle. Prefer raising the floor. State WHY the advisory
+ * cannot reach the build output.
+ */
+export const DEV_ALLOWLIST = {
+    // EMPTY. Both dev-scope highs open in 2026-08 were FIXED, not accepted:
+    // js-yaml -> 4.3.1 (#1060) and undici -> >=7.29.0 <8 (#1061).
+}
+
+/**
  * A successful `npm audit --json` always carries BOTH a `metadata` block and a
  * `vulnerabilities` map. A registry/network failure emits `{error|message,...}`
  * with neither — so anything missing that shape is unusable, not clean. This is
@@ -98,7 +129,17 @@ function failClosed(msg, detail) {
     process.exit(1)
 }
 
-function readAudit() {
+/**
+ * Which tree to audit. `--include-dev` drops `--omit=dev`, so the report covers
+ * devDependencies too.
+ */
+export function auditArgs(includeDev) {
+    const args = ["audit", "--json", "--audit-level=high"]
+    if (!includeDev) args.push("--omit=dev")
+    return args
+}
+
+function readAudit(includeDev) {
     // npm audit exits non-zero both when advisories are found (JSON on stdout,
     // the normal case) AND when it errors. Capture stderr too so the diagnostic
     // isn't swallowed.
@@ -107,7 +148,7 @@ function readAudit() {
     try {
         raw = execFileSync(
             "npm",
-            ["audit", "--json", "--audit-level=high", "--omit=dev"],
+            auditArgs(includeDev),
             { encoding: "utf8", maxBuffer: 32 * 1024 * 1024, stdio: ["ignore", "pipe", "pipe"] },
         )
     } catch (err) {
@@ -133,29 +174,34 @@ function readAudit() {
 }
 
 function main() {
-    const { acknowledged, blocking } = classify(readAudit())
+    const includeDev = process.argv.includes("--include-dev")
+    const lane = includeDev ? "dev+prod" : "prod"
+    const allowlist = includeDev ? DEV_ALLOWLIST : ALLOWLIST
+    const { acknowledged, blocking } = classify(readAudit(includeDev), allowlist)
 
     if (acknowledged.length) {
-        console.log(`audit-ci: ${acknowledged.length} acknowledged (allowlisted) high/critical advisory(ies):`)
+        console.log(`audit-ci [${lane}]: ${acknowledged.length} acknowledged (allowlisted) high/critical advisory(ies):`)
         for (const [ghsa, info] of acknowledged) {
-            const a = ALLOWLIST[ghsa]
+            const a = allowlist[ghsa]
             console.log(`  • ${ghsa} [${info.severity}] ${a.package} — ${info.title}`)
             console.log(`      justification (${a.added}): ${a.reason}`)
         }
     }
 
     if (blocking.length) {
-        console.error(`\naudit-ci: ${blocking.length} BLOCKING high/critical advisory(ies) with no allowlist entry:`)
+        console.error(`\naudit-ci [${lane}]: ${blocking.length} BLOCKING high/critical advisory(ies) with no allowlist entry:`)
         for (const [ghsa, info] of blocking) {
             console.error(`  ✗ ${ghsa} [${info.severity}] ${info.title}`)
             console.error(`      ${info.url}`)
         }
-        console.error("\nFix the dependency (npm audit fix), or — only if it genuinely does not apply —")
-        console.error("add a justified entry to ALLOWLIST in frontend/scripts/audit-ci.mjs.")
+        console.error("\nFix the dependency (raise the floor to the patched version), or — only if it")
+        console.error(`genuinely cannot apply — add a justified entry to ${includeDev ? "DEV_ALLOWLIST" : "ALLOWLIST"}`)
+        console.error("in frontend/scripts/audit-ci.mjs. Do NOT move a package between dependencies")
+        console.error("and devDependencies to silence this; that hides the advisory, it does not fix it.")
         process.exit(1)
     }
 
-    console.log(`\naudit-ci: no un-allowlisted high/critical advisories. OK.`)
+    console.log(`\naudit-ci [${lane}]: no un-allowlisted high/critical advisories. OK.`)
     process.exit(0)
 }
 

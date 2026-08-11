@@ -218,6 +218,22 @@ jobs:
         if: matrix.node-version == '22'
         run: npm run audit:ci
 
+      # Second lane: the same gate WITHOUT --omit=dev, i.e. the build tree.
+      #
+      # `--omit=dev` is the conventional boundary but not a safety boundary:
+      # anything running during compilation can alter the emitted bundle, so
+      # build tooling is a real supply-chain surface. Three high advisories
+      # (js-yaml GHSA-5p4m-2wfm-xmqj, undici GHSA-4cwx-7wf7-3272, nanoid
+      # GHSA-2v37-7h3g-55p8) sat open in 2026-08 and were invisible to the step
+      # above BY CONSTRUCTION — they reached us only via Dependabot alerts.
+      #
+      # Separate step, not a flag on the one above, so a failure names which tree
+      # is affected. Separate allowlist too (DEV_ALLOWLIST) — a "dev-only, never
+      # shipped" waiver must not leak into the production lane.
+      - name: Security audit (build/dev tree)
+        if: matrix.node-version == '22'
+        run: npm run audit:ci:dev
+
       - name: Lighthouse CI
         if: matrix.node-version == '22'
         run: |

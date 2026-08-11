@@ -10,7 +10,7 @@ import { describe, it, expect } from "vitest"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { load } from "js-yaml"
-import { isUsableReport, collectHighAdvisories, classify, ALLOWLIST } from "./audit-ci.mjs"
+import { isUsableReport, collectHighAdvisories, classify, ALLOWLIST, DEV_ALLOWLIST, auditArgs } from "./audit-ci.mjs"
 
 const okReport = (vulnerabilities: Record<string, unknown> = {}) => ({
     auditReportVersion: 2,
@@ -162,5 +162,44 @@ describe("the two dependency gates agree on what is acknowledged", () => {
             "the npm-audit gate and the Dependency Review gate disagree about which advisories are acknowledged — " +
                 "update BOTH, and keep the written justification in audit-ci.mjs",
         ).toEqual(Object.keys(ALLOWLIST).sort())
+    })
+})
+
+describe("the dev/build-scope audit lane", () => {
+    it("omits dev by default and INCLUDES it with --include-dev", () => {
+        // The whole point of the lane. If --omit=dev ever leaked into the dev lane
+        // the gate would silently audit the prod tree twice and assert nothing new.
+        expect(auditArgs(false)).toContain("--omit=dev")
+        expect(auditArgs(true)).not.toContain("--omit=dev")
+    })
+
+    it("both lanes still gate at high", () => {
+        for (const a of [auditArgs(false), auditArgs(true)]) {
+            expect(a).toContain("--audit-level=high")
+            expect(a).toContain("--json")
+        }
+    })
+
+    it("the dev allowlist is empty — dev-scope advisories must be fixed too", () => {
+        expect(Object.keys(DEV_ALLOWLIST)).toEqual([])
+    })
+
+    it("🔴 the two allowlists are SEPARATE objects, not aliases", () => {
+        // If these were the same object (or one spread into the other), a waiver
+        // written for the build tree would also suppress the advisory in the
+        // production tree. That is the reasoning error the split exists to stop,
+        // and an `export const DEV_ALLOWLIST = ALLOWLIST` refactor would reintroduce
+        // it while every other test here still passed.
+        expect(DEV_ALLOWLIST).not.toBe(ALLOWLIST)
+    })
+
+    it("a dev-scope waiver does NOT acknowledge the same advisory in the prod lane", () => {
+        // Behavioural proof of the separation, not just object identity.
+        const report = okReport({ "build-tool": { severity: "high", via: [highObj("GHSA-devo-0000-0000")] } })
+        const devWaived = classify(report, { "GHSA-devo-0000-0000": { reason: "build-only fixture" } })
+        expect(devWaived.blocking).toHaveLength(0)
+
+        const inProdLane = classify(report, ALLOWLIST)
+        expect(inProdLane.blocking.map(([g]) => g)).toEqual(["GHSA-devo-0000-0000"])
     })
 })
