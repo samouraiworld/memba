@@ -169,3 +169,48 @@ describe("endpoint routing per kind", () => {
         expect((updateMock.mock.calls[0][1] as RequestInit).method).toBe("PUT")
     })
 })
+
+describe("webhook mutation errors", () => {
+    afterEach(() => vi.unstubAllGlobals())
+
+    const payload = {
+        URL: "https://discord.com/api/webhooks/abc",
+        Type: "discord" as const,
+        Description: "test",
+        ChainID: "topaz-1",
+    }
+
+    it("surfaces the server's plain-text refusal", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+            ok: false,
+            status: 400,
+            text: async () => "chain_id is required\n",
+        } as unknown as Response))
+
+        await expect(createWebhook("tok", "validator", payload))
+            .resolves.toEqual({ ok: false, error: "chain_id is required" })
+    })
+
+    it("falls back to the status code when the body is empty", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+            ok: false,
+            status: 409,
+            text: async () => "",
+        } as unknown as Response))
+
+        const result = await createWebhook("tok", "validator", payload)
+        expect(result.ok).toBe(false)
+        expect(result.error).toContain("409")
+    })
+
+    it("reports ok on success", async () => {
+        vi.stubGlobal("fetch", vi.fn().mockResolvedValue({
+            ok: true,
+            status: 201,
+            text: async () => "",
+        } as unknown as Response))
+
+        await expect(updateWebhook("tok", "govdao", { ...payload, ID: 3 }))
+            .resolves.toEqual({ ok: true })
+    })
+})

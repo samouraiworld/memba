@@ -154,17 +154,26 @@ export async function listWebhooks(
     return data.map(fromWire)
 }
 
-export async function createWebhook(
+/**
+ * POST/PUT a webhook, preserving the server's explanation on refusal.
+ *
+ * gnomonitoring answers refusals with a plain-text body ("chain_id is
+ * required", "webhook URL host ... is not allowed for type ..."). Collapsing
+ * that to a boolean is what made this class of bug undiagnosable from the UI.
+ */
+async function mutateWebhook(
     token: string,
     kind: WebhookKind,
+    method: "POST" | "PUT",
     payload: WebhookInput,
-): Promise<boolean> {
-    if (!GNO_MONITORING_API_URL) return false
+): Promise<MutationResult> {
+    if (!GNO_MONITORING_API_URL) {
+        return { ok: false, error: "Monitoring API is not configured" }
+    }
 
     try {
-        const url = `${GNO_MONITORING_API_URL}/webhooks/${kind}`
-        const res = await fetch(url, {
-            method: "POST",
+        const res = await fetch(`${GNO_MONITORING_API_URL}/webhooks/${kind}`, {
+            method,
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
@@ -172,36 +181,31 @@ export async function createWebhook(
             body: JSON.stringify(toWire(payload)),
             signal: AbortSignal.timeout(8000),
         })
-        return res.ok
+
+        if (res.ok) return { ok: true }
+
+        const detail = (await res.text()).trim()
+        return { ok: false, error: detail || `Request failed (HTTP ${res.status})` }
     } catch (err) {
-        console.warn(`[monitoringAuth] createWebhook(${kind}) failed:`, err)
-        return false
+        console.warn(`[monitoringAuth] ${method} /webhooks/${kind} failed:`, err)
+        return { ok: false, error: "Network error — please try again" }
     }
 }
 
-export async function updateWebhook(
+export function createWebhook(
     token: string,
     kind: WebhookKind,
     payload: WebhookInput,
-): Promise<boolean> {
-    if (!GNO_MONITORING_API_URL) return false
+): Promise<MutationResult> {
+    return mutateWebhook(token, kind, "POST", payload)
+}
 
-    try {
-        const url = `${GNO_MONITORING_API_URL}/webhooks/${kind}`
-        const res = await fetch(url, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(toWire(payload)),
-            signal: AbortSignal.timeout(8000),
-        })
-        return res.ok
-    } catch (err) {
-        console.warn(`[monitoringAuth] updateWebhook(${kind}) failed:`, err)
-        return false
-    }
+export function updateWebhook(
+    token: string,
+    kind: WebhookKind,
+    payload: WebhookInput & { ID: number },
+): Promise<MutationResult> {
+    return mutateWebhook(token, kind, "PUT", payload)
 }
 
 export async function deleteWebhook(
