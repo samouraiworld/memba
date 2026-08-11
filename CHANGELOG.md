@@ -20,6 +20,14 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Groundwork for the move to the Sapphire test network (2026-08-11)
+<!-- categories: memba, network -->
+- **Adena, the wallet Memba runs on, has stopped shipping Topaz.** Its 10 August release removes Topaz from the list of networks it offers and replaces it with a newer test network called Sapphire. When the wallet updates itself, anything it was holding for Topaz — the permission it remembered for Memba, your token list, and your signed-in session — is cleared, and the wallet moves you to Sapphire. Memba currently runs on Topaz, so as that update reaches people they will find their wallet and the app pointing at two different networks.
+- **You can add Topaz back to the wallet by hand, but treat it as a stopgap.** The wallet still supports adding a network manually, and doing so works. It is not something to rely on: the same clean-up runs when the wallet migrates its stored data, so a hand-added Topaz can be removed again.
+- **This release contains the preparation for moving Memba to Sapphire, and nothing you can see yet.** Sapphire is now a network the app knows how to reach — its blockchain nodes, its transaction index, its faucet and its explorer are all configured and verified working. It is deliberately left switched off: it does not appear in the network menu, none of Memba's features are switched on for it, and every part of the app that decides which network to read from still says Topaz.
+- **Nothing is live on Sapphire yet, and the app says so plainly rather than pretending otherwise.** Memba's contracts have not been deployed there. Anyone who reaches the Sapphire address directly gets a clear notice that Memba is not on that network yet and a way back to Topaz, instead of a normal-looking app with nothing in it. Creating tokens, trading collectibles and every other feature that moves funds stay switched off there until the contracts are actually deployed and checked.
+- Doing the groundwork separately means the switch itself, when it comes, is a small and reviewable change rather than one large one made under time pressure.
+
 ### Security — a router flaw is now fixed rather than accepted (#1049, #1043, 2026-08-10)
 <!-- categories: memba -->
 - **Updated React Router, which handles every page navigation in the app, to the release that fixes a cross-site request forgery flaw.** The flaw only affects a server-rendering mode Memba does not use, so it was never reachable here — which is why it had been formally accepted with a written justification rather than patched.
