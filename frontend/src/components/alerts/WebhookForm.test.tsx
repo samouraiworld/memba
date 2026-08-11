@@ -106,8 +106,11 @@ describe("WebhookForm", () => {
 
     it("preselects the active chain on CREATE only", async () => {
         // Read the constant rather than hardcoding "topaz-1": the active
-        // network is environment-derived and this test must not break at the
-        // next chain cutover.
+        // network is environment-derived. This does not make the test immune
+        // to a chain cutover — ENABLED is still a hardcoded fixture — but it
+        // moves the breakage to the premise line below, which fails loudly
+        // and points straight at the mismatch instead of failing obscurely
+        // deeper in the assertion. That failure is intentional, not a bug.
         const { GNO_MONITORING_CHAIN } = await import("../../lib/config")
         expect(ENABLED).toContain(GNO_MONITORING_CHAIN) // premise
 

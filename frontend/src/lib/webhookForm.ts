@@ -43,7 +43,13 @@ export function chainOptionsFor(
     }))
 
     if (current && !options.some(o => o.value === current)) {
-        options.unshift({ value: current, label: `${current} — no longer offered` })
+        // An empty registry means the /info fetch hasn't resolved yet (or
+        // failed), not that the chain was retired — don't claim retirement
+        // when there is nothing to compare against.
+        options.unshift({
+            value: current,
+            label: enabled.length ? `${current} — no longer offered` : current,
+        })
     }
 
     return options

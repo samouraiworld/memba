@@ -136,7 +136,11 @@ function WebhookSection({ kind, label, token }: { kind: WebhookKind; label: stri
     const handleCreate = async (data: WebhookInput): Promise<MutationResult> => {
         const t = await token()
         if (!t) return { ok: false, error: "Not signed in" }
-        const result = await api.createWebhook(t, kind, data)
+        // WebhookForm's validate() blocks submission without a chain, but that
+        // is a runtime guarantee, not a type one — narrow here so a chain-less
+        // create can't compile its way into a guaranteed 400 from the server.
+        if (!data.ChainID) return { ok: false, error: "Chain is required" }
+        const result = await api.createWebhook(t, kind, { ...data, ChainID: data.ChainID })
         if (result.ok) {
             await refreshWebhooks()
             setShowForm(false)

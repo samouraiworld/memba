@@ -6,6 +6,8 @@
  * - No caching (webhook data is mutable, must always be fresh)
  * - 8s timeout with AbortSignal
  * - Graceful null return on failure
+ * - Webhook mutations (create/update) return a `MutationResult { ok, error? }`
+ *   instead of a bare boolean, so the server's refusal reason survives to the UI
  *
  * All endpoints are per-user (user ID extracted from JWT server-side).
  *
@@ -184,7 +186,7 @@ async function mutateWebhook(
 
         if (res.ok) return { ok: true }
 
-        const detail = (await res.text()).trim()
+        const detail = (await res.text()).trim().slice(0, 200)
         return { ok: false, error: detail || `Request failed (HTTP ${res.status})` }
     } catch (err) {
         console.warn(`[monitoringAuth] ${method} /webhooks/${kind} failed:`, err)
@@ -195,7 +197,7 @@ async function mutateWebhook(
 export function createWebhook(
     token: string,
     kind: WebhookKind,
-    payload: WebhookInput,
+    payload: WebhookInput & { ChainID: string },
 ): Promise<MutationResult> {
     return mutateWebhook(token, kind, "POST", payload)
 }

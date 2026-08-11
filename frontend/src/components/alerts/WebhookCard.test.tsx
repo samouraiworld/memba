@@ -1,7 +1,10 @@
 /**
- * The chain badge reads webhook.ChainID. The server sends chain_id, so before
- * the wire boundary existed this was permanently undefined and the badge never
- * rendered — a silent read-side half of the same bug.
+ * Pins WebhookCard's own rendering rule: the chain badge shows when
+ * webhook.ChainID is set, and is absent entirely when it is null. This does
+ * NOT cover the wire boundary (the mapping from the server's chain_id to the
+ * domain ChainID field) — that mapping is pinned in monitoringAuth.test.ts,
+ * "maps chain_id back to ChainID when reading", since this file builds its
+ * MonitoringWebhook fixture by hand and never crosses toWire/fromWire.
  */
 import { describe, it, expect, vi, afterEach } from "vitest"
 import { render, cleanup, screen } from "@testing-library/react"
@@ -23,11 +26,12 @@ describe("WebhookCard chain badge", () => {
         render(<WebhookCard webhook={webhook("topaz-1")} kind="validator"
             onEdit={vi.fn()} onDelete={vi.fn()} />)
         expect(screen.getByText("topaz-1")).toBeInTheDocument()
+        expect(screen.queryByTestId("chain-badge")).not.toBeNull()
     })
 
     it("renders no badge for a legacy unscoped webhook", () => {
-        const { container } = render(<WebhookCard webhook={webhook(null)} kind="validator"
+        render(<WebhookCard webhook={webhook(null)} kind="validator"
             onEdit={vi.fn()} onDelete={vi.fn()} />)
-        expect(container.textContent).not.toContain("topaz-1")
+        expect(screen.queryByTestId("chain-badge")).toBeNull()
     })
 })

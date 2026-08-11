@@ -44,6 +44,15 @@ describe("chainOptionsFor", () => {
         const values = chainOptionsFor(enabled, "topaz-1").map(o => o.value)
         expect(values.filter(v => v === "topaz-1")).toHaveLength(1)
     })
+
+    it("does not label the current chain as retired when the registry is empty", () => {
+        // An empty `enabled` list means the /info fetch hasn't resolved (or
+        // failed) — it must not be read as "the service dropped this chain".
+        const option = chainOptionsFor([], "topaz-1")[0]
+        expect(option.value).toBe("topaz-1")
+        expect(option.label).toBe("topaz-1")
+        expect(option.label).not.toContain("no longer offered")
+    })
 })
 
 describe("validateWebhookUrl", () => {
