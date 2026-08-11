@@ -222,6 +222,71 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // what the old chainId-derived construction produced and does not exist.
         explorerUrl: import.meta.env.VITE_TOPAZ_EXPLORER_URL || "https://topaz.testnets.gno.land",
     },
+    // ── Sapphire (sapphire-1) ────────────────────────────────────────────
+    // Topaz's successor, and where Memba is going. Adena v1.20.3 (published to
+    // the Chrome Web Store 2026-08-10) DROPPED `topaz-1` from its shipped
+    // networks and added `sapphire-1`; its v024 storage migration deletes
+    // topaz-scoped established sites, tokens, GRC721 collections and sessions,
+    // and moves the user to the new default testnet. It also strips a
+    // MANUALLY-ADDED topaz-1 custom network (storage-migration-v024.ts:121),
+    // so "just re-add it" is a one-shot workaround, not a strategy.
+    //
+    // ⚠️ THIS ENTRY IS DELIBERATELY DARK. It ships the reachability (RPCs,
+    // indexer, faucet, explorer) so the eventual cutover is a small, reviewable
+    // flag flip rather than a big-bang PR — but it changes NOTHING today:
+    //   - `hidden: true`          → absent from the network selector
+    //   - `REALM_ALLOWLIST.sapphire` is `[]` → isRealmValidOn returns false for
+    //     EVERY realm here (fail-CLOSED, :542), so no lane — least of all a
+    //     fund-custody one — can render on it
+    //   - `FEATURED_DAO_REALM.sapphire` is null
+    //   - every PINNED cutover constant (SNAPSHOT_NETWORK, FEED_INDEXED_NETWORK,
+    //     SITEMAP_NETWORK, resolveDefaultNetwork's fallback, chainHealth's
+    //     fallbackOrder) still says `topaz`
+    // Reaching this entry at all requires an explicit /sapphire/ URL or env, and
+    // what you get there is a chain with nothing allowlisted on it.
+    //
+    // Live-verified 2026-08-11: both RPCs report network `sapphire-1`,
+    // catching_up false, at the SAME height (81,313); the indexer's
+    // latestBlockHeight matches that height exactly; the faucet answers with the
+    // standard gno JSON-RPC 2.0 error shape. Two independent public RPCs is
+    // better redundancy than topaz has today (its sentry was retired 2026-08-10).
+    sapphire: {
+        chainId: "sapphire-1",
+        hidden: true,
+        // Same treatment Betanet gets (:308-309), and for the same reason: we
+        // have deployed nothing here. Without this, `networkHasRealms` defaults
+        // to TRUE (`realmsDeployed !== false`, :481) and anyone reaching
+        // /sapphire/ would get a normal-looking, silently-empty app instead of
+        // the honest RealmsNotDeployedBanner (Layout.tsx:336). Flip to true in
+        // the ceremony PR that actually deploys the realms — not before.
+        realmsDeployed: false,
+        isTestnet: true,
+        // No monitoringChain override: gnomonitoring resolves `sapphire-1`
+        // directly (live-verified 2026-08-11, GET /uptime?chain=sapphire-1 →
+        // 200). Per the monitoringChain doc-comment above, re-verify live before
+        // ever adding one — do not restore a value from memory.
+        rpcUrl: import.meta.env.VITE_SAPPHIRE_RPC_URL || "https://rpc.sapphire.testnets.gno.land:443",
+        // Onbloc's sapphire node — this is also the RPC Adena itself ships for
+        // sapphire-1 (chains.json), so it is the path of least surprise.
+        fallbackRpcUrls: [
+            "https://sapphire.rpc.onbloc.xyz:443",
+        ],
+        // No full-topology telemetry node identified for sapphire-1 yet, same as
+        // topaz. Validators view will show partial data until one exists.
+        telemetryRpcUrls: [],
+        indexerUrl: import.meta.env.VITE_SAPPHIRE_INDEXER_URL || "https://indexer.sapphire.testnets.gno.land/graphql/query",
+        label: "Sapphire",
+        userRegistryPath: "gno.land/r/sys/users",
+        faucetUrl: "https://faucet.sapphire.testnets.gno.land",
+        // Live-verified 2026-08-11 with a WORKING NEGATIVE CONTROL, which is the
+        // part that makes this trustworthy: 200 on `/` and on `/r/sys/users`
+        // (so it really is a gno chain's gnoweb), 404 on
+        // `/r/samcrew/memba_dao` — while the SAME path on topaz's gnoweb returns
+        // 200. The 404 is therefore genuine absence, not a broken probe: we have
+        // deployed nothing to sapphire yet (see W3-3b — `p/samcrew/avl` is also
+        // absent here and must lead the publish order).
+        explorerUrl: import.meta.env.VITE_SAPPHIRE_EXPLORER_URL || "https://sapphire.testnets.gno.land",
+    },
     gnoland1: {
         chainId: "gnoland1",
         rpcUrl: "https://rpc.gnoland1.samourai.live:443",
@@ -283,26 +348,6 @@ export function selectableNetworksFor(activeKey: string): Record<string, Network
         : VISIBLE_NETWORKS
 }
 
-/** The same rule for a control keyed by CHAIN ID rather than network key —
- *  options for a <select> whose current value is `currentChainId`.
- *
- *  Stored chain ids outlive the network list: a webhook saved against a chain we
- *  later hid (Betanet) or retired has no option in VISIBLE_NETWORKS, and a
- *  <select> whose value matches no option renders BLANK with selectedIndex -1
- *  while state keeps — and resubmits — the old value. The user cannot see what it
- *  is scoped to, nor change it. So the current value always gets an option,
- *  labelled honestly. */
-export function selectableChainIdOptions(currentChainId: string): { value: string; label: string }[] {
-    const options = Object.values(VISIBLE_NETWORKS).map(net => ({ value: net.chainId, label: net.label }))
-    if (currentChainId && !options.some(o => o.value === currentChainId)) {
-        const known = Object.values(NETWORKS).find(n => n.chainId === currentChainId)
-        options.unshift({
-            value: currentChainId,
-            label: known ? `${known.label} — no longer offered` : `${currentChainId} — unrecognised chain`,
-        })
-    }
-    return options
-}
 
 /**
  * Resolves the default network key from VITE_GNO_CHAIN_ID, validated against
@@ -532,6 +577,24 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // deployed, and so adding a guard later cannot silently gate it off.
         "gno.land/r/samcrew/gnobuilders_badges_v2",
     ],
+    // Sapphire (sapphire-1) — an EXPLICIT empty list, not an absent key.
+    //
+    // Both spellings fail closed today (isRealmValidOn returns false for an
+    // absent key too, :548), so this is about being truthful rather than about
+    // safety: it states "we have verified that Memba has deployed nothing to
+    // sapphire-1" instead of leaving a reader to wonder whether the key was
+    // simply forgotten — which is precisely the ambiguity that preceded F-28 on
+    // Betanet. Live-verified 2026-08-11: gnoweb 404s `/r/samcrew/memba_dao` on
+    // sapphire while returning 200 for it on topaz.
+    //
+    // ⚠️ Populating this list is the FUND-CUSTODY DECISION, not paperwork. Do
+    // not mirror `topaz` into it as a convenience when the cutover lands: the
+    // NFT stack, escrow_v3 and memba_token_otc_v2 custody funds and are
+    // deliberately held out of `topaz` above (see #1039/#1040). Any entry added
+    // here must first actually EXIST on sapphire-1 — the deploy set depends on
+    // W3-4 reconstructing `realm-versions.json`, which today cannot substantiate
+    // 13 of 34 artifacts.
+    sapphire: [],
 }
 
 /**
@@ -942,6 +1005,11 @@ export const FEATURED_DAO_REALM: Record<string, string | null> = {
     test13: MEMBA_DAO.realmPath, // "gno.land/r/samcrew/memba_dao" — live on test13
     topaz: MEMBA_DAO.realmPath,  // "gno.land/r/samcrew/memba_dao" — live on topaz-1 (2026-07-21 ceremony)
     gnoland1: null,
+    // null until memba_dao actually exists on sapphire-1 (gnoweb 404s it today).
+    // getFeaturedDaoRealm also re-checks isRealmValidOn, so pointing this at the
+    // realm early would still resolve to null — but it would encode a claim that
+    // is not yet true. Flip it in the same PR that deploys the DAO there.
+    sapphire: null,
 }
 
 /**

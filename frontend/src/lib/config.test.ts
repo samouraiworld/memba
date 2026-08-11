@@ -19,7 +19,12 @@ import {
     getUserRegistryPath,
     isNftMarketValid,
     isNftMarketV3Valid,
+    SNAPSHOT_NETWORK,
+    FEED_INDEXED_NETWORK,
+    getFeaturedDaoRealm,
+    selectableNetworksFor,
 } from './config'
+import { SITEMAP_NETWORK } from './sitemap'
 import { NFT_MARKETPLACE_V3_PATH, NFT_MARKETPLACE_PATH } from './nftConfig'
 
 describe('config constants', () => {
@@ -335,10 +340,13 @@ describe('getTelemetryRpcUrls', () => {
     })
 })
 
-describe('network reduction — test13 + topaz + gnoland1 only', () => {
-    it('exposes only test13, topaz, and gnoland1', () => {
+describe('network reduction — test13 + topaz + gnoland1 + sapphire only', () => {
+    it('exposes only test13, topaz, gnoland1, and sapphire', () => {
         const keys = Object.keys(NETWORKS).sort()
-        expect(keys).toEqual(['gnoland1', 'test13', 'topaz'])
+        // sapphire added 2026-08-11, DARK — see the sapphire dark-contract block
+        // below and the entry's doc-comment. It is deliberately in NETWORKS (so
+        // the cutover is a flag flip) and deliberately inert.
+        expect(keys).toEqual(['gnoland1', 'sapphire', 'test13', 'topaz'])
     })
     it('defaults to topaz', () => {
         expect(DEFAULT_NETWORK).toBe('topaz')
@@ -370,6 +378,96 @@ describe('network reduction — test13 + topaz + gnoland1 only', () => {
     })
     it('DEFAULT_NETWORK is always a valid NETWORKS entry (never crash-loops)', () => {
         expect(NETWORKS[DEFAULT_NETWORK]).toBeDefined()
+    })
+})
+
+// The sapphire entry exists so the eventual cutover is a small flag flip. Its
+// entire value depends on it changing NOTHING until that flip, so each half of
+// that claim is asserted here rather than left to review. If you are here
+// because one of these failed while landing the cutover, that is the test
+// working: flip it deliberately, in the PR that makes it true on-chain.
+describe('sapphire is present but DARK (Adena v1.20.3 cutover prep, 2026-08-11)', () => {
+    it('is reachable by URL/env but absent from the selector', () => {
+        expect(NETWORKS.sapphire).toBeDefined()
+        expect(NETWORKS.sapphire.chainId).toBe('sapphire-1')
+        expect(NETWORKS.sapphire.hidden).toBe(true)
+        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('sapphire')
+        // Deep links must still RESOLVE rather than crash-loop the /:network
+        // redirects — the test13 lesson.
+        expect(resolveDefaultNetwork('sapphire')).toBe('sapphire')
+    })
+
+    it('gates EVERY realm — including every fund-custody lane', () => {
+        // Explicit empty allowlist. Not one path is callable here yet.
+        for (const path of [
+            'gno.land/r/samcrew/memba_dao',
+            'gno.land/r/samcrew/tokenfactory_v2',
+            'gno.land/r/samcrew/escrow_v3',
+            'gno.land/r/samcrew/memba_token_otc_v2',
+            NFT_MARKETPLACE_PATH,
+            NFT_MARKETPLACE_V3_PATH,
+        ]) {
+            expect(isRealmValidOn('sapphire', path)).toBe(false)
+        }
+        // NB: isNftMarketValid()/isNftMarketV3Valid() are deliberately NOT used
+        // here. They take no arguments and resolve against the ACTIVE network,
+        // so `isNftMarketValid('sapphire')` would silently ignore the argument
+        // and assert something else entirely — a green vacuous test. The
+        // network-scoped predicate is isRealmValidOn, used above.
+    })
+
+    it('tells the truth about having no realms, instead of rendering empty', () => {
+        // Without realmsDeployed:false this defaults to TRUE and anyone on a
+        // /sapphire/ deep link gets a normal-looking but silently empty app
+        // rather than RealmsNotDeployedBanner. This is the F-28 failure shape.
+        expect(networkHasRealms('sapphire')).toBe(false)
+        expect(getFeaturedDaoRealm('sapphire')).toBeNull()
+    })
+
+    it('does not become the default, or a health-check fallback', () => {
+        // DEFAULT_NETWORK itself is deliberately not asserted here: it derives
+        // from VITE_GNO_CHAIN_ID, and the repo-root .env pins test13 for local
+        // runs, so asserting it would fail locally and pass in CI. The
+        // env-independent resolver logic is what matters for the dark contract.
+        expect(resolveDefaultNetwork(undefined)).toBe('topaz')
+        expect(resolveDefaultNetwork('')).toBe('topaz')
+        // Hidden networks are never auto-selected as a fallback target
+        // (chainHealth.ts:122 requires !hidden && networkHasRealms) — sapphire
+        // fails both halves today.
+        expect(NETWORKS.sapphire.hidden && !networkHasRealms('sapphire')).toBe(true)
+    })
+
+    it('leaves every PINNED cutover constant on topaz', () => {
+        // These four do NOT derive from the env, so they are the actual flip.
+        // Desynchronising them from their backend counterparts fails SILENTLY
+        // (W3-6), which is why they are asserted as a set.
+        expect(SNAPSHOT_NETWORK).toBe('topaz')
+        expect(FEED_INDEXED_NETWORK).toBe('topaz')
+        expect(SITEMAP_NETWORK).toBe('topaz')
+    })
+
+    it('is still escapable if a user does reach it', () => {
+        // selectableNetworksFor always prepends the ACTIVE network, so a hidden
+        // active network still has an option and can be left. Without this a
+        // /sapphire/ visitor would be stranded with no way back to topaz.
+        const selectable = Object.keys(selectableNetworksFor('sapphire'))
+        expect(selectable).toContain('sapphire')
+        expect(selectable).toContain('topaz')
+    })
+
+    it('points only at live, trusted sapphire-1 infrastructure', () => {
+        // All four live-verified 2026-08-11; both RPCs reported sapphire-1 at
+        // the same height with the indexer matching exactly.
+        expect(NETWORKS.sapphire.rpcUrl).toBe('https://rpc.sapphire.testnets.gno.land:443')
+        expect(NETWORKS.sapphire.fallbackRpcUrls).toEqual(['https://sapphire.rpc.onbloc.xyz:443'])
+        expect(isTrustedRpcDomain(NETWORKS.sapphire.rpcUrl)).toBe(true)
+        for (const url of NETWORKS.sapphire.fallbackRpcUrls) {
+            expect(isTrustedRpcDomain(url)).toBe(true)
+        }
+        expect(isTrustedRpcDomain(NETWORKS.sapphire.indexerUrl!)).toBe(true)
+        // Not the retired sentry host, and not topaz's chain id.
+        expect(NETWORKS.sapphire.rpcUrl).not.toContain('samourai.live')
+        expect(NETWORKS.sapphire.chainId).not.toBe('topaz-1')
     })
 })
 
@@ -753,44 +851,5 @@ describe('selectableNetworksFor — the switcher escape hatch', () => {
     it('does not invent an option for an unknown network', async () => {
         const { selectableNetworksFor, VISIBLE_NETWORKS } = await import('./config')
         expect(selectableNetworksFor('no-such-network')).toBe(VISIBLE_NETWORKS)
-    })
-})
-
-describe('selectableChainIdOptions — a saved chain id stays addressable', () => {
-    // Drives WebhookForm's chain <select>, which is keyed by CHAIN ID. Hiding
-    // gnoland1 stranded the EDIT case: a webhook scoped to it had no matching
-    // <option>, so the control rendered blank (selectedIndex -1) while state kept
-    // submitting `gnoland1` — the same "shows the wrong thing, can't be
-    // corrected" failure as the network switcher.
-    it('keeps a HIDDEN chain selectable when it is the current value', async () => {
-        const { selectableChainIdOptions, VISIBLE_NETWORKS, NETWORKS } = await import('./config')
-        const match = selectableChainIdOptions('gnoland1').find(o => o.value === 'gnoland1')
-        expect(match, 'a hidden chain must still have an option when selected').toBeDefined()
-        expect(match!.label).toContain('no longer offered')
-        // Falsifiability: the visible set alone does NOT contain it.
-        expect(NETWORKS.gnoland1.hidden).toBe(true)
-        expect(Object.values(VISIBLE_NETWORKS).some(n => n.chainId === 'gnoland1')).toBe(false)
-    })
-
-    it('keeps an UNRECOGNISED chain id selectable rather than blanking the control', async () => {
-        // e.g. a webhook saved against test-13 before that network was retired.
-        const { selectableChainIdOptions } = await import('./config')
-        const match = selectableChainIdOptions('some-old-chain').find(o => o.value === 'some-old-chain')
-        expect(match).toBeDefined()
-        expect(match!.label).toContain('unrecognised chain')
-    })
-
-    it('adds nothing for a visible chain or for the empty "all chains" value', async () => {
-        const { selectableChainIdOptions, VISIBLE_NETWORKS, NETWORKS } = await import('./config')
-        const visibleCount = Object.keys(VISIBLE_NETWORKS).length
-        expect(selectableChainIdOptions('')).toHaveLength(visibleCount)
-        expect(selectableChainIdOptions(NETWORKS.topaz.chainId)).toHaveLength(visibleCount)
-        expect(selectableChainIdOptions(NETWORKS.topaz.chainId).filter(o => o.value === NETWORKS.topaz.chainId)).toHaveLength(1)
-    })
-
-    it('offers every visible network', async () => {
-        const { selectableChainIdOptions, VISIBLE_NETWORKS } = await import('./config')
-        const values = selectableChainIdOptions('').map(o => o.value)
-        for (const net of Object.values(VISIBLE_NETWORKS)) expect(values).toContain(net.chainId)
     })
 })

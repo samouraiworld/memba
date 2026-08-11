@@ -632,8 +632,8 @@ func callerRoles(addr address) string {
 \tif !parent.IsMember(addr) {
 \t\treturn ""
 \t}
-\tif v, ok := members.Get(string(addr)); ok {
-\t\treturn v.(string)
+\tif roles, ok := members.Get(string(addr)).(string); ok {
+\t\treturn roles
 \t}
 \treturn "member"
 }

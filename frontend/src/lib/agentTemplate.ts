@@ -164,7 +164,7 @@ func RegisterAgent(
 ) {
 	caller := unsafe.PreviousRealm().Address()
 
-	if _, exists := agents.Get(id); exists {
+	if agents.Has(id) {
 		panic("agent ID already exists: " + id)
 	}
 	if len(id) == 0 || len(id) > 50 {
@@ -206,11 +206,10 @@ func UpdateAgent(
 	pricePerCall int64,
 ) {
 	caller := unsafe.PreviousRealm().Address()
-	val, exists := agents.Get(id)
-	if !exists {
+	a, ok := agents.Get(id).(*Agent)
+	if !ok {
 		panic("agent not found: " + id)
 	}
-	a := val.(*Agent)
 	if a.Creator != caller {
 		panic("only the creator can update")
 	}
@@ -234,8 +233,8 @@ func UpdateAgent(
 func ReviewAgent(cur realm, agentId string, rating int, comment string) {
 	caller := unsafe.PreviousRealm().Address()
 
-	val, exists := agents.Get(agentId)
-	if !exists {
+	a, ok := agents.Get(agentId).(*Agent)
+	if !ok {
 		panic("agent not found")
 	}
 	if rating < 1 || rating > 5 {
@@ -245,13 +244,11 @@ func ReviewAgent(cur realm, agentId string, rating int, comment string) {
 		panic("review too long")
 	}
 
-	a := val.(*Agent)
 	a.RatingSum += int64(rating)
 	a.RatingCount++
 	agents.Set(agentId, a)
 
-	rval, _ := reviews.Get(agentId)
-	revs := rval.([]*Review)
+	revs, _ := reviews.Get(agentId).([]*Review)
 	revs = append(revs, &Review{
 		Reviewer: caller,
 		Rating:   rating,
@@ -264,11 +261,10 @@ func ReviewAgent(cur realm, agentId string, rating int, comment string) {
 // RemoveAgent removes an agent (admin or creator only).
 func RemoveAgent(cur realm, id string) {
 	caller := unsafe.PreviousRealm().Address()
-	val, exists := agents.Get(id)
-	if !exists {
+	a, ok := agents.Get(id).(*Agent)
+	if !ok {
 		panic("agent not found")
 	}
-	a := val.(*Agent)
 	if string(a.Creator) != string(caller) && string(caller) != AdminAddress {
 		panic("only creator or admin can remove")
 	}
@@ -282,7 +278,7 @@ func RemoveAgent(cur realm, id string) {
 // Send ugnot with the transaction to fund the credits.
 func DepositCredits(cur realm, agentId string) {
 	caller := unsafe.PreviousRealm().Address()
-	if _, exists := agents.Get(agentId); !exists {
+	if !agents.Has(agentId) {
 		panic("agent not found")
 	}
 
@@ -294,8 +290,8 @@ func DepositCredits(cur realm, agentId string) {
 
 	key := agentId + "/" + string(caller)
 	existing := int64(0)
-	if val, ok := credits.Get(key); ok {
-		existing = val.(int64)
+	if val, ok := credits.Get(key).(int64); ok {
+		existing = val
 	}
 	credits.Set(key, existing+amount)
 }
@@ -304,11 +300,10 @@ func DepositCredits(cur realm, agentId string) {
 // Returns the remaining credits.
 func UseCredit(cur realm, agentId, userAddr string) int64 {
 	caller := unsafe.PreviousRealm().Address()
-	val, exists := agents.Get(agentId)
-	if !exists {
+	a, ok := agents.Get(agentId).(*Agent)
+	if !ok {
 		panic("agent not found")
 	}
-	a := val.(*Agent)
 
 	// v3 ACL: only the agent creator (or admin) can consume credits
 	if caller != a.Creator && string(caller) != AdminAddress {
@@ -317,11 +312,10 @@ func UseCredit(cur realm, agentId, userAddr string) int64 {
 
 	key := agentId + "/" + userAddr
 	if a.Pricing == "pay-per-use" && a.PricePerCall > 0 {
-		cval, cexists := credits.Get(key)
-		if !cexists {
+		balance, cok := credits.Get(key).(int64)
+		if !cok {
 			panic("no credits deposited")
 		}
-		balance := cval.(int64)
 		if balance < a.PricePerCall {
 			panic(ufmt.Sprintf("insufficient credits: %d < %d", balance, a.PricePerCall))
 		}
@@ -333,14 +327,14 @@ func UseCredit(cur realm, agentId, userAddr string) int64 {
 	agents.Set(agentId, a)
 
 	uval := int64(0)
-	if uv, uok := usage.Get(key); uok {
-		uval = uv.(int64)
+	if uv, uok := usage.Get(key).(int64); uok {
+		uval = uv
 	}
 	usage.Set(key, uval+1)
 
 	remaining := int64(0)
-	if rv, rok := credits.Get(key); rok {
-		remaining = rv.(int64)
+	if rv, rok := credits.Get(key).(int64); rok {
+		remaining = rv
 	}
 	return remaining
 }
@@ -348,8 +342,8 @@ func UseCredit(cur realm, agentId, userAddr string) int64 {
 // GetCredits returns the credit balance for a user on an agent.
 func GetCredits(agentId, userAddr string) int64 {
 	key := agentId + "/" + userAddr
-	if val, ok := credits.Get(key); ok {
-		return val.(int64)
+	if val, ok := credits.Get(key).(int64); ok {
+		return val
 	}
 	return 0
 }
@@ -357,8 +351,8 @@ func GetCredits(agentId, userAddr string) int64 {
 // GetUsage returns the total invocation count for a user on an agent.
 func GetUsage(agentId, userAddr string) int64 {
 	key := agentId + "/" + userAddr
-	if val, ok := usage.Get(key); ok {
-		return val.(int64)
+	if val, ok := usage.Get(key).(int64); ok {
+		return val
 	}
 	return 0
 }
@@ -369,11 +363,10 @@ func RefundCredits(cur realm, agentId string) {
 	caller := unsafe.PreviousRealm().Address()
 	key := agentId + "/" + string(caller)
 
-	cval, cexists := credits.Get(key)
-	if !cexists {
+	balance, cok := credits.Get(key).(int64)
+	if !cok {
 		panic("no credits to refund")
 	}
-	balance := cval.(int64)
 	if balance == 0 {
 		panic("zero balance")
 	}
@@ -426,11 +419,10 @@ func renderHome() string {
 }
 
 func renderAgent(id string) string {
-	val, exists := agents.Get(id)
-	if !exists {
+	a, ok := agents.Get(id).(*Agent)
+	if !ok {
 		return "# 404\\nAgent not found: " + id
 	}
-	a := val.(*Agent)
 
 	var sb strings.Builder
 	sb.WriteString("# " + a.Name + "\\n\\n")
@@ -459,9 +451,7 @@ func renderAgent(id string) string {
 	}
 
 	// Reviews
-	rval, rexists := reviews.Get(id)
-	if rexists {
-		revs := rval.([]*Review)
+	if revs, rok := reviews.Get(id).([]*Review); rok {
 		if len(revs) > 0 {
 			sb.WriteString("\\n## Reviews\\n\\n")
 			for _, r := range revs {

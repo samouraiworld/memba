@@ -179,7 +179,15 @@ const describeGno = hasGno() ? describe : describe.skip
 
 describeGno("lintPackage (mechanism — must discriminate, not just return green)", () => {
     it("accepts a known-good interrealm-v2 package", () => {
-        const res = lintPackage("gate_probe_v2", INTERREALM_V2_PROBE)
+        // Dir name MUST equal the probe's `package` declaration (gate_probe).
+        // gnolang/gno#5048 makes package-name != last-path-element a hard error,
+        // so the old arbitrary "gate_probe_v2" dir failed with
+        // gnoPackageNameMismatchError once GNO_PIN moved past it — the positive
+        // control went red for a reason that had nothing to do with interrealm-v2,
+        // which also dragged the integration test below down with it. The
+        // production call site (gnoToolchain.ts, probeToolchain) always used
+        // "gate_probe"; only these two test call sites drifted.
+        const res = lintPackage("gate_probe", INTERREALM_V2_PROBE)
         expect(res.ok, `known-good interrealm-v2 probe did not lint clean:\n${res.lines.join("\n")}`).toBe(true)
     }, 120_000)
 
@@ -192,7 +200,7 @@ describeGno("lintPackage (mechanism — must discriminate, not just return green
 
 describeGno("probeToolchain (integration)", () => {
     it("returns a verdict that matches what the stdlib contract probe actually does under this GNOROOT", () => {
-        const interrealmOK = lintPackage("gate_probe_v2", INTERREALM_V2_PROBE).ok
+        const interrealmOK = lintPackage("gate_probe", INTERREALM_V2_PROBE).ok
         const contractHolds = lintPackage("gate_probe_contract", STDLIB_CONTRACT_PROBE).ok
         const v = probeToolchain()
 
