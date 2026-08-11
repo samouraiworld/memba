@@ -23,6 +23,11 @@ jobs:
       - run: cd frontend && npm ci
       - name: npm audit (production)
         run: cd frontend && npm run audit:ci
+      # The build tree as well — see the rationale in ci.yml. This cron leg is
+      # the one that catches a dev-scope advisory published after the last PR
+      # merged, which is exactly how the js-yaml/undici/nanoid trio accumulated.
+      - name: npm audit (build/dev tree)
+        run: cd frontend && npm run audit:ci:dev
 
   workspaces-audit:
     # The pnpm half of the same gate that ci.yml runs per-PR. This cron leg is

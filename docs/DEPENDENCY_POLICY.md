@@ -25,6 +25,7 @@
 | `govulncheck.yml` cron (Monday 08:00 UTC) reports a NEW finding | Per §3 SLA, starting from the cron run timestamp | Open a fix PR per §3. |
 | `npm audit --audit-level=high --omit=dev` returns non-zero in CI | Immediate | Block merge of the offending PR. If the failure is unrelated to the PR (pre-existing on `main`), open a follow-up unblock PR (per the Phase 0 pattern). |
 | `scripts/pnpm-audit-ci.mjs` returns non-zero in CI (`pnpm audit (workspaces)`) | Immediate | Same as the `npm audit` row. Fix by raising the floor in the root `package.json` `pnpm.overrides` to at or above the advisory's `patched_versions`, **then re-resolving and committing `pnpm-lock.yaml`** — a floor alone changes nothing while the locked version still satisfies the range. Allowlist only with a written justification. |
+| `npm audit --audit-level=high` (no `--omit=dev`) returns non-zero in CI (`Security audit (build/dev tree)`) | Immediate | Same as the production row, but fix by raising the floor in `frontend/package.json` `overrides`. **Cap the floor when the patched major is not drop-in**: `nanoid` is `>=3.3.17 <4` because 4+ is ESM-only while postcss reaches it via `require('nanoid/non-secure')`; `undici` is `>=7.29.0 <8`. ⛔ Do **not** "fix" this by moving a package between `dependencies` and `devDependencies` — that hides the advisory from one lane instead of fixing it. Allowlist only via `DEV_ALLOWLIST` (separate from the production `ALLOWLIST` on purpose) with a written justification for why the advisory cannot reach the build output. |
 | `security.yml` cron (Monday 06:00 UTC) reports a NEW pnpm workspace advisory | Per §3 SLA, starting from the cron run timestamp | Open a fix PR per §3. This leg matters independently of the PR gate: advisories are published against a lockfile that isn't changing, so a PR-triggered gate alone stays green (7 of the 8 advisories found in 2026-08 were published *after* the commit that last touched `pnpm-lock.yaml`). |
 | External report (email, GitHub Security Advisory inbound, partner notification) | Per §3 SLA, starting from receipt | Open an internal advisory under `docs/advisories/MEMBA-YYYY-NNN.md`, then a fix PR. |
 | Memba release | Always | Run `npm audit` + `govulncheck` against the release commit; record the result in the CHANGELOG. |
@@ -133,7 +134,15 @@ These are dep bumps available upstream but intentionally not yet taken in v7.1; 
 | `eslint` | `^9.39.1` | `10.2.x` | Major bump; flat-config peer verification. v7.2 spike budget: 0.5 day. (PR #324 closed; tracker filed.) |
 | `eslint-plugin-react-hooks` | `~7.0.1` | `7.1.x` | Adds `react-hooks/set-state-in-effect` rule. Flags 60 legitimate patterns that **Phase 3 React Query migration is going to remove**. Re-bump after Phase 3 lands. (PR #320 closed; tracker filed.) |
 
-`fast-uri`, `postcss` (via `@remotion/cli`), `vite 7.x` — all DEV-only advisories (`--omit=dev` clears them). Not in CI gate; tracked in this row only for visibility.
+> **⚠️ This note is obsolete as of 2026-08-11.** "DEV-only, therefore not in the CI gate" was the
+> policy until `audit:ci:dev` was added. Dev-scope high/critical advisories are now **gated**, in
+> both `ci.yml` (per-PR) and `security.yml` (cron). `--omit=dev` is a convention, not a safety
+> boundary: anything running during compilation can alter the emitted bundle.
+>
+> What prompted the change: three high advisories — `js-yaml` GHSA-5p4m-2wfm-xmqj, `undici`
+> GHSA-4cwx-7wf7-3272, `nanoid` GHSA-2v37-7h3g-55p8 — sat open simultaneously in August 2026 and were
+> invisible to the production lane **by construction**. They surfaced only through Dependabot alerts.
+> The `nanoid` one was found by the new lane on its first run.
 
 ## 11. Reviewer checklist for dep-bump PRs
 
