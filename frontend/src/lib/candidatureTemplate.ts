@@ -15,7 +15,7 @@
 
 import type { AminoMsg } from "./grc20"
 import { MEMBA_DAO, MEMBA_TOKEN } from "./config"
-import { requireInt } from "./templates/sanitizer"
+import { requireInt, requireRealmPath } from "./templates/sanitizer"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -32,9 +32,17 @@ export interface Candidature {
 }
 
 export interface CandidatureConfig {
+    /**
+     * Deploy path of the realm this config GENERATES — its last segment becomes
+     * the emitted Gno package name, so it must be the path the realm is actually
+     * deployed at. (The package name used to be hardcoded to `candidature`,
+     * capping each namespace at one candidature realm: every other deploy path
+     * was rejected on-chain with gnoPackageNameMismatchError.)
+     */
+    realmPath: string
     /** MembaDAO realm path (for cross-realm member check). */
     daoRealmPath: string
-    /** Candidature realm path. */
+    /** Already-deployed candidature realm to call into — not the generated realm's own path (see realmPath). */
     candidatureRealmPath: string
     /** Token symbol for airdrop. */
     tokenSymbol: string
@@ -49,6 +57,10 @@ export interface CandidatureConfig {
 // ── Defaults ──────────────────────────────────────────────────
 
 export const defaultCandidatureConfig: CandidatureConfig = {
+    // Deliberately a fixed literal, NOT MEMBA_DAO.candidaturePath: that one is
+    // env-overridable (VITE_CANDIDATURE_REALM_PATH), and the emitted package
+    // name must not shift with the build environment.
+    realmPath: "gno.land/r/samcrew/candidature",
     daoRealmPath: MEMBA_DAO.realmPath,
     candidatureRealmPath: MEMBA_DAO.candidaturePath,
     tokenSymbol: MEMBA_TOKEN.symbol,
@@ -300,11 +312,17 @@ export function parseCandidatureDetail(raw: string): Candidature | null {
  * simplified version — the deployed realm uses avl trees and banker.
  */
 export function generateCandidatureCode(config: CandidatureConfig = defaultCandidatureConfig): string {
-    // W1.1 fail-closed: requiredApprovals is the only interpolated input —
-    // 0/NaN would let candidatures auto-pass in the generated realm.
+    // W1.1 fail-closed: generated realms are immutable on deploy, so reject bad
+    // input here. requiredApprovals at 0/NaN would let candidatures auto-pass;
+    // a malformed realmPath would break out of the package declaration.
+    requireRealmPath("realmPath", config.realmPath)
     requireInt("requiredApprovals", config.requiredApprovals, 1, 1000)
 
-    return `package candidature
+    // gno requires the package name to equal the last element of the deploy
+    // path — derive it rather than hardcoding, as the other generators do.
+    const pkgName = config.realmPath.split("/").pop() || "candidature"
+
+    return `package ${pkgName}
 
 import (
 \t"chain/runtime/unsafe"

@@ -298,6 +298,10 @@ describe("defaultCandidatureConfig", () => {
     it("references candidature realm path", () => {
         expect(defaultCandidatureConfig.candidatureRealmPath).toContain("candidature")
     })
+
+    it("has a realmPath whose last segment is the legacy hardcoded package name", () => {
+        expect(defaultCandidatureConfig.realmPath.split("/").pop()).toBe("candidature")
+    })
 })
 
 // ── Code Generation ───────────────────────────────────────────
@@ -325,6 +329,18 @@ describe("generateCandidatureCode", () => {
         expect(code).toContain("skills too long")
         expect(code).toContain(String(MAX_SKILLS_LENGTH))
     })
+
+    // gno type-checks the package name against the last element of the deploy
+    // path, so hardcoding `package candidature` capped every namespace at a
+    // single candidature realm — anything else failed with a name mismatch.
+    it("derives the package name from realmPath", () => {
+        const code = generateCandidatureCode({
+            ...defaultCandidatureConfig,
+            realmPath: "gno.land/r/zooma/my_candidature",
+        })
+        expect(code).toContain("package my_candidature")
+        expect(code).not.toContain("package candidature")
+    })
 })
 
 // ── W1.1: fail-closed codegen — invalid input must THROW, never interpolate ──
@@ -336,5 +352,17 @@ describe("generateCandidatureCode — fail-closed guards (W1.1)", () => {
     })
     it("boundary requiredApprovals still generates", () => {
         expect(generateCandidatureCode({ ...defaultCandidatureConfig, requiredApprovals: 1 })).toContain("requiredApprovals int = 1")
+    })
+
+    it("throws on a realmPath that would break the package declaration", () => {
+        for (const realmPath of [
+            "",                                  // empty
+            "cosmos.land/r/zooma/candidature",   // wrong chain prefix
+            "gno.land/r/zooma",                  // no realm name
+            "gno.land/r/zooma/My-Candidature",   // not a valid gno identifier
+            "gno.land/r/zooma/x\"\n\nfunc Evil", // interpolation break-out
+        ]) {
+            expect(() => generateCandidatureCode({ ...defaultCandidatureConfig, realmPath })).toThrow(/realmPath/i)
+        }
     })
 })

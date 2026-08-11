@@ -35,7 +35,7 @@ import { join } from "node:path"
 
 import { generateDAOCode } from "./daoTemplate"
 import { generateBoardCode, defaultBoardConfig } from "./boardTemplate"
-import { generateCandidatureCode } from "./candidatureTemplate"
+import { generateCandidatureCode, defaultCandidatureConfig } from "./candidatureTemplate"
 import { generateChannelCode, defaultChannelConfig } from "./channelTemplate"
 import { generateAgentRegistryCode } from "./agentTemplate"
 import { generateEscrowCode } from "./escrowTemplate"
@@ -61,7 +61,10 @@ const CASES: { name: string; code: string }[] = [
         }),
     },
     { name: "gate_board", code: generateBoardCode(defaultBoardConfig(`${NS}/gate_dao`, "Gate DAO")) },
-    { name: "gate_candidature", code: generateCandidatureCode() },
+    {
+        name: "gate_candidature",
+        code: generateCandidatureCode({ ...defaultCandidatureConfig, realmPath: `${NS}/gate_candidature` }),
+    },
     {
         name: "gate_channels",
         // W1.5 shape: roster seeding + the parent.IsMember cross-realm fallback
@@ -96,6 +99,9 @@ const CASES: { name: string; code: string }[] = [
 // The board/channel realms' gnomod module paths must match the import path their
 // templates derive (`${daoRealmPath}_board` / `${daoRealmPath}_channels`), or the
 // workspace can't resolve them locally and falls back to a chain download.
+// Every other case deploys at the default `${NS}/<name>`, which is exactly the
+// realmPath its generator was given — gno rejects a package name that doesn't
+// match the last element of the deploy path.
 const MODULE_PATHS: Record<string, string> = {
     gate_board: `${NS}/gate_dao_board`,
     gate_channels: `${NS}/gate_dao_channels`,
