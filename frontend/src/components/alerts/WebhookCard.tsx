@@ -71,7 +71,7 @@ export function WebhookCard({ webhook, kind, onEdit, onDelete, deleting }: Props
                     {webhook.Description || typeLabel}
                 </span>
                 {webhook.ChainID && (
-                    <span style={{
+                    <span data-testid="chain-badge" style={{
                         fontSize: 9, padding: "2px 6px", borderRadius: 4,
                         background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
                         fontFamily: "JetBrains Mono, monospace",

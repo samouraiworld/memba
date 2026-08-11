@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Alerts — the webhook chain field is fixed, and its dropdown now reflects reality (2026-08-11)
+<!-- categories: memba -->
+- **Saving a validator or GovDAO alert webhook always failed.** The chain you selected — or left as "All chains" — was sent to the alerting service under a field name it didn't recognise, so every create or edit was rejected outright with a "chain is required" error, regardless of what you picked. The field is now sent under the name the service expects, and saving works.
+- **The chain dropdown now asks the alerting service what it actually supports, instead of reusing Memba's own network list.** The two lists don't match — the alerting service refers to Betanet by a different name, and separately supports a chain, Sapphire, that Memba doesn't otherwise offer — so the old dropdown could offer a chain the service would reject, or omit one it accepts. Selecting "All chains" is no longer offered on a new webhook, because the service does not support an unscoped one.
+- **A webhook saved on a chain other than the one you're currently browsing no longer vanishes from the list.** It used to be silently created, then hidden — reachable by neither editing nor deleting it, with no error to explain why. All of your webhooks are shown regardless of chain, each carrying a badge naming which one it's scoped to.
+- **A rejected webhook now tells you why.** Something like an unsupported channel URL used to fail with no explanation; the alerting service's own reason is now shown in the form.
+- **An account with no webhooks configured yet now shows a message saying so**, instead of a blank panel.
 ### Newly created DAOs, channels, agent registries and escrows will deploy again (2026-08-11)
 <!-- categories: memba, gno-core -->
 - **The contract code Memba writes for you when you create a DAO could no longer be published to the chain.** gno.land changed how contracts read their stored data — a lookup that used to answer with both "the value" and "was it there?" now answers with just the value, and there is a separate way to ask whether something exists. Memba was still writing the old form, so every contract it generated — DAOs, channels, agent registries and escrows — was rejected by the chain before it could go live. All four generators now use the new form.
