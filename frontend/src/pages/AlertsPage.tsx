@@ -103,7 +103,15 @@ function Section({ title, icon, defaultOpen = false, children }: {
 }
 
 // ── Webhook sub-section ──────────────────────────────────────
-function WebhookSection({ kind, label, token }: { kind: WebhookKind; label: string; token: () => Promise<string | null> }) {
+function WebhookSection({ kind, label, token, onDeleted }: {
+    kind: WebhookKind
+    label: string
+    token: () => Promise<string | null>
+    /** Called after a successful delete. Validator webhook deletion
+     *  cascade-deletes the user's linked alert contacts server-side, so the
+     *  contact list above must be re-fetched or it shows deleted rows. */
+    onDeleted?: () => void | Promise<void>
+}) {
     const [webhooks, setWebhooks] = useState<MonitoringWebhook[]>([])
     const [loading, setLoading] = useState(true)
     const [editing, setEditing] = useState<MonitoringWebhook | null>(null)
@@ -165,7 +173,10 @@ function WebhookSection({ kind, label, token }: { kind: WebhookKind; label: stri
         if (!t) return
         setDeletingId(id)
         const ok = await api.deleteWebhook(t, kind, id)
-        if (ok) await refreshWebhooks()
+        if (ok) {
+            await refreshWebhooks()
+            await onDeleted?.()
+        }
         setDeletingId(null)
     }
 
@@ -373,7 +384,7 @@ function AlertsContent() {
             <Section title="Webhooks" icon={<span>🔔</span>}>
                 <WebhookSection kind="govdao" label="GovDAO" token={auth.getToken} />
                 <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)", margin: "8px 0" }} />
-                <WebhookSection kind="validator" label="Validator" token={auth.getToken} />
+                <WebhookSection kind="validator" label="Validator" token={auth.getToken} onDeleted={refreshContacts} />
             </Section>
 
             {/* Section C: Contacts & Schedule */}
