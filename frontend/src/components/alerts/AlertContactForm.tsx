@@ -62,6 +62,20 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
+    // webhookId can be stale in two ways this component must not trust
+    // blindly: every contact created by the pre-fix client is stored with
+    // IDwebhook = 0 (startEdit copies it verbatim), and a contact can also
+    // hold an id that no longer appears in the validator-only list (a
+    // webhook deleted elsewhere, or a GovDAO-era id from before the two
+    // webhook tables were split). In both cases the <select> below falls
+    // back to displaying its first option while state stays stuck on the
+    // stale id, so "displayed" and "submitted" would silently diverge.
+    // Deriving the effective selection here — and using it everywhere
+    // instead of raw webhookId — keeps the two in lockstep by construction.
+    const selectedWebhookId = webhooks.some(w => w.ID === webhookId)
+        ? webhookId
+        : (webhooks[0]?.ID ?? 0)
+
     const resetForm = () => {
         setEditing(null)
         setMoniker("")
@@ -87,7 +101,7 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
         // A contact with no linked webhook is accepted by the server but can
         // never fire: SendAllValidatorAlerts matches mentions on
         // user_id + moniker + id_webhook, and id_webhook is never 0 there.
-        if (!webhookId) {
+        if (!selectedWebhookId) {
             setError("Add a validator webhook first — a contact with no linked webhook never fires.")
             return
         }
@@ -98,7 +112,7 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
             Moniker: moniker.trim(),
             NameContact: nameContact.trim(),
             MentionTag: mentionTag.trim(),
-            IDwebhook: webhookId,
+            IDwebhook: selectedWebhookId,
         }
 
         const result = editing
@@ -207,7 +221,7 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
                         <label style={labelStyle}>Linked Webhook</label>
                         <select
                             id="contact-webhook"
-                            value={webhookId}
+                            value={selectedWebhookId}
                             onChange={e => setWebhookId(Number(e.target.value))}
                             style={{ ...inputStyle, cursor: "pointer" }}
                         >

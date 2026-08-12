@@ -103,14 +103,16 @@ function Section({ title, icon, defaultOpen = false, children }: {
 }
 
 // ── Webhook sub-section ──────────────────────────────────────
-function WebhookSection({ kind, label, token, onDeleted }: {
+function WebhookSection({ kind, label, token, onChanged }: {
     kind: WebhookKind
     label: string
     token: () => Promise<string | null>
-    /** Called after a successful delete. Validator webhook deletion
-     *  cascade-deletes the user's linked alert contacts server-side, so the
-     *  contact list above must be re-fetched or it shows deleted rows. */
-    onDeleted?: () => void | Promise<void>
+    /** Called after a successful create, update, or delete. Validator webhook
+     *  create/update change which webhooks a contact can link to, and delete
+     *  cascade-deletes the user's linked alert contacts server-side — in all
+     *  three cases the contact form above must be re-fetched or it renders
+     *  against a stale webhook list (or shows deleted rows). */
+    onChanged?: () => void | Promise<void>
 }) {
     const [webhooks, setWebhooks] = useState<MonitoringWebhook[]>([])
     const [loading, setLoading] = useState(true)
@@ -152,6 +154,7 @@ function WebhookSection({ kind, label, token, onDeleted }: {
         if (result.ok) {
             await refreshWebhooks()
             setShowForm(false)
+            await onChanged?.()
         }
         return result
     }
@@ -164,6 +167,7 @@ function WebhookSection({ kind, label, token, onDeleted }: {
         if (result.ok) {
             await refreshWebhooks()
             setEditing(null)
+            await onChanged?.()
         }
         return result
     }
@@ -175,7 +179,7 @@ function WebhookSection({ kind, label, token, onDeleted }: {
         const ok = await api.deleteWebhook(t, kind, id)
         if (ok) {
             await refreshWebhooks()
-            await onDeleted?.()
+            await onChanged?.()
         }
         setDeletingId(null)
     }
@@ -384,7 +388,7 @@ function AlertsContent() {
             <Section title="Webhooks" icon={<span>🔔</span>}>
                 <WebhookSection kind="govdao" label="GovDAO" token={auth.getToken} />
                 <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)", margin: "8px 0" }} />
-                <WebhookSection kind="validator" label="Validator" token={auth.getToken} onDeleted={refreshContacts} />
+                <WebhookSection kind="validator" label="Validator" token={auth.getToken} onChanged={refreshContacts} />
             </Section>
 
             {/* Section C: Contacts & Schedule */}

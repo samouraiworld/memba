@@ -60,7 +60,11 @@ describe("AlertContactForm refusals", () => {
     })
 
     it("clears the form and the error on success", async () => {
-        const onAdd = vi.fn().mockResolvedValue({ ok: true })
+        // Must actually visit the error state first, otherwise the final
+        // assertion that the error is gone can never fail.
+        const onAdd = vi.fn()
+            .mockResolvedValueOnce({ ok: false, error: "Webhook not found" })
+            .mockResolvedValueOnce({ ok: true })
         render(
             <AlertContactForm
                 contacts={[]} webhooks={[webhook(5)]}
@@ -68,6 +72,10 @@ describe("AlertContactForm refusals", () => {
             />,
         )
         fill("val-1", "On-call", "123456789012345678")
+        fireEvent.click(screen.getByText("Add Contact", { selector: "button" }))
+
+        await waitFor(() => expect(screen.getByText("Webhook not found")).toBeTruthy())
+
         fireEvent.click(screen.getByText("Add Contact", { selector: "button" }))
 
         await waitFor(() =>
@@ -151,6 +159,49 @@ describe("AlertContactForm without a linkable webhook", () => {
             />,
         )
         fill("val-1", "On-call", "123456789012345678")
+        fireEvent.click(screen.getByText("Add Contact", { selector: "button" }))
+
+        await waitFor(() => expect(onAdd).toHaveBeenCalled())
+        expect(onAdd.mock.calls[0][0].IDwebhook).toBe(4)
+    })
+})
+
+describe("AlertContactForm legacy webhook repair", () => {
+    afterEach(() => { cleanup(); vi.clearAllMocks() })
+
+    it("repairs a legacy contact (IDwebhook: 0) on edit instead of refusing", async () => {
+        const legacyContact = { ...contact(), IDwebhook: 0 }
+        const onUpdate = vi.fn().mockResolvedValue({ ok: true })
+        render(
+            <AlertContactForm
+                contacts={[legacyContact]} webhooks={[webhook(5)]}
+                onAdd={vi.fn()} onUpdate={onUpdate} onDelete={vi.fn()}
+            />,
+        )
+        fireEvent.click(screen.getByText("Edit"))
+        fireEvent.click(screen.getByText("Update", { selector: "button" }))
+
+        await waitFor(() => expect(onUpdate).toHaveBeenCalled())
+        expect(onUpdate.mock.calls[0][0].IDwebhook).toBe(5)
+        expect(screen.queryByText(/add a validator webhook first/i)).toBeNull()
+    })
+
+    it("submits the webhook that becomes available after a re-render, not the stale default", async () => {
+        const onAdd = vi.fn().mockResolvedValue({ ok: true })
+        const { rerender } = render(
+            <AlertContactForm
+                contacts={[]} webhooks={[]}
+                onAdd={onAdd} onUpdate={vi.fn()} onDelete={vi.fn()}
+            />,
+        )
+        fill("val-1", "On-call", "123456789012345678")
+
+        rerender(
+            <AlertContactForm
+                contacts={[]} webhooks={[webhook(4)]}
+                onAdd={onAdd} onUpdate={vi.fn()} onDelete={vi.fn()}
+            />,
+        )
         fireEvent.click(screen.getByText("Add Contact", { selector: "button" }))
 
         await waitFor(() => expect(onAdd).toHaveBeenCalled())
