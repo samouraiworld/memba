@@ -20,6 +20,15 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Alerts — mention tags and linked webhooks are finally saved, and old contacts can be repaired (2026-08-12)
+<!-- categories: memba -->
+- **Every alert contact ever created from this form was saved without its mention tag and without its linked webhook.** The form said it had worked, the contact appeared in the list, and nothing was wrong on screen — but the two fields that make a contact useful were dropped in transit and stored empty. Because a mention is only sent to the webhook a contact is attached to, none of these contacts could ever ping anyone on a CRITICAL alert. The whole feature quietly did nothing. Both fields are now sent under the names the alerting service expects, and they save.
+- **Contacts saved by the old version can be repaired by editing them** — you do not need to delete and recreate them. Pick the webhook you want, re-enter the tag, and save.
+- **A contact the alerting service refuses now tells you why, instead of appearing to save.** The service checks that a mention tag is numeric, that the webhook you picked is yours, and that the contact still exists; each of those refusals is now shown in the form with the service's own wording.
+- **The "Linked Webhook" list no longer offers GovDAO webhooks.** Mentions are only ever sent on validator alerts, and the two kinds of webhook are numbered independently, so a GovDAO entry in that list could attach a contact to an unrelated validator webhook. Only validator webhooks are offered now.
+- **A contact with no webhook to attach to is refused up front**, rather than being saved as one that can never fire.
+- **The mention tag field now explains what it wants and keeps explaining it** — the raw numeric user ID, where to find it in Discord, and the fact that mentions only fire on CRITICAL alerts and are never sent to Telegram. Previously the only hint was a placeholder that vanished as soon as you started typing.
+- **Deleting a validator webhook now clears the contacts attached to it from the list straight away**, instead of leaving rows on screen that no longer exist.
 ### Signing in on the wrong network now fails honestly instead of half-working (2026-08-11)
 <!-- categories: memba -->
 - **A sign-in aimed at a network Memba isn't serving used to appear to succeed, and then nothing worked.** You would connect your wallet, get signed in, and every single action after that would be refused. Refreshing did not help and neither did signing in again, because the sign-in itself kept "succeeding" — the only way out was clearing the site's stored data. Memba now refuses that sign-in up front and tells you your wallet is on a different network than the page you are on, which is something you can fix in one click.
