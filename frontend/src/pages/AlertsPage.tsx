@@ -387,17 +387,17 @@ function AlertsContent() {
                             webhooks={allWebhooks}
                             onAdd={async (data) => {
                                 const t = await auth.getToken()
-                                if (!t) return false
-                                const ok = await api.createAlertContact(t, data)
-                                if (ok) await refreshContacts()
-                                return ok
+                                if (!t) return { ok: false, error: "Not signed in" }
+                                const result = await api.createAlertContact(t, data)
+                                if (result.ok) await refreshContacts()
+                                return result
                             }}
                             onUpdate={async (data) => {
                                 const t = await auth.getToken()
-                                if (!t) return false
-                                const ok = await api.updateAlertContact(t, data)
-                                if (ok) await refreshContacts()
-                                return ok
+                                if (!t) return { ok: false, error: "Not signed in" }
+                                const result = await api.updateAlertContact(t, data)
+                                if (result.ok) await refreshContacts()
+                                return result
                             }}
                             onDelete={async (id) => {
                                 const t = await auth.getToken()

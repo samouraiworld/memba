@@ -8,13 +8,13 @@
  */
 
 import { useState } from "react"
-import type { AlertContact, MonitoringWebhook } from "../../lib/monitoringAuth"
+import type { AlertContact, MonitoringWebhook, MutationResult } from "../../lib/monitoringAuth"
 
 interface Props {
     contacts: AlertContact[]
     webhooks: MonitoringWebhook[]
-    onAdd: (data: Omit<AlertContact, "ID">) => Promise<boolean>
-    onUpdate: (data: AlertContact) => Promise<boolean>
+    onAdd: (data: Omit<AlertContact, "ID">) => Promise<MutationResult>
+    onUpdate: (data: AlertContact) => Promise<MutationResult>
     onDelete: (id: number) => Promise<boolean>
 }
 
@@ -38,6 +38,14 @@ const btnStyle: React.CSSProperties = {
     fontSize: 11, fontWeight: 600,
 }
 
+const errorStyle: React.CSSProperties = {
+    fontSize: 11, color: "var(--color-danger)",
+    fontFamily: "JetBrains Mono, monospace",
+    padding: "8px 12px", borderRadius: 8,
+    background: "rgba(255,59,48,0.06)",
+    border: "1px solid rgba(255,59,48,0.15)",
+}
+
 export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete }: Props) {
     const [editing, setEditing] = useState<AlertContact | null>(null)
     const [moniker, setMoniker] = useState("")
@@ -45,6 +53,7 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
     const [mentionTag, setMentionTag] = useState("")
     const [webhookId, setWebhookId] = useState(webhooks[0]?.ID || 0)
     const [submitting, setSubmitting] = useState(false)
+    const [error, setError] = useState<string | null>(null)
 
     const resetForm = () => {
         setEditing(null)
@@ -52,6 +61,7 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
         setNameContact("")
         setMentionTag("")
         setWebhookId(webhooks[0]?.ID || 0)
+        setError(null)
     }
 
     const startEdit = (c: AlertContact) => {
@@ -60,6 +70,7 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
         setNameContact(c.NameContact)
         setMentionTag(c.MentionTag)
         setWebhookId(c.IDwebhook)
+        setError(null)
     }
 
     const handleSubmit = async (e: React.FormEvent) => {
@@ -67,6 +78,7 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
         if (!moniker.trim() || !nameContact.trim()) return
 
         setSubmitting(true)
+        setError(null)
         const data = {
             Moniker: moniker.trim(),
             NameContact: nameContact.trim(),
@@ -74,12 +86,16 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
             IDwebhook: webhookId,
         }
 
-        const ok = editing
+        const result = editing
             ? await onUpdate({ ...data, ID: editing.ID })
             : await onAdd(data)
 
         setSubmitting(false)
-        if (ok) resetForm()
+        // Keep the typed values on refusal — the server's reasons are all
+        // fixable in place (wrong webhook, blank field, non-numeric tag), and
+        // wiping the form would force a full retype for each one.
+        if (result.ok) resetForm()
+        else setError(result.error || "Request failed")
     }
 
     const handleDelete = async (id: number) => {
@@ -176,6 +192,8 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
                         </select>
                     </div>
                 )}
+
+                {error && <div style={errorStyle}>{error}</div>}
 
                 <div style={{ display: "flex", gap: 8, marginTop: 4 }}>
                     <button
