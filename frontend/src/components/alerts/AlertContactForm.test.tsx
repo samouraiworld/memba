@@ -122,3 +122,38 @@ describe("AlertContactForm webhook selector", () => {
         expect(values).toEqual(["1", "2"])
     })
 })
+
+describe("AlertContactForm without a linkable webhook", () => {
+    afterEach(() => { cleanup(); vi.clearAllMocks() })
+
+    it("refuses to submit and explains why", async () => {
+        const onAdd = vi.fn()
+        render(
+            <AlertContactForm
+                contacts={[]} webhooks={[]}
+                onAdd={onAdd} onUpdate={vi.fn()} onDelete={vi.fn()}
+            />,
+        )
+        fill("val-1", "On-call", "123456789012345678")
+        fireEvent.click(screen.getByText("Add Contact", { selector: "button" }))
+
+        await waitFor(() =>
+            expect(screen.getByText(/add a validator webhook first/i)).toBeTruthy())
+        expect(onAdd).not.toHaveBeenCalled()
+    })
+
+    it("submits normally once a webhook exists", async () => {
+        const onAdd = vi.fn().mockResolvedValue({ ok: true })
+        render(
+            <AlertContactForm
+                contacts={[]} webhooks={[webhook(4)]}
+                onAdd={onAdd} onUpdate={vi.fn()} onDelete={vi.fn()}
+            />,
+        )
+        fill("val-1", "On-call", "123456789012345678")
+        fireEvent.click(screen.getByText("Add Contact", { selector: "button" }))
+
+        await waitFor(() => expect(onAdd).toHaveBeenCalled())
+        expect(onAdd.mock.calls[0][0].IDwebhook).toBe(4)
+    })
+})

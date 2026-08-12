@@ -77,6 +77,14 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
         e.preventDefault()
         if (!moniker.trim() || !nameContact.trim()) return
 
+        // A contact with no linked webhook is accepted by the server but can
+        // never fire: SendAllValidatorAlerts matches mentions on
+        // user_id + moniker + id_webhook, and id_webhook is never 0 there.
+        if (!webhookId) {
+            setError("Add a validator webhook first — a contact with no linked webhook never fires.")
+            return
+        }
+
         setSubmitting(true)
         setError(null)
         const data = {
