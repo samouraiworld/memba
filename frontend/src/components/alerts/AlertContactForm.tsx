@@ -46,6 +46,13 @@ const errorStyle: React.CSSProperties = {
     border: "1px solid rgba(255,59,48,0.15)",
 }
 
+const helpStyle: React.CSSProperties = {
+    fontSize: 10, lineHeight: 1.5,
+    color: "var(--color-text-muted)",
+    fontFamily: "JetBrains Mono, monospace",
+    marginTop: 6,
+}
+
 export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete }: Props) {
     const [editing, setEditing] = useState<AlertContact | null>(null)
     const [moniker, setMoniker] = useState("")
@@ -179,8 +186,20 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
                         value={mentionTag}
                         onChange={e => setMentionTag(e.target.value)}
                         placeholder="e.g. 123456789012345678"
+                        aria-describedby="contact-mention-help"
                         style={inputStyle}
                     />
+                    <div id="contact-mention-help" style={helpStyle}>
+                        The raw numeric user ID (a snowflake) — digits only. Not a username,
+                        and not wrapped in <code>&lt;@…&gt;</code>; the alert adds that itself.
+                        On Discord: User Settings → Advanced → Developer Mode, then right-click
+                        the user → "Copy User ID". A non-numeric value is rejected by the server.
+                        <br />
+                        Mentions only fire on <strong>CRITICAL</strong> validator alerts — never
+                        WARNING or RESOLVED — and only through the webhook picked in "Linked
+                        Webhook". Telegram has no per-user mention syntax, so tags are not sent
+                        there. An empty tag is valid: the alert still fires, it just doesn't ping.
+                    </div>
                 </div>
 
                 {webhooks.length > 0 && (

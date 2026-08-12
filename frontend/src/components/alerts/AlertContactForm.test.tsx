@@ -157,3 +157,33 @@ describe("AlertContactForm without a linkable webhook", () => {
         expect(onAdd.mock.calls[0][0].IDwebhook).toBe(4)
     })
 })
+
+describe("AlertContactForm mention tag legend", () => {
+    afterEach(() => { cleanup(); vi.clearAllMocks() })
+
+    it("explains the format persistently, not only as a placeholder", () => {
+        render(
+            <AlertContactForm
+                contacts={[]} webhooks={[webhook(1)]}
+                onAdd={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()}
+            />,
+        )
+        const legend = document.querySelector("#contact-mention-help")!
+        expect(legend).toBeTruthy()
+        expect(legend.textContent).toMatch(/digits only/i)
+        expect(legend.textContent).toMatch(/Copy User ID/i)
+        expect(legend.textContent).toMatch(/CRITICAL/)
+    })
+
+    it("keeps the legend visible after typing", () => {
+        render(
+            <AlertContactForm
+                contacts={[]} webhooks={[webhook(1)]}
+                onAdd={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()}
+            />,
+        )
+        fireEvent.change(document.querySelector("#contact-mention")!,
+            { target: { value: "123456789012345678" } })
+        expect(document.querySelector("#contact-mention-help")).toBeTruthy()
+    })
+})
