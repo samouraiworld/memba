@@ -250,7 +250,12 @@ function WebhookSection({ kind, label, token }: { kind: WebhookKind; label: stri
 function AlertsContent() {
     const auth = useClerkAuth()
     const [contacts, setContacts] = useState<api.AlertContact[]>([])
-    const [allWebhooks, setAllWebhooks] = useState<MonitoringWebhook[]>([])
+    // Validator-only, deliberately. The server resolves a contact's id_webhook
+    // against WebhookValidator alone, and only validator alerts ever fire a
+    // mention. The two webhook tables have independent autoincrement ids, so
+    // merging them produced colliding <option> values and contacts silently
+    // attached to the wrong webhook.
+    const [validatorWebhooks, setValidatorWebhooks] = useState<MonitoringWebhook[]>([])
     const [schedule, setSchedule] = useState<api.ReportSchedule | null>(null)
     const [loadingContacts, setLoadingContacts] = useState(false)
 
@@ -261,15 +266,14 @@ function AlertsContent() {
             const t = await auth.getToken()
             if (!t) return
             setLoadingContacts(true)
-            const [c, s, wGov, wVal] = await Promise.all([
+            const [c, s, wVal] = await Promise.all([
                 api.listAlertContacts(t),
                 api.getReportSchedule(t),
-                api.listWebhooks(t, "govdao"),
                 api.listWebhooks(t, "validator"),
             ])
             setContacts(c)
             setSchedule(s)
-            setAllWebhooks([...wGov, ...wVal])
+            setValidatorWebhooks(wVal)
             setLoadingContacts(false)
         }
         load()
@@ -325,13 +329,12 @@ function AlertsContent() {
     const refreshContacts = async () => {
         const t = await auth.getToken()
         if (!t) return
-        const [c, wG, wV] = await Promise.all([
+        const [c, wVal] = await Promise.all([
             api.listAlertContacts(t),
-            api.listWebhooks(t, "govdao"),
             api.listWebhooks(t, "validator"),
         ])
         setContacts(c)
-        setAllWebhooks([...wG, ...wV])
+        setValidatorWebhooks(wVal)
     }
 
     return (
@@ -384,7 +387,7 @@ function AlertsContent() {
                     <>
                         <AlertContactForm
                             contacts={contacts}
-                            webhooks={allWebhooks}
+                            webhooks={validatorWebhooks}
                             onAdd={async (data) => {
                                 const t = await auth.getToken()
                                 if (!t) return { ok: false, error: "Not signed in" }

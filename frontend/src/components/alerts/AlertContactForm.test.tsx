@@ -89,3 +89,36 @@ describe("AlertContactForm refusals", () => {
         await waitFor(() => expect(screen.getByText("Alert contact not found")).toBeTruthy())
     })
 })
+
+describe("AlertContactForm webhook selector", () => {
+    afterEach(() => { cleanup(); vi.clearAllMocks() })
+
+    it("submits the selected webhook id", async () => {
+        const onAdd = vi.fn().mockResolvedValue({ ok: true })
+        render(
+            <AlertContactForm
+                contacts={[]} webhooks={[webhook(3), webhook(9)]}
+                onAdd={onAdd} onUpdate={vi.fn()} onDelete={vi.fn()}
+            />,
+        )
+        fill("val-1", "On-call", "123456789012345678")
+        fireEvent.change(document.querySelector("#contact-webhook")!, { target: { value: "9" } })
+        fireEvent.click(screen.getByText("Add Contact", { selector: "button" }))
+
+        await waitFor(() => expect(onAdd).toHaveBeenCalled())
+        expect(onAdd.mock.calls[0][0].IDwebhook).toBe(9)
+    })
+
+    it("renders exactly one option per webhook — no duplicate ids", async () => {
+        render(
+            <AlertContactForm
+                contacts={[]} webhooks={[webhook(1), webhook(2)]}
+                onAdd={vi.fn()} onUpdate={vi.fn()} onDelete={vi.fn()}
+            />,
+        )
+        const values = [...document.querySelectorAll("#contact-webhook option")]
+            .map(o => (o as HTMLOptionElement).value)
+        expect(values).toEqual([...new Set(values)])
+        expect(values).toEqual(["1", "2"])
+    })
+})
