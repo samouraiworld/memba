@@ -99,6 +99,25 @@ func main() {
 		return
 	}
 
+	// `memba feed-reset` — the MANDATORY chain-cutover step (see
+	// docs/OPS_RUNBOOK.md): wipes the five feed tables in one transaction so
+	// the tailer starts from FEED_START_BLOCK on the new chain instead of a
+	// dead-chain cursor, and so realm-scoped post ids cannot collide across
+	// chains. Runs via `fly ssh console -C "/app/memba feed-reset"` because the
+	// runtime image has no sqlite3 CLI. History is preserved by the Litestream
+	// replica (point-in-time restore), not here. Safe to run while the serving
+	// process is up: one transaction, and the tailer re-creates its cursor row
+	// from the env floor on its next cycle.
+	if len(os.Args) > 1 && os.Args[1] == "feed-reset" {
+		counts, err := db.ResetFeedState(dbPath)
+		if err != nil {
+			slog.Error("feed reset failed", "path", dbPath, "error", err)
+			os.Exit(1)
+		}
+		slog.Info("feed reset complete", "path", dbPath, "deleted", counts)
+		return
+	}
+
 	corsOrigins := os.Getenv("CORS_ORIGINS")
 	if corsOrigins == "" {
 		corsOrigins = "http://localhost:5173"
