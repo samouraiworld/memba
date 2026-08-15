@@ -26,14 +26,27 @@
 |---------|-----|------|---------------|
 | Frontend | `memba.samourai.app` | React + Vite SPA | Netlify (`memba-multisig` site) |
 | Backend | `memba-backend.fly.dev` | Go + ConnectRPC | Fly.io (app `memba-backend`, region `cdg`, 1 shared-cpu-1x machine, `min_machines_running=1`, volume `memba_data` mounted at `/data`) |
-| Chain | `topaz-1` (live since 2026-07-26); `gnoland1` after Phase 5 | Gno | Official RPC: `rpc.topaz.testnets.gno.land`; samourai sentry: `rpc.topaz.samourai.live`; betanet: `rpc.gnoland1.samourai.live` |
+| Chain | `sapphire-1` (live since 2026-08-15; topaz-1 decommissioned 2026-08-12); `gnoland1` after Phase 5 | Gno | Official RPC: `rpc.sapphire.testnets.gno.land`; samourai sentry: `rpc.sapphire.samourai.live` (51.159.105.229); onbloc: `sapphire.rpc.onbloc.xyz`; betanet: `rpc.gnoland1.samourai.live`. Status: `status.sapphire.testnets.gno.land`; Gnockpit: `gnockpit.sapphire.testnets.gno.land` |
+
+> **Chain-cutover invariants (learned test13→topaz→sapphire).** A default-network change is ONE
+> coordinated window: frontend constants (config.ts + sitemap.ts + chainHealth.ts + netlify.toml),
+> backend Fly SECRETS (`GNO_CHAIN_ID`, `MEMBA_ACCEPTED_CHAIN_IDS`, `GNO_RPC_URL`, `FEED_RPC_URL`,
+> `FEED_START_BLOCK`), and the **mandatory feed-state reset** — `loadFeedCursor` reads the DB first
+> and the env is only a first-run floor, so stale rows from the old chain silently pin or poison the
+> tailer (realm-scoped post ids collide across chains). Sapphire values of record:
+> `FEED_START_BLOCK=187503` (= `memba_feed_v1` deploy height, realm-versions.json), FEED on the
+> samourai sentry / GNO on the canonical node (two-node rule — the public node 403-throttles
+> sustained polling). **Autoheal footgun:** the sapphire VPS autoheal safely restarts a single
+> lagging node but can permanently deadlock tmkms during a network-wide halt — disable the
+> validator timer during any coordinated outage, and never "fix" a mid-ceremony halt by restarting
+> the validator.
 
 ### Critical environment variables
 
 | Var | Surface | Owner | Notes |
 |-----|---------|-------|-------|
 | `ED25519_SEED` | Fly | server-keypair | If empty, ephemeral keypair → every restart logs out all users. See `backend/internal/service/service.go`. |
-| `GNO_CHAIN_ID` | Fly | auth | Required for AUTH-CHAINID-01 enforcement; set to `topaz-1` in prod (was `test-13` before 2026-07-26 cutover). No hardcoded default — `service.go` reads it from env and logs a warning if empty. |
+| `GNO_CHAIN_ID` | Fly | auth | Required for AUTH-CHAINID-01 enforcement; set to `sapphire-1` in prod (was `topaz-1` until the 2026-08-15 cutover, `test-13` before 2026-07-26). No hardcoded default — `service.go` reads it from env and logs a warning if empty. |
 | `FLY_API_TOKEN` | GitHub Actions | deploys + GHCR mirror | |
 | `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` | GitHub Actions | Netlify deploy | |
 | `SENTRY_AUTH_TOKEN` | GitHub Actions | source-map upload | Required by `@sentry/vite-plugin`; was unwired before `v6.0.2`. |
@@ -319,7 +332,7 @@ Until a secondary owner is recruited (v7.1 plan §1.8 / R-12):
 
 ```bash
 # Live chain probes (used in Phase 0/1 acceptance + every release)
-curl -s https://rpc.topaz.testnets.gno.land/status | jq .result.sync_info.latest_block_height
+curl -s https://rpc.sapphire.testnets.gno.land/status | jq .result.sync_info.latest_block_height
 curl -s https://rpc.gnoland1.samourai.live/status | jq .result.sync_info.latest_block_height
 
 # Transfer-lock probe (Phase 1.5 / Phase 5 gate)

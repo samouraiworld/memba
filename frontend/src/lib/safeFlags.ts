@@ -11,9 +11,14 @@
 // To enable a flag legitimately: remove it from SAFETY_GATED_FLAGS AND pass code
 // review (the build fails otherwise).
 export const SAFETY_GATED_FLAGS = [
-    // VITE_ENABLE_NFT removed 2026-06-27 — the NFT marketplace went live: the v3.1
-    // engine + fee config are deployed, registered, and verified on test13 (fee→DAO
-    // treasury enforced on-chain). The flag now legitimately turns the lane on in prod.
+    // VITE_ENABLE_NFT RE-GATED at the sapphire cutover (#1040's substance): its
+    // 2026-06-27 removal cited fee-path verification on test13 — a chain that
+    // is now dead — and on sapphire-1 the fund-custody NFT stack is NOT
+    // deployed (phase-1 publishes funds-free realms only). The realm allowlist
+    // also gates the lane, but this flag is the deliberate second lock: it
+    // comes back OFF this list only in the PR that allowlists the sapphire NFT
+    // stack after its own ceremony + live fee-path verification.
+    "VITE_ENABLE_NFT",
     "VITE_ENABLE_TREASURY_SPEND",
     "VITE_ENABLE_AGENT_CREDITS",
     // VITE_ENABLE_APPSTORE de-gated 2026-07-07 after memba_appstore_v2 deployed on

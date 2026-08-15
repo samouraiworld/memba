@@ -215,17 +215,21 @@ func main() {
 	// their OWN rpc env (NFT_RPC_URL) — NOT GNO_RPC_URL.
 	//
 	// NFT_INDEXER_DISABLED=1 skips the poller AND the event tailer entirely:
-	// the NFT realms are not yet deployed on topaz (commerce ceremony pending),
-	// and running the tailer against a chain without them only burns RPC calls —
-	// while its chain-agnostic nft_indexer_state cursor would mix heights across
-	// chains. Re-enable at the ceremony (seed cursors via NFT_SEED_REALM_CURSOR;
-	// the 260000 NFT_START_BLOCK default below is a test13-era height — set it
-	// explicitly when re-enabling).
+	// the NFT realms are not deployed on sapphire (the fund-custody commerce
+	// ceremony is deliberately separate from the phase-1 cutover), and running
+	// the tailer against a chain without them only burns RPC calls — while its
+	// chain-agnostic nft_indexer_state cursor would mix heights across chains.
+	// Re-enabling at that ceremony REQUIRES clearing nft_indexer_state (and the
+	// nft projections) first: NFT_SEED_REALM_CURSOR is INSERT OR IGNORE and
+	// will NOT rewind the retained test13/topaz-era rows, and the projections'
+	// keys collide across chains exactly like the feed's did. Also set
+	// NFT_START_BLOCK explicitly (the 260000 default below is a test13-era
+	// height, ABOVE young-chain heads — the "silently indexes nothing" trap).
 	nftDisabled := os.Getenv("NFT_INDEXER_DISABLED") == "1"
 	if nftDisabled {
 		slog.Info("NFT indexer disabled (NFT_INDEXER_DISABLED=1)")
 	}
-	nftRPCURL := envOr("NFT_RPC_URL", "https://rpc.topaz.testnets.gno.land:443")
+	nftRPCURL := envOr("NFT_RPC_URL", "https://rpc.sapphire.testnets.gno.land:443")
 	collectionRealm := envOr("NFT_COLLECTION_REALM", "gno.land/r/samcrew/memba_nft_v2")
 	marketRealm := envOr("NFT_MARKET_REALM", "gno.land/r/samcrew/memba_nft_market_v2")
 	if !nftDisabled {
@@ -282,12 +286,16 @@ func main() {
 		indexer.StartFeedTailer(ctx, database, indexer.FeedTailerConfig{
 			RPCURL:        envOr("FEED_RPC_URL", nftRPCURL),
 			WatchedRealms: splitOrigins(feedRealms),
-			// Default = the topaz memba_feed_v1 deploy block (add_package tx at
-			// 94093, verified 2026-07-26). A start block ABOVE the chain head
-			// silently indexes nothing — set FEED_START_BLOCK explicitly on any
-			// chain switch (the old test13-era default 260000 did exactly that
-			// hazard on topaz, whose head was ~212k at cutover).
-			StartBlock:    int64Or("FEED_START_BLOCK", 94093),
+			// Default = the SAPPHIRE memba_feed_v1 deploy block (add_package tx
+			// at height 187503, 2026-08-15 ceremony — recorded in
+			// realm-versions.json). A start block ABOVE the chain head silently
+			// indexes nothing — set FEED_START_BLOCK explicitly on any chain
+			// switch (the old test13-era default 260000 did exactly that hazard
+			// on topaz; the topaz-era 94093 would waste a 93k-block scan here).
+			// NOTE: the env/default is only a FIRST-RUN floor — the DB cursor
+			// wins, which is why a chain switch also requires the feed-state
+			// reset (see OPS_RUNBOOK).
+			StartBlock:    int64Or("FEED_START_BLOCK", 187503),
 			Confirmations: int64Or("FEED_CONFIRMATIONS", 5),
 			Interval:      durationOr("FEED_TAILER_INTERVAL", 3*time.Second),
 			Logger:        logger,

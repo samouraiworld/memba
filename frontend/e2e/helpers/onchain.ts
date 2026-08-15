@@ -19,12 +19,13 @@ import type { Page } from '@playwright/test'
  */
 
 /**
- * The default-network (topaz) primary + fallback gno RPC hosts — i.e. GNO_RPC_URL
+ * The default-network primary + fallback gno RPC hosts — i.e. GNO_RPC_URL
  * and GNO_FALLBACK_RPC_URLS in frontend/src/lib/config.ts. samourai.live is in
- * the list because topaz's FALLBACK RPC lives there: aborting only the primary
- * made the app fail over to a LIVE samourai read and reintroduced exactly the
- * shared-infra race this helper exists to kill (found via CI flake on the topaz
- * cutover PR). Still RPC-only and not a blanket stub: it does NOT cover p2p.team /
+ * the list because the samourai sentry serves the default network (sapphire's
+ * fallback set includes it): aborting only the primary made the app fail over
+ * to a LIVE samourai read and reintroduced exactly the shared-infra race this
+ * helper exists to kill (found via CI flake on the topaz cutover PR; the
+ * suffix-matched host list covers sapphire's hosts unchanged). Still RPC-only and not a blanket stub: it does NOT cover p2p.team /
  * aeddi.org (gnoland1 telemetry) or the browser-proxied indexer (config.ts
  * getIndexerUrl routes through `${API_BASE_URL}/api/indexer`, never these hosts).
  * EXTEND this list before reusing abortOnchainReads on a spec that reads a

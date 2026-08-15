@@ -33,13 +33,13 @@ import { test, expect } from '@playwright/test'
  *    node answers /health in ms while starving the vm reads).
  */
 
-// Mirrors NETWORKS.topaz rpcUrl + fallbackRpcUrls in frontend/src/lib/config.ts
+// Mirrors NETWORKS.sapphire rpcUrl + fallbackRpcUrls in frontend/src/lib/config.ts
 // (their ":443" suffix is the https default and normalizes away). CI runs
-// env-less, so topaz is the active network there; a local root .env pointing
+// env-less, so sapphire is the active network there; a local root .env pointing
 // elsewhere already breaks every live-chain spec in the suite.
-const TOPAZ_RPC_URLS = [
-    'https://rpc.topaz.testnets.gno.land',
-    'https://topaz.rpc.onbloc.xyz',
+const SAPPHIRE_RPC_URLS = [
+    'https://rpc.sapphire.testnets.gno.land',
+    'https://sapphire.rpc.onbloc.xyz',
 ]
 
 test.describe('Directory — live chain resolution (smoke)', () => {
@@ -63,7 +63,7 @@ test.describe('Directory — live chain resolution (smoke)', () => {
             // The read shape the page just failed on, against every URL the
             // app's failover would try. ANY 200 proves the infra could have
             // served the resolution → rethrow the miss as a real failure.
-            const answers = await Promise.all(TOPAZ_RPC_URLS.map(url =>
+            const answers = await Promise.all(SAPPHIRE_RPC_URLS.map(url =>
                 page.request
                     .post(url, {
                         data: {

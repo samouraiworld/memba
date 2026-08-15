@@ -1,7 +1,7 @@
 /**
  * useHomeSnapshot — react-query hook for the backend GetHomeSnapshot endpoint.
  *
- * Gated to SNAPSHOT_NETWORK ("topaz"): the query is disabled on all other
+ * Gated to SNAPSHOT_NETWORK ("sapphire"): the query is disabled on all other
  * networks, so Phase-1 per-source hooks remain the fallback everywhere else.
  * Phase E will wire this into the home panels to replace the on-chain fan-out.
  */

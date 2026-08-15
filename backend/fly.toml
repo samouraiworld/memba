@@ -19,9 +19,17 @@ primary_region = 'cdg'
   wait_timeout = "5m"
 
 [env]
+  # ⚠️ FOUR of these keys are SHADOWED BY FLY SECRETS and the values below are
+  # DOCUMENTATION, not live config: CORS_ORIGINS, GNO_CHAIN_ID,
+  # MEMBA_ACCEPTED_CHAIN_IDS, GNO_RPC_URL. Ground truth is a SCOPED env read
+  # (`fly ssh console -C 'sh -c "printenv | grep -E \"^(GNO_RPC_URL|GNO_CHAIN_ID)=\""'`
+  # — never bare printenv); changes to those four go through `fly secrets set`
+  # (owner-only) AND an edit here so the file stays truthful. Everything else
+  # in [env] (NFT_RPC_URL, NFT_INDEXER_DISABLED, the realm sets, …) is
+  # LOAD-BEARING from this file.
   CORS_ORIGINS = 'https://memba.samourai.app,http://localhost:5173'
   DB_PATH = '/data/memba.db'
-  GNO_CHAIN_ID = 'topaz-1'
+  GNO_CHAIN_ID = 'sapphire-1'
   # Token chain-id allowlist (validation). Comma-separated → parseAcceptedChainIDs
   # (service.go) splits it into a set; ValidateToken 401s any token whose chain
   # isn't listed. Topaz cutover PHASE B (2026-07-26) kept 'test-13' here so
@@ -42,11 +50,17 @@ primary_region = 'cdg'
   # session when the server answers Unauthenticated, so an already-issued bad
   # token no longer strands the app until expiry.
   #
-  # ⚠️ THIS VALUE IS NOW A LOCKOUT SWITCH, not merely an allowlist. A chain
-  # absent here can no longer log in AT ALL — which is the point, but it means
-  # the SAPPHIRE CUTOVER MUST LIST BOTH CHAINS for the transition
-  # ('topaz-1,sapphire-1') and narrow only afterwards. Flipping straight to
-  # 'sapphire-1' locks out every user still on a /topaz/ bookmark.
+  # ⚠️ THIS VALUE IS A LOCKOUT SWITCH, not merely an allowlist. A chain absent
+  # here can no longer log in AT ALL.
+  #
+  # SAPPHIRE CUTOVER (2026-08-15): flipped STRAIGHT to 'sapphire-1', no
+  # dual-accept window — a deliberate departure from the earlier plan recorded
+  # here, because by cutover day topaz-1 was already decommissioned (both
+  # public RPCs dead) and Adena v1.20.3 had wiped topaz-scoped wallet state, so
+  # a lingering topaz session had nothing left it could do. F-29's two fixes
+  # make the straight cut clean: a /topaz/ bookmark now gets the mint-time
+  # refusal with a "switch networks" UI, and any already-issued topaz token is
+  # cleared by the transport interceptor → one clean re-login on sapphire.
   #
   # ⚠️ Never blank this AND GNO_CHAIN_ID to "disable" the check: an empty set
   # means accept EVERY chain (F-29b), so it fails open at exactly the moment you
@@ -56,25 +70,26 @@ primary_region = 'cdg'
   # and `AUTH-CHAINID-MISMATCH-01` (mint-time refusal, new). The new one also
   # increments AuthLoginTotal{result="chain_mismatch"}, so unlike validation
   # rejects it has a metric and can be alerted on.
-  MEMBA_ACCEPTED_CHAIN_IDS = 'topaz-1'
-  GNO_RPC_URL = 'https://rpc.topaz.testnets.gno.land:443'
-  # NFT indexer — DISABLED for the topaz cutover (2026-07-26): the NFT realms
-  # are not yet deployed on topaz (commerce ceremony pending), and the tailer's
-  # chain-agnostic nft_indexer_state cursor must not advance against the wrong
-  # chain. Re-enable at the ceremony: drop this flag, seed cursors via
-  # NFT_SEED_REALM_CURSOR, and set NFT_START_BLOCK to the topaz deploy height.
+  MEMBA_ACCEPTED_CHAIN_IDS = 'sapphire-1'
+  GNO_RPC_URL = 'https://rpc.sapphire.testnets.gno.land:443'
+  # NFT indexer — DISABLED through the sapphire cutover: the fund-custody NFT
+  # realms are NOT deployed on sapphire (their commerce ceremony is separate
+  # from phase 1), and the tailer's chain-agnostic nft_indexer_state cursor
+  # must not advance against the wrong chain. Re-enabling REQUIRES clearing
+  # nft_indexer_state + the nft projections first (NFT_SEED_REALM_CURSOR is
+  # INSERT OR IGNORE — it will NOT rewind retained test13/topaz-era rows, and
+  # the projection keys collide across chains like the feed's did), then
+  # setting NFT_START_BLOCK to the sapphire deploy height.
   NFT_INDEXER_DISABLED = '1'
-  # NFT indexer RPC. Was pinned to samourai's own node (the public node
-  # rate-limited the Fly egress IP during fast catch-up, #457/#462); that node
-  # was retired to sapphire-1 on 2026-08-10, so this now points at the public
-  # canonical node. Dormant while NFT_INDEXER_DISABLED=1, but also the fallback
-  # for FEED_RPC_URL/QUEST_RPC_URL-style lookups, so it must point at a LIVE
-  # chain.
-  # ⚠️ The #457/#462 throttling is CONFIRMED STILL LIVE (2026-08-10): the public
-  # node 403s the Fly IP under sustained indexer polling. Low-volume reads are
-  # fine. If the NFT indexer is ever re-enabled, give it its own node rather
-  # than this default — see FEED_RPC_URL, which had to move to onbloc's node.
-  NFT_RPC_URL = 'https://rpc.topaz.testnets.gno.land:443'
+  # NFT indexer RPC — LOAD-BEARING from this file (NOT a secret). Dormant as an
+  # indexer source while NFT_INDEXER_DISABLED=1, but also the fallback for
+  # FEED_RPC_URL/QUEST_RPC_URL-style lookups, so it must point at a LIVE chain.
+  # ⚠️ The #457/#462 throttling class is real on public canonical nodes (403 to
+  # the Fly IP under sustained indexer polling; confirmed on topaz 2026-08-10).
+  # Low-volume reads are fine. If the NFT indexer is ever re-enabled, give it
+  # its own dedicated node rather than this default — the feed already follows
+  # that rule (FEED_RPC_URL → our sapphire sentry).
+  NFT_RPC_URL = 'https://rpc.sapphire.testnets.gno.land:443'
   # NFT tailer realm sets — versioned here so prod can never silently fall back
   # to the code defaults (that's exactly how the retired memba_nft_market_v3
   # stayed indexed while v3.1 sales went missing until 2026-07-11). Watched =

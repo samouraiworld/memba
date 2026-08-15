@@ -243,11 +243,12 @@ test.describe('Directory — Realm Source View (W5.2)', () => {
     test('drawer shows source files and metadata for a known realm', async ({ page }) => {
         await page.goto('/directory?tab=realms')
 
-        // Narrow to a seed realm known-good on topaz, the default network
+        // Narrow to a seed realm known-good on sapphire, the default network
         // (memba_dao only appears when saved in localStorage; the gno.land Blog
-        // is in SEED_REALMS and ships in the topaz genesis — verified via
-        // vm/qfile 2026-07-26). tokenfactory_v2 is NOT on topaz until the
-        // commerce ceremony, so it can't be the live-read target anymore.
+        // is in SEED_REALMS and ships in the sapphire genesis — re-verified via
+        // vm/qfile 2026-08-15, 6 files). tokenfactory_v2 is NOT on sapphire
+        // until its fee config is ruled on (D3), so it can't be the live-read
+        // target anymore.
         const search = page.locator('[data-testid="realm-search"]')
         await search.fill('blog')
         const card = page.locator('[data-testid="realm-card"]').first()

@@ -66,11 +66,13 @@ func TestFetchValidatorsHealth_FailsOver(t *testing.T) {
 	}
 }
 
-func TestHomeSnapshotRPCURL_DefaultsToTopaz(t *testing.T) {
+func TestHomeSnapshotRPCURL_DefaultsToSapphire(t *testing.T) {
 	t.Setenv("HOME_SNAPSHOT_RPC_URL", "")
 	t.Setenv("NFT_RPC_URL", "")
-	if got := homeSnapshotRPCURL(); got != "https://rpc.topaz.testnets.gno.land:443" {
-		t.Fatalf("default = %q, want the pinned topaz rpc (not the rate-limited public node)", got)
+	// The default is deliberately OUR sentry, not the public canonical node —
+	// the dedicated-node rule (#466 throttling class) survives the cutover.
+	if got := homeSnapshotRPCURL(); got != "https://rpc.sapphire.samourai.live:443" {
+		t.Fatalf("default = %q, want the pinned samourai sapphire sentry (not the rate-limited public node)", got)
 	}
 }
 

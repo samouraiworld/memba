@@ -63,9 +63,17 @@ describe('config constants', () => {
         expect(NETWORKS.test13).toBeDefined()
     })
 
-    it('topaz is visible in the selector (the official testnet after cutover)', () => {
-        expect(NETWORKS.topaz.hidden).toBeFalsy()
-        expect(Object.keys(VISIBLE_NETWORKS)).toContain('topaz')
+    it('sapphire is visible in the selector (the official testnet after cutover)', () => {
+        expect(NETWORKS.sapphire.hidden).toBeFalsy()
+        expect(Object.keys(VISIBLE_NETWORKS)).toContain('sapphire')
+    })
+
+    it('topaz is hidden after its 2026-08-12 retirement, but still resolves', () => {
+        expect(NETWORKS.topaz.hidden).toBe(true)
+        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('topaz')
+        // Still in NETWORKS so deep links / stored selections resolve instead of
+        // crash-looping the /:network redirects — same treatment as test13.
+        expect(NETWORKS.topaz).toBeDefined()
     })
 
     it('test13 points at the official testnets.gno.land RPC', () => {
@@ -120,8 +128,8 @@ describe('config constants', () => {
         expect(g1.faucetUrl).toBe('')
     })
 
-    it('DEFAULT_NETWORK is topaz (post-topaz-cutover default)', () => {
-        expect(DEFAULT_NETWORK).toBe('topaz')
+    it('DEFAULT_NETWORK is sapphire (post-sapphire-cutover default)', () => {
+        expect(DEFAULT_NETWORK).toBe('sapphire')
     })
 
     it('getUserRegistryPath returns r/sys/users for the default network', () => {
@@ -343,13 +351,13 @@ describe('getTelemetryRpcUrls', () => {
 describe('network reduction — test13 + topaz + gnoland1 + sapphire only', () => {
     it('exposes only test13, topaz, gnoland1, and sapphire', () => {
         const keys = Object.keys(NETWORKS).sort()
-        // sapphire added 2026-08-11, DARK — see the sapphire dark-contract block
-        // below and the entry's doc-comment. It is deliberately in NETWORKS (so
-        // the cutover is a flag flip) and deliberately inert.
+        // sapphire went LIVE at the 2026-08-15 cutover; topaz + test13 stay as
+        // hidden retired entries so old links resolve. See the live/dark
+        // contract blocks below.
         expect(keys).toEqual(['gnoland1', 'sapphire', 'test13', 'topaz'])
     })
-    it('defaults to topaz', () => {
-        expect(DEFAULT_NETWORK).toBe('topaz')
+    it('defaults to sapphire', () => {
+        expect(DEFAULT_NETWORK).toBe('sapphire')
     })
     it('no longer references test12 / staging / portal', () => {
         const keys = Object.keys(NETWORKS)
@@ -363,7 +371,7 @@ describe('network reduction — test13 + topaz + gnoland1 + sapphire only', () =
     // infinite-looped (/test12/test12/…) until the browser throttled replaceState and
     // the app crashed (mobile / private browsing, where localStorage can't override it).
     it('resolveDefaultNetwork falls back to a valid network for a removed env value', () => {
-        expect(resolveDefaultNetwork('test12')).toBe('topaz')
+        expect(resolveDefaultNetwork('test12')).toBe('sapphire')
         expect(NETWORKS[resolveDefaultNetwork('test12')]).toBeDefined()
     })
     it('resolveDefaultNetwork passes through a valid env network; falls back when empty', () => {
@@ -373,86 +381,106 @@ describe('network reduction — test13 + topaz + gnoland1 + sapphire only', () =
         // (.env.e2e → test13). See resolveDefaultNetwork's doc before "fixing".
         expect(resolveDefaultNetwork('gnoland1')).toBe('gnoland1')
         expect(resolveDefaultNetwork('test13')).toBe('test13')
-        expect(resolveDefaultNetwork(undefined)).toBe('topaz')
-        expect(resolveDefaultNetwork('')).toBe('topaz')
+        expect(resolveDefaultNetwork(undefined)).toBe('sapphire')
+        expect(resolveDefaultNetwork('')).toBe('sapphire')
     })
     it('DEFAULT_NETWORK is always a valid NETWORKS entry (never crash-loops)', () => {
         expect(NETWORKS[DEFAULT_NETWORK]).toBeDefined()
     })
 })
 
-// The sapphire entry exists so the eventual cutover is a small flag flip. Its
-// entire value depends on it changing NOTHING until that flip, so each half of
-// that claim is asserted here rather than left to review. If you are here
-// because one of these failed while landing the cutover, that is the test
-// working: flip it deliberately, in the PR that makes it true on-chain.
-describe('sapphire is present but DARK (Adena v1.20.3 cutover prep, 2026-08-11)', () => {
-    it('is reachable by URL/env but absent from the selector', () => {
+// The sapphire entry shipped DARK (#1063) so the cutover could be a small flag
+// flip; the 2026-08-15 ceremony made it true on-chain and the flip landed here.
+// These blocks assert BOTH halves of the post-cutover contract: sapphire fully
+// live, and the retired networks still carrying the dark-network machinery.
+describe('sapphire is LIVE (2026-08-15 cutover)', () => {
+    it('is the visible official testnet and resolves everywhere', () => {
         expect(NETWORKS.sapphire).toBeDefined()
         expect(NETWORKS.sapphire.chainId).toBe('sapphire-1')
-        expect(NETWORKS.sapphire.hidden).toBe(true)
-        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('sapphire')
-        // Deep links must still RESOLVE rather than crash-loop the /:network
-        // redirects — the test13 lesson.
+        expect(NETWORKS.sapphire.hidden).toBeFalsy()
+        expect(Object.keys(VISIBLE_NETWORKS)).toContain('sapphire')
         expect(resolveDefaultNetwork('sapphire')).toBe('sapphire')
     })
 
-    it('gates EVERY realm — including every fund-custody lane', () => {
-        // Explicit empty allowlist. Not one path is callable here yet.
+    it('allowlists EXACTLY the phase-1 funds-free set — ceremony-verified paths only', () => {
+        // Deployed + vm/qfile-verified 2026-08-15 (realm-versions.json carries
+        // the per-artifact heights). Listing here is what de-gates a lane.
         for (const path of [
             'gno.land/r/samcrew/memba_dao',
+            'gno.land/r/samcrew/memba_dao_candidature_v3',
+            'gno.land/r/samcrew/memba_dao_channels_v2',
+            'gno.land/r/samcrew/agent_registry_v2',
+            'gno.land/r/samcrew/memba_reviews_v1',
+            'gno.land/r/samcrew/memba_quest_attestation_v1',
+            'gno.land/r/samcrew/memba_feed_v1',
+            'gno.land/r/samcrew/memba_appstore_v1',
+            'gno.land/r/samcrew/memba_appstore_v2',
+            'gno.land/r/samcrew/memba_feedback_v2',
+            'gno.land/r/samcrew/gnobuilders_badges_v2',
+        ]) {
+            expect(isRealmValidOn('sapphire', path)).toBe(true)
+        }
+    })
+
+    it('still gates every fund-custody lane AND the unruled token factory', () => {
+        // NOT deployed in phase 1, verified ABSENT on-chain at the ceremony:
+        // the fund-custody set waits for its own ceremony (D7), and
+        // tokenfactory_v2 is excluded until its baked-in mint fee is ruled on
+        // (owner decision D3(b)).
+        for (const path of [
             'gno.land/r/samcrew/tokenfactory_v2',
             'gno.land/r/samcrew/escrow_v3',
             'gno.land/r/samcrew/memba_token_otc_v2',
+            'gno.land/r/samcrew/memba_market_config',
             NFT_MARKETPLACE_PATH,
             NFT_MARKETPLACE_V3_PATH,
         ]) {
             expect(isRealmValidOn('sapphire', path)).toBe(false)
         }
         // NB: isNftMarketValid()/isNftMarketV3Valid() are deliberately NOT used
-        // here. They take no arguments and resolve against the ACTIVE network,
-        // so `isNftMarketValid('sapphire')` would silently ignore the argument
-        // and assert something else entirely — a green vacuous test. The
-        // network-scoped predicate is isRealmValidOn, used above.
+        // here — they resolve against the ACTIVE network and would ignore a
+        // network argument, making the assertion vacuous. isRealmValidOn is the
+        // network-scoped predicate.
     })
 
-    it('tells the truth about having no realms, instead of rendering empty', () => {
-        // Without realmsDeployed:false this defaults to TRUE and anyone on a
-        // /sapphire/ deep link gets a normal-looking but silently empty app
-        // rather than RealmsNotDeployedBanner. This is the F-28 failure shape.
-        expect(networkHasRealms('sapphire')).toBe(false)
-        expect(getFeaturedDaoRealm('sapphire')).toBeNull()
+    it('has realms, a featured DAO, and every PINNED constant flipped as a set', () => {
+        expect(networkHasRealms('sapphire')).toBe(true)
+        expect(getFeaturedDaoRealm('sapphire')).toBe('gno.land/r/samcrew/memba_dao')
+        // The pinned constants do NOT derive from the env; desynchronising them
+        // from their backend counterparts fails SILENTLY (W3-6), so they are
+        // asserted as a set.
+        expect(SNAPSHOT_NETWORK).toBe('sapphire')
+        expect(FEED_INDEXED_NETWORK).toBe('sapphire')
+        expect(SITEMAP_NETWORK).toBe('sapphire')
     })
+})
 
-    it('does not become the default, or a health-check fallback', () => {
-        // DEFAULT_NETWORK itself is deliberately not asserted here: it derives
-        // from VITE_GNO_CHAIN_ID, and the repo-root .env pins test13 for local
-        // runs, so asserting it would fail locally and pass in CI. The
-        // env-independent resolver logic is what matters for the dark contract.
-        expect(resolveDefaultNetwork(undefined)).toBe('topaz')
-        expect(resolveDefaultNetwork('')).toBe('topaz')
-        // Hidden networks are never auto-selected as a fallback target
-        // (chainHealth.ts:122 requires !hidden && networkHasRealms) — sapphire
-        // fails both halves today.
-        expect(NETWORKS.sapphire.hidden && !networkHasRealms('sapphire')).toBe(true)
-    })
-
-    it('leaves every PINNED cutover constant on topaz', () => {
-        // These four do NOT derive from the env, so they are the actual flip.
-        // Desynchronising them from their backend counterparts fails SILENTLY
-        // (W3-6), which is why they are asserted as a set.
-        expect(SNAPSHOT_NETWORK).toBe('topaz')
-        expect(FEED_INDEXED_NETWORK).toBe('topaz')
-        expect(SITEMAP_NETWORK).toBe('topaz')
-    })
-
-    it('is still escapable if a user does reach it', () => {
-        // selectableNetworksFor always prepends the ACTIVE network, so a hidden
-        // active network still has an option and can be left. Without this a
-        // /sapphire/ visitor would be stranded with no way back to topaz.
-        const selectable = Object.keys(selectableNetworksFor('sapphire'))
-        expect(selectable).toContain('sapphire')
+describe('retired networks stay DARK but resolvable (topaz 2026-08-12, test13 2026-07-26)', () => {
+    it('topaz is hidden, never the default, but resolves and remains escapable', () => {
+        expect(NETWORKS.topaz.hidden).toBe(true)
+        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('topaz')
+        expect(resolveDefaultNetwork(undefined)).toBe('sapphire')
+        expect(resolveDefaultNetwork('')).toBe('sapphire')
+        // selectableNetworksFor always prepends the ACTIVE network, so a topaz
+        // deep-link visitor still has an option list and a way out.
+        const selectable = Object.keys(selectableNetworksFor('topaz'))
         expect(selectable).toContain('topaz')
+        expect(selectable).toContain('sapphire')
+    })
+
+    it('topaz truthfully keeps realmsDeployed (the realms exist; the chain is gone)', () => {
+        // The dead chain presents through the chain-health degraded view, not
+        // through RealmsNotDeployedBanner — the banner would be a lie here.
+        expect(networkHasRealms('topaz')).toBe(true)
+    })
+
+    it('gnoland1 still exercises the realms-free dark shape (the F-28 machinery)', () => {
+        // The empty-allowlist + realmsDeployed:false combination must stay
+        // covered by a live example: hidden, gates everything, honest banner.
+        expect(NETWORKS.gnoland1.hidden).toBe(true)
+        expect(networkHasRealms('gnoland1')).toBe(false)
+        expect(getFeaturedDaoRealm('gnoland1')).toBeNull()
+        expect(isRealmValidOn('gnoland1', 'gno.land/r/samcrew/memba_dao')).toBe(false)
     })
 
     it('points only at live, trusted sapphire-1 infrastructure', () => {
@@ -551,13 +579,14 @@ describe('explorerUrl — the host every "view on gnoweb" link is built from', (
         }
     })
 
-    it('resolves the active network to the topaz gnoweb host, by value', async () => {
+    it('resolves the active network to the sapphire gnoweb host, by value', async () => {
         // Asserting against NETWORKS[DEFAULT_NETWORK].explorerUrl would be X === X
         // (tests clear localStorage, so _activeNetwork IS DEFAULT_NETWORK) and would
         // pass for any garbage value. Pin the literal instead: this is the host
-        // live-verified to serve our own realm, and the one the bug got wrong.
+        // live-verified to serve our own realm (200 on /r/samcrew/memba_dao after
+        // the 2026-08-15 ceremony), and the form the old bug got wrong.
         const { getExplorerBaseUrl } = await import('./config')
-        expect(getExplorerBaseUrl()).toBe('https://topaz.testnets.gno.land')
+        expect(getExplorerBaseUrl()).toBe('https://sapphire.testnets.gno.land')
     })
 
     it('still resolves retired test13, so old deep links degrade instead of crossing chains', async () => {
@@ -745,7 +774,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
 
     /** config as a SHIPPED build sees it (prod, deploy previews, CI's :5173). */
     async function shippedBuild() {
-        vi.stubEnv('VITE_GNO_CHAIN_ID', 'topaz')
+        vi.stubEnv('VITE_GNO_CHAIN_ID', 'sapphire')
         vi.resetModules()
         return await import('./config')
     }
@@ -756,7 +785,9 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
         // vacuous — it passes while returning a HIDDEN key, which is exactly the
         // failure mode it was meant to catch (healing one hidden network to
         // another leaves the user precisely where they started).
-        for (const stored of ['gnoland1', 'test13']) {
+        // 'topaz' joined this list at its 2026-08-12 retirement: every returning
+        // pre-cutover user carries exactly that stored key.
+        for (const stored of ['gnoland1', 'test13', 'topaz']) {
             const healed = resolveStoredNetworkKey(stored)
             expect(NETWORKS[healed], `${stored} must heal to a real network`).toBeDefined()
             expect(NETWORKS[healed].hidden, `${stored} must heal to a VISIBLE network`).not.toBe(true)
@@ -772,7 +803,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
 
     it('keeps a stored VISIBLE network', async () => {
         const { resolveStoredNetworkKey } = await shippedBuild()
-        expect(resolveStoredNetworkKey('topaz')).toBe('topaz')
+        expect(resolveStoredNetworkKey('sapphire')).toBe('sapphire')
     })
 
     it('falls back for unknown/empty input rather than throwing', async () => {
@@ -845,7 +876,7 @@ describe('selectableNetworksFor — the switcher escape hatch', () => {
 
     it('is the plain visible set for a visible active network', async () => {
         const { selectableNetworksFor, VISIBLE_NETWORKS } = await import('./config')
-        expect(selectableNetworksFor('topaz')).toBe(VISIBLE_NETWORKS)
+        expect(selectableNetworksFor('sapphire')).toBe(VISIBLE_NETWORKS)
     })
 
     it('does not invent an option for an unknown network', async () => {
