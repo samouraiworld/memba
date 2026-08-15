@@ -24,7 +24,7 @@ export const SITE_ORIGIN = "https://memba.samourai.app"
  *  publishes a sitemap + RSS feed pointing at the OLD network — which is
  *  exactly what happened across the topaz cutover (27 indexed URLs left
  *  pointing at retired test13). */
-export const SITEMAP_NETWORK = "topaz"
+export const SITEMAP_NETWORK = "sapphire"
 
 /**
  * Public, indexable, STATIC routes (network-relative). Auth-gated pages

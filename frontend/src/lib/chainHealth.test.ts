@@ -4,19 +4,25 @@ import { checkChainHealth, getSuggestedFallback } from "./chainHealth"
 // Mock NETWORKS used by chainHealth
 //
 // DELIBERATE DIVERGENCE FROM REALITY: no entry carries `hidden`, even though the
-// real gnoland1 and test13 both do. getSuggestedFallback filters on BOTH
-// `!net.hidden` AND `networkHasRealms(key)`; if the mock's gnoland1 were also
-// hidden, deleting either clause would still leave it filtered by the other and
-// the suite would pass with half the fix gone. Keeping the mock's gnoland1
-// realm-less-but-visible isolates the `networkHasRealms` clause, and the
-// "hidden networks are never suggested" case below isolates `!net.hidden` by
-// hiding topaz for the duration of one test.
+// real gnoland1, test13 and (since 2026-08-12) topaz all do. getSuggestedFallback
+// filters on BOTH `!net.hidden` AND `networkHasRealms(key)`; if the mock's
+// gnoland1 were also hidden, deleting either clause would still leave it
+// filtered by the other and the suite would pass with half the fix gone.
+// Keeping the mock's gnoland1 realm-less-but-visible isolates the
+// `networkHasRealms` clause, and the "hidden networks are never suggested" case
+// below isolates `!net.hidden` by hiding sapphire for the duration of one test.
 vi.mock("./config", () => ({
     // getSuggestedFallback now refuses to steer users to a chain with no Memba
     // realms (its comment always said so; the code did not). Mirror the real
     // predicate: realmsDeployed !== false.
-    networkHasRealms: (k: string) => ({ test13: true, topaz: true, gnoland1: false })[k] ?? true,
+    networkHasRealms: (k: string) => ({ test13: true, topaz: true, sapphire: true, gnoland1: false })[k] ?? true,
     NETWORKS: {
+        sapphire: {
+            chainId: "sapphire-1",
+            rpcUrl: "https://rpc.sapphire.testnets.gno.land:443",
+            fallbackRpcUrls: ["https://sapphire.rpc.onbloc.xyz:443"],
+            label: "Sapphire",
+        },
         test13: {
             chainId: "test-13",
             rpcUrl: "https://rpc.test13.testnets.gno.land:443",
@@ -118,24 +124,26 @@ describe("chainHealth", () => {
     })
 
     describe("getSuggestedFallback", () => {
-        it("suggests topaz for gnoland1", () => {
-            expect(getSuggestedFallback("gnoland1")).toBe("topaz")
+        it("suggests sapphire for gnoland1", () => {
+            expect(getSuggestedFallback("gnoland1")).toBe("sapphire")
         })
 
-        it("suggests topaz (Memba realms live) for test13, not Betanet", () => {
-            // topaz carries the core realm set; gnoland1 (Betanet) has no Memba
-            // realms and must never be the first suggestion. Retired test13 is
-            // no longer in the fallback order at all (RPCs dead 2026-07-26).
-            expect(getSuggestedFallback("test13")).toBe("topaz")
+        it("suggests sapphire (Memba realms live) for test13, not Betanet", () => {
+            // sapphire carries the core realm set; gnoland1 (Betanet) has no
+            // Memba realms and must never be the first suggestion. Retired
+            // test13 and topaz are no longer in the fallback order at all.
+            expect(getSuggestedFallback("test13")).toBe("sapphire")
         })
 
-        it("never suggests retired test13", () => {
-            expect(getSuggestedFallback("topaz")).not.toBe("test13")
-            expect(getSuggestedFallback("unknown")).not.toBe("test13")
+        it("never suggests the retired chains", () => {
+            for (const from of ["sapphire", "unknown", "gnoland1"]) {
+                expect(getSuggestedFallback(from)).not.toBe("test13")
+                expect(getSuggestedFallback(from)).not.toBe("topaz")
+            }
         })
 
-        it("suggests topaz for unknown network", () => {
-            expect(getSuggestedFallback("unknown")).toBe("topaz")
+        it("suggests sapphire for unknown network", () => {
+            expect(getSuggestedFallback("unknown")).toBe("sapphire")
         })
 
         it("does not suggest self", () => {
@@ -146,32 +154,34 @@ describe("chainHealth", () => {
 })
 
 describe("getSuggestedFallback never steers into a realm-less chain", () => {
-    it("returns null rather than suggesting Betanet when topaz is the degraded one", () => {
-        // The regression this guards: fallbackOrder = ["topaz","gnoland1"], so a
-        // degraded topaz returned "gnoland1" — and ChainHaltedBanner rendered a
-        // one-click switch to a chain with no Memba realms. Combined with hiding
-        // Betanet, that click used to be unrecoverable.
-        expect(getSuggestedFallback("topaz")).toBeNull()
+    it("returns null rather than suggesting Betanet when sapphire is the degraded one", () => {
+        // The regression this guards (born as fallbackOrder=["topaz","gnoland1"]
+        // in the topaz era): when the FIRST entry is itself the degraded
+        // network, the walk must not fall through to a chain with no Memba
+        // realms — ChainHaltedBanner would render a one-click switch into a
+        // dead end. Combined with hiding Betanet, that click used to be
+        // unrecoverable.
+        expect(getSuggestedFallback("sapphire")).toBeNull()
     })
 
-    it("still suggests topaz from the realm-less chain itself", () => {
-        expect(getSuggestedFallback("gnoland1")).toBe("topaz")
+    it("still suggests sapphire from the realm-less chain itself", () => {
+        expect(getSuggestedFallback("gnoland1")).toBe("sapphire")
     })
 
     it("never suggests a HIDDEN network, even one whose realms are deployed", async () => {
         // Isolates the `!net.hidden` half of the filter. Suggesting a hidden
         // network is a dead end: it is absent from the switcher, so a user sent
         // there by the banner could only leave via the active-network escape
-        // hatch. topaz has realms in this mock, so networkHasRealms cannot be
+        // hatch. sapphire has realms in this mock, so networkHasRealms cannot be
         // what rejects it — only `!net.hidden` can.
         const { NETWORKS } = await import("./config") as { NETWORKS: Record<string, { hidden?: boolean }> }
-        NETWORKS.topaz.hidden = true
+        NETWORKS.sapphire.hidden = true
         try {
             expect(getSuggestedFallback("gnoland1")).toBeNull()
         } finally {
-            delete NETWORKS.topaz.hidden
+            delete NETWORKS.sapphire.hidden
         }
         // …and the suggestion comes back once it is visible again.
-        expect(getSuggestedFallback("gnoland1")).toBe("topaz")
+        expect(getSuggestedFallback("gnoland1")).toBe("sapphire")
     })
 })

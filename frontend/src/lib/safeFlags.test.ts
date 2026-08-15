@@ -28,6 +28,7 @@ describe("assertSafeFlags", () => {
 
     it("guards the fund-moving and incomplete-enforcement flags", () => {
         expect([...SAFETY_GATED_FLAGS]).toEqual([
+            "VITE_ENABLE_NFT",
             "VITE_ENABLE_TREASURY_SPEND",
             "VITE_ENABLE_AGENT_CREDITS",
         ])
@@ -41,10 +42,14 @@ describe("VITE_ENABLE_APPSTORE_SUBMIT (de-gated 2026-07-10 — v3 seeded+sealed,
     })
 })
 
-describe("VITE_ENABLE_NFT (enabled — marketplace live: v3.1 deployed + registered)", () => {
-    it("is no longer gated, so true does not fail the build", () => {
-        expect(SAFETY_GATED_FLAGS).not.toContain("VITE_ENABLE_NFT")
-        expect(() => assertSafeFlags({ VITE_ENABLE_NFT: "true" })).not.toThrow()
+describe("VITE_ENABLE_NFT (RE-GATED at the sapphire cutover — #1040's substance)", () => {
+    // Its 2026-06-27 de-gating cited fee-path verification on test13, a chain
+    // that is now dead — and the fund-custody NFT stack is NOT deployed on
+    // sapphire. The flag leaves this list only in the PR that allowlists the
+    // sapphire NFT stack after its own ceremony + live fee-path verification.
+    it("is gated again, so true fails the build", () => {
+        expect(SAFETY_GATED_FLAGS).toContain("VITE_ENABLE_NFT")
+        expect(() => assertSafeFlags({ VITE_ENABLE_NFT: "true" })).toThrow(/VITE_ENABLE_NFT/)
     })
 })
 

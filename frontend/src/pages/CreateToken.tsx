@@ -66,9 +66,9 @@ export function CreateToken() {
     // fail with "unexpected node …:0:0"). Gate the whole page instead of letting
     // the user submit a tx that's guaranteed to fail.
     if (!isTokenFactoryValid()) {
-        // The description used to promise the factory "arrives on Topaz with the
+        // The description used to promise the factory "arrives with the
         // commerce ceremony". That ceremony ran on 2026-07-31 and tokenfactory_v2
-        // is now allowlisted on topaz, so this gate never renders there — the
+        // was allowlisted on topaz post-ceremony; on sapphire the factory is deliberately NOT deployed (D3(b) fee ruling pending), so this gate DOES render on the default network — the
         // promise would only ever be read by someone on a network where it is
         // already false (e.g. Betanet).
         return (

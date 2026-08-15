@@ -371,7 +371,7 @@ describe('toAdenaMessages', () => {
 })
 
 describe('doContractBroadcast — wrong-chain guard (defense-in-depth)', () => {
-    // App network in the test env is the default (topaz, chainId "topaz-1").
+    // App network in the test env is the default (sapphire, chainId "sapphire-1").
     // A wallet reporting a different chainId must be blocked before any broadcast.
     it('blocks broadcast when the wallet chainId != Memba network', async () => {
         setTxConfirmationCallback(() => Promise.resolve(true))
@@ -383,7 +383,7 @@ describe('doContractBroadcast — wrong-chain guard (defense-in-depth)', () => {
 
     it('passes the chain guard when the wallet chainId matches (proceeds to wallet check)', async () => {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.topaz.testnets.gno.land:443', true, 'topaz-1')
+        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, 'sapphire-1')
         // matches → not blocked by the chain guard; fails later (no window.adena in jsdom)
         await expect(doContractBroadcast([], 'memo')).rejects.toThrow(/Adena wallet not available/)
         setTxConfirmationCallback(null)
@@ -413,7 +413,7 @@ describe('assertWalletBroadcastSafe — shared guard for non-DoContract transpor
     })
 
     it('passes on a trusted RPC with a matching chain', () => {
-        setWalletRpcContext('https://rpc.topaz.testnets.gno.land:443', true, 'topaz-1')
+        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, 'sapphire-1')
         expect(() => assertWalletBroadcastSafe()).not.toThrow()
         setWalletRpcContext(null, false, null)
     })
@@ -422,7 +422,7 @@ describe('assertWalletBroadcastSafe — shared guard for non-DoContract transpor
 describe('doContractBroadcast — deploys never auto-retry (review finding #1)', () => {
     it('surfaces the first deploy failure immediately: one DoContract call, no re-sign loop', async () => {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.topaz.testnets.gno.land:443', true, 'topaz-1')
+        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, 'sapphire-1')
         const doContract = vi.fn().mockResolvedValue({ status: 'failure', message: 'network timeout' })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(window as any).adena = { DoContract: doContract }
@@ -437,7 +437,7 @@ describe('doContractBroadcast — deploys never auto-retry (review finding #1)',
 
     it('never retries "package already exists" even on the call budget', async () => {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.topaz.testnets.gno.land:443', true, 'topaz-1')
+        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, 'sapphire-1')
         const doContract = vi.fn().mockResolvedValue({ status: 'failure', message: 'package already exists: gno.land/r/x/y' })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(window as any).adena = { DoContract: doContract }
@@ -454,7 +454,7 @@ describe('doContractBroadcast — deploys never auto-retry (review finding #1)',
 describe('doContractBroadcast — deploy gas budget (W2.1)', () => {
     it('uses the elevated deploy budget for { gas: "deploy" } and the normal one otherwise', async () => {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.topaz.testnets.gno.land:443', true, 'topaz-1')
+        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, 'sapphire-1')
         const calls: Array<{ gasWanted: number }> = []
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(window as any).adena = {

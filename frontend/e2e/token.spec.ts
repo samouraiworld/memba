@@ -75,17 +75,18 @@ test.describe('Create Token Page', () => {
         expect(bodyWidth).toBeLessThanOrEqual(380)
     })
 
-    test('the DEFAULT network renders the real factory — tokenfactory_v2 is live on topaz', async ({ page }) => {
-        // Was: "default network shows the coming-soon gate UNTIL the commerce
-        // ceremony". That ceremony ran on 2026-07-31 — tokenfactory_v2 is live on
-        // topaz-1 and now in REALM_ALLOWLIST.topaz, so isTokenFactoryValid() is
-        // true and CreateToken renders the form instead of the gate. CI caught the
-        // old assertion the moment the allowlist changed, which is the point of it.
-        //
-        // Assert the FORM, not merely the absence of the gate copy — absence alone
-        // is satisfied by a blank page or a Suspense fallback.
+    test('the DEFAULT network gates the factory — tokenfactory_v2 is NOT on sapphire', async ({ page }) => {
+        // The sapphire phase-1 cutover (2026-08-15) deliberately EXCLUDED
+        // tokenfactory_v2: its applyFee mints 2.5% of every Mint() to a
+        // hardcoded recipient with no setter, and redeploying bakes that into
+        // an immutable path — owner decision D3(b) holds it until ruled on. So
+        // isTokenFactoryValid() is false on the default network and CreateToken
+        // renders the coming-soon gate, not the form. CI catches this assertion
+        // the moment REALM_ALLOWLIST.sapphire changes — which is the point:
+        // flip it back to the form assertion in the PR that deploys + lists the
+        // factory (as happened on topaz after its 2026-07-31 ceremony).
         await page.goto('/create-token')
-        await expect(page.locator('input[placeholder*="Token"]').first()).toBeVisible()
-        await expect(page.locator('body')).not.toContainText(/isn't available on this network yet/)
+        await expect(page.locator('body')).toContainText(/isn't available on this network yet/)
+        await expect(page.locator('input[placeholder*="Token"]')).toHaveCount(0)
     })
 })

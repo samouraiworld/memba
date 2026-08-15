@@ -22,9 +22,9 @@ vi.mock("../../lib/homeApi", () => ({
 
 vi.mock("../useNetwork", () => ({
     useNetwork: vi.fn(() => ({
-        networkKey: "topaz",
-        chainId: "topaz-1",
-        rpcUrl: "https://rpc.topaz.testnets.gno.land:443",
+        networkKey: "sapphire",
+        chainId: "sapphire-1",
+        rpcUrl: "https://rpc.sapphire.testnets.gno.land:443",
         label: "Topaz",
     })),
 }))
@@ -49,9 +49,9 @@ describe("useHomeSnapshot — on SNAPSHOT_NETWORK with populated snapshot", () =
     beforeEach(() => {
         vi.clearAllMocks()
         vi.mocked(networkMod.useNetwork).mockReturnValue({
-            networkKey: "topaz",
-            chainId: "topaz-1",
-            rpcUrl: "https://rpc.topaz.testnets.gno.land:443",
+            networkKey: "sapphire",
+            chainId: "sapphire-1",
+            rpcUrl: "https://rpc.sapphire.testnets.gno.land:443",
             label: "Topaz",
             switchNetwork: vi.fn(),
             networks: {},
@@ -109,9 +109,9 @@ describe("useHomeSnapshot — snapshot resolves to null", () => {
     beforeEach(() => {
         vi.clearAllMocks()
         vi.mocked(networkMod.useNetwork).mockReturnValue({
-            networkKey: "topaz",
-            chainId: "topaz-1",
-            rpcUrl: "https://rpc.topaz.testnets.gno.land:443",
+            networkKey: "sapphire",
+            chainId: "sapphire-1",
+            rpcUrl: "https://rpc.sapphire.testnets.gno.land:443",
             label: "Topaz",
             switchNetwork: vi.fn(),
             networks: {},
@@ -134,9 +134,9 @@ describe("useHomeSnapshot — snapshot is the empty failure shell", () => {
     beforeEach(() => {
         vi.clearAllMocks()
         vi.mocked(networkMod.useNetwork).mockReturnValue({
-            networkKey: "topaz",
-            chainId: "topaz-1",
-            rpcUrl: "https://rpc.topaz.testnets.gno.land:443",
+            networkKey: "sapphire",
+            chainId: "sapphire-1",
+            rpcUrl: "https://rpc.sapphire.testnets.gno.land:443",
             label: "Topaz",
             switchNetwork: vi.fn(),
             networks: {},

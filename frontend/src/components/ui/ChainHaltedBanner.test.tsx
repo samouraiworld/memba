@@ -73,14 +73,14 @@ describe("ChainHaltedBanner — test13 is not exempt", () => {
 })
 
 describe("ChainHaltedBanner — fallback suggestion", () => {
-    it("suggests Topaz (Memba realms live) for a down test13, never Betanet", async () => {
+    it("suggests Sapphire (Memba realms live) for a down test13, never Betanet", async () => {
         checkChainHealth.mockResolvedValue(unreachable)
         render(<ChainHaltedBanner networkKey="test13" onSwitchNetwork={() => {}} />)
 
         await settleTwoStrikes()
         const alert = await screen.findByRole("alert")
         // Topaz has Memba's core realms; Betanet/gnoland1 does not — never steer there.
-        expect(alert).toHaveTextContent(/topaz/i)
+        expect(alert).toHaveTextContent(/sapphire/i)
         expect(alert).not.toHaveTextContent(/betanet/i)
     })
 })
