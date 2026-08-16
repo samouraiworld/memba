@@ -272,7 +272,11 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         indexerUrl: import.meta.env.VITE_SAPPHIRE_INDEXER_URL || "https://indexer.sapphire.testnets.gno.land/graphql/query",
         label: "Sapphire",
         userRegistryPath: "gno.land/r/sys/users",
-        faucetUrl: "https://faucet.sapphire.testnets.gno.land",
+        // The chain-specific faucet subdomain is an API-only endpoint — a
+        // browser GET answers 405 (owner-observed 2026-08-16, mid-activation).
+        // Send people to the faucet HUB like every other network entry does;
+        // its "Sapphire Faucet" card is the actual web UI.
+        faucetUrl: "https://faucet.gno.land",
         // Live-verified 2026-08-11 with a WORKING NEGATIVE CONTROL, which is the
         // part that makes this trustworthy: 200 on `/` and on `/r/sys/users`
         // (so it really is a gno chain's gnoweb), 404 on
