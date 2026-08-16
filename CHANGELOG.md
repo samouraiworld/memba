@@ -24,6 +24,7 @@ Full changelogs are split by version range for easier navigation:
 <!-- categories: memba -->
 - **The "Activate My Wallet" button shipped earlier today turned out to be refused by the wallet itself** — Adena does not let apps submit the kind of transaction it used (a coin transfer to yourself), a limitation that only surfaced on the button's first real use. Activation now makes a different, equally tiny transaction — a small note written to your own on-chain profile, nothing sent anywhere — of the kind Adena accepts from apps every day.
 - The wallet's confirmation window also now names the action it is signing instead of showing "unknown".
+- **The "Get GNOT from Faucet" button led to an error page.** It pointed at the faucet's machine-to-machine address, which answers a browser with "405 Method Not Allowed". It now opens the faucet hub — the page with the working Sapphire faucet — like every other network's faucet link already did.
 - If you already activated by sending yourself a token from the wallet directly: that worked fine and nothing changes for you.
 
 ### Coming next
