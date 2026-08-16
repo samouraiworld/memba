@@ -69,6 +69,14 @@ func tokenDenied(err error) *connect.Error {
 	if err != nil && strings.Contains(err.Error(), auth.ChainMismatchCode) {
 		return connect.NewError(connect.CodePermissionDenied, errors.New(auth.ChainMismatchCode))
 	}
+	// Third narrow exception: an untransacted wallet on an enforced-auth chain.
+	// Equally self-serviceable — one on-chain tx registers the key — and, post
+	// chain-reset, the FIRST login of every user lands here, so a generic
+	// denial would dead-end the entire userbase. Bare code only; the UI turns
+	// it into the Activate-wallet flow.
+	if err != nil && strings.Contains(err.Error(), auth.ActivationRequiredCode) {
+		return connect.NewError(connect.CodePermissionDenied, errors.New(auth.ActivationRequiredCode))
+	}
 	return connect.NewError(connect.CodePermissionDenied, nil)
 }
 

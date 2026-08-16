@@ -8,7 +8,24 @@ import (
 	"net/http"
 	"strings"
 	"time"
+
+	"github.com/samouraiworld/memba/backend/internal/metrics"
 )
+
+// feedProgressLogInterval paces the feed tailer's positive heartbeat line. The
+// topaz feed outage was silent twice because the tailer only ever logged
+// errors: a dead loop and a healthy one both produced silence. One Info line
+// per interval (~12/h) makes "alive and at height X" observable in plain logs
+// without per-cycle spam.
+const feedProgressLogInterval = 5 * time.Minute
+
+// feedProgress carries the cross-cycle state for that heartbeat: when the last
+// line was emitted and how many blocks were processed since. Owned by the
+// tailer goroutine; nil disables the heartbeat (tests that don't care).
+type feedProgress struct {
+	lastLog     time.Time
+	blocksSince int64
+}
 
 // FeedTailerConfig holds the feed indexer's runtime configuration (env-driven).
 // It is intentionally separate from TailerConfig: the feed indexer runs its own
@@ -82,9 +99,10 @@ func StartFeedTailer(ctx context.Context, database *sql.DB, cfg FeedTailerConfig
 		})
 		ticker := time.NewTicker(cfg.Interval)
 		defer ticker.Stop()
+		prog := &feedProgress{lastLog: time.Now()}
 		for {
 			runRecovered(cfg.Logger, "feed_tailer", func() {
-				feedTailOnce(ctx, database, cfg, watched, src)
+				feedTailOnce(ctx, database, cfg, watched, src, prog)
 			})
 			select {
 			case <-ctx.Done():
@@ -97,8 +115,9 @@ func StartFeedTailer(ctx context.Context, database *sql.DB, cfg FeedTailerConfig
 }
 
 // feedTailOnce advances the feed cursor toward the confirmed tip, processing up
-// to maxBlocksPerCycle blocks. All errors are logged and swallowed.
-func feedTailOnce(ctx context.Context, db *sql.DB, cfg FeedTailerConfig, watched map[string]struct{}, src blockSource) {
+// to maxBlocksPerCycle blocks. All errors are logged and swallowed. prog (may
+// be nil) accumulates the heartbeat state across cycles.
+func feedTailOnce(ctx context.Context, db *sql.DB, cfg FeedTailerConfig, watched map[string]struct{}, src blockSource, prog *feedProgress) {
 	log := cfg.Logger
 
 	latest, err := src.LatestHeight(ctx)
@@ -106,11 +125,31 @@ func feedTailOnce(ctx context.Context, db *sql.DB, cfg FeedTailerConfig, watched
 		log.Warn("feed tailer: latest height fetch failed", "error", err)
 		return
 	}
+	metrics.IndexerChainHead.WithLabelValues("feed").Set(float64(latest))
 
 	cursor, storedHash, err := loadFeedCursor(ctx, db, cfg.WatchedRealms, cfg.StartBlock)
 	if err != nil {
 		log.Warn("feed tailer: load cursor failed", "error", err)
 		return
+	}
+
+	lag := latest - cursor
+	metrics.IndexerLag.WithLabelValues("feed").Set(float64(lag))
+	if lag > 30 {
+		log.Warn("feed tailer: indexer lag exceeds threshold",
+			"lag_blocks", lag, "cursor", cursor, "chain_head", latest)
+	}
+
+	// Positive heartbeat, BEFORE the caught-up early-return below: a healthy
+	// tailer with no new confirmed blocks must still prove it is alive. Cycles
+	// that error out above never reach this line — their Warn logs are the
+	// liveness signal on that path.
+	if prog != nil && time.Since(prog.lastLog) >= feedProgressLogInterval {
+		log.Info("feed tailer: progress",
+			"cursor", cursor, "chain_head", latest,
+			"lag_blocks", lag, "blocks_processed", prog.blocksSince)
+		prog.lastLog = time.Now()
+		prog.blocksSince = 0
 	}
 
 	// Single-block-deep reorg check (see StartFeedTailer doc).
@@ -180,6 +219,10 @@ func feedTailOnce(ctx context.Context, db *sql.DB, cfg FeedTailerConfig, watched
 		if err := saveFeedCursor(ctx, db, cfg.WatchedRealms, h, hash); err != nil {
 			log.Warn("feed tailer: save cursor failed", "height", h, "error", err)
 			return
+		}
+		metrics.IndexerLastBlock.WithLabelValues("feed").Set(float64(h))
+		if prog != nil {
+			prog.blocksSince++
 		}
 	}
 }
