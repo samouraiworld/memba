@@ -41,22 +41,45 @@ func TestMetricsEndpoint_ExposesAuthLogin(t *testing.T) {
 }
 
 // The indexer gauges are the frozen-indexer signal: when last_block stops
-// advancing while chain_head climbs, the indexer is stalled.
+// advancing while chain_head climbs, that indexer is stalled. They are labeled
+// per indexer so the live feed tailer can never mask a stalled NFT tailer (or
+// vice versa) — the topaz outage class was silent exactly because only the
+// disabled NFT path owned these gauges.
 func TestIndexerGauges_SetAndExposed(t *testing.T) {
-	IndexerLastBlock.Set(1000)
-	IndexerChainHead.Set(1005)
+	IndexerLastBlock.Reset()
+	IndexerChainHead.Reset()
+	IndexerLastBlock.WithLabelValues("nft").Set(1000)
+	IndexerChainHead.WithLabelValues("nft").Set(1005)
+	IndexerLastBlock.WithLabelValues("feed").Set(2000)
+	IndexerChainHead.WithLabelValues("feed").Set(2003)
 
-	if got := testutil.ToFloat64(IndexerLastBlock); got != 1000 {
-		t.Fatalf("indexer_last_block = %v, want 1000", got)
-	}
-	if got := testutil.ToFloat64(IndexerChainHead); got != 1005 {
-		t.Fatalf("indexer_chain_head = %v, want 1005", got)
+	for _, tc := range []struct {
+		indexer string
+		last    float64
+		head    float64
+	}{
+		{"nft", 1000, 1005},
+		{"feed", 2000, 2003},
+	} {
+		if got := testutil.ToFloat64(IndexerLastBlock.WithLabelValues(tc.indexer)); got != tc.last {
+			t.Fatalf("indexer_last_block{indexer=%q} = %v, want %v", tc.indexer, got, tc.last)
+		}
+		if got := testutil.ToFloat64(IndexerChainHead.WithLabelValues(tc.indexer)); got != tc.head {
+			t.Fatalf("indexer_chain_head{indexer=%q} = %v, want %v", tc.indexer, got, tc.head)
+		}
 	}
 
 	rec := httptest.NewRecorder()
 	promhttp.Handler().ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/metrics", nil))
 	body := rec.Body.String()
-	if !strings.Contains(body, "memba_indexer_last_block") || !strings.Contains(body, "memba_indexer_chain_head") {
-		t.Fatal("/metrics did not expose the indexer gauges")
+	for _, want := range []string{
+		`memba_indexer_last_block{indexer="nft"}`,
+		`memba_indexer_last_block{indexer="feed"}`,
+		`memba_indexer_chain_head{indexer="nft"}`,
+		`memba_indexer_chain_head{indexer="feed"}`,
+	} {
+		if !strings.Contains(body, want) {
+			t.Fatalf("/metrics did not expose %s", want)
+		}
 	}
 }

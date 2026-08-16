@@ -140,12 +140,20 @@ observed baselines and route to Slack `#memba-alerts`. `rate()`/`increase()` use
 
 > These two are **counters** (`_total`); always wrap in `rate()`/`increase()`. They reset to 0 on each Fly redeploy — `rate()` is counter-reset-aware, a raw gauge read is not.
 
-**Indexer** (Wave 1)
+**Indexer** (Wave 1; per-indexer labels since the sapphire cutover)
+
+The three gauges carry an `indexer` label (`nft` | `feed`) — alert **per label**,
+never on the unlabeled family: the live indexer would otherwise mask the stalled
+one, which is how this class went silent twice. Post-cutover, `feed` is the live
+production path; `nft` reads 0 until the NFT tailer is re-enabled (commerce
+ceremony). The feed tailer also logs a `feed tailer: progress` heartbeat every
+5 min — its **absence** in Fly logs is the log-side stall signal.
 
 | Signal | Alert when | Means / action |
 |--------|-----------|----------------|
-| `memba_indexer_lag_blocks` | > 30 for 2 min | NFT tailer falling behind the tip — check RPC health / tailer logs. |
-| `increase(memba_indexer_last_block[10m])` | == 0 while `memba_indexer_chain_head` rises | Tailer **frozen** (the ~150k-block silent stall class). Restart / investigate. |
+| `memba_indexer_lag_blocks{indexer="feed"}` | > 30 for 2 min | Feed tailer falling behind the tip — check RPC health / tailer logs. |
+| `increase(memba_indexer_last_block{indexer="feed"}[10m])` | == 0 while the matching `memba_indexer_chain_head` rises | Tailer **frozen** (the ~150k-block silent stall class). Restart / investigate. |
+| same two, `{indexer="nft"}` | (arm when the NFT tailer is re-enabled) | Same semantics for the NFT money path. |
 | `increase(memba_nft_event_dropped_total[1h])` | > 0 | On-chain event-schema drift — a Sale/mint was skipped as malformed; inspect the dropped `event` label + logs. |
 
 **Auth & abuse** (Wave 0/1)
