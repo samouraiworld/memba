@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Coming next
+<!-- categories: memba, network -->
+- The commerce lanes — creating tokens, the NFT marketplace, escrow and OTC trading — return to Sapphire with their own deployment ceremony, once the settings that redeployment bakes in permanently have been decided deliberately.
+
+## [v7.4.0] — 2026-08-16
+
 ### The feed no longer depends on a single blockchain node (2026-08-16)
 <!-- categories: memba, network -->
 - **The background process that reads feed posts off the chain was the last part of Memba still tied to exactly one blockchain node.** When that node went away in August's network shutdown, the feed silently stopped for hours — everything else had backup nodes to switch to, but this one path didn't. It now walks the same ordered list of backup nodes the rest of the app uses, switching automatically when a node is unreachable or refuses to answer.
