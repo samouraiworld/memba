@@ -1,5 +1,12 @@
 # NFT v3 Trading — Go-Live & Rollback Runbook
 
+> **⚠️ HISTORICAL (test13-era).** The realm names, allowlist keys, and heights here
+> are test13's; test13 and topaz are dead. The CURRENT activation procedure —
+> sapphire, v3.2 engine, `memba nft-reset`, fee-spine tokenfactory — is
+> `docs/SAPPHIRE_COMMERCE_CEREMONY.md`. The strict-order rules here (indexer tails
+> BEFORE RegisterMarket; pre-staged abort txs; 2-wallet live-money E2E) remain the
+> canonical pattern and are carried into that doc.
+>
 > **Scope:** activating the **v3 trading engine** (`memba_nft_market_v3` + `memba_collections`) on test13.
 > **Status:** v3 deployed but **NOT `RegisterMarket`-ed and NOT frontend-wired** (by design).
 > **Supersedes** the legacy v1 gallery activation plan (Apr 2026, `VITE_ENABLE_NFT` flag-gating of the read-only gallery — deleted in the 2026-07-09 docs house-cleaning) for everything trading-related.
@@ -44,7 +51,7 @@ Confirm `V3_ADDR` matches `frontend/src/lib/nftConfig.ts` **and** `realm-version
 ### Step 1 — Indexer must tail v3 BEFORE registration ⛔ (the one irreversible ordering rule)
 If the indexer is not ingesting v3 from its deploy height before the first trade, you get a **permanent event gap** → wrong volume/floor/points.
 1. Add `memba_nft_market_v3` to `NFT_WATCHED_REALMS` **and** `NFT_SALE_VOLUME_REALMS` (so Sale is the only volume row).
-2. Seed the cursor at the v3 deploy height: `NFT_SEED_REALM_CURSOR=<realm>:<deployHeight>` (never rewinds an existing realm).
+2. Seed the cursor at the v3 deploy height: `NFT_SEED_REALM_CURSOR=<realm>@<deployHeight>` (separator is `@` — `parseSeedCursorSpec` in `backend/cmd/memba/main.go` splits on it; a `:` spec is warned and SKIPPED, which on a fresh chain means no seed at all. Never rewinds an existing realm).
 3. **Verify:** `/metrics` → NFT tailer lag (`chain_head − last_block`) is current; a known v3 event (if any) is queryable in `nft_raw_events`.
 - **GATE:** do not proceed until the indexer is confirmed tailing v3.
 
