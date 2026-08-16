@@ -20,6 +20,32 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Wallet activation's one-click button works now (2026-08-16)
+<!-- categories: memba -->
+- **The "Activate My Wallet" button shipped earlier today turned out to be refused by the wallet itself** — Adena does not let apps submit the kind of transaction it used (a coin transfer to yourself), a limitation that only surfaced on the button's first real use. Activation now makes a different, equally tiny transaction — a small note written to your own on-chain profile, nothing sent anywhere — of the kind Adena accepts from apps every day.
+- The wallet's confirmation window also now names the action it is signing instead of showing "unknown".
+- **The "Get GNOT from Faucet" button led to an error page.** It pointed at the faucet's machine-to-machine address, which answers a browser with "405 Method Not Allowed". It now opens the faucet hub — the page with the working Sapphire faucet — like every other network's faucet link already did.
+- If you already activated by sending yourself a token from the wallet directly: that worked fine and nothing changes for you.
+
+### Coming next
+<!-- categories: memba, network -->
+- The commerce lanes — creating tokens, the NFT marketplace, escrow and OTC trading — return to Sapphire with their own deployment ceremony, once the settings that redeployment bakes in permanently have been decided deliberately.
+
+## [v7.4.0] — 2026-08-16
+
+### The feed no longer depends on a single blockchain node (2026-08-16)
+<!-- categories: memba, network -->
+- **The background process that reads feed posts off the chain was the last part of Memba still tied to exactly one blockchain node.** When that node went away in August's network shutdown, the feed silently stopped for hours — everything else had backup nodes to switch to, but this one path didn't. It now walks the same ordered list of backup nodes the rest of the app uses, switching automatically when a node is unreachable or refuses to answer.
+- A node that answers with something malformed is still treated as an error to investigate rather than silently papered over by asking a different node — switching only happens when a node can't or won't answer at all.
+### The feed's indexing engine now reports its own health (2026-08-16)
+<!-- categories: memba -->
+- **The background process that brings feed posts from the chain into the app used to report nothing about itself.** When it worked, it was silent; when it silently stopped, it was silent in exactly the same way — which is how two past outages ran on unnoticed. It now continuously publishes how far it has read, how far the chain has advanced, and the gap between the two, plus a heartbeat line in the server logs every five minutes saying it is alive and at what height.
+- Purely internal plumbing — nothing changes in the app — but it is what lets the operators notice a stalled feed in minutes instead of finding out from a user.
+### Signing in on a fresh network now walks you through activation (2026-08-16)
+<!-- categories: memba, network -->
+- **First sign-in after the move to Sapphire used to dead-end on "Authentication failed."** On a brand-new network your wallet has never sent a transaction, so the chain doesn't know its public key yet — and the wallet won't produce the signed proof Memba's sign-in asks for until it does. Memba refused the sign-in (correctly: accepting it without proof would let anyone claim anyone's address) but told you nothing useful about why, and the screen that fixes it — a one-click activation that sends 1 ugnot to yourself to register your key — could only ever appear *after* a successful sign-in. On a fresh network that ordering is exactly backwards, and every single user's first sign-in hit it.
+- **Now the refusal opens the activation screen directly.** It explains what's happening, sends you to the faucet first if your balance is zero, performs the one-tiny-transaction activation through the same safety-guarded path as every other Memba transaction, and signs you in right after. If you'd rather not, "Not now" returns you to browsing — a failed sign-in never locks you out of reading.
+- The security posture is unchanged: sign-ins still require cryptographic proof of key ownership. What changed is that the one situation where that proof cannot exist yet now leads somewhere instead of nowhere.
 ### Memba now runs on the Sapphire test network (2026-08-15)
 <!-- categories: memba, network -->
 - **The app's home network is now Sapphire (`sapphire-1`).** Topaz — the network Memba ran on — was decommissioned on 12 August: its servers stopped answering, and the Adena wallet's 10 August update had already removed it and moved everyone's wallet to Sapphire. For three days the app could load but nothing on-chain worked. Memba's contracts were redeployed to Sapphire on 15 August — every deployment was verified on the chain itself, artifact by artifact, before the switch was flipped.
@@ -32,6 +58,15 @@ Full changelogs are split by version range for easier navigation:
 - **A sign-in aimed at a network Memba isn't serving used to appear to succeed, and then nothing worked.** You would connect your wallet, get signed in, and every single action after that would be refused. Refreshing did not help and neither did signing in again, because the sign-in itself kept "succeeding" — the only way out was clearing the site's stored data. Memba now refuses that sign-in up front and tells you your wallet is on a different network than the page you are on, which is something you can fix in one click.
 - **A sign-in that has gone stale for any other reason now signs you out instead of leaving you stuck.** Previously the app only ever forgot a session when it reached its natural expiry time, so a session the server had already rejected sat there for hours with the app still showing you as signed in. It now notices the rejection and returns you to a signed-out state with a working "connect" button.
 - This matters right now because the Adena wallet has stopped offering the network Memba runs on and is moving people to a different one, so the mismatch this fixes is exactly what they would otherwise hit. It is also a prerequisite for moving Memba to Sapphire — without it, anyone with a bookmark of the current network would be locked out by the switch.
+### Alerts — mention tags and linked webhooks are finally saved, and old contacts can be repaired (2026-08-12)
+<!-- categories: memba -->
+- **Every alert contact ever created from this form was saved without its mention tag and without its linked webhook.** The form said it had worked, the contact appeared in the list, and nothing was wrong on screen — but the two fields that make a contact useful were dropped in transit and stored empty. Because a mention is only sent to the webhook a contact is attached to, none of these contacts could ever ping anyone on a CRITICAL alert. The whole feature quietly did nothing. Both fields are now sent under the names the alerting service expects, and they save.
+- **Contacts saved by the old version can be repaired by editing them** — you do not need to delete and recreate them. Pick the webhook you want, re-enter the tag, and save.
+- **A contact the alerting service refuses now tells you why, instead of appearing to save.** The service checks that a mention tag is numeric, that the webhook you picked is yours, and that the contact still exists; each of those refusals is now shown in the form with the service's own wording.
+- **The "Linked Webhook" list no longer offers GovDAO webhooks.** Mentions are only ever sent on validator alerts, and the two kinds of webhook are numbered independently, so a GovDAO entry in that list could attach a contact to an unrelated validator webhook. Only validator webhooks are offered now.
+- **A contact with no webhook to attach to is refused up front**, rather than being saved as one that can never fire.
+- **The mention tag field now explains what it wants and keeps explaining it** — the raw numeric user ID, where to find it in Discord, and the fact that mentions only fire on CRITICAL alerts and are never sent to Telegram. Previously the only hint was a placeholder that vanished as soon as you started typing.
+- **Deleting a validator webhook now clears the contacts attached to it from the list straight away**, instead of leaving rows on screen that no longer exist.
 ### Groundwork for the move to the Sapphire test network (2026-08-11)
 <!-- categories: memba, network -->
 - **Adena, the wallet Memba runs on, has stopped shipping Topaz.** Its 10 August release removes Topaz from the list of networks it offers and replaces it with a newer test network called Sapphire. When the wallet updates itself, anything it was holding for Topaz — the permission it remembered for Memba, your token list, and your signed-in session — is cleared, and the wallet moves you to Sapphire. Memba currently runs on Topaz, so as that update reaches people they will find their wallet and the app pointing at two different networks.

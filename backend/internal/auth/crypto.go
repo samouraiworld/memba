@@ -216,6 +216,23 @@ const SessionRejectCode = "AUTH-SESSION-REJECT-01"
 // described above.
 const ChainMismatchCode = "AUTH-CHAINID-MISMATCH-01"
 
+// ActivationRequiredCode tags an address-only login rejected because signed
+// auth is enforced and the wallet has never transacted on this chain — no
+// on-chain pubkey exists, and Adena (#800) will neither reveal nor sign for
+// one, so address-only is all the client CAN send.
+//
+// Third narrow wire exception (see service.tokenDenied), same reasoning as the
+// two above: the remedy is entirely in the user's hands — one on-chain tx
+// registers the key (the Activate-wallet flow) — so dead-ending them on a
+// message-less denial is pure harm. The bare code names no env var and
+// discloses nothing an attacker doesn't already learn from the denial itself.
+//
+// This became a chain-wide cliff at the sapphire cutover: on a freshly reset
+// network EVERY wallet is untransacted at first login (even ceremony multisig
+// members — the multisig account sent those txs, not theirs), so the first
+// sign-in of every single user lands exactly here.
+const ActivationRequiredCode = "AUTH-ACTIVATE-01"
+
 // nonEmpty drops blank entries from a chain-id set.
 //
 // Shared by MakeToken (issue time) and ValidateToken (every call) so the two
@@ -490,7 +507,8 @@ func MakeToken(
 			logAuthLogin("address_only_rejected", info.UserAddress, effectiveChainID)
 			slog.Warn("auth: AUTH-UNSIGNED-01 — address-only auth rejected (enforcement on)",
 				"address", info.UserAddress)
-			return nil, errors.New("pubkey required — activate your wallet (one on-chain tx) to register its key")
+			return nil, errors.New("pubkey required — activate your wallet (one on-chain tx) to register its key (" +
+				ActivationRequiredCode + ")")
 		}
 		_, addrData, derr := bech32.DecodeAndConvert(info.UserAddress)
 		if derr != nil {

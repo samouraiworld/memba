@@ -5,7 +5,7 @@
  * token info parsing, sanitization, Adena message conversion,
  * and v2.1a Memba-specific helpers.
  */
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import {
     calculateFee,
     feeDisclosure,
@@ -34,6 +34,7 @@ import {
     getTokenDecimals,
     __resetTokenDecimalsCache,
 } from './grc20'
+import { GNO_CHAIN_ID } from './config'
 
 // getTokenDecimals -> getTokenInfo -> queryRender -> abciQuery, which is a
 // module-private fetch() call (not imported from ./dao/shared) — mock fetch
@@ -45,6 +46,34 @@ function mockRenderResponse(markdown: string) {
         json: async () => ({ result: { response: { ResponseBase: { Data: data } } } }),
     }
 }
+
+// The wrong-chain guard compares the wallet's chainId against config's
+// GNO_CHAIN_ID, which follows VITE_GNO_CHAIN_ID — and the repo-root .env is
+// untracked, so a dev machine pinning e.g. test13 resolves a different chain
+// than CI's sapphire default. Guard assertions must derive BOTH sides from
+// GNO_CHAIN_ID: hardcoding "sapphire-1" failed 5 tests locally while CI stayed
+// green. WRONG_CHAIN mismatches by construction under any pin — a realistic
+// name can't be used, because every real chain (even gnoland1) is a valid
+// VITE_GNO_CHAIN_ID and would collide on the machine that pins it.
+const WRONG_CHAIN = `${GNO_CHAIN_ID}-other`
+
+// grc20.ts keeps wallet-guard state (RPC context, confirmation callback) and
+// the decimals cache at module level. Reset it all BEFORE each test: trailing
+// per-test resets run only when every assertion passes, so a single failure
+// would leak its context into every test after it.
+beforeEach(() => {
+    setWalletRpcContext(null, false, null)
+    setTxConfirmationCallback(null)
+    __resetTokenDecimalsCache()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    delete (window as any).adena
+})
+
+// fetch is stubbed mid-test by the getTokenDecimals suite; unstub it even when
+// a failed assertion skips the test body's own cleanup.
+afterEach(() => {
+    vi.unstubAllGlobals()
+})
 
 // ── Fee Calculation (v2.1a: 2.5%) ───────────────────────────────
 
@@ -355,13 +384,20 @@ describe('toAdenaMessages', () => {
         expect(adena[0].value.send).toBe('')
     })
 
-    it('passes /vm.m_addpkg and bank/MsgSend through unchanged (W2.1)', () => {
+    it('passes /vm.m_addpkg through unchanged (W2.1)', () => {
         const addPkgMsg = { type: '/vm.m_addpkg', value: { creator: 'g1x', package: {} } }
+        expect(toAdenaMessages([addPkgMsg])).toEqual([addPkgMsg])
+    })
+
+    it('throws on bank/MsgSend — Adena DoContract rejects the TYPE (#1078)', () => {
+        // The passthrough existed solely for the activation self-send; now that
+        // activation is a MsgCall, letting a send-shaped message through would
+        // only smuggle a guaranteed wallet rejection past the guard.
         const sendMsg = {
             type: 'bank/MsgSend',
             value: { from_address: 'g1x', to_address: 'g1x', amount: [{ denom: 'ugnot', amount: '1' }] },
         }
-        expect(toAdenaMessages([addPkgMsg, sendMsg])).toEqual([addPkgMsg, sendMsg])
+        expect(() => toAdenaMessages([sendMsg])).toThrow('unsupported message type')
     })
 
     it('throws on unknown message types (R2-M1 fix)', () => {
@@ -371,90 +407,75 @@ describe('toAdenaMessages', () => {
 })
 
 describe('doContractBroadcast — wrong-chain guard (defense-in-depth)', () => {
-    // App network in the test env is the default (sapphire, chainId "sapphire-1").
-    // A wallet reporting a different chainId must be blocked before any broadcast.
+    // A wallet reporting a chainId other than the app's active chain must be
+    // blocked before any broadcast. Chain ids derive from GNO_CHAIN_ID (top of
+    // file) so the assertions hold under any VITE_GNO_CHAIN_ID.
     it('blocks broadcast when the wallet chainId != Memba network', async () => {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.gnoland1.samourai.live:443', true, 'gnoland1')
-        await expect(doContractBroadcast([], 'memo')).rejects.toThrow(/wallet is on chain "gnoland1"/)
-        setTxConfirmationCallback(null)
-        setWalletRpcContext(null, false, null)
+        setWalletRpcContext('https://rpc.gnoland1.samourai.live:443', true, WRONG_CHAIN)
+        await expect(doContractBroadcast([], 'memo')).rejects.toThrow(`wallet is on chain "${WRONG_CHAIN}"`)
     })
 
     it('passes the chain guard when the wallet chainId matches (proceeds to wallet check)', async () => {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, 'sapphire-1')
+        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
         // matches → not blocked by the chain guard; fails later (no window.adena in jsdom)
         await expect(doContractBroadcast([], 'memo')).rejects.toThrow(/Adena wallet not available/)
-        setTxConfirmationCallback(null)
-        setWalletRpcContext(null, false, null)
     })
 })
 
 // ── W2.1: shared guard + deploy gas ───────────────────────────
 
 describe('assertWalletBroadcastSafe — shared guard for non-DoContract transports', () => {
-    it('throws on an untrusted RPC', () => {
-        setWalletRpcContext('https://rpc.evil.example:443', false, 'test-13')
+    it('throws on an untrusted RPC — even when the chain matches', () => {
+        setWalletRpcContext('https://rpc.evil.example:443', false, GNO_CHAIN_ID)
         expect(() => assertWalletBroadcastSafe()).toThrow(/untrusted RPC/)
-        setWalletRpcContext(null, false, null)
     })
 
     it('throws on a wrong-chain wallet', () => {
-        setWalletRpcContext('https://rpc.test13.testnets.gno.land:443', true, 'gnoland1')
-        expect(() => assertWalletBroadcastSafe()).toThrow(/wallet is on chain "gnoland1"/)
-        setWalletRpcContext(null, false, null)
+        setWalletRpcContext('https://rpc.test13.testnets.gno.land:443', true, WRONG_CHAIN)
+        expect(() => assertWalletBroadcastSafe()).toThrow(`wallet is on chain "${WRONG_CHAIN}"`)
     })
 
     it('fails CLOSED on the unverified-chain sentinel with reconnect guidance', () => {
         setWalletRpcContext('https://rpc.test13.testnets.gno.land:443', true, UNVERIFIED_CHAIN_ID)
         expect(() => assertWalletBroadcastSafe()).toThrow(/could not be verified/)
-        setWalletRpcContext(null, false, null)
     })
 
     it('passes on a trusted RPC with a matching chain', () => {
-        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, 'sapphire-1')
+        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
         expect(() => assertWalletBroadcastSafe()).not.toThrow()
-        setWalletRpcContext(null, false, null)
     })
 })
 
 describe('doContractBroadcast — deploys never auto-retry (review finding #1)', () => {
     it('surfaces the first deploy failure immediately: one DoContract call, no re-sign loop', async () => {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, 'sapphire-1')
+        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
         const doContract = vi.fn().mockResolvedValue({ status: 'failure', message: 'network timeout' })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(window as any).adena = { DoContract: doContract }
         const addPkgMsg = { type: '/vm.m_addpkg', value: { creator: 'g1x', package: {} } }
         await expect(doContractBroadcast([addPkgMsg], 'm', { gas: 'deploy' })).rejects.toThrow(/network timeout/)
         expect(doContract).toHaveBeenCalledTimes(1)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        delete (window as any).adena
-        setTxConfirmationCallback(null)
-        setWalletRpcContext(null, false, null)
     })
 
     it('never retries "package already exists" even on the call budget', async () => {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, 'sapphire-1')
+        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
         const doContract = vi.fn().mockResolvedValue({ status: 'failure', message: 'package already exists: gno.land/r/x/y' })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(window as any).adena = { DoContract: doContract }
         const call = { type: 'vm/MsgCall', value: { caller: 'g1x', send: '', pkg_path: 'gno.land/r/x/y', func: 'F', args: [] } }
         await expect(doContractBroadcast([call], 'm')).rejects.toThrow(/package already exists/)
         expect(doContract).toHaveBeenCalledTimes(1)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        delete (window as any).adena
-        setTxConfirmationCallback(null)
-        setWalletRpcContext(null, false, null)
     })
 })
 
 describe('doContractBroadcast — deploy gas budget (W2.1)', () => {
     it('uses the elevated deploy budget for { gas: "deploy" } and the normal one otherwise', async () => {
         setTxConfirmationCallback(() => Promise.resolve(true))
-        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, 'sapphire-1')
+        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
         const calls: Array<{ gasWanted: number }> = []
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(window as any).adena = {
@@ -469,10 +490,6 @@ describe('doContractBroadcast — deploy gas budget (W2.1)', () => {
         expect(calls).toHaveLength(2)
         // deployWanted is strictly larger than the normal budget (5x default).
         expect(calls[0].gasWanted).toBeGreaterThan(calls[1].gasWanted)
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        delete (window as any).adena
-        setTxConfirmationCallback(null)
-        setWalletRpcContext(null, false, null)
     })
 })
 
@@ -480,7 +497,6 @@ describe('doContractBroadcast — deploy gas budget (W2.1)', () => {
 
 describe('getTokenDecimals', () => {
     it('parses decimals out of the token Render and caches per symbol', async () => {
-        __resetTokenDecimalsCache()
         const fetchSpy = vi.fn().mockResolvedValue(
             mockRenderResponse('# Forge ($FORGE)\n\n* **Decimals**: 9\n* **Total supply**: 100\n'),
         )
@@ -492,8 +508,6 @@ describe('getTokenDecimals', () => {
         expect(first).toBe(9)
         expect(second).toBe(9)
         expect(fetchSpy).toHaveBeenCalledTimes(1) // second call served from cache
-
-        vi.unstubAllGlobals()
     })
 
     it('returns null (never a guessed default) when the lookup fails', async () => {
@@ -501,16 +515,12 @@ describe('getTokenDecimals', () => {
         // "genuinely 6 decimals" apart from "lookup failed" — collapsing both
         // into 6 let a trade silently proceed at the wrong scale on an RPC
         // hiccup. null is the only honest signal for "failed".
-        __resetTokenDecimalsCache()
         vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({}) }))
 
         expect(await getTokenDecimals('http://rpc', 'GHOST')).toBeNull()
-
-        vi.unstubAllGlobals()
     })
 
     it('does not cache a failed lookup — a later retry can still succeed', async () => {
-        __resetTokenDecimalsCache()
         const fetchSpy = vi
             .fn()
             .mockResolvedValueOnce({ ok: true, json: async () => ({}) }) // transient failure
@@ -520,12 +530,9 @@ describe('getTokenDecimals', () => {
         expect(await getTokenDecimals('http://rpc', 'FORGE')).toBeNull()
         expect(await getTokenDecimals('http://rpc', 'FORGE')).toBe(9)
         expect(fetchSpy).toHaveBeenCalledTimes(2) // NOT served from cache after a failure
-
-        vi.unstubAllGlobals()
     })
 
     it('caches distinct symbols independently', async () => {
-        __resetTokenDecimalsCache()
         const fetchSpy = vi.fn()
             .mockResolvedValueOnce(mockRenderResponse('# A ($A)\n\n* **Decimals**: 0\n'))
             .mockResolvedValueOnce(mockRenderResponse('# B ($B)\n\n* **Decimals**: 18\n'))
@@ -534,7 +541,5 @@ describe('getTokenDecimals', () => {
         expect(await getTokenDecimals('http://rpc', 'A')).toBe(0)
         expect(await getTokenDecimals('http://rpc', 'B')).toBe(18)
         expect(fetchSpy).toHaveBeenCalledTimes(2)
-
-        vi.unstubAllGlobals()
     })
 })

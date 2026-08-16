@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/samouraiworld/memba/backend/internal/metrics"
+	"github.com/samouraiworld/memba/backend/internal/rpcnodes"
 )
 
 const (
@@ -41,25 +42,36 @@ type blockSource interface {
 // existing fetchLatestHeight / fetchBlockHash / fetchBlockEvents helpers. It
 // deliberately does not inline their logic so those helpers remain testable
 // independently and their signatures stay stable.
+//
+// urls is the ORDERED node list (primary first, then the shared
+// rpcnodes.FallbackURLs backups) — W2-2 Hole 1: the tailers were the last RPC
+// callers pinned to a single node, and the 2026-08 topaz decommission stalled
+// the feed for hours on exactly that. Failover is transport-level only (an
+// HTTP/network error advances to the next node); resolved once at startup —
+// the env cannot change mid-process.
 type httpBlockSource struct {
 	client *http.Client
-	rpcURL string
+	urls   []string
+}
+
+func newHTTPBlockSource(client *http.Client, primaryRPCURL string) *httpBlockSource {
+	return &httpBlockSource{client: client, urls: rpcnodes.URLsInOrder(primaryRPCURL)}
 }
 
 func (s *httpBlockSource) LatestHeight(ctx context.Context) (int64, error) {
-	return fetchLatestHeight(ctx, s.client, s.rpcURL)
+	return fetchLatestHeight(ctx, s.client, s.urls)
 }
 
 func (s *httpBlockSource) BlockHash(ctx context.Context, height int64) (string, error) {
-	return fetchBlockHash(ctx, s.client, s.rpcURL, height)
+	return fetchBlockHash(ctx, s.client, s.urls, height)
 }
 
 func (s *httpBlockSource) BlockEvents(ctx context.Context, height int64) ([]GnoEvent, error) {
-	return fetchBlockEvents(ctx, s.client, s.rpcURL, height)
+	return fetchBlockEvents(ctx, s.client, s.urls, height)
 }
 
 func (s *httpBlockSource) BlockTime(ctx context.Context, height int64) (int64, error) {
-	return fetchBlockTime(ctx, s.client, s.rpcURL, height)
+	return fetchBlockTime(ctx, s.client, s.urls, height)
 }
 
 // TailerConfig holds the block-tailer's runtime configuration (env-driven).
@@ -110,11 +122,12 @@ func StartNFTTailer(ctx context.Context, database *sql.DB, cfg TailerConfig) {
 	}
 
 	client := &http.Client{Timeout: 15 * time.Second}
-	src := &httpBlockSource{client: client, rpcURL: cfg.RPCURL}
+	src := newHTTPBlockSource(client, cfg.RPCURL)
 
 	go func() {
 		cfg.Logger.Info("nft tailer: started",
 			"rpc", cfg.RPCURL,
+			"rpc_backup_nodes", len(src.urls)-1,
 			"watched_realms", cfg.WatchedRealms,
 			"sale_volume_realms", cfg.SaleVolumeRealms,
 			"start_block", cfg.StartBlock,
@@ -148,7 +161,7 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 		log.Warn("nft tailer: latest height fetch failed", "error", err)
 		return
 	}
-	metrics.IndexerChainHead.Set(float64(latest))
+	metrics.IndexerChainHead.WithLabelValues("nft").Set(float64(latest))
 
 	cursor, storedHash, err := loadCursor(ctx, db, cfg.WatchedRealms, cfg.StartBlock)
 	if err != nil {
@@ -158,7 +171,7 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 
 	// Compute and export indexer lag for alerting (Wave 1 hardening).
 	lag := latest - cursor
-	metrics.IndexerLag.Set(float64(lag))
+	metrics.IndexerLag.WithLabelValues("nft").Set(float64(lag))
 	if lag > 30 {
 		log.Warn("nft tailer: indexer lag exceeds threshold",
 			"lag_blocks", lag, "cursor", cursor, "chain_head", latest)
@@ -246,7 +259,7 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 			log.Warn("nft tailer: save cursor failed", "height", h, "error", err)
 			return
 		}
-		metrics.IndexerLastBlock.Set(float64(h))
+		metrics.IndexerLastBlock.WithLabelValues("nft").Set(float64(h))
 	}
 }
 
@@ -337,8 +350,8 @@ type statusResponse struct {
 }
 
 // fetchLatestHeight reads the chain tip from /status.
-func fetchLatestHeight(ctx context.Context, client *http.Client, rpcURL string) (int64, error) {
-	body, err := httpGet(ctx, client, rpcURL+"/status")
+func fetchLatestHeight(ctx context.Context, client *http.Client, urls []string) (int64, error) {
+	body, err := httpGetFirst(ctx, client, urls, "/status")
 	if err != nil {
 		return 0, err
 	}
@@ -389,8 +402,10 @@ var blockHashRetryDelay = 500 * time.Millisecond
 // Retries a few times on a transient HTTP error or empty hash: the test13 RPC
 // endpoint (a multi-node load balancer) intermittently returns an empty block_id
 // for a block that exists, and without a retry the tailer's reorg-check stalls.
-func fetchBlockHash(ctx context.Context, client *http.Client, rpcURL string, height int64) (string, error) {
-	url := fmt.Sprintf("%s/block?height=%d", rpcURL, height)
+// Each attempt already fails over across the node list (httpGetFirst), so the
+// outer loop's job is ONLY the transient-empty-hash case.
+func fetchBlockHash(ctx context.Context, client *http.Client, urls []string, height int64) (string, error) {
+	suffix := fmt.Sprintf("/block?height=%d", height)
 	var lastErr error
 	for attempt := range blockHashFetchAttempts {
 		if attempt > 0 {
@@ -400,7 +415,7 @@ func fetchBlockHash(ctx context.Context, client *http.Client, rpcURL string, hei
 			case <-time.After(blockHashRetryDelay):
 			}
 		}
-		body, err := httpGet(ctx, client, url)
+		body, err := httpGetFirst(ctx, client, rotatedFrom(urls, attempt), suffix)
 		if err != nil {
 			lastErr = err
 			continue
@@ -455,9 +470,8 @@ func parseBlockTime(body []byte, height int64) (int64, error) {
 
 // fetchBlockTime fetches the block header time (unix seconds) for a height from
 // /block?height=h — the same endpoint fetchBlockHash uses.
-func fetchBlockTime(ctx context.Context, client *http.Client, rpcURL string, height int64) (int64, error) {
-	url := fmt.Sprintf("%s/block?height=%d", rpcURL, height)
-	body, err := httpGet(ctx, client, url)
+func fetchBlockTime(ctx context.Context, client *http.Client, urls []string, height int64) (int64, error) {
+	body, err := httpGetFirst(ctx, client, urls, fmt.Sprintf("/block?height=%d", height))
 	if err != nil {
 		return 0, err
 	}
@@ -465,13 +479,70 @@ func fetchBlockTime(ctx context.Context, client *http.Client, rpcURL string, hei
 }
 
 // fetchBlockEvents fetches and parses the watched GnoEvents at a height.
-func fetchBlockEvents(ctx context.Context, client *http.Client, rpcURL string, height int64) ([]GnoEvent, error) {
-	url := fmt.Sprintf("%s/block_results?height=%d", rpcURL, height)
-	body, err := httpGet(ctx, client, url)
+func fetchBlockEvents(ctx context.Context, client *http.Client, urls []string, height int64) ([]GnoEvent, error) {
+	body, err := httpGetFirst(ctx, client, urls, fmt.Sprintf("/block_results?height=%d", height))
 	if err != nil {
 		return nil, err
 	}
 	return parseBlockResults(body, height)
+}
+
+// rpcNodeAttemptTimeout bounds ONE node attempt inside httpGetFirst, so a
+// HANGING (not fast-failing) node costs at most this much before the walk
+// advances — the same trade-off internal/service.rpcAttemptTimeout makes, and
+// deliberately the same value. The tailer's http.Client keeps its own 15s
+// ceiling as the outer backstop.
+//
+// KNOWN LIMITATION (mirrors rpc_resilient.go's): there is no last-known-good
+// memoization, so while a primary hangs, every fetch in every cycle re-pays
+// this timeout on it before failing over; a catch-up cycle multiplies that by
+// its serial per-block fetches. Bounded (ticks never overlap; the ticker drops
+// missed ticks) and self-healing, so accepted — the realistic dead-node outage
+// fails over near-instantly.
+const rpcNodeAttemptTimeout = 8 * time.Second
+
+// httpGetFirst GETs base+suffix from the first node in urls that answers 200.
+// Transport-level failover only (W2-2 Hole 1): an HTTP/network error advances
+// to the next node; a well-formed 200 whose BODY fails to parse is returned to
+// the caller — its per-call retry policy owns that case, and a body-level
+// oddity on one node is no reason to distrust the bytes another node already
+// refused to serve. Context cancellation stops the walk immediately.
+func httpGetFirst(ctx context.Context, client *http.Client, urls []string, suffix string) ([]byte, error) {
+	var lastErr error
+	for _, u := range urls {
+		if ctx.Err() != nil {
+			return nil, ctx.Err()
+		}
+		attemptCtx, cancel := context.WithTimeout(ctx, rpcNodeAttemptTimeout)
+		body, err := httpGet(attemptCtx, client, u+suffix)
+		cancel()
+		if err != nil {
+			lastErr = err
+			continue
+		}
+		return body, nil
+	}
+	if lastErr == nil {
+		return nil, fmt.Errorf("no rpc nodes configured")
+	}
+	return nil, lastErr
+}
+
+// rotatedFrom returns urls rotated to start at offset i (mod len). Used by
+// fetchBlockHash's outer retry so consecutive attempts START on different
+// nodes: the retry exists for the "200 with an empty block_id" LB mode, which
+// is NOT a transport error — without rotation every attempt would re-ask the
+// same primary and the healthy fallbacks would never be consulted for the one
+// case this machinery was built for.
+func rotatedFrom(urls []string, i int) []string {
+	n := len(urls)
+	if n <= 1 {
+		return urls
+	}
+	k := i % n
+	out := make([]string, 0, n)
+	out = append(out, urls[k:]...)
+	return append(out, urls[:k]...)
 }
 
 func httpGet(ctx context.Context, client *http.Client, url string) ([]byte, error) {

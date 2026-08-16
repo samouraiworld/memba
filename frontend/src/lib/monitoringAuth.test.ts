@@ -14,7 +14,13 @@ vi.mock("./config", () => ({
     GNO_CHAIN_ID: "mock-chain",
 }))
 
-import { createWebhook, updateWebhook, listWebhooks } from "./monitoringAuth"
+import {
+    createWebhook,
+    updateWebhook,
+    listWebhooks,
+    createAlertContact,
+    updateAlertContact,
+} from "./monitoringAuth"
 
 function jsonResponse(body: unknown, ok = true, status = 200): Response {
     return {
@@ -212,5 +218,83 @@ describe("webhook mutation errors", () => {
 
         await expect(updateWebhook("tok", "govdao", { ...payload, ID: 3 }))
             .resolves.toEqual({ ok: true })
+    })
+})
+
+describe("alert contact wire format", () => {
+    afterEach(() => vi.unstubAllGlobals())
+
+    // The POST/PUT handlers decode into a struct whose tags ARE snake_case.
+    // Go's decoder falls back to case-insensitive matching only when no tag
+    // matches exactly, and that fallback ignores case, not underscores — so
+    // "MentionTag" never reaches `mention_tag`. Sending the domain object
+    // directly stored every contact with an empty tag and id_webhook = 0.
+    it("sends snake_case keys and never the PascalCase domain keys", async () => {
+        const fetchMock = vi.fn().mockResolvedValue(jsonResponse("", true, 201))
+        vi.stubGlobal("fetch", fetchMock)
+
+        await createAlertContact("tok", {
+            Moniker: "val-1",
+            NameContact: "On-call",
+            MentionTag: "123456789012345678",
+            IDwebhook: 42,
+        })
+
+        const body = bodyOf(fetchMock)
+        expect(body.moniker).toBe("val-1")
+        expect(body.namecontact).toBe("On-call")
+        expect(body.mention_tag).toBe("123456789012345678")
+        expect(body.id_webhook).toBe(42)
+        expect(body).not.toHaveProperty("MentionTag")
+        expect(body).not.toHaveProperty("IDwebhook")
+    })
+
+    it("omits id when creating and sends it when updating", async () => {
+        const createMock = vi.fn().mockResolvedValue(jsonResponse("", true, 201))
+        vi.stubGlobal("fetch", createMock)
+        await createAlertContact("tok", {
+            Moniker: "val-1", NameContact: "On-call", MentionTag: "", IDwebhook: 1,
+        })
+        expect(bodyOf(createMock)).not.toHaveProperty("id")
+
+        vi.unstubAllGlobals()
+        const updateMock = vi.fn().mockResolvedValue(jsonResponse("", true, 200))
+        vi.stubGlobal("fetch", updateMock)
+        await updateAlertContact("tok", {
+            ID: 7, Moniker: "val-1", NameContact: "On-call", MentionTag: "", IDwebhook: 1,
+        })
+        expect(bodyOf(updateMock).id).toBe(7)
+    })
+
+    it("keeps an empty mention_tag as an empty string, never drops the key", async () => {
+        // An empty tag is a legal state the server accepts; dropping the key
+        // would be indistinguishable from it on the wire but reads worse.
+        const fetchMock = vi.fn().mockResolvedValue(jsonResponse("", true, 201))
+        vi.stubGlobal("fetch", fetchMock)
+
+        await createAlertContact("tok", {
+            Moniker: "val-1", NameContact: "On-call", MentionTag: "", IDwebhook: 3,
+        })
+
+        expect(bodyOf(fetchMock)).toHaveProperty("mention_tag", "")
+    })
+
+    it("uses POST for create and PUT for update on /alert-contacts", async () => {
+        const fetchMock = vi.fn().mockResolvedValue(jsonResponse("", true, 201))
+        vi.stubGlobal("fetch", fetchMock)
+
+        await createAlertContact("tok", {
+            Moniker: "v", NameContact: "n", MentionTag: "", IDwebhook: 1,
+        })
+        expect(fetchMock.mock.calls[0][0]).toContain("/alert-contacts")
+        expect((fetchMock.mock.calls[0][1] as RequestInit).method).toBe("POST")
+
+        vi.unstubAllGlobals()
+        const putMock = vi.fn().mockResolvedValue(jsonResponse("", true, 200))
+        vi.stubGlobal("fetch", putMock)
+        await updateAlertContact("tok", {
+            ID: 1, Moniker: "v", NameContact: "n", MentionTag: "", IDwebhook: 1,
+        })
+        expect((putMock.mock.calls[0][1] as RequestInit).method).toBe("PUT")
     })
 })

@@ -52,31 +52,40 @@ var MultisigSigVerifySweep = promauto.NewGaugeVec(
 )
 
 // IndexerLastBlock / IndexerChainHead are the frozen-indexer signal: when
-// LastBlock stops advancing while ChainHead climbs, the NFT tailer is stalled
-// (this previously went unnoticed for ~150k blocks). Set in internal/indexer.
+// last_block stops advancing while chain_head climbs, that tailer is stalled
+// (this class went unnoticed TWICE: ~150k blocks on the NFT tailer, then the
+// topaz feed outage — both silent because only the NFT path emitted gauges).
+// Labeled by indexer ∈ {nft, feed}: each tailer owns its own cursor and RPC,
+// so a shared unlabeled gauge would let the live one mask the stalled one.
+// Set in internal/indexer.
 var (
-	IndexerLastBlock = promauto.NewGauge(prometheus.GaugeOpts{
+	IndexerLastBlock = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "memba_indexer_last_block",
-		Help: "Last block height the NFT tailer has processed (alert if it stops advancing).",
-	})
-	IndexerChainHead = promauto.NewGauge(prometheus.GaugeOpts{
+		Help: "Last block height processed, by indexer (nft/feed) — alert if it stops advancing.",
+	}, []string{"indexer"})
+	IndexerChainHead = promauto.NewGaugeVec(prometheus.GaugeOpts{
 		Name: "memba_indexer_chain_head",
-		Help: "Latest chain height the NFT tailer observed; chain_head - last_block is the indexer lag.",
-	})
+		Help: "Latest chain height observed, by indexer (nft/feed); chain_head - last_block is the lag.",
+	}, []string{"indexer"})
 )
 
 // IndexerCyclePanics counts recovered panics inside indexer cycles
-// (nft_tailer / feed_tailer / nft_poller). The indexers run in-process with
-// the RPC server, so before the runRecovered guard a single cycle panic took
-// down API serving with it (W1.5 mitigation). The cycle is skipped and
-// retried on the next tick — but any increment is a bug to investigate, so
-// alert on nonzero.
+// (nft_tailer / feed_tailer / nft_poller / the startup backfills). The
+// indexers run in-process with the RPC server, so before the runRecovered
+// guard a single cycle panic took down API serving with it (W1.5 mitigation).
+// The cycle is skipped and retried on the next tick — but any increment is a
+// bug to investigate, so alert on nonzero.
+//
+// Labeled `cycle`, NOT `indexer`: the gauges above identify the PIPELINE
+// (nft/feed) while this counter identifies the exact recovered CYCLE — a
+// finer vocabulary (feed_tailer, feed_blockts_backfill, …). Reusing one label
+// name for two value spaces would poison any cross-metric indexer view.
 var IndexerCyclePanics = promauto.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "memba_indexer_cycle_panics_total",
-		Help: "Recovered panics inside indexer cycles, by indexer — any increment is a bug; alert on nonzero.",
+		Help: "Recovered panics inside indexer cycles, by cycle — any increment is a bug; alert on nonzero.",
 	},
-	[]string{"indexer"},
+	[]string{"cycle"},
 )
 
 // QuestRateLimitExceeded counts per-address quest rate-limit rejections by
@@ -105,13 +114,14 @@ var NFTEventDropped = promauto.NewCounterVec(
 	[]string{"event"},
 )
 
-// IndexerLag is the computed lag in blocks (chain_head - last_block). A direct
-// alertable gauge — fire when > 30 for more than 2 minutes. Set in the tailer
-// alongside IndexerLastBlock/IndexerChainHead (Wave 1 hardening).
-var IndexerLag = promauto.NewGauge(prometheus.GaugeOpts{
+// IndexerLag is the computed lag in blocks (chain_head - last_block), labeled
+// by indexer ∈ {nft, feed} like the gauges above. A direct alertable gauge —
+// fire when > 30 for more than 2 minutes. Set in the tailers alongside
+// IndexerLastBlock/IndexerChainHead (Wave 1 hardening).
+var IndexerLag = promauto.NewGaugeVec(prometheus.GaugeOpts{
 	Name: "memba_indexer_lag_blocks",
-	Help: "Number of blocks the indexer is behind the chain tip; alert when > 30.",
-})
+	Help: "Blocks behind the chain tip, by indexer (nft/feed); alert when > 30.",
+}, []string{"indexer"})
 
 // RPCDuration is the server-side handler latency of every Connect RPC, labeled by
 // procedure (the full /pkg.Service/Method path — bounded cardinality) and result

@@ -49,10 +49,14 @@ export interface AminoMsg {
  * Convert Amino messages to the shape Adena's DoContract expects.
  *
  * - vm/MsgCall is converted to /vm.m_call.
- * - /vm.m_addpkg (realm deploys built by templates/prologue) and bank/MsgSend
- *   (wallet activation self-send) are already wire-shaped — passed through so
- *   deploys and sends can ride the SAME guarded broadcaster (W2.1).
+ * - /vm.m_addpkg (realm deploys built by templates/prologue) is already
+ *   wire-shaped — passed through so deploys ride the SAME guarded
+ *   broadcaster (W2.1).
  * - Anything else throws: an unknown type must never reach the wallet.
+ *   bank/MsgSend used to pass through for the activation self-send, but
+ *   Adena's DoContract rejects that TYPE wholesale (#1078) — activation is a
+ *   MsgCall now, and the passthrough would only smuggle a guaranteed-to-fail
+ *   message to the wallet.
  *
  * NOTE: MsgRun (/vm.m_run) was tested but can't modify external realm state,
  *       so all DAO calls must use MsgCall with crossing() functions.
@@ -71,7 +75,7 @@ export function toAdenaMessages(msgs: AminoMsg[]) {
                 },
             }
         }
-        if (m.type === "/vm.m_addpkg" || m.type === "bank/MsgSend") {
+        if (m.type === "/vm.m_addpkg") {
             return m
         }
         throw new Error(`toAdenaMessages: unsupported message type: ${m.type}`)

@@ -40,6 +40,16 @@
 > lagging node but can permanently deadlock tmkms during a network-wide halt — disable the
 > validator timer during any coordinated outage, and never "fix" a mid-ceremony halt by restarting
 > the validator.
+>
+> **Fresh-chain login cliff (learned sapphire, 2026-08-16).** On a reset chain EVERY wallet is
+> untransacted: no on-chain pubkey, so Adena refuses dapp-side signing and the app falls back to an
+> address-only login that enforced signed auth (correctly) rejects — the FIRST sign-in of every
+> user hits it. Handled in product since #1073/#1079: the refusal carries `AUTH-ACTIVATE-01` and
+> opens the activation flow (a MsgCall on `ACTIVATION_PROFILE_REALM` — Adena rejects bank/MsgSend
+> from dapps, #1078). Cutover checklist consequences: the activation realm
+> (`r/samcrew/deps/demo/profile`) must be IN the ceremony manifest of any new chain, the faucet must
+> be live before the flag flip (activation needs gas), and the first E2 sign-in after any cutover
+> must be done with a FRESH wallet account, not a carried-over transacted one.
 
 ### Critical environment variables
 
@@ -140,12 +150,20 @@ observed baselines and route to Slack `#memba-alerts`. `rate()`/`increase()` use
 
 > These two are **counters** (`_total`); always wrap in `rate()`/`increase()`. They reset to 0 on each Fly redeploy — `rate()` is counter-reset-aware, a raw gauge read is not.
 
-**Indexer** (Wave 1)
+**Indexer** (Wave 1; per-indexer labels since the sapphire cutover)
+
+The three gauges carry an `indexer` label (`nft` | `feed`) — alert **per label**,
+never on the unlabeled family: the live indexer would otherwise mask the stalled
+one, which is how this class went silent twice. Post-cutover, `feed` is the live
+production path; `nft` reads 0 until the NFT tailer is re-enabled (commerce
+ceremony). The feed tailer also logs a `feed tailer: progress` heartbeat every
+5 min — its **absence** in Fly logs is the log-side stall signal.
 
 | Signal | Alert when | Means / action |
 |--------|-----------|----------------|
-| `memba_indexer_lag_blocks` | > 30 for 2 min | NFT tailer falling behind the tip — check RPC health / tailer logs. |
-| `increase(memba_indexer_last_block[10m])` | == 0 while `memba_indexer_chain_head` rises | Tailer **frozen** (the ~150k-block silent stall class). Restart / investigate. |
+| `memba_indexer_lag_blocks{indexer="feed"}` | > 30 for 2 min | Feed tailer falling behind the tip — check RPC health / tailer logs. |
+| `increase(memba_indexer_last_block{indexer="feed"}[10m])` | == 0 while the matching `memba_indexer_chain_head` rises | Tailer **frozen** (the ~150k-block silent stall class). Restart / investigate. |
+| same two, `{indexer="nft"}` | (arm when the NFT tailer is re-enabled) | Same semantics for the NFT money path. |
 | `increase(memba_nft_event_dropped_total[1h])` | > 0 | On-chain event-schema drift — a Sale/mint was skipped as malformed; inspect the dropped `event` label + logs. |
 
 **Auth & abuse** (Wave 0/1)

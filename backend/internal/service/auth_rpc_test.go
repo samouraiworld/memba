@@ -35,6 +35,23 @@ func TestTokenDeniedWireContract(t *testing.T) {
 		}
 	})
 
+	t.Run("untransacted-wallet rejection surfaces the bare activation code", func(t *testing.T) {
+		wrapped := errors.New("pubkey required — activate your wallet (one on-chain tx) to register its key (" +
+			auth.ActivationRequiredCode + ")")
+		cerr := tokenDenied(wrapped)
+
+		if cerr.Code() != connect.CodePermissionDenied {
+			t.Fatalf("code = %v, want permission_denied", cerr.Code())
+		}
+		if got := cerr.Message(); got != auth.ActivationRequiredCode {
+			t.Fatalf("wire message = %q, want the bare code %q", got, auth.ActivationRequiredCode)
+		}
+		// The server-side prose must never ride the wire.
+		if strings.Contains(cerr.Message(), "pubkey") {
+			t.Fatal("wire message leaks internal error detail")
+		}
+	})
+
 	t.Run("every other auth failure stays message-less", func(t *testing.T) {
 		for _, msg := range []string{
 			"signature mismatch",
