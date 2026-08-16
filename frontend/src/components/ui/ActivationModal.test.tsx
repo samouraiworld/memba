@@ -74,7 +74,11 @@ describe("ActivationModal", () => {
                         send: "",
                         pkg_path: "gno.land/r/samcrew/deps/demo/profile",
                         func: "SetStringField",
-                        args: ["memba:activated", "1"],
+                        // "Bio" is from the realm's OWN field schema — custom
+                        // keys panic ("unknown string profile field"). Empty
+                        // value: an untransacted account has no profile to
+                        // clobber, and "" renders as nothing.
+                        args: ["Bio", ""],
                     },
                 },
             ],

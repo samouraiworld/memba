@@ -28,8 +28,11 @@ export function ActivationModal({ address, rawUgnot, faucetUrl, onSuccess, onDis
             // A6 confirmation apply to activation like any write. The tx is a
             // MsgCall, NOT a bank send: Adena's DoContract rejects the
             // bank/MsgSend TYPE outright (#1078), and any first transaction
-            // registers the key — this one writes a per-caller breadcrumb on
-            // the vendored profile realm and touches nothing else.
+            // registers the key. The realm VALIDATES field names against its
+            // schema (custom keys panic — owner-observed in Adena's gas sim),
+            // so this writes the schema's own "Bio" field with an EMPTY value:
+            // an activating account is untransacted by definition, so there is
+            // no existing profile to clobber, and "" renders as nothing.
             await doContractBroadcast(
                 [{
                     type: "vm/MsgCall",
@@ -38,7 +41,7 @@ export function ActivationModal({ address, rawUgnot, faucetUrl, onSuccess, onDis
                         send: "",
                         pkg_path: ACTIVATION_PROFILE_REALM,
                         func: "SetStringField",
-                        args: ["memba:activated", "1"],
+                        args: ["Bio", ""],
                     },
                 }],
                 "Memba Network Activation",

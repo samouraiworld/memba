@@ -764,7 +764,10 @@ export const GNO_FAUCET_URL = NETWORKS[_activeNetwork]?.faucetUrl || ""
  * SetStringField writes a per-CALLER field — no cross-user effect, dust gas —
  * and ships in the same ceremony manifest as the rest of Memba, so it exists
  * on every chain the app serves by construction (sapphire: seq/height in
- * realm-versions.json, verified via vm/qfuncs 2026-08-16).
+ * realm-versions.json; signature + field schema read back from the deployed
+ * source via vm/qfile 2026-08-16). NOTE the realm validates field names — the
+ * activation call must use a field from ITS schema ("Bio"), never an invented
+ * key ("unknown string profile field" panic, caught live in Adena's gas sim).
  */
 export const ACTIVATION_PROFILE_REALM =
     import.meta.env.VITE_ACTIVATION_REALM_PATH || "gno.land/r/samcrew/deps/demo/profile"
