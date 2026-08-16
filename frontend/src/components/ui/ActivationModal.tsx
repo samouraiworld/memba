@@ -8,9 +8,14 @@ interface ActivationModalProps {
     rawUgnot: bigint
     faucetUrl: string
     onSuccess: () => void
+    /** When set, renders a "Not now" escape hatch. Passed ONLY from the
+     *  signed-out entry point (login refused with AUTH-ACTIVATE-01) — a failed
+     *  sign-in must never lock the user out of read-only browsing. The
+     *  authenticated address-only flow omits it and stays forced. */
+    onDismiss?: () => void
 }
 
-export function ActivationModal({ address, rawUgnot, faucetUrl, onSuccess }: ActivationModalProps) {
+export function ActivationModal({ address, rawUgnot, faucetUrl, onSuccess, onDismiss }: ActivationModalProps) {
     const [activating, setActivating] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -112,6 +117,16 @@ export function ActivationModal({ address, rawUgnot, faucetUrl, onSuccess }: Act
                                 Get GNOT from Faucet
                             </a>
                         </div>
+                    )}
+                    {onDismiss && (
+                        <button
+                            type="button"
+                            className="activation-dismiss"
+                            onClick={onDismiss}
+                            disabled={activating}
+                        >
+                            Not now — keep browsing
+                        </button>
                     )}
                 </div>
             </div>

@@ -32,6 +32,21 @@ export const CHAIN_MISMATCH_LOGIN_MSG =
     "Your wallet is on a different network than this page — switch networks and try again."
 
 /**
+ * Backend rejection code for an address-only login on a chain where signed
+ * auth is enforced (AUTH-UNSIGNED-01): the wallet has never transacted on this
+ * network, so no on-chain pubkey exists and Adena (#800) will neither reveal
+ * nor sign for one. Third use of the bare-code exception. After a chain reset
+ * (the sapphire cutover) EVERY wallet's first sign-in lands here, so this is
+ * the difference between "the whole userbase dead-ends on a generic banner"
+ * and "the whole userbase is walked through activation".
+ */
+export const ACTIVATION_REQUIRED_CODE = "AUTH-ACTIVATE-01"
+
+/** What a user should actually do about it. */
+export const ACTIVATION_LOGIN_MSG =
+    "This wallet hasn't transacted on this network yet — activate it with one small on-chain transaction to sign in."
+
+/**
  * Human copy for a failed sign-in: session-account rejections get the guidance
  * above; anything else passes through, with `fallback` covering non-Error
  * throws and empty messages.
@@ -41,5 +56,6 @@ export function humanizeLoginError(err: unknown, fallback = "Login failed"): str
     if (!msg) return fallback
     if (msg.includes(SESSION_REJECT_CODE)) return SESSION_ACCOUNT_LOGIN_MSG
     if (msg.includes(CHAIN_MISMATCH_CODE)) return CHAIN_MISMATCH_LOGIN_MSG
+    if (msg.includes(ACTIVATION_REQUIRED_CODE)) return ACTIVATION_LOGIN_MSG
     return msg
 }
