@@ -11,6 +11,7 @@ import { useFeedReplyBadge } from "../../hooks/useFeedReplyBadge"
 import { getSavedDAOs } from "../../lib/daoSlug"
 import { APP_VERSION } from "../../lib/config"
 import { buildTokenRequestInfo } from "../../lib/loginChallenge"
+import { ACTIVATION_REQUIRED_CODE, ACTIVATION_LOGIN_MSG } from "../../lib/loginErrors"
 import { syncQuestsToBackend, completeQuest, setQuestWalletAddress, checkAndSetLegacyEligibility } from "../../lib/quests"
 import { DesktopShell } from "./DesktopShell"
 import { MobileShell } from "./MobileShell"
@@ -54,6 +55,11 @@ export function Layout() {
     const network = useNetwork()
     const [authLoading, setAuthLoading] = useState(false)
     const [authError, setAuthError] = useState<string | null>(null)
+    // AUTH-ACTIVATE-01: login failed because this wallet has never transacted
+    // on the active chain. Opens the (dismissible) ActivationModal from the
+    // signed-OUT state — the authenticated gate below can't, by definition,
+    // reach a wallet whose login is being refused.
+    const [needsActivation, setNeedsActivation] = useState(false)
     const [walletSwitchMsg, setWalletSwitchMsg] = useState<string | null>(null)
     const [questToast, setQuestToast] = useState<{ title: string; icon: string; xp: number; rankUp?: string } | null>(null)
     const dismissQuestToast = useCallback(() => setQuestToast(null), [])
@@ -142,7 +148,15 @@ export function Layout() {
             // of read-only browsing. Surface the error + a Retry action (retryLogin);
             // reserve disconnect() for explicit logout and the changedAccount handler.
             console.error("[Memba] Login failed:", err)
-            setAuthError(err instanceof Error ? err.message : "Login failed")
+            const msg = err instanceof Error ? err.message : "Login failed"
+            if (msg.includes(ACTIVATION_REQUIRED_CODE)) {
+                // Untransacted wallet: the remedy is the Activate flow, not a
+                // retry loop. Banner keeps the clean prose (code stripped).
+                setNeedsActivation(true)
+                setAuthError(ACTIVATION_LOGIN_MSG)
+            } else {
+                setAuthError(msg)
+            }
         } finally {
             setAuthLoading(false)
         }
@@ -222,6 +236,7 @@ export function Layout() {
             auth.logout()
             adena.disconnect()
             loginAttemptedRef.current = false
+            setNeedsActivation(false)
         })
         return () => { if (typeof off === "function") off() }
     }, [adena, auth])
@@ -231,6 +246,7 @@ export function Layout() {
         adena.disconnect()
         auth.logout()
         setAuthError(null)
+        setNeedsActivation(false)
         loginAttemptedRef.current = false
     }, [adena, auth])
 
@@ -239,6 +255,7 @@ export function Layout() {
     // auto-loop the way resetting the gate inside the catch would.
     const retryLogin = useCallback(() => {
         setAuthError(null)
+        setNeedsActivation(false)
         loginAttemptedRef.current = false
         performLogin()
     }, [performLogin])
@@ -337,13 +354,21 @@ export function Layout() {
                 networkLabel={network.label}
             />
 
-            {/* ── Address-only session: block UI and force Activation ── */}
-            {adena.connected && auth.isAuthenticated && !adena.pubkeyJSON && (
+            {/* ── Untransacted wallet: two entry points into Activation.
+                 (1) Authenticated address-only session (unsigned-auth chains):
+                     forced, non-dismissible — the session is impersonation-
+                     capable until the key is registered.
+                 (2) Login REFUSED with AUTH-ACTIVATE-01 (enforced-auth chains,
+                     e.g. post-cutover sapphire): the user is signed OUT, so the
+                     modal is guidance, not containment — dismissible back to
+                     read-only browsing. ── */}
+            {adena.connected && !adena.pubkeyJSON && (auth.isAuthenticated || needsActivation) && (
                 <ActivationModal
                     address={adena.address}
                     rawUgnot={rawUgnot}
                     faucetUrl={GNO_FAUCET_URL}
                     onSuccess={() => window.location.reload()}
+                    onDismiss={!auth.isAuthenticated ? () => setNeedsActivation(false) : undefined}
                 />
             )}
 

@@ -3,6 +3,7 @@ import { api } from "../lib/api";
 import {
     SESSION_REJECT_CODE, SESSION_ACCOUNT_LOGIN_MSG,
     CHAIN_MISMATCH_CODE, CHAIN_MISMATCH_LOGIN_MSG,
+    ACTIVATION_REQUIRED_CODE, ACTIVATION_LOGIN_MSG,
 } from "../lib/loginErrors";
 import { TOKEN_KEY, clearStoredToken, onSessionInvalidated } from "../lib/authSession";
 import type { Token } from "../gen/memba/v1/memba_pb";
@@ -135,6 +136,14 @@ export function useAuth() {
                 if (message.includes(CHAIN_MISMATCH_CODE)) {
                     setState((s) => ({ ...s, loading: false, error: CHAIN_MISMATCH_LOGIN_MSG }));
                     throw new Error(CHAIN_MISMATCH_LOGIN_MSG);
+                }
+                // AUTH-ACTIVATE-01: untransacted wallet on an enforced-auth
+                // chain. Rethrown WITH the code kept in the message so the
+                // caller (Layout) can open the Activate-wallet flow, not just
+                // show prose. Same actionability bar as the two above.
+                if (message.includes(ACTIVATION_REQUIRED_CODE)) {
+                    setState((s) => ({ ...s, loading: false, error: ACTIVATION_LOGIN_MSG }));
+                    throw new Error(`${ACTIVATION_LOGIN_MSG} (${ACTIVATION_REQUIRED_CODE})`);
                 }
                 setState((s) => ({ ...s, loading: false, error: message }));
                 return null;

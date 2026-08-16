@@ -79,6 +79,36 @@ describe("ActivationModal", () => {
         expect(adenaMock.DoContract).not.toHaveBeenCalled()
     })
 
+    // The dismiss affordance belongs ONLY to the signed-out entry point (login
+    // refused with AUTH-ACTIVATE-01). The authenticated forced flow passes no
+    // onDismiss and must stay escape-proof.
+    it("renders no dismiss button unless onDismiss is provided (forced flow)", () => {
+        render(
+            <ActivationModal
+                address="g1..."
+                rawUgnot={0n}
+                faucetUrl="https://faucet.gno.land"
+                onSuccess={() => {}}
+            />
+        )
+        expect(screen.queryByRole("button", { name: /not now/i })).not.toBeInTheDocument()
+    })
+
+    it("dismisses back to browsing when onDismiss is provided (signed-out flow)", () => {
+        const onDismiss = vi.fn()
+        render(
+            <ActivationModal
+                address="g1..."
+                rawUgnot={0n}
+                faucetUrl="https://faucet.gno.land"
+                onSuccess={() => {}}
+                onDismiss={onDismiss}
+            />
+        )
+        fireEvent.click(screen.getByRole("button", { name: /not now/i }))
+        expect(onDismiss).toHaveBeenCalledTimes(1)
+    })
+
     it("surfaces a guard rejection instead of activating", async () => {
         doContractBroadcast.mockRejectedValueOnce(new Error("🛡️ Transaction blocked — wrong chain"))
         const onSuccess = vi.fn()
