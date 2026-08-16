@@ -40,6 +40,16 @@
 > lagging node but can permanently deadlock tmkms during a network-wide halt — disable the
 > validator timer during any coordinated outage, and never "fix" a mid-ceremony halt by restarting
 > the validator.
+>
+> **Fresh-chain login cliff (learned sapphire, 2026-08-16).** On a reset chain EVERY wallet is
+> untransacted: no on-chain pubkey, so Adena refuses dapp-side signing and the app falls back to an
+> address-only login that enforced signed auth (correctly) rejects — the FIRST sign-in of every
+> user hits it. Handled in product since #1073/#1079: the refusal carries `AUTH-ACTIVATE-01` and
+> opens the activation flow (a MsgCall on `ACTIVATION_PROFILE_REALM` — Adena rejects bank/MsgSend
+> from dapps, #1078). Cutover checklist consequences: the activation realm
+> (`r/samcrew/deps/demo/profile`) must be IN the ceremony manifest of any new chain, the faucet must
+> be live before the flag flip (activation needs gas), and the first E2 sign-in after any cutover
+> must be done with a FRESH wallet account, not a carried-over transacted one.
 
 ### Critical environment variables
 

@@ -355,13 +355,20 @@ describe('toAdenaMessages', () => {
         expect(adena[0].value.send).toBe('')
     })
 
-    it('passes /vm.m_addpkg and bank/MsgSend through unchanged (W2.1)', () => {
+    it('passes /vm.m_addpkg through unchanged (W2.1)', () => {
         const addPkgMsg = { type: '/vm.m_addpkg', value: { creator: 'g1x', package: {} } }
+        expect(toAdenaMessages([addPkgMsg])).toEqual([addPkgMsg])
+    })
+
+    it('throws on bank/MsgSend — Adena DoContract rejects the TYPE (#1078)', () => {
+        // The passthrough existed solely for the activation self-send; now that
+        // activation is a MsgCall, letting a send-shaped message through would
+        // only smuggle a guaranteed wallet rejection past the guard.
         const sendMsg = {
             type: 'bank/MsgSend',
             value: { from_address: 'g1x', to_address: 'g1x', amount: [{ denom: 'ugnot', amount: '1' }] },
         }
-        expect(toAdenaMessages([addPkgMsg, sendMsg])).toEqual([addPkgMsg, sendMsg])
+        expect(() => toAdenaMessages([sendMsg])).toThrow('unsupported message type')
     })
 
     it('throws on unknown message types (R2-M1 fix)', () => {

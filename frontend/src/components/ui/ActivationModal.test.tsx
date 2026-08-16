@@ -62,14 +62,23 @@ describe("ActivationModal", () => {
         await vi.waitFor(() => {
             expect(onSuccess).toHaveBeenCalled()
         })
+        // #1078: activation must be a VM call — Adena's DoContract rejects the
+        // bank/MsgSend TYPE wholesale, so a send-shaped activation is a
+        // guaranteed dead end for exactly the fresh wallets this modal serves.
         expect(doContractBroadcast).toHaveBeenCalledWith(
             [
                 {
-                    type: "bank/MsgSend",
+                    type: "vm/MsgCall",
                     value: {
-                        from_address: "g1abc",
-                        to_address: "g1abc",
-                        amount: [{ denom: "ugnot", amount: "1" }],
+                        caller: "g1abc",
+                        send: "",
+                        pkg_path: "gno.land/r/samcrew/deps/demo/profile",
+                        func: "SetStringField",
+                        // "Bio" is from the realm's OWN field schema — custom
+                        // keys panic ("unknown string profile field"). Empty
+                        // value: an untransacted account has no profile to
+                        // clobber, and "" renders as nothing.
+                        args: ["Bio", ""],
                     },
                 },
             ],

@@ -272,7 +272,11 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         indexerUrl: import.meta.env.VITE_SAPPHIRE_INDEXER_URL || "https://indexer.sapphire.testnets.gno.land/graphql/query",
         label: "Sapphire",
         userRegistryPath: "gno.land/r/sys/users",
-        faucetUrl: "https://faucet.sapphire.testnets.gno.land",
+        // The chain-specific faucet subdomain is an API-only endpoint — a
+        // browser GET answers 405 (owner-observed 2026-08-16, mid-activation).
+        // Send people to the faucet HUB like every other network entry does;
+        // its "Sapphire Faucet" card is the actual web UI.
+        faucetUrl: "https://faucet.gno.land",
         // Live-verified 2026-08-11 with a WORKING NEGATIVE CONTROL, which is the
         // part that makes this trustworthy: 200 on `/` and on `/r/sys/users`
         // (so it really is a gno chain's gnoweb), 404 on
@@ -751,6 +755,22 @@ export function getTelemetryRpcUrls(): string[] {
 
 /** External faucet URL for the active network (empty = no faucet). */
 export const GNO_FAUCET_URL = NETWORKS[_activeNetwork]?.faucetUrl || ""
+
+/**
+ * Realm the wallet-activation flow calls to register a fresh wallet's pubkey
+ * on-chain (issue #1078). Any first transaction registers the key; this one is
+ * chosen because Adena's DoContract only accepts VM message types (the old
+ * bank/MsgSend self-send was rejected wholesale), and this vendored realm's
+ * SetStringField writes a per-CALLER field — no cross-user effect, dust gas —
+ * and ships in the same ceremony manifest as the rest of Memba, so it exists
+ * on every chain the app serves by construction (sapphire: seq/height in
+ * realm-versions.json; signature + field schema read back from the deployed
+ * source via vm/qfile 2026-08-16). NOTE the realm validates field names — the
+ * activation call must use a field from ITS schema ("Bio"), never an invented
+ * key ("unknown string profile field" panic, caught live in Adena's gas sim).
+ */
+export const ACTIVATION_PROFILE_REALM =
+    import.meta.env.VITE_ACTIVATION_REALM_PATH || "gno.land/r/samcrew/deps/demo/profile"
 
 /** Explorer base URL for the active network (for user profile links, realm links, etc). */
 export function getExplorerBaseUrl(): string {
