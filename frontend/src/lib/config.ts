@@ -752,6 +752,19 @@ export function getTelemetryRpcUrls(): string[] {
 /** External faucet URL for the active network (empty = no faucet). */
 export const GNO_FAUCET_URL = NETWORKS[_activeNetwork]?.faucetUrl || ""
 
+/**
+ * Realm the wallet-activation flow calls to register a fresh wallet's pubkey
+ * on-chain (issue #1078). Any first transaction registers the key; this one is
+ * chosen because Adena's DoContract only accepts VM message types (the old
+ * bank/MsgSend self-send was rejected wholesale), and this vendored realm's
+ * SetStringField writes a per-CALLER field — no cross-user effect, dust gas —
+ * and ships in the same ceremony manifest as the rest of Memba, so it exists
+ * on every chain the app serves by construction (sapphire: seq/height in
+ * realm-versions.json, verified via vm/qfuncs 2026-08-16).
+ */
+export const ACTIVATION_PROFILE_REALM =
+    import.meta.env.VITE_ACTIVATION_REALM_PATH || "gno.land/r/samcrew/deps/demo/profile"
+
 /** Explorer base URL for the active network (for user profile links, realm links, etc). */
 export function getExplorerBaseUrl(): string {
     return getExplorerBaseUrlFor(_activeNetwork)

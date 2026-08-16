@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { ShieldCheck, ArrowRight, Wallet, Spinner } from "@phosphor-icons/react"
 import { doContractBroadcast } from "../../lib/grc20"
+import { ACTIVATION_PROFILE_REALM } from "../../lib/config"
 import "./ActivationModal.css"
 
 interface ActivationModalProps {
@@ -24,14 +25,20 @@ export function ActivationModal({ address, rawUgnot, faucetUrl, onSuccess, onDis
         setError(null)
         try {
             // W2.1: ride the guarded broadcaster — RPC-trust, wrong-chain and
-            // A6 confirmation apply to the activation self-send like any write.
+            // A6 confirmation apply to activation like any write. The tx is a
+            // MsgCall, NOT a bank send: Adena's DoContract rejects the
+            // bank/MsgSend TYPE outright (#1078), and any first transaction
+            // registers the key — this one writes a per-caller breadcrumb on
+            // the vendored profile realm and touches nothing else.
             await doContractBroadcast(
                 [{
-                    type: "bank/MsgSend",
+                    type: "vm/MsgCall",
                     value: {
-                        from_address: address,
-                        to_address: address,
-                        amount: [{ denom: "ugnot", amount: "1" }],
+                        caller: address,
+                        send: "",
+                        pkg_path: ACTIVATION_PROFILE_REALM,
+                        func: "SetStringField",
+                        args: ["memba:activated", "1"],
                     },
                 }],
                 "Memba Network Activation",
@@ -66,14 +73,14 @@ export function ActivationModal({ address, rawUgnot, faucetUrl, onSuccess, onDis
                             <div className="step-number">1</div>
                             <div className="step-text">
                                 <strong>Why is this needed?</strong>
-                                <span>Adena requires a public key to sign in securely. A free, 1-ugnot self-send registers your key.</span>
+                                <span>Adena requires a public key to sign in securely. One tiny on-chain transaction registers your key.</span>
                             </div>
                         </div>
                         <div className="activation-step">
                             <div className="step-number">2</div>
                             <div className="step-text">
                                 <strong>What happens?</strong>
-                                <span>You will send 1 ugnot to your own address. Memba will automatically sign you in right after.</span>
+                                <span>A small note is written to your own on-chain profile — nothing is sent anywhere. Memba will automatically sign you in right after.</span>
                             </div>
                         </div>
                     </div>
