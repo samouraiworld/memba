@@ -9,6 +9,7 @@ import { describe, it, expect } from "vitest"
 import {
     humanizeLoginError, SESSION_ACCOUNT_LOGIN_MSG, SESSION_REJECT_CODE,
     CHAIN_MISMATCH_CODE, CHAIN_MISMATCH_LOGIN_MSG,
+    ACTIVATION_REQUIRED_CODE, ACTIVATION_LOGIN_MSG,
 } from "./loginErrors"
 
 describe("humanizeLoginError", () => {
@@ -45,5 +46,16 @@ describe("humanizeLoginError", () => {
         // Tells the user what to DO, and leaks no server configuration.
         expect(CHAIN_MISMATCH_LOGIN_MSG).toMatch(/switch networks/i)
         expect(CHAIN_MISMATCH_LOGIN_MSG).not.toMatch(/topaz|sapphire|MEMBA_|GNO_CHAIN_ID/i)
+    })
+
+    // AUTH-ACTIVATE-01: an untransacted wallet on an enforced-auth chain is
+    // refused at sign-in. On a freshly reset network that is EVERY user's
+    // first login, so the refusal must arrive as a next step, not a dead end.
+    it("maps the activation-required code to actionable guidance", () => {
+        expect(humanizeLoginError(new Error(ACTIVATION_REQUIRED_CODE))).toBe(ACTIVATION_LOGIN_MSG)
+        expect(humanizeLoginError(`[permission_denied] ${ACTIVATION_REQUIRED_CODE}`)).toBe(ACTIVATION_LOGIN_MSG)
+        // Tells the user what to DO, and leaks no server configuration.
+        expect(ACTIVATION_LOGIN_MSG).toMatch(/activate/i)
+        expect(ACTIVATION_LOGIN_MSG).not.toMatch(/MEMBA_|pubkey|AUTH-/i)
     })
 })
