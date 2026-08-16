@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### The feed no longer depends on a single blockchain node (2026-08-16)
+<!-- categories: memba, network -->
+- **The background process that reads feed posts off the chain was the last part of Memba still tied to exactly one blockchain node.** When that node went away in August's network shutdown, the feed silently stopped for hours — everything else had backup nodes to switch to, but this one path didn't. It now walks the same ordered list of backup nodes the rest of the app uses, switching automatically when a node is unreachable or refuses to answer.
+- A node that answers with something malformed is still treated as an error to investigate rather than silently papered over by asking a different node — switching only happens when a node can't or won't answer at all.
 ### The feed's indexing engine now reports its own health (2026-08-16)
 <!-- categories: memba -->
 - **The background process that brings feed posts from the chain into the app used to report nothing about itself.** When it worked, it was silent; when it silently stopped, it was silent in exactly the same way — which is how two past outages ran on unnoticed. It now continuously publishes how far it has read, how far the chain has advanced, and the gap between the two, plus a heartbeat line in the server logs every five minutes saying it is alive and at what height.
