@@ -20,7 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Memba now runs on the Sapphire test network (2026-08-15)
+### The feed no longer depends on a single blockchain node (2026-08-16)
+<!-- categories: memba, network -->
+- **The background process that reads feed posts off the chain was the last part of Memba still tied to exactly one blockchain node.** When that node went away in August's network shutdown, the feed silently stopped for hours — everything else had backup nodes to switch to, but this one path didn't. It now walks the same ordered list of backup nodes the rest of the app uses, switching automatically when a node is unreachable or refuses to answer.
+- A node that answers with something malformed is still treated as an error to investigate rather than silently papered over by asking a different node — switching only happens when a node can't or won't answer at all.
 <!-- categories: memba, network -->
 - **The app's home network is now Sapphire (`sapphire-1`).** Topaz — the network Memba ran on — was decommissioned on 12 August: its servers stopped answering, and the Adena wallet's 10 August update had already removed it and moved everyone's wallet to Sapphire. For three days the app could load but nothing on-chain worked. Memba's contracts were redeployed to Sapphire on 15 August — every deployment was verified on the chain itself, artifact by artifact, before the switch was flipped.
 - **What you need to do: sign in once, on Sapphire.** Your wallet is already there (Adena moved it for you). Any old signed-in session tied to Topaz is refused cleanly and cleared — you land on a working "connect" button, not a broken app. Usernames and addresses carry over unchanged; they are the same on every gno.land network.

@@ -60,11 +60,12 @@ func StartFeedTailer(ctx context.Context, database *sql.DB, cfg FeedTailerConfig
 	}
 
 	client := &http.Client{Timeout: 15 * time.Second}
-	src := &httpBlockSource{client: client, rpcURL: cfg.RPCURL}
+	src := newHTTPBlockSource(client, cfg.RPCURL)
 
 	go func() {
 		cfg.Logger.Info("feed tailer: started",
 			"rpc", cfg.RPCURL,
+			"rpc_backup_nodes", len(src.urls)-1,
 			"watched_realms", cfg.WatchedRealms,
 			"start_block", cfg.StartBlock,
 		)

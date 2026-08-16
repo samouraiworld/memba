@@ -154,7 +154,7 @@ func TestFetchBlockHash_RetriesPastIntermittentEmpty(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	hash, err := fetchBlockHash(context.Background(), srv.Client(), srv.URL, 260001)
+	hash, err := fetchBlockHash(context.Background(), srv.Client(), []string{srv.URL}, 260001)
 	if err != nil {
 		t.Fatalf("fetchBlockHash must retry past an intermittent empty hash, got: %v", err)
 	}
@@ -180,7 +180,7 @@ func TestFetchBlockHash_FailsAfterAllAttemptsEmpty(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	if _, err := fetchBlockHash(context.Background(), srv.Client(), srv.URL, 260001); err == nil {
+	if _, err := fetchBlockHash(context.Background(), srv.Client(), []string{srv.URL}, 260001); err == nil {
 		t.Fatal("expected an error when every attempt returns an empty hash")
 	}
 	if n := atomic.LoadInt32(&calls); n != blockHashFetchAttempts {
