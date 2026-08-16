@@ -474,7 +474,7 @@ export function Layout() {
                     a higher-priority modal is up — the onboarding wizard, or the
                     address-only activation gate — so the promo never stacks on top) ── */}
                 <GnoIcoAnnouncement
-                    suppressed={showWizard || (adena.connected && auth.isAuthenticated && !adena.pubkeyJSON)}
+                    suppressed={showWizard || (adena.connected && !adena.pubkeyJSON && (auth.isAuthenticated || needsActivation))}
                 />
                 <NetworkStatusToast />
 

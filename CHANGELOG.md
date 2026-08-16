@@ -21,7 +21,7 @@ Full changelogs are split by version range for easier navigation:
 ## [Unreleased]
 
 ### Signing in on a fresh network now walks you through activation (2026-08-16)
-<!-- categories: memba -->
+<!-- categories: memba, network -->
 - **First sign-in after the move to Sapphire used to dead-end on "Authentication failed."** On a brand-new network your wallet has never sent a transaction, so the chain doesn't know its public key yet — and the wallet won't produce the signed proof Memba's sign-in asks for until it does. Memba refused the sign-in (correctly: accepting it without proof would let anyone claim anyone's address) but told you nothing useful about why, and the screen that fixes it — a one-click activation that sends 1 ugnot to yourself to register your key — could only ever appear *after* a successful sign-in. On a fresh network that ordering is exactly backwards, and every single user's first sign-in hit it.
 - **Now the refusal opens the activation screen directly.** It explains what's happening, sends you to the faucet first if your balance is zero, performs the one-tiny-transaction activation through the same safety-guarded path as every other Memba transaction, and signs you in right after. If you'd rather not, "Not now" returns you to browsing — a failed sign-in never locks you out of reading.
 - The security posture is unchanged: sign-ins still require cryptographic proof of key ownership. What changed is that the one situation where that proof cannot exist yet now leads somewhere instead of nowhere.
