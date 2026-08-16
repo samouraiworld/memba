@@ -29,7 +29,6 @@ Full changelogs are split by version range for easier navigation:
 - **A contact with no webhook to attach to is refused up front**, rather than being saved as one that can never fire.
 - **The mention tag field now explains what it wants and keeps explaining it** — the raw numeric user ID, where to find it in Discord, and the fact that mentions only fire on CRITICAL alerts and are never sent to Telegram. Previously the only hint was a placeholder that vanished as soon as you started typing.
 - **Deleting a validator webhook now clears the contacts attached to it from the list straight away**, instead of leaving rows on screen that no longer exist.
-### Signing in on the wrong network now fails honestly instead of half-working (2026-08-11)
 ### Memba now runs on the Sapphire test network (2026-08-15)
 <!-- categories: memba, network -->
 - **The app's home network is now Sapphire (`sapphire-1`).** Topaz — the network Memba ran on — was decommissioned on 12 August: its servers stopped answering, and the Adena wallet's 10 August update had already removed it and moved everyone's wallet to Sapphire. For three days the app could load but nothing on-chain worked. Memba's contracts were redeployed to Sapphire on 15 August — every deployment was verified on the chain itself, artifact by artifact, before the switch was flipped.
