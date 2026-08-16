@@ -179,3 +179,28 @@
     from { opacity: 0; }
     to { opacity: 1; }
 }
+
+/* "Not now" escape hatch — rendered only for the signed-out entry point
+   (login refused with AUTH-ACTIVATE-01); the authenticated forced flow
+   never shows it. Deliberately quiet next to the primary action. */
+.activation-dismiss {
+    width: 100%;
+    margin-top: 12px;
+    padding: 10px;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 13px;
+    cursor: pointer;
+    transition: color 0.15s ease;
+}
+
+.activation-dismiss:hover:not(:disabled) {
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: underline;
+}
+
+.activation-dismiss:disabled {
+    opacity: 0.5;
+    cursor: default;
+}

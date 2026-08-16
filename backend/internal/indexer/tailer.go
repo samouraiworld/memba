@@ -161,7 +161,7 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 		log.Warn("nft tailer: latest height fetch failed", "error", err)
 		return
 	}
-	metrics.IndexerChainHead.Set(float64(latest))
+	metrics.IndexerChainHead.WithLabelValues("nft").Set(float64(latest))
 
 	cursor, storedHash, err := loadCursor(ctx, db, cfg.WatchedRealms, cfg.StartBlock)
 	if err != nil {
@@ -171,7 +171,7 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 
 	// Compute and export indexer lag for alerting (Wave 1 hardening).
 	lag := latest - cursor
-	metrics.IndexerLag.Set(float64(lag))
+	metrics.IndexerLag.WithLabelValues("nft").Set(float64(lag))
 	if lag > 30 {
 		log.Warn("nft tailer: indexer lag exceeds threshold",
 			"lag_blocks", lag, "cursor", cursor, "chain_head", latest)
@@ -259,7 +259,7 @@ func tailOnce(ctx context.Context, db *sql.DB, cfg TailerConfig, watched map[str
 			log.Warn("nft tailer: save cursor failed", "height", h, "error", err)
 			return
 		}
-		metrics.IndexerLastBlock.Set(float64(h))
+		metrics.IndexerLastBlock.WithLabelValues("nft").Set(float64(h))
 	}
 }
 
