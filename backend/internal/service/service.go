@@ -187,18 +187,15 @@ func (s *MultisigService) SetBlockParty(enabled bool, seedRPC string) {
 }
 
 // blockPartyFetcher returns the httpBlockFetcher configured for this service,
-// falling back to the default topaz seed RPC when none has been set.
+// falling back to the default sapphire seed RPC when none has been set.
 func (s *MultisigService) blockPartyFetcher() httpBlockFetcher {
 	url := s.blockPartySeedRPC
 	if url == "" {
-		// Was rpc.topaz.samourai.live until 2026-08-10 (host repurposed to
-		// sapphire-1, DNS record deleted).
-		// NOTE: the live BLOCKPARTY_SEED_RPC_URL secret still points at
-		// rpc.test13.testnets.gno.land, which is NXDOMAIN — so BlockParty is
-		// currently seeding from whatever the fallback chain reaches, i.e. a
-		// different chain than it is configured for. Fixing this default does
-		// not fix that; the secret needs an owner decision.
-		url = "https://rpc.topaz.testnets.gno.land:443"
+		// Sapphire cutover: BlockParty is parked (BLOCKPARTY_ENABLED=0 since
+		// the 2026-08-15 secret rotation — its seed secret pointed at NXDOMAIN
+		// test13). The default still must name a LIVE chain so a future
+		// re-enable without the secret cannot silently seed from a dead one.
+		url = "https://rpc.sapphire.testnets.gno.land:443"
 	}
 	return httpBlockFetcher{rpcURL: url}
 }

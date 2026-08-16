@@ -48,11 +48,11 @@ func renderProxyCase(t *testing.T, db *sql.DB, realm, path string) (body string,
 	return rec.Body.String(), atomic.LoadInt32(hits)
 }
 
-func TestGnoRPCURL_DefaultsToTopaz(t *testing.T) {
+func TestGnoRPCURL_DefaultsToSapphire(t *testing.T) {
 	t.Setenv("GNO_RPC_URL", "") // force the built-in default
-	const want = "https://rpc.topaz.testnets.gno.land:443"
+	const want = "https://rpc.sapphire.testnets.gno.land:443"
 	if got := gnoRPCURL(); got != want {
-		t.Fatalf("gnoRPCURL() default = %q, want pinned topaz node %q (retired-chain drift?)", got, want)
+		t.Fatalf("gnoRPCURL() default = %q, want the live sapphire canonical node %q (retired-chain drift?)", got, want)
 	}
 }
 

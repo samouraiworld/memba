@@ -21,34 +21,30 @@ import (
 // deferred (the realistic fast-fail outage already fails over near-instantly).
 const rpcAttemptTimeout = 8 * time.Second
 
-// defaultTopazFallbacks are the backup topaz RPC nodes tried, in order, when
-// the primary endpoint is unreachable. They mirror the trusted topaz nodes the
-// frontend already fails over to (frontend/src/lib/config.ts topaz rpcUrl +
-// fallbackRpcUrls). Used ONLY on a transport error from the
-// primary — a valid "no record" answer never triggers failover.
-var defaultTopazFallbacks = []string{
-	"https://rpc.topaz.testnets.gno.land:443", // public canonical
-	"https://topaz.rpc.onbloc.xyz:443",        // onbloc test14 node
-	// Our own sentry (rpc.topaz.samourai.live) was retired on 2026-08-10 when
-	// the host was repurposed to sapphire-1; the DNS record is gone and the
-	// box now serves a cert for rpc.sapphire.samourai.live, so every attempt
-	// cost a failed TLS handshake. Replaced with onbloc's node rather than
-	// dropped, so topaz is not single-homed.
-	//
-	// ⚠️ MEASURED 2026-08-10: rpc.topaz.testnets.gno.land returns **HTTP 403**
-	// to the Fly egress IP under the feed tailer's poll rate (/status every 3s
-	// plus 2+ calls per block during catch-up). It blocked us after ~1,200
-	// blocks. This is the #457/#462/#466 behaviour, and it presents as 403, not
-	// 429. Low-volume reads through this list are unaffected — only sustained
-	// polling trips it. That is why FEED_RPC_URL must point at a DIFFERENT node
-	// than GNO_RPC_URL (currently onbloc's), and why the indexer having no
-	// failover of its own is a real gap rather than a theoretical one.
-	// Set RPC_FALLBACK_URLS to add nodes without a code change.
+// defaultSapphireFallbacks are the backup sapphire RPC nodes tried, in order,
+// when the primary endpoint is unreachable. They mirror the trusted sapphire
+// nodes the frontend already fails over to (frontend/src/lib/config.ts
+// sapphire rpcUrl + fallbackRpcUrls) plus our own sentry. Used ONLY on a
+// transport error from the primary — a valid "no record" answer never
+// triggers failover.
+var defaultSapphireFallbacks = []string{
+	"https://rpc.sapphire.testnets.gno.land:443", // public canonical
+	"https://sapphire.rpc.onbloc.xyz:443",        // onbloc's node (what Adena ships)
+	"https://rpc.sapphire.samourai.live:443",     // our sentry (51.159.105.229)
+	// ⚠️ MEASURED 2026-08-10 on topaz, and the lesson carries: the public
+	// canonical node returned **HTTP 403** to the Fly egress IP under the feed
+	// tailer's poll rate (/status every 3s plus 2+ calls per block during
+	// catch-up) — the #457/#462/#466 behaviour, presenting as 403, not 429.
+	// Low-volume reads through this list are unaffected — only sustained
+	// polling trips it. That is why FEED_RPC_URL must point at a DIFFERENT
+	// node than GNO_RPC_URL (our sentry vs the canonical), and why the indexer
+	// having no failover of its own is a real gap rather than a theoretical
+	// one. Set RPC_FALLBACK_URLS to add nodes without a code change.
 }
 
 // rpcFallbackURLs returns the ordered backup node list. RPC_FALLBACK_URLS
 // (comma-separated) overrides the built-in list; blank entries are dropped and
-// surrounding whitespace trimmed. An unset/empty env yields the topaz default.
+// surrounding whitespace trimmed. An unset/empty env yields the sapphire default.
 func rpcFallbackURLs() []string {
 	if v := strings.TrimSpace(os.Getenv("RPC_FALLBACK_URLS")); v != "" {
 		out := make([]string, 0, 4)
@@ -59,7 +55,7 @@ func rpcFallbackURLs() []string {
 		}
 		return out
 	}
-	return defaultTopazFallbacks
+	return defaultSapphireFallbacks
 }
 
 // rpcURLsInOrder returns [primary, ...fallbacks] with duplicates removed and

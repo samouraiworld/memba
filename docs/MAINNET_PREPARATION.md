@@ -6,7 +6,9 @@ This document tracks items to be addressed before the mainnet release.
 
 | Chain | Status | Notes |
 |-------|--------|-------|
-| **testnet13** | ✅ Active | Primary development target. All samcrew realms deployed including `memba_quest_attestation_v1`, `memba_appstore_v3`, and the active NFT engine `memba_nft_market_v3_2` (v3.1 paused, wind-down — 2026-07-10 ceremony). Memba RPC: `rpc.testnet13.samourai.live`. |
+| **sapphire** | ✅ Active | Primary target since 2026-08-15 (chain id `sapphire-1`). Phase-1 funds-free realm set live (24 artifacts, per-height records in `realm-versions.json`); fund-custody commerce set awaits its ceremony. Memba RPC: `rpc.sapphire.samourai.live`. |
+| **topaz** | ⚰️ Retired 2026-08-12 | Full realm set (32 artifacts) remains published on the dead chain; Adena dropped `topaz-1` in v1.20.3. |
+| **testnet13** | ⚰️ Retired 2026-07-26 | Historical primary; carried `memba_appstore_v3`, NFT engine v3.2, and the commerce stack (2026-07-10 ceremony). |
 | **testnet12** | 🔴 Retired | Migration complete. See `TEST12_WINDDOWN_RUNBOOK.md`. |
 | **gnoland1 (betanet)** | 🟡 Live, transfer-locked | Chain is running; transfers gated by `params/bank:p:restricted_denoms` (gno #5629). Memba RPC: `rpc.gnoland1.samourai.live` (+ 3 community fallbacks). No samcrew realms deployed yet — activation planned for v7.1 Phase 5. |
 | **portal-loop** | ✅ Active | Used for validator monitoring. Unstable (frequent resets). |
@@ -135,5 +137,5 @@ The seed is stored as a Fly.io secret and never committed. Challenge expiry is 5
 | NavManifest Completeness | post-v6.3.1 | 5 tests prevent hidden-page drift (#646) |
 
 ---
-*Updated 2026-06-28 during Wave 0-4 security/quality audit session. Chain table corrected (test13 primary, test12 retired). Security hardening items added to completed table. Previous update: 2026-05-11 during v7.1 Phase 1.*
+*Updated 2026-08-15 at the sapphire cutover (chain table: sapphire primary; topaz + test13 retired). Previous: 2026-06-28 Wave 0-4 audit (test13 primary, test12 retired). Security hardening items added to completed table. Previous update: 2026-05-11 during v7.1 Phase 1.*
 

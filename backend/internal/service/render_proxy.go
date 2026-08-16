@@ -109,30 +109,25 @@ func feedRenderSuppressed(ctx context.Context, db *sql.DB, postID uint64) (bool,
 const feedPostUnavailableBody = "# Post unavailable\n\n*This post has been hidden or removed.*\n"
 
 // gnoRPCURL returns the RPC endpoint for the generic render/balance proxies.
-// Overridable via GNO_RPC_URL (set to the pinned samourai topaz node in
-// fly.toml). The built-in default is the same topaz node — NOT retired test13 — so
-// an environment that forgets to set GNO_RPC_URL reads the right chain. The public
-// node is reached only as a failover backup (see rpcURLsInOrder), which rate-
-// limits the Fly egress IP (#466), so it is never the primary.
-//
-// UPDATE 2026-08-10: that arrangement is no longer possible. Our own sentry
-// (rpc.topaz.samourai.live) was retired when its host moved to sapphire-1, so
-// the public node is now necessarily the default. The #466 rate-limit risk is
-// therefore live again — a 6.7k-block feed catch-up on 2026-08-10 completed
-// with zero 429s, but a full rescan is a different order of magnitude. If
-// throttling reappears, set GNO_RPC_URL to a dedicated node rather than
-// reverting this default to a name that no longer resolves.
+// Overridable via GNO_RPC_URL (a Fly secret in prod). The built-in default is
+// the public sapphire canonical — the chain this release serves — so an
+// environment that forgets to set GNO_RPC_URL reads the right chain rather
+// than a retired one. The public node rate-limited the Fly egress IP under
+// sustained polling on topaz (#466, presenting as 403): low-volume proxy reads
+// are fine, but keep the feed tailer on a DIFFERENT node (our sentry,
+// rpc.sapphire.samourai.live) and set GNO_RPC_URL to a dedicated node if
+// throttling reappears.
 func gnoRPCURL() string {
 	if url := os.Getenv("GNO_RPC_URL"); url != "" {
 		return url
 	}
-	return "https://rpc.topaz.testnets.gno.land:443"
+	return "https://rpc.sapphire.testnets.gno.land:443"
 }
 
 // marketplaceRPCURL returns the RPC for the on-chain r/samcrew app realms read
 // by the marketplace proxies and the analyst credit check (agent_registry,
 // escrow_v2, …). It reads its OWN var (MARKETPLACE_RPC_URL, then NFT_RPC_URL)
-// and defaults to the public topaz node, keeping marketplace reads decoupled
+// and defaults to the public sapphire node, keeping marketplace reads decoupled
 // from the generic GNO_RPC_URL even if that is ever repurposed. Failover backups
 // are appended by rpcURLsInOrder.
 func marketplaceRPCURL() string {
@@ -141,7 +136,7 @@ func marketplaceRPCURL() string {
 			return url
 		}
 	}
-	return "https://rpc.topaz.testnets.gno.land:443"
+	return "https://rpc.sapphire.testnets.gno.land:443"
 }
 
 // abciResponse represents the relevant subset of a Gno ABCI query response.

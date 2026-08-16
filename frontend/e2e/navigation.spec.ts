@@ -109,9 +109,12 @@ test.describe('TopBar (Desktop)', () => {
         // entry, and isRealmValidOn failed OPEN on a missing entry, so every
         // commerce lane reported itself live on a chain with no realms (F-28).
         // Assert the real contract instead of the old list — the option must
-        // NOT come back without someone reading this.
-        await expect(selector).toContainText(/Topaz/)
+        // NOT come back without someone reading this. Sapphire replaced Topaz
+        // as the visible testnet at the 2026-08-15 cutover; retired networks
+        // must not reappear either.
+        await expect(selector).toContainText(/Sapphire/)
         await expect(selector.locator('option', { hasText: /Betanet/ })).toHaveCount(0)
+        await expect(selector.locator('option', { hasText: /Topaz/ })).toHaveCount(0)
     })
 
     test('connect wallet button visible when disconnected', async ({ page }) => {

@@ -116,7 +116,9 @@ export function getSuggestedFallback(currentNetworkKey: string): string | null {
     // ChainHaltedBanner offered a one-click switch to a chain with no Memba
     // realms. Now filtered on the same signal the banner uses, and hidden
     // networks are never suggested.
-    const fallbackOrder = ["topaz", "gnoland1"]
+    // topaz left this list at its 2026-08-12 retirement (also now hidden, so
+    // the filter below would drop it anyway — belt and braces, like test13).
+    const fallbackOrder = ["sapphire", "gnoland1"]
     for (const key of fallbackOrder) {
         const net = NETWORKS[key]
         if (key !== currentNetworkKey && net && !net.hidden && networkHasRealms(key)) {

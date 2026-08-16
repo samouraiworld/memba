@@ -89,7 +89,8 @@ test.describe('v1.4.0 — DAO Page', () => {
 
 test.describe('v1.4.0 — CreateToken Placeholders', () => {
     // /test13: form renders only where the factory realm is allowlist-valid;
-    // topaz gates it until the commerce ceremony (see token.spec.ts).
+    // sapphire gates it until its fee config is ruled + deployed (see
+    // token.spec.ts — D3(b)).
     test('neutral placeholders used', async ({ page }) => {
         await page.goto('/test13/create-token')
         // Check that new placeholders are present

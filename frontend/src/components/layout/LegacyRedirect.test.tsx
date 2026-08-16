@@ -94,8 +94,8 @@ describe("LegacyRedirect — bookmarks must heal like / does", () => {
     })
 
     it("keeps a stored VISIBLE network", () => {
-        localStorage.setItem("memba_network", "topaz")
-        expect(renderLegacy("/directory")).toBe("/topaz/directory")
+        localStorage.setItem("memba_network", "sapphire")
+        expect(renderLegacy("/directory")).toBe("/sapphire/directory")
     })
 
     it("falls back to the default when nothing is stored", () => {
@@ -103,8 +103,8 @@ describe("LegacyRedirect — bookmarks must heal like / does", () => {
     })
 
     it("preserves path, search and hash", () => {
-        localStorage.setItem("memba_network", "topaz")
+        localStorage.setItem("memba_network", "sapphire")
         expect(renderLegacy("/dao/gno.land~r~gov~dao?tab=votes#top"))
-            .toBe("/topaz/dao/gno.land~r~gov~dao?tab=votes#top")
+            .toBe("/sapphire/dao/gno.land~r~gov~dao?tab=votes#top")
     })
 })

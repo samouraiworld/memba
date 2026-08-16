@@ -181,14 +181,18 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         explorerUrl: import.meta.env.VITE_TEST13_EXPLORER_URL || "https://test13.testnets.gno.land",
     },
     // ── Topaz (topaz-1) ──────────────────────────────────────────────────
-    // The new official Gno testnet (successor to test13). Memba's core realm
-    // set (memba_dao, candidature_v3, channels_v2, agent_registry_v2, reviews,
-    // quest_attestation, feed, appstore v1/v2) + gnodaokit deployed here via
-    // the 2026-07-21 ceremony (21 artifacts, multisig). Commerce realms
-    // (escrow, NFT, OTC, tokenfactory) are NOT yet deployed — deferred to
-    // the commerce-v2 ceremony.
+    // RETIRED (2026-08-12): the chain was decommissioned — both public RPCs
+    // (official + onbloc) stopped answering — after Adena v1.20.3 had already
+    // dropped topaz-1 and migrated wallet state to sapphire-1. Memba's realm
+    // set (32 artifacts incl. the 2026-07-21 and 2026-07-31 ceremonies) remains
+    // published on the dead chain; realm-versions.json keeps the chain-verified
+    // record. Kept in NETWORKS (hidden) for the same reason as test13: deep
+    // links and stored selections must resolve to the honest degraded view and
+    // the switcher escape, not crash-loop the /:network redirects. Remove the
+    // entry once nothing references it.
     topaz: {
         chainId: "topaz-1",
+        hidden: true,
         isTestnet: true,
         // No monitoringChain override: gnomonitoring's registry currently
         // resolves "topaz-1" directly (verified live 2026-07-23). It briefly
@@ -223,43 +227,34 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         explorerUrl: import.meta.env.VITE_TOPAZ_EXPLORER_URL || "https://topaz.testnets.gno.land",
     },
     // ── Sapphire (sapphire-1) ────────────────────────────────────────────
-    // Topaz's successor, and where Memba is going. Adena v1.20.3 (published to
-    // the Chrome Web Store 2026-08-10) DROPPED `topaz-1` from its shipped
-    // networks and added `sapphire-1`; its v024 storage migration deletes
-    // topaz-scoped established sites, tokens, GRC721 collections and sessions,
-    // and moves the user to the new default testnet. It also strips a
-    // MANUALLY-ADDED topaz-1 custom network (storage-migration-v024.ts:121),
-    // so "just re-add it" is a one-shot workaround, not a strategy.
+    // Memba's LIVE default network since the cutover release. The move was
+    // forced, not chosen: Adena v1.20.3 (Chrome Web Store, 2026-08-10) dropped
+    // `topaz-1` and its v024 storage migration wiped topaz-scoped wallet state,
+    // and topaz-1 itself was decommissioned on 2026-08-12 — so the wallet, the
+    // chain, and this app all had to land on sapphire-1 together.
     //
-    // ⚠️ THIS ENTRY IS DELIBERATELY DARK. It ships the reachability (RPCs,
-    // indexer, faucet, explorer) so the eventual cutover is a small, reviewable
-    // flag flip rather than a big-bang PR — but it changes NOTHING today:
-    //   - `hidden: true`          → absent from the network selector
-    //   - `REALM_ALLOWLIST.sapphire` is `[]` → isRealmValidOn returns false for
-    //     EVERY realm here (fail-CLOSED, :542), so no lane — least of all a
-    //     fund-custody one — can render on it
-    //   - `FEATURED_DAO_REALM.sapphire` is null
-    //   - every PINNED cutover constant (SNAPSHOT_NETWORK, FEED_INDEXED_NETWORK,
-    //     SITEMAP_NETWORK, resolveDefaultNetwork's fallback, chainHealth's
-    //     fallbackOrder) still says `topaz`
-    // Reaching this entry at all requires an explicit /sapphire/ URL or env, and
-    // what you get there is a chain with nothing allowlisted on it.
+    // The entry shipped DARK first (#1063: hidden, realmsDeployed:false, empty
+    // allowlist) so this cutover could be a small reviewable flag flip instead
+    // of a big-bang PR. The flip pairs with three backend moves that MUST land
+    // in the same window (see docs/OPS_RUNBOOK.md): the Fly chain/RPC secrets,
+    // FEED_START_BLOCK (a sapphire height — topaz heights are meaningless
+    // here), and the mandatory feed-state reset (the DB cursor beats the env
+    // floor; stale topaz rows silently poison it).
     //
-    // Live-verified 2026-08-11: both RPCs report network `sapphire-1`,
-    // catching_up false, at the SAME height (81,313); the indexer's
-    // latestBlockHeight matches that height exactly; the faucet answers with the
-    // standard gno JSON-RPC 2.0 error shape. Two independent public RPCs is
-    // better redundancy than topaz has today (its sentry was retired 2026-08-10).
+    // Live-verified before the flip: both RPCs report `sapphire-1`,
+    // catching_up false, matching heights; indexer latestBlockHeight tracks;
+    // faucet answers the standard gno JSON-RPC 2.0 shape.
     sapphire: {
         chainId: "sapphire-1",
-        hidden: true,
-        // Same treatment Betanet gets (:308-309), and for the same reason: we
-        // have deployed nothing here. Without this, `networkHasRealms` defaults
-        // to TRUE (`realmsDeployed !== false`, :481) and anyone reaching
-        // /sapphire/ would get a normal-looking, silently-empty app instead of
-        // the honest RealmsNotDeployedBanner (Layout.tsx:336). Flip to true in
-        // the ceremony PR that actually deploys the realms — not before.
-        realmsDeployed: false,
+        hidden: false,
+        // Flipped to true by the cutover PR AFTER the phase-1 ceremony
+        // published the realm set (deps + gnodaokit + 11 funds-free Memba
+        // realms) — per-artifact vm/qfile records live in realm-versions.json's
+        // `sapphire` section. While this was false it bought the honest
+        // RealmsNotDeployedBanner instead of a silently-empty app (the F-28
+        // failure shape); topaz/test13 now rely on the chain-health degraded
+        // view instead, since their realms ARE deployed — the chains are gone.
+        realmsDeployed: true,
         isTestnet: true,
         // No monitoringChain override: gnomonitoring resolves `sapphire-1`
         // directly (live-verified 2026-08-11, GET /uptime?chain=sapphire-1 →
@@ -374,7 +369,7 @@ export function selectableNetworksFor(activeKey: string): Record<string, Network
  * here without moving that e2e contract first.
  */
 export function resolveDefaultNetwork(envKey: string | undefined): string {
-    return envKey && NETWORKS[envKey] ? envKey : "topaz"
+    return envKey && NETWORKS[envKey] ? envKey : "sapphire"
 }
 
 /** Default network key (always a valid NETWORKS entry — see resolveDefaultNetwork). */
@@ -486,18 +481,25 @@ export function areRealmsDeployed(): boolean {
  * the only gate most of them have. This is not bookkeeping: only add a path once
  * the realm is verified live on the chain.
  *
- * STILL HELD BACK on topaz after the 2026-07-31 commerce-v2 ceremony — all are
- * deployed and verified live on-chain, but each CUSTODIES FUNDS (`OriginSend` in,
- * `SendCoins` out), so listing them opens a money path:
- *   - escrow_v3, memba_token_otc_v2 — blocked on an unverified ceremony
- *     precondition ("old realms paused + reconciliation-drained"). The deployer
- *     does not check it. Confirm before listing, or funds can sit in a superseded
- *     realm while the UI points at the new one.
- *   - memba_nft_v2, memba_collections, memba_market_config,
- *     memba_nft_market_v2, memba_nft_market_v3_1, memba_nft_market_v3_2 — the NFT
- *     stack. It should move as ONE unit (partial listing gives inconsistent
- *     surfaces), and note VITE_ENABLE_NFT was removed from SAFETY_GATED_FLAGS on
- *     2026-06-27, so the allowlist is the only structural gate left on it.
+ * HELD BACK from every live network (this governed topaz until its 2026-08-12
+ * retirement and governs sapphire identically — see #1039/#1040, closed as
+ * superseded with this substance preserved):
+ *   - escrow_v3, memba_token_otc_v2 — CUSTODY FUNDS (`OriginSend` in,
+ *     `SendCoins` out). Their listing was blocked on an unverified ceremony
+ *     precondition ("old realms paused + reconciliation-drained") that the
+ *     deployer never checked; that check must become a deployer preflight gate
+ *     before the sapphire commerce ceremony lists them.
+ *   - memba_nft_v2, memba_collections, memba_nft_market_v2,
+ *     memba_nft_market_v3_1, memba_nft_market_v3_2 — the NFT stack CUSTODIES
+ *     FUNDS and moves as ONE unit (partial listing gives inconsistent
+ *     surfaces). VITE_ENABLE_NFT is back in SAFETY_GATED_FLAGS (this release),
+ *     so the allowlist is no longer its only structural gate.
+ *   - memba_market_config — does NOT custody funds (its three files carry no
+ *     banker/coin references; the only writes are the admin.gno setters), but
+ *     it SETS the fee/treasury the trading engines read, so it ships with the
+ *     commerce ceremony, not before. Classification comes from realm source,
+ *     not from this comment's history (an earlier revision misfiled it as
+ *     custodial).
  */
 const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
     // Betanet: Memba deploys nothing here. An EXPLICIT empty list, not an
@@ -549,7 +551,9 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // by the deployer fund-safety gate, so the lane targets the guarded realm.
         "gno.land/r/samcrew/memba_token_otc_v2",
     ],
-    // Topaz (topaz-1) — ceremony scope (2026-07-21): 9 Memba realms.
+    // Topaz (topaz-1) — ceremony scope (2026-07-21): 9 Memba realms. Chain
+    // RETIRED 2026-08-12; the list stays truthful about what is published on
+    // the (dead) chain for as long as the hidden entry resolves.
     topaz: [
         "gno.land/r/samcrew/memba_dao",
         "gno.land/r/samcrew/memba_dao_candidature_v3",
@@ -577,24 +581,45 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // deployed, and so adding a guard later cannot silently gate it off.
         "gno.land/r/samcrew/gnobuilders_badges_v2",
     ],
-    // Sapphire (sapphire-1) — an EXPLICIT empty list, not an absent key.
+    // Sapphire (sapphire-1) — phase-1 cutover scope: the FUNDS-FREE set only,
+    // published by the multisig ceremony that precedes this PR's merge.
+    // Per-artifact chain proof (vm/qfile fileCount, height, tx) lives in
+    // realm-versions.json's `sapphire` section; every entry below must have a
+    // record there BEFORE this list merges — an entry here without one is a
+    // merge-blocking review finding, not a nit.
     //
-    // Both spellings fail closed today (isRealmValidOn returns false for an
-    // absent key too, :548), so this is about being truthful rather than about
-    // safety: it states "we have verified that Memba has deployed nothing to
-    // sapphire-1" instead of leaving a reader to wonder whether the key was
-    // simply forgotten — which is precisely the ambiguity that preceded F-28 on
-    // Betanet. Live-verified 2026-08-11: gnoweb 404s `/r/samcrew/memba_dao` on
-    // sapphire while returning 200 for it on topaz.
+    // Funds-free discipline (same three-sided check the topaz block above
+    // records): realm source has no `banker.NewBanker`, no
+    // `unsafe.OriginSend()`, no `SendCoins`; the frontend client attaches no
+    // coins; the artifact is chain-verified at the listed path.
     //
-    // ⚠️ Populating this list is the FUND-CUSTODY DECISION, not paperwork. Do
-    // not mirror `topaz` into it as a convenience when the cutover lands: the
-    // NFT stack, escrow_v3 and memba_token_otc_v2 custody funds and are
-    // deliberately held out of `topaz` above (see #1039/#1040). Any entry added
-    // here must first actually EXIST on sapphire-1 — the deploy set depends on
-    // W3-4 reconstructing `realm-versions.json`, which today cannot substantiate
-    // 13 of 34 artifacts.
-    sapphire: [],
+    // DELIBERATE EXCLUSIONS:
+    //   - tokenfactory_v2 — deployable but NOT deployed in phase 1 (owner
+    //     decision D3(b), 2026-08-15): its applyFee mints 2.5% of every Mint()
+    //     to a hardcoded recipient with no setter, and redeploying bakes that
+    //     into an immutable path. isTokenFactoryValid therefore stays false on
+    //     sapphire — token creation is gated dark until the fee config is
+    //     ruled on.
+    //   - the fund-custody set (NFT stack, escrow_v3, memba_token_otc_v2,
+    //     memba_market_config) — sapphire commerce ceremony, see the map
+    //     header.
+    sapphire: [
+        "gno.land/r/samcrew/memba_dao",
+        "gno.land/r/samcrew/memba_dao_candidature_v3",
+        "gno.land/r/samcrew/memba_dao_channels_v2",
+        "gno.land/r/samcrew/agent_registry_v2",
+        "gno.land/r/samcrew/memba_reviews_v1",
+        "gno.land/r/samcrew/memba_quest_attestation_v1",
+        "gno.land/r/samcrew/memba_feed_v1",
+        "gno.land/r/samcrew/memba_appstore_v1",
+        "gno.land/r/samcrew/memba_appstore_v2",
+        "gno.land/r/samcrew/memba_feedback_v2", // de-gates isFeedbackValid
+        // INERT defensively-listed badges realm — same rationale as the topaz
+        // entry: the badges reader keys off BADGE_REALM_PATH with no
+        // isRealmValid predicate, so listing keeps the record truthful and
+        // future-proofs a guard.
+        "gno.land/r/samcrew/gnobuilders_badges_v2",
+    ],
 }
 
 /**
@@ -946,15 +971,15 @@ export const FEEDBACK_REALM_PATH = "gno.land/r/samcrew/memba_feedback_v2"
  * The network key the backend home snapshot is scoped to.
  * useHomeSnapshot gates its query on this key so it never fires on other networks.
  *
- * Held at "test13" through the default-flip PR on purpose: it must move in
- * lockstep with the backend's `homeSnapshotRPCURL`, or the frontend asks for a
- * snapshot of a chain the backend isn't reading. That lockstep is now satisfied
- * — #1009 moved `homeSnapshotRPCURL()` to topaz and prod serves live topaz
- * snapshot data — so this moves to "topaz" here. Between the two, the hook
- * simply self-disabled (safe degradation: the home page rendered without the
- * snapshot enrichment).
+ * PINNED and must move in lockstep with the backend's `homeSnapshotRPCURL`
+ * (HOME_SNAPSHOT_RPC_URL → NFT_RPC_URL fallback), or the frontend asks for a
+ * snapshot of a chain the backend isn't reading. History: held at "test13"
+ * until #1009 moved the backend to topaz; moved to "sapphire" in the cutover
+ * release together with the backend RPC secret flip. Between any two halves of
+ * that window the hook self-disables (safe degradation: home renders without
+ * the snapshot enrichment).
  */
-export const SNAPSHOT_NETWORK = "topaz"
+export const SNAPSHOT_NETWORK = "sapphire"
 
 /**
  * The network key the backend FEED INDEXER is scoped to — i.e. the one chain
@@ -974,8 +999,15 @@ export const SNAPSHOT_NETWORK = "topaz"
  *
  * Topaz cutover (2026-07-26): flipped to "topaz" in the SAME release that flips
  * VITE_GNO_CHAIN_ID and the backend FEED_RPC_URL/FEED_START_BLOCK envs.
+ *
+ * Sapphire cutover: flipped to "sapphire" in the SAME release as the backend
+ * FEED_RPC_URL + FEED_START_BLOCK secret flip AND the mandatory feed-state
+ * reset. The reset is load-bearing, not hygiene: `loadFeedCursor` reads the DB
+ * cursor first and the env value is only a floor for missing rows, so a stale
+ * topaz-height row silently pins the tailer to a block the new chain won't
+ * reach for weeks (and the realm-scoped post ids would collide across chains).
  */
-export const FEED_INDEXED_NETWORK = "topaz"
+export const FEED_INDEXED_NETWORK = "sapphire"
 
 /** Human-readable label for the indexed network (for user-facing copy). */
 export const FEED_INDEXED_NETWORK_LABEL =
@@ -1002,14 +1034,13 @@ export function isFeedWritable(): boolean {
  * absent/null entry causes FeaturedDaoPanel to render null (no error).
  */
 export const FEATURED_DAO_REALM: Record<string, string | null> = {
-    test13: MEMBA_DAO.realmPath, // "gno.land/r/samcrew/memba_dao" — live on test13
-    topaz: MEMBA_DAO.realmPath,  // "gno.land/r/samcrew/memba_dao" — live on topaz-1 (2026-07-21 ceremony)
+    test13: MEMBA_DAO.realmPath, // "gno.land/r/samcrew/memba_dao" — live on test13 (chain retired)
+    topaz: MEMBA_DAO.realmPath,  // "gno.land/r/samcrew/memba_dao" — live on topaz-1 (2026-07-21 ceremony; chain retired 2026-08-12)
     gnoland1: null,
-    // null until memba_dao actually exists on sapphire-1 (gnoweb 404s it today).
-    // getFeaturedDaoRealm also re-checks isRealmValidOn, so pointing this at the
-    // realm early would still resolve to null — but it would encode a claim that
-    // is not yet true. Flip it in the same PR that deploys the DAO there.
-    sapphire: null,
+    // Set in the cutover PR whose ceremony published memba_dao to sapphire-1
+    // (chain proof in realm-versions.json). getFeaturedDaoRealm re-checks
+    // isRealmValidOn, so this stays inert unless the allowlist agrees.
+    sapphire: MEMBA_DAO.realmPath,
 }
 
 /**

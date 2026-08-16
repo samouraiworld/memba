@@ -15,14 +15,14 @@
 | **Shipped Versions** | 52+ (v0.1.0 → v7.3.0) + ongoing feature branches |
 | **Test Suite** | **3,000+ automated tests (CI-enforced)** — 243 Vitest files + 64 Go test files (auth/db/indexer/points/service, incl. `FuzzMakeADR36SignDoc`) + pinned-gno template compile gate + 27 Playwright E2E specs. CI is the source of truth for exact counts. |
 | **Coverage** | Frontend/Backend CI-enforced thresholds (aggregate bump deferred) |
-| **Networks** | **Topaz (`topaz-1`) is the prod default — cutover DONE 2026-07-26** (#1008/#1009). test13 retired by gno-core; hidden from the selector but still resolvable so old deep links don't break. |
+| **Networks** | **Sapphire (`sapphire-1`) is the prod default — cutover DONE 2026-08-15** (forced by topaz-1's decommission + Adena v1.20.3 dropping it). topaz and test13 are retired; both stay hidden-but-resolvable so old deep links don't break. |
 | **Architecture** | Go 1.25.x + ConnectRPC backend (Fly rolling deploys + GHCR mirror + Litestream backups), React 19 + Vite frontend, SQLite, OpenRouter AI |
 | **Security** | Auth: `MEMBA_ALLOW_UNSIGNED_AUTH=0` (fail-closed); 0 open Dependabot alerts on `main` after Wave 1 hardening; 1 own advisory (MEMBA-2026-001) |
-| **On-Chain** | Core realm set live on Topaz (`memba_dao`, `candidature_v3`, `channels_v2`, `agent_registry_v2`, `memba_reviews_v1`, `memba_quest_attestation_v1`, `memba_feed_v1`, `memba_appstore_v1/v2`). Commerce realms (tokenfactory, escrow, NFT, OTC) await the Topaz commerce ceremony — the UI self-gates on them via `isRealmValidOn()`. |
+| **On-Chain** | Core realm set live on Sapphire — 2026-08-15 phase-1 ceremony, 24 artifacts (deps + gnodaokit + `memba_dao`, `candidature_v3`, `channels_v2`, `agent_registry_v2`, `memba_reviews_v1`, `memba_quest_attestation_v1`, `memba_feed_v1`, `memba_appstore_v1/v2`, `memba_feedback_v2`, `gnobuilders_badges_v2`); per-artifact proof in `realm-versions.json`. Fund-custody commerce realms (escrow, NFT stack, OTC, market_config) + `tokenfactory_v2` (fee config unruled) await the Sapphire commerce ceremony — the UI self-gates via `isRealmValidOn()` and `VITE_ENABLE_NFT` is back in `SAFETY_GATED_FLAGS`. |
 | **AI Analyst** | 10 free models via OpenRouter, DAO-level + proposal-level, cached 6h |
 | **GnoBuilders** | 85 quests, 8-tier rank system, leaderboard, badge NFTs (GRC721 `gnobuilders_badges_v2`), **XP cryptographically settled on-chain** |
 | **Active program** | Program "Compound" (Waves 5+) — v7.2.x AAA remediation Waves 0–4 delivered (#732, 2026-07-03) |
-| **Next Priority** | **Owner: the Topaz commerce ceremony** — deploy the commerce/NFT/escrow/OTC realms to `topaz-1`, then de-gate the lanes · **Code: next-cycle plan Waves A–F** |
+| **Next Priority** | **Owner: the Sapphire commerce ceremony** — rule on `tokenfactory_v2`'s fee config (D3), decide the NFT market generation (v3.1 vs v3.2), add the drain-precondition preflight to the deployer, deploy the fund-custody set, then de-gate the lanes deliberately (allowlist + `VITE_ENABLE_NFT`) · **Code: feed-tailer metrics + indexer failover (post-cutover hardening), then next-cycle plan Waves A–F** |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 
