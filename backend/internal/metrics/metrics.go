@@ -70,17 +70,22 @@ var (
 )
 
 // IndexerCyclePanics counts recovered panics inside indexer cycles
-// (nft_tailer / feed_tailer / nft_poller). The indexers run in-process with
-// the RPC server, so before the runRecovered guard a single cycle panic took
-// down API serving with it (W1.5 mitigation). The cycle is skipped and
-// retried on the next tick — but any increment is a bug to investigate, so
-// alert on nonzero.
+// (nft_tailer / feed_tailer / nft_poller / the startup backfills). The
+// indexers run in-process with the RPC server, so before the runRecovered
+// guard a single cycle panic took down API serving with it (W1.5 mitigation).
+// The cycle is skipped and retried on the next tick — but any increment is a
+// bug to investigate, so alert on nonzero.
+//
+// Labeled `cycle`, NOT `indexer`: the gauges above identify the PIPELINE
+// (nft/feed) while this counter identifies the exact recovered CYCLE — a
+// finer vocabulary (feed_tailer, feed_blockts_backfill, …). Reusing one label
+// name for two value spaces would poison any cross-metric indexer view.
 var IndexerCyclePanics = promauto.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "memba_indexer_cycle_panics_total",
-		Help: "Recovered panics inside indexer cycles, by indexer — any increment is a bug; alert on nonzero.",
+		Help: "Recovered panics inside indexer cycles, by cycle — any increment is a bug; alert on nonzero.",
 	},
-	[]string{"indexer"},
+	[]string{"cycle"},
 )
 
 // QuestRateLimitExceeded counts per-address quest rate-limit rejections by
