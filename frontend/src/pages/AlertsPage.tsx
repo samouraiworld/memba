@@ -103,7 +103,17 @@ function Section({ title, icon, defaultOpen = false, children }: {
 }
 
 // ── Webhook sub-section ──────────────────────────────────────
-function WebhookSection({ kind, label, token }: { kind: WebhookKind; label: string; token: () => Promise<string | null> }) {
+function WebhookSection({ kind, label, token, onChanged }: {
+    kind: WebhookKind
+    label: string
+    token: () => Promise<string | null>
+    /** Called after a successful create, update, or delete. Validator webhook
+     *  create/update change which webhooks a contact can link to, and delete
+     *  cascade-deletes the user's linked alert contacts server-side — in all
+     *  three cases the contact form above must be re-fetched or it renders
+     *  against a stale webhook list (or shows deleted rows). */
+    onChanged?: () => void | Promise<void>
+}) {
     const [webhooks, setWebhooks] = useState<MonitoringWebhook[]>([])
     const [loading, setLoading] = useState(true)
     const [editing, setEditing] = useState<MonitoringWebhook | null>(null)
@@ -144,6 +154,7 @@ function WebhookSection({ kind, label, token }: { kind: WebhookKind; label: stri
         if (result.ok) {
             await refreshWebhooks()
             setShowForm(false)
+            await onChanged?.()
         }
         return result
     }
@@ -156,6 +167,7 @@ function WebhookSection({ kind, label, token }: { kind: WebhookKind; label: stri
         if (result.ok) {
             await refreshWebhooks()
             setEditing(null)
+            await onChanged?.()
         }
         return result
     }
@@ -165,7 +177,10 @@ function WebhookSection({ kind, label, token }: { kind: WebhookKind; label: stri
         if (!t) return
         setDeletingId(id)
         const ok = await api.deleteWebhook(t, kind, id)
-        if (ok) await refreshWebhooks()
+        if (ok) {
+            await refreshWebhooks()
+            await onChanged?.()
+        }
         setDeletingId(null)
     }
 
@@ -250,7 +265,12 @@ function WebhookSection({ kind, label, token }: { kind: WebhookKind; label: stri
 function AlertsContent() {
     const auth = useClerkAuth()
     const [contacts, setContacts] = useState<api.AlertContact[]>([])
-    const [allWebhooks, setAllWebhooks] = useState<MonitoringWebhook[]>([])
+    // Validator-only, deliberately. The server resolves a contact's id_webhook
+    // against WebhookValidator alone, and only validator alerts ever fire a
+    // mention. The two webhook tables have independent autoincrement ids, so
+    // merging them produced colliding <option> values and contacts silently
+    // attached to the wrong webhook.
+    const [validatorWebhooks, setValidatorWebhooks] = useState<MonitoringWebhook[]>([])
     const [schedule, setSchedule] = useState<api.ReportSchedule | null>(null)
     const [loadingContacts, setLoadingContacts] = useState(false)
 
@@ -261,15 +281,14 @@ function AlertsContent() {
             const t = await auth.getToken()
             if (!t) return
             setLoadingContacts(true)
-            const [c, s, wGov, wVal] = await Promise.all([
+            const [c, s, wVal] = await Promise.all([
                 api.listAlertContacts(t),
                 api.getReportSchedule(t),
-                api.listWebhooks(t, "govdao"),
                 api.listWebhooks(t, "validator"),
             ])
             setContacts(c)
             setSchedule(s)
-            setAllWebhooks([...wGov, ...wVal])
+            setValidatorWebhooks(wVal)
             setLoadingContacts(false)
         }
         load()
@@ -325,13 +344,12 @@ function AlertsContent() {
     const refreshContacts = async () => {
         const t = await auth.getToken()
         if (!t) return
-        const [c, wG, wV] = await Promise.all([
+        const [c, wVal] = await Promise.all([
             api.listAlertContacts(t),
-            api.listWebhooks(t, "govdao"),
             api.listWebhooks(t, "validator"),
         ])
         setContacts(c)
-        setAllWebhooks([...wG, ...wV])
+        setValidatorWebhooks(wVal)
     }
 
     return (
@@ -370,7 +388,7 @@ function AlertsContent() {
             <Section title="Webhooks" icon={<span>🔔</span>}>
                 <WebhookSection kind="govdao" label="GovDAO" token={auth.getToken} />
                 <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)", margin: "8px 0" }} />
-                <WebhookSection kind="validator" label="Validator" token={auth.getToken} />
+                <WebhookSection kind="validator" label="Validator" token={auth.getToken} onChanged={refreshContacts} />
             </Section>
 
             {/* Section C: Contacts & Schedule */}
@@ -384,20 +402,20 @@ function AlertsContent() {
                     <>
                         <AlertContactForm
                             contacts={contacts}
-                            webhooks={allWebhooks}
+                            webhooks={validatorWebhooks}
                             onAdd={async (data) => {
                                 const t = await auth.getToken()
-                                if (!t) return false
-                                const ok = await api.createAlertContact(t, data)
-                                if (ok) await refreshContacts()
-                                return ok
+                                if (!t) return { ok: false, error: "Not signed in" }
+                                const result = await api.createAlertContact(t, data)
+                                if (result.ok) await refreshContacts()
+                                return result
                             }}
                             onUpdate={async (data) => {
                                 const t = await auth.getToken()
-                                if (!t) return false
-                                const ok = await api.updateAlertContact(t, data)
-                                if (ok) await refreshContacts()
-                                return ok
+                                if (!t) return { ok: false, error: "Not signed in" }
+                                const result = await api.updateAlertContact(t, data)
+                                if (result.ok) await refreshContacts()
+                                return result
                             }}
                             onDelete={async (id) => {
                                 const t = await auth.getToken()

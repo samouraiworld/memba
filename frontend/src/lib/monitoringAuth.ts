@@ -238,52 +238,82 @@ export async function listAlertContacts(token: string): Promise<AlertContact[]> 
     return data || []
 }
 
-export async function createAlertContact(
+/**
+ * Domain → wire for an alert contact.
+ *
+ * Asymmetric with the read shape on purpose. `GET /alert-contacts` returns
+ * gnomonitoring's GORM model, which carries no JSON tags and therefore comes
+ * back PascalCase — which is why the `AlertContact` interface above is right
+ * for reading and must not be "normalised". The POST/PUT handlers decode into
+ * a DIFFERENT struct whose tags are snake_case (`mention_tag`, `id_webhook`).
+ *
+ * Go's decoder only falls back to case-insensitive matching when no tag
+ * matches exactly, and that fallback ignores case, not underscores. So
+ * `Moniker`→`moniker` matched, but `MentionTag`→`mention_tag` did not:
+ * every contact created from this form was stored with an empty tag and
+ * `id_webhook = 0`, answered 201, and could never fire a mention.
+ */
+function toContactWire(c: Omit<AlertContact, "ID"> & { ID?: number }): Record<string, unknown> {
+    const wire: Record<string, unknown> = {
+        moniker: c.Moniker,
+        namecontact: c.NameContact,
+        mention_tag: c.MentionTag,
+        id_webhook: c.IDwebhook,
+    }
+    if (c.ID != null) wire.id = c.ID
+    return wire
+}
+
+/**
+ * POST/PUT an alert contact, preserving the server's explanation on refusal.
+ *
+ * The hardened endpoints refuse far more than they used to — unowned webhook,
+ * blank required fields, non-numeric tag, unknown contact, and a payload that
+ * would unlink a contact from its webhook. Collapsing all of that to a boolean
+ * would replace one silent no-op with another.
+ */
+async function mutateAlertContact(
     token: string,
-    payload: Omit<AlertContact, "ID">,
-): Promise<boolean> {
-    if (!GNO_MONITORING_API_URL) return false
+    method: "POST" | "PUT",
+    payload: Omit<AlertContact, "ID"> & { ID?: number },
+): Promise<MutationResult> {
+    if (!GNO_MONITORING_API_URL) {
+        return { ok: false, error: "Monitoring API is not configured" }
+    }
 
     try {
-        const url = `${GNO_MONITORING_API_URL}/alert-contacts`
-        const res = await fetch(url, {
-            method: "POST",
+        const res = await fetch(`${GNO_MONITORING_API_URL}/alert-contacts`, {
+            method,
             headers: {
                 "Content-Type": "application/json",
                 Authorization: `Bearer ${token}`,
             },
-            body: JSON.stringify(payload),
+            body: JSON.stringify(toContactWire(payload)),
             signal: AbortSignal.timeout(8000),
         })
-        return res.ok
+
+        if (res.ok) return { ok: true }
+
+        const detail = (await res.text()).trim().slice(0, 200)
+        return { ok: false, error: detail || `Request failed (HTTP ${res.status})` }
     } catch (err) {
-        console.warn("[monitoringAuth] createAlertContact failed:", err)
-        return false
+        console.warn(`[monitoringAuth] ${method} /alert-contacts failed:`, err)
+        return { ok: false, error: "Network error — please try again" }
     }
 }
 
-export async function updateAlertContact(
+export function createAlertContact(
+    token: string,
+    payload: Omit<AlertContact, "ID">,
+): Promise<MutationResult> {
+    return mutateAlertContact(token, "POST", payload)
+}
+
+export function updateAlertContact(
     token: string,
     payload: AlertContact,
-): Promise<boolean> {
-    if (!GNO_MONITORING_API_URL) return false
-
-    try {
-        const url = `${GNO_MONITORING_API_URL}/alert-contacts`
-        const res = await fetch(url, {
-            method: "PUT",
-            headers: {
-                "Content-Type": "application/json",
-                Authorization: `Bearer ${token}`,
-            },
-            body: JSON.stringify(payload),
-            signal: AbortSignal.timeout(8000),
-        })
-        return res.ok
-    } catch (err) {
-        console.warn("[monitoringAuth] updateAlertContact failed:", err)
-        return false
-    }
+): Promise<MutationResult> {
+    return mutateAlertContact(token, "PUT", payload)
 }
 
 export async function deleteAlertContact(
