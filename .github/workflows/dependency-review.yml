@@ -41,5 +41,14 @@ jobs:
           # Allow common permissive licenses. Reject everything else (unknown
           # OSS license = manual review). Add new licenses here only after a
           # case-by-case sign-off.
-          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0, 0BSD, Unlicense, CC0-1.0, LicenseRef-bad-see-license-in-license.md
+          #
+          # LicenseRef-scancode-google-patent-license-golang (signed off
+          # 2026-08-16, #1044): the PATENTS file every golang.org/x module
+          # ships — Google's patent grant, an additional permission on top of
+          # BSD-3-Clause, the same terms Go itself is under. Scancode reports
+          # it as `BSD-3-Clause AND LicenseRef-...`, and the gate requires
+          # every operand of an AND to be allowed, so without this entry any
+          # golang.org/x bump can trip the gate (first hit: cosmos-sdk 0.55.0
+          # pulling x/exp).
+          allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MPL-2.0, 0BSD, Unlicense, CC0-1.0, LicenseRef-bad-see-license-in-license.md, LicenseRef-scancode-google-patent-license-golang
           comment-summary-in-pr: on-failure
