@@ -415,7 +415,7 @@ func fetchBlockHash(ctx context.Context, client *http.Client, urls []string, hei
 			case <-time.After(blockHashRetryDelay):
 			}
 		}
-		body, err := httpGetFirst(ctx, client, urls, suffix)
+		body, err := httpGetFirst(ctx, client, rotatedFrom(urls, attempt), suffix)
 		if err != nil {
 			lastErr = err
 			continue
@@ -487,6 +487,20 @@ func fetchBlockEvents(ctx context.Context, client *http.Client, urls []string, h
 	return parseBlockResults(body, height)
 }
 
+// rpcNodeAttemptTimeout bounds ONE node attempt inside httpGetFirst, so a
+// HANGING (not fast-failing) node costs at most this much before the walk
+// advances — the same trade-off internal/service.rpcAttemptTimeout makes, and
+// deliberately the same value. The tailer's http.Client keeps its own 15s
+// ceiling as the outer backstop.
+//
+// KNOWN LIMITATION (mirrors rpc_resilient.go's): there is no last-known-good
+// memoization, so while a primary hangs, every fetch in every cycle re-pays
+// this timeout on it before failing over; a catch-up cycle multiplies that by
+// its serial per-block fetches. Bounded (ticks never overlap; the ticker drops
+// missed ticks) and self-healing, so accepted — the realistic dead-node outage
+// fails over near-instantly.
+const rpcNodeAttemptTimeout = 8 * time.Second
+
 // httpGetFirst GETs base+suffix from the first node in urls that answers 200.
 // Transport-level failover only (W2-2 Hole 1): an HTTP/network error advances
 // to the next node; a well-formed 200 whose BODY fails to parse is returned to
@@ -499,7 +513,9 @@ func httpGetFirst(ctx context.Context, client *http.Client, urls []string, suffi
 		if ctx.Err() != nil {
 			return nil, ctx.Err()
 		}
-		body, err := httpGet(ctx, client, u+suffix)
+		attemptCtx, cancel := context.WithTimeout(ctx, rpcNodeAttemptTimeout)
+		body, err := httpGet(attemptCtx, client, u+suffix)
+		cancel()
 		if err != nil {
 			lastErr = err
 			continue
@@ -510,6 +526,23 @@ func httpGetFirst(ctx context.Context, client *http.Client, urls []string, suffi
 		return nil, fmt.Errorf("no rpc nodes configured")
 	}
 	return nil, lastErr
+}
+
+// rotatedFrom returns urls rotated to start at offset i (mod len). Used by
+// fetchBlockHash's outer retry so consecutive attempts START on different
+// nodes: the retry exists for the "200 with an empty block_id" LB mode, which
+// is NOT a transport error — without rotation every attempt would re-ask the
+// same primary and the healthy fallbacks would never be consulted for the one
+// case this machinery was built for.
+func rotatedFrom(urls []string, i int) []string {
+	n := len(urls)
+	if n <= 1 {
+		return urls
+	}
+	k := i % n
+	out := make([]string, 0, n)
+	out = append(out, urls[k:]...)
+	return append(out, urls[:k]...)
 }
 
 func httpGet(ctx context.Context, client *http.Client, url string) ([]byte, error) {

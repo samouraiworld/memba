@@ -100,6 +100,60 @@ func TestFetchLatestHeight_AllNodesDownReturnsLastError(t *testing.T) {
 	}
 }
 
+// The empty-hash retry (a 200 whose block_id is empty — the documented LB
+// mode) is NOT a transport error, so plain failover never helps it. The
+// rotation makes consecutive attempts START on different nodes: a primary
+// stuck on empty answers must not monopolize all three attempts while a
+// healthy fallback sits idle.
+func TestFetchBlockHash_EmptyHashRotatesToFallback(t *testing.T) {
+	prev := blockHashRetryDelay
+	blockHashRetryDelay = 0
+	defer func() { blockHashRetryDelay = prev }()
+
+	var primaryHits atomic.Int64
+	emptyPrimary := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		primaryHits.Add(1)
+		_, _ = w.Write([]byte(`{"result":{"block_meta":{"block_id":{"hash":""}}}}`))
+	}))
+	defer emptyPrimary.Close()
+
+	goodFallback := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(`{"result":{"block_meta":{"block_id":{"hash":"deadbeef"}}}}`))
+	}))
+	defer goodFallback.Close()
+
+	hash, err := fetchBlockHash(context.Background(), http.DefaultClient,
+		[]string{emptyPrimary.URL, goodFallback.URL}, 42)
+	if err != nil {
+		t.Fatalf("rotation must reach the healthy fallback, got: %v", err)
+	}
+	if hash != "deadbeef" {
+		t.Fatalf("hash = %q, want the fallback's answer", hash)
+	}
+	if primaryHits.Load() != 1 {
+		t.Fatalf("primary hit %d times, want exactly 1 (attempt 2 must START on the fallback)", primaryHits.Load())
+	}
+}
+
+func TestRotatedFrom(t *testing.T) {
+	urls := []string{"a", "b", "c"}
+	for _, tc := range []struct {
+		i    int
+		want string
+	}{
+		{0, "a b c"}, {1, "b c a"}, {2, "c a b"}, {3, "a b c"},
+	} {
+		got := strings.Join(rotatedFrom(urls, tc.i), " ")
+		if got != tc.want {
+			t.Fatalf("rotatedFrom(%d) = %q, want %q", tc.i, got, tc.want)
+		}
+	}
+	single := []string{"only"}
+	if got := rotatedFrom(single, 5); len(got) != 1 || got[0] != "only" {
+		t.Fatalf("single-element rotation changed the slice: %v", got)
+	}
+}
+
 // BlockEvents rides the same failover path — one spot-check at a different
 // endpoint so a future per-endpoint regression cannot hide behind /status.
 func TestFetchBlockEvents_FailsOverPastDeadPrimary(t *testing.T) {
