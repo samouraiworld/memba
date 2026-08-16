@@ -75,11 +75,14 @@ primary_region = 'cdg'
   # NFT indexer — DISABLED through the sapphire cutover: the fund-custody NFT
   # realms are NOT deployed on sapphire (their commerce ceremony is separate
   # from phase 1), and the tailer's chain-agnostic nft_indexer_state cursor
-  # must not advance against the wrong chain. Re-enabling REQUIRES clearing
-  # nft_indexer_state + the nft projections first (NFT_SEED_REALM_CURSOR is
-  # INSERT OR IGNORE — it will NOT rewind retained test13/topaz-era rows, and
-  # the projection keys collide across chains like the feed's did), then
-  # setting NFT_START_BLOCK to the sapphire deploy height.
+  # must not advance against the wrong chain. Re-enabling REQUIRES running
+  # `fly ssh console -C "/app/memba nft-reset"` first — it wipes
+  # nft_indexer_state + the eight event/projection tables in one transaction
+  # (NFT_SEED_REALM_CURSOR is INSERT OR IGNORE — it will NOT rewind retained
+  # test13/topaz-era rows, and the projection keys collide across chains like
+  # the feed's did) — then setting NFT_START_BLOCK to the sapphire deploy
+  # height (the code default is a test13-era height; never rely on it).
+  # Full re-enable sequence: docs/SAPPHIRE_COMMERCE_CEREMONY.md §4.
   NFT_INDEXER_DISABLED = '1'
   # NFT indexer RPC — LOAD-BEARING from this file (NOT a secret). Dormant as an
   # indexer source while NFT_INDEXER_DISABLED=1, but also the fallback for

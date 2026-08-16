@@ -118,6 +118,29 @@ func main() {
 		return
 	}
 
+	// `memba nft-reset` — the REQUIRED step before re-enabling the NFT tailer on
+	// a new chain (see the NFT_INDEXER_DISABLED block below): loadCursor takes
+	// the MIN last_processed_block across watched realms and the DB row always
+	// beats the NFT_START_BLOCK env floor, so dead-chain rows pin the tailer
+	// above a young chain's head ("silently indexes nothing") and SeedRealmCursor
+	// (INSERT OR IGNORE) can never rewind them. Wipes the nine NFT tables in one
+	// transaction — event-keyed rows and their projections collide across chains
+	// exactly like the feed's. Runs via `fly ssh console -C "/app/memba
+	// nft-reset"` because the runtime image has no sqlite3 CLI. History is
+	// preserved by the Litestream replica, not here. Run it BEFORE unsetting
+	// NFT_INDEXER_DISABLED; while the tailer is disabled nothing rewrites these
+	// tables, and the home snapshot degrades cleanly to StaleSources until the
+	// new chain catches up.
+	if len(os.Args) > 1 && os.Args[1] == "nft-reset" {
+		counts, err := db.ResetNFTState(dbPath)
+		if err != nil {
+			slog.Error("nft reset failed", "path", dbPath, "error", err)
+			os.Exit(1)
+		}
+		slog.Info("nft reset complete", "path", dbPath, "deleted", counts)
+		return
+	}
+
 	corsOrigins := os.Getenv("CORS_ORIGINS")
 	if corsOrigins == "" {
 		corsOrigins = "http://localhost:5173"

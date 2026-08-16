@@ -1,7 +1,8 @@
 /**
  * marketplace/builders.ts — MsgCall builders for escrow transactions.
  *
- * Matches the on-chain escrow realm at gno.land/r/samcrew/escrow.
+ * Matches the on-chain escrow realm API (escrow_v3 lineage — the callers pass
+ * the active realm path from config, so these builders are path-agnostic).
  * Each builder generates an Amino-compatible /vm.m_call message for Adena.
  */
 
