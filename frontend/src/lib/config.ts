@@ -286,6 +286,44 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // absent here and must lead the publish order).
         explorerUrl: import.meta.env.VITE_SAPPHIRE_EXPLORER_URL || "https://sapphire.testnets.gno.land",
     },
+    pearl: {
+        // Pearl — the next testnet, released as an RC, launch target
+        // 2026-08-26; it SUPERSEDES sapphire-1. Pre-registered 2026-08-23 so
+        // the cutover is a flag flip, not a new block: see
+        // docs/PEARL_CUTOVER_PLAN.md.
+        //
+        // ⚠️ chainId is the EXPECTED value by the testnets naming convention.
+        // Confirm it from the LAUNCHED node (GET <rpc>/status →
+        // .result.node_info.network) in the cutover PR — until then this entry
+        // stays `hidden` (never in the selector, never restored from storage,
+        // only resolvable by explicit URL) and `realmsDeployed: false` buys the
+        // honest RealmsNotDeployedBanner for anyone who lands on it. Auth is
+        // fail-closed anyway: a wrong chainId here can only produce a token the
+        // server refuses (AUTH-CHAINID-MISMATCH-01), never a wrong-chain tx.
+        chainId: "pearl-1",
+        hidden: true,
+        // Flip to true in the cutover PR AFTER the combined Pearl ceremony
+        // (core set + commerce set) has per-artifact vm/qfile records in
+        // realm-versions.json's `pearl` section — same rule as sapphire's flip.
+        realmsDeployed: false,
+        isTestnet: true,
+        // Expected endpoints by convention — VERIFY at launch (no DNS as of
+        // 2026-08-23); env overrides exist so a preview can point at whatever
+        // the launch actually exposes without a code change.
+        rpcUrl: import.meta.env.VITE_PEARL_RPC_URL || "https://rpc.pearl.testnets.gno.land:443",
+        // Fill with onbloc's / the samourai sentry's pearl nodes once they
+        // exist (the sentry needs its own chain/pearl deployment first).
+        fallbackRpcUrls: [],
+        telemetryRpcUrls: [],
+        indexerUrl: import.meta.env.VITE_PEARL_INDEXER_URL || "https://indexer.pearl.testnets.gno.land/graphql/query",
+        label: "Pearl",
+        userRegistryPath: "gno.land/r/sys/users",
+        // Hub, not the per-chain subdomain (API-only — browser GET → 405, the
+        // sapphire lesson): activation needs gas, so verify Pearl is listed on
+        // the hub before the flag flip.
+        faucetUrl: "https://faucet.gno.land",
+        explorerUrl: import.meta.env.VITE_PEARL_EXPLORER_URL || "https://pearl.testnets.gno.land",
+    },
     gnoland1: {
         chainId: "gnoland1",
         rpcUrl: "https://rpc.gnoland1.samourai.live:443",
@@ -510,6 +548,15 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
     // absent key — absent means "no allowlist", which isRealmValidOn used to
     // read as "everything is valid" (F-28).
     gnoland1: [],
+    // Pearl: NOTHING deployed yet (pre-registered 2026-08-23, hidden). An
+    // EXPLICIT empty list for the same F-28 reason as gnoland1. The cutover PR
+    // fills it with the combined-ceremony set — the 24 core artifacts PLUS the
+    // ceremony-verified commerce set (escrow_v3, memba_token_otc_v2,
+    // tokenfactory_v2, memba_collections, memba_market_config,
+    // memba_nft_market_v3_2 — the NFT stack as one unit; the legacy v2 pair and
+    // v3_1 are NOT deployed on pearl, so never listed) — every entry backed by a
+    // realm-versions.json `pearl` record first (merge-blocking rule above).
+    pearl: [],
     test13: [
         "gno.land/r/samcrew/memba_dao",
         "gno.land/r/samcrew/memba_dao_candidature_v2", // paused; kept so the 2 legacy applicants can still Withdraw

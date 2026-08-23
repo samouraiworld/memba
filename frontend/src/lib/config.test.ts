@@ -76,6 +76,43 @@ describe('config constants', () => {
         expect(NETWORKS.topaz).toBeDefined()
     })
 
+    // Pearl is PRE-REGISTERED (2026-08-23), not live: the next testnet (RC,
+    // launch target 2026-08-26) that supersedes sapphire. Until the cutover PR
+    // confirms its chain id from the launched node and records the combined
+    // ceremony, it must stay invisible, honest about having no realms, and
+    // fail-closed on every realm. These three pins are what the cutover PR
+    // flips — deliberately, one by one.
+    it('pearl is pre-registered but hidden, with no realms and a fail-closed allowlist', () => {
+        expect(NETWORKS.pearl).toBeDefined()
+        expect(NETWORKS.pearl.hidden).toBe(true)
+        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('pearl')
+        expect(NETWORKS.pearl.realmsDeployed).toBe(false)
+        expect(NETWORKS.pearl.isTestnet).toBe(true)
+        // The expected id by convention — the cutover PR re-asserts it against
+        // the launched node's /status before un-hiding.
+        expect(NETWORKS.pearl.chainId).toBe('pearl-1')
+        // Hub faucet, never the API-only per-chain subdomain (the sapphire
+        // 405 lesson).
+        expect(NETWORKS.pearl.faucetUrl).toBe('https://faucet.gno.land')
+        // Explicit empty allowlist (F-28: absent would be read as open).
+        for (const path of [
+            'gno.land/r/samcrew/memba_dao',
+            'gno.land/r/samcrew/memba_feed_v1',
+            'gno.land/r/samcrew/tokenfactory_v2',
+            'gno.land/r/samcrew/escrow_v3',
+            NFT_MARKETPLACE_V3_PATH,
+        ]) {
+            expect(isRealmValidOn('pearl', path)).toBe(false)
+        }
+    })
+
+    it('pearl resolves as a default-network key but is never the fallback', () => {
+        // VITE_GNO_CHAIN_ID=pearl selects it at cutover; an unset/unknown env
+        // still falls back to sapphire until that flip.
+        expect(resolveDefaultNetwork('pearl')).toBe('pearl')
+        expect(resolveDefaultNetwork(undefined)).toBe('sapphire')
+    })
+
     it('test13 points at the official testnets.gno.land RPC', () => {
         expect(NETWORKS.test13.rpcUrl).toBe('https://rpc.test13.testnets.gno.land:443')
     })
@@ -348,13 +385,14 @@ describe('getTelemetryRpcUrls', () => {
     })
 })
 
-describe('network reduction — test13 + topaz + gnoland1 + sapphire only', () => {
-    it('exposes only test13, topaz, gnoland1, and sapphire', () => {
+describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl only', () => {
+    it('exposes only test13, topaz, gnoland1, sapphire, and pearl', () => {
         const keys = Object.keys(NETWORKS).sort()
         // sapphire went LIVE at the 2026-08-15 cutover; topaz + test13 stay as
-        // hidden retired entries so old links resolve. See the live/dark
-        // contract blocks below.
-        expect(keys).toEqual(['gnoland1', 'sapphire', 'test13', 'topaz'])
+        // hidden retired entries so old links resolve; pearl is the hidden
+        // PRE-REGISTERED successor (2026-08-23) that the cutover PR un-hides.
+        // See the live/dark contract blocks below.
+        expect(keys).toEqual(['gnoland1', 'pearl', 'sapphire', 'test13', 'topaz'])
     })
     it('defaults to sapphire', () => {
         expect(DEFAULT_NETWORK).toBe('sapphire')
