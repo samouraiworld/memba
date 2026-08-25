@@ -18,7 +18,7 @@ import { seedNfts, seedServices, seedTokens } from "../lib/marketplace/seed/foun
 import { useMarketFilters } from "../lib/marketplace/useMarketFilters"
 import { applyFilters } from "../lib/marketplace/marketFilters"
 import { buildSellOptions } from "../lib/marketplace/sellOptions"
-import { isMarketplaceV2Enabled } from "../lib/config"
+import { isMarketplaceV2Enabled, DEFAULT_NETWORK } from "../lib/config"
 
 const NFT_CARDS = seedNfts.map(seedNftToCard)
 const SERVICE_CARDS = seedServices.map(seedServiceToCard)
@@ -32,7 +32,11 @@ const LANES = [
 export default function MarketplaceV2Preview() {
     // Shared discovery state (URL-synced). Hooks must run before any early return.
     const { filters, setFilters } = useMarketFilters()
-    const { network = "test13" } = useParams()
+    // Derived, not named: this default outlived two chain migrations still
+    // pointing at test13, so a param-less visit built its "sell" links for a
+    // chain retired in July. DEFAULT_NETWORK follows VITE_GNO_CHAIN_ID, so it
+    // cannot go stale at the next cutover (networkPins.test.ts enforces this).
+    const { network = DEFAULT_NETWORK } = useParams()
     // Demo: show all three sell options (real shell derives these from live-lane flags).
     const sellOptions = buildSellOptions(network, { nft: true, service: true, token: true })
 
