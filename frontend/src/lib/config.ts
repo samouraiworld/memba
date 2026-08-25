@@ -287,19 +287,24 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         explorerUrl: import.meta.env.VITE_SAPPHIRE_EXPLORER_URL || "https://sapphire.testnets.gno.land",
     },
     pearl: {
-        // Pearl — the next testnet, released as an RC, launch target
-        // 2026-08-26; it SUPERSEDES sapphire-1. Pre-registered 2026-08-23 so
-        // the cutover is a flag flip, not a new block: see
+        // Pearl — the next testnet, released as an RC, launching
+        // 2026-08-26 14:00 UTC; it SUPERSEDES sapphire-1. Pre-registered
+        // 2026-08-23 so the cutover is a flag flip, not a new block: see
         // docs/PEARL_CUTOVER_PLAN.md.
         //
-        // ⚠️ chainId is the EXPECTED value by the testnets naming convention.
-        // Confirm it from the LAUNCHED node (GET <rpc>/status →
-        // .result.node_info.network) in the cutover PR — until then this entry
-        // stays `hidden` (never in the selector, never restored from storage,
-        // only resolvable by explicit URL) and `realmsDeployed: false` buys the
-        // honest RealmsNotDeployedBanner for anyone who lands on it. Auth is
-        // fail-closed anyway: a wrong chainId here can only produce a token the
-        // server refuses (AUTH-CHAINID-MISMATCH-01), never a wrong-chain tx.
+        // chainId is CONFIRMED, not conventional: pearl's genesis is generated
+        // with CHAIN_ID=pearl-1 (gnolang/gno branch chain/pearl,
+        // misc/deployments/pearl.gno.land/gen-genesis.sh:52, corroborated by
+        // that directory's VALIDATOR.md and govdao-exec.sh). That script MAKES
+        // the chain, so it outranks any announce — but it still is not the
+        // running node, so re-assert against the LAUNCHED node (GET
+        // <rpc>/status → .result.node_info.network) in the cutover PR. Until
+        // then this entry stays `hidden` (never in the selector, never restored
+        // from storage, only resolvable by explicit URL) and
+        // `realmsDeployed: false` buys the honest RealmsNotDeployedBanner for
+        // anyone who lands on it. Auth is fail-closed anyway: a wrong chainId
+        // here can only produce a token the server refuses
+        // (AUTH-CHAINID-MISMATCH-01), never a wrong-chain tx.
         chainId: "pearl-1",
         hidden: true,
         // Flip to true in the cutover PR AFTER the combined Pearl ceremony
@@ -307,12 +312,22 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // realm-versions.json's `pearl` section — same rule as sapphire's flip.
         realmsDeployed: false,
         isTestnet: true,
-        // Expected endpoints by convention — VERIFY at launch (no DNS as of
-        // 2026-08-23); env overrides exist so a preview can point at whatever
-        // the launch actually exposes without a code change.
+        // ⛔ This hostname RESOLVES TODAY AND LIES. As of 2026-08-25 it answers
+        // 200 OK with node_info.network = "sapphire-1", build_version =
+        // "chain/sapphire", frozen at height 395317 since 2026-08-24T20:00:14Z
+        // while real sapphire runs ~20k blocks ahead — pre-provisioned infra
+        // waiting for the pearl genesis, reproduced across three distinct pool
+        // instances. So DNS resolution and an HTTP 200 are BOTH false positives
+        // for "Pearl is up"; the only valid liveness test is
+        // node_info.network == "pearl-1". Env overrides exist so a preview can
+        // point at whatever the launch actually exposes without a code change.
         rpcUrl: import.meta.env.VITE_PEARL_RPC_URL || "https://rpc.pearl.testnets.gno.land:443",
-        // Fill with onbloc's / the samourai sentry's pearl nodes once they
-        // exist (the sentry needs its own chain/pearl deployment first).
+        // Empty on purpose: verified 2026-08-25 that NEITHER candidate exists
+        // yet — pearl.rpc.onbloc.xyz and rpc.pearl.samourai.live are both
+        // NXDOMAIN, and infra_gno-validator has no chain/pearl branch (only
+        // sapphire, test-13, test11). Fill once a second real node exists; the
+        // two-node rule matters most for the feed tailer, which must not share
+        // an endpoint with the app.
         fallbackRpcUrls: [],
         telemetryRpcUrls: [],
         indexerUrl: import.meta.env.VITE_PEARL_INDEXER_URL || "https://indexer.pearl.testnets.gno.land/graphql/query",
