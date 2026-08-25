@@ -177,10 +177,14 @@ function walk(abs: string, rel = ""): string[] {
     return out
 }
 
-const LITERAL = new RegExp(
-    `["'\`](${NETWORK_NAMES.map((n) => n.replace(/[-]/g, "\\-")).join("|")})["'\`]`,
-    "g",
-)
+/** Escape EVERY regex metacharacter, not a hand-picked subset. The first cut
+ *  escaped only `-`, which is not even special in an alternation — a partial
+ *  escape is the shape of `js/incomplete-sanitization`, and CodeQL flagged it.
+ *  Harmless here (NETWORK_NAMES is a hardcoded `[a-z0-9-]` list) but wrong as
+ *  written, and this list is meant to grow. */
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\-]/g, "\\$&")
+
+const LITERAL = new RegExp(`["'\`](${NETWORK_NAMES.map(escapeRe).join("|")})["'\`]`, "g")
 
 /** file -> the network names it mentions in real (non-comment) code. */
 const found = new Map<string, Set<string>>()
