@@ -132,6 +132,30 @@ All metrics are prefixed `memba_`. Thresholds below are starting points — tune
 observed baselines and route to Slack `#memba-alerts`. `rate()`/`increase()` use a
 5-minute window unless noted.
 
+> **These thresholds are now EXECUTABLE.** The tables below are the narrative and
+> the action text; the machine-readable rules live at
+> [`backend/internal/metrics/rules/memba.rules.yml`](../backend/internal/metrics/rules/memba.rules.yml)
+> and are embedded into the backend binary (`metrics.AlertRulesYAML`), so the rules
+> that were validated in CI and the rules that get deployed are the same bytes.
+> `backend/internal/metrics/rules_test.go` binds them to reality in both
+> directions: no rule may name a metric this backend does not declare, and no
+> declared metric may ship without either a rule or a written waiver.
+>
+> **Still owner-side to arm them:** a scraper pointed at `GET /metrics` with the
+> `METRICS_BEARER` token, and an Alertmanager route to `#memba-alerts`. Until that
+> exists the rules are correct and inert. To deploy:
+>
+> ```sh
+> scp backend/internal/metrics/rules/memba.rules.yml root@<vps>:/etc/prometheus/rules/
+> promtool check rules /etc/prometheus/rules/memba.rules.yml   # validate before reload
+> ```
+>
+> ⚠️ Two multisig signals read `0` both when healthy and when nothing has been
+> measured (they are `*Vec` metrics — a label has no series until first observed).
+> Gate the `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY` flip on the recording rule
+> `memba:multisig_verify_ok:increase1h > 0` **as well as** mismatch being zero, so
+> "clean" means the path actually ran.
+
 **RPC & saturation** (W6.5 PR2)
 
 | Signal | Alert when | Means / action |
