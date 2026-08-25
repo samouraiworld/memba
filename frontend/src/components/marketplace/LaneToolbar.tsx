@@ -32,10 +32,21 @@ export interface LaneToolbarProps {
 
 export function LaneToolbar({ filters, onChange, categories = [], resultCount, debounceMs = 250 }: LaneToolbarProps) {
     const [qLocal, setQLocal] = useState(filters.q)
+    // Mirrors the last `filters.q` this component has reacted to, so an external
+    // change can be told apart from one this component just caused itself.
+    const [lastExternalQ, setLastExternalQ] = useState(filters.q)
     const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
 
-    // Keep the input in sync when filters change externally (e.g. Clear / back button).
-    useEffect(() => setQLocal(filters.q), [filters.q])
+    // Keep the input in sync when filters change externally (e.g. Clear / back
+    // button). Adjusted DURING RENDER rather than in an effect: React re-runs the
+    // component immediately without committing the intermediate DOM, so the input
+    // never paints one frame of stale text the way the effect version could. It
+    // is also the pattern react-hooks/set-state-in-effect exists to push toward.
+    if (filters.q !== lastExternalQ) {
+        setLastExternalQ(filters.q)
+        setQLocal(filters.q)
+    }
+
     // Clean up any pending debounce on unmount.
     useEffect(() => () => clearTimeout(timer.current), [])
 
