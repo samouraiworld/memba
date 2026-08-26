@@ -11,10 +11,10 @@
  */
 
 import { useNetworkNav } from "../hooks/useNetworkNav"
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useOutletContext } from "react-router-dom"
 import { getBoardInfo, detectChannelRealm } from "../plugins/board/parser"
-import type { BoardInfo } from "../plugins/board/parser"
 import BoardView from "../plugins/board/BoardView"
 import { GNO_RPC_URL } from "../lib/config"
 import { getDAOMembers } from "../lib/dao"
@@ -32,17 +32,8 @@ export function ChannelsPage() {
     const { realmPath, encodedSlug, channelName: channelParam } = useDaoRoute()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
-    // State
-    const [boardPath, setBoardPath] = useState<string | null | undefined>(undefined)
-    const [boardInfo, setBoardInfo] = useState<BoardInfo | null>(null)
-    const [activeChannel, setActiveChannel] = useState<string>(channelParam || "general")
+    // State (UI only — server state lives in the queries below)
     const [sidebarOpen, setSidebarOpen] = useState(false)
-    const [loading, setLoading] = useState(true)
-    // G1/G2: Membership for ACL checks and moderation
-    const [userRoles, setUserRoles] = useState<string[]>([])
-    const [isMember, setIsMember] = useState(false)
-    // CreateChannel is owner-only on-chain — gate the control on the realm owner.
-    const [ownerAddress, setOwnerAddress] = useState<string>("")
     const [showCreate, setShowCreate] = useState(false)
     const [ncName, setNcName] = useState("")
     const [ncDesc, setNcDesc] = useState("")
@@ -50,76 +41,81 @@ export function ChannelsPage() {
     const [creating, setCreating] = useState(false)
     const [createError, setCreateError] = useState<string | null>(null)
 
-    // G1/G2: Detect user's DAO membership and roles
-    useEffect(() => {
-        if (!realmPath || !adena.connected || !adena.address) {
-            setUserRoles([])
-            setIsMember(false)
-            return
-        }
-        getDAOMembers(GNO_RPC_URL, realmPath)
-            .then(members => {
+    // G1/G2: the user's DAO membership and roles. Fails closed on error or
+    // while disconnected: not a member, no roles.
+    const membershipQuery = useQuery({
+        queryKey: ["dao", "membership", realmPath ?? "", adena.address ?? ""],
+        enabled: !!realmPath && adena.connected && !!adena.address,
+        queryFn: async () => {
+            try {
+                const members = await getDAOMembers(GNO_RPC_URL, realmPath!)
                 const member = members.find(m => m.address === adena.address)
-                if (member) {
-                    setIsMember(true)
-                    setUserRoles(member.tier ? [member.tier.toLowerCase(), "member"] : ["member"])
-                } else {
-                    setIsMember(false)
-                    setUserRoles([])
-                }
-            })
-            .catch(() => {
-                setIsMember(false)
-                setUserRoles([])
-            })
-    }, [realmPath, adena.connected, adena.address])
-
-    // Detect the channel realm owner (CreateChannel is owner-only on-chain).
-    // Fails closed: query error / no owner → "" → the create control stays hidden.
-    useEffect(() => {
-        if (!boardPath || !adena.address) { setOwnerAddress(""); return }
-        let cancelled = false
-        queryEval(GNO_RPC_URL, boardPath, "GetOwner()")
-            .then(r => { if (!cancelled) setOwnerAddress(parseOwnerAddress(r)) })
-            .catch(() => { if (!cancelled) setOwnerAddress("") })
-        return () => { cancelled = true }
-    }, [boardPath, adena.address])
+                return member
+                    ? { isMember: true, userRoles: member.tier ? [member.tier.toLowerCase(), "member"] : ["member"] }
+                    : { isMember: false, userRoles: [] as string[] }
+            } catch {
+                return { isMember: false, userRoles: [] as string[] }
+            }
+        },
+    })
+    const isMember = membershipQuery.data?.isMember ?? false
+    const userRoles = membershipQuery.data?.userRoles ?? []
 
     // ── Detect channel realm ──────────────────────────────────
-    useEffect(() => {
-        if (!realmPath) return
-        setLoading(true)
-        detectChannelRealm(GNO_RPC_URL, realmPath)
-            .then(setBoardPath)
-            .catch(() => setBoardPath(null))
-    }, [realmPath])
-
-    // ── Load board info for sidebar ───────────────────────────
-    const loadBoardInfo = useCallback(async () => {
-        if (!boardPath) return
-        try {
-            const info = await getBoardInfo(GNO_RPC_URL, boardPath)
-            setBoardInfo(info)
-            // If no channel param, default to first active channel
-            if (!channelParam && info?.channels) {
-                setActiveChannel(defaultChannel(info.channels))
+    // undefined = still detecting, null = the DAO has no channel realm.
+    const detectQuery = useQuery({
+        queryKey: ["channels", "detect", realmPath ?? ""],
+        enabled: !!realmPath,
+        queryFn: async () => {
+            try {
+                return await detectChannelRealm(GNO_RPC_URL, realmPath!)
+            } catch {
+                return null
             }
-        } catch {
-            setBoardInfo(null)
-        } finally {
-            setLoading(false)
-        }
-    }, [boardPath, channelParam])
+        },
+    })
+    const boardPath = detectQuery.isPending ? undefined : (detectQuery.data ?? null)
 
-    useEffect(() => {
-        if (boardPath) loadBoardInfo()
-        else if (boardPath === null) setLoading(false)
-    }, [boardPath, loadBoardInfo])
+    // Detect the channel realm owner (CreateChannel is owner-only on-chain).
+    // Fails closed: disabled / query error / no owner → "" → create stays hidden.
+    const ownerQuery = useQuery({
+        queryKey: ["channels", "owner", boardPath ?? ""],
+        enabled: !!boardPath && !!adena.address,
+        queryFn: async () => {
+            try {
+                return parseOwnerAddress(await queryEval(GNO_RPC_URL, boardPath!, "GetOwner()"))
+            } catch {
+                return ""
+            }
+        },
+    })
+    const ownerAddress = ownerQuery.data ?? ""
 
-    // Sync URL channel param → state + G3: mark as visited
+    // ── Board info for the sidebar ────────────────────────────
+    const infoQuery = useQuery({
+        queryKey: ["channels", "board", boardPath ?? ""],
+        enabled: !!boardPath,
+        queryFn: async () => {
+            try {
+                return await getBoardInfo(GNO_RPC_URL, boardPath!)
+            } catch {
+                return null
+            }
+        },
+    })
+    const boardInfo = infoQuery.data ?? null
+    const loading = detectQuery.isPending || (!!boardPath && infoQuery.isPending)
+
+    // Derived, not synced: every path that changes the channel also navigates,
+    // so the URL param IS the channel state; the board's default fills in when
+    // there is no param. The old code mirrored the param into useState from an
+    // effect, which is exactly the state-sync this page no longer does.
+    const activeChannel = channelParam || (boardInfo?.channels ? defaultChannel(boardInfo.channels) : "general")
+
+    // G3: mark the visited channel + remember its thread count (side effects
+    // on localStorage only — no state writes here).
     useEffect(() => {
         if (channelParam) {
-            setActiveChannel(channelParam)
             markChannelVisited(channelParam)
             const ch = boardInfo?.channels.find(c => c.name === channelParam)
             if (ch) updateChannelThreadCount(channelParam, ch.threadCount)
@@ -127,7 +123,6 @@ export function ChannelsPage() {
     }, [channelParam, boardInfo])
 
     const handleChannelClick = (name: string) => {
-        setActiveChannel(name)
         setSidebarOpen(false)
         // G3: Mark channel as visited and store thread count
         markChannelVisited(name)
@@ -137,7 +132,6 @@ export function ChannelsPage() {
     }
 
     const handleChannelChange = (channel: string) => {
-        setActiveChannel(channel)
         navigate(`/dao/${encodedSlug}/channels/${channel}`, { replace: true })
     }
 
@@ -159,7 +153,7 @@ export function ChannelsPage() {
         try {
             const msg = buildCreateChannelMsg(adena.address, boardPath, name, ncDesc.trim(), ncType)
             await doContractBroadcast([msg], `Create channel #${name}`)
-            await loadBoardInfo()
+            await infoQuery.refetch()
             setShowCreate(false)
             setNcName("")
             setNcDesc("")
