@@ -27,7 +27,8 @@ import {
     useGnoloveCohorts,
     useGnoloveTeamCollab,
 } from "../../hooks/gnolove"
-import { TEAMS, TEAM_CSS_COLORS, TimeFilter, TIME_FILTER_LABELS, isTimeFilter } from "../../lib/gnoloveConstants"
+import { TEAMS, TEAM_CSS_COLORS, TimeFilter, TIME_FILTER_LABELS, TIME_FILTER_KEYS, isTimeFilter } from "../../lib/gnoloveConstants"
+import { useTabListKeyboard } from "../../hooks/useTabListKeyboard"
 import { PageMeta } from "../../components/gnolove/PageMeta"
 import {
     computeTeamData, computeContributionTiers, computeVoteData, computeStats,
@@ -51,6 +52,7 @@ export default function GnoloveAnalytics() {
     const [searchParams, setSearchParams] = useSearchParams()
     const rawTime = searchParams.get("time")
     const period: TimeFilter = rawTime && isTimeFilter(rawTime) ? rawTime : TimeFilter.ALL_TIME
+
     const setPeriod = useCallback((next: TimeFilter) => {
         const params = new URLSearchParams(searchParams)
         if (next === TimeFilter.ALL_TIME) {
@@ -60,6 +62,15 @@ export default function GnoloveAnalytics() {
         }
         setSearchParams(params, { replace: false })
     }, [searchParams, setSearchParams])
+
+    // APG tabs keyboard contract (roving tabindex, arrows, Home/End) — the
+    // shared hook Directory extracted; the period tabs had no keyboard support.
+    const { tabProps } = useTabListKeyboard<TimeFilter>({
+        keys: TIME_FILTER_KEYS,
+        active: period,
+        onSelect: setPeriod,
+        idFor: (k) => `gl-insights-tab-${k}`,
+    })
 
     const { data: contributors, isLoading, isError: contributorsError, refetch } = useGnoloveContributors(period)
     const { data: yearReport } = useGnoloveYearReport()
@@ -118,9 +129,8 @@ export default function GnoloveAnalytics() {
                             <button
                                 key={value}
                                 type="button"
-                                role="tab"
+                                {...tabProps(value as TimeFilter)}
                                 className={`gl-tab ${active ? "gl-tab--active" : ""}`}
-                                aria-selected={active}
                                 aria-current={active ? "page" : undefined}
                                 onClick={() => setPeriod(value as TimeFilter)}
                             >

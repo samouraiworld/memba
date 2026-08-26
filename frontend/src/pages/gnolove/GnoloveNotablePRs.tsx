@@ -19,6 +19,7 @@ import { useMemo, useState } from "react"
 import { Link, useSearchParams } from "react-router-dom"
 import { useNotablePRs, useBoards } from "../../hooks/gnolove"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
+import { useTabListKeyboard } from "../../hooks/useTabListKeyboard"
 import { PageMeta } from "../../components/gnolove/PageMeta"
 import type { TNotablePR, TNotablePRLabel, TBoardMeta } from "../../lib/gnoloveSchemas"
 
@@ -42,6 +43,9 @@ function boardUrl(board?: TBoardMeta): string {
 }
 
 type ViewMode = "list" | "board"
+
+// View-mode tabs in display order — shared by the markup and the keyboard hook.
+const VIEW_MODE_KEYS: readonly ViewMode[] = ["list", "board"]
 type GroupBy = "area" | "status" | "repo"
 
 // ── Derived state helpers ────────────────────────────────────
@@ -285,6 +289,23 @@ export default function GnoloveNotablePRs() {
         }, { replace: true })
     }
 
+    // APG tabs keyboard contract (roving tabindex, arrows, Home/End) for both
+    // tablists on this page — the shared hook Directory extracted; neither had
+    // keyboard support, and the view toggle's buttons lacked tab roles entirely.
+    const boardKeys = useMemo(() => boardList.map(b => b.id), [boardList])
+    const { tabProps: boardTabProps } = useTabListKeyboard<string>({
+        keys: boardKeys,
+        active: activeBoard?.id ?? boardKeys[0] ?? "",
+        onSelect: selectBoard,
+        idFor: (k) => `glnp-board-tab-${k}`,
+    })
+    const { tabProps: viewTabProps } = useTabListKeyboard<ViewMode>({
+        keys: VIEW_MODE_KEYS,
+        active: view,
+        onSelect: setView,
+        idFor: (k) => `glnp-view-tab-${k}`,
+    })
+
     // Areas present (for the filter chips), in this board's canonical order.
     const areas = useMemo(() => {
         const present = new Set(all.map(p => p.mainArea).filter(Boolean))
@@ -342,8 +363,7 @@ export default function GnoloveNotablePRs() {
                     {boardList.map(b => (
                         <button
                             key={b.id}
-                            role="tab"
-                            aria-selected={b.id === activeBoard?.id}
+                            {...boardTabProps(b.id)}
                             className={`gl-np-seg-btn${b.id === activeBoard?.id ? " is-active" : ""}`}
                             onClick={() => selectBoard(b.id)}
                         >
@@ -356,8 +376,8 @@ export default function GnoloveNotablePRs() {
             {/* ── Controls ── */}
             <div className="gl-np-controls">
                 <div className="gl-np-seg" role="tablist" aria-label="View">
-                    <button className={`gl-np-seg-btn${view === "list" ? " is-active" : ""}`} onClick={() => setView("list")}>☰ List</button>
-                    <button className={`gl-np-seg-btn${view === "board" ? " is-active" : ""}`} onClick={() => setView("board")}>▤ Board</button>
+                    <button {...viewTabProps("list")} className={`gl-np-seg-btn${view === "list" ? " is-active" : ""}`} onClick={() => setView("list")}>☰ List</button>
+                    <button {...viewTabProps("board")} className={`gl-np-seg-btn${view === "board" ? " is-active" : ""}`} onClick={() => setView("board")}>▤ Board</button>
                 </div>
 
                 {view === "list" && (
