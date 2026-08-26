@@ -125,3 +125,30 @@ describe("Validators page — segment tabs", () => {
         expect(screen.queryByTestId("validator-table")).not.toBeInTheDocument()
     })
 })
+
+// The APG keyboard contract itself is covered in hooks/useTabListKeyboard.test.tsx;
+// what these pin is that this page is actually wired through the hook — the roving
+// tabindex only exists if tabProps is spread, and arrow-selection only works if
+// onSelect reaches setTab.
+describe("Validators page — tablist keyboard (APG)", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+    })
+
+    it("gives the segments a roving tabindex (single tab stop)", async () => {
+        renderWithProviders(<Validators />, { route: "/sapphire/validators" })
+        await screen.findByTestId("validator-table")
+        expect(screen.getByTestId("seg-validators")).toHaveAttribute("tabindex", "0")
+        expect(screen.getByTestId("seg-candidates")).toHaveAttribute("tabindex", "-1")
+        expect(screen.getByTestId("seg-network")).toHaveAttribute("tabindex", "-1")
+    })
+
+    it("ArrowRight moves selection to the next segment", async () => {
+        renderWithProviders(<Validators />, { route: "/sapphire/validators" })
+        await screen.findByTestId("validator-table")
+        fireEvent.keyDown(screen.getByTestId("seg-validators"), { key: "ArrowRight" })
+        expect(await screen.findByTestId("valoper-panel")).toBeInTheDocument()
+        expect(screen.getByTestId("seg-candidates")).toHaveAttribute("aria-selected", "true")
+        expect(screen.getByTestId("seg-candidates")).toHaveAttribute("tabindex", "0")
+    })
+})

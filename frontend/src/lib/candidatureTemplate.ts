@@ -15,7 +15,7 @@
 
 import type { AminoMsg } from "./grc20"
 import { MEMBA_DAO, MEMBA_TOKEN } from "./config"
-import { requireInt } from "./templates/sanitizer"
+import { requireInt, requireRealmPath } from "./templates/sanitizer"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -300,8 +300,18 @@ export function parseCandidatureDetail(raw: string): Candidature | null {
  * simplified version — the deployed realm uses avl trees and banker.
  */
 export function generateCandidatureCode(config: CandidatureConfig = defaultCandidatureConfig): string {
-    // W1.1 fail-closed: requiredApprovals is the only interpolated input —
-    // 0/NaN would let candidatures auto-pass in the generated realm.
+    // W1.1 fail-closed: the generated realm is immutable once deployed, so
+    // reject bad input at codegen time rather than emitting a broken realm.
+    //
+    // candidatureRealmPath is interpolated into the `package` declaration below
+    // (its last segment becomes the package name, per gnolang/gno#5048). Every
+    // other generator here — dao, channel, escrow, agent — validates its path
+    // before doing that; this one did not, so a path carrying a newline or a
+    // brace could break out of the declaration and inject arbitrary Gno source
+    // into the emitted realm. Latent rather than live (nothing calls this
+    // generator yet), and closing it now keeps the five generators consistent.
+    requireRealmPath("candidatureRealmPath", config.candidatureRealmPath)
+    // requiredApprovals at 0/NaN would let candidatures auto-pass.
     requireInt("requiredApprovals", config.requiredApprovals, 1, 1000)
 
     // gnovm rejects a deployed package whose name differs from the last element

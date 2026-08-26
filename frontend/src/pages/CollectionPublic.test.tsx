@@ -295,6 +295,34 @@ describe("CollectionPublic — tabs", () => {
             expect(screen.getByText(/Royalty/i)).toBeInTheDocument()
         })
     })
+
+    // The APG keyboard contract itself is covered in
+    // hooks/useTabListKeyboard.test.tsx; these pin that this page is wired
+    // through the hook — the roving tabindex only exists if tabProps is spread,
+    // and arrow-selection only works if onSelect reaches setActiveTab.
+    it("gives the tabs a roving tabindex (single tab stop)", async () => {
+        renderPage()
+        await waitFor(() => {
+            expect(screen.getByRole("tab", { name: /Items/i })).toBeInTheDocument()
+        })
+        expect(screen.getByRole("tab", { name: /Items/i })).toHaveAttribute("tabindex", "0")
+        expect(screen.getByRole("tab", { name: /Activity/i })).toHaveAttribute("tabindex", "-1")
+        expect(screen.getByRole("tab", { name: /About/i })).toHaveAttribute("tabindex", "-1")
+    })
+
+    it("ArrowRight moves selection from Items to Activity", async () => {
+        renderPage()
+        await waitFor(() => {
+            expect(screen.getByRole("tab", { name: /Items/i })).toBeInTheDocument()
+        })
+        fireEvent.keyDown(screen.getByRole("tab", { name: /Items/i }), { key: "ArrowRight" })
+        const activity = screen.getByRole("tab", { name: /Activity/i })
+        expect(activity).toHaveAttribute("aria-selected", "true")
+        expect(activity).toHaveAttribute("tabindex", "0")
+        await waitFor(() => {
+            expect(screen.getAllByText(/sale/i).length).toBeGreaterThan(0)
+        })
+    })
 })
 
 describe("CollectionPublic — Items tab: listed token → Buy", () => {

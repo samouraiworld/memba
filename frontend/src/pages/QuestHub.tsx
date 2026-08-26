@@ -15,6 +15,7 @@
 import { useState, useMemo, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { useNetworkKey } from "../hooks/useNetworkNav"
+import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import { useAdena } from "../hooks/useAdena"
 import { loadQuestProgress, trackPageVisit, fetchUserQuests, type UserQuestState } from "../lib/quests"
 import {
@@ -32,12 +33,25 @@ import { QuestCard } from "../components/quests/QuestCard"
 import "./questhub.css"
 
 type FilterCategory = QuestCategory | "all"
+
+// Category tabs in display order — shared by the tablist markup and the
+// keyboard hook so "next tab" can never disagree with what is rendered.
+const CATEGORY_TAB_KEYS: readonly FilterCategory[] = ["all", "developer", "everyone", "champion"]
 type FilterDifficulty = QuestDifficulty | "all"
 type FilterStatus = "all" | "available" | "completed" | "locked"
 
 export default function QuestHub() {
     const nk = useNetworkKey()
     const [category, setCategory] = useState<FilterCategory>("all")
+
+    // APG tabs keyboard contract (roving tabindex, arrows, Home/End) — the
+    // shared hook Directory extracted; these tabs had no keyboard support.
+    const { tabProps } = useTabListKeyboard<FilterCategory>({
+        keys: CATEGORY_TAB_KEYS,
+        active: category,
+        onSelect: setCategory,
+        idFor: (k) => `quest-tab-${k}`,
+    })
     const [difficulty, setDifficulty] = useState<FilterDifficulty>("all")
     const [status, setStatus] = useState<FilterStatus>("all")
     const [search, setSearch] = useState("")
@@ -210,9 +224,8 @@ export default function QuestHub() {
                 ] as [FilterCategory, string][]).map(([key, label]) => (
                     <button
                         key={key}
+                        {...tabProps(key)}
                         className={`k-questhub-tab${category === key ? " active" : ""}`}
-                        role="tab"
-                        aria-selected={category === key}
                         onClick={() => setCategory(key)}
                     >
                         {label}
