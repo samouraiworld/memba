@@ -17,7 +17,7 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { render, screen, fireEvent, within } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import GnoloveReport from "./GnoloveReport"
 import { nextAtForPeriodSwitch } from "../../lib/gnoloveReportUrl"
@@ -157,8 +157,54 @@ describe("GnoloveReport — URL state drives initial render", () => {
         mockedUseReport.mockReturnValue(makeQuery({ merged: [], in_progress: [], waiting_for_review: [], reviewed: [], blocked: [] }) as never)
         mockedUseRepos.mockReturnValue(makeQuery([]) as never)
         renderAt("/test12/gnolove/report?view=table")
-        const tableBtn = screen.getByRole("button", { name: "Table" })
-        expect(tableBtn.getAttribute("aria-pressed")).toBe("true")
+        // The toggle sits in a role=tablist, so its buttons are role=tab with
+        // aria-selected — the old aria-pressed was mixed semantics (pressed
+        // buttons inside a tablist) and went away with the keyboard adoption.
+        const tableBtn = screen.getByRole("tab", { name: "Table" })
+        expect(tableBtn.getAttribute("aria-selected")).toBe("true")
+    })
+})
+
+// ── Tablist keyboard wiring ──────────────────────────────────
+//
+// The APG keyboard contract itself is covered in
+// hooks/useTabListKeyboard.test.tsx; these pin that each of this page's three
+// tablists (view / period / status) is wired through the hook — the roving
+// tabindex only exists if tabProps is spread, and arrow-selection only works if
+// onSelect reaches the page's URL state.
+
+describe("GnoloveReport — tablist keyboard (APG)", () => {
+    beforeEach(() => {
+        mockedUseReport.mockReturnValue(makeQuery({ merged: [], in_progress: [], waiting_for_review: [], reviewed: [], blocked: [] }) as never)
+        mockedUseRepos.mockReturnValue(makeQuery([]) as never)
+    })
+
+    it("ArrowRight on the period tablist moves Weekly → Monthly", () => {
+        renderAt("/test12/gnolove/report?period=weekly&at=2026-W18")
+        const weekly = screen.getByRole("tab", { name: "Weekly" })
+        expect(weekly).toHaveAttribute("tabindex", "0")
+
+        fireEvent.keyDown(weekly, { key: "ArrowRight" })
+        const monthly = screen.getByRole("tab", { name: "Monthly" })
+        expect(monthly).toHaveAttribute("aria-selected", "true")
+        expect(monthly).toHaveAttribute("tabindex", "0")
+        expect(screen.getByRole("tab", { name: "Weekly" })).toHaveAttribute("tabindex", "-1")
+    })
+
+    it("ArrowRight on the view toggle moves Report → Table", () => {
+        renderAt("/test12/gnolove/report")
+        fireEvent.keyDown(screen.getByRole("tab", { name: "Report" }), { key: "ArrowRight" })
+        expect(screen.getByRole("tab", { name: "Table" })).toHaveAttribute("aria-selected", "true")
+    })
+
+    it("ArrowRight on the status tablist moves All → Merged", () => {
+        renderAt("/test12/gnolove/report")
+        // Name may carry a count suffix; the label "All Time" belongs to the
+        // period tablist, so anchor on the status list's aria-label instead.
+        const statusList = screen.getByRole("tablist", { name: "Status filter" })
+        const all = within(statusList).getByRole("tab", { name: /^All/ })
+        fireEvent.keyDown(all, { key: "ArrowRight" })
+        expect(within(statusList).getByRole("tab", { name: /^Merged/ })).toHaveAttribute("aria-selected", "true")
     })
 })
 

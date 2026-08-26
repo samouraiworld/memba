@@ -163,6 +163,12 @@ export function isTimeFilter(value: string): value is TimeFilter {
     return Object.values(TimeFilter).includes(value as TimeFilter)
 }
 
+/**
+ * TIME_FILTER_LABELS' keys in display order — for the tablist keyboard hook,
+ * so "next tab" can never disagree with the rendered Object.entries order.
+ */
+export const TIME_FILTER_KEYS = Object.keys(TIME_FILTER_LABELS) as TimeFilter[]
+
 // ── Milestone ────────────────────────────────────────────────
 
 export const MILESTONE_NUMBER = 7
