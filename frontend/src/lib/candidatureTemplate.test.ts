@@ -323,6 +323,35 @@ describe("generateCandidatureCode", () => {
         expect(code).not.toContain("package candidature\n")
     })
 
+    // The path's last segment lands in `package ${pkgName}`. Every other
+    // generator (dao, channel, escrow, agent) validated its path before doing
+    // that; this one did not, so a crafted path could close the declaration and
+    // append arbitrary Gno to an immutable realm. Assert the REJECTION, not just
+    // that a validator is wired — a test that only checks "does not contain the
+    // payload" would also pass if the payload were merely escaped away.
+    it.each([
+        ["a newline breaking out of the package declaration", "gno.land/r/x/c\n\nfunc Backdoor() { panic(1) }"],
+        ["a brace closing the declaration", "gno.land/r/x/c}\nfunc Backdoor() {"],
+        ["path traversal", "gno.land/r/x/../../evil"],
+        ["a non-realm path", "https://evil.example/r/x/c"],
+        ["empty", ""],
+    ])("rejects %s", (_label, path) => {
+        expect(() =>
+            generateCandidatureCode({ ...defaultCandidatureConfig, candidatureRealmPath: path }),
+        ).toThrow(/Invalid candidatureRealmPath/)
+    })
+
+    it("still accepts the paths it is supposed to, unchanged", () => {
+        // Guard against over-tightening: the valid case must keep emitting the
+        // same package declaration it did before validation was added.
+        const code = generateCandidatureCode({
+            ...defaultCandidatureConfig,
+            candidatureRealmPath: "gno.land/r/samcrew/my_dao_candidature_v9",
+        })
+        expect(code).toContain("package my_dao_candidature_v9")
+        expect(() => generateCandidatureCode()).not.toThrow()
+    })
+
     it("includes duplicate submission prevention", () => {
         const code = generateCandidatureCode()
         expect(code).toContain("already have a pending application")

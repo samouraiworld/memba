@@ -11,7 +11,7 @@
  * @module lib/templates/prologue
  */
 
-import { extractPkgName } from "./sanitizer"
+import { extractPkgName, requireRealmPath } from "./sanitizer"
 
 // ── Import Block Generation ─────────────────────────────────
 
@@ -59,6 +59,11 @@ export function generateImportBlock(imports: GnoImport[]): string {
  * Uses `module` field (NOT `pkgpath` — fixed in v2.9.2 B6).
  */
 export function generateGnomodToml(realmPath: string): string {
+    // realmPath lands inside a quoted TOML value; a quote or newline in it would
+    // break out and rewrite the module manifest of a realm that is immutable
+    // once deployed. See the note on buildDeployMsg below for why the check
+    // belongs here and not only in the callers.
+    requireRealmPath("realmPath", realmPath)
     return `module = "${realmPath}"\ngno = "0.9"\n`
 }
 
@@ -68,6 +73,9 @@ export function generateGnomodToml(realmPath: string): string {
  * Generate the package declaration line from a realm path.
  */
 export function generatePackageDecl(realmPath: string): string {
+    // The path's last segment becomes the package name; a newline in it closes
+    // the declaration and everything after is injected as realm source.
+    requireRealmPath("realmPath", realmPath)
     return `package ${extractPkgName(realmPath)}`
 }
 
@@ -92,6 +100,17 @@ export function buildDeployMsg(
         deposit: string
     }
 } {
+    // Validate HERE, at the shared choke point, not only in each generator.
+    //
+    // Every current caller happens to be safe: each generateXCode() calls
+    // requireRealmPath and would throw before this runs, and CreateDAO.tsx:269
+    // — the one place that calls buildDeployMsg directly — generates the code
+    // from the same config first. But this function's own doc comment tells
+    // people to "use buildDeployMsg from templates/prologue directly", so the
+    // encouraged entry point is the unvalidated one, and the next flow built on
+    // it inherits no protection. Checking at the choke point makes the class
+    // structurally impossible rather than a convention every caller must recall.
+    requireRealmPath("realmPath", realmPath)
     const pkgName = extractPkgName(realmPath)
     const files = [
         { name: `${pkgName}.gno`, body: code },
