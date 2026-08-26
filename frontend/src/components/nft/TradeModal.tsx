@@ -17,7 +17,8 @@
  * @module components/nft/TradeModal
  */
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useId } from "react"
+import { AccessibleDialog } from "../AccessibleDialog"
 import { tradeEngineFor } from "../../lib/tradeEngine"
 import { buildSetApprovalForAllV3Msg } from "../../lib/nftMarketplaceV3"
 import { buildBuyNFTMsg, buildListForSaleMsg, buildMakeOfferMsg, buildAcceptOfferMsg, buildCancelOfferMsg, buildDelistMsg, buildSetApprovalForAllMsg } from "../../lib/nftMarketplace"
@@ -331,6 +332,10 @@ export function TradeModal({
 
     // ── Title per action ─────────────────────────────────────
 
+    // useId, not a constant: TradeModal.css is shared by DeployAgentModal and
+    // HireServiceModal, so a hardcoded id could collide if two ever coexist.
+    const titleId = useId()
+
     const titles: Record<TradeAction, string> = {
         buy: "Buy NFT",
         list: "List for Sale",
@@ -348,14 +353,19 @@ export function TradeModal({
     // ── Render ───────────────────────────────────────────────
 
     return (
-        <div className="trade-modal-overlay" onClick={onClose}>
-            <div
-                className="trade-modal"
-                onClick={(e) => e.stopPropagation()}
-                role="dialog"
-                aria-label={titles[action]}
-            >
-                <h3 className="trade-modal__title">{titles[action]}</h3>
+        // AccessibleDialog brings what a hand-rolled overlay kept missing on a
+        // money path: aria-modal, a real focus trap (keyboard users could Tab
+        // straight out of a live trade into the page behind it), Escape-to-close,
+        // and a body scroll lock. Same primitive four other dialogs already use.
+        //
+        // The panel's old onClick={stopPropagation} is gone on purpose, not by
+        // accident: AccessibleDialog closes on backdrop click by testing
+        // e.target === e.currentTarget, so a click inside the panel already
+        // cannot reach it. Keeping the stopPropagation would have silently
+        // swallowed bubbling from every control in the modal.
+        <AccessibleDialog open onClose={onClose} labelledBy={titleId} className="trade-modal-overlay">
+            <div className="trade-modal" role="document">
+                <h3 id={titleId} className="trade-modal__title">{titles[action]}</h3>
 
                 <div className="trade-modal__info">
                     <div className="trade-modal__info-art">
@@ -642,6 +652,6 @@ export function TradeModal({
                     </>
                 )}
             </div>
-        </div>
+        </AccessibleDialog>
     )
 }

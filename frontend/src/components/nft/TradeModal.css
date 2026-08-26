@@ -237,3 +237,43 @@
     color: var(--color-text-secondary);
     font-family: var(--font-mono);
 }
+
+/* ── Mobile: bottom sheet ─────────────────────────────────────
+   This shell is shared by all six fund-moving modals, and had NO @media at all.
+   The base rule already caps height and scrolls (UX-1/MOB-2), so the CTA is
+   reachable — but at 375px the two actions still sit side by side in a row that
+   is right-aligned and below the 44px minimum tap target, which is the hardest
+   thing to get right on a money path you only get one tap at.
+
+   Below 640px the modal becomes a bottom sheet: anchored to the thumb, full
+   width, rounded on top only, and respecting the home-indicator inset. Actions
+   stack in DOM order, so Confirm lands closest to the thumb and focus order is
+   unchanged. Desktop is untouched. */
+@media (max-width: 640px) {
+    .trade-modal-overlay {
+        align-items: flex-end;
+    }
+
+    .trade-modal {
+        width: 100%;
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        border-bottom: none;
+        padding: var(--space-5) var(--space-4);
+        /* Clear the home indicator without stealing room on devices without one. */
+        padding-bottom: max(var(--space-5), env(safe-area-inset-bottom, 0px));
+        max-height: min(88dvh, calc(100dvh - 24px));
+    }
+
+    .trade-modal__actions {
+        flex-direction: column;
+        gap: var(--space-2);
+        margin-top: var(--space-3);
+    }
+
+    /* 44px is the WCAG 2.5.5 / HIG floor. The base buttons are var(--text-sm)
+       with space-2 padding, which lands well under it. */
+    .trade-modal__actions > button {
+        width: 100%;
+        min-height: 44px;
+    }
+}
