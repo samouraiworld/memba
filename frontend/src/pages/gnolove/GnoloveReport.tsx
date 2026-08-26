@@ -22,6 +22,7 @@ import { useGnoloveReport, useGnoloveRepositories, useReportUrlState } from "../
 import { PageMeta } from "../../components/gnolove/PageMeta"
 import { REPORT_TAB_LABELS, TEAMS } from "../../lib/gnoloveConstants"
 import type { ReportTab } from "../../lib/gnoloveConstants"
+import { useTabListKeyboard } from "../../hooks/useTabListKeyboard"
 import type { TPullRequest } from "../../lib/gnoloveSchemas"
 import { exportToCSV, exportToMarkdown, exportToPDF } from "../../lib/gnoloveExport"
 import {
@@ -30,6 +31,7 @@ import {
     buildShareUrl,
     DEFAULT_REPORT_STATE,
     type ReportPeriod,
+    type ReportTabOrAll,
 } from "../../lib/gnoloveReportUrl"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { useClickOutside } from "../../hooks/useClickOutside"
@@ -47,6 +49,13 @@ const REPORT_PERIOD_LABELS: Record<ReportPeriod, string> = {
     all_time: "All Time",
     custom: "Custom",
 }
+
+// Tab keys in display order — shared by each tablist's markup and its keyboard
+// hook so "next tab" can never disagree with what is rendered. This page has
+// three tablists (view / period / status), hence the distinct id prefixes.
+const REPORT_PERIOD_KEYS = Object.keys(REPORT_PERIOD_LABELS) as ReportPeriod[]
+const REPORT_VIEW_KEYS = ["report", "table"] as const
+const STATUS_TAB_KEYS: readonly ReportTabOrAll[] = ["all", ...(Object.keys(REPORT_TAB_LABELS) as ReportTab[])]
 
 type PRStatus = "merged" | "in_progress" | "waiting_for_review" | "reviewed" | "blocked"
 
@@ -216,6 +225,28 @@ export default function GnoloveReport() {
         setUrlState({ view: v })
     }
 
+    // APG tabs keyboard contract (roving tabindex, arrows, Home/End) for the
+    // page's three tablists — the shared hook Directory extracted; none had
+    // keyboard support, and the view toggle's buttons lacked tab roles entirely.
+    const { tabProps: viewTabProps } = useTabListKeyboard<"report" | "table">({
+        keys: REPORT_VIEW_KEYS,
+        active: view,
+        onSelect: handleViewToggle,
+        idFor: (k) => `glr-view-tab-${k}`,
+    })
+    const { tabProps: periodTabProps } = useTabListKeyboard<ReportPeriod>({
+        keys: REPORT_PERIOD_KEYS,
+        active: period,
+        onSelect: handlePeriodChange,
+        idFor: (k) => `glr-period-tab-${k}`,
+    })
+    const { tabProps: statusTabProps } = useTabListKeyboard<ReportTabOrAll>({
+        keys: STATUS_TAB_KEYS,
+        active: activeTab,
+        onSelect: (t) => setUrlState({ tab: t }),
+        idFor: (k) => `glr-status-tab-${k}`,
+    })
+
     // "Copy link" emits a pinned URL reconstructed from validated state [MF-3].
     const handleCopyLink = useCallback(async () => {
         const url = buildShareUrl(window.location.origin, networkKey, urlState)
@@ -251,16 +282,16 @@ export default function GnoloveReport() {
                 <div className="gl-report-actions">
                     <div className="gl-view-toggle" role="tablist" aria-label="View mode">
                         <button
+                            {...viewTabProps("report")}
                             className={`gl-view-btn ${view === "report" ? "gl-view-btn--active" : ""}`}
                             onClick={() => handleViewToggle("report")}
-                            aria-pressed={view === "report"}
                         >
                             Report
                         </button>
                         <button
+                            {...viewTabProps("table")}
                             className={`gl-view-btn ${view === "table" ? "gl-view-btn--active" : ""}`}
                             onClick={() => handleViewToggle("table")}
-                            aria-pressed={view === "table"}
                         >
                             Table
                         </button>
@@ -328,11 +359,10 @@ export default function GnoloveReport() {
                 {(Object.entries(REPORT_PERIOD_LABELS) as [ReportPeriod, string][]).map(([key, label]) => (
                     <button
                         key={key}
+                        {...periodTabProps(key)}
                         className={`gl-tab ${period === key ? "gl-tab--active" : ""}`}
                         onClick={() => handlePeriodChange(key)}
                         aria-current={period === key ? "page" : undefined}
-                        role="tab"
-                        aria-selected={period === key}
                     >
                         {label}
                     </button>
@@ -448,11 +478,10 @@ export default function GnoloveReport() {
             {/* Status Tabs */}
             <div className="gl-tabs" role="tablist" aria-label="Status filter">
                 <button
+                    {...statusTabProps("all")}
                     className={`gl-tab ${activeTab === "all" ? "gl-tab--active" : ""}`}
                     onClick={() => setUrlState({ tab: "all" })}
                     aria-current={activeTab === "all" ? "true" : undefined}
-                    role="tab"
-                    aria-selected={activeTab === "all"}
                 >
                     All
                     {counts.all != null && <span className="gl-tab-count">{counts.all}</span>}
@@ -460,11 +489,10 @@ export default function GnoloveReport() {
                 {(Object.entries(REPORT_TAB_LABELS) as [ReportTab, string][]).map(([key, label]) => (
                     <button
                         key={key}
+                        {...statusTabProps(key)}
                         className={`gl-tab ${activeTab === key ? "gl-tab--active" : ""}`}
                         onClick={() => setUrlState({ tab: key })}
                         aria-current={activeTab === key ? "true" : undefined}
-                        role="tab"
-                        aria-selected={activeTab === key}
                     >
                         {label}
                         {counts[key] != null && (

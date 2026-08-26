@@ -8,8 +8,9 @@
  * the v6.2.1 polish PR so they don't silently regress.
  */
 
+import { useState } from "react"
 import { describe, it, expect } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { render, screen, fireEvent } from "@testing-library/react"
 import { MemoryRouter, Routes, Route } from "react-router-dom"
 import { TeamHubHeader } from "./TeamHubHeader"
 import { TeamHubMetricsGrid } from "./TeamHubMetricsGrid"
@@ -72,6 +73,50 @@ describe("TeamHubHeader period tablist (P1 — Plan §7)", () => {
         // Only one active tab at a time.
         const allActive = tabs.filter(t => t.getAttribute("aria-current") === "page")
         expect(allActive).toHaveLength(1)
+    })
+
+    // The APG keyboard contract itself is covered in
+    // hooks/useTabListKeyboard.test.tsx; these pin that the period selector is
+    // wired through the hook — the roving tabindex only exists if tabProps is
+    // spread, and arrow-selection only works if onSelect reaches onPeriodChange.
+    it("gives the periods a roving tabindex (single tab stop)", () => {
+        render(
+            <MemoryRouter>
+                <TeamHubHeader
+                    team={team}
+                    period="monthly"
+                    onPeriodChange={() => {}}
+                    lastSyncedAt={null}
+                    backToTeamsHref="/gnoland1/gnolove/teams"
+                />
+            </MemoryRouter>,
+        )
+        const tabs = screen.getAllByRole("tab")
+        expect(tabs.filter(t => t.getAttribute("tabindex") === "0")).toHaveLength(1)
+        expect(screen.getByRole("tab", { name: /month/i })).toHaveAttribute("tabindex", "0")
+    })
+
+    it("ArrowRight moves selection to the next period", () => {
+        function Harness() {
+            const [period, setPeriod] = useState<"monthly" | "weekly">("monthly")
+            return (
+                <MemoryRouter>
+                    <TeamHubHeader
+                        team={team}
+                        period={period}
+                        onPeriodChange={(p) => setPeriod(p as "monthly" | "weekly")}
+                        lastSyncedAt={null}
+                        backToTeamsHref="/gnoland1/gnolove/teams"
+                    />
+                </MemoryRouter>
+            )
+        }
+        render(<Harness />)
+        // TEAM_HUB_PERIODS order: all, yearly, monthly, weekly, daily.
+        fireEvent.keyDown(screen.getByRole("tab", { name: /month/i }), { key: "ArrowRight" })
+        const week = screen.getByRole("tab", { name: /week/i })
+        expect(week).toHaveAttribute("aria-selected", "true")
+        expect(week).toHaveAttribute("tabindex", "0")
     })
 })
 
