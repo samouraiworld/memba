@@ -13,9 +13,9 @@
 
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect, useCallback, useMemo, useDeferredValue, useRef } from "react"
-import type { KeyboardEvent as ReactKeyboardEvent } from "react"
 import { useDirectoryUrlState } from "../hooks/useDirectoryUrlState"
 import { type DirectoryTab, resolveActiveTab } from "../lib/directoryUrl"
+import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import { GNO_RPC_URL, getExplorerBaseUrl, isExplorerEnabled } from "../lib/config"
 import { queryRender } from "../lib/dao/shared"
 import { ChainMetricsBanner } from "../components/directory"
@@ -124,21 +124,16 @@ export function Directory() {
         setUrlState({ tab: key })
     }, [setUrlState])
 
-    // APG tabs pattern: Arrow/Home/End move between tabs (with a roving tabindex).
-    const handleTabKeyDown = useCallback((e: ReactKeyboardEvent<HTMLButtonElement>, key: DirectoryTab) => {
-        const i = tabDefs.findIndex(t => t.key === key)
-        let next: DirectoryTab | null = null
-        if (e.key === "ArrowRight") next = tabDefs[(i + 1) % tabDefs.length].key
-        else if (e.key === "ArrowLeft") next = tabDefs[(i - 1 + tabDefs.length) % tabDefs.length].key
-        else if (e.key === "Home") next = tabDefs[0].key
-        else if (e.key === "End") next = tabDefs[tabDefs.length - 1].key
-        if (next) {
-            e.preventDefault()
-            selectTab(next)
-            const id = `tab-${next}`
-            requestAnimationFrame(() => document.getElementById(id)?.focus())
-        }
-    }, [selectTab, tabDefs])
+    // APG tabs pattern: Arrow/Home/End move between tabs, with a roving tabindex.
+    // This page's hand-rolled version was the most complete of the three in the
+    // app and became useTabListKeyboard; nine other tablists had no keyboard
+    // support at all. Behaviour is unchanged — this is the same code, shared.
+    const tabKeys = useMemo(() => tabDefs.map(t => t.key), [tabDefs])
+    const { tabProps } = useTabListKeyboard<DirectoryTab>({
+        keys: tabKeys,
+        active: tab,
+        onSelect: selectTab,
+    })
 
     return (
         <div className="dir-page">
@@ -259,14 +254,10 @@ export function Directory() {
                 {tabDefs.map(t => (
                     <button
                         key={t.key}
-                        id={`tab-${t.key}`}
+                        {...tabProps(t.key)}
                         className="dir-tab"
-                        role="tab"
-                        aria-selected={tab === t.key}
-                        tabIndex={tab === t.key ? 0 : -1}
                         data-active={tab === t.key}
                         onClick={() => selectTab(t.key)}
-                        onKeyDown={e => handleTabKeyDown(e, t.key)}
                     >
                         {t.label}
                     </button>
