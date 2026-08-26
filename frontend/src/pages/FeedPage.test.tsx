@@ -93,6 +93,26 @@ describe("FeedPage Posts/Ecosystem tabs", () => {
         expect(await screen.findByText("newest post")).toBeInTheDocument()
         expect(screen.queryByTestId("feed-ecosystem")).toBeNull()
     })
+
+    // The APG keyboard contract itself is covered in
+    // hooks/useTabListKeyboard.test.tsx; these pin that this page is wired
+    // through the hook — the roving tabindex only exists if tabProps is spread,
+    // and arrow-selection only works if onSelect reaches setTab.
+    it("gives the tabs a roving tabindex (single tab stop)", async () => {
+        renderWithClient(<FeedPage />)
+        await screen.findByText("newest post")
+        expect(screen.getByTestId("feed-tab-posts")).toHaveAttribute("tabindex", "0")
+        expect(screen.getByTestId("feed-tab-ecosystem")).toHaveAttribute("tabindex", "-1")
+    })
+
+    it("ArrowRight moves selection to the Ecosystem tab", async () => {
+        renderWithClient(<FeedPage />)
+        await screen.findByText("newest post")
+        fireEvent.keyDown(screen.getByTestId("feed-tab-posts"), { key: "ArrowRight" })
+        expect(screen.getByTestId("feed-ecosystem")).toBeInTheDocument()
+        expect(screen.getByTestId("feed-tab-ecosystem")).toHaveAttribute("aria-selected", "true")
+        expect(screen.getByTestId("feed-tab-ecosystem")).toHaveAttribute("tabindex", "0")
+    })
 })
 
 describe("FeedPage two-pane rail", () => {
