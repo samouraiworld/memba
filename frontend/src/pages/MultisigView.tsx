@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from "react"
 import { useParams, useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
+import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import { api } from "../lib/api"
 import { useBalance } from "../hooks/useBalance"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
@@ -14,6 +15,9 @@ import { GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 import "./multisigview.css"
 
+// Tab keys in display order — shared by the tablist markup and the keyboard hook.
+const TX_TAB_KEYS = ["pending", "executed"] as const
+
 export function MultisigView() {
     const { address } = useParams<{ address: string }>()
     const navigate = useNetworkNav()
@@ -24,6 +28,15 @@ export function MultisigView() {
     const [pendingTxs, setPendingTxs] = useState<Transaction[]>([])
     const [executedTxs, setExecutedTxs] = useState<Transaction[]>([])
     const [txTab, setTxTab] = useState<"pending" | "executed">("pending")
+
+    // APG tabs keyboard contract (roving tabindex, arrows, Home/End) — the
+    // shared hook Directory extracted; these tabs had no keyboard support.
+    const { tabProps } = useTabListKeyboard<"pending" | "executed">({
+        keys: TX_TAB_KEYS,
+        active: txTab,
+        onSelect: setTxTab,
+        idFor: (k) => `msview-tab-${k}`,
+    })
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
@@ -253,17 +266,15 @@ export function MultisigView() {
             <div>
                 <div className="k-msview__tabs" role="tablist" aria-label="Transaction status">
                     <button
+                        {...tabProps("pending")}
                         className={`k-msview__tab ${txTab === "pending" ? "k-msview__tab--active" : ""}`}
-                        role="tab"
-                        aria-selected={txTab === "pending"}
                         onClick={() => setTxTab("pending")}
                     >
                         Pending ({pendingTxs.length})
                     </button>
                     <button
+                        {...tabProps("executed")}
                         className={`k-msview__tab ${txTab === "executed" ? "k-msview__tab--active" : ""}`}
-                        role="tab"
-                        aria-selected={txTab === "executed"}
                         onClick={() => setTxTab("executed")}
                     >
                         Completed ({executedTxs.length})

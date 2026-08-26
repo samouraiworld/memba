@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useAdena } from "../hooks/useAdena";
 import { useAuth } from "../hooks/useAuth";
+import { useTabListKeyboard } from "../hooks/useTabListKeyboard";
 import { useNetwork } from "../hooks/useNetwork";
 import { buildTokenRequestInfo } from "../lib/loginChallenge";
 import { useDailyChallenge } from "../game/hooks/useDailyChallenge";
@@ -18,6 +19,9 @@ import type { Modifier } from "../game/engine";
 import "./blockparty.css";
 
 const HINT_KEY = "bp:hinted";
+
+// Mode tabs in display order — shared by the tablist markup and the keyboard hook.
+const MODE_TAB_KEYS = ["ranked", "practice"] as const;
 
 // Encode Uint8Array to base64 string (protojson format for bytes fields) —
 // mirrors components/layout/Layout.tsx's login flow exactly.
@@ -40,6 +44,15 @@ export default function BlockPartyGame() {
   const { data: challenge, isLoading: challengeLoading } = useDailyChallenge();
 
   const [mode, setMode] = useState<GameMode>("ranked");
+
+  // APG tabs keyboard contract (roving tabindex, arrows, Home/End) — the
+  // shared hook Directory extracted; the mode switch had no keyboard support.
+  const { tabProps } = useTabListKeyboard<GameMode>({
+    keys: MODE_TAB_KEYS,
+    active: mode,
+    onSelect: setMode,
+    idFor: (k) => `bp-mode-tab-${k}`,
+  });
   const [hinted, setHinted] = useState(true); // default true (hidden) until effect confirms first-session
   const [showHint, setShowHint] = useState(false);
   const [practiceSeed, setPracticeSeed] = useState<number>(() => randomSeed());
@@ -187,16 +200,14 @@ export default function BlockPartyGame() {
         </div>
         <div className="k-bp-modes" role="tablist" aria-label="Game mode">
           <button
-            role="tab"
-            aria-selected={mode === "ranked"}
+            {...tabProps("ranked")}
             className={`k-bp-mode-btn ${mode === "ranked" ? "k-bp-mode-btn--active" : ""}`}
             onClick={() => setMode("ranked")}
           >
             Daily
           </button>
           <button
-            role="tab"
-            aria-selected={mode === "practice"}
+            {...tabProps("practice")}
             className={`k-bp-mode-btn ${mode === "practice" ? "k-bp-mode-btn--active" : ""}`}
             onClick={() => setMode("practice")}
           >

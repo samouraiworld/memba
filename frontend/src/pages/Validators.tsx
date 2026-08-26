@@ -21,6 +21,7 @@ import { ValidatorCard } from "../components/validators/ValidatorCard"
 import { ValidatorSortSelect, type SortKey } from "../components/validators/ValidatorSortSelect"
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { Link, useSearchParams } from "react-router-dom"
+import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { Copy, CheckCircle } from "@phosphor-icons/react"
 import { GNO_RPC_URL, GNO_CHAIN_ID, getTelemetryRpcUrls, isReviewsEnabled } from "../lib/config"
@@ -147,6 +148,14 @@ export default function Validators() {
         const next = new URLSearchParams(prev)
         if (t === "validators") next.delete("tab"); else next.set("tab", t)
         return next
+    })
+    // APG tabs keyboard contract (roving tabindex, arrows, Home/End) — the
+    // shared hook Directory extracted; these segments had no keyboard support.
+    const { tabProps } = useTabListKeyboard<OverviewTab>({
+        keys: OVERVIEW_TABS,
+        active: tab,
+        onSelect: setTab,
+        idFor: (k) => `val-seg-${k}`,
     })
     // Active validators already appear in the Validators tab; the Candidates tab
     // focuses on registered operators not yet in the consensus set.
@@ -352,21 +361,21 @@ export default function Validators() {
             {/* ── Segment tabs (deep-linkable via ?tab=) ───────── */}
             <div className="val-segtabs" role="tablist" aria-label="Validators sections">
                 <button
-                    type="button" role="tab" aria-selected={tab === "validators"} data-testid="seg-validators"
+                    type="button" {...tabProps("validators")} data-testid="seg-validators"
                     className={`val-segtab${tab === "validators" ? " val-segtab--active" : ""}`}
                     onClick={() => setTab("validators")}
                 >
                     Validators{stats && <span className="val-segtab__count">{stats.totalValidators}</span>}
                 </button>
                 <button
-                    type="button" role="tab" aria-selected={tab === "candidates"} data-testid="seg-candidates"
+                    type="button" {...tabProps("candidates")} data-testid="seg-candidates"
                     className={`val-segtab${tab === "candidates" ? " val-segtab--active" : ""}`}
                     onClick={() => setTab("candidates")}
                 >
                     Candidates{candidateValopers.length > 0 && <span className="val-segtab__count">{candidateValopers.length}</span>}
                 </button>
                 <button
-                    type="button" role="tab" aria-selected={tab === "network"} data-testid="seg-network"
+                    type="button" {...tabProps("network")} data-testid="seg-network"
                     className={`val-segtab${tab === "network" ? " val-segtab--active" : ""}`}
                     onClick={() => setTab("network")}
                 >

@@ -117,6 +117,24 @@ describe("MultisigView", () => {
         expect(screen.getByRole("tab", { name: /Completed \(1\)/ })).toHaveAttribute("aria-selected", "true")
     })
 
+    // The APG keyboard contract itself is covered in
+    // hooks/useTabListKeyboard.test.tsx; these pin that this page is wired
+    // through the hook — the roving tabindex only exists if tabProps is spread,
+    // and arrow-selection only works if onSelect reaches setTxTab.
+    it("gives the tx tabs a roving tabindex (single tab stop)", async () => {
+        await renderView()
+        expect(screen.getByRole("tab", { name: /Pending \(1\)/ })).toHaveAttribute("tabindex", "0")
+        expect(screen.getByRole("tab", { name: /Completed \(1\)/ })).toHaveAttribute("tabindex", "-1")
+    })
+
+    it("ArrowRight moves selection from Pending to Completed", async () => {
+        await renderView()
+        fireEvent.keyDown(screen.getByRole("tab", { name: /Pending \(1\)/ }), { key: "ArrowRight" })
+        const completed = screen.getByRole("tab", { name: /Completed \(1\)/ })
+        expect(completed).toHaveAttribute("aria-selected", "true")
+        expect(completed).toHaveAttribute("tabindex", "0")
+    })
+
     it("navigates to ProposeTransaction from the action button", async () => {
         await renderView()
         fireEvent.click(screen.getByRole("button", { name: /Propose a new transaction/ }))
