@@ -1,11 +1,12 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
 import { useOutletContext, Link } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { GNO_RPC_URL, getExplorerBaseUrl, getUserRegistryPath } from "../lib/config"
-import { getDAOConfig, getDAOMembers, buildAssignRoleMsg, buildRemoveRoleMsg, type DAOConfig, type DAOMember, type TierInfo } from "../lib/dao"
+import { getDAOConfig, getDAOMembers, buildAssignRoleMsg, buildRemoveRoleMsg, type DAOMember, type TierInfo } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
 import { useDaoRoute } from "../hooks/useDaoRoute"
 import type { LayoutContext } from "../types/layout"
@@ -17,32 +18,34 @@ export function DAOMembers() {
     const { auth, adena } = useOutletContext<LayoutContext>()
 
 
-    const [config, setConfig] = useState<DAOConfig | null>(null)
-    const [members, setMembers] = useState<DAOMember[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
     const [tierFilter, setTierFilter] = useState<string>("all")
     const [roleFilter, setRoleFilter] = useState<string>("all")
     const [actionLoading, setActionLoading] = useState(false)
     const [actionSuccess, setActionSuccess] = useState<string | null>(null)
 
-    const loadMembers = useCallback(async () => {
-        if (!realmPath) return
-        setLoading(true)
-        setError(null)
-        try {
-            const cfg = await getDAOConfig(GNO_RPC_URL, realmPath)
-            setConfig(cfg)
-            const mems = await getDAOMembers(GNO_RPC_URL, realmPath, cfg?.memberstorePath)
-            setMembers(mems)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load members")
-        } finally {
-            setLoading(false)
-        }
-    }, [realmPath])
+    // Server state lives in React Query, keyed by realm. Disabled without a
+    // realmPath, which keeps the skeleton up exactly like the old early-return.
+    const membersQuery = useQuery({
+        queryKey: ["dao", "members", realmPath],
+        enabled: !!realmPath,
+        queryFn: async () => {
+            const cfg = await getDAOConfig(GNO_RPC_URL, realmPath!)
+            const mems = await getDAOMembers(GNO_RPC_URL, realmPath!, cfg?.memberstorePath)
+            return { config: cfg, members: mems }
+        },
+    })
+    const config = membersQuery.data?.config ?? null
+    const members = membersQuery.data?.members ?? []
+    const loading = membersQuery.isPending
 
-    useEffect(() => { loadMembers() }, [loadMembers])
+    // Role-action errors are UI state and stay local; the fetch error comes
+    // from the query, with a dismissal flag so the toast doesn't resurrect.
+    const [actionError, setActionError] = useState<string | null>(null)
+    const [fetchErrorDismissed, setFetchErrorDismissed] = useState(false)
+    const fetchError = membersQuery.isError && !fetchErrorDismissed
+        ? (membersQuery.error instanceof Error ? membersQuery.error.message : "Failed to load members")
+        : null
+    const error = actionError ?? fetchError
 
     const tiers = config?.tierDistribution || []
     const totalPower = tiers.reduce((sum, t) => sum + t.power, 0)
@@ -57,28 +60,28 @@ export function DAOMembers() {
     const availableRoles = ["admin", "dev", "finance", "ops", "member"]
 
     const handleAssignRole = async (target: string, role: string) => {
-        if (!adena.address || !auth.isAuthenticated) { setError("Connect your wallet first"); return }
-        setActionLoading(true); setError(null); setActionSuccess(null)
+        if (!adena.address || !auth.isAuthenticated) { setActionError("Connect your wallet first"); return }
+        setActionLoading(true); setActionError(null); setActionSuccess(null)
         try {
             const msg = buildAssignRoleMsg(adena.address, realmPath, target, role)
             await doContractBroadcast([msg], `Assign role ${role} to ${target.slice(0, 10)}...`)
             setActionSuccess(`Role "${role}" assigned to ${target.slice(0, 10)}...`)
-            await loadMembers()
+            await membersQuery.refetch()
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to assign role")
+            setActionError(err instanceof Error ? err.message : "Failed to assign role")
         } finally { setActionLoading(false) }
     }
 
     const handleRemoveRole = async (target: string, role: string) => {
-        if (!adena.address || !auth.isAuthenticated) { setError("Connect your wallet first"); return }
-        setActionLoading(true); setError(null); setActionSuccess(null)
+        if (!adena.address || !auth.isAuthenticated) { setActionError("Connect your wallet first"); return }
+        setActionLoading(true); setActionError(null); setActionSuccess(null)
         try {
             const msg = buildRemoveRoleMsg(adena.address, realmPath, target, role)
             await doContractBroadcast([msg], `Remove role ${role} from ${target.slice(0, 10)}...`)
             setActionSuccess(`Role "${role}" removed from ${target.slice(0, 10)}...`)
-            await loadMembers()
+            await membersQuery.refetch()
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to remove role")
+            setActionError(err instanceof Error ? err.message : "Failed to remove role")
         } finally { setActionLoading(false) }
     }
 
@@ -164,7 +167,7 @@ export function DAOMembers() {
             </div>
 
             {actionSuccess && <div className="k-members__success">✓ {actionSuccess}</div>}
-            <ErrorToast message={error} onDismiss={() => setError(null)} />
+            <ErrorToast message={error} onDismiss={() => { setActionError(null); setFetchErrorDismissed(true) }} />
         </div>
     )
 }
