@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from "react"
+import { useState } from "react"
 import { useParams, useOutletContext } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { MagnifyingGlass } from "@phosphor-icons/react"
 import { api } from "../lib/api"
@@ -36,9 +37,36 @@ export function TransactionView() {
     const { adena, auth } = useOutletContext<LayoutContext>()
     const token = auth.token
 
-    const [tx, setTx] = useState<Transaction | null>(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    // Server state (the transaction itself) lives in React Query, keyed by tx
+    // id AND auth token — switching wallets must refetch, not serve the other
+    // wallet's view from cache. Disabled until both exist, which keeps the
+    // skeleton up exactly like the old early-return did.
+    const txQuery = useQuery({
+        queryKey: ["multisig", "tx", id ?? "", token?.userAddress ?? ""],
+        enabled: !!token && !!id,
+        queryFn: async () => {
+            const res = await api.getTransaction({
+                authToken: token!,
+                transactionId: Number(id),
+            })
+            if (!res.transaction) throw new Error("Transaction not found")
+            return res.transaction
+        },
+    })
+    const tx = txQuery.data ?? null
+    const loading = txQuery.isPending
+
+    // Action errors (sign / broadcast / manual sig) are UI state and stay
+    // local; the fetch error comes from the query, with a dismissal flag so
+    // the toast doesn't resurrect itself on the next render.
+    const [actionError, setActionError] = useState<string | null>(null)
+    const [fetchErrorDismissed, setFetchErrorDismissed] = useState(false)
+    const fetchError = txQuery.isError && !fetchErrorDismissed
+        ? (txQuery.error instanceof Error ? txQuery.error.message : "Failed to load transaction")
+        : null
+    const error = actionError ?? fetchError
+    const dismissError = () => { setActionError(null); setFetchErrorDismissed(true) }
+
     const [actionLoading, setActionLoading] = useState(false)
     const [manualSig, setManualSig] = useState("")
     const [showManualSig, setShowManualSig] = useState(false)
@@ -48,40 +76,17 @@ export function TransactionView() {
     // irreversibility warning); only its Confirm runs the action.
     const [pendingAction, setPendingAction] = useState<"sign" | "broadcast" | null>(null)
 
-    const fetchTx = useCallback(async () => {
-        if (!token || !id) return
-        setLoading(true)
-        setError(null)
-        try {
-            const res = await api.getTransaction({
-                authToken: token,
-                transactionId: Number(id),
-            })
-            if (res.transaction) {
-                setTx(res.transaction)
-            } else {
-                setError("Transaction not found")
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load transaction")
-        } finally {
-            setLoading(false)
-        }
-    }, [token, id])
-
-    useEffect(() => { fetchTx() }, [fetchTx])
-
     const handleSign = async () => {
         if (!token || !tx || actionLoading) return
         setActionLoading(true)
-        setError(null)
+        setActionError(null)
         try {
             const signDoc = JSON.stringify(buildSignDoc(tx))
             const signDocBytes = new TextEncoder().encode(signDoc)
 
             const signature = await adena.signArbitrary(signDoc)
             if (!signature) {
-                setError("Signature rejected")
+                setActionError("Signature rejected")
                 setActionLoading(false)
                 return
             }
@@ -93,9 +98,9 @@ export function TransactionView() {
                 bodyBytes: signDocBytes,
             })
 
-            await fetchTx()
+            await txQuery.refetch()
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to sign")
+            setActionError(err instanceof Error ? err.message : "Failed to sign")
         } finally {
             setActionLoading(false)
         }
@@ -104,7 +109,7 @@ export function TransactionView() {
     const handleBroadcast = async () => {
         if (!token || !tx || actionLoading) return
         setActionLoading(true)
-        setError(null)
+        setActionError(null)
         try {
             // Try Adena's BroadcastMultisigTransaction first (handles Amino encoding)
             let hash = await tryAdenaBroadcast(tx)
@@ -127,7 +132,7 @@ export function TransactionView() {
                 hash = json?.result?.hash
                 if (!hash) {
                     const errMsg = json?.result?.deliver_tx?.log || json?.error?.message || "Broadcast failed — try using gnokey CLI: gnokey broadcast <tx-file> --remote <rpc-url> (see docs.gno.land for details)"
-                    setError(errMsg)
+                    setActionError(errMsg)
                     return
                 }
             }
@@ -138,9 +143,9 @@ export function TransactionView() {
                 finalHash: hash,
             })
 
-            await fetchTx()
+            await txQuery.refetch()
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Broadcast failed")
+            setActionError(err instanceof Error ? err.message : "Broadcast failed")
         } finally {
             setActionLoading(false)
         }
@@ -183,7 +188,7 @@ export function TransactionView() {
                         {auth.isAuthenticated ? `TX #${id} not found or you're not a member of its multisig.` : "Connect your wallet to view transaction details."}
                     </p>
                 </div>
-                <ErrorToast message={error} onDismiss={() => setError(null)} />
+                <ErrorToast message={error} onDismiss={dismissError} />
             </div>
         )
     }
@@ -418,7 +423,7 @@ export function TransactionView() {
                         onClick={async () => {
                             if (!token || !tx || !manualSig.trim()) return
                             setActionLoading(true)
-                            setError(null)
+                            setActionError(null)
                             try {
                                 const signDoc = JSON.stringify(buildSignDoc(tx))
                                 await api.signTransaction({
@@ -429,9 +434,9 @@ export function TransactionView() {
                                 })
                                 setManualSig("")
                                 setShowManualSig(false)
-                                await fetchTx()
+                                await txQuery.refetch()
                             } catch (err) {
-                                setError(err instanceof Error ? err.message : "Failed to submit signature")
+                                setActionError(err instanceof Error ? err.message : "Failed to submit signature")
                             } finally {
                                 setActionLoading(false)
                             }
@@ -470,7 +475,7 @@ export function TransactionView() {
                 </div>
             )}
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} />
+            <ErrorToast message={error} onDismiss={dismissError} />
         </div>
     )
 }

@@ -11,7 +11,7 @@
     "check:bundle": "node scripts/check-three-chunk.mjs",
     "audit:ci": "node scripts/audit-ci.mjs",
     "audit:ci:dev": "node scripts/audit-ci.mjs --include-dev",
-    "lint": "eslint . --max-warnings=54",
+    "lint": "eslint . --max-warnings=51",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
