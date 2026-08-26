@@ -1,5 +1,6 @@
-import { useEffect, useState, useCallback } from "react"
+import { useState } from "react"
 import { useParams, useOutletContext } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import { api } from "../lib/api"
@@ -9,7 +10,7 @@ import { StatusBadge } from "../components/ui/StatusBadge"
 import { getTxStatus } from "../components/ui/txStatus"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { ErrorToast } from "../components/ui/ErrorToast"
-import type { Multisig, Transaction } from "../gen/memba/v1/memba_pb"
+import type { Transaction } from "../gen/memba/v1/memba_pb"
 import { ExecutionState } from "../gen/memba/v1/memba_pb"
 import { GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
@@ -24,9 +25,6 @@ export function MultisigView() {
     const { auth } = useOutletContext<LayoutContext>()
     const token = auth.token
 
-    const [multisig, setMultisig] = useState<Multisig | null>(null)
-    const [pendingTxs, setPendingTxs] = useState<Transaction[]>([])
-    const [executedTxs, setExecutedTxs] = useState<Transaction[]>([])
     const [txTab, setTxTab] = useState<"pending" | "executed">("pending")
 
     // APG tabs keyboard contract (roving tabindex, arrows, Home/End) — the
@@ -37,35 +35,45 @@ export function MultisigView() {
         onSelect: setTxTab,
         idFor: (k) => `msview-tab-${k}`,
     })
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
     const [copied, setCopied] = useState(false)
     const [editing, setEditing] = useState(false)
     const [editName, setEditName] = useState("")
 
     const { balance } = useBalance(address || null)
 
-    const fetchData = useCallback(async () => {
-        if (!token || !address || !auth.isAuthenticated) return
-        setLoading(true)
-        setError(null)
-        try {
+    // Server state lives in React Query — keyed by multisig address AND auth
+    // token, so switching wallets refetches instead of serving the previous
+    // wallet's view from cache. Disabled until authenticated, which keeps the
+    // skeleton up exactly like the old early-return did.
+    const msQuery = useQuery({
+        queryKey: ["multisig", "view", address ?? "", token?.userAddress ?? ""],
+        enabled: !!token && !!address && auth.isAuthenticated,
+        queryFn: async () => {
             const [infoRes, pendingRes, executedRes] = await Promise.all([
-                api.multisigInfo({ authToken: token, multisigAddress: address, chainId: GNO_CHAIN_ID }),
-                api.transactions({ authToken: token, multisigAddress: address, chainId: GNO_CHAIN_ID, executionState: ExecutionState.PENDING, limit: 50 }),
-                api.transactions({ authToken: token, multisigAddress: address, chainId: GNO_CHAIN_ID, executionState: ExecutionState.EXECUTED, limit: 50 }),
+                api.multisigInfo({ authToken: token!, multisigAddress: address!, chainId: GNO_CHAIN_ID }),
+                api.transactions({ authToken: token!, multisigAddress: address!, chainId: GNO_CHAIN_ID, executionState: ExecutionState.PENDING, limit: 50 }),
+                api.transactions({ authToken: token!, multisigAddress: address!, chainId: GNO_CHAIN_ID, executionState: ExecutionState.EXECUTED, limit: 50 }),
             ])
-            setMultisig(infoRes.multisig ?? null)
-            setPendingTxs(pendingRes.transactions)
-            setExecutedTxs(executedRes.transactions)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load multisig")
-        } finally {
-            setLoading(false)
-        }
-    }, [token, address, auth.isAuthenticated])
+            return {
+                multisig: infoRes.multisig ?? null,
+                pendingTxs: pendingRes.transactions,
+                executedTxs: executedRes.transactions,
+            }
+        },
+    })
+    const multisig = msQuery.data?.multisig ?? null
+    const pendingTxs = msQuery.data?.pendingTxs ?? []
+    const executedTxs = msQuery.data?.executedTxs ?? []
+    const loading = msQuery.isPending
 
-    useEffect(() => { fetchData() }, [fetchData])
+    // Rename errors are UI state and stay local; the fetch error comes from
+    // the query, with a dismissal flag so the toast doesn't resurrect itself.
+    const [actionError, setActionError] = useState<string | null>(null)
+    const [fetchErrorDismissed, setFetchErrorDismissed] = useState(false)
+    const fetchError = msQuery.isError && !fetchErrorDismissed
+        ? (msQuery.error instanceof Error ? msQuery.error.message : "Failed to load multisig")
+        : null
+    const error = actionError ?? fetchError
 
     const formatDate = (dateStr: string) => {
         try {
@@ -85,9 +93,9 @@ export function MultisigView() {
                 bech32Prefix: GNO_BECH32_PREFIX,
             })
             setEditing(false)
-            fetchData()
+            void msQuery.refetch()
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Rename failed")
+            setActionError(err instanceof Error ? err.message : "Rename failed")
             setEditing(false)
         }
     }
@@ -283,7 +291,7 @@ export function MultisigView() {
                 {renderTxList(txTab === "pending" ? pendingTxs : executedTxs, txTab === "pending" ? "No pending transactions" : "No completed transactions")}
             </div>
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} />
+            <ErrorToast message={error} onDismiss={() => { setActionError(null); setFetchErrorDismissed(true) }} />
         </div>
     )
 

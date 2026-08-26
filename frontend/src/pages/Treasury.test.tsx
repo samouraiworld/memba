@@ -12,6 +12,7 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render, screen, waitFor } from "@testing-library/react"
 import { MemoryRouter, Outlet, Route, Routes } from "react-router-dom"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { LayoutContext } from "../types/layout"
 
 // ── Mocks ─────────────────────────────────────────────────────
@@ -81,14 +82,19 @@ function LayoutWrapper() {
 }
 
 function renderInRoute(element: React.ReactElement, path = "/test12/dao/gno.land/r/test/dao/treasury") {
+    // Fresh client per render: retry off (a failing query must fail now, not
+    // after backoff) and zero cache sharing between tests.
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     return render(
-        <MemoryRouter initialEntries={[path]}>
-            <Routes>
-                <Route element={<LayoutWrapper />}>
-                    <Route path="/:network/dao/*" element={element} />
-                </Route>
-            </Routes>
-        </MemoryRouter>,
+        <QueryClientProvider client={client}>
+            <MemoryRouter initialEntries={[path]}>
+                <Routes>
+                    <Route element={<LayoutWrapper />}>
+                        <Route path="/:network/dao/*" element={element} />
+                    </Route>
+                </Routes>
+            </MemoryRouter>
+        </QueryClientProvider>,
     )
 }
 
