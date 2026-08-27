@@ -1,9 +1,9 @@
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useMemo } from "react"
+import { useQueries } from "@tanstack/react-query"
 import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { Bank, LinkSimple } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
-import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
 import { getDAOConfig, type DAOConfig } from "../lib/dao"
 import {
@@ -32,14 +32,50 @@ export function DAOList() {
     const { auth } = useOutletContext<LayoutContext>()
     const { activeOrgId, activeOrgName, isOrgMode } = useOrg()
 
-    const [daoEntries, setDaoEntries] = useState<DAOEntry[]>([])
-    const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
 
     // Connect form — collapsed by default
     const [showConnect, setShowConnect] = useState(false)
     const [realmInput, setRealmInput] = useState("")
     const [connecting, setConnecting] = useState(false)
+
+    // Bumped after add/remove so the memo re-reads localStorage.
+    const [savedVersion, setSavedVersion] = useState(0)
+
+    // The base list (featured + saved) is synchronous localStorage — cards
+    // render immediately as placeholders (name + path, no config yet).
+    const baseEntries = useMemo(() => {
+        const allPaths = new Map<string, { name: string; featured: boolean }>()
+        allPaths.set(FEATURED_DAO.realmPath, { name: FEATURED_DAO.name, featured: true })
+        for (const s of getSavedDAOsForOrg(activeOrgId)) {
+            if (!allPaths.has(s.realmPath)) {
+                allPaths.set(s.realmPath, { name: s.name, featured: false })
+            }
+        }
+        return Array.from(allPaths.entries()).map(([realmPath, meta]) => ({ realmPath, ...meta }))
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- savedVersion forces the localStorage re-read
+    }, [activeOrgId, savedVersion])
+
+    // One config query per DAO: each card fills in as its config resolves —
+    // the old progressive per-DAO .then chain, now cache-shared (the key
+    // matches ProposalView/DAOMembers' config query, so navigating into a DAO
+    // hits a warm cache). A failed config keeps the placeholder, as before.
+    const configQueries = useQueries({
+        queries: baseEntries.map((e) => ({
+            queryKey: ["dao", "config", e.realmPath],
+            queryFn: async () => {
+                try {
+                    return await getDAOConfig(GNO_RPC_URL, e.realmPath)
+                } catch {
+                    return null
+                }
+            },
+        })),
+    })
+    const daoEntries: DAOEntry[] = baseEntries.map((e, i) => {
+        const config = configQueries[i]?.data ?? null
+        return { realmPath: e.realmPath, name: config?.name || e.name, config, featured: e.featured }
+    })
 
     // Action Required: unvoted proposals
     const userAddress = auth.isAuthenticated ? (auth as { address?: string }).address || null : null
@@ -57,53 +93,6 @@ export function DAOList() {
         }
         return map
     }, [unvotedProposals])
-
-    const loadDAOs = useCallback(async () => {
-        setLoading(true)
-        setError(null)
-        try {
-            const saved = getSavedDAOsForOrg(activeOrgId)
-
-            // Build unique list: featured + saved
-            const allPaths = new Map<string, { name: string; featured: boolean }>()
-            allPaths.set(FEATURED_DAO.realmPath, { name: FEATURED_DAO.name, featured: true })
-            for (const s of saved) {
-                if (!allPaths.has(s.realmPath)) {
-                    allPaths.set(s.realmPath, { name: s.name, featured: false })
-                }
-            }
-
-            // Immediately show placeholder cards (name + path, no config yet)
-            const placeholders: DAOEntry[] = Array.from(allPaths.entries()).map(
-                ([realmPath, meta]) => ({ realmPath, name: meta.name, config: null, featured: meta.featured }),
-            )
-            setDaoEntries(placeholders)
-            setLoading(false)
-
-            // Progressive: resolve each config independently, update cards as they arrive
-            for (const [realmPath, meta] of allPaths) {
-                getDAOConfig(GNO_RPC_URL, realmPath)
-                    .then((config) => {
-                        setDaoEntries((prev) =>
-                            prev.map((entry) =>
-                                entry.realmPath === realmPath
-                                    ? { ...entry, name: config?.name || meta.name, config }
-                                    : entry,
-                            ),
-                        )
-                    })
-                    .catch(() => {
-                        // Card stays as placeholder — name/path still visible
-                    })
-            }
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load DAOs")
-            setLoading(false)
-        }
-    }, [activeOrgId])
-
-    // Reload when org changes
-    useEffect(() => { loadDAOs() }, [loadDAOs])
 
     const handleConnect = async () => {
         const path = realmInput.trim()
@@ -123,6 +112,7 @@ export function DAOList() {
                 return
             }
             addSavedDAOForOrg(activeOrgId, path, config.name)
+            setSavedVersion((v) => v + 1)
             setRealmInput("")
             navigate(`/dao/${encodeSlug(path)}`)
         } catch {
@@ -134,7 +124,9 @@ export function DAOList() {
 
     const handleRemove = (realmPath: string) => {
         removeSavedDAOForOrg(activeOrgId, realmPath)
-        setDaoEntries((prev) => prev.filter((d) => d.realmPath !== realmPath || d.featured))
+        // Featured stays regardless (it isn't in saved storage); bumping the
+        // version re-derives the list from localStorage.
+        setSavedVersion((v) => v + 1)
     }
 
     // Compute summary stats
@@ -197,7 +189,7 @@ export function DAOList() {
             )}
 
             {/* ── Summary Line ───────────────────────────────────── */}
-            {!loading && daoEntries.length > 0 && (
+            {daoEntries.length > 0 && (
                 <div className="k-daolist__summary">
                     <span>{daoEntries.length} DAO{daoEntries.length !== 1 ? "s" : ""}</span>
                     <span>·</span>
@@ -211,13 +203,10 @@ export function DAOList() {
                 </div>
             )}
 
-            {/* ── DAO Grid (MOVED UP — primary content) ────────── */}
-            {loading ? (
-                <div className="k-daolist__grid">
-                    <SkeletonCard />
-                    <SkeletonCard />
-                </div>
-            ) : daoEntries.length === 0 ? (
+            {/* ── DAO Grid (MOVED UP — primary content) ──────────
+                No loading branch: the base list is synchronous localStorage,
+                so cards render immediately and fill as configs resolve. */}
+            {daoEntries.length === 0 ? (
                 <div className="k-dashed k-daolist__empty">
                     <div className="k-daolist__empty-icon">
                         <Bank size={24} />
@@ -294,7 +283,7 @@ export function DAOList() {
                 </div>
             )}
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} onRetry={() => { setError(null); loadDAOs() }} />
+            <ErrorToast message={error} onDismiss={() => setError(null)} />
         </div>
     )
 }
