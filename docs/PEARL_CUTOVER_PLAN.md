@@ -40,6 +40,14 @@
 >   (two steps; ProposeNewName panics without an existing user record). T1 vote required —
 >   aeddi is the sole T1 member ⇒ **a gno-core coordination step, founder-side**. The deployer's
 >   namespace gate keeps refusing until the name resolves to the multisig.
+>   **The upstream tooling already exists — the ask to aeddi is ONE command** (gno repo,
+>   propose+vote+execute in a single MsgRun; `run_submitters` verified null/open on pearl):
+>   ```
+>   cd misc/deployments/pearl.gno.land
+>   ./govdao-exec.sh register-user samcrew g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0
+>   ```
+>   (`misc/govdao-scripts/register-user.sh` wraps exactly `users.ProposeRegisterUser` — DAO
+>   grants bypass the controller whitelist and the canonical-collision check by design.)
 > - **Ceremony state (verified on-chain):** multisig `g1x7k4628…uxu0` balance EMPTY · samcrew not
 >   among the 10 genesis names · `r/samcrew/*` nothing deployed · CLA render says enforcement
 >   DISABLED · faucet hub NOW LISTS Pearl (100 GNOT/drip, hCaptcha-gated in the hub UI).
