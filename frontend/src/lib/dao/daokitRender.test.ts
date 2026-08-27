@@ -21,9 +21,9 @@
  * path — a foreign realm's ":proposals" link must not divert the read.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { getDAOProposals, getProposalDetail, parseProposalList, fallbackProposalTitle } from "./proposals"
+import { getDAOProposals, getProposalDetail, getProposalVotes, parseProposalList, fallbackProposalTitle, invalidateProposalCache } from "./proposals"
 import { getDAOMembers, getMemberRole, parseMembersFromRender } from "./members"
-import { queryRender, queryRenderPage } from "./shared"
+import { queryRender, queryRenderPage, clearDaoDialects } from "./shared"
 import { resilientAbciQuery } from "../rpcFallback"
 
 vi.mock("../rpcFallback", async (importOriginal) => ({
@@ -249,6 +249,7 @@ function renderPathsFor(realm: string): string[] {
 
 beforeEach(() => {
     mockQuery.mockReset()
+    clearDaoDialects()
 })
 
 // ── queryRender vs queryRenderPage: the mux "404" body ────────
@@ -720,5 +721,301 @@ Yes: 30/30 = 100%
 
     it("exports the placeholder-title builder consumers key on", () => {
         expect(fallbackProposalTitle(7)).toBe("Proposal #7")
+    })
+})
+
+// ── Per-realm dialect memo ────────────────────────────────────
+// A realm's render dialect is static per deployment, so flavor discovery
+// (which JSON exports exist, whether the root is a landing page, which
+// detail route answers) should run ONCE per realm per session — not burn
+// guaranteed-dead round-trips on every read.
+
+describe("dao dialect memo", () => {
+    const qevalCalls = () => mockQuery.mock.calls.filter(([p]) => p === "vm/qeval").length
+
+    it("after a daokit realm is learned, getProposalDetail goes straight to proposal/N (no dead Render('N') probe)", async () => {
+        const realm = "gno.land/r/samcrew/dialect_1"
+        mockQuery.mockImplementation(
+            renderRouter(realm, {
+                "": daokitHome(realm),
+                proposals: daokitProposalsTable(realm),
+                history: daokitHistoryEmpty(realm),
+                "proposal/1": daokitDetail(realm),
+            }),
+        )
+
+        await getDAOProposals(RPC, realm, true) // learns "daokit"
+        mockQuery.mockClear()
+
+        const detail = await getProposalDetail(RPC, realm, 1)
+        expect(detail!.title).toBe("Add treasury signer")
+        const paths = renderPathsFor(realm)
+        expect(paths[0]).toBe("proposal/1")
+        expect(paths).not.toContain("1")
+    })
+
+    it("after a daokit realm is learned, getProposalVotes makes ZERO calls (the realm has no votes route)", async () => {
+        const realm = "gno.land/r/samcrew/dialect_2"
+        mockQuery.mockImplementation(
+            renderRouter(realm, {
+                "": daokitHome(realm),
+                proposals: daokitProposalsTable(realm),
+                history: daokitHistoryEmpty(realm),
+            }),
+        )
+
+        await getDAOProposals(RPC, realm, true) // learns "daokit"
+        mockQuery.mockClear()
+
+        expect(await getProposalVotes(RPC, realm, 2)).toEqual([])
+        expect(mockQuery.mock.calls.length).toBe(0)
+    })
+
+    it("after a daokit realm is learned, getDAOMembers skips the JSON probe and the landing page", async () => {
+        const realm = "gno.land/r/samcrew/dialect_3"
+        mockQuery.mockImplementation(
+            renderRouter(realm, {
+                "": daokitHome(realm),
+                proposals: daokitProposalsEmpty(realm),
+                history: daokitHistoryEmpty(realm),
+                members: daokitMembers(realm),
+            }),
+        )
+
+        await getDAOProposals(RPC, realm, true) // learns "daokit"
+        mockQuery.mockClear()
+
+        const members = await getDAOMembers(RPC, realm)
+        expect(members).toHaveLength(1)
+        expect(qevalCalls()).toBe(0)
+        const paths = renderPathsFor(realm)
+        expect(paths).not.toContain("")
+        expect(paths[0]).toBe("members")
+    })
+
+    it("after a daokit realm is learned, list reads skip the JSON probe and the landing page too", async () => {
+        const realm = "gno.land/r/samcrew/dialect_4"
+        mockQuery.mockImplementation(
+            renderRouter(realm, {
+                "": daokitHome(realm),
+                proposals: daokitProposalsTable(realm),
+                history: daokitHistoryEmpty(realm),
+            }),
+        )
+
+        await getDAOProposals(RPC, realm, true) // learns
+        invalidateProposalCache(realm) // bust the list cache, keep the dialect
+        mockQuery.mockClear()
+
+        const proposals = await getDAOProposals(RPC, realm, true)
+        expect(proposals.map((p) => p.id)).toEqual([2, 1])
+        expect(qevalCalls()).toBe(0)
+        expect(renderPathsFor(realm)).not.toContain("")
+    })
+
+    it("negative probe evidence is NEVER memoized: root-listing realms keep probing (a null probe is transport-vs-panic ambiguous)", async () => {
+        const realm = "gno.land/r/gov/dialect_5"
+        const govdaoRoot = `# GovDAO
+
+### [Prop #42 - Add validator node alpha](/r/gov/dao:42)
+Author: [@zooma](https://gno.land/u/zooma)
+Status: ACTIVE
+`
+        mockQuery.mockImplementation(renderRouter(realm, { "": govdaoRoot }))
+
+        await getDAOProposals(RPC, realm, true)
+        invalidateProposalCache(realm)
+        mockQuery.mockClear()
+
+        const proposals = await getDAOProposals(RPC, realm, true)
+        expect(proposals.map((p) => p.id)).toEqual([42])
+        // Latching "root" off one null probe could freeze a JSON realm onto
+        // the markdown path (zeroed tallies) after a single transport blip —
+        // so the probe must keep running.
+        expect(qevalCalls()).toBe(1)
+    })
+
+    it("one transient probe blip never freezes a JSON realm off its endpoint", async () => {
+        const realm = "gno.land/r/samcrew/dialect_5b"
+        const QEVAL_JSON = `(${JSON.stringify(JSON.stringify([{ id: 7, title: "From JSON", status: "active", yes_votes: 5 }]))} string)`
+        let qevalUp = true
+        mockQuery.mockImplementation(async (path: string, data: string) => {
+            if (path === "vm/qeval") return qevalUp ? QEVAL_JSON : null
+            // While the probe is down, the render side serves a daokit-shaped
+            // landing + tables (worst case for a mis-latch).
+            return renderRouter(realm, {
+                "": daokitHome(realm),
+                proposals: daokitProposalsTable(realm),
+                history: daokitHistoryEmpty(realm),
+            })(path, data)
+        })
+
+        expect((await getDAOProposals(RPC, realm, true))[0].title).toBe("From JSON") // memo "json"
+        invalidateProposalCache(realm)
+
+        qevalUp = false // one blip: read falls to the render path…
+        await getDAOProposals(RPC, realm, true)
+        invalidateProposalCache(realm)
+
+        qevalUp = true // …but the memo must NOT have been downgraded:
+        mockQuery.mockClear()
+        const back = await getDAOProposals(RPC, realm, true)
+        expect(qevalCalls()).toBe(1) // probed again
+        expect(back[0].title).toBe("From JSON")
+        expect(back[0].yesVotes).toBe(5) // structured tallies, not markdown zeros
+    })
+
+    it("a daokit memo mis-learned from the MEMBERS side self-heals on the next proposals read", async () => {
+        const realm = "gno.land/r/samcrew/dialect_5c"
+        const QEVAL_PROPOSALS = `(${JSON.stringify(JSON.stringify([{ id: 3, title: "Real one", status: "active" }]))} string)`
+        mockQuery.mockImplementation(async (path: string, data: string) => {
+            if (path === "vm/qeval") {
+                // GetMembersJSON fails; GetProposalsJSON works.
+                return String(data).includes("GetProposalsJSON") ? QEVAL_PROPOSALS : null
+            }
+            // Landing links its own :members (so the members side memos
+            // "daokit") but the realm serves NO :proposals route.
+            return renderRouter(realm, {
+                "": daokitHome(realm),
+                members: daokitMembers(realm),
+            })(path, data)
+        })
+
+        await getDAOMembers(RPC, realm) // memos "daokit" from the members link
+        const proposals = await getDAOProposals(RPC, realm, true)
+        expect(proposals.map((p) => p.id)).toEqual([3]) // healed to the JSON endpoint
+    })
+
+    it("the discovery recovery forgets the memo so votes are not shortcut for root-parsed rows", async () => {
+        const realm = "gno.land/r/samcrew/dialect_5d"
+        // Landing links its own :proposals, but the route is dead and the ROOT
+        // itself lists proposals GovDAO-style (the legacy hybrid class).
+        const hybridRoot = daokitHome(realm) + `
+### [Prop #9 - Hybrid realm proposal](/r/x:9)
+Author: [@zooma](https://gno.land/u/zooma)
+Status: ACTIVE
+`
+        mockQuery.mockImplementation(renderRouter(realm, { "": hybridRoot }))
+
+        const proposals = await getDAOProposals(RPC, realm, false)
+        expect(proposals.map((p) => p.id)).toEqual([9])
+
+        mockQuery.mockClear()
+        await getProposalVotes(RPC, realm, 9)
+        // The votes read must actually TRY the routes (no zero-call daokit
+        // shortcut) — these rows came from the root listing.
+        expect(mockQuery.mock.calls.length).toBeGreaterThan(0)
+    })
+
+    it("a stale daokit memo self-heals when the realm now answers with junk (redeploy)", async () => {
+        const realm = "gno.land/r/samcrew/dialect_5e"
+        mockQuery.mockImplementation(
+            renderRouter(realm, {
+                "": daokitHome(realm),
+                proposals: daokitProposalsTable(realm),
+                history: daokitHistoryEmpty(realm),
+            }),
+        )
+        await getDAOProposals(RPC, realm, true) // memo "daokit"
+        invalidateProposalCache(realm)
+
+        // Redeployed: now a root-listing realm; unknown routes answer truthy
+        // junk, NOT the literal mux "404".
+        const govdaoRoot = `# Reborn DAO
+
+### [Prop #1 - First after redeploy](/r/x:1)
+Author: [@zooma](https://gno.land/u/zooma)
+Status: ACTIVE
+`
+        mockQuery.mockImplementation(async (path: string, data: string) => {
+            if (path === "vm/qeval") return null
+            const renderPath = String(data).split(/:(.*)/s)[1]
+            if (renderPath === "") return govdaoRoot
+            return "# Not Found\n\nno such page\n"
+        })
+
+        const proposals = await getDAOProposals(RPC, realm, true)
+        expect(proposals.map((p) => p.id)).toEqual([1]) // rediscovered, not an error/empty
+    })
+
+    it("the reordered detail fetch is shape-gated: junk at proposal/N cannot become a phantom detail", async () => {
+        const realm = "gno.land/r/samcrew/dialect_5f"
+        mockQuery.mockImplementation(
+            renderRouter(realm, {
+                "": daokitHome(realm),
+                proposals: daokitProposalsTable(realm),
+                history: daokitHistoryEmpty(realm),
+            }),
+        )
+        await getDAOProposals(RPC, realm, true) // memo "daokit"
+
+        // Redeployed to a GovDAO-style realm: proposal/N answers junk,
+        // Render("N") serves the real detail.
+        mockQuery.mockImplementation(async (path: string, data: string) => {
+            if (path === "vm/qeval") return null
+            const renderPath = String(data).split(/:(.*)/s)[1]
+            if (renderPath === "42") {
+                return "### Prop #42 - The real detail\nAuthor: g1zoomazoomazoomazoomazoomazoomazoom00\nStatus: ACTIVE\n"
+            }
+            return "# Not Found\n\nno such page\n"
+        })
+
+        const detail = await getProposalDetail(RPC, realm, 42)
+        expect(detail!.title).toBe("The real detail")
+        expect(detail!.title).not.toContain("Not Found")
+    })
+
+    it("unknown realms keep the current discovery order (detail tries Render('N') first)", async () => {
+        const realm = "gno.land/r/samcrew/dialect_6"
+        mockQuery.mockImplementation(
+            renderRouter(realm, {
+                "proposal/1": daokitDetail(realm),
+            }),
+        )
+
+        const detail = await getProposalDetail(RPC, realm, 1)
+        expect(detail!.title).toBe("Add treasury signer")
+        expect(renderPathsFor(realm)[0]).toBe("1") // probe order unchanged without a memo
+    })
+
+    it("getMemberRole uses the memo the same way getDAOMembers does", async () => {
+        const realm = "gno.land/r/samcrew/dialect_7"
+        mockQuery.mockImplementation(
+            renderRouter(realm, {
+                "": daokitHome(realm),
+                proposals: daokitProposalsEmpty(realm),
+                history: daokitHistoryEmpty(realm),
+                members: daokitMembers(realm),
+            }),
+        )
+
+        await getDAOProposals(RPC, realm, true) // learns "daokit"
+        mockQuery.mockClear()
+
+        const role = await getMemberRole(RPC, realm, "g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0")
+        expect(role!.roles).toEqual(["admin", "dev"])
+        expect(qevalCalls()).toBe(0)
+        expect(renderPathsFor(realm)).not.toContain("")
+    })
+
+    it("a strict daokit read whose sub-pages fail still surfaces an error (via rediscovery, not a stale-memo throw)", async () => {
+        const realm = "gno.land/r/samcrew/dialect_8"
+        mockQuery.mockImplementation(
+            renderRouter(realm, {
+                "": daokitHome(realm),
+                proposals: daokitProposalsEmpty(realm),
+                history: daokitHistoryEmpty(realm),
+            }),
+        )
+        await getDAOProposals(RPC, realm, true) // learns "daokit"
+        invalidateProposalCache(realm)
+
+        // The sub-routes vanish while the landing stays up: the memoized read
+        // forgets the memo, rediscovers via the landing, and the strict
+        // contract still surfaces the failure.
+        mockQuery.mockImplementation(renderRouter(realm, { "": daokitHome(realm) }))
+        await expect(getDAOProposals(RPC, realm, true)).rejects.toThrow(
+            "Failed to read the DAO's proposals page",
+        )
     })
 })

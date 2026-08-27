@@ -15,6 +15,7 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { getDAOProposals } from "./proposals"
+import { clearDaoDialects } from "./shared"
 import { resilientAbciQuery } from "../rpcFallback"
 
 vi.mock("../rpcFallback", async (importOriginal) => ({
@@ -46,6 +47,9 @@ const NOT_DECLARED = new Error(
 
 beforeEach(() => {
     mockQuery.mockReset()
+    // The dialect memo is module state — reset it so these pinned probe
+    // assertions never go vacuous if a test ever reuses a realm path.
+    clearDaoDialects()
 })
 
 describe("getDAOProposals strict-mode JSON probe", () => {

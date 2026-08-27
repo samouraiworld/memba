@@ -5,7 +5,7 @@
  * basedao Render("") markdown fallback.
  */
 
-import { queryRender, queryRenderPage, queryEval, resolveUsernames, hasOwnSubpageLink, detectMaxPage, type DAOMember } from "./shared"
+import { queryRender, queryRenderPage, queryEval, resolveUsernames, hasOwnSubpageLink, detectMaxPage, getDaoDialect, setDaoDialect, deleteDaoDialect, type DAOMember } from "./shared"
 
 /**
  * Parse gnodaokit/basedao members-table rows (deployed RenderMembersTable):
@@ -101,6 +101,20 @@ export async function getDAOMembers(
         }
     }
 
+    // Memoized daokit realm: the JSON probe VM-panics and Render("") is a
+    // landing page listing nobody — straight to the :members table. A failed
+    // read forgets the memo and falls through to full discovery (stale or
+    // mis-learned memos self-heal); an EMPTY-but-valid table falls through
+    // too, for parity with discovery's landing-bullet last resort.
+    if (getDaoDialect(rpcUrl, realmPath) === "daokit") {
+        const table = await fetchDaokitMemberPages(rpcUrl, realmPath)
+        if (table !== null && table.length > 0) {
+            await resolveUsernames(rpcUrl, table)
+            return table
+        }
+        if (table === null) deleteDaoDialect(rpcUrl, realmPath)
+    }
+
     // Try JSON endpoint (basedao)
     const json = await queryEval(rpcUrl, realmPath, `GetMembersJSON()`)
     if (json) {
@@ -132,10 +146,15 @@ export async function getDAOMembers(
         // gnodaokit/basedao: Render("") is a landing page linking to :members
         // — the table there (paginated at 10/page) is authoritative; rows
         // parsed off a landing page that advertises the route are noise.
+        // (Members only ever memo "daokit" — the landing is definitive; a
+        // bullet-rendering realm says nothing about the PROPOSALS dialect.)
+        setDaoDialect(rpcUrl, realmPath, "daokit")
         const table = await fetchDaokitMemberPages(rpcUrl, realmPath)
         if (table === null) {
             // The advertised :members page could not be read — that is a
-            // failed read, not an empty DAO.
+            // failed read, not an empty DAO. The daokit conclusion failed its
+            // empirical test, so forget it (next read re-discovers).
+            deleteDaoDialect(rpcUrl, realmPath)
             if (strict) throw new Error("Failed to read the DAO's members page")
             return []
         }
@@ -155,12 +174,16 @@ export async function getDAOMembers(
  * Picker's FIRST link is the back-link "[1](?page=1)" — and scanning for the
  * max also degrades a bogus injected link to harmless empty over-fetches
  * rather than silent truncation.)
- * Returns null when the :members page itself could not be read, so callers
- * can distinguish a failed read from a genuinely empty roster.
+ * Returns null when the :members page could not be read OR when the answer
+ * isn't a daokit members page (a non-mux realm answers unknown routes with
+ * truthy junk, not the literal "404" — a genuine members page carries its
+ * "## Members 👥 (N)" header even when empty), so callers can distinguish a
+ * failed read from a genuinely empty roster.
  */
 async function fetchDaokitMemberPages(rpcUrl: string, realmPath: string): Promise<DAOMember[] | null> {
     const page1 = await queryRenderPage(rpcUrl, realmPath, "members")
     if (!page1) return null
+    if (!/^##\s+Members\s/m.test(page1) && !page1.includes(":member/")) return null
 
     const allMembers: DAOMember[] = []
     const seen = new Set<string>()
@@ -242,6 +265,16 @@ export async function getMemberRole(
         return null
     }
 
+    // Memoized daokit realm: the JSON probe VM-panics and the landing page
+    // lists nobody — straight to the :members table. A failed read forgets
+    // the memo and falls through to discovery (self-healing, same as
+    // getDAOMembers).
+    if (getDaoDialect(rpcUrl, realmPath) === "daokit") {
+        const all = await fetchDaokitMemberPages(rpcUrl, realmPath)
+        if (all !== null) return all.find((m) => m.address.toLowerCase() === target) ?? null
+        deleteDaoDialect(rpcUrl, realmPath)
+    }
+
     // basedao JSON endpoint — find the address without resolving usernames.
     const json = await queryEval(rpcUrl, realmPath, `GetMembersJSON()`)
     if (json) {
@@ -275,6 +308,7 @@ export async function getMemberRole(
     const data = await queryRender(rpcUrl, realmPath, "")
     if (!data) return null
     if (hasOwnSubpageLink(data, realmPath, "members")) {
+        setDaoDialect(rpcUrl, realmPath, "daokit")
         const all = await fetchDaokitMemberPages(rpcUrl, realmPath)
         return all?.find((m) => m.address.toLowerCase() === target) ?? null
     }
