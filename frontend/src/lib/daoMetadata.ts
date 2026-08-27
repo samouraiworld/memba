@@ -63,3 +63,15 @@ export function parseDAORender(path: string, raw: string | null): DAOMetadata {
 
     return defaults
 }
+
+/**
+ * Count from a gnodaokit proposals sub-page section header —
+ * "## Active Proposals 🗳️ (N)" / "## Inactive Proposals 🗳️ (N)" (the
+ * deployed ProposalsView/ProposalHistoryPageView shapes). Returns null when
+ * the page carries no such header (not a daokit proposals page), so callers
+ * can tell "genuinely zero" apart from "wrong page".
+ */
+export function parseDaokitSectionCount(raw: string): number | null {
+    const m = raw.match(/^##\s+(?:Active|Inactive)\s+Proposals[^\d(]*\((\d+)\)/m)
+    return m ? parseInt(m[1], 10) : null
+}

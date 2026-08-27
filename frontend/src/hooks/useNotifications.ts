@@ -31,8 +31,8 @@ import {
     type Notification,
 } from "../lib/notifications"
 import { GNO_RPC_URL } from "../lib/config"
-import { parseDAORender } from "../lib/daoMetadata"
-import { queryRender } from "../lib/dao/shared"
+import { parseDAORender, parseDaokitSectionCount } from "../lib/daoMetadata"
+import { queryRender, queryRenderPage, hasOwnSubpageLink } from "../lib/dao/shared"
 import { encodeSlug } from "../lib/daoSlug"
 import { getDAOProposals, type DAOProposal } from "../lib/dao"
 
@@ -44,11 +44,28 @@ const MAX_DAOS_PER_POLL = 5      // Performance cap (matches voteScanner pattern
  *
  * C1 audit fix: was a duplicate ABCI implementation; now reuses the
  * shared query layer (inherits domain validation, error handling, etc.).
+ *
+ * gnodaokit realms (the deployed memba_dao) render a LANDING page at
+ * Render("") with no counters — the counts live on the sub-pages' section
+ * headers ("## Active/Inactive Proposals 🗳️ (N)"). Without the hop below the
+ * count pins at 0 and `count > lastCount` never fires: no daokit DAO ever
+ * produced a "New Proposal" notification. The TOTAL (active + history) is
+ * used because it is MONOTONIC — an active-only count drops when a proposal
+ * executes, which could swallow the next new-proposal signal.
  */
 async function getProposalCount(rpcUrl: string, daoPath: string): Promise<number> {
     try {
         const raw = await queryRender(rpcUrl, daoPath, "")
         const meta = parseDAORender(daoPath, raw)
+        if (meta.proposalCount === 0 && raw && hasOwnSubpageLink(raw, daoPath, "proposals")) {
+            const [active, history] = await Promise.all([
+                queryRenderPage(rpcUrl, daoPath, "proposals"),
+                queryRenderPage(rpcUrl, daoPath, "history"),
+            ])
+            const a = active ? parseDaokitSectionCount(active) : null
+            const h = history ? parseDaokitSectionCount(history) : null
+            if (a !== null || h !== null) return (a ?? 0) + (h ?? 0)
+        }
         return meta.proposalCount
     } catch {
         return 0
@@ -157,7 +174,17 @@ export function useNotifications(daoPaths: string[], address: string | null) {
                 }
                 hasNewNotifications = true
             }
-            lastKnownCounts.current.set(daoPath, count)
+            // Non-decreasing: proposal counts are monotonic for every
+            // supported dialect (proposals are never deleted), so a LOWER
+            // reading is a partial/failed read — recording it would make the
+            // recovery on the next poll re-fire a phantom "New Proposal" for
+            // an old proposal. (A chain reset mid-session is the one case a
+            // count can genuinely drop; the map is session-scoped, a reload
+            // re-baselines.)
+            lastKnownCounts.current.set(
+                daoPath,
+                lastCount !== undefined ? Math.max(lastCount, count) : count,
+            )
 
             // ── v2.13: Status transitions ──────────────────
             for (const p of proposals) {

@@ -90,3 +90,24 @@ describe("parseDAORender", () => {
         expect(result.path).toBe(customPath)
     })
 })
+
+import { parseDaokitSectionCount } from "./daoMetadata"
+
+describe("parseDaokitSectionCount", () => {
+    test("reads the active-proposals header count", () => {
+        expect(parseDaokitSectionCount("# MembaDAO - Proposals\n\n## Active Proposals 🗳️ (2)\n\n| … |\n")).toBe(2)
+    })
+
+    test("reads the inactive-proposals (history) header count", () => {
+        expect(parseDaokitSectionCount("# MembaDAO - Proposal History\n\n## Inactive Proposals 🗳️ (7)\n")).toBe(7)
+    })
+
+    test("a genuinely empty page still counts as zero (header present)", () => {
+        expect(parseDaokitSectionCount("## Active Proposals 🗳️ (0)\n\n\t⚠️ There are no proposals to show\n")).toBe(0)
+    })
+
+    test("returns null for a page without the section header — 'wrong page', not 'zero'", () => {
+        expect(parseDaokitSectionCount("# Not Found\n\nno such page\n")).toBeNull()
+        expect(parseDaokitSectionCount("# MembaDAO\n\nA landing page\n")).toBeNull()
+    })
+})

@@ -33,8 +33,14 @@ vi.mock("../lib/notifications", () => ({
     getUnreadCount: vi.fn(),
 }))
 vi.mock("../lib/config", () => ({ GNO_RPC_URL: "http://rpc.test" }))
-vi.mock("../lib/dao/shared", () => ({ queryRender: vi.fn() }))
-vi.mock("../lib/daoMetadata", () => ({ parseDAORender: vi.fn() }))
+vi.mock("../lib/dao/shared", () => ({
+    queryRender: vi.fn(),
+    queryRenderPage: vi.fn(),
+    // Default false: the daokit sub-page hop must never trigger for the
+    // pre-existing scenarios, which model counter-carrying root renders.
+    hasOwnSubpageLink: vi.fn(() => false),
+}))
+vi.mock("../lib/daoMetadata", () => ({ parseDAORender: vi.fn(), parseDaokitSectionCount: vi.fn() }))
 vi.mock("../lib/daoSlug", () => ({ encodeSlug: vi.fn(() => "samourai-dao") }))
 vi.mock("../lib/dao", () => ({ getDAOProposals: vi.fn() }))
 
@@ -44,8 +50,8 @@ import {
     markAllRead as markAllReadFn,
     getUnreadCount,
 } from "../lib/notifications"
-import { queryRender } from "../lib/dao/shared"
-import { parseDAORender } from "../lib/daoMetadata"
+import { queryRender, queryRenderPage, hasOwnSubpageLink } from "../lib/dao/shared"
+import { parseDAORender, parseDaokitSectionCount } from "../lib/daoMetadata"
 import { getDAOProposals } from "../lib/dao"
 import { useNotifications } from "./useNotifications"
 
@@ -96,6 +102,9 @@ describe("useNotifications", () => {
         vi.mocked(addNotification).mockReset()
         vi.mocked(markAllReadFn).mockReset()
         vi.mocked(queryRender).mockReset().mockResolvedValue("raw render")
+        vi.mocked(queryRenderPage).mockReset().mockResolvedValue(null)
+        vi.mocked(hasOwnSubpageLink).mockReset().mockReturnValue(false)
+        vi.mocked(parseDaokitSectionCount).mockReset().mockReturnValue(null)
         vi.mocked(parseDAORender).mockReset().mockReturnValue(meta(0))
         vi.mocked(getDAOProposals).mockReset().mockResolvedValue([])
     })
@@ -146,6 +155,86 @@ describe("useNotifications", () => {
         rerender({ address: null })
         expect(result.current.notifications).toEqual([])
         expect(result.current.unreadCount).toBe(0)
+    })
+
+
+    it("daokit landing: the count comes from the sub-page section headers, so New Proposal fires for daokit DAOs", async () => {
+        vi.useFakeTimers()
+        // The landing page carries no counters (parseDAORender → 0) but links
+        // its own :proposals — the pre-fix behavior pinned the count at 0
+        // forever and no daokit DAO ever produced a New Proposal notification.
+        let activeCount = 1
+        vi.mocked(parseDAORender).mockReturnValue(meta(0))
+        vi.mocked(hasOwnSubpageLink).mockReturnValue(true)
+        vi.mocked(queryRenderPage).mockImplementation(async (_rpc: string, _path: string, renderPath: string) =>
+            renderPath === "proposals" ? "ACTIVE_PAGE" : "HISTORY_PAGE")
+        vi.mocked(parseDaokitSectionCount).mockImplementation((raw: string) =>
+            raw === "HISTORY_PAGE" ? 1 : activeCount)
+
+        renderHook(() => useNotifications([DAO], ADDR_A))
+        await flushAsync()
+        // Baseline: 1 active + 1 history = 2 total, recorded without notifying.
+        expect(vi.mocked(addNotification)).not.toHaveBeenCalled()
+
+        activeCount = 2 // a new proposal lands
+        await flushAsync(POLL_INTERVAL_MS)
+
+        expect(vi.mocked(addNotification)).toHaveBeenCalledWith(ADDR_A, expect.objectContaining({
+            type: "proposal_new",
+            title: "New Proposal #3", // total is monotonic: 2 → 3
+            daoPath: DAO,
+        }))
+    })
+
+    it("a daokit DAO with truly zero proposals baselines at 0 — and the FIRST proposal then notifies as #1", async () => {
+        vi.useFakeTimers()
+        let total = 0
+        vi.mocked(parseDAORender).mockReturnValue(meta(0))
+        vi.mocked(hasOwnSubpageLink).mockReturnValue(true)
+        vi.mocked(queryRenderPage).mockResolvedValue("SECTION_PAGE")
+        // Both section headers present; history stays 0 (only assert once per
+        // poll pair by splitting the total across the active read).
+        vi.mocked(parseDaokitSectionCount).mockImplementation(() => {
+            const half = total
+            total = 0 // second (history) call in the same poll reads 0
+            return half
+        })
+
+        renderHook(() => useNotifications([DAO], ADDR_A))
+        await flushAsync()
+        expect(vi.mocked(addNotification)).not.toHaveBeenCalled() // 0 recorded as a real baseline
+
+        total = 1 // the DAO's first proposal ever
+        await flushAsync(POLL_INTERVAL_MS)
+        expect(vi.mocked(addNotification)).toHaveBeenCalledWith(ADDR_A, expect.objectContaining({
+            type: "proposal_new",
+            title: "New Proposal #1",
+        }))
+    })
+
+    it("a partial sub-page read (lower total) never re-fires a phantom notification on recovery", async () => {
+        vi.useFakeTimers()
+        let readings = [5, 2, 5] // baseline; history-read blip; recovery
+        vi.mocked(parseDAORender).mockReturnValue(meta(0))
+        vi.mocked(hasOwnSubpageLink).mockReturnValue(true)
+        vi.mocked(queryRenderPage).mockResolvedValue("SECTION_PAGE")
+        // Each poll makes two section reads; the second (history) contributes
+        // 0 so the whole poll's total is the next value from `readings`.
+        let call = 0
+        vi.mocked(parseDaokitSectionCount).mockImplementation(() => {
+            call++
+            if (call % 2 === 0) return 0 // history page
+            const v = readings[0]
+            readings = readings.length > 1 ? readings.slice(1) : readings
+            return v
+        })
+
+        renderHook(() => useNotifications([DAO], ADDR_A))
+        await flushAsync() // baseline 5
+        await flushAsync(POLL_INTERVAL_MS) // blip: total 2 — must NOT lower the baseline
+        await flushAsync(POLL_INTERVAL_MS) // recovery: total 5 again
+        // 5 → (2) → 5 is not "3 new proposals": no notification at any point.
+        expect(vi.mocked(addNotification)).not.toHaveBeenCalled()
     })
 
     it("creates a proposal_new notification when the poll sees a higher proposal count", async () => {
