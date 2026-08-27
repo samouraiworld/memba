@@ -118,7 +118,10 @@ export function getSuggestedFallback(currentNetworkKey: string): string | null {
     // networks are never suggested.
     // topaz left this list at its 2026-08-12 retirement (also now hidden, so
     // the filter below would drop it anyway — belt and braces, like test13).
-    const fallbackOrder = ["sapphire", "gnoland1"]
+    // pearl leads once its realms deploy (the realms filter below keeps it
+    // out of suggestions until then); sapphire follows until its 09-09
+    // sunset; gnoland1 stays last (realm-free, filtered anyway).
+    const fallbackOrder = ["pearl", "sapphire", "gnoland1"]
     for (const key of fallbackOrder) {
         const net = NETWORKS[key]
         if (key !== currentNetworkKey && net && !net.hidden && networkHasRealms(key)) {

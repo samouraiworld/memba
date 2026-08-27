@@ -20,6 +20,14 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Pearl is now Memba's home network (2026-08-27)
+<!-- categories: memba, network -->
+- **Memba now lands on Pearl**, gno.land's newly launched testnet. Network features — validators, blocks, GovDAO governance — are live there today; Memba's own features (DAO, feed, tokens, collectibles) arrive with their deployment ceremony and show an honest "not deployed yet" notice until then.
+- **Sapphire stays fully available from the network selector** — it keeps serving every Memba feature until the chain's announced September 9 sunset, so nothing you were testing there is interrupted.
+- **Betanet (gnoland1) is selectable again.** It is the long-lived chain on the road to mainnet; Memba deploys nothing there yet, and its pages say so instead of pretending otherwise.
+- Until wallet sign-in is enabled server-side for the new networks, connecting a wallet on Pearl or Betanet shows a clear "not accepted yet" message rather than failing silently.
+
+
 ### "New proposal" alerts now reach MembaDAO watchers (2026-08-27)
 <!-- categories: memba -->
 - **Saving MembaDAO to your watched DAOs never produced a "New Proposal" notification.** The alert counted proposals off the DAO's front page — and this DAO's front page doesn't carry a counter; its counts live on the proposals and history pages. The watcher now reads them from where they actually are, so a new proposal in a watched DAO of this kind rings the bell like any other.

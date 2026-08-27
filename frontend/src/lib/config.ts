@@ -227,6 +227,13 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         explorerUrl: import.meta.env.VITE_TOPAZ_EXPLORER_URL || "https://topaz.testnets.gno.land",
     },
     // ── Sapphire (sapphire-1) ────────────────────────────────────────────
+    // DEFAULT until 2026-08-27 (Pearl took over); stays SELECTABLE with live
+    // realms through the chain's announced 2026-09-09 sunset (owner directive:
+    // keep it for testing until then; retire the entry to hidden after).
+    // ⚠️ rpc.sapphire.samourai.live died 2026-08-27 ~16:20 (its host now
+    // serves pearl) — the primary below is the official node, so the app is
+    // unaffected; the backend walks its own fallbacks.
+    //
     // Memba's LIVE default network since the cutover release. The move was
     // forced, not chosen: Adena v1.20.3 (Chrome Web Store, 2026-08-10) dropped
     // `topaz-1` and its v024 storage migration wiped topaz-scoped wallet state,
@@ -295,19 +302,21 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // chainId is CONFIRMED, not conventional: pearl's genesis is generated
         // with CHAIN_ID=pearl-1 (gnolang/gno branch chain/pearl,
         // misc/deployments/pearl.gno.land/gen-genesis.sh:52, corroborated by
-        // that directory's VALIDATOR.md and govdao-exec.sh). That script MAKES
-        // the chain, so it outranks any announce — and the LAUNCHED node now
-        // corroborates it: 2026-08-27 ~11:45 UTC genesis observed, /status
-        // reports node_info.network == "pearl-1" with heights advancing.
-        // The cutover PR must STILL re-assert at flip time. Until
-        // then this entry stays `hidden` (never in the selector, never restored
-        // from storage, only resolvable by explicit URL) and
-        // `realmsDeployed: false` buys the honest RealmsNotDeployedBanner for
-        // anyone who lands on it. Auth is fail-closed anyway: a wrong chainId
-        // here can only produce a token the server refuses
+        // that directory's VALIDATOR.md and govdao-exec.sh). Re-asserted at
+        // the UN-HIDE flip (owner directive 2026-08-27): both the official
+        // node and rpc.pearl.samourai.live report node_info.network ==
+        // "pearl-1" with heights advancing, and the tx-indexer's height
+        // matches the RPC (it served the frozen sapphire height for ~4h after
+        // launch — identity-check indexers like RPCs).
+        //
+        // Visible AND the default network since 2026-08-27; realm-dependent
+        // surfaces stay behind `realmsDeployed: false` (honest
+        // RealmsNotDeployedBanner) until the combined ceremony. Auth is
+        // fail-closed regardless: a pearl-1 token is refused until the owner
+        // adds pearl-1 to the backend's MEMBA_ACCEPTED_CHAIN_IDS
         // (AUTH-CHAINID-MISMATCH-01), never a wrong-chain tx.
         chainId: "pearl-1",
-        hidden: true,
+        hidden: false,
         // Flip to true in the cutover PR AFTER the combined Pearl ceremony
         // (core set + commerce set) has per-artifact vm/qfile records in
         // realm-versions.json's `pearl` section — same rule as sapphire's flip.
@@ -322,13 +331,14 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // Env overrides exist so a preview can point at whatever the launch
         // actually exposes without a code change.
         rpcUrl: import.meta.env.VITE_PEARL_RPC_URL || "https://rpc.pearl.testnets.gno.land:443",
-        // Empty on purpose: verified 2026-08-25 that NEITHER candidate exists
-        // yet — pearl.rpc.onbloc.xyz and rpc.pearl.samourai.live are both
-        // NXDOMAIN, and infra_gno-validator has no chain/pearl branch (only
-        // sapphire, test-13, test11). Fill once a second real node exists; the
-        // two-node rule matters most for the feed tailer, which must not share
-        // an endpoint with the app.
-        fallbackRpcUrls: [],
+        // rpc.pearl.samourai.live provisioned 2026-08-27 ~16:20 UTC and
+        // IDENTITY-VERIFIED the same hour (pearl-1, heights advancing, own
+        // cert). pearl.rpc.onbloc.xyz is still NXDOMAIN — add it when it
+        // exists. The backend two-node rule (feed tailer must not share the
+        // app's endpoint) is satisfied by these two.
+        fallbackRpcUrls: [
+            "https://rpc.pearl.samourai.live:443",
+        ],
         telemetryRpcUrls: [],
         indexerUrl: import.meta.env.VITE_PEARL_INDEXER_URL || "https://indexer.pearl.testnets.gno.land/graphql/query",
         label: "Pearl",
@@ -350,21 +360,21 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         label: "Betanet (gnoland1)",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "",
-        // Hidden from the selector, and declared realm-free (F-28/F-29).
-        // Memba deploys NOTHING to Betanet — FEATURED_DAO_REALM.gnoland1 is
-        // null — yet it was the one selectable network with no REALM_ALLOWLIST
-        // entry, and isRealmValidOn fails OPEN on a missing entry. Every
-        // commerce predicate therefore returned true here, so
-        // /gnoland1/marketplace/nfts rendered a live marketplace with a "Launch
-        // a collection" CTA on a chain with no realms (verified on production
-        // 2026-07-31). Auth fails the other way: this chain has never been in
-        // MEMBA_ACCEPTED_CHAIN_IDS, so a login succeeds and then every call
-        // 401s with no self-heal (F-29). Until both are properly fixed, do not
-        // offer it: `hidden` removes the selector path, `realmsDeployed:false`
-        // gives anyone on an old deep link the honest banner instead of a
-        // fake-live marketplace, and the allowlist entry below closes the
-        // fail-open. Deep links still RESOLVE — same treatment as test13.
-        hidden: true,
+        // SELECTABLE again since 2026-08-27 (owner directive: gnoland1 is the
+        // future-mainnet track — testnet upgrades merge here progressively —
+        // and must stay offered alongside Pearl and Sapphire). The two hazards
+        // that had it hidden are both closed and test-pinned:
+        // - F-28: `realmsDeployed: false` + the explicit empty REALM_ALLOWLIST
+        //   entry below give the honest RealmsNotDeployedBanner instead of the
+        //   fake-live marketplace this chain once rendered (isRealmValidOn
+        //   fails OPEN on a MISSING entry — never remove the entry).
+        // - F-29: the 401-no-self-heal loop is fixed (api.ts drops
+        //   server-rejected tokens; authSession is the durable half). Until
+        //   the owner adds "gnoland1" to MEMBA_ACCEPTED_CHAIN_IDS, a login
+        //   attempt here gets a clean surfaced refusal, not a dead session.
+        // Memba still deploys NOTHING to Betanet — FEATURED_DAO_REALM.gnoland1
+        // is null; realm-dependent surfaces stay honestly gated.
+        hidden: false,
         realmsDeployed: false,
         // Live-verified 2026-07-31: serves `<meta name="chainid" content="gnoland1">`,
         // i.e. this really is Betanet's gnoweb. Both previous values were wrong in
@@ -426,7 +436,10 @@ export function selectableNetworksFor(activeKey: string): Record<string, Network
  * here without moving that e2e contract first.
  */
 export function resolveDefaultNetwork(envKey: string | undefined): string {
-    return envKey && NETWORKS[envKey] ? envKey : "sapphire"
+    // The hard fallback tracks the CURRENT default chain (pearl since
+    // 2026-08-27) — falling back to a sunsetting chain would strand a
+    // misconfigured build on a network scheduled to die (sapphire: 09-09).
+    return envKey && NETWORKS[envKey] ? envKey : "pearl"
 }
 
 /** Default network key (always a valid NETWORKS entry — see resolveDefaultNetwork). */
