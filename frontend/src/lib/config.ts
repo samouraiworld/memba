@@ -296,9 +296,10 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // with CHAIN_ID=pearl-1 (gnolang/gno branch chain/pearl,
         // misc/deployments/pearl.gno.land/gen-genesis.sh:52, corroborated by
         // that directory's VALIDATOR.md and govdao-exec.sh). That script MAKES
-        // the chain, so it outranks any announce — but it still is not the
-        // running node, so re-assert against the LAUNCHED node (GET
-        // <rpc>/status → .result.node_info.network) in the cutover PR. Until
+        // the chain, so it outranks any announce — and the LAUNCHED node now
+        // corroborates it: 2026-08-27 ~11:45 UTC genesis observed, /status
+        // reports node_info.network == "pearl-1" with heights advancing.
+        // The cutover PR must STILL re-assert at flip time. Until
         // then this entry stays `hidden` (never in the selector, never restored
         // from storage, only resolvable by explicit URL) and
         // `realmsDeployed: false` buys the honest RealmsNotDeployedBanner for
@@ -312,15 +313,14 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // realm-versions.json's `pearl` section — same rule as sapphire's flip.
         realmsDeployed: false,
         isTestnet: true,
-        // ⛔ This hostname RESOLVES TODAY AND LIES. As of 2026-08-25 it answers
-        // 200 OK with node_info.network = "sapphire-1", build_version =
-        // "chain/sapphire", frozen at height 395317 since 2026-08-24T20:00:14Z
-        // while real sapphire runs ~20k blocks ahead — pre-provisioned infra
-        // waiting for the pearl genesis, reproduced across three distinct pool
-        // instances. So DNS resolution and an HTTP 200 are BOTH false positives
-        // for "Pearl is up"; the only valid liveness test is
-        // node_info.network == "pearl-1". Env overrides exist so a preview can
-        // point at whatever the launch actually exposes without a code change.
+        // ⚠️ Liveness lesson from the launch window: from 2026-08-24 until the
+        // 2026-08-27 genesis this hostname resolved, answered 200, and served
+        // a FROZEN sapphire-1 (pre-provisioned infra waiting for pearl) — so
+        // DNS resolution and an HTTP 200 are BOTH false positives for
+        // "Pearl is up"; the only valid liveness test is
+        // node_info.network == "pearl-1" (passing here since the 08-27 launch).
+        // Env overrides exist so a preview can point at whatever the launch
+        // actually exposes without a code change.
         rpcUrl: import.meta.env.VITE_PEARL_RPC_URL || "https://rpc.pearl.testnets.gno.land:443",
         // Empty on purpose: verified 2026-08-25 that NEITHER candidate exists
         // yet — pearl.rpc.onbloc.xyz and rpc.pearl.samourai.live are both
