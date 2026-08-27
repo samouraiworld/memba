@@ -11,10 +11,19 @@ vi.mock("../../lib/feed", async (orig) => ({
     ...(await orig<typeof import("../../lib/feed")>()),
     submitFeedMsg: vi.fn(),
 }))
+// The bar renders null off the feed's home network (isFeedWritable — since
+// the 2026-08-27 pearl-default flip the DEFAULT network's feed is dark until
+// the ceremony). These are INTERACTION tests, so they pin writability true;
+// the gate itself is pinned by its own test below.
+vi.mock("../../lib/config", async (orig) => ({
+    ...(await orig<typeof import("../../lib/config")>()),
+    isFeedWritable: vi.fn(() => true),
+}))
 
 import { ReactionBar } from "./ReactionBar"
 import { fetchPostReactions, type EmojiCount } from "../../lib/feedApi"
 import { submitFeedMsg } from "../../lib/feed"
+import { isFeedWritable } from "../../lib/config"
 
 const mockFetch = vi.mocked(fetchPostReactions)
 const mockSubmit = vi.mocked(submitFeedMsg)
@@ -34,6 +43,15 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllEnvs())
 
 describe("ReactionBar", () => {
+    it("renders nothing off the feed's home network (pearl default, feed on sapphire)", () => {
+        vi.stubEnv("VITE_ENABLE_REACTIONS", "true")
+        vi.mocked(isFeedWritable).mockReturnValueOnce(false)
+        mockFetch.mockResolvedValue(reactions([{ emoji: "👍", count: 3, viewerReacted: false }]))
+        const { container } = withClient(<ReactionBar postId={7n} connected selfAddress="g1me" onConnect={vi.fn()} />)
+        expect(container.firstChild).toBeNull()
+        expect(mockFetch).not.toHaveBeenCalled()
+    })
+
     it("renders nothing when the flag is off", () => {
         mockFetch.mockResolvedValue(reactions([{ emoji: "👍", count: 3, viewerReacted: false }]))
         const { container } = withClient(<ReactionBar postId={7n} connected selfAddress="g1me" onConnect={vi.fn()} />)

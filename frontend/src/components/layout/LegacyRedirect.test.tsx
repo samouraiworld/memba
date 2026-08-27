@@ -61,15 +61,15 @@ const networkOf = (path: string) => path.match(/^\/([^/]+)\//)?.[1]
 describe("LegacyRedirect — bookmarks must heal like / does", () => {
     afterEach(() => localStorage.removeItem("memba_network"))
 
-    it("does NOT pin a bookmark to Betanet", () => {
+    it("keeps a Betanet bookmark now that gnoland1 is visible again (2026-08-27)", () => {
+        // The old regression was pinning bookmarks to a HIDDEN network; the
+        // rule under test is "stored keys heal off hidden networks only".
+        // gnoland1 left the hidden set, so a stored selection legitimately
+        // sticks — the hidden-healing property stays covered by the
+        // every-stored-value sweep below (test13/topaz).
         localStorage.setItem("memba_network", "gnoland1")
         const landed = renderLegacy("/directory")
-        // The regression, stated directly: this used to be /gnoland1/directory.
-        expect(networkOf(landed)).not.toBe("gnoland1")
-        // Deliberately NOT asserting the result is visible: in a build that pins a
-        // hidden network as the default (.env.e2e → test13) it legitimately is
-        // not. That property is asserted hermetically for the shipped-build case
-        // in config.test.ts; here the point is that the rule is SHARED, below.
+        expect(networkOf(landed)).toBe("gnoland1")
     })
 
     it("lands on the SAME network as RootRedirect for every stored value", () => {
@@ -88,9 +88,9 @@ describe("LegacyRedirect — bookmarks must heal like / does", () => {
         }
     })
 
-    it("RootRedirect itself does not restore Betanet", () => {
+    it("RootRedirect restores a stored Betanet selection (visible again)", () => {
         localStorage.setItem("memba_network", "gnoland1")
-        expect(networkOf(renderRoot())).not.toBe("gnoland1")
+        expect(networkOf(renderRoot())).toBe("gnoland1")
     })
 
     it("keeps a stored VISIBLE network", () => {

@@ -17,18 +17,18 @@ test.describe('Settings Page', () => {
         await expect(page.locator('body')).toContainText(/v\d+/)
     })
 
-    test('network section offers the active network and NOT Betanet', async ({ page }) => {
+    test('network section offers the active network AND Betanet (visible again 2026-08-27)', async ({ page }) => {
         await page.goto('/settings')
         // Network section is open by default.
         //
-        // Was /Testnet/, which only ever passed because this picker listed the
-        // FULL NETWORKS map — the string came from the HIDDEN test13 entry, so
-        // the assertion silently depended on hidden networks being offered here
-        // (F-28's third picker). Assert the contract instead: the network you are
-        // actually on is offered, and Betanet is not.
+        // Betanet returned to the pickers with the pearl-default flip — its
+        // F-28/F-29 hazards are fixed and pinned in config.test.ts. Hidden
+        // (retired) networks must still not be offered here.
         const active = page.locator('#settings-page button[id^="network-"]')
         await expect(active.first()).toBeVisible()
-        await expect(page.locator('#network-gnoland1')).toHaveCount(0)
+        await expect(page.locator('#network-gnoland1')).toHaveCount(1)
+        await expect(page.locator('#network-topaz')).toHaveCount(0)
+        await expect(page.locator('#network-test13')).toHaveCount(0)
         const network = new URL(page.url()).pathname.split('/')[1]
         await expect(page.locator(`#network-${network}`)).toBeVisible()
     })
