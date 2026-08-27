@@ -16,6 +16,7 @@
  *  redirects here. */
 import { useCallback, useEffect, useRef, useState } from "react"
 import { Link, Navigate, useLocation, useOutletContext, useParams } from "react-router-dom"
+import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import {
     Copy, CheckCircle, GlobeSimple, GithubLogo, XLogo, PencilSimple,
     Coins, Package, Scales, ShieldCheck, ArrowsLeftRight, Play, Cube, ArrowClockwise,
@@ -159,6 +160,22 @@ export default function ValidatorProfile() {
     const [loading, setLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [tab, setTab] = useState<TabKey>("Overview")
+
+    // APG tabs keyboard contract via the shared hook (declared before the early
+    // returns so the hook order is stable). This page's hand-rolled handler
+    // moved selection but never focus — the roving tab stop stayed on the
+    // previous button, so the next keypress operated on a tab the user had
+    // already left. The hook also drops the old ArrowUp/ArrowDown aliases: this
+    // tablist is horizontal, and per the APG those keys belong to the page.
+    // idFor preserves the pre-existing id scheme the tabpanels' aria-labelledby
+    // attributes point at.
+    const { tabProps } = useTabListKeyboard<TabKey>({
+        keys: TABS,
+        active: tab,
+        onSelect: setTab,
+        idFor: (t) => `vp-tab-${t.toLowerCase()}-btn`,
+    })
+
     const [avatarError, setAvatarError] = useState(false)
     const [editOpen, setEditOpen] = useState(false)
     const abortRef = useRef<AbortController | null>(null)
@@ -331,14 +348,6 @@ export default function ValidatorProfile() {
         ? `${getExplorerBaseUrl()}/r/gnops/valopers:${valoper.operatorAddress}`
         : `${getExplorerBaseUrl()}/r/gnoland/valopers`
 
-    const onTabKeyDown = (e: React.KeyboardEvent) => {
-        const i = TABS.indexOf(tab)
-        if (e.key === "ArrowRight" || e.key === "ArrowDown") { e.preventDefault(); setTab(TABS[(i + 1) % TABS.length]) }
-        else if (e.key === "ArrowLeft" || e.key === "ArrowUp") { e.preventDefault(); setTab(TABS[(i - 1 + TABS.length) % TABS.length]) }
-        else if (e.key === "Home") { e.preventDefault(); setTab(TABS[0]) }
-        else if (e.key === "End") { e.preventDefault(); setTab(TABS[TABS.length - 1]) }
-    }
-
     const hasContribs = !!profile && (
         profile.lovePowerScore > 0 || profile.totalCommits > 0 || profile.totalPRs > 0 ||
         profile.totalIssues > 0 || profile.totalReviews > 0 || profile.deployedPackages.length > 0
@@ -442,9 +451,8 @@ export default function ValidatorProfile() {
             {/* ── Tabs ── */}
             <div className="vp-tabs" role="tablist" aria-label="Profile sections">
                 {TABS.map((t) => (
-                    <button key={t} role="tab" id={`vp-tab-${t.toLowerCase()}-btn`} aria-selected={tab === t}
-                        aria-controls={`vp-tab-${t.toLowerCase()}`} tabIndex={tab === t ? 0 : -1}
-                        className={`vp-tab${tab === t ? " vp-tab--active" : ""}`} onClick={() => setTab(t)} onKeyDown={onTabKeyDown}>
+                    <button key={t} {...tabProps(t)} aria-controls={`vp-tab-${t.toLowerCase()}`}
+                        className={`vp-tab${tab === t ? " vp-tab--active" : ""}`} onClick={() => setTab(t)}>
                         {t}
                     </button>
                 ))}

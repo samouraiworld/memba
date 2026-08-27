@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
 import { useOutletContext } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -18,113 +19,122 @@ interface TreasuryAsset {
     rawBalance: bigint
 }
 
+interface TreasuryData {
+    config: DAOConfig | null
+    members: DAOMember[]
+    assets: TreasuryAsset[]
+    /** Per-source load failures (P1-7): a failed balance source must show a
+        notice, not silently render an incomplete treasury as if complete. */
+    partialFailures: string[]
+}
+
+/**
+ * Load everything the treasury page shows. Config/member failures throw (the
+ * page is meaningless without them); per-balance-source failures are collected
+ * into partialFailures instead, preserving the P1-7 honesty contract.
+ */
+async function loadTreasuryData(realmPath: string): Promise<TreasuryData> {
+    const [cfg, mems] = await Promise.all([
+        getDAOConfig(GNO_RPC_URL, realmPath),
+        getDAOMembers(GNO_RPC_URL, realmPath),
+    ])
+
+    const treasuryAssets: TreasuryAsset[] = []
+    const failures: string[] = []
+
+    // 1. Fetch GNOT balance via bank/balances ABCI query (resilient RPC failover)
+    try {
+        const balRes = await resilientFetch((rpcUrl) => ({
+            url: rpcUrl,
+            init: {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    jsonrpc: "2.0",
+                    id: "memba-treasury-balance",
+                    method: "abci_query",
+                    params: {
+                        path: `bank/balances/${realmPath}`,
+                        data: "",
+                    },
+                }),
+            },
+        }))
+        const balJson = await balRes.json()
+        const rawValue = balJson?.result?.response?.ResponseBase?.Value
+            || balJson?.result?.response?.ResponseBase?.Data
+            || balJson?.result?.response?.value
+        if (rawValue) {
+            const decoded = atob(rawValue)
+            const match = decoded.match(/(\d+)ugnot/)
+            const ugnot = match ? BigInt(match[1]) : 0n
+            if (ugnot > 0n) {
+                const whole = String(ugnot / 1000000n)
+                const frac = String(ugnot % 1000000n).padStart(6, "0").replace(/0+$/, "")
+                treasuryAssets.push({
+                    type: "gnot",
+                    symbol: "GNOT",
+                    name: "Gno.land",
+                    balance: frac ? `${whole}.${frac}` : whole,
+                    rawBalance: ugnot,
+                })
+            }
+        }
+    } catch { failures.push("GNOT balance") }
+
+    // 2. Fetch GRC20 token balances
+    try {
+        const tokens = await listFactoryTokens(GNO_RPC_URL)
+        const daoAddress = realmPath.replace("gno.land/r/", "").replace(/\//g, "")
+
+        const results = await Promise.allSettled(
+            tokens.map(async (token: TokenInfo) => {
+                const balance = await getTokenBalance(GNO_RPC_URL, token.symbol, daoAddress)
+                return { token, balance }
+            })
+        )
+        results
+            .filter((r): r is PromiseFulfilledResult<{ token: TokenInfo; balance: bigint }> =>
+                r.status === "fulfilled" && r.value.balance > 0n
+            )
+            .forEach((r) => {
+                treasuryAssets.push({
+                    type: "grc20" as const,
+                    symbol: r.value.token.symbol,
+                    name: r.value.token.name,
+                    balance: String(r.value.balance),
+                    rawBalance: r.value.balance,
+                })
+            })
+    } catch { failures.push("token balances") }
+
+    return { config: cfg, members: mems, assets: treasuryAssets, partialFailures: failures }
+}
+
 export function Treasury() {
     const navigate = useNetworkNav()
     const { realmPath, encodedSlug } = useDaoRoute()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
+    // Server state lives in React Query (keyed by realm, shared client cache);
+    // the only local state left is the toast-dismissal flag, which is UI state.
+    const treasury = useQuery({
+        queryKey: ["dao", "treasury", realmPath],
+        queryFn: () => loadTreasuryData(realmPath!),
+        enabled: !!realmPath,
+    })
+    const [errorDismissed, setErrorDismissed] = useState(false)
 
-    const [config, setConfig] = useState<DAOConfig | null>(null)
-    const [members, setMembers] = useState<DAOMember[]>([])
-    const [assets, setAssets] = useState<TreasuryAsset[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-    // Per-source load failures (P1-7): a failed balance source must show a notice,
-    // not silently render an incomplete treasury as if it were complete.
-    const [partialFailures, setPartialFailures] = useState<string[]>([])
-
-    const loadTreasury = useCallback(async () => {
-        if (!realmPath) return
-        setLoading(true)
-        setError(null)
-        setPartialFailures([])
-        try {
-            const [cfg, mems] = await Promise.all([
-                getDAOConfig(GNO_RPC_URL, realmPath),
-                getDAOMembers(GNO_RPC_URL, realmPath),
-            ])
-            setConfig(cfg)
-            setMembers(mems)
-
-            const treasuryAssets: TreasuryAsset[] = []
-            const failures: string[] = []
-
-            // 1. Fetch GNOT balance via bank/balances ABCI query (resilient RPC failover)
-            try {
-                const balRes = await resilientFetch((rpcUrl) => ({
-                    url: rpcUrl,
-                    init: {
-                        method: "POST",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({
-                            jsonrpc: "2.0",
-                            id: "memba-treasury-balance",
-                            method: "abci_query",
-                            params: {
-                                path: `bank/balances/${realmPath}`,
-                                data: "",
-                            },
-                        }),
-                    },
-                }))
-                const balJson = await balRes.json()
-                const rawValue = balJson?.result?.response?.ResponseBase?.Value
-                    || balJson?.result?.response?.ResponseBase?.Data
-                    || balJson?.result?.response?.value
-                if (rawValue) {
-                    const decoded = atob(rawValue)
-                    const match = decoded.match(/(\d+)ugnot/)
-                    const ugnot = match ? BigInt(match[1]) : 0n
-                    if (ugnot > 0n) {
-                        const whole = String(ugnot / 1000000n)
-                        const frac = String(ugnot % 1000000n).padStart(6, "0").replace(/0+$/, "")
-                        treasuryAssets.push({
-                            type: "gnot",
-                            symbol: "GNOT",
-                            name: "Gno.land",
-                            balance: frac ? `${whole}.${frac}` : whole,
-                            rawBalance: ugnot,
-                        })
-                    }
-                }
-            } catch { failures.push("GNOT balance") }
-
-            // 2. Fetch GRC20 token balances
-            try {
-                const tokens = await listFactoryTokens(GNO_RPC_URL)
-                const daoAddress = realmPath.replace("gno.land/r/", "").replace(/\//g, "")
-
-                const results = await Promise.allSettled(
-                    tokens.map(async (token: TokenInfo) => {
-                        const balance = await getTokenBalance(GNO_RPC_URL, token.symbol, daoAddress)
-                        return { token, balance }
-                    })
-                )
-                results
-                    .filter((r): r is PromiseFulfilledResult<{ token: TokenInfo; balance: bigint }> =>
-                        r.status === "fulfilled" && r.value.balance > 0n
-                    )
-                    .forEach((r) => {
-                        treasuryAssets.push({
-                            type: "grc20" as const,
-                            symbol: r.value.token.symbol,
-                            name: r.value.token.name,
-                            balance: String(r.value.balance),
-                            rawBalance: r.value.balance,
-                        })
-                    })
-            } catch { failures.push("token balances") }
-
-            setAssets(treasuryAssets)
-            setPartialFailures(failures)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load treasury data")
-        } finally {
-            setLoading(false)
-        }
-    }, [realmPath])
-
-    useEffect(() => { loadTreasury() }, [loadTreasury])
+    const config = treasury.data?.config ?? null
+    const members = treasury.data?.members ?? []
+    const assets = treasury.data?.assets ?? []
+    const partialFailures = treasury.data?.partialFailures ?? []
+    // isPending (not isLoading): with no realmPath the query is disabled and
+    // must keep showing the skeleton, exactly as the old early-return did.
+    const loading = treasury.isPending
+    const error = treasury.isError && !errorDismissed
+        ? (treasury.error instanceof Error ? treasury.error.message : "Failed to load treasury data")
+        : null
 
     const isCurrentUserMember = members.some((m) => m.address === adena.address)
 
@@ -278,7 +288,7 @@ export function Treasury() {
                 )}
             </div>
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} onRetry={() => { setError(null); loadTreasury() }} />
+            <ErrorToast message={error} onDismiss={() => setErrorDismissed(true)} onRetry={() => { setErrorDismissed(false); void treasury.refetch() }} />
         </div>
     )
 }

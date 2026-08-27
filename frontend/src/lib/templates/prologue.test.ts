@@ -96,3 +96,42 @@ describe("buildDeployMsg", () => {
         expect(msg.value.deposit).toBe("")
     })
 })
+
+// ── Path validation at the shared choke point ────────────────
+//
+// These three all interpolate realmPath into bytes that become an immutable
+// realm: the package declaration, the gnomod manifest, and the deploy message.
+// Each generator already validates its own path, but buildDeployMsg's doc
+// comment steers callers here directly, so the choke point validates too —
+// otherwise the next flow built on it silently inherits no protection.
+describe("realm path validation", () => {
+    const INJECTIONS: [string, string][] = [
+        ["a newline breaking out of the package declaration", "gno.land/r/x/c\n\nfunc Backdoor() {}"],
+        ["a quote breaking out of the gnomod module value", 'gno.land/r/x/c"\nevil = "1'],
+        ["path traversal", "gno.land/r/x/../../evil"],
+        ["a non-realm path", "https://evil.example/r/x/c"],
+        ["empty", ""],
+    ]
+
+    it.each(INJECTIONS)("generatePackageDecl rejects %s", (_label, path) => {
+        expect(() => generatePackageDecl(path)).toThrow(/Invalid realmPath/)
+    })
+
+    it.each(INJECTIONS)("generateGnomodToml rejects %s", (_label, path) => {
+        expect(() => generateGnomodToml(path)).toThrow(/Invalid realmPath/)
+    })
+
+    it.each(INJECTIONS)("buildDeployMsg rejects %s", (_label, path) => {
+        expect(() => buildDeployMsg("g1test", path, "// code")).toThrow(/Invalid realmPath/)
+    })
+
+    it("still accepts the paths it always did", () => {
+        // Guard against over-tightening: the valid shapes the existing tests
+        // above rely on must keep working, including a nested path.
+        expect(generatePackageDecl("gno.land/r/samcrew/memba_dao")).toBe("package memba_dao")
+        expect(generatePackageDecl("gno.land/r/samcrew/lab/myoft")).toBe("package myoft")
+        expect(generateGnomodToml("gno.land/r/samcrew/memba_dao")).toContain('module = "gno.land/r/samcrew/memba_dao"')
+        expect(() => buildDeployMsg("g1test", "gno.land/r/test/dao", "// code")).not.toThrow()
+    })
+})
+

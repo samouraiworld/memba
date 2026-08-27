@@ -36,6 +36,27 @@ describe("BlockPartyGame", () => {
     expect(screen.getByRole("grid")).toBeTruthy();
   });
 
+  // The APG keyboard contract itself is covered in
+  // hooks/useTabListKeyboard.test.tsx; these pin that the mode switch is wired
+  // through the hook. The companion concern — that a tab-focused arrow press
+  // must NOT also move a piece via the game's window-level listener — is pinned
+  // in game/hooks/useKeyboard.test.tsx.
+  it("gives the mode tabs a roving tabindex (single tab stop)", async () => {
+    wrap(<BlockPartyGame />);
+    await waitFor(() => expect(screen.getByRole("grid")).toBeTruthy());
+    expect(screen.getByRole("tab", { name: /daily/i })).toHaveAttribute("tabindex", "0");
+    expect(screen.getByRole("tab", { name: /practice/i })).toHaveAttribute("tabindex", "-1");
+  });
+
+  it("ArrowRight moves selection from Daily to Practice", async () => {
+    wrap(<BlockPartyGame />);
+    await waitFor(() => expect(screen.getByRole("grid")).toBeTruthy());
+    fireEvent.keyDown(screen.getByRole("tab", { name: /daily/i }), { key: "ArrowRight" });
+    const practice = screen.getByRole("tab", { name: /practice/i });
+    expect(practice).toHaveAttribute("aria-selected", "true");
+    expect(practice).toHaveAttribute("tabindex", "0");
+  });
+
   it("shows the not-ready notice and still renders a board when the daily challenge isn't ready", async () => {
     vi.mocked(gameApi.getDailyChallenge).mockResolvedValueOnce({
       date: "2026-07-06", seed: 12345, modifier: "standard", par: 1500n, moveBudget: 30,

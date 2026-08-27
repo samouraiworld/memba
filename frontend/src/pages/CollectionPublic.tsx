@@ -26,6 +26,7 @@
 import { useState, type CSSProperties } from "react"
 import { useParams, useOutletContext, Link } from "react-router-dom"
 import { useNetworkPath } from "../hooks/useNetworkNav"
+import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import { useCollectionPublic } from "./useCollectionPublic"
 import { NFTMedia } from "../components/nft/NFTMedia"
 import { TradeModal } from "../components/nft/TradeModal"
@@ -44,6 +45,9 @@ import "./marketplace-v2.css"
 // ── Tab types ─────────────────────────────────────────────────────────
 
 type Tab = "items" | "activity" | "about"
+
+// Tab keys in display order — shared by the tablist markup and the keyboard hook.
+const COLLECTION_TAB_KEYS: readonly Tab[] = ["items", "activity", "about"]
 
 // ── TradeModal state ──────────────────────────────────────────────────
 
@@ -112,6 +116,15 @@ function CollectionPublicContent() {
         useCollectionPublic(id, me)
 
     const [activeTab, setActiveTab] = useState<Tab>("items")
+
+    // APG tabs keyboard contract (roving tabindex, arrows, Home/End) — the
+    // shared hook Directory extracted; these tabs had no keyboard support.
+    const { tabProps } = useTabListKeyboard<Tab>({
+        keys: COLLECTION_TAB_KEYS,
+        active: activeTab,
+        onSelect: setActiveTab,
+        idFor: (k) => `cpub-tab-${k}`,
+    })
     const [modal, setModal] = useState<ModalState | null>(null)
 
     // ── Loading ─────────────────────────────────────────────────────
@@ -187,26 +200,23 @@ function CollectionPublicContent() {
             <StatStrip className="cpub-statstrip" stats={statItems} />
 
             {/* ── Tabs ────────────────────────────────────────────── */}
-            <div className="cpub-tabs" role="tablist">
+            <div className="cpub-tabs" role="tablist" aria-label="Collection sections">
                 <button
-                    role="tab"
-                    aria-selected={activeTab === "items"}
+                    {...tabProps("items")}
                     className={`cpub-tab${activeTab === "items" ? " cpub-tab--active" : ""}`}
                     onClick={() => setActiveTab("items")}
                 >
                     Items
                 </button>
                 <button
-                    role="tab"
-                    aria-selected={activeTab === "activity"}
+                    {...tabProps("activity")}
                     className={`cpub-tab${activeTab === "activity" ? " cpub-tab--active" : ""}`}
                     onClick={() => setActiveTab("activity")}
                 >
                     Activity
                 </button>
                 <button
-                    role="tab"
-                    aria-selected={activeTab === "about"}
+                    {...tabProps("about")}
                     className={`cpub-tab${activeTab === "about" ? " cpub-tab--active" : ""}`}
                     onClick={() => setActiveTab("about")}
                 >

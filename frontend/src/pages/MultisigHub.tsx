@@ -10,8 +10,9 @@
  */
 
 import { useNetworkNav } from "../hooks/useNetworkNav"
-import { useEffect, useCallback, useState } from "react"
+import { useEffect, useState } from "react"
 import { useOutletContext } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { LockKey, Plus, MagnifyingGlass, Wallet, Users } from "@phosphor-icons/react"
 import { api } from "../lib/api"
 import { GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
@@ -27,30 +28,40 @@ export default function MultisigHub() {
     const { auth } = useOutletContext<LayoutContext>()
     const token = auth.token
 
-    const [multisigs, setMultisigs] = useState<Multisig[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
     const [joiningAddr, setJoiningAddr] = useState<string | null>(null)
+
+    // Server state lives in React Query, keyed by the auth identity so a
+    // wallet switch refetches instead of serving the previous wallet's list.
+    const enabled = !!token && auth.isAuthenticated
+    const msQuery = useQuery({
+        queryKey: ["multisig", "hub", token?.userAddress ?? ""],
+        enabled,
+        queryFn: async () => {
+            const res = await api.multisigs({ authToken: token!, limit: 50 })
+            return res.multisigs
+        },
+    })
+    const multisigs = msQuery.data ?? []
+    // The old code set loading=false immediately when unauthenticated — the
+    // redirect effect below keys on that, so a disabled query must NOT read as
+    // still-loading here (isPending alone would deadlock the redirect).
+    const loading = enabled ? msQuery.isPending : false
+
+    // Join errors are UI state and stay local. The old fetch handler swallowed
+    // pure network errors (backend unreachable renders the empty state rather
+    // than a toast) and surfaced the rest — preserved here at derivation time.
+    const [actionError, setActionError] = useState<string | null>(null)
+    const [fetchErrorDismissed, setFetchErrorDismissed] = useState(false)
+    const fetchError = (() => {
+        if (!msQuery.isError || fetchErrorDismissed) return null
+        const msg = msQuery.error instanceof Error ? msQuery.error.message : ""
+        const isNet = /failed to fetch|networkerror|econnrefused|timeout/i.test(msg)
+        return isNet ? null : (msg || "Failed to load multisigs")
+    })()
+    const error = actionError ?? fetchError
 
     const joined = multisigs.filter(m => m.joined)
     const discoverable = multisigs.filter(m => !m.joined)
-
-    const fetchData = useCallback(async () => {
-        if (!token || !auth.isAuthenticated) { setLoading(false); return }
-        try {
-            const res = await api.multisigs({ authToken: token, limit: 50 })
-            setMultisigs(res.multisigs)
-            setError(null)
-        } catch (err) {
-            const msg = err instanceof Error ? err.message : ""
-            const isNet = /failed to fetch|networkerror|econnrefused|timeout/i.test(msg)
-            if (!isNet) setError(msg || "Failed to load multisigs")
-        } finally {
-            setLoading(false)
-        }
-    }, [token, auth.isAuthenticated])
-
-    useEffect(() => { fetchData() }, [fetchData])
     useEffect(() => { document.title = "Multisig Wallets — Memba" }, [])
 
     // Redirect if not authenticated
@@ -69,10 +80,10 @@ export default function MultisigHub() {
                 name: ms.name || "",
                 bech32Prefix: GNO_BECH32_PREFIX,
             })
-            fetchData()
+            void msQuery.refetch()
         } catch (err) {
             logChainError("multisigHub:join", err, "error", (auth as { address?: string }).address || undefined)
-            setError(err instanceof Error ? err.message : "Failed to join")
+            setActionError(err instanceof Error ? err.message : "Failed to join")
         } finally {
             setJoiningAddr(null)
         }
@@ -183,7 +194,7 @@ export default function MultisigHub() {
                 </section>
             )}
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} onRetry={() => { setError(null); fetchData() }} />
+            <ErrorToast message={error} onDismiss={() => { setActionError(null); setFetchErrorDismissed(true) }} onRetry={() => { setActionError(null); setFetchErrorDismissed(false); void msQuery.refetch() }} />
         </div>
     )
 }

@@ -239,6 +239,23 @@ describe("ValidatorProfile — identity header & tabs", () => {
         expect(screen.getByRole("tab", { name: "Quests" })).toHaveAttribute("aria-selected", "true")
     })
 
+    it("moves the roving tab stop and focus with the selection", async () => {
+        // Exactly what the old hand-rolled handler got wrong: it moved
+        // selection but left both tabindex and focus on the previous button,
+        // so the next arrow press operated on a tab the user had left.
+        renderAt(OPERATOR)
+        await screen.findByRole("heading", { name: MONIKER })
+        const overview = screen.getByRole("tab", { name: "Overview" })
+        overview.focus()
+        fireEvent.keyDown(overview, { key: "ArrowRight" })
+
+        const quests = screen.getByRole("tab", { name: "Quests" })
+        expect(quests).toHaveAttribute("tabindex", "0")
+        expect(overview).toHaveAttribute("tabindex", "-1")
+        // Focus lands after the hook's post-render timeout, so it is async.
+        await waitFor(() => expect(document.activeElement).toBe(quests))
+    })
+
     it("still renders from valoper data alone when fetchUserProfile rejects", async () => {
         vi.mocked(fetchUserProfile).mockRejectedValue(new Error("gnolove down"))
         renderAt(OPERATOR)

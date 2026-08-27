@@ -331,6 +331,58 @@ describe("TradeModal — general", () => {
         expect(onClose).toHaveBeenCalled()
     })
 
+    // ── Dialog semantics (Phase 5) ────────────────────────────
+    //
+    // This modal moves funds and had role="dialog" and nothing else: no
+    // aria-modal, so assistive tech never announced it as modal; no focus trap,
+    // so a keyboard user could Tab straight out of a live trade into the page
+    // behind it; no Escape. It now goes through AccessibleDialog, and these pin
+    // the properties that matters rather than the implementation detail.
+    it("announces itself as a modal dialog labelled by its visible title", () => {
+        render(<TradeModal {...makeProps({ action: "buy", source: "v3" })} />)
+
+        const dialog = screen.getByRole("dialog")
+        expect(dialog).toHaveAttribute("aria-modal", "true")
+
+        // The accessible name must come from the heading a sighted user reads,
+        // not a duplicated aria-label that can drift away from it.
+        const labelledBy = dialog.getAttribute("aria-labelledby")
+        expect(labelledBy).toBeTruthy()
+        const heading = document.getElementById(labelledBy!)
+        expect(heading).toHaveTextContent(/buy nft/i)
+    })
+
+    // Focus containment itself is NOT asserted here. useFocusTrap filters
+    // candidates on `offsetParent !== null`, and jsdom does no layout, so
+    // offsetParent is null for every element and the trap is a silent no-op in
+    // this environment — verified directly rather than assumed. Testing it here
+    // would assert the environment, not the behaviour. It is covered properly in
+    // hooks/useFocusTrap.test.tsx, which models visibility explicitly, and
+    // confirmed in a real browser. What this file pins is that TradeModal is
+    // wired THROUGH that primitive, which the aria-modal and Escape cases do.
+
+    it("closes on Escape", () => {
+        const onClose = vi.fn()
+        render(<TradeModal {...makeProps({ action: "buy", source: "v3", onClose })} />)
+
+        fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" })
+        expect(onClose).toHaveBeenCalled()
+    })
+
+    it("closes on a backdrop click but NOT on a click inside the panel", () => {
+        const onClose = vi.fn()
+        render(<TradeModal {...makeProps({ action: "buy", source: "v3", onClose })} />)
+
+        // The panel's stopPropagation was removed when AccessibleDialog took
+        // over backdrop handling; this proves the removal was safe rather than
+        // load-bearing.
+        fireEvent.click(screen.getByRole("document"))
+        expect(onClose).not.toHaveBeenCalled()
+
+        fireEvent.click(screen.getByRole("dialog"))
+        expect(onClose).toHaveBeenCalled()
+    })
+
     it("shows error on broadcast failure", async () => {
         mockDoContractBroadcast.mockRejectedValueOnce(new Error("wallet rejected"))
         render(<TradeModal {...makeProps({ action: "buy", source: "v3" })} />)

@@ -6,7 +6,16 @@
  * into ProposeTransaction / TransactionView.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, fireEvent } from "@testing-library/react"
+import { render as rtlRender, screen, fireEvent } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import type { ReactElement } from "react"
+
+// Fresh client per render: retry off (a failing query must fail now, not after
+// backoff) and zero cache sharing between tests.
+function render(ui: ReactElement) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
+}
 
 const mockNavigate = vi.fn()
 vi.mock("../hooks/useNetworkNav", () => ({
@@ -115,6 +124,24 @@ describe("MultisigView", () => {
 
         fireEvent.click(screen.getByRole("tab", { name: /Completed \(1\)/ }))
         expect(screen.getByRole("tab", { name: /Completed \(1\)/ })).toHaveAttribute("aria-selected", "true")
+    })
+
+    // The APG keyboard contract itself is covered in
+    // hooks/useTabListKeyboard.test.tsx; these pin that this page is wired
+    // through the hook — the roving tabindex only exists if tabProps is spread,
+    // and arrow-selection only works if onSelect reaches setTxTab.
+    it("gives the tx tabs a roving tabindex (single tab stop)", async () => {
+        await renderView()
+        expect(screen.getByRole("tab", { name: /Pending \(1\)/ })).toHaveAttribute("tabindex", "0")
+        expect(screen.getByRole("tab", { name: /Completed \(1\)/ })).toHaveAttribute("tabindex", "-1")
+    })
+
+    it("ArrowRight moves selection from Pending to Completed", async () => {
+        await renderView()
+        fireEvent.keyDown(screen.getByRole("tab", { name: /Pending \(1\)/ }), { key: "ArrowRight" })
+        const completed = screen.getByRole("tab", { name: /Completed \(1\)/ })
+        expect(completed).toHaveAttribute("aria-selected", "true")
+        expect(completed).toHaveAttribute("tabindex", "0")
     })
 
     it("navigates to ProposeTransaction from the action button", async () => {

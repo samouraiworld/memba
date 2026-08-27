@@ -27,6 +27,7 @@ import {
     TEAM_HUB_PERIODS,
     type TeamHubPeriod,
 } from "../../../lib/gnolovePeriod"
+import { useTabListKeyboard } from "../../../hooks/useTabListKeyboard"
 import { formatRelativeTime } from "../../../lib/gnoloveTime"
 import { useNetworkKey } from "../../../hooks/useNetworkNav"
 import { isTestnetNetwork } from "../../../lib/config"
@@ -40,6 +41,14 @@ interface Props {
 }
 
 export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, backToTeamsHref }: Props) {
+    // APG tabs keyboard contract (roving tabindex, arrows, Home/End) — the
+    // shared hook Directory extracted; the period selector had no keyboard support.
+    const { tabProps } = useTabListKeyboard<TeamHubPeriod>({
+        keys: TEAM_HUB_PERIODS,
+        active: period,
+        onSelect: onPeriodChange,
+        idFor: (p) => `thub-period-tab-${p}`,
+    })
     const [nowMs] = useState(() => Date.now())
     const networkKey = useNetworkKey()
     const stripeColor = TEAM_CSS_COLORS[team.color]
@@ -102,9 +111,8 @@ export function TeamHubHeader({ team, period, onPeriodChange, lastSyncedAt, back
                             <button
                                 key={p}
                                 type="button"
-                                role="tab"
+                                {...tabProps(p)}
                                 className={`gl-tab ${period === p ? "gl-tab--active" : ""}`}
-                                aria-selected={period === p}
                                 aria-current={period === p ? "page" : undefined}
                                 onClick={() => onPeriodChange(p)}
                             >

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react"
 import { useParams, useOutletContext, useSearchParams } from "react-router-dom"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -39,9 +40,6 @@ export function ProfilePage() {
 
     const activeTab = searchParams.get("tab") || "identity"
 
-    const [profile, setProfile] = useState<UserProfile | null>(null)
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
     const [editing, setEditing] = useState(false)
     const [saving, setSaving] = useState(false)
     const [saveSuccess, setSaveSuccess] = useState(false)
@@ -53,22 +51,35 @@ export function ProfilePage() {
 
     const isOwnProfile = adena.address === address
 
-    const loadProfile = useCallback(async () => {
-        if (!address) return
-        setLoading(true)
-        setError(null)
-        setAvatarError(false)
-        try {
-            const p = await fetchUserProfile(GNOLOVE_API_URL, address)
-            setProfile(p)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load profile")
-        } finally {
-            setLoading(false)
-        }
-    }, [address])
+    // Server state lives in React Query, keyed by the viewed address. Disabled
+    // without one, which keeps the skeleton up like the old early-return did.
+    const queryClient = useQueryClient()
+    const profileQuery = useQuery({
+        queryKey: ["profile", address ?? ""],
+        enabled: !!address,
+        queryFn: () => fetchUserProfile(GNOLOVE_API_URL, address!),
+    })
+    const profile = profileQuery.data ?? null
+    const loading = profileQuery.isPending
 
-    useEffect(() => { loadProfile() }, [loadProfile])
+    // Save/link errors are UI state and stay local; the fetch error comes from
+    // the query, with a dismissal flag so the toast doesn't resurrect.
+    const [actionError, setActionError] = useState<string | null>(null)
+    const [fetchErrorDismissed, setFetchErrorDismissed] = useState(false)
+    const fetchError = profileQuery.isError && !fetchErrorDismissed
+        ? (profileQuery.error instanceof Error ? profileQuery.error.message : "Failed to load profile")
+        : null
+    const error = actionError ?? fetchError
+
+    // The old loadProfile also cleared the avatar-error flag on every reload —
+    // a refetched profile may carry a new (working) avatar URL. refetch is
+    // referentially stable, so reloadProfile is too (the pending-GitHub-link
+    // effect depends on it).
+    const { refetch: refetchProfile } = profileQuery
+    const reloadProfile = useCallback(() => {
+        setAvatarError(false)
+        return refetchProfile()
+    }, [refetchProfile])
 
     // Quest triggers: view-profile + page visit tracking
     useEffect(() => {
@@ -87,14 +98,14 @@ export function ProfilePage() {
                 if (Date.now() - ts < 600_000) { // 10min expiry
                     const ghUrl = login.startsWith("http") ? login : `https://github.com/${login}`
                     updateBackendProfile(auth.token, { github: ghUrl })
-                        .then(() => { localStorage.removeItem("pendingGithubLink"); loadProfile() })
+                        .then(() => { localStorage.removeItem("pendingGithubLink"); void reloadProfile() })
                         .catch(() => { /* silent — user can retry manually */ })
                 } else {
                     localStorage.removeItem("pendingGithubLink")
                 }
             } catch { localStorage.removeItem("pendingGithubLink") }
         }
-    }, [auth.isAuthenticated, auth.token, isOwnProfile, loadProfile])
+    }, [auth.isAuthenticated, auth.token, isOwnProfile, reloadProfile])
 
     const startEditing = () => {
         if (!profile) return
@@ -111,17 +122,18 @@ export function ProfilePage() {
     const handleSave = async () => {
         if (!auth.token) return
         setSaving(true)
-        setError(null)
+        setActionError(null)
         try {
             await updateBackendProfile(auth.token, editForm)
             // Optimistic update: show new avatar immediately (Bug 1.3)
-            setProfile(prev => prev ? { ...prev, avatarUrl: editForm.avatarUrl } : prev)
+            queryClient.setQueryData(["profile", address ?? ""], (prev: UserProfile | null | undefined) =>
+                prev ? { ...prev, avatarUrl: editForm.avatarUrl } : prev)
             setEditing(false)
             setSaveSuccess(true)
             setTimeout(() => setSaveSuccess(false), 3000)
-            loadProfile() // background re-fetch for other fields
+            void reloadProfile() // background re-fetch for other fields
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to save profile")
+            setActionError(err instanceof Error ? err.message : "Failed to save profile")
         } finally {
             setSaving(false)
         }
@@ -212,7 +224,7 @@ export function ProfilePage() {
 
                         {/* Username Registration (own profile, no username) */}
                         {isOwnProfile && !profile?.username && auth.isAuthenticated && adena.address && (
-                            <RegisterUsernameForm address={adena.address} onRegistered={loadProfile} />
+                            <RegisterUsernameForm address={adena.address} onRegistered={reloadProfile} />
                         )}
 
                         {/* Bio */}
@@ -365,7 +377,7 @@ export function ProfilePage() {
                                         try {
                                             if (!auth.token) return
                                             await updateBackendProfile(auth.token, { github: "" })
-                                            loadProfile()
+                                            void reloadProfile()
                                         } catch { /* silent */ }
                                     }}
                                     className="profile-unlink-btn"
@@ -464,7 +476,7 @@ export function ProfilePage() {
             </div>
             )}
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} />
+            <ErrorToast message={error} onDismiss={() => { setActionError(null); setFetchErrorDismissed(true) }} />
         </div>
     )
 }

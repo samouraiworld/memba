@@ -80,7 +80,10 @@ test.describe('Gnolove Notable PRs — multi-board', () => {
     test('Hide-done drops the Done column in board view', async ({ page }) => {
         await page.goto('/test13/gnolove/notable-prs?board=gnoland-dev')
         await page.getByText('Needs review').click() // surface all statuses
-        await page.getByRole('button', { name: /Board/ }).click()
+        // The view toggle's buttons are role=tab now (they sat in a role=tablist
+        // with no tab roles at all); scope to the View tablist so the board
+        // SELECTOR tabs can never match.
+        await page.getByRole('tablist', { name: 'View' }).getByRole('tab', { name: /Board/ }).click()
 
         await expect(page.locator('.gl-np-col-head', { hasText: 'In Review' })).toBeVisible()
         // Hide-done is ON by default → no Done column.

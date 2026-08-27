@@ -20,6 +20,7 @@ import DOMPurify from "dompurify"
 import { GNO_RPC_URL, getExplorerBaseUrlFor } from "../../../lib/config"
 import { queryRender } from "../../../lib/dao/shared"
 import { useNetwork } from "../../../hooks/useNetwork"
+import { useTabListKeyboard } from "../../../hooks/useTabListKeyboard"
 import { fetchRealmSourceSmart, type RealmSource } from "../../../lib/gnowebSource"
 import { renderMarkdown } from "../../../lib/markdownLite"
 import { fetchRealmFuncs, formatSignature, resolveFnList, type GnoFunc } from "../../../lib/gnoFuncs"
@@ -28,6 +29,11 @@ import { SourceCodeView } from "../SourceCodeView"
 import "../../../pages/explorer.css"
 
 type Tab = "render" | "source" | "functions"
+
+// Tab keys in display order — shared by the tablist markup and the keyboard
+// hook. Prefixed ids: this tablist renders inside Directory's own tab panel,
+// whose tabs use the hook's default `tab-*` ids.
+const REALM_TAB_KEYS: readonly Tab[] = ["render", "source", "functions"]
 
 const EXAMPLES = [
     "r/samcrew/memba_feed_v1",
@@ -104,6 +110,15 @@ export function ExplorerTab({ realm, onRealmChange }: ExplorerTabProps) {
 
 function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
     const [tab, setTab] = useState<Tab>("render")
+
+    // APG tabs keyboard contract (roving tabindex, arrows, Home/End) — the
+    // shared hook Directory extracted; these tabs had no keyboard support.
+    const { tabProps } = useTabListKeyboard<Tab>({
+        keys: REALM_TAB_KEYS,
+        active: tab,
+        onSelect: setTab,
+        idFor: (k) => `realmview-tab-${k}`,
+    })
     const [render, setRender] = useState<string | null>(null)
     const [renderLoading, setRenderLoading] = useState(true)
     const [source, setSource] = useState<RealmSource | null>(null)
@@ -157,12 +172,11 @@ function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
                 </a>
             </div>
 
-            <div className="realmview__tabs" role="tablist">
-                {(["render", "source", "functions"] as Tab[]).map((t) => (
+            <div className="realmview__tabs" role="tablist" aria-label="Realm views">
+                {REALM_TAB_KEYS.map((t) => (
                     <button
                         key={t}
-                        role="tab"
-                        aria-selected={tab === t}
+                        {...tabProps(t)}
                         className={`realmview__tab${tab === t ? " active" : ""}`}
                         onClick={() => setTab(t)}
                     >

@@ -18,6 +18,7 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
 import { ArrowUp } from "@phosphor-icons/react"
 import { Link } from "react-router-dom"
 import { useNetworkNav, useNetworkPath } from "../hooks/useNetworkNav"
+import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import { useAdena } from "../hooks/useAdena"
 import { EmptyState } from "../components/ui/EmptyState"
 import { FeedComposer } from "../components/feed/FeedComposer"
@@ -32,6 +33,9 @@ import { countNewer } from "../lib/feedPaging"
 import { reconciles, isStaleOptimistic, type UiPost } from "../lib/feedTypes"
 import { FEED_POLL_MS, RECONCILE_MS } from "../lib/feedConstants"
 import "./feed.css"
+
+// Tab keys in display order — shared by the tablist markup and the keyboard hook.
+const FEED_TAB_KEYS = ["posts", "ecosystem"] as const
 
 export default function FeedPage() {
     const { address, connected, connect } = useAdena()
@@ -78,6 +82,15 @@ export default function FeedPage() {
     // plan's D18 "ecosystem-first while volume is low" is intentionally left as
     // an owner toggle rather than a silent default flip.
     const [tab, setTab] = useState<"posts" | "ecosystem">("posts")
+
+    // APG tabs keyboard contract (roving tabindex, arrows, Home/End) — the
+    // shared hook Directory extracted; these tabs had no keyboard support.
+    const { tabProps } = useTabListKeyboard<"posts" | "ecosystem">({
+        keys: FEED_TAB_KEYS,
+        active: tab,
+        onSelect: setTab,
+        idFor: (k) => `feed-tab-${k}`,
+    })
 
     const [optimistic, setOptimistic] = useState<UiPost[]>([])
     const reconcileTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -165,8 +178,7 @@ export default function FeedPage() {
                 <div className="feed-tabs" role="tablist" aria-label="Feed view">
                     <button
                         type="button"
-                        role="tab"
-                        aria-selected={tab === "posts"}
+                        {...tabProps("posts")}
                         className={`feed-tab${tab === "posts" ? " feed-tab--active" : ""}`}
                         onClick={() => setTab("posts")}
                         data-testid="feed-tab-posts"
@@ -175,8 +187,7 @@ export default function FeedPage() {
                     </button>
                     <button
                         type="button"
-                        role="tab"
-                        aria-selected={tab === "ecosystem"}
+                        {...tabProps("ecosystem")}
                         className={`feed-tab${tab === "ecosystem" ? " feed-tab--active" : ""}`}
                         onClick={() => setTab("ecosystem")}
                         data-testid="feed-tab-ecosystem"

@@ -7,7 +7,8 @@
  * On submit, builds a MsgCall to the candidature realm and broadcasts via Adena.
  */
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
@@ -29,7 +30,6 @@ import {
     getRequiredDeposit,
     MAX_BIO_LENGTH,
     MAX_SKILLS_LENGTH,
-    type Candidature,
 } from "../lib/candidatureTemplate"
 import { MEMBA_DAO, GNO_RPC_URL } from "../lib/config"
 import { doContractBroadcast } from "../lib/grc20"
@@ -41,58 +41,46 @@ export default function CandidaturePage() {
     const navigate = useNetworkNav()
     const { adena, auth } = useOutletContext<LayoutContext>()
 
-    const [eligible, setEligible] = useState(false)
-    // Backend verified XP (proof-backed quests only) when connected + reachable; the
-    // gate copy shows this instead of local totalXP so the number matches the rule.
-    const [verifiedXP, setVerifiedXP] = useState<number | null>(null)
-    const [questState, setQuestState] = useState(() => loadQuestProgress())
+    // questState is read once at mount via the lazy initializer; the old code
+    // re-read it in a mount effect too, which was the same read a tick later.
+    const [questState] = useState(() => loadQuestProgress())
     const [bio, setBio] = useState("")
     const [skills, setSkills] = useState("")
     const [submitting, setSubmitting] = useState(false)
     const [submitted, setSubmitted] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const [candidatures, setCandidatures] = useState<Candidature[]>([])
-    const [loadingList, setLoadingList] = useState(true)
-    const [isAdmin, setIsAdmin] = useState(false)
     const [actioning, setActioning] = useState<string | null>(null)
 
     useEffect(() => {
         document.title = "Candidature — Memba"
         trackPageVisit("candidature")
-        setQuestState(loadQuestProgress())
     }, [])
 
     // Authoritative eligibility: when connected, gate on backend VERIFIED XP (BE-4:
     // proof-backed quests only) — localStorage is user-editable and must not unlock
-    // the application form on its own.
-    useEffect(() => {
-        let cancelled = false
-        resolveCandidatureEligibility(auth.address || adena.address)
-            .then(res => {
-                if (!cancelled) {
-                    setEligible(res.eligible)
-                    setVerifiedXP(res.verifiedXP)
-                }
-            })
-        return () => { cancelled = true }
-    }, [auth.address, adena.address])
+    // the application form on its own. Fails closed: no data → not eligible.
+    const eligibilityQuery = useQuery({
+        queryKey: ["candidature", "eligibility", auth.address || adena.address || ""],
+        queryFn: () => resolveCandidatureEligibility(auth.address || adena.address),
+    })
+    const eligible = eligibilityQuery.data?.eligible ?? false
+    const verifiedXP = eligibilityQuery.data?.verifiedXP ?? null
 
-    // Load existing candidatures from on-chain
-    const loadCandidatures = useCallback(async () => {
-        setLoadingList(true)
-        try {
-            const raw = await queryRender(GNO_RPC_URL, MEMBA_DAO.candidaturePath, "")
-            if (raw) {
-                setCandidatures(parseCandidatureList(raw))
+    // Existing candidatures from on-chain. The realm may not be deployed yet, so
+    // a query failure degrades gracefully to an empty list instead of an error.
+    const candidaturesQuery = useQuery({
+        queryKey: ["candidature", "list"],
+        queryFn: async () => {
+            try {
+                const raw = await queryRender(GNO_RPC_URL, MEMBA_DAO.candidaturePath, "")
+                return raw ? parseCandidatureList(raw) : []
+            } catch {
+                return []
             }
-        } catch {
-            // Realm may not be deployed yet — graceful degradation
-        } finally {
-            setLoadingList(false)
-        }
-    }, [])
-
-    useEffect(() => { loadCandidatures() }, [loadCandidatures])
+        },
+    })
+    const candidatures = candidaturesQuery.data ?? []
+    const loadingList = candidaturesQuery.isPending
 
     // Check if this user already submitted (pending application in list)
     const userAddr = auth.address || adena.address
@@ -103,15 +91,20 @@ export default function CandidaturePage() {
     const applyCount = existingCandidature?.applyCount || 0
 
     // Is the connected user an admin of the candidature realm? Gates the
-    // approve/reject controls. Fails closed (query error / not admin → hidden).
-    useEffect(() => {
-        if (!userAddr) { setIsAdmin(false); return }
-        let cancelled = false
-        queryEval(GNO_RPC_URL, MEMBA_DAO.candidaturePath, `IsAdmin(${JSON.stringify(userAddr)})`)
-            .then(r => { if (!cancelled) setIsAdmin(parseIsAdminResult(r)) })
-            .catch(() => { if (!cancelled) setIsAdmin(false) })
-        return () => { cancelled = true }
-    }, [userAddr])
+    // approve/reject controls. Fails closed (disabled / query error / not
+    // admin → false → hidden).
+    const isAdminQuery = useQuery({
+        queryKey: ["candidature", "isAdmin", userAddr ?? ""],
+        enabled: !!userAddr,
+        queryFn: async () => {
+            try {
+                return parseIsAdminResult(await queryEval(GNO_RPC_URL, MEMBA_DAO.candidaturePath, `IsAdmin(${JSON.stringify(userAddr)})`))
+            } catch {
+                return false
+            }
+        },
+    })
+    const isAdmin = isAdminQuery.data ?? false
 
     // Admin action: approve or reject a pending application on-chain. The realm
     // returns the applicant's deposit either way (no funds are kept).
@@ -127,7 +120,7 @@ export default function CandidaturePage() {
                 ? buildMarkApprovedMsg(adena.address, applicant, MEMBA_DAO.candidaturePath)
                 : buildMarkRejectedMsg(adena.address, applicant, MEMBA_DAO.candidaturePath)
             await doContractBroadcast([msg], `Candidature ${action === "approve" ? "Approval" : "Rejection"}`)
-            loadCandidatures()
+            void candidaturesQuery.refetch()
         } catch (err) {
             setError(err instanceof Error ? err.message : `Candidature ${action} failed`)
         } finally {
@@ -160,7 +153,7 @@ export default function CandidaturePage() {
             )
             await doContractBroadcast([msg], "Memba DAO Candidature")
             setSubmitted(true)
-            loadCandidatures()
+            void candidaturesQuery.refetch()
         } catch (err) {
             setError(err instanceof Error ? err.message : "Candidature submission failed")
         } finally {

@@ -25,8 +25,9 @@ import {
     useGnoloveScoreFactors,
     useHomeUrlState,
 } from "../../hooks/gnolove"
-import { TIME_FILTER_LABELS, TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
-import type { Team } from "../../lib/gnoloveConstants"
+import { TIME_FILTER_LABELS, TIME_FILTER_KEYS, TEAMS, TEAM_CSS_COLORS } from "../../lib/gnoloveConstants"
+import type { Team, TimeFilter } from "../../lib/gnoloveConstants"
+import { useTabListKeyboard } from "../../hooks/useTabListKeyboard"
 import type { TEnhancedUserWithStats } from "../../lib/gnoloveSchemas"
 import { deriveExcludeLogins, filterAndSortContributors } from "../../lib/gnoloveFilters"
 import type { SortKey } from "../../lib/gnoloveFilters"
@@ -41,6 +42,17 @@ export default function GnoloveHome() {
     // URL-bound filter state; ephemeral UI bits stay local.
     const [urlState, setUrlState] = useHomeUrlState()
     const { time: timeFilter, excludedTeams: excludedTeamsList, sortBy, sortDir, repos: selectedRepos, page } = urlState
+
+    // APG tabs keyboard contract (roving tabindex, arrows, Home/End) — the
+    // shared hook Directory extracted. The comment on this tablist always said
+    // keyboard navigation stays consistent across the /gnolove surface; the
+    // hook is what actually makes that true.
+    const { tabProps: timeTabProps } = useTabListKeyboard<TimeFilter>({
+        keys: TIME_FILTER_KEYS,
+        active: timeFilter as TimeFilter,
+        onSelect: (next) => setUrlState({ time: next, page: 1 }),
+        idFor: (k) => `gl-home-tab-${k}`,
+    })
     const excludedTeams = useMemo(() => new Set(excludedTeamsList), [excludedTeamsList])
 
     const [repoFilterOpen, setRepoFilterOpen] = useState(false)
@@ -308,9 +320,8 @@ export default function GnoloveHome() {
                             <button
                                 key={value}
                                 type="button"
-                                role="tab"
+                                {...timeTabProps(value as TimeFilter)}
                                 className={`gl-tab ${active ? "gl-tab--active" : ""}`}
-                                aria-selected={active}
                                 aria-current={active ? "page" : undefined}
                                 onClick={() => setUrlState({ time: value as typeof timeFilter, page: 1 })}
                             >
