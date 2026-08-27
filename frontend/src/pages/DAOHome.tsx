@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef, useMemo } from "react"
+import { useState, useEffect, useMemo } from "react"
+import { useQuery, useQueries } from "@tanstack/react-query"
 import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
@@ -11,8 +12,6 @@ import {
     getDAOProposals,
     getProposalDetail,
     getProposalVotes,
-    type DAOConfig,
-    type DAOMember,
     type DAOProposal,
 } from "../lib/dao"
 import { useDaoRoute } from "../hooks/useDaoRoute"
@@ -33,50 +32,129 @@ export function DAOHome() {
     const { auth, adena } = useOutletContext<LayoutContext>()
     const { session, joinRoom } = useJitsiContext()
 
-    const [config, setConfig] = useState<DAOConfig | null>(null)
-    const [members, setMembers] = useState<DAOMember[]>([])
-    const [proposals, setProposals] = useState<DAOProposal[]>([])
-    const [configLoading, setConfigLoading] = useState(true)
-    const [membersLoading, setMembersLoading] = useState(true)
-    const [proposalsLoading, setProposalsLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-    const [votedIds, setVotedIds] = useState<Set<number>>(new Set())
-    const [enrichedIds, setEnrichedIds] = useState<Set<number>>(new Set())
     const [showDeployModal, setShowDeployModal] = useState(false)
-    const usernameRef = useRef<string | null>(null)
 
-    // ── Data loading ──────────────────────────────────────────────
-    const loadData = useCallback(async () => {
-        if (!realmPath) return
-        setEnrichedIds(new Set())
-        setVotedIds(new Set())
-        setConfigLoading(true)
-        setMembersLoading(true)
-        setProposalsLoading(true)
-        setError(null)
-        try {
-            const cfg = await getDAOConfig(GNO_RPC_URL, realmPath, true)
-            setConfig(cfg)
-            setConfigLoading(false)
+    // ── Server state, in React Query ──────────────────────────────
+    // The old page hand-rolled a config → (members ∥ proposals) chain plus a
+    // progressive vote-enrichment effect that patched the proposals array in
+    // place. Same shape here, as queries + pure derivation.
 
-            getDAOMembers(GNO_RPC_URL, realmPath, cfg?.memberstorePath)
-                .then(setMembers)
-                .catch((err) => setError(err instanceof Error ? err.message : "Failed to load members"))
-                .finally(() => setMembersLoading(false))
+    // Full config (the 3-arg variant — includes tierDistribution), keyed apart
+    // from the lighter shared ["dao","config",…] cache other pages use.
+    const configQuery = useQuery({
+        queryKey: ["dao", "config", realmPath ?? "", "full"],
+        enabled: !!realmPath,
+        queryFn: () => getDAOConfig(GNO_RPC_URL, realmPath, true),
+    })
+    const config = configQuery.data ?? null
+    const configLoading = configQuery.isPending
 
-            getDAOProposals(GNO_RPC_URL, realmPath, true)
-                .then(setProposals)
-                .catch((err) => setError(err instanceof Error ? err.message : "Failed to load proposals"))
-                .finally(() => setProposalsLoading(false))
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load DAO data")
-            setConfigLoading(false)
-            setMembersLoading(false)
-            setProposalsLoading(false)
+    // Members wait for the config (memberstorePath routes tier-based DAOs).
+    const membersQuery = useQuery({
+        queryKey: ["dao", "members-list", realmPath ?? "", config?.memberstorePath ?? ""],
+        enabled: !!realmPath && configQuery.isFetched,
+        queryFn: () => getDAOMembers(GNO_RPC_URL, realmPath, config?.memberstorePath),
+    })
+    const members = membersQuery.data ?? []
+    const membersLoading = membersQuery.isPending
+
+    const proposalsQuery = useQuery({
+        queryKey: ["dao", "proposals", realmPath ?? ""],
+        enabled: !!realmPath,
+        queryFn: () => getDAOProposals(GNO_RPC_URL, realmPath, true),
+    })
+    const baseProposals = proposalsQuery.data ?? []
+    const proposalsLoading = proposalsQuery.isPending
+
+    // The connected user's @username for the voted-check (was a lazy ref; as a
+    // query the voted derivation recomputes when it lands, instead of racing).
+    const usernameQuery = useQuery({
+        queryKey: ["profile", "username", adena.address ?? ""],
+        enabled: !!adena.address,
+        queryFn: async () => {
+            try {
+                return (await resolveOnChainUsername(adena.address)) || null
+            } catch {
+                return null
+            }
+        },
+    })
+    const myUsername = usernameQuery.data ?? null
+
+    // ── Vote enrichment: one query per open/passed proposal (top 10) ──
+    // Each needs 2 ABCI calls; allSettled keeps the old partial-tolerance —
+    // only a TOTAL failure marks the card degraded (P1-8: never render fake
+    // zero-vote data as if it were a genuine no-votes proposal).
+    const enrichable = baseProposals.filter(p => p.status === "open" || p.status === "passed").slice(0, 10)
+    const enrichQueries = useQueries({
+        queries: enrichable.map((p) => ({
+            queryKey: ["dao", "proposal-enrich", realmPath ?? "", p.id],
+            queryFn: async () => {
+                const [detailRes, votesRes] = await Promise.allSettled([
+                    getProposalDetail(GNO_RPC_URL, realmPath, p.id),
+                    getProposalVotes(GNO_RPC_URL, realmPath, p.id),
+                ])
+                if (detailRes.status === "rejected" && votesRes.status === "rejected") {
+                    return { failed: true as const, detail: null, votes: [] as Awaited<ReturnType<typeof getProposalVotes>> }
+                }
+                return {
+                    failed: false as const,
+                    detail: detailRes.status === "fulfilled" ? detailRes.value : null,
+                    votes: votesRes.status === "fulfilled" ? votesRes.value : [],
+                }
+            },
+        })),
+    })
+    const enrichById = new Map(enrichable.map((p, i) => [p.id, enrichQueries[i]?.data]))
+    // Ids whose enrichment has RESOLVED (success or degraded) — the cards use
+    // this to stop showing the vote-bar placeholder shimmer.
+    const enrichedIds = new Set(enrichable.filter((p) => enrichById.get(p.id) !== undefined).map((p) => p.id))
+
+    // Merged proposals + votedIds, derived (the old code accumulated both into
+    // state from the enrichment callbacks).
+    const votedIds = new Set<number>()
+    const proposals: DAOProposal[] = baseProposals.map((p) => {
+        const e = enrichById.get(p.id)
+        if (!e) return p
+        if (e.failed) return { ...p, enrichFailed: true }
+        const { detail, votes } = e
+        const yesCount = votes.reduce((s, v) => s + v.yesVoters.length, 0)
+        const noCount = votes.reduce((s, v) => s + v.noVoters.length, 0)
+        const totalCount = yesCount + noCount
+        if (adena.address && votes.length > 0) {
+            const addr = adena.address.toLowerCase()
+            const uname = myUsername?.toLowerCase() || ""
+            const allVoters = votes.flatMap(v => [
+                ...v.yesVoters.map(ve => ve.username.toLowerCase()),
+                ...v.noVoters.map(ve => ve.username.toLowerCase()),
+                ...v.abstainVoters.map(ve => ve.username.toLowerCase()),
+            ])
+            const voted = allVoters.some(v =>
+                v === uname || v === `@${uname.replace(/^@/, "")}` || v.includes(addr.slice(0, 10))
+            )
+            if (voted) votedIds.add(p.id)
         }
-    }, [realmPath])
+        return {
+            ...p,
+            yesPercent: detail?.yesPercent || (totalCount > 0 ? Math.round((yesCount / totalCount) * 100) : 0),
+            noPercent: detail?.noPercent || (totalCount > 0 ? Math.round((noCount / totalCount) * 100) : 0),
+            yesVotes: detail?.yesVotes || yesCount,
+            noVotes: detail?.noVotes || noCount,
+            abstainVotes: detail?.abstainVotes || 0,
+            totalVoters: totalCount || detail?.totalVoters || 0,
+        }
+    })
 
-    useEffect(() => { loadData() }, [loadData])
+    // Fetch errors keep the old per-source messages; first one wins the toast.
+    const [fetchErrorDismissed, setFetchErrorDismissed] = useState(false)
+    const error = fetchErrorDismissed ? null
+        : configQuery.isError
+            ? (configQuery.error instanceof Error ? configQuery.error.message : "Failed to load DAO data")
+            : membersQuery.isError
+                ? (membersQuery.error instanceof Error ? membersQuery.error.message : "Failed to load members")
+                : proposalsQuery.isError
+                    ? (proposalsQuery.error instanceof Error ? proposalsQuery.error.message : "Failed to load proposals")
+                    : null
 
     // Quest triggers: browse-proposals + page visit
     useEffect(() => {
@@ -93,68 +171,6 @@ export function DAOHome() {
             window.dispatchEvent(new Event("memba:daoVisited"))
         }
     }, [encodedSlug])
-
-    // ── Vote enrichment ───────────────────────────────────────────
-    useEffect(() => {
-        if (proposalsLoading || proposals.length === 0) return
-        if (adena.address && !usernameRef.current) {
-            resolveOnChainUsername(adena.address)
-                .then(u => { usernameRef.current = u || null })
-                .catch(() => { })
-        }
-        const enrichable = proposals.filter(p => p.status === "open" || p.status === "passed")
-        const toEnrich = enrichable.slice(0, 10).filter(p => !enrichedIds.has(p.id))
-        if (toEnrich.length === 0) return
-        setEnrichedIds(prev => new Set([...prev, ...toEnrich.map(p => p.id)]))
-
-        // Enrich all proposals in parallel (each needs 2 ABCI calls)
-        Promise.allSettled(
-            toEnrich.map(p =>
-                Promise.allSettled([
-                    getProposalDetail(GNO_RPC_URL, realmPath, p.id),
-                    getProposalVotes(GNO_RPC_URL, realmPath, p.id),
-                ]).then(([detailRes, votesRes]) => {
-                    // Total enrichment failure → mark degraded instead of writing fake
-                    // zero vote data, so the card shows "couldn't load votes" (P1-8) rather
-                    // than reading as a genuine no-votes proposal.
-                    if (detailRes.status === "rejected" && votesRes.status === "rejected") {
-                        setProposals(prev => prev.map(pp => pp.id === p.id ? { ...pp, enrichFailed: true } : pp))
-                        return
-                    }
-                    const detail = detailRes.status === "fulfilled" ? detailRes.value : null
-                    const votes = votesRes.status === "fulfilled" ? votesRes.value : []
-                    const yesCount = votes.reduce((s, v) => s + v.yesVoters.length, 0)
-                    const noCount = votes.reduce((s, v) => s + v.noVoters.length, 0)
-                    const totalCount = yesCount + noCount
-                    const yesPercent = detail?.yesPercent || (totalCount > 0 ? Math.round((yesCount / totalCount) * 100) : 0)
-                    const noPercent = detail?.noPercent || (totalCount > 0 ? Math.round((noCount / totalCount) * 100) : 0)
-                    const yesVotes = detail?.yesVotes || yesCount
-                    const noVotes = detail?.noVotes || noCount
-
-                    setProposals(prev => prev.map(pp => pp.id === p.id ? {
-                        ...pp, yesPercent, noPercent, yesVotes, noVotes,
-                        abstainVotes: detail?.abstainVotes || 0,
-                        totalVoters: totalCount || detail?.totalVoters || 0,
-                    } : pp))
-
-                    if (adena.address && votes.length > 0) {
-                        const addr = adena.address.toLowerCase()
-                        const uname = usernameRef.current?.toLowerCase() || ""
-                        const allVoters = votes.flatMap(v => [
-                            ...v.yesVoters.map(ve => ve.username.toLowerCase()),
-                            ...v.noVoters.map(ve => ve.username.toLowerCase()),
-                            ...v.abstainVoters.map(ve => ve.username.toLowerCase()),
-                        ])
-                        const voted = allVoters.some(v =>
-                            v === uname || v === `@${uname.replace(/^@/, "")}` || v.includes(addr.slice(0, 10))
-                        )
-                        if (voted) setVotedIds(prev => new Set([...prev, p.id]))
-                    }
-                })
-            )
-        )
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [proposalsLoading, proposals.length, adena.address, realmPath])
 
     // ── Derived data ──────────────────────────────────────────────
     const activeProposals = proposals.filter((p) => p.status === "open" || p.status === "passed")
@@ -252,11 +268,11 @@ export function DAOHome() {
                     daoName={config?.name || realmPath.split("/").pop() || "DAO"}
                     callerAddress={adena.address || ""}
                     onClose={() => setShowDeployModal(false)}
-                    onDeployed={() => { setShowDeployModal(false); loadData() }}
+                    onDeployed={() => { setShowDeployModal(false); void configQuery.refetch(); void membersQuery.refetch(); void proposalsQuery.refetch() }}
                 />
             )}
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} onRetry={() => { setError(null); loadData() }} />
+            <ErrorToast message={error} onDismiss={() => setFetchErrorDismissed(true)} onRetry={() => { setFetchErrorDismissed(false); void configQuery.refetch(); void membersQuery.refetch(); void proposalsQuery.refetch() }} />
         </div>
     )
 }
