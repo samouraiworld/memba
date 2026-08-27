@@ -12,7 +12,8 @@
  * v3.0: Initial implementation.
  */
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useCallback } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { checkChainHealth, getSuggestedFallback } from "../../lib/chainHealth"
 import { NETWORKS } from "../../lib/config"
 
@@ -31,57 +32,45 @@ interface ChainHaltedBannerProps {
 }
 
 export function ChainHaltedBanner({ networkKey, onSwitchNetwork }: ChainHaltedBannerProps) {
-    const [halted, setHalted] = useState(false)
     const [dismissed, setDismissed] = useState(false)
-    const [checking, setChecking] = useState(false)
 
     const [prevNetworkKey, setPrevNetworkKey] = useState(networkKey)
     const fallbackKey = getSuggestedFallback(networkKey)
     const fallbackLabel = fallbackKey ? NETWORKS[fallbackKey]?.label || fallbackKey : null
 
-    // Reset state when networkKey changes (React-recommended pattern)
+    // Reset the dismissal when networkKey changes (React-recommended pattern);
+    // the halted verdict resets structurally — a new key is a new query.
     if (prevNetworkKey !== networkKey) {
         setPrevNetworkKey(networkKey)
         setDismissed(false)
-        setHalted(false)
     }
 
-    // Probe chain health — extracted to callback to satisfy react-hooks/set-state-in-effect
-    const probeHealth = useCallback(async (key: string, signal: { cancelled: boolean }) => {
-        setChecking(true)
-        try {
-            let result = await checkChainHealth(key, 6000)
-            if (signal.cancelled) return
-            // Two-strikes: confirm a first-probe failure with a second probe after
-            // a short delay before showing the banner. A real outage still surfaces
-            // (in ~PROBE_RETRY_DELAY_MS); a one-off blip does not latch.
-            if (!result.reachable) {
-                await new Promise((resolve) => setTimeout(resolve, PROBE_RETRY_DELAY_MS))
-                if (signal.cancelled) return
-                result = await checkChainHealth(key, 6000)
-                if (signal.cancelled) return
+    // Probe chain health, keyed by network. Every network is probed — the probe
+    // (checkChainHealth) races the primary + all fallbacks and reports
+    // unreachable only when ALL fail, so this never fires while the app can
+    // still reach the chain through any endpoint. Two-strikes: a first-probe
+    // failure is confirmed by a second probe after a short delay before the
+    // banner shows — a real outage still surfaces (~PROBE_RETRY_DELAY_MS); a
+    // one-off blip does not latch. staleTime 0: health must re-probe on every
+    // mount, never serve a cached verdict.
+    const healthQuery = useQuery({
+        queryKey: ["chain", "health", networkKey],
+        staleTime: 0,
+        queryFn: async () => {
+            try {
+                let result = await checkChainHealth(networkKey, 6000)
+                if (!result.reachable) {
+                    await new Promise((resolve) => setTimeout(resolve, PROBE_RETRY_DELAY_MS))
+                    result = await checkChainHealth(networkKey, 6000)
+                }
+                return !result.reachable
+            } catch {
+                return true
             }
-            setHalted(!result.reachable)
-        } catch {
-            if (signal.cancelled) return
-            setHalted(true)
-        } finally {
-            if (!signal.cancelled) setChecking(false)
-        }
-    }, [])
-
-    // Trigger probe on network change. Every network is probed — including
-    // test13. The probe (checkChainHealth) races the primary + all fallbacks and
-    // reports unreachable only when ALL of them fail, so this never fires while
-    // the app can still reach the chain through any endpoint. The old
-    // `networkKey === "test13"` skip assumed test13's RPC was always up; when its
-    // public endpoints went down, test13 users got a broken app with no notice.
-    useEffect(() => {
-        const signal = { cancelled: false }
-        probeHealth(networkKey, signal)
-
-        return () => { signal.cancelled = true }
-    }, [networkKey, probeHealth])
+        },
+    })
+    const halted = healthQuery.data ?? false
+    const checking = healthQuery.isPending
 
     const handleSwitch = useCallback(() => {
         if (fallbackKey) {

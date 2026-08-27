@@ -7,7 +7,8 @@
  * @module components/dashboard/DashboardAssets
  */
 
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { listFactoryTokens, getTokenBalance, getTokenInfo, formatTokenAmount } from "../../lib/grc20"
 import { fetchCollectionList } from "../../lib/launchpadReads"
 import { NFT_COLLECTIONS_PATH } from "../../lib/nftConfig"
@@ -32,21 +33,19 @@ export function DashboardAssets({ address, gnotBalance }: DashboardAssetsProps) 
     const [collapsed, setCollapsed] = useState(() => {
         try { return localStorage.getItem(COLLAPSE_KEY) === "1" } catch { return false }
     })
-    const [tokens, setTokens] = useState<TokenBalance[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState(false)
-
     const toggleCollapse = () => {
         const next = !collapsed
         setCollapsed(next)
         try { localStorage.setItem(COLLAPSE_KEY, next ? "1" : "0") } catch { /* */ }
     }
 
-    const fetchBalances = useCallback(async () => {
-        if (!address) return
-        setLoading(true)
-        setError(false)
-        try {
+    // The full balance scan (GRC20 batches + NFT batches) as one query, keyed
+    // by the wallet; disabled without one, which keeps the skeleton up exactly
+    // like the old early-return did.
+    const assetsQuery = useQuery({
+        queryKey: ["dashboard", "assets", address ?? ""],
+        enabled: !!address,
+        queryFn: async () => {
             const [factoryTokens, collections] = await Promise.all([
                 listFactoryTokens(GNO_RPC_URL).catch(() => []),
                 fetchCollectionList(GNO_RPC_URL, NFT_COLLECTIONS_PATH).catch(() => []),
@@ -117,15 +116,12 @@ export function DashboardAssets({ address, gnotBalance }: DashboardAssetsProps) 
                 results.push(...balances.filter((b): b is TokenBalance => b !== null))
             }
 
-            setTokens(results)
-        } catch {
-            setError(true)
-        } finally {
-            setLoading(false)
-        }
-    }, [address])
-
-    useEffect(() => { fetchBalances() }, [fetchBalances])
+            return results
+        },
+    })
+    const tokens = assetsQuery.data ?? []
+    const loading = assetsQuery.isPending
+    const error = assetsQuery.isError
 
     const gnotNum = gnotBalance ? parseFloat(gnotBalance) : NaN
     const gnotDisplay = !isNaN(gnotNum)
@@ -148,7 +144,7 @@ export function DashboardAssets({ address, gnotBalance }: DashboardAssetsProps) 
         return (
             <div className="k-card" style={{ padding: "16px" }}>
                 <p style={{ color: "var(--color-error)", fontSize: "14px" }}>Failed to load wallet assets.</p>
-                <button className="k-btn-secondary" onClick={fetchBalances} style={{ marginTop: "8px", padding: "4px 12px", fontSize: "12px" }}>
+                <button className="k-btn-secondary" onClick={() => void assetsQuery.refetch()} style={{ marginTop: "8px", padding: "4px 12px", fontSize: "12px" }}>
                     Retry
                 </button>
             </div>
