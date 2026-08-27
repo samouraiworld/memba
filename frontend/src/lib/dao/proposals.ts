@@ -4,7 +4,7 @@
  * Supports: GovDAO v3 markdown format and basedao JSON endpoint.
  */
 
-import { queryRender, queryRenderPage, queryEval, parseQevalJSON, normalizeStatus, unescapeMarkdown, hasOwnSubpageLink, detectMaxPage, type DAOProposal, type VoteRecord, type VoterEntry } from "./shared"
+import { queryRender, queryRenderPage, queryEval, parseQevalJSON, normalizeStatus, unescapeMarkdown, hasOwnSubpageLink, detectMaxPage, getDaoDialect, setDaoDialect, deleteDaoDialect, type DAOProposal, type VoteRecord, type VoterEntry } from "./shared"
 import { BECH32_PREFIX } from "../config"
 
 // ── Proposal Cache ────────────────────────────────────────────
@@ -217,9 +217,16 @@ async function fetchRemainingPages(
 
 /**
  * Fetch one gnodaokit sub-page ("proposals" or "history") with its pagination.
- * Returns null when the sub-page itself could not be read (route missing or
- * transport failure) — callers must distinguish that from a genuinely empty
- * list, or a transient blip would be CACHED as "0 proposals".
+ * Returns null when the sub-page could not be read (route missing, transport
+ * failure) OR when the answer isn't a daokit proposals page at all — callers
+ * must distinguish that from a genuinely empty list, or a blip would be
+ * CACHED as "0 proposals".
+ *
+ * The shape check matters beyond mux realms: a non-mux realm answers unknown
+ * routes with truthy junk ("# Not Found", an error page) rather than the
+ * literal "404" — parsing that as "0 rows, complete" would cache a confident
+ * empty even for strict callers. A genuine daokit page always carries its
+ * section header ("## Active/Inactive Proposals 🗳️ (N)") even when empty.
  */
 async function fetchDaokitProposalPages(
     rpcUrl: string,
@@ -228,8 +235,12 @@ async function fetchDaokitProposalPages(
 ): Promise<{ rows: DAOProposal[]; complete: boolean } | null> {
     const page1 = await queryRenderPage(rpcUrl, realmPath, base)
     if (!page1) return null
+    const rows = parseProposalList(page1)
+    if (rows.length === 0 && !/^##\s+(?:Active|Inactive)\s+Proposals/m.test(page1)) {
+        return null // answered, but not with a daokit proposals page
+    }
     const rest = await fetchRemainingPages(rpcUrl, realmPath, page1, base)
-    return { rows: [...parseProposalList(page1), ...rest.rows], complete: rest.complete }
+    return { rows: [...rows, ...rest.rows], complete: rest.complete }
 }
 
 /**
@@ -249,6 +260,79 @@ export async function getDAOProposals(
         return cached.proposals
     }
 
+    // Dedupe by id, sort newest-first, and optionally cache. Partial reads
+    // (a daokit sub-page that failed) must NOT be cached: a non-strict caller
+    // (e.g. the notifications poll) caching a transiently-empty list would be
+    // served to strict callers for 30s as a silent "0 proposals".
+    const finalize = (list: DAOProposal[], cacheable: boolean): DAOProposal[] => {
+        const seen = new Set<number>()
+        const unique = list.filter(p => {
+            if (seen.has(p.id)) return false
+            seen.add(p.id)
+            return true
+        })
+        unique.sort((a, b) => b.id - a.id)
+        if (cacheable) {
+            proposalCache.set(cacheKey, { proposals: unique, ts: Date.now() })
+        }
+        return unique
+    }
+
+    // gnodaokit/basedao sub-page read, shared by the memoized fast path and
+    // discovery. The tables at :proposals / :history are authoritative
+    // (root-parsed rows on a landing-linking realm are noise). Sub-reads are
+    // non-strict at the transport level; strictness for the PRIMARY
+    // (:proposals) read is enforced here, so real failures still surface.
+    // `page1` (the landing render, when discovery fetched it) feeds the
+    // legacy-realm recovery: a root that carried rows AND a same-named link.
+    const readDaokitLists = async (page1: string | null): Promise<DAOProposal[]> => {
+        const [active, history] = await Promise.all([
+            fetchDaokitProposalPages(rpcUrl, realmPath, "proposals"),
+            fetchDaokitProposalPages(rpcUrl, realmPath, "history"),
+        ])
+        if (active === null) {
+            // The daokit conclusion failed its empirical test — forget it, so
+            // (a) the next read re-discovers instead of erroring for the
+            // session, and (b) getProposalVotes doesn't shortcut to [] for
+            // rows that actually came from the root listing below (the vote
+            // scanners would otherwise count voted proposals as unvoted).
+            deleteDaoDialect(rpcUrl, realmPath)
+            if (page1) {
+                const rootRows = parseProposalList(page1)
+                if (rootRows.length > 0) {
+                    const rest = await fetchRemainingPages(rpcUrl, realmPath, page1, "")
+                    return finalize([...rootRows, ...rest.rows, ...(history?.rows ?? [])], false)
+                }
+            }
+            if (strict) throw new Error("Failed to read the DAO's proposals page")
+            return finalize(history?.rows ?? [], false)
+        }
+        return finalize(
+            [...active.rows, ...(history?.rows ?? [])],
+            active.complete && history !== null && history.complete,
+        )
+    }
+
+    // Memoized daokit realm: the JSON probe VM-panics and Render("") is a
+    // landing page — both are known-dead round-trips. Straight to the tables.
+    // If BOTH tables fail shape/read, the memo is wrong or stale (redeploy,
+    // mis-learn) — forget it and fall through to full discovery below, which
+    // re-learns from scratch. That makes every mis-memo self-healing instead
+    // of session-permanent.
+    if (getDaoDialect(rpcUrl, realmPath) === "daokit") {
+        const [active, history] = await Promise.all([
+            fetchDaokitProposalPages(rpcUrl, realmPath, "proposals"),
+            fetchDaokitProposalPages(rpcUrl, realmPath, "history"),
+        ])
+        if (active !== null) {
+            return finalize(
+                [...active.rows, ...(history?.rows ?? [])],
+                active.complete && history !== null && history.complete,
+            )
+        }
+        deleteDaoDialect(rpcUrl, realmPath)
+    }
+
     // Try the JSON endpoint first (basedao + W1.4 daoTemplate). The probe is
     // deliberately NON-strict even for strict callers: realms that never
     // exported GetProposalsJSON (GovDAO v3, pre-W1.4 deploys) answer it with a
@@ -256,9 +340,12 @@ export async function getDAOProposals(
     // layer THROWS on that under strict — which broke every GovDAO page before
     // the Render fallback below could run. Strictness (real transport/realm
     // failures must surface, not render as blank) is enforced by the fallback
-    // read instead. parseQevalJSON does the correct double-decode of the qeval
-    // wire format — a single-pass unescape corrupted backslash/newline-bearing
-    // titles.
+    // read instead. The probe is NOT skipped for known root-listing realms on
+    // purpose: a non-strict null is transport-vs-panic ambiguous, and skipping
+    // it on that evidence could freeze a JSON realm onto the markdown path
+    // (zeroed tallies) for the session. parseQevalJSON does the correct
+    // double-decode of the qeval wire format — a single-pass unescape
+    // corrupted backslash/newline-bearing titles.
     const json = await queryEval(rpcUrl, realmPath, `GetProposalsJSON()`, false)
     if (json) {
         const parsed = parseQevalJSON(json)
@@ -280,6 +367,7 @@ export async function getDAOProposals(
                 totalVoters: Number(p.total_voters || p.TotalVoters || 0),
                 proposer: String(p.proposer || p.Proposer || ""),
             }))
+            setDaoDialect(rpcUrl, realmPath, "json")
             proposalCache.set(cacheKey, { proposals: result, ts: Date.now() })
             return result
         }
@@ -289,52 +377,13 @@ export async function getDAOProposals(
     const page1 = await queryRender(rpcUrl, realmPath, "", strict)
     if (!page1) return []
 
-    // Dedupe by id, sort newest-first, and optionally cache. Partial reads
-    // (a daokit sub-page that failed) must NOT be cached: a non-strict caller
-    // (e.g. the notifications poll) caching a transiently-empty list would be
-    // served to strict callers for 30s as a silent "0 proposals".
-    const finalize = (list: DAOProposal[], cacheable: boolean): DAOProposal[] => {
-        const seen = new Set<number>()
-        const unique = list.filter(p => {
-            if (seen.has(p.id)) return false
-            seen.add(p.id)
-            return true
-        })
-        unique.sort((a, b) => b.id - a.id)
-        if (cacheable) {
-            proposalCache.set(cacheKey, { proposals: unique, ts: Date.now() })
-        }
-        return unique
-    }
-
     if (hasOwnSubpageLink(page1, realmPath, "proposals")) {
-        // gnodaokit/basedao (the deployed memba_dao): Render("") is a landing
-        // page linking to :proposals / :history — the tables there are
-        // authoritative (root-parsed rows on such a realm are landing-page
-        // noise, never the list). Sub-reads are non-strict at the transport
-        // level; strictness for the PRIMARY (:proposals) read is enforced
-        // below, so real failures still surface to strict callers.
-        const [active, history] = await Promise.all([
-            fetchDaokitProposalPages(rpcUrl, realmPath, "proposals"),
-            fetchDaokitProposalPages(rpcUrl, realmPath, "history"),
-        ])
-        if (active === null) {
-            // The realm advertises :proposals but the read failed. If the root
-            // itself carried rows (a legacy realm whose description merely
-            // links a same-named route), fall back to those — uncached, and
-            // keeping whatever the history read DID deliver.
-            const rootRows = parseProposalList(page1)
-            if (rootRows.length > 0) {
-                const rest = await fetchRemainingPages(rpcUrl, realmPath, page1, "")
-                return finalize([...rootRows, ...rest.rows, ...(history?.rows ?? [])], false)
-            }
-            if (strict) throw new Error("Failed to read the DAO's proposals page")
-            return finalize(history?.rows ?? [], false)
-        }
-        return finalize(
-            [...active.rows, ...(history?.rows ?? [])],
-            active.complete && history !== null && history.complete,
-        )
+        // The landing page itself proves the dialect — memo before the reads
+        // so even a transient sub-page failure keeps the lesson. (setDaoDialect
+        // refuses to overwrite "json": a JSON realm reaching here on a probe
+        // blip must not get diverted for the session.)
+        setDaoDialect(rpcUrl, realmPath, "daokit")
+        return readDaokitLists(page1)
     }
 
     const proposals = parseProposalList(page1)
@@ -408,8 +457,24 @@ export async function getProposalDetail(
         // 1. GovDAO v3: just the id number
         // 2. basedao / daokit: "proposal/N"
         // 3. GovDAO with colon: ":N"
-        let data = await queryRenderPage(rpcUrl, realmPath, String(id))
+        // A memoized daokit realm tries proposal/N FIRST — its Render("N") is
+        // a guaranteed mux-404, one dead round-trip per detail read otherwise.
+        // The reordered fetch is SHAPE-GATED: on a MIS-memoed non-mux realm,
+        // Render("proposal/N") answers truthy junk ("# Not Found") rather than
+        // the literal "404", and taking it as content would resurrect the
+        // phantom-proposal class #1113 fixed. A genuine daokit detail page
+        // always opens with its "# <name> - Proposal Detail" header.
+        const daokitFirst = getDaoDialect(rpcUrl, realmPath) === "daokit"
+        const isDaokitDetailPage = (d: string) => /^#\s[^\n]*-\s*Proposal Detail\s*\n/.test(d)
+        let data: string | null = null
+        if (daokitFirst) {
+            data = await queryRenderPage(rpcUrl, realmPath, `proposal/${id}`)
+            if (data && !isDaokitDetailPage(data)) data = null
+        }
         if (!data) {
+            data = await queryRenderPage(rpcUrl, realmPath, String(id))
+        }
+        if (!data && !daokitFirst) {
             data = await queryRenderPage(rpcUrl, realmPath, `proposal/${id}`)
         }
         if (!data) {
@@ -600,6 +665,12 @@ export async function getProposalVotes(
     realmPath: string,
     id: number,
 ): Promise<VoteRecord[]> {
+    // A memoized daokit realm has NO votes route at all — the deployed
+    // renderer serves aggregate tallies inline on the detail page (which the
+    // daokit detail leg parses). Both render attempts below would be dead
+    // round-trips answering the mux "404".
+    if (getDaoDialect(rpcUrl, realmPath) === "daokit") return []
+
     // queryRenderPage: on a mux-routed realm the first path answers a literal
     // "404" body, which must not short-circuit the proposal/N/votes fallback
     // (the same 404-truthiness class getProposalDetail had).

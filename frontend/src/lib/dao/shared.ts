@@ -116,6 +116,55 @@ export async function queryRenderPage(rpcUrl: string, pkgPath: string, renderPat
     return data
 }
 
+// ── Per-realm dialect memo ────────────────────────────────────
+// A realm's render dialect is static per deployment (it changes only when a
+// ceremony redeploys the realm), so flavor discovery — which JSON exports
+// exist, whether Render("") is a landing page, which detail route answers —
+// runs ONCE per realm per session instead of burning guaranteed-dead
+// round-trips on every read (a daokit realm answers Render("N") with a mux
+// "404" and has no votes route at all).
+//
+// Two rules keep the memo from ever DEGRADING data:
+// 1. Only POSITIVE structural evidence is memoized — "json" (the realm's
+//    GetProposalsJSON answered and parsed) or "daokit" (the realm's own
+//    landing links its sub-routes). Absence of evidence (a GovDAO-style
+//    root listing) is never memoized: a transient probe failure must not
+//    freeze a JSON realm onto the markdown path, where vote data parses to
+//    zeros. For the same reason "daokit" never OVERWRITES "json".
+// 2. A memoized fast path that FAILS forgets the memo (deleteDaoDialect)
+//    and falls back to full discovery — so a stale memo after a redeploy
+//    self-heals on the next read instead of erroring for the session.
+//
+// Session-scoped on purpose: invalidateProposalCache does NOT clear it
+// (submitting a proposal changes data, not dialect); clearDaoDialects exists
+// for tests.
+
+/** How a DAO realm serves its data (only positive findings are memoized). */
+export type DaoDialect = "json" | "daokit"
+
+const dialectMemo = new Map<string, DaoDialect>()
+
+const dialectKey = (rpcUrl: string, realmPath: string) => `${rpcUrl}:${realmPath}`
+
+export function getDaoDialect(rpcUrl: string, realmPath: string): DaoDialect | undefined {
+    return dialectMemo.get(dialectKey(rpcUrl, realmPath))
+}
+
+export function setDaoDialect(rpcUrl: string, realmPath: string, dialect: DaoDialect): void {
+    // "json" is the strongest evidence (a working structured endpoint) —
+    // never let landing-shape evidence downgrade it (see rule 1 above).
+    if (dialect === "daokit" && dialectMemo.get(dialectKey(rpcUrl, realmPath)) === "json") return
+    dialectMemo.set(dialectKey(rpcUrl, realmPath), dialect)
+}
+
+export function deleteDaoDialect(rpcUrl: string, realmPath: string): void {
+    dialectMemo.delete(dialectKey(rpcUrl, realmPath))
+}
+
+export function clearDaoDialects(): void {
+    dialectMemo.clear()
+}
+
 /**
  * Does a realm's landing page link to its OWN daokit sub-route (":proposals",
  * ":members", …)? Anchored to the realm's own link path so a foreign link
