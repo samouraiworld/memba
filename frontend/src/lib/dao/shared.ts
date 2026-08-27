@@ -47,6 +47,12 @@ export interface DAOProposal {
     // P1-8: set when BOTH vote-detail and vote RPCs failed during enrichment, so the
     // card can show "couldn't load votes" instead of reading as a genuine no-votes proposal.
     enrichFailed?: boolean
+    // daokit list rows carry the RESOURCE display name, not the proposal title
+    // (the table has no title column). Consumers may replace the title with the
+    // detail-page title when set; it also marks rows whose per-voter lists are
+    // unknowable (daokit renders aggregate tallies only), which the vote
+    // scanners use to avoid phantom "unvoted" claims.
+    titleIsPlaceholder?: boolean
 }
 
 export interface DAOConfig {
@@ -88,14 +94,58 @@ export type { AminoMsg }
  * Data format: "pkgpath:renderpath" (colon separator).
  */
 export async function queryRender(rpcUrl: string, pkgPath: string, renderPath: string, strict = false): Promise<string | null> {
-    const data = await abciQuery(rpcUrl, "vm/qrender", `${pkgPath}:${sanitize(renderPath)}`, strict)
-    // gnodaokit realms route Render through p/nt/mux, which answers every
-    // unknown route with a literal "404" body — a *successful* query that must
-    // read as "no such page", or fallback chains (e.g. getProposalDetail's
-    // Render("1") → Render("proposal/1")) short-circuit on the first try and
-    // parse "404" as if it were content.
+    return abciQuery(rpcUrl, "vm/qrender", `${pkgPath}:${sanitize(renderPath)}`, strict)
+}
+
+/**
+ * queryRender for daokit sub-route reads and fallback chains: gnodaokit realms
+ * route Render through p/nt/mux, which answers every unknown route with a
+ * literal "404" body — a *successful* query that must read as "no such page",
+ * or a fallback chain (e.g. getProposalDetail's Render("1") →
+ * Render("proposal/1")) short-circuits on the first try and parses "404" as
+ * if it were content.
+ *
+ * NEVER use this for deployment probes: a "404" body is a real answer from a
+ * deployed realm, and the Directory's strict root probe (useResolvedDirectoryDaos)
+ * treats null as "not deployed here" — nulling "404" there would silently drop
+ * live mux-routed realms from the Directory and home cards.
+ */
+export async function queryRenderPage(rpcUrl: string, pkgPath: string, renderPath: string, strict = false): Promise<string | null> {
+    const data = await queryRender(rpcUrl, pkgPath, renderPath, strict)
     if (data !== null && data.trim() === "404") return null
     return data
+}
+
+/**
+ * Does a realm's landing page link to its OWN daokit sub-route (":proposals",
+ * ":members", …)? Anchored to the realm's own link path so a foreign link
+ * (e.g. a description mentioning some other realm's ":proposals") can't divert
+ * the read to sub-pages the realm doesn't serve.
+ */
+export function hasOwnSubpageLink(data: string, realmPath: string, base: string): boolean {
+    // "gno.land/r/samcrew/memba_dao" renders links as "/r/samcrew/memba_dao:base"
+    const linkPath = realmPath.replace(/^[^/]+/, "")
+    const esc = `${linkPath}:${base}`.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+    return new RegExp(`\\]\\(${esc}\\)`).test(data)
+}
+
+/**
+ * Detect max page number from a pager footer ("**1** | [2](?page=2) | …").
+ * Shared by the GovDAO root pagination and the daokit sub-page/member pagers
+ * (avl/pager renders the same "[N](?page=N)" links). Scanning for the MAX is
+ * deliberate: it tolerates a leading back-link ("[1](?page=1)") on pages ≥ 2
+ * and degrades to harmless over-fetching (empty pages) rather than silent
+ * truncation if a page injects a bogus link.
+ */
+export function detectMaxPage(data: string): number {
+    const pageLinks = data.match(/\[(\d+)\]\(\?page=\d+\)/g)
+    if (!pageLinks || pageLinks.length === 0) return 1
+    let max = 1
+    for (const link of pageLinks) {
+        const m = link.match(/\[(\d+)\]/)
+        if (m) max = Math.max(max, parseInt(m[1], 10))
+    }
+    return max
 }
 
 /**
@@ -251,8 +301,12 @@ export function normalizeStatus(s: string): DAOProposal["status"] {
     const lower = s.toLowerCase()
     if (lower.includes("accept") || lower.includes("pass")) return "passed"
     // "deni"/"deny" covers GovDAO v3's detail-render prose "PROPOSAL HAS BEEN DENIED"
-    // "closed" is daokit's detail-page terminal state for anything not open/passed/executed
-    if (lower.includes("reject") || lower.includes("fail") || lower.includes("deni") || lower.includes("deny") || lower.includes("closed")) return "rejected"
+    // NOTE: daokit's detail-page "Closed" is mapped inside the daokit leg of
+    // getProposalDetail, NOT here — this funnel is shared across dialects, and
+    // the legacy GovDAO status capture (`\w+ED|ACTIVE`) matches loose prose
+    // ("disclosed", "voting closed"), which must keep warning → "open" rather
+    // than silently flipping to a red REJECTED badge.
+    if (lower.includes("reject") || lower.includes("fail") || lower.includes("deni") || lower.includes("deny")) return "rejected"
     if (lower.includes("exec") || lower.includes("complete")) return "executed"
     if (lower.includes("active") || lower.includes("open") || lower === "") return "open"
     console.warn(`[normalizeStatus] Unknown proposal status: "${s}" — defaulting to "open"`)

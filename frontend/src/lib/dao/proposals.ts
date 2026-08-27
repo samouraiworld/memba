@@ -4,7 +4,7 @@
  * Supports: GovDAO v3 markdown format and basedao JSON endpoint.
  */
 
-import { queryRender, queryEval, parseQevalJSON, normalizeStatus, unescapeMarkdown, type DAOProposal, type VoteRecord, type VoterEntry } from "./shared"
+import { queryRender, queryRenderPage, queryEval, parseQevalJSON, normalizeStatus, unescapeMarkdown, hasOwnSubpageLink, detectMaxPage, type DAOProposal, type VoteRecord, type VoterEntry } from "./shared"
 import { BECH32_PREFIX } from "../config"
 
 // ── Proposal Cache ────────────────────────────────────────────
@@ -28,29 +28,59 @@ export function invalidateProposalCache(realmPath: string): void {
     }
 }
 
+/** The title getProposalDetail falls back to when no real title parses. Exported
+ *  so consumers (DAOHome's title adoption) never re-derive the sentinel by hand. */
+export function fallbackProposalTitle(id: number): string {
+    return `Proposal #${id}`
+}
+
 /** Convert daokit's "2026-08-27 10:12:05 UTC+00:00" table cell to ISO, or undefined. */
 function daokitCellToISO(cell: string): string | undefined {
     const m = cell.trim().match(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) UTC([+-]\d{2}:\d{2})$/)
     return m ? `${m[1]}T${m[2]}${m[3]}` : undefined
 }
 
+/** Last match of a regex in a string. The daokit detail page renders the
+ *  user-authored description ABOVE the realm-generated Status / proposer /
+ *  Votes sections, so first-match extraction of those fields would let a
+ *  hostile description spoof them — the REAL sections always come last. */
+function matchLast(data: string, re: RegExp): RegExpExecArray | null {
+    const g = new RegExp(re.source, re.flags.includes("g") ? re.flags : re.flags + "g")
+    let m: RegExpExecArray | null
+    let last: RegExpExecArray | null = null
+    while ((m = g.exec(data)) !== null) {
+        last = m
+        if (m.index === g.lastIndex) g.lastIndex++
+    }
+    return last
+}
+
+// Action metadata extraction, shared by BOTH detail legs so the two can't
+// drift apart (basedao format: "## Resource - actionType 📦", body between the
+// "---" pair after the Condition line).
+const RESOURCE_RE = /##\s+Resource\s*-\s*(.+?)\s*📦/m
+const ACTION_BODY_RE = /\*\*Condition:\*\*[^\n]*\n\n---\s*\n\n([\s\S]+?)\n\n---/m
+
 /**
  * Parse gnodaokit/basedao proposal-table rows (deployed RenderProposalsTable):
  * | [N](path:proposal/N) | Resource name | [g1…](/u/g1full) | 2026-08-27 10:12:05 UTC+00:00 | Open |
- * The table has no title column — the resource display name stands in until
- * detail enrichment (Render("proposal/N")) supplies the real title.
+ * The table has no title column — the resource display name stands in
+ * (titleIsPlaceholder) until detail enrichment supplies the real title.
+ * Known limitation: cells are positional, so a literal "|" inside the
+ * resource display name (realm-code-controlled, never user input) would shift
+ * the columns; such a name would break the realm's own gnoweb table too.
  */
-export function parseDaokitProposalRows(data: string): DAOProposal[] {
+function parseDaokitProposalRows(data: string): DAOProposal[] {
+    if (!data.includes(":proposal/")) return []
     const proposals: DAOProposal[] = []
     const re = /^\|\s*\[(\d+)\]\([^)]*:proposal\/\d+\)\s*\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|/gm
     let m: RegExpExecArray | null
     while ((m = re.exec(data)) !== null) {
-        const proposer = m[3].match(/\]\(\/u\/(g1[a-z0-9]+)\)/)?.[1]
-            || m[3].match(/(g1[a-z0-9]{6,})/)?.[1]
-            || ""
+        const proposer = m[3].match(/\]\(\/u\/(g1[a-z0-9]+)\)/)?.[1] || ""
         proposals.push({
             id: parseInt(m[1], 10),
             title: unescapeMarkdown(m[2].trim()),
+            titleIsPlaceholder: true,
             description: "",
             category: "",
             status: normalizeStatus(m[5].trim() || "open"),
@@ -156,43 +186,47 @@ export function parseProposalList(data: string): DAOProposal[] {
 }
 
 /**
- * Detect max page number from GovDAO pagination footer.
- * Format: **1** | [2](?page=2) | [3](?page=3)
+ * Fetch pages 2..max for a paginated proposals render and parse them.
+ * `base` is "" for realms that list proposals on Render("") (GovDAO), or a
+ * daokit sub-route ("proposals" / "history"). Follow-up pages are non-strict
+ * by long-standing contract: a transient miss skips a page rather than
+ * failing the whole list.
  */
-function detectMaxPage(data: string): number {
-    const pageLinks = data.match(/\[(\d+)\]\(\?page=\d+\)/g)
-    if (!pageLinks || pageLinks.length === 0) return 1
-    let max = 1
-    for (const link of pageLinks) {
-        const m = link.match(/\[(\d+)\]/)
-        if (m) max = Math.max(max, parseInt(m[1], 10))
-    }
-    return max
-}
-
-/**
- * Fetch one gnodaokit sub-page ("proposals" or "history") with its pagination
- * (the avl/pager Picker renders "[2](?page=2)" links, same as detectMaxPage).
- */
-async function fetchDaokitProposalPages(
+async function fetchRemainingPages(
     rpcUrl: string,
     realmPath: string,
-    base: "proposals" | "history",
-    strict: boolean,
+    page1: string,
+    base: string,
 ): Promise<DAOProposal[]> {
-    const page1 = await queryRender(rpcUrl, realmPath, base, strict)
-    if (!page1) return []
-    const out = parseProposalList(page1)
+    const out: DAOProposal[] = []
     const maxPage = detectMaxPage(page1)
     if (maxPage > 1) {
         const pagePromises: Promise<string | null>[] = []
         for (let p = 2; p <= Math.min(maxPage, 10); p++) {
-            pagePromises.push(queryRender(rpcUrl, realmPath, `${base}?page=${p}`))
+            pagePromises.push(queryRenderPage(rpcUrl, realmPath, `${base}?page=${p}`))
         }
         for (const pageData of await Promise.all(pagePromises)) {
             if (pageData) out.push(...parseProposalList(pageData))
         }
     }
+    return out
+}
+
+/**
+ * Fetch one gnodaokit sub-page ("proposals" or "history") with its pagination.
+ * Returns null when the sub-page itself could not be read (route missing or
+ * transport failure) — callers must distinguish that from a genuinely empty
+ * list, or a transient blip would be CACHED as "0 proposals".
+ */
+async function fetchDaokitProposalPages(
+    rpcUrl: string,
+    realmPath: string,
+    base: "proposals" | "history",
+): Promise<DAOProposal[] | null> {
+    const page1 = await queryRenderPage(rpcUrl, realmPath, base)
+    if (!page1) return null
+    const out = parseProposalList(page1)
+    out.push(...await fetchRemainingPages(rpcUrl, realmPath, page1, base))
     return out
 }
 
@@ -253,50 +287,53 @@ export async function getDAOProposals(
     const page1 = await queryRender(rpcUrl, realmPath, "", strict)
     if (!page1) return []
 
-    const proposals = parseProposalList(page1)
-
-    if (proposals.length === 0 && /\]\([^)]*:proposals\)/.test(page1)) {
-        // gnodaokit/basedao (the deployed memba_dao): Render("") is a landing
-        // page linking to :proposals / :history — the tables live there. The
-        // active list keeps the caller's strict flag (it IS the primary read);
-        // history is supplementary and stays non-strict.
-        const [active, history] = await Promise.all([
-            fetchDaokitProposalPages(rpcUrl, realmPath, "proposals", strict),
-            fetchDaokitProposalPages(rpcUrl, realmPath, "history", false),
-        ])
-        proposals.push(...active, ...history)
-    } else {
-        // Fetch remaining pages in parallel (cap at 10 to prevent runaway loops)
-        const maxPage = detectMaxPage(page1)
-        if (maxPage > 1) {
-            const pagePromises: Promise<string | null>[] = []
-            for (let p = 2; p <= Math.min(maxPage, 10); p++) {
-                pagePromises.push(queryRender(rpcUrl, realmPath, `?page=${p}`))
-            }
-            const pages = await Promise.all(pagePromises)
-            for (const pageData of pages) {
-                if (pageData) {
-                    proposals.push(...parseProposalList(pageData))
-                }
-            }
+    // Dedupe by id, sort newest-first, and optionally cache. Partial reads
+    // (a daokit sub-page that failed) must NOT be cached: a non-strict caller
+    // (e.g. the notifications poll) caching a transiently-empty list would be
+    // served to strict callers for 30s as a silent "0 proposals".
+    const finalize = (list: DAOProposal[], cacheable: boolean): DAOProposal[] => {
+        const seen = new Set<number>()
+        const unique = list.filter(p => {
+            if (seen.has(p.id)) return false
+            seen.add(p.id)
+            return true
+        })
+        unique.sort((a, b) => b.id - a.id)
+        if (cacheable) {
+            proposalCache.set(cacheKey, { proposals: unique, ts: Date.now() })
         }
+        return unique
     }
 
-    // Deduplicate by id (in case of overlap between pages)
-    const seen = new Set<number>()
-    const unique = proposals.filter(p => {
-        if (seen.has(p.id)) return false
-        seen.add(p.id)
-        return true
-    })
+    if (hasOwnSubpageLink(page1, realmPath, "proposals")) {
+        // gnodaokit/basedao (the deployed memba_dao): Render("") is a landing
+        // page linking to :proposals / :history — the tables there are
+        // authoritative (root-parsed rows on such a realm are landing-page
+        // noise, never the list). Sub-reads are non-strict at the transport
+        // level; strictness for the PRIMARY (:proposals) read is enforced
+        // below, so real failures still surface to strict callers.
+        const [active, history] = await Promise.all([
+            fetchDaokitProposalPages(rpcUrl, realmPath, "proposals"),
+            fetchDaokitProposalPages(rpcUrl, realmPath, "history"),
+        ])
+        if (active === null) {
+            // The realm advertises :proposals but the read failed. If the root
+            // itself carried rows (a legacy realm whose description merely
+            // links a same-named route), fall back to those — uncached.
+            const rootRows = parseProposalList(page1)
+            if (rootRows.length > 0) {
+                rootRows.push(...await fetchRemainingPages(rpcUrl, realmPath, page1, ""))
+                return finalize(rootRows, false)
+            }
+            if (strict) throw new Error("Failed to read the DAO's proposals page")
+            return finalize(history ?? [], false)
+        }
+        return finalize([...active, ...(history ?? [])], history !== null)
+    }
 
-    // Sort by id descending (newest first)
-    unique.sort((a, b) => b.id - a.id)
-
-    // Store in cache
-    proposalCache.set(cacheKey, { proposals: unique, ts: Date.now() })
-
-    return unique
+    const proposals = parseProposalList(page1)
+    proposals.push(...await fetchRemainingPages(rpcUrl, realmPath, page1, ""))
+    return finalize(proposals, true)
 }
 
 /**
@@ -357,48 +394,78 @@ export async function getProposalDetail(
     id: number,
 ): Promise<DAOProposal | null> {
     try {
-        // Try multiple render path formats:
+        // Try multiple render path formats (queryRenderPage so a mux "404"
+        // body reads as "no such page" and the chain proceeds — the deployed
+        // daokit realm answers Render("1") with literal "404" and serves the
+        // real page at "proposal/1"):
         // 1. GovDAO v3: just the id number
-        // 2. basedao / custom DAO: "proposal/N"
+        // 2. basedao / daokit: "proposal/N"
         // 3. GovDAO with colon: ":N"
-        let data = await queryRender(rpcUrl, realmPath, String(id))
+        let data = await queryRenderPage(rpcUrl, realmPath, String(id))
         if (!data) {
-            data = await queryRender(rpcUrl, realmPath, `proposal/${id}`)
+            data = await queryRenderPage(rpcUrl, realmPath, `proposal/${id}`)
         }
         if (!data) {
-            data = await queryRender(rpcUrl, realmPath, `:${id}`)
+            data = await queryRenderPage(rpcUrl, realmPath, `:${id}`)
         }
         if (!data) return null
 
         // gnodaokit/basedao detail page (deployed ProposalDetailPageView):
         // "## Title - <t> 📜", "## Description 📝", "## Status - Open 🟡",
-        // votes as membersThresholdCond counts ("Yes: 1/3 = 33.3%"). Parsed as
-        // a self-contained leg so the generic heading fallbacks below can't
-        // grab the page header ("# MembaDAO - Proposal Detail") as the title.
-        const daokitTitle = data.match(/^##\s+Title\s+-\s+(.*?)\s*📜\s*$/m)
-        if (daokitTitle) {
+        // votes as membersThresholdCond counts ("Yes: 1/3 = 33.3%").
+        //
+        // The trigger is anchored to the very FIRST line of the render — the
+        // realm-generated "# <name> - Proposal Detail" header — never to
+        // markers inside the body: legacy GovDAO/basedao pages embed the
+        // user-authored description verbatim, so a body-marker trigger would
+        // let a description divert ANY realm's detail parse into this leg.
+        if (/^#\s[^\n]*-\s*Proposal Detail\s*\n/.test(data)) {
+            // Field extraction is injection-aware: the deployed layout renders
+            // the user description ABOVE the real Status / proposer / Votes
+            // sections, so those fields take the LAST match (the realm-
+            // generated sections always come after all user content). Title
+            // and description take the FIRST match — both are rendered before
+            // any user-controlled content can open a line.
+            const title = data.match(/^##\s+Title\s+-\s+(.+?)\s*(?:📜\s*)?$/m)
             const desc = data.match(/^##\s+Description\s+📝\s*\n\n([\s\S]*?)\n\n##\s+Resource\s+-/m)
-            const status = data.match(/^##\s+Status\s+-\s+(\w+)/m)
-            const yes = data.match(/Yes:\s*(\d+)\s*\/\s*(\d+)\s*=\s*([\d.]+)%/)
-            const no = data.match(/No:\s*(\d+)\s*\/\s*\d+\s*=\s*([\d.]+)%/)
-            const abstain = data.match(/Abstain:\s*(\d+)\s*\/\s*\d+\s*=/)
-            const proposer = data.match(/>\s*proposed by\s+(g1[a-z0-9]+)/)?.[1] || ""
-            const resource = data.match(/##\s+Resource\s*-\s*(.+?)\s*📦/m)
-            const action = data.match(/\*\*Condition:\*\*[^\n]*\n\n---\s*\n\n([\s\S]+?)\n\n---/m)
+            const status = matchLast(data, /^##\s+Status\s+-\s+(\w+)/m)
+            const yes = matchLast(data, /Yes:\s*(\d+)\s*\/\s*\d+\s*=\s*([\d.]+)%/)
+            const no = matchLast(data, /No:\s*(\d+)\s*\/\s*\d+\s*=\s*([\d.]+)%/)
+            const abstain = matchLast(data, /Abstain:\s*(\d+)\s*\/\s*\d+\s*=/)
+            const proposer = matchLast(data, />\s*proposed by\s+(g1[a-z0-9]+)/)?.[1] || ""
+            const resource = matchLast(data, RESOURCE_RE)
+            const action = matchLast(data, ACTION_BODY_RE)
             const yesVotes = yes ? parseInt(yes[1], 10) : 0
             const noVotes = no ? parseInt(no[1], 10) : 0
             const abstainVotes = abstain ? parseInt(abstain[1], 10) : 0
+            const pct = (m: RegExpExecArray | null): number => {
+                const v = m ? Math.round(parseFloat(m[2])) : 0
+                return Number.isFinite(v) ? v : 0
+            }
+            // daokit's detail page renders "Closed" for any terminal
+            // not-passed state; the mapping lives here, in the leg that owns
+            // that vocabulary, so the shared normalizeStatus funnel stays
+            // dialect-neutral (see the note there).
+            const rawStatus = status?.[1] || "open"
+            const mappedStatus = rawStatus.toLowerCase() === "closed"
+                ? "rejected" as const
+                : normalizeStatus(rawStatus)
+            // The detail page renders no date, but the list rows do — adopt
+            // the createdAt from the cached list for this realm so
+            // ProposalView shows the same date as the DAOHome card instead of
+            // falling back to the tx-search approximation.
+            const cachedRow = proposalCache.get(`${rpcUrl}:${realmPath}`)?.proposals.find((p) => p.id === id)
             return {
                 id,
-                title: unescapeMarkdown(daokitTitle[1].trim()) || `Proposal #${id}`,
+                title: unescapeMarkdown(title?.[1]?.trim() || "") || fallbackProposalTitle(id),
                 description: unescapeMarkdown((desc?.[1] || "").trim()),
                 category: "",
-                status: normalizeStatus(status?.[1] || "open"),
+                status: mappedStatus,
                 author: proposer,
                 authorProfile: "",
                 tiers: [],
-                yesPercent: yes ? Math.round(parseFloat(yes[3])) : 0,
-                noPercent: no ? Math.round(parseFloat(no[2])) : 0,
+                yesPercent: pct(yes),
+                noPercent: pct(no),
                 yesVotes,
                 noVotes,
                 abstainVotes,
@@ -406,6 +473,7 @@ export async function getProposalDetail(
                 proposer,
                 actionType: resource?.[1]?.trim() || undefined,
                 actionBody: action?.[1]?.trim() || undefined,
+                createdAt: cachedRow?.createdAt,
             }
         }
 
@@ -440,14 +508,11 @@ export async function getProposalDetail(
         // "This proposal contains the following metadata:\n\n...content...\n\nExecutor created in: realm/path"
         const executorMatch = data.match(/This proposal contains the following metadata:\s*\n\n([\s\S]+?)(?:\n\nExecutor created in:\s*(\S+))?\s*\n\n---/m)
 
-        // v2.13: Action metadata — basedao format
-        // "## Resource - actionType 📦\n\n  - **Name:** ...\n---\naction body\n---"
-        const resourceMatch = data.match(/##\s+Resource\s*-\s*(.+?)\s*📦\s*\n/m)
+        // v2.13: Action metadata — basedao format (regexes shared with the
+        // daokit leg above so the two extractions can't drift apart)
+        const resourceMatch = data.match(RESOURCE_RE)
         // Action body: specifically after Resource section's "---" separator (basedao only)
-        // Uses lookbehind for Condition line to anchor after the resource block
-        const actionBodyMatch = resourceMatch
-            ? data.match(/\*\*Condition:\*\*[^\n]*\n\n---\s*\n\n([\s\S]+?)\n\n---/m)
-            : null
+        const actionBodyMatch = resourceMatch ? data.match(ACTION_BODY_RE) : null
 
         // Determine action type and body from either format
         const actionType = resourceMatch?.[1]?.trim() || undefined
@@ -464,7 +529,7 @@ export async function getProposalDetail(
 
         return {
             id,
-            title: unescapeMarkdown(titleMatch?.[1]?.trim() || `Proposal #${id}`),
+            title: unescapeMarkdown(titleMatch?.[1]?.trim() || "") || fallbackProposalTitle(id),
             description: parseProposalDescription(data),
             category: categoryMatch?.[1]?.toLowerCase() || "",
             status: normalizeStatus(statusMatch?.[1] || "open"),
