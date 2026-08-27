@@ -12,7 +12,8 @@
  * @module components/org/OrgContent
  */
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useOutletContext } from "react-router-dom"
 import { api } from "../../lib/api"
 import { create } from "@bufbuild/protobuf"
@@ -41,9 +42,6 @@ export default function OrgContent() {
     const { auth } = useOutletContext<LayoutContext>()
     const { setActiveOrg, activeOrgId } = useOrg()
 
-    const [teams, setTeams] = useState<Team[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
 
     // Create team
     const [showCreate, setShowCreate] = useState(false)
@@ -72,23 +70,26 @@ export default function OrgContent() {
     // Resolved usernames for team members
     const [resolvedNames, setResolvedNames] = useState<Record<string, string>>({})
 
-    const loadTeams = useCallback(async () => {
-        if (!auth.token) return
-        setLoading(true)
-        setError(null)
-        try {
+    // Teams, keyed by the auth identity; disabled until authed (the old
+    // loadTeams early-returned with loading stuck true — same skeleton).
+    const teamsQuery = useQuery({
+        queryKey: ["org", "my-teams", auth.token?.userAddress ?? ""],
+        enabled: !!auth.token,
+        queryFn: async () => {
             const resp = await api.getMyTeams(create(GetMyTeamsRequestSchema, {
-                authToken: auth.token,
+                authToken: auth.token!,
             }))
-            setTeams(resp.teams)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load teams")
-        } finally {
-            setLoading(false)
-        }
-    }, [auth.token])
-
-    useEffect(() => { loadTeams() }, [loadTeams])
+            return resp.teams
+        },
+    })
+    const teams = teamsQuery.data ?? []
+    const loading = teamsQuery.isPending
+    // Team-action errors stay local; the fetch error derives from the query.
+    const [actionError, setActionError] = useState<string | null>(null)
+    const error = actionError ?? (teamsQuery.isError
+        ? (teamsQuery.error instanceof Error ? teamsQuery.error.message : "Failed to load teams")
+        : null)
+    const loadTeams = () => void teamsQuery.refetch()
 
     // Resolve usernames when a team is selected
     useEffect(() => {
@@ -115,7 +116,7 @@ export default function OrgContent() {
     const handleCreate = async () => {
         if (!auth.token || !newName.trim()) return
         setCreating(true)
-        setError(null)
+        setActionError(null)
         try {
             await api.createTeam(create(CreateTeamRequestSchema, {
                 authToken: auth.token,
@@ -127,7 +128,7 @@ export default function OrgContent() {
             setShowCreate(false)
             loadTeams()
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to create team")
+            setActionError(err instanceof Error ? err.message : "Failed to create team")
         } finally {
             setCreating(false)
         }
@@ -136,7 +137,7 @@ export default function OrgContent() {
     const handleJoin = async () => {
         if (!auth.token || !inviteCode.trim()) return
         setJoining(true)
-        setError(null)
+        setActionError(null)
         try {
             await api.joinTeam(create(JoinTeamRequestSchema, {
                 authToken: auth.token,
@@ -146,7 +147,7 @@ export default function OrgContent() {
             setShowJoin(false)
             loadTeams()
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Invalid invite code")
+            setActionError(err instanceof Error ? err.message : "Invalid invite code")
         } finally {
             setJoining(false)
         }
@@ -154,7 +155,7 @@ export default function OrgContent() {
 
     const handleLeave = async (teamId: string) => {
         if (!auth.token) return
-        setError(null)
+        setActionError(null)
         try {
             await api.leaveTeam(create(LeaveTeamRequestSchema, {
                 authToken: auth.token,
@@ -164,13 +165,13 @@ export default function OrgContent() {
             setSelectedTeam(null)
             loadTeams()
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to leave team")
+            setActionError(err instanceof Error ? err.message : "Failed to leave team")
         }
     }
 
     const handleRoleChange = async (teamId: string, memberAddress: string, role: TeamRole) => {
         if (!auth.token) return
-        setError(null)
+        setActionError(null)
         try {
             const resp = await api.updateTeamMemberRole(create(UpdateTeamMemberRoleRequestSchema, {
                 authToken: auth.token,
@@ -181,7 +182,7 @@ export default function OrgContent() {
             if (resp.team) setSelectedTeam(resp.team)
             loadTeams()
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to update role")
+            setActionError(err instanceof Error ? err.message : "Failed to update role")
         }
     }
 

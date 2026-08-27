@@ -7,7 +7,8 @@
  * state until the backend's MEMBA_ATTESTATION_SEED is configured).
  */
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useCallback } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { getQuestById } from "../../lib/gnobuilders"
 import {
     fetchAttestationVouchers,
@@ -20,19 +21,23 @@ import { isUserCancellation, friendlyError } from "../../lib/errorMessages"
 import "./attestationpanel.css"
 
 export function AttestationPanel({ address }: { address: string }) {
-    const [state, setState] = useState<AttestationState | null>(null)
-    const [recorded, setRecorded] = useState<Set<string>>(new Set())
     const [busy, setBusy] = useState<string | null>(null)
     const [error, setError] = useState<string | null>(null)
 
-    const load = useCallback(async () => {
-        if (!address) return
-        const s = await fetchAttestationVouchers(address)
-        setState(s)
-        if (s.realmPath) setRecorded(await fetchRecordedQuestIds(s.realmPath, address))
-    }, [address])
-
-    useEffect(() => { void load() }, [load])
+    // Vouchers + the realm's authoritative record, in one query per wallet.
+    const attQuery = useQuery({
+        queryKey: ["quests", "attestation", address],
+        enabled: !!address,
+        queryFn: async () => {
+            const s = await fetchAttestationVouchers(address)
+            const rec = s.realmPath ? await fetchRecordedQuestIds(s.realmPath, address) : new Set<string>()
+            return { state: s, recorded: rec }
+        },
+    })
+    const state: AttestationState | null = attQuery.data?.state ?? null
+    const recorded = attQuery.data?.recorded ?? new Set<string>()
+    // refetch is referentially stable — the attest callback deps on it.
+    const { refetch: refetchAttestation } = attQuery
 
     const attest = useCallback(async (questId: string) => {
         if (!state || !state.realmPath) return
@@ -46,7 +51,7 @@ export function AttestationPanel({ address }: { address: string }) {
                 `Attest quest "${questId}" on-chain`,
             )
             // Confirm against the realm's authoritative record (degrade gracefully).
-            setRecorded(await fetchRecordedQuestIds(state.realmPath, address))
+            await refetchAttestation()
         } catch (err) {
             // Silently dismiss a user-rejected/cancelled tx; surface real failures
             // via the shared formatter (matches the other broadcast panels).
@@ -54,7 +59,7 @@ export function AttestationPanel({ address }: { address: string }) {
         } finally {
             setBusy(null)
         }
-    }, [state, address])
+    }, [state, address, refetchAttestation])
 
     // Dormant: nothing to attest (attestation disabled, or no completions yet).
     if (!state || state.vouchers.length === 0) return null

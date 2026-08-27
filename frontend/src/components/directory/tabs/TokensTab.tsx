@@ -4,32 +4,32 @@
  * @module components/directory/tabs/TokensTab
  */
 
-import { useState, useEffect, useCallback, useMemo, useDeferredValue } from "react"
+import { useState, useMemo, useDeferredValue } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { ArrowRight } from "@phosphor-icons/react"
 import { fetchTokens, type DirectoryToken } from "../../../lib/directory"
 import { SkeletonCard } from "../../ui/LoadingSkeleton"
 import { TokenDetailDrawer } from "../TokenDetailDrawer"
+
+const NO_TOKENS: DirectoryToken[] = []
+
 export function TokensTab() {
-    const [tokens, setTokens] = useState<DirectoryToken[]>([])
-    const [loading, setLoading] = useState(true)
     const [search, setSearch] = useState("")
     const [drawerToken, setDrawerToken] = useState<DirectoryToken | null>(null)
     const deferredSearch = useDeferredValue(search)
-    const [error, setError] = useState<string | null>(null)
     const [page, setPage] = useState(0)
     const PAGE_SIZE = 20
 
-    const load = useCallback(async () => {
-        setLoading(true); setError(null)
-        try {
-            const data = await fetchTokens()
-            setTokens(data)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load tokens")
-        } finally { setLoading(false) }
-    }, [])
-
-    useEffect(() => { load() }, [load])
+    const tokensQuery = useQuery({
+        queryKey: ["directory", "tokens"],
+        queryFn: fetchTokens,
+    })
+    // Stable fallback: a fresh [] here would churn the filter memo every render.
+    const tokens = tokensQuery.data ?? NO_TOKENS
+    const loading = tokensQuery.isPending
+    const error = tokensQuery.isError
+        ? (tokensQuery.error instanceof Error ? tokensQuery.error.message : "Failed to load tokens")
+        : null
 
     const filtered = useMemo(() =>
         deferredSearch
@@ -62,7 +62,7 @@ export function TokensTab() {
             ) : error ? (
                 <div className="dir-error">
                     <p>{error}</p>
-                    <button className="k-btn-secondary" onClick={load} style={{ fontSize: 11, marginTop: 8 }}>Retry</button>
+                    <button className="k-btn-secondary" onClick={() => void tokensQuery.refetch()} style={{ fontSize: 11, marginTop: 8 }}>Retry</button>
                 </div>
             ) : filtered.length === 0 ? (
                 <div className="dir-empty">
