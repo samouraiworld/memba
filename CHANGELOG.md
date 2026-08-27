@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### "New proposal" alerts now reach MembaDAO watchers (2026-08-27)
+<!-- categories: memba -->
+- **Saving MembaDAO to your watched DAOs never produced a "New Proposal" notification.** The alert counted proposals off the DAO's front page — and this DAO's front page doesn't carry a counter; its counts live on the proposals and history pages. The watcher now reads them from where they actually are, so a new proposal in a watched DAO of this kind rings the bell like any other.
+
+
 ### The MembaDAO page can now read its own DAO (2026-08-27)
 <!-- categories: memba -->
 - **The DAO home page showed zero members and zero proposals for MembaDAO on Sapphire — while the chain's own page for the same DAO listed its member just fine.** The DAO realm deployed at the Sapphire ceremony organizes its pages differently from what the app expected: the member and proposal lists live on their own sub-pages, as tables, instead of on the front page. The app now recognizes that layout and reads the lists where they actually are, including their pagination.
