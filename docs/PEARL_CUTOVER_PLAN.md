@@ -61,6 +61,10 @@
 >   `_test.gno`-only errors don't block (addpkg type-checks production files only, gno #6025).
 > - **Genesis already carries `p/samcrew/{piechart,tablesort,urlfilter}`** (upstreamed,
 >   byte-identical to our sapphire deploys) — the deploy walk SKIPs them as already-on-chain.
+> - **§6's `GNO_PIN` bump pre-verified at the FINAL ref:** the six gated generator specs run
+>   30/30 with a `gno` built from the launch lineage (master RC merge ≡ `chain/pearl` content)
+>   — same result as the 08-25 pre-check at `84e8edf9e`, so the bump stays behaviorally a
+>   no-op. The §6 PR still re-runs them in CI as its own gate.
 > - **⏰ HARD DEADLINE COUPLING: sapphire sunsets 2026-09-09.** The backend feed/snapshot and
 >   the frontend FEED/SNAPSHOT/SITEMAP/INDEXER pins still point at sapphire until the §6
 >   completion PR. If the ceremony + §6 have not landed by 09-09, those surfaces break when the
