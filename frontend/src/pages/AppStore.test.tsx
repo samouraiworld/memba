@@ -100,9 +100,14 @@ describe("AppStore — submit-your-app CTA (B3, dark until the flag flips)", () 
     beforeEach(() => { v3 = true; submitEnabled = true })
 
     it("links to /apps/submit when submissions are enabled on the v3 realm", async () => {
-        renderWithProviders(<AppStore />, { route: "/sapphire/apps" })
+        // Route and expected href both derive from DEFAULT_NETWORK: the CTA
+        // builds its link from the ACTIVE network (module-load, env-derived),
+        // so a hardcoded literal here is red on any machine whose env pins a
+        // different chain (the env-test-divergence class).
+        const { DEFAULT_NETWORK } = await import("../lib/config")
+        renderWithProviders(<AppStore />, { route: `/${DEFAULT_NETWORK}/apps` })
         const cta = await screen.findByRole("link", { name: /submit your app/i })
-        expect(cta).toHaveAttribute("href", "/sapphire/apps/submit")
+        expect(cta).toHaveAttribute("href", `/${DEFAULT_NETWORK}/apps/submit`)
     })
 
     it("stays hidden while VITE_ENABLE_APPSTORE_SUBMIT is off", async () => {

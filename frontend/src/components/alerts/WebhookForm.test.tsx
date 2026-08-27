@@ -104,18 +104,31 @@ describe("WebhookForm", () => {
         expect(onSubmit).not.toHaveBeenCalled()
     })
 
-    it("preselects the active chain on CREATE only", async () => {
-        // Read the constant rather than hardcoding "topaz-1": the active
-        // network is environment-derived. This does not make the test immune
-        // to a chain cutover — ENABLED is still a hardcoded fixture — but it
-        // moves the breakage to the premise line below, which fails loudly
-        // and points straight at the mismatch instead of failing obscurely
-        // deeper in the assertion. That failure is intentional, not a bug.
+    it("preselects the active chain on CREATE when the monitoring service serves it", async () => {
+        // The premise tripwire fired at the 2026-08-27 pearl flip exactly as
+        // designed (gnomonitoring does not serve pearl-1 yet). Reviewed
+        // outcome: the form's fallback below is the intended behavior, and
+        // THIS test now feeds the registry a list that includes the active
+        // chain so it pins the preselection logic itself, environment-free.
         const { GNO_MONITORING_CHAIN } = await import("../../lib/config")
-        expect(ENABLED).toContain(GNO_MONITORING_CHAIN) // premise
+        mocks.fetchEnabledChains.mockResolvedValueOnce([...ENABLED, GNO_MONITORING_CHAIN])
 
         render(<WebhookForm onSubmit={vi.fn()} />)
         await waitFor(() => expect(chainSelect().value).toBe(GNO_MONITORING_CHAIN))
+    })
+
+    it("preselects NOTHING when the monitoring service does not serve the active chain (pearl today)", async () => {
+        // gnomonitoring chains are runtime VPS config the owner adds to; until
+        // pearl-1 is added there, a pearl visitor picks a chain manually
+        // instead of being handed a preselection the server would refuse.
+        const { GNO_MONITORING_CHAIN } = await import("../../lib/config")
+        mocks.fetchEnabledChains.mockResolvedValueOnce(
+            ENABLED.filter((c) => c !== GNO_MONITORING_CHAIN),
+        )
+
+        render(<WebhookForm onSubmit={vi.fn()} />)
+        await waitFor(() => expect(mocks.fetchEnabledChains).toHaveBeenCalled())
+        expect(chainSelect().value).toBe("")
     })
 
     it("rejects a host the server would refuse, before submitting", async () => {

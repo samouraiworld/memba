@@ -100,20 +100,19 @@ test.describe('TopBar (Desktop)', () => {
         await expect(versionBadge).toContainText(/v\d+/)
     })
 
-    test('network selector offers the active network and NOT Betanet', async ({ page }) => {
+    test('network selector offers Pearl, Sapphire and Betanet — retired networks stay out', async ({ page }) => {
         await page.goto('/')
         const selector = page.locator('[data-testid="topbar"] select')
         await expect(selector).toBeVisible()
-        // Was /Testnet|Betanet/, which pinned the pre-2026-07-31 contents.
-        // Betanet is now hidden: it was selectable with no REALM_ALLOWLIST
-        // entry, and isRealmValidOn failed OPEN on a missing entry, so every
-        // commerce lane reported itself live on a chain with no realms (F-28).
-        // Assert the real contract instead of the old list — the option must
-        // NOT come back without someone reading this. Sapphire replaced Topaz
-        // as the visible testnet at the 2026-08-15 cutover; retired networks
-        // must not reappear either.
+        // 2026-08-27 contract (owner directive): Pearl is the default, Sapphire
+        // stays offered until its 09-09 sunset, and Betanet is BACK — its F-28
+        // fail-open (isRealmValidOn open on a missing allowlist entry) and the
+        // F-29 dead-session loop are both fixed and pinned in config.test.ts,
+        // so offering it is safe: every realm surface gates honestly there.
+        // Retired networks must still not reappear.
+        await expect(selector).toContainText(/Pearl/)
         await expect(selector).toContainText(/Sapphire/)
-        await expect(selector.locator('option', { hasText: /Betanet/ })).toHaveCount(0)
+        await expect(selector.locator('option', { hasText: /Betanet/ })).toHaveCount(1)
         await expect(selector.locator('option', { hasText: /Topaz/ })).toHaveCount(0)
     })
 

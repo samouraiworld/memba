@@ -48,6 +48,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, it, expect } from "vitest"
+import { networkHasRealms } from "./config"
 
 const dir = path.dirname(fileURLToPath(import.meta.url))
 const SRC = path.join(dir, "..")
@@ -99,12 +100,13 @@ const ALLOWLIST: Pin[] = [
     },
     {
         file: "lib/chainHealth.ts",
-        allow: ["sapphire", "gnoland1"],
+        allow: ["pearl", "sapphire", "gnoland1"],
         cutoverCritical: true,
         why:
-            "fallbackOrder — the chain ChainHaltedBanner offers as a one-click escape " +
-            "when the active one is unreachable. gnoland1 is the deliberate last resort " +
-            "and is not itself a cutover pin.",
+            "fallbackOrder — the chains ChainHaltedBanner may offer as a one-click " +
+            "escape when the active one is unreachable, best-first, filtered at " +
+            "runtime by networkHasRealms (pearl leads but is inert until its " +
+            "realms deploy; sapphire carries the escape until its 09-09 sunset).",
     },
     {
         file: "lib/marketplace/seed/foundingSupply.seed.ts",
@@ -253,8 +255,16 @@ describe("network-pin drift guard", () => {
 
         const perFile = critical.map((p) => {
             const names = found.get(p.file)
-            // gnoland1 is chainHealth's declared last resort, never the active chain.
-            const active = [...(names ?? [])].filter((n) => n !== "gnoland1")
+            // The coherence group is REALM-CONTENT pins: a named network only
+            // counts as "active" if Memba's realms are live there. That is what
+            // made gnoland1 (the declared realm-free last resort) exempt, and
+            // since the 2026-08-27 pearl-default flip it exempts pearl the same
+            // way — exactly until the ceremony flips realmsDeployed:true, at
+            // which point pearl re-enters this check and forces the sitemap /
+            // fallback pins to move in the same PR. (Names here are NETWORK
+            // KEYS; if a critical pin ever allows a chain-id form, map it to
+            // its key before this filter.)
+            const active = [...(names ?? [])].filter((n) => networkHasRealms(n))
             return { file: p.file, active }
         })
 

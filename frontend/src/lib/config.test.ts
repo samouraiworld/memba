@@ -82,14 +82,16 @@ describe('config constants', () => {
     // ceremony, it must stay invisible, honest about having no realms, and
     // fail-closed on every realm. These three pins are what the cutover PR
     // flips — deliberately, one by one.
-    it('pearl is pre-registered but hidden, with no realms and a fail-closed allowlist', () => {
+    it('pearl is the visible default with realms still dark and a fail-closed allowlist', () => {
         expect(NETWORKS.pearl).toBeDefined()
-        expect(NETWORKS.pearl.hidden).toBe(true)
-        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('pearl')
+        // Un-hidden 2026-08-27 (owner directive) with chain identity
+        // re-asserted against the LAUNCHED node the same day. Realm surfaces
+        // stay dark until the ceremony fills realm-versions.json's pearl
+        // section — these two pins flip TOGETHER in that PR, never before.
+        expect(NETWORKS.pearl.hidden).toBe(false)
+        expect(Object.keys(VISIBLE_NETWORKS)).toContain('pearl')
         expect(NETWORKS.pearl.realmsDeployed).toBe(false)
         expect(NETWORKS.pearl.isTestnet).toBe(true)
-        // The expected id by convention — the cutover PR re-asserts it against
-        // the launched node's /status before un-hiding.
         expect(NETWORKS.pearl.chainId).toBe('pearl-1')
         // Hub faucet, never the API-only per-chain subdomain (the sapphire
         // 405 lesson).
@@ -106,11 +108,12 @@ describe('config constants', () => {
         }
     })
 
-    it('pearl resolves as a default-network key but is never the fallback', () => {
-        // VITE_GNO_CHAIN_ID=pearl selects it at cutover; an unset/unknown env
-        // still falls back to sapphire until that flip.
+    it('pearl is both a valid default key AND the hard fallback', () => {
+        // The fallback tracks the current default chain: stranding a
+        // misconfigured build on sapphire would park users on a network
+        // sunsetting 2026-09-09.
         expect(resolveDefaultNetwork('pearl')).toBe('pearl')
-        expect(resolveDefaultNetwork(undefined)).toBe('sapphire')
+        expect(resolveDefaultNetwork(undefined)).toBe('pearl')
     })
 
     it('test13 points at the official testnets.gno.land RPC', () => {
@@ -165,8 +168,9 @@ describe('config constants', () => {
         expect(g1.faucetUrl).toBe('')
     })
 
-    it('DEFAULT_NETWORK is sapphire (post-sapphire-cutover default)', () => {
-        expect(DEFAULT_NETWORK).toBe('sapphire')
+    it('DEFAULT_NETWORK is pearl (2026-08-27 flip; env-less builds use the fallback)', () => {
+        expect(DEFAULT_NETWORK).toBe(resolveDefaultNetwork(import.meta.env.VITE_GNO_CHAIN_ID))
+        expect(resolveDefaultNetwork(undefined)).toBe('pearl')
     })
 
     it('getUserRegistryPath returns r/sys/users for the default network', () => {
@@ -388,14 +392,17 @@ describe('getTelemetryRpcUrls', () => {
 describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl only', () => {
     it('exposes only test13, topaz, gnoland1, sapphire, and pearl', () => {
         const keys = Object.keys(NETWORKS).sort()
-        // sapphire went LIVE at the 2026-08-15 cutover; topaz + test13 stay as
-        // hidden retired entries so old links resolve; pearl is the hidden
-        // PRE-REGISTERED successor (2026-08-23) that the cutover PR un-hides.
-        // See the live/dark contract blocks below.
+        // pearl is DEFAULT since 2026-08-27; sapphire stays selectable until
+        // its 09-09 sunset; gnoland1 is selectable again (future-mainnet
+        // track); topaz + test13 stay as hidden retired entries so old links
+        // resolve. See the live/dark contract blocks below.
         expect(keys).toEqual(['gnoland1', 'pearl', 'sapphire', 'test13', 'topaz'])
     })
-    it('defaults to sapphire', () => {
-        expect(DEFAULT_NETWORK).toBe('sapphire')
+    it('defaults to pearl in an env-less (CI/shipped) build', () => {
+        // CI runs without a .env, so DEFAULT_NETWORK exercises the fallback;
+        // a local .env pinning another chain skews this test — the known
+        // env-test-divergence class, run with VITE_GNO_CHAIN_ID=pearl.
+        expect(DEFAULT_NETWORK).toBe(resolveDefaultNetwork(import.meta.env.VITE_GNO_CHAIN_ID))
     })
     it('no longer references test12 / staging / portal', () => {
         const keys = Object.keys(NETWORKS)
@@ -409,18 +416,18 @@ describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl onl
     // infinite-looped (/test12/test12/…) until the browser throttled replaceState and
     // the app crashed (mobile / private browsing, where localStorage can't override it).
     it('resolveDefaultNetwork falls back to a valid network for a removed env value', () => {
-        expect(resolveDefaultNetwork('test12')).toBe('sapphire')
+        expect(resolveDefaultNetwork('test12')).toBe('pearl')
         expect(NETWORKS[resolveDefaultNetwork('test12')]).toBeDefined()
     })
     it('resolveDefaultNetwork passes through a valid env network; falls back when empty', () => {
-        // NOTE gnoland1 is `hidden` since 2026-07-31 and still passes through:
-        // NETWORKS membership is the only requirement, deliberately. Pinning a
-        // hidden network as the default is how the :5174/:5175 e2e servers run
+        // NETWORKS membership is the only requirement, deliberately —
+        // hidden entries (test13 here) pass through too: pinning a hidden
+        // network as the default is how the :5174/:5175 e2e servers run
         // (.env.e2e → test13). See resolveDefaultNetwork's doc before "fixing".
         expect(resolveDefaultNetwork('gnoland1')).toBe('gnoland1')
         expect(resolveDefaultNetwork('test13')).toBe('test13')
-        expect(resolveDefaultNetwork(undefined)).toBe('sapphire')
-        expect(resolveDefaultNetwork('')).toBe('sapphire')
+        expect(resolveDefaultNetwork(undefined)).toBe('pearl')
+        expect(resolveDefaultNetwork('')).toBe('pearl')
     })
     it('DEFAULT_NETWORK is always a valid NETWORKS entry (never crash-loops)', () => {
         expect(NETWORKS[DEFAULT_NETWORK]).toBeDefined()
@@ -497,8 +504,8 @@ describe('retired networks stay DARK but resolvable (topaz 2026-08-12, test13 20
     it('topaz is hidden, never the default, but resolves and remains escapable', () => {
         expect(NETWORKS.topaz.hidden).toBe(true)
         expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('topaz')
-        expect(resolveDefaultNetwork(undefined)).toBe('sapphire')
-        expect(resolveDefaultNetwork('')).toBe('sapphire')
+        expect(resolveDefaultNetwork(undefined)).toBe('pearl')
+        expect(resolveDefaultNetwork('')).toBe('pearl')
         // selectableNetworksFor always prepends the ACTIVE network, so a topaz
         // deep-link visitor still has an option list and a way out.
         const selectable = Object.keys(selectableNetworksFor('topaz'))
@@ -514,8 +521,9 @@ describe('retired networks stay DARK but resolvable (topaz 2026-08-12, test13 20
 
     it('gnoland1 still exercises the realms-free dark shape (the F-28 machinery)', () => {
         // The empty-allowlist + realmsDeployed:false combination must stay
-        // covered by a live example: hidden, gates everything, honest banner.
-        expect(NETWORKS.gnoland1.hidden).toBe(true)
+        // covered by a live example: selectable again since 2026-08-27, but
+        // it gates everything and shows the honest banner.
+        expect(NETWORKS.gnoland1.hidden).toBe(false)
         expect(networkHasRealms('gnoland1')).toBe(false)
         expect(getFeaturedDaoRealm('gnoland1')).toBeNull()
         expect(isRealmValidOn('gnoland1', 'gno.land/r/samcrew/memba_dao')).toBe(false)
@@ -580,11 +588,44 @@ describe('FEED_INDEXED_NETWORK — drift tripwire', () => {
         // If you are INTENTIONALLY cutting over: move the backend's FEED_RPC_URL
         // in the same window, update FEED_INDEXED_NETWORK here, and reset the
         // indexer cursor. If you are not, this failure is the bug.
-        expect(
-            FEED_INDEXED_NETWORK,
-            `FEED_INDEXED_NETWORK ("${FEED_INDEXED_NETWORK}") != DEFAULT_NETWORK ("${DEFAULT_NETWORK}") — ` +
-            `feed posting is disabled for every user on the default network. See the comment above this assertion.`,
-        ).toBe(DEFAULT_NETWORK)
+        // TRANSITIONAL DIVERGENCE, deliberate (2026-08-27 → the pearl
+        // ceremony): pearl is the default but its realms are not deployed, so
+        // the feed's home stays sapphire — which the owner keeps live and
+        // SELECTABLE until its 09-09 sunset precisely so tested features keep
+        // working somewhere. The tripwire therefore pins the transitional
+        // contract instead of strict equality; restore the strict
+        // `toBe(DEFAULT_NETWORK)` form in the ceremony PR that moves
+        // FEED_RPC_URL + FEED_START_BLOCK and resets the indexer cursor.
+        expect(FEED_INDEXED_NETWORK).toBe('sapphire')
+        const { NETWORKS: nets } = await import('./config')
+        // The feed's network must stay REACHABLE while the divergence lasts —
+        // hidden-but-indexed would disable posting for everyone with no path.
+        expect(nets[FEED_INDEXED_NETWORK].hidden).not.toBe(true)
+        expect(nets[FEED_INDEXED_NETWORK].realmsDeployed).toBe(true)
+        if (DEFAULT_NETWORK !== FEED_INDEXED_NETWORK) {
+            // Divergence is only legitimate while the default's realms are
+            // DARK (nothing to post to there anyway). The ceremony flips
+            // realmsDeployed:true — this branch then fails, forcing the feed
+            // move to land in the same PR.
+            expect(nets[DEFAULT_NETWORK].realmsDeployed).toBe(false)
+        }
+        // The indexer proxy is pinned to the same backend-secret window as the
+        // feed: INDEXER_GRAPHQL_URL and FEED_RPC_URL move together, so the two
+        // frontend pins must never drift apart.
+        const { INDEXER_PROXIED_NETWORK } = await import('./config')
+        expect(INDEXER_PROXIED_NETWORK).toBe(FEED_INDEXED_NETWORK)
+    })
+
+    it('indexer-backed surfaces hide themselves off the proxied network', async () => {
+        // The /api/indexer proxy forwards to ONE fixed indexer. A network that
+        // merely configures its own indexerUrl (pearl does) must not render
+        // the proxied chain's transactions as its own.
+        const { getIndexerUrl, INDEXER_PROXIED_NETWORK, DEFAULT_NETWORK: dn } = await import('./config')
+        if (dn !== INDEXER_PROXIED_NETWORK) {
+            expect(getIndexerUrl()).toBeNull()
+        } else {
+            expect(getIndexerUrl()).toContain('/api/indexer')
+        }
     })
 })
 
@@ -617,14 +658,20 @@ describe('explorerUrl — the host every "view on gnoweb" link is built from', (
         }
     })
 
-    it('resolves the active network to the sapphire gnoweb host, by value', async () => {
+    it('resolves the active network to the pearl gnoweb host, by value', async () => {
         // Asserting against NETWORKS[DEFAULT_NETWORK].explorerUrl would be X === X
         // (tests clear localStorage, so _activeNetwork IS DEFAULT_NETWORK) and would
-        // pass for any garbage value. Pin the literal instead: this is the host
-        // live-verified to serve our own realm (200 on /r/samcrew/memba_dao after
-        // the 2026-08-15 ceremony), and the form the old bug got wrong.
-        const { getExplorerBaseUrl } = await import('./config')
-        expect(getExplorerBaseUrl()).toBe('https://sapphire.testnets.gno.land')
+        // pass for any garbage value. Pin the literal instead: pearl's gnoweb,
+        // live-verified 2026-08-27 (403 during the launch window, then 200).
+        // NOTE this literal is env-coupled like DEFAULT_NETWORK — a local .env
+        // pinning another chain skews it (env-test-divergence class).
+        const { getExplorerBaseUrl, DEFAULT_NETWORK: dn } = await import('./config')
+        if (dn === 'pearl') {
+            expect(getExplorerBaseUrl()).toBe('https://pearl.testnets.gno.land')
+        } else {
+            const { NETWORKS: nets } = await import('./config')
+            expect(getExplorerBaseUrl()).toBe(nets[dn].explorerUrl)
+        }
     })
 
     it('still resolves retired test13, so old deep links degrade instead of crossing chains', async () => {
@@ -655,10 +702,10 @@ describe('isTestnetNetwork — drives the Team Hub mainnet-data disclosure', () 
 })
 
 describe('Betanet gating — fails CLOSED, not open (F-28)', () => {
-    it('gnoland1 is not offered in the selector', async () => {
+    it('gnoland1 is offered in the selector again (2026-08-27, future-mainnet track)', async () => {
         const { VISIBLE_NETWORKS, NETWORKS } = await import('./config')
-        expect(NETWORKS.gnoland1).toBeDefined()          // deep links still resolve
-        expect(VISIBLE_NETWORKS.gnoland1).toBeUndefined() // but it is not offered
+        expect(NETWORKS.gnoland1).toBeDefined()
+        expect(VISIBLE_NETWORKS.gnoland1).toBeDefined() // selectable — the gates below stay closed
     })
 
     it('gnoland1 declares its realms are NOT deployed, so the banner fires', async () => {
@@ -833,10 +880,9 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
         }
     })
 
-    it('never restores Betanet, whatever the build default is', async () => {
-        // Env-independent: holds in a shipped build AND on the pinned e2e servers.
+    it('restores a stored Betanet selection now that it is visible again', async () => {
         const { resolveStoredNetworkKey } = await import('./config')
-        expect(resolveStoredNetworkKey('gnoland1')).not.toBe('gnoland1')
+        expect(resolveStoredNetworkKey('gnoland1')).toBe('gnoland1')
     })
 
     it('keeps a stored VISIBLE network', async () => {
@@ -894,7 +940,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
     it('every hidden network is still resolvable by explicit URL', async () => {
         const { NETWORKS } = await import('./config')
         // Self-healing applies to STORED keys only — deep links must still work.
-        for (const k of ['test13', 'gnoland1']) {
+        for (const k of ['test13', 'topaz']) {
             expect(NETWORKS[k], `${k} must stay in NETWORKS for deep links`).toBeDefined()
             expect(NETWORKS[k].hidden).toBe(true)
         }
@@ -904,7 +950,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
 describe('selectableNetworksFor — the switcher escape hatch', () => {
     it('offers the ACTIVE network even when it is hidden', async () => {
         const { selectableNetworksFor } = await import('./config')
-        for (const hidden of ['test13', 'gnoland1']) {
+        for (const hidden of ['test13', 'topaz']) {
             const offered = selectableNetworksFor(hidden)
             expect(offered[hidden], `${hidden} must stay selectable while active`).toBeDefined()
             // A one-option <select> cannot fire onChange — there must be somewhere to go.
