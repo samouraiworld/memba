@@ -609,6 +609,23 @@ describe('FEED_INDEXED_NETWORK — drift tripwire', () => {
             // move to land in the same PR.
             expect(nets[DEFAULT_NETWORK].realmsDeployed).toBe(false)
         }
+        // The indexer proxy is pinned to the same backend-secret window as the
+        // feed: INDEXER_GRAPHQL_URL and FEED_RPC_URL move together, so the two
+        // frontend pins must never drift apart.
+        const { INDEXER_PROXIED_NETWORK } = await import('./config')
+        expect(INDEXER_PROXIED_NETWORK).toBe(FEED_INDEXED_NETWORK)
+    })
+
+    it('indexer-backed surfaces hide themselves off the proxied network', async () => {
+        // The /api/indexer proxy forwards to ONE fixed indexer. A network that
+        // merely configures its own indexerUrl (pearl does) must not render
+        // the proxied chain's transactions as its own.
+        const { getIndexerUrl, INDEXER_PROXIED_NETWORK, DEFAULT_NETWORK: dn } = await import('./config')
+        if (dn !== INDEXER_PROXIED_NETWORK) {
+            expect(getIndexerUrl()).toBeNull()
+        } else {
+            expect(getIndexerUrl()).toContain('/api/indexer')
+        }
     })
 })
 

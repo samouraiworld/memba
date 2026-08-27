@@ -27,9 +27,16 @@ export const SESSION_ACCOUNT_LOGIN_MSG =
  */
 export const CHAIN_MISMATCH_CODE = "AUTH-CHAINID-MISMATCH-01"
 
-/** What a user should actually do about it. */
+/** What a user should actually do about it. Every sign-in surface passes the
+ *  PAGE's network chainId (Layout/BlockParty/arcade all send
+ *  `network.chainId`), so this code always means "the server does not accept
+ *  THIS page's chain" — on a newly-launched network (pearl until the owner
+ *  appends it to MEMBA_ACCEPTED_CHAIN_IDS) the old "your wallet is on a
+ *  different network" wording was false and circular: the wallet WAS on the
+ *  page's network, and switching it changed nothing. Name the real cause and
+ *  the working exit instead. */
 export const CHAIN_MISMATCH_LOGIN_MSG =
-    "Your wallet is on a different network than this page — switch networks and try again."
+    "Sign-in isn't enabled on this network yet — use the network selector to switch networks (Sapphire works) and try again."
 
 /**
  * Backend rejection code for an address-only login on a chain where signed

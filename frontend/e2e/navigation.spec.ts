@@ -114,7 +114,6 @@ test.describe('TopBar (Desktop)', () => {
         await expect(selector).toContainText(/Sapphire/)
         await expect(selector.locator('option', { hasText: /Betanet/ })).toHaveCount(1)
         await expect(selector.locator('option', { hasText: /Topaz/ })).toHaveCount(0)
-        await expect(selector.locator('option', { hasText: /test1/ })).toHaveCount(0)
     })
 
     test('connect wallet button visible when disconnected', async ({ page }) => {

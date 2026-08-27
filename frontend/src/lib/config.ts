@@ -867,12 +867,25 @@ export function getExplorerBaseUrlFor(networkKey: string): string {
     return NETWORKS[networkKey]?.explorerUrl || NETWORKS[DEFAULT_NETWORK].explorerUrl
 }
 
+/** The ONE network whose tx-indexer the backend proxy (`/api/indexer`)
+ *  forwards to — the backend's INDEXER_GRAPHQL_URL is a single fixed endpoint,
+ *  not per-network. NETWORK-PINNED like FEED_INDEXED_NETWORK/SNAPSHOT_NETWORK
+ *  (see networkPins.test.ts): without this gate, any active network that
+ *  merely HAS an indexerUrl configured (pearl does — its own indexer is live)
+ *  would render the PROXIED chain's transactions and block times as its own,
+ *  with explorer links built for the wrong chain. Moves with the ceremony's
+ *  backend secret window, alongside the feed pins. */
+export const INDEXER_PROXIED_NETWORK = "sapphire"
+
 /** GraphQL endpoint the frontend POSTs indexer queries to. The browser cannot
  *  call the public tx-indexer directly (it sends no CORS headers), so requests go
  *  through the backend proxy (`/api/indexer`), which forwards them server-side and
  *  inherits the backend's CORS. Returns null when the active network has no indexer
- *  configured — the activity feed then hides itself. */
+ *  configured OR is not the network the proxy serves — the activity surfaces
+ *  (recent activity, block-time sparkline, address activity) then hide
+ *  themselves instead of narrating another chain's data. */
 export function getIndexerUrl(): string | null {
+    if (_activeNetwork !== INDEXER_PROXIED_NETWORK) return null
     if (!NETWORKS[_activeNetwork]?.indexerUrl) return null
     return `${API_BASE_URL}/api/indexer`
 }
