@@ -11,10 +11,10 @@
  * @module plugins/gnoswap/SwapView
  */
 
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import type { PluginProps } from "../types"
 import { getPoolList } from "./queries"
-import type { SwapPool } from "./queries"
 import { buildSwapRouteMsg, validateSlippage, isSlippageWarning, calculateMinOutput, DEFAULT_SLIPPAGE } from "./builders"
 import { doContractBroadcast } from "../../lib/grc20"
 import { GNO_RPC_URL, getGnoSwapPaths } from "../../lib/config"
@@ -25,9 +25,6 @@ export default function SwapView({ auth, adena }: PluginProps) {
     const paths = getGnoSwapPaths()
 
     const [view, setView] = useState<View>("pools")
-    const [pools, setPools] = useState<SwapPool[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
 
     // Swap form
     const [tokenIn, setTokenIn] = useState("")
@@ -36,54 +33,51 @@ export default function SwapView({ auth, adena }: PluginProps) {
     const [slippage, setSlippage] = useState(DEFAULT_SLIPPAGE)
     const [posting, setPosting] = useState(false)
 
-    const loadPools = useCallback(async () => {
-        if (!paths) return
-        setLoading(true)
-        setError(null)
-        try {
-            const p = await getPoolList(GNO_RPC_URL, paths)
-            setPools(p)
-        } catch {
-            setError("Failed to load pools")
-        } finally {
-            setLoading(false)
-        }
-    }, [paths])
+    // The pool list, fetched only while the Pools view is showing.
+    const poolsQuery = useQuery({
+        queryKey: ["gnoswap", "pools"],
+        enabled: !!paths && view === "pools",
+        queryFn: () => getPoolList(GNO_RPC_URL, paths!),
+    })
+    const pools = poolsQuery.data ?? []
+    // Only the Pools view has a loading skeleton — a disabled-but-pending
+    // query must not shimmer over the swap/liquidity forms.
+    const loading = view === "pools" && poolsQuery.isPending
 
-    useEffect(() => {
-        if (view === "pools") loadPools()
-    }, [view, loadPools])
+    // Swap-form errors are UI state; the pool fetch error derives from the query.
+    const [formError, setFormError] = useState<string | null>(null)
+    const error = formError ?? (poolsQuery.isError ? "Failed to load pools" : null)
 
     // ── Swap Action ─────────────────────────────────────────────
 
     const handleSwap = async () => {
         if (!auth.isAuthenticated || !adena.address || !paths) return
-        if (!tokenIn || !tokenOut || !amountIn) { setError("Fill all fields"); return }
+        if (!tokenIn || !tokenOut || !amountIn) { setFormError("Fill all fields"); return }
 
         // BT-M1: Validate token path format
         const realmPathPattern = /^gno\.land\/r\/[a-z0-9_/]+$/
-        if (!realmPathPattern.test(tokenIn)) { setError("Invalid token-in path — must be gno.land/r/..."); return }
-        if (!realmPathPattern.test(tokenOut)) { setError("Invalid token-out path — must be gno.land/r/..."); return }
+        if (!realmPathPattern.test(tokenIn)) { setFormError("Invalid token-in path — must be gno.land/r/..."); return }
+        if (!realmPathPattern.test(tokenOut)) { setFormError("Invalid token-out path — must be gno.land/r/..."); return }
 
         const slippageError = validateSlippage(slippage)
-        if (slippageError) { setError(slippageError); return }
+        if (slippageError) { setFormError(slippageError); return }
 
         const pool = pools.find(p => (p.token0 === tokenIn && p.token1 === tokenOut) || (p.token0 === tokenOut && p.token1 === tokenIn))
         const route = pool?.path || `${tokenIn}_${tokenOut}_3000`
         const minOut = calculateMinOutput(amountIn, slippage)
 
         // BT-L1: Warn if minOutput is 0
-        if (minOut === "0") { setError("Amount too small — minimum output would be 0"); return }
+        if (minOut === "0") { setFormError("Amount too small — minimum output would be 0"); return }
 
         setPosting(true)
-        setError(null)
+        setFormError(null)
         try {
             const msg = buildSwapRouteMsg(adena.address, paths, tokenIn, tokenOut, amountIn, minOut, route)
             await doContractBroadcast([msg], `Swap ${tokenIn} → ${tokenOut}`)
             setAmountIn("")
             setView("pools")
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Swap failed")
+            setFormError(err instanceof Error ? err.message : "Swap failed")
         } finally {
             setPosting(false)
         }

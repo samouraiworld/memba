@@ -13,10 +13,10 @@
  * @module plugins/board/BoardView
  */
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useRef } from "react"
+import { useQuery } from "@tanstack/react-query"
 import type { PluginProps } from "../types"
 import { getBoardInfo } from "./parser"
-import type { BoardInfo } from "./parser"
 import { buildCreateThreadMsg, buildReplyToThreadMsg } from "../../lib/boardTemplate"
 import { buildChannelCreateThreadMsg, buildChannelReplyMsg, buildEditThreadMsg, buildDeleteThreadMsg } from "../../lib/channelTemplate"
 import { doContractBroadcast } from "../../lib/grc20"
@@ -75,13 +75,23 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
         channel: initialChannel || "general",
         threadId: null,
     }))
-    const [boardInfo, setBoardInfo] = useState<BoardInfo | null>(null)
 
     // New thread form
     const [newTitle, setNewTitle] = useState("")
     const [newBody, setNewBody] = useState("")
     const [replyBody, setReplyBody] = useState("")
     const [posting, setPosting] = useState(false)
+
+    // Home view: board info (channel list, not polled) — fetched only while
+    // the home view is showing; previous data is retained across errors.
+    const boardInfoQuery = useQuery({
+        queryKey: ["board", "info", boardPath],
+        enabled: viewState.view === "home",
+        queryFn: () => getBoardInfo(GNO_RPC_URL, boardPath),
+    })
+    const boardInfo = boardInfoQuery.data ?? null
+    const homeLoading = viewState.view === "home" && boardInfoQuery.isPending
+    const homeError = boardInfoQuery.isError ? "Failed to load channels" : null
 
     // v2.5b: Real-time polling — replaces manual loadChannel/loadThread
     // P4 fix: skip polling for voice/video channels (thread data not displayed)
@@ -104,41 +114,21 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
         enabled: isPollingEnabled && !posting,
     })
 
-    // Home view: load board info (channel list, not polled)
-    const [homeLoading, setHomeLoading] = useState(viewState.view === "home")
-    const [homeError, setHomeError] = useState<string | null>(null)
-
-    // v2.5a: Sync initialChannel prop changes → switch channel view
+    // v2.5a: Sync initialChannel prop changes → switch channel view, as a
+    // render-phase adjustment on the prop EDGE (the mount value is already
+    // consumed by the viewState initializer above).
     // v2.10: Defensive guard — if channel is not found in board info, fall back to home
-    useEffect(() => {
+    const [prevInitialChannel, setPrevInitialChannel] = useState(initialChannel)
+    if (initialChannel !== prevInitialChannel) {
+        setPrevInitialChannel(initialChannel)
         if (initialChannel && initialChannel !== viewState.channel) {
-            // If we have board info and the channel doesn't exist, fall back
             if (boardInfo && !boardInfo.channels.some(ch => ch.name === initialChannel)) {
                 setViewState({ view: "home", channel: "general", threadId: null })
-                return
+            } else {
+                setViewState({ view: "channel", channel: initialChannel, threadId: null })
             }
-            setViewState({ view: "channel", channel: initialChannel, threadId: null })
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [initialChannel])
-
-    const loadBoardHome = useCallback(async () => {
-        setHomeLoading(true)
-        setHomeError(null)
-        try {
-            const info = await getBoardInfo(GNO_RPC_URL, boardPath)
-            setBoardInfo(info)
-        } catch {
-            setHomeError("Failed to load channels")
-        } finally {
-            setHomeLoading(false)
-        }
-    }, [boardPath])
-
-    // Load home view when needed
-    useEffect(() => {
-        if (viewState.view === "home") loadBoardHome()
-    }, [viewState.view, loadBoardHome])
+    }
 
     // G4: @mention → Notification Center
     const lastReplyCount = useRef(0)

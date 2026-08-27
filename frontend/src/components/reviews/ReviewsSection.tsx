@@ -123,7 +123,11 @@ export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCoun
 
   useEffect(() => {
     // Clear the previous subject's reviews immediately so they don't flash under the new
-    // subject's loading state.
+    // subject's loading state. Deliberate sync setState: this component runs a
+    // hand-rolled optimistic pipeline (optimisticRef upserts, request-id
+    // superseding, bounded chain-reconcile polling) that a query cache can't
+    // express without redesigning the reconcile semantics — waived, not ported.
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- deliberate clear-before-load in the optimistic pipeline
     setReviews([])
     optimisticRef.current = null
     load()
@@ -187,8 +191,12 @@ export function ReviewsSection({ subject, aliasSubjects, realmPath, minRatedCoun
   }
 
   // Fire a queued post once the wallet connection (address) becomes available.
+  // This is a state machine synchronizing with an external system (the wallet):
+  // the effect consumes the pending flag exactly once when the connection
+  // lands. The sync setState IS the consume step — waived.
   useEffect(() => {
     if (pendingPost && connected && address) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- consume-once of the queued-post flag when the wallet connects
       setPendingPost(false)
       void postReview(address)
     }
