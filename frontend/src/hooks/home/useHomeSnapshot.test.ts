@@ -22,10 +22,10 @@ vi.mock("../../lib/homeApi", () => ({
 
 vi.mock("../useNetwork", () => ({
     useNetwork: vi.fn(() => ({
-        networkKey: "sapphire",
-        chainId: "sapphire-1",
-        rpcUrl: "https://rpc.sapphire.testnets.gno.land:443",
-        label: "Topaz",
+        networkKey: "pearl",
+        chainId: "pearl-1",
+        rpcUrl: "https://rpc.pearl.testnets.gno.land:443",
+        label: "Pearl",
     })),
 }))
 
@@ -49,10 +49,10 @@ describe("useHomeSnapshot — on SNAPSHOT_NETWORK with populated snapshot", () =
     beforeEach(() => {
         vi.clearAllMocks()
         vi.mocked(networkMod.useNetwork).mockReturnValue({
-            networkKey: "sapphire",
-            chainId: "sapphire-1",
-            rpcUrl: "https://rpc.sapphire.testnets.gno.land:443",
-            label: "Topaz",
+            networkKey: "pearl",
+            chainId: "pearl-1",
+            rpcUrl: "https://rpc.pearl.testnets.gno.land:443",
+            label: "Pearl",
             switchNetwork: vi.fn(),
             networks: {},
         })
@@ -109,10 +109,10 @@ describe("useHomeSnapshot — snapshot resolves to null", () => {
     beforeEach(() => {
         vi.clearAllMocks()
         vi.mocked(networkMod.useNetwork).mockReturnValue({
-            networkKey: "sapphire",
-            chainId: "sapphire-1",
-            rpcUrl: "https://rpc.sapphire.testnets.gno.land:443",
-            label: "Topaz",
+            networkKey: "pearl",
+            chainId: "pearl-1",
+            rpcUrl: "https://rpc.pearl.testnets.gno.land:443",
+            label: "Pearl",
             switchNetwork: vi.fn(),
             networks: {},
         })
@@ -134,10 +134,10 @@ describe("useHomeSnapshot — snapshot is the empty failure shell", () => {
     beforeEach(() => {
         vi.clearAllMocks()
         vi.mocked(networkMod.useNetwork).mockReturnValue({
-            networkKey: "sapphire",
-            chainId: "sapphire-1",
-            rpcUrl: "https://rpc.sapphire.testnets.gno.land:443",
-            label: "Topaz",
+            networkKey: "pearl",
+            chainId: "pearl-1",
+            rpcUrl: "https://rpc.pearl.testnets.gno.land:443",
+            label: "Pearl",
             switchNetwork: vi.fn(),
             networks: {},
         })

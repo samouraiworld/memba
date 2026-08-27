@@ -15,8 +15,14 @@ vi.mock("./config", () => ({
     // getSuggestedFallback now refuses to steer users to a chain with no Memba
     // realms (its comment always said so; the code did not). Mirror the real
     // predicate: realmsDeployed !== false.
-    networkHasRealms: (k: string) => ({ test13: true, topaz: true, sapphire: true, gnoland1: false })[k] ?? true,
+    networkHasRealms: (k: string) => ({ test13: true, topaz: true, sapphire: true, pearl: true, gnoland1: false })[k] ?? true,
     NETWORKS: {
+        pearl: {
+            chainId: "pearl-1",
+            rpcUrl: "https://rpc.pearl.testnets.gno.land:443",
+            fallbackRpcUrls: ["https://rpc.pearl.samourai.live:443"],
+            label: "Pearl",
+        },
         sapphire: {
             chainId: "sapphire-1",
             rpcUrl: "https://rpc.sapphire.testnets.gno.land:443",
@@ -124,26 +130,30 @@ describe("chainHealth", () => {
     })
 
     describe("getSuggestedFallback", () => {
-        it("suggests sapphire for gnoland1", () => {
-            expect(getSuggestedFallback("gnoland1")).toBe("sapphire")
+        it("suggests pearl for gnoland1", () => {
+            expect(getSuggestedFallback("gnoland1")).toBe("pearl")
         })
 
-        it("suggests sapphire (Memba realms live) for test13, not Betanet", () => {
-            // sapphire carries the core realm set; gnoland1 (Betanet) has no
-            // Memba realms and must never be the first suggestion. Retired
-            // test13 and topaz are no longer in the fallback order at all.
-            expect(getSuggestedFallback("test13")).toBe("sapphire")
+        it("suggests pearl (Memba realms live) for test13, not Betanet", () => {
+            // pearl carries the realm set since the §6 completion; gnoland1
+            // (Betanet) has no Memba realms and must never be the first
+            // suggestion. Retired test13/topaz and outgoing sapphire are no
+            // longer in the fallback order at all.
+            expect(getSuggestedFallback("test13")).toBe("pearl")
         })
 
-        it("never suggests the retired chains", () => {
-            for (const from of ["sapphire", "unknown", "gnoland1"]) {
+        it("never suggests the retired or outgoing chains", () => {
+            for (const from of ["pearl", "unknown", "gnoland1"]) {
                 expect(getSuggestedFallback(from)).not.toBe("test13")
                 expect(getSuggestedFallback(from)).not.toBe("topaz")
+                // sapphire left the order at the pearl cutover — never steer
+                // users onto the chain that sunsets 09-09.
+                expect(getSuggestedFallback(from)).not.toBe("sapphire")
             }
         })
 
-        it("suggests sapphire for unknown network", () => {
-            expect(getSuggestedFallback("unknown")).toBe("sapphire")
+        it("suggests pearl for unknown network", () => {
+            expect(getSuggestedFallback("unknown")).toBe("pearl")
         })
 
         it("does not suggest self", () => {
@@ -154,34 +164,35 @@ describe("chainHealth", () => {
 })
 
 describe("getSuggestedFallback never steers into a realm-less chain", () => {
-    it("returns null rather than suggesting Betanet when sapphire is the degraded one", () => {
+    it("returns null rather than suggesting Betanet when pearl is the degraded one", () => {
         // The regression this guards (born as fallbackOrder=["topaz","gnoland1"]
         // in the topaz era): when the FIRST entry is itself the degraded
         // network, the walk must not fall through to a chain with no Memba
         // realms — ChainHaltedBanner would render a one-click switch into a
         // dead end. Combined with hiding Betanet, that click used to be
-        // unrecoverable.
-        expect(getSuggestedFallback("sapphire")).toBeNull()
+        // unrecoverable. Post-§6 the order is ["pearl", "gnoland1"], so a
+        // degraded pearl leaves NO eligible suggestion at all.
+        expect(getSuggestedFallback("pearl")).toBeNull()
     })
 
-    it("still suggests sapphire from the realm-less chain itself", () => {
-        expect(getSuggestedFallback("gnoland1")).toBe("sapphire")
+    it("still suggests pearl from the realm-less chain itself", () => {
+        expect(getSuggestedFallback("gnoland1")).toBe("pearl")
     })
 
     it("never suggests a HIDDEN network, even one whose realms are deployed", async () => {
         // Isolates the `!net.hidden` half of the filter. Suggesting a hidden
         // network is a dead end: it is absent from the switcher, so a user sent
         // there by the banner could only leave via the active-network escape
-        // hatch. sapphire has realms in this mock, so networkHasRealms cannot be
+        // hatch. pearl has realms in this mock, so networkHasRealms cannot be
         // what rejects it — only `!net.hidden` can.
         const { NETWORKS } = await import("./config") as { NETWORKS: Record<string, { hidden?: boolean }> }
-        NETWORKS.sapphire.hidden = true
+        NETWORKS.pearl.hidden = true
         try {
             expect(getSuggestedFallback("gnoland1")).toBeNull()
         } finally {
-            delete NETWORKS.sapphire.hidden
+            delete NETWORKS.pearl.hidden
         }
         // …and the suggestion comes back once it is visible again.
-        expect(getSuggestedFallback("gnoland1")).toBe("sapphire")
+        expect(getSuggestedFallback("gnoland1")).toBe("pearl")
     })
 })

@@ -20,6 +20,14 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba's features go live on Pearl — the §6 completion (ceremony + cutover, 2026-0X-XX)
+<!-- categories: memba, network -->
+<!-- TODO(ceremony): date above; fill the two TODO bullets below from the ceremony record before merging. -->
+- **Every Memba feature now runs on Pearl**: DAO governance, the social feed, reviews, quests, the App Store, tokens, collectibles and the marketplace — deployed to the chain in one combined ceremony and verified artifact-by-artifact. The "not deployed yet" notices are gone; the network selector's default now carries the full app.
+- **The backend follows in the same window**: the feed indexer, home snapshot and activity data now read Pearl (fresh history starts at the deployment — earlier sapphire posts stay readable by switching networks until its September 9 sunset).
+- TODO(ceremony): deployment record — heights/sequences summary + realm-versions reference.
+- TODO(ceremony): NFT stack fee-path verification note (§4.4) + which flags the owner enabled after the 2-wallet live-money test.
+
 ### Pearl is now Memba's home network (2026-08-27)
 <!-- categories: memba, network -->
 - **Memba now lands on Pearl**, gno.land's newly launched testnet. Network features — validators, blocks, GovDAO governance — are live there today; Memba's own features (DAO, feed, tokens, collectibles) arrive with their deployment ceremony and show an honest "not deployed yet" notice until then.
