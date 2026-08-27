@@ -1,5 +1,6 @@
-import { useState, useEffect, useCallback } from "react"
-import { fetchOtcListings, type OtcListing } from "../lib/tokenOtcApi"
+import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
+import { fetchOtcListings } from "../lib/tokenOtcApi"
 import { EmptyState } from "../components/ui/EmptyState"
 import { formatGnotCompact } from "../lib/formatGnot"
 import { getTokenDecimals, formatTokenAmount } from "../lib/grc20"
@@ -11,9 +12,17 @@ import "./marketplace-v2.css"
 
 export function TokenLane() {
     const { address } = useAuth()
-    const [listings, setListings] = useState<OtcListing[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    // The OTC book, in React Query — the "Phase 2" the old comment promised.
+    // Refetched after a successful trade instead of the old manual reload.
+    const listingsQuery = useQuery({
+        queryKey: ["otc", "listings"],
+        queryFn: fetchOtcListings,
+    })
+    const listings = listingsQuery.data ?? []
+    const loading = listingsQuery.isPending
+    const error = listingsQuery.isError
+        ? (listingsQuery.error instanceof Error ? listingsQuery.error.message : String(listingsQuery.error))
+        : null
     // T3.2: amountAvailable/expectedUnitPrice are BASE UNITS / ugnot-per-base-unit
     // on the wire — decimals-per-symbol is needed to display them honestly (and
     // to seed the trade modal's own lookup with a warm cache). Keyed by symbol
@@ -25,24 +34,6 @@ export function TokenLane() {
     const [modalProps, setModalProps] = useState<Omit<TokenTradeModalProps, "onClose" | "onSuccess"> | null>(null)
     const [toast, setToast] = useState<string | null>(null)
 
-    // Loads (or reloads) the OTC book. Called on mount and after a successful
-    // trade — replacing the old window.location.reload() (Phase 2 will move this
-    // to a TanStack Query invalidation).
-    const load = useCallback(async () => {
-        setLoading(true)
-        setError(null)
-        try {
-            setListings(await fetchOtcListings())
-        } catch (err: unknown) {
-            setError(err instanceof Error ? err.message : String(err))
-        } finally {
-            setLoading(false)
-        }
-    }, [])
-
-    useEffect(() => {
-        void load()
-    }, [load])
 
     // Resolve decimals for every distinct symbol currently listed. Best-effort,
     // display-only surface: a lookup failure for one symbol doesn't block the
@@ -155,7 +146,7 @@ export function TokenLane() {
                     onClose={() => setModalProps(null)}
                     onSuccess={() => {
                         setModalProps(null)
-                        void load()
+                        void listingsQuery.refetch()
                     }}
                 />
             )}
