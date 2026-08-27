@@ -19,7 +19,8 @@ import { useNetworkNav, useNetworkKey } from "../hooks/useNetworkNav"
 import { useIsMobile } from "../hooks/useIsMobile"
 import { ValidatorCard } from "../components/validators/ValidatorCard"
 import { ValidatorSortSelect, type SortKey } from "../components/validators/ValidatorSortSelect"
-import { useState, useEffect, useCallback, useRef, useMemo } from "react"
+import { useState, useEffect, useMemo } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { Link, useSearchParams } from "react-router-dom"
 import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
@@ -38,8 +39,6 @@ import {
     fetchLastBlockSignatures,
     formatRelativeTime,
     type ValidatorInfo,
-    type NetworkStats,
-    type NetInfo,
 } from "../lib/validators"
 import { NetworkNodesRoster } from "../components/validators/NetworkNodesRoster"
 import { ValoperPanel } from "../components/validators/ValoperPanel"
@@ -58,11 +57,15 @@ import {
     healthCssClass,
     healthLabel,
     healthIcon,
-    type NetworkHealthSummary,
 } from "../lib/validatorHealth"
 import "./validators.css"
 
 const REFRESH_INTERVAL_MS = 30_000 // 30s standard polling
+
+// Stable empty fallbacks so derived memos don't churn between renders.
+const NO_VALIDATORS: ValidatorInfo[] = []
+const NO_MONIKERS: Set<string> = new Set()
+const NO_VALOPERS: ValoperWithStatus[] = []
 
 // The overview page is segmented into three deep-linkable views (?tab=…) so the
 // page is no longer one long scroll: the active consensus set, the registered
@@ -117,21 +120,91 @@ export default function Validators() {
     const navigate = useNetworkNav()
     const nk = useNetworkKey()
     const isMobile = useIsMobile()
-    const [validators, setValidators] = useState<ValidatorInfo[]>([])
-    const [stats, setStats] = useState<NetworkStats | null>(null)
-    const [networkHealth, setNetworkHealth] = useState<NetworkHealthSummary | null>(null)
-    // Full network roster (peers aggregated across trusted RPCs). Distinct from
-    // the consensus validator set, which is small; this matches the node roster
-    // shown by gnockpit. Best-effort — null when no node is reachable.
-    const [netInfo, setNetInfo] = useState<NetInfo | null>(null)
-    // Lowercased valoper monikers — used to tag community validators in the roster.
-    const [valoperMonikers, setValoperMonikers] = useState<Set<string>>(new Set())
-    const [valopers, setValopers] = useState<ValoperWithStatus[]>([])
-    const [valopersLoading, setValopersLoading] = useState(true)
     const telemetryRpcUrls = useMemo(() => getTelemetryRpcUrls(), [])
-    const [loading, setLoading] = useState(true)
-    const [refreshing, setRefreshing] = useState(false)
-    const [error, setError] = useState<string | null>(null)
+
+    // ── Server state, in React Query ──────────────────────────
+    // The roster poll: core fetch fan-out, sequential stats (H-11: stats needs
+    // the prefetched validators), then the three-stage merge. Polls every
+    // REFRESH_INTERVAL_MS; the shared client's refetchIntervalInBackground:false
+    // is the old Page-Visibility gate (C2/M8), and the queryFn's AbortSignal
+    // replaces the manual AbortController.
+    const rosterQuery = useQuery({
+        queryKey: ["validators", "roster"],
+        refetchInterval: REFRESH_INTERVAL_MS,
+        queryFn: async ({ signal }) => {
+            const [vals, monitoringMap, valoperMap, sigMap] = await Promise.all([
+                getValidators(GNO_RPC_URL),
+                fetchAllMonitoringData(signal),
+                fetchValoperMonikers(GNO_RPC_URL),
+                fetchLastBlockSignatures(GNO_RPC_URL, 100),
+            ])
+            const netStats = await getNetworkStats(GNO_RPC_URL, vals, signal)
+            // v2.13: valoper monikers first (primary on-chain source), then
+            // gnomonitoring enrichment, then signatures + health.
+            const withMonikers = mergeValoperMonikers(vals, valoperMap)
+            const enriched = mergeWithMonitoringData(withMonikers, monitoringMap)
+            const withHealth = enriched.map(v => {
+                const withSigs = {
+                    ...v,
+                    lastBlockSignatures: sigMap.get(v.gnoAddr.toLowerCase()) || [],
+                }
+                const healthMeta = computeHealthStatus(withSigs)
+                return { ...withSigs, healthStatus: healthMeta.status, healthMeta }
+            })
+            return {
+                validators: withHealth,
+                stats: netStats,
+                networkHealth: computeNetworkHealth(withHealth),
+                valoperMonikers: new Set([...valoperMap.values()].map(m => m.toLowerCase())),
+                activeSigning: new Set(withHealth.map(v => v.gnoAddr)),
+            }
+        },
+    })
+    const validators = rosterQuery.data?.validators ?? NO_VALIDATORS
+    const stats = rosterQuery.data?.stats ?? null
+    const networkHealth = rosterQuery.data?.networkHealth ?? null
+    const valoperMonikers = rosterQuery.data?.valoperMonikers ?? NO_MONIKERS
+    const loading = rosterQuery.isPending
+    const refreshing = rosterQuery.isFetching && !rosterQuery.isPending
+    // Silent-refresh semantics preserved: a background refetch that fails keeps
+    // showing data (react-query retains it); the error state only renders when
+    // there is nothing to show.
+    const error = rosterQuery.isError && !rosterQuery.data
+        ? (rosterQuery.error instanceof Error ? rosterQuery.error.message : "Failed to load validator data")
+        : null
+
+    // Full network roster (peers aggregated across trusted RPCs) — best-effort
+    // and independent, so a slow or dead telemetry node never delays the table.
+    const netInfoQuery = useQuery({
+        queryKey: ["validators", "netpeers"],
+        refetchInterval: REFRESH_INTERVAL_MS,
+        queryFn: async ({ signal }) => {
+            try {
+                return await getAggregatedNetPeers(telemetryRpcUrls, signal)
+            } catch {
+                return null
+            }
+        },
+    })
+    const netInfo = netInfoQuery.data ?? null
+
+    // Valoper onboarding registry — needs the active signing set, so it waits
+    // for the roster (non-blocking for the table, exactly as before).
+    const valopersQuery = useQuery({
+        queryKey: ["validators", "valopers"],
+        enabled: !!rosterQuery.data,
+        refetchInterval: REFRESH_INTERVAL_MS,
+        queryFn: async () => {
+            try {
+                return await fetchValopers(GNO_RPC_URL, rosterQuery.data!.activeSigning)
+            } catch {
+                return NO_VALOPERS
+            }
+        },
+    })
+    const valopers = valopersQuery.data ?? NO_VALOPERS
+    const valopersLoading = valopersQuery.isPending
+
     const [sortKey, setSortKey] = useState<SortKey>("rank")
     const [sortAsc, setSortAsc] = useState(true)
     const [search, setSearch] = useState("")
@@ -164,107 +237,8 @@ export default function Validators() {
     // query the same canonical subject the profile posts to (fixes reviews only
     // showing for validators whose operator address equals their signing address).
     const signingToOperator = useMemo(() => buildSigningToOperator(valopers), [valopers])
-    const isVisible = useRef(true)
-    const abortRef = useRef<AbortController | null>(null)
-
-    const loadData = useCallback(async (isRefresh = false) => {
-        // Cancel any previous in-flight request
-        abortRef.current?.abort()
-        const controller = new AbortController()
-        abortRef.current = controller
-
-        if (isRefresh) setRefreshing(true)
-        try {
-            // v3.0: Fetch validators + enrichment data in parallel, then stats sequentially
-            // H-11 fix: getNetworkStats needs prefetched validators to avoid race condition
-            // where the separate /validators?per_page=1 RPC fallback returns total=0
-            const [vals, monitoringMap, valoperMap, sigMap] = await Promise.all([
-                getValidators(GNO_RPC_URL),
-                fetchAllMonitoringData(controller.signal),
-                fetchValoperMonikers(GNO_RPC_URL),
-                fetchLastBlockSignatures(GNO_RPC_URL, 100),
-            ])
-
-            // Valoper monikers (lowercased) — lets the roster tag community
-            // validators by name (e.g. gfanton-1, aeddi-1) beyond the heuristic.
-            setValoperMonikers(new Set([...valoperMap.values()].map(m => m.toLowerCase())))
-
-            // Aggregated peer roster across trusted nodes — fire-and-forget so a
-            // slow or dead telemetry node (e.g. gnoland1's aeddi.org → 8s timeout)
-            // never delays the validators table. The "Network Nodes" stat fills in
-            // when it resolves; null on total failure.
-            getAggregatedNetPeers(telemetryRpcUrls, controller.signal)
-                .then(ni => { if (!controller.signal.aborted) setNetInfo(ni) })
-                .catch(() => { /* best-effort */ })
-
-            // Valoper onboarding registry → ValoperPanel (non-blocking: roster + per-valoper
-            // detail). Active signing set = the consensus addresses we just fetched.
-            fetchValopers(GNO_RPC_URL, new Set(vals.map(v => v.gnoAddr)))
-                .then(vps => { if (!controller.signal.aborted) setValopers(vps) })
-                .catch(() => { /* best-effort */ })
-                .finally(() => { if (!controller.signal.aborted) setValopersLoading(false) })
-
-            // Sequential: stats needs validator count from prefetched data
-            const netStats = await getNetworkStats(GNO_RPC_URL, vals, controller.signal)
-
-            // v2.13: Apply valopers monikers first (primary on-chain source)
-            const withMonikers = mergeValoperMonikers(vals, valoperMap)
-            // Then enrich with gnomonitoring data (participation, uptime, incidents, missed blocks)
-            const enriched = mergeWithMonitoringData(withMonikers, monitoringMap)
-
-            // v2.14: Merge block signatures + v2.17: compute health status
-            const withHealth = enriched.map(v => {
-                const withSigs = {
-                    ...v,
-                    lastBlockSignatures: sigMap.get(v.gnoAddr.toLowerCase()) || [],
-                }
-                const healthMeta = computeHealthStatus(withSigs)
-                return {
-                    ...withSigs,
-                    healthStatus: healthMeta.status,
-                    healthMeta,
-                }
-            })
-
-            setValidators(withHealth)
-            setStats(netStats)
-            setNetworkHealth(computeNetworkHealth(withHealth))
-            setError(null)
-        } catch (err) {
-            if (controller.signal.aborted) return // Ignore aborted requests
-            if (!isRefresh) {
-                setError(err instanceof Error ? err.message : "Failed to load validator data")
-            }
-        } finally {
-            setLoading(false)
-            setRefreshing(false)
-        }
-    }, [telemetryRpcUrls])
-
-    // Page Visibility API: pause polling when tab is hidden (C2/M8 fix)
-    useEffect(() => {
-        const handleVisibility = () => {
-            isVisible.current = document.visibilityState === "visible"
-        }
-        document.addEventListener("visibilitychange", handleVisibility)
-        return () => document.removeEventListener("visibilitychange", handleVisibility)
-    }, [])
-
     // Page title
     useEffect(() => { document.title = "Validators — Memba" }, [])
-
-    // Initial load + polling + AbortController cleanup
-    useEffect(() => {
-        loadData()
-        const interval = setInterval(() => {
-            if (isVisible.current) loadData(true)
-        }, REFRESH_INTERVAL_MS)
-        return () => {
-            clearInterval(interval)
-            abortRef.current?.abort()
-        }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [])
 
     // ── Hacker Mode polling — REMOVED (moved to /validators/hacker dedicated page) ──
 
@@ -305,8 +279,14 @@ export default function Validators() {
         return { filtered: f, paginated: p, totalPages: tp, currentPage: cp, paginatedStart: start, paginatedEnd: end }
     }, [validators, search, sortKey, sortAsc, page, effectivePageSize])
 
-    // Reset to page 1 on search change
-    useEffect(() => { setPage(1) }, [search, pageSize])
+    // Reset to page 1 when search or page size changes — render-phase state
+    // adjustment (the React-recommended pattern), not an effect.
+    const [prevPageInputs, setPrevPageInputs] = useState(`${search}|${pageSize}`)
+    const pageInputs = `${search}|${pageSize}`
+    if (prevPageInputs !== pageInputs) {
+        setPrevPageInputs(pageInputs)
+        setPage(1)
+    }
 
     // Has monitoring data? Check all metrics sources, not just participation/uptime
     const hasMonitoring = validators.some(v =>
@@ -342,7 +322,7 @@ export default function Validators() {
         return (
             <div className="val-error">
                 <span>⚠ {error}</span>
-                <button onClick={() => loadData()} className="val-retry-btn">Retry</button>
+                <button onClick={() => void rosterQuery.refetch()} className="val-retry-btn">Retry</button>
             </div>
         )
     }

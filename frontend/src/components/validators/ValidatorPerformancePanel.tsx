@@ -13,7 +13,7 @@
  * Fetching is lazy by construction: the panel only mounts when the Performance tab is
  * opened, so the heavy per-block heatmap fan-out never runs on the default Overview view.
  */
-import { useState, useEffect, useRef, useCallback } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { GNO_RPC_URL, getTelemetryRpcUrl } from "../../lib/config"
 import {
     getValidators,
@@ -25,8 +25,6 @@ import {
     formatRelativeTime,
     mergeWithMonitoringData,
     type ValidatorInfo,
-    type NetworkStats,
-    type HackerConsensusState,
     type BlockSample,
 } from "../../lib/validators"
 import { fetchAllMonitoringData } from "../../lib/gnomonitoring"
@@ -39,6 +37,7 @@ import {
 import { BlockHeatmap } from "./BlockHeatmap"
 
 const CONSENSUS_POLL_MS = 2_000
+const NO_SAMPLES: BlockSample[] = []
 
 function PowerBar({ percent }: { percent: number }) {
     return (
@@ -72,78 +71,63 @@ export function ValidatorPerformancePanel({
     isActive: boolean
 }) {
     const rpcUrl = getTelemetryRpcUrl()
-    const isVisible = useRef(true)
-    const abortRef = useRef<AbortController | null>(null)
 
-    const [validator, setValidator] = useState<ValidatorInfo | null>(null)
-    const [stats, setStats] = useState<NetworkStats | null>(null)
-    const [cs, setCs] = useState<HackerConsensusState | null>(null)
-    const [heatmap, setHeatmap] = useState<BlockSample[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
-
-    useEffect(() => {
-        const h = () => { isVisible.current = document.visibilityState === "visible" }
-        document.addEventListener("visibilitychange", h)
-        return () => document.removeEventListener("visibilitychange", h)
-    }, [])
-
-    const load = useCallback(async () => {
-        if (!signingAddress || !isActive) { setLoading(false); return }
-        abortRef.current?.abort()
-        const ctrl = new AbortController()
-        abortRef.current = ctrl
-        setError(null)
-        setLoading(true)
-        try {
+    // The full metrics load, keyed by validator. React Query hands the queryFn
+    // an AbortSignal that fires on key change/unmount — the old manual
+    // AbortController + abortRef dance, structurally.
+    const perfEnabled = !!signingAddress && isActive
+    const perfQuery = useQuery({
+        queryKey: ["validators", "perf", signingAddress, rpcUrl],
+        enabled: perfEnabled,
+        queryFn: async ({ signal }) => {
             const [allValidators, csData, sigMap, monitoringMap] = await Promise.all([
                 getValidators(GNO_RPC_URL),
-                getConsensusState(rpcUrl, ctrl.signal),
+                getConsensusState(rpcUrl, signal),
                 fetchLastBlockSignatures(GNO_RPC_URL, 100),
-                fetchAllMonitoringData(ctrl.signal),
+                fetchAllMonitoringData(signal),
             ])
-            if (ctrl.signal.aborted) return
             const networkStats = await getNetworkStats(GNO_RPC_URL, allValidators)
-            if (ctrl.signal.aborted) return
             const enriched = mergeWithMonitoringData(allValidators, monitoringMap)
             const found = enriched.find(
                 v => v.gnoAddr?.toLowerCase() === signingAddress.toLowerCase() ||
                      v.address?.toLowerCase() === signingAddress.toLowerCase(),
             )
-            if (!found) { setLoading(false); return }
+            if (!found) {
+                // Not in the enriched set — renders the metrics-unavailable
+                // state, exactly like the old early return with null validator.
+                return { validator: null, stats: networkStats, cs: csData, heatmap: [] as BlockSample[] }
+            }
             const sigKey = found.gnoAddr?.toLowerCase() || found.address?.toLowerCase() || ""
             const withSigs = { ...found, lastBlockSignatures: sigMap.get(sigKey) ?? [] }
             const healthMeta = computeHealthStatus(withSigs)
-            setValidator({ ...withSigs, healthStatus: healthMeta.status, healthMeta })
-            setStats(networkStats)
-            setCs(csData)
             const height = csData?.height ?? networkStats.blockHeight
-            if (height > 1) {
-                const blocks = await fetchBlockHeatmap(rpcUrl, height, 100, ctrl.signal)
-                if (!ctrl.signal.aborted) setHeatmap(blocks)
+            const heatmap = height > 1 ? await fetchBlockHeatmap(rpcUrl, height, 100, signal) : []
+            return {
+                validator: { ...withSigs, healthStatus: healthMeta.status, healthMeta } as ValidatorInfo,
+                stats: networkStats,
+                cs: csData,
+                heatmap,
             }
-        } catch (err) {
-            if (!ctrl.signal.aborted) setError(err instanceof Error ? err.message : "Failed to load metrics")
-        } finally {
-            if (!ctrl.signal.aborted) setLoading(false)
-        }
-    }, [signingAddress, isActive, rpcUrl])
+        },
+    })
 
-    useEffect(() => {
-        load()
-        const abortCs = new AbortController()
-        const interval = setInterval(async () => {
-            if (!isVisible.current || !isActive) return
-            const data = await getConsensusState(rpcUrl, abortCs.signal)
-            if (data && !abortCs.signal.aborted) setCs(data)
-        }, CONSENSUS_POLL_MS)
-        return () => {
-            clearInterval(interval)
-            abortCs.abort()
-            abortRef.current?.abort()
-        }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [signingAddress, isActive])
+    // Live consensus refresh every CONSENSUS_POLL_MS. The shared client pins
+    // refetchIntervalInBackground:false, which is the old isVisible-ref gate.
+    const csQuery = useQuery({
+        queryKey: ["validators", "consensus", rpcUrl],
+        enabled: isActive,
+        refetchInterval: CONSENSUS_POLL_MS,
+        queryFn: ({ signal }) => getConsensusState(rpcUrl, signal),
+    })
+
+    const validator = perfQuery.data?.validator ?? null
+    const stats = perfQuery.data?.stats ?? null
+    const cs = csQuery.data ?? perfQuery.data?.cs ?? null
+    const heatmap = perfQuery.data?.heatmap ?? NO_SAMPLES
+    const loading = perfEnabled ? perfQuery.isPending : false
+    const error = perfQuery.isError
+        ? (perfQuery.error instanceof Error ? perfQuery.error.message : "Failed to load metrics")
+        : null
 
     if (!isActive) return <NotInActiveSet />
 
@@ -160,7 +144,7 @@ export function ValidatorPerformancePanel({
         return (
             <div className="vd-card vp-empty" data-testid="vp-perf-error">
                 <p>Couldn't load performance metrics.</p>
-                <button className="vd-btn-back" style={{ marginTop: 10 }} onClick={() => void load()}>Retry</button>
+                <button className="vd-btn-back" style={{ marginTop: 10 }} onClick={() => void perfQuery.refetch()}>Retry</button>
             </div>
         )
     }

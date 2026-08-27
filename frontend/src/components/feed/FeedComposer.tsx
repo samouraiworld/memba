@@ -88,9 +88,13 @@ export function FeedComposer({
         await broadcast(address, trimmed)
     }, [connected, address, trimmed, overLimit, onConnect, broadcast])
 
-    // Fire the pending post the moment the wallet finishes connecting.
+    // Fire the pending post the moment the wallet finishes connecting. A state
+    // machine synchronizing with an external system (the wallet): the effect
+    // consumes the pending flag exactly once when the connection lands, and
+    // the sync setState IS the consume step — waived, same as ReviewsSection.
     useEffect(() => {
         if (pending && connected && address && trimmed && !overLimit) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- consume-once of the queued-post flag when the wallet connects
             setPending(false)
             void broadcast(address, trimmed)
         }

@@ -11,7 +11,8 @@
  */
 
 import { useNetworkNav } from "../../hooks/useNetworkNav"
-import { useState, useEffect, useCallback, useMemo } from "react"
+import { useState, useMemo, useCallback } from "react"
+import { useQuery } from "@tanstack/react-query"
 import type { PluginProps } from "../types"
 import { GNO_RPC_URL } from "../../lib/config"
 import { getDAOProposals, type DAOProposal } from "../../lib/dao"
@@ -23,6 +24,8 @@ type SortOrder = "newest" | "oldest" | "most-votes"
 
 const PAGE_SIZE = 10
 
+const NO_PROPOSALS: DAOProposal[] = []
+
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
     open: { bg: "rgba(0,212,170,0.08)", text: "#00d4aa" },
     passed: { bg: "rgba(123,97,255,0.08)", text: "#7b61ff" },
@@ -32,30 +35,25 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
 
 export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
     const navigate = useNetworkNav()
-    const [proposals, setProposals] = useState<DAOProposal[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
+    // Proposals as a query — key shared with DAOHome's proposals cache would
+    // differ (this plugin's fetch omits the enrich flag), so it keys apart.
+    const proposalsQuery = useQuery({
+        queryKey: ["plugin", "proposals", realmPath],
+        enabled: !!realmPath,
+        queryFn: () => getDAOProposals(GNO_RPC_URL, realmPath),
+    })
+    // Stable fallback: a fresh [] here would churn the filter memo every render.
+    const proposals = proposalsQuery.data ?? NO_PROPOSALS
+    const loading = proposalsQuery.isPending
+    const error = proposalsQuery.isError
+        ? (proposalsQuery.error instanceof Error ? proposalsQuery.error.message : "Failed to load proposals")
+        : null
 
     // Filters
     const [search, setSearch] = useState("")
     const [statusFilter, setStatusFilter] = useState<StatusFilter>("all")
     const [sort, setSort] = useState<SortOrder>("newest")
     const [page, setPage] = useState(0)
-
-    const loadProposals = useCallback(async () => {
-        setLoading(true)
-        setError(null)
-        try {
-            const data = await getDAOProposals(GNO_RPC_URL, realmPath)
-            setProposals(data)
-        } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to load proposals")
-        } finally {
-            setLoading(false)
-        }
-    }, [realmPath])
-
-    useEffect(() => { loadProposals() }, [loadProposals])
 
     // Filter & sort
     const filtered = useMemo(() => proposals
@@ -250,7 +248,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                     <p style={{ color: "var(--color-danger)", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
                         {error}
                     </p>
-                    <button className="k-btn-secondary" onClick={loadProposals} style={{ fontSize: 11, marginTop: 8 }}>
+                    <button className="k-btn-secondary" onClick={() => void proposalsQuery.refetch()} style={{ fontSize: 11, marginTop: 8 }}>
                         Retry
                     </button>
                 </div>

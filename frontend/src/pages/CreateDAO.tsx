@@ -101,13 +101,6 @@ export function CreateDAO() {
     const [showDraftBanner, setShowDraftBanner] = useState(() => !!loadDraft())
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-    // ── Load draft on mount ───────────────────────────────
-
-    useEffect(() => {
-        const draft = loadDraft()
-        if (draft) setShowDraftBanner(true)
-    }, [])
-
     const resumeDraft = () => {
         const draft = loadDraft()
         if (!draft) return

@@ -10,48 +10,37 @@
  * @module plugins/leaderboard/LeaderboardView
  */
 
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import type { PluginProps } from "../types"
 import { getDAOMembers } from "../../lib/dao"
 import { GNO_RPC_URL } from "../../lib/config"
 import { getLeaderboardData, sortEntries } from "./queries"
-import type { LeaderboardEntry, SortField, SortDir } from "./queries"
+import type { SortField, SortDir } from "./queries"
 
 const RANK_BADGES: Record<number, string> = { 0: "🥇", 1: "🥈", 2: "🥉" }
 
 export default function LeaderboardView({ realmPath }: PluginProps) {
-    const [entries, setEntries] = useState<LeaderboardEntry[]>([])
-    const [loading, setLoading] = useState(true)
-    const [error, setError] = useState<string | null>(null)
     const [sortField, setSortField] = useState<SortField>("score")
     const [sortDir, setSortDir] = useState<SortDir>("desc")
 
-    const loadData = useCallback(async () => {
-        setLoading(true)
-        setError(null)
-        try {
-            // v2.10: Fetch actual DAO members for the leaderboard
+    // v2.10: real DAO members → leaderboard entries, as one query per realm.
+    const entriesQuery = useQuery({
+        queryKey: ["plugin", "leaderboard", realmPath],
+        enabled: !!realmPath,
+        queryFn: async () => {
             const members = await getDAOMembers(GNO_RPC_URL, realmPath)
-            if (members.length === 0) {
-                setEntries([])
-                return
-            }
-
+            if (members.length === 0) return []
             const memberInput = members.map(m => ({
                 address: m.address,
                 username: m.username || m.address.slice(0, 10) + "...",
             }))
-
-            const data = await getLeaderboardData(memberInput)
-            setEntries(data)
-        } catch {
-            setError("Could not load leaderboard data")
-        } finally {
-            setLoading(false)
-        }
-    }, [realmPath])
-
-    useEffect(() => { loadData() }, [loadData])
+            return getLeaderboardData(memberInput)
+        },
+    })
+    const entries = entriesQuery.data ?? []
+    const loading = entriesQuery.isPending
+    const error = entriesQuery.isError ? "Could not load leaderboard data" : null
 
     const handleSort = (field: SortField) => {
         if (field === sortField) {

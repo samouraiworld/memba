@@ -1,5 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen } from "@testing-library/react"
+import { render as rtlRender, screen } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import type { ReactElement } from "react"
+
+// Fresh client per render: retry off and zero cache sharing between tests.
+function render(ui: ReactElement) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
+}
 
 const { getValidators } = vi.hoisted(() => ({ getValidators: vi.fn(() => Promise.resolve([])) }))
 

@@ -196,7 +196,13 @@ export default function ValidatorsHacker() {
     }, [rpcUrl, telemetryRpcUrls])
 
     // ── Mount: initial load + independent polling intervals ────
+    // Waived, not converted: this page is a deliberately hand-tuned telemetry
+    // cockpit running FOUR polling loops at different cadences (consensus 2s,
+    // mempool 10s, peers 15s, full reload) over shared abort + visibility
+    // infrastructure. Porting it to queries is a dedicated redesign with no
+    // user-visible gain; the setStates ARE the telemetry stream.
     useEffect(() => {
+        // eslint-disable-next-line react-hooks/set-state-in-effect -- multi-cadence telemetry bootstrap
         loadAll()
 
         const abortCs = new AbortController()

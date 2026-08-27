@@ -66,19 +66,32 @@ export function CommandPalette() {
         return () => window.removeEventListener("open-command-palette", openPalette)
     }, [])
 
-    // Auto-focus input when opened
-    useEffect(() => {
+    // Reset query/selection on the closed→open EDGE — render-phase state
+    // adjustment (the React-recommended pattern), not an effect. Only the
+    // focus (a real DOM side effect) stays in the effect below.
+    const [prevOpen, setPrevOpen] = useState(open)
+    if (prevOpen !== open) {
+        setPrevOpen(open)
         if (open) {
             setQuery("")
             setSelectedIndex(0)
-            setTimeout(() => inputRef.current?.focus(), 50)
+        }
+    }
+
+    // Auto-focus input when opened
+    useEffect(() => {
+        if (open) {
+            const t = setTimeout(() => inputRef.current?.focus(), 50)
+            return () => clearTimeout(t)
         }
     }, [open])
 
-    // Reset selection when query changes
-    useEffect(() => {
+    // Reset selection when the query changes — same render-phase adjustment.
+    const [prevQuery, setPrevQuery] = useState(query)
+    if (prevQuery !== query) {
+        setPrevQuery(query)
         setSelectedIndex(0)
-    }, [query])
+    }
 
     const handleSelect = useCallback((command: Command) => {
         completeQuest("use-cmdk")

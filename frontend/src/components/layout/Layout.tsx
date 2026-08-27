@@ -198,8 +198,12 @@ export function Layout() {
         return () => window.removeEventListener("quest-completed", onQuestComplete)
     }, [])
 
+    // The auth orchestrator: synchronizes app auth state with the WALLET (an
+    // external system) — login on connect, logout on disconnect. The sync
+    // setState inside performLogin is the transition itself — waived.
     useEffect(() => {
         if (adena.connected && !auth.isAuthenticated && !authLoading) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- wallet→auth state machine transition
             performLogin()
         }
         // S1: When wallet is not connected, clear any persisted auth token.
@@ -262,8 +266,12 @@ export function Layout() {
 
     // ── B3: Syncing timeout — after 10s of reconnecting, stop blocking ──
     const [syncTimedOut, setSyncTimedOut] = useState(false)
+    // A timer state machine keyed to the wallet's reconnecting flag: arm a 10s
+    // timeout while reconnecting, disarm-and-reset when it ends. The sync
+    // reset is the disarm — waived.
     useEffect(() => {
         if (!adena.reconnecting) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- disarm/reset of the reconnect-timeout machine
             setSyncTimedOut(false)
             return
         }
@@ -279,9 +287,12 @@ export function Layout() {
 
     // ── Onboarding wizard: show once per wallet on first login ──
     const [showWizard, setShowWizard] = useState(false)
+    // Once-per-wallet trigger read from localStorage (an external store) at
+    // the moment login completes — the setState is the trigger — waived.
     useEffect(() => {
         if (auth.isAuthenticated && auth.address && !isLoggingIn) {
             if (!hasSeenWizard(auth.address)) {
+                // eslint-disable-next-line react-hooks/set-state-in-effect -- first-login wizard trigger from the localStorage seen-gate
                 setShowWizard(true)
             }
         }

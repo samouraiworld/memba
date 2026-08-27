@@ -12,7 +12,7 @@
  *  for the owner (connected wallet === operator), and the backend authorises the
  *  write against the auth token's address.
  */
-import { useEffect, useState } from "react"
+import { useState } from "react"
 import { AccessibleDialog } from "../AccessibleDialog"
 import { EditField } from "../profile"
 import { AvatarUploader } from "../profile/AvatarUploader"
@@ -57,14 +57,20 @@ export function ValoperEditDialog({ open, onClose, profile, token, onSaved }: Pr
     const [saving, setSaving] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
-    // Re-seed the form from the current profile each time the dialog opens, so a
-    // reopen always reflects the latest saved values (and clears a stale error).
-    useEffect(() => {
+    // Re-seed the form from the current profile on the closed→open EDGE, so a
+    // reopen always reflects the latest saved values (and clears a stale
+    // error). Render-phase state adjustment (the React-recommended pattern),
+    // not an effect — and deliberately edge-only: the old effect also re-seeded
+    // when `profile` changed while the dialog was open, which would clobber
+    // in-progress edits if the parent refreshed mid-typing.
+    const [prevOpen, setPrevOpen] = useState(open)
+    if (prevOpen !== open) {
+        setPrevOpen(open)
         if (open) {
             setForm(initialForm(profile))
             setError(null)
         }
-    }, [open, profile])
+    }
 
     const set = <K extends keyof EditForm>(k: K, v: EditForm[K]) =>
         setForm((f) => ({ ...f, [k]: v }))
