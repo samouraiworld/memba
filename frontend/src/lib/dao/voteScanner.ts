@@ -162,7 +162,11 @@ export async function scanUnvotedProposals(address: string): Promise<number> {
 
             // Fetch open proposals
             const proposals = await getDAOProposals(GNO_RPC_URL, dao.path)
-            const active = proposals.filter(p => p.status === "open").slice(0, MAX_PROPOSALS)
+            // daokit rows (titleIsPlaceholder) are excluded: that realm family renders
+            // aggregate tallies only, never per-voter lists, so "has this user
+            // voted" is unknowable — including them would nag members with
+            // phantom unvoted counts that can never clear.
+            const active = proposals.filter(p => p.status === "open" && !p.titleIsPlaceholder).slice(0, MAX_PROPOSALS)
 
             for (const prop of active) {
                 try {
@@ -225,7 +229,11 @@ export async function scanUnvotedProposalDetails(address: string): Promise<Unvot
 
             // Fetch open proposals
             const proposals = await getDAOProposals(GNO_RPC_URL, dao.path)
-            const active = proposals.filter(p => p.status === "open").slice(0, MAX_PROPOSALS)
+            // daokit rows (titleIsPlaceholder) are excluded: that realm family renders
+            // aggregate tallies only, never per-voter lists, so "has this user
+            // voted" is unknowable — including them would nag members with
+            // phantom unvoted counts that can never clear.
+            const active = proposals.filter(p => p.status === "open" && !p.titleIsPlaceholder).slice(0, MAX_PROPOSALS)
 
             for (const prop of active) {
                 if (results.length >= MAX_UNVOTED_DETAILS) break
@@ -277,7 +285,7 @@ export async function scanMyVotes(address: string): Promise<MyVoteEntry[]> {
         try {
             const proposals = await getDAOProposals(GNO_RPC_URL, dao.path)
 
-            for (const prop of proposals.slice(0, MAX_PROPOSALS * 2)) { // scan more for history
+            for (const prop of proposals.filter(p => !p.titleIsPlaceholder).slice(0, MAX_PROPOSALS * 2)) { // scan more for history; daokit rows have no voter lists (see above)
                 try {
                     const voteRecords = await getProposalVotes(GNO_RPC_URL, dao.path, prop.id)
 

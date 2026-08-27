@@ -5,11 +5,44 @@
  * basedao Render("") markdown fallback.
  */
 
-import { queryRender, queryEval, resolveUsernames, type DAOMember } from "./shared"
+import { queryRender, queryRenderPage, queryEval, resolveUsernames, hasOwnSubpageLink, detectMaxPage, type DAOMember } from "./shared"
 
 /**
- * Parse members from basedao Render("") markdown output.
- * Supports v5.3.0 (roles + pipe), v5.2.0 (em dash), v5.0.x (power only).
+ * Parse gnodaokit/basedao members-table rows (deployed RenderMembersTable):
+ * | Name | [g1x7\.\.\.](/u/g1full) | [chip role](path:role/admin), … | [View](path:member/g1full) |
+ * The full address comes from the /u/ link (the display text is truncated);
+ * roles come from the :role/ link hrefs (immune to the inline SVG chips).
+ * Known limitation: cells are positional, so a member whose self-set profile
+ * DisplayName contains a literal "|" fails the row shape and is dropped from
+ * the parsed roster (never mis-attributed) — the same name breaks the realm's
+ * own gnoweb table rendering.
+ */
+function parseDaokitMemberRows(data: string): DAOMember[] {
+    if (!data.includes(":member/")) return []
+    const members: DAOMember[] = []
+    const re = /^\|[^|]*\|[^|]*\]\(\/u\/(g1[a-z0-9]+)\)[^|]*\|([^|]*)\|[^|]*:member\/g1[a-z0-9]+\)[^|]*\|/gm
+    let m: RegExpExecArray | null
+    while ((m = re.exec(data)) !== null) {
+        const roles = [...m[2].matchAll(/:role\/([A-Za-z0-9_-]+)\)/g)].map((r) => r[1])
+        members.push({
+            address: m[1],
+            roles,
+            tier: "",
+            votingPower: 0,
+            username: "",
+        })
+    }
+    return members
+}
+
+/**
+ * Parse members from basedao Render output.
+ * Supports v5.3.0 bullets (roles + pipe), v5.2.0 (em dash), v5.0.x (power
+ * only), and the gnodaokit members table. Bullets are tried FIRST: they are
+ * the legacy realm-generated contract, so a table-shaped string smuggled into
+ * a legacy realm's description can't displace the authentic roster. Pages
+ * that genuinely carry the daokit table (the :members sub-page) have no
+ * bullets, so the table leg still applies there.
  */
 export function parseMembersFromRender(data: string): DAOMember[] {
     const members: DAOMember[] = []
@@ -39,17 +72,25 @@ export function parseMembersFromRender(data: string): DAOMember[] {
             username: "",
         })
     }
-    return members
+    if (members.length > 0) return members
+
+    // No bullets — try the gnodaokit members table.
+    return parseDaokitMemberRows(data)
 }
 
 /**
  * Fetch DAO members via memberstore or fallback to basedao parsing.
  * For memberstore: fetches all paginated pages with inline tier extraction.
+ * `strict` (default false, matching the historical always-silent contract)
+ * makes a FAILED daokit :members read throw instead of returning [] — so a
+ * transient RPC blip surfaces as an error state rather than a confident
+ * "0 members" roster.
  */
 export async function getDAOMembers(
     rpcUrl: string,
     realmPath: string,
     memberstorePath?: string,
+    strict = false,
 ): Promise<DAOMember[]> {
     // Try memberstore members list first
     if (memberstorePath) {
@@ -86,9 +127,65 @@ export async function getDAOMembers(
     const data = await queryRender(rpcUrl, realmPath, "")
     if (!data) return []
 
-    const members = parseMembersFromRender(data)
+    let members: DAOMember[]
+    if (hasOwnSubpageLink(data, realmPath, "members")) {
+        // gnodaokit/basedao: Render("") is a landing page linking to :members
+        // — the table there (paginated at 10/page) is authoritative; rows
+        // parsed off a landing page that advertises the route are noise.
+        const table = await fetchDaokitMemberPages(rpcUrl, realmPath)
+        if (table === null) {
+            // The advertised :members page could not be read — that is a
+            // failed read, not an empty DAO.
+            if (strict) throw new Error("Failed to read the DAO's members page")
+            return []
+        }
+        members = table.length > 0 ? table : parseMembersFromRender(data)
+    } else {
+        members = parseMembersFromRender(data)
+    }
+
     await resolveUsernames(rpcUrl, members)
     return members
+}
+
+/**
+ * Fetch all pages of a gnodaokit :members table. The avl/pager Picker renders
+ * "[N](?page=N)" links; pages 2..max are fetched in parallel off page 1's
+ * max-page scan. (A next-link walk would stop at page 2 — on pages ≥ 2 the
+ * Picker's FIRST link is the back-link "[1](?page=1)" — and scanning for the
+ * max also degrades a bogus injected link to harmless empty over-fetches
+ * rather than silent truncation.)
+ * Returns null when the :members page itself could not be read, so callers
+ * can distinguish a failed read from a genuinely empty roster.
+ */
+async function fetchDaokitMemberPages(rpcUrl: string, realmPath: string): Promise<DAOMember[] | null> {
+    const page1 = await queryRenderPage(rpcUrl, realmPath, "members")
+    if (!page1) return null
+
+    const allMembers: DAOMember[] = []
+    const seen = new Set<string>()
+    const add = (rows: DAOMember[]) => {
+        for (const row of rows) {
+            if (seen.has(row.address)) continue
+            seen.add(row.address)
+            allMembers.push(row)
+        }
+    }
+
+    add(parseDaokitMemberRows(page1))
+
+    const maxPage = detectMaxPage(page1)
+    if (maxPage > 1) {
+        const pagePromises: Promise<string | null>[] = []
+        for (let p = 2; p <= Math.min(maxPage, 10); p++) {
+            pagePromises.push(queryRenderPage(rpcUrl, realmPath, `members?page=${p}`))
+        }
+        for (const pageData of await Promise.all(pagePromises)) {
+            if (pageData) add(parseDaokitMemberRows(pageData))
+        }
+    }
+
+    return allMembers
 }
 
 /**
@@ -171,9 +268,16 @@ export async function getMemberRole(
         } catch { /* fall through to render */ }
     }
 
-    // Fallback: parse Render("") markdown and find the address.
+    // Fallback: parse Render("") markdown and find the address. Same daokit
+    // landing-page hop as getDAOMembers — without it, members of a daokit DAO
+    // would resolve here (the landing page lists nobody) as non-members and
+    // lose their "your worlds" role badge while the members page shows them.
     const data = await queryRender(rpcUrl, realmPath, "")
     if (!data) return null
+    if (hasOwnSubpageLink(data, realmPath, "members")) {
+        const all = await fetchDaokitMemberPages(rpcUrl, realmPath)
+        return all?.find((m) => m.address.toLowerCase() === target) ?? null
+    }
     return parseMembersFromRender(data).find((m) => m.address.toLowerCase() === target) ?? null
 }
 

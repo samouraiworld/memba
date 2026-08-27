@@ -38,6 +38,7 @@ export {
     getProposalVotes,
     parseProposalList,
     invalidateProposalCache,
+    fallbackProposalTitle,
 } from "./proposals"
 
 // ── Builders ──────────────────────────────────────────────────

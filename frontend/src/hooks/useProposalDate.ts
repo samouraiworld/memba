@@ -7,7 +7,7 @@
  * @module hooks/useProposalDate
  */
 
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect } from "react"
 import { resolveProposalTimestamp, type ProposalTimestamp } from "../lib/dao/proposalDates"
 
 type ResolveState = "idle" | "loading" | "done" | "error"
@@ -27,11 +27,15 @@ export function useProposalDate(
         status: "idle",
         data: null,
     })
-    const resolvedRef = useRef(false)
 
+    // Deliberately NO resolve-once ref: on a cold ProposalView visit the first
+    // run resolves with createdAt still undefined (the detail query hasn't
+    // landed) and may settle on the tx-search approximation — when the exact
+    // chain-rendered date arrives, the dep change must re-resolve and replace
+    // it. Stable deps mean the effect doesn't re-fire, so no ref is needed to
+    // prevent duplicate work.
     useEffect(() => {
         if (!realmPath || proposalId === undefined || isNaN(proposalId)) return
-        if (resolvedRef.current) return
 
         let cancelled = false
 
@@ -39,7 +43,6 @@ export function useProposalDate(
         resolveProposalTimestamp(realmPath, proposalId, createdAt, createdAtBlock)
             .then(result => {
                 if (!cancelled) {
-                    resolvedRef.current = true
                     setState({ status: "done", data: result })
                 }
             })

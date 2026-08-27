@@ -168,21 +168,11 @@ export async function resolveProposalTimestamp(
     createdAt?: string,
     createdAtBlock?: number,
 ): Promise<ProposalTimestamp | null> {
-    // Check cache first
-    const cached = getCached(realmPath, proposalId)
-    if (cached) {
-        const date = new Date(cached.dateMs)
-        return {
-            date,
-            block: cached.block,
-            exact: cached.exact,
-            label: cached.exact
-                ? formatProposalDate(date).replace(/^~/, "")
-                : formatProposalDate(date),
-        }
-    }
-
-    // Strategy 1: ISO timestamp from Render (exact)
+    // Strategy 1: ISO timestamp from Render (exact) — checked BEFORE the
+    // cache: it is pure local compute, and the cache can hold a Strategy-3
+    // tx-search value (the newest tx to the realm, which is often a vote, not
+    // the creation) written by a caller that had no Render date. A
+    // chain-rendered exact date must never lose to that approximation.
     if (createdAt) {
         const date = new Date(createdAt)
         if (!isNaN(date.getTime())) {
@@ -194,6 +184,20 @@ export async function resolveProposalTimestamp(
             }
             setCache(realmPath, proposalId, { dateMs: date.getTime(), block: result.block, exact: true })
             return result
+        }
+    }
+
+    // Check cache (avoids re-running the RPC-backed strategies below)
+    const cached = getCached(realmPath, proposalId)
+    if (cached) {
+        const date = new Date(cached.dateMs)
+        return {
+            date,
+            block: cached.block,
+            exact: cached.exact,
+            label: cached.exact
+                ? formatProposalDate(date).replace(/^~/, "")
+                : formatProposalDate(date),
         }
     }
 

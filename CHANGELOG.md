@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### The MembaDAO page can now read its own DAO (2026-08-27)
+<!-- categories: memba -->
+- **The DAO home page showed zero members and zero proposals for MembaDAO on Sapphire — while the chain's own page for the same DAO listed its member just fine.** The DAO realm deployed at the Sapphire ceremony organizes its pages differently from what the app expected: the member and proposal lists live on their own sub-pages, as tables, instead of on the front page. The app now recognizes that layout and reads the lists where they actually are, including their pagination.
+- **Opening a proposal page could show an empty shell titled "Proposal #1" for a proposal that does not exist.** The realm answers requests for unknown pages with a tiny "404" note, which the app mistook for a real proposal page and dressed up as an empty proposal. It now recognizes that answer, tries the address the realm actually serves proposal details on, and shows a proper "not found" when there is genuinely nothing there.
+- Proposal detail pages from this realm now parse fully: title, description, status, the vote tally, the proposer, and the proposed action.
+
 ### Wallet activation's one-click button works now (2026-08-16)
 <!-- categories: memba -->
 - **The "Activate My Wallet" button shipped earlier today turned out to be refused by the wallet itself** — Adena does not let apps submit the kind of transaction it used (a coin transfer to yourself), a limitation that only surfaced on the button's first real use. Activation now makes a different, equally tiny transaction — a small note written to your own on-chain profile, nothing sent anywhere — of the kind Adena accepts from apps every day.

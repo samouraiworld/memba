@@ -12,6 +12,7 @@ import {
     getDAOProposals,
     getProposalDetail,
     getProposalVotes,
+    fallbackProposalTitle,
     type DAOProposal,
 } from "../lib/dao"
 import { useDaoRoute } from "../hooks/useDaoRoute"
@@ -53,7 +54,7 @@ export function DAOHome() {
     const membersQuery = useQuery({
         queryKey: ["dao", "members-list", realmPath ?? "", config?.memberstorePath ?? ""],
         enabled: !!realmPath && configQuery.isFetched,
-        queryFn: () => getDAOMembers(GNO_RPC_URL, realmPath, config?.memberstorePath),
+        queryFn: () => getDAOMembers(GNO_RPC_URL, realmPath, config?.memberstorePath, true),
     })
     const members = membersQuery.data ?? []
     const membersLoading = membersQuery.isPending
@@ -85,7 +86,10 @@ export function DAOHome() {
     // Each needs 2 ABCI calls; allSettled keeps the old partial-tolerance —
     // only a TOTAL failure marks the card degraded (P1-8: never render fake
     // zero-vote data as if it were a genuine no-votes proposal).
-    const enrichable = baseProposals.filter(p => p.status === "open" || p.status === "passed").slice(0, 10)
+    // daokit rows also enrich regardless of status: their list titles are
+    // resource-name stand-ins (titleIsPlaceholder) that only the detail page
+    // can replace. Same top-10 cap either way.
+    const enrichable = baseProposals.filter(p => p.status === "open" || p.status === "passed" || p.titleIsPlaceholder).slice(0, 10)
     const enrichQueries = useQueries({
         queries: enrichable.map((p) => ({
             queryKey: ["dao", "proposal-enrich", realmPath ?? "", p.id],
@@ -136,6 +140,13 @@ export function DAOHome() {
         }
         return {
             ...p,
+            // ONLY daokit list rows (titleIsPlaceholder — resource name, not a
+            // title) adopt the detail title; other realms' list titles stay
+            // authoritative, since getProposalDetail's loose fallbacks can grab
+            // a page banner as the "title".
+            title: p.titleIsPlaceholder && detail?.title && detail.title !== fallbackProposalTitle(p.id)
+                ? detail.title
+                : p.title,
             yesPercent: detail?.yesPercent || (totalCount > 0 ? Math.round((yesCount / totalCount) * 100) : 0),
             noPercent: detail?.noPercent || (totalCount > 0 ? Math.round((noCount / totalCount) * 100) : 0),
             yesVotes: detail?.yesVotes || yesCount,
