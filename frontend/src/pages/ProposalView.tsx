@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useProposalDate } from "../hooks/useProposalDate"
@@ -16,8 +17,6 @@ import {
     buildVoteMsg,
     buildExecuteMsg,
     PROPOSAL_STATUS_COLORS,
-    type DAOProposal,
-    type VoteRecord,
 } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
 import { clearVoteCache } from "../lib/dao/voteScanner"
@@ -36,102 +35,99 @@ export function ProposalView() {
     const navigate = useNetworkNav()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
-    const [proposal, setProposal] = useState<DAOProposal | null>(null)
-    const [voteRecords, setVoteRecords] = useState<VoteRecord[]>([])
-    const [loading, setLoading] = useState(true)
     const [actionLoading, setActionLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
-    const [isMember, setIsMember] = useState<boolean | null>(null) // null = checking
-    const [isArchived, setIsArchived] = useState(false)
-    const [myUsername, setMyUsername] = useState<string | null>(null)
-    const [memberCount, setMemberCount] = useState(0)
-    const [thresholdPct, setThresholdPct] = useState(60)
-    const [memberstorePath, setMemberstorePath] = useState("")
-
 
     const proposalId = parseInt(id || "", 10)
+
+    // ── Server state, in React Query ──────────────────────────
+    // Proposal + votes, with the 30s auto-refresh for OPEN proposals expressed
+    // as refetchInterval. The shared client pins refetchIntervalInBackground
+    // to false, which is exactly the old W4 hidden-tab pause; and a background
+    // refetch keeps the previous data, which is what silent=true used to do.
+    const proposalQuery = useQuery({
+        queryKey: ["dao", "proposal", realmPath ?? "", proposalId],
+        enabled: !isNaN(proposalId) && !!realmPath,
+        queryFn: async () => {
+            const [p, votes] = await Promise.all([
+                getProposalDetail(GNO_RPC_URL, realmPath, proposalId),
+                getProposalVotes(GNO_RPC_URL, realmPath, proposalId),
+            ])
+            return { proposal: p, voteRecords: votes }
+        },
+        refetchInterval: (query) => (query.state.data?.proposal?.status === "open" ? 30_000 : false),
+    })
+    const proposal = proposalQuery.data?.proposal ?? null
+    const voteRecords = proposalQuery.data?.voteRecords ?? []
+    const loading = proposalQuery.isPending
+
     // v3.2: Resolve proposal creation timestamp (hybrid: ISO → block estimation → tx-indexer)
     const { timestamp: proposalTimestamp } = useProposalDate(
         realmPath, proposalId, proposal?.createdAt, proposal?.createdAtBlock,
     )
 
-    const loadProposal = useCallback(async (silent = false) => {
-        if (isNaN(proposalId) || !realmPath) return
-        if (!silent) setLoading(true)
-        setError(null)
-        try {
-            const [p, votes] = await Promise.all([
-                getProposalDetail(GNO_RPC_URL, realmPath, proposalId),
-                getProposalVotes(GNO_RPC_URL, realmPath, proposalId),
-            ])
-            setProposal(p)
-            setVoteRecords(votes)
-        } catch (err) {
-            if (!silent) {
-                setError(err instanceof Error ? err.message : "Failed to load proposal")
-                setLoading(false)
+    // DAO config (memberCount, threshold, archive), independent of the wallet —
+    // Voting Insights needs correct totalMembers for non-connected users too.
+    // Non-blocking: an error degrades to the defaults, as before.
+    const configQuery = useQuery({
+        queryKey: ["dao", "config", realmPath ?? ""],
+        enabled: !!realmPath,
+        queryFn: async () => {
+            try {
+                return await getDAOConfig(GNO_RPC_URL, realmPath)
+            } catch {
+                return null
             }
-        } finally {
-            if (!silent) setLoading(false)
-        }
-    }, [proposalId, realmPath])
+        },
+    })
+    const cfg = configQuery.data ?? null
+    const isArchived = cfg?.isArchived ?? false
+    const memberstorePath = cfg?.memberstorePath || ""
+    const cfgThreshold = parseInt(cfg?.threshold || "60", 10)
+    const thresholdPct = !isNaN(cfgThreshold) && cfgThreshold > 0 ? cfgThreshold : 60
 
-    useEffect(() => { loadProposal() }, [loadProposal])
+    // Is the connected wallet a DAO member? Must pass memberstorePath for
+    // tier-based DAOs like GovDAO (fix: #v5.6.0). null = checking/unknown —
+    // an error must not block the user from trying.
+    const membersQuery = useQuery({
+        queryKey: ["dao", "memberlist", realmPath ?? "", memberstorePath, adena.address ?? ""],
+        enabled: !!adena.address && !!realmPath,
+        queryFn: async () => {
+            try {
+                return await getDAOMembers(GNO_RPC_URL, realmPath, memberstorePath || undefined)
+            } catch {
+                return null
+            }
+        },
+    })
+    const memberList = membersQuery.data ?? null
+    const isMember = !adena.address || memberList === null ? null : memberList.some((m) => m.address === adena.address)
+    // Config is authoritative for the member count; the member list backfills
+    // it when the config reports zero (the old effect's patch, as derivation).
+    const memberCount = (cfg?.memberCount ?? 0) > 0 ? cfg!.memberCount : (memberList?.length ?? 0)
 
-    // Auto-refresh every 30s for active proposals
-    const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-    useEffect(() => {
-        // Only poll if proposal is active (open)
-        if (proposal?.status !== "open") {
-            if (pollRef.current) { clearInterval(pollRef.current); pollRef.current = null }
-            return
-        }
-        // W4: pause the refresh while the tab is hidden (silent poll = two
-        // chain reads per tick; the visible tick catches up within 30s).
-        pollRef.current = setInterval(() => {
-            if (!document.hidden) loadProposal(true)
-        }, 30_000)
-        return () => { if (pollRef.current) clearInterval(pollRef.current) }
-    }, [proposal?.status, loadProposal])
+    // The user's @username for hasVoted matching (silent failure, as before).
+    const usernameQuery = useQuery({
+        queryKey: ["profile", "username", adena.address ?? ""],
+        enabled: !!adena.address,
+        queryFn: async () => {
+            try {
+                return (await resolveOnChainUsername(adena.address)) || null
+            } catch {
+                return null
+            }
+        },
+    })
+    const myUsername = usernameQuery.data ?? null
 
-    // Load DAO config (memberCount, threshold, archive) independently of wallet connection.
-    // This ensures Voting Insights always has correct totalMembers — even for non-connected users.
-    useEffect(() => {
-        if (!realmPath) return
-        getDAOConfig(GNO_RPC_URL, realmPath)
-            .then((cfg) => {
-                if (!cfg) return
-                setIsArchived(cfg.isArchived)
-                setMemberCount(cfg.memberCount)
-                setMemberstorePath(cfg.memberstorePath || "")
-                // Parse threshold: "60%" → 60
-                const thr = parseInt(cfg.threshold || "60", 10)
-                if (!isNaN(thr) && thr > 0) setThresholdPct(thr)
-            })
-            .catch(() => { /* non-blocking */ })
-    }, [realmPath])
-
-    // Check if connected wallet is a DAO member
-    // Must pass memberstorePath for tier-based DAOs like GovDAO (fix: #v5.6.0)
-    useEffect(() => {
-        if (!adena.address || !realmPath) { setIsMember(null); return }
-        getDAOMembers(GNO_RPC_URL, realmPath, memberstorePath || undefined)
-            .then((members) => {
-                const found = members.some((m) => m.address === adena.address)
-                setIsMember(found)
-                if (members.length > 0 && memberCount === 0) setMemberCount(members.length)
-            })
-            .catch(() => setIsMember(null)) // on error, don't block — let user try
-    }, [adena.address, realmPath, memberstorePath, memberCount])
-
-    // Resolve user's @username for hasVoted matching
-    useEffect(() => {
-        if (!adena.address) return
-        resolveOnChainUsername(adena.address)
-            .then(u => setMyUsername(u || null))
-            .catch(() => { })
-    }, [adena.address])
+    // Action errors (vote/execute) stay local; the fetch error comes from the
+    // proposal query, with a dismissal flag so the toast doesn't resurrect.
+    const [actionError, setActionError] = useState<string | null>(null)
+    const [fetchErrorDismissed, setFetchErrorDismissed] = useState(false)
+    const fetchError = proposalQuery.isError && !fetchErrorDismissed
+        ? (proposalQuery.error instanceof Error ? proposalQuery.error.message : "Failed to load proposal")
+        : null
+    const error = actionError ?? fetchError
 
     // Derive hasVoted + userVote from vote records. Plain derivation, no
     // useMemo: the React Compiler could not preserve the manual memoization
@@ -180,26 +176,26 @@ export function ProposalView() {
     const handleVote = async (vote: "YES" | "NO" | "ABSTAIN") => {
         setPendingVote(null)
         if (!auth.isAuthenticated || !adena.address) {
-            setError("Connect your wallet to vote")
+            setActionError("Connect your wallet to vote")
             return
         }
         setActionLoading(true)
-        setError(null)
+        setActionError(null)
         setSuccess(null)
         try {
             const msg = buildVoteMsg(adena.address, realmPath, proposalId, vote)
             await doContractBroadcast([msg], `Vote ${vote} on Proposal #${proposalId}`)
             clearVoteCache() // Invalidate notification dot cache immediately
             setSuccess(`Voted ${vote} on Proposal #${proposalId}`)
-            await loadProposal()
+            await proposalQuery.refetch()
         } catch (err) {
             logChainError(`proposal:vote:${realmPath}#${proposalId}`, err, "critical", adena.address)
             const raw = err instanceof Error ? err.message : "Failed to vote"
             // Make "member not found" error user-friendly
             if (raw.toLowerCase().includes("member not found") || raw.toLowerCase().includes("not a member")) {
-                setError("Your connected wallet is not a member of this DAO. Please switch to the correct wallet in Adena.")
+                setActionError("Your connected wallet is not a member of this DAO. Please switch to the correct wallet in Adena.")
             } else {
-                setError(raw)
+                setActionError(raw)
             }
         } finally {
             setActionLoading(false)
@@ -208,11 +204,11 @@ export function ProposalView() {
 
     const handleExecute = async () => {
         if (!auth.isAuthenticated || !adena.address) {
-            setError("Connect your wallet to execute")
+            setActionError("Connect your wallet to execute")
             return
         }
         setActionLoading(true)
-        setError(null)
+        setActionError(null)
         setSuccess(null)
         try {
             const msg = buildExecuteMsg(adena.address, realmPath, proposalId)
@@ -220,10 +216,10 @@ export function ProposalView() {
             // With ExecuteOrRejectProposal (gno#5261), the tx succeeds but the
             // proposal may be rejected if execution errored. Reload to get final status.
             setSuccess(`Proposal #${proposalId} processed — reloading status...`)
-            await loadProposal()
+            await proposalQuery.refetch()
         } catch (err) {
             logChainError(`proposal:execute:${realmPath}#${proposalId}`, err, "critical", adena.address)
-            setError(err instanceof Error ? err.message : "Failed to execute")
+            setActionError(err instanceof Error ? err.message : "Failed to execute")
         } finally {
             setActionLoading(false)
         }
@@ -559,7 +555,7 @@ export function ProposalView() {
                 </div>
             )}
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} onRetry={() => { setError(null); loadProposal() }} />
+            <ErrorToast message={error} onDismiss={() => { setActionError(null); setFetchErrorDismissed(true) }} onRetry={() => { setActionError(null); setFetchErrorDismissed(false); void proposalQuery.refetch() }} />
         </div>
     )
 }

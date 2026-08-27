@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useOutletContext, useSearchParams } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { LinkSimple } from "@phosphor-icons/react"
@@ -9,35 +9,37 @@ import type { LayoutContext } from "../types/layout"
 
 type ImportMode = "address" | "pubkey"
 
+/** Parse a shareable-link prefill (?pubkey=<base64>&name=<name>), or null. */
+function parseSharedImport(searchParams: URLSearchParams): { pubkeyJson: string; name: string } | null {
+    const encoded = searchParams.get("pubkey")
+    if (!encoded) return null
+    try {
+        const decoded = atob(encoded)
+        // Verify it's valid multisig pubkey JSON
+        const parsed = JSON.parse(decoded)
+        if (parsed.type === "tendermint/PubKeyMultisigThreshold" && parsed.value?.pubkeys) {
+            return { pubkeyJson: decoded, name: searchParams.get("name") || "" }
+        }
+    } catch { /* invalid base64 or JSON — ignore */ }
+    return null
+}
+
 export function ImportMultisig() {
     const navigate = useNetworkNav()
     const { auth } = useOutletContext<LayoutContext>()
-    const [mode, setMode] = useState<ImportMode>("address")
+    const [searchParams] = useSearchParams()
+
+    // ── Auto-fill from a shareable link, as lazy INITIAL state ──
+    // The old version mirrored the URL param into state from an effect; the
+    // param only matters at mount (the form fields are user-owned afterwards),
+    // so initializers express it without the render-then-overwrite hop.
+    const [sharedImport] = useState(() => parseSharedImport(searchParams))
+    const [mode, setMode] = useState<ImportMode>(sharedImport ? "pubkey" : "address")
     const [address, setAddress] = useState("")
-    const [pubkeyJson, setPubkeyJson] = useState("")
-    const [walletName, setWalletName] = useState("")
+    const [pubkeyJson, setPubkeyJson] = useState(sharedImport?.pubkeyJson ?? "")
+    const [walletName, setWalletName] = useState(sharedImport?.name ?? "")
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
-    const [searchParams] = useSearchParams()
-    const [sharedImport, setSharedImport] = useState<{ pubkeyJson: string; name: string } | null>(null)
-
-    // ── Auto-fill from shareable link (?pubkey=<base64>&name=<name>) ──
-    useEffect(() => {
-        const encoded = searchParams.get("pubkey")
-        const name = searchParams.get("name") || ""
-        if (!encoded) return
-        try {
-            const decoded = atob(encoded)
-            // Verify it's valid multisig pubkey JSON
-            const parsed = JSON.parse(decoded)
-            if (parsed.type === "tendermint/PubKeyMultisigThreshold" && parsed.value?.pubkeys) {
-                setSharedImport({ pubkeyJson: decoded, name })
-                setPubkeyJson(decoded)
-                setWalletName(name)
-                setMode("pubkey")
-            }
-        } catch { /* invalid base64 or JSON — ignore */ }
-    }, [searchParams])
 
     const handleImportByAddress = async () => {
         const trimmed = address.trim()

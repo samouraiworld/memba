@@ -9,7 +9,8 @@
  * Route: /:network/quest-admin
  */
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
+import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { Link } from "react-router-dom"
 import { useAdena } from "../hooks/useAdena"
 import { useAuth } from "../hooks/useAuth"
@@ -37,38 +38,42 @@ export default function QuestAdmin() {
     const nk = useNetworkKey()
     const isAdmin = !!address && address === ZOOMA_ADDRESS
 
-    const [claims, setClaims] = useState<QuestClaim[]>([])
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState("")
     const [busyId, setBusyId] = useState<bigint | null>(null)
 
-    const load = useCallback(async () => {
-        if (!auth.token || !isAdmin) return
-        setLoading(true)
-        setError("")
-        try {
-            setClaims(await listPendingClaims(auth.token))
-        } catch {
-            setError("Failed to load claims.")
-        } finally {
-            setLoading(false)
-        }
-    }, [auth.token, isAdmin])
+    // Pending claims, admin-gated. Disabled while not admin/authed — the old
+    // load() early-returned with loading=false, so a disabled query must not
+    // read as loading either.
+    const queryClient = useQueryClient()
+    const claimsEnabled = !!auth.token && isAdmin
+    const claimsKey = ["quests", "pending-claims", auth.token?.userAddress ?? ""]
+    const claimsQuery = useQuery({
+        queryKey: claimsKey,
+        enabled: claimsEnabled,
+        queryFn: () => listPendingClaims(auth.token!),
+    })
+    const claims = claimsQuery.data ?? []
+    const loading = claimsEnabled ? claimsQuery.isPending : false
+
+    // Review errors are UI state; the fetch error keeps its old fixed copy.
+    const [actionError, setActionError] = useState("")
+    const error = actionError || (claimsQuery.isError ? "Failed to load claims." : "")
 
     useEffect(() => {
         document.title = "Quest Admin — Memba"
-        load()
-    }, [load])
+    }, [])
 
     const review = async (claim: QuestClaim, approved: boolean) => {
         if (!auth.token) return
         setBusyId(claim.id)
-        setError("")
+        setActionError("")
         try {
             await reviewQuestClaim(auth.token, claim.id, approved)
-            setClaims(prev => prev.filter(c => c.id !== claim.id))
+            // The old code removed the claim locally rather than refetching;
+            // same optimistic removal, applied to the cached list.
+            queryClient.setQueryData(claimsKey, (prev: QuestClaim[] | undefined) =>
+                (prev ?? []).filter(c => c.id !== claim.id))
         } catch {
-            setError("Review failed — please try again.")
+            setActionError("Review failed — please try again.")
         } finally {
             setBusyId(null)
         }

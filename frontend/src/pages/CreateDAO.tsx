@@ -96,7 +96,9 @@ export function CreateDAO() {
     // "Something went wrong / reload the page".
     const [validationError, setValidationError] = useState<string | null>(null)
     const [generatedCode, setGeneratedCode] = useState("")
-    const [showDraftBanner, setShowDraftBanner] = useState(false)
+    // Lazy initializer, not a mount effect: whether a draft exists is known
+    // synchronously from localStorage at first render.
+    const [showDraftBanner, setShowDraftBanner] = useState(() => !!loadDraft())
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
     // ── Load draft on mount ───────────────────────────────

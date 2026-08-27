@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from "react"
+import { useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useParams, useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ArrowsClockwise } from "@phosphor-icons/react"
@@ -8,7 +9,7 @@ import {
     buildMintMsgs, buildBurnMsg, calculateFee,
     doContractBroadcast, formatTokenAmount,
     parseTokenAmount, maxWholeTokens, formatSupply, MAX_INT64,
-    type TokenInfo, type AminoMsg,
+    type AminoMsg,
 } from "../lib/grc20"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { ErrorToast } from "../components/ui/ErrorToast"
@@ -22,10 +23,33 @@ export function TokenView() {
     const navigate = useNetworkNav()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
-    const [token, setToken] = useState<TokenInfo | null>(null)
-    const [balance, setBalance] = useState(0n)
-    const [balanceStale, setBalanceStale] = useState(false)
-    const [loading, setLoading] = useState(true)
+    // Token metadata (public — independent of wallet connection). A token may
+    // not be indexed immediately after creation, so retry up to 3 more times,
+    // 2s apart (the old 4-attempt loop). A miss after that renders the
+    // not-found state silently, exactly as before.
+    const tokenQuery = useQuery({
+        queryKey: ["token", "info", symbol ?? ""],
+        enabled: !!symbol,
+        queryFn: async () => {
+            const info = await getTokenInfo(GNO_RPC_URL, symbol!)
+            if (!info) throw new Error("token not indexed yet")
+            return info
+        },
+        retry: 3,
+        retryDelay: 2_000,
+    })
+    const token = tokenQuery.data ?? null
+    const loading = tokenQuery.isPending
+
+    // User balance (wallet-specific; waits for the token to exist). A failed
+    // balance read marks the figure stale rather than showing a silent zero.
+    const balanceQuery = useQuery({
+        queryKey: ["token", "balance", symbol ?? "", adena.address ?? ""],
+        enabled: !!symbol && adena.connected && !!adena.address && !!token,
+        queryFn: () => getTokenBalance(GNO_RPC_URL, symbol!, adena.address),
+    })
+    const balance = balanceQuery.data ?? 0n
+    const balanceStale = balanceQuery.isError
     const [actionTab, setActionTab] = useState<ActionTab>("transfer")
     const [txLoading, setTxLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -34,42 +58,6 @@ export function TokenView() {
     // Action form fields
     const [toAddress, setToAddress] = useState("")
     const [amount, setAmount] = useState("")
-
-    // Fetch token metadata (public data — independent of wallet connection)
-    const fetchTokenInfo = useCallback(async () => {
-        if (!symbol) return
-        setLoading(true)
-        try {
-            // Retry logic: token may not be indexed immediately after creation
-            let info: TokenInfo | null = null
-            for (let attempt = 0; attempt < 4; attempt++) {
-                info = await getTokenInfo(GNO_RPC_URL, symbol)
-                if (info) break
-                if (attempt < 3) await new Promise(r => setTimeout(r, 2000))
-            }
-            setToken(info)
-        } catch (err) {
-            console.error("Failed to fetch token:", err)
-        } finally {
-            setLoading(false)
-        }
-    }, [symbol])
-
-    useEffect(() => {
-        fetchTokenInfo()
-    }, [fetchTokenInfo])
-
-    // Fetch user balance (wallet-specific — runs when wallet connects or token loads)
-    useEffect(() => {
-        if (!symbol || !adena.connected || !adena.address || !token) return
-        setBalanceStale(false)
-        getTokenBalance(GNO_RPC_URL, symbol, adena.address)
-            .then(setBalance)
-            .catch((err) => {
-                console.warn("[TokenView] Balance fetch failed:", err)
-                setBalanceStale(true)
-            })
-    }, [symbol, adena.connected, adena.address, token])
 
     const isAdmin = auth.isAuthenticated && token?.admin === adena.address
 
@@ -126,7 +114,7 @@ export function TokenView() {
             setSuccess(`${actionTab} successful!`)
             setToAddress("")
             setAmount("")
-            fetchTokenInfo()
+            void tokenQuery.refetch(); void balanceQuery.refetch()
         } catch (err) {
             setError(err instanceof Error ? err.message : "Transaction failed")
         } finally {
@@ -150,7 +138,7 @@ export function TokenView() {
                     If you just created this token, it may still be indexing. Try again in a few seconds.
                 </p>
                 <div className="tv-empty__actions">
-                    <button onClick={() => fetchTokenInfo()} className="tv-back-btn"><ArrowsClockwise size={14} /> Retry</button>
+                    <button onClick={() => void tokenQuery.refetch()} className="tv-back-btn"><ArrowsClockwise size={14} /> Retry</button>
                     <button onClick={() => navigate("/tokens")} className="tv-back-btn">← Back to Tokens</button>
                 </div>
             </div>

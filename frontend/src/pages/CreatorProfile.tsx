@@ -8,7 +8,8 @@
  * @module pages/CreatorProfile
  */
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect } from "react"
+import { useQuery } from "@tanstack/react-query"
 import { useParams, useOutletContext, Link } from "react-router-dom"
 import { useNetworkPath } from "../hooks/useNetworkNav"
 import { fetchCollectionsByCreator, isCollectionVerified } from "../lib/launchpadReads"
@@ -32,34 +33,30 @@ export function CreatorProfile() {
     const creator = routeAddr || adena?.address || ""
     const isMe = creator !== "" && creator === adena?.address
 
-    const [rows, setRows] = useState<CollectionListRow[]>([])
-    const [verifiedIds, setVerifiedIds] = useState<Set<string>>(new Set())
     const [verifiedOnly, setVerifiedOnly] = useState(false)
-    const [loading, setLoading] = useState(true)
 
-    const load = useCallback(async () => {
-        if (!creator) {
-            setLoading(false)
-            return
-        }
-        setLoading(true)
-        try {
-            const list = await fetchCollectionsByCreator(creator)
-            setRows(list)
-            const flags = await Promise.all(list.map((c) => isCollectionVerified(c.id).catch(() => false)))
-            setVerifiedIds(new Set(list.filter((_, i) => flags[i]).map((c) => c.id)))
-        } catch {
-            setRows([])
-            setVerifiedIds(new Set())
-        } finally {
-            setLoading(false)
-        }
-    }, [creator])
+    // Collections + per-collection verification flags, keyed by creator.
+    // Errors degrade to an empty list, as before.
+    const collectionsQuery = useQuery({
+        queryKey: ["nft", "creator-collections", creator],
+        enabled: !!creator,
+        queryFn: async () => {
+            try {
+                const list = await fetchCollectionsByCreator(creator)
+                const flags = await Promise.all(list.map((c) => isCollectionVerified(c.id).catch(() => false)))
+                return { rows: list, verifiedIds: new Set(list.filter((_, i) => flags[i]).map((c) => c.id)) }
+            } catch {
+                return { rows: [] as CollectionListRow[], verifiedIds: new Set<string>() }
+            }
+        },
+    })
+    const rows = collectionsQuery.data?.rows ?? []
+    const verifiedIds = collectionsQuery.data?.verifiedIds ?? new Set<string>()
+    const loading = collectionsQuery.isPending
 
     useEffect(() => {
         document.title = `${isMe ? "My" : creator} collections — Memba`
-        load()
-    }, [creator, isMe, load])
+    }, [creator, isMe])
 
     if (!creator) return <div className="creator-profile">Connect your wallet to see your collections.</div>
 

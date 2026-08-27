@@ -29,20 +29,18 @@ export function GithubCallback() {
     const [searchParams] = useSearchParams()
     const { auth, adena } = useOutletContext<LayoutContext>()
 
-    const [step, setStep] = useState<"exchanging" | "saving" | "success" | "deferred" | "error">("exchanging")
-    const [ghUser, setGhUser] = useState<GitHubUserInfo | null>(null)
-    const [error, setError] = useState<string | null>(null)
-
     const code = searchParams.get("code")
     const oauthState = searchParams.get("state")
 
+    // A missing code is known synchronously at mount — start in the error
+    // state instead of flipping to it from the effect.
+    const [step, setStep] = useState<"exchanging" | "saving" | "success" | "deferred" | "error">(code ? "exchanging" : "error")
+    const [ghUser, setGhUser] = useState<GitHubUserInfo | null>(null)
+    const [error, setError] = useState<string | null>(code ? null : "No OAuth code received from GitHub")
+
     // Step 1: Exchange OAuth code for GitHub user info
     useEffect(() => {
-        if (!code) {
-            setError("No OAuth code received from GitHub")
-            setStep("error")
-            return
-        }
+        if (!code) return
 
         const exchange = async () => {
             try {

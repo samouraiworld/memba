@@ -7,6 +7,7 @@
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useEffect, useState, useCallback } from "react"
 import { useOutletContext } from "react-router-dom"
+import { useQuery } from "@tanstack/react-query"
 import { LockKey, MagnifyingGlass } from "@phosphor-icons/react"
 import { api } from "../lib/api"
 import { StatusBadge } from "../components/ui/StatusBadge"
@@ -14,7 +15,7 @@ import { getTxStatus } from "../components/ui/txStatus"
 import { SkeletonRow } from "../components/ui/LoadingSkeleton"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
-import type { Multisig, Transaction } from "../gen/memba/v1/memba_pb"
+import type { Multisig } from "../gen/memba/v1/memba_pb"
 import { ExecutionState } from "../gen/memba/v1/memba_pb"
 import { GNO_RPC_URL, GNO_CHAIN_ID, GNO_BECH32_PREFIX, getUserRegistryPath } from "../lib/config"
 import { exportTransactionsCSV, type ExportableTransaction } from "../lib/txExport"
@@ -55,18 +56,7 @@ export function Dashboard() {
     // Quest: page visit tracking
     useEffect(() => { trackPageVisit("dashboard") }, [])
 
-    const [multisigs, setMultisigs] = useState<Multisig[]>([])
-    const [pendingTxs, setPendingTxs] = useState<Transaction[]>([])
-    const [recentTxs, setRecentTxs] = useState<Transaction[]>([])
-    const [loading, setLoading] = useState(false)
-    const [error, setError] = useState<string | null>(null)
     const [joiningAddr, setJoiningAddr] = useState<string | null>(null)
-    // User identity (from on-chain profile)
-    const [username, setUsername] = useState<string | null>(null)
-    const [avatarUrl, setAvatarUrl] = useState<string | null>(null)
-
-    const joinedMultisigs = multisigs.filter(m => m.joined)
-    const discoverableMultisigs = multisigs.filter(m => !m.joined)
 
     // Quick Vote: unvoted proposals from saved DAOs
     const userAddress = auth.isAuthenticated ? auth.address || null : null
@@ -86,59 +76,74 @@ export function Dashboard() {
         && canApplyForMembership()
         && !candidatureBannerDismissed
 
-    const fetchData = useCallback(async () => {
-        if (!token || !auth.isAuthenticated) return
-        setLoading(true)
-        setError(null)
-        try {
+    // Server state lives in React Query, keyed by the auth identity — a wallet
+    // switch refetches, and dropping auth disables the query so the derived
+    // arrays fall back to [] (which is what the old S1 clear-on-logout effect
+    // did by hand).
+    const dashEnabled = !!token && auth.isAuthenticated
+    const dashQuery = useQuery({
+        queryKey: ["dashboard", "overview", token?.userAddress ?? ""],
+        enabled: dashEnabled,
+        queryFn: async () => {
             const [msRes, pendRes, recentRes] = await Promise.all([
-                api.multisigs({ authToken: token, limit: 50 }),
-                api.transactions({ authToken: token, executionState: ExecutionState.PENDING, limit: 10 }),
-                api.transactions({ authToken: token, limit: 10 }),
+                api.multisigs({ authToken: token!, limit: 50 }),
+                api.transactions({ authToken: token!, executionState: ExecutionState.PENDING, limit: 10 }),
+                api.transactions({ authToken: token!, limit: 10 }),
             ])
-            setMultisigs(msRes.multisigs)
-            setPendingTxs(pendRes.transactions)
-            setRecentTxs(recentRes.transactions)
-        } catch (err) {
-            const msg = err instanceof Error ? err.message : ""
-            const isNetworkError = /failed to fetch|networkerror|econnrefused|err_network|timeout|aborted/i.test(msg)
-            if (isNetworkError) {
-                console.warn("[Dashboard] Backend API unreachable — multisig features unavailable:", msg)
-            } else {
-                setError(msg || "Failed to load data")
+            return { multisigs: msRes.multisigs, pendingTxs: pendRes.transactions, recentTxs: recentRes.transactions }
+        },
+    })
+    const multisigs = dashQuery.data?.multisigs ?? []
+    const pendingTxs = dashQuery.data?.pendingTxs ?? []
+    const recentTxs = dashQuery.data?.recentTxs ?? []
+    const joinedMultisigs = multisigs.filter(m => m.joined)
+    const discoverableMultisigs = multisigs.filter(m => !m.joined)
+    // The guest view renders immediately (the old loading initialised to false),
+    // so a disabled query must not read as loading.
+    const loading = dashEnabled ? dashQuery.isPending : false
+
+    // Action errors (join / vote) stay local. The old fetch handler swallowed
+    // pure network errors (backend unreachable degrades to the guest-ish view,
+    // console.warn only) and surfaced the rest — preserved at derivation time.
+    const [actionError, setActionError] = useState<string | null>(null)
+    const [fetchErrorDismissed, setFetchErrorDismissed] = useState(false)
+    const fetchError = (() => {
+        if (!dashQuery.isError || fetchErrorDismissed) return null
+        const msg = dashQuery.error instanceof Error ? dashQuery.error.message : ""
+        if (/failed to fetch|networkerror|econnrefused|err_network|timeout|aborted/i.test(msg)) {
+            console.warn("[Dashboard] Backend API unreachable — multisig features unavailable:", msg)
+            return null
+        }
+        return msg || "Failed to load data"
+    })()
+    const error = actionError ?? fetchError
+
+    // On-chain username + backend avatar for the identity card. Each half is
+    // independent and fails silently, exactly like the old paired .then chains.
+    const identityAddr = (auth as { address?: string }).address || ""
+    const identityQuery = useQuery({
+        queryKey: ["dashboard", "identity", identityAddr],
+        enabled: auth.isAuthenticated && !!balance && !!identityAddr,
+        queryFn: async () => {
+            const [renderRes, profileRes] = await Promise.allSettled([
+                queryRender(GNO_RPC_URL, getUserRegistryPath(), identityAddr),
+                fetchBackendProfile(identityAddr),
+            ])
+            let username: string | null = null
+            if (renderRes.status === "fulfilled" && renderRes.value) {
+                const m = renderRes.value.match(/# User - `([^`]+)`/)
+                if (m) username = `@${m[1]}`
             }
-        } finally {
-            setLoading(false)
-        }
-    }, [token, auth.isAuthenticated])
-
-    useEffect(() => { fetchData() }, [fetchData])
-
-    // Fetch on-chain username + avatar for the identity card
-    useEffect(() => {
-        if (!auth.isAuthenticated || !balance) return
-        const addr = (auth as { address?: string }).address
-        if (!addr) return
-        queryRender(GNO_RPC_URL, getUserRegistryPath(), addr)
-            .then((data) => {
-                if (!data) return
-                const m = data.match(/# User - `([^`]+)`/)
-                if (m) setUsername(`@${m[1]}`)
-            })
-            .catch(() => { /* silent */ })
-        fetchBackendProfile(addr)
-            .then((p) => { if (p?.avatarUrl) setAvatarUrl(p.avatarUrl) })
-            .catch(() => { /* silent */ })
-    }, [auth.isAuthenticated, balance, auth])
-
-    // S1: Clear stale data when auth drops
-    useEffect(() => {
-        if (!auth.isAuthenticated) {
-            setMultisigs([])
-            setPendingTxs([])
-            setRecentTxs([])
-        }
-    }, [auth.isAuthenticated])
+            const avatarUrl = profileRes.status === "fulfilled" ? (profileRes.value?.avatarUrl || null) : null
+            return { username, avatarUrl }
+        },
+    })
+    const username = identityQuery.data?.username ?? null
+    // Track the URL that failed, not a boolean — a different profile's avatar
+    // must not stay suppressed by a previous one's broken image.
+    const [failedAvatarUrl, setFailedAvatarUrl] = useState<string | null>(null)
+    const rawAvatarUrl = identityQuery.data?.avatarUrl ?? null
+    const avatarUrl = rawAvatarUrl && rawAvatarUrl !== failedAvatarUrl ? rawAvatarUrl : null
 
     const formatDate = useCallback((dateStr: string) => {
         const d = new Date(dateStr)
@@ -156,10 +161,10 @@ export function Dashboard() {
                 name: ms.name || "",
                 bech32Prefix: GNO_BECH32_PREFIX,
             })
-            fetchData() // refresh
+            void dashQuery.refetch()
         } catch (err) {
             logChainError("dashboard:joinMultisig", err, "error", userAddress || undefined)
-            setError(err instanceof Error ? err.message : "Failed to join multisig")
+            setActionError(err instanceof Error ? err.message : "Failed to join multisig")
         } finally {
             setJoiningAddr(null)
         }
@@ -170,7 +175,7 @@ export function Dashboard() {
         if (!userAddress) return
         const key = `${realmPath}:${proposalId}`
         setVotingId(key)
-        setError(null)
+        setActionError(null)
         try {
             const msg = buildVoteMsg(userAddress, realmPath, proposalId, vote)
             await doContractBroadcast([msg], `Vote ${vote} on proposal #${proposalId}`)
@@ -178,7 +183,7 @@ export function Dashboard() {
             clearVoteCache()
         } catch (err) {
             logChainError(`dashboard:quickVote:${realmPath}#${proposalId}`, err, "critical", userAddress)
-            setError(err instanceof Error ? err.message : "Vote failed")
+            setActionError(err instanceof Error ? err.message : "Vote failed")
         } finally {
             setVotingId(null)
         }
@@ -207,7 +212,7 @@ export function Dashboard() {
                     username={username}
                     avatarUrl={avatarUrl}
                     balance={balance}
-                    onAvatarError={() => setAvatarUrl(null)}
+                    onAvatarError={() => setFailedAvatarUrl(rawAvatarUrl)}
                 />
             )}
 
@@ -503,7 +508,7 @@ export function Dashboard() {
                 </div>
             )}
 
-            <ErrorToast message={error} onDismiss={() => setError(null)} onRetry={() => { setError(null); fetchData() }} />
+            <ErrorToast message={error} onDismiss={() => { setActionError(null); setFetchErrorDismissed(true) }} onRetry={() => { setActionError(null); setFetchErrorDismissed(false); void dashQuery.refetch() }} />
         </div>
     )
 }
