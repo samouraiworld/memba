@@ -1,5 +1,9 @@
 # E2E Test — Samourai Crew Multisig Flow
 
+> **⚰️ ARCHIVED (test11-era).** This manual checklist predates the automated
+> Playwright suite (27 specs in `frontend/e2e/`, CI-enforced) and names networks
+> that no longer exist. Kept as procedure history; do not run it as written.
+
 > Manual end-to-end test checklist for verifying Memba on the live deployment.
 > Target: samourai-crew 3-of-7 multisig on `test11`.
 
