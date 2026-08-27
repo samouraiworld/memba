@@ -186,16 +186,54 @@ describe("useNotifications", () => {
         }))
     })
 
-    it("a daokit DAO with truly zero proposals records 0 without notifying (headers present, count 0)", async () => {
+    it("a daokit DAO with truly zero proposals baselines at 0 — and the FIRST proposal then notifies as #1", async () => {
         vi.useFakeTimers()
+        let total = 0
         vi.mocked(parseDAORender).mockReturnValue(meta(0))
         vi.mocked(hasOwnSubpageLink).mockReturnValue(true)
-        vi.mocked(queryRenderPage).mockResolvedValue("EMPTY_PAGE")
-        vi.mocked(parseDaokitSectionCount).mockReturnValue(0)
+        vi.mocked(queryRenderPage).mockResolvedValue("SECTION_PAGE")
+        // Both section headers present; history stays 0 (only assert once per
+        // poll pair by splitting the total across the active read).
+        vi.mocked(parseDaokitSectionCount).mockImplementation(() => {
+            const half = total
+            total = 0 // second (history) call in the same poll reads 0
+            return half
+        })
 
         renderHook(() => useNotifications([DAO], ADDR_A))
         await flushAsync()
+        expect(vi.mocked(addNotification)).not.toHaveBeenCalled() // 0 recorded as a real baseline
+
+        total = 1 // the DAO's first proposal ever
         await flushAsync(POLL_INTERVAL_MS)
+        expect(vi.mocked(addNotification)).toHaveBeenCalledWith(ADDR_A, expect.objectContaining({
+            type: "proposal_new",
+            title: "New Proposal #1",
+        }))
+    })
+
+    it("a partial sub-page read (lower total) never re-fires a phantom notification on recovery", async () => {
+        vi.useFakeTimers()
+        let readings = [5, 2, 5] // baseline; history-read blip; recovery
+        vi.mocked(parseDAORender).mockReturnValue(meta(0))
+        vi.mocked(hasOwnSubpageLink).mockReturnValue(true)
+        vi.mocked(queryRenderPage).mockResolvedValue("SECTION_PAGE")
+        // Each poll makes two section reads; the second (history) contributes
+        // 0 so the whole poll's total is the next value from `readings`.
+        let call = 0
+        vi.mocked(parseDaokitSectionCount).mockImplementation(() => {
+            call++
+            if (call % 2 === 0) return 0 // history page
+            const v = readings[0]
+            readings = readings.length > 1 ? readings.slice(1) : readings
+            return v
+        })
+
+        renderHook(() => useNotifications([DAO], ADDR_A))
+        await flushAsync() // baseline 5
+        await flushAsync(POLL_INTERVAL_MS) // blip: total 2 — must NOT lower the baseline
+        await flushAsync(POLL_INTERVAL_MS) // recovery: total 5 again
+        // 5 → (2) → 5 is not "3 new proposals": no notification at any point.
         expect(vi.mocked(addNotification)).not.toHaveBeenCalled()
     })
 

@@ -174,7 +174,17 @@ export function useNotifications(daoPaths: string[], address: string | null) {
                 }
                 hasNewNotifications = true
             }
-            lastKnownCounts.current.set(daoPath, count)
+            // Non-decreasing: proposal counts are monotonic for every
+            // supported dialect (proposals are never deleted), so a LOWER
+            // reading is a partial/failed read — recording it would make the
+            // recovery on the next poll re-fire a phantom "New Proposal" for
+            // an old proposal. (A chain reset mid-session is the one case a
+            // count can genuinely drop; the map is session-scoped, a reload
+            // re-baselines.)
+            lastKnownCounts.current.set(
+                daoPath,
+                lastCount !== undefined ? Math.max(lastCount, count) : count,
+            )
 
             // ── v2.13: Status transitions ──────────────────
             for (const p of proposals) {
