@@ -9,7 +9,16 @@
  * alias) is counted.
  */
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render, screen, waitFor, act } from "@testing-library/react"
+import { render as rtlRender, screen, waitFor, act } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import type { ReactElement } from "react"
+
+// Fresh client per render: retry off and zero cache sharing between tests
+// (the component's own module-level cache is reset by the suite separately).
+function render(ui: ReactElement) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
+}
 import { ValidatorReviewStars, ValidatorReviewPreview } from "./ValidatorReviewStars"
 import {
     getValidatorReviewSummary,

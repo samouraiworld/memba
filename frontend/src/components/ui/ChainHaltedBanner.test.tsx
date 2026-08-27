@@ -11,7 +11,16 @@
  * REAL so the fallback-ordering fix (prefer topaz over Betanet) is exercised.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { render, screen, waitFor } from "@testing-library/react"
+import { render as rtlRender, screen, waitFor } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
+import type { ReactElement } from "react"
+
+// Fresh client per render: retry off and zero cache sharing between tests —
+// a cached "healthy" verdict from one test must never leak into the next.
+function render(ui: ReactElement) {
+    const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+    return rtlRender(<QueryClientProvider client={client}>{ui}</QueryClientProvider>)
+}
 
 const checkChainHealth = vi.fn()
 vi.mock("../../lib/chainHealth", async (importOriginal) => ({
