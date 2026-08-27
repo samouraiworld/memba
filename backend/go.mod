@@ -12,7 +12,7 @@ require (
 	github.com/rs/cors v1.11.1
 	golang.org/x/sync v0.22.0
 	google.golang.org/protobuf v1.36.12
-	modernc.org/sqlite v1.56.0
+	modernc.org/sqlite v1.57.0
 )
 
 require (
