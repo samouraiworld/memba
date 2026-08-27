@@ -233,34 +233,36 @@ export async function getMemberRole(
     if (!address) return null
     const target = address.toLowerCase()
 
-    // Memberstore (tier DAOs like GovDAO): page with early-exit on match.
+    // Memberstore (tier DAOs like GovDAO): page 1 answers the common case
+    // immediately; only a miss fans out to the remaining pages in parallel.
+    // (The old next-link walk followed the FIRST "[N](?page=N)" link, which on
+    // pages ≥ 2 is the pager's leading BACK-link — the walk stopped at page 2
+    // and silently missed members past ~28 at the memberstore's 14/page.)
     if (memberstorePath) {
-        const seen = new Set<string>()
-        let page = 1
-        const maxPages = 10
-        while (page <= maxPages) {
-            const renderPath = page === 1 ? "members" : `members?page=${page}`
-            const data = await queryRender(rpcUrl, memberstorePath, renderPath)
-            if (!data) break
-            let foundNew = false
-            for (const row of parseMemberstoreRows(data)) {
-                if (row.address.toLowerCase() === target) {
-                    return {
-                        address: row.address,
-                        roles: [],
-                        tier: row.tier,
-                        votingPower: TIER_POWERS[row.tier] || 0,
-                        username: "",
-                    }
-                }
-                if (!seen.has(row.address)) {
-                    seen.add(row.address)
-                    foundNew = true
+        const page1 = await queryRender(rpcUrl, memberstorePath, "members")
+        if (!page1) return null
+        const toMember = (row: { tier: string; address: string }): DAOMember => ({
+            address: row.address,
+            roles: [],
+            tier: row.tier,
+            votingPower: TIER_POWERS[row.tier] || 0,
+            username: "",
+        })
+        for (const row of parseMemberstoreRows(page1)) {
+            if (row.address.toLowerCase() === target) return toMember(row)
+        }
+        const maxPage = detectMaxPage(page1)
+        if (maxPage > 1) {
+            const pagePromises: Promise<string | null>[] = []
+            for (let p = 2; p <= Math.min(maxPage, 10); p++) {
+                pagePromises.push(queryRender(rpcUrl, memberstorePath, `members?page=${p}`))
+            }
+            for (const pageData of await Promise.all(pagePromises)) {
+                if (!pageData) continue
+                for (const row of parseMemberstoreRows(pageData)) {
+                    if (row.address.toLowerCase() === target) return toMember(row)
                 }
             }
-            const next = nextMemberstorePage(data, page)
-            if (next === null || !foundNew) break
-            page = next
         }
         return null
     }
@@ -351,39 +353,29 @@ export function parseMemberstoreRows(data: string): { tier: string; address: str
     return rows
 }
 
-/** Extract the next memberstore page number from a "[2](?page=2)" link, or null. */
-function nextMemberstorePage(data: string, current: number): number | null {
-    const match = data.match(/\[\d+\]\(\??.*?page=(\d+)\)/)
-    if (!match) return null
-    const next = parseInt(match[1], 10)
-    return next > current ? next : null
-}
-
 /**
  * Fetch all pages of memberstore members.
  * GovDAO v3 ABCI returns markdown table rows:
  *   | ![T1 chip](base64...) T1 | g1address |
- * Paginates at ~14/page. Next page link: [2](?page=2)
+ * Paginates at 14/page (r/gov/dao/v3/memberstore rendermembers.gno). Pages
+ * 2..max are fetched in parallel off page 1's max-page scan: the bptree
+ * pager's Picker leads with the BACK-link ("[1](?page=1) | **2** | …") on
+ * pages ≥ 2, so a follow-the-first-link walk stopped at page 2 and silently
+ * truncated rosters past ~28 members.
  */
 async function fetchAllMemberstorePages(
     rpcUrl: string,
     memberstorePath: string,
 ): Promise<DAOMember[]> {
+    const page1 = await queryRender(rpcUrl, memberstorePath, "members")
+    if (!page1) return []
+
     const allMembers: DAOMember[] = []
     const seen = new Set<string>()
-    let page = 1
-    const maxPages = 10 // safety limit
-
-    while (page <= maxPages) {
-        const renderPath = page === 1 ? "members" : `members?page=${page}`
-        const data = await queryRender(rpcUrl, memberstorePath, renderPath)
-        if (!data) break
-
-        let foundNew = false
+    const add = (data: string) => {
         for (const row of parseMemberstoreRows(data)) {
             if (seen.has(row.address)) continue
             seen.add(row.address)
-            foundNew = true
             allMembers.push({
                 address: row.address,
                 roles: [],
@@ -392,10 +384,19 @@ async function fetchAllMemberstorePages(
                 username: "",
             })
         }
+    }
 
-        const next = nextMemberstorePage(data, page)
-        if (next === null || !foundNew) break
-        page = next
+    add(page1)
+
+    const maxPage = detectMaxPage(page1)
+    if (maxPage > 1) {
+        const pagePromises: Promise<string | null>[] = []
+        for (let p = 2; p <= Math.min(maxPage, 10); p++) {
+            pagePromises.push(queryRender(rpcUrl, memberstorePath, `members?page=${p}`))
+        }
+        for (const pageData of await Promise.all(pagePromises)) {
+            if (pageData) add(pageData)
+        }
     }
 
     return allMembers

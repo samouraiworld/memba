@@ -24,6 +24,9 @@ Full changelogs are split by version range for easier navigation:
 <!-- categories: memba -->
 - **Saving MembaDAO to your watched DAOs never produced a "New Proposal" notification.** The alert counted proposals off the DAO's front page — and this DAO's front page doesn't carry a counter; its counts live on the proposals and history pages. The watcher now reads them from where they actually are, so a new proposal in a watched DAO of this kind rings the bell like any other.
 
+### Large DAO member lists no longer cut off at two pages (2026-08-27)
+<!-- categories: memba -->
+- **DAOs whose members are organized in tiers (like GovDAO) silently showed at most ~28 members.** The member list walked the on-chain pages by following "next page" links — but from page two onward, the first link on each page points *back* to page one, so the walk stopped there. The list now reads how many pages exist up front and fetches them all — room for ten times the largest current roster. Finding a specific member's role got the same fix.
 
 ### The MembaDAO page can now read its own DAO (2026-08-27)
 <!-- categories: memba -->
