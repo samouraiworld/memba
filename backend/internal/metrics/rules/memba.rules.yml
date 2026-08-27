@@ -1,0 +1,284 @@
+# Memba backend — Prometheus alerting & recording rules.
+#
+# WHY THIS FILE EXISTS. The backend has emitted 21 `memba_*` metrics for months,
+# and `docs/OPS_RUNBOOK.md` §3.4 specified a threshold for most of them — but only
+# as prose in a markdown table. Prose does not page anyone. Nothing executable
+# existed, so every documented threshold was, in practice, unarmed. This file is
+# §3.4 made executable; §3.4 remains the narrative and the action text.
+#
+# SCOPE AND HONESTY. Rules here are written ONLY for metrics the backend actually
+# emits — verified against live call sites, not against the declaration. A rule on
+# a declared-but-never-incremented metric can never fire while looking like
+# coverage, which is worse than no rule at all. `rules_test.go` enforces both
+# directions: every metric named here must exist, and every emitted metric must be
+# either covered or listed as deliberately uncovered.
+#
+# WIRING IS NOT DONE BY THIS FILE. It still needs a scraper pointed at
+# `GET /metrics` on memba-backend (bearer-gated by `METRICS_BEARER` — the raw
+# token, no `Bearer ` prefix) and an Alertmanager route to `#memba-alerts`. Until
+# that exists this file is correct and inert. Owner-side, on the gnomonitoring VPS.
+#
+# CARDINALITY NOTE ON THE INDEXER RULES. §3.4 is emphatic: alert PER `indexer`
+# label, never on the unlabeled family, because the live indexer masks the stalled
+# one — "how this class went silent twice". Every indexer rule below is therefore
+# written as a bare per-series expression with no aggregation, so Prometheus
+# produces one independent alert per label value, and a future third indexer is
+# covered the day it first reports.
+#
+# Thresholds are §3.4's starting points. Tune to observed baselines once a scraper
+# has history; a threshold nobody has calibrated will either cry wolf or stay quiet.
+
+groups:
+  # ───────────────────────────────────────────────────────────────────────────
+  - name: memba.rpc
+    interval: 30s
+    rules:
+      - alert: MembaRPCPanic
+        # Any panic at all is a bug that reached a user. §3.4: "pages immediately".
+        expr: increase(memba_rpc_duration_seconds_count{code="panic"}[5m]) > 0
+        labels:
+          severity: page
+          service: memba-backend
+        annotations:
+          summary: "A Memba RPC handler panicked ({{ $labels.procedure }})"
+          description: >-
+            {{ $value | printf "%.0f" }} panic(s) in 5m on {{ $labels.procedure }}.
+            A handler is panicking — check Sentry and `fly logs -a memba-backend`.
+          runbook: "docs/OPS_RUNBOOK.md#34-prometheus-metrics--signals--alert-thresholds"
+
+      - alert: MembaRPCErrorRatioHigh
+        expr: >-
+          sum(rate(memba_rpc_duration_seconds_count{code!="ok"}[5m]))
+          / sum(rate(memba_rpc_duration_seconds_count[5m])) > 0.05
+        for: 5m
+        labels:
+          severity: page
+          service: memba-backend
+        annotations:
+          summary: "Memba RPC error ratio above 5%"
+          description: >-
+            {{ $value | humanizePercentage }} of RPCs are returning a non-ok code.
+            Break down by `code` (internal / unauthenticated / panic) to localise.
+          runbook: "docs/OPS_RUNBOOK.md#34-prometheus-metrics--signals--alert-thresholds"
+
+      - alert: MembaRPCLatencyP99High
+        expr: >-
+          histogram_quantile(
+            0.99,
+            sum by (le, procedure) (rate(memba_rpc_duration_seconds_bucket[5m]))
+          ) > 1
+        for: 5m
+        labels:
+          severity: warn
+          service: memba-backend
+        annotations:
+          summary: "Memba RPC p99 over 1s ({{ $labels.procedure }})"
+          description: >-
+            p99 is {{ $value | printf "%.2f" }}s. Check the handler and the DB
+            contention signals below — the pool is a single writer.
+          runbook: "docs/OPS_RUNBOOK.md#34-prometheus-metrics--signals--alert-thresholds"
+
+      - alert: MembaRPCInFlightPiling
+        # Leading indicator: a histogram only records AFTER completion, so a wedge
+        # shows here before it shows in latency. §3.4. Tune 20 to real traffic.
+        expr: memba_rpc_in_flight > 20
+        for: 2m
+        labels:
+          severity: warn
+          service: memba-backend
+        annotations:
+          summary: "Memba RPCs piling up in flight"
+          description: >-
+            {{ $value }} concurrent RPCs for 2m — usually the single-writer SQLite
+            lock. Pair with the DB pool alerts.
+          runbook: "docs/OPS_RUNBOOK.md#34-prometheus-metrics--signals--alert-thresholds"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  - name: memba.db
+    interval: 30s
+    rules:
+      - alert: MembaDBSaturated
+        # THE primary DB-saturation signal per §3.4: fraction of wall-clock time
+        # RPCs spend blocked on the lock (1.0 = fully saturated).
+        expr: rate(memba_db_wait_duration_seconds_total[5m]) > 0.5
+        for: 5m
+        labels:
+          severity: page
+          service: memba-backend
+        annotations:
+          summary: "Memba SQLite writer saturated"
+          description: >-
+            RPCs spend {{ $value | humanizePercentage }} of wall-clock blocked on
+            the DB lock. Look for a long write, a migration, or indexer contention.
+          runbook: "docs/OPS_RUNBOOK.md#34-prometheus-metrics--signals--alert-thresholds"
+
+      - alert: MembaDBWaitQueueGrowing
+        # Corroborates the above rather than standing alone — hence warn, and
+        # gated on the pool actually being held.
+        expr: >-
+          rate(memba_db_wait_count_total[5m]) > 1
+          and memba_db_connections_in_use >= 1
+        for: 5m
+        labels:
+          severity: warn
+          service: memba-backend
+        annotations:
+          summary: "Goroutines queuing for the Memba DB connection"
+          description: >-
+            {{ $value | printf "%.2f" }} waits/s with the single writer held.
+            Corroborates MembaDBSaturated; check that first.
+          runbook: "docs/OPS_RUNBOOK.md#34-prometheus-metrics--signals--alert-thresholds"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  - name: memba.indexer
+    interval: 30s
+    rules:
+      - alert: MembaIndexerLagging
+        # Per-series on purpose (see the cardinality note in the header): one
+        # alert per `indexer` label, so a live feed cannot mask a stalled nft.
+        expr: memba_indexer_lag_blocks > 30
+        for: 2m
+        labels:
+          severity: page
+          service: memba-backend
+        annotations:
+          summary: "Memba {{ $labels.indexer }} indexer lagging {{ $value }} blocks"
+          description: >-
+            Behind the tip for 2m. Check RPC health and the tailer logs. The feed
+            tailer also logs a `feed tailer: progress` heartbeat every 5 min — its
+            absence in `fly logs` is the log-side signal for the same fault.
+          runbook: "docs/OPS_RUNBOOK.md#34-prometheus-metrics--signals--alert-thresholds"
+
+      - alert: MembaIndexerFrozen
+        # The ~150k-block silent stall class: the cursor stops while the chain
+        # keeps moving. Lag alone can miss it if chain_head is also stale, so this
+        # asserts the two independently and joins on the indexer label.
+        expr: >-
+          increase(memba_indexer_last_block[10m]) == 0
+          and on (indexer) increase(memba_indexer_chain_head[10m]) > 0
+        for: 5m
+        labels:
+          severity: page
+          service: memba-backend
+        annotations:
+          summary: "Memba {{ $labels.indexer }} indexer is frozen"
+          description: >-
+            Cursor has not advanced in 10m while the chain head has. This is the
+            silent-stall class that went unnoticed twice. Restart and investigate.
+          runbook: "docs/OPS_RUNBOOK.md#34-prometheus-metrics--signals--alert-thresholds"
+
+      - alert: MembaIndexerCyclePanics
+        expr: increase(memba_indexer_cycle_panics_total[15m]) > 0
+        labels:
+          severity: page
+          service: memba-backend
+        annotations:
+          summary: "Memba indexer cycle panicked ({{ $labels.cycle }})"
+          description: >-
+            A tailer cycle panicked and was recovered. Recovery keeps the process
+            alive but the cycle's work was lost — investigate before it compounds.
+          runbook: "docs/OPS_RUNBOOK.md#34-prometheus-metrics--signals--alert-thresholds"
+
+      - alert: MembaNFTEventDropped
+        # Money path: a Sale/mint was skipped as malformed, i.e. on-chain event
+        # schema drifted from what the tailer parses.
+        expr: increase(memba_nft_event_dropped_total[1h]) > 0
+        labels:
+          severity: page
+          service: memba-backend
+        annotations:
+          summary: "Memba dropped an on-chain NFT event ({{ $labels.event }})"
+          description: >-
+            {{ $value | printf "%.0f" }} event(s) skipped as malformed in 1h —
+            on-chain event-schema drift. Inspect the `event` label and the logs.
+          runbook: "docs/OPS_RUNBOOK.md#34-prometheus-metrics--signals--alert-thresholds"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  - name: memba.auth
+    interval: 60s
+    rules:
+      # Recording rule, not an alert: §3.4 says watch, do not page. This is the
+      # gate signal for flipping MEMBA_ALLOW_UNSIGNED_AUTH — flip only at ≈ 100%.
+      #
+      # `result="signed"` is an EXACT match on purpose: `=~"signed"` would also
+      # match `signed_invalid` and `signed_invalid_rejected` and inflate the ratio
+      # into a false green.
+      - record: memba:auth_signed_login_ratio:rate1h
+        expr: >-
+          sum(rate(memba_auth_login_total{result="signed"}[1h]))
+          / sum(rate(memba_auth_login_total[1h]))
+
+      - alert: MembaMultisigSigMismatch
+        # Live A3 verification. A single mismatch means a stored signature does
+        # not verify — blocks the MEMBA_ENFORCE_MULTISIG_SIG_VERIFY flip (U-3).
+        expr: increase(memba_multisig_sig_verify_total{result="mismatch"}[1h]) > 0
+        labels:
+          severity: page
+          service: memba-backend
+        annotations:
+          summary: "Memba multisig signature mismatch observed"
+          description: >-
+            {{ $value | printf "%.0f" }} mismatch(es) in 1h. Investigate before
+            enabling MEMBA_ENFORCE_MULTISIG_SIG_VERIFY.
+          runbook: "docs/MULTISIG_ENFORCE_RUNBOOK.md"
+
+      - alert: MembaMultisigSweepMismatch
+        # Boot-time retro-verification of stored signatures. `legacy_shape` is
+        # expected on old rows; `mismatch` is the blocker.
+        expr: memba_multisig_sig_verify_sweep{result="mismatch"} > 0
+        labels:
+          severity: page
+          service: memba-backend
+        annotations:
+          summary: "Memba multisig sweep found {{ $value }} mismatching signature(s)"
+          description: >-
+            Boot sweep found stored signatures that do not verify. This blocks the
+            enforce flip (U-3).
+          runbook: "docs/MULTISIG_ENFORCE_RUNBOOK.md"
+
+      # ⚠️ READ BEFORE USING EITHER MULTISIG SIGNAL AS A GO/NO-GO.
+      # Both are *Vec metrics: a label value has NO series until it is first
+      # observed. So "mismatch == 0" is indistinguishable from "nothing has been
+      # measured yet", and a gate phrased as `mismatch == 0` passes vacuously on a
+      # quiet system. The correct gate needs POSITIVE evidence — require
+      # `memba:multisig_verify_ok:increase1h > 0` as well, so you know the path
+      # actually ran before you conclude it is clean.
+      - record: memba:multisig_verify_ok:increase1h
+        expr: sum(increase(memba_multisig_sig_verify_total{result="ok"}[1h]))
+
+      - alert: MembaQuestRateLimitSpike
+        # Quest farming / sybil pressure: wallets hitting quota in lockstep.
+        # No absolute baseline exists yet — this fires on a 5x jump over the day's
+        # own average rather than a hardcoded count, so it survives growth.
+        expr: >-
+          rate(memba_quest_rate_limit_exceeded_total[15m])
+          > 5 * (avg_over_time(rate(memba_quest_rate_limit_exceeded_total[15m])[1d:15m]) + 0.001)
+        for: 15m
+        labels:
+          severity: warn
+          service: memba-backend
+        annotations:
+          summary: "Memba quest rate-limiting spiked ({{ $labels.endpoint }})"
+          description: >-
+            Rate-limit rejections are 5x their daily average — likely farming or a
+            sybil cohort hitting quota together.
+          runbook: "docs/OPS_RUNBOOK.md#34-prometheus-metrics--signals--alert-thresholds"
+
+  # ───────────────────────────────────────────────────────────────────────────
+  - name: memba.moderation
+    interval: 60s
+    rules:
+      - alert: MembaRenderBlocklistFailClosed
+        # F-20. `db_error` means /api/render could not reach the blocklist and is
+        # suppressing posts to stay fail-closed: correct behaviour, wrong state —
+        # real content is being withheld until the DB recovers.
+        expr: increase(memba_render_blocklist_suppressed_total{reason="db_error"}[15m]) > 0
+        labels:
+          severity: page
+          service: memba-backend
+        annotations:
+          summary: "Memba /api/render is fail-closed on a blocklist DB error"
+          description: >-
+            {{ $value | printf "%.0f" }} render(s) suppressed in 15m because the
+            blocklist lookup failed. Posts are being withheld — fix the DB path.
+          runbook: "docs/FEED_MODERATION_RUNBOOK.md"
