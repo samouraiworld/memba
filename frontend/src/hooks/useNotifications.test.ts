@@ -33,8 +33,14 @@ vi.mock("../lib/notifications", () => ({
     getUnreadCount: vi.fn(),
 }))
 vi.mock("../lib/config", () => ({ GNO_RPC_URL: "http://rpc.test" }))
-vi.mock("../lib/dao/shared", () => ({ queryRender: vi.fn() }))
-vi.mock("../lib/daoMetadata", () => ({ parseDAORender: vi.fn() }))
+vi.mock("../lib/dao/shared", () => ({
+    queryRender: vi.fn(),
+    queryRenderPage: vi.fn(),
+    // Default false: the daokit sub-page hop must never trigger for the
+    // pre-existing scenarios, which model counter-carrying root renders.
+    hasOwnSubpageLink: vi.fn(() => false),
+}))
+vi.mock("../lib/daoMetadata", () => ({ parseDAORender: vi.fn(), parseDaokitSectionCount: vi.fn() }))
 vi.mock("../lib/daoSlug", () => ({ encodeSlug: vi.fn(() => "samourai-dao") }))
 vi.mock("../lib/dao", () => ({ getDAOProposals: vi.fn() }))
 
@@ -44,8 +50,8 @@ import {
     markAllRead as markAllReadFn,
     getUnreadCount,
 } from "../lib/notifications"
-import { queryRender } from "../lib/dao/shared"
-import { parseDAORender } from "../lib/daoMetadata"
+import { queryRender, queryRenderPage, hasOwnSubpageLink } from "../lib/dao/shared"
+import { parseDAORender, parseDaokitSectionCount } from "../lib/daoMetadata"
 import { getDAOProposals } from "../lib/dao"
 import { useNotifications } from "./useNotifications"
 
@@ -96,6 +102,9 @@ describe("useNotifications", () => {
         vi.mocked(addNotification).mockReset()
         vi.mocked(markAllReadFn).mockReset()
         vi.mocked(queryRender).mockReset().mockResolvedValue("raw render")
+        vi.mocked(queryRenderPage).mockReset().mockResolvedValue(null)
+        vi.mocked(hasOwnSubpageLink).mockReset().mockReturnValue(false)
+        vi.mocked(parseDaokitSectionCount).mockReset().mockReturnValue(null)
         vi.mocked(parseDAORender).mockReset().mockReturnValue(meta(0))
         vi.mocked(getDAOProposals).mockReset().mockResolvedValue([])
     })
@@ -146,6 +155,48 @@ describe("useNotifications", () => {
         rerender({ address: null })
         expect(result.current.notifications).toEqual([])
         expect(result.current.unreadCount).toBe(0)
+    })
+
+
+    it("daokit landing: the count comes from the sub-page section headers, so New Proposal fires for daokit DAOs", async () => {
+        vi.useFakeTimers()
+        // The landing page carries no counters (parseDAORender → 0) but links
+        // its own :proposals — the pre-fix behavior pinned the count at 0
+        // forever and no daokit DAO ever produced a New Proposal notification.
+        let activeCount = 1
+        vi.mocked(parseDAORender).mockReturnValue(meta(0))
+        vi.mocked(hasOwnSubpageLink).mockReturnValue(true)
+        vi.mocked(queryRenderPage).mockImplementation(async (_rpc: string, _path: string, renderPath: string) =>
+            renderPath === "proposals" ? "ACTIVE_PAGE" : "HISTORY_PAGE")
+        vi.mocked(parseDaokitSectionCount).mockImplementation((raw: string) =>
+            raw === "HISTORY_PAGE" ? 1 : activeCount)
+
+        renderHook(() => useNotifications([DAO], ADDR_A))
+        await flushAsync()
+        // Baseline: 1 active + 1 history = 2 total, recorded without notifying.
+        expect(vi.mocked(addNotification)).not.toHaveBeenCalled()
+
+        activeCount = 2 // a new proposal lands
+        await flushAsync(POLL_INTERVAL_MS)
+
+        expect(vi.mocked(addNotification)).toHaveBeenCalledWith(ADDR_A, expect.objectContaining({
+            type: "proposal_new",
+            title: "New Proposal #3", // total is monotonic: 2 → 3
+            daoPath: DAO,
+        }))
+    })
+
+    it("a daokit DAO with truly zero proposals records 0 without notifying (headers present, count 0)", async () => {
+        vi.useFakeTimers()
+        vi.mocked(parseDAORender).mockReturnValue(meta(0))
+        vi.mocked(hasOwnSubpageLink).mockReturnValue(true)
+        vi.mocked(queryRenderPage).mockResolvedValue("EMPTY_PAGE")
+        vi.mocked(parseDaokitSectionCount).mockReturnValue(0)
+
+        renderHook(() => useNotifications([DAO], ADDR_A))
+        await flushAsync()
+        await flushAsync(POLL_INTERVAL_MS)
+        expect(vi.mocked(addNotification)).not.toHaveBeenCalled()
     })
 
     it("creates a proposal_new notification when the poll sees a higher proposal count", async () => {
