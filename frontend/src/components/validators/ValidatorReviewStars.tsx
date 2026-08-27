@@ -11,7 +11,7 @@
  * page resolves these via resolveReviewSubjects and passes them in, so the ★
  * count matches the profile page exactly. See validatorReviewsData for why.
  */
-import { useEffect, useState } from "react"
+import { useQuery } from "@tanstack/react-query"
 import {
     getValidatorReviewSummary,
     getValidatorTopReviews,
@@ -24,22 +24,25 @@ import type { SubjectSummary, OnChainReview } from "../../lib/reviews"
 
 /** ★★★☆☆-style compact rating, or a muted dash when unreviewed. */
 export function ValidatorReviewStars({ subject, aliases }: { subject: string; aliases?: string[] }) {
-    const [summary, setSummary] = useState<SubjectSummary | null>(peekSummary(subject))
-    // aliases is a fresh array each render — depend on a stable joined key.
+    // aliases is a fresh array each render — key on a stable joined form.
     const aliasKey = (aliases ?? []).join(",")
 
-    useEffect(() => {
-        if (!subject || peekSummary(subject) !== null) {
-            setSummary(subject ? peekSummary(subject) : null)
-            return
-        }
-        let cancelled = false
-        getValidatorReviewSummary(subject, aliases ?? [])
-            .then(s => { if (!cancelled) setSummary(s) })
-            .catch(() => { if (!cancelled) setSummary({ count: 0, average: 0, sum: 0 }) })
-        return () => { cancelled = true }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [subject, aliasKey])
+    // getValidatorReviewSummary keeps its own module-level dedupe cache (50
+    // table rows share it); initialData taps it so an already-fetched subject
+    // renders instantly, exactly like the old peek-first effect did.
+    const summaryQuery = useQuery({
+        queryKey: ["reviews", "validator-summary", subject, aliasKey],
+        enabled: !!subject,
+        initialData: () => peekSummary(subject) ?? undefined,
+        queryFn: async () => {
+            try {
+                return await getValidatorReviewSummary(subject, aliases ?? [])
+            } catch {
+                return { count: 0, average: 0, sum: 0 }
+            }
+        },
+    })
+    const summary: SubjectSummary | null = subject ? (summaryQuery.data ?? null) : null
 
     if (!subject || summary === null) {
         return <span className="val-stars val-stars--pending" aria-hidden="true">·</span>
@@ -67,20 +70,24 @@ export function ValidatorReviewStars({ subject, aliases }: { subject: string; al
 
 /** Recent review lines for the row hover card (mounts on hover ⇒ lazy). */
 export function ValidatorReviewPreview({ subject, aliases }: { subject: string; aliases?: string[] }) {
-    const [reviews, setReviews] = useState<OnChainReview[] | null>(peekReviews(subject)?.slice(0, 3) ?? null)
     const aliasKey = (aliases ?? []).join(",")
 
-    useEffect(() => {
-        if (!subject || peekReviews(subject) !== null) return
-        let cancelled = false
-        getValidatorTopReviews(subject, aliases ?? [])
-            .then(r => { if (!cancelled) setReviews(r) })
-            .catch(() => { if (!cancelled) setReviews([]) })
-        return () => { cancelled = true }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [subject, aliasKey])
+    // Mounts on hover ⇒ the query fires lazily by construction; peekReviews
+    // seeds an already-fetched subject so the card never flickers.
+    const reviewsQuery = useQuery({
+        queryKey: ["reviews", "validator-top", subject, aliasKey],
+        enabled: !!subject,
+        initialData: () => peekReviews(subject) ?? undefined,
+        queryFn: async () => {
+            try {
+                return await getValidatorTopReviews(subject, aliases ?? [])
+            } catch {
+                return [] as OnChainReview[]
+            }
+        },
+    })
 
-    const visible = (reviews ?? []).filter(r => !r.deleted).slice(0, 3)
+    const visible = (reviewsQuery.data ?? []).filter(r => !r.deleted).slice(0, 3)
     if (!subject || visible.length === 0) return null
 
     return (

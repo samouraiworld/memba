@@ -12,12 +12,12 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from "react"
+import { useQuery } from "@tanstack/react-query"
 import DOMPurify from "dompurify"
 import { GNO_RPC_URL, getExplorerBaseUrlFor } from "../../lib/config"
 import { queryRender } from "../../lib/dao/shared"
 import { useNetwork } from "../../hooks/useNetwork"
 import { fetchRealmSourceSmart } from "../../lib/gnowebSource"
-import type { RealmSource } from "../../lib/gnowebSource"
 import { renderMarkdown } from "../../lib/markdownLite"
 import { SourceCodeView } from "./SourceCodeView"
 import { ExplorerLink } from "./ExplorerLink"
@@ -39,13 +39,10 @@ interface RealmDetailDrawerProps {
 export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: RealmDetailDrawerProps) {
     const { networkKey } = useNetwork()
     const [tab, setTab] = useState<DrawerTab>(isPackage ? "source" : "render")
-    const [renderOutput, setRenderOutput] = useState<string | null>(null)
-    const [renderLoading, setRenderLoading] = useState(!isPackage)
-    const [source, setSource] = useState<RealmSource | null>(null)
-    const [sourceLoading, setSourceLoading] = useState(true)
-    const [sourceActiveFile, setSourceActiveFile] = useState<string>("")
-    // Bumping re-runs the source fetch (retry button on the unavailable state).
-    const [sourceRetryNonce, setSourceRetryNonce] = useState(0)
+    // The user's file pick; falls back to the source's first file, and a pick
+    // that doesn't exist in the current source (drawer reused for another
+    // realm) falls back too instead of rendering nothing.
+    const [pickedFile, setPickedFile] = useState<string | null>(null)
     const [visible, setVisible] = useState(false)
     const drawerRef = useRef<HTMLDivElement>(null)
 
@@ -72,28 +69,40 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
     // P1 fix: use active network key instead of hardcoded "gnoland1"
     const resolvedGnowebUrl = gnowebUrl || getExplorerBaseUrlFor(networkKey)
 
-    // Fetch Render() output
-    useEffect(() => {
-        if (isPackage) return
-        queryRender(GNO_RPC_URL, path, "")
-            .then(raw => setRenderOutput(raw || "No Render() output available."))
-            .catch(() => setRenderOutput("Failed to fetch Render() output."))
-            .finally(() => setRenderLoading(false))
-    }, [path, isPackage])
+    // Render() output — packages have none, so the query stays disabled there.
+    const renderQuery = useQuery({
+        queryKey: ["realm", "render", path],
+        enabled: !isPackage,
+        queryFn: async () => {
+            try {
+                return (await queryRender(GNO_RPC_URL, path, "")) || "No Render() output available."
+            } catch {
+                return "Failed to fetch Render() output."
+            }
+        },
+    })
+    const renderOutput = renderQuery.data ?? null
+    const renderLoading = !isPackage && renderQuery.isPending
 
-    // Fetch source code — RPC vm/qfile first (CORS-safe), gnoweb scrape fallback.
-    useEffect(() => {
-        // Convert "gno.land/r/samcrew/dao" to "/r/samcrew/dao"
-        const realmPath = path.startsWith("gno.land") ? path.replace("gno.land", "") : path
-        setSourceLoading(true)
-        fetchRealmSourceSmart(resolvedGnowebUrl, realmPath)
-            .then(src => {
-                setSource(src)
-                if (src?.files[0]) setSourceActiveFile(src.files[0].name)
-            })
-            .catch(() => setSource(null))
-            .finally(() => setSourceLoading(false))
-    }, [path, resolvedGnowebUrl, sourceRetryNonce])
+    // Source code — RPC vm/qfile first (CORS-safe), gnoweb scrape fallback.
+    // The old retry nonce becomes refetch().
+    const sourceQuery = useQuery({
+        queryKey: ["realm", "source", path, resolvedGnowebUrl],
+        queryFn: async () => {
+            const realmPath = path.startsWith("gno.land") ? path.replace("gno.land", "") : path
+            try {
+                return await fetchRealmSourceSmart(resolvedGnowebUrl, realmPath)
+            } catch {
+                return null
+            }
+        },
+    })
+    const source = sourceQuery.data ?? null
+    const sourceLoading = sourceQuery.isPending
+    const sourceActiveFile =
+        pickedFile && source?.files.some(f => f.name === pickedFile)
+            ? pickedFile
+            : (source?.files[0]?.name ?? "")
 
     // Derive short name from path
     const shortName = path.split("/").pop() || path
@@ -194,7 +203,7 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
                                     <button
                                         type="button"
                                         className="drawer-empty__retry"
-                                        onClick={() => setSourceRetryNonce(n => n + 1)}
+                                        onClick={() => void sourceQuery.refetch()}
                                     >
                                         Retry
                                     </button>
@@ -211,7 +220,7 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
                                     <FileTree
                                         files={source.files}
                                         onFileClick={name => {
-                                            setSourceActiveFile(name)
+                                            setPickedFile(name)
                                             setTab("source")
                                         }}
                                     />
@@ -242,7 +251,7 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
                                     <button
                                         type="button"
                                         className="drawer-empty__retry"
-                                        onClick={() => setSourceRetryNonce(n => n + 1)}
+                                        onClick={() => void sourceQuery.refetch()}
                                     >
                                         Retry
                                     </button>
