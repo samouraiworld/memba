@@ -136,6 +136,9 @@ export function DAOHome() {
         }
         return {
             ...p,
+            // daokit list rows carry the resource name, not the title — adopt the
+            // detail title when it parsed to something real.
+            title: detail?.title && detail.title !== `Proposal #${p.id}` ? detail.title : p.title,
             yesPercent: detail?.yesPercent || (totalCount > 0 ? Math.round((yesCount / totalCount) * 100) : 0),
             noPercent: detail?.noPercent || (totalCount > 0 ? Math.round((noCount / totalCount) * 100) : 0),
             yesVotes: detail?.yesVotes || yesCount,

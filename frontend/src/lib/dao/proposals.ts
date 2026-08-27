@@ -28,6 +28,48 @@ export function invalidateProposalCache(realmPath: string): void {
     }
 }
 
+/** Convert daokit's "2026-08-27 10:12:05 UTC+00:00" table cell to ISO, or undefined. */
+function daokitCellToISO(cell: string): string | undefined {
+    const m = cell.trim().match(/^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2}) UTC([+-]\d{2}:\d{2})$/)
+    return m ? `${m[1]}T${m[2]}${m[3]}` : undefined
+}
+
+/**
+ * Parse gnodaokit/basedao proposal-table rows (deployed RenderProposalsTable):
+ * | [N](path:proposal/N) | Resource name | [g1…](/u/g1full) | 2026-08-27 10:12:05 UTC+00:00 | Open |
+ * The table has no title column — the resource display name stands in until
+ * detail enrichment (Render("proposal/N")) supplies the real title.
+ */
+export function parseDaokitProposalRows(data: string): DAOProposal[] {
+    const proposals: DAOProposal[] = []
+    const re = /^\|\s*\[(\d+)\]\([^)]*:proposal\/\d+\)\s*\|([^|]*)\|([^|]*)\|([^|]*)\|([^|]*)\|/gm
+    let m: RegExpExecArray | null
+    while ((m = re.exec(data)) !== null) {
+        const proposer = m[3].match(/\]\(\/u\/(g1[a-z0-9]+)\)/)?.[1]
+            || m[3].match(/(g1[a-z0-9]{6,})/)?.[1]
+            || ""
+        proposals.push({
+            id: parseInt(m[1], 10),
+            title: unescapeMarkdown(m[2].trim()),
+            description: "",
+            category: "",
+            status: normalizeStatus(m[5].trim() || "open"),
+            author: proposer,
+            authorProfile: "",
+            tiers: [],
+            yesPercent: 0,
+            noPercent: 0,
+            yesVotes: 0,
+            noVotes: 0,
+            abstainVotes: 0,
+            totalVoters: 0,
+            proposer,
+            createdAt: daokitCellToISO(m[4]),
+        })
+    }
+    return proposals
+}
+
 /**
  * Parse proposal list from GovDAO v3 Render("") output.
  * Format:
@@ -35,8 +77,14 @@ export function invalidateProposalCache(realmPath: string): void {
  * Author: [@username](profile)
  * Status: ACTIVE
  * Tiers eligible to vote: T1, T2, T3
+ * Also handles gnodaokit/basedao markdown tables (see parseDaokitProposalRows).
  */
 export function parseProposalList(data: string): DAOProposal[] {
+    // gnodaokit/basedao renders proposals as a markdown table; a page carrying
+    // one never also carries GovDAO-style sections, so table rows win outright.
+    const tableRows = parseDaokitProposalRows(data)
+    if (tableRows.length > 0) return tableRows
+
     const proposals: DAOProposal[] = []
 
     // Split by proposal headers
@@ -123,6 +171,32 @@ function detectMaxPage(data: string): number {
 }
 
 /**
+ * Fetch one gnodaokit sub-page ("proposals" or "history") with its pagination
+ * (the avl/pager Picker renders "[2](?page=2)" links, same as detectMaxPage).
+ */
+async function fetchDaokitProposalPages(
+    rpcUrl: string,
+    realmPath: string,
+    base: "proposals" | "history",
+    strict: boolean,
+): Promise<DAOProposal[]> {
+    const page1 = await queryRender(rpcUrl, realmPath, base, strict)
+    if (!page1) return []
+    const out = parseProposalList(page1)
+    const maxPage = detectMaxPage(page1)
+    if (maxPage > 1) {
+        const pagePromises: Promise<string | null>[] = []
+        for (let p = 2; p <= Math.min(maxPage, 10); p++) {
+            pagePromises.push(queryRender(rpcUrl, realmPath, `${base}?page=${p}`))
+        }
+        for (const pageData of await Promise.all(pagePromises)) {
+            if (pageData) out.push(...parseProposalList(pageData))
+        }
+    }
+    return out
+}
+
+/**
  * Fetch DAO proposals via Render("") markdown parsing.
  * Supports GovDAO v3 format with author, tiers, and basedao format.
  * Automatically handles pagination — fetches all pages to get complete proposal history.
@@ -180,18 +254,30 @@ export async function getDAOProposals(
     if (!page1) return []
 
     const proposals = parseProposalList(page1)
-    const maxPage = detectMaxPage(page1)
 
-    // Fetch remaining pages in parallel (cap at 10 to prevent runaway loops)
-    if (maxPage > 1) {
-        const pagePromises: Promise<string | null>[] = []
-        for (let p = 2; p <= Math.min(maxPage, 10); p++) {
-            pagePromises.push(queryRender(rpcUrl, realmPath, `?page=${p}`))
-        }
-        const pages = await Promise.all(pagePromises)
-        for (const pageData of pages) {
-            if (pageData) {
-                proposals.push(...parseProposalList(pageData))
+    if (proposals.length === 0 && /\]\([^)]*:proposals\)/.test(page1)) {
+        // gnodaokit/basedao (the deployed memba_dao): Render("") is a landing
+        // page linking to :proposals / :history — the tables live there. The
+        // active list keeps the caller's strict flag (it IS the primary read);
+        // history is supplementary and stays non-strict.
+        const [active, history] = await Promise.all([
+            fetchDaokitProposalPages(rpcUrl, realmPath, "proposals", strict),
+            fetchDaokitProposalPages(rpcUrl, realmPath, "history", false),
+        ])
+        proposals.push(...active, ...history)
+    } else {
+        // Fetch remaining pages in parallel (cap at 10 to prevent runaway loops)
+        const maxPage = detectMaxPage(page1)
+        if (maxPage > 1) {
+            const pagePromises: Promise<string | null>[] = []
+            for (let p = 2; p <= Math.min(maxPage, 10); p++) {
+                pagePromises.push(queryRender(rpcUrl, realmPath, `?page=${p}`))
+            }
+            const pages = await Promise.all(pagePromises)
+            for (const pageData of pages) {
+                if (pageData) {
+                    proposals.push(...parseProposalList(pageData))
+                }
             }
         }
     }
@@ -283,6 +369,45 @@ export async function getProposalDetail(
             data = await queryRender(rpcUrl, realmPath, `:${id}`)
         }
         if (!data) return null
+
+        // gnodaokit/basedao detail page (deployed ProposalDetailPageView):
+        // "## Title - <t> 📜", "## Description 📝", "## Status - Open 🟡",
+        // votes as membersThresholdCond counts ("Yes: 1/3 = 33.3%"). Parsed as
+        // a self-contained leg so the generic heading fallbacks below can't
+        // grab the page header ("# MembaDAO - Proposal Detail") as the title.
+        const daokitTitle = data.match(/^##\s+Title\s+-\s+(.*?)\s*📜\s*$/m)
+        if (daokitTitle) {
+            const desc = data.match(/^##\s+Description\s+📝\s*\n\n([\s\S]*?)\n\n##\s+Resource\s+-/m)
+            const status = data.match(/^##\s+Status\s+-\s+(\w+)/m)
+            const yes = data.match(/Yes:\s*(\d+)\s*\/\s*(\d+)\s*=\s*([\d.]+)%/)
+            const no = data.match(/No:\s*(\d+)\s*\/\s*\d+\s*=\s*([\d.]+)%/)
+            const abstain = data.match(/Abstain:\s*(\d+)\s*\/\s*\d+\s*=/)
+            const proposer = data.match(/>\s*proposed by\s+(g1[a-z0-9]+)/)?.[1] || ""
+            const resource = data.match(/##\s+Resource\s*-\s*(.+?)\s*📦/m)
+            const action = data.match(/\*\*Condition:\*\*[^\n]*\n\n---\s*\n\n([\s\S]+?)\n\n---/m)
+            const yesVotes = yes ? parseInt(yes[1], 10) : 0
+            const noVotes = no ? parseInt(no[1], 10) : 0
+            const abstainVotes = abstain ? parseInt(abstain[1], 10) : 0
+            return {
+                id,
+                title: unescapeMarkdown(daokitTitle[1].trim()) || `Proposal #${id}`,
+                description: unescapeMarkdown((desc?.[1] || "").trim()),
+                category: "",
+                status: normalizeStatus(status?.[1] || "open"),
+                author: proposer,
+                authorProfile: "",
+                tiers: [],
+                yesPercent: yes ? Math.round(parseFloat(yes[3])) : 0,
+                noPercent: no ? Math.round(parseFloat(no[2])) : 0,
+                yesVotes,
+                noVotes,
+                abstainVotes,
+                totalVoters: yesVotes + noVotes + abstainVotes,
+                proposer,
+                actionType: resource?.[1]?.trim() || undefined,
+                actionBody: action?.[1]?.trim() || undefined,
+            }
+        }
 
         // Parse title
         const titleMatch = data.match(/(?:Prop\s+#\d+\s*-\s*|Proposal\s+#\d+[:\s]+)(.+?)(?:\n|$)/m)

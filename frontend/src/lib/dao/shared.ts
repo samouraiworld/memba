@@ -88,7 +88,14 @@ export type { AminoMsg }
  * Data format: "pkgpath:renderpath" (colon separator).
  */
 export async function queryRender(rpcUrl: string, pkgPath: string, renderPath: string, strict = false): Promise<string | null> {
-    return abciQuery(rpcUrl, "vm/qrender", `${pkgPath}:${sanitize(renderPath)}`, strict)
+    const data = await abciQuery(rpcUrl, "vm/qrender", `${pkgPath}:${sanitize(renderPath)}`, strict)
+    // gnodaokit realms route Render through p/nt/mux, which answers every
+    // unknown route with a literal "404" body — a *successful* query that must
+    // read as "no such page", or fallback chains (e.g. getProposalDetail's
+    // Render("1") → Render("proposal/1")) short-circuit on the first try and
+    // parse "404" as if it were content.
+    if (data !== null && data.trim() === "404") return null
+    return data
 }
 
 /**
@@ -244,7 +251,8 @@ export function normalizeStatus(s: string): DAOProposal["status"] {
     const lower = s.toLowerCase()
     if (lower.includes("accept") || lower.includes("pass")) return "passed"
     // "deni"/"deny" covers GovDAO v3's detail-render prose "PROPOSAL HAS BEEN DENIED"
-    if (lower.includes("reject") || lower.includes("fail") || lower.includes("deni") || lower.includes("deny")) return "rejected"
+    // "closed" is daokit's detail-page terminal state for anything not open/passed/executed
+    if (lower.includes("reject") || lower.includes("fail") || lower.includes("deni") || lower.includes("deny") || lower.includes("closed")) return "rejected"
     if (lower.includes("exec") || lower.includes("complete")) return "executed"
     if (lower.includes("active") || lower.includes("open") || lower === "") return "open"
     console.warn(`[normalizeStatus] Unknown proposal status: "${s}" — defaulting to "open"`)

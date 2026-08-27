@@ -8,10 +8,39 @@
 import { queryRender, queryEval, resolveUsernames, type DAOMember } from "./shared"
 
 /**
- * Parse members from basedao Render("") markdown output.
- * Supports v5.3.0 (roles + pipe), v5.2.0 (em dash), v5.0.x (power only).
+ * Parse gnodaokit/basedao members-table rows (deployed RenderMembersTable):
+ * | Name | [g1x7\.\.\.](/u/g1full) | [chip role](path:role/admin), … | [View](path:member/g1full) |
+ * The full address comes from the /u/ link (the display text is truncated);
+ * roles come from the :role/ link hrefs (immune to the inline SVG chips).
+ */
+export function parseDaokitMemberRows(data: string): DAOMember[] {
+    const members: DAOMember[] = []
+    const re = /^\|[^|]*\|[^|]*\]\(\/u\/(g1[a-z0-9]+)\)[^|]*\|([^|]*)\|[^|]*:member\/g1[a-z0-9]+\)[^|]*\|/gm
+    let m: RegExpExecArray | null
+    while ((m = re.exec(data)) !== null) {
+        const roles = [...m[2].matchAll(/:role\/([A-Za-z0-9_-]+)\)/g)].map((r) => r[1])
+        members.push({
+            address: m[1],
+            roles,
+            tier: "",
+            votingPower: 0,
+            username: "",
+        })
+    }
+    return members
+}
+
+/**
+ * Parse members from basedao Render output.
+ * Supports the gnodaokit members table, v5.3.0 bullets (roles + pipe),
+ * v5.2.0 (em dash), v5.0.x (power only).
  */
 export function parseMembersFromRender(data: string): DAOMember[] {
+    // gnodaokit/basedao renders members as a markdown table; when present it
+    // is authoritative (the bullet formats never coexist with it).
+    const tableRows = parseDaokitMemberRows(data)
+    if (tableRows.length > 0) return tableRows
+
     const members: DAOMember[] = []
     const re = /[-*]\s+(g\S+)(?:\s*\(([^)]+)\))?(?:\s*[—|]\s*power:\s*(\d+))?/g
     let match: RegExpExecArray | null
@@ -86,9 +115,47 @@ export async function getDAOMembers(
     const data = await queryRender(rpcUrl, realmPath, "")
     if (!data) return []
 
-    const members = parseMembersFromRender(data)
+    let members = parseMembersFromRender(data)
+
+    // gnodaokit/basedao: Render("") is a landing page linking to :members —
+    // the actual table (paginated at 10/page) lives there.
+    if (members.length === 0 && /\]\([^)]*:members\)/.test(data)) {
+        members = await fetchDaokitMemberPages(rpcUrl, realmPath)
+    }
+
     await resolveUsernames(rpcUrl, members)
     return members
+}
+
+/**
+ * Fetch all pages of a gnodaokit :members table. The avl/pager Picker renders
+ * "[2](?page=2)" links — same pagination contract as the memberstore pages.
+ */
+async function fetchDaokitMemberPages(rpcUrl: string, realmPath: string): Promise<DAOMember[]> {
+    const allMembers: DAOMember[] = []
+    const seen = new Set<string>()
+    let page = 1
+    const maxPages = 10 // safety limit
+
+    while (page <= maxPages) {
+        const renderPath = page === 1 ? "members" : `members?page=${page}`
+        const data = await queryRender(rpcUrl, realmPath, renderPath)
+        if (!data) break
+
+        let foundNew = false
+        for (const row of parseDaokitMemberRows(data)) {
+            if (seen.has(row.address)) continue
+            seen.add(row.address)
+            foundNew = true
+            allMembers.push(row)
+        }
+
+        const next = nextMemberstorePage(data, page)
+        if (next === null || !foundNew) break
+        page = next
+    }
+
+    return allMembers
 }
 
 /**
