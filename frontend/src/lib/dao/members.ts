@@ -81,11 +81,16 @@ export function parseMembersFromRender(data: string): DAOMember[] {
 /**
  * Fetch DAO members via memberstore or fallback to basedao parsing.
  * For memberstore: fetches all paginated pages with inline tier extraction.
+ * `strict` (default false, matching the historical always-silent contract)
+ * makes a FAILED daokit :members read throw instead of returning [] — so a
+ * transient RPC blip surfaces as an error state rather than a confident
+ * "0 members" roster.
  */
 export async function getDAOMembers(
     rpcUrl: string,
     realmPath: string,
     memberstorePath?: string,
+    strict = false,
 ): Promise<DAOMember[]> {
     // Try memberstore members list first
     if (memberstorePath) {
@@ -127,8 +132,14 @@ export async function getDAOMembers(
         // gnodaokit/basedao: Render("") is a landing page linking to :members
         // — the table there (paginated at 10/page) is authoritative; rows
         // parsed off a landing page that advertises the route are noise.
-        members = await fetchDaokitMemberPages(rpcUrl, realmPath)
-        if (members.length === 0) members = parseMembersFromRender(data)
+        const table = await fetchDaokitMemberPages(rpcUrl, realmPath)
+        if (table === null) {
+            // The advertised :members page could not be read — that is a
+            // failed read, not an empty DAO.
+            if (strict) throw new Error("Failed to read the DAO's members page")
+            return []
+        }
+        members = table.length > 0 ? table : parseMembersFromRender(data)
     } else {
         members = parseMembersFromRender(data)
     }
@@ -144,10 +155,12 @@ export async function getDAOMembers(
  * Picker's FIRST link is the back-link "[1](?page=1)" — and scanning for the
  * max also degrades a bogus injected link to harmless empty over-fetches
  * rather than silent truncation.)
+ * Returns null when the :members page itself could not be read, so callers
+ * can distinguish a failed read from a genuinely empty roster.
  */
-async function fetchDaokitMemberPages(rpcUrl: string, realmPath: string): Promise<DAOMember[]> {
+async function fetchDaokitMemberPages(rpcUrl: string, realmPath: string): Promise<DAOMember[] | null> {
     const page1 = await queryRenderPage(rpcUrl, realmPath, "members")
-    if (!page1) return []
+    if (!page1) return null
 
     const allMembers: DAOMember[] = []
     const seen = new Set<string>()
@@ -263,7 +276,7 @@ export async function getMemberRole(
     if (!data) return null
     if (hasOwnSubpageLink(data, realmPath, "members")) {
         const all = await fetchDaokitMemberPages(rpcUrl, realmPath)
-        return all.find((m) => m.address.toLowerCase() === target) ?? null
+        return all?.find((m) => m.address.toLowerCase() === target) ?? null
     }
     return parseMembersFromRender(data).find((m) => m.address.toLowerCase() === target) ?? null
 }

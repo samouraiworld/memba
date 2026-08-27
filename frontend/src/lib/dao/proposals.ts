@@ -189,16 +189,18 @@ export function parseProposalList(data: string): DAOProposal[] {
  * Fetch pages 2..max for a paginated proposals render and parse them.
  * `base` is "" for realms that list proposals on Render("") (GovDAO), or a
  * daokit sub-route ("proposals" / "history"). Follow-up pages are non-strict
- * by long-standing contract: a transient miss skips a page rather than
- * failing the whole list.
+ * by long-standing contract: a transient miss skips that page rather than
+ * failing the whole list — but `complete: false` reports the skip so callers
+ * never CACHE a truncated list as if it were the whole history.
  */
 async function fetchRemainingPages(
     rpcUrl: string,
     realmPath: string,
     page1: string,
     base: string,
-): Promise<DAOProposal[]> {
-    const out: DAOProposal[] = []
+): Promise<{ rows: DAOProposal[]; complete: boolean }> {
+    const rows: DAOProposal[] = []
+    let complete = true
     const maxPage = detectMaxPage(page1)
     if (maxPage > 1) {
         const pagePromises: Promise<string | null>[] = []
@@ -206,10 +208,11 @@ async function fetchRemainingPages(
             pagePromises.push(queryRenderPage(rpcUrl, realmPath, `${base}?page=${p}`))
         }
         for (const pageData of await Promise.all(pagePromises)) {
-            if (pageData) out.push(...parseProposalList(pageData))
+            if (pageData) rows.push(...parseProposalList(pageData))
+            else complete = false
         }
     }
-    return out
+    return { rows, complete }
 }
 
 /**
@@ -222,12 +225,11 @@ async function fetchDaokitProposalPages(
     rpcUrl: string,
     realmPath: string,
     base: "proposals" | "history",
-): Promise<DAOProposal[] | null> {
+): Promise<{ rows: DAOProposal[]; complete: boolean } | null> {
     const page1 = await queryRenderPage(rpcUrl, realmPath, base)
     if (!page1) return null
-    const out = parseProposalList(page1)
-    out.push(...await fetchRemainingPages(rpcUrl, realmPath, page1, base))
-    return out
+    const rest = await fetchRemainingPages(rpcUrl, realmPath, page1, base)
+    return { rows: [...parseProposalList(page1), ...rest.rows], complete: rest.complete }
 }
 
 /**
@@ -319,21 +321,26 @@ export async function getDAOProposals(
         if (active === null) {
             // The realm advertises :proposals but the read failed. If the root
             // itself carried rows (a legacy realm whose description merely
-            // links a same-named route), fall back to those — uncached.
+            // links a same-named route), fall back to those — uncached, and
+            // keeping whatever the history read DID deliver.
             const rootRows = parseProposalList(page1)
             if (rootRows.length > 0) {
-                rootRows.push(...await fetchRemainingPages(rpcUrl, realmPath, page1, ""))
-                return finalize(rootRows, false)
+                const rest = await fetchRemainingPages(rpcUrl, realmPath, page1, "")
+                return finalize([...rootRows, ...rest.rows, ...(history?.rows ?? [])], false)
             }
             if (strict) throw new Error("Failed to read the DAO's proposals page")
-            return finalize(history ?? [], false)
+            return finalize(history?.rows ?? [], false)
         }
-        return finalize([...active, ...(history ?? [])], history !== null)
+        return finalize(
+            [...active.rows, ...(history?.rows ?? [])],
+            active.complete && history !== null && history.complete,
+        )
     }
 
     const proposals = parseProposalList(page1)
-    proposals.push(...await fetchRemainingPages(rpcUrl, realmPath, page1, ""))
-    return finalize(proposals, true)
+    const rest = await fetchRemainingPages(rpcUrl, realmPath, page1, "")
+    proposals.push(...rest.rows)
+    return finalize(proposals, rest.complete)
 }
 
 /**
@@ -420,27 +427,54 @@ export async function getProposalDetail(
         // user-authored description verbatim, so a body-marker trigger would
         // let a description divert ANY realm's detail parse into this leg.
         if (/^#\s[^\n]*-\s*Proposal Detail\s*\n/.test(data)) {
-            // Field extraction is injection-aware: the deployed layout renders
-            // the user description ABOVE the real Status / proposer / Votes
-            // sections, so those fields take the LAST match (the realm-
-            // generated sections always come after all user content). Title
-            // and description take the FIRST match — both are rendered before
-            // any user-controlled content can open a line.
+            // Field extraction is injection-aware. The deployed layout renders
+            // two user-controlled regions — the description, then (after the
+            // real Resource section) the action body — with the realm-
+            // generated Status / proposer / Votes sections after BOTH. So:
+            // - status/proposer take the LAST match (real sections come last);
+            // - votes are read ONLY inside the final "## Votes" section;
+            // - Resource/action take the FIRST match after the "## Description"
+            //   heading, so a block injected into the ACTION BODY (which
+            //   renders after the real Resource section) can never displace
+            //   the real one. A hostile description can still spoof the
+            //   action DISPLAY — the same pre-existing exposure the legacy
+            //   basedao leg has always had; the list row's resource column
+            //   stays authentic either way.
             const title = data.match(/^##\s+Title\s+-\s+(.+?)\s*(?:📜\s*)?$/m)
-            const desc = data.match(/^##\s+Description\s+📝\s*\n\n([\s\S]*?)\n\n##\s+Resource\s+-/m)
+            const descHeading = data.match(/^##\s+Description\s+📝\s*$/m)
+            const postDesc = descHeading ? data.slice(descHeading.index) : data
+            const desc = postDesc.match(/^##\s+Description\s+📝\s*\n\n([\s\S]*?)\n\n##\s+Resource\s+-/m)
             const status = matchLast(data, /^##\s+Status\s+-\s+(\w+)/m)
-            const yes = matchLast(data, /Yes:\s*(\d+)\s*\/\s*\d+\s*=\s*([\d.]+)%/)
-            const no = matchLast(data, /No:\s*(\d+)\s*\/\s*\d+\s*=\s*([\d.]+)%/)
-            const abstain = matchLast(data, /Abstain:\s*(\d+)\s*\/\s*\d+\s*=/)
             const proposer = matchLast(data, />\s*proposed by\s+(g1[a-z0-9]+)/)?.[1] || ""
-            const resource = matchLast(data, RESOURCE_RE)
-            const action = matchLast(data, ACTION_BODY_RE)
-            const yesVotes = yes ? parseInt(yes[1], 10) : 0
-            const noVotes = no ? parseInt(no[1], 10) : 0
-            const abstainVotes = abstain ? parseInt(abstain[1], 10) : 0
-            const pct = (m: RegExpExecArray | null): number => {
-                const v = m ? Math.round(parseFloat(m[2])) : 0
+            const resource = postDesc.match(RESOURCE_RE)
+            const action = postDesc.match(ACTION_BODY_RE)
+            // Votes: only the realm-generated "## Votes" section (rendered
+            // last, after every user-controlled region). A composite and/or
+            // condition concatenates one tally block PER sub-condition, and a
+            // role-count condition renders counts with no percentage — when
+            // the section does not hold exactly one unambiguous tally, counts
+            // stay 0 rather than presenting one sub-condition's tally as the
+            // proposal's whole vote (P1-8: never render fake vote data).
+            const votesHeading = matchLast(data, /^##\s+Votes\s+🗳️\s*$/m)
+            const votesRegion = votesHeading ? data.slice(votesHeading.index) : ""
+            const yesAll = [...votesRegion.matchAll(/Yes:\s*(\d+)\s*\/\s*\d+(?:\s*=\s*([\d.]+)%)?/g)]
+            const pct = (s: string | undefined): number => {
+                const v = s ? Math.round(parseFloat(s)) : 0
                 return Number.isFinite(v) ? v : 0
+            }
+            let yesVotes = 0
+            let noVotes = 0
+            let abstainVotes = 0
+            let yesPercent = 0
+            let noPercent = 0
+            if (yesAll.length === 1) {
+                const no = votesRegion.match(/No:\s*(\d+)\s*\/\s*\d+(?:\s*=\s*([\d.]+)%)?/)
+                const abstain = votesRegion.match(/Abstain:\s*(\d+)\s*\/\s*\d+/)
+                yesVotes = parseInt(yesAll[0][1], 10)
+                noVotes = no ? parseInt(no[1], 10) : 0
+                abstainVotes = abstain ? parseInt(abstain[1], 10) : 0
+                yesPercent = pct(yesAll[0][2])
+                noPercent = pct(no?.[2])
             }
             // daokit's detail page renders "Closed" for any terminal
             // not-passed state; the mapping lives here, in the leg that owns
@@ -464,8 +498,8 @@ export async function getProposalDetail(
                 author: proposer,
                 authorProfile: "",
                 tiers: [],
-                yesPercent: pct(yes),
-                noPercent: pct(no),
+                yesPercent,
+                noPercent,
                 yesVotes,
                 noVotes,
                 abstainVotes,
@@ -566,9 +600,12 @@ export async function getProposalVotes(
     realmPath: string,
     id: number,
 ): Promise<VoteRecord[]> {
-    let data = await queryRender(rpcUrl, realmPath, `${id}/votes`)
+    // queryRenderPage: on a mux-routed realm the first path answers a literal
+    // "404" body, which must not short-circuit the proposal/N/votes fallback
+    // (the same 404-truthiness class getProposalDetail had).
+    let data = await queryRenderPage(rpcUrl, realmPath, `${id}/votes`)
     if (!data) {
-        data = await queryRender(rpcUrl, realmPath, `proposal/${id}/votes`)
+        data = await queryRenderPage(rpcUrl, realmPath, `proposal/${id}/votes`)
     }
     if (!data) return []
 

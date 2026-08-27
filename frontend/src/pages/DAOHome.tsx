@@ -54,7 +54,7 @@ export function DAOHome() {
     const membersQuery = useQuery({
         queryKey: ["dao", "members-list", realmPath ?? "", config?.memberstorePath ?? ""],
         enabled: !!realmPath && configQuery.isFetched,
-        queryFn: () => getDAOMembers(GNO_RPC_URL, realmPath, config?.memberstorePath),
+        queryFn: () => getDAOMembers(GNO_RPC_URL, realmPath, config?.memberstorePath, true),
     })
     const members = membersQuery.data ?? []
     const membersLoading = membersQuery.isPending

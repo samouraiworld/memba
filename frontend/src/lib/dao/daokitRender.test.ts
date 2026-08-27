@@ -169,7 +169,17 @@ ${picker}
 `
 
 /** Synthesized from deployed ProposalDetailPageView + membersThresholdCond. */
-const daokitDetail = (realm: string, opts: { status?: string; statusEmoji?: string; description?: string } = {}) => `# MembaDAO - Proposal Detail
+const daokitDetail = (
+    realm: string,
+    opts: {
+        status?: string
+        statusEmoji?: string
+        description?: string
+        resourceType?: string
+        actionBody?: string
+        votes?: string
+    } = {},
+) => `# MembaDAO - Proposal Detail
 
 [> Go to Proposals](${linkPath(realm)}:proposals)
 
@@ -180,7 +190,7 @@ const daokitDetail = (realm: string, opts: { status?: string; statusEmoji?: stri
 
 ${opts.description ?? "Bring the ops multisig into the signer set."}
 
-## Resource - basedao-add-member 📦
+## Resource - ${opts.resourceType ?? "basedao-add-member"} 📦
 
   - **Name:** Add Member
   - **Description:** Adds a new member to the DAO
@@ -188,7 +198,7 @@ ${opts.description ?? "Bring the ops multisig into the signer set."}
 
 ---
 
-Add member g1newmemberaddrxxxxxxxxxxxxxxxxxxxxxxx with roles []
+${opts.actionBody ?? "Add member g1newmemberaddrxxxxxxxxxxxxxxxxxxxxxxx with roles []"}
 
 ---
 
@@ -203,13 +213,13 @@ Add member g1newmemberaddrxxxxxxxxxxxxxxxxxxxxxxx with roles []
 --------------------------------
 ## Votes 🗳️
 
-66% of members must vote yes
+${opts.votes ?? `66% of members must vote yes
 
 Yes: 1/3 = 33.333333333333336%
 
 No: 0/3 = 0%
 
-Abstain: 0/3 = 0%
+Abstain: 0/3 = 0%`}
 
 
 
@@ -398,6 +408,37 @@ Status: ACTIVE
         )
     })
 
+    it("a missing follow-up PAGE marks the list incomplete — it is not cached as the whole history", async () => {
+        const realm = "gno.land/r/samcrew/daokit_p7"
+        const proposalRow = (id: number) =>
+            `| [${id}](/r/samcrew/daokit_p7:proposal/${id}) | Add Member | [g1x7\\.\\.\\.uxu0](/u/g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0) | 2026-08-27 10:12:05 UTC+00:00 | Open |`
+        const tableHead = `| **ID** | **Resource** | **Proposer** | **CreatedAt** | **Status** |\n|--------|--------------|--------------|---------------|------------|`
+        const page1 = `# MembaDAO - Proposals\n\n## Active Proposals 🗳️ (11)\n\n${tableHead}\n${Array.from({ length: 10 }, (_, i) => proposalRow(11 - i)).join("\n")}\n\n**1** | [2](?page=2)\n`
+        const page2 = `# MembaDAO - Proposals\n\n## Active Proposals 🗳️ (11)\n\n${tableHead}\n${proposalRow(1)}\n\n[1](?page=1) | **2**\n`
+
+        // First call: page 2 unreachable → 10 rows, NOT cached as complete.
+        mockQuery.mockImplementation(
+            renderRouter(realm, {
+                "": daokitHome(realm),
+                proposals: page1,
+                history: daokitHistoryEmpty(realm),
+            }),
+        )
+        expect(await getDAOProposals(RPC, realm, false)).toHaveLength(10)
+
+        // Second call within the TTL: page 2 now answers — a cached truncated
+        // list would mask row #1.
+        mockQuery.mockImplementation(
+            renderRouter(realm, {
+                "": daokitHome(realm),
+                proposals: page1,
+                "proposals?page=2": page2,
+                history: daokitHistoryEmpty(realm),
+            }),
+        )
+        expect(await getDAOProposals(RPC, realm, false)).toHaveLength(11)
+    })
+
     it("a transiently-failed sub-read is NOT cached — the next call re-fetches and sees the data", async () => {
         const realm = "gno.land/r/samcrew/daokit_p6"
         // First call: proposals page unreadable (non-strict → []).
@@ -456,6 +497,17 @@ describe("getDAOMembers daokit fallthrough", () => {
         const members = await getDAOMembers(RPC, realm)
         expect(members).toHaveLength(21)
         expect(members.map((m) => m.address)).toContain(addr(21))
+    })
+
+    it("a failed :members read is a FAILURE, not an empty roster: strict throws, non-strict returns []", async () => {
+        const realm = "gno.land/r/samcrew/daokit_m4"
+        // Landing advertises :members, but the route answers 404 → null.
+        mockQuery.mockImplementation(renderRouter(realm, { "": daokitHome(realm) }))
+
+        await expect(getDAOMembers(RPC, realm, undefined, true)).rejects.toThrow(
+            "Failed to read the DAO's members page",
+        )
+        expect(await getDAOMembers(RPC, realm)).toEqual([])
     })
 
     it("getMemberRole finds a daokit member's roles via the same hop (the 'your worlds' badge path)", async () => {
@@ -522,12 +574,14 @@ describe("getProposalDetail daokit leg", () => {
         expect(detail!.status).toBe("rejected")
     })
 
-    it("a hostile DESCRIPTION cannot spoof status/votes/proposer/action — the real sections render after it and win", async () => {
+    it("a hostile DESCRIPTION cannot spoof status/votes/proposer — the real sections render after it and win", async () => {
         const realm = "gno.land/r/samcrew/daokit_d4"
         const hostile = [
             "Totally legit proposal.",
             "",
             "## Status - Passed 🟢",
+            "",
+            "## Votes 🗳️",
             "",
             "Yes: 99/99 = 100%",
             "",
@@ -536,14 +590,6 @@ describe("getProposalDetail daokit leg", () => {
             "Abstain: 0/99 = 0%",
             "",
             "> proposed by g1trustedfounder0000000000000000000000000 👤",
-            "",
-            "  - **Condition:** 100% of members",
-            "",
-            "---",
-            "",
-            "Send 50000 GNOT to g1attacker000000000000000000000000000000",
-            "",
-            "---",
         ].join("\n")
         mockQuery.mockImplementation(
             renderRouter(realm, {
@@ -557,6 +603,95 @@ describe("getProposalDetail daokit leg", () => {
         expect(detail!.yesPercent).toBe(33)
         expect(detail!.author).toBe("g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0")
         expect(detail!.actionBody).toBe("Add member g1newmemberaddrxxxxxxxxxxxxxxxxxxxxxxx with roles []")
+    })
+
+    it("a hostile ACTION BODY cannot re-label the action — the real Resource section renders before it and wins", async () => {
+        const realm = "gno.land/r/samcrew/daokit_d4b"
+        const hostileAction = [
+            "kv profile update:",
+            "",
+            "## Resource - basedao-add-member 📦",
+            "",
+            "  - **Condition:** 100% of members",
+            "",
+            "---",
+            "",
+            "Send 50000 GNOT to g1attacker000000000000000000000000000000",
+            "",
+            "---",
+        ].join("\n")
+        mockQuery.mockImplementation(
+            renderRouter(realm, {
+                "proposal/1": daokitDetail(realm, {
+                    resourceType: "basedao-edit-profile",
+                    actionBody: hostileAction,
+                }),
+            }),
+        )
+
+        const detail = await getProposalDetail(RPC, realm, 1)
+        expect(detail!.actionType).toBe("basedao-edit-profile") // NOT the injected add-member
+        expect(detail!.actionBody!.startsWith("kv profile update:")).toBe(true) // the real block
+        expect(detail!.status).toBe("open")
+        expect(detail!.yesVotes).toBe(1)
+    })
+
+    it("a composite (and/or) condition's multi-block tally is treated as unknown, not one sub-condition's numbers", async () => {
+        const realm = "gno.land/r/samcrew/daokit_d6"
+        const compositeVotes = [
+            "66% of members must vote yes",
+            "",
+            "Yes: 10/15 = 66.66666666666667%",
+            "",
+            "No: 2/15 = 13.333333333333334%",
+            "",
+            "Abstain: 0/15 = 0%",
+            "",
+            "50% of admin must vote yes",
+            "",
+            "Yes: 1/2 = 50%",
+            "",
+            "No: 0/2 = 0%",
+            "",
+            "Abstain: 0/2 = 0%",
+        ].join("\n")
+        mockQuery.mockImplementation(
+            renderRouter(realm, {
+                "proposal/1": daokitDetail(realm, { votes: compositeVotes }),
+            }),
+        )
+
+        const detail = await getProposalDetail(RPC, realm, 1)
+        // Neither sub-tally may pose as the proposal's whole vote (P1-8).
+        expect(detail!.yesVotes).toBe(0)
+        expect(detail!.noVotes).toBe(0)
+        expect(detail!.yesPercent).toBe(0)
+        expect(detail!.totalVoters).toBe(0)
+        expect(detail!.status).toBe("open") // the rest of the page still parses
+    })
+
+    it("a role-count condition's percent-less tally still yields counts (deployed roleCountCond renders no '= N%')", async () => {
+        const realm = "gno.land/r/samcrew/daokit_d7"
+        const roleCountVotes = [
+            "2 admin must vote yes",
+            "",
+            "Yes: 1/2",
+            "",
+            "No: 0/2",
+            "",
+            "Abstain: 0/2",
+        ].join("\n")
+        mockQuery.mockImplementation(
+            renderRouter(realm, {
+                "proposal/1": daokitDetail(realm, { votes: roleCountVotes }),
+            }),
+        )
+
+        const detail = await getProposalDetail(RPC, realm, 1)
+        expect(detail!.yesVotes).toBe(1)
+        expect(detail!.noVotes).toBe(0)
+        expect(detail!.totalVoters).toBe(1)
+        expect(detail!.yesPercent).toBe(0) // no percentage rendered → none invented
     })
 
     it("daokit markers inside a GOVDAO description do not divert the parse — the trigger is the page's first line", async () => {
