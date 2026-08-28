@@ -187,11 +187,16 @@ Both results are pinned to `84e8edf9e`. `chain/pearl` moved on launch-eve, so **
    export SAMCREW_GNODAOKIT_COMMIT=0eb85184ffa4a284fefba1c9f19cacd47f3ab954
    ```
 
-   - **`DEPLOY_KEY`** — `config/keys.env` does not exist in a fresh checkout and
-     `lib/preflight.sh` defaults to the key name `samcrew`, which is **not** in the keybase.
+   - **`DEPLOY_KEY`** — `config/keys.env` does not exist in a fresh checkout, and the fallback
+     key name is `samcrew`, which **is not in the keybase at all** (`gnokey list` has
+     `samcrew-core-test1`, the 2-of-2). This is not only the preflight: **five of the six project
+     drivers default to `samcrew`** — `deps`, `gnodaokit`, `tokenfactory`, `lz-oapp`,
+     `btc-gnodao` — and only `projects/memba/deploy.sh` defaults to `samcrew-core-test1`, and
+     even that lands *after* the top-level preflight has already run. So without the export,
      `./samcrew-deploy.sh pearl memba --preflight` aborts at *"Key 'samcrew' not found in gnokey
-     keyring"* before reaching a single gate. (`projects/memba/deploy.sh` exports the right name,
-     but only *after* the top-level preflight has already run.)
+     keyring"* before gate 1, and the `deps` → `gnodaokit` → `tokenfactory` legs — i.e. the first
+     three steps of §4.1 — have no usable key either. The sapphire ceremony worked because the
+     operator had the export in their shell; it was never written down.
    - **`SAMCREW_GNODAOKIT_COMMIT`** — the gnodaokit leg refuses with *"No expected source commit
      pinned … Publishing is immutable on this lane"*. This one bites in the **middle** of the
      sequence (`deps` → **`gnodaokit`** → `memba`), after deps has already broadcast. It must
