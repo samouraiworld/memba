@@ -70,6 +70,50 @@
 >   completion PR. If the ceremony + §6 have not landed by 09-09, those surfaces break when the
 >   chain dies — the ceremony's real deadline is the sunset, not convenience.
 
+> **CEREMONY-DAY ADDENDUM (2026-08-28, live-probed at h≈21.4k — supersedes the launch-day
+> addendum and the table wherever they differ):**
+>
+> - 🟢 **BOTH founder-side prerequisites are CLOSED.** `auth/accounts/g1x7k4628…uxu0` →
+>   **`10000000000ugnot` (10 000 GNOT)**, account_number 225, **sequence 0** (never
+>   transacted, so ceremony sequences start at 0 exactly as §4.5 assumes).
+>   `r/sys/users.ResolveName("samcrew")` resolves to the multisig as a **typed
+>   `.uverse.address` field** — un-spoofable; negative control `definitelynotaname999` →
+>   `(nil *…UserData)`. aeddi's `govdao-exec.sh register-user` landed.
+> - 🟢 **The ceremony preflight is 5/5 GREEN for the first time** (`DEPLOY_KEY=samcrew-core-test1
+>   ./samcrew-deploy.sh pearl memba --preflight`, deployer #140 rebased onto #142): chain
+>   identity `pearl-1` == live · gate 1 policy `permissionless` · gate 2 namespace
+>   `IsEnabled()=true` **and** `IsAuthorizedAddressForNamespace(…,"samcrew")=true` · gate 3 CLA
+>   dark (requiredHash empty) · probe 4 namereg price 0ugnot · gate 5 balance floor covered
+>   (full-sequence budget waived — F-16: a multisig cannot sign the simulate).
+>   `r/samcrew/*` still answers `InvalidPackageError` — nothing deployed yet.
+> - ✅ **LAUNCH REF SETTLED: `c4c72fdd288c757e8da0d93aae867fa479b1b15c`.** The node exposes no
+>   build commit, so it is settled by **byte-corroboration against the running chain**:
+>   `vm/qfile` on `gno.land/p/demo/tokens/grc20` returns `tellers.gno`/`token.gno`/`types.gno`
+>   sha256-identical to `c4c72fdd28` and **different** from the 08-25 staging tip `84e8edf9e`.
+>   The range between them is **not** bookkeeping — 15 commits / ~450 files: inert packages
+>   (#6088 + fixes #6093), chain-params reader API (#6094), a size-aware encode/decode/render
+>   pass across gnovm+tm2+gno.land, the grc20 Teller-axis move, and a full **grc721 core
+>   rewrite** (#6072/#6073). Our realms are insulated from the last one — all 37 grc721 imports
+>   resolve to the vendored `p/samcrew/grc721`. Deployer `GNO_REF` re-pinned accordingly and the
+>   **A6 custody oracles re-ran GREEN at the launch ref** (avl equivalence · 6 fund-guard
+>   regressions · memba_dao vs gnodaokit · feed_v2 batteries · otc_v2 dep closure ·
+>   tokenfactory_v2 custody oracles · 8 modern suites), all with their anti-vacuous guards
+>   intact. Memba's `GNO_PIN` on the §6 PR already carries the same ref.
+> - ✅ **gno#6028 re-verified ABSENT at the LAUNCH ref** (not merely at the staging ref):
+>   `grc20reg.IdentifierGenerator` absent · `NewToken(name, symbol string, decimals int, id
+>   seqid.ID, rlm realm)` · no `idgenerator.gno`. **Deployer #139 is CLOSED unmerged**; §2's
+>   second branch is taken and that fork is finished.
+> - 🟢 **Sentry row is stale: `rpc.pearl.samourai.live` is LIVE** — identity-verified `pearl-1`,
+>   catching_up false. The two-node rule is satisfiable, so `FEED_RPC_URL` can differ from
+>   `GNO_RPC_URL` at §5. (`rpc.sapphire.samourai.live` remains dead — the host was repurposed;
+>   official `rpc.sapphire.testnets.gno.land` still serves sapphire-1 for prod until 09-09.)
+> - ⚠️ **Deployer #140 is merge-READY but NOT merged** — rebased, 5/5 CI green on head, the
+>   preflight above run from it. Merging is the ceremony operator's call because it is the
+>   deploy lane for a fund-custody ceremony.
+> - 🔑 **The operator preamble §4 was missing — see §4.0 below.** Two environment variables are
+>   load-bearing and were named nowhere in this plan: without them the ceremony **fails closed
+>   mid-window**, not at the start.
+
 | Item | Value | Source / owner |
 |---|---|---|
 | Chain id | ✅ **`pearl-1`** — `gen-genesis.sh:52` `CHAIN_ID=pearl-1`, corroborated by `VALIDATOR.md:92,123` and `govdao-exec.sh:6` | re-assert from the launched node's `/status` `.result.node_info.network` before merging the deployer lane |
@@ -129,11 +173,48 @@ Both results are pinned to `84e8edf9e`. `chain/pearl` moved on launch-eve, so **
 
 ## 4. Combined ceremony (one window, same invocation pattern as 2026-08-15)
 
-0. **Prerequisites, all founder-side (launch-day addendum above has the detail):**
-   GovDAO `ProposeRegisterUser("samcrew", <multisig>)` via aeddi → vote → execute; fund the
-   multisig (faucet: 100 GNOT/drip behind hCaptcha, or a core-team transfer — sapphire's
-   ceremony took ~10k GNOT and pearl prices storage identically at 100ugnot/B); then
-   `--preflight` goes green through all 5 gates (policy · namespace · CLA · price · funding).
+0. **Prerequisites — ✅ BOTH DONE 2026-08-28** (evidence in the ceremony-day addendum):
+   GovDAO `ProposeRegisterUser("samcrew", <multisig>)` executed by aeddi, and the multisig
+   funded with **10 000 GNOT**. `--preflight` is green through all 5 gates.
+
+0b. **Operator environment — set these BEFORE the first invocation.** They are not optional and
+   they are not defaulted; each one fails the run *closed*, but two of them fail **partway
+   through the window** rather than at the start:
+
+   ```bash
+   export DEPLOY_KEY=samcrew-core-test1                                    # the 2-of-2 multisig
+   export MULTISIG_SIGNERS=zooma,adena-zxxma                               # >=2, comma-separated
+   export SAMCREW_GNODAOKIT_COMMIT=0eb85184ffa4a284fefba1c9f19cacd47f3ab954
+   ```
+
+   - **`DEPLOY_KEY`** — `config/keys.env` does not exist in a fresh checkout, and the fallback
+     key name is `samcrew`, which **is not in the keybase at all** (`gnokey list` has
+     `samcrew-core-test1`, the 2-of-2). This is not only the preflight: **five of the six project
+     drivers default to `samcrew`** — `deps`, `gnodaokit`, `tokenfactory`, `lz-oapp`,
+     `btc-gnodao` — and only `projects/memba/deploy.sh` defaults to `samcrew-core-test1`, and
+     even that lands *after* the top-level preflight has already run. So without the export,
+     `./samcrew-deploy.sh pearl memba --preflight` aborts at *"Key 'samcrew' not found in gnokey
+     keyring"* before gate 1, and the `deps` → `gnodaokit` → `tokenfactory` legs — i.e. the first
+     three steps of §4.1 — have no usable key either. The sapphire ceremony worked because the
+     operator had the export in their shell; it was never written down.
+   - **`SAMCREW_GNODAOKIT_COMMIT`** — the gnodaokit leg refuses with *"No expected source commit
+     pinned … Publishing is immutable on this lane"*. This one bites in the **middle** of the
+     sequence (`deps` → **`gnodaokit`** → `memba`), after deps has already broadcast. It must
+     equal `GNODAOKIT_REF` in the deployer's `test.yml`; bump neither alone.
+   - **`MULTISIG_SIGNERS`** — without it `is_multisig_key` short-circuits and the run never opens
+     a multisig session; `deploy_with_retry` needs at least 2 signers. These are **local `gnokey`
+     aliases**, so re-derive them on the operator's own machine rather than trusting the names
+     above — match each pubkey in the `(multi)` row of `gnokey list` against the single-key rows
+     (verified 2026-08-28 on the ceremony machine: `zooma`, `adena-zxxma`, in that order).
+   - **Run from the main checkout, never a worktree** — `projects/gnodaokit/deploy.sh` resolves
+     its source as a relative sibling (`…/../../../gnodaokit`), which from a worktree resolves to
+     a path that does not exist and dies with a bare `cd:` error before logging initialises.
+     Override with `SAMCREW_GNODAOKIT_DIR=` if unavoidable.
+
+   Rehearsed 2026-08-28 against live pearl-1, all dry-run, no signatures: **deps 6 · gnodaokit 7
+   · tokenfactory 1 · memba 9 · memba --commerce-v2 17** artifacts enumerated, `Fail: 0` on every
+   leg. Note `./samcrew-deploy.sh <net> all` does **not** include memba — it walks deps,
+   gnodaokit, tokenfactory, lz-oapp, btc-gnodao and then prints "ALL PROJECTS DEPLOYED".
 
 1. `deps` (avl → rotree → pager) → `gnodaokit` → `memba` default lane (9 core realms incl. `memba_feed_v1`; **the activation realm `r/samcrew/deps/demo/profile` is in `deps`** — login needs it) → `REALM=` the two funds-free commerce realms if preferred, or let the lane walk SKIP them when already live.
 2. `memba --commerce-v2`: `grc721 → memba_collections → memba_market_core_v2 → memba_market_config → tokenfactory_v2 → memba_nft_market_v3_2` (lane recomposed by #138; dry-run verified).
