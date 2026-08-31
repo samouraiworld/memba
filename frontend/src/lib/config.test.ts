@@ -123,9 +123,26 @@ describe('config constants', () => {
     // combined ceremony lands its `pearl` section, which is exactly the
     // one-piece coupling the cutover plan demands.
     it('every allowlisted pearl realm is backed by a realm-versions.json pearl record', async () => {
-        const { readFileSync } = await import('node:fs')
+        const { readFileSync, existsSync } = await import('node:fs')
+        const { resolve, dirname } = await import('node:path')
+        // Resolve by walking up from cwd, NOT via `new URL(..., import.meta.url)`.
+        // Under the vite/jsdom test environment `import.meta.url` is not a file:
+        // URL, so that form throws `TypeError: The URL must be of scheme file`
+        // BEFORE any assertion runs. This test was written to be red until the
+        // ceremony recorded its artifacts — but it was red for that TypeError
+        // instead, on every run since it was added, and would have stayed red
+        // after a perfect ceremony while appearing to enforce a coupling it had
+        // never once evaluated. A gate that cannot pass is not a gate.
+        let dir = process.cwd()
+        let file = ''
+        for (let i = 0; i < 6 && !file; i++) {
+            const candidate = resolve(dir, 'realm-versions.json')
+            if (existsSync(candidate)) file = candidate
+            else dir = dirname(dir)
+        }
+        expect(file, 'realm-versions.json not found walking up from cwd — the ceremony record set must be readable for this gate to mean anything').not.toBe('')
         const rv = JSON.parse(
-            readFileSync(new URL('../../../realm-versions.json', import.meta.url), 'utf8'),
+            readFileSync(file, 'utf8'),
         ) as Record<string, Record<string, unknown> | string | undefined>
         const records = rv.pearl
         expect(records, 'realm-versions.json has no `pearl` section — the ceremony record set is the merge precondition').toBeTypeOf('object')

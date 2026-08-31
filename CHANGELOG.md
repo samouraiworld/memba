@@ -20,13 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Memba's features go live on Pearl — the §6 completion (ceremony + cutover, 2026-0X-XX)
+### Memba's features go live on Pearl — the §6 completion (ceremony + cutover, 2026-08-31)
 <!-- categories: memba, network -->
-<!-- TODO(ceremony): date above; fill the two TODO bullets below from the ceremony record before merging. -->
 - **Every Memba feature now runs on Pearl**: DAO governance, the social feed, reviews, quests, the App Store, tokens, collectibles and the marketplace — deployed to the chain in one combined ceremony and verified artifact-by-artifact. The "not deployed yet" notices are gone; the network selector's default now carries the full app.
 - **The backend follows in the same window**: the feed indexer, home snapshot and activity data now read Pearl (fresh history starts at the deployment — earlier sapphire posts stay readable by switching networks until its September 9 sunset).
-- TODO(ceremony): deployment record — heights/sequences summary + realm-versions reference.
-- TODO(ceremony): NFT stack fee-path verification note (§4.4) + which flags the owner enabled after the 2-wallet live-money test.
+- **Deployment record**: 32 artifacts published to `pearl-1` on 2026-08-31 from the samcrew 2-of-2 multisig (account #225), sequences 0–34 across blocks 98865–100538, in the ceremony order deps (6) → gnodaokit (7) → core (9) → commerce-v2 (8) → p0-guards (2). Every artifact is recorded per-path in `realm-versions.json`'s new `pearl` section with its sequence, height, tx hash, source commit and an on-chain `vm/qfile` file count, and each was re-verified independently after the fact against a second node with a negative control. Sequences 13–15 are absent on purpose: they were spent on three rejected broadcasts of a standalone `tokenfactory` mirror whose package name did not match its path element — nothing was published there, and that path stays free.
+- **Fee paths verified before anything was switched on**: the marketplace realm reports the same address the app expects (`g1y4y37d…`), and the shared fee spine already pays the DAO treasury (`g10kw7e55…`) at 2.0% for collectibles and services and 0.5% for tokens — so no correcting transaction was needed. Marketplace registration is deliberately still pending: it waits on the collectibles indexer, which waits on monitoring being wired, and the collectibles, services and token features stay switched off until the two-wallet live-money check passes.
 
 ### Pearl is now Memba's home network (2026-08-27)
 <!-- categories: memba, network -->
