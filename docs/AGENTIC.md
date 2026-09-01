@@ -27,7 +27,7 @@ cat SKILL.md
 
 ### Query a DAO's state
 ```bash
-curl -s https://rpc.sapphire.testnets.gno.land:443 \
+curl -s https://rpc.pearl.testnets.gno.land:443 \
   -H 'Content-Type: application/json' \
   -d '{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"vm/qrender","data":"gno.land/r/samcrew/memba_dao\n"}}'
 ```
@@ -103,7 +103,7 @@ Launch (Claude Desktop / Cursor / VS Code MCP config):
       "command": "npx",
       "args": ["-y", "@samouraiworld/dao-analyst-mcp@latest"],
       "env": {
-        "GNO_RPC_URL": "https://rpc.sapphire.testnets.gno.land:443",
+        "GNO_RPC_URL": "https://rpc.pearl.testnets.gno.land:443",
         "MEMBA_BACKEND_URL": "https://memba-backend.fly.dev"
       }
     }
