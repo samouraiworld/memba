@@ -65,8 +65,8 @@ func loadFixtures(t *testing.T) fixtureFile {
 func TestVerifyWorker_ReproducesFixturesThroughRealNode(t *testing.T) {
 	r := newRealRunnerOrSkip(t)
 	f := loadFixtures(t)
-	if f.SimVersion != CurrentSimVersion {
-		t.Fatalf("fixtures target sim v%d but the runner is v%d", f.SimVersion, CurrentSimVersion)
+	if f.SimVersion != simVersionBarricade {
+		t.Fatalf("fixtures target sim v%d but the runner is v%d", f.SimVersion, simVersionBarricade)
 	}
 	for _, c := range f.Cases {
 		t.Run(c.Name, func(t *testing.T) {
@@ -99,7 +99,7 @@ func TestVerifyWorker_RejectsThroughRealNode(t *testing.T) {
 	})
 
 	t.Run("non-array events", func(t *testing.T) {
-		res, err := r.Verify(context.Background(), Job{Seed: "x", SimVersion: CurrentSimVersion, Events: json.RawMessage(`5`)})
+		res, err := r.Verify(context.Background(), Job{Seed: "x", SimVersion: simVersionBarricade, Events: json.RawMessage(`5`)})
 		if err != nil {
 			t.Fatalf("unexpected infra error: %v", err)
 		}
@@ -107,6 +107,106 @@ func TestVerifyWorker_RejectsThroughRealNode(t *testing.T) {
 			t.Fatal("expected a rejection for non-array events")
 		}
 	})
+}
+
+// invadersBoundaryJob is a well-formed SI job the boundary tests mutate.
+func invadersBoundaryJob(events string) Job {
+	return Job{
+		Game: gameInvaders, Seed: "invaders-2026-07-13", SimVersion: simVersionInvaders,
+		FinalTick: 600, Events: json.RawMessage(events),
+	}
+}
+
+func TestVerifyWorker_InvadersThroughRealNode(t *testing.T) {
+	r := newRealRunnerOrSkip(t)
+
+	// The good path: the committed loop fixture's job, straight through node.
+	// Its expected values were derived from the FRONTEND ENGINE independently
+	// of the worker (see loop_invaders_integration_test.go) — including the
+	// shared FNV-1a seed derivation ("invaders-2026-07-13" → engine seed
+	// 3389276757, pinned in TestInvadersEngineSeed_Vectors) and the 8-hex
+	// zero-padded stateHash format the client's claimedHash must match.
+	t.Run("reproduces the engine-anchored fixture", func(t *testing.T) {
+		res, err := r.Verify(context.Background(), invadersBoundaryJob(`[[5,10,0,0],[60,10,1,0],[240,-10,1,0],[420,0,1,0],[540,3,1,0]]`))
+		if err != nil {
+			t.Fatalf("verify: %v", err)
+		}
+		want := Result{
+			OK: true, Score: 300, Waves: 1, StateHash: "a7d393c2", SimVersion: 1,
+			Stats:   `{"wave":1,"shots":48,"hits":11}`,
+			LogHash: "c24b0301959240652d210721eb5357b9a033a875d43c153abb3c7a1f9c9af5f5",
+		}
+		if res != want {
+			t.Fatalf("bundle+node diverged from the engine-anchored fixture\n got: %+v\nwant: %+v", res, want)
+		}
+	})
+
+	// Every malformed-log shape is a CLEAN rejection (ok:false), never a crash
+	// — the wire format is strict: reject, never repair.
+	rejects := map[string]Job{
+		"non-tuple element":     invadersBoundaryJob(`[{"tick":1}]`),
+		"short tuple":           invadersBoundaryJob(`[[1,2,3]]`),
+		"long tuple":            invadersBoundaryJob(`[[1,2,3,0,0]]`),
+		"non-integer tick":      invadersBoundaryJob(`[[1.5,0,0,0]]`),
+		"non-integer move":      invadersBoundaryJob(`[[1,0.5,0,0]]`),
+		"move10 too big":        invadersBoundaryJob(`[[1,11,0,0]]`),
+		"move10 too small":      invadersBoundaryJob(`[[1,-11,0,0]]`),
+		"fire not 0/1":          invadersBoundaryJob(`[[1,0,2,0]]`),
+		"pause not 0/1":         invadersBoundaryJob(`[[1,0,0,-1]]`),
+		"negative tick":         invadersBoundaryJob(`[[-1,0,0,0]]`),
+		"tick at finalTick":     invadersBoundaryJob(`[[600,0,0,0]]`),
+		"non-increasing ticks":  invadersBoundaryJob(`[[5,0,0,0],[5,1,0,0]]`),
+		"decreasing ticks":      invadersBoundaryJob(`[[9,0,0,0],[3,1,0,0]]`),
+		"wrong sim version":     {Game: gameInvaders, Seed: "invaders-2026-07-13", SimVersion: simVersionBarricade, FinalTick: 600, Events: json.RawMessage(`[]`)},
+		"missing finalTick":     {Game: gameInvaders, Seed: "invaders-2026-07-13", SimVersion: simVersionInvaders, Events: json.RawMessage(`[]`)},
+		"barricade with a tick": {Game: gameBarricade, Seed: "barricade-2026-07-13", SimVersion: simVersionBarricade, FinalTick: 600, Events: json.RawMessage(`[]`)},
+	}
+	for name, job := range rejects {
+		t.Run(name, func(t *testing.T) {
+			res, err := r.Verify(context.Background(), job)
+			if err != nil {
+				t.Fatalf("must be a clean rejection, not an infra error: %v", err)
+			}
+			if res.OK {
+				t.Fatalf("expected ok:false for %s", name)
+			}
+			if res.Error == "" {
+				t.Fatal("expected a rejection reason")
+			}
+		})
+	}
+
+	// An unknown game never verifies — but note the Go-side ValidateJob
+	// rejects it before node even spawns; the worker's own branch is exercised
+	// in TestVerifyWorker_UnknownGameRejectedByWorkerItself.
+	t.Run("unknown game", func(t *testing.T) {
+		res, err := r.Verify(context.Background(), Job{Game: "pong", Seed: "x", SimVersion: 1, Events: json.RawMessage(`[]`)})
+		if err != nil {
+			t.Fatalf("unexpected infra error: %v", err)
+		}
+		if res.OK {
+			t.Fatal("expected a rejection for an unknown game")
+		}
+	})
+}
+
+// TestVerifyWorker_UnknownGameRejectedByWorkerItself pipes a raw job straight
+// into the node worker (bypassing ValidateJob) to prove the WORKER's own
+// dispatch rejects an unknown game — defense in depth for any future caller
+// that skips the Go gate.
+func TestVerifyWorker_UnknownGameRejectedByWorkerItself(t *testing.T) {
+	r := newRealRunnerOrSkip(t)
+	out, err := r.exec(context.Background(), []byte(`{"game":"pong","seed":"x","simVersion":1,"events":[]}`))
+	if err != nil {
+		t.Fatalf("exec: %v", err)
+	}
+	var res Result
+	if err := json.Unmarshal(out, &res); err != nil {
+		t.Fatalf("unparseable worker output: %v (%s)", err, out)
+	}
+	if res.OK || res.Error == "" {
+		t.Fatalf("the worker itself must reject an unknown game, got %+v", res)
+	}
 }
 
 func TestVerifyWorker_OutputCapKillsPromptly(t *testing.T) {
@@ -129,7 +229,7 @@ func TestVerifyWorker_OutputCapKillsPromptly(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		_, verr := r.Verify(context.Background(), Job{Seed: "barricade-2026-07-13", SimVersion: CurrentSimVersion, Events: json.RawMessage(`[]`)})
+		_, verr := r.Verify(context.Background(), Job{Seed: "barricade-2026-07-13", SimVersion: simVersionBarricade, Events: json.RawMessage(`[]`)})
 		done <- verr
 	}()
 	select {
@@ -160,7 +260,7 @@ func TestVerifyWorker_TimeoutIsAnInfraErrorNotARejection(t *testing.T) {
 	}
 	t.Cleanup(func() { _ = r.Close() })
 
-	res, verr := r.Verify(context.Background(), Job{Seed: "barricade-2026-07-13", SimVersion: CurrentSimVersion, Events: json.RawMessage(`[]`)})
+	res, verr := r.Verify(context.Background(), Job{Seed: "barricade-2026-07-13", SimVersion: simVersionBarricade, Events: json.RawMessage(`[]`)})
 	if verr == nil {
 		t.Fatalf("a timed-out worker must be an infra error, got result %+v", res)
 	}

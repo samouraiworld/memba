@@ -22,10 +22,10 @@ var (
 	// ('skipped') rather than retrying a permanently-failing tx every cycle.
 	ErrLogBoundElsewhere = errors.New("arcade: input log bound to another address on-chain")
 	// ErrPermanentReject: the realm rejected the entry on a DETERMINISTIC shape
-	// check (score/waves/overtimeRound out of range, malformed day, non-positive
-	// simVersion, empty hash). Re-simulated backend data should never hit these,
-	// but if one does it will fail identically forever — the batcher retires it
-	// instead of dripping gas on an unwinnable retry.
+	// check (score out of range, malformed day, bad game slug, oversize stats,
+	// non-positive simVersion, empty hash). Re-simulated backend data should
+	// never hit these, but if one does it will fail identically forever — the
+	// batcher retires it instead of dripping gas on an unwinnable retry.
 	ErrPermanentReject = errors.New("arcade: realm rejected the entry (permanent shape failure)")
 )
 
@@ -107,9 +107,10 @@ func (b *gnokeyBroadcaster) AttestScore(ctx context.Context, run Run) (string, e
 		// retrying a deterministically-failing tx forever. These substrings mirror
 		// the panic() literals in the FROZEN realm
 		// samcrew-deployer/projects/memba/realms/memba_arcade_leaderboard_v1/leaderboard.gno
-		// (AttestScore + assertEntryShape). If that realm is ever un-frozen and its
-		// messages change, update these — TestGnokeyBroadcaster_ClassifiesRealmPanics
-		// pins the current strings.
+		// (multi-game AttestScore + assertEntryShape/assertGameSlug, as amended
+		// on samcrew-deployer's feat/arcade-leaderboard-multigame — PR #149). If
+		// that realm is ever un-frozen and its messages change, update these —
+		// TestGnokeyBroadcaster_ClassifiesRealmPanics pins the current strings.
 		lo := strings.ToLower(out)
 		switch {
 		case strings.Contains(lo, "existing entry is not improved"):
@@ -122,7 +123,9 @@ func (b *gnokeyBroadcaster) AttestScore(ctx context.Context, run Run) (string, e
 		case strings.Contains(lo, "out of range"),
 			strings.Contains(lo, "must be non-empty"),
 			strings.Contains(lo, "must be yyyy-mm-dd"),
-			strings.Contains(lo, "must be positive"):
+			strings.Contains(lo, "must be positive"),
+			strings.Contains(lo, "game must be 1-32 chars of [a-z0-9-]"),
+			strings.Contains(lo, "stats too long"):
 			// A deterministic shape rejection — retrying can never succeed.
 			return "", ErrPermanentReject
 		}
@@ -131,25 +134,27 @@ func (b *gnokeyBroadcaster) AttestScore(ctx context.Context, run Run) (string, e
 	return parseTxHash(out), nil
 }
 
-// attestScoreArgv builds the maketx-call argv for the realm's AttestScore, whose
-// parameters (after the implicit cur) are, in order: addr, day, seed, score,
-// waves, won, overtimeRound, simVersion, stateHash, logHash. gnokey coerces each
-// string -arg to the function's param type.
+// attestScoreArgv builds the maketx-call argv for the multi-game realm's
+// AttestScore, whose parameters (after the implicit cur) are, in order:
+// game, addr, day, seed, score, simVersion, stateHash, logHash, stats.
+// The barricade-era per-game positional args (waves/won/overtimeRound) are
+// gone — that context now travels in the opaque stats JSON blob. gnokey
+// coerces each string -arg to the function's param type. An empty Game
+// backfills to 'barricade' (a pre-migration row can only be a BARRICADE run).
 func (b *gnokeyBroadcaster) attestScoreArgv(run Run) []string {
 	argv := []string{
 		"maketx", "call",
 		"-pkgpath", b.cfg.Realm,
 		"-func", "AttestScore",
+		"-args", gameOrDefault(run.Game),
 		"-args", run.Addr,
 		"-args", run.Day,
 		"-args", run.Seed,
 		"-args", strconv.FormatInt(run.Score, 10),
-		"-args", strconv.FormatInt(run.Waves, 10),
-		"-args", boolArg(run.Won),
-		"-args", strconv.FormatInt(run.OvertimeRound, 10),
 		"-args", strconv.FormatInt(run.SimVersion, 10),
 		"-args", run.StateHash,
 		"-args", run.LogHash,
+		"-args", run.Stats,
 		"-gas-fee", strconv.Itoa(b.cfg.GasFeeUgnot) + "ugnot",
 		"-gas-wanted", strconv.Itoa(b.cfg.GasWanted),
 		"-chainid", b.cfg.ChainID,
@@ -184,11 +189,4 @@ func parseTxHash(out string) string {
 		}
 	}
 	return ""
-}
-
-func boolArg(b bool) string {
-	if b {
-		return "true"
-	}
-	return "false"
 }

@@ -439,12 +439,16 @@ func main() {
 		Prefix:       envOr("MEMBA_TICKET_PREFIX", "Memba"),
 	})))
 
-	// BARRICADE on-chain certify — the run-submit endpoint. OFF (404) until the
-	// operator sets MEMBA_ARCADE_SUBMIT_ENABLED. Each submission is re-simulated in
-	// a node subprocess (internal/arcade), so it also needs `node` on PATH; if it's
-	// missing (or the worker can't init) the endpoint stays disabled with a warning
-	// rather than 500ing at request time.
+	// Arcade on-chain certify — the run-submit endpoint (BARRICADE, Space
+	// Invaders). OFF (404) until the operator sets MEMBA_ARCADE_SUBMIT_ENABLED,
+	// and each game is additionally gated by MEMBA_ARCADE_GAMES (comma list;
+	// unset = "barricade" only, so a new game ships dark until named there).
+	// Each submission is re-simulated in a node subprocess (internal/arcade), so
+	// it also needs `node` on PATH; if it's missing (or the worker can't init)
+	// the endpoint stays disabled with a warning rather than 500ing at request
+	// time.
 	arcadeEnabled := os.Getenv("MEMBA_ARCADE_SUBMIT_ENABLED") == "1" || os.Getenv("MEMBA_ARCADE_SUBMIT_ENABLED") == "true"
+	arcadeGames := arcade.ParseEnabledGames(os.Getenv("MEMBA_ARCADE_GAMES"))
 	var arcadeVerifier arcade.Verifier
 	if arcadeEnabled {
 		nodeBin := envOr("MEMBA_ARCADE_NODE_BIN", "node")
@@ -457,15 +461,16 @@ func main() {
 		} else {
 			arcadeVerifier = runner
 			defer func() { _ = runner.Close() }()
-			slog.Info("arcade submit endpoint enabled", "nodeBin", nodeBin)
+			slog.Info("arcade submit endpoint enabled", "nodeBin", nodeBin, "games", arcadeGames)
 		}
 	}
 	mux.Handle("/api/arcade/submit", rateLimitMiddleware("arcade_submit", arcade.HandleSubmit(arcade.SubmitConfig{
-		Enabled:  arcadeEnabled,
-		Store:    arcade.NewStore(database),
-		Auth:     svc,
-		Verifier: arcadeVerifier,
-		Limiter:  svc,
+		Enabled:      arcadeEnabled,
+		Store:        arcade.NewStore(database),
+		Auth:         svc,
+		Verifier:     arcadeVerifier,
+		EnabledGames: arcadeGames,
+		Limiter:      svc,
 	})))
 
 	// BARRICADE day-close attester — writes the competitive board on-chain via a
