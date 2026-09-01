@@ -100,19 +100,18 @@ test.describe('TopBar (Desktop)', () => {
         await expect(versionBadge).toContainText(/v\d+/)
     })
 
-    test('network selector offers Pearl, Sapphire and Betanet — retired networks stay out', async ({ page }) => {
+    test('network selector offers Pearl and Betanet — retired networks stay out', async ({ page }) => {
         await page.goto('/')
         const selector = page.locator('[data-testid="topbar"] select')
         await expect(selector).toBeVisible()
-        // 2026-08-27 contract (owner directive): Pearl is the default, Sapphire
-        // stays offered until its 09-09 sunset, and Betanet is BACK — its F-28
-        // fail-open (isRealmValidOn open on a missing allowlist entry) and the
-        // F-29 dead-session loop are both fixed and pinned in config.test.ts,
-        // so offering it is safe: every realm surface gates honestly there.
-        // Retired networks must still not reappear.
+        // 2026-09-09 sunset contract: Pearl is the default, Betanet stays
+        // offered (its F-28 fail-open and F-29 dead-session loop are fixed and
+        // pinned in config.test.ts), and Sapphire has joined the retired set —
+        // hidden from the selector like Topaz/test13, still resolvable by deep
+        // link so stored selections heal instead of stranding.
         await expect(selector).toContainText(/Pearl/)
-        await expect(selector).toContainText(/Sapphire/)
         await expect(selector.locator('option', { hasText: /Betanet/ })).toHaveCount(1)
+        await expect(selector.locator('option', { hasText: /Sapphire/ })).toHaveCount(0)
         await expect(selector.locator('option', { hasText: /Topaz/ })).toHaveCount(0)
     })
 
