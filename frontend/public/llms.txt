@@ -2,7 +2,7 @@
 
 > Gno-native multisig wallet and DAO governance app on gno.land. Operate multisig wallets, launch and govern DAOs, launch tokens, run an on-chain AI-agent marketplace, and analyze contributors — all backed by on-chain Gno realms.
 
-Memba runs on the gno.land **Sapphire** testnet (chain id `sapphire-1`, gno-core's official endpoints; Topaz was decommissioned 2026-08-12). On-chain realm source lives in the `samcrew-deployer` repo; the backend is Go + ConnectRPC, the frontend a React/Vite SPA. For AI agents, the MCP servers and SKILL guide below are the entry points.
+Memba runs on the gno.land **Pearl** testnet (chain id `pearl-1`, gno-core's official endpoints; Sapphire sunsets 2026-09-09, Topaz was decommissioned 2026-08-12). On-chain realm source lives in the `samcrew-deployer` repo; the backend is Go + ConnectRPC, the frontend a React/Vite SPA. For AI agents, the MCP servers and SKILL guide below are the entry points.
 
 ## Docs
 
@@ -20,9 +20,9 @@ Memba runs on the gno.land **Sapphire** testnet (chain id `sapphire-1`, gno-core
 
 - App: https://memba.samourai.app
 - Backend API: https://memba-backend.fly.dev
-- RPC (sapphire): https://rpc.sapphire.testnets.gno.land:443
-- gnoweb (sapphire): https://sapphire.testnets.gno.land
-- Indexer (sapphire, GraphQL): https://indexer.sapphire.testnets.gno.land/graphql/query
+- RPC (pearl): https://rpc.pearl.testnets.gno.land:443
+- gnoweb (pearl): https://pearl.testnets.gno.land
+- Indexer (pearl, GraphQL): https://indexer.pearl.testnets.gno.land/graphql/query
 
 ## Source
 

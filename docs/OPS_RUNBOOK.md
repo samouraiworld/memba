@@ -15,7 +15,7 @@
 | Monthly | Sentry release health review — verify source maps present for the last 4 releases; confirm error rate is within SLO (§3.2). | Phase 0a |
 | Quarterly | Domain renewal check: `samourai.app` and `samourai.live` — autopay on, expiry ≥ 30 days out. | v7.1 plan §19 Q18 |
 | Quarterly | Secret rotation drill — see `docs/SECRETS_ROTATION.md` for the per-secret playbook. Includes `FLY_API_TOKEN`, `NETLIFY_AUTH_TOKEN`, `SENTRY_AUTH_TOKEN`, `SLACK_WEBHOOK_URL`, `ED25519_SEED`, Clerk pair, GPG signing keys, admin multisig keys. | Phase 1.12 |
-| Annual | Emergency multisig custody rotation (channels v3 two-tier pause guard) — see `docs/MAINNET_PREPARATION.md` §Custody. | Phase 1.11 |
+| Annual | Emergency multisig custody rotation (channels v3 two-tier pause guard) — see `docs/MAINNET_APP_HARDENING.md` §Custody (renamed from MAINNET_PREPARATION.md, #1129). | Phase 1.11 |
 | Annual | Rollback drill — see §4 below; record results in the internal planning archive (private). | Phase 5 prereq |
 
 ---
@@ -26,17 +26,22 @@
 |---------|-----|------|---------------|
 | Frontend | `memba.samourai.app` | React + Vite SPA | Netlify (`memba-multisig` site) |
 | Backend | `memba-backend.fly.dev` | Go + ConnectRPC | Fly.io (app `memba-backend`, region `cdg`, 1 shared-cpu-1x machine, `min_machines_running=1`, volume `memba_data` mounted at `/data`) |
-| Chain | `sapphire-1` (live since 2026-08-15; topaz-1 decommissioned 2026-08-12); `gnoland1` after Phase 5 | Gno | Official RPC: `rpc.sapphire.testnets.gno.land`; samourai sentry: `rpc.sapphire.samourai.live` (51.159.105.229); onbloc: `sapphire.rpc.onbloc.xyz`; betanet: `rpc.gnoland1.samourai.live`. Status: `status.sapphire.testnets.gno.land`; Gnockpit: `gnockpit.sapphire.testnets.gno.land` |
+| Chain | `pearl-1` (live since 2026-08-27, full app since the 2026-08-31 ceremony; sapphire-1 sunsets 2026-09-09, topaz-1 decommissioned 2026-08-12); `gnoland1` after Phase 5 | Gno | Official RPC: `rpc.pearl.testnets.gno.land`; samourai sentry: `rpc.pearl.samourai.live`; betanet: `rpc.gnoland1.samourai.live`. ⚠️ `rpc.sapphire.samourai.live` is a single-slot DNS that now serves PEARL — never trust hostname or HTTP 200; the only identity test is `node_info.network` |
 
-> **Chain-cutover invariants (learned test13→topaz→sapphire).** A default-network change is ONE
-> coordinated window: frontend constants (config.ts + sitemap.ts + chainHealth.ts + netlify.toml),
+> **Chain-cutover invariants (learned test13→topaz→sapphire→pearl).** A default-network change is
+> ONE coordinated window: frontend constants (config.ts + sitemap.ts + chainHealth.ts + netlify.toml),
 > backend Fly SECRETS (`GNO_CHAIN_ID`, `MEMBA_ACCEPTED_CHAIN_IDS`, `GNO_RPC_URL`, `FEED_RPC_URL`,
-> `FEED_START_BLOCK`), and the **mandatory feed-state reset** — `loadFeedCursor` reads the DB first
+> `FEED_START_BLOCK`, `HOME_SNAPSHOT_RPC_URL` — enumerate what the CODE reads, e.g.
+> `grep -roE '"[A-Z_]*RPC[A-Z_]*"' backend/`, never trust this list alone: the pearl §5 window
+> missed `HOME_SNAPSHOT_RPC_URL` at first and prod kept serving sapphire snapshots after a
+> "successful" cutover), and the **mandatory feed-state reset** — `loadFeedCursor` reads the DB first
 > and the env is only a first-run floor, so stale rows from the old chain silently pin or poison the
-> tailer (realm-scoped post ids collide across chains). Sapphire values of record:
-> `FEED_START_BLOCK=187503` (= `memba_feed_v1` deploy height, realm-versions.json), FEED on the
-> samourai sentry / GNO on the canonical node (two-node rule — the public node 403-throttles
-> sustained polling). **Autoheal footgun:** the sapphire VPS autoheal safely restarts a single
+> tailer (realm-scoped post ids collide across chains). Pearl values of record (cutover executed
+> 2026-08-31; scoped-probe-verified 2026-09-01): `FEED_START_BLOCK=99236` (= `memba_feed_v1` deploy
+> height, realm-versions.json `pearl`), FEED on the samourai sentry `rpc.pearl.samourai.live` / GNO
+> on the canonical node (two-node rule — the public node 403-throttles sustained polling). ⚠️ Heights
+> are chain-scoped: the old sapphire value 187503 is ABOVE pearl's current head — setting it would
+> pin the tailer past the tip and it silently indexes nothing. **Autoheal footgun:** the sapphire VPS autoheal safely restarts a single
 > lagging node but can permanently deadlock tmkms during a network-wide halt — disable the
 > validator timer during any coordinated outage, and never "fix" a mid-ceremony halt by restarting
 > the validator.
@@ -56,7 +61,7 @@
 | Var | Surface | Owner | Notes |
 |-----|---------|-------|-------|
 | `ED25519_SEED` | Fly | server-keypair | If empty, ephemeral keypair → every restart logs out all users. See `backend/internal/service/service.go`. |
-| `GNO_CHAIN_ID` | Fly | auth | Required for AUTH-CHAINID-01 enforcement; set to `sapphire-1` in prod (was `topaz-1` until the 2026-08-15 cutover, `test-13` before 2026-07-26). No hardcoded default — `service.go` reads it from env and logs a warning if empty. |
+| `GNO_CHAIN_ID` | Fly | auth | Required for AUTH-CHAINID-01 enforcement; set to `pearl-1` in prod since the 2026-08-31 cutover (`sapphire-1` 08-15→08-31, `topaz-1` before that, `test-13` before 2026-07-26). No hardcoded default — `service.go` reads it from env and logs a warning if empty. |
 | `FLY_API_TOKEN` | GitHub Actions | deploys + GHCR mirror | |
 | `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` | GitHub Actions | Netlify deploy | |
 | `SENTRY_AUTH_TOKEN` | GitHub Actions | source-map upload | Required by `@sentry/vite-plugin`; was unwired before `v6.0.2`. |
@@ -89,6 +94,34 @@ The byte-parity evidence backing this flip lives in `backend/internal/auth/testd
 **`VITE_ENABLE_TREASURY_SPEND` → `true`.** Do **not** flip until A1.c implements the on-chain banker treasury — until then a passing spend proposal cannot execute and funds sent to the DAO are irrecoverable. When ready: remove the flag from the `ci.yml` safety-gate list in the same PR, set it in Netlify, redeploy.
 
 ---
+
+### 2.2 Block Party (arcade) — parked/enabled contract
+
+| Var | Surface | Notes |
+|-----|---------|-------|
+| `BLOCKPARTY_ENABLED` | Fly | **Total kill switch.** Unset/`0` = the entire BP surface (all four RPCs, reads included) answers `Unimplemented`; nothing touches the chain or the DB. `1`/`true` = live. First response to any BP incident — no deploy needed. |
+| `BLOCKPARTY_SEED_RPC_URL` | Fly | Seed node. Default (code): the pearl sentry `https://rpc.pearl.samourai.live:443`. **Single node, no failover** — a wrong seed is permanent (`blockparty_challenges` is INSERT-OR-IGNORE), so seeding fails loud instead of substituting a chain. Override together with the chain id below. |
+| `BLOCKPARTY_SEED_CHAIN_ID` | Fly | Identity the seed node must prove (default `pearl-1`) — checked on `/status` `node_info.network` AND every `/block` header. Mismatch = clean error, no mint. |
+
+Seed provenance chain: configured node → chain-identity check → first block with
+`header.time >= 00:00Z` (binary search) → `SHA256(blockHash + "blockparty:" + date)`
+→ immutable `blockparty_challenges` row. Public re-derivation:
+`node scripts/verify-blockparty-seed.mjs` (defaults to the CANONICAL node —
+backend-vs-script cross-node agreement is the verification point; see
+`scripts/VERIFY_BLOCKPARTY.md`).
+
+**Enable checklist** (revival): (1) purge pre-pearl rows —
+`DELETE FROM blockparty_challenges; DELETE FROM blockparty_scores; DELETE FROM blockparty_streaks;`
+(no provenance column: stale-chain rows for a recent date would be served
+verbatim and publicly fail verification on day one); (2) one
+`fly secrets set BLOCKPARTY_SEED_RPC_URL=… BLOCKPARTY_SEED_CHAIN_ID=pearl-1 BLOCKPARTY_ENABLED=1 -a memba-backend`
+(one command = one restart); (3) probes — both pearl RPCs report
+`node_info.network == "pearl-1"`; `GetDailyChallenge` returns `ready:true`
+with height+hash; `verify-blockparty-seed.mjs` derives the identical
+seed/height/hash; `GetDailyLeaderboard` answers (not `Unimplemented`);
+(4) Netlify dashboard → `VITE_ENABLE_GAME=true` → redeploy (netlify.toml
+deliberately carries no game flags).
+
 
 ## 3. Deploy and observability
 
@@ -373,13 +406,20 @@ Until a secondary owner is recruited (v7.1 plan §1.8 / R-12):
 ## 7. Useful commands
 
 ```bash
-# Live chain probes (used in Phase 0/1 acceptance + every release)
-curl -s https://rpc.sapphire.testnets.gno.land/status | jq .result.sync_info.latest_block_height
-curl -s https://rpc.gnoland1.samourai.live/status | jq .result.sync_info.latest_block_height
+# Live chain probes (used in Phase 0/1 acceptance + every release).
+# Always identity-check alongside liveness: .result.node_info.network must be
+# the chain you think you are probing (DNS + HTTP 200 are both false positives).
+curl -s https://rpc.pearl.testnets.gno.land/status | jq '{net:.result.node_info.network,h:.result.sync_info.latest_block_height}'
+curl -s https://rpc.gnoland1.samourai.live/status | jq '{net:.result.node_info.network,h:.result.sync_info.latest_block_height}'
 
 # Transfer-lock probe (Phase 1.5 / Phase 5 gate)
 gnokey query params/bank:p:restricted_denoms -remote https://rpc.gnoland1.samourai.live:443
 gnokey query params/auth:p:unrestricted_addrs -remote https://rpc.gnoland1.samourai.live:443
+
+# Block Party seed cross-check (canonical node vs the sentry the backend uses;
+# identical seed/height/hash on both = the public verification claim holds)
+node scripts/verify-blockparty-seed.mjs
+node scripts/verify-blockparty-seed.mjs --rpc https://rpc.pearl.samourai.live:443
 
 # Backend
 cd backend && go install golang.org/x/vuln/cmd/govulncheck@v1.3.0 && govulncheck ./...
