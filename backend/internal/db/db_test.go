@@ -254,3 +254,42 @@ func TestMigrate_026_ServingOverrides(t *testing.T) {
 		t.Fatalf("idx_feed_posts_served missing: %v", err)
 	}
 }
+
+func TestMigrate_028_ArcadeGameColumns(t *testing.T) {
+	database, err := Open(":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = database.Close() }()
+	if err := Migrate(database); err != nil {
+		t.Fatal("migrate:", err)
+	}
+
+	// An insert that never names the new columns (the pre-028 writer's shape)
+	// must still work, and its row must read back as game='barricade', stats=''
+	// — the backfill contract for every existing BARRICADE run.
+	if _, err := database.Exec(`INSERT INTO arcade_runs
+		(input_log_sha256, addr, day, mode, seed, sim_version, score, waves, state_hash, events, created_at)
+		VALUES ('h1', 'g1a', '2026-07-13', 'daily', 'barricade-2026-07-13', 2, 100, 3, 'sh', '[]', 1)`); err != nil {
+		t.Fatalf("legacy-shape insert: %v", err)
+	}
+	var game, stats string
+	if err := database.QueryRow(
+		`SELECT game, stats FROM arcade_runs WHERE input_log_sha256 = 'h1'`,
+	).Scan(&game, &stats); err != nil {
+		t.Fatalf("read new columns: %v", err)
+	}
+	if game != "barricade" || stats != "" {
+		t.Fatalf("defaults wrong: game=%q stats=%q", game, stats)
+	}
+
+	// The game-scoped batcher indexes exist.
+	for _, idx := range []string{"idx_arcade_runs_game_board", "idx_arcade_runs_game_status"} {
+		var name string
+		if err := database.QueryRow(
+			`SELECT name FROM sqlite_master WHERE type='index' AND name=?`, idx,
+		).Scan(&name); err != nil {
+			t.Fatalf("%s missing: %v", idx, err)
+		}
+	}
+}

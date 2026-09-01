@@ -11,6 +11,7 @@ import { Board } from "../game/components/Board";
 import { ScoreBar } from "../game/components/ScoreBar";
 import { ModifierBadge } from "../game/components/ModifierBadge";
 import { GameOverSheet } from "../game/components/GameOverSheet";
+import { SeedProof } from "../game/components/SeedProof";
 import { ShareCard } from "../game/components/ShareCard";
 import { DailyLeaderboardPanel } from "../game/components/DailyLeaderboardPanel";
 import { StreakBadge } from "../game/components/StreakBadge";
@@ -41,7 +42,12 @@ export default function BlockPartyGame() {
   const adena = useAdena();
   const auth = useAuth();
   const network = useNetwork();
-  const { data: challenge, isLoading: challengeLoading } = useDailyChallenge();
+  const {
+    data: challenge,
+    isLoading: challengeLoading,
+    isError: challengeError,
+    refetch: refetchChallenge,
+  } = useDailyChallenge();
 
   const [mode, setMode] = useState<GameMode>("ranked");
 
@@ -111,6 +117,21 @@ export default function BlockPartyGame() {
       }
     }
   }, [mode, challenge, restart]);
+
+  // Ranked re-seed when the challenge ARRIVES (not just on mode switches): a
+  // cold load renders useGame on the placeholder seed 0 before the fetch
+  // resolves, and useState never re-runs its initializer — without this, the
+  // player plays a board the server never issued and the replay is garbage.
+  // The ref guards background refetches: an unchanged seed never wipes an
+  // in-progress run; a NEW seed (UTC date rollover) legitimately starts the
+  // new day's board.
+  const lastAppliedSeed = useRef<number | null>(null);
+  useEffect(() => {
+    if (ranked && challenge?.ready && lastAppliedSeed.current !== challenge.seed) {
+      lastAppliedSeed.current = challenge.seed;
+      restart(challenge.seed);
+    }
+  }, [ranked, challenge, restart]);
 
   const onMove = useCallback(
     (m: Parameters<typeof play>[0]) => {
@@ -225,6 +246,18 @@ export default function BlockPartyGame() {
         </p>
       )}
 
+      {ranked && challengeError && (
+        <p className="k-bp-notice" role="alert">
+          Couldn't load today's challenge.
+          <button className="k-bp-btn" onClick={() => void refetchChallenge()}>
+            Retry
+          </button>
+          <button className="k-bp-btn" onClick={() => setMode("practice")}>
+            Play Practice
+          </button>
+        </p>
+      )}
+
       <div className="k-bp-board-wrap">
         <Board board={board} onMove={onMove} />
         {showHint && (
@@ -240,7 +273,7 @@ export default function BlockPartyGame() {
         Score {score}
       </div>
 
-      {over && ranked && (
+      {over && ranked && canPlayRanked && (
         <>
           <GameOverSheet
             date={date}
@@ -275,6 +308,9 @@ export default function BlockPartyGame() {
       )}
 
       <div className="k-bp-panels">
+        {canPlayRanked && challenge && (
+          <SeedProof chainId={network.chainId} height={challenge.blockHeight} hash={challenge.blockHash} />
+        )}
         <DailyLeaderboardPanel date={date} />
         <StreakBadge
           address={adena.connected ? adena.address : undefined}

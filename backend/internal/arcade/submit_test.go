@@ -314,6 +314,136 @@ func TestSubmit_DuplicateDifferentAddrIsRejected(t *testing.T) {
 	}
 }
 
+// okInvadersResult mirrors what the SI worker branch emits: wave in Waves,
+// stats authored by the worker, sim v1, no won/overtime.
+func okInvadersResult() arcade.Result {
+	return arcade.Result{
+		OK: true, Score: 4321, Waves: 3, StateHash: "0badc0de", SimVersion: 1,
+		Stats: `{"wave":3,"shots":51,"hits":22}`, LogHash: "invaderscanonicaldigest",
+	}
+}
+
+func invadersBody(t *testing.T, finalTick int64) string {
+	t.Helper()
+	b, _ := json.Marshal(map[string]any{
+		"seed": "invaders-2026-07-13", "simVersion": 1, "events": []any{},
+		"finalTick": finalTick, "claimedScore": 4321, "claimedHash": "0badc0de",
+	})
+	return string(b)
+}
+
+func TestSubmit_GameNotEnabledIsRejected(t *testing.T) {
+	// THE dark-by-default pin: with the DEFAULT enablement (nil EnabledGames,
+	// exactly what an unset MEMBA_ARCADE_GAMES yields), a Space Invaders seed
+	// is rejected BEFORE any verify is spent — merging multi-game support
+	// changes nothing in prod until the operator names the game.
+	v := &fakeVerifier{res: okInvadersResult()}
+	cfg := baseCfg(t, v) // EnabledGames deliberately unset
+	rr := submitReq(t, arcade.HandleSubmit(cfg), "tok", invadersBody(t, 600))
+	if rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("a not-enabled game must 422, got %d: %s", rr.Code, rr.Body.String())
+	}
+	if v.called != 0 {
+		t.Fatal("a not-enabled game must be rejected BEFORE verifying")
+	}
+	var n int
+	_ = cfg.Store.DB().QueryRow(`SELECT COUNT(*) FROM arcade_runs`).Scan(&n)
+	if n != 0 {
+		t.Fatalf("a not-enabled game must not be stored, found %d rows", n)
+	}
+	// BARRICADE stays live under the same default enablement — the status quo.
+	cfgBar := baseCfg(t, &fakeVerifier{res: okResult()}) // EnabledGames still unset
+	if rr := submitReq(t, arcade.HandleSubmit(cfgBar), "tok", dailyBody(t, 27150, "e8532dc207e3cb24")); rr.Code != http.StatusOK {
+		t.Fatalf("barricade must stay enabled by default, got %d", rr.Code)
+	}
+}
+
+func TestSubmit_EnabledInvadersStoresGameAndStats(t *testing.T) {
+	v := &fakeVerifier{res: okInvadersResult()}
+	cfg := baseCfg(t, v)
+	cfg.EnabledGames = arcade.ParseEnabledGames("barricade,invaders")
+	rr := submitReq(t, arcade.HandleSubmit(cfg), "tok", invadersBody(t, 600))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("enabled invaders submit must 200, got %d: %s", rr.Code, rr.Body.String())
+	}
+	var resp struct {
+		Verified bool   `json:"verified"`
+		LogHash  string `json:"logHash"`
+		Game     string `json:"game"`
+		Day      string `json:"day"`
+		Mode     string `json:"mode"`
+		Stats    string `json:"stats"`
+	}
+	if err := json.Unmarshal(rr.Body.Bytes(), &resp); err != nil {
+		t.Fatalf("decode: %v", err)
+	}
+	if !resp.Verified || resp.Game != "invaders" || resp.Day != "2026-07-13" || resp.Mode != "daily" {
+		t.Fatalf("unexpected response: %+v", resp)
+	}
+	if resp.Stats != `{"wave":3,"shots":51,"hits":22}` {
+		t.Fatalf("response must echo the worker-authored stats verbatim, got %q", resp.Stats)
+	}
+	got, ok, _ := cfg.Store.GetRunByLogHash(resp.LogHash)
+	if !ok || got.Game != "invaders" || got.Stats != resp.Stats || got.Waves != 3 {
+		t.Fatalf("stored run wrong: %+v (ok=%v)", got, ok)
+	}
+}
+
+func TestSubmit_FinalTickRules(t *testing.T) {
+	// invaders: finalTick is REQUIRED (>0) — its sim runs to a tick count.
+	v := &fakeVerifier{res: okInvadersResult()}
+	cfg := baseCfg(t, v)
+	cfg.EnabledGames = arcade.ParseEnabledGames("barricade,invaders")
+	h := arcade.HandleSubmit(cfg)
+	if rr := submitReq(t, h, "tok", invadersBody(t, 0)); rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("invaders without finalTick must 422, got %d", rr.Code)
+	}
+	if v.called != 0 {
+		t.Fatal("a missing finalTick must be rejected before verifying")
+	}
+
+	// barricade: finalTick is FORBIDDEN — a stray field must not smuggle
+	// meaning into a game that ignores it.
+	vb := &fakeVerifier{res: okResult()}
+	cfgB := baseCfg(t, vb)
+	body, _ := json.Marshal(map[string]any{
+		"seed": "barricade-2026-07-13", "simVersion": 2, "events": []any{},
+		"finalTick": 600, "claimedScore": 27150, "claimedHash": "e8532dc207e3cb24",
+	})
+	if rr := submitReq(t, arcade.HandleSubmit(cfgB), "tok", string(body)); rr.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("barricade with finalTick must 422, got %d", rr.Code)
+	}
+	if vb.called != 0 {
+		t.Fatal("a stray finalTick must be rejected before verifying")
+	}
+}
+
+func TestSubmit_BarricadeStatsSynthesized(t *testing.T) {
+	// The BARRICADE worker output predates stats (byte-identical bundle branch)
+	// — the handler synthesizes the legacy display trio so the realm keeps the
+	// per-run context AttestScore v1 carried as positional args.
+	v := &fakeVerifier{res: okResult()}
+	cfg := baseCfg(t, v)
+	rr := submitReq(t, arcade.HandleSubmit(cfg), "tok", dailyBody(t, 27150, "e8532dc207e3cb24"))
+	if rr.Code != http.StatusOK {
+		t.Fatalf("submit must 200, got %d", rr.Code)
+	}
+	var resp struct {
+		LogHash string `json:"logHash"`
+		Game    string `json:"game"`
+		Stats   string `json:"stats"`
+	}
+	_ = json.Unmarshal(rr.Body.Bytes(), &resp)
+	want := `{"waves":5,"won":false,"overtimeRound":0}`
+	if resp.Game != "barricade" || resp.Stats != want {
+		t.Fatalf("barricade response game/stats wrong: %+v", resp)
+	}
+	got, _, _ := cfg.Store.GetRunByLogHash(resp.LogHash)
+	if got.Game != "barricade" || got.Stats != want {
+		t.Fatalf("stored barricade run game/stats wrong: %+v", got)
+	}
+}
+
 func TestSubmit_PerAddressRateLimitIs429(t *testing.T) {
 	cfg := baseCfg(t, &fakeVerifier{res: okResult()})
 	cfg.Limiter = denyLimiter{}
