@@ -1,6 +1,8 @@
 # Pearl Cutover & Combined Ceremony Plan — week of 2026-08-24
 
-> **Status:** plan of record, drafted 2026-08-23 (Sunday) from the 2026-08-20 contributors sync.
+> 🗄️ **EXECUTED 2026-08-31.** The ceremony this plan staged ran to completion on pearl-1: 32 artifacts from the samcrew 2-of-2 (account #225), sequences 0–34 (13/14/15 permanently absent — three rejected broadcasts of an orphaned tokenfactory mirror leg; correct chain history, not an error), heights 98865–100538, per-artifact records in realm-versions.json's `pearl` section. §5 backend secrets and the §6 completion PR (#1119, `5df35a91`) both landed. This file is the mechanics-of-record; statuses below were corrected to match execution. §7's rollback levers remain live until the 2026-09-09 sapphire sunset.
+
+> **Status:** executed — drafted 2026-08-23 (Sunday) from the 2026-08-20 contributors sync as the plan of record; run to completion 2026-08-31 (see banner above).
 > **Trigger:** the next gno testnet **Pearl** (released as an **RC**) launches **Wed 2026-08-26**, superseding `sapphire-1` ten days after Memba cut over to it. Memba's 4th chain migration in five weeks (test13 → topaz → sapphire → pearl).
 > **Decision already taken (2026-08-23):** the commerce ceremony does **NOT** run on sapphire. Prep is merged and chain-agnostic (Memba #1082, deployer #138); Pearl gets **one combined ceremony** — the phase-1 core set + the commerce set — once the chain is stable.
 > **Mechanics reference:** `docs/SAPPHIRE_COMMERCE_CEREMONY.md` (rulings + sequence; every step applies to Pearl verbatim, only the chain name and heights change) · `docs/OPS_RUNBOOK.md` §2 chain-cutover invariants · `MILESTONES.md` (memba-internal): chain resets re-open status, never definitions — M1 and M2 both re-flip on `pearl`.
@@ -11,11 +13,11 @@
 
 > **Resolved 2026-08-25** against `gnolang/gno` branch `chain/pearl` (@ `84e8edf9`, 08-24 22:04),
 > whose `misc/deployments/pearl.gno.land/` directory is the genesis builder that MAKES the chain.
-> That source outranks an announce but is not the running node — every row marked ✅ below still
-> gets re-asserted against the launched node before anything merges.
+> That source outranks an announce but is not the running node — every row marked ✅ below was
+> re-asserted against the launched node before the corresponding lane merged.
 
-> **LAUNCH-DAY ADDENDUM (2026-08-27, all live-probed against the running chain — supersedes the
-> table rows where they differ):**
+> **LAUNCH-DAY ADDENDUM (2026-08-27, all live-probed against the running chain; kept as the
+> launch-day record — the §0 table below has since been corrected to the executed state):**
 >
 > - **Launched ~11:45 UTC** (~46h past the Wed slot), fresh genesis, `network == "pearl-1"`,
 >   v1.0.0-rc.0, heights advancing. The official RPC no longer lies. `rpc.pearl.samourai.live`
@@ -68,14 +70,16 @@
 > - **⏰ HARD DEADLINE COUPLING: sapphire sunsets 2026-09-09.** The backend feed/snapshot and
 >   the frontend FEED/SNAPSHOT/SITEMAP/INDEXER pins still point at sapphire until the §6
 >   completion PR. If the ceremony + §6 have not landed by 09-09, those surfaces break when the
->   chain dies — the ceremony's real deadline is the sunset, not convenience.
+>   chain dies — the ceremony's real deadline is the sunset, not convenience. (Resolved: the
+>   ceremony and §6 both landed 08-31, nine days ahead of the sunset.)
 
-> **CEREMONY-DAY ADDENDUM (2026-08-28, live-probed at h≈21.4k — supersedes the launch-day
-> addendum and the table wherever they differ):**
+> **CEREMONY-DAY ADDENDUM (2026-08-28, live-probed at h≈21.4k; kept as the ceremony-eve
+> record — the §0 table below has since been corrected to the executed state):**
 >
 > - 🟢 **BOTH founder-side prerequisites are CLOSED.** `auth/accounts/g1x7k4628…uxu0` →
->   **`10000000000ugnot` (10 000 GNOT)**, account_number 225, **sequence 0** (never
->   transacted, so ceremony sequences start at 0 exactly as §4.5 assumes).
+>   funded **10 000 GNOT**, account_number 225 — spent down across the ceremony's storage
+>   deposits on 08-31; the account's sequence advanced 0→34 during the window (next
+>   broadcast is sequence 35, no longer 0 as §4.5 originally assumed).
 >   `r/sys/users.ResolveName("samcrew")` resolves to the multisig as a **typed
 >   `.uverse.address` field** — un-spoofable; negative control `definitelynotaname999` →
 >   `(nil *…UserData)`. aeddi's `govdao-exec.sh register-user` landed.
@@ -85,57 +89,38 @@
 >   `IsEnabled()=true` **and** `IsAuthorizedAddressForNamespace(…,"samcrew")=true` · gate 3 CLA
 >   dark (requiredHash empty) · probe 4 namereg price 0ugnot · gate 5 balance floor covered
 >   (full-sequence budget waived — F-16: a multisig cannot sign the simulate).
->   `r/samcrew/*` still answers `InvalidPackageError` — nothing deployed yet.
-> - ✅ **LAUNCH REF SETTLED: `c4c72fdd288c757e8da0d93aae867fa479b1b15c`.** The node exposes no
->   build commit, so it is settled by **byte-corroboration against the running chain**:
->   `vm/qfile` on `gno.land/p/demo/tokens/grc20` returns `tellers.gno`/`token.gno`/`types.gno`
->   sha256-identical to `c4c72fdd28` and **different** from the 08-25 staging tip `84e8edf9e`.
->   The range between them is **not** bookkeeping — 15 commits / ~450 files: inert packages
->   (#6088 + fixes #6093), chain-params reader API (#6094), a size-aware encode/decode/render
->   pass across gnovm+tm2+gno.land, the grc20 Teller-axis move, and a full **grc721 core
->   rewrite** (#6072/#6073). Our realms are insulated from the last one — all 37 grc721 imports
->   resolve to the vendored `p/samcrew/grc721`. Deployer `GNO_REF` re-pinned accordingly and the
->   **A6 custody oracles re-ran GREEN at the launch ref** (avl equivalence · 6 fund-guard
->   regressions · memba_dao vs gnodaokit · feed_v2 batteries · otc_v2 dep closure ·
->   tokenfactory_v2 custody oracles · 8 modern suites), all with their anti-vacuous guards
->   intact. Memba's `GNO_PIN` on the §6 PR already carries the same ref.
-> - ✅ **gno#6028 re-verified ABSENT at the LAUNCH ref** (not merely at the staging ref):
->   `grc20reg.IdentifierGenerator` absent · `NewToken(name, symbol string, decimals int, id
->   seqid.ID, rlm realm)` · no `idgenerator.gno`. **Deployer #139 is CLOSED unmerged**; §2's
->   second branch is taken and that fork is finished.
-> - 🟢 **Sentry row is stale: `rpc.pearl.samourai.live` is LIVE** — identity-verified `pearl-1`,
->   catching_up false. The two-node rule is satisfiable, so `FEED_RPC_URL` can differ from
->   `GNO_RPC_URL` at §5. (`rpc.sapphire.samourai.live` remains dead — the host was repurposed;
->   official `rpc.sapphire.testnets.gno.land` still serves sapphire-1 for prod until 09-09.)
-> - ⚠️ **Deployer #140 is merge-READY but NOT merged** — rebased, 5/5 CI green on head, the
->   preflight above run from it. Merging is the ceremony operator's call because it is the
->   deploy lane for a fund-custody ceremony.
+>   (At this 08-28 probe `r/samcrew/*` still answered `InvalidPackageError`; the 08-31 ceremony
+>   published all 32 artifacts, live-verified with a negative control against a bogus pkgpath.)
+> - 🟢 **Deployer #140 MERGED** (the ceremony operator's call, taken 08-28) — and every
+>   ceremony-window follow-up landed too: deployer `main` sits at `82471e6` with **zero open
+>   PRs**. (Launch-ref settlement, the gno#6028 close-out, and the sentry status were folded
+>   into the §0 table below — the table is the single voice for those.)
 > - 🔑 **The operator preamble §4 was missing — see §4.0 below.** Two environment variables are
 >   load-bearing and were named nowhere in this plan: without them the ceremony **fails closed
 >   mid-window**, not at the start.
 
 | Item | Value | Source / owner |
 |---|---|---|
-| Chain id | ✅ **`pearl-1`** — `gen-genesis.sh:52` `CHAIN_ID=pearl-1`, corroborated by `VALIDATOR.md:92,123` and `govdao-exec.sh:6` | re-assert from the launched node's `/status` `.result.node_info.network` before merging the deployer lane |
-| Official RPC | ⛔ `rpc.pearl.testnets.gno.land` **now resolves BUT LIES** — 200 OK reporting `sapphire-1` / `chain/sapphire`, frozen at height 395317 since 08-24T20:00:14Z (real sapphire ~20k ahead); reproduced across 3 pool instances | pre-provisioned infra awaiting the genesis. **DNS + HTTP 200 are false positives**; the only liveness test is `node_info.network == "pearl-1"` |
-| Samouraï sentry | ❌ `rpc.pearl.samourai.live` **NXDOMAIN** (as is `pearl.rpc.onbloc.xyz`) — no second node exists on any provider | zxxma · `infra_gno-validator` still has only `chain/{sapphire,test-13,test11}`; the two-node rule needs this before `FEED_RPC_URL` can differ from `GNO_RPC_URL` |
-| Launch ref (→ deployer `GNO_REF`) | 🟡 `chain/pearl` @ `84e8edf9` (08-24 22:04) — the branch moved as recently as launch-eve, so treat as provisional | confirm from the launched chain's `build_version`, not the announce (flag-day 2 precedent: re-pin if it launched from a different commit) |
-| gno#6028 in the launch ref? | ✅ **NO.** `chain/pearl` carries `NewToken(…, id seqid.ID, …)`; PR6028's head `0a9e403` carries `NewToken(…, gen *IDGenerator, …)` + `idgenerator.gno` (positive control passed). #6028 is still OPEN with CHANGES_REQUESTED since 08-19 | ⇒ §2's second branch: **close deployer #139 unmerged**, bump `GNO_REF` in a plain PR. Re-run this one-line check against the final ref on Wed before closing |
-| `samcrew` namespace authorized for `g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0` in genesis | ✅ **Absent from Pearl's genesis — and that is NOT a blocker.** Sapphire's genesis lacked it too and it was provisioned post-launch. `r/sys/names.Enable` *does* run at genesis (enforcement from block 1), but `r/sys/namereg/v1` ships in Pearl's package set and `r/sys/names/verifier.gno` documents the registered-name bridge (`r/sys/users` name→addr) | zxxma — confirm the controller/authority path, then register post-launch as on sapphire. Genesis prereg is a nice-to-have accelerator, not a precondition |
-| Deploy multisig funding (storage deposits ~100 ugnot/B, ~10k GNOT did sapphire) | 🔴 **No genesis allocation.** Pearl has *no airdrop and no inherited balances* — only 3 faucet accounts, exact-burn fee payers, and `VESTED_ACCOUNTS`, which is **still empty** behind an `XXX: PLACEHOLDER` marker (`gen-genesis.sh:155`; the README calls it the one pending launch value) | 🔴 zxxma — **the genesis window shuts when the genesis is generated, before Wed 14:00 UTC.** Decide now: fund the multisig at genesis, or accept faucet funding post-launch. Transfers are unrestricted, so the faucet route works |
+| Chain id | ✅ **`pearl-1`** — `gen-genesis.sh:52` `CHAIN_ID=pearl-1`, corroborated by `VALIDATOR.md:92,123` and `govdao-exec.sh:6` | re-asserted from the launched node's `/status` `.result.node_info.network` before the deployer lane merged |
+| Official RPC | ✅ `rpc.pearl.testnets.gno.land` **serves pearl-1** (identity-verified; the primary `GNO_RPC_URL`). Pre-launch it resolved but LIED — 200 OK reporting `sapphire-1`, frozen at height 395317 — so the lesson stands | **DNS + HTTP 200 are false positives**; the only liveness test is `node_info.network == "pearl-1"` |
+| Samouraï sentry | ✅ `rpc.pearl.samourai.live` **LIVE** (provisioned 08-27, identity-verified `pearl-1`, catching_up false) — and it is the node the ceremony ran on. Two-node rule satisfied: `FEED_RPC_URL` differs from `GNO_RPC_URL` at §5 | zxxma · ⚠️ the same host DROPPED the sapphire vhost (per-chain RPC DNS is single-slot); official `rpc.sapphire.testnets.gno.land` serves sapphire-1 until the 09-09 sunset |
+| Launch ref (→ deployer `GNO_REF`) | ✅ **SETTLED: `c4c72fdd288c757e8da0d93aae867fa479b1b15c`.** The node exposes no build commit, so settled by byte-corroboration: `vm/qfile` on `p/demo/tokens/grc20` sha256-identical to `c4c72fdd28`, **different** from the 08-25 staging tip `84e8edf9e` (the gap is 15 commits / ~450 files, incl. a grc721 core rewrite our realms dodge via the vendored `p/samcrew/grc721`) | deployer `GNO_REF` re-pinned; **A6 custody oracles re-ran GREEN at this ref** with anti-vacuous guards intact; Memba's `GNO_PIN` carries the same ref |
+| gno#6028 in the launch ref? | ✅ **NO — re-verified at the settled launch ref `c4c72fdd28`**, not merely the staging tip: `grc20reg.IdentifierGenerator` absent · `NewToken(…, id seqid.ID, …)` · no `idgenerator.gno` (positive control passed) | ⇒ §2's second branch taken: **deployer #139 CLOSED unmerged**, `GNO_REF` bumped in the lane PR |
+| `samcrew` namespace authorized for `g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0` in genesis | ✅ **Absent from Pearl's genesis — and that is NOT a blocker.** Sapphire's genesis lacked it too and it was provisioned post-launch. `r/sys/names.Enable` *does* run at genesis (enforcement from block 1), but `r/sys/namereg/v1` ships in Pearl's package set and `r/sys/names/verifier.gno` documents the registered-name bridge (`r/sys/users` name→addr) | ✅ done post-launch 2026-08-28 exactly as planned (aeddi's GovDAO `register-user`; see the ceremony-day addendum). Genesis prereg was a nice-to-have accelerator, not a precondition |
+| Deploy multisig funding (storage deposits ~100 ugnot/B, ~10k GNOT did sapphire) | ✅ **Decided + funded 2026-08-28.** No genesis allocation shipped (`VESTED_ACCOUNTS` stayed empty), so the multisig was funded post-launch with **10 000 GNOT** — which carried the full 08-31 ceremony's storage deposits | closed — the ceremony spent from this balance (sequence state in the banner) |
 | CLA (`r/sys/cla`) enforcing? | ✅ **Not set at genesis** — Pearl's README lists CLA (and minimum fee) under "not set at genesis; defaults apply, adjustable post-genesis via GovDAO" | expect the gate DARK at launch; preflight gate 2 still re-checks, so sign once if it turns out to enforce |
 | Faucet | hub `faucet.gno.land` (the per-chain subdomain is API-only — 405 to browsers) | verify Pearl is listed **before** the flag flip: activation needs gas |
-| Adena | ✅ confirmed **no Pearl**: `chains.json` at v1.20.3 carries `gnoland1, sapphire-1, staging, dev, dev.gnoswap` only. Memba's `useAdena.addNetwork` (AddNetworkParams) can push Pearl into wallets from the app — **never exercised on a chain Adena didn't already ship** | zxxma / E2 — test it on the preview first; a Pearl-shipping Adena release is the durable fix |
+| Adena | ✅ resolved since: **Adena 1.20.4 ships Pearl as a default chain** (this row's v1.20.3 census predated it). Memba's `useAdena.addNetwork` (AddNetworkParams) remains the in-app fallback for wallets not yet upgraded | the Pearl-shipping Adena release landed — the durable fix the row asked for |
 
 ## 1. Timeline
 
 | When | What | Owner |
 |---|---|---|
 | **Mon 08-24** (contributors follow-up sync) | Pearl-side: vesting accounts in genesis (Antoine/Manfred) · `samcrew` namespace prereg · multisig funding · date/readiness coordination (Guilhem/Thomas) · review gno#6028 | zxxma |
-| **Mon–Tue** | Build the cutover PR set (§3–§5); deployer `[pearl]` lane; `chain/pearl` validator/sentry infra. **Done 08-25** — §0's placeholders are resolved from `chain/pearl`'s genesis builder, so the PR set is staged against real values rather than `TBD`s. Everything stays **staged, not merged**: the live chain gates every merge | Claude (PRs) / zxxma (infra) |
-| **Wed 08-26, 14:00 UTC** (genesis time `1787752800`) | Pearl launches. **Do not cut over day-0** — alpha-side snapshot-recovery issues were flagged on 08-20; launch-day halts/restarts are likely. **First check is `node_info.network == "pearl-1"`, not DNS or HTTP 200** (§0: the hostname already answers as sapphire-1). Then `build_version`, namespace + CLA gates via a `--preflight` run, faucet, sentry synced | zxxma |
-| **Thu 08-27 earliest** (weekday window, 24 h freeze pinned in `#memba`) | **Combined ceremony** (§4) → record `realm-versions.json` `pearl` section → backend cutover (§5) → frontend cutover PR merge → fresh-wallet E2 login → de-gate | both (multisig = zxxma + zooma) |
-| After | Sapphire keeps serving until the Pearl flip is verified; then references retire (like topaz). Close or merge deployer #139 per §2 | — |
+| **Mon–Tue** | Build the cutover PR set (§3–§5); deployer `[pearl]` lane; `chain/pearl` validator/sentry infra. **Done 08-25** — §0's placeholders are resolved from `chain/pearl`'s genesis builder, so the PR set is staged against real values rather than `TBD`s. Staged-not-merged held until the live chain confirmed each gate — **everything has since merged** | zxxma |
+| **Wed 08-26, 14:00 UTC** (genesis time `1787752800`) | Planned launch slot. **Actually launched Thu 08-27 ~11:45 UTC** (~46h late), fresh genesis, `network == "pearl-1"`. The day-0 caution held: **first check was `node_info.network == "pearl-1"`, not DNS or HTTP 200** (§0: the hostname had been answering as sapphire-1). Then namespace + CLA gates via `--preflight`, faucet, sentry | zxxma |
+| **Thu 08-27 earliest** (weekday window, 24 h freeze pinned in `#memba`) | **Ran Sun 08-31** as the combined ceremony (§4): 32 artifacts → `realm-versions.json` `pearl` section recorded → backend cutover (§5, `FEED_START_BLOCK=99236` + feed reset) → §6 completion PR #1119 merged. Commerce de-gate still pending the 2-wallet live-money test | both (multisig = zxxma + zooma) |
+| After | Sapphire remains selectable until its **2026-09-09 sunset**; then references retire (like topaz). Deployer #139 closed unmerged per §2 | — |
 
 ## 2. The gno#6028 decision tree (only real fork in the plan)
 
@@ -158,7 +143,7 @@ The PR's own description also flags an unfixed case: attribution of "which realm
 
 **Run 2026-08-25 against `84e8edf9e` — GREEN, no drift found.** Deployer #140's CI at the Pearl ref: `P0 Fund-Guard Gate (v2 toolchain)` SUCCESS — the job checked out `84e8edf9`, rebuilt the toolchain from it, and ran the vendored-avl gate plus the IsUserCall fund-guard/custody-oracle suites (`memba_token_otc_v2` and the rest) to `ok`. Not vacuous: the gate self-aborts on `no test files`, and that guard did not fire. Independently, Memba's own compile gate — the six generator specs behind `GNO_PIN` — is **30/30 at the Pearl ref, identical to the sapphire baseline**, so the wizard/template generators carry no drift either.
 
-Both results are pinned to `84e8edf9e`. `chain/pearl` moved on launch-eve, so **re-run both once the launched chain's `build_version` is known**; a green today is evidence about this ref, not a standing guarantee.
+Both results were pinned to `84e8edf9e`, so both were **re-run 2026-08-28 at the settled launch ref `c4c72fdd28` — GREEN again** (A6 custody oracles with anti-vacuous guards intact, and the six generator specs 30/30; see §0's launch-ref row). The ceremony ran against a ref the oracles had actually executed on.
 
 ## 3. Deployer: `[pearl]` lane
 
@@ -168,7 +153,7 @@ Both results are pinned to `84e8edf9e`. `chain/pearl` moved on launch-eve, so **
 
 - `chain_id` → **`pearl-1`**, replacing the fail-closed `TBD-pearl-PLACEHOLDER`. `resolve_network` refuses every command while the placeholder stands, so the lane was unusable even for a dry-run.
 - `deps_layout` was deliberately unset pending a tree comparison. **Now settled with evidence.** The literal claim that licensed `deps_layout = "topaz-1"` on `[sapphire]` — "`r/sys` and `p/nt` byte-identical to topaz-1" — is **false for Pearl**: both trees differ. But the drift is inert (2 `r/sys/namereg/v1` filetests, `p/nt/avl/v0/README.md`, and `p/nt/treasury/v0/render.gno` — none of which Memba imports). What actually matters is the single question `deps_layout` gates, `_chain_avl_fork_policy` (`lib/preflight.sh:294`): **is stdlib `avl.Get` single-value, so gnodaokit's two-value calls need the `p/samcrew/avl` fork?** Pearl's `p/nt/avl` `.gno` files are **byte-identical to sapphire's** and `Get(key string) any` is still single-value ⇒ **fork required**, the same class as topaz-1/sapphire-1. Classified explicitly rather than inherited, so the reasoning is legible at the next chain.
-- `rpc_fallback` names `rpc.pearl.samourai.live`, which is **NXDOMAIN** — flagged in-file so the lane does not imply a working two-node setup.
+- `rpc_fallback` names `rpc.pearl.samourai.live` — NXDOMAIN when the lane was staged (and flagged in-file so it would not imply a working two-node setup), **live since 08-27** and identity-verified `pearl-1`; the two-node setup is real and the ceremony ran on this node.
 - `GNO_REF` bumped off the topaz pin `fc4052651` in the same PR, which is what puts the A6 custody oracles in front of gno#6062 (§2b).
 
 ## 4. Combined ceremony (one window, same invocation pattern as 2026-08-15)
@@ -220,7 +205,7 @@ Both results are pinned to `84e8edf9e`. `chain/pearl` moved on launch-eve, so **
 2. `memba --commerce-v2`: `grc721 → memba_collections → memba_market_core_v2 → memba_market_config → tokenfactory_v2 → memba_nft_market_v3_2` (lane recomposed by #138; dry-run verified).
 3. **Separate, later invocation** `memba --p0-guards`: `escrow_v3 → memba_token_otc_v2` (manifest dependency inversion — a combined run AddPackage-fails). Drain gate is vacuous on a fresh chain (no `supersedes=` declared) — expected.
 4. Post-deploy txs: `memba_market_config` fee lanes + treasury check (admin is the baked 2-of-2 `g10kw7e55…`); `memba_nft_market_v3_2`: `RealmAddress()` == `nftConfig.ts:54`, `FinalizeSaleSeed()`; **`RegisterMarket(v3_2)` only after the NFT indexer is confirmed tailing** (§5); pre-stage signed `Pause` + `UnregisterMarket` abort txs.
-5. Record every artifact (seq/height/txHash, `vm/qfile` verified) in `realm-versions.json` → new `pearl` section. Sequences start where the multisig's Pearl account starts (0 on a fresh chain).
+5. Record every artifact (seq/height/txHash, `vm/qfile` verified) in `realm-versions.json` → new `pearl` section. As executed: sequences ran **0–34** on the fresh account (#225), with **13/14/15 permanently absent** — three rejected broadcasts of the orphaned tokenfactory mirror leg, correct chain history rather than an error.
 
 ## 5. Backend cutover (Fly)
 

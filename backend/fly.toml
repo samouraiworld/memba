@@ -19,17 +19,18 @@ primary_region = 'cdg'
   wait_timeout = "5m"
 
 [env]
-  # ⚠️ FOUR of these keys are SHADOWED BY FLY SECRETS and the values below are
+  # ⚠️ FIVE of these keys are SHADOWED BY FLY SECRETS and the values below are
   # DOCUMENTATION, not live config: CORS_ORIGINS, GNO_CHAIN_ID,
-  # MEMBA_ACCEPTED_CHAIN_IDS, GNO_RPC_URL. Ground truth is a SCOPED env read
+  # MEMBA_ACCEPTED_CHAIN_IDS, GNO_RPC_URL — and, since the §5 pearl window,
+  # NFT_RPC_URL (see its own comment). Ground truth is a SCOPED env read
   # (`fly ssh console -C 'sh -c "printenv | grep -E \"^(GNO_RPC_URL|GNO_CHAIN_ID)=\""'`
-  # — never bare printenv); changes to those four go through `fly secrets set`
+  # — never bare printenv); changes to those go through `fly secrets set`
   # (owner-only) AND an edit here so the file stays truthful. Everything else
-  # in [env] (NFT_RPC_URL, NFT_INDEXER_DISABLED, the realm sets, …) is
-  # LOAD-BEARING from this file.
+  # in [env] (NFT_INDEXER_DISABLED, the realm sets, …) is LOAD-BEARING from
+  # this file. Values below mirrored from a scoped prod read 2026-09-01.
   CORS_ORIGINS = 'https://memba.samourai.app,http://localhost:5173'
   DB_PATH = '/data/memba.db'
-  GNO_CHAIN_ID = 'sapphire-1'
+  GNO_CHAIN_ID = 'pearl-1'
   # Token chain-id allowlist (validation). Comma-separated → parseAcceptedChainIDs
   # (service.go) splits it into a set; ValidateToken 401s any token whose chain
   # isn't listed. Topaz cutover PHASE B (2026-07-26) kept 'test-13' here so
@@ -70,29 +71,41 @@ primary_region = 'cdg'
   # and `AUTH-CHAINID-MISMATCH-01` (mint-time refusal, new). The new one also
   # increments AuthLoginTotal{result="chain_mismatch"}, so unlike validation
   # rejects it has a metric and can be alerted on.
-  MEMBA_ACCEPTED_CHAIN_IDS = 'sapphire-1'
-  GNO_RPC_URL = 'https://rpc.sapphire.testnets.gno.land:443'
-  # NFT indexer — DISABLED through the sapphire cutover: the fund-custody NFT
-  # realms are NOT deployed on sapphire (their commerce ceremony is separate
-  # from phase 1), and the tailer's chain-agnostic nft_indexer_state cursor
-  # must not advance against the wrong chain. Re-enabling REQUIRES running
-  # `fly ssh console -C "/app/memba nft-reset"` first — it wipes
-  # nft_indexer_state + the eight event/projection tables in one transaction
-  # (NFT_SEED_REALM_CURSOR is INSERT OR IGNORE — it will NOT rewind retained
-  # test13/topaz-era rows, and the projection keys collide across chains like
-  # the feed's did) — then setting NFT_START_BLOCK to the sapphire deploy
-  # height (the code default is a test13-era height; never rely on it).
-  # Full re-enable sequence: docs/SAPPHIRE_COMMERCE_CEREMONY.md §4.
+  #
+  # PEARL CUTOVER (2026-08-28→31): dual-accept ON PURPOSE this time — pearl-1
+  # was added ahead of the ceremony (owner-approved 08-28) so pearl logins
+  # worked from the un-hide, and sapphire-1 STAYS accepted until its 2026-09-09
+  # sunset so existing sapphire sessions live out the transition. Post-sunset
+  # tightening to 'pearl-1,gnoland1' is an owner secrets change + an edit here.
+  MEMBA_ACCEPTED_CHAIN_IDS = 'sapphire-1,pearl-1,gnoland1'
+  GNO_RPC_URL = 'https://rpc.pearl.testnets.gno.land:443'
+  # NFT indexer — STILL DISABLED after the pearl ceremony, deliberately: the
+  # fund-custody NFT realms ARE deployed on pearl-1 now (2026-08-31, recorded
+  # in realm-versions.json's `pearl` section), but re-enabling waits for the
+  # owner to wire the Prometheus scraper + Alertmanager so the
+  # `memba_indexer_*{indexer="nft"}` alerts are live BEFORE the tailer runs.
+  # Re-enabling REQUIRES running `fly ssh console -C "/app/memba nft-reset"`
+  # first — it wipes nft_indexer_state + the eight event/projection tables in
+  # one transaction (NFT_SEED_REALM_CURSOR is INSERT OR IGNORE — it will NOT
+  # rewind retained pre-pearl rows, and the projection keys collide across
+  # chains like the feed's did) — then setting NFT_START_BLOCK to the pearl
+  # deploy height (realm-versions.json `pearl` records; the code default is a
+  # test13-era height; never rely on it). Mechanics-of-record:
+  # docs/SAPPHIRE_COMMERCE_CEREMONY.md §4 (executed on pearl 2026-08-31).
   NFT_INDEXER_DISABLED = '1'
-  # NFT indexer RPC — LOAD-BEARING from this file (NOT a secret). Dormant as an
-  # indexer source while NFT_INDEXER_DISABLED=1, but also the fallback for
-  # FEED_RPC_URL/QUEST_RPC_URL-style lookups, so it must point at a LIVE chain.
+  # NFT indexer RPC. Dormant as an indexer source while NFT_INDEXER_DISABLED=1,
+  # but also the fallback for FEED_RPC_URL/QUEST_RPC_URL-style lookups, so it
+  # must point at a LIVE chain. ⚠️ Since the §5 pearl window this key is ALSO
+  # set as a Fly SECRET (same value as below) — the secret shadows this file.
+  # To restore this file as the single source of truth, the owner can
+  # `flyctl secrets unset NFT_RPC_URL -a memba-backend` at a convenient restart
+  # (values are identical, so behavior does not change).
   # ⚠️ The #457/#462 throttling class is real on public canonical nodes (403 to
   # the Fly IP under sustained indexer polling; confirmed on topaz 2026-08-10).
   # Low-volume reads are fine. If the NFT indexer is ever re-enabled, give it
   # its own dedicated node rather than this default — the feed already follows
-  # that rule (FEED_RPC_URL → our sapphire sentry).
-  NFT_RPC_URL = 'https://rpc.sapphire.testnets.gno.land:443'
+  # that rule (FEED_RPC_URL → our pearl sentry).
+  NFT_RPC_URL = 'https://rpc.pearl.samourai.live:443'
   # NFT tailer realm sets — versioned here so prod can never silently fall back
   # to the code defaults (that's exactly how the retired memba_nft_market_v3
   # stayed indexed while v3.1 sales went missing until 2026-07-11). Watched =
