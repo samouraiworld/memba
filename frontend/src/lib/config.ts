@@ -1282,6 +1282,13 @@ export const isBarricadeEnabled = (): boolean =>
  * default; play stays no-wallet regardless. Separate from VITE_ENABLE_BARRICADE. */
 export const isBarricadeCertifyEnabled = (): boolean =>
   import.meta.env.VITE_ENABLE_BARRICADE_CERTIFY === "true"
+/** Space Invaders on-chain certify (M3). Same shape and rationale as the
+ * BARRICADE certify flag: an opt-in, wallet-gated submit of a re-simulated
+ * daily run — no funds move, so NOT safety-gated. Off by default; play stays
+ * no-wallet regardless. The certify UI renders only when BOTH this and
+ * VITE_ENABLE_SPACE_INVADERS are on. */
+export const isSpaceInvadersCertifyEnabled = (): boolean =>
+  import.meta.env.VITE_ENABLE_SPACE_INVADERS_CERTIFY === "true"
 /** BARRICADE 3D "front line" renderer (Phase 0 bake-off). Ordinary flag — a
  * render-ONLY presentation swap over the frozen SIM_VERSION 2 sim; it moves no
  * funds and touches no replay/verifier surface, so it is NOT safety-gated. Off by

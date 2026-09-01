@@ -848,15 +848,6 @@ function runReplay(seed, events) {
 
 // frontend/src/games/space-invaders/lib/replay.ts
 var REPLAY_VERSION = 1;
-var IDLE = { tick: 0, move: 0, fire: false, pause: false };
-function inputAtTick(log, tick2) {
-  let active = IDLE;
-  for (const d of log.inputs) {
-    if (d.tick > tick2) break;
-    active = d;
-  }
-  return { move: active.move, fire: active.fire, pause: active.pause };
-}
 
 // frontend/src/games/space-invaders/engine/config.ts
 var CONFIG = {
@@ -1256,8 +1247,16 @@ function hashState2(s) {
 }
 function simulateReplay(log) {
   let s = newGame(log.seed);
+  const inputs = log.inputs;
+  let cursor = 0;
+  let active = { move: 0, fire: false, pause: false };
   for (let i = 0; i < log.finalTick; i++) {
-    s = step(s, FIXED_MS, inputAtTick(log, i));
+    while (cursor < inputs.length && inputs[cursor].tick <= i) {
+      const d = inputs[cursor];
+      active = { move: d.move, fire: d.fire, pause: d.pause };
+      cursor++;
+    }
+    s = step(s, FIXED_MS, active);
   }
   return { state: s, score: s.score, hash: hashState2(s) };
 }
