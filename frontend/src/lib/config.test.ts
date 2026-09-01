@@ -63,9 +63,12 @@ describe('config constants', () => {
         expect(NETWORKS.test13).toBeDefined()
     })
 
-    it('sapphire is visible in the selector (the official testnet after cutover)', () => {
-        expect(NETWORKS.sapphire.hidden).toBeFalsy()
-        expect(Object.keys(VISIBLE_NETWORKS)).toContain('sapphire')
+    it('sapphire is hidden after its 2026-09-09 sunset, but still resolves', () => {
+        expect(NETWORKS.sapphire.hidden).toBe(true)
+        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('sapphire')
+        // Still in NETWORKS so deep links / stored selections resolve instead of
+        // crash-looping the /:network redirects — same treatment as topaz/test13.
+        expect(NETWORKS.sapphire).toBeDefined()
     })
 
     it('topaz is hidden after its 2026-08-12 retirement, but still resolves', () => {
@@ -495,17 +498,16 @@ describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl onl
     })
 })
 
-// The sapphire entry shipped DARK (#1063) so the cutover could be a small flag
-// flip; the 2026-08-15 ceremony made it true on-chain and the flip landed here.
-// These blocks assert BOTH halves of the post-cutover contract: sapphire fully
-// live, and the retired networks still carrying the dark-network machinery.
-describe('sapphire is LIVE (2026-08-15 cutover)', () => {
-    it('is the visible official testnet and resolves everywhere', () => {
+// Sapphire served as the official testnet from the 2026-08-15 cutover until its
+// 2026-09-09 sunset. The entry now carries the same dark-network contract as
+// topaz/test13: hidden from the selector, but resolvable — deep links and stored
+// selections must not crash-loop, and its allowlist history stays truthful.
+describe('sapphire is SUNSET (2026-09-09) — dark but resolvable', () => {
+    it('is hidden from the selector but still resolves', () => {
         expect(NETWORKS.sapphire).toBeDefined()
         expect(NETWORKS.sapphire.chainId).toBe('sapphire-1')
-        expect(NETWORKS.sapphire.hidden).toBeFalsy()
-        expect(Object.keys(VISIBLE_NETWORKS)).toContain('sapphire')
-        expect(resolveDefaultNetwork('sapphire')).toBe('sapphire')
+        expect(NETWORKS.sapphire.hidden).toBe(true)
+        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('sapphire')
     })
 
     it('allowlists EXACTLY the phase-1 funds-free set — ceremony-verified paths only', () => {
@@ -549,7 +551,7 @@ describe('sapphire is LIVE (2026-08-15 cutover)', () => {
         // network-scoped predicate.
     })
 
-    it('keeps realms + a featured DAO while serving until the sunset; the PINNED set moved to pearl', () => {
+    it('truthfully keeps realms + a featured DAO after retirement; the PINNED set lives on pearl', () => {
         expect(networkHasRealms('sapphire')).toBe(true)
         expect(getFeaturedDaoRealm('sapphire')).toBe('gno.land/r/samcrew/memba_dao')
         // The pinned constants do NOT derive from the env; desynchronising them
@@ -572,7 +574,7 @@ describe('retired networks stay DARK but resolvable (topaz 2026-08-12, test13 20
         // deep-link visitor still has an option list and a way out.
         const selectable = Object.keys(selectableNetworksFor('topaz'))
         expect(selectable).toContain('topaz')
-        expect(selectable).toContain('sapphire')
+        expect(selectable).toContain('pearl')
     })
 
     it('topaz truthfully keeps realmsDeployed (the realms exist; the chain is gone)', () => {
@@ -918,7 +920,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
 
     /** config as a SHIPPED build sees it (prod, deploy previews, CI's :5173). */
     async function shippedBuild() {
-        vi.stubEnv('VITE_GNO_CHAIN_ID', 'sapphire')
+        vi.stubEnv('VITE_GNO_CHAIN_ID', 'pearl')
         vi.resetModules()
         return await import('./config')
     }
@@ -929,9 +931,10 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
         // vacuous — it passes while returning a HIDDEN key, which is exactly the
         // failure mode it was meant to catch (healing one hidden network to
         // another leaves the user precisely where they started).
-        // 'topaz' joined this list at its 2026-08-12 retirement: every returning
-        // pre-cutover user carries exactly that stored key.
-        for (const stored of ['gnoland1', 'test13', 'topaz']) {
+        // 'topaz' joined this list at its 2026-08-12 retirement, 'sapphire' at
+        // its 2026-09-09 sunset: every returning pre-sunset user carries exactly
+        // that stored key.
+        for (const stored of ['gnoland1', 'test13', 'topaz', 'sapphire']) {
             const healed = resolveStoredNetworkKey(stored)
             expect(NETWORKS[healed], `${stored} must heal to a real network`).toBeDefined()
             expect(NETWORKS[healed].hidden, `${stored} must heal to a VISIBLE network`).not.toBe(true)
@@ -946,7 +949,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
 
     it('keeps a stored VISIBLE network', async () => {
         const { resolveStoredNetworkKey } = await shippedBuild()
-        expect(resolveStoredNetworkKey('sapphire')).toBe('sapphire')
+        expect(resolveStoredNetworkKey('pearl')).toBe('pearl')
     })
 
     it('falls back for unknown/empty input rather than throwing', async () => {
@@ -999,7 +1002,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
     it('every hidden network is still resolvable by explicit URL', async () => {
         const { NETWORKS } = await import('./config')
         // Self-healing applies to STORED keys only — deep links must still work.
-        for (const k of ['test13', 'topaz']) {
+        for (const k of ['test13', 'topaz', 'sapphire']) {
             expect(NETWORKS[k], `${k} must stay in NETWORKS for deep links`).toBeDefined()
             expect(NETWORKS[k].hidden).toBe(true)
         }
@@ -1009,7 +1012,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
 describe('selectableNetworksFor — the switcher escape hatch', () => {
     it('offers the ACTIVE network even when it is hidden', async () => {
         const { selectableNetworksFor } = await import('./config')
-        for (const hidden of ['test13', 'topaz']) {
+        for (const hidden of ['test13', 'topaz', 'sapphire']) {
             const offered = selectableNetworksFor(hidden)
             expect(offered[hidden], `${hidden} must stay selectable while active`).toBeDefined()
             // A one-option <select> cannot fire onChange — there must be somewhere to go.
@@ -1019,7 +1022,7 @@ describe('selectableNetworksFor — the switcher escape hatch', () => {
 
     it('is the plain visible set for a visible active network', async () => {
         const { selectableNetworksFor, VISIBLE_NETWORKS } = await import('./config')
-        expect(selectableNetworksFor('sapphire')).toBe(VISIBLE_NETWORKS)
+        expect(selectableNetworksFor('pearl')).toBe(VISIBLE_NETWORKS)
     })
 
     it('does not invent an option for an unknown network', async () => {
