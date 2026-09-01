@@ -253,7 +253,11 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // faucet answers the standard gno JSON-RPC 2.0 shape.
     sapphire: {
         chainId: "sapphire-1",
-        hidden: false,
+        // Retired to hidden per the 2026-09-09 sunset (owner directive recorded
+        // above): the chain is being decommissioned; a hidden entry keeps
+        // stored-network users resolvable (they fall back to the default
+        // network) without offering a dead chain in the selector.
+        hidden: true,
         // Flipped to true by the cutover PR AFTER the phase-1 ceremony
         // published the realm set (deps + gnodaokit + 11 funds-free Memba
         // realms) — per-artifact vm/qfile records live in realm-versions.json's
