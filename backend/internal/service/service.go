@@ -74,9 +74,11 @@ type MultisigService struct {
 
 	// Block Party (B6): feature flag + seed RPC source for the daily-challenge
 	// block fetcher. Disabled (false, empty seed) by default; wired in
-	// production via SetBlockParty from BLOCKPARTY_ENABLED / BLOCKPARTY_SEED_RPC_URL.
-	blockPartyEnabled bool
-	blockPartySeedRPC string
+	// production via SetBlockParty from BLOCKPARTY_ENABLED /
+	// BLOCKPARTY_SEED_RPC_URL / BLOCKPARTY_SEED_CHAIN_ID.
+	blockPartyEnabled     bool
+	blockPartySeedRPC     string
+	blockPartySeedChainID string
 
 	// lbRebuilding guards the background user_ranks rebuild (perf W1.3): a
 	// stale-cache leaderboard read serves the current cache and triggers at
@@ -176,28 +178,39 @@ func (s *MultisigService) SetAttestationSigner(signer *attestation.Signer) {
 }
 
 // SetBlockParty enables/disables the Block Party feature and configures the
-// seed RPC node used to derive daily challenge blocks. An empty seedRPC
-// leaves the previously configured value (including the built-in default)
-// untouched, so callers can toggle `enabled` without needing to know the URL.
-func (s *MultisigService) SetBlockParty(enabled bool, seedRPC string) {
+// seed RPC node (and the chain id it must prove) used to derive daily
+// challenge blocks. An empty seedRPC or seedChainID leaves the previously
+// configured value (including the built-in defaults) untouched, so callers
+// can toggle `enabled` without needing to know either. If you override the
+// URL to a node on a different chain, override the chain id with it — the
+// fetcher hard-fails on a mismatch rather than seed from the wrong chain.
+func (s *MultisigService) SetBlockParty(enabled bool, seedRPC, seedChainID string) {
 	s.blockPartyEnabled = enabled
 	if seedRPC != "" {
 		s.blockPartySeedRPC = seedRPC
 	}
+	if seedChainID != "" {
+		s.blockPartySeedChainID = seedChainID
+	}
 }
 
 // blockPartyFetcher returns the httpBlockFetcher configured for this service,
-// falling back to the default sapphire seed RPC when none has been set.
+// defaulting to the pearl sentry with a pearl-1 identity requirement.
 func (s *MultisigService) blockPartyFetcher() httpBlockFetcher {
 	url := s.blockPartySeedRPC
 	if url == "" {
-		// Sapphire cutover: BlockParty is parked (BLOCKPARTY_ENABLED=0 since
-		// the 2026-08-15 secret rotation — its seed secret pointed at NXDOMAIN
-		// test13). The default still must name a LIVE chain so a future
-		// re-enable without the secret cannot silently seed from a dead one.
-		url = "https://rpc.sapphire.testnets.gno.land:443"
+		// Pearl era (2026-09-01): the default must name the LIVE chain so a
+		// re-enable without the secret cannot seed from a dead or wrong one
+		// (the old test13 secret + sapphire default did exactly that). The
+		// sentry rather than the canonical node: same split as FEED_RPC_URL —
+		// the public node 403-throttles sustained polling from Fly egress.
+		url = "https://rpc.pearl.samourai.live:443"
 	}
-	return httpBlockFetcher{rpcURL: url}
+	chainID := s.blockPartySeedChainID
+	if chainID == "" {
+		chainID = "pearl-1"
+	}
+	return httpBlockFetcher{rpcURL: url, expectChainID: chainID}
 }
 
 // rateLimitUser enforces the per-address quest quota for endpoint. Returns a

@@ -14,6 +14,7 @@ import (
 
 func TestGetDailyChallenge_ServesCached(t *testing.T) {
 	h := setup(t)
+	h.svc.SetBlockParty(true, "", "")
 	// pre-seed an immutable challenge
 	c := blockparty.Challenge{Date: "2026-07-06", Height: 10, Hash: "abc", Seed: 42, Modifier: "standard", Par: 1500}
 	if err := blockparty.PutChallenge(h.db, c); err != nil {
@@ -32,7 +33,7 @@ func TestGetDailyChallenge_ServesCached(t *testing.T) {
 
 func TestSubmitScore_VerifiesAndStores(t *testing.T) {
 	h := setup(t)
-	h.svc.SetBlockParty(true, "")
+	h.svc.SetBlockParty(true, "", "")
 	// seed a known challenge so we control seed+modifier
 	c := blockparty.Challenge{Date: todayUTC(), Height: 5, Hash: "hh", Seed: 12345, Modifier: "standard", Par: 1500}
 	if err := blockparty.PutChallenge(h.db, c); err != nil {
@@ -67,7 +68,7 @@ func TestSubmitScore_VerifiesAndStores(t *testing.T) {
 
 func TestSubmitScore_RejectsWrongDate(t *testing.T) {
 	h := setup(t)
-	h.svc.SetBlockParty(true, "")
+	h.svc.SetBlockParty(true, "", "")
 	token := h.makeToken(t, "g1bob")
 	_, err := h.svc.SubmitScore(context.Background(), connect.NewRequest(&membav1.SubmitScoreRequest{
 		AuthToken: token, Date: "2000-01-01", MoveLog: "URDL",
@@ -79,7 +80,7 @@ func TestSubmitScore_RejectsWrongDate(t *testing.T) {
 
 func TestSubmitScore_DisabledFlag(t *testing.T) {
 	h := setup(t)
-	h.svc.SetBlockParty(false, "")
+	h.svc.SetBlockParty(false, "", "")
 	token := h.makeToken(t, "g1bob")
 	_, err := h.svc.SubmitScore(context.Background(), connect.NewRequest(&membav1.SubmitScoreRequest{
 		AuthToken: token, Date: todayUTC(), MoveLog: "URDL",
@@ -91,6 +92,7 @@ func TestSubmitScore_DisabledFlag(t *testing.T) {
 
 func TestGetDailyLeaderboard(t *testing.T) {
 	h := setup(t)
+	h.svc.SetBlockParty(true, "", "")
 	d := todayUTC()
 	if _, err := blockparty.InsertScore(h.db, d, "g1a", 300, "UU", "b1"); err != nil {
 		t.Fatal(err)
@@ -114,6 +116,7 @@ func TestGetDailyLeaderboard(t *testing.T) {
 
 func TestGetStreak_Default(t *testing.T) {
 	h := setup(t)
+	h.svc.SetBlockParty(true, "", "")
 	resp, err := h.svc.GetStreak(context.Background(),
 		connect.NewRequest(&membav1.GetStreakRequest{Address: "g1nobody"}))
 	if err != nil {
@@ -131,7 +134,7 @@ func TestGetStreak_Default(t *testing.T) {
 // call failed.
 func TestSubmitScore_PerAddressRateLimit(t *testing.T) {
 	h := setup(t)
-	h.svc.SetBlockParty(true, "")
+	h.svc.SetBlockParty(true, "", "")
 	h.svc.SetUserLimiter(ratelimit.New(context.Background(), map[string]ratelimit.Config{
 		ratelimit.BlockPartySubmitEndpoint: {MaxRequests: 1, Window: time.Minute},
 	}))
@@ -164,7 +167,7 @@ func TestSubmitScore_PerAddressRateLimit(t *testing.T) {
 
 func TestSubmitScore_RejectsOverBudget(t *testing.T) {
 	h := setup(t)
-	h.svc.SetBlockParty(true, "")
+	h.svc.SetBlockParty(true, "", "")
 	c := blockparty.Challenge{Date: todayUTC(), Height: 5, Hash: "hh", Seed: 12345, Modifier: "standard", Par: 1500}
 	if err := blockparty.PutChallenge(h.db, c); err != nil {
 		t.Fatal(err)
@@ -196,4 +199,26 @@ func legalLog(t *testing.T, seed uint32, mod string, n int) string {
 		}
 	}
 	return string(out)
+}
+
+// The flag must be a TOTAL kill switch: while parked, every Block Party RPC —
+// reads included — answers Unimplemented. Before this gate GetDailyChallenge
+// was reachable while "disabled" and could drive chain RPC traffic and mint a
+// permanent challenge row from a misconfigured node.
+func TestBlockPartyReads_DisabledFlag(t *testing.T) {
+	h := setup(t)
+	h.svc.SetBlockParty(false, "", "")
+
+	if _, err := h.svc.GetDailyChallenge(context.Background(),
+		connect.NewRequest(&membav1.GetDailyChallengeRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
+		t.Fatalf("GetDailyChallenge while parked: got %v, want CodeUnimplemented", err)
+	}
+	if _, err := h.svc.GetDailyLeaderboard(context.Background(),
+		connect.NewRequest(&membav1.GetDailyLeaderboardRequest{})); connect.CodeOf(err) != connect.CodeUnimplemented {
+		t.Fatalf("GetDailyLeaderboard while parked: got %v, want CodeUnimplemented", err)
+	}
+	if _, err := h.svc.GetStreak(context.Background(),
+		connect.NewRequest(&membav1.GetStreakRequest{Address: "g1nobody"})); connect.CodeOf(err) != connect.CodeUnimplemented {
+		t.Fatalf("GetStreak while parked: got %v, want CodeUnimplemented", err)
+	}
 }
