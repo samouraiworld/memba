@@ -4,7 +4,7 @@
  * run self-verified, so the wallet hooks it pulls in (useArcadeCertify) never
  * load on the no-wallet play path.
  */
-import { useArcadeCertify } from "./hooks/useArcadeCertify"
+import { useArcadeCertify } from "../../hooks/useArcadeCertify"
 import type { SimEvent } from "./sim/types"
 
 export interface CertifyRun {

@@ -1,6 +1,6 @@
-import { newGame, step, type GameState } from "../engine";
+import { newGame, step, type GameState, type InputIntent } from "../engine";
 import { FIXED_MS } from "../hooks/useGameLoop";
-import { inputAtTick, type ReplayLog } from "./replay";
+import type { ReplayLog } from "./replay";
 
 // Deterministic replay verification — the anti-cheat backbone. The server (and,
 // later, a Gno realm) re-simulate a game from its recorded input log and derive
@@ -47,11 +47,29 @@ export function hashState(s: GameState): number {
 }
 
 /** Re-run the engine from the log's seed, applying the recorded input at every
- *  tick, and return the authoritative final state, score, and hash. */
+ *  tick, and return the authoritative final state, score, and hash.
+ *
+ *  The input is resolved with an O(ticks + deltas) CURSOR instead of the old
+ *  per-tick `inputAtTick` scan (O(ticks × deltas) — the backend caps were
+ *  sized around that cost, see validate.go MaxFinalTick). Semantics are
+ *  IDENTICAL to the scan for the monotone tick sequence 0..finalTick-1, for
+ *  ANY delta list: both consume list-order deltas up to the first one whose
+ *  tick exceeds the current tick — a delta consumed by the cursor at tick j
+ *  had tick ≤ j, so it can never be the scan's break point at a later tick —
+ *  and both take the last consumed delta (or idle) as the active input.
+ *  verify.cursor.test.ts pins the equivalence against inputAtTick itself. */
 export function simulateReplay(log: ReplayLog): { state: GameState; score: number; hash: number } {
   let s = newGame(log.seed);
+  const inputs = log.inputs;
+  let cursor = 0;
+  let active: InputIntent = { move: 0, fire: false, pause: false };
   for (let i = 0; i < log.finalTick; i++) {
-    s = step(s, FIXED_MS, inputAtTick(log, i));
+    while (cursor < inputs.length && inputs[cursor].tick <= i) {
+      const d = inputs[cursor];
+      active = { move: d.move, fire: d.fire, pause: d.pause };
+      cursor++;
+    }
+    s = step(s, FIXED_MS, active);
   }
   return { state: s, score: s.score, hash: hashState(s) };
 }

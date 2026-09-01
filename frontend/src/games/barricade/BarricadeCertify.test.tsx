@@ -6,7 +6,7 @@ import type { CertifyRun } from "./BarricadeCertify"
 const certify = vi.fn()
 let mockStatus = "idle"
 let mockError: string | null = null
-vi.mock("./hooks/useArcadeCertify", () => ({
+vi.mock("../../hooks/useArcadeCertify", () => ({
     useArcadeCertify: () => ({ certify, status: mockStatus, error: mockError, result: null }),
 }))
 

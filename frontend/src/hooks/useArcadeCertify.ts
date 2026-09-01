@@ -1,5 +1,8 @@
 /**
- * useArcadeCertify — the opt-in, wallet-gated "certify this run on-chain" flow.
+ * useArcadeCertify — the opt-in, wallet-gated "certify this run on-chain" flow,
+ * shared by every arcade game (BARRICADE, Space Invaders). Game-agnostic by
+ * construction: the caller supplies the full ArcadeSubmitBody and the backend
+ * derives the game from the seed grammar.
  *
  * Play stays no-wallet; this hook is only exercised when the player taps Certify.
  * It runs the standard Memba login ceremony (same challenge/response as
@@ -8,11 +11,11 @@
  * second certify in the same session skips the signature.
  */
 import { useCallback, useRef, useState } from "react"
-import { useAdena } from "../../../hooks/useAdena"
-import { useAuth } from "../../../hooks/useAuth"
-import { useNetwork } from "../../../hooks/useNetwork"
-import { buildTokenRequestInfo } from "../../../lib/loginChallenge"
-import { submitRun, type ArcadeSubmitBody, type ArcadeSubmitResult } from "../../../lib/arcade"
+import { useAdena } from "./useAdena"
+import { useAuth } from "./useAuth"
+import { useNetwork } from "./useNetwork"
+import { buildTokenRequestInfo } from "../lib/loginChallenge"
+import { submitRun, type ArcadeSubmitBody, type ArcadeSubmitResult } from "../lib/arcade"
 
 function bytesToBase64(bytes: Uint8Array): string {
     let binary = ""
