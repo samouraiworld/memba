@@ -506,7 +506,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Space Invaders — App Store listing prep (2026-07-09)
 <!-- categories: memba -->
-- Refreshed the Space Invaders store card to reflect the finished game (combos, rapid fire, mystery UFO, bunkers, sound) and added a proper on-brand **app icon** (`space-invaders-icon.svg`) in place of the emoji placeholder. The live App Store listing is registered on-chain by the operator — the exact copy, icon, and steps are in `docs/planning/SPACE_INVADERS_LISTING_2026-07-09.md`.
+- Refreshed the Space Invaders store card to reflect the finished game (combos, rapid fire, mystery UFO, bunkers, sound) and added a proper on-brand **app icon** (`space-invaders-icon.svg`) in place of the emoji placeholder. The live App Store listing is registered on-chain by the operator — the exact copy, icon, and steps are in `SPACE_INVADERS_LISTING_2026-07-09.md` (archived in the internal planning repo).
 
 <!-- categories: memba -->
 - Scoring now rewards **skill, not grinding** — the foundation for a competitive leaderboard. A **no-miss combo** builds a live score multiplier (×1 → ×1.5 → ×2 → ×3 → ×4) that **resets the moment you miss a shot**, so accuracy under pressure separates a good run from a great one. The active multiplier shows in the HUD.
