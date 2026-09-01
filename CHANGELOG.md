@@ -20,6 +20,16 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Block Party's daily board becomes trustworthy end to end (2026-09-01)
+<!-- categories: memba -->
+- **The board you play is the board the server issued.** A cold load used to start you on a placeholder board before the day's challenge arrived (and never re-seeded), so ranked replays were scored against a board you never saw; the daily now re-seeds the moment it loads, and a background refresh can no longer wipe a run in progress.
+- **No more phantom "Round complete".** The result sheet used to flash on page load and, if the challenge fetch failed, stick forever over a dead board with score 0. It now appears only after a real seeded run ends, and a failed fetch shows a plain error notice with Retry (plus the Practice escape hatch).
+- **The headline claim is finally visible**: each daily shows *which* chain block seeded it — height, hash and a Verify link to the public re-derivation script — instead of fetching that proof and never rendering it.
+- Under the hood: the end-to-end test that "passed" against no backend at all (it was asserting the flash bug) now plays a real seeded board through a stubbed backend and pins the error path.
+### Sapphire retires from the network selector (sunset 2026-09-09)
+<!-- categories: memba, network -->
+- **Sapphire is now hidden** ahead of its September 9 decommissioning: it no longer appears in the network selector, and a remembered sapphire selection quietly lands on Pearl instead of a dead chain. Existing sapphire links keep resolving — deep links show the network's state rather than crashing — matching how topaz and test13 retired before it.
+
 ### Memba's features go live on Pearl — the §6 completion (ceremony + cutover, 2026-08-31)
 <!-- categories: memba, network -->
 - **Every Memba feature now runs on Pearl**: DAO governance, the social feed, reviews, quests, the App Store, tokens, collectibles and the marketplace — deployed to the chain in one combined ceremony and verified artifact-by-artifact. The "not deployed yet" notices are gone; the network selector's default now carries the full app.

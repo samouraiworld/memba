@@ -13,14 +13,22 @@
 // Zero dependencies: only Node's built-in `fetch` and `node:crypto`.
 //
 // Usage:
-//   node scripts/verify-blockparty-seed.mjs [--date YYYY-MM-DD] [--rpc <url>]
+//   node scripts/verify-blockparty-seed.mjs [--date YYYY-MM-DD] [--rpc <url>] [--chain <id>]
 //   node scripts/verify-blockparty-seed.mjs --selftest
 //
-// Defaults: --date = today (UTC), --rpc = https://rpc.test13.testnets.gno.land
+// Defaults: --date = today (UTC), --rpc = https://rpc.pearl.testnets.gno.land,
+// --chain = pearl-1.
+//
+// The script queries the CANONICAL public node while the backend seeds from
+// the samourai sentry — agreement across two independent nodes is the point
+// of the verification. Both sides refuse a wrong chain: an RPC that answers
+// is not the chain you asked for (DNS + HTTP 200 are false positives; only
+// the node's reported network id counts).
 
 import { createHash } from "node:crypto";
 
-const DEFAULT_RPC = "https://rpc.test13.testnets.gno.land";
+const DEFAULT_RPC = "https://rpc.pearl.testnets.gno.land";
+const DEFAULT_CHAIN = "pearl-1";
 
 // ---------------------------------------------------------------------------
 // Derivation (must match backend/internal/blockparty exactly)
@@ -68,9 +76,20 @@ async function rpcGet(rpcUrl, path) {
   return res.json();
 }
 
-/** Chain tip height, via /status -> result.sync_info.latest_block_height. */
-async function latestHeight(rpcUrl) {
+/**
+ * Chain tip height + identity, via /status. Verifies
+ * result.node_info.network === expectChain before trusting anything else —
+ * mirroring the backend's httpBlockFetcher (fail loud, absence included).
+ */
+async function latestHeight(rpcUrl, expectChain) {
   const body = await rpcGet(rpcUrl, "/status");
+  const network = body?.result?.node_info?.network;
+  if (network !== expectChain) {
+    throw new Error(
+      `chain identity mismatch: RPC "${rpcUrl}" reports network "${network ?? "<absent>"}", want "${expectChain}". ` +
+        `Refusing to derive a seed from the wrong chain (pass --chain to override deliberately).`
+    );
+  }
   const raw = body?.result?.sync_info?.latest_block_height;
   if (raw === undefined || raw === null) {
     throw new Error("/status response missing result.sync_info.latest_block_height");
@@ -90,8 +109,14 @@ async function latestHeight(rpcUrl) {
  * compatibility) — both the backend and this script now derive the same seed
  * from the same live-node field.
  */
-async function blockAt(rpcUrl, height) {
+async function blockAt(rpcUrl, height, expectChain) {
   const body = await rpcGet(rpcUrl, `/block?height=${height}`);
+  const chainId = body?.result?.block_meta?.header?.chain_id ?? body?.result?.block?.header?.chain_id;
+  if (expectChain && chainId !== expectChain) {
+    throw new Error(
+      `chain identity mismatch: block ${height} header reports chain "${chainId ?? "<absent>"}", want "${expectChain}"`
+    );
+  }
   const hash = body?.result?.block_id?.hash ?? body?.result?.block_meta?.block_id?.hash;
   const timeStr = body?.result?.block?.header?.time;
   if (!hash || !timeStr) {
@@ -117,18 +142,18 @@ class NotReadyError extends Error {
  * `date`. Binary search over the chain, mirroring blockselect.go exactly
  * (same midpoint formula, same >=/< comparison, same not-ready conditions).
  */
-async function selectDailyBlock(rpcUrl, date) {
+async function selectDailyBlock(rpcUrl, date, expectChain) {
   const midnight = new Date(`${date}T00:00:00.000Z`);
   if (Number.isNaN(midnight.getTime())) {
     throw new Error(`invalid --date "${date}", expected YYYY-MM-DD`);
   }
 
-  const latest = await latestHeight(rpcUrl);
+  const latest = await latestHeight(rpcUrl, expectChain);
   if (latest < 1n) {
     throw new NotReadyError("chain has no blocks yet");
   }
 
-  const top = await blockAt(rpcUrl, latest);
+  const top = await blockAt(rpcUrl, latest, expectChain);
   if (top.time.getTime() < midnight.getTime()) {
     throw new NotReadyError(
       `not ready: chain tip (height ${latest}, ${top.time.toISOString()}) is still before ` +
@@ -142,7 +167,7 @@ async function selectDailyBlock(rpcUrl, date) {
   let answer = null;
   const cache = new Map();
   const getBlock = async (h) => {
-    if (!cache.has(h)) cache.set(h, await blockAt(rpcUrl, h));
+    if (!cache.has(h)) cache.set(h, await blockAt(rpcUrl, h, expectChain));
     return cache.get(h);
   };
 
@@ -172,13 +197,15 @@ function todayUTC() {
 }
 
 function parseArgs(argv) {
-  const args = { date: todayUTC(), rpc: DEFAULT_RPC, selftest: false };
+  const args = { date: todayUTC(), rpc: DEFAULT_RPC, chain: DEFAULT_CHAIN, selftest: false };
   for (let i = 0; i < argv.length; i++) {
     const a = argv[i];
     if (a === "--date") {
       args.date = argv[++i];
     } else if (a === "--rpc") {
       args.rpc = argv[++i];
+    } else if (a === "--chain") {
+      args.chain = argv[++i];
     } else if (a === "--selftest") {
       args.selftest = true;
     } else if (a === "--help" || a === "-h") {
@@ -194,12 +221,16 @@ function printHelp() {
   console.log(`Block Party public seed verification
 
 Usage:
-  node scripts/verify-blockparty-seed.mjs [--date YYYY-MM-DD] [--rpc <url>]
+  node scripts/verify-blockparty-seed.mjs [--date YYYY-MM-DD] [--rpc <url>] [--chain <id>]
   node scripts/verify-blockparty-seed.mjs --selftest
 
 Options:
   --date YYYY-MM-DD   Date to derive the challenge for (default: today, UTC)
   --rpc <url>         Public Gno RPC base URL (default: ${DEFAULT_RPC})
+  --chain <id>        Chain id the node MUST report (default: ${DEFAULT_CHAIN}).
+                       The script refuses a node whose /status network or block
+                       headers name any other chain — a responding host is not
+                       proof of the right chain.
   --selftest          Run a hardcoded known-vector check against the Go
                        derivation and exit, without any network access
   --help              Show this help
@@ -261,11 +292,12 @@ async function main() {
   console.log("========================================");
   console.log(`date        : ${args.date}`);
   console.log(`rpc         : ${args.rpc}`);
+  console.log(`chain       : ${args.chain} (identity-verified on /status and every block header)`);
   console.log("");
 
   let block;
   try {
-    block = await selectDailyBlock(args.rpc, args.date);
+    block = await selectDailyBlock(args.rpc, args.date, args.chain);
   } catch (err) {
     if (err instanceof NotReadyError) {
       console.log(`NOT READY: ${err.message}`);

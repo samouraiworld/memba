@@ -57,6 +57,60 @@ describe("BlockPartyGame", () => {
     expect(practice).toHaveAttribute("tabindex", "0");
   });
 
+  it("does not show the game-over sheet while the challenge is loading", async () => {
+    // The bug this pins: with no challenge yet, moveBudget=0 makes `0 >= 0`
+    // read as budget-exhausted, and the sheet fired on first render.
+    vi.mocked(gameApi.getDailyChallenge).mockImplementationOnce(() => new Promise(() => {}));
+    wrap(<BlockPartyGame />);
+    await waitFor(() => expect(screen.getByRole("grid")).toBeTruthy());
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("shows an error notice with a retry action when the fetch fails — and never the sheet", async () => {
+    // useDailyChallenge sets its own retry: 1 (overriding the test client's
+    // retry: false), so the error state needs BOTH attempts to fail.
+    vi.mocked(gameApi.getDailyChallenge)
+      .mockRejectedValueOnce(new Error("boom"))
+      .mockRejectedValueOnce(new Error("boom"));
+    wrap(<BlockPartyGame />);
+    await waitFor(() => expect(screen.getByText(/couldn't load today's challenge/i)).toBeTruthy());
+    expect(screen.getByRole("button", { name: /retry/i })).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("re-seeds the ranked board when the challenge arrives", async () => {
+    // Cold ranked load starts on the placeholder seed 0; without a re-seed the
+    // player plays a board the server never issued and the replay is garbage.
+    let resolveChallenge!: (v: unknown) => void;
+    vi.mocked(gameApi.getDailyChallenge).mockImplementationOnce(
+      () => new Promise((res) => { resolveChallenge = res; }) as never
+    );
+    wrap(<BlockPartyGame />);
+    await waitFor(() => expect(screen.getByRole("grid")).toBeTruthy());
+
+    resolveChallenge({
+      date: "2026-07-06", seed: 12345, modifier: "standard", par: 1500n, moveBudget: 30,
+      blockHeight: 42n, blockHash: "abc", ready: true,
+    });
+
+    const { initGame } = await import("../game/engine");
+    const expected = initGame(12345, "standard").board.map((v) => (v === 0 ? "" : String(v)));
+    // Position-aware: read all 16 cells in board order (empty cells included),
+    // so a coincidental same-value spawn on a different square still fails.
+    await waitFor(() => {
+      const cells = Array.from(screen.getByRole("grid").children).map(
+        (el) => el.getAttribute("aria-label") ?? ""
+      );
+      expect(cells).toEqual(expected);
+    });
+  });
+
+  it("renders the seed proof (block height, hash, verify link) once the challenge is ready", async () => {
+    wrap(<BlockPartyGame />);
+    await waitFor(() => expect(screen.getByText(/block #42/i)).toBeTruthy());
+    expect(screen.getByRole("link", { name: /verify/i })).toBeTruthy();
+  });
+
   it("shows the not-ready notice and still renders a board when the daily challenge isn't ready", async () => {
     vi.mocked(gameApi.getDailyChallenge).mockResolvedValueOnce({
       date: "2026-07-06", seed: 12345, modifier: "standard", par: 1500n, moveBudget: 30,
