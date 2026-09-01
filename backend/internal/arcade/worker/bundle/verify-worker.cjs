@@ -846,7 +846,426 @@ function runReplay(seed, events) {
   };
 }
 
+// frontend/src/games/space-invaders/lib/replay.ts
+var REPLAY_VERSION = 1;
+var IDLE = { tick: 0, move: 0, fire: false, pause: false };
+function inputAtTick(log, tick2) {
+  let active = IDLE;
+  for (const d of log.inputs) {
+    if (d.tick > tick2) break;
+    active = d;
+  }
+  return { move: active.move, fire: active.fire, pause: active.pause };
+}
+
+// frontend/src/games/space-invaders/engine/config.ts
+var CONFIG = {
+  arena: { w: 320, h: 400 },
+  // maxBullets/fireCooldownMs power rapid fire: hold to stream shots (one every
+  // ~140ms) with up to 3 on screen — snappier, more energetic play.
+  player: { w: 22, h: 12, speedPxPerMs: 0.16, baselineY: 380, maxBullets: 3, fireCooldownMs: 140 },
+  // startYMaxDrop caps how far later waves spawn down, so deep-wave difficulty
+  // comes from faster fire (below), not from spawning inside the kill line.
+  alien: { w: 16, h: 12, gapX: 8, gapY: 10, rows: 5, cols: 11, marginX: 32, startY: 40, startYMaxDrop: 50 },
+  formation: { dropY: 12, stepDx: 8, stepMsMax: 700, stepMsMin: 90 },
+  bullet: { w: 3, h: 8, playerSpeedPxPerMs: 0.6, alienSpeedPxPerMs: 0.18 },
+  // Alien fire accelerates with the wave: cooldown drops perWaveMs each wave,
+  // floored at cooldownMinMs.
+  alienFire: { cooldownMs: 900, cooldownMinMs: 320, perWaveMs: 55 },
+  // Mystery UFO: drifts across the top on a seeded timer. Base value is a
+  // seeded pick; a hit on a parityShot-th shot pays the 300 bonus (the classic
+  // risk/reward skill hook — track your shot count).
+  ufo: { w: 24, h: 10, y: 22, speedPxPerMs: 0.09, spawnMs: 16e3, points: [50, 100, 150], bonusPoints: 300, parityShot: 23 },
+  // Destructible bunkers: count clusters of cols×rows blocks, each with hp hits.
+  // Both player and alien shots erode them; they refresh each wave.
+  bunker: { count: 4, cols: 4, rows: 2, blockW: 7, blockH: 6, gapX: 2, hp: 3, y: 296 },
+  lives: 3,
+  respawnInvulnMs: 1500,
+  points: [40, 30, 20, 20, 10],
+  // by row index; top row worth most
+  // End-of-game bonuses (integer). accuracyBonusK is the max accuracy award
+  // (floor(hits*K/shots)); livesBonus is per surviving life.
+  scoring: { accuracyBonusK: 500, livesBonus: 500 }
+};
+function formationStepMs(alive, total) {
+  const t = total <= 0 ? 1 : 1 - Math.max(0, Math.min(alive, total)) / total;
+  return CONFIG.formation.stepMsMax + (CONFIG.formation.stepMsMin - CONFIG.formation.stepMsMax) * t;
+}
+function alienFireCooldownMs(wave) {
+  const scaled = CONFIG.alienFire.cooldownMs - (wave - 1) * CONFIG.alienFire.perWaveMs;
+  return Math.max(CONFIG.alienFire.cooldownMinMs, scaled);
+}
+function comboMultiplier10(combo) {
+  if (combo >= 10) return 40;
+  if (combo >= 7) return 30;
+  if (combo >= 4) return 20;
+  if (combo >= 2) return 15;
+  return 10;
+}
+
+// frontend/src/games/space-invaders/engine/spawn.ts
+function spawnBunkers() {
+  const { count, cols, rows, blockW, blockH, gapX, hp, y } = CONFIG.bunker;
+  const bunkerW = cols * blockW + (cols - 1) * gapX;
+  const slot = CONFIG.arena.w / count;
+  const blocks = [];
+  for (let b = 0; b < count; b++) {
+    const x0 = b * slot + (slot - bunkerW) / 2;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        blocks.push({ x: x0 + c * (blockW + gapX), y: y + r * blockH, w: blockW, h: blockH, hp });
+      }
+    }
+  }
+  return blocks;
+}
+function spawnWave(wave) {
+  const { rows, cols, w, h, gapX, gapY, marginX, startY, startYMaxDrop } = CONFIG.alien;
+  const dropPerWave = 10;
+  const yBase = startY + Math.min((wave - 1) * dropPerWave, startYMaxDrop);
+  const aliens = [];
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      aliens.push({
+        x: marginX + col * (w + gapX),
+        y: yBase + row * (h + gapY),
+        w,
+        h,
+        alive: true,
+        row,
+        col
+      });
+    }
+  }
+  return { aliens };
+}
+function newGame(seed) {
+  const { aliens } = spawnWave(1);
+  return {
+    phase: "ready",
+    seed,
+    rng: seed,
+    tick: 0,
+    player: {
+      x: CONFIG.arena.w / 2 - CONFIG.player.w / 2,
+      y: CONFIG.player.baselineY,
+      w: CONFIG.player.w,
+      h: CONFIG.player.h
+    },
+    lives: CONFIG.lives,
+    invulnMs: 0,
+    score: 0,
+    combo: 0,
+    shots: 0,
+    hits: 0,
+    wave: 1,
+    aliens,
+    dir: 1,
+    stepAccumMs: 0,
+    playerBullets: [],
+    fireCd: 0,
+    alienBullets: [],
+    alienFireMs: CONFIG.alienFire.cooldownMs,
+    ufo: null,
+    ufoTimerMs: CONFIG.ufo.spawnMs,
+    bunkers: spawnBunkers(),
+    events: []
+  };
+}
+
+// frontend/src/games/space-invaders/engine/collision.ts
+function aabb(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
+// frontend/src/games/space-invaders/engine/prng.ts
+function rngNext2(state) {
+  const a = state + 1831565813 | 0;
+  let t = Math.imul(a ^ a >>> 15, 1 | a);
+  t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+  const value = (t ^ t >>> 14) >>> 0;
+  return { value, state: a >>> 0 };
+}
+function rngFloat(state) {
+  const n = rngNext2(state);
+  return { value: n.value / 4294967296, state: n.state };
+}
+
+// frontend/src/games/space-invaders/engine/step.ts
+function hitBunker(bunkers, b) {
+  const i = bunkers.findIndex((bl) => bl.hp > 0 && aabb(b, bl));
+  if (i < 0) return { bunkers, hit: false };
+  const next = bunkers.map((bl, j) => j === i ? { ...bl, hp: bl.hp - 1 } : bl).filter((bl) => bl.hp > 0);
+  return { bunkers: next, hit: true };
+}
+function finalize(s) {
+  const accuracy = s.shots > 0 ? Math.floor(s.hits * CONFIG.scoring.accuracyBonusK / s.shots) : 0;
+  const livesBonus = Math.max(0, s.lives) * CONFIG.scoring.livesBonus;
+  return { ...s, phase: "gameover", score: s.score + accuracy + livesBonus };
+}
+function step(state, dtMs, input) {
+  const events = [];
+  let s = { ...state, tick: state.tick + 1, events };
+  if (input.pause) {
+    if (s.phase === "playing") return { ...s, phase: "paused" };
+    if (s.phase === "paused") return { ...s, phase: "playing" };
+  }
+  if (s.phase === "paused" || s.phase === "gameover") return s;
+  if (s.phase === "ready") {
+    if (input.move !== 0 || input.fire) s = { ...s, phase: "playing" };
+    else return s;
+  }
+  if (input.move !== 0) {
+    const dx = input.move * CONFIG.player.speedPxPerMs * dtMs;
+    const maxX = CONFIG.arena.w - s.player.w;
+    const x = Math.max(0, Math.min(maxX, s.player.x + dx));
+    s = { ...s, player: { ...s.player, x } };
+  }
+  if (s.fireCd > 0) s = { ...s, fireCd: Math.max(0, s.fireCd - dtMs) };
+  if (input.fire && s.fireCd <= 0 && s.playerBullets.length < CONFIG.player.maxBullets) {
+    const bx = s.player.x + s.player.w / 2 - CONFIG.bullet.w / 2;
+    s = {
+      ...s,
+      shots: s.shots + 1,
+      fireCd: CONFIG.player.fireCooldownMs,
+      playerBullets: [
+        ...s.playerBullets,
+        { x: bx, y: s.player.y - CONFIG.bullet.h, w: CONFIG.bullet.w, h: CONFIG.bullet.h, alive: true }
+      ]
+    };
+    events.push({ type: "playerFired", x: bx });
+  }
+  const living = s.aliens.filter((a) => a.alive);
+  if (living.length > 0) {
+    const cadence = formationStepMs(living.length, s.aliens.length);
+    let accum = s.stepAccumMs + dtMs;
+    if (accum >= cadence) {
+      accum -= cadence;
+      events.push({ type: "alienStep", dir: s.dir });
+      const minX = Math.min(...living.map((a) => a.x));
+      const maxX = Math.max(...living.map((a) => a.x + a.w));
+      const dx = s.dir * CONFIG.formation.stepDx;
+      const hitsEdge = minX + dx < 0 || maxX + dx > CONFIG.arena.w;
+      if (hitsEdge) {
+        s = {
+          ...s,
+          dir: s.dir * -1,
+          aliens: s.aliens.map((a) => a.alive ? { ...a, y: a.y + CONFIG.formation.dropY } : a),
+          stepAccumMs: accum
+        };
+      } else {
+        s = {
+          ...s,
+          aliens: s.aliens.map((a) => a.alive ? { ...a, x: a.x + dx } : a),
+          stepAccumMs: accum
+        };
+      }
+    } else {
+      s = { ...s, stepAccumMs: accum };
+    }
+  }
+  {
+    let ufo = s.ufo;
+    let timer = s.ufoTimerMs;
+    if (ufo && ufo.alive) {
+      const nx = ufo.x + ufo.dir * CONFIG.ufo.speedPxPerMs * dtMs;
+      if (nx > CONFIG.arena.w || nx + ufo.w < 0) {
+        ufo = null;
+        timer = CONFIG.ufo.spawnMs;
+      } else {
+        ufo = { ...ufo, x: nx };
+      }
+    } else {
+      timer -= dtMs;
+      if (timer <= 0) {
+        const pick = rngFloat(s.rng);
+        const dir = pick.value < 0.5 ? 1 : -1;
+        ufo = {
+          x: dir === 1 ? -CONFIG.ufo.w : CONFIG.arena.w,
+          y: CONFIG.ufo.y,
+          w: CONFIG.ufo.w,
+          h: CONFIG.ufo.h,
+          dir,
+          alive: true
+        };
+        timer = CONFIG.ufo.spawnMs;
+        s = { ...s, rng: pick.state };
+        events.push({ type: "ufoSpawned" });
+      }
+    }
+    s = { ...s, ufo, ufoTimerMs: timer };
+  }
+  if (s.playerBullets.length > 0) {
+    let aliens = s.aliens;
+    let combo = s.combo;
+    let hits = s.hits;
+    let score = s.score;
+    let ufo = s.ufo;
+    let rng = s.rng;
+    let bunkers = s.bunkers;
+    const survivors = [];
+    for (const pb of s.playerBullets) {
+      const b = { ...pb, y: pb.y - CONFIG.bullet.playerSpeedPxPerMs * dtMs };
+      if (b.y + b.h < 0) {
+        combo = 0;
+        events.push({ type: "shotMissed" });
+        continue;
+      }
+      let hitIdx = -1;
+      for (let i = 0; i < aliens.length; i++) {
+        const a = aliens[i];
+        if (a.alive && aabb(b, a)) {
+          hitIdx = i;
+          break;
+        }
+      }
+      if (hitIdx >= 0) {
+        const a = aliens[hitIdx];
+        const hitScore = CONFIG.points[a.row] ?? CONFIG.points[CONFIG.points.length - 1];
+        combo += 1;
+        score += Math.floor(hitScore * comboMultiplier10(combo) / 10);
+        hits += 1;
+        aliens = aliens.map((x, i) => i === hitIdx ? { ...x, alive: false } : x);
+        events.push({ type: "alienKilled", x: a.x, y: a.y, row: a.row });
+      } else if (ufo && ufo.alive && aabb(b, ufo)) {
+        const rp = rngFloat(rng);
+        rng = rp.state;
+        const base = CONFIG.ufo.points[Math.floor(rp.value * CONFIG.ufo.points.length)];
+        const pts = s.shots % CONFIG.ufo.parityShot === 0 ? CONFIG.ufo.bonusPoints : base;
+        score += pts;
+        hits += 1;
+        events.push({ type: "ufoKilled", x: ufo.x, y: ufo.y, points: pts });
+        ufo = null;
+      } else {
+        const bh = hitBunker(bunkers, b);
+        if (bh.hit) {
+          bunkers = bh.bunkers;
+        } else {
+          survivors.push(b);
+        }
+      }
+    }
+    s = { ...s, aliens, playerBullets: survivors, combo, hits, score, ufo, rng, bunkers };
+  }
+  if (s.invulnMs > 0) {
+    s = { ...s, invulnMs: Math.max(0, s.invulnMs - dtMs) };
+  }
+  {
+    const living2 = s.aliens.filter((a) => a.alive);
+    const fireMs = s.alienFireMs - dtMs;
+    if (fireMs <= 0 && living2.length > 0) {
+      const pick = rngFloat(s.rng);
+      const cols = [...new Set(living2.map((a) => a.col))].sort((a, b) => a - b);
+      const col = cols[Math.floor(pick.value * cols.length)];
+      const shooter = living2.filter((a) => a.col === col).reduce((lo, a) => a.y > lo.y ? a : lo);
+      const bullet = {
+        x: shooter.x + shooter.w / 2 - CONFIG.bullet.w / 2,
+        y: shooter.y + shooter.h,
+        w: CONFIG.bullet.w,
+        h: CONFIG.bullet.h,
+        alive: true
+      };
+      s = {
+        ...s,
+        rng: pick.state,
+        alienBullets: [...s.alienBullets, bullet],
+        alienFireMs: alienFireCooldownMs(s.wave)
+      };
+    } else {
+      s = { ...s, alienFireMs: fireMs };
+    }
+  }
+  if (s.alienBullets.length > 0) {
+    const moved = s.alienBullets.map((b) => ({ ...b, y: b.y + CONFIG.bullet.alienSpeedPxPerMs * dtMs })).filter((b) => b.y < CONFIG.arena.h);
+    let bunkers = s.bunkers;
+    const remaining = [];
+    for (const b of moved) {
+      const bh = hitBunker(bunkers, b);
+      if (bh.hit) bunkers = bh.bunkers;
+      else remaining.push(b);
+    }
+    const struck = s.invulnMs <= 0 && remaining.some((b) => aabb(b, s.player));
+    if (struck) {
+      s = { ...s, alienBullets: [], lives: s.lives - 1, invulnMs: CONFIG.respawnInvulnMs, bunkers };
+      events.push({ type: "playerHit" });
+      events.push({ type: "lifeLost" });
+    } else {
+      s = { ...s, alienBullets: remaining, bunkers };
+    }
+  }
+  if (s.lives <= 0) {
+    return finalize(s);
+  }
+  const alive = s.aliens.filter((a) => a.alive);
+  if (alive.some((a) => a.y + a.h >= s.player.y)) {
+    return finalize(s);
+  }
+  if (alive.length === 0) {
+    const nextWave = s.wave + 1;
+    s = {
+      ...s,
+      wave: nextWave,
+      aliens: spawnWave(nextWave).aliens,
+      dir: 1,
+      stepAccumMs: 0,
+      playerBullets: [],
+      fireCd: 0,
+      alienBullets: [],
+      bunkers: spawnBunkers()
+    };
+    events.push({ type: "waveCleared" });
+  }
+  return s;
+}
+
+// frontend/src/games/space-invaders/hooks/useGameLoop.ts
+var FIXED_MS = 1e3 / 60;
+
+// frontend/src/games/space-invaders/lib/verify.ts
+function fnv1a2(nums) {
+  let h = 2166136261;
+  for (const n of nums) {
+    let v = (n | 0) >>> 0;
+    for (let i = 0; i < 4; i++) {
+      h = Math.imul(h ^ v & 255, 16777619) >>> 0;
+      v >>>= 8;
+    }
+  }
+  return h >>> 0;
+}
+var PHASE_CODE = { ready: 0, playing: 1, paused: 2, gameover: 3 };
+function hashState2(s) {
+  const nums = [
+    s.score,
+    s.tick,
+    s.lives,
+    s.wave,
+    s.combo,
+    s.shots,
+    s.hits,
+    PHASE_CODE[s.phase],
+    Math.round(s.player.x),
+    s.playerBullets.length,
+    s.alienBullets.length,
+    s.aliens.reduce((n, a) => n + (a.alive ? 1 : 0), 0),
+    s.ufo && s.ufo.alive ? Math.round(s.ufo.x) : -1,
+    s.bunkers.reduce((n, b) => n + b.hp, 0)
+  ];
+  for (const a of s.aliens) if (a.alive) nums.push(Math.round(a.x), Math.round(a.y));
+  return fnv1a2(nums);
+}
+function simulateReplay(log) {
+  let s = newGame(log.seed);
+  for (let i = 0; i < log.finalTick; i++) {
+    s = step(s, FIXED_MS, inputAtTick(log, i));
+  }
+  return { state: s, score: s.score, hash: hashState2(s) };
+}
+
 // backend/internal/arcade/worker/verify_worker.ts
+var INVADERS_SIM_VERSION = 1;
+var MAX_INVADERS_EVENTS = 1e4;
+var MAX_FINAL_TICK = 216e3;
 function ok(r) {
   return JSON.stringify({ ok: true, ...r });
 }
@@ -867,8 +1286,22 @@ function processJob(raw) {
   if (typeof job.seed !== "string" || job.seed.length === 0) {
     return fail("seed must be a non-empty string");
   }
+  const game = job.game === void 0 || job.game === "" ? "barricade" : job.game;
+  switch (game) {
+    case "barricade":
+      return processBarricade(job);
+    case "invaders":
+      return processInvaders(job);
+    default:
+      return fail(`unknown game: ${String(game)}`);
+  }
+}
+function processBarricade(job) {
   if (job.simVersion !== SIM_VERSION) {
     return fail(`unsupported simVersion: worker build is v${SIM_VERSION}`);
+  }
+  if (job.finalTick !== void 0 && job.finalTick !== 0) {
+    return fail("finalTick is not a barricade field");
   }
   if (!Array.isArray(job.events)) {
     return fail("events must be an array");
@@ -886,6 +1319,85 @@ function processJob(raw) {
     overtimeRound: r.overtimeRound,
     stateHash: r.stateHash,
     simVersion: r.simVersion,
+    logHash
+  });
+}
+function fnv1aSeed(seed) {
+  let h = 2166136261;
+  const bytes = Buffer.from(seed, "utf8");
+  for (const b of bytes) {
+    h = Math.imul(h ^ b, 16777619) >>> 0;
+  }
+  return h >>> 0;
+}
+function canonicalInvadersLog(finalTick, deltas) {
+  const lines = deltas.map((d) => `${d[0]}|${d[1]}|${d[2]}|${d[3]}`);
+  return [String(finalTick), ...lines].join(";");
+}
+function processInvaders(job) {
+  if (job.simVersion !== INVADERS_SIM_VERSION) {
+    return fail(`unsupported simVersion: invaders worker build is v${INVADERS_SIM_VERSION}`);
+  }
+  const finalTick = job.finalTick;
+  if (typeof finalTick !== "number" || !Number.isInteger(finalTick) || finalTick <= 0) {
+    return fail("finalTick must be a positive integer");
+  }
+  if (finalTick > MAX_FINAL_TICK) {
+    return fail(`finalTick too large: ${finalTick} > ${MAX_FINAL_TICK}`);
+  }
+  if (!Array.isArray(job.events)) {
+    return fail("events must be an array");
+  }
+  if (job.events.length > MAX_INVADERS_EVENTS) {
+    return fail(`too many events: ${job.events.length} > ${MAX_INVADERS_EVENTS}`);
+  }
+  const deltas = [];
+  let lastTick = -1;
+  for (let i = 0; i < job.events.length; i++) {
+    const e = job.events[i];
+    if (!Array.isArray(e) || e.length !== 4) {
+      return fail(`event ${i}: must be a [tick, move10, fire, pause] tuple`);
+    }
+    const [tick2, move10, fire, pause] = e;
+    if (typeof tick2 !== "number" || !Number.isInteger(tick2) || typeof move10 !== "number" || !Number.isInteger(move10) || typeof fire !== "number" || !Number.isInteger(fire) || typeof pause !== "number" || !Number.isInteger(pause)) {
+      return fail(`event ${i}: all tuple fields must be integers`);
+    }
+    if (tick2 < 0 || tick2 >= finalTick) {
+      return fail(`event ${i}: tick ${tick2} out of range [0, ${finalTick})`);
+    }
+    if (tick2 <= lastTick) {
+      return fail(`event ${i}: ticks must be strictly increasing`);
+    }
+    if (move10 < -10 || move10 > 10) {
+      return fail(`event ${i}: move10 ${move10} out of range [-10, 10]`);
+    }
+    if (fire !== 0 && fire !== 1 || pause !== 0 && pause !== 1) {
+      return fail(`event ${i}: fire/pause must be 0 or 1`);
+    }
+    lastTick = tick2;
+    deltas.push([tick2, move10, fire, pause]);
+  }
+  const inputs = deltas.map((d) => ({
+    tick: d[0],
+    move: d[1] / 10,
+    fire: d[2] === 1,
+    pause: d[3] === 1
+  }));
+  const r = simulateReplay({
+    version: REPLAY_VERSION,
+    seed: fnv1aSeed(job.seed),
+    finalTick,
+    inputs
+  });
+  const logHash = (0, import_node_crypto.createHash)("sha256").update(job.seed + "\n" + canonicalInvadersLog(finalTick, deltas)).digest("hex");
+  const stats = JSON.stringify({ wave: r.state.wave, shots: r.state.shots, hits: r.state.hits });
+  return ok({
+    score: r.score,
+    waves: r.state.wave,
+    // the cross-game "how far" display number
+    stateHash: r.hash.toString(16).padStart(8, "0"),
+    simVersion: INVADERS_SIM_VERSION,
+    stats,
     logHash
   });
 }
