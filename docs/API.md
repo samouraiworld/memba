@@ -83,6 +83,28 @@ auth `Token` · **Admin** = requires auth **and** the caller to be in `QUEST_ADM
 |-----|------|-------------|
 | `GetHomeSnapshot` | No | Server-assembled, cached dashboard snapshot (network pulse, ecosystem counts, featured DAO, validators health, directory preview). Every source is independently fault-tolerant — failures degrade to zero values and are named in `stale_sources`; the call never fails wholesale |
 
+### Block Party (arcade)
+
+The entire surface is gated on the backend `BLOCKPARTY_ENABLED` flag — while
+parked, **all four** RPCs answer `Unimplemented` (reads included; the flag is a
+total kill switch). Scores are server-authoritative: the client submits only
+its move log and the server replays it against the day's seeded board.
+
+| RPC | Auth | Description |
+|-----|------|-------------|
+| `GetDailyChallenge` | No | The day's challenge (`date`, `seed`, `modifier`, `par`, `moveBudget`, `blockHeight`, `blockHash`, `ready`). Derived once per date from the first pearl block ≥ 00:00 UTC (single node, chain-identity-verified, no failover) and cached immutably. `ready:false` = the day's block isn't mined yet |
+| `SubmitScore` | Yes | Body: `{authToken, date, moveLog}` — never a score. Server replays the log and derives the score itself. One submission per address per UTC day, first-write-wins |
+| `GetDailyLeaderboard` | No | Top scores for a date (`limit` ≤ 100, default 50) |
+| `GetStreak` | No | Current/longest streak + weekly freeze for an address |
+
+Error codes: `Unimplemented` (parked) · `FailedPrecondition` (challenge not
+ready) · `InvalidArgument` (date not today UTC; non-`UDLR` character;
+over-budget or no-op move — the padding/DoS guards) · `AlreadyExists` (second
+submit) · `ResourceExhausted` (per-address submit quota) · `Internal` (incl. a
+seed-RPC chain-identity mismatch — deliberately loud, never substituted).
+Public verification: `scripts/verify-blockparty-seed.mjs` +
+`scripts/VERIFY_BLOCKPARTY.md`.
+
 ## REST Endpoints (non-RPC)
 
 | Endpoint | Auth | Description |
