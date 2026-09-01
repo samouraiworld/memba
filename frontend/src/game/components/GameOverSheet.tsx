@@ -20,15 +20,18 @@ export function GameOverSheet(props: {
   const [localStreak, setLocalStreakState] = useState(0);
   const submittedRef = useRef(false);
 
-  // guest local persistence (also runs for connected users as a fallback)
-  useEffect(() => { setLocalBest(date, score); }, [date, score]);
+  // guest local persistence (also runs for connected users as a fallback).
+  // Empty date = the challenge never loaded (error path); the sheet must be
+  // inert then — no "bp:best:" key, no `lastDate: ""` streak corruption, no
+  // blank-date submit the server would reject anyway.
+  useEffect(() => { if (date) setLocalBest(date, score); }, [date, score]);
 
   // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: sync local streak once per date change, not derivable from render
-  useEffect(() => { setLocalStreakState(bumpLocalStreak(date).current); }, [date]);
+  useEffect(() => { if (date) setLocalStreakState(bumpLocalStreak(date).current); }, [date]);
 
   // auto-submit when authenticated
   useEffect(() => {
-    if (!auth.isAuthenticated || !auth.token || submittedRef.current) return;
+    if (!date || !auth.isAuthenticated || !auth.token || submittedRef.current) return;
     submittedRef.current = true;
     setSubmitting(true);
     gameApi.submitScore(auth.token, date, moveLog)

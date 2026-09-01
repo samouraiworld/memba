@@ -74,6 +74,11 @@ flyctl secrets set \
 # MEMBA_ARCADE_REALM defaults to the known path; GNO_CHAIN_ID / GNO_RPC_URL are
 # already set. Optional: MEMBA_ARCADE_KEYRING_PW (default "arcade"),
 # MEMBA_ARCADE_ATTEST_INTERVAL, MEMBA_ARCADE_ATTEST_MAX_PER_CYCLE.
+#
+# Per-game rollout: MEMBA_ARCADE_GAMES is the comma list of enabled games
+# (default "barricade" — i.e. Space Invaders and any future game stay DARK,
+# their submissions rejected before a verify is spent, until named here, e.g.
+# MEMBA_ARCADE_GAMES=barricade,invaders).
 flyctl deploy -a memba-backend
 ```
 

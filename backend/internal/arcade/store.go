@@ -12,10 +12,15 @@ import (
 var ErrDuplicateLog = errors.New("arcade: input log already submitted")
 
 // Run is one stored, verified submission. The events (input log) are retained
-// for day-close publication and re-verification.
+// for day-close publication and re-verification. Game scopes every board
+// (boards are per game per day, mirroring the realm's game|day keying);
+// Waves/Won/OvertimeRound are barricade-legacy display columns (Space Invaders
+// stores its wave-reached in Waves, zero for the rest), while Stats is the
+// canonical per-game JSON payload the attester writes on-chain.
 type Run struct {
 	LogHash        string
 	Addr           string
+	Game           string
 	Day            string
 	Mode           string
 	Seed           string
@@ -25,11 +30,18 @@ type Run struct {
 	Won            bool
 	OvertimeRound  int64
 	StateHash      string
+	Stats          string
 	Events         string
 	Status         string
 	AttestedTxHash string
 	CreatedAt      int64
 	AttestedAt     int64
+}
+
+// GameDay is one (game, day) board pending day-close attestation.
+type GameDay struct {
+	Game string
+	Day  string
 }
 
 // Store is the arcade_runs data access layer (a thin package of query functions
@@ -44,15 +56,16 @@ func NewStore(db *sql.DB) *Store { return &Store{db: db} }
 func (s *Store) DB() *sql.DB { return s.db }
 
 // InsertRun persists a verified run. A duplicate input-log hash returns
-// ErrDuplicateLog (the row is NOT overwritten — first submitter wins).
+// ErrDuplicateLog (the row is NOT overwritten — first submitter wins). An
+// empty Game backfills to 'barricade' (the pre-multigame writer's shape).
 func (s *Store) InsertRun(r Run) error {
 	_, err := s.db.Exec(
 		`INSERT INTO arcade_runs
-			(input_log_sha256, addr, day, mode, seed, sim_version, score, waves, won,
-			 overtime_round, state_hash, events, status, attested_txhash, created_at, attested_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-		r.LogHash, r.Addr, r.Day, r.Mode, r.Seed, r.SimVersion, r.Score, r.Waves, boolToInt(r.Won),
-		r.OvertimeRound, r.StateHash, r.Events, statusOrDefault(r.Status), nullIfEmpty(r.AttestedTxHash),
+			(input_log_sha256, addr, game, day, mode, seed, sim_version, score, waves, won,
+			 overtime_round, state_hash, stats, events, status, attested_txhash, created_at, attested_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+		r.LogHash, r.Addr, gameOrDefault(r.Game), r.Day, r.Mode, r.Seed, r.SimVersion, r.Score, r.Waves, boolToInt(r.Won),
+		r.OvertimeRound, r.StateHash, r.Stats, r.Events, statusOrDefault(r.Status), nullIfEmpty(r.AttestedTxHash),
 		r.CreatedAt, nullIfZero(r.AttestedAt),
 	)
 	if err != nil && isUniqueViolation(err) {
@@ -61,52 +74,57 @@ func (s *Store) InsertRun(r Run) error {
 	return err
 }
 
-// PendingDailyDays returns the distinct CLOSED days (day < beforeDay, typically
-// today UTC) that still hold a verified-but-unattested competitive daily run,
-// ascending — the day-close batcher's work list.
-func (s *Store) PendingDailyDays(beforeDay string) ([]string, error) {
+// PendingDailyGameDays returns the distinct CLOSED (game, day) boards
+// (day < beforeDay, typically today UTC) that still hold a
+// verified-but-unattested competitive daily run, day-ascending — the
+// day-close batcher's work list. Data-driven: a new game shows up here the
+// moment its first run lands, with no hardcoded game list anywhere.
+func (s *Store) PendingDailyGameDays(beforeDay string) ([]GameDay, error) {
 	rows, err := s.db.Query(
-		`SELECT DISTINCT day FROM arcade_runs
+		`SELECT DISTINCT game, day FROM arcade_runs
 		 WHERE mode = 'daily' AND status = 'verified' AND day < ?
-		 ORDER BY day`, beforeDay)
+		 ORDER BY day, game`, beforeDay)
 	if err != nil {
 		return nil, err
 	}
 	defer func() { _ = rows.Close() }()
-	var days []string
+	var out []GameDay
 	for rows.Next() {
-		var d string
-		if err := rows.Scan(&d); err != nil {
+		var gd GameDay
+		if err := rows.Scan(&gd.Game, &gd.Day); err != nil {
 			return nil, err
 		}
-		days = append(days, d)
+		out = append(out, gd)
 	}
-	return days, rows.Err()
+	return out, rows.Err()
 }
 
-// BestVerifiedDaily returns a day's competitive board to attest: the BEST
+// BestVerifiedDaily returns one game's competitive board for a day: the BEST
 // verified-but-unattested run per address (score desc, total-order tiebreak).
-// One row per address, because the realm's board is one-entry-per-address-per-day
-// and AttestScore PANICS on a non-improving re-attest — so the backend must never
-// attest a wallet's worse run after its better one.
-func (s *Store) BestVerifiedDaily(day string, limit int) ([]Run, error) {
+// One row per address, because the realm's board is
+// one-entry-per-address-per-game-per-day and AttestScore PANICS on a
+// non-improving re-attest — so the backend must never attest a wallet's worse
+// run after its better one. Game-scoped: the same wallet's runs in another
+// game are a different board and never collapse into this one.
+func (s *Store) BestVerifiedDaily(game, day string, limit int) ([]Run, error) {
 	if limit <= 0 {
 		limit = 500
 	}
-	// The correlated subquery picks each address's max verified score for the day;
-	// GROUP BY addr collapses ties (same addr, same score, different logs) to one.
+	// The correlated subquery picks each address's max verified score for the
+	// (game, day); GROUP BY addr collapses ties (same addr, same score,
+	// different logs) to one.
 	rows, err := s.db.Query(
-		`SELECT input_log_sha256, addr, day, mode, seed, sim_version, score, waves, won,
-			 overtime_round, state_hash, events, status,
+		`SELECT input_log_sha256, addr, game, day, mode, seed, sim_version, score, waves, won,
+			 overtime_round, state_hash, stats, events, status,
 			 COALESCE(attested_txhash, ''), created_at, COALESCE(attested_at, 0)
 		 FROM arcade_runs r
-		 WHERE day = ? AND mode = 'daily' AND status = 'verified'
+		 WHERE game = ? AND day = ? AND mode = 'daily' AND status = 'verified'
 		   AND score = (SELECT MAX(score) FROM arcade_runs r2
-		                WHERE r2.addr = r.addr AND r2.day = r.day
+		                WHERE r2.addr = r.addr AND r2.game = r.game AND r2.day = r.day
 		                  AND r2.mode = 'daily' AND r2.status = 'verified')
 		 GROUP BY addr
 		 ORDER BY score DESC, created_at ASC, input_log_sha256 ASC
-		 LIMIT ?`, day, limit)
+		 LIMIT ?`, game, day, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -151,23 +169,25 @@ func (s *Store) MarkErrored(logHash string) error {
 	return err
 }
 
-// ResolveSupersededDaily marks an address's OTHER verified daily runs for a day as
-// 'skipped' once its best has been attested — so the below-best runs don't keep the
-// day pending (and can't trigger the realm's non-improving panic). Called only
-// after a successful attestation of keepLogHash.
-func (s *Store) ResolveSupersededDaily(day, addr, keepLogHash string) error {
+// ResolveSupersededDaily marks an address's OTHER verified daily runs for one
+// (game, day) board as 'skipped' once its best has been attested — so the
+// below-best runs don't keep the board pending (and can't trigger the realm's
+// non-improving panic). Game-scoped: the wallet's runs in another game are a
+// different board and must survive. Called only after a successful attestation
+// of keepLogHash.
+func (s *Store) ResolveSupersededDaily(game, day, addr, keepLogHash string) error {
 	_, err := s.db.Exec(
 		`UPDATE arcade_runs SET status = 'skipped'
-		 WHERE day = ? AND addr = ? AND mode = 'daily' AND status = 'verified'
-		   AND input_log_sha256 != ?`, day, addr, keepLogHash)
+		 WHERE game = ? AND day = ? AND addr = ? AND mode = 'daily' AND status = 'verified'
+		   AND input_log_sha256 != ?`, game, day, addr, keepLogHash)
 	return err
 }
 
 // GetRunByLogHash returns the run for an input-log hash, or ok=false if none.
 func (s *Store) GetRunByLogHash(logHash string) (Run, bool, error) {
 	row := s.db.QueryRow(
-		`SELECT input_log_sha256, addr, day, mode, seed, sim_version, score, waves, won,
-			 overtime_round, state_hash, events, status,
+		`SELECT input_log_sha256, addr, game, day, mode, seed, sim_version, score, waves, won,
+			 overtime_round, state_hash, stats, events, status,
 			 COALESCE(attested_txhash, ''), created_at, COALESCE(attested_at, 0)
 		 FROM arcade_runs WHERE input_log_sha256 = ?`, logHash)
 	return scanRun(row)
@@ -181,8 +201,8 @@ func scanRun(row scanner) (Run, bool, error) {
 	var r Run
 	var won int64
 	if err := row.Scan(
-		&r.LogHash, &r.Addr, &r.Day, &r.Mode, &r.Seed, &r.SimVersion, &r.Score, &r.Waves, &won,
-		&r.OvertimeRound, &r.StateHash, &r.Events, &r.Status, &r.AttestedTxHash, &r.CreatedAt, &r.AttestedAt,
+		&r.LogHash, &r.Addr, &r.Game, &r.Day, &r.Mode, &r.Seed, &r.SimVersion, &r.Score, &r.Waves, &won,
+		&r.OvertimeRound, &r.StateHash, &r.Stats, &r.Events, &r.Status, &r.AttestedTxHash, &r.CreatedAt, &r.AttestedAt,
 	); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return Run{}, false, nil
@@ -205,6 +225,13 @@ func statusOrDefault(s string) string {
 		return "verified"
 	}
 	return s
+}
+
+func gameOrDefault(g string) string {
+	if g == "" {
+		return gameBarricade
+	}
+	return g
 }
 
 func nullIfEmpty(s string) any {

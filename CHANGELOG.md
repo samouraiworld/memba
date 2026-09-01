@@ -20,6 +20,23 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Block Party's daily board becomes trustworthy end to end (2026-09-01)
+<!-- categories: memba -->
+- **The board you play is the board the server issued.** A cold load used to start you on a placeholder board before the day's challenge arrived (and never re-seeded), so ranked replays were scored against a board you never saw; the daily now re-seeds the moment it loads, and a background refresh can no longer wipe a run in progress.
+- **No more phantom "Round complete".** The result sheet used to flash on page load and, if the challenge fetch failed, stick forever over a dead board with score 0. It now appears only after a real seeded run ends, and a failed fetch shows a plain error notice with Retry (plus the Practice escape hatch).
+- **The headline claim is finally visible**: each daily shows *which* chain block seeded it — height, hash and a Verify link to the public re-derivation script — instead of fetching that proof and never rendering it.
+- Under the hood: the end-to-end test that "passed" against no backend at all (it was asserting the flash bug) now plays a real seeded board through a stubbed backend and pins the error path.
+### Sapphire retires from the network selector (sunset 2026-09-09)
+<!-- categories: memba, network -->
+- **Sapphire is now hidden** ahead of its September 9 decommissioning: it no longer appears in the network selector, and a remembered sapphire selection quietly lands on Pearl instead of a dead chain. Existing sapphire links keep resolving — deep links show the network's state rather than crashing — matching how topaz and test13 retired before it.
+
+### Memba's features go live on Pearl — the §6 completion (ceremony + cutover, 2026-08-31)
+<!-- categories: memba, network -->
+- **Every Memba feature now runs on Pearl**: DAO governance, the social feed, reviews, quests, the App Store, tokens, collectibles and the marketplace — deployed to the chain in one combined ceremony and verified artifact-by-artifact. The "not deployed yet" notices are gone; the network selector's default now carries the full app.
+- **The backend follows in the same window**: the feed indexer, home snapshot and activity data now read Pearl (fresh history starts at the deployment — earlier sapphire posts stay readable by switching networks until its September 9 sunset).
+- **Deployment record**: 32 artifacts published to `pearl-1` on 2026-08-31 from the samcrew 2-of-2 multisig (account #225), sequences 0–34 across blocks 98865–100538, in the ceremony order deps (6) → gnodaokit (7) → core (9) → commerce-v2 (8) → p0-guards (2). Every artifact is recorded per-path in `realm-versions.json`'s new `pearl` section with its sequence, height, tx hash, source commit and an on-chain `vm/qfile` file count, and each was re-verified independently after the fact against a second node with a negative control. Sequences 13–15 are absent on purpose: they were spent on three rejected broadcasts of a standalone `tokenfactory` mirror whose package name did not match its path element — nothing was published there, and that path stays free.
+- **Fee paths verified before anything was switched on**: the marketplace realm reports the same address the app expects (`g1y4y37d…`), and the shared fee spine already pays the DAO treasury (`g10kw7e55…`) at 2.0% for collectibles and services and 0.5% for tokens — so no correcting transaction was needed. Marketplace registration is deliberately still pending: it waits on the collectibles indexer, which waits on monitoring being wired, and the collectibles, services and token features stay switched off until the two-wallet live-money check passes.
+
 ### Pearl is now Memba's home network (2026-08-27)
 <!-- categories: memba, network -->
 - **Memba now lands on Pearl**, gno.land's newly launched testnet. Network features — validators, blocks, GovDAO governance — are live there today; Memba's own features (DAO, feed, tokens, collectibles) arrive with their deployment ceremony and show an honest "not deployed yet" notice until then.
@@ -499,7 +516,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Space Invaders — App Store listing prep (2026-07-09)
 <!-- categories: memba -->
-- Refreshed the Space Invaders store card to reflect the finished game (combos, rapid fire, mystery UFO, bunkers, sound) and added a proper on-brand **app icon** (`space-invaders-icon.svg`) in place of the emoji placeholder. The live App Store listing is registered on-chain by the operator — the exact copy, icon, and steps are in `docs/planning/SPACE_INVADERS_LISTING_2026-07-09.md`.
+- Refreshed the Space Invaders store card to reflect the finished game (combos, rapid fire, mystery UFO, bunkers, sound) and added a proper on-brand **app icon** (`space-invaders-icon.svg`) in place of the emoji placeholder. The live App Store listing is registered on-chain by the operator — the exact copy, icon, and steps are in `SPACE_INVADERS_LISTING_2026-07-09.md` (archived in the internal planning repo).
 
 <!-- categories: memba -->
 - Scoring now rewards **skill, not grinding** — the foundation for a competitive leaderboard. A **no-miss combo** builds a live score multiplier (×1 → ×1.5 → ×2 → ×3 → ×4) that **resets the moment you miss a shot**, so accuracy under pressure separates a good run from a great one. The active multiplier shows in the HUD.

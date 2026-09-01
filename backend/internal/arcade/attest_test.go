@@ -43,6 +43,18 @@ func mustInsert(t *testing.T, s *Store, logHash, day string, score int64) {
 	mustInsertAddr(t, s, logHash, "g1"+logHash, day, score)
 }
 
+// mustInsertGame inserts a verified daily run scoped to an explicit game.
+func mustInsertGame(t *testing.T, s *Store, game, logHash, addr, day string, score int64) {
+	t.Helper()
+	if err := s.InsertRun(Run{
+		LogHash: logHash, Addr: addr, Game: game, Day: day, Mode: "daily",
+		Seed: game + "-" + day, SimVersion: simVersionFor(game), Score: score, Waves: 5,
+		StateHash: "sh" + logHash, Stats: `{"g":"` + game + `"}`, Events: "[]", Status: "verified", CreatedAt: 1,
+	}); err != nil {
+		t.Fatalf("insert %s: %v", logHash, err)
+	}
+}
+
 // fakeBroadcaster records attestations and can be made to fail or to return a
 // classified sentinel per logHash.
 type fakeBroadcaster struct {
@@ -115,6 +127,53 @@ func TestRunBatchOnce_AttestsBestPerAddressForClosedDays(t *testing.T) {
 		t.Fatalf("a still-open day must not be attested, dave=%q", r.Status)
 	}
 	// Fully drained: a second cycle attests nothing.
+	if n2, _ := RunBatchOnce(context.Background(), s, b, 100, atFixedDay); n2 != 0 {
+		t.Fatalf("second cycle must attest nothing, got %d", n2)
+	}
+}
+
+func TestRunBatchOnce_CrossGameBoardsAttestIndependently(t *testing.T) {
+	// One closed day, two games, one wallet in both: EACH (game, day) board
+	// attests its own best, and a wallet's lesser run in one game is never
+	// retired by its attestation in the other. This is the data-driven fan-out
+	// pin: the batcher iterates whatever (game, day) pairs exist, with no
+	// hardcoded game list.
+	s := batchStore(t)
+	mustInsertGame(t, s, "barricade", "b_lo", "g1alice", "2026-07-10", 300)
+	mustInsertGame(t, s, "barricade", "b_hi", "g1alice", "2026-07-10", 900)
+	mustInsertGame(t, s, "invaders", "i_only", "g1alice", "2026-07-10", 120) // lower than her barricade scores — still its board's best
+	mustInsertGame(t, s, "invaders", "i_bob", "g1bob", "2026-07-10", 640)
+
+	b := &fakeBroadcaster{}
+	n, err := RunBatchOnce(context.Background(), s, b, 100, atFixedDay)
+	if err != nil {
+		t.Fatalf("batch: %v", err)
+	}
+	if n != 3 { // alice's barricade best + alice's invaders run + bob's invaders run
+		t.Fatalf("expected 3 attestations across both boards, got %d", n)
+	}
+	byLog := map[string]Run{}
+	for _, r := range b.calls {
+		byLog[r.LogHash] = r
+	}
+	if _, ok := byLog["b_lo"]; ok {
+		t.Fatal("alice's superseded barricade run must not attest")
+	}
+	// The attested runs carry their own game — the argv writes it on-chain.
+	if byLog["b_hi"].Game != "barricade" || byLog["i_only"].Game != "invaders" || byLog["i_bob"].Game != "invaders" {
+		t.Fatalf("attested runs carry the wrong game: %+v", b.calls)
+	}
+	// Cross-game isolation of the superseded sweep: alice's barricade attest
+	// retired b_lo, but her invaders run was attested in its own right.
+	if r, _, _ := s.GetRunByLogHash("b_lo"); r.Status != "skipped" {
+		t.Fatalf("b_lo must be 'skipped', got %q", r.Status)
+	}
+	for _, lh := range []string{"b_hi", "i_only", "i_bob"} {
+		if r, _, _ := s.GetRunByLogHash(lh); r.Status != "attested" {
+			t.Fatalf("%s must be 'attested', got %q", lh, r.Status)
+		}
+	}
+	// Fully drained.
 	if n2, _ := RunBatchOnce(context.Background(), s, b, 100, atFixedDay); n2 != 0 {
 		t.Fatalf("second cycle must attest nothing, got %d", n2)
 	}
@@ -224,6 +283,8 @@ func TestGnokeyBroadcaster_ClassifiesRealmPanics(t *testing.T) {
 		"panic: day must be YYYY-MM-DD":                                          ErrPermanentReject,
 		"panic: simVersion must be positive":                                     ErrPermanentReject,
 		"panic: stateHash and inputLogSha256 must be non-empty":                  ErrPermanentReject,
+		"panic: game must be 1-32 chars of [a-z0-9-]":                            ErrPermanentReject,
+		"panic: stats too long":                                                  ErrPermanentReject,
 	}
 	for out, want := range cases {
 		b := &gnokeyBroadcaster{
@@ -299,31 +360,37 @@ func TestBatcher_TransientFailureIsParkedAfterMaxRetries(t *testing.T) {
 }
 
 func TestGnokeyBroadcaster_Argv(t *testing.T) {
+	// Pins the FROZEN multi-game realm signature — AttestScore(cur, game, addr,
+	// day, seed, score, simVersion, stateHash, logHash, stats) — as amended on
+	// samcrew-deployer's feat/arcade-leaderboard-multigame (PR #149). The
+	// barricade-era waves/won/overtimeRound positional args are GONE (they ride
+	// in stats now); sending them would shift every later arg one slot.
 	b := &gnokeyBroadcaster{cfg: AttesterConfig{
 		Realm: "gno.land/r/samcrew/memba_arcade_leaderboard_v1", ChainID: "test-13",
 		Remote: "https://rpc.example:443", KeyName: "arcade-attester", GasWanted: 3000000, GasFeeUgnot: 1000000,
 	}}
-	// Every numeric field is DISTINCT (score/waves and overtimeRound/simVersion
-	// are adjacent same-type args) so an exact-slice compare catches a transposition
-	// that a substring check would miss.
+	// Every field is DISTINCT (score/simVersion are adjacent same-type args) so
+	// an exact-slice compare catches a transposition that a substring check
+	// would miss. Waves/Won/OvertimeRound are set to prove they DON'T leak into
+	// the argv.
 	run := Run{
-		Addr: "g1abc", Day: "2026-07-10", Seed: "barricade-2026-07-10", Score: 27150, Waves: 7,
-		Won: true, OvertimeRound: 3, SimVersion: 2, StateHash: "e8532dc207e3cb24", LogHash: "deadbeef",
+		Game: "invaders", Addr: "g1abc", Day: "2026-07-10", Seed: "invaders-2026-07-10",
+		Score: 27150, Waves: 7, Won: true, OvertimeRound: 3, SimVersion: 1,
+		StateHash: "e8532dc2", Stats: `{"wave":7,"shots":90,"hits":41}`, LogHash: "deadbeef",
 	}
 	want := []string{
 		"maketx", "call",
 		"-pkgpath", "gno.land/r/samcrew/memba_arcade_leaderboard_v1",
 		"-func", "AttestScore",
+		"-args", "invaders", // game
 		"-args", "g1abc", // addr
 		"-args", "2026-07-10", // day
-		"-args", "barricade-2026-07-10", // seed
+		"-args", "invaders-2026-07-10", // seed
 		"-args", "27150", // score
-		"-args", "7", // waves
-		"-args", "true", // won
-		"-args", "3", // overtimeRound
-		"-args", "2", // simVersion
-		"-args", "e8532dc207e3cb24", // stateHash
+		"-args", "1", // simVersion
+		"-args", "e8532dc2", // stateHash
 		"-args", "deadbeef", // logHash
+		"-args", `{"wave":7,"shots":90,"hits":41}`, // stats
 		"-gas-fee", "1000000ugnot",
 		"-gas-wanted", "3000000",
 		"-chainid", "test-13",
@@ -334,6 +401,12 @@ func TestGnokeyBroadcaster_Argv(t *testing.T) {
 	}
 	if !reflect.DeepEqual(b.attestScoreArgv(run), want) {
 		t.Fatalf("argv mismatch\n got: %v\nwant: %v", b.attestScoreArgv(run), want)
+	}
+	// A pre-migration row (empty Game) can only be a BARRICADE run — the argv
+	// backfills the slug rather than sending the realm an empty (panicking) one.
+	legacy := b.attestScoreArgv(Run{Addr: "g1abc", Day: "2026-07-10", Seed: "s", SimVersion: 2, StateHash: "h", LogHash: "l"})
+	if legacy[7] != "barricade" {
+		t.Fatalf("empty Game must attest as 'barricade', got %q", legacy[7])
 	}
 }
 

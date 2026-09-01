@@ -86,18 +86,20 @@ jobs:
       - name: Install
         run: npm ci
 
-      - name: "Determinism gate: BARRICADE verify-worker bundle is fresh"
+      - name: "Determinism gate: arcade verify-worker bundle is fresh"
         run: |
-          # The attester's verify worker (backend/internal/arcade/worker) is an
-          # esbuild bundle of the frontend sim, committed and go:embed'd. Rebuild
-          # it and fail on any diff — a stale bundle could attest a result the
-          # current frontend sim no longer produces. Rebuild locally with:
+          # The attester's verify worker (backend/internal/arcade/worker) is ONE
+          # esbuild bundle of every game's frontend sim (BARRICADE + Space
+          # Invaders), committed and go:embed'd. Rebuild it and fail on any diff
+          # — a stale bundle could attest a result the current frontend sims no
+          # longer produce. Rebuild locally with:
           #   node backend/internal/arcade/worker/build.mjs
           # NOTE: a sim BEHAVIOR change surfaces here as a bundle diff (and a
-          # fixtures.json diff). Regenerating those is not enough on a LIVE season
-          # — it must be paired with a SIM_VERSION bump so old attestations stay
+          # fixtures diff). Regenerating those is not enough on a LIVE season
+          # — it must be paired with that game's sim-version bump (barricade
+          # SIM_VERSION, invaders INVADERS_SIM_VERSION) so old attestations stay
           # partitioned by their frozen build. That decision is the owner-gated
-          # season-cutover ceremony (SIM_VERSION is still unreleased at v2).
+          # season-cutover ceremony (both versions are still unreleased).
           node ../backend/internal/arcade/worker/build.mjs
           if ! git diff --exit-code -- ../backend/internal/arcade/worker/bundle/verify-worker.cjs; then
             echo "::error::verify-worker.cjs is stale. Run 'node backend/internal/arcade/worker/build.mjs' and commit the result."
@@ -122,7 +124,7 @@ jobs:
           # saw. To enable a flag: remove it from SAFETY_GATED_FLAGS AND this list, and
           # pass code review.
           FAIL=0
-          for FLAG in VITE_ENABLE_NFT VITE_ENABLE_TREASURY_SPEND VITE_ENABLE_AGENT_CREDITS; do
+          for FLAG in VITE_ENABLE_TREASURY_SPEND VITE_ENABLE_AGENT_CREDITS; do
             VALUE=$(grep "^${FLAG}=" .env.example | cut -d= -f2 || true)
             if [ "$VALUE" = "true" ]; then
               echo "::error::SAFETY GATE FAILED — ${FLAG}=true in .env.example. This flag gates a feature with incomplete on-chain enforcement. See MEMBA_AAA_IMPLEMENTATION_PLAN.md."

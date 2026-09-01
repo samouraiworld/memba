@@ -12,7 +12,9 @@ import (
 )
 
 func testJob() Job {
-	return Job{Seed: "barricade-2026-07-13", SimVersion: CurrentSimVersion, Events: json.RawMessage(`[]`)}
+	// Deliberately game-less: the pre-multigame job shape must keep verifying
+	// as BARRICADE (grandfathered by ValidateJob and the worker alike).
+	return Job{Seed: "barricade-2026-07-13", SimVersion: simVersionBarricade, Events: json.RawMessage(`[]`)}
 }
 
 func okStdout(t *testing.T, score int64) []byte {
