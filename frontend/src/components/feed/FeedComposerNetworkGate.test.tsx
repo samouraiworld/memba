@@ -51,13 +51,13 @@ describe("FeedComposer network gate", () => {
         // The composer must not invite a post that cannot succeed.
         expect(screen.queryByTestId("feed-composer-input")).toBeNull()
         expect(screen.queryByTestId("feed-post-btn")).toBeNull()
-        expect(screen.getByTestId("feed-composer-network-gate")).toHaveTextContent(/Sapphire/)
+        expect(screen.getByTestId("feed-composer-network-gate")).toHaveTextContent(/Pearl/)
     })
 
     it("offers a one-click switch to the indexed network", () => {
         render(<FeedComposer {...props} />)
         fireEvent.click(screen.getByTestId("feed-composer-switch-btn"))
-        expect(switchNetwork).toHaveBeenCalledWith("sapphire")
+        expect(switchNetwork).toHaveBeenCalledWith("pearl")
     })
 
     it("renders the normal composer on the indexed network", () => {

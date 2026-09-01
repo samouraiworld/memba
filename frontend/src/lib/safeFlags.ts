@@ -11,14 +11,13 @@
 // To enable a flag legitimately: remove it from SAFETY_GATED_FLAGS AND pass code
 // review (the build fails otherwise).
 export const SAFETY_GATED_FLAGS = [
-    // VITE_ENABLE_NFT RE-GATED at the sapphire cutover (#1040's substance): its
-    // 2026-06-27 removal cited fee-path verification on test13 — a chain that
-    // is now dead — and on sapphire-1 the fund-custody NFT stack is NOT
-    // deployed (phase-1 publishes funds-free realms only). The realm allowlist
-    // also gates the lane, but this flag is the deliberate second lock: it
-    // comes back OFF this list only in the PR that allowlists the sapphire NFT
-    // stack after its own ceremony + live fee-path verification.
-    "VITE_ENABLE_NFT",
+    // VITE_ENABLE_NFT DE-GATED by the pearl §6 completion PR: the combined
+    // pearl ceremony deploys + registers the whole NFT stack (grc721 →
+    // collections → market_core → config → v3_2) and §4.4's live fee-path
+    // verification is a merge precondition of this PR — the condition its
+    // sapphire-era re-gating comment named. The realm allowlist remains the
+    // first lock; the Netlify env value stays OFF until the owner's 2-wallet
+    // live-money test (§6), so de-gating here changes no deployed behavior.
     "VITE_ENABLE_TREASURY_SPEND",
     "VITE_ENABLE_AGENT_CREDITS",
     // VITE_ENABLE_APPSTORE de-gated 2026-07-07 after memba_appstore_v2 deployed on

@@ -92,7 +92,7 @@ const ALLOWLIST: Pin[] = [
     },
     {
         file: "lib/sitemap.ts",
-        allow: ["sapphire"],
+        allow: ["pearl"],
         cutoverCritical: true,
         why:
             "SITEMAP_NETWORK — the chain whose URLs are published to search engines. " +
@@ -100,13 +100,14 @@ const ALLOWLIST: Pin[] = [
     },
     {
         file: "lib/chainHealth.ts",
-        allow: ["pearl", "sapphire", "gnoland1"],
+        allow: ["pearl", "gnoland1"],
         cutoverCritical: true,
         why:
             "fallbackOrder — the chains ChainHaltedBanner may offer as a one-click " +
             "escape when the active one is unreachable, best-first, filtered at " +
-            "runtime by networkHasRealms (pearl leads but is inert until its " +
-            "realms deploy; sapphire carries the escape until its 09-09 sunset).",
+            "runtime by networkHasRealms (pearl leads since the §6 completion; " +
+            "sapphire left the order with the cutover — never suggest the " +
+            "outgoing chain; gnoland1 is the realm-free last resort).",
     },
     {
         file: "lib/marketplace/seed/foundingSupply.seed.ts",
