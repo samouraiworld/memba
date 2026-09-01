@@ -15,7 +15,7 @@
 | Monthly | Sentry release health review — verify source maps present for the last 4 releases; confirm error rate is within SLO (§3.2). | Phase 0a |
 | Quarterly | Domain renewal check: `samourai.app` and `samourai.live` — autopay on, expiry ≥ 30 days out. | v7.1 plan §19 Q18 |
 | Quarterly | Secret rotation drill — see `docs/SECRETS_ROTATION.md` for the per-secret playbook. Includes `FLY_API_TOKEN`, `NETLIFY_AUTH_TOKEN`, `SENTRY_AUTH_TOKEN`, `SLACK_WEBHOOK_URL`, `ED25519_SEED`, Clerk pair, GPG signing keys, admin multisig keys. | Phase 1.12 |
-| Annual | Emergency multisig custody rotation (channels v3 two-tier pause guard) — see `docs/MAINNET_PREPARATION.md` §Custody. | Phase 1.11 |
+| Annual | Emergency multisig custody rotation (channels v3 two-tier pause guard) — see `docs/MAINNET_APP_HARDENING.md` §Custody (renamed from MAINNET_PREPARATION.md, #1129). | Phase 1.11 |
 | Annual | Rollback drill — see §4 below; record results in the internal planning archive (private). | Phase 5 prereq |
 
 ---
