@@ -62,3 +62,22 @@ describe("GameOverSheet", () => {
     Object.defineProperty(navigator, "share", { value: originalShare, configurable: true });
   });
 });
+
+// The error-path page can render the sheet with an EMPTY date (challenge never
+// loaded). It must be inert then: no blank-date submit (the server rejects it
+// anyway) and no `lastDate: ""` corruption of the local streak.
+describe("GameOverSheet with an empty date", () => {
+  it("neither auto-submits nor bumps the local streak", async () => {
+    localStorage.clear();
+    const submit = vi.mocked(gameApi.submitScore);
+    submit.mockClear();
+    const token = create(TokenSchema, { nonce: "n", userAddress: "g1me", expiration: "", serverSignature: "s" });
+    render(<GameOverSheet {...baseProps} date=""
+      wallet={{ installed: true, connect: vi.fn() }}
+      auth={{ isAuthenticated: true, token }} />);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(submit).not.toHaveBeenCalled();
+    expect(localStorage.getItem("bp:streak")).toBeNull();
+    expect(localStorage.getItem("bp:best:")).toBeNull();
+  });
+});
