@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Sapphire retires from the network selector (sunset 2026-09-09)
+<!-- categories: memba, network -->
+- **Sapphire is now hidden** ahead of its September 9 decommissioning: it no longer appears in the network selector, and a remembered sapphire selection quietly lands on Pearl instead of a dead chain. Existing sapphire links keep resolving — deep links show the network's state rather than crashing — matching how topaz and test13 retired before it.
+
 ### Memba's features go live on Pearl — the §6 completion (ceremony + cutover, 2026-08-31)
 <!-- categories: memba, network -->
 - **Every Memba feature now runs on Pearl**: DAO governance, the social feed, reviews, quests, the App Store, tokens, collectibles and the marketplace — deployed to the chain in one combined ceremony and verified artifact-by-artifact. The "not deployed yet" notices are gone; the network selector's default now carries the full app.
