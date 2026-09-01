@@ -1,8 +1,12 @@
-# BARRICADE on-chain certify — go-live ceremony runbook
+# Arcade on-chain certify — go-live ceremony runbook (multi-game)
 
-This is the OWNER-GATED procedure to take the BARRICADE certify pipeline from
-"dark" (all code merged, nothing enabled) to a live pre-mainnet beta on test13.
-Everything below is off/404/dormant until these steps run. Do them in order.
+This is the OWNER-GATED procedure to take the arcade certify pipeline from
+"dark" (all code merged, nothing enabled) to a live pre-mainnet beta on
+**pearl-1**. The pipeline is multi-game since 2026-09-01 (realm amended in
+place pre-first-deploy; `MEMBA_ARCADE_GAMES` picks which games accept
+submissions — the launch recommendation is `invaders` while BARRICADE stays
+parked post-mainnet). Everything below is off/404/dormant until these steps
+run. Do them in order.
 
 ## The pipeline (what's already merged, all dark)
 
@@ -31,14 +35,18 @@ Everything below is off/404/dormant until these steps run. Do them in order.
 
 ## Owner-gated steps (nothing here is automated)
 
-### 1. Deploy the realm (test13)
+### 1. Deploy the realm (pearl)
 
 The realm `memba_arcade_leaderboard_v1` is source-only in `samcrew-deployer`
 (deployer #111) and FROZEN. It's on the deploy manifest (`explicit` lane), so from
 `samcrew-deployer/projects/memba/` (after `git pull`):
 
 ```bash
-MULTISIG_SIGNERS=zooma,adena-zxxma REALM=memba_arcade_leaderboard_v1 ./deploy.sh test13
+# Preflight both pearl RPCs first — only node_info.network == "pearl-1" counts
+# (DNS + HTTP 200 are false positives for chain identity):
+#   curl -s https://rpc.pearl.testnets.gno.land/status | jq -r .result.node_info.network
+#   curl -s https://rpc.pearl.samourai.live/status     | jq -r .result.node_info.network
+MULTISIG_SIGNERS=zooma,adena-zxxma REALM=memba_arcade_leaderboard_v1 ./deploy.sh pearl
 ```
 
 ### 2. The attester key ceremony (a NEW dedicated, low-privilege key)
@@ -50,10 +58,11 @@ banker, no transfer, no OriginSend), and the owner can `RemoveAttester` it.
 1. Generate a fresh key: `gnokey add arcade-attester`. **Record the printed
    mnemonic + address ONCE** — the mnemonic becomes the Fly secret, the address is
    funded + allowlisted.
-2. **Fund it** for gas only (a small faucet drip: https://faucet.gno.land).
+2. **Fund it** for gas only (pearl faucet: https://faucet.pearl.testnets.gno.land,
+   or the hub https://faucet.gno.land — pearl has no airdrop).
 3. Allowlist it on the realm via the multisig admin script (from `samcrew-deployer/`):
    ```bash
-   ./samcrew-arcade-admin.sh add-attester <attester-addr> test13   # verifies IsAttester==true
+   ./samcrew-arcade-admin.sh add-attester <attester-addr> pearl   # verifies IsAttester==true
    ```
 4. The mnemonic goes to the Fly secret in step 3 below. The BACKEND process never
    holds a raw secret — only the container's gnokey keyring does (imported at boot).
@@ -90,15 +99,21 @@ so a partial config is safe, never a 500.
 
 ### 4. Enable the frontend (Netlify)
 
-Set the build env and redeploy (Netlify-native build, `netlify.toml`):
+Set the build env and redeploy (Netlify-native build, `netlify.toml`). Per game
+— enable only the games named in `MEMBA_ARCADE_GAMES`:
 ```
+# Space Invaders (the recommended launch pair):
+VITE_ENABLE_SPACE_INVADERS=true          # the game itself
+VITE_ENABLE_SPACE_INVADERS_CERTIFY=true  # the daily Certify action + board client
+
+# BARRICADE (post-mainnet; only with MEMBA_ARCADE_GAMES including "barricade"):
 VITE_ENABLE_BARRICADE=true          # the game itself (the flag-on playtest gate)
 VITE_ENABLE_BARRICADE_CERTIFY=true  # the Certify action + board client
 ```
-Neither is in `SAFETY_GATED_FLAGS` (no funds move), so `assertSafeFlags` won't
-fail the build.
+None of these are in `SAFETY_GATED_FLAGS` (no funds move), so `assertSafeFlags`
+won't fail the build.
 
-### 5. Verify the loop (test13)
+### 5. Verify the loop (pearl)
 
 1. Play a daily run to a verified result → tap **Certify on-chain** → sign in →
    the poster shows "Certified on-chain ✓".
@@ -135,4 +150,4 @@ the wiring is proven before any ceremony.
   the differentiator; the `arcade.ts` `getBoard` reader is ready).
 - **Season-boundary `SIM_VERSION` cutover** — bumping the sim's version when a v2
   season closes so old attestations stay verifiable under their frozen build.
-- The **mainnet** Genesis drop plan (waits on the test13 beta).
+- The **mainnet** Genesis drop plan (waits on the pearl beta).
