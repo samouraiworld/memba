@@ -35,21 +35,47 @@ type SubmitLimiter interface {
 // Store/Auth/Verifier) makes the endpoint 404 — the mint-ticket "unset = 404"
 // pattern, so the route is dark until the operator turns it on.
 type SubmitConfig struct {
-	Enabled      bool
-	Store        *Store
-	Auth         Authenticator
-	Verifier     Verifier
+	Enabled  bool
+	Store    *Store
+	Auth     Authenticator
+	Verifier Verifier
+	// EnabledGames is the per-game rollout switch (from MEMBA_ARCADE_GAMES):
+	// a submission whose seed derives a game not in this set is rejected
+	// BEFORE any verify spend. nil/empty defaults to BARRICADE only — the
+	// exact status quo, so every other game ships dark.
+	EnabledGames map[string]bool
 	Limiter      SubmitLimiter    // optional
 	Now          func() time.Time // optional; defaults to time.Now
 	MaxBodyBytes int64            // optional; defaults to MaxJobBytes + slack
 }
 
+// ParseEnabledGames parses the MEMBA_ARCADE_GAMES comma list (e.g.
+// "barricade,invaders") into the submit handler's enablement set. Empty input
+// yields the BARRICADE-only default. Entries are lowercased and trimmed; an
+// unknown name is kept but harmless (no seed grammar ever derives it).
+func ParseEnabledGames(env string) map[string]bool {
+	out := map[string]bool{}
+	for part := range strings.SplitSeq(env, ",") {
+		if g := strings.ToLower(strings.TrimSpace(part)); g != "" {
+			out[g] = true
+		}
+	}
+	if len(out) == 0 {
+		out[gameBarricade] = true
+	}
+	return out
+}
+
 type submitRequest struct {
-	Seed         string          `json:"seed"`
-	SimVersion   int64           `json:"simVersion"`
-	Events       json.RawMessage `json:"events"`
-	ClaimedScore int64           `json:"claimedScore"`
-	ClaimedHash  string          `json:"claimedHash"`
+	Seed       string          `json:"seed"`
+	SimVersion int64           `json:"simVersion"`
+	Events     json.RawMessage `json:"events"`
+	// FinalTick is Space Invaders-only (its sim runs to a tick count, not a
+	// terminal phase): required >0 for an invaders seed, and must be 0/absent
+	// for BARRICADE — anything else is rejected before a verify is spent.
+	FinalTick    int64  `json:"finalTick"`
+	ClaimedScore int64  `json:"claimedScore"`
+	ClaimedHash  string `json:"claimedHash"`
 }
 
 // resultJSON is the re-simulated result echoed back to (and stored for) the client.
@@ -113,17 +139,35 @@ func HandleSubmit(cfg SubmitConfig) http.Handler {
 			return
 		}
 
-		// Derive mode + day from the seed (never trust a client-sent mode), and
-		// reject a daily seed that isn't for the live window — BEFORE spending a
-		// verify. A future seed would pre-fill a board that isn't open yet; a
-		// stale one would farm a closed board.
-		mode, day, err := deriveModeDay(req.Seed, now().UTC())
+		// Derive game + mode + day from the seed (never trust a client-sent
+		// game or mode), and reject a daily seed that isn't for the live window
+		// — BEFORE spending a verify. A future seed would pre-fill a board that
+		// isn't open yet; a stale one would farm a closed board.
+		game, mode, day, err := deriveGameModeDay(req.Seed, now().UTC())
 		if err != nil {
 			writeReject(w, err.Error())
 			return
 		}
+		// Per-game rollout gate (also before any verify spend): a game outside
+		// MEMBA_ARCADE_GAMES is dark — its seeds are rejected outright.
+		if !enabledGame(cfg.EnabledGames, game) {
+			slog.Warn("arcade submit: game not enabled", "game", game, "addr", addr)
+			writeReject(w, "game "+game+" is not enabled")
+			return
+		}
+		// finalTick shape gate (cheap, deterministic): required for invaders,
+		// forbidden for barricade. ValidateJob (inside Verify) re-checks and
+		// bounds it; this just refuses to spend a verify on a malformed pair.
+		if game == gameInvaders && req.FinalTick <= 0 {
+			writeReject(w, "finalTick must be a positive tick count for "+game)
+			return
+		}
+		if game != gameInvaders && req.FinalTick != 0 {
+			writeReject(w, "finalTick is not a "+game+" field")
+			return
+		}
 
-		res, err := cfg.Verifier.Verify(r.Context(), Job{Seed: req.Seed, SimVersion: req.SimVersion, Events: req.Events})
+		res, err := cfg.Verifier.Verify(r.Context(), Job{Game: game, Seed: req.Seed, SimVersion: req.SimVersion, FinalTick: req.FinalTick, Events: req.Events})
 		if err != nil {
 			slog.Error("arcade submit: verify worker failed", "error", err, "addr", addr, "seed", req.Seed)
 			writeErr(w, http.StatusServiceUnavailable, "verification temporarily unavailable")
@@ -150,11 +194,12 @@ func HandleSubmit(cfg SubmitConfig) http.Handler {
 		// one identity no matter how its JSON is re-encoded (the realm's
 		// first-submitter guard would otherwise be dodgeable by a byte-mutation).
 		logHash := res.LogHash
+		stats := statsFor(game, res)
 
 		run := Run{
-			LogHash: logHash, Addr: addr, Day: day, Mode: mode, Seed: req.Seed,
+			LogHash: logHash, Addr: addr, Game: game, Day: day, Mode: mode, Seed: req.Seed,
 			SimVersion: res.SimVersion, Score: res.Score, Waves: res.Waves, Won: res.Won,
-			OvertimeRound: res.OvertimeRound, StateHash: res.StateHash,
+			OvertimeRound: res.OvertimeRound, StateHash: res.StateHash, Stats: stats,
 			Events: compact(req.Events), Status: "verified", CreatedAt: now().Unix(),
 		}
 		if err := cfg.Store.InsertRun(run); err != nil {
@@ -165,9 +210,10 @@ func HandleSubmit(cfg SubmitConfig) http.Handler {
 				// binds a log to its first submitter).
 				existing, ok, gerr := cfg.Store.GetRunByLogHash(logHash)
 				if gerr == nil && ok && existing.Addr == addr {
-					// Echo the STORED row's day/mode (the same log resubmitted on a
-					// later day must report its original attribution, not today's).
-					writeVerified(w, logHash, existing.Day, existing.Mode, res)
+					// Echo the STORED row's game/day/mode/stats (the same log
+					// resubmitted on a later day must report its original
+					// attribution, not today's).
+					writeVerified(w, logHash, existing.Game, existing.Day, existing.Mode, existing.Stats, res)
 					return
 				}
 				slog.Warn("arcade submit: duplicate log from a different address", "addr", addr, "logHash", logHash)
@@ -178,33 +224,93 @@ func HandleSubmit(cfg SubmitConfig) http.Handler {
 			writeErr(w, http.StatusServiceUnavailable, "storage temporarily unavailable")
 			return
 		}
-		writeVerified(w, logHash, day, mode, res)
+		writeVerified(w, logHash, game, day, mode, stats, res)
 	})
 }
 
-// deriveModeDay maps a seed to its (mode, day). Daily seeds ("barricade-YYYY-MM-DD")
-// must be for today or yesterday (UTC) — the live board window; anything else is
-// rejected. Practice seeds ("practice-…") are attributed to the submission day.
-func deriveModeDay(seed string, now time.Time) (mode, day string, err error) {
+// statsFor picks the canonical on-chain stats blob for a verified result: the
+// worker authors it for Space Invaders; for BARRICADE (whose worker output
+// predates stats and stays byte-identical) the legacy display trio is
+// synthesized here so the realm keeps the same per-run context AttestScore v1
+// carried as positional args.
+func statsFor(game string, res Result) string {
+	if res.Stats != "" {
+		return res.Stats
+	}
+	if game == gameBarricade {
+		b, err := json.Marshal(struct {
+			Waves         int64 `json:"waves"`
+			Won           bool  `json:"won"`
+			OvertimeRound int64 `json:"overtimeRound"`
+		}{res.Waves, res.Won, res.OvertimeRound})
+		if err != nil {
+			return ""
+		}
+		return string(b)
+	}
+	return ""
+}
+
+// deriveGameModeDay maps a seed to its (game, mode, day) — the seed GRAMMAR is
+// the sole authority on which game a run belongs to (a client-sent game field
+// would let one game's log fill another game's board). Daily seeds
+// ("<game>-YYYY-MM-DD") must be for today or yesterday (UTC) — the live board
+// window; anything else is rejected. Practice seeds are attributed to the
+// submission day. Grammar (prefix precedence is load-bearing:
+// "invaders-practice-…" must match BEFORE the "invaders-" daily rule, or a
+// practice run would parse as a malformed daily):
+//
+//	barricade-YYYY-MM-DD          → (barricade, daily)
+//	practice-…                    → (barricade, practice)   [pre-multigame shape, grandfathered]
+//	invaders-practice-…           → (invaders,  practice)
+//	invaders-YYYY-MM-DD           → (invaders,  daily)
+func deriveGameModeDay(seed string, now time.Time) (game, mode, day string, err error) {
 	switch {
 	case strings.HasPrefix(seed, "barricade-"):
-		datePart := strings.TrimPrefix(seed, "barricade-")
-		// time.Parse validates the exact YYYY-MM-DD shape (rejects trailing junk
-		// and impossible dates); the value itself isn't needed.
-		if _, perr := time.Parse("2006-01-02", datePart); perr != nil {
-			return "", "", fmt.Errorf("malformed daily seed")
+		day, err = liveWindowDay(strings.TrimPrefix(seed, "barricade-"), now)
+		if err != nil {
+			return "", "", "", err
 		}
-		today := now.Format("2006-01-02")
-		yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")
-		if datePart != today && datePart != yesterday {
-			return "", "", fmt.Errorf("daily seed is not for the live window (today or yesterday UTC)")
-		}
-		return "daily", datePart, nil
+		return gameBarricade, "daily", day, nil
 	case strings.HasPrefix(seed, "practice-"):
-		return "practice", now.Format("2006-01-02"), nil
+		return gameBarricade, "practice", now.Format("2006-01-02"), nil
+	case strings.HasPrefix(seed, "invaders-practice-"):
+		return gameInvaders, "practice", now.Format("2006-01-02"), nil
+	case strings.HasPrefix(seed, "invaders-"):
+		day, err = liveWindowDay(strings.TrimPrefix(seed, "invaders-"), now)
+		if err != nil {
+			return "", "", "", err
+		}
+		return gameInvaders, "daily", day, nil
 	default:
-		return "", "", fmt.Errorf("unrecognized seed")
+		return "", "", "", fmt.Errorf("unrecognized seed")
 	}
+}
+
+// liveWindowDay validates a daily seed's date part and enforces the shared
+// live-board window: today or yesterday (UTC). A future date would pre-fill a
+// board that isn't open yet; a stale one would farm a closed board.
+func liveWindowDay(datePart string, now time.Time) (string, error) {
+	// time.Parse validates the exact YYYY-MM-DD shape (rejects trailing junk
+	// and impossible dates); the value itself isn't needed.
+	if _, perr := time.Parse("2006-01-02", datePart); perr != nil {
+		return "", fmt.Errorf("malformed daily seed")
+	}
+	today := now.Format("2006-01-02")
+	yesterday := now.AddDate(0, 0, -1).Format("2006-01-02")
+	if datePart != today && datePart != yesterday {
+		return "", fmt.Errorf("daily seed is not for the live window (today or yesterday UTC)")
+	}
+	return datePart, nil
+}
+
+// enabledGame reports whether a derived game is rolled out. A nil/empty set
+// means the BARRICADE-only default (the pre-multigame status quo).
+func enabledGame(set map[string]bool, game string) bool {
+	if len(set) == 0 {
+		return game == gameBarricade
+	}
+	return set[game]
 }
 
 func bearer(r *http.Request) string {
@@ -223,12 +329,17 @@ func compact(events json.RawMessage) string {
 	return buf.String()
 }
 
-func writeVerified(w http.ResponseWriter, logHash, day, mode string, res Result) {
+func writeVerified(w http.ResponseWriter, logHash, game, day, mode, stats string, res Result) {
 	writeJSON(w, http.StatusOK, map[string]any{
 		"verified": true,
 		"logHash":  logHash,
+		"game":     game,
 		"day":      day,
 		"mode":     mode,
+		// stats is the canonical per-game JSON blob as a STRING — exactly the
+		// bytes the attester writes on-chain, so clients see the commitment
+		// verbatim rather than a re-encoding.
+		"stats": stats,
 		"result": resultJSON{
 			Score: res.Score, Waves: res.Waves, Won: res.Won,
 			OvertimeRound: res.OvertimeRound, StateHash: res.StateHash, SimVersion: res.SimVersion,

@@ -2,8 +2,9 @@
 
 > **Status:** decisions RULED by owner 2026-08-16 — **D3(b) = wire to fee spine · engine = v3.2 only · legacy v2 stack = skip**. Prep MERGED (Memba #1082, deployer #138).
 > **⚠️ PIVOT 2026-08-23: this ceremony does NOT run on sapphire.** Pearl (RC) launches 2026-08-26 and supersedes sapphire; the commerce set deploys in the combined Pearl ceremony — see `docs/PEARL_CUTOVER_PLAN.md`. Every mechanic below applies verbatim; only the chain name, heights and sequences change.
+> 🗄️ **EXECUTED on pearl-1 2026-08-31** within the combined ceremony (sequences 0–34, heights 98865–100538; see `docs/PEARL_CUTOVER_PLAN.md` + `realm-versions.json`'s `pearl` section). The mechanics below remain the of-record procedure.
 > **Scope:** deploy the fund-custody commerce set to `sapphire-1` and de-gate the lanes deliberately.
-> **Actors:** multisig `samcrew-core-test1` (`g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0`, signers zooma + adena-zxxma, **next sequence 25**), deployer repo `samcrew-deployer` @ `f1b033b`.
+> **Actors:** multisig `samcrew-core-test1` (`g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0`, signers zooma + adena-zxxma; "next sequence 25" was the sapphire-era figure — on pearl the multisig's fresh account ran sequences 0–34 in the ceremony and now sits past 35), deployer repo `samcrew-deployer` @ `f1b033b`.
 > **Sources:** `samcrew-deployer/projects/memba/realms.manifest`, `TEST13_CEREMONY_2026-07-10.md`, `W1_MARKETPLACE_DEPLOY_RUNBOOK.md`, `V3_1_UNREGISTER_RUNBOOK.md`, Memba `config.ts` sapphire block + `docs/features/NFT_V3_TRADING_GOLIVE_RUNBOOK.md`, 2026-08-15 ceremony logs.
 
 ---

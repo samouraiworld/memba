@@ -75,18 +75,15 @@ test.describe('Create Token Page', () => {
         expect(bodyWidth).toBeLessThanOrEqual(380)
     })
 
-    test('the DEFAULT network gates the factory — tokenfactory_v2 is NOT on sapphire', async ({ page }) => {
-        // The sapphire phase-1 cutover (2026-08-15) deliberately EXCLUDED
-        // tokenfactory_v2: its applyFee mints 2.5% of every Mint() to a
-        // hardcoded recipient with no setter, and redeploying bakes that into
-        // an immutable path — owner decision D3(b) holds it until ruled on. So
-        // isTokenFactoryValid() is false on the default network and CreateToken
-        // renders the coming-soon gate, not the form. CI catches this assertion
-        // the moment REALM_ALLOWLIST.sapphire changes — which is the point:
-        // flip it back to the form assertion in the PR that deploys + lists the
-        // factory (as happened on topaz after its 2026-07-31 ceremony).
+    test('the DEFAULT network serves the factory — tokenfactory_v2 is live on pearl', async ({ page }) => {
+        // Flipped back to the form assertion by the pearl §6 completion PR,
+        // exactly as this test's sapphire-era comment instructed: the combined
+        // pearl ceremony deploys + allowlists tokenfactory_v2 on the default
+        // network, so isTokenFactoryValid() is true and CreateToken renders
+        // the real form (the topaz 2026-07-31 precedent). CI catches this
+        // assertion the moment REALM_ALLOWLIST for the default network drops
+        // the factory again.
         await page.goto('/create-token')
-        await expect(page.locator('body')).toContainText(/isn't available on this network yet/)
-        await expect(page.locator('input[placeholder*="Token"]')).toHaveCount(0)
+        await expect(page.locator('input[placeholder*="Token"]').first()).toBeVisible()
     })
 })

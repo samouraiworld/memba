@@ -236,11 +236,15 @@ func main() {
 		slog.Info("attestation signer configured", "pubkey", signer.PublicKeyHex())
 	}
 
-	// Block Party feature flag + seed RPC source (B6). Disabled unless
-	// BLOCKPARTY_ENABLED is "1"/"true"; BLOCKPARTY_SEED_RPC_URL overrides the
-	// built-in default test13 node.
+	// Block Party feature flag + seed source (B6). Disabled unless
+	// BLOCKPARTY_ENABLED is "1"/"true" (disabled = the entire BP surface
+	// answers Unimplemented, reads included). BLOCKPARTY_SEED_RPC_URL
+	// overrides the built-in default (the pearl sentry) and
+	// BLOCKPARTY_SEED_CHAIN_ID the identity that node must prove (default
+	// pearl-1) — override them TOGETHER; seeding is single-node, no failover,
+	// and hard-fails on a chain-id mismatch.
 	bpEnabled := os.Getenv("BLOCKPARTY_ENABLED") == "1" || os.Getenv("BLOCKPARTY_ENABLED") == "true"
-	svc.SetBlockParty(bpEnabled, os.Getenv("BLOCKPARTY_SEED_RPC_URL"))
+	svc.SetBlockParty(bpEnabled, os.Getenv("BLOCKPARTY_SEED_RPC_URL"), os.Getenv("BLOCKPARTY_SEED_CHAIN_ID"))
 
 	// Start nonce tracker GC with app context for clean shutdown.
 	auth.StartNonceTracker(ctx)
@@ -439,12 +443,16 @@ func main() {
 		Prefix:       envOr("MEMBA_TICKET_PREFIX", "Memba"),
 	})))
 
-	// BARRICADE on-chain certify — the run-submit endpoint. OFF (404) until the
-	// operator sets MEMBA_ARCADE_SUBMIT_ENABLED. Each submission is re-simulated in
-	// a node subprocess (internal/arcade), so it also needs `node` on PATH; if it's
-	// missing (or the worker can't init) the endpoint stays disabled with a warning
-	// rather than 500ing at request time.
+	// Arcade on-chain certify — the run-submit endpoint (BARRICADE, Space
+	// Invaders). OFF (404) until the operator sets MEMBA_ARCADE_SUBMIT_ENABLED,
+	// and each game is additionally gated by MEMBA_ARCADE_GAMES (comma list;
+	// unset = "barricade" only, so a new game ships dark until named there).
+	// Each submission is re-simulated in a node subprocess (internal/arcade), so
+	// it also needs `node` on PATH; if it's missing (or the worker can't init)
+	// the endpoint stays disabled with a warning rather than 500ing at request
+	// time.
 	arcadeEnabled := os.Getenv("MEMBA_ARCADE_SUBMIT_ENABLED") == "1" || os.Getenv("MEMBA_ARCADE_SUBMIT_ENABLED") == "true"
+	arcadeGames := arcade.ParseEnabledGames(os.Getenv("MEMBA_ARCADE_GAMES"))
 	var arcadeVerifier arcade.Verifier
 	if arcadeEnabled {
 		nodeBin := envOr("MEMBA_ARCADE_NODE_BIN", "node")
@@ -457,15 +465,16 @@ func main() {
 		} else {
 			arcadeVerifier = runner
 			defer func() { _ = runner.Close() }()
-			slog.Info("arcade submit endpoint enabled", "nodeBin", nodeBin)
+			slog.Info("arcade submit endpoint enabled", "nodeBin", nodeBin, "games", arcadeGames)
 		}
 	}
 	mux.Handle("/api/arcade/submit", rateLimitMiddleware("arcade_submit", arcade.HandleSubmit(arcade.SubmitConfig{
-		Enabled:  arcadeEnabled,
-		Store:    arcade.NewStore(database),
-		Auth:     svc,
-		Verifier: arcadeVerifier,
-		Limiter:  svc,
+		Enabled:      arcadeEnabled,
+		Store:        arcade.NewStore(database),
+		Auth:         svc,
+		Verifier:     arcadeVerifier,
+		EnabledGames: arcadeGames,
+		Limiter:      svc,
 	})))
 
 	// BARRICADE day-close attester — writes the competitive board on-chain via a

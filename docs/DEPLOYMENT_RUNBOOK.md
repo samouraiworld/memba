@@ -1,7 +1,7 @@
 # Memba — On-Chain Deployment Runbook
 
 > **Status:** COMPLETE — Full procedures for all samcrew on-chain deployments.
-> **Last updated:** 2026-08-15 — **sapphire (chain id `sapphire-1`) is the current live network** (topaz-1 decommissioned 2026-08-12; test13 retired 2026-07-26 — their RPCs refuse connections). The test12 inventory below is retained as deployment history (`realm-versions.json` is authoritative for the live topaz paths/blocks).
+> **Last updated:** 2026-09-01 — **pearl (chain id `pearl-1`) is the current live network** (combined ceremony 2026-08-31; sapphire-1 sunsets 2026-09-09; topaz-1 decommissioned 2026-08-12; test13 retired 2026-07-26 — retired RPCs refuse connections). The test12 inventory below is retained as deployment history (`realm-versions.json` is authoritative for the live paths/blocks per chain).
 > **Deployer tool:** [`samcrew-deployer`](https://github.com/samouraiworld/samcrew-deployer)
 > **Source of truth for deployed state:** [`realm-versions.json`](../realm-versions.json) — this runbook is the procedural reference; the JSON is the authoritative ledger.
 
@@ -24,7 +24,7 @@
 
 ## Realm Inventory
 
-> **sapphire (chain id `sapphire-1`) is the current live network** — Memba's phase-1 realm set deployed there 2026-08-15 (topaz decommissioned 2026-08-12); see [`realm-versions.json`](../realm-versions.json) for the authoritative live paths/blocks (per-artifact heights included since sapphire). The table below is the original **test12** deployment history (real blocks/dates), kept for procedure reference. gnoland1 is intentionally empty — Memba activates it in v7.1 Phase 5 after the upstream transfer-lock lift and after the Custody section in [`MAINNET_PREPARATION.md`](MAINNET_PREPARATION.md) is signed.
+> **pearl (chain id `pearl-1`) is the current live network** — the 2026-08-31 combined ceremony deployed Memba's full set there (32 artifacts; sapphire carried the phase-1 set from 2026-08-15 until the cutover and sunsets 2026-09-09); see [`realm-versions.json`](../realm-versions.json) for the authoritative live paths/blocks (per-artifact heights included since sapphire). The table below is the original **test12** deployment history (real blocks/dates), kept for procedure reference. gnoland1 is intentionally empty — Memba activates it in v7.1 Phase 5 after the upstream transfer-lock lift and after the Custody section in [`MAINNET_APP_HARDENING.md`](MAINNET_APP_HARDENING.md) is signed.
 
 | # | Realm | Module Path (test12) | test12 | gnoland1 | Source |
 |---|-------|----------------------|--------|----------|--------|
@@ -38,7 +38,7 @@
 | 8 | **nft_market** | `gno.land/r/samcrew/nft_market` | ✅ (block 237929, 2026-04-09) — *BuyNFT TransferFrom feature-gated* | ⏳ Phase 5 | `samcrew-deployer/projects/memba/realms/` |
 | 9 | **gnobuilders_badges** | `gno.land/r/samcrew/gnobuilders_badges` | ✅ (block 237936, 2026-04-09) | ⏳ Phase 5 | `samcrew-deployer/projects/memba/realms/` |
 
-**Original test12 deployment:** 9 realms (all in `gno.land/r/samcrew/`). **Current network is sapphire** — query the live set with `./samcrew-status.sh sapphire` from the deployer repo; `realm-versions.json` is the authoritative ledger.
+**Original test12 deployment:** 9 realms (all in `gno.land/r/samcrew/`). **Current network is pearl** — query the live set with `./samcrew-status.sh pearl` from the deployer repo; `realm-versions.json` is the authoritative ledger.
 **Outstanding v3 work** (tracked under v7.1 Phase 2): `memba_dao_channels` two-tier pause + ACL hardening; `agent_registry` UseCredit ACL.
 
 ---
@@ -167,17 +167,17 @@ Passwords are prompted once per session, held in memory, cleared on exit. Accoun
 
 When deploying to a new or restarted network, follow this order:
 
-### Priority 1 — sapphire (current default)
+### Priority 1 — pearl (current default)
 
-sapphire is the current primary network (since 2026-08-15). All features are tested here first.
+pearl is the current primary network (since the 2026-08-31 combined ceremony). All features are tested here first.
 
 ```bash
-./samcrew-deploy.sh sapphire all   # NOTE: `all` excludes memba — deploy memba explicitly
+./samcrew-deploy.sh pearl all   # NOTE: `all` excludes memba — deploy memba explicitly
 ```
 
 ### Priority 2 — gnoland1 (betanet / production)
 
-gnoland1 is the production chain. Deploy after sapphire is verified stable.
+gnoland1 is the production chain. Deploy after pearl is verified stable.
 
 ```bash
 # Pre-flight is critical for production
@@ -259,7 +259,7 @@ gnokey query vm/qeval \
 
 ## New Network Checklist
 
-When a new Gno network launches (e.g., sapphire, mainnet):
+When a new Gno network launches (e.g., pearl, mainnet):
 
 | Step | Action | Command / Location |
 |------|--------|--------------------|
@@ -365,8 +365,8 @@ Add a new entry to the `NETWORKS` object with:
 ### 2. Update environment variables
 
 For production (Netlify):
-- `VITE_GNO_CHAIN_ID` — default network KEY (e.g. `sapphire`)
-- `VITE_<NETWORK>_RPC_URL` — optional per-network RPC override (e.g. `VITE_SAPPHIRE_RPC_URL`). There is no `VITE_GNO_RPC_URL` — no code reads it.
+- `VITE_GNO_CHAIN_ID` — default network KEY (e.g. `pearl`)
+- `VITE_<NETWORK>_RPC_URL` — optional per-network RPC override (e.g. `VITE_PEARL_RPC_URL`). There is no `VITE_GNO_RPC_URL` — no code reads it.
 
 ### 3. Deploy frontend
 
@@ -384,7 +384,8 @@ npm run build              # verify build succeeds
 
 | Network | Chain ID | RPC | Gas Fee | Gas Wanted | Deposit |
 |---------|----------|-----|---------|------------|---------|
-| sapphire | `sapphire-1` | `rpc.sapphire.testnets.gno.land` | 10M ugnot | 150M | 100M ugnot |
+| pearl | `pearl-1` | `rpc.pearl.testnets.gno.land` (fallback `rpc.pearl.samourai.live`) | 10M ugnot | 150M | 100M ugnot |
+| sapphire *(sunsets 2026-09-09)* | `sapphire-1` | `rpc.sapphire.testnets.gno.land` | 10M ugnot | 150M | 100M ugnot |
 | topaz (RETIRED 2026-08-12) | `topaz-1` | — | — | — | — |
 | test13 *(retired)* | `test-13` | `rpc.test13.testnets.gno.land` *(dead)* | — | — | — |
 | betanet | `gnoland1` | `rpc.gnoland1.samourai.live` | 10M ugnot | 80M | 1M ugnot |

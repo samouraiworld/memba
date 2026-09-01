@@ -14,7 +14,7 @@ block that nobody — including us — could have pre-picked.
 Concretely:
 
 - Every day has a "qualifying block": the lowest-height block on the public
-  test13 chain whose header time is `>= 00:00:00 UTC` of that date.
+  pearl chain (`pearl-1`) whose header time is `>= 00:00:00 UTC` of that date.
 - The seed is `SHA256(blockHash + "blockparty:" + date)`, truncated to the
   first 4 bytes, read as a big-endian `uint32`.
 - The modifier (`standard` / `doubles` / `rush`), par score, and move budget
@@ -46,14 +46,14 @@ check.
 ## Running the script
 
 ```sh
-# Today's board (UTC), against the default public test13 RPC:
+# Today's board (UTC), against the default public pearl RPC:
 node scripts/verify-blockparty-seed.mjs
 
 # A specific date:
-node scripts/verify-blockparty-seed.mjs --date 2026-07-06
+node scripts/verify-blockparty-seed.mjs --date 2026-09-01
 
 # Against a different public RPC node (e.g. to cross-check two nodes agree):
-node scripts/verify-blockparty-seed.mjs --date 2026-07-06 --rpc https://test13.rpc.onbloc.xyz
+node scripts/verify-blockparty-seed.mjs --date 2026-09-01 --rpc https://rpc.pearl.samourai.live:443
 
 # Sanity-check the derivation itself against a hardcoded known-good vector
 # (no network access, verifies the JS math hasn't drifted from the Go source
@@ -63,7 +63,9 @@ node scripts/verify-blockparty-seed.mjs --selftest
 
 Requires Node 18+ (uses built-in `fetch`); no npm dependencies.
 
-**Note on RPC hosts:** The backend derives the seed from its own public test13 RPC (default `https://rpc.testnet13.samourai.live:443`), while this script defaults to `https://rpc.test13.testnets.gno.land`. Both are public test13 nodes and should agree — that cross-node agreement is precisely the verification point. You can pass `--rpc` to check against another public node and confirm they derive the same seed.
+**Note on RPC hosts:** The backend seeds from the samourai pearl sentry (`https://rpc.pearl.samourai.live:443`) — single node, chain-identity-verified on every call, **no failover** (a wrong seed would be permanent, so for seeding, unavailability deliberately beats availability-via-substitution). This script defaults to the canonical public node (`https://rpc.pearl.testnets.gno.land`). Agreement between those two independent nodes is precisely the verification point. Both sides refuse to derive anything from a node whose reported network id is not `pearl-1` — a host that merely answers is not proof of the right chain (pass `--chain` only to deliberately verify a different network).
+
+**Wrong chain / dead node behavior:** a chain-id mismatch or an unreachable node is a loud error on both sides — the backend delays the day's board rather than substituting a chain, and this script exits non-zero rather than printing a seed you shouldn't trust.
 
 ### Reading the output
 
@@ -101,7 +103,7 @@ false.
 
 ## Live-node wire-format handling (fixed)
 
-The real public test13 RPC nests the block hash under
+The real public Gno RPC (originally verified on test13; re-pinned on pearl) nests the block hash under
 `result.block_meta.block_id.hash` in the `/block?height=N` response — the
 top-level `result.block_id` key is not present on that node's response shape.
 This script reads `block_meta.block_id.hash` (with a top-level fallback), and

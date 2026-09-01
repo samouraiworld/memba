@@ -63,9 +63,12 @@ describe('config constants', () => {
         expect(NETWORKS.test13).toBeDefined()
     })
 
-    it('sapphire is visible in the selector (the official testnet after cutover)', () => {
-        expect(NETWORKS.sapphire.hidden).toBeFalsy()
-        expect(Object.keys(VISIBLE_NETWORKS)).toContain('sapphire')
+    it('sapphire is hidden after its 2026-09-09 sunset, but still resolves', () => {
+        expect(NETWORKS.sapphire.hidden).toBe(true)
+        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('sapphire')
+        // Still in NETWORKS so deep links / stored selections resolve instead of
+        // crash-looping the /:network redirects — same treatment as topaz/test13.
+        expect(NETWORKS.sapphire).toBeDefined()
     })
 
     it('topaz is hidden after its 2026-08-12 retirement, but still resolves', () => {
@@ -76,27 +79,24 @@ describe('config constants', () => {
         expect(NETWORKS.topaz).toBeDefined()
     })
 
-    // Pearl is PRE-REGISTERED (2026-08-23), not live: the next testnet (RC,
-    // launch target 2026-08-26) that supersedes sapphire. Until the cutover PR
-    // confirms its chain id from the launched node and records the combined
-    // ceremony, it must stay invisible, honest about having no realms, and
-    // fail-closed on every realm. These three pins are what the cutover PR
-    // flips — deliberately, one by one.
-    it('pearl is the visible default with realms still dark and a fail-closed allowlist', () => {
+    // Pearl is LIVE: un-hidden + default since 2026-08-27 (#1117), and the
+    // §6 completion PR flipped realmsDeployed together with the ceremony's
+    // realm-versions `pearl` records (the allowlist merge-blocker enforces
+    // the backing). The pre-registration dark-contract this test used to pin
+    // is history — the flip happened exactly the way its comment demanded:
+    // both pins together, in the ceremony PR, never before.
+    it('pearl is the visible default with LIVE realms and a record-backed allowlist', () => {
         expect(NETWORKS.pearl).toBeDefined()
-        // Un-hidden 2026-08-27 (owner directive) with chain identity
-        // re-asserted against the LAUNCHED node the same day. Realm surfaces
-        // stay dark until the ceremony fills realm-versions.json's pearl
-        // section — these two pins flip TOGETHER in that PR, never before.
         expect(NETWORKS.pearl.hidden).toBe(false)
         expect(Object.keys(VISIBLE_NETWORKS)).toContain('pearl')
-        expect(NETWORKS.pearl.realmsDeployed).toBe(false)
+        expect(NETWORKS.pearl.realmsDeployed).toBe(true)
         expect(NETWORKS.pearl.isTestnet).toBe(true)
         expect(NETWORKS.pearl.chainId).toBe('pearl-1')
         // Hub faucet, never the API-only per-chain subdomain (the sapphire
         // 405 lesson).
         expect(NETWORKS.pearl.faucetUrl).toBe('https://faucet.gno.land')
-        // Explicit empty allowlist (F-28: absent would be read as open).
+        // The combined-ceremony set is allowlisted (F-28 discipline intact:
+        // the list is explicit, and every entry needs a realm-versions record).
         for (const path of [
             'gno.land/r/samcrew/memba_dao',
             'gno.land/r/samcrew/memba_feed_v1',
@@ -104,7 +104,68 @@ describe('config constants', () => {
             'gno.land/r/samcrew/escrow_v3',
             NFT_MARKETPLACE_V3_PATH,
         ]) {
+            expect(isRealmValidOn('pearl', path)).toBe(true)
+        }
+        // The realms NOT deployed on pearl stay fail-closed — the legacy NFT
+        // v2 pair and v3_1 never shipped there.
+        for (const path of [
+            NFT_MARKETPLACE_PATH,
+            'gno.land/r/samcrew/memba_nft_market_v3_1',
+            'gno.land/r/samcrew/escrow_v2',
+        ]) {
             expect(isRealmValidOn('pearl', path)).toBe(false)
+        }
+    })
+
+    // The merge blocker, made REAL: the rule "every allowlist entry must be
+    // backed by a realm-versions.json record" lived only in config.ts's
+    // comment until this PR — review discipline with no teeth. This test is
+    // the teeth, scoped to pearl (test13/topaz carry documented pre-rule
+    // gaps — e.g. the topaz section is missing 13 of 34 artifacts — and
+    // retrofitting history is not this PR's job). It stays RED until the
+    // combined ceremony lands its `pearl` section, which is exactly the
+    // one-piece coupling the cutover plan demands.
+    it('every allowlisted pearl realm is backed by a realm-versions.json pearl record', async () => {
+        const { readFileSync, existsSync } = await import('node:fs')
+        const { resolve, dirname } = await import('node:path')
+        // Resolve by walking up from cwd, NOT via `new URL(..., import.meta.url)`.
+        // Under the vite/jsdom test environment `import.meta.url` is not a file:
+        // URL, so that form throws `TypeError: The URL must be of scheme file`
+        // BEFORE any assertion runs. This test was written to be red until the
+        // ceremony recorded its artifacts — but it was red for that TypeError
+        // instead, on every run since it was added, and would have stayed red
+        // after a perfect ceremony while appearing to enforce a coupling it had
+        // never once evaluated. A gate that cannot pass is not a gate.
+        let dir = process.cwd()
+        let file = ''
+        for (let i = 0; i < 6 && !file; i++) {
+            const candidate = resolve(dir, 'realm-versions.json')
+            if (existsSync(candidate)) file = candidate
+            else dir = dirname(dir)
+        }
+        expect(file, 'realm-versions.json not found walking up from cwd — the ceremony record set must be readable for this gate to mean anything').not.toBe('')
+        const rv = JSON.parse(
+            readFileSync(file, 'utf8'),
+        ) as Record<string, Record<string, unknown> | string | undefined>
+        const records = rv.pearl
+        expect(records, 'realm-versions.json has no `pearl` section — the ceremony record set is the merge precondition').toBeTypeOf('object')
+        // The combined-ceremony allowlist, asserted path-by-path (the list is
+        // module-private; this mirrors the contract test above).
+        const allowlisted = [
+            'memba_dao', 'memba_dao_candidature_v3', 'memba_dao_channels_v2',
+            'agent_registry_v2', 'memba_reviews_v1', 'memba_quest_attestation_v1',
+            'memba_feed_v1', 'memba_appstore_v1', 'memba_appstore_v2',
+            'gnobuilders_badges_v2', 'memba_feedback_v2',
+            'tokenfactory_v2', 'memba_collections', 'memba_market_config',
+            'memba_nft_market_v3_2', 'escrow_v3', 'memba_token_otc_v2',
+        ]
+        for (const base of allowlisted) {
+            // Two-way coupling: the path must be allowlisted (typo guard for
+            // THIS list) and the ceremony must have recorded it.
+            expect(isRealmValidOn('pearl', `gno.land/r/samcrew/${base}`),
+                `${base} is in this test's mirror but not allowlisted — fix whichever list has the typo`).toBe(true)
+            expect((records as Record<string, unknown>)?.[base],
+                `allowlisted pearl realm '${base}' has no realm-versions.json pearl record — record the ceremony before merging`).toBeDefined()
         }
     })
 
@@ -212,20 +273,23 @@ describe('NFT v3 market gating (gate the page on the engine it trades)', () => {
         expect(isRealmValidOn('test13', NFT_MARKETPLACE_PATH)).toBe(true)
     })
 
-    it('isNftMarketV3Valid() is false on the active (topaz) network until the commerce ceremony', () => {
-        // Post-cutover the default active network is topaz, where the commerce
-        // realms (incl. memba_nft_market_v3_2) are NOT yet deployed — the
-        // allowlist self-gates the trade surface. Flips true after the topaz
-        // commerce ceremony (P1-0).
-        expect(isNftMarketV3Valid()).toBe(false)
+    it('isNftMarketV3Valid() is true on the default network — the pearl combined ceremony shipped v3.2', () => {
+        // Flipped by the §6 completion PR, per this test's own instruction:
+        // the pearl combined ceremony deploys + registers memba_nft_market_v3_2
+        // and the allowlist entry is realm-versions-backed. The trade surface
+        // still ALSO requires VITE_ENABLE_NFT (owner flips after the 2-wallet
+        // live-money test), so prod visibility remains a second, separate gate.
+        expect(isNftMarketV3Valid()).toBe(true)
     })
 
     it('v2 and v3 are distinct predicates (the bug was gating v3 trading on the v2 predicate)', () => {
-        // Both remain allowlisted on (retired) test13; on active topaz both gate
-        // off until the commerce ceremony. They stay separate functions keyed off
-        // distinct paths — the v3-trading page must never depend on the v2 predicate.
+        // The distinctness assertion is now LIVE, not vacuous: on pearl v3.2
+        // is deployed and v2 is not, so the two predicates genuinely diverge —
+        // exactly the situation the original bug (gating v3 trading on the v2
+        // predicate) would have broken. Both remain allowlisted on retired
+        // test13.
         expect(isNftMarketValid()).toBe(false)
-        expect(isNftMarketV3Valid()).toBe(false)
+        expect(isNftMarketV3Valid()).toBe(true)
         expect(isRealmValidOn('test13', NFT_MARKETPLACE_PATH)).toBe(true)
         expect(isRealmValidOn('test13', NFT_MARKETPLACE_V3_PATH)).toBe(true)
     })
@@ -434,17 +498,16 @@ describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl onl
     })
 })
 
-// The sapphire entry shipped DARK (#1063) so the cutover could be a small flag
-// flip; the 2026-08-15 ceremony made it true on-chain and the flip landed here.
-// These blocks assert BOTH halves of the post-cutover contract: sapphire fully
-// live, and the retired networks still carrying the dark-network machinery.
-describe('sapphire is LIVE (2026-08-15 cutover)', () => {
-    it('is the visible official testnet and resolves everywhere', () => {
+// Sapphire served as the official testnet from the 2026-08-15 cutover until its
+// 2026-09-09 sunset. The entry now carries the same dark-network contract as
+// topaz/test13: hidden from the selector, but resolvable — deep links and stored
+// selections must not crash-loop, and its allowlist history stays truthful.
+describe('sapphire is SUNSET (2026-09-09) — dark but resolvable', () => {
+    it('is hidden from the selector but still resolves', () => {
         expect(NETWORKS.sapphire).toBeDefined()
         expect(NETWORKS.sapphire.chainId).toBe('sapphire-1')
-        expect(NETWORKS.sapphire.hidden).toBeFalsy()
-        expect(Object.keys(VISIBLE_NETWORKS)).toContain('sapphire')
-        expect(resolveDefaultNetwork('sapphire')).toBe('sapphire')
+        expect(NETWORKS.sapphire.hidden).toBe(true)
+        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('sapphire')
     })
 
     it('allowlists EXACTLY the phase-1 funds-free set — ceremony-verified paths only', () => {
@@ -488,15 +551,16 @@ describe('sapphire is LIVE (2026-08-15 cutover)', () => {
         // network-scoped predicate.
     })
 
-    it('has realms, a featured DAO, and every PINNED constant flipped as a set', () => {
+    it('truthfully keeps realms + a featured DAO after retirement; the PINNED set lives on pearl', () => {
         expect(networkHasRealms('sapphire')).toBe(true)
         expect(getFeaturedDaoRealm('sapphire')).toBe('gno.land/r/samcrew/memba_dao')
         // The pinned constants do NOT derive from the env; desynchronising them
         // from their backend counterparts fails SILENTLY (W3-6), so they are
-        // asserted as a set.
-        expect(SNAPSHOT_NETWORK).toBe('sapphire')
-        expect(FEED_INDEXED_NETWORK).toBe('sapphire')
-        expect(SITEMAP_NETWORK).toBe('sapphire')
+        // asserted as a set — on the network the §6 completion release moved
+        // them to, together with the backend secret window.
+        expect(SNAPSHOT_NETWORK).toBe('pearl')
+        expect(FEED_INDEXED_NETWORK).toBe('pearl')
+        expect(SITEMAP_NETWORK).toBe('pearl')
     })
 })
 
@@ -510,7 +574,7 @@ describe('retired networks stay DARK but resolvable (topaz 2026-08-12, test13 20
         // deep-link visitor still has an option list and a way out.
         const selectable = Object.keys(selectableNetworksFor('topaz'))
         expect(selectable).toContain('topaz')
-        expect(selectable).toContain('sapphire')
+        expect(selectable).toContain('pearl')
     })
 
     it('topaz truthfully keeps realmsDeployed (the realms exist; the chain is gone)', () => {
@@ -588,15 +652,12 @@ describe('FEED_INDEXED_NETWORK — drift tripwire', () => {
         // If you are INTENTIONALLY cutting over: move the backend's FEED_RPC_URL
         // in the same window, update FEED_INDEXED_NETWORK here, and reset the
         // indexer cursor. If you are not, this failure is the bug.
-        // TRANSITIONAL DIVERGENCE, deliberate (2026-08-27 → the pearl
-        // ceremony): pearl is the default but its realms are not deployed, so
-        // the feed's home stays sapphire — which the owner keeps live and
-        // SELECTABLE until its 09-09 sunset precisely so tested features keep
-        // working somewhere. The tripwire therefore pins the transitional
-        // contract instead of strict equality; restore the strict
-        // `toBe(DEFAULT_NETWORK)` form in the ceremony PR that moves
-        // FEED_RPC_URL + FEED_START_BLOCK and resets the indexer cursor.
-        expect(FEED_INDEXED_NETWORK).toBe('sapphire')
+        // The transitional divergence (2026-08-27 → the pearl ceremony) is
+        // OVER: the §6 completion release moved FEED_RPC_URL +
+        // FEED_START_BLOCK and reset the indexer cursor in the same window as
+        // this flip, so the strict form is restored — exactly as the
+        // transitional comment instructed.
+        expect(FEED_INDEXED_NETWORK).toBe(DEFAULT_NETWORK)
         const { NETWORKS: nets } = await import('./config')
         // The feed's network must stay REACHABLE while the divergence lasts —
         // hidden-but-indexed would disable posting for everyone with no path.
@@ -859,7 +920,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
 
     /** config as a SHIPPED build sees it (prod, deploy previews, CI's :5173). */
     async function shippedBuild() {
-        vi.stubEnv('VITE_GNO_CHAIN_ID', 'sapphire')
+        vi.stubEnv('VITE_GNO_CHAIN_ID', 'pearl')
         vi.resetModules()
         return await import('./config')
     }
@@ -870,9 +931,10 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
         // vacuous — it passes while returning a HIDDEN key, which is exactly the
         // failure mode it was meant to catch (healing one hidden network to
         // another leaves the user precisely where they started).
-        // 'topaz' joined this list at its 2026-08-12 retirement: every returning
-        // pre-cutover user carries exactly that stored key.
-        for (const stored of ['gnoland1', 'test13', 'topaz']) {
+        // 'topaz' joined this list at its 2026-08-12 retirement, 'sapphire' at
+        // its 2026-09-09 sunset: every returning pre-sunset user carries exactly
+        // that stored key.
+        for (const stored of ['gnoland1', 'test13', 'topaz', 'sapphire']) {
             const healed = resolveStoredNetworkKey(stored)
             expect(NETWORKS[healed], `${stored} must heal to a real network`).toBeDefined()
             expect(NETWORKS[healed].hidden, `${stored} must heal to a VISIBLE network`).not.toBe(true)
@@ -887,7 +949,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
 
     it('keeps a stored VISIBLE network', async () => {
         const { resolveStoredNetworkKey } = await shippedBuild()
-        expect(resolveStoredNetworkKey('sapphire')).toBe('sapphire')
+        expect(resolveStoredNetworkKey('pearl')).toBe('pearl')
     })
 
     it('falls back for unknown/empty input rather than throwing', async () => {
@@ -940,7 +1002,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
     it('every hidden network is still resolvable by explicit URL', async () => {
         const { NETWORKS } = await import('./config')
         // Self-healing applies to STORED keys only — deep links must still work.
-        for (const k of ['test13', 'topaz']) {
+        for (const k of ['test13', 'topaz', 'sapphire']) {
             expect(NETWORKS[k], `${k} must stay in NETWORKS for deep links`).toBeDefined()
             expect(NETWORKS[k].hidden).toBe(true)
         }
@@ -950,7 +1012,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
 describe('selectableNetworksFor — the switcher escape hatch', () => {
     it('offers the ACTIVE network even when it is hidden', async () => {
         const { selectableNetworksFor } = await import('./config')
-        for (const hidden of ['test13', 'topaz']) {
+        for (const hidden of ['test13', 'topaz', 'sapphire']) {
             const offered = selectableNetworksFor(hidden)
             expect(offered[hidden], `${hidden} must stay selectable while active`).toBeDefined()
             // A one-option <select> cannot fire onChange — there must be somewhere to go.
@@ -960,7 +1022,7 @@ describe('selectableNetworksFor — the switcher escape hatch', () => {
 
     it('is the plain visible set for a visible active network', async () => {
         const { selectableNetworksFor, VISIBLE_NETWORKS } = await import('./config')
-        expect(selectableNetworksFor('sapphire')).toBe(VISIBLE_NETWORKS)
+        expect(selectableNetworksFor('pearl')).toBe(VISIBLE_NETWORKS)
     })
 
     it('does not invent an option for an unknown network', async () => {

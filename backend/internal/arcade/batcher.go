@@ -31,8 +31,8 @@ func (c BatcherConfig) withDefaults() BatcherConfig {
 const maxAttestRetries = 8
 
 // StartDayCloseBatcher runs the attester loop until ctx is cancelled: on each
-// tick it attests the top-N verified runs of every CLOSED day (day < today UTC)
-// that still has pending entries. It is the attester-pays path — the realm's
+// tick it attests the top-N verified runs of every CLOSED (game, day) board
+// (day < today UTC) that still has pending entries. It is the attester-pays path — the realm's
 // competitive board is written by the backend's dedicated key. Dormant unless
 // cfg.Enabled. Safe to run with a nil/zero everything else (it just no-ops).
 func StartDayCloseBatcher(ctx context.Context, store *Store, b Broadcaster, cfg BatcherConfig) {
@@ -77,12 +77,15 @@ func RunBatchOnce(ctx context.Context, store *Store, b Broadcaster, maxPerCycle 
 	return runBatchOnce(ctx, store, b, maxPerCycle, now, map[string]int{})
 }
 
-// runBatchOnce attests, for every FULLY-CLOSED day, each address's best verified
-// run — one on-chain board entry per address (the realm's granularity; attesting
-// a worse run after a better one would trip its non-improving panic). Only days
-// past the submit grace window are closed: a daily seed is submittable on its
-// date and the next UTC day, so day D is closed once today >= D+2 — attesting
-// earlier would race late (yesterday-window) submissions.
+// runBatchOnce attests, for every FULLY-CLOSED (game, day) board, each
+// address's best verified run — one on-chain board entry per address per game
+// (the realm's granularity; attesting a worse run after a better one would trip
+// its non-improving panic). The work list is data-driven — whatever (game, day)
+// pairs hold pending runs — so a newly-enabled game needs no batcher change.
+// Only days past the submit grace window are closed: a daily seed is
+// submittable on its date and the next UTC day, so day D is closed once
+// today >= D+2 — attesting earlier would race late (yesterday-window)
+// submissions.
 //
 // Per attestation: broadcast → mark attested → retire the address's lesser runs.
 // A realm rejection is classified: already-on-chain converges (mark attested);
@@ -97,16 +100,16 @@ func runBatchOnce(ctx context.Context, store *Store, b Broadcaster, maxPerCycle 
 	}
 	// Close only days strictly before yesterday (UTC) — i.e. day <= today-2.
 	closeBefore := now().UTC().AddDate(0, 0, -1).Format("2006-01-02")
-	days, err := store.PendingDailyDays(closeBefore)
+	boards, err := store.PendingDailyGameDays(closeBefore)
 	if err != nil {
 		return 0, err
 	}
 	attested := 0
-	for _, day := range days {
+	for _, gd := range boards {
 		if ctx.Err() != nil {
 			return attested, ctx.Err()
 		}
-		runs, err := store.BestVerifiedDaily(day, maxPerCycle-attested)
+		runs, err := store.BestVerifiedDaily(gd.Game, gd.Day, maxPerCycle-attested)
 		if err != nil {
 			return attested, err
 		}
@@ -132,7 +135,7 @@ func runBatchOnce(ctx context.Context, store *Store, b Broadcaster, maxPerCycle 
 				// shape rejection — retire it so it stops retrying.
 				retire(store, run.LogHash)
 				delete(failures, run.LogHash)
-				slog.Warn("arcade attest: permanent realm rejection — skipping run", "day", day, "addr", run.Addr, "logHash", run.LogHash, "error", err)
+				slog.Warn("arcade attest: permanent realm rejection — skipping run", "game", gd.Game, "day", gd.Day, "addr", run.Addr, "logHash", run.LogHash, "error", err)
 				continue
 			default:
 				// Transient (network/gas/auth-not-yet-allowlisted): retry, but only
@@ -144,10 +147,10 @@ func runBatchOnce(ctx context.Context, store *Store, b Broadcaster, maxPerCycle 
 					} else {
 						delete(failures, run.LogHash)
 					}
-					slog.Error("arcade attest failed too many times — parked (requeue by flipping status to verified)", "day", day, "addr", run.Addr, "logHash", run.LogHash, "attempts", maxAttestRetries, "error", err)
+					slog.Error("arcade attest failed too many times — parked (requeue by flipping status to verified)", "game", gd.Game, "day", gd.Day, "addr", run.Addr, "logHash", run.LogHash, "attempts", maxAttestRetries, "error", err)
 					continue
 				}
-				slog.Warn("arcade attest failed — will retry next cycle", "day", day, "addr", run.Addr, "attempt", failures[run.LogHash], "error", err)
+				slog.Warn("arcade attest failed — will retry next cycle", "game", gd.Game, "day", gd.Day, "addr", run.Addr, "attempt", failures[run.LogHash], "error", err)
 				continue
 			}
 			if err := store.MarkAttested(run.LogHash, txHash, now().Unix()); err != nil {
@@ -155,9 +158,10 @@ func runBatchOnce(ctx context.Context, store *Store, b Broadcaster, maxPerCycle 
 				continue
 			}
 			delete(failures, run.LogHash)
-			// The best is attested; retire this address's lesser runs for the day.
-			if err := store.ResolveSupersededDaily(day, run.Addr, run.LogHash); err != nil {
-				slog.Error("arcade resolve superseded failed", "day", day, "addr", run.Addr, "error", err)
+			// The best is attested; retire this address's lesser runs on this
+			// (game, day) board — its runs in OTHER games are other boards.
+			if err := store.ResolveSupersededDaily(gd.Game, gd.Day, run.Addr, run.LogHash); err != nil {
+				slog.Error("arcade resolve superseded failed", "game", gd.Game, "day", gd.Day, "addr", run.Addr, "error", err)
 			}
 			attested++
 		}

@@ -94,7 +94,7 @@ env:
   #
   # This value is parsed by frontend/src/test/gnoToolchain.ts (`declaredGnoPin`)
   # so the drift message can quote the real SHA. Keep it a plain hex literal.
-  GNO_PIN: 1c6ac026fb7bd70367c783f0d97ecbdac8f9c279
+  GNO_PIN: c4c72fdd288c757e8da0d93aae867fa479b1b15c
 
 jobs:
   gno-test:

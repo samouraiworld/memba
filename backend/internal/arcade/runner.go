@@ -20,11 +20,17 @@ import (
 //go:embed worker/bundle/verify-worker.cjs
 var workerBundle []byte
 
-// Job is one submission to re-simulate: the seed, the sim version it was played
-// on, and the raw input log. Marshaled verbatim onto the worker's stdin.
+// Job is one submission to re-simulate: the game it claims to be (derived
+// server-side from the seed, never client-sent), the seed, the sim version it
+// was played on, and the raw input log. Marshaled verbatim onto the worker's
+// stdin. An empty Game is grandfathered as "barricade" (the pre-multigame job
+// shape); FinalTick is Space Invaders-only (its sim runs to a tick count, not
+// a terminal phase) and must be 0 for every other game.
 type Job struct {
+	Game       string          `json:"game,omitempty"`
 	Seed       string          `json:"seed"`
 	SimVersion int64           `json:"simVersion"`
+	FinalTick  int64           `json:"finalTick,omitempty"`
 	Events     json.RawMessage `json:"events"`
 }
 
@@ -34,14 +40,21 @@ type Job struct {
 // worker (timeout, crash, missing node) surfaces as an error from Verify, not
 // as a Result — the two must never be confused.
 type Result struct {
-	OK            bool   `json:"ok"`
-	Error         string `json:"error,omitempty"`
-	Score         int64  `json:"score"`
+	OK    bool   `json:"ok"`
+	Error string `json:"error,omitempty"`
+	Score int64  `json:"score"`
+	// Waves is the cross-game "how far" display number (BARRICADE waves
+	// survived; Space Invaders wave reached). Won/OvertimeRound are
+	// barricade-only and stay zero for other games.
 	Waves         int64  `json:"waves"`
 	Won           bool   `json:"won"`
 	OvertimeRound int64  `json:"overtimeRound"`
 	StateHash     string `json:"stateHash"`
 	SimVersion    int64  `json:"simVersion"`
+	// Stats is the compact per-game JSON blob the attester writes on-chain
+	// verbatim (never ranked). Empty for BARRICADE (the Go side synthesizes its
+	// legacy trio); the Space Invaders worker authors it.
+	Stats string `json:"stats,omitempty"`
 	// LogHash is the canonical input-log commitment (sha256 of the sanitized
 	// event stream) — the realm's replay-theft key and the backend's dedup key.
 	LogHash string `json:"logHash"`
@@ -146,7 +159,7 @@ func (r *Runner) Verify(ctx context.Context, job Job) (Result, error) {
 	// rather than trusting every caller to have called ValidateJob first — the
 	// worker's own parse runs over the WHOLE stdin before its event cap, so an
 	// unbounded events payload would otherwise OOM node before it could reject it.
-	if err := ValidateJob(job.Seed, job.SimVersion, job.Events); err != nil {
+	if err := ValidateJob(job); err != nil {
 		return Result{OK: false, Error: err.Error()}, nil
 	}
 
@@ -177,13 +190,13 @@ func (r *Runner) Verify(ctx context.Context, job Job) (Result, error) {
 		return Result{}, fmt.Errorf("arcade: unparseable worker output (%d bytes): %w", len(stdout), err)
 	}
 	// Output-side sanity on a trust surface: a genuine verified result always
-	// carries a non-empty state-hash digest and the current sim version. A shape
-	// that claims ok:true without them (e.g. a partial `{"ok":true}` from a
-	// regressed worker or a stdout prefixer) unmarshals to a ZEROED, attestable
-	// Result — reject it as an implausible worker output rather than let a
-	// score:0/empty-hash "verified" run through.
-	if res.OK && (res.StateHash == "" || res.LogHash == "" || res.SimVersion != CurrentSimVersion) {
-		return Result{}, fmt.Errorf("arcade: implausible worker result (ok=true, stateHash=%q, logHash=%q, simVersion=%d)", res.StateHash, res.LogHash, res.SimVersion)
+	// carries a non-empty state-hash digest and the JOB'S GAME'S sim version. A
+	// shape that claims ok:true without them (e.g. a partial `{"ok":true}` from
+	// a regressed worker or a stdout prefixer) unmarshals to a ZEROED,
+	// attestable Result — reject it as an implausible worker output rather than
+	// let a score:0/empty-hash "verified" run through.
+	if res.OK && (res.StateHash == "" || res.LogHash == "" || res.SimVersion != simVersionFor(job.Game)) {
+		return Result{}, fmt.Errorf("arcade: implausible worker result (ok=true, stateHash=%q, logHash=%q, simVersion=%d, game=%q)", res.StateHash, res.LogHash, res.SimVersion, job.Game)
 	}
 	return res, nil
 }

@@ -253,7 +253,11 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // faucet answers the standard gno JSON-RPC 2.0 shape.
     sapphire: {
         chainId: "sapphire-1",
-        hidden: false,
+        // Retired to hidden per the 2026-09-09 sunset (owner directive recorded
+        // above): the chain is being decommissioned; a hidden entry keeps
+        // stored-network users resolvable (they fall back to the default
+        // network) without offering a dead chain in the selector.
+        hidden: true,
         // Flipped to true by the cutover PR AFTER the phase-1 ceremony
         // published the realm set (deps + gnodaokit + 11 funds-free Memba
         // realms) — per-artifact vm/qfile records live in realm-versions.json's
@@ -317,10 +321,11 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // (AUTH-CHAINID-MISMATCH-01), never a wrong-chain tx.
         chainId: "pearl-1",
         hidden: false,
-        // Flip to true in the cutover PR AFTER the combined Pearl ceremony
-        // (core set + commerce set) has per-artifact vm/qfile records in
-        // realm-versions.json's `pearl` section — same rule as sapphire's flip.
-        realmsDeployed: false,
+        // Flipped by the §6 completion PR: the combined Pearl ceremony (core
+        // set + commerce set) records per-artifact vm/qfile evidence in
+        // realm-versions.json's `pearl` section — same rule as sapphire's
+        // flip. The allowlist merge-blocker below enforces the backing.
+        realmsDeployed: true,
         isTestnet: true,
         // ⚠️ Liveness lesson from the launch window: from 2026-08-24 until the
         // 2026-08-27 genesis this hostname resolved, answered 200, and served
@@ -576,15 +581,40 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
     // absent key — absent means "no allowlist", which isRealmValidOn used to
     // read as "everything is valid" (F-28).
     gnoland1: [],
-    // Pearl: NOTHING deployed yet (pre-registered 2026-08-23, hidden). An
-    // EXPLICIT empty list for the same F-28 reason as gnoland1. The cutover PR
-    // fills it with the combined-ceremony set — the 24 core artifacts PLUS the
-    // ceremony-verified commerce set (escrow_v3, memba_token_otc_v2,
-    // tokenfactory_v2, memba_collections, memba_market_config,
-    // memba_nft_market_v3_2 — the NFT stack as one unit; the legacy v2 pair and
-    // v3_1 are NOT deployed on pearl, so never listed) — every entry backed by a
-    // realm-versions.json `pearl` record first (merge-blocking rule above).
-    pearl: [],
+    // Pearl — the combined-ceremony set (§4 of docs/PEARL_CUTOVER_PLAN.md):
+    // the default core lane + the commerce set in one window. Entry list =
+    // exactly the deployer's dry-run walk on the [pearl] lane (verified
+    // 2026-08-27 against the live chain): default lane (9) + gnobuilders/
+    // feedback (commerce head) + the NFT stack as one unit + the p0-guards
+    // pair. p/ packages (grc721, memba_market_core_v2) are deploy artifacts,
+    // not frontend targets — never allowlisted (same as test13/topaz). The
+    // legacy NFT v2 pair and v3_1 are NOT deployed on pearl, so never listed.
+    // Every entry must be backed by a realm-versions.json `pearl` record
+    // (merge-blocking rule above) — the record set lands with the ceremony,
+    // and this PR stays red until it does.
+    pearl: [
+        "gno.land/r/samcrew/memba_dao",
+        "gno.land/r/samcrew/memba_dao_candidature_v3",
+        "gno.land/r/samcrew/memba_dao_channels_v2",
+        "gno.land/r/samcrew/agent_registry_v2",
+        "gno.land/r/samcrew/memba_reviews_v1",
+        "gno.land/r/samcrew/memba_quest_attestation_v1",
+        "gno.land/r/samcrew/memba_feed_v1",
+        "gno.land/r/samcrew/memba_appstore_v1",
+        "gno.land/r/samcrew/memba_appstore_v2",
+        "gno.land/r/samcrew/gnobuilders_badges_v2",
+        "gno.land/r/samcrew/memba_feedback_v2",
+        // Commerce set — funds-custody realms included: on pearl the whole
+        // stack ships in the ONE combined ceremony (decision 2026-08-23),
+        // unlike topaz's funds-free-only staging.
+        "gno.land/r/samcrew/tokenfactory_v2",
+        "gno.land/r/samcrew/memba_collections",
+        "gno.land/r/samcrew/memba_market_config",
+        "gno.land/r/samcrew/memba_nft_market_v3_2",
+        // p0-guards pair (separate later invocation per §4.3 — same window).
+        "gno.land/r/samcrew/escrow_v3",
+        "gno.land/r/samcrew/memba_token_otc_v2",
+    ],
     test13: [
         "gno.land/r/samcrew/memba_dao",
         "gno.land/r/samcrew/memba_dao_candidature_v2", // paused; kept so the 2 legacy applicants can still Withdraw
@@ -874,8 +904,10 @@ export function getExplorerBaseUrlFor(networkKey: string): string {
  *  merely HAS an indexerUrl configured (pearl does — its own indexer is live)
  *  would render the PROXIED chain's transactions and block times as its own,
  *  with explorer links built for the wrong chain. Moves with the ceremony's
- *  backend secret window, alongside the feed pins. */
-export const INDEXER_PROXIED_NETWORK = "sapphire"
+ *  backend secret window, alongside the feed pins.
+ *  Pearl cutover: flipped to "pearl" in the §6 completion release, in the same
+ *  window as the backend INDEXER_GRAPHQL_URL secret move. */
+export const INDEXER_PROXIED_NETWORK = "pearl"
 
 /** GraphQL endpoint the frontend POSTs indexer queries to. The browser cannot
  *  call the public tx-indexer directly (it sends no CORS headers), so requests go
@@ -1086,8 +1118,11 @@ export const FEEDBACK_REALM_PATH = "gno.land/r/samcrew/memba_feedback_v2"
  * release together with the backend RPC secret flip. Between any two halves of
  * that window the hook self-disables (safe degradation: home renders without
  * the snapshot enrichment).
+ *
+ * Pearl cutover: flipped to "pearl" in the §6 completion release together with
+ * the backend snapshot/NFT RPC secret window.
  */
-export const SNAPSHOT_NETWORK = "sapphire"
+export const SNAPSHOT_NETWORK = "pearl"
 
 /**
  * The network key the backend FEED INDEXER is scoped to — i.e. the one chain
@@ -1114,8 +1149,12 @@ export const SNAPSHOT_NETWORK = "sapphire"
  * cursor first and the env value is only a floor for missing rows, so a stale
  * topaz-height row silently pins the tailer to a block the new chain won't
  * reach for weeks (and the realm-scoped post ids would collide across chains).
+ *
+ * Pearl cutover: flipped to "pearl" in the §6 completion release — same rule
+ * as sapphire: SAME release as the backend FEED_RPC_URL + FEED_START_BLOCK
+ * secret flip AND the mandatory feed-state reset (`/app/memba feed-reset`).
  */
-export const FEED_INDEXED_NETWORK = "sapphire"
+export const FEED_INDEXED_NETWORK = "pearl"
 
 /** Human-readable label for the indexed network (for user-facing copy). */
 export const FEED_INDEXED_NETWORK_LABEL =
