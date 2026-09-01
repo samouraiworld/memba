@@ -78,7 +78,7 @@ describe("LegacyRedirect — bookmarks must heal like / does", () => {
         // that `/` and `/directory` disagreed, which no single-component test
         // can see. (Comparing only against `resolveStoredNetworkKey` would
         // co-drift with it — the two sides must be the two real components.)
-        for (const stored of ["gnoland1", "test13", "topaz", "no-such-network"]) {
+        for (const stored of ["gnoland1", "test13", "topaz", "sapphire", "no-such-network"]) {
             localStorage.setItem("memba_network", stored)
             const viaLegacy = networkOf(renderLegacy("/directory"))
             const viaRoot = networkOf(renderRoot())
@@ -94,8 +94,16 @@ describe("LegacyRedirect — bookmarks must heal like / does", () => {
     })
 
     it("keeps a stored VISIBLE network", () => {
+        localStorage.setItem("memba_network", "pearl")
+        expect(renderLegacy("/directory")).toBe("/pearl/directory")
+    })
+
+    it("heals a stored sapphire selection off the sunset network (2026-09-09)", () => {
+        // Sapphire joined the hidden set at its sunset: a returning pre-sunset
+        // user's bookmark must land on a network the switcher actually offers.
         localStorage.setItem("memba_network", "sapphire")
-        expect(renderLegacy("/directory")).toBe("/sapphire/directory")
+        expect(networkOf(renderLegacy("/directory"))).toBe(resolveStoredNetworkKey("sapphire"))
+        expect(networkOf(renderLegacy("/directory"))).not.toBe("sapphire")
     })
 
     it("falls back to the default when nothing is stored", () => {
@@ -103,8 +111,8 @@ describe("LegacyRedirect — bookmarks must heal like / does", () => {
     })
 
     it("preserves path, search and hash", () => {
-        localStorage.setItem("memba_network", "sapphire")
+        localStorage.setItem("memba_network", "pearl")
         expect(renderLegacy("/dao/gno.land~r~gov~dao?tab=votes#top"))
-            .toBe("/sapphire/dao/gno.land~r~gov~dao?tab=votes#top")
+            .toBe("/pearl/dao/gno.land~r~gov~dao?tab=votes#top")
     })
 })
