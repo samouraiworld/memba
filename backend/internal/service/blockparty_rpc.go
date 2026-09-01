@@ -21,6 +21,18 @@ import (
 
 func todayUTC() string { return time.Now().UTC().Format("2006-01-02") }
 
+// requireBlockParty gates every Block Party RPC on the feature flag — reads
+// included. BLOCKPARTY_ENABLED=0 must be a TOTAL kill switch: before this
+// gate, GetDailyChallenge was reachable while "parked" and could drive chain
+// RPC traffic and mint permanent challenge rows on a misconfigured chain.
+// One mental model: parked = the entire surface answers Unimplemented.
+func (s *MultisigService) requireBlockParty() *connect.Error {
+	if !s.blockPartyEnabled {
+		return connect.NewError(connect.CodeUnimplemented, errors.New("block party is disabled"))
+	}
+	return nil
+}
+
 // ensureChallenge returns the cached challenge for `date`, deriving and caching
 // it immutably on first request. ready=false means the day's block isn't mined.
 func (s *MultisigService) ensureChallenge(ctx context.Context, date string) (blockparty.Challenge, bool, error) {
@@ -56,6 +68,9 @@ func (s *MultisigService) GetDailyChallenge(
 	ctx context.Context,
 	req *connect.Request[membav1.GetDailyChallengeRequest],
 ) (*connect.Response[membav1.GetDailyChallengeResponse], error) {
+	if gateErr := s.requireBlockParty(); gateErr != nil {
+		return nil, gateErr
+	}
 	date := req.Msg.Date
 	if date == "" {
 		date = todayUTC()
@@ -112,8 +127,8 @@ func (s *MultisigService) SubmitScore(
 	ctx context.Context,
 	req *connect.Request[membav1.SubmitScoreRequest],
 ) (*connect.Response[membav1.SubmitScoreResponse], error) {
-	if !s.blockPartyEnabled {
-		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("block party is disabled"))
+	if gateErr := s.requireBlockParty(); gateErr != nil {
+		return nil, gateErr
 	}
 	// 1) auth BEFORE any replay work
 	addr, err := s.authenticate(req.Msg.AuthToken)
@@ -188,6 +203,9 @@ func (s *MultisigService) GetDailyLeaderboard(
 	ctx context.Context,
 	req *connect.Request[membav1.GetDailyLeaderboardRequest],
 ) (*connect.Response[membav1.GetDailyLeaderboardResponse], error) {
+	if gateErr := s.requireBlockParty(); gateErr != nil {
+		return nil, gateErr
+	}
 	date := req.Msg.Date
 	if date == "" {
 		date = todayUTC()
@@ -211,6 +229,9 @@ func (s *MultisigService) GetStreak(
 	ctx context.Context,
 	req *connect.Request[membav1.GetStreakRequest],
 ) (*connect.Response[membav1.GetStreakResponse], error) {
+	if gateErr := s.requireBlockParty(); gateErr != nil {
+		return nil, gateErr
+	}
 	st, err := blockparty.GetStreak(s.db, req.Msg.Address)
 	if err != nil {
 		return nil, connect.NewError(connect.CodeInternal, err)
