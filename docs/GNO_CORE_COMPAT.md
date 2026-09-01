@@ -3,7 +3,7 @@
 > **Date:** 2026-07-11 · **Memba:** v7.3.0 · **Baseline:** CI-enforced suite (Vitest + Go + Playwright E2E; CI is the source of truth for counts), 0 TS errors
 >
 > Step-by-step migration instructions for each tracked upstream PR.
-> See also: [GNO_CORE_BREAKING_CHANGES.md](planning/GNO_CORE_BREAKING_CHANGES.md)
+> See also: [GNO_CORE_BREAKING_CHANGES.md](GNO_CORE_BREAKING_CHANGES.md)
 
 ---
 

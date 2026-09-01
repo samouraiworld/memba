@@ -7,7 +7,7 @@
 
 ---
 
-## Current Status (2026-07-10)
+## Current Status (2026-09-01)
 
 | Metric | Value |
 |--------|-------|
@@ -15,14 +15,14 @@
 | **Shipped Versions** | 52+ (v0.1.0 → v7.3.0) + ongoing feature branches |
 | **Test Suite** | **3,000+ automated tests (CI-enforced)** — 243 Vitest files + 64 Go test files (auth/db/indexer/points/service, incl. `FuzzMakeADR36SignDoc`) + pinned-gno template compile gate + 27 Playwright E2E specs. CI is the source of truth for exact counts. |
 | **Coverage** | Frontend/Backend CI-enforced thresholds (aggregate bump deferred) |
-| **Networks** | **Sapphire (`sapphire-1`) is the prod default — cutover DONE 2026-08-15** (forced by topaz-1's decommission + Adena v1.20.3 dropping it). topaz and test13 are retired; both stay hidden-but-resolvable so old deep links don't break. |
+| **Networks** | **Pearl (`pearl-1`) is the prod default — combined ceremony DONE 2026-08-31** (32 artifacts, per-artifact proof in `realm-versions.json` `pearl`). Sapphire remains selectable until its **2026-09-09 sunset**; topaz and test13 are retired — retired chains stay hidden-but-resolvable so old deep links don't break. The operative registry is `frontend/src/lib/config.ts` (`NETWORKS`). |
 | **Architecture** | Go 1.25.x + ConnectRPC backend (Fly rolling deploys + GHCR mirror + Litestream backups), React 19 + Vite frontend, SQLite, OpenRouter AI |
 | **Security** | Auth: `MEMBA_ALLOW_UNSIGNED_AUTH=0` (fail-closed); 0 open Dependabot alerts on `main` after Wave 1 hardening; 1 own advisory (MEMBA-2026-001) |
-| **On-Chain** | Core realm set live on Sapphire — 2026-08-15 phase-1 ceremony, 24 artifacts (deps + gnodaokit + `memba_dao`, `candidature_v3`, `channels_v2`, `agent_registry_v2`, `memba_reviews_v1`, `memba_quest_attestation_v1`, `memba_feed_v1`, `memba_appstore_v1/v2`, `memba_feedback_v2`, `gnobuilders_badges_v2`); per-artifact proof in `realm-versions.json`. Fund-custody commerce realms (escrow, NFT stack, OTC, market_config, `tokenfactory_v2`) are prepped (rulings 2026-08-16: fee-spine tokenfactory, v3.2 engine, legacy v2 skipped — Memba #1082, deployer #138) and deploy in the **combined Pearl ceremony**, not on sapphire (Pearl RC launches 2026-08-26 and supersedes sapphire) — the UI self-gates via `isRealmValidOn()` and `VITE_ENABLE_NFT` is back in `SAFETY_GATED_FLAGS`. |
+| **On-Chain** | Full set live on Pearl — the **2026-08-31 combined ceremony** deployed the phase-1 core set (deps + gnodaokit + `memba_dao`, `candidature_v3`, `channels_v2`, `agent_registry_v2`, `memba_reviews_v1`, `memba_quest_attestation_v1`, `memba_feed_v1`, `memba_appstore_v1/v2`, `memba_feedback_v2`, `gnobuilders_badges_v2`) **and** the fund-custody commerce realms (escrow, NFT stack, OTC, market_config, `tokenfactory_v2`; rulings 2026-08-16: fee-spine tokenfactory, v3.2 engine, legacy v2 skipped — Memba #1082, deployer #138) in one window; per-artifact proof in `realm-versions.json`'s `pearl` section. Commerce features stay **dark pending the 2-wallet live-money test** — the UI self-gates via `isRealmValidOn()` and `VITE_ENABLE_NFT` remains in `SAFETY_GATED_FLAGS`. (Sapphire's 2026-08-15 phase-1 ceremony — 24 artifacts — served until the pearl cutover.) |
 | **AI Analyst** | 10 free models via OpenRouter, DAO-level + proposal-level, cached 6h |
 | **GnoBuilders** | 85 quests, 8-tier rank system, leaderboard, badge NFTs (GRC721 `gnobuilders_badges_v2`), **XP cryptographically settled on-chain** |
 | **Active program** | Program "Compound" (Waves 5+) — v7.2.x AAA remediation Waves 0–4 delivered (#732, 2026-07-03) |
-| **Next Priority** | **Owner: the Pearl cutover + combined ceremony (`docs/PEARL_CUTOVER_PLAN.md`)** — Pearl genesis prereqs (`samcrew` namespace authorized for the deploy multisig, multisig funding, vesting accounts), the gno#6028 fork (deployer #139 draft merges only if #6028 is in the launch ref), then: `[pearl]` deployer lane → one ceremony (core 24 + commerce set) → `feed-reset` + `nft-reset` + Fly secrets → frontend cutover PR → fresh-wallet E2 → deliberate de-gate. Sapphire serves until the Pearl flip is verified. · **Code: next-cycle plan Waves A–F after Pearl** |
+| **Next Priority** | The Pearl cutover + combined ceremony is **DONE 2026-08-31** (`docs/PEARL_CUTOVER_PLAN.md` is the record). Live slate: **sapphire sunset 2026-09-09** (retire references once the chain dies) · **marketplace / services / tokens de-gate** pending the 2-wallet live-money test · **NFT indexer re-enable** pending observability wiring (alerts armed before `NFT_INDEXER_DISABLED` unsets). · **Code: next-cycle plan Waves A–F after Pearl** |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 
@@ -84,10 +84,10 @@ Review findings feed into the **next version's RFC** as action items.
 | `samcrew-deployer:fix/mainnet-security-audit-v3` | 5 commits (channels events, escrow + agent registry + NFT market + candidature + badges audit fixes) | Open |
 | `gnodaokit:fix/security-audit-v5-realm-fixes` | Red/Blue + expert + CTO findings — float64→bps consensus safety, H-6 Snapshot, M-10 openCount leak, R17 supermajority | Draft PR open |
 | **AUTH-SESSION-REJECT-01** | `backend/internal/auth/crypto.go` — defensive rejection of Adena 1.20+ session subaccounts; unit test | Hold (Q-A) |
-| **Custody section in `MAINNET_PREPARATION.md`** | Signers, M-of-N, hardware class, geographic distribution, recovery, rotation, dry-run; signed by ≥ 2 Samourai Coop principals. Hard prerequisite for Phase 2. | Draft (1 signer confirmed, slots TBD for the rest) |
+| **Custody section in `docs/MAINNET_APP_HARDENING.md`** (renamed 2026-09-01, was `MAINNET_PREPARATION.md`) | Signers, M-of-N, hardware class, geographic distribution, recovery, rotation, dry-run; signed by ≥ 2 Samourai Coop principals. Hard prerequisite for Phase 2. | Draft (1 signer confirmed, slots TBD for the rest) |
 | **SECRETS_ROTATION.md** expansion + **SECURITY.md** update | PGP fingerprint, GHSA enablement, Resolved Advisories table seeded with `MEMBA-2026-001` | Open |
 | `chainHealth` fallback + gnoland1 transfer-lock probe | Corrected probe path `params/bank:p:restricted_denoms` (gno #5629). Updates `GNO_CORE_BREAKING_CHANGES.md`. | Hold (Q-A) |
-| **Stale-doc refresh** (this PR) | `DEPLOYMENT_RUNBOOK.md`, `MAINNET_PREPARATION.md`, `ROADMAP.md`, `realm-versions.json`, `PROGRESSIVE_DECENTRALIZATION.md` | In review |
+| **Stale-doc refresh** (this PR) | `DEPLOYMENT_RUNBOOK.md`, `MAINNET_APP_HARDENING.md` (then named `MAINNET_PREPARATION.md`), `ROADMAP.md`, `realm-versions.json`, `PROGRESSIVE_DECENTRALIZATION.md` | In review |
 | Doc inventory + KT log (private planning repo) | Doc inventory + knowledge-transfer doc | Pending |
 | CODEOWNERS audit + branch-protection screenshot | Confirm Q-A reviewer mapping + immutable evidence of branch rules | Pending |
 

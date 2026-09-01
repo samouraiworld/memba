@@ -87,8 +87,8 @@ The **Kodera design system** uses Vanilla CSS with design tokens and custom comp
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `VITE_API_URL` | Backend API URL | (empty = Vite proxy) |
-| `VITE_GNO_CHAIN_ID` | Network KEY the app defaults to | `sapphire` |
-| `VITE_SAPPHIRE_RPC_URL` | Override Sapphire's RPC endpoint | `https://rpc.sapphire.testnets.gno.land:443` |
+| `VITE_GNO_CHAIN_ID` | Network KEY the app defaults to | `pearl` |
+| `VITE_PEARL_RPC_URL` | Override Pearl's RPC endpoint (`VITE_<NETWORK>_RPC_URL` per network) | `https://rpc.pearl.testnets.gno.land:443` |
 | `VITE_GITHUB_CLIENT_ID` | GitHub OAuth Client ID | — |
 | `VITE_DAO_REALM_PATH` | DAO realm path | `gno.land/r/samcrew/samourai_dao` |
 | `VITE_GNOLOVE_API_URL` | Gnolove API URL | `https://gnolove.world` |
