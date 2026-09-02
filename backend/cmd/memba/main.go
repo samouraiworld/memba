@@ -275,7 +275,7 @@ func main() {
 	if nftDisabled {
 		slog.Info("NFT indexer disabled (NFT_INDEXER_DISABLED=1)")
 	}
-	nftRPCURL := envOr("NFT_RPC_URL", "https://rpc.sapphire.testnets.gno.land:443")
+	nftRPCURL := envOr("NFT_RPC_URL", "https://rpc.pearl.samourai.live:443")
 	collectionRealm := envOr("NFT_COLLECTION_REALM", "gno.land/r/samcrew/memba_nft_v2")
 	marketRealm := envOr("NFT_MARKET_REALM", "gno.land/r/samcrew/memba_nft_market_v2")
 	if !nftDisabled {

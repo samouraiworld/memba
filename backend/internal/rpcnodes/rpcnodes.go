@@ -11,16 +11,23 @@ import (
 	"strings"
 )
 
-// defaultSapphireFallbacks are the backup sapphire RPC nodes tried, in order,
-// when the primary endpoint is unreachable. They mirror the trusted sapphire
-// nodes the frontend already fails over to (frontend/src/lib/config.ts
-// sapphire rpcUrl + fallbackRpcUrls) plus our own sentry. Used ONLY on a
+// defaultPearlFallbacks are the backup pearl RPC nodes tried, in order, when
+// the primary endpoint is unreachable. They mirror the pearl nodes the
+// frontend already fails over to (frontend/src/lib/config.ts pearl rpcUrl +
+// fallbackRpcUrls): the public canonical plus our own sentry. Used ONLY on a
 // transport error from the primary — a valid "no record" answer never
 // triggers failover.
-var defaultSapphireFallbacks = []string{
-	"https://rpc.sapphire.testnets.gno.land:443", // public canonical
-	"https://sapphire.rpc.onbloc.xyz:443",        // onbloc's node (what Adena ships)
-	"https://rpc.sapphire.samourai.live:443",     // our sentry (51.159.105.229)
+//
+// This list is LIVE in prod: RPC_FALLBACK_URLS is not set there, so whatever
+// is written here is what the backend fails over to. Failover is transport-only
+// (no chain-identity check), so every host here must serve pearl-1 — a host
+// from a retired chain is dead at best and answers from the wrong chain at
+// worst. The sapphire list this replaced was exactly that from 2026-09-02,
+// when both sapphire hosts stopped answering ahead of the 09-09 sunset.
+// rpcnodes_test.go pins the "pearl only, no retired chain" invariant.
+var defaultPearlFallbacks = []string{
+	"https://rpc.pearl.testnets.gno.land:443", // public canonical
+	"https://rpc.pearl.samourai.live:443",     // our sentry
 	// ⚠️ MEASURED 2026-08-10 on topaz, and the lesson carries: the public
 	// canonical node returned **HTTP 403** to the Fly egress IP under the feed
 	// tailer's poll rate (/status every 3s plus 2+ calls per block during
@@ -34,7 +41,7 @@ var defaultSapphireFallbacks = []string{
 
 // FallbackURLs returns the ordered backup node list. RPC_FALLBACK_URLS
 // (comma-separated) overrides the built-in list; blank entries are dropped and
-// surrounding whitespace trimmed. An unset/empty env yields the sapphire default.
+// surrounding whitespace trimmed. An unset/empty env yields the pearl default.
 func FallbackURLs() []string {
 	if v := strings.TrimSpace(os.Getenv("RPC_FALLBACK_URLS")); v != "" {
 		out := make([]string, 0, 4)
@@ -45,7 +52,7 @@ func FallbackURLs() []string {
 		}
 		return out
 	}
-	return defaultSapphireFallbacks
+	return defaultPearlFallbacks
 }
 
 // URLsInOrder returns [primary, ...fallbacks] with duplicates removed and

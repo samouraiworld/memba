@@ -27,7 +27,7 @@ type queryFunc func(rpcURL, path, data string) (string, error)
 // homeSnapshotRPCURL returns the RPC the home snapshot reads. The default is the
 // pinned samourai node (matching fly.toml) — NOT the public node, which
 // rate-limits the Fly egress IP (#466); an unset env must not silently re-trigger
-// that. do not use gnoRPCURL() here — both now point at sapphire, but keeping
+// that. do not use gnoRPCURL() here — both now point at pearl, but keeping
 // the home var separate avoids accidental coupling if GNO_RPC_URL is repurposed.
 func homeSnapshotRPCURL() string {
 	if v := os.Getenv("HOME_SNAPSHOT_RPC_URL"); v != "" {
@@ -36,11 +36,11 @@ func homeSnapshotRPCURL() string {
 	if v := os.Getenv("NFT_RPC_URL"); v != "" {
 		return v
 	}
-	// Sapphire cutover: default to our own sapphire sentry — the same
-	// "dedicated node, not the throttling public one" architecture the
-	// original rpc.topaz.samourai.live default encoded (#466), on the host
-	// that replaced it (51.159.105.229).
-	return "https://rpc.sapphire.samourai.live:443"
+	// Pearl cutover: default to our own pearl sentry — the same "dedicated
+	// node, not the throttling public one" architecture the original
+	// rpc.topaz.samourai.live default encoded (#466), on the host that
+	// serves pearl-1 today.
+	return "https://rpc.pearl.samourai.live:443"
 }
 
 // homeSnapshotTTL is the cache window (default 30s, env HOME_SNAPSHOT_TTL as a Go duration).

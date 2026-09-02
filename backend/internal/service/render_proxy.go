@@ -110,24 +110,24 @@ const feedPostUnavailableBody = "# Post unavailable\n\n*This post has been hidde
 
 // gnoRPCURL returns the RPC endpoint for the generic render/balance proxies.
 // Overridable via GNO_RPC_URL (a Fly secret in prod). The built-in default is
-// the public sapphire canonical — the chain this release serves — so an
+// the public pearl canonical — the chain this release serves — so an
 // environment that forgets to set GNO_RPC_URL reads the right chain rather
 // than a retired one. The public node rate-limited the Fly egress IP under
 // sustained polling on topaz (#466, presenting as 403): low-volume proxy reads
 // are fine, but keep the feed tailer on a DIFFERENT node (our sentry,
-// rpc.sapphire.samourai.live) and set GNO_RPC_URL to a dedicated node if
+// rpc.pearl.samourai.live) and set GNO_RPC_URL to a dedicated node if
 // throttling reappears.
 func gnoRPCURL() string {
 	if url := os.Getenv("GNO_RPC_URL"); url != "" {
 		return url
 	}
-	return "https://rpc.sapphire.testnets.gno.land:443"
+	return "https://rpc.pearl.testnets.gno.land:443"
 }
 
 // marketplaceRPCURL returns the RPC for the on-chain r/samcrew app realms read
 // by the marketplace proxies and the analyst credit check (agent_registry,
 // escrow_v2, …). It reads its OWN var (MARKETPLACE_RPC_URL, then NFT_RPC_URL)
-// and defaults to the public sapphire node, keeping marketplace reads decoupled
+// and defaults to the public pearl node, keeping marketplace reads decoupled
 // from the generic GNO_RPC_URL even if that is ever repurposed. Failover backups
 // are appended by rpcURLsInOrder.
 func marketplaceRPCURL() string {
@@ -136,7 +136,7 @@ func marketplaceRPCURL() string {
 			return url
 		}
 	}
-	return "https://rpc.sapphire.testnets.gno.land:443"
+	return "https://rpc.pearl.testnets.gno.land:443"
 }
 
 // abciResponse represents the relevant subset of a Gno ABCI query response.

@@ -557,8 +557,13 @@ func buildChainContext(chainID string) string {
 	}
 
 	networks := map[string]chainInfo{
+		"pearl-1": {
+			name:     "gno.land Pearl Testnet",
+			maturity: "TESTNET — experimental, frequent resets, test tokens with no real value",
+			note:     "Governance decisions here are for testing and community coordination, not financial value.",
+		},
 		"sapphire-1": {
-			name:     "gno.land Sapphire Testnet",
+			name:     "gno.land Sapphire Testnet (retired 2026-09-09)",
 			maturity: "TESTNET — experimental, frequent resets, test tokens with no real value",
 			note:     "Governance decisions here are for testing and community coordination, not financial value.",
 		},
