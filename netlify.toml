@@ -42,12 +42,13 @@
   # MUST land in the same window, or auth/feed/home break. See
   # docs/OPS_RUNBOOK.md.
   #
-  # 2026-08-27 pearl flip is ADDITIVE, not a cut: sapphire stays selectable
-  # (live until its 09-09 sunset) and keeps serving the backend-pinned feed;
-  # pearl is default with realmsDeployed:false until the ceremony. The ONE
-  # backend change this flip needs is owner-side: append "pearl-1" (and
-  # "gnoland1", now selectable again) to MEMBA_ACCEPTED_CHAIN_IDS so wallet
-  # auth works there — fail-closed until then (AUTH-CHAINID-MISMATCH-01).
+  # 2026-08-27 pearl flip was ADDITIVE (sapphire stayed selectable while
+  # pearl became default); the 08-31 ceremony deployed the realms, 09-01 hid
+  # sapphire from the selector (#1126), and the sunset dropped sapphire-1 from
+  # MEMBA_ACCEPTED_CHAIN_IDS (hosts dead 2026-09-02, formal sunset 09-09).
+  # History of the rule: AUTH-CHAINID-MISMATCH-01 — a chain missing from that
+  # allowlist fails auth closed, so a selector change and the backend
+  # allowlist must move together.
   VITE_GNO_CHAIN_ID = "pearl"
 
 # CSP Dual-Config (v2.9):

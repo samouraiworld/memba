@@ -26,6 +26,10 @@ Full changelogs are split by version range for easier navigation:
 - **Every other default follows.** The render, marketplace, quest-verification, home-snapshot, activity-indexer and NFT-poller endpoints defaulted to Sapphire when their environment variable was unset; they now default to Pearl, as do the badge-mint and activity-bot command-line tools and the AI analyst's chain description (Pearl added, Sapphire marked retired). Production already sets these explicitly, so behaviour there is unchanged.
 - **Guarded against recurrence**: two new tests fail the build if any built-in RPC or indexer default ever names a retired chain again.
 - The "not deployed on this network" notice no longer suggests switching to Sapphire; it points at Pearl.
+### Sapphire leaves the accepted-chain allowlist (sunset, 2026-09-09)
+<!-- categories: memba, network -->
+- **Sapphire sessions end here.** Tokens issued while signed in on Sapphire are no longer accepted; the app notices the rejection and asks for one clean re-login on Pearl. The chain's own nodes had already stopped answering on September 2, a week ahead of the formal sunset, so nothing still worked there to preserve.
+- Configuration and examples that still described Sapphire as live (the backend deploy manifest, the environment examples, the frontend's built-in RPC fallback) now describe Pearl. The hidden Sapphire entry stays in the network registry on purpose: it is what turns a remembered Sapphire selection or an old `/sapphire/...` link into Pearl instead of an error.
 
 ### Block Party's daily board becomes trustworthy end to end (2026-09-01)
 <!-- categories: memba -->

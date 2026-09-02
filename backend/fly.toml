@@ -74,10 +74,12 @@ primary_region = 'cdg'
   #
   # PEARL CUTOVER (2026-08-28→31): dual-accept ON PURPOSE this time — pearl-1
   # was added ahead of the ceremony (owner-approved 08-28) so pearl logins
-  # worked from the un-hide, and sapphire-1 STAYS accepted until its 2026-09-09
-  # sunset so existing sapphire sessions live out the transition. Post-sunset
-  # tightening to 'pearl-1,gnoland1' is an owner secrets change + an edit here.
-  MEMBA_ACCEPTED_CHAIN_IDS = 'sapphire-1,pearl-1,gnoland1'
+  # worked from the un-hide. sapphire-1 stayed accepted through the transition
+  # and was DROPPED at the sunset (chain hosts dead from 2026-09-02, formal
+  # sunset 2026-09-09): a sapphire-issued token now 401s and the client's
+  # transport interceptor forces one clean re-login on pearl. Mirrors the
+  # owner's `fly secrets set` of the same date — keep the two in step.
+  MEMBA_ACCEPTED_CHAIN_IDS = 'pearl-1,gnoland1'
   GNO_RPC_URL = 'https://rpc.pearl.testnets.gno.land:443'
   # NFT indexer — STILL DISABLED after the pearl ceremony, deliberately: the
   # fund-custody NFT realms ARE deployed on pearl-1 now (2026-08-31, recorded
