@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### The backend's built-in RPC defaults follow the app to Pearl (2026-09-02)
+<!-- categories: memba, network -->
+- **Failover now has somewhere to go.** When the primary RPC node fails, the backend retries a built-in list of backup nodes; that list still named only Sapphire hosts, and both of them stopped answering on September 2 — a week before the chain's formal sunset. The list now carries the two Pearl nodes the app itself uses (the public canonical and our sentry). This is the one default that was live in production, because the backup list is not overridden by any secret.
+- **Every other default follows.** The render, marketplace, quest-verification, home-snapshot, activity-indexer and NFT-poller endpoints defaulted to Sapphire when their environment variable was unset; they now default to Pearl, as do the badge-mint and activity-bot command-line tools and the AI analyst's chain description (Pearl added, Sapphire marked retired). Production already sets these explicitly, so behaviour there is unchanged.
+- **Guarded against recurrence**: two new tests fail the build if any built-in RPC or indexer default ever names a retired chain again.
+- The "not deployed on this network" notice no longer suggests switching to Sapphire; it points at Pearl.
+
 ### Block Party's daily board becomes trustworthy end to end (2026-09-01)
 <!-- categories: memba -->
 - **The board you play is the board the server issued.** A cold load used to start you on a placeholder board before the day's challenge arrived (and never re-seeded), so ranked replays were scored against a board you never saw; the daily now re-seeds the moment it loads, and a background refresh can no longer wipe a run in progress.

@@ -275,7 +275,11 @@ func main() {
 	if nftDisabled {
 		slog.Info("NFT indexer disabled (NFT_INDEXER_DISABLED=1)")
 	}
-	nftRPCURL := envOr("NFT_RPC_URL", "https://rpc.sapphire.testnets.gno.land:443")
+	// Default is OUR pearl sentry, not the public canonical: the poller is a
+	// sustained-polling client, and the public node rate-limits the Fly egress
+	// IP under exactly that load (#466, presenting as 403). Same dedicated-node
+	// rule as home_rpc.go; mirrors the fly.toml [env] value.
+	nftRPCURL := envOr("NFT_RPC_URL", defaultNFTRPCURL)
 	collectionRealm := envOr("NFT_COLLECTION_REALM", "gno.land/r/samcrew/memba_nft_v2")
 	marketRealm := envOr("NFT_MARKET_REALM", "gno.land/r/samcrew/memba_nft_market_v2")
 	if !nftDisabled {
@@ -601,6 +605,11 @@ func main() {
 }
 
 // envOr returns the env var value, or fallback when unset/empty.
+// defaultNFTRPCURL is the NFT poller's RPC when NFT_RPC_URL is unset — the
+// pearl sentry (see the comment at the call site). Pinned by main_test.go so
+// a retired-chain host can never come back here silently.
+const defaultNFTRPCURL = "https://rpc.pearl.samourai.live:443"
+
 func envOr(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {
 		return v

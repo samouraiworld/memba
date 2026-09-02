@@ -294,6 +294,22 @@ func TestLitestreamManaged(t *testing.T) {
 // memba_nft_market_v3 (deauthorized 2026-06-27), so prod silently indexed a
 // dead realm and missed every v3.1 sale until 2026-07-11. Changing these sets
 // means changing this test AND backend/fly.toml [env] — deliberately.
+// The NFT poller's built-in RPC must be a pearl node — and the SENTRY, not the
+// public canonical: it polls continuously, and the public node 403s the Fly
+// egress IP under sustained polling (#466). A retired-chain host here is dead
+// at best and answers from the wrong chain at worst.
+func TestDefaultNFTRPCURL_IsThePearlSentry(t *testing.T) {
+	const want = "https://rpc.pearl.samourai.live:443"
+	if defaultNFTRPCURL != want {
+		t.Fatalf("defaultNFTRPCURL = %q, want the pearl sentry %q", defaultNFTRPCURL, want)
+	}
+	for _, retired := range []string{"sapphire", "topaz", "test13", "testnet13", "test-13", "test12"} {
+		if strings.Contains(defaultNFTRPCURL, retired) {
+			t.Fatalf("defaultNFTRPCURL %q names retired chain marker %q", defaultNFTRPCURL, retired)
+		}
+	}
+}
+
 func TestDefaultNFTTailerRealms(t *testing.T) {
 	const (
 		market     = "gno.land/r/samcrew/memba_nft_market_v2"

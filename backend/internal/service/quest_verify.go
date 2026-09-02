@@ -87,7 +87,7 @@ func questRPCURL() string {
 			return url
 		}
 	}
-	return "https://rpc.sapphire.testnets.gno.land:443"
+	return "https://rpc.pearl.testnets.gno.land:443"
 }
 
 var (
