@@ -783,7 +783,7 @@ export function networkScopedKey(base: string): string {
  * Normal Gno RPC endpoint for standard ABCI queries and broadcasting.
  * Defaults to the active network's RPC URL.
  */
-export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.sapphire.testnets.gno.land:443"
+export const GNO_RPC_URL = NETWORKS[_activeNetwork]?.rpcUrl || "https://rpc.pearl.testnets.gno.land:443"
 
 /** Fallback RPC URLs for the active network (tried in order if primary fails). */
 export const GNO_FALLBACK_RPC_URLS: string[] = NETWORKS[_activeNetwork]?.fallbackRpcUrls || []
