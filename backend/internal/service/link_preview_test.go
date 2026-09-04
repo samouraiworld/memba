@@ -3,6 +3,8 @@ package service
 import (
 	"crypto/ed25519"
 	"crypto/rand"
+	"net/http"
+	"net/url"
 	"strings"
 	"testing"
 )
@@ -77,6 +79,9 @@ func TestValidateLinkPreviewURL_RejectsUnsafe(t *testing.T) {
 		"http://10.0.0.5/x",
 		"http://192.168.1.1/x",
 		"http://172.16.0.1/x",
+		"https://0.1.2.3/x",
+		"https://[::ffff:0.1.2.3]/x",
+		"https://[64:ff9b::1:203]/x",
 		"http://example.com:22/x",   // disallowed port
 		"http://example.com:6379/x", // disallowed port
 		"https://",                  // empty host
@@ -85,6 +90,29 @@ func TestValidateLinkPreviewURL_RejectsUnsafe(t *testing.T) {
 	for _, u := range bad {
 		if _, err := validateLinkPreviewURL(u); err == nil {
 			t.Errorf("expected rejection for %q", u)
+		}
+	}
+}
+
+func TestValidateLinkPreviewRedirect_PreservesPortPolicy(t *testing.T) {
+	cases := []struct {
+		url     string
+		wantErr bool
+	}{
+		{"https://93.184.216.34/ok", false},
+		{"https://93.184.216.34:443/ok", false},
+		{"https://93.184.216.34:80/ok", false},
+		{"https://93.184.216.34:8443/redirected", true},
+		{"https://93.184.216.34:65535/redirected", true},
+	}
+	for _, tc := range cases {
+		u, err := url.Parse(tc.url)
+		if err != nil {
+			t.Fatalf("url.Parse(%q): %v", tc.url, err)
+		}
+		err = linkPreviewClient.CheckRedirect(&http.Request{URL: u}, nil)
+		if (err != nil) != tc.wantErr {
+			t.Errorf("linkPreviewClient.CheckRedirect(%q): err = %v, wantErr %v", tc.url, err, tc.wantErr)
 		}
 	}
 }
