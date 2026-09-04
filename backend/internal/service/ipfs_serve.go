@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -203,42 +204,167 @@ var (
 // SSRF / URI validation
 // ──────────────────────────────────────────────────────────────────────────────
 
-// privateIPBlocks are CIDR ranges that are never fetched from.
-var privateIPBlocks []*net.IPNet
-
-func init() {
-	cidrs := []string{
-		"127.0.0.0/8",    // loopback
-		"10.0.0.0/8",     // RFC1918
-		"172.16.0.0/12",  // RFC1918
-		"192.168.0.0/16", // RFC1918
-		"169.254.0.0/16", // link-local / AWS metadata
-		"::1/128",        // IPv6 loopback
-		"fc00::/7",       // IPv6 unique local
-		"fe80::/10",      // IPv6 link-local
-		"100.64.0.0/10",  // CGN
-		"0.0.0.0/8",      // this host
+func mustParseIPBlock(cidr string) *net.IPNet {
+	_, block, err := net.ParseCIDR(cidr)
+	if err != nil {
+		panic(err)
 	}
-	for _, cidr := range cidrs {
-		_, block, _ := net.ParseCIDR(cidr)
-		privateIPBlocks = append(privateIPBlocks, block)
-	}
+	return block
 }
 
-func isPrivateIP(ip net.IP) bool {
-	for _, block := range privateIPBlocks {
-		if block.Contains(ip) {
-			return true
+// nonPublicIPBlocks are special-purpose unicast ranges that net.IP considers
+// globally unicast but which are not safe outbound HTTP destinations. General
+// private, loopback, link-local, multicast, and unspecified addresses are
+// rejected separately by isPublicDestinationIP.
+var nonPublicIPBlocks = []*net.IPNet{
+	mustParseIPBlock("0.0.0.0/8"),       // current network ("this network")
+	mustParseIPBlock("100.64.0.0/10"),   // shared address space / CGNAT
+	mustParseIPBlock("192.0.0.0/24"),    // IETF protocol assignments
+	mustParseIPBlock("192.0.2.0/24"),    // documentation (TEST-NET-1)
+	mustParseIPBlock("192.88.99.0/24"),  // deprecated 6to4 relay anycast
+	mustParseIPBlock("198.18.0.0/15"),   // benchmarking
+	mustParseIPBlock("198.51.100.0/24"), // documentation (TEST-NET-2)
+	mustParseIPBlock("203.0.113.0/24"),  // documentation (TEST-NET-3)
+	mustParseIPBlock("240.0.0.0/4"),     // reserved for future use
+	mustParseIPBlock("64:ff9b:1::/48"),  // local-use IPv4/IPv6 translation
+	mustParseIPBlock("100::/64"),        // discard-only
+	mustParseIPBlock("100:0:0:1::/64"),  // dummy IPv6 prefix
+	mustParseIPBlock("2001::/32"),       // Teredo
+	mustParseIPBlock("2001:2::/48"),     // benchmarking
+	mustParseIPBlock("2001:10::/28"),    // deprecated ORCHID
+	mustParseIPBlock("2001:db8::/32"),   // documentation
+	mustParseIPBlock("2002::/16"),       // 6to4 (global reachability is not guaranteed)
+	mustParseIPBlock("3fff::/20"),       // documentation
+	mustParseIPBlock("5f00::/16"),       // segment-routing SIDs
+	mustParseIPBlock("fec0::/10"),       // deprecated site-local addresses
+}
+
+var (
+	nat64WellKnownBlock      = mustParseIPBlock("64:ff9b::/96")
+	ipv6GlobalUnicastBlock   = mustParseIPBlock("2000::/3")
+	ietfProtocolAddressBlock = mustParseIPBlock("2001::/23")
+	// Globally reachable exceptions inside IANA's otherwise non-global
+	// 2001::/23 protocol-assignment block (registry reviewed 2026-09-04).
+	ietfProtocolPublicBlocks = []*net.IPNet{
+		mustParseIPBlock("2001:1::1/128"),   // PCP anycast
+		mustParseIPBlock("2001:1::2/128"),   // TURN anycast
+		mustParseIPBlock("2001:1::3/128"),   // DNS-SD registration anycast
+		mustParseIPBlock("2001:3::/32"),     // AMT
+		mustParseIPBlock("2001:4:112::/48"), // AS112-v6
+		mustParseIPBlock("2001:20::/28"),    // ORCHIDv2
+		mustParseIPBlock("2001:30::/28"),    // Drone Remote ID entity tags
+	}
+)
+
+// isPublicDestinationIP accepts only publicly routable unicast addresses.
+// IPv4-mapped IPv6 is normalized by To4. The well-known NAT64 form is checked
+// through its embedded IPv4 address so it cannot tunnel a private, loopback,
+// or metadata destination while legitimate public IPv4 destinations remain
+// usable on IPv6-only networks. Transition prefixes without guaranteed global
+// reachability, including 6to4, are rejected outright.
+func isPublicDestinationIP(ip net.IP) bool {
+	if ip == nil {
+		return false
+	}
+	if ip4 := ip.To4(); ip4 != nil {
+		if !ip4.IsGlobalUnicast() || ip4.IsPrivate() {
+			return false
+		}
+		for _, block := range nonPublicIPBlocks {
+			if block.Contains(ip4) {
+				return false
+			}
+		}
+		return true
+	}
+
+	ip16 := ip.To16()
+	if ip16 == nil || !ip16.IsGlobalUnicast() || ip16.IsPrivate() {
+		return false
+	}
+
+	// RFC 6052 well-known NAT64 prefix: the final 32 bits are IPv4.
+	if nat64WellKnownBlock.Contains(ip16) {
+		return isPublicDestinationIP(net.IP(ip16[12:16]))
+	}
+	// IANA currently allocates ordinary IPv6 global unicast from 2000::/3.
+	// Reject reserved top-level space that net.IP.IsGlobalUnicast also accepts.
+	if !ipv6GlobalUnicastBlock.Contains(ip16) {
+		return false
+	}
+	if ietfProtocolAddressBlock.Contains(ip16) {
+		for _, block := range ietfProtocolPublicBlocks {
+			if block.Contains(ip16) {
+				return true
+			}
+		}
+		return false
+	}
+
+	for _, block := range nonPublicIPBlocks {
+		if block.Contains(ip16) {
+			return false
 		}
 	}
-	return false
+	return true
+}
+
+func normalizeIPFSGateway(raw string) (string, error) {
+	u, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil {
+		return "", fmt.Errorf("invalid gateway URL: %w", err)
+	}
+	if u.Scheme != "https" {
+		return "", fmt.Errorf("gateway scheme %q not allowed; use https", u.Scheme)
+	}
+	if u.Hostname() == "" {
+		return "", fmt.Errorf("empty host in gateway URL")
+	}
+	if u.User != nil {
+		return "", fmt.Errorf("gateway URL credentials are not allowed")
+	}
+	if u.RawQuery != "" || u.ForceQuery || u.Fragment != "" {
+		return "", fmt.Errorf("gateway URL query and fragment are not allowed")
+	}
+	u.Path = strings.TrimRight(u.Path, "/") + "/"
+	u.RawPath = ""
+	return u.String(), nil
+}
+
+// validateIPFSGateway normalizes and validates a configured gateway base.
+// Gateway URLs are configuration rather than request input, but they feed the
+// same sink and must satisfy the same HTTPS/public-destination policy.
+func validateIPFSGateway(raw string) (string, error) {
+	normalized, err := normalizeIPFSGateway(raw)
+	if err != nil {
+		return "", err
+	}
+	if err := validateHTTPSHost(normalized); err != nil {
+		return "", fmt.Errorf("unsafe gateway URL: %w", err)
+	}
+	return normalized, nil
+}
+
+type gatewayConfigurationError struct {
+	err error
+}
+
+func (e *gatewayConfigurationError) Error() string { return e.err.Error() }
+func (e *gatewayConfigurationError) Unwrap() error { return e.err }
+
+func resolvedIPFSGateway(gateway string) (string, error) {
+	validated, err := validateIPFSGateway(gateway)
+	if err != nil {
+		return "", &gatewayConfigurationError{err: err}
+	}
+	return validated, nil
 }
 
 // resolveIPFSURI turns an ipfs:// or https:// (or a bare CID) into a fetch URL.
-// Returns an error for any disallowed scheme, private host, or malformed input.
+// Returns an error for any disallowed scheme, non-public host, or malformed input.
 //
 //   - ipfs://CID/path  → <gateway>CID/path
-//   - https://…        → pass-through (host private-IP checked)
+//   - https://…        → pass-through (host public-destination checked)
 //   - bare CID         → <gateway>CID
 func resolveIPFSURI(rawURI, gateway string) (string, error) {
 	rawURI = strings.TrimSpace(rawURI)
@@ -256,6 +382,10 @@ func resolveIPFSURI(rawURI, gateway string) (string, error) {
 		}
 		cid, subpath, _ := strings.Cut(rest, "/")
 		if err := validateCIDChars(cid); err != nil {
+			return "", err
+		}
+		gateway, err := resolvedIPFSGateway(gateway)
+		if err != nil {
 			return "", err
 		}
 		if subpath != "" {
@@ -281,6 +411,10 @@ func resolveIPFSURI(rawURI, gateway string) (string, error) {
 		// Treat as a bare CID (no scheme).
 		if err := validateCIDChars(rawURI); err != nil {
 			return "", fmt.Errorf("unrecognised URI scheme or invalid CID: %w", err)
+		}
+		gateway, err := resolvedIPFSGateway(gateway)
+		if err != nil {
+			return "", err
 		}
 		return gateway + rawURI, nil
 	}
@@ -313,18 +447,21 @@ func validateHTTPSHost(rawURL string) error {
 	if host == "" {
 		return fmt.Errorf("empty host in URL")
 	}
-	addrs, err := net.LookupHost(host) // #nosec G704 -- this IS the SSRF validator; private IPs are rejected below
+	addrs, err := net.LookupHost(host) // #nosec G704 -- this IS the SSRF validator; non-public IPs are rejected below
 	if err != nil {
 		// If we can't resolve the host, reject it conservatively
 		return fmt.Errorf("cannot resolve host %q: %w", host, err)
 	}
+	if len(addrs) == 0 {
+		return fmt.Errorf("host %q resolved without an address", host)
+	}
 	for _, addr := range addrs {
 		ip := net.ParseIP(addr)
 		if ip == nil {
-			continue
+			return fmt.Errorf("host %q resolved to an invalid IP (%q)", host, addr)
 		}
-		if isPrivateIP(ip) {
-			return fmt.Errorf("host %q resolves to a private/reserved IP (%s)", host, addr)
+		if !isPublicDestinationIP(ip) {
+			return fmt.Errorf("host %q resolves to a non-public IP (%s)", host, addr)
 		}
 	}
 	return nil
@@ -334,7 +471,7 @@ func validateHTTPSHost(rawURL string) error {
 // URL is validated by resolveIPFSURI/validateHTTPSHost, but Go's HTTP client
 // follows redirects without re-checking — so a malicious gateway could
 // 30x-redirect the unauthenticated proxy into a private/metadata host. Refuse
-// non-https hops and any host resolving to a private/reserved IP, and cap the
+// non-https hops and any host resolving to a non-public IP, and cap the
 // chain length.
 func validateRedirect(req *http.Request, via []*http.Request) error {
 	if len(via) >= maxNFTRedirects {
@@ -355,7 +492,7 @@ func validateRedirect(req *http.Request, via []*http.Request) error {
 
 // safeDialContext closes the DNS-rebinding TOCTOU between validateHTTPSHost
 // (which resolves at validation time) and the actual fetch (which would resolve
-// again): it resolves the host, rejects any private/reserved IP, and dials the
+// again): it resolves the host, rejects any non-public IP, and dials the
 // SAME validated IP — so a short-TTL record can't swap a public IP for a private
 // one between the check and the connect. Applied to every dial (initial + each
 // redirect hop), making the IP guard authoritative at connect time.
@@ -371,8 +508,8 @@ func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error
 	dialer := &net.Dialer{Timeout: nftFetchTimeout}
 	var lastErr error
 	for _, ip := range ips {
-		if isPrivateIP(ip.IP) {
-			lastErr = fmt.Errorf("host %q resolves to a private/reserved IP (%s)", host, ip.IP)
+		if !isPublicDestinationIP(ip.IP) {
+			lastErr = fmt.Errorf("host %q resolves to a non-public IP (%s)", host, ip.IP)
 			continue
 		}
 		conn, derr := dialer.DialContext(ctx, network, net.JoinHostPort(ip.IP.String(), port))
@@ -387,11 +524,18 @@ func safeDialContext(ctx context.Context, network, addr string) (net.Conn, error
 	return nil, lastErr
 }
 
-// safeTransport clones the default transport and pins every dial to safeDialContext.
+// safeTransport uses an explicit transport so process-wide mutations of
+// http.DefaultTransport (including proxy and TLS-specific dial hooks) cannot
+// bypass safeDialContext.
 func safeTransport() *http.Transport {
-	t := http.DefaultTransport.(*http.Transport).Clone()
-	t.DialContext = safeDialContext
-	return t
+	return &http.Transport{
+		DialContext:           safeDialContext,
+		ForceAttemptHTTP2:     true,
+		MaxIdleConns:          100,
+		IdleConnTimeout:       90 * time.Second,
+		TLSHandshakeTimeout:   10 * time.Second,
+		ExpectContinueTimeout: 1 * time.Second,
+	}
 }
 
 // nftHTTPClient is a package-level client used for production fetches.
@@ -416,16 +560,24 @@ func fetchIPFS(client *http.Client, resolvedURL, primaryGateway, fbGateway strin
 	}
 	// Attempt fallback only when the URL came from the primary gateway and the
 	// fallback is a different host (prevents redundant retries in tests).
-	if strings.HasPrefix(resolvedURL, primaryGateway) && primaryGateway != fbGateway {
-		fallbackURL := fbGateway + strings.TrimPrefix(resolvedURL, primaryGateway)
-		slog.Warn("primary IPFS gateway failed, trying fallback", "primary", primaryGateway, "fallback", fallbackURL, "err", err)
+	normalizedPrimary, normalizationErr := normalizeIPFSGateway(primaryGateway)
+	if normalizationErr == nil && strings.HasPrefix(resolvedURL, normalizedPrimary) {
+		validatedFallback, validationErr := validateIPFSGateway(fbGateway)
+		if validationErr != nil {
+			return nil, "", fmt.Errorf("primary fetch failed (%v); invalid fallback gateway: %w", err, validationErr)
+		}
+		if normalizedPrimary == validatedFallback {
+			return body, contentType, err
+		}
+		fallbackURL := validatedFallback + strings.TrimPrefix(resolvedURL, normalizedPrimary)
+		slog.Warn("primary IPFS gateway failed, trying fallback", "primary", normalizedPrimary, "fallback", fallbackURL, "err", err)
 		body, contentType, err = doFetch(client, fallbackURL)
 	}
 	return body, contentType, err
 }
 
 // doFetch performs the actual HTTP GET. target has already been validated by
-// resolveIPFSURI + validateHTTPSHost which reject private IPs and disallowed
+// resolveIPFSURI + validateHTTPSHost which reject non-public IPs and disallowed
 // schemes — G704 taint warnings here are false positives.
 func doFetch(client *http.Client, target string) ([]byte, string, error) {
 	req, err := http.NewRequest(http.MethodGet, target, nil) // #nosec G704 -- target validated by resolveIPFSURI/validateHTTPSHost before reaching doFetch
@@ -475,7 +627,8 @@ func (o nftHandlerOptions) resolvedClient() *http.Client {
 	return nftHTTPClient
 }
 
-// resolvedGateway returns the primary gateway base URL to use.
+// resolvedGateway returns the primary gateway base URL to use. IPFS and bare-CID
+// requests validate it before constructing their fetch URL.
 func (o nftHandlerOptions) resolvedGateway() string {
 	if o.gateway != "" {
 		return o.gateway
@@ -526,19 +679,25 @@ func HandleNFTImage(opts ...nftHandlerOptions) http.Handler {
 			return
 		}
 
-		gateway := o.resolvedGateway()
-		fetchURL, err := resolveIPFSURI(raw, gateway)
-		if err != nil {
-			slog.Warn("nft image: invalid URI", "raw", raw, "err", err)
-			http.Error(w, fmt.Sprintf(`{"error":%q}`, "invalid URI: "+err.Error()), http.StatusBadRequest)
+		cacheKey := raw
+		// A cached body was obtained through the guarded transport already. Serve
+		// it without making availability depend on a fresh gateway DNS lookup.
+		if entry, ok := nftImageCache.get(cacheKey); ok {
+			serveEntry(w, entry, "HIT", true)
 			return
 		}
 
-		cacheKey := raw
-
-		// Cache hit
-		if entry, ok := nftImageCache.get(cacheKey); ok {
-			serveEntry(w, entry, "HIT", true)
+		gateway := o.resolvedGateway()
+		fetchURL, err := resolveIPFSURI(raw, gateway)
+		if err != nil {
+			var configErr *gatewayConfigurationError
+			if errors.As(err, &configErr) {
+				slog.Error("nft image: invalid gateway configuration", "err", err)
+				http.Error(w, `{"error":"gateway configuration invalid"}`, http.StatusInternalServerError)
+				return
+			}
+			slog.Warn("nft image: invalid URI", "raw", raw, "err", err)
+			http.Error(w, fmt.Sprintf(`{"error":%q}`, "invalid URI: "+err.Error()), http.StatusBadRequest)
 			return
 		}
 
@@ -595,19 +754,25 @@ func HandleNFTMetadata(opts ...nftHandlerOptions) http.Handler {
 			return
 		}
 
-		gateway := o.resolvedGateway()
-		fetchURL, err := resolveIPFSURI(raw, gateway)
-		if err != nil {
-			slog.Warn("nft metadata: invalid URI", "raw", raw, "err", err)
-			http.Error(w, fmt.Sprintf(`{"error":%q}`, "invalid URI: "+err.Error()), http.StatusBadRequest)
+		cacheKey := raw
+		// Cached metadata was fetched and parsed through the guarded path already;
+		// no outbound destination is used on a hit.
+		if entry, ok := nftMetadataCache.get(cacheKey); ok {
+			serveEntry(w, entry, "HIT", false)
 			return
 		}
 
-		cacheKey := raw
-
-		// Cache hit
-		if entry, ok := nftMetadataCache.get(cacheKey); ok {
-			serveEntry(w, entry, "HIT", false)
+		gateway := o.resolvedGateway()
+		fetchURL, err := resolveIPFSURI(raw, gateway)
+		if err != nil {
+			var configErr *gatewayConfigurationError
+			if errors.As(err, &configErr) {
+				slog.Error("nft metadata: invalid gateway configuration", "err", err)
+				http.Error(w, `{"error":"gateway configuration invalid"}`, http.StatusInternalServerError)
+				return
+			}
+			slog.Warn("nft metadata: invalid URI", "raw", raw, "err", err)
+			http.Error(w, fmt.Sprintf(`{"error":%q}`, "invalid URI: "+err.Error()), http.StatusBadRequest)
 			return
 		}
 

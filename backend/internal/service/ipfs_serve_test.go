@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"reflect"
 	"strings"
 	"testing"
 	"time"
@@ -16,12 +17,27 @@ import (
 // Test helpers
 // ──────────────────────────────────────────────────────────────────────────────
 
-// newGatewayServer starts a local httptest server and returns it + a wired client.
+// newGatewayServer starts a local TLS server but exposes a documentation-only
+// public IP in its URL. The wired client dials the local listener directly, so
+// gateway-policy tests stay deterministic without weakening production guards.
 func newGatewayServer(t *testing.T, handler http.Handler) (*httptest.Server, *http.Client) {
 	t.Helper()
-	ts := httptest.NewServer(handler)
+	ts := httptest.NewTLSServer(handler)
 	t.Cleanup(ts.Close)
-	return ts, ts.Client()
+
+	client := ts.Client()
+	transport := client.Transport.(*http.Transport)
+	testAddr := ts.Listener.Addr().String()
+	transport.Proxy = nil
+	// The URL deliberately names a public test address while DialContext pins the
+	// connection to this process-local listener, so its generated certificate
+	// cannot match the request host. This client never leaves the test listener.
+	transport.TLSClientConfig.InsecureSkipVerify = true // #nosec G402 -- local test server only
+	transport.DialContext = func(ctx context.Context, network, _ string) (net.Conn, error) {
+		return (&net.Dialer{}).DialContext(ctx, network, testAddr)
+	}
+	ts.URL = "https://93.184.216.34"
+	return ts, client
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -33,10 +49,15 @@ func newGatewayServer(t *testing.T, handler http.Handler) (*httptest.Server, *ht
 // connect time, not only at validation time.
 func TestSafeDialContext_RejectsPrivateAndMetadata(t *testing.T) {
 	for _, addr := range []string{
-		"127.0.0.1:80",       // loopback
-		"169.254.169.254:80", // AWS/GCP metadata
-		"10.0.0.5:80",        // RFC1918
-		"192.168.1.1:80",     // RFC1918
+		"127.0.0.1:80",            // loopback
+		"169.254.169.254:80",      // AWS/GCP metadata
+		"10.0.0.5:80",             // RFC1918
+		"192.168.1.1:80",          // RFC1918
+		"[::]:80",                 // IPv6 unspecified / this host
+		"[::ffff:127.0.0.1]:80",   // IPv4-mapped loopback
+		"[fec0::1]:80",            // deprecated site-local
+		"[64:ff9b::a9fe:a9fe]:80", // NAT64-encoded metadata IP
+		"[2002:7f00:0001::]:80",   // 6to4-encoded loopback
 	} {
 		if _, err := safeDialContext(context.Background(), "tcp", addr); err == nil {
 			t.Errorf("safeDialContext(%q) = nil error, want refusal (private/reserved IP)", addr)
@@ -44,8 +65,53 @@ func TestSafeDialContext_RejectsPrivateAndMetadata(t *testing.T) {
 	}
 }
 
+func TestSafeTransport_DoesNotInheritProcessDefaultHooks(t *testing.T) {
+	defaultTransport, ok := http.DefaultTransport.(*http.Transport)
+	if !ok {
+		t.Fatalf("http.DefaultTransport has type %T, want *http.Transport", http.DefaultTransport)
+	}
+
+	originalProxy := defaultTransport.Proxy
+	originalDialTLSContext := defaultTransport.DialTLSContext
+	legacyDialTLS := reflect.ValueOf(defaultTransport).Elem().FieldByName("DialTLS")
+	originalLegacyDialTLS := reflect.New(legacyDialTLS.Type()).Elem()
+	originalLegacyDialTLS.Set(legacyDialTLS)
+	t.Cleanup(func() {
+		defaultTransport.Proxy = originalProxy
+		defaultTransport.DialTLSContext = originalDialTLSContext
+		legacyDialTLS.Set(originalLegacyDialTLS)
+	})
+
+	defaultTransport.Proxy = func(*http.Request) (*url.URL, error) {
+		return url.Parse("http://127.0.0.1:3128")
+	}
+	defaultTransport.DialTLSContext = func(context.Context, string, string) (net.Conn, error) {
+		return nil, context.Canceled
+	}
+	legacyDialTLS.Set(reflect.ValueOf(func(string, string) (net.Conn, error) {
+		return nil, context.Canceled
+	}))
+
+	transport := safeTransport()
+	if transport == defaultTransport {
+		t.Fatal("safeTransport must construct a fresh transport")
+	}
+	if transport.Proxy != nil {
+		t.Fatal("safeTransport.Proxy inherited the process-global proxy hook")
+	}
+	if transport.DialTLSContext != nil {
+		t.Fatal("safeTransport.DialTLSContext inherited the process-global TLS dial hook")
+	}
+	if got := reflect.ValueOf(transport).Elem().FieldByName("DialTLS"); !got.IsNil() {
+		t.Fatal("safeTransport legacy DialTLS inherited the process-global TLS dial hook")
+	}
+	if transport.DialContext == nil {
+		t.Fatal("safeTransport must route every connection through the guarded DialContext")
+	}
+}
+
 func TestResolveIPFSURI_ipfsScheme(t *testing.T) {
-	gateway := "https://gateway.lighthouse.storage/ipfs/"
+	gateway := "https://93.184.216.34/ipfs/"
 	cases := []struct {
 		input   string
 		want    string
@@ -80,6 +146,17 @@ func TestResolveIPFSURI_ipfsScheme(t *testing.T) {
 		if got != tc.want {
 			t.Errorf("resolveIPFSURI(%q): got %q, want %q", tc.input, got, tc.want)
 		}
+	}
+}
+
+func TestResolveIPFSURI_PublicHTTPS(t *testing.T) {
+	const publicURL = "https://93.184.216.34/nft/metadata.json"
+	got, err := resolveIPFSURI(publicURL, "https://93.184.216.34/ipfs/")
+	if err != nil {
+		t.Fatalf("resolveIPFSURI(public HTTPS): %v", err)
+	}
+	if got != publicURL {
+		t.Fatalf("resolveIPFSURI(public HTTPS) = %q, want %q", got, publicURL)
 	}
 }
 
@@ -138,28 +215,44 @@ func TestValidateRedirect_RejectsTooManyHops(t *testing.T) {
 }
 
 func TestValidateRedirect_AllowsPublicHTTPS(t *testing.T) {
-	u, _ := url.Parse("https://93.184.216.34/ok") // public IP literal — no DNS
-	if err := validateRedirect(&http.Request{URL: u}, nil); err != nil {
-		t.Errorf("validateRedirect(public https): unexpected error: %v", err)
+	for _, rawURL := range []string{
+		"https://93.184.216.34/ok",
+		"https://93.184.216.34:8443/ok", // NFT media may use any public HTTPS port.
+	} {
+		u, _ := url.Parse(rawURL) // public IP literal — no DNS
+		if err := validateRedirect(&http.Request{URL: u}, nil); err != nil {
+			t.Errorf("validateRedirect(%q): unexpected error: %v", rawURL, err)
+		}
 	}
 }
 
-// End-to-end: the production client must refuse to follow a redirect into a
-// private/non-https host instead of fetching it (the SSRF the proxy enables
-// because it is unauthenticated).
-func TestNFTHTTPClient_RefusesRedirectToPrivateHost(t *testing.T) {
-	secret := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+// End-to-end: a request that reaches a public-name TLS origin must still refuse
+// that origin's redirect to a private TLS host instead of fetching it (the SSRF
+// the proxy enables because it is unauthenticated).
+func TestHTTPClient_RefusesPublicTLSRedirectToPrivateHost(t *testing.T) {
+	secretHits := 0
+	secret := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		secretHits++
 		_, _ = w.Write([]byte("internal-secret"))
 	}))
 	defer secret.Close()
-	redirector := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, secret.URL, http.StatusFound) // → http://127.0.0.1:… (private, http)
-	}))
-	defer redirector.Close()
 
-	body, _, err := doFetch(nftHTTPClient, redirector.URL)
+	redirectHits := 0
+	redirector, client := newGatewayServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		redirectHits++
+		http.Redirect(w, r, secret.URL, http.StatusFound) // → https://127.0.0.1:…
+	}))
+	client.CheckRedirect = validateRedirect
+
+	body, _, err := doFetch(client, redirector.URL)
 	if err == nil {
-		t.Fatalf("expected redirect to a private/non-https host to be refused; got body %q", string(body))
+		t.Fatalf("expected redirect to a private host to be refused; got body %q", string(body))
+	}
+	if redirectHits != 1 {
+		t.Fatalf("public-name TLS redirector hits = %d, want 1", redirectHits)
+	}
+	if secretHits != 0 {
+		t.Fatalf("private TLS target hits = %d, want 0", secretHits)
 	}
 }
 
@@ -179,33 +272,111 @@ func TestResolveIPFSURI_EmptyAndInvalid(t *testing.T) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// isPrivateIP tests
+// Public-destination policy tests
 // ──────────────────────────────────────────────────────────────────────────────
 
-func TestIsPrivateIP(t *testing.T) {
+func TestIsPublicDestinationIP(t *testing.T) {
 	cases := []struct {
-		ip      string
-		private bool
+		ip     string
+		public bool
 	}{
-		{"127.0.0.1", true},
-		{"10.0.0.1", true},
-		{"172.16.0.1", true},
-		{"192.168.1.1", true},
-		{"169.254.169.254", true}, // AWS metadata
-		{"100.64.0.1", true},      // CGN
-		{"8.8.8.8", false},
-		{"1.1.1.1", false},
-		{"104.16.0.0", false}, // Cloudflare
+		{"0.0.0.0", false},
+		{"0.0.0.1", false},
+		{"0.1.2.3", false},
+		{"0.255.255.255", false},
+		{"127.0.0.1", false},
+		{"10.0.0.1", false},
+		{"172.16.0.1", false},
+		{"192.168.1.1", false},
+		{"169.254.169.254", false}, // cloud metadata / link-local
+		{"100.64.0.1", false},      // CGNAT
+		{"192.0.2.1", false},       // documentation
+		{"192.88.99.1", false},     // deprecated relay anycast
+		{"198.18.0.1", false},      // benchmarking
+		{"224.0.0.1", false},       // multicast
+		{"240.0.0.1", false},       // reserved
+		{"::", false},
+		{"::1", false},
+		{"fc00::1", false},
+		{"fec0::1", false},
+		{"fe80::1", false},
+		{"ff02::1", false},
+		{"100:0:0:1::1", false},
+		{"2001:5::1", false},
+		{"2001:db8::1", false},
+		{"3fff::1", false},
+		{"4000::1", false},
+		{"::ffff:127.0.0.1", false},     // IPv4-mapped loopback
+		{"::ffff:0.1.2.3", false},       // IPv4-mapped this-network address
+		{"64:ff9b::a9fe:a9fe", false},   // NAT64-encoded metadata IP
+		{"64:ff9b::1:203", false},       // NAT64-encoded this-network address
+		{"64:ff9b:1::a9fe:a9fe", false}, // local-use translation prefix
+		{"2002:7f00:0001::", false},     // 6to4-encoded loopback
+		{"8.8.8.8", true},
+		{"1.1.1.1", true},
+		{"104.16.0.0", true},
+		{"::ffff:8.8.8.8", true},       // mapped public IPv4
+		{"64:ff9b::808:808", true},     // NAT64-encoded public IPv4
+		{"2002:0808:0808::", false},    // 6to4 has no guaranteed global reachability
+		{"2001:1::1", true},            // PCP anycast exception in 2001::/23
+		{"2001:1::2", true},            // TURN anycast exception in 2001::/23
+		{"2001:1::3", true},            // DNS-SD anycast exception in 2001::/23
+		{"2001:3::1", true},            // AMT
+		{"2001:4:112::1", true},        // AS112-v6
+		{"2001:20::1", true},           // ORCHIDv2
+		{"2001:30::1", true},           // Drone Remote ID entity tags
+		{"2606:4700:4700::1111", true}, // public IPv6
+		{"2001:4860:4860::8888", true}, // public IPv6
 	}
 	for _, tc := range cases {
 		ip := net.ParseIP(tc.ip)
 		if ip == nil {
 			t.Fatalf("net.ParseIP(%q) returned nil", tc.ip)
 		}
-		got := isPrivateIP(ip)
-		if got != tc.private {
-			t.Errorf("isPrivateIP(%q): got %v, want %v", tc.ip, got, tc.private)
+		got := isPublicDestinationIP(ip)
+		if got != tc.public {
+			t.Errorf("isPublicDestinationIP(%q): got %v, want %v", tc.ip, got, tc.public)
 		}
+	}
+	if isPublicDestinationIP(nil) {
+		t.Error("isPublicDestinationIP(nil) = true, want false")
+	}
+}
+
+func TestValidateIPFSGateway(t *testing.T) {
+	cases := []struct {
+		name    string
+		raw     string
+		want    string
+		wantErr bool
+	}{
+		{"public https normalized", "https://93.184.216.34/ipfs", "https://93.184.216.34/ipfs/", false},
+		{"public NAT64 normalized", "https://[64:ff9b::808:808]/ipfs/", "https://[64:ff9b::808:808]/ipfs/", false},
+		{"plain http", "http://93.184.216.34/ipfs/", "", true},
+		{"empty host", "https:///ipfs/", "", true},
+		{"credentials", "https://user:pass@93.184.216.34/ipfs/", "", true},
+		{"query", "https://93.184.216.34/ipfs/?token=x", "", true},
+		{"fragment", "https://93.184.216.34/ipfs/#x", "", true},
+		{"private", "https://127.0.0.1/ipfs/", "", true},
+		{"unspecified ipv6", "https://[::]/ipfs/", "", true},
+		{"nat64 metadata", "https://[64:ff9b::a9fe:a9fe]/ipfs/", "", true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := validateIPFSGateway(tc.raw)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("validateIPFSGateway(%q) = %q, want error", tc.raw, got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("validateIPFSGateway(%q): %v", tc.raw, err)
+			}
+			if got != tc.want {
+				t.Errorf("validateIPFSGateway(%q) = %q, want %q", tc.raw, got, tc.want)
+			}
+		})
 	}
 }
 
@@ -246,6 +417,37 @@ func TestHandleNFTImage_SSRFRejection(t *testing.T) {
 		if rec.Code != http.StatusBadRequest {
 			t.Errorf("expected 400 for SSRF URI %q, got %d", uri, rec.Code)
 		}
+	}
+}
+
+func TestHandleNFTImage_InvalidGatewayConfiguration(t *testing.T) {
+	origImageCache := nftImageCache
+	nftImageCache = newLRUCache(nftCacheMaxEntries)
+	t.Cleanup(func() { nftImageCache = origImageCache })
+	t.Setenv("IPFS_GATEWAY_URL", "http://127.0.0.1/ipfs/")
+
+	handler := HandleNFTImage()
+	req := httptest.NewRequest(http.MethodGet, "/api/nft/image?cid=QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 for invalid gateway configuration, got %d", rec.Code)
+	}
+}
+
+func TestHandleNFTImage_CacheHitDoesNotResolveGateway(t *testing.T) {
+	const cid = "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG"
+	origImageCache := nftImageCache
+	nftImageCache = newLRUCache(nftCacheMaxEntries)
+	nftImageCache.set(cid, cacheEntry{body: []byte("cached"), contentType: "image/png", fetchedAt: time.Now()})
+	t.Cleanup(func() { nftImageCache = origImageCache })
+
+	handler := HandleNFTImage(nftHandlerOptions{gateway: "https://does-not-resolve.invalid/ipfs/"})
+	req := httptest.NewRequest(http.MethodGet, "/api/nft/image?cid="+cid, nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || rec.Header().Get("X-Cache") != "HIT" {
+		t.Fatalf("cached response = status %d, X-Cache %q; want 200 HIT", rec.Code, rec.Header().Get("X-Cache"))
 	}
 }
 
@@ -363,6 +565,33 @@ func TestHandleNFTImage_UpstreamFailure(t *testing.T) {
 	}
 }
 
+func TestHandleNFTImage_InvalidFallbackGatewayIsNotFetched(t *testing.T) {
+	var callCount int
+	ts, client := newGatewayServer(t, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		callCount++
+		w.WriteHeader(http.StatusNotFound)
+	}))
+
+	origImageCache := nftImageCache
+	nftImageCache = newLRUCache(nftCacheMaxEntries)
+	t.Cleanup(func() { nftImageCache = origImageCache })
+
+	handler := HandleNFTImage(nftHandlerOptions{
+		httpClient:      client,
+		gateway:         ts.URL + "/ipfs/",
+		fallbackGateway: "http://127.0.0.1/ipfs/",
+	})
+	req := httptest.NewRequest(http.MethodGet, "/api/nft/image?cid=QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("expected 502, got %d", rec.Code)
+	}
+	if callCount != 1 {
+		t.Fatalf("invalid fallback must not be fetched; primary calls = %d, want 1", callCount)
+	}
+}
+
 // S-F1: the image proxy mirrors the upstream Content-Type. Without anti-sniffing
 // protection an IPFS-pinned HTML file could be served as an active page on the API
 // origin. Every served image response must carry X-Content-Type-Options: nosniff,
@@ -445,6 +674,37 @@ func TestHandleNFTMetadata_MissingParam(t *testing.T) {
 	handler.ServeHTTP(rec, req)
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("expected 400, got %d", rec.Code)
+	}
+}
+
+func TestHandleNFTMetadata_InvalidGatewayConfiguration(t *testing.T) {
+	origMetaCache := nftMetadataCache
+	nftMetadataCache = newLRUCache(nftCacheMaxEntries)
+	t.Cleanup(func() { nftMetadataCache = origMetaCache })
+	t.Setenv("IPFS_GATEWAY_URL", "https://[::]/ipfs/")
+
+	handler := HandleNFTMetadata()
+	req := httptest.NewRequest(http.MethodGet, "/api/nft/metadata?uri=ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("expected 500 for invalid gateway configuration, got %d", rec.Code)
+	}
+}
+
+func TestHandleNFTMetadata_CacheHitDoesNotResolveGateway(t *testing.T) {
+	const uri = "ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG"
+	origMetaCache := nftMetadataCache
+	nftMetadataCache = newLRUCache(nftCacheMaxEntries)
+	nftMetadataCache.set(uri, cacheEntry{body: []byte(`{"name":"cached"}`), contentType: "application/json", fetchedAt: time.Now()})
+	t.Cleanup(func() { nftMetadataCache = origMetaCache })
+
+	handler := HandleNFTMetadata(nftHandlerOptions{gateway: "https://does-not-resolve.invalid/ipfs/"})
+	req := httptest.NewRequest(http.MethodGet, "/api/nft/metadata?uri="+uri, nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusOK || rec.Header().Get("X-Cache") != "HIT" {
+		t.Fatalf("cached response = status %d, X-Cache %q; want 200 HIT", rec.Code, rec.Header().Get("X-Cache"))
 	}
 }
 
