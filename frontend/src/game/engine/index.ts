@@ -4,4 +4,5 @@ export { slideLineLeft } from "./slide";
 export { applyMove, LINE_INDICES } from "./move";
 export { isGameOver } from "./gameover";
 export { initGame, step, replay } from "./game";
+export { theoreticalScoreCeiling, isParTheoreticallyReachable, seedScoreCeiling } from "./fairness";
 export type { Board, Move, Modifier, GameState } from "./types";

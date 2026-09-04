@@ -53,6 +53,16 @@ export async function stubBlockPartyBackend(page: Page): Promise<void> {
     )
 }
 
+/** A ready challenge whose leaderboard dependency fails independently. */
+export async function stubBlockPartyLeaderboardDown(page: Page): Promise<void> {
+    await stubBlockPartyBackend(page)
+    // Playwright routes are evaluated newest-first, so this deliberately
+    // overrides the healthy leaderboard route installed above.
+    await page.route('**/memba.v1.MultisigService/GetDailyLeaderboard', (route) =>
+        route.fulfill({ status: 503, contentType: 'application/json', body: '{}' }),
+    )
+}
+
 /** The failure-path stub: the challenge endpoint answers 500 on every attempt. */
 export async function stubBlockPartyBackendDown(page: Page): Promise<void> {
     await page.route('**/memba.v1.MultisigService/GetDailyChallenge', (route) =>

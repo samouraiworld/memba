@@ -1,5 +1,6 @@
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { initGame, step, type GameState, type Modifier, type Move } from "../engine";
+import { setLocalBest } from "../lib/localStore";
 
 export type GameMode = "ranked" | "practice";
 
@@ -29,6 +30,14 @@ export function useGame(opts: { seed: number; modifier: Modifier; mode: GameMode
   const game = internal.game;
   const movesUsed = game.moves;
   const budgetReached = mode === "ranked" && movesUsed >= moveBudget;
+
+  // Practice has no result sheet when the board still has legal moves, so
+  // persisting only at game-over loses a personal best on refresh or a tab
+  // crash. Write monotonically as the score advances; the storage helper is
+  // guarded for private browsing and quota failures.
+  useEffect(() => {
+    if (mode === "practice") setLocalBest("practice", game.score);
+  }, [mode, game.score]);
 
   return {
     board: game.board,
