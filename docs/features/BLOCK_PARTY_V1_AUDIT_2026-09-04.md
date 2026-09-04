@@ -155,7 +155,7 @@ The base was fixed before worker edits (`ae16e8e2386f52939fd067c557c5a3689722339
 | Gate | Final evidence |
 | --- | --- |
 | Frontend unit | `npm test`: **481 files passed, 1 skipped; 4,783 tests passed, 1 skipped**. The jsdom suite emitted its known non-fatal canvas warning. |
-| Backend | `go test ./... -count=1`: **all packages passed**, including arcade, attestation, auth, Block Party engine/store/service, DB, indexer, rate limit, and RPC nodes. |
+| Backend | `go test ./... -count=1` and the pre-push-required `go test -race ./... -count=1`: **all packages passed**, including arcade, attestation, auth, Block Party engine/store/service, DB, indexer, rate limit, and RPC nodes. |
 | Determinism | `make blockparty-vectors-check`: **passed**; 500-game cross-language corpus and parity-asset tests are in the suites; verify-worker rebuild produced no diff. |
 | Fairness simulation | 1,000,000-seed ceiling sweep and 2,048-seed-per-modifier beam calibration: **passed**. Standard/Doubles/Rush sampled upper-bound maxima were 336/672/296; legacy par was reachable in 0 sampled seeds. |
 | Fuzz | Engine replay fuzz: **742,918 executions** in 5 seconds; submission parser fuzz: **38,082 executions** in 6 seconds; no failure. |
