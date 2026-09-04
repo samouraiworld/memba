@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Security — NFT media fetches keep destination checks authoritative (2026-09-04)
+<!-- categories: memba -->
+- **The public NFT image and metadata proxies now enforce a public-unicast destination policy at the connection boundary**, rejecting unspecified and non-globally-reachable special-purpose addresses, IPv4-mapped IPv6, and private or metadata addresses embedded through known, standardized NAT64 forms; transition ranges without guaranteed global reachability, such as 6to4, are rejected outright.
+- **Outbound NFT media and link-preview requests no longer inherit operating-system proxy settings or process-global TLS dial hooks.** A configured hook could otherwise resolve or dial the requested host itself after Memba had validated only another destination, defeating the DNS-rebinding protection that pins each connection to the checked destination. Deployments using these features must provide direct outbound HTTPS connectivity.
+- Primary and fallback IPFS gateway settings now pass the same HTTPS and public-destination validation before use. Arbitrary public HTTPS media remains supported.
+
 ### The backend's built-in RPC defaults follow the app to Pearl (2026-09-02)
 <!-- categories: memba, network -->
 - **Failover now has somewhere to go.** When the primary RPC node fails, the backend retries a built-in list of backup nodes; that list still named only Sapphire hosts, and both of them stopped answering on September 2 — a week before the chain's formal sunset. The list now carries the two Pearl nodes the app itself uses (the public canonical and our sentry). This is the one default that was live in production, because the backup list is not overridden by any secret.
