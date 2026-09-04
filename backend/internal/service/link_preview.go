@@ -146,13 +146,34 @@ func validateLinkPreviewURL(raw string) (string, error) {
 	if u.Hostname() == "" {
 		return "", fmt.Errorf("empty host")
 	}
-	if p := u.Port(); p != "" && p != "80" && p != "443" {
-		return "", fmt.Errorf("port %q not allowed", p)
+	if err := validateLinkPreviewPort(u); err != nil {
+		return "", err
 	}
 	if err := validateHTTPSHost(u.String()); err != nil { // resolve + reject private IPs
 		return "", err
 	}
 	return u.String(), nil
+}
+
+func validateLinkPreviewPort(u *url.URL) error {
+	if p := u.Port(); p != "" && p != "80" && p != "443" {
+		return fmt.Errorf("port %q not allowed", p)
+	}
+	return nil
+}
+
+// validateLinkPreviewRedirect preserves the link-preview port policy on every
+// redirect hop after applying the shared HTTPS, public-host, and hop-count guards.
+// NFT media uses validateRedirect directly because public HTTPS media may use
+// ports other than 80 and 443.
+func validateLinkPreviewRedirect(req *http.Request, via []*http.Request) error {
+	if err := validateRedirect(req, via); err != nil {
+		return err
+	}
+	if err := validateLinkPreviewPort(req.URL); err != nil {
+		return fmt.Errorf("refusing redirect: %w", err)
+	}
+	return nil
 }
 
 // absoluteURL resolves a possibly-relative image URL against the page URL.
@@ -221,8 +242,8 @@ func verifyImageToken(priv ed25519.PrivateKey, token string, now int64) (string,
 
 var linkPreviewClient = &http.Client{
 	Timeout:       linkPreviewTimeout,
-	CheckRedirect: validateRedirect, // per-hop re-validation + redirect cap (ipfs_serve.go)
-	Transport:     safeTransport(),  // DNS-rebind-safe dial to a validated public IP
+	CheckRedirect: validateLinkPreviewRedirect, // per-hop link-preview policy + redirect cap
+	Transport:     safeTransport(),             // DNS-rebind-safe dial to a validated public IP
 }
 
 func allowedImageType(ct string) bool {

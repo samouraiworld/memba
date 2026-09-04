@@ -217,6 +217,7 @@ func mustParseIPBlock(cidr string) *net.IPNet {
 // private, loopback, link-local, multicast, and unspecified addresses are
 // rejected separately by isPublicDestinationIP.
 var nonPublicIPBlocks = []*net.IPNet{
+	mustParseIPBlock("0.0.0.0/8"),       // current network ("this network")
 	mustParseIPBlock("100.64.0.0/10"),   // shared address space / CGNAT
 	mustParseIPBlock("192.0.0.0/24"),    // IETF protocol assignments
 	mustParseIPBlock("192.0.2.0/24"),    // documentation (TEST-NET-1)

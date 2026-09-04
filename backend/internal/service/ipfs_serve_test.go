@@ -215,9 +215,14 @@ func TestValidateRedirect_RejectsTooManyHops(t *testing.T) {
 }
 
 func TestValidateRedirect_AllowsPublicHTTPS(t *testing.T) {
-	u, _ := url.Parse("https://93.184.216.34/ok") // public IP literal — no DNS
-	if err := validateRedirect(&http.Request{URL: u}, nil); err != nil {
-		t.Errorf("validateRedirect(public https): unexpected error: %v", err)
+	for _, rawURL := range []string{
+		"https://93.184.216.34/ok",
+		"https://93.184.216.34:8443/ok", // NFT media may use any public HTTPS port.
+	} {
+		u, _ := url.Parse(rawURL) // public IP literal — no DNS
+		if err := validateRedirect(&http.Request{URL: u}, nil); err != nil {
+			t.Errorf("validateRedirect(%q): unexpected error: %v", rawURL, err)
+		}
 	}
 }
 
@@ -276,6 +281,9 @@ func TestIsPublicDestinationIP(t *testing.T) {
 		public bool
 	}{
 		{"0.0.0.0", false},
+		{"0.0.0.1", false},
+		{"0.1.2.3", false},
+		{"0.255.255.255", false},
 		{"127.0.0.1", false},
 		{"10.0.0.1", false},
 		{"172.16.0.1", false},
@@ -299,7 +307,9 @@ func TestIsPublicDestinationIP(t *testing.T) {
 		{"3fff::1", false},
 		{"4000::1", false},
 		{"::ffff:127.0.0.1", false},     // IPv4-mapped loopback
+		{"::ffff:0.1.2.3", false},       // IPv4-mapped this-network address
 		{"64:ff9b::a9fe:a9fe", false},   // NAT64-encoded metadata IP
+		{"64:ff9b::1:203", false},       // NAT64-encoded this-network address
 		{"64:ff9b:1::a9fe:a9fe", false}, // local-use translation prefix
 		{"2002:7f00:0001::", false},     // 6to4-encoded loopback
 		{"8.8.8.8", true},
