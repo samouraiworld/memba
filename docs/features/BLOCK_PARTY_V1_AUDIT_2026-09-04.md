@@ -160,12 +160,13 @@ The base was fixed before worker edits (`ae16e8e2386f52939fd067c557c5a3689722339
 | Fairness simulation | 1,000,000-seed ceiling sweep and 2,048-seed-per-modifier beam calibration: **passed**. Standard/Doubles/Rush sampled upper-bound maxima were 336/672/296; legacy par was reachable in 0 sampled seeds. |
 | Fuzz | Engine replay fuzz: **742,918 executions** in 5 seconds; submission parser fuzz: **38,082 executions** in 6 seconds; no failure. |
 | Type/lint/theme/security | `npx tsc --noEmit`, `npm run lint`, exact hardcoded text-color gate, and `npm run audit:ci`: **passed**; no unallowlisted high/critical production advisory. |
+| Root workspace advisory check | `node scripts/pnpm-audit-ci.mjs`: **fails on the unchanged base lockfile**. `fast-uri` resolves to 4.1.2 through `mcp-server > @modelcontextprotocol/sdk > ajv`; four high advisories published against `<4.1.3` require a root override and `pnpm-lock.yaml` re-resolution. The workflow explicitly marks this check non-required today. This game branch does not change protected lockfiles or unrelated MCP dependencies. |
 | Build/bundle | `npm run build` and `npm run check:bundle`: **passed**. Block Party lazy JS is 30.61 kB (10.22 kB gzip), CSS 23.02 kB (4.65 kB gzip). Main JS is 388 kB, under the 600 kB CI limit; total JS is 4,547 kB and retains the repository's warning-only >3 MB condition. Three.js remains isolated and precache-excluded. |
 | Desktop/soak | Chromium Block Party matrix repeated three times serially: **12/12 passed** (real completion, dependency failure, cached reconnect, keyboard, light/dark, reduced motion). |
 | Mobile/a11y | Chromium Pixel + WebKit iPhone: **6/6 passed**, covering 320/390/430 portrait, 667×375 landscape, real swipe, 44 px controls, failed-vs-empty, and axe WCAG 2.1 AA with no serious/critical finding. |
 | Review/hygiene | Independent adversarial review: **no blocking code findings remain**. `git diff --check`: **passed**. No realm, schema, deployment, flag, lockfile, shared navigation/discovery, Space Invaders, or primary-checkout change. |
 
-Every locally runnable required gate is green. Opening a PR still depends on remote authentication/availability. This branch will not merge or deploy.
+Every Block Party and currently required locally runnable gate is green. The separate non-required root pnpm advisory check remains red for the unchanged-base dependency issue recorded above, so the PR must not be described as all-check-green. This branch will not merge or deploy.
 
 ## Risks and owner decisions
 
@@ -174,3 +175,4 @@ Every locally runnable required gate is green. Opening a PR still depends on rem
 3. **First-write remains an intentionally strict product policy.** Exact retries now recover safely, but a different replay remains a final conflict and there is no authenticated cross-device read endpoint for the already accepted personal result.
 4. **No Block Party attestation exists.** Do not use “on-chain,” “certified,” or “attested” for a stored score.
 5. **A mechanical name/visual review is still needed.** Original presentation reduces trade-dress risk, but counsel/owner review controls any public naming change.
+6. **The root pnpm lockfile has an unrelated high-advisory gate failure.** A dedicated dependency-security change must raise the `fast-uri` override to at least 4.1.3 and re-resolve the lockfile; that protected cross-workspace change is outside this game branch.

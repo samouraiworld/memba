@@ -20,6 +20,14 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Block Party's Daily is now honest, resilient, and ready for review (2026-09-04)
+<!-- categories: memba -->
+- **An outage can no longer look like an empty competition.** Daily challenge, leaderboard, streak, and submission failures have their own messages and retries. A saved challenge is visibly unranked and can become a Practice board, but it cannot enter the leaderboard until the service confirms it live.
+- **Uncertain submissions are safe to retry.** The server returns the same authoritative result for an exact replay retry, keeps a different later replay as a clear first-result conflict, and updates streaks transactionally without counting the same day twice.
+- **The impossible target is gone without changing the game.** TypeScript and Go now agree on a deterministic score ceiling, backed by million-seed calibration evidence; legacy targets above that ceiling are hidden while scoring, RNG, move budgets, hashes, and old replays remain unchanged.
+- **The game has a new Pearl-native signal-board presentation.** Daily and Practice are clearer, guest bests and streaks persist, share links retain their UTC date without private data, and the board now supports accessible keyboard and captured touch input, reduced motion, light/dark themes, screen-reader context, and 320 px through short-landscape layouts.
+- Production Daily is still deliberately paused by the backend kill switch. This change does not enable, deploy, reseed, or alter any live chain or stored score.
+
 ### The backend's built-in RPC defaults follow the app to Pearl (2026-09-02)
 <!-- categories: memba, network -->
 - **Failover now has somewhere to go.** When the primary RPC node fails, the backend retries a built-in list of backup nodes; that list still named only Sapphire hosts, and both of them stopped answering on September 2 — a week before the chain's formal sunset. The list now carries the two Pearl nodes the app itself uses (the public canonical and our sentry). This is the one default that was live in production, because the backup list is not overridden by any secret.
