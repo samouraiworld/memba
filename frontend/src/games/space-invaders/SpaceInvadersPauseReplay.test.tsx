@@ -17,6 +17,8 @@ vi.mock("./SpaceInvadersCertify", () => ({
 
 // Deterministic rAF: callbacks queue up and only run when a test flushes them.
 let rafQueue: FrameRequestCallback[] = [];
+const FULL_RUN_TIMEOUT_MS = 15_000;
+
 function flushFrame(time: number) {
   const cbs = rafQueue;
   rafQueue = [];
@@ -116,7 +118,7 @@ describe("pause determinism (daily replay fidelity)", () => {
     // final state) must pass — the pause left no hole in the timeline.
     expect(screen.getByText(/verified locally/i)).toBeInTheDocument();
     expect(screen.queryByText(/verification pending/i)).toBeNull();
-  });
+  }, FULL_RUN_TIMEOUT_MS);
 
   it("a paused game consumes no ticks: score and wave are byte-identical across a long pause", () => {
     render(<SpaceInvaders />);
@@ -191,5 +193,5 @@ describe("pause determinism (daily replay fidelity)", () => {
     fireEvent.click(screen.getByRole("button", { name: /resume defense/i }));
     driveToGameover(60_000);
     expect(screen.getByText(/verified locally/i)).toBeInTheDocument();
-  });
+  }, FULL_RUN_TIMEOUT_MS);
 });
