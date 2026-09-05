@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
 
 /**
  * Space Invaders E2E happy-path. The game is pure frontend (deterministic
@@ -23,23 +24,43 @@ test.describe('Space Invaders', () => {
 		await page.setViewportSize({ width: 1280, height: 800 })
 	})
 
-	test('renders the arcade shell and starts the run on first input', async ({ page }) => {
+	test('renders the Space Invaders cabinet and starts a daily run from the focused surface', async ({ page }) => {
 		const network = await resolveNetwork(page)
 
 		await page.goto(`/${network}/game/space-invaders`, { waitUntil: 'domcontentloaded' })
 
-		// HUD and play area are up (flag on → the game, not the coming-soon gate)
-		await expect(page.getByText(/score 0/i)).toBeVisible({ timeout: 10_000 })
+		// Branded shell and play area are up (flag on → the game, not the gate).
+		await expect(page.getByRole('heading', { name: 'Space Invaders' })).toBeVisible({ timeout: 10_000 })
 		await expect(page.getByLabel(/space invaders play area/i)).toBeVisible()
 
-		// The ready prompt shows until the first meaningful input
-		const readyPrompt = page.getByText(/space fire/i)
+		// Daily is the primary entry. Selecting it arms the deterministic run and
+		// moves focus to the keyboard-owned surface without starting simulation.
+		await page.getByRole('button', { name: /daily run/i }).click()
+		const surface = page.getByRole('group', { name: /signal defense game surface/i })
+		await expect(surface).toBeFocused()
+		const readyPrompt = page.getByRole('heading', { name: /relay standing by/i })
 		await expect(readyPrompt).toBeVisible()
 
-		// Hold Space long enough for the rAF loop to sample the held key
+		// Hold Space long enough for the rAF loop to sample the held key.
 		await page.keyboard.press('Space', { delay: 150 })
 
-		// First input starts the run: the ready overlay clears
+		// First input starts the run: the armed overlay clears and status updates.
 		await expect(readyPrompt).toBeHidden({ timeout: 10_000 })
+		await expect(page.getByText(/relay online/i).first()).toBeVisible()
+	})
+
+	test('has no serious or critical WCAG 2.1 AA violations in the ready cabinet', async ({ page }) => {
+		const network = await resolveNetwork(page)
+		await page.goto(`/${network}/game/space-invaders`, { waitUntil: 'domcontentloaded' })
+		await expect(page.getByRole('heading', { name: 'Space Invaders' })).toBeVisible({ timeout: 10_000 })
+
+		const results = await new AxeBuilder({ page })
+			.include('.si-root')
+			.withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+			.analyze()
+		const failing = results.violations.filter(
+			(violation) => violation.impact === 'critical' || violation.impact === 'serious',
+		)
+		expect(failing, failing.map((violation) => `${violation.id}: ${violation.help}`).join('\n')).toHaveLength(0)
 	})
 })

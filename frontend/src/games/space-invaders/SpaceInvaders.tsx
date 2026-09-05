@@ -23,6 +23,8 @@ const SpaceInvadersCertify = lazy(() => import("./SpaceInvadersCertify"));
 
 type RunMode = "free" | "daily";
 
+const HUD_UPDATE_MS = 100;
+
 // The finished daily run, snapshotted into state at the gameover transition
 // (never read from refs during render). `events` is the certify wire form
 // ([tick, move10, fire, pause] int tuples); `verified` means the wire-decoded
@@ -67,27 +69,32 @@ export default function SpaceInvaders({
   const [best, setBest] = useState(() => loadBest());
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const fxRef = useRef<FxState>(createFx(runSeed, { reducedMotion }));
-  const audioRef = useRef<AudioEngine>(createAudioEngine());
+  const audioRef = useRef<AudioEngine | null>(null);
   const [muted, setMuted] = useState(() => loadMuted());
 
   // Daily-challenge state. The refs feed the rAF loop; mode/day/outcome are
   // mirrored into React state for render. Free play records NOTHING — the
   // recorder ref stays null, so the loop's certify path is a single null check.
   const [mode, setMode] = useState<RunMode>("free");
+  const [runArmed, setRunArmed] = useState(() => initialState?.phase != null && initialState.phase !== "ready");
   const [dailyDay, setDailyDay] = useState("");
   const [dailyOutcome, setDailyOutcome] = useState<DailyOutcome | null>(null);
   const modeRef = useRef<RunMode>("free");
+  const runArmedRef = useRef(initialState?.phase != null && initialState.phase !== "ready");
   const dailySeedStrRef = useRef("");
   const recorderRef = useRef<InputRecorder | null>(null);
+  const last = useRef<number | null>(null);
+  const accRef = useRef(0);
+  const lastHudUpdateRef = useRef(0);
 
+  // Construct WebAudio inside the effect that owns it. This remains correct
+  // under React StrictMode's setup → cleanup → setup development cycle and
+  // prevents render-time listener leaks during the throttled HUD updates.
   useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
-
-  // Unlock WebAudio on the first user gesture (mobile autoplay policy).
-  useEffect(() => {
+    const audio = createAudioEngine();
+    audioRef.current = audio;
     const unlock = () => {
-      audioRef.current.unlock();
+      audio.unlock();
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
     };
@@ -96,14 +103,38 @@ export default function SpaceInvaders({
     return () => {
       window.removeEventListener("pointerdown", unlock);
       window.removeEventListener("keydown", unlock);
+      audio.dispose();
+      if (audioRef.current === audio) audioRef.current = null;
     };
   }, []);
 
   const areaRef = useRef<HTMLDivElement>(null);
-  const getKeyInput = useKeyboard();
+  const getKeyInput = useKeyboard(areaRef);
   // useTouch's signature predates the stricter RefObject<T | null> inference;
   // the ref is always non-null by the time the effect inside useTouch runs.
   const getTouchInput = useTouch(areaRef as RefObject<HTMLElement>);
+
+  // Losing the page is an explicit pause boundary. No ticks or replay inputs
+  // are consumed while the player cannot see or control the run.
+  useEffect(() => {
+    const pauseForInterruption = () => {
+      const cur = stateRef.current;
+      if (cur.phase !== "playing") return;
+      const next = { ...cur, phase: "paused" as const };
+      stateRef.current = next;
+      accRef.current = 0;
+      setState(next);
+    };
+    const onVisibilityChange = () => {
+      if (document.visibilityState !== "visible") pauseForInterruption();
+    };
+    window.addEventListener("blur", pauseForInterruption);
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      window.removeEventListener("blur", pauseForInterruption);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
+  }, []);
 
   // Quantize steering to tenths AT THE INPUT SEAM (combineInput): the live
   // engine, the recorder, and the server's replay (which reconstructs move as
@@ -150,8 +181,6 @@ export default function SpaceInvaders({
 
   // rAF loop (inline so tests can stub rAF). The canvas is drawn every frame
   // from the mutable state ref + fx layer — never from React state.
-  const last = useRef<number | null>(null);
-  const accRef = useRef(0);
   useEffect(() => {
     let raf = 0;
     const tick = (time: number) => {
@@ -171,11 +200,16 @@ export default function SpaceInvaders({
         }
       }
 
-      if (stateRef.current.phase === "paused") {
+      const currentPhase = stateRef.current.phase;
+      if (currentPhase === "paused" || currentPhase === "gameover") {
         // Determinism: a paused game consumes NO ticks. Skip stepping entirely
         // and DROP the accumulator, so paused wall-time never turns into engine
         // steps — the recorded timeline is pause-free and a replay (which runs
         // with pause:false throughout) reproduces the run exactly.
+        accRef.current = 0;
+      } else if (currentPhase === "ready" && (!runArmedRef.current || (input.move === 0 && !input.fire))) {
+        // The menu and an armed-but-idle relay are presentation states. Polling
+        // can continue for keyboard/touch input, but the simulation does not.
         accRef.current = 0;
       } else {
         const { steps, acc } = drainAccumulator(accRef.current, frameMs);
@@ -194,10 +228,16 @@ export default function SpaceInvaders({
           const { state: next, events } = advanceWithEvents(prev, steps, engineInput);
           stateRef.current = next;
           fxConsume(fxRef.current, events);
-          for (const s of soundsForEvents(events)) audioRef.current.play(s);
+          for (const s of soundsForEvents(events)) audioRef.current?.play(s);
           if (events.some((e) => e.type === "playerHit")) vibrate(40);
           else if (events.some((e) => e.type === "waveCleared")) vibrate([15, 30, 15]);
-          setState(next);
+          // Canvas paint reads the authoritative ref at frame rate. React only
+          // needs a compact HUD projection, plus immediate phase transitions.
+          const phaseChanged = next.phase !== prev.phase;
+          if (phaseChanged || time - lastHudUpdateRef.current >= HUD_UPDATE_MS) {
+            lastHudUpdateRef.current = time;
+            setState(next);
+          }
           // Persist the high score exactly on the transition into game over.
           if (next.phase === "gameover" && prev.phase !== "gameover") {
             setBest(saveBest(next.score));
@@ -239,6 +279,8 @@ export default function SpaceInvaders({
     }
     modeRef.current = nextMode;
     setMode(nextMode);
+    runArmedRef.current = true;
+    setRunArmed(true);
     setDailyOutcome(null);
     seedRef.current = nextSeed;
     const fresh = newGame(nextSeed);
@@ -247,9 +289,29 @@ export default function SpaceInvaders({
     accRef.current = 0;
     fxRef.current = createFx(nextSeed, { reducedMotion });
     setState(fresh);
+    areaRef.current?.focus({ preventScroll: true });
   };
 
   const restart = () => beginRun(modeRef.current);
+
+  const openMenu = () => {
+    const nextSeed = seed ?? newRunSeed();
+    modeRef.current = "free";
+    runArmedRef.current = false;
+    dailySeedStrRef.current = "";
+    recorderRef.current = null;
+    seedRef.current = nextSeed;
+    last.current = null;
+    accRef.current = 0;
+    fxRef.current = createFx(nextSeed, { reducedMotion });
+    const fresh = newGame(nextSeed);
+    stateRef.current = fresh;
+    setMode("free");
+    setRunArmed(false);
+    setDailyDay("");
+    setDailyOutcome(null);
+    setState(fresh);
+  };
 
   const togglePause = () => {
     const cur = stateRef.current;
@@ -262,100 +324,192 @@ export default function SpaceInvaders({
 
   const certifyOn = isSpaceInvadersEnabled() && isSpaceInvadersCertifyEnabled();
 
-  return (
-    <div className="si-root">
-      <div className="si-hud">
-        <span>Score {state.score}</span>
-        <span>Best {best}</span>
-        <span>Wave {state.wave}</span>
-        {state.combo >= 2 && (
-          <span className="si-combo" aria-label={`combo multiplier ${(comboMultiplier10(state.combo) / 10).toFixed(1)} times`}>
-            ×{(comboMultiplier10(state.combo) / 10).toFixed(1)}
-          </span>
-        )}
-        <span aria-label={`${Math.max(0, state.lives)} lives`}>
-          Lives {"◈".repeat(Math.max(0, state.lives))}
-        </span>
-        <button
-          type="button"
-          className="si-pause"
-          onClick={() => {
-            const m = !muted;
-            audioRef.current.setMuted(m);
-            setMuted(m);
-          }}
-          aria-label={muted ? "Unmute" : "Mute"}
-        >
-          {muted ? "🔇" : "🔊"}
-        </button>
-        <button
-          type="button"
-          className="si-pause"
-          onClick={togglePause}
-          aria-label={state.phase === "paused" ? "Resume" : "Pause"}
-        >
-          {state.phase === "paused" ? "▶" : "⏸"}
-        </button>
-      </div>
+  const phaseLabel = state.phase === "playing"
+    ? "Relay online"
+    : state.phase === "paused"
+      ? "Signal held"
+      : state.phase === "gameover"
+        ? "Signal lost"
+        : runArmed
+          ? "Relay standing by"
+          : "Choose a transmission";
 
-      <div className="si-stage" ref={areaRef}>
-        <Canvas canvasRef={canvasRef} />
-        {state.phase === "ready" && (
-          <div className="si-touch-hints" aria-hidden="true">
-            <div className="si-touch-zone si-touch-steer">◀ drag to steer ▶</div>
-            <div className="si-touch-zone si-touch-fire">tap · fire</div>
-          </div>
-        )}
-        {state.phase === "ready" && (
-          <div className="si-overlay">
-            <p>◀ ▶ move · Space fire</p>
-            <p className="si-hint">On mobile: drag on the left to steer, tap right to fire</p>
-            {mode === "daily" ? (
-              <p className="si-daily-chip">Daily · {dailyDay} — make a move to begin</p>
-            ) : (
-              <p className="si-hint">Everyone gets the same daily board; free play is just for fun.</p>
-            )}
-            <div className="si-mode-row">
-              <button type="button" onClick={() => beginRun("daily")}>Daily run</button>
-              <button type="button" onClick={() => beginRun("free")}>Free play</button>
+  const announcement = state.phase === "playing"
+    ? `Relay online. Wave ${state.wave}.`
+    : state.phase === "paused"
+      ? "Signal held. Game paused."
+      : state.phase === "gameover"
+        ? `Signal lost. Final score ${state.score}.`
+        : runArmed
+          ? `${mode === "daily" ? "Daily signal" : "Free signal"} armed. Use movement or fire to begin.`
+          : "Choose daily run or free play.";
+
+  return (
+    <section className="si-root" aria-labelledby="si-title">
+      <header className="si-heading">
+        <div>
+          <p className="si-eyebrow">Memba // Pearl signal network</p>
+          <h1 id="si-title">Space Invaders</h1>
+          <p className="si-deck">Signal Defense — hold the relay, clear the swarm, keep Pearl online.</p>
+        </div>
+        <div className={`si-phase si-phase--${state.phase}`}>
+          <span aria-hidden="true" />
+          {phaseLabel}
+        </div>
+      </header>
+
+      <div className="si-cabinet">
+        <section className="si-console" aria-label="Space Invaders: Signal Defense arcade cabinet">
+          <div className="si-hud" aria-label="Current run status">
+            <div className="si-stat si-stat--score"><span>Score</span><strong>{state.score.toLocaleString()}</strong></div>
+            <div className="si-stat"><span>Best</span><strong>{best.toLocaleString()}</strong></div>
+            <div className="si-stat"><span>Wave</span><strong>{state.wave}</strong></div>
+            <div
+              className={`si-stat si-combo${state.combo < 2 ? " si-combo--idle" : ""}`}
+              aria-hidden={state.combo < 2 ? "true" : undefined}
+              aria-label={state.combo >= 2 ? `combo multiplier ${(comboMultiplier10(state.combo) / 10).toFixed(1)} times` : undefined}
+            >
+              <span>Chain</span><strong>×{(comboMultiplier10(state.combo) / 10).toFixed(1)}</strong>
+            </div>
+            <div className="si-stat si-stat--lives" aria-label={`${Math.max(0, state.lives)} lives`}>
+              <span>Relays</span><strong aria-hidden="true">{"◆".repeat(Math.max(0, state.lives)) || "—"}</strong>
+            </div>
+            <div className="si-actions">
+              <button
+                type="button"
+                className="si-icon-button"
+                onClick={() => {
+                  const m = !muted;
+                  audioRef.current?.setMuted(m);
+                  setMuted(m);
+                }}
+                aria-label={muted ? "Unmute" : "Mute"}
+                title={muted ? "Unmute" : "Mute"}
+              >
+                <span aria-hidden="true">{muted ? "×" : "♪"}</span>
+              </button>
+              <button
+                type="button"
+                className="si-icon-button"
+                onClick={togglePause}
+                aria-label={state.phase === "paused" ? "Resume" : "Pause"}
+                title={state.phase === "paused" ? "Resume" : "Pause"}
+                disabled={state.phase !== "playing" && state.phase !== "paused"}
+              >
+                <span aria-hidden="true">{state.phase === "paused" ? "▶" : "Ⅱ"}</span>
+              </button>
             </div>
           </div>
-        )}
-        {state.phase === "paused" && <div className="si-overlay"><p>Paused</p></div>}
-        {state.phase === "gameover" && (
-          <div className="si-overlay si-gameover">
-            <h2>Game Over</h2>
-            {mode === "daily" && dailyOutcome && (
-              <p className="si-daily-chip">
-                Daily · {dailyOutcome.day} · {dailyOutcome.verified ? "Verified ✓" : "Unverified"}
-              </p>
+
+          <div
+            className={`si-stage${state.phase === "playing" ? "" : " si-stage--overlay"}`}
+            ref={areaRef}
+            role="group"
+            tabIndex={0}
+            aria-label="Space Invaders: Signal Defense game surface"
+            aria-describedby="si-controls"
+          >
+            <Canvas canvasRef={canvasRef} />
+            {state.phase === "ready" && runArmed && (
+              <div className="si-touch-hints" aria-hidden="true">
+                <div className="si-touch-zone si-touch-steer">drag · steer</div>
+                <div className="si-touch-zone si-touch-fire">tap · fire</div>
+              </div>
             )}
-            <p>Score {state.score} · Best {best}</p>
-            <div className="si-mode-row">
-              <button type="button" onClick={restart}>Play again</button>
-              {mode === "daily" && (
-                <button type="button" onClick={() => beginRun("free")}>Menu</button>
-              )}
-            </div>
-            {certifyOn && mode === "daily" && dailyOutcome?.verified && (
-              <div className="si-certify">
-                <Suspense fallback={null}>
-                  <SpaceInvadersCertify
-                    run={{
-                      seed: dailyOutcome.seed,
-                      simVersion: REPLAY_VERSION,
-                      events: dailyOutcome.events,
-                      finalTick: dailyOutcome.finalTick,
-                      claimedScore: dailyOutcome.score,
-                      claimedHash: dailyOutcome.hash,
-                    }}
-                  />
-                </Suspense>
+            {state.phase === "ready" && !runArmed && (
+              <div className="si-overlay si-menu">
+                <p className="si-overlay-kicker">Choose transmission</p>
+                <h2>Defend the Pearl relay</h2>
+                <p className="si-overlay-copy">One shared signal. One score to beat. The daily run is locally replay-checked when it ends.</p>
+                <div className="si-mode-stack">
+                  <button className="si-button si-button--primary si-mode-button" type="button" onClick={() => beginRun("daily")}>
+                    <span>Daily run</span>
+                    <small>Shared UTC signal · replay eligible</small>
+                  </button>
+                  <button className="si-button si-button--secondary si-mode-button" type="button" onClick={() => beginRun("free")}>
+                    <span>Free play</span>
+                    <small>Fresh signal · practice without certification</small>
+                  </button>
+                </div>
+              </div>
+            )}
+            {state.phase === "ready" && runArmed && (
+              <div className="si-overlay si-ready">
+                <p className="si-overlay-kicker">{mode === "daily" ? `Daily signal · ${dailyDay}` : "Free signal"}</p>
+                <h2>Relay standing by</h2>
+                <p className="si-control-line">← → move · Space fire</p>
+                <p className="si-overlay-copy">Make a move to begin. On touch, drag left to steer and tap right to fire.</p>
+                <button className="si-text-button" type="button" onClick={openMenu}>Change transmission</button>
+              </div>
+            )}
+            {state.phase === "paused" && (
+              <div className="si-overlay si-pause-sheet">
+                <p className="si-overlay-kicker">Signal held</p>
+                <h2>Relay paused</h2>
+                <p className="si-overlay-copy">The simulation is frozen. Resume when you are ready.</p>
+                <button className="si-button si-button--primary" type="button" onClick={togglePause}>Resume defense</button>
+              </div>
+            )}
+            {state.phase === "gameover" && (
+              <div className="si-overlay si-gameover">
+                <p className="si-overlay-kicker">Signal lost</p>
+                <h2>Game Over</h2>
+                <div className="si-result-score"><span>Final score</span><strong>{state.score.toLocaleString()}</strong></div>
+                <p className="si-result-best">Best signal {best.toLocaleString()}</p>
+                {mode === "daily" && dailyOutcome && (
+                  <p className={`si-verification ${dailyOutcome.verified ? "si-verification--ok" : "si-verification--pending"}`}>
+                    <span aria-hidden="true">{dailyOutcome.verified ? "✓" : "…"}</span>
+                    Daily · {dailyOutcome.day} · {dailyOutcome.verified ? "Verified locally" : "Verification pending"}
+                  </p>
+                )}
+                <div className="si-mode-row">
+                  <button className="si-button si-button--primary" type="button" onClick={restart}>Play again</button>
+                  <button className="si-button si-button--secondary" type="button" onClick={openMenu}>Menu</button>
+                </div>
+                {certifyOn && mode === "daily" && dailyOutcome?.verified && (
+                  <div className="si-certify">
+                    <Suspense fallback={null}>
+                      <SpaceInvadersCertify
+                        run={{
+                          seed: dailyOutcome.seed,
+                          simVersion: REPLAY_VERSION,
+                          events: dailyOutcome.events,
+                          finalTick: dailyOutcome.finalTick,
+                          claimedScore: dailyOutcome.score,
+                          claimedHash: dailyOutcome.hash,
+                        }}
+                      />
+                    </Suspense>
+                  </div>
+                )}
               </div>
             )}
           </div>
-        )}
+        </section>
+
+        <aside className="si-brief" aria-label="Operator briefing">
+          <section className="si-brief-card si-brief-card--status">
+            <p className="si-brief-label">Current link</p>
+            <strong>{phaseLabel}</strong>
+            <p>{mode === "daily" && runArmed ? `UTC signal ${dailyDay}` : runArmed ? "Unranked practice signal" : "No transmission selected"}</p>
+          </section>
+          <section className="si-brief-card" id="si-controls">
+            <p className="si-brief-label">Controls</p>
+            <dl className="si-controls">
+              <div><dt><kbd>←</kbd><kbd>→</kbd></dt><dd>Move relay</dd></div>
+              <div><dt><kbd>Space</kbd></dt><dd>Fire pulse</dd></div>
+              <div><dt><kbd>P</kbd></dt><dd>Hold signal</dd></div>
+              <div><dt>Touch</dt><dd>Drag left · tap right</dd></div>
+            </dl>
+          </section>
+          <section className="si-brief-card si-brief-card--mission">
+            <p className="si-brief-label">Operator note</p>
+            <p>Chain clean hits to amplify your signal. Every miss breaks the multiplier.</p>
+          </section>
+        </aside>
       </div>
-    </div>
+
+      <p className="si-sr-only" aria-live="polite" aria-atomic="true">{announcement}</p>
+    </section>
   );
 }
