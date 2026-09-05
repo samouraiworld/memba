@@ -25,7 +25,6 @@ vi.mock("./SpaceInvadersCertify", () => ({
 }));
 
 let rafQueue: FrameRequestCallback[] = [];
-const FULL_RUN_TIMEOUT_MS = 15_000;
 
 function flushFrame(time: number) {
   const cbs = rafQueue;
@@ -65,12 +64,20 @@ function nudgeAndDie(maxFrames = 600): void {
   flushFrame(250);
   fireEvent.keyUp(surface, { key: "ArrowRight" });
   let t = 250;
-  for (let i = 0; i < maxFrames; i++) {
-    t += 250;
-    flushFrame(t);
-    if (screen.queryByText(/game over/i)) return;
+  // Drive the remaining deterministic frame budget in one React transaction.
+  // Querying the DOM and opening an `act` scope for every synthetic frame made
+  // these full-game scenarios sensitive to repository-wide worker contention.
+  act(() => {
+    for (let i = 0; i < maxFrames; i++) {
+      t += 250;
+      const cbs = rafQueue;
+      rafQueue = [];
+      for (const cb of cbs) cb(t);
+    }
+  });
+  if (!screen.queryByText(/game over/i)) {
+    throw new Error("run did not reach game over within the frame budget");
   }
-  throw new Error("run did not reach game over within the frame budget");
 }
 
 describe("SpaceInvaders daily mode", () => {
@@ -99,7 +106,7 @@ describe("SpaceInvaders daily mode", () => {
     expect(screen.getByText(/verified locally/i)).toBeInTheDocument();
     // Certify flags are OFF here — the wallet surface must not render.
     expect(screen.queryByText(/certify on-chain/i)).toBeNull();
-  }, FULL_RUN_TIMEOUT_MS);
+  });
 
   it("renders the certify control only when BOTH flags are on and the run verified", async () => {
     vi.stubEnv("VITE_ENABLE_SPACE_INVADERS", "true");
@@ -111,7 +118,7 @@ describe("SpaceInvaders daily mode", () => {
     // and a positive finalTick (the wire's required SI field).
     const btn = await screen.findByRole("button", { name: /certify on-chain invaders-2026-09-01 @\d+/i });
     expect(btn).toBeInTheDocument();
-  }, FULL_RUN_TIMEOUT_MS);
+  });
 
   it("keeps the certify control dark when only the play flag is on", async () => {
     vi.stubEnv("VITE_ENABLE_SPACE_INVADERS", "true");
@@ -121,7 +128,7 @@ describe("SpaceInvaders daily mode", () => {
     nudgeAndDie();
     expect(screen.getByText(/verified locally/i)).toBeInTheDocument();
     expect(screen.queryByText(/certify on-chain/i)).toBeNull();
-  }, FULL_RUN_TIMEOUT_MS);
+  });
 
   it("Play again on a daily reuses the day's seed (the chip still names the same day)", () => {
     render(<SpaceInvaders />);
@@ -133,7 +140,7 @@ describe("SpaceInvaders daily mode", () => {
     expect(screen.getByText(/daily signal · 2026-09-01/i)).toBeInTheDocument();
     expect(screen.getByText(/space fire/i)).toBeInTheDocument();
     expect(screen.queryByText(/game over/i)).toBeNull();
-  }, FULL_RUN_TIMEOUT_MS);
+  });
 
   it("free play stays the no-recording default: no daily chip, no verify badge, no certify", () => {
     // A fixed prop seed makes the free run deterministic for the drive loop.
@@ -145,7 +152,7 @@ describe("SpaceInvaders daily mode", () => {
     expect(screen.queryByText(/verified/i)).toBeNull();
     expect(screen.queryByText(/verification pending/i)).toBeNull();
     expect(screen.queryByText(/certify/i)).toBeNull();
-  }, FULL_RUN_TIMEOUT_MS);
+  });
 
   it("Menu from a daily game over returns to the free-mode chooser", () => {
     render(<SpaceInvaders />);
@@ -154,5 +161,5 @@ describe("SpaceInvaders daily mode", () => {
     fireEvent.click(screen.getByRole("button", { name: /menu/i }));
     expect(screen.getByRole("button", { name: /daily run/i })).toBeInTheDocument();
     expect(screen.queryByText(/daily · 2026-09-01/i)).toBeNull();
-  }, FULL_RUN_TIMEOUT_MS);
+  });
 });

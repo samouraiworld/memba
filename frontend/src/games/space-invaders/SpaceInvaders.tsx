@@ -109,6 +109,9 @@ export default function SpaceInvaders({
   }, []);
 
   const areaRef = useRef<HTMLDivElement>(null);
+  const focusGameSurface = useCallback(() => {
+    areaRef.current?.focus({ preventScroll: true });
+  }, []);
   const getKeyInput = useKeyboard(areaRef);
   // useTouch's signature predates the stricter RefObject<T | null> inference;
   // the ref is always non-null by the time the effect inside useTouch runs.
@@ -179,10 +182,11 @@ export default function SpaceInvaders({
     });
   }, []);
 
-  // rAF loop (inline so tests can stub rAF). The canvas is drawn every frame
-  // from the mutable state ref + fx layer — never from React state.
+  // rAF loop (inline so tests can stub rAF). Active play draws from the mutable
+  // state ref + fx layer — never from React state; static phases paint on change.
   useEffect(() => {
     let raf = 0;
+    let lastPaintedState: GameState | null = null;
     const tick = (time: number) => {
       if (last.current == null) last.current = time;
       const frameMs = time - last.current;
@@ -197,6 +201,10 @@ export default function SpaceInvaders({
           const next = { ...cur, phase };
           stateRef.current = next;
           setState(next);
+          // The P shortcut already originates inside the keyboard-owned
+          // surface. Reasserting focus keeps that contract explicit across the
+          // pause overlay transition without affecting interruption pauses.
+          focusGameSurface();
         }
       }
 
@@ -247,16 +255,23 @@ export default function SpaceInvaders({
         }
       }
 
-      // Cosmetic layer advances on wall-clock; draw the canvas every frame.
-      fxUpdate(fxRef.current, frameMs);
-      const ctx = canvasRef.current?.getContext("2d");
-      if (ctx) draw(ctx, stateRef.current, fxRef.current);
+      // Active play paints at frame rate. Static menu, armed-idle, paused, and
+      // game-over states paint exactly once per state change: input polling can
+      // stay live without burning mobile CPU/battery on an unchanged canvas.
+      const renderState = stateRef.current;
+      const activelyAnimating = renderState.phase === "playing";
+      if (activelyAnimating) fxUpdate(fxRef.current, frameMs);
+      if (activelyAnimating || renderState !== lastPaintedState) {
+        const ctx = canvasRef.current?.getContext("2d");
+        if (ctx) draw(ctx, renderState, fxRef.current);
+        lastPaintedState = renderState;
+      }
 
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [getInput, finishDailyRun]);
+  }, [getInput, finishDailyRun, focusGameSurface]);
 
   // Reset into a fresh run. Daily seeds from the shared UTC day string (a
   // restart within the day REUSES the day's seed — the realm's re-attest only
@@ -289,7 +304,7 @@ export default function SpaceInvaders({
     accRef.current = 0;
     fxRef.current = createFx(nextSeed, { reducedMotion });
     setState(fresh);
-    areaRef.current?.focus({ preventScroll: true });
+    focusGameSurface();
   };
 
   const restart = () => beginRun(modeRef.current);
@@ -320,6 +335,7 @@ export default function SpaceInvaders({
     const next = { ...cur, phase };
     stateRef.current = next;
     setState(next);
+    focusGameSurface();
   };
 
   const certifyOn = isSpaceInvadersEnabled() && isSpaceInvadersCertifyEnabled();
@@ -382,6 +398,7 @@ export default function SpaceInvaders({
                   const m = !muted;
                   audioRef.current?.setMuted(m);
                   setMuted(m);
+                  focusGameSurface();
                 }}
                 aria-label={muted ? "Unmute" : "Mute"}
                 title={muted ? "Unmute" : "Mute"}

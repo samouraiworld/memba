@@ -17,7 +17,6 @@ vi.mock("./SpaceInvadersCertify", () => ({
 
 // Deterministic rAF: callbacks queue up and only run when a test flushes them.
 let rafQueue: FrameRequestCallback[] = [];
-const FULL_RUN_TIMEOUT_MS = 15_000;
 
 function flushFrame(time: number) {
   const cbs = rafQueue;
@@ -54,12 +53,21 @@ afterEach(() => {
 /** Flush 250ms frames (≈15 fixed steps each) until the game-over sheet shows. */
 function driveToGameover(t0: number, maxFrames = 600): number {
   let t = t0;
-  for (let i = 0; i < maxFrames; i++) {
-    t += 250;
-    flushFrame(t);
-    if (screen.queryByText(/game over/i)) return t;
+  // Keep the long deterministic simulation inside one React transaction.
+  // Per-frame DOM queries and `act` scopes made this harness wall-clock-bound
+  // when the repository test pool was under contention.
+  act(() => {
+    for (let i = 0; i < maxFrames; i++) {
+      t += 250;
+      const cbs = rafQueue;
+      rafQueue = [];
+      for (const cb of cbs) cb(t);
+    }
+  });
+  if (!screen.queryByText(/game over/i)) {
+    throw new Error("run did not reach game over within the frame budget");
   }
-  throw new Error("run did not reach game over within the frame budget");
+  return t;
 }
 
 function hudScore(): string | null {
@@ -118,7 +126,7 @@ describe("pause determinism (daily replay fidelity)", () => {
     // final state) must pass — the pause left no hole in the timeline.
     expect(screen.getByText(/verified locally/i)).toBeInTheDocument();
     expect(screen.queryByText(/verification pending/i)).toBeNull();
-  }, FULL_RUN_TIMEOUT_MS);
+  });
 
   it("a paused game consumes no ticks: score and wave are byte-identical across a long pause", () => {
     render(<SpaceInvaders />);
@@ -193,5 +201,5 @@ describe("pause determinism (daily replay fidelity)", () => {
     fireEvent.click(screen.getByRole("button", { name: /resume defense/i }));
     driveToGameover(60_000);
     expect(screen.getByText(/verified locally/i)).toBeInTheDocument();
-  }, FULL_RUN_TIMEOUT_MS);
+  });
 });

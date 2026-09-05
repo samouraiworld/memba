@@ -150,10 +150,11 @@
   .si-heading { align-items: center; margin-bottom: 8px; }
   .si-heading h1 { font-size: 1.5rem; }
   .si-deck { display: none; }
-  .si-cabinet { grid-template-columns: minmax(0, calc((100svh - 110px) * .8)) minmax(230px, 1fr); justify-content: center; }
+  .si-cabinet { grid-template-columns: minmax(0, 1fr); justify-content: center; }
   .si-console { padding: 5px; }
-  .si-hud { min-height: 46px; margin-bottom: 5px; }
-  .si-stat { padding-block: 5px; }
+  .si-hud { grid-template-columns: minmax(54px, 1.2fr) repeat(4, minmax(38px, .7fr)) auto; min-height: 46px; margin-bottom: 5px; }
+  .si-stat { padding: 5px 6px; }
+  .si-actions { gap: 3px; padding: 3px; }
   .si-brief { grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; }
   .si-brief-card { padding: 10px; }
   .si-brief-card--status { grid-column: 1 / -1; }
@@ -164,6 +165,10 @@
   .si-mode-stack { gap: 5px; margin-top: 8px; }
   .si-mode-button { min-height: 46px; padding-block: 6px; }
   .si-control-line { margin-block: 5px 8px; }
+}
+
+@media (orientation: landscape) and (max-height: 560px) and (min-width: 620px) {
+  .si-cabinet { grid-template-columns: minmax(350px, 1fr) minmax(210px, .65fr); }
 }
 
 @media (prefers-reduced-motion: reduce) {

@@ -5,12 +5,13 @@ import SpaceInvaders from "./SpaceInvaders";
 
 const advanceSpy = vi.hoisted(() => vi.fn());
 const audioSpies = vi.hoisted(() => ({ create: vi.fn(), dispose: vi.fn() }));
+const drawSpy = vi.hoisted(() => vi.fn());
 vi.mock("./hooks/useGameLoop", async (importOriginal) => {
   const actual = await importOriginal<typeof import("./hooks/useGameLoop")>();
   return {
     ...actual,
     advanceWithEvents: (...args: Parameters<typeof actual.advanceWithEvents>) => {
-      advanceSpy();
+      advanceSpy(...args);
       return actual.advanceWithEvents(...args);
     },
   };
@@ -28,6 +29,16 @@ vi.mock("./lib/audio", async (importOriginal) => {
         setMuted: vi.fn(),
         dispose: audioSpies.dispose,
       };
+    },
+  };
+});
+vi.mock("./render/draw", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./render/draw")>();
+  return {
+    ...actual,
+    draw: (...args: Parameters<typeof actual.draw>) => {
+      drawSpy(...args);
+      return actual.draw(...args);
     },
   };
 });
@@ -60,6 +71,7 @@ beforeEach(() => {
   advanceSpy.mockClear();
   audioSpies.create.mockClear();
   audioSpies.dispose.mockClear();
+  drawSpy.mockClear();
 });
 
 describe("SpaceInvaders shell", () => {
@@ -117,5 +129,80 @@ describe("SpaceInvaders shell", () => {
     expect(screen.queryByText(/space fire/i)).not.toBeInTheDocument();
     expect(advanceSpy).toHaveBeenCalled();
     expect(screen.queryByText(/game over/i)).not.toBeInTheDocument(); // playing, not dead
+  });
+
+  it("restores game-surface focus after mute and pause/resume controls", () => {
+    render(<SpaceInvaders initialState={{ phase: "playing" } as never} />);
+    const surface = screen.getByRole("group", { name: /signal defense game surface/i });
+
+    fireEvent.click(screen.getByRole("button", { name: "Mute" }));
+    expect(surface).toHaveFocus();
+
+    fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+    expect(screen.getByRole("heading", { name: /relay paused/i })).toBeInTheDocument();
+    expect(surface).toHaveFocus();
+
+    const resume = screen.getByRole("button", { name: /resume defense/i });
+    resume.focus();
+    fireEvent.click(resume);
+    expect(screen.queryByRole("heading", { name: /relay paused/i })).not.toBeInTheDocument();
+    expect(surface).toHaveFocus();
+  });
+
+  it("keeps focus and accepts move/fire after a keyboard-only pause and resume", () => {
+    render(<SpaceInvaders initialState={{ phase: "playing" } as never} />);
+    const surface = screen.getByRole("group", { name: /signal defense game surface/i });
+    surface.focus();
+
+    fireEvent.keyDown(surface, { key: "p" });
+    flushFrame(0);
+    expect(screen.getByRole("heading", { name: /relay paused/i })).toBeInTheDocument();
+    expect(surface).toHaveFocus();
+
+    fireEvent.keyUp(surface, { key: "p" });
+    fireEvent.keyDown(surface, { key: "p" });
+    flushFrame(20);
+    expect(screen.queryByRole("heading", { name: /relay paused/i })).not.toBeInTheDocument();
+    expect(surface).toHaveFocus();
+
+    advanceSpy.mockClear();
+    fireEvent.keyDown(surface, { key: "ArrowRight" });
+    fireEvent.keyDown(surface, { key: " " });
+    flushFrame(40);
+    expect(advanceSpy).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.any(Number),
+      { move: 1, fire: true, pause: false },
+    );
+  });
+
+  it("does not steal focus back when an interruption auto-pauses the game", () => {
+    render(<SpaceInvaders initialState={{ phase: "playing" } as never} />);
+    const outside = document.createElement("button");
+    document.body.append(outside);
+    outside.focus();
+
+    act(() => {
+      window.dispatchEvent(new Event("blur"));
+    });
+
+    expect(screen.getByRole("heading", { name: /relay paused/i })).toBeInTheDocument();
+    expect(outside).toHaveFocus();
+    outside.remove();
+  });
+
+  it("paints a static paused state once instead of redrawing every animation frame", () => {
+    render(<SpaceInvaders initialState={{ phase: "paused" } as never} />);
+
+    flushFrame(0);
+    expect(drawSpy).toHaveBeenCalledTimes(1);
+    flushFrame(1_000);
+    flushFrame(10_000);
+    expect(drawSpy).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /resume defense/i }));
+    flushFrame(10_020);
+    flushFrame(10_040);
+    expect(drawSpy).toHaveBeenCalledTimes(3);
   });
 });
