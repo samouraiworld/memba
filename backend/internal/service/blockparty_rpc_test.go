@@ -54,15 +54,25 @@ func TestSubmitScore_VerifiesAndStores(t *testing.T) {
 	if resp.Msg.Streak.Current != 1 {
 		t.Fatalf("streak=%d want 1", resp.Msg.Streak.Current)
 	}
-	// second submit same day rejected
-	_, err = h.svc.SubmitScore(context.Background(), connect.NewRequest(&membav1.SubmitScoreRequest{
+	// Exact retry succeeds idempotently (for example after the first response
+	// was lost); it must return the same authoritative score and streak.
+	retry, err := h.svc.SubmitScore(context.Background(), connect.NewRequest(&membav1.SubmitScoreRequest{
 		AuthToken: token, Date: todayUTC(), MoveLog: log,
 	}))
-	if err == nil {
-		t.Fatal("expected second-submit rejection")
+	if err != nil {
+		t.Fatalf("exact retry: %v", err)
 	}
+	if retry.Msg.Score != resp.Msg.Score || retry.Msg.Streak.Current != 1 {
+		t.Fatalf("retry changed result: first=%+v retry=%+v", resp.Msg, retry.Msg)
+	}
+
+	// A different replay still conflicts with the immutable first write.
+	different := legalLog(t, 12345, "standard", 11)
+	_, err = h.svc.SubmitScore(context.Background(), connect.NewRequest(&membav1.SubmitScoreRequest{
+		AuthToken: token, Date: todayUTC(), MoveLog: different,
+	}))
 	if connect.CodeOf(err) != connect.CodeAlreadyExists {
-		t.Fatalf("second submit: got code %v, want AlreadyExists", connect.CodeOf(err))
+		t.Fatalf("different second submit: got code %v, want AlreadyExists", connect.CodeOf(err))
 	}
 }
 
@@ -75,6 +85,19 @@ func TestSubmitScore_RejectsWrongDate(t *testing.T) {
 	}))
 	if err == nil {
 		t.Fatal("expected wrong-date rejection")
+	}
+}
+
+func TestBlockPartyReads_RejectMalformedDates(t *testing.T) {
+	h := setup(t)
+	h.svc.SetBlockParty(true, "", "")
+	if _, err := h.svc.GetDailyChallenge(context.Background(),
+		connect.NewRequest(&membav1.GetDailyChallengeRequest{Date: "2026-99-99"})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("challenge malformed date: got %v, want InvalidArgument", err)
+	}
+	if _, err := h.svc.GetDailyLeaderboard(context.Background(),
+		connect.NewRequest(&membav1.GetDailyLeaderboardRequest{Date: "not-a-date"})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("leaderboard malformed date: got %v, want InvalidArgument", err)
 	}
 }
 
@@ -111,6 +134,32 @@ func TestGetDailyLeaderboard(t *testing.T) {
 	e := resp.Msg.Entries
 	if len(e) != 3 || e[0].Address != "g1b" || e[0].Rank != 1 || e[2].Address != "g1a" {
 		t.Fatalf("bad leaderboard: %+v", e)
+	}
+}
+
+func TestGetDailyLeaderboard_TiesShareRankDeterministically(t *testing.T) {
+	h := setup(t)
+	h.svc.SetBlockParty(true, "", "")
+	d := todayUTC()
+	for _, row := range []struct {
+		address string
+		score   int64
+	}{{"g1z", 900}, {"g1a", 900}, {"g1m", 600}} {
+		if _, err := blockparty.InsertScore(h.db, d, row.address, row.score, "U", "hash"); err != nil {
+			t.Fatal(err)
+		}
+	}
+	resp, err := h.svc.GetDailyLeaderboard(context.Background(),
+		connect.NewRequest(&membav1.GetDailyLeaderboardRequest{Date: d, Limit: 10}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	entries := resp.Msg.Entries
+	if len(entries) != 3 || entries[0].Address != "g1a" || entries[1].Address != "g1z" {
+		t.Fatalf("tie ordering is not deterministic: %+v", entries)
+	}
+	if entries[0].Rank != 1 || entries[1].Rank != 1 || entries[2].Rank != 3 {
+		t.Fatalf("competition ranks for tie = %+v; want 1,1,3", entries)
 	}
 }
 

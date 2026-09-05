@@ -69,9 +69,64 @@ test.describe('Block Party', () => {
 
 		await page.goto(`/${network}/game`, { waitUntil: 'domcontentloaded' })
 
-		await expect(page.getByText(/couldn't load today's challenge/i)).toBeVisible({ timeout: 15_000 })
-		await expect(page.getByRole('button', { name: /retry/i })).toBeVisible()
+		await expect(page.getByText(/daily seed unavailable/i)).toBeVisible({ timeout: 15_000 })
+		await expect(page.getByText(/couldn't verify today's board/i)).toBeVisible()
+		await expect(page.getByRole('button', { name: /retry daily/i })).toBeVisible()
 		// The stuck-sheet regression: with the fetch failed, no dialog — ever.
 		await expect(page.getByRole('dialog')).toHaveCount(0)
+	})
+
+	test('validated cache is visibly unranked until reconnect confirms it', async ({ page }) => {
+		await stubBlockPartyBackend(page)
+		let online = true
+		await page.route('**/memba.v1.MultisigService/GetDailyChallenge', (route) => {
+			if (online) return route.fallback()
+			return route.fulfill({ status: 503, contentType: 'application/json', body: '{}' })
+		})
+		const network = await resolveNetwork(page)
+
+		await page.goto(`/${network}/game`, { waitUntil: 'domcontentloaded' })
+		await expect(page.getByText(/block #99,236/)).toBeVisible()
+
+		online = false
+		await page.reload({ waitUntil: 'domcontentloaded' })
+		await expect(page.getByText(/saved board — not ranked/i)).toBeVisible({ timeout: 15_000 })
+		await expect(page.getByText(/it cannot be submitted/i)).toBeVisible()
+		await expect(page.getByText(/live daily · first verified replay is final/i)).toHaveCount(0)
+
+		online = true
+		// React Query may refetch on its own while the retry button is being
+		// located. Click when it remains present; either path must restore the
+		// live-ranked state from the network response.
+		await page.getByRole('button', { name: /check live board/i }).click({ timeout: 1_000 }).catch(() => undefined)
+		await expect(page.getByText(/live daily · first verified replay is final/i)).toBeVisible()
+		await expect(page.getByText(/saved board — not ranked/i)).toHaveCount(0)
+	})
+
+	test('supports keyboard play, theme switching, and reduced motion', async ({ page }) => {
+		await page.emulateMedia({ reducedMotion: 'reduce', colorScheme: 'dark' })
+		await page.addInitScript(() => localStorage.setItem('memba_theme', 'dark'))
+		await stubBlockPartyBackend(page)
+		const network = await resolveNetwork(page)
+		await page.goto(`/${network}/game`, { waitUntil: 'domcontentloaded' })
+
+		const board = page.getByRole('grid', { name: /block party signal board/i })
+		await expect(board).toBeVisible()
+		await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark')
+		const before = await board.getByRole('gridcell').evaluateAll((cells) =>
+			cells.map((cell) => cell.getAttribute('aria-label')).join('|'))
+		await board.focus()
+		for (const key of ['ArrowUp', 'ArrowRight', 'ArrowDown', 'ArrowLeft']) {
+			await board.press(key)
+			const after = await board.getByRole('gridcell').evaluateAll((cells) =>
+				cells.map((cell) => cell.getAttribute('aria-label')).join('|'))
+			if (after !== before) break
+		}
+		await expect.poll(() => board.getByRole('gridcell').evaluateAll((cells) =>
+			cells.map((cell) => cell.getAttribute('aria-label')).join('|'))).not.toBe(before)
+		expect(await page.locator('.k-bp-tile').first().evaluate((tile) => getComputedStyle(tile).animationName)).toBe('none')
+
+		await page.getByRole('button', { name: /switch to light theme/i }).click()
+		await expect(page.locator('html')).toHaveAttribute('data-theme', 'light')
 	})
 })

@@ -1,9 +1,10 @@
-import { describe, it, expect } from "vitest";
-import { renderHook, act } from "@testing-library/react";
+import { describe, it, expect, beforeEach } from "vitest";
+import { renderHook, act, waitFor } from "@testing-library/react";
 import { StrictMode } from "react";
 import { useGame } from "./useGame";
 
 describe("useGame", () => {
+  beforeEach(() => localStorage.clear());
   it("records only board-changing moves into the move log", () => {
     const { result } = renderHook(() =>
       useGame({ seed: 12345, modifier: "standard", mode: "ranked", moveBudget: 30 }));
@@ -48,5 +49,16 @@ describe("useGame", () => {
       }
     }
     throw new Error("no board-changing move found to test");
+  });
+
+  it("persists a practice best as score changes", async () => {
+    const { result } = renderHook(() =>
+      useGame({ seed: 12345, modifier: "standard", mode: "practice", moveBudget: Infinity }));
+    const dirs = ["U", "R", "D", "L"] as const;
+    for (let i = 0; i < 12 && result.current.score === 0; i++) {
+      act(() => result.current.play(dirs[i % dirs.length]));
+    }
+    expect(result.current.score).toBeGreaterThan(0);
+    await waitFor(() => expect(Number(localStorage.getItem("bp:best:practice"))).toBe(result.current.score));
   });
 });

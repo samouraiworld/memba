@@ -1,5 +1,5 @@
 // frontend/src/pages/BlockPartyGame.test.tsx
-import { describe, it, expect, vi } from "vitest";
+import { beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 vi.mock("../lib/gameApi", () => ({
@@ -15,11 +15,24 @@ vi.mock("../lib/gameApi", () => ({
 vi.mock("../hooks/useAdena", () => ({ useAdena: () => ({ installed: false, connected: false, address: "" }) }));
 import { gameApi } from "../lib/gameApi";
 import BlockPartyGame from "./BlockPartyGame";
+const TODAY = new Date().toISOString().slice(0, 10);
+const readyChallenge = {
+  date: TODAY, seed: 12345, modifier: "standard", par: 1500n, moveBudget: 30,
+  blockHeight: 42n, blockHash: "abc", ready: true,
+};
 const wrap = (ui: React.ReactNode) => {
   const c = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(<QueryClientProvider client={c}>{ui}</QueryClientProvider>);
 };
 describe("BlockPartyGame", () => {
+  beforeEach(() => {
+    vi.mocked(gameApi.getDailyChallenge).mockReset().mockResolvedValue(readyChallenge);
+    vi.mocked(gameApi.getDailyLeaderboard).mockReset().mockResolvedValue({ entries: [] });
+    vi.mocked(gameApi.getStreak).mockReset().mockResolvedValue({
+      streak: { current: 0, longest: 0, freezesRemaining: 1 },
+    });
+  });
+
   it("renders the daily header and board without a wallet", async () => {
     wrap(<BlockPartyGame />);
     await waitFor(() => expect(screen.getByRole("grid")).toBeTruthy());
@@ -67,14 +80,11 @@ describe("BlockPartyGame", () => {
   });
 
   it("shows an error notice with a retry action when the fetch fails — and never the sheet", async () => {
-    // useDailyChallenge sets its own retry: 1 (overriding the test client's
-    // retry: false), so the error state needs BOTH attempts to fail.
-    vi.mocked(gameApi.getDailyChallenge)
-      .mockRejectedValueOnce(new Error("boom"))
-      .mockRejectedValueOnce(new Error("boom"));
+    // useDailyChallenge owns its retry policy, so keep every attempt failed.
+    vi.mocked(gameApi.getDailyChallenge).mockRejectedValue(new Error("boom"));
     wrap(<BlockPartyGame />);
-    await waitFor(() => expect(screen.getByText(/couldn't load today's challenge/i)).toBeTruthy());
-    expect(screen.getByRole("button", { name: /retry/i })).toBeTruthy();
+    await waitFor(() => expect(screen.getByText(/daily seed unavailable/i)).toBeTruthy());
+    expect(screen.getByRole("button", { name: /retry daily/i })).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
   });
 
@@ -89,7 +99,7 @@ describe("BlockPartyGame", () => {
     await waitFor(() => expect(screen.getByRole("grid")).toBeTruthy());
 
     resolveChallenge({
-      date: "2026-07-06", seed: 12345, modifier: "standard", par: 1500n, moveBudget: 30,
+      date: TODAY, seed: 12345, modifier: "standard", par: 1500n, moveBudget: 30,
       blockHeight: 42n, blockHash: "abc", ready: true,
     });
 
@@ -98,8 +108,11 @@ describe("BlockPartyGame", () => {
     // Position-aware: read all 16 cells in board order (empty cells included),
     // so a coincidental same-value spawn on a different square still fails.
     await waitFor(() => {
-      const cells = Array.from(screen.getByRole("grid").children).map(
-        (el) => el.getAttribute("aria-label") ?? ""
+      const cells = Array.from(screen.getByRole("grid").querySelectorAll('[role="gridcell"]')).map(
+        (el) => {
+          const label = el.getAttribute("aria-label") ?? "";
+          return label.endsWith("empty") ? "" : (label.match(/column \d+, (\d+)/)?.[1] ?? "");
+        }
       );
       expect(cells).toEqual(expected);
     });
@@ -113,13 +126,13 @@ describe("BlockPartyGame", () => {
 
   it("shows the not-ready notice and still renders a board when the daily challenge isn't ready", async () => {
     vi.mocked(gameApi.getDailyChallenge).mockResolvedValueOnce({
-      date: "2026-07-06", seed: 12345, modifier: "standard", par: 1500n, moveBudget: 30,
+      date: TODAY, seed: 12345, modifier: "standard", par: 1500n, moveBudget: 30,
       blockHeight: 42n, blockHash: "abc", ready: false,
     });
     wrap(<BlockPartyGame />);
 
     await waitFor(() =>
-      expect(screen.getByText(/Today's board mints shortly — try Practice while you wait\./i)).toBeTruthy()
+      expect(screen.getByText(/Today's board is still minting\./i)).toBeTruthy()
     );
     expect(screen.getByRole("button", { name: /play practice/i })).toBeTruthy();
     expect(screen.getByRole("grid")).toBeTruthy();

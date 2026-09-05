@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { useAdena } from "../hooks/useAdena";
 import { useAuth } from "../hooks/useAuth";
 import { useTabListKeyboard } from "../hooks/useTabListKeyboard";
@@ -16,7 +17,7 @@ import { ShareCard } from "../game/components/ShareCard";
 import { DailyLeaderboardPanel } from "../game/components/DailyLeaderboardPanel";
 import { StreakBadge } from "../game/components/StreakBadge";
 import { getLocalBest, getLocalStreak } from "../game/lib/localStore";
-import type { Modifier } from "../game/engine";
+import { seedScoreCeiling, type Modifier } from "../game/engine";
 import "./blockparty.css";
 
 const HINT_KEY = "bp:hinted";
@@ -38,32 +39,78 @@ function randomSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0];
 }
 
+function utcDate(now = new Date()): string {
+  return now.toISOString().slice(0, 10);
+}
+
+function useUtcDate(): string {
+  const [date, setDate] = useState(() => utcDate());
+  useEffect(() => {
+    let timeout: ReturnType<typeof setTimeout>;
+    const schedule = () => {
+      const now = new Date();
+      const next = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1);
+      timeout = setTimeout(() => {
+        setDate(utcDate());
+        schedule();
+      }, Math.max(1_000, next - now.getTime() + 250));
+    };
+    schedule();
+    return () => clearTimeout(timeout);
+  }, []);
+  return date;
+}
+
 export default function BlockPartyGame() {
   const adena = useAdena();
   const auth = useAuth();
   const network = useNetwork();
+  const today = useUtcDate();
   const {
     data: challenge,
     isLoading: challengeLoading,
     isError: challengeError,
+    isFetching: challengeFetching,
+    error: challengeFailure,
     refetch: refetchChallenge,
-  } = useDailyChallenge();
+  } = useDailyChallenge(network.chainId, today);
 
   const [mode, setMode] = useState<GameMode>("ranked");
+  const [practiceSeed, setPracticeSeed] = useState<number>(() => randomSeed());
+  const [practiceModifier, setPracticeModifier] = useState<Modifier>("standard");
+  const [online, setOnline] = useState(() => typeof navigator === "undefined" || navigator.onLine);
+
+  const selectMode = useCallback((next: GameMode) => {
+    if (next === "practice" && mode !== "practice") {
+      setPracticeSeed(randomSeed());
+      setPracticeModifier("standard");
+    }
+    setMode(next);
+  }, [mode]);
 
   // APG tabs keyboard contract (roving tabindex, arrows, Home/End) — the
   // shared hook Directory extracted; the mode switch had no keyboard support.
   const { tabProps } = useTabListKeyboard<GameMode>({
     keys: MODE_TAB_KEYS,
     active: mode,
-    onSelect: setMode,
+    onSelect: selectMode,
     idFor: (k) => `bp-mode-tab-${k}`,
   });
   const [hinted, setHinted] = useState(true); // default true (hidden) until effect confirms first-session
   const [showHint, setShowHint] = useState(false);
-  const [practiceSeed, setPracticeSeed] = useState<number>(() => randomSeed());
   const [authError, setAuthError] = useState<string | null>(null);
   const authBusyRef = useRef(false);
+
+  useEffect(() => {
+    const markOnline = () => setOnline(true);
+    const markOffline = () => setOnline(false);
+    window.addEventListener("online", markOnline);
+    window.addEventListener("offline", markOffline);
+    return () => {
+      window.removeEventListener("online", markOnline);
+      window.removeEventListener("offline", markOffline);
+    };
+  }, []);
 
   // First-session ghost-swipe hint: read localStorage only in an effect.
   useEffect(() => {
@@ -92,9 +139,17 @@ export default function BlockPartyGame() {
 
   const ranked = mode === "ranked";
   const seed = ranked ? (challenge?.seed ?? 0) : practiceSeed;
-  const modifier: Modifier = ranked ? ((challenge?.modifier as Modifier) ?? "standard") : "standard";
+  const modifier: Modifier = ranked ? ((challenge?.modifier as Modifier) ?? "standard") : practiceModifier;
   const moveBudget = ranked ? (challenge?.moveBudget ?? 0) : Infinity;
-  const canPlayRanked = ranked && !!challenge?.ready;
+  const canPlayRanked = ranked && !!challenge?.ready && challenge.source === "network" && !challengeError;
+  const cachedChallenge = ranked && challenge?.ready && challenge.source === "cache";
+  const featurePaused = challengeError && ConnectError.from(challengeFailure).code === Code.Unimplemented;
+  const seedCeiling = challenge?.ready
+    ? seedScoreCeiling(challenge.seed, challenge.modifier as Modifier, challenge.moveBudget)
+    : 0;
+  const reachablePar = ranked && challenge?.ready && challenge.par <= seedCeiling
+    ? challenge.par
+    : undefined;
 
   const { board, score, movesLeft, over, moveLog, play, restart } = useGame({
     seed,
@@ -103,42 +158,24 @@ export default function BlockPartyGame() {
     moveBudget,
   });
 
-  const prevMode = useRef(mode);
+  const appliedRound = useRef<string | null>(null);
   useEffect(() => {
-    if (prevMode.current !== mode) {
-      prevMode.current = mode;
-      if (mode === "practice") {
-        const s = randomSeed();
-        // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: re-seed practice board only on explicit mode switch
-        setPracticeSeed(s);
-        restart(s);
-      } else if (challenge?.ready) {
-        restart(challenge.seed);
-      }
+    const key = ranked
+      ? (challenge?.ready ? `daily:${challenge.date}:${challenge.seed}:${challenge.modifier}` : null)
+      : `practice:${practiceSeed}:${practiceModifier}`;
+    if (key && appliedRound.current !== key) {
+      appliedRound.current = key;
+      restart(seed);
     }
-  }, [mode, challenge, restart]);
-
-  // Ranked re-seed when the challenge ARRIVES (not just on mode switches): a
-  // cold load renders useGame on the placeholder seed 0 before the fetch
-  // resolves, and useState never re-runs its initializer — without this, the
-  // player plays a board the server never issued and the replay is garbage.
-  // The ref guards background refetches: an unchanged seed never wipes an
-  // in-progress run; a NEW seed (UTC date rollover) legitimately starts the
-  // new day's board.
-  const lastAppliedSeed = useRef<number | null>(null);
-  useEffect(() => {
-    if (ranked && challenge?.ready && lastAppliedSeed.current !== challenge.seed) {
-      lastAppliedSeed.current = challenge.seed;
-      restart(challenge.seed);
-    }
-  }, [ranked, challenge, restart]);
+  }, [ranked, challenge, practiceSeed, practiceModifier, restart, seed]);
 
   const onMove = useCallback(
     (m: Parameters<typeof play>[0]) => {
+      if (ranked && !canPlayRanked) return;
       dismissHint();
       play(m);
     },
-    [dismissHint, play]
+    [ranked, canPlayRanked, dismissHint, play]
   );
 
   useKeyboard(onMove, !over && (ranked ? canPlayRanked : true));
@@ -194,8 +231,14 @@ export default function BlockPartyGame() {
     }
   }, [adena, auth, network.chainId]);
 
-  const date = challenge?.date ?? "";
-  const par = challenge?.par ?? 0;
+  const date = challenge?.date ?? today;
+
+  const playCachedPractice = useCallback(() => {
+    if (!challenge?.ready) return;
+    setPracticeSeed(challenge.seed);
+    setPracticeModifier(challenge.modifier as Modifier);
+    setMode("practice");
+  }, [challenge]);
 
   const authForSheet = useMemo(
     () => ({
@@ -214,108 +257,170 @@ export default function BlockPartyGame() {
 
   return (
     <div className="k-bp-page">
+      <div className="k-bp-orbit k-bp-orbit--one" aria-hidden="true" />
+      <div className="k-bp-orbit k-bp-orbit--two" aria-hidden="true" />
       <header className="k-bp-header">
+        <p className="k-bp-kicker">Pearl signal lab · daily merge protocol</p>
         <div className="k-bp-header-row">
-          <h1 className="k-bp-title">Block Party{date ? ` #${date}` : ""}</h1>
+          <div>
+            <h1 className="k-bp-title">Block Party</h1>
+            <p className="k-bp-date">{ranked ? `${date} · resets 00:00 UTC` : "Practice · unranked sandbox"}</p>
+          </div>
           <ModifierBadge modifier={modifier} />
         </div>
         <div className="k-bp-modes" role="tablist" aria-label="Game mode">
           <button
             {...tabProps("ranked")}
             className={`k-bp-mode-btn ${mode === "ranked" ? "k-bp-mode-btn--active" : ""}`}
-            onClick={() => setMode("ranked")}
+            onClick={() => selectMode("ranked")}
           >
             Daily
           </button>
           <button
             {...tabProps("practice")}
             className={`k-bp-mode-btn ${mode === "practice" ? "k-bp-mode-btn--active" : ""}`}
-            onClick={() => setMode("practice")}
+            onClick={() => selectMode("practice")}
           >
             Practice
           </button>
         </div>
       </header>
 
-      {ranked && !challengeLoading && challenge && !challenge.ready && (
-        <p className="k-bp-notice">
-          Today's board mints shortly — try Practice while you wait.
-          <button className="k-bp-btn" onClick={() => setMode("practice")}>
-            Play Practice
-          </button>
-        </p>
-      )}
-
-      {ranked && challengeError && (
-        <p className="k-bp-notice" role="alert">
-          Couldn't load today's challenge.
-          <button className="k-bp-btn" onClick={() => void refetchChallenge()}>
-            Retry
-          </button>
-          <button className="k-bp-btn" onClick={() => setMode("practice")}>
-            Play Practice
-          </button>
-        </p>
-      )}
-
-      <div className="k-bp-board-wrap">
-        <Board board={board} onMove={onMove} />
-        {showHint && (
-          <div className="k-bp-hint" aria-hidden="true">
-            <span className="k-bp-hint-arrows">← ↑ → ↓</span>
-            <span className="k-bp-hint-label">Swipe or use arrow keys</span>
+      <div className="k-bp-layout">
+        <section className="k-bp-play" aria-label={ranked ? "Daily game" : "Practice game"}>
+          <div className="k-bp-mission">
+            <span className="k-bp-mission-mark" aria-hidden="true">⌁</span>
+            <p><strong>Route matching signals.</strong> Equal nodes fuse; every accepted move emits one new signal.</p>
+            <span>{ranked ? `${challenge?.moveBudget ?? "—"} moves` : "No move limit"}</span>
           </div>
-        )}
-      </div>
 
-      <ScoreBar score={score} par={par} movesLeft={movesLeft} />
-      <div className="sr-only" aria-live="polite">
-        Score {score}
-      </div>
+          {ranked && challengeLoading && !challenge && (
+            <div className="k-bp-notice" role="status" aria-live="polite" aria-busy="true">
+              <span className="k-bp-pulse" aria-hidden="true" />
+              Contacting today's seed source…
+            </div>
+          )}
 
-      {over && ranked && canPlayRanked && (
-        <>
-          <GameOverSheet
-            date={date}
-            score={score}
-            par={par}
-            moveLog={moveLog}
-            board={board}
-            modifier={modifier}
-            wallet={walletForSheet}
-            auth={authForSheet}
-          />
-          {authError && <p className="k-bp-error">{authError}</p>}
-        </>
-      )}
+          {ranked && !challengeLoading && challenge && !challenge.ready && (
+            <div className="k-bp-notice" role="status">
+              <strong>Today's board is still minting.</strong>
+              <span>The first post-midnight block has not arrived yet.</span>
+              <button className="k-bp-btn" onClick={() => selectMode("practice")}>Play Practice</button>
+            </div>
+          )}
 
-      {over && !ranked && (
-        <div className="k-bp-over" role="dialog" aria-label="Practice round complete">
-          <h2 className="k-bp-over-score">{score.toLocaleString()}</h2>
-          <p className="k-bp-over-note">Local best: {getLocalBest("practice").toLocaleString()}</p>
-          <ShareCard date={date} board={board} streak={getLocalStreak().current} modifier={modifier} />
-          <button
-            className="k-bp-btn"
-            onClick={() => {
-              const s = randomSeed();
-              setPracticeSeed(s);
-              restart(s);
-            }}
-          >
-            Play again
-          </button>
-        </div>
-      )}
+          {ranked && challengeError && !cachedChallenge && (
+            <div className="k-bp-notice k-bp-notice--error" role="alert">
+              <strong>{featurePaused ? "Daily play is paused" : online ? "Daily seed unavailable" : "You're offline"}</strong>
+              <span>
+                {featurePaused
+                  ? "The public game route is open, but ranked play is disabled at the service. Practice is still available."
+                  : online
+                    ? "We couldn't verify today's board. Ranked input stays locked to protect the leaderboard."
+                    : "Reconnect to verify today's board. Ranked input stays locked while offline."}
+              </span>
+              <div className="k-bp-notice-actions">
+                <button className="k-bp-btn" onClick={() => void refetchChallenge()} disabled={challengeFetching}>
+                  {challengeFetching ? "Retrying…" : "Retry Daily"}
+                </button>
+                <button className="k-bp-btn k-bp-btn--accent" onClick={() => selectMode("practice")}>Play Practice</button>
+              </div>
+            </div>
+          )}
 
-      <div className="k-bp-panels">
-        {canPlayRanked && challenge && (
-          <SeedProof chainId={network.chainId} height={challenge.blockHeight} hash={challenge.blockHash} />
-        )}
-        <DailyLeaderboardPanel date={date} />
-        <StreakBadge
-          address={adena.connected ? adena.address : undefined}
-          localStreak={getLocalStreak().current}
-        />
+          {cachedChallenge && (
+            <div className="k-bp-notice k-bp-notice--cached" role="alert">
+              <strong>Saved board — not ranked</strong>
+              <span>We found a validated copy for {challenge.date}, but could not confirm it live. It cannot be submitted.</span>
+              <div className="k-bp-notice-actions">
+                <button className="k-bp-btn" onClick={() => void refetchChallenge()} disabled={challengeFetching}>
+                  {challengeFetching ? "Checking…" : "Check live board"}
+                </button>
+                <button className="k-bp-btn k-bp-btn--accent" onClick={playCachedPractice}>Practice this board</button>
+              </div>
+            </div>
+          )}
+
+          {canPlayRanked && (
+            <p className="k-bp-live-status" role="status">
+              <span aria-hidden="true" /> Live daily · first verified replay is final
+            </p>
+          )}
+
+          <div className={`k-bp-board-wrap ${ranked && !canPlayRanked ? "k-bp-board-wrap--locked" : ""}`}>
+            <Board board={board} onMove={onMove} disabled={ranked && !canPlayRanked} />
+            {showHint && (!ranked || canPlayRanked) && (
+              <div className="k-bp-hint" aria-hidden="true">
+                <span className="k-bp-hint-arrows">← ↑ → ↓</span>
+                <span className="k-bp-hint-label">Swipe or use arrow keys</span>
+              </div>
+            )}
+          </div>
+
+          <ScoreBar score={score} par={reachablePar} movesLeft={movesLeft} />
+          {ranked && challenge?.ready && reachablePar == null && (
+            <p className="k-bp-target-note">Target hidden: the legacy value exceeds this board's mathematical score ceiling.</p>
+          )}
+          <div className="sr-only" aria-live="polite">Score {score}. {Number.isFinite(movesLeft) ? `${movesLeft} moves remaining.` : "Practice has no move limit."}</div>
+
+          {over && ranked && canPlayRanked && (
+            <>
+              <GameOverSheet
+                date={date}
+                score={score}
+                par={reachablePar}
+                moveLog={moveLog}
+                board={board}
+                modifier={modifier}
+                wallet={walletForSheet}
+                auth={authForSheet}
+              />
+              {authError && <p className="k-bp-error" role="alert">{authError}</p>}
+            </>
+          )}
+
+          {over && !ranked && (
+            <div className="k-bp-over" role="dialog" aria-label="Practice round complete">
+              <span className="k-bp-over-kicker">Sandbox complete</span>
+              <h2 className="k-bp-over-title">Practice result</h2>
+              <p className="k-bp-over-score">{score.toLocaleString()}</p>
+              <p className="k-bp-over-note">Local best: {getLocalBest("practice").toLocaleString()}</p>
+              <ShareCard kind="practice" date={date} board={board} streak={getLocalStreak().current} modifier={modifier} />
+              <button
+                className="k-bp-btn"
+                onClick={() => {
+                  setPracticeSeed(randomSeed());
+                  setPracticeModifier("standard");
+                }}
+              >
+                New practice board
+              </button>
+            </div>
+          )}
+        </section>
+
+        <aside className="k-bp-side" aria-label="Daily details">
+          <div className="k-bp-rules">
+            <p className="k-bp-panel-kicker">How it works</p>
+            <h2>Build the strongest signal</h2>
+            <ol>
+              <li>Swipe or use arrow keys to route every node.</li>
+              <li>Matching values fuse and add their result to your score.</li>
+              <li>Daily counts accepted moves and resets at 00:00 UTC.</li>
+            </ol>
+            {ranked && <p>Ranked policy: one authenticated, server-verified replay per UTC day. The first accepted replay is final.</p>}
+          </div>
+          <div className="k-bp-panels">
+            {challenge?.ready && (
+              <SeedProof height={challenge.blockHeight} hash={challenge.blockHash} />
+            )}
+            {ranked && <DailyLeaderboardPanel date={date} scope={network.chainId} />}
+            <StreakBadge
+              address={adena.connected ? adena.address : undefined}
+              localStreak={getLocalStreak().current}
+            />
+          </div>
+        </aside>
       </div>
     </div>
   );
