@@ -66,6 +66,15 @@ export default defineConfig({
             reuseExistingServer: !process.env.CI,
             timeout: 60_000,
         },
+        // Legacy Marketplace mobile layout needs its own pinned contract too.
+        // The default :5173 server falls back to pearl in CI (where the legacy
+        // backing realms are absent) and may inherit an arbitrary local .env.
+        // This server keeps v1 ON, v2 OFF, and the v1 realms valid on test13.
+        {
+            command: 'npm run dev:e2e-marketplace-v1',
+            url: 'http://localhost:5176',
+            reuseExistingServer: !process.env.CI,
+            timeout: 60_000,
+        },
     ],
 })
-
