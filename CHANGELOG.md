@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Dependency security floors can no longer settle below patched versions (#1140, 2026-09-04)
+<!-- categories: memba -->
+- Frontend and workspace override floors now compel `fast-uri` 3.1.7 and 4.1.4 or newer instead of permitting vulnerable versions below their lockfile resolutions. This addresses eight existing high-severity URL parsing and host-confusion alerts plus the September 2 unclosed-authority host-confusion advisory, whose exact vulnerable releases include 3.1.6 and 4.1.3.
+- The installed MCP SDK dependency tree now resolves `qs` at 6.16.0 or newer, closing the request-parsing advisory carried through its Express/body-parser dependencies; it was not a phantom frontend-only alert. Memba's two MCP entrypoints currently use the SDK's stdio transport rather than an HTTP listener.
+- `fflate` and `@humanfs/node` also resolve at their published patched floors. Both lockfiles were regenerated so CI installs the remediated versions rather than relying on manifest intent alone.
+
 ### The backend's built-in RPC defaults follow the app to Pearl (2026-09-02)
 <!-- categories: memba, network -->
 - **Failover now has somewhere to go.** When the primary RPC node fails, the backend retries a built-in list of backup nodes; that list still named only Sapphire hosts, and both of them stopped answering on September 2 — a week before the chain's formal sunset. The list now carries the two Pearl nodes the app itself uses (the public canonical and our sentry). This is the one default that was live in production, because the backup list is not overridden by any secret.
