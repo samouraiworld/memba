@@ -7,8 +7,8 @@ import { SeedProof } from "./SeedProof";
 // only fetched and stashed.
 describe("SeedProof", () => {
   it("shows the seeding block, a truncated hash, and a verify link", () => {
-    render(<SeedProof chainId="pearl-1" height={99236} hash="s0leQ+7nRr7v1Aj2YwZPZR4IC5qNWCxL03SPxcDpfPo=" />);
-    expect(screen.getByText(/pearl-1 block #99[,  ]?236/)).toBeTruthy();
+    render(<SeedProof height={99236} hash="s0leQ+7nRr7v1Aj2YwZPZR4IC5qNWCxL03SPxcDpfPo=" />);
+    expect(screen.getByText(/configured seed source.*block #99[,  ]?236/i)).toBeTruthy();
     // truncated, not the full 44-char base64 blob
     expect(screen.getByText(/s0leQ\+7nRr…/)).toBeTruthy();
     const link = screen.getByRole("link", { name: /verify/i });
@@ -17,7 +17,7 @@ describe("SeedProof", () => {
   });
 
   it("renders nothing without a height (unseeded day)", () => {
-    const { container } = render(<SeedProof chainId="pearl-1" height={0} hash="" />);
+    const { container } = render(<SeedProof height={0} hash="" />);
     expect(container.textContent).toBe("");
   });
 });

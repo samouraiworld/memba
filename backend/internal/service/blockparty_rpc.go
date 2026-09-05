@@ -21,6 +21,11 @@ import (
 
 func todayUTC() string { return time.Now().UTC().Format("2006-01-02") }
 
+func validBlockPartyDate(date string) bool {
+	parsed, err := time.Parse("2006-01-02", date)
+	return err == nil && parsed.Format("2006-01-02") == date
+}
+
 // requireBlockParty gates every Block Party RPC on the feature flag — reads
 // included. BLOCKPARTY_ENABLED=0 must be a TOTAL kill switch: before this
 // gate, GetDailyChallenge was reachable while "parked" and could drive chain
@@ -74,6 +79,9 @@ func (s *MultisigService) GetDailyChallenge(
 	date := req.Msg.Date
 	if date == "" {
 		date = todayUTC()
+	}
+	if !validBlockPartyDate(date) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("date must be YYYY-MM-DD (UTC)"))
 	}
 	c, ready, err := s.ensureChallenge(ctx, date)
 	if err != nil {
@@ -143,7 +151,7 @@ func (s *MultisigService) SubmitScore(
 	}
 	date := req.Msg.Date
 	// 2) today-only
-	if date != todayUTC() {
+	if !validBlockPartyDate(date) || date != todayUTC() {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("date must be today (UTC)"))
 	}
 	// 3) parse + length cap
@@ -179,7 +187,16 @@ func (s *MultisigService) SubmitScore(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	if !inserted {
-		return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("already submitted today"))
+		stored, found, getErr := blockparty.GetSubmittedScore(s.db, date, addr)
+		if getErr != nil {
+			return nil, connect.NewError(connect.CodeInternal, getErr)
+		}
+		// Retrying the exact replay after a lost response is safe and returns the
+		// same authoritative result. A different replay remains a conflict: this
+		// preserves the documented first-write-wins competitive contract.
+		if !found || stored.Score != score || stored.MoveLog != req.Msg.MoveLog || stored.BoardHash != boardHash(st.Board) {
+			return nil, connect.NewError(connect.CodeAlreadyExists, errors.New("a different score was already submitted today (first submission wins)"))
+		}
 	}
 	// 8) streak + percentile
 	streak, err := blockparty.BumpStreak(s.db, addr, date)
@@ -210,6 +227,9 @@ func (s *MultisigService) GetDailyLeaderboard(
 	if date == "" {
 		date = todayUTC()
 	}
+	if !validBlockPartyDate(date) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("date must be YYYY-MM-DD (UTC)"))
+	}
 	limit := int(req.Msg.Limit)
 	if limit <= 0 || limit > 100 {
 		limit = 50
@@ -219,8 +239,12 @@ func (s *MultisigService) GetDailyLeaderboard(
 		return nil, connect.NewError(connect.CodeInternal, err)
 	}
 	out := make([]*membav1.LeaderboardScore, len(rows))
+	rank := 1
 	for i, r := range rows {
-		out[i] = &membav1.LeaderboardScore{Address: r.Address, Score: r.Score, Rank: int32(i + 1)}
+		if i > 0 && r.Score < rows[i-1].Score {
+			rank = i + 1
+		}
+		out[i] = &membav1.LeaderboardScore{Address: r.Address, Score: r.Score, Rank: int32(rank)} // #nosec G115 -- limited to 100 rows
 	}
 	return connect.NewResponse(&membav1.GetDailyLeaderboardResponse{Entries: out}), nil
 }
@@ -231,6 +255,9 @@ func (s *MultisigService) GetStreak(
 ) (*connect.Response[membav1.GetStreakResponse], error) {
 	if gateErr := s.requireBlockParty(); gateErr != nil {
 		return nil, gateErr
+	}
+	if req.Msg.Address == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("address is required"))
 	}
 	st, err := blockparty.GetStreak(s.db, req.Msg.Address)
 	if err != nil {
