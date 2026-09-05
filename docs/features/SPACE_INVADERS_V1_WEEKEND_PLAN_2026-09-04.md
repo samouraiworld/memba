@@ -133,3 +133,15 @@ The four implementation lanes consolidate these specialties so the team fits the
 - Full backend `go test -race -count=1 ./...` and `go build ./...` passed.
 - The protected deterministic engine, replay, wire, verification, and backend diff remains empty.
 - The repository-wide 476-case Playwright command is not yet a clean gate: a five-worker run encountered five unrelated Firefox/browser teardown timeouts after 358 passes, while all 24 tests in the affected files passed at one worker; a two-worker retry encountered the existing Validators page-size select accessibility check, which then passed three consecutive isolated repetitions. No commit, push, or PR is allowed until the complete command finishes green.
+
+## CTO remediation checkpoint — 2026-09-05
+
+- Independent technical CTO review found and the branch fixed four release issues: keyboard focus after manual controls, 667×320 HUD clipping, wall-clock-sensitive full-game test helpers, and continuous Canvas repainting in static phases. The follow-up review approved the Space Invaders product/code scope with no remaining P0–P2 findings.
+- Space Invaders focused suite: **44 files / 215 tests passed** with Vitest's default parallelism.
+- Full frontend unit suite: **482 files passed, 1 skipped; 4,808 tests passed, 1 skipped**.
+- Full frontend lint and production build passed; the game route remains below the 40 KiB gzip budget.
+- Focused desktop Chromium, route-scoped WCAG 2.1 AA, iPhone WebKit, and Pixel Chromium regressions passed **6/6**, including keyboard-only resume and strict short-landscape containment.
+- Full backend `go test -race -count=1 ./...` and `go build ./...` passed after integrating current `origin/main`.
+- The protected deterministic engine, replay, wire, verification, and backend diff remains empty.
+- The complete CI-profile Playwright run reached **469 passed / 15 declared skips**. Its only failures were the same pre-existing Marketplace mobile case on iPhone and Pixel: that test assumes a live `test13` v1 lane, while the current default `pearl` environment correctly renders the Marketplace gate. The Space Invaders branch has no Marketplace diff, and the failure reproduces in isolation on the base behavior.
+- Space Invaders is technically approved but remains operationally blocked from push/PR by the repository's all-green local policy until that upstream Marketplace test/environment mismatch is fixed independently and the complete command is rerun green.
