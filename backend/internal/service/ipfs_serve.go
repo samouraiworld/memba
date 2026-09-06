@@ -352,9 +352,34 @@ type gatewayConfigurationError struct {
 func (e *gatewayConfigurationError) Error() string { return e.err.Error() }
 func (e *gatewayConfigurationError) Unwrap() error { return e.err }
 
+// gatewayUnavailableError marks a correctly configured gateway whose host
+// could not be resolved right now (resolver timeout or a temporary failure).
+// That is an upstream outage, not an operator mistake: handlers report it as
+// 502 like any other upstream fetch failure instead of the alerting 500.
+type gatewayUnavailableError struct {
+	err error
+}
+
+func (e *gatewayUnavailableError) Error() string { return e.err.Error() }
+func (e *gatewayUnavailableError) Unwrap() error { return e.err }
+
+// isTransientGatewayResolutionError reports whether err is a resolver failure
+// that may clear on its own. NXDOMAIN is deliberately excluded: a name that
+// does not exist is a configuration error.
+func isTransientGatewayResolutionError(err error) bool {
+	var dnsErr *net.DNSError
+	if !errors.As(err, &dnsErr) {
+		return false
+	}
+	return !dnsErr.IsNotFound
+}
+
 func resolvedIPFSGateway(gateway string) (string, error) {
 	validated, err := validateIPFSGateway(gateway)
 	if err != nil {
+		if isTransientGatewayResolutionError(err) {
+			return "", &gatewayUnavailableError{err: err}
+		}
 		return "", &gatewayConfigurationError{err: err}
 	}
 	return validated, nil
@@ -437,6 +462,10 @@ func validateCIDChars(cid string) error {
 	return nil
 }
 
+// lookupHostForValidation is the resolver behind validateHTTPSHost. It is a
+// variable so tests can simulate resolver outages deterministically.
+var lookupHostForValidation = net.LookupHost
+
 // validateHTTPSHost ensures the target URL resolves to a public IP.
 func validateHTTPSHost(rawURL string) error {
 	u, err := url.Parse(rawURL)
@@ -447,7 +476,7 @@ func validateHTTPSHost(rawURL string) error {
 	if host == "" {
 		return fmt.Errorf("empty host in URL")
 	}
-	addrs, err := net.LookupHost(host) // #nosec G704 -- this IS the SSRF validator; non-public IPs are rejected below
+	addrs, err := lookupHostForValidation(host) // #nosec G704 -- this IS the SSRF validator; non-public IPs are rejected below
 	if err != nil {
 		// If we can't resolve the host, reject it conservatively
 		return fmt.Errorf("cannot resolve host %q: %w", host, err)
@@ -696,6 +725,12 @@ func HandleNFTImage(opts ...nftHandlerOptions) http.Handler {
 				http.Error(w, `{"error":"gateway configuration invalid"}`, http.StatusInternalServerError)
 				return
 			}
+			var unavailableErr *gatewayUnavailableError
+			if errors.As(err, &unavailableErr) {
+				slog.Warn("nft image: gateway host resolution failed", "err", err)
+				http.Error(w, `{"error":"upstream fetch failed"}`, http.StatusBadGateway)
+				return
+			}
 			slog.Warn("nft image: invalid URI", "raw", raw, "err", err)
 			http.Error(w, fmt.Sprintf(`{"error":%q}`, "invalid URI: "+err.Error()), http.StatusBadRequest)
 			return
@@ -769,6 +804,12 @@ func HandleNFTMetadata(opts ...nftHandlerOptions) http.Handler {
 			if errors.As(err, &configErr) {
 				slog.Error("nft metadata: invalid gateway configuration", "err", err)
 				http.Error(w, `{"error":"gateway configuration invalid"}`, http.StatusInternalServerError)
+				return
+			}
+			var unavailableErr *gatewayUnavailableError
+			if errors.As(err, &unavailableErr) {
+				slog.Warn("nft metadata: gateway host resolution failed", "err", err)
+				http.Error(w, `{"error":"upstream fetch failed"}`, http.StatusBadGateway)
 				return
 			}
 			slog.Warn("nft metadata: invalid URI", "raw", raw, "err", err)

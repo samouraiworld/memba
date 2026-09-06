@@ -3,6 +3,8 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -987,5 +989,70 @@ func TestValidateCIDChars(t *testing.T) {
 		if err := validateCIDChars(cid); err == nil {
 			t.Errorf("validateCIDChars(%q): expected error, got nil", cid)
 		}
+	}
+}
+
+func TestIsTransientGatewayResolutionError(t *testing.T) {
+	cases := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{"nil", nil, false},
+		{"plain error", errors.New("boom"), false},
+		{"nxdomain is configuration", fmt.Errorf("cannot resolve host: %w", &net.DNSError{Err: "no such host", Name: "gw.example", IsNotFound: true}), false},
+		{"timeout is transient", fmt.Errorf("cannot resolve host: %w", &net.DNSError{Err: "i/o timeout", Name: "gw.example", IsTimeout: true}), true},
+		{"temporary is transient", fmt.Errorf("cannot resolve host: %w", &net.DNSError{Err: "server misbehaving", Name: "gw.example", IsTemporary: true}), true},
+		{"non-public ip is configuration", errors.New("host resolves to a non-public IP (127.0.0.1)"), false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			if got := isTransientGatewayResolutionError(tc.err); got != tc.want {
+				t.Fatalf("isTransientGatewayResolutionError(%v) = %v, want %v", tc.err, got, tc.want)
+			}
+		})
+	}
+}
+
+// A resolver outage on a correctly configured gateway is an upstream failure,
+// not a configuration error: it must surface as 502 (like any other upstream
+// fetch failure), never as the operator-alerting 500.
+func TestHandleNFTMetadata_GatewayResolutionOutageIs502(t *testing.T) {
+	origMetaCache := nftMetadataCache
+	nftMetadataCache = newLRUCache(nftCacheMaxEntries)
+	t.Cleanup(func() { nftMetadataCache = origMetaCache })
+
+	origLookup := lookupHostForValidation
+	lookupHostForValidation = func(host string) ([]string, error) {
+		return nil, &net.DNSError{Err: "i/o timeout", Name: host, IsTimeout: true}
+	}
+	t.Cleanup(func() { lookupHostForValidation = origLookup })
+
+	handler := HandleNFTMetadata(nftHandlerOptions{gateway: "https://gateway.example/ipfs/"})
+	req := httptest.NewRequest(http.MethodGet, "/api/nft/metadata?uri=ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusBadGateway {
+		t.Fatalf("resolver outage: got %d, want 502 (body %q)", rec.Code, rec.Body.String())
+	}
+}
+
+func TestHandleNFTMetadata_GatewayNXDomainStays500(t *testing.T) {
+	origMetaCache := nftMetadataCache
+	nftMetadataCache = newLRUCache(nftCacheMaxEntries)
+	t.Cleanup(func() { nftMetadataCache = origMetaCache })
+
+	origLookup := lookupHostForValidation
+	lookupHostForValidation = func(host string) ([]string, error) {
+		return nil, &net.DNSError{Err: "no such host", Name: host, IsNotFound: true}
+	}
+	t.Cleanup(func() { lookupHostForValidation = origLookup })
+
+	handler := HandleNFTMetadata(nftHandlerOptions{gateway: "https://gateway.example/ipfs/"})
+	req := httptest.NewRequest(http.MethodGet, "/api/nft/metadata?uri=ipfs://QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG", nil)
+	rec := httptest.NewRecorder()
+	handler.ServeHTTP(rec, req)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("nxdomain gateway: got %d, want 500 (body %q)", rec.Code, rec.Body.String())
 	}
 }
