@@ -26,7 +26,7 @@ Full changelogs are split by version range for easier navigation:
 - The collectibles (NFT) indexer switches on once observability is wired; marketplace registration follows it.
 - Block Party's Daily and the Space Invaders certify pipeline switch on after their owner ceremonies.
 
-## [v7.5.0] — 2026-09-10
+## [v7.5.0] — 2026-09-07
 
 ### Memba lives on Pearl (#1091, #1117, #1119, 2026-08-31)
 <!-- categories: memba, network -->
@@ -104,7 +104,7 @@ Full changelogs are split by version range for easier navigation:
 - **Hermetic grc20 guard tests (#1080)** pass under any `VITE_GNO_CHAIN_ID` pin, and **the runbook's alert thresholds are executable (#1096)** — expressed as rule files rather than prose.
 - **Dependencies**: fourteen Dependabot bumps (#1044, #1083–#1087, #1089, #1092, #1093, #1107, #1121–#1123, #1136) across @sentry/react, the tanstack, remotion, bufbuild and eslint groups, protobuf, modernc sqlite and cosmos-sdk, plus the dev-deps groups.
 
-### Temporarily dark, on purpose (2026-09-10)
+### Temporarily dark, on purpose (2026-09-07)
 <!-- categories: memba -->
 - **Block Party** is paused by the backend kill switch (`BLOCKPARTY_ENABLED`); its Daily switches on after the owner ceremony.
 - **Space Invaders certification** (day-close attestation and the on-chain leaderboard) stays behind its flag; the game itself is playable behind its route flag.
