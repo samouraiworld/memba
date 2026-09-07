@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/rs/cors"
+	"github.com/samouraiworld/memba/backend/internal/indexer"
 )
 
 // SEC-2: /metrics is gated by METRICS_BEARER when set. When unset it stays open
@@ -307,6 +308,30 @@ func TestDefaultNFTRPCURL_IsThePearlSentry(t *testing.T) {
 		if strings.Contains(defaultNFTRPCURL, retired) {
 			t.Fatalf("defaultNFTRPCURL %q names retired chain marker %q", defaultNFTRPCURL, retired)
 		}
+	}
+}
+
+// A backend booted without FEED_START_BLOCK / NFT_START_BLOCK must start
+// tailing at the PEARL deploy heights. A default above the chain head is the
+// "silently indexes nothing" trap: the 260000 test13-era NFT default sat above
+// pearl's head (~249k on 2026-09-06), and the 187503 feed default was the
+// retired sapphire height. Production sets FEED_START_BLOCK explicitly, so
+// this pins the fresh-machine contract, not prod. Heights come from
+// realm-versions.json `pearl` (memba_feed_v1 seq 22; memba_nft_market_v3_2
+// seq 32); the pearl head at pin time bounds the NFT default from above.
+func TestDefaultStartHeightsArePearlEra(t *testing.T) {
+	const (
+		pearlFeedDeployHeight = int64(99236)
+		pearlHeadAtPin        = int64(249000) // 2026-09-06
+	)
+	if defaultFeedStartBlock != pearlFeedDeployHeight {
+		t.Fatalf("defaultFeedStartBlock = %d, want the pearl memba_feed_v1 deploy height %d", defaultFeedStartBlock, pearlFeedDeployHeight)
+	}
+	if defaultNFTStartBlock <= 0 || defaultNFTStartBlock >= pearlHeadAtPin {
+		t.Fatalf("defaultNFTStartBlock = %d, want 0 < h < pearl head %d (a default above the head indexes nothing)", defaultNFTStartBlock, pearlHeadAtPin)
+	}
+	if defaultNFTStartBlock != indexer.DefaultNFTStartBlock {
+		t.Fatalf("defaultNFTStartBlock = %d but indexer.DefaultNFTStartBlock = %d — one shared constant, not two literals", defaultNFTStartBlock, indexer.DefaultNFTStartBlock)
 	}
 }
 

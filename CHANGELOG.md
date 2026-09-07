@@ -29,6 +29,11 @@ Full changelogs are split by version range for easier navigation:
 ### The MCP servers and the gno-rpc package default to Pearl (2026-09-07)
 <!-- categories: memba -->
 - The `gno-rpc` client, both MCP servers and the agent-registration script used to bake in a test13 node that no longer exists; when no endpoint is configured they now talk to the Pearl canonical node and register against `agent_registry_v2`.
+### Fresh backends start at Pearl heights (2026-09-07)
+<!-- categories: memba -->
+- A backend started without `FEED_START_BLOCK` used to begin tailing at the Sapphire feed height; it now starts at the Pearl `memba_feed_v1` deployment (production already sets the value explicitly).
+- The NFT indexer's built-in start height was a test13-era block above the Pearl head, so re-enabling it would have indexed nothing; the default is now the Pearl `memba_nft_market_v3_2` deployment height and the watched-realm list names only the Pearl artifacts. The indexer stays disabled pending observability wiring.
+- The legacy `AGENT_REGISTRY_REALM` environment alias is retired one release after v7.4.0 as planned; the canonical `AGENT_REGISTRY_REALM_PATH` (default `agent_registry_v2`) is the only setting read, and a set-but-ignored alias is logged once at startup.
 
 ### Block Party's Daily is now honest, resilient, and ready for review (2026-09-04)
 <!-- categories: memba -->

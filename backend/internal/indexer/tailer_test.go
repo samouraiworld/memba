@@ -104,7 +104,7 @@ func TestSeedRealmCursor(t *testing.T) {
 	const offers = "gno.land/r/samcrew/memba_nft_offers_v1"
 
 	must(t, SeedRealmCursor(ctx, db, offers, 280000))
-	got, _, err := loadCursor(ctx, db, []string{offers}, defaultStartBlock)
+	got, _, err := loadCursor(ctx, db, []string{offers}, DefaultNFTStartBlock)
 	must(t, err)
 	if got != 279999 {
 		t.Fatalf("seeded cursor = %d, want 279999 (deployHeight-1)", got)
@@ -112,7 +112,7 @@ func TestSeedRealmCursor(t *testing.T) {
 	// Idempotent: seeding again (e.g. after it has advanced) must NOT rewind.
 	must(t, saveCursor(ctx, db, []string{offers}, 285000, ""))
 	must(t, SeedRealmCursor(ctx, db, offers, 280000))
-	got, _, err = loadCursor(ctx, db, []string{offers}, defaultStartBlock)
+	got, _, err = loadCursor(ctx, db, []string{offers}, DefaultNFTStartBlock)
 	must(t, err)
 	if got != 285000 {
 		t.Fatalf("cursor after re-seed = %d, want 285000 (no rewind)", got)

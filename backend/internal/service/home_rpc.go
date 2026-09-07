@@ -265,18 +265,13 @@ func tokenfactoryRealmPath() string {
 // snapshot's countAgents (here), analyst.checkProCredits, and the
 // /api/marketplace/agents proxy wired up in cmd/memba/main.go.
 //
-// Precedence: AGENT_REGISTRY_REALM_PATH (canonical) → AGENT_REGISTRY_REALM
-// (legacy, kept for one release so an operator who set only the old name isn't
-// broken by the rename) → the IsUserCall-guarded v2 realm default. Keep the
-// default in sync with the frontend agentRegistryPath binding.
-//
-// TODO(2026-09): drop the AGENT_REGISTRY_REALM fallback once operators have had
-// one release (≥ v7.4.0) to migrate to AGENT_REGISTRY_REALM_PATH.
+// Precedence: AGENT_REGISTRY_REALM_PATH (canonical) → the IsUserCall-guarded
+// v2 realm default. The legacy AGENT_REGISTRY_REALM alias was honored for one
+// release after the rename (v7.4.0) and is now retired: it is ignored here and
+// reported once at startup by WarnIgnoredAgentRegistryAlias. Keep the default
+// in sync with the frontend agentRegistryPath binding.
 func AgentRegistryRealmPath() string {
 	if v := os.Getenv("AGENT_REGISTRY_REALM_PATH"); v != "" {
-		return v
-	}
-	if v := os.Getenv("AGENT_REGISTRY_REALM"); v != "" {
 		return v
 	}
 	return "gno.land/r/samcrew/agent_registry_v2"
@@ -635,4 +630,16 @@ func fetchValidatorsHealth(ctx context.Context, rpcURL string) (*membav1.Validat
 		status = "down"
 	}
 	return &membav1.ValidatorsHealth{Status: status, Active: total, Total: total}, nil
+}
+
+// WarnIgnoredAgentRegistryAlias logs once, at startup, when the retired
+// AGENT_REGISTRY_REALM alias is still set: it is ignored, and an operator who
+// only ever set the old name would otherwise land on the default realm with no
+// signal. Called from cmd/memba/main.go next to AgentRegistryRealmPath.
+func WarnIgnoredAgentRegistryAlias() {
+	if v := os.Getenv("AGENT_REGISTRY_REALM"); v != "" {
+		slog.Warn("AGENT_REGISTRY_REALM is retired and IGNORED; set AGENT_REGISTRY_REALM_PATH instead",
+			"ignored_value", v,
+			"effective_path", AgentRegistryRealmPath())
+	}
 }
