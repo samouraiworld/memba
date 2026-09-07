@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
 import type { RefObject } from "react";
 import { useTouch, steerAmount } from "./useTouch";
@@ -20,14 +20,29 @@ function makeArea(): HTMLElement {
   el.getBoundingClientRect = () =>
     ({ left: LEFT, top: 0, right: LEFT + WIDTH, bottom: 200, width: WIDTH, height: 200, x: LEFT, y: 0, toJSON: () => ({}) }) as DOMRect;
   Object.defineProperty(el, "clientWidth", { value: WIDTH, configurable: true });
+  Object.defineProperties(el, {
+    setPointerCapture: { value: vi.fn(), configurable: true },
+    releasePointerCapture: { value: vi.fn(), configurable: true },
+    hasPointerCapture: { value: vi.fn(() => true), configurable: true },
+  });
   return el;
 }
 
-function pointer(type: "pointerdown" | "pointermove" | "pointerup", pointerId: number, clientX: number): Event {
+function pointer(
+  type: "pointerdown" | "pointermove" | "pointerup" | "pointercancel" | "lostpointercapture",
+  pointerId: number,
+  clientX: number,
+): Event {
   const ev = new MouseEvent(type, { bubbles: true, clientX });
   Object.defineProperty(ev, "pointerId", { value: pointerId });
   return ev;
 }
+
+function setVisibility(value: DocumentVisibilityState) {
+  Object.defineProperty(document, "visibilityState", { value, configurable: true });
+}
+
+afterEach(() => setVisibility("visible"));
 
 function mount() {
   const el = makeArea();
@@ -45,6 +60,7 @@ describe("useTouch", () => {
   it("left-half press then drag steers proportionally; release clears", () => {
     const { el, result } = mount();
     el.dispatchEvent(pointer("pointerdown", 1, 150)); // left of the 250 midpoint
+    expect(el.setPointerCapture).toHaveBeenCalledWith(1);
     expect(result.current().move).toBe(0); // press point itself is neutral
 
     el.dispatchEvent(pointer("pointermove", 1, 170)); // dx = +20
@@ -73,6 +89,7 @@ describe("useTouch", () => {
   it("right-half press fires while held; release stops", () => {
     const { el, result } = mount();
     el.dispatchEvent(pointer("pointerdown", 2, 300)); // right of the 250 midpoint
+    expect(el.setPointerCapture).toHaveBeenCalledWith(2);
     expect(result.current().fire).toBe(true);
     expect(result.current().fire).toBe(true); // hold-to-fire, level not edge
     window.dispatchEvent(pointer("pointerup", 2, 300));
@@ -87,6 +104,15 @@ describe("useTouch", () => {
     expect(result.current().fire).toBe(false);
     el.dispatchEvent(pointer("pointermove", 1, 240 + 56));
     expect(result.current().move).toBe(1);
+  });
+
+  it("does not capture or turn button presses inside the stage into game input", () => {
+    const { el, result } = mount();
+    const button = document.createElement("button");
+    el.append(button);
+    button.dispatchEvent(pointer("pointerdown", 7, 320));
+    expect(result.current()).toEqual({ move: 0, fire: false, pause: false });
+    expect(el.setPointerCapture).not.toHaveBeenCalled();
   });
 
   it("steer and fire pointers work simultaneously and release independently", () => {
@@ -122,14 +148,56 @@ describe("useTouch", () => {
     expect(result.current().move).toBe(0);
   });
 
-  it("stops listening after unmount", () => {
+  it("clears only the pointer that is cancelled or loses capture", () => {
+    const { el, result } = mount();
+    el.dispatchEvent(pointer("pointerdown", 1, 150));
+    el.dispatchEvent(pointer("pointermove", 1, 206));
+    el.dispatchEvent(pointer("pointerdown", 2, 320));
+    expect(result.current()).toEqual({ move: 1, fire: true, pause: false });
+
+    window.dispatchEvent(pointer("pointercancel", 2, 320));
+    expect(result.current()).toEqual({ move: 1, fire: false, pause: false });
+
+    el.dispatchEvent(pointer("lostpointercapture", 1, 206));
+    expect(result.current()).toEqual({ move: 0, fire: false, pause: false });
+  });
+
+  it("clears every active pointer on blur and visibility loss", () => {
+    const { el, result } = mount();
+    el.dispatchEvent(pointer("pointerdown", 1, 150));
+    el.dispatchEvent(pointer("pointermove", 1, 206));
+    el.dispatchEvent(pointer("pointerdown", 2, 320));
+    window.dispatchEvent(new Event("blur"));
+    expect(result.current()).toEqual({ move: 0, fire: false, pause: false });
+    expect(el.releasePointerCapture).toHaveBeenCalledWith(1);
+    expect(el.releasePointerCapture).toHaveBeenCalledWith(2);
+
+    el.dispatchEvent(pointer("pointerdown", 3, 150));
+    el.dispatchEvent(pointer("pointermove", 3, 206));
+    setVisibility("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(result.current()).toEqual({ move: 0, fire: false, pause: false });
+    expect(el.releasePointerCapture).toHaveBeenCalledWith(3);
+  });
+
+  it("falls back safely when pointer capture is unsupported or rejects", () => {
+    const { el, result } = mount();
+    vi.mocked(el.setPointerCapture).mockImplementation(() => {
+      throw new DOMException("capture unavailable");
+    });
+    el.dispatchEvent(pointer("pointerdown", 2, 300));
+    expect(result.current().fire).toBe(true);
+    window.dispatchEvent(pointer("pointerup", 2, 300));
+    expect(result.current().fire).toBe(false);
+  });
+
+  it("stops listening and clears active pointers after unmount", () => {
     const { el, result, unmount } = mount();
     const poll = result.current;
     el.dispatchEvent(pointer("pointerdown", 2, 300));
     expect(poll().fire).toBe(true);
     unmount();
     window.dispatchEvent(pointer("pointerup", 2, 300));
-    // the release after unmount is not observed: last polled state sticks
-    expect(poll().fire).toBe(true);
+    expect(poll().fire).toBe(false);
   });
 });

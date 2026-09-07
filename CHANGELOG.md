@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Space Invaders becomes a responsive Memba signal-defense cabinet (2026-09-05)
+<!-- categories: memba -->
+- **The debug-style rectangles are now an original arcade world.** Procedural row-specific signal creatures, a relay skiff, damaged bunkers, a circuit-starfield, deterministic cosmetic effects, wave and impact feedback, and a responsive cabinet give the game a distinctive Pearl-native identity without changing certified simulation state.
+- **Daily play is deliberate and honest.** Players explicitly choose Daily or Free Play, locally verified runs are described as queued until day-close attestation, and the HUD, pause, result, and operator guidance states remain stable across desktop, 320 px portrait, and short landscape layouts.
+- **Controls now belong to the game, not the page.** Keyboard input is focus-scoped, touch uses safe pointer ownership and cancellation, hidden or blurred play auto-pauses, WebAudio cleans up correctly under React StrictMode, and reduced-motion, mute, live announcements, 44 px targets, and mobile WebKit/Chromium checks are covered.
+- The deterministic engine, scoring, replay version, wire format, verification worker, backend, realm, and production flags are unchanged.
+
 ### Block Party's Daily is now honest, resilient, and ready for review (2026-09-04)
 <!-- categories: memba -->
 - **An outage can no longer look like an empty competition.** Daily challenge, leaderboard, streak, and submission failures have their own messages and retries. A saved challenge is visibly unranked and can become a Practice board, but it cannot enter the leaderboard until the service confirms it live.
