@@ -20,11 +20,6 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Transaction links point somewhere real (2026-09-07)
-<!-- categories: memba -->
-- The deployment pipeline's "TX" link used to point at gnoweb's non-existent `/tx/<hash>` route, so it 404'd for every DAO, multisig and token ever created; it now opens the transaction on gnoscan for the active chain (gnoscan indexes `pearl-1` and `gnoland1`), and on a chain gnoscan does not index the hash is shown as plain text instead of a dead link. Hashes display in one stable lowercase-hex form whether the wallet returned hex (Adena 1.20.5+) or base64 (older Adena, raw `broadcast_tx_commit`).
-
-### Space Invaders becomes a responsive Memba signal-defense cabinet (2026-09-05)
 ### Coming next
 <!-- categories: memba -->
 - The commerce lanes — creating tokens, the NFT marketplace, escrow and OTC trading — have been deployed on Pearl since the 2026-08-31 ceremony (`tokenfactory_v2`, the NFT/market v3.2 set, `escrow_v3`, OTC). They switch on once the two-wallet live-money check passes.
@@ -91,13 +86,14 @@ Full changelogs are split by version range for easier navigation:
 - **The "Get GNOT from Faucet" button led to an error page.** It pointed at the faucet's machine-to-machine address, which answers a browser with "405 Method Not Allowed". It now opens the faucet hub — the page with the working faucet for the current network — like every other network's faucet link already did.
 - If you already activated by sending yourself a token from the wallet directly: that worked fine and nothing changes for you.
 
-### Pearl-true defaults and docs (#1147, #1148, #1149, #1150, #1151, 2026-09-07)
+### Pearl-true defaults and docs (#1147, #1148, #1149, #1150, #1151, #1153, 2026-09-07)
 <!-- categories: memba -->
 - **The MCP servers and the gno-rpc package default to Pearl (#1147).** The `gno-rpc` client, both MCP servers and the agent-registration script used to bake in a test13 node that no longer exists; when no endpoint is configured they now talk to the Pearl canonical node and register against `agent_registry_v2`.
 - **Fresh backends start at Pearl heights (#1149).** A backend started without `FEED_START_BLOCK` used to begin tailing at the Sapphire feed height; it now starts at the Pearl `memba_feed_v1` deployment (production already sets the value explicitly). The NFT indexer's built-in start height was a test13-era block above the Pearl head, so re-enabling it would have indexed nothing; the default is now the earliest Pearl deployment height among the watched NFT realms (`memba_collections`, eight blocks before `memba_nft_market_v3_2`) and the watched-realm list names only the Pearl artifacts. The indexer stays disabled pending observability wiring.
 - **The legacy `AGENT_REGISTRY_REALM` environment alias is retired (#1149)** one release after v7.4.0 as planned; the canonical `AGENT_REGISTRY_REALM_PATH` (default `agent_registry_v2`) is the only setting read, and a set-but-ignored alias is logged once at startup.
 - **The public docs say what is true (#1148, #1150, #1151).** The README and public docs describe Pearl as home and Sapphire as retired, historical runbooks and ADRs are stamped so retired-chain steps read as history, and the end-to-end suite and code comments say Pearl where they still claimed a retired default chain.
 
+- The deployment pipeline's "TX" link used to point at gnoweb's non-existent `/tx/<hash>` route, so it 404'd for every DAO, multisig and token ever created; it now opens the transaction on gnoscan for the active chain (gnoscan indexes `pearl-1` and `gnoland1`), and on a chain gnoscan does not index the hash is shown as plain text instead of a dead link. Hashes display in one stable lowercase-hex form whether the wallet returned hex (Adena 1.20.5+) or base64 (older Adena, raw `broadcast_tx_commit`).
 ### Under the hood and accessibility (#1080, #1096, #1097, #1100, #1101, #1102, #1103, #1104, #1105, #1106, #1108, #1109, #1110, #1111, #1112, 2026-08-24)
 <!-- categories: memba -->
 - **The money-path modal is a real dialog (#1100)** — proper dialog semantics for assistive technology, and a layout that works on a phone.
