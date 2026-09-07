@@ -260,17 +260,18 @@ func main() {
 	// Start the NFT marketplace state-polling indexer. NOTE: the NFT realms use
 	// their OWN rpc env (NFT_RPC_URL) — NOT GNO_RPC_URL.
 	//
-	// NFT_INDEXER_DISABLED=1 skips the poller AND the event tailer entirely:
-	// the NFT realms are not deployed on sapphire (the fund-custody commerce
-	// ceremony is deliberately separate from the phase-1 cutover), and running
-	// the tailer against a chain without them only burns RPC calls — while its
-	// chain-agnostic nft_indexer_state cursor would mix heights across chains.
-	// Re-enabling at that ceremony REQUIRES clearing nft_indexer_state (and the
-	// nft projections) first: NFT_SEED_REALM_CURSOR is INSERT OR IGNORE and
-	// will NOT rewind the retained test13/topaz-era rows, and the projections'
-	// keys collide across chains exactly like the feed's did. Also set
-	// NFT_START_BLOCK explicitly (the 260000 default below is a test13-era
-	// height, ABOVE young-chain heads — the "silently indexes nothing" trap).
+	// NFT_INDEXER_DISABLED=1 skips the poller AND the event tailer entirely.
+	// The NFT stack (memba_collections + memba_nft_market_v3_2) IS deployed on
+	// pearl (2026-08-31 combined ceremony); the indexer stays disabled pending
+	// observability wiring (memba_indexer_lag_blocks is pinned at 0 while it's
+	// off, so a re-enable without scrape + alerting would fail silently).
+	// Re-enabling REQUIRES clearing nft_indexer_state (and the nft
+	// projections) first: NFT_SEED_REALM_CURSOR is INSERT OR IGNORE and will
+	// NOT rewind the retained test13/topaz-era rows, and the projections' keys
+	// collide across chains exactly like the feed's did. The NFT_START_BLOCK
+	// default below is the pearl memba_nft_market_v3_2 deploy height; a floor
+	// ABOVE the chain head silently indexes nothing, so re-check it against
+	// realm-versions.json on any chain switch.
 	nftDisabled := os.Getenv("NFT_INDEXER_DISABLED") == "1"
 	if nftDisabled {
 		slog.Info("NFT indexer disabled (NFT_INDEXER_DISABLED=1)")
@@ -321,7 +322,7 @@ func main() {
 			RPCURL:           nftRPCURL,
 			WatchedRealms:    splitOrigins(envOr("NFT_WATCHED_REALMS", defaultNFTWatchedRealms(marketRealm, collectionRealm))),
 			SaleVolumeRealms: splitOrigins(envOr("NFT_SALE_VOLUME_REALMS", defaultNFTSaleVolumeRealms())),
-			StartBlock:       int64Or("NFT_START_BLOCK", 260000),
+			StartBlock:       int64Or("NFT_START_BLOCK", defaultNFTStartBlock),
 			Confirmations:    int64Or("NFT_CONFIRMATIONS", 5),
 			Interval:         durationOr("NFT_TAILER_INTERVAL", 3*time.Second),
 			Logger:           logger,
@@ -336,16 +337,17 @@ func main() {
 		indexer.StartFeedTailer(ctx, database, indexer.FeedTailerConfig{
 			RPCURL:        envOr("FEED_RPC_URL", nftRPCURL),
 			WatchedRealms: splitOrigins(feedRealms),
-			// Default = the SAPPHIRE memba_feed_v1 deploy block (add_package tx
-			// at height 187503, 2026-08-15 ceremony — recorded in
-			// realm-versions.json). A start block ABOVE the chain head silently
-			// indexes nothing — set FEED_START_BLOCK explicitly on any chain
-			// switch (the old test13-era default 260000 did exactly that hazard
-			// on topaz; the topaz-era 94093 would waste a 93k-block scan here).
+			// Default = the PEARL memba_feed_v1 deploy block (add_package tx at
+			// height 99236, 2026-08-31 ceremony — recorded in realm-versions.json;
+			// prod pins FEED_START_BLOCK to the same value as a secret). A start
+			// block ABOVE the chain head silently indexes nothing — set
+			// FEED_START_BLOCK explicitly on any chain switch (the old test13-era
+			// default 260000 did exactly that hazard on topaz; the sapphire-era
+			// 187503 would have done it again here).
 			// NOTE: the env/default is only a FIRST-RUN floor — the DB cursor
 			// wins, which is why a chain switch also requires the feed-state
 			// reset (see OPS_RUNBOOK).
-			StartBlock:    int64Or("FEED_START_BLOCK", 187503),
+			StartBlock:    int64Or("FEED_START_BLOCK", defaultFeedStartBlock),
 			Confirmations: int64Or("FEED_CONFIRMATIONS", 5),
 			Interval:      durationOr("FEED_TAILER_INTERVAL", 3*time.Second),
 			Logger:        logger,
@@ -391,8 +393,10 @@ func main() {
 
 	// Marketplace — cached realm proxies (60s server-side TTL)
 	// Single source of truth shared with the analyst credit check and the home
-	// snapshot's agent count (AGENT_REGISTRY_REALM_PATH canonical, legacy
-	// AGENT_REGISTRY_REALM honored for one release, v2 default).
+	// snapshot's agent count (AGENT_REGISTRY_REALM_PATH canonical, v2 default;
+	// the legacy AGENT_REGISTRY_REALM alias is retired since one release after
+	// v7.4.0 and is ignored — logged once here if still set).
+	service.WarnIgnoredAgentRegistryAlias()
 	agentRegistryPath := service.AgentRegistryRealmPath()
 	escrowRealmPath := os.Getenv("ESCROW_REALM_PATH")
 	if escrowRealmPath == "" {
@@ -609,6 +613,16 @@ func main() {
 // pearl sentry (see the comment at the call site). Pinned by main_test.go so
 // a retired-chain host can never come back here silently.
 const defaultNFTRPCURL = "https://rpc.pearl.samourai.live:443"
+
+// First-run cursor floors when FEED_START_BLOCK / NFT_START_BLOCK are unset —
+// the pearl-1 deploy heights of memba_feed_v1 and memba_nft_market_v3_2, shared
+// with the indexer package so there is exactly one literal per realm. Pinned by
+// TestDefaultStartHeightsArePearlEra: a floor above the chain head indexes
+// nothing, silently.
+const (
+	defaultFeedStartBlock = indexer.DefaultFeedStartBlock
+	defaultNFTStartBlock  = indexer.DefaultNFTStartBlock
+)
 
 func envOr(key, fallback string) string {
 	if v := os.Getenv(key); v != "" {

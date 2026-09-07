@@ -116,7 +116,8 @@ won't fail the build.
 ### 5. Verify the loop (pearl)
 
 1. Play a daily run to a verified result → tap **Certify on-chain** → sign in →
-   the poster shows "Certified on-chain ✓".
+   the poster shows "Run verified and queued" (queued until the day-close
+   attestation writes it on-chain).
 2. Backend: the run is stored `verified` (check `/metrics` / logs).
 3. Wait until the day is fully closed (D+2 UTC) — or, for a smoke test, temporarily
    submit for a seed whose day is already ≥2 days old is NOT possible (the submit
