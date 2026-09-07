@@ -9,11 +9,12 @@ const hit: GameEvent = { type: "playerHit" };
 // visual-only effects using its OWN rng — it must never touch or depend on the
 // simulation, so an onchain replay stays byte-identical regardless of juice.
 describe("cosmetic fx layer", () => {
-  it("spawns particles and a score popup on alienKilled", () => {
+  it("spawns particles and honest non-numeric feedback on alienKilled", () => {
     const fx = createFx(1);
     fxConsume(fx, [kill]);
     expect(fx.particles.length).toBeGreaterThan(0);
     expect(fx.popups.length).toBe(1);
+    expect(fx.popups[0]?.text).toBe("HIT");
   });
 
   it("adds screen shake on playerHit", () => {
@@ -38,14 +39,37 @@ describe("cosmetic fx layer", () => {
 
   it("suppresses particles and shake under reduced motion", () => {
     const fx = createFx(1, { reducedMotion: true });
-    fxConsume(fx, [kill, hit]);
+    fxConsume(fx, [kill, hit, { type: "waveCleared" }, { type: "ufoSpawned" }]);
     expect(fx.particles.length).toBe(0);
     expect(fx.shake).toBe(0);
+    expect(fx.flash).toBe(0);
+    expect(fx.signal).toBe(0);
+    expect(fx.popups.length).toBeGreaterThan(0);
   });
 
   it("caps particles so juice cannot exhaust memory", () => {
     const fx = createFx(1);
     for (let i = 0; i < 500; i++) fxConsume(fx, [kill]);
     expect(fx.particles.length).toBeLessThanOrEqual(300);
+    expect(fx.popups.length).toBeLessThanOrEqual(120);
+  });
+
+  it("produces identical cosmetic bursts for identical seeds and events", () => {
+    const first = createFx(123);
+    const second = createFx(123);
+    const events: GameEvent[] = [kill, { type: "ufoKilled", x: 30, y: 22, points: 300 }];
+    fxConsume(first, events);
+    fxConsume(second, events);
+    expect(second).toEqual(first);
+  });
+
+  it("compacts expired effects in place instead of allocating frame arrays", () => {
+    const fx = createFx(5);
+    fxConsume(fx, [kill]);
+    const particles = fx.particles;
+    const popups = fx.popups;
+    fxUpdate(fx, 100);
+    expect(fx.particles).toBe(particles);
+    expect(fx.popups).toBe(popups);
   });
 });

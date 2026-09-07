@@ -1,5 +1,5 @@
 /**
- * SpaceInvadersCertify — the opt-in "certify this run on-chain" control on the
+ * SpaceInvadersCertify — the opt-in score-attestation control on the
  * daily game-over sheet. Rendered ONLY when the certify flags are on, the run
  * was a daily, and it self-verified (the shell re-simulated the recorded wire
  * log to the identical score + hash) — so the wallet hooks it pulls in
@@ -22,7 +22,11 @@ export default function SpaceInvadersCertify({ run }: { run: InvadersCertifyRun 
   const { certify, status, error } = useArcadeCertify();
 
   if (status === "certified") {
-    return <p className="si-hint si-certified">Certified on-chain ✓ — it’ll appear on the day’s board once attested.</p>;
+    return (
+      <p className="si-hint si-certified" role="status">
+        Run verified and queued ✓ It will appear on-chain after day-close attestation.
+      </p>
+    );
   }
 
   return (
@@ -41,9 +45,9 @@ export default function SpaceInvadersCertify({ run }: { run: InvadersCertifyRun 
           })
         }
       >
-        {status === "certifying" ? "Certifying…" : "Certify on-chain"}
+        {status === "certifying" ? "Submitting…" : "Queue for on-chain board"}
       </button>
-      {status === "error" && error && <p className="si-hint si-certify-error">{error}</p>}
+      {status === "error" && error && <p className="si-hint si-certify-error" role="alert">{error}</p>}
     </>
   );
 }

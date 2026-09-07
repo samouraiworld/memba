@@ -17,6 +17,7 @@ vi.mock("./SpaceInvadersCertify", () => ({
 
 // Deterministic rAF: callbacks queue up and only run when a test flushes them.
 let rafQueue: FrameRequestCallback[] = [];
+
 function flushFrame(time: number) {
   const cbs = rafQueue;
   rafQueue = [];
@@ -46,17 +47,35 @@ beforeEach(() => {
 afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllEnvs();
+  Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
 });
 
 /** Flush 250ms frames (≈15 fixed steps each) until the game-over sheet shows. */
 function driveToGameover(t0: number, maxFrames = 600): number {
   let t = t0;
-  for (let i = 0; i < maxFrames; i++) {
-    t += 250;
-    flushFrame(t);
-    if (screen.queryByText(/game over/i)) return t;
+  // Keep the long deterministic simulation inside one React transaction.
+  // Per-frame DOM queries and `act` scopes made this harness wall-clock-bound
+  // when the repository test pool was under contention.
+  act(() => {
+    for (let i = 0; i < maxFrames; i++) {
+      t += 250;
+      const cbs = rafQueue;
+      rafQueue = [];
+      for (const cb of cbs) cb(t);
+    }
+  });
+  if (!screen.queryByText(/game over/i)) {
+    throw new Error("run did not reach game over within the frame budget");
   }
-  throw new Error("run did not reach game over within the frame budget");
+  return t;
+}
+
+function hudScore(): string | null {
+  return document.querySelector(".si-stat--score strong")?.textContent ?? null;
+}
+
+function gameSurface(): HTMLElement {
+  return screen.getByRole("group", { name: /signal defense game surface/i });
 }
 
 describe("pause determinism (daily replay fidelity)", () => {
@@ -74,10 +93,10 @@ describe("pause determinism (daily replay fidelity)", () => {
 
     // Anchor the loop clock, then start the run with a short steer nudge.
     flushFrame(0);
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
+    fireEvent.keyDown(gameSurface(), { key: "ArrowRight" });
     flushFrame(250);
     flushFrame(500);
-    window.dispatchEvent(new KeyboardEvent("keyup", { key: "ArrowRight" }));
+    fireEvent.keyUp(gameSurface(), { key: "ArrowRight" });
 
     // Some live play before the pause.
     let t = 500;
@@ -90,48 +109,48 @@ describe("pause determinism (daily replay fidelity)", () => {
     // Pause. Large wall-time gaps then elapse while paused — under the fix
     // they consume ZERO engine ticks (the accumulator is dropped every frame).
     fireEvent.click(screen.getByRole("button", { name: /^pause$/i }));
-    expect(screen.getByText(/paused/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /relay paused/i })).toBeInTheDocument();
     for (let i = 0; i < 6; i++) {
       t += 10_000;
       flushFrame(t);
     }
-    expect(screen.getByText(/paused/i)).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /relay paused/i })).toBeInTheDocument();
 
     // Resume, then START FIRING — a fresh input delta recorded after the
     // pause window — and let the run play out to game over.
-    fireEvent.click(screen.getByRole("button", { name: /resume/i }));
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: " " }));
+    fireEvent.click(screen.getByRole("button", { name: /^resume$/i }));
+    fireEvent.keyDown(gameSurface(), { key: " " });
     driveToGameover(t);
 
     // The self-verify (simulateReplay over the recorded wire log vs the live
     // final state) must pass — the pause left no hole in the timeline.
-    expect(screen.getByText(/verified ✓/i)).toBeInTheDocument();
-    expect(screen.queryByText(/unverified/i)).toBeNull();
+    expect(screen.getByText(/verified locally/i)).toBeInTheDocument();
+    expect(screen.queryByText(/verification pending/i)).toBeNull();
   });
 
   it("a paused game consumes no ticks: score and wave are byte-identical across a long pause", () => {
     render(<SpaceInvaders />);
     fireEvent.click(screen.getByRole("button", { name: /daily run/i }));
     flushFrame(0);
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: " " }));
+    fireEvent.keyDown(gameSurface(), { key: " " });
     let t = 0;
     for (let i = 0; i < 10; i++) {
       t += 250;
       flushFrame(t);
     }
-    window.dispatchEvent(new KeyboardEvent("keyup", { key: " " }));
-    const hudBefore = screen.getByText(/^score /i).textContent;
+    fireEvent.keyUp(gameSurface(), { key: " " });
+    const hudBefore = hudScore();
 
     fireEvent.click(screen.getByRole("button", { name: /^pause$/i }));
     for (let i = 0; i < 20; i++) {
       t += 60_000; // 20 minutes of wall time — would blow the 216k tick cap if it ticked
       flushFrame(t);
     }
-    expect(screen.getByText(/^score /i).textContent).toBe(hudBefore);
-    expect(screen.getByText(/paused/i)).toBeInTheDocument();
+    expect(hudScore()).toBe(hudBefore);
+    expect(screen.getByRole("heading", { name: /relay paused/i })).toBeInTheDocument();
 
     // Resuming picks the run back up (no game over from the frozen stretch).
-    fireEvent.click(screen.getByRole("button", { name: /resume/i }));
+    fireEvent.click(screen.getByRole("button", { name: /^resume$/i }));
     t += 250;
     flushFrame(t);
     expect(screen.queryByText(/game over/i)).toBeNull();
@@ -141,20 +160,46 @@ describe("pause determinism (daily replay fidelity)", () => {
     render(<SpaceInvaders />);
     fireEvent.click(screen.getByRole("button", { name: /daily run/i }));
     flushFrame(0);
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "ArrowRight" }));
+    fireEvent.keyDown(gameSurface(), { key: "ArrowRight" });
     flushFrame(250);
-    window.dispatchEvent(new KeyboardEvent("keyup", { key: "ArrowRight" }));
+    fireEvent.keyUp(gameSurface(), { key: "ArrowRight" });
 
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "p" }));
+    fireEvent.keyDown(gameSurface(), { key: "p" });
     flushFrame(500);
-    expect(screen.getByText(/paused/i)).toBeInTheDocument();
-    const hud = screen.getByText(/^score /i).textContent;
+    expect(screen.getByRole("heading", { name: /relay paused/i })).toBeInTheDocument();
+    const hud = hudScore();
     flushFrame(50_000);
     flushFrame(100_000);
-    expect(screen.getByText(/^score /i).textContent).toBe(hud);
+    expect(hudScore()).toBe(hud);
 
-    window.dispatchEvent(new KeyboardEvent("keydown", { key: "p" }));
+    fireEvent.keyDown(gameSurface(), { key: "p" });
     flushFrame(100_250);
     expect(screen.queryByText(/paused/i)).toBeNull();
+  });
+
+  it("auto-pauses a daily run when hidden without creating a replay gap", () => {
+    render(<SpaceInvaders />);
+    fireEvent.click(screen.getByRole("button", { name: /daily run/i }));
+    flushFrame(0);
+    fireEvent.keyDown(gameSurface(), { key: "ArrowRight" });
+    flushFrame(250);
+    fireEvent.keyUp(gameSurface(), { key: "ArrowRight" });
+
+    act(() => {
+      Object.defineProperty(document, "visibilityState", { value: "hidden", configurable: true });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    expect(screen.getByRole("heading", { name: /relay paused/i })).toBeInTheDocument();
+    const score = hudScore();
+    flushFrame(60_000);
+    expect(hudScore()).toBe(score);
+
+    act(() => {
+      Object.defineProperty(document, "visibilityState", { value: "visible", configurable: true });
+      document.dispatchEvent(new Event("visibilitychange"));
+    });
+    fireEvent.click(screen.getByRole("button", { name: /resume defense/i }));
+    driveToGameover(60_000);
+    expect(screen.getByText(/verified locally/i)).toBeInTheDocument();
   });
 });

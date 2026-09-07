@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect } from "vitest";
 import { renderHook } from "@testing-library/react";
 import { useKeyboard } from "./useKeyboard";
 
@@ -7,9 +7,17 @@ import { useKeyboard } from "./useKeyboard";
 // arrows/Space are level-triggered, while 'p' is a one-shot edge that the poll
 // itself consumes.
 
-function key(type: "keydown" | "keyup", key: string, repeat = false) {
-  window.dispatchEvent(new KeyboardEvent(type, { key, repeat }));
+function key(type: "keydown" | "keyup", key: string, repeat = false, target: EventTarget = window) {
+  const event = new KeyboardEvent(type, { key, repeat, bubbles: true, cancelable: true });
+  target.dispatchEvent(event);
+  return event;
 }
+
+function setVisibility(value: DocumentVisibilityState) {
+  Object.defineProperty(document, "visibilityState", { value, configurable: true });
+}
+
+afterEach(() => setVisibility("visible"));
 
 describe("useKeyboard", () => {
   it("polls neutral input before any key event", () => {
@@ -83,14 +91,80 @@ describe("useKeyboard", () => {
     expect(result.current().pause).toBe(true);
   });
 
-  it("stops listening after unmount", () => {
+  it("does not steal Space, arrows, or P from interactive and editable targets", () => {
+    const { result } = renderHook(() => useKeyboard());
+    const button = document.createElement("button");
+    const input = document.createElement("input");
+    const editable = document.createElement("div");
+    editable.contentEditable = "true";
+    document.body.append(button, input, editable);
+
+    const space = key("keydown", " ", false, button);
+    const arrow = key("keydown", "ArrowRight", false, input);
+    key("keydown", "p", false, editable);
+
+    expect(space.defaultPrevented).toBe(false);
+    expect(arrow.defaultPrevented).toBe(false);
+    expect(result.current()).toEqual({ move: 0, fire: false, pause: false });
+  });
+
+  it("leaves browser and OS modifier shortcuts alone", () => {
+    const { result } = renderHook(() => useKeyboard());
+    const event = new KeyboardEvent("keydown", {
+      key: "ArrowLeft",
+      metaKey: true,
+      bubbles: true,
+      cancelable: true,
+    });
+    window.dispatchEvent(event);
+    expect(event.defaultPrevented).toBe(false);
+    expect(result.current().move).toBe(0);
+  });
+
+  it("only owns gameplay keys dispatched from an explicit game surface", () => {
+    const surface = document.createElement("div");
+    const outside = document.createElement("div");
+    document.body.append(surface, outside);
+    const scopeRef = { current: surface };
+    const { result } = renderHook(() => useKeyboard(scopeRef));
+
+    const pageArrow = key("keydown", "ArrowRight", false, outside);
+    expect(pageArrow.defaultPrevented).toBe(false);
+    expect(result.current().move).toBe(0);
+
+    const gameArrow = key("keydown", "ArrowRight", false, surface);
+    expect(gameArrow.defaultPrevented).toBe(true);
+    expect(result.current().move).toBe(1);
+    key("keyup", "ArrowRight", false, surface);
+    surface.remove();
+    outside.remove();
+  });
+
+  it("clears held keys and pause edges when the window loses focus", () => {
+    const { result } = renderHook(() => useKeyboard());
+    key("keydown", "ArrowRight");
+    key("keydown", " ");
+    key("keydown", "p");
+    window.dispatchEvent(new Event("blur"));
+    expect(result.current()).toEqual({ move: 0, fire: false, pause: false });
+  });
+
+  it("clears held input when the document becomes hidden", () => {
+    const { result } = renderHook(() => useKeyboard());
+    key("keydown", "ArrowLeft");
+    key("keydown", " ");
+    setVisibility("hidden");
+    document.dispatchEvent(new Event("visibilitychange"));
+    expect(result.current()).toEqual({ move: 0, fire: false, pause: false });
+  });
+
+  it("stops listening and clears held input after unmount", () => {
     const { result, unmount } = renderHook(() => useKeyboard());
     const poll = result.current;
     key("keydown", "ArrowRight");
     expect(poll().move).toBe(1);
     unmount();
     key("keyup", "ArrowRight");
-    // the keyup after unmount is not observed: the last polled state sticks
-    expect(poll().move).toBe(1);
+    expect(poll().move).toBe(0);
   });
 });
