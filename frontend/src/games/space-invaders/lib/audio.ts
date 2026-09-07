@@ -50,6 +50,8 @@ export interface AudioEngine {
   unlock(): void;
   play(id: SoundId): void;
   setMuted(muted: boolean): void;
+  /** Permanently release this engine's WebAudio resources. Idempotent. */
+  dispose(): void;
 }
 
 type ACtor = typeof AudioContext;
@@ -64,10 +66,12 @@ export function createAudioEngine(): AudioEngine {
   let master: GainNode | null = null;
   let muted = loadMuted();
   let marchStep = 0;
+  let disposed = false;
+  let resumeAfterVisibility = false;
   const MARCH_NOTES = [110, 98, 87, 82]; // iconic 4-note descending bass cycle
 
   function ensure(): boolean {
-    if (!AC) return false;
+    if (!AC || disposed) return false;
     if (!ctx) {
       try {
         ctx = new AC();
@@ -80,6 +84,24 @@ export function createAudioEngine(): AudioEngine {
       }
     }
     return !!ctx && !!master;
+  }
+
+  // Browsers normally suspend hidden tabs themselves, but doing it explicitly
+  // avoids an orphaned context consuming resources on platforms that do not.
+  // Resume only when this already-unlocked context was running before the tab
+  // was hidden; a newly-created context still requires unlock() from a gesture.
+  const onVisibilityChange = () => {
+    if (!ctx || disposed) return;
+    if (document.visibilityState !== "visible") {
+      resumeAfterVisibility = ctx.state === "running";
+      if (resumeAfterVisibility) ctx.suspend().catch(() => {});
+    } else if (resumeAfterVisibility && ctx.state === "suspended") {
+      resumeAfterVisibility = false;
+      ctx.resume().catch(() => {});
+    }
+  };
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", onVisibilityChange);
   }
 
   function blip(freq: number, ms: number, type: OscillatorType, gain: number): void {
@@ -155,6 +177,18 @@ export function createAudioEngine(): AudioEngine {
       muted = m;
       saveMuted(m);
       if (master) master.gain.value = m ? 0 : 0.25;
+    },
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      resumeAfterVisibility = false;
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", onVisibilityChange);
+      }
+      const active = ctx;
+      ctx = null;
+      master = null;
+      if (active && active.state !== "closed") active.close().catch(() => {});
     },
   };
 }

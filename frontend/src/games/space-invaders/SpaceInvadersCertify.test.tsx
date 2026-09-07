@@ -33,7 +33,7 @@ describe("SpaceInvadersCertify", () => {
 
   it("certifies the given run on click — finalTick included (the SI-only field)", () => {
     render(<SpaceInvadersCertify run={run} />);
-    fireEvent.click(screen.getByRole("button", { name: /certify on-chain/i }));
+    fireEvent.click(screen.getByRole("button", { name: /queue for on-chain board/i }));
     expect(certify).toHaveBeenCalledWith({
       seed: "invaders-2026-07-13",
       simVersion: 1,
@@ -51,22 +51,23 @@ describe("SpaceInvadersCertify", () => {
     mockStatus = "certifying";
     render(<SpaceInvadersCertify run={run} />);
     expect(screen.getByRole("button")).toBeDisabled();
-    expect(screen.getByRole("button")).toHaveTextContent(/certifying/i);
+    expect(screen.getByRole("button")).toHaveTextContent(/submitting/i);
   });
 
   it("shows a success line when certified (no button left to double-submit)", () => {
     mockStatus = "certified";
     render(<SpaceInvadersCertify run={run} />);
     expect(screen.queryByRole("button")).toBeNull();
-    expect(screen.getByText(/certified on-chain/i)).toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent(/verified and queued/i);
+    expect(screen.getByRole("status")).toHaveTextContent(/after day-close attestation/i);
   });
 
   it("surfaces the backend's rejection reason", () => {
     mockStatus = "error";
     mockError = "rejected: claimed result does not match the re-simulation";
     render(<SpaceInvadersCertify run={run} />);
-    expect(screen.getByText(/does not match the re-simulation/i)).toBeInTheDocument();
+    expect(screen.getByRole("alert")).toHaveTextContent(/does not match the re-simulation/i);
     // The button stays — the player may retry (e.g. transient backend hiccup).
-    expect(screen.getByRole("button", { name: /certify on-chain/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /queue for on-chain board/i })).toBeInTheDocument();
   });
 });
