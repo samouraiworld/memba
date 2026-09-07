@@ -1,5 +1,7 @@
 # NFT v3 Trading — Go-Live & Rollback Runbook
 
+> **Status (2026-09-07): historical.** test13-era go-live runbook for the v3 trading engine. The banner below still names `SAPPHIRE_COMMERCE_CEREMONY.md` as the current procedure; that ceremony did not run on sapphire (retired) — the commerce set (`memba_collections`, `memba_market_config`, `tokenfactory_v2`, `memba_nft_market_v3_2`) shipped to `pearl-1` in the 2026-08-31 combined ceremony (heights 100489–100497). Current procedure: [`PEARL_CUTOVER_PLAN.md`](../PEARL_CUTOVER_PLAN.md) and [`realm-versions.json`](../../realm-versions.json) (`pearl` block).
+
 > **⚠️ HISTORICAL (test13-era).** The realm names, allowlist keys, and heights here
 > are test13's; test13 and topaz are dead. The CURRENT activation procedure —
 > sapphire, v3.2 engine, `memba nft-reset`, fee-spine tokenfactory — is

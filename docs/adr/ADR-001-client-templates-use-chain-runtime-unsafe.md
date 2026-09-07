@@ -1,5 +1,7 @@
 # ADR-001 — Client realm templates use `chain/runtime/unsafe`
 
+> **Status (2026-09-07): decision stands; chain references historical.** ADR accepted 2026-06-27 against test13's interrealm-v2 upgrade. test13 is retired; the `_v2`-pattern Memba realms cited below have been live on `pearl-1` since the 2026-08-31 combined ceremony, so "live on test13" now reads "live on pearl-1". Current procedure: [`PEARL_CUTOVER_PLAN.md`](../PEARL_CUTOVER_PLAN.md) and [`realm-versions.json`](../../realm-versions.json).
+
 **Status:** Accepted (2026-06-27)
 **Context doc:** `CLIENT_DEPLOY_GNO_API_REGRESSION_AUDIT_AND_PLAN_2026-06-27.md`
 
