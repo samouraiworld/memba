@@ -1,0 +1,5 @@
+name: "Memba CodeQL"
+paths-ignore:
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - "frontend/e2e/**"

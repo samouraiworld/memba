@@ -238,7 +238,8 @@ export function formatRiskAssessment(
 }
 
 function sanitizeCell(s: string): string {
-  return s.replace(/\|/g, "\\|").replace(/\n/g, " ");
+  // Backslashes first, so a pre-existing backslash cannot neutralise the pipe escape.
+  return s.replace(/\\/g, "\\\\").replace(/\|/g, "\\|").replace(/\n/g, " ");
 }
 
 function capitalize(s: string): string {
