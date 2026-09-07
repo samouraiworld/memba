@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import { abortOnchainReads, isOnchainRead } from '../helpers/onchain'
 
 /**
  * Marketplace LIVE surface — 375px layout guard (workstream 2c).
@@ -18,9 +19,19 @@ import { test, expect, type Page } from '@playwright/test'
  *       overflows horizontally.
  *
  * The NFT lane reads the pinned network's RPC (retired test13 — a deliberate
- * offline fixture, its RPC refuses connections), so only layout invariants are
- * asserted here — never listing content (mirrors the v2 spec's live-lane discipline).
+ * offline fixture), so only layout invariants are asserted here — never listing
+ * content (mirrors the v2 spec's live-lane discipline). Those reads are ABORTED
+ * by the shared `abortOnchainReads` fixture (e2e/helpers/onchain.ts): test13's
+ * primary, fallback and telemetry hosts are all in GNO_RPC_HOSTS, so the page
+ * never dials a dead host and waits on its connection failure — the lane drops
+ * out of loading instantly and renders the same empty shell every run. The
+ * home page visited by resolveNetwork() also asks monitoring.gnolove.world for
+ * validator participation — deliberately NOT a GNO_RPC_HOSTS host, so it is
+ * aborted by a layered route (registered AFTER abortOnchainReads, which
+ * continue()s non-RPC URLs, so the later-registered route must win).
  */
+
+const GNOLOVE_MONITORING = /monitoring\.gnolove\.world/
 
 test.use({ baseURL: 'http://localhost:5176' })
 
@@ -36,7 +47,19 @@ async function resolveNetwork(page: Page): Promise<string> {
 }
 
 test.describe('Marketplace LIVE surface — 375px layout', () => {
+    /** Chain/telemetry reads that were SERVED (a live answer, not the fixture's abort). */
+    let served: string[] = []
+
     test.beforeEach(async ({ page }) => {
+        // Never leave the sandbox: every gno RPC read (test13 primary, fallback,
+        // telemetry) rejects instantly, and so does the gnolove participation read.
+        await abortOnchainReads(page)
+        await page.route(GNOLOVE_MONITORING, route => route.abort())
+        served = []
+        page.on('requestfinished', r => {
+            const url = r.url()
+            if (isOnchainRead(url) || GNOLOVE_MONITORING.test(url)) served.push(url)
+        })
         // Pin the exact width the mobile CSS (@media max-width:640px) targets.
         await page.setViewportSize({ width: 375, height: 812 })
     })
@@ -77,5 +100,9 @@ test.describe('Marketplace LIVE surface — 375px layout', () => {
                 .evaluate((el) => el.scrollWidth - el.clientWidth)
             expect(actOverflow, 'recent-activity list must not overflow').toBeLessThanOrEqual(1)
         }
+
+        // Determinism guard: nothing above was answered by a live chain or
+        // telemetry host — every such read was aborted by the fixtures.
+        expect(served, 'on-chain/telemetry reads must never be served live').toEqual([])
     })
 })

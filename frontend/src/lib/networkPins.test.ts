@@ -110,6 +110,16 @@ const ALLOWLIST: Pin[] = [
             "outgoing chain; gnoland1 is the realm-free last resort).",
     },
     {
+        file: "lib/txExplorerUrl.ts",
+        allow: ["pearl-1", "gnoland1", "staging"],
+        why:
+            "GNOSCAN_CHAIN_IDS — the chains the external gnoscan explorer indexes " +
+            "(read from its own bundle on 2026-09-07), not a Memba deploy target. " +
+            "A transaction link is only rendered for a chain gnoscan can show; " +
+            "every other chain id gets plain hash text. Verify against gnoscan " +
+            "before adding a chain here.",
+    },
+    {
         file: "lib/marketplace/seed/foundingSupply.seed.ts",
         allow: ["test13"],
         why:
