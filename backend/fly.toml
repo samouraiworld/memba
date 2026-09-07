@@ -97,11 +97,8 @@ primary_region = 'cdg'
   NFT_INDEXER_DISABLED = '1'
   # NFT indexer RPC. Dormant as an indexer source while NFT_INDEXER_DISABLED=1,
   # but also the fallback for FEED_RPC_URL/QUEST_RPC_URL-style lookups, so it
-  # must point at a LIVE chain. ⚠️ Since the §5 pearl window this key is ALSO
-  # set as a Fly SECRET (same value as below) — the secret shadows this file.
-  # To restore this file as the single source of truth, the owner can
-  # `flyctl secrets unset NFT_RPC_URL -a memba-backend` at a convenient restart
-  # (values are identical, so behavior does not change).
+  # must point at a LIVE chain. This key is NOT a Fly secret (verified
+  # 2026-09-06 via `fly secrets list`) — the value below is authoritative.
   # ⚠️ The #457/#462 throttling class is real on public canonical nodes (403 to
   # the Fly IP under sustained indexer polling; confirmed on topaz 2026-08-10).
   # Low-volume reads are fine. If the NFT indexer is ever re-enabled, give it
@@ -111,15 +108,17 @@ primary_region = 'cdg'
   # NFT tailer realm sets — versioned here so prod can never silently fall back
   # to the code defaults (that's exactly how the retired memba_nft_market_v3
   # stayed indexed while v3.1 sales went missing until 2026-07-11). Watched =
-  # the v2 pair + both post-ceremony engines (v3.1 winding down, v3.2 active);
-  # volume comes from Sale events only on the v3.x engines (v3.2's seeded
-  # history emits SaleSeeded, which the dispatcher ignores — no double-count).
-  # PRECEDENCE (2026-07-11): both keys also exist as Fly SECRETS set by the
-  # owner, and secrets override [env]. Once this lands, drop them so this file
-  # is the single source of truth:
-  #   flyctl secrets unset NFT_WATCHED_REALMS NFT_SALE_VOLUME_REALMS -a memba-backend
-  NFT_WATCHED_REALMS = 'gno.land/r/samcrew/memba_nft_market_v2,gno.land/r/samcrew/memba_nft_v2,gno.land/r/samcrew/memba_nft_market_v3_1,gno.land/r/samcrew/memba_nft_market_v3_2,gno.land/r/samcrew/memba_collections'
-  NFT_SALE_VOLUME_REALMS = 'gno.land/r/samcrew/memba_nft_market_v3_1,gno.land/r/samcrew/memba_nft_market_v3_2'
+  # the two NFT artifacts of the 2026-08-31 pearl ceremony only
+  # (realm-versions.json `pearl`: memba_collections seq 28 @100489,
+  # memba_nft_market_v3_2 seq 32 @100497). memba_nft_market_v2 / memba_nft_v2 /
+  # memba_nft_market_v3_1 were NEVER deployed on pearl — listing them only
+  # burns RPC calls and would seed cursors for absent realms. Volume comes
+  # from Sale events on the v3.2 engine (its seeded history emits SaleSeeded,
+  # which the dispatcher ignores — no double-count).
+  # Neither key is a Fly secret (verified 2026-09-06 via `fly secrets list`) —
+  # these values are authoritative.
+  NFT_WATCHED_REALMS = 'gno.land/r/samcrew/memba_nft_market_v3_2,gno.land/r/samcrew/memba_collections'
+  NFT_SALE_VOLUME_REALMS = 'gno.land/r/samcrew/memba_nft_market_v3_2'
   # AUTH ENFORCEMENT — fail-closed by default since Wave 1 (2026-06-28).
   # MEMBA_ALLOW_UNSIGNED_AUTH no longer needed (default rejects unsigned auth).
   # Set to '1' ONLY in dev/staging if you need unsigned auth for testing.

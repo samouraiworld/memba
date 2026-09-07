@@ -56,7 +56,7 @@ func StartFeedTailer(ctx context.Context, database *sql.DB, cfg FeedTailerConfig
 		cfg.Interval = defaultTailerInterval
 	}
 	if cfg.StartBlock <= 0 {
-		cfg.StartBlock = defaultStartBlock
+		cfg.StartBlock = DefaultFeedStartBlock
 	}
 	if cfg.Logger == nil {
 		cfg.Logger = slog.Default()
