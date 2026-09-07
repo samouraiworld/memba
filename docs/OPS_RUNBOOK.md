@@ -26,7 +26,7 @@
 |---------|-----|------|---------------|
 | Frontend | `memba.samourai.app` | React + Vite SPA | Netlify (`memba-multisig` site) |
 | Backend | `memba-backend.fly.dev` | Go + ConnectRPC | Fly.io (app `memba-backend`, region `cdg`, 1 shared-cpu-1x machine, `min_machines_running=1`, volume `memba_data` mounted at `/data`) |
-| Chain | `pearl-1` (live since 2026-08-27, full app since the 2026-08-31 ceremony; sapphire-1 sunsets 2026-09-09, topaz-1 decommissioned 2026-08-12); `gnoland1` after Phase 5 | Gno | Official RPC: `rpc.pearl.testnets.gno.land`; samourai sentry: `rpc.pearl.samourai.live`; betanet: `rpc.gnoland1.samourai.live`. ⚠️ `rpc.sapphire.samourai.live` is a single-slot DNS that now serves PEARL — never trust hostname or HTTP 200; the only identity test is `node_info.network` |
+| Chain | `pearl-1` (live since 2026-08-27, full app since the 2026-08-31 ceremony; sapphire-1 retired — Samouraï sentry dead since 2026-09-02, off the allowlist and out of the RPC defaults the same day (#1139, #1138), formal sunset 2026-09-09; topaz-1 decommissioned 2026-08-12); `gnoland1` accepted (`MEMBA_ACCEPTED_CHAIN_IDS=pearl-1,gnoland1`), realms after Phase 5 | Gno | Official RPC: `rpc.pearl.testnets.gno.land`; samourai sentry: `rpc.pearl.samourai.live`; betanet: `rpc.gnoland1.samourai.live`. ⚠️ `rpc.sapphire.samourai.live` has answered HTTP 000 since 2026-09-02 — nothing sapphire-named is a valid target; never trust hostname or HTTP 200, the only identity test is `node_info.network` |
 
 > **Chain-cutover invariants (learned test13→topaz→sapphire→pearl).** A default-network change is
 > ONE coordinated window: frontend constants (config.ts + sitemap.ts + chainHealth.ts + netlify.toml),
@@ -63,8 +63,8 @@
 | `ED25519_SEED` | Fly | server-keypair | If empty, ephemeral keypair → every restart logs out all users. See `backend/internal/service/service.go`. |
 | `GNO_CHAIN_ID` | Fly | auth | Required for AUTH-CHAINID-01 enforcement; set to `pearl-1` in prod since the 2026-08-31 cutover (`sapphire-1` 08-15→08-31, `topaz-1` before that, `test-13` before 2026-07-26). No hardcoded default — `service.go` reads it from env and logs a warning if empty. |
 | `FLY_API_TOKEN` | GitHub Actions | deploys + GHCR mirror | |
-| `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` | GitHub Actions | Netlify deploy | |
-| `SENTRY_AUTH_TOKEN` | GitHub Actions | source-map upload | Required by `@sentry/vite-plugin`; was unwired before `v6.0.2`. |
+| `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` | GitHub Actions (legacy) | Netlify deploy | Consumed only by the Actions deploy job removed 2026-07-11; `deploy-frontend.yml` has no Netlify step today. Production deploys are Netlify-native (§3.1). Candidate for removal at the next rotation drill. |
+| `SENTRY_AUTH_TOKEN` | Netlify env | source-map upload | Read by `@sentry/vite-plugin` during the Netlify-native build (no-op when unset); was unwired before `v6.0.2`. `deploy-frontend.yml` carries no Sentry step since 2026-07-11. Frontend only — the backend has no Sentry (§3.3). |
 | `VITE_CLERK_PUBLISHABLE_KEY`, `CLERK_SECRET_KEY` | Netlify + backend | Clerk auth (alerts) | Must be the *same* environment (test/live). |
 | `OPENROUTER_API_KEY` | Fly | AI analyst | Rate-limited; not on the critical path. |
 | `LIGHTHOUSE_API_KEY` | Fly | IPFS gateway | |
@@ -135,7 +135,7 @@ deliberately carries no game flags).
 
 | Signal | Target | Source |
 |--------|--------|--------|
-| Sentry error rate, rolling 5 min | < 1 % | Sentry |
+| Sentry error rate, rolling 5 min (frontend) | < 1 % | Sentry |
 | `/health` HTTP 200 | > 99.5 % over 24 h | Fly health check (30 s interval) |
 | Login flow (connect wallet → main app) | > 99 % | Sentry breadcrumbs (Phase 4 instrumentation) |
 | Deploy MTTR (detection → rollback complete) | < 10 min | §4 below |
@@ -144,7 +144,7 @@ A breach pages zxxma (Slack webhook), triggers a change freeze, and requires a p
 
 ### 3.3 Observability
 
-* **Sentry release tags**: `memba@<version>` for both backend and frontend. Source maps are uploaded on every Netlify deploy; verify in the Sentry "Releases" tab.
+* **Sentry (frontend only)**: release tag `memba@<version>`; source maps ride the Netlify-native build when `SENTRY_AUTH_TOKEN` is set in the Netlify env — verify in the Sentry "Releases" tab. **The backend has no Sentry**: `sentry-go` is only an indirect dependency in `backend/go.mod`, no DSN is configured, and nothing in `backend/` calls it. Backend errors and panics go to `flyctl logs -a memba-backend` and the Prometheus `code="panic"` counter (§3.4).
 * **govulncheck cron**: `govulncheck.yml` runs every Monday 08:00 UTC. Pin: `golang.org/x/vuln/cmd/govulncheck@v1.3.0`. Failure → manual triage (no auto-issue today; planned for Phase 4).
 * **Fly metrics**: `flyctl metrics` for memory / cpu / requests; volume usage via `flyctl volumes status memba_data`.
 
@@ -194,7 +194,7 @@ observed baselines and route to Slack `#memba-alerts`. `rate()`/`increase()` use
 | Signal | Alert when | Means / action |
 |--------|-----------|----------------|
 | `histogram_quantile(0.99, sum by (le,procedure) (rate(memba_rpc_duration_seconds_bucket[5m])))` | p99 > 1s for a procedure, 5 min | A specific RPC is slow — check its handler + DB contention below. |
-| `sum by (code) (rate(memba_rpc_duration_seconds_count{code!="ok"}[5m])) / sum(rate(memba_rpc_duration_seconds_count[5m]))` | error ratio > 5%, 5 min | RPC error surge; break down by `code` (`internal`/`unauthenticated`/`panic`). Any `code="panic"` > 0 pages immediately (a handler is panicking — check Sentry/logs). |
+| `sum by (code) (rate(memba_rpc_duration_seconds_count{code!="ok"}[5m])) / sum(rate(memba_rpc_duration_seconds_count[5m]))` | error ratio > 5%, 5 min | RPC error surge; break down by `code` (`internal`/`unauthenticated`/`panic`). Any `code="panic"` > 0 pages immediately (a handler is panicking — check `flyctl logs -a memba-backend`; the backend has no Sentry). |
 | `memba_rpc_in_flight` | > 20 sustained 2 min (tune to traffic) | Requests are piling up — usually the single-writer DB lock (see below). A histogram only records *after* completion, so this is the leading indicator of a wedge. |
 
 **DB connection pool** (W6.5 PR2) — SQLite runs `MaxOpenConns(1)`, so the pool is the single-writer bottleneck.

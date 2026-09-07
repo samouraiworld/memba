@@ -7,22 +7,22 @@
 
 ---
 
-## Current Status (2026-09-01)
+## Current Status (2026-09-07)
 
 | Metric | Value |
 |--------|-------|
-| **Latest Release** | v7.3.0 (cut 2026-07-11) — App Store self-service submissions live (1 GNOT), NFT trading on the v3.2 engine, Home/Blog/nav refresh, whole-token amount entry, backend resilience (#692–#877). |
-| **Shipped Versions** | 52+ (v0.1.0 → v7.3.0) + ongoing feature branches |
+| **Latest Release** | v7.4.0 (cut 2026-08-16, "the Sapphire release") — the last tagged GitHub release. Everything since — the Pearl cutover (08-27), the combined ceremony (08-31), Sapphire's retirement (09-01/02), the RPC-default and dependency-floor fixes — is **unreleased** (`CHANGELOG.md` `## [Unreleased]`). Previous: v7.3.0 (2026-07-11) — App Store self-service submissions, NFT trading on the v3.2 engine, Home/Blog/nav refresh (#692–#877). |
+| **Shipped Versions** | 53+ (v0.1.0 → v7.4.0) + unreleased Pearl work on `main` |
 | **Test Suite** | **3,000+ automated tests (CI-enforced)** — 243 Vitest files + 64 Go test files (auth/db/indexer/points/service, incl. `FuzzMakeADR36SignDoc`) + pinned-gno template compile gate + 27 Playwright E2E specs. CI is the source of truth for exact counts. |
 | **Coverage** | Frontend/Backend CI-enforced thresholds (aggregate bump deferred) |
-| **Networks** | **Pearl (`pearl-1`) is the prod default — combined ceremony DONE 2026-08-31** (32 artifacts, per-artifact proof in `realm-versions.json` `pearl`). Sapphire remains selectable until its **2026-09-09 sunset**; topaz and test13 are retired — retired chains stay hidden-but-resolvable so old deep links don't break. The operative registry is `frontend/src/lib/config.ts` (`NETWORKS`). |
+| **Networks** | **Pearl (`pearl-1`) is the prod default — combined ceremony DONE 2026-08-31** (32 artifacts, per-artifact proof in `realm-versions.json` `pearl`). **Sapphire is retired**: hidden from the selector since 2026-09-01 (#1126), off `MEMBA_ACCEPTED_CHAIN_IDS` since 2026-09-02 (#1139, allowlist now `pearl-1,gnoland1`), backend RPC defaults moved to Pearl the same day (#1138) after the Samouraï sapphire sentry died on 09-02; the formal 2026-09-09 sunset is paperwork. Topaz and test13 are retired too — retired chains stay hidden-but-resolvable so old deep links heal to Pearl instead of breaking. The operative registry is `frontend/src/lib/config.ts` (`NETWORKS`). |
 | **Architecture** | Go 1.25.x + ConnectRPC backend (Fly rolling deploys + GHCR mirror + Litestream backups), React 19 + Vite frontend, SQLite, OpenRouter AI |
-| **Security** | Auth: `MEMBA_ALLOW_UNSIGNED_AUTH=0` (fail-closed); 0 open Dependabot alerts on `main` after Wave 1 hardening; 1 own advisory (MEMBA-2026-001) |
+| **Security** | Auth: `MEMBA_ALLOW_UNSIGNED_AUTH=0` (fail-closed); 0 open Dependabot alerts on `main` as of 2026-09-06 (after #1140 JS floors and #1141 grpc v1.83.1 — re-check with `gh api repos/samouraiworld/memba/dependabot/alerts?state=open`); 1 own advisory (MEMBA-2026-001) |
 | **On-Chain** | Full set live on Pearl — the **2026-08-31 combined ceremony** deployed the phase-1 core set (deps + gnodaokit + `memba_dao`, `candidature_v3`, `channels_v2`, `agent_registry_v2`, `memba_reviews_v1`, `memba_quest_attestation_v1`, `memba_feed_v1`, `memba_appstore_v1/v2`, `memba_feedback_v2`, `gnobuilders_badges_v2`) **and** the fund-custody commerce realms (escrow, NFT stack, OTC, market_config, `tokenfactory_v2`; rulings 2026-08-16: fee-spine tokenfactory, v3.2 engine, legacy v2 skipped — Memba #1082, deployer #138) in one window; per-artifact proof in `realm-versions.json`'s `pearl` section. Commerce features stay **dark pending the 2-wallet live-money test** — the UI self-gates via `isRealmValidOn()` and `VITE_ENABLE_NFT` remains in `SAFETY_GATED_FLAGS`. (Sapphire's 2026-08-15 phase-1 ceremony — 24 artifacts — served until the pearl cutover.) |
 | **AI Analyst** | 10 free models via OpenRouter, DAO-level + proposal-level, cached 6h |
 | **GnoBuilders** | 85 quests, 8-tier rank system, leaderboard, badge NFTs (GRC721 `gnobuilders_badges_v2`), **XP cryptographically settled on-chain** |
 | **Active program** | Program "Compound" (Waves 5+) — v7.2.x AAA remediation Waves 0–4 delivered (#732, 2026-07-03) |
-| **Next Priority** | The Pearl cutover + combined ceremony is **DONE 2026-08-31** (`docs/PEARL_CUTOVER_PLAN.md` is the record). Live slate: **sapphire sunset 2026-09-09** (retire references once the chain dies) · **marketplace / services / tokens de-gate** pending the 2-wallet live-money test · **NFT indexer re-enable** pending observability wiring (alerts armed before `NFT_INDEXER_DISABLED` unsets). · **Code: next-cycle plan Waves A–F after Pearl** |
+| **Next Priority** | The Pearl cutover + combined ceremony is **DONE 2026-08-31** (`docs/PEARL_CUTOVER_PLAN.md` is the record). Live slate: **sapphire retirement DONE** (hidden 09-01 #1126 · allowlist 09-02 #1139 · RPC defaults 09-02 #1138 · public docs 09-07; the 09-09 sunset date is paperwork) · **marketplace / services / tokens de-gate** pending the 2-wallet live-money test · **NFT indexer re-enable** pending observability wiring (alerts armed before `NFT_INDEXER_DISABLED` unsets). · **Code: next-cycle plan Waves A–F after Pearl** |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
 
@@ -65,8 +65,8 @@ Review findings feed into the **next version's RFC** as action items.
 | dompurify `GHSA-39q2/-h7mw/-crv5/-v9jr` (4 advisories) | `dompurify ^3.4.2` + 30-vector OWASP regression suite | #332 |
 | **AUTH-CHAINID-01** (own advisory `MEMBA-2026-001`) | ADR-036 signDoc `chain_id` rebinding rejection in `backend/internal/auth/crypto.go` + 4 regression tests + `FuzzMakeADR36SignDoc` | #331 |
 | Rollback strategy | Drop bluegreen (incompatible), switch to `fly.toml [deploy] strategy = "rolling"` + per-release GHCR image mirror | #331 + hotfix #333 |
-| Sentry source-map upload | `SENTRY_AUTH_TOKEN` wired in `deploy-frontend.yml` | #331 + hotfix #333 |
-| Dependency policy + dependabot freeze | [`docs/DEPENDENCY_POLICY.md`](docs/DEPENDENCY_POLICY.md); `dependabot.yml` `open-pull-requests-limit: 0`; `dependency-review-action@v4` gate | #332 |
+| Sentry source-map upload | `SENTRY_AUTH_TOKEN` wired in `deploy-frontend.yml` — *historical: that workflow's deploy job was removed 2026-07-11 and it carries no Sentry or Netlify step today; source maps ride the Netlify-native build via `@sentry/vite-plugin` only if `SENTRY_AUTH_TOKEN` is set in the Netlify env (2026-09-07)* | #331 + hotfix #333 |
+| Dependency policy + dependabot freeze | [`docs/DEPENDENCY_POLICY.md`](docs/DEPENDENCY_POLICY.md); `dependabot.yml` `open-pull-requests-limit: 0`; `dependency-review-action@v4` gate — *the freeze is over: `dependabot.yml` allows 5 open PRs weekly for npm and gomod (3 for github-actions) as of 2026-09-07* | #332 |
 | 15-PR backlog | 6 merged, 13 closed (10 folded, 3 deferred to v7.2) | — |
 
 **Test delta:** Vitest 1,628 → 1,659 (+31 OWASP DOMPurify vectors); Go auth 11 → 14 + 1 fuzz target.

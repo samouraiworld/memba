@@ -51,7 +51,7 @@
 | **Backend** | Go + ConnectRPC | Auth, multisig coordination, tx management |
 | **Database** | SQLite (WAL mode, FK enabled) | Multisigs, members, transactions, signatures |
 | **Wallet** | Adena (window.adena) | Key management, signing |
-| **Chain** | Gno (pearl-1 today / gnoland1; sapphire-1 sunsets 2026-09-09) | Account state, tx broadcast, balance queries |
+| **Chain** | Gno (pearl-1 today; gnoland1 accepted; sapphire-1 retired — Samouraï sentry dead since 2026-09-02, formal sunset 2026-09-09) | Account state, tx broadcast, balance queries |
 
 ## Backend Packages
 
