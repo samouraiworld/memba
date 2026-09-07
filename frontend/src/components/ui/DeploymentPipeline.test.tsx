@@ -4,8 +4,14 @@ import { DeploymentPipeline, type DeploymentPipelineProps } from "./DeploymentPi
 
 // Mock config module to avoid import issues in test env
 vi.mock("../../lib/config", () => ({
-    getExplorerBaseUrl: () => "https://gnoscan.io",
+    getExplorerBaseUrl: () => "https://pearl.testnets.gno.land",
+    GNO_CHAIN_ID: "pearl-1",
 }))
+
+// 32-byte hash in both wallet shapes: Adena ≥1.20.5 hands back lowercase hex,
+// older Adena and the raw broadcast_tx_commit fallback hand back base64.
+const TX_HEX = "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f"
+const TX_B64 = "AAECAwQFBgcICQoLDA0ODxAREhMUFRYXGBkaGxwdHh8="
 
 const baseProps: DeploymentPipelineProps = {
     active: true,
@@ -58,8 +64,8 @@ describe("DeploymentPipeline", () => {
         expect(screen.getByText("Open DAO →")).toBeInTheDocument()
     })
 
-    it("shows TX hash link in completion state", () => {
-        const result = { txHash: "abc123def456789012345678", entityLabel: "Token" }
+    it("links the TX hash to gnoscan's chain-aware transaction page", () => {
+        const result = { txHash: TX_HEX, entityLabel: "Token" }
         render(
             <DeploymentPipeline
                 {...baseProps}
@@ -67,9 +73,40 @@ describe("DeploymentPipeline", () => {
                 result={result}
             />,
         )
-        const txLink = screen.getByText("abc123def4567890…")
-        expect(txLink).toBeInTheDocument()
-        expect(txLink.closest("a")).toHaveAttribute("href", "https://gnoscan.io/tx/abc123def456789012345678")
+        const txLink = screen.getByText("0001020304050607…")
+        expect(txLink.closest("a")).toHaveAttribute(
+            "href",
+            `https://gnoscan.io/transactions/details?txhash=${TX_HEX}&chainId=pearl-1`,
+        )
+    })
+
+    it("shows a base64 wallet hash in the same hex form and links it the same way", () => {
+        render(
+            <DeploymentPipeline
+                {...baseProps}
+                currentStep="complete"
+                result={{ txHash: TX_B64, entityLabel: "Token" }}
+            />,
+        )
+        const txLink = screen.getByText("0001020304050607…")
+        expect(txLink.closest("a")).toHaveAttribute(
+            "href",
+            `https://gnoscan.io/transactions/details?txhash=${TX_HEX}&chainId=pearl-1`,
+        )
+    })
+
+    it("renders an unrecognized hash as plain text rather than a dead link", () => {
+        render(
+            <DeploymentPipeline
+                {...baseProps}
+                currentStep="complete"
+                result={{ txHash: "abc123def456789012345678", entityLabel: "Token" }}
+            />,
+        )
+        const txText = screen.getByText("abc123def4567890…")
+        expect(txText.tagName).toBe("CODE")
+        expect(txText.closest("a")).toBeNull()
+        expect(document.getElementById("deploy-tx-link")).toBeNull()
     })
 
     it("shows explorer link for realm paths", () => {
@@ -82,7 +119,7 @@ describe("DeploymentPipeline", () => {
             />,
         )
         const explorerLink = screen.getByText("View on Explorer →")
-        expect(explorerLink.closest("a")).toHaveAttribute("href", "https://gnoscan.io/r/user/mydao")
+        expect(explorerLink.closest("a")).toHaveAttribute("href", "https://pearl.testnets.gno.land/r/user/mydao")
     })
 
     it("shows error when step is error", () => {

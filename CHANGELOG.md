@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Transaction links point somewhere real (2026-09-07)
+<!-- categories: memba -->
+- The deployment pipeline's "TX" link used to point at gnoweb's non-existent `/tx/<hash>` route, so it 404'd for every DAO, multisig and token ever created; it now opens the transaction on gnoscan for the active chain (gnoscan indexes `pearl-1` and `gnoland1`), and on a chain gnoscan does not index the hash is shown as plain text instead of a dead link. Hashes display in one stable lowercase-hex form whether the wallet returned hex (Adena 1.20.5+) or base64 (older Adena, raw `broadcast_tx_commit`).
+
 ### Space Invaders becomes a responsive Memba signal-defense cabinet (2026-09-05)
 <!-- categories: memba -->
 - **The debug-style rectangles are now an original arcade world.** Procedural row-specific signal creatures, a relay skiff, damaged bunkers, a circuit-starfield, deterministic cosmetic effects, wave and impact feedback, and a responsive cabinet give the game a distinctive Pearl-native identity without changing certified simulation state.

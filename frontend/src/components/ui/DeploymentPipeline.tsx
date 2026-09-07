@@ -10,7 +10,8 @@
 
 import { useEffect, useCallback } from "react"
 import "./DeploymentPipeline.css"
-import { getExplorerBaseUrl } from "../../lib/config"
+import { getExplorerBaseUrl, GNO_CHAIN_ID } from "../../lib/config"
+import { normalizeTxHashHex, txExplorerUrl } from "../../lib/txExplorerUrl"
 import { useScrollToTop } from "../../hooks/useScrollToTop"
 
 // ── Types ───────────────────────────────────────────────────
@@ -111,6 +112,12 @@ export function DeploymentPipeline({
     if (!active || currentStep === "idle") return null
 
     const explorerBase = getExplorerBaseUrl()
+    // One stable hex form whatever the wallet returned (Adena ≥1.20.5 = hex,
+    // older Adena / raw broadcast_tx_commit = base64); gnoweb has no /tx route,
+    // so the link goes to gnoscan — or nowhere, rather than to a 404.
+    const txHashHex = result?.txHash ? normalizeTxHashHex(result.txHash) : null
+    const txHashDisplay = txHashHex ?? result?.txHash ?? ""
+    const txUrl = result?.txHash ? txExplorerUrl(result.txHash, GNO_CHAIN_ID) : null
 
     return (
         <div
@@ -203,15 +210,19 @@ export function DeploymentPipeline({
                         {result.txHash && (
                             <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", marginBottom: 16 }}>
                                 TX:{" "}
-                                <a
-                                    href={`${explorerBase}/tx/${result.txHash}`}
-                                    target="_blank"
-                                    rel="noopener noreferrer"
-                                    style={{ color: "var(--color-primary)", textDecoration: "none" }}
-                                    id="deploy-tx-link"
-                                >
-                                    {result.txHash.slice(0, 16)}…
-                                </a>
+                                {txUrl ? (
+                                    <a
+                                        href={txUrl}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        style={{ color: "var(--color-primary)", textDecoration: "none" }}
+                                        id="deploy-tx-link"
+                                    >
+                                        {txHashDisplay.slice(0, 16)}…
+                                    </a>
+                                ) : (
+                                    <code style={{ fontFamily: "inherit" }}>{txHashDisplay.slice(0, 16)}…</code>
+                                )}
                             </p>
                         )}
                         {result.realmPath && (
