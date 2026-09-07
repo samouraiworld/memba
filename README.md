@@ -265,7 +265,7 @@ cd backend && go test -race -count=1 -cover ./...
 | Network | RPC | Chain ID |
 |---------|-----|----------|
 | Pearl ⭐ | `https://rpc.pearl.testnets.gno.land:443` | `pearl-1` |
-| Sapphire (sunsetting 2026-09-09) | `https://rpc.sapphire.testnets.gno.land:443` | `sapphire-1` |
+| Sapphire (retired — Samouraï sentry dead since 2026-09-02, formal sunset 2026-09-09; hidden in the selector, heals to Pearl) | — | `sapphire-1` |
 | test13 (retired 2026-07-26) | — endpoints refuse connections | `test-13` |
 | gnoland1 (Betanet) | `https://rpc.gnoland1.samourai.live:443` | `gnoland1` |
 

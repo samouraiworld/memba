@@ -43,7 +43,7 @@ Full changelogs are split by version range for easier navigation:
 <!-- categories: memba, network -->
 - **Failover now has somewhere to go.** When the primary RPC node fails, the backend retries a built-in list of backup nodes; that list still named only Sapphire hosts, and both of them stopped answering on September 2 — a week before the chain's formal sunset. The list now carries the two Pearl nodes the app itself uses (the public canonical and our sentry). This is the one default that was live in production, because the backup list is not overridden by any secret.
 - **Every other default follows.** The render, marketplace, quest-verification, home-snapshot, activity-indexer and NFT-poller endpoints defaulted to Sapphire when their environment variable was unset; they now default to Pearl, as do the badge-mint and activity-bot command-line tools and the AI analyst's chain description (Pearl added, Sapphire marked retired). Production already sets these explicitly, so behaviour there is unchanged.
-- **Guarded against recurrence**: two new tests fail the build if any built-in RPC or indexer default ever names a retired chain again.
+- **Guarded against recurrence**: five new tests fail the build if any built-in RPC or indexer default ever names a retired chain again.
 - The "not deployed on this network" notice no longer suggests switching to Sapphire; it points at Pearl.
 ### Sapphire leaves the accepted-chain allowlist (sunset, 2026-09-09)
 <!-- categories: memba, network -->
@@ -98,7 +98,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Coming next
 <!-- categories: memba, network -->
-- The commerce lanes — creating tokens, the NFT marketplace, escrow and OTC trading — return to Sapphire with their own deployment ceremony, once the settings that redeployment bakes in permanently have been decided deliberately.
+- The commerce lanes — creating tokens, the NFT marketplace, escrow and OTC trading — have been deployed on Pearl since the 2026-08-31 ceremony (`tokenfactory_v2`, the NFT/market v3.2 set, `escrow_v3`, OTC). They switch on once the two-wallet live-money check passes; the collectibles indexer follows once monitoring is wired.
 
 ## [v7.4.0] — 2026-08-16
 

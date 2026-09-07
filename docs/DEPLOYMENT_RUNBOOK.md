@@ -24,7 +24,9 @@
 
 ## Realm Inventory
 
-> **pearl (chain id `pearl-1`) is the current live network** — the 2026-08-31 combined ceremony deployed Memba's full set there (32 artifacts; sapphire carried the phase-1 set from 2026-08-15 until the cutover and sunsets 2026-09-09); see [`realm-versions.json`](../realm-versions.json) for the authoritative live paths/blocks (per-artifact heights included since sapphire). The table below is the original **test12** deployment history (real blocks/dates), kept for procedure reference. gnoland1 is intentionally empty — Memba activates it in v7.1 Phase 5 after the upstream transfer-lock lift and after the Custody section in [`MAINNET_APP_HARDENING.md`](MAINNET_APP_HARDENING.md) is signed.
+> **pearl (chain id `pearl-1`) is the current live network** — the 2026-08-31 combined ceremony deployed Memba's full set there (32 artifacts; sapphire carried the phase-1 set from 2026-08-15 until the cutover and is retired — Samouraï sentry dead since 2026-09-02, formal sunset 2026-09-09); see [`realm-versions.json`](../realm-versions.json) for the authoritative live paths/blocks (per-artifact heights included since sapphire). The table below is the original **test12** deployment history (real blocks/dates), kept for procedure reference. gnoland1 is intentionally empty — Memba activates it in v7.1 Phase 5 after the upstream transfer-lock lift and after the Custody section in [`MAINNET_APP_HARDENING.md`](MAINNET_APP_HARDENING.md) is signed.
+
+**Original test12 deployment (historical)** — these paths and blocks are the 2026-03/04 test12 record, not what Pearl serves; Pearl's live generations (`agent_registry_v2`, `escrow_v3`, `memba_nft_market_v3_2`, `tokenfactory_v2`, …) are in `realm-versions.json`.
 
 | # | Realm | Module Path (test12) | test12 | gnoland1 | Source |
 |---|-------|----------------------|--------|----------|--------|
@@ -442,9 +444,9 @@ Frontend feature flags are configured as **Netlify environment variables** (NOT 
 | Flag | Default | Status | Notes |
 |------|---------|--------|-------|
 | `VITE_ENABLE_TEAMS` | `false` | ✅ Ready to enable | Backend + frontend shipped in v2.28. Set to `true` via Netlify UI. |
-| `VITE_ENABLE_MARKETPLACE` | `false` | 🔒 Gated | Agent registry realm not deployed. Mock data only. |
-| `VITE_ENABLE_NFT` | `false` | 🔒 Gated | GRC721 standard evolving upstream. No seed collections. |
-| `VITE_ENABLE_SERVICES` | `false` | 🔒 Gated | Escrow realm not deployed. |
+| `VITE_ENABLE_MARKETPLACE` | `false` | 🔒 Gated | `agent_registry_v2` is live on Pearl (2026-08-31 ceremony); the flag stays off pending the two-wallet live-money test, not because a realm is missing. |
+| `VITE_ENABLE_NFT` | `false` | 🔒 Gated (`SAFETY_GATED_FLAGS`) | NFT/market v3.2 set is live on Pearl (2026-08-31); stays off pending the two-wallet live-money test and the NFT indexer re-enable (observability wiring first). |
+| `VITE_ENABLE_SERVICES` | `false` | 🔒 Gated | `escrow_v3` is live on Pearl (2026-08-31); stays off pending the two-wallet live-money test. |
 
 **Where to set:** Netlify Dashboard → Site → Build & Deploy → Environment Variables.
 **NOT in:** `netlify.toml`, `.env`, or any committed file.

@@ -9,7 +9,7 @@ This document tracks items to be addressed before the mainnet release.
 | Chain | Status | Notes |
 |-------|--------|-------|
 | **pearl** | ✅ Active | Primary since 2026-08-31 (chain id `pearl-1`). The combined ceremony deployed the core set **and** the fund-custody commerce set (32 artifacts, per-height records in `realm-versions.json`); commerce stays **feature-gated** pending the 2-wallet live-money test. Official RPC: `rpc.pearl.testnets.gno.land`; Samouraï sentry: `rpc.pearl.samourai.live`. |
-| **sapphire** | 🌇 Sunsets 2026-09-09 | Primary 2026-08-15 → 2026-08-31 (chain id `sapphire-1`); phase-1 funds-free set (24 artifacts) remains published until the chain dies. Official RPC `rpc.sapphire.testnets.gno.land` serves it until sunset — the former Samouraï vhost was repurposed to pearl (per-chain RPC DNS is single-slot). |
+| **sapphire** | ⚰️ Retired 2026-09-02 | Primary 2026-08-15 → 2026-08-31 (chain id `sapphire-1`); phase-1 funds-free set (24 artifacts) was published there. Hidden from the selector 2026-09-01 (#1126), off the accepted-chain allowlist and out of every backend RPC default 2026-09-02 (#1139, #1138) after the Samouraï sapphire sentry (`rpc.sapphire.samourai.live`) went dark (HTTP 000). The formal 2026-09-09 sunset is paperwork. A remembered sapphire selection or old `/sapphire/...` link heals to pearl. Never trust a hostname or HTTP 200 — the only identity test is `node_info.network`. |
 | **topaz** | ⚰️ Retired 2026-08-12 | Full realm set (32 artifacts) remains published on the dead chain; Adena dropped `topaz-1` in v1.20.3. |
 | **testnet13** | ⚰️ Retired 2026-07-26 | Historical primary; carried `memba_appstore_v3`, NFT engine v3.2, and the commerce stack (2026-07-10 ceremony). |
 | **testnet12** | 🔴 Retired | Migration complete. See `TEST12_WINDDOWN_RUNBOOK.md`. |
@@ -140,5 +140,5 @@ The seed is stored as a Fly.io secret and never committed. Challenge expiry is 5
 | NavManifest Completeness | post-v6.3.1 | 5 tests prevent hidden-page drift (#646) |
 
 ---
-*Updated 2026-09-01 at the pearl cutover (renamed from `MAINNET_PREPARATION.md`; chain table: pearl primary, sapphire sunsetting 09-09). Previous: 2026-08-15 sapphire cutover (sapphire primary; topaz + test13 retired) · 2026-06-28 Wave 0-4 audit (test13 primary, test12 retired) · 2026-05-11 during v7.1 Phase 1.*
+*Updated 2026-09-07: sapphire marked retired (sentry dead 09-02; hidden 09-01, off allowlist 09-02). Previous: 2026-09-01 at the pearl cutover (renamed from `MAINNET_PREPARATION.md`; chain table: pearl primary, sapphire slated to sunset 09-09) · 2026-08-15 sapphire cutover (sapphire primary; topaz + test13 retired) · 2026-06-28 Wave 0-4 audit (test13 primary, test12 retired) · 2026-05-11 during v7.1 Phase 1.*
 
