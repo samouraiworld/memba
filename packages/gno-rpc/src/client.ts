@@ -8,12 +8,16 @@
 import type { AbciResponse, NetworkStatus, StatusResponse } from "./types.js";
 import { QueryCache, cacheKey, TTL_DEFAULT } from "./cache.js";
 
-const DEFAULT_RPC = "https://rpc.testnet13.samourai.live:443";
+/**
+ * Endpoint used when neither `endpoints` nor GNO_RPC_URL is set: the Pearl
+ * canonical node (chain-id `pearl-1`, the current Memba chain).
+ */
+export const DEFAULT_RPC = "https://rpc.pearl.samourai.live:443";
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_RETRIES = 2;
 
 export interface GnoRpcConfig {
-  /** RPC endpoints — rotates on failure. Defaults to the pinned test13 node. */
+  /** RPC endpoints — rotates on failure. Defaults to the Pearl canonical node. */
   endpoints?: string[];
   /** Request timeout in milliseconds. Default: 10000. */
   timeoutMs?: number;

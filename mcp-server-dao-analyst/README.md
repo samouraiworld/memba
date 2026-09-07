@@ -2,7 +2,7 @@
 
 Multi-model AI governance analyst for Gno DAOs. Analyzes proposals from legal, technical, and financial perspectives using free-tier LLM consensus.
 
-Registers on-chain in [`gno.land/r/samcrew/agent_registry`](https://gno.land/r/samcrew/agent_registry:agent/dao-analyst) — run `register-agent.sh` to register. Target pearl (the current Memba chain) with `REMOTE=https://rpc.pearl.testnets.gno.land:443 CHAIN=pearl-1`; the script's baked-in default still points at retired test13.
+Registers on-chain in [`gno.land/r/samcrew/agent_registry_v2`](https://gno.land/r/samcrew/agent_registry_v2:agent/dao-analyst) — run `register-agent.sh` to register. It defaults to pearl (the current Memba chain, chain-id `pearl-1`) on the Pearl canonical node; set `REMOTE`/`CHAIN` to target another network.
 
 ## Tools
 
@@ -59,7 +59,7 @@ Add to `.cursor/mcp.json` or `.vscode/mcp.json`:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `GNO_RPC_URL` | No | dead test13 host — set `https://rpc.pearl.testnets.gno.land:443` (pearl, current) | Gno RPC endpoint |
+| `GNO_RPC_URL` | No | `https://rpc.pearl.samourai.live:443` (Pearl canonical node, chain-id `pearl-1`) | Gno RPC endpoint |
 | `MEMBA_BACKEND_URL` | No | `http://localhost:8080` | Memba backend for LLM routing |
 | `DAO_ANALYST_TOKEN` | No | — | Auth token for PRO tier |
 | `DAO_ANALYST_USER_ADDRESS` | No | — | Gno address for on-chain credit lookup |
@@ -80,13 +80,13 @@ PRO requires credits deposited on-chain via `DepositCredits("dao-analyst")` on t
 
 Built-in network aliases:
 
-| Name | RPC |
-|------|-----|
-| `mainnet` | `https://rpc.gno.land` |
-| `test5` | `https://rpc.test5.gno.land` |
-| `test13` | `https://rpc.testnet13.samourai.live:443` *(retired chain — host is dead)* |
+| Name | Chain id | RPC |
+|------|----------|-----|
+| `pearl` | `pearl-1` | `https://rpc.pearl.samourai.live:443` (override with `PEARL_RPC_URL`) |
+| `mainnet` | — | `https://rpc.gno.land` |
+| `test5` | — | `https://rpc.test5.gno.land` |
 
-The current Memba chain is **pearl** — not yet a built-in alias, so pass the full RPC URL `https://rpc.pearl.testnets.gno.land:443` (any full URL is accepted).
+`pearl` is the current Memba chain and the default when `GNO_RPC_URL` is unset. Any full RPC URL is also accepted; retired chains (test13, topaz, sapphire) have no alias.
 
 Switch mid-conversation: use the `dao_set_network` tool.
 

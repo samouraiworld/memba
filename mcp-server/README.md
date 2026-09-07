@@ -68,7 +68,7 @@ Add to Cursor MCP settings:
 
 | Env Var | Default | Description |
 |---------|---------|-------------|
-| `GNO_RPC_URL` | set `https://rpc.pearl.testnets.gno.land:443` (pearl, current) — the baked-in fallback is a dead test13 host | Gno RPC endpoint |
+| `GNO_RPC_URL` | `https://rpc.pearl.samourai.live:443` (Pearl canonical node, chain-id `pearl-1`) | Gno RPC endpoint |
 | `GNOLOVE_API_URL` | `https://backend.gnolove.world` | Gnolove API endpoint |
 
 ## Development
