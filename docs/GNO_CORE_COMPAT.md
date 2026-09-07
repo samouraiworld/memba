@@ -1,5 +1,7 @@
 # Gno Core Compatibility — Migration Playbook
 
+> **Status (2026-09-07): historical baseline.** Upstream-migration playbook whose chain baseline is test13 (`f45cc5c8`, "what Memba runs" as of 2026-07-11). That baseline was superseded by `pearl-1` at the 2026-08-31 combined ceremony and the CI `GNO_PIN` now tracks the pearl launch ref; the per-PR migration notes stand as dated history. Current procedure: [`DEPLOYMENT_RUNBOOK.md`](DEPLOYMENT_RUNBOOK.md) and [`realm-versions.json`](../realm-versions.json).
+
 > **Date:** 2026-07-11 · **Memba:** v7.3.0 · **Baseline:** CI-enforced suite (Vitest + Go + Playwright E2E; CI is the source of truth for counts), 0 TS errors
 >
 > Step-by-step migration instructions for each tracked upstream PR.

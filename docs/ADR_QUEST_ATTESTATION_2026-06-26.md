@@ -1,5 +1,7 @@
 # ADR — On-chain Quest/XP Attestation (Track A)
 
+> **Status (2026-09-07): historical.** Prototype-era ADR for on-chain quest/XP attestation, accepted 2026-06-26 against test13. The decision stands: test13 is retired, and the realm `gno.land/r/samcrew/memba_quest_attestation_v1` has been live on `pearl-1` since the 2026-08-31 combined ceremony (height 99223), so the "test13-only" scoping below is history. Current procedure: [`PEARL_CUTOVER_PLAN.md`](PEARL_CUTOVER_PLAN.md) and [`realm-versions.json`](../realm-versions.json) (`pearl` block).
+
 **Status:** ACCEPTED (prototype, test13) · **Date:** 2026-06-26 · **Owner:** CTO + Gno-core + security
 **Context doc:** the internal planning archive (private) (§14 decision #3, §17 validation)
 **Issue:** Q-05 (quest XP is a centralized backend ledger; the chain holds no verifiable record)
