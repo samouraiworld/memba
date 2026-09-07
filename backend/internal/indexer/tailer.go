@@ -19,13 +19,13 @@ import (
 const (
 	defaultTailerInterval = 3 * time.Second
 	// DefaultNFTStartBlock is the first-run cursor floor when NFT_START_BLOCK
-	// is unset: the pearl-1 deploy height of memba_nft_market_v3_2 (seq 32,
-	// realm-versions.json `pearl`, verified 2026-08-31). memba_collections
-	// landed 8 blocks earlier (100489) in the same deployer window, before any
-	// user traffic. A floor ABOVE the chain head silently indexes nothing — the
-	// old 260000 test13-era value did exactly that against pearl — so this is
-	// the one shared constant for cmd/memba too. Documented in .env.example.
-	DefaultNFTStartBlock = int64(100497)
+	// is unset: the earliest pearl-1 deploy height among the watched NFT realms,
+	// memba_collections (seq 28, realm-versions.json `pearl`, verified
+	// 2026-08-31); memba_nft_market_v3_2 followed 8 blocks later (100497). A
+	// floor ABOVE the chain head silently indexes nothing — the old 260000
+	// test13-era value did exactly that against pearl — so this is the one
+	// shared constant for cmd/memba too. Documented in .env.example.
+	DefaultNFTStartBlock = int64(100489)
 	// DefaultFeedStartBlock is the feed tailer's counterpart when
 	// FEED_START_BLOCK is unset: the pearl-1 memba_feed_v1 deploy height
 	// (seq 22). Production pins FEED_START_BLOCK explicitly to this value.

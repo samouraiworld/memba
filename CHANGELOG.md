@@ -32,7 +32,7 @@ Full changelogs are split by version range for easier navigation:
 ### Fresh backends start at Pearl heights (2026-09-07)
 <!-- categories: memba -->
 - A backend started without `FEED_START_BLOCK` used to begin tailing at the Sapphire feed height; it now starts at the Pearl `memba_feed_v1` deployment (production already sets the value explicitly).
-- The NFT indexer's built-in start height was a test13-era block above the Pearl head, so re-enabling it would have indexed nothing; the default is now the Pearl `memba_nft_market_v3_2` deployment height and the watched-realm list names only the Pearl artifacts. The indexer stays disabled pending observability wiring.
+- The NFT indexer's built-in start height was a test13-era block above the Pearl head, so re-enabling it would have indexed nothing; the default is now the earliest Pearl deployment height among the watched NFT realms (`memba_collections`, eight blocks before `memba_nft_market_v3_2`) and the watched-realm list names only the Pearl artifacts. The indexer stays disabled pending observability wiring.
 - The legacy `AGENT_REGISTRY_REALM` environment alias is retired one release after v7.4.0 as planned; the canonical `AGENT_REGISTRY_REALM_PATH` (default `agent_registry_v2`) is the only setting read, and a set-but-ignored alias is logged once at startup.
 
 ### Block Party's Daily is now honest, resilient, and ready for review (2026-09-04)
