@@ -67,10 +67,11 @@ export function CreateToken() {
     // the user submit a tx that's guaranteed to fail.
     if (!isTokenFactoryValid()) {
         // The description used to promise the factory "arrives with the
-        // commerce ceremony". That ceremony ran on 2026-07-31 and tokenfactory_v2
-        // was allowlisted on topaz post-ceremony; on sapphire the factory is deliberately NOT deployed (D3(b) fee ruling pending), so this gate DOES render on the default network — the
-        // promise would only ever be read by someone on a network where it is
-        // already false (e.g. Betanet).
+        // commerce ceremony". That ceremony ran on 2026-07-31 (topaz) and again
+        // on 2026-08-31 (pearl), so tokenfactory_v2 is allowlisted on the default
+        // network and this gate does NOT render there; it renders only on networks
+        // without the factory (e.g. Betanet), where a promise about the ceremony
+        // would already be false.
         return (
             <ComingSoonGate
                 title="Token Factory"

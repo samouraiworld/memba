@@ -5,9 +5,9 @@
  * /:storedNetwork/path, preserving the original path and search params.
  *
  * Examples:
- *   /dashboard → /sapphire/dashboard
- *   /dao/gno.land~r~gov~dao → /sapphire/dao/gno.land~r~gov~dao
- *   /gnolove/teams → /sapphire/gnolove/teams
+ *   /dashboard → /pearl/dashboard
+ *   /dao/gno.land~r~gov~dao → /pearl/dao/gno.land~r~gov~dao
+ *   /gnolove/teams → /pearl/gnolove/teams
  */
 import { Navigate, useLocation } from "react-router-dom"
 import { resolveStoredNetworkKey } from "../../lib/config"

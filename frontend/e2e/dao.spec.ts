@@ -8,7 +8,8 @@ import { MOBILE_375, expectNoMobileOverflow } from './helpers/overflow'
  *
  * Fully offline (2026-07-30): EVERY spec fulfills its on-chain reads via the
  * file-level beforeEach below. This file used to be a serial live-RPC suite
- * with only two specs fulfilled; the rest raced live topaz reads (~12s
+ * with only two specs fulfilled; the rest raced live reads against the
+ * then-default topaz RPC (~12s
  * healthy) against 10–20s expect budgets, and one loss cascaded "did not
  * run" through the whole serial chain — under concurrent CI suites (three
  * cycles at once, 2026-07-30, run 30566702351) that redded back-button /
@@ -17,8 +18,10 @@ import { MOBILE_375, expectNoMobileOverflow } from './helpers/overflow'
  * file runs fully parallel and a failure stays scoped to its own spec.
  *
  * The proposal-conditional probes (Health Score, pagination, EXECUTE badge)
- * see the fixture's 0-proposal chain and skip deterministically — same
- * outcome they already had on live topaz, which has no GovDAO proposals.
+ * see the fixture's 0-proposal chain and skip deterministically — the same
+ * outcome they had on the then-default topaz, which had no GovDAO proposals.
+ * (Pearl, today's default, DOES carry GovDAO proposals — the offline fixture,
+ * not the chain, is what keeps these skips deterministic.)
  * The live-resolution smoke stays in directory-live.spec.ts, alone by design.
  */
 

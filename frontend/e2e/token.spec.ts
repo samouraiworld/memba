@@ -17,14 +17,15 @@ test.describe('Token Dashboard', () => {
     })
 })
 
-// These stay pinned to /test13, where the factory realm has long been
-// allowlist-valid so the real form renders (statically — no chain read gates it).
-// The commerce ceremony (2026-07-31) has since made tokenfactory_v2 valid on the
-// DEFAULT network too, which the last test in this block now asserts. Repointing
-// these three to the default route is worthwhile follow-up cleanup — test13 is a
-// retired chain — but it changes the redirect/document-load behaviour the mobile
-// case below carefully pins, so it is deliberately not bundled into the
-// allowlist change.
+// These stay pinned to /test13 as a deliberate retired-chain fixture: the
+// factory realm has long been allowlist-valid there, so the real form renders
+// (statically — no chain read gates it; test13's RPC refuses connections since
+// its 2026-07-26 retirement, which is exactly why nothing here may depend on a
+// live read). The DEFAULT network (pearl) serves tokenfactory_v2 too since the
+// 2026-08-31 ceremony, which the last test in this block asserts. Repointing
+// these three to the default route is worthwhile follow-up cleanup, but it
+// changes the redirect/document-load behaviour the mobile case below carefully
+// pins, so it is deliberately not bundled into a comment-only change.
 test.describe('Create Token Page', () => {
     test('form fields present', async ({ page }) => {
         await page.goto('/test13/create-token')
@@ -38,14 +39,15 @@ test.describe('Create Token Page', () => {
 
     test('admin field visible', async ({ page }) => {
         // Boot straight onto test13 (same reason as the 375px case below): CI has
-        // no .env, so the app defaults to topaz and this URL would render a topaz
+        // no .env, so the app defaults to pearl and this URL would render a pearl
         // document first, then NetworkSync-reload into test13.
         //
         // That two-document dance used to be HARMLESS here and is now a trap. The
         // previous comment argued 'Multisig Admin' could not go green early
         // "because the FIRST document is the ComingSoonGate" — true only while
-        // tokenfactory_v2 was absent from REALM_ALLOWLIST.topaz. This PR adds it,
-        // so the topaz document now renders the REAL form, 'Multisig Admin' and
+        // tokenfactory_v2 was absent from the default network's REALM_ALLOWLIST.
+        // It is present (topaz since 2026-07-31, pearl since 2026-08-31), so the
+        // default-network document renders the REAL form, 'Multisig Admin' and
         // all, and the assertion would pass without test13 ever loading — the
         // exact false-green class #1032 hardened this test against. Seeding the
         // key the module-load resolver reads makes it a single, unambiguous load.
@@ -58,7 +60,7 @@ test.describe('Create Token Page', () => {
         // Boot straight onto test13 so this URL does NOT trigger a hard reload.
         // config.ts computes its network at module load; NetworkSync reloads the
         // whole document when the /:network param disagrees with it. CI has no
-        // .env (only .env.example is tracked), so the app defaults to topaz while
+        // .env (only .env.example is tracked), so the app defaults to pearl while
         // this URL asks for test13 — the reload then destroys the execution
         // context out from under a bare evaluate(). Seeding the key the same
         // resolver reads makes it a single load. Verified: 2 document loads

@@ -2,7 +2,7 @@ import { test, expect, type Page } from '@playwright/test'
 import { fulfillOnchainReads, mockChainStatus } from './helpers/onchain'
 
 // Live-RPC suite: runs serial (single worker) so its on-chain reads don't
-// double-load the public test13 RPC under parallel workers. See playwright.config.ts.
+// double-load the public default-network (pearl) RPC under parallel workers. See playwright.config.ts.
 test.describe.configure({ mode: 'serial' })
 
 /**

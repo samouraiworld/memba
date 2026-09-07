@@ -8,7 +8,8 @@ import { GNO_RPC_HOSTS, abortOnchainReads } from './helpers/onchain'
  * History: the old body-text assertion (`toContainText(/Treasury|Balance|Asset/)`)
  * flaked in CI. That text only appears once the page leaves its loading state
  * (the loading branch is text-less <SkeletonCard>s), which requires the live
- * getDAOConfig + getDAOMembers reads against the public test13 RPC to settle.
+ * getDAOConfig + getDAOMembers reads against the public default-network RPC
+ * (test13 at the time; pearl today) to settle.
  * On a slow/variable RPC (and with the backend proxy returning ECONNREFUSED) the
  * reads intermittently missed the 10s expect timeout across all 3 retries, and
  * which PR failed shifted run-to-run as public-RPC contention varied.

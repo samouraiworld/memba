@@ -17,8 +17,9 @@ import { test, expect, type Page } from '@playwright/test'
  *   (c) the NFT Recent Activity list (when the live lane returns any) never
  *       overflows horizontally.
  *
- * The NFT lane reads live test13 RPC, so only layout invariants are asserted here —
- * never listing content (mirrors the v2 spec's live-lane discipline).
+ * The NFT lane reads the pinned network's RPC (retired test13 — a deliberate
+ * offline fixture, its RPC refuses connections), so only layout invariants are
+ * asserted here — never listing content (mirrors the v2 spec's live-lane discipline).
  */
 
 test.use({ baseURL: 'http://localhost:5176' })

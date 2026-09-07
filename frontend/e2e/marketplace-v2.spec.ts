@@ -11,8 +11,10 @@ import { test, expect, type Page } from '@playwright/test'
  * the flag stays off there until the owner's cutover flip.
  *
  * Determinism: the Services lane is seed-fed (foundingSupply.seed.ts) — its
- * content asserts exactly. The NFT lane reads live test13 RPC, so only its
- * SHELL (toolbar, tablist, panel wiring) is asserted, never listing content.
+ * content asserts exactly. The NFT lane reads the pinned network's RPC — the
+ * retired test13 fixture .env.e2e selects on purpose, whose RPC refuses
+ * connections — so only its SHELL (toolbar, tablist, panel wiring) is
+ * asserted, never listing content.
  */
 
 test.use({ baseURL: 'http://localhost:5174' })

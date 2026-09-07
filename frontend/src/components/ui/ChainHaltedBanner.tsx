@@ -4,7 +4,7 @@
  * C-02 fix: Probes the active chain on network switch. If all RPC endpoints
  * (primary + fallbacks) are unreachable, shows a dismissible banner with
  * an auto-suggest button to switch to a reachable network. Every network is
- * probed, test13 included — its public RPCs are not guaranteed up.
+ * probed, the default network (pearl) included — its public RPCs are not guaranteed up.
  *
  * Architecture: This component uses the chainHealth module for RPC probing
  * and integrates with the network switcher for one-click fallback.
@@ -21,7 +21,7 @@ import { NETWORKS } from "../../lib/config"
  *  transient blip (TLS warm-up, a backgrounded tab, the slowest endpoint just
  *  over the timeout); we only conclude "unreachable" after two consecutive
  *  failures so a blip can't latch the banner for the whole session — this
- *  matters because test13 (the default network) is now probed. */
+ *  matters because pearl (the default network) is probed too. */
 export const PROBE_RETRY_DELAY_MS = 2500
 
 interface ChainHaltedBannerProps {

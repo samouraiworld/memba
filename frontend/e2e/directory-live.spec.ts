@@ -78,7 +78,7 @@ test.describe('Directory — live chain resolution (smoke)', () => {
                     .then(r => r.ok())
                     .catch(() => false),
             ))
-            test.skip(!answers.some(Boolean), 'topaz RPC (primary + fallback) unreachable — live resolution cannot be smoked')
+            test.skip(!answers.some(Boolean), 'default-network (pearl) RPC (primary + fallback) unreachable — live resolution cannot be smoked')
             throw err
         }
         expect(await resolvedCard.count()).toBeGreaterThanOrEqual(1)

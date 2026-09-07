@@ -57,7 +57,7 @@ test.describe('Gnolove Section', () => {
     })
 
     test('navigates to report page', async ({ page }) => {
-        // SubNav links are now network-prefixed (e.g. /test13/gnolove/report) per BUG-1 fix.
+        // SubNav links are now network-prefixed (e.g. /pearl/gnolove/report) per BUG-1 fix.
         const reportLink = page.locator('nav.gl-subnav a').filter({ hasText: 'Report' }).first()
         await expect(reportLink).toBeVisible({ timeout: 10_000 })
         await reportLink.click()
@@ -85,6 +85,10 @@ test.describe('Gnolove Section', () => {
     })
 
     // ── URL-state behaviour (shareable links) [Phase 1 / MF-3 / MF-4] ──
+    // The deep links below pin /test13 — a retired chain (hidden, still
+    // deep-link resolvable by design), NOT the default (pearl). The report is
+    // backend-fed (gnolove GitHub data), so the network segment carries no
+    // chain read; retargeting the pins is follow-up, not a comment-only change.
 
     test('report URL is fully shareable: deep-link params reflected in UI', async ({ page }) => {
         await page.goto('/test13/gnolove/report?period=monthly&at=2025-03&tab=merged')

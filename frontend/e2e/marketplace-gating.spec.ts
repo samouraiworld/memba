@@ -16,7 +16,8 @@ import { test, expect, type Page } from '@playwright/test'
  *
  * Env contract — this spec runs against the DEDICATED dev server on :5174
  * (playwright.config webServer → `npm run dev:e2e` → `vite --mode e2e`), which reads
- * the COMMITTED root .env.e2e. That file pins VITE_GNO_CHAIN_ID=test13 and every lane
+ * the COMMITTED root .env.e2e. That file pins VITE_GNO_CHAIN_ID=test13 (retired 2026-07-26,
+ * kept ON PURPOSE as a deterministic offline fixture — not the app default, which is pearl) and every lane
  * flag explicitly (NFT/Services true, Tokens/Agents false), overriding the gitignored
  * .env — so the live-vs-gated expectations below are identical on any dev machine and
  * in CI (where no .env exists), and stay green when someone flips a flag in .env or
@@ -25,7 +26,8 @@ import { test, expect, type Page } from '@playwright/test'
  * Tokens + Agents. If you change .env.e2e, update these expectations with it.
  *
  * Deterministic UI-structure only — the shell + tab bar render without a wallet. (The
- * lazy NFT lane fetches from live test13 RPC, so its inner content is asserted leniently.)
+ * lazy NFT lane fetches from the retired test13 RPC, which refuses connections, so its
+ * inner content is asserted leniently.)
  */
 
 // Target the pinned-flags dev server, NOT the default :5173 one (which inherits

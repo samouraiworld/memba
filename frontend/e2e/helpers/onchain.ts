@@ -4,7 +4,8 @@ import type { Page } from '@playwright/test'
  * E2E on-chain network determinism — the "deterministic by default" primitive.
  *
  * Memba's on-chain-backed pages (treasury, DAO, validators, directory, …) render
- * a loading shell until a live read against the public test13 RPC settles. In CI
+ * a loading shell until a live read against the public default-network (pearl)
+ * RPC settles. In CI
  * that RPC is slow/variable, so any spec that asserts on post-load content races
  * the read against its timeout and flakes — and because it's shared-infra
  * contention, the failure hops between unrelated PRs run-to-run. Aborting the
@@ -21,11 +22,13 @@ import type { Page } from '@playwright/test'
 /**
  * The default-network primary + fallback gno RPC hosts — i.e. GNO_RPC_URL
  * and GNO_FALLBACK_RPC_URLS in frontend/src/lib/config.ts. samourai.live is in
- * the list because the samourai sentry serves the default network (sapphire's
- * fallback set includes it): aborting only the primary made the app fail over
- * to a LIVE samourai read and reintroduced exactly the shared-infra race this
- * helper exists to kill (found via CI flake on the topaz cutover PR; the
- * suffix-matched host list covers sapphire's hosts unchanged). Still RPC-only and not a blanket stub: it does NOT cover p2p.team /
+ * the list because the samourai sentry serves the default network
+ * (rpc.pearl.samourai.live is in pearl's fallback set): aborting only the
+ * primary made the app fail over to a LIVE samourai read and reintroduced
+ * exactly the shared-infra race this helper exists to kill (found via CI flake
+ * on the topaz cutover PR; the suffix-matched host list has covered every
+ * default since — topaz, sapphire, pearl — unchanged). Still RPC-only and not
+ * a blanket stub: it does NOT cover p2p.team /
  * aeddi.org (gnoland1 telemetry) or the browser-proxied indexer (config.ts
  * getIndexerUrl routes through `${API_BASE_URL}/api/indexer`, never these hosts).
  * EXTEND this list before reusing abortOnchainReads on a spec that reads a
