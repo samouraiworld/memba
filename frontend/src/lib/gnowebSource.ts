@@ -321,14 +321,16 @@ function parseHelpHtml(html: string): FunctionSignature[] {
 // ── Helpers ─────────────────────────────────────────────────
 
 function decodeHtmlEntities(str: string): string {
+    // `&amp;` must be decoded LAST: decoding it first turns an encoded
+    // literal like `&amp;lt;` into `&lt;` and then into `<` (double decode).
     return str
-        .replace(/&amp;/g, "&")
         .replace(/&lt;/g, "<")
         .replace(/&gt;/g, ">")
         .replace(/&quot;/g, '"')
         .replace(/&#39;/g, "'")
         .replace(/&#x27;/g, "'")
         .replace(/&#x2F;/g, "/")
+        .replace(/&amp;/g, "&")
 }
 
 function extractImports(code: string, imports: Set<string>): void {
