@@ -370,7 +370,7 @@ export function Layout() {
                      forced, non-dismissible — the session is impersonation-
                      capable until the key is registered.
                  (2) Login REFUSED with AUTH-ACTIVATE-01 (enforced-auth chains,
-                     e.g. post-cutover sapphire): the user is signed OUT, so the
+                     e.g. pearl): the user is signed OUT, so the
                      modal is guidance, not containment — dismissible back to
                      read-only browsing. ── */}
             {adena.connected && !adena.pubkeyJSON && (auth.isAuthenticated || needsActivation) && (

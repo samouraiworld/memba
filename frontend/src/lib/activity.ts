@@ -1,6 +1,6 @@
 /**
  * Recent on-chain activity, read from the official gno.land tx-indexer GraphQL
- * (e.g. https://indexer.test13.testnets.gno.land/graphql/query).
+ * (e.g. https://indexer.pearl.testnets.gno.land/graphql/query).
  *
  * Honesty contract: every item is a real, in-chain transaction (hash + height,
  * timestamp when the block-time is known). We never fabricate rows; an empty

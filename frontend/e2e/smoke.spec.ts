@@ -88,9 +88,14 @@ test.describe('v1.4.0 — DAO Page', () => {
 })
 
 test.describe('v1.4.0 — CreateToken Placeholders', () => {
-    // /test13: form renders only where the factory realm is allowlist-valid;
-    // sapphire gates it until its fee config is ruled + deployed (see
-    // token.spec.ts — D3(b)).
+    // Deliberate retired-chain fixture: /test13 is hidden but still deep-link
+    // resolvable, and its factory realm has long been allowlist-valid, so the
+    // real form renders statically (no chain read gates it). The default
+    // network serves the factory too — D3(b) was ruled 2026-08-16 and
+    // tokenfactory_v2 went live on pearl with the 2026-08-31 ceremony (see
+    // token.spec.ts) — but the pin is kept so this placeholder check never
+    // depends on the default allowlist. Comment-only truth; the pin is
+    // follow-up cleanup.
     test('neutral placeholders used', async ({ page }) => {
         await page.goto('/test13/create-token')
         // Check that new placeholders are present
