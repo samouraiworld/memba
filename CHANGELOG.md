@@ -26,6 +26,9 @@ Full changelogs are split by version range for easier navigation:
 - **Daily play is deliberate and honest.** Players explicitly choose Daily or Free Play, locally verified runs are described as queued until day-close attestation, and the HUD, pause, result, and operator guidance states remain stable across desktop, 320 px portrait, and short landscape layouts.
 - **Controls now belong to the game, not the page.** Keyboard input is focus-scoped, touch uses safe pointer ownership and cancellation, hidden or blurred play auto-pauses, WebAudio cleans up correctly under React StrictMode, and reduced-motion, mute, live announcements, 44 px targets, and mobile WebKit/Chromium checks are covered.
 - The deterministic engine, scoring, replay version, wire format, verification worker, backend, realm, and production flags are unchanged.
+### The MCP servers and the gno-rpc package default to Pearl (2026-09-07)
+<!-- categories: memba -->
+- The `gno-rpc` client, both MCP servers and the agent-registration script used to bake in a test13 node that no longer exists; when no endpoint is configured they now talk to the Pearl canonical node and register against `agent_registry_v2`.
 
 ### Block Party's Daily is now honest, resilient, and ready for review (2026-09-04)
 <!-- categories: memba -->

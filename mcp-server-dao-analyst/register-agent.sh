@@ -1,19 +1,27 @@
 #!/bin/bash
 # ─────────────────────────────────────────────────────────────
 # register-agent.sh — Register dao-analyst agent via 2-of-2 multisig
-# Registers in the on-chain agent_registry. Defaults to test13 (pinned samourai
-# node); override REMOTE/CHAIN env vars to target another network. The hyphenated
-# chain-id is signature-bound, so CHAIN MUST match the chain exactly.
+# Registers in the on-chain agent_registry_v2. Defaults to pearl (chain-id
+# pearl-1, the current Memba chain) on the Pearl canonical node; override the
+# REMOTE/CHAIN env vars to target another network. The chain-id is
+# signature-bound, so CHAIN MUST match the target chain exactly.
 #   REMOTE=https://rpc.gno.land CHAIN=portal-loop ./register-agent.sh
 # ─────────────────────────────────────────────────────────────
 set -euo pipefail
 
-REMOTE="${REMOTE:-https://rpc.testnet13.samourai.live:443}"
-CHAIN="${CHAIN:-test-13}"
+# `${VAR-default}` (no colon): an UNSET var takes the default, an explicitly
+# empty one stays empty and trips the guard — an empty REMOTE/CHAIN is a
+# mistake, not a request for the default.
+REMOTE="${REMOTE-https://rpc.pearl.samourai.live:443}"
+CHAIN="${CHAIN-pearl-1}"
+if [[ -z "$REMOTE" || -z "$CHAIN" ]]; then
+  echo "usage: [REMOTE=<rpc-url>] [CHAIN=<chain-id>] $0   (defaults: Pearl canonical node / pearl-1; neither may be empty)" >&2
+  exit 2
+fi
 MULTISIG_KEY="samcrew-core-test1"
 SIGNER1="zooma"
 SIGNER2="adena-zxxma"
-PKG="gno.land/r/samcrew/agent_registry"
+PKG="gno.land/r/samcrew/agent_registry_v2"
 
 TMPDIR=$(mktemp -d "/tmp/agent-register-dao-analyst-XXXXXX")
 trap 'rm -rf "$TMPDIR"' EXIT
