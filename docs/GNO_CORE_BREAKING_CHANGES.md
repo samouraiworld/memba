@@ -1,5 +1,7 @@
 # Gno Core PRs — Breaking Change Impact Assessment
 
+> **Status (2026-09-07): historical baseline.** Breaking-change impact board whose "deployed realms" baseline is test13 (re-baselined 2026-07-03; later notes reference topaz-1 and sapphire-1). All three chains are retired; production has been `pearl-1` since the 2026-08-31 combined ceremony, so read every per-chain verdict below as dated history. Current procedure: [`DEPLOYMENT_RUNBOOK.md`](DEPLOYMENT_RUNBOOK.md) and [`realm-versions.json`](../realm-versions.json).
+
 > **Date:** 2026-07-03 (re-baselined; originally 2026-03-30) · **Memba:** v7.2.x · **Status:** re-baselined per the verified audit plan §5 ([MEMBA_VERIFIED_AUDIT_AND_AAA_PLAN_2026-07-01.md](archive/shipped-2026-07/MEMBA_VERIFIED_AUDIT_AND_AAA_PLAN_2026-07-01.md))
 >
 > **2026-06-24 update:** the NFT-relevant upstream PRs (#5747 / #5792 / #5745) and a chain-feature matrix (test13 / master / gnoland1.1) are tracked in [GNO_CORE_COMPAT.md § 2026-06-24](GNO_CORE_COMPAT.md#2026-06-24--nft-relevant-upstream-prs--chain-feature-matrix). Mainnet is gated on gnoland1 upgrading to ≥ #5669 (interrealm-v2 Phase 3).
