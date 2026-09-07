@@ -7,7 +7,7 @@
  * other MCP-compatible agents.
  *
  * Transport: stdio (standard input/output)
- * Config: GNO_RPC_URL env var (defaults to the pinned test13 node)
+ * Config: GNO_RPC_URL env var (defaults to the Pearl canonical node, chain-id pearl-1)
  *
  * @module memba-mcp
  */
