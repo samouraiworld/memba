@@ -1,7 +1,7 @@
 # Memba — On-Chain Deployment Runbook
 
 > **Status:** COMPLETE — Full procedures for all samcrew on-chain deployments.
-> **Last updated:** 2026-09-01 — **pearl (chain id `pearl-1`) is the current live network** (combined ceremony 2026-08-31; sapphire-1 sunsets 2026-09-09; topaz-1 decommissioned 2026-08-12; test13 retired 2026-07-26 — retired RPCs refuse connections). The test12 inventory below is retained as deployment history (`realm-versions.json` is authoritative for the live paths/blocks per chain).
+> **Last updated:** 2026-09-01 — **pearl (chain id `pearl-1`) is the current live network** (combined ceremony 2026-08-31; sapphire-1 retired — Samouraï sentry dead since 2026-09-02, hidden and off the accepted-chain list, formal sunset 2026-09-09; topaz-1 decommissioned 2026-08-12; test13 retired 2026-07-26 — retired RPCs refuse connections). The test12 inventory below is retained as deployment history (`realm-versions.json` is authoritative for the live paths/blocks per chain).
 > **Deployer tool:** [`samcrew-deployer`](https://github.com/samouraiworld/samcrew-deployer)
 > **Source of truth for deployed state:** [`realm-versions.json`](../realm-versions.json) — this runbook is the procedural reference; the JSON is the authoritative ledger.
 
@@ -387,7 +387,7 @@ npm run build              # verify build succeeds
 | Network | Chain ID | RPC | Gas Fee | Gas Wanted | Deposit |
 |---------|----------|-----|---------|------------|---------|
 | pearl | `pearl-1` | `rpc.pearl.testnets.gno.land` (fallback `rpc.pearl.samourai.live`) | 10M ugnot | 150M | 100M ugnot |
-| sapphire *(sunsets 2026-09-09)* | `sapphire-1` | `rpc.sapphire.testnets.gno.land` | 10M ugnot | 150M | 100M ugnot |
+| sapphire *(retired 2026-09-02; formal sunset 2026-09-09)* | `sapphire-1` | `rpc.sapphire.testnets.gno.land` (official node; app no longer targets it) | 10M ugnot | 150M | 100M ugnot |
 | topaz (RETIRED 2026-08-12) | `topaz-1` | — | — | — | — |
 | test13 *(retired)* | `test-13` | `rpc.test13.testnets.gno.land` *(dead)* | — | — | — |
 | betanet | `gnoland1` | `rpc.gnoland1.samourai.live` | 10M ugnot | 80M | 1M ugnot |
