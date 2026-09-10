@@ -20,6 +20,14 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### gno.land mainnet is pre-registered (#1162, 2026-09-10)
+<!-- categories: memba, network, gno-core -->
+- **gno.land's mainnet launches on 2026-09-14 with the chain ID `gnoland-1`.** Memba now carries an entry for it, deliberately **hidden and empty**: the network resolves so that switching it on later is a flag flip, but it is not offered in the selector and no Memba feature claims to run there.
+- **`gnoland-1` (mainnet) and `gnoland1` (betanet) are two different chains**, one hyphen apart. Earlier notes in this repo described betanet as "the road to mainnet" — that is no longer accurate, and those notes are corrected. Mainnet is a **brand-new chain** whose balances come from the audited independence-day allocation, not an upgrade of betanet.
+- **Memba deploys nothing to mainnet yet, and says so** rather than showing features that would fail. Two things have to happen first, neither of them ours alone: the `samcrew` name has to be granted on mainnet by gno.land governance, and mainnet's launch settings **lock all GNOT transfers** — so escrow, OTC and the marketplace could not move funds even if they were deployed.
+- **There is no mainnet faucet**, by design. Test-network faucet links are not shown for mainnet.
+- The addresses gno.land has published for mainnet were checked on 2026-09-10 and are **still serving betanet today** — they get pointed at the new chain when it launches. Memba will only switch mainnet on after asking the node which chain it actually is, rather than trusting that an address responds.
+
 ### Coming next
 <!-- categories: memba -->
 - The commerce lanes — creating tokens, the NFT marketplace, escrow and OTC trading — have been deployed on Pearl since the 2026-08-31 ceremony (`tokenfactory_v2`, the NFT/market v3.2 set, `escrow_v3`, OTC). They switch on once the two-wallet live-money check passes.
