@@ -365,14 +365,26 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         label: "Betanet (gnoland1)",
         userRegistryPath: "gno.land/r/sys/users",
         faucetUrl: "",
-        // SELECTABLE again since 2026-08-27 (owner directive: gnoland1 is the
-        // future-mainnet track — testnet upgrades merge here progressively —
-        // and must stay offered alongside Pearl and Sapphire). The two hazards
-        // that had it hidden are both closed and test-pinned:
+        // SELECTABLE again since 2026-08-27 (owner directive: keep Betanet
+        // offered alongside Pearl).
+        //
+        // ⛔ RETRACTED 2026-09-10 — the original directive called gnoland1 "the
+        // future-mainnet track — testnet upgrades merge here progressively".
+        // That premise is FALSE. gnolang/gno#6154 builds mainnet as a FRESH
+        // chain with a different chain id (`gnoland-1`, HYPHEN — see the
+        // `mainnet` entry below) whose balances come from the audited
+        // gnolang/independence-day allocation. Betanet is not becoming
+        // mainnet and is not a staging ground for it.
+        //
+        // The two hazards that had this chain hidden are both closed and
+        // test-pinned:
         // - F-28: `realmsDeployed: false` + the explicit empty REALM_ALLOWLIST
         //   entry below give the honest RealmsNotDeployedBanner instead of the
-        //   fake-live marketplace this chain once rendered (isRealmValidOn
-        //   fails OPEN on a MISSING entry — never remove the entry).
+        //   fake-live marketplace this chain once rendered. (This note used to
+        //   say isRealmValidOn "fails OPEN on a MISSING entry"; it no longer
+        //   does — F-28's fix made it fail CLOSED, so an unlisted network
+        //   gates everything. Keep the explicit entry anyway: it states the
+        //   intent rather than relying on the default.)
         // - F-29: the 401-no-self-heal loop is fixed (api.ts drops
         //   server-rejected tokens; authSession is the durable half). Until
         //   the owner adds "gnoland1" to MEMBA_ACCEPTED_CHAIN_IDS, a login
@@ -384,10 +396,105 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // Live-verified 2026-07-31: serves `<meta name="chainid" content="gnoland1">`,
         // i.e. this really is Betanet's gnoweb. Both previous values were wrong in
         // different directions — `getExplorerBaseUrl` returned `betanet.gno.land`
-        // (does not resolve) and `lib/gnoweb` returned `gno.land` (MAINNET, which
-        // answers 200 for shared paths like `/u/<name>` and would show a different
-        // chain's data with no visible failure).
+        // (does not resolve) and `lib/gnoweb` returned `gno.land` (which answers
+        // 200 for shared paths like `/u/<name>` and would show a different
+        // chain's data with no visible failure). ⚠️ That note called `gno.land`
+        // "MAINNET"; measured 2026-09-10 it serves `chainid` "gnoland1" — it is
+        // a BETANET host that #6154 repoints to mainnet at the 09-14 launch, so
+        // what it shows depends on when you ask. Identity-check, never assume.
         explorerUrl: "https://betanet.testnets.gno.land",
+    },
+    // gno.land MAINNET — chain id `gnoland-1` (HYPHEN). Launching 2026-09-14
+    // ~14:00. Pre-registered HIDDEN and fail-closed, the same pattern pearl
+    // used: the un-hide is a flag flip, not a new block.
+    //
+    // ⚠️ `gnoland-1` IS NOT `gnoland1`. The entry above (`gnoland1`, no hyphen)
+    // is BETANET — a different, long-lived chain. They are one hyphen apart,
+    // and the backend's MEMBA_ACCEPTED_CHAIN_IDS already lists `gnoland1`, so
+    // "we already have gnoland1" reads as covered when it is not. The chainId
+    // here comes from gno's own genesis builder (gnolang/gno#6154,
+    // misc/deployments/mainnet.gno.land/ — "Chain-id `gnoland-1`"), which was
+    // still a DRAFT marked "not launchable" when this entry landed:
+    // re-verify node_info.network == "gnoland-1" before the un-hide.
+    //
+    // ⛔ Betanet is NOT becoming mainnet. #6154 builds mainnet as a FRESH chain
+    // whose balances come from the audited gnolang/independence-day allocation
+    // (explicitly "No faucets"). The "gnoland1 is the future-mainnet track"
+    // premise recorded on the entry above is retracted — see its note.
+    //
+    // `realmsDeployed: false` is the LONG-TERM state here, not a launch-day
+    // placeholder, for two independent reasons:
+    //   1. NAMESPACE — `gno.land/r/samcrew/*` is UNREACHABLE on mainnet.
+    //      r/sys/names enforces from block 1 and offers only two paths: a
+    //      personal-address namespace, or a name registered in r/sys/users.
+    //      Self-service registration (r/sys/namereg/v1.Register) admits only
+    //      `nym-[a-z]{5,13}\d{3}`, so "samcrew" fails ValidateNymFormat with
+    //      ErrInvalidFormat — price is 0, the FORMAT is the gate. Only GovDAO
+    //      ProposeRegisterUser can grant it, and T1 is a 4-of-7 that Samourai
+    //      does not sit on. Owner decision 2026-09-10: WAIT for that grant and
+    //      deploy nothing meanwhile.
+    //   2. §126 TRANSFER LOCK — genesis ships
+    //      bank.params.restricted_denoms=["ugnot"] with only 71 exempt
+    //      treasuries, and BankKeeper.canSendCoins rejects every other sender.
+    //      Each custody lane (escrow_v3, memba_token_otc_v2,
+    //      memba_nft_market_v3_2) would panic on BOTH funding and payout.
+    //      GRC20 lanes and gas are unaffected (gas uses SendCoinsUnrestricted).
+    //
+    // Auth is fail-closed regardless: a gnoland-1 token is refused with
+    // AUTH-CHAINID-MISMATCH-01 until the owner adds `gnoland-1` to the
+    // backend's MEMBA_ACCEPTED_CHAIN_IDS — a Fly SECRET that shadows fly.toml,
+    // so it is founder-only. ⛔ Never blank that key to "disable" the check: an
+    // empty set accepts EVERY chain (F-29b fails open).
+    mainnet: {
+        chainId: "gnoland-1",
+        hidden: true,
+        realmsDeployed: false,
+        // NOT a testnet — this is the production chain. Drives the disclosures
+        // that only make sense off a production chain (e.g. Team Hub's
+        // "Data: mainnet" note).
+        isTestnet: false,
+        // Endpoints per #6154: gno.land (gnoweb), rpc.gno.land (RPC),
+        // seed-1/seed-2.gno.land (seeds).
+        //
+        // ⚠️ THESE HOSTS CURRENTLY SERVE BETANET — measured 2026-09-10, four
+        // days before launch:
+        //     rpc.gno.land/status → node_info.network "gnoland1" (BETANET),
+        //                           v1.0.0-rc.0, height 3739853
+        //     gno.land            → <meta name="chainid" content="gnoland1">
+        // They are pre-existing betanet hosts that #6154 slates to be
+        // REPOINTED at genesis. This is the pearl trap live: rpc.pearl.*
+        // resolved, answered 200, and served a frozen sapphire-1 for days
+        // before its genesis. ⛔ DO NOT un-hide this network on DNS or a 200 —
+        // the only valid check is node_info.network == "gnoland-1". That is
+        // also why `hidden: true` ships: pointing users here today would show
+        // them betanet data under a mainnet label.
+        //
+        // Env-overridable so the un-hide needs no code change if launch
+        // exposes something else. `gno.land` and `rpc.gno.land` are already in
+        // TRUSTED_RPC_DOMAINS and covered by the netlify CSP's
+        // `https://*.gno.land`.
+        rpcUrl: import.meta.env.VITE_MAINNET_RPC_URL || "https://rpc.gno.land:443",
+        // Deliberately EMPTY: no second official node is published yet, and an
+        // unreachable fallback is indistinguishable from a slow one. The
+        // sapphire post-mortem was three dead hosts left in a failover list —
+        // do not guess hostnames here.
+        fallbackRpcUrls: [],
+        telemetryRpcUrls: [],
+        // No public mainnet indexer announced. Absent ⇒ the activity feed
+        // hides itself rather than erroring.
+        indexerUrl: import.meta.env.VITE_MAINNET_INDEXER_URL || undefined,
+        label: "gno.land",
+        userRegistryPath: "gno.land/r/sys/users",
+        // ⛔ THERE IS NO MAINNET FAUCET, by design (#6154: balances come from
+        // the independence-day allocation). Empty string, not a guess at a hub.
+        faucetUrl: "",
+        // gno.land is slated to be mainnet's gnoweb — but as measured above it
+        // serves BETANET today (`chainid` meta = "gnoland1"). ⚠️ It answers 200
+        // at the root AND for shared paths like /u/<name> while 404ing our
+        // realms, so a root check passes on exactly the wrong host (the trap
+        // the `explorerUrl` type doc describes). Verify the `chainid` meta,
+        // and once any of our realms are deployed, verify against one of them.
+        explorerUrl: import.meta.env.VITE_MAINNET_EXPLORER_URL || "https://gno.land",
     },
 }
 
@@ -581,6 +688,17 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
     // absent key — absent means "no allowlist", which isRealmValidOn used to
     // read as "everything is valid" (F-28).
     gnoland1: [],
+    // Mainnet (`gnoland-1`): Memba deploys nothing here, and unlike every
+    // other empty entry this is not merely "not yet". Two independent gates
+    // hold, either of which alone is sufficient (see the NETWORKS.mainnet
+    // note): the `samcrew` NAMESPACE is unreachable without a GovDAO grant,
+    // and §126 locks `ugnot` transfers chain-wide so every custody lane would
+    // panic on both funding and payout. An EXPLICIT empty list, not an absent
+    // key — the predicate below already fails closed, so this states intent.
+    // ⛔ Do not add a path here for mainnet until BOTH gates clear AND the
+    // realm is verified live with a realm-versions.json `mainnet` record
+    // (that file is keyed by NETWORK KEY, like `pearl` — not by chain id).
+    mainnet: [],
     // Pearl — the combined-ceremony set (§4 of docs/PEARL_CUTOVER_PLAN.md):
     // the default core lane + the commerce set in one window. Entry list =
     // exactly the deployer's dry-run walk on the [pearl] lane (verified

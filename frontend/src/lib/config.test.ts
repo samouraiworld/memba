@@ -453,14 +453,79 @@ describe('getTelemetryRpcUrls', () => {
     })
 })
 
-describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl only', () => {
-    it('exposes only test13, topaz, gnoland1, sapphire, and pearl', () => {
+describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl + mainnet only', () => {
+    it('exposes only test13, topaz, gnoland1, sapphire, pearl, and mainnet', () => {
         const keys = Object.keys(NETWORKS).sort()
         // pearl is DEFAULT since 2026-08-27; sapphire stays selectable until
-        // its 09-09 sunset; gnoland1 is selectable again (future-mainnet
-        // track); topaz + test13 stay as hidden retired entries so old links
-        // resolve. See the live/dark contract blocks below.
-        expect(keys).toEqual(['gnoland1', 'pearl', 'sapphire', 'test13', 'topaz'])
+        // its 09-09 sunset; gnoland1 (BETANET) is selectable; topaz + test13
+        // stay as hidden retired entries so old links resolve; mainnet
+        // (`gnoland-1`) is PRE-REGISTERED HIDDEN ahead of the 2026-09-14
+        // launch. See the live/dark contract blocks below.
+        expect(keys).toEqual(['gnoland1', 'mainnet', 'pearl', 'sapphire', 'test13', 'topaz'])
+    })
+
+    it('mainnet is pre-registered hidden, dark, and NOT a testnet', () => {
+        // The pearl pre-registration pattern: present so deep links and env
+        // pins resolve, hidden so it is not offered until an RPC is
+        // identity-verified, and realm-free so no lane can render fake-live.
+        expect(NETWORKS.mainnet).toBeDefined()
+        expect(NETWORKS.mainnet.chainId).toBe('gnoland-1')
+        expect(NETWORKS.mainnet.hidden).toBe(true)
+        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('mainnet')
+        expect(NETWORKS.mainnet.realmsDeployed).toBe(false)
+        expect(networkHasRealms('mainnet')).toBe(false)
+        // Production chain — drives the off-production disclosures.
+        expect(NETWORKS.mainnet.isTestnet).toBe(false)
+        // ⛔ There is no mainnet faucet, by design (gnolang/gno#6154: balances
+        // come from the independence-day allocation, "No faucets"). An
+        // invented faucet URL would send users somewhere that cannot help.
+        expect(NETWORKS.mainnet.faucetUrl).toBe('')
+        // No second official node published — an unreachable fallback is
+        // indistinguishable from a slow one (the sapphire dead-failover
+        // lesson), so the list stays empty rather than guessing hostnames.
+        expect(NETWORKS.mainnet.fallbackRpcUrls).toEqual([])
+        expect(isTrustedRpcDomain(NETWORKS.mainnet.rpcUrl)).toBe(true)
+    })
+
+    it('mainnet `gnoland-1` is NOT betanet `gnoland1` — distinct chain ids', () => {
+        // One hyphen apart, and MEMBA_ACCEPTED_CHAIN_IDS already lists
+        // `gnoland1`, so "we already have gnoland1" reads as covered when it
+        // is not. This is the hyphen trap, pinned.
+        expect(NETWORKS.mainnet.chainId).toBe('gnoland-1')
+        expect(NETWORKS.gnoland1.chainId).toBe('gnoland1')
+        expect(NETWORKS.mainnet.chainId).not.toBe(NETWORKS.gnoland1.chainId)
+    })
+
+    it('mainnet gates EVERY realm — namespace + §126 both unresolved', () => {
+        // Two independent gates, either sufficient on its own: `samcrew` is
+        // unreachable without a GovDAO grant (r/sys/namereg/v1 admits only
+        // `nym-[a-z]{5,13}\d{3}`, so "samcrew" is ErrInvalidFormat), and §126
+        // locks ugnot transfers chain-wide so every custody lane would panic
+        // on BOTH funding and payout.
+        //
+        // ANTI-VACUITY: isRealmValidOn returns false for any unlisted string,
+        // so asserting `false` on a typo'd path passes for the wrong reason
+        // (the test-guard-vacuity class). Every path below is therefore
+        // ANCHORED on pearl first — the `true` assertion proves the path is a
+        // real, currently-allowlisted realm, which is what makes the `false`
+        // on mainnet mean "gated" rather than "unknown string".
+        //
+        // The three custody realms are included deliberately: they are exactly
+        // the lanes §126 would break.
+        const realPearlRealms = [
+            'gno.land/r/samcrew/memba_dao',
+            'gno.land/r/samcrew/escrow_v3',
+            'gno.land/r/samcrew/memba_token_otc_v2',
+            'gno.land/r/samcrew/memba_nft_market_v3_2',
+        ]
+        for (const realmPath of realPearlRealms) {
+            expect(isRealmValidOn('pearl', realmPath), `${realmPath} must be live on pearl for this guard to be non-vacuous`).toBe(true)
+            expect(isRealmValidOn('mainnet', realmPath)).toBe(false)
+        }
+        // REALM_ALLOWLIST is module-private, so "explicit empty entry" vs
+        // "absent key" is not observable from here — both fail closed since
+        // F-28. The explicit entry in config.ts states intent; this asserts
+        // the behaviour that actually protects users.
     })
     it('defaults to pearl in an env-less (CI/shipped) build', () => {
         // CI runs without a .env, so DEFAULT_NETWORK exercises the fallback;
