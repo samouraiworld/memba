@@ -7,6 +7,11 @@ import { configure } from '@testing-library/react'
 // times out and fails an unrelated PR at random (observed: AppCurator "approve",
 // Node-20 leg). Raise the default globally so a loaded runner has headroom; a real
 // hang still fails at 5s. Individual tests can still pass a shorter/longer timeout.
+//
+// INVARIANT: this must stay strictly BELOW `testTimeout` in vite.config.ts
+// (currently 15s), or the headroom is fictional — Vitest kills the test at its
+// own timeout before `waitFor` can spend this budget, and the failure surfaces
+// as a bare "Test timed out" with no DOM to diagnose. Raise both together.
 configure({ asyncUtilTimeout: 5000 })
 
 // Mock localStorage for tests that need it

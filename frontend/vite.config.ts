@@ -156,6 +156,26 @@ export default defineConfig({
     globals: true,
     setupFiles: ['./src/test/setup.ts'],
     exclude: ['e2e/**', 'node_modules/**', '.netlify/**'],
+    // MUST stay strictly greater than the `asyncUtilTimeout` set in
+    // `src/test/setup.ts` (5s), with room to spare for the work a test does
+    // BEFORE its first `waitFor`. Vitest's own default is 5000ms — exactly
+    // equal to that async budget — which made the headroom setup.ts grants
+    // unusable: the enclosing test timeout fires at the same instant, so a
+    // `waitFor` could never actually spend the 5s it was promised, and any
+    // pre-`waitFor` cost came straight out of it.
+    //
+    // That is a full-suite-only failure mode. `vitest run` loads 480+ files at
+    // once and a test that dynamically imports a heavy component graph inside
+    // its body pays the transform+eval cost against this budget: measured at
+    // 3149ms for DAOsTab.test.tsx's `await import("./DAOsTab")` under load,
+    // leaving <1.9s for a render that needs 97ms. The same file imports in
+    // milliseconds when run alone, so the test passed in isolation and failed
+    // in the suite — as did SpaceInvadersPauseReplay.test.tsx, on load alone.
+    //
+    // 15s keeps a genuine hang failing fast AND makes it fail through
+    // testing-library's error (which dumps the DOM) instead of a bare,
+    // undiagnosable "Test timed out in 5000ms".
+    testTimeout: 15_000,
   },
   server: {
     port: 5173,
