@@ -459,7 +459,7 @@ describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl + m
         // pearl is DEFAULT since 2026-08-27; sapphire stays selectable until
         // its 09-09 sunset; gnoland1 (BETANET) is selectable; topaz + test13
         // stay as hidden retired entries so old links resolve; mainnet
-        // (`gnoland-1`) is PRE-REGISTERED HIDDEN ahead of the 2026-09-14
+        // (`gnoland-1`) is PRE-REGISTERED HIDDEN ahead of the 2026-09-11
         // launch. See the live/dark contract blocks below.
         expect(keys).toEqual(['gnoland1', 'mainnet', 'pearl', 'sapphire', 'test13', 'topaz'])
     })

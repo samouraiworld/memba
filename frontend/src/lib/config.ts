@@ -400,13 +400,21 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // 200 for shared paths like `/u/<name>` and would show a different
         // chain's data with no visible failure). ⚠️ That note called `gno.land`
         // "MAINNET"; measured 2026-09-10 it serves `chainid` "gnoland1" — it is
-        // a BETANET host that #6154 repoints to mainnet at the 09-14 launch, so
+        // a BETANET host that #6154 repoints to mainnet at the 09-11 launch, so
         // what it shows depends on when you ask. Identity-check, never assume.
         explorerUrl: "https://betanet.testnets.gno.land",
     },
-    // gno.land MAINNET — chain id `gnoland-1` (HYPHEN). Launching 2026-09-14
-    // ~14:00. Pre-registered HIDDEN and fail-closed, the same pattern pearl
-    // used: the un-hide is a flag flip, not a new block.
+    // gno.land MAINNET — chain id `gnoland-1` (HYPHEN). Launching FRIDAY
+    // 2026-09-11. Pre-registered HIDDEN and fail-closed, the same pattern
+    // pearl used: the un-hide is a flag flip, not a new block.
+    //
+    // ⚠️ Launch day and TRANSFER day are different days, and the §126 note
+    // below turns on the distinction: the chain starts Friday 2026-09-11,
+    // but ugnot stays restricted until MONDAY 2026-09-14, the announced
+    // moment tokens become transferable. A custody lane deployed Friday is
+    // not merely ungated-but-idle — it PANICS on both funding and payout
+    // until Monday. (An earlier note here put the launch itself on 09-14;
+    // that was the transferability date, not genesis.)
     //
     // ⚠️ `gnoland-1` IS NOT `gnoland1`. The entry above (`gnoland1`, no hyphen)
     // is BETANET — a different, long-lived chain. They are one hyphen apart,
@@ -439,6 +447,13 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     //      Each custody lane (escrow_v3, memba_token_otc_v2,
     //      memba_nft_market_v3_2) would panic on BOTH funding and payout.
     //      GRC20 lanes and gas are unaffected (gas uses SendCoinsUnrestricted).
+    //      ⚠️ This lock now has an ANNOUNCED LIFT: Monday 2026-09-14 is the
+    //      official moment ugnot becomes transferable — so reason 2 expires on
+    //      a date, unlike reason 1 (the namespace grant), which remains
+    //      open-ended and is the binding constraint. ⛔ The lift is NOT
+    //      self-executing here: re-read bank.params.restricted_denoms on
+    //      gnoland-1 before treating any custody lane as deployable, exactly
+    //      as the un-hide gates on node_info.network rather than on a date.
     //
     // Auth is fail-closed regardless: a gnoland-1 token is refused with
     // AUTH-CHAINID-MISMATCH-01 until the owner adds `gnoland-1` to the
