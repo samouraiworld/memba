@@ -25,6 +25,8 @@
 | **Next Priority** | The Pearl cutover + combined ceremony is **DONE 2026-08-31** (`docs/PEARL_CUTOVER_PLAN.md` is the record). Live slate: **sapphire retirement DONE** (hidden 09-01 #1126 · allowlist 09-02 #1139 · RPC defaults 09-02 #1138 · public docs 09-07; the 09-09 sunset date is paperwork) · **marketplace / services / tokens de-gate** pending the 2-wallet live-money test · **NFT indexer re-enable** pending observability wiring (alerts armed before `NFT_INDEXER_DISABLED` unsets). · **Code: next-cycle plan Waves A–F after Pearl** |
 
 > **Note on chain naming**: Memba uses `gnoland1` as chain ID (matching the RPC `/status` response). The community often refers to this network as "betanet". Both names refer to the same chain.
+>
+> ⚠️ **`gnoland1` (betanet) is NOT `gnoland-1` (MAINNET).** They are different chains one hyphen apart, and `MEMBA_ACCEPTED_CHAIN_IDS` already lists `gnoland1` — so "we already have gnoland1" reads as covered when it is not. **The earlier "gnoland1 is the future-mainnet track" premise is RETRACTED** (2026-09-10): [gnolang/gno#6154](https://github.com/gnolang/gno/pull/6154) builds mainnet as a **fresh chain** from the `gnolang/independence-day` allocation. Mainnet is pre-registered **hidden + realm-free**; see `MEMBA_MAINNET_PLAN_2026-09-10.md` for the four blockers.
 
 ---
 
