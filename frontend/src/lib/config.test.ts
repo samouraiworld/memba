@@ -464,14 +464,18 @@ describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl + m
         expect(keys).toEqual(['gnoland1', 'mainnet', 'pearl', 'sapphire', 'test13', 'topaz'])
     })
 
-    it('mainnet is pre-registered hidden, dark, and NOT a testnet', () => {
-        // The pearl pre-registration pattern: present so deep links and env
-        // pins resolve, hidden so it is not offered until an RPC is
-        // identity-verified, and realm-free so no lane can render fake-live.
+    it('mainnet is selectable but still realm-free, and NOT a testnet', () => {
+        // Un-hidden for the read-only lanes (validators, chain health, network
+        // pulse) once the chain was identity-verified and producing blocks.
+        // The realm half does NOT move with it: visibility and deployment are
+        // separate claims, and conflating them is how a lane renders fake-live.
         expect(NETWORKS.mainnet).toBeDefined()
         expect(NETWORKS.mainnet.chainId).toBe('gnoland-1')
-        expect(NETWORKS.mainnet.hidden).toBe(true)
-        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('mainnet')
+        expect(NETWORKS.mainnet.hidden).toBe(false)
+        expect(Object.keys(VISIBLE_NETWORKS)).toContain('mainnet')
+        // ⛔ These two must NOT follow the un-hide. A visible network with no
+        // deployed realms is the intended state; the guard below pins that
+        // every realm still gates false.
         expect(NETWORKS.mainnet.realmsDeployed).toBe(false)
         expect(networkHasRealms('mainnet')).toBe(false)
         // Production chain — drives the off-production disclosures.
