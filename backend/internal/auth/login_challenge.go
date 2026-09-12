@@ -54,6 +54,16 @@ type loginMsg struct {
 // byte-identical doc for Adena to sign; the backend verifies the user's signature
 // over these bytes. Deterministic in its inputs — never derived from client bytes.
 func LoginChallengeSignBytes(chainID, userAddress string, nonce []byte) ([]byte, error) {
+	in, err := loginChallengeSignDoc(chainID, userAddress, nonce)
+	if err != nil {
+		return nil, err
+	}
+	return CanonicalSignBytes(in)
+}
+
+// loginChallengeSignDoc builds the document itself, so verification can render
+// it in either fee shape without rebuilding the message by hand.
+func loginChallengeSignDoc(chainID, userAddress string, nonce []byte) (SignDocInput, error) {
 	msg, err := json.Marshal(loginMsg{
 		Type:       "/vm.m_call",
 		Caller:     userAddress,
@@ -63,9 +73,9 @@ func LoginChallengeSignBytes(chainID, userAddress string, nonce []byte) ([]byte,
 		Func:       LoginFunc,
 	})
 	if err != nil {
-		return nil, fmt.Errorf("marshal login msg: %w", err)
+		return SignDocInput{}, fmt.Errorf("marshal login msg: %w", err)
 	}
-	return CanonicalSignBytes(SignDocInput{
+	return SignDocInput{
 		ChainID:       chainID,
 		AccountNumber: 0,
 		Sequence:      0,
@@ -78,7 +88,7 @@ func LoginChallengeSignBytes(chainID, userAddress string, nonce []byte) ([]byte,
 		GasFeeDenom:  "ugnot",
 		Msgs:         []json.RawMessage{msg},
 		Memo:         LoginChallengeMemo(nonce),
-	})
+	}, nil
 }
 
 // VerifyLoginChallengeSignature verifies sigBase64 over the reconstructed login
@@ -88,11 +98,13 @@ func VerifyLoginChallengeSignature(pubKey interface{ VerifySignature(msg, sig []
 	if err != nil {
 		return errors.Wrap(err, "failed to decode user signature")
 	}
-	signBytes, err := LoginChallengeSignBytes(chainID, userAddress, nonce)
+	in, err := loginChallengeSignDoc(chainID, userAddress, nonce)
 	if err != nil {
 		return errors.Wrap(err, "failed to build login challenge sign bytes")
 	}
-	if !pubKey.VerifySignature(signBytes, sig) {
+	// Either fee rendering is accepted: wallets move to the gnolang/gno#6173
+	// shape on their own schedule, and the chain itself takes both.
+	if !VerifySignDocSignature(pubKey, in, sig) {
 		return errors.New("invalid user signature")
 	}
 	return nil

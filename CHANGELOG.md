@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Login keeps working when wallets change how they sign (2026-09-12)
+<!-- categories: memba, gno-core -->
+- **A change landing in gno.land alters the exact bytes a wallet signs.** It is needed so Ledger hardware wallets can sign gno transactions at all — the Ledger app refuses the current format outright and signs nothing. Wallets will adopt it on their own schedules, not all on one day.
+- **Memba now accepts either format when checking a signature.** Without this, the day Adena (or any other wallet) updated, signing in to Memba would simply stop working — and the error would point nowhere near the cause. The same applies to approving a multisig transaction.
+- **This does not loosen anything.** A signature still authorises exactly one action: the two formats can never produce the same bytes, so accepting both is not the same as accepting more. Signatures over a different account, a different amount, or a different login attempt are rejected exactly as before.
+- Memba itself keeps producing the existing format, which gno.land continues to accept.
+
 ### gno.land mainnet is selectable for validator monitoring (2026-09-12)
 <!-- categories: memba, network -->
 - **Mainnet (`gnoland-1`) launched on 2026-09-12 and is now offered in the network selector.** What that unlocks is narrow and deliberate: the validators dashboard, chain health and network pulse. Those read from Memba's monitoring service rather than from on-chain contracts, so they work on a chain where Memba has published nothing.

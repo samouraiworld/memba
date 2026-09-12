@@ -53,6 +53,46 @@ type signDocFee struct {
 	GasWanted string `json:"gas_wanted"`
 }
 
+// signDocFeeLedger is the fee as gnolang/gno#6173 renders it: the shape the
+// Ledger Cosmos app will parse. Inside "fee" that app allows only amount, gas,
+// granter and payer, so gno's own gas_fee/gas_wanted keys are refused and the
+// device signs nothing. Wallets build this payload themselves and will not all
+// move on the same day, so gno's node accepts BOTH renderings (ante.go falls
+// back to GetSignBytesLegacy) and so must we — we verify what wallets produce.
+type signDocFeeLedger struct {
+	Amount []signDocCoin `json:"amount"`
+	Gas    string        `json:"gas"`
+}
+
+// signDocCoin spells a coin out as an object, because amino renders std.Coin as
+// the single string "1000000ugnot" and the allowlist wants {denom, amount}.
+type signDocCoin struct {
+	Denom  string `json:"denom"`
+	Amount string `json:"amount"`
+}
+
+type signDocEnvelopeLedger struct {
+	ChainID       string            `json:"chain_id"`
+	AccountNumber string            `json:"account_number"`
+	Sequence      string            `json:"sequence"`
+	Fee           signDocFeeLedger  `json:"fee"`
+	Msgs          []json.RawMessage `json:"msgs"`
+	Memo          string            `json:"memo"`
+}
+
+// ledgerFeeAmount renders the fee coin as Cosmos renders a coin list.
+//
+// A ZERO FEE IS AN EMPTY LIST, not a list holding a zero coin — Cosmos's Coins
+// carries no zero entries, and the device displays every coin it is given, so
+// {"denom":"","amount":"0"} would be both wrong and likely rejected. This
+// mirrors gno's feeAmount() in tm2/pkg/std/doc.go.
+func ledgerFeeAmount(amount int64, denom string) []signDocCoin {
+	if amount == 0 {
+		return []signDocCoin{}
+	}
+	return []signDocCoin{{Denom: denom, Amount: strconv.FormatInt(amount, 10)}}
+}
+
 // coinString matches gno std.Coin.String() (coin.go:55-62): a zero amount yields
 // the empty string, never "0denom".
 func coinString(amount int64, denom string) string {
@@ -80,14 +120,40 @@ func CanonicalSignBytes(in SignDocInput) ([]byte, error) {
 		Memo: in.Memo,
 	}
 
+	return sortJSONDoc(env, "sign doc")
+}
+
+// CanonicalSignBytesLedger returns the same document with the fee rendered in
+// the post-gnolang/gno#6173 shape. Used only for VERIFICATION: a wallet that has
+// adopted that rendering signs these bytes instead. Memba keeps producing the
+// legacy rendering, which the chain still accepts.
+func CanonicalSignBytesLedger(in SignDocInput) ([]byte, error) {
+	msgs := in.Msgs
+	if msgs == nil {
+		msgs = []json.RawMessage{}
+	}
+	env := signDocEnvelopeLedger{
+		ChainID:       in.ChainID,
+		AccountNumber: strconv.FormatUint(in.AccountNumber, 10),
+		Sequence:      strconv.FormatUint(in.Sequence, 10),
+		Fee: signDocFeeLedger{
+			Amount: ledgerFeeAmount(in.GasFeeAmount, in.GasFeeDenom),
+			Gas:    strconv.FormatInt(in.GasWanted, 10),
+		},
+		Msgs: msgs,
+		Memo: in.Memo,
+	}
+	return sortJSONDoc(env, "ledger sign doc")
+}
+
+// sortJSONDoc marshals then applies gno tm2's sortJSON (utils.go:10-22):
+// unmarshal then marshal sorts object keys alphabetically, strips whitespace,
+// and inherits Go's HTML-escaping of < > &. Never hand-emit the sorted bytes.
+func sortJSONDoc(env any, what string) ([]byte, error) {
 	aminoJSON, err := json.Marshal(env)
 	if err != nil {
-		return nil, fmt.Errorf("marshal sign doc: %w", err)
+		return nil, fmt.Errorf("marshal %s: %w", what, err)
 	}
-
-	// Final pass = gno tm2 sortJSON (utils.go:10-22): unmarshal then marshal sorts
-	// object keys alphabetically, strips whitespace, and inherits Go's HTML-escaping
-	// of < > &. Never hand-emit the sorted bytes.
 	var generic any
 	if err := json.Unmarshal(aminoJSON, &generic); err != nil {
 		return nil, fmt.Errorf("sortJSON unmarshal: %w", err)
@@ -97,4 +163,22 @@ func CanonicalSignBytes(in SignDocInput) ([]byte, error) {
 		return nil, fmt.Errorf("sortJSON marshal: %w", err)
 	}
 	return sorted, nil
+}
+
+// VerifySignDocSignature reports whether sig is valid over EITHER rendering of
+// the document. Accepting both is safe for the same reason it is safe in gno:
+// the two fee key sets are disjoint ("gas_fee"/"gas_wanted" against
+// "amount"/"gas"), so the two payloads can never coincide and one signature
+// still authorises exactly one document.
+func VerifySignDocSignature(pubKey interface{ VerifySignature(msg, sig []byte) bool }, in SignDocInput, sig []byte) bool {
+	if legacy, err := CanonicalSignBytes(in); err == nil {
+		if pubKey.VerifySignature(legacy, sig) {
+			return true
+		}
+	}
+	ledger, err := CanonicalSignBytesLedger(in)
+	if err != nil {
+		return false
+	}
+	return pubKey.VerifySignature(ledger, sig)
 }
