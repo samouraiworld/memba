@@ -144,8 +144,7 @@ func ClassifyStoredSignature(multisigPubkeyJSON, signerAddress, sigBase64 string
 	if err != nil {
 		return SigVerifyLegacyShape, err
 	}
-	signBytes, err := CanonicalSignBytes(in)
-	if err != nil {
+	if _, err := CanonicalSignBytes(in); err != nil {
 		return SigVerifyLegacyShape, fmt.Errorf("reconstruct sign bytes: %w", err)
 	}
 
@@ -159,7 +158,10 @@ func ClassifyStoredSignature(multisigPubkeyJSON, signerAddress, sigBase64 string
 		return SigVerifyError, err
 	}
 
-	if !memberPub.VerifySignature(signBytes, sig) {
+	// Either fee rendering is accepted: a member may sign with a wallet that has
+	// adopted the gnolang/gno#6173 Ledger shape while others have not, and the
+	// chain itself takes both. See VerifySignDocSignature.
+	if !VerifySignDocSignature(memberPub, in, sig) {
 		return SigVerifyMismatch, fmt.Errorf("signature does not verify for member %s; "+
 			"check the account number, sequence, and chain were not modified after signing", signerAddress)
 	}
