@@ -53,6 +53,25 @@ const DOWN_UPTIME_THRESHOLD = 90
 /** Uptime % below which the validator is considered degraded */
 const DEGRADED_UPTIME_THRESHOLD = 99
 
+/**
+ * How long an incident stays evidence about the PRESENT.
+ *
+ * There used to be no such bound, so one CRITICAL incident pinned a validator to
+ * Down indefinitely — however old — until a newer incident happened to arrive.
+ * gnomonitoring's public /latest_incidents is capped at ten rows CHAIN-WIDE, so
+ * a noisy neighbour can evict the RESOLVED row that would have cleared it, and
+ * the stale CRITICAL then stands forever. A status is a claim about now.
+ */
+const INCIDENT_MAX_AGE_MS = 24 * 60 * 60 * 1000
+
+/**
+ * Block samples required before a clean window counts as positive evidence.
+ *
+ * Three good blocks is not a recovery, it is three blocks. Twenty is the roster
+ * window, so in practice this asks for at least half of it.
+ */
+const MIN_LIVE_SAMPLES = 10
+
 // ── Compute Health Status ───────────────────────────────────────
 
 /**
@@ -78,10 +97,24 @@ export function computeHealthStatus(validator: ValidatorInfo): ValidatorHealthMe
         }
     }
 
+    // Direct, first-hand evidence about the present: did this validator sign the
+    // blocks we just looked at? Used below to stop a long-window average
+    // outranking what the chain is doing right now.
+    const sigs = validator.lastBlockSignatures
+    const liveClean = sigs.length >= MIN_LIVE_SAMPLES && sigs.every(Boolean)
+
     // ── 1. Incident check (highest priority) ──
-    if (validator.incidents && validator.incidents.length > 0) {
+    // Only RECENT incidents describe the present — see INCIDENT_MAX_AGE_MS. An
+    // incident with a missing or unparseable timestamp is treated as current:
+    // absent evidence is not an alibi.
+    const recentIncidents = (validator.incidents ?? []).filter(inc => {
+        const t = new Date(inc.timestamp).getTime()
+        if (!Number.isFinite(t)) return true
+        return Date.now() - t <= INCIDENT_MAX_AGE_MS
+    })
+    if (recentIncidents.length > 0) {
         // Sort by timestamp descending — most recent first
-        const sorted = [...validator.incidents].sort(
+        const sorted = [...recentIncidents].sort(
             (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
         )
         const latest = sorted[0]
@@ -136,8 +169,22 @@ export function computeHealthStatus(validator: ValidatorInfo): ValidatorHealthMe
     }
 
     // ── 3. Uptime check ──
+    // Uptime is a 30-day average. On a chain days old it spans time before
+    // genesis, and after any outage it stays depressed long after the validator
+    // is back — which is how a profile came to render "Down" directly above
+    // "100/100 PERFECT". Where the average and the live window disagree, the
+    // live window wins, and the reason says so rather than leaving the badge
+    // unexplainable.
     if (validator.uptimePercent != null) {
         if (validator.uptimePercent < DOWN_UPTIME_THRESHOLD) {
+            if (liveClean) {
+                return {
+                    status: ValidatorHealthStatus.Degraded,
+                    reason: `Recovering — signed the last ${sigs.length} blocks, but uptime is ${validator.uptimePercent}% over the reporting window`,
+                    latestIncidentSeverity: null,
+                    latestIncidentTime: null,
+                }
+            }
             return {
                 status: ValidatorHealthStatus.Down,
                 reason: `Uptime ${validator.uptimePercent}% (below ${DOWN_UPTIME_THRESHOLD}%)`,

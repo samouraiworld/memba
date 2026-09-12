@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### A validator's health now describes the present (2026-09-12)
+<!-- categories: memba, network -->
+- **A validator could be shown as "Down" while, on the very same screen, its last hundred blocks were all signed.** Health was decided partly by an uptime average covering the whole reporting window, and that average stays low long after an operator is back — so a validator that recovered hours ago still looked offline. Where the average and the live evidence disagree, the live evidence now wins, and the label says "Recovering" and explains the discrepancy instead of leaving a flat contradiction on screen.
+- **A single serious incident used to mark a validator down indefinitely.** There was no time limit at all: the marker stayed until a newer incident happened to replace it, and the monitoring service only keeps the ten most recent incidents across the whole network — so a busy period elsewhere could permanently strand one validator's stale marker. Incidents now stop counting as a statement about the present after a day.
+- **A short run of good blocks is no longer mistaken for a recovery.** Three signed blocks is three blocks; the view waits for a meaningful sample before changing its mind.
+
 ### The validator telemetry view stops hiding half of itself on a phone (2026-09-12)
 <!-- categories: memba, network -->
 - **On a phone, the live telemetry view was cutting off roughly half of every panel.** Not scrolling it out of view — removing it, with no scrollbar or any other hint that something was missing. Measured on a 390px screen, each card was drawn 556px wide inside a 313px column. Consensus state, peer lists and node details were all partly unreadable.

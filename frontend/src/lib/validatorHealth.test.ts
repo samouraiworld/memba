@@ -49,6 +49,16 @@ function makeValidator(overrides: Partial<ValidatorInfo> = {}): ValidatorInfo {
     }
 }
 
+
+// ── Time helpers ────────────────────────────────────────────────
+// Incidents are now evaluated against a recency window, so a fixture with a
+// hardcoded date silently ages into irrelevance. These tests assert PRIORITY
+// (critical beats warning, most-recent wins), not recency, so their incidents
+// are pinned relative to now and stay meaningful whenever the suite runs.
+const HOUR = 60 * 60 * 1000
+const iso = (msAgo: number) => new Date(Date.now() - msAgo).toISOString()
+const signed = (n: number) => new Array<boolean>(n).fill(true)
+
 // ── computeHealthStatus ─────────────────────────────────────────
 
 describe("computeHealthStatus", () => {
@@ -80,7 +90,7 @@ describe("computeHealthStatus", () => {
                 addr: "g1test",
                 moniker: "test",
                 severity: "CRITICAL",
-                timestamp: "2026-03-26T08:00:00Z",
+                timestamp: iso(1 * HOUR),
                 details: "30+ blocks missed",
             }],
         })
@@ -96,7 +106,7 @@ describe("computeHealthStatus", () => {
                 addr: "g1test",
                 moniker: "test",
                 severity: "WARNING",
-                timestamp: "2026-03-26T08:00:00Z",
+                timestamp: iso(1 * HOUR),
                 details: "5+ blocks missed",
             }],
         })
@@ -113,7 +123,7 @@ describe("computeHealthStatus", () => {
                 addr: "g1test",
                 moniker: "test",
                 severity: "RESOLVED",
-                timestamp: "2026-03-26T08:00:00Z",
+                timestamp: iso(1 * HOUR),
                 details: "Validator back online",
             }],
         })
@@ -171,7 +181,7 @@ describe("computeHealthStatus", () => {
                 addr: "g1test",
                 moniker: "test",
                 severity: "CRITICAL",
-                timestamp: "2026-03-26T08:00:00Z",
+                timestamp: iso(1 * HOUR),
                 details: "Validator crashed",
             }],
         })
@@ -183,8 +193,8 @@ describe("computeHealthStatus", () => {
         const v = makeValidator({
             uptimePercent: 100,
             incidents: [
-                { addr: "g1test", moniker: "test", severity: "CRITICAL", timestamp: "2026-03-25T08:00:00Z", details: "Old crash" },
-                { addr: "g1test", moniker: "test", severity: "RESOLVED", timestamp: "2026-03-26T08:00:00Z", details: "Back online" },
+                { addr: "g1test", moniker: "test", severity: "CRITICAL", timestamp: iso(3 * HOUR), details: "Old crash" },
+                { addr: "g1test", moniker: "test", severity: "RESOLVED", timestamp: iso(1 * HOUR), details: "Back online" },
             ],
         })
         const result = computeHealthStatus(v)
@@ -254,7 +264,7 @@ describe("computeNetworkHealth", () => {
                 moniker: "val-b",
                 incidents: [{
                     addr: "g1b", moniker: "val-b", severity: "WARNING",
-                    timestamp: "2026-03-26T08:00:00Z", details: "missing blocks",
+                    timestamp: iso(1 * HOUR), details: "missing blocks",
                 }],
             }),
         ]
@@ -290,5 +300,87 @@ describe("healthIcon", () => {
         expect(healthIcon(ValidatorHealthStatus.Degraded)).toBe("🟡")
         expect(healthIcon(ValidatorHealthStatus.Down)).toBe("🔴")
         expect(healthIcon(ValidatorHealthStatus.Unknown)).toBe("⚪")
+    })
+})
+
+// ── Recency: live evidence vs. historical averages ──────────────
+//
+// THE DEFECT THESE PIN. On prod, onbloc's profile rendered "🔴 Down" directly
+// above "LAST 100 BLOCKS — 100/100 PERFECT", on one screen. Two causes:
+//
+//  1. The rule set was ASYMMETRIC, not mis-ordered. The block-signature rule
+//     returned only when consecutiveMissed >= 1, so positive evidence could
+//     never terminate the chain — only negative could. A validator signing
+//     perfectly right now fell through to a `current_month` uptime average that
+//     still carried a bad night from three weeks ago.
+//  2. There was NO staleness window anywhere: a single CRITICAL incident pinned
+//     a validator to Down indefinitely, however old, until a newer incident
+//     happened to arrive. On a chain a day old, `current_month` also spans
+//     eleven days that predate genesis.
+//
+// A status is a claim about NOW. Where live evidence and a long-window average
+// disagree, the live evidence wins — and we say which one we used.
+
+describe("computeHealthStatus — recency", () => {
+    it("does not report Down while the validator is demonstrably signing", () => {
+        // The exact prod case: a bad month, a flawless present.
+        const v = makeValidator({ uptimePercent: 53.4, lastBlockSignatures: signed(20) })
+        const meta = computeHealthStatus(v)
+
+        expect(meta.status).not.toBe(ValidatorHealthStatus.Down)
+        expect(meta.status).toBe(ValidatorHealthStatus.Degraded)
+        // The reason must name the conflict, or the badge is unexplainable.
+        expect(meta.reason.toLowerCase()).toContain("recover")
+    })
+
+    it("still reports Down when the history is bad AND nothing is signing now", () => {
+        const v = makeValidator({ uptimePercent: 53.4, lastBlockSignatures: new Array(20).fill(false) })
+        expect(computeHealthStatus(v).status).toBe(ValidatorHealthStatus.Down)
+    })
+
+    it("requires enough samples before treating live signing as evidence", () => {
+        // Three good blocks is not a recovery; it is three blocks.
+        const v = makeValidator({ uptimePercent: 53.4, lastBlockSignatures: signed(3) })
+        expect(computeHealthStatus(v).status).toBe(ValidatorHealthStatus.Down)
+    })
+
+    it("ages out a stale CRITICAL incident instead of pinning Down forever", () => {
+        const v = makeValidator({
+            uptimePercent: 99.9,
+            lastBlockSignatures: signed(20),
+            incidents: [{ addr: "g1testvalidator", moniker: "test-val", severity: "CRITICAL", timestamp: iso(72 * HOUR), details: "down" }],
+        })
+        expect(computeHealthStatus(v).status).toBe(ValidatorHealthStatus.Healthy)
+    })
+
+    it("still honours a RECENT critical incident", () => {
+        const v = makeValidator({
+            uptimePercent: 99.9,
+            lastBlockSignatures: signed(20),
+            incidents: [{ addr: "g1testvalidator", moniker: "test-val", severity: "CRITICAL", timestamp: iso(1 * HOUR), details: "down" }],
+        })
+        expect(computeHealthStatus(v).status).toBe(ValidatorHealthStatus.Down)
+    })
+
+    it("treats an undated incident as current — absent evidence is not an alibi", () => {
+        const v = makeValidator({
+            uptimePercent: 99.9,
+            incidents: [{ addr: "g1testvalidator", moniker: "test-val", severity: "CRITICAL", timestamp: "", details: "down" }],
+        })
+        expect(computeHealthStatus(v).status).toBe(ValidatorHealthStatus.Down)
+    })
+
+    it("a clean live window alone is enough to report Healthy", () => {
+        // No monitoring data at all, but 20 consecutive signed blocks is direct
+        // first-hand evidence — better than the Unknown this used to return.
+        const v = makeValidator({ lastBlockSignatures: signed(20) })
+        expect(computeHealthStatus(v).status).toBe(ValidatorHealthStatus.Healthy)
+    })
+
+    it("keeps reporting Down for a validator missing every recent block", () => {
+        const v = makeValidator({ lastBlockSignatures: new Array(20).fill(false) })
+        const meta = computeHealthStatus(v)
+        expect(meta.status).toBe(ValidatorHealthStatus.Down)
+        expect(meta.reason).toContain("20")
     })
 })
