@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### The validators page stops hammering the chain (2026-09-12)
+<!-- categories: memba, network -->
+- **Every open validators tab was making about two hundred requests a minute to a single gno.land node**, and the telemetry view more. That load grew with each person watching, against one machine — exactly the sort of traffic that gets an application rate-limited or blocked, and it was heaviest precisely when the chain was already struggling.
+- **Blocks never change once written, so we now only ask for the ones we have not already seen.** After the first load a refresh typically fetches a handful of new blocks instead of a hundred old ones. The roster also shows a shorter, quite sufficient signing history; the full history stays on each validator's own page.
+- **A validator that is completely offline now shows as missing every block, instead of showing nothing at all.** The chain records a missed block as an empty slot with no name attached, so a validator that missed *all* of them was invisible in this view — the one case most worth seeing.
+
 ### Validator health can now report a problem (2026-09-12)
 <!-- categories: memba, network -->
 - **The validator-health panel on the home page always said "healthy".** Not "was usually right" — it was structurally incapable of saying anything else. The chain tells us who is validating and with what weight, but never whether they are actually well; that answer comes from our monitoring service, and the panel was never asking for it. It now does.

@@ -378,6 +378,39 @@ export async function getNetworkStats(
  * Array order: most recent block first.
  * Graceful degradation: returns empty map on failure.
  */
+/** Signer set per block height. Blocks are IMMUTABLE once committed, so a height
+ *  read once never needs reading again — this is what turns a 100-block poll
+ *  into a 2-4 block poll in steady state. */
+const blockSignerCache = new Map<number, Set<string>>()
+
+/** Cache ceiling. Comfortably above the largest window any caller asks for (the
+ *  profile's 100) so a normal poll is always a pure cache hit, while a chain that
+ *  advances for hours cannot grow this without bound. */
+const MAX_CACHED_HEIGHTS = 256
+
+/** Test seam: the cache is module state and would otherwise leak between cases. */
+export function __resetBlockSigCacheForTests(): void {
+    blockSignerCache.clear()
+}
+
+/**
+ * Per-validator signing history over the last `blockCount` blocks.
+ *
+ * Returns Map<bech32Addr (lowercase), boolean[]>, most recent block at index 0.
+ * Graceful degradation: an empty map on failure.
+ *
+ * ⚠️ A validator that signed NOTHING in the window is absent from the result, not
+ * present-and-all-false. gno nil-pads `last_commit.precommits` to valset size
+ * (`Precommits []*CommitSig` with `amino:"nil_elements"`), so a missed block is a
+ * null slot carrying no address — a validator down for the entire window supplies
+ * no `validator_address` anywhere and cannot be discovered here. Callers that
+ * know the roster must seed those entries themselves, or the totally-down
+ * validator silently reads as "no data" rather than "missed everything".
+ *
+ * Only heights missing from the cache are fetched. A block that fails to load is
+ * simply absent from the window rather than recorded as a miss — a transport
+ * failure is not evidence about a validator.
+ */
 export async function fetchLastBlockSignatures(
     rpcUrl: string,
     blockCount: number = 20,
@@ -394,41 +427,35 @@ export async function fetchLastBlockSignatures(
         const heights: number[] = []
         for (let h = latestHeight; h >= startHeight; h--) heights.push(h)
 
-        // Chunked fetch: process chunkSize blocks concurrently, batches sequentially
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const blocks: (any | null)[] = []
-        for (let i = 0; i < heights.length; i += chunkSize) {
-            const chunk = heights.slice(i, i + chunkSize)
-            const chunkResults = await Promise.all(
+        const missing = heights.filter(h => !blockSignerCache.has(h))
+        for (let i = 0; i < missing.length; i += chunkSize) {
+            const chunk = missing.slice(i, i + chunkSize)
+            await Promise.all(chunk.map(async h => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                chunk.map(h => rpcCall(rpcUrl, "/block", { height: String(h) }).catch(() => null) as Promise<any>)
-            )
-            blocks.push(...chunkResults)
+                const b = await rpcCall(rpcUrl, "/block", { height: String(h) }).catch(() => null) as any
+                if (!b) return // leave uncached so the next tick retries
+                const signers = new Set<string>()
+                for (const pc of b?.block?.last_commit?.precommits || []) {
+                    // null slot = this validator missed the block.
+                    if (pc?.validator_address) signers.add(pc.validator_address.toLowerCase())
+                }
+                blockSignerCache.set(h, signers)
+            }))
         }
 
-        // Collect all unique validator addresses from precommits
-        // Gno uses `precommits` field (not `signatures`), with bech32 addresses
+        // Drop heights that have fallen out of any window we will serve.
+        const floor = latestHeight - MAX_CACHED_HEIGHTS
+        for (const h of blockSignerCache.keys()) {
+            if (h < floor) blockSignerCache.delete(h)
+        }
+
+        const available = heights.filter(h => blockSignerCache.has(h))
         const allAddrs = new Set<string>()
-        for (const block of blocks) {
-            const precommits = block?.block?.last_commit?.precommits || []
-            for (const pc of precommits) {
-                if (pc?.validator_address) allAddrs.add(pc.validator_address.toLowerCase())
-            }
+        for (const h of available) {
+            for (const addr of blockSignerCache.get(h)!) allAddrs.add(addr)
         }
-
-        // Initialize arrays
-        for (const addr of allAddrs) result.set(addr, [])
-
-        // Fill signatures (most recent block first = index 0)
-        for (const block of blocks) {
-            const precommits = block?.block?.last_commit?.precommits || []
-            const sigAddrs = new Set(
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                precommits.map((pc: any) => pc?.validator_address?.toLowerCase()).filter(Boolean)
-            )
-            for (const addr of allAddrs) {
-                result.get(addr)!.push(sigAddrs.has(addr))
-            }
+        for (const addr of allAddrs) {
+            result.set(addr, available.map(h => blockSignerCache.get(h)!.has(addr)))
         }
     } catch {
         // Graceful degradation — return empty map

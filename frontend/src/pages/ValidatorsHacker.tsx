@@ -79,6 +79,13 @@ export default function ValidatorsHacker() {
     const telemetryRpcUrls = useMemo(() => getTelemetryRpcUrls(), [])
     const isVisible = useRef(true)
     const mainAbort = useRef<AbortController | null>(null)
+    // One in-flight pass per loop. Without this the intervals STACK: the heatmap
+    // pass alone issues 100 /block calls in 10 sequential chunks at an 8s
+    // per-call timeout, so a degraded RPC makes one pass take up to 80s while a
+    // new pass starts every 30s. On mainnet `fallbackRpcUrls` is empty, so every
+    // stacked pass lands on the same single host — a self-inflicted DoS that gets
+    // worse exactly when the chain is already struggling.
+    const inFlight = useRef<Set<string>>(new Set())
     const latestHeightRef = useRef<number>(0) // tracks height without setState for heatmap interval
 
     // ── State ──────────────────────────────────────────────────
@@ -126,6 +133,24 @@ export default function ValidatorsHacker() {
         document.title = "Hacker View — Validators — Memba"
         return () => { document.title = "Memba" }
     }, [])
+
+    // Skip a tick when the tab is hidden or this loop's previous pass is still
+    // running. Returning early is correct rather than queueing: these are
+    // samplers, and the next tick will read fresher state than the one we skipped.
+    const guarded = useCallback(
+        (key: string, pass: () => Promise<void>) => async () => {
+            if (!isVisible.current || inFlight.current.has(key)) return
+            inFlight.current.add(key)
+            try {
+                await pass()
+            } catch {
+                /* resilient: a failed sample must not kill the loop */
+            } finally {
+                inFlight.current.delete(key)
+            }
+        },
+        [],
+    )
 
     // ── Initial full data load ─────────────────────────────────────
     // v2.17.2: Single parallel burst — eliminates sequential waterfall
@@ -208,52 +233,46 @@ export default function ValidatorsHacker() {
         const abortCs = new AbortController()
 
         // Consensus: 2s — also update latestHeightRef
-        const consensusInterval = setInterval(async () => {
-            if (!isVisible.current) return
+        const consensusInterval = setInterval(guarded("consensus", async () => {
             const data = await getConsensusState(rpcUrl, abortCs.signal)
             if (data && !abortCs.signal.aborted) {
                 setCs(data)
                 if (data.height) latestHeightRef.current = data.height
                 setLastUpdated(Date.now())
             }
-        }, CONSENSUS_MS)
+        }), CONSENSUS_MS)
 
         // Mempool: 10s — pending transaction count
-        const mempoolInterval = setInterval(async () => {
-            if (!isVisible.current) return
+        const mempoolInterval = setInterval(guarded("mempool", async () => {
             const data = await getMempoolStatus(rpcUrl, abortCs.signal)
             if (data && !abortCs.signal.aborted) setMempoolCount(data.count)
-        }, 10_000)
+        }), 10_000)
 
         // Peers: 15s — aggregated across all trusted nodes (full topology)
-        const peersInterval = setInterval(async () => {
-            if (!isVisible.current) return
+        const peersInterval = setInterval(guarded("peers", async () => {
             const data = await getAggregatedNetPeers(telemetryRpcUrls, abortCs.signal)
             if (data && !abortCs.signal.aborted) setNetInfo(data)
-        }, PEERS_MS)
+        }), PEERS_MS)
 
         // Heatmap: 30s — read height from ref (no nested setState)
-        const heatmapInterval = setInterval(async () => {
-            if (!isVisible.current) return
+        const heatmapInterval = setInterval(guarded("heatmap", async () => {
             const height = latestHeightRef.current
-            if (height > 1) {
-                fetchBlockHeatmap(rpcUrl, height, 100, abortCs.signal)
-                    .then(h => { if (!abortCs.signal.aborted) setBlockHeatmap(h) })
-                    .catch(() => { /* resilient */ })
-            }
-        }, HEATMAP_MS)
+            if (height <= 1) return
+            // Awaited, not fire-and-forget: the guard can only hold the slot for
+            // work it can see finish, and this is the heaviest pass on the page.
+            const h = await fetchBlockHeatmap(rpcUrl, height, 100, abortCs.signal)
+            if (!abortCs.signal.aborted) setBlockHeatmap(h)
+        }), HEATMAP_MS)
 
         // Incidents: 30s (v2.17.1 — was one-shot)
-        const incidentsInterval = setInterval(async () => {
-            if (!isVisible.current) return
+        const incidentsInterval = setInterval(guarded("incidents", async () => {
             const data = await fetchMonitoringIncidents(abortCs.signal)
             if (data && !abortCs.signal.aborted) setIncidents(data)
-        }, INCIDENTS_MS)
+        }), INCIDENTS_MS)
 
         // Monitoring data + health + monikers: 60s (v2.17.2: added valopers)
-        const monitoringInterval = setInterval(async () => {
-            if (!isVisible.current) return
-            try {
+        const monitoringInterval = setInterval(guarded("monitoring", async () => {
+            {
                 const [valData, valoperMap, monData] = await Promise.all([
                     getValidators(rpcUrl),
                     fetchValoperMonikers(rpcUrl),
@@ -269,15 +288,14 @@ export default function ValidatorsHacker() {
                     })
                     setValidators(merged)
                 }
-            } catch { /* resilient */ }
-        }, MONITORING_MS)
+            }
+        }), MONITORING_MS)
 
         // Node status: 60s
-        const nodeInterval = setInterval(async () => {
-            if (!isVisible.current) return
+        const nodeInterval = setInterval(guarded("nodestatus", async () => {
             const data = await getNodeStatus(rpcUrl, abortCs.signal)
             if (data && !abortCs.signal.aborted) setNodeStatus(data)
-        }, NODESTATUS_MS)
+        }), NODESTATUS_MS)
 
         return () => {
             clearInterval(consensusInterval)
@@ -291,7 +309,7 @@ export default function ValidatorsHacker() {
             mainAbort.current?.abort()
         }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [rpcUrl, telemetryRpcUrls])
+    }, [rpcUrl, telemetryRpcUrls, guarded])
 
     return (
         <div className="vh-page" data-testid="validators-hacker-page">
