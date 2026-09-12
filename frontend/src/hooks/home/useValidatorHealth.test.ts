@@ -23,6 +23,9 @@ import type { HomeSnapshot } from "../../lib/homeApi"
 
 vi.mock("../../lib/validators", () => ({
     getValidators: vi.fn(),
+    // Monitoring merge is CHEAP (HTTP to gnomonitoring, not N RPC calls) and is
+    // what actually determines health — see the P0 regression suite below.
+    mergeWithMonitoringData: vi.fn((vals) => vals),
     // Heavy enrichment fns: mock to throw so any accidental call fails the test
     fetchLastBlockSignatures: vi.fn().mockRejectedValue(new Error("MUST NOT BE CALLED: fetchLastBlockSignatures")),
     fetchValoperMonikers: vi.fn().mockRejectedValue(new Error("MUST NOT BE CALLED: fetchValoperMonikers")),
@@ -36,6 +39,10 @@ vi.mock("../../lib/validatorHealth", async (importOriginal) => {
         computeNetworkHealth: vi.fn(),
     }
 })
+
+vi.mock("../../lib/gnomonitoring", () => ({
+    fetchAllMonitoringData: vi.fn().mockResolvedValue(new Map()),
+}))
 
 vi.mock("../useNetwork", () => ({
     useNetwork: vi.fn(() => ({
@@ -54,6 +61,7 @@ vi.mock("./useHomeSnapshot", () => ({
 const validatorMod = await import("../../lib/validators")
 const healthMod = await import("../../lib/validatorHealth")
 const homeSnapshotMod = await import("./useHomeSnapshot")
+const monitoringMod = await import("../../lib/gnomonitoring")
 
 // ── Wrapper ───────────────────────────────────────────────────
 
@@ -328,5 +336,106 @@ describe("useValidatorHealth — snapshot NOT usable (fallback to on-chain)", ()
         expect(result.current.status).toBe("healthy")
         expect(result.current.active).toBe(10)
         expect(result.current.total).toBe(10)
+    })
+})
+
+// ── P0 regression: the panel could never go red ───────────────
+//
+// These tests deliberately use the REAL computeNetworkHealth. Every test above
+// mocks it and asserts only the status DERIVATION, which is why the defect
+// below survived: the derivation was always correct, and the input to it never
+// was.
+//
+// getValidators() hardcodes healthStatus: Unknown, uptimePercent: null and
+// incidents: [] for every row (it is a pure /validators RPC read — the chain
+// does not report health). The hook then handed that straight to
+// computeNetworkHealth, so down === 0 && degraded === 0 ALWAYS, and the home
+// panel reported "healthy" unconditionally. It was a green light wired to
+// nothing and it could not be made to show anything else.
+describe("useValidatorHealth — P0: unknown data must not read as healthy", () => {
+    beforeEach(async () => {
+        vi.clearAllMocks()
+        // Restore the real implementation for this suite only.
+        const actual = await vi.importActual<typeof import("../../lib/validatorHealth")>(
+            "../../lib/validatorHealth",
+        )
+        vi.mocked(healthMod.computeNetworkHealth).mockImplementation(actual.computeNetworkHealth)
+        vi.mocked(monitoringMod.fetchAllMonitoringData).mockResolvedValue(new Map())
+    })
+
+    it("reports 'unknown', NOT 'healthy', when no validator has any health signal", async () => {
+        // Exactly what getValidators returns when gnomonitoring is unreachable.
+        vi.mocked(validatorMod.getValidators).mockResolvedValue([
+            makeValidator({ gnoAddr: "g1a", healthStatus: ValidatorHealthStatus.Unknown }),
+            makeValidator({ gnoAddr: "g1b", healthStatus: ValidatorHealthStatus.Unknown }),
+            makeValidator({ gnoAddr: "g1c", healthStatus: ValidatorHealthStatus.Unknown }),
+        ])
+
+        const { useValidatorHealth } = await import("./useValidatorHealth")
+        const { result } = renderHook(() => useValidatorHealth(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.status).toBe("unknown")
+        expect(result.current.status).not.toBe("healthy")
+        expect(result.current.total).toBe(3)
+    })
+
+    it("claims 'healthy' only on positive evidence — at least one validator known healthy", async () => {
+        // Health is RECOMPUTED from merged monitoring signals, so the fixture
+        // supplies the signal (uptime), not a pre-baked verdict.
+        vi.mocked(validatorMod.getValidators).mockResolvedValue([
+            makeValidator({ gnoAddr: "g1a", uptimePercent: 99.9 }),
+            makeValidator({ gnoAddr: "g1b" }),
+        ])
+
+        const { useValidatorHealth } = await import("./useValidatorHealth")
+        const { result } = renderHook(() => useValidatorHealth(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.status).toBe("healthy")
+    })
+
+    it("still surfaces 'down' — a real outage must outrank the unknowns around it", async () => {
+        vi.mocked(validatorMod.getValidators).mockResolvedValue([
+            makeValidator({ gnoAddr: "g1a", uptimePercent: 50 }),   // < 90% => Down
+            makeValidator({ gnoAddr: "g1b" }),                       // no signal => Unknown
+            makeValidator({ gnoAddr: "g1c", uptimePercent: 99.9 }),  // => Healthy
+        ])
+
+        const { useValidatorHealth } = await import("./useValidatorHealth")
+        const { result } = renderHook(() => useValidatorHealth(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(result.current.status).toBe("down")
+    })
+
+    it("merges gnomonitoring data — the signal the chain itself cannot provide", async () => {
+        // The panel's whole purpose. Without this call the hook can only ever
+        // see Unknown, because /validators carries no health information.
+        vi.mocked(validatorMod.getValidators).mockResolvedValue([
+            makeValidator({ gnoAddr: "g1a", healthStatus: ValidatorHealthStatus.Unknown }),
+        ])
+
+        const { useValidatorHealth } = await import("./useValidatorHealth")
+        const { result } = renderHook(() => useValidatorHealth(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        expect(monitoringMod.fetchAllMonitoringData).toHaveBeenCalled()
+    })
+
+    it("degrades to 'unknown' when gnomonitoring is unreachable, and still renders the roster", async () => {
+        vi.mocked(monitoringMod.fetchAllMonitoringData).mockRejectedValue(new Error("monitoring down"))
+        vi.mocked(validatorMod.getValidators).mockResolvedValue([
+            makeValidator({ gnoAddr: "g1a", healthStatus: ValidatorHealthStatus.Unknown }),
+            makeValidator({ gnoAddr: "g1b", healthStatus: ValidatorHealthStatus.Unknown }),
+        ])
+
+        const { useValidatorHealth } = await import("./useValidatorHealth")
+        const { result } = renderHook(() => useValidatorHealth(), { wrapper: makeWrapper() })
+        await waitFor(() => expect(result.current.loading).toBe(false))
+
+        // A monitoring outage is NOT a validator outage: neither green nor red.
+        expect(result.current.status).toBe("unknown")
+        expect(result.current.total).toBe(2)
     })
 })

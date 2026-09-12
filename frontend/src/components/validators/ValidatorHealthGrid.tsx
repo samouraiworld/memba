@@ -11,7 +11,8 @@
 import { memo } from "react"
 import type { ValidatorInfo } from "../../lib/validators"
 import { ValidatorHealthStatus } from "../../lib/validatorHealth"
-import { healthBadge, missedBlocksColor, formatPct } from "./validatorHealthHelpers"
+import { healthBadge, missedBlocksColor } from "./validatorHealthHelpers"
+import { formatPercent } from "../../lib/validators"
 
 interface ValidatorHealthGridProps {
     validators: ValidatorInfo[]
@@ -88,16 +89,16 @@ function ValidatorHealthGridInner({ validators, loading }: ValidatorHealthGridPr
                                         </span>
                                     </td>
                                     <td className={v.participationRate != null && v.participationRate < 90 ? "hk-warn" : ""}>
-                                        {formatPct(v.participationRate)}
+                                        {formatPercent(v.participationRate)}
                                     </td>
                                     <td className={v.uptimePercent != null && v.uptimePercent < 95 ? "hk-warn" : ""}>
-                                        {formatPct(v.uptimePercent)}
+                                        {formatPercent(v.uptimePercent)}
                                     </td>
                                     <td className={missedBlocksColor(v.missedBlocks)}>
                                         {v.missedBlocks ?? "—"}
                                     </td>
                                     <td>
-                                        {v.txContrib != null ? `${v.txContrib.toFixed(1)}%` : "—"}
+                                        {formatPercent(v.txContrib)}
                                     </td>
                                     <td className="hk-mono">
                                         {v.powerPercent.toFixed(1)}%

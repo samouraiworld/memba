@@ -22,6 +22,7 @@ import {
     fetchBlockHeatmap,
     fetchLastBlockSignatures,
     formatVotingPower,
+    formatPercent,
     formatRelativeTime,
     mergeWithMonitoringData,
     type ValidatorInfo,
@@ -233,7 +234,7 @@ export function ValidatorPerformancePanel({
                         {validator.participationRate != null && (
                             <div className="vd-perf-item">
                                 <span className="vd-perf-label">Participation</span>
-                                <span className="vd-perf-value">{validator.participationRate}%</span>
+                                <span className="vd-perf-value">{formatPercent(validator.participationRate)}</span>
                             </div>
                         )}
                     </div>

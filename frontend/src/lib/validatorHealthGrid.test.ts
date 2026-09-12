@@ -4,11 +4,12 @@
  * Unit tests for ValidatorHealthGrid helper functions:
  * - healthBadge: maps health status to label + className
  * - missedBlocksColor: severity-based CSS class selection
- * - formatPct: null-safe percentage formatting
+ * - formatPercent: null-safe percentage formatting (shared, was local formatPct)
  */
 
 import { describe, it, expect } from "vitest"
-import { healthBadge, missedBlocksColor, formatPct } from "../components/validators/validatorHealthHelpers"
+import { healthBadge, missedBlocksColor } from "../components/validators/validatorHealthHelpers"
+import { formatPercent } from "./validators"
 import { ValidatorHealthStatus } from "./validatorHealth"
 
 describe("ValidatorHealthGrid helpers", () => {
@@ -70,34 +71,34 @@ describe("ValidatorHealthGrid helpers", () => {
         })
     })
 
-    // ── formatPct ────────────────────────────────────────────────
-    describe("formatPct", () => {
-        it("returns '—' for null", () => {
-            expect(formatPct(null)).toBe("—")
+    // ── percentage formatting (was the local formatPct) ──────────
+    // formatPct duplicated lib/validators.formatPercent with weaker behaviour and
+    // was retired; the grid now uses the single shared formatter. Expectations
+    // updated where the two genuinely differ: integers render bare ("100%", not
+    // "100.0%"), and NaN/Infinity are absences rather than "NaN%".
+    describe("formatPercent (shared)", () => {
+        it("returns an em dash for null and undefined", () => {
+            expect(formatPercent(null)).toBe("—")
+            expect(formatPercent(undefined)).toBe("—")
         })
 
-        it("returns '—' for undefined", () => {
-            expect(formatPct(undefined)).toBe("—")
+        it("renders integers without a trailing .0", () => {
+            expect(formatPercent(0)).toBe("0%")
+            expect(formatPercent(100)).toBe("100%")
         })
 
-        it("formats 0 as '0.0%'", () => {
-            expect(formatPct(0)).toBe("0.0%")
-        })
-
-        it("formats 100 as '100.0%'", () => {
-            expect(formatPct(100)).toBe("100.0%")
-        })
-
-        it("formats 99.95 as '100.0%' (rounding)", () => {
-            expect(formatPct(99.95)).toBe("100.0%")
-        })
-
-        it("formats 50.123 as '50.1%' (truncation)", () => {
-            expect(formatPct(50.123)).toBe("50.1%")
+        it("rounds to one decimal", () => {
+            expect(formatPercent(99.95)).toBe("100%")
+            expect(formatPercent(50.123)).toBe("50.1%")
         })
 
         it("formats negative values", () => {
-            expect(formatPct(-1)).toBe("-1.0%")
+            expect(formatPercent(-1)).toBe("-1%")
+        })
+
+        it("treats NaN and Infinity as absent, not as a percentage", () => {
+            expect(formatPercent(NaN)).toBe("—")
+            expect(formatPercent(Infinity)).toBe("—")
         })
     })
 })

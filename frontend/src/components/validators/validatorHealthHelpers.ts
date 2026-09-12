@@ -30,8 +30,7 @@ export function missedBlocksColor(n: number | null): string {
     return "vh-missed--high"
 }
 
-/** Format number as percentage string, with null fallback */
-export function formatPct(val: number | null | undefined): string {
-    if (val === null || val === undefined) return "—"
-    return `${val.toFixed(1)}%`
-}
+// formatPct lived here and duplicated lib/validators.formatPercent with weaker
+// behaviour (no NaN/Infinity guard, always one decimal, "0.0%" for a sub-0.1
+// value). Two percentage formatters in two files is how display drifts; there is
+// now exactly one — import formatPercent from lib/validators.

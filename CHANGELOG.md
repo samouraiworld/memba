@@ -25,6 +25,11 @@ Full changelogs are split by version range for easier navigation:
 - **On a phone, the live telemetry view was cutting off roughly half of every panel.** Not scrolling it out of view — removing it, with no scrollbar or any other hint that something was missing. Measured on a 390px screen, each card was drawn 556px wide inside a 313px column. Consensus state, peer lists and node details were all partly unreadable.
 - **The voting-power bar on a validator's profile never showed its percentage.** The number was being drawn, then clipped away by the 4px-tall bar it sat inside — on every screen size, for every validator, since the panel shipped.
 - Both are now pinned by tests that were confirmed to fail against the old layout, so neither can quietly come back.
+### Validator health can now report a problem (2026-09-12)
+<!-- categories: memba, network -->
+- **The validator-health panel on the home page always said "healthy".** Not "was usually right" — it was structurally incapable of saying anything else. The chain tells us who is validating and with what weight, but never whether they are actually well; that answer comes from our monitoring service, and the panel was never asking for it. It now does.
+- **"No data" no longer reads as "all good".** If monitoring is unreachable, the panel says so rather than showing a green light it cannot justify. An outage on our side is not a clean bill of health for the validators.
+- **Percentages are readable again.** Uptime was printed straight from the monitoring service, so a validator at ninety-nine and a half percent showed as `99.58071278825996%` — in the table and on mobile. Every percentage is now rounded, and a metric we simply do not have shows a dash instead of `0%`, which previously looked like a validator scoring zero.
 
 ### Login keeps working when wallets change how they sign (2026-09-12)
 <!-- categories: memba, gno-core -->
