@@ -25,6 +25,11 @@ Full changelogs are split by version range for easier navigation:
 - **A validator could be shown as "Down" while, on the very same screen, its last hundred blocks were all signed.** Health was decided partly by an uptime average covering the whole reporting window, and that average stays low long after an operator is back — so a validator that recovered hours ago still looked offline. Where the average and the live evidence disagree, the live evidence now wins, and the label says "Recovering" and explains the discrepancy instead of leaving a flat contradiction on screen.
 - **A single serious incident used to mark a validator down indefinitely.** There was no time limit at all: the marker stayed until a newer incident happened to replace it, and the monitoring service only keeps the ten most recent incidents across the whole network — so a busy period elsewhere could permanently strand one validator's stale marker. Incidents now stop counting as a statement about the present after a day.
 - **A short run of good blocks is no longer mistaken for a recovery.** Three signed blocks is three blocks; the view waits for a meaningful sample before changing its mind.
+### The validators page stops hammering the chain (2026-09-12)
+<!-- categories: memba, network -->
+- **Every open validators tab was making about two hundred requests a minute to a single gno.land node**, and the telemetry view more. That load grew with each person watching, against one machine — exactly the sort of traffic that gets an application rate-limited or blocked, and it was heaviest precisely when the chain was already struggling.
+- **Blocks never change once written, so we now only ask for the ones we have not already seen.** After the first load a refresh typically fetches a handful of new blocks instead of a hundred old ones. The roster also shows a shorter, quite sufficient signing history; the full history stays on each validator's own page.
+- **A validator that is completely offline now shows as missing every block, instead of showing nothing at all.** The chain records a missed block as an empty slot with no name attached, so a validator that missed *all* of them was invisible in this view — the one case most worth seeing.
 
 ### The validator telemetry view stops hiding half of itself on a phone (2026-09-12)
 <!-- categories: memba, network -->

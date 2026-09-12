@@ -63,6 +63,12 @@ import "./validators.css"
 
 const REFRESH_INTERVAL_MS = 30_000 // 30s standard polling
 
+// Blocks of signing history shown per roster row. The roster strip is a
+// sparkline and the health engine only reads the leading run, so 100 bought
+// nothing here and cost 100 /block calls on every poll — the profile keeps the
+// full 100 where the detail is actually read.
+const ROSTER_SIGNATURE_WINDOW = 20
+
 // Stable empty fallbacks so derived memos don't churn between renders.
 const NO_VALIDATORS: ValidatorInfo[] = []
 const NO_MONIKERS: Set<string> = new Set()
@@ -137,17 +143,26 @@ export default function Validators() {
                 getValidators(GNO_RPC_URL),
                 fetchAllMonitoringData(signal),
                 fetchValoperMonikers(GNO_RPC_URL),
-                fetchLastBlockSignatures(GNO_RPC_URL, 100),
+                fetchLastBlockSignatures(GNO_RPC_URL, ROSTER_SIGNATURE_WINDOW),
             ])
             const netStats = await getNetworkStats(GNO_RPC_URL, vals, signal)
             // v2.13: valoper monikers first (primary on-chain source), then
             // gnomonitoring enrichment, then signatures + health.
             const withMonikers = mergeValoperMonikers(vals, valoperMap)
             const enriched = mergeWithMonitoringData(withMonikers, monitoringMap)
+            // A validator that signed NOTHING in the window is absent from sigMap:
+            // gno nil-pads precommits, so a missed block carries no address and a
+            // fully-down validator is undiscoverable from block data alone. Seed it
+            // from the roster instead, or the one validator most worth flagging is
+            // the one that reads as "no data".
+            // Guarded on a non-empty map: if the fetch failed outright we know
+            // nothing, and must not manufacture a window of misses.
+            const sigWindow = Math.max(0, ...[...sigMap.values()].map(a => a.length))
             const withHealth = enriched.map(v => {
+                const own = sigMap.get(v.gnoAddr.toLowerCase())
                 const withSigs = {
                     ...v,
-                    lastBlockSignatures: sigMap.get(v.gnoAddr.toLowerCase()) || [],
+                    lastBlockSignatures: own ?? (sigWindow > 0 ? new Array<boolean>(sigWindow).fill(false) : []),
                 }
                 const healthMeta = computeHealthStatus(withSigs)
                 return { ...withSigs, healthStatus: healthMeta.status, healthMeta }
