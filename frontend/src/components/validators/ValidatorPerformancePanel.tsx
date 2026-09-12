@@ -40,10 +40,18 @@ const CONSENSUS_POLL_MS = 2_000
 const NO_SAMPLES: BlockSample[] = []
 
 function PowerBar({ percent }: { percent: number }) {
+    // The label is a SIBLING of the track, not a child of it. It used to sit
+    // inside `.vd-power-bar-wrap`, which is 4px tall with `overflow: hidden` (to
+    // clip the gradient to the rounded ends) — so an absolutely-positioned label
+    // at `top: -1.1rem` was clipped by its own parent and never rendered, at
+    // every viewport, for every validator. The voting-power bar has therefore
+    // always shown a bar with no number beside it.
     return (
-        <div className="vd-power-bar-wrap">
-            <div className="vd-power-bar-fill" style={{ width: `${Math.min(percent, 100)}%` }} />
+        <div className="vd-power-bar">
             <span className="vd-power-bar-label">{percent.toFixed(2)}%</span>
+            <div className="vd-power-bar-wrap">
+                <div className="vd-power-bar-fill" style={{ width: `${Math.min(percent, 100)}%` }} />
+            </div>
         </div>
     )
 }

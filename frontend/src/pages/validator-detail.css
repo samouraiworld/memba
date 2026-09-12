@@ -233,12 +233,23 @@ h1.vd-moniker {
     transition: width 0.6s ease;
 }
 
+/* Wrapper so the label can sit ABOVE the 4px track rather than inside it —
+   `.vd-power-bar-wrap` clips its own overflow to round the gradient's ends, and
+   an absolutely-positioned label in there is clipped away entirely. */
+.vd-power-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+}
+
+.vd-power-bar > .vd-power-bar-wrap {
+    width: 100%;
+}
+
 .vd-power-bar-label {
-    position: absolute;
-    right: 0;
-    top: -1.1rem;
     font-size: 0.6rem;
     color: var(--color-k-muted);
+    line-height: 1.1;
 }
 
 /* ── Generic card ───────────────────────────────────────── */

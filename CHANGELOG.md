@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### The validator telemetry view stops hiding half of itself on a phone (2026-09-12)
+<!-- categories: memba, network -->
+- **On a phone, the live telemetry view was cutting off roughly half of every panel.** Not scrolling it out of view — removing it, with no scrollbar or any other hint that something was missing. Measured on a 390px screen, each card was drawn 556px wide inside a 313px column. Consensus state, peer lists and node details were all partly unreadable.
+- **The voting-power bar on a validator's profile never showed its percentage.** The number was being drawn, then clipped away by the 4px-tall bar it sat inside — on every screen size, for every validator, since the panel shipped.
+- Both are now pinned by tests that were confirmed to fail against the old layout, so neither can quietly come back.
+
 ### Login keeps working when wallets change how they sign (2026-09-12)
 <!-- categories: memba, gno-core -->
 - **A change landing in gno.land alters the exact bytes a wallet signs.** It is needed so Ledger hardware wallets can sign gno transactions at all — the Ledger app refuses the current format outright and signs nothing. Wallets will adopt it on their own schedules, not all on one day.
