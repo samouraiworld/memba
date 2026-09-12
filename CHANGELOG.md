@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Validator health can now report a problem (2026-09-12)
+<!-- categories: memba, network -->
+- **The validator-health panel on the home page always said "healthy".** Not "was usually right" — it was structurally incapable of saying anything else. The chain tells us who is validating and with what weight, but never whether they are actually well; that answer comes from our monitoring service, and the panel was never asking for it. It now does.
+- **"No data" no longer reads as "all good".** If monitoring is unreachable, the panel says so rather than showing a green light it cannot justify. An outage on our side is not a clean bill of health for the validators.
+- **Percentages are readable again.** Uptime was printed straight from the monitoring service, so a validator at ninety-nine and a half percent showed as `99.58071278825996%` — in the table and on mobile. Every percentage is now rounded, and a metric we simply do not have shows a dash instead of `0%`, which previously looked like a validator scoring zero.
+
 ### Login keeps working when wallets change how they sign (2026-09-12)
 <!-- categories: memba, gno-core -->
 - **A change landing in gno.land alters the exact bytes a wallet signs.** It is needed so Ledger hardware wallets can sign gno transactions at all — the Ledger app refuses the current format outright and signs nothing. Wallets will adopt it on their own schedules, not all on one day.
