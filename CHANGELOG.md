@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Live consensus is visible again on the telemetry view (2026-09-12)
+<!-- categories: memba, network -->
+- **The "Consensus State" panel has been showing nothing at all, on every network, since it shipped.** It read a debug feed from the node directly, misread its format, and then — rather than saying so — removed itself from the page, leaving an unexplained gap. It now reads the same information from our monitoring service, which interprets it correctly, and it never silently disappears again: if the data is missing it says the data is missing.
+- **It also answers a question the page could not answer before: how much failure the network can currently absorb.** It shows the validator count, the total voting power, the power needed to agree on a block, and how many validators could go offline before the chain stops. When that number reaches zero — meaning any single validator could halt the network — it says so in plain words.
+- A network that has stopped producing blocks is now called out explicitly, rather than looking healthy because the server still answers.
+
 ### A validator's health now describes the present (2026-09-12)
 <!-- categories: memba, network -->
 - **A validator could be shown as "Down" while, on the very same screen, its last hundred blocks were all signed.** Health was decided partly by an uptime average covering the whole reporting window, and that average stays low long after an operator is back — so a validator that recovered hours ago still looked offline. Where the average and the live evidence disagree, the live evidence now wins, and the label says "Recovering" and explains the discrepancy instead of leaving a flat contradiction on screen.

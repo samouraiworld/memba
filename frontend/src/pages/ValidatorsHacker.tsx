@@ -49,6 +49,7 @@ import {
     type MonitoringIncident,
 } from "../lib/gnomonitoring"
 import { computeHealthStatus } from "../lib/validatorHealth"
+import { fetchChainHealth, buildConsensusView, type ConsensusView } from "../lib/chainHealthApi"
 
 import { HackerStatusBar } from "../components/validators/HackerStatusBar"
 import { ConnectSection } from "../components/validators/ConnectSection"
@@ -65,6 +66,10 @@ import "./validators-hacker.css"
 
 // ── Polling intervals ──────────────────────────────────────────────────
 const CONSENSUS_MS = 2_000       // 2s: live H/R/S consensus state
+// 5s: gnomonitoring's chain-health view, which is what actually feeds the
+// consensus card now. Matches that client's cache TTL, so a faster cadence here
+// would only re-read the same cached value.
+const CHAIN_HEALTH_MS = 5_000
 const PEERS_MS = 15_000          // 15s: peer topology
 const HEATMAP_MS = 30_000        // 30s: block heatmap (aligns with standard page)
 const INCIDENTS_MS = 30_000      // 30s: monitoring incidents refresh
@@ -90,6 +95,12 @@ export default function ValidatorsHacker() {
 
     // ── State ──────────────────────────────────────────────────
     const [cs, setCs] = useState<HackerConsensusState | null>(null)
+    // Consensus card data. Separate from `cs` on purpose: the remaining three
+    // consumers of `cs` (status bar, network-state grid, doctor) read fields the
+    // REST payload does not carry — step, proposer, prevotes, genesis, apphash —
+    // so migrating them is its own change. This fixes the card that shows
+    // nothing at all today.
+    const [consensusView, setConsensusView] = useState<ConsensusView | null>(null)
     const [netInfo, setNetInfo] = useState<NetInfo | null>(null)
     const [blockHeatmap, setBlockHeatmap] = useState<BlockSample[]>([])
     const [nodeStatus, setNodeStatus] = useState<NodeStatus | null>(null)
@@ -180,6 +191,10 @@ export default function ValidatorsHacker() {
                 .then(ni => { if (!ctrl.signal.aborted) setNetInfo(ni) })
                 .catch(() => { /* resilient */ })
 
+            fetchChainHealth(ctrl.signal)
+                .then(h => { if (!ctrl.signal.aborted) setConsensusView(h ? buildConsensusView(h) : null) })
+                .catch(() => { /* resilient */ })
+
             setCs(csData)
             setNodeStatus(nsData)
             setNetworkStats(statsData)
@@ -242,6 +257,14 @@ export default function ValidatorsHacker() {
             }
         }), CONSENSUS_MS)
 
+        // Chain health: 5s — the consensus card's source. Server-side parsed by
+        // gnomonitoring against a stable contract, rather than our own reader of
+        // a node-internal debug dump.
+        const chainHealthInterval = setInterval(guarded("chainhealth", async () => {
+            const h = await fetchChainHealth(abortCs.signal)
+            if (!abortCs.signal.aborted) setConsensusView(h ? buildConsensusView(h) : null)
+        }), CHAIN_HEALTH_MS)
+
         // Mempool: 10s — pending transaction count
         const mempoolInterval = setInterval(guarded("mempool", async () => {
             const data = await getMempoolStatus(rpcUrl, abortCs.signal)
@@ -299,6 +322,7 @@ export default function ValidatorsHacker() {
 
         return () => {
             clearInterval(consensusInterval)
+            clearInterval(chainHealthInterval)
             clearInterval(mempoolInterval)
             clearInterval(peersInterval)
             clearInterval(heatmapInterval)
@@ -351,7 +375,7 @@ export default function ValidatorsHacker() {
                 {/* Row 1: Connect + Network State + Consensus */}
                 <ConnectSection nodeStatus={nodeStatus} />
                 <NetworkStateGrid stats={networkStats} cs={cs} peerCount={netInfo?.peerCount} mempoolCount={mempoolCount} />
-                <ConsensusWidget cs={cs} loading={loading} />
+                <ConsensusWidget view={consensusView} loading={loading} />
 
                 {/* Row 2: Recent Blocks (full width) */}
                 <BlockHeatmap

@@ -1,141 +1,140 @@
 /**
- * ConsensusWidget — live Tendermint consensus state viewer.
+ * ConsensusWidget — live consensus state for the telemetry view.
  *
- * Shows the current Height / Round / Step, proposer address,
- * Pre-vote and Pre-commit progress bars, and fault tolerance info.
+ * HISTORY WORTH KEEPING. This card rendered NOTHING on every chain for the life
+ * of the feature. Its data source parsed /dump_consensus_state client-side and
+ * threw on the first field it touched (`round_state.votes` is an object; the
+ * code called `.find` on it), the TypeError was swallowed by a catch, the source
+ * returned null — and the component's own `if (!cs && !loading) return null`
+ * then removed the card from the DOM entirely, leaving a hole in the grid rather
+ * than the "unavailable" message it already had written.
  *
- * Returns null (renders nothing) when consensus data is unavailable —
- * elegant fallback for chains/nodes that don't expose /dump_consensus_state.
+ * Two consequences shape this file:
+ *   1. It never returns null. A telemetry card that vanishes teaches the reader
+ *      nothing; one that says it has no data teaches them where to look.
+ *   2. Its data now comes from gnomonitoring's chain-health endpoint, which
+ *      parses consensus server-side against a stable REST contract instead of a
+ *      node-internal debug dump with no schema guarantee.
+ *
+ * The trade, stated plainly: step, proposer and the prevote tally are not in the
+ * REST payload and are gone from this card. On paper that is a reduction; in
+ * practice it is not, because none of them has ever appeared on screen.
  */
 
-import type { HackerConsensusState } from "../../lib/validators"
+import type { ConsensusView } from "../../lib/chainHealthApi"
 
 interface ConsensusWidgetProps {
-    cs: HackerConsensusState | null
-    /** Whether data is being fetched (drives the pulse animation) */
+    view: ConsensusView | null
+    /** Whether data is being fetched (drives the pulse animation). */
     loading: boolean
 }
 
-function StepBar({ label, count, total, color }: {
-    label: string
-    count: number
-    total: number
-    color: "pv" | "pc"
-}) {
+/** Precommit progress against the BFT threshold. */
+function PrecommitBar({ count, total }: { count: number; total: number }) {
     const pct = total > 0 ? Math.min(100, Math.round((count / total) * 100)) : 0
-    const bftPct = total > 0 ? Math.round(((Math.ceil(total * 2 / 3)) / total) * 100) : 67
+    // The marker sits at the validator-count equivalent of the 2/3 power
+    // threshold. It is an approximation whenever weights differ — the exact
+    // threshold is in voting power and shown as `quorum` below.
+    const bftPct = total > 0 ? Math.round(((Math.ceil((total * 2) / 3)) / total) * 100) : 67
 
     return (
-        <div className="cs-bar" data-color={color}>
+        <div className="cs-bar" data-color="pc">
             <div className="cs-bar__header">
-                <span className="cs-bar__label">{label}</span>
+                <span className="cs-bar__label">PRECOMMITS</span>
                 <span className="cs-bar__count">{count}<span className="cs-bar__total">/{total}</span></span>
             </div>
-            <div className="cs-bar__track" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}>
+            <div
+                className="cs-bar__track"
+                role="progressbar"
+                aria-label={`${count} of ${total} validators have precommitted`}
+                aria-valuenow={pct}
+                aria-valuemin={0}
+                aria-valuemax={100}
+            >
                 <div className="cs-bar__fill" style={{ width: `${pct}%` }} />
-                {/* BFT threshold marker */}
-                <div className="cs-bar__bft-marker" style={{ left: `${bftPct}%` }} title={`BFT threshold: ${Math.ceil(total * 2 / 3)}/${total}`} />
+                <div className="cs-bar__bft-marker" style={{ left: `${bftPct}%` }} />
             </div>
         </div>
     )
 }
 
-export function ConsensusWidget({ cs, loading }: ConsensusWidgetProps) {
-    if (!cs && !loading) return null
-
+export function ConsensusWidget({ view, loading }: ConsensusWidgetProps) {
     return (
-        <div className={`hk-card hk-consensus ${loading && !cs ? "hk-card--loading" : ""}`} id="hk-consensus-widget">
+        <div className={`hk-card hk-consensus ${loading && !view ? "hk-card--loading" : ""}`} id="hk-consensus-widget">
             <div className="hk-card__title">
                 <span className="hk-card__icon">⬡</span>
                 CONSENSUS STATE
                 {loading && <span className="hk-pulse" aria-label="Updating…" />}
             </div>
 
-            {cs ? (
+            {view ? (
                 <div className="hk-consensus__body">
-                    {/* H/R/S row */}
+                    {/* Height / round */}
                     <div className="hk-hrs">
                         <div className="hk-hrs__cell">
                             <span className="hk-hrs__label">H</span>
-                            <span className="hk-hrs__value">{cs.height.toLocaleString()}</span>
+                            <span className="hk-hrs__value">{view.height.toLocaleString()}</span>
                         </div>
                         <div className="hk-hrs__sep">/</div>
                         <div className="hk-hrs__cell">
                             <span className="hk-hrs__label">R</span>
-                            <span className="hk-hrs__value">{cs.round}</span>
+                            <span className="hk-hrs__value">{view.round}</span>
                         </div>
-                        <div className="hk-hrs__sep">/</div>
-                        <div className="hk-hrs__cell">
-                            <span className="hk-hrs__label">S</span>
-                            <span className={`hk-hrs__value hk-step--${cs.stepLabel.toLowerCase()}`}>
-                                {cs.step}
-                            </span>
-                        </div>
-                        <div className="hk-hrs__step-label">{cs.stepLabel}</div>
+                        {/* A round above zero means the previous one failed to
+                            commit — worth seeing, not worth alarming over. */}
+                        {view.round > 0 && <div className="hk-hrs__step-label hk-warn">round &gt; 0</div>}
                     </div>
 
-                    {/* Proposer */}
-                    <div className="hk-meta-row">
-                        <span className="hk-meta-key">proposer</span>
-                        <span className="hk-meta-val hk-mono hk-proposer">
-                            {cs.proposer
-                                ? `${cs.proposer.slice(0, 12)}…${cs.proposer.slice(-6)}`
-                                : "—"}
-                        </span>
-                    </div>
+                    {/* A reachable RPC is not a live chain: the node answers 200
+                        while the height sits still. */}
+                    {view.isStuck && (
+                        <div className="hk-meta-row">
+                            <span className="hk-meta-key">liveness</span>
+                            <span className="hk-meta-val hk-danger">CHAIN NOT ADVANCING</span>
+                        </div>
+                    )}
 
-                    {/* Valset details */}
                     <div className="hk-meta-row">
                         <span className="hk-meta-key">valset</span>
-                        <span className="hk-meta-val">{cs.valsetSize}</span>
-                        <span className="hk-meta-key">min bft</span>
-                        <span className="hk-meta-val hk-accent">{cs.minBft}</span>
-                        <span className="hk-meta-key">margin</span>
-                        <span className={`hk-meta-val ${cs.faultTolerance <= 1 ? "hk-warn" : "hk-ok"}`}>
-                            +{cs.faultTolerance}
+                        <span className="hk-meta-val">{view.valsetSize}</span>
+                        <span className="hk-meta-key">power</span>
+                        <span className="hk-meta-val hk-mono">{view.totalVotingPower.toLocaleString()}</span>
+                    </div>
+
+                    {/* quorum is VOTING POWER, not a validator count — the units
+                        coincide only while every validator carries equal weight. */}
+                    <div className="hk-meta-row">
+                        <span className="hk-meta-key">quorum</span>
+                        <span className="hk-meta-val hk-accent hk-mono">{view.quorum.toLocaleString()}</span>
+                        <span className="hk-meta-key">tolerates</span>
+                        <span className={`hk-meta-val ${view.faultTolerance < 1 ? "hk-danger" : view.faultTolerance === 1 ? "hk-warn" : "hk-ok"}`}>
+                            {view.faultTolerance} failure{view.faultTolerance === 1 ? "" : "s"}
                         </span>
                     </div>
 
-                    {/* Round age */}
-                    {cs.roundAge != null && (
+                    {/* At zero tolerance any single validator can halt the chain,
+                        and a halted chain cannot govern itself back. Say so. */}
+                    {view.faultTolerance < 1 && view.valsetSize > 0 && (
                         <div className="hk-meta-row">
-                            <span className="hk-meta-key">round age</span>
-                            <span className={`hk-meta-val hk-mono ${
-                                cs.roundAge > 30 ? "hk-danger" : cs.roundAge > 5 ? "hk-warn" : "hk-ok"
-                            }`}>
-                                {cs.roundAge}s
+                            <span className="hk-meta-val hk-danger">
+                                Any single validator going offline would halt consensus.
                             </span>
                         </div>
                     )}
 
-                    {/* AppHash */}
-                    {cs.appHash && (
-                        <div className="hk-meta-row">
-                            <span className="hk-meta-key">apphash</span>
-                            <span className="hk-meta-val hk-mono hk-dimmed">
-                                {cs.appHash.slice(0, 20)}…
-                            </span>
-                        </div>
-                    )}
+                    <div className="hk-meta-row">
+                        <span className="hk-meta-key">peers</span>
+                        <span className="hk-meta-val">{view.peerCount}</span>
+                    </div>
 
-                    {/* Genesis age */}
-                    {cs.genesisTime && (
-                        <div className="hk-meta-row">
-                            <span className="hk-meta-key">genesis</span>
-                            <span className="hk-meta-val hk-dimmed">{cs.genesisTime.slice(0, 19).replace("T", " ")} UTC</span>
-                        </div>
-                    )}
-
-                    {/* Vote bars */}
                     <div className="cs-bars">
-                        <StepBar label="PV" count={cs.prevoteCount} total={cs.valsetSize} color="pv" />
-                        <StepBar label="PC" count={cs.precommitCount} total={cs.valsetSize} color="pc" />
+                        <PrecommitBar count={view.precommitCount} total={view.valsetSize} />
                     </div>
                 </div>
             ) : (
                 <div className="hk-unavail">
                     <span className="hk-unavail__icon">⚠</span>
-                    Consensus state unavailable for this RPC endpoint
+                    {loading ? "Loading consensus state…" : "Consensus state unavailable — monitoring did not answer for this chain"}
                 </div>
             )}
         </div>

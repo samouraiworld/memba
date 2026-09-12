@@ -21,7 +21,7 @@ vi.mock("./config", () => ({
     GNO_MONITORING_CHAIN: "gnoland-1",
 }))
 
-const { fetchChainHealth, computeBftLiveness, __resetChainHealthCacheForTests } =
+const { fetchChainHealth, computeBftLiveness, buildConsensusView, __resetChainHealthCacheForTests } =
     await import("./chainHealthApi")
 
 /** Captured from a live gnoland-1 response and verified field-for-field. */
@@ -137,5 +137,46 @@ describe("computeBftLiveness", () => {
         expect(computeBftLiveness([]).totalVotingPower).toBe(0)
         expect(computeBftLiveness([]).faultTolerance).toBe(0)
         expect(computeBftLiveness(set(1)).faultTolerance).toBe(0)
+    })
+})
+
+describe("buildConsensusView", () => {
+    const health = (over: Record<string, unknown> = {}) => ({
+        rpcReachable: true, isStuck: false, isDisabled: false,
+        latestBlockHeight: 4440, latestBlockTime: "2026-09-12T21:07:18Z",
+        consensusRound: 0, peerCount: 13, mempoolTxCount: 0, mempoolTotalBytes: 0,
+        validatorSet: [
+            { address: "g1a", votingPower: 60, keepRunning: true, serverType: null },
+            { address: "g1b", votingPower: 60, keepRunning: true, serverType: null },
+            { address: "g1c", votingPower: 60, keepRunning: true, serverType: null },
+            { address: "g1d", votingPower: 60, keepRunning: true, serverType: null },
+        ],
+        precommits: new Map([["g1a", true], ["g1b", true], ["g1c", false], ["g1d", false]]),
+        ...over,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    }) as any
+
+    it("counts only validators that have actually precommitted", () => {
+        expect(buildConsensusView(health()).precommitCount).toBe(2)
+    })
+
+    it("reports quorum in VOTING POWER, not validator count", () => {
+        // The old card showed ceil(valsetSize * 2/3) = 3, a COUNT. The units
+        // coincide only on an equal-weight set; mislabelling them is a bug
+        // waiting for the first weight change.
+        const v = buildConsensusView(health())
+        expect(v.quorum).toBe(161)
+        expect(v.totalVotingPower).toBe(240)
+        expect(v.valsetSize).toBe(4)
+    })
+
+    it("carries the stuck flag through — a reachable RPC is not a live chain", () => {
+        expect(buildConsensusView(health({ isStuck: true })).isStuck).toBe(true)
+    })
+
+    it("survives an empty precommit map", () => {
+        const v = buildConsensusView(health({ precommits: new Map() }))
+        expect(v.precommitCount).toBe(0)
+        expect(v.valsetSize).toBe(4)
     })
 })

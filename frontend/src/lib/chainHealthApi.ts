@@ -167,3 +167,52 @@ export async function fetchChainHealth(signal?: AbortSignal): Promise<ChainHealt
         clearTimeout(timeout)
     }
 }
+
+/**
+ * What the consensus card can honestly show from this endpoint.
+ *
+ * ⚠️ Deliberately NARROWER than the old HackerConsensusState. The REST payload
+ * carries no consensus STEP, no proposer, and no prevote tally — those live only
+ * in the raw /dump_consensus_state dump. That is a real reduction on paper and
+ * none at all in practice: the old widget rendered NOTHING, on every chain,
+ * because its parser threw on the first field it touched. Height, round, live
+ * precommits, quorum and fault tolerance are strictly more than zero.
+ *
+ * ⚠️ `quorum` is VOTING POWER, not a validator count. The old card showed
+ * `min bft = ceil(valsetSize * 2/3)` — a count. Those units coincide only on an
+ * equal-weight set and diverge the moment weights differ, so the label matters.
+ */
+export interface ConsensusView {
+    height: number
+    round: number
+    isStuck: boolean
+    valsetSize: number
+    totalVotingPower: number
+    /** Voting power required to commit: tm2's TotalVotingPower()*2/3 + 1. */
+    quorum: number
+    /** Simultaneous validator failures the set can absorb, worst case. */
+    faultTolerance: number
+    /** Validators that have precommitted this round. */
+    precommitCount: number
+    latestBlockTime: string
+    peerCount: number
+}
+
+/** Project chain health into the consensus card's view model. */
+export function buildConsensusView(h: ChainHealth): ConsensusView {
+    const bft = computeBftLiveness(h.validatorSet)
+    let precommitCount = 0
+    for (const v of h.precommits.values()) if (v) precommitCount++
+    return {
+        height: h.latestBlockHeight,
+        round: h.consensusRound,
+        isStuck: h.isStuck,
+        valsetSize: h.validatorSet.length,
+        totalVotingPower: bft.totalVotingPower,
+        quorum: bft.quorum,
+        faultTolerance: bft.faultTolerance,
+        precommitCount,
+        latestBlockTime: h.latestBlockTime,
+        peerCount: h.peerCount,
+    }
+}
