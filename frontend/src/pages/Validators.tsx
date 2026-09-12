@@ -32,6 +32,7 @@ import {
     getAggregatedNetPeers,
     formatVotingPower,
     formatBlockTime,
+    formatPercent,
     truncateValidatorAddr,
     mergeWithMonitoringData,
     fetchValoperMonikers,
@@ -106,8 +107,8 @@ function ValidatorRowPreview({ v, signingToOperator }: { v: ValidatorInfo; signi
             </div>
             <dl className="vhc-rows">
                 <div><dt>Voting power</dt><dd className="val-mono">{formatVotingPower(v.votingPower)} · {v.powerPercent.toFixed(1)}%</dd></div>
-                {v.uptimePercent != null && <div><dt>Uptime</dt><dd>{v.uptimePercent}%</dd></div>}
-                {v.participationRate != null && <div><dt>Participation</dt><dd>{v.participationRate}%</dd></div>}
+                {v.uptimePercent != null && <div><dt>Uptime</dt><dd>{formatPercent(v.uptimePercent)}</dd></div>}
+                {v.participationRate != null && <div><dt>Participation</dt><dd>{formatPercent(v.participationRate)}</dd></div>}
                 <div><dt>Rank</dt><dd>#{v.rank}</dd></div>
             </dl>
             {isReviewsEnabled() && subject && <ValidatorReviewPreview subject={subject} aliases={aliases} />}
@@ -624,12 +625,12 @@ export default function Validators() {
                                 {hasMonitoring && (
                                     <>
                                         <td className="val-td val-td-right val-mono">
-                                            {v.participationRate != null ? `${v.participationRate}%` : "—"}
+                                            {formatPercent(v.participationRate)}
                                         </td>
                                         <td className="val-td val-td-center">
                                             {v.uptimePercent != null ? (
                                                 <span className={`val-uptime-badge ${v.uptimePercent >= 99 ? "val-uptime-good" : v.uptimePercent >= 90 ? "val-uptime-warn" : "val-uptime-bad"}`}>
-                                                    {v.uptimePercent}%
+                                                    {formatPercent(v.uptimePercent)}
                                                 </span>
                                             ) : "—"}
                                         </td>
@@ -641,7 +642,7 @@ export default function Validators() {
                                             ) : "—"}
                                         </td>
                                         <td className="val-td val-td-right val-mono">
-                                            {v.txContrib != null ? `${v.txContrib.toFixed(1)}%` : "—"}
+                                            {formatPercent(v.txContrib)}
                                         </td>
                                         <td className="val-td val-td-center">
                                             <span className="val-start-time">

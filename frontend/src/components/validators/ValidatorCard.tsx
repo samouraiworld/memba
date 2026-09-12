@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom"
-import { formatVotingPower, formatRelativeTime, truncateValidatorAddr, type ValidatorInfo } from "../../lib/validators"
+import { formatVotingPower, formatPercent, formatRelativeTime, truncateValidatorAddr, type ValidatorInfo } from "../../lib/validators"
 import { healthCssClass, healthLabel, healthIcon } from "../../lib/validatorHealth"
 
 interface ValidatorCardProps {
@@ -49,7 +49,7 @@ export function ValidatorCard({ v, hasMonitoring, to }: ValidatorCardProps) {
                 {hasMonitoring && v.uptimePercent != null && (
                     <div className="val-card__stat">
                         <span className="val-card__stat-label">Uptime</span>
-                        <span className="val-card__stat-val">{v.uptimePercent}%</span>
+                        <span className="val-card__stat-val">{formatPercent(v.uptimePercent)}</span>
                     </div>
                 )}
                 <div className="val-card__stat">

@@ -1,15 +1,30 @@
 /**
  * useValidatorHealth — cheap validator network-health hook for the home panel.
  *
- * CHEAP SUBSET ONLY: calls getValidators() + computeNetworkHealth().
- * Does NOT call fetchLastBlockSignatures, fetchValoperMonikers, or
- * getAggregatedNetPeers (those are the heavy /validators-page enrichment,
- * ~100+ RPC calls). Home panel needs only a quick health signal.
+ * CHEAP SUBSET ONLY: getValidators() + fetchAllMonitoringData() + the health
+ * pass. Does NOT call fetchLastBlockSignatures, fetchValoperMonikers, or
+ * getAggregatedNetPeers (the heavy /validators-page enrichment, ~100+ RPC
+ * calls). The monitoring fetch is a handful of HTTP calls to gnomonitoring, not
+ * per-block RPC, so it stays inside the cheap budget.
  *
- * Status derivation:
- *   down > 0    → 'down'
+ * ⚠️ It is also MANDATORY, not enrichment. `/validators` is a consensus read:
+ * the chain reports who is in the set and with what power, and nothing about
+ * whether they are healthy. getValidators() therefore hardcodes
+ * healthStatus: Unknown / uptimePercent: null / incidents: [] on every row.
+ * Feeding that straight to computeNetworkHealth yields down === 0 &&
+ * degraded === 0 for any input whatsoever — which is exactly what this hook
+ * used to do, making the home panel a green light wired to nothing that could
+ * not be made to show anything else.
+ *
+ * Status derivation — note the asymmetry, it is the point:
+ *   down > 0     → 'down'
  *   degraded > 0 → 'degraded'
- *   else         → 'healthy'
+ *   healthy > 0  → 'healthy'   ← requires POSITIVE evidence
+ *   else         → 'unknown'
+ *
+ * "No data" is never "healthy". A gnomonitoring outage must read as an absence
+ * of information, not as a clean bill of health — the same reason the roster
+ * renders an em dash rather than 0% for an absent metric.
  *
  * @module hooks/home/useValidatorHealth
  */
@@ -17,8 +32,9 @@
 import { useQuery } from "@tanstack/react-query"
 import { useNetwork } from "../useNetwork"
 import { useHomeSnapshot } from "./useHomeSnapshot"
-import { getValidators } from "../../lib/validators"
-import { computeNetworkHealth } from "../../lib/validatorHealth"
+import { getValidators, mergeWithMonitoringData } from "../../lib/validators"
+import { computeNetworkHealth, computeHealthStatus } from "../../lib/validatorHealth"
+import { fetchAllMonitoringData } from "../../lib/gnomonitoring"
 
 export interface ValidatorHealth {
     /** Network-wide health status ("unknown" = data unavailable / query errored) */
@@ -41,13 +57,29 @@ export interface ValidatorHealth {
 const STALE_TIME = 60_000 // 1 minute
 
 async function fetchValidatorHealth(rpcUrl: string): Promise<Omit<ValidatorHealth, "loading">> {
-    const validators = await getValidators(rpcUrl)
-    const summary = computeNetworkHealth(validators)
+    // Monitoring is best-effort: a gnomonitoring outage must still render the
+    // roster (count, active) — it just cannot produce a health verdict.
+    const [validators, monitoring] = await Promise.all([
+        getValidators(rpcUrl),
+        fetchAllMonitoringData().catch(() => null),
+    ])
 
+    const enriched = monitoring
+        ? mergeWithMonitoringData(validators, monitoring).map((v) => {
+            const healthMeta = computeHealthStatus(v)
+            return { ...v, healthStatus: healthMeta.status, healthMeta }
+        })
+        : validators
+
+    const summary = computeNetworkHealth(enriched)
+
+    // 'healthy' requires at least one validator we can positively vouch for.
+    // Without that the honest answer is 'unknown' — see the module docstring.
     const status: ValidatorHealth["status"] =
         summary.down > 0 ? "down" :
         summary.degraded > 0 ? "degraded" :
-        "healthy"
+        summary.healthy > 0 ? "healthy" :
+        "unknown"
 
     const active = validators.filter((v) => v.active).length
 

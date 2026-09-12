@@ -10,6 +10,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
 import {
     formatVotingPower,
     formatBlockTime,
+    formatPercent,
     truncateValidatorAddr,
     formatRelativeTime,
     type BlockSample,
@@ -160,5 +161,44 @@ describe("BlockSample type contract", () => {
             time: "2026-03-17T12:00:10Z",
         }
         expect(sample.perfect).toBe(false)
+    })
+})
+
+// ── formatPercent (P0-3) ────────────────────────────────────────
+// gnomonitoring returns raw float percentages (`/uptime` answers e.g.
+// 64.36597110754414), and the roster rendered them verbatim: prod showed
+// "99.58071278825996%" in the desktop table AND on the mobile card. Participation
+// only looked fine because it happens to arrive pre-rounded upstream — a source
+// detail, not a guarantee. Every percentage now goes through one formatter.
+describe("formatPercent", () => {
+    it("rounds a raw monitoring float to one decimal", () => {
+        expect(formatPercent(99.58071278825996)).toBe("99.6%")
+        expect(formatPercent(53.459119496855344)).toBe("53.5%")
+        expect(formatPercent(64.36597110754414)).toBe("64.4%")
+    })
+
+    it("drops a trailing .0 so a perfect score reads 100%, not 100.0%", () => {
+        expect(formatPercent(100)).toBe("100%")
+        expect(formatPercent(0)).toBe("0%")
+        expect(formatPercent(99.0)).toBe("99%")
+    })
+
+    it("renders an em dash for absent data — null is not zero", () => {
+        // The distinction matters: gnomonitoring scores an unmonitored validator
+        // 0, and "0%" is a health verdict while "—" is an absence of one.
+        expect(formatPercent(null)).toBe("—")
+        expect(formatPercent(undefined)).toBe("—")
+    })
+
+    it("does not render NaN or Infinity as a percentage", () => {
+        expect(formatPercent(NaN)).toBe("—")
+        expect(formatPercent(Infinity)).toBe("—")
+        expect(formatPercent(-Infinity)).toBe("—")
+    })
+
+    it("keeps sub-0.1 values distinguishable from zero", () => {
+        // 0.04% of blocks missed is not the same story as none.
+        expect(formatPercent(0.04)).toBe("<0.1%")
+        expect(formatPercent(0.0)).toBe("0%")
     })
 })
