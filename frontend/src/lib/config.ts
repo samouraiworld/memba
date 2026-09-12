@@ -462,7 +462,28 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // empty set accepts EVERY chain (F-29b fails open).
     mainnet: {
         chainId: "gnoland-1",
-        hidden: true,
+        // UN-HIDDEN for the read-only lanes only. What this does and does not
+        // unlock is the whole point of the split below:
+        //
+        //   unlocked — the validators dashboard, chain health and network
+        //     pulse. None of them is realm-gated, and their data comes from
+        //     gnomonitoring (off-chain), so they need nothing published on
+        //     chain. gnomonitoring already resolves `gnoland-1`: an unknown
+        //     chain id there answers HTTP 400, this one answers 200, which is
+        //     what makes the empty payload "no data yet" rather than "unknown
+        //     chain".
+        //
+        //   still gated — every realm. `realmsDeployed` stays false and
+        //     REALM_ALLOWLIST.mainnet stays an explicit empty list, so
+        //     isRealmValidOn('mainnet', …) is false for every path. Un-hiding
+        //     a network is NOT a statement that anything is deployed on it.
+        //
+        // ⛔ Merge precondition, not a formality: node_info.network must read
+        // "gnoland-1" AND the chain must be producing blocks. DNS, a 200, or a
+        // reachable RPC prove nothing — rpc.gno.land served betanet right up
+        // to genesis, and at genesis it answered 504 while its own node sat at
+        // height 0. `samcrew-mainnet-check.sh mainnet` is the check.
+        hidden: false,
         realmsDeployed: false,
         // NOT a testnet — this is the production chain. Drives the disclosures
         // that only make sense off a production chain (e.g. Team Hub's

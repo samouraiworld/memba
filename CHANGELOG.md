@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### gno.land mainnet is selectable for validator monitoring (2026-09-12)
+<!-- categories: memba, network -->
+- **Mainnet (`gnoland-1`) launched on 2026-09-12 and is now offered in the network selector.** What that unlocks is narrow and deliberate: the validators dashboard, chain health and network pulse. Those read from Memba's monitoring service rather than from on-chain contracts, so they work on a chain where Memba has published nothing.
+- **Being selectable is not a claim that anything of Memba's runs there.** Every Memba contract is still gated off on mainnet — creating tokens, the NFT marketplace, escrow, OTC, DAOs, quests and the feed all stay unavailable, exactly as before. Visibility and deployment are separate things, and this change moves only the first.
+- **The two conditions from the previous entry are unchanged**: the `samcrew` name is now registered on mainnet, but GNOT transfers are still locked chain-wide, so the commerce lanes could not move funds even once contracts exist. Nothing here depends on either.
+- **Mainnet was switched on only after asking a node which chain it actually is** — the published addresses served betanet right up to launch, and answered errors for the first minutes after it. A responding address was never treated as proof.
+
 ### gno.land mainnet is pre-registered (#1162, 2026-09-10)
 <!-- categories: memba, network, gno-core -->
 - **gno.land's mainnet launches on Friday 2026-09-11 with the chain ID `gnoland-1`.** Memba now carries an entry for it, deliberately **hidden and empty**: the network resolves so that switching it on later is a flag flip, but it is not offered in the selector and no Memba feature claims to run there.
