@@ -26,6 +26,11 @@ Full changelogs are split by version range for easier navigation:
 - **Blocks never change once written, so we now only ask for the ones we have not already seen.** After the first load a refresh typically fetches a handful of new blocks instead of a hundred old ones. The roster also shows a shorter, quite sufficient signing history; the full history stays on each validator's own page.
 - **A validator that is completely offline now shows as missing every block, instead of showing nothing at all.** The chain records a missed block as an empty slot with no name attached, so a validator that missed *all* of them was invisible in this view — the one case most worth seeing.
 
+### The validator telemetry view stops hiding half of itself on a phone (2026-09-12)
+<!-- categories: memba, network -->
+- **On a phone, the live telemetry view was cutting off roughly half of every panel.** Not scrolling it out of view — removing it, with no scrollbar or any other hint that something was missing. Measured on a 390px screen, each card was drawn 556px wide inside a 313px column. Consensus state, peer lists and node details were all partly unreadable.
+- **The voting-power bar on a validator's profile never showed its percentage.** The number was being drawn, then clipped away by the 4px-tall bar it sat inside — on every screen size, for every validator, since the panel shipped.
+- Both are now pinned by tests that were confirmed to fail against the old layout, so neither can quietly come back.
 ### Validator health can now report a problem (2026-09-12)
 <!-- categories: memba, network -->
 - **The validator-health panel on the home page always said "healthy".** Not "was usually right" — it was structurally incapable of saying anything else. The chain tells us who is validating and with what weight, but never whether they are actually well; that answer comes from our monitoring service, and the panel was never asking for it. It now does.

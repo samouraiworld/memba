@@ -248,7 +248,9 @@
 
 @media (max-width: 768px) {
     .hk-layout {
-        grid-template-columns: 1fr;
+        /* See hacker-mode.css — `1fr` floors on min-content and blows the track
+           out; the clip lands on .k-main-column and eats the content. */
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .hm-grid {

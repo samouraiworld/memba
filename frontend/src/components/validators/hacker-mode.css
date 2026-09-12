@@ -16,9 +16,18 @@
    Layout
    ────────────────────────────────────────────────────────────── */
 
+/* `minmax(0, 1fr)`, never bare `1fr`. A bare `1fr` is `minmax(auto, 1fr)`, and
+   that `auto` floors the track at the widest child's MIN-CONTENT — here a peer
+   table and a base64 hash row, neither of which can wrap. The track then grows
+   past its own container, and because `.k-main-column` is `overflow-x: hidden`
+   the excess is silently DESTROYED rather than scrolled: measured on prod at
+   390px, this track resolved to 674.57px inside a 324px box and clipped roughly
+   half of every card away with no scrollbar to hint at it.
+   Pinned by e2e/mobile/validators.mobile.spec.ts, which injects a deliberately
+   wide child and asserts the track still fits. */
 .hk-layout {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
     grid-template-rows: auto auto auto;
     gap: 0.75rem;
     padding: 0.75rem 0;
@@ -445,11 +454,11 @@
 
 @media (max-width: 768px) {
     .hk-layout {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .hk-nsg .nsg-body {
-        grid-template-columns: 1fr;
+        grid-template-columns: minmax(0, 1fr);
     }
 
     .hm-grid {
