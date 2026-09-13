@@ -3,7 +3,9 @@ import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, test, vi } from 'vitest'
 
 // Health helpers are pure label/icon mappers; pin them for a deterministic card.
-vi.mock('../../lib/validatorHealth', () => ({
+vi.mock('../../lib/validatorHealth', async (importOriginal) => ({
+    // Spread the real module so ValidatorHealthStatus stays defined for the card.
+    ...(await importOriginal<typeof import('../../lib/validatorHealth')>()),
     healthCssClass: () => 'val-health-up',
     healthLabel: () => 'Healthy',
     healthIcon: () => '●',

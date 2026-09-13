@@ -590,6 +590,32 @@
         gap: 10px;
     }
 
+    /* Why a validator is Degraded or Down, as visible text. It used to exist only
+       in a title tooltip, which a touch screen cannot reveal — and these cards
+       only render on touch-sized screens. Incident reasons can be long and carry
+       unbreakable tokens (addresses, hashes), so it wraps anywhere and clamps to
+       three lines; the full text stays in the link's accessible name. The colour
+       is a second cue: the words carry the meaning. */
+    .val-card__reason {
+        margin: 8px 0 0;
+        font-size: 13px;
+        line-height: 1.35;
+        color: var(--color-text-secondary);
+        overflow-wrap: anywhere;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 3;
+        overflow: hidden;
+    }
+
+    .val-card__reason--down {
+        color: var(--color-k-danger-text);
+    }
+
+    .val-card__reason--degraded {
+        color: var(--color-k-warning-text);
+    }
+
     .val-card__id {
         display: flex;
         flex-direction: column;

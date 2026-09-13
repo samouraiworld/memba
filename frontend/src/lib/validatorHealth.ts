@@ -15,6 +15,9 @@
  */
 
 import type { ValidatorInfo } from "./validators"
+// Reasons are display text — shown on the mobile card, not only in a tooltip — so
+// uptime renders rounded like every other surface instead of as a raw float.
+import { formatPercent } from "./formatPercent"
 
 // ── Health Status Enum ──────────────────────────────────────────
 
@@ -180,14 +183,14 @@ export function computeHealthStatus(validator: ValidatorInfo): ValidatorHealthMe
             if (liveClean) {
                 return {
                     status: ValidatorHealthStatus.Degraded,
-                    reason: `Recovering — signed the last ${sigs.length} blocks, but uptime is ${validator.uptimePercent}% over the reporting window`,
+                    reason: `Recovering — signed the last ${sigs.length} blocks, but uptime is ${formatPercent(validator.uptimePercent)} over the reporting window`,
                     latestIncidentSeverity: null,
                     latestIncidentTime: null,
                 }
             }
             return {
                 status: ValidatorHealthStatus.Down,
-                reason: `Uptime ${validator.uptimePercent}% (below ${DOWN_UPTIME_THRESHOLD}%)`,
+                reason: `Uptime ${formatPercent(validator.uptimePercent)} (below ${DOWN_UPTIME_THRESHOLD}%)`,
                 latestIncidentSeverity: null,
                 latestIncidentTime: null,
             }
@@ -195,7 +198,7 @@ export function computeHealthStatus(validator: ValidatorInfo): ValidatorHealthMe
         if (validator.uptimePercent < DEGRADED_UPTIME_THRESHOLD) {
             return {
                 status: ValidatorHealthStatus.Degraded,
-                reason: `Uptime ${validator.uptimePercent}% (below ${DEGRADED_UPTIME_THRESHOLD}%)`,
+                reason: `Uptime ${formatPercent(validator.uptimePercent)} (below ${DEGRADED_UPTIME_THRESHOLD}%)`,
                 latestIncidentSeverity: null,
                 latestIncidentTime: null,
             }

@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Mobile validator cards now say why a validator is flagged (2026-09-13)
+<!-- categories: memba, network -->
+- **On a phone, a validator marked Down or Degraded now shows the reason right on its card** — for example that its uptime has fallen below 90%, or which incident the monitoring service raised. That explanation used to live in a tooltip, which a phone cannot show at all, so the red badge appeared with no way to find out why.
+- **Screen readers now hear each validator's health when they reach its card,** and the reason when something is wrong. Before, they heard only the validator's name.
+- **Uptime inside those reasons is rounded like everywhere else,** instead of showing figures such as 53.459119496855344%.
+
 ### See who can change the validator set, and how much failure the network can take (2026-09-13)
 <!-- categories: memba, network, gno-core -->
 - **The Network tab on the validators page now has a "Governance readiness" panel.** It shows how many members GovDAO has — the only people able to propose adding or removing a validator — and notes plainly when a single member could create and pass such a proposal alone, which is the case on gno.land today.

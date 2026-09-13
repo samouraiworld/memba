@@ -282,3 +282,31 @@ test('desktop status bar still fits on a single line despite being allowed to wr
         })
     expect(lines, 'status bar rows at 1280px').toBe(1)
 })
+
+// ── Health reason on the mobile card ───────────────────────────────────────
+//
+// The reason now renders as visible text on the card, and incident reasons can
+// be long and carry unbreakable tokens (addresses, hashes). It must wrap rather
+// than clip, and clamp so one verbose incident cannot turn a roster card into a
+// wall of text — the full reason is still in the link's accessible name.
+
+test('a long health reason on a card wraps and clamps instead of clipping', async ({ page }) => {
+    await onRoster(page)
+    const hash = 'A1B2C3D4E5F6A7B8C9D0E1F2A3B4C5D6E7F8A9B0C1D2E3F4A5B6C7D8E9F0A1B2'
+    const reason = `CRITICAL incident: validator g1hqhetnnz0raw5hps6yxexl7q09a6f8w3anlptt stopped signing at block ${hash} after missing thirty consecutive blocks; monitoring raised this at 18:30:34 UTC and has seen no recovery since across every configured endpoint and sentry`
+    const r = await probe(page,
+        '<div class="val-cards"><a class="val-card" href="#"><div class="val-card__head">'
+        + '<span class="val-rank-badge">2</span><div class="val-card__id"><span class="val-card__moniker">onbloc-validator-1</span>'
+        + '<span class="val-card__addr val-mono">g1hqhetnnz0raw5hps6yxexl7q09a6f8w3anlptt</span></div>'
+        + '<span class="val-health-badge val-health-down"><span class="val-health-badge__label">Down</span></span></div>'
+        + `<p class="val-card__reason val-card__reason--down">${reason}</p></a></div>`,
+        (root) => {
+            const p = root.querySelector('.val-card__reason') as HTMLElement
+            const cs = getComputedStyle(p)
+            return { height: p.getBoundingClientRect().height, lineHeight: parseFloat(cs.lineHeight), overflow: p.scrollWidth - p.clientWidth }
+        })
+    expect(await findHorizontalClipping(page), 'card clips its reason at 375px').toEqual([])
+    expect(r.overflow, 'reason must wrap its unbreakable tokens').toBeLessThanOrEqual(1)
+    expect(Number.isFinite(r.lineHeight), `reason line-height must be a length (got ${r.lineHeight})`).toBe(true)
+    expect(r.height, 'reason clamps to three lines').toBeLessThanOrEqual(r.lineHeight * 3 + 2)
+})

@@ -384,3 +384,34 @@ describe("computeHealthStatus — recency", () => {
         expect(meta.reason).toContain("20")
     })
 })
+
+// ── Reason text is display text ─────────────────────────────────
+//
+// A reason used to live only in a `title=` tooltip, so its raw floats were rarely
+// seen. Once it is shown on the mobile card, `Uptime ${uptimePercent}%` would put
+// "Uptime 53.459119496855344% (below 90%)" on a phone — the same raw-float bug
+// fixed in the roster itself. Reasons format percentages like every other surface.
+describe("computeHealthStatus — reason formatting", () => {
+    const RAW = 53.459119496855344
+
+    it("rounds uptime in the Down reason", () => {
+        const meta = computeHealthStatus(makeValidator({ uptimePercent: RAW }))
+        expect(meta.status).toBe(ValidatorHealthStatus.Down)
+        expect(meta.reason).toContain("53.5%")
+        expect(meta.reason).not.toContain("53.459")
+    })
+
+    it("rounds uptime in the Degraded reason", () => {
+        const meta = computeHealthStatus(makeValidator({ uptimePercent: 95.123456789 }))
+        expect(meta.status).toBe(ValidatorHealthStatus.Degraded)
+        expect(meta.reason).toContain("95.1%")
+        expect(meta.reason).not.toContain("95.123")
+    })
+
+    it("rounds uptime in the Recovering reason", () => {
+        const meta = computeHealthStatus(makeValidator({ uptimePercent: RAW, lastBlockSignatures: new Array(20).fill(true) }))
+        expect(meta.reason.toLowerCase()).toContain("recover")
+        expect(meta.reason).toContain("53.5%")
+        expect(meta.reason).not.toContain("53.459")
+    })
+})
