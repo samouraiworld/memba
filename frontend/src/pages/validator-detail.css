@@ -181,17 +181,6 @@ h1.vd-moniker {
 
 .vd-badge--active   { background: rgba(0, 212, 170, 0.12); color: var(--color-k-accent-text); border: 1px solid rgba(0, 212, 170, 0.25); }
 .vd-badge--inactive { background: rgba(255, 80, 80, 0.09); color: var(--color-k-danger-text); border: 1px solid rgba(255, 80, 80, 0.2); }
-.vd-badge--proposer {
-    background: rgba(255, 196, 0, 0.12);
-    color: var(--color-k-warning-text);
-    border: 1px solid rgba(255, 196, 0, 0.3);
-    animation: vd-pulse-proposer 1.2s ease infinite;
-}
-
-@keyframes vd-pulse-proposer {
-    0%, 100% { opacity: 1; }
-    50%       { opacity: 0.65; }
-}
 
 /* ── Stats grid ─────────────────────────────────────────── */
 

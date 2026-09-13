@@ -281,14 +281,61 @@
     font-family: "JetBrains Mono", monospace;
     background: var(--color-surface);
     border-bottom: 1px solid var(--color-border);
-    cursor: pointer;
-    user-select: none;
-    transition: color 0.15s;
     white-space: nowrap;
 }
 
-.val-th:hover {
+/* Sorting lives on a real <button> inside the <th>, so it can be reached and
+   operated from the keyboard. The header cell itself is no longer clickable —
+   it used to look clickable on columns that cannot sort at all. */
+.val-th-sort {
+    appearance: none;
+    background: none;
+    border: 0;
+    margin: 0;
+    padding: 0;
+    color: inherit;
+    font: inherit;
+    letter-spacing: inherit;
+    text-transform: inherit;
+    white-space: nowrap;
+    cursor: pointer;
+    user-select: none;
+    transition: color 0.15s;
+}
+
+.val-th-sort:hover {
     color: var(--color-k-accent-text);
+}
+
+/* Read by assistive tech, not drawn (e.g. "Rank" behind the "#" header). */
+.val-sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.val-th-sort:focus-visible,
+.val-row-link:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+    border-radius: 3px;
+}
+
+/* The row's keyboard/screen-reader entry point is this link on the validator's
+   name; clicking elsewhere on the row stays a mouse shortcut. */
+.val-row-link {
+    color: inherit;
+    text-decoration: none;
+}
+
+.val-row-link:hover {
+    text-decoration: underline;
 }
 
 .val-th-right {

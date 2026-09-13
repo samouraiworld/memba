@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### The validators table works from a keyboard and with a screen reader (2026-09-13)
+<!-- categories: memba -->
+- **Columns can now be sorted from the keyboard,** and screen readers announce which column the table is sorted by and in which direction. Sorting used to respond only to a mouse click on the column header.
+- **Each validator's name in the table is now a link to its page.** A whole row used to act as one big button, which hid the copy button and the Gnoweb link inside it from screen readers. Clicking anywhere else on a row still opens the validator.
+- **Opening a row's Gnoweb link no longer also takes the table page away** behind the new tab.
+- **The recent-signatures strip on each row, and the block heatmap on validator pages, are read out as one short summary** — how many recent blocks were fully signed, and which was the weakest — instead of a hundred separate labels.
+
 ### Each validator's page shows its reliability score, and what it is made of (2026-09-13)
 <!-- categories: memba, network -->
 - **A validator's page now shows the monitoring service's 0–100 reliability score for the last 24 hours, this week, this month and this year,** each with its tier: Excellent, Good, Watch or Critical.

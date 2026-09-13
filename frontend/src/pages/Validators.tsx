@@ -102,6 +102,54 @@ function CopyButton({ text }: { text: string }) {
     )
 }
 
+/**
+ * True when a click inside `row` started on something with its own action — a
+ * link, a button, a form control. Click-anywhere-to-open is a mouse shortcut
+ * layered over those, and must not also fire for them: opening the Gnoweb link
+ * in a new tab used to navigate this page away as well.
+ */
+function isFromInteractiveChild(target: EventTarget, row: Element): boolean {
+    const hit = target instanceof Element
+        ? target.closest("a, button, input, select, textarea, [role='button']")
+        : null
+    return hit != null && hit !== row && row.contains(hit)
+}
+
+/** A header cell whose sorting lives on a real button, with the state in `aria-sort`. */
+function SortableTh({ column, label, spokenLabel, align, sortKey, sortAsc, onSort }: {
+    column: SortKey
+    label: string
+    /**
+     * Words for a visible label that is only a symbol ("#" → "Rank"). Real,
+     * visually hidden text rather than `aria-label` on the button: the header
+     * cell's own name is computed from its content, and not every implementation
+     * carries a descendant's aria-label into it (jsdom's does not).
+     */
+    spokenLabel?: string
+    align?: "right" | "center"
+    sortKey: SortKey
+    sortAsc: boolean
+    onSort: (key: SortKey) => void
+}) {
+    const active = sortKey === column
+    return (
+        <th
+            className={`val-th${align ? ` val-th-${align}` : ""}`}
+            aria-sort={active ? (sortAsc ? "ascending" : "descending") : undefined}
+        >
+            <button type="button" className="val-th-sort" onClick={() => onSort(column)}>
+                {spokenLabel ? (
+                    <>
+                        <span aria-hidden="true">{label}</span>
+                        <span className="val-sr-only">{spokenLabel}</span>
+                    </>
+                ) : label}
+                {active && <span aria-hidden="true"> {sortAsc ? "↑" : "↓"}</span>}
+            </button>
+        </th>
+    )
+}
+
 /** Compact preview shown in the row hovercard. */
 function ValidatorRowPreview({ v, signingToOperator }: { v: ValidatorInfo; signingToOperator: Map<string, string> }) {
     const { subject, aliases } = resolveReviewSubjects(v.gnoAddr, signingToOperator)
@@ -549,16 +597,10 @@ export default function Validators() {
                 <table className="val-table" data-testid="validator-table">
                     <thead>
                         <tr>
-                            <th className="val-th" onClick={() => handleSort("rank")}>
-                                # {sortKey === "rank" && (sortAsc ? "↑" : "↓")}
-                            </th>
+                            <SortableTh column="rank" label="#" spokenLabel="Rank" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                             <th className="val-th">Validator</th>
-                            <th className="val-th val-th-right" onClick={() => handleSort("votingPower")}>
-                                Voting Power {sortKey === "votingPower" && (sortAsc ? "↑" : "↓")}
-                            </th>
-                            <th className="val-th val-th-right" onClick={() => handleSort("powerPercent")}>
-                                Share {sortKey === "powerPercent" && (sortAsc ? "↑" : "↓")}
-                            </th>
+                            <SortableTh column="votingPower" label="Voting Power" align="right" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
+                            <SortableTh column="powerPercent" label="Share" align="right" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                             <th className="val-th val-th-center">Active Since</th>
                             <th className="val-th val-th-center">Profile</th>
                             {isReviewsEnabled() && (
@@ -566,18 +608,10 @@ export default function Validators() {
                             )}
                             {hasMonitoring && (
                                 <>
-                                    <th className="val-th val-th-right" onClick={() => handleSort("participationRate")}>
-                                        Participation {sortKey === "participationRate" && (sortAsc ? "↑" : "↓")}
-                                    </th>
-                                    <th className="val-th val-th-center" onClick={() => handleSort("uptimePercent")}>
-                                        Uptime {sortKey === "uptimePercent" && (sortAsc ? "↑" : "↓")}
-                                    </th>
-                                    <th className="val-th val-th-center" onClick={() => handleSort("missedBlocks")}>
-                                        Missed {sortKey === "missedBlocks" && (sortAsc ? "↑" : "↓")}
-                                    </th>
-                                    <th className="val-th val-th-right" onClick={() => handleSort("txContrib")}>
-                                        TX Contrib {sortKey === "txContrib" && (sortAsc ? "↑" : "↓")}
-                                    </th>
+                                    <SortableTh column="participationRate" label="Participation" align="right" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
+                                    <SortableTh column="uptimePercent" label="Uptime" align="center" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
+                                    <SortableTh column="missedBlocks" label="Missed" align="center" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
+                                    <SortableTh column="txContrib" label="TX Contrib" align="right" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                                     <th className="val-th val-th-center">Last Down</th>
                                 </>
                             )}
@@ -591,18 +625,14 @@ export default function Validators() {
                             <tr
                                 className="val-row"
                                 data-testid={`validator-row-${v.rank}`}
-                                onClick={() => navigate(`/validators/${v.gnoAddr || v.address}`)}
-                                onKeyDown={e => {
-                                    if (e.key === "Enter" || e.key === " ") {
-                                        e.preventDefault()
-                                        navigate(`/validators/${v.gnoAddr || v.address}`)
-                                    }
+                                // A mouse shortcut only. The keyboard and screen-reader way in
+                                // is the link on the validator's name: a row cannot be a button
+                                // without hiding the copy button and Gnoweb link inside it.
+                                onClick={e => {
+                                    if (isFromInteractiveChild(e.target, e.currentTarget)) return
+                                    navigate(`/validators/${v.gnoAddr || v.address}`)
                                 }}
-                                tabIndex={0}
-                                role="button"
-                                aria-label={`View ${v.moniker || truncateValidatorAddr(v.address)} validator details`}
                                 style={{ cursor: "pointer" }}
-                                title={`View ${v.moniker || truncateValidatorAddr(v.address)} details`}
                             >
                                 <td className="val-td val-rank">
                                     <span className={`val-rank-badge ${v.rank <= 3 ? "val-top3" : ""}`}>
@@ -613,7 +643,9 @@ export default function Validators() {
                                     <div className="val-addr-wrap">
                                         {v.moniker ? (
                                             <>
-                                                <span className="val-moniker">{v.moniker}</span>
+                                                <Link to={`/${nk}/validators/${v.gnoAddr || v.address}`} className="val-moniker val-row-link">
+                                                    {v.moniker}
+                                                </Link>
                                                 <span className="val-addr-sub">
                                                     <span className="val-mono">{v.gnoAddr || truncateValidatorAddr(v.address)}</span>
                                                     <CopyButton text={v.gnoAddr || v.address} />
@@ -621,7 +653,9 @@ export default function Validators() {
                                             </>
                                         ) : (
                                             <>
-                                                <span className="val-addr-full val-mono">{v.address}</span>
+                                                <Link to={`/${nk}/validators/${v.gnoAddr || v.address}`} className="val-addr-full val-mono val-row-link">
+                                                    {v.address}
+                                                </Link>
                                                 <span className="val-addr-sub">
                                                     <span className="val-pubkey-hint">{v.pubkeyType.replace("tendermint/PubKey", "")}</span>
                                                     <CopyButton text={v.address} />
@@ -699,7 +733,14 @@ export default function Validators() {
                                 </td>
                                 <td className="val-td val-td-center">
                                     {v.lastBlockSignatures.length > 0 ? (
-                                        <div className="val-block-strip" title={`${v.lastBlockSignatures.filter(Boolean).length}/${v.lastBlockSignatures.length} blocks signed`}>
+                                        // One image with one spoken summary; `title` alone is not
+                                        // reliably announced, and the ticks are decoration.
+                                        <div
+                                            className="val-block-strip"
+                                            role="img"
+                                            aria-label={`${v.lastBlockSignatures.filter(Boolean).length} of ${v.lastBlockSignatures.length} recent blocks signed`}
+                                            title={`${v.lastBlockSignatures.filter(Boolean).length}/${v.lastBlockSignatures.length} blocks signed`}
+                                        >
                                             {v.lastBlockSignatures.map((signed, i) => (
                                                 <div key={i} className={`val-block-tick ${signed ? "val-tick-ok" : "val-tick-miss"}`} />
                                             ))}
