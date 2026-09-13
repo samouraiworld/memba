@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### The telemetry view can finally warn you when consensus stalls (2026-09-13)
+<!-- categories: memba, network -->
+- **The "Doctor" panel on the live telemetry view can now flag a chain that has stopped producing blocks, or consensus that keeps failing to agree on the first try.** It was designed to do this from the start, but the source it read consensus details from never worked, so those warnings could never appear. It now uses the same monitoring data as the consensus panel.
+- **The network state panel shows the voting power needed to agree on a block and how many validators the network can lose,** replacing a validator-count figure that stops matching reality as soon as validators hold different amounts of voting power. Rows that could only ever show a dash — genesis time, and a "can add validator" answer that was always hard-coded to yes — are gone.
+- **The telemetry view and every validator's page no longer ask the network for consensus details every two seconds and discard the answer.** Those two background polls never produced anything usable, so removing them changes nothing you see except a lighter load on the chain's nodes. A "proposing now" badge that could never appear on validator pages went with them.
+
 ### See who can change the validator set, and how much failure the network can take (2026-09-13)
 <!-- categories: memba, network, gno-core -->
 - **The Network tab on the validators page now has a "Governance readiness" panel.** It shows how many members GovDAO has — the only people able to propose adding or removing a validator — and notes plainly when a single member could create and pass such a proposal alone, which is the case on gno.land today.

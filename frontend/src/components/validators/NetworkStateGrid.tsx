@@ -8,11 +8,12 @@
  */
 
 import type { NetworkStats } from "../../lib/validators"
-import type { HackerConsensusState } from "../../lib/validators"
+import type { ConsensusView } from "../../lib/chainHealthApi"
 
 interface NetworkStateGridProps {
     stats: NetworkStats | null
-    cs: HackerConsensusState | null
+    /** Live consensus view from gnomonitoring chain health; null when unavailable. */
+    consensus: ConsensusView | null
     /** Chain's seed address (optional, set via SAMOURAI_SENTRY or config) */
     seedAddr?: string
     /** Peer count from NetInfo (optional) */
@@ -37,18 +38,6 @@ function Row({ label, value, accent, mono }: {
     )
 }
 
-function genesisAge(isoStr: string): string {
-    if (!isoStr) return "—"
-    const ms = Date.now() - new Date(isoStr).getTime()
-    if (ms < 0 || isNaN(ms)) return "—"
-    const d = Math.floor(ms / 86_400_000)
-    const h = Math.floor((ms % 86_400_000) / 3_600_000)
-    const m = Math.floor((ms % 3_600_000) / 60_000)
-    if (d > 0) return `up ${d}d ${h}h`
-    if (h > 0) return `up ${h}h ${m}m`
-    return `up ${m}m`
-}
-
 function blockTimeAgo(isoStr: string): string {
     if (!isoStr) return "—"
     const ms = Date.now() - new Date(isoStr).getTime()
@@ -59,16 +48,10 @@ function blockTimeAgo(isoStr: string): string {
     return `${m}m ago`
 }
 
-export function NetworkStateGrid({ stats, cs, seedAddr, peerCount, mempoolCount }: NetworkStateGridProps) {
-    const chainId = cs?.chainId || stats?.chainId || "—"
-    const appHash = cs?.appHash || "—"
-    const genesisTime = cs?.genesisTime || "—"
-    const genesisAgeStr = cs?.genesisTime ? genesisAge(cs.genesisTime) : "—"
-    const totalValidators = cs?.valsetSize || stats?.totalValidators || null
-    const minBft = cs?.minBft ?? null
-    const margin = cs?.faultTolerance ?? null
-    const canAdd = cs?.canAddValidator ?? null
-    const totalVotingPower = stats?.totalVotingPower ?? null
+export function NetworkStateGrid({ stats, consensus, seedAddr, peerCount, mempoolCount }: NetworkStateGridProps) {
+    const chainId = stats?.chainId || "—"
+    const totalValidators = consensus?.valsetSize || stats?.totalValidators || null
+    const totalVotingPower = consensus?.totalVotingPower || stats?.totalVotingPower || null
 
     return (
         <div className="hk-card hk-nsg" id="hk-network-state">
@@ -90,11 +73,9 @@ export function NetworkStateGrid({ stats, cs, seedAddr, peerCount, mempoolCount 
                             : "—"}
                         mono />
                     <Row label="chain" value={chainId} accent />
-                    <Row label="genesis time" value={genesisTime.slice(0, 19).replace("T", " ") || "—"} mono />
-                    <Row label="genesis age" value={genesisAgeStr} accent />
-                    {appHash !== "—" && (
-                        <Row label="apphash" value={`${appHash.slice(0, 22)}…`} mono />
-                    )}
+                    {/* No genesis-time or app-hash rows. Genesis time is in no payload
+                        this page fetches (the rows only ever showed a dash), and the
+                        latest app hash is already displayed in CONNECT above. */}
                     {seedAddr && (
                         <Row label="seed" value={seedAddr} mono />
                     )}
@@ -112,18 +93,18 @@ export function NetworkStateGrid({ stats, cs, seedAddr, peerCount, mempoolCount 
                     {totalValidators != null && (
                         <Row label="valset" value={totalValidators} accent />
                     )}
-                    {minBft != null && (
-                        <Row label="min bft" value={minBft} />
+                    {/* Quorum is VOTING POWER (tm2: TotalVotingPower*2/3 + 1). The row
+                        it replaces showed `min bft` as a validator COUNT — the same
+                        number only while every validator carries equal weight. */}
+                    {consensus && consensus.totalVotingPower > 0 && (
+                        <Row label="quorum (power)" value={`${consensus.quorum} of ${consensus.totalVotingPower}`} />
                     )}
-                    {margin != null && (
+                    {consensus && consensus.valsetSize > 0 && (
                         <Row
-                            label="active validators"
-                            value={`${totalValidators}/${totalValidators} (margin: +${margin})`}
-                            accent
+                            label="tolerates"
+                            value={`${consensus.faultTolerance} failure${consensus.faultTolerance === 1 ? "" : "s"}`}
+                            accent={consensus.faultTolerance >= 1}
                         />
-                    )}
-                    {canAdd != null && (
-                        <Row label="can add validator" value={canAdd ? "yes" : "no"} />
                     )}
                     {totalVotingPower != null && totalVotingPower > 0 && (
                         <Row label="total voting power" value={totalVotingPower.toLocaleString()} accent />

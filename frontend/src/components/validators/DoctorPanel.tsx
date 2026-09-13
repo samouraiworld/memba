@@ -6,10 +6,12 @@
  * - Peers with unknown/closed RPC
  * - Peers that are KO behind (height < localHeight - 2)
  * - Low peer count (< 3)
- * - Consensus round stuck (round age > 30s)
+ * - Chain not advancing (gnomonitoring is_stuck)
+ * - Consensus past round 0
  */
 
-import type { NetInfo, HackerConsensusState } from "../../lib/validators"
+import type { NetInfo } from "../../lib/validators"
+import type { ConsensusView } from "../../lib/chainHealthApi"
 import type { MonitoringIncident } from "../../lib/gnomonitoring"
 
 interface Diagnostic {
@@ -20,16 +22,17 @@ interface Diagnostic {
 
 interface DoctorPanelProps {
     netInfo: NetInfo | null
-    cs: HackerConsensusState | null
+    /** Live consensus view from gnomonitoring chain health; null when unavailable. */
+    consensus: ConsensusView | null
     localHeight: number
     /** v2.17.0: monitoring incidents from gnomonitoring */
     incidents?: MonitoringIncident[]
 }
 
-function deriveDiagnostics(netInfo: NetInfo | null, cs: HackerConsensusState | null, localHeight: number): Diagnostic[] {
+function deriveDiagnostics(netInfo: NetInfo | null, consensus: ConsensusView | null, localHeight: number): Diagnostic[] {
     const diags: Diagnostic[] = []
 
-    if (!netInfo && !cs) return diags
+    if (!netInfo && !consensus) return diags
 
     const peers = netInfo?.peers ?? []
 
@@ -67,43 +70,32 @@ function deriveDiagnostics(netInfo: NetInfo | null, cs: HackerConsensusState | n
         }
     }
 
-    // Consensus round stuck
-    if (cs?.roundAge != null && cs.roundAge > 30) {
+    // Chain not advancing. gnomonitoring's `is_stuck` replaces the old round-age
+    // check, which never fired: it read a client-side parser that threw on every
+    // chain. A node that still answers is not a chain that is still committing.
+    if (consensus?.isStuck) {
         diags.push({
             type: "error",
-            message: `Consensus round appears stuck (round age: ${cs.roundAge}s)`,
-            detail: `Expected new block every ~3s. Current: h=${cs.height} r=${cs.round} s=${cs.step}`,
+            message: "Chain is not advancing",
+            detail: `Height ${consensus.height.toLocaleString()} (round ${consensus.round}) has stopped moving: nodes still answer, but no new blocks are being committed.`,
         })
     }
 
-    // BFT threshold not met — prevotes
-    if (cs && cs.valsetSize > 0) {
-        const bftThreshold = Math.ceil(cs.valsetSize * 2 / 3)
-        if (cs.prevoteCount > 0 && cs.prevoteCount < bftThreshold && cs.roundAge != null && cs.roundAge > 5) {
-            diags.push({
-                type: "warn",
-                message: `Prevotes below BFT threshold: ${cs.prevoteCount}/${cs.valsetSize} (need ${bftThreshold})`,
-                detail: `${cs.valsetSize - cs.prevoteCount} validator${cs.valsetSize - cs.prevoteCount !== 1 ? "s" : ""} have not prevoted after ${cs.roundAge}s`,
-            })
-        }
-        // BFT threshold not met — precommits
-        if (cs.precommitCount > 0 && cs.precommitCount < bftThreshold && cs.roundAge != null && cs.roundAge > 10) {
-            diags.push({
-                type: "error",
-                message: `Precommits below BFT threshold: ${cs.precommitCount}/${cs.valsetSize} (need ${bftThreshold})`,
-                detail: `Block cannot be committed without ${bftThreshold} precommits. ${bftThreshold - cs.precommitCount} more needed.`,
-            })
-        }
-    }
-
-    // Multiple consensus rounds (slow consensus)
-    if (cs && cs.round > 0) {
+    // Past round 0 means earlier rounds at this height failed to commit — usually a
+    // proposer or precommit timeout. Round 0 is normal; 3 or more is persistent.
+    if (consensus && consensus.round > 0) {
         diags.push({
-            type: cs.round >= 3 ? "error" : "warn",
-            message: `Consensus on round ${cs.round} (expected round 0)`,
-            detail: `Multiple rounds indicate validators are disagreeing on the block proposal. This slows block production.`,
+            type: consensus.round >= 3 ? "error" : "warn",
+            message: `Consensus on round ${consensus.round} (expected round 0)`,
+            detail: `${consensus.round} round${consensus.round === 1 ? "" : "s"} at height ${consensus.height.toLocaleString()} failed to commit.`,
         })
     }
+
+    // Deliberately NOT ported: the prevote / precommit "below BFT threshold" alerts.
+    // They were gated on how long the current round had been running, which the
+    // chain-health payload does not carry. Without that gate a snapshot taken
+    // mid-round is almost always partial, so they would fire on nearly every
+    // refresh. `is_stuck` covers the failure they existed to catch.
 
     // No peers at all
     if (peers.length === 0 && netInfo) {
@@ -132,8 +124,8 @@ function deriveIncidentDiagnostics(incidents: MonitoringIncident[]): Diagnostic[
         }))
 }
 
-export function DoctorPanel({ netInfo, cs, localHeight, incidents = [] }: DoctorPanelProps) {
-    const networkDiags = deriveDiagnostics(netInfo, cs, localHeight)
+export function DoctorPanel({ netInfo, consensus, localHeight, incidents = [] }: DoctorPanelProps) {
+    const networkDiags = deriveDiagnostics(netInfo, consensus, localHeight)
     const incidentDiags = deriveIncidentDiagnostics(incidents)
     const diags = [...incidentDiags, ...networkDiags] // incidents first (higher priority)
 

@@ -4,11 +4,13 @@
  * Receives props from parent (no own polling — parent drives data).
  */
 
-import type { NetworkStats, NetInfo, HackerConsensusState } from "../../lib/validators"
+import type { NetworkStats, NetInfo } from "../../lib/validators"
+import type { ConsensusView } from "../../lib/chainHealthApi"
 
 interface HackerStatusBarProps {
     stats: NetworkStats | null
-    cs: HackerConsensusState | null
+    /** Live consensus view from gnomonitoring chain health; null when unavailable. */
+    consensus: ConsensusView | null
     netInfo: NetInfo | null
     lastUpdated: number | null // timestamp of last successful fetch
     /** Whether the gnomonitoring API is reachable (v2.17.2) */
@@ -21,9 +23,9 @@ function secondsAgo(ts: number | null): string {
     return `${diff}s`
 }
 
-export function HackerStatusBar({ stats, cs, netInfo, lastUpdated, monitoringReachable }: HackerStatusBarProps) {
-    // Prefer consensus-derived height (more frequent), fall back to networkStats
-    const blockHeight = cs?.height ?? stats?.blockHeight
+export function HackerStatusBar({ stats, consensus, netInfo, lastUpdated, monitoringReachable }: HackerStatusBarProps) {
+    // Prefer the live consensus height (refreshed every 5s), fall back to stats.
+    const blockHeight = consensus?.height ?? stats?.blockHeight
     const synced = stats ? !stats.catchingUp : null
     const peers = netInfo?.peers?.length ?? "—"
 
