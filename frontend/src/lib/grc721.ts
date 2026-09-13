@@ -186,28 +186,6 @@ export async function getNFTOwner(
 }
 
 /**
- * Query balance of an address via qeval `BalanceOf(collectionID, owner)`.
- */
-export async function getNFTBalance(
-    collectionPath: string,
-    collectionID: string,
-    owner: string,
-): Promise<number> {
-    try {
-        const result = await queryEval(
-            GNO_RPC_URL,
-            collectionPath,
-            `BalanceOf("${collectionID}", "${owner}")`,
-        )
-        if (!result) return 0
-        const match = result.match(/(\d+)/)
-        return match ? parseInt(match[1], 10) : 0
-    } catch {
-        return 0
-    }
-}
-
-/**
  * Query token URI via qeval `TokenURI(collectionID, tokenId)`.
  */
 export async function getTokenURI(
