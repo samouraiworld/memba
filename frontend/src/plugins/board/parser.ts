@@ -6,7 +6,7 @@
  *
  * Architecture: Strategy pattern with V1/V2 parser versions.
  * - V1 (parserV1.ts): Current regex-based parser for test12/betanet.
- * - V2 (parserV2.ts): Placeholder for boards2 hub format (gno#5037).
+ * - V2: not implemented — add a parser module when the boards2 hub (gno#5037) changes the Render() format.
  * - getActiveBoardParser(): Returns the active parser version.
  *
  * v2.1a: Added support for channel types (text/announcements/readonly),

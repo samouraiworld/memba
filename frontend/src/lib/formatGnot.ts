@@ -41,18 +41,3 @@ export function formatGnotCompact(ugnot: bigint | number): string {
     const formatted = gnot % 1 === 0 ? String(gnot) : gnot.toFixed(6).replace(/0+$/, "").replace(/\.$/, "")
     return `${formatted} GNOT`
 }
-
-/**
- * Parse a GNOT string back to ugnot.
- *
- * @example
- * parseGnot("1.5")     // 1_500_000n
- * parseGnot("0.001")   // 1_000n
- * parseGnot("invalid") // null
- */
-export function parseGnot(input: string): bigint | null {
-    const cleaned = input.trim().replace(/\s*GNOT\s*$/i, "")
-    const num = parseFloat(cleaned)
-    if (isNaN(num) || num < 0) return null
-    return BigInt(Math.round(num * UGNOT_PER_GNOT))
-}

@@ -127,9 +127,6 @@ vi.mock("../contexts/OrgContext", () => ({
 }))
 
 // ── Mock hooks used by the showcase doors ─────────────────────────────────────
-vi.mock("../hooks/home/useContributorHighlights", () => ({
-    useContributorHighlights: vi.fn(() => ({ contributors: [], loading: false })),
-}))
 vi.mock("../hooks/home/useValidatorHealth", () => ({
     useValidatorHealth: vi.fn(() => ({
         status: "healthy",

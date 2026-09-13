@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { formatGnot, formatGnotCompact, parseGnot } from "./formatGnot"
+import { formatGnot, formatGnotCompact } from "./formatGnot"
 
 describe("formatGnot", () => {
     it("formats 1 GNOT", () => expect(formatGnot(1_000_000n)).toBe("1.00 GNOT"))
@@ -16,14 +16,4 @@ describe("formatGnotCompact", () => {
     it("fractional", () => expect(formatGnotCompact(1_500_000n)).toBe("1.5 GNOT"))
     it("small fraction", () => expect(formatGnotCompact(100_000n)).toBe("0.1 GNOT"))
     it("zero", () => expect(formatGnotCompact(0n)).toBe("0 GNOT"))
-})
-
-describe("parseGnot", () => {
-    it("parses 1.5", () => expect(parseGnot("1.5")).toBe(1_500_000n))
-    it("parses 0.001", () => expect(parseGnot("0.001")).toBe(1_000n))
-    it("parses with GNOT suffix", () => expect(parseGnot("2.5 GNOT")).toBe(2_500_000n))
-    it("parses whole number", () => expect(parseGnot("10")).toBe(10_000_000n))
-    it("returns null for invalid", () => expect(parseGnot("abc")).toBeNull())
-    it("returns null for negative", () => expect(parseGnot("-1")).toBeNull())
-    it("trims whitespace", () => expect(parseGnot("  1.0  ")).toBe(1_000_000n))
 })
