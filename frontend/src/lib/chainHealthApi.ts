@@ -3,8 +3,8 @@
  *
  * WHY THIS EXISTS RATHER THAN OUR OWN PARSER.
  *
- * `getConsensusState` in validators.ts reads /dump_consensus_state directly and
- * has been dead on EVERY chain for the life of the feature: `round_state.votes`
+ * `getConsensusState` (since deleted from validators.ts) read /dump_consensus_state
+ * directly and was dead on EVERY chain for the life of the feature: `round_state.votes`
  * is an object, the code calls `.find` on it, the resulting TypeError is
  * swallowed by a catch, and ConsensusWidget renders nothing at all — leaving a
  * hole in the hacker layout where live consensus should be. Two further parse

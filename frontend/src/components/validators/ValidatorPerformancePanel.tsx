@@ -18,7 +18,6 @@ import { GNO_RPC_URL, getTelemetryRpcUrl } from "../../lib/config"
 import {
     getValidators,
     getNetworkStats,
-    getConsensusState,
     fetchBlockHeatmap,
     fetchLastBlockSignatures,
     formatVotingPower,
@@ -37,7 +36,6 @@ import {
 } from "../../lib/validatorHealth"
 import { BlockHeatmap } from "./BlockHeatmap"
 
-const CONSENSUS_POLL_MS = 2_000
 const NO_SAMPLES: BlockSample[] = []
 
 function PowerBar({ percent }: { percent: number }) {
@@ -89,9 +87,8 @@ export function ValidatorPerformancePanel({
         queryKey: ["validators", "perf", signingAddress, rpcUrl],
         enabled: perfEnabled,
         queryFn: async ({ signal }) => {
-            const [allValidators, csData, sigMap, monitoringMap] = await Promise.all([
+            const [allValidators, sigMap, monitoringMap] = await Promise.all([
                 getValidators(GNO_RPC_URL),
-                getConsensusState(rpcUrl, signal),
                 fetchLastBlockSignatures(GNO_RPC_URL, 100),
                 fetchAllMonitoringData(signal),
             ])
@@ -104,34 +101,23 @@ export function ValidatorPerformancePanel({
             if (!found) {
                 // Not in the enriched set — renders the metrics-unavailable
                 // state, exactly like the old early return with null validator.
-                return { validator: null, stats: networkStats, cs: csData, heatmap: [] as BlockSample[] }
+                return { validator: null, stats: networkStats, heatmap: [] as BlockSample[] }
             }
             const sigKey = found.gnoAddr?.toLowerCase() || found.address?.toLowerCase() || ""
             const withSigs = { ...found, lastBlockSignatures: sigMap.get(sigKey) ?? [] }
             const healthMeta = computeHealthStatus(withSigs)
-            const height = csData?.height ?? networkStats.blockHeight
+            const height = networkStats.blockHeight
             const heatmap = height > 1 ? await fetchBlockHeatmap(rpcUrl, height, 100, signal) : []
             return {
                 validator: { ...withSigs, healthStatus: healthMeta.status, healthMeta } as ValidatorInfo,
                 stats: networkStats,
-                cs: csData,
                 heatmap,
             }
         },
     })
 
-    // Live consensus refresh every CONSENSUS_POLL_MS. The shared client pins
-    // refetchIntervalInBackground:false, which is the old isVisible-ref gate.
-    const csQuery = useQuery({
-        queryKey: ["validators", "consensus", rpcUrl],
-        enabled: isActive,
-        refetchInterval: CONSENSUS_POLL_MS,
-        queryFn: ({ signal }) => getConsensusState(rpcUrl, signal),
-    })
-
     const validator = perfQuery.data?.validator ?? null
     const stats = perfQuery.data?.stats ?? null
-    const cs = csQuery.data ?? perfQuery.data?.cs ?? null
     const heatmap = perfQuery.data?.heatmap ?? NO_SAMPLES
     const loading = perfEnabled ? perfQuery.isPending : false
     const error = perfQuery.isError
@@ -166,9 +152,6 @@ export function ValidatorPerformancePanel({
         )
     }
 
-    const isProposer = cs?.proposer
-        ? !!(validator.address && cs.proposer.toUpperCase().includes(validator.address.toUpperCase().slice(0, 8)))
-        : false
     const sigs = validator.lastBlockSignatures ?? []
     const signedLast = sigs.length > 0 ? sigs.filter(s => s).length : null
     const missedLast = sigs.length > 0 ? sigs.filter(s => !s).length : null
@@ -211,7 +194,6 @@ export function ValidatorPerformancePanel({
                     <span className={`vd-badge vd-badge--health ${healthCssClass(validator.healthStatus)}`} title={validator.healthMeta?.reason || ""}>
                         {healthIcon(validator.healthStatus)} {healthLabel(validator.healthStatus)}
                     </span>
-                    {isProposer && <span className="vd-stat-hint">⚡ proposing now</span>}
                 </div>
             </div>
 

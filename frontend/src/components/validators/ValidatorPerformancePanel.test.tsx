@@ -14,7 +14,6 @@ const { getValidators } = vi.hoisted(() => ({ getValidators: vi.fn(() => Promise
 vi.mock("../../lib/validators", () => ({
     getValidators,
     getNetworkStats: vi.fn(() => Promise.resolve({ blockHeight: 1, totalValidators: 0 })),
-    getConsensusState: vi.fn(() => Promise.resolve(null)),
     fetchBlockHeatmap: vi.fn(() => Promise.resolve([])),
     fetchLastBlockSignatures: vi.fn(() => Promise.resolve(new Map())),
     mergeWithMonitoringData: vi.fn((v: unknown) => v),

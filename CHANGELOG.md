@@ -25,6 +25,11 @@ Full changelogs are split by version range for easier navigation:
 - **On a phone, a validator marked Down or Degraded now shows the reason right on its card** — for example that its uptime has fallen below 90%, or which incident the monitoring service raised. That explanation used to live in a tooltip, which a phone cannot show at all, so the red badge appeared with no way to find out why.
 - **Screen readers now hear each validator's health when they reach its card,** and the reason when something is wrong. Before, they heard only the validator's name.
 - **Uptime inside those reasons is rounded like everywhere else,** instead of showing figures such as 53.459119496855344%.
+### The telemetry view can finally warn you when consensus stalls (2026-09-13)
+<!-- categories: memba, network -->
+- **The "Doctor" panel on the live telemetry view can now flag a chain that has stopped producing blocks, or consensus that keeps failing to agree on the first try.** It was designed to do this from the start, but the source it read consensus details from never worked, so those warnings could never appear. It now uses the same monitoring data as the consensus panel.
+- **The network state panel shows the voting power needed to agree on a block and how many validators the network can lose,** replacing a validator-count figure that stops matching reality as soon as validators hold different amounts of voting power. Rows that could only ever show a dash — genesis time, and a "can add validator" answer that was always hard-coded to yes — are gone.
+- **The telemetry view and every validator's page no longer ask the network for consensus details every two seconds and discard the answer.** Those two background polls never produced anything usable, so removing them changes nothing you see except a lighter load on the chain's nodes. A "proposing now" badge that could never appear on validator pages went with them.
 
 ### See who can change the validator set, and how much failure the network can take (2026-09-13)
 <!-- categories: memba, network, gno-core -->

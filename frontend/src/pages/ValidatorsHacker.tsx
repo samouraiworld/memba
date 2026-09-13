@@ -5,7 +5,7 @@
  * - Persistent top status bar (block height, sync status, peer count, last updated)
  * - CONNECT section (seed address + genesis hash, click-to-copy)
  * - NETWORK STATE grid (chain metadata + live consensus + voting power + peers)
- * - CONSENSUS STATE widget (H/R/S, proposer, vote bars, round age)
+ * - CONSENSUS STATE widget (height/round, precommits, quorum, fault tolerance — gnomonitoring chain health)
  * - RECENT BLOCKS heatmap (100-block signing health)
  * - VALIDATOR HEALTH summary (per-validator: health, participation, uptime, missed, txContrib)
  * - PEERS table (topology with RPC status badges, validator-only filter)
@@ -26,7 +26,6 @@ import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { Link } from "react-router-dom"
 import { GNO_CHAIN_ID, getTelemetryRpcUrl, getTelemetryRpcUrls } from "../lib/config"
 import {
-    getConsensusState,
     getAggregatedNetPeers,
     getMempoolStatus,
     fetchBlockHeatmap,
@@ -36,7 +35,6 @@ import {
     mergeWithMonitoringData,
     fetchValoperMonikers,
     mergeValoperMonikers,
-    type HackerConsensusState,
     type NetInfo,
     type BlockSample,
     type NodeStatus,
@@ -65,9 +63,8 @@ import "../components/validators/hacker-mode.css"
 import "./validators-hacker.css"
 
 // ── Polling intervals ──────────────────────────────────────────────────
-const CONSENSUS_MS = 2_000       // 2s: live H/R/S consensus state
-// 5s: gnomonitoring's chain-health view, which is what actually feeds the
-// consensus card now. Matches that client's cache TTL, so a faster cadence here
+// 5s: gnomonitoring's chain-health view, which is what actually feeds every
+// live telemetry panel now. Matches that client's cache TTL, so a faster cadence here
 // would only re-read the same cached value.
 const CHAIN_HEALTH_MS = 5_000
 const PEERS_MS = 15_000          // 15s: peer topology
@@ -94,12 +91,10 @@ export default function ValidatorsHacker() {
     const latestHeightRef = useRef<number>(0) // tracks height without setState for heatmap interval
 
     // ── State ──────────────────────────────────────────────────
-    const [cs, setCs] = useState<HackerConsensusState | null>(null)
-    // Consensus card data. Separate from `cs` on purpose: the remaining three
-    // consumers of `cs` (status bar, network-state grid, doctor) read fields the
-    // REST payload does not carry — step, proposer, prevotes, genesis, apphash —
-    // so migrating them is its own change. This fixes the card that shows
-    // nothing at all today.
+    // Live consensus view: gnomonitoring's server-side parse of the chain's
+    // consensus state. It feeds the consensus card, status bar, network-state
+    // grid, heatmap and doctor. The client-side /dump_consensus_state reader it
+    // replaced threw on every chain, so none of them had ever received real data.
     const [consensusView, setConsensusView] = useState<ConsensusView | null>(null)
     const [netInfo, setNetInfo] = useState<NetInfo | null>(null)
     const [blockHeatmap, setBlockHeatmap] = useState<BlockSample[]>([])
@@ -173,8 +168,7 @@ export default function ValidatorsHacker() {
 
         try {
             // Phase 1: ALL data sources in single parallel burst (was sequential)
-            const [csData, nsData, statsData, valData, valoperMap, incidentsData, monitoringData] = await Promise.all([
-                getConsensusState(rpcUrl, ctrl.signal),
+            const [nsData, statsData, valData, valoperMap, incidentsData, monitoringData] = await Promise.all([
                 getNodeStatus(rpcUrl, ctrl.signal),
                 getNetworkStats(rpcUrl, undefined, ctrl.signal),
                 getValidators(rpcUrl),
@@ -192,17 +186,22 @@ export default function ValidatorsHacker() {
                 .catch(() => { /* resilient */ })
 
             fetchChainHealth(ctrl.signal)
-                .then(h => { if (!ctrl.signal.aborted) setConsensusView(h ? buildConsensusView(h) : null) })
+                .then(h => {
+                    if (ctrl.signal.aborted) return
+                    setConsensusView(h ? buildConsensusView(h) : null)
+                    // Fresher than the stats height set synchronously below: this
+                    // callback runs after it, so the heatmap tracks the live tip.
+                    if (h?.latestBlockHeight) latestHeightRef.current = h.latestBlockHeight
+                })
                 .catch(() => { /* resilient */ })
 
-            setCs(csData)
             setNodeStatus(nsData)
             setNetworkStats(statsData)
             if (incidentsData) setIncidents(incidentsData)
             setLastUpdated(Date.now())
 
             // Track latest height via ref for heatmap interval
-            const height = csData?.height ?? statsData?.blockHeight ?? 0
+            const height = statsData?.blockHeight ?? 0
             latestHeightRef.current = height
 
             // Heatmap: fire-and-forget after initial render (needs height)
@@ -247,22 +246,21 @@ export default function ValidatorsHacker() {
 
         const abortCs = new AbortController()
 
-        // Consensus: 2s — also update latestHeightRef
-        const consensusInterval = setInterval(guarded("consensus", async () => {
-            const data = await getConsensusState(rpcUrl, abortCs.signal)
-            if (data && !abortCs.signal.aborted) {
-                setCs(data)
-                if (data.height) latestHeightRef.current = data.height
-                setLastUpdated(Date.now())
-            }
-        }), CONSENSUS_MS)
-
-        // Chain health: 5s — the consensus card's source. Server-side parsed by
-        // gnomonitoring against a stable contract, rather than our own reader of
-        // a node-internal debug dump.
+        // Chain health: 5s — the live consensus source for every telemetry panel.
+        // Server-side parsed by gnomonitoring against a stable contract, rather
+        // than our own reader of a node-internal debug dump. It replaced a 2s
+        // loop that issued two RPC calls per tick and never produced data.
         const chainHealthInterval = setInterval(guarded("chainhealth", async () => {
             const h = await fetchChainHealth(abortCs.signal)
-            if (!abortCs.signal.aborted) setConsensusView(h ? buildConsensusView(h) : null)
+            if (abortCs.signal.aborted) return
+            setConsensusView(h ? buildConsensusView(h) : null)
+            if (h) {
+                if (h.latestBlockHeight) latestHeightRef.current = h.latestBlockHeight
+                // The status bar's "Updated" readout means "last successful live
+                // sample". The deleted 2s loop used to stamp it; this loop now
+                // must, or the page would claim ever-staler data while polling fine.
+                setLastUpdated(Date.now())
+            }
         }), CHAIN_HEALTH_MS)
 
         // Mempool: 10s — pending transaction count
@@ -321,7 +319,6 @@ export default function ValidatorsHacker() {
         }), NODESTATUS_MS)
 
         return () => {
-            clearInterval(consensusInterval)
             clearInterval(chainHealthInterval)
             clearInterval(mempoolInterval)
             clearInterval(peersInterval)
@@ -348,7 +345,7 @@ export default function ValidatorsHacker() {
             {/* ── Persistent status bar ─────────────────────── */}
             <HackerStatusBar
                 stats={networkStats}
-                cs={cs}
+                consensus={consensusView}
                 netInfo={netInfo}
                 lastUpdated={lastUpdated}
                 monitoringReachable={monitoringReachable}
@@ -374,14 +371,14 @@ export default function ValidatorsHacker() {
 
                 {/* Row 1: Connect + Network State + Consensus */}
                 <ConnectSection nodeStatus={nodeStatus} />
-                <NetworkStateGrid stats={networkStats} cs={cs} peerCount={netInfo?.peerCount} mempoolCount={mempoolCount} />
+                <NetworkStateGrid stats={networkStats} consensus={consensusView} peerCount={netInfo?.peerCount} mempoolCount={mempoolCount} />
                 <ConsensusWidget view={consensusView} loading={loading} />
 
                 {/* Row 2: Recent Blocks (full width) */}
                 <BlockHeatmap
                     blocks={blockHeatmap}
                     loading={loading}
-                    totalValidators={cs?.valsetSize}
+                    totalValidators={consensusView?.valsetSize}
                 />
 
                 {/* Row 3: Validator Health Summary (full width, v2.17.1) */}
@@ -399,8 +396,8 @@ export default function ValidatorsHacker() {
                 {/* Row 5: Doctor (full width) */}
                 <DoctorPanel
                     netInfo={netInfo}
-                    cs={cs}
-                    localHeight={cs?.height ?? 0}
+                    consensus={consensusView}
+                    localHeight={consensusView?.height ?? networkStats?.blockHeight ?? 0}
                     incidents={incidents}
                 />
 
