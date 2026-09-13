@@ -373,6 +373,97 @@ h1.vd-moniker {
 }
 .vd-copy:hover { color: var(--color-k-accent-text); }
 
+/* ── Reliability score (gnomonitoring report) ───────────── */
+
+.vd-score__intro,
+.vd-score__meta,
+.vd-score__status,
+.vd-score-panel__window { margin: 0; }
+
+.vd-score__intro  { font-size: 0.72rem; line-height: 1.5; color: var(--color-k-muted); }
+.vd-score__meta   { font-size: 0.72rem; color: var(--color-k-dim); }
+.vd-score__status { font-size: 0.8rem; line-height: 1.5; color: var(--color-k-dim); }
+
+/* minmax(0, 1fr), never bare 1fr: a bare track floors at its widest child's
+   min-content and pushes the card past a phone's edge (#1168). */
+.vd-score-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 0.5rem;
+    margin-top: 0.25rem;
+}
+
+.vd-score-tab {
+    appearance: none;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.1rem;
+    min-width: 0;
+    min-height: var(--mb-touch-min, 44px);
+    padding: 0.5rem 0.65rem;
+    background: transparent;
+    border: 1px solid var(--color-border);
+    border-radius: 6px;
+    color: var(--color-k-text);
+    font: inherit;
+    text-align: left;
+    cursor: pointer;
+    transition: border-color 0.12s, background 0.12s;
+}
+@media (hover: hover) {
+    .vd-score-tab:hover { background: var(--color-surface-active); }
+}
+.vd-score-tab[aria-selected="true"] {
+    background: var(--color-surface-active);
+    border-color: var(--color-k-accent-text);
+    box-shadow: inset 0 0 0 1px var(--color-k-accent-text);
+}
+.vd-score-tab:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+
+.vd-score-tab__label { font-size: 0.62rem; color: var(--color-k-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.vd-score-tab__score { font-size: 1.3rem; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.vd-score-tab__tier  { font-size: 0.68rem; font-weight: 600; white-space: nowrap; }
+
+.vd-score-tab--ok .vd-score-tab__score,
+.vd-score-tab--ok .vd-score-tab__tier     { color: var(--color-k-success-text); }
+.vd-score-tab--warn .vd-score-tab__score,
+.vd-score-tab--warn .vd-score-tab__tier   { color: var(--color-k-warning-text); }
+.vd-score-tab--bad .vd-score-tab__score,
+.vd-score-tab--bad .vd-score-tab__tier    { color: var(--color-k-danger-text); }
+.vd-score-tab--nodata .vd-score-tab__score,
+.vd-score-tab--nodata .vd-score-tab__tier { color: var(--color-k-muted); }
+
+.vd-score-panel { display: flex; flex-direction: column; gap: 0.5rem; }
+.vd-score-panel__window { font-size: 0.72rem; color: var(--color-k-dim); }
+
+.vd-score-drivers {
+    margin: 0;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0.6rem 1rem;
+}
+.vd-score-driver { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
+.vd-score-driver dt { font-size: 0.62rem; color: var(--color-k-muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.vd-score-driver dd {
+    margin: 0;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-k-text);
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+}
+
+@media (max-width: 768px) {
+    .vd-score-drivers { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 480px) {
+    .vd-score-tabs { gap: 0.35rem; }
+    .vd-score-tab { padding: 0.45rem 0.4rem; }
+    .vd-score-tab__score { font-size: 1.1rem; }
+}
+
 /* ── Responsive ─────────────────────────────────────────── */
 
 @media (max-width: 768px) {

@@ -14,7 +14,7 @@
  * opened, so the heavy per-block heatmap fan-out never runs on the default Overview view.
  */
 import { useQuery } from "@tanstack/react-query"
-import { GNO_RPC_URL, getTelemetryRpcUrl } from "../../lib/config"
+import { GNO_MONITORING_CHAIN, GNO_RPC_URL, getTelemetryRpcUrl } from "../../lib/config"
 import {
     getValidators,
     getNetworkStats,
@@ -34,7 +34,9 @@ import {
     healthLabel,
     healthIcon,
 } from "../../lib/validatorHealth"
+import { fetchValidatorReports } from "../../lib/validatorReports"
 import { BlockHeatmap } from "./BlockHeatmap"
+import { ValidatorScoreCard } from "./ValidatorScoreCard"
 
 const NO_SAMPLES: BlockSample[] = []
 
@@ -114,6 +116,16 @@ export function ValidatorPerformancePanel({
                 heatmap,
             }
         },
+    })
+
+    // The scored report is one chain-wide call shared by every profile. It loads
+    // on its own so a monitoring outage never holds back the RPC metrics above.
+    const reportsQuery = useQuery({
+        queryKey: ["validators", "reports", GNO_MONITORING_CHAIN],
+        enabled: perfEnabled,
+        staleTime: 60_000,
+        refetchInterval: 60_000,
+        queryFn: ({ signal }) => fetchValidatorReports(signal),
     })
 
     const validator = perfQuery.data?.validator ?? null
@@ -196,6 +208,12 @@ export function ValidatorPerformancePanel({
                     </span>
                 </div>
             </div>
+
+            <ValidatorScoreCard
+                address={validator.gnoAddr || signingAddress}
+                reports={reportsQuery.data}
+                loading={reportsQuery.isPending}
+            />
 
             {sigs.length > 0 && (
                 <div className="vd-card">

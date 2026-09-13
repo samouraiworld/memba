@@ -20,11 +20,19 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Each validator's page shows its reliability score, and what it is made of (2026-09-13)
+<!-- categories: memba, network -->
+- **A validator's page now shows the monitoring service's 0–100 reliability score for the last 24 hours, this week, this month and this year,** each with its tier: Excellent, Good, Watch or Critical.
+- **The score always sits next to what produced it:** sign rate, missed blocks, downtime, incidents and how often they happen, alerts and proposals. The same incidents count for more in a shorter window, so a validator can be Critical over 24 hours and Good over the year on identical numbers — seeing both together shows why.
+- **A window the monitoring service has no data for says "No data", never a score of zero,** so a gap in monitoring can't make a working validator look like it failed.
+- The validators list does not rank or label validators by score.
+
 ### Mobile validator cards now say why a validator is flagged (2026-09-13)
 <!-- categories: memba, network -->
 - **On a phone, a validator marked Down or Degraded now shows the reason right on its card** — for example that its uptime has fallen below 90%, or which incident the monitoring service raised. That explanation used to live in a tooltip, which a phone cannot show at all, so the red badge appeared with no way to find out why.
 - **Screen readers now hear each validator's health when they reach its card,** and the reason when something is wrong. Before, they heard only the validator's name.
 - **Uptime inside those reasons is rounded like everywhere else,** instead of showing figures such as 53.459119496855344%.
+
 ### The telemetry view can finally warn you when consensus stalls (2026-09-13)
 <!-- categories: memba, network -->
 - **The "Doctor" panel on the live telemetry view can now flag a chain that has stopped producing blocks, or consensus that keeps failing to agree on the first try.** It was designed to do this from the start, but the source it read consensus details from never worked, so those warnings could never appear. It now uses the same monitoring data as the consensus panel.
