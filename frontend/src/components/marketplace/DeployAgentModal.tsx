@@ -23,9 +23,9 @@ export function DeployAgentModal({ agent, onClose }: DeployAgentModalProps) {
 
     const handleDeploy = () => {
         // Fail closed (W0.2): the agent-credit purchase is NOT wired to the on-chain
-        // registry from this modal yet — the real, guarded credit path is CreditSection
-        // (RegisterAgentForm / doContractBroadcast). This modal must never fake success
-        // or broadcast a placeholder tx. Surface an honest "not available" state instead.
+        // registry from this modal yet, and no credit UI ships today (the deposit/refund
+        // msg builders stay in lib/agentTemplate.ts for a future agents lane). This modal
+        // must never fake success or broadcast a placeholder tx. Show an honest "not available" state.
         setError("Agent credit purchase is not available yet — use the agent’s credit panel once this lane is live.")
     }
 

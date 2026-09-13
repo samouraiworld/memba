@@ -10,8 +10,6 @@
 import { queryRender } from "./dao/shared"
 import { GNO_RPC_URL, API_BASE_URL } from "./config"
 import { MEMBA_DAO } from "./config"
-import { api } from "./api"
-import type { Token } from "../gen/memba/v1/memba_pb"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -427,11 +425,6 @@ async function fetchAgentDetailRaw(id: string): Promise<string | null> {
     }
 }
 
-/** Invalidate the agent cache (call after registration or review). */
-export function invalidateAgentCache(): void {
-    agentCache = null
-}
-
 // ── Sync Queries (for initial render / search) ──────────────
 
 /** Get all agents synchronously (seed data only — use fetchAgents for chain). */
@@ -496,33 +489,5 @@ export function generateMcpConfig(agent: AgentListing): McpConfig {
                 transport: agent.mcpTransport,
             },
         },
-    }
-}
-
-// ── Favorites & Stats (via ConnectRPC backend) ──────────────
-
-export interface AgentStats {
-    viewCount: number
-    favoriteCount: number
-}
-
-/** Toggle favorite for an agent. Returns true if now favorited, false if removed. */
-export async function toggleFavorite(authToken: Token, agentId: string): Promise<boolean> {
-    const res = await api.favoriteAgent({ authToken, agentId })
-    return res.favorited
-}
-
-/** Get the current user's favorited agent IDs. */
-export async function getFavorites(authToken: Token): Promise<string[]> {
-    const res = await api.getFavorites({ authToken })
-    return res.agentIds || []
-}
-
-/** Get public stats (views + favorites) for an agent. */
-export async function getAgentStats(agentId: string): Promise<AgentStats> {
-    const res = await api.getAgentStats({ agentId })
-    return {
-        viewCount: res.stats?.viewCount || 0,
-        favoriteCount: res.stats?.favoriteCount || 0,
     }
 }

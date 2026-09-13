@@ -1,8 +1,8 @@
 /**
  * DeployAgentModal.test.tsx — W0.2 containment.
  *
- * The agent-credit purchase flow is NOT production-ready (the real on-chain credit
- * path lives in CreditSection). This modal previously FAKED success via
+ * The agent-credit purchase flow is NOT production-ready (no credit UI ships; the
+ * deposit/refund msg builders live in lib/agentTemplate.ts). This modal previously FAKED success via
  * `setTimeout(1500)` then `onSuccess()` — a deceptive money-path UI. Wave 0 makes it
  * fail-closed: the action must surface a clear "not available yet" message and MUST
  * NOT report success or broadcast anything.
