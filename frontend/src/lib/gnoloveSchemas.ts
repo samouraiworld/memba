@@ -93,7 +93,6 @@ export const LabelSchema = z.object({
     name: z.string(),
     color: z.string(),
 })
-export type TLabel = z.infer<typeof LabelSchema>
 
 export const UserBaseSchema = z.object({
     login: z.string(),
@@ -138,7 +137,6 @@ export const ReviewSchema: z.ZodType = z.lazy(() =>
         author: UserSchema.nullish(),
     }),
 )
-export type TReview = z.infer<typeof ReviewSchema>
 
 export const PullRequestBaseSchema = z.object({
     createdAt: z.string(),
@@ -227,7 +225,6 @@ export const NotablePRSchema = z.object({
 })
 export type TNotablePR = z.infer<typeof NotablePRSchema>
 export type TNotablePRLabel = z.infer<typeof NotablePRLabelSchema>
-export type TNotablePRReview = z.infer<typeof NotablePRReviewSchema>
 
 // ── Commit ───────────────────────────────────────────────────
 
@@ -241,7 +238,6 @@ export const CommitBaseSchema = z.object({
     title: z.string(),
 })
 export const CommitSchema = z.preprocess(preprocessCommit, CommitBaseSchema)
-export type TCommit = z.infer<typeof CommitSchema>
 
 // ── Enhanced User (Leaderboard) ──────────────────────────────
 
@@ -526,14 +522,12 @@ export const TeamStatRowSchema = z.object({
     login: z.string(),
     mergedPRs: z.number(),
 })
-export type TTeamStatRow = z.infer<typeof TeamStatRowSchema>
 
 export const TeamStatsTotalsSchema = z.object({
     mergedPRs: z.number(),
     activeContributors: z.number(),
     activeRepos: z.number(),
 })
-export type TTeamStatsTotals = z.infer<typeof TeamStatsTotalsSchema>
 
 export const TeamStatsResponseSchema = z.object({
     schemaVersion: z.number(),
@@ -575,7 +569,6 @@ export const CohortRowSchema = z.object({
     size: z.number(),
     retention: z.array(z.number()).default([]),
 })
-export type TCohortRow = z.infer<typeof CohortRowSchema>
 
 export const CohortsResponseSchema = z.object({
     schemaVersion: z.number(),
@@ -594,7 +587,6 @@ export const TeamCollabCellSchema = z.object({
     reviewerTeam: z.string(),
     reviews: z.number(),
 })
-export type TTeamCollabCell = z.infer<typeof TeamCollabCellSchema>
 
 export const TeamCollabResponseSchema = z.object({
     schemaVersion: z.number(),

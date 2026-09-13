@@ -350,30 +350,3 @@ export function VotingInsights({ yesVotes, noVotes, abstainVotes, totalMembers, 
         </div>
     )
 }
-
-// ── Compact Tier Dots (for ProposalCard) ─────────────────
-
-export function TierDots({ voteRecords }: { voteRecords: VoteRecord[] }) {
-    const active = voteRecords.filter(r => r.yesVoters.length + r.noVoters.length + r.abstainVoters.length > 0)
-    if (active.length === 0) return null
-
-    return (
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-            {active.map((r, i) => {
-                const total = r.yesVoters.length + r.noVoters.length + r.abstainVoters.length
-                return (
-                    <div key={r.tier} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-                        <span style={{
-                            width: 7, height: 7, borderRadius: "50%",
-                            background: tierColor(r.tier, i),
-                            boxShadow: `0 0 4px ${tierColor(r.tier, i)}44`,
-                        }} />
-                        <span style={{ fontSize: 9, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>
-                            {r.tier}: {total}
-                        </span>
-                    </div>
-                )
-            })}
-        </div>
-    )
-}

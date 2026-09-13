@@ -33,7 +33,6 @@ export const MODE_SECTIONS: { key: NavGroup; label: string }[] = [
     { key: 'explore', label: 'Explore' },
 ]
 export type NavShowOn = 'both' | 'mobile' | 'desktop'
-export type NavSurface = 'desktop' | 'mobile'
 
 export interface NavEntry {
     /** Stable id (used as React key and for tab selection). */
@@ -94,11 +93,6 @@ export const NAV: NavEntry[] = [
     { id: 'blog', to: '/blog', label: 'Blog', Icon: Newspaper, group: 'explore', showOn: 'both' },
     { id: 'quest-admin', to: '/quest-admin', label: 'Quest Admin', Icon: ShieldStar, group: 'account', showOn: 'desktop', requiresAuth: true },
 ]
-
-/** Entries visible on a given surface ('both' shows on each). */
-export function navForSurface(surface: NavSurface): NavEntry[] {
-    return NAV.filter((e) => e.showOn === 'both' || e.showOn === surface)
-}
 
 /** Entries of a given group, in manifest order. */
 export function navForGroup(group: NavGroup): NavEntry[] {

@@ -66,13 +66,3 @@ export function logChainError(
     }
 }
 
-/** Get recent errors (for debugging / support) */
-export function getRecentErrors(): readonly ErrorEntry[] {
-    return ERROR_BUFFER
-}
-
-/** Clear the error buffer */
-export function clearErrorBuffer(): void {
-    ERROR_BUFFER.length = 0
-}
-

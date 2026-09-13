@@ -94,23 +94,6 @@ describe("getPullRequestsReport", () => {
     })
 })
 
-describe("getNewContributors", () => {
-    it("returns parsed users", async () => {
-        const users = [
-            { login: "bob", id: "2", avatarUrl: "https://a.com/b.png", url: "https://github.com/bob", name: "Bob" },
-        ]
-        mockFetch.mockResolvedValue(okResponse(users))
-        const result = await api.getNewContributors()
-        expect(result).toHaveLength(1)
-        expect(result[0].login).toBe("bob")
-    })
-
-    it("throws on error", async () => {
-        mockFetch.mockRejectedValue(new Error("fail"))
-        await expect(api.getNewContributors()).rejects.toThrow("fail")
-    })
-})
-
 describe("getRepositories", () => {
     it("returns parsed repos", async () => {
         const repos = [{ id: "1", name: "gno", owner: "gnolang", baseBranch: "master" }]

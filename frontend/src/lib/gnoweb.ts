@@ -201,20 +201,3 @@ export async function fetchNamespacePackages(gnowebBaseUrl: string, namespace: s
         return []
     }
 }
-
-/**
- * Check if a specific realm is deployed on-chain via gnoweb.
- * Returns true if the realm exists, false otherwise.
- */
-export async function isRealmDeployed(gnowebBaseUrl: string, realmPath: string): Promise<boolean> {
-    try {
-        const url = `${gnowebBaseUrl}${realmPath}`
-        const response = await fetch(url, {
-            method: "HEAD",
-            signal: AbortSignal.timeout(5_000),
-        })
-        return response.ok
-    } catch {
-        return false
-    }
-}

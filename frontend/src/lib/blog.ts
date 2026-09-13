@@ -17,8 +17,4 @@ const files = import.meta.glob("../../content/blog/*.md", {
 /** All articles, newest first (parsed once at module load). */
 export const BLOG_ARTICLES: readonly BlogArticle[] = parseBlogArticles(files)
 
-export function getArticle(slug: string): BlogArticle | undefined {
-    return BLOG_ARTICLES.find(a => a.slug === slug)
-}
-
 export type { BlogArticle }

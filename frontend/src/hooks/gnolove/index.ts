@@ -67,16 +67,6 @@ export function useNotablePRs(boardId?: string) {
     })
 }
 
-// ── New Contributors ─────────────────────────────────────────
-
-export function useGnoloveNewContributors() {
-    return useQuery({
-        queryKey: ["gnolove", "newContributors"],
-        queryFn: ({ signal }) => api.getNewContributors(signal),
-        staleTime: STALE_DEFAULT,
-    })
-}
-
 // ── Freshly Merged PRs ──────────────────────────────────────
 
 export function useGnoloveFreshlyMerged() {

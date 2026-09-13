@@ -18,8 +18,6 @@ import {
     parseDAOMemberAddresses,
     calculateContributionScores,
     unionDaoMembers,
-    getDiscoveryProbes,
-    addDiscoveryProbe,
     fetchPackages,
     fetchRealms,
     SEED_DAOS,
@@ -246,30 +244,6 @@ describe("getDAOCategory", () => {
     test("matches 'node' as a standalone word", () => {
         expect(getDAOCategory("gno.land/r/test/x", "Node Operators")).toBe("infrastructure")
         expect(getDAOCategory("gno.land/r/test/x", "node-dao")).toBe("infrastructure")
-    })
-})
-
-// ── Discovery Probe API (I2 fix) ───────────────────────────
-
-describe("Discovery Probe API", () => {
-    test("getDiscoveryProbes returns default probes", () => {
-        const probes = getDiscoveryProbes()
-        expect(probes.length).toBeGreaterThanOrEqual(2)
-        expect(probes.some(p => p.path === "gno.land/r/gov/dao")).toBe(true)
-    })
-
-    test("addDiscoveryProbe adds new probe", () => {
-        const before = getDiscoveryProbes().length
-        addDiscoveryProbe("Test DAO", "gno.land/r/test/unique-probe")
-        const after = getDiscoveryProbes()
-        expect(after.length).toBe(before + 1)
-        expect(after.some(p => p.path === "gno.land/r/test/unique-probe")).toBe(true)
-    })
-
-    test("addDiscoveryProbe deduplicates by path", () => {
-        const before = getDiscoveryProbes().length
-        addDiscoveryProbe("Duplicate", "gno.land/r/gov/dao") // already exists
-        expect(getDiscoveryProbes().length).toBe(before)
     })
 })
 

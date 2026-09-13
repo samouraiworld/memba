@@ -14,7 +14,6 @@ import {
     IssueSchema,
     PullRequestReportSchema,
     PullRequestSchema,
-    UserSchema,
     MilestoneSchema,
     RepositorySchema,
     ContributorSchema,
@@ -24,7 +23,6 @@ import {
     GovdaoMembersSchema,
     ScoreFactorsSchema,
     AIReportsSchema,
-    AIReportSchema,
     TeamsResponseSchema,
     TeamResponseSchema,
     ActiveReposResponseSchema,
@@ -42,7 +40,6 @@ import type {
     TPullRequest,
     TNotablePR,
     TBoardMeta,
-    TUser,
     TMilestone,
     TRepository,
     TContributor,
@@ -154,11 +151,6 @@ export async function getPullRequestsReport(
     return PullRequestReportSchema.parse(data)
 }
 
-export async function getNewContributors(signal?: AbortSignal): Promise<TUser[]> {
-    const data = await fetchJson(apiUrl("/contributors/newest?number=5"), signal)
-    return z.array(UserSchema).parse(data)
-}
-
 export async function getFreshlyMerged(signal?: AbortSignal): Promise<TPullRequest[] | null> {
     const data = await fetchJson(apiUrl("/last-prs"), signal)
     return z.array(PullRequestSchema).nullish().parse(data) ?? null
@@ -223,11 +215,6 @@ export async function getScoreFactors(signal?: AbortSignal): Promise<TScoreFacto
 export async function getAIReports(signal?: AbortSignal): Promise<TAIReport[]> {
     const data = await fetchJson(apiUrl("/ai/reports"), signal)
     return AIReportsSchema.parse(data)
-}
-
-export async function getAIReportByWeek(start: string, end: string, signal?: AbortSignal): Promise<TAIReport> {
-    const data = await fetchJson(apiUrl(`/ai/report/weekly?start=${start}&end=${end}`), signal)
-    return AIReportSchema.parse(data)
 }
 
 // ── Teams (Phase 3) ─────────────────────────────────────────────

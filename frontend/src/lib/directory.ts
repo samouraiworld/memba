@@ -8,7 +8,6 @@
  * DAO discovery uses seed list + saved DAOs (v2.2a scope).
  */
 
-import { queryRender } from "./dao/shared"
 import { getSavedDAOs, type SavedDAO } from "./daoSlug"
 import { DEFAULT_NETWORK, NETWORKS, GNO_RPC_URL, getUserRegistryPath } from "./config"
 import { getGnowebUrl, fetchNamespaceRealms, fetchNamespacePackages } from "./gnoweb"
@@ -171,96 +170,6 @@ export function unionDaoMembers(memberMap: Map<string, string[]>): DirectoryUser
     return users
 }
 
-/**
- * Known DAO paths to probe for auto-discovery.
- * Each path is queried via ABCI Render("") — if it responds, it's a valid DAO.
- *
- * I2 fix: Mutable array with addDiscoveryProbe() for runtime extensibility.
- * External integrations can register new probes without code changes.
- */
-const _discoveryProbes: Array<{ name: string; path: string }> = [
-    { name: "GovDAO", path: "gno.land/r/gov/dao" },
-    { name: "Worx DAO", path: "gno.land/r/demo/worx" },
-    { name: "GovDAO v2", path: "gno.land/r/gov/dao/v2" },
-    { name: "Faucet Hub", path: "gno.land/r/faucet/admin" },
-]
-
-/** Read-only snapshot of current discovery probes. */
-export function getDiscoveryProbes(): ReadonlyArray<{ name: string; path: string }> {
-    return [..._discoveryProbes]
-}
-
-/**
- * Register a new DAO path to probe during auto-discovery.
- * Deduplicates by path — silently ignores duplicates.
- */
-export function addDiscoveryProbe(name: string, path: string): void {
-    if (!_discoveryProbes.some(p => p.path === path)) {
-        _discoveryProbes.push({ name, path })
-    }
-}
-
-/**
- * Probe a list of known DAO paths via ABCI Render("").
- * Returns only paths that respond successfully (valid deployed DAOs).
- * Results are cached in sessionStorage with 5-minute TTL.
- */
-export async function discoverDAOs(rpcUrl: string): Promise<Array<{ name: string; path: string }>> {
-    const cached = getCached<Array<{ name: string; path: string }>>("discovered_daos")
-    if (cached) return cached
-
-    const discovered: Array<{ name: string; path: string }> = []
-
-    const probes = getDiscoveryProbes()
-    const results = await Promise.allSettled(
-        probes.map(async probe => {
-            const raw = await queryRender(rpcUrl, probe.path, "")
-            // A valid DAO returns non-empty Render output
-            if (raw && raw.length > 10) {
-                return probe
-            }
-            return null
-        }),
-    )
-
-    for (const result of results) {
-        if (result.status === "fulfilled" && result.value) {
-            discovered.push(result.value)
-        }
-    }
-
-    setCache("discovered_daos", discovered)
-    return discovered
-}
-
-/**
- * Enhanced DAO list: seed + saved + discovered (deduplicated by path).
- * Use this instead of getDirectoryDAOs() when auto-discovery is desired.
- */
-export async function getDirectoryDAOsWithDiscovery(rpcUrl: string): Promise<DirectoryDAO[]> {
-    const base = getDirectoryDAOs()
-    const existingPaths = new Set(base.map(d => d.path))
-
-    try {
-        const discovered = await discoverDAOs(rpcUrl)
-        for (const dao of discovered) {
-            if (!existingPaths.has(dao.path)) {
-                base.push({
-                    name: dao.name,
-                    path: dao.path,
-                    isSaved: false,
-                    category: getDAOCategory(dao.path, dao.name),
-                })
-                existingPaths.add(dao.path)
-            }
-        }
-    } catch {
-        // Discovery failed — return base list only
-    }
-
-    return base
-}
-
 // ── DAO Fetching ─────────────────────────────────────────────
 
 /**
@@ -374,22 +283,6 @@ export function parseUserRegistry(raw: string): DirectoryUser[] {
     }
 
     return entries
-}
-
-/**
- * Fetch user registry from users realm.
- * Uses sessionStorage cache.
- */
-export async function fetchUsers(): Promise<DirectoryUser[]> {
-    const cached = getCached<DirectoryUser[]>("users")
-    if (cached) return cached
-
-    const raw = await queryRender(GNO_RPC_URL, getUserRegistryPath(), "")
-    if (!raw) return []
-
-    const users = parseUserRegistry(raw)
-    setCache("users", users)
-    return users
 }
 
 /**
