@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### The validators pages fit a phone properly (2026-09-13)
+<!-- categories: memba, network -->
+- **On a phone you no longer scroll past a screen and a half of summary cards before reaching the first validator.** The five network stat cards now sit two to a row instead of stacking one per row, and the page stops spending a sixth of the screen width on empty margins.
+- **Everything you tap is now finger-sized, and tapping search or sort no longer zooms the page on iPhone.** The section tabs, search box, sort control and page buttons were between 25 and 40 pixels tall; they now meet the 44-pixel minimum. The tabs also always fit on screen instead of cutting off the last one.
+- **The live telemetry view stops cutting off its "last updated" time on narrow screens.** The status strip at the top now wraps onto a second line when it needs to, so the timestamp showing that live data is still arriving stays visible. The copy buttons beside the seed and app-hash values also show up on touch screens, where they had been invisible.
+
 ### Live consensus is visible again on the telemetry view (2026-09-12)
 <!-- categories: memba, network -->
 - **The "Consensus State" panel has been showing nothing at all, on every network, since it shipped.** It read a debug feed from the node directly, misread its format, and then — rather than saying so — removed itself from the page, leaving an unexplained gap. It now reads the same information from our monitoring service, which interprets it correctly, and it never silently disappears again: if the data is missing it says the data is missing.
