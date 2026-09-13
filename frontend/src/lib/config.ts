@@ -441,6 +441,11 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     //      ProposeRegisterUser can grant it, and T1 is a 4-of-7 that Samourai
     //      does not sit on. Owner decision 2026-09-10: WAIT for that grant and
     //      deploy nothing meanwhile.
+    //      ⛔ SUPERSEDED 2026-09-12, verified on gnoland-1: the grant already
+    //      exists — r/sys/users.ResolveName("samcrew") resolves to the samcrew
+    //      2-of-3 multisig g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf — and GovDAO
+    //      T1 holds ONE member, not the 4-of-7 stated above. The namespace is no
+    //      longer what keeps this network realm-free.
     //   2. §126 TRANSFER LOCK — genesis ships
     //      bank.params.restricted_denoms=["ugnot"] with only 71 exempt
     //      treasuries, and BankKeeper.canSendCoins rejects every other sender.

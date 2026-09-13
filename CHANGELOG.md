@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### See who can change the validator set, and how much failure the network can take (2026-09-13)
+<!-- categories: memba, network, gno-core -->
+- **The Network tab on the validators page now has a "Governance readiness" panel.** It shows how many members GovDAO has — the only people able to propose adding or removing a validator — and notes plainly when a single member could create and pass such a proposal alone, which is the case on gno.land today.
+- **It also shows how much failure the network can currently absorb:** the number of active validators, the voting power needed to agree on a block, and how many validators could go offline before the chain stops. Alongside it, it spells out what would happen if the largest validator went offline or were removed — on today's network that would leave a chain any single remaining validator could halt.
+- **It is information only.** It offers no button to act against any validator, and if membership can't be read it says so rather than showing zero.
+
 ### Live consensus is visible again on the telemetry view (2026-09-12)
 <!-- categories: memba, network -->
 - **The "Consensus State" panel has been showing nothing at all, on every network, since it shipped.** It read a debug feed from the node directly, misread its format, and then — rather than saying so — removed itself from the page, leaving an unexplained gap. It now reads the same information from our monitoring service, which interprets it correctly, and it never silently disappears again: if the data is missing it says the data is missing.

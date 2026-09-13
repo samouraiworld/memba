@@ -1,0 +1,130 @@
+/* Governance readiness — read-only, network-wide. Own stylesheet on purpose:
+   validators.css is being edited in a parallel branch, and a panel that owns its
+   styles cannot collide with it. */
+
+.gov-ready {
+    border: 1px solid var(--color-border);
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 16px;
+    background: var(--color-bg);
+}
+
+.gov-ready__title {
+    margin: 0 0 4px;
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.gov-ready__lede {
+    margin: 0 0 14px;
+    font-size: 0.85rem;
+    color: var(--color-text-secondary);
+}
+
+.gov-ready__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 16px;
+}
+
+.gov-ready__block {
+    min-width: 0;
+}
+
+.gov-ready__h {
+    margin: 0 0 8px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--color-text-secondary);
+}
+
+.gov-ready__stat {
+    margin: 0 0 6px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    color: var(--color-text);
+}
+
+.gov-ready__tiers {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin: 0 0 8px;
+    padding: 0;
+    list-style: none;
+}
+
+.gov-ready__tier {
+    font-size: 0.78rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--color-surface-active);
+    color: var(--color-text-secondary);
+}
+
+.gov-ready__text {
+    margin: 0 0 6px;
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: var(--color-text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.gov-ready__stats {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    margin: 0 0 10px;
+}
+
+.gov-ready__stats dt {
+    font-size: 0.82rem;
+    color: var(--color-text-secondary);
+}
+
+.gov-ready__stats dd {
+    margin: 0;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--color-text);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+/* The consequence is carried by the sentence itself; the border is a second,
+   non-colour-only cue, never the sole one. */
+.gov-ready__whatif {
+    margin: 0;
+    padding: 8px 10px;
+    border-left: 3px solid var(--color-border);
+    font-size: 0.85rem;
+    line-height: 1.45;
+    color: var(--color-text-secondary);
+    overflow-wrap: anywhere;
+}
+
+.gov-ready__whatif--danger {
+    border-left-color: var(--color-k-danger-text);
+    color: var(--color-text);
+}
+
+@media (max-width: 768px) {
+    .gov-ready {
+        padding: 14px 12px;
+    }
+
+    .gov-ready__grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .gov-ready__text,
+    .gov-ready__whatif,
+    .gov-ready__stats dt,
+    .gov-ready__stats dd {
+        font-size: 0.9rem;
+    }
+}

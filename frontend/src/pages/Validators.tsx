@@ -47,6 +47,9 @@ import { ValidatorHoverCard } from "../components/validators/ValidatorHoverCard"
 import { ValidatorReviewStars, ValidatorReviewPreview } from "../components/validators/ValidatorReviewStars"
 import { buildSigningToOperator, resolveReviewSubjects } from "../components/validators/validatorReviewsData"
 import { fetchValopers, type ValoperWithStatus } from "../lib/valopers"
+import { getDAOConfig } from "../lib/dao/config"
+import { buildGovernanceReadiness, GOVDAO_REALM_PATH } from "../lib/governanceReadiness"
+import { GovernanceReadinessPanel } from "../components/validators/GovernanceReadinessPanel"
 import { fetchAllMonitoringData, type MonitoringIncident } from "../lib/gnomonitoring"
 import {
     BarChart, Bar, XAxis, YAxis, Tooltip,
@@ -246,6 +249,25 @@ export default function Validators() {
         onSelect: setTab,
         idFor: (k) => `val-seg-${k}`,
     })
+    // GovDAO membership for the governance-readiness panel. Fetched only while
+    // the Network tab is open: it is two realm renders nobody else on this page
+    // needs. Governance changes on the scale of proposals, not seconds, so it is
+    // cached for five minutes rather than riding the 30s roster poll. A failed
+    // read resolves to null, which the panel reports as UNKNOWN — never zero.
+    const govdaoQuery = useQuery({
+        queryKey: ["validators", "govdao", GOVDAO_REALM_PATH],
+        enabled: tab === "network",
+        staleTime: 5 * 60_000,
+        queryFn: () => getDAOConfig(GNO_RPC_URL, GOVDAO_REALM_PATH),
+    })
+    const governanceReadiness = useMemo(
+        () => buildGovernanceReadiness({
+            tiers: govdaoQuery.data?.tierDistribution ?? null,
+            votingPowers: validators.map(v => v.votingPower),
+        }),
+        [govdaoQuery.data, validators],
+    )
+
     // Active validators already appear in the Validators tab; the Candidates tab
     // focuses on registered operators not yet in the consensus set.
     const candidateValopers = useMemo(() => valopers.filter(v => v.status === "candidate"), [valopers])
@@ -724,6 +746,14 @@ export default function Validators() {
                  on candidates. */}
             {tab === "candidates" && (
                 <ValoperPanel valopers={candidateValopers} loading={valopersLoading} />
+            )}
+
+            {/* ── Network tab: governance readiness (read-only) ── */}
+            {tab === "network" && (
+                <GovernanceReadinessPanel
+                    readiness={governanceReadiness}
+                    membershipLoading={govdaoQuery.isPending}
+                />
             )}
 
             {/* ── Network tab: incidents timeline chart ────────── */}
