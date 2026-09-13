@@ -1,12 +1,10 @@
 /**
- * MembaDAO — Configuration, deployment orchestration, and status queries.
+ * MembaDAO — Configuration and deployment orchestration.
  *
  * v2.1a: Ties together the DAO, Channels, Candidature, and $MEMBA token.
  *
  * Responsibilities:
  * - MembaDAO configuration constants (members, roles, channels)
- * - Deployment status checker (which components are live)
- * - Membership query helper
  * - Deployment orchestrator (ordered realm creation)
  *
  * @module lib/membaDAO
@@ -84,91 +82,6 @@ export interface MembaDeploymentStatus {
     channels: boolean
     candidature: boolean
     token: boolean
-}
-
-/**
- * Check which MembaDAO components are deployed on-chain.
- * Queries Render("") on each realm path.
- */
-export async function getMembaDAOStatus(rpcUrl: string): Promise<MembaDeploymentStatus> {
-    const check = async (path: string): Promise<boolean> => {
-        try {
-            const b64 = btoa(`${path}:`)
-            const res = await fetch(rpcUrl, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    jsonrpc: "2.0",
-                    id: "memba-status",
-                    method: "abci_query",
-                    params: { path: "vm/qrender", data: b64 },
-                }),
-            })
-            const json = await res.json()
-            return !!json?.result?.response?.ResponseBase?.Data
-        } catch {
-            return false
-        }
-    }
-
-    const [dao, channels, candidature] = await Promise.all([
-        check(MEMBA_DAO.realmPath),
-        check(MEMBA_DAO.channelsPath),
-        check(MEMBA_DAO.candidaturePath),
-    ])
-
-    // Token check via grc20factory
-    let token = false
-    try {
-        const expr = `BalanceOf("${MEMBA_TOKEN.symbol}", "${ZOOMA_ADDRESS}")`
-        const b64 = btoa(`${MEMBA_TOKEN.factoryPath}.${expr}`)
-        const res = await fetch(rpcUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                jsonrpc: "2.0",
-                id: "memba-token",
-                method: "abci_query",
-                params: { path: "vm/qeval", data: b64 },
-            }),
-        })
-        const json = await res.json()
-        token = !!json?.result?.response?.ResponseBase?.Data
-    } catch { /* not deployed */ }
-
-    return { dao, channels, candidature, token }
-}
-
-/**
- * Check if an address is a MembaDAO member.
- * Queries Render("members") on the DAO realm.
- */
-export async function isMembaDAOMember(rpcUrl: string, address: string): Promise<boolean> {
-    try {
-        const b64 = btoa(`${MEMBA_DAO.realmPath}:members`)
-        const res = await fetch(rpcUrl, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                jsonrpc: "2.0",
-                id: "memba-member",
-                method: "abci_query",
-                params: { path: "vm/qrender", data: b64 },
-            }),
-        })
-        const json = await res.json()
-        const data = json?.result?.response?.ResponseBase?.Data
-        if (!data) return false
-        const rendered = atob(data)
-        // Split by lines and check each for address as a distinct token
-        // (avoids false positives from substring matches)
-        return rendered.split("\n").some(line => {
-            const trimmed = line.trim()
-            return trimmed === address || trimmed.startsWith(address + " ") || trimmed.includes(" " + address)
-        })
-    } catch {
-        return false
-    }
 }
 
 /**

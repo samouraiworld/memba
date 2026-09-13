@@ -60,12 +60,6 @@ export const NFT_MARKET_V3_ADDR = "g1y4y37dvtvj7vgnt93pxq2typjcwdf62kdlg8u7"
  */
 export const MEMBA_MARKET_CONFIG_PATH = "gno.land/r/samcrew/memba_market_config"
 
-/**
- * Default collection ID for the live genesis drop.
- * Name: "Memba Genesis", symbol: MGEN, 3 tokens minted to the multisig.
- */
-export const DEFAULT_COLLECTION_ID = "genesis"
-
 /** Platform fee in basis points (250 = 2.5%) — v2 engine. */
 export const PLATFORM_FEE_BPS = 250
 

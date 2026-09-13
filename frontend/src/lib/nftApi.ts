@@ -93,23 +93,6 @@ export async function fetchNFTPortfolio(owner: string): Promise<NFTPortfolioToke
     }
 }
 
-/** Fetch tokens in a collection. listedOnly=false returns all. Returns [] on error. */
-export async function fetchNFTTokens(collectionId: string, listedOnly = false): Promise<NFTPortfolioToken[]> {
-    try {
-        const res = await api.listNFTTokens({ collectionId, listedOnly })
-        return res.tokens.map(t => ({
-            collectionId: t.collectionId,
-            tokenId: t.tokenId,
-            owner: t.owner,
-            uri: t.uri,
-            listed: t.listed,
-            priceUgnot: t.priceUgnot,
-        }))
-    } catch {
-        return []
-    }
-}
-
 /**
  * Build a proxied image URL for a tokenURI.
  * Handles ipfs://, https://, and plain CID strings.

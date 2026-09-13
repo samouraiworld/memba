@@ -51,33 +51,6 @@ export interface NFTCollectionV2 {
     royaltyRecipient: string
 }
 
-export interface NFTTokenInfo {
-    /** Token ID */
-    tokenId: string
-    /** Owner address */
-    owner: string
-    /** Token URI (IPFS or HTTP) */
-    tokenURI: string
-}
-
-export interface NFTItem {
-    /** Token ID */
-    tokenId: string
-    /** Owner address */
-    owner: string
-    /** Token URI (IPFS or HTTP) */
-    tokenURI: string
-    /** Metadata (parsed from URI if available) */
-    metadata?: NFTMetadata
-}
-
-export interface NFTMetadata {
-    name: string
-    description: string
-    image: string
-    attributes?: { trait_type: string; value: string }[]
-}
-
 export interface NFTListing {
     tokenId: string
     seller: string
@@ -128,32 +101,6 @@ export function parseCollectionRenderV2(
         totalSupply: supplyMatch ? parseInt(supplyMatch[1], 10) : 0,
         royaltyBPS: royaltyBPSMatch ? parseInt(royaltyBPSMatch[1], 10) : 0,
         royaltyRecipient: royaltyRecipientMatch?.[1] || "",
-    }
-}
-
-/**
- * Parse `Render(collectionID + "/" + tokenId)` output.
- *
- * Expected markdown format:
- * ```
- * # Token 1
- *
- * Owner: g1...
- * URI: ipfs://...
- * ```
- */
-export function parseTokenRender(raw: string, tokenId: string): NFTTokenInfo {
-    const ownerMatch =
-        raw.match(/\*\*Owner:\*\*\s*(g1[a-z0-9]+)/i) ||
-        raw.match(/^Owner:\s*(g1[a-z0-9]+)/im)
-    const uriMatch =
-        raw.match(/\*\*URI:\*\*\s*(\S+)/i) ||
-        raw.match(/^URI:\s*(\S+)/im)
-
-    return {
-        tokenId,
-        owner: ownerMatch?.[1] || "",
-        tokenURI: uriMatch?.[1] || "",
     }
 }
 
@@ -302,43 +249,6 @@ export async function isApprovedForAll(
     } catch {
         return false
     }
-}
-
-/**
- * List all tokens in a collection by:
- * 1. Fetching supply from `getCollectionInfo`.
- * 2. Querying `Render(collectionID/N)` for each token 1..supply.
- *    Tokens that fail (e.g. burned gaps) are skipped gracefully.
- *
- * Returns an array of NFTTokenInfo sorted by tokenId string.
- */
-export async function listCollectionTokens(
-    collectionPath: string,
-    collectionID: string,
-): Promise<NFTTokenInfo[]> {
-    const info = await getCollectionInfo(collectionPath, collectionID)
-    if (!info || info.totalSupply === 0) return []
-
-    const supply = info.totalSupply
-    const results: NFTTokenInfo[] = []
-
-    await Promise.all(
-        Array.from({ length: supply }, (_, i) => String(i + 1)).map(async (tid) => {
-            try {
-                const raw = await queryRender(GNO_RPC_URL, collectionPath, `${collectionID}/${tid}`)
-                if (!raw) return
-                const token = parseTokenRender(raw, tid)
-                // Skip tokens with no owner (burned/non-existent gap)
-                if (token.owner) results.push(token)
-            } catch {
-                // Token gap — skip silently
-            }
-        }),
-    )
-
-    // Sort by numeric tokenId order
-    results.sort((a, b) => parseInt(a.tokenId, 10) - parseInt(b.tokenId, 10))
-    return results
 }
 
 // ── Legacy Render Parser ─────────────────────────────────────

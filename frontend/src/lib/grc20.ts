@@ -100,11 +100,6 @@ export function setWalletRpcContext(url: string | null, trusted: boolean, chainI
     _walletChainId = chainId
 }
 
-/** Read current wallet RPC context (for UI components). */
-export function getWalletRpcContext(): { url: string | null; trusted: boolean } {
-    return { url: _walletRpcUrl, trusted: _walletRpcTrusted }
-}
-
 /**
  * Sentinel chainId meaning "the wallet just switched networks and the new
  * chain could not be verified" (GetAccount failed right after changedNetwork).
@@ -553,13 +548,6 @@ export function buildCreateMembaTokenMsgs(
         initialMint,
         0n, // no faucet
     )
-}
-
-/**
- * Convenience: get $MEMBA/$MEMBATEST balance for an address.
- */
-export async function getMembaBalance(rpcUrl: string, address: string): Promise<bigint> {
-    return getTokenBalance(rpcUrl, MEMBA_TOKEN.symbol, address)
 }
 
 /**

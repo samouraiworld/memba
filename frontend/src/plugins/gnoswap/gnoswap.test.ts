@@ -2,7 +2,7 @@
  * Unit tests for GnoSwap queries + builders.
  */
 import { describe, it, expect } from "vitest"
-import { parsePoolList, parsePoolDetail } from "./queries"
+import { parsePoolList } from "./queries"
 import {
     buildSwapRouteMsg,
     buildAddLiquidityMsg,
@@ -55,47 +55,6 @@ describe("parsePoolList", () => {
     it("returns empty for no matches", () => {
         const pools = parsePoolList("# Empty\n\nNo pools yet.")
         expect(pools).toHaveLength(0)
-    })
-})
-
-// ── parsePoolDetail ───────────────────────────────────────────
-
-describe("parsePoolDetail", () => {
-    const raw = `# GNOT/USDC Pool
-
-* **Fee Tier**: 0.3%
-* **TVL**: $1,234,567
-* **Token0 Price**: $3.45
-* **Token1 Price**: $1.00
-* **24h Volume**: $123,456
-* **24h Fees**: $370`
-
-    it("parses token pair from title", () => {
-        const detail = parsePoolDetail(raw, "GNOT_USDC_3000")
-        expect(detail.token0).toBe("GNOT")
-        expect(detail.token1).toBe("USDC")
-    })
-
-    it("parses fee tier", () => {
-        const detail = parsePoolDetail(raw, "test")
-        expect(detail.feeTier).toBe(3000)
-    })
-
-    it("parses TVL", () => {
-        const detail = parsePoolDetail(raw, "test")
-        expect(detail.tvl).toBe("$1,234,567")
-    })
-
-    it("parses token prices", () => {
-        const detail = parsePoolDetail(raw, "test")
-        expect(detail.token0Price).toBe("$3.45")
-        expect(detail.token1Price).toBe("$1.00")
-    })
-
-    it("parses volume and fees", () => {
-        const detail = parsePoolDetail(raw, "test")
-        expect(detail.volume24h).toBe("$123,456")
-        expect(detail.fees24h).toBe("$370")
     })
 })
 

@@ -5,8 +5,7 @@
  *  1. Existing MsgCall builders (broadcast-type regression)
  *  2. New collectionID-aware read helpers (parser/query shape assertions)
  *  3. parseCollectionRenderV2 — parses the live memba_nft_v2 Render("genesis") format
- *  4. parseTokenRender — parses Render("genesis/<tid>")
- *  5. isApprovedForAll result parsing
+ *  4. isApprovedForAll result parsing
  */
 
 import { describe, it, expect } from "vitest"
@@ -18,7 +17,6 @@ import {
     buildListForSaleMsg,
     buildBuyMsg,
     parseCollectionRenderV2,
-    parseTokenRender,
     parseOwnerOfResult,
     parseTokenURIResult,
     parseIsApprovedForAllResult,
@@ -34,19 +32,6 @@ Symbol: MGEN
 Supply: 3
 Royalty BPS: 500
 Royalty Recipient: g1multisig0000000000000000000000000
-`
-
-/** Matches `Render("genesis/1")` */
-const TOKEN_1_RENDER = `# Token 1
-
-Owner: g1multisig0000000000000000000000000
-URI: ipfs://bafybeigenesistoken1metadata
-`
-
-/** Token with no URI (edge case) */
-const TOKEN_NO_URI_RENDER = `# Token 2
-
-Owner: g1buyer0000000000000000000000000000
 `
 
 /** qeval result format for OwnerOf */
@@ -116,31 +101,6 @@ describe("parseCollectionRenderV2", () => {
         const render = "# Test\nSymbol: T\n**Supply:** 5\n"
         const info = parseCollectionRenderV2(render, "gno.land/r/test/nft", "test")
         expect(info.totalSupply).toBe(5)
-    })
-})
-
-// ── parseTokenRender ─────────────────────────────────────────
-
-describe("parseTokenRender", () => {
-    it("parses owner address", () => {
-        const token = parseTokenRender(TOKEN_1_RENDER, "1")
-        expect(token.owner).toBe("g1multisig0000000000000000000000000")
-    })
-
-    it("parses URI", () => {
-        const token = parseTokenRender(TOKEN_1_RENDER, "1")
-        expect(token.tokenURI).toBe("ipfs://bafybeigenesistoken1metadata")
-    })
-
-    it("sets tokenId", () => {
-        const token = parseTokenRender(TOKEN_1_RENDER, "1")
-        expect(token.tokenId).toBe("1")
-    })
-
-    it("returns empty URI when not present", () => {
-        const token = parseTokenRender(TOKEN_NO_URI_RENDER, "2")
-        expect(token.tokenURI).toBe("")
-        expect(token.owner).toBe("g1buyer0000000000000000000000000000")
     })
 })
 

@@ -271,27 +271,6 @@ export function buildAcceptOfferMsg(
     }
 }
 
-/**
- * Build MsgCall for ClaimExpiredOffer(collectionID, buyer) — reclaim funds after expiry.
- */
-export function buildClaimExpiredOfferMsg(
-    caller: string,
-    marketplacePath: string,
-    collectionID: string,
-    buyerAddr: string,
-): AminoMsg {
-    return {
-        type: "vm/MsgCall",
-        value: {
-            caller,
-            send: "",
-            pkg_path: marketplacePath,
-            func: "ClaimExpiredOffer",
-            args: [collectionID, buyerAddr],
-        },
-    }
-}
-
 // ── MsgCall Builders — Collection (memba_nft_v2) ─────────────
 
 /**

@@ -4,21 +4,6 @@
  * Sprint 7: Batch payment distribution for operational DAOs.
  */
 
-// ── Config ──────────────────────────────────────────────────
-
-export interface PayrollConfig {
-    /** Payment recipients. */
-    recipients: PayrollRecipient[]
-    /** Payment schedule. */
-    schedule: "monthly" | "biweekly" | "custom"
-    /** Token denomination (default: "ugnot"). */
-    denom: string
-    /** DAO realm path that governs this payroll. */
-    daoRealmPath: string
-    /** Role required to create payroll proposals. */
-    adminRole: string
-}
-
 // ── Recipient ───────────────────────────────────────────────
 
 export interface PayrollRecipient {
