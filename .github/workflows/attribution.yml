@@ -1,0 +1,131 @@
+# Attribution gate.
+#
+# Nothing published from this repository -- a tracked file, a commit message, a
+# branch or tag name, a pull-request title or body -- may credit the AI
+# assistant used to produce the work. A recursive grep cannot enforce that: PNG
+# metadata is binary, and a manifest can hold the name base64-encoded.
+# .github/scripts/check-vendor-attribution.py reads every tracked file as bytes
+# (decoding base64 runs and inflating compressed PNG chunks) and, with --text,
+# the surfaces that are not files. Its self-test runs before every scan, so a
+# check that can no longer fail is caught before it is trusted to pass.
+#
+# A workflow of its own rather than jobs in ci.yml: the title and body gates
+# need the pull_request `edited` event, and adding that to ci.yml would re-run
+# the backend, frontend, E2E and Docker jobs -- and, through its concurrency
+# group, cancel any run in flight -- on every edit of a PR description.
+#
+# OWNER ACTION: once green, add "Vendor attribution" and "Vendor attribution
+# (the surfaces that are not files)" to the branch-protection required checks
+# (exact-name matching, same as "Changelog entry").
+
+name: Attribution
+
+on:
+  pull_request:
+    # `edited` is not in the default set. Without it the title and body gates
+    # are advisory: both stay editable after the checks have passed.
+    types: [opened, synchronize, reopened, edited]
+  push:
+    branches: [main]
+    # A tag name and its annotation are surfaces no other event carries.
+    tags: ['**']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  attribution:
+    name: Vendor attribution
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Prove this check can fail
+        run: .github/scripts/check-vendor-attribution.selftest.sh
+
+      - name: No tracked file carries assistant attribution
+        run: python3 .github/scripts/check-vendor-attribution.py .
+
+  metadata-attribution:
+    name: Vendor attribution (the surfaces that are not files)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        # Naming bash gets `-eo pipefail`. Every step below pipes a producer
+        # into the checker; without pipefail a failed `git` would send an empty
+        # stream on and the surface would read as absent.
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The branch's own commits and the base sha must both be reachable.
+          # No `ref:` -- the default pull-request ref is the merge commit, whose
+          # second parent is the head, so the head sha is present even for a
+          # fork, where a bare head sha would be in no fetched ref.
+          fetch-depth: 0
+
+      - name: Prove these checks can fail
+        run: .github/scripts/check-vendor-attribution.selftest.sh
+
+      # Event data goes through `env:`, never interpolated into `run:`: a
+      # pull-request title is written by whoever opened it.
+      - name: The branch name carries no attribution
+        env:
+          REF: ${{ github.event.pull_request.head.ref || github.ref_name }}
+        run: >-
+          printf '%s' "$REF" |
+          python3 .github/scripts/check-vendor-attribution.py --text "branch name"
+
+      - name: No commit message on this branch carries attribution
+        env:
+          BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          # Pull request: every commit the branch adds, ending at the head sha
+          # rather than the generated merge commit. Push: the head commit alone
+          # -- on main that is the squash commit, whose text the merger can edit
+          # in the merge dialog after every pull-request check has run.
+          # Two dots are right for `git log`: commits in HEAD_SHA and not in BASE.
+          if [ -n "$BASE" ]; then range="$BASE..$HEAD_SHA"; else range="-1"; fi
+          git log --format=%B "$range" |
+            python3 .github/scripts/check-vendor-attribution.py \
+              --text "commit messages on this branch"
+
+      # Conditional on the event rather than tolerant of an empty surface: a
+      # mistyped field name is empty on every event and would pass forever.
+      - name: The pull request title carries no attribution
+        if: github.event_name == 'pull_request'
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: >-
+          printf '%s' "$TITLE" |
+          python3 .github/scripts/check-vendor-attribution.py
+          --text "pull request title"
+
+      # --allow-empty: GitHub requires a title but not a body. A bot's body is
+      # exempt: Dependabot quotes upstream release notes it did not write. Its
+      # title, commits and files are still scanned. Memba's squash message is
+      # the commit messages, not the PR body, so an exempt bot body never
+      # reaches main's history.
+      - name: The pull request body carries no attribution
+        if: >-
+          github.event_name == 'pull_request' &&
+          github.event.pull_request.user.type != 'Bot'
+        env:
+          BODY: ${{ github.event.pull_request.body }}
+        run: >-
+          printf '%s' "$BODY" |
+          python3 .github/scripts/check-vendor-attribution.py
+          --text "pull request body" --allow-empty
+
+      - name: No tag on this commit carries attribution
+        run: >-
+          git tag --points-at HEAD --format='%(refname:strip=2)%0a%(contents)' |
+          python3 .github/scripts/check-vendor-attribution.py
+          --text "tags on this commit" --allow-empty
