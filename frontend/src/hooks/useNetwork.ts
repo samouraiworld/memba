@@ -1,18 +1,14 @@
 import { useState, useCallback } from "react"
 import { useParams } from "react-router-dom"
-import { NETWORKS, DEFAULT_NETWORK, resolveStoredNetworkKey } from "../lib/config"
+import {
+    NETWORKS,
+    DEFAULT_NETWORK,
+    NETWORK_ECHO_STORAGE_KEY,
+    NETWORK_PREF_STORAGE_KEY,
+    storedNetworkKey,
+} from "../lib/config"
 import { completeQuest, getQuestWalletAddress } from "../lib/quests"
 import { trackNetworkVisit } from "../lib/questVerifier"
-
-const STORAGE_KEY = "memba_network"
-
-function getStoredNetwork(): string {
-    try {
-        // Self-heals away from a hidden network — see resolveStoredNetworkKey.
-        return resolveStoredNetworkKey(localStorage.getItem(STORAGE_KEY))
-    } catch { /* ignore */ }
-    return DEFAULT_NETWORK
-}
 
 /**
  * Hook for managing the active Gno network.
@@ -21,7 +17,7 @@ function getStoredNetwork(): string {
  */
 export function useNetwork() {
     const { network: urlNetwork } = useParams<{ network: string }>()
-    const resolvedKey = (urlNetwork && NETWORKS[urlNetwork]) ? urlNetwork : getStoredNetwork()
+    const resolvedKey = (urlNetwork && NETWORKS[urlNetwork]) ? urlNetwork : storedNetworkKey()
     const [networkKey] = useState(resolvedKey)
 
     const network = NETWORKS[networkKey] || NETWORKS[DEFAULT_NETWORK]
@@ -48,7 +44,11 @@ export function useNetwork() {
         completeQuest("switch-network")
         const questAddr = getQuestWalletAddress()
         if (questAddr) trackNetworkVisit(questAddr, key)
-        localStorage.setItem(STORAGE_KEY, key)
+        // Recorded as a PREFERENCE, apart from the URL echo NetworkSync rewrites on
+        // every visit (see resolveNetworkKey). The echo is kept in step for the
+        // readers that still treat it as "the network the user is on".
+        localStorage.setItem(NETWORK_PREF_STORAGE_KEY, key)
+        localStorage.setItem(NETWORK_ECHO_STORAGE_KEY, key)
         // Navigate to the same path but with the new network prefix
         const currentPath = window.location.pathname
         // Strip current network prefix if present

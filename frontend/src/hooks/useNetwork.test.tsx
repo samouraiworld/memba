@@ -86,3 +86,28 @@ describe("useNetwork.switchNetwork — quest credit is awarded from EVERY surfac
         expect(localStorage.getItem("memba_network")).toBeNull()
     })
 })
+
+describe("useNetwork.switchNetwork — an explicit choice is recorded apart from the URL echo", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.stubGlobal("location", { pathname: "/topaz/settings", href: "" })
+    })
+    afterEach(() => {
+        vi.unstubAllGlobals()
+        localStorage.removeItem("memba_network")
+        localStorage.removeItem("memba_network_pref")
+    })
+
+    it("records the switch as the user's preference, and keeps the echo in step", () => {
+        const { result } = renderHook(() => useNetwork(), { wrapper })
+        result.current.switchNetwork("gnoland1")
+        expect(localStorage.getItem("memba_network_pref")).toBe("gnoland1")
+        expect(localStorage.getItem("memba_network")).toBe("gnoland1")
+    })
+
+    it("records no preference when 'switching' to the network already active", () => {
+        const { result } = renderHook(() => useNetwork(), { wrapper })
+        result.current.switchNetwork("topaz")
+        expect(localStorage.getItem("memba_network_pref")).toBeNull()
+    })
+})

@@ -116,3 +116,38 @@ describe("LegacyRedirect — bookmarks must heal like / does", () => {
             .toBe("/pearl/dao/gno.land~r~gov~dao?tab=votes#top")
     })
 })
+
+/**
+ * `memba_network` is an echo of the last /:network URL visited (NetworkSync);
+ * `memba_network_pref` is written only when the user explicitly switches. A
+ * visit to a /pearl/... link must not count as choosing pearl — otherwise a
+ * change of default network could never move anyone.
+ */
+describe("Redirects — an explicit choice outranks the URL echo", () => {
+    afterEach(() => {
+        localStorage.removeItem("memba_network")
+        localStorage.removeItem("memba_network_pref")
+    })
+
+    it("sends / and a bookmark to the chosen network, not the last one visited", () => {
+        localStorage.setItem("memba_network", "pearl")
+        localStorage.setItem("memba_network_pref", "gnoland1")
+        expect(networkOf(renderRoot())).toBe("gnoland1")
+        expect(networkOf(renderLegacy("/directory"))).toBe("gnoland1")
+    })
+
+    it("never restores a chosen network that has since been hidden", () => {
+        localStorage.setItem("memba_network", "gnoland1")
+        localStorage.setItem("memba_network_pref", "sapphire")
+        expect(networkOf(renderRoot())).toBe("gnoland1")
+        expect(networkOf(renderLegacy("/directory"))).toBe("gnoland1")
+    })
+
+    it("/ and a bookmark agree for every stored choice", () => {
+        for (const pref of ["gnoland1", "test13", "sapphire", "no-such-network"]) {
+            localStorage.setItem("memba_network", "pearl")
+            localStorage.setItem("memba_network_pref", pref)
+            expect(networkOf(renderLegacy("/directory")), `pref=${pref}`).toBe(networkOf(renderRoot()))
+        }
+    })
+})

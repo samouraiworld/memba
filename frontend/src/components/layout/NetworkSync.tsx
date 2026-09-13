@@ -1,9 +1,14 @@
 /**
- * NetworkSync — Synchronizes the /:network URL param with localStorage.
+ * NetworkSync — keeps the URL echo (`memba_network`) in step with /:network, and
+ * reloads when an IN-APP navigation lands on a different network.
  *
- * When a user navigates to a URL with a different network (e.g., /betanet/dao/...)
- * this component detects the mismatch and triggers a reload to re-initialize
- * all RPC config that's computed at module load time.
+ * config.ts reads the network from the URL at module load, so a full page load
+ * always initialises on the network it shows and never needs this reload. It
+ * fires only when a <Link> or navigate() crosses networks inside the running
+ * app, because RPC and realm config is computed once, at module load.
+ *
+ * The echo is not the user's choice — that lives in `memba_network_pref`,
+ * written only by an explicit switch. See `resolveNetworkKey` in config.ts.
  */
 import { useEffect } from "react"
 import { useParams } from "react-router-dom"

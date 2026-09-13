@@ -127,7 +127,7 @@ export function Settings() {
 
     const handleClearCache = () => {
         if (!window.confirm("Clear all Memba cached data? This will reset network preferences and cached usernames.")) return
-        const keys = ["memba_usernames", "memba_settings", "memba_network", "memba_board_visits"]
+        const keys = ["memba_usernames", "memba_settings", "memba_network", "memba_network_pref", "memba_board_visits"]
         keys.forEach(k => localStorage.removeItem(k))
         setSaved(true)
         setTimeout(() => window.location.reload(), 300)

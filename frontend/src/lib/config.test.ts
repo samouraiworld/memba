@@ -1050,22 +1050,35 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
         expect(Object.keys(offered).length).toBeGreaterThan(1)
     })
 
-    it('the MODULE-LOAD key still honours a stored hidden network (deep links)', async () => {
-        // Regression guard for the self-inflicted break CI caught: self-healing
-        // getActiveNetworkKey too made config initialise on topaz while a
-        // /test13/* URL said test13 — NetworkSync then reloaded and the
-        // realm-gated UI rendered the wrong network's state. The CreateToken e2e
-        // specs seed localStorage exactly this way (#1032). Self-healing belongs
-        // in the NAVIGATION resolvers only.
+    it('a deep link to a hidden network initialises on it; a stored hidden key alone does not', async () => {
+        // This guard used to pin "module load honours a STORED hidden network",
+        // after a self-inflicted break CI caught: self-healing
+        // getActiveNetworkKey made config initialise on topaz while a /test13/*
+        // URL said test13 — NetworkSync reloaded and the realm-gated UI rendered
+        // the wrong network's state (the CreateToken e2e specs, #1032).
+        //
+        // config.ts now reads the URL FIRST, so a deep link no longer needs
+        // storage to carry its network, and storage follows the navigation
+        // resolvers' rule: a hidden network is never restored from it. `/` and
+        // legacy paths therefore initialise on exactly the network the redirects
+        // send them to, instead of loading one and reloading into another.
         vi.stubEnv('VITE_GNO_CHAIN_ID', 'topaz')
         localStorage.setItem('memba_network', 'test13')
-        vi.resetModules()
-        const { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, resolveStoredNetworkKey } = await import('./config')
-        // Module-load config initialises on the STORED hidden network…
-        expect(ACTIVE_NETWORK_KEY).toBe('test13')
-        expect(GNO_CHAIN_ID).toBe('test-13')
-        // …while the navigation resolver heals away from it.
-        expect(resolveStoredNetworkKey('test13')).not.toBe('test13')
+        try {
+            window.history.replaceState({}, '', '/test13/create-token')
+            vi.resetModules()
+            const deepLink = await import('./config')
+            expect(deepLink.ACTIVE_NETWORK_KEY).toBe('test13')
+            expect(deepLink.GNO_CHAIN_ID).toBe('test-13')
+
+            window.history.replaceState({}, '', '/directory')
+            vi.resetModules()
+            const legacy = await import('./config')
+            expect(legacy.ACTIVE_NETWORK_KEY).not.toBe('test13')
+            expect(legacy.ACTIVE_NETWORK_KEY).toBe(legacy.resolveStoredNetworkKey('test13'))
+        } finally {
+            window.history.replaceState({}, '', '/')
+        }
     })
 
     it('every hidden network is still resolvable by explicit URL', async () => {

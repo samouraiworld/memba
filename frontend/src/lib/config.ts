@@ -602,52 +602,94 @@ export const DEFAULT_NETWORK = resolveDefaultNetwork(import.meta.env.VITE_GNO_CH
  *  WARNING: shared.ts and profile.ts compute USER_REGISTRY at module load time.
  *  useNetwork.ts MUST call window.location.reload() on network switch to re-initialize.
  */
-/** Resolve a STORED network selection, self-healing away from hidden networks.
+/** localStorage key for an EXPLICIT network choice — written only by `useNetwork().switchNetwork`. */
+export const NETWORK_PREF_STORAGE_KEY = "memba_network_pref"
+
+/** localStorage key NetworkSync rewrites on every `/:network/*` visit — an ECHO of
+ *  the last URL, not a choice. Still read by `daoSlug` and `directory` as "the
+ *  network the user is on". */
+export const NETWORK_ECHO_STORAGE_KEY = "memba_network"
+
+/**
+ * THE network-resolution rule. Every resolver goes through here — module load,
+ * RootRedirect, LegacyRedirect, useNetwork — so they cannot drift apart again.
  *
- *  A stored key must also be VISIBLE. Hidden networks stay resolvable by
- *  explicit URL (deep links keep working) but must never be restored from
- *  localStorage, because a hidden network has no option in the switcher — and
- *  when only one network is visible, a single-option <select> cannot fire
- *  `onChange` at all. A user whose stored key was hidden would be pinned to it
- *  with no in-app way out, on this visit and every future one.
+ *  1. The network in the URL (`/:network/…`), hidden networks included, so deep
+ *     links keep working.
+ *  2. The user's explicit choice (`memba_network_pref`), visible networks only.
+ *  3. The URL echo (`memba_network`), visible networks only.
+ *  4. DEFAULT_NETWORK.
  *
- *  PRECISELY what this guarantees: the stored key itself is never restored when
- *  it is hidden. It does NOT guarantee a visible result — the fallback is
- *  DEFAULT_NETWORK, which is visible in every shipped build (prod, deploy
- *  previews, CI) but is deliberately HIDDEN on the pinned-flag e2e servers, where
- *  `.env.e2e` sets test13. See `resolveDefaultNetwork` for why that stays. The
- *  guarantee that nobody is stranded comes from `selectableNetworksFor`, which
- *  always offers the active network; this heal is defence in depth on top of it.
+ * Why an explicit choice needs its own key: NetworkSync rewrites the echo on
+ * every `/:network/*` visit, so anyone who once opened a /pearl/… link "has
+ * pearl stored" without ever choosing it. With a single key, changing the
+ * default network could move nobody. Step 3 keeps today's users landing where
+ * they did; removing it is what lets a new DEFAULT_NETWORK move everyone who
+ * never chose.
  *
- *  Used by the NAVIGATION resolvers (`useNetwork`, `RootRedirect`,
- *  `LegacyRedirect`) only — NOT by `getActiveNetworkKey` below, which must honour
- *  a stored hidden key so deep links initialise on the right network. See that
- *  function's comment. */
-export function resolveStoredNetworkKey(stored: string | null | undefined): string {
-    if (stored && NETWORKS[stored] && !NETWORKS[stored].hidden) return stored
+ * Why stored keys must be visible: a hidden network has no option in the
+ * switcher, and when only one network is visible a single-option <select> cannot
+ * fire `onChange` at all — a restored hidden key would pin the user to it on
+ * every visit. That does NOT guarantee a visible result: DEFAULT_NETWORK is
+ * visible in every shipped build but deliberately hidden on the pinned-flag e2e
+ * servers (`.env.e2e` sets test13; see `resolveDefaultNetwork`). Nobody is
+ * stranded because `selectableNetworksFor` always offers the active network.
+ */
+export function resolveNetworkKey({ pathname, pref, echo }: {
+    pathname?: string
+    pref?: string | null
+    echo?: string | null
+}): string {
+    const urlKey = pathname?.split("/")[1]
+    if (urlKey && NETWORKS[urlKey]) return urlKey
+    for (const stored of [pref, echo]) {
+        if (stored && NETWORKS[stored] && !NETWORKS[stored].hidden) return stored
+    }
     return DEFAULT_NETWORK
 }
 
-/** Module-load active network. Deliberately does NOT self-heal away from a
- *  hidden network — unlike the navigation resolvers.
+/** Where stored choices send a navigation that has no network in its URL
+ *  (`/`, legacy bookmarks, the switcher's fallback). */
+export function storedNetworkKey(): string {
+    try {
+        return resolveNetworkKey({
+            pref: localStorage.getItem(NETWORK_PREF_STORAGE_KEY),
+            echo: localStorage.getItem(NETWORK_ECHO_STORAGE_KEY),
+        })
+    } catch { /* SSR or storage blocked */ }
+    return DEFAULT_NETWORK
+}
+
+/** Resolve ONE stored echo value by the same rule — for callers and tests that
+ *  reason about a single stored value. See `resolveNetworkKey`. */
+export function resolveStoredNetworkKey(stored: string | null | undefined): string {
+    return resolveNetworkKey({ echo: stored })
+}
+
+/** Module-load active network — the URL first.
  *
  *  This value initialises every RPC/realm constant in this file BEFORE the
- *  router mounts, so it is the only signal a deep link has. Self-healing it
- *  broke `/test13/*` visits: config would initialise on topaz while the URL said
- *  test13, so NetworkSync reloaded and the realm-gated UI rendered the wrong
- *  network's state (it took out the CreateToken e2e specs).
+ *  router mounts. It used to read storage alone, so every cross-network deep
+ *  link initialised the previous network's config and NetworkSync then reloaded
+ *  the whole page to correct it. With the URL first, a full page load always
+ *  initialises on the network it shows, and NetworkSync reloads only after an
+ *  in-app navigation to a different network.
  *
- *  Stranding is prevented elsewhere and does not need this: RootRedirect no
- *  longer restores a hidden key, so `/` goes to the default; the switcher always
- *  lists the ACTIVE network, so you can leave one you reached by URL; and
- *  NetworkSync writes the URL network to storage, so the one-time bounce
- *  through a hidden network converges after a single reload. */
+ *  A hidden network is honoured when it is IN THE URL (deep links; the pinned
+ *  e2e servers' `/test13/*`) and, like everywhere else, never restored from
+ *  storage — so `/` and legacy paths initialise on exactly the network the
+ *  redirects send them to, instead of bouncing through a reload. */
 function getActiveNetworkKey(): string {
+    let pathname: string | undefined
+    try { pathname = window.location.pathname } catch { /* SSR */ }
     try {
-        const stored = localStorage.getItem("memba_network")
-        if (stored && NETWORKS[stored]) return stored
-    } catch { /* SSR or missing localStorage */ }
-    return DEFAULT_NETWORK
+        return resolveNetworkKey({
+            pathname,
+            pref: localStorage.getItem(NETWORK_PREF_STORAGE_KEY),
+            echo: localStorage.getItem(NETWORK_ECHO_STORAGE_KEY),
+        })
+    } catch { /* storage blocked */ }
+    return resolveNetworkKey({ pathname })
 }
 
 const _activeNetwork = getActiveNetworkKey()
