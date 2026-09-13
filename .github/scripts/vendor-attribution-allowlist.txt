@@ -1,0 +1,19 @@
+# Files exempt from the attribution check, one repo-relative path per line.
+#
+# Deliberately empty, and it should stay that way.
+#
+# An entry here exempts the WHOLE file from EVERY needle, permanently: the
+# check skips the path before reading a byte of it. On a document that keeps
+# being edited, a pasted transcript or an embedded image would go unseen
+# forever. The cost is not proportional to the problem it solves.
+#
+# Policy this file exists to record: a third-party product name is not a
+# finding. Naming an editor, an MCP client or a competitor in documentation is
+# legitimate, and the check does not look for those names at all, so those
+# documents need no exemption. What is forbidden is attribution of the
+# assistant used to produce the work, and the metadata containers that carry
+# it.
+#
+# Before adding a path, strip the file instead. If a file genuinely must carry
+# a needle, prefer narrowing the check to that path and that needle over
+# exempting the whole file.
