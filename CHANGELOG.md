@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Links to another network open directly, and your network choice outranks the links you open (2026-09-13)
+<!-- categories: memba -->
+- **Opening a link to a different network no longer loads the page twice.** Memba used to start on the network you had visited last, notice that the link pointed somewhere else, and reload the whole page. It now reads the network from the link itself.
+- **A network you pick in the switcher now takes priority over the network of the last link you happened to open.** Visiting a link to another network used to count as choosing it.
+- **Clearing Memba's cached data in Settings also clears that saved choice.**
+
 ### The validators table works from a keyboard and with a screen reader (2026-09-13)
 <!-- categories: memba -->
 - **Columns can now be sorted from the keyboard,** and screen readers announce which column the table is sorted by and in which direction. Sorting used to respond only to a mouse click on the column header.
