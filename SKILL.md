@@ -1,6 +1,6 @@
 # Memba — Agent Skill File
 
-> Machine-readable instructions for AI agents (Claude Code, Cursor, Windsurf, etc.)
+> Machine-readable instructions for AI coding agents and MCP-compatible clients
 > interacting with Memba, the Gno-native multisig & DAO governance application.
 
 ## What is Memba?

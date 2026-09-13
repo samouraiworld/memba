@@ -101,7 +101,7 @@ export const SEED_AGENTS: AgentListing[] = [
 - **memba_get_repositories** — Tracked Gnolove repositories
 - **memba_get_network** — Current chain status (height, validators)
 
-Works with Claude Desktop, Cursor, and any MCP-compatible client.
+Works with any MCP-compatible client.
 
 Install: npx @samouraiworld/memba-mcp
 Configure GNO_RPC_URL to point to your preferred network.`,

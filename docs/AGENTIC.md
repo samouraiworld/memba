@@ -62,7 +62,10 @@ The Memba MCP server exposes 9 tools for agents:
 | `memba_get_repositories` | Tracked Gnolove repositories |
 | `memba_get_network` | Current chain status (height, chain ID) |
 
-### Setup (Claude Desktop)
+### MCP client configuration
+
+Add the server to your MCP client's configuration file:
+
 ```json
 {
   "mcpServers": {
@@ -94,7 +97,7 @@ It exposes 6 tools:
 | `dao_risk_assessment` | Focused risk analysis — what could go wrong |
 | `dao_set_network` | Switch Gno network mid-conversation |
 
-Launch (Claude Desktop / Cursor / VS Code MCP config):
+Add the server to your MCP client's configuration file:
 
 ```json
 {

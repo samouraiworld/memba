@@ -169,7 +169,7 @@ export function AgentDetailView({
                     <div className="mp-detail__section">
                         <h3>Connect Agent</h3>
                         <p className="mp-detail__hint">
-                            Add this to your MCP client config (Claude Desktop, Cursor, etc.):
+                            Add this to the configuration of any MCP-compatible client:
                         </p>
                         <div className="mp-config">
                             <pre className="mp-config__code">{JSON.stringify(config, null, 2)}</pre>

@@ -17,9 +17,9 @@ Registers on-chain in [`gno.land/r/samcrew/agent_registry_v2`](https://gno.land/
 
 ## Setup
 
-### Claude Desktop
+### MCP client configuration
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Add the server to your MCP client's configuration file:
 
 ```json
 {
@@ -110,7 +110,7 @@ node build/index.js
 ## Architecture
 
 ```
-MCP Client (Claude, Cursor)
+MCP Client (any MCP-compatible client)
   ↕ stdio (JSON-RPC)
 dao-analyst-mcp (local)
   ├─ Fetches on-chain data via ABCI (gno-rpc)

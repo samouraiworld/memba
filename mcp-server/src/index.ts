@@ -3,8 +3,7 @@
  * Memba MCP Server — Model Context Protocol server for Gno blockchain queries.
  *
  * Exposes tools for querying DAOs, proposals, validators, contributors,
- * and on-chain data. Designed for use with Claude Desktop, Cursor, and
- * other MCP-compatible agents.
+ * and on-chain data. Designed for use with any MCP-compatible client.
  *
  * Transport: stdio (standard input/output)
  * Config: GNO_RPC_URL env var (defaults to the Pearl canonical node, chain-id pearl-1)

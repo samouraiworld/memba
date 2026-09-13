@@ -18,9 +18,9 @@ Model Context Protocol (MCP) server for querying DAOs, proposals, validators, an
 
 ## Setup
 
-### Claude Desktop
+### MCP client configuration
 
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
+Add the server to your MCP client's configuration file:
 
 ```json
 {
@@ -36,9 +36,9 @@ Add to `~/Library/Application Support/Claude/claude_desktop_config.json`:
 }
 ```
 
-### Claude Code
+### Minimal configuration
 
-Add to `.claude/settings.json`:
+Without `env`, the server uses the default `GNO_RPC_URL` listed under [Configuration](#configuration):
 
 ```json
 {

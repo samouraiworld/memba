@@ -45,7 +45,6 @@ coverage/
 
 # Agent
 .agents/
-.claude/
 .remember/
 .superpowers/
 

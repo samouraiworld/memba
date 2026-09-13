@@ -1022,7 +1022,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Docs / repo hygiene
 - **#361** — finalize v6.3.0 changelog + handoff doc.
-- **#367** — archive 16 shipped planning docs into versioned `docs/planning/archive/` subdirs (history preserved via `git mv`); track 2 untracked gnolove session docs into `archive/v6.3-gnolove/`; drop stale next-session prompt; remove stray root `package-lock.json`; gitignore `.claude/`; fix 7 broken doc links exposed by the archive move.
+- **#367** — archive 16 shipped planning docs into versioned `docs/planning/archive/` subdirs (history preserved via `git mv`); track 2 untracked gnolove session docs into `archive/v6.3-gnolove/`; drop stale next-session prompt; remove stray root `package-lock.json`; gitignore a local tool-config directory; fix 7 broken doc links exposed by the archive move.
 - Stale remote branch `docs/handoff-2026-05-19` (from closed PR #341) deleted from origin.
 
 ### Pending (carry-forward to v7.1 Phase 1)
