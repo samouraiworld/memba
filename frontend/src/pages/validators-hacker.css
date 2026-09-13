@@ -85,6 +85,13 @@
 .hk-status-bar {
     display: flex;
     align-items: center;
+    /* Wrap, don't clip. With ten unshrinkable items on one line the bar was
+       ~500px at a 375px viewport; .k-main-column (overflow-x: hidden) cut off
+       the right-hand end — the connection state and the "Updated" timestamp,
+       i.e. the one readout that proves the live polls are still running. On
+       desktop everything fits on one line, so wrapping changes nothing there. */
+    flex-wrap: wrap;
+    row-gap: 0.2rem;
     gap: 0.6rem;
     padding: 0.4rem 0.8rem;
     background: rgba(0, 255, 170, 0.04);
@@ -174,6 +181,14 @@
 }
 
 .cs-row:hover .cs-row__copy { opacity: 1; }
+
+/* A hover-only affordance is permanently invisible on a touch screen — the row
+   was tappable but gave no sign of it. Show it wherever hover isn't available,
+   and on narrow viewports regardless, since some touch laptops report
+   hover:hover. */
+@media (hover: none), (max-width: 768px) {
+    .cs-row__copy { opacity: 1; }
+}
 
 /* ── Doctor panel ─────────────────────────────────────── */
 

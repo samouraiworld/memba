@@ -531,7 +531,10 @@
 
 @media (max-width: 768px) {
     .val-stats-grid {
-        grid-template-columns: repeat(2, 1fr);
+        /* minmax(0, 1fr), not 1fr: a bare 1fr floors each track at its widest
+           value's min-content, so a long block height widens the column past
+           the screen instead of the column constraining the value. */
+        grid-template-columns: repeat(2, minmax(0, 1fr));
     }
 
     .val-stat-value {
@@ -648,12 +651,64 @@
     .val-health-banner__count {
         font-size: 20px;
     }
+
+    /* The desktop 32px side gutters, kept on a 375px phone, spent 64px — a
+       sixth of the screen — before any content. */
+    .val-page {
+        padding: 16px 12px 32px;
+    }
+
+    /* Section tabs as equal, shrinkable columns. The desktop strip is a
+       nowrap flex row that scrolls; on a phone it clipped its last tab and
+       gave no sign it could scroll. Implicit columns with a 0 minimum can
+       never overflow, whatever the tab count, and labels may wrap instead. */
+    .val-segtabs {
+        display: grid;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(0, 1fr);
+        gap: 0;
+        overflow-x: visible;
+    }
+
+    .val-segtab {
+        justify-content: center;
+        flex-wrap: wrap;
+        row-gap: 2px;
+        white-space: normal;
+        text-align: center;
+        min-height: var(--mb-touch-min, 44px);
+        padding: 8px 4px;
+        font-size: 0.8rem;
+    }
+
+    .val-segtab__count {
+        padding: 1px 6px;
+    }
+
+    /* Touch floor. Nothing in this feature inherited the app's 44px minimum,
+       which only covers the .k-btn-* classes; search, sort and pagination
+       measured 25-40px tall. */
+    .val-search,
+    .val-page-size,
+    .val-page-btn {
+        min-height: var(--mb-touch-min, 44px);
+    }
+
+    /* iOS zooms the viewport when a control under 16px takes focus. The global
+       guard in index.css can't cover this: it stops at 428px (missing the
+       430px Pro Max), and its bare `select` (0,0,1) loses to .val-page-size
+       (0,1,0) at any width. So the size lives on the classes themselves. */
+    .val-search,
+    .val-page-size {
+        font-size: 16px;
+    }
 }
 
 @media (max-width: 480px) {
-    .val-stats-grid {
-        grid-template-columns: 1fr;
-    }
+    /* No .val-stats-grid rule here, deliberately. This block used to reset the
+       grid to ONE column, undoing the 2-up rule in the 768px block: five
+       full-width stat cards pushed the first validator ~1.5 screens down on a
+       phone. The 2-up minmax(0, 1fr) tracks fit every value down to 320px. */
 
     .val-header h1 {
         font-size: 18px;

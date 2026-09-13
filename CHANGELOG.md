@@ -25,6 +25,11 @@ Full changelogs are split by version range for easier navigation:
 - **The Network tab on the validators page now has a "Governance readiness" panel.** It shows how many members GovDAO has — the only people able to propose adding or removing a validator — and notes plainly when a single member could create and pass such a proposal alone, which is the case on gno.land today.
 - **It also shows how much failure the network can currently absorb:** the number of active validators, the voting power needed to agree on a block, and how many validators could go offline before the chain stops. Alongside it, it spells out what would happen if the largest validator went offline or were removed — on today's network that would leave a chain any single remaining validator could halt.
 - **It is information only.** It offers no button to act against any validator, and if membership can't be read it says so rather than showing zero.
+### The validators pages fit a phone properly (2026-09-13)
+<!-- categories: memba, network -->
+- **On a phone you no longer scroll past a screen and a half of summary cards before reaching the first validator.** The five network stat cards now sit two to a row instead of stacking one per row, and the page stops spending a sixth of the screen width on empty margins.
+- **Everything you tap is now finger-sized, and tapping search or sort no longer zooms the page on iPhone.** The section tabs, search box, sort control and page buttons were between 25 and 40 pixels tall; they now meet the 44-pixel minimum. The tabs also always fit on screen instead of cutting off the last one.
+- **The live telemetry view stops cutting off its "last updated" time on narrow screens.** The status strip at the top now wraps onto a second line when it needs to, so the timestamp showing that live data is still arriving stays visible. The copy buttons beside the seed and app-hash values also show up on touch screens, where they had been invisible.
 
 ### Live consensus is visible again on the telemetry view (2026-09-12)
 <!-- categories: memba, network -->
