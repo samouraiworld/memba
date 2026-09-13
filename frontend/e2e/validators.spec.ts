@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
 import { fulfillOnchainReads, mockChainStatus } from './helpers/onchain'
 
 // Live-RPC suite: runs serial (single worker) so its on-chain reads don't
@@ -242,5 +243,44 @@ test.describe('Validators Page — Mobile', () => {
         await expect(page.locator('[data-testid="validator-card-1"]')).toBeVisible()
         await expect(page.locator('[data-testid="validator-table"]')).toHaveCount(0)
         expect(await page.locator('.val-card').count()).toBeGreaterThan(0)
+    })
+})
+
+test.describe('Validators Page — table accessibility (offline)', () => {
+    test('rows, sort headers and signature strips pass axe structure rules and work from the keyboard', async ({ page }) => {
+        await fulfillValidatorRoster(page)
+        await page.setViewportSize({ width: 1280, height: 800 })
+        await page.goto('/validators')
+
+        const table = page.locator('[data-testid="validator-table"]')
+        await expect(table).toBeVisible({ timeout: 20_000 })
+        await expect(page.locator('[data-testid="validator-row-1"]')).toBeVisible()
+
+        // accessibility.spec.ts disables `nested-interactive` app-wide because
+        // this table's `<tr role="button">` rows (wrapping a copy button and a
+        // link) tripped it. Here it is ON, scoped to the table, with the other
+        // structural rules the old markup broke.
+        const results = await new AxeBuilder({ page })
+            .include('[data-testid="validator-table"]')
+            .withRules([
+                'nested-interactive',
+                'aria-allowed-role',
+                'aria-prohibited-attr',
+                'aria-required-children',
+                'button-name',
+                'link-name',
+                'role-img-alt',
+            ])
+            .analyze()
+        expect(results.violations.map(v => `${v.id}: ${v.nodes.length} node(s)`)).toEqual([])
+
+        // Sorting is a real button, operable from the keyboard.
+        await table.getByRole('button', { name: 'Voting Power' }).focus()
+        await page.keyboard.press('Enter')
+        await expect(table.getByRole('columnheader', { name: /Voting Power/ })).toHaveAttribute('aria-sort', 'descending')
+
+        // Each row's keyboard entry point is a link that keeps the network in the path.
+        const link = page.locator('[data-testid="validator-row-1"]').getByRole('link').first()
+        await expect(link).toHaveAttribute('href', /^\/[a-z0-9-]+\/validators\/g1mockval0+1$/)
     })
 })

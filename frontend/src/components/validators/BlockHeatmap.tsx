@@ -20,15 +20,17 @@ function healthColor(sample: BlockSample): "perfect" | "healthy" | "warn" | "cri
     return "critical"
 }
 
+// Cells are presentational: the strip is exposed as ONE labelled image (see
+// `summarise`). It used to be `role="grid"` around up to a hundred
+// `role="img"` cells — a grid must own rows and cells and promises arrow-key
+// navigation, and a hundred labelled images is a hundred screen-reader stops.
+// The per-block tooltip stays for mouse users.
 function BlockCell({ sample }: { sample: BlockSample }) {
     const color = healthColor(sample)
-    const label = `Block ${sample.height}: ${sample.signerCount}/${sample.valsetSize} signed`
     return (
         <div
             className={`hm-cell hm-cell--${color}`}
-            title={label}
-            aria-label={label}
-            role="img"
+            title={`Block ${sample.height}: ${sample.signerCount}/${sample.valsetSize} signed`}
         >
             <span className="hm-cell__count">{sample.signerCount}</span>
         </div>
@@ -36,7 +38,21 @@ function BlockCell({ sample }: { sample: BlockSample }) {
 }
 
 function EmptyCell() {
-    return <div className="hm-cell hm-cell--empty" role="img" aria-label="loading" />
+    return <div className="hm-cell hm-cell--empty" />
+}
+
+/** What a screen reader hears for the whole strip. `cells` is newest first. */
+function summarise(cells: BlockSample[], loading: boolean): string {
+    if (cells.length === 0) return loading ? "Recent blocks loading" : "No recent blocks to show"
+    const span = `Last ${cells.length} block${cells.length === 1 ? "" : "s"}`
+    const covered = cells.filter(b => b.signerCount > 0)
+    if (covered.length === 0) return `${span}: no signatures recorded.`
+    const perfect = cells.filter(b => b.perfect).length
+    if (perfect === covered.length) return `${span}: all ${perfect} fully signed.`
+    // Strict `<` keeps the first — most recent — block on a tie.
+    const weakest = covered.reduce((w, b) => (b.healthRatio < w.healthRatio ? b : w))
+    return `${span}: ${perfect} of ${covered.length} fully signed. `
+        + `Weakest: block ${weakest.height}, ${weakest.signerCount} of ${weakest.valsetSize} signatures.`
 }
 
 export function BlockHeatmap({ blocks, loading, totalValidators }: BlockHeatmapProps) {
@@ -54,10 +70,10 @@ export function BlockHeatmap({ blocks, loading, totalValidators }: BlockHeatmapP
                 <span className="hk-heatmap__meta">
                     last {cells.length} blocks — {perfectBlocks}/{coveredBlocks} perfect
                 </span>
-                {loading && <span className="hk-pulse" aria-label="Updating…" />}
+                {loading && <span className="hk-pulse" aria-hidden="true" />}
             </div>
 
-            <div className="hm-grid" aria-label="Block health heatmap" role="grid">
+            <div className="hm-grid" role="img" aria-label={summarise(cells, loading)}>
                 {cells.map((b) => <BlockCell key={b.height} sample={b} />)}
                 {loading && cells.length < TARGET && Array.from({ length: TARGET - cells.length }).map((_, i) => (
                     <EmptyCell key={`empty-${i}`} />
