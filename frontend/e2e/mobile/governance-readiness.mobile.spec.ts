@@ -51,6 +51,8 @@ async function mountPanel(page: Page, width: number) {
     await page.setViewportSize({ width, height: 800 })
     await page.goto('/validators')
     await waitForPanelSheet(page)
+    // A live stylesheet does not mean the route has rendered <main> yet (WebKit).
+    await page.locator('main').waitFor({ state: 'attached' })
     await page.evaluate((html) => {
         const host = document.createElement('div')
         host.dataset.testid = 'gov-ready-probe'
@@ -67,7 +69,11 @@ test('the panel stacks into one column on a phone and hides nothing', async ({ p
     const tracks = await gridTracks(page)
     expect(tracks, 'panel grid must be styled before it is measured').not.toBe('none')
     expect(tracks.split(/\s+/).length, `panel columns at 375px (got "${tracks}")`).toBe(1)
-    expect(await findHorizontalClipping(page), 'panel clips content at 375px').toEqual([])
+    // Scoped to the injected panel. Page-wide, WebKit's first attempt flagged a
+    // classless `DIV sw=228 cw=200` that is not in the panel's markup (every
+    // panel element carries a class) — the still-loading page around the probe.
+    // Whole-route clipping is validators.mobile.spec.ts's contract, not this one.
+    expect(await findHorizontalClipping(page, '[data-testid="gov-ready-probe"]'), 'panel clips content at 375px').toEqual([])
     const overflow = await page.evaluate(() => {
         const p = document.querySelector('[data-testid="gov-ready-probe"] .gov-ready') as HTMLElement
         return p.scrollWidth - p.clientWidth

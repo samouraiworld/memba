@@ -46,12 +46,21 @@ export const MOBILE_375 = { width: 375, height: 667 }
  * Every element that is hiding content horizontally, as `TAG.class sw=… cw=…`.
  * Empty array == nothing clipped. Returned rather than asserted so callers can
  * attach their own message.
+ *
+ * `within` (a selector) limits the scan to that element and its descendants —
+ * for a probe injected into a live page, where the page's own still-settling
+ * state belongs to a route-level test. A selector that matches nothing is
+ * reported as a finding, never as a clean pass.
  */
-export async function findHorizontalClipping(page: Page): Promise<string[]> {
-    return page.evaluate(() => {
+export async function findHorizontalClipping(page: Page, within?: string): Promise<string[]> {
+    return page.evaluate((within) => {
         const out: string[] = []
-        // body included: it is the one box a direct-child overflow can move.
-        const els: Element[] = [document.body, ...Array.from(document.querySelectorAll('body *'))]
+        const root = within ? document.querySelector(within) : null
+        if (within && !root) return [`${within} not found`]
+        // Unscoped, body is included: it is the one box a direct-child overflow can move.
+        const els: Element[] = root
+            ? [root, ...Array.from(root.querySelectorAll('*'))]
+            : [document.body, ...Array.from(document.querySelectorAll('body *'))]
         for (const el of els) {
             const cs = getComputedStyle(el)
             if (cs.display === 'none' || cs.visibility === 'hidden') continue
@@ -70,7 +79,7 @@ export async function findHorizontalClipping(page: Page): Promise<string[]> {
             }
         }
         return out
-    })
+    }, within)
 }
 
 /**

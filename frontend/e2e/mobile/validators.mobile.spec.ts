@@ -58,6 +58,11 @@ async function onHacker(page: Page, width = MOBILE_375.width) {
 
 /** Inject markup into <main> and measure it with the page's real styles. */
 async function probe<T>(page: Page, html: string, measure: (root: HTMLElement) => T): Promise<T> {
+    // The sentinel proves the STYLESHEET is live, not that the route has rendered
+    // its <main>. Chromium happened to have both; WebKit (the iphone project)
+    // reached this point with no <main> on 8 of 17 tests in CI, and failed one of
+    // them on all three attempts.
+    await page.locator('main').waitFor({ state: 'attached' })
     return page.evaluate(({ html, fn }) => {
         const host = document.createElement('div')
         host.dataset.testid = 'css-contract-probe'

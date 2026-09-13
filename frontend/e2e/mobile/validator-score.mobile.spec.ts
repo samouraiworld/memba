@@ -59,6 +59,8 @@ const CARD = `
 
 async function mountCard(page: Page, width: number) {
     await onProfile(page, width)
+    // A live stylesheet does not mean the route has rendered <main> yet (WebKit).
+    await page.locator('main').waitFor({ state: 'attached' })
     await page.evaluate((html) => {
         const host = document.createElement('div')
         host.innerHTML = html
