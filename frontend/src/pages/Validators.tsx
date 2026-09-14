@@ -565,6 +565,7 @@ export default function Validators() {
                     ) : (
                         <select
                             className="val-page-size"
+                            aria-label="Validators per page"
                             value={pageSize}
                             onChange={e => setPageSize(Number(e.target.value))}
                             data-testid="validator-page-size"

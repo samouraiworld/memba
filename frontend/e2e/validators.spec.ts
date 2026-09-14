@@ -2,10 +2,6 @@ import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { fulfillOnchainReads, mockChainStatus } from './helpers/onchain'
 
-// Live-RPC suite: runs serial (single worker) so its on-chain reads don't
-// double-load the public default-network (pearl) RPC under parallel workers. See playwright.config.ts.
-test.describe.configure({ mode: 'serial' })
-
 /**
  * Validators page E2E tests — verify the validator dashboard renders
  * and interactive elements work without backend authentication.
@@ -87,6 +83,10 @@ async function fulfillValidatorRoster(page: Page) {
 }
 
 test.describe('Validators Page', () => {
+    // Serialize live reads without making the fixture-backed mobile and
+    // accessibility checks skip when a live-RPC test fails.
+    test.describe.configure({ mode: 'serial' })
+
     test.beforeEach(async ({ page }) => {
         await page.goto('/validators')
 
@@ -247,6 +247,30 @@ test.describe('Validators Page — Mobile', () => {
 })
 
 test.describe('Validators Page — table accessibility (offline)', () => {
+    test('page-size selector has an accessible name and remains usable', async ({ page }) => {
+        await fulfillValidatorRoster(page)
+        await page.setViewportSize({ width: 1280, height: 800 })
+        await page.goto('/gnoland1/validators')
+
+        // Wait for the populated roster, not just the shell: loading/error
+        // states omit the toolbar and can make a live-RPC axe scan pass vacuously.
+        const select = page.getByTestId('validator-page-size')
+        await expect(select).toBeVisible()
+        await expect(page.getByTestId('validator-row-1')).toBeVisible()
+        const results = await new AxeBuilder({ page })
+            .include('.val-toolbar')
+            .withRules(['select-name'])
+            .analyze()
+        expect(results.violations.map(v => v.id)).toEqual([])
+
+        await expect(select).toHaveAccessibleName('Validators per page')
+        await expect(select).toHaveValue('50')
+        await select.focus()
+        await expect(select).toBeFocused()
+        await select.selectOption('25')
+        await expect(select).toHaveValue('25')
+    })
+
     test('rows, sort headers and signature strips pass axe structure rules and work from the keyboard', async ({ page }) => {
         await fulfillValidatorRoster(page)
         await page.setViewportSize({ width: 1280, height: 800 })
