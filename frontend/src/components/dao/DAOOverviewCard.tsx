@@ -8,6 +8,9 @@ import { PowerDonut } from "./TierPieChart"
 import type { DAOConfig, DAOMember } from "../../lib/dao"
 
 interface DAOOverviewCardProps {
+    professional?: boolean
+    proposalsKnown?: boolean
+    membersKnown?: boolean
     config: DAOConfig | null
     realmPath: string
     encodedSlug: string
@@ -80,7 +83,7 @@ export function DAOOverviewCard({
     config, realmPath, encodedSlug, currentMember, isAuthenticated, walletAddress,
     memberCount, activeProposals, awaitingExecution, totalProposals,
     nonVoterPercent, nonVoterCount, maxVoterParticipation, proposalsWithVotesCount,
-    totalPower, healthScore, session, joinRoom,
+    totalPower, healthScore, session, joinRoom, professional = false, proposalsKnown = true, membersKnown = true,
 }: DAOOverviewCardProps) {
     const navigate = useNetworkNav()
 
@@ -124,7 +127,7 @@ export function DAOOverviewCard({
                         </span>
                     </div>
                 )}
-                {isAuthenticated && !currentMember && (
+                {isAuthenticated && !currentMember && (!professional || membersKnown) && (
                     <span className="dao-guest-badge">Guest</span>
                 )}
             </div>
@@ -185,9 +188,18 @@ export function DAOOverviewCard({
                 {/* Left: Donut + Stats */}
                 <div className="dao-card-columns__left">
                     {config?.tierDistribution && config.tierDistribution.length > 0 && totalPower > 0 && (
-                        <PowerDonut tiers={config.tierDistribution} totalPower={totalPower} size={80} />
+                        professional ? <details className="gov-power-details"><summary>Voting power distribution · {totalPower} total</summary><PowerDonut tiers={config.tierDistribution} totalPower={totalPower} size={80} /></details> : <PowerDonut tiers={config.tierDistribution} totalPower={totalPower} size={80} />
                     )}
-                    <div className="k-stat-grid k-stat-grid--compact">
+                    {professional ? <dl className="gov-summary">
+                        {[
+                            ["Members", membersKnown ? memberCount : null],
+                            ["Open for voting", proposalsKnown ? activeProposals - awaitingExecution : null],
+                            ["Awaiting execution", proposalsKnown ? awaitingExecution : null],
+                            ["Total proposals", proposalsKnown ? totalProposals : null],
+                        ].map(([label, value]) => <div key={label}>
+                            <dt>{label}</dt><dd>{value ?? "—"}</dd>
+                        </div>)}
+                    </dl> : <div className="k-stat-grid k-stat-grid--compact">
                         {[
                             { icon: "👥", value: String(memberCount), label: "Members", tip: `${memberCount} members across ${config?.tierDistribution?.length || 1} tier(s). Click to scroll to members list.`, action: "members" },
                             { icon: "📋", value: String(activeProposals), label: "Active", accent: true, tip: `${activeProposals} open proposal(s) currently awaiting votes from DAO members. Click to scroll.`, action: "proposals" },
@@ -217,7 +229,7 @@ export function DAOOverviewCard({
                                 </div>
                             </button>
                         ))}
-                    </div>
+                    </div>}
                 </div>
 
                 {/* Right: Discord-style channel sidebar */}

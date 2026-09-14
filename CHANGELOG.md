@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Professional DAO and proposal preview (2026-09-14)
+<!-- categories: memba -->
+- An independent opt-in governance preview gives DAO overviews a wider layout, direct counts, searchable proposal status filters and keyboard-accessible proposal/member links.
+- Proposal readers gain readable action details and a separate voting summary. Missing counts and thresholds remain explicitly unavailable; network failures offer contextual retries.
+- Existing vote confirmation, membership/archive restrictions and transaction payloads are preserved. The preview excludes creation, treasury, membership management, channels and extension routes, and remains off by default.
+
 ### Professional navigation and Folded M preview (2026-09-14)
 <!-- categories: memba -->
 - A separately opt-in shell groups desktop navigation and offers Home, DAOs, Tokens, Directory and More on mobile. Existing routes, wallet-only links and unavailable-feature gates remain intact.

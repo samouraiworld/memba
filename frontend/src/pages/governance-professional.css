@@ -1,0 +1,128 @@
+/* The route class is enabled only for DAO overview and numeric proposal detail. */
+.k-pro-governance .k-main { max-width: 1600px; padding: 36px clamp(16px, 2.5vw, 48px) 64px; }
+.k-pro-governance .k-main {
+  --gov-canvas: #000; --gov-panel: #000; --gov-text: #f5f5f5; --gov-secondary: #b0b0b0;
+  --gov-edge: #333; --gov-accent: #00d4aa; --gov-hover: #141414;
+  --color-k-panel: var(--gov-panel); --color-k-edge: var(--gov-edge); --color-k-dim: var(--gov-secondary);
+  --color-text-muted: var(--gov-secondary); --color-text-secondary: var(--gov-secondary);
+  color: var(--gov-text); font: 400 15px/1.6 var(--font-sans);
+}
+[data-theme="light"] .k-pro-governance .k-main {
+  --gov-canvas: #fff; --gov-panel: #fff; --gov-text: #17221e; --gov-secondary: #52615a;
+  --gov-edge: #d7ded9; --gov-accent: #006e57; --gov-hover: #f3f7f5;
+}
+.k-pro-governance .k-main :is(button, a, input, summary):focus-visible { outline: 2px solid var(--gov-accent); outline-offset: 4px; }
+.k-pro-governance .k-main :is(button, input) { font-family: var(--font-sans); }
+.k-pro-governance .k-main .k-card { background: var(--gov-panel); border-color: var(--gov-edge); border-radius: 12px; box-shadow: none; }
+.k-pro-governance .dao-container { gap: 32px; }
+.k-pro-governance .dao-overview-card { padding: 28px; }
+.k-pro-governance :is(.dao-breadcrumb, .proposal-breadcrumb) { margin-bottom: 16px; gap: 10px; }
+.k-pro-governance :is(.dao-breadcrumb-btn, .dao-breadcrumb-name, .proposal-breadcrumb-btn, .proposal-breadcrumb-current) { font: 500 14px/1.5 var(--font-sans); }
+.k-pro-governance :is(.dao-breadcrumb-btn, .proposal-breadcrumb-btn) { min-height: 36px; }
+.k-pro-governance :is(.dao-title, .proposal-title) { font: 600 clamp(26px, 2.5vw, 36px)/1.2 var(--font-sans); letter-spacing: -.8px; color: var(--gov-text); overflow-wrap: anywhere; }
+.k-pro-governance .dao-title-row { align-items: center; }
+.k-pro-governance .dao-title svg { display: none; }
+.k-pro-governance :is(.dao-path-text, .k-realm-address) { font-size: 12px; overflow-wrap: anywhere; }
+.k-pro-governance .dao-path-row { flex-wrap: wrap; gap: 8px; }
+.k-pro-governance .dao-path-left { min-width: 0; }
+.k-pro-governance .dao-description { max-width: 75ch; font: 400 16px/1.65 var(--font-sans); margin: 16px 0 24px; }
+.k-pro-governance .dao-card-columns { display: grid; grid-template-columns: minmax(0, 1fr) 230px; gap: 28px; }
+.k-pro-governance .dao-card-columns__left { display: flex; flex-wrap: wrap; flex-direction: column; align-items: stretch; gap: 24px; }
+.k-pro-governance .dao-card-columns__left > :first-child:not(.gov-summary) { order: 2; }
+.k-pro-governance .gov-summary { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0; gap: 20px; }
+.k-pro-governance .gov-summary dt { font-size: 13px; color: var(--gov-secondary); }
+.k-pro-governance .gov-summary dd { margin: 8px 0 0; font-size: 32px; font-weight: 600; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.k-pro-governance .dao-channels-sidebar { border-left: 1px solid var(--gov-edge); padding-left: 24px; }
+.k-pro-governance .dao-channels-sidebar__header { font: 600 14px var(--font-sans); letter-spacing: 0; color: var(--gov-text); }
+.k-pro-governance .dao-channels-sidebar__item { min-height: 40px; font: 400 14px var(--font-sans); color: var(--gov-secondary); }
+.k-pro-governance :is(.dao-channels-sidebar__hint, .dao-channels-sidebar__divider) { font: 400 12px var(--font-sans); color: var(--gov-secondary); }
+.k-pro-governance :is(.gov-section-title, .gov-section-header h3, .dao-section-title--sm, .dao-section-title) { font: 600 20px/1.3 var(--font-sans); margin: 0; color: var(--gov-text); }
+.k-pro-governance .gov-section-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.k-pro-governance .gov-section-header p { margin: 6px 0 0; font-size: 14px; color: var(--gov-secondary); }
+.k-pro-governance .gov-list-toolbar { display: flex; flex-wrap: wrap; align-items: end; justify-content: space-between; gap: 20px; margin: 24px 0 16px; }
+.k-pro-governance .gov-filters { display: flex; flex-wrap: wrap; gap: 4px; }
+.k-pro-governance .gov-filters button { border: 1px solid transparent; border-radius: 6px; background: none; color: var(--gov-secondary); padding: 10px 12px; min-height: 44px; font-size: 14px; cursor: pointer; }
+.k-pro-governance .gov-filters button[aria-pressed="true"] { border-color: var(--gov-edge); color: var(--gov-text); background: var(--gov-hover); }
+.k-pro-governance .gov-filters span { margin-left: 8px; font-size: 12px; color: var(--gov-secondary); }
+.k-pro-governance .gov-search { display: flex; flex-direction: column; gap: 6px; font-size: 12px; color: var(--gov-secondary); }
+.k-pro-governance .gov-search input { background: var(--gov-canvas); border: 1px solid var(--gov-edge); border-radius: 6px; padding: 10px 12px; min-height: 44px; color: var(--gov-text); font-size: 16px; width: 250px; max-width: 100%; }
+.k-pro-governance .gov-search input::placeholder { color: var(--gov-secondary); }
+.k-pro-governance .gov-result-count { font-size: 12px; color: var(--gov-secondary); margin: 0 0 12px; }
+.k-pro-governance .gov-proposal-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--gov-edge); border-radius: 10px; overflow: clip; }
+.k-pro-governance .gov-proposal-list li + li { border-top: 1px solid var(--gov-edge); }
+.k-pro-governance .gov-proposal-link { display: grid; grid-template-columns: 42px minmax(0, 1fr) auto 18px; align-items: center; gap: 16px; padding: 22px; text-decoration: none; color: var(--gov-text); }
+.k-pro-governance .gov-proposal-link:hover { background: var(--gov-hover); }
+.k-pro-governance .gov-proposal-link:focus-visible { outline-offset: -3px; }
+.k-pro-governance .gov-proposal-content { display: flex; flex-direction: column; gap: 6px; overflow-wrap: anywhere; }
+.k-pro-governance .gov-proposal-content strong { font-size: 16px; font-weight: 500; line-height: 1.5; }
+.k-pro-governance :is(.gov-proposal-meta, .gov-proposal-number) { font-size: 13px; color: var(--gov-secondary); }
+.k-pro-governance .gov-status { font-size: 12px; border: 1px solid var(--gov-edge); border-radius: 5px; padding: 4px 8px; white-space: nowrap; color: var(--gov-secondary); }
+.k-pro-governance .gov-status--open { color: var(--gov-accent); }
+.k-pro-governance .gov-status--passed { color: #eac36a; }
+[data-theme="light"] .k-pro-governance .gov-status--passed { color: #7c5700; }
+.k-pro-governance .gov-empty { padding: 40px 24px; border: 1px dashed var(--gov-edge); border-radius: 10px; color: var(--gov-secondary); }
+.k-pro-governance .gov-read-notice { border: 1px solid var(--gov-edge); border-left: 3px solid var(--gov-accent); border-radius: 8px; padding: 20px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
+.k-pro-governance .gov-read-notice p { margin: 4px 0; color: var(--gov-secondary); max-width: 75ch; }
+.k-pro-governance .gov-reading-layout { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(320px, 1fr); gap: 28px; align-items: start; }
+.k-pro-governance :is(.gov-reading-body, .gov-reading-votes) { display: flex; flex-direction: column; gap: 20px; min-width: 0; }
+.k-pro-governance .proposal-desc-card { padding: 28px; }
+.k-pro-governance .proposal-desc-text { font: 400 16px/1.85 var(--font-sans); max-width: 75ch; white-space: pre-wrap; overflow-wrap: anywhere; }
+.k-pro-governance :is(.proposal-action-title, .proposal-votes-title) { font: 600 17px var(--font-sans); }
+.k-pro-governance :is(.proposal-author-name, .proposal-author-role, .proposal-date-item__label, .proposal-id-label, .proposal-connect-cta p) { font-family: var(--font-sans); font-size: 14px; }
+.k-pro-governance .proposal-action-body { font-size: 13px; line-height: 1.7; white-space: pre-wrap; overflow-wrap: anywhere; }
+.k-pro-governance .proposal-executor-link { overflow-wrap: anywhere; }
+.k-pro-governance .proposal-status-badge { font: 500 12px var(--font-sans); }
+.k-pro-governance .proposal-vote-btns { flex-wrap: wrap; }
+.k-pro-governance .k-main :is(.k-btn-primary, .k-btn-secondary) { min-height: 44px; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; }
+.k-pro-governance .dao-view-all-btn { font: 500 14px var(--font-sans); min-height: 44px; }
+@media (max-width: 1150px) {
+  .k-pro-governance .gov-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .k-pro-governance .gov-reading-layout { grid-template-columns: minmax(0, 1fr); }
+}
+@media (max-width: 768px) {
+  .k-pro-governance .k-main { padding: 24px 16px 40px; }
+  .k-pro-governance .dao-overview-card { padding: 20px; }
+  .k-pro-governance .dao-card-columns { grid-template-columns: minmax(0, 1fr); }
+  .k-pro-governance .dao-channels-sidebar { border-left: 0; border-top: 1px solid var(--gov-edge); padding: 20px 0 0; }
+  .k-pro-governance .gov-section-header { align-items: start; flex-wrap: wrap; }
+  .k-pro-governance .gov-search, .k-pro-governance .gov-search input { width: 100%; }
+  .k-pro-governance .gov-proposal-link { grid-template-columns: 32px minmax(0, 1fr); gap: 8px; padding: 18px 14px; }
+  .k-pro-governance .gov-status { grid-column: 2; justify-self: start; }
+  .k-pro-governance .gov-row-arrow { display: none; }
+  .k-pro-governance .proposal-desc-card { padding: 20px; }
+}
+@media (prefers-reduced-motion: reduce) { .k-pro-governance .k-main * { animation: none !important; scroll-behavior: auto !important; } }
+.k-pro-governance .gov-vote-summary { padding: 24px; }
+.k-pro-governance .gov-vote-heading { display: flex; justify-content: space-between; align-items: baseline; flex-wrap: wrap; gap: 8px; }
+.k-pro-governance .gov-vote-heading h4 { margin: 0; font-size: 16px; font-weight: 600; }
+.k-pro-governance .gov-vote-heading span { font-size: 13px; color: var(--gov-secondary); }
+.k-pro-governance .gov-vote-counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; padding: 24px 0; margin: 0; border-bottom: 1px solid var(--gov-edge); }
+.k-pro-governance .gov-vote-counts dt { font-size: 13px; color: var(--gov-secondary); }
+.k-pro-governance .gov-vote-counts dd { font-size: 32px; font-weight: 600; margin: 4px 0 0; }
+.k-pro-governance .gov-vote-context { margin: 20px 0; display: grid; gap: 10px; font-size: 14px; }
+.k-pro-governance .gov-vote-context div { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+.k-pro-governance .gov-vote-context dt { color: var(--gov-secondary); }
+.k-pro-governance .gov-vote-context dd { margin: 0; }
+.k-pro-governance .gov-vote-note { margin-bottom: 0; color: var(--gov-secondary); font-size: 13px; line-height: 1.7; }
+.k-pro-governance .gov-power-details { font-size: 13px; color: var(--gov-secondary); }
+.k-pro-governance .gov-power-details summary { cursor: pointer; min-height: 44px; padding: 10px 0; }
+.k-pro-governance .gov-power-details[open] summary { margin-bottom: 12px; }
+.k-pro-governance :is(.dao-path-text, .dao-path-source-link, .k-realm-address) { color: var(--gov-secondary); }
+.k-pro-governance .gov-member-note { font-size: 14px; color: var(--gov-secondary); }
+.k-pro-governance .dao-treasury-card { padding: 24px; }
+.k-pro-governance :is(.dao-treasury-desc, .dao-plugin-desc) { font: 400 14px/1.6 var(--font-sans); color: var(--gov-secondary); }
+.k-pro-governance .dao-plugin-name { font: 500 15px/1.4 var(--font-sans); }
+.k-pro-governance .dao-plugin-card { padding: 20px; }
+.k-pro-governance .dao-members-grid { grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
+.k-pro-governance .gov-member-link { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 20px; border: 1px solid var(--gov-edge); border-radius: 10px; color: var(--gov-text); text-decoration: none; min-width: 0; }
+.k-pro-governance .gov-member-link > span:first-child { min-width: 0; }
+.k-pro-governance .gov-member-link strong { font-size: 15px; font-weight: 500; }
+.k-pro-governance .gov-member-address { display: block; font-size: 12px; color: var(--gov-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.k-pro-governance .gov-member-role { font-size: 12px; color: var(--gov-secondary); flex-shrink: 0; max-width: 40%; overflow-wrap: anywhere; }
+.k-pro-governance .gov-member-link:hover { background: var(--gov-hover); }
+.k-pro-governance .proposal-status-badge { border: 1px solid var(--gov-edge); background: var(--gov-panel); color: var(--gov-secondary); }
+.k-pro-governance .proposal-status-badge[data-status="open"] { color: var(--gov-accent); }
+.k-pro-governance :is(.proposal-source-link, .proposal-awaiting-hint, .proposal-live-badge, .proposal-tier-badge, .proposal-category-badge, .proposal-executor-label) { font-size: 12px; color: var(--gov-secondary); }
+.k-pro-governance .proposal-source-link { display: inline-flex; align-items: center; min-height: 32px; padding: 4px 8px; }
+.k-pro-governance .proposal-action-body { background: var(--gov-hover); color: var(--gov-text); border: 1px solid var(--gov-edge); }
+.k-pro-governance .dao-treasury-open-btn { min-height: 44px; padding: 8px 12px; font: 500 14px var(--font-sans); }

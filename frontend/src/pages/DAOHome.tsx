@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect } from "react"
 import { useQuery, useQueries } from "@tanstack/react-query"
-import { useOutletContext } from "react-router-dom"
+import { useLocation, useOutletContext } from "react-router-dom"
+import { isProGovernanceRoute } from "../lib/proGovernance"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -20,6 +21,7 @@ import { resolveOnChainUsername } from "../lib/profile"
 import { useJitsiContext } from "../contexts/JitsiContext"
 import { DeployPluginModal } from "../components/dao/DeployPluginModal"
 import { DAOOverviewCard } from "../components/dao/DAOOverviewCard"
+import { ProDAOProposals } from "../components/dao/ProDAOProposals"
 import { DAOProposalsSection } from "../components/dao/DAOProposalsSection"
 import { DAOMembersPreview } from "../components/dao/DAOMembersPreview"
 import { DAOTreasuryCard, DAOPluginsGrid } from "../components/dao/DAOPluginsGrid"
@@ -28,6 +30,7 @@ import type { LayoutContext } from "../types/layout"
 import "./daohome.css"
 
 export function DAOHome() {
+    const professional = isProGovernanceRoute(useLocation().pathname)
     const navigate = useNetworkNav()
     const { realmPath, encodedSlug } = useDaoRoute()
     const { auth, adena } = useOutletContext<LayoutContext>()
@@ -197,7 +200,8 @@ export function DAOHome() {
     const currentMember = members.find((m) => m.address === adena.address)
     const totalPower = config?.tierDistribution?.reduce((sum, t) => sum + t.power, 0) || 0
 
-    const healthScore = useMemo(() => {
+    // Derived values remain unchanged; avoid retaining a manual memo across preview branches.
+    const healthScore = (() => {
         if (!config || proposals.length === 0) return null
         const participationPts = proposalsWithVotes.length > 0
             ? Math.round((1 - nonVoterPercent / 100) * 40) : 0
@@ -208,7 +212,7 @@ export function DAOHome() {
         const grade = total >= 80 ? "A" : total >= 60 ? "B" : total >= 40 ? "C" : "D"
         const color = grade === "A" ? "var(--color-brand)" : grade === "B" ? "var(--color-accent-blue-sky)" : grade === "C" ? "var(--color-accent-gold-warm)" : "var(--color-status-error-deep)"
         return { grade, total, color, participationPts, execPts, activityPts }
-    }, [proposals.length, proposalsWithVotes.length, nonVoterPercent, awaitingExecution.length, config])
+    })()
 
     useEffect(() => {
         if (!realmPath) navigate("/dao")
@@ -225,7 +229,16 @@ export function DAOHome() {
     // ── Render ────────────────────────────────────────────────────
     return (
         <div className="animate-fade-in dao-container" aria-label="DAO dashboard">
+            {professional && (!config || configQuery.isError || membersQuery.isError || proposalsQuery.isError) && (
+                <div className="gov-read-notice" role="status">
+                    <div><strong>Some DAO data is unavailable</strong><p>Check the network and retry. Previously loaded data may be out of date; a dash means the count is unavailable.</p></div>
+                    <button className="k-btn-secondary" onClick={() => { void configQuery.refetch(); void membersQuery.refetch(); void proposalsQuery.refetch() }}>Retry DAO data</button>
+                </div>
+            )}
             <DAOOverviewCard
+                professional={professional}
+                proposalsKnown={proposalsQuery.isSuccess}
+                membersKnown={!!config && membersQuery.isSuccess}
                 config={config}
                 realmPath={realmPath}
                 encodedSlug={encodedSlug}
@@ -247,7 +260,16 @@ export function DAOHome() {
             />
 
             <div aria-live="polite">
-            <DAOProposalsSection
+            {professional ? <ProDAOProposals
+                key={realmPath}
+                encodedSlug={encodedSlug}
+                proposals={[...activeProposals, ...completedProposals]}
+                loading={proposalsLoading}
+                failed={proposalsQuery.isError}
+                retry={() => { void proposalsQuery.refetch() }}
+                canPropose={auth.isAuthenticated && !config?.isArchived}
+                votedIds={votedIds}
+            /> : <DAOProposalsSection
                 encodedSlug={encodedSlug}
                 realmPath={realmPath}
                 isAuthenticated={auth.isAuthenticated}
@@ -259,16 +281,17 @@ export function DAOHome() {
                 votedIds={votedIds}
                 enrichedIds={enrichedIds}
                 proposalsLoading={proposalsLoading}
-            />
+            />}
             </div>
 
-            <DAOMembersPreview
+            {professional && membersQuery.isError ? <p className="gov-read-notice">Member details are unavailable. Use Retry DAO data above to try again.</p> : <DAOMembersPreview
+                professional={professional}
                 encodedSlug={encodedSlug}
                 members={members}
                 memberCount={memberCount}
                 membersLoading={membersLoading}
                 currentUserAddress={adena.address}
-            />
+            />}
 
             <DAOTreasuryCard encodedSlug={encodedSlug} />
             <DAOPluginsGrid encodedSlug={encodedSlug} />

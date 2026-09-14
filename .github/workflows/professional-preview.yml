@@ -18,7 +18,7 @@ jobs:
   preview:
     name: Professional preview (four browsers)
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     defaults:
       run:
         working-directory: frontend
@@ -41,6 +41,8 @@ jobs:
         run: npm run test:e2e:pro-ui
       - name: Flag-on shell and brand tests
         run: npm run test:e2e:pro-shell
+      - name: Flag-on governance tests
+        run: npm run test:e2e:pro-governance
       - name: Upload preview evidence
         if: always()
         uses: actions/upload-artifact@v7
@@ -49,4 +51,5 @@ jobs:
           path: |
             frontend/test-results/
             frontend/test-results-shell/
+            frontend/test-results-governance/
           retention-days: 14

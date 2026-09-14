@@ -24,6 +24,8 @@ export const APP_VERSION = __APP_VERSION__
 export const PRO_UI_ENABLED = import.meta.env.VITE_ENABLE_PRO_UI === "true"
 /** Separate, default-off navigation/brand preview; does not restyle feature bodies. */
 export const PRO_SHELL_ENABLED = import.meta.env.VITE_ENABLE_PRO_SHELL === "true"
+/** Default-off DAO overview and proposal reading presentation. */
+export const PRO_GOVERNANCE_ENABLED = import.meta.env.VITE_ENABLE_PRO_GOVERNANCE === "true"
 
 /**
  * Treasury spend kill-switch (AAA-0 A1.a — CRITICAL fund safety).

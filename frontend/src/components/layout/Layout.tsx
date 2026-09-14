@@ -39,6 +39,8 @@ import { OnboardingWizard } from "../ui/OnboardingWizard"
 import { hasSeenWizard } from "../../lib/onboarding"
 import { RouteMetaSync } from "./RouteMetaSync"
 import { isProValidatorsRoute } from "../../lib/proUi"
+import { isProGovernanceRoute } from "../../lib/proGovernance"
+import "../../pages/governance-professional.css"
 
 
 // Encode Uint8Array to base64 string (protojson format for bytes fields)
@@ -51,7 +53,9 @@ function bytesToBase64(bytes: Uint8Array): string {
 }
 
 export function Layout() {
-    const proUi = isProValidatorsRoute(useLocation().pathname)
+    const pathname = useLocation().pathname
+    const proUi = isProValidatorsRoute(pathname)
+    const proGovernance = isProGovernanceRoute(pathname)
     const adena = useAdena()
     const auth = useAuth()
     const isMobile = useIsMobile()
@@ -441,7 +445,7 @@ export function Layout() {
     return (
         <OrgProvider>
         <JitsiProvider>
-            <div className={`k-app-layout${PRO_SHELL_ENABLED ? " k-pro-shell" : ""}${proUi ? " k-pro-ui" : ""}${sidebarCollapsed ? " k-sidebar-collapsed" : ""}`}>
+            <div className={`k-app-layout${PRO_SHELL_ENABLED ? " k-pro-shell" : ""}${proUi ? " k-pro-ui" : ""}${proGovernance ? " k-pro-governance" : ""}${sidebarCollapsed ? " k-sidebar-collapsed" : ""}`}>
                 {/* Skip to content (accessibility — focus-only) */}
                 <a href="#main-content" className="k-skip-to-content">
                     Skip to content

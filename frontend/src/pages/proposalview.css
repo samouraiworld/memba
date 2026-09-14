@@ -5,6 +5,9 @@
  * (status colors, vote outcome colors, disabled opacity). This is intentional.
  */
 
+/* Presentation wrappers are neutral unless the governance preview is enabled. */
+.gov-reading-layout, .gov-reading-body, .gov-reading-votes { display: contents; }
+
 /* ── Layout ──────────────────────────────────────────────── */
 .proposal-container {
     display: flex;
