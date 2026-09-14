@@ -23,6 +23,13 @@ jobs:
         uses: actions/dependency-review-action@v5
         with:
           fail-on-severity: high
+          vulnerability-check: true
+          license-check: true
+          # Owner-approved Gno use (2026-09-14, design partnership). Package-level
+          # approval, not a version-bound exception: the action ignores versions.
+          # All advisories and every other dependency remain subject to the gates.
+          # Scope and enabled checks are asserted in frontend/scripts/audit-ci.test.ts.
+          allow-dependencies-licenses: pkg:golang/github.com/gnolang/gno
           # Acknowledged advisories — kept in sync with the ALLOWLIST in
           # frontend/scripts/audit-ci.mjs, which carries the full written
           # justification for each entry. The sync is ENFORCED by a test

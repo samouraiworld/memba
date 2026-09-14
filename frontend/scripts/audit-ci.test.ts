@@ -163,6 +163,23 @@ describe("the two dependency gates agree on what is acknowledged", () => {
                 "update BOTH, and keep the written justification in audit-ci.mjs",
         ).toEqual(Object.keys(ALLOWLIST).sort())
     })
+
+    it("limits the owner-approved dependency exception to the Gno module", () => {
+        const exceptions = String(only?.step.with?.["allow-dependencies-licenses"] ?? "")
+            .split(",").map((value) => value.trim()).filter(Boolean)
+        expect(exceptions).toEqual(["pkg:golang/github.com/gnolang/gno"])
+    })
+
+    it("keeps security and other dependencies checked despite the Gno exception", () => {
+        expect(only?.step.with?.["vulnerability-check"]).toBe(true)
+        expect(only?.step.with?.["license-check"]).toBe(true)
+        expect(only?.step.with?.["fail-on-severity"]).toBe("high")
+        expect(String(only?.step.with?.["allow-licenses"]).split(",").map((value) => value.trim()).sort()).toEqual([
+            "MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC", "MPL-2.0",
+            "0BSD", "Unlicense", "CC0-1.0", "LicenseRef-bad-see-license-in-license.md",
+            "LicenseRef-scancode-google-patent-license-golang",
+        ].sort())
+    })
 })
 
 describe("the dev/build-scope audit lane", () => {
