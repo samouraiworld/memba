@@ -119,7 +119,8 @@ export default defineConfig({
         // SW install. It is fetched on demand and cached at runtime (below) instead.
         // Wired ahead of the renderer: the vendor-three chunk itself is created when
         // the 3D renderer lands and lazily imports three.
-        globIgnores: ['**/vendor-three-*.js'],
+        // Review-only brand specimens should not enter the production offline precache.
+        globIgnores: ['**/vendor-three-*.js', '**/brand/folded-m/**'],
         // recharts/jspdf chunks are large; allow them into the precache.
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         runtimeCaching: [

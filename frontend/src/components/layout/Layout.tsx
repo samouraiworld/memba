@@ -14,6 +14,8 @@ import { buildTokenRequestInfo } from "../../lib/loginChallenge"
 import { ACTIVATION_REQUIRED_CODE, ACTIVATION_LOGIN_MSG } from "../../lib/loginErrors"
 import { syncQuestsToBackend, completeQuest, setQuestWalletAddress, checkAndSetLegacyEligibility } from "../../lib/quests"
 import { DesktopShell } from "./DesktopShell"
+import { PRO_SHELL_ENABLED } from "../../lib/config"
+import "./professional-shell.css"
 import { MobileShell } from "./MobileShell"
 import { TopBar } from "./TopBar"
 import { MobileTabBar } from "./MobileTabBar"
@@ -439,7 +441,7 @@ export function Layout() {
     return (
         <OrgProvider>
         <JitsiProvider>
-            <div className={`k-app-layout${proUi ? " k-pro-ui" : ""}${sidebarCollapsed ? " k-sidebar-collapsed" : ""}`}>
+            <div className={`k-app-layout${PRO_SHELL_ENABLED ? " k-pro-shell" : ""}${proUi ? " k-pro-ui" : ""}${sidebarCollapsed ? " k-sidebar-collapsed" : ""}`}>
                 {/* Skip to content (accessibility — focus-only) */}
                 <a href="#main-content" className="k-skip-to-content">
                     Skip to content

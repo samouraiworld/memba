@@ -1,4 +1,6 @@
 import { useState } from "react"
+import { PRO_SHELL_ENABLED } from "../../lib/config"
+import { ProSidebar } from "./ProSidebar"
 import { Link, useLocation } from "react-router-dom"
 import { Gear } from "@phosphor-icons/react"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
@@ -120,7 +122,7 @@ function CmdKHint() {
 }
 
 // ── Sidebar Component ──────────────────────────────────────────────────
-interface SidebarProps {
+export interface SidebarProps {
     connected: boolean
     address: string | null
     unvotedCount: number
@@ -132,6 +134,8 @@ interface SidebarProps {
 
 export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, feedReplyUnread = 0, collapsed, onToggleCollapse }: SidebarProps) {
     const nk = useNetworkKey()
+
+    if (PRO_SHELL_ENABLED) return <ProSidebar {...{ connected, address, unvotedCount, notifUnreadCount, feedReplyUnread, collapsed, onToggleCollapse }} />
 
     return (
         <aside

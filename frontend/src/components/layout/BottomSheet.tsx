@@ -1,8 +1,10 @@
-import { useEffect, useRef, useCallback, useState, type ReactNode } from "react"
+import { useEffect, useRef, useCallback, useState, type ReactNode, type RefObject } from "react"
 
 interface BottomSheetProps {
     open: boolean
     onClose: () => void
+    returnFocusRef?: RefObject<HTMLElement | null>
+    containFocus?: boolean
     children: ReactNode
 }
 
@@ -11,15 +13,38 @@ const DISMISS_THRESHOLD = 100
 
 /**
  * BottomSheet — Slide-up overlay panel for mobile "More" menu.
- * Accessible: role="dialog", aria-modal, focus trap, Escape to close.
+ * Dialog semantics and Escape dismissal. Preview callers opt into focus containment.
  */
-export function BottomSheet({ open, onClose, children }: BottomSheetProps) {
+export function BottomSheet({ open, onClose, children, containFocus = false, returnFocusRef }: BottomSheetProps) {
     const contentRef = useRef<HTMLDivElement>(null)
+
+    const closeRef = useRef(onClose)
+    useEffect(() => { closeRef.current = onClose }, [onClose])
+
+    useEffect(() => {
+        if (!open || !containFocus) return
+        const previous = returnFocusRef?.current ?? document.activeElement as HTMLElement | null
+        const panel = contentRef.current
+        const trap = (event: KeyboardEvent) => {
+            if (event.key !== "Tab" || !panel) return
+            const controls = Array.from(panel.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), select:not([disabled]), [tabindex="0"]')).filter(el => el.getClientRects().length > 0)
+            const first = controls[0], last = controls[controls.length - 1]
+            if (!first) { event.preventDefault(); panel.focus(); return }
+            if (event.shiftKey && (document.activeElement === first || document.activeElement === panel)) { event.preventDefault(); last.focus() }
+            else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus() }
+        }
+        panel?.focus()
+        document.addEventListener("keydown", trap)
+        return () => {
+            document.removeEventListener("keydown", trap)
+            if (previous?.isConnected && (panel?.contains(document.activeElement) || document.activeElement === document.body)) previous.focus()
+        }
+    }, [open, containFocus, returnFocusRef])
 
     // Close on Escape
     const handleKeyDown = useCallback((e: KeyboardEvent) => {
-        if (e.key === "Escape") onClose()
-    }, [onClose])
+        if (e.key === "Escape") closeRef.current()
+    }, [])
 
     useEffect(() => {
         if (open) {
@@ -100,14 +125,16 @@ export function BottomSheet({ open, onClose, children }: BottomSheetProps) {
                 <div
                     className="k-bottom-sheet-handle"
                     data-testid="bottom-sheet-handle"
-                    role="button"
-                    aria-label="Drag to dismiss"
+                    role={containFocus ? undefined : "button"}
+                    aria-hidden={containFocus || undefined}
+                    aria-label={containFocus ? undefined : "Drag to dismiss"}
                     style={{ touchAction: "none" }}
                     onPointerDown={onHandlePointerDown}
                     onPointerMove={onHandlePointerMove}
                     onPointerUp={onHandlePointerUp}
                     onPointerCancel={onHandlePointerUp}
                 />
+                {containFocus && <button type="button" className="pro-sheet-close" onClick={onClose}>Close menu</button>}
                 {children}
             </div>
         </div>

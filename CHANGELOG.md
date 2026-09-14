@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Professional navigation and Folded M preview (2026-09-14)
+<!-- categories: memba -->
+- A separately opt-in shell groups desktop navigation and offers Home, DAOs, Tokens, Directory and More on mobile. Existing routes, wallet-only links and unavailable-feature gates remain intact.
+- The mobile preview menu adds a visible close action, readable controls, keyboard focus containment and reliable focus return on iPhone.
+- The selected Folded M is available as editable vector masters, wordmarks, app icons and a sharing-card proposal. Existing production identity and shared-link metadata remain unchanged.
+
 ### Professional Validators preview (2026-09-14)
 <!-- categories: memba -->
 - An opt-in presentation preview gives Validators a wider workspace, readable table, Light / true Black surfaces and expandable mobile network overview. Additional metrics remain available through All columns; existing queries, sorting and detail routes are preserved.

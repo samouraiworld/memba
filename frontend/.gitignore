@@ -30,3 +30,6 @@ playwright-report/
 
 # A2 login spike (throwaway, not shipped)
 sign-spike.html
+
+# Isolated professional shell browser evidence
+test-results-shell*/

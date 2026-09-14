@@ -1,0 +1,58 @@
+/* Shell tokens never alias feature-body tokens. Both previews default off. */
+.k-pro-shell {
+  --sidebar-width: 240px;
+  --sidebar-collapsed-width: 76px;
+  --shell-canvas: #000;
+  --shell-text: #f5f7f6;
+  --shell-secondary: #adb5b2;
+  --shell-edge: #303735;
+  --shell-active: #00d4aa;
+  --shell-hover: #101715;
+}
+[data-theme="light"] .k-pro-shell {
+  --shell-canvas: #fff;
+  --shell-text: #17221e;
+  --shell-secondary: #52615a;
+  --shell-edge: #dbe2de;
+  --shell-active: #006e57;
+  --shell-hover: #f3f7f5;
+}
+.k-pro-shell :is(.k-sidebar, .k-topbar, .k-mobile-tabbar, .k-bottom-sheet-content) {
+  background: var(--shell-canvas); color: var(--shell-text); border-color: var(--shell-edge);
+  font-family: var(--font-sans);
+}
+.k-pro-shell .k-main-column { min-width: 0; }
+.k-pro-shell .pro-sidebar { overflow: hidden; }
+.k-pro-shell .k-sidebar-header { min-height: 76px; padding: 0 12px; margin: 0 12px; gap: 8px; }
+.k-pro-shell .k-sidebar-header img { width: 28px; height: 28px; border-radius: 0; }
+.k-pro-shell .k-sidebar-logo-text { font-size: 23px; letter-spacing: -.8px; }
+.k-pro-shell .k-sidebar-toggle { display: grid; place-items: center; margin-left: auto; width: 32px; height: 36px; color: var(--shell-secondary); flex-shrink: 0; }
+.k-pro-shell .pro-nav-scroll { overflow-y: auto; padding: 0 12px 24px; scrollbar-width: thin; }
+.k-pro-shell .k-sidebar-section { padding: 0; }
+.k-pro-shell .pro-nav-group { margin-top: 18px; }
+.k-pro-shell :is(.pro-nav-heading, .pro-nav-group summary, .k-sidebar-section-label) { color: var(--shell-secondary); font: 500 12px/1.5 var(--font-sans); padding: 8px 12px; letter-spacing: 0; text-transform: none; }
+.k-pro-shell .pro-nav-group summary { cursor: pointer; min-height: 40px; }
+.k-pro-shell .k-sidebar-link { min-height: 40px; gap: 12px; padding: 8px 12px; border: 1px solid transparent; border-radius: 7px; color: var(--shell-secondary); font: 500 14px/1.4 var(--font-sans); }
+.k-pro-shell .k-sidebar-link:hover { color: var(--shell-text); background: var(--shell-hover); }
+.k-pro-shell .k-sidebar-link.active { color: var(--shell-active); background: var(--shell-hover); border-color: var(--shell-edge); }
+.k-pro-shell .k-sidebar-link .k-sidebar-badge { font: 500 11px/1.4 var(--font-sans); background: var(--shell-hover); color: var(--shell-active); }
+.k-pro-shell .k-sidebar-link .k-sidebar-badge.inactive { color: var(--shell-secondary); }
+.k-pro-shell .pro-search { width: 100%; text-align: left; cursor: pointer; background: none; }
+.k-pro-shell :is(.k-sidebar, .k-mobile-only) :is(a, button, select, summary):focus-visible { outline: 2px solid var(--shell-active); outline-offset: 2px; }
+.k-pro-shell .pro-sidebar.collapsed .k-sidebar-header { min-height: 100px; margin: 0; padding: 12px; flex-direction: column; }
+.k-pro-shell .pro-sidebar.collapsed .k-sidebar-toggle { margin: 0; }
+.k-pro-shell .pro-sidebar.collapsed .pro-nav-heading { font-size: 0; height: 1px; padding: 0; margin: 12px 0; background: var(--shell-edge); }
+.k-pro-shell .pro-sidebar.collapsed summary { text-align: center; padding: 4px; list-style: none; }
+.k-pro-shell .pro-sidebar.collapsed .k-sidebar-link { justify-content: center; padding: 10px; }
+.k-pro-shell .k-topbar { min-height: 56px; }
+.k-pro-shell .k-topbar select { font: 500 13px var(--font-sans); }
+.k-pro-shell .k-mobile-tab { font: 500 12px var(--font-sans); color: var(--shell-secondary); min-width: 0; position: relative; }
+.k-pro-shell .k-mobile-tab.active { color: var(--shell-active); }
+.k-pro-shell .pro-more-dot { position: absolute; top: 8px; right: 25%; width: 7px; height: 7px; background: var(--shell-active); border-radius: 50%; }
+.k-pro-shell .k-bottom-sheet-content { max-height: 78dvh; bottom: 0; padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px)); }
+.k-pro-shell .k-bottom-sheet .k-sidebar-section { margin-top: 16px; }
+.k-pro-shell .k-bottom-sheet .k-sidebar-link { min-height: 44px; }
+.k-pro-shell .k-bottom-sheet :is(select, input) { font: 400 16px var(--font-sans) !important; min-height: 44px; color: var(--shell-text) !important; background: var(--shell-canvas) !important; border-color: var(--shell-secondary) !important; }
+.k-pro-shell .k-bottom-sheet small { font-size: 12px !important; color: var(--shell-secondary) !important; }
+.k-pro-shell .pro-sheet-close { display: block; margin-left: auto; min-height: 44px; padding: 8px 12px; background: var(--shell-canvas); color: var(--shell-text); border: 1px solid var(--shell-secondary); border-radius: 6px; font: 500 14px var(--font-sans); cursor: pointer; }
+@media (prefers-reduced-motion: reduce) { .k-pro-shell :is(.k-sidebar, .k-main-column, .k-bottom-sheet-content, .k-bottom-sheet-overlay) { transition: none; } }

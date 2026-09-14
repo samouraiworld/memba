@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   preview:
-    name: Validators preview (four browsers)
+    name: Professional preview (four browsers)
     runs-on: ubuntu-latest
     timeout-minutes: 20
     defaults:
@@ -39,10 +39,14 @@ jobs:
         run: npx playwright install --with-deps chromium firefox webkit
       - name: Flag-on preview tests
         run: npm run test:e2e:pro-ui
+      - name: Flag-on shell and brand tests
+        run: npm run test:e2e:pro-shell
       - name: Upload preview evidence
         if: always()
         uses: actions/upload-artifact@v7
         with:
           name: validators-preview-evidence
-          path: frontend/test-results/
+          path: |
+            frontend/test-results/
+            frontend/test-results-shell/
           retention-days: 14
