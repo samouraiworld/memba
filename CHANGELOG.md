@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Validator page-size control is named for screen readers (2026-09-14)
+<!-- categories: memba -->
+- The desktop validator roster's page-size selector is now announced as "Validators per page". Its options and pagination behavior are unchanged.
+
 ### Mobile validator selectors keep their touch target on iPhone (2026-09-14)
 <!-- categories: memba -->
 - The validator roster selector now has an explicit 44px mobile height so WebKit's native control cannot collapse below the existing touch-target minimum. Desktop sizing and the native picker are preserved.
