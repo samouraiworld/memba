@@ -107,6 +107,15 @@ describe("Validators table — sortable headers", () => {
     beforeEach(() => vi.clearAllMocks())
     afterEach(() => vi.mocked(getValidators).mockResolvedValue([VALIDATOR]))
 
+    it("names the page-size selector and preserves its selection behavior", async () => {
+        await renderTable()
+        const select = screen.getByTestId("validator-page-size")
+        expect(select).toHaveAccessibleName("Validators per page")
+        expect(select).toHaveValue("50")
+        fireEvent.change(select, { target: { value: "25" } })
+        expect(select).toHaveValue("25")
+    })
+
     it("sorts from a real button inside the header cell", async () => {
         await renderTable()
         const header = screen.getByRole("columnheader", { name: /Voting Power/ })
