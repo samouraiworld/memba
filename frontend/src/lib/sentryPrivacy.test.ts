@@ -38,15 +38,24 @@ describe('Sentry breadcrumb privacy boundary', () => {
         expect(result.data).not.toBe(data)
     })
 
-    it('scrubs Error messages, stacks and linked causes in console data', () => {
+    it('scrubs standard Error fields without exposing hidden application properties', () => {
         const error = new Error(sensitive, { cause: new Error(jwt) })
+        Object.defineProperty(error, 'privateDetail', { value: 'synthetic-private-detail' })
+        Object.defineProperty(error, 'publicDetail', { enumerable: true, value: sensitive })
         const result = redactSentryBreadcrumb({ data: { arguments: [error] } })!
+        const snapshot = result.data?.arguments[0]
+        expect(snapshot).not.toHaveProperty('cause')
+        expect(snapshot).not.toHaveProperty('privateDetail')
+        expect(snapshot).toHaveProperty('publicDetail', redacted)
         const body = JSON.stringify(result)
         expect(body).toContain('[REDACTED_ADDRESS]')
         expect(body).toContain('[REDACTED_JWT]')
         expect(body).not.toContain(address)
         expect(body).not.toContain(jwt)
         expect(error.message).toBe(sensitive)
+        Object.defineProperty(error, 'cause', { enumerable: true })
+        expect(redactSentryBreadcrumb({ data: { error } })?.data?.error)
+            .toHaveProperty('cause.message', '[REDACTED_JWT]')
     })
 
     it('never executes getters or custom serialization methods', () => {

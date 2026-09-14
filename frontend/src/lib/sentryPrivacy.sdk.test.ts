@@ -18,6 +18,32 @@ afterEach(async () => {
 })
 
 describe('Sentry privacy through the actual SDK transport', () => {
+    it.each([false, true])('does not expose hidden Error properties (redaction enabled: %s)', async enabled => {
+        const bodies: string[] = []
+        Sentry.init({
+            dsn: 'https://00000000000000000000000000000000@telemetry.invalid/1',
+            defaultIntegrations: false,
+            beforeBreadcrumb: enabled ? redactSentryBreadcrumb : undefined,
+            beforeSend: enabled ? redactSentryEvent : undefined,
+            transport: options => Sentry.createTransport(options, request => {
+                bodies.push(typeof request.body === 'string' ? request.body : new TextDecoder().decode(request.body))
+                return Promise.resolve({ statusCode: 200 })
+            }),
+        })
+        const error = new Error('ordinary error', { cause: { hidden: 'synthetic-private-cause' } })
+        Object.defineProperty(error, 'privateDetail', { value: 'synthetic-private-detail' })
+        Object.defineProperty(error, 'publicDetail', { enumerable: true, value: 'ordinary diagnostic' })
+        Sentry.addBreadcrumb({ category: 'hidden-field-check', data: { error } })
+        Sentry.captureMessage('control')
+        expect(await Sentry.flush(2000)).toBe(true)
+        expect(bodies.length).toBeGreaterThan(0)
+        const serialized = bodies.join('\n')
+        expect(serialized).toContain('ordinary error')
+        expect(serialized).toContain('ordinary diagnostic')
+        expect(serialized).not.toContain('synthetic-private-cause')
+        expect(serialized).not.toContain('synthetic-private-detail')
+    })
+
     it('scrubs stored query/console breadcrumbs and outgoing error/transaction envelopes', async () => {
         const bodies: string[] = []
         Sentry.init({

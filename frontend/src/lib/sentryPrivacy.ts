@@ -74,8 +74,8 @@ export function redactSentryBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb | nul
                 const descriptor = propertyDescriptor(value, field)
                 return !descriptor || ('value' in descriptor && typeof descriptor.value === 'string')
             })
-            // Error message/stack/cause are non-enumerable. Preserve the standard
-            // inherited error name using descriptors, without invoking getters.
+            // Match Sentry's Error projection: standard name/message/stack plus
+            // enumerable own fields, never arbitrary hidden application data.
             if (isError) {
                 const name = propertyDescriptor(value, 'name')
                 if (name && 'value' in name && typeof name.value === 'string') result.name = text(name.value)
@@ -91,6 +91,7 @@ export function redactSentryBreadcrumb(breadcrumb: Breadcrumb): Breadcrumb | nul
                     continue
                 }
                 const descriptor = isError && key === 'stack' ? propertyDescriptor(value, key) : Object.getOwnPropertyDescriptor(value, key)
+                if (isError && !['name', 'message', 'stack'].includes(key) && !descriptor?.enumerable) continue
                 const maskedKey = text(key)
                 let safeKey = maskedKey
                 // Keep both diagnostics if distinct sensitive keys collapse to
