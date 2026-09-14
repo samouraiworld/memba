@@ -5,11 +5,11 @@ import { ActFab } from "./ActFab"
 import { getPlugins } from "../../plugins"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { selectableNetworksFor } from "../../lib/config"
-import { getTheme, setTheme, type Theme } from "../../lib/themeStore"
+import { ThemeSelect } from "../ui/ThemeSelect"
 import { mobilePrimaryTabs, mobileMoreNav, mobileMoreAccount, type NavEntry } from "../../lib/navManifest"
 import { navFlagOn } from "../../lib/navFlags"
 import type { LayoutContext } from "../../types/layout"
-import { DotsThree, PuzzlePiece, SunDim, Moon, MagnifyingGlass } from "@phosphor-icons/react"
+import { DotsThree, PuzzlePiece, MagnifyingGlass } from "@phosphor-icons/react"
 
 // Member relabels the Alerts destination "Activity" in the primary tab row.
 const TAB_LABEL_OVERRIDE: Record<string, string> = { alerts: "Activity" }
@@ -184,7 +184,7 @@ export function MobileTabBar({ connected, address, auth, network, feedReplyUnrea
                     {/* Theme section */}
                     <div className="k-sidebar-section">
                         <div className="k-sidebar-section-label">Theme</div>
-                        <MobileThemeToggle onSelect={() => setSheetOpen(false)} />
+                        <div style={{ padding: "4px 16px" }}><ThemeSelect onSelect={() => setSheetOpen(false)} /></div>
                     </div>
 
                     {/* Network section */}
@@ -213,34 +213,6 @@ export function MobileTabBar({ connected, address, auth, network, feedReplyUnrea
                     </div>
                 </div>
             </BottomSheet>
-        </div>
-    )
-}
-
-function MobileThemeToggle({ onSelect }: { onSelect: () => void }) {
-    const [current, setCurrent] = useState<Theme>(getTheme)
-
-    return (
-        <div style={{ display: "flex", gap: 8, padding: "4px 16px" }}>
-            {(["dark", "light"] as const).map(t => (
-                <button
-                    key={t}
-                    onClick={() => { setTheme(t); setCurrent(t); onSelect() }}
-                    style={{
-                        flex: 1, padding: "8px 12px", borderRadius: 6,
-                        fontSize: 12, fontFamily: "JetBrains Mono, monospace",
-                        cursor: "pointer", border: "1px solid",
-                        transition: "all 0.15s",
-                        background: current === t ? "var(--color-k-accent-tint)" : "var(--color-bg-hover)",
-                        color: current === t ? "var(--color-primary)" : "var(--color-text-secondary)",
-                        borderColor: current === t ? "var(--color-k-accent-border)" : "var(--color-border)",
-                        fontWeight: current === t ? 600 : 400,
-                    }}
-                >
-                    {t === "dark" ? <Moon size={14} weight="bold" style={{ marginRight: 4 }} /> : <SunDim size={14} weight="bold" style={{ marginRight: 4 }} />}
-                    {t.charAt(0).toUpperCase() + t.slice(1)}
-                </button>
-            ))}
         </div>
     )
 }

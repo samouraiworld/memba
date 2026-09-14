@@ -1,10 +1,9 @@
-import { useState, useEffect } from "react"
-import { SunDim, Moon } from "@phosphor-icons/react"
+import { useState } from "react"
 import { CopyableAddress } from "../ui/CopyableAddress"
 import { validateActiveRpcDomain, selectableNetworksFor } from "../../lib/config"
 import { NotificationBell } from "./NotificationBell"
 import type { Notification } from "../../lib/notifications"
-import { getTheme, toggleTheme, type Theme } from "../../lib/themeStore"
+import { ThemeSelect } from "../ui/ThemeSelect"
 
 // ── Types ──────────────────────────────────────────────────────────────
 interface TopBarProps {
@@ -75,7 +74,7 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                 {/* Right: network + wallet */}
                 <div className="k-topbar-right">
                     {/* Theme toggle */}
-                    <ThemeToggle />
+                    <ThemeSelect />
 
                     {/* Network selector */}
                     <select
@@ -229,35 +228,6 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                 )
             })()}
         </>
-    )
-}
-
-// ── Theme Toggle ──────────────────────────────────────────────────────
-
-function ThemeToggle() {
-    const [theme, setThemeState] = useState<Theme>(getTheme)
-
-    // Sync with external changes (Settings page, Cmd+K)
-    useEffect(() => {
-        const observer = new MutationObserver(() => {
-            setThemeState(getTheme())
-        })
-        observer.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] })
-        return () => observer.disconnect()
-    }, [])
-
-    return (
-        <button
-            className="k-topbar-theme-toggle"
-            onClick={() => {
-                const next = toggleTheme()
-                setThemeState(next)
-            }}
-            title={`Switch to ${theme === "dark" ? "light" : "dark"} theme (⌘K)`}
-            aria-label={`Switch to ${theme === "dark" ? "light" : "dark"} theme`}
-        >
-            {theme === "dark" ? <SunDim size={18} weight="bold" /> : <Moon size={18} weight="bold" />}
-        </button>
     )
 }
 

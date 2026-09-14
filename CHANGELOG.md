@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Follow device appearance or choose Light / Black (2026-09-14)
+<!-- categories: memba -->
+- Theme controls now offer System, Light and Black in the desktop top bar, mobile More menu and Settings. System follows device appearance changes; explicit choices stay fixed and synchronize across tabs. Existing saved Light/Black choices remain compatible.
 ### Validator page-size control is named for screen readers (2026-09-14)
 <!-- categories: memba -->
 - The desktop validator roster's page-size selector is now announced as "Validators per page". Its options and pagination behavior are unchanged.

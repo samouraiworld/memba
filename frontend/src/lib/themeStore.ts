@@ -1,28 +1,48 @@
-/**
- * Theme store — get/set/toggle theme with localStorage persistence.
- *
- * Uses `data-theme` attribute on <html>. Values: "dark" (default) | "light".
- * Respects `prefers-color-scheme` on first visit (no stored preference).
- */
-
+/** Theme preference is separate from the resolved light/dark CSS theme. */
 export type Theme = "dark" | "light"
+export type ThemePreference = Theme | "system"
 
 const STORAGE_KEY = "memba_theme"
+const CHANGE_EVENT = "memba:theme-change"
+let dispose: (() => void) | undefined
 
-/** Read the current theme from the DOM. */
+function parsePreference(value: string | null): ThemePreference {
+    return value === "dark" || value === "light" ? value : "system"
+}
+
 export function getTheme(): Theme {
-    return (document.documentElement.getAttribute("data-theme") as Theme) || "dark"
+    return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark"
 }
 
-/** Apply a theme to the DOM and persist it. */
-export function setTheme(theme: Theme): void {
+export function getThemePreference(): ThemePreference {
+    return parsePreference(document.documentElement.getAttribute("data-theme-preference"))
+}
+
+function systemTheme(): Theme {
+    return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark"
+}
+
+function applyPreference(preference: ThemePreference): void {
+    const theme = preference === "system" ? systemTheme() : preference
+    document.documentElement.setAttribute("data-theme-preference", preference)
     document.documentElement.setAttribute("data-theme", theme)
-    try {
-        localStorage.setItem(STORAGE_KEY, theme)
-    } catch { /* quota */ }
+    window.dispatchEvent(new Event(CHANGE_EVENT))
 }
 
-/** Toggle between dark and light. Returns the new theme. */
+export function subscribeTheme(onChange: () => void): () => void {
+    window.addEventListener(CHANGE_EVENT, onChange)
+    return () => window.removeEventListener(CHANGE_EVENT, onChange)
+}
+
+/** Legacy explicit values remain compatible with older releases. */
+export function setTheme(preference: ThemePreference): void {
+    applyPreference(preference)
+    try {
+        localStorage.setItem(STORAGE_KEY, preference)
+    } catch { /* Keep the choice for this session when storage is unavailable. */ }
+}
+
+/** The existing command remains a shortcut to an explicit light/dark choice. */
 export function toggleTheme(): Theme {
     const next = getTheme() === "dark" ? "light" : "dark"
     setTheme(next)
@@ -30,19 +50,32 @@ export function toggleTheme(): Theme {
     return next
 }
 
-/**
- * Initialize theme on app boot. Call once in main.tsx.
- * Priority: localStorage > prefers-color-scheme > dark.
- */
-export function initTheme(): void {
-    let theme: Theme = "dark"
+/** Initialize once at boot; safe to reinitialize during development. */
+export function initTheme(): () => void {
+    dispose?.()
+    let preference: ThemePreference = "system"
     try {
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored === "light" || stored === "dark") {
-            theme = stored
-        } else if (window.matchMedia("(prefers-color-scheme: light)").matches) {
-            theme = "light"
-        }
-    } catch { /* SSR / no localStorage */ }
-    document.documentElement.setAttribute("data-theme", theme)
+        preference = parsePreference(localStorage.getItem(STORAGE_KEY))
+    } catch { /* Storage failure must not prevent following the OS. */ }
+    applyPreference(preference)
+
+    const media = window.matchMedia?.("(prefers-color-scheme: light)")
+    const onSystemChange = () => {
+        if (getThemePreference() === "system") applyPreference("system")
+    }
+    const onStorage = (event: StorageEvent) => {
+        if (event.key !== STORAGE_KEY && event.key !== null) return
+        // Ignore sessionStorage events with a coincidentally identical key.
+        try {
+            if (event.storageArea && event.storageArea !== window.localStorage) return
+        } catch { return }
+        applyPreference(parsePreference(event.key === null ? null : event.newValue))
+    }
+    media?.addEventListener("change", onSystemChange)
+    window.addEventListener("storage", onStorage)
+    dispose = () => {
+        media?.removeEventListener("change", onSystemChange)
+        window.removeEventListener("storage", onStorage)
+    }
+    return dispose
 }

@@ -51,5 +51,6 @@ export const COMMANDS: Command[] = [
     { id: "feedback", label: "Feedback", icon: "📣", path: "/feedback", section: "Profile", keywords: ["bug", "report", "suggest", "help"] },
 
     // Actions
+    { id: "system-theme", label: "Use System Theme", icon: "🖥️", section: "Actions", keywords: ["auto", "device", "appearance", "theme"] },
     { id: "toggle-theme", label: "Toggle Theme", icon: "🌓", section: "Actions", keywords: ["dark", "light", "mode", "theme", "appearance"] },
 ]

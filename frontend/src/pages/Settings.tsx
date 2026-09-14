@@ -17,8 +17,8 @@ import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useState, useEffect } from "react"
 import { GNO_CHAIN_ID, APP_VERSION, selectableNetworksFor } from "../lib/config"
 import { useNetwork } from "../hooks/useNetwork"
-import { Globe, FolderOpen, GasPump, User, Wrench, Gear, SunDim, Moon } from "@phosphor-icons/react"
-import { getTheme, setTheme, type Theme } from "../lib/themeStore"
+import { Globe, FolderOpen, GasPump, User, Wrench, Gear, SunDim } from "@phosphor-icons/react"
+import { ThemeSelect } from "../components/ui/ThemeSelect"
 import { trackEvent } from "../lib/analytics"
 
 const SETTINGS_KEY = "memba_settings"
@@ -105,7 +105,6 @@ export function Settings() {
     // same helpers as the switcher.
     const { networkKey, switchNetwork } = useNetwork()
     const [saved, setSaved] = useState(false)
-    const [theme, setThemeState] = useState<Theme>(getTheme)
 
     useEffect(() => {
         saveSettings(settings)
@@ -186,26 +185,9 @@ export function Settings() {
 
             {/* Theme */}
             <Section title="Appearance" icon={<SunDim size={18} />}>
-                <div style={{ display: "flex", gap: 8, paddingTop: 8 }}>
-                    {(["dark", "light"] as Theme[]).map(t => (
-                        <button
-                            key={t}
-                            onClick={() => { setTheme(t); setThemeState(t); setSaved(true) }}
-                            style={{
-                                ...btnStyle,
-                                background: theme === t ? "var(--color-k-accent-tint)" : "var(--color-k-hover-surface)",
-                                color: theme === t ? "var(--color-k-accent)" : "var(--color-k-dim)",
-                                border: `1px solid ${theme === t ? "var(--color-k-accent-border)" : "var(--color-k-edge)"}`,
-                                display: "flex", alignItems: "center", gap: 6,
-                            }}
-                        >
-                            {t === "dark" ? <Moon size={14} /> : <SunDim size={14} />}
-                            {t.charAt(0).toUpperCase() + t.slice(1)}
-                        </button>
-                    ))}
-                </div>
-                <p style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", margin: 0 }}>
-                    Tip: click ☀️/🌙 in the top bar, or use ⌘K → "Toggle Theme"
+                <div style={{ paddingTop: 8 }}><ThemeSelect onSelect={() => setSaved(true)} /></div>
+                <p style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
+                    System follows your device appearance. Choose Light or Black to keep a fixed theme.
                 </p>
             </Section>
 

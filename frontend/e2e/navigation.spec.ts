@@ -102,7 +102,7 @@ test.describe('TopBar (Desktop)', () => {
 
     test('network selector offers Pearl and Betanet — retired networks stay out', async ({ page }) => {
         await page.goto('/')
-        const selector = page.locator('[data-testid="topbar"] select')
+        const selector = page.getByTestId('topbar').getByRole('combobox', { name: 'Switch network', exact: true })
         await expect(selector).toBeVisible()
         // 2026-09-09 sunset contract: Pearl is the default, Betanet stays
         // offered (its F-28 fail-open and F-29 dead-session loop are fixed and

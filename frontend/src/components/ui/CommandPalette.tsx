@@ -14,7 +14,7 @@ import "./command-palette.css"
 
 import { COMMANDS, type Command } from "./commands"
 import { completeQuest } from "../../lib/quests"
-import { toggleTheme } from "../../lib/themeStore"
+import { setTheme, toggleTheme } from "../../lib/themeStore"
 
 // ── Fuzzy search ──────────────────────────────────────────────
 
@@ -98,6 +98,7 @@ export function CommandPalette() {
         if (command.id === "toggle-theme") {
             toggleTheme()
         }
+        if (command.id === "system-theme") setTheme("system")
         if (command.action) {
             command.action()
         }

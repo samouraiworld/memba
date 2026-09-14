@@ -16,7 +16,8 @@ import './components/mobile/mobile-primitives.css'
 import App from './App.tsx'
 
 // Apply theme before first paint (avoids flash)
-initTheme()
+const disposeTheme = initTheme()
+if (import.meta.hot) import.meta.hot.dispose(disposeTheme)
 
 // ── Stale-chunk auto-recovery (vite:preloadError) ─────────────
 // After every deploy, the autoUpdate service worker takes over live tabs and
