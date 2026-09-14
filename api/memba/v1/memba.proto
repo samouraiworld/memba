@@ -173,6 +173,10 @@ message CreateOrJoinMultisigRequest {
   Token auth_token = 3;
   string name = 4;
   string bech32_prefix = 5;
+  // Required for native identities; must match the independently derived address.
+  string expected_multisig_address = 6;
+  // New native creation sorts keys like gnokey; imports preserve exact order.
+  bool native_create = 7;
 }
 
 message CreateOrJoinMultisigResponse {
@@ -287,6 +291,10 @@ message GetTransactionRequest {
 
 message GetTransactionResponse {
   Transaction transaction = 1;
+  // Native node-encoded artifact, available only after full aggregate verification.
+  bytes native_tx_bytes = 2;
+  string native_tx_json = 3;
+  string native_export_error = 4;
 }
 
 message SignTransactionRequest {

@@ -92,3 +92,39 @@ describe('parseFee', () => {
         expect(result.amount).toBe('—')
     })
 })
+
+describe('native monetary display', () => {
+    it.each([
+        ['5000000ugnot', '5 GNOT'],
+        ['1ugnot', '0.000001 GNOT'],
+        ['0ugnot', '0 GNOT'],
+        ['9223372036854775807ugnot', '9223372036854.775807 GNOT'],
+        ['9007199254740993uatom', '9,007,199,254,740,993 uatom'],
+        ['1e6ugnot', '1 e6ugnot'], // denomination, not exponent notation
+        ['1uatom,2500000ugnot', '1 uatom + 2.5 GNOT'],
+        ['', '0'],
+    ])('renders %s exactly as %s', (amount, expected) => {
+        const msg = parseMsgs(JSON.stringify([{ '@type': '/bank.MsgSend', amount }]))[0]
+        expect(msg.fields.find(f => f.key === 'Amount')?.value).toBe(expected)
+        expect(msg.reviewError).toBeUndefined()
+        expect(parseFee(JSON.stringify({ gas_wanted: '10000000', gas_fee: amount }))).toEqual({ gas: '10000000', amount: expected })
+    })
+
+    it('preserves exact legacy array values and denomination identity', () => {
+        expect(parseFee(JSON.stringify({ gas: '42', amount: [{ amount: '9007199254740993', denom: 'uToken' }] }))).toEqual({ gas: '42', amount: '9,007,199,254,740,993 uToken' })
+    })
+
+    it.each([123, null, {}, [null], [{ amount: 123, denom: 'ugnot' }], '1.5ugnot', '-1ugnot', '1ugnot,', '1ugnot<script>'])('marks malformed monetary input unsafe: %j', amount => {
+        expect(parseFee(JSON.stringify({ gas_wanted: '42', gas_fee: amount })).reviewError).toBeTruthy()
+        expect(parseMsgs(JSON.stringify([{ '@type': '/bank.MsgSend', amount }]))[0].reviewError).toBeTruthy()
+    })
+
+    it('rejects ambiguous fee representations instead of hiding one', () => {
+        expect(parseFee('{"gas_fee":"9000000ugnot","amount":[]}').reviewError).toBeTruthy()
+    })
+
+    it('retains the complete raw payload in full review mode on parse failure', () => {
+        const raw = JSON.stringify([{ type: 'bank/MsgSend', amount: {}, memo: 'x'.repeat(900) }])
+        expect(parseMsgs(raw, { full: true })[0].fields[0].value).toBe(raw)
+    })
+})

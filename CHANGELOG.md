@@ -20,6 +20,14 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Native multisig identity checks and transaction receipt recovery (2026-09-14)
+<!-- categories: memba -->
+- New multisig registration is held pending native-Gno release approval. Existing wallet records and signature history are preserved; legacy identities are not converted into different addresses.
+- Prepared native creation and import validate member public keys and the expected wallet address. New creation uses canonical key order; imports preserve the original order. Native signing remains disabled by default.
+- Native transactions require verified signatures over the same payload before an export is available. Completion verifies the executed transaction against the configured chain rather than trusting a submitted hash.
+- After a confirmed native broadcast, receipt-save failures can be retried without broadcasting again. Browser storage must be available before sending; failures before a confirmed broadcast result still require chain reconciliation.
+- Transaction review now displays native transfer amounts and fees correctly, and blocks signing when monetary fields cannot be interpreted safely.
+
 ### Links to another network open directly, and your network choice outranks the links you open (2026-09-13)
 <!-- categories: memba -->
 - **Opening a link to a different network no longer loads the page twice.** Memba used to start on the network you had visited last, notice that the link pointed somewhere else, and reload the whole page. It now reads the network from the link itself.

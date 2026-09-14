@@ -1526,3 +1526,5 @@ export const MEMBA_TOKEN_ALLOCATION = {
     development: 20,  // 20% — engineering & ops
     founders: 10,     // 10% — founding team, 12-month vesting
 } as const
+// Local rehearsal only until the native-Gno release gate is separately approved.
+export const ENABLE_NATIVE_GNO_MULTISIG = import.meta.env.VITE_ENABLE_NATIVE_GNO_MULTISIG === "true"

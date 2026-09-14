@@ -6,6 +6,7 @@ import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { GNO_CHAIN_ID, GNO_BECH32_PREFIX } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
+import { isNativeMultisig, nativeAddress, parseNativeMultisig } from "../lib/nativeMultisig"
 
 type ImportMode = "address" | "pubkey"
 
@@ -17,7 +18,7 @@ function parseSharedImport(searchParams: URLSearchParams): { pubkeyJson: string;
         const decoded = atob(encoded)
         // Verify it's valid multisig pubkey JSON
         const parsed = JSON.parse(decoded)
-        if (parsed.type === "tendermint/PubKeyMultisigThreshold" && parsed.value?.pubkeys) {
+        if ((parsed.type === "tendermint/PubKeyMultisigThreshold" && parsed.value?.pubkeys) || isNativeMultisig(decoded)) {
             return { pubkeyJson: decoded, name: searchParams.get("name") || "" }
         }
     } catch { /* invalid base64 or JSON — ignore */ }
@@ -74,6 +75,7 @@ export function ImportMultisig() {
                 authToken: auth.token,
                 chainId: GNO_CHAIN_ID,
                 multisigPubkeyJson: multisig.pubkeyJson,
+                expectedMultisigAddress: trimmed,
                 name: "",
                 bech32Prefix: GNO_BECH32_PREFIX,
             })
@@ -100,28 +102,36 @@ export function ImportMultisig() {
     const handleImportByPubkey = async () => {
         const trimmedJson = pubkeyJson.trim()
         if (!trimmedJson) return
+        if (searchParams.get("chain") && searchParams.get("chain") !== GNO_CHAIN_ID) {
+            setError("This shared configuration belongs to a different chain. Switch to that network before importing.")
+            return
+        }
         if (!auth.isAuthenticated || !auth.token) {
             setError("Connect your wallet first")
             return
         }
 
-        // Validate it's valid JSON
+        // Native imports preserve every key position, unlike new creation.
+        let expectedAddress = ""
         try {
             const parsed = JSON.parse(trimmedJson)
-            if (!parsed.type || !parsed.value) {
+            if (isNativeMultisig(trimmedJson)) {
+                expectedAddress = nativeAddress(parseNativeMultisig(trimmedJson))
+                if (searchParams.get("address") && searchParams.get("address") !== expectedAddress) throw new Error("Shared wallet address does not match its ordered keys")
+            } else if (!parsed.type || !parsed.value) {
                 setError("Invalid pubkey JSON. Expected Amino format: { type: \"tendermint/PubKeyMultisigThreshold\", value: {...} }")
                 return
             }
-            if (parsed.type !== "tendermint/PubKeyMultisigThreshold") {
+            if (!expectedAddress && parsed.type !== "tendermint/PubKeyMultisigThreshold") {
                 setError("Expected type: tendermint/PubKeyMultisigThreshold")
                 return
             }
-            if (!parsed.value.threshold || !parsed.value.pubkeys || !Array.isArray(parsed.value.pubkeys)) {
+            if (!expectedAddress && (!parsed.value.threshold || !parsed.value.pubkeys || !Array.isArray(parsed.value.pubkeys))) {
                 setError("Missing threshold or pubkeys in value object")
                 return
             }
             // Validate each pubkey entry
-            for (let i = 0; i < parsed.value.pubkeys.length; i++) {
+            for (let i = 0; !expectedAddress && i < parsed.value.pubkeys.length; i++) {
                 const pk = parsed.value.pubkeys[i]
                 if (!pk.type || !pk.value) {
                     setError(`Pubkey #${i + 1} missing type or value field`)
@@ -141,10 +151,12 @@ export function ImportMultisig() {
                 authToken: auth.token,
                 chainId: GNO_CHAIN_ID,
                 multisigPubkeyJson: trimmedJson,
+                expectedMultisigAddress: expectedAddress || searchParams.get("address") || "",
                 name: walletName.trim(),
                 bech32Prefix: GNO_BECH32_PREFIX,
             })
 
+            if (expectedAddress && res.multisigAddress !== expectedAddress) throw new Error("Imported identity does not match the server response")
             navigate(`/multisig/${res.multisigAddress}`)
         } catch (err) {
             setError(err instanceof Error ? err.message : "Import failed")

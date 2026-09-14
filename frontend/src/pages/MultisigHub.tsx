@@ -77,6 +77,7 @@ export default function MultisigHub() {
                 authToken: token,
                 chainId: ms.chainId || GNO_CHAIN_ID,
                 multisigPubkeyJson: ms.pubkeyJson,
+                expectedMultisigAddress: ms.address,
                 name: ms.name || "",
                 bech32Prefix: GNO_BECH32_PREFIX,
             })

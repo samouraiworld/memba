@@ -89,6 +89,7 @@ export function MultisigView() {
                 authToken: token,
                 chainId: multisig.chainId || GNO_CHAIN_ID,
                 multisigPubkeyJson: multisig.pubkeyJson,
+                expectedMultisigAddress: multisig.address,
                 name,
                 bech32Prefix: GNO_BECH32_PREFIX,
             })
@@ -163,7 +164,7 @@ export function MultisigView() {
                                 if (multisig?.pubkeyJson) {
                                     const encoded = btoa(multisig.pubkeyJson)
                                     const name = encodeURIComponent(multisig.name || "")
-                                    shareUrl = `${origin}/import?pubkey=${encodeURIComponent(encoded)}&name=${name}`
+                                    shareUrl = `${origin}/import?pubkey=${encodeURIComponent(encoded)}&name=${name}&address=${encodeURIComponent(multisig.address)}&chain=${encodeURIComponent(multisig.chainId || GNO_CHAIN_ID)}`
                                 }
                                 navigator.clipboard.writeText(shareUrl)
                                 setCopied(true)

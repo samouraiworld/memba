@@ -35,6 +35,8 @@ export function ProposeTransaction() {
 
     // Common fields
     const [memo, setMemo] = useState("")
+    const [nativeGas, setNativeGas] = useState("10000000")
+    const [nativeFee, setNativeFee] = useState("1000000")
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
 
@@ -169,7 +171,13 @@ export function ProposeTransaction() {
             // GRC20 ops are vm/MsgCall contract calls too — they need the higher
             // call gas budget, not the cheap send budget (else broadcast OOGs).
             const isContractCall = txType === "call" || txType.startsWith("grc20-")
-            const { msgsJson, feeJson } = buildCanonicalProposePayload(msgs, isContractCall)
+            const { msgsJson, feeJson: legacyFeeJson } = buildCanonicalProposePayload(msgs, isContractCall)
+            let feeJson = legacyFeeJson
+            if (ENABLE_NATIVE_GNO_MULTISIG) {
+                const info = await api.multisigInfo({ authToken: auth.token, chainId: GNO_CHAIN_ID, multisigAddress: address })
+                if (!info.multisig) throw new Error("Cannot verify wallet identity")
+                if (isNativeMultisig(info.multisig.pubkeyJson)) feeJson = nativeFeeJSON(nativeGas, nativeFee)
+            }
 
             const res = await api.createTransaction({
                 authToken: auth.token,
@@ -347,6 +355,11 @@ export function ProposeTransaction() {
             )}
 
             {/* Memo */}
+            {ENABLE_NATIVE_GNO_MULTISIG && <div className="k-card ptx-form-card">
+                <p>Native wallet rehearsal budget. Not an estimate: review the gas limit and fee before collecting signatures. Legacy wallets keep their existing defaults.</p>
+                <label>Native gas limit <input value={nativeGas} onChange={e => setNativeGas(e.target.value)} disabled={loading} /></label>
+                <label>Native fee (ugnot) <input value={nativeFee} onChange={e => setNativeFee(e.target.value)} disabled={loading} /></label>
+            </div>}
             <div className="k-card ptx-form-card">
                 <label className="k-label">Memo (optional)</label>
                 <input
@@ -381,4 +394,5 @@ export function ProposeTransaction() {
 }
 
 
-
+import { ENABLE_NATIVE_GNO_MULTISIG } from "../lib/config"
+import { isNativeMultisig, nativeFeeJSON } from "../lib/nativeMultisig"

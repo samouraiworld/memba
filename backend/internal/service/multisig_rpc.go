@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"log/slog"
+	"math"
 	"time"
 
 	"connectrpc.com/connect"
@@ -12,6 +13,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/types/bech32"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
 	"github.com/samouraiworld/memba/backend/internal/auth"
+	"github.com/samouraiworld/memba/backend/internal/gnomultisig"
 )
 
 // ─── Multisig RPCs ────────────────────────────────────────────────
@@ -39,30 +41,60 @@ func (s *MultisigService) CreateOrJoinMultisig(
 		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
 	}
 
-	// Parse the multisig pubkey to derive the address and validate members.
-	var ms multisig.LegacyAminoPubKey
-	if err := legacy.Cdc.UnmarshalJSON([]byte(pubkeyJSON), &ms); err != nil {
-		return nil, connect.NewError(connect.CodeInvalidArgument, err)
+	// Native and legacy are separate namespaces. Never reinterpret legacy JSON.
+	native := gnomultisig.IsNative(pubkeyJSON)
+	var multisigAddress string
+	var threshold uint32
+	var memberAddresses [][]byte
+	if native {
+		if req.Msg.GetAuthToken().GetChainId() != chainID {
+			return nil, connect.NewError(connect.CodePermissionDenied, nil)
+		}
+		pk, e := gnomultisig.Parse(pubkeyJSON)
+		if e != nil || pk.K > math.MaxUint32 || prefix != "g" || (req.Msg.GetNativeCreate() && !gnomultisig.CanonicalOrder(pk)) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+		}
+		multisigAddress = pk.Address().String()
+		threshold = uint32(pk.K)
+		for _, p := range pk.PubKeys {
+			a := p.Address()
+			memberAddresses = append(memberAddresses, append([]byte(nil), a[:]...))
+		}
+		if req.Msg.GetExpectedMultisigAddress() != multisigAddress {
+			return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+		}
+	} else {
+		if req.Msg.GetNativeCreate() {
+			return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+		}
+		var ms multisig.LegacyAminoPubKey
+		if legacy.Cdc.UnmarshalJSON([]byte(pubkeyJSON), &ms) != nil || ms.Threshold == 0 || int(ms.Threshold) > len(ms.GetPubKeys()) {
+			return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+		}
+		multisigAddress, err = bech32.ConvertAndEncode(prefix, ms.Address())
+		if err != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+		}
+		threshold = ms.Threshold
+		for _, p := range ms.GetPubKeys() {
+			memberAddresses = append(memberAddresses, p.Address().Bytes())
+		}
 	}
-
-	multisigAddress, err := bech32.ConvertAndEncode(prefix, ms.Address())
-	if err != nil {
-		return nil, internalError("CreateOrJoinMultisig: bech32 encode", err)
-	}
-
-	pubKeys := ms.GetPubKeys()
-	if int(ms.Threshold) > len(pubKeys) || ms.Threshold == 0 {
+	if expected := req.Msg.GetExpectedMultisigAddress(); expected != "" && expected != multisigAddress {
 		return nil, connect.NewError(connect.CodeInvalidArgument, nil)
 	}
 
 	// Verify the user is a member of this multisig.
-	_, userAddrBytes, err := bech32.DecodeAndConvert(userAddress)
+	userPrefix, userAddrBytes, err := bech32.DecodeAndConvert(userAddress)
 	if err != nil {
 		return nil, internalError("CreateOrJoinMultisig: decode user address", err)
 	}
+	if native && userPrefix != "g" {
+		return nil, connect.NewError(connect.CodePermissionDenied, nil)
+	}
 	isMember := false
-	for _, pk := range pubKeys {
-		if string(pk.Address().Bytes()) == string(userAddrBytes) {
+	for _, address := range memberAddresses {
+		if string(address) == string(userAddrBytes) {
 			isMember = true
 			break
 		}
@@ -84,17 +116,22 @@ func (s *MultisigService) CreateOrJoinMultisig(
 	var existingAddr string
 	err = tx.QueryRowContext(ctx, "SELECT address FROM multisigs WHERE chain_id = ? AND address = ?", chainID, multisigAddress).Scan(&existingAddr)
 	if err == sql.ErrNoRows {
+		// Old clients can still join/rename their existing wallets, but cannot
+		// register another incompatible Cosmos-derived wallet. No migration.
+		if !native || !s.nativeMultisigEnabled(chainID) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, nil)
+		}
 		_, err = tx.ExecContext(ctx,
 			"INSERT INTO multisigs (chain_id, address, pubkey_json, threshold, members_count, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-			chainID, multisigAddress, pubkeyJSON, ms.Threshold, len(pubKeys), now,
+			chainID, multisigAddress, pubkeyJSON, threshold, len(memberAddresses), now,
 		)
 		if err != nil {
 			return nil, internalError("CreateOrJoinMultisig: db", err)
 		}
 
 		// Create user_multisig entries for all members.
-		for _, pk := range pubKeys {
-			memberAddr, err := bech32.ConvertAndEncode(auth.UniversalBech32Prefix, pk.Address().Bytes())
+		for _, address := range memberAddresses {
+			memberAddr, err := bech32.ConvertAndEncode(auth.UniversalBech32Prefix, address)
 			if err != nil {
 				continue
 			}

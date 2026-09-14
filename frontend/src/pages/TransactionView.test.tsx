@@ -12,7 +12,7 @@
  *   hash → "VERIFIED ON-CHAIN", client-claimed-only → "UNCONFIRMED"
  */
 import { describe, it, expect, vi, beforeEach } from "vitest"
-import { render as rtlRender, screen, fireEvent, waitFor } from "@testing-library/react"
+import { render as rtlRender, screen, fireEvent, waitFor, within } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import type { ReactElement } from "react"
 
@@ -60,9 +60,16 @@ vi.mock("../lib/grc20", () => ({
 }))
 
 vi.mock("../lib/config", () => ({
+    API_BASE_URL: "https://memba-api.test",
     GNO_RPC_URL: "https://rpc.test13.testnets.gno.land:443",
     GNO_BECH32_HRP: "g",
     GNO_CHAIN_ID: "test-13",
+    ENABLE_NATIVE_GNO_MULTISIG: true,
+}))
+
+vi.mock("../lib/nativeMultisigBroadcast", async importOriginal => ({
+    ...await importOriginal<typeof import("../lib/nativeMultisigBroadcast")>(),
+    broadcastNativeTransaction: vi.fn(),
 }))
 
 vi.mock("../lib/dao/realmAddress", () => ({
@@ -72,6 +79,8 @@ vi.mock("../lib/dao/realmAddress", () => ({
 
 import { TransactionView } from "./TransactionView"
 import { api } from "../lib/api"
+import { broadcastNativeTransaction } from "../lib/nativeMultisigBroadcast"
+import { clearNativeReceipt, nativeReceiptKey, readNativeReceipt, saveNativeReceipt } from "../lib/nativeReceipt"
 
 const FULL_RECIPIENT = "g1recipientfulladdress0000000000000000xy"
 
@@ -99,7 +108,7 @@ function makeTx(overrides: Partial<Record<string, unknown>> = {}) {
         memo: "",
         signatures: [],
         multisigPubkeyJson: JSON.stringify({
-            "@type": "/tm.PubKeyMultisig",
+            type: "tendermint/PubKeyMultisigThreshold",
             value: { threshold: "2", pubkeys: [{ value: "PK_A" }, { value: "PK_B" }] },
         }),
         type: "send",
@@ -114,9 +123,175 @@ async function renderTx(tx: ReturnType<typeof makeTx>) {
     await screen.findByText("TX #7")
 }
 
+it("does not expose native broadcast merely because submitted signatures reach threshold", async () => {
+    await renderTx(makeTx({ multisigPubkeyJson: '{"@type":"/tm.PubKeyMultisig"}', signatures: [{ userAddress: "one", value: "bad" }, { userAddress: "two", value: "bad" }] }))
+    expect(screen.queryByText("Broadcast to Chain")).not.toBeInTheDocument()
+})
+
 beforeEach(() => {
+    vi.restoreAllMocks()
     vi.clearAllMocks()
+    vi.mocked(broadcastNativeTransaction).mockReset()
     mockAuth.isAuthenticated = true
+})
+
+function makeNativeTx() {
+    return makeTx({
+        multisigPubkeyJson: '{"@type":"/tm.PubKeyMultisig"}',
+        msgsJson: JSON.stringify([{ "@type": "/bank.MsgSend", from_address: "g1multisig000000000000000000000000000000", to_address: FULL_RECIPIENT, amount: "5000000ugnot" }]),
+        feeJson: '{"gas_wanted":"10000000","gas_fee":"1000000ugnot"}',
+    })
+}
+const receiptKey = () => nativeReceiptKey(makeNativeTx() as never, mockAdena.address, "https://memba-api.test")
+const HASH = "A".repeat(64)
+const nativeResponse = () => ({ transaction: makeNativeTx(), nativeTxBytes: new Uint8Array([1, 2, 3]) })
+
+describe("native confirmation and receipt recovery", () => {
+    beforeEach(() => clearNativeReceipt(receiptKey()))
+
+    it("shows native amount and monetary fee before signing the unchanged payload", async () => {
+        mockAdena.signArbitrary.mockResolvedValue("sig")
+        await renderTx(makeNativeTx())
+        fireEvent.click(screen.getByText("Sign Transaction"))
+        const card = within(screen.getByRole("alertdialog"))
+        expect(card.getByText("Send 5 GNOT")).toBeInTheDocument()
+        expect(card.getByText("1 GNOT (gas: 10000000)")).toBeInTheDocument()
+        fireEvent.click(card.getByText("Confirm & Sign"))
+        await waitFor(() => expect(mockAdena.signArbitrary).toHaveBeenCalledOnce())
+        const doc = JSON.parse(mockAdena.signArbitrary.mock.calls[0][0])
+        expect(doc.msgs[0].amount).toBe("5000000ugnot")
+        expect(doc.fee.gas_fee).toBe("1000000ugnot")
+    })
+
+    it.each([
+        { feeJson: '{"gas_wanted":"1","gas_fee":{"amount":"99"}}' },
+        { msgsJson: '[{"@type":"/bank.MsgSend","amount":9007199254740993}]' },
+    ])("blocks signing and broadcasting monetary values it cannot display: %j", async bad => {
+        vi.mocked(api.getTransaction).mockResolvedValue({ ...nativeResponse(), transaction: { ...makeNativeTx(), ...bad } } as never)
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
+        expect(screen.getByText("Sign Transaction")).toBeDisabled()
+        expect(screen.getByText("Broadcast to Chain")).toBeDisabled()
+        expect(screen.getByRole("alert")).toHaveTextContent("Cannot safely display")
+    })
+
+    it("persists the successful hash, survives remount, and retries only receipt verification", async () => {
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        vi.mocked(broadcastNativeTransaction).mockResolvedValue(HASH)
+        vi.mocked(api.completeTransaction).mockRejectedValueOnce(new Error("receipt unavailable")).mockImplementationOnce(async () => {
+            vi.mocked(api.getTransaction).mockResolvedValue({ transaction: makeTx({ finalHash: HASH, verified: true }) } as never)
+            return {} as never
+        })
+        const first = render(<TransactionView />)
+        await screen.findByText("TX #7")
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        await screen.findByText("receipt unavailable")
+        expect(readNativeReceipt(receiptKey())).toBe(HASH)
+        expect(screen.getByText(HASH)).toBeInTheDocument()
+        expect(screen.queryByText("Broadcast to Chain")).not.toBeInTheDocument()
+        first.unmount()
+        // Recovery must not need an aggregate, nor any new signing/broadcast.
+        vi.mocked(api.getTransaction).mockResolvedValue({ transaction: makeNativeTx(), nativeTxBytes: new Uint8Array() } as never)
+        render(<TransactionView />)
+        await screen.findByText("Retry receipt verification")
+        fireEvent.click(screen.getByText("Retry receipt verification"))
+        await screen.findByText(/VERIFIED ON-CHAIN/)
+        expect(broadcastNativeTransaction).toHaveBeenCalledTimes(1)
+        expect(api.completeTransaction).toHaveBeenCalledTimes(2)
+        expect(vi.mocked(api.completeTransaction).mock.calls[1][0]).toMatchObject({ transactionId: 7, finalHash: HASH })
+        expect(readNativeReceipt(receiptKey())).toBe("")
+    })
+
+    it("keeps recovery available across repeated completion failures and a stale refresh", async () => {
+        saveNativeReceipt(receiptKey(), HASH)
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        vi.mocked(api.completeTransaction).mockRejectedValueOnce(new Error("still unavailable")).mockResolvedValueOnce({} as never)
+        render(<TransactionView />)
+        await screen.findByText("Retry receipt verification")
+        fireEvent.click(screen.getByText("Retry receipt verification"))
+        await screen.findByText("still unavailable")
+        fireEvent.click(screen.getByText("Retry receipt verification"))
+        await waitFor(() => expect(api.completeTransaction).toHaveBeenCalledTimes(2))
+        await screen.findByText("Retry receipt verification")
+        expect(readNativeReceipt(receiptKey())).toBe(HASH)
+        expect(broadcastNativeTransaction).not.toHaveBeenCalled()
+        expect(screen.queryByText("Broadcast to Chain")).not.toBeInTheDocument()
+    })
+
+    it("reconciles a lost completion response from server state without repeating Complete", async () => {
+        saveNativeReceipt(receiptKey(), HASH)
+        vi.mocked(api.getTransaction).mockResolvedValueOnce(nativeResponse() as never).mockResolvedValue({ transaction: { ...makeNativeTx(), finalHash: HASH, verified: true } } as never)
+        render(<TransactionView />)
+        await screen.findByText("Retry receipt verification")
+        fireEvent.click(screen.getByText("Retry receipt verification"))
+        await screen.findByText(/VERIFIED ON-CHAIN/)
+        expect(api.completeTransaction).not.toHaveBeenCalled()
+        expect(broadcastNativeTransaction).not.toHaveBeenCalled()
+        expect(readNativeReceipt(receiptKey())).toBe("")
+    })
+
+    it("fails before broadcasting if browser storage cannot persist recovery", async () => {
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        vi.spyOn(localStorage, "setItem").mockImplementation(() => { throw new Error("quota") })
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        await screen.findByText(/Enable browser storage/)
+        expect(broadcastNativeTransaction).not.toHaveBeenCalled()
+        expect(api.completeTransaction).not.toHaveBeenCalled()
+    })
+
+    it("does not treat a corrupted receipt hint as completion or allow rebroadcast", async () => {
+        localStorage.setItem(receiptKey(), "not-a-hash")
+        await renderTx(makeNativeTx())
+        expect(screen.getByText("Retry receipt verification")).toBeDisabled()
+        expect(screen.queryByText("Broadcast to Chain")).not.toBeInTheDocument()
+        expect(screen.queryByText(/VERIFIED ON-CHAIN/)).not.toBeInTheDocument()
+    })
+
+    it("refuses to act when the refreshed immutable transaction differs", async () => {
+        vi.mocked(api.getTransaction).mockResolvedValueOnce(nativeResponse() as never).mockResolvedValue({ ...nativeResponse(), transaction: { ...makeNativeTx(), sequence: 99 } } as never)
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        await screen.findByText(/Transaction identity changed/)
+        expect(broadcastNativeTransaction).not.toHaveBeenCalled()
+        expect(api.completeTransaction).not.toHaveBeenCalled()
+    })
+
+    it("recovery still enforces the selected chain", async () => {
+        const tx = { ...makeNativeTx(), chainId: "wrong-chain" }
+        const otherKey = nativeReceiptKey(tx as never, mockAdena.address, "https://memba-api.test")
+        saveNativeReceipt(otherKey, HASH)
+        await renderTx(tx)
+        fireEvent.click(screen.getByText("Retry receipt verification"))
+        await screen.findByText(/Stored transaction chain does not match/)
+        expect(broadcastNativeTransaction).not.toHaveBeenCalled()
+        expect(api.completeTransaction).not.toHaveBeenCalled()
+        clearNativeReceipt(otherKey)
+    })
+
+    it("keeps a volatile hash and warns if persistence fails only after broadcast", async () => {
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        vi.mocked(broadcastNativeTransaction).mockImplementation(async () => {
+            vi.spyOn(localStorage, "setItem").mockImplementation(() => { throw new Error("quota") })
+            return HASH
+        })
+        vi.mocked(api.completeTransaction).mockRejectedValue(new Error("receipt unavailable"))
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
+        fireEvent.click(screen.getByText("Broadcast to Chain"))
+        fireEvent.click(screen.getByText("Confirm & Broadcast"))
+        await screen.findByText(/Browser storage failed after broadcast/)
+        await screen.findByText("Retry receipt verification")
+        expect(screen.getByText(HASH)).toBeInTheDocument()
+        fireEvent.click(screen.getByText("Retry receipt verification"))
+        await waitFor(() => expect(api.completeTransaction).toHaveBeenCalledTimes(2))
+        expect(broadcastNativeTransaction).toHaveBeenCalledTimes(1)
+    })
 })
 
 describe("TransactionView — rendering", () => {

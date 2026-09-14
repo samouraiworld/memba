@@ -4,6 +4,7 @@ export interface ParsedMsg {
     type: string
     label: string
     fields: { key: string; value: string; accent?: boolean }[]
+    reviewError?: string
 }
 
 /** Display options for parseMsgs. */
@@ -20,6 +21,7 @@ export interface ParseMsgsOpts {
 export interface ParsedFee {
     gas: string
     amount: string
+    reviewError?: string
 }
 
 /**
@@ -30,10 +32,10 @@ export interface ParsedFee {
 export function parseMsgs(msgsJson: string, opts?: ParseMsgsOpts): ParsedMsg[] {
     try {
         const msgs = JSON.parse(msgsJson)
-        if (!Array.isArray(msgs)) return [fallback(msgsJson)]
+        if (!Array.isArray(msgs)) return [fallback(msgsJson, opts?.full)]
         return msgs.map((m) => parseSingleMsg(m, opts?.full ? identity : truncate))
     } catch {
-        return [fallback(msgsJson)]
+        return [fallback(msgsJson, opts?.full)]
     }
 }
 
@@ -46,6 +48,7 @@ function parseSingleMsg(msg: Record<string, unknown>, truncate: (addr: string) =
     // ── bank/MsgSend ──────────────────────────────────────────
     if (type.includes("MsgSend") || type.includes("bank")) {
         const to = (value.to_address as string) || (value.toAddress as string) || "—"
+        if (value.amount == null) throw new Error("Missing transfer amount")
         const coins = parseCoins(value.amount)
         return {
             type: "Send",
@@ -104,44 +107,58 @@ export function parseFee(feeJson: string): ParsedFee {
     try {
         const fee = JSON.parse(feeJson)
         const gas = fee.gas || fee.gas_wanted || "—"
-        const amount = parseCoins(fee.amount)
+        // Never choose one of two conflicting monetary representations.
+        if (fee.gas_fee !== undefined && fee.amount !== undefined) throw new Error("Ambiguous fee")
+        const coins = fee.gas_fee !== undefined ? fee.gas_fee : fee.amount
+        if (coins == null) throw new Error("Missing fee")
+        const amount = parseCoins(coins)
         return { gas: String(gas), amount }
     } catch {
-        return { gas: "—", amount: "—" }
+        return { gas: "—", amount: "—", reviewError: "Cannot safely display the transaction fee. Inspect the original transaction before signing." }
     }
 }
 
-/** Parse Cosmos coin array → "1.5 GNOT" or "1,000,000 ugnot". */
+/** Native coin strings and legacy arrays, without floating-point rounding. */
 function parseCoins(coins: unknown): string {
-    if (!coins) return "—"
-    if (!Array.isArray(coins)) return "—"
+    if (coins == null) return "—" // absent optional VM send/deposit
+    if (coins === "") return "0" // canonical native empty Coins
+    if (typeof coins === "string") {
+        return coins.split(",").map(coin => {
+            const match = /^([0-9]+)([a-z/][a-z0-9_.:/-]{2,})$/.exec(coin)
+            if (!match) throw new Error("Unsupported native coin")
+            return formatCoin(match[1], match[2])
+        }).join(" + ")
+    }
+    if (!Array.isArray(coins)) throw new Error("Unsupported coin representation")
     if (coins.length === 0) return "0"
 
     return coins
-        .map((c: { amount?: string; denom?: string }) => {
-            const raw = c.amount || "0"
-            const denom = (c.denom || "").toUpperCase()
-
-            // Convert micro-units to display units.
-            if (denom === "UGNOT" && raw.length >= 6) {
-                const whole = raw.slice(0, -6) || "0"
-                const frac = raw.slice(-6).replace(/0+$/, "")
-                return frac ? `${whole}.${frac} GNOT` : `${whole} GNOT`
-            }
-
-            return `${Number(raw).toLocaleString()} ${denom || "units"}`
-        })
+        .map((c: { amount?: unknown; denom?: unknown }) => formatCoin(c.amount, c.denom))
         .join(" + ")
+}
+
+function formatCoin(amount: unknown, denomination: unknown): string {
+    if (typeof amount !== "string" || !/^[0-9]+$/.test(amount) || typeof denomination !== "string" || !/^[a-zA-Z/][a-zA-Z0-9_.:/-]{2,}$/.test(denomination)) throw new Error("Unsupported coin")
+    const raw = amount.replace(/^0+(?=\d)/, "")
+    if (denomination === "ugnot") {
+        const padded = raw.padStart(7, "0")
+        const whole = padded.slice(0, -6)
+        const frac = padded.slice(-6).replace(/0+$/, "")
+        return `${whole}${frac ? `.${frac}` : ""} GNOT`
+    }
+    // Preserve non-native denomination identity and every integer digit.
+    return `${raw.replace(/\B(?=(\d{3})+(?!\d))/g, ",")} ${denomination}`
 }
 
 function truncate(addr: string): string {
     return addr.length > 20 ? `${addr.slice(0, 10)}…${addr.slice(-8)}` : addr
 }
 
-function fallback(raw: string): ParsedMsg {
+function fallback(raw: string, full = false): ParsedMsg {
     return {
         type: "Unknown",
         label: "Transaction",
-        fields: [{ key: "Raw Data", value: raw.slice(0, 500) }],
+        fields: [{ key: "Raw Data", value: full ? raw : raw.slice(0, 500) }],
+        reviewError: "Cannot safely display transaction amounts. Inspect the original transaction before signing.",
     }
 }

@@ -9,6 +9,8 @@
  *
  * @module lib/dao/realmAddress
  */
+import { ripemd160 } from "@noble/hashes/legacy.js"
+import { sha256 } from "@noble/hashes/sha2.js"
 
 /**
  * Derive the bech32 address for a Gno package/realm path.
@@ -96,13 +98,12 @@ export function bech32Encode(hrp: string, data: Uint8Array): string {
 /**
  * Derive a bech32 address from a base64-encoded secp256k1 public key.
  *
- * Gno address derivation: SHA256(pubkey_bytes) → first 20 bytes → bech32 encode.
- * This matches Gno's tm2 crypto (truncated SHA256, no RIPEMD160).
+ * Secp256k1 account addresses use RIPEMD160(SHA256(compressed key)).
+ * Realm addresses above use a different, truncated-SHA256 preimage rule.
  */
 export async function pubkeyToAddress(base64Pubkey: string, hrp = "g"): Promise<string> {
     const pubkeyBytes = Uint8Array.from(atob(base64Pubkey), c => c.charCodeAt(0))
-    const hashBuffer = await crypto.subtle.digest("SHA-256", pubkeyBytes)
-    const addressBytes = new Uint8Array(hashBuffer).slice(0, 20)
+    const addressBytes = ripemd160(sha256(pubkeyBytes))
     return bech32Encode(hrp, addressBytes)
 }
 

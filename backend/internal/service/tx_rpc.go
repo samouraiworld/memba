@@ -11,6 +11,7 @@ import (
 	"connectrpc.com/connect"
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
 	"github.com/samouraiworld/memba/backend/internal/auth"
+	"github.com/samouraiworld/memba/backend/internal/gnomultisig"
 	"github.com/samouraiworld/memba/backend/internal/metrics"
 )
 
@@ -62,6 +63,37 @@ func (s *MultisigService) CreateTransaction(
 	).Scan(&exists)
 	if err != nil {
 		return nil, connect.NewError(connect.CodePermissionDenied, nil)
+	}
+
+	var identityJSON string
+	if err := s.db.QueryRowContext(ctx, "SELECT pubkey_json FROM multisigs WHERE chain_id = ? AND address = ?", chainID, multisigAddr).Scan(&identityJSON); err != nil {
+		return nil, internalError("CreateTransaction: identity", err)
+	}
+	if gnomultisig.IsNative(identityJSON) {
+		if req.Msg.GetAuthToken().GetChainId() != chainID {
+			return nil, connect.NewError(connect.CodePermissionDenied, nil)
+		}
+		if !s.nativeMultisigEnabled(chainID) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, nil)
+		}
+		pk, e := gnomultisig.Parse(identityJSON)
+		if e != nil || pk.Address().String() != multisigAddr {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, nil)
+		}
+		f := gnomultisig.Fields{ChainID: chainID, AccountNumber: uint64(req.Msg.GetAccountNumber()), Sequence: uint64(req.Msg.GetSequence()), MsgsJSON: msgsJSON, FeeJSON: feeJSON, Memo: req.Msg.GetMemo()}
+		typed, e := gnomultisig.Transaction(f, multisigAddr)
+		if e != nil {
+			return nil, connect.NewError(connect.CodeInvalidArgument, nil)
+		}
+		// Normalize only a new, unsigned proposal. Persisted proposals are immutable.
+		msgsJSON, e = gnomultisig.MessagesJSON(typed)
+		if e != nil {
+			return nil, internalError("CreateTransaction: native messages", e)
+		}
+		feeJSON, e = gnomultisig.FeeJSON(typed)
+		if e != nil {
+			return nil, internalError("CreateTransaction: native fee", e)
+		}
 	}
 
 	res, err := s.db.ExecContext(ctx,
@@ -148,7 +180,17 @@ func (s *MultisigService) GetTransaction(
 	}
 
 	slog.Info("GetTransaction", "user", userAddress, "id", txID)
-	return connect.NewResponse(&membav1.GetTransactionResponse{Transaction: &tx}), nil
+	response := &membav1.GetTransactionResponse{Transaction: &tx}
+	if gnomultisig.IsNative(tx.MultisigPubkeyJson) && tx.FinalHash == "" {
+		b, j, err := nativeArtifact(&tx)
+		if err != nil {
+			response.NativeExportError = "Native export requires a valid identity and a quorum of signatures over the same payload rendering."
+		} else {
+			response.NativeTxBytes = b
+			response.NativeTxJson = j
+		}
+	}
+	return connect.NewResponse(response), nil
 }
 
 func (s *MultisigService) Transactions(
@@ -337,9 +379,26 @@ func (s *MultisigService) SignTransaction(
 	// still accepted; set MEMBA_ENFORCE_MULTISIG_SIG_VERIFY=1 to reject failures.
 	// The verdict is stored on the row either way so quorum displays can
 	// distinguish verified signatures from merely-submitted ones.
+	if gnomultisig.IsNative(multisigPubkeyJSON) {
+		if req.Msg.GetAuthToken().GetChainId() != chainID {
+			return nil, connect.NewError(connect.CodePermissionDenied, nil)
+		}
+		if !s.nativeMultisigEnabled(chainID) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, nil)
+		}
+		pk, e := gnomultisig.Parse(multisigPubkeyJSON)
+		if e != nil || pk.Address().String() != multisigAddr {
+			return nil, sigVerifyDenied()
+		}
+		f := gnomultisig.Fields{ChainID: txf.ChainID, AccountNumber: txf.AccountNumber, Sequence: txf.Sequence, MsgsJSON: txf.MsgsJSON, FeeJSON: txf.FeeJSON, Memo: txf.Memo}
+		if err := s.storeNativeSignature(ctx, txID, multisigPubkeyJSON, f, gnomultisig.Partial{Address: userAddress, Value: sig}, bodyBytes); err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(&membav1.SignTransactionResponse{}), nil
+	}
 	sigVerified := false
 	if verr := auth.VerifyMultisigMemberSignature(multisigPubkeyJSON, userAddress, sig, txf); verr != nil {
-		if auth.EnforceMultisigSigVerify() {
+		if gnomultisig.IsNative(multisigPubkeyJSON) || auth.EnforceMultisigSigVerify() {
 			metrics.MultisigSigVerifyTotal.WithLabelValues("rejected").Inc()
 			slog.Warn("multisig_sig_verify", "metric", "multisig_sig_verify", "result", "rejected",
 				"tx_id", txID, "signer", userAddress, "err", verr.Error())
@@ -411,6 +470,16 @@ func (s *MultisigService) CompleteTransaction(
 	}
 
 	// Security: verify that enough signatures exist before allowing completion.
+	var identityJSON string
+	if err := s.db.QueryRowContext(ctx, "SELECT pubkey_json FROM multisigs WHERE chain_id = ? AND address = ?", chainID, multisigAddr).Scan(&identityJSON); err != nil {
+		return nil, internalError("CompleteTransaction: identity", err)
+	}
+	if gnomultisig.IsNative(identityJSON) {
+		if err := s.confirmNative(ctx, req); err != nil {
+			return nil, err
+		}
+		return connect.NewResponse(&membav1.CompleteTransactionResponse{}), nil
+	}
 	var sigCount int
 	var threshold int
 	err = s.db.QueryRowContext(ctx,

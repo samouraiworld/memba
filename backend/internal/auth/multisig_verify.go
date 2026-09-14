@@ -12,6 +12,7 @@ import (
 	"github.com/cosmos/cosmos-sdk/crypto/keys/multisig"
 	cryptotypes "github.com/cosmos/cosmos-sdk/crypto/types"
 	"github.com/cosmos/cosmos-sdk/types/bech32"
+	"github.com/samouraiworld/memba/backend/internal/gnomultisig"
 )
 
 // EnforceMultisigSigVerifyEnv gates A3 server-side signature verification, two-phase
@@ -140,6 +141,22 @@ const (
 // SignTransaction signal). The returned error carries the failure detail for
 // logging; it is nil only for SigVerifyOK.
 func ClassifyStoredSignature(multisigPubkeyJSON, signerAddress, sigBase64 string, txf StoredTxFields) (string, error) {
+	if gnomultisig.IsNative(multisigPubkeyJSON) {
+		pk, err := gnomultisig.Parse(multisigPubkeyJSON)
+		if err != nil {
+			return SigVerifyError, err
+		}
+		f := gnomultisig.Fields{ChainID: txf.ChainID, AccountNumber: txf.AccountNumber, Sequence: txf.Sequence, MsgsJSON: txf.MsgsJSON, FeeJSON: txf.FeeJSON, Memo: txf.Memo}
+		tx, err := gnomultisig.Transaction(f, pk.Address().String())
+		if err != nil {
+			return SigVerifyLegacyShape, err
+		}
+		_, _, err = gnomultisig.VerifyPartial(pk, f, tx, gnomultisig.Partial{Address: signerAddress, Value: sigBase64})
+		if err != nil {
+			return SigVerifyMismatch, err
+		}
+		return SigVerifyOK, nil
+	}
 	in, err := signDocInputFromStored(txf)
 	if err != nil {
 		return SigVerifyLegacyShape, err

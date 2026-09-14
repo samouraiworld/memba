@@ -25,6 +25,8 @@
     "@clerk/themes": "^2.4.63",
     "@connectrpc/connect": "^2.1.1",
     "@connectrpc/connect-web": "^2.1.2",
+    "@noble/curves": "2.4.0",
+    "@noble/hashes": "2.4.0",
     "@phosphor-icons/react": "^2.1.10",
     "@react-three/fiber": "9.7.0",
     "@remotion/player": "^4.0.520",
@@ -45,11 +47,11 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
-    "@sentry/vite-plugin": "^5.4.0",
     "@axe-core/playwright": "^4.13.0",
     "@eslint/js": "^9.39.5",
     "@playwright/test": "^1.62.1",
     "@remotion/cli": "^4.0.518",
+    "@sentry/vite-plugin": "^5.4.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.3",
     "@types/node": "^25.9.5",

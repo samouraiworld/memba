@@ -34,7 +34,9 @@ export function CreateToken() {
     const [faucetAmount, setFaucetAmount] = useState("0")
     const [adminMode, setAdminMode] = useState<AdminMode>("self")
     const [selectedMultisig, setSelectedMultisig] = useState("")
-    const [multisigs, setMultisigs] = useState<{ address: string; name: string }[]>([])
+    const [nativeGas, setNativeGas] = useState("10000000")
+    const [nativeFee, setNativeFee] = useState("1000000")
+    const [multisigs, setMultisigs] = useState<{ address: string; name: string; native: boolean }[]>([])
     const [memo, setMemo] = useState("")
     const [showGuide, setShowGuide] = useState(false)
 
@@ -55,6 +57,7 @@ export function CreateToken() {
                         res.multisigs.map((m) => ({
                             address: m.address,
                             name: m.name || m.address,
+                            native: isNativeMultisig(m.pubkeyJson),
                         })),
                     )
                 } catch { /* ignore */ }
@@ -166,9 +169,11 @@ export function CreateToken() {
             const callerAddress = adena.address || ""
 
             if (adminMode === "multisig") {
+                const native = multisigs.find(m => m.address === selectedMultisig)?.native ?? false
+                if (native) assertNativeAction(GNO_CHAIN_ID)
                 // ── Multisig admin: create TX proposal ──
                 const msgs = buildCreateTokenWithAdminMsgs(
-                    callerAddress, trimName, trimSymbol, dec,
+                    native ? selectedMultisig : callerAddress, trimName, trimSymbol, dec,
                     mint, faucet, selectedMultisig,
                 )
 
@@ -181,8 +186,8 @@ export function CreateToken() {
                     authToken: auth.token ?? undefined,
                     multisigAddress: selectedMultisig,
                     chainId: GNO_CHAIN_ID,
-                    msgsJson: JSON.stringify(msgs),
-                    feeJson: JSON.stringify({ gas_wanted: "200000", gas_fee: "10000ugnot" }),
+                    msgsJson: JSON.stringify(native ? msgs.map(toCanonicalMsg) : msgs),
+                    feeJson: native ? nativeFeeJSON(nativeGas, nativeFee) : JSON.stringify({ gas_wanted: "200000", gas_fee: "10000ugnot" }),
                     memo: memo || `Create GRC20: ${trimSymbol}`,
                     accountNumber: acctInfo.accountNumber,
                     sequence: acctInfo.sequence,
@@ -433,6 +438,11 @@ export function CreateToken() {
                 )}
 
                 {/* Memo */}
+                {adminMode === "multisig" && multisigs.find(m => m.address === selectedMultisig)?.native && <div>
+                    <p>Native rehearsal budget, not an estimate. Review before signing; the fee is paid on execution.</p>
+                    <label>Native gas limit <input value={nativeGas} onChange={e => setNativeGas(e.target.value)} disabled={loading} /></label>
+                    <label>Native fee (ugnot) <input value={nativeFee} onChange={e => setNativeFee(e.target.value)} disabled={loading} /></label>
+                </div>}
                 <div>
                     <label style={labelStyle}>Memo (optional)</label>
                     <input
@@ -539,4 +549,6 @@ function inputStyle(loading: boolean): React.CSSProperties {
 }
 
 
-
+import { isNativeMultisig, nativeFeeJSON } from "../lib/nativeMultisig"
+import { assertNativeAction } from "../lib/nativeMultisigBroadcast"
+import { toCanonicalMsg } from "../lib/multisigTx"

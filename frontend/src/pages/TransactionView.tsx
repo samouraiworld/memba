@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useRef, useState, useSyncExternalStore } from "react"
 import { useParams, useOutletContext } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
 import { useNetworkNav } from "../hooks/useNetworkNav"
@@ -12,12 +12,15 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { ProgressBar } from "../components/multisig/ProgressBar"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { Transaction } from "../gen/memba/v1/memba_pb"
-import { GNO_RPC_URL, GNO_BECH32_HRP, GNO_CHAIN_ID } from "../lib/config"
+import { API_BASE_URL, GNO_RPC_URL, GNO_BECH32_HRP, GNO_CHAIN_ID } from "../lib/config"
 import { assertWalletBroadcastSafe } from "../lib/grc20"
 import { pubkeyToAddress } from "../lib/dao/realmAddress"
 import { completeQuest } from "../lib/quests"
 import type { LayoutContext } from "../types/layout"
 import "./txview.css"
+import { isNativeMultisig } from "../lib/nativeMultisig"
+import { assertNativeAction, broadcastNativeTransaction } from "../lib/nativeMultisigBroadcast"
+import { assertReceiptStorage, clearNativeReceipt, nativeReceiptKey, readNativeReceipt, saveNativeReceipt, subscribeNativeReceipts, validReceiptHash } from "../lib/nativeReceipt"
 
 /** Build deterministic Amino sign doc from transaction data. */
 function buildSignDoc(tx: Transaction): Record<string, unknown> {
@@ -42,7 +45,7 @@ export function TransactionView() {
     // wallet's view from cache. Disabled until both exist, which keeps the
     // skeleton up exactly like the old early-return did.
     const txQuery = useQuery({
-        queryKey: ["multisig", "tx", id ?? "", token?.userAddress ?? ""],
+        queryKey: ["multisig", "tx", GNO_CHAIN_ID, id ?? "", token?.userAddress ?? ""],
         enabled: !!token && !!id,
         queryFn: async () => {
             const res = await api.getTransaction({
@@ -50,11 +53,19 @@ export function TransactionView() {
                 transactionId: Number(id),
             })
             if (!res.transaction) throw new Error("Transaction not found")
-            return res.transaction
+            return res
         },
     })
-    const tx = txQuery.data ?? null
+    const tx = txQuery.data?.transaction ?? null
     const loading = txQuery.isPending
+    const native = !!tx && isNativeMultisig(tx.multisigPubkeyJson)
+    const receiptKey = tx && native ? nativeReceiptKey(tx, token?.userAddress ?? adena.address ?? "", API_BASE_URL) : ""
+    const receipt = useSyncExternalStore(subscribeNativeReceipts, () => readNativeReceipt(receiptKey), () => "")
+    const [recoveryWarning, setRecoveryWarning] = useState("")
+    const broadcastBusy = useRef(false)
+    const parsedMsgs = tx ? parseMsgs(tx.msgsJson) : []
+    const fee = parseFee(tx?.feeJson ?? "")
+    const reviewError = parsedMsgs.find(msg => msg.reviewError)?.reviewError || fee.reviewError
 
     // Action errors (sign / broadcast / manual sig) are UI state and stay
     // local; the fetch error comes from the query, with a dismissal flag so
@@ -77,10 +88,11 @@ export function TransactionView() {
     const [pendingAction, setPendingAction] = useState<"sign" | "broadcast" | null>(null)
 
     const handleSign = async () => {
-        if (!token || !tx || actionLoading) return
+        if (!token || !tx || actionLoading || reviewError || receipt) return
         setActionLoading(true)
         setActionError(null)
         try {
+            if (isNativeMultisig(tx.multisigPubkeyJson)) assertNativeAction(tx.chainId)
             const signDoc = JSON.stringify(buildSignDoc(tx))
             const signDocBytes = new TextEncoder().encode(signDoc)
 
@@ -107,10 +119,39 @@ export function TransactionView() {
     }
 
     const handleBroadcast = async () => {
-        if (!token || !tx || actionLoading) return
+        if (!token || !tx || actionLoading || broadcastBusy.current) return
+        broadcastBusy.current = true
         setActionLoading(true)
         setActionError(null)
         try {
+            if (isNativeMultisig(tx.multisigPubkeyJson)) {
+                assertNativeAction(tx.chainId)
+                const fresh = await api.getTransaction({ authToken: token, transactionId: tx.id })
+                if (!fresh.transaction || nativeReceiptKey(fresh.transaction, token.userAddress ?? adena.address ?? "", API_BASE_URL) !== receiptKey) throw new Error("Transaction identity changed; reload and review again")
+                // A completion response may have been lost. Read the server's
+                // state first; completed rows reject another Complete RPC.
+                if (fresh.transaction.finalHash) {
+                    const refreshed = await txQuery.refetch()
+                    if (refreshed.data?.transaction?.finalHash) clearNativeReceipt(receiptKey)
+                    return
+                }
+                let hash = readNativeReceipt(receiptKey)
+                if (hash && !validReceiptHash(hash)) throw new Error("Recovery record is unavailable or invalid. Inspect it before any further broadcast")
+                if (!hash) {
+                    if (reviewError) throw new Error(reviewError)
+                    if (!fresh.nativeTxBytes.length) throw new Error(fresh.nativeExportError || "Native aggregate is not ready")
+                    assertReceiptStorage(receiptKey)
+                    hash = await broadcastNativeTransaction(tx.chainId, fresh.nativeTxBytes)
+                    if (!saveNativeReceipt(receiptKey, hash)) setRecoveryWarning("Browser storage failed after broadcast. Copy the hash before leaving this tab; receipt retry is still available here.")
+                }
+                await api.completeTransaction({ authToken: token, transactionId: tx.id, finalHash: hash })
+                const refreshed = await txQuery.refetch()
+                // Keep the hint if refresh fails or remains stale: never turn
+                // a successful broadcast back into a broadcast-ready button.
+                if (refreshed.data?.transaction?.finalHash) clearNativeReceipt(receiptKey)
+                return
+            }
+            if (reviewError) throw new Error(reviewError)
             // Try Adena's BroadcastMultisigTransaction first (handles Amino encoding)
             let hash = await tryAdenaBroadcast(tx)
 
@@ -147,6 +188,7 @@ export function TransactionView() {
         } catch (err) {
             setActionError(err instanceof Error ? err.message : "Broadcast failed")
         } finally {
+            broadcastBusy.current = false
             setActionLoading(false)
         }
     }
@@ -194,9 +236,8 @@ export function TransactionView() {
     }
 
     // ── Parse data ────────────────────────────────────────────
-    const status = getTxStatus(tx.finalHash, tx.signatures.length, tx.threshold)
-    const parsedMsgs = parseMsgs(tx.msgsJson)
-    const fee = parseFee(tx.feeJson)
+    const nativeReady = !!txQuery.data?.nativeTxBytes?.length
+    const status = getTxStatus(tx.finalHash, native && !nativeReady ? 0 : tx.signatures.length, tx.threshold)
 
     return (
         <div className="animate-fade-in k-txview">
@@ -301,21 +342,32 @@ export function TransactionView() {
             </div>
 
             {/* ── Actions ─────────────────────────────────────── */}
+            {reviewError && <p role="alert">{reviewError}</p>}
+            {native && receipt && !tx.finalHash && <div className="k-card" role="status">
+                <p>Broadcast receipt recovery — this saved hash is not proof of completion. The backend must verify it on-chain.</p>
+                <code style={{ overflowWrap: "anywhere" }}>{validReceiptHash(receipt) ? receipt : "Recovery record is unavailable or invalid; inspect it before continuing."}</code>
+                {recoveryWarning && <p role="alert">{recoveryWarning}</p>}
+                <p>Retry only saves the verified receipt. It does not broadcast again.</p>
+                <button className="k-btn-primary" disabled={actionLoading || !auth.isAuthenticated || !validReceiptHash(receipt)} onClick={() => void handleBroadcast()}>
+                    {actionLoading ? "Checking receipt..." : "Retry receipt verification"}
+                </button>
+            </div>}
+            {native && txQuery.data?.nativeExportError && <p role="status">{txQuery.data.nativeExportError}</p>}
             {!tx.finalHash && auth.isAuthenticated && (
                 <div className="k-txview__actions">
                     <button
                         className="k-btn-primary"
-                        disabled={actionLoading || tx.signatures.some(s => s.userAddress === adena.address)}
+                        disabled={actionLoading || !!reviewError || !!receipt || tx.signatures.some(s => s.userAddress === adena.address)}
                         onClick={() => setPendingAction("sign")}
                         style={{ opacity: actionLoading ? 0.5 : 1 }}
                     >
                         {actionLoading ? "Signing..." : tx.signatures.some(s => s.userAddress === adena.address) ? "Already Signed" : "Sign Transaction"}
                     </button>
-                    {tx.signatures.length >= tx.threshold && (
+                    {(native ? nativeReady && !receipt : tx.signatures.length >= tx.threshold) && (
                         <button
                             className="k-btn-primary"
                             style={{ background: "var(--color-k-accent-hover)", opacity: actionLoading ? 0.5 : 1 }}
-                            disabled={actionLoading}
+                            disabled={actionLoading || !!reviewError}
                             onClick={() => setPendingAction("broadcast")}
                         >
                             {actionLoading ? "Broadcasting..." : "Broadcast to Chain"}
@@ -324,7 +376,7 @@ export function TransactionView() {
                     <button
                         className="k-btn-secondary"
                         onClick={() => {
-                            const json = JSON.stringify(buildSignDoc(tx), null, 2)
+                            const json = native ? JSON.stringify({ msg: JSON.parse(tx.msgsJson), fee: JSON.parse(tx.feeJson), signatures: null, memo: tx.memo || "" }, null, 2) : JSON.stringify(buildSignDoc(tx), null, 2)
                             const blob = new Blob([json], { type: "application/json" })
                             const url = URL.createObjectURL(blob)
                             const a = document.createElement("a")
@@ -336,6 +388,11 @@ export function TransactionView() {
                     >
                         Export Unsigned TX
                     </button>
+                    {nativeReady && <button className="k-btn-secondary" onClick={() => {
+                        const blob = new Blob([txQuery.data!.nativeTxJson], { type: "application/json" })
+                        const url = URL.createObjectURL(blob)
+                        const a = document.createElement("a"); a.href = url; a.download = `memba-tx-${tx.id}-native-signed.json`; a.click(); URL.revokeObjectURL(url)
+                    }}>Export Native Signed TX</button>}
                     <button
                         className="k-btn-secondary"
                         onClick={() => setShowManualSig(!showManualSig)}
@@ -388,7 +445,7 @@ export function TransactionView() {
                         <button className="k-btn-secondary" onClick={() => setPendingAction(null)}>Cancel</button>
                         <button
                             className="k-btn-primary"
-                            disabled={actionLoading}
+                            disabled={actionLoading || !!reviewError || !!receipt}
                             onClick={() => {
                                 const action = pendingAction
                                 setPendingAction(null)
@@ -418,13 +475,14 @@ export function TransactionView() {
                     />
                     <button
                         className="k-btn-primary"
-                        disabled={!manualSig.trim() || actionLoading}
+                        disabled={!manualSig.trim() || actionLoading || !!reviewError || !!receipt}
                         style={{ opacity: manualSig.trim() && !actionLoading ? 1 : 0.5, alignSelf: "flex-start" }}
                         onClick={async () => {
-                            if (!token || !tx || !manualSig.trim()) return
+                            if (!token || !tx || !manualSig.trim() || reviewError || receipt) return
                             setActionLoading(true)
                             setActionError(null)
                             try {
+                                if (isNativeMultisig(tx.multisigPubkeyJson)) assertNativeAction(tx.chainId)
                                 const signDoc = JSON.stringify(buildSignDoc(tx))
                                 await api.signTransaction({
                                     authToken: token,

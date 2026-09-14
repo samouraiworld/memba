@@ -2,6 +2,11 @@ import { describe, it, expect } from "vitest"
 import { assertSafeFlags, SAFETY_GATED_FLAGS, shouldEnforceFlagGate } from "./safeFlags"
 
 describe("assertSafeFlags", () => {
+    it("keeps native multisig production activation behind release review", () => {
+        expect(() => assertSafeFlags({ VITE_ENABLE_NATIVE_GNO_MULTISIG: "true" })).toThrow(/VITE_ENABLE_NATIVE_GNO_MULTISIG/)
+        expect(() => assertSafeFlags({ VITE_ENABLE_NATIVE_GNO_MULTISIG: "false" })).not.toThrow()
+    })
+
     it("passes when no gated flag is enabled", () => {
         expect(() => assertSafeFlags({ VITE_ENABLE_SERVICES: "false", VITE_GNO_CHAIN_ID: "test-13" })).not.toThrow()
     })
@@ -30,6 +35,7 @@ describe("assertSafeFlags", () => {
         expect([...SAFETY_GATED_FLAGS]).toEqual([
             "VITE_ENABLE_TREASURY_SPEND",
             "VITE_ENABLE_AGENT_CREDITS",
+            "VITE_ENABLE_NATIVE_GNO_MULTISIG",
         ])
     })
 })
