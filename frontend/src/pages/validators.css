@@ -767,6 +767,12 @@
         min-height: var(--mb-touch-min, 44px);
     }
 
+    /* WebKit's native select can ignore min-height; keep its native picker
+       and give the mobile control an explicit touch-sized height as well. */
+    .val-page-size {
+        height: var(--mb-touch-min, 44px);
+    }
+
     /* iOS zooms the viewport when a control under 16px takes focus. The global
        guard in index.css can't cover this: it stops at 428px (missing the
        430px Pro Max), and its bare `select` (0,0,1) loses to .val-page-size

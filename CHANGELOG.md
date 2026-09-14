@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Mobile validator selectors keep their touch target on iPhone (2026-09-14)
+<!-- categories: memba -->
+- The validator roster selector now has an explicit 44px mobile height so WebKit's native control cannot collapse below the existing touch-target minimum. Desktop sizing and the native picker are preserved.
+
 ### Native multisig identity checks and transaction receipt recovery (2026-09-14)
 <!-- categories: memba -->
 - New multisig registration is held pending native-Gno release approval. Existing wallet records and signature history are preserved; legacy identities are not converted into different addresses.

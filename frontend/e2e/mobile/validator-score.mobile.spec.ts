@@ -99,9 +99,28 @@ for (const width of [320, 375, 430]) {
         expect(m.overflowing, 'score text overflowing its box').toEqual([])
         expect(m.minTabHeight, 'window tabs are thumb-sized').toBeGreaterThanOrEqual(44)
         expect(m.cardRight, 'card stays on screen').toBeLessThanOrEqual(m.viewport)
-        expect(await findHorizontalClipping(page), `profile clips content at ${width}px`).toEqual([])
+        // This is an injected-card contract, not a live-route assertion. The
+        // surrounding ConnectingLoader intentionally clips its animated 200px
+        // progress bar; sampling that animation made this check flaky in WebKit.
+        expect(await findHorizontalClipping(page, '[data-testid="score-probe"]'), `score clips content at ${width}px`).toEqual([])
     })
 }
+
+test('the score clipping guard detects hidden content inside the card', async ({ page }) => {
+    await mountCard(page, 320)
+    await page.locator('[data-testid="score-probe"]').evaluate((card) => {
+        const box = document.createElement('div')
+        box.className = 'score-clipping-regression'
+        box.style.cssText = 'width: 20px; overflow: hidden'
+        const child = document.createElement('div')
+        child.style.width = '200px'
+        child.textContent = 'clipped score content'
+        box.appendChild(child)
+        card.appendChild(box)
+    })
+    expect(await findHorizontalClipping(page, '[data-testid="score-probe"]'))
+        .toContain('DIV.score-clipping-regression sw=200 cw=20')
+})
 
 test('on a desktop the breakdown spreads to three columns', async ({ page }) => {
     await mountCard(page, 1280)
