@@ -1,0 +1,48 @@
+name: Professional preview
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+      - '.github/workflows/professional-preview.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: professional-preview-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  preview:
+    name: Validators preview (four browsers)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - name: Frontend unit tests
+        run: npm test -- --maxWorkers=4
+      - name: Default production build
+        run: npm run build
+      - name: Install preview browsers
+        run: npx playwright install --with-deps chromium firefox webkit
+      - name: Flag-on preview tests
+        run: npm run test:e2e:pro-ui
+      - name: Upload preview evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: validators-preview-evidence
+          path: frontend/test-results/
+          retention-days: 14

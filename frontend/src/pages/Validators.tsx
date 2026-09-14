@@ -19,9 +19,9 @@ import { useNetworkNav, useNetworkKey } from "../hooks/useNetworkNav"
 import { useIsMobile } from "../hooks/useIsMobile"
 import { ValidatorCard } from "../components/validators/ValidatorCard"
 import { ValidatorSortSelect, type SortKey } from "../components/validators/ValidatorSortSelect"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, type ReactNode } from "react"
 import { useQuery } from "@tanstack/react-query"
-import { Link, useSearchParams } from "react-router-dom"
+import { Link, useSearchParams, useLocation } from "react-router-dom"
 import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { Copy, CheckCircle } from "@phosphor-icons/react"
@@ -56,13 +56,16 @@ import {
     ResponsiveContainer, CartesianGrid, Legend,
 } from "recharts"
 import {
+    ValidatorHealthStatus,
     computeHealthStatus,
     computeNetworkHealth,
     healthCssClass,
     healthLabel,
     healthIcon,
 } from "../lib/validatorHealth"
+import { isProValidatorsRoute } from "../lib/proUi"
 import "./validators.css"
+import "../components/layout/professional-pilot.css"
 
 const REFRESH_INTERVAL_MS = 30_000 // 30s standard polling
 
@@ -116,7 +119,8 @@ function isFromInteractiveChild(target: EventTarget, row: Element): boolean {
 }
 
 /** A header cell whose sorting lives on a real button, with the state in `aria-sort`. */
-function SortableTh({ column, label, spokenLabel, align, sortKey, sortAsc, onSort }: {
+function SortableTh({ column, label, spokenLabel, align, sortKey, sortAsc, onSort, hidden }: {
+    hidden?: boolean
     column: SortKey
     label: string
     /**
@@ -134,6 +138,7 @@ function SortableTh({ column, label, spokenLabel, align, sortKey, sortAsc, onSor
     const active = sortKey === column
     return (
         <th
+            hidden={hidden}
             className={`val-th${align ? ` val-th-${align}` : ""}`}
             aria-sort={active ? (sortAsc ? "ascending" : "descending") : undefined}
         >
@@ -174,7 +179,17 @@ function ValidatorRowPreview({ v, signingToOperator }: { v: ValidatorInfo; signi
     )
 }
 
+/** Mobile keeps comparison controls close to the top; every overview metric remains expandable. */
+function NetworkOverview({ collapsed, children }: { collapsed: boolean; children: ReactNode }) {
+    return collapsed
+        ? <details className="pro-val-overview"><summary>Network overview</summary>{children}</details>
+        : <>{children}</>
+}
+
 export default function Validators() {
+    const proUi = isProValidatorsRoute(useLocation().pathname)
+    const [allColumns, setAllColumns] = useState(false)
+    const compactColumns = proUi && !allColumns
     const navigate = useNetworkNav()
     const nk = useNetworkKey()
     const isMobile = useIsMobile()
@@ -275,6 +290,7 @@ export default function Validators() {
     const [sortKey, setSortKey] = useState<SortKey>("rank")
     const [sortAsc, setSortAsc] = useState(true)
     const [search, setSearch] = useState("")
+    const [healthFilter, setHealthFilter] = useState<ValidatorHealthStatus | "all">("all")
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(50)
 
@@ -341,6 +357,7 @@ export default function Validators() {
     const { filtered, paginated, totalPages, currentPage, paginatedStart, paginatedEnd } = useMemo(() => {
         const f = validators
             .filter(v => {
+                if (proUi && healthFilter !== "all" && v.healthStatus !== healthFilter) return false
                 if (!search) return true
                 const q = search.toLowerCase()
                 return (
@@ -363,12 +380,12 @@ export default function Validators() {
         const p = f.slice(start, end)
 
         return { filtered: f, paginated: p, totalPages: tp, currentPage: cp, paginatedStart: start, paginatedEnd: end }
-    }, [validators, search, sortKey, sortAsc, page, effectivePageSize])
+    }, [validators, search, healthFilter, proUi, sortKey, sortAsc, page, effectivePageSize])
 
     // Reset to page 1 when search or page size changes — render-phase state
     // adjustment (the React-recommended pattern), not an effect.
-    const [prevPageInputs, setPrevPageInputs] = useState(`${search}|${pageSize}`)
-    const pageInputs = `${search}|${pageSize}`
+    const [prevPageInputs, setPrevPageInputs] = useState(`${search}|${pageSize}|${healthFilter}`)
+    const pageInputs = `${search}|${pageSize}|${healthFilter}`
     if (prevPageInputs !== pageInputs) {
         setPrevPageInputs(pageInputs)
         setPage(1)
@@ -400,13 +417,29 @@ export default function Validators() {
         return chartData.length > 0 ? chartData : null
     }, [validators])
 
+    if (proUi && (loading || error)) {
+        return (
+            <div className="val-page" data-testid="validators-page">
+                <div className="val-header"><h1>Validators</h1><span className="val-chain-badge">{GNO_CHAIN_ID}</span></div>
+                {loading ? <ConnectingLoader message="Loading validator data..." minHeight="40vh" /> : (
+                    <div className="pro-val-empty" role="alert">
+                        <h2>Unable to load validators</h2>
+                        <p>The selected network could not return validator data. Try again.</p>
+                        <details><summary>Technical details</summary><p>{error}</p></details>
+                        <button type="button" onClick={() => void rosterQuery.refetch()}>Retry</button>
+                    </div>
+                )}
+            </div>
+        )
+    }
+
     if (loading) {
         return <ConnectingLoader message="Loading validator data..." minHeight="40vh" />
     }
 
     if (error) {
         return (
-            <div className="val-error">
+            <div className="val-error" role={proUi ? "alert" : undefined}>
                 <span>⚠ {error}</span>
                 <button onClick={() => void rosterQuery.refetch()} className="val-retry-btn">Retry</button>
             </div>
@@ -416,13 +449,21 @@ export default function Validators() {
     return (
         <div className="val-page" data-testid="validators-page">
             <div className="val-header">
-                <h1>⛓️ Validators</h1>
+                <h1>{proUi ? "Validators" : "⛓️ Validators"}</h1>
                 <span className="val-chain-badge">{GNO_CHAIN_ID}</span>
                 {refreshing && <span className="val-refreshing" aria-live="polite">Refreshing…</span>}
-                <Link to="/validators/hacker" className="val-hacker-btn" title="Open live consensus telemetry dashboard">
-                    🕵️ Hacker view
+                <Link to={proUi ? `/${nk}/validators/hacker` : "/validators/hacker"} className="val-hacker-btn" title="Open live consensus telemetry dashboard">
+                    {proUi ? "Advanced monitoring ↗" : "🕵️ Hacker view"}
                 </Link>
             </div>
+
+            {proUi && <p className="pro-val-intro">Explore the consensus set, compare validator health, and inspect network activity.</p>}
+            {proUi && rosterQuery.isError && rosterQuery.data && (
+                <div className="pro-val-notice" role="status">
+                    Refresh failed. Showing the last retrieved data.
+                    <button type="button" onClick={() => void rosterQuery.refetch()}>Retry</button>
+                </div>
+            )}
 
             {/* ── Segment tabs (deep-linkable via ?tab=) ───────── */}
             <div className="val-segtabs" role="tablist" aria-label="Validators sections">
@@ -451,6 +492,7 @@ export default function Validators() {
 
             {/* ── Validators tab: stats + live metrics table ───── */}
             {tab === "validators" && (<>
+            <NetworkOverview collapsed={proUi && isMobile}>
             {/* ── Network Overview Cards ───────────────────────── */}
             {stats && (
                 <div className="val-stats-grid" data-testid="network-stats">
@@ -499,7 +541,7 @@ export default function Validators() {
             {/* ── Network Health Banner (v2.17.0) ──────────────── */}
             {networkHealth && (
                 <div className="val-health-banner" data-testid="network-health-banner">
-                    <div className="val-health-banner__title">🩺 Network Health</div>
+                    <div className="val-health-banner__title">{proUi ? "Network health" : "🩺 Network Health"}</div>
                     <div className="val-health-banner__grid">
                         <div className="val-health-banner__stat">
                             <span className="val-health-dot val-health-dot--healthy" />
@@ -541,17 +583,44 @@ export default function Validators() {
                 </div>
             )}
 
+            {proUi && !hasMonitoring && <p className="pro-val-monitoring-note">Monitoring metrics are unavailable. Health uses the available signals, including recent block signatures.</p>}
+            </NetworkOverview>
+
             {/* ── Search + Page Size ─────────────────────────────── */}
             <div className="val-toolbar">
                 <input
                     type="text"
+                    aria-label="Search validators"
                     value={search}
                     onChange={e => setSearch(e.target.value)}
                     placeholder={hasMonitoring ? "Search by name or address..." : "Search by address..."}
                     className="val-search"
                     data-testid="validator-search"
                 />
+                {proUi && (
+                    <select aria-label="Filter by health" className="val-page-size pro-val-health-filter"
+                        value={healthFilter} onChange={event => setHealthFilter(event.target.value as ValidatorHealthStatus | "all")}>
+                        <option value="all">All health states</option>
+                        <option value="healthy">Healthy</option>
+                        <option value="degraded">Degraded</option>
+                        <option value="down">Down</option>
+                        <option value="unknown">Unknown</option>
+                    </select>
+                )}
                 <div className="val-toolbar-right">
+                    {proUi && !isMobile && (
+                        <label className="pro-val-columns">
+                            <input type="checkbox" checked={allColumns} onChange={event => {
+                                setAllColumns(event.target.checked)
+                                // Avoid an invisible active sort after its column is hidden.
+                                if (!event.target.checked && ["participationRate", "missedBlocks", "txContrib"].includes(sortKey)) {
+                                    setSortKey("rank")
+                                    setSortAsc(true)
+                                }
+                            }} />
+                            All columns
+                        </label>
+                    )}
                     {isMobile ? (
                         // Mobile cards have no sortable column headers — restore sort
                         // parity here (and the roster is clamped to 25, so the
@@ -575,11 +644,19 @@ export default function Validators() {
                             <option value={100}>100 / page</option>
                         </select>
                     )}
-                    <span className="val-count">
+                    <span className="val-count" role={proUi ? "status" : undefined}>
                         {filtered.length} validator{filtered.length !== 1 ? "s" : ""}
                     </span>
                 </div>
             </div>
+
+            {proUi && filtered.length === 0 && (
+                <div className="pro-val-empty" role="status">
+                    <h2>{validators.length === 0 ? "No validators returned" : "No matching validators"}</h2>
+                    <p>{validators.length === 0 ? "The selected network returned an empty consensus set." : "Try another name, address or health state, or clear your filters."}</p>
+                    {(search || healthFilter !== "all") && <button type="button" onClick={() => { setSearch(""); setHealthFilter("all") }}>Clear filters</button>}
+                </div>
+            )}
 
             {/* ── Validator Table ──────────────────────────────── */}
             {isMobile ? (
@@ -594,30 +671,31 @@ export default function Validators() {
                     ))}
                 </div>
             ) : (
-            <div className="val-table-wrap">
+            <div className="val-table-wrap" role={proUi ? "region" : undefined} aria-label={proUi ? "Validator comparison" : undefined} tabIndex={proUi ? 0 : undefined}>
                 <table className="val-table" data-testid="validator-table">
+                    {proUi && <caption className="val-sr-only">Validator comparison. Enable All columns to inspect additional metrics and profile links.</caption>}
                     <thead>
                         <tr>
                             <SortableTh column="rank" label="#" spokenLabel="Rank" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
-                            <th className="val-th">Validator</th>
+                            <th className="val-th val-identity">Validator</th>
                             <SortableTh column="votingPower" label="Voting Power" align="right" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                             <SortableTh column="powerPercent" label="Share" align="right" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
-                            <th className="val-th val-th-center">Active Since</th>
-                            <th className="val-th val-th-center">Profile</th>
+                            <th hidden={compactColumns} className="val-th val-th-center">Active Since</th>
+                            <th hidden={compactColumns} className="val-th val-th-center">Profile</th>
                             {isReviewsEnabled() && (
-                                <th className="val-th val-th-center">Reviews</th>
+                                <th hidden={compactColumns} className="val-th val-th-center">Reviews</th>
                             )}
                             {hasMonitoring && (
                                 <>
-                                    <SortableTh column="participationRate" label="Participation" align="right" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
+                                    <SortableTh hidden={compactColumns} column="participationRate" label="Participation" align="right" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                                     <SortableTh column="uptimePercent" label="Uptime" align="center" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
-                                    <SortableTh column="missedBlocks" label="Missed" align="center" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
-                                    <SortableTh column="txContrib" label="TX Contrib" align="right" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
-                                    <th className="val-th val-th-center">Last Down</th>
+                                    <SortableTh hidden={compactColumns} column="missedBlocks" label="Missed" align="center" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
+                                    <SortableTh hidden={compactColumns} column="txContrib" label="TX Contrib" align="right" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
+                                    <th hidden={compactColumns} className="val-th val-th-center">Last Down</th>
                                 </>
                             )}
                             <th className="val-th val-th-center">Health</th>
-                            <th className="val-th val-th-center">Last {validators[0]?.lastBlockSignatures?.length || 100} blocks</th>
+                            <th className="val-th val-th-center">Last {validators[0]?.lastBlockSignatures?.length || (proUi ? ROSTER_SIGNATURE_WINDOW : 100)} blocks</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -674,12 +752,12 @@ export default function Validators() {
                                         <span>{v.powerPercent.toFixed(1)}%</span>
                                     </div>
                                 </td>
-                                <td className="val-td val-td-center">
+                                <td hidden={compactColumns} className="val-td val-td-center">
                                     <span className="val-start-time">
                                         {v.operationTime != null ? `${v.operationTime}d` : formatRelativeTime(v.startTime)}
                                     </span>
                                 </td>
-                                <td className="val-td val-td-center">
+                                <td hidden={compactColumns} className="val-td val-td-center">
                                     {v.profileUrl ? (
                                         <a href={v.profileUrl} target="_blank" rel="noopener noreferrer" className="val-profile-link">
                                             Gnoweb ↗
@@ -689,14 +767,14 @@ export default function Validators() {
                                 {isReviewsEnabled() && (() => {
                                     const { subject, aliases } = resolveReviewSubjects(v.gnoAddr, signingToOperator)
                                     return (
-                                        <td className="val-td val-td-center">
+                                        <td hidden={compactColumns} className="val-td val-td-center">
                                             <ValidatorReviewStars subject={subject} aliases={aliases} />
                                         </td>
                                     )
                                 })()}
                                 {hasMonitoring && (
                                     <>
-                                        <td className="val-td val-td-right val-mono">
+                                        <td hidden={compactColumns} className="val-td val-td-right val-mono">
                                             {formatPercent(v.participationRate)}
                                         </td>
                                         <td className="val-td val-td-center">
@@ -706,17 +784,17 @@ export default function Validators() {
                                                 </span>
                                             ) : "—"}
                                         </td>
-                                        <td className="val-td val-td-center">
+                                        <td hidden={compactColumns} className="val-td val-td-center">
                                             {v.missedBlocks != null ? (
                                                 <span className={`val-missed-badge ${v.missedBlocks >= 30 ? "val-missed-critical" : v.missedBlocks >= 5 ? "val-missed-warn" : "val-missed-ok"}`}>
                                                     {v.missedBlocks}
                                                 </span>
                                             ) : "—"}
                                         </td>
-                                        <td className="val-td val-td-right val-mono">
+                                        <td hidden={compactColumns} className="val-td val-td-right val-mono">
                                             {formatPercent(v.txContrib)}
                                         </td>
-                                        <td className="val-td val-td-center">
+                                        <td hidden={compactColumns} className="val-td val-td-center">
                                             <span className="val-start-time">
                                                 {v.lastIncidentDate ? formatRelativeTime(v.lastIncidentDate) : "—"}
                                             </span>
@@ -731,6 +809,9 @@ export default function Validators() {
                                         <span className="val-health-badge__icon">{healthIcon(v.healthStatus)}</span>
                                         <span className="val-health-badge__label">{healthLabel(v.healthStatus)}</span>
                                     </span>
+                                    {proUi && v.healthStatus !== ValidatorHealthStatus.Healthy && v.healthMeta?.reason && (
+                                        <span className="pro-val-health-reason">{v.healthMeta.reason}</span>
+                                    )}
                                 </td>
                                 <td className="val-td val-td-center">
                                     {v.lastBlockSignatures.length > 0 ? (

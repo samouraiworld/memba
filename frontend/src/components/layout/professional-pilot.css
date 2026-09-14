@@ -1,0 +1,152 @@
+/* P2/P3: presentation preview, applied only to the Validators overview shell.
+   Large Black surfaces are true #000; borders and text provide hierarchy. */
+.k-pro-ui {
+    --pro-canvas: #000000;
+    --pro-text: #f5f7f6;
+    --pro-secondary: #adb5b2;
+    --pro-border: #303735;
+    --pro-control-border: #68736f;
+    --pro-accent: #00d4aa;
+    --pro-hover: #101715;
+    --color-k-bg: var(--pro-canvas);
+    --color-k-panel: var(--pro-canvas);
+    --color-k-elevated: var(--pro-canvas);
+    --color-k-text: var(--pro-text);
+    --color-k-dim: var(--pro-secondary);
+    --color-k-muted: var(--pro-secondary);
+    --color-k-edge: var(--pro-border);
+    --color-k-accent-text: var(--pro-accent);
+    --color-text: var(--pro-text);
+    --color-text-secondary: var(--pro-secondary);
+    --color-text-muted: var(--pro-secondary);
+    --color-bg: var(--pro-canvas);
+    --color-surface: var(--pro-canvas);
+    --color-surface-hover: var(--pro-hover);
+    --color-border: var(--pro-border);
+    --color-border-light: var(--pro-border);
+    background: var(--pro-canvas);
+    color: var(--pro-text);
+    font-family: var(--font-sans);
+}
+[data-theme="light"] .k-pro-ui {
+    --pro-canvas: #ffffff;
+    --pro-text: #17221e;
+    --pro-secondary: #52615a;
+    --pro-border: #dbe2de;
+    --pro-control-border: #78867e;
+    --pro-accent: #006e57;
+    --pro-hover: #f3f7f5;
+}
+.k-pro-ui .k-main-column { min-width: 0; }
+.k-pro-ui .k-main { max-width: none; min-width: 0; padding: 32px; }
+.k-pro-ui :is(.k-sidebar, .k-topbar, .k-mobile-header, .k-mobile-tabbar, .k-footer) { background: var(--pro-canvas); }
+.k-pro-ui :is(.k-sidebar-link, .k-sidebar-section-label, .k-topbar select) { font-family: var(--font-sans); }
+.k-pro-ui .k-sidebar-link { font-size: 14px; }
+.k-pro-ui .val-page { max-width: 1920px; padding: 0 0 32px; }
+.k-pro-ui .val-header { gap: 12px; margin-bottom: 8px; flex-wrap: wrap; }
+.k-pro-ui .val-header h1 { font-size: 30px; font-weight: 650; letter-spacing: -.035em; }
+.k-pro-ui .val-chain-badge { font-size: 12px; color: var(--pro-secondary); background: var(--pro-canvas); border-color: var(--pro-border); padding: 4px 8px; }
+.k-pro-ui .val-hacker-btn { font: 500 13px var(--font-sans); letter-spacing: 0; padding: 9px 12px; min-height: 38px; border-color: var(--pro-control-border); background: var(--pro-canvas); color: var(--pro-text); }
+.k-pro-ui .pro-val-intro { margin: 0 0 24px; font-size: 14px; line-height: 1.5; color: var(--pro-secondary); }
+.k-pro-ui .val-segtabs { margin-bottom: 24px; }
+.k-pro-ui .val-segtab { font: 600 14px var(--font-sans); padding: 12px 16px; }
+.k-pro-ui .val-segtab__count { font-size: 12px; }
+.k-pro-ui .val-stats-grid { display: flex; flex-wrap: wrap; gap: 0; border: 1px solid var(--pro-border); border-radius: 12px; margin-bottom: 16px; }
+.k-pro-ui .val-stat-card { flex: 1 1 140px; min-width: 0; border: 0; border-radius: 0; padding: 18px 20px; gap: 8px; text-align: left; background: var(--pro-canvas); box-shadow: inset -1px 0 var(--pro-border); }
+.k-pro-ui .val-stat-card:first-child { border-radius: 12px 0 0 12px; }
+.k-pro-ui .val-stat-card:last-child { box-shadow: none; border-radius: 0 12px 12px 0; }
+.k-pro-ui :is(.val-stat-label, .val-stat-hint) { font: 400 12px var(--font-sans); letter-spacing: 0; text-transform: none; line-height: 1.3; }
+.k-pro-ui .val-stat-value { font: 600 26px var(--font-sans); font-variant-numeric: tabular-nums; letter-spacing: -.025em; }
+.k-pro-ui .val-health-banner { padding: 16px 20px; background: var(--pro-canvas); border: 1px solid var(--pro-border); border-radius: 12px; margin-bottom: 24px; }
+.k-pro-ui .val-health-banner__title { font: 600 13px var(--font-sans); color: var(--pro-text); text-transform: none; letter-spacing: 0; margin-bottom: 12px; }
+.k-pro-ui .val-health-banner__grid { gap: 12px 24px; }
+.k-pro-ui .val-health-banner__count { font: 600 15px var(--font-sans); }
+.k-pro-ui :is(.val-health-banner__label, .val-health-banner__incident-text) { font: 400 13px var(--font-sans); color: var(--pro-secondary); }
+.k-pro-ui .val-health-banner__incident { padding-top: 12px; margin-top: 12px; border-color: var(--pro-border); }
+.k-pro-ui .val-toolbar { flex-wrap: wrap; gap: 12px; margin-bottom: 16px; }
+.k-pro-ui .val-toolbar-right { flex-wrap: wrap; gap: 16px; }
+.k-pro-ui :is(.val-search, .val-page-size) { min-height: 40px; border: 1px solid var(--pro-control-border); border-radius: 8px; background: var(--pro-canvas); color: var(--pro-text); font: 400 14px var(--font-sans); padding: 8px 12px; }
+.k-pro-ui .val-search { max-width: 380px; }
+.k-pro-ui .val-search::placeholder { color: var(--pro-secondary); opacity: 1; }
+.k-pro-ui .val-count { font: 400 13px var(--font-sans); }
+.k-pro-ui .pro-val-columns { display: inline-flex; gap: 8px; align-items: center; min-height: 40px; color: var(--pro-text); font-size: 13px; cursor: pointer; }
+.k-pro-ui .pro-val-columns input { accent-color: var(--pro-accent); width: 16px; height: 16px; }
+.k-pro-ui .val-table-wrap { max-width: 100%; border-radius: 12px; background: var(--pro-canvas); }
+.k-pro-ui .val-table { font-size: 14px; }
+.k-pro-ui .val-th { padding: 14px 12px; font: 500 13px var(--font-sans); color: var(--pro-secondary); text-transform: none; letter-spacing: 0; background: var(--pro-canvas); }
+.k-pro-ui .val-td { padding: 16px 12px; color: var(--pro-text); border-bottom: 1px solid var(--pro-border); font-variant-numeric: tabular-nums; }
+.k-pro-ui .val-row:last-child .val-td { border-bottom: 0; }
+.k-pro-ui .val-row:hover { background: var(--pro-hover); }
+.k-pro-ui .val-addr { min-width: 200px; max-width: 340px; }
+.k-pro-ui .val-addr-wrap { min-width: 0; }
+.k-pro-ui :is(.val-moniker, .val-addr-full) { font-size: 14px; line-height: 1.45; overflow-wrap: anywhere; white-space: normal; }
+.k-pro-ui .val-addr-sub { font-size: 12px; color: var(--pro-secondary); }
+.k-pro-ui .val-addr-sub > .val-mono { max-width: 220px; overflow: hidden; text-overflow: ellipsis; display: inline-block; }
+.k-pro-ui .val-mono { font-variant-numeric: tabular-nums; }
+.k-pro-ui :is(.val-rank-badge, .val-top3) { border: none; background: none; color: var(--pro-secondary); font: 400 13px var(--font-sans); }
+.k-pro-ui :is(.val-start-time, .val-profile-link, .val-uptime-badge, .val-missed-badge) { font-size: 13px; }
+.k-pro-ui .val-health-badge { font: 500 12px var(--font-sans); padding: 5px 8px; white-space: nowrap; animation: none; }
+.k-pro-ui .val-block-strip { max-width: 120px; }
+.k-pro-ui .val-copy-btn { min-width: 28px; min-height: 28px; color: var(--pro-secondary); }
+.k-pro-ui :is(button, a, input, select, [tabindex="0"]):focus-visible { outline: 2px solid var(--pro-accent); outline-offset: 3px; }
+.k-pro-ui :is(.pro-val-empty, .pro-val-notice) { border: 1px solid var(--pro-border); border-radius: 12px; padding: 20px; margin-bottom: 16px; font-size: 14px; }
+.k-pro-ui .pro-val-empty h2 { margin: 0 0 8px; font-size: 18px; }
+.k-pro-ui .pro-val-empty p { color: var(--pro-secondary); line-height: 1.5; }
+.k-pro-ui .pro-val-notice { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+.k-pro-ui :is(.pro-val-empty, .pro-val-notice) button { color: var(--pro-accent); background: var(--pro-canvas); border: 1px solid var(--pro-control-border); padding: 8px 12px; border-radius: 6px; font: inherit; cursor: pointer; }
+.k-pro-ui .val-refreshing { animation: none; font: 400 12px var(--font-sans); }
+@media (max-width: 1279px) and (min-width: 769px) {
+    .k-pro-ui .k-main { padding: 24px; }
+    .k-pro-ui :is(.val-th, .val-td) { padding-left: 8px; padding-right: 8px; }
+}
+@media (max-width: 768px) {
+    .k-pro-ui .k-main { padding: 20px 16px; }
+    .k-pro-ui .val-header h1 { font-size: 26px; }
+    .k-pro-ui .val-hacker-btn { margin-left: 0; min-height: 44px; }
+    .k-pro-ui .pro-val-intro { font-size: 13px; margin-bottom: 16px; }
+    .k-pro-ui .val-segtab { padding: 12px 6px; font-size: 13px; min-height: 44px; }
+    .k-pro-ui .val-stats-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .k-pro-ui .val-stat-card { padding: 12px; gap: 4px; border-radius: 0; box-shadow: none; }
+    .k-pro-ui .val-stat-card:last-child { grid-column: 1 / -1; flex-direction: row; align-items: center; flex-wrap: wrap; gap: 8px; }
+    .k-pro-ui .val-stat-card:last-child .val-stat-value { font-size: 16px; }
+    .k-pro-ui .val-stat-card:last-child .val-stat-hint { margin-left: auto; }
+    .k-pro-ui .val-stat-value { font-size: 22px; }
+    .k-pro-ui .val-health-banner { padding: 12px; margin-bottom: 16px; }
+    .k-pro-ui .val-health-banner__grid { gap: 8px 12px; }
+    .k-pro-ui .val-health-banner__title { margin-bottom: 8px; }
+    .k-pro-ui .val-toolbar { gap: 8px; }
+    .k-pro-ui .val-toolbar-right { width: 100%; gap: 12px; justify-content: space-between; }
+    .k-pro-ui .val-search { width: 100%; max-width: none; flex-basis: 100%; }
+    .k-pro-ui :is(.val-search, .val-page-size) { height: 44px; min-height: 44px; font-size: 16px; }
+    .k-pro-ui .val-card { padding: 16px; background: var(--pro-canvas); border-color: var(--pro-border); }
+    .k-pro-ui .val-card__head { flex-wrap: wrap; gap: 8px; }
+    .k-pro-ui .val-card__id { min-width: 120px; }
+    .k-pro-ui .val-card__moniker { white-space: normal; overflow-wrap: anywhere; }
+    .k-pro-ui :is(.val-card__addr, .val-card__stat-label) { font-size: 12px; text-transform: none; letter-spacing: 0; }
+    .k-pro-ui .val-card__stats { gap: 12px 20px; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .k-pro-ui *, .k-pro-ui *::before, .k-pro-ui *::after { animation: none !important; transition: none !important; }
+}
+.k-pro-ui .pro-val-monitoring-note { font-size: 13px; line-height: 1.5; color: var(--pro-secondary); margin: -8px 0 20px; }
+.k-pro-ui .pro-val-overview { margin-bottom: 16px; border-top: 1px solid var(--pro-border); border-bottom: 1px solid var(--pro-border); }
+.k-pro-ui .pro-val-overview summary { cursor: pointer; font-size: 14px; font-weight: 500; padding: 14px 0; min-height: 48px; }
+.k-pro-ui .pro-val-overview summary:focus-visible { outline: 2px solid var(--pro-accent); outline-offset: 2px; }
+.k-pro-ui { --realm-banner-bg: var(--pro-canvas); --realm-banner-border: 1px solid var(--pro-border); }
+/* Detailed columns may scroll horizontally; the validator identity stays in view. */
+.k-pro-ui :is(.val-addr, .val-identity) { position: sticky; left: 0; z-index: 1; background: var(--pro-canvas); }
+.k-pro-ui .val-row:hover .val-addr { background: var(--pro-hover); }
+
+/* Keep operational explanations visible without forcing a tooltip interaction. */
+.k-pro-ui .pro-val-health-reason { display: block; max-width: 200px; margin: 8px auto 0; font: 400 12px/1.5 var(--font-sans); color: var(--pro-secondary); white-space: normal; overflow-wrap: anywhere; }
+.k-pro-ui .pro-val-empty details { margin-bottom: 16px; overflow-wrap: anywhere; }
+.k-pro-ui .pro-val-empty summary { cursor: pointer; padding: 8px 0; }
+.k-pro-ui .pro-val-health-filter { flex-shrink: 0; }
+
+/* Override legacy child sizes as well as the badge container. */
+.k-pro-ui :is(.val-health-badge__label, .val-health-badge__icon, .val-incident-badge) { font-size: 12px; }
+.k-pro-ui .val-incident-badge { font-family: var(--font-sans); letter-spacing: 0; }
+.k-pro-ui .val-incident-badge--resolved { background: #007f59; color: #fff; }
+.k-pro-ui :is(.val-page-btn, .val-page-info) { font: 400 13px var(--font-sans); }
+.k-pro-ui .val-page-btn { min-height: 40px; border-color: var(--pro-control-border); }
+@media (max-width: 768px) { .k-pro-ui .val-page-btn { min-height: 44px; } }

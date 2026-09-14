@@ -24,8 +24,8 @@ export function RealmsNotDeployedBanner({ deployed, networkLabel }: RealmsNotDep
         <div
             role="status"
             style={{
-                background: "linear-gradient(135deg, rgba(33,150,243,0.15), rgba(63,81,181,0.12))",
-                border: "1px solid rgba(33,150,243,0.35)",
+                background: "var(--realm-banner-bg, linear-gradient(135deg, rgba(33,150,243,0.15), rgba(63,81,181,0.12)))",
+                border: "var(--realm-banner-border, 1px solid rgba(33,150,243,0.35))",
                 borderRadius: "var(--radius-md, 10px)",
                 padding: "12px 16px",
                 margin: "0 0 16px 0",

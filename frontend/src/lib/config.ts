@@ -20,6 +20,9 @@ import { NFT_MARKETPLACE_V3_PATH } from "./nftConfig"
 // ── 1. App Identity ──────────────────────────────────────────
 export const APP_VERSION = __APP_VERSION__
 
+/** Presentation-only Validators preview; never enables network capabilities. */
+export const PRO_UI_ENABLED = import.meta.env.VITE_ENABLE_PRO_UI === "true"
+
 /**
  * Treasury spend kill-switch (AAA-0 A1.a — CRITICAL fund safety).
  *

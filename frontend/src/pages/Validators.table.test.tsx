@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest"
-import { screen, fireEvent, within, createEvent } from "@testing-library/react"
-import { useLocation } from "react-router-dom"
+import { screen, fireEvent, within, createEvent, render, act } from "@testing-library/react"
+import { useLocation, MemoryRouter } from "react-router-dom"
 import { renderWithProviders } from "../test/test-utils"
 import { DEFAULT_NETWORK } from "../lib/config"
 import { getValidators, type ValidatorInfo, type NetworkStats } from "../lib/validators"
@@ -83,6 +83,9 @@ vi.mock("../components/validators/NetworkNodesRoster", () => ({
     NetworkNodesRoster: () => null,
 }))
 
+vi.mock("../lib/proUi", () => ({ isProValidatorsRoute: vi.fn(() => false) }))
+import { isProValidatorsRoute } from "../lib/proUi"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import Validators from "./Validators"
 
 const START = "/test13/validators"
@@ -207,5 +210,57 @@ describe("Validators table — rows", () => {
         )
         const row = await renderTable()
         expect(within(row).getByRole("img", { name: "3 of 4 recent blocks signed" })).toBeInTheDocument()
+    })
+})
+
+
+describe("Validators presentation preview — recoverable states", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        vi.mocked(isProValidatorsRoute).mockReturnValue(true)
+        vi.mocked(getValidators).mockResolvedValue([VALIDATOR])
+    })
+    afterEach(() => {
+        vi.mocked(isProValidatorsRoute).mockReturnValue(false)
+        vi.mocked(getValidators).mockResolvedValue([VALIDATOR])
+    })
+
+    it("distinguishes an empty network roster from an empty search", async () => {
+        vi.mocked(getValidators).mockResolvedValue([])
+        renderWithProviders(<Validators />, { route: START })
+        expect(await screen.findByRole("heading", { name: "No validators returned" })).toBeInTheDocument()
+        expect(screen.queryByRole("heading", { name: "No matching validators" })).not.toBeInTheDocument()
+    })
+
+    it("retains network context while the first roster is pending", async () => {
+        let resolveRoster!: (rows: ValidatorInfo[]) => void
+        vi.mocked(getValidators).mockReturnValueOnce(new Promise(resolve => { resolveRoster = resolve }))
+        renderWithProviders(<Validators />, { route: START })
+        expect(screen.getByRole("heading", { name: "Validators" })).toBeInTheDocument()
+        expect(screen.getByText("Loading validator data...")).toBeInTheDocument()
+        expect(screen.queryByTestId("validator-table")).not.toBeInTheDocument()
+        await act(async () => { resolveRoster([VALIDATOR]) })
+        expect(await screen.findByTestId("validator-row-1")).toBeInTheDocument()
+    })
+
+    it("reports first-load failure and lets Retry recover", async () => {
+        vi.mocked(getValidators).mockRejectedValueOnce(new Error("RPC unavailable"))
+        renderWithProviders(<Validators />, { route: START })
+        expect(await screen.findByRole("alert")).toHaveTextContent("RPC unavailable")
+        fireEvent.click(screen.getByRole("button", { name: "Retry" }))
+        expect(await screen.findByTestId("validator-row-1")).toBeInTheDocument()
+    })
+
+    it("keeps the last roster visible and explains a failed background refresh", async () => {
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[START]}><Validators /></MemoryRouter></QueryClientProvider>)
+        await screen.findByTestId("validator-row-1")
+        vi.mocked(getValidators).mockRejectedValueOnce(new Error("Refresh unavailable"))
+        await act(async () => { await client.refetchQueries({ queryKey: ["validators", "roster"], exact: true }) })
+        expect(await screen.findByText(/Refresh failed. Showing the last retrieved data./)).toBeInTheDocument()
+        expect(screen.getByTestId("validator-row-1")).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Retry" }))
+        await screen.findByTestId("validator-row-1")
+        client.clear()
     })
 })
