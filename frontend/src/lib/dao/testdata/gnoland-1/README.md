@@ -16,3 +16,21 @@ trimmed fixture would test an easier input than the chain actually sends.
 Membership at capture: T1 = 1 member (power 3), T2 = 0, T3 = 0. Re-capture
 rather than hand-edit if GovDAO changes — parsers must be proven against the
 wire, not against a fixture that was never measured.
+
+## Proposal-status regression capture
+
+`govdao-proposal-4.md` is verbatim `vm/qrender` output for
+`gno.land/r/gov/dao:4`, re-captured on 2026-09-15 after rpc.gno.land
+reported `node_info.network = gnoland-1` and latest block **52365**.
+The description contains `bank:p:restricted_denoms`; the generated Stats
+section reports ACCEPTED. The old detail regex matched “restricted” first
+and incorrectly displayed ACTIVE. The older fixtures above retain their
+original capture dates and membership.
+
+A read-only `vm/qfile` of `gno.land/r/gov/dao/impl/v0/govdao.gno` on the
+same date confirmed that `PreExecuteProposal` rejects an Accepted proposal
+as already executed. It sets Accepted when execution begins; executor errors
+clear Accepted and mark Denied. Accordingly, this realm's ACCEPTED maps to
+`executed`, not the generic `passed` / awaiting-execution state. The mapping
+is scoped to the canonical/versioned GovDAO paths and markdown dialect;
+basedao/daokit and JSON endpoint status contracts are unchanged.

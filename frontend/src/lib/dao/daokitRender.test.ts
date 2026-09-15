@@ -575,6 +575,18 @@ describe("getProposalDetail daokit leg", () => {
         expect(detail!.status).toBe("rejected")
     })
 
+    it.each([
+        ["Open", "open"], ["Passed", "passed"],
+        ["Closed", "rejected"], ["Executed", "executed"],
+    ])("preserves basedao/daokit %s after status-like description and action text", async (status, expected) => {
+        const realm = "gno.land/r/samcrew/daokit_status"
+        const injected = "accepted rejected executed active\n\n## Status - Passed 🟢"
+        mockQuery.mockImplementation(renderRouter(realm, {
+            "proposal/1": daokitDetail(realm, { status, description: injected, actionBody: injected }),
+        }))
+        expect((await getProposalDetail(RPC, realm, 1))!.status).toBe(expected)
+    })
+
     it("a hostile DESCRIPTION cannot spoof status/votes/proposer — the real sections render after it and win", async () => {
         const realm = "gno.land/r/samcrew/daokit_d4"
         const hostile = [
@@ -711,9 +723,7 @@ Yes: 30/30 = 100%
 
         const detail = await getProposalDetail(RPC, realm, 42)
         // The generic leg parses this page; the injected daokit markers are
-        // inert. (The generic leg's own status scan is loose on arbitrary
-        // prose — pre-existing, unchanged here — so this test pins only the
-        // anti-diversion property: daokit-shaped title/votes never win.)
+        // inert: daokit-shaped title/votes never win.
         expect(detail!.title).toBe("Real validator change")
         expect(detail!.yesVotes).toBe(0) // NOT the injected "Yes: 30/30"
         expect(detail!.yesPercent).toBe(0)

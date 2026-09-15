@@ -115,7 +115,7 @@ export default function SpaceInvaders({
   const getKeyInput = useKeyboard(areaRef);
   // useTouch's signature predates the stricter RefObject<T | null> inference;
   // the ref is always non-null by the time the effect inside useTouch runs.
-  const getTouchInput = useTouch(areaRef as RefObject<HTMLElement>);
+  const { read: getTouchInput, consumeFire: consumeTouchFire, reset: resetTouchInput } = useTouch(areaRef as RefObject<HTMLElement>);
 
   // Losing the page is an explicit pause boundary. No ticks or replay inputs
   // are consumed while the player cannot see or control the run.
@@ -191,6 +191,10 @@ export default function SpaceInvaders({
       if (last.current == null) last.current = time;
       const frameMs = time - last.current;
       last.current = time;
+      const phaseBeforeInput = stateRef.current.phase;
+      // Inputs made on inactive screens must not be replayed on resume/start.
+      if (phaseBeforeInput === "paused" || phaseBeforeInput === "gameover" ||
+        (phaseBeforeInput === "ready" && !runArmedRef.current)) resetTouchInput();
       const input = getInput();
 
       // Pause edge handled once per frame (never per sub-step).
@@ -201,6 +205,7 @@ export default function SpaceInvaders({
           const next = { ...cur, phase };
           stateRef.current = next;
           setState(next);
+          resetTouchInput();
           // The P shortcut already originates inside the keyboard-owned
           // surface. Reasserting focus keeps that contract explicit across the
           // pause overlay transition without affecting interruption pauses.
@@ -223,6 +228,8 @@ export default function SpaceInvaders({
         const { steps, acc } = drainAccumulator(accRef.current, frameMs);
         accRef.current = acc;
         if (steps > 0) {
+          // Polling a zero-step rAF must not acknowledge a completed touch tap.
+          consumeTouchFire();
           const prev = stateRef.current;
           const engineInput = { move: input.move, fire: input.fire, pause: false };
           // Daily mode: record the exact input the engine is about to consume,
@@ -271,7 +278,7 @@ export default function SpaceInvaders({
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [getInput, finishDailyRun, focusGameSurface]);
+  }, [getInput, finishDailyRun, focusGameSurface, consumeTouchFire, resetTouchInput]);
 
   // Reset into a fresh run. Daily seeds from the shared UTC day string (a
   // restart within the day REUSES the day's seed — the realm's re-attest only
@@ -279,6 +286,7 @@ export default function SpaceInvaders({
   // crypto-random per-run seed and records nothing. Plain handler (not
   // memoized) — only ever called from click handlers.
   const beginRun = (nextMode: RunMode) => {
+    resetTouchInput();
     let nextSeed: number;
     if (nextMode === "daily") {
       const seedStr = dailySeedString();
@@ -310,6 +318,7 @@ export default function SpaceInvaders({
   const restart = () => beginRun(modeRef.current);
 
   const openMenu = () => {
+    resetTouchInput();
     const nextSeed = seed ?? newRunSeed();
     modeRef.current = "free";
     runArmedRef.current = false;
@@ -331,6 +340,7 @@ export default function SpaceInvaders({
   const togglePause = () => {
     const cur = stateRef.current;
     if (cur.phase !== "playing" && cur.phase !== "paused") return;
+    resetTouchInput();
     const phase: GameState["phase"] = cur.phase === "playing" ? "paused" : "playing";
     const next = { ...cur, phase };
     stateRef.current = next;
