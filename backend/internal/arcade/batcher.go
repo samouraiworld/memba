@@ -10,7 +10,7 @@ import (
 // BatcherConfig tunes the day-close batcher. Enabled=false leaves it dormant.
 type BatcherConfig struct {
 	Enabled     bool
-	MaxPerCycle int           // cap on attestations per scan cycle (rest drain later); default 100
+	MaxPerCycle int           // cap on broadcast attempts per scan cycle (rest drain later); default 100
 	Interval    time.Duration // scan cadence; default 15m
 }
 
@@ -93,7 +93,8 @@ func RunBatchOnce(ctx context.Context, store *Store, b Broadcaster, maxPerCycle 
 // a transient failure is left 'verified' to retry — but only up to maxAttestRetries
 // consecutive cycles (tracked in `failures`), after which the run is parked
 // ('errored') so a poisoned row can't drip gas forever. maxPerCycle bounds one
-// cycle's work; the rest drain on later cycles.
+// cycle's broadcast attempts, including failed or already-delivered transactions
+// and failures to save a receipt locally; the rest drain on later cycles.
 func runBatchOnce(ctx context.Context, store *Store, b Broadcaster, maxPerCycle int, now func() time.Time, failures map[string]int) (int, error) {
 	if maxPerCycle <= 0 {
 		maxPerCycle = 100
@@ -104,12 +105,15 @@ func runBatchOnce(ctx context.Context, store *Store, b Broadcaster, maxPerCycle 
 	if err != nil {
 		return 0, err
 	}
-	attested := 0
+	attested, attempted := 0, 0
 	for _, gd := range boards {
+		if attempted >= maxPerCycle {
+			return attested, nil
+		}
 		if ctx.Err() != nil {
 			return attested, ctx.Err()
 		}
-		runs, err := store.BestVerifiedDaily(gd.Game, gd.Day, maxPerCycle-attested)
+		runs, err := store.BestVerifiedDaily(gd.Game, gd.Day, maxPerCycle-attempted)
 		if err != nil {
 			return attested, err
 		}
@@ -117,9 +121,12 @@ func runBatchOnce(ctx context.Context, store *Store, b Broadcaster, maxPerCycle 
 			if ctx.Err() != nil {
 				return attested, ctx.Err()
 			}
-			if attested >= maxPerCycle {
+			if attempted >= maxPerCycle {
 				return attested, nil // drain the rest next cycle
 			}
+			// Reserve this cycle's attempt before broadcasting: every outcome
+			// may have spent gas, even if no attestation is recorded locally.
+			attempted++
 			txHash, err := b.AttestScore(ctx, run)
 			switch {
 			case err == nil:
