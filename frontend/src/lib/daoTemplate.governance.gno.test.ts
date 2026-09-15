@@ -50,6 +50,8 @@ const DAO_CODE = generateDAOCode({
 const GOVERNANCE_TEST_GNO = `package gate_dao_gov
 
 import "testing"
+import "strings"
+import "strconv"
 
 var (
 \talice = testing.NewUserRealm(address("${ALICE}")) // power 50
@@ -93,6 +95,106 @@ func TestArchiveStopsManagement(cur realm, t *testing.T) {
 \tmustAbort(t, "execute after archive", func() { ExecuteProposal(cross(cur), id) })
 \tmustAbort(t, "assign role after archive", func() { AssignRole(cross(cur), address("${BOB}"), "admin") })
 \tmustAbort(t, "remove role after archive", func() { RemoveRole(cross(cur), address("${BOB}"), "member") })
+}
+
+// Security regression: B's recorded power cannot be reused after removal.
+func TestRemovedVotesCannotAcceptAdminGrant(cur realm, t *testing.T) {
+\tdefer func() { members.Set("${BOB}", &Member{Address: address("${BOB}"), Power: 30, Roles: []string{"member"}}) }()
+\ttesting.SetRealm(bob)
+\tid := ProposeAssignRole(cross(cur), address("${CAROL}"), "admin")
+\tVoteOnProposal(cross(cur), id, "YES")
+\ttesting.SetRealm(carol)
+\tVoteOnProposal(cross(cur), id, "YES") // historical 50/100, still ACTIVE
+\ttesting.SetRealm(alice)
+\tremoveID := ProposeRemoveMember(cross(cur), address("${BOB}"))
+\tVoteOnProposal(cross(cur), removeID, "YES")
+\ttesting.SetRealm(carol)
+\tVoteOnProposal(cross(cur), removeID, "YES") // legitimate 70/100 removal
+\ttesting.SkipHeights(601)
+\tExecuteProposal(cross(cur), removeID)
+\tif proposalStatus(getProposal(id)) != "INVALIDATED" { t.Fatal("stale proposal must be invalidated") }
+\tif !strings.Contains(GetProposalsJSON(), "INVALIDATED") || !strings.Contains(Render(""), "Status: INVALIDATED") || !strings.Contains(Render(strconv.Itoa(id)), "Status: INVALIDATED") { t.Fatal("all reads must close the stale proposal") }
+\ttesting.SetRealm(alice)
+\tmustAbort(t, "stale electorate vote", func() { VoteOnProposal(cross(cur), id, "NO") })
+\tmustAbort(t, "stale admin grant", func() { ExecuteProposal(cross(cur), id) })
+\tif hasRole(address("${CAROL}"), "admin") { t.Fatal("stale votes granted admin") }
+}
+
+// Addition invalidates both text and action proposals, including zero-power members.
+func TestAdditionInvalidatesBothConstructors(cur realm, t *testing.T) {
+\ttarget := "${"g1" + "q".repeat(38)}"
+\tdefer func() { members.Remove(target) }()
+\ttesting.SetRealm(bob)
+\ttextID := Propose(cross(cur), "old text", "d", "governance")
+\tactionID := ProposeAssignRole(cross(cur), address("${CAROL}"), "admin")
+\tVoteOnProposal(cross(cur), textID, "ABSTAIN")
+\texecuteAddMember(target + "|0|")
+\ttesting.SetRealm(alice)
+\tfor _, id := range []int{textID, actionID} {
+\t\tif proposalStatus(getProposal(id)) != "INVALIDATED" { t.Fatal("addition left old voting open") }
+\t\tmustAbort(t, "old vote after addition", func() { VoteOnProposal(cross(cur), id, "YES") })
+\t}
+\t// The new electorate may still reach an ordinary legitimate decision.
+\tid := Propose(cross(cur), "new electorate", "d", "governance")
+\tVoteOnProposal(cross(cur), id, "YES")
+\ttesting.SetRealm(carol)
+\tVoteOnProposal(cross(cur), id, "YES")
+\tif proposalStatus(getProposal(id)) != "ACCEPTED" { t.Fatal("new electorate cannot pass a proposal") }
+}
+
+func TestRemoveReaddCannotReviveOldVoting(cur realm, t *testing.T) {
+\ttesting.SetRealm(alice)
+\tid := Propose(cross(cur), "before replacement", "d", "governance")
+\tVoteOnProposal(cross(cur), id, "YES")
+\texecuteRemoveMember("${BOB}")
+\texecuteAddMember("${BOB}|30|member")
+\tif proposalStatus(getProposal(id)) != "INVALIDATED" { t.Fatal("restored roster revived old voting") }
+\ttesting.SetRealm(bob)
+\tmustAbort(t, "readded voter", func() { VoteOnProposal(cross(cur), id, "YES") })
+}
+
+func TestFailedRosterChangesPreserveOpenVotes(cur realm, t *testing.T) {
+\ttesting.SetRealm(alice)
+\tid := Propose(cross(cur), "valid open vote", "d", "governance")
+\tVoteOnProposal(cross(cur), id, "YES")
+\tversion := electorateVersion
+\tmustPanicDirect(t, "duplicate member", func() { executeAddMember("${BOB}|30|member") })
+\tmustPanicDirect(t, "missing member", func() { executeRemoveMember("${"g1" + "x".repeat(38)}") })
+\tmustPanicDirect(t, "last admin", func() { executeRemoveMember("${ALICE}") })
+\tmustPanicDirect(t, "invalid roles", func() { executeAddMember("${"g1" + "x".repeat(38)}|1|unknown") })
+\tif electorateVersion != version || proposalStatus(getProposal(id)) != "ACTIVE" { t.Fatal("failed mutation invalidated voting") }
+\ttesting.SetRealm(bob)
+\tVoteOnProposal(cross(cur), id, "YES")
+\tif proposalStatus(getProposal(id)) != "ACCEPTED" { t.Fatal("legitimate continuation failed") }
+}
+
+func TestRoleOnlyChangesPreserveOpenVotes(cur realm, t *testing.T) {
+\ttesting.SetRealm(alice)
+\tid := Propose(cross(cur), "roles do not change power", "d", "governance")
+\tVoteOnProposal(cross(cur), id, "YES")
+\tversion := electorateVersion
+\tAssignRole(cross(cur), address("${BOB}"), "admin")
+\tRemoveRole(cross(cur), address("${BOB}"), "admin")
+\tif electorateVersion != version || proposalStatus(getProposal(id)) != "ACTIVE" { t.Fatal("role mutation invalidated voting") }
+\ttesting.SetRealm(bob)
+\tVoteOnProposal(cross(cur), id, "YES")
+\tif proposalStatus(getProposal(id)) != "ACCEPTED" { t.Fatal("role-only continuation failed") }
+}
+
+func TestAcceptedDecisionRetainsOriginalDenominator(cur realm, t *testing.T) {
+\ttesting.SetRealm(alice)
+\tid := Propose(cross(cur), "legitimately accepted", "d", "governance")
+\tVoteOnProposal(cross(cur), id, "YES")
+\ttesting.SetRealm(carol)
+\tVoteOnProposal(cross(cur), id, "YES")
+\tpower := getProposal(id).ElectoratePower
+\texecuteRemoveMember("${BOB}")
+\tdefer func() { members.Set("${BOB}", &Member{Address: address("${BOB}"), Power: 30, Roles: []string{"member"}}) }()
+\tif proposalStatus(getProposal(id)) != "ACCEPTED" { t.Fatal("legitimate accepted decision was revoked") }
+\tif getProposal(id).ElectoratePower != power || !strings.Contains(Render(strconv.Itoa(id)), "/" + strconv.Itoa(power)) { t.Fatal("accepted denominator changed") }
+\ttesting.SkipHeights(601)
+\tExecuteProposal(cross(cur), id)
+\tif proposalStatus(getProposal(id)) != "EXECUTED" { t.Fatal("accepted decision could not execute") }
 }
 
 // CHN-5: REJECT fires exactly when passage becomes impossible — not on the old
@@ -255,6 +357,12 @@ describeGno("generated DAO governance proves out under `gno test` (W1.3)", () =>
             expect(res.status, `gno test failed:\n${out}`).toBe(0)
             for (const name of [
                 "TestArchiveStopsManagement",
+                "TestRemovedVotesCannotAcceptAdminGrant",
+                "TestAdditionInvalidatesBothConstructors",
+                "TestRemoveReaddCannotReviveOldVoting",
+                "TestFailedRosterChangesPreserveOpenVotes",
+                "TestRoleOnlyChangesPreserveOpenVotes",
+                "TestAcceptedDecisionRetainsOriginalDenominator",
                 "TestRejectOnImpossibility",
                 "TestAcceptOnlyWhenIrreversible",
                 "TestExecutionDelayFloor",

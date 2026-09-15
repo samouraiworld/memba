@@ -6,8 +6,8 @@ import type { DAOProposal } from "../../lib/dao"
 const filters = ["All", "Open for voting", "Awaiting execution", "History"] as const
 type Filter = typeof filters[number]
 const matches = (p: DAOProposal, filter: Filter) => filter === "All" ||
-    (filter === "Open for voting" ? p.status === "open" : filter === "Awaiting execution" ? p.status === "passed" : p.status === "executed" || p.status === "rejected" || p.status === "expired")
-const statusLabel: Record<DAOProposal["status"], string> = { open: "Open for voting", passed: "Awaiting execution", executed: "Executed", rejected: "Rejected", expired: "Expired" }
+    (filter === "Open for voting" ? p.status === "open" : filter === "Awaiting execution" ? p.status === "passed" : p.status === "executed" || p.status === "rejected" || p.status === "expired" || p.status === "invalidated")
+const statusLabel: Record<DAOProposal["status"], string> = { open: "Open for voting", passed: "Awaiting execution", executed: "Executed", rejected: "Rejected", expired: "Expired", invalidated: "Membership changed" }
 
 export function ProDAOProposals({ encodedSlug, proposals, loading, failed, retry, canPropose, votedIds }: {
     encodedSlug: string; proposals: DAOProposal[]; loading: boolean; failed: boolean;

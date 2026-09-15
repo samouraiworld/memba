@@ -26,7 +26,7 @@ export interface DAOProposal {
     title: string
     description: string
     category: string           // proposal category ("governance", "treasury", etc.)
-    status: "open" | "passed" | "rejected" | "executed" | "expired"
+    status: "open" | "passed" | "rejected" | "executed" | "expired" | "invalidated"
     author: string             // @username or address
     authorProfile: string      // profile URL (empty if unknown)
     tiers: string[]            // ["T1","T2","T3"] eligible tiers
@@ -348,6 +348,7 @@ export async function resolveUsernames(rpcUrl: string, members: DAOMember[]): Pr
 /** Normalize status string from various dao formats. */
 export function normalizeStatus(s: string): DAOProposal["status"] {
     const lower = s.toLowerCase()
+    if (lower.trim() === "invalidated") return "invalidated"
     if (lower.trim() === "expired") return "expired"
     if (lower.includes("accept") || lower.includes("pass")) return "passed"
     // "deni"/"deny" covers GovDAO v3's detail-render prose "PROPOSAL HAS BEEN DENIED"
@@ -368,6 +369,7 @@ export const PROPOSAL_STATUS_COLORS: Record<string, { bg: string; color: string;
     open: { bg: "rgba(0,212,170,0.08)", color: "#00d4aa", label: "ACTIVE" },
     passed: { bg: "rgba(76,175,80,0.08)", color: "#4caf50", label: "PASSED" },
     rejected: { bg: "rgba(244,67,54,0.08)", color: "#f44336", label: "REJECTED" },
+    invalidated: { bg: "rgba(128,128,128,0.08)", color: "var(--color-text-secondary)", label: "MEMBERSHIP CHANGED" },
     expired: { bg: "rgba(128,128,128,0.08)", color: "var(--color-text-secondary)", label: "EXPIRED" },
     executed: { bg: "rgba(33,150,243,0.08)", color: "#2196f3", label: "EXECUTED" },
 }

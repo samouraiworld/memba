@@ -126,7 +126,8 @@ export interface DAOCreationConfig {
      * and ABSTAIN all count toward it. `threshold` is the YES share needed to
      * pass; ABSTAIN power never counts toward YES/NO, and since each member votes
      * once, abstained power can never become YES — a proposal is REJECTED as soon
-     * as passage becomes impossible.
+     * as passage becomes impossible. Open proposals are invalidated when a
+     * member is added or removed; already ACCEPTED decisions retain finality.
      */
     minExecutionDelayBlocks?: number
 }
@@ -282,12 +283,14 @@ type Proposal struct {
 \tDescription string
 \tCategory    string
 \tAuthor      address
-\tStatus      string // "ACTIVE", "ACCEPTED", "REJECTED", "EXECUTED", "EXPIRED"
+\tStatus      string // "ACTIVE", "ACCEPTED", "REJECTED", "EXECUTED", "EXPIRED", "INVALIDATED"
 \tVotes       *avl.Tree // voter address → *Vote (prevents O(n) dedup scan)
 \tYesVotes    int
 \tNoVotes     int
 \tAbstain     int
 \tTotalPower  int
+\tElectorateVersion int // membership revision that may vote on this proposal
+\tElectoratePower int // historical denominator, including after closure
 \tActionType  string // "none", "add_member", "remove_member", "assign_role"
 \tActionData  string // serialized action params (e.g. "addr|power|role1,role2")
 \tCreatedAt   int64  // block height when proposed
@@ -306,6 +309,7 @@ var (
 \tmembers           = avl.NewTree() // address → *Member (O(log n) lookup)
 \tproposals         = avl.NewTree() // zero-padded ID → *Proposal (ordered iteration)
 \tnextID            = 0
+\telectorateVersion = 0 // increments on successful member addition/removal
 \tallowedCategories []string
 \tallowedRoles      []string
 \tarchived          = false
@@ -368,9 +372,12 @@ func jsonEsc(s string) string {
 \treturn out + "\\""
 }
 
-// Expiry is derived on reads: a failed late vote rolls its state changes
-// back. Accepted proposals keep their existing execution lifecycle.
+// Terminal voting states are derived on reads because a refused vote rolls
+// back. Already accepted proposals keep their irreversible execution lifecycle.
 func proposalStatus(p *Proposal) string {
+\tif p.Status == "ACTIVE" && p.ElectorateVersion != electorateVersion {
+\t\treturn "INVALIDATED"
+\t}
 \tif p.Status == "ACTIVE" && p.ExpiresAt > 0 && runtime.ChainHeight() > p.ExpiresAt {
 \t\treturn "EXPIRED"
 \t}
@@ -518,10 +525,13 @@ func renderProposal(p *Proposal) string {
 \tout += "Category: " + p.Category + "\\n\\n"
 \tout += "Status: " + proposalStatus(p) + "\\n\\n"
 \tout += "YES: " + strconv.Itoa(p.YesVotes) + " | NO: " + strconv.Itoa(p.NoVotes) + " | ABSTAIN: " + strconv.Itoa(p.Abstain) + "\\n"
-\tout += "Total Power: " + strconv.Itoa(p.TotalPower) + "/" + strconv.Itoa(totalPower()) + "\\n"
+\tout += "Total Power: " + strconv.Itoa(p.TotalPower) + "/" + strconv.Itoa(p.ElectoratePower) + "\\n"
+\tif proposalStatus(p) == "INVALIDATED" {
+\t\tout += "Membership changed; create a new proposal to collect votes from the current members.\\n"
+\t}
 \tif p.ExpiresAt > 0 {
 \t\tout += "Voting closes at block: " + strconv.FormatInt(p.ExpiresAt, 10) + "\\n"
-\t\tif runtime.ChainHeight() > p.ExpiresAt && p.Status == "ACTIVE" {
+\t\tif proposalStatus(p) == "EXPIRED" {
 \t\t\tout += "**EXPIRED** — voting period has ended.\\n"
 \t\t}
 \t}
@@ -578,6 +588,8 @@ func Propose(cur realm, title, desc, category string) int {
 \t\tCategory:    category,
 \t\tAuthor:      caller,
 \t\tStatus:      "ACTIVE",
+\t\tElectorateVersion: electorateVersion,
+\t\tElectoratePower: totalPower(),
 \t\tVotes:       avl.NewTree(),
 \t\tActionType:  "none",
 \t\tCreatedAt:   now,
@@ -593,6 +605,9 @@ func VoteOnProposal(cur realm, id int, vote string) {
 \tp := getProposal(id)
 \tif p == nil {
 \t\tpanic("invalid proposal ID")
+\t}
+\tif p.Status == "ACTIVE" && p.ElectorateVersion != electorateVersion {
+\t\tpanic("proposal invalidated by membership change; create a new proposal")
 \t}
 \t// Check expiration first
 \tif p.ExpiresAt > 0 && runtime.ChainHeight() > p.ExpiresAt {
@@ -631,9 +646,9 @@ func VoteOnProposal(cur realm, id int, vote string) {
 \t//   NO > 100-threshold rule, which could reject while passage was still
 \t//   mathematically reachable — or deadlock at threshold=50.)
 \t// ABSTAIN counts toward quorum participation (TotalPower) but never
-\t// toward the YES/NO numerators. Membership changes mid-vote shift tpow;
-\t// the check re-runs on every vote with the current total.
-\ttpow := totalPower()
+\t// toward the YES/NO numerators. A membership revision invalidates open
+\t// voting before any counter changes, so weights never span electorates.
+\ttpow := p.ElectoratePower
 \tif tpow > 0 {
 \t\tquorumMet := quorum == 0 || (p.TotalPower * 100 / tpow >= quorum)
 \t\tif quorumMet && p.YesVotes * 100 / tpow >= threshold {
@@ -696,6 +711,8 @@ func newProposal(caller address, title, desc, category, actionType, actionData s
 \t\tCategory:    category,
 \t\tAuthor:      caller,
 \t\tStatus:      "ACTIVE",
+\t\tElectorateVersion: electorateVersion,
+\t\tElectoratePower: totalPower(),
 \t\tVotes:       avl.NewTree(),
 \t\tActionType:  actionType,
 \t\tActionData:  actionData,
@@ -781,6 +798,7 @@ func executeAddMember(data string) {
 \t\tpanic("address is already a member")
 \t}
 \tmembers.Set(string(addr), &Member{Address: addr, Power: power, Roles: roles})
+\telectorateVersion++
 }
 
 func executeRemoveMember(data string) {
@@ -802,6 +820,7 @@ func executeRemoveMember(data string) {
 \t\tpanic("member not found")
 \t}
 \tmembers.Remove(string(addr))
+\telectorateVersion++
 }
 
 func executeAssignRole(data string) {

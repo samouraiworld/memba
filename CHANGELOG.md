@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Governance votes retain their electorate and network (2026-09-15)
+
+- Bind generated DAO votes to the membership version that opened voting. Additions/removals close old open proposals as “Membership changed”, preventing removed voting power from authorizing new actions. Preserve legitimately accepted decisions and their original denominator; add native governance and frontend history regressions. Existing immutable realms require migration.
+- Scope Quick Vote, pending-vote counts and vote history caches to the active chain. Ignore legacy cache entries without chain provenance; preserve same-chain reuse and post-vote invalidation.
+
 ### Archived DAOs reject management changes (2026-09-15)
 
 - Enforce archival in generated realm execution and role-change entrypoints, matching the frontend's read-only state. Hide role-management controls for archived DAOs and when the configuration cannot be read.

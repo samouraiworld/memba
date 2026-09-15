@@ -7,7 +7,7 @@
 import { getDAOMembers } from "./members"
 import { getDAOProposals, getProposalVotes } from "./proposals"
 import { getDAOConfig } from "./config"
-import { GNO_RPC_URL } from "../config"
+import { GNO_RPC_URL, networkScopedKey } from "../config"
 import { getSavedDAOs, FEATURED_DAO, encodeSlug } from "../daoSlug"
 import { resolveOnChainUsername } from "../profile"
 
@@ -32,10 +32,13 @@ export interface UnvotedProposal {
 }
 
 // ── Cache ─────────────────────────────────────────────────────
+// Module configuration is fixed until a network reload. Session storage
+// survives that reload, so every chain-derived aggregate needs its chain ID.
+// Ignore legacy unscoped entries: their proposal provenance is unknowable.
 
-const UNVOTED_CACHE_KEY = "memba_unvoted_cache"
-const UNVOTED_DETAILS_CACHE_KEY = "memba_unvoted_details_cache"
-const MYVOTES_CACHE_KEY = "memba_myvotes_cache"
+const UNVOTED_CACHE_KEY = networkScopedKey("memba_unvoted_cache")
+const UNVOTED_DETAILS_CACHE_KEY = networkScopedKey("memba_unvoted_details_cache")
+const MYVOTES_CACHE_KEY = networkScopedKey("memba_myvotes_cache")
 const UNVOTED_TTL = 2 * 60 * 1000 // 2 minutes
 const MYVOTES_TTL = 5 * 60 * 1000 // 5 minutes
 
