@@ -54,20 +54,23 @@ describe("feed-og handler routing", () => {
         stubFetch({ root: { id: "1", author: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c", body: "Hello world!" } })
         const c = ctx()
         const res = await handler(req("/feed/post/1", BOT), c)
-        expect(c.next).not.toHaveBeenCalled()
+        // The downstream build is read once to select its opt-in brand.
+        expect(c.next).toHaveBeenCalledOnce()
         expect(res.status).toBe(200)
         expect(res.headers.get("content-type")).toContain("text/html")
         expect(res.headers.get("vary")?.toLowerCase()).toContain("user-agent")
         const html = await res.text()
         expect(html).toContain(`content="Hello world!"`)
         expect(html).toContain("/feed/post/1")
+        expect(html).toContain("https://memba.samourai.app/og-image.jpg")
     })
 
     it("still serves a card when the permalink has a trailing slash", async () => {
         stubFetch({ root: { id: "1", author: "g1x", body: "Hi there" } })
         const c = ctx()
         const res = await handler(req("/feed/post/1/", BOT), c)
-        expect(c.next).not.toHaveBeenCalled()
+        // The downstream build is read once to select its opt-in brand.
+        expect(c.next).toHaveBeenCalledOnce()
         expect(res.status).toBe(200)
         expect(await res.text()).toContain(`content="Hi there"`)
     })
