@@ -20,6 +20,22 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Short touch taps reliably start and fire in Space Invaders (2026-09-15)
+<!-- categories: memba -->
+- Completed fire taps are held until a fixed simulation step consumes them, including slow frames and high-refresh frames with no simulation step. Held firing and deterministic daily replay remain unchanged.
+- Cancelled touches, lost focus and run/menu/pause boundaries clear stale input. The mobile regression now delivers a complete tap between frames instead of relying on a timed hold.
+
+### Proposal details read the realm's status field (2026-09-15)
+<!-- categories: memba -->
+- GovDAO proposal details now agree with the overview when a description contains words such as “restricted”: the status comes from the generated Stats section rather than the first status-like word in the page. Legacy metadata, generated Memba template footers and basedao/daokit status formats are preserved.
+- GovDAO ACCEPTED now means executed in both the list and detail reader, matching its deployed lifecycle and preventing repeat-execution prompts. Other DAO types retain their existing passed/awaiting-execution behavior.
+- Regression coverage uses a captured mainnet render and verifies the resulting vote/execution controls, membership and archive restrictions, and unchanged message payloads with mocked broadcasts.
+
+### Error-report breadcrumbs redact wallet addresses and token-like text (2026-09-14)
+<!-- categories: memba -->
+- Sentry breadcrumbs now mask Gno wallet addresses and JWT-like text, including nested query keys and console arguments, before storage and before error or transaction events are sent. Existing error-message masking is preserved.
+- Breadcrumb snapshots no longer retain mutable application objects or custom serializers. Uninspectable or oversized breadcrumbs are omitted while the surrounding event remains available.
+
 ### Validator page-size control is named for screen readers (2026-09-14)
 <!-- categories: memba -->
 - The desktop validator roster's page-size selector is now announced as "Validators per page". Its options and pagination behavior are unchanged.
