@@ -19,6 +19,7 @@ export function NftGate({ children }: { children: ReactNode }) {
     if (!isNftEnabled()) {
         return (
             <ComingSoonGate
+                preview="marketplace"
                 title="NFT Marketplace"
                 icon="🎨"
                 description="Mint, list, and trade GRC721 NFT collections on gno.land."

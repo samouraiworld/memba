@@ -41,6 +41,8 @@ vi.mock("../components/marketplace/ServiceLane", () => ({ default: () => <div da
 vi.mock("../components/marketplace/AgentLane", () => ({ default: () => <div data-testid="agent-lane" /> }))
 vi.mock("./TokenLane", () => ({ TokenLane: () => <div data-testid="token-lane" /> }))
 
+vi.mock("../hooks/useNetworkNav", () => ({ useNetworkKey: () => "pearl" }))
+
 import UnifiedMarketplace from "./UnifiedMarketplace"
 import { isLaneSlugLive, getDefaultLaneSlug } from "../lib/marketplace/lanes"
 import * as config from "../lib/config"
@@ -170,5 +172,20 @@ describe("UnifiedMarketplace — tablist a11y (Phase 8: roving tabindex + panel 
         expect(nfts).toHaveFocus()
         fireEvent.keyDown(screen.getByRole("tablist"), { key: "End" })
         expect(services).toHaveFocus()
+    })
+})
+
+
+describe("UnifiedMarketplace — unavailable network", () => {
+    it("shows an inert preview without mounting a live lane", () => {
+        onlyNftAndServicesLive()
+        vi.mocked(config.isNftEnabled).mockReturnValue(false)
+        vi.mocked(config.isServicesEnabled).mockReturnValue(false)
+        mountAt("/agents")
+        expect(screen.getByRole("heading", { name: "Marketplace", level: 1 })).toBeInTheDocument()
+        const preview = screen.getByRole("figure", { name: "Marketplace design preview" })
+        expect(preview.querySelectorAll("a, button, input")).toHaveLength(0)
+        expect(screen.queryByRole("tab")).not.toBeInTheDocument()
+        expect(screen.queryByTestId("agent-lane")).not.toBeInTheDocument()
     })
 })

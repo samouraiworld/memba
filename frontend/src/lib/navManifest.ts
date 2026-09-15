@@ -64,7 +64,7 @@ export const NAV: NavEntry[] = [
     { id: 'directory', to: '/directory', label: 'Directory', Icon: FolderOpen, group: 'explore', showOn: 'both' },
     { id: 'validators', to: '/validators', label: 'Validators', Icon: LinkSimpleHorizontal, group: 'govern', showOn: 'both' },
     { id: 'alerts', to: '/alerts', label: 'Alerts', Icon: Bell, group: 'govern', showOn: 'both' },
-    { id: 'gnolove', to: '/gnolove', label: 'Gnolove', Icon: Heart, group: 'explore', showOn: 'both' },
+    { id: 'gnolove', to: '/gnolove', label: 'Dev Report', Icon: Heart, group: 'explore', showOn: 'both' },
     { id: 'quests', to: '/quests', label: 'Quests', Icon: GameController, group: 'explore', showOn: 'both' },
 
     // ── (former manage group — now mode-assigned above/below) ───────
@@ -82,7 +82,7 @@ export const NAV: NavEntry[] = [
     // NFT + Services entries were redirect-only duplicates (/nft → /marketplace/nfts,
     // /services → /marketplace/services), so they were removed here (2026-07-08).
     { id: 'marketplace', to: '/marketplace', label: 'Marketplace', Icon: ShoppingBag, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_MARKETPLACE' },
-    { id: 'appstore', to: '/apps', label: 'App Store', Icon: Storefront, group: 'launch', showOn: 'both', flag: 'VITE_ENABLE_APPSTORE' },
+    { id: 'appstore', to: '/apps', label: 'App Store', Icon: Storefront, group: 'launch', showOn: 'both' },
 
     // ── Account ─────────────────────────────────────────────────────
     { id: 'profile', to: '/profile', label: 'Profile', Icon: User, group: 'account', showOn: 'both', requiresAuth: true },

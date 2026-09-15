@@ -10,6 +10,7 @@
 import { useEffect } from "react"
 import { useOutletContext } from "react-router-dom"
 import { PointsPanel } from "../components/points/PointsPanel"
+import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { isPointsEnabled } from "../lib/config"
 import type { LayoutContext } from "../types/layout"
 
@@ -38,12 +39,9 @@ export default function PointsPage() {
                     <PointsPanel address={auth.address || undefined} />
                 </>
             ) : (
-                <div className="k-card points-page__soon">
-                    <h1 className="points-page__title">Reputation</h1>
-                    <p className="points-page__soon-text">
-                        Memba Points — soulbound, on-chain reputation — is coming soon.
-                    </p>
-                </div>
+                <ComingSoonGate title="Reputation" icon="◇" preview="reputation"
+                    description="A clearer picture of your contributions to the Memba community. Memba Points are non-transferable reputation, with no cash value or claim on a token distribution."
+                    features={["See your contribution history", "Follow community milestones", "Explore the reputation leaderboard"]} />
             )}
         </div>
     )

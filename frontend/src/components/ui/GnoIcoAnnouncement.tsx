@@ -110,7 +110,7 @@ export function GnoIcoAnnouncement({ suppressed = false }: { suppressed?: boolea
                     </button>
 
                     <div style={{
-                        fontSize: "var(--pro-caption, 10px)", fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase",
+                        fontSize: 10, fontWeight: 600, letterSpacing: 1.5, textTransform: "uppercase",
                         color: "var(--color-primary)", marginBottom: 10,
                     }}>
                         gno.land · public sale
@@ -125,7 +125,7 @@ export function GnoIcoAnnouncement({ suppressed = false }: { suppressed?: boolea
 
                     <div style={{
                         display: "inline-block",
-                        fontSize: "var(--pro-caption, 11px)", fontWeight: 600,
+                        fontSize: 11, fontWeight: 600,
                         color: "var(--color-primary)",
                         background: "rgba(0,212,170,0.08)",
                         border: "1px solid rgba(0,212,170,0.2)",
@@ -134,7 +134,7 @@ export function GnoIcoAnnouncement({ suppressed = false }: { suppressed?: boolea
                         ● {status}
                     </div>
 
-                    <p style={{ fontSize: "var(--pro-small, 12.5px)", color: "var(--color-text-secondary)", lineHeight: 1.6, marginBottom: 20 }}>
+                    <p style={{ fontSize: 12.5, color: "var(--color-text-secondary)", lineHeight: 1.6, marginBottom: 20 }}>
                         gno.land is opening its public token sale. Review eligibility, phases and
                         pricing on the official sale portal — and be ready when it goes live.
                     </p>
@@ -150,8 +150,8 @@ export function GnoIcoAnnouncement({ suppressed = false }: { suppressed?: boolea
                             border: "1px solid var(--color-primary)",
                             background: "var(--color-primary)",
                             color: "var(--color-on-primary, #04140f)",
-                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
-                            fontSize: "var(--pro-small, 13px)", fontWeight: 700, marginBottom: 10,
+                            fontFamily: "JetBrains Mono, monospace",
+                            fontSize: 13, fontWeight: 700, marginBottom: 10,
                         }}
                     >
                         View the sale ↗
@@ -165,14 +165,14 @@ export function GnoIcoAnnouncement({ suppressed = false }: { suppressed?: boolea
                             background: "transparent",
                             color: "var(--color-text-muted)",
                             cursor: "pointer",
-                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
-                            fontSize: "var(--pro-small, 12px)", fontWeight: 600,
+                            fontFamily: "JetBrains Mono, monospace",
+                            fontSize: 12, fontWeight: 600,
                         }}
                     >
                         Maybe later
                     </button>
 
-                    <p style={{ fontSize: "var(--pro-caption, 9.5px)", color: "var(--color-text-muted)", textAlign: "center", marginTop: 12, lineHeight: 1.5 }}>
+                    <p style={{ fontSize: 9.5, color: "var(--color-text-muted)", textAlign: "center", marginTop: 12, lineHeight: 1.5 }}>
                         Not financial advice. Memba links to the official gno.land sale; it does not run it.
                     </p>
                 </div>
@@ -195,7 +195,7 @@ export function GnoIcoAnnouncement({ suppressed = false }: { suppressed?: boolea
                     border: 1px solid var(--color-primary-border);
                     border-radius: 18px;
                     padding: 28px 24px 24px;
-                    font-family: var(--font-ui, "JetBrains Mono", monospace);
+                    font-family: "JetBrains Mono", monospace;
                     box-shadow: 0 24px 64px var(--color-overlay);
                 }
                 @keyframes membaIcoFade { from { opacity: 0; } to { opacity: 1; } }

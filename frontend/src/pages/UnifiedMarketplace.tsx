@@ -1,6 +1,7 @@
 import { Suspense, lazy, type ComponentType, type KeyboardEvent } from "react"
 import { Routes, Route, Navigate, NavLink, useLocation, useSearchParams } from "react-router-dom"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
+import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { getLiveLanes, getDefaultLaneSlug } from "../lib/marketplace/lanes"
 import { useAdena } from "../hooks/useAdena"
 import { isMarketplaceV2Enabled } from "../lib/config"
@@ -116,11 +117,13 @@ export default function UnifiedMarketplace() {
     // dead tabs (and never leave a route reachable that a gated lane would answer).
     if (liveLanes.length === 0) {
         return (
-            <div className="um-container animate-fade-in">
-                <div className="um-empty" role="status">
-                    The marketplace is not available on this network yet.
-                </div>
-            </div>
+            <ComingSoonGate
+                title="Marketplace"
+                icon="◈"
+                preview="marketplace"
+                description="A place to discover original collections, exchange assets, and work with independent creators on Gno."
+                features={["Explore collections and creator profiles", "Find services for your next project", "Review listing details before taking action"]}
+            />
         )
     }
 

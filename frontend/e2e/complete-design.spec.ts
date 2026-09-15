@@ -146,3 +146,37 @@ if (process.env.DESIGN_REVIEW_FEATURES === 'true') {
         }
     }
 }
+
+if (process.env.DESIGN_REVIEW_FEATURES !== 'true') {
+    for (const theme of ['dark', 'light'] as const) {
+        for (const width of [390, 1600]) {
+            test(`discovery previews ${theme} ${width}px`, async ({ page }, info) => {
+                await page.setViewportSize({ width, height: 1000 })
+                await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' })
+                for (const route of ['marketplace', 'points', 'apps']) {
+                    await page.goto(`/mainnet/${route}`)
+                    await expect(page.locator('.k-pro-app')).toBeVisible()
+                    if (route === 'apps') {
+                        for (const name of ['Adena', 'GnoSwap', 'Boards', 'Akkadia', 'GnoScan', 'Gno Playground']) {
+                            await expect(page.getByRole('link', { name: `Visit ${name} (opens in a new tab)` })).toBeVisible()
+                        }
+                        await expect(page.getByText('Builder preview', { exact: true })).toBeVisible()
+                    } else {
+                        const preview = page.getByRole('figure', { name: /design preview/ })
+                        await expect(preview.getByText('Illustrative · not live')).toBeVisible()
+                        await expect(preview.locator('a, button, input, select, textarea, [tabindex]')).toHaveCount(0)
+                        await expect(page.getByRole('link', { name: 'Back to Home' })).toHaveAttribute('href', '/mainnet/')
+                    }
+                    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true)
+                    const a11y = await new AxeBuilder({ page }).include('#main-content').withRules(['color-contrast', 'button-name', 'link-name', 'label', 'nested-interactive']).analyze()
+                    expect(a11y.violations).toEqual([])
+                    await page.screenshot({ path: info.outputPath(`discovery-${route}.png`), fullPage: true })
+                }
+                if (width === 1600) {
+                    await page.locator('summary[aria-label="Community"]').click()
+                    await expect(page.getByRole('link', { name: 'Dev Report', exact: true })).toHaveAttribute('href', '/mainnet/gnolove')
+                }
+            })
+        }
+    }
+}

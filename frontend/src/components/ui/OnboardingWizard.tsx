@@ -46,7 +46,7 @@ const FEATURES = [
     { icon: "🎮", label: "GnoBuilders Quests", desc: "85 quests, earn XP, climb ranks" },
     { icon: "🤖", label: "AI Analyst", desc: "10-model consensus on proposals" },
     { icon: "📊", label: "Validators", desc: "Monitor network health and performance" },
-    { icon: "❤️", label: "Gnolove", desc: "Open source contributor analytics" },
+    { icon: "❤️", label: "Dev Report", desc: "Open source contributor analytics" },
 ]
 
 export function OnboardingWizard({ address, onClose }: OnboardingWizardProps) {

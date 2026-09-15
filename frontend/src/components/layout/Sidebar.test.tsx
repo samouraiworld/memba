@@ -47,7 +47,7 @@ describe('Sidebar nav (characterization — must survive the manifest refactor)'
         expect(linkHref('Directory')).toBe('/test13/directory')
         expect(linkHref('Validators')).toBe('/test13/validators')
         expect(linkHref('Alerts')).toBe('/test13/alerts')
-        expect(linkHref('Gnolove')).toBe('/test13/gnolove')
+        expect(linkHref('Dev Report')).toBe('/test13/gnolove')
         expect(linkHref('Quests')).toBe('/test13/quests')
         expect(linkHref('Extensions')).toBe('/test13/extensions')
         expect(linkHref('Feedback')).toBe('/test13/feedback')

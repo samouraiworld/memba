@@ -6,6 +6,7 @@ export function GameGate({ children }: { children: ReactNode }) {
   if (!isGameEnabled()) {
     return (
       <ComingSoonGate
+        preview="game"
         title="Block Party"
         icon="🎮"
         description="A daily block puzzle from an unpredictable Gno block — same board for everyone, every day."

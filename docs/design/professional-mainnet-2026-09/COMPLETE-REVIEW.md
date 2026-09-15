@@ -44,14 +44,18 @@ All images below are deterministic interface fixtures. Wallet actions are disabl
 | [Creator studio](complete-review/nft-studio-dark-mobile.png) | Black / mobile | Feature fixture; empty or guarded state |
 | [Creator studio](complete-review/nft-studio-light-desktop.png) | Light / desktop | Feature fixture; empty or guarded state |
 | [Creator studio](complete-review/nft-studio-light-mobile.png) | Light / mobile | Feature fixture; empty or guarded state |
-| [Marketplace](complete-review/marketplace-dark-desktop.png) | Black / desktop | Feature fixture; empty catalogue |
-| [Marketplace](complete-review/marketplace-dark-mobile.png) | Black / mobile | Feature fixture; empty catalogue |
-| [Marketplace](complete-review/marketplace-light-desktop.png) | Light / desktop | Feature fixture; empty catalogue |
-| [Marketplace](complete-review/marketplace-light-mobile.png) | Light / mobile | Feature fixture; empty catalogue |
-| [App Store](complete-review/apps-dark-desktop.png) | Black / desktop | Feature fixture; empty catalogue |
-| [App Store](complete-review/apps-dark-mobile.png) | Black / mobile | Feature fixture; empty catalogue |
-| [App Store](complete-review/apps-light-desktop.png) | Light / desktop | Feature fixture; empty catalogue |
-| [App Store](complete-review/apps-light-mobile.png) | Light / mobile | Feature fixture; empty catalogue |
+| [Marketplace](complete-review/discovery-marketplace-dark-desktop.png) | Black / desktop | Coming soon; inert design illustration |
+| [Marketplace](complete-review/discovery-marketplace-dark-mobile.png) | Black / mobile | Coming soon; inert design illustration |
+| [Marketplace](complete-review/discovery-marketplace-light-desktop.png) | Light / desktop | Coming soon; inert design illustration |
+| [Marketplace](complete-review/discovery-marketplace-light-mobile.png) | Light / mobile | Coming soon; inert design illustration |
+| [App Store](complete-review/discovery-apps-dark-desktop.png) | Black / desktop | Public ecosystem links; registry remains gated |
+| [App Store](complete-review/discovery-apps-dark-mobile.png) | Black / mobile | Public ecosystem links; registry remains gated |
+| [App Store](complete-review/discovery-apps-light-desktop.png) | Light / desktop | Public ecosystem links; registry remains gated |
+| [App Store](complete-review/discovery-apps-light-mobile.png) | Light / mobile | Public ecosystem links; registry remains gated |
+| [Reputation](complete-review/discovery-points-dark-desktop.png) | Black / desktop | Coming soon; inert reputation illustration |
+| [Reputation](complete-review/discovery-points-dark-mobile.png) | Black / mobile | Coming soon; inert reputation illustration |
+| [Reputation](complete-review/discovery-points-light-desktop.png) | Light / desktop | Coming soon; inert reputation illustration |
+| [Reputation](complete-review/discovery-points-light-mobile.png) | Light / mobile | Coming soon; inert reputation illustration |
 | [Community feed](complete-review/feed-timeline-dark-desktop.png) | Black / desktop | Synthetic public posts; feature fixture |
 | [Community feed](complete-review/feed-timeline-dark-mobile.png) | Black / mobile | Synthetic public posts; feature fixture |
 | [Community feed](complete-review/feed-timeline-light-desktop.png) | Light / desktop | Synthetic public posts; feature fixture |

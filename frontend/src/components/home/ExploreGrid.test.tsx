@@ -32,12 +32,12 @@ describe("ExploreGrid", () => {
         )
     })
 
-    it("does NOT surface a gated feature (it belongs to ComingSoon)", () => {
+    it("keeps ecosystem discovery available while gated app features stay hidden", () => {
         vi.stubEnv("VITE_ENABLE_APPSTORE", "false")
         vi.stubEnv("VITE_ENABLE_FEED", "false")
         vi.stubEnv("VITE_ENABLE_GAME", "false")
         renderIt()
-        expect(screen.queryByTestId("explore-apps")).not.toBeInTheDocument()
+        expect(screen.getByTestId("explore-apps")).toHaveAttribute("href", "/test13/apps")
         expect(screen.queryByTestId("explore-feed")).not.toBeInTheDocument()
         expect(screen.queryByTestId("explore-game")).not.toBeInTheDocument()
     })

@@ -28,7 +28,6 @@ import {
 } from "@phosphor-icons/react"
 import {
     isMarketplaceEnabled,
-    isAppStoreEnabled,
     isSpaceInvadersEnabled,
     isFeedEnabled,
     isGameEnabled,
@@ -55,11 +54,11 @@ export const HOME_SURFACES: HomeSurface[] = [
     { key: "tokens", route: "tokens", label: "Tokens", sub: "create & explore", Icon: Wallet, live: always },
     { key: "directory", route: "directory", label: "Directory", sub: "find anyone", Icon: Users, live: always },
     { key: "validators", route: "validators", label: "Validators", sub: "network set", Icon: Globe, live: always },
-    { key: "gnolove", route: "gnolove", label: "Gnolove", sub: "contributor board", Icon: Heart, live: always },
+    { key: "gnolove", route: "gnolove", label: "Dev Report", sub: "contributor board", Icon: Heart, live: always },
     { key: "quests", route: "quests", label: "Quests", sub: "earn XP", Icon: Trophy, live: always },
     { key: "multisig", route: "multisig", label: "Multisig", sub: "shared treasury", Icon: Vault, live: always },
     { key: "marketplace", route: "marketplace", label: "Marketplace", sub: "NFTs, tokens & services", Icon: Storefront, live: isMarketplaceEnabled },
-    { key: "apps", route: "apps", label: "App Store", sub: "community apps, on-chain", Icon: SquaresFour, live: isAppStoreEnabled },
+    { key: "apps", route: "apps", label: "App Store", sub: "wallets, tools & dApps", Icon: SquaresFour, live: always },
     { key: "blog", route: "blog", label: "Blog", sub: "news & deep dives", Icon: Article, live: always },
     { key: "space-invaders", route: "game/space-invaders", label: "Space Invaders", sub: "daily arcade run", Icon: Alien, live: isSpaceInvadersEnabled },
     { key: "feed", route: "feed", label: "Social feed", sub: "posts, on-chain", Icon: ChatCircleText, live: isFeedEnabled },

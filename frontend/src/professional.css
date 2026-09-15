@@ -201,14 +201,7 @@
 @container (max-width: 600px) {
   .k-pro-app .hk-nsg .nsg-body { grid-template-columns: minmax(0, 1fr); gap: 0; }
 }
-.k-pro-app .coming-soon-gate { min-height: 52vh; padding: 24px 0; }
-.k-pro-app .coming-soon-card { max-width: 680px; padding: 40px; text-align: left; background: var(--color-k-panel); border: 1px solid var(--color-k-edge); border-radius: 16px; box-shadow: none; backdrop-filter: none; }
-.k-pro-app .coming-soon-card::before { display: none; }
-.k-pro-app .coming-soon-icon { animation: none; font-size: 32px; }
-.k-pro-app .coming-soon-desc { margin-inline: 0; max-width: 540px; }
-.k-pro-app .coming-soon-cta { min-height: 44px; padding: 12px 18px; border-radius: 8px; }
 .k-pro-app .quest-hub__count { color: var(--color-k-text); }
-@media (max-width: 767px) { .k-pro-app .coming-soon-card { padding: 24px; } }
 
 .k-pro-app { --pro-tag-text: var(--color-k-text); }
 

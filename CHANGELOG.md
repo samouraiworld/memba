@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Professional discovery and upcoming features (#1200, 2026-09-15)
+<!-- categories: memba -->
+- Rename navigation to Dev Report while preserving existing Gnolove URLs.
+- Replace unavailable feature placeholders with responsive, clearly labelled design previews, including Marketplace, Reputation, publishing, community and game surfaces. Previews cannot mount or activate the gated features.
+- Keep an App Store ecosystem directory available independently of the on-chain registry: Adena, GnoSwap, Boards, Akkadia, GnoScan and Gno Playground. Beta and preview status remain explicit; publishing, moderation and reviews retain their existing guards.
+
 ### Professional DAO and proposal preview (2026-09-14)
 <!-- categories: memba -->
 - An independent opt-in governance preview gives DAO overviews a wider layout, direct counts, searchable proposal status filters and keyboard-accessible proposal/member links.

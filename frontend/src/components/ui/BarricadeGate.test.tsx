@@ -19,7 +19,7 @@ describe("BarricadeGate", () => {
                 </BarricadeGate>
             </MemoryRouter>,
         )
-        expect(screen.getByText(/MEMBA: BARRICADE/)).toBeInTheDocument()
+        expect(screen.getByRole("heading", { name: /MEMBA: BARRICADE/, level: 1 })).toBeInTheDocument()
         expect(screen.queryByText("the game itself")).toBeNull()
     })
 

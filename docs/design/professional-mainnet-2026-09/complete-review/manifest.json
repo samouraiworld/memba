@@ -346,72 +346,108 @@
     "family": "ecosystem",
     "theme": "Black",
     "viewport": "desktop",
-    "state": "Feature fixture; empty catalogue",
-    "image": "marketplace-dark-desktop.png",
-    "source": "frontend/test-results-complete-features/complete-design-route-coverage-dark-1600px-group-3-chromium/marketplace.png"
+    "state": "Coming soon; inert design illustration",
+    "image": "discovery-marketplace-dark-desktop.png",
+    "source": "frontend/test-results-complete/complete-design-discovery-previews-dark-1600px-chromium/discovery-marketplace.png"
   },
   {
     "title": "Marketplace",
     "family": "ecosystem",
     "theme": "Black",
     "viewport": "mobile",
-    "state": "Feature fixture; empty catalogue",
-    "image": "marketplace-dark-mobile.png",
-    "source": "frontend/test-results-complete-features/complete-design-route-coverage-dark-390px-group-3-chromium/marketplace.png"
+    "state": "Coming soon; inert design illustration",
+    "image": "discovery-marketplace-dark-mobile.png",
+    "source": "frontend/test-results-complete/complete-design-discovery-previews-dark-390px-chromium/discovery-marketplace.png"
   },
   {
     "title": "Marketplace",
     "family": "ecosystem",
     "theme": "Light",
     "viewport": "desktop",
-    "state": "Feature fixture; empty catalogue",
-    "image": "marketplace-light-desktop.png",
-    "source": "frontend/test-results-complete-features/complete-design-route-coverage-light-1600px-group-3-chromium/marketplace.png"
+    "state": "Coming soon; inert design illustration",
+    "image": "discovery-marketplace-light-desktop.png",
+    "source": "frontend/test-results-complete/complete-design-discovery-previews-light-1600px-chromium/discovery-marketplace.png"
   },
   {
     "title": "Marketplace",
     "family": "ecosystem",
     "theme": "Light",
     "viewport": "mobile",
-    "state": "Feature fixture; empty catalogue",
-    "image": "marketplace-light-mobile.png",
-    "source": "frontend/test-results-complete-features/complete-design-route-coverage-light-390px-group-3-chromium/marketplace.png"
+    "state": "Coming soon; inert design illustration",
+    "image": "discovery-marketplace-light-mobile.png",
+    "source": "frontend/test-results-complete/complete-design-discovery-previews-light-390px-chromium/discovery-marketplace.png"
   },
   {
     "title": "App Store",
     "family": "ecosystem",
     "theme": "Black",
     "viewport": "desktop",
-    "state": "Feature fixture; empty catalogue",
-    "image": "apps-dark-desktop.png",
-    "source": "frontend/test-results-complete-features/complete-design-route-coverage-dark-1600px-group-1-chromium/apps.png"
+    "state": "Public ecosystem links; registry remains gated",
+    "image": "discovery-apps-dark-desktop.png",
+    "source": "frontend/test-results-complete/complete-design-discovery-previews-dark-1600px-chromium/discovery-apps.png"
   },
   {
     "title": "App Store",
     "family": "ecosystem",
     "theme": "Black",
     "viewport": "mobile",
-    "state": "Feature fixture; empty catalogue",
-    "image": "apps-dark-mobile.png",
-    "source": "frontend/test-results-complete-features/complete-design-route-coverage-dark-390px-group-1-chromium/apps.png"
+    "state": "Public ecosystem links; registry remains gated",
+    "image": "discovery-apps-dark-mobile.png",
+    "source": "frontend/test-results-complete/complete-design-discovery-previews-dark-390px-chromium/discovery-apps.png"
   },
   {
     "title": "App Store",
     "family": "ecosystem",
     "theme": "Light",
     "viewport": "desktop",
-    "state": "Feature fixture; empty catalogue",
-    "image": "apps-light-desktop.png",
-    "source": "frontend/test-results-complete-features/complete-design-route-coverage-light-1600px-group-1-chromium/apps.png"
+    "state": "Public ecosystem links; registry remains gated",
+    "image": "discovery-apps-light-desktop.png",
+    "source": "frontend/test-results-complete/complete-design-discovery-previews-light-1600px-chromium/discovery-apps.png"
   },
   {
     "title": "App Store",
     "family": "ecosystem",
     "theme": "Light",
     "viewport": "mobile",
-    "state": "Feature fixture; empty catalogue",
-    "image": "apps-light-mobile.png",
-    "source": "frontend/test-results-complete-features/complete-design-route-coverage-light-390px-group-1-chromium/apps.png"
+    "state": "Public ecosystem links; registry remains gated",
+    "image": "discovery-apps-light-mobile.png",
+    "source": "frontend/test-results-complete/complete-design-discovery-previews-light-390px-chromium/discovery-apps.png"
+  },
+  {
+    "title": "Reputation",
+    "family": "community",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Coming soon; inert reputation illustration",
+    "image": "discovery-points-dark-desktop.png",
+    "source": "frontend/test-results-complete/complete-design-discovery-previews-dark-1600px-chromium/discovery-points.png"
+  },
+  {
+    "title": "Reputation",
+    "family": "community",
+    "theme": "Black",
+    "viewport": "mobile",
+    "state": "Coming soon; inert reputation illustration",
+    "image": "discovery-points-dark-mobile.png",
+    "source": "frontend/test-results-complete/complete-design-discovery-previews-dark-390px-chromium/discovery-points.png"
+  },
+  {
+    "title": "Reputation",
+    "family": "community",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Coming soon; inert reputation illustration",
+    "image": "discovery-points-light-desktop.png",
+    "source": "frontend/test-results-complete/complete-design-discovery-previews-light-1600px-chromium/discovery-points.png"
+  },
+  {
+    "title": "Reputation",
+    "family": "community",
+    "theme": "Light",
+    "viewport": "mobile",
+    "state": "Coming soon; inert reputation illustration",
+    "image": "discovery-points-light-mobile.png",
+    "source": "frontend/test-results-complete/complete-design-discovery-previews-light-390px-chromium/discovery-points.png"
   },
   {
     "title": "Community feed",

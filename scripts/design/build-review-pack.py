@@ -4,6 +4,7 @@ import re, json, html, struct
 ROOT = Path(__file__).resolve().parents[2]
 OUT = ROOT / 'docs/design/professional-mainnet-2026-09/complete-review'
 OUT.mkdir(parents=True, exist_ok=True)
+existing = json.loads((OUT/'manifest.json').read_text()) if (OUT/'manifest.json').exists() else []
 # Selection is deliberately small; the full route matrix remains a CI artifact.
 selections = [
  ('home', 'Home', 'core', 'route', 'Synthetic governance and network reads'),
@@ -18,8 +19,9 @@ selections = [
  ('dao-create', 'DAO creation', 'account', 'protected', 'Synthetic account; wallet actions disabled'),
  ('settings', 'Settings', 'account', 'protected', 'Synthetic account; wallet actions disabled'),
  ('nft-studio', 'Creator studio', 'ecosystem', 'route-feature', 'Feature fixture; empty or guarded state'),
- ('marketplace', 'Marketplace', 'ecosystem', 'route-feature', 'Feature fixture; empty catalogue'),
- ('apps', 'App Store', 'ecosystem', 'route-feature', 'Feature fixture; empty catalogue'),
+ ('discovery-marketplace', 'Marketplace', 'ecosystem', 'discovery', 'Coming soon; inert design illustration'),
+ ('discovery-apps', 'App Store', 'ecosystem', 'discovery', 'Public ecosystem links; registry remains gated'),
+ ('discovery-points', 'Reputation', 'community', 'discovery', 'Coming soon; inert reputation illustration'),
  ('feed-timeline', 'Community feed', 'ecosystem', 'populated-community', 'Synthetic public posts; feature fixture'),
  ('feedback', 'Feedback', 'community', 'route', 'Form presentation; no submission'),
  ('quests', 'Quests', 'community', 'route', 'Available and locked quest presentation'),
@@ -31,13 +33,16 @@ for stem,title,family,kind,state in selections:
    width='1600' if viewport=='desktop' else '390'
    feature=kind in ['route-feature','populated-community']
    base=ROOT/'frontend'/('test-results-complete-features' if feature else 'test-results-complete')
-   prefix={'route':'route-coverage','route-feature':'route-coverage','protected':'protected-workflow','populated-validator':'populated-validator-roster','populated-community':'populated-community-feed'}[kind]
+   prefix={'route':'route-coverage','route-feature':'route-coverage','protected':'protected-workflow','populated-validator':'populated-validator-roster','populated-community':'populated-community-feed','discovery':'discovery-previews'}[kind]
    match=f'*{prefix}-{theme}-*chromium/{stem}.png' if kind=='protected' else f'*{prefix}-{theme}-{width}px*chromium/{stem}.png'
    candidates=list(base.glob(match))
    # Targeted follow-up runs keep their evidence separate from the complete matrix.
    for extra in ['test-results-complete-populated','test-results-complete-feature-populated', 'test-results-complete-feature-populated-feed', 'test-results-complete-refresh','test-results-complete-protected']:
     candidates.extend((ROOT/'frontend'/extra).glob(match))
-   if not candidates: continue
+   if not candidates:
+    previous = next((e for e in existing if e['title']==title and e['theme']==('Black' if theme=='dark' else 'Light') and e['viewport']==viewport), None)
+    if previous and (OUT/previous['image']).exists(): entries.append(previous)
+    continue
    source=max(candidates,key=lambda p:p.stat().st_mtime)
    raw=source.read_bytes(); clean=raw[:8]; pos=8
    while pos<len(raw):

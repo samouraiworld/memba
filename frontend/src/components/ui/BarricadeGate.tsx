@@ -6,6 +6,7 @@ export function BarricadeGate({ children }: { children: ReactNode }) {
   if (!isBarricadeEnabled()) {
     return (
       <ComingSoonGate
+        preview="game"
         title="MEMBA: BARRICADE"
         icon="🛠️"
         description="Hold the line against The Order — a 90-second daily stand where the rebel you own is the rebel you play."

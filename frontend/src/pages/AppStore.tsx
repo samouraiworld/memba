@@ -26,6 +26,7 @@ import { MEMBA_DAO, API_BASE_URL, isAppReviewsEnabled, isAppStoreSubmitEnabled }
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import { ReportAppButton } from "../components/appstore/ReportAppButton"
 import { AppReviewStars, MIN_RATED_COUNT } from "../components/reviews/AppReviewStars"
+import { EcosystemDirectory } from "../components/appstore/EcosystemDirectory"
 import "./appstore.css"
 
 export function AppStore() {
@@ -227,14 +228,14 @@ function AppGrid() {
 
     return (
         <div className="appstore" data-testid="appstore-root">
+            <EcosystemDirectory />
             <header className="appstore__masthead">
                 <p className="appstore__eyebrow">Curated on-chain apps</p>
-                <h1 className="appstore__headline">
-                    Apps you can read<br />before you run them
-                </h1>
+                <h2 className="appstore__headline">
+                    On-chain app listings
+                </h2>
                 <p className="appstore__lede">
-                    Every app here is a public gno.land realm. Open its source, verify what it does,
-                    then use it — no opaque binaries, no blind trust.
+                    Listings from Memba’s registry. Inspect each app’s public realm and reviews before opening it.
                 </p>
                 {!isPending && !isError && apps && apps.length > 0 && (
                     <div className="appstore__stats">

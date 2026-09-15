@@ -110,3 +110,12 @@ Owner: design/integration session. Worktree `professional-complete`, branch `fea
 | C7 | Consolidated evidence and PR | Complete | [#1200](https://github.com/samouraiworld/memba/pull/1200), [visual pack](COMPLETE-REVIEW.md), [handoff](COMPLETE-HANDOFF.md), current-main integration; latest commit checks remain authoritative |
 
 An implemented row is not a release-readiness claim. See the final handoff for executed checks and the distinction between live readers, fixtures, unavailable data and capability-gated screens.
+
+
+## Owner feedback and merge review — 2026-09-15
+
+- Dev Report navigation retains `/gnolove` routes and data integration.
+- Shared labelled design previews now cover all ComingSoonGate consumers, Marketplace, Reputation and unavailable app publishing. Illustrations are inert; no children, readers or transaction controls from a gated feature are mounted.
+- The App Store includes six documented ecosystem projects even when its registry is disabled. Registry detail, submit/review, moderation and fee paths remain independent and gated.
+- [62-screen visual review](COMPLETE-REVIEW.md) includes the refreshed Marketplace, App Store and Reputation screens in both themes and sizes.
+- [Merge review](MERGE-REVIEW.md) records integration checks and concurrent-branch findings. The final PR Checks tab is authoritative for the pushed commit.

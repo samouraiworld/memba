@@ -18,6 +18,7 @@ export function FeedGate({ children }: { children: ReactNode }) {
     if (!isFeedEnabled()) {
         return (
             <ComingSoonGate
+                preview="feed"
                 title="Social Feed"
                 icon="📣"
                 description="A global, on-chain social feed for the Memba community — post, reply, and discuss, all on gno.land."

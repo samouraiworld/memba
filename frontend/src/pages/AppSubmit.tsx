@@ -33,6 +33,7 @@ import {
     formatGnot,
     type AppSubmission,
 } from "../lib/appStoreSubmit"
+import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { ListingFields } from "../components/appstore/ListingFields"
 import { PublisherListings } from "../components/appstore/PublisherListings"
 import "./appstore.css"
@@ -152,30 +153,18 @@ export function AppSubmit() {
     })
 
     if (!submitOpen) {
-        return (
-            <Shell networkKey={networkKey}>
-                <div className="appstore__notice" data-testid="appsubmit-gated">
-                    <p className="appstore__notice-title">Submissions aren't open yet</p>
-                    <p className="appstore__muted">
-                        Self-service app listings are coming soon. Until then, curated apps land in the
-                        store as they're published.
-                    </p>
-                </div>
-            </Shell>
-        )
+        return <div data-testid="appsubmit-gated"><ComingSoonGate
+            title="App publishing" icon="◇"
+            description="Submissions aren't open yet. Explore the App Store while we prepare self-service listings for creators."
+            features={["Present your app and its public source", "Submit a listing for curator review", "Manage your published apps"]}
+        /></div>
     }
     if (!v3) {
-        return (
-            <Shell networkKey={networkKey}>
-                <div className="appstore__notice" data-testid="appsubmit-v2">
-                    <p className="appstore__notice-title">Submissions need the v3 App Store realm</p>
-                    <p className="appstore__muted">
-                        This network is still on the previous App Store realm, which has no self-service
-                        submission path. Check back after the migration.
-                    </p>
-                </div>
-            </Shell>
-        )
+        return <div data-testid="appsubmit-v2"><ComingSoonGate
+            title="App publishing" icon="◇"
+            description="Submissions need the v3 App Store realm. Publishing is not available on this network yet."
+            features={["Present your app and its public source", "Submit a listing for curator review", "Manage your published apps"]}
+        /></div>
     }
     if (!connected) {
         return (

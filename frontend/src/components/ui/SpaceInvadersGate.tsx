@@ -6,6 +6,7 @@ export function SpaceInvadersGate({ children }: { children: ReactNode }) {
   if (!isSpaceInvadersEnabled()) {
     return (
       <ComingSoonGate
+        preview="game"
         title="Space Invaders"
         icon="👾"
         description="The arcade classic, rebuilt for Memba — rapid-fire waves, skill combos, a mystery UFO, and an on-chain leaderboard on the way."
