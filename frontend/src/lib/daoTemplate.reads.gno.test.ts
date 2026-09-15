@@ -22,6 +22,8 @@ import { tmpdir } from "node:os"
 import { join } from "node:path"
 
 import { generateDAOCode } from "./daoTemplate"
+import { readGeneratedProposalRecord } from "./dao/generatedProposalDetail"
+import { parseQevalJSON } from "./dao/shared"
 import { REQUIRE_GNO, probeToolchain, vendorGnolandDeps } from "../test/gnoToolchain"
 
 const ALICE = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
@@ -205,6 +207,14 @@ describeGno("generated DAO structured reads prove out under `gno test` (W1.4)", 
         // The crafted title survives the round-trip intact.
         const crafted = proposals.find((p: { title: string }) => p.title.includes("hi"))
         expect(crafted.title).toBe('say "hi"\nplease')
+        // Feed the actual realm encoder output through the qeval wrapper and
+        // strict detail decoder, not a separately invented JSON fixture.
+        const decoded = parseQevalJSON(`(${JSON.stringify(pJson)} string)`)
+        expect(Array.isArray(decoded)).toBe(true)
+        expect(readGeneratedProposalRecord(decoded as unknown[], crafted.id)).toMatchObject({
+            id: crafted.id, title: crafted.title, author: ALICE,
+            description: 'body', status: 'open', yesVotes: 0, totalVoters: 0,
+        })
 
         const members = JSON.parse(mJson!)
         expect(members.length).toBe(2)

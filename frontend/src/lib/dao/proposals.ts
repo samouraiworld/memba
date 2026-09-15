@@ -6,6 +6,7 @@
 
 import { queryRender, queryRenderPage, queryEval, parseQevalJSON, normalizeStatus, unescapeMarkdown, hasOwnSubpageLink, detectMaxPage, getDaoDialect, setDaoDialect, deleteDaoDialect, type DAOProposal, type VoteRecord, type VoterEntry } from "./shared"
 import { BECH32_PREFIX } from "../config"
+import { parseGeneratedProposalDetail, readGeneratedProposalRecord } from "./generatedProposalDetail"
 
 // ── Proposal Cache ────────────────────────────────────────────
 // In-memory cache with 30s TTL to avoid redundant ABCI round-trips
@@ -521,6 +522,17 @@ export async function getProposalDetail(
             data = await queryRenderPage(rpcUrl, realmPath, `:${id}`)
         }
         if (!data) return null
+
+        const generated = parseGeneratedProposalDetail(data, id)
+        if (generated !== undefined) {
+            if (generated === null) return null
+            // Older immutable deployments lack this export. Their complete
+            // footer remains the compatibility path; ordinary proposal prose
+            // must never enter the daokit/legacy metadata regexes below.
+            const json = await queryEval(rpcUrl, realmPath, 'GetProposalsJSON()', false)
+            const rows = json ? parseQevalJSON(json) : null
+            return Array.isArray(rows) ? readGeneratedProposalRecord(rows, id) : generated
+        }
 
         // gnodaokit/basedao detail page (deployed ProposalDetailPageView):
         // "## Title - <t> 📜", "## Description 📝", "## Status - Open 🟡",

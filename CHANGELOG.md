@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Generated DAO proposal details preserve authentic fields (2026-09-15)
+
+- Read the generated realm's final metadata footer before selecting a proposal parser, then prefer validated structured records when available. Proposal text cannot replace the real author, status or weighted tallies, or masquerade as executable action metadata.
+- Preserve full membership descriptions, including target addresses, voting power and administrative roles. Retain historical decisions from immutable templates after membership changes without inventing voter counts or approval percentages.
+
 ### Governance votes retain their electorate and network (2026-09-15)
 
 - Bind generated DAO votes to the membership version that opened voting. Additions/removals close old open proposals as “Membership changed”, preventing removed voting power from authorizing new actions. Preserve legitimately accepted decisions and their original denominator; add native governance and frontend history regressions. Existing immutable realms require migration.
