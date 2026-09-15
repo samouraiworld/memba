@@ -13,7 +13,7 @@ Scope: PR #1200 on `feat/professional-complete`, isolated worktree `Memba-worktr
 
 ## Parallel sessions and repository state
 
-The initial review found `origin/main` and the untouched shared main checkout at **395230c0**. During final verification, another session merged #1199, advancing `origin/main` to **9500113c**. That commit is now integrated here; the merge was clean and added only its release-note line because the underlying status correction was already present. All other inspected worktrees were clean. The shared checkout was not modified.
+The initial review found `origin/main` and the untouched shared main checkout at **395230c0**. During final verification, another session merged #1199, advancing `origin/main` to **9500113c**. That commit is now integrated here; the merge was clean and added only its release-note line because the underlying status correction was already present. All 19 inspected worktrees were clean on the final concurrency check. The shared checkout was not modified by this session.
 
 | Branch | Compatibility check | Outcome |
 |---|---|---|
@@ -21,6 +21,8 @@ The initial review found `origin/main` and the untouched shared main checkout at
 | `fix/govdao-proposal-status` | Merge simulation | Clean; its read-correctness change is already integrated |
 | `fix/telemetry-breadcrumb-redaction` | Merge simulation | Clean |
 | `chore/remove-gno-sale-announcement` | Merge simulation | A modify/delete conflict was found in the announcement component. The design-only edits to that retiring component were removed from this PR so its deletion can merge cleanly. |
+| `chore/dependabot-train-20260915` | Merge simulation | Clean |
+| `fix/space-invaders-touch-start` | Merge simulation | Clean |
 | `fix/multisig-creation-parity` | Compared merge against both main and design | Existing conflicts in `backend/go.mod` and `frontend/package.json` also occur against main alone. This older branch must be updated by its owner; do not merge its dependency snapshot into the design branch. |
 
 Merge simulations do not alter other worktrees. Re-fetch main and check the current PR head immediately before merging: later independent changes can invalidate a previous clean result.
@@ -31,7 +33,9 @@ GitHub reports six existing advisories against main: gRPC-Go (high, #159), Hono 
 
 ## Validation and review evidence
 
+- Full local unit suite: 5,170 passed, one skipped; default/full-design builds and lint passed.
 - New focused boundary/navigation tests: 65 passed; publisher tests: 19 passed.
+- All three App Store browser boundary tests passed against an isolated pinned-flags server. Two obsolete assertions were updated to keep ecosystem discovery public while registry details, publishing and curation remain gated. Other sessions’ dev servers were left untouched.
 - New visual checks: four desktop/mobile × Black/Light cases, each visiting Marketplace, Reputation and the six-entry App Store; layout and accessibility passed.
 - [Visual gallery](COMPLETE-REVIEW.md): 62 selected screens; updated discovery illustrations are explicitly labelled.
 - The previous consolidated commit passed both Node versions, all 90 complete-design cases, 115 professional regressions, 230 legacy Chromium cases, backend/Gno/security and deployment checks.
