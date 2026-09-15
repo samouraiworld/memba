@@ -3,7 +3,7 @@ module github.com/samouraiworld/memba/backend
 go 1.26.6
 
 require (
-	connectrpc.com/connect v1.20.0
+	connectrpc.com/connect v1.21.0
 	connectrpc.com/cors v0.1.0
 	github.com/cosmos/cosmos-sdk v0.55.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
