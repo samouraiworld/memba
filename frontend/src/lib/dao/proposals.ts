@@ -69,18 +69,26 @@ function normalizeRenderedStatus(status: string, realmPath: string): DAOProposal
 }
 
 /** Read status fields, never status-like words in proposal prose.
- * Legacy flat renders put Status in the opening metadata block. GovDAO puts
+ * Legacy flat renders put Status in the opening metadata block; the Memba
+ * template puts it before its final YES/NO/ABSTAIN and Total Power lines. GovDAO puts
  * Stats after the description and executor metadata; the final Stats heading
  * wins over headings embedded in either of those user-controlled regions.
  * Its first line owns the status, so a denied reason cannot override it.
  * Unknown/missing formats retain the existing open fallback.
  */
 function parseLegacyDetailStatus(data: string, realmPath: string): DAOProposal["status"] {
+    const stats = matchLast(data, /^### Stats[ \t]*\r?$/m)
+    // daoTemplate.renderProposal emits this footer after all user-authored
+    // fields. Last match protects it from copies inside the description. A
+    // genuine GovDAO Stats section later in the render outranks such a copy.
+    const template = matchLast(data, /^Status:[ \t]*(\w+)[ \t]*\r?\n\r?\nYES: \d+ \| NO: \d+ \| ABSTAIN: \d+\r?\nTotal Power: \d+\/\d+[ \t]*\r?$/m)
+    if (template && (!stats || template.index > stats.index)) {
+        return normalizeRenderedStatus(template[1], realmPath)
+    }
     const header = data.trimStart().split(/\r?\n[ \t]*\r?\n/, 1)[0]
     const field = header.match(/^Status:[ \t]*(ACTIVE|OPEN|ACCEPTED|PASSED|DENIED|REJECTED|FAILED|EXECUTED|COMPLETED)[ \t]*$/im)
     if (field) return normalizeRenderedStatus(field[1], realmPath)
 
-    const stats = matchLast(data, /^### Stats[ \t]*\r?$/m)
     if (!stats) return "open"
     const firstLine = data.slice(stats.index + stats[0].length).trimStart().split(/\r?\n/, 1)[0]
     const status = firstLine.match(/^- \*\*PROPOSAL HAS BEEN (ACCEPTED|DENIED|REJECTED|EXECUTED)\*\*[ \t]*$/i)

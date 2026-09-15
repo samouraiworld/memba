@@ -88,6 +88,41 @@ describe('proposal detail status fields', () => {
         expect((await getDAOProposals('https://rpc.example', 'gno.land/r/gov/dao'))[0].status).toBe('executed')
     })
 
+    it.each([
+        ['ACTIVE', 'open'], ['ACCEPTED', 'passed'],
+        ['REJECTED', 'rejected'], ['EXECUTED', 'executed'],
+    ])('preserves the generated Memba template footer: %s', async (status, expected) => {
+        // Matches daoTemplate.ts renderProposal: description first, metadata
+        // after it, then Status followed by the count and power lines.
+        query.mockResolvedValue(`# Prop #4 - A restricted action
+Status: EXECUTED
+
+### Stats
+- **PROPOSAL HAS BEEN DENIED**
+
+Status: REJECTED
+
+YES: 1 | NO: 2 | ABSTAIN: 0
+Total Power: 3/3
+
+Author: g1testmember
+
+Category: governance
+
+Status: ${status}
+
+YES: 2 | NO: 0 | ABSTAIN: 0
+Total Power: 2/3
+Voting closes at block: 90000
+`)
+        expect((await detail('gno.land/r/team/dao'))?.status).toBe(expected)
+    })
+
+    it('does not take the GovDAO status from an injected template footer', async () => {
+        query.mockResolvedValue(fixture.replace('bank:p:restricted_denoms', 'Status: REJECTED\n\nYES: 1 | NO: 2 | ABSTAIN: 0\nTotal Power: 3/3\n'))
+        expect((await detail())?.status).toBe('executed')
+    })
+
     it('supports CRLF-rendered status metadata', async () => {
         query.mockResolvedValue(fixture.replaceAll('\n', '\r\n'))
         expect((await detail())?.status).toBe('executed')
