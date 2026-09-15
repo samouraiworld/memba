@@ -3,6 +3,14 @@ import handler from '../../netlify/edge-functions/design-og'
 const html = '<html><head><meta property="og:title" content="Memba"><meta property="og:description" content="Original"><meta property="og:image" content="/brand/folded-m/share.png"><meta name="twitter:image" content="/brand/folded-m/share.png"><meta property="og:url" content="/pearl"></head><body>Application</body></html>'
 const response = (body = html) => new Response(body, { headers: { 'content-type': 'text/html', etag: 'original' } })
 describe('professional crawler cards', () => {
+    it.each(['/api/query', '/assets/app.js', '/brand/folded-m/share.png', '/feed/post/1'])('preserves downstream responses for %s', async path => {
+        const original = response()
+        expect(await handler(new Request(`https://example.com${path}`, { headers: { 'user-agent': 'Twitterbot/1.0' } }), { next: async () => original })).toBe(original)
+    })
+    it('preserves non-GET requests', async () => {
+        const original = response()
+        expect(await handler(new Request('https://example.com/mainnet/validators', { method: 'POST', headers: { 'user-agent': 'Twitterbot/1.0' } }), { next: async () => original })).toBe(original)
+    })
     it('leaves human requests unchanged', async () => {
         const original = response()
         expect(await handler(new Request('https://example.com/mainnet/validators'), { next: async () => original })).toBe(original)

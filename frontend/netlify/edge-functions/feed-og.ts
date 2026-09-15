@@ -76,7 +76,7 @@ export default async function handler(request: Request, context: EdgeContext): P
     const html = renderOgPage({
         root: data.root,
         permalink: `${url.origin}/feed/post/${id}`,
-        ogImage: `${url.origin}/og-image.jpg`,
+        ogImage: `${url.origin}/brand/folded-m/share.png`,
     })
 
     return new Response(html, {

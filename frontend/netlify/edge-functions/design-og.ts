@@ -4,12 +4,14 @@ import { matchRouteMeta } from '../../src/lib/routeMeta.ts'
 interface EdgeContext { next: () => Promise<Response> }
 const escape = (text: string) => text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
 export default async function handler(request: Request, context: EdgeContext): Promise<Response> {
+    const url = new URL(request.url)
+    // Preserve backend/static requests and the moderated, post-specific feed card.
+    if (request.method !== 'GET' || /^\/(?:api|rpc|assets|brand|\.netlify)(?:\/|$)/.test(url.pathname) || /^\/feed\/post\//.test(url.pathname)) return context.next()
     const response = await context.next()
     if (!isBotUserAgent(request.headers.get('user-agent')) || !response.headers.get('content-type')?.includes('text/html')) return response
     const html = await response.clone().text()
     // Only full-design builds carry this marker; legacy responses are preserved.
     if (!html.includes('/brand/folded-m/share.png')) return response
-    const url = new URL(request.url)
     const key = url.pathname.split('/')[1]
     const networks: Record<string, string> = { mainnet: 'gno.land', pearl: 'Pearl', gnoland1: 'Betanet' }
     const meta = matchRouteMeta(url.pathname, key in networks ? key : '')
