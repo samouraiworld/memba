@@ -300,3 +300,5 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
 ## License
 
 [MIT](LICENSE) © 2026 Samouraï Coop
+
+Weighted governance also supports the v2 same-person key-recovery candidate; see [the guarded DAO workspace](docs/WEIGHTED_DAO.md). Mainnet writes remain held.

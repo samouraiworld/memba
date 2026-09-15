@@ -1,0 +1,365 @@
+{
+  "gnoRef": "31b6650a100d9baf14e7669f8f0df924f1f841e0",
+  "deployerCommit": "1dd96c76d8a3ce965987188a5735fa358083cd00",
+  "records": {
+    "initial": {
+      "schema": "memba-weighted-host/v2",
+      "kind": "members",
+      "members": [
+        {
+          "personId": "person 0 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt",
+          "founder": true,
+          "weight": 2,
+          "admin": true,
+          "finance": true
+        },
+        {
+          "personId": "person 1 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzn6al45",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 2 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqrwvf2gx",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 3 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqy0476fr",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 4 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq9jr2053",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 5 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqxusle6w",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 6 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq8pxtv8u",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        }
+      ]
+    },
+    "config": {
+      "schema": "memba-weighted-host/v2",
+      "kind": "config",
+      "realmPath": "gno.land/r/samcrew/memba_dao",
+      "rosterSize": 7,
+      "totalPoints": 8,
+      "founderWeight": 2,
+      "developerWeight": 1,
+      "votingPeriodSeconds": 604800,
+      "roleChanges": {
+        "category": "critical",
+        "weightedPoints": 6,
+        "weightedPeople": 4,
+        "weightedDelaySeconds": 86400,
+        "independentDevelopers": 5,
+        "independentDelaySeconds": 259200
+      },
+      "mutableRoles": [
+        "admin",
+        "finance"
+      ],
+      "capabilities": {
+        "roleProposals": true,
+        "memberReplacement": true,
+        "migration": false,
+        "treasuryExecution": false,
+        "applicationActions": false
+      },
+      "maxProposalPage": 50
+    },
+    "granted": {
+      "schema": "memba-weighted-host/v2",
+      "kind": "members",
+      "members": [
+        {
+          "personId": "person 0 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt",
+          "founder": true,
+          "weight": 2,
+          "admin": true,
+          "finance": true
+        },
+        {
+          "personId": "person 1 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzn6al45",
+          "founder": false,
+          "weight": 1,
+          "admin": true,
+          "finance": false
+        },
+        {
+          "personId": "person 2 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqrwvf2gx",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 3 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqy0476fr",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 4 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq9jr2053",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 5 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqxusle6w",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 6 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq8pxtv8u",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        }
+      ]
+    },
+    "removed": {
+      "schema": "memba-weighted-host/v2",
+      "kind": "members",
+      "members": [
+        {
+          "personId": "person 0 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt",
+          "founder": true,
+          "weight": 2,
+          "admin": false,
+          "finance": true
+        },
+        {
+          "personId": "person 1 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzn6al45",
+          "founder": false,
+          "weight": 1,
+          "admin": true,
+          "finance": false
+        },
+        {
+          "personId": "person 2 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqrwvf2gx",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 3 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqy0476fr",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 4 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq9jr2053",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 5 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqxusle6w",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 6 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq8pxtv8u",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        }
+      ]
+    },
+    "executed": {
+      "schema": "memba-weighted-host/v2",
+      "kind": "proposal",
+      "proposal": {
+        "id": "2",
+        "proposer": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqxusle6w",
+        "action": {
+          "type": "set-role",
+          "target": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt",
+          "role": "admin",
+          "grant": false
+        },
+        "category": "critical",
+        "status": "EXECUTED",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": false,
+        "talliesAvailable": false,
+        "weightYes": null,
+        "peopleYes": null,
+        "developersYes": null,
+        "createdAt": "2023-11-17T22:13:20Z",
+        "votingDeadline": "2023-11-24T22:13:20Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "recovery": {
+      "schema": "memba-weighted-host/v2",
+      "kind": "proposal",
+      "proposal": {
+        "id": "3",
+        "proposer": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzn6al45",
+        "action": {
+          "type": "recover-member",
+          "personId": "person 0 zôÖma 🚀 \"\\",
+          "oldAddress": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqpafgfmt",
+          "newAddress": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqlxa67uu7"
+        },
+        "category": "critical",
+        "status": "VOTING",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 0,
+        "peopleYes": 0,
+        "developersYes": 0,
+        "createdAt": "2023-11-20T22:13:20Z",
+        "votingDeadline": "2023-11-27T22:13:20Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "recovered": {
+      "schema": "memba-weighted-host/v2",
+      "kind": "members",
+      "members": [
+        {
+          "personId": "person 0 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqlxa67uu7",
+          "founder": true,
+          "weight": 2,
+          "admin": false,
+          "finance": true
+        },
+        {
+          "personId": "person 1 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqzn6al45",
+          "founder": false,
+          "weight": 1,
+          "admin": true,
+          "finance": false
+        },
+        {
+          "personId": "person 2 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqrwvf2gx",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 3 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqy0476fr",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 4 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq9jr2053",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 5 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqxusle6w",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "person 6 zôÖma 🚀 \"\\",
+          "address": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq8pxtv8u",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        }
+      ]
+    },
+    "replacement_vote": {
+      "schema": "memba-weighted-host/v2",
+      "kind": "proposal",
+      "proposal": {
+        "id": "4",
+        "proposer": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqlxa67uu7",
+        "action": {
+          "type": "set-role",
+          "target": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqrwvf2gx",
+          "role": "finance",
+          "grant": true
+        },
+        "category": "critical",
+        "status": "VOTING",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 2,
+        "peopleYes": 1,
+        "developersYes": 0,
+        "createdAt": "2023-11-23T22:13:20Z",
+        "votingDeadline": "2023-11-30T22:13:20Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    }
+  }
+}

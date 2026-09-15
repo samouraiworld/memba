@@ -368,3 +368,5 @@ resolveUsernames(members[])
 ## Weighted founding DAO management
 
 The `/NETWORK/weighted-dao/REALM` route uses `pages/WeightedDAO.tsx` and `lib/dao/weighted.ts`, separate from generic DAO Render parsing and direct admin setters. The adapter validates the exact `memba-weighted-host/v1` contract, bound page cursors and uint64 strings, authentic role fields and capability limits. Each snapshot queries the selected RPC directly and checks its chain identity. Wallet/chain/realm changes remount the workspace; asynchronous reads and prepared actions cannot update a replacement workspace. Role actions refresh current chain state and use the existing confirmation/broadcast flow with retries disabled and a post-confirmation context guard. `gnoland-1` writes remain unconditionally blocked in both the action guard and UI.
+
+Weighted DAO v2 adds a typed `recover-member` action while v1 remains supported without recovery. Terminal historical actors are independent from the current roster; active controls remain current-member-only. The shared broadcast helper awaits caller revalidation after confirmation, then rechecks wallet safety before invoking Adena.

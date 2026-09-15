@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Weighted member-key recovery (v7.7.0 candidate, 2026-09-15)
+
+- Support the v2 founding DAO recovery contract alongside v1 role governance, with exact human/old/new-address review and checksum validation.
+- Preserve former-member addresses in terminal history and revalidate roster, roles and proposal state after confirmation before requesting a wallet signature. Mainnet writes remain blocked.
+
+
 ### Weighted founding DAO management (v7.6.0 candidate, 2026-09-15)
 
 - Add a separate `/NETWORK/weighted-dao/REALM` workspace for the founding host's versioned configuration, seven-person roster, typed role proposals, voting and execution. Display points, people and the independent developer route separately; preserve full uint64 IDs, exact role targets, seven-day deadlines and unavailable historical tallies.

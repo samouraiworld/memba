@@ -18,3 +18,16 @@ it("never retries an uncertain governance submission", async () => {
     await expect(doContractBroadcast([], "role", { retry: false })).rejects.toThrow("fetch failed")
     expect(DoContract).toHaveBeenCalledTimes(1)
 })
+
+it("waits for asynchronous authority validation before invoking the wallet", async () => {
+    const DoContract = vi.fn()
+    vi.stubGlobal("adena", { DoContract })
+    setWalletRpcContext("https://selected.invalid", true, GNO_CHAIN_ID)
+    let fail: ((error: Error) => void) | undefined
+    const result = doContractBroadcast([], "recovery", { retry: false, beforeSign: () => new Promise<void>((_resolve, reject) => { fail = reject }) })
+    await Promise.resolve()
+    expect(DoContract).not.toHaveBeenCalled()
+    fail!(new Error("member key was replaced"))
+    await expect(result).rejects.toThrow("member key was replaced")
+    expect(DoContract).not.toHaveBeenCalled()
+})

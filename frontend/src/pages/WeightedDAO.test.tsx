@@ -4,6 +4,7 @@ import { beforeEach, expect, it, vi } from "vitest"
 import { WeightedDAO } from "./WeightedDAO"
 import { readWeightedProposal, readWeightedSnapshot } from "../lib/dao/weighted"
 import { doContractBroadcast } from "../lib/grc20"
+import { bech32Encode } from "../lib/dao/realmAddress"
 import { weightedFixture, weightedRealm } from "../lib/dao/testdata/weighted"
 vi.mock("../lib/config", () => ({ NETWORKS: { pearl: { chainId: "pearl", rpcUrl: "https://selected.invalid" }, mainnet: { chainId: "gnoland-1", rpcUrl: "https://main.invalid" } }, GNO_CHAIN_ID: "pearl", GNO_RPC_URL: "https://selected.invalid" }))
 vi.mock("../lib/dao/weighted", async importOriginal => ({ ...await importOriginal<typeof import("../lib/dao/weighted")>(), readWeightedSnapshot: vi.fn(), readWeightedProposal: vi.fn() }))
@@ -18,7 +19,7 @@ beforeEach(() => {
     vi.clearAllMocks(); fixture = weightedFixture()
     vi.mocked(readWeightedSnapshot).mockImplementation(async () => snapshot())
     vi.mocked(readWeightedProposal).mockImplementation(async () => fixture.proposal as Awaited<ReturnType<typeof readWeightedProposal>>)
-    vi.mocked(doContractBroadcast).mockImplementation(async (_msgs, _memo, opts) => { opts?.beforeSign?.(); return { hash: "a".repeat(64) } })
+    vi.mocked(doContractBroadcast).mockImplementation(async (_msgs, _memo, opts) => { await opts?.beforeSign?.(); return { hash: "a".repeat(64) } })
 })
 it("shows seven people, 2/1 weights and exact role actions without a percent threshold", async () => {
     render(<App />)
@@ -38,7 +39,7 @@ it("allows a developer without admin labels to propose governed role changes", a
     await screen.findByText(/Transaction submitted:/)
     expect(vi.mocked(doContractBroadcast).mock.calls[0][0][0].value).toMatchObject({ func: "ProposeRole", args: [fixture.members[1].address, "admin", "true"], send: "" })
     expect(vi.mocked(doContractBroadcast).mock.calls[0][2]?.retry).toBe(false)
-    expect(readWeightedSnapshot).toHaveBeenCalledTimes(3)
+    expect(readWeightedSnapshot).toHaveBeenCalledTimes(4)
 })
 it("refuses a stale proposal before broadcasting and retains unavailable historical tallies", async () => {
     render(<App />)
@@ -57,11 +58,11 @@ it("blocks writes on mainnet even for authenticated members", async () => {
     expect(doContractBroadcast).not.toHaveBeenCalled()
 })
 it("rejects a prepared action if the wallet changes while confirmation is open", async () => {
-    let beforeSign: (() => void) | undefined
-    let finish: (() => void) | undefined
+    let beforeSign: (() => void | Promise<void>) | undefined
+    let finish: (() => void | Promise<void>) | undefined
     vi.mocked(doContractBroadcast).mockImplementation((_msgs, _memo, opts) => new Promise((resolve, reject) => {
         beforeSign = opts?.beforeSign
-        finish = () => { try { beforeSign?.(); resolve({ hash: "a".repeat(64) }) } catch (err) { reject(err) } }
+        finish = async () => { try { await beforeSign?.(); resolve({ hash: "a".repeat(64) }) } catch (err) { reject(err) } }
     }))
     const view = render(<App />)
     await screen.findByText(fixture.members[0].personId)
@@ -69,7 +70,7 @@ it("rejects a prepared action if the wallet changes while confirmation is open",
     await waitFor(() => expect(beforeSign).toBeTypeOf("function"))
     view.rerender(<App address={fixture.members[6].address} />)
     await screen.findByText(fixture.members[0].personId)
-    expect(() => beforeSign?.()).toThrow("changed")
+    await expect(beforeSign?.()).rejects.toThrow("changed")
     await act(async () => finish?.())
     expect(screen.queryByText(/Transaction submitted:/)).toBeNull()
 })
@@ -87,12 +88,48 @@ it("does not display prior-wallet read results after a switch", async () => {
 
 
 it("invalidates confirmation when disconnected even if the address is retained", async () => {
-    let check: (() => void) | undefined
+    let check: (() => void | Promise<void>) | undefined
     vi.mocked(doContractBroadcast).mockImplementation((_msgs, _memo, opts) => { check = opts?.beforeSign; return new Promise(() => {}) })
     const view = render(<App />)
     await screen.findByText(fixture.members[0].personId)
     fireEvent.click(screen.getByRole("button", { name: "Vote yes" }))
     await waitFor(() => expect(check).toBeTypeOf("function"))
     view.rerender(<App connected={false} />)
-    expect(() => check?.()).toThrow("changed")
+    await expect(check?.()).rejects.toThrow("changed")
+})
+
+const replacement = bech32Encode("g", new Uint8Array(20).fill(9))
+it("shows recovery only for v2 and builds the exact reviewed person/old/new action", async () => {
+    fixture = weightedFixture(2)
+    render(<App />)
+    await screen.findByText(fixture.members[0].personId)
+    fireEvent.change(screen.getByLabelText("Recovery member"), { target: { value: fixture.members[0].address } })
+    fireEvent.change(screen.getByLabelText("Replacement Gno address"), { target: { value: replacement } })
+    fireEvent.click(screen.getByRole("button", { name: "Review key recovery proposal" }))
+    await screen.findByText(/Transaction submitted:/)
+    expect(vi.mocked(doContractBroadcast).mock.calls[0][0][0].value).toMatchObject({ func: "ProposeRecovery", args: [fixture.members[0].personId, fixture.members[0].address, replacement], send: "" })
+})
+it("rejects a removed member or changed roles during confirmation without signing", async () => {
+    fixture = weightedFixture(2)
+    let check: (() => void | Promise<void>) | undefined
+    vi.mocked(doContractBroadcast).mockImplementation((_msgs, _memo, opts) => { check = opts?.beforeSign; return new Promise(() => {}) })
+    render(<App />)
+    await screen.findByText(fixture.members[0].personId)
+    fireEvent.click(screen.getByRole("button", { name: "Vote yes" }))
+    await waitFor(() => expect(check).toBeTypeOf("function"))
+    const changed = structuredClone(snapshot()); changed.members[5].address = replacement
+    vi.mocked(readWeightedSnapshot).mockResolvedValue(changed)
+    await expect(check?.()).rejects.toThrow("roster or roles changed")
+    expect(screen.queryByText(/Transaction submitted:/)).toBeNull()
+})
+it("shows exact former addresses in recovery history without restoring their controls", async () => {
+    fixture = weightedFixture(2)
+    fixture.proposal.action = { type: "recover-member", personId: fixture.members[0].personId, oldAddress: fixture.members[0].address, newAddress: replacement }
+    fixture.proposal.status = "EXECUTED"; fixture.proposal.talliesAvailable = false
+    fixture.proposal.weightYes = fixture.proposal.peopleYes = fixture.proposal.developersYes = null
+    render(<App />)
+    expect(await screen.findByText(`Old address: ${fixture.members[0].address}`)).toBeTruthy()
+    expect(screen.getByText(`Replacement address: ${replacement}`)).toBeTruthy()
+    expect(screen.getByText("Historical vote totals are unavailable.")).toBeTruthy()
+    expect(screen.getByRole("button", { name: "Vote yes" }).hasAttribute("disabled")).toBe(true)
 })

@@ -1,5 +1,7 @@
 # Memba — Product Roadmap
 
+Recovery frontend candidate (7.7.0): v1/v2 structured contracts, governed same-person key replacement, historical former-member addresses and post-confirmation authority checks. Real signing rehearsal, migration and target authority remain required before mainnet.
+
 > Versioned roadmap for Memba, the standalone Gno multisig & DAO wallet.
 > Each version includes scope, acceptance criteria, engineering gates, and cross-perspective review checkpoints.
 
