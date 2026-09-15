@@ -1,4 +1,4 @@
-import { PRO_APP_ENABLED } from "../../lib/config"
+import { PRO_APP_ENABLED } from "../../lib/professionalFlags"
 /**
  * ConnectingLoader — Unified Memba loading state.
  *

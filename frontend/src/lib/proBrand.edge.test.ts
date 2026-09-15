@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import handler from './design-og'
+import handler from '../../netlify/edge-functions/design-og'
 const html = '<html><head><meta property="og:title" content="Memba"><meta property="og:description" content="Original"><meta property="og:image" content="/brand/folded-m/share.png"><meta name="twitter:image" content="/brand/folded-m/share.png"><meta property="og:url" content="/pearl"></head><body>Application</body></html>'
 const response = (body = html) => new Response(body, { headers: { 'content-type': 'text/html', etag: 'original' } })
 describe('professional crawler cards', () => {

@@ -85,7 +85,7 @@ export function DAOList() {
     const { proposals: unvotedProposals } = useUnvotedProposals(userAddress)
 
     // v2.10: Notification unread count per DAO
-    const daoPaths = useMemo(() => daoEntries.map(d => d.realmPath), [daoEntries])
+    const daoPaths = useMemo(() => baseEntries.map(d => d.realmPath), [baseEntries])
     const { getDAOUnreadCount } = useNotifications(daoPaths, userAddress)
 
     // Per-DAO unvoted count for red dot on cards

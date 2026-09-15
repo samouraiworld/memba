@@ -211,3 +211,5 @@
 @media (max-width: 767px) { .k-pro-app .coming-soon-card { padding: 24px; } }
 
 .k-pro-app { --pro-tag-text: var(--color-k-text); }
+
+.k-pro-app { --pro-panel: var(--color-k-panel); }

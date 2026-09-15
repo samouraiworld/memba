@@ -21,7 +21,8 @@ import { NFT_MARKETPLACE_V3_PATH } from "./nftConfig"
 export const APP_VERSION = __APP_VERSION__
 
 /** Complete design preview. Presentation only; production remains opt-in. */
-export const PRO_APP_ENABLED = import.meta.env.VITE_ENABLE_PRO_APP === "true"
+import { PRO_APP_ENABLED } from "./professionalFlags"
+export { PRO_APP_ENABLED } from "./professionalFlags"
 
 /** Presentation-only Validators preview; never enables network capabilities. */
 export const PRO_UI_ENABLED = PRO_APP_ENABLED || import.meta.env.VITE_ENABLE_PRO_UI === "true"

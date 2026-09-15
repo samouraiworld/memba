@@ -224,7 +224,7 @@ export function Treasury() {
                 )}
 
                 {assets.length === 0 ? (
-                    <div className="k-dashed" style={{ background: "var(--color-surface-black)", padding: 32, textAlign: "center" }}>
+                    <div className="k-dashed" style={{ background: "var(--pro-panel, var(--color-surface-black))", padding: 32, textAlign: "center" }}>
                         <p style={{ color: "var(--color-text-muted)", fontSize: "var(--pro-small, 13px)", fontFamily: "JetBrains Mono, monospace" }}>
                             No assets found in treasury
                         </p>
