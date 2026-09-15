@@ -13,7 +13,7 @@ Scope: PR #1200 on `feat/professional-complete`, isolated worktree `Memba-worktr
 
 ## Parallel sessions and repository state
 
-At review, `origin/main` and the untouched shared main checkout were **395230c0**. All other inspected worktrees were clean. Only this worktree held the authorized design edits.
+The initial review found `origin/main` and the untouched shared main checkout at **395230c0**. During final verification, another session merged #1199, advancing `origin/main` to **9500113c**. That commit is now integrated here; the merge was clean and added only its release-note line because the underlying status correction was already present. All other inspected worktrees were clean. The shared checkout was not modified.
 
 | Branch | Compatibility check | Outcome |
 |---|---|---|
@@ -24,6 +24,10 @@ At review, `origin/main` and the untouched shared main checkout were **395230c0*
 | `fix/multisig-creation-parity` | Compared merge against both main and design | Existing conflicts in `backend/go.mod` and `frontend/package.json` also occur against main alone. This older branch must be updated by its owner; do not merge its dependency snapshot into the design branch. |
 
 Merge simulations do not alter other worktrees. Re-fetch main and check the current PR head immediately before merging: later independent changes can invalidate a previous clean result.
+
+## Existing dependency advisories
+
+GitHub reports six existing advisories against main: gRPC-Go (high, #159), Hono (three medium, #160–162) and Vitest/mocker (two medium, #163–164). This PR leaves `backend/go.mod`, `pnpm-lock.yaml` and the workspace dependency policy unchanged. The high advisory concerns xDS servers; `go list -deps ./...` for the backend contains no `google.golang.org/grpc/xds` package, and the application does not create an xDS server. These alerts remain dependency maintenance work; they are not evidence that this PR introduces a reachable vulnerability. Full repository security clearance is distinct from approval of this frontend diff.
 
 ## Validation and review evidence
 
