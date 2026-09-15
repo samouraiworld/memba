@@ -87,7 +87,7 @@ export function GithubCallback() {
     return (
         <div className="animate-fade-in" style={{
             maxWidth: 480, margin: "80px auto", padding: 32,
-            fontFamily: "JetBrains Mono, monospace",
+            fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
         }}>
             <div className="k-card" style={{ padding: 32, textAlign: "center" }}>
                 <GitHubIcon size={48} color="var(--color-accent-blue-link)" style={{ margin: "0 auto 16px" }} />

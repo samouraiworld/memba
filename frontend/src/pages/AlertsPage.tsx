@@ -193,7 +193,7 @@ function WebhookSection({ kind, label, token, onChanged }: {
                         onClick={() => setShowForm(true)}
                         style={{
                             padding: "4px 10px", borderRadius: 6, border: "none",
-                            cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
+                            cursor: "pointer", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                             fontSize: "var(--pro-caption, 10px)", fontWeight: 600,
                             background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
                         }}
@@ -243,7 +243,7 @@ function WebhookSection({ kind, label, token, onChanged }: {
                     background: "rgba(255,255,255,0.01)",
                     border: "1px dashed rgba(255,255,255,0.06)",
                     fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-muted)",
-                    fontFamily: "JetBrains Mono, monospace",
+                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     textAlign: "center",
                 }}>
                     No {label.toLowerCase()} webhooks configured yet
@@ -321,7 +321,7 @@ function AlertsContent() {
                                 background: "var(--color-brand)", color: "var(--color-text-contrast)", fontSize: "var(--pro-small, 13px)",
                                 fontWeight: 600, border: "none", cursor: "pointer",
                                 boxShadow: "0 0 24px rgba(0,212,170,0.2)",
-                                fontFamily: "JetBrains Mono, monospace",
+                                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                             }}>
                                 Sign in to configure alerts
                             </button>
@@ -361,7 +361,7 @@ function AlertsContent() {
                 </h2>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     {auth.user && (
-                        <span style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                        <span style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                             {auth.user.email || auth.user.fullName}
                         </span>
                     )}
@@ -369,7 +369,7 @@ function AlertsContent() {
                         onClick={() => auth.signOut()}
                         style={{
                             padding: "4px 10px", borderRadius: 6, border: "none",
-                            cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
+                            cursor: "pointer", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                             fontSize: "var(--pro-caption, 10px)", fontWeight: 600,
                             background: "rgba(255,255,255,0.03)", color: "var(--color-text-secondary)",
                         }}

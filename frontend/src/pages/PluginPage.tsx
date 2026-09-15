@@ -32,7 +32,7 @@ export function PluginPage() {
                     style={{
                         background: "none", border: "none", cursor: "pointer",
                         color: "var(--color-primary)", fontSize: "var(--pro-small, 12px)",
-                        fontFamily: "JetBrains Mono, monospace",
+                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     }}
                 >
                     ← Back to DAO

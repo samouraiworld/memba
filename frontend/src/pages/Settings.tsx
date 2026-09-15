@@ -134,7 +134,7 @@ export function Settings() {
 
     const labelStyle: React.CSSProperties = {
         fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)",
-        fontFamily: "JetBrains Mono, monospace",
+        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
         display: "block", marginBottom: 4,
     }
 
@@ -142,13 +142,13 @@ export function Settings() {
         width: "100%", padding: "8px 12px", borderRadius: 8,
         border: "1px solid var(--color-k-edge)",
         background: "var(--color-k-elevated)", color: "var(--color-text)",
-        fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-small, 12px)",
+        fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontSize: "var(--pro-small, 12px)",
         boxSizing: "border-box",
     }
 
     const btnStyle: React.CSSProperties = {
         padding: "8px 16px", borderRadius: 8, border: "none",
-        cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
+        cursor: "pointer", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
         fontSize: "var(--pro-small, 12px)", fontWeight: 600,
     }
 
@@ -194,7 +194,7 @@ export function Settings() {
             {/* Directory — moved from main nav */}
             <Section title="Directory" icon={<FolderOpen size={18} />}>
                 <div style={{ paddingTop: 8 }}>
-                    <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", margin: "0 0 10px", lineHeight: 1.5 }}>
+                    <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", margin: "0 0 10px", lineHeight: 1.5 }}>
                         Browse on-chain packages, realms, and user profiles deployed on gno.land.
                     </p>
                     <button
@@ -255,7 +255,7 @@ export function Settings() {
                 >
                     Clear Cache
                 </button>
-                <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-dim)", fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-dim)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                     Memba v{APP_VERSION} · Chain: {GNO_CHAIN_ID}
                 </div>
             </Section>

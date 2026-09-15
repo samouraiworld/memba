@@ -62,7 +62,7 @@ export default function FeedbackPage() {
                 <h1 style={{ fontSize: 22, fontWeight: 700, color: "var(--color-text)", margin: 0, display: "flex", alignItems: "center", gap: 10 }}>
                     <span>📣</span> Feedback & Feature Requests
                 </h1>
-                <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", marginTop: 8, lineHeight: 1.6, fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", marginTop: 8, lineHeight: 1.6, fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                     Help shape Memba's future. Report bugs, suggest features, or vote on community ideas.
                 </p>
             </div>
@@ -76,7 +76,7 @@ export default function FeedbackPage() {
             }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
                     <span style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)" }}>Have an idea or found a bug?</span>
-                    <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace" }}>
+                    <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                         Open a GitHub issue — we review every submission.
                     </span>
                 </div>
@@ -89,7 +89,7 @@ export default function FeedbackPage() {
                     style={{
                         padding: "8px 16px", borderRadius: 6, fontSize: "var(--pro-small, 12px)", fontWeight: 600,
                         background: "var(--color-brand)", color: "var(--color-text-contrast)", textDecoration: "none",
-                        fontFamily: "JetBrains Mono, monospace",
+                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                         transition: "opacity 0.15s",
                         whiteSpace: "nowrap",
                     }}
@@ -112,7 +112,7 @@ export default function FeedbackPage() {
                         rel="noopener noreferrer"
                         style={{
                             fontSize: "var(--pro-caption, 10px)", color: "var(--color-primary)", textDecoration: "none",
-                            fontFamily: "JetBrains Mono, monospace",
+                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                         }}
                     >
                         View all on GitHub →
@@ -130,7 +130,7 @@ export default function FeedbackPage() {
                         padding: "16px 20px", borderRadius: 10,
                         background: "rgba(255, 59, 48, 0.03)",
                         border: "1px solid rgba(255, 59, 48, 0.1)",
-                        fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace",
+                        fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     }}>
                         ⚠ Could not load GitHub issues. <a
                             href={`https://github.com/${GITHUB_REPO}/issues`}
@@ -144,7 +144,7 @@ export default function FeedbackPage() {
                         padding: "24px", textAlign: "center", borderRadius: 10,
                         background: "rgba(255,255,255,0.02)",
                         border: "1px solid rgba(255,255,255,0.06)",
-                        fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace",
+                        fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     }}>
                         No open issues. Be the first to submit feedback!
                     </div>
@@ -173,7 +173,7 @@ export default function FeedbackPage() {
                             }}
                         >
                             <span style={{
-                                fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace",
+                                fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                 minWidth: 30, textAlign: "right", paddingTop: 2,
                             }}>
                                 #{issue.number}
@@ -188,12 +188,12 @@ export default function FeedbackPage() {
                                             fontSize: "var(--pro-caption, 9px)", padding: "1px 6px", borderRadius: 3,
                                             background: `#${label.color}22`,
                                             color: `#${label.color}`,
-                                            fontFamily: "JetBrains Mono, monospace",
+                                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                         }}>
                                             {label.name}
                                         </span>
                                     ))}
-                                    <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-dim)", fontFamily: "JetBrains Mono, monospace" }}>
+                                    <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-dim)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                                         by {issue.user.login} · {formatDate(issue.created_at)}
                                         {issue.comments > 0 && ` · ${issue.comments} comment${issue.comments !== 1 ? "s" : ""}`}
                                     </span>
@@ -215,7 +215,7 @@ export default function FeedbackPage() {
                         fontSize: "var(--pro-caption, 9px)", padding: "2px 6px", borderRadius: 3,
                         background: "rgba(124, 58, 237, 0.1)", color: "var(--color-k-purple-text)",
                         fontWeight: 700, letterSpacing: "0.05em",
-                        fontFamily: "JetBrains Mono, monospace",
+                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     }}>COMING ON BETANET</span>
                     <span style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)" }}>
                         🔮 On-Chain Feedback Board
@@ -223,7 +223,7 @@ export default function FeedbackPage() {
                 </div>
                 <p style={{
                     fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", margin: 0, lineHeight: 1.6,
-                    fontFamily: "JetBrains Mono, monospace",
+                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 }}>
                     A sovereign, on-chain feedback realm will be deployed on betanet, allowing fully decentralized feature voting and bug reporting directly from Memba.
                 </p>

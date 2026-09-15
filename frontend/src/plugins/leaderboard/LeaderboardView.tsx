@@ -63,7 +63,7 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
         color: "var(--color-primary)",
         cursor: "pointer",
         textAlign: "left",
-        fontFamily: "JetBrains Mono, monospace",
+        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
         borderBottom: "1px solid rgba(255,255,255,0.06)",
         userSelect: "none",
     }
@@ -72,7 +72,7 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
         padding: "10px 12px",
         fontSize: "var(--pro-small, 12px)",
         color: "var(--color-text-secondary)",
-        fontFamily: "JetBrains Mono, monospace",
+        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
         borderBottom: "1px solid rgba(255,255,255,0.03)",
     }
 
@@ -96,7 +96,7 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
                 <span style={{
                     fontSize: "var(--pro-caption, 9px)", padding: "2px 8px", borderRadius: 4,
                     background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
-                    fontFamily: "JetBrains Mono, monospace",
+                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 }}>
                     All Time
                 </span>
@@ -104,7 +104,7 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
                     href="/gnolove"
                     style={{
                         marginLeft: "auto", fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)",
-                        textDecoration: "none", fontFamily: "JetBrains Mono, monospace",
+                        textDecoration: "none", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                         transition: "color 0.15s",
                     }}
                     onMouseEnter={e => e.currentTarget.style.color = "#00d4aa"}
@@ -122,7 +122,7 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
                 <div style={{
                     padding: "10px 14px", borderRadius: 8,
                     background: "rgba(255,59,48,0.03)", border: "1px solid rgba(255,59,48,0.1)",
-                    fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace",
+                    fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 }}>
                     ⚠ {error}
                 </div>
@@ -131,7 +131,7 @@ export default function LeaderboardView({ realmPath }: PluginProps) {
             {sorted.length === 0 ? (
                 <div style={{
                     padding: 24, textAlign: "center", fontSize: "var(--pro-small, 12px)",
-                    color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace",
+                    color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     borderRadius: 10, background: "rgba(255,255,255,0.02)",
                     border: "1px solid rgba(255,255,255,0.06)",
                 }}>

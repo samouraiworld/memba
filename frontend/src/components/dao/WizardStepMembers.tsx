@@ -49,7 +49,7 @@ export function WizardStepMembers({
         <div className="k-card" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                 <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)" }}>Initial Members & Roles</h3>
-                <span style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                <span style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                     {validMembers.length} member{validMembers.length !== 1 ? "s" : ""} · {adminCount} admin{adminCount !== 1 ? "s" : ""} · power: {totalPower}
                 </span>
             </div>
@@ -72,7 +72,7 @@ export function WizardStepMembers({
                             max="100"
                             style={{ ...inputStyle, width: 70, textAlign: "center" }}
                         />
-                        <span style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", width: 40 }}>power</span>
+                        <span style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-muted)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", width: 40 }}>power</span>
                         {members.length > 1 && (
                             <button
                                 onClick={() => removeMember(i)}
@@ -93,7 +93,7 @@ export function WizardStepMembers({
                                     onClick={() => toggleMemberRole(i, role)}
                                     style={{
                                         fontSize: "var(--pro-caption, 10px)", padding: "3px 8px", borderRadius: 4, cursor: "pointer",
-                                        fontFamily: "JetBrains Mono, monospace",
+                                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                         background: active ? `${color}20` : "transparent",
                                         border: `1px solid ${active ? `${color}60` : "rgba(255,255,255,0.08)"}`,
                                         color: active ? color : "var(--color-text-muted)",
@@ -123,7 +123,7 @@ export function WizardStepMembers({
                 style={{
                     background: "none", border: "1px dashed rgba(0,212,170,0.3)", borderRadius: 8,
                     padding: "10px", cursor: "pointer", color: "var(--color-primary)", fontSize: "var(--pro-small, 12px)",
-                    fontFamily: "JetBrains Mono, monospace",
+                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 }}
             >
                 + Add Member

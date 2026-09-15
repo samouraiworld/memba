@@ -33,12 +33,12 @@ export function BoardHeader({ channel, channelInfo, onBack, rightAction }: Board
                     #{channel}
                 </h3>
                 {channelInfo?.type === "announcements" && (
-                    <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-warning)", fontFamily: "JetBrains Mono, monospace" }}>
+                    <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-warning)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                         Admin only
                     </span>
                 )}
                 {channelInfo?.type === "readonly" && (
-                    <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                    <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                         Read only
                     </span>
                 )}

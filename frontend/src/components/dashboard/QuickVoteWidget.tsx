@@ -40,7 +40,7 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                             opacity: hasVoted ? 0.6 : 1,
                         }}>
                             <div style={{ flex: 1, minWidth: 160 }}>
-                                <div style={{ fontSize: "var(--pro-caption, 11px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-dim)", marginBottom: 2 }}>
+                                <div style={{ fontSize: "var(--pro-caption, 11px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", color: "var(--color-k-dim)", marginBottom: 2 }}>
                                     {p.daoName}
                                 </div>
                                 <div
@@ -51,7 +51,7 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                                 </div>
                             </div>
                             {hasVoted ? (
-                                <span style={{ fontSize: "var(--pro-caption, 11px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-accent-text)" }}>
+                                <span style={{ fontSize: "var(--pro-caption, 11px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", color: "var(--color-k-accent-text)" }}>
                                     ✓ Voted
                                 </span>
                             ) : (

@@ -53,10 +53,10 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
         return (
             <div className="k-dashed" style={{ background: "var(--color-surface-black)", padding: 32, textAlign: "center" }}>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>🗳️</div>
-                <div style={{ fontSize: "var(--pro-small, 13px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ fontSize: "var(--pro-small, 13px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                     No votes yet
                 </div>
-                <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", marginTop: 4 }}>
+                <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-muted)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", marginTop: 4 }}>
                     Save DAOs from the DAO Hub to see your vote history
                 </div>
             </div>
@@ -77,7 +77,7 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
                                 onClick={() => setFilter(f)}
                                 style={{
                                     padding: "3px 8px", borderRadius: 4, fontSize: "var(--pro-caption, 9px)", border: "1px solid",
-                                    fontFamily: "JetBrains Mono, monospace", fontWeight: 600, cursor: "pointer",
+                                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontWeight: 600, cursor: "pointer",
                                     background: filter === f ? "rgba(0,212,170,0.08)" : "transparent",
                                     color: filter === f ? "var(--color-brand)" : "var(--color-text-muted)",
                                     borderColor: filter === f ? "rgba(0,212,170,0.2)" : "var(--color-surface-raised)",
@@ -98,11 +98,11 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
                         <div key={`${v.proposalId}-${i}`} className="k-card" style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 {daoName && (
-                                    <span style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace", marginRight: 6, opacity: 0.7 }}>
+                                    <span style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-primary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", marginRight: 6, opacity: 0.7 }}>
                                         {daoName}
                                     </span>
                                 )}
-                                <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace" }}>
+                                <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                                     #{v.proposalId}
                                 </span>
                                 <span style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", marginLeft: 8 }}>
@@ -118,7 +118,7 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
                             </div>
                             <span style={{
                                 padding: "2px 8px", borderRadius: 4, fontSize: "var(--pro-caption, 9px)", flexShrink: 0,
-                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontWeight: 600,
                                 background: `${voteColor}15`, color: voteColor,
                             }}>
                                 {v.vote}

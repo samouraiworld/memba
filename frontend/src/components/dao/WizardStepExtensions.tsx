@@ -59,7 +59,7 @@ export function WizardStepExtensions({
                 <h3 style={{ fontSize: "var(--pro-body, 15px)", fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>
                     🧩 Extensions
                 </h3>
-                <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                     Enable optional plugins for your DAO. These deploy companion realms alongside your DAO.
                 </p>
             </div>
@@ -79,7 +79,7 @@ export function WizardStepExtensions({
                         <span style={{ fontSize: 22 }}>💬</span>
                         <div>
                             <div style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)" }}>Discussion Channels</div>
-                            <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                            <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                                 Role-gated channels with threads and replies for DAO members
                             </div>
                         </div>
@@ -111,7 +111,7 @@ export function WizardStepExtensions({
                                         style={{
                                             fontSize: "var(--pro-caption, 11px)", padding: "4px 10px", borderRadius: 6,
                                             background: "rgba(0,212,170,0.08)", border: "1px solid rgba(0,212,170,0.2)",
-                                            color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace",
+                                            color: "var(--color-primary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                             display: "flex", alignItems: "center", gap: 6,
                                         }}
                                     >
@@ -146,7 +146,7 @@ export function WizardStepExtensions({
                                 </button>
                             </div>
                             {channelError && (
-                                <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-danger)", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                                <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-danger)", marginTop: 4, fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                                     {channelError}
                                 </div>
                             )}
@@ -162,7 +162,7 @@ export function WizardStepExtensions({
                         <span style={{ fontSize: 22 }}>🔄</span>
                         <div>
                             <div style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)" }}>GnoSwap</div>
-                            <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                            <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                                 DEX integration — available when pools exist on-chain
                             </div>
                         </div>
@@ -170,7 +170,7 @@ export function WizardStepExtensions({
                     <span style={{
                         fontSize: "var(--pro-caption, 9px)", padding: "3px 8px", borderRadius: 4,
                         background: "rgba(123,97,255,0.08)", border: "1px solid rgba(123,97,255,0.2)",
-                        color: "var(--color-k-purple-text)", fontFamily: "JetBrains Mono, monospace",
+                        color: "var(--color-k-purple-text)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     }}>
                         AUTO-DETECT
                     </span>
@@ -184,7 +184,7 @@ export function WizardStepExtensions({
                         <span style={{ fontSize: 22 }}>🏆</span>
                         <div>
                             <div style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)" }}>Leaderboard</div>
-                            <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                            <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                                 Contribution ranking — powered by Gnolove analytics
                             </div>
                         </div>
@@ -192,7 +192,7 @@ export function WizardStepExtensions({
                     <span style={{
                         fontSize: "var(--pro-caption, 9px)", padding: "3px 8px", borderRadius: 4,
                         background: "rgba(123,97,255,0.08)", border: "1px solid rgba(123,97,255,0.2)",
-                        color: "var(--color-k-purple-text)", fontFamily: "JetBrains Mono, monospace",
+                        color: "var(--color-k-purple-text)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     }}>
                         AUTO-DETECT
                     </span>

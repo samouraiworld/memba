@@ -84,7 +84,7 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
                     <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>
                         💬 Deploy Discussion Board
                     </h3>
-                    <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                         Deploy a companion board realm for <strong style={{ color: "var(--color-primary)" }}>{daoName}</strong>
                     </p>
                 </div>
@@ -99,7 +99,7 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
                             <span key={ch} style={{
                                 fontSize: "var(--pro-caption, 11px)", padding: "4px 10px", borderRadius: 6,
                                 background: "rgba(0,212,170,0.08)", border: "1px solid rgba(0,212,170,0.2)",
-                                color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace",
+                                color: "var(--color-primary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                 display: "flex", alignItems: "center", gap: 6,
                             }}>
                                 #{ch}
@@ -126,7 +126,7 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
                         </button>
                     </div>
                     {channelError && (
-                        <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-danger)", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                        <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-danger)", marginTop: 4, fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                             {channelError}
                         </div>
                     )}
@@ -135,7 +135,7 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
                 {/* Error */}
                 {error && (
                     <div style={{
-                        fontSize: "var(--pro-caption, 11px)", color: "var(--color-danger)", fontFamily: "JetBrains Mono, monospace",
+                        fontSize: "var(--pro-caption, 11px)", color: "var(--color-danger)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                         background: "rgba(255,71,87,0.08)", padding: "8px 12px", borderRadius: 6,
                     }}>
                         {error}

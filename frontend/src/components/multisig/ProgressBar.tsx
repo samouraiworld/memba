@@ -59,7 +59,7 @@ export function ProgressBar({ current, verified, threshold, total }: ProgressBar
             {/* Labels */}
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <span style={{ fontFamily: "JetBrains Mono, monospace", fontSize: 16, fontWeight: 600, color: quorumVerified ? "var(--color-k-accent)" : "var(--color-k-warning)" }}>
+                    <span style={{ fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontSize: 16, fontWeight: 600, color: quorumVerified ? "var(--color-k-accent)" : "var(--color-k-warning)" }}>
                         {verified}/{threshold} verified
                     </span>
                     <span className="k-label">·</span>
@@ -67,7 +67,7 @@ export function ProgressBar({ current, verified, threshold, total }: ProgressBar
                 </div>
                 <span style={{
                     fontSize: "var(--pro-caption, 11px)", padding: "2px 8px", borderRadius: 4,
-                    fontFamily: "JetBrains Mono, monospace",
+                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     background: isReady ? "var(--color-k-accent-subtle)" : "var(--color-k-amber-subtle)",
                     color: isReady ? "var(--color-k-accent)" : "var(--color-k-warning)",
                     border: `1px solid ${isReady ? "var(--color-k-accent-border)" : "var(--color-k-amber-border)"}`,

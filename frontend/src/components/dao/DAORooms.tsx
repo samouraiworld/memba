@@ -53,7 +53,7 @@ export const DAORooms = memo(function DAORooms({ daoSlug, encodedSlug, isMember,
                         <span aria-live="polite" style={{
                             fontSize: "var(--pro-caption, 9px)", padding: "2px 6px", borderRadius: 3,
                             background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
-                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontWeight: 600,
                         }}>
                             IN CALL
                         </span>
@@ -65,7 +65,7 @@ export const DAORooms = memo(function DAORooms({ daoSlug, encodedSlug, isMember,
                         onClick={() => navigate(`/dao/${encodedSlug}/channels`)}
                         style={{
                             color: "var(--color-text-muted)", fontSize: "var(--pro-caption, 10px)", background: "none", border: "none",
-                            cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
+                            cursor: "pointer", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                             transition: "color 0.15s",
                         }}
                         onMouseEnter={e => e.currentTarget.style.color = "var(--color-brand)"}

@@ -58,8 +58,8 @@
 .k-pro-governance :is(.gov-proposal-meta, .gov-proposal-number) { font-size: 13px; color: var(--gov-secondary); }
 .k-pro-governance .gov-status { font-size: 12px; border: 1px solid var(--gov-edge); border-radius: 5px; padding: 4px 8px; white-space: nowrap; color: var(--gov-secondary); }
 .k-pro-governance .gov-status--open { color: var(--gov-accent); }
-.k-pro-governance .gov-status--passed { color: #eac36a; }
-[data-theme="light"] .k-pro-governance .gov-status--passed { color: #7c5700; }
+.k-pro-governance .gov-status--passed { --gov-passed-text: #eac36a; color: var(--gov-passed-text); }
+[data-theme="light"] .k-pro-governance .gov-status--passed { --gov-passed-text: #7c5700; color: var(--gov-passed-text); }
 .k-pro-governance .gov-empty { padding: 40px 24px; border: 1px dashed var(--gov-edge); border-radius: 10px; color: var(--gov-secondary); }
 .k-pro-governance .gov-read-notice { border: 1px solid var(--gov-edge); border-left: 3px solid var(--gov-accent); border-radius: 8px; padding: 20px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 16px; }
 .k-pro-governance .gov-read-notice p { margin: 4px 0; color: var(--gov-secondary); max-width: 75ch; }

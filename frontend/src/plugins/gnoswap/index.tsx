@@ -46,7 +46,7 @@ export default function GnoSwapPlugin(props: PluginProps) {
                 </h3>
                 <p style={{
                     fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", margin: 0,
-                    fontFamily: "JetBrains Mono, monospace",
+                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 }}>
                     GnoSwap is not deployed on the current chain.
                     Switch to a chain with GnoSwap contracts to access DEX features.

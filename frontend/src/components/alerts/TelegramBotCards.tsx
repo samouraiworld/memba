@@ -24,14 +24,14 @@ const cmdStyle: React.CSSProperties = {
     fontSize: "var(--pro-caption, 10px)", padding: "3px 8px", borderRadius: 4,
     background: "rgba(0,212,170,0.06)",
     color: "var(--color-primary)",
-    fontFamily: "JetBrains Mono, monospace",
+    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
     display: "inline-block",
 }
 
 const btnStyle: React.CSSProperties = {
     display: "inline-flex", alignItems: "center", justifyContent: "center",
     padding: "8px 16px", borderRadius: 8, border: "none",
-    cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
+    cursor: "pointer", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
     fontSize: "var(--pro-small, 12px)", fontWeight: 600,
     background: "var(--color-accent-blue-info)", color: "var(--color-text-primary)",
     textDecoration: "none",
@@ -75,7 +75,7 @@ export function TelegramBotCards() {
                             <div style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 700, color: "var(--color-text)" }}>
                                 {bot.name}
                             </div>
-                            <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-k-info-text)", fontFamily: "JetBrains Mono, monospace" }}>
+                            <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-k-info-text)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                                 {bot.handle}
                             </div>
                         </div>
@@ -88,7 +88,7 @@ export function TelegramBotCards() {
 
                     {/* Quick commands */}
                     <div>
-                        <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", marginBottom: 6, fontFamily: "JetBrains Mono, monospace" }}>
+                        <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", marginBottom: 6, fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                             QUICK COMMANDS
                         </div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
@@ -116,7 +116,7 @@ export function TelegramBotCards() {
             <div style={{
                 gridColumn: "1 / -1",
                 fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)",
-                fontFamily: "JetBrains Mono, monospace",
+                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 padding: "8px 0",
             }}>
                 ℹ️ Telegram bots are independent from Discord/Slack webhooks — no account linking required.

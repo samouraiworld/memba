@@ -59,7 +59,7 @@ export function renderMarkdown(text: string): React.ReactNode[] {
                     padding: "1px 4px",
                     borderRadius: 4,
                     fontSize: "var(--pro-small, 12px)",
-                    fontFamily: "JetBrains Mono, monospace",
+                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 }}>
                     {token}
                 </span>
@@ -148,7 +148,7 @@ export const btnStyle: React.CSSProperties = {
     borderRadius: 8,
     border: "none",
     cursor: "pointer",
-    fontFamily: "JetBrains Mono, monospace",
+    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
     fontSize: "var(--pro-small, 12px)",
     fontWeight: 600,
 }
@@ -173,7 +173,7 @@ export const inputStyle: React.CSSProperties = {
     border: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(0,0,0,0.3)",
     color: "var(--color-text)",
-    fontFamily: "JetBrains Mono, monospace",
+    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
     fontSize: "var(--pro-small, 13px)",
     boxSizing: "border-box",
 }

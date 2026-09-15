@@ -52,7 +52,7 @@ export function FeedbackFeed() {
                 border: "1px solid rgba(245,166,35,0.1)",
                 fontSize: "var(--pro-small, 12px)",
                 color: "var(--color-text-secondary)",
-                fontFamily: "JetBrains Mono, monospace",
+                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
             }}>
                 📝 On-chain feedback board will be deployed on betanet. In the meantime, submit feedback via GitHub Issues above.
             </div>
@@ -74,7 +74,7 @@ export function FeedbackFeed() {
                     background: "rgba(255,255,255,0.02)",
                     border: "1px solid rgba(255,255,255,0.06)",
                     fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)",
-                    fontFamily: "JetBrains Mono, monospace",
+                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 }}>
                     No feedback yet. Be the first!
                 </div>
@@ -88,7 +88,7 @@ export function FeedbackFeed() {
                         <div style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)" }}>
                             {t.title}
                         </div>
-                        <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                        <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", marginTop: 4, fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                             by {t.author} · {t.replyCount} replies
                         </div>
                     </div>

@@ -13,14 +13,14 @@ export function NotFound() {
         }}>
             <div style={{
                 fontSize: 72, fontWeight: 800, letterSpacing: "-0.04em",
-                fontFamily: "JetBrains Mono, monospace",
+                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 background: "linear-gradient(135deg, var(--color-brand) 0%, var(--color-brand)44 100%)",
                 WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
                 animation: "glitch 2s ease-in-out infinite",
             }}>
                 404
             </div>
-            <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-body, 14px)", fontFamily: "JetBrains Mono, monospace", maxWidth: 400 }}>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-body, 14px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", maxWidth: 400 }}>
                 This page doesn't exist on the chain. Maybe it was never deployed, or you followed a broken link.
             </p>
             <div style={{ display: "flex", gap: 12 }}>

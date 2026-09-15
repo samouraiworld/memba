@@ -49,7 +49,7 @@ export default function BoardPlugin(props: PluginProps) {
                 </h3>
                 <p style={{
                     fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", margin: 0,
-                    fontFamily: "JetBrains Mono, monospace",
+                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 }}>
                     This DAO doesn&apos;t have discussion channels yet.
                     Channels can be deployed alongside a DAO from the Create DAO wizard.

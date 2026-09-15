@@ -36,7 +36,7 @@ function SingleVoteBar({ yesVotes, noVotes, totalMembers, threshold }: {
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             {/* Vote counts */}
-            <div style={{ display: "flex", gap: 10, fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>
+            <div style={{ display: "flex", gap: 10, fontSize: "var(--pro-small, 12px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", color: "var(--color-text-secondary)" }}>
                 <span style={{ color: "var(--color-success)" }}>✓ {yesVotes}</span>
                 <span style={{ color: "var(--color-danger)" }}>✗ {noVotes}</span>
             </div>
@@ -88,7 +88,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
             <div className="dao-proposal-card__header">
                 <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4, flexWrap: "wrap" }}>
-                        <span style={{ fontSize: "var(--pro-caption, 10px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-muted)", fontWeight: 500 }}>
+                        <span style={{ fontSize: "var(--pro-caption, 10px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", color: "var(--color-text-muted)", fontWeight: 500 }}>
                             #{proposal.id}
                         </span>
                         <span style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)" }}>
@@ -99,7 +99,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                     {/* Author + Tiers + Date row */}
                     <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
                         {proposal.author && (
-                            <span style={{ fontSize: "var(--pro-caption, 10px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-primary)" }}>
+                            <span style={{ fontSize: "var(--pro-caption, 10px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", color: "var(--color-primary)" }}>
                                 {proposal.author}
                             </span>
                         )}
@@ -108,7 +108,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                                 {proposal.tiers.map((t) => (
                                     <span key={t} style={{
                                         padding: "1px 5px", borderRadius: 3, fontSize: "var(--pro-caption, 8px)",
-                                        fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontWeight: 600,
                                         background: "rgba(255,255,255,0.04)", color: "var(--color-text-secondary)",
                                     }}>
                                         {t}
@@ -119,7 +119,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                         {/* v3.2: Estimated creation date */}
                         {timestamp && (
                             <span
-                                style={{ fontSize: "var(--pro-caption, 10px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-muted)" }}
+                                style={{ fontSize: "var(--pro-caption, 10px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", color: "var(--color-text-muted)" }}
                                 title={timestamp.block ? `Block #${timestamp.block}` : undefined}
                             >
                                 · {timestamp.label}
@@ -133,7 +133,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                     {proposal.status === "passed" && (
                         <span style={{
                             padding: "4px 8px", borderRadius: 6, fontSize: "var(--pro-caption, 9px)",
-                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontWeight: 600,
                             background: "rgba(245,166,35,0.1)", color: "var(--color-warning)",
                             animation: "pulse-dot 2s ease-in-out infinite",
                         }}>
@@ -145,7 +145,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                         hasVoted ? (
                             <span style={{
                                 padding: "4px 8px", borderRadius: 6, fontSize: "var(--pro-caption, 9px)",
-                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontWeight: 600,
                                 background: "rgba(76,175,80,0.08)", color: "var(--color-success)",
                             }}>
                                 ✓ VOTED
@@ -153,7 +153,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                         ) : (
                             <span style={{
                                 padding: "4px 8px", borderRadius: 6, fontSize: "var(--pro-caption, 9px)",
-                                fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontWeight: 600,
                                 background: "rgba(245,166,35,0.08)", color: "var(--color-warning)",
                             }}>
                                 ⏳ VOTE
@@ -162,7 +162,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                     )}
                     <span style={{
                         padding: "4px 10px", borderRadius: 6, fontSize: "var(--pro-caption, 10px)",
-                        fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontWeight: 600,
                         background: sc.bg, color: sc.color, whiteSpace: "nowrap",
                     }}>
                         {sc.label}
@@ -183,14 +183,14 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
 
             {/* Voter turnout */}
             {enriched && totalMembers > 0 && proposal.totalVoters > 0 && (
-                <div style={{ marginTop: 4, fontSize: "var(--pro-caption, 9px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-muted)" }}>
+                <div style={{ marginTop: 4, fontSize: "var(--pro-caption, 9px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", color: "var(--color-text-muted)" }}>
                     {proposal.totalVoters} of {totalMembers} members voted ({Math.round((proposal.totalVoters / totalMembers) * 100)}%)
                 </div>
             )}
 
             {/* P1-8: a failed vote-enrichment must not read as a genuine no-votes proposal. */}
             {enriched && proposal.enrichFailed && (
-                <div role="status" style={{ marginTop: 8, fontSize: "var(--pro-caption, 9px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-warning)" }}>
+                <div role="status" style={{ marginTop: 8, fontSize: "var(--pro-caption, 9px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", color: "var(--color-warning)" }}>
                     ⚠️ Couldn't load votes — try refreshing.
                 </div>
             )}

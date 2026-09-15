@@ -29,14 +29,14 @@ const cardStyle: React.CSSProperties = {
 
 const labelStyle: React.CSSProperties = {
     fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)",
-    fontFamily: "JetBrains Mono, monospace",
+    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
     textTransform: "uppercase" as const,
     letterSpacing: "0.5px",
 }
 
 const urlStyle: React.CSSProperties = {
     fontSize: "var(--pro-caption, 11px)", color: "var(--color-text)",
-    fontFamily: "JetBrains Mono, monospace",
+    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap" as const,
@@ -44,7 +44,7 @@ const urlStyle: React.CSSProperties = {
 
 const btnStyle: React.CSSProperties = {
     padding: "4px 10px", borderRadius: 6, border: "none",
-    cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
+    cursor: "pointer", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
     fontSize: "var(--pro-caption, 10px)", fontWeight: 600,
 }
 
@@ -74,7 +74,7 @@ export function WebhookCard({ webhook, kind, onEdit, onDelete, deleting }: Props
                     <span data-testid="chain-badge" style={{
                         fontSize: "var(--pro-caption, 9px)", padding: "2px 6px", borderRadius: 4,
                         background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
-                        fontFamily: "JetBrains Mono, monospace",
+                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     }}>
                         {webhook.ChainID}
                     </span>

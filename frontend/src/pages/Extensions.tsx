@@ -87,20 +87,20 @@ export function Extensions() {
                     <PuzzlePiece size={24} weight="duotone" />
                     Extensions
                 </h2>
-                <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 12px)", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 12px)", marginTop: 4, fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                     Enhance your DAO with powerful extensions — activate them per-DAO
                 </p>
             </div>
 
             {/* Stats bar */}
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-                <div style={{ fontSize: "var(--pro-caption, 11px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>
+                <div style={{ fontSize: "var(--pro-caption, 11px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", color: "var(--color-text-secondary)" }}>
                     <span style={{ color: "var(--color-primary)", fontWeight: 600 }}>{EXTENSIONS.filter(e => e.status === "active").length}</span> active
                 </div>
-                <div style={{ fontSize: "var(--pro-caption, 11px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>
+                <div style={{ fontSize: "var(--pro-caption, 11px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", color: "var(--color-text-secondary)" }}>
                     <span style={{ color: "var(--color-warning)", fontWeight: 600 }}>{EXTENSIONS.filter(e => e.status === "coming-soon").length}</span> coming soon
                 </div>
-                <div style={{ fontSize: "var(--pro-caption, 11px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>
+                <div style={{ fontSize: "var(--pro-caption, 11px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", color: "var(--color-text-secondary)" }}>
                     <span style={{ color: "var(--color-text)", fontWeight: 600 }}>{EXTENSIONS.length}</span> total
                 </div>
             </div>
@@ -144,7 +144,7 @@ export function Extensions() {
                                     fontSize: "var(--pro-caption, 9px)", padding: "3px 8px", borderRadius: 4,
                                     background: ss.bg, color: ss.color,
                                     border: `1px solid ${ss.border}`,
-                                    fontFamily: "JetBrains Mono, monospace",
+                                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                     fontWeight: 600, letterSpacing: "0.05em",
                                     textTransform: "uppercase",
                                 }}>
@@ -160,7 +160,7 @@ export function Extensions() {
                             {/* Description */}
                             <div style={{
                                 fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", lineHeight: 1.6,
-                                fontFamily: "JetBrains Mono, monospace",
+                                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                 flex: 1,
                             }}>
                                 {ext.description}
@@ -178,7 +178,7 @@ export function Extensions() {
                             ) : (
                                 <div style={{
                                     fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)",
-                                    fontFamily: "JetBrains Mono, monospace",
+                                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                     fontStyle: "italic",
                                 }}>
                                     Available in a future update

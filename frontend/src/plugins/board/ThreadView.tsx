@@ -39,7 +39,7 @@ const ghostBtn: React.CSSProperties = {
     background: "transparent",
     color: "var(--color-text-secondary)",
     cursor: "pointer",
-    fontFamily: "JetBrains Mono, monospace",
+    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
 }
 
 export function ThreadView({
@@ -82,7 +82,7 @@ export function ThreadView({
                 whiteSpace: "pre-wrap",
                 fontSize: "var(--pro-small, 13px)",
                 color: "var(--color-text-secondary)",
-                fontFamily: "JetBrains Mono, monospace",
+                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 lineHeight: 1.6,
             }}>
                 {editing ? (
@@ -158,7 +158,7 @@ export function ThreadView({
                     </h4>
                     {threadDetail.replies.map((r, i) => (
                         <div key={i} style={{ ...cardStyle, cursor: "default", borderLeft: "2px solid rgba(0,212,170,0.15)" }}>
-                            <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", marginBottom: 6, fontFamily: "JetBrains Mono, monospace", display: "flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", marginBottom: 6, fontFamily: "var(--font-ui, JetBrains Mono, monospace)", display: "flex", alignItems: "center", gap: 6 }}>
                                 <strong style={{ color: "var(--color-text-secondary)" }}>{r.author}</strong> · block {r.blockHeight}
                                 {r.edited && (
                                     <span style={{
@@ -200,7 +200,7 @@ export function ThreadView({
                             right: 10,
                             fontSize: "var(--pro-caption, 10px)",
                             color: replyBody.length > 3500 ? "#ff3b30" : "#444",
-                            fontFamily: "JetBrains Mono, monospace",
+                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                         }}>
                             {replyBody.length}/4096
                         </span>

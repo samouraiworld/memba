@@ -98,7 +98,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                             data-testid={`avatar-mode-${m}`}
                             style={{
                                 padding: "3px 10px", fontSize: "var(--pro-caption, 10px)", borderRadius: 4,
-                                fontFamily: "JetBrains Mono, monospace",
+                                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                 background: mode === m ? "rgba(0,212,170,0.08)" : "transparent",
                                 border: "1px solid",
                                 borderColor: mode === m ? "rgba(0,212,170,0.2)" : "var(--color-surface-raised)",
@@ -124,7 +124,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                             flex: 1, padding: "8px 12px", borderRadius: 6,
                             border: "1px solid var(--color-surface-base)", background: "var(--color-surface-void)",
                             color: "var(--color-text)", fontSize: "var(--pro-caption, 11px)",
-                            fontFamily: "JetBrains Mono, monospace", outline: "none",
+                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)", outline: "none",
                         }}
                     />
                     <button
@@ -170,7 +170,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                                 }}
                             />
                             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                                <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                                     Ready to pin on IPFS
                                 </span>
                                 <button
@@ -191,7 +191,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         <div style={{
                             marginTop: 8, padding: "6px 10px", borderRadius: 4,
                             background: "rgba(0,212,170,0.04)", border: "1px solid rgba(0,212,170,0.12)",
-                            fontSize: "var(--pro-caption, 10px)", color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace",
+                            fontSize: "var(--pro-caption, 10px)", color: "var(--color-primary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                             wordBreak: "break-all",
                         }}>
                             ✓ Pinned: {uploadedCid.slice(0, 20)}...
@@ -202,7 +202,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
 
             {error && (
                 <div style={{
-                    fontSize: "var(--pro-caption, 10px)", color: "var(--color-danger)", fontFamily: "JetBrains Mono, monospace",
+                    fontSize: "var(--pro-caption, 10px)", color: "var(--color-danger)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     padding: "6px 10px", borderRadius: 4,
                     background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.12)",
                 }}>
@@ -222,7 +222,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         }}
                         onError={e => e.currentTarget.style.display = "none"}
                     />
-                    <span style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace" }}>
+                    <span style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-muted)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                         Current avatar
                         {currentUrl.includes("lighthouse") || currentUrl.includes("ipfs") ? " (IPFS)" : ""}
                     </span>

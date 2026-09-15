@@ -10,7 +10,7 @@ export function MetaChip({ icon, text }: { icon: string; text: string }) {
         <span style={{
             display: "inline-flex", alignItems: "center", gap: 5,
             padding: "4px 10px", borderRadius: 6, fontSize: "var(--pro-caption, 11px)",
-            fontFamily: "JetBrains Mono, monospace",
+            fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
             background: "rgba(255,255,255,0.03)", color: "var(--color-text-secondary)",
         }}>
             {icon} {text}
@@ -28,7 +28,7 @@ export function SocialLink({ href, icon, label }: { href: string; icon: React.Re
                 display: "inline-flex", alignItems: "center", gap: 6,
                 padding: "8px 14px", borderRadius: 8,
                 background: "rgba(255,255,255,0.03)", border: "1px solid var(--color-surface-base)",
-                color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace",
+                color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 12px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 textDecoration: "none", transition: "border-color 0.15s, color 0.15s",
             }}
             onMouseEnter={(e) => { e.currentTarget.style.borderColor = "var(--color-text-dim)"; e.currentTarget.style.color = "var(--color-surface-light)" }}
@@ -45,13 +45,13 @@ export function ContribStat({ label, value, icon, accent }: { label: string; val
         <div style={{ padding: "12px 14px", borderRadius: 8, background: "rgba(255,255,255,0.02)", border: "1px solid var(--color-surface-base)" }}>
             <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 4 }}>
                 <span style={{ fontSize: "var(--pro-body, 14px)" }}>{icon}</span>
-                <span style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                <span style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", textTransform: "uppercase", letterSpacing: "0.05em" }}>
                     {label}
                 </span>
             </div>
             <div style={{
                 fontSize: 20, fontWeight: 700,
-                fontFamily: "JetBrains Mono, monospace",
+                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 color: accent ? "var(--color-brand)" : "var(--color-surface-light)",
             }}>
                 {value}
@@ -67,14 +67,14 @@ export function EditField({ label, value, onChange, multiline, maxLen, placehold
     const inputStyle: React.CSSProperties = {
         width: "100%", padding: "8px 10px", borderRadius: 6,
         background: "rgba(255,255,255,0.03)", border: "1px solid var(--color-surface-raised)",
-        color: "var(--color-text)", fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace",
+        color: "var(--color-text)", fontSize: "var(--pro-small, 12px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
         outline: "none", resize: multiline ? "vertical" as const : "none" as const,
         transition: "border-color 0.15s",
     }
     const fieldId = useId()
     return (
         <div style={{ gridColumn: fullWidth ? "1 / -1" : undefined }}>
-            <label htmlFor={fieldId} style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4, display: "block" }}>
+            <label htmlFor={fieldId} style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4, display: "block" }}>
                 {label} {maxLen && <span style={{ color: "var(--color-text)" }}>({value.length}/{maxLen})</span>}
             </label>
             {multiline ? (

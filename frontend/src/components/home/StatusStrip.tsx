@@ -9,6 +9,7 @@
 
 import { useNetwork } from "../../hooks/useNetwork"
 import { useNetworkPulse } from "../../hooks/home/useNetworkPulse"
+import { PRO_APP_ENABLED } from "../../lib/professionalFlags"
 import "./home.css"
 
 export function StatusStrip() {
@@ -21,7 +22,7 @@ export function StatusStrip() {
 
     return (
         <div className="status-strip" data-testid="status-strip">
-            <span className="status-strip__wordmark">メンバー</span>
+            <span className="status-strip__wordmark">{PRO_APP_ENABLED ? "Overview" : "メンバー"}</span>
             <span className="status-strip__sep" aria-hidden="true">·</span>
             <span className="status-strip__chain">{label}</span>
             <span

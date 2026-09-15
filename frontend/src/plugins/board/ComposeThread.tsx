@@ -69,7 +69,7 @@ export function ComposeThread({
                     right: 10,
                     fontSize: "var(--pro-caption, 10px)",
                     color: body.length > 7500 ? "#ff3b30" : "#444",
-                    fontFamily: "JetBrains Mono, monospace",
+                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 }}>
                     {body.length}/8192
                 </span>

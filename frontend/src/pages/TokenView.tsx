@@ -203,7 +203,7 @@ export function TokenView() {
                         </span>
                     </div>
                     {balanceStale && (
-                        <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-k-warning-text)", fontFamily: "JetBrains Mono, monospace", marginTop: 6, opacity: 0.85 }}>
+                        <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-k-warning-text)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", marginTop: 6, opacity: 0.85 }}>
                             Balance may be stale — fetch failed
                         </div>
                     )}

@@ -83,7 +83,7 @@ export function UserRedirect() {
         return (
             <div className="animate-fade-in" style={{
                 maxWidth: 480, margin: "80px auto", padding: 32,
-                fontFamily: "JetBrains Mono, monospace", textAlign: "center",
+                fontFamily: "var(--font-ui, JetBrains Mono, monospace)", textAlign: "center",
             }}>
                 <div className="k-card" style={{ padding: 32 }}>
                     <div style={{ fontSize: 40, marginBottom: 16, display: 'flex', justifyContent: 'center' }}><MagnifyingGlass size={40} /></div>
@@ -108,7 +108,7 @@ export function UserRedirect() {
     return (
         <div className="animate-fade-in" style={{
             maxWidth: 480, margin: "80px auto", padding: 32,
-            fontFamily: "JetBrains Mono, monospace", textAlign: "center",
+            fontFamily: "var(--font-ui, JetBrains Mono, monospace)", textAlign: "center",
         }}>
             <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)" }}>
                 Resolving @{username}...

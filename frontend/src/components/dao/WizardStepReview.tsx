@@ -50,7 +50,7 @@ export function WizardStepReview({
 
                 {/* Roles distribution */}
                 <div style={{ marginTop: 16 }}>
-                    <div style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace", marginBottom: 6 }}>
+                    <div style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", marginBottom: 6 }}>
                         Roles
                     </div>
                     <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -61,7 +61,7 @@ export function WizardStepReview({
                                 <span key={role} style={{
                                     fontSize: "var(--pro-caption, 10px)", padding: "3px 10px", borderRadius: 4,
                                     background: `${color}15`, color,
-                                    fontFamily: "JetBrains Mono, monospace",
+                                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                 }}>
                                     {ROLE_ICONS[role] || "•"} {role}: {count}
                                 </span>
@@ -72,7 +72,7 @@ export function WizardStepReview({
 
                 {/* Categories */}
                 <div style={{ marginTop: 12 }}>
-                    <div style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace", marginBottom: 6 }}>
+                    <div style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", marginBottom: 6 }}>
                         Proposal Categories
                     </div>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -80,7 +80,7 @@ export function WizardStepReview({
                             <span key={cat} style={{
                                 fontSize: "var(--pro-caption, 10px)", padding: "2px 8px", borderRadius: 4,
                                 background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
-                                fontFamily: "JetBrains Mono, monospace", textTransform: "capitalize",
+                                fontFamily: "var(--font-ui, JetBrains Mono, monospace)", textTransform: "capitalize",
                             }}>
                                 {cat}
                             </span>
@@ -105,12 +105,12 @@ export function WizardStepReview({
                                     fontSize: "var(--pro-caption, 8px)", padding: "1px 5px", borderRadius: 3,
                                     background: `${ROLE_COLORS[r] || "var(--color-text-secondary)"}15`,
                                     color: ROLE_COLORS[r] || "var(--color-text-secondary)",
-                                    fontFamily: "JetBrains Mono, monospace",
+                                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                 }}>
                                     {r}
                                 </span>
                             ))}
-                            <span style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace", marginLeft: 4 }}>power: {m.power}</span>
+                            <span style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-primary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", marginLeft: 4 }}>power: {m.power}</span>
                         </div>
                     </div>
                 ))}
@@ -120,7 +120,7 @@ export function WizardStepReview({
             <details style={{ background: "rgba(255,255,255,0.02)", borderRadius: 12, border: "1px solid rgba(255,255,255,0.06)" }}>
                 <summary style={{
                     cursor: "pointer", padding: "14px 20px", fontSize: "var(--pro-small, 12px)",
-                    fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)",
+                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)", color: "var(--color-text-secondary)",
                 }}>
                     📄 View Generated Gno Code ({generatedCode.split("\n").length} lines)
                 </summary>
@@ -133,7 +133,7 @@ export function WizardStepReview({
             <div style={{
                 padding: "12px 16px", borderRadius: 8,
                 background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.15)",
-                fontSize: "var(--pro-caption, 11px)", color: "var(--color-warning)", fontFamily: "JetBrains Mono, monospace",
+                fontSize: "var(--pro-caption, 11px)", color: "var(--color-warning)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
             }}>
                 ⚠ This will deploy immutable code on gno.land. Review carefully before deploying.
             </div>

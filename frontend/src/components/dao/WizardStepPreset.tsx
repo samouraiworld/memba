@@ -75,7 +75,7 @@ export function WizardStepPreset({
                             <div style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: selectedPreset === preset.id ? "var(--color-k-accent-text)" : "var(--color-k-text)", marginBottom: 4 }}>
                                 {preset.name}
                             </div>
-                            <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", lineHeight: 1.4 }}>
+                            <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", lineHeight: 1.4 }}>
                                 {preset.description}
                             </div>
                             <div style={{ marginTop: 8, display: "flex", gap: 4, flexWrap: "wrap" }}>
@@ -84,7 +84,7 @@ export function WizardStepPreset({
                                         fontSize: "var(--pro-caption, 9px)", padding: "2px 6px", borderRadius: 4,
                                         background: `${ROLE_COLORS[r] || "var(--color-text-secondary)"}15`,
                                         color: ROLE_COLORS[r] || "var(--color-text-secondary)",
-                                        fontFamily: "JetBrains Mono, monospace",
+                                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                     }}>
                                         {ROLE_ICONS[r] || "•"} {r}
                                     </span>

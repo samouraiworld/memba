@@ -97,3 +97,52 @@ for (const theme of ['dark', 'light'] as const) {
         }
     })
 }
+
+// Validate populated data under the complete system as well as the standalone pilot.
+import { fulfillProValidatorRoster } from './helpers/proValidatorsFixture'
+for (const theme of ['dark', 'light'] as const) {
+    for (const width of [390, 1600]) {
+        test(`populated validator roster ${theme} ${width}px`, async ({ page }, info) => {
+            await fulfillProValidatorRoster(page, 'mixed')
+            await page.setViewportSize({ width, height: 1000 })
+            await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' })
+            await page.goto('/pearl/validators')
+            await expect(page.locator('.k-pro-app')).toBeVisible()
+            if (width >= 1280) {
+                await expect(page.locator('.val-table tbody tr')).toHaveCount(4)
+                expect(await page.locator('.val-table-wrap').evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true)
+            } else {
+                await expect(page.getByTestId('validator-card-1')).toBeVisible()
+            }
+            expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true)
+            const a11y = await new AxeBuilder({ page }).include('#main-content').withRules(['color-contrast', 'button-name', 'link-name', 'label', 'nested-interactive']).analyze()
+            expect(a11y.violations).toEqual([])
+            await page.screenshot({ path: info.outputPath('validators-populated.png'), fullPage: true })
+        })
+    }
+}
+
+import { stubFeedBackend, BUSY_THREAD_ID } from './helpers/feedFixture'
+if (process.env.DESIGN_REVIEW_FEATURES === 'true') {
+    for (const theme of ['dark', 'light'] as const) {
+        for (const width of [390, 1600]) {
+            test(`populated community feed ${theme} ${width}px`, async ({ page }, info) => {
+                await stubFeedBackend(page)
+                await page.setViewportSize({ width, height: 1000 })
+                await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' })
+                await page.goto('/pearl/feed')
+                await expect(page.getByText('Post number 25 on the Memba feed — gno-native, on-chain, no custodian.')).toBeVisible()
+                for (const name of ['timeline', 'thread']) {
+                    if (name === 'thread') {
+                        await page.goto(`/pearl/feed/post/${BUSY_THREAD_ID}`)
+                        await expect(page.getByText('A very active thread about gno-native governance.')).toBeVisible()
+                    }
+                    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true)
+                    const a11y = await new AxeBuilder({ page }).include('#main-content').withRules(['color-contrast', 'button-name', 'link-name', 'label', 'nested-interactive']).analyze()
+                    expect(a11y.violations).toEqual([])
+                    await page.screenshot({ path: info.outputPath(`feed-${name}.png`), fullPage: false })
+                }
+            })
+        }
+    }
+}

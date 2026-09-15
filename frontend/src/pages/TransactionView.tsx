@@ -417,7 +417,7 @@ export function TransactionView() {
                             {msg.fields.map((field, j) => (
                                 <div key={j} style={{ display: "flex", gap: 8, fontSize: "var(--pro-small, 12px)" }}>
                                     <span className="k-label" style={{ minWidth: 90 }}>{field.key}</span>
-                                    <span style={{ fontFamily: "JetBrains Mono, monospace", wordBreak: "break-all" }}>{field.value}</span>
+                                    <span style={{ fontFamily: "var(--font-ui, JetBrains Mono, monospace)", wordBreak: "break-all" }}>{field.value}</span>
                                 </div>
                             ))}
                         </div>
@@ -517,13 +517,13 @@ export function TransactionView() {
                             <span style={{
                                 fontSize: "var(--pro-caption, 10px)", padding: "2px 8px", borderRadius: 4,
                                 background: "rgba(47,191,113,0.12)", color: "var(--color-success, #2fbf71)",
-                                fontFamily: "JetBrains Mono, monospace",
+                                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                             }}>✓ VERIFIED ON-CHAIN</span>
                         ) : (
                             <span style={{
                                 fontSize: "var(--pro-caption, 10px)", padding: "2px 8px", borderRadius: 4,
                                 background: "var(--color-k-amber-subtle, rgba(255,193,7,0.12))", color: "var(--color-k-warning, #ffc107)",
-                                fontFamily: "JetBrains Mono, monospace",
+                                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                             }} title="The backend could not confirm this hash on-chain at completion time — it is a client-reported value.">⏳ UNCONFIRMED</span>
                         )}
                     </div>

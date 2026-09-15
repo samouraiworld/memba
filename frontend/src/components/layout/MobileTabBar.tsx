@@ -211,7 +211,7 @@ export function MobileTabBar({ connected, address, auth, network, feedReplyUnrea
                                 style={{
                                     width: "100%",
                                     background: "var(--color-k-accent-subtle)", border: "1px solid var(--color-k-edge)",
-                                    color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace",
+                                    color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 12px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                     padding: "8px 12px", borderRadius: 6, cursor: "pointer",
                                     outline: "none",
                                 }}

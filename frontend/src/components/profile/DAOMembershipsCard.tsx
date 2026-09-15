@@ -37,7 +37,7 @@ export function DAOMembershipsCard(props: Props) {
                     style={{
                         fontSize: "var(--pro-caption, 10px)", color: "var(--color-primary)", background: "none",
                         border: "none", cursor: "pointer",
-                        fontFamily: "JetBrains Mono, monospace",
+                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     }}
                 >
                     Explore →
@@ -74,7 +74,7 @@ export function DAOMembershipsCard(props: Props) {
                         <span style={{
                             fontSize: "var(--pro-caption, 9px)", padding: "2px 8px", borderRadius: 4,
                             background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
-                            fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontWeight: 600,
                         }}>
                             MEMBER
                         </span>

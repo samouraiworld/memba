@@ -30,7 +30,7 @@ export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: 
                 {member.username && (
                     <a
                         href={`/u/${member.username.replace("@", "")}`}
-                        style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-primary)", fontWeight: 600, fontFamily: "JetBrains Mono, monospace", textDecoration: "none", whiteSpace: "nowrap" }}
+                        style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-primary)", fontWeight: 600, fontFamily: "var(--font-ui, JetBrains Mono, monospace)", textDecoration: "none", whiteSpace: "nowrap" }}
                     >
                         {member.username}
                     </a>
@@ -43,7 +43,7 @@ export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: 
                 {isCurrentUser && (
                     <span style={{
                         padding: "2px 6px", borderRadius: 4, fontSize: "var(--pro-caption, 9px)",
-                        fontFamily: "JetBrains Mono, monospace",
+                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                         background: "rgba(0,212,170,0.1)", color: "var(--color-primary)", flexShrink: 0,
                     }}>
                         YOU
@@ -54,7 +54,7 @@ export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: 
                 {member.tier && (
                     <span style={{
                         padding: "2px 8px", borderRadius: 4, fontSize: "var(--pro-caption, 10px)",
-                        fontFamily: "JetBrains Mono, monospace", fontWeight: 500, whiteSpace: "nowrap",
+                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontWeight: 500, whiteSpace: "nowrap",
                         background: member.tier === "T1" ? "rgba(0,212,170,0.1)" : member.tier === "T2" ? "rgba(33,150,243,0.1)" : "rgba(245,166,35,0.1)",
                         color: member.tier === "T1" ? "var(--color-k-accent-text)" : member.tier === "T2" ? "var(--color-k-info-text)" : "var(--color-k-warning-text)",
                     }}>
@@ -67,7 +67,7 @@ export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: 
                     return (
                         <span key={role} className="k-brand-text" style={{
                             padding: "2px 8px", borderRadius: 4, fontSize: "var(--pro-caption, 10px)",
-                            fontFamily: "JetBrains Mono, monospace", fontWeight: 500,
+                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontWeight: 500,
                             whiteSpace: "nowrap",
                             background: `${c}15`, ["--ck"]: c,
                         } as CSSProperties}>

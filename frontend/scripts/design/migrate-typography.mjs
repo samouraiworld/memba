@@ -25,6 +25,14 @@ for (const file of files) {
       const token = n <= 11 ? 'caption' : n <= 13 ? 'small' : n <= 15 ? 'body' : null
       if (token) edits.push([node.initializer.getStart(tree), node.initializer.end, `"var(--pro-${token}, ${n}px)"`])
     }
+    if (ts.isPropertyAssignment(node) && node.name.getText(tree) === 'fontFamily' && ts.isStringLiteral(node.initializer) && node.initializer.text === 'JetBrains Mono, monospace') {
+      let container = node.parent
+      while (container && !ts.isJsxElement(container) && !ts.isJsxSelfClosingElement(container) && !ts.isVariableDeclaration(container)) container = container.parent
+      const context = container?.getText(tree) || ''
+      // Preserve technical data and code. Ordinary interface copy uses the sans token.
+      const technical = context.length < 1600 && /<(?:code|pre)\b|className=["'][^"']*mono|\{[^}]*[Aa]ddress|\{[^}]*[Hh]ash|\{[^}]*realmPath|\{[^}]*pubkey/.test(context)
+      if (!technical) edits.push([node.initializer.getStart(tree), node.initializer.end, '"var(--font-ui, JetBrains Mono, monospace)"'])
+    }
     ts.forEachChild(node, visit)
   }
   visit(tree)

@@ -22,25 +22,25 @@ const inputStyle: React.CSSProperties = {
     width: "100%", padding: "8px 12px", borderRadius: 8,
     border: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(0,0,0,0.3)", color: "var(--color-text)",
-    fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-small, 12px)",
+    fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontSize: "var(--pro-small, 12px)",
     boxSizing: "border-box",
 }
 
 const labelStyle: React.CSSProperties = {
     fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)",
-    fontFamily: "JetBrains Mono, monospace",
+    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
     display: "block", marginBottom: 4,
 }
 
 const btnStyle: React.CSSProperties = {
     padding: "6px 12px", borderRadius: 6, border: "none",
-    cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
+    cursor: "pointer", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
     fontSize: "var(--pro-caption, 11px)", fontWeight: 600,
 }
 
 const errorStyle: React.CSSProperties = {
     fontSize: "var(--pro-caption, 11px)", color: "var(--color-danger)",
-    fontFamily: "JetBrains Mono, monospace",
+    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
     padding: "8px 12px", borderRadius: 8,
     background: "rgba(255,59,48,0.06)",
     border: "1px solid rgba(255,59,48,0.15)",
@@ -49,7 +49,7 @@ const errorStyle: React.CSSProperties = {
 const helpStyle: React.CSSProperties = {
     fontSize: "var(--pro-caption, 10px)", lineHeight: 1.5,
     color: "var(--color-text-muted)",
-    fontFamily: "JetBrains Mono, monospace",
+    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
     marginTop: 6,
 }
 
@@ -148,7 +148,7 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
                                 <div style={{ fontSize: "var(--pro-small, 12px)", fontWeight: 600, color: "var(--color-text)" }}>
                                     {c.NameContact}
                                 </div>
-                                <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                                <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                                     {c.Moniker} · {c.MentionTag || "no tag"}
                                 </div>
                             </div>

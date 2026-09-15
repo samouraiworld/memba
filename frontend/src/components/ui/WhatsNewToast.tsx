@@ -103,7 +103,7 @@ export function WhatsNewToast() {
                     border: "1px solid var(--color-primary-border)",
                     borderRadius: 16,
                     padding: "24px 20px 20px",
-                    fontFamily: "JetBrains Mono, monospace",
+                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     boxShadow: "0 8px 32px var(--color-overlay)",
                     animation: exiting
                         ? "membaToastOut 200ms ease-in forwards"
@@ -176,7 +176,7 @@ export function WhatsNewToast() {
                         background: "rgba(0,212,170,0.08)",
                         color: "var(--color-primary)",
                         cursor: "pointer",
-                        fontFamily: "JetBrains Mono, monospace",
+                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                         fontSize: "var(--pro-small, 12px)", fontWeight: 600,
                         transition: "background 0.15s",
                     }}

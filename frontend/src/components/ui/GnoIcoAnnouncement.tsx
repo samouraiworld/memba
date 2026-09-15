@@ -150,7 +150,7 @@ export function GnoIcoAnnouncement({ suppressed = false }: { suppressed?: boolea
                             border: "1px solid var(--color-primary)",
                             background: "var(--color-primary)",
                             color: "var(--color-on-primary, #04140f)",
-                            fontFamily: "JetBrains Mono, monospace",
+                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                             fontSize: "var(--pro-small, 13px)", fontWeight: 700, marginBottom: 10,
                         }}
                     >
@@ -165,7 +165,7 @@ export function GnoIcoAnnouncement({ suppressed = false }: { suppressed?: boolea
                             background: "transparent",
                             color: "var(--color-text-muted)",
                             cursor: "pointer",
-                            fontFamily: "JetBrains Mono, monospace",
+                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                             fontSize: "var(--pro-small, 12px)", fontWeight: 600,
                         }}
                     >

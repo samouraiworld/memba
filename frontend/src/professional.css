@@ -151,15 +151,15 @@
   --color-k-text: #f5f5f5; --color-k-dim: #b2b2b2; --color-k-muted: #a3a3a3;
   --color-k-bg: #000; --color-k-panel: #000; --color-k-edge: #343434;
   --color-k-accent: #00d4aa; --color-k-accent-text: #00d4aa; --color-k-on-accent: #00271f;
-  background: #000; color: #f5f5f5; border-color: #343434; padding: 24px;
+  background: #000; color: var(--color-k-text); border-color: #343434; padding: 24px;
 }
 .k-pro-app :is(.hk-card, .hk-status-bar) { background: #000; border-color: #343434; border-radius: 12px; padding: 20px; }
 .k-pro-app .hk-layout { gap: 20px; }
 .k-pro-app .hk-card__title { font: 600 14px/1.5 var(--font-sans); letter-spacing: 0; text-transform: none; margin-bottom: 20px; padding-bottom: 12px; border-color: #343434; }
 .k-pro-app .hk-mono { font-family: var(--font-mono); }
 .k-pro-app .hk-peers__toggle { min-height: 44px; }
-.k-pro-app .vh-page :is(.hk-unavail, .hk-dimmed, .nsg-label, .hk-peers__status, .hm-legend__item--empty) { color: #b2b2b2; }
-.k-pro-app .vh-page input { accent-color: #00d4aa; }
+.k-pro-app .vh-page :is(.hk-unavail, .hk-dimmed, .nsg-label, .hk-peers__status, .hm-legend__item--empty) { color: var(--pro-console-text); }
+.k-pro-app .vh-page input { accent-color: var(--pro-console-accent); }
 .k-pro-app .channels-layout { grid-template-columns: 240px minmax(0, 1fr); border: 1px solid var(--color-k-edge); border-radius: 14px; background: var(--color-k-panel); }
 .k-pro-app .channels-sidebar { background: var(--color-k-panel); padding: 16px; border-color: var(--color-k-edge); }
 .k-pro-app .channels-sidebar-item { padding: 12px; min-height: 44px; }
@@ -183,7 +183,7 @@
 .k-pro-app #feedback-submit-btn { color: var(--color-k-on-accent) !important; background: var(--color-k-accent) !important; min-height: 44px; }
 .k-pro-app {
   --color-accent-gold: var(--color-k-warning-text); --color-accent-purple: var(--color-k-purple-text);
-  --color-warning: var(--color-k-warning-text); --color-danger: var(--color-k-danger-text);
+  --color-warning: var(--color-k-warning-text); --color-k-warning: var(--color-k-warning-text); --color-danger: var(--color-k-danger-text);
 }
 .k-pro-app .k-dashed { background: var(--color-k-panel); border-color: var(--color-k-dashed); border-radius: 14px; }
 .k-pro-app .k-members__filter-count { opacity: 1; color: var(--color-k-dim); }
@@ -197,7 +197,7 @@
 .k-pro-app .hk-nsg { container-type: inline-size; }
 .k-pro-app .nsg-row { display: grid; grid-template-columns: minmax(100px, .8fr) minmax(0, 1fr); gap: 16px; padding-block: 10px; }
 .k-pro-app .nsg-value { overflow-wrap: anywhere; text-align: left; }
-.k-pro-app .hk-badge--unknown { color: #b2b2b2; background: #000; border: 1px solid #565656; }
+.k-pro-app .hk-badge--unknown { color: var(--pro-console-text); background: #000; border: 1px solid #565656; }
 @container (max-width: 600px) {
   .k-pro-app .hk-nsg .nsg-body { grid-template-columns: minmax(0, 1fr); gap: 0; }
 }
@@ -212,4 +212,16 @@
 
 .k-pro-app { --pro-tag-text: var(--color-k-text); }
 
-.k-pro-app { --pro-panel: var(--color-k-panel); }
+.k-pro-app { --pro-panel: var(--color-k-panel); --color-surface-black: var(--color-k-panel); }
+
+/* Keep transaction facts adjacent, with compact supporting detail columns. */
+.k-pro-app .k-txview__field-row { display: grid; grid-template-columns: minmax(100px, 160px) minmax(0, 1fr); padding-block: 10px; gap: 20px; }
+.k-pro-app .k-txview__field-value { text-align: left; }
+.k-pro-app .k-txview .k-label { font: 500 14px/1.5 var(--font-sans); letter-spacing: 0; text-transform: none; color: var(--color-k-dim); }
+.k-pro-app .k-txview__detail-card { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px 32px; }
+.k-pro-app .k-txview__detail-row { flex-direction: column; align-items: flex-start; justify-content: flex-start; gap: 6px; padding-block: 10px; min-width: 0; }
+.k-pro-app .k-txview__detail-value { max-width: 100%; overflow-wrap: anywhere; }
+@media (max-width: 767px) {
+  .k-pro-app .k-txview__detail-card { grid-template-columns: minmax(0, 1fr); }
+  .k-pro-app .k-txview__field-row { grid-template-columns: 92px minmax(0, 1fr); gap: 12px; }
+}

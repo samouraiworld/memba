@@ -98,7 +98,7 @@ export default function SwapView({ auth, adena }: PluginProps) {
         borderRadius: 8,
         border: "none",
         cursor: "pointer",
-        fontFamily: "JetBrains Mono, monospace",
+        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
         fontSize: "var(--pro-small, 12px)",
         fontWeight: 600,
     }
@@ -123,7 +123,7 @@ export default function SwapView({ auth, adena }: PluginProps) {
         border: "1px solid rgba(255,255,255,0.08)",
         background: "rgba(0,0,0,0.3)",
         color: "var(--color-text)",
-        fontFamily: "JetBrains Mono, monospace",
+        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
         fontSize: "var(--pro-small, 13px)",
         boxSizing: "border-box",
     }
@@ -163,7 +163,7 @@ export default function SwapView({ auth, adena }: PluginProps) {
 
                 {pools.length === 0 ? (
                     <div style={{ ...cardStyle, textAlign: "center", padding: 24 }}>
-                        <div style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                        <div style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                             No pools available on this chain. GnoSwap may not be deployed yet.
                         </div>
                     </div>
@@ -183,7 +183,7 @@ export default function SwapView({ auth, adena }: PluginProps) {
                                             {(pool.feeTier / 10000).toFixed(2)}%
                                         </span>
                                     </div>
-                                    <span style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                                    <span style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                                         TVL: {pool.tvl}
                                     </span>
                                 </div>
@@ -270,7 +270,7 @@ export default function SwapView({ auth, adena }: PluginProps) {
                             <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", marginBottom: 4 }}>
                                 Minimum Output (after {slippage}% slippage)
                             </div>
-                            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace" }}>
+                            <div style={{ fontSize: 16, fontWeight: 600, color: "var(--color-primary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                                 {estimatedMinOut}
                             </div>
                         </div>

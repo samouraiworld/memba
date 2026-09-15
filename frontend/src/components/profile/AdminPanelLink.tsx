@@ -20,7 +20,7 @@ function AdminPanelLinkInner() {
                 alignItems: "center", 
                 gap: 6,
                 color: "var(--color-primary)",
-                fontFamily: "JetBrains Mono, monospace",
+                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 fontSize: "var(--pro-small, 12px)",
                 fontWeight: 600,
                 textDecoration: "none",

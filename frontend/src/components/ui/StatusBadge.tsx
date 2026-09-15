@@ -40,7 +40,7 @@ export function StatusBadge({ status, sigCount, threshold, hash }: StatusBadgePr
                 padding: "3px 10px",
                 borderRadius: 6,
                 fontSize: "var(--pro-caption, 11px)",
-                fontFamily: "JetBrains Mono, monospace",
+                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 fontWeight: 500,
                 color: c.color,
                 background: c.bg,

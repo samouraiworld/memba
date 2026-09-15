@@ -74,7 +74,7 @@ export function Changelogs() {
                 <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text)", margin: 0 }}>Changelogs</h2>
             </div>
 
-            <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", marginBottom: 20, lineHeight: 1.5 }}>
+            <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", marginBottom: 20, lineHeight: 1.5 }}>
                 Memba releases and gno.land ecosystem updates.
             </p>
 
@@ -95,7 +95,7 @@ export function Changelogs() {
                                 ? (tag === "all" ? "var(--color-surface-light)" : TAG_COLORS[tag as Tag])
                                 : "var(--color-text-secondary)",
                             cursor: "pointer",
-                            fontFamily: "JetBrains Mono, monospace",
+                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                             fontSize: "var(--pro-caption, 11px)", fontWeight: 500,
                             transition: "all 0.15s",
                         }}
@@ -111,7 +111,7 @@ export function Changelogs() {
                     {/* Date separator */}
                     <div style={{
                         fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", fontWeight: 600, letterSpacing: 1,
-                        fontFamily: "JetBrains Mono, monospace",
+                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                         paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.04)",
                         marginBottom: 12, textTransform: "uppercase",
                     }}>
@@ -134,7 +134,7 @@ export function Changelogs() {
                                     <span style={{
                                         fontSize: "var(--pro-caption, 10px)", fontWeight: 700, color: "var(--color-primary)",
                                         background: "rgba(0,212,170,0.1)", padding: "2px 8px",
-                                        borderRadius: 4, fontFamily: "JetBrains Mono, monospace",
+                                        borderRadius: 4, fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                     }}>
                                         {entry.version}
                                     </span>
@@ -147,7 +147,7 @@ export function Changelogs() {
                                         fontSize: "var(--pro-caption, 9px)", color: `var(--pro-tag-text, ${TAG_COLORS[tag]})`,
                                         background: TAG_COLORS[tag] + "12",
                                         padding: "2px 6px", borderRadius: 4,
-                                        fontFamily: "JetBrains Mono, monospace",
+                                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                     }}>
                                         {TAG_LABELS[tag]}
                                     </span>
@@ -159,7 +159,7 @@ export function Changelogs() {
                                 {entry.items.map((item, j) => (
                                     <li key={j} style={{
                                         fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", lineHeight: 1.7,
-                                        fontFamily: "JetBrains Mono, monospace",
+                                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                     }}>
                                         {item}
                                     </li>
@@ -171,7 +171,7 @@ export function Changelogs() {
             ))}
 
             {filtered.length === 0 && (
-                <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", textAlign: "center", padding: 40 }}>
+                <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-muted)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", textAlign: "center", padding: 40 }}>
                     No entries for this filter.
                 </p>
             )}

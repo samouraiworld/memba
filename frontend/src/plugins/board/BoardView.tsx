@@ -277,10 +277,10 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
             return (
                 <div id="board-not-found" style={{ ...cardStyle, cursor: "default", textAlign: "center", padding: 32 }}>
                     <div style={{ fontSize: 28, marginBottom: 10 }}>💬</div>
-                    <div style={{ fontSize: "var(--pro-small, 13px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                    <div style={{ fontSize: "var(--pro-small, 13px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                         No channels deployed for this DAO.
                     </div>
-                    <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-muted)", marginTop: 6, fontFamily: "JetBrains Mono, monospace" }}>
+                    <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-muted)", marginTop: 6, fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                         Channels can be deployed alongside a DAO from the Create DAO wizard.
                     </div>
                 </div>
@@ -296,7 +296,7 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
                     </h3>
                 </div>
                 {boardInfo.description && (
-                    <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", margin: 0, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", margin: 0, fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                         {boardInfo.description}
                     </p>
                 )}
@@ -335,7 +335,7 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
                                         </span>
                                     )}
                                 </div>
-                                <span style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                                <span style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                                     {ch.threadCount} thread{ch.threadCount !== 1 ? "s" : ""}
                                 </span>
                             </div>
@@ -395,7 +395,7 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
                 {error && <div style={{ color: "var(--color-danger)", fontSize: "var(--pro-small, 12px)" }}>{error}</div>}
 
                 {connectionLost && !error && (
-                    <div style={{ color: "var(--color-k-warning-text)", fontSize: "var(--pro-caption, 11px)", fontFamily: "JetBrains Mono, monospace", padding: "6px 0", opacity: 0.85 }}>
+                    <div style={{ color: "var(--color-k-warning-text)", fontSize: "var(--pro-caption, 11px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", padding: "6px 0", opacity: 0.85 }}>
                         Connection lost — retrying...
                     </div>
                 )}

@@ -61,7 +61,7 @@ export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: Err
                 border: "1px solid rgba(255,71,87,0.25)",
                 color: "var(--color-danger)",
                 fontSize: "var(--pro-small, 13px)",
-                fontFamily: "JetBrains Mono, monospace",
+                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 maxWidth: 420,
                 backdropFilter: "blur(4px)",
                 transition: "opacity 0.3s, transform 0.3s",
@@ -102,7 +102,7 @@ export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: Err
                             style={{
                                 background: "rgba(255,71,87,0.15)", border: "1px solid rgba(255,71,87,0.3)",
                                 color: "var(--color-danger)", fontSize: "var(--pro-caption, 10px)", padding: "3px 10px", borderRadius: 4,
-                                cursor: "pointer", fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
+                                cursor: "pointer", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontWeight: 600,
                             }}
                         >
                             Retry

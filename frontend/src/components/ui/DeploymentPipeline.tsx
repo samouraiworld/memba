@@ -198,7 +198,7 @@ export function DeploymentPipeline({
                             {result.entityLabel || "Entity"} deployed successfully!
                         </h2>
                         {result.entityName && (
-                            <p style={{ fontSize: "var(--pro-small, 13px)", color: "var(--color-text-secondary)", marginBottom: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                            <p style={{ fontSize: "var(--pro-small, 13px)", color: "var(--color-text-secondary)", marginBottom: 12, fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                                 {result.entityName}
                             </p>
                         )}
@@ -255,7 +255,7 @@ export function DeploymentPipeline({
                         <div style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-danger)", marginBottom: 6 }}>
                             {error || "Deployment failed"}
                         </div>
-                        <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", marginBottom: 14 }}>
+                        <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", marginBottom: 14 }}>
                             The transaction could not be completed. You can retry from the beginning.
                         </p>
                         {onRetry && (

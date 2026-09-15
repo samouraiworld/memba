@@ -1,8 +1,9 @@
 import { useState } from "react"
 import { CopyableAddress } from "../ui/CopyableAddress"
-import { validateActiveRpcDomain, selectableNetworksFor } from "../../lib/config"
+import { APP_VERSION, validateActiveRpcDomain, selectableNetworksFor } from "../../lib/config"
 import { NotificationBell } from "./NotificationBell"
 import type { Notification } from "../../lib/notifications"
+import { PRO_APP_ENABLED } from "../../lib/professionalFlags"
 import { ThemeSelect } from "../ui/ThemeSelect"
 
 // ── Types ──────────────────────────────────────────────────────────────
@@ -68,7 +69,7 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                 {/* Left: badges */}
                 <div className="k-topbar-left">
                     <span className="k-topbar-badge k-topbar-badge--alpha" data-testid="alpha-badge">Alpha</span>
-                    <span className="k-topbar-badge k-topbar-badge--version" data-testid="version-badge">v3</span>
+                    <span className="k-topbar-badge k-topbar-badge--version" data-testid="version-badge">{PRO_APP_ENABLED ? `v${APP_VERSION}` : "v3"}</span>
                 </div>
 
                 {/* Right: network + wallet */}

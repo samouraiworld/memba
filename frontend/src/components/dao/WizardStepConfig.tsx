@@ -32,7 +32,7 @@ export function WizardStepConfig({
                     />
                     <span style={{
                         fontSize: 20, fontWeight: 700, color: "var(--color-primary)",
-                        fontFamily: "JetBrains Mono, monospace", minWidth: 50, textAlign: "center",
+                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)", minWidth: 50, textAlign: "center",
                     }}>
                         {threshold}%
                     </span>
@@ -52,14 +52,14 @@ export function WizardStepConfig({
                     />
                     <span style={{
                         fontSize: 20, fontWeight: 700, color: quorum > 0 ? "var(--color-accent-purple)" : "var(--color-text-muted)",
-                        fontFamily: "JetBrains Mono, monospace", minWidth: 50, textAlign: "center",
+                        fontFamily: "var(--font-ui, JetBrains Mono, monospace)", minWidth: 50, textAlign: "center",
                     }}>
                         {quorum}%
                     </span>
                 </div>
                 {quorum > 0 && (
                     <div className="k-card" style={{ padding: 12, marginTop: 8, background: "rgba(123,97,255,0.04)", border: "1px solid rgba(123,97,255,0.12)" }}>
-                        <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                        <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                             At least <strong style={{ color: "var(--color-k-purple-text)" }}>{Math.ceil(totalPower * quorum / 100)}</strong> voting power must participate before a proposal can pass or fail.
                         </p>
                     </div>
@@ -77,7 +77,7 @@ export function WizardStepConfig({
                                 onClick={() => onToggleCategory(cat)}
                                 style={{
                                     fontSize: "var(--pro-caption, 11px)", padding: "6px 14px", borderRadius: 6, cursor: "pointer",
-                                    fontFamily: "JetBrains Mono, monospace", textTransform: "capitalize",
+                                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)", textTransform: "capitalize",
                                     background: active ? "rgba(0,212,170,0.08)" : "transparent",
                                     border: `1px solid ${active ? "rgba(0,212,170,0.3)" : "rgba(255,255,255,0.08)"}`,
                                     color: active ? "var(--color-brand)" : "var(--color-text-muted)",
@@ -93,10 +93,10 @@ export function WizardStepConfig({
 
             {/* Summary card */}
             <div className="k-card" style={{ padding: 16, background: "rgba(0,212,170,0.03)", border: "1px solid rgba(0,212,170,0.1)" }}>
-                <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                     With {validMembers.length} members and total power {totalPower}:
                 </p>
-                <p style={{ fontSize: "var(--pro-small, 13px)", color: "var(--color-text)", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ fontSize: "var(--pro-small, 13px)", color: "var(--color-text)", marginTop: 4, fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                     A proposal needs <strong style={{ color: "var(--color-primary)" }}>{Math.ceil(totalPower * threshold / 100)}</strong> YES power to pass
                     {quorum > 0 && <> with at least <strong style={{ color: "var(--color-k-purple-text)" }}>{quorum}%</strong> participation</>}
                 </p>

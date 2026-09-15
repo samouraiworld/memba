@@ -59,7 +59,7 @@ export function NewMessagesToast({ visible, onDismiss }: NewMessagesToastProps) 
                 color: "var(--color-primary)",
                 fontSize: "var(--pro-small, 12px)",
                 fontWeight: 600,
-                fontFamily: "JetBrains Mono, monospace",
+                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 cursor: "pointer",
                 marginBottom: 12,
                 animation: "fade-in 0.3s ease",

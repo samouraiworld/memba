@@ -57,7 +57,7 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
                     </span>
                 </div>
                 <div style={{
-                    fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace",
+                    fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     textAlign: "center", lineHeight: 1.6, maxWidth: 320,
                 }}>
                     You're connected to {label || channelName}. Use the PiP mini-player to browse while staying in the call.
@@ -70,7 +70,7 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
                             border: "1px solid rgba(0,212,170,0.3)",
                             background: "rgba(0,212,170,0.1)",
                             color: "var(--color-primary)", fontSize: "var(--pro-small, 12px)", fontWeight: 600,
-                            fontFamily: "JetBrains Mono, monospace",
+                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                             cursor: "pointer", transition: "all 0.15s",
                         }}
                     >
@@ -83,7 +83,7 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
                             border: "1px solid rgba(255,71,87,0.3)",
                             background: "rgba(255,71,87,0.08)",
                             color: "var(--color-danger)", fontSize: "var(--pro-small, 12px)", fontWeight: 600,
-                            fontFamily: "JetBrains Mono, monospace",
+                            fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                             cursor: "pointer", transition: "all 0.15s",
                         }}
                     >
@@ -110,7 +110,7 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
                 {label || (mode === "voice" ? "Voice Channel" : "Video Channel")}
             </div>
             <div style={{
-                fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace",
+                fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                 maxWidth: 320, textAlign: "center", lineHeight: 1.6,
             }}>
                 {description || `Join a ${mode === "voice" ? "voice call" : "video meeting"} with other DAO members in #${channelName}.`}
@@ -125,14 +125,14 @@ export function JitsiMeet({ daoSlug, channelName, mode, label, description }: Ji
                     border: "1px solid rgba(0, 212, 170, 0.3)",
                     background: "rgba(0, 212, 170, 0.1)",
                     color: "var(--color-primary)", fontSize: "var(--pro-small, 13px)", fontWeight: 600,
-                    fontFamily: "JetBrains Mono, monospace",
+                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                     cursor: "pointer", transition: "all 0.15s",
                 }}
             >
                 <span>{mode === "voice" ? "🎙️" : "📹"}</span>
                 <span>Join Room</span>
             </button>
-            <div style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-dim)", fontFamily: "JetBrains Mono, monospace" }}>
+            <div style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-dim)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                 Powered by Jitsi Meet • No account required
             </div>
         </div>

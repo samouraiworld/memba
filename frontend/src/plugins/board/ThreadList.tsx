@@ -48,7 +48,7 @@ export function ThreadList({
 
             {threads.length === 0 ? (
                 <div style={{ ...cardStyle, cursor: "default", textAlign: "center", padding: 24 }}>
-                    <div style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                    <div style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                         No threads yet. Be the first to post!
                     </div>
                 </div>
@@ -72,7 +72,7 @@ export function ThreadList({
                                 {t.title}
                             </div>
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                                <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                                <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                                     by {t.author} · {t.replyCount} repl{t.replyCount !== 1 ? "ies" : "y"} · block {t.blockHeight}
                                 </div>
                                 {boardPath && (
