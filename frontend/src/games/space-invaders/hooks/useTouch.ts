@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, type RefObject } from "react";
 import type { InputIntent } from "../engine";
 
 // Drag distance (px) that maps to full deflection, plus the deadzone before any
@@ -23,12 +23,20 @@ export function steerAmount(dx: number, range = STEER_RANGE, deadzone = STEER_DE
 
 // Left half of the play area = steer (pointer left/right of its start),
 // right half = fire (tap or hold). Pause handled by an on-screen button in the shell.
-export function useTouch(ref: RefObject<HTMLElement>): () => InputIntent {
+// read() only samples; consumeFire() acknowledges a real simulation step.
+// reset() discards both held and queued input at non-playing lifecycle boundaries.
+export function useTouch(ref: RefObject<HTMLElement>) {
   const move = useRef<number>(0);
   const fire = useRef(false);
+  // Coalesce completed, unsampled taps into one bounded pending intent. A
+  // render-frame poll is not consumption: high-refresh frames may run no step.
+  const pendingFire = useRef(false);
+  const fireConsumed = useRef(false);
   const steerStartX = useRef<number | null>(null);
   const steerId = useRef<number | null>(null);
   const fireId = useRef<number | null>(null);
+  // The effect owns capture/listener cleanup; callers get a stable reset handle.
+  const resetRef = useRef<() => void>(() => {});
 
   useEffect(() => {
     const el = ref.current;
@@ -53,9 +61,12 @@ export function useTouch(ref: RefObject<HTMLElement>): () => InputIntent {
       steerStartX.current = null;
       move.current = 0;
       fire.current = false;
+      pendingFire.current = false;
+      fireConsumed.current = false;
       releaseCapture(activeSteer);
       if (activeFire !== activeSteer) releaseCapture(activeFire);
     };
+    resetRef.current = reset;
     const capture = (pointerId: number) => {
       if (typeof el.setPointerCapture !== "function") return;
       try {
@@ -82,6 +93,7 @@ export function useTouch(ref: RefObject<HTMLElement>): () => InputIntent {
         if (fireId.current == null) {
           fireId.current = e.pointerId;
           fire.current = true;
+          fireConsumed.current = false;
           capture(e.pointerId);
         }
       }
@@ -91,25 +103,30 @@ export function useTouch(ref: RefObject<HTMLElement>): () => InputIntent {
         move.current = steerAmount(e.clientX - steerStartX.current);
       }
     };
-    const onUp = (e: PointerEvent) => {
+    const release = (e: PointerEvent, cancelled: boolean) => {
       if (e.pointerId === steerId.current) {
         steerId.current = null;
         steerStartX.current = null;
         move.current = 0;
       }
       if (e.pointerId === fireId.current) {
+        if (!cancelled && !fireConsumed.current) pendingFire.current = true;
         fireId.current = null;
         fire.current = false;
       }
     };
-    const onLostCapture = (e: PointerEvent) => onUp(e);
+    const onUp = (e: PointerEvent) => release(e, false);
+    const onCancel = (e: PointerEvent) => release(e, true);
+    // After a normal pointerup the slot is already empty; implicit capture
+    // loss must not erase the completed tap waiting for a simulation step.
+    const onLostCapture = onCancel;
     const visibility = () => {
       if (document.visibilityState !== "visible") reset();
     };
     el.addEventListener("pointerdown", onDown);
     el.addEventListener("pointermove", onMove);
     window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", onUp);
+    window.addEventListener("pointercancel", onCancel);
     el.addEventListener("lostpointercapture", onLostCapture);
     window.addEventListener("blur", reset);
     document.addEventListener("visibilitychange", visibility);
@@ -117,13 +134,20 @@ export function useTouch(ref: RefObject<HTMLElement>): () => InputIntent {
       el.removeEventListener("pointerdown", onDown);
       el.removeEventListener("pointermove", onMove);
       window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
+      window.removeEventListener("pointercancel", onCancel);
       el.removeEventListener("lostpointercapture", onLostCapture);
       window.removeEventListener("blur", reset);
       document.removeEventListener("visibilitychange", visibility);
       reset();
+      resetRef.current = () => {};
     };
   }, [ref]);
 
-  return useCallback(() => ({ move: move.current, fire: fire.current, pause: false }), []);
+  const read = useCallback((): InputIntent => ({ move: move.current, fire: fire.current || pendingFire.current, pause: false }), []);
+  const consumeFire = useCallback(() => {
+    pendingFire.current = false;
+    if (fire.current) fireConsumed.current = true;
+  }, []);
+  const reset = useCallback(() => resetRef.current(), []);
+  return useMemo(() => ({ read, consumeFire, reset }), [read, consumeFire, reset]);
 }

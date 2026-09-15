@@ -14,7 +14,7 @@ Scope: PR #1200 on `feat/professional-complete`, isolated worktree `Memba-worktr
 
 ## Parallel sessions and repository state
 
-The initial review found `origin/main` and the untouched shared main checkout at **395230c0**. During final verification, another session merged #1199, advancing `origin/main` to **9500113c**. That commit is now integrated here; the merge was clean and added only its release-note line because the underlying status correction was already present. All 19 inspected worktrees were clean on the final concurrency check. The shared checkout was not modified by this session.
+The initial review found `origin/main` and the untouched shared main checkout at **395230c0**. During final verification, another session merged #1199, advancing `origin/main` to **9500113c**. That commit is now integrated here; the merge was clean and added only its release-note line because the underlying status correction was already present. A later final fetch found #1201 (`e7707b78`), the independently reviewed Space Invaders touch-input correction. It was integrated cleanly as well, preserving its new input-consumption and pause/replay tests. The final combined commit is checked against this current main. All 19 inspected worktrees were clean on the concurrency check. The shared checkout was not modified by this session.
 
 | Branch | Compatibility check | Outcome |
 |---|---|---|

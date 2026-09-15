@@ -47,6 +47,11 @@ Full changelogs are split by version range for easier navigation:
 ### Follow device appearance or choose Light / Black (2026-09-14)
 <!-- categories: memba -->
 - Theme controls now offer System, Light and Black in the desktop top bar, mobile More menu and Settings. System follows device appearance changes; explicit choices stay fixed and synchronize across tabs. Existing saved Light/Black choices remain compatible.
+### Short touch taps reliably start and fire in Space Invaders (2026-09-15)
+<!-- categories: memba -->
+- Completed fire taps are held until a fixed simulation step consumes them, including slow frames and high-refresh frames with no simulation step. Held firing and deterministic daily replay remain unchanged.
+- Cancelled touches, lost focus and run/menu/pause boundaries clear stale input. The mobile regression now delivers a complete tap between frames instead of relying on a timed hold.
+
 ### Proposal details read the realm's status field (2026-09-15)
 <!-- categories: memba -->
 - GovDAO proposal details now agree with the overview when a description contains words such as “restricted”: the status comes from the generated Stats section rather than the first status-like word in the page. Legacy metadata, generated Memba template footers and basedao/daokit status formats are preserved.

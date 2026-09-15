@@ -55,20 +55,22 @@ test.describe('Space Invaders: Signal Defense mobile cabinet', () => {
 		const ready = page.getByRole('heading', { name: /relay standing by/i })
 		await expect(ready).toBeVisible()
 
-		// A real touch in the fire half starts the armed run; this catches mobile
-		// pointer ownership regressions that keyboard-only coverage cannot.
-		const stage = await surface.boundingBox()
-		expect(stage).not.toBeNull()
-		const touch = {
-			pointerId: 7,
-			pointerType: 'touch',
-			isPrimary: true,
-			clientX: stage!.x + stage!.width * 0.75,
-			clientY: stage!.y + stage!.height * 0.72,
-		}
-		await surface.dispatchEvent('pointerdown', touch)
-		await page.waitForTimeout(200)
-		await surface.dispatchEvent('pointerup', touch)
+		// Deliver a complete synthetic touch in one browser task, so no rAF can
+		// sample a held pointer between down/up. This deterministically exercises
+		// the lost-tap race instead of relying on a 200ms hold and CI scheduling.
+		await surface.evaluate(el => {
+			const stage = el.getBoundingClientRect()
+			const touch = {
+				bubbles: true,
+				pointerId: 7,
+				pointerType: 'touch',
+				isPrimary: true,
+				clientX: stage.x + stage.width * 0.75,
+				clientY: stage.y + stage.height * 0.72,
+			}
+			el.dispatchEvent(new PointerEvent('pointerdown', touch))
+			el.dispatchEvent(new PointerEvent('pointerup', touch))
+		})
 		await expect(ready).toBeHidden({ timeout: 10_000 })
 	})
 

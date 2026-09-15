@@ -57,6 +57,13 @@ function flushFrame(time: number) {
   });
 }
 
+function touch(surface: HTMLElement, type: "pointerdown" | "pointerup" | "pointercancel") {
+  const event = new MouseEvent(type, { bubbles: true, clientX: 300 });
+  Object.defineProperty(event, "pointerId", { value: 7 });
+  Object.defineProperty(event, "pointerType", { value: "touch" });
+  act(() => surface.dispatchEvent(event));
+}
+
 beforeEach(() => {
   const ctx = {
     clearRect: vi.fn(), fillRect: vi.fn(), save: vi.fn(), restore: vi.fn(),
@@ -75,6 +82,82 @@ beforeEach(() => {
 });
 
 describe("SpaceInvaders shell", () => {
+  it("keeps a complete fire tap until the first fixed simulation step", () => {
+    render(<SpaceInvaders />);
+    fireEvent.click(screen.getByRole("button", { name: /daily run/i }));
+    const surface = screen.getByRole("group", { name: /signal defense game surface/i });
+    touch(surface, "pointerdown");
+    touch(surface, "pointerup");
+    // The tap is already released when polling begins. High-refresh frames
+    // must not consume it until a real fixed step can record and simulate it.
+    flushFrame(0);
+    flushFrame(8);
+    flushFrame(12);
+    expect(advanceSpy).not.toHaveBeenCalled();
+    flushFrame(20);
+    expect(advanceSpy).toHaveBeenLastCalledWith(expect.anything(), 1, { move: 0, fire: true, pause: false });
+    expect(screen.queryByRole("heading", { name: /relay standing by/i })).not.toBeInTheDocument();
+    flushFrame(40);
+    expect(advanceSpy).toHaveBeenLastCalledWith(expect.anything(), 1, { move: 0, fire: false, pause: false });
+  });
+
+  it("does not lose a press observed on a zero-step frame and released before the next step", () => {
+    render(<SpaceInvaders />);
+    fireEvent.click(screen.getByRole("button", { name: /free play/i }));
+    const surface = screen.getByRole("group", { name: /signal defense game surface/i });
+    flushFrame(0);
+    touch(surface, "pointerdown");
+    flushFrame(8);
+    touch(surface, "pointerup");
+    flushFrame(20);
+    expect(advanceSpy).toHaveBeenLastCalledWith(expect.anything(), 1, { move: 0, fire: true, pause: false });
+  });
+
+  it("delivers a between-frame fire tap during play exactly once", () => {
+    render(<SpaceInvaders initialState={{ phase: "playing" }} />);
+    const surface = screen.getByRole("group", { name: /signal defense game surface/i });
+    flushFrame(0);
+    touch(surface, "pointerdown");
+    touch(surface, "pointerup");
+    flushFrame(20);
+    expect(advanceSpy).toHaveBeenLastCalledWith(expect.anything(), 1, { move: 0, fire: true, pause: false });
+    flushFrame(40);
+    expect(advanceSpy).toHaveBeenLastCalledWith(expect.anything(), 1, { move: 0, fire: false, pause: false });
+  });
+
+  it("drops unsampled taps across pause/resume even without an intervening frame", () => {
+    render(<SpaceInvaders initialState={{ phase: "playing" }} />);
+    const surface = screen.getByRole("group", { name: /signal defense game surface/i });
+    flushFrame(0);
+    touch(surface, "pointerdown");
+    touch(surface, "pointerup");
+    fireEvent.click(screen.getByRole("button", { name: "Pause" }));
+    touch(surface, "pointerdown");
+    touch(surface, "pointerup");
+    fireEvent.click(screen.getByRole("button", { name: /resume defense/i }));
+    flushFrame(20);
+    expect(advanceSpy).toHaveBeenLastCalledWith(expect.anything(), 1, { move: 0, fire: false, pause: false });
+  });
+
+  it("does not carry menu or old-run taps into a newly armed run", () => {
+    render(<SpaceInvaders />);
+    const surface = screen.getByRole("group", { name: /signal defense game surface/i });
+    touch(surface, "pointerdown");
+    touch(surface, "pointerup");
+    fireEvent.click(screen.getByRole("button", { name: /daily run/i }));
+    flushFrame(0);
+    flushFrame(20);
+    expect(advanceSpy).not.toHaveBeenCalled();
+    touch(surface, "pointerdown");
+    touch(surface, "pointerup");
+    fireEvent.click(screen.getByRole("button", { name: /change transmission/i }));
+    fireEvent.click(screen.getByRole("button", { name: /free play/i }));
+    flushFrame(40);
+    flushFrame(60);
+    expect(advanceSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: /relay standing by/i })).toBeInTheDocument();
+  });
+
   it("renders the HUD and a start prompt", () => {
     render(<SpaceInvaders />);
     expect(screen.getByRole("heading", { name: /space invaders/i })).toBeInTheDocument();
