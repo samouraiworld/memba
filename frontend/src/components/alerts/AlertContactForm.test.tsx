@@ -221,9 +221,12 @@ describe("AlertContactForm mention tag legend", () => {
         )
         const legend = document.querySelector("#contact-mention-help")!
         expect(legend).toBeTruthy()
-        expect(legend.textContent).toMatch(/digits only/i)
+        expect(legend.textContent).toMatch(/role ID/i)
         expect(legend.textContent).toMatch(/Copy User ID/i)
+        expect(legend.textContent).toMatch(/Copy Role ID/i)
+        expect(legend.textContent).toMatch(/WARNING/)
         expect(legend.textContent).toMatch(/CRITICAL/)
+        expect(legend.textContent).toMatch(/Discord only/i)
     })
 
     it("keeps the legend visible after typing", () => {
@@ -236,5 +239,30 @@ describe("AlertContactForm mention tag legend", () => {
         fireEvent.change(document.querySelector("#contact-mention")!,
             { target: { value: "123456789012345678" } })
         expect(document.querySelector("#contact-mention-help")).toBeTruthy()
+    })
+})
+
+describe("AlertContactForm mention tag passthrough", () => {
+    afterEach(() => { cleanup(); vi.clearAllMocks() })
+
+    // The server is the only validator and normaliser of the tag; the form
+    // must hand over role IDs and pasted Discord mentions untouched.
+    it.each([
+        ["a role ID", "&123456789012345678"],
+        ["a pasted role mention", "<@&123456789012345678>"],
+        ["a pasted user mention", "<@!123456789012345678>"],
+    ])("submits %s as typed", async (_label, tag) => {
+        const onAdd = vi.fn().mockResolvedValue({ ok: true })
+        render(
+            <AlertContactForm
+                contacts={[]} webhooks={[webhook(5)]}
+                onAdd={onAdd} onUpdate={vi.fn()} onDelete={vi.fn()}
+            />,
+        )
+        fill("val-1", "On-call", tag)
+        fireEvent.click(screen.getByText("Add Contact", { selector: "button" }))
+
+        await waitFor(() => expect(onAdd).toHaveBeenCalled())
+        expect(onAdd.mock.calls[0][0].MentionTag).toBe(tag)
     })
 })

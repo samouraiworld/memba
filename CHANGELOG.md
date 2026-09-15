@@ -65,6 +65,9 @@ Full changelogs are split by version range for easier navigation:
 - Add a separate `/NETWORK/weighted-dao/REALM` workspace for the founding host's versioned configuration, seven-person roster, typed role proposals, voting and execution. Display points, people and the independent developer route separately; preserve full uint64 IDs, exact role targets, seven-day deadlines and unavailable historical tallies.
 - Read from the selected RPC and verify its chain. Reject unsupported schemas/capabilities and malformed responses without legacy metadata fallback; discard stale wallet/page reads. Refresh authorization before actions and recheck the wallet/page after confirmation.
 - Disable automatic retries for these governance submissions and keep mainnet writes unconditionally blocked. Member replacement, migration, treasury and application actions remain unavailable. This candidate does not deploy a realm or activate mainnet governance.
+### Alerts — contacts can be Discord roles and are pinged on WARNING too (2026-09-15)
+<!-- categories: memba -->
+- **The mention tag help now matches what the alerting service does.** A contact is mentioned on WARNING and CRITICAL validator alerts (never RESOLVED), and the tag can be a Discord role as well as a person: enter `&` followed by the role ID, or paste the mention Discord shows when you type `\@name` or `\@RoleName` in a channel. Role mentions are Discord only and are ignored on Slack. The form still sends the tag as typed; the service remains the one that accepts or refuses it.
 
 ### Generated DAO proposal details preserve authentic fields (2026-09-15)
 

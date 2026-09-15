@@ -279,6 +279,17 @@ describe("alert contact wire format", () => {
         expect(bodyOf(fetchMock)).toHaveProperty("mention_tag", "")
     })
 
+    it("sends a role mention tag verbatim, leaving normalisation to the server", async () => {
+        const fetchMock = vi.fn().mockResolvedValue(jsonResponse("", true, 201))
+        vi.stubGlobal("fetch", fetchMock)
+
+        await createAlertContact("tok", {
+            Moniker: "val-1", NameContact: "On-call", MentionTag: "&123456789012345678", IDwebhook: 3,
+        })
+
+        expect(bodyOf(fetchMock)).toHaveProperty("mention_tag", "&123456789012345678")
+    })
+
     it("uses POST for create and PUT for update on /alert-contacts", async () => {
         const fetchMock = vi.fn().mockResolvedValue(jsonResponse("", true, 201))
         vi.stubGlobal("fetch", fetchMock)
