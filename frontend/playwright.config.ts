@@ -33,8 +33,8 @@ export default defineConfig({
         actionTimeout: process.env.CI ? 10_000 : 5_000,
     },
     projects: [
-        { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: [/\.mobile\.spec\.ts$/, /validators-pro\.spec\.ts$/, /shell-pro\.spec\.ts$/, /governance-pro\.spec\.ts$/] },
-        { name: 'firefox',  use: { ...devices['Desktop Firefox'] }, testIgnore: [/\.mobile\.spec\.ts$/, /validators-pro\.spec\.ts$/, /shell-pro\.spec\.ts$/, /governance-pro\.spec\.ts$/] },
+        { name: 'chromium', use: { ...devices['Desktop Chrome'] }, testIgnore: [/\.mobile\.spec\.ts$/, /validators-pro\.spec\.ts$/, /shell-pro\.spec\.ts$/, /governance-pro\.spec\.ts$/, /complete-design\.spec\.ts$/] },
+        { name: 'firefox',  use: { ...devices['Desktop Firefox'] }, testIgnore: [/\.mobile\.spec\.ts$/, /validators-pro\.spec\.ts$/, /shell-pro\.spec\.ts$/, /governance-pro\.spec\.ts$/, /complete-design\.spec\.ts$/] },
         { name: 'iphone',   use: { ...devices['iPhone 13'] },  testMatch: /\.mobile\.spec\.ts$/ },
         { name: 'pixel',    use: { ...devices['Pixel 5'] },    testMatch: /\.mobile\.spec\.ts$/ },
     ],
