@@ -12,7 +12,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.24.1
 	github.com/rs/cors v1.11.1
-	golang.org/x/sync v0.22.0
+	golang.org/x/sync v0.23.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
 	modernc.org/sqlite v1.58.0
