@@ -29,6 +29,7 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage").then(m => ({ defaul
 const UnifiedMarketplace = lazy(() => import("./pages/UnifiedMarketplace"))
 const MarketplaceV2Preview = lazy(() => import("./pages/MarketplaceV2Preview"))
 const DAOList = lazy(() => import("./pages/DAOList").then(m => ({ default: m.DAOList })))
+const WeightedDAO = lazy(() => import("./pages/WeightedDAO").then(m => ({ default: m.WeightedDAO })))
 const TokenDashboard = lazy(() => import("./pages/TokenDashboard").then(m => ({ default: m.TokenDashboard })))
 
 // ── Home — the Control Room landing (lazy so it stays out of the main entry chunk) ──
@@ -240,6 +241,7 @@ function App() {
           <Route path="dao" element={<Suspense fallback={<PageLoader />}><DAOList /></Suspense>} />
           <Route path="dao/create" element={<Suspense fallback={<PageLoader />}><CreateDAO /></Suspense>} />
           <Route path="dao/*" element={<DAORouter />} />
+          <Route path="weighted-dao/*" element={<Suspense fallback={<PageLoader />}><WeightedDAO /></Suspense>} />
 
           {/* Profile routes (lazy) */}
           <Route path="profile" element={<ProfileRedirect />} />

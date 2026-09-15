@@ -87,6 +87,8 @@ interface Pin {
 }
 
 const ALLOWLIST: Pin[] = [
+    { file: "lib/dao/weighted.ts", allow: ["gnoland-1"], why: "Unconditional mainnet write hold for the founding weighted DAO; does not select a default network." },
+    { file: "pages/WeightedDAO.tsx", allow: ["gnoland-1"], why: "Read-only mainnet governance UI until launch verification; reads use the URL-selected network." },
     {
         file: "lib/config.ts",
         allow: NETWORK_NAMES,

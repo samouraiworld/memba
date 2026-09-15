@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Weighted founding DAO management (v7.6.0 candidate, 2026-09-15)
+
+- Add a separate `/NETWORK/weighted-dao/REALM` workspace for the founding host's versioned configuration, seven-person roster, typed role proposals, voting and execution. Display points, people and the independent developer route separately; preserve full uint64 IDs, exact role targets, seven-day deadlines and unavailable historical tallies.
+- Read from the selected RPC and verify its chain. Reject unsupported schemas/capabilities and malformed responses without legacy metadata fallback; discard stale wallet/page reads. Refresh authorization before actions and recheck the wallet/page after confirmation.
+- Disable automatic retries for these governance submissions and keep mainnet writes unconditionally blocked. Member replacement, migration, treasury and application actions remain unavailable. This candidate does not deploy a realm or activate mainnet governance.
+
 ### Generated DAO proposal details preserve authentic fields (2026-09-15)
 
 - Read the generated realm's final metadata footer before selecting a proposal parser, then prefer validated structured records when available. Proposal text cannot replace the real author, status or weighted tallies, or masquerade as executable action metadata.

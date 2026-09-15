@@ -32,6 +32,7 @@
 - ✏️ Inline multisig rename (per-user, backend-persisted)
 
 ### DAO Governance
+- **Weighted founding DAO (v7.6.0 candidate):** dedicated role-governance workspace with 2/1 voting points, independent developer approval and strict chain-scoped reads. Mainnet remains read-only. See [integration and rehearsal](docs/WEIGHTED_DAO.md).
 - 🏛️ Multi-DAO hub — proposals, voting, execution, member management
 - 🏗️ DAO Factory — 4 presets (Basic, Team, Treasury, Enterprise)
 - 🎭 Roles — admin, dev, finance, ops, member + role management

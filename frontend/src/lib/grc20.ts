@@ -181,7 +181,7 @@ export function setTxConfirmationCallback(cb: TxConfirmCallback | null) {
 export async function doContractBroadcast(
     msgs: AminoMsg[],
     memo: string,
-    opts?: { gas?: "call" | "deploy" },
+    opts?: { gas?: "call" | "deploy"; retry?: false; beforeSign?: () => void },
 ): Promise<{ hash: string }> {
     // A6: Confirmation gate — ask user before broadcasting
     if (_txConfirmCallback) {
@@ -193,6 +193,8 @@ export async function doContractBroadcast(
 
     // SECURITY: RPC-trust + wrong-chain guards (shared with multisig broadcast)
     assertWalletBroadcastSafe()
+    // A caller may invalidate a prepared action while the confirmation is open.
+    opts?.beforeSign?.()
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const adena = (window as any).adena
@@ -206,10 +208,11 @@ export async function doContractBroadcast(
     // the wallet sign UI just to fail with "package already exists".
     const isDeploy = opts?.gas === "deploy"
     const gasWanted = isDeploy ? gas.deployWanted : gas.wanted
-    const maxRetries = isDeploy ? 0 : 2
+    const maxRetries = isDeploy || opts?.retry === false ? 0 : 2
     let lastError: Error | null = null
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        opts?.beforeSign?.()
         try {
             const res = await adena.DoContract({
                 messages: toAdenaMessages(msgs),

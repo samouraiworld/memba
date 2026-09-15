@@ -7,6 +7,10 @@
 
 ---
 
+## Weighted DAO integration candidate (2026-09-15)
+
+The v7.6.0 frontend candidate adds structured founding-DAO reads and governed admin/finance proposal, vote and execution controls on a dedicated route. Mainnet writes remain held. Next: actual generated-realm browser/wallet rehearsal, member recovery/migration and typed application/treasury authority. See [the scoped plan](docs/WEIGHTED_DAO.md). This is not a release or mainnet readiness claim.
+
 ## Current Status (2026-09-07)
 
 | Metric | Value |
