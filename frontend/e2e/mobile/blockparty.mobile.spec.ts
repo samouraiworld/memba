@@ -5,6 +5,7 @@ import {
     stubBlockPartyLeaderboardDown,
 } from '../helpers/blockpartyFixture'
 import { findHorizontalClipping } from '../helpers/overflow'
+import { fulfillOnchainReads, mockChainStatus } from '../helpers/onchain'
 
 test.use({ baseURL: 'http://localhost:5174' })
 
@@ -43,6 +44,10 @@ async function swipeUntilBoardChanges(page: Page): Promise<void> {
 
 test.describe('Block Party mobile', () => {
     test('320/390/430 layouts remain reachable and accept a real swipe', async ({ page }) => {
+        // This is the healthy game layout. The backend fixture alone leaves
+        // chain status live, allowing a late outage banner to shift the score
+        // below the short viewport nondeterministically. Pin its shell too.
+        await fulfillOnchainReads(page, ({ method }) => method === 'status' ? mockChainStatus() : null)
         await stubBlockPartyBackend(page)
         const network = await resolveNetwork(page)
         await page.goto(`/${network}/game`, { waitUntil: 'domcontentloaded' })
