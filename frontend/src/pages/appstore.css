@@ -16,8 +16,8 @@
     margin-bottom: var(--space-7, 2rem);
 }
 .appstore__eyebrow {
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-family: var(--font-ui, var(--font-mono));
+    font-size: var(--pro-small, 0.72rem);
     font-weight: 600;
     letter-spacing: 0.16em;
     text-transform: uppercase;
@@ -46,8 +46,8 @@
     gap: 0.55rem;
     flex-wrap: wrap;
     margin-top: var(--space-5, 1.25rem);
-    font-family: var(--font-mono);
-    font-size: 0.8rem;
+    font-family: var(--font-ui, var(--font-mono));
+    font-size: var(--pro-small, 0.8rem);
     color: var(--color-k-muted);
 }
 .appstore__stats strong {
@@ -89,8 +89,8 @@
 /* ── Category facet chip ──────────────────────────────────── */
 .appchip {
     display: inline-block;
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-family: var(--font-ui, var(--font-mono));
+    font-size: var(--pro-caption, 0.68rem);
     font-weight: 600;
     letter-spacing: 0.03em;
     text-transform: uppercase;
@@ -109,8 +109,8 @@
 /* ── Realm path chip (the signature: address = identity) ──── */
 .apppath {
     display: inline-block;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-family: var(--font-ui, var(--font-mono));
+    font-size: var(--pro-small, 0.75rem);
     color: var(--color-k-muted);
     background: var(--color-k-elevated);
     border: 1px solid var(--color-k-edge);
@@ -126,7 +126,7 @@
     align-items: center;
     gap: 0.4rem;
     font-family: var(--font-sans);
-    font-size: 0.92rem;
+    font-size: var(--pro-body, 0.92rem);
     font-weight: 600;
     text-decoration: none;
     border-radius: var(--radius-md, 10px);
@@ -160,7 +160,7 @@
 }
 .appsubmit__hint {
     color: var(--color-k-text-dim);
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
     margin: 4px 0 0;
 }
 .appsubmit__delistconfirm {
@@ -178,8 +178,8 @@
     margin: 0 0 4px;
 }
 .appbtn__ext {
-    font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-family: var(--font-ui, var(--font-mono));
+    font-size: var(--pro-caption, 0.68rem);
     font-weight: 500;
     opacity: 0.7;
 }
@@ -201,8 +201,8 @@
     display: inline-flex;
     align-items: center;
     gap: 0.35rem;
-    font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-family: var(--font-ui, var(--font-mono));
+    font-size: var(--pro-small, 0.7rem);
     font-weight: 600;
     letter-spacing: 0.12em;
     text-transform: uppercase;
@@ -210,7 +210,7 @@
     margin: 0 0 var(--space-4, 1rem);
 }
 .appfeatured__star {
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
 }
 .appfeatured__body {
     display: flex;
@@ -259,8 +259,8 @@
     margin-top: var(--space-8, 2.5rem);
 }
 .appstore__section-title {
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
+    font-family: var(--font-ui, var(--font-mono));
+    font-size: var(--pro-small, 0.75rem);
     font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -314,7 +314,7 @@
 }
 .appcard__tag {
     color: var(--color-k-dim);
-    font-size: 0.9rem;
+    font-size: var(--pro-body, 0.9rem);
     line-height: 1.5;
     margin: 0;
     flex: 1 1 auto;
@@ -360,7 +360,7 @@
     margin-bottom: var(--space-5, 1.25rem);
     color: var(--color-k-accent-text);
     text-decoration: none;
-    font-size: 0.9rem;
+    font-size: var(--pro-body, 0.9rem);
     font-weight: 600;
 }
 .appstore__back:hover {
@@ -431,19 +431,19 @@
 .apptrust__title {
     font-family: var(--font-sans);
     font-weight: 700;
-    font-size: 0.95rem;
+    font-size: var(--pro-body, 0.95rem);
     color: var(--color-k-accent-text);
     margin: 0 0 0.3rem;
 }
 .apptrust__body {
     color: var(--color-k-dim);
-    font-size: 0.92rem;
+    font-size: var(--pro-body, 0.92rem);
     line-height: 1.6;
     margin: 0;
 }
 .apptrust__addr {
     font-family: var(--font-mono);
-    font-size: 0.82rem;
+    font-size: var(--pro-body, 0.82rem);
     color: var(--color-k-text);
 }
 
@@ -490,7 +490,7 @@
     border: none;
     padding: 0;
     cursor: pointer;
-    font-size: 0.95rem;
+    font-size: var(--pro-body, 0.95rem);
     font-weight: 600;
     color: var(--color-k-text);
 }
@@ -502,7 +502,7 @@
     margin: var(--space-3, 0.75rem) 0 var(--space-4, 1rem);
     padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
     max-width: 64ch;
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
     line-height: 1.55;
     color: var(--color-k-warning-text);
     background: var(--color-k-amber-subtle);
@@ -528,7 +528,7 @@
 .appdetail__pending-banner {
     margin-bottom: var(--space-5, 1.25rem);
     padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
-    font-size: 0.9rem;
+    font-size: var(--pro-body, 0.9rem);
     line-height: 1.55;
     color: var(--color-k-warning-text);
     background: var(--color-k-amber-subtle);
@@ -540,9 +540,9 @@
 /* ── Report app (B1b community safety valve) ─────────────────── */
 .appreport { display: block; margin-top: 10px; }
 .appreport__confirm { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-.appreport__copy { font-size: 12px; color: var(--color-text-secondary); flex-basis: 100%; }
-.appreport--done { font-size: 12px; color: var(--color-text-secondary); }
-.appreport__error { display: block; margin-top: 6px; font-size: 12px; color: var(--color-danger); }
+.appreport__copy { font-size: var(--pro-small, 12px); color: var(--color-text-secondary); flex-basis: 100%; }
+.appreport--done { font-size: var(--pro-small, 12px); color: var(--color-text-secondary); }
+.appreport__error { display: block; margin-top: 6px; font-size: var(--pro-small, 12px); color: var(--color-danger); }
 
 /* ── Submit your app (B3 self-service listing) ───────────────── */
 .appstore__submit-cta {
@@ -563,7 +563,7 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--color-text-secondary);
-    font-family: var(--font-mono);
+    font-family: var(--font-ui, var(--font-mono));
 }
 .appsubmit__req { color: var(--color-k-accent-text); }
 .appsubmit__field input,
@@ -573,7 +573,7 @@
     border: 1px solid var(--color-k-edge);
     background: var(--color-surface);
     color: var(--color-text);
-    font-size: 0.9rem;
+    font-size: var(--pro-body, 0.9rem);
     resize: vertical;
     transition: border-color 0.15s ease;
 }
@@ -583,14 +583,14 @@
     border-color: var(--color-k-edge-hover);
 }
 .appsubmit__field input:disabled { opacity: 0.6; cursor: not-allowed; }
-.appsubmit__hint { margin: 0; font-size: 12px; color: var(--color-text-secondary); line-height: 1.5; }
-.appsubmit__error { margin: 0; font-size: 12px; color: var(--color-danger); line-height: 1.5; }
-.appsubmit__txerror { margin: 0; font-size: 13px; color: var(--color-danger); }
+.appsubmit__hint { margin: 0; font-size: var(--pro-small, 12px); color: var(--color-text-secondary); line-height: 1.5; }
+.appsubmit__error { margin: 0; font-size: var(--pro-small, 12px); color: var(--color-danger); line-height: 1.5; }
+.appsubmit__txerror { margin: 0; font-size: var(--pro-small, 13px); color: var(--color-danger); }
 /* The fee disclosure must be read before signing — amber, same visual weight as the
    pending-review cautions elsewhere in the store. */
 .appsubmit__fee {
     padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
-    font-size: 0.9rem;
+    font-size: var(--pro-body, 0.9rem);
     line-height: 1.55;
     color: var(--color-k-warning-text);
     background: var(--color-k-amber-subtle);
@@ -602,7 +602,7 @@
 .appsubmit__submit { align-self: flex-start; }
 .appsubmit__editnote {
     padding: var(--space-3, 0.75rem) var(--space-4, 1rem);
-    font-size: 0.9rem;
+    font-size: var(--pro-body, 0.9rem);
     line-height: 1.55;
     border: 1px solid var(--color-k-edge);
     border-radius: var(--radius-md, 10px);
@@ -663,7 +663,7 @@
     color: var(--color-k-accent-text);
 }
 .appsubmit__status--rejected { color: var(--color-danger); border-color: var(--color-danger); }
-.appsubmit__reject { margin: 0; font-size: 13px; color: var(--color-danger); line-height: 1.5; }
+.appsubmit__reject { margin: 0; font-size: var(--pro-small, 13px); color: var(--color-danger); line-height: 1.5; }
 .appsubmit__resubmit { align-self: flex-start; }
 .appsubmit__flags {
     font-size: var(--text-xs, 0.64rem);
@@ -671,14 +671,14 @@
     color: var(--color-k-warning-text);
     white-space: nowrap;
 }
-.appsubmit__viewlink { align-self: flex-start; font-size: 13px; }
+.appsubmit__viewlink { align-self: flex-start; font-size: var(--pro-small, 13px); }
 .appsubmit__editrow {
     display: flex;
     align-items: center;
     gap: var(--space-3, 0.75rem);
     flex-wrap: wrap;
 }
-.appsubmit__editsleft { font-size: 12px; color: var(--color-text-secondary); }
+.appsubmit__editsleft { font-size: var(--pro-small, 12px); color: var(--color-text-secondary); }
 /* Publisher console — section header (heading + "manage all" link) + pager */
 .appsubmit__mineheader {
     display: flex;
@@ -687,18 +687,18 @@
     gap: 8px;
     flex-wrap: wrap;
 }
-.appsubmit__managelink { font-size: 13px; white-space: nowrap; }
+.appsubmit__managelink { font-size: var(--pro-small, 13px); white-space: nowrap; }
 .appsubmit__pager {
     display: flex;
     align-items: center;
     gap: var(--space-3, 0.75rem);
     margin-top: var(--space-4, 1rem);
 }
-.appsubmit__pagenum { font-size: 13px; color: var(--color-text-secondary); }
+.appsubmit__pagenum { font-size: var(--pro-small, 13px); color: var(--color-text-secondary); }
 
 /* ── Curator review queue (B4) ───────────────────────────────── */
-.appcurator__tagline { margin: 0; font-size: 0.9rem; }
-.appcurator__meta { margin: 0; font-size: 12px; color: var(--color-text-secondary); }
+.appcurator__tagline { margin: 0; font-size: var(--pro-body, 0.9rem); }
+.appcurator__meta { margin: 0; font-size: var(--pro-small, 12px); color: var(--color-text-secondary); }
 .appcurator__flags { color: var(--color-k-warning-text); font-weight: 600; }
 .appcurator__actions {
     display: flex;
@@ -721,7 +721,7 @@
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--color-text-secondary);
-    font-family: var(--font-mono);
+    font-family: var(--font-ui, var(--font-mono));
 }
 .appcurator__rejectbox textarea {
     padding: 10px 12px;
@@ -729,7 +729,7 @@
     border: 1px solid var(--color-k-edge);
     background: var(--color-surface);
     color: var(--color-text);
-    font-size: 0.9rem;
+    font-size: var(--pro-body, 0.9rem);
     resize: vertical;
 }
 .appcurator__rejectbox textarea:focus {
@@ -764,10 +764,10 @@
     border-radius: var(--radius-md, 10px);
     background: color-mix(in srgb, var(--color-surface) 60%, transparent);
 }
-.appsubmit__artwork-title { margin: 0; font-size: 0.95rem; font-weight: 600; color: var(--color-text); }
+.appsubmit__artwork-title { margin: 0; font-size: var(--pro-body, 0.95rem); font-weight: 600; color: var(--color-text); }
 .appsubmit__art-authnote {
     margin: 0;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     line-height: 1.5;
     color: var(--color-text-secondary);
     padding: 8px 10px;
@@ -787,8 +787,8 @@
     border-radius: var(--radius-sm, 6px);
     border: 1px solid var(--color-k-edge);
 }
-.imgup__ok { margin: 0; font-size: 12px; color: var(--color-text-secondary); }
-.imgup__error { margin: 0; font-size: 12px; color: var(--color-danger); line-height: 1.5; }
+.imgup__ok { margin: 0; font-size: var(--pro-small, 12px); color: var(--color-text-secondary); }
+.imgup__error { margin: 0; font-size: var(--pro-small, 12px); color: var(--color-danger); line-height: 1.5; }
 
 /* ── B7/2b: Detail-page screenshot gallery (hardened <img>-only proxy render) ── */
 .appdetail__shots {

@@ -142,7 +142,7 @@ export default function MultisigHub() {
                                     data-testid={`multisig-card-${ms.address}`}
                                 >
                                     <div className="msh-card-top">
-                                        <span className="msh-card-name">{ms.name || "Unnamed"}</span>
+                                        <button type="button" className="msh-card-name" onClick={e => { e.stopPropagation(); navigate(`/multisig/${ms.address}`) }}>{ms.name || "Unnamed"}</button>
                                         <span className="msh-threshold">{ms.threshold}/{ms.membersCount}</span>
                                     </div>
                                     <div className="msh-card-addr">
@@ -176,7 +176,7 @@ export default function MultisigHub() {
                         {discoverable.map(ms => (
                             <div key={ms.address} className="msh-card msh-card-discover" data-testid={`multisig-discover-${ms.address}`}>
                                 <div className="msh-card-top">
-                                    <span className="msh-card-name">{ms.name || "Unnamed"}</span>
+                                    <button type="button" className="msh-card-name" onClick={e => { e.stopPropagation(); navigate(`/multisig/${ms.address}`) }}>{ms.name || "Unnamed"}</button>
                                     <span className="msh-threshold msh-threshold-warn">{ms.threshold}/{ms.membersCount}</span>
                                 </div>
                                 <div className="msh-card-addr">

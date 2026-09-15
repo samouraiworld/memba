@@ -97,7 +97,7 @@ export function GithubCallback() {
                         <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
                             Connecting to GitHub...
                         </h2>
-                        <p style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                        <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)" }}>
                             Exchanging OAuth code for your GitHub identity.
                         </p>
                         <div style={{ margin: "20px auto", width: 24, height: 24, border: "2px solid var(--color-text-dim)", borderTop: "2px solid var(--color-brand)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
@@ -114,11 +114,11 @@ export function GithubCallback() {
                                 <img src={ghUser.avatar_url} alt="GitHub avatar" referrerPolicy="no-referrer" style={{ width: 48, height: 48, borderRadius: "50%", border: "2px solid rgba(88,166,255,0.3)" }} />
                             )}
                             <div style={{ textAlign: "left" }}>
-                                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>{ghUser?.name || ghUser?.login}</div>
-                                <div style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>@{ghUser?.login}</div>
+                                <div style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)" }}>{ghUser?.name || ghUser?.login}</div>
+                                <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)" }}>@{ghUser?.login}</div>
                             </div>
                         </div>
-                        <p style={{ fontSize: 11, color: "var(--color-text-secondary)" }}>Saving to your Memba profile...</p>
+                        <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)" }}>Saving to your Memba profile...</p>
                         <div style={{ margin: "20px auto", width: 24, height: 24, border: "2px solid var(--color-text-dim)", borderTop: "2px solid var(--color-brand)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
                     </>
                 )}
@@ -133,11 +133,11 @@ export function GithubCallback() {
                                 <img src={ghUser.avatar_url} alt="GitHub avatar" referrerPolicy="no-referrer" style={{ width: 48, height: 48, borderRadius: "50%", border: "2px solid rgba(76,175,80,0.3)" }} />
                             )}
                             <div style={{ textAlign: "left" }}>
-                                <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>{ghUser?.name || ghUser?.login}</div>
-                                <div style={{ fontSize: 11, color: "var(--color-success)" }}>@{ghUser?.login} linked ✓</div>
+                                <div style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)" }}>{ghUser?.name || ghUser?.login}</div>
+                                <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-success)" }}>@{ghUser?.login} linked ✓</div>
                             </div>
                         </div>
-                        <p style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                        <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)" }}>
                             Redirecting to your profile...
                         </p>
                     </>
@@ -152,18 +152,18 @@ export function GithubCallback() {
                             <div style={{ display: "flex", alignItems: "center", gap: 12, justifyContent: "center", margin: "16px 0" }}>
                                 <img src={ghUser.avatar_url} alt="GitHub avatar" referrerPolicy="no-referrer" style={{ width: 48, height: 48, borderRadius: "50%", border: "2px solid rgba(76,175,80,0.3)" }} />
                                 <div style={{ textAlign: "left" }}>
-                                    <div style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>{ghUser.name || ghUser.login}</div>
-                                    <div style={{ fontSize: 11, color: "var(--color-success)" }}>@{ghUser.login} verified ✓</div>
+                                    <div style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)" }}>{ghUser.name || ghUser.login}</div>
+                                    <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-success)" }}>@{ghUser.login} verified ✓</div>
                                 </div>
                             </div>
                         )}
-                        <p style={{ fontSize: 12, color: "var(--color-warning)", marginBottom: 16 }}>
+                        <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-warning)", marginBottom: 16 }}>
                             Your wallet disconnected during the redirect. Reconnect your wallet and visit your profile — we’ll link your GitHub automatically.
                         </p>
                         <button
                             className="k-btn-primary"
                             onClick={() => navigate("/")}
-                            style={{ padding: "8px 16px", fontSize: 12 }}
+                            style={{ padding: "8px 16px", fontSize: "var(--pro-small, 12px)" }}
                         >
                             Go to Dashboard
                         </button>
@@ -175,14 +175,14 @@ export function GithubCallback() {
                         <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--color-danger)", marginBottom: 8 }}>
                             Linking Failed
                         </h2>
-                        <p style={{ fontSize: 12, color: "var(--color-danger)", marginBottom: 16 }}>
+                        <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-danger)", marginBottom: 16 }}>
                             {error}
                         </p>
                         <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
                             <button
                                 className="k-btn-secondary"
                                 onClick={() => navigate(-1)}
-                                style={{ padding: "8px 16px", fontSize: 12 }}
+                                style={{ padding: "8px 16px", fontSize: "var(--pro-small, 12px)" }}
                             >
                                 ← Go back
                             </button>
@@ -190,7 +190,7 @@ export function GithubCallback() {
                                 <button
                                     className="k-btn-primary"
                                     onClick={() => navigate(`/profile/${adena.address}`)}
-                                    style={{ padding: "8px 16px", fontSize: 12 }}
+                                    style={{ padding: "8px 16px", fontSize: "var(--pro-small, 12px)" }}
                                 >
                                     Go to profile
                                 </button>

@@ -22,14 +22,14 @@
 }
 
 .candidature-unlock__title {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     color: var(--color-text);
     margin: 0 0 4px 0;
 }
 
 .candidature-unlock__desc {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
     margin: 0;
     line-height: 1.4;
@@ -59,8 +59,8 @@
 }
 
 .candidature-unlock__xp {
-    font-size: 10px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-caption, 10px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     color: var(--color-text-secondary);
     white-space: nowrap;
 }
@@ -69,7 +69,7 @@
 .candidature-unlock__btn {
     padding: 8px 16px;
     border-radius: 8px;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 600;
     text-decoration: none;
     white-space: nowrap;

@@ -30,8 +30,8 @@
 
 .msh-subtitle {
     color: var(--color-text-secondary);
-    font-size: 12px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     margin-bottom: 28px;
 }
 
@@ -39,7 +39,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     padding: 8px 16px;
 }
 
@@ -51,7 +51,7 @@
     gap: 12px;
     padding: 60px 24px;
     color: var(--color-text-secondary);
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
 }
 
 /* Sections */
@@ -79,8 +79,8 @@
 
 .msh-discover-hint {
     color: var(--color-text-secondary);
-    font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-caption, 11px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     margin-bottom: 12px;
 }
 
@@ -127,13 +127,13 @@
 
 .msh-card-name {
     font-weight: 600;
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     color: var(--color-text);
 }
 
 .msh-threshold {
-    font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-caption, 11px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     color: var(--color-k-accent-text);
     background: rgba(0, 212, 170, 0.08);
     padding: 2px 7px;
@@ -146,7 +146,7 @@
 }
 
 .msh-card-addr {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
 }
 
 .msh-card-meta {
@@ -158,14 +158,14 @@
     display: flex;
     align-items: center;
     gap: 4px;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .msh-join-btn {
     align-self: flex-start;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     padding: 6px 14px;
 }
 
@@ -188,14 +188,14 @@
 }
 
 .msh-empty p {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 500;
     color: var(--color-text-secondary);
     margin: 0;
 }
 
 .msh-empty span {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-muted);
     max-width: 340px;
 }

@@ -22,7 +22,7 @@
     border-radius: 12px;
     box-shadow: 0 24px 48px rgba(0, 0, 0, 0.4);
     animation: txSlideUp 0.2s ease-out;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     /* MOB-2: cap height + scroll the body so the Confirm/Cancel actions stay on
        screen for a multi-message tx (the overlay centers the modal, so without
        this a tall modal pushes the actions off both ends of the viewport). */
@@ -59,7 +59,7 @@
 }
 
 .tx-confirm-memo {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-k-text);
     padding-bottom: 12px;
     border-bottom: 1px solid rgba(255, 255, 255, 0.06);
@@ -71,7 +71,7 @@
     border-radius: 8px;
     background: rgba(245, 166, 35, 0.06);
     border: 1px solid rgba(245, 166, 35, 0.2);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-warning-text);
     line-height: 1.5;
 }
@@ -98,7 +98,7 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     gap: 12px;
 }
 
@@ -120,7 +120,7 @@
 
 .tx-confirm-addr {
     font-family: "JetBrains Mono", monospace;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
 }
 
 .tx-confirm-send {
@@ -129,7 +129,7 @@
 }
 
 .tx-confirm-path {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     opacity: 0.7;
 }
 
@@ -144,8 +144,8 @@
     padding: 1px 6px;
     background: rgba(255, 255, 255, 0.05);
     border-radius: 4px;
-    font-size: 10px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-caption, 10px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .tx-confirm-fund-warning {
@@ -154,7 +154,7 @@
     border-radius: 8px;
     background: rgba(255, 82, 82, 0.06);
     border: 1px solid rgba(255, 82, 82, 0.2);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-danger-text);
     line-height: 1.5;
 }
@@ -169,9 +169,9 @@
     flex: 1;
     padding: 10px 16px;
     border-radius: 8px;
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     cursor: pointer;
     transition: all 0.15s;
     border: 1px solid transparent;

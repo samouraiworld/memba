@@ -25,6 +25,12 @@ const view = (over: Partial<ConsensusView> = {}): ConsensusView => ({
 })
 
 describe("NetworkStateGrid", () => {
+    it("does not report a healthy sync when the source is unavailable", () => {
+        render(<NetworkStateGrid stats={null} consensus={null} />)
+        expect(screen.getByText("UNAVAILABLE")).toBeInTheDocument()
+        expect(screen.queryByText("SYNCED")).not.toBeInTheDocument()
+    })
+
     it("shows quorum in voting power, not as a validator count", () => {
         render(<NetworkStateGrid stats={stats} consensus={view()} peerCount={13} mempoolCount={0} />)
         expect(screen.getByText("161 of 240")).toBeInTheDocument()

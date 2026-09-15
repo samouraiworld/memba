@@ -20,7 +20,8 @@ const modalCss = readFileSync(path.join(dir, "ActivationModal.css"), "utf8")
 const tokenCss =
     readFileSync(path.join(dir, "../../tokens.css"), "utf8") +
     "\n" +
-    readFileSync(path.join(dir, "../../index.css"), "utf8")
+    readFileSync(path.join(dir, "../../index.css"), "utf8") +
+    "\n" + readFileSync(path.join(dir, "../../professional.css"), "utf8")
 
 /** Custom properties referenced via var(--name) in the modal's stylesheet. */
 const usedVars = [...modalCss.matchAll(/var\(\s*(--[a-z0-9-]+)/gi)].map((m) => m[1])

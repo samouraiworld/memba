@@ -32,7 +32,7 @@ interface ThreadViewProps {
 }
 
 const ghostBtn: React.CSSProperties = {
-    fontSize: 11,
+    fontSize: "var(--pro-caption, 11px)",
     padding: "4px 10px",
     borderRadius: 6,
     border: "1px solid var(--color-border)",
@@ -80,7 +80,7 @@ export function ThreadView({
                 ...cardStyle,
                 cursor: "default",
                 whiteSpace: "pre-wrap",
-                fontSize: 13,
+                fontSize: "var(--pro-small, 13px)",
                 color: "var(--color-text-secondary)",
                 fontFamily: "JetBrains Mono, monospace",
                 lineHeight: 1.6,
@@ -114,11 +114,11 @@ export function ThreadView({
                 ) : (
                     <>
                         {renderMarkdown(threadDetail.body)}
-                        <div style={{ marginTop: 12, fontSize: 11, color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
+                        <div style={{ marginTop: 12, fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-muted)", display: "flex", alignItems: "center", gap: 6 }}>
                             Posted by <code style={{ color: "var(--color-text-secondary)" }}>{threadDetail.author}</code> at block {threadDetail.blockHeight}
                             {threadDetail.edited && (
                                 <span style={{
-                                    fontSize: 9,
+                                    fontSize: "var(--pro-caption, 9px)",
                                     color: "var(--color-text-secondary)",
                                     background: "rgba(255,255,255,0.04)",
                                     padding: "1px 5px",
@@ -153,16 +153,16 @@ export function ThreadView({
             {/* Replies */}
             {threadDetail.replies.length > 0 && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                    <h4 style={{ fontSize: 13, color: "var(--color-text-secondary)", margin: 0 }}>
+                    <h4 style={{ fontSize: "var(--pro-small, 13px)", color: "var(--color-text-secondary)", margin: 0 }}>
                         💬 {threadDetail.replies.length} repl{threadDetail.replies.length !== 1 ? "ies" : "y"}
                     </h4>
                     {threadDetail.replies.map((r, i) => (
                         <div key={i} style={{ ...cardStyle, cursor: "default", borderLeft: "2px solid rgba(0,212,170,0.15)" }}>
-                            <div style={{ fontSize: 11, color: "var(--color-text-secondary)", marginBottom: 6, fontFamily: "JetBrains Mono, monospace", display: "flex", alignItems: "center", gap: 6 }}>
+                            <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", marginBottom: 6, fontFamily: "JetBrains Mono, monospace", display: "flex", alignItems: "center", gap: 6 }}>
                                 <strong style={{ color: "var(--color-text-secondary)" }}>{r.author}</strong> · block {r.blockHeight}
                                 {r.edited && (
                                     <span style={{
-                                        fontSize: 9,
+                                        fontSize: "var(--pro-caption, 9px)",
                                         color: "var(--color-text-secondary)",
                                         background: "rgba(255,255,255,0.04)",
                                         padding: "1px 4px",
@@ -172,7 +172,7 @@ export function ThreadView({
                                     </span>
                                 )}
                             </div>
-                            <div style={{ fontSize: 12, color: "var(--color-text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
+                            <div style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", whiteSpace: "pre-wrap", lineHeight: 1.5 }}>
                                 {renderMarkdown(r.body)}
                             </div>
                         </div>
@@ -183,7 +183,7 @@ export function ThreadView({
             {/* Reply form */}
             {isAuthenticated && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10, marginTop: 8 }}>
-                    {error && <div style={{ color: "var(--color-danger)", fontSize: 12 }}>{error}</div>}
+                    {error && <div style={{ color: "var(--color-danger)", fontSize: "var(--pro-small, 12px)" }}>{error}</div>}
                     <div style={{ position: "relative" }}>
                         <textarea
                             id="board-reply-body"
@@ -198,7 +198,7 @@ export function ThreadView({
                             position: "absolute",
                             bottom: 8,
                             right: 10,
-                            fontSize: 10,
+                            fontSize: "var(--pro-caption, 10px)",
                             color: replyBody.length > 3500 ? "#ff3b30" : "#444",
                             fontFamily: "JetBrains Mono, monospace",
                         }}>

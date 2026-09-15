@@ -40,3 +40,9 @@ Entrepreneurs should be able to understand discovery, project setup, governance,
 ## Remaining decisions
 
 The working Validators proof and subsequent shell/brand preview are ready for end review. Exact IA labels and mobile destinations are concrete implementation defaults in PR #1196. The logo direction is selected; vector/size specifications are supplied in PR #1196; production integration remains separate from UI approval. Approval of direction A is not approval to merge application changes or deploy mainnet capabilities.
+
+## D12 — Complete frontend consolidation (15 September 2026)
+
+The owner explicitly requested completion of the full frontend rework and a consolidated PR for final review. Implementation is authorized across all retained frontend route families, including the approved Folded M, Black/Light system preference and professional workspace patterns. Feature capabilities, wallet signing contracts, deployment readiness and mainnet activation remain governed by existing controls.
+
+Worktree: `professional-complete`; branch: `feat/professional-complete`. It integrates the prior design stack, audit records and current-main governance status correction. Other active worktrees retain independent ownership. The full-design build flag composes the prior presentation flags; Netlify Deploy Previews enable only this presentation flag. Production activation is a separate release decision.

@@ -54,13 +54,13 @@ export class AlertErrorBoundary extends Component<Props, State> {
                         <h2 style={{ fontSize: 16, fontWeight: 700, marginBottom: 8 }}>
                             Alerting service unavailable
                         </h2>
-                        <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
+                        <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
                             The alerting feature encountered an error. You can continue
                             using other Memba features while we resolve this.
                         </p>
                         {this.state.error && (
                             <pre style={{
-                                fontSize: 10, color: "var(--color-danger)",
+                                fontSize: "var(--pro-caption, 10px)", color: "var(--color-danger)",
                                 background: "rgba(255,71,87,0.06)",
                                 padding: 12, borderRadius: 6, marginBottom: 20,
                                 textAlign: "left", overflow: "auto", maxHeight: 80,
@@ -75,7 +75,7 @@ export class AlertErrorBoundary extends Component<Props, State> {
                                 display: "inline-flex", alignItems: "center",
                                 justifyContent: "center", height: 36, padding: "0 18px",
                                 borderRadius: 8, background: "var(--color-brand)", color: "var(--color-text-contrast)",
-                                fontSize: 12, fontWeight: 600, border: "none",
+                                fontSize: "var(--pro-small, 12px)", fontWeight: 600, border: "none",
                                 cursor: "pointer", boxShadow: "0 0 24px rgba(0,212,170,0.2)",
                             }}
                         >

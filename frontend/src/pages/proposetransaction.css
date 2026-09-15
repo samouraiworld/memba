@@ -13,12 +13,12 @@
 /* ── Back button ────────────────────────────────────────── */
 .ptx-back-btn {
     color: var(--color-k-accent-text);
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     background: none;
     border: none;
     cursor: pointer;
     margin-bottom: 16px;
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     padding: 0;
 }
 
@@ -32,7 +32,7 @@
 
 .ptx-from-address {
     color: var(--color-text-secondary);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     margin-top: 4px;
     font-family: JetBrains Mono, monospace;
     word-break: break-all;
@@ -47,8 +47,8 @@
 
 .ptx-connect-prompt p {
     color: var(--color-text-secondary);
-    font-size: 13px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-small, 13px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     margin: 0;
 }
 
@@ -66,8 +66,8 @@
     border: none;
     border-bottom: 2px solid transparent;
     color: var(--color-k-muted);
-    font-family: JetBrains Mono, monospace;
-    font-size: 11px;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
+    font-size: var(--pro-caption, 11px);
     cursor: pointer;
     transition: all 0.15s;
 }
@@ -93,8 +93,8 @@
     background: var(--color-k-elevated);
     border: 1px solid var(--color-k-edge);
     color: var(--color-text);
-    font-family: JetBrains Mono, monospace;
-    font-size: 13px;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
+    font-size: var(--pro-small, 13px);
     outline: none;
     box-sizing: border-box;
 }
@@ -106,8 +106,8 @@
 /* ── Hint text ──────────────────────────────────────────── */
 .ptx-hint {
     color: var(--color-text-muted);
-    font-size: 11px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 11px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
 }
 
 /* ── Fee disclosure ─────────────────────────────────────── */
@@ -116,8 +116,8 @@
     border-radius: 8px;
     background: rgba(245, 166, 35, 0.06);
     border: 1px solid rgba(245, 166, 35, 0.15);
-    font-size: 11px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 11px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     color: var(--color-k-warning-text);
 }
 
@@ -139,7 +139,7 @@
 
     .ptx-tab {
         padding: 8px 10px;
-        font-size: 10px;
+        font-size: var(--pro-caption, 10px);
     }
 
     .ptx-submit-row {

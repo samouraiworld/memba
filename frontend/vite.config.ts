@@ -3,11 +3,13 @@ import { loadEnv, type PluginOption } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs'
+import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs'
 import { assertSafeFlags, shouldEnforceFlagGate } from './src/lib/safeFlags'
 import { buildSitemapXml, SITE_ORIGIN, SITEMAP_NETWORK } from './src/lib/sitemap'
 import { readdirSync } from 'node:fs'
 import { parseBlogArticles, buildRssXml } from './src/lib/blogParser'
+
+import { professionalBrandHtml } from './src/lib/proBrand'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
 
@@ -24,6 +26,26 @@ function safeFlagsPlugin(): PluginOption {
       if (shouldEnforceFlagGate(command, process.env.CONTEXT)) {
         assertSafeFlags({ ...process.env, ...loadEnv(mode, '..', 'VITE_') })
       }
+    },
+  }
+}
+
+// Keep review assets and production defaults separate until release activation.
+function professionalBrandPlugin(): PluginOption {
+  let enabled = false
+  return {
+    name: 'memba-professional-brand',
+    config(_config, { mode }) {
+      enabled = ({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }).VITE_ENABLE_PRO_APP === 'true'
+    },
+    transformIndexHtml(html) { return enabled ? professionalBrandHtml(html) : html },
+    writeBundle() {
+      if (!enabled) return
+      // Existing manifest URLs remain stable; only this preview build adopts the approved artwork.
+      for (const [source, destination] of [
+        ['icon-512.png', 'icons/icon-512.png'], ['maskable-512.png', 'icons/maskable-512.png'],
+        ['apple-touch-icon.png', 'apple-touch-icon.png'], ['favicon-32.png', 'memba-icon.png'],
+      ]) copyFileSync(`public/brand/folded-m/${source}`, `dist/${destination}`)
     },
   }
 }
@@ -56,7 +78,7 @@ function sitemapPlugin(): PluginOption {
 }
 
 // https://vite.dev/config/
-export default defineConfig({
+export default defineConfig(({ mode }) => ({
   envDir: '..', // Load .env from repo root (where all VITE_* vars live)
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
@@ -86,6 +108,7 @@ export default defineConfig({
     react(),
     safeFlagsPlugin(),
     sitemapPlugin(),
+    professionalBrandPlugin(),
     // PWA: installable manifest + Workbox service worker. SW is OFF in dev
     // (devOptions.enabled:false) so it never affects dev / Playwright / tests.
     // Colors track the real app canvas (--color-k-bg dark = #000000), not a
@@ -105,7 +128,7 @@ export default defineConfig({
         theme_color: '#000000',
         description: 'Gno-native multisig wallet and DAO governance.',
         icons: [
-          { src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+          ...(({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }).VITE_ENABLE_PRO_APP === 'true' ? [] : [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }]),
           { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
           { src: '/icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
         ],
@@ -191,4 +214,4 @@ export default defineConfig({
       },
     },
   },
-})
+}))

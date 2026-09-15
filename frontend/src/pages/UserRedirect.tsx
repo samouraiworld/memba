@@ -90,13 +90,13 @@ export function UserRedirect() {
                     <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
                         User not found
                     </h2>
-                    <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 20 }}>
+                    <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", marginBottom: 20 }}>
                         @{username} is not a registered gno.land username.
                     </p>
                     <button
                         className="k-btn-secondary"
                         onClick={() => navigate("/")}
-                        style={{ padding: "8px 16px", fontSize: 12 }}
+                        style={{ padding: "8px 16px", fontSize: "var(--pro-small, 12px)" }}
                     >
                         ← Go home
                     </button>
@@ -110,7 +110,7 @@ export function UserRedirect() {
             maxWidth: 480, margin: "80px auto", padding: 32,
             fontFamily: "JetBrains Mono, monospace", textAlign: "center",
         }}>
-            <p style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+            <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)" }}>
                 Resolving @{username}...
             </p>
             <div style={{ margin: "20px auto", width: 24, height: 24, border: "2px solid var(--color-text-dim)", borderTop: "2px solid var(--color-brand)", borderRadius: "50%", animation: "spin 1s linear infinite" }} />

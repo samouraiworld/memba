@@ -17,11 +17,11 @@
 
 .cdao-back-btn {
     color: var(--color-k-accent-text, #00d4aa);
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     background: none;
     border: none;
     cursor: pointer;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
     text-align: left;
 }
 
@@ -49,9 +49,9 @@
 }
 
 .cdao-draft-banner__text {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary);
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
 }
 
 .cdao-draft-banner__actions {
@@ -61,7 +61,7 @@
 
 .cdao-draft-banner__actions .k-btn-primary,
 .cdao-draft-banner__actions .k-btn-secondary {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     padding: 5px 12px;
 }
 
@@ -75,9 +75,9 @@
 
 .cdao-subtitle {
     color: var(--color-text-secondary, #888);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     margin-top: 4px;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
 }
 
 /* ── Step Indicator ──────────────────────────────────── */
@@ -101,9 +101,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 600;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
     transition: all 0.2s;
 }
 
@@ -137,8 +137,8 @@
 }
 
 .cdao-step-label {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
     margin-left: 8px;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
 }

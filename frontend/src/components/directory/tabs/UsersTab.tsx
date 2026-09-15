@@ -102,7 +102,7 @@ export function UsersTab({ navigate }: TabProps) {
             ) : error ? (
                 <div className="dir-error">
                     <p>{error}</p>
-                    <button className="k-btn-secondary" onClick={load} style={{ fontSize: 11, marginTop: 8 }}>Retry</button>
+                    <button className="k-btn-secondary" onClick={load} style={{ fontSize: "var(--pro-caption, 11px)", marginTop: 8 }}>Retry</button>
                 </div>
             ) : filtered.length === 0 ? (
                 <div className="dir-empty">

@@ -31,7 +31,7 @@
 .statstrip__unavailable {
     font-size: var(--text-base, 15px);
     color: var(--color-text-dim, #8a9794);
-    font-family: var(--font-mono);
+    font-family: var(--font-ui, var(--font-mono));
 }
 
 .statstrip__skeleton {

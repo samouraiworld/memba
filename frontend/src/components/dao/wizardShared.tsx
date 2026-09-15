@@ -36,7 +36,7 @@ export const inputStyle: React.CSSProperties = {
     border: "1px solid rgba(255,255,255,0.08)",
     borderRadius: 8,
     padding: "10px 14px",
-    fontSize: 13,
+    fontSize: "var(--pro-small, 13px)",
     color: "var(--color-text)",
     fontFamily: "JetBrains Mono, monospace",
     outline: "none",
@@ -49,11 +49,11 @@ export const inputStyle: React.CSSProperties = {
 export function FormField({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
     return (
         <div>
-            <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)", display: "block", marginBottom: 6 }}>
+            <label style={{ fontSize: "var(--pro-small, 12px)", fontWeight: 600, color: "var(--color-text)", display: "block", marginBottom: 6 }}>
                 {label}
             </label>
             {hint && (
-                <p style={{ fontSize: 10, color: "var(--color-text-secondary)", marginBottom: 8, fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", marginBottom: 8, fontFamily: "JetBrains Mono, monospace" }}>
                     {hint}
                 </p>
             )}
@@ -65,11 +65,11 @@ export function FormField({ label, hint, children }: { label: string; hint?: str
 export function SummaryItem({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
     return (
         <div>
-            <div style={{ fontSize: 9, color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace" }}>
+            <div style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "JetBrains Mono, monospace" }}>
                 {label}
             </div>
             <div style={{
-                fontSize: 13, fontWeight: accent ? 700 : 500,
+                fontSize: "var(--pro-small, 13px)", fontWeight: accent ? 700 : 500,
                 color: accent ? "var(--color-k-accent-text)" : "var(--color-k-text)",
                 fontFamily: "JetBrains Mono, monospace", marginTop: 2,
                 wordBreak: "break-all",

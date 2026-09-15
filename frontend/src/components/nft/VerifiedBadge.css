@@ -13,6 +13,6 @@
     font-size: var(--text-xs);
     font-weight: 600;
     color: var(--color-primary);
-    font-family: var(--font-mono);
+    font-family: var(--font-ui, var(--font-mono));
     flex-shrink: 0;
 }

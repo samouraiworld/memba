@@ -41,26 +41,26 @@
 }
 
 .analyst-label {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .analyst-confidence {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .analyst-agreement {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-muted);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     margin-left: auto;
 }
 
 .analyst-caret {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-dim);
     transition: transform 0.2s;
     flex-shrink: 0;
@@ -71,22 +71,22 @@
 }
 
 .analyst-hint {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-dim);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     margin-left: auto;
 }
 
 .analyst-loading-text {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .analyst-error-text {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-danger-text);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .analyst-retry-btn {
@@ -96,8 +96,8 @@
     background: var(--color-surface-hover);
     border: 1px solid var(--color-border);
     color: var(--color-text-secondary);
-    font-size: 10px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-caption, 10px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     cursor: pointer;
 }
 
@@ -120,9 +120,9 @@
 .analyst-verdict-badge {
     padding: 2px 8px;
     border-radius: 4px;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     font-weight: 700;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     letter-spacing: 0.03em;
 }
 
@@ -149,19 +149,19 @@
 }
 
 .analyst-detail__confidence {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .analyst-detail__agreement {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .analyst-detail__summary {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary);
     line-height: 1.5;
     margin: 0;
@@ -174,17 +174,17 @@
 }
 
 .analyst-detail__section-title {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 600;
     color: var(--color-text-secondary);
     margin: 0;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .analyst-detail__list {
     margin: 0;
     padding-left: 16px;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary);
     line-height: 1.5;
 }
@@ -233,15 +233,15 @@
 }
 
 .analyst-model-card__name {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 500;
     color: var(--color-text-secondary);
 }
 
 .analyst-model-card__role {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-muted);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .analyst-model-card__verdict {
@@ -251,9 +251,9 @@
 }
 
 .analyst-model-card__confidence {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     min-width: 32px;
     text-align: right;
 }
@@ -264,14 +264,14 @@
 }
 
 .analyst-model-card__reasoning {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
     line-height: 1.5;
     margin: 0 0 8px;
 }
 
 .analyst-model-card__risks {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
 }
 
@@ -296,9 +296,9 @@
 }
 
 .analyst-footer__info {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-dim);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .analyst-footer__refresh {
@@ -307,8 +307,8 @@
     background: rgba(0, 212, 170, 0.06);
     border: 1px solid rgba(0, 212, 170, 0.15);
     color: var(--color-k-accent-text);
-    font-size: 10px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-caption, 10px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     cursor: pointer;
     transition: background 0.15s;
 }
@@ -349,33 +349,33 @@
 }
 
 .ai-council__label {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-muted);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     transition: color 0.15s;
 }
 
 .ai-council__grade {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 700;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .ai-council__summary-text {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-muted);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .ai-council__retry {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-accent-text);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     margin-left: auto;
 }
 
 .ai-council__caret {
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     color: var(--color-text-dim);
     margin-left: auto;
     transition: transform 0.2s;
@@ -413,7 +413,7 @@
 .ai-council__detail-grade {
     font-size: 22px;
     font-weight: 700;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .ai-council__detail-meta {
@@ -423,19 +423,19 @@
 }
 
 .ai-council__detail-confidence {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .ai-council__detail-models {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-muted);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .ai-council__detail-summary {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
     line-height: 1.5;
     margin: 0;
@@ -456,21 +456,21 @@
 }
 
 .ai-council__column-title {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     font-weight: 600;
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     margin-bottom: 2px;
 }
 
 .ai-council__column-item {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     line-height: 1.4;
     padding: 4px 8px;
     border-radius: 4px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .ai-council__column-item--risk {
@@ -491,10 +491,10 @@
 }
 
 .ai-council__models-toggle {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-muted);
     cursor: pointer;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .ai-council__models-grid {
@@ -518,27 +518,27 @@
 }
 
 .ai-council__model-name {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-weight: 500;
     color: var(--color-text-secondary);
 }
 
 .ai-council__model-verdict {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .ai-council__model-role {
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     color: var(--color-text-muted);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     display: block;
     margin-top: 1px;
 }
 
 .ai-council__model-reasoning {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-muted);
     line-height: 1.4;
     margin: 6px 0 0;
@@ -550,9 +550,9 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     color: var(--color-text-dim);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     padding-top: 6px;
 }
 
@@ -562,8 +562,8 @@
     background: rgba(0, 212, 170, 0.05);
     border: 1px solid rgba(0, 212, 170, 0.1);
     color: var(--color-k-accent-text);
-    font-size: 9px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-caption, 9px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     cursor: pointer;
     transition: background 0.15s;
 }
@@ -597,22 +597,22 @@
     .analyst-label,
     .analyst-confidence,
     .analyst-agreement {
-        font-size: 10px;
+        font-size: var(--pro-caption, 10px);
     }
 
     .analyst-hint {
-        font-size: 9px;
+        font-size: var(--pro-caption, 9px);
     }
 
     .analyst-detail__summary {
-        font-size: 12px;
+        font-size: var(--pro-small, 12px);
     }
 
     .analyst-model-card__name {
-        font-size: 11px;
+        font-size: var(--pro-caption, 11px);
     }
 
     .analyst-model-card__reasoning {
-        font-size: 11px;
+        font-size: var(--pro-caption, 11px);
     }
 }

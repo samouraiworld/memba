@@ -3,6 +3,10 @@
   command = "npm run build"
   publish = "dist"
 
+# The consolidated design is reviewable in PR previews; production activation remains explicit.
+[context.deploy-preview.environment]
+  VITE_ENABLE_PRO_APP = "true"
+
 # Clerk satellite proxy — allows memba.samourai.app to use the shared
 # Samourai App Clerk instance without a dedicated clerk.memba CNAME.
 # Must be BEFORE the SPA catch-all or it will never match.

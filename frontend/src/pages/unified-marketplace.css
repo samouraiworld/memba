@@ -49,7 +49,7 @@
     padding: 64px 24px;
     text-align: center;
     color: var(--color-text-secondary);
-    font-size: 15px;
+    font-size: var(--pro-body, 15px);
 }
 
 .um-hero-content {
@@ -63,8 +63,8 @@
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    font-family: "JetBrains Mono", ui-monospace, monospace;
-    font-size: 11px;
+    font-family: var(--font-ui, "JetBrains Mono", ui-monospace, monospace);
+    font-size: var(--pro-caption, 11px);
     font-weight: 600;
     letter-spacing: 0.14em;
     text-transform: uppercase;
@@ -118,8 +118,8 @@
     display: inline-flex;
     align-items: center;
     gap: 7px;
-    font-family: "JetBrains Mono", ui-monospace, monospace;
-    font-size: 11px;
+    font-family: var(--font-ui, "JetBrains Mono", ui-monospace, monospace);
+    font-size: var(--pro-caption, 11px);
     font-weight: 500;
     color: var(--color-text-secondary);
     background: var(--color-bg);
@@ -282,7 +282,7 @@
     border-radius: 8px;
     padding: 8px 12px;
     margin: 0;
-    font-size: 0.875rem;
+    font-size: var(--pro-body, 0.875rem);
 }
 
 .um-mylistings-list {
@@ -330,7 +330,7 @@
 
 .um-mylistings-price {
     color: var(--color-text-secondary);
-    font-size: 0.875rem;
+    font-size: var(--pro-body, 0.875rem);
     font-variant-numeric: tabular-nums;
 }
 

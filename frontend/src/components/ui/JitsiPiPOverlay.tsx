@@ -173,7 +173,7 @@ export function JitsiPiPOverlay() {
                         <span>{session.mode === "voice" ? "🔊" : "🎥"}</span>
                         <span>{session.label}</span>
                         <span style={{
-                            fontSize: 9, padding: "2px 6px", borderRadius: 3,
+                            fontSize: "var(--pro-caption, 9px)", padding: "2px 6px", borderRadius: 3,
                             background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
                             fontFamily: "JetBrains Mono, monospace",
                         }}>
@@ -186,7 +186,7 @@ export function JitsiPiPOverlay() {
                             onClick={minimize}
                             title="Reduce — continue browsing while in call"
                             style={{
-                                padding: "6px 12px", borderRadius: 6, fontSize: 11,
+                                padding: "6px 12px", borderRadius: 6, fontSize: "var(--pro-caption, 11px)",
                                 fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                                 background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.1)",
                                 color: "var(--color-text-secondary)", cursor: "pointer",
@@ -199,7 +199,7 @@ export function JitsiPiPOverlay() {
                             onClick={toggleFullscreen}
                             title="Toggle fullscreen"
                             style={{
-                                padding: "6px 12px", borderRadius: 6, fontSize: 11,
+                                padding: "6px 12px", borderRadius: 6, fontSize: "var(--pro-caption, 11px)",
                                 fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                                 background: "rgba(0,0,0,0.5)", border: "1px solid rgba(255,255,255,0.1)",
                                 color: "var(--color-text-secondary)", cursor: "pointer",
@@ -249,7 +249,7 @@ export function JitsiPiPOverlay() {
                             boxShadow: "0 0 6px rgba(0,212,170,0.5)",
                         }} />
                         <span style={{
-                            fontSize: 9, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace",
+                            fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace",
                             fontWeight: 600, textShadow: "0 1px 4px rgba(0,0,0,0.8)",
                         }}>
                             {session.label}
@@ -264,7 +264,7 @@ export function JitsiPiPOverlay() {
                             onClick={expandAndReset}
                             title="Expand"
                             style={{
-                                padding: "4px 10px", borderRadius: 4, fontSize: 10,
+                                padding: "4px 10px", borderRadius: 4, fontSize: "var(--pro-caption, 10px)",
                                 fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                                 background: "rgba(0,212,170,0.15)", border: "1px solid rgba(0,212,170,0.3)",
                                 color: "var(--color-primary)", cursor: "pointer",
@@ -276,7 +276,7 @@ export function JitsiPiPOverlay() {
                             onClick={leaveRoom}
                             title="Leave"
                             style={{
-                                padding: "4px 10px", borderRadius: 4, fontSize: 10,
+                                padding: "4px 10px", borderRadius: 4, fontSize: "var(--pro-caption, 10px)",
                                 fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                                 background: "rgba(255,71,87,0.15)", border: "1px solid rgba(255,71,87,0.3)",
                                 color: "var(--color-danger)", cursor: "pointer",

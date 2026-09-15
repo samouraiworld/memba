@@ -24,7 +24,7 @@
     gap: 6px;
     padding: 6px 12px;
     cursor: pointer;
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-k-dim, #888);
     transition: all 0.15s;
     border-radius: 4px;
@@ -63,23 +63,23 @@
 }
 
 .board-thread-title {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     color: var(--color-k-text, #f0f0f0);
     margin-bottom: 4px;
 }
 
 .board-thread-meta {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-muted, #666);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 /* ── Thread Detail ─────────────────────────────────────────── */
 
 .board-thread-body {
     padding: 16px;
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     line-height: 1.7;
     color: var(--color-k-dim, #ccc);
 }
@@ -90,14 +90,14 @@
 }
 
 .board-reply-author {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-weight: 600;
     color: var(--color-k-accent-text, #00d4aa);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .board-reply-body {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-k-dim, #ccc);
     margin-top: 4px;
     line-height: 1.6;
@@ -112,7 +112,7 @@
     border: 1px solid var(--color-k-edge, #1a1a1a);
     background: var(--color-k-bg, #0d0d0d);
     color: var(--color-k-text, #f0f0f0);
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-family: inherit;
     outline: none;
     transition: border-color 0.15s;
@@ -129,7 +129,7 @@
     border: 1px solid var(--color-k-edge, #1a1a1a);
     background: var(--color-k-bg, #0d0d0d);
     color: var(--color-k-text, #f0f0f0);
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-family: inherit;
     outline: none;
     resize: vertical;
@@ -145,14 +145,14 @@
 /* ── Utilities ─────────────────────────────────────────────── */
 
 .board-edited-tag {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-muted, #666);
     font-style: italic;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .board-deleted-tag {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-danger-text, #ef4444);
     font-style: italic;
 }
@@ -162,19 +162,19 @@
     color: var(--color-k-accent-text, #00d4aa);
     padding: 1px 4px;
     border-radius: 4px;
-    font-size: 12px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .board-empty {
     text-align: center;
     padding: 40px 20px;
     color: var(--color-k-muted, #555);
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
 }
 
 .board-back-btn {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-k-muted, #666);
     background: none;
     border: none;
@@ -198,9 +198,9 @@
     border-radius: 8px;
     background: rgba(245, 166, 35, 0.06);
     border: 1px solid rgba(245, 166, 35, 0.15);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-k-dim, #aaa);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .gated-channel-banner__icon {
@@ -226,7 +226,7 @@
     background: none;
     border: none;
     cursor: pointer;
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-k-muted, #555);
     padding: 2px 6px;
     border-radius: 4px;
@@ -251,7 +251,7 @@
 
 .flag-button__error {
     display: block;
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     color: var(--color-k-danger-text, #ef4444);
     margin-top: 2px;
 }

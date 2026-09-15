@@ -48,17 +48,17 @@ export function WizardStepPreset({
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
             {/* UX-22: What is a DAO? — explanation for non-technical users */}
             <details style={{ background: "var(--color-k-panel)", borderRadius: 10, border: "1px solid var(--color-k-edge)" }}>
-                <summary style={{ cursor: "pointer", padding: "12px 16px", fontSize: 13, fontWeight: 500, color: "var(--color-k-text)" }}>
+                <summary style={{ cursor: "pointer", padding: "12px 16px", fontSize: "var(--pro-small, 13px)", fontWeight: 500, color: "var(--color-k-text)" }}>
                     What is a DAO?
                 </summary>
-                <div style={{ padding: "0 16px 14px", fontSize: 12, lineHeight: 1.6, color: "var(--color-k-dim)" }}>
+                <div style={{ padding: "0 16px 14px", fontSize: "var(--pro-small, 12px)", lineHeight: 1.6, color: "var(--color-k-dim)" }}>
                     A <strong>DAO</strong> (Decentralized Autonomous Organization) is a community-owned organization where decisions are made by member votes instead of a single authority. Members propose ideas, vote on them, and the results are automatically enforced on the blockchain. Think of it as a transparent, democratic team where every decision is recorded and verifiable.
                 </div>
             </details>
 
             {/* Preset Cards */}
             <div className="k-card" style={{ padding: 20 }}>
-                <h3 style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)", marginBottom: 12 }}>DAO Type</h3>
+                <h3 style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)", marginBottom: 12 }}>DAO Type</h3>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
                     {DAO_PRESETS.map((preset) => (
                         <button
@@ -72,16 +72,16 @@ export function WizardStepPreset({
                             }}
                         >
                             <div style={{ fontSize: 20, marginBottom: 6 }}>{PRESET_ICONS[preset.icon] || preset.icon}</div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: selectedPreset === preset.id ? "var(--color-k-accent-text)" : "var(--color-k-text)", marginBottom: 4 }}>
+                            <div style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: selectedPreset === preset.id ? "var(--color-k-accent-text)" : "var(--color-k-text)", marginBottom: 4 }}>
                                 {preset.name}
                             </div>
-                            <div style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", lineHeight: 1.4 }}>
+                            <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", lineHeight: 1.4 }}>
                                 {preset.description}
                             </div>
                             <div style={{ marginTop: 8, display: "flex", gap: 4, flexWrap: "wrap" }}>
                                 {preset.roles.map((r) => (
                                     <span key={r} style={{
-                                        fontSize: 9, padding: "2px 6px", borderRadius: 4,
+                                        fontSize: "var(--pro-caption, 9px)", padding: "2px 6px", borderRadius: 4,
                                         background: `${ROLE_COLORS[r] || "var(--color-text-secondary)"}15`,
                                         color: ROLE_COLORS[r] || "var(--color-text-secondary)",
                                         fontFamily: "JetBrains Mono, monospace",
@@ -131,20 +131,20 @@ export function WizardStepPreset({
                             style={{ ...inputStyle, flex: 1 }}
                         />
                         {walletAddress && (
-                            <button className="k-btn-secondary" onClick={onAutoFill} style={{ fontSize: 11, padding: "8px 12px", whiteSpace: "nowrap" }}>
+                            <button className="k-btn-secondary" onClick={onAutoFill} style={{ fontSize: "var(--pro-caption, 11px)", padding: "8px 12px", whiteSpace: "nowrap" }}>
                                 Auto-fill
                             </button>
                         )}
                     </div>
                     {realmPath && validateRealmPath(realmPath) && (
-                        <p style={{ color: "var(--color-warning)", fontSize: 11, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                        <p style={{ color: "var(--color-warning)", fontSize: "var(--pro-caption, 11px)", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
                             ⚠ {validateRealmPath(realmPath)}
                         </p>
                     )}
                 </FormField>
 
                 <div style={{ display: "flex", justifyContent: "flex-end" }}>
-                    <button className="k-btn-primary" onClick={onNext} style={{ fontSize: 13, padding: "10px 24px" }}>
+                    <button className="k-btn-primary" onClick={onNext} style={{ fontSize: "var(--pro-small, 13px)", padding: "10px 24px" }}>
                         Next: Members & Roles →
                     </button>
                 </div>

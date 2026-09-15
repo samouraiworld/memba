@@ -98,11 +98,11 @@
 
 /* Step text */
 .deploy-step-label {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
     color: var(--color-text-dim);
     transition: color 0.3s ease;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .deploy-step-label[data-state="active"] {
@@ -114,9 +114,9 @@
 }
 
 .deploy-step-hint {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-dim);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     margin-top: 2px;
     transition: color 0.3s ease;
 }

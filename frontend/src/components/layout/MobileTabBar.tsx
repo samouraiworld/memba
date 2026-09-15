@@ -187,7 +187,7 @@ export function MobileTabBar({ connected, address, auth, network, feedReplyUnrea
                                 >
                                     <span className="k-sidebar-icon"><PuzzlePiece size={18} /></span>
                                     <span className="k-sidebar-label">{p.name}</span>
-                                    <small style={{ fontSize: 9, color: 'var(--color-k-muted)', marginLeft: 'auto' }}>Select a DAO</small>
+                                    <small style={{ fontSize: "var(--pro-caption, 9px)", color: 'var(--color-k-muted)', marginLeft: 'auto' }}>Select a DAO</small>
                                 </span>
                             )
                         ))}
@@ -211,7 +211,7 @@ export function MobileTabBar({ connected, address, auth, network, feedReplyUnrea
                                 style={{
                                     width: "100%",
                                     background: "var(--color-k-accent-subtle)", border: "1px solid var(--color-k-edge)",
-                                    color: "var(--color-text-secondary)", fontSize: 12, fontFamily: "JetBrains Mono, monospace",
+                                    color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace",
                                     padding: "8px 12px", borderRadius: 6, cursor: "pointer",
                                     outline: "none",
                                 }}

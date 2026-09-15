@@ -46,7 +46,7 @@ export function GovDAOTab({ navigate }: TabProps) {
                 </div>
                 <button
                     className="k-btn-primary"
-                    style={{ fontSize: 11, padding: "6px 14px", whiteSpace: "nowrap" }}
+                    style={{ fontSize: "var(--pro-caption, 11px)", padding: "6px 14px", whiteSpace: "nowrap" }}
                     onClick={() => navigate(`/dao/${encodeSlug(GOVDAO_PATH)}`)}
                 >
                     Open GovDAO →

@@ -32,7 +32,7 @@ export function LeaderboardTab({ navigate }: TabProps) {
                 </div>
                 <button
                     className="k-btn-primary"
-                    style={{ fontSize: 11, padding: "6px 14px", whiteSpace: "nowrap" }}
+                    style={{ fontSize: "var(--pro-caption, 11px)", padding: "6px 14px", whiteSpace: "nowrap" }}
                     onClick={() => navigate("/gnolove")}
                 >
                     Full Leaderboard →

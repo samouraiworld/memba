@@ -43,11 +43,11 @@ export default function GnoloveAnalytics() {
         background: ct.bg,
         border: `1px solid ${ct.tooltipBorder}`,
         borderRadius: 6,
-        fontSize: 11,
+        fontSize: "var(--pro-caption, 11px)",
         fontFamily: "var(--gl-font-mono)",
     }), [ct.bg, ct.tooltipBorder])
     const gridStyle = useMemo(() => ({ stroke: ct.grid }), [ct.grid])
-    const axisTick = useMemo(() => ({ fill: ct.axisFg, fontSize: 10, fontFamily: "var(--gl-font-mono)" }), [ct.axisFg])
+    const axisTick = useMemo(() => ({ fill: ct.axisFg, fontSize: "var(--pro-caption, 10px)", fontFamily: "var(--gl-font-mono)" }), [ct.axisFg])
 
     const [searchParams, setSearchParams] = useSearchParams()
     const rawTime = searchParams.get("time")
@@ -420,7 +420,7 @@ export default function GnoloveAnalytics() {
                                 <XAxis dataKey="month" tick={axisTick} tickFormatter={m => m.slice(5)} />
                                 <YAxis tick={axisTick} />
                                 <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "var(--color-text)" }} />
-                                <Legend iconType="circle" wrapperStyle={{ fontSize: 11, fontFamily: "var(--gl-font-mono)" }} />
+                                <Legend iconType="circle" wrapperStyle={{ fontSize: "var(--pro-caption, 11px)", fontFamily: "var(--gl-font-mono)" }} />
                                 <Area type="monotone" dataKey="merged" name="Merged" stroke={ct.primary} strokeWidth={2} fill="url(#gradMerged)" />
                                 <Area type="monotone" dataKey="inReview" name="In Review" stroke={ct.reviewed} strokeWidth={1.5} fill="url(#gradReviewed)" />
                                 <Area type="monotone" dataKey="open" name="Open" stroke={ct.open} strokeWidth={1.5} fill="url(#gradOpen)" />
@@ -471,7 +471,7 @@ export default function GnoloveAnalytics() {
                                         <BarChart data={repoActivity.slice(0, 8)} layout="vertical" margin={{ left: 100, right: 10, top: 10, bottom: 0 }}>
                                             <CartesianGrid {...gridStyle} />
                                             <XAxis type="number" tick={axisTick} />
-                                            <YAxis type="category" dataKey="name" tick={{ ...axisTick, fontSize: 9 }} width={90} />
+                                            <YAxis type="category" dataKey="name" tick={{ ...axisTick, fontSize: "var(--pro-caption, 9px)" }} width={90} />
                                             <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "var(--color-text)" }} />
                                             <Bar dataKey="prs" name="Merged PRs" fill={ct.open} radius={[0, 3, 3, 0]} />
                                         </BarChart>
@@ -493,9 +493,9 @@ export default function GnoloveAnalytics() {
                                     <BarChart data={teamData} layout="vertical" margin={{ left: 120, right: 20, top: 10, bottom: 10 }}>
                                         <CartesianGrid {...gridStyle} />
                                         <XAxis type="number" tick={axisTick} />
-                                        <YAxis type="category" dataKey="name" tick={{ ...axisTick, fontSize: 11 }} width={110} />
+                                        <YAxis type="category" dataKey="name" tick={{ ...axisTick, fontSize: "var(--pro-caption, 11px)" }} width={110} />
                                         <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "var(--color-text)" }} />
-                                        <Legend iconType="circle" wrapperStyle={{ fontSize: 11, fontFamily: "var(--gl-font-mono)" }} />
+                                        <Legend iconType="circle" wrapperStyle={{ fontSize: "var(--pro-caption, 11px)", fontFamily: "var(--gl-font-mono)" }} />
                                         <Bar dataKey="prs" name="PRs" fill={ct.open} radius={[0, 2, 2, 0]} />
                                         <Bar dataKey="commits" name="Commits" fill={ct.commits} radius={[0, 2, 2, 0]} />
                                         <Bar dataKey="issues" name="Issues" fill={ct.issues} radius={[0, 2, 2, 0]} />
@@ -530,9 +530,9 @@ export default function GnoloveAnalytics() {
                                         >
                                             <CartesianGrid {...gridStyle} />
                                             <XAxis type="number" tick={axisTick} />
-                                            <YAxis type="category" dataKey="name" tick={{ ...axisTick, fontSize: 9 }} width={80} />
+                                            <YAxis type="category" dataKey="name" tick={{ ...axisTick, fontSize: "var(--pro-caption, 9px)" }} width={80} />
                                             <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "var(--color-text)" }} />
-                                            <Legend iconType="circle" wrapperStyle={{ fontSize: 10, fontFamily: "var(--gl-font-mono)" }} />
+                                            <Legend iconType="circle" wrapperStyle={{ fontSize: "var(--pro-caption, 10px)", fontFamily: "var(--gl-font-mono)" }} />
                                             <Bar dataKey="yes" name="Yes" stackId="votes" fill={ct.commits} />
                                             <Bar dataKey="no" name="No" stackId="votes" fill={ct.danger} />
                                             <Bar dataKey="abstain" name="Abstain" stackId="votes" fill={ct.neutral} />

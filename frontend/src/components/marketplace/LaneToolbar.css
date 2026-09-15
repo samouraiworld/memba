@@ -36,7 +36,7 @@
 .lane-toolbar__chip {
     padding: var(--space-1, 4px) var(--space-3, 12px);
     min-height: var(--mb-touch-min, 36px);
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
     font-family: var(--font-sans);
     color: var(--color-text-muted);
     background: transparent;
@@ -61,7 +61,7 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2, 8px);
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
     color: var(--color-text-muted);
 }
 
@@ -78,11 +78,11 @@
     display: inline-flex;
     align-items: center;
     gap: var(--space-2, 8px);
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
     color: var(--color-text);
     cursor: pointer;
 }
 
 .lane-toolbar__count {
-    font-size: 0.8rem;
+    font-size: var(--pro-small, 0.8rem);
 }

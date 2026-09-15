@@ -168,11 +168,11 @@ export function ImportMultisig() {
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
             <div>
-                <button onClick={() => navigate("/")} style={{ color: "var(--color-primary)", fontSize: 13, background: "none", border: "none", cursor: "pointer", marginBottom: 16, fontFamily: "JetBrains Mono, monospace" }}>
+                <button onClick={() => navigate("/")} style={{ color: "var(--color-primary)", fontSize: "var(--pro-small, 13px)", background: "none", border: "none", cursor: "pointer", marginBottom: 16, fontFamily: "JetBrains Mono, monospace" }}>
                     ← Back to Dashboard
                 </button>
                 <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Import Multisig</h2>
-                <p style={{ color: "var(--color-text-secondary)", fontSize: 14, marginTop: 4 }}>
+                <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-body, 14px)", marginTop: 4 }}>
                     Import an existing multisig wallet
                 </p>
             </div>
@@ -189,9 +189,9 @@ export function ImportMultisig() {
                     <div className="k-card" style={{ borderColor: "var(--color-k-accent-border)", display: "flex", flexDirection: "column", gap: 12 }}>
                         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                             <span style={{ fontSize: 16, display: 'flex' }}><LinkSimple size={16} /></span>
-                            <span style={{ fontWeight: 600, fontSize: 14 }}>You've been invited to join a multisig</span>
+                            <span style={{ fontWeight: 600, fontSize: "var(--pro-body, 14px)" }}>You've been invited to join a multisig</span>
                         </div>
-                        <div style={{ display: "flex", gap: 16, fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>
+                        <div style={{ display: "flex", gap: 16, fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>
                             {sharedImport.name && <span>Name: <span style={{ color: "var(--color-text-secondary)" }}>{sharedImport.name}</span></span>}
                             <span>Threshold: <span style={{ color: "var(--color-text-secondary)" }}>{threshold}/{members}</span></span>
                         </div>
@@ -205,7 +205,7 @@ export function ImportMultisig() {
                                 {loading ? "Importing..." : "✓ Import This Multisig"}
                             </button>
                         ) : (
-                            <p style={{ color: "var(--color-warning)", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                            <p style={{ color: "var(--color-warning)", fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace" }}>
                                 ⚠ Connect your wallet first to import
                             </p>
                         )}
@@ -215,7 +215,7 @@ export function ImportMultisig() {
 
             {!auth.isAuthenticated && (
                 <div className="k-dashed" style={{ background: "var(--color-k-elevated)", padding: 32, textAlign: "center" }}>
-                    <p style={{ color: "var(--color-text-secondary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 13px)", fontFamily: "JetBrains Mono, monospace" }}>
                         Connect your wallet to import a multisig
                     </p>
                 </div>
@@ -229,7 +229,7 @@ export function ImportMultisig() {
                         padding: "10px 20px", background: "none", border: "none",
                         borderBottom: mode === "address" ? "2px solid var(--color-k-accent)" : "2px solid transparent",
                         color: mode === "address" ? "var(--color-k-accent)" : "var(--color-k-muted)",
-                        fontFamily: "JetBrains Mono, monospace", fontSize: 12,
+                        fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-small, 12px)",
                         cursor: "pointer", transition: "all 0.15s",
                     }}
                 >
@@ -241,7 +241,7 @@ export function ImportMultisig() {
                         padding: "10px 20px", background: "none", border: "none",
                         borderBottom: mode === "pubkey" ? "2px solid var(--color-k-accent)" : "2px solid transparent",
                         color: mode === "pubkey" ? "var(--color-k-accent)" : "var(--color-k-muted)",
-                        fontFamily: "JetBrains Mono, monospace", fontSize: 12,
+                        fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-small, 12px)",
                         cursor: "pointer", transition: "all 0.15s",
                     }}
                 >
@@ -263,11 +263,11 @@ export function ImportMultisig() {
                             style={{
                                 width: "100%", height: 44, padding: "0 16px", borderRadius: 8,
                                 background: "var(--color-k-elevated)", border: "1px solid var(--color-k-edge)", color: "var(--color-text)",
-                                fontFamily: "JetBrains Mono, monospace", fontSize: 14, outline: "none",
+                                fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-body, 14px)", outline: "none",
                                 opacity: loading ? 0.5 : 1,
                             }}
                         />
-                        <p style={{ color: "var(--color-text-secondary)", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                        <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace" }}>
                             Paste the multisig wallet address from the Gno chain
                         </p>
                     </div>
@@ -302,7 +302,7 @@ export function ImportMultisig() {
                             style={{
                                 width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
                                 background: "var(--color-k-elevated)", border: "1px solid var(--color-k-edge)", color: "var(--color-text)",
-                                fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
+                                fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-small, 13px)", outline: "none",
                             }}
                         />
                     </div>
@@ -326,11 +326,11 @@ export function ImportMultisig() {
                             style={{
                                 width: "100%", padding: "12px", borderRadius: 8,
                                 background: "var(--color-k-elevated)", border: "1px solid var(--color-k-edge)", color: "var(--color-text)",
-                                fontFamily: "JetBrains Mono, monospace", fontSize: 12, outline: "none",
+                                fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-small, 12px)", outline: "none",
                                 resize: "vertical", lineHeight: 1.6, opacity: loading ? 0.5 : 1,
                             }}
                         />
-                        <p style={{ color: "var(--color-text-secondary)", fontSize: 11, fontFamily: "JetBrains Mono, monospace" }}>
+                        <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-caption, 11px)", fontFamily: "JetBrains Mono, monospace" }}>
                             Paste the full Amino-encoded multisig public key JSON. You can get this from gnokey or from another Memba user.
                         </p>
                     </div>

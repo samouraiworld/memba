@@ -29,18 +29,18 @@
 
 .proposal-notfound p {
     color: var(--color-text-secondary);
-    font-size: 14px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-body, 14px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
 }
 
 .proposal-notfound-back {
     color: var(--color-k-accent-text);
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     background: none;
     border: none;
     cursor: pointer;
     margin-top: 16px;
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
 }
 
 /* ── Breadcrumb ──────────────────────────────────────────── */
@@ -48,8 +48,8 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 12px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     flex-wrap: wrap;
 }
 
@@ -85,14 +85,14 @@
 }
 
 .proposal-id-label {
-    font-size: 12px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     color: var(--color-text-muted);
 }
 
 .proposal-source-link {
-    font-size: 9px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 9px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     color: var(--color-text-dim);
     text-decoration: none;
     transition: color 0.15s;
@@ -108,22 +108,22 @@
 .proposal-status-badge {
     padding: 4px 10px;
     border-radius: 6px;
-    font-size: 10px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 10px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     font-weight: 600;
 }
 
 .proposal-awaiting-hint {
-    font-size: 9px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 9px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     color: var(--color-text-secondary);
 }
 
 .proposal-live-badge {
     padding: 3px 8px;
     border-radius: 4px;
-    font-size: 9px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 9px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     font-weight: 600;
     background: rgba(0, 212, 170, 0.06);
     color: var(--color-k-accent-text);
@@ -148,8 +148,8 @@
 .proposal-tier-badge {
     padding: 2px 6px;
     border-radius: 3px;
-    font-size: 9px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 9px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     font-weight: 500;
     background: var(--color-surface-hover);
     color: var(--color-text-secondary);
@@ -158,8 +158,8 @@
 .proposal-category-badge {
     padding: 2px 6px;
     border-radius: 3px;
-    font-size: 9px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 9px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     font-weight: 500;
     background: rgba(33, 150, 243, 0.06);
     color: var(--color-k-info-text);
@@ -190,12 +190,12 @@
     align-items: center;
     justify-content: center;
     font-size: 14px;
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     color: var(--color-k-accent-text);
 }
 
 .proposal-author-name {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
     color: var(--color-text);
 }
@@ -206,9 +206,9 @@
 }
 
 .proposal-author-role {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-secondary);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
 }
 
 .proposal-author-address {
@@ -222,9 +222,9 @@
 
 .proposal-desc-text {
     color: var(--color-text-secondary);
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     line-height: 1.7;
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     white-space: pre-wrap;
     word-break: break-word;
     overflow-wrap: anywhere;
@@ -236,7 +236,7 @@
 }
 
 .proposal-action-title {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
     color: var(--color-text);
     margin-bottom: 12px;
@@ -248,16 +248,16 @@
 .proposal-action-type-badge {
     padding: 3px 8px;
     border-radius: 4px;
-    font-size: 9px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 9px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     font-weight: 600;
     background: rgba(33, 150, 243, 0.08);
     color: var(--color-k-info-text);
 }
 
 .proposal-executor-label {
-    font-size: 11px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 11px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     color: var(--color-text-secondary);
     margin-bottom: 10px;
 }
@@ -272,8 +272,8 @@
     border-radius: 8px;
     background: var(--color-overlay-light);
     border: 1px solid var(--color-border);
-    font-size: 11px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 11px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     color: var(--color-text-secondary);
     line-height: 1.6;
     white-space: pre-wrap;
@@ -288,7 +288,7 @@
 }
 
 .proposal-votes-title {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     color: var(--color-text);
     margin-bottom: 16px;
@@ -319,8 +319,8 @@
     border-radius: 8px;
     border: 1px solid rgba(0, 212, 170, 0.2);
     color: var(--color-k-accent-text);
-    font-size: 13px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-small, 13px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
 }
 
 .proposal-warning {
@@ -328,9 +328,9 @@
     border-radius: 8px;
     background: rgba(245, 166, 35, 0.06);
     border: 1px solid rgba(245, 166, 35, 0.15);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-k-warning-text);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
 }
 
 .proposal-warning--mb {
@@ -354,9 +354,9 @@
 }
 
 .proposal-archived-text {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-k-warning-text);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
 }
 
 /* ── Connect CTA ─────────────────────────────────────────── */
@@ -368,8 +368,8 @@
 
 .proposal-connect-cta p {
     color: var(--color-text-muted);
-    font-size: 13px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-small, 13px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
 }
 
 /* ── Proposal date metadata ─────────────────────────────── */
@@ -392,8 +392,8 @@
 }
 
 .proposal-date-item__label {
-    font-size: 12px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     color: var(--color-text);
 }
 
@@ -402,7 +402,7 @@
 }
 
 .proposal-date-block {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     font-family: JetBrains Mono, monospace;
     color: var(--color-text-muted);
     background: rgba(255, 255, 255, 0.03);
@@ -411,7 +411,7 @@
 }
 
 .proposal-date-estimated {
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     color: var(--color-text-muted);
     font-style: italic;
 }
@@ -420,8 +420,8 @@
 .proposal-voted-indicator {
     padding: 14px 16px;
     border-radius: 8px;
-    font-size: 13px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-small, 13px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     font-weight: 600;
 }
 

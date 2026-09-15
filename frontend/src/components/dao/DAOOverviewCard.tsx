@@ -74,7 +74,7 @@ function RealmAddressBadge({ realmPath }: { realmPath: string }) {
             }}
             className="k-realm-address"
         >
-            {copied ? "✓ Copied!" : <>{truncated} <span style={{ opacity: 0.5, fontSize: 9 }}>📋</span></>}
+            {copied ? "✓ Copied!" : <>{truncated} <span style={{ opacity: 0.5, fontSize: "var(--pro-caption, 9px)" }}>📋</span></>}
         </button>
     )
 }

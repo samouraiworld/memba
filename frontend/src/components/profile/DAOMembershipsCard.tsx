@@ -29,13 +29,13 @@ export function DAOMembershipsCard(props: Props) {
     return (
         <div className="k-card" style={{ padding: 20 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>
+                <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)" }}>
                     🏛️ DAO Memberships ({savedDAOs.length})
                 </h3>
                 <button
                     onClick={() => navigate("/dao")}
                     style={{
-                        fontSize: 10, color: "var(--color-primary)", background: "none",
+                        fontSize: "var(--pro-caption, 10px)", color: "var(--color-primary)", background: "none",
                         border: "none", cursor: "pointer",
                         fontFamily: "JetBrains Mono, monospace",
                     }}
@@ -61,18 +61,18 @@ export function DAOMembershipsCard(props: Props) {
                         onMouseLeave={e => e.currentTarget.style.borderColor = "var(--color-surface-base)"}
                     >
                         <div>
-                            <div style={{ fontSize: 13, fontWeight: 500, color: "var(--color-text)" }}>
+                            <div style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 500, color: "var(--color-text)" }}>
                                 {dao.name}
                             </div>
                             <div style={{
-                                fontSize: 10, fontFamily: "JetBrains Mono, monospace",
+                                fontSize: "var(--pro-caption, 10px)", fontFamily: "JetBrains Mono, monospace",
                                 color: "var(--color-text-muted)", marginTop: 2,
                             }}>
                                 {dao.realmPath}
                             </div>
                         </div>
                         <span style={{
-                            fontSize: 9, padding: "2px 8px", borderRadius: 4,
+                            fontSize: "var(--pro-caption, 9px)", padding: "2px 8px", borderRadius: 4,
                             background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
                             fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                         }}>

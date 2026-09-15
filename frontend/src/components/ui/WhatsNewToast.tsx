@@ -125,7 +125,7 @@ export function WhatsNewToast() {
                 </button>
 
                 {/* Header */}
-                <div style={{ fontSize: 15, fontWeight: 700, color: "var(--color-text)", marginBottom: 16 }}>
+                <div style={{ fontSize: "var(--pro-body, 15px)", fontWeight: 700, color: "var(--color-text)", marginBottom: 16 }}>
                     🚀 What's New
                 </div>
 
@@ -149,7 +149,7 @@ export function WhatsNewToast() {
                 </div>
 
                 {/* Links */}
-                <div style={{ fontSize: 10, color: "var(--color-text-secondary)", marginBottom: 14, display: "flex", gap: 12 }}>
+                <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", marginBottom: 14, display: "flex", gap: 12 }}>
                     <span
                         onClick={() => { handleDismiss(); navigate("/settings") }}
                         style={{ color: "var(--color-text-secondary)", cursor: "pointer", textDecoration: "underline", textUnderlineOffset: 2 }}
@@ -177,7 +177,7 @@ export function WhatsNewToast() {
                         color: "var(--color-primary)",
                         cursor: "pointer",
                         fontFamily: "JetBrains Mono, monospace",
-                        fontSize: 12, fontWeight: 600,
+                        fontSize: "var(--pro-small, 12px)", fontWeight: 600,
                         transition: "background 0.15s",
                     }}
                     onMouseOver={e => (e.currentTarget.style.background = "rgba(0,212,170,0.15)")}
@@ -222,10 +222,10 @@ function NetworkItem({ color, title, desc }: { color: string; title: string; des
             background: "var(--color-surface)",
             borderLeft: `3px solid ${color}`,
         }}>
-            <div style={{ fontSize: 11, fontWeight: 600, color: "var(--color-text)", marginBottom: 2 }}>
+            <div style={{ fontSize: "var(--pro-caption, 11px)", fontWeight: 600, color: "var(--color-text)", marginBottom: 2 }}>
                 ▸ {title}
             </div>
-            <div style={{ fontSize: 10, color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
+            <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", lineHeight: 1.4 }}>
                 {desc}
             </div>
         </div>

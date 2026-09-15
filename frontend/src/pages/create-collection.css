@@ -212,7 +212,7 @@
 .lp-preview__sym {
     font-size: var(--text-xs);
     color: var(--color-text-dim);
-    font-family: var(--font-mono);
+    font-family: var(--font-ui, var(--font-mono));
     margin-bottom: var(--space-2);
 }
 
@@ -227,7 +227,7 @@
 
 .lp-preview__row span:last-child {
     color: var(--color-text);
-    font-family: var(--font-mono);
+    font-family: var(--font-ui, var(--font-mono));
 }
 
 /* ── Success ── */

@@ -68,7 +68,7 @@ export default function GnoloveAIReports() {
         return (
             <div className="gl-empty">
                 <p>No AI reports available yet.</p>
-                <p style={{ fontSize: 12, color: "var(--color-text-secondary)" }}>
+                <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)" }}>
                     Reports are generated weekly by the gnolove backend.
                 </p>
             </div>

@@ -50,14 +50,14 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
     return (
         <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             {regSuccess ? (
-                <span style={{ fontSize: 11, color: "var(--color-success)", fontFamily: "JetBrains Mono, monospace" }}>
+                <span style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-success)", fontFamily: "JetBrains Mono, monospace" }}>
                     ✓ Username @{regInput} registered!
                 </span>
             ) : (
                 <>
                     <div style={{ display: "flex", alignItems: "center", gap: 0 }}>
                         <span style={{
-                            fontSize: 12, fontFamily: "JetBrains Mono, monospace",
+                            fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace",
                             color: "var(--color-primary)", padding: "5px 0 5px 10px",
                             background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.2)",
                             borderRight: "none", borderRadius: "6px 0 0 6px",
@@ -69,7 +69,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                             placeholder="myname123"
                             maxLength={20}
                             style={{
-                                width: 130, padding: "5px 8px", fontSize: 12,
+                                width: 130, padding: "5px 8px", fontSize: "var(--pro-small, 12px)",
                                 fontFamily: "JetBrains Mono, monospace",
                                 background: "rgba(0,212,170,0.06)", border: "1px solid rgba(0,212,170,0.2)",
                                 borderLeft: "none", borderRadius: "0 6px 6px 0",
@@ -83,7 +83,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                         onClick={handleRegister}
                         disabled={!isValid || regLoading}
                         style={{
-                            padding: "5px 12px", borderRadius: 6, fontSize: 11,
+                            padding: "5px 12px", borderRadius: 6, fontSize: "var(--pro-caption, 11px)",
                             fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                             background: isValid ? "rgba(0,212,170,0.1)" : "transparent",
                             border: `1px solid ${isValid ? "rgba(0,212,170,0.3)" : "var(--color-surface-raised)"}`,
@@ -95,7 +95,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                     </button>
                     {regError && (
                         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                            <span style={{ fontSize: 10, color: "var(--color-danger)", fontFamily: "JetBrains Mono, monospace" }}>
+                            <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-danger)", fontFamily: "JetBrains Mono, monospace" }}>
                                 ✕ {regError}
                             </span>
                             {regError.includes("faucet") && (
@@ -103,7 +103,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                                     href="https://faucet.gno.land/"
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    style={{ fontSize: 10, color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace", textDecoration: "none" }}
+                                    style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace", textDecoration: "none" }}
                                 >
                                     → Get test tokens at faucet.gno.land
                                 </a>
@@ -111,7 +111,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                         </div>
                     )}
                     {regInput && !isValid && (
-                        <span style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                        <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                             6-17 chars: letters, digits, underscores (e.g. zooma_dev)
                         </span>
                     )}
@@ -120,7 +120,7 @@ export function RegisterUsernameForm({ address, onRegistered }: { address: strin
                             href="https://faucet.gno.land/"
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ fontSize: 10, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }}
+                            style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", textDecoration: "none", transition: "color 0.15s" }}
                             onMouseEnter={(e) => (e.currentTarget.style.color = "var(--color-brand)")}
                             onMouseLeave={(e) => (e.currentTarget.style.color = "var(--color-text-muted)")}
                         >

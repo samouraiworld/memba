@@ -21,7 +21,7 @@ function AdminPanelLinkInner() {
                 gap: 6,
                 color: "var(--color-primary)",
                 fontFamily: "JetBrains Mono, monospace",
-                fontSize: 12,
+                fontSize: "var(--pro-small, 12px)",
                 fontWeight: 600,
                 textDecoration: "none",
                 background: "rgba(0, 212, 170, 0.08)",
@@ -32,7 +32,7 @@ function AdminPanelLinkInner() {
             }}
             title="Open Admin Panel"
         >
-            <span style={{ fontSize: 14 }}>⚙️</span> Admin Panel ↗
+            <span style={{ fontSize: "var(--pro-body, 14px)" }}>⚙️</span> Admin Panel ↗
         </a>
     )
 }

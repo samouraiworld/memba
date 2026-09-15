@@ -35,18 +35,18 @@
     align-items: center;
     justify-content: space-between;
     padding: 8px 14px 12px;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     font-weight: 700;
     color: var(--color-text-muted);
     text-transform: uppercase;
     letter-spacing: 1.2px;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 /* ── Owner-only: create channel ──────────────────────────── */
 
 .channels-create-btn {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     font-weight: 700;
     letter-spacing: 0.5px;
     padding: 2px 8px;
@@ -55,7 +55,7 @@
     background: transparent;
     color: var(--color-k-accent-text, #6366f1);
     cursor: pointer;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .channels-create-btn:hover {
@@ -77,13 +77,13 @@
     border: 1px solid var(--color-border);
     background: var(--color-surface-raised, rgba(255, 255, 255, 0.04));
     color: var(--color-text);
-    font-size: 12px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     box-sizing: border-box;
 }
 
 .channels-create-error {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-danger-text, #f44336);
 }
 
@@ -93,7 +93,7 @@
     border: none;
     background: var(--color-k-accent, #6366f1);
     color: #fff;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 600;
     cursor: pointer;
 }
@@ -114,8 +114,8 @@
     background: none;
     width: 100%;
     text-align: left;
-    font-family: "JetBrains Mono", monospace;
-    font-size: 12px;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary);
     position: relative;
 }
@@ -153,7 +153,7 @@
 }
 
 .channels-sidebar-item .channel-badge {
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     padding: 1px 5px;
     border-radius: 3px;
     background: var(--color-surface-hover);
@@ -172,7 +172,7 @@
 }
 
 .channels-sidebar-item .thread-count {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-dim);
     flex-shrink: 0;
 }
@@ -200,8 +200,8 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-caption, 11px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .channels-header .breadcrumb button {
@@ -221,7 +221,7 @@
 
 .channels-header .breadcrumb .sep {
     color: var(--color-k-dim);
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
 }
 
 .channels-header .breadcrumb .current {
@@ -240,8 +240,8 @@
     background: var(--color-surface);
     color: var(--color-text-secondary);
     cursor: pointer;
-    font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-caption, 11px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     margin-bottom: 12px;
     transition: all 0.15s;
 }
@@ -268,15 +268,15 @@
 }
 
 .channels-empty .title {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     color: var(--color-text);
 }
 
 .channels-empty .desc {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     max-width: 320px;
     line-height: 1.6;
 }
@@ -359,13 +359,13 @@
     border-radius: 8px;
     background: rgba(0, 212, 170, 0.04);
     border: 1px solid rgba(0, 212, 170, 0.12);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary, #888);
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
 }
 
 .channels-demo-badge {
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     padding: 2px 6px;
     border-radius: 3px;
     background: rgba(0, 212, 170, 0.1);
@@ -384,9 +384,9 @@
 
 .channels-empty-sidebar {
     padding: 8px 14px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-muted, #555);
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
 }
 
 .channels-count {

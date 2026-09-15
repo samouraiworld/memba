@@ -1,0 +1,213 @@
+/* Memba professional system. Scope is deliberately opt-in and presentation-only. */
+.k-pro-app {
+  --color-k-bg: #000; --color-k-panel: #000; --color-k-elevated: #000;
+  --color-k-panel-hover: #111; --color-k-edge: #343434; --color-k-edge-hover: #757575;
+  --color-k-dashed: #565656; --color-k-text: #f5f5f5; --color-k-dim: #b2b2b2; --color-k-muted: #a3a3a3;
+  --color-k-accent: #00d4aa; --color-k-accent-text: #00d4aa; --color-k-on-accent: #00271f;
+  --color-bg: var(--color-k-bg); --color-bg-card: var(--color-k-panel);
+  --color-text: var(--color-k-text); --color-text-secondary: var(--color-k-dim); --color-text-muted: var(--color-k-muted);
+  --color-text-dim: var(--color-k-muted); --color-border: var(--color-k-edge); --color-border-light: var(--color-k-edge);
+  --color-surface: var(--color-k-panel); --color-surface-input: var(--color-k-bg);
+  --color-success: var(--color-k-success-text); --color-info: var(--color-k-info-text);
+  --font-ui: var(--font-sans);
+  --color-primary: var(--color-k-accent); --color-brand: var(--color-k-accent); --color-text-contrast: var(--color-k-on-accent);
+  --pro-caption: 13px; --pro-small: 14px; --pro-body: 15px; --pro-lead: 17px;
+  --pro-heading: clamp(28px, 2.5vw, 36px); --pro-section: 21px;
+  --text-xs: 13px; --text-sm: 14px; --text-base: 16px;
+  --radius-sm: 6px; --radius-md: 10px; --radius-lg: 14px;
+  background: var(--color-k-bg); color: var(--color-k-text); font-family: var(--font-sans);
+}
+[data-theme="light"] .k-pro-app {
+  --color-k-bg: #fff; --color-k-panel: #fff; --color-k-elevated: #fff;
+  --color-k-panel-hover: #f4f6f5; --color-k-edge: #d7deda; --color-k-edge-hover: #738279;
+  --color-k-dashed: #88958d; --color-k-text: #17221e; --color-k-dim: #52615a; --color-k-muted: #58665f;
+  --color-k-accent: #006e57; --color-k-accent-hover: #005b48; --color-k-accent-text: #006e57; --color-k-on-accent: #fff;
+}
+.k-pro-app .k-main { width: 100%; max-width: 1680px; min-width: 0; padding: 36px clamp(20px, 3vw, 56px) 64px; font: 400 15px/1.6 var(--font-sans); }
+.k-pro-app .k-main[data-page-layout="form"] { max-width: 1040px; }
+.k-pro-app .k-main[data-page-layout="reading"] { max-width: 1040px; }
+.k-pro-app .k-main[data-page-layout="social"] { max-width: 1440px; }
+.k-pro-app .k-main[data-page-layout="immersive"] { max-width: none; padding: 20px; }
+/* Root bounds belong to the route layout. Inner prose and forms keep readable measures. */
+.k-pro-app .k-main:not([data-page-layout="immersive"]) > :is(div, section, article) { max-width: 100% !important; min-width: 0; }
+.k-pro-app .k-main :is(h1, h2, h3, h4) { color: var(--color-k-text); font-family: var(--font-sans); text-wrap: balance; }
+.k-pro-app .k-main h1 { font-size: var(--pro-heading); font-weight: 600; line-height: 1.2; letter-spacing: -.8px; }
+.k-pro-app .k-main > div > h2,
+.k-pro-app .k-main > div > header > h2 { font-size: var(--pro-heading) !important; font-weight: 600; line-height: 1.25; letter-spacing: -.7px; }
+.k-pro-app .k-main h3 { line-height: 1.35; font-weight: 600; }
+.k-pro-app .k-main :is(p, label, li) { line-height: 1.6; }
+.k-pro-app :is(button, input, select, textarea) { font-family: var(--font-sans); }
+.k-pro-app :is(a, button, input, textarea, select, summary, [tabindex]):focus-visible { outline: 2px solid var(--color-k-accent-text); outline-offset: 3px; }
+.k-pro-app .k-card { background: var(--color-k-panel); border: 1px solid var(--color-k-edge); border-radius: var(--radius-lg); box-shadow: none; }
+.k-pro-app :is(.k-btn-primary, .k-btn-secondary, .k-btn-danger, .k-btn-ghost) { min-height: 44px; padding: 10px 18px; border-radius: 8px; font: 500 14px/1.4 var(--font-sans); letter-spacing: 0; box-shadow: none; }
+.k-pro-app .k-btn-primary { background: var(--color-k-accent); color: var(--color-k-on-accent); border: 1px solid var(--color-k-accent); }
+.k-pro-app .k-btn-secondary { color: var(--color-k-text); background: var(--color-k-panel); border: 1px solid var(--color-k-edge-hover); }
+.k-pro-app :is(button, input, select, textarea):disabled { cursor: not-allowed; }
+.k-pro-app .k-main :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="color"]), select, textarea) { min-height: 44px; border-radius: 8px; border-color: var(--color-k-edge-hover); color: var(--color-k-text); background: var(--color-k-bg); font-size: 16px; }
+.k-pro-app .k-main :is(input, textarea)::placeholder { color: var(--color-k-muted); opacity: 1; }
+.k-pro-app .k-main table { width: 100%; border-collapse: separate; border-spacing: 0; font: 400 14px/1.5 var(--font-sans); }
+.k-pro-app .k-main :is(th, td) { padding: 14px 16px; border-color: var(--color-k-edge); }
+.k-pro-app .k-main th { color: var(--color-k-dim); font-weight: 500; text-align: left; white-space: nowrap; }
+.k-pro-app .k-main td { color: var(--color-k-text); }
+.k-pro-app .k-main :is(code, pre, .k-copyable-address, .mono, .font-mono) { font-family: var(--font-mono); }
+.k-pro-app .k-main pre { max-width: 100%; overflow-x: auto; line-height: 1.6; }
+.k-pro-app :is([role="dialog"], [role="alertdialog"]) { color: var(--color-k-text); font-family: var(--font-sans); }
+.k-pro-app .k-footer { border-top: 1px solid var(--color-k-edge); padding: 24px; background: var(--color-k-bg); }
+.k-pro-app .k-footer :is(p, a) { font: 400 12px/1.6 var(--font-sans); color: var(--color-k-dim); }
+.k-pro-app .k-footer-social { min-width: 36px; min-height: 36px; display: inline-flex; align-items: center; justify-content: center; }
+@media (max-width: 767px) {
+  .k-pro-app .k-main { padding: 24px 16px 40px; }
+  .k-pro-app .k-main[data-page-layout="immersive"] { padding: 12px; }
+  .k-pro-app .k-main h1 { font-size: 28px; }
+  .k-pro-app :is(.k-btn-primary, .k-btn-secondary, .k-btn-danger, .k-btn-ghost) { min-height: 44px; }
+  .k-pro-app .k-main :is(th, td) { padding: 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .k-pro-app *, .k-pro-app *::before, .k-pro-app *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; scroll-behavior: auto !important; }
+}
+
+/* Home: a purposeful introduction, then an operational overview. */
+.k-pro-app :is(.home-spine, .home-state-board) { padding: 0; }
+.k-pro-app .visitor-hero { grid-template-columns: minmax(0, 1.4fr) minmax(280px, .8fr); gap: 64px; padding: 40px 0; align-items: center; }
+.k-pro-app .k-main .visitor-hero__headline { font-size: clamp(34px, 3.5vw, 52px); max-width: 680px; line-height: 1.12; letter-spacing: -1.6px; }
+.k-pro-app .visitor-hero__subtitle { font-size: 18px; max-width: 540px; margin: 24px 0; }
+.k-pro-app .visitor-hero__cta { min-height: 46px; padding: 12px 20px; border-radius: 8px; font: 500 15px/1.4 var(--font-sans); }
+.k-pro-app .visitor-hero__cta--primary { background: var(--color-k-accent); color: var(--color-k-on-accent); }
+.k-pro-app .visitor-hero__hint { margin-top: 18px; }
+.k-pro-app .value-strip { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 230px), 1fr)); gap: 16px; margin: 8px 0 36px; }
+.k-pro-app .value-strip__item { padding: 20px; min-height: 88px; background: var(--color-k-panel); border-color: var(--color-k-edge); border-radius: 12px; }
+.k-pro-app .showcase-board { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 20px; }
+.k-pro-app .govdao-spotlight { padding: 28px; gap: 32px; background: var(--color-k-panel); border-color: var(--color-k-edge); border-top: 2px solid var(--color-k-gold, #d4a832); border-radius: 14px; }
+.k-pro-app .govdao-spotlight__title { font-size: 24px; }
+.k-pro-app .door { min-height: 205px; padding: 22px; border-radius: 14px; background: var(--color-k-panel); }
+.k-pro-app .member-hero { padding: 24px 0; }
+.k-pro-app .home-below-fold { margin-top: 36px; }
+
+/* Discovery and asset collections: fill the work area without stretching cards. */
+.k-pro-app :is(.k-daolist, .dir-page, .appstore, .msh-page, .k-tokendashboard, .um-container, .profile-container, .org-page, .studio-home, .studio-manage, .k-questhub) { width: 100%; padding: 0; }
+.k-pro-app :is(.k-daolist__title, .cms-title, .ptx-title, .k-txview__title, .org-title, .appstore__headline) { font-size: var(--pro-heading); }
+.k-pro-app :is(.dir-header, .msh-header, .org-header, .appstore__masthead, .k-questhub-hero) { margin-bottom: 28px; padding-bottom: 24px; border-bottom: 1px solid var(--color-k-edge); }
+.k-pro-app :is(.k-daolist__grid, .dir-grid, .msh-grid, .appstore__grid, .k-questhub-grid, .studio-grid) { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 20px; }
+.k-pro-app :is(.k-dao-card, .dir-card, .dir-featured-card, .msh-card, .appcard, .k-quest-card, .studio-card) { padding: 24px; background: var(--color-k-panel); border: 1px solid var(--color-k-edge); border-radius: 14px; box-shadow: none; min-width: 0; }
+.k-pro-app :is(.k-dao-card:hover, .dir-card:hover, .msh-card:hover, .appcard:hover, .k-quest-card:hover) { border-color: var(--color-k-edge-hover); transform: none; }
+.k-pro-app :is(.k-dao-card__name, .dir-card-name, .msh-card-name, .appcard__name, .k-quest-card-title) { font: 600 19px/1.4 var(--font-sans); color: var(--color-k-text); }
+.k-dao-card__name:is(button) { border: 0; padding: 0; background: transparent; cursor: pointer; text-align: left; }
+.k-pro-app :is(.k-dao-card__path, .dir-card-path, .msh-card-addr, .apppath) { overflow-wrap: anywhere; font: 400 13px/1.6 var(--font-mono); }
+.k-pro-app .k-daolist__actions { margin-top: 28px; gap: 12px; flex-wrap: wrap; }
+.k-pro-app .pro-collection-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 28px 0 20px; }
+.k-pro-app .pro-collection-toolbar label { font-weight: 600; margin-right: auto; }
+.k-pro-app .pro-collection-toolbar input { width: min(100%, 360px); padding: 10px 14px; }
+.k-pro-app .pro-collection-toolbar span { color: var(--color-k-dim); font-size: 14px; }
+.k-pro-app :is(.dir-tabs, .feed-tabs, .profile-tabs-nav, .ptx-tabs, .k-questhub-tabs, .studio-tabs) { gap: 8px; border-bottom: 1px solid var(--color-k-edge); overflow-x: auto; }
+.k-pro-app :is(.dir-tab, .feed-tab, .profile-tab-btn, .ptx-tab, .k-questhub-tab, .studio-tab) { min-height: 44px; padding: 12px 16px; font: 500 14px/1.4 var(--font-sans); flex-shrink: 0; }
+
+/* Forms and transaction review: readable fields, explicit review sections. */
+.k-pro-app :is(.cms-page, .ptx-page, .nft-launchpad, .appsubmit__form) { width: 100%; max-width: 880px; margin-inline: auto; }
+.k-pro-app :is(.ptx-form-card, .nft-step-card, .manage-section, .profile-edit-card, .k-txview__msg-card, .k-txview__detail-card, .k-txview__table-card) { padding: 28px; border: 1px solid var(--color-k-edge); border-radius: 14px; background: var(--color-k-panel); }
+.k-pro-app :is(.cms-label, .appsubmit__field label, .nft-form-group label, .form-group label) { display: block; font: 500 14px/1.5 var(--font-sans); color: var(--color-k-text); margin-bottom: 8px; }
+.k-pro-app :is(.cms-member-row, .k-txview__detail-row, .k-txview__field-row, .k-txview__signer-row) { padding-block: 16px; gap: 16px; border-color: var(--color-k-edge); }
+.k-pro-app :is(.cms-members-list, .appsubmit__form, .manage-fields) { gap: 24px; }
+.k-pro-app :is(.cms-member-pubkey, .k-txview__field-value, .k-txview__hash-value, .org-invite-code) { min-width: 0; overflow-wrap: anywhere; }
+.k-pro-app :is(.cms-submit-row, .ptx-submit-row, .k-txview__actions, .profile-edit-actions, .org-action-row) { margin-top: 28px; padding-top: 20px; border-top: 1px solid var(--color-k-edge); display: flex; flex-wrap: wrap; gap: 12px; }
+.k-pro-app :is(.cms-connect-prompt, .ptx-connect-prompt, .msh-empty, .dir-empty, .org-empty-card, .profile-empty) { padding: 48px 24px; border: 1px dashed var(--color-k-dashed); border-radius: 14px; background: var(--color-k-panel); }
+.k-pro-app :is(.nft-type-card, .org-workspace-card, .org-auth-card, .profile-contrib-card, .profile-packages-card, .profile-votes-card) { background: var(--color-k-panel); border: 1px solid var(--color-k-edge); border-radius: 14px; padding: 24px; }
+
+/* Community, accounts and creator workspaces share the same quiet frame. */
+.k-pro-app .feed-page { grid-template-columns: minmax(0, 1fr) 300px; gap: 36px; padding: 0; }
+.k-pro-app :is(.feed-composer, .feed-post, .feed-trending, .feed-stats) { padding: 24px; border-color: var(--color-k-edge); border-radius: 14px; background: var(--color-k-panel); }
+.k-pro-app .feed-post__body { font: 400 16px/1.65 var(--font-sans); overflow-wrap: anywhere; }
+.k-pro-app .feed-list { gap: 16px; }
+.k-pro-app :is(.profile-header, .um-hero, .appfeatured, .appdetail__hero) { padding: 28px; background: var(--color-k-panel); border: 1px solid var(--color-k-edge); border-radius: 14px; }
+.k-pro-app :is(.profile-header-accent, .um-hero__bg) { display: none; }
+.k-pro-app .org-workspace-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 20px; }
+.k-pro-app :is(.org-team-row, .appsubmit__mineitem) { padding: 20px; border-color: var(--color-k-edge); }
+.k-pro-app :is(.btn-primary, .btn-secondary, .appbtn, .feed-btn, .org-btn-primary, .org-btn-secondary, .msh-create-btn, .msh-join-btn) { min-height: 44px; padding: 10px 18px; border-radius: 8px; font: 500 14px/1.4 var(--font-sans); }
+.k-pro-app :is(.btn-primary, .appbtn--primary, .feed-btn--primary, .org-btn-primary, .msh-create-btn) { background: var(--color-k-accent); color: var(--color-k-on-accent); }
+.k-pro-app :is(.drawer-panel, .confirm-dialog) { background: var(--color-k-panel); border-color: var(--color-k-edge); color: var(--color-k-text); }
+.k-pro-app .drawer-panel { width: min(640px, 100vw); }
+.k-pro-app .drawer-content { padding: 24px; }
+.k-pro-app [data-page-family="editorial"] :is(article, .blog-article) { max-width: 760px; margin-inline: auto; font-size: 17px; line-height: 1.75; }
+/* Charts, avatars, collectible art and game canvases retain their intrinsic palettes. */
+.k-pro-app :is(.gnolove-page, .vh-page, .validator-detail, .channels-page) { max-width: 100%; }
+@media (max-width: 1100px) {
+  .k-pro-app .visitor-hero { gap: 28px; }
+  .k-pro-app .showcase-board { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .k-pro-app .feed-page { grid-template-columns: minmax(0, 1fr); }
+  .k-pro-app .feed-rail { display: none; }
+}
+@media (max-width: 767px) {
+  .k-pro-app .visitor-hero { grid-template-columns: minmax(0, 1fr); padding: 16px 0 28px; gap: 24px; }
+  .k-pro-app .k-main .visitor-hero__headline { font-size: 36px; letter-spacing: -1px; }
+  .k-pro-app .showcase-board { grid-template-columns: minmax(0, 1fr); }
+  .k-pro-app .govdao-spotlight { grid-template-columns: minmax(0, 1fr); padding: 20px; }
+  .k-pro-app :is(.ptx-form-card, .nft-step-card, .manage-section, .profile-edit-card, .k-txview__msg-card, .k-txview__detail-card, .k-txview__table-card, .feed-post, .feed-composer, .profile-header, .um-hero) { padding: 20px; }
+  .k-pro-app :is(.k-txview__field-row, .k-txview__detail-row) { flex-wrap: wrap; }
+  .k-pro-app .pro-collection-toolbar input { width: 100%; order: 3; }
+}
+
+/* Advanced telemetry is a Black instrument panel in either app theme. */
+.k-pro-app .vh-page {
+  --pro-console-text: #b2b2b2; --pro-console-accent: #00d4aa; --pro-console-warning: #f0c75e; --pro-console-danger: #ff8585;
+  --color-k-text: #f5f5f5; --color-k-dim: #b2b2b2; --color-k-muted: #a3a3a3;
+  --color-k-bg: #000; --color-k-panel: #000; --color-k-edge: #343434;
+  --color-k-accent: #00d4aa; --color-k-accent-text: #00d4aa; --color-k-on-accent: #00271f;
+  background: #000; color: #f5f5f5; border-color: #343434; padding: 24px;
+}
+.k-pro-app :is(.hk-card, .hk-status-bar) { background: #000; border-color: #343434; border-radius: 12px; padding: 20px; }
+.k-pro-app .hk-layout { gap: 20px; }
+.k-pro-app .hk-card__title { font: 600 14px/1.5 var(--font-sans); letter-spacing: 0; text-transform: none; margin-bottom: 20px; padding-bottom: 12px; border-color: #343434; }
+.k-pro-app .hk-mono { font-family: var(--font-mono); }
+.k-pro-app .hk-peers__toggle { min-height: 44px; }
+.k-pro-app .vh-page :is(.hk-unavail, .hk-dimmed, .nsg-label, .hk-peers__status, .hm-legend__item--empty) { color: #b2b2b2; }
+.k-pro-app .vh-page input { accent-color: #00d4aa; }
+.k-pro-app .channels-layout { grid-template-columns: 240px minmax(0, 1fr); border: 1px solid var(--color-k-edge); border-radius: 14px; background: var(--color-k-panel); }
+.k-pro-app .channels-sidebar { background: var(--color-k-panel); padding: 16px; border-color: var(--color-k-edge); }
+.k-pro-app .channels-sidebar-item { padding: 12px; min-height: 44px; }
+.k-pro-app .channels-content { min-width: 0; padding: 24px; }
+.k-pro-app .alerts-auth-card { background: var(--color-k-panel); border-color: var(--color-k-edge); padding: 32px; border-radius: 14px; }
+.k-pro-app .studio-page { width: 100%; max-width: 1200px; }
+.k-pro-app .studio-collection-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 320px), 1fr)); gap: 20px; }
+@media (max-width: 767px) {
+  .k-pro-app .vh-page { padding: 16px; }
+  .k-pro-app .hk-card { padding: 16px; }
+  .k-pro-app .channels-layout { grid-template-columns: minmax(0, 1fr); }
+  .k-pro-app .channels-content { padding: 16px; }
+}
+/* Unavailable actions stay legible; their written status conveys availability. */
+.k-pro-app .k-quest-card--locked { opacity: 1; border-style: dashed; }
+.k-pro-app .k-quest-card-difficulty { color: var(--color-k-text) !important; background: var(--color-k-panel-hover) !important; }
+.k-pro-app .k-quest-card-status--locked { color: var(--color-k-dim); }
+
+.msh-card-name:is(button) { padding: 0; background: transparent; border: 0; text-align: left; cursor: pointer; color: inherit; }
+
+.k-pro-app #feedback-submit-btn { color: var(--color-k-on-accent) !important; background: var(--color-k-accent) !important; min-height: 44px; }
+.k-pro-app {
+  --color-accent-gold: var(--color-k-warning-text); --color-accent-purple: var(--color-k-purple-text);
+  --color-warning: var(--color-k-warning-text); --color-danger: var(--color-k-danger-text);
+}
+.k-pro-app .k-dashed { background: var(--color-k-panel); border-color: var(--color-k-dashed); border-radius: 14px; }
+.k-pro-app .k-members__filter-count { opacity: 1; color: var(--color-k-dim); }
+.k-pro-app #treasury-spend-disabled-warning { color: var(--color-k-warning-text) !important; }
+.k-pro-app .gl-hero { padding: 28px 0; border-bottom: 1px solid var(--color-k-edge); margin-bottom: 28px; }
+.k-pro-app :is(.gl-card, .gl-stat-card, .gl-report-card, .gl-team-card) { background: var(--color-k-panel); border-color: var(--color-k-edge); border-radius: 14px; padding: 24px; }
+.k-pro-app .gl-tabs { overflow-x: auto; gap: 8px; border-color: var(--color-k-edge); }
+.k-pro-app .gl-tab { min-height: 44px; padding: 12px 16px; font-size: 14px; }
+.k-pro-app .k-members__tier-card { padding: 24px; border: 1px solid var(--color-k-edge); border-radius: 14px; }
+.k-pro-app .k-members__row { padding: 20px; }
+.k-pro-app .hk-nsg { container-type: inline-size; }
+.k-pro-app .nsg-row { display: grid; grid-template-columns: minmax(100px, .8fr) minmax(0, 1fr); gap: 16px; padding-block: 10px; }
+.k-pro-app .nsg-value { overflow-wrap: anywhere; text-align: left; }
+.k-pro-app .hk-badge--unknown { color: #b2b2b2; background: #000; border: 1px solid #565656; }
+@container (max-width: 600px) {
+  .k-pro-app .hk-nsg .nsg-body { grid-template-columns: minmax(0, 1fr); gap: 0; }
+}
+.k-pro-app .coming-soon-gate { min-height: 52vh; padding: 24px 0; }
+.k-pro-app .coming-soon-card { max-width: 680px; padding: 40px; text-align: left; background: var(--color-k-panel); border: 1px solid var(--color-k-edge); border-radius: 16px; box-shadow: none; backdrop-filter: none; }
+.k-pro-app .coming-soon-card::before { display: none; }
+.k-pro-app .coming-soon-icon { animation: none; font-size: 32px; }
+.k-pro-app .coming-soon-desc { margin-inline: 0; max-width: 540px; }
+.k-pro-app .coming-soon-cta { min-height: 44px; padding: 12px 18px; border-radius: 8px; }
+.k-pro-app .quest-hub__count { color: var(--color-k-text); }
+@media (max-width: 767px) { .k-pro-app .coming-soon-card { padding: 24px; } }
+
+.k-pro-app { --pro-tag-text: var(--color-k-text); }

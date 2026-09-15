@@ -505,10 +505,10 @@ export function ProposalView() {
                                 {/* v6 UX-04: Vote confirmation dialog */}
                                 {pendingVote && (
                                     <div className="proposal-confirm-dialog" role="alertdialog" aria-label="Confirm vote" style={{ background: "var(--color-k-panel)", border: "1px solid var(--color-k-edge)", borderRadius: 10, padding: 20, marginBottom: 16, textAlign: "center" }}>
-                                        <p style={{ marginBottom: 12, fontSize: 15 }}>
+                                        <p style={{ marginBottom: 12, fontSize: "var(--pro-body, 15px)" }}>
                                             Vote <strong>{pendingVote}</strong> on Proposal #{proposalId}?
                                         </p>
-                                        <p style={{ color: "var(--color-k-dim)", fontSize: 13, marginBottom: 16 }}>
+                                        <p style={{ color: "var(--color-k-dim)", fontSize: "var(--pro-small, 13px)", marginBottom: 16 }}>
                                             This is an on-chain action that costs gas and cannot be undone.
                                         </p>
                                         <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>

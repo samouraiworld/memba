@@ -80,10 +80,10 @@ function Section({ title, icon, defaultOpen = false, children }: {
                     alignItems: "center",
                 }}
             >
-                <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 8 }}>
+                <span style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)", display: "flex", alignItems: "center", gap: 8 }}>
                     {icon} {title}
                 </span>
-                <span style={{ fontSize: 12, color: "var(--color-text-muted)", transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "rotate(0)" }}>
+                <span style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-muted)", transition: "transform 0.2s", transform: open ? "rotate(180deg)" : "rotate(0)" }}>
                     ▼
                 </span>
             </button>
@@ -187,14 +187,14 @@ function WebhookSection({ kind, label, token, onChanged }: {
     return (
         <div style={{ paddingTop: 8 }}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>{label}</div>
+                <div style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)" }}>{label}</div>
                 {!showForm && !editing && (
                     <button
                         onClick={() => setShowForm(true)}
                         style={{
                             padding: "4px 10px", borderRadius: 6, border: "none",
                             cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
-                            fontSize: 10, fontWeight: 600,
+                            fontSize: "var(--pro-caption, 10px)", fontWeight: 600,
                             background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
                         }}
                     >
@@ -242,7 +242,7 @@ function WebhookSection({ kind, label, token, onChanged }: {
                     padding: "16px 20px", borderRadius: 8,
                     background: "rgba(255,255,255,0.01)",
                     border: "1px dashed rgba(255,255,255,0.06)",
-                    fontSize: 11, color: "var(--color-text-muted)",
+                    fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-muted)",
                     fontFamily: "JetBrains Mono, monospace",
                     textAlign: "center",
                 }}>
@@ -310,7 +310,7 @@ function AlertsContent() {
                         <h3 style={{ fontSize: 16, fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
                             Professional Blockchain Alerts
                         </h3>
-                        <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
+                        <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
                             Configure GovDAO & validator monitoring alerts.
                             Receive notifications on Discord, Slack, or Telegram.
                         </p>
@@ -318,7 +318,7 @@ function AlertsContent() {
                             <button style={{
                                 display: "inline-flex", alignItems: "center", justifyContent: "center",
                                 height: 40, padding: "0 24px", borderRadius: 8,
-                                background: "var(--color-brand)", color: "var(--color-text-contrast)", fontSize: 13,
+                                background: "var(--color-brand)", color: "var(--color-text-contrast)", fontSize: "var(--pro-small, 13px)",
                                 fontWeight: 600, border: "none", cursor: "pointer",
                                 boxShadow: "0 0 24px rgba(0,212,170,0.2)",
                                 fontFamily: "JetBrains Mono, monospace",
@@ -326,7 +326,7 @@ function AlertsContent() {
                                 Sign in to configure alerts
                             </button>
                         </SignInButton>
-                        <p style={{ fontSize: 10, color: "var(--color-text-muted)", marginTop: 12 }}>
+                        <p style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", marginTop: 12 }}>
                             ℹ️ Alerting auth is independent from your Gno wallet
                         </p>
                     </div>
@@ -361,7 +361,7 @@ function AlertsContent() {
                 </h2>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     {auth.user && (
-                        <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                        <span style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                             {auth.user.email || auth.user.fullName}
                         </span>
                     )}
@@ -370,7 +370,7 @@ function AlertsContent() {
                         style={{
                             padding: "4px 10px", borderRadius: 6, border: "none",
                             cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
-                            fontSize: 10, fontWeight: 600,
+                            fontSize: "var(--pro-caption, 10px)", fontWeight: 600,
                             background: "rgba(255,255,255,0.03)", color: "var(--color-text-secondary)",
                         }}
                     >
@@ -426,7 +426,7 @@ function AlertsContent() {
                             }}
                         />
                         <div style={{ borderTop: "1px solid rgba(255,255,255,0.04)", margin: "8px 0" }} />
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>Daily Report</div>
+                        <div style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)" }}>Daily Report</div>
                         <ReportScheduleForm
                             schedule={schedule}
                             onSave={async (h, m, tz) => {

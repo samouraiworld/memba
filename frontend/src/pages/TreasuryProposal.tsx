@@ -30,7 +30,7 @@ export function TreasuryProposal() {
                     id="treasury-propose-back-btn"
                     aria-label="Back to Treasury"
                     onClick={() => navigate(`/dao/${encodedSlug}/treasury`)}
-                    style={{ color: "var(--color-primary)", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
+                    style={{ color: "var(--color-primary)", fontSize: "var(--pro-small, 13px)", background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
                 >
                     ← Back to Treasury
                 </button>
@@ -45,7 +45,7 @@ export function TreasuryProposal() {
                     style={{
                         padding: "24px 20px", borderRadius: 8,
                         background: "var(--color-k-amber-subtle)", border: "1px solid var(--color-k-amber-border)",
-                        fontSize: 13, fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-warning)",
+                        fontSize: "var(--pro-small, 13px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-warning)",
                         lineHeight: 1.7, textAlign: "center",
                     }}
                 >
@@ -107,7 +107,7 @@ export function TreasuryProposal() {
                 id="treasury-propose-back-btn"
                 aria-label="Back to Treasury"
                 onClick={() => navigate(`/dao/${encodedSlug}/treasury`)}
-                style={{ color: "var(--color-primary)", fontSize: 13, background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
+                style={{ color: "var(--color-primary)", fontSize: "var(--pro-small, 13px)", background: "none", border: "none", cursor: "pointer", fontFamily: "JetBrains Mono, monospace", textAlign: "left" }}
             >
                 ← Back to Treasury
             </button>
@@ -115,21 +115,21 @@ export function TreasuryProposal() {
             {/* Header */}
             <div>
                 <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Propose Treasury Spend</h2>
-                <p style={{ color: "var(--color-text-secondary)", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 12px)", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
                     Submit a proposal for the DAO to approve a treasury transfer
                 </p>
             </div>
 
             {!auth.isAuthenticated && (
                 <div className="k-dashed" style={{ background: "var(--color-k-elevated)", padding: 32, textAlign: "center" }}>
-                    <p style={{ color: "var(--color-text-secondary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 13px)", fontFamily: "JetBrains Mono, monospace" }}>
                         Connect your wallet to propose a treasury spend
                     </p>
                 </div>
             )}
 
             {success && (
-                <div style={{ padding: "12px 16px", background: "var(--color-k-accent-subtle)", borderRadius: 8, border: "1px solid var(--color-k-accent-border)", color: "var(--color-primary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ padding: "12px 16px", background: "var(--color-k-accent-subtle)", borderRadius: 8, border: "1px solid var(--color-k-accent-border)", color: "var(--color-primary)", fontSize: "var(--pro-small, 13px)", fontFamily: "JetBrains Mono, monospace" }}>
                     ✓ {success}
                 </div>
             )}
@@ -180,7 +180,7 @@ export function TreasuryProposal() {
             <div style={{
                 padding: "14px 18px", borderRadius: 8,
                 background: "rgba(33,150,243,0.06)", border: "1px solid rgba(33,150,243,0.15)",
-                fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-info-text)",
+                fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-info-text)",
             }}>
                 ℹ This creates a DAO proposal. Members must vote to approve the spend.
             </div>
@@ -211,13 +211,13 @@ export function TreasuryProposal() {
 // ── Styles ────────────────────────────────────────────────
 
 const labelStyle: React.CSSProperties = {
-    display: "block", marginBottom: 6, fontSize: 11,
+    display: "block", marginBottom: 6, fontSize: "var(--pro-caption, 11px)",
     fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)",
     textTransform: "uppercase", letterSpacing: "0.05em",
 }
 
 const hintStyle: React.CSSProperties = {
-    marginTop: 4, fontSize: 11,
+    marginTop: 4, fontSize: "var(--pro-caption, 11px)",
     fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-muted)",
 }
 
@@ -225,7 +225,7 @@ function inputStyle(loading: boolean): React.CSSProperties {
     return {
         width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
         background: "var(--color-k-elevated)", border: "1px solid var(--color-k-edge)", color: "var(--color-text)",
-        fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
+        fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-small, 13px)", outline: "none",
         opacity: loading ? 0.5 : 1,
     }
 }

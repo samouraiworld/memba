@@ -185,7 +185,7 @@ const CHART_TOOLTIP_STYLE = {
     background: "var(--color-surface-panel)",
     border: "1px solid rgba(255,255,255,0.1)",
     borderRadius: 8,
-    fontSize: 12,
+    fontSize: "var(--pro-small, 12px)",
 }
 
 // ── Main Component ──────────────────────────────────────────
@@ -335,7 +335,7 @@ export default function GnoloveContributorProfile() {
                                 color: "var(--color-text-contrast)",
                                 padding: "2px 10px",
                                 borderRadius: 12,
-                                fontSize: 12,
+                                fontSize: "var(--pro-small, 12px)",
                                 fontWeight: 600,
                                 marginTop: 8,
                                 display: "inline-block",
@@ -436,13 +436,13 @@ export default function GnoloveContributorProfile() {
                                         </defs>
                                         <XAxis
                                             dataKey="period"
-                                            tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }}
+                                            tick={{ fill: "var(--color-text-secondary)", fontSize: "var(--pro-caption, 11px)" }}
                                             tickFormatter={(v: string) => {
                                                 const [y, m] = v.split("-")
                                                 return `${["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][parseInt(m, 10) - 1]} ${y.slice(2)}`
                                             }}
                                         />
-                                        <YAxis tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
+                                        <YAxis tick={{ fill: "var(--color-text-secondary)", fontSize: "var(--pro-caption, 11px)" }} />
                                         <Tooltip
                                             contentStyle={CHART_TOOLTIP_STYLE}
                                             labelStyle={{ color: "var(--color-text)" }}
@@ -488,11 +488,11 @@ export default function GnoloveContributorProfile() {
                                         layout="vertical"
                                         margin={{ left: 140, right: 20, top: 10, bottom: 10 }}
                                     >
-                                        <XAxis type="number" tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }} />
+                                        <XAxis type="number" tick={{ fill: "var(--color-text-secondary)", fontSize: "var(--pro-caption, 11px)" }} />
                                         <YAxis
                                             type="category"
                                             dataKey="id"
-                                            tick={{ fill: "var(--color-surface-light)", fontSize: 11 }}
+                                            tick={{ fill: "var(--color-surface-light)", fontSize: "var(--pro-caption, 11px)" }}
                                             width={130}
                                         />
                                         <Tooltip

@@ -4,7 +4,7 @@
     max-width: 800px;
     margin: 0 auto;
     padding: var(--space-6);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-ui, 'JetBrains Mono', monospace);
 }
 
 .k-leaderboard-header {
@@ -26,7 +26,7 @@
 .k-leaderboard-quests-link {
     color: var(--color-k-accent-text);
     text-decoration: none;
-    font-size: 0.875rem;
+    font-size: var(--pro-body, 0.875rem);
 }
 
 .k-leaderboard-quests-link:hover {
@@ -55,7 +55,7 @@
 .k-leaderboard-table th {
     text-align: left;
     padding: var(--space-3) var(--space-4);
-    font-size: 0.75rem;
+    font-size: var(--pro-small, 0.75rem);
     font-weight: 600;
     text-transform: uppercase;
     color: var(--color-k-dim);
@@ -65,7 +65,7 @@
 
 .k-leaderboard-table td {
     padding: var(--space-3) var(--space-4);
-    font-size: 0.875rem;
+    font-size: var(--pro-body, 0.875rem);
     border-bottom: 1px solid var(--color-k-edge);
 }
 
@@ -86,7 +86,7 @@
     color: var(--color-k-text);
     text-decoration: none;
     font-family: var(--font-mono);
-    font-size: 0.813rem;
+    font-size: var(--pro-body, 0.813rem);
 }
 
 .k-leaderboard-addr:hover {
@@ -94,7 +94,7 @@
 }
 
 .k-leaderboard-you {
-    font-size: 0.875rem;
+    font-size: var(--pro-body, 0.875rem);
     font-weight: 600;
     color: var(--color-k-accent-text);
     margin-left: 4px;
@@ -108,7 +108,7 @@
 .k-leaderboard-count {
     text-align: center;
     padding: var(--space-3);
-    font-size: 0.75rem;
+    font-size: var(--pro-small, 0.75rem);
     color: var(--color-k-muted);
 }
 
@@ -134,7 +134,7 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
     color: var(--color-text);
-    font-size: 0.8rem;
+    font-size: var(--pro-small, 0.8rem);
     cursor: pointer;
 }
 
@@ -142,7 +142,7 @@
 .k-leaderboard-page-btn:disabled { opacity: 0.3; cursor: default; }
 
 .k-leaderboard-page-info {
-    font-size: 0.8rem;
+    font-size: var(--pro-small, 0.8rem);
     color: var(--color-text-muted);
 }
 

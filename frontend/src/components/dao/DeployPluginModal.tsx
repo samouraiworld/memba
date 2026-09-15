@@ -84,20 +84,20 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
                     <h3 style={{ fontSize: 16, fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>
                         💬 Deploy Discussion Board
                     </h3>
-                    <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                         Deploy a companion board realm for <strong style={{ color: "var(--color-primary)" }}>{daoName}</strong>
                     </p>
                 </div>
 
                 {/* Channel config */}
                 <div>
-                    <label style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)", display: "block", marginBottom: 6 }}>
+                    <label style={{ fontSize: "var(--pro-small, 12px)", fontWeight: 600, color: "var(--color-text)", display: "block", marginBottom: 6 }}>
                         Initial Channels
                     </label>
                     <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginBottom: 8 }}>
                         {channels.map(ch => (
                             <span key={ch} style={{
-                                fontSize: 11, padding: "4px 10px", borderRadius: 6,
+                                fontSize: "var(--pro-caption, 11px)", padding: "4px 10px", borderRadius: 6,
                                 background: "rgba(0,212,170,0.08)", border: "1px solid rgba(0,212,170,0.2)",
                                 color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace",
                                 display: "flex", alignItems: "center", gap: 6,
@@ -106,7 +106,7 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
                                 {ch !== "general" && (
                                     <button onClick={() => removeChannel(ch)} style={{
                                         background: "none", border: "none", cursor: "pointer",
-                                        color: "var(--color-text-secondary)", fontSize: 12, padding: 0,
+                                        color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 12px)", padding: 0,
                                     }}>×</button>
                                 )}
                             </span>
@@ -121,12 +121,12 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
                             style={{ ...inputStyle, flex: 1 }}
                             maxLength={30}
                         />
-                        <button className="k-btn-secondary" onClick={addChannel} style={{ fontSize: 11, padding: "8px 14px" }}>
+                        <button className="k-btn-secondary" onClick={addChannel} style={{ fontSize: "var(--pro-caption, 11px)", padding: "8px 14px" }}>
                             + Add
                         </button>
                     </div>
                     {channelError && (
-                        <div style={{ fontSize: 10, color: "var(--color-danger)", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                        <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-danger)", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
                             {channelError}
                         </div>
                     )}
@@ -135,7 +135,7 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
                 {/* Error */}
                 {error && (
                     <div style={{
-                        fontSize: 11, color: "var(--color-danger)", fontFamily: "JetBrains Mono, monospace",
+                        fontSize: "var(--pro-caption, 11px)", color: "var(--color-danger)", fontFamily: "JetBrains Mono, monospace",
                         background: "rgba(255,71,87,0.08)", padding: "8px 12px", borderRadius: 6,
                     }}>
                         {error}
@@ -144,14 +144,14 @@ export function DeployPluginModal({ daoRealmPath, daoName, callerAddress, onClos
 
                 {/* Actions */}
                 <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-                    <button className="k-btn-secondary" onClick={onClose} style={{ fontSize: 12, padding: "8px 16px" }}>
+                    <button className="k-btn-secondary" onClick={onClose} style={{ fontSize: "var(--pro-small, 12px)", padding: "8px 16px" }}>
                         Cancel
                     </button>
                     <button
                         className="k-btn-primary"
                         onClick={deploy}
                         disabled={deploying}
-                        style={{ fontSize: 12, padding: "8px 20px", opacity: deploying ? 0.6 : 1 }}
+                        style={{ fontSize: "var(--pro-small, 12px)", padding: "8px 20px", opacity: deploying ? 0.6 : 1 }}
                     >
                         {deploying ? "Deploying..." : "🚀 Deploy Board"}
                     </button>

@@ -58,8 +58,8 @@ export function NetworkStateGrid({ stats, consensus, seedAddr, peerCount, mempoo
             <div className="hk-card__title">
                 <span className="hk-card__icon">⬡</span>
                 NETWORK STATE
-                <span className={`hk-badge ${stats?.catchingUp ? "hk-badge--warn" : "hk-badge--ok"}`}>
-                    {stats?.catchingUp ? "SYNCING" : "SYNCED"}
+                <span className={`hk-badge ${!stats ? "hk-badge--unknown" : stats.catchingUp ? "hk-badge--warn" : "hk-badge--ok"}`}>
+                    {!stats ? "UNAVAILABLE" : stats.catchingUp ? "SYNCING" : "SYNCED"}
                 </span>
             </div>
 

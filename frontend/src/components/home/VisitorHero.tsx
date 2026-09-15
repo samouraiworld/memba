@@ -13,6 +13,7 @@
 import { useOutletContext } from "react-router-dom"
 import type { LayoutContext } from "../../types/layout"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
+import { PRO_APP_ENABLED } from "../../lib/config"
 import { ACTIVE_HEADLINE } from "./visitorHeroHeadlines"
 import { NetworkProofCard } from "./NetworkProofCard"
 
@@ -25,10 +26,10 @@ export function VisitorHero() {
         <section className="visitor-hero" data-testid="visitor-hero">
             <div className="visitor-hero__lead">
             <h1 className="visitor-hero__headline">
-                {ACTIVE_HEADLINE}
+                {PRO_APP_ENABLED ? "Run your community. Build what comes next." : ACTIVE_HEADLINE}
             </h1>
             <p className="visitor-hero__subtitle">
-                Governance, treasury, tokens, collectibles, apps, and games — all on gno.land.
+                {PRO_APP_ENABLED ? "Manage shared assets, make decisions together, and build on Gno." : "Governance, treasury, tokens, collectibles, apps, and games — all on gno.land."}
             </p>
 
             <div className="visitor-hero__ctas">

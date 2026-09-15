@@ -141,7 +141,7 @@ export function TierPieChart({ tiers, size = 48, showLegend = false }: TierPiePr
                     {segments.map(seg => (
                         <div key={seg.key} style={{ display: "flex", alignItems: "center", gap: 4 }}>
                             <span style={{ width: 8, height: 8, borderRadius: "50%", flexShrink: 0, background: seg.color }} />
-                            <span style={{ fontSize: 9, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>{seg.key}</span>
+                            <span style={{ fontSize: "var(--pro-caption, 9px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>{seg.key}</span>
                         </div>
                     ))}
                 </div>
@@ -181,10 +181,10 @@ export function PowerDonut({ tiers, totalPower, size = 120 }: {
                                 boxShadow: `0 0 6px ${tierColor(t.tier, i)}44`,
                             }} />
                             <div>
-                                <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)", fontFamily: "JetBrains Mono, monospace" }}>
+                                <div style={{ fontSize: "var(--pro-small, 12px)", fontWeight: 600, color: "var(--color-text)", fontFamily: "JetBrains Mono, monospace" }}>
                                     {t.tier}
                                 </div>
-                                <div style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                                <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                                     {pct}% • {t.memberCount} member{t.memberCount !== 1 ? "s" : ""}
                                 </div>
                             </div>
@@ -234,14 +234,14 @@ export function VotingInsights({ yesVotes, noVotes, abstainVotes, totalMembers, 
     }
 
     const labelStyle: React.CSSProperties = {
-        fontSize: 10, fontFamily: "JetBrains Mono, monospace",
+        fontSize: "var(--pro-caption, 10px)", fontFamily: "JetBrains Mono, monospace",
         color: "var(--color-text-secondary)", textTransform: "uppercase" as const, letterSpacing: 1,
         marginBottom: 10, fontWeight: 600,
     }
 
     return (
         <div className="k-card" style={{ padding: 20, display: "flex", flexDirection: "column", gap: 16 }}>
-            <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+            <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)", margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
                 📊 Voting Insights
             </h3>
 
@@ -249,10 +249,10 @@ export function VotingInsights({ yesVotes, noVotes, abstainVotes, totalMembers, 
             <div style={sectionStyle}>
                 <div style={labelStyle}>Participation</div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
-                    <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text)", fontWeight: 600 }}>
+                    <span style={{ fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-text)", fontWeight: 600 }}>
                         {totalVoted} of {totalMembers} voted
                     </span>
-                    <span style={{ fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: quorumMet ? "var(--color-brand)" : "var(--color-accent-gold)", fontWeight: 700 }}>
+                    <span style={{ fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace", color: quorumMet ? "var(--color-brand)" : "var(--color-accent-gold)", fontWeight: 700 }}>
                         {Math.round(participationPct)}%
                     </span>
                 </div>
@@ -272,7 +272,7 @@ export function VotingInsights({ yesVotes, noVotes, abstainVotes, totalMembers, 
                     }} />
                 </div>
                 {/* Quorum status */}
-                <div style={{ marginTop: 6, fontSize: 10, fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ marginTop: 6, fontSize: "var(--pro-caption, 10px)", fontFamily: "JetBrains Mono, monospace" }}>
                     {quorumMet ? (
                         <span style={{ color: "var(--color-primary)" }}>✅ Quorum reached (threshold: {threshold}%)</span>
                     ) : (
@@ -285,7 +285,7 @@ export function VotingInsights({ yesVotes, noVotes, abstainVotes, totalMembers, 
             <div style={sectionStyle}>
                 <div style={labelStyle}>Vote Split</div>
                 {/* Vote counts row */}
-                <div style={{ display: "flex", gap: 16, marginBottom: 6, fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ display: "flex", gap: 16, marginBottom: 6, fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace" }}>
                     <span style={{ color: YES_COLOR, fontWeight: 600 }}>✓ {yesVotes} Yes ({Math.round(yesPct)}%)</span>
                     <span style={{ color: NO_COLOR, fontWeight: 600 }}>✗ {noVotes} No ({Math.round(noPct)}%)</span>
                     {abstainVotes > 0 && (
@@ -330,10 +330,10 @@ export function VotingInsights({ yesVotes, noVotes, abstainVotes, totalMembers, 
                                         boxShadow: `0 0 6px ${tierColor(r.tier, i)}44`,
                                     }} />
                                     <div style={{ flex: 1 }}>
-                                        <div style={{ fontSize: 12, fontWeight: 600, color: "var(--color-text)", fontFamily: "JetBrains Mono, monospace" }}>
+                                        <div style={{ fontSize: "var(--pro-small, 12px)", fontWeight: 600, color: "var(--color-text)", fontFamily: "JetBrains Mono, monospace" }}>
                                             {r.tier}
                                         </div>
-                                        <div style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", display: "flex", gap: 8 }}>
+                                        <div style={{ fontSize: "var(--pro-caption, 10px)", fontFamily: "JetBrains Mono, monospace", display: "flex", gap: 8 }}>
                                             <span style={{ color: YES_COLOR }}>{r.yesVoters.length} yes</span>
                                             <span style={{ color: NO_COLOR }}>{r.noVoters.length} no</span>
                                             {r.abstainVoters.length > 0 && (

@@ -8,12 +8,12 @@
 
 .k-msview__back {
   color: var(--color-k-accent-text);
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   background: none;
   border: none;
   cursor: pointer;
   margin-bottom: 16px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
 }
 
 /* ── Header ──────────────────────────────────────────────────── */
@@ -35,7 +35,7 @@
   gap: 8px;
 }
 .k-msview__title-edit {
-  font-size: 14px;
+  font-size: var(--pro-body, 14px);
   opacity: 0.4;
 }
 
@@ -65,7 +65,7 @@
   border-radius: 6px;
   padding: 6px 12px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--pro-small, 12px);
   font-weight: 600;
 }
 .k-msview__rename-cancel {
@@ -75,7 +75,7 @@
   border-radius: 6px;
   padding: 6px 12px;
   cursor: pointer;
-  font-size: 12px;
+  font-size: var(--pro-small, 12px);
 }
 
 /* ── Share Link Button ───────────────────────────────────────── */
@@ -85,10 +85,10 @@
   border: 1px dashed #333;
   border-radius: 6px;
   color: var(--color-text-secondary);
-  font-size: 11px;
+  font-size: var(--pro-caption, 11px);
   padding: 4px 10px;
   cursor: pointer;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
   margin-top: 6px;
   transition: all 0.15s;
 }
@@ -115,14 +115,14 @@
   border: 1px solid rgba(245, 166, 35, 0.15);
 }
 .k-msview__action-text {
-  font-size: 12px;
-  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--pro-small, 12px);
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
   color: var(--color-k-warning-text);
 }
 .k-msview__action-btn {
   margin-left: auto;
-  font-size: 11px;
-  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--pro-caption, 11px);
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
   color: var(--color-k-warning-text);
   background: rgba(245, 166, 35, 0.08);
   border: 1px solid rgba(245, 166, 35, 0.2);
@@ -157,8 +157,8 @@
   padding: 12px 20px;
   border-bottom: 1px solid var(--color-border-light);
   display: grid;
-  font-size: 11px;
-  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--pro-caption, 11px);
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -177,12 +177,12 @@
   align-items: center;
 }
 .k-msview__member-badge {
-  font-size: 11px;
+  font-size: var(--pro-caption, 11px);
   padding: 2px 8px;
   border-radius: 4px;
   background: rgba(0, 212, 170, 0.08);
   color: var(--color-k-accent-text);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
 }
 
 /* ── Tab Bar ─────────────────────────────────────────────────── */
@@ -199,8 +199,8 @@
   border: none;
   border-bottom: 2px solid transparent;
   color: var(--color-text-secondary);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
+  font-size: var(--pro-small, 12px);
   cursor: pointer;
   transition: all 0.15s;
 }
@@ -218,8 +218,8 @@
   border-bottom: 1px solid var(--color-border);
   cursor: pointer;
   transition: background 0.15s;
-  font-size: 13px;
-  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--pro-small, 13px);
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
 }
 .k-msview__tx-row:hover {
   background: var(--color-bg-card);
@@ -230,7 +230,7 @@
 }
 .k-msview__tx-date {
   color: var(--color-text-muted);
-  font-size: 11px;
+  font-size: var(--pro-caption, 11px);
 }
 
 /* ── Empty / Auth States ─────────────────────────────────────── */
@@ -241,8 +241,8 @@
 }
 .k-msview__empty-text {
   color: var(--color-text-muted);
-  font-size: 14px;
-  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--pro-body, 14px);
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
 }
 .k-msview__auth-gate {
   background: var(--color-bg-card);
@@ -251,8 +251,8 @@
 }
 .k-msview__auth-text {
   color: var(--color-text-secondary);
-  font-size: 13px;
-  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--pro-small, 13px);
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
 }
 
 /* ── Mobile (≤480px) ───────────────────────────────────────────

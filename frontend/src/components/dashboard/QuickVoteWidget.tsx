@@ -21,8 +21,8 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
     return (
         <div>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 12 }}>
-                <span style={{ fontSize: 14 }}>🗳️</span>
-                <h3 style={{ fontSize: 14, fontWeight: 500 }}>Quick Vote</h3>
+                <span style={{ fontSize: "var(--pro-body, 14px)" }}>🗳️</span>
+                <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 500 }}>Quick Vote</h3>
                 <span className="k-label" style={{ marginLeft: "auto" }}>
                     {proposals.length} pending
                 </span>
@@ -40,18 +40,18 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                             opacity: hasVoted ? 0.6 : 1,
                         }}>
                             <div style={{ flex: 1, minWidth: 160 }}>
-                                <div style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-dim)", marginBottom: 2 }}>
+                                <div style={{ fontSize: "var(--pro-caption, 11px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-dim)", marginBottom: 2 }}>
                                     {p.daoName}
                                 </div>
                                 <div
-                                    style={{ fontSize: 13, fontWeight: 500, cursor: "pointer", color: "var(--color-k-text)" }}
+                                    style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 500, cursor: "pointer", color: "var(--color-k-text)" }}
                                     onClick={() => navigate(`/dao/${p.daoSlug}/proposal/${p.proposalId}`)}
                                 >
                                     #{p.proposalId} — {p.proposalTitle.length > 50 ? p.proposalTitle.slice(0, 50) + "…" : p.proposalTitle}
                                 </div>
                             </div>
                             {hasVoted ? (
-                                <span style={{ fontSize: 11, fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-accent-text)" }}>
+                                <span style={{ fontSize: "var(--pro-caption, 11px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-k-accent-text)" }}>
                                     ✓ Voted
                                 </span>
                             ) : (

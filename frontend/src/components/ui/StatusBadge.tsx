@@ -39,7 +39,7 @@ export function StatusBadge({ status, sigCount, threshold, hash }: StatusBadgePr
                 gap: 6,
                 padding: "3px 10px",
                 borderRadius: 6,
-                fontSize: 11,
+                fontSize: "var(--pro-caption, 11px)",
                 fontFamily: "JetBrains Mono, monospace",
                 fontWeight: 500,
                 color: c.color,

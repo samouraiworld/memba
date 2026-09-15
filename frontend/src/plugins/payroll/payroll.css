@@ -16,9 +16,9 @@
 }
 
 .pay-header__subtitle {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary, #888);
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
     margin-top: 4px;
 }
 
@@ -30,8 +30,8 @@
 }
 
 .pay-btn {
-    font-size: 12px;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
     padding: 6px 14px;
     border-radius: var(--radius-md, 8px);
     border: none;
@@ -69,16 +69,16 @@
     background: var(--color-danger-bg, rgba(244, 67, 54, 0.06));
     border: 1px solid rgba(244, 67, 54, 0.15);
     color: var(--color-k-danger-text, #f44336);
-    font-size: 12px;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
 }
 
 /* ── Inputs ──────────────────────────────────────────── */
 
 .pay-label {
     display: block;
-    font-size: 11px;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: var(--pro-caption, 11px);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
     color: var(--color-text-secondary, #888);
     text-transform: uppercase;
     letter-spacing: 0.05em;
@@ -92,8 +92,8 @@
     background: var(--color-bg-card, #0c0c0c);
     border: 1px solid var(--color-border-light, #222);
     color: var(--color-text, #f0f0f0);
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    font-size: 12px;
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
+    font-size: var(--pro-small, 12px);
     outline: none;
     box-sizing: border-box;
 }
@@ -124,7 +124,7 @@
     border: 1px solid rgba(244, 67, 54, 0.2);
     color: var(--color-k-danger-text, #f44336);
     cursor: pointer;
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -150,8 +150,8 @@
     display: flex;
     justify-content: flex-end;
     gap: 16px;
-    font-size: 12px;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
     color: var(--color-text-secondary, #888);
 }
 
@@ -170,8 +170,8 @@
     background: var(--color-bg-card, #0c0c0c);
     border: 1px solid var(--color-border-light, #222);
     color: var(--color-text, #f0f0f0);
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
-    font-size: 12px;
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
+    font-size: var(--pro-small, 12px);
     outline: none;
     resize: vertical;
     box-sizing: border-box;
@@ -193,8 +193,8 @@
 }
 
 .pay-preview__total {
-    font-size: 13px;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: var(--pro-small, 13px);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
     color: var(--color-k-accent-text, #00d4aa);
     margin-bottom: 12px;
 }
@@ -209,8 +209,8 @@
 .pay-preview__row {
     display: flex;
     gap: 12px;
-    font-size: 12px;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
     padding: 4px 0;
 }
 

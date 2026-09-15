@@ -56,10 +56,10 @@ export function WizardStepExtensions({
     return (
         <div className="k-card" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 24 }}>
             <div>
-                <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>
+                <h3 style={{ fontSize: "var(--pro-body, 15px)", fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>
                     🧩 Extensions
                 </h3>
-                <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                     Enable optional plugins for your DAO. These deploy companion realms alongside your DAO.
                 </p>
             </div>
@@ -78,8 +78,8 @@ export function WizardStepExtensions({
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <span style={{ fontSize: 22 }}>💬</span>
                         <div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>Discussion Channels</div>
-                            <div style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                            <div style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)" }}>Discussion Channels</div>
+                            <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                                 Role-gated channels with threads and replies for DAO members
                             </div>
                         </div>
@@ -109,7 +109,7 @@ export function WizardStepExtensions({
                                     <span
                                         key={ch}
                                         style={{
-                                            fontSize: 11, padding: "4px 10px", borderRadius: 6,
+                                            fontSize: "var(--pro-caption, 11px)", padding: "4px 10px", borderRadius: 6,
                                             background: "rgba(0,212,170,0.08)", border: "1px solid rgba(0,212,170,0.2)",
                                             color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace",
                                             display: "flex", alignItems: "center", gap: 6,
@@ -121,7 +121,7 @@ export function WizardStepExtensions({
                                                 onClick={() => removeChannel(ch)}
                                                 style={{
                                                     background: "none", border: "none", cursor: "pointer",
-                                                    color: "var(--color-text-secondary)", fontSize: 12, padding: 0, lineHeight: 1,
+                                                    color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 12px)", padding: 0, lineHeight: 1,
                                                 }}
                                             >×</button>
                                         )}
@@ -140,13 +140,13 @@ export function WizardStepExtensions({
                                 <button
                                     className="k-btn-secondary"
                                     onClick={addChannel}
-                                    style={{ fontSize: 11, padding: "8px 14px", whiteSpace: "nowrap" }}
+                                    style={{ fontSize: "var(--pro-caption, 11px)", padding: "8px 14px", whiteSpace: "nowrap" }}
                                 >
                                     + Add
                                 </button>
                             </div>
                             {channelError && (
-                                <div style={{ fontSize: 10, color: "var(--color-danger)", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                                <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-danger)", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
                                     {channelError}
                                 </div>
                             )}
@@ -161,14 +161,14 @@ export function WizardStepExtensions({
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <span style={{ fontSize: 22 }}>🔄</span>
                         <div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>GnoSwap</div>
-                            <div style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                            <div style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)" }}>GnoSwap</div>
+                            <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                                 DEX integration — available when pools exist on-chain
                             </div>
                         </div>
                     </div>
                     <span style={{
-                        fontSize: 9, padding: "3px 8px", borderRadius: 4,
+                        fontSize: "var(--pro-caption, 9px)", padding: "3px 8px", borderRadius: 4,
                         background: "rgba(123,97,255,0.08)", border: "1px solid rgba(123,97,255,0.2)",
                         color: "var(--color-k-purple-text)", fontFamily: "JetBrains Mono, monospace",
                     }}>
@@ -183,14 +183,14 @@ export function WizardStepExtensions({
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <span style={{ fontSize: 22 }}>🏆</span>
                         <div>
-                            <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>Leaderboard</div>
-                            <div style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                            <div style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)" }}>Leaderboard</div>
+                            <div style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                                 Contribution ranking — powered by Gnolove analytics
                             </div>
                         </div>
                     </div>
                     <span style={{
-                        fontSize: 9, padding: "3px 8px", borderRadius: 4,
+                        fontSize: "var(--pro-caption, 9px)", padding: "3px 8px", borderRadius: 4,
                         background: "rgba(123,97,255,0.08)", border: "1px solid rgba(123,97,255,0.2)",
                         color: "var(--color-k-purple-text)", fontFamily: "JetBrains Mono, monospace",
                     }}>
@@ -201,10 +201,10 @@ export function WizardStepExtensions({
 
             {/* Navigation */}
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <button className="k-btn-secondary" onClick={() => onGoToStep(3)} style={{ fontSize: 13, padding: "10px 20px" }}>
+                <button className="k-btn-secondary" onClick={() => onGoToStep(3)} style={{ fontSize: "var(--pro-small, 13px)", padding: "10px 20px" }}>
                     ← Back
                 </button>
-                <button className="k-btn-primary" onClick={onNext} style={{ fontSize: 13, padding: "10px 24px" }}>
+                <button className="k-btn-primary" onClick={onNext} style={{ fontSize: "var(--pro-small, 13px)", padding: "10px 24px" }}>
                     Next: Review →
                 </button>
             </div>

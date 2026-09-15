@@ -57,7 +57,7 @@ export function NewMessagesToast({ visible, onDismiss }: NewMessagesToastProps) 
                 border: "1px solid rgba(0, 212, 170, 0.2)",
                 background: "rgba(0, 212, 170, 0.06)",
                 color: "var(--color-primary)",
-                fontSize: 12,
+                fontSize: "var(--pro-small, 12px)",
                 fontWeight: 600,
                 fontFamily: "JetBrains Mono, monospace",
                 cursor: "pointer",

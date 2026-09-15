@@ -37,7 +37,7 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
     if (loading) {
         return (
             <div className="k-card" style={{ padding: 20 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)", marginBottom: 14 }}>
+                <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)", marginBottom: 14 }}>
                     🗳️ My Votes
                 </h3>
                 <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -53,10 +53,10 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
         return (
             <div className="k-dashed" style={{ background: "var(--color-surface-black)", padding: 32, textAlign: "center" }}>
                 <div style={{ fontSize: 28, marginBottom: 8 }}>🗳️</div>
-                <div style={{ fontSize: 13, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ fontSize: "var(--pro-small, 13px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                     No votes yet
                 </div>
-                <div style={{ fontSize: 11, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", marginTop: 4 }}>
+                <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", marginTop: 4 }}>
                     Save DAOs from the DAO Hub to see your vote history
                 </div>
             </div>
@@ -66,7 +66,7 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
     return (
         <div className="k-card" style={{ padding: 20 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>
+                <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)" }}>
                     🗳️ My Votes ({allVotes.length})
                 </h3>
                 {showFilters && (
@@ -76,7 +76,7 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
                                 key={f}
                                 onClick={() => setFilter(f)}
                                 style={{
-                                    padding: "3px 8px", borderRadius: 4, fontSize: 9, border: "1px solid",
+                                    padding: "3px 8px", borderRadius: 4, fontSize: "var(--pro-caption, 9px)", border: "1px solid",
                                     fontFamily: "JetBrains Mono, monospace", fontWeight: 600, cursor: "pointer",
                                     background: filter === f ? "rgba(0,212,170,0.08)" : "transparent",
                                     color: filter === f ? "var(--color-brand)" : "var(--color-text-muted)",
@@ -98,14 +98,14 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
                         <div key={`${v.proposalId}-${i}`} className="k-card" style={{ padding: "10px 14px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 {daoName && (
-                                    <span style={{ fontSize: 9, color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace", marginRight: 6, opacity: 0.7 }}>
+                                    <span style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace", marginRight: 6, opacity: 0.7 }}>
                                         {daoName}
                                     </span>
                                 )}
-                                <span style={{ fontSize: 10, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace" }}>
+                                <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace" }}>
                                     #{v.proposalId}
                                 </span>
-                                <span style={{ fontSize: 12, color: "var(--color-text-secondary)", marginLeft: 8 }}>
+                                <span style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", marginLeft: 8 }}>
                                     {daoSlug ? (
                                         <a href={`/dao/${daoSlug}/${v.proposalId}`} style={{ color: "var(--color-text-secondary)", textDecoration: "none" }}
                                             onMouseEnter={e => e.currentTarget.style.color = "var(--color-brand)"}
@@ -117,7 +117,7 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
                                 </span>
                             </div>
                             <span style={{
-                                padding: "2px 8px", borderRadius: 4, fontSize: 9, flexShrink: 0,
+                                padding: "2px 8px", borderRadius: 4, fontSize: "var(--pro-caption, 9px)", flexShrink: 0,
                                 fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                                 background: `${voteColor}15`, color: voteColor,
                             }}>

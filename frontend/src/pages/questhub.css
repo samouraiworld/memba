@@ -4,7 +4,7 @@
     max-width: 1200px;
     margin: 0 auto;
     padding: var(--space-6);
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-ui, 'JetBrains Mono', monospace);
 }
 
 /* Hero */
@@ -34,7 +34,7 @@
 }
 
 .k-questhub-desc {
-    font-size: 0.875rem;
+    font-size: var(--pro-body, 0.875rem);
     color: var(--color-k-muted);
     max-width: 400px;
     margin: 0;
@@ -77,7 +77,7 @@
 }
 
 .k-questhub-xp-next {
-    font-size: 0.75rem;
+    font-size: var(--pro-small, 0.75rem);
     color: var(--color-k-dim);
 }
 
@@ -97,7 +97,7 @@
 }
 
 .k-questhub-progress-label {
-    font-size: 0.75rem;
+    font-size: var(--pro-small, 0.75rem);
     color: var(--color-k-dim);
 }
 
@@ -116,7 +116,7 @@
     border: none;
     background: none;
     cursor: pointer;
-    font-size: 0.875rem;
+    font-size: var(--pro-body, 0.875rem);
     font-weight: 500;
     color: var(--color-k-dim);
     border-bottom: 2px solid transparent;
@@ -145,7 +145,7 @@
     padding: var(--space-2) var(--space-3);
     border: 1px solid var(--color-k-edge);
     border-radius: var(--radius-md);
-    font-size: 0.875rem;
+    font-size: var(--pro-body, 0.875rem);
     background: var(--color-k-elevated);
     color: var(--color-k-text);
     transition: border-color var(--transition-fast);
@@ -164,7 +164,7 @@
     padding: var(--space-2) var(--space-3);
     border: 1px solid var(--color-k-edge);
     border-radius: var(--radius-md);
-    font-size: 0.875rem;
+    font-size: var(--pro-body, 0.875rem);
     background: var(--color-k-elevated);
     color: var(--color-k-text);
     cursor: pointer;
@@ -202,7 +202,7 @@
     border: 1px solid var(--color-k-accent-border);
     border-radius: var(--radius-md);
     padding: var(--space-2) var(--space-4);
-    font-size: 0.875rem;
+    font-size: var(--pro-body, 0.875rem);
     font-weight: 600;
     cursor: pointer;
     transition: background 0.15s;
@@ -253,7 +253,7 @@
 }
 
 .k-quest-card-xp {
-    font-size: 0.75rem;
+    font-size: var(--pro-small, 0.75rem);
     font-weight: 600;
     color: var(--color-k-accent-text);
     background: rgba(0, 212, 170, 0.1);
@@ -269,7 +269,7 @@
 }
 
 .k-quest-card-desc {
-    font-size: 0.813rem;
+    font-size: var(--pro-body, 0.813rem);
     color: var(--color-k-dim);
     margin: 0 0 var(--space-3);
     flex: 1;
@@ -283,7 +283,7 @@
 }
 
 .k-quest-card-difficulty {
-    font-size: 0.688rem;
+    font-size: var(--pro-small, 0.688rem);
     font-weight: 500;
     text-transform: capitalize;
     padding: 1px 6px;
@@ -292,7 +292,7 @@
 }
 
 .k-quest-card-category {
-    font-size: 0.688rem;
+    font-size: var(--pro-small, 0.688rem);
     color: var(--color-k-dim);
     text-transform: capitalize;
     padding: 1px 6px;
@@ -301,7 +301,7 @@
 }
 
 .k-quest-card-tag {
-    font-size: 0.625rem;
+    font-size: var(--pro-caption, 0.625rem);
     color: var(--color-k-dim);
     padding: 1px 5px;
     border: 1px solid var(--color-k-edge);
@@ -313,7 +313,7 @@
 }
 
 .k-quest-card-status {
-    font-size: 0.75rem;
+    font-size: var(--pro-small, 0.75rem);
     font-weight: 500;
 }
 
@@ -342,12 +342,12 @@
 }
 
 .k-rank-badge--sm {
-    font-size: 0.688rem;
+    font-size: var(--pro-small, 0.688rem);
     padding: 1px 6px;
 }
 
 .k-rank-badge--md {
-    font-size: 0.813rem;
+    font-size: var(--pro-body, 0.813rem);
     padding: 3px 10px;
 }
 
@@ -406,7 +406,7 @@
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    font-size: 0.75rem;
+    font-size: var(--pro-small, 0.75rem);
     color: var(--color-k-dim);
 }
 
@@ -429,7 +429,7 @@
     padding: var(--space-1) var(--space-2);
     background: var(--color-bg-hover);
     border-radius: var(--radius-md);
-    font-size: 0.75rem;
+    font-size: var(--pro-small, 0.75rem);
     color: var(--color-k-text);
 }
 
@@ -450,12 +450,12 @@
     display: flex;
     align-items: center;
     padding: var(--space-1) var(--space-2);
-    font-size: 0.75rem;
+    font-size: var(--pro-small, 0.75rem);
     color: var(--color-k-dim);
 }
 
 .k-achievements-link {
-    font-size: 0.813rem;
+    font-size: var(--pro-body, 0.813rem);
     color: var(--color-k-accent-text);
     text-decoration: none;
 }
@@ -466,7 +466,7 @@
 
 /* Quest Detail Page */
 .k-questdetail-breadcrumb {
-    font-size: 0.813rem;
+    font-size: var(--pro-body, 0.813rem);
     color: var(--color-k-dim);
     margin-bottom: var(--space-4);
 }
@@ -557,7 +557,7 @@
     padding: var(--space-2) var(--space-3);
     border: 1px solid var(--color-k-edge);
     border-radius: var(--radius-md);
-    font-size: 0.875rem;
+    font-size: var(--pro-body, 0.875rem);
     text-decoration: none;
     color: inherit;
     transition: border-color var(--transition-fast);
@@ -592,7 +592,7 @@
 
 .k-questdetail-deploy-form label {
     display: block;
-    font-size: 0.813rem;
+    font-size: var(--pro-body, 0.813rem);
     color: var(--color-k-dim);
     margin-bottom: var(--space-2);
 }
@@ -608,7 +608,7 @@
     color: var(--color-bg);
     border: none;
     border-radius: var(--radius-md);
-    font-size: 0.875rem;
+    font-size: var(--pro-body, 0.875rem);
     font-weight: 600;
     cursor: pointer;
     transition: background var(--transition-fast);
@@ -624,7 +624,7 @@
 }
 
 .k-questdetail-hint {
-    font-size: 0.813rem;
+    font-size: var(--pro-body, 0.813rem);
     color: var(--color-k-muted);
     margin-top: var(--space-2);
 }
@@ -633,7 +633,7 @@
     margin-top: var(--space-3);
     padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-md);
-    font-size: 0.875rem;
+    font-size: var(--pro-body, 0.875rem);
 }
 
 .k-questdetail-result--verified {
@@ -738,7 +738,7 @@
 }
 
 .k-quest-celebration__content p {
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
     color: var(--color-k-dim);
 }
 
@@ -757,7 +757,7 @@
 .k-questhub-badges-soon {
     margin-top: var(--space-2);
     padding: var(--space-1) var(--space-3);
-    font-size: 0.78rem;
+    font-size: var(--pro-small, 0.78rem);
     color: var(--color-k-muted);
     background: var(--color-k-elevated);
     border: 1px solid var(--color-k-edge);
@@ -766,7 +766,7 @@
 }
 
 .k-questhub-syncing {
-    font-size: 0.72rem;
+    font-size: var(--pro-small, 0.72rem);
     color: var(--color-k-muted);
     font-style: italic;
 }
@@ -787,7 +787,7 @@
 
 .k-questhub-comingsoon-note {
     margin: var(--space-3) 0;
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
     color: var(--color-k-muted);
 }
 
@@ -813,7 +813,7 @@
 
 .k-questhub-comingsoon-title {
     flex: 1;
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
     color: var(--color-k-text);
     white-space: nowrap;
     overflow: hidden;
@@ -821,7 +821,7 @@
 }
 
 .k-questhub-comingsoon-xp {
-    font-size: 0.72rem;
+    font-size: var(--pro-small, 0.72rem);
     color: var(--color-k-accent-text);
     font-variant-numeric: tabular-nums;
 }
@@ -842,7 +842,7 @@
     border-radius: var(--radius-md);
     color: var(--color-k-text);
     font-family: inherit;
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
     resize: vertical;
 }
 
@@ -883,18 +883,18 @@
 .k-questadmin-claim-meta {
     display: flex;
     gap: var(--space-3);
-    font-size: 0.78rem;
+    font-size: var(--pro-small, 0.78rem);
     color: var(--color-k-muted);
 }
 
 .k-questadmin-claim-url {
     color: var(--color-k-accent-text);
     word-break: break-all;
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
 }
 
 .k-questadmin-claim-text {
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
     color: var(--color-k-text);
     white-space: pre-wrap;
 }

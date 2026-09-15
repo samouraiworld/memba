@@ -11,7 +11,7 @@ import "./feed-mod.css"
  */
 export default function FeedTransparency() {
     return (
-        <main className="feed-mod">
+        <section className="feed-mod">
             <h1>Feed moderation — transparency</h1>
 
             <p>
@@ -59,6 +59,6 @@ export default function FeedTransparency() {
                 <h2>Moderation log</h2>
                 <FeedModAuditLog hideFlagger />
             </section>
-        </main>
+        </section>
     )
 }

@@ -90,7 +90,7 @@
 .tkd-bestoffer {
     font-size: var(--text-xs);
     color: var(--color-k-accent-text, #5fe3cf);
-    font-family: var(--font-mono);
+    font-family: var(--font-ui, var(--font-mono));
 }
 
 .tkd-royalty {

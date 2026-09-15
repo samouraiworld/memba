@@ -52,15 +52,15 @@
 }
 
 .dao-room-label {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
     color: var(--color-text);
 }
 
 .dao-room-hint {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-muted);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     margin-top: 2px;
 }
 
@@ -107,7 +107,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     color: var(--color-text);
 }
@@ -122,7 +122,7 @@
     border: 1px solid var(--color-border);
     background: transparent;
     color: var(--color-text-secondary);
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     cursor: pointer;
     transition: all 0.15s;
 }

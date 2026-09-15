@@ -19,7 +19,7 @@
 
 .gov-ready__lede {
     margin: 0 0 14px;
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
     color: var(--color-text-secondary);
 }
 
@@ -35,7 +35,7 @@
 
 .gov-ready__h {
     margin: 0 0 8px;
-    font-size: 0.72rem;
+    font-size: var(--pro-small, 0.72rem);
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -59,7 +59,7 @@
 }
 
 .gov-ready__tier {
-    font-size: 0.78rem;
+    font-size: var(--pro-small, 0.78rem);
     padding: 2px 8px;
     border-radius: 999px;
     background: var(--color-surface-active);
@@ -68,7 +68,7 @@
 
 .gov-ready__text {
     margin: 0 0 6px;
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
     line-height: 1.45;
     color: var(--color-text-secondary);
     overflow-wrap: anywhere;
@@ -82,13 +82,13 @@
 }
 
 .gov-ready__stats dt {
-    font-size: 0.82rem;
+    font-size: var(--pro-body, 0.82rem);
     color: var(--color-text-secondary);
 }
 
 .gov-ready__stats dd {
     margin: 0;
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
     font-weight: 600;
     color: var(--color-text);
     text-align: right;
@@ -101,7 +101,7 @@
     margin: 0;
     padding: 8px 10px;
     border-left: 3px solid var(--color-border);
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
     line-height: 1.45;
     color: var(--color-text-secondary);
     overflow-wrap: anywhere;
@@ -125,6 +125,6 @@
     .gov-ready__whatif,
     .gov-ready__stats dt,
     .gov-ready__stats dd {
-        font-size: 0.9rem;
+        font-size: var(--pro-body, 0.9rem);
     }
 }

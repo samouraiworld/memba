@@ -237,11 +237,11 @@ export function CreateToken() {
     return (
         <div className="animate-fade-in" style={{ display: "flex", flexDirection: "column", gap: 32 }}>
             <div>
-                <button onClick={() => navigate("/")} style={{ color: "var(--color-primary)", fontSize: 13, background: "none", border: "none", cursor: "pointer", marginBottom: 16, fontFamily: "JetBrains Mono, monospace" }}>
+                <button onClick={() => navigate("/")} style={{ color: "var(--color-primary)", fontSize: "var(--pro-small, 13px)", background: "none", border: "none", cursor: "pointer", marginBottom: 16, fontFamily: "JetBrains Mono, monospace" }}>
                     ← Back to Dashboard
                 </button>
                 <h2 style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.02em" }}>Create a Token</h2>
-                <p style={{ color: "var(--color-text-secondary)", fontSize: 12, marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
+                <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 12px)", marginTop: 4, fontFamily: "JetBrains Mono, monospace" }}>
                     Deploy your own GRC20 token on {GNO_CHAIN_ID} — a standard, tradeable coin with a name, supply, and holders.
                 </p>
                 <button
@@ -249,7 +249,7 @@ export function CreateToken() {
                     style={{
                         marginTop: 12, background: "none", border: "1px solid var(--color-k-edge)",
                         borderRadius: 8, padding: "6px 12px", cursor: "pointer",
-                        color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", fontSize: 11,
+                        color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-caption, 11px)",
                     }}
                 >
                     {showGuide ? "▼" : "▶"} New to tokens? Read this first
@@ -259,7 +259,7 @@ export function CreateToken() {
             {/* Education / tokenomics primer */}
             {showGuide && (
                 <div className="k-card" style={{ padding: 22, display: "flex", flexDirection: "column", gap: 14 }}>
-                    <p style={{ fontSize: 13, lineHeight: 1.6, color: "var(--color-k-text)", fontFamily: "JetBrains Mono, monospace", margin: 0 }}>
+                    <p style={{ fontSize: "var(--pro-small, 13px)", lineHeight: 1.6, color: "var(--color-k-text)", fontFamily: "JetBrains Mono, monospace", margin: 0 }}>
                         A token is a coin you define and control. You pick its name, how many exist,
                         and who can create more. Here's what each setting means:
                     </p>
@@ -272,11 +272,11 @@ export function CreateToken() {
                         ["Max supply", `Amounts are stored as a 64-bit integer on-chain, so the hard ceiling is ~9.2 quintillion base units. At 6 decimals that's ~${maxWholeTokens(6)} whole tokens. Go above it and the transaction fails.`],
                     ].map(([term, body]) => (
                         <div key={term} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-                            <span style={{ fontSize: 11, fontWeight: 600, color: "var(--color-k-accent)", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.04em" }}>{term}</span>
-                            <span style={{ fontSize: 12, lineHeight: 1.55, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>{body}</span>
+                            <span style={{ fontSize: "var(--pro-caption, 11px)", fontWeight: 600, color: "var(--color-k-accent)", fontFamily: "JetBrains Mono, monospace", textTransform: "uppercase", letterSpacing: "0.04em" }}>{term}</span>
+                            <span style={{ fontSize: "var(--pro-small, 12px)", lineHeight: 1.55, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>{body}</span>
                         </div>
                     ))}
-                    <p style={{ fontSize: 11, lineHeight: 1.55, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", margin: 0, borderTop: "1px solid var(--color-k-edge)", paddingTop: 12 }}>
+                    <p style={{ fontSize: "var(--pro-caption, 11px)", lineHeight: 1.55, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", margin: 0, borderTop: "1px solid var(--color-k-edge)", paddingTop: 12 }}>
                         Tokenomics in one line: decide the total supply and who holds it, keep decimals at 6 unless you have a reason, and be deliberate about who stays admin — that's what holders will judge.
                     </p>
                 </div>
@@ -284,14 +284,14 @@ export function CreateToken() {
 
             {!auth.isAuthenticated && (
                 <div className="k-dashed" style={{ background: "var(--color-k-elevated)", padding: 32, textAlign: "center" }}>
-                    <p style={{ color: "var(--color-text-secondary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 13px)", fontFamily: "JetBrains Mono, monospace" }}>
                         Connect your wallet to create a token
                     </p>
                 </div>
             )}
 
             {success && !deployResult && (
-                <div style={{ padding: "12px 16px", background: "var(--color-k-accent-subtle)", borderRadius: 8, border: "1px solid var(--color-k-accent-border)", color: "var(--color-primary)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ padding: "12px 16px", background: "var(--color-k-accent-subtle)", borderRadius: 8, border: "1px solid var(--color-k-accent-border)", color: "var(--color-primary)", fontSize: "var(--pro-small, 13px)", fontFamily: "JetBrains Mono, monospace" }}>
                     ✓ {success}
                 </div>
             )}
@@ -304,7 +304,7 @@ export function CreateToken() {
                         padding: "10px 20px", background: "none", border: "none",
                         borderBottom: adminMode === "self" ? "2px solid var(--color-k-accent)" : "2px solid transparent",
                         color: adminMode === "self" ? "var(--color-k-accent)" : "var(--color-k-muted)",
-                        fontFamily: "JetBrains Mono, monospace", fontSize: 12,
+                        fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-small, 12px)",
                         cursor: "pointer", transition: "all 0.15s",
                     }}
                 >
@@ -316,7 +316,7 @@ export function CreateToken() {
                         padding: "10px 20px", background: "none", border: "none",
                         borderBottom: adminMode === "multisig" ? "2px solid var(--color-k-accent)" : "2px solid transparent",
                         color: adminMode === "multisig" ? "var(--color-k-accent)" : "var(--color-k-muted)",
-                        fontFamily: "JetBrains Mono, monospace", fontSize: 12,
+                        fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-small, 12px)",
                         cursor: "pointer", transition: "all 0.15s",
                     }}
                 >
@@ -352,7 +352,7 @@ export function CreateToken() {
                 <div>
                     <label style={labelStyle}>Decimals</label>
                     <input
-                        type="number" value={decimals}
+                        type="number" aria-label="Decimals" value={decimals}
                         onChange={(e) => setDecimals(e.target.value)}
                         min={0} max={18}
                         style={inputStyle(loading)} disabled={loading}
@@ -459,7 +459,7 @@ export function CreateToken() {
                 <div style={{
                     padding: "14px 18px", borderRadius: 8,
                     background: "var(--color-k-amber-subtle)", border: "1px solid var(--color-k-amber-border)",
-                    fontSize: 12, fontFamily: "JetBrains Mono, monospace", color: "var(--color-warning)",
+                    fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-warning)",
                 }}>
                     💰 A 2.5% platform fee ({formatSupply(String(fee), previewDec) ?? "0"} {symUpper}) is minted on top and supports Samouraï Coop development & maintenance.
                 </div>
@@ -467,25 +467,25 @@ export function CreateToken() {
 
             {/* Summary */}
             <div className="k-card" style={{ padding: 18, display: "flex", flexDirection: "column", gap: 8 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace" }}>
                     <span style={{ color: "var(--color-text-secondary)" }}>Factory</span>
                     <span style={{ color: "var(--color-text-secondary)" }}>{GRC20_FACTORY_PATH}</span>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace" }}>
                     <span style={{ color: "var(--color-text-secondary)" }}>Admin</span>
                     <span style={{ color: "var(--color-text-secondary)" }}>{adminMode === "multisig" ? (selectedMultisig || "—") : (adena.address || "—")}</span>
                 </div>
-                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace" }}>
                     <span style={{ color: "var(--color-text-secondary)" }}>Messages</span>
                     <span style={{ color: "var(--color-text-secondary)" }}>1 (create)</span>
                 </div>
                 {fee > 0n && !mintError && !overCap && (
                     <>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace" }}>
                             <span style={{ color: "var(--color-text-secondary)" }}>Platform fee (2.5%)</span>
                             <span style={{ color: "var(--color-warning)" }}>{formatSupply(String(fee), previewDec)} {symUpper}</span>
                         </div>
-                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between", fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace" }}>
                             <span style={{ color: "var(--color-text-secondary)" }}>Total supply</span>
                             <span style={{ color: "var(--color-k-text)" }}>{formatSupply(String(totalSupply), previewDec)} {symUpper}</span>
                         </div>
@@ -501,7 +501,7 @@ export function CreateToken() {
                     width: "100%", height: 44, borderRadius: 8,
                     background: loading ? "var(--color-k-edge)" : "var(--color-k-accent)",
                     color: loading ? "var(--color-k-muted)" : "var(--color-k-on-accent)",
-                    fontFamily: "JetBrains Mono, monospace", fontSize: 14, fontWeight: 600,
+                    fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-body, 14px)", fontWeight: 600,
                     border: "none", cursor: loading ? "not-allowed" : "pointer",
                     transition: "all 0.15s", letterSpacing: "-0.01em",
                     opacity: (!auth.isAuthenticated || !name.trim() || !symbol.trim() || !!mintError || overCap || !!faucetError || faucetOverCap) ? 0.4 : 1,
@@ -529,13 +529,13 @@ export function CreateToken() {
 // ── Styles ─────────────────────────────────────────────────
 
 const labelStyle: React.CSSProperties = {
-    display: "block", marginBottom: 6, fontSize: 11,
+    display: "block", marginBottom: 6, fontSize: "var(--pro-caption, 11px)",
     fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)",
     textTransform: "uppercase", letterSpacing: "0.05em",
 }
 
 const hintStyle: React.CSSProperties = {
-    marginTop: 4, fontSize: 11,
+    marginTop: 4, fontSize: "var(--pro-caption, 11px)",
     fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-muted)",
 }
 
@@ -543,7 +543,7 @@ function inputStyle(loading: boolean): React.CSSProperties {
     return {
         width: "100%", height: 40, padding: "0 12px", borderRadius: 8,
         background: "var(--color-k-elevated)", border: "1px solid var(--color-k-edge)", color: "var(--color-k-text)",
-        fontFamily: "JetBrains Mono, monospace", fontSize: 13, outline: "none",
+        fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-small, 13px)", outline: "none",
         opacity: loading ? 0.5 : 1,
     }
 }

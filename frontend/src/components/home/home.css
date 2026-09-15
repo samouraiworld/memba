@@ -60,8 +60,8 @@ button.action-card:focus-visible {
 }
 
 .action-card__eyebrow {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 10px);
   color: var(--color-k-dim);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -72,7 +72,7 @@ button.action-card:focus-visible {
 
 .action-card__title {
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--pro-body, 14px);
   font-weight: 500;
   color: var(--color-k-text);
   white-space: nowrap;
@@ -90,8 +90,8 @@ button.action-card:focus-visible {
 }
 
 .action-card__meta {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -103,7 +103,7 @@ button.action-card:focus-visible {
   align-items: center;
   padding: 0 14px;
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: var(--pro-small, 12px);
   font-weight: 500;
   color: var(--color-k-accent-text);
   white-space: nowrap;
@@ -134,8 +134,8 @@ button.action-card:focus-visible {
   padding: 6px 12px;
   background: var(--color-k-panel);
   border-bottom: 1px solid var(--color-k-edge);
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -143,15 +143,15 @@ button.action-card:focus-visible {
 
 .status-strip__wordmark {
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   font-weight: 600;
   color: var(--color-k-text);
   letter-spacing: -0.01em;
 }
 
 .status-strip__chain {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-accent-text);
   font-weight: 500;
   text-transform: lowercase;
@@ -188,8 +188,8 @@ button.action-card:focus-visible {
 }
 
 .status-strip__stat {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-dim);
   text-transform: lowercase;
 }
@@ -274,8 +274,8 @@ button.action-card:focus-visible {
 
 .govdao-spotlight__eyebrow {
   width: fit-content;
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 10px);
   color: var(--color-k-govdao-text);
   background: var(--color-k-govdao-subtle);
   border-radius: 4px;
@@ -289,7 +289,7 @@ button.action-card:focus-visible {
 }
 
 .govdao-spotlight__desc {
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   color: var(--color-k-dim);
   margin: 0;
 }
@@ -305,8 +305,8 @@ button.action-card:focus-visible {
 }
 
 .govdao-spotlight__feed-label {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 10px);
   letter-spacing: 0.04em;
   color: var(--color-k-muted);
   margin-bottom: 2px;
@@ -351,7 +351,7 @@ button.action-card:focus-visible {
 .govdao-spotlight__prop-title {
   flex: 1;
   min-width: 0;
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   color: var(--color-k-text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -364,13 +364,13 @@ button.action-card:focus-visible {
 
 .govdao-spotlight__prop-meta {
   flex: none;
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 10px);
   color: var(--color-k-muted);
 }
 
 .govdao-spotlight__feed-empty {
-  font-size: 12px;
+  font-size: var(--pro-small, 12px);
   color: var(--color-k-dim);
   margin: 4px 0 0;
 }
@@ -378,8 +378,8 @@ button.action-card:focus-visible {
 .govdao-spotlight__feed-all {
   align-self: flex-end;
   margin-top: 4px;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-accent-text);
   text-decoration: none;
 }
@@ -429,7 +429,7 @@ button.action-card:focus-visible {
    The explicit :hover color is required — without it the global
    `a:hover { color: accent }` (index.css) leaked teal onto this <Link>. */
 .govdao-spotlight__cta {
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   font-weight: 500;
   text-decoration: none;
   background: transparent;
@@ -457,8 +457,8 @@ button.action-card:focus-visible {
 }
 
 .govdao-spotlight__stat {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-govdao-text);
 }
 
@@ -467,8 +467,8 @@ button.action-card:focus-visible {
 }
 
 .govdao-spotlight__retry {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-govdao-text);
   background: transparent;
   border: 1px solid var(--color-k-govdao-border);
@@ -480,8 +480,8 @@ button.action-card:focus-visible {
 /* ── MembaDAO credit (demoted from the featured hero to a bonus footer line) ── */
 
 .showcase-board__credit {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-muted);
   text-align: center;
   padding-top: 14px;
@@ -507,8 +507,8 @@ button.action-card:focus-visible {
 }
 
 .below-fold__eyebrow {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 10px);
   color: var(--color-k-dim);
   letter-spacing: 0.04em;
   margin-bottom: 8px;
@@ -564,7 +564,7 @@ a.ecosystem-section__header:hover .ecosystem-section__arrow {
 }
 
 .ecosystem-section__count {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui, var(--font-mono));
   font-size: 20px;
   font-weight: 600;
   color: var(--color-k-text);
@@ -572,21 +572,21 @@ a.ecosystem-section__header:hover .ecosystem-section__arrow {
 }
 
 .ecosystem-section__label {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 10px);
   color: var(--color-k-dim);
 }
 
 .ecosystem-section__arrow {
   margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-muted);
 }
 
 .ecosystem-section__loading {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-muted);
   padding: 4px 0;
 }
@@ -623,7 +623,7 @@ a.ecosystem-section__header:hover .ecosystem-section__arrow {
 }
 
 .ecosystem-row__name {
-  font-size: 12px;
+  font-size: var(--pro-small, 12px);
   font-weight: 500;
   color: var(--color-k-text);
   overflow: hidden;
@@ -633,8 +633,8 @@ a.ecosystem-section__header:hover .ecosystem-section__arrow {
 
 .ecosystem-row__badge {
   flex-shrink: 0;
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 10px);
   font-weight: 600;
   color: var(--color-k-accent-text);
   background: var(--color-k-accent-subtle);
@@ -645,8 +645,8 @@ a.ecosystem-section__header:hover .ecosystem-section__arrow {
 }
 
 .ecosystem-row__sub {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 10px);
   color: var(--color-k-muted);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -670,8 +670,8 @@ a.ecosystem-section__header:hover .ecosystem-section__arrow {
 }
 
 .ecosystem-section__viewall {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-accent-text);
   text-decoration: none;
   padding: 2px 6px;
@@ -737,8 +737,8 @@ a.ecosystem-section__header:hover .ecosystem-section__arrow {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 10px);
   letter-spacing: 0.02em;
   color: var(--color-k-dim);
   white-space: nowrap;
@@ -764,8 +764,8 @@ a.ecosystem-section__header:hover .ecosystem-section__arrow {
 
 /* Per-row category label (MH-17 B1) — the kind, as text, not just the icon. */
 .activity-feed__kind {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 10px);
   letter-spacing: 0.02em;
   color: var(--color-k-accent-text);
   flex: none;
@@ -852,8 +852,8 @@ a.activity-feed__link:focus-visible {
 }
 
 .activity-feed__chip {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   padding: 3px 10px;
   border-radius: 999px;
   border: 1px solid var(--color-k-edge);
@@ -894,7 +894,7 @@ a.activity-feed__link:focus-visible {
 }
 
 .activity-feed__title {
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   color: var(--color-k-text);
   white-space: nowrap;
   overflow: hidden;
@@ -909,12 +909,12 @@ a.activity-feed__link:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 11px;
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-dim);
 }
 
 .activity-feed__actor {
-  font-size: 11px;
+  font-size: var(--pro-caption, 11px);
 }
 
 .activity-feed__when {
@@ -933,7 +933,7 @@ a.activity-feed__link:focus-visible {
   display: flex;
   align-items: center;
   gap: 10px;
-  font-size: 12px;
+  font-size: var(--pro-small, 12px);
   color: var(--color-k-dim);
   padding: 10px 12px;
   background: var(--color-k-panel);
@@ -975,13 +975,13 @@ a.activity-feed__link:focus-visible {
 }
 
 .explore-tile__label {
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   font-weight: 500;
 }
 
 .explore-tile__sub {
-  font-family: var(--font-mono);
-  font-size: 9px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 9px);
   color: var(--color-k-dim);
 }
 
@@ -1007,15 +1007,15 @@ a.activity-feed__link:focus-visible {
 }
 
 .coming-soon-tile__label {
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   font-weight: 500;
   color: var(--color-k-text);
 }
 
 .coming-soon-tile__badge {
   margin-left: auto;
-  font-family: var(--font-mono);
-  font-size: 9px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 9px);
   color: var(--color-k-amber);
   background: var(--color-k-amber-subtle);
   border-radius: 3px;
@@ -1023,8 +1023,8 @@ a.activity-feed__link:focus-visible {
 }
 
 .coming-soon-tile__sub {
-  font-family: var(--font-mono);
-  font-size: 9px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 9px);
   color: var(--color-k-muted);
 }
 
@@ -1048,7 +1048,7 @@ a.activity-feed__link:focus-visible {
 }
 
 .featured-door__members {
-  font-size: 12px;
+  font-size: var(--pro-small, 12px);
   color: var(--color-k-dim);
 }
 
@@ -1060,7 +1060,7 @@ a.activity-feed__link:focus-visible {
 }
 
 .featured-door__link {
-  font-size: 12px;
+  font-size: var(--pro-small, 12px);
   text-decoration: none;
   padding: 4px 10px;
   border-radius: 4px;
@@ -1132,8 +1132,8 @@ a.activity-feed__link:focus-visible {
 }
 
 .contributors-door__rank {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 10px);
   color: var(--color-k-dim);
   width: 22px;
   flex-shrink: 0;
@@ -1154,7 +1154,7 @@ a.activity-feed__link:focus-visible {
 }
 
 .contributors-door__login {
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   color: var(--color-k-text);
   flex: 1;
   min-width: 0;
@@ -1164,8 +1164,8 @@ a.activity-feed__link:focus-visible {
 }
 
 .contributors-door__score {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-dim);
   flex-shrink: 0;
 }
@@ -1180,7 +1180,7 @@ a.activity-feed__link:focus-visible {
 }
 
 .network-health-door__count {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui, var(--font-mono));
   font-size: 22px;
   font-weight: 600;
   color: var(--color-k-text);
@@ -1188,8 +1188,8 @@ a.activity-feed__link:focus-visible {
 }
 
 .network-health-door__status {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   font-weight: 500;
   letter-spacing: 0.04em;
 }
@@ -1206,8 +1206,8 @@ a.activity-feed__link:focus-visible {
 }
 
 .network-health-door__pulse-item {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-dim);
 }
 
@@ -1236,7 +1236,7 @@ a.activity-feed__link:focus-visible {
 }
 
 .directory-door__count {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui, var(--font-mono));
   font-size: 20px;
   font-weight: 600;
   color: var(--color-k-text);
@@ -1244,7 +1244,7 @@ a.activity-feed__link:focus-visible {
 }
 
 .directory-door__hint {
-  font-size: 12px;
+  font-size: var(--pro-small, 12px);
   color: var(--color-k-dim);
 }
 
@@ -1275,8 +1275,8 @@ a.activity-feed__link:focus-visible {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   line-height: 1.3;
   color: var(--color-k-dim);
   min-width: 0;
@@ -1312,7 +1312,7 @@ a.activity-feed__link:focus-visible {
 }
 
 .launchpad-door__count {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui, var(--font-mono));
   font-size: 26px;
   font-weight: 600;
   color: var(--color-k-text);
@@ -1328,7 +1328,7 @@ a.activity-feed__link:focus-visible {
 }
 
 .launchpad-door__sub {
-  font-size: 12px;
+  font-size: var(--pro-small, 12px);
   color: var(--color-k-dim);
 }
 
@@ -1348,8 +1348,8 @@ a.activity-feed__link:focus-visible {
 }
 
 .launchpad-door__token-ticker {
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-small, 12px);
   color: var(--color-k-accent-text);
 }
 
@@ -1361,8 +1361,8 @@ a.activity-feed__link:focus-visible {
 }
 
 .launchpad-door__stat {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-text);
 }
 
@@ -1423,22 +1423,22 @@ a.activity-feed__link:focus-visible {
   }
 
   .action-card__title {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
   }
 
   .action-card__action-label {
     padding: 0 10px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
   }
 
   .status-strip {
     padding: 5px 10px;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     gap: 6px;
   }
 
   .status-strip__wordmark {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
   }
 }
 
@@ -1460,8 +1460,8 @@ a.activity-feed__link:focus-visible {
   border-radius: 4px;
   border: 1px solid var(--color-k-edge);
   background: var(--color-k-panel);
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 10px);
   color: var(--color-k-dim);
   white-space: nowrap;
   letter-spacing: 0.02em;
@@ -1485,7 +1485,7 @@ a.activity-feed__link:focus-visible {
   }
 
   .wallet-chip {
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     padding: 2px 6px;
   }
 }
@@ -1511,8 +1511,8 @@ a.activity-feed__link:focus-visible {
 }
 
 .member-hero__eyebrow {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   letter-spacing: 0.06em;
   color: var(--color-k-muted);
 }
@@ -1532,7 +1532,7 @@ a.activity-feed__link:focus-visible {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-family: var(--font-mono);
+  font-family: var(--font-ui, var(--font-mono));
   font-size: 15px;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -1574,8 +1574,8 @@ a.activity-feed__link:focus-visible {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   letter-spacing: 0.04em;
   color: var(--color-k-muted);
 }
@@ -1588,7 +1588,7 @@ a.activity-feed__link:focus-visible {
 }
 
 .member-standing__xp {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui, var(--font-mono));
   color: var(--color-k-text);
   line-height: 1;
 }
@@ -1601,7 +1601,7 @@ a.activity-feed__link:focus-visible {
 }
 
 .member-standing__xp-unit {
-  font-size: 14px;
+  font-size: var(--pro-body, 14px);
   color: var(--color-k-dim);
 }
 
@@ -1620,15 +1620,15 @@ a.activity-feed__link:focus-visible {
 }
 
 .member-standing__hint {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-dim);
 }
 
 .member-standing__cta {
   align-self: flex-start;
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   font-weight: 600;
   color: var(--color-k-accent-text);
   text-decoration: none;
@@ -1713,8 +1713,8 @@ a.activity-feed__link:focus-visible {
   display: flex;
   align-items: center;
   gap: 7px;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   letter-spacing: 0.04em;
   color: var(--color-k-muted);
 }
@@ -1741,7 +1741,7 @@ a.activity-feed__link:focus-visible {
 }
 
 .hero-proof__height {
-  font-family: var(--font-mono);
+  font-family: var(--font-ui, var(--font-mono));
   font-size: 32px;
   font-weight: 600;
   line-height: 1;
@@ -1759,13 +1759,13 @@ a.activity-feed__link:focus-visible {
 }
 
 .hero-proof__meta {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-dim);
 }
 
 .hero-proof__empty {
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   color: var(--color-k-dim);
 }
 
@@ -1784,7 +1784,7 @@ a.activity-feed__link:focus-visible {
 
 .visitor-hero__subtitle {
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--pro-body, 14px);
   color: var(--color-k-dim);
   margin: 0;
   line-height: 1.5;
@@ -1807,7 +1807,7 @@ a.activity-feed__link:focus-visible {
   padding: 9px 20px;
   border-radius: 6px;
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--pro-body, 14px);
   font-weight: 600;
   text-decoration: none;
   cursor: pointer;
@@ -1841,8 +1841,8 @@ a.activity-feed__link:focus-visible {
 }
 
 .visitor-hero__hint {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-dim);
   margin: 0;
 }
@@ -1927,14 +1927,14 @@ a.activity-feed__link:focus-visible {
 }
 
 .value-strip__title {
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   font-weight: 600;
   color: var(--color-k-text);
   line-height: 1.25;
 }
 
 .value-strip__sub {
-  font-size: 11px;
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-dim);
   line-height: 1.3;
 }
@@ -2029,8 +2029,8 @@ button.door:focus-visible {
   display: flex;
   align-items: center;
   gap: 6px;
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 10px);
   color: var(--color-k-dim);
   text-transform: none;
   letter-spacing: 0.04em;
@@ -2056,29 +2056,29 @@ button.door:focus-visible {
 
 .door__invitation-link {
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   color: var(--color-k-accent-text);
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .door__empty-msg {
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-small, 12px);
   color: var(--color-k-dim);
 }
 
 .door__error-msg {
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-small, 12px);
   color: var(--color-k-danger-text, #ff4757);
 }
 
 .door__retry {
   display: inline-block;
   padding: 4px 10px;
-  font-size: 12px;
-  font-family: var(--font-mono);
+  font-size: var(--pro-small, 12px);
+  font-family: var(--font-ui, var(--font-mono));
   border: 1px solid var(--color-k-danger, #ff4757);
   border-radius: 4px;
   background: transparent;
@@ -2141,7 +2141,7 @@ button.door:focus-visible {
   display: block;
   margin-top: 6px;
   padding: 4px 10px;
-  font-size: 0.75rem;
+  font-size: var(--pro-small, 0.75rem);
   border: 1px solid currentColor;
   border-radius: 4px;
   background: transparent;
@@ -2173,15 +2173,15 @@ button.door:focus-visible {
 
 .action-inbox__title {
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   font-weight: 600;
   color: var(--color-k-text);
   margin: 0;
 }
 
 .action-inbox__count {
-  font-family: var(--font-mono);
-  font-size: 10px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 10px);
   color: var(--color-k-dim);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -2204,7 +2204,7 @@ button.door:focus-visible {
   width: 20px;
   height: 20px;
   border-radius: 5px;
-  font-size: 11px;
+  font-size: var(--pro-caption, 11px);
   border: 1px solid var(--color-k-edge);
   background: var(--color-k-panel);
   flex-shrink: 0;
@@ -2238,7 +2238,7 @@ button.door:focus-visible {
 
 .action-door__title {
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--pro-body, 14px);
   font-weight: 500;
   color: var(--color-k-text);
   white-space: nowrap;
@@ -2247,8 +2247,8 @@ button.door:focus-visible {
 }
 
 .action-door__meta {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-dim);
   white-space: nowrap;
   overflow: hidden;
@@ -2270,7 +2270,7 @@ button.door:focus-visible {
   padding: 5px 12px;
   border-radius: 5px;
   font-family: var(--font-sans);
-  font-size: 12px;
+  font-size: var(--pro-small, 12px);
   font-weight: 500;
   text-decoration: none;
   border: 1px solid transparent;
@@ -2302,13 +2302,13 @@ button.door:focus-visible {
 /* All caught up card — children inside Door variant="action" */
 
 .action-door__caught-up-msg {
-  font-family: var(--font-mono);
-  font-size: 13px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-small, 13px);
   color: var(--color-k-dim);
 }
 
 .action-door__caught-up-link {
-  font-size: 12px;
+  font-size: var(--pro-small, 12px);
   color: var(--color-k-accent-text);
   text-decoration: none;
   align-self: flex-start;
@@ -2337,8 +2337,8 @@ button.door:focus-visible {
 .quick-vote-btn {
   padding: 6px 14px;
   border-radius: 6px;
-  font-size: 11px;
-  font-family: var(--font-mono);
+  font-size: var(--pro-caption, 11px);
+  font-family: var(--font-ui, var(--font-mono));
   font-weight: 600;
   border-width: 1px;
   border-style: solid;
@@ -2383,8 +2383,8 @@ button.door:focus-visible {
 }
 
 .action-inbox__view-all {
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-accent-text);
   text-decoration: none;
   letter-spacing: 0.02em;
@@ -2432,21 +2432,21 @@ button.door:focus-visible {
   align-items: center;
   gap: 8px;
   font-family: var(--font-sans);
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   font-weight: 600;
   color: var(--color-k-text);
 }
 
 .panel-title-row h3 {
   margin: 0;
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   font-weight: 600;
   color: var(--color-k-text);
 }
 
 .panel-title-row i {
   color: var(--color-k-dim);
-  font-size: 14px;
+  font-size: var(--pro-body, 14px);
 }
 
 /* Board grid — world door cards (compact, responsive: 1–N columns) */
@@ -2464,8 +2464,8 @@ button.door:focus-visible {
 }
 
 .your-worlds-invite__hint {
-  font-family: var(--font-mono);
-  font-size: 12px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-small, 12px);
   color: var(--color-k-dim);
   margin: 0;
 }
@@ -2487,7 +2487,7 @@ button.door:focus-visible {
 
 .your-worlds-door__name {
   font-family: var(--font-sans);
-  font-size: 14px;
+  font-size: var(--pro-body, 14px);
   font-weight: 500;
   color: var(--color-k-text);
   white-space: nowrap;
@@ -2502,8 +2502,8 @@ button.door:focus-visible {
   align-items: center;
   flex-wrap: wrap;
   gap: 8px;
-  font-family: var(--font-mono);
-  font-size: 11px;
+  font-family: var(--font-ui, var(--font-mono));
+  font-size: var(--pro-caption, 11px);
   color: var(--color-k-dim);
   min-width: 0;
 }

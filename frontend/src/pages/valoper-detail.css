@@ -1,21 +1,21 @@
 /* ValoperDetail — small additions; the rest is reused from validator-detail.css (vd-*). */
 
 .vp-server {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary);
 }
 
 .vp-desc {
     margin: 0;
     color: var(--color-text-secondary);
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     line-height: 1.5;
     white-space: pre-wrap;
 }
 
 .vp-identity-note {
     margin: 10px 0 0;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary);
     line-height: 1.5;
 }
@@ -67,7 +67,7 @@
 }
 .vp-id__avatar img { width: 100%; height: 100%; object-fit: cover; }
 .vp-id__initials {
-    font-family: var(--font-mono, monospace);
+    font-family: var(--font-ui, var(--font-mono, monospace));
     font-weight: 700;
     font-size: 1.25rem;
     color: var(--color-k-accent-text);
@@ -90,8 +90,8 @@
 
 .vp-id__userrow { display: flex; align-items: center; gap: 0.5rem; }
 .vp-id__username {
-    font-family: var(--font-mono, monospace);
-    font-size: 0.8rem;
+    font-family: var(--font-ui, var(--font-mono, monospace));
+    font-size: var(--pro-small, 0.8rem);
     color: var(--color-k-accent-text);
     text-decoration: none;
     background: var(--color-primary-bg);
@@ -104,7 +104,7 @@ a.vp-id__username:hover { text-decoration: underline; }
 .vp-id__bio {
     margin: 0;
     color: var(--color-text-secondary);
-    font-size: 0.85rem;
+    font-size: var(--pro-body, 0.85rem);
     line-height: 1.5;
     white-space: pre-wrap;
 }
@@ -120,7 +120,7 @@ a.vp-id__username:hover { text-decoration: underline; }
 .vp-id__bio--md .md-h3,
 .vp-id__bio--md .md-h4 {
     margin: 0.6rem 0 0.25rem;
-    font-size: 0.8rem;
+    font-size: var(--pro-small, 0.8rem);
     font-weight: 700;
     color: var(--color-text);
     text-transform: none;
@@ -167,7 +167,7 @@ a.vp-id__username:hover { text-decoration: underline; }
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     color: var(--color-text-secondary);
-    font-size: 0.75rem;
+    font-size: var(--pro-small, 0.75rem);
     font-weight: 600;
     cursor: pointer;
 }
@@ -228,7 +228,7 @@ a.vp-id__username:hover { text-decoration: underline; }
 .vp-edit-modal__x:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 .vp-edit-modal__note {
     margin: 0 0 1rem;
-    font-size: 0.75rem;
+    font-size: var(--pro-small, 0.75rem);
     line-height: 1.5;
     color: var(--color-text-muted);
 }
@@ -240,7 +240,7 @@ a.vp-id__username:hover { text-decoration: underline; }
 .vp-edit-fullwidth { grid-column: 1 / -1; }
 .vp-edit-modal__error {
     margin: 0.85rem 0 0;
-    font-size: 0.78rem;
+    font-size: var(--pro-small, 0.78rem);
     color: var(--color-k-danger-text);
     background: var(--color-danger-bg);
     border: 1px solid var(--color-danger-border, rgba(239, 68, 68, 0.2));
@@ -262,7 +262,7 @@ a.vp-id__username:hover { text-decoration: underline; }
     background: var(--color-primary);
     border: 1px solid var(--color-primary);
     color: var(--color-on-primary, #fff);
-    font-size: 0.78rem;
+    font-size: var(--pro-small, 0.78rem);
     font-weight: 600;
     cursor: pointer;
     transition: opacity var(--transition-fast, 0.15s);
@@ -296,7 +296,7 @@ a.vp-id__username:hover { text-decoration: underline; }
     border: none;
     border-bottom: 2px solid transparent;
     padding: 0.6rem 0.9rem;
-    font-size: 0.8rem;
+    font-size: var(--pro-small, 0.8rem);
     font-weight: 600;
     color: var(--color-text-secondary);
     cursor: pointer;
@@ -337,7 +337,7 @@ a.vp-id__username:hover { text-decoration: underline; }
     letter-spacing: 1px;
 }
 .vp-review-hero__soon {
-    font-size: 0.6rem;
+    font-size: var(--pro-caption, 0.6rem);
     text-transform: uppercase;
     letter-spacing: 0.08em;
     font-weight: 700;
@@ -348,7 +348,7 @@ a.vp-id__username:hover { text-decoration: underline; }
     padding: 1px 6px;
 }
 .vp-review-hero__title { margin: 0 0 0.25rem; font-size: 1rem; color: var(--color-text); }
-.vp-review-hero__sub { margin: 0; font-size: 0.8rem; line-height: 1.5; color: var(--color-text-secondary); }
+.vp-review-hero__sub { margin: 0; font-size: var(--pro-small, 0.8rem); line-height: 1.5; color: var(--color-text-secondary); }
 
 /* "Recent peek" link row on Overview. */
 .vp-peek { display: flex; flex-wrap: wrap; gap: 0.75rem; }
@@ -357,7 +357,7 @@ a.vp-id__username:hover { text-decoration: underline; }
     background: none;
     border: none;
     padding: 0;
-    font-size: 0.8rem;
+    font-size: var(--pro-small, 0.8rem);
     font-weight: 600;
     color: var(--color-k-accent-text);
     cursor: pointer;
@@ -375,7 +375,7 @@ a.vp-id__username:hover { text-decoration: underline; }
     padding: 2rem 1.5rem;
 }
 .vp-soon__badge {
-    font-size: 0.6rem;
+    font-size: var(--pro-caption, 0.6rem);
     text-transform: uppercase;
     letter-spacing: 0.08em;
     font-weight: 700;
@@ -385,13 +385,13 @@ a.vp-id__username:hover { text-decoration: underline; }
     border-radius: var(--radius-full, 9999px);
     padding: 2px 10px;
 }
-.vp-soon__title { margin: 0; font-size: 0.95rem; color: var(--color-text); }
-.vp-soon__body { margin: 0; max-width: 460px; font-size: 0.8rem; line-height: 1.5; color: var(--color-text-secondary); }
+.vp-soon__title { margin: 0; font-size: var(--pro-body, 0.95rem); color: var(--color-text); }
+.vp-soon__body { margin: 0; max-width: 460px; font-size: var(--pro-small, 0.8rem); line-height: 1.5; color: var(--color-text-secondary); }
 
 /* Empty states. */
 .vp-empty { align-items: flex-start; }
-.vp-empty p { margin: 0; font-size: 0.85rem; color: var(--color-text-secondary); }
-.vp-empty__sub { color: var(--color-text-muted) !important; font-size: 0.78rem !important; line-height: 1.5; }
+.vp-empty p { margin: 0; font-size: var(--pro-body, 0.85rem); color: var(--color-text-secondary); }
+.vp-empty__sub { color: var(--color-text-muted) !important; font-size: var(--pro-small, 0.78rem) !important; line-height: 1.5; }
 
 /* Deployed packages list. */
 .vp-pkgs { display: flex; flex-direction: column; gap: 0.4rem; }
@@ -408,9 +408,9 @@ a.vp-id__username:hover { text-decoration: underline; }
     transition: border-color var(--transition-fast, 0.15s);
 }
 .vp-pkg:hover { border-color: var(--color-primary-border); }
-.vp-pkg__path { font-size: 0.75rem; color: var(--color-text); word-break: break-all; }
-.vp-pkg__block { font-size: 0.68rem; color: var(--color-text-muted); flex-shrink: 0; }
-.vp-pkgs__more { font-size: 0.72rem; color: var(--color-text-muted); padding: 0.25rem 0.5rem; }
+.vp-pkg__path { font-size: var(--pro-small, 0.75rem); color: var(--color-text); word-break: break-all; }
+.vp-pkg__block { font-size: var(--pro-caption, 0.68rem); color: var(--color-text-muted); flex-shrink: 0; }
+.vp-pkgs__more { font-size: var(--pro-small, 0.72rem); color: var(--color-text-muted); padding: 0.25rem 0.5rem; }
 
 /* Governance votes list. */
 .vp-votes { display: flex; flex-direction: column; gap: 0.4rem; }
@@ -425,10 +425,10 @@ a.vp-id__username:hover { text-decoration: underline; }
     border: 1px solid var(--color-border);
 }
 .vp-vote__meta { display: flex; flex-direction: column; gap: 0.1rem; min-width: 0; }
-.vp-vote__id { font-size: 0.65rem; color: var(--color-text-muted); font-family: var(--font-mono, monospace); }
-.vp-vote__title { font-size: 0.8rem; color: var(--color-text); overflow: hidden; text-overflow: ellipsis; }
+.vp-vote__id { font-size: var(--pro-caption, 0.65rem); color: var(--color-text-muted); font-family: var(--font-ui, var(--font-mono, monospace)); }
+.vp-vote__title { font-size: var(--pro-small, 0.8rem); color: var(--color-text); overflow: hidden; text-overflow: ellipsis; }
 .vp-vote__badge {
-    font-size: 0.65rem;
+    font-size: var(--pro-caption, 0.65rem);
     font-weight: 700;
     border-radius: var(--radius-sm, 4px);
     padding: 2px 8px;
@@ -482,15 +482,15 @@ a.vp-act__link:focus-visible { outline: 2px solid var(--color-primary); outline-
 
 .vp-act__body { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
 .vp-act__title {
-    font-size: 0.8rem;
+    font-size: var(--pro-small, 0.8rem);
     color: var(--color-text);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 .vp-act__more { color: var(--color-text-muted); }
-.vp-act__meta { display: flex; align-items: center; gap: 0.5rem; font-size: 0.68rem; color: var(--color-text-muted); }
-.vp-act__actor { font-size: 0.68rem; }
+.vp-act__meta { display: flex; align-items: center; gap: 0.5rem; font-size: var(--pro-caption, 0.68rem); color: var(--color-text-muted); }
+.vp-act__actor { font-size: var(--pro-caption, 0.68rem); }
 .vp-act__when { margin-left: auto; }
 
 .vp-act__row--skeleton {
@@ -509,7 +509,7 @@ a.vp-act__link:focus-visible { outline: 2px solid var(--color-primary); outline-
     display: flex;
     align-items: center;
     gap: 0.625rem;
-    font-size: 0.78rem;
+    font-size: var(--pro-small, 0.78rem);
     color: var(--color-text-secondary);
     padding: 0.625rem 0.75rem;
     background: var(--color-surface);
@@ -529,7 +529,7 @@ a.vp-act__link:focus-visible { outline: 2px solid var(--color-primary); outline-
 }
 .vp-act__retry:hover { text-decoration: underline; }
 .vp-act__retry:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; border-radius: 4px; }
-.vp-act__note { margin: 0.6rem 0 0; font-size: 0.7rem; color: var(--color-text-muted); }
+.vp-act__note { margin: 0.6rem 0 0; font-size: var(--pro-small, 0.7rem); color: var(--color-text-muted); }
 
 /* ── Quests (P2b — owner-only) ───────────────────────────────── */
 .vp-quest-head {
@@ -541,10 +541,10 @@ a.vp-act__link:focus-visible { outline: 2px solid var(--color-primary); outline-
     margin-bottom: 0.85rem;
 }
 .vp-quest-head__xp { display: flex; align-items: baseline; gap: 0.6rem; flex-wrap: wrap; }
-.vp-quest-head__rank { font-size: 0.85rem; font-weight: 700; }
+.vp-quest-head__rank { font-size: var(--pro-body, 0.85rem); font-weight: 700; }
 .vp-quest-head__total { font-size: 1.05rem; font-weight: 700; color: var(--color-text); }
-.vp-quest-head__sync { font-size: 0.68rem; color: var(--color-text-muted); }
-.vp-quest-head__next { font-size: 0.72rem; color: var(--color-text-secondary); }
+.vp-quest-head__sync { font-size: var(--pro-caption, 0.68rem); color: var(--color-text-muted); }
+.vp-quest-head__next { font-size: var(--pro-small, 0.72rem); color: var(--color-text-secondary); }
 
 .vp-quests { display: flex; flex-direction: column; gap: 0.4rem; }
 .vp-quest {
@@ -558,16 +558,16 @@ a.vp-act__link:focus-visible { outline: 2px solid var(--color-primary); outline-
 }
 .vp-quest__icon { flex: 0 0 auto; font-size: 1.1rem; line-height: 1; }
 .vp-quest__body { display: flex; flex-direction: column; gap: 1px; min-width: 0; flex: 1; }
-.vp-quest__title { font-size: 0.8rem; color: var(--color-text); }
+.vp-quest__title { font-size: var(--pro-small, 0.8rem); color: var(--color-text); }
 .vp-quest__desc {
-    font-size: 0.7rem;
+    font-size: var(--pro-small, 0.7rem);
     color: var(--color-text-muted);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
 }
-.vp-quest__xp { flex-shrink: 0; font-size: 0.68rem; font-weight: 700; color: var(--color-k-accent-text); }
-.vp-quest-empty { margin: 0; font-size: 0.82rem; color: var(--color-text-secondary); }
+.vp-quest__xp { flex-shrink: 0; font-size: var(--pro-caption, 0.68rem); font-weight: 700; color: var(--color-k-accent-text); }
+.vp-quest-empty { margin: 0; font-size: var(--pro-body, 0.82rem); color: var(--color-text-secondary); }
 .vp-quest-empty__link { color: var(--color-k-accent-text); text-decoration: none; font-weight: 600; }
 .vp-quest-empty__link:hover { text-decoration: underline; }
 .vp-quest-foot { display: flex; }
@@ -575,7 +575,7 @@ a.vp-act__link:focus-visible { outline: 2px solid var(--color-primary); outline-
 /* ── Unified profile: genesis identity note ──────────────────── */
 .vp-id__note {
     margin: 0.6rem 0 0;
-    font-size: 0.78rem;
+    font-size: var(--pro-small, 0.78rem);
     line-height: 1.5;
     color: var(--color-text-secondary);
     max-width: 60ch;
@@ -596,7 +596,7 @@ a.vp-act__link:focus-visible { outline: 2px solid var(--color-primary); outline-
 .vp-perf-inactive__title { margin: 0; font-size: 1rem; color: var(--color-text); }
 .vp-perf-inactive__body {
     margin: 0;
-    font-size: 0.82rem;
+    font-size: var(--pro-body, 0.82rem);
     line-height: 1.55;
     color: var(--color-text-secondary);
     max-width: 52ch;
@@ -620,5 +620,5 @@ a.vp-act__link:focus-visible { outline: 2px solid var(--color-primary); outline-
 /* ── Contributions: curated gnolove identity (team/contributor) ────── */
 .vp-mapped-head { display: flex; align-items: center; gap: 0.6rem; }
 .vp-mapped-avatar { width: 34px; height: 34px; border-radius: 50%; object-fit: cover; flex-shrink: 0; }
-.vp-mapped-name { font-size: 0.9rem; font-weight: 600; color: var(--color-text); }
-.vp-mapped-sub { font-size: 0.75rem; color: var(--color-text-secondary); margin-top: 0.1rem; }
+.vp-mapped-name { font-size: var(--pro-body, 0.9rem); font-weight: 600; color: var(--color-text); }
+.vp-mapped-sub { font-size: var(--pro-small, 0.75rem); color: var(--color-text-secondary); margin-top: 0.1rem; }

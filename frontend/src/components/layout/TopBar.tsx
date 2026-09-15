@@ -160,7 +160,7 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                         style={{
                             background: "transparent", border: "1px solid currentColor",
                             color: "inherit", borderRadius: 4, padding: "2px 10px",
-                            fontSize: 12, fontWeight: 600, cursor: "pointer", marginRight: 4,
+                            fontSize: "var(--pro-small, 12px)", fontWeight: 600, cursor: "pointer", marginRight: 4,
                         }}
                     >
                         Retry

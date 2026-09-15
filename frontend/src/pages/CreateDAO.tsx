@@ -420,7 +420,7 @@ export function CreateDAO() {
             {validationError && (
                 <div className="k-card" role="alert" style={{
                     display: "flex", alignItems: "center", gap: 8,
-                    padding: "10px 14px", fontSize: 13,
+                    padding: "10px 14px", fontSize: "var(--pro-small, 13px)",
                     borderColor: "var(--color-k-amber-border)",
                     background: "var(--color-k-amber-subtle)",
                     color: "var(--color-k-warning)",

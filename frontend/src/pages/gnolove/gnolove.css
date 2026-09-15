@@ -112,7 +112,7 @@
 .gl-subnav-link {
     padding: 8px 16px;
     border-radius: 8px;
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 500;
     color: var(--color-k-dim, #888);
     text-decoration: none;
@@ -155,7 +155,7 @@
 }
 
 .gl-sync-time {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-muted, #555);
     font-family: var(--gl-font-mono);
 }
@@ -181,13 +181,13 @@
 }
 
 .gl-milestone-title {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
     color: var(--color-k-text, #f0f0f0);
 }
 
 .gl-milestone-count {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-accent-text, #00d4aa);
     font-family: var(--gl-font-mono);
 }
@@ -228,7 +228,7 @@
     padding: 6px 12px;
     border: none;
     border-radius: 6px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-weight: 500;
     font-family: var(--gl-font-mono);
     color: var(--color-k-dim, #888);
@@ -257,7 +257,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-dim, #888);
     cursor: pointer;
     font-family: var(--gl-font-mono);
@@ -274,7 +274,7 @@
     align-items: center;
     gap: 8px;
     flex-wrap: wrap;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
 }
 
 .gl-score-label {
@@ -288,7 +288,7 @@
     background: var(--color-surface);
     color: var(--color-k-dim, #aaa);
     font-family: var(--gl-font-mono);
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
 }
 
 /* ── Sections ────────────────────────────────── */
@@ -335,14 +335,14 @@
 }
 
 .gl-team-rank {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-muted, #555);
     font-family: var(--gl-font-mono);
     margin-bottom: 4px;
 }
 
 .gl-team-name {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 700;
     margin-bottom: 8px;
 }
@@ -351,7 +351,7 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-dim, #888);
     font-family: var(--gl-font-mono);
 }
@@ -367,7 +367,7 @@
 .gl-table {
     width: 100%;
     border-collapse: collapse;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
 }
 
 .gl-table thead {
@@ -379,7 +379,7 @@
     text-align: left;
     color: var(--color-k-dim, #888);
     font-weight: 600;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-family: var(--gl-font-mono);
     white-space: nowrap;
     border-bottom: 1px solid var(--color-border);
@@ -434,7 +434,7 @@
     color: var(--color-k-text, #f0f0f0);
     text-decoration: none;
     font-weight: 600;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     transition: color 0.2s;
 }
 
@@ -444,14 +444,14 @@
 
 .gl-contributor-login {
     display: block;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-muted, #555);
     font-family: var(--gl-font-mono);
 }
 
 .gl-team-badge {
     display: inline-block;
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     font-weight: 600;
     font-family: var(--gl-font-mono);
     margin-top: 2px;
@@ -507,7 +507,7 @@
 }
 
 .gl-issue-title {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-k-text, #f0f0f0);
     flex: 1;
     min-width: 0;
@@ -525,7 +525,7 @@
 .gl-label {
     padding: 2px 6px;
     border-radius: 4px;
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     font-weight: 600;
     font-family: var(--gl-font-mono);
 }
@@ -570,7 +570,7 @@
 }
 
 .gl-pr-title {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-k-text, #f0f0f0);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -578,7 +578,7 @@
 }
 
 .gl-pr-meta {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-muted, #555);
     font-family: var(--gl-font-mono);
 }
@@ -586,7 +586,7 @@
 .gl-pr-state {
     padding: 3px 8px;
     border-radius: 6px;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     font-weight: 600;
     font-family: var(--gl-font-mono);
     flex-shrink: 0;
@@ -642,13 +642,13 @@
 }
 
 .gl-repo-name {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-k-text, #f0f0f0);
     font-family: var(--gl-font-mono);
 }
 
 .gl-repo-branch {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-muted, #555);
     font-family: var(--gl-font-mono);
 }
@@ -668,7 +668,7 @@
     border-radius: 8px;
     background: var(--color-surface);
     color: var(--color-k-dim, #aaa);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.2s;
@@ -690,7 +690,7 @@
 }
 
 .gl-week-label {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     color: var(--color-k-text, #f0f0f0);
     min-width: 200px;
@@ -710,7 +710,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-text-secondary);
 }
 
@@ -720,7 +720,7 @@
     border-radius: 6px;
     background: rgba(255, 255, 255, 0.04);
     color: var(--color-text-primary);
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-family: var(--gl-font-mono);
 }
 
@@ -731,7 +731,7 @@
 }
 
 .gl-custom-range-sep {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-text-secondary);
 }
 
@@ -756,7 +756,7 @@
     padding: 6px 14px;
     border: none;
     border-radius: 6px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-weight: 500;
     font-family: var(--gl-font-mono);
     color: var(--color-k-dim, #888);
@@ -785,7 +785,7 @@
 }
 
 .gl-tab-count {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     padding: 1px 5px;
     border-radius: 4px;
     background: var(--color-surface-hover);
@@ -826,7 +826,7 @@
 }
 
 .gl-stat-label {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-dim, #888);
     margin-top: 4px;
     font-family: var(--gl-font-mono);
@@ -871,7 +871,7 @@
     padding: 40px 20px;
     text-align: center;
     color: var(--color-k-muted, #555);
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-family: var(--gl-font-mono);
     background: var(--color-surface);
     border: 1px dashed var(--color-border);
@@ -937,7 +937,7 @@
 }
 
 .gl-activity-title {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
     color: var(--color-k-text, #f0f0f0);
     margin: 0 0 4px 0;
@@ -972,7 +972,7 @@
 }
 
 .gl-activity-item-title {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-text, #f0f0f0);
     flex: 1;
     min-width: 0;
@@ -982,7 +982,7 @@
 }
 
 .gl-activity-item-meta {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-dim, #777);
     font-family: var(--gl-font-mono);
     flex-shrink: 0;
@@ -995,7 +995,7 @@
 }
 
 .gl-label--sm {
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     padding: 1px 5px;
 }
 
@@ -1026,14 +1026,14 @@
 }
 
 .gl-section-summary {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-dim, #777);
     font-family: var(--gl-font-mono);
     margin-left: auto;
 }
 
 .gl-chevron {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     color: var(--color-k-muted, #555);
     transition: transform 0.2s;
 }
@@ -1064,7 +1064,7 @@
 }
 
 .gl-team-popover-title {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     font-weight: 600;
     color: var(--color-k-dim, #888);
     font-family: var(--gl-font-mono);
@@ -1076,7 +1076,7 @@
     display: flex;
     align-items: center;
     gap: 8px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
 }
 
 .gl-team-popover-avatar {
@@ -1095,13 +1095,13 @@
 }
 
 .gl-team-popover-login {
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     color: var(--color-k-muted, #666);
     font-family: var(--gl-font-mono);
 }
 
 .gl-team-popover-score {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-accent-text, #00d4aa);
     font-family: var(--gl-font-mono);
     flex-shrink: 0;
@@ -1146,7 +1146,7 @@
     gap: 8px;
     padding: 4px 6px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-dim, #ccc);
     font-family: var(--gl-font-mono);
     cursor: pointer;
@@ -1161,7 +1161,7 @@
 }
 
 .gl-filter-btn--sm {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     padding: 3px 8px;
 }
 
@@ -1180,7 +1180,7 @@
     border-radius: 6px;
     background: var(--color-surface);
     color: var(--color-k-dim, #ccc);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-family: var(--gl-font-mono);
     cursor: pointer;
     appearance: auto;
@@ -1202,7 +1202,7 @@
     border-radius: 6px;
     background: transparent;
     color: var(--color-k-dim, #888);
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.2s;
@@ -1228,7 +1228,7 @@
 .gl-section-summary-link {
     color: var(--color-k-accent-text, #00d4aa);
     text-decoration: none;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
 }
 
 .gl-section-summary-link:hover {
@@ -1269,7 +1269,7 @@
 }
 
 .gl-teams-panel-rank {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-k-muted, #555);
     font-family: var(--gl-font-mono);
 }
@@ -1277,7 +1277,7 @@
 .gl-teams-panel-stats {
     display: flex;
     gap: 14px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-dim, #888);
     font-family: var(--gl-font-mono);
 }
@@ -1298,7 +1298,7 @@
 }
 
 .gl-teams-panel-social {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-muted, #666);
 }
 
@@ -1336,13 +1336,13 @@
 }
 
 .gl-teams-member-name {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-k-text, #f0f0f0);
     font-weight: 500;
 }
 
 .gl-teams-member-login {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-muted, #666);
     font-family: var(--gl-font-mono);
 }
@@ -1355,14 +1355,14 @@
 }
 
 .gl-teams-member-score {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-k-accent-text, #00d4aa);
     font-weight: 600;
     font-family: var(--gl-font-mono);
 }
 
 .gl-teams-member-detail {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-muted, #666);
     font-family: var(--gl-font-mono);
 }
@@ -1396,7 +1396,7 @@
 }
 
 .gl-dash-card-label {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-dim, #777);
     font-family: var(--gl-font-mono);
     text-transform: uppercase;
@@ -1447,13 +1447,13 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
 }
 
 /* Empty-state UX-2 actions/buttons. */
 .gl-empty__hint {
     color: var(--color-text-secondary);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     margin-top: 4px;
 }
 .gl-empty__actions {
@@ -1470,7 +1470,7 @@
     padding: 6px 12px;
     border-radius: 6px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
 }
 .gl-empty__btn:hover {
     background: var(--color-surface-hover, rgba(255,255,255,0.04));
@@ -1484,14 +1484,14 @@
 }
 
 .gl-panel-title {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
     color: var(--color-k-text, #f0f0f0);
     margin: 0;
 }
 
 .gl-panel-subtitle {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-muted, #555);
     font-family: var(--gl-font-mono);
 }
@@ -1530,7 +1530,7 @@
 }
 
 .gl-onchain-metric-label {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-dim, #777);
     font-family: var(--gl-font-mono);
 }
@@ -1565,7 +1565,7 @@
 }
 
 .gl-heatmap-legend-label {
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     color: var(--color-k-muted, #555);
     font-family: var(--gl-font-mono);
     margin: 0 2px;
@@ -1588,7 +1588,7 @@
 }
 
 .gl-team-filters-label {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-dim, #777);
     font-family: var(--gl-font-mono);
     margin-right: 2px;
@@ -1602,7 +1602,7 @@
     border: 1px solid;
     border-radius: 16px;
     background: transparent;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.2s ease;
@@ -1623,7 +1623,7 @@
 }
 
 .gl-team-chip-x {
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     font-weight: 700;
 }
 
@@ -1641,7 +1641,7 @@
 /* ── Section Description ───────────────────────── */
 
 .gl-section-desc {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-k-muted, #666);
     margin: -12px 0 8px;
     font-family: var(--gl-font-mono);
@@ -1670,7 +1670,7 @@
     gap: 4px;
     color: var(--color-k-dim, #777);
     text-decoration: none;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-family: var(--gl-font-mono);
     margin-bottom: 16px;
     transition: color 0.2s;
@@ -1723,14 +1723,14 @@
 }
 
 .gl-profile-login {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-k-dim, #777);
     font-family: var(--gl-font-mono);
 }
 
 .gl-profile-team-badge {
     display: inline-block;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-family: var(--gl-font-mono);
     padding: 2px 8px;
     border-radius: 10px;
@@ -1739,7 +1739,7 @@
 }
 
 .gl-profile-bio {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-k-dim, #ccc);
     line-height: 1.5;
 }
@@ -1748,7 +1748,7 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-k-dim, #888);
     font-family: var(--gl-font-mono);
 }
@@ -1773,7 +1773,7 @@
     border-radius: 6px;
     color: var(--color-k-dim, #888);
     text-decoration: none;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-family: var(--gl-font-mono);
     transition: all 0.2s;
 }
@@ -1788,13 +1788,13 @@
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     border-radius: 8px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-family: var(--gl-font-mono);
 }
 
 .gl-profile-onchain-label {
     color: var(--color-k-muted, #555);
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     margin-bottom: 4px;
 }
 
@@ -1815,7 +1815,7 @@
     border-radius: 6px;
     background: transparent;
     color: var(--color-k-dim, #888);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.2s;
@@ -1854,7 +1854,7 @@
 }
 
 .gl-activity-row-title {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-k-text, #f0f0f0);
     display: block;
     overflow: hidden;
@@ -1863,7 +1863,7 @@
 }
 
 .gl-activity-row-meta {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-dim, #777);
     font-family: var(--gl-font-mono);
     display: block;
@@ -1887,13 +1887,13 @@
 }
 
 .gl-repo-card-profile-name {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-k-accent-text, #00d4aa);
     font-family: var(--gl-font-mono);
 }
 
 .gl-repo-card-profile-desc {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-dim, #888);
     overflow: hidden;
     text-overflow: ellipsis;
@@ -1903,7 +1903,7 @@
 .gl-repo-card-profile-footer {
     display: flex;
     gap: 12px;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-muted, #666);
     font-family: var(--gl-font-mono);
 }
@@ -1945,7 +1945,7 @@
     }
 
     .gl-table-wrap {
-        font-size: 11px;
+        font-size: var(--pro-caption, 11px);
     }
 
     .gl-filters {
@@ -2071,14 +2071,14 @@
 }
 
 .gl-team-compact-rank {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-muted, #666);
     font-family: var(--gl-font-mono);
     min-width: 18px;
 }
 
 .gl-team-compact-name {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
 }
 
@@ -2091,7 +2091,7 @@
 
 .gl-team-award {
     display: inline-block;
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -2104,7 +2104,7 @@
 }
 
 .gl-team-compact-desc {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-dim, #888);
     line-height: 1.3;
     display: -webkit-box;
@@ -2116,7 +2116,7 @@
 .gl-team-compact-stats {
     display: flex;
     gap: 8px;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-muted, #666);
     font-family: var(--gl-font-mono);
     margin-top: 2px;
@@ -2136,7 +2136,7 @@
 }
 
 .gl-section-link {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-accent-text, #00d4aa);
     text-decoration: none;
     font-family: var(--gl-font-mono);
@@ -2147,7 +2147,7 @@
 }
 
 .gl-section-count {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-dim, #888);
     font-family: var(--gl-font-mono);
 }
@@ -2170,7 +2170,7 @@
     background: var(--color-surface);
     border: 1px solid var(--color-border);
     color: var(--color-k-dim, #aaa);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.15s ease;
@@ -2195,7 +2195,7 @@
 .gl-pagination-ellipsis {
     color: var(--color-k-muted, #555);
     padding: 0 4px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
 }
 
 .gl-sort-btn {
@@ -2229,7 +2229,7 @@
 }
 
 .gl-team-profile-desc {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-k-dim, #888);
     margin: 0;
     line-height: 1.4;
@@ -2256,7 +2256,7 @@
 }
 
 .gl-team-profile-stat-label {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-muted, #666);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -2286,7 +2286,7 @@
     background: rgba(0, 212, 170, 0.03);
 }
 .gl-team-repo-name {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-family: var(--gl-font-mono);
     color: var(--color-k-dim, #ccc);
     overflow: hidden;
@@ -2297,7 +2297,7 @@
     color: var(--color-k-accent-text, #00d4aa);
 }
 .gl-team-repo-branch {
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     font-family: var(--gl-font-mono);
     color: var(--color-k-muted, #555);
     background: var(--color-surface);
@@ -2307,7 +2307,7 @@
 }
 
 .gl-team-member-rank {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-muted, #555);
     font-family: var(--gl-font-mono);
     min-width: 24px;
@@ -2326,7 +2326,7 @@
     border-radius: 8px;
     background: rgba(255, 71, 87, 0.06);
     border: 1px solid rgba(255, 71, 87, 0.15);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-family: var(--gl-font-mono);
     color: var(--color-k-danger-text);
     min-width: 0;
@@ -2340,7 +2340,7 @@
     background: rgba(255, 71, 87, 0.1);
     border: 1px solid rgba(255, 71, 87, 0.25);
     color: var(--color-k-danger-text, #ff4757);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-family: var(--gl-font-mono);
     padding: 4px 12px;
     border-radius: 5px;
@@ -2376,7 +2376,7 @@
     border: none;
     background: transparent;
     color: var(--color-text-secondary);
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     font-family: var(--gl-font-mono);
     cursor: pointer;
     transition: all 0.15s;
@@ -2408,7 +2408,7 @@
 }
 
 .gl-report-narrative__week-id {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-muted);
     font-family: var(--gl-font-mono);
     margin-left: auto;
@@ -2427,7 +2427,7 @@
 }
 
 .gl-report-narrative__heading {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 700;
     color: var(--color-text);
     font-family: var(--gl-font-mono);
@@ -2442,7 +2442,7 @@
     display: flex;
     flex-direction: column;
     gap: 6px;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary);
     font-family: var(--gl-font-mono);
     line-height: 1.5;
@@ -2459,14 +2459,14 @@
 
 .gl-report-narrative__empty {
     color: var(--color-text-muted);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-family: var(--gl-font-mono);
     margin: 0;
 }
 
 .gl-report-narrative__author {
     color: var(--color-text-secondary);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
 }
 
 .gl-report-narrative__team-dot {
@@ -2514,7 +2514,7 @@
 }
 
 .gl-report-narrative__stat-label {
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     color: var(--color-text-muted);
     font-family: var(--gl-font-mono);
     text-transform: uppercase;
@@ -2531,7 +2531,7 @@
 }
 
 .gl-report-narrative__repo-name {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 600;
     color: var(--color-k-accent-text);
     font-family: var(--gl-font-mono);
@@ -2553,14 +2553,14 @@
     border-radius: 12px;
     background: var(--color-surface);
     border: 1px solid var(--color-border);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-family: var(--gl-font-mono);
     color: var(--color-text-secondary);
 }
 
 .gl-report-narrative__contributor-count {
     color: var(--color-text-muted);
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
 }
 
 @media (max-width: 640px) {
@@ -2596,7 +2596,7 @@
 
 .gl-repo-multiselect-arrow {
     margin-left: auto;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     opacity: 0.6;
 }
 
@@ -2622,7 +2622,7 @@
     gap: 8px;
     padding: 8px 12px;
     cursor: pointer;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-family: var(--gl-font-mono);
     color: var(--color-text);
     transition: background 0.1s;
@@ -2644,7 +2644,7 @@
 /* ── Period Header ─────────────────────────────── */
 
 .gl-report-narrative__period-header {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     color: var(--color-text-secondary);
     font-family: var(--gl-font-mono);
@@ -2684,7 +2684,7 @@
 }
 
 .gl-thub-chip {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     padding: 4px 10px;
     border-radius: 999px;
     background: var(--color-surface);
@@ -2729,7 +2729,7 @@
 }
 
 .gl-thub-team-social-link {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-k-muted, #666);
     text-decoration: none;
 }
@@ -2745,7 +2745,7 @@
 }
 
 .gl-thub-period-label {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--color-k-dim, #888);
@@ -2761,7 +2761,7 @@
 }
 
 .gl-thub-card-title {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -2775,13 +2775,13 @@
 
 .gl-thub-card-error-msg {
     color: var(--color-k-dim, #888);
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     margin: 0;
 }
 
 .gl-thub-retry-btn {
     margin-top: 8px;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
 }
 
 .gl-thub-inline-retry {
@@ -2805,7 +2805,7 @@
     background: var(--gl-color-state-blocked-bg, rgba(239, 68, 68, 0.1));
     border: 1px solid var(--gl-color-state-blocked, #ef4444);
     color: var(--color-text-primary, #f5f5f5);
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     position: sticky;
     top: 0;
     z-index: 10;
@@ -2824,7 +2824,7 @@
 
 .gl-thub-empty {
     color: var(--color-k-dim, #888);
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-style: italic;
     margin: 8px 0 0;
 }
@@ -2855,7 +2855,7 @@
 }
 
 .gl-thub-metric-label {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     text-transform: uppercase;
     letter-spacing: 0.5px;
     color: var(--color-k-dim, #888);
@@ -2899,7 +2899,7 @@
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 .gl-thub-roster-heading {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -2915,7 +2915,7 @@
     gap: 4px;
 }
 .gl-thub-roster-list li a {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-link, #4a9eff);
     text-decoration: none;
 }
@@ -2944,7 +2944,7 @@
 }
 
 .gl-thub-active-bucket-title {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -2953,7 +2953,7 @@
 }
 
 .gl-thub-active-bucket-hint {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-dim, #888);
     margin: 0 0 8px;
 }
@@ -2978,7 +2978,7 @@
     border-radius: 6px;
     color: var(--color-text);
     text-decoration: none;
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
 }
 
 .gl-thub-active-repo:hover {
@@ -2992,7 +2992,7 @@
 .gl-thub-active-repo-count {
     font-family: var(--gl-font-mono);
     color: var(--color-text);
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     white-space: nowrap;
 }
 
@@ -3028,7 +3028,7 @@
 
 .gl-thub-activity-title {
     color: var(--color-text);
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     text-decoration: none;
     line-height: 1.4;
 }
@@ -3041,7 +3041,7 @@
     display: inline-flex;
     gap: 12px;
     flex-wrap: wrap;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-dim, #888);
     font-family: var(--gl-font-mono);
 }
@@ -3088,7 +3088,7 @@
 }
 
 .gl-thub-ai-project-name {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
     color: var(--gl-color-ai-report-project-fg, #a78bfa);
     margin: 0;
@@ -3097,11 +3097,11 @@
 
 .gl-thub-ai-project-team {
     text-transform: lowercase;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
 }
 
 .gl-thub-ai-project-summary {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     line-height: 1.55;
     margin: 0 0 8px;
     color: var(--color-text);
@@ -3112,7 +3112,7 @@
     border: 1px solid var(--color-border);
     border-radius: 4px;
     padding: 4px 10px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     cursor: pointer;
     color: var(--color-text-secondary);
     font-family: inherit;
@@ -3126,7 +3126,7 @@
 /* ── Focus Areas pills ────────────────────────── */
 
 .gl-thub-card-hint {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-dim, #888);
     margin: -4px 0 12px;
 }
@@ -3135,7 +3135,7 @@
     display: inline;
     position: relative;
     margin-left: 6px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-weight: 400;
 }
 
@@ -3148,7 +3148,7 @@
     border-radius: 50%;
     background: rgba(255, 255, 255, 0.06);
     color: var(--color-k-dim, #888);
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     cursor: pointer;
     list-style: none;
     vertical-align: middle;
@@ -3165,7 +3165,7 @@
     border: 1px solid rgba(255, 255, 255, 0.08);
     border-radius: 6px;
     padding: 8px 12px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-dim, #ccc);
     white-space: nowrap;
     min-width: 200px;
@@ -3189,7 +3189,7 @@
     border-radius: 999px;
     background: var(--gl-color-skill-tag-bg, var(--color-surface));
     color: var(--color-text);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
 }
 
 .gl-thub-pill-label {
@@ -3203,7 +3203,7 @@
 
 .gl-thub-pill-share {
     font-family: var(--gl-font-mono);
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-secondary);
     padding: 1px 5px;
     border-radius: 4px;
@@ -3229,7 +3229,7 @@
     display: inline-flex;
     align-items: center;
     gap: 4px;
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-text-secondary);
 }
 
@@ -3273,7 +3273,7 @@
 }
 
 .gl-thub-report-recent-title {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-text-primary);
     white-space: nowrap;
     overflow: hidden;
@@ -3284,7 +3284,7 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
 }
 
@@ -3295,7 +3295,7 @@
 .gl-thub-report-link {
     display: inline-block;
     margin-top: 12px;
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-k-accent-text);
     text-decoration: none;
     font-weight: 500;
@@ -3317,7 +3317,7 @@
 .gl-repo-badge {
     display: inline-flex;
     align-items: center;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -3368,7 +3368,7 @@
 .gl-topic-heatmap-head .gl-topic-heatmap-label,
 .gl-topic-heatmap-head .gl-topic-heatmap-total {
     font-family: var(--gl-font-mono);
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-dim, #888);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -3378,7 +3378,7 @@
 
 .gl-topic-heatmap-label {
     font-family: var(--gl-font-mono);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     padding: 4px 6px;
     color: var(--color-text);
     white-space: nowrap;
@@ -3388,7 +3388,7 @@
 
 .gl-topic-heatmap-cell {
     font-family: var(--gl-font-mono);
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text);
     text-align: center;
     padding: 4px 0;
@@ -3406,7 +3406,7 @@
 
 .gl-topic-heatmap-total {
     font-family: var(--gl-font-mono);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-weight: 600;
     padding: 4px 6px;
     text-align: right;
@@ -3424,7 +3424,7 @@
     width: 100%;
     border-collapse: collapse;
     font-family: var(--gl-font-mono);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
 }
 
 .gl-repo-health thead th {
@@ -3435,7 +3435,7 @@
     padding: 6px 8px;
     text-transform: uppercase;
     letter-spacing: 0.5px;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
 }
 
 .gl-repo-health tbody th {
@@ -3480,7 +3480,7 @@
         grid-template-columns: 100px repeat(12, minmax(20px, 1fr)) 32px;
     }
     .gl-repo-health {
-        font-size: 11px;
+        font-size: var(--pro-caption, 11px);
     }
     .gl-repo-health thead th,
     .gl-repo-health tbody th,
@@ -3497,7 +3497,7 @@
     gap: 2px;
     overflow-x: auto;
     font-family: var(--gl-font-mono);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
 }
 
 .gl-cohort-grid-row {
@@ -3510,7 +3510,7 @@
 .gl-cohort-grid-head .gl-cohort-grid-label,
 .gl-cohort-grid-head .gl-cohort-grid-size,
 .gl-cohort-grid-head .gl-cohort-grid-offset {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-dim, #888);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -3554,7 +3554,7 @@
     gap: 2px;
     overflow-x: auto;
     font-family: var(--gl-font-mono);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
 }
 
 .gl-collab-matrix-row {
@@ -3565,14 +3565,14 @@
 }
 
 .gl-collab-matrix-corner {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-dim, #888);
     padding: 4px 6px;
     font-style: italic;
 }
 
 .gl-collab-matrix-col {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text);
     padding: 4px 6px 4px;
     text-align: center;
@@ -3606,7 +3606,7 @@
 
 .gl-panel-footnote {
     font-family: var(--gl-font-mono);
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-dim, #888);
     margin-top: 8px;
     padding: 4px 6px;
@@ -3616,11 +3616,11 @@
 @media (max-width: 768px) {
     .gl-cohort-grid-row {
         grid-template-columns: 64px 40px repeat(auto-fill, minmax(26px, 1fr));
-        font-size: 10px;
+        font-size: var(--pro-caption, 10px);
     }
     .gl-collab-matrix-row {
         grid-template-columns: 92px repeat(auto-fit, minmax(40px, 1fr));
-        font-size: 10px;
+        font-size: var(--pro-caption, 10px);
     }
 }
 
@@ -3647,7 +3647,7 @@
 
 .gl-thub-active-repo-pct {
     font-family: var(--gl-font-mono);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-weight: 600;
     color: var(--color-k-accent-text, #00d4aa);
     padding: 2px 6px;
@@ -3669,7 +3669,7 @@
 
 .gl-score-factors-summary {
     cursor: pointer;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-dim, #888);
     user-select: none;
     padding: 4px 0;
@@ -3894,12 +3894,12 @@
 }
 
 .gl-aircard-actions .gl-export-btn {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     padding: 3px 8px;
 }
 
 .gl-aircard-fallback-hint {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-muted, #888);
     padding: 6px 16px;
     font-style: italic;
@@ -3924,7 +3924,7 @@
 }
 
 .gl-aircard-project-name {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
     color: var(--gl-color-ai-report-project-fg, #a78bfa);
     margin: 0;
@@ -3933,11 +3933,11 @@
 
 .gl-aircard-project-team {
     text-transform: lowercase;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
 }
 
 .gl-aircard-project-summary {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     line-height: 1.6;
     color: var(--color-text-secondary);
     margin: 0 0 8px;
@@ -3949,7 +3949,7 @@
     border: 1px solid var(--color-border);
     border-radius: 4px;
     padding: 3px 10px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     cursor: pointer;
     color: var(--color-text-secondary);
     font-family: inherit;
@@ -4009,7 +4009,7 @@
 }
 
 .gl-aircard-sheet-body {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     line-height: 1.65;
     color: var(--color-text);
     margin: 0;
@@ -4049,7 +4049,7 @@
 
 .gl-ms-description {
     padding: 16px;
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     line-height: 1.7;
     color: var(--color-text-secondary);
 }
@@ -4060,14 +4060,14 @@
 .gl-ms-description em { font-style: italic; }
 .gl-ms-description a { color: var(--color-k-accent-text); text-decoration: none; }
 .gl-ms-description a:hover { text-decoration: underline; }
-.gl-ms-description code { font-family: var(--gl-font-mono); font-size: 12px; padding: 1px 4px; border-radius: 3px; background: rgba(255,255,255,0.06); }
+.gl-ms-description code { font-family: var(--gl-font-mono); font-size: var(--pro-small, 12px); padding: 1px 4px; border-radius: 3px; background: rgba(255,255,255,0.06); }
 .gl-ms-description ul, .gl-ms-description ol { margin: 4px 0 8px 20px; padding: 0; }
 .gl-ms-description li { margin-bottom: 2px; }
-.gl-ms-description h1, .gl-ms-description h2, .gl-ms-description h3, .gl-ms-description h4 { color: var(--color-text-primary); margin: 12px 0 6px; font-size: 14px; }
+.gl-ms-description h1, .gl-ms-description h2, .gl-ms-description h3, .gl-ms-description h4 { color: var(--color-text-primary); margin: 12px 0 6px; font-size: var(--pro-body, 14px); }
 .gl-ms-description pre { margin: 8px 0; padding: 10px 12px; border-radius: 6px; background: rgba(0,0,0,0.2); overflow-x: auto; }
-.gl-ms-description pre code { padding: 0; background: none; font-size: 12px; }
+.gl-ms-description pre code { padding: 0; background: none; font-size: var(--pro-small, 12px); }
 .gl-ms-description hr { border: none; border-top: 1px solid rgba(255,255,255,0.08); margin: 12px 0; }
-.gl-ms-description table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 12px; }
+.gl-ms-description table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: var(--pro-small, 12px); }
 .gl-ms-description th, .gl-ms-description td { padding: 4px 8px; border: 1px solid rgba(255,255,255,0.08); text-align: left; }
 .gl-ms-description th { background: rgba(255,255,255,0.04); font-weight: 600; }
 
@@ -4090,7 +4090,7 @@
     border-bottom: 1px solid var(--gl-ms-border, rgba(255, 255, 255, 0.04));
     text-decoration: none;
     color: var(--color-text);
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
 }
 
 .gl-ms-issue-dot {
@@ -4114,7 +4114,7 @@
 
 .gl-ms-issue-number {
     color: var(--color-text-secondary);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     flex-shrink: 0;
 }
 
@@ -4142,7 +4142,7 @@
 
     .gl-thub-metric-label {
         order: 1;
-        font-size: 12px;
+        font-size: var(--pro-small, 12px);
     }
 
     /* Roster toggle: match row layout at 480px */
@@ -4276,12 +4276,12 @@
 
     /* Section titles: slight reduction */
     .gl-section-title {
-        font-size: 15px;
+        font-size: var(--pro-body, 15px);
     }
 
     /* Body text: ensure minimum 14px */
     .gl-page {
-        font-size: 14px;
+        font-size: var(--pro-body, 14px);
     }
 
     /* Active repos: stack percentage */
@@ -4312,7 +4312,7 @@
     }
 
     .gl-milestone-title {
-        font-size: 12px;
+        font-size: var(--pro-small, 12px);
     }
 
     .gl-team-compact-card {
@@ -4320,20 +4320,20 @@
     }
 
     .gl-team-compact-name {
-        font-size: 12px;
+        font-size: var(--pro-small, 12px);
     }
 
     .gl-team-compact-desc {
-        font-size: 10px;
+        font-size: var(--pro-caption, 10px);
     }
 
     .gl-team-compact-stats {
-        font-size: 9px;
+        font-size: var(--pro-caption, 9px);
         gap: 6px;
     }
 
     .gl-section-summary {
-        font-size: 12px;
+        font-size: var(--pro-small, 12px);
     }
 
     .gl-teams-panel {
@@ -4367,7 +4367,7 @@
     border: 0;
     color: var(--color-text-muted);
     font: inherit;
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     padding: 5px 12px;
     cursor: pointer;
     transition: background 0.12s, color 0.12s;
@@ -4376,15 +4376,15 @@
 .gl-np-seg-btn.is-active { background: var(--color-surface-hover, rgba(255,255,255,0.06)); color: var(--color-text-primary, var(--color-text)); }
 .gl-np-seg-btn + .gl-np-seg-btn { border-left: 1px solid var(--color-border); }
 
-.gl-np-group { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--color-text-muted); }
+.gl-np-group { display: inline-flex; align-items: center; gap: 6px; font-size: var(--pro-small, 12px); color: var(--color-text-muted); }
 .gl-np-select {
     background: var(--color-surface); color: var(--color-text);
     border: 1px solid var(--color-border); border-radius: 6px;
-    padding: 4px 8px; font: inherit; font-size: 13px; cursor: pointer;
+    padding: 4px 8px; font: inherit; font-size: var(--pro-small, 13px); cursor: pointer;
 }
 .gl-np-areas { display: inline-flex; flex-wrap: wrap; gap: 6px; }
 .gl-np-chip, .gl-np-toggle {
-    font-size: 12.5px; color: var(--color-text-muted); cursor: pointer;
+    font-size: var(--pro-small, 12.5px); color: var(--color-text-muted); cursor: pointer;
     display: inline-flex; align-items: center; gap: 6px;
 }
 .gl-np-chip {
@@ -4394,7 +4394,7 @@
 .gl-np-chip:hover { color: var(--color-text); border-color: var(--color-border-light, var(--color-border)); }
 .gl-np-chip.is-active { background: var(--color-surface-hover, rgba(255,255,255,0.06)); color: var(--color-text); font-weight: 600; }
 .gl-np-toggle input { accent-color: var(--gl-color-chart-series-primary, #00d4aa); }
-.gl-np-count { margin-left: auto; font-size: 12px; color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
+.gl-np-count { margin-left: auto; font-size: var(--pro-small, 12px); color: var(--color-text-muted); font-variant-numeric: tabular-nums; }
 
 /* group sections */
 .gl-np-group-section { margin-top: 14px; }
@@ -4403,10 +4403,10 @@
     background: transparent; border: 0; padding: 6px 2px; cursor: pointer;
     color: var(--color-text); font: inherit;
 }
-.gl-np-caret { color: var(--color-text-muted); font-size: 11px; width: 12px; }
-.gl-np-group-name { font-size: 13px; font-weight: 700; letter-spacing: 0.01em; }
+.gl-np-caret { color: var(--color-text-muted); font-size: var(--pro-caption, 11px); width: 12px; }
+.gl-np-group-name { font-size: var(--pro-small, 13px); font-weight: 700; letter-spacing: 0.01em; }
 .gl-np-group-count {
-    font-size: 11px; color: var(--color-text-muted); background: var(--color-surface);
+    font-size: var(--pro-caption, 11px); color: var(--color-text-muted); background: var(--color-surface);
     border-radius: 999px; padding: 1px 8px; font-variant-numeric: tabular-nums;
 }
 .gl-np-rows { display: flex; flex-direction: column; }
@@ -4422,17 +4422,17 @@
 .gl-np-dot { flex: 0 0 auto; width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; }
 .gl-np-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .gl-np-title {
-    font-size: 14px; font-weight: 550; color: var(--color-text-primary, var(--color-text));
+    font-size: var(--pro-body, 14px); font-weight: 550; color: var(--color-text-primary, var(--color-text));
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.gl-np-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 12px; color: var(--color-text-muted); }
+.gl-np-sub { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; font-size: var(--pro-small, 12px); color: var(--color-text-muted); }
 .gl-np-avatar { border-radius: 50%; vertical-align: middle; background: var(--color-surface); }
-.gl-np-repo { font-family: var(--gl-font-mono); font-size: 11.5px; color: var(--color-text-secondary, var(--color-text-muted)); }
-.gl-np-area { font-size: 11.5px; font-weight: 600; }
+.gl-np-repo { font-family: var(--gl-font-mono); font-size: var(--pro-small, 11.5px); color: var(--color-text-secondary, var(--color-text-muted)); }
+.gl-np-area { font-size: var(--pro-small, 11.5px); font-weight: 600; }
 
 .gl-np-labels { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 .gl-np-label {
-    font-size: 10.5px; line-height: 1.4; padding: 0 6px; border-radius: 999px;
+    font-size: var(--pro-caption, 10.5px); line-height: 1.4; padding: 0 6px; border-radius: 999px;
     border: 1px solid currentColor; opacity: 0.85; max-width: 130px;
     overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
@@ -4441,29 +4441,29 @@
 .gl-np-reviewers { display: inline-flex; align-items: center; gap: 8px; }
 .gl-np-rev { display: inline-flex; align-items: center; gap: 2px; }
 .gl-np-rev .gl-np-avatar { margin-left: -2px; }
-.gl-np-rev-glyph { font-size: 11px; margin-right: 1px; }
+.gl-np-rev-glyph { font-size: var(--pro-caption, 11px); margin-right: 1px; }
 .gl-np-rev--pending .gl-np-rev-glyph { color: var(--gl-color-state-waiting, #ffc107); }
 .gl-np-rev--ok .gl-np-rev-glyph { color: var(--gl-color-state-open, #22c55e); }
 .gl-np-rev--changes .gl-np-rev-glyph { color: var(--gl-color-state-waiting, #ffc107); }
-.gl-np-rev-more { font-size: 10.5px; color: var(--color-text-muted); }
+.gl-np-rev-more { font-size: var(--pro-caption, 10.5px); color: var(--color-text-muted); }
 
 .gl-np-right { flex: 0 0 auto; display: flex; align-items: center; gap: 12px; padding-top: 1px; }
-.gl-np-size { font-family: var(--gl-font-mono); font-size: 11px; white-space: nowrap; }
+.gl-np-size { font-family: var(--gl-font-mono); font-size: var(--pro-caption, 11px); white-space: nowrap; }
 .gl-np-add { color: var(--gl-color-state-open, #22c55e); }
 .gl-np-del { color: var(--gl-color-state-closed, #ef4444); }
-.gl-np-statelabel { font-size: 11.5px; font-weight: 600; white-space: nowrap; }
-.gl-np-time { font-size: 11px; color: var(--color-text-muted); min-width: 26px; text-align: right; font-variant-numeric: tabular-nums; }
+.gl-np-statelabel { font-size: var(--pro-small, 11.5px); font-weight: 600; white-space: nowrap; }
+.gl-np-time { font-size: var(--pro-caption, 11px); color: var(--color-text-muted); min-width: 26px; text-align: right; font-variant-numeric: tabular-nums; }
 
 /* board (kanban) */
 .gl-np-board { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 14px; }
 .gl-np-col { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: 10px; min-width: 0; }
 .gl-np-col-head {
     display: flex; align-items: center; gap: 8px; justify-content: space-between;
-    padding: 10px 12px; font-size: 12px; font-weight: 700; letter-spacing: 0.03em;
+    padding: 10px 12px; font-size: var(--pro-small, 12px); font-weight: 700; letter-spacing: 0.03em;
     text-transform: uppercase; color: var(--color-text-muted); border-bottom: 1px solid var(--color-border);
 }
 .gl-np-col-body { display: flex; flex-direction: column; gap: 8px; padding: 10px; }
-.gl-np-col-empty { color: var(--color-text-muted); text-align: center; padding: 16px 0; font-size: 13px; }
+.gl-np-col-empty { color: var(--color-text-muted); text-align: center; padding: 16px 0; font-size: var(--pro-small, 13px); }
 .gl-np-card {
     display: flex; flex-direction: column; gap: 6px; text-decoration: none; color: inherit;
     background: var(--color-bg-card, var(--color-surface)); border: 1px solid var(--color-border);
@@ -4471,7 +4471,7 @@
     transition: border-color 0.1s, transform 0.06s;
 }
 .gl-np-card:hover { border-color: var(--color-border-light, var(--color-text-muted)); }
-.gl-np-card-title { font-size: 13px; font-weight: 600; color: var(--color-text-primary, var(--color-text)); line-height: 1.35; }
+.gl-np-card-title { font-size: var(--pro-small, 13px); font-weight: 600; color: var(--color-text-primary, var(--color-text)); line-height: 1.35; }
 .gl-np-card-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 2px; }
 
 @media (max-width: 820px) {

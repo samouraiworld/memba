@@ -32,25 +32,25 @@ const inputStyle: React.CSSProperties = {
     width: "100%", padding: "8px 12px", borderRadius: 8,
     border: "1px solid rgba(255,255,255,0.08)",
     background: "rgba(0,0,0,0.3)", color: "var(--color-text)",
-    fontFamily: "JetBrains Mono, monospace", fontSize: 12,
+    fontFamily: "JetBrains Mono, monospace", fontSize: "var(--pro-small, 12px)",
     boxSizing: "border-box",
 }
 
 const labelStyle: React.CSSProperties = {
-    fontSize: 11, color: "var(--color-text-secondary)",
+    fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)",
     fontFamily: "JetBrains Mono, monospace",
     display: "block", marginBottom: 4,
 }
 
 const errorStyle: React.CSSProperties = {
-    fontSize: 10, color: "var(--color-danger)", marginTop: 2,
+    fontSize: "var(--pro-caption, 10px)", color: "var(--color-danger)", marginTop: 2,
     fontFamily: "JetBrains Mono, monospace",
 }
 
 const btnStyle: React.CSSProperties = {
     padding: "8px 16px", borderRadius: 8, border: "none",
     cursor: "pointer", fontFamily: "JetBrains Mono, monospace",
-    fontSize: 12, fontWeight: 600,
+    fontSize: "var(--pro-small, 12px)", fontWeight: 600,
 }
 
 export function WebhookForm({ initial, onSubmit, onCancel, loading }: Props) {

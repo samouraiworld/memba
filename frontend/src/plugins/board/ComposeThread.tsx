@@ -37,12 +37,12 @@ export function ComposeThread({
                 <button onClick={onCancel} style={ghostBtn} aria-label="Back to channel">
                     ←
                 </button>
-                <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
+                <h3 style={{ fontSize: "var(--pro-body, 15px)", fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
                     New Thread in #{channel}
                 </h3>
             </div>
 
-            {error && <div style={{ color: "var(--color-danger)", fontSize: 12 }}>{error}</div>}
+            {error && <div style={{ color: "var(--color-danger)", fontSize: "var(--pro-small, 12px)" }}>{error}</div>}
 
             <input
                 id="board-thread-title"
@@ -67,7 +67,7 @@ export function ComposeThread({
                     position: "absolute",
                     bottom: 8,
                     right: 10,
-                    fontSize: 10,
+                    fontSize: "var(--pro-caption, 10px)",
                     color: body.length > 7500 ? "#ff3b30" : "#444",
                     fontFamily: "JetBrains Mono, monospace",
                 }}>

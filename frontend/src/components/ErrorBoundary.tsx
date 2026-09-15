@@ -95,14 +95,14 @@ export class ErrorBoundary extends Component<Props, State> {
                         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
                             {isChunkError ? "New version available" : "Something went wrong"}
                         </h2>
-                        <p style={{ fontSize: 12, color: "var(--color-text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
+                        <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
                             {isChunkError
                                 ? "Memba has been updated. Please reload to get the latest version."
                                 : "An unexpected error occurred. Please try reloading the page."}
                         </p>
                         {!isChunkError && this.state.error && (
                             <pre style={{
-                                fontSize: 10, color: "var(--color-danger)", background: "rgba(255,71,87,0.06)",
+                                fontSize: "var(--pro-caption, 10px)", color: "var(--color-danger)", background: "rgba(255,71,87,0.06)",
                                 padding: 12, borderRadius: 6, marginBottom: 20,
                                 textAlign: "left", overflow: "auto", maxHeight: 120,
                                 border: "1px solid rgba(255,71,87,0.1)",
@@ -118,7 +118,7 @@ export class ErrorBoundary extends Component<Props, State> {
                             style={{
                                 display: "inline-flex", alignItems: "center", justifyContent: "center",
                                 height: 40, padding: "0 20px", borderRadius: 8,
-                                background: "var(--color-brand)", color: "var(--color-text-contrast)", fontSize: 14,
+                                background: "var(--color-brand)", color: "var(--color-text-contrast)", fontSize: "var(--pro-body, 14px)",
                                 fontWeight: 600, border: "none", cursor: "pointer",
                                 boxShadow: "0 0 24px rgba(0,212,170,0.2)",
                             }}

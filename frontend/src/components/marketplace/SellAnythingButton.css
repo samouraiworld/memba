@@ -32,7 +32,7 @@
     display: flex;
     align-items: center;
     font-family: var(--font-sans);
-    font-size: 0.9rem;
+    font-size: var(--pro-body, 0.9rem);
     color: var(--color-text);
     text-decoration: none;
     border-radius: var(--radius-sm, 8px);

@@ -1,3 +1,4 @@
+import { PRO_APP_ENABLED } from "../../lib/config"
 /**
  * ConnectingLoader — Unified Memba loading state.
  *
@@ -33,7 +34,7 @@ export function ConnectingLoader({ message = "Connecting to Memba...", minHeight
                     display: "flex", alignItems: "center", justifyContent: "center",
                 }}
             >
-                <img src="/memba-icon.png" alt="Memba" style={{ width: 94, height: 94, borderRadius: 16 }} />
+                <img src={PRO_APP_ENABLED ? "/brand/folded-m/icon-512.png" : "/memba-icon.png"} alt="Memba" style={{ width: 94, height: 94, borderRadius: 16 }} />
             </div>
 
             {/* Indeterminate progress bar */}
@@ -49,7 +50,7 @@ export function ConnectingLoader({ message = "Connecting to Memba...", minHeight
 
             {/* Status text */}
             <span style={{
-                fontSize: 12, fontFamily: "JetBrains Mono, monospace",
+                fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace",
                 color: "var(--color-text-muted)", letterSpacing: "0.03em",
             }}>
                 {message}

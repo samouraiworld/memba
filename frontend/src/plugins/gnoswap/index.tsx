@@ -41,11 +41,11 @@ export default function GnoSwapPlugin(props: PluginProps) {
                 }}
             >
                 <div style={{ fontSize: 28, marginBottom: 10 }}>🔄</div>
-                <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text)", margin: "0 0 6px" }}>
+                <h3 style={{ fontSize: "var(--pro-body, 15px)", fontWeight: 600, color: "var(--color-text)", margin: "0 0 6px" }}>
                     GnoSwap Not Available
                 </h3>
                 <p style={{
-                    fontSize: 12, color: "var(--color-text-secondary)", margin: 0,
+                    fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", margin: 0,
                     fontFamily: "JetBrains Mono, monospace",
                 }}>
                     GnoSwap is not deployed on the current chain.

@@ -255,7 +255,7 @@ export function CreateMultisig() {
                     value={threshold}
                     disabled={loading}
                     onChange={(e) => setThreshold(Number(e.target.value))}
-                    className="cms-threshold-slider"
+                    className="cms-threshold-slider" aria-label="Required signatures"
                 />
                 <p className="cms-threshold-hint">
                     {threshold} signature{threshold > 1 ? "s" : ""} required to execute a transaction

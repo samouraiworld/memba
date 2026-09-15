@@ -53,3 +53,38 @@ jobs:
             frontend/test-results-shell/
             frontend/test-results-governance/
           retention-days: 14
+
+  complete:
+    name: Complete design (${{ matrix.suite }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        suite: [complete, complete-features]
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium firefox webkit
+      - name: Complete interface and accessibility matrix
+        run: npm run test:e2e:${{ matrix.suite }}
+      - name: Full-design build
+        if: matrix.suite == 'complete'
+        run: npm run build
+        env:
+          VITE_ENABLE_PRO_APP: 'true'
+      - name: Upload route review evidence
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: design-${{ matrix.suite }}
+          path: frontend/test-results-${{ matrix.suite }}/
+          retention-days: 14

@@ -145,7 +145,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                         Proposal Explorer
                     </h3>
                     <span style={{
-                        fontSize: 9, padding: "2px 8px", borderRadius: 4,
+                        fontSize: "var(--pro-caption, 9px)", padding: "2px 8px", borderRadius: 4,
                         background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
                         fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                     }}>
@@ -155,7 +155,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                 <div style={{ display: "flex", gap: 6 }}>
                     <button
                         className="k-btn-secondary"
-                        style={{ fontSize: 10, padding: "5px 10px" }}
+                        style={{ fontSize: "var(--pro-caption, 10px)", padding: "5px 10px" }}
                         onClick={() => exportData("csv")}
                         disabled={filtered.length === 0}
                         title="Export filtered proposals as CSV"
@@ -164,7 +164,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                     </button>
                     <button
                         className="k-btn-secondary"
-                        style={{ fontSize: 10, padding: "5px 10px" }}
+                        style={{ fontSize: "var(--pro-caption, 10px)", padding: "5px 10px" }}
                         onClick={() => exportData("json")}
                         disabled={filtered.length === 0}
                         title="Export filtered proposals as JSON"
@@ -173,7 +173,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                     </button>
                     <button
                         className="k-btn-primary"
-                        style={{ fontSize: 11, padding: "6px 14px" }}
+                        style={{ fontSize: "var(--pro-caption, 11px)", padding: "6px 14px" }}
                         onClick={() => navigate(`/dao/${encodedSlug}/propose`)}
                     >
                         + New Proposal
@@ -192,7 +192,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                         flex: 1, minWidth: 200, padding: "8px 14px",
                         borderRadius: 8, border: "1px solid #1a1a1a",
                         background: "#0d0d0d", color: "var(--color-text)",
-                        fontSize: 12, fontFamily: "JetBrains Mono, monospace",
+                        fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace",
                         outline: "none", transition: "border-color 0.15s",
                     }}
                     onFocus={e => e.currentTarget.style.borderColor = "rgba(0,212,170,0.3)"}
@@ -204,7 +204,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                     style={{
                         padding: "8px 12px", borderRadius: 8,
                         border: "1px solid #1a1a1a", background: "#0d0d0d",
-                        color: "var(--color-text-secondary)", fontSize: 11, fontFamily: "JetBrains Mono, monospace",
+                        color: "var(--color-text-secondary)", fontSize: "var(--pro-caption, 11px)", fontFamily: "JetBrains Mono, monospace",
                         cursor: "pointer",
                     }}
                 >
@@ -223,7 +223,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                             key={f}
                             onClick={() => { setStatusFilter(f); setPage(0); }}
                             style={{
-                                padding: "5px 12px", borderRadius: 6, fontSize: 11,
+                                padding: "5px 12px", borderRadius: 6, fontSize: "var(--pro-caption, 11px)",
                                 fontFamily: "JetBrains Mono, monospace", fontWeight: 500,
                                 border: "1px solid",
                                 borderColor: statusFilter === f ? "rgba(0,212,170,0.3)" : "#222",
@@ -245,16 +245,16 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                 </div>
             ) : error ? (
                 <div className="k-card" style={{ padding: 24, textAlign: "center" }}>
-                    <p style={{ color: "var(--color-danger)", fontSize: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ color: "var(--color-danger)", fontSize: "var(--pro-small, 12px)", fontFamily: "JetBrains Mono, monospace" }}>
                         {error}
                     </p>
-                    <button className="k-btn-secondary" onClick={() => void proposalsQuery.refetch()} style={{ fontSize: 11, marginTop: 8 }}>
+                    <button className="k-btn-secondary" onClick={() => void proposalsQuery.refetch()} style={{ fontSize: "var(--pro-caption, 11px)", marginTop: 8 }}>
                         Retry
                     </button>
                 </div>
             ) : filtered.length === 0 ? (
                 <div className="k-dashed" style={{ padding: 28, textAlign: "center" }}>
-                    <p style={{ color: "var(--color-text-muted)", fontSize: 13, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ color: "var(--color-text-muted)", fontSize: "var(--pro-small, 13px)", fontFamily: "JetBrains Mono, monospace" }}>
                         {search ? `No proposals matching "${search}"` : "No proposals found"}
                     </p>
                 </div>
@@ -280,7 +280,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                                 >
                                     {/* ID badge */}
                                     <span style={{
-                                        fontSize: 10, fontFamily: "JetBrains Mono, monospace",
+                                        fontSize: "var(--pro-caption, 10px)", fontFamily: "JetBrains Mono, monospace",
                                         color: "var(--color-text-muted)", fontWeight: 600, minWidth: 30,
                                     }}>
                                         #{p.id}
@@ -289,14 +289,14 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                                     {/* Title + author */}
                                     <div style={{ flex: 1, minWidth: 0 }}>
                                         <div style={{
-                                            fontSize: 13, fontWeight: 500, color: "var(--color-text)",
+                                            fontSize: "var(--pro-small, 13px)", fontWeight: 500, color: "var(--color-text)",
                                             overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
                                         }}>
                                             {p.title}
                                         </div>
                                         {p.author && (
                                             <div style={{
-                                                fontSize: 10, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace",
+                                                fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace",
                                                 marginTop: 2,
                                             }}>
                                                 by {p.author}
@@ -307,7 +307,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                                     {/* Vote count */}
                                     {(p.yesVotes > 0 || p.noVotes > 0) && (
                                         <span style={{
-                                            fontSize: 10, fontFamily: "JetBrains Mono, monospace",
+                                            fontSize: "var(--pro-caption, 10px)", fontFamily: "JetBrains Mono, monospace",
                                             color: "var(--color-text-secondary)",
                                         }}>
                                             ✓{p.yesVotes} ✗{p.noVotes}
@@ -316,7 +316,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
 
                                     {/* Status badge */}
                                     <span style={{
-                                        fontSize: 9, padding: "2px 8px", borderRadius: 4,
+                                        fontSize: "var(--pro-caption, 9px)", padding: "2px 8px", borderRadius: 4,
                                         background: sc.bg, color: sc.text,
                                         fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                                         textTransform: "uppercase", whiteSpace: "nowrap",
@@ -324,7 +324,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                                         {p.status}
                                     </span>
 
-                                    <span style={{ color: "var(--color-text)", fontSize: 12 }}>→</span>
+                                    <span style={{ color: "var(--color-text)", fontSize: "var(--pro-small, 12px)" }}>→</span>
                                 </button>
                             )
                         })}
@@ -337,18 +337,18 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                                 className="k-btn-secondary"
                                 onClick={() => setPage(p => Math.max(0, p - 1))}
                                 disabled={page === 0}
-                                style={{ fontSize: 11, padding: "5px 12px", opacity: page === 0 ? 0.3 : 1 }}
+                                style={{ fontSize: "var(--pro-caption, 11px)", padding: "5px 12px", opacity: page === 0 ? 0.3 : 1 }}
                             >
                                 ← Prev
                             </button>
-                            <span style={{ fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>
+                            <span style={{ fontSize: "var(--pro-caption, 10px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-secondary)" }}>
                                 {page + 1} / {totalPages}
                             </span>
                             <button
                                 className="k-btn-secondary"
                                 onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                                 disabled={page >= totalPages - 1}
-                                style={{ fontSize: 11, padding: "5px 12px", opacity: page >= totalPages - 1 ? 0.3 : 1 }}
+                                style={{ fontSize: "var(--pro-caption, 11px)", padding: "5px 12px", opacity: page >= totalPages - 1 ? 0.3 : 1 }}
                             >
                                 Next →
                             </button>
@@ -362,7 +362,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
                 padding: "10px 14px", borderRadius: 8,
                 background: "rgba(255,255,255,0.02)",
                 border: "1px solid rgba(255,255,255,0.04)",
-                fontSize: 10, fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-dim)",
+                fontSize: "var(--pro-caption, 10px)", fontFamily: "JetBrains Mono, monospace", color: "var(--color-text-dim)",
                 display: "flex", gap: 16, justifyContent: "center", flexWrap: "wrap",
             }}>
                 <span>{proposals.length} total</span>

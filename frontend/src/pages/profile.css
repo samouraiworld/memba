@@ -17,11 +17,11 @@
 /* ── Back button ─────────────────────────────────────────── */
 .profile-back-btn {
     color: var(--color-k-accent-text);
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     background: none;
     border: none;
     cursor: pointer;
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     text-align: left;
 }
 
@@ -96,8 +96,8 @@
 .profile-badge-you {
     padding: 2px 8px;
     border-radius: 4px;
-    font-size: 9px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 9px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     font-weight: 600;
     background: rgba(0, 212, 170, 0.1);
     color: var(--color-k-accent-text);
@@ -106,8 +106,8 @@
 .profile-edit-btn {
     padding: 3px 10px;
     border-radius: 4px;
-    font-size: 10px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 10px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     background: var(--color-surface-hover);
     border: 1px solid var(--color-border-light);
     color: var(--color-text-secondary);
@@ -121,9 +121,9 @@
 }
 
 .profile-saved-indicator {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-success-text);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
 }
 
 .profile-address-row {
@@ -144,7 +144,7 @@
     background: none;
     border: none;
     padding: 8px 16px;
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     color: var(--color-text-muted);
     cursor: pointer;
@@ -189,8 +189,8 @@
 
 .profile-bio {
     color: var(--color-text-secondary);
-    font-size: 13px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-small, 13px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     margin-top: 10px;
     max-width: 500px;
 }
@@ -209,7 +209,7 @@
 }
 
 .profile-edit-title {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     color: var(--color-text);
     margin-bottom: 16px;
@@ -235,8 +235,8 @@
 .profile-btn-cancel {
     padding: 6px 16px;
     border-radius: 6px;
-    font-size: 11px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 11px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     background: none;
     border: 1px solid #333;
     color: var(--color-text-secondary);
@@ -246,8 +246,8 @@
 .profile-btn-save {
     padding: 6px 16px;
     border-radius: 6px;
-    font-size: 11px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 11px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     background: rgba(0, 212, 170, 0.15);
     border: 1px solid rgba(0, 212, 170, 0.3);
     color: var(--color-k-accent-text);
@@ -298,16 +298,16 @@
 }
 
 .profile-github-cta-title {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
     color: var(--color-text);
     margin-bottom: 4px;
 }
 
 .profile-github-cta-desc {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     max-width: 400px;
 }
 
@@ -317,8 +317,8 @@
     gap: 6px;
     padding: 8px 16px;
     border-radius: 6px;
-    font-size: 11px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 11px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     font-weight: 600;
     background: rgba(88, 166, 255, 0.1);
     border: 1px solid rgba(88, 166, 255, 0.25);
@@ -337,11 +337,11 @@
     background: none;
     border: 1px solid #333;
     color: var(--color-text-secondary);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     padding: 6px 14px;
     border-radius: 6px;
     cursor: pointer;
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     transition: border-color 0.15s, color 0.15s;
     align-self: flex-start;
 }
@@ -364,15 +364,15 @@
 }
 
 .profile-contrib-title {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     color: var(--color-text);
 }
 
 .profile-contrib-link {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-k-accent-text);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     text-decoration: none;
 }
 
@@ -384,9 +384,9 @@
 
 .profile-score-formula {
     margin-top: 12px;
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     color: var(--color-text-dim);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
 }
 
 /* ── Packages Card ───────────────────────────────────────── */
@@ -395,7 +395,7 @@
 }
 
 .profile-section-title {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     color: var(--color-text);
     margin-bottom: 14px;
@@ -421,14 +421,14 @@
 }
 
 .profile-package-path {
-    font-size: 12px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     color: var(--color-k-accent-text);
     word-break: break-all;
 }
 
 .profile-package-block {
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     color: var(--color-text-muted);
     font-family: JetBrains Mono, monospace;
     white-space: nowrap;
@@ -436,9 +436,9 @@
 }
 
 .profile-packages-more {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-muted);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     text-align: center;
     padding: 8px;
 }
@@ -462,13 +462,13 @@
 }
 
 .profile-vote-id {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-muted);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
 }
 
 .profile-vote-title {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary);
     margin-left: 8px;
 }
@@ -476,8 +476,8 @@
 .profile-vote-badge {
     padding: 2px 8px;
     border-radius: 4px;
-    font-size: 9px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 9px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     font-weight: 600;
 }
 
@@ -516,10 +516,10 @@
 
 .profile-empty-desc {
     color: var(--color-text-secondary);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     max-width: 360px;
     margin: 0 auto;
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
 }
 
 /* ── General ─────────────────────────────────────────────── */
@@ -530,7 +530,7 @@
 
 .profile-no-address p {
     color: var(--color-text-secondary);
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-family: JetBrains Mono, monospace;
 }
 

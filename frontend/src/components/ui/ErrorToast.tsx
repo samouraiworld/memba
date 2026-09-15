@@ -60,7 +60,7 @@ export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: Err
                 background: "rgba(255,71,87,0.12)",
                 border: "1px solid rgba(255,71,87,0.25)",
                 color: "var(--color-danger)",
-                fontSize: 13,
+                fontSize: "var(--pro-small, 13px)",
                 fontFamily: "JetBrains Mono, monospace",
                 maxWidth: 420,
                 backdropFilter: "blur(4px)",
@@ -72,8 +72,8 @@ export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: Err
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <span style={{ fontSize: 16, flexShrink: 0 }}>⚠️</span>
                 <div style={{ flex: 1 }}>
-                    <div style={{ fontWeight: 600, fontSize: 13 }}>{mapped.title}</div>
-                    <div style={{ fontSize: 11, color: "var(--color-k-danger)", marginTop: 2, lineHeight: 1.4, opacity: 0.85 }}>
+                    <div style={{ fontWeight: 600, fontSize: "var(--pro-small, 13px)" }}>{mapped.title}</div>
+                    <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-k-danger)", marginTop: 2, lineHeight: 1.4, opacity: 0.85 }}>
                         {mapped.message}
                     </div>
                 </div>
@@ -92,7 +92,7 @@ export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: Err
             {(mapped.action || (mapped.retry && onRetry)) && (
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 2 }}>
                     {mapped.action && (
-                        <span style={{ fontSize: 10, color: "var(--color-text-secondary)", fontStyle: "italic" }}>
+                        <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontStyle: "italic" }}>
                             💡 {mapped.action}
                         </span>
                     )}
@@ -101,7 +101,7 @@ export function ErrorToast({ message, duration = 6000, onDismiss, onRetry }: Err
                             onClick={() => { dismiss(); onRetry() }}
                             style={{
                                 background: "rgba(255,71,87,0.15)", border: "1px solid rgba(255,71,87,0.3)",
-                                color: "var(--color-danger)", fontSize: 10, padding: "3px 10px", borderRadius: 4,
+                                color: "var(--color-danger)", fontSize: "var(--pro-caption, 10px)", padding: "3px 10px", borderRadius: 4,
                                 cursor: "pointer", fontFamily: "JetBrains Mono, monospace", fontWeight: 600,
                             }}
                         >

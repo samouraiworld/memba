@@ -54,7 +54,7 @@
     display: flex;
     flex-direction: column;
     gap: 2px;
-    font-size: 0.813rem;
+    font-size: var(--pro-body, 0.813rem);
 }
 
 .k-quest-toast-body strong {
@@ -67,7 +67,7 @@
 }
 
 .k-quest-toast-rankup {
-    font-size: 0.75rem;
+    font-size: var(--pro-small, 0.75rem);
     font-weight: 600;
     color: var(--color-k-warning-text);
     padding: 2px var(--space-2);

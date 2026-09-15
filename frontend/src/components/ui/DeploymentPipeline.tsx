@@ -137,7 +137,7 @@ export function DeploymentPipeline({
             >
                 {/* Header */}
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 20 }}>
-                    <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
+                    <h3 style={{ fontSize: "var(--pro-body, 15px)", fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
                         {isComplete ? "🎉 Deployment Complete" : isError ? "⚠️ Deployment Failed" : "🚀 Deploying..."}
                     </h3>
                     {canDismiss && onClose && (
@@ -198,17 +198,17 @@ export function DeploymentPipeline({
                             {result.entityLabel || "Entity"} deployed successfully!
                         </h2>
                         {result.entityName && (
-                            <p style={{ fontSize: 13, color: "var(--color-text-secondary)", marginBottom: 12, fontFamily: "JetBrains Mono, monospace" }}>
+                            <p style={{ fontSize: "var(--pro-small, 13px)", color: "var(--color-text-secondary)", marginBottom: 12, fontFamily: "JetBrains Mono, monospace" }}>
                                 {result.entityName}
                             </p>
                         )}
                         {result.realmPath && (
-                            <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", marginBottom: 8 }}>
+                            <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", marginBottom: 8 }}>
                                 {result.realmPath}
                             </p>
                         )}
                         {result.txHash && (
-                            <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", marginBottom: 16 }}>
+                            <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", marginBottom: 16 }}>
                                 TX:{" "}
                                 {txUrl ? (
                                     <a
@@ -231,7 +231,7 @@ export function DeploymentPipeline({
                                     href={`${explorerBase}/r/${result.realmPath.replace("gno.land/r/", "")}`}
                                     target="_blank"
                                     rel="noopener noreferrer"
-                                    style={{ fontSize: 11, color: "var(--color-primary)", textDecoration: "none", fontFamily: "JetBrains Mono, monospace" }}
+                                    style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-primary)", textDecoration: "none", fontFamily: "JetBrains Mono, monospace" }}
                                     id="deploy-explorer-link"
                                 >
                                     View on Explorer →
@@ -242,7 +242,7 @@ export function DeploymentPipeline({
                             id="deploy-navigate-btn"
                             className="k-btn-primary"
                             onClick={onNavigate}
-                            style={{ padding: "10px 24px", fontSize: 13 }}
+                            style={{ padding: "10px 24px", fontSize: "var(--pro-small, 13px)" }}
                         >
                             Open {result.entityLabel || "Entity"} →
                         </button>
@@ -252,10 +252,10 @@ export function DeploymentPipeline({
                 {/* Error Card */}
                 {isError && (
                     <div className="deploy-error-card" data-testid="deploy-error">
-                        <div style={{ fontSize: 13, fontWeight: 600, color: "var(--color-danger)", marginBottom: 6 }}>
+                        <div style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-danger)", marginBottom: 6 }}>
                             {error || "Deployment failed"}
                         </div>
-                        <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", marginBottom: 14 }}>
+                        <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", marginBottom: 14 }}>
                             The transaction could not be completed. You can retry from the beginning.
                         </p>
                         {onRetry && (
@@ -263,7 +263,7 @@ export function DeploymentPipeline({
                                 id="deploy-retry-btn"
                                 className="k-btn-secondary"
                                 onClick={onRetry}
-                                style={{ padding: "8px 18px", fontSize: 12 }}
+                                style={{ padding: "8px 18px", fontSize: "var(--pro-small, 12px)" }}
                             >
                                 ↻ Retry
                             </button>

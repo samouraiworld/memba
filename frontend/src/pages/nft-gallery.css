@@ -17,7 +17,7 @@
 }
 
 .nft-header h1 { font-size: 22px; font-weight: 700; color: var(--color-text); margin: 0; }
-.nft-header p { font-size: 12px; color: var(--color-text-secondary); margin: 6px 0 0; font-family: "JetBrains Mono", monospace; }
+.nft-header p { font-size: var(--pro-small, 12px); color: var(--color-text-secondary); margin: 6px 0 0; font-family: var(--font-ui, "JetBrains Mono", monospace); }
 
 .nft-header__create {
     padding: 8px 16px;
@@ -25,9 +25,9 @@
     border: none;
     background: linear-gradient(135deg, #8b5cf6, #7c3aed);
     color: #fff;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     cursor: pointer;
     white-space: nowrap;
     transition: opacity 0.15s;
@@ -52,9 +52,9 @@
     border: none;
     background: none;
     color: var(--color-text-secondary);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 500;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     cursor: pointer;
     border-bottom: 2px solid transparent;
     margin-bottom: -1px;
@@ -69,7 +69,7 @@
 }
 
 .nft-section-title {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
     color: var(--color-text-secondary);
     text-transform: uppercase;
@@ -91,8 +91,8 @@
     border: 1px solid var(--color-border);
     background: var(--color-overlay-light);
     color: var(--color-text);
-    font-size: 13px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-small, 13px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     outline: none;
     box-sizing: border-box;
 }
@@ -106,9 +106,9 @@
     border: none;
     background: linear-gradient(135deg, #00d4aa, #00b894);
     color: var(--color-bg);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     cursor: pointer;
     white-space: nowrap;
     transition: opacity 0.15s;
@@ -151,24 +151,24 @@
 .nft-collection-card__body { flex: 1; min-width: 0; }
 
 .nft-collection-card__name {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     color: var(--color-text);
 }
 
 .nft-collection-card__symbol {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: #8b5cf6;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     margin-top: 2px;
 }
 
 .nft-collection-card__stats {
     display: flex;
     gap: 8px;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-muted);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     margin-top: 4px;
 }
 
@@ -186,8 +186,8 @@
 }
 
 .nft-empty__icon { font-size: 36px; }
-.nft-empty p { font-size: 12px; color: var(--color-text-secondary); font-family: "JetBrains Mono", monospace; margin: 0; }
-.nft-empty__hint { font-size: 11px; color: var(--color-text-dim); }
+.nft-empty p { font-size: var(--pro-small, 12px); color: var(--color-text-secondary); font-family: var(--font-ui, "JetBrains Mono", monospace); margin: 0; }
+.nft-empty__hint { font-size: var(--pro-caption, 11px); color: var(--color-text-dim); }
 
 /* ── Detail View ───────────────────────────────── */
 
@@ -195,8 +195,8 @@
     background: none;
     border: none;
     color: var(--color-primary);
-    font-size: 12px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     cursor: pointer;
     padding: 0;
 }
@@ -221,23 +221,23 @@
     display: flex;
     gap: 10px;
     margin-top: 4px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .nft-detail-desc {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     color: var(--color-text-secondary);
     line-height: 1.6;
     margin: 0;
 }
 
 .nft-explorer-link {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-primary);
     text-decoration: none;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     white-space: nowrap;
 }
 
@@ -267,8 +267,8 @@
     border: 1px solid var(--color-border);
     background: var(--color-overlay-light);
     color: var(--color-text);
-    font-size: 12px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     outline: none;
     box-sizing: border-box;
 }
@@ -281,9 +281,9 @@
     border: none;
     background: linear-gradient(135deg, #8b5cf6, #7c3aed);
     color: #fff;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     cursor: pointer;
     transition: opacity 0.15s;
 }
@@ -299,8 +299,8 @@
     background: rgba(239, 68, 68, 0.08);
     border: 1px solid rgba(239, 68, 68, 0.15);
     color: #ef4444;
-    font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-caption, 11px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     line-height: 1.4;
 }
 
@@ -318,8 +318,8 @@
     background: var(--color-overlay-light);
     border: 1px solid var(--color-border);
     color: var(--color-text-secondary);
-    font-size: 12px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     line-height: 1.6;
     white-space: pre-wrap;
     word-break: break-word;
@@ -347,10 +347,10 @@
 }
 
 .nft-listing-card__icon { font-size: 28px; }
-.nft-listing-card__collection { font-size: 10px; color: #8b5cf6; font-family: "JetBrains Mono", monospace; }
-.nft-listing-card__token { font-size: 14px; font-weight: 600; color: var(--color-text); }
+.nft-listing-card__collection { font-size: var(--pro-caption, 10px); color: #8b5cf6; font-family: var(--font-ui, "JetBrains Mono", monospace); }
+.nft-listing-card__token { font-size: var(--pro-body, 14px); font-weight: 600; color: var(--color-text); }
 .nft-listing-card__price { font-size: 16px; font-weight: 700; color: var(--color-primary); }
-.nft-listing-card__seller { font-size: 10px; color: var(--color-text-muted); font-family: "JetBrains Mono", monospace; }
+.nft-listing-card__seller { font-size: var(--pro-caption, 10px); color: var(--color-text-muted); font-family: var(--font-ui, "JetBrains Mono", monospace); }
 
 .nft-listing-card__actions {
     display: flex;
@@ -365,9 +365,9 @@
     border: none;
     background: linear-gradient(135deg, #00d4aa, #00b894);
     color: var(--color-bg);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     cursor: pointer;
     transition: opacity 0.15s;
 }
@@ -381,9 +381,9 @@
     border: 1px solid rgba(139, 92, 246, 0.3);
     background: transparent;
     color: #8b5cf6;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     cursor: pointer;
     transition: all 0.15s;
 }
@@ -391,9 +391,9 @@
 .nft-listing-card__offer:hover { background: rgba(139, 92, 246, 0.08); }
 
 .nft-listing-card__badge {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     padding: 4px 8px;
     border-radius: 4px;
     background: var(--color-surface);
@@ -436,9 +436,9 @@
     display: flex;
     flex-direction: column;
     gap: 4px;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .nft-modal__info strong { color: var(--color-text-secondary); }
@@ -456,13 +456,13 @@
 .nft-modal__row {
     display: flex;
     justify-content: space-between;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
-.nft-modal__row--fee { color: #ef4444; font-size: 11px; }
-.nft-modal__row--seller { color: var(--color-primary); font-size: 11px; }
+.nft-modal__row--fee { color: #ef4444; font-size: var(--pro-caption, 11px); }
+.nft-modal__row--seller { color: var(--color-primary); font-size: var(--pro-caption, 11px); }
 
 .nft-modal__row--total {
     border-top: 1px solid var(--color-border);
@@ -479,10 +479,10 @@
 }
 
 .nft-modal__field label {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-weight: 600;
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
 }
 
 .nft-modal__input {
@@ -491,8 +491,8 @@
     border: 1px solid var(--color-border);
     background: var(--color-overlay-light);
     color: var(--color-text);
-    font-size: 14px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-body, 14px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     outline: none;
     box-sizing: border-box;
 }
@@ -500,9 +500,9 @@
 .nft-modal__input:focus { border-color: rgba(139, 92, 246, 0.4); }
 
 .nft-modal__hint {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-muted);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     margin: 0;
 }
 
@@ -512,8 +512,8 @@
     background: rgba(239, 68, 68, 0.08);
     border: 1px solid rgba(239, 68, 68, 0.15);
     color: #ef4444;
-    font-size: 11px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-caption, 11px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     margin: 0;
 }
 
@@ -529,8 +529,8 @@
     border: 1px solid var(--color-border);
     background: transparent;
     color: var(--color-text-secondary);
-    font-size: 12px;
-    font-family: "JetBrains Mono", monospace;
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     cursor: pointer;
     transition: all 0.15s;
 }
@@ -543,9 +543,9 @@
     border: none;
     background: linear-gradient(135deg, #00d4aa, #00b894);
     color: var(--color-bg);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     cursor: pointer;
     transition: opacity 0.15s;
 }
@@ -557,9 +557,9 @@
 
 .nft-activity__loading,
 .nft-activity__empty {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     text-align: center;
     padding: 30px 0;
 }
@@ -591,7 +591,7 @@
 }
 
 .nft-activity__token {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 600;
     color: var(--color-text);
     white-space: nowrap;
@@ -600,15 +600,15 @@
 }
 
 .nft-activity__price {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-primary);
     font-family: "JetBrains Mono", monospace;
 }
 
 .nft-activity__parties {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-muted);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     white-space: nowrap;
 }
 
@@ -681,9 +681,9 @@
     right: 6px;
     background: rgba(139,92,246,0.85);
     color: #fff;
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     font-weight: 700;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     padding: 2px 6px;
     border-radius: 4px;
     cursor: help;
@@ -695,10 +695,10 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     font-weight: 600;
     color: #8b5cf6;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     background: rgba(139,92,246,0.08);
     padding: 6px 10px;
     border-radius: 6px;
@@ -725,7 +725,7 @@
 }
 
 .nft-token-card__price {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 700;
     color: var(--color-primary);
     font-family: "JetBrains Mono", monospace;
@@ -751,14 +751,14 @@
 }
 
 .nft-stats-bar__value {
-    font-size: 15px;
+    font-size: var(--pro-body, 15px);
     font-weight: 700;
     color: var(--color-text);
     font-family: "JetBrains Mono", monospace;
 }
 
 .nft-stats-bar__label {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-secondary);
     text-transform: uppercase;
     letter-spacing: 0.5px;
@@ -769,10 +769,10 @@
     align-items: center;
     gap: 5px;
     margin-left: auto;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     font-weight: 600;
     color: #8b5cf6;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     background: rgba(139,92,246,0.08);
     padding: 4px 10px;
     border-radius: 20px;
@@ -796,16 +796,16 @@
 .nft-connect-banner__body { flex: 1; }
 
 .nft-connect-banner__title {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
     color: var(--color-text);
     margin: 0 0 3px;
 }
 
 .nft-connect-banner__hint {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     margin: 0;
 }
 
@@ -815,9 +815,9 @@
     border: none;
     background: linear-gradient(135deg, #8b5cf6, #7c3aed);
     color: #fff;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     cursor: pointer;
     white-space: nowrap;
     transition: opacity 0.15s;
@@ -840,9 +840,9 @@
     border: 1px solid var(--color-border);
     background: transparent;
     color: var(--color-text-secondary);
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-weight: 500;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     cursor: pointer;
     transition: all 0.15s;
 }
@@ -862,9 +862,9 @@
     border: 1px solid rgba(239,68,68,0.3);
     background: transparent;
     color: #ef4444;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-weight: 600;
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     cursor: pointer;
     transition: all 0.15s;
 }
@@ -875,7 +875,7 @@
     background: none;
     border: none;
     color: var(--color-text-muted);
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     font-family: "JetBrains Mono", monospace;
     cursor: pointer;
     padding: 0;
@@ -884,21 +884,21 @@
 .nft-addr-btn:hover { color: var(--color-text-secondary); }
 
 .nft-activity__arrow {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-dim);
 }
 
 .nft-activity__time {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-dim);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     white-space: nowrap;
     margin-left: auto;
 }
 
 .nft-activity__kind {
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     color: var(--color-text-dim);
-    font-family: "JetBrains Mono", monospace;
+    font-family: var(--font-ui, "JetBrains Mono", monospace);
     margin-left: 4px;
 }

@@ -234,7 +234,7 @@ export default function UnifiedMarketplace() {
             {/* ── Lane Content (routes for live lanes only) ─────── */}
             {/* One tabpanel for the whole route outlet: exactly one lane renders at
                 a time, and every tab points here via aria-controls. */}
-            <main
+            <section
                 className="um-main"
                 role="tabpanel"
                 id="um-lane-panel"
@@ -256,7 +256,7 @@ export default function UnifiedMarketplace() {
                         <Route path="*" element={<Navigate to={defaultLanePath} replace />} />
                     </Routes>
                 </Suspense>
-            </main>
+            </section>
         </div>
     )
 }

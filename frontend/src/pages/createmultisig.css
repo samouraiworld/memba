@@ -13,12 +13,12 @@
 /* ── Back button ────────────────────────────────────────── */
 .cms-back-btn {
     color: var(--color-k-accent-text);
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     background: none;
     border: none;
     cursor: pointer;
     margin-bottom: 16px;
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     padding: 0;
 }
 
@@ -32,7 +32,7 @@
 
 .cms-subtitle {
     color: var(--color-text-secondary);
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     margin-top: 4px;
 }
 
@@ -45,8 +45,8 @@
 
 .cms-connect-prompt p {
     color: var(--color-text-secondary);
-    font-size: 13px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-small, 13px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     margin: 0;
 }
 
@@ -59,8 +59,8 @@
     background: var(--color-k-elevated);
     border: 1px solid var(--color-k-edge);
     color: var(--color-text);
-    font-family: JetBrains Mono, monospace;
-    font-size: 13px;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
+    font-size: var(--pro-small, 13px);
     outline: none;
     box-sizing: border-box;
 }
@@ -68,13 +68,13 @@
 .cms-input--sm {
     height: 36px;
     border-radius: 6px;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
 }
 
 .cms-input--xs {
     height: 32px;
     border-radius: 4px;
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     border-color: var(--color-k-edge-hover);
     margin-top: 4px;
 }
@@ -95,11 +95,11 @@
 
 .cms-add-member-btn {
     color: var(--color-k-accent-text);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     background: none;
     border: none;
     cursor: pointer;
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     padding: 0;
 }
 
@@ -126,8 +126,8 @@
     border-radius: 6px;
     border: 1px solid var(--color-k-edge);
     color: var(--color-k-muted);
-    font-family: JetBrains Mono, monospace;
-    font-size: 11px;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
+    font-size: var(--pro-caption, 11px);
     white-space: nowrap;
     cursor: pointer;
     background: none;
@@ -153,22 +153,22 @@
     border: 1px solid var(--color-k-edge);
     color: var(--color-text-secondary);
     cursor: pointer;
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     flex-shrink: 0;
 }
 
 /* ── Member error / pubkey display ──────────────────────── */
 .cms-member-error {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-warning-text);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     padding-left: 4px;
 }
 
 .cms-member-pubkey {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-muted);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     padding-left: 4px;
 }
 
@@ -180,9 +180,9 @@
 
 .cms-threshold-hint {
     color: var(--color-text-secondary);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     margin-top: 8px;
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
 }
 
 /* ── Submit row ─────────────────────────────────────────── */
@@ -198,8 +198,8 @@
     background: var(--color-k-amber-subtle);
     border: 1px solid var(--color-k-amber-border);
     color: var(--color-k-warning-text);
-    font-size: 11px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 11px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     line-height: 1.6;
 }
 

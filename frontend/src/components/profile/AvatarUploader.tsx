@@ -89,7 +89,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 4 }}>
-                <span style={{ fontSize: 12, fontWeight: 500, color: "var(--color-text-secondary)" }}>Avatar</span>
+                <span style={{ fontSize: "var(--pro-small, 12px)", fontWeight: 500, color: "var(--color-text-secondary)" }}>Avatar</span>
                 <div style={{ display: "flex", gap: 2 }}>
                     {(["file", "url"] as const).map(m => (
                         <button
@@ -97,7 +97,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                             onClick={() => { setMode(m); setError(null) }}
                             data-testid={`avatar-mode-${m}`}
                             style={{
-                                padding: "3px 10px", fontSize: 10, borderRadius: 4,
+                                padding: "3px 10px", fontSize: "var(--pro-caption, 10px)", borderRadius: 4,
                                 fontFamily: "JetBrains Mono, monospace",
                                 background: mode === m ? "rgba(0,212,170,0.08)" : "transparent",
                                 border: "1px solid",
@@ -123,7 +123,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         style={{
                             flex: 1, padding: "8px 12px", borderRadius: 6,
                             border: "1px solid var(--color-surface-base)", background: "var(--color-surface-void)",
-                            color: "var(--color-text)", fontSize: 11,
+                            color: "var(--color-text)", fontSize: "var(--pro-caption, 11px)",
                             fontFamily: "JetBrains Mono, monospace", outline: "none",
                         }}
                     />
@@ -132,7 +132,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         disabled={!urlInput.trim()}
                         className="k-btn-primary"
                         data-testid="avatar-apply-url"
-                        style={{ fontSize: 10, padding: "6px 12px", opacity: urlInput.trim() ? 1 : 0.4 }}
+                        style={{ fontSize: "var(--pro-caption, 10px)", padding: "6px 12px", opacity: urlInput.trim() ? 1 : 0.4 }}
                     >
                         Apply
                     </button>
@@ -151,7 +151,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         className="k-btn-secondary"
                         data-testid="avatar-choose-file"
                         style={{
-                            fontSize: 11, padding: "10px 18px", width: "100%",
+                            fontSize: "var(--pro-caption, 11px)", padding: "10px 18px", width: "100%",
                             display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
                         }}
                     >
@@ -170,7 +170,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                                 }}
                             />
                             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                                <span style={{ fontSize: 10, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                                <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                                     Ready to pin on IPFS
                                 </span>
                                 <button
@@ -178,7 +178,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                                     disabled={uploading}
                                     className="k-btn-primary"
                                     data-testid="avatar-upload-btn"
-                                    style={{ fontSize: 10, padding: "4px 12px", opacity: uploading ? 0.5 : 1 }}
+                                    style={{ fontSize: "var(--pro-caption, 10px)", padding: "4px 12px", opacity: uploading ? 0.5 : 1 }}
                                 >
                                     {uploading ? "⏳ Pinning to IPFS..." : "📌 Pin & Use"}
                                 </button>
@@ -191,7 +191,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         <div style={{
                             marginTop: 8, padding: "6px 10px", borderRadius: 4,
                             background: "rgba(0,212,170,0.04)", border: "1px solid rgba(0,212,170,0.12)",
-                            fontSize: 10, color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace",
+                            fontSize: "var(--pro-caption, 10px)", color: "var(--color-primary)", fontFamily: "JetBrains Mono, monospace",
                             wordBreak: "break-all",
                         }}>
                             ✓ Pinned: {uploadedCid.slice(0, 20)}...
@@ -202,7 +202,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
 
             {error && (
                 <div style={{
-                    fontSize: 10, color: "var(--color-danger)", fontFamily: "JetBrains Mono, monospace",
+                    fontSize: "var(--pro-caption, 10px)", color: "var(--color-danger)", fontFamily: "JetBrains Mono, monospace",
                     padding: "6px 10px", borderRadius: 4,
                     background: "rgba(239,68,68,0.06)", border: "1px solid rgba(239,68,68,0.12)",
                 }}>
@@ -222,7 +222,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
                         }}
                         onError={e => e.currentTarget.style.display = "none"}
                     />
-                    <span style={{ fontSize: 9, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace" }}>
+                    <span style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace" }}>
                         Current avatar
                         {currentUrl.includes("lighthouse") || currentUrl.includes("ipfs") ? " (IPFS)" : ""}
                     </span>

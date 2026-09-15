@@ -66,7 +66,7 @@ export function ProgressBar({ current, verified, threshold, total }: ProgressBar
                     <span className="k-label">{current} submitted</span>
                 </div>
                 <span style={{
-                    fontSize: 11, padding: "2px 8px", borderRadius: 4,
+                    fontSize: "var(--pro-caption, 11px)", padding: "2px 8px", borderRadius: 4,
                     fontFamily: "JetBrains Mono, monospace",
                     background: isReady ? "var(--color-k-accent-subtle)" : "var(--color-k-amber-subtle)",
                     color: isReady ? "var(--color-k-accent)" : "var(--color-k-warning)",

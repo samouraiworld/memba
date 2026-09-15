@@ -190,7 +190,7 @@ export default function CandidaturePage() {
                     <button
                         onClick={() => navigate("/quests")}
                         className="k-btn-secondary"
-                        style={{ marginTop: 10, width: "100%", fontSize: 12, padding: "10px 16px" }}
+                        style={{ marginTop: 10, width: "100%", fontSize: "var(--pro-small, 12px)", padding: "10px 16px" }}
                     >
                         📋 Go to Quest Hub → ({verifiedXP ?? questState.totalXP}/{CANDIDATURE_XP_THRESHOLD} XP)
                     </button>
@@ -216,7 +216,7 @@ export default function CandidaturePage() {
                         </p>
                     )}
                     {existingCandidature.status === "approved" && (
-                        <p className="candidature-status__approvals" style={{ marginTop: 8, fontSize: 13, color: "var(--color-text-secondary)" }}>
+                        <p className="candidature-status__approvals" style={{ marginTop: 8, fontSize: "var(--pro-small, 13px)", color: "var(--color-text-secondary)" }}>
                             Next step: A DAO admin should create a "Propose Add Member" proposal to officially add you to the DAO member list.
                         </p>
                     )}

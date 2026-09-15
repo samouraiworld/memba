@@ -14,7 +14,7 @@
 .quest-compact { display: flex; align-items: center; gap: 8px; padding: 4px 12px; }
 .quest-compact__bar { flex: 1; height: 4px; background: var(--color-bg-hover); border-radius: 2px; overflow: hidden; }
 .quest-compact__fill { height: 100%; background: var(--color-primary, #00d4aa); border-radius: 2px; transition: width 0.3s; }
-.quest-compact__label { font-size: 10px; font-family: var(--font-mono, 'JetBrains Mono', monospace); color: var(--color-k-accent-text, #00d4aa); white-space: nowrap; }
+.quest-compact__label { font-size: var(--pro-caption, 10px); font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace)); color: var(--color-k-accent-text, #00d4aa); white-space: nowrap; }
 
 /* ── Quest Hub Container ─────────────────────────────── */
 .quest-hub {
@@ -63,19 +63,19 @@
 }
 
 .quest-hub__count {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
     color: var(--color-text-primary, #f0f0f0);
 }
 
 .quest-hub__separator {
     color: var(--color-text-dim, #444);
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
 }
 
 .quest-hub__xp {
-    font-size: 12px;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
     color: var(--color-text-secondary, #888);
 }
 
@@ -85,8 +85,8 @@
 }
 
 .quest-hub__eligible-badge {
-    font-size: 9px;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: var(--pro-caption, 9px);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
     font-weight: 600;
     padding: 2px 8px;
     border-radius: 4px;
@@ -96,9 +96,9 @@
 }
 
 .quest-hub__label {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary, #888);
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
 }
 
 /* Chevron rotation */
@@ -170,13 +170,13 @@
 }
 
 .quest-hub__hero-xp-label {
-    font-size: 12px;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
     color: var(--color-text-secondary, #888);
 }
 
 .quest-hub__hero-desc {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-family: var(--font-sans, system-ui, sans-serif);
     color: var(--color-text-dim);
     margin-top: 4px;
@@ -191,9 +191,9 @@
     margin: 16px 16px 0;
     padding: 12px;
     border-radius: 8px;
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 600;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
     text-decoration: none;
     color: var(--color-k-accent-text, #00d4aa);
     background: rgba(0, 212, 170, 0.06);
@@ -280,7 +280,7 @@
 }
 
 .quest-card__title {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
     color: var(--color-text);
 }
@@ -291,7 +291,7 @@
 }
 
 .quest-card__desc {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-dim);
     font-family: var(--font-sans, system-ui, sans-serif);
     white-space: nowrap;
@@ -300,8 +300,8 @@
 }
 
 .quest-card__xp {
-    font-size: 10px;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: var(--pro-caption, 10px);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
     font-weight: 600;
     color: var(--color-k-accent-text, #00d4aa);
     white-space: nowrap;
@@ -331,8 +331,8 @@
 
 .quest-ring__text {
     fill: var(--color-text-secondary);
-    font-size: 11px;
-    font-family: var(--font-mono, 'JetBrains Mono', monospace);
+    font-size: var(--pro-caption, 11px);
+    font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
     font-weight: 600;
 }
 

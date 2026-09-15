@@ -18,7 +18,7 @@ export function GnoCodeBlock({ code, maxHeight = 500 }: GnoCodeBlockProps) {
             border: "1px solid var(--color-text-dim)",
             borderRadius: 8,
             padding: "16px 20px",
-            fontSize: 11,
+            fontSize: "var(--pro-caption, 11px)",
             lineHeight: 1.6,
             fontFamily: "JetBrains Mono, Fira Code, monospace",
             color: TOKEN_COLORS.plain,

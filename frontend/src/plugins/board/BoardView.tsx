@@ -277,10 +277,10 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
             return (
                 <div id="board-not-found" style={{ ...cardStyle, cursor: "default", textAlign: "center", padding: 32 }}>
                     <div style={{ fontSize: 28, marginBottom: 10 }}>💬</div>
-                    <div style={{ fontSize: 13, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                    <div style={{ fontSize: "var(--pro-small, 13px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                         No channels deployed for this DAO.
                     </div>
-                    <div style={{ fontSize: 11, color: "var(--color-text-muted)", marginTop: 6, fontFamily: "JetBrains Mono, monospace" }}>
+                    <div style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-muted)", marginTop: 6, fontFamily: "JetBrains Mono, monospace" }}>
                         Channels can be deployed alongside a DAO from the Create DAO wizard.
                     </div>
                 </div>
@@ -291,12 +291,12 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
             <div id="board-home" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                     <span style={{ fontSize: 20 }}>💬</span>
-                    <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
+                    <h3 style={{ fontSize: "var(--pro-body, 15px)", fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
                         {boardInfo.name}
                     </h3>
                 </div>
                 {boardInfo.description && (
-                    <p style={{ fontSize: 12, color: "var(--color-text-secondary)", margin: 0, fontFamily: "JetBrains Mono, monospace" }}>
+                    <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", margin: 0, fontFamily: "JetBrains Mono, monospace" }}>
                         {boardInfo.description}
                     </p>
                 )}
@@ -317,13 +317,13 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
                         >
                             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                                 <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                                    <span style={{ fontSize: 14 }}>{channelIcon(ch)}</span>
-                                    <span style={{ fontSize: 14, fontWeight: 600, color: "var(--color-primary)" }}>
+                                    <span style={{ fontSize: "var(--pro-body, 14px)" }}>{channelIcon(ch)}</span>
+                                    <span style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-primary)" }}>
                                         #{ch.name}
                                     </span>
                                     {ch.archived && (
                                         <span style={{
-                                            fontSize: 9,
+                                            fontSize: "var(--pro-caption, 9px)",
                                             color: "var(--color-text-secondary)",
                                             background: "rgba(255,255,255,0.04)",
                                             padding: "2px 6px",
@@ -335,7 +335,7 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
                                         </span>
                                     )}
                                 </div>
-                                <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                                <span style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                                     {ch.threadCount} thread{ch.threadCount !== 1 ? "s" : ""}
                                 </span>
                             </div>
@@ -392,10 +392,10 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
                     }
                 />
 
-                {error && <div style={{ color: "var(--color-danger)", fontSize: 12 }}>{error}</div>}
+                {error && <div style={{ color: "var(--color-danger)", fontSize: "var(--pro-small, 12px)" }}>{error}</div>}
 
                 {connectionLost && !error && (
-                    <div style={{ color: "var(--color-k-warning-text)", fontSize: 11, fontFamily: "JetBrains Mono, monospace", padding: "6px 0", opacity: 0.85 }}>
+                    <div style={{ color: "var(--color-k-warning-text)", fontSize: "var(--pro-caption, 11px)", fontFamily: "JetBrains Mono, monospace", padding: "6px 0", opacity: 0.85 }}>
                         Connection lost — retrying...
                     </div>
                 )}
@@ -453,7 +453,7 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
                     channel={viewState.channel}
                     onBack={() => navigateTo("channel", viewState.channel)}
                     rightAction={
-                        <h3 style={{ fontSize: 15, fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
+                        <h3 style={{ fontSize: "var(--pro-body, 15px)", fontWeight: 600, color: "var(--color-text)", margin: 0 }}>
                             {threadDetail.title}
                         </h3>
                     }
@@ -479,5 +479,5 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
     }
 
     // Fallback
-    return <div style={{ color: "var(--color-text-secondary)", fontSize: 12 }}>Loading thread...</div>
+    return <div style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-small, 12px)" }}>Loading thread...</div>
 }

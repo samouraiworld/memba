@@ -15,9 +15,9 @@
 }
 
 .candidature-subtitle {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     line-height: 1.6;
     margin: 0;
 }
@@ -41,16 +41,16 @@
 }
 
 .candidature-gate__title {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     color: var(--color-text);
     margin: 0 0 4px;
 }
 
 .candidature-gate__desc {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     margin: 0;
     line-height: 1.5;
 }
@@ -66,23 +66,23 @@
 .candidature-status--rejected { border-color: rgba(244, 67, 54, 0.2); }
 
 .candidature-status__title {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     color: var(--color-text);
     margin: 0 0 8px;
 }
 
 .candidature-status__meta {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-text-secondary);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     margin: 0 0 4px;
 }
 
 .candidature-status__approvals {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-warning-text);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     margin: 0;
 }
 
@@ -93,16 +93,16 @@
 }
 
 .candidature-form__title {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     color: var(--color-text);
     margin: 0 0 16px;
 }
 
 .candidature-form__cost {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     color: var(--color-k-warning-text);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     padding: 8px 12px;
     background: rgba(255, 193, 7, 0.06);
     border: 1px solid rgba(255, 193, 7, 0.15);
@@ -119,10 +119,10 @@
 }
 
 .candidature-form__field label {
-    font-size: 11px;
+    font-size: var(--pro-caption, 11px);
     font-weight: 600;
     color: var(--color-text-secondary);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
 }
 
 .candidature-form__field input,
@@ -132,8 +132,8 @@
     border: 1px solid var(--color-border);
     background: var(--color-surface);
     color: var(--color-text);
-    font-size: 13px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-small, 13px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     resize: vertical;
     transition: border-color 0.15s;
 }
@@ -145,9 +145,9 @@
 }
 
 .candidature-form__counter {
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
     color: var(--color-text-dim);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     position: absolute;
     right: 8px;
     bottom: 8px;
@@ -163,8 +163,8 @@
 .candidature-skill-tag {
     padding: 3px 8px;
     border-radius: 4px;
-    font-size: 10px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 10px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     background: rgba(0, 212, 170, 0.08);
     color: var(--color-k-accent-text);
     border: 1px solid rgba(0, 212, 170, 0.15);
@@ -172,16 +172,16 @@
 
 .candidature-skill-tag--sm {
     padding: 2px 6px;
-    font-size: 9px;
+    font-size: var(--pro-caption, 9px);
 }
 
 .candidature-form__submit {
     width: 100%;
     padding: 10px;
     border-radius: 6px;
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     background: rgba(0, 212, 170, 0.15);
     border: 1px solid rgba(0, 212, 170, 0.3);
     color: var(--color-k-accent-text);
@@ -221,17 +221,17 @@
 }
 
 .candidature-success__desc {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     margin: 0 0 16px;
 }
 
 .candidature-success__btn {
     padding: 8px 20px;
     border-radius: 6px;
-    font-size: 12px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-small, 12px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     background: rgba(0, 212, 170, 0.1);
     border: 1px solid rgba(0, 212, 170, 0.25);
     color: var(--color-k-accent-text);
@@ -245,7 +245,7 @@
 }
 
 .candidature-list__title {
-    font-size: 14px;
+    font-size: var(--pro-body, 14px);
     font-weight: 600;
     color: var(--color-text);
     margin: 0 0 14px;
@@ -272,7 +272,7 @@
 }
 
 .candidature-list__item-name {
-    font-size: 13px;
+    font-size: var(--pro-small, 13px);
     font-weight: 600;
     color: var(--color-text);
 }
@@ -280,8 +280,8 @@
 .candidature-list__item-badge {
     padding: 2px 6px;
     border-radius: 3px;
-    font-size: 9px;
-    font-family: JetBrains Mono, monospace;
+    font-size: var(--pro-caption, 9px);
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     font-weight: 600;
     text-transform: uppercase;
 }
@@ -302,7 +302,7 @@
 }
 
 .candidature-list__item-addr {
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     color: var(--color-text-muted);
     font-family: JetBrains Mono, monospace;
 }
@@ -320,7 +320,7 @@
     margin-left: 8px;
     padding: 1px 8px;
     border-radius: 999px;
-    font-size: 10px;
+    font-size: var(--pro-caption, 10px);
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.04em;
@@ -330,7 +330,7 @@
 }
 
 .candidature-list__admin-hint {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-secondary);
     margin: 4px 0 12px;
 }
@@ -346,7 +346,7 @@
     padding: 8px 12px;
     border-radius: 8px;
     border: 1px solid var(--color-border);
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     font-weight: 600;
     cursor: pointer;
     background: var(--color-surface-raised, rgba(255, 255, 255, 0.04));
@@ -381,9 +381,9 @@
 
 .candidature-loading,
 .candidature-empty {
-    font-size: 12px;
+    font-size: var(--pro-small, 12px);
     color: var(--color-text-muted);
-    font-family: JetBrains Mono, monospace;
+    font-family: var(--font-ui, JetBrains Mono, monospace);
     text-align: center;
     padding: 24px;
 }

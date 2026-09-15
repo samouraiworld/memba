@@ -20,7 +20,7 @@ export default function FeedMod() {
     const [moderator, setModerator] = useState("")
 
     return (
-        <main className="feed-mod">
+        <section className="feed-mod">
             <h1>Feed moderation</h1>
 
             <section className="feed-mod__bearer">
@@ -86,6 +86,6 @@ export default function FeedMod() {
                 <h2>Audit log</h2>
                 <FeedModAuditLog />
             </section>
-        </main>
+        </section>
     )
 }

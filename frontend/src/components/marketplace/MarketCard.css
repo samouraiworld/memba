@@ -107,7 +107,7 @@
     align-items: baseline;
     gap: var(--space-2, 8px);
     min-width: 0;
-    font-size: 0.8rem;
+    font-size: var(--pro-small, 0.8rem);
 }
 
 .mkt-card__handle {
@@ -120,7 +120,7 @@
 
 .mkt-card__addr {
     font-family: var(--font-mono);
-    font-size: 0.72rem;
+    font-size: var(--pro-small, 0.72rem);
     color: var(--color-text-muted);
     flex-shrink: 0;
 }
@@ -146,14 +146,14 @@
 }
 
 .mkt-card__stat-label {
-    font-size: 0.68rem;
+    font-size: var(--pro-caption, 0.68rem);
     text-transform: uppercase;
     letter-spacing: 0.04em;
     color: var(--color-text-muted);
 }
 
 .mkt-card__stat-value {
-    font-size: 0.9rem;
+    font-size: var(--pro-body, 0.9rem);
     font-weight: 600;
     color: var(--color-text);
 }

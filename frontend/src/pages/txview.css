@@ -10,11 +10,11 @@
 
 .k-txview__back {
   color: var(--color-k-accent-text);
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   background: none;
   border: none;
   cursor: pointer;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
   align-self: flex-start;
   margin-bottom: 16px;
 }
@@ -44,10 +44,10 @@
   border: 1px dashed #333;
   border-radius: 6px;
   color: var(--color-text-secondary);
-  font-size: 11px;
+  font-size: var(--pro-caption, 11px);
   padding: 4px 10px;
   cursor: pointer;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
   transition: all 0.15s;
 }
 .k-txview__share-btn--copied {
@@ -55,9 +55,9 @@
 }
 .k-txview__meta {
   color: var(--color-text-secondary);
-  font-size: 12px;
+  font-size: var(--pro-small, 12px);
   margin-top: 4px;
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
 }
 
 /* ── Message Card ────────────────────────────────────────────── */
@@ -74,8 +74,8 @@
   margin-bottom: 4px;
 }
 .k-txview__msg-type {
-  font-size: 10px;
-  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--pro-caption, 10px);
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
   color: var(--color-k-accent-text);
   background: rgba(0, 212, 170, 0.08);
   padding: 2px 8px;
@@ -84,7 +84,7 @@
   letter-spacing: 0.05em;
 }
 .k-txview__msg-label {
-  font-size: 14px;
+  font-size: var(--pro-body, 14px);
   font-weight: 500;
   color: var(--color-text);
 }
@@ -102,7 +102,7 @@
 }
 .k-txview__field-value {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   color: var(--color-text-secondary);
   text-align: right;
   word-break: break-all;
@@ -130,7 +130,7 @@
 }
 .k-txview__detail-value {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 13px;
+  font-size: var(--pro-small, 13px);
   color: var(--color-text-secondary);
 }
 
@@ -153,8 +153,8 @@
   border-bottom: 1px solid var(--color-border-light);
   display: grid;
   grid-template-columns: 1fr auto;
-  font-size: 11px;
-  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--pro-caption, 11px);
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
   color: var(--color-text-muted);
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -167,12 +167,12 @@
   align-items: center;
 }
 .k-txview__signed-badge {
-  font-size: 11px;
+  font-size: var(--pro-caption, 11px);
   padding: 2px 8px;
   border-radius: 4px;
   background: rgba(0, 212, 170, 0.08);
   color: var(--color-k-accent-text);
-  font-family: 'JetBrains Mono', monospace;
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
 }
 /* Signature stored but failed (or predates) server-side verification. */
 .k-txview__signed-badge--unverified {
@@ -189,8 +189,8 @@
 }
 .k-txview__empty-text {
   color: var(--color-text-muted);
-  font-size: 14px;
-  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--pro-body, 14px);
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
 }
 
 /* ── Not Found State ─────────────────────────────────────────── */
@@ -213,8 +213,8 @@
 }
 .k-txview__not-found-desc {
   color: var(--color-text-secondary);
-  font-size: 13px;
-  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--pro-small, 13px);
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
 }
 
 /* ── Actions ─────────────────────────────────────────────────── */
@@ -234,8 +234,8 @@
 }
 .k-txview__manual-desc {
   color: var(--color-text-secondary);
-  font-size: 11px;
-  font-family: 'JetBrains Mono', monospace;
+  font-size: var(--pro-caption, 11px);
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
 }
 .k-txview__manual-input {
   width: 100%;
@@ -245,8 +245,8 @@
   background: var(--color-bg-card);
   border: 1px solid var(--color-border-light);
   color: var(--color-text);
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
+  font-size: var(--pro-small, 12px);
   outline: none;
 }
 
@@ -260,7 +260,7 @@
 }
 .k-txview__hash-value {
   font-family: 'JetBrains Mono', monospace;
-  font-size: 12px;
+  font-size: var(--pro-small, 12px);
   color: var(--color-k-accent-text);
   word-break: break-all;
 }

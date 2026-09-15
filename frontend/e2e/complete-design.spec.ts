@@ -1,0 +1,99 @@
+import { test, expect } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
+import { stubNetwork } from './helpers/stubNetwork'
+import { fulfillGovernance } from './helpers/proGovernanceFixture'
+
+// Every family, including guarded, missing-resource and specialist routes. All remote traffic is stubbed.
+export const designRoutes = [
+    '', 'dashboard', 'dao', 'dao/create', 'dao/gno.land/r/gov/dao', 'dao/gno.land/r/gov/dao/members',
+    'dao/gno.land/r/gov/dao/proposal/4', 'dao/gno.land/r/gov/dao/propose', 'dao/gno.land/r/gov/dao/treasury',
+    'dao/gno.land/r/gov/dao/treasury/propose', 'dao/gno.land/r/gov/dao/channels', 'dao/gno.land/r/gov/dao/plugin/board',
+    'create', 'import', 'multisig', 'multisig/g1fixture', 'multisig/g1fixture/propose', 'tx/fixture',
+    'tokens', 'tokens/EXAMPLE', 'create-token', 'profile', 'profile/g1fixture', 'settings', 'organizations',
+    'directory', 'explorer/gno.land/r/gov/dao', 'apps', 'apps/submit', 'apps/review', 'apps/my-submissions', 'apps/fixture',
+    'validators', 'validators/hacker', 'validators/g1fixture', 'validators/valoper/g1fixture', 'alerts',
+    'nft', 'nft/create', 'nft/create/advanced', 'nft/collection/fixture/demo', 'nft/token/fixture/demo/1',
+    'nft/creator', 'nft/creator/g1fixture', 'nft/studio', 'nft/studio/fixture/demo', 'nft/legacy',
+    'services', 'extensions', 'marketplace', 'marketplace/services', 'marketplace/agents', 'marketplace-v2-preview',
+    'gnolove', 'gnolove/report', 'gnolove/notable-prs', 'gnolove/analytics', 'gnolove/contributor/fixture',
+    'gnolove/teams', 'gnolove/teams/fixture', 'gnolove/reports', 'gnolove/milestone',
+    'quests', 'quests/fixture', 'quest-admin', 'leaderboard', 'points', 'candidature',
+    'feed', 'feed/post/1', 'feed/user/g1fixture', 'feed/mod', 'feed/transparency',
+    'feedback', 'changelogs', 'blog', 'blog/fixture', 'github/callback', 'u/fixture', 'missing-page',
+    'game', 'game/space-invaders', 'game/barricade',
+]
+test.beforeEach(async ({ page }) => {
+    await stubNetwork(page)
+    await fulfillGovernance(page)
+    await page.addInitScript(() => localStorage.setItem('memba_whats_new_seen', '7.5.0'))
+})
+const routesToReview = process.env.DESIGN_REVIEW_FEATURES === 'true' ? designRoutes.filter(path => /^(apps|nft|feed|marketplace|services|game)/.test(path)) : designRoutes
+for (const theme of ['dark', 'light'] as const) {
+    for (const width of [390, 1600]) {
+        for (let offset = 0; offset < routesToReview.length; offset += 8) {
+            const routes = routesToReview.slice(offset, offset + 8)
+            test(`route coverage ${theme} ${width}px group ${offset / 8 + 1}`, async ({ page }, info) => {
+                test.setTimeout(180_000)
+                await page.setViewportSize({ width, height: 1000 })
+                await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' })
+                for (const route of routes) {
+                    await test.step(route || 'Home', async () => {
+                        const errors: string[] = []
+                        const onError = (error: Error) => errors.push(error.message)
+                        page.on('pageerror', onError)
+                        await page.goto(`/pearl/${route}`)
+                        await expect(page.locator('.k-pro-app')).toBeVisible()
+                        await expect(page.locator('#main-content')).not.toHaveText('')
+                        await page.waitForTimeout(450) // allow layout after deterministic failed/fulfilled reads
+                        expect.soft(errors, route).toEqual([])
+                        const overflow = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth,
+                            nodes: [...document.querySelectorAll('main *')].filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && (r.right > innerWidth + 2 || r.left < -2) && getComputedStyle(el).position !== 'fixed' }).slice(0, 8).map(el => el.className) }))
+                        expect.soft(overflow.scroll, `${route}: ${JSON.stringify(overflow)}`).toBeLessThanOrEqual(width + 2)
+                        expect.soft(await page.locator('main').innerText(), route).not.toContain('Something went wrong')
+                        if (!['game', 'game/barricade', 'game/space-invaders'].includes(route)) {
+                            const a11y = await new AxeBuilder({ page }).include('#main-content').withRules(['color-contrast','button-name','link-name','label','nested-interactive']).analyze()
+                            expect.soft(a11y.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => ({ target: n.target, summary: n.failureSummary })) })), route).toEqual([])
+                        }
+                        await page.screenshot({ path: info.outputPath(`${route.replaceAll('/', '-') || 'home'}.png`), fullPage: false })
+                        page.off('pageerror', onError)
+                    })
+                }
+            })
+        }
+    }
+}
+test('DAO search and theme interaction', async ({ page }) => {
+    await page.goto('/pearl/dao')
+    await page.getByRole('searchbox', { name: 'Your DAOs' }).fill('no such community')
+    await expect(page.getByText(/No DAOs match/)).toBeVisible()
+    await page.getByRole('button', { name: 'Clear search' }).click()
+    await expect(page.getByRole('button', { name: 'Open GovDAO' })).toBeVisible()
+    await page.getByRole('button', { name: 'Open GovDAO' }).focus()
+    await page.keyboard.press('Enter')
+    await expect(page.locator('.gov-proposal-link')).toHaveCount(4)
+})
+
+// Protected routes render using a synthetic session and an inert wallet provider.
+// The fixture is never imported by src/ and cannot authorize any real RPC.
+import { accountReviewFixture, REVIEW_ADDRESS } from './helpers/proAccountFixture'
+for (const theme of ['dark', 'light'] as const) {
+    test(`protected workflow ${theme} interaction`, async ({ page }, info) => {
+        test.setTimeout(180_000)
+        await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' })
+        await accountReviewFixture(page)
+        for (const path of ['dashboard', 'multisig', 'create', 'import', `multisig/${REVIEW_ADDRESS}`, `multisig/${REVIEW_ADDRESS}/propose`, 'tx/7', 'create-token', 'dao/create', 'settings', 'profile', 'alerts', 'organizations']) {
+            await page.goto(`/pearl/${path}`)
+            await expect(page.locator('.k-pro-app')).toBeVisible()
+            await expect(page.locator('#main-content')).not.toHaveText('')
+            await page.waitForTimeout(500)
+            if (path === 'multisig') await expect(page.getByRole('button', { name: 'Community operations', exact: true })).toBeVisible()
+            if (path === 'tx/7') await expect(page.locator('#main-content')).toContainText('Community operations — design fixture')
+            expect.soft(await page.locator('main').innerText(), path).not.toContain('Something went wrong')
+            expect.soft(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2), path).toBe(true)
+            const a11y = await new AxeBuilder({ page }).include('#main-content').withRules(['color-contrast','button-name','link-name','label','nested-interactive']).analyze()
+            expect.soft(a11y.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => ({ target: n.target, summary: n.failureSummary })) })), path).toEqual([])
+            await page.evaluate(() => { const label = document.createElement('p'); label.textContent = 'Design review · synthetic account · wallet actions disabled'; document.querySelector('main')!.prepend(label) })
+            await page.screenshot({ path: info.outputPath(`${path.replaceAll('/', '-')}.png`), fullPage: true })
+        }
+    })
+}

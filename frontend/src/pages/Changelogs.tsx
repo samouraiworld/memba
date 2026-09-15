@@ -74,7 +74,7 @@ export function Changelogs() {
                 <h2 style={{ fontSize: 20, fontWeight: 700, color: "var(--color-text)", margin: 0 }}>Changelogs</h2>
             </div>
 
-            <p style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", marginBottom: 20, lineHeight: 1.5 }}>
+            <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", marginBottom: 20, lineHeight: 1.5 }}>
                 Memba releases and gno.land ecosystem updates.
             </p>
 
@@ -96,7 +96,7 @@ export function Changelogs() {
                                 : "var(--color-text-secondary)",
                             cursor: "pointer",
                             fontFamily: "JetBrains Mono, monospace",
-                            fontSize: 11, fontWeight: 500,
+                            fontSize: "var(--pro-caption, 11px)", fontWeight: 500,
                             transition: "all 0.15s",
                         }}
                     >
@@ -110,7 +110,7 @@ export function Changelogs() {
                 <div key={date} style={{ marginBottom: 28 }}>
                     {/* Date separator */}
                     <div style={{
-                        fontSize: 10, color: "var(--color-text-muted)", fontWeight: 600, letterSpacing: 1,
+                        fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", fontWeight: 600, letterSpacing: 1,
                         fontFamily: "JetBrains Mono, monospace",
                         paddingBottom: 10, borderBottom: "1px solid rgba(255,255,255,0.04)",
                         marginBottom: 12, textTransform: "uppercase",
@@ -132,19 +132,19 @@ export function Changelogs() {
                             <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 8, flexWrap: "wrap" }}>
                                 {entry.version && (
                                     <span style={{
-                                        fontSize: 10, fontWeight: 700, color: "var(--color-primary)",
+                                        fontSize: "var(--pro-caption, 10px)", fontWeight: 700, color: "var(--color-primary)",
                                         background: "rgba(0,212,170,0.1)", padding: "2px 8px",
                                         borderRadius: 4, fontFamily: "JetBrains Mono, monospace",
                                     }}>
                                         {entry.version}
                                     </span>
                                 )}
-                                <span style={{ fontSize: 13, fontWeight: 600, color: "var(--color-text)" }}>
+                                <span style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)" }}>
                                     {entry.title}
                                 </span>
                                 {entry.tags.map(tag => (
                                     <span key={tag} style={{
-                                        fontSize: 9, color: TAG_COLORS[tag],
+                                        fontSize: "var(--pro-caption, 9px)", color: `var(--pro-tag-text, ${TAG_COLORS[tag]})`,
                                         background: TAG_COLORS[tag] + "12",
                                         padding: "2px 6px", borderRadius: 4,
                                         fontFamily: "JetBrains Mono, monospace",
@@ -158,7 +158,7 @@ export function Changelogs() {
                             <ul style={{ margin: 0, paddingLeft: 16 }}>
                                 {entry.items.map((item, j) => (
                                     <li key={j} style={{
-                                        fontSize: 11, color: "var(--color-text-secondary)", lineHeight: 1.7,
+                                        fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", lineHeight: 1.7,
                                         fontFamily: "JetBrains Mono, monospace",
                                     }}>
                                         {item}
@@ -171,7 +171,7 @@ export function Changelogs() {
             ))}
 
             {filtered.length === 0 && (
-                <p style={{ fontSize: 12, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", textAlign: "center", padding: 40 }}>
+                <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", textAlign: "center", padding: 40 }}>
                     No entries for this filter.
                 </p>
             )}

@@ -219,7 +219,7 @@ export function MultisigView() {
                 if (unsignedCount === 0) return null
                 return (
                     <div className="k-msview__action-banner">
-                        <span style={{ fontSize: 14 }}>⚡</span>
+                        <span style={{ fontSize: "var(--pro-body, 14px)" }}>⚡</span>
                         <span className="k-msview__action-text">
                             ✍️ {unsignedCount} transaction{unsignedCount > 1 ? "s" : ""} need{unsignedCount === 1 ? "s" : ""} your signature
                         </span>

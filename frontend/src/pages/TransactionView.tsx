@@ -408,25 +408,25 @@ export function TransactionView() {
                     border: "1px solid var(--color-k-amber-border)",
                     display: "flex", flexDirection: "column", gap: 12, padding: 18,
                 }}>
-                    <h3 style={{ fontSize: 14, fontWeight: 700, margin: 0 }}>
+                    <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 700, margin: 0 }}>
                         Review before you {pendingAction === "sign" ? "sign" : "broadcast"}
                     </h3>
                     {parseMsgs(tx.msgsJson, { full: true }).map((msg, i) => (
                         <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                            <span style={{ fontSize: 12, fontWeight: 600 }}>{msg.label}</span>
+                            <span style={{ fontSize: "var(--pro-small, 12px)", fontWeight: 600 }}>{msg.label}</span>
                             {msg.fields.map((field, j) => (
-                                <div key={j} style={{ display: "flex", gap: 8, fontSize: 12 }}>
+                                <div key={j} style={{ display: "flex", gap: 8, fontSize: "var(--pro-small, 12px)" }}>
                                     <span className="k-label" style={{ minWidth: 90 }}>{field.key}</span>
                                     <span style={{ fontFamily: "JetBrains Mono, monospace", wordBreak: "break-all" }}>{field.value}</span>
                                 </div>
                             ))}
                         </div>
                     ))}
-                    <div style={{ display: "flex", gap: 8, fontSize: 12 }}>
+                    <div style={{ display: "flex", gap: 8, fontSize: "var(--pro-small, 12px)" }}>
                         <span className="k-label" style={{ minWidth: 90 }}>Fee</span>
                         <span>{fee.amount !== "—" ? `${fee.amount} (gas: ${fee.gas})` : `Gas: ${fee.gas}`}</span>
                     </div>
-                    <div style={{ display: "flex", gap: 8, fontSize: 12, alignItems: "center" }}>
+                    <div style={{ display: "flex", gap: 8, fontSize: "var(--pro-small, 12px)", alignItems: "center" }}>
                         <span className="k-label" style={{ minWidth: 90 }}>Network</span>
                         {tx.chainId === GNO_CHAIN_ID ? (
                             <span style={{ color: "var(--color-success, #2fbf71)" }}>✓ {tx.chainId} — matches this app's network</span>
@@ -436,7 +436,7 @@ export function TransactionView() {
                             </span>
                         )}
                     </div>
-                    <p style={{ fontSize: 11, color: "var(--color-text-secondary)", margin: 0 }}>
+                    <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", margin: 0 }}>
                         {pendingAction === "sign"
                             ? "Your signature authorizes this exact transaction. Verify the full recipient address character by character."
                             : "Broadcasting is an on-chain action that costs gas and cannot be undone."}
@@ -515,13 +515,13 @@ export function TransactionView() {
                             completion; unconfirmed means it's a client claim. */}
                         {tx.verified ? (
                             <span style={{
-                                fontSize: 10, padding: "2px 8px", borderRadius: 4,
+                                fontSize: "var(--pro-caption, 10px)", padding: "2px 8px", borderRadius: 4,
                                 background: "rgba(47,191,113,0.12)", color: "var(--color-success, #2fbf71)",
                                 fontFamily: "JetBrains Mono, monospace",
                             }}>✓ VERIFIED ON-CHAIN</span>
                         ) : (
                             <span style={{
-                                fontSize: 10, padding: "2px 8px", borderRadius: 4,
+                                fontSize: "var(--pro-caption, 10px)", padding: "2px 8px", borderRadius: 4,
                                 background: "var(--color-k-amber-subtle, rgba(255,193,7,0.12))", color: "var(--color-k-warning, #ffc107)",
                                 fontFamily: "JetBrains Mono, monospace",
                             }} title="The backend could not confirm this hash on-chain at completion time — it is a client-reported value.">⏳ UNCONFIRMED</span>

@@ -91,3 +91,20 @@ The shared checkout was last inspected clean on `main` at `3120124f`; other acti
 Next design wave remains Home / DAO discovery. Integration with current main
 and the status fix must precede a combined mainnet release review; continuing
 review-only design work does not authorize unfinished contract capabilities.
+
+
+## D12 consolidated completion
+
+Owner: design/integration session. Worktree `professional-complete`, branch `feat/professional-complete`; base is the integrated governance/design stack plus current-main status correction. No parallel editor owns these files.
+
+| Unit | Scope | Current status | Verification |
+|---|---|---|---|
+| C1 | Route policy, readable typography, Black/Light shared controls | Implemented | Build/lint, route matrix; final regression in progress |
+| C2 | Home, discovery, DAO list, account and editorial | Implemented | Live Home review, search/keyboard and route checks |
+| C3 | Members, treasury readers, creation, multisig and transaction review | Implemented | Synthetic account fixtures, existing payload/guard tests |
+| C4 | Marketplace, apps, creator/curator/publisher and NFT Studio | Implemented | Separate test-only feature build; capability gates preserved |
+| C5 | Feed, community, quests, specialist tools and plugins | Implemented | Route matrix, Black telemetry and game frame review |
+| C6 | Folded M icon/share adoption and crawler metadata | Implemented | Flag-on build and crawler unit checks |
+| C7 | Consolidated evidence and PR | In progress | Full checks, visual pack, current-main integration, push |
+
+An implemented row is not a release-readiness claim. See the final handoff for executed checks and the distinction between live readers, fixtures, unavailable data and capability-gated screens.

@@ -20,21 +20,21 @@ export function NotFound() {
             }}>
                 404
             </div>
-            <p style={{ color: "var(--color-text-secondary)", fontSize: 14, fontFamily: "JetBrains Mono, monospace", maxWidth: 400 }}>
+            <p style={{ color: "var(--color-text-secondary)", fontSize: "var(--pro-body, 14px)", fontFamily: "JetBrains Mono, monospace", maxWidth: 400 }}>
                 This page doesn't exist on the chain. Maybe it was never deployed, or you followed a broken link.
             </p>
             <div style={{ display: "flex", gap: 12 }}>
                 <button
                     className="k-btn-primary"
                     onClick={() => navigate("/dashboard")}
-                    style={{ fontSize: 12 }}
+                    style={{ fontSize: "var(--pro-small, 12px)" }}
                 >
                     ← Back to Dashboard
                 </button>
                 <button
                     className="k-btn-secondary"
                     onClick={() => navigate("/")}
-                    style={{ fontSize: 12 }}
+                    style={{ fontSize: "var(--pro-small, 12px)" }}
                 >
                     Landing Page
                 </button>

@@ -48,8 +48,8 @@ export function WizardStepMembers({
     return (
         <div className="k-card" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
-                <h3 style={{ fontSize: 14, fontWeight: 600, color: "var(--color-text)" }}>Initial Members & Roles</h3>
-                <span style={{ fontSize: 11, color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
+                <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)" }}>Initial Members & Roles</h3>
+                <span style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace" }}>
                     {validMembers.length} member{validMembers.length !== 1 ? "s" : ""} · {adminCount} admin{adminCount !== 1 ? "s" : ""} · power: {totalPower}
                 </span>
             </div>
@@ -72,7 +72,7 @@ export function WizardStepMembers({
                             max="100"
                             style={{ ...inputStyle, width: 70, textAlign: "center" }}
                         />
-                        <span style={{ fontSize: 9, color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", width: 40 }}>power</span>
+                        <span style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", width: 40 }}>power</span>
                         {members.length > 1 && (
                             <button
                                 onClick={() => removeMember(i)}
@@ -92,7 +92,7 @@ export function WizardStepMembers({
                                     key={role}
                                     onClick={() => toggleMemberRole(i, role)}
                                     style={{
-                                        fontSize: 10, padding: "3px 8px", borderRadius: 4, cursor: "pointer",
+                                        fontSize: "var(--pro-caption, 10px)", padding: "3px 8px", borderRadius: 4, cursor: "pointer",
                                         fontFamily: "JetBrains Mono, monospace",
                                         background: active ? `${color}20` : "transparent",
                                         border: `1px solid ${active ? `${color}60` : "rgba(255,255,255,0.08)"}`,
@@ -112,7 +112,7 @@ export function WizardStepMembers({
                 <button
                     className="k-btn-secondary"
                     onClick={() => onMembersChange([{ address: walletAddress, power: 1, roles: ["admin"] }, ...members])}
-                    style={{ fontSize: 11, padding: "6px 12px", alignSelf: "flex-start" }}
+                    style={{ fontSize: "var(--pro-caption, 11px)", padding: "6px 12px", alignSelf: "flex-start" }}
                 >
                     + Add my address (as admin)
                 </button>
@@ -122,7 +122,7 @@ export function WizardStepMembers({
                 onClick={addMember}
                 style={{
                     background: "none", border: "1px dashed rgba(0,212,170,0.3)", borderRadius: 8,
-                    padding: "10px", cursor: "pointer", color: "var(--color-primary)", fontSize: 12,
+                    padding: "10px", cursor: "pointer", color: "var(--color-primary)", fontSize: "var(--pro-small, 12px)",
                     fontFamily: "JetBrains Mono, monospace",
                 }}
             >
@@ -130,10 +130,10 @@ export function WizardStepMembers({
             </button>
 
             <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <button className="k-btn-secondary" onClick={() => onGoToStep(1)} style={{ fontSize: 13, padding: "10px 20px" }}>
+                <button className="k-btn-secondary" onClick={() => onGoToStep(1)} style={{ fontSize: "var(--pro-small, 13px)", padding: "10px 20px" }}>
                     ← Back
                 </button>
-                <button className="k-btn-primary" onClick={onNext} style={{ fontSize: 13, padding: "10px 24px" }}>
+                <button className="k-btn-primary" onClick={onNext} style={{ fontSize: "var(--pro-small, 13px)", padding: "10px 24px" }}>
                     Next: Governance →
                 </button>
             </div>

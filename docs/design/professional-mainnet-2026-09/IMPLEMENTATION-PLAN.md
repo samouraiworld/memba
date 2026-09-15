@@ -1,4 +1,6 @@
-# Implementation-plan proposal
+# Frontend implementation plan
+
+**Current scope (D12, 15 September):** the owner requested completion of every frontend wave in one consolidated review PR. This supersedes the pilot-only and separate-wave PR restrictions below. The prior sequence remains historical evidence of how the foundations were proved. Current implementation, validation and rollout boundaries are recorded in [COMPLETE-HANDOFF.md](COMPLETE-HANDOFF.md). Production activation remains separate.
 
 Status: **P0–P5 pilot implemented for final review on 2026-09-14** by the user: “OK, what’s next? Can we start proceeding the plan?” This authorizes isolated implementation and a reviewable preview. It does not authorize automatic merge, production enablement, later feature waves or logo replacement. The user subsequently delegated autonomous completion. Responsive/state details and implemented table defaults are consolidated in [REVIEW.md](REVIEW.md). See [TASK-LEDGER.md](TASK-LEDGER.md).
 

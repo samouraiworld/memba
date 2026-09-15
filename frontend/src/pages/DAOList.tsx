@@ -4,7 +4,7 @@ import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { Bank, LinkSimple } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
-import { GNO_RPC_URL, getExplorerBaseUrl } from "../lib/config"
+import { GNO_RPC_URL, getExplorerBaseUrl, PRO_APP_ENABLED } from "../lib/config"
 import { getDAOConfig, type DAOConfig } from "../lib/dao"
 import {
     FEATURED_DAO,
@@ -35,6 +35,7 @@ export function DAOList() {
     const [error, setError] = useState<string | null>(null)
 
     // Connect form — collapsed by default
+    const [search, setSearch] = useState("")
     const [showConnect, setShowConnect] = useState(false)
     const [realmInput, setRealmInput] = useState("")
     const [connecting, setConnecting] = useState(false)
@@ -76,6 +77,8 @@ export function DAOList() {
         const config = configQueries[i]?.data ?? null
         return { realmPath: e.realmPath, name: config?.name || e.name, config, featured: e.featured }
     })
+
+    const visibleDAOs = daoEntries.filter(dao => !PRO_APP_ENABLED || `${dao.name} ${dao.realmPath}`.toLowerCase().includes(search.trim().toLowerCase()))
 
     // Action Required: unvoted proposals
     const userAddress = auth.isAuthenticated ? (auth as { address?: string }).address || null : null
@@ -159,7 +162,7 @@ export function DAOList() {
             {unvotedProposals.length > 0 && (
                 <div className="k-daolist__action-banner">
                     <div className="k-daolist__action-header">
-                        <span style={{ fontSize: 14 }}>⚡</span>
+                        <span style={{ fontSize: "var(--pro-body, 14px)" }}>⚡</span>
                         <span className="k-daolist__action-title">
                             🗳️ {unvotedProposals.length} proposal{unvotedProposals.length > 1 ? "s" : ""} need{unvotedProposals.length === 1 ? "s" : ""} your vote
                         </span>
@@ -189,6 +192,14 @@ export function DAOList() {
             )}
 
             {/* ── Summary Line ───────────────────────────────────── */}
+            {PRO_APP_ENABLED && (
+                <div className="pro-collection-toolbar">
+                    <label htmlFor="dao-search">Your DAOs</label>
+                    <input id="dao-search" type="search" placeholder="Search by name or realm"
+                        value={search} onChange={e => setSearch(e.target.value)} />
+                    <span role="status">{visibleDAOs.length} {visibleDAOs.length === 1 ? "DAO" : "DAOs"}</span>
+                </div>
+            )}
             {daoEntries.length > 0 && (
                 <div className="k-daolist__summary">
                     <span>{daoEntries.length} DAO{daoEntries.length !== 1 ? "s" : ""}</span>
@@ -218,7 +229,7 @@ export function DAOList() {
                 </div>
             ) : (
                 <div className="k-daolist__grid">
-                    {daoEntries.map((dao) => (
+                    {visibleDAOs.map((dao) => (
                         <DAOCard
                             key={dao.realmPath}
                             dao={dao}
@@ -233,6 +244,8 @@ export function DAOList() {
                     ))}
                 </div>
             )}
+
+            {PRO_APP_ENABLED && visibleDAOs.length === 0 && search.trim() && <p role="status">No DAOs match “{search}”. <button className="k-btn-secondary" onClick={() => setSearch("")}>Clear search</button></p>}
 
             {/* ── Quick Actions ─────────────────────────────────── */}
             <div className="k-daolist__actions">
@@ -313,24 +326,15 @@ function DAOCard({
         <div
             className={cardClass}
             onClick={onOpen}
-            role="button"
-            tabIndex={0}
-            aria-label={`Open ${dao.name}`}
-            onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault()
-                    onOpen()
-                }
-            }}
         >
             {/* Header */}
             <div className="k-dao-card__header">
                 <div className="k-dao-card__name-row">
                     <span className="k-dao-card__icon"><Bank size={22} /></span>
                     <div>
-                        <span className="k-dao-card__name">
+                        <button type="button" className="k-dao-card__name" aria-label={`Open ${dao.name}`} onClick={e => { e.stopPropagation(); onOpen() }}>
                             {dao.name}
-                        </span>
+                        </button>
                         {dao.featured && (
                             <span className="k-dao-card__badge k-dao-card__badge--featured">
                                 FEATURED
