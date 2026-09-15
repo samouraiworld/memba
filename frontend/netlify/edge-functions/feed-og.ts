@@ -73,10 +73,15 @@ export default async function handler(request: Request, context: EdgeContext): P
 
     if (!data.root) return context.next()
 
+    // Read the downstream build marker so feed cards follow the same opt-in
+    // branding as the app. This does not change post moderation or body selection.
+    const page = await context.next()
+    const professional = page.headers.get("content-type")?.includes("text/html")
+        && (await page.clone().text()).includes("/brand/folded-m/share.png")
     const html = renderOgPage({
         root: data.root,
         permalink: `${url.origin}/feed/post/${id}`,
-        ogImage: `${url.origin}/brand/folded-m/share.png`,
+        ogImage: `${url.origin}${professional ? "/brand/folded-m/share.png" : "/og-image.jpg"}`,
     })
 
     return new Response(html, {
