@@ -5,11 +5,11 @@
     "test:audit-ci": "node --test scripts/pnpm-audit-ci.test.mjs"
   },
   "_comment": "These overrides are SECURITY FLOORS for transitive dependencies. Each value must be at or above the advisory's patched version — a floor below it silently stops enforcing anything, because >= permits an upgrade without compelling one. That is exactly how fast-uri, @hono/node-server and postcss stayed vulnerable here while an override for each was already present. When you clear an advisory, raise the floor to the patched version rather than relying on a re-resolve. Raising a floor is also not enough on its own: pnpm-lock.yaml keeps the already-locked version whenever it still satisfies the range, so re-resolve and commit the lockfile too. `pnpm audit` reads the lockfile, and scripts/pnpm-audit-ci.mjs gates CI on it.",
-  "_comment_bounded": "A floor is left unbounded so it keeps tracking upstream security releases. Bound it only when an INCOMPATIBLE major already exists and a bare floor would select it: nanoid is capped at <4 because its only consumer here is postcss (which declares ^3.3.12) while nanoid@latest is 6.x, ESM-only and Node >=22. An unbounded nanoid floor would resolve 6.x into postcss's slot and break it.",
+  "_comment_bounded": "A floor is left unbounded so it keeps tracking upstream security releases. Bound it only when an INCOMPATIBLE major already exists and a bare floor would select it: nanoid is capped at <4 because its only consumer here is postcss (which declares ^3.3.12) while nanoid@latest is 6.x, ESM-only and Node >=22. An unbounded nanoid floor would resolve 6.x into postcss's slot and break it. Vitest is capped at <5 to preserve the workspace's declared v4 test API; an unbounded override selects v5 even though the workspace manifests request ^4.1.11. A major test-runner migration needs separate review.",
   "pnpm": {
     "overrides": {
       "fast-uri": ">=4.1.4",
-      "hono": ">=4.12.34",
+      "hono": ">=4.13.5",
       "@hono/node-server": ">=2.0.10",
       "qs": ">=6.16.0",
       "ip-address": ">=10.3.1",
@@ -17,7 +17,7 @@
       "vite": ">=8.0.16",
       "esbuild": ">=0.28.1",
       "postcss": ">=8.5.18",
-      "vitest": ">=4.1.0"
+      "vitest": ">=4.1.11 <5"
     }
   }
 }
