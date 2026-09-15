@@ -352,9 +352,9 @@ export function normalizeStatus(s: string): DAOProposal["status"] {
     // "deni"/"deny" covers GovDAO v3's detail-render prose "PROPOSAL HAS BEEN DENIED"
     // NOTE: daokit's detail-page "Closed" is mapped inside the daokit leg of
     // getProposalDetail, NOT here — this funnel is shared across dialects, and
-    // the legacy GovDAO status capture (`\w+ED|ACTIVE`) matches loose prose
-    // ("disclosed", "voting closed"), which must keep warning → "open" rather
-    // than silently flipping to a red REJECTED badge.
+    // other callers may pass unknown vocabulary ("disclosed", "voting closed").
+    // Keep their warning → "open" behavior rather than silently treating any
+    // occurrence of "closed" as a rejected proposal.
     if (lower.includes("reject") || lower.includes("fail") || lower.includes("deni") || lower.includes("deny")) return "rejected"
     if (lower.includes("exec") || lower.includes("complete")) return "executed"
     if (lower.includes("active") || lower.includes("open") || lower === "") return "open"

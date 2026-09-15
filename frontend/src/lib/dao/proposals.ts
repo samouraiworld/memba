@@ -55,6 +55,25 @@ function matchLast(data: string, re: RegExp): RegExpExecArray | null {
     return last
 }
 
+/** Read status fields, never status-like words in proposal prose.
+ * Legacy flat renders put Status in the opening metadata block. GovDAO puts
+ * Stats after the description and executor metadata; the final Stats heading
+ * wins over headings embedded in either of those user-controlled regions.
+ * Its first line owns the status, so a denied reason cannot override it.
+ * Unknown/missing formats retain the existing open fallback.
+ */
+function parseLegacyDetailStatus(data: string): DAOProposal["status"] {
+    const header = data.trimStart().split(/\r?\n[ \t]*\r?\n/, 1)[0]
+    const field = header.match(/^Status:[ \t]*(ACTIVE|OPEN|ACCEPTED|PASSED|DENIED|REJECTED|FAILED|EXECUTED|COMPLETED)[ \t]*$/im)
+    if (field) return normalizeStatus(field[1])
+
+    const stats = matchLast(data, /^### Stats[ \t]*\r?$/m)
+    if (!stats) return "open"
+    const firstLine = data.slice(stats.index + stats[0].length).trimStart().split(/\r?\n/, 1)[0]
+    const status = firstLine.match(/^- \*\*PROPOSAL HAS BEEN (ACCEPTED|DENIED|REJECTED|EXECUTED)\*\*[ \t]*$/i)
+    return normalizeStatus(status?.[1] || "open")
+}
+
 // Action metadata extraction, shared by BOTH detail legs so the two can't
 // drift apart (basedao format: "## Resource - actionType 📦", body between the
 // "---" pair after the Condition line).
@@ -584,9 +603,7 @@ export async function getProposalDetail(
         // Author — resolved "[@user](url)" or a bare "g1…" address (F-E2)
         const { author, authorProfile } = parseProposalAuthor(data)
 
-        // Status  
-        const statusMatch = data.match(/(?:PROPOSAL HAS BEEN\s+)?(\w+ED|ACTIVE)/i)
-            || data.match(/Status:\s*(\w+)/i)
+        const status = parseLegacyDetailStatus(data)
 
         // Vote percentages
         const yesPercentMatch = data.match(/YES\s+PERCENT:\s*(\d+)%/i)
@@ -631,7 +648,7 @@ export async function getProposalDetail(
             title: unescapeMarkdown(titleMatch?.[1]?.trim() || "") || fallbackProposalTitle(id),
             description: parseProposalDescription(data),
             category: categoryMatch?.[1]?.toLowerCase() || "",
-            status: normalizeStatus(statusMatch?.[1] || "open"),
+            status,
             author,
             authorProfile,
             tiers: tiersMatch
