@@ -37,10 +37,10 @@ window.addEventListener('vite:preloadError', (event) => {
 })
 
 // ── Sentry initialization ─────────────────────────────────────
-const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN
-if (SENTRY_DSN) {
+const sentryDsn = import.meta.env.VITE_SENTRY_DSN
+if (sentryDsn) {
   Sentry.init({
-    dsn: SENTRY_DSN,
+    dsn: sentryDsn,
     sendDefaultPii: false, // Privacy: do NOT send IP/cookies
     integrations: [
       Sentry.browserTracingIntegration(),
