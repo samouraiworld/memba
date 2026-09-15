@@ -10,7 +10,7 @@
  * @module lib/queryClient
  */
 
-import { QueryClient, QueryCache } from "@tanstack/react-query"
+import { QueryClient, QueryCache, defaultShouldDehydrateQuery } from "@tanstack/react-query"
 import * as Sentry from "@sentry/react"
 import { persistQueryClient } from "@tanstack/react-query-persist-client"
 import { createSyncStoragePersister } from "@tanstack/query-sync-storage-persister"
@@ -75,8 +75,12 @@ persistQueryClient({
     queryClient,
     persister,
     maxAge: CACHE_MAX_AGE,
+    // Earlier caches included pending promises, which JSON turns into {}.
+    // Discard that format before hydration; the read-only data will refetch.
+    buster: "gnolove-success-only-v1",
     dehydrateOptions: {
         shouldDehydrateQuery: (query) =>
+            defaultShouldDehydrateQuery(query) &&
             Array.isArray(query.queryKey) && query.queryKey[0] === "gnolove",
     },
 })

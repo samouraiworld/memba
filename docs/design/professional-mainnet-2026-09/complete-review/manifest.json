@@ -6,7 +6,7 @@
     "viewport": "desktop",
     "state": "Synthetic governance and network reads",
     "image": "home-dark-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-dark-1600px-group-1-chromium/home.png"
+    "source": "frontend/test-results-complete/complete-design-route-coverage-dark-1600px-group-1-chromium/home.png"
   },
   {
     "title": "Home",
@@ -15,7 +15,7 @@
     "viewport": "mobile",
     "state": "Synthetic governance and network reads",
     "image": "home-dark-mobile.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-dark-390px-group-1-chromium/home.png"
+    "source": "frontend/test-results-complete/complete-design-route-coverage-dark-390px-group-1-chromium/home.png"
   },
   {
     "title": "Home",
@@ -24,7 +24,7 @@
     "viewport": "desktop",
     "state": "Synthetic governance and network reads",
     "image": "home-light-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-light-1600px-group-1-chromium/home.png"
+    "source": "frontend/test-results-complete/complete-design-route-coverage-light-1600px-group-1-chromium/home.png"
   },
   {
     "title": "Home",
@@ -33,7 +33,7 @@
     "viewport": "mobile",
     "state": "Synthetic governance and network reads",
     "image": "home-light-mobile.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-light-390px-group-1-chromium/home.png"
+    "source": "frontend/test-results-complete/complete-design-route-coverage-light-390px-group-1-chromium/home.png"
   },
   {
     "title": "DAO directory",
@@ -42,7 +42,7 @@
     "viewport": "desktop",
     "state": "Synthetic DAO directory",
     "image": "dao-dark-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-dark-1600px-group-1-chromium/dao.png"
+    "source": "frontend/test-results-complete/complete-design-route-coverage-dark-1600px-group-1-chromium/dao.png"
   },
   {
     "title": "DAO directory",
@@ -51,7 +51,7 @@
     "viewport": "mobile",
     "state": "Synthetic DAO directory",
     "image": "dao-dark-mobile.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-dark-390px-group-1-chromium/dao.png"
+    "source": "frontend/test-results-complete/complete-design-route-coverage-dark-390px-group-1-chromium/dao.png"
   },
   {
     "title": "DAO directory",
@@ -60,7 +60,7 @@
     "viewport": "desktop",
     "state": "Synthetic DAO directory",
     "image": "dao-light-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-light-1600px-group-1-chromium/dao.png"
+    "source": "frontend/test-results-complete/complete-design-route-coverage-light-1600px-group-1-chromium/dao.png"
   },
   {
     "title": "DAO directory",
@@ -69,7 +69,7 @@
     "viewport": "mobile",
     "state": "Synthetic DAO directory",
     "image": "dao-light-mobile.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-light-390px-group-1-chromium/dao.png"
+    "source": "frontend/test-results-complete/complete-design-route-coverage-light-390px-group-1-chromium/dao.png"
   },
   {
     "title": "DAO overview",
@@ -78,7 +78,7 @@
     "viewport": "desktop",
     "state": "Synthetic governance fixture",
     "image": "dao-gno.land-r-gov-dao-dark-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-dark-1600px-group-1-chromium/dao-gno.land-r-gov-dao.png"
+    "source": "frontend/test-results-complete/complete-design-route-coverage-dark-1600px-group-1-chromium/dao-gno.land-r-gov-dao.png"
   },
   {
     "title": "DAO overview",
@@ -87,7 +87,7 @@
     "viewport": "mobile",
     "state": "Synthetic governance fixture",
     "image": "dao-gno.land-r-gov-dao-dark-mobile.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-dark-390px-group-1-chromium/dao-gno.land-r-gov-dao.png"
+    "source": "frontend/test-results-complete/complete-design-route-coverage-dark-390px-group-1-chromium/dao-gno.land-r-gov-dao.png"
   },
   {
     "title": "DAO overview",
@@ -96,7 +96,7 @@
     "viewport": "desktop",
     "state": "Synthetic governance fixture",
     "image": "dao-gno.land-r-gov-dao-light-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-light-1600px-group-1-chromium/dao-gno.land-r-gov-dao.png"
+    "source": "frontend/test-results-complete/complete-design-route-coverage-light-1600px-group-1-chromium/dao-gno.land-r-gov-dao.png"
   },
   {
     "title": "DAO overview",
@@ -105,7 +105,7 @@
     "viewport": "mobile",
     "state": "Synthetic governance fixture",
     "image": "dao-gno.land-r-gov-dao-light-mobile.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-light-390px-group-1-chromium/dao-gno.land-r-gov-dao.png"
+    "source": "frontend/test-results-complete/complete-design-route-coverage-light-390px-group-1-chromium/dao-gno.land-r-gov-dao.png"
   },
   {
     "title": "Proposal reader",
@@ -114,7 +114,7 @@
     "viewport": "desktop",
     "state": "Synthetic governance fixture",
     "image": "dao-gno.land-r-gov-dao-proposal-4-dark-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-dark-1600px-group-1-chromium/dao-gno.land-r-gov-dao-proposal-4.png"
+    "source": "frontend/test-results-complete/complete-design-route-coverage-dark-1600px-group-1-chromium/dao-gno.land-r-gov-dao-proposal-4.png"
   },
   {
     "title": "Proposal reader",
@@ -123,7 +123,7 @@
     "viewport": "mobile",
     "state": "Synthetic governance fixture",
     "image": "dao-gno.land-r-gov-dao-proposal-4-dark-mobile.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-dark-390px-group-1-chromium/dao-gno.land-r-gov-dao-proposal-4.png"
+    "source": "frontend/test-results-complete/complete-design-route-coverage-dark-390px-group-1-chromium/dao-gno.land-r-gov-dao-proposal-4.png"
   },
   {
     "title": "Proposal reader",
@@ -132,7 +132,7 @@
     "viewport": "desktop",
     "state": "Synthetic governance fixture",
     "image": "dao-gno.land-r-gov-dao-proposal-4-light-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-light-1600px-group-1-chromium/dao-gno.land-r-gov-dao-proposal-4.png"
+    "source": "frontend/test-results-complete/complete-design-route-coverage-light-1600px-group-1-chromium/dao-gno.land-r-gov-dao-proposal-4.png"
   },
   {
     "title": "Proposal reader",
@@ -141,7 +141,7 @@
     "viewport": "mobile",
     "state": "Synthetic governance fixture",
     "image": "dao-gno.land-r-gov-dao-proposal-4-light-mobile.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-light-390px-group-1-chromium/dao-gno.land-r-gov-dao-proposal-4.png"
+    "source": "frontend/test-results-complete/complete-design-route-coverage-light-390px-group-1-chromium/dao-gno.land-r-gov-dao-proposal-4.png"
   },
   {
     "title": "Validators",
@@ -222,7 +222,7 @@
     "viewport": "desktop",
     "state": "Synthetic account; wallet actions disabled",
     "image": "multisig-dark-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-dark-interaction-chromium/multisig.png"
+    "source": "frontend/test-results-complete/complete-design-protected-workflow-dark-interaction-chromium/multisig.png"
   },
   {
     "title": "Multisig workspace",
@@ -231,7 +231,7 @@
     "viewport": "desktop",
     "state": "Synthetic account; wallet actions disabled",
     "image": "multisig-light-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-light-interaction-chromium/multisig.png"
+    "source": "frontend/test-results-complete/complete-design-protected-workflow-light-interaction-chromium/multisig.png"
   },
   {
     "title": "Transaction review",
@@ -240,7 +240,7 @@
     "viewport": "desktop",
     "state": "Synthetic transfer; wallet actions disabled",
     "image": "tx-7-dark-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-dark-interaction-chromium/tx-7.png"
+    "source": "frontend/test-results-complete/complete-design-protected-workflow-dark-interaction-chromium/tx-7.png"
   },
   {
     "title": "Transaction review",
@@ -249,7 +249,7 @@
     "viewport": "desktop",
     "state": "Synthetic transfer; wallet actions disabled",
     "image": "tx-7-light-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-light-interaction-chromium/tx-7.png"
+    "source": "frontend/test-results-complete/complete-design-protected-workflow-light-interaction-chromium/tx-7.png"
   },
   {
     "title": "Token creation",
@@ -258,7 +258,7 @@
     "viewport": "desktop",
     "state": "Synthetic account; wallet actions disabled",
     "image": "create-token-dark-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-dark-interaction-chromium/create-token.png"
+    "source": "frontend/test-results-complete/complete-design-protected-workflow-dark-interaction-chromium/create-token.png"
   },
   {
     "title": "Token creation",
@@ -267,7 +267,7 @@
     "viewport": "desktop",
     "state": "Synthetic account; wallet actions disabled",
     "image": "create-token-light-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-light-interaction-chromium/create-token.png"
+    "source": "frontend/test-results-complete/complete-design-protected-workflow-light-interaction-chromium/create-token.png"
   },
   {
     "title": "DAO creation",
@@ -276,7 +276,7 @@
     "viewport": "desktop",
     "state": "Synthetic account; wallet actions disabled",
     "image": "dao-create-dark-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-dark-interaction-chromium/dao-create.png"
+    "source": "frontend/test-results-complete/complete-design-protected-workflow-dark-interaction-chromium/dao-create.png"
   },
   {
     "title": "DAO creation",
@@ -285,7 +285,7 @@
     "viewport": "desktop",
     "state": "Synthetic account; wallet actions disabled",
     "image": "dao-create-light-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-light-interaction-chromium/dao-create.png"
+    "source": "frontend/test-results-complete/complete-design-protected-workflow-light-interaction-chromium/dao-create.png"
   },
   {
     "title": "Settings",
@@ -294,7 +294,7 @@
     "viewport": "desktop",
     "state": "Synthetic account; wallet actions disabled",
     "image": "settings-dark-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-dark-interaction-chromium/settings.png"
+    "source": "frontend/test-results-complete/complete-design-protected-workflow-dark-interaction-chromium/settings.png"
   },
   {
     "title": "Settings",
@@ -303,7 +303,7 @@
     "viewport": "desktop",
     "state": "Synthetic account; wallet actions disabled",
     "image": "settings-light-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-light-interaction-chromium/settings.png"
+    "source": "frontend/test-results-complete/complete-design-protected-workflow-light-interaction-chromium/settings.png"
   },
   {
     "title": "Creator studio",
@@ -456,7 +456,7 @@
     "viewport": "desktop",
     "state": "Synthetic public posts; feature fixture",
     "image": "feed-timeline-dark-desktop.png",
-    "source": "frontend/test-results-complete-feature-populated-feed/complete-design-populated-community-feed-dark-1600px-chromium/feed-timeline.png"
+    "source": "frontend/test-results-complete-features/complete-design-populated-community-feed-dark-1600px-chromium/feed-timeline.png"
   },
   {
     "title": "Community feed",
@@ -465,7 +465,7 @@
     "viewport": "mobile",
     "state": "Synthetic public posts; feature fixture",
     "image": "feed-timeline-dark-mobile.png",
-    "source": "frontend/test-results-complete-feature-populated-feed/complete-design-populated-community-feed-dark-390px-chromium/feed-timeline.png"
+    "source": "frontend/test-results-complete-features/complete-design-populated-community-feed-dark-390px-chromium/feed-timeline.png"
   },
   {
     "title": "Community feed",
@@ -474,7 +474,7 @@
     "viewport": "desktop",
     "state": "Synthetic public posts; feature fixture",
     "image": "feed-timeline-light-desktop.png",
-    "source": "frontend/test-results-complete-feature-populated-feed/complete-design-populated-community-feed-light-1600px-chromium/feed-timeline.png"
+    "source": "frontend/test-results-complete-features/complete-design-populated-community-feed-light-1600px-chromium/feed-timeline.png"
   },
   {
     "title": "Community feed",
@@ -483,7 +483,7 @@
     "viewport": "mobile",
     "state": "Synthetic public posts; feature fixture",
     "image": "feed-timeline-light-mobile.png",
-    "source": "frontend/test-results-complete-feature-populated-feed/complete-design-populated-community-feed-light-390px-chromium/feed-timeline.png"
+    "source": "frontend/test-results-complete-features/complete-design-populated-community-feed-light-390px-chromium/feed-timeline.png"
   },
   {
     "title": "Feedback",

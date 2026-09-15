@@ -23,6 +23,8 @@ Full changelogs are split by version range for easier navigation:
 ### Professional discovery and upcoming features (#1200, 2026-09-15)
 <!-- categories: memba -->
 - Rename navigation to Dev Report while preserving existing Gnolove URLs.
+- Use a minimalist sun/moon header shortcut while keeping System preference in Settings and mobile More.
+- Fix Dev Report cache restoration after navigating away from unfinished reads: persist only successful queries and invalidate the old serialized-promise format.
 - Replace unavailable feature placeholders with responsive, clearly labelled design previews, including Marketplace, Reputation, publishing, community and game surfaces. Previews cannot mount or activate the gated features.
 - Keep an App Store ecosystem directory available independently of the on-chain registry: Adena, GnoSwap, Boards, Akkadia, GnoScan and Gno Playground. Beta and preview status remain explicit; publishing, moderation and reviews retain their existing guards.
 

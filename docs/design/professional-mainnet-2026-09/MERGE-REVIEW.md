@@ -28,13 +28,17 @@ The initial review found `origin/main` and the untouched shared main checkout at
 
 Merge simulations do not alter other worktrees. Re-fetch main and check the current PR head immediately before merging: later independent changes can invalidate a previous clean result.
 
+## Cache restoration correction found by the full route review
+
+The full browser matrix exposed a pre-existing Dev Report persistence bug: the namespace-only dehydration filter included pending queries. JSON serializes their promises to objects, which fail during hydration on the next page load. The correction composes the namespace restriction with the library’s successful-query filter and uses a stable cache buster to discard the incompatible old format before hydration. Existing cached Dev Report reads refetch once; no wallet, account or transaction storage is changed. The unit regression reproduces the old exception and verifies the corrected JSON round trip plus migration. See [TanStack’s cache-busting contract](https://tanstack.com/query/latest/docs/framework/react/plugins/persistQueryClient#cache-busting).
+
 ## Existing dependency advisories
 
 GitHub reports six existing advisories against main: gRPC-Go (high, #159), Hono (three medium, #160–162) and Vitest/mocker (two medium, #163–164). This PR leaves `backend/go.mod`, `pnpm-lock.yaml` and the workspace dependency policy unchanged. The high advisory concerns xDS servers; `go list -deps ./...` for the backend contains no `google.golang.org/grpc/xds` package, and the application does not create an xDS server. These alerts remain dependency maintenance work; they are not evidence that this PR introduces a reachable vulnerability. Full repository security clearance is distinct from approval of this frontend diff.
 
 ## Validation and review evidence
 
-- Full local unit suite: 5,170 passed, one skipped; default/full-design builds and lint passed.
+- Before the last mainline integration and cache correction, the full local unit suite: 5,170 passed, one skipped; default/full-design builds and lint passed.
 - New focused boundary/navigation tests: 65 passed; publisher tests: 19 passed.
 - All three App Store browser boundary tests passed against an isolated pinned-flags server. Two obsolete assertions were updated to keep ecosystem discovery public while registry details, publishing and curation remain gated. Other sessions’ dev servers were left untouched.
 - Final theme refinement: 11 targeted unit tests, four Chromium/Firefox validator checks, two preference/mobile checks and eight refreshed discovery/validator visual cases passed; build and lint passed.
