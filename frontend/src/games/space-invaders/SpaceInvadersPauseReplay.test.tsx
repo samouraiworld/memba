@@ -79,6 +79,24 @@ function gameSurface(): HTMLElement {
 }
 
 describe("pause determinism (daily replay fidelity)", () => {
+  it("records a between-frame touch tap at the consumed tick and verifies the resulting daily run", () => {
+    render(<SpaceInvaders />);
+    fireEvent.click(screen.getByRole("button", { name: /daily run/i }));
+    const surface = gameSurface();
+    for (const type of ["pointerdown", "pointerup"]) {
+      const event = new MouseEvent(type, { bubbles: true, clientX: 300 });
+      Object.defineProperty(event, "pointerId", { value: 7 });
+      act(() => surface.dispatchEvent(event));
+    }
+    flushFrame(0);
+    flushFrame(8);
+    flushFrame(20);
+    expect(screen.queryByRole("heading", { name: /relay standing by/i })).not.toBeInTheDocument();
+    driveToGameover(20);
+    expect(screen.getByText(/verified locally/i)).toBeInTheDocument();
+    expect(screen.queryByText(/verification pending/i)).toBeNull();
+  });
+
   it("pause/resume mid-run: the recorded log still re-simulates to the identical score/hash", () => {
     // The load-bearing shape of this scenario: the input CHANGES after the
     // resume (firing starts only then). If paused wall-time consumed ticks —
