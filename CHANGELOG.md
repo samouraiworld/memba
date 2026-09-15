@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Alerts — contacts can be Discord roles and are pinged on WARNING too (2026-09-15)
+<!-- categories: memba -->
+- **The mention tag help now matches what the alerting service does.** A contact is mentioned on WARNING and CRITICAL validator alerts (never RESOLVED), and the tag can be a Discord role as well as a person: enter `&` followed by the role ID, or paste the mention Discord shows when you type `\@name` or `\@RoleName` in a channel. Role mentions are Discord only and are ignored on Slack. The form still sends the tag as typed; the service remains the one that accepts or refuses it.
+
 ### Generated DAO proposal details preserve authentic fields (2026-09-15)
 
 - Read the generated realm's final metadata footer before selecting a proposal parser, then prefer validated structured records when available. Proposal text cannot replace the real author, status or weighted tallies, or masquerade as executable action metadata.
