@@ -119,3 +119,7 @@ An implemented row is not a release-readiness claim. See the final handoff for e
 - The App Store includes six documented ecosystem projects even when its registry is disabled. Registry detail, submit/review, moderation and fee paths remain independent and gated.
 - [62-screen visual review](COMPLETE-REVIEW.md) includes the refreshed Marketplace, App Store and Reputation screens in both themes and sizes.
 - [Merge review](MERGE-REVIEW.md) records integration checks and concurrent-branch findings. The final PR Checks tab is authoritative for the pushed commit.
+
+## Final theme-control refinement — 2026-09-15
+
+The owner requested a minimalist sun/moon header icon. The borderless shortcut now switches Light/Black with a 44px target, an explicit accessible action name and visible keyboard focus. System preference remains available in Settings and the mobile More sheet; mobile header space is preserved. Updated desktop Validators and discovery screenshots are in the review gallery. Targeted keyboard, persistence, OS preference, mobile fit and Chromium/Firefox checks passed. The current PR head must pass full CI before merge.

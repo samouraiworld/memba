@@ -7,7 +7,7 @@ test('mobile theme remains in More while network and wallet fit the narrow heade
     await page.emulateMedia({ colorScheme: 'light' })
     await page.goto('/pearl/validators')
     await expect(page.locator('.k-topbar')).toBeVisible()
-    await expect(page.locator('.k-topbar .k-theme-select')).toBeHidden()
+    await expect(page.locator('.k-topbar .k-theme-toggle')).toBeHidden()
     const fits = await page.locator('.k-topbar').evaluate(el => {
         const edge = el.getBoundingClientRect().right
         return [...el.querySelectorAll('select, a, button')].filter(child => child.getClientRects().length > 0)

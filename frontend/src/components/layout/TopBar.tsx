@@ -4,7 +4,7 @@ import { APP_VERSION, validateActiveRpcDomain, selectableNetworksFor } from "../
 import { NotificationBell } from "./NotificationBell"
 import type { Notification } from "../../lib/notifications"
 import { PRO_APP_ENABLED } from "../../lib/professionalFlags"
-import { ThemeSelect } from "../ui/ThemeSelect"
+import { ThemeToggle } from "../ui/ThemeSelect"
 
 // ── Types ──────────────────────────────────────────────────────────────
 interface TopBarProps {
@@ -75,7 +75,7 @@ export function TopBar({ adena, auth, compactBalance, network, isLoggingIn, auth
                 {/* Right: network + wallet */}
                 <div className="k-topbar-right">
                     {/* Theme toggle */}
-                    <ThemeSelect />
+                    <ThemeToggle />
 
                     {/* Network selector */}
                     <select

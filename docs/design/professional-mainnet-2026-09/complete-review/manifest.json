@@ -150,7 +150,7 @@
     "viewport": "desktop",
     "state": "Synthetic mixed-health validator roster",
     "image": "validators-populated-dark-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-populated-validator-roster-dark-1600px-chromium/validators-populated.png"
+    "source": "frontend/test-results-complete/complete-design-populated-validator-roster-dark-1600px-chromium/validators-populated.png"
   },
   {
     "title": "Validators",
@@ -159,7 +159,7 @@
     "viewport": "mobile",
     "state": "Synthetic mixed-health validator roster",
     "image": "validators-populated-dark-mobile.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-populated-validator-roster-dark-390px-chromium/validators-populated.png"
+    "source": "frontend/test-results-complete/complete-design-populated-validator-roster-dark-390px-chromium/validators-populated.png"
   },
   {
     "title": "Validators",
@@ -168,7 +168,7 @@
     "viewport": "desktop",
     "state": "Synthetic mixed-health validator roster",
     "image": "validators-populated-light-desktop.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-populated-validator-roster-light-1600px-chromium/validators-populated.png"
+    "source": "frontend/test-results-complete/complete-design-populated-validator-roster-light-1600px-chromium/validators-populated.png"
   },
   {
     "title": "Validators",
@@ -177,7 +177,7 @@
     "viewport": "mobile",
     "state": "Synthetic mixed-health validator roster",
     "image": "validators-populated-light-mobile.png",
-    "source": "frontend/test-results-complete-refresh/complete-design-populated-validator-roster-light-390px-chromium/validators-populated.png"
+    "source": "frontend/test-results-complete/complete-design-populated-validator-roster-light-390px-chromium/validators-populated.png"
   },
   {
     "title": "Advanced monitoring",

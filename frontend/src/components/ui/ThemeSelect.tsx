@@ -1,6 +1,19 @@
 import { useSyncExternalStore } from "react"
-import { getThemePreference, setTheme, subscribeTheme, type ThemePreference } from "../../lib/themeStore"
+import { Moon, Sun } from "@phosphor-icons/react"
+import { getTheme, getThemePreference, setTheme, subscribeTheme, toggleTheme, type ThemePreference } from "../../lib/themeStore"
 import "./theme-select.css"
+
+/** A quiet header shortcut; System remains available in appearance settings. */
+export function ThemeToggle() {
+    const theme = useSyncExternalStore(subscribeTheme, getTheme, () => "dark" as const)
+    const label = theme === "dark" ? "Switch to Light theme" : "Switch to Black theme"
+    const Icon = theme === "dark" ? Sun : Moon
+    return (
+        <button type="button" className="k-theme-toggle" aria-label={label} title={label} onClick={toggleTheme}>
+            <Icon size={20} weight="regular" aria-hidden="true" />
+        </button>
+    )
+}
 
 /** Native select keeps the same preference control keyboard-accessible everywhere. */
 export function ThemeSelect({ onSelect }: { onSelect?: () => void }) {

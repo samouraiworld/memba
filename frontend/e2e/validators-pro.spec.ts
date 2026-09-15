@@ -68,7 +68,9 @@ test('optional fields, sort, search, tabs and light theme remain usable', async 
     await page.setViewportSize({ width: 1440, height: 1000 })
     await page.goto('/pearl/validators')
     await expect(page.getByTestId('validator-row-1')).toBeVisible()
-    await page.getByRole('combobox', { name: 'Theme', exact: true }).selectOption('light')
+    if (await page.locator('html').getAttribute('data-theme') !== 'light') {
+        await page.getByRole('button', { name: 'Switch to Light theme' }).click()
+    }
     await expect(page.locator('.k-pro-ui')).toHaveCSS('background-color', 'rgb(255, 255, 255)')
     await page.getByRole('checkbox', { name: 'All columns' }).check()
     await expect(page.getByRole('columnheader', { name: 'Profile', exact: true })).toBeVisible()
@@ -196,7 +198,9 @@ test('resolved incident badge remains readable in both themes', async ({ page })
     await expect(page.locator('.val-incident-badge--resolved')).toHaveText('RESOLVED')
     await expect(page.locator('.val-incident-badge--resolved')).toHaveCSS('font-size', '12px')
     for (const theme of ['dark', 'light']) {
-        await page.getByRole('combobox', { name: 'Theme', exact: true }).selectOption(theme)
+        if (await page.locator('html').getAttribute('data-theme') !== theme) {
+            await page.getByRole('button', { name: `Switch to ${theme === 'dark' ? 'Black' : 'Light'} theme` }).click()
+        }
         // Wait for the existing link-color transition before measuring settled contrast.
         await expect(page.locator('.val-row-link').first()).toHaveCSS('color', theme === 'dark' ? 'rgb(245, 247, 246)' : 'rgb(23, 34, 30)')
         const axe = await new AxeBuilder({ page }).include('#main-content').analyze()
