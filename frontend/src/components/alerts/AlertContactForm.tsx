@@ -2,7 +2,7 @@
  * AlertContactForm — Combined list + add/edit form for alert contacts.
  *
  * Alert contacts link a validator moniker to a Discord/Slack mention tag
- * so CRITICAL alerts can @mention the right person.
+ * so WARNING and CRITICAL alerts can @mention the right person or role.
  *
  * @module components/alerts/AlertContactForm
  */
@@ -121,7 +121,7 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
 
         setSubmitting(false)
         // Keep the typed values on refusal — the server's reasons are all
-        // fixable in place (wrong webhook, blank field, non-numeric tag), and
+        // fixable in place (wrong webhook, blank field, invalid tag), and
         // wiping the form would force a full retype for each one.
         if (result.ok) resetForm()
         else setError(result.error || "Request failed")
@@ -194,25 +194,27 @@ export function AlertContactForm({ contacts, webhooks, onAdd, onUpdate, onDelete
                 </div>
 
                 <div>
-                    <label style={labelStyle}>Mention Tag (Discord/Slack ID)</label>
+                    <label style={labelStyle}>Mention Tag (Discord/Slack user or role ID)</label>
                     <input
                         id="contact-mention"
                         value={mentionTag}
                         onChange={e => setMentionTag(e.target.value)}
-                        placeholder="e.g. 123456789012345678"
+                        placeholder="e.g. 123456789012345678 or &123456789012345678"
                         aria-describedby="contact-mention-help"
                         style={inputStyle}
                     />
                     <div id="contact-mention-help" style={helpStyle}>
-                        The raw numeric user ID (a snowflake) — digits only. Not a username,
-                        and not wrapped in <code>&lt;@…&gt;</code>; the alert adds that itself.
-                        On Discord: User Settings → Advanced → Developer Mode, then right-click
-                        the user → "Copy User ID". A non-numeric value is rejected by the server.
+                        A user ID, or <code>&amp;</code> followed by a role ID for a role. Not a
+                        username. Tip: type <code>\@name</code> or <code>\@RoleName</code> in a
+                        Discord channel and paste the result (<code>&lt;@…&gt;</code> /{" "}
+                        <code>&lt;@&amp;…&gt;</code>). Otherwise: Developer Mode, then right-click
+                        → "Copy User ID" / "Copy Role ID".
                         <br />
-                        Mentions only fire on <strong>CRITICAL</strong> validator alerts — never
-                        WARNING or RESOLVED — and only through the webhook picked in "Linked
-                        Webhook". Telegram has no per-user mention syntax, so tags are not sent
-                        there. An empty tag is valid: the alert still fires, it just doesn't ping.
+                        Mentions fire on <strong>WARNING</strong> and <strong>CRITICAL</strong>{" "}
+                        validator alerts — never RESOLVED — and only through the webhook picked in
+                        "Linked Webhook". Role mentions are Discord only (ignored on Slack);
+                        Telegram gets no mentions. An empty tag is valid: the alert fires without
+                        a ping.
                     </div>
                 </div>
 
