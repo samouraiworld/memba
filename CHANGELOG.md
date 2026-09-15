@@ -46,6 +46,10 @@ Full changelogs are split by version range for easier navigation:
 - GovDAO proposal details now agree with the overview when a description contains words such as “restricted”: the status comes from the generated Stats section rather than the first status-like word in the page. Legacy metadata, generated Memba template footers and basedao/daokit status formats are preserved.
 - GovDAO ACCEPTED now means executed in both the list and detail reader, matching its deployed lifecycle and preventing repeat-execution prompts. Other DAO types retain their existing passed/awaiting-execution behavior.
 - Regression coverage uses a captured mainnet render and verifies the resulting vote/execution controls, membership and archive restrictions, and unchanged message payloads with mocked broadcasts.
+### Error-report breadcrumbs redact wallet addresses and token-like text (2026-09-14)
+<!-- categories: memba -->
+- Sentry breadcrumbs now mask Gno wallet addresses and JWT-like text, including nested query keys and console arguments, before storage and before error or transaction events are sent. Existing error-message masking is preserved.
+- Breadcrumb snapshots no longer retain mutable application objects or custom serializers. Uninspectable or oversized breadcrumbs are omitted while the surrounding event remains available.
 
 ### Validator page-size control is named for screen readers (2026-09-14)
 <!-- categories: memba -->
