@@ -1,6 +1,8 @@
 # Professional design task ledger
 
-Updated 2026-09-15. Autonomous pilot completion authorized; final review is consolidated in REVIEW.md. Owner: current design implementation session. Memba only. No background agents, automations, merges or deployments.
+Updated 2026-09-15. D-12 authorizes the complete frontend rollout in one PR. Current status: implementation complete in [#1200](https://github.com/samouraiworld/memba/pull/1200); see [COMPLETE-REVIEW.md](COMPLETE-REVIEW.md) and [COMPLETE-HANDOFF.md](COMPLETE-HANDOFF.md). Owner: design/integration session. Memba only; production remains unchanged.
+
+The P0–P8 table below records the earlier pilot sequence. Its separate PRs are superseded by the consolidated C1–C7 delivery at the end of this ledger.
 
 ## Baseline and isolation
 
@@ -9,7 +11,7 @@ Updated 2026-09-15. Autonomous pilot completion authorized; final review is cons
 - P1 branch: `feat/system-theme-preference`.
 - P1 worktree: `Memba-worktrees/system-theme-preference`.
 - Separate active worktree `review-main-98b8b76` has validator accessibility work. Preserve semantic rows/sort buttons and incorporate landed changes when updating the pilot base; do not modify that checkout.
-- Decisions: D-01 through D-11. Branding: 01 / Folded M selected, asset adoption separate.
+- Decisions: D-01 through D-12. Branding: 01 / Folded M selected and adopted in the consolidated preview.
 
 | Task | Status | Owned files / dependency | Handoff |
 |---|---|---|---|
@@ -21,7 +23,7 @@ Updated 2026-09-15. Autonomous pilot completion authorized; final review is cons
 | P5 Pilot review | Awaiting user review | Reproducible preview, screenshots, validation evidence | Production flag stays off. Mixed health and missing-signal states verified. Manual screen-reader, physical-device, browser zoom and connected-wallet reviews remain rollout gates. |
 | P6 shell / B1 artwork | In review · [#1196](https://github.com/samouraiworld/memba/pull/1196) | `feat/professional-shell-brand`, stacked on #1195; own worktree and dependency cache. Shell flag, manifest-derived presentation, SVG/PNG identity package | 19 targeted unit tests, build/lint, 35 browser checks passed locally; additional mobile search-focus checks passed. Full CI is linked from the PR. [Review pack](https://github.com/samouraiworld/memba/blob/feat/professional-shell-brand/docs/design/professional-mainnet-2026-09/SHELL-BRAND-REVIEW.md). |
 | P7 DAO / proposal readers | In review · [#1197](https://github.com/samouraiworld/memba/pull/1197) | `feat/professional-governance`, based on #1196. Scoped route flag, overview/list/member links, proposal reading layout, offline browser tests | 35 targeted units + 10 transaction parity tests passed. Lint/build, 42 browser cases and 8 final contrast/visual checks passed locally. Final-head full CI passed; see evidence below. |
-| P8 remaining bodies / production brand activation | Later staged work | DAO directory/onboarding, Home and remaining feature families; metadata/icons integration separately | No production flags or metadata activated. Resolve the verified list/detail status mismatch before mainnet rollout. |
+| P8 remaining bodies / production brand activation | Frontend complete in C1–C7; production activation separate | DAO directory/onboarding, Home, remaining route families, metadata and icons | Full preview delivered in #1200; current-main status correction integrated. Production flag activation remains a release decision. |
 
 ## Handoff requirements
 
