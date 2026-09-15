@@ -23,6 +23,7 @@ Full changelogs are split by version range for easier navigation:
 ### Proposal details read the realm's status field (2026-09-15)
 <!-- categories: memba -->
 - GovDAO proposal details now agree with the overview when a description contains words such as “restricted”: the status comes from the generated Stats section rather than the first status-like word in the page. Legacy metadata and basedao/daokit status formats are preserved.
+- GovDAO ACCEPTED now means executed in both the list and detail reader, matching its deployed lifecycle and preventing repeat-execution prompts. Other DAO types retain their existing passed/awaiting-execution behavior.
 - Regression coverage uses a captured mainnet render and verifies the resulting vote/execution controls, membership and archive restrictions, and unchanged message payloads with mocked broadcasts.
 
 ### Validator page-size control is named for screen readers (2026-09-14)

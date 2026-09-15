@@ -11,12 +11,12 @@ const fixture = readFileSync('src/lib/dao/testdata/gnoland-1/govdao-proposal-4.m
 vi.mock('../lib/rpcFallback', async importOriginal => ({ ...await importOriginal<typeof import('../lib/rpcFallback')>(), resilientAbciQuery: vi.fn() }))
 
 const state = vi.hoisted(() => ({
-    authenticated: true, member: true, archived: false, status: 'open',
+    realm: 'gno.land/r/team/dao', authenticated: true, member: true, archived: false, status: 'open',
     broadcast: vi.fn().mockResolvedValue(undefined),
     address: 'g1testmember',
 }))
 vi.mock('react-router-dom', async importOriginal => ({ ...await importOriginal<typeof import('react-router-dom')>(), useOutletContext: () => ({ auth: { isAuthenticated: state.authenticated }, adena: { address: state.authenticated ? state.address : '' } }) }))
-vi.mock('../hooks/useDaoRoute', () => ({ useDaoRoute: () => ({ realmPath: 'gno.land/r/team/dao', encodedSlug: 'gno.land/r/team/dao', proposalId: '4' }) }))
+vi.mock('../hooks/useDaoRoute', () => ({ useDaoRoute: () => ({ realmPath: state.realm, encodedSlug: state.realm, proposalId: '4' }) }))
 vi.mock('../hooks/useNetworkNav', () => ({ useNetworkNav: () => vi.fn() }))
 vi.mock('../hooks/useProposalDate', () => ({ useProposalDate: () => ({ timestamp: null }) }))
 vi.mock('../lib/profile', () => ({ resolveOnChainUsername: async () => 'alice' }))
@@ -35,7 +35,7 @@ function mount() {
     return render(<QueryClientProvider client={client}><MemoryRouter><ProposalView /></MemoryRouter></QueryClientProvider>)
 }
 beforeEach(() => {
-    state.authenticated = true; state.member = true; state.archived = false; state.status = 'open'; state.broadcast.mockClear()
+    state.realm = 'gno.land/r/team/dao'; state.authenticated = true; state.member = true; state.archived = false; state.status = 'open'; state.broadcast.mockClear()
     vi.mocked(resilientAbciQuery).mockImplementation(async () => fixture.replace(
         'PROPOSAL HAS BEEN ACCEPTED',
         state.status === 'open' ? 'Proposal is open for votes' : `PROPOSAL HAS BEEN ${state.status === 'passed' ? 'ACCEPTED' : state.status.toUpperCase()}`,
@@ -72,6 +72,14 @@ describe('transaction controls using the real proposal parser', () => {
         expect(state.broadcast).not.toHaveBeenCalled()
         fireEvent.click(execute)
         await waitFor(() => expect(state.broadcast).toHaveBeenCalledWith([buildExecuteMsg(state.address, 'gno.land/r/team/dao', 4)], 'Execute Proposal #4'))
+    })
+    it('offers no repeat execution or voting for the accepted mainnet GovDAO proposal', async () => {
+        state.realm = 'gno.land/r/gov/dao'; state.status = 'passed'; mount()
+        await screen.findByText('EXECUTED', { exact: true })
+        expect(screen.queryByRole('button', { name: 'Vote Yes on this proposal' })).not.toBeInTheDocument()
+        expect(screen.queryByRole('button', { name: 'Execute proposal 4' })).not.toBeInTheDocument()
+        expect(screen.queryByText('⚡ Awaiting execution')).not.toBeInTheDocument()
+        expect(state.broadcast).not.toHaveBeenCalled()
     })
     it.each(['rejected', 'executed'])('offers no actions for %s proposals', async status => {
         state.status = status; mount()

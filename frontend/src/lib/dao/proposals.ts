@@ -55,6 +55,19 @@ function matchLast(data: string, re: RegExp): RegExpExecArray | null {
     return last
 }
 
+/** GovDAO ACCEPTED is terminal: PreExecuteProposal rejects an already
+ * accepted proposal, and an executor error changes it to DENIED. This differs
+ * from basedao/daokit's Passed state, which still awaits execution. Scope this
+ * vocabulary to the canonical/versioned GovDAO realm, not arbitrary prefixes,
+ * JSON responses or daokit tables that have their own status contracts.
+ */
+function normalizeRenderedStatus(status: string, realmPath: string): DAOProposal["status"] {
+    if (/^gno\.land\/r\/gov\/dao(?:\/v\d+)?$/.test(realmPath) && status.toUpperCase() === "ACCEPTED") {
+        return "executed"
+    }
+    return normalizeStatus(status)
+}
+
 /** Read status fields, never status-like words in proposal prose.
  * Legacy flat renders put Status in the opening metadata block. GovDAO puts
  * Stats after the description and executor metadata; the final Stats heading
@@ -62,16 +75,16 @@ function matchLast(data: string, re: RegExp): RegExpExecArray | null {
  * Its first line owns the status, so a denied reason cannot override it.
  * Unknown/missing formats retain the existing open fallback.
  */
-function parseLegacyDetailStatus(data: string): DAOProposal["status"] {
+function parseLegacyDetailStatus(data: string, realmPath: string): DAOProposal["status"] {
     const header = data.trimStart().split(/\r?\n[ \t]*\r?\n/, 1)[0]
     const field = header.match(/^Status:[ \t]*(ACTIVE|OPEN|ACCEPTED|PASSED|DENIED|REJECTED|FAILED|EXECUTED|COMPLETED)[ \t]*$/im)
-    if (field) return normalizeStatus(field[1])
+    if (field) return normalizeRenderedStatus(field[1], realmPath)
 
     const stats = matchLast(data, /^### Stats[ \t]*\r?$/m)
     if (!stats) return "open"
     const firstLine = data.slice(stats.index + stats[0].length).trimStart().split(/\r?\n/, 1)[0]
     const status = firstLine.match(/^- \*\*PROPOSAL HAS BEEN (ACCEPTED|DENIED|REJECTED|EXECUTED)\*\*[ \t]*$/i)
-    return normalizeStatus(status?.[1] || "open")
+    return normalizeRenderedStatus(status?.[1] || "open", realmPath)
 }
 
 // Action metadata extraction, shared by BOTH detail legs so the two can't
@@ -128,7 +141,7 @@ function parseDaokitProposalRows(data: string): DAOProposal[] {
  * Tiers eligible to vote: T1, T2, T3
  * Also handles gnodaokit/basedao markdown tables (see parseDaokitProposalRows).
  */
-export function parseProposalList(data: string): DAOProposal[] {
+export function parseProposalList(data: string, realmPath = ""): DAOProposal[] {
     // gnodaokit/basedao renders proposals as a markdown table; a page carrying
     // one never also carries GovDAO-style sections, so table rows win outright.
     const tableRows = parseDaokitProposalRows(data)
@@ -171,7 +184,7 @@ export function parseProposalList(data: string): DAOProposal[] {
         // Category: governance | treasury | membership | operations
         const categoryMatch = section.match(/Category:\s*(\w+)/i)
         // Status: ACTIVE | ACCEPTED | etc
-        const statusMatch = section.match(/Status:\s*(\w+)/i)
+        const statusMatch = section.match(/^Status:[ \t]*(\w+)[ \t]*$/im)
         // Tiers eligible to vote: T1, T2, T3
         const tiersMatch = section.match(/Tiers?\s+eligible\s+to\s+vote:\s*([^\n]+)/i)
         // v3.2: Creation block height (if present in list format)
@@ -184,7 +197,7 @@ export function parseProposalList(data: string): DAOProposal[] {
             title: unescapeMarkdown(propMatch[2].trim()),
             description: "",
             category: categoryMatch?.[1]?.toLowerCase() || "",
-            status: normalizeStatus(statusMatch?.[1] || "open"),
+            status: normalizeRenderedStatus(statusMatch?.[1] || "open", realmPath),
             author: authorName,
             authorProfile: authorMatch?.[2] || "",
             tiers: tiersMatch
@@ -227,7 +240,7 @@ async function fetchRemainingPages(
             pagePromises.push(queryRenderPage(rpcUrl, realmPath, `${base}?page=${p}`))
         }
         for (const pageData of await Promise.all(pagePromises)) {
-            if (pageData) rows.push(...parseProposalList(pageData))
+            if (pageData) rows.push(...parseProposalList(pageData, realmPath))
             else complete = false
         }
     }
@@ -254,7 +267,7 @@ async function fetchDaokitProposalPages(
 ): Promise<{ rows: DAOProposal[]; complete: boolean } | null> {
     const page1 = await queryRenderPage(rpcUrl, realmPath, base)
     if (!page1) return null
-    const rows = parseProposalList(page1)
+    const rows = parseProposalList(page1, realmPath)
     if (rows.length === 0 && !/^##\s+(?:Active|Inactive)\s+Proposals/m.test(page1)) {
         return null // answered, but not with a daokit proposals page
     }
@@ -317,7 +330,7 @@ export async function getDAOProposals(
             // scanners would otherwise count voted proposals as unvoted).
             deleteDaoDialect(rpcUrl, realmPath)
             if (page1) {
-                const rootRows = parseProposalList(page1)
+                const rootRows = parseProposalList(page1, realmPath)
                 if (rootRows.length > 0) {
                     const rest = await fetchRemainingPages(rpcUrl, realmPath, page1, "")
                     return finalize([...rootRows, ...rest.rows, ...(history?.rows ?? [])], false)
@@ -405,7 +418,7 @@ export async function getDAOProposals(
         return readDaokitLists(page1)
     }
 
-    const proposals = parseProposalList(page1)
+    const proposals = parseProposalList(page1, realmPath)
     const rest = await fetchRemainingPages(rpcUrl, realmPath, page1, "")
     proposals.push(...rest.rows)
     return finalize(proposals, rest.complete)
@@ -603,7 +616,7 @@ export async function getProposalDetail(
         // Author — resolved "[@user](url)" or a bare "g1…" address (F-E2)
         const { author, authorProfile } = parseProposalAuthor(data)
 
-        const status = parseLegacyDetailStatus(data)
+        const status = parseLegacyDetailStatus(data, realmPath)
 
         // Vote percentages
         const yesPercentMatch = data.match(/YES\s+PERCENT:\s*(\d+)%/i)

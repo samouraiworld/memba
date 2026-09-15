@@ -26,3 +26,11 @@ The description contains `bank:p:restricted_denoms`; the generated Stats
 section reports ACCEPTED. The old detail regex matched “restricted” first
 and incorrectly displayed ACTIVE. The older fixtures above retain their
 original capture dates and membership.
+
+A read-only `vm/qfile` of `gno.land/r/gov/dao/impl/v0/govdao.gno` on the
+same date confirmed that `PreExecuteProposal` rejects an Accepted proposal
+as already executed. It sets Accepted when execution begins; executor errors
+clear Accepted and mark Denied. Accordingly, this realm's ACCEPTED maps to
+`executed`, not the generic `passed` / awaiting-execution state. The mapping
+is scoped to the canonical/versioned GovDAO paths and markdown dialect;
+basedao/daokit and JSON endpoint status contracts are unchanged.
