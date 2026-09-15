@@ -25,6 +25,11 @@ Full changelogs are split by version range for easier navigation:
 - Completed fire taps are held until a fixed simulation step consumes them, including slow frames and high-refresh frames with no simulation step. Held firing and deterministic daily replay remain unchanged.
 - Cancelled touches, lost focus and run/menu/pause boundaries clear stale input. The mobile regression now delivers a complete tap between frames instead of relying on a timed hold.
 
+### Arcade attestation limits include failed attempts (2026-09-15)
+<!-- categories: memba -->
+- The day-close worker now applies its per-cycle limit to every broadcast attempt, including failed transactions and failures to save a receipt. Failed boards can no longer leave the full attempt allowance available for later boards in the same cycle.
+- Successful-attestation counts and retry parking are preserved. The cycle limit remains distinct from a daily or monthly gas budget.
+
 ### Proposal details read the realm's status field (2026-09-15)
 <!-- categories: memba -->
 - GovDAO proposal details now agree with the overview when a description contains words such as “restricted”: the status comes from the generated Stats section rather than the first status-like word in the page. Legacy metadata, generated Memba template footers and basedao/daokit status formats are preserved.
