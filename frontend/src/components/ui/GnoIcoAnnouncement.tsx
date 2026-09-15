@@ -195,7 +195,7 @@ export function GnoIcoAnnouncement({ suppressed = false }: { suppressed?: boolea
                     border: 1px solid var(--color-primary-border);
                     border-radius: 18px;
                     padding: 28px 24px 24px;
-                    font-family: "JetBrains Mono", monospace;
+                    font-family: var(--font-ui, "JetBrains Mono", monospace);
                     box-shadow: 0 24px 64px var(--color-overlay);
                 }
                 @keyframes membaIcoFade { from { opacity: 0; } to { opacity: 1; } }

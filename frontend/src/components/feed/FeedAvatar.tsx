@@ -6,6 +6,7 @@
  *
  * @module components/feed/FeedAvatar
  */
+import { PRO_APP_ENABLED } from "../../lib/professionalFlags"
 import { avatarHue, avatarLabel } from "../../lib/feedAvatar"
 
 export function FeedAvatar({ address, size = 36 }: { address: string; size?: number }) {
@@ -20,7 +21,7 @@ export function FeedAvatar({ address, size = 36 }: { address: string; size?: num
                 fontSize: Math.round(size * 0.36),
                 // Mid-tone, fixed S/L so every tile sits in the same visual family
                 // and stays legible with light text on either theme.
-                background: `hsl(${hue}, 42%, 42%)`,
+                background: `hsl(${hue}, 42%, ${PRO_APP_ENABLED ? 30 : 42}%)`,
             }}
         >
             {avatarLabel(address)}

@@ -35,7 +35,7 @@ for stem,title,family,kind,state in selections:
    match=f'*{prefix}-{theme}-*chromium/{stem}.png' if kind=='protected' else f'*{prefix}-{theme}-{width}px*chromium/{stem}.png'
    candidates=list(base.glob(match))
    # Targeted follow-up runs keep their evidence separate from the complete matrix.
-   for extra in ['test-results-complete-populated','test-results-complete-feature-populated','test-results-complete-protected']:
+   for extra in ['test-results-complete-populated','test-results-complete-feature-populated', 'test-results-complete-feature-populated-feed', 'test-results-complete-refresh','test-results-complete-protected']:
     candidates.extend((ROOT/'frontend'/extra).glob(match))
    if not candidates: continue
    source=max(candidates,key=lambda p:p.stat().st_mtime)
