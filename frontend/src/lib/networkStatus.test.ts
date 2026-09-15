@@ -7,6 +7,7 @@ vi.mock("./rpcFallback", () => ({
 }))
 
 describe("formatBlockAge", () => {
+    it.each([Infinity, NaN, -1])("does not invent an age for unavailable block data (%s)", seconds => expect(formatBlockAge(seconds)).toBe("Unavailable"))
     it("formats seconds", () => expect(formatBlockAge(30)).toBe("30s ago"))
     it("formats minutes", () => expect(formatBlockAge(120)).toBe("2m ago"))
     it("formats hours", () => expect(formatBlockAge(7200)).toBe("2h ago"))

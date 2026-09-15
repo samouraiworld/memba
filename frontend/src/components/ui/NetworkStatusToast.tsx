@@ -62,7 +62,7 @@ export function NetworkStatusToast() {
     return (
         <div
             className="net-status-toast"
-            style={{ borderColor: `${config.color}30`, background: `${config.color}08` }}
+            style={{ borderColor: config.color, background: "var(--color-k-panel)" }}
             role="status"
             aria-live="polite"
         >
@@ -75,7 +75,7 @@ export function NetworkStatusToast() {
                     Last block: {formatBlockAge(blockAge)}
                 </span>
             </div>
-            <button className="net-status-toast__dismiss" onClick={dismiss}>×</button>
+            <button className="net-status-toast__dismiss" aria-label="Dismiss network status" onClick={dismiss}>×</button>
         </div>
     )
 }

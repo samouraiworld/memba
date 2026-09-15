@@ -225,3 +225,8 @@
   .k-pro-app .k-txview__detail-card { grid-template-columns: minmax(0, 1fr); }
   .k-pro-app .k-txview__field-row { grid-template-columns: 92px minmax(0, 1fr); gap: 12px; }
 }
+
+.k-pro-app .net-status-toast { font-family: var(--font-sans); border-radius: 12px; padding: 12px 16px; }
+.k-pro-app .net-status-toast__label { font-size: 14px; }
+.k-pro-app .net-status-toast__detail { font-size: 13px; }
+.k-pro-app .net-status-toast__dismiss { min-width: 44px; min-height: 44px; }

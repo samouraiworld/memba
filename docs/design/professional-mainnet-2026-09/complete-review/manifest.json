@@ -1,0 +1,524 @@
+[
+  {
+    "title": "Home",
+    "family": "core",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Synthetic governance and network reads",
+    "image": "home-dark-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-dark-1600px-group-1-chromium/home.png"
+  },
+  {
+    "title": "Home",
+    "family": "core",
+    "theme": "Black",
+    "viewport": "mobile",
+    "state": "Synthetic governance and network reads",
+    "image": "home-dark-mobile.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-dark-390px-group-1-chromium/home.png"
+  },
+  {
+    "title": "Home",
+    "family": "core",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Synthetic governance and network reads",
+    "image": "home-light-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-light-1600px-group-1-chromium/home.png"
+  },
+  {
+    "title": "Home",
+    "family": "core",
+    "theme": "Light",
+    "viewport": "mobile",
+    "state": "Synthetic governance and network reads",
+    "image": "home-light-mobile.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-light-390px-group-1-chromium/home.png"
+  },
+  {
+    "title": "DAO directory",
+    "family": "core",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Synthetic DAO directory",
+    "image": "dao-dark-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-dark-1600px-group-1-chromium/dao.png"
+  },
+  {
+    "title": "DAO directory",
+    "family": "core",
+    "theme": "Black",
+    "viewport": "mobile",
+    "state": "Synthetic DAO directory",
+    "image": "dao-dark-mobile.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-dark-390px-group-1-chromium/dao.png"
+  },
+  {
+    "title": "DAO directory",
+    "family": "core",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Synthetic DAO directory",
+    "image": "dao-light-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-light-1600px-group-1-chromium/dao.png"
+  },
+  {
+    "title": "DAO directory",
+    "family": "core",
+    "theme": "Light",
+    "viewport": "mobile",
+    "state": "Synthetic DAO directory",
+    "image": "dao-light-mobile.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-light-390px-group-1-chromium/dao.png"
+  },
+  {
+    "title": "DAO overview",
+    "family": "core",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Synthetic governance fixture",
+    "image": "dao-gno.land-r-gov-dao-dark-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-dark-1600px-group-1-chromium/dao-gno.land-r-gov-dao.png"
+  },
+  {
+    "title": "DAO overview",
+    "family": "core",
+    "theme": "Black",
+    "viewport": "mobile",
+    "state": "Synthetic governance fixture",
+    "image": "dao-gno.land-r-gov-dao-dark-mobile.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-dark-390px-group-1-chromium/dao-gno.land-r-gov-dao.png"
+  },
+  {
+    "title": "DAO overview",
+    "family": "core",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Synthetic governance fixture",
+    "image": "dao-gno.land-r-gov-dao-light-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-light-1600px-group-1-chromium/dao-gno.land-r-gov-dao.png"
+  },
+  {
+    "title": "DAO overview",
+    "family": "core",
+    "theme": "Light",
+    "viewport": "mobile",
+    "state": "Synthetic governance fixture",
+    "image": "dao-gno.land-r-gov-dao-light-mobile.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-light-390px-group-1-chromium/dao-gno.land-r-gov-dao.png"
+  },
+  {
+    "title": "Proposal reader",
+    "family": "core",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Synthetic governance fixture",
+    "image": "dao-gno.land-r-gov-dao-proposal-4-dark-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-dark-1600px-group-1-chromium/dao-gno.land-r-gov-dao-proposal-4.png"
+  },
+  {
+    "title": "Proposal reader",
+    "family": "core",
+    "theme": "Black",
+    "viewport": "mobile",
+    "state": "Synthetic governance fixture",
+    "image": "dao-gno.land-r-gov-dao-proposal-4-dark-mobile.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-dark-390px-group-1-chromium/dao-gno.land-r-gov-dao-proposal-4.png"
+  },
+  {
+    "title": "Proposal reader",
+    "family": "core",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Synthetic governance fixture",
+    "image": "dao-gno.land-r-gov-dao-proposal-4-light-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-light-1600px-group-1-chromium/dao-gno.land-r-gov-dao-proposal-4.png"
+  },
+  {
+    "title": "Proposal reader",
+    "family": "core",
+    "theme": "Light",
+    "viewport": "mobile",
+    "state": "Synthetic governance fixture",
+    "image": "dao-gno.land-r-gov-dao-proposal-4-light-mobile.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-route-coverage-light-390px-group-1-chromium/dao-gno.land-r-gov-dao-proposal-4.png"
+  },
+  {
+    "title": "Validators",
+    "family": "core",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Synthetic mixed-health validator roster",
+    "image": "validators-populated-dark-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-populated-validator-roster-dark-1600px-chromium/validators-populated.png"
+  },
+  {
+    "title": "Validators",
+    "family": "core",
+    "theme": "Black",
+    "viewport": "mobile",
+    "state": "Synthetic mixed-health validator roster",
+    "image": "validators-populated-dark-mobile.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-populated-validator-roster-dark-390px-chromium/validators-populated.png"
+  },
+  {
+    "title": "Validators",
+    "family": "core",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Synthetic mixed-health validator roster",
+    "image": "validators-populated-light-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-populated-validator-roster-light-1600px-chromium/validators-populated.png"
+  },
+  {
+    "title": "Validators",
+    "family": "core",
+    "theme": "Light",
+    "viewport": "mobile",
+    "state": "Synthetic mixed-health validator roster",
+    "image": "validators-populated-light-mobile.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-populated-validator-roster-light-390px-chromium/validators-populated.png"
+  },
+  {
+    "title": "Advanced monitoring",
+    "family": "core",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Intercepted reads; unavailable monitoring state",
+    "image": "validators-hacker-dark-desktop.png",
+    "source": "frontend/test-results-complete/complete-design-route-coverage-dark-1600px-group-5-chromium/validators-hacker.png"
+  },
+  {
+    "title": "Advanced monitoring",
+    "family": "core",
+    "theme": "Black",
+    "viewport": "mobile",
+    "state": "Intercepted reads; unavailable monitoring state",
+    "image": "validators-hacker-dark-mobile.png",
+    "source": "frontend/test-results-complete/complete-design-route-coverage-dark-390px-group-5-chromium/validators-hacker.png"
+  },
+  {
+    "title": "Advanced monitoring",
+    "family": "core",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Intercepted reads; unavailable monitoring state",
+    "image": "validators-hacker-light-desktop.png",
+    "source": "frontend/test-results-complete/complete-design-route-coverage-light-1600px-group-5-chromium/validators-hacker.png"
+  },
+  {
+    "title": "Advanced monitoring",
+    "family": "core",
+    "theme": "Light",
+    "viewport": "mobile",
+    "state": "Intercepted reads; unavailable monitoring state",
+    "image": "validators-hacker-light-mobile.png",
+    "source": "frontend/test-results-complete/complete-design-route-coverage-light-390px-group-5-chromium/validators-hacker.png"
+  },
+  {
+    "title": "Multisig workspace",
+    "family": "account",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Synthetic account; wallet actions disabled",
+    "image": "multisig-dark-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-dark-interaction-chromium/multisig.png"
+  },
+  {
+    "title": "Multisig workspace",
+    "family": "account",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Synthetic account; wallet actions disabled",
+    "image": "multisig-light-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-light-interaction-chromium/multisig.png"
+  },
+  {
+    "title": "Transaction review",
+    "family": "account",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Synthetic transfer; wallet actions disabled",
+    "image": "tx-7-dark-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-dark-interaction-chromium/tx-7.png"
+  },
+  {
+    "title": "Transaction review",
+    "family": "account",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Synthetic transfer; wallet actions disabled",
+    "image": "tx-7-light-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-light-interaction-chromium/tx-7.png"
+  },
+  {
+    "title": "Token creation",
+    "family": "account",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Synthetic account; wallet actions disabled",
+    "image": "create-token-dark-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-dark-interaction-chromium/create-token.png"
+  },
+  {
+    "title": "Token creation",
+    "family": "account",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Synthetic account; wallet actions disabled",
+    "image": "create-token-light-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-light-interaction-chromium/create-token.png"
+  },
+  {
+    "title": "DAO creation",
+    "family": "account",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Synthetic account; wallet actions disabled",
+    "image": "dao-create-dark-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-dark-interaction-chromium/dao-create.png"
+  },
+  {
+    "title": "DAO creation",
+    "family": "account",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Synthetic account; wallet actions disabled",
+    "image": "dao-create-light-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-light-interaction-chromium/dao-create.png"
+  },
+  {
+    "title": "Settings",
+    "family": "account",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Synthetic account; wallet actions disabled",
+    "image": "settings-dark-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-dark-interaction-chromium/settings.png"
+  },
+  {
+    "title": "Settings",
+    "family": "account",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Synthetic account; wallet actions disabled",
+    "image": "settings-light-desktop.png",
+    "source": "frontend/test-results-complete-refresh/complete-design-protected-workflow-light-interaction-chromium/settings.png"
+  },
+  {
+    "title": "Creator studio",
+    "family": "ecosystem",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Feature fixture; empty or guarded state",
+    "image": "nft-studio-dark-desktop.png",
+    "source": "frontend/test-results-complete-features/complete-design-route-coverage-dark-1600px-group-2-chromium/nft-studio.png"
+  },
+  {
+    "title": "Creator studio",
+    "family": "ecosystem",
+    "theme": "Black",
+    "viewport": "mobile",
+    "state": "Feature fixture; empty or guarded state",
+    "image": "nft-studio-dark-mobile.png",
+    "source": "frontend/test-results-complete-features/complete-design-route-coverage-dark-390px-group-2-chromium/nft-studio.png"
+  },
+  {
+    "title": "Creator studio",
+    "family": "ecosystem",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Feature fixture; empty or guarded state",
+    "image": "nft-studio-light-desktop.png",
+    "source": "frontend/test-results-complete-features/complete-design-route-coverage-light-1600px-group-2-chromium/nft-studio.png"
+  },
+  {
+    "title": "Creator studio",
+    "family": "ecosystem",
+    "theme": "Light",
+    "viewport": "mobile",
+    "state": "Feature fixture; empty or guarded state",
+    "image": "nft-studio-light-mobile.png",
+    "source": "frontend/test-results-complete-features/complete-design-route-coverage-light-390px-group-2-chromium/nft-studio.png"
+  },
+  {
+    "title": "Marketplace",
+    "family": "ecosystem",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Feature fixture; empty catalogue",
+    "image": "marketplace-dark-desktop.png",
+    "source": "frontend/test-results-complete-features/complete-design-route-coverage-dark-1600px-group-3-chromium/marketplace.png"
+  },
+  {
+    "title": "Marketplace",
+    "family": "ecosystem",
+    "theme": "Black",
+    "viewport": "mobile",
+    "state": "Feature fixture; empty catalogue",
+    "image": "marketplace-dark-mobile.png",
+    "source": "frontend/test-results-complete-features/complete-design-route-coverage-dark-390px-group-3-chromium/marketplace.png"
+  },
+  {
+    "title": "Marketplace",
+    "family": "ecosystem",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Feature fixture; empty catalogue",
+    "image": "marketplace-light-desktop.png",
+    "source": "frontend/test-results-complete-features/complete-design-route-coverage-light-1600px-group-3-chromium/marketplace.png"
+  },
+  {
+    "title": "Marketplace",
+    "family": "ecosystem",
+    "theme": "Light",
+    "viewport": "mobile",
+    "state": "Feature fixture; empty catalogue",
+    "image": "marketplace-light-mobile.png",
+    "source": "frontend/test-results-complete-features/complete-design-route-coverage-light-390px-group-3-chromium/marketplace.png"
+  },
+  {
+    "title": "App Store",
+    "family": "ecosystem",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Feature fixture; empty catalogue",
+    "image": "apps-dark-desktop.png",
+    "source": "frontend/test-results-complete-features/complete-design-route-coverage-dark-1600px-group-1-chromium/apps.png"
+  },
+  {
+    "title": "App Store",
+    "family": "ecosystem",
+    "theme": "Black",
+    "viewport": "mobile",
+    "state": "Feature fixture; empty catalogue",
+    "image": "apps-dark-mobile.png",
+    "source": "frontend/test-results-complete-features/complete-design-route-coverage-dark-390px-group-1-chromium/apps.png"
+  },
+  {
+    "title": "App Store",
+    "family": "ecosystem",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Feature fixture; empty catalogue",
+    "image": "apps-light-desktop.png",
+    "source": "frontend/test-results-complete-features/complete-design-route-coverage-light-1600px-group-1-chromium/apps.png"
+  },
+  {
+    "title": "App Store",
+    "family": "ecosystem",
+    "theme": "Light",
+    "viewport": "mobile",
+    "state": "Feature fixture; empty catalogue",
+    "image": "apps-light-mobile.png",
+    "source": "frontend/test-results-complete-features/complete-design-route-coverage-light-390px-group-1-chromium/apps.png"
+  },
+  {
+    "title": "Community feed",
+    "family": "ecosystem",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Synthetic public posts; feature fixture",
+    "image": "feed-timeline-dark-desktop.png",
+    "source": "frontend/test-results-complete-feature-populated-feed/complete-design-populated-community-feed-dark-1600px-chromium/feed-timeline.png"
+  },
+  {
+    "title": "Community feed",
+    "family": "ecosystem",
+    "theme": "Black",
+    "viewport": "mobile",
+    "state": "Synthetic public posts; feature fixture",
+    "image": "feed-timeline-dark-mobile.png",
+    "source": "frontend/test-results-complete-feature-populated-feed/complete-design-populated-community-feed-dark-390px-chromium/feed-timeline.png"
+  },
+  {
+    "title": "Community feed",
+    "family": "ecosystem",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Synthetic public posts; feature fixture",
+    "image": "feed-timeline-light-desktop.png",
+    "source": "frontend/test-results-complete-feature-populated-feed/complete-design-populated-community-feed-light-1600px-chromium/feed-timeline.png"
+  },
+  {
+    "title": "Community feed",
+    "family": "ecosystem",
+    "theme": "Light",
+    "viewport": "mobile",
+    "state": "Synthetic public posts; feature fixture",
+    "image": "feed-timeline-light-mobile.png",
+    "source": "frontend/test-results-complete-feature-populated-feed/complete-design-populated-community-feed-light-390px-chromium/feed-timeline.png"
+  },
+  {
+    "title": "Feedback",
+    "family": "community",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Form presentation; no submission",
+    "image": "feedback-dark-desktop.png",
+    "source": "frontend/test-results-complete/complete-design-route-coverage-dark-1600px-group-10-chromium/feedback.png"
+  },
+  {
+    "title": "Feedback",
+    "family": "community",
+    "theme": "Black",
+    "viewport": "mobile",
+    "state": "Form presentation; no submission",
+    "image": "feedback-dark-mobile.png",
+    "source": "frontend/test-results-complete/complete-design-route-coverage-dark-390px-group-10-chromium/feedback.png"
+  },
+  {
+    "title": "Feedback",
+    "family": "community",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Form presentation; no submission",
+    "image": "feedback-light-desktop.png",
+    "source": "frontend/test-results-complete/complete-design-route-coverage-light-1600px-group-10-chromium/feedback.png"
+  },
+  {
+    "title": "Feedback",
+    "family": "community",
+    "theme": "Light",
+    "viewport": "mobile",
+    "state": "Form presentation; no submission",
+    "image": "feedback-light-mobile.png",
+    "source": "frontend/test-results-complete/complete-design-route-coverage-light-390px-group-10-chromium/feedback.png"
+  },
+  {
+    "title": "Quests",
+    "family": "community",
+    "theme": "Black",
+    "viewport": "desktop",
+    "state": "Available and locked quest presentation",
+    "image": "quests-dark-desktop.png",
+    "source": "frontend/test-results-complete/complete-design-route-coverage-dark-1600px-group-8-chromium/quests.png"
+  },
+  {
+    "title": "Quests",
+    "family": "community",
+    "theme": "Black",
+    "viewport": "mobile",
+    "state": "Available and locked quest presentation",
+    "image": "quests-dark-mobile.png",
+    "source": "frontend/test-results-complete/complete-design-route-coverage-dark-390px-group-8-chromium/quests.png"
+  },
+  {
+    "title": "Quests",
+    "family": "community",
+    "theme": "Light",
+    "viewport": "desktop",
+    "state": "Available and locked quest presentation",
+    "image": "quests-light-desktop.png",
+    "source": "frontend/test-results-complete/complete-design-route-coverage-light-1600px-group-8-chromium/quests.png"
+  },
+  {
+    "title": "Quests",
+    "family": "community",
+    "theme": "Light",
+    "viewport": "mobile",
+    "state": "Available and locked quest presentation",
+    "image": "quests-light-mobile.png",
+    "source": "frontend/test-results-complete/complete-design-route-coverage-light-390px-group-8-chromium/quests.png"
+  }
+]

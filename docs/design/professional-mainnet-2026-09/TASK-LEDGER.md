@@ -99,12 +99,12 @@ Owner: design/integration session. Worktree `professional-complete`, branch `fea
 
 | Unit | Scope | Current status | Verification |
 |---|---|---|---|
-| C1 | Route policy, readable typography, Black/Light shared controls | Implemented | Build/lint, route matrix; final regression in progress |
-| C2 | Home, discovery, DAO list, account and editorial | Implemented | Live Home review, search/keyboard and route checks |
-| C3 | Members, treasury readers, creation, multisig and transaction review | Implemented | Synthetic account fixtures, existing payload/guard tests |
-| C4 | Marketplace, apps, creator/curator/publisher and NFT Studio | Implemented | Separate test-only feature build; capability gates preserved |
-| C5 | Feed, community, quests, specialist tools and plugins | Implemented | Route matrix, Black telemetry and game frame review |
-| C6 | Folded M icon/share adoption and crawler metadata | Implemented | Flag-on build and crawler unit checks |
-| C7 | Consolidated evidence and PR | In progress | Full checks, visual pack, current-main integration, push |
+| C1 | Route policy, readable typography, Black/Light shared controls | Complete | Build/lint and 53-case complete route matrix passed |
+| C2 | Home, discovery, DAO list, account and editorial | Complete | Live Home review, search/keyboard and route checks |
+| C3 | Members, treasury readers, creation, multisig and transaction review | Complete | Synthetic account fixtures, existing payload/guard tests |
+| C4 | Marketplace, apps, creator/curator/publisher and NFT Studio | Complete | Separate test-only feature build; capability gates preserved |
+| C5 | Feed, community, quests, specialist tools and plugins | Complete | Route matrix, Black telemetry and game frame review |
+| C6 | Folded M icon/share adoption and crawler metadata | Complete | Flag-on build and crawler unit checks |
+| C7 | Consolidated evidence and PR | Complete | [#1200](https://github.com/samouraiworld/memba/pull/1200), [visual pack](COMPLETE-REVIEW.md), [handoff](COMPLETE-HANDOFF.md), current-main integration; latest commit checks remain authoritative |
 
 An implemented row is not a release-readiness claim. See the final handoff for executed checks and the distinction between live readers, fixtures, unavailable data and capability-gated screens.
