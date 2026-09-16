@@ -179,6 +179,21 @@ export function hasOwnSubpageLink(data: string, realmPath: string, base: string)
 }
 
 /**
+ * Is `memberstorePath` bound to the DAO at `realmPath` — the realm itself or
+ * one of its sub-paths (GovDAO: "gno.land/r/gov/dao" → ".../memberstore/v0",
+ * test11 ".../v3/memberstore")? Member and tier data is only trusted from a
+ * store under the DAO's own path; an unbound path must be ignored, never read.
+ * Dot segments, empty segments and non path characters are rejected so a path
+ * cannot walk out of the realm while still sharing its prefix.
+ */
+export function isMemberstoreBoundToRealm(memberstorePath: string, realmPath: string): boolean {
+    if (!memberstorePath || !realmPath) return false
+    const segments = memberstorePath.split("/")
+    if (segments.some((s) => !/^[A-Za-z0-9_.-]+$/.test(s) || s === "." || s === "..")) return false
+    return memberstorePath === realmPath || memberstorePath.startsWith(`${realmPath}/`)
+}
+
+/**
  * Detect max page number from a pager footer ("**1** | [2](?page=2) | …").
  * Shared by the GovDAO root pagination and the daokit sub-page/member pagers
  * (avl/pager renders the same "[N](?page=N)" links). Scanning for the MAX is

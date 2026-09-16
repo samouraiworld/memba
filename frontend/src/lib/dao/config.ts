@@ -4,7 +4,19 @@
  * See: gno.land/r/gov/dao, gno.land/p/samcrew/basedao
  */
 
-import { queryRender, queryEval, type DAOConfig, type TierInfo } from "./shared"
+import { queryRender, queryEval, isMemberstoreBoundToRealm, type DAOConfig, type TierInfo } from "./shared"
+
+/**
+ * The body of the FIRST "## Members" section of a render: from the line after
+ * the heading up to the next level-1/2 heading (or the end). "" when absent.
+ */
+export function extractMembersSection(data: string): string {
+    const heading = /^##\s+Members\b.*$/m.exec(data)
+    if (!heading) return ""
+    const rest = data.slice(heading.index + heading[0].length)
+    const next = /^#{1,2}\s/m.exec(rest)
+    return next ? rest.slice(0, next.index) : rest
+}
 
 /**
  * Parse tier distribution from memberstore render output.
@@ -78,12 +90,16 @@ export async function getDAOConfig(
 
     // GovDAO v3: extract memberstore link from various URL formats
     // Format: [> Go to Memberstore <](https://test11.testnets.gno.land/r/gov/dao/v3/memberstore)
+    // Only the DAO's own "## Members" section is searched (the rest of the
+    // render carries user-supplied text such as proposal titles), and the
+    // linked path must be the realm or one of its sub-paths.
     let memberstorePath = ""
-    // Match any link containing "memberstore" — extract the /r/... path from the URL
-    const msLinkMatch = data.match(/\[.*?[Mm]emberstore.*?\]\((?:https?:\/\/[^/]+)?\/(r\/[^)]+)\)/i)
+    const msLinkMatch = extractMembersSection(data)
+        .match(/\[.*?[Mm]emberstore.*?\]\((?:https?:\/\/[^/]+)?\/(r\/[^)]+)\)/i)
     if (msLinkMatch) {
         const rawPath = msLinkMatch[1].replace(/[\s)]/g, "")
-        memberstorePath = rawPath.startsWith("gno.land/") ? rawPath : `gno.land/${rawPath}`
+        const candidate = rawPath.startsWith("gno.land/") ? rawPath : `gno.land/${rawPath}`
+        if (isMemberstoreBoundToRealm(candidate, realmPath)) memberstorePath = candidate
     }
 
     // Fetch tier distribution if memberstore available

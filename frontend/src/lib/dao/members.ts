@@ -5,7 +5,7 @@
  * basedao Render("") markdown fallback.
  */
 
-import { queryRender, queryRenderPage, queryEval, resolveUsernames, hasOwnSubpageLink, detectMaxPage, getDaoDialect, setDaoDialect, deleteDaoDialect, type DAOMember } from "./shared"
+import { queryRender, queryRenderPage, queryEval, resolveUsernames, hasOwnSubpageLink, detectMaxPage, getDaoDialect, setDaoDialect, deleteDaoDialect, isMemberstoreBoundToRealm, type DAOMember } from "./shared"
 
 /**
  * Parse gnodaokit/basedao members-table rows (deployed RenderMembersTable):
@@ -92,8 +92,9 @@ export async function getDAOMembers(
     memberstorePath?: string,
     strict = false,
 ): Promise<DAOMember[]> {
-    // Try memberstore members list first
-    if (memberstorePath) {
+    // Try memberstore members list first — only a store bound to this realm
+    // (see isMemberstoreBoundToRealm); an unbound path is ignored, not read.
+    if (memberstorePath && isMemberstoreBoundToRealm(memberstorePath, realmPath)) {
         const allMembers = await fetchAllMemberstorePages(rpcUrl, memberstorePath)
         if (allMembers.length > 0) {
             await resolveUsernames(rpcUrl, allMembers)
@@ -238,7 +239,8 @@ export async function getMemberRole(
     // (The old next-link walk followed the FIRST "[N](?page=N)" link, which on
     // pages ≥ 2 is the pager's leading BACK-link — the walk stopped at page 2
     // and silently missed members past ~28 at the memberstore's 14/page.)
-    if (memberstorePath) {
+    // An unbound store path is ignored, exactly as in getDAOMembers.
+    if (memberstorePath && isMemberstoreBoundToRealm(memberstorePath, realmPath)) {
         const page1 = await queryRender(rpcUrl, memberstorePath, "members")
         if (!page1) return null
         const toMember = (row: { tier: string; address: string }): DAOMember => ({
