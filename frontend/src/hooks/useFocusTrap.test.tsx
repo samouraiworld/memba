@@ -1,8 +1,8 @@
 /**
- * Tests for useFocusTrap — the focus primitive five dialogs depend on.
+ * Tests for useFocusTrap — the focus primitive four dialogs depend on.
  *
  * It had none. AccessibleDialog has none either, and between them they carry the
- * keyboard containment for ValoperEditDialog, GnoIcoAnnouncement, AIReportCard,
+ * keyboard containment for ValoperEditDialog, AIReportCard,
  * GnoloveHome and now TradeModal, which moves funds. A trap that silently stops
  * working looks exactly like one that works, until a keyboard user Tabs out of a
  * live trade into the page behind it.

@@ -1,8 +1,8 @@
 /**
- * Tests for AccessibleDialog — the modal wrapper five surfaces depend on.
+ * Tests for AccessibleDialog — the modal wrapper four surfaces depend on.
  *
  * It had none, and neither did useFocusTrap beneath it. Between them they carry
- * the modal semantics for ValoperEditDialog, GnoIcoAnnouncement, AIReportCard,
+ * the modal semantics for ValoperEditDialog, AIReportCard,
  * GnoloveHome and TradeModal, which moves funds. Every one of its behaviours
  * fails silently: a missing aria-modal is invisible to sighted users, a broken
  * Escape just does nothing, and a scroll lock that never unlocks leaves the page

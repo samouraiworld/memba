@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### The gno.land sale popup is gone (2026-09-16)
+<!-- categories: memba -->
+- **Memba no longer shows the gno.land public-sale announcement.** The sale window it advertised opened on 20 July 2026; the popup, its countdown copy and its `VITE_ENABLE_ICO_ANNOUNCEMENT` flag are removed. The Netlify variable can be deleted; it no longer does anything.
+
 ### Weighted member-key recovery (v7.7.0 candidate, 2026-09-15)
 
 - Support the v2 founding DAO recovery contract alongside v1 role governance, with exact human/old/new-address review and checksum validation.

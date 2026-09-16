@@ -1526,9 +1526,6 @@ export const isAppStoreEnabled = (): boolean => import.meta.env.VITE_ENABLE_APPS
  * and the memba_appstore_v3 fee path is not yet deployed/verified (see SAFETY_GATED_FLAGS).
  * Literal reader (prod-bundle safe). */
 export const isAppStoreSubmitEnabled = (): boolean => import.meta.env.VITE_ENABLE_APPSTORE_SUBMIT === "true"
-/** gno.land public-sale announcement popup. Ordinary flag — a dismissible promo
- * linking out to the official sale portal, moves no funds. Literal reader (prod-bundle safe). */
-export const isIcoAnnouncementEnabled = (): boolean => import.meta.env.VITE_ENABLE_ICO_ANNOUNCEMENT === "true"
 
 /** Token allocation percentages (total = 100%). */
 export const MEMBA_TOKEN_ALLOCATION = {
