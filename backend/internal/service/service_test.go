@@ -323,17 +323,18 @@ func TestTransactionLifecycle(t *testing.T) {
 		t.Fatal("SignTransaction (creator):", err)
 	}
 
-	// 4. Complete transaction (now threshold is met: 2/2)
+	// 4. Completion is refused even at quorum (2/2): legacy (non-native)
+	// multisig records are read-only history and cannot record an execution.
 	_, err = h.svc.CompleteTransaction(ctx, connect.NewRequest(&membav1.CompleteTransactionRequest{
 		AuthToken:     creatorToken,
 		TransactionId: txID,
 		FinalHash:     "0xABCDEF1234567890",
 	}))
-	if err != nil {
-		t.Fatal("CompleteTransaction:", err)
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("CompleteTransaction on a legacy record: want FailedPrecondition, got %v", err)
 	}
 
-	// 5. Verify executed state
+	// 5. Nothing is listed as executed
 	execResp, err := h.svc.Transactions(ctx, connect.NewRequest(&membav1.TransactionsRequest{
 		AuthToken:      creatorToken,
 		ChainId:        "test11",
@@ -342,14 +343,11 @@ func TestTransactionLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal("Transactions (executed):", err)
 	}
-	if len(execResp.Msg.Transactions) != 1 {
-		t.Fatalf("expected 1 executed tx, got %d", len(execResp.Msg.Transactions))
-	}
-	if execResp.Msg.Transactions[0].FinalHash != "0xABCDEF1234567890" {
-		t.Fatalf("expected hash 0xABCDEF1234567890, got %s", execResp.Msg.Transactions[0].FinalHash)
+	if len(execResp.Msg.Transactions) != 0 {
+		t.Fatalf("expected 0 executed tx, got %d", len(execResp.Msg.Transactions))
 	}
 
-	// 6. Pending should be empty now
+	// 6. The proposal stays pending
 	pendResp, err := h.svc.Transactions(ctx, connect.NewRequest(&membav1.TransactionsRequest{
 		AuthToken:      creatorToken,
 		ChainId:        "test11",
@@ -358,8 +356,8 @@ func TestTransactionLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal("Transactions (pending):", err)
 	}
-	if len(pendResp.Msg.Transactions) != 0 {
-		t.Fatalf("expected 0 pending tx, got %d", len(pendResp.Msg.Transactions))
+	if len(pendResp.Msg.Transactions) != 1 || pendResp.Msg.Transactions[0].FinalHash != "" {
+		t.Fatalf("expected the tx still pending, got %d", len(pendResp.Msg.Transactions))
 	}
 }
 

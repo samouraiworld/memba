@@ -12,15 +12,15 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { ProgressBar } from "../components/multisig/ProgressBar"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { Transaction } from "../gen/memba/v1/memba_pb"
-import { API_BASE_URL, GNO_RPC_URL, GNO_BECH32_HRP, GNO_CHAIN_ID } from "../lib/config"
-import { assertWalletBroadcastSafe } from "../lib/grc20"
-import { pubkeyToAddress } from "../lib/dao/realmAddress"
+import { API_BASE_URL, GNO_CHAIN_ID } from "../lib/config"
 import { completeQuest } from "../lib/quests"
 import type { LayoutContext } from "../types/layout"
 import "./txview.css"
 import { isNativeMultisig } from "../lib/nativeMultisig"
 import { assertNativeAction, broadcastNativeTransaction } from "../lib/nativeMultisigBroadcast"
 import { assertReceiptStorage, clearNativeReceipt, nativeReceiptKey, readNativeReceipt, saveNativeReceipt, subscribeNativeReceipts, validReceiptHash } from "../lib/nativeReceipt"
+
+const LEGACY_READ_ONLY_MESSAGE = "Legacy multisig records are read-only history: this proposal cannot be broadcast or completed from Memba."
 
 /** Build deterministic Amino sign doc from transaction data. */
 function buildSignDoc(tx: Transaction): Record<string, unknown> {
@@ -151,40 +151,9 @@ export function TransactionView() {
                 if (refreshed.data?.transaction?.finalHash) clearNativeReceipt(receiptKey)
                 return
             }
-            if (reviewError) throw new Error(reviewError)
-            // Try Adena's BroadcastMultisigTransaction first (handles Amino encoding)
-            let hash = await tryAdenaBroadcast(tx)
-
-            // Fallback: broadcast via RPC POST (Amino JSON)
-            if (!hash) {
-                const broadcastTx = await buildBroadcastTx(tx)
-                const res = await fetch(`${GNO_RPC_URL}/broadcast_tx_commit`, {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify({
-                        jsonrpc: "2.0",
-                        method: "broadcast_tx_commit",
-                        params: { tx: `0x${broadcastTx}` },
-                        id: 1,
-                    }),
-                })
-                const json = await res.json()
-
-                hash = json?.result?.hash
-                if (!hash) {
-                    const errMsg = json?.result?.deliver_tx?.log || json?.error?.message || "Broadcast failed — try using gnokey CLI: gnokey broadcast <tx-file> --remote <rpc-url> (see docs.gno.land for details)"
-                    setActionError(errMsg)
-                    return
-                }
-            }
-
-            await api.completeTransaction({
-                authToken: token,
-                transactionId: tx.id,
-                finalHash: hash,
-            })
-
-            await txQuery.refetch()
+            // Legacy (non-native) records are read-only history: their addresses
+            // cannot execute on Gno and the backend refuses to complete them.
+            throw new Error(LEGACY_READ_ONLY_MESSAGE)
         } catch (err) {
             setActionError(err instanceof Error ? err.message : "Broadcast failed")
         } finally {
@@ -353,6 +322,7 @@ export function TransactionView() {
                 </button>
             </div>}
             {native && txQuery.data?.nativeExportError && <p role="status">{txQuery.data.nativeExportError}</p>}
+            {!native && !tx.finalHash && <p role="status">{LEGACY_READ_ONLY_MESSAGE}</p>}
             {!tx.finalHash && auth.isAuthenticated && (
                 <div className="k-txview__actions">
                     <button
@@ -363,7 +333,7 @@ export function TransactionView() {
                     >
                         {actionLoading ? "Signing..." : tx.signatures.some(s => s.userAddress === adena.address) ? "Already Signed" : "Sign Transaction"}
                     </button>
-                    {(native ? nativeReady && !receipt : tx.signatures.length >= tx.threshold) && (
+                    {native && nativeReady && !receipt && (
                         <button
                             className="k-btn-primary"
                             style={{ background: "var(--color-k-accent-hover)", opacity: actionLoading ? 0.5 : 1 }}
@@ -510,10 +480,17 @@ export function TransactionView() {
                 <div className="k-card k-txview__hash-card">
                     <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                         <p className="k-label k-txview__hash-label" style={{ margin: 0 }}>Transaction Hash</p>
-                        {/* W2.4: surface the backend's chain reconcile (W2.3) —
-                            verified means the hash was FOUND on-chain at
-                            completion; unconfirmed means it's a client claim. */}
-                        {tx.verified ? (
+                        {/* Native: verified means the backend matched the chain
+                            receipt to this proposal. Legacy rows may carry
+                            verified=true from an older lookup that only found
+                            the hash somewhere, so they never claim more. */}
+                        {tx.verified && !native ? (
+                            <span style={{
+                                fontSize: "var(--pro-caption, 10px)", padding: "2px 8px", borderRadius: 4,
+                                background: "var(--color-k-amber-subtle, rgba(255,193,7,0.12))", color: "var(--color-text-secondary)",
+                                fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
+                            }} title="Legacy multisig record: this hash was recorded without being checked against this transaction's contents.">Hash recorded (not verified against this transaction)</span>
+                        ) : tx.verified ? (
                             <span style={{
                                 fontSize: "var(--pro-caption, 10px)", padding: "2px 8px", borderRadius: 4,
                                 background: "rgba(47,191,113,0.12)", color: "var(--color-success, #2fbf71)",
@@ -545,163 +522,4 @@ function DetailRow({ label, value }: { label: string; value: React.ReactNode }) 
             <span className="k-txview__detail-value">{value}</span>
         </div>
     )
-}
-
-/**
- * Build the Amino-JSON broadcast document for a multisig transaction.
- *
- * Gno multisig broadcast requires:
- * 1. A single Signature entry with the multisig pubkey
- * 2. The signature field containing an Amino-encoded Multisignature struct
- *    with a CompactBitArray indicating which pubkey positions signed
- *    and the raw signatures in positional order.
- *
- * Since we cannot produce Amino binary encoding in JS, we use Adena's
- * BroadcastMultisigTransaction when available, or fall back to the
- * Amino JSON broadcast endpoint.
- *
- * v5 fix: Replaces broken comma-joined signature format.
- */
-async function buildMultisigSignatureData(tx: Transaction): Promise<{
-    pubkey: Record<string, unknown>;
-    sigs: string[];
-    bitArray: string;
-} | null> {
-    let multisigPubkey: {
-        type?: string;
-        "@type"?: string;
-        value?: { threshold: string; pubkeys: { type?: string; "@type"?: string; value: string }[] };
-        threshold?: string;
-        pubkeys?: { type?: string; "@type"?: string; value: string }[];
-    } | null = null
-
-    try {
-        multisigPubkey = JSON.parse(tx.multisigPubkeyJson)
-    } catch {
-        return null
-    }
-
-    if (!multisigPubkey) return null
-
-    // Normalize pubkey format — handle both nested and flat structures
-    const pubkeys = multisigPubkey.value?.pubkeys || multisigPubkey.pubkeys || []
-    if (pubkeys.length === 0) return null
-
-    // Derive the bech32 address for each pubkey in the multisig so we can
-    // map each signature to its correct positional index.
-    const pubkeyAddresses = await Promise.all(
-        pubkeys.map(pk => pubkeyToAddress(pk.value, GNO_BECH32_HRP))
-    )
-
-    // Build a lookup: signer address → pubkey index
-    const addressToIndex = new Map<string, number>()
-    for (let i = 0; i < pubkeyAddresses.length; i++) {
-        addressToIndex.set(pubkeyAddresses[i], i)
-    }
-
-    // Build CompactBitArray: "x" for signed positions, "_" for unsigned.
-    // Signatures must be ordered by their pubkey index (ascending).
-    const signerCount = pubkeys.length
-    const bits: string[] = new Array(signerCount).fill("_")
-    const indexedSigs: { index: number; value: string }[] = []
-
-    for (const sig of tx.signatures) {
-        const idx = addressToIndex.get(sig.userAddress)
-        if (idx !== undefined && bits[idx] === "_") {
-            bits[idx] = "x"
-            indexedSigs.push({ index: idx, value: sig.value })
-        }
-    }
-
-    // Sort by pubkey index so signatures are in positional order
-    indexedSigs.sort((a, b) => a.index - b.index)
-
-    return {
-        pubkey: multisigPubkey,
-        sigs: indexedSigs.map(s => s.value),
-        bitArray: bits.join(""),
-    }
-}
-
-/**
- * Build a hex-encoded Amino JSON broadcast TX from multi-sig data.
- * Uses the proper Multisignature structure with CompactBitArray.
- */
-async function buildBroadcastTx(tx: Transaction): Promise<string> {
-    const sigData = await buildMultisigSignatureData(tx)
-    if (!sigData) {
-        throw new Error("Failed to build multisig signature data — check multisig pubkey JSON")
-    }
-
-    // Build the Amino JSON StdTx with proper multisig signature format.
-    // The signature field for a multisig TX contains the Amino-JSON-encoded
-    // Multisignature struct. Gno nodes accept Amino JSON via broadcast endpoints.
-    const broadcastDoc = {
-        type: "auth/StdTx",
-        value: {
-            msg: JSON.parse(tx.msgsJson),
-            fee: JSON.parse(tx.feeJson),
-            signatures: [{
-                pub_key: sigData.pubkey,
-                signature: {
-                    "@type": "/tm.MultiSignature",
-                    bit_array: sigData.bitArray,
-                    sigs: sigData.sigs,
-                },
-            }],
-            memo: tx.memo || "",
-        },
-    }
-
-    const jsonStr = JSON.stringify(broadcastDoc)
-    return Array.from(new TextEncoder().encode(jsonStr))
-        .map(b => b.toString(16).padStart(2, "0"))
-        .join("")
-}
-
-/**
- * Attempt to broadcast via Adena's BroadcastMultisigTransaction.
- * Returns the TX hash on success, or null if Adena doesn't support it.
- *
- * W2.1: the wallet path applies the same RPC-trust + wrong-chain guards as
- * doContractBroadcast (assertWalletBroadcastSafe). A guard failure returns
- * null → the caller falls back to Memba's OWN configured RPC, which targets
- * the correct chain by construction (the tx was signed for it), so the
- * fallback is chain-safe while the wallet's network state is not.
- */
-async function tryAdenaBroadcast(tx: Transaction): Promise<string | null> {
-    const adena = (window as unknown as Record<string, unknown>).adena as Record<string, unknown> | undefined
-    if (!adena || typeof adena.BroadcastMultisigTransaction !== "function") {
-        return null
-    }
-
-    try {
-        assertWalletBroadcastSafe()
-    } catch (guardErr) {
-        console.warn("[Memba] Adena broadcast blocked by wallet guard, using app RPC fallback:", guardErr)
-        return null
-    }
-
-    try {
-        const sigData = await buildMultisigSignatureData(tx)
-        if (!sigData) return null
-
-        const result = await (adena.BroadcastMultisigTransaction as (arg: unknown) => Promise<{
-            status: string;
-            data?: { hash?: string };
-        }>)({
-            msgs: JSON.parse(tx.msgsJson),
-            fee: JSON.parse(tx.feeJson),
-            signatures: sigData.sigs,
-            pubkey: sigData.pubkey,
-            memo: tx.memo || "",
-        })
-
-        if (result.status !== "failure" && result.data?.hash) {
-            return result.data.hash
-        }
-    } catch (err) {
-        console.warn("[Memba] Adena BroadcastMultisigTransaction not available or failed:", err)
-    }
-    return null
 }

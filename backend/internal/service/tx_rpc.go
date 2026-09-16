@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -469,7 +470,8 @@ func (s *MultisigService) CompleteTransaction(
 		return nil, connect.NewError(connect.CodePermissionDenied, nil)
 	}
 
-	// Security: verify that enough signatures exist before allowing completion.
+	// Security: only native identities can record an execution, and only after
+	// receipt verification against the stored proposal.
 	var identityJSON string
 	if err := s.db.QueryRowContext(ctx, "SELECT pubkey_json FROM multisigs WHERE chain_id = ? AND address = ?", chainID, multisigAddr).Scan(&identityJSON); err != nil {
 		return nil, internalError("CompleteTransaction: identity", err)
@@ -480,42 +482,12 @@ func (s *MultisigService) CompleteTransaction(
 		}
 		return connect.NewResponse(&membav1.CompleteTransactionResponse{}), nil
 	}
-	var sigCount int
-	var threshold int
-	err = s.db.QueryRowContext(ctx,
-		`SELECT COUNT(s.user_address), m.threshold
-		 FROM transactions t
-		 JOIN multisigs m ON m.chain_id = t.chain_id AND m.address = t.multisig_address
-		 LEFT JOIN signatures s ON s.transaction_id = t.id
-		 WHERE t.id = ?`, txID,
-	).Scan(&sigCount, &threshold)
-	if err != nil {
-		return nil, internalError("CompleteTransaction: threshold check", err)
-	}
-	if sigCount < threshold {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, nil)
-	}
-
-	// W2.3 (BE-3): best-effort chain reconcile of the CLIENT-supplied hash.
-	// A confirmed /tx lookup marks the row verified; any availability or
-	// shape problem leaves verified=false — it must never block completion.
-	verified := false
-	if ok, verr := txExistsOnChain(ctx, questRPCURL(), finalHash); verr == nil {
-		verified = ok
-		if !ok {
-			slog.Warn("CompleteTransaction: final_hash not found on-chain (stored unverified)",
-				"tx_id", txID, "hash", finalHash)
-		}
-	} else {
-		slog.Warn("CompleteTransaction: chain reconcile unavailable (stored unverified)",
-			"tx_id", txID, "hash", finalHash, "error", verr)
-	}
-
-	_, err = s.db.ExecContext(ctx, "UPDATE transactions SET final_hash = ?, verified = ? WHERE id = ?", finalHash, verified, txID)
-	if err != nil {
-		return nil, internalError("CompleteTransaction: update hash", err)
-	}
-
-	slog.Info("CompleteTransaction", "tx_id", txID, "hash", finalHash, "verified", verified, "user", userAddress)
-	return connect.NewResponse(&membav1.CompleteTransactionResponse{}), nil
+	// Legacy (non-native) multisig records are read-only history for completion.
+	// Their Cosmos-derived addresses cannot execute on Gno, and nothing binds a
+	// client-supplied hash to this proposal, so no execution is ever recorded.
+	slog.Warn("CompleteTransaction: refused for legacy multisig record",
+		"tx_id", txID, "user", userAddress)
+	return nil, connect.NewError(connect.CodeFailedPrecondition, errLegacyCompletionReadOnly)
 }
+
+var errLegacyCompletionReadOnly = errors.New("legacy multisig records are read-only history")

@@ -26,6 +26,10 @@ Full changelogs are split by version range for easier navigation:
 ### Realm source stays on the network you are viewing (2026-09-16)
 <!-- categories: memba -->
 - **Realm source code shown in the Directory, Explorer and app curator review now always comes from the active network.** The short-lived source cache is kept per network and checked against the active chain, so switching networks no longer shows source loaded on the previous one.
+### Legacy multisig proposals are read-only history (2026-09-16)
+<!-- categories: memba -->
+- **Legacy multisig proposals can no longer be marked as executed.** Wallets registered with the older, non-native key format cannot execute transactions on Gno, so the backend now refuses to record a completion for them and the transaction page no longer offers a broadcast button. Members can still view, sign and export these proposals.
+- **Stored hashes on older legacy records are labelled for what they are.** A legacy record completed earlier now shows "Hash recorded (not verified against this transaction)" instead of an on-chain verification badge. Native multisig completion, which checks the chain receipt against the proposal, is unchanged.
 
 ### The gno.land sale popup is gone (2026-09-16)
 <!-- categories: memba -->

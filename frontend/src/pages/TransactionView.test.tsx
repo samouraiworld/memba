@@ -8,8 +8,9 @@
  * - the review card shows the FULL recipient (truncation hides exactly the
  *   bytes an address-poisoning attack forges), the fee, and a network
  *   match/mismatch indicator against the app's configured chain
- * - the completed view surfaces W2.3's backend chain-reconcile: verified
- *   hash → "VERIFIED ON-CHAIN", client-claimed-only → "UNCONFIRMED"
+ * - the completed view surfaces the backend's verified flag: a native
+ *   receipt-verified hash → "VERIFIED ON-CHAIN"; legacy (non-native) records
+ *   are read-only history and never claim their hash proves this transaction
  */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { render as rtlRender, screen, fireEvent, waitFor, within } from "@testing-library/react"
@@ -179,7 +180,7 @@ describe("native confirmation and receipt recovery", () => {
         vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
         vi.mocked(broadcastNativeTransaction).mockResolvedValue(HASH)
         vi.mocked(api.completeTransaction).mockRejectedValueOnce(new Error("receipt unavailable")).mockImplementationOnce(async () => {
-            vi.mocked(api.getTransaction).mockResolvedValue({ transaction: makeTx({ finalHash: HASH, verified: true }) } as never)
+            vi.mocked(api.getTransaction).mockResolvedValue({ transaction: { ...makeNativeTx(), finalHash: HASH, verified: true } } as never)
             return {} as never
         })
         const first = render(<TransactionView />)
@@ -304,14 +305,29 @@ describe("TransactionView — rendering", () => {
         expect(screen.queryByText("Broadcast to Chain")).not.toBeInTheDocument()
     })
 
-    it("shows the broadcast button only at threshold", async () => {
+    it("never offers broadcast/complete for a legacy transaction, even at quorum", async () => {
         await renderTx(makeTx({
             signatures: [
-                { userAddress: "g1alice00000000000000000000000000000000", value: "s1", bodyBytes: new Uint8Array(), createdAt: "" },
-                { userAddress: "g1bob0000000000000000000000000000000000", value: "s2", bodyBytes: new Uint8Array(), createdAt: "" },
+                { userAddress: "g1alice00000000000000000000000000000000", value: "s1", bodyBytes: new Uint8Array(), createdAt: "", verified: true },
+                { userAddress: "g1bob0000000000000000000000000000000000", value: "s2", bodyBytes: new Uint8Array(), createdAt: "", verified: true },
             ],
         }))
+        expect(screen.queryByText("Broadcast to Chain")).not.toBeInTheDocument()
+        expect(screen.queryByText("Confirm & Broadcast")).not.toBeInTheDocument()
+        expect(screen.getByText(/Legacy multisig records are read-only history/)).toBeInTheDocument()
+        // Signing and export stay available.
+        expect(screen.getByText("Sign Transaction")).toBeInTheDocument()
+        expect(screen.getByText("Export Unsigned TX")).toBeInTheDocument()
+        expect(api.completeTransaction).not.toHaveBeenCalled()
+    })
+
+    it("shows the native broadcast button once the aggregate is ready", async () => {
+        clearNativeReceipt(receiptKey())
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
         expect(screen.getByText("Broadcast to Chain")).toBeInTheDocument()
+        expect(screen.queryByText(/Legacy multisig records are read-only history/)).not.toBeInTheDocument()
     })
 })
 
@@ -362,31 +378,25 @@ describe("TransactionView — two-step confirmation (W2.4)", () => {
     })
 
     it("Broadcast opens the review card with broadcast wording and runs only on Confirm", async () => {
-        // Adena broadcast path available and succeeding.
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(window as any).adena = {
-            BroadcastMultisigTransaction: vi.fn().mockResolvedValue({ status: "success", data: { hash: "ADENAHASH" } }),
-        }
+        clearNativeReceipt(receiptKey())
+        vi.mocked(api.getTransaction).mockResolvedValue(nativeResponse() as never)
+        vi.mocked(broadcastNativeTransaction).mockResolvedValue(HASH)
         vi.mocked(api.completeTransaction).mockResolvedValue({} as never)
-        await renderTx(makeTx({
-            signatures: [
-                { userAddress: "g1alice00000000000000000000000000000000", value: "s1", bodyBytes: new Uint8Array(), createdAt: "" },
-                { userAddress: "g1bob0000000000000000000000000000000000", value: "s2", bodyBytes: new Uint8Array(), createdAt: "" },
-            ],
-        }))
+        render(<TransactionView />)
+        await screen.findByText("TX #7")
 
         fireEvent.click(screen.getByText("Broadcast to Chain"))
         expect(screen.getByText(/costs gas and cannot be undone/)).toBeInTheDocument()
+        expect(broadcastNativeTransaction).not.toHaveBeenCalled()
         expect(api.completeTransaction).not.toHaveBeenCalled()
 
         fireEvent.click(screen.getByText("Confirm & Broadcast"))
         await waitFor(() => expect(api.completeTransaction).toHaveBeenCalled())
         expect(vi.mocked(api.completeTransaction).mock.calls[0][0]).toMatchObject({
             transactionId: 7,
-            finalHash: "ADENAHASH",
+            finalHash: HASH,
         })
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        delete (window as any).adena
+        clearNativeReceipt(receiptKey())
     })
 })
 
@@ -438,17 +448,24 @@ describe("TransactionView — per-signature verified (A3 log-only window)", () =
         expect(screen.queryByText(/quorum includes unverified/i)).not.toBeInTheDocument()
     })
 
-    it("does NOT change the broadcast gate: submitted quorum still enables broadcast", async () => {
+    it("a submitted quorum does not enable broadcast for a legacy transaction", async () => {
         await renderTx(makeTx({ signatures: twoSigs(true, false) }))
-        expect(screen.getByText("Broadcast to Chain")).toBeInTheDocument()
+        expect(screen.queryByText("Broadcast to Chain")).not.toBeInTheDocument()
     })
 })
 
-describe("TransactionView — completion + W2.3 verified flag", () => {
-    it("shows VERIFIED ON-CHAIN when the backend reconciled the hash", async () => {
-        await renderTx(makeTx({ finalHash: "ABCDEF", verified: true }))
+describe("TransactionView — completion + verified flag", () => {
+    it("shows VERIFIED ON-CHAIN for a native receipt-verified hash", async () => {
+        await renderTx(makeTx({ multisigPubkeyJson: '{"@type":"/tm.PubKeyMultisig"}', finalHash: HASH, verified: true }))
         expect(screen.getByText(/VERIFIED ON-CHAIN/)).toBeInTheDocument()
         expect(screen.queryByText(/UNCONFIRMED/)).not.toBeInTheDocument()
+        expect(screen.queryByText(/not verified against this transaction/)).not.toBeInTheDocument()
+    })
+
+    it("does not claim a legacy record's stored hash proves this transaction", async () => {
+        await renderTx(makeTx({ finalHash: "ABCDEF", verified: true }))
+        expect(screen.getByText(/Hash recorded \(not verified against this transaction\)/)).toBeInTheDocument()
+        expect(screen.queryByText(/VERIFIED ON-CHAIN/)).not.toBeInTheDocument()
     })
 
     it("shows UNCONFIRMED for a client-claimed hash the chain didn't confirm", async () => {
