@@ -2,7 +2,10 @@ package service
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -24,7 +27,7 @@ type ConsensusRequest struct {
 	RealmPath       string `json:"realmPath"`
 	ProposalID      int    `json:"proposalId"`            // 0 for DAO-level analysis
 	AnalysisType    string `json:"analysisType,omitempty"` // "proposal" (default) or "dao"
-	ChainID         string `json:"chainId,omitempty"`      // network identifier for cache scoping
+	ChainID         string `json:"chainId,omitempty"`      // network key or chain ID; normalized to the chain ID
 	ProposalData    string `json:"proposalData"`
 	DAOContext      string `json:"daoContext"`
 	TreasuryContext string `json:"treasuryContext,omitempty"`
@@ -37,6 +40,9 @@ type ConsensusResponse struct {
 	ProcessingMs int64                  `json:"processingTimeMs"`
 	Cached       bool                   `json:"cached"`
 	ExpiresAt    string                 `json:"expiresAt,omitempty"`
+	// InputDigest identifies the inputs the report was generated from; together
+	// with realm, analysis type, proposal and chain it addresses the cached row.
+	InputDigest string `json:"inputDigest,omitempty"`
 }
 
 // ConsensusVerdict is the aggregated multi-model verdict.
@@ -69,9 +75,43 @@ type ConsensusPerspective struct {
 
 var validRealmPath = regexp.MustCompile(`^gno\.land/[rp]/[\w/]+$`)
 
+var validInputDigest = regexp.MustCompile(`^[0-9a-f]{64}$`)
+
+// analystChainIDs maps every network key and chain ID a client may send to the
+// canonical chain ID used for cache scoping and chain context. Anything else is
+// rejected, so arbitrary strings never reach the cache key or the prompt.
+var analystChainIDs = map[string]string{
+	"mainnet":     "gnoland-1",
+	"gnoland-1":   "gnoland-1",
+	"gnoland1":    "gnoland1",
+	"pearl":       "pearl-1",
+	"pearl-1":     "pearl-1",
+	"sapphire":    "sapphire-1",
+	"sapphire-1":  "sapphire-1",
+	"topaz":       "topaz-1",
+	"topaz-1":     "topaz-1",
+	"test13":      "test-13",
+	"test-13":     "test-13",
+	"portal-loop": "portal-loop",
+	"staging":     "staging",
+}
+
+// resolveAnalystChainID returns the canonical chain ID for a network key or chain ID.
+func resolveAnalystChainID(id string) (string, bool) {
+	canonical, ok := analystChainIDs[id]
+	return canonical, ok
+}
+
 func validateConsensusRequest(req *ConsensusRequest) error {
 	if !validRealmPath.MatchString(req.RealmPath) {
 		return fmt.Errorf("invalid realm path")
+	}
+	if req.ChainID != "" {
+		canonical, ok := resolveAnalystChainID(req.ChainID)
+		if !ok {
+			return fmt.Errorf("unsupported chainId")
+		}
+		req.ChainID = canonical
 	}
 	// Normalize analysis type
 	if req.AnalysisType == "" {
@@ -92,17 +132,55 @@ func validateConsensusRequest(req *ConsensusRequest) error {
 	return nil
 }
 
-// cacheKey returns the storage key for a consensus result (realm, proposalId, chainId).
-func consensusCacheKey(req *ConsensusRequest) (string, int, string) {
+// analystPromptVersion is folded into every input digest. Bump it whenever the
+// prompts or the prompt layout change so reports generated under the previous
+// prompts are no longer served.
+const analystPromptVersion = "consensus-prompt-v1"
+
+// consensusKey addresses one cached consensus report. A report is shared only
+// with requests that supplied exactly the same inputs: the input digest binds
+// the row to the analysis type and the facts the models were given.
+type consensusKey struct {
+	RealmPath    string
+	AnalysisType string
+	ProposalID   int
+	ChainID      string
+	InputDigest  string
+}
+
+// consensusInputDigest is a SHA-256 over the prompt version, analysis type and
+// every caller-supplied fact placed in the prompt. Each part is length-prefixed
+// so distinct inputs can never concatenate to the same byte stream.
+func consensusInputDigest(req *ConsensusRequest) string {
+	h := sha256.New()
+	var n [8]byte
+	for _, part := range []string{
+		analystPromptVersion,
+		req.AnalysisType,
+		req.ProposalData,
+		req.DAOContext,
+		req.TreasuryContext,
+	} {
+		binary.BigEndian.PutUint64(n[:], uint64(len(part)))
+		h.Write(n[:])
+		h.Write([]byte(part))
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
+// consensusCacheKey returns the storage key for a validated request.
+func consensusCacheKey(req *ConsensusRequest) consensusKey {
 	chainID := req.ChainID
 	if chainID == "" {
 		chainID = "unknown"
 	}
-	if req.AnalysisType == "dao" {
-		// Use proposalId=0 convention for DAO-level cache
-		return req.RealmPath, 0, chainID
+	return consensusKey{
+		RealmPath:    req.RealmPath,
+		AnalysisType: req.AnalysisType,
+		ProposalID:   req.ProposalID,
+		ChainID:      chainID,
+		InputDigest:  consensusInputDigest(req),
 	}
-	return req.RealmPath, req.ProposalID, chainID
 }
 
 // ── Cache ────────────────────────────────────────────────────
@@ -116,13 +194,14 @@ func getDefaultCacheTTL() time.Duration {
 	return 6 * time.Hour
 }
 
-func getCachedConsensus(db *sql.DB, realmPath string, proposalID int, chainID string) (*ConsensusResponse, error) {
+func getCachedConsensus(db *sql.DB, key consensusKey) (*ConsensusResponse, error) {
 	var consensusJSON string
 	var expiresAt time.Time
 
 	err := db.QueryRow(
-		`SELECT consensus, expires_at FROM analyst_reports WHERE realm_path = ? AND proposal_id = ? AND chain_id = ? AND expires_at > ?`,
-		realmPath, proposalID, chainID, time.Now().UTC(),
+		`SELECT consensus, expires_at FROM analyst_reports
+		 WHERE realm_path = ? AND analysis_type = ? AND proposal_id = ? AND chain_id = ? AND input_digest = ? AND expires_at > ?`,
+		key.RealmPath, key.AnalysisType, key.ProposalID, key.ChainID, key.InputDigest, time.Now().UTC(),
 	).Scan(&consensusJSON, &expiresAt)
 
 	if err == sql.ErrNoRows {
@@ -138,10 +217,11 @@ func getCachedConsensus(db *sql.DB, realmPath string, proposalID int, chainID st
 	}
 	resp.Cached = true
 	resp.ExpiresAt = expiresAt.Format(time.RFC3339)
+	resp.InputDigest = key.InputDigest
 	return &resp, nil
 }
 
-func cacheConsensus(db *sql.DB, realmPath string, proposalID int, chainID string, resp *ConsensusResponse) {
+func cacheConsensus(db *sql.DB, key consensusKey, resp *ConsensusResponse) {
 	ttl := getDefaultCacheTTL()
 	expiresAt := time.Now().UTC().Add(ttl)
 
@@ -152,8 +232,9 @@ func cacheConsensus(db *sql.DB, realmPath string, proposalID int, chainID string
 	}
 
 	_, err = db.Exec(
-		`INSERT OR REPLACE INTO analyst_reports (realm_path, proposal_id, chain_id, consensus, expires_at) VALUES (?, ?, ?, ?, ?)`,
-		realmPath, proposalID, chainID, string(respJSON), expiresAt,
+		`INSERT OR REPLACE INTO analyst_reports (realm_path, analysis_type, proposal_id, chain_id, input_digest, consensus, expires_at)
+		 VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		key.RealmPath, key.AnalysisType, key.ProposalID, key.ChainID, key.InputDigest, string(respJSON), expiresAt,
 	)
 	if err != nil {
 		slog.Warn("failed to cache consensus", "error", err)
@@ -316,7 +397,10 @@ func aggregateConsensus(perspectives []ConsensusPerspective) ConsensusVerdict {
 
 // HandleAnalystConsensusGet serves GET /api/analyst/consensus — a PUBLIC, no-auth
 // read of an already-cached consensus report (zero LLM cost, so safe to expose).
-// Generation stays on the auth-gated POST; this returns 204 when no report exists yet.
+// A report is addressed by realm, analysisType, proposalId, chainId AND the
+// inputDigest returned by the POST that generated it, so a read only ever returns
+// the analysis of known inputs. Generation stays on the auth-gated POST; this
+// returns 204 when no report exists for that address.
 func HandleAnalystConsensusGet(db *sql.DB) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
@@ -325,6 +409,15 @@ func HandleAnalystConsensusGet(db *sql.DB) http.Handler {
 		}
 
 		q := r.URL.Query()
+		if q.Get("analysisType") == "" {
+			http.Error(w, `{"error":"analysisType is required"}`, http.StatusBadRequest)
+			return
+		}
+		digest := q.Get("inputDigest")
+		if !validInputDigest.MatchString(digest) {
+			http.Error(w, `{"error":"inputDigest must be a 64-character hex SHA-256"}`, http.StatusBadRequest)
+			return
+		}
 		req := ConsensusRequest{
 			RealmPath:    q.Get("realm"),
 			AnalysisType: q.Get("analysisType"),
@@ -343,8 +436,9 @@ func HandleAnalystConsensusGet(db *sql.DB) http.Handler {
 			return
 		}
 
-		realm, id, chain := consensusCacheKey(&req)
-		cached, err := getCachedConsensus(db, realm, id, chain)
+		key := consensusCacheKey(&req)
+		key.InputDigest = digest
+		cached, err := getCachedConsensus(db, key)
 		if err != nil {
 			slog.Warn("analyst public read failed", "error", err)
 			http.Error(w, `{"error":"lookup failed"}`, http.StatusInternalServerError)
@@ -387,7 +481,7 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 		}
 
 		// Check cache (skip if ?force=1 AND request has Authorization header)
-		cacheRealm, cacheID, cacheChain := consensusCacheKey(&req)
+		cacheKey := consensusCacheKey(&req)
 		forceRefresh := r.URL.Query().Get("force") == "1"
 		if forceRefresh && r.Header.Get("Authorization") == "" {
 			// Unauthenticated force refresh not allowed — fall back to cached result
@@ -395,7 +489,7 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 			forceRefresh = false
 		}
 		if !forceRefresh {
-			if cached, err := getCachedConsensus(db, cacheRealm, cacheID, cacheChain); err == nil && cached != nil {
+			if cached, err := getCachedConsensus(db, cacheKey); err == nil && cached != nil {
 				w.Header().Set("Content-Type", "application/json")
 				_ = json.NewEncoder(w).Encode(cached)
 				return
@@ -524,6 +618,7 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 			Perspectives: perspectives,
 			ProcessingMs: time.Since(start).Milliseconds(),
 			Cached:       false,
+			InputDigest:  cacheKey.InputDigest,
 		}
 
 		// Only cache if at least one model returned a real verdict (not all-abstain)
@@ -535,7 +630,7 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 			}
 		}
 		if hasRealResult {
-			cacheConsensus(db, cacheRealm, cacheID, cacheChain, &resp)
+			cacheConsensus(db, cacheKey, &resp)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -549,6 +644,7 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 
 // buildChainContext returns structured metadata about the chain network.
 // This gives AI models critical context about the governance environment.
+// It accepts a network key (e.g. "mainnet") or a chain ID (e.g. "gnoland-1").
 func buildChainContext(chainID string) string {
 	type chainInfo struct {
 		name     string
@@ -557,6 +653,11 @@ func buildChainContext(chainID string) string {
 	}
 
 	networks := map[string]chainInfo{
+		"gnoland-1": {
+			name:     "gno.land Mainnet (gnoland-1)",
+			maturity: "MAINNET — production chain, tokens carry real value, governance decisions are binding",
+			note:     "Governance outcomes here have real and lasting impact on members and funds.",
+		},
 		"pearl-1": {
 			name:     "gno.land Pearl Testnet",
 			maturity: "TESTNET — experimental, frequent resets, test tokens with no real value",
@@ -594,6 +695,9 @@ func buildChainContext(chainID string) string {
 		},
 	}
 
+	if canonical, known := resolveAnalystChainID(chainID); known {
+		chainID = canonical
+	}
 	info, ok := networks[chainID]
 	if !ok {
 		if chainID == "" {

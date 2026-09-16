@@ -30,6 +30,10 @@ Full changelogs are split by version range for easier navigation:
 <!-- categories: memba -->
 - **Legacy multisig proposals can no longer be marked as executed.** Wallets registered with the older, non-native key format cannot execute transactions on Gno, so the backend now refuses to record a completion for them and the transaction page no longer offers a broadcast button. Members can still view, sign and export these proposals.
 - **Stored hashes on older legacy records are labelled for what they are.** A legacy record completed earlier now shows "Hash recorded (not verified against this transaction)" instead of an on-chain verification badge. Native multisig completion, which checks the chain receipt against the proposal, is unchanged.
+### Shared analyst reports are bound to their inputs (2026-09-16)
+<!-- categories: memba -->
+- **A cached AI analyst report is only reused for the exact inputs it was generated from.** Reports are now keyed by analysis type, chain and a digest of the analysed data, so DAO-level and proposal reports, and reports for different networks, no longer overwrite each other. The public read requires the report's digest, unsupported `chainId` values are rejected, and mainnet is described correctly to the models. Existing cached reports are discarded and regenerate on demand.
+- **`VITE_ENABLE_ANALYST=false` now stops analyst requests entirely**, not just the UI.
 
 ### The gno.land sale popup is gone (2026-09-16)
 <!-- categories: memba -->

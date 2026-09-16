@@ -44,8 +44,10 @@ interface DAOAIInsightProps {
 
 export function DAOAIInsight({ realmPath, daoSummary }: DAOAIInsightProps) {
     const networkKey = useNetworkKey()
+    // Hooks run before the flag check below, and the DAO report auto-fetches:
+    // an undefined realm keeps the hook idle so a disabled analyst sends nothing.
     const { report, loading, error, trigger } = useAnalystReport(
-        realmPath, 0, daoSummary, realmPath, "dao", networkKey,
+        ANALYST_ENABLED ? realmPath : undefined, 0, daoSummary, realmPath, "dao", networkKey,
     )
     const [expanded, setExpanded] = useState(false)
 

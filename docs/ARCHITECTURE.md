@@ -143,7 +143,7 @@
 - `quest_completions` — per-user quest progress (quest_id, completed_at)
 - `teams` — team workspaces (name, invite_code, created_by)
 - `team_members` — user↔team membership (address, role: admin/member, joined_at)
-- `analyst_reports` — AI consensus reports (realm_path, proposal_id, chain_id, 6h TTL)
+- `analyst_reports` — AI consensus reports keyed by realm_path, analysis_type, proposal_id, chain_id and input_digest (6h TTL)
 - `_migrations` — schema version tracking
 
 ### RPC Surface (v3.2.0)

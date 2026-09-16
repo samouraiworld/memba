@@ -87,7 +87,10 @@ interface AnalystReportProps {
 export function AnalystReport({ realmPath, proposalId, proposalData, daoContext }: AnalystReportProps) {
     const [expanded, setExpanded] = useState(false)
     const networkKey = useNetworkKey()
-    const { report, loading, error, trigger } = useAnalystReport(realmPath, proposalId, proposalData, daoContext, "proposal", networkKey)
+    // An undefined realm keeps the hook idle when the analyst is disabled.
+    const { report, loading, error, trigger } = useAnalystReport(
+        ANALYST_ENABLED ? realmPath : undefined, proposalId, proposalData, daoContext, "proposal", networkKey,
+    )
 
     if (!ANALYST_ENABLED) return null
 
