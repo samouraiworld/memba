@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"log/slog"
 	"os"
@@ -226,12 +228,33 @@ func (s *MultisigService) CompleteQuest(ctx context.Context, req *connect.Reques
 
 	// INSERT OR IGNORE — idempotent, completing twice is a no-op. proof is the
 	// deploy realm path (empty for non-deploy quests).
-	_, err = s.db.ExecContext(ctx,
+	//
+	// The insert can also be ignored by the (address, proof) unique index on
+	// deploy quests. The distinct-proof check in verifyDeployQuest runs outside
+	// any transaction and the DB pool is multi-connection (WAL), so concurrent
+	// calls for different deploy quests with the same proof can both pass it;
+	// the index keeps only one. Only proceed when a completion for THIS quest is
+	// actually stored, so vouchers and badge mints never outlive a lost insert.
+	res, err := s.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO quest_completions (address, quest_id, completed_at, proof) VALUES (?, ?, ?, ?)`,
 		userAddr, questID, now, proof,
 	)
 	if err != nil {
 		return nil, internalError("CompleteQuest", err)
+	}
+	inserted, err := res.RowsAffected()
+	if err != nil {
+		return nil, internalError("CompleteQuest.rowsAffected", err)
+	}
+	if inserted == 0 {
+		stored, err := s.hasQuestCompletion(ctx, userAddr, questID)
+		if err != nil {
+			return nil, internalError("CompleteQuest.exists", err)
+		}
+		if !stored {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errQuestNotMet)
+		}
+		// Row already present: idempotent retry, continue as usual.
 	}
 
 	state, err := s.loadUserQuestState(ctx, userAddr)
@@ -263,11 +286,36 @@ func (s *MultisigService) CompleteQuest(ctx context.Context, req *connect.Reques
 	return connect.NewResponse(&membav1.CompleteQuestResponse{State: state}), nil
 }
 
+// hasQuestCompletion reports whether a completion for (addr, questID) is stored.
+func (s *MultisigService) hasQuestCompletion(ctx context.Context, addr, questID string) (bool, error) {
+	var one int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT 1 FROM quest_completions WHERE address = ? AND quest_id = ?`, addr, questID,
+	).Scan(&one)
+	if errors.Is(err, sql.ErrNoRows) {
+		return false, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 // issueAttestationVoucher signs + persists an on-chain attestation voucher for a
-// completion (Q-05). No-op when the signer is unconfigured or a voucher already
-// exists for (addr, questID). The backend never broadcasts — the user does.
+// completion (Q-05). No-op when the signer is unconfigured, when no completion is
+// stored for (addr, questID), or when a voucher already exists for it. The
+// backend never broadcasts — the user does.
 func (s *MultisigService) issueAttestationVoucher(ctx context.Context, addr, questID string) {
 	if s.attSigner == nil {
+		return
+	}
+	// Vouchers attest server-verified grants only: require the stored completion.
+	stored, err := s.hasQuestCompletion(ctx, addr, questID)
+	if err != nil {
+		slog.Warn("attestation voucher completion lookup failed", "address", addr, "quest", questID, "err", err)
+		return
+	}
+	if !stored {
 		return
 	}
 	// Skip if already issued (avoids re-signing on idempotent re-completion).
@@ -889,10 +937,12 @@ func (s *MultisigService) SubmitQuestClaim(ctx context.Context, req *connect.Req
 // The actual on-chain mint happens when a background worker processes the queue
 // (or an admin triggers it). INSERT OR IGNORE prevents duplicates.
 func (s *MultisigService) queueBadgeMint(ctx context.Context, address, questID string) {
+	// Only queue a mint for a completion that is actually stored.
 	if _, err := s.db.ExecContext(ctx,
 		`INSERT OR IGNORE INTO badge_mints (address, quest_id, mint_status, created_at)
-		 VALUES (?, ?, 'pending', CURRENT_TIMESTAMP)`,
-		address, questID,
+		 SELECT ?, ?, 'pending', CURRENT_TIMESTAMP
+		 WHERE EXISTS (SELECT 1 FROM quest_completions WHERE address = ? AND quest_id = ?)`,
+		address, questID, address, questID,
 	); err != nil {
 		slog.Warn("queueBadgeMint: insert failed",
 			"address", address, "quest_id", questID, "error", err)

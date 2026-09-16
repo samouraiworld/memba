@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Quest vouchers and badge mints follow stored completions (2026-09-16)
+<!-- categories: memba -->
+- **Issue quest vouchers and badge mints only for stored completions.** A quest completion request that the database does not record (for example, a deploy proof already counted for another deploy quest) now fails instead of reporting success, and the attestation voucher and badge-mint steps each confirm the completion is stored before acting. Retrying an already-completed quest still succeeds and keeps its original voucher.
+
 ### The gno.land sale popup is gone (2026-09-16)
 <!-- categories: memba -->
 - **Memba no longer shows the gno.land public-sale announcement.** The sale window it advertised opened on 20 July 2026; the popup, its countdown copy and its `VITE_ENABLE_ICO_ANNOUNCEMENT` flag are removed. The Netlify variable can be deleted; it no longer does anything.
