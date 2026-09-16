@@ -3,6 +3,7 @@ import AxeBuilder from '@axe-core/playwright'
 import { stubNetwork } from './helpers/stubNetwork'
 import { suppressReleaseAnnouncement } from './helpers/releaseAnnouncement'
 import { fulfillGovernance } from './helpers/proGovernanceFixture'
+import { waitForRouteSettled } from './helpers/routeSettled'
 
 // Every family, including guarded, missing-resource and specialist routes. All remote traffic is stubbed.
 export const designRoutes = [
@@ -45,7 +46,7 @@ for (const theme of ['dark', 'light'] as const) {
                         await page.goto(`/pearl/${route}`)
                         await expect(page.locator('.k-pro-app')).toBeVisible()
                         await expect(page.locator('#main-content')).not.toHaveText('')
-                        await page.waitForTimeout(450) // allow layout after deterministic failed/fulfilled reads
+                        await waitForRouteSettled(page) // route chunk rendered and deterministic reads applied
                         expect.soft(errors, route).toEqual([])
                         const overflow = await page.evaluate(() => ({ width: innerWidth, scroll: document.documentElement.scrollWidth,
                             nodes: [...document.querySelectorAll('main *')].filter(el => { const r = el.getBoundingClientRect(); return r.width > 0 && (r.right > innerWidth + 2 || r.left < -2) && getComputedStyle(el).position !== 'fixed' }).slice(0, 8).map(el => el.className) }))
@@ -86,7 +87,7 @@ for (const theme of ['dark', 'light'] as const) {
             await page.goto(`/pearl/${path}`)
             await expect(page.locator('.k-pro-app')).toBeVisible()
             await expect(page.locator('#main-content')).not.toHaveText('')
-            await page.waitForTimeout(500)
+            await waitForRouteSettled(page, { quietMs: 500 })
             if (path === 'multisig') await expect(page.getByRole('button', { name: 'Community operations', exact: true })).toBeVisible()
             if (path === 'tx/7') await expect(page.locator('#main-content')).toContainText('Community operations — design fixture')
             expect.soft(await page.locator('main').innerText(), path).not.toContain('Something went wrong')

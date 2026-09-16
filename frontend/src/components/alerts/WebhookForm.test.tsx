@@ -27,6 +27,17 @@ const webhook = (chainID: string | null): MonitoringWebhook => ({
 
 const chainSelect = () => document.querySelector<HTMLSelectElement>("#webhook-chain")!
 
+// `fetchEnabledChains` having been CALLED is not the registry having RENDERED:
+// the mock is called synchronously in the mount effect, resolves on a later
+// tick, and the options land one React commit after that. Acting on the select
+// in between is a race — a change to a not-yet-rendered option makes jsdom fall
+// back to "" (selectedIndex -1), so the form blocks with "Chain is required" and
+// never submits (seen on the loaded Node-20 CI leg). Wait for the options.
+const chainsRendered = (served: readonly string[] = ENABLED) => waitFor(() => {
+    const values = [...chainSelect().options].map(o => o.value)
+    for (const chain of served) expect(values).toContain(chain)
+})
+
 describe("WebhookForm", () => {
     beforeEach(() => {
         mocks.fetchEnabledChains.mockResolvedValue(ENABLED)
@@ -38,16 +49,12 @@ describe("WebhookForm", () => {
 
     it("populates the selector from /info", async () => {
         render(<WebhookForm onSubmit={vi.fn()} />)
-        await waitFor(() => expect(chainSelect().querySelectorAll("option").length)
-            .toBeGreaterThanOrEqual(ENABLED.length))
-
-        const values = [...chainSelect().querySelectorAll("option")].map(o => o.value)
-        for (const chain of ENABLED) expect(values).toContain(chain)
+        await chainsRendered()
     })
 
     it("offers no 'All chains' option — the server requires a chain", async () => {
         render(<WebhookForm onSubmit={vi.fn()} />)
-        await waitFor(() => expect(mocks.fetchEnabledChains).toHaveBeenCalled())
+        await chainsRendered()
 
         const labels = [...chainSelect().querySelectorAll("option")].map(o => o.text)
         expect(labels.some(l => /all chains/i.test(l))).toBe(false)
@@ -55,7 +62,7 @@ describe("WebhookForm", () => {
 
     it("shows a stored chain the service no longer offers, rather than blanking", async () => {
         render(<WebhookForm initial={webhook("test-13")} onSubmit={vi.fn()} />)
-        await waitFor(() => expect(mocks.fetchEnabledChains).toHaveBeenCalled())
+        await chainsRendered()
 
         expect(chainSelect().value).toBe("test-13")
         expect(chainSelect().selectedIndex).toBeGreaterThanOrEqual(0)
@@ -66,7 +73,7 @@ describe("WebhookForm", () => {
     it("submits chain_id-ready ChainID from the stored webhook", async () => {
         const onSubmit = vi.fn().mockResolvedValue({ ok: true })
         render(<WebhookForm initial={webhook("topaz-1")} onSubmit={onSubmit} />)
-        await waitFor(() => expect(mocks.fetchEnabledChains).toHaveBeenCalled())
+        await chainsRendered()
 
         fireEvent.submit(document.querySelector("form")!)
         await waitFor(() => expect(onSubmit).toHaveBeenCalled())
@@ -78,7 +85,7 @@ describe("WebhookForm", () => {
     it("submits a chain the user changes it to", async () => {
         const onSubmit = vi.fn().mockResolvedValue({ ok: true })
         render(<WebhookForm initial={webhook("topaz-1")} onSubmit={onSubmit} />)
-        await waitFor(() => expect(mocks.fetchEnabledChains).toHaveBeenCalled())
+        await chainsRendered()
 
         fireEvent.change(chainSelect(), { target: { value: "sapphire-1" } })
         fireEvent.submit(document.querySelector("form")!)
@@ -95,7 +102,7 @@ describe("WebhookForm", () => {
         // choose, so the form blocks instead of submitting a guess.
         const onSubmit = vi.fn()
         render(<WebhookForm initial={webhook(null)} onSubmit={onSubmit} />)
-        await waitFor(() => expect(mocks.fetchEnabledChains).toHaveBeenCalled())
+        await chainsRendered()
 
         expect(chainSelect().value).toBe("")
         fireEvent.submit(document.querySelector("form")!)
@@ -122,19 +129,18 @@ describe("WebhookForm", () => {
         // pearl-1 is added there, a pearl visitor picks a chain manually
         // instead of being handed a preselection the server would refuse.
         const { GNO_MONITORING_CHAIN } = await import("../../lib/config")
-        mocks.fetchEnabledChains.mockResolvedValueOnce(
-            ENABLED.filter((c) => c !== GNO_MONITORING_CHAIN),
-        )
+        const served = ENABLED.filter((c) => c !== GNO_MONITORING_CHAIN)
+        mocks.fetchEnabledChains.mockResolvedValueOnce(served)
 
         render(<WebhookForm onSubmit={vi.fn()} />)
-        await waitFor(() => expect(mocks.fetchEnabledChains).toHaveBeenCalled())
+        await chainsRendered(served)
         expect(chainSelect().value).toBe("")
     })
 
     it("rejects a host the server would refuse, before submitting", async () => {
         const onSubmit = vi.fn()
         render(<WebhookForm onSubmit={onSubmit} />)
-        await waitFor(() => expect(mocks.fetchEnabledChains).toHaveBeenCalled())
+        await chainsRendered()
 
         fireEvent.change(document.querySelector("#webhook-url")!, {
             target: { value: "https://example.com/hook" },
@@ -154,7 +160,7 @@ describe("WebhookForm", () => {
             error: "chain_id is required",
         })
         render(<WebhookForm initial={webhook("topaz-1")} onSubmit={onSubmit} />)
-        await waitFor(() => expect(mocks.fetchEnabledChains).toHaveBeenCalled())
+        await chainsRendered()
 
         fireEvent.submit(document.querySelector("form")!)
 
