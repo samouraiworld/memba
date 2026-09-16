@@ -49,7 +49,9 @@ async function fulfillGovDaoHome(page: Page) {
         '',
         'Gno chain governance — proposals and membership management.',
         '',
-        // getDAOConfig derives the memberstore realm path from this link.
+        // getDAOConfig derives the memberstore realm path from this link, and only
+        // trusts it under the Members section (live pearl-1 and gnoland-1 renders).
+        '## Members',
         '[> Go to Memberstore <](https://gno.land/r/gov/dao/v3/memberstore)',
         '',
         '## Proposals',
