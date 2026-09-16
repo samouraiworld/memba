@@ -19,6 +19,7 @@
  * @module lib/gnowebSource
  */
 
+import { GNO_CHAIN_ID, networkScopedKey } from "./config"
 import { resilientAbciQuery } from "./rpcFallback"
 
 // ── Types ────────────────────────────────────────────────────
@@ -54,6 +55,10 @@ export function isValidRealmPath(path: string): boolean {
 
 // ── Caching ─────────────────────────────────────────────────
 
+// Entries are keyed per network (networkScopedKey) and record the chain they
+// were fetched from: the same realm path can hold different code on different
+// networks, and sessionStorage survives the reload a network switch performs.
+// Unscoped entries written by older builds are never read.
 const CACHE_TTL = 10 * 60 * 1000 // 10 minutes
 const CACHE_PREFIX = "memba_gnosrc_"
 const MAX_CACHE_SIZE = 2 * 1024 * 1024 // 2MB total cap
@@ -64,6 +69,7 @@ function getCached<T>(key: string): T | null {
         if (!raw) return null
         const entry = JSON.parse(raw)
         if (typeof entry?.ts !== "number" || !("data" in entry)) return null
+        if (entry.chainId !== GNO_CHAIN_ID) return null
         if (Date.now() - entry.ts > CACHE_TTL) {
             sessionStorage.removeItem(CACHE_PREFIX + key)
             return null
@@ -76,7 +82,7 @@ function getCached<T>(key: string): T | null {
 
 function setCache<T>(key: string, data: T): void {
     try {
-        const payload = JSON.stringify({ data, ts: Date.now() })
+        const payload = JSON.stringify({ data, ts: Date.now(), chainId: GNO_CHAIN_ID })
         if (payload.length > MAX_CACHE_SIZE) return // skip oversized entries
         sessionStorage.setItem(CACHE_PREFIX + key, payload)
     } catch { /* quota */ }
@@ -94,7 +100,7 @@ export async function fetchRealmSource(
 ): Promise<RealmSource | null> {
     if (!isValidRealmPath(realmPath)) return null
 
-    const cacheKey = `source_${realmPath}`
+    const cacheKey = networkScopedKey(`source_${realmPath}`)
     const cached = getCached<RealmSource>(cacheKey)
     if (cached) return cached
 
@@ -202,7 +208,7 @@ export async function fetchRealmSourceSmart(
 ): Promise<RealmSource | null> {
     if (!isValidRealmPath(realmPath)) return null
 
-    const cacheKey = `source_${realmPath}`
+    const cacheKey = networkScopedKey(`source_${realmPath}`)
     const cached = getCached<RealmSource>(cacheKey)
     if (cached) return cached
 

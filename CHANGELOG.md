@@ -23,6 +23,9 @@ Full changelogs are split by version range for easier navigation:
 ### Quest vouchers and badge mints follow stored completions (2026-09-16)
 <!-- categories: memba -->
 - **Issue quest vouchers and badge mints only for stored completions.** A quest completion request that the database does not record (for example, a deploy proof already counted for another deploy quest) now fails instead of reporting success, and the attestation voucher and badge-mint steps each confirm the completion is stored before acting. Retrying an already-completed quest still succeeds and keeps its original voucher.
+### Realm source stays on the network you are viewing (2026-09-16)
+<!-- categories: memba -->
+- **Realm source code shown in the Directory, Explorer and app curator review now always comes from the active network.** The short-lived source cache is kept per network and checked against the active chain, so switching networks no longer shows source loaded on the previous one.
 
 ### The gno.land sale popup is gone (2026-09-16)
 <!-- categories: memba -->
