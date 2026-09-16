@@ -18,6 +18,7 @@ import { GNO_RPC_URL } from "../../lib/config"
 import { getDAOProposals, type DAOProposal } from "../../lib/dao"
 import { encodeSlug } from "../../lib/daoSlug"
 import { SkeletonCard } from "../../components/ui/LoadingSkeleton"
+import { buildProposalsCsv } from "./csv"
 
 type StatusFilter = "all" | "open" | "passed" | "rejected"
 type SortOrder = "newest" | "oldest" | "most-votes"
@@ -106,19 +107,7 @@ export default function ProposalsPlugin({ realmPath, slug }: PluginProps) {
             content = JSON.stringify(exportRows, null, 2)
             mime = "application/json"
         } else {
-            const headers = ["ID", "Title", "Status", "Author", "Yes Votes", "No Votes", "Abstain", "Yes %", "No %"]
-            const rows = filtered.map(p => [
-                p.id,
-                `"${p.title.replace(/"/g, '""')}"`,
-                p.status,
-                p.author || "",
-                p.yesVotes,
-                p.noVotes,
-                p.abstainVotes,
-                p.yesPercent,
-                p.noPercent,
-            ].join(","))
-            content = [headers.join(","), ...rows].join("\n")
+            content = buildProposalsCsv(filtered)
             mime = "text/csv"
         }
 

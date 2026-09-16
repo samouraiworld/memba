@@ -31,6 +31,9 @@ Full changelogs are split by version range for easier navigation:
 ### Your vote is recognised only by your exact address or username (2026-09-16)
 <!-- categories: memba -->
 - **"You voted" on proposal pages, the DAO dashboard's needs-your-vote list and vote notifications now match a voter only by your full wallet address or your exact registered username.** Another account whose address or name merely starts with the same characters no longer hides your voting buttons or marks a proposal as voted.
+### Proposal CSV exports open safely in spreadsheets (2026-09-16)
+<!-- categories: memba -->
+- **The Proposal Explorer CSV export now writes every text column as quoted plain text.** Titles, statuses and authors that begin with `=`, `+`, `-` or `@` are prefixed with a single quote so spreadsheet applications show them as text instead of evaluating them; vote counts and percentages stay numeric, and the JSON export is unchanged.
 
 ### Quest vouchers and badge mints follow stored completions (2026-09-16)
 <!-- categories: memba -->
