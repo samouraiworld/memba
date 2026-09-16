@@ -2,12 +2,13 @@ import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { abortOnchainReads } from './helpers/onchain'
 import { stubNetwork } from './helpers/stubNetwork'
+import { suppressReleaseAnnouncement } from './helpers/releaseAnnouncement'
 import { fulfillGovernance } from './helpers/proGovernanceFixture'
 const dao = '/pearl/dao/gno.land/r/gov/dao'
 test.beforeEach(async ({ page }) => {
     await stubNetwork(page)
     await fulfillGovernance(page)
-    await page.addInitScript(() => localStorage.setItem('memba_whats_new_seen', '7.5.0'))
+    await suppressReleaseAnnouncement(page)
 })
 for (const theme of ['dark', 'light'] as const) {
     test(`desktop ${theme} overview and proposal reader`, async ({ page }, info) => {

@@ -1,12 +1,13 @@
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { stubNetwork } from './helpers/stubNetwork'
+import { suppressReleaseAnnouncement } from './helpers/releaseAnnouncement'
 import { fulfillProValidatorRoster } from './helpers/proValidatorsFixture'
 
 test.beforeEach(async ({ page }) => {
     await stubNetwork(page)
     await fulfillProValidatorRoster(page)
-    await page.addInitScript(() => localStorage.setItem('memba_whats_new_seen', '7.5.0'))
+    await suppressReleaseAnnouncement(page)
 })
 
 for (const theme of ['dark', 'light'] as const) {

@@ -2,6 +2,7 @@ import { bech32Encode } from '../src/lib/dao/realmAddress'
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { stubNetwork } from './helpers/stubNetwork'
+import { suppressReleaseAnnouncement } from './helpers/releaseAnnouncement'
 import { qevalWire, weightedFixture, weightedRealm } from '../src/lib/dao/testdata/weighted'
 
 for (const version of [1, 2] as const) for (const width of [1280, 390]) {
@@ -16,7 +17,8 @@ for (const version of [1, 2] as const) for (const width of [1280, 390]) {
             return route.fulfill({ json: { result: { response: { ResponseBase: { Data: Buffer.from(qevalWire(value)).toString('base64'), Error: null } } } } })
         })
         await page.setViewportSize({ width, height: 1100 })
-        await page.addInitScript(() => { localStorage.setItem('memba_whats_new_seen', '7.7.0'); localStorage.setItem('memba_network', 'pearl') })
+        await suppressReleaseAnnouncement(page)
+        await page.addInitScript(() => localStorage.setItem('memba_network', 'pearl'))
         await page.goto(`/pearl/weighted-dao/${weightedRealm}`)
         const workspace = page.locator('.weighted-dao')
         await expect(workspace.getByText('Founder · 2 points')).toBeVisible()

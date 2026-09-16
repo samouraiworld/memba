@@ -3,14 +3,21 @@ import AxeBuilder from '@axe-core/playwright'
 import { fulfillProValidatorRoster } from './helpers/proValidatorsFixture'
 import { findHorizontalClipping } from './helpers/overflow'
 import { stubNetwork } from './helpers/stubNetwork'
+import { suppressReleaseAnnouncement } from './helpers/releaseAnnouncement'
 
 test.beforeEach(async ({ page }) => {
     await stubNetwork(page)
     await fulfillProValidatorRoster(page)
-    await page.addInitScript(() => {
-        // Suppress the unrelated release announcement in this deterministic proof.
-        localStorage.setItem('memba_whats_new_seen', '7.5.0')
-    })
+    // Suppress the unrelated release announcement in this deterministic proof.
+    await suppressReleaseAnnouncement(page)
+})
+
+test('release announcement stays closed for the current app version', async ({ page }) => {
+    await page.goto('/pearl/validators')
+    await expect(page.getByTestId('validator-row-1')).toBeVisible()
+    // WhatsNewToast opens three seconds after load when the seen version is stale.
+    await page.waitForTimeout(3500)
+    await expect(page.getByRole('dialog', { name: "What's new in Memba" })).toHaveCount(0)
 })
 
 for (const width of [769, 1024, 1280, 1440, 1920, 768, 390, 320]) {
