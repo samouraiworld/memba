@@ -181,9 +181,11 @@ export function parseACL(raw: string): ChannelACLInfo {
 /**
  * v2.1a: Extract @mentions from a message body.
  * Returns array of unique g1... addresses mentioned.
+ * A mention must be a standalone token: an address run into surrounding
+ * letters or digits (e.g. `@g1…x`, `mail@g1…`) is not a mention.
  */
 export function parseMentions(body: string): string[] {
-    const mentionPattern = /@(g1[a-z0-9]{38})/g
+    const mentionPattern = /(?<![0-9A-Za-z])@(g1[a-z0-9]{38})(?![0-9A-Za-z])/g
     const mentions = new Set<string>()
     let match
     while ((match = mentionPattern.exec(body)) !== null) {

@@ -30,7 +30,7 @@ import { ThreadList } from "./ThreadList"
 import { ThreadView } from "./ThreadView"
 import { ComposeThread } from "./ComposeThread"
 import { GatedChannelBanner } from "./GatedChannelBanner"
-import { parseMentions } from "./parserV1"
+import { replyMentionsUser } from "./mentions"
 import { addNotification } from "../../lib/notifications"
 import "./board.css"
 
@@ -138,12 +138,9 @@ export default function BoardView({ boardPath, realmPath, slug, auth, adena, ini
         // Only scan new replies (skip initial load)
         if (lastReplyCount.current > 0 && currentCount > lastReplyCount.current) {
             const newReplies = threadDetail.replies.slice(lastReplyCount.current)
-            const userAddr = adena.address.toLowerCase()
             for (const reply of newReplies) {
-                // Don't notify for own replies
-                if (reply.author.toLowerCase().includes(userAddr.slice(0, 10))) continue
-                const mentions = parseMentions(reply.body)
-                if (mentions.some(m => m.toLowerCase().includes(userAddr.slice(0, 10)))) {
+                // Exact full-address match only; own replies are skipped inside.
+                if (replyMentionsUser(reply, adena.address)) {
                     addNotification(adena.address, {
                         type: "mention",
                         title: `Mentioned in #${viewState.channel}`,

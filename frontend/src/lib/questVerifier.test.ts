@@ -1,5 +1,7 @@
-import { describe, it, expect, beforeEach, vi } from "vitest"
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest"
+import * as shared from "./dao/shared"
 import {
+    channelRenderHasThreadBy,
     verifyQuest,
     trackAIReportView,
     trackDailyLogin,
@@ -216,6 +218,72 @@ describe("verifyQuest", () => {
         const result = await verifyQuest("deploy-hello-pkg", "g1test", "http://rpc")
         expect(result.status).toBe("not_verified")
         expect(result.message).toContain("realm path")
+    })
+})
+
+// ── Channel post verification (post-board / channel-active) ─
+
+describe("channelRenderHasThreadBy", () => {
+    const ADDR = "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m"
+    /** Same first 10 characters as ADDR, different account. */
+    const LOOKALIKE = "g1aeddlftl" + "q".repeat(30)
+    const render = (author: string, title = "Hello") =>
+        `# #general\n\n### [${title}](:general/1)\nby ${author} | 0 replies | block 42\n\n`
+
+    it("matches a thread whose author is the exact full address, in any case", () => {
+        expect(channelRenderHasThreadBy(render(ADDR), ADDR)).toBe(true)
+        expect(channelRenderHasThreadBy(render(ADDR), ADDR.toUpperCase())).toBe(true)
+        expect(channelRenderHasThreadBy(render(ADDR.toUpperCase()), ADDR)).toBe(true)
+    })
+
+    it("does not match a lookalike author sharing the 10-character prefix", () => {
+        expect(channelRenderHasThreadBy(render(LOOKALIKE), ADDR)).toBe(false)
+    })
+
+    it("does not match the truncated author form the channels realm renders", () => {
+        // memba_dao_channels_v2 renderChannel writes truncAddr(author) = first 10 chars + "..."
+        expect(channelRenderHasThreadBy(render(`${ADDR.slice(0, 10)}...`), ADDR)).toBe(false)
+        expect(channelRenderHasThreadBy(render(`${LOOKALIKE.slice(0, 10)}...`), ADDR)).toBe(false)
+    })
+
+    it("does not match the address embedded in a longer token", () => {
+        expect(channelRenderHasThreadBy(render(`${ADDR}x`), ADDR)).toBe(false)
+        expect(channelRenderHasThreadBy(render(`x${ADDR}`), ADDR)).toBe(false)
+    })
+
+    it("does not match the address appearing outside the author field", () => {
+        expect(channelRenderHasThreadBy(render(`${LOOKALIKE.slice(0, 10)}...`, ADDR), ADDR)).toBe(false)
+        expect(channelRenderHasThreadBy(`# #general\n\nby ${ADDR} | 0 replies | block 1\n`, ADDR)).toBe(false)
+    })
+
+    it("never matches on empty or malformed input", () => {
+        expect(channelRenderHasThreadBy("", ADDR)).toBe(false)
+        expect(channelRenderHasThreadBy(render(ADDR), "")).toBe(false)
+        expect(channelRenderHasThreadBy(render("g1short"), "g1short")).toBe(false)
+    })
+})
+
+describe("verifyQuest post-board", () => {
+    const ADDR = "g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m"
+
+    afterEach(() => {
+        vi.restoreAllMocks()
+    })
+
+    it("does not verify from the realm's truncated author line", async () => {
+        vi.spyOn(shared, "queryRender").mockResolvedValue(
+            `# #general\n\n### [Hi](:general/1)\nby ${ADDR.slice(0, 10)}... | 0 replies | block 42\n\n`,
+        )
+        const result = await verifyQuest("post-board", ADDR, "http://rpc")
+        expect(result.status).toBe("not_verified")
+    })
+
+    it("verifies when a thread author is the exact full address", async () => {
+        vi.spyOn(shared, "queryRender").mockResolvedValue(
+            `# #general\n\n### [Hi](:general/1)\nby ${ADDR} | 0 replies | block 42\n\n`,
+        )
+        const result = await verifyQuest("post-board", ADDR, "http://rpc")
+        expect(result.status).toBe("verified")
     })
 })
 

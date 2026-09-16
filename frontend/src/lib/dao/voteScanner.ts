@@ -10,6 +10,7 @@ import { getDAOConfig } from "./config"
 import { GNO_RPC_URL, networkScopedKey } from "../config"
 import { getSavedDAOs, FEATURED_DAO, encodeSlug } from "../daoSlug"
 import { resolveOnChainUsername } from "../profile"
+import { sameFullAddress } from "../addressMatch"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -102,9 +103,6 @@ function getDAOsToScan(): { path: string; name: string }[] {
         .map(([path, name]) => ({ path, name }))
 }
 
-/** A full gno bech32 account address (lower- or upper-case). */
-const FULL_ADDRESS_RE = /^g1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{38}$/i
-
 /**
  * Does one rendered voter entry identify the connected user?
  *
@@ -123,11 +121,7 @@ export function voterMatchesUser(
     const entry = (voter || "").trim()
     if (!entry) return false
 
-    const addr = (address || "").trim()
-    if (FULL_ADDRESS_RE.test(addr) && FULL_ADDRESS_RE.test(entry)
-        && entry.toLowerCase() === addr.toLowerCase()) {
-        return true
-    }
+    if (sameFullAddress(entry, address)) return true
 
     const name = (username || "").trim().replace(/^@/, "").toLowerCase()
     const entryName = entry.replace(/^@/, "").toLowerCase()

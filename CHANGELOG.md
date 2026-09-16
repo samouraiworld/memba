@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Channel mentions and post quests match your exact address (2026-09-16)
+<!-- categories: memba -->
+- **@mention notifications in DAO channels now fire only when a reply mentions your full wallet address.** A mention of another account whose address starts with the same characters no longer notifies you, and a reply from such an account is no longer mistaken for your own and silenced. An address run into surrounding letters or digits is not treated as a mention.
+- **The Forum Poster and Chat Champion quest checks now require a thread author equal to your full address.** An address prefix, including the shortened author shown in the channel list, no longer counts, so these quests are not verified automatically until the channel list shows full author addresses.
+
 ### DAO analyst instructions stay server-owned (2026-09-16)
 <!-- categories: memba -->
 - **The DAO analyst API now chooses the model instructions itself.** A request selects one of the supported perspectives (legal, technical, financial, strategic, risk, reasoning, community, regulatory, security, contrarian); proposal text, DAO context and treasury context are passed to the model only as clearly marked data, with the same size limits as consensus reports. Requests naming any other perspective are rejected.

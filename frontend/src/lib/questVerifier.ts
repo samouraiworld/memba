@@ -12,6 +12,7 @@
  */
 
 import { queryRender, queryEval } from "./dao/shared"
+import { isFullGnoAddress, sameFullAddress } from "./addressMatch"
 import { fetchAccountInfo } from "./account"
 import { fetchBackendProfile } from "./profile"
 import { api } from "./api"
@@ -80,6 +81,34 @@ export async function verifyQuest(
 }
 
 // ── On-Chain Verifiers ──────────────────────────────────────
+
+/** Thread heading line in a channel render: `### [Title](:channel/id)`. */
+const THREAD_HEADING_RE = /^### \[.*\]\(:[^/()\s]+\/\d+\)$/
+/** Thread meta line directly under the heading: `by <author> | N replies | block H`. */
+const THREAD_META_RE = /^by (\S+) \| \d+ repl(?:y|ies) \| block \d+$/
+
+/**
+ * Does a channels realm render list a thread whose author is exactly `address`?
+ *
+ * Only the author field of a thread meta line directly under a thread heading
+ * counts, and it must equal the full address (case-insensitive). Prefixes,
+ * truncated forms and addresses elsewhere in the render (such as in a title)
+ * never match.
+ *
+ * memba_dao_channels_v2 currently renders thread authors truncated
+ * (first 10 characters + "..."), so against that realm this returns false and
+ * the channel post quests are not verified client-side.
+ */
+export function channelRenderHasThreadBy(render: string, address: string): boolean {
+    if (!render || !isFullGnoAddress(address)) return false
+    const lines = render.split("\n").map(l => l.trimEnd())
+    for (let i = 1; i < lines.length; i++) {
+        if (!THREAD_HEADING_RE.test(lines[i - 1])) continue
+        const meta = THREAD_META_RE.exec(lines[i])
+        if (meta && sameFullAddress(meta[1], address)) return true
+    }
+    return false
+}
 
 async function verifyOnChain(
     quest: GnoQuest,
@@ -166,10 +195,12 @@ async function verifyOnChain(
 
         case "post-board":
         case "channel-active": {
-            // Check channels v2 for user's posts
+            // Check channels v2 for a thread authored by the user's exact address.
+            // The realm currently truncates thread authors, so this does not verify
+            // until it renders full addresses (see channelRenderHasThreadBy).
             const { MEMBA_DAO } = await import("./config")
             const channelRender = await queryRender(rpcUrl, MEMBA_DAO.channelsPath, "general")
-            if (channelRender && channelRender.includes(address.slice(0, 10))) {
+            if (channelRender && channelRenderHasThreadBy(channelRender, address)) {
                 return VERIFIED
             }
             return NOT_VERIFIED("Post a thread in MembaDAO channels to verify")

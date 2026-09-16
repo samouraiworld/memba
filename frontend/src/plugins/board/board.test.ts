@@ -307,4 +307,14 @@ describe("parseMentions", () => {
         const mentions = parseMentions("@g1short is not valid")
         expect(mentions).toEqual([])
     })
+
+    it("ignores an address embedded in a longer token", () => {
+        expect(parseMentions(`@${addr1}x`)).toEqual([])
+        expect(parseMentions(`@${addr1}7 and @${addr1}${addr2}`)).toEqual([])
+        expect(parseMentions(`mail@${addr1}`)).toEqual([])
+    })
+
+    it("accepts mentions followed or preceded by punctuation", () => {
+        expect(parseMentions(`(@${addr1}), cc:@${addr2}.`)).toEqual([addr1, addr2])
+    })
 })
