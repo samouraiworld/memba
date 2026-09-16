@@ -20,7 +20,7 @@ import {
     PROPOSAL_STATUS_COLORS,
 } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
-import { clearVoteCache } from "../lib/dao/voteScanner"
+import { clearVoteCache, voterMatchesUser } from "../lib/dao/voteScanner"
 import { logChainError } from "../lib/errorLog"
 import { AnalystReport } from "../components/dao/AnalystReport"
 import { useDaoRoute } from "../hooks/useDaoRoute"
@@ -139,28 +139,11 @@ export function ProposalView() {
     // cheaper than fighting the compiler for object identity nobody uses.
     const { hasVoted, userVote } = (() => {
         if (!voteRecords.length || !adena.address) return { hasVoted: false, userVote: "" }
-        const addr = adena.address.toLowerCase()
-        const uname = myUsername?.toLowerCase() || ""
-        const unameNoAt = uname.replace(/^@/, "")
+        const matches = (v: { username: string }) => voterMatchesUser(v.username, adena.address, myUsername)
         for (const record of voteRecords) {
-            for (const v of record.yesVoters) {
-                const vl = v.username.toLowerCase()
-                if (vl === uname || vl === `@${unameNoAt}` || vl.includes(addr.slice(0, 10))) {
-                    return { hasVoted: true, userVote: "YES" }
-                }
-            }
-            for (const v of record.noVoters) {
-                const vl = v.username.toLowerCase()
-                if (vl === uname || vl === `@${unameNoAt}` || vl.includes(addr.slice(0, 10))) {
-                    return { hasVoted: true, userVote: "NO" }
-                }
-            }
-            for (const v of record.abstainVoters) {
-                const vl = v.username.toLowerCase()
-                if (vl === uname || vl === `@${unameNoAt}` || vl.includes(addr.slice(0, 10))) {
-                    return { hasVoted: true, userVote: "ABSTAIN" }
-                }
-            }
+            if (record.yesVoters.some(matches)) return { hasVoted: true, userVote: "YES" }
+            if (record.noVoters.some(matches)) return { hasVoted: true, userVote: "NO" }
+            if (record.abstainVoters.some(matches)) return { hasVoted: true, userVote: "ABSTAIN" }
         }
         return { hasVoted: false, userVote: "" }
     })()

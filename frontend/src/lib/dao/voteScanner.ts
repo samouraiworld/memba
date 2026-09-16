@@ -102,26 +102,49 @@ function getDAOsToScan(): { path: string; name: string }[] {
         .map(([path, name]) => ({ path, name }))
 }
 
+/** A full gno bech32 account address (lower- or upper-case). */
+const FULL_ADDRESS_RE = /^g1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{38}$/i
+
+/**
+ * Does one rendered voter entry identify the connected user?
+ *
+ * Voter entries are either a linked "@username" or a bare full address
+ * (see parseVoters), so a match must be exact: the entry equals the user's
+ * full bech32 address (case-insensitive), or equals the user's resolved
+ * username with any leading "@" stripped on both sides (case-insensitive).
+ * Prefixes, truncated addresses and substrings never match — another account
+ * sharing a few leading characters must not count as the user's vote.
+ */
+export function voterMatchesUser(
+    voter: string,
+    address: string,
+    username?: string | null,
+): boolean {
+    const entry = (voter || "").trim()
+    if (!entry) return false
+
+    const addr = (address || "").trim()
+    if (FULL_ADDRESS_RE.test(addr) && FULL_ADDRESS_RE.test(entry)
+        && entry.toLowerCase() === addr.toLowerCase()) {
+        return true
+    }
+
+    const name = (username || "").trim().replace(/^@/, "").toLowerCase()
+    const entryName = entry.replace(/^@/, "").toLowerCase()
+    return name !== "" && entryName === name
+}
+
 /**
  * Check if a user appears in a voter list.
- * VoterEntry only has {username, profileUrl} — no address field.
- * Matches by username (with @ prefix handling) and partial address in username
- * field (some DAOs render addresses instead of usernames).
- * This logic mirrors DAOHome.tsx lines 118-126.
+ * VoterEntry only has {username, profileUrl} — no address field; matching is
+ * delegated to voterMatchesUser (shared with ProposalView and DAOHome).
  */
 function isInVoterList(
     voters: Array<{ username: string; profileUrl?: string }>,
     address: string,
     username: string,
 ): boolean {
-    const addrPrefix = address.toLowerCase().slice(0, 10)
-    const userLower = username.toLowerCase()
-    return voters.some(v => {
-        const vLower = v.username.toLowerCase()
-        if (userLower && (vLower === userLower || vLower === `@${userLower}` || vLower === userLower.replace(/^@/, ""))) return true
-        if (addrPrefix && vLower.includes(addrPrefix)) return true
-        return false
-    })
+    return voters.some(v => voterMatchesUser(v.username, address, username))
 }
 
 /** @internal Exported for testing only. */

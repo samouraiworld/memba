@@ -18,6 +18,7 @@ import {
 } from "../lib/dao"
 import { useDaoRoute } from "../hooks/useDaoRoute"
 import { resolveOnChainUsername } from "../lib/profile"
+import { voterMatchesUser } from "../lib/dao/voteScanner"
 import { useJitsiContext } from "../contexts/JitsiContext"
 import { DeployPluginModal } from "../components/dao/DeployPluginModal"
 import { DAOOverviewCard } from "../components/dao/DAOOverviewCard"
@@ -129,16 +130,8 @@ export function DAOHome() {
         const noCount = votes.reduce((s, v) => s + v.noVoters.length, 0)
         const totalCount = yesCount + noCount
         if (adena.address && votes.length > 0) {
-            const addr = adena.address.toLowerCase()
-            const uname = myUsername?.toLowerCase() || ""
-            const allVoters = votes.flatMap(v => [
-                ...v.yesVoters.map(ve => ve.username.toLowerCase()),
-                ...v.noVoters.map(ve => ve.username.toLowerCase()),
-                ...v.abstainVoters.map(ve => ve.username.toLowerCase()),
-            ])
-            const voted = allVoters.some(v =>
-                v === uname || v === `@${uname.replace(/^@/, "")}` || v.includes(addr.slice(0, 10))
-            )
+            const allVoters = votes.flatMap(v => [...v.yesVoters, ...v.noVoters, ...v.abstainVoters])
+            const voted = allVoters.some(v => voterMatchesUser(v.username, adena.address, myUsername))
             if (voted) votedIds.add(p.id)
         }
         return {

@@ -28,6 +28,10 @@ Full changelogs are split by version range for easier navigation:
 ### DAO member data comes only from the DAO's own memberstore (2026-09-16)
 <!-- categories: memba -->
 - **Tier counts, member lists and the archive check now use a memberstore only when the DAO links it from its own Members section and it lives under the DAO's realm path.** A memberstore link appearing elsewhere in a DAO page, such as in a proposal title, or pointing outside the realm is ignored, and the member list falls back to the DAO's own roster.
+### Your vote is recognised only by your exact address or username (2026-09-16)
+<!-- categories: memba -->
+- **"You voted" on proposal pages, the DAO dashboard's needs-your-vote list and vote notifications now match a voter only by your full wallet address or your exact registered username.** Another account whose address or name merely starts with the same characters no longer hides your voting buttons or marks a proposal as voted.
+
 ### Quest vouchers and badge mints follow stored completions (2026-09-16)
 <!-- categories: memba -->
 - **Issue quest vouchers and badge mints only for stored completions.** A quest completion request that the database does not record (for example, a deploy proof already counted for another deploy quest) now fails instead of reporting success, and the attestation voucher and badge-mint steps each confirm the completion is stored before acting. Retrying an already-completed quest still succeeds and keeps its original voucher.
