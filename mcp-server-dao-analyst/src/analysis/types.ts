@@ -38,19 +38,25 @@ export interface ConsensusResult {
   keyRecommendations: string[];
 }
 
+/**
+ * One perspective sent to the backend. Model instructions are owned by the
+ * backend and selected by `perspective`; the other fields are passed to the
+ * model as data only.
+ */
 export interface AnalysisRequest {
   perspective: Perspective;
   proposalData: string;
   daoContext: string;
   treasuryContext?: string;
-  systemPrompt?: string;
-  userPrompt?: string;
 }
 
+/**
+ * PRO credits are resolved by the backend for the wallet behind the auth
+ * token, so the request carries no address.
+ */
 export interface BackendAnalysisRequest {
   perspectives: AnalysisRequest[];
   tier: "free" | "pro";
-  userAddress?: string;
 }
 
 export interface BackendAnalysisResponse {

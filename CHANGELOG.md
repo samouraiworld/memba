@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### DAO analyst instructions stay server-owned (2026-09-16)
+<!-- categories: memba -->
+- **The DAO analyst API now chooses the model instructions itself.** A request selects one of the supported perspectives (legal, technical, financial, strategic, risk, reasoning, community, regulatory, security, contrarian); proposal text, DAO context and treasury context are passed to the model only as clearly marked data, with the same size limits as consensus reports. Requests naming any other perspective are rejected.
+- **PRO analysis is tied to the signed-in wallet.** Credits are checked for the wallet behind the auth token, and a request naming a different wallet is refused. If the credit check cannot be completed, the analysis runs on the free tier.
+- **The DAO analyst MCP server sends only the perspective and its data.** It no longer sends prompt text or a wallet address, and `DAO_ANALYST_USER_ADDRESS` is no longer used.
 ### Quest vouchers and badge mints follow stored completions (2026-09-16)
 <!-- categories: memba -->
 - **Issue quest vouchers and badge mints only for stored completions.** A quest completion request that the database does not record (for example, a deploy proof already counted for another deploy quest) now fails instead of reporting success, and the attestation voucher and badge-mint steps each confirm the completion is stored before acting. Retrying an already-completed quest still succeeds and keeps its original voucher.

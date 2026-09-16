@@ -19,8 +19,11 @@ import (
 // AnalysisRequest from the MCP server.
 type AnalysisRequest struct {
 	Perspectives []PerspectiveRequest `json:"perspectives"`
-	Tier         string               `json:"tier"`       // "free" | "pro"
-	UserAddress  string               `json:"userAddress"` // g1... address for PRO credit check
+	Tier         string               `json:"tier"` // "free" | "pro"
+	// UserAddress is optional. PRO credits are always resolved for the wallet
+	// that authenticated the request; a non-empty value that differs from it is
+	// rejected.
+	UserAddress string `json:"userAddress,omitempty"`
 }
 
 // PerspectiveRequest is a single perspective analysis request.
@@ -29,9 +32,9 @@ type PerspectiveRequest struct {
 	ProposalData string `json:"proposalData"`
 	DaoContext   string `json:"daoContext"`
 	Treasury     string `json:"treasuryContext,omitempty"`
-	// v6 SEC-NEW-04: SystemPrompt and UserPrompt removed — user-controlled prompts
-	// enabled LLM prompt injection and general-purpose LLM proxy abuse.
-	// Prompts are now always generated server-side from ProposalData via splitPrompt().
+	// Model instructions are server-owned: Perspective selects one of the
+	// allowlisted instructions in buildAnalyzePrompts, and the three data fields
+	// only ever reach the model as tagged data in the user message.
 }
 
 // AnalysisResponse returned to the MCP server.
@@ -68,11 +71,16 @@ const (
 // validGnoAddress matches a bech32 Gno address: g1 followed by 38 alphanumeric chars.
 var validGnoAddress = regexp.MustCompile(`^g1[0-9a-z]{38}$`)
 
+// proCreditsLookup resolves a wallet's analyst credit balance. It is a variable
+// so tests can replace the on-chain query.
+var proCreditsLookup = checkProCredits
+
 // checkProCredits queries the on-chain agent_registry for a user's credit balance.
-// Returns the credit balance in ugnot, or 0 if the query fails.
-func checkProCredits(userAddr string) int64 {
+// Returns the credit balance in ugnot. An empty or malformed address has no
+// credits; a failed query or an unparseable response returns an error.
+func checkProCredits(userAddr string) (int64, error) {
 	if userAddr == "" || !validGnoAddress.MatchString(userAddr) {
-		return 0
+		return 0, nil
 	}
 
 	// Shared single source of truth (see AgentRegistryRealmPath) — MUST match
@@ -86,8 +94,7 @@ func checkProCredits(userAddr string) int64 {
 	// lives on test13, so use marketplaceRPCURL (not the testnet12 GNO_RPC_URL).
 	result, err := abciQuery(marketplaceRPCURL(), "vm/qeval", registryPath+"."+expr)
 	if err != nil {
-		slog.Warn("failed to check pro credits", "user", userAddr, "error", err)
-		return 0
+		return 0, fmt.Errorf("query credits: %w", err)
 	}
 
 	// Parse qeval response: ("12345" int64)
@@ -102,17 +109,19 @@ func checkProCredits(userAddr string) int64 {
 			valStr := result[idx+1 : idx+1+end]
 			var val int64
 			if _, err := fmt.Sscan(valStr, &val); err == nil {
-				return val
+				return val, nil
 			}
 		}
 	}
 
-	return 0
+	return 0, fmt.Errorf("unexpected credits response")
 }
 
 // enforceTier validates and adjusts the request based on the user's tier.
-// Returns the effective tier ("free" or "pro") and whether the request is allowed.
-func enforceTier(req *AnalysisRequest) (effectiveTier string, downgraded bool) {
+// authAddr is the wallet that authenticated the request; PRO credits are only
+// ever looked up for it. Returns the effective tier ("free" or "pro") and
+// whether a PRO request was downgraded.
+func enforceTier(req *AnalysisRequest, authAddr string) (effectiveTier string, downgraded bool) {
 	if req.Tier != "pro" {
 		// Free tier — cap perspectives
 		if len(req.Perspectives) > freeTierMaxPerspectives {
@@ -121,12 +130,15 @@ func enforceTier(req *AnalysisRequest) (effectiveTier string, downgraded bool) {
 		return "free", false
 	}
 
-	// PRO requested — check credits on-chain
-	credits := checkProCredits(req.UserAddress)
-	if credits <= 0 {
-		// No credits — downgrade to free
+	// PRO requested — check the authenticated wallet's credits on-chain
+	credits, err := proCreditsLookup(authAddr)
+	if err != nil {
+		slog.Warn("failed to check pro credits, downgrading", "user", authAddr, "error", err)
+	}
+	if err != nil || credits <= 0 {
+		// No credits, or they could not be confirmed — downgrade to free
 		slog.Info("pro tier requested but no credits, downgrading",
-			"user", req.UserAddress, "credits", credits)
+			"user", authAddr, "credits", credits)
 		if len(req.Perspectives) > freeTierMaxPerspectives {
 			req.Perspectives = req.Perspectives[:freeTierMaxPerspectives]
 		}
@@ -511,6 +523,14 @@ func HandleAnalystAnalyze() http.Handler {
 			return
 		}
 
+		// Set by requireAuthAddressMiddleware from the validated token. Fail
+		// closed if the handler is ever mounted without it.
+		authAddr, ok := AuthAddressFrom(r.Context())
+		if !ok {
+			http.Error(w, `{"error":"authorization required"}`, http.StatusUnauthorized)
+			return
+		}
+
 		body, err := io.ReadAll(io.LimitReader(r.Body, 512*1024)) // 512KB max
 		if err != nil {
 			http.Error(w, `{"error":"failed to read body"}`, http.StatusBadRequest)
@@ -528,13 +548,34 @@ func HandleAnalystAnalyze() http.Handler {
 			return
 		}
 
+		if req.UserAddress != "" && req.UserAddress != authAddr {
+			http.Error(w, `{"error":"userAddress does not match the authenticated wallet"}`, http.StatusForbidden)
+			return
+		}
+
 		if len(req.Perspectives) > 5 {
 			http.Error(w, `{"error":"max 5 perspectives"}`, http.StatusBadRequest)
 			return
 		}
 
-		// Enforce tier — checks on-chain credits for PRO
-		effectiveTier, downgraded := enforceTier(&req)
+		// Build every prompt up front so an invalid perspective or oversized
+		// field rejects the whole request before any model is called.
+		type analyzePrompt struct{ system, user string }
+		prompts := make([]analyzePrompt, len(req.Perspectives))
+		for i, p := range req.Perspectives {
+			system, user, err := buildAnalyzePrompts(p)
+			if err != nil {
+				msg, _ := json.Marshal(map[string]string{"error": err.Error()})
+				http.Error(w, string(msg), http.StatusBadRequest)
+				return
+			}
+			prompts[i] = analyzePrompt{system: system, user: user}
+		}
+
+		// Enforce tier — checks the authenticated wallet's on-chain credits for
+		// PRO. It only ever shortens req.Perspectives, so prompts[i] still
+		// belongs to req.Perspectives[i].
+		effectiveTier, downgraded := enforceTier(&req, authAddr)
 
 		providers := getProviders()
 		if len(providers) == 0 {
@@ -562,9 +603,9 @@ func HandleAnalystAnalyze() http.Handler {
 				provider, providerIdx := selectProvider(providers, idx)
 				modelsUsed[idx] = provider.Name + "/" + provider.Model
 
-				// v6 SEC-NEW-04: Always generate prompts server-side from structured data.
-				// User-controlled prompts are no longer accepted (prevents LLM prompt injection).
-				system, user := splitPrompt(p.ProposalData)
+				// Server-owned instruction + tagged request data (see buildAnalyzePrompts).
+				// The fallback provider below receives exactly the same pair.
+				system, user := prompts[idx].system, prompts[idx].user
 
 				llmOutput, err := callLLM(r.Context(), provider, system, user)
 				if err != nil {
@@ -620,16 +661,6 @@ func HandleAnalystAnalyze() http.Handler {
 			slog.Error("failed to write analyst response", "error", err)
 		}
 	})
-}
-
-// splitPrompt splits the combined prompt into system and user parts.
-// The MCP server sends them concatenated with a double newline separator.
-func splitPrompt(combined string) (system, user string) {
-	parts := strings.SplitN(combined, "\n\n", 2)
-	if len(parts) == 2 {
-		return parts[0], parts[1]
-	}
-	return "", combined
 }
 
 // parseLLMOutput attempts to parse structured JSON from LLM output.

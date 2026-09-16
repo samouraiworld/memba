@@ -61,8 +61,7 @@ Add to `.cursor/mcp.json` or `.vscode/mcp.json`:
 |----------|----------|---------|-------------|
 | `GNO_RPC_URL` | No | `https://rpc.pearl.samourai.live:443` (Pearl canonical node, chain-id `pearl-1`) | Gno RPC endpoint |
 | `MEMBA_BACKEND_URL` | No | `http://localhost:8080` | Memba backend for LLM routing |
-| `DAO_ANALYST_TOKEN` | No | — | Auth token for PRO tier |
-| `DAO_ANALYST_USER_ADDRESS` | No | — | Gno address for on-chain credit lookup |
+| `DAO_ANALYST_TOKEN` | No | — | Memba auth token; PRO credits are checked for the wallet it was issued to |
 
 ## Free vs PRO
 

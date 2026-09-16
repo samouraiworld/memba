@@ -6,6 +6,7 @@
  */
 
 import type {
+  AnalysisRequest,
   BackendAnalysisRequest,
   BackendAnalysisResponse,
   PerspectiveResult,
@@ -19,16 +20,16 @@ const TIMEOUT_MS = 60_000; // LLM calls can take up to 30s
 export interface BackendClientConfig {
   /** Memba backend URL. Defaults to localhost:8080. */
   backendUrl?: string;
-  /** Auth token for PRO tier. Optional — free tier if absent. */
+  /**
+   * Memba auth token. PRO credits are looked up for the wallet it was issued
+   * to. Optional — free tier if absent.
+   */
   token?: string;
-  /** User's Gno address for on-chain credit lookup. */
-  userAddress?: string;
 }
 
 export class BackendClient {
   private backendUrl: string;
   private token?: string;
-  private userAddress?: string;
 
   constructor(config: BackendClientConfig = {}) {
     this.backendUrl =
@@ -37,7 +38,6 @@ export class BackendClient {
       process.env.MEMBA_API_URL ||
       DEFAULT_BACKEND_URL;
     this.token = config.token || process.env.DAO_ANALYST_TOKEN;
-    this.userAddress = config.userAddress || process.env.DAO_ANALYST_USER_ADDRESS;
   }
 
   /**
@@ -56,10 +56,11 @@ export class BackendClient {
         headers["Authorization"] = `Bearer ${this.token}`;
       }
 
-      // Inject user address for on-chain credit lookup
-      const payload = {
-        ...request,
-        userAddress: this.userAddress,
+      // Send only the documented fields: the backend owns model instructions
+      // and derives the wallet from the auth token.
+      const payload: BackendAnalysisRequest = {
+        perspectives: request.perspectives.map(toWirePerspective),
+        tier: request.tier,
       };
 
       const res = await fetch(`${this.backendUrl}/api/analyst/analyze`, {
@@ -150,6 +151,18 @@ export function parseLLMResponse(
       recommendations: [],
     };
   }
+}
+
+function toWirePerspective(p: AnalysisRequest): AnalysisRequest {
+  const wire: AnalysisRequest = {
+    perspective: p.perspective,
+    proposalData: p.proposalData,
+    daoContext: p.daoContext,
+  };
+  if (p.treasuryContext !== undefined) {
+    wire.treasuryContext = p.treasuryContext;
+  }
+  return wire;
 }
 
 function validateVerdict(v: unknown): Verdict {

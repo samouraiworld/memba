@@ -409,7 +409,7 @@ func main() {
 
 	// DAO Analyst — LLM-powered governance analysis (proxies to free-tier LLMs)
 	// v6 SEC-03: auth required to prevent API key abuse
-	mux.Handle("/api/analyst/analyze", rateLimitMiddleware("analyst", requireAuthMiddleware(svc, service.HandleAnalystAnalyze())))
+	mux.Handle("/api/analyst/analyze", rateLimitMiddleware("analyst", requireAuthAddressMiddleware(svc, service.HandleAnalystAnalyze())))
 	// GET = PUBLIC, no-auth read of an already-cached report (zero LLM cost); POST =
 	// auth-gated generation (v6 SEC-03: prevents unauthenticated 10-model LLM cost-drain).
 	consensusGet := service.HandleAnalystConsensusGet(database)
@@ -781,6 +781,33 @@ func requireAuthMiddleware(svc *service.MultisigService, next http.Handler) http
 			return
 		}
 		next.ServeHTTP(w, r)
+	})
+}
+
+// restTokenAddressValidator is the part of *service.MultisigService that
+// requireAuthAddressMiddleware needs.
+type restTokenAddressValidator interface {
+	ValidateRESTTokenAddress(tokenJSON string) (string, error)
+}
+
+// requireAuthAddressMiddleware is requireAuthMiddleware that also passes the
+// token's wallet address to the handler (service.AuthAddressFrom), so handlers
+// act for the authenticated wallet instead of an address named in the body.
+func requireAuthAddressMiddleware(v restTokenAddressValidator, next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		authHeader := r.Header.Get("Authorization")
+		if authHeader == "" || !strings.HasPrefix(authHeader, "Bearer ") {
+			http.Error(w, `{"error":"authorization required"}`, http.StatusUnauthorized)
+			return
+		}
+		tokenJSON := strings.TrimPrefix(authHeader, "Bearer ")
+		addr, err := v.ValidateRESTTokenAddress(tokenJSON)
+		if err != nil || addr == "" {
+			slog.Warn("REST auth failed", "error", err)
+			http.Error(w, `{"error":"invalid or expired token"}`, http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r.WithContext(service.WithAuthAddress(r.Context(), addr)))
 	})
 }
 

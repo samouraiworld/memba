@@ -11,46 +11,6 @@ import (
 	_ "modernc.org/sqlite"
 )
 
-func TestSplitPrompt(t *testing.T) {
-	tests := []struct {
-		name       string
-		input      string
-		wantSystem string
-		wantUser   string
-	}{
-		{
-			name:       "splits on double newline",
-			input:      "system prompt\n\nuser prompt",
-			wantSystem: "system prompt",
-			wantUser:   "user prompt",
-		},
-		{
-			name:       "no separator returns empty system",
-			input:      "just user content",
-			wantSystem: "",
-			wantUser:   "just user content",
-		},
-		{
-			name:       "multiple separators splits on first",
-			input:      "system\n\nuser line 1\n\nuser line 2",
-			wantSystem: "system",
-			wantUser:   "user line 1\n\nuser line 2",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			system, user := splitPrompt(tt.input)
-			if system != tt.wantSystem {
-				t.Errorf("system: got %q, want %q", system, tt.wantSystem)
-			}
-			if user != tt.wantUser {
-				t.Errorf("user: got %q, want %q", user, tt.wantUser)
-			}
-		})
-	}
-}
-
 func TestParseLLMOutput(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -128,6 +88,7 @@ func TestHandleAnalystAnalyze_BadMethod(t *testing.T) {
 func TestHandleAnalystAnalyze_EmptyBody(t *testing.T) {
 	handler := HandleAnalystAnalyze()
 	req := httptest.NewRequest(http.MethodPost, "/api/analyst/analyze", bytes.NewReader([]byte("{}")))
+	req = req.WithContext(WithAuthAddress(req.Context(), analyzeTestAddrA))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -147,6 +108,7 @@ func TestHandleAnalystAnalyze_TooManyPerspectives(t *testing.T) {
 	body, _ := json.Marshal(reqBody)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/analyst/analyze", bytes.NewReader(body))
+	req = req.WithContext(WithAuthAddress(req.Context(), analyzeTestAddrA))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -161,6 +123,8 @@ func TestHandleAnalystAnalyze_NoProviders(t *testing.T) {
 	t.Setenv("GROQ_API_KEY", "")
 	t.Setenv("GOOGLE_AI_KEY", "")
 	t.Setenv("TOGETHER_API_KEY", "")
+	t.Setenv("OLLAMA_URL", "")
+	t.Setenv("OPENROUTER_API_KEY", "")
 
 	handler := HandleAnalystAnalyze()
 
@@ -173,6 +137,7 @@ func TestHandleAnalystAnalyze_NoProviders(t *testing.T) {
 	body, _ := json.Marshal(reqBody)
 
 	req := httptest.NewRequest(http.MethodPost, "/api/analyst/analyze", bytes.NewReader(body))
+	req = req.WithContext(WithAuthAddress(req.Context(), analyzeTestAddrA))
 	req.Header.Set("Content-Type", "application/json")
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
@@ -190,7 +155,7 @@ func TestEnforceTier_Free(t *testing.T) {
 		Tier:         "free",
 	}
 
-	tier, downgraded := enforceTier(req)
+	tier, downgraded := enforceTier(req, analyzeTestAddrA)
 	if tier != "free" {
 		t.Errorf("expected free tier, got %s", tier)
 	}
@@ -208,21 +173,21 @@ func TestEnforceTier_FreeFewPerspectives(t *testing.T) {
 		Tier:         "free",
 	}
 
-	enforceTier(req)
+	enforceTier(req, analyzeTestAddrA)
 	if len(req.Perspectives) != 1 {
 		t.Errorf("should not truncate when under limit, got %d", len(req.Perspectives))
 	}
 }
 
 func TestEnforceTier_ProNoCredits(t *testing.T) {
-	// No user address = no credits = downgrade
+	// No authenticated address = no credits = downgrade
 	req := &AnalysisRequest{
 		Perspectives: make([]PerspectiveRequest, 3),
 		Tier:         "pro",
 		UserAddress:  "",
 	}
 
-	tier, downgraded := enforceTier(req)
+	tier, downgraded := enforceTier(req, "")
 	if tier != "free" {
 		t.Errorf("expected free (downgraded), got %s", tier)
 	}
@@ -375,10 +340,9 @@ func TestEnforceTier_ProWithInvalidAddress(t *testing.T) {
 	req := &AnalysisRequest{
 		Perspectives: make([]PerspectiveRequest, 3),
 		Tier:         "pro",
-		UserAddress:  "g1invalid",
 	}
 
-	tier, downgraded := enforceTier(req)
+	tier, downgraded := enforceTier(req, "g1invalid")
 	if tier != "free" {
 		t.Errorf("expected free (downgraded), got %s", tier)
 	}

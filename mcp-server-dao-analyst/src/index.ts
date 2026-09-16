@@ -20,12 +20,6 @@ import { DaoAdapter } from "./dao/adapter.js";
 import { BackendClient } from "./backend/client.js";
 import { buildConsensus } from "./analysis/consensus.js";
 import {
-  buildAnalysisPrompt,
-  buildHealthPrompt,
-  buildTreasuryAuditPrompt,
-  buildRiskPrompt,
-} from "./analysis/prompts.js";
-import {
   formatConsensusResult,
   formatHealthResult,
   formatTreasuryAudit,
@@ -99,24 +93,15 @@ server.registerTool(
       const daoContext = overview?.raw || `DAO at ${realm_path}`;
       const treasuryContext = `Balance: ${treasury.balanceGnot} GNOT (${treasury.balanceUgnot} ugnot)`;
 
-      // 2. Build analysis requests for each perspective
+      // 2. Build analysis requests for each perspective. The backend owns
+      // the model instructions for each perspective.
       const perspectives = getActivePerspectives();
-      const requests: AnalysisRequest[] = perspectives.map((perspective) => {
-        const { system, user } = buildAnalysisPrompt(
-          perspective,
-          proposal.raw,
-          daoContext,
-          treasuryContext
-        );
-        return {
-          perspective,
-          proposalData: proposal.raw,
-          daoContext,
-          treasuryContext,
-          systemPrompt: system,
-          userPrompt: user,
-        };
-      });
+      const requests: AnalysisRequest[] = perspectives.map((perspective) => ({
+        perspective,
+        proposalData: proposal.raw,
+        daoContext,
+        treasuryContext,
+      }));
 
       // 3. Send to backend for LLM analysis
       const response = await backend.analyze({
@@ -179,16 +164,12 @@ server.registerTool(
       const daoContext = overview.raw;
       const treasuryContext = `Balance: ${treasury.balanceGnot} GNOT (${treasury.balanceUgnot} ugnot)`;
 
-      const { system, user } = buildTreasuryAuditPrompt(daoContext, treasuryContext);
-
       const response = await backend.analyze({
         perspectives: [{
           perspective: "financial",
           proposalData: daoContext,
           daoContext,
           treasuryContext,
-          systemPrompt: system,
-          userPrompt: user,
         }],
         tier: backend.tier,
       });
@@ -253,19 +234,12 @@ server.registerTool(
       }
 
       const treasuryContext = `Balance: ${treasury.balanceGnot} GNOT (${treasury.balanceUgnot} ugnot)`;
-      const { system, user } = buildHealthPrompt(
-        overview.raw,
-        treasuryContext,
-        proposalCount ?? 0
-      );
-
       const response = await backend.analyze({
         perspectives: [{
           perspective: "technical",
-          proposalData: overview.raw,
+          proposalData: `Total proposals: ${proposalCount ?? 0}`,
           daoContext: overview.raw,
-          systemPrompt: system,
-          userPrompt: user,
+          treasuryContext,
         }],
         tier: backend.tier,
       });
@@ -432,18 +406,11 @@ server.registerTool(
         };
       }
 
-      const { system, user } = buildRiskPrompt(
-        proposal.raw,
-        overview?.raw || realm_path
-      );
-
       const response = await backend.analyze({
         perspectives: [{
-          perspective: "technical",
+          perspective: "risk",
           proposalData: proposal.raw,
           daoContext: overview?.raw || realm_path,
-          systemPrompt: system,
-          userPrompt: user,
         }],
         tier: backend.tier,
       });
