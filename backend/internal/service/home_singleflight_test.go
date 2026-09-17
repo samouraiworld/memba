@@ -18,11 +18,11 @@ func TestCachedHomeSnapshot_SingleflightDedupesConcurrentMisses(t *testing.T) {
 	s := newTestService(t)
 
 	var calls int32
-	assemble := func(_ context.Context, _ string) *membav1.HomeSnapshot {
+	assemble := func(_ context.Context, _ string) (*membav1.HomeSnapshot, error) {
 		atomic.AddInt32(&calls, 1)
 		// Widen the overlap window so all goroutines are in-flight together.
 		time.Sleep(60 * time.Millisecond)
-		return &membav1.HomeSnapshot{GeneratedAt: "x"}
+		return &membav1.HomeSnapshot{GeneratedAt: "x"}, nil
 	}
 
 	const n = 24
@@ -31,7 +31,7 @@ func TestCachedHomeSnapshot_SingleflightDedupesConcurrentMisses(t *testing.T) {
 	for range n {
 		go func() {
 			defer wg.Done()
-			_ = s.cachedHomeSnapshot(context.Background(), "test-13", assemble)
+			_, _ = s.cachedHomeSnapshot(context.Background(), "test-13", "http://rpc.example", assemble)
 		}()
 	}
 	wg.Wait()

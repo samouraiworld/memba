@@ -96,27 +96,28 @@ func TestCachedHomeSnapshot_MissThenHitThenStale(t *testing.T) {
 		homeCachedAt: make(map[string]time.Time),
 	}
 	calls := 0
-	ok := func(ctx context.Context, rpc string) *membav1.HomeSnapshot {
+	ok := func(ctx context.Context, rpc string) (*membav1.HomeSnapshot, error) {
 		calls++
-		return &membav1.HomeSnapshot{AsOfBlock: int64(calls)}
+		return &membav1.HomeSnapshot{AsOfBlock: int64(calls)}, nil
 	}
+	const rpc = "http://rpc.example"
 
 	// MISS — assembles, caches.
-	got := s.cachedHomeSnapshot(context.Background(), "test13", ok)
+	got, _ := s.cachedHomeSnapshot(context.Background(), "test13", rpc, ok)
 	if got.AsOfBlock != 1 || calls != 1 {
 		t.Fatalf("miss: got block=%d calls=%d", got.AsOfBlock, calls)
 	}
 	// HIT — within TTL, no re-assembly.
-	got = s.cachedHomeSnapshot(context.Background(), "test13", ok)
+	got, _ = s.cachedHomeSnapshot(context.Background(), "test13", rpc, ok)
 	if got.AsOfBlock != 1 || calls != 1 {
 		t.Fatalf("hit: got block=%d calls=%d", got.AsOfBlock, calls)
 	}
 	// Force expiry, then a failing assemble → serve stale.
 	s.homeCacheMu.Lock()
-	s.homeCachedAt["test13"] = time.Now().Add(-time.Hour)
+	s.homeCachedAt[homeCacheKey("test13", rpc)] = time.Now().Add(-time.Hour)
 	s.homeCacheMu.Unlock()
-	fail := func(ctx context.Context, rpc string) *membav1.HomeSnapshot { calls++; return nil }
-	got = s.cachedHomeSnapshot(context.Background(), "test13", fail)
+	fail := func(ctx context.Context, rpc string) (*membav1.HomeSnapshot, error) { calls++; return nil, nil }
+	got, _ = s.cachedHomeSnapshot(context.Background(), "test13", rpc, fail)
 	if got == nil || got.AsOfBlock != 1 {
 		t.Fatalf("stale: expected last-good block=1, got %+v", got)
 	}
@@ -600,10 +601,8 @@ func TestAssembleHomeSnapshot_WiresValidatorsTotalIntoNetwork(t *testing.T) {
 }
 
 // TestGetHomeSnapshot_CacheKeyBounded asserts that unknown/junk chain_ids are
-// collapsed to s.chainID so the homeCached map never grows beyond the accepted
-// set — preventing unbounded map growth / cache-busting on this unauthenticated
-// endpoint. Both "junk-1" and "junk-2" requests must land in the same "test13"
-// cache slot, leaving len(s.homeCached) == 1.
+// rejected without touching the cache, so the homeCached map never grows beyond
+// the accepted set on this unauthenticated endpoint.
 func TestGetHomeSnapshot_CacheKeyBounded(t *testing.T) {
 	s := newTestService(t)
 	s.chainID = "test13"
@@ -615,29 +614,20 @@ func TestGetHomeSnapshot_CacheKeyBounded(t *testing.T) {
 	t.Setenv("HOME_SNAPSHOT_RPC_URL", "http://127.0.0.1:1")
 
 	for _, junk := range []string{"junk-1", "junk-2"} {
-		resp, err := s.GetHomeSnapshot(
+		_, err := s.GetHomeSnapshot(
 			context.Background(),
 			connect.NewRequest(&membav1.GetHomeSnapshotRequest{ChainId: junk}),
 		)
-		if err != nil {
-			t.Fatalf("chain_id=%q: unexpected error: %v", junk, err)
-		}
-		if resp.Msg.Snapshot == nil {
-			t.Fatalf("chain_id=%q: snapshot must be non-nil", junk)
+		if connect.CodeOf(err) != connect.CodeInvalidArgument {
+			t.Fatalf("chain_id=%q: want InvalidArgument, got %v", junk, err)
 		}
 	}
 
 	s.homeCacheMu.RLock()
 	mapLen := len(s.homeCached)
 	s.homeCacheMu.RUnlock()
-	if mapLen != 1 {
-		t.Fatalf("homeCached map len = %d, want 1 (both junk chain_ids must collapse to 'test13')", mapLen)
-	}
-	s.homeCacheMu.RLock()
-	_, hasTest13 := s.homeCached["test13"]
-	s.homeCacheMu.RUnlock()
-	if !hasTest13 {
-		t.Fatal("homeCached must have key 'test13', not junk keys")
+	if mapLen != 0 {
+		t.Fatalf("homeCached map len = %d, want 0 (junk chain_ids must not create entries)", mapLen)
 	}
 }
 

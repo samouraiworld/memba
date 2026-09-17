@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -53,81 +54,157 @@ func homeSnapshotTTL() time.Duration {
 	return 30 * time.Second
 }
 
+// errHomeChainMismatch means the snapshot RPC reports a different chain than the
+// one requested (or no chain was expected). Nothing is cached or served then.
+var errHomeChainMismatch = errors.New("home snapshot RPC is not on the requested chain")
+
+// homeCacheKey binds a cached snapshot to both the chain id and the RPC it was
+// read from, so repointing the RPC can never serve an entry built elsewhere.
+func homeCacheKey(chainID, rpcURL string) string {
+	return chainID + "|" + rpcURL
+}
+
+// homeSnapshotRPCFor returns the RPC that serves the home snapshot for chainID.
+// Only the server's own chain (GNO_CHAIN_ID) has one: HOME_SNAPSHOT_RPC_URL and
+// the RPC failover list are configured for that chain. Any other chain id has
+// no snapshot source.
+func (s *MultisigService) homeSnapshotRPCFor(chainID string) (string, bool) {
+	if chainID == "" || chainID != s.chainID {
+		return "", false
+	}
+	return homeSnapshotRPCURL(), true
+}
+
+// verifyRPCChain checks that the node at rpcURL reports node_info.network ==
+// chainID. It asks that single node (no failover: the failover list may hold
+// other chains' nodes). A transport failure is returned as a plain error; a
+// wrong or empty network as errHomeChainMismatch.
+func verifyRPCChain(ctx context.Context, rpcURL, chainID string) error {
+	if chainID == "" {
+		return fmt.Errorf("%w: no expected chain id", errHomeChainMismatch)
+	}
+	var st struct {
+		Result struct {
+			NodeInfo struct {
+				Network string `json:"network"`
+			} `json:"node_info"`
+		} `json:"result"`
+	}
+	if err := httpGetJSON(ctx, rpcURL+"/status", &st); err != nil {
+		return err
+	}
+	if st.Result.NodeInfo.Network != chainID {
+		return fmt.Errorf("%w: RPC reports %q, want %q", errHomeChainMismatch, st.Result.NodeInfo.Network, chainID)
+	}
+	return nil
+}
+
 // cachedHomeSnapshot returns a fresh snapshot from cache, re-assembles on
 // expiry, and serves the last-good value if re-assembly returns nil (stale).
+// The cache key is homeCacheKey(chainID, rpcURL). If assemble returns
+// errHomeChainMismatch, the entry is dropped and the error is returned: a
+// snapshot is never served from an RPC that no longer reports the chain.
 func (s *MultisigService) cachedHomeSnapshot(
 	ctx context.Context,
-	chainID string,
-	assemble func(context.Context, string) *membav1.HomeSnapshot,
-) *membav1.HomeSnapshot {
+	chainID, rpcURL string,
+	assemble func(context.Context, string) (*membav1.HomeSnapshot, error),
+) (*membav1.HomeSnapshot, error) {
 	ttl := homeSnapshotTTL()
+	key := homeCacheKey(chainID, rpcURL)
 
 	s.homeCacheMu.RLock()
-	cached, ok := s.homeCached[chainID]
-	at := s.homeCachedAt[chainID]
+	cached, ok := s.homeCached[key]
+	at := s.homeCachedAt[key]
 	s.homeCacheMu.RUnlock()
 	if ok && cached != nil && time.Since(at) < ttl {
-		return cached // HIT
+		return cached, nil // HIT
 	}
 
-	// The snapshot is single-network (test13) per spec §6, so the same RPC URL
-	// serves every chain_id today. A future multi-chain deployment would resolve
-	// the RPC URL from chainID here instead of calling homeSnapshotRPCURL().
-	//
-	// Collapse concurrent misses per chain_id: only one assembly (8 network/DB
+	// Collapse concurrent misses per key: only one assembly (8 network/DB
 	// reads) runs at a time; the rest wait and share its result. Prevents a
 	// thundering herd against the pinned RPC node when the cache expires.
-	v, _, _ := s.homeGroup.Do(chainID, func() (any, error) {
+	v, err, _ := s.homeGroup.Do(key, func() (any, error) {
 		// Re-check under the flight — a just-finished winner may have filled the
 		// cache while this goroutine was queued behind it.
 		s.homeCacheMu.RLock()
-		c, ok := s.homeCached[chainID]
-		cAt := s.homeCachedAt[chainID]
+		c, ok := s.homeCached[key]
+		cAt := s.homeCachedAt[key]
 		s.homeCacheMu.RUnlock()
 		if ok && c != nil && time.Since(cAt) < ttl {
 			return c, nil
 		}
 
-		fresh := assemble(ctx, homeSnapshotRPCURL()) // MISS
+		fresh, err := assemble(ctx, rpcURL) // MISS
+		if errors.Is(err, errHomeChainMismatch) {
+			s.homeCacheMu.Lock()
+			delete(s.homeCached, key)
+			delete(s.homeCachedAt, key)
+			s.homeCacheMu.Unlock()
+			return nil, err
+		}
 		if fresh != nil {
 			s.homeCacheMu.Lock()
-			s.homeCached[chainID] = fresh
-			s.homeCachedAt[chainID] = time.Now()
+			s.homeCached[key] = fresh
+			s.homeCachedAt[key] = time.Now()
 			s.homeCacheMu.Unlock()
 		}
 		return fresh, nil
 	})
+	if err != nil {
+		return nil, err
+	}
 	if fresh, _ := v.(*membav1.HomeSnapshot); fresh != nil {
-		return fresh
+		return fresh, nil
 	}
 
 	// Assembly produced nothing — serve the last-good value if we have one.
 	s.homeCacheMu.RLock()
-	stale := s.homeCached[chainID]
+	stale := s.homeCached[key]
 	s.homeCacheMu.RUnlock()
 	if stale != nil {
 		slog.Warn("home snapshot assemble failed; serving stale", "chain_id", chainID)
-		return stale
+		return stale, nil
 	}
-	return nil
+	return nil, nil
 }
 
 // GetHomeSnapshot returns the cached, server-assembled global home payload.
 // Public read (no auth). chain_id defaults to the server's configured chain.
+//
+// A snapshot is built only for a chain id in the accepted set that has its own
+// snapshot RPC, and only after that RPC reports the same chain id.
 func (s *MultisigService) GetHomeSnapshot(
 	ctx context.Context,
 	req *connect.Request[membav1.GetHomeSnapshotRequest],
 ) (*connect.Response[membav1.GetHomeSnapshotResponse], error) {
 	chainID := req.Msg.GetChainId()
-	// HOME-CHAINID: this is a public, unauthenticated endpoint. Collapse empty,
-	// unknown, or (legacy) any chain_id to the server's configured chain so the
-	// cache map key is bounded to the accepted set — prevents cache-busting /
-	// unbounded map growth, and matches spec §6 (chain_id validated vs acceptedChainIDs).
-	if chainID == "" || len(s.acceptedChainIDs) == 0 || !slices.Contains(s.acceptedChainIDs, chainID) {
+	if chainID == "" {
 		chainID = s.chainID
 	}
+	// Public, unauthenticated endpoint: an id outside the accepted set is
+	// rejected, which also bounds the cache keys.
+	if chainID != "" && len(s.acceptedChainIDs) > 0 && !slices.Contains(s.acceptedChainIDs, chainID) {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported chain_id"))
+	}
+	rpcURL, ok := s.homeSnapshotRPCFor(chainID)
+	if !ok {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("home snapshot is not available for this chain"))
+	}
 
-	snap := s.cachedHomeSnapshot(ctx, chainID, s.assembleHomeSnapshot)
+	snap, err := s.cachedHomeSnapshot(ctx, chainID, rpcURL, func(ctx context.Context, rpc string) (*membav1.HomeSnapshot, error) {
+		if err := verifyRPCChain(ctx, rpc, chainID); err != nil {
+			if errors.Is(err, errHomeChainMismatch) {
+				slog.Error("home snapshot RPC chain mismatch; refusing", "chain_id", chainID, "err", err)
+				return nil, err
+			}
+			slog.Warn("home snapshot RPC chain check failed", "chain_id", chainID, "err", err)
+			return nil, nil
+		}
+		return s.assembleHomeSnapshot(ctx, rpc), nil
+	})
+	if err != nil {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("home snapshot is not available for this chain"))
+	}
 	if snap == nil {
 		// No cache and assembly produced nothing — return an empty snapshot
 		// (non-breaking: the frontend treats this as "use Phase-1 fallback").
