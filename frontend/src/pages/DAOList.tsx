@@ -18,6 +18,7 @@ import { useUnvotedProposals } from "../hooks/useUnvotedProposals"
 import { useNotifications } from "../hooks/useNotifications"
 import { useOrg } from "../contexts/OrgContext"
 import type { LayoutContext } from "../types/layout"
+import { DAOIdentityLabel } from "../components/dao/DAOIdentityLabel"
 import "./daolist.css"
 
 interface DAOEntry {
@@ -328,6 +329,23 @@ function DAOCard({
             className={cardClass}
             onClick={onOpen}
         >
+            {/* Realm path + source link */}
+            <div className="k-dao-card__path-row">
+                <div className="k-dao-card__path">
+                    {dao.realmPath}
+                </div>
+                <a
+                    className="k-dao-card__source-link"
+                    href={`${getExplorerBaseUrl()}/r/${dao.realmPath.replace("gno.land/r/", "")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title="View source on gno.land"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    &lt;/&gt;
+                </a>
+            </div>
+
             {/* Header */}
             <div className="k-dao-card__header">
                 <div className="k-dao-card__name-row">
@@ -336,6 +354,7 @@ function DAOCard({
                         <button type="button" className="k-dao-card__name" aria-label={`Open ${dao.name}`} onClick={e => { e.stopPropagation(); onOpen() }}>
                             {dao.name}
                         </button>
+                        <DAOIdentityLabel realmPath={dao.realmPath} name={dao.name} />
                         {dao.featured && (
                             <span className="k-dao-card__badge k-dao-card__badge--featured">
                                 FEATURED
@@ -379,23 +398,6 @@ function DAOCard({
                     </span>
                 </div>
             )}
-
-            {/* Realm path + source link */}
-            <div className="k-dao-card__path-row">
-                <div className="k-dao-card__path">
-                    {dao.realmPath}
-                </div>
-                <a
-                    className="k-dao-card__source-link"
-                    href={`${getExplorerBaseUrl()}/r/${dao.realmPath.replace("gno.land/r/", "")}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title="View source on gno.land"
-                    onClick={(e) => e.stopPropagation()}
-                >
-                    &lt;/&gt;
-                </a>
-            </div>
 
             {/* Stats */}
             {dao.config && (

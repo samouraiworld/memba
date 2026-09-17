@@ -2,6 +2,7 @@ import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { Bank, Archive } from "@phosphor-icons/react"
 import { getExplorerBaseUrl, getUserRegistryPath } from "../../lib/config"
 import { PowerDonut } from "./TierPieChart"
+import { DAOIdentityLabel } from "./DAOIdentityLabel"
 import type { DAOConfig, DAOMember } from "../../lib/dao"
 
 interface DAOOverviewCardProps {
@@ -52,33 +53,6 @@ export function DAOOverviewCard({
                 </span>
             </div>
 
-            {/* Title + membership pill */}
-            <div className="dao-title-row">
-                <h2 className="dao-title">
-                    <Bank size={20} style={{ color: "var(--color-k-dim)" }} /> {config?.name || "DAO Governance"}
-                    {config?.isArchived && (
-                        <span className="dao-badge-archived">
-                            <Archive size={12} /> ARCHIVED
-                        </span>
-                    )}
-                </h2>
-                {isAuthenticated && currentMember && (
-                    <div
-                        title={`Your role: ${currentMember.tier || "Member"} — Voting power: ${currentMember.votingPower || "1"}`}
-                        className="dao-member-pill"
-                    >
-                        <span className="dao-member-pill__check">✓</span>
-                        <span className="dao-member-pill__text">
-                            {currentMember.tier || ""}
-                            {currentMember.votingPower ? ` · Power ${currentMember.votingPower}` : ""}
-                        </span>
-                    </div>
-                )}
-                {isAuthenticated && !currentMember && (!professional || membersKnown) && (
-                    <span className="dao-guest-badge">Guest</span>
-                )}
-            </div>
-
             {/* Realm path */}
             <div className="dao-path-row">
                 <div className="dao-path-left">
@@ -94,6 +68,34 @@ export function DAOOverviewCard({
                         &lt;/&gt;
                     </a>
                 </div>
+            </div>
+
+            {/* Title + membership pill */}
+            <div className="dao-title-row">
+                <h2 className="dao-title">
+                    <Bank size={20} style={{ color: "var(--color-k-dim)" }} /> {config?.name || "DAO Governance"}
+                    {config?.isArchived && (
+                        <span className="dao-badge-archived">
+                            <Archive size={12} /> ARCHIVED
+                        </span>
+                    )}
+                </h2>
+                <DAOIdentityLabel realmPath={realmPath} name={config?.name || ""} />
+                {isAuthenticated && currentMember && (
+                    <div
+                        title={`Your role: ${currentMember.tier || "Member"} — Voting power: ${currentMember.votingPower || "1"}`}
+                        className="dao-member-pill"
+                    >
+                        <span className="dao-member-pill__check">✓</span>
+                        <span className="dao-member-pill__text">
+                            {currentMember.tier || ""}
+                            {currentMember.votingPower ? ` · Power ${currentMember.votingPower}` : ""}
+                        </span>
+                    </div>
+                )}
+                {isAuthenticated && !currentMember && (!professional || membersKnown) && (
+                    <span className="dao-guest-badge">Guest</span>
+                )}
             </div>
 
             {/* Description */}

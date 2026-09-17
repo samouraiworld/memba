@@ -142,8 +142,9 @@ function _activeNetworkKey(): string {
 // ── Known Seed DAOs ──────────────────────────────────────────
 
 export const SEED_DAOS: Array<{ name: string; path: string }> = [
+    // Only realms whose identity is verified on the supported chains. Demo DAO
+    // realms are never seeded.
     { name: "GovDAO", path: "gno.land/r/gov/dao" },
-    { name: "Worx DAO", path: "gno.land/r/demo/worx" },
 ]
 
 /**

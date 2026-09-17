@@ -9,6 +9,7 @@ import { Buildings, BookmarkSimple, ArrowRight } from "@phosphor-icons/react"
 import { addSavedDAO } from "../../lib/daoSlug"
 import type { DAOMetadata } from "../../lib/daoMetadata"
 import type { DAOCategory } from "../../lib/directory"
+import { DAOIdentityLabel } from "../dao/DAOIdentityLabel"
 
 const CATEGORY_CONFIG: Record<DAOCategory, { label: string; color: string }> = {
     governance: { label: "Governance", color: "hsl(210, 80%, 60%)" },
@@ -60,6 +61,8 @@ export function DAOCard({ name, path, isSaved, category, metadata, degraded, onC
             data-testid="dao-card"
         >
             <div className="dir-card-main">
+                {/* Identity is the realm path; the name is self-declared. */}
+                <div className="dir-card-path">{path}</div>
                 <div className="dir-card-name">
                     <Buildings size={14} weight="duotone" style={{ marginRight: 6, verticalAlign: -2 }} />
                     {name}
@@ -89,7 +92,7 @@ export function DAOCard({ name, path, isSaved, category, metadata, degraded, onC
                         </span>
                     )}
                 </div>
-                <div className="dir-card-path">{path}</div>
+                <div className="dir-card-identity"><DAOIdentityLabel realmPath={path} name={name} /></div>
                 {degraded && (
                     <div className="dir-card-degraded" data-testid="dao-degraded">
                         couldn&apos;t reach chain
