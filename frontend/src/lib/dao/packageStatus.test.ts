@@ -84,14 +84,22 @@ describe("packageStatus", () => {
     })
 
     it("refuses a path that is live or waiting for approval, and allows an absent one", async () => {
-        await expect(assertPathAvailable(ctx, LIVE_PATH)).rejects.toThrow("already used")
-        await expect(assertPathAvailable(ctx, INERT_PATH)).rejects.toThrow("already used")
-        await expect(assertPathAvailable(ctx, "gno.land/r/nym-alice123/team")).resolves.toBeUndefined()
+        await expect(assertPathAvailable(ctx, LIVE_PATH, SIGNER)).rejects.toThrow("already used")
+        await expect(assertPathAvailable(ctx, INERT_PATH, SIGNER)).rejects.toThrow("already used")
+        await expect(assertPathAvailable(ctx, "gno.land/r/nym-alice123/team", SIGNER)).resolves.toEqual({ replacesParked: false })
+    })
+
+    it("lets the creator of a parked submission replace it, and nobody else", async () => {
+        const creator = "g1n4pl5uc4yt5r96m9w6fmdznx3x0jyg8l6arhmt"
+        await expect(assertPathAvailable(ctx, INERT_PATH, creator)).resolves.toEqual({ replacesParked: true })
+        await expect(assertPathAvailable(ctx, INERT_PATH, SIGNER)).rejects.toThrow("already used")
+        answer = () => fixture("live").replace("gno.land/r/sys/users", LIVE_PATH).replace("g1r929wt2qplfawe4lvqv9zuwfdcz4vxdun7qh8l", SIGNER)
+        await expect(assertPathAvailable(ctx, LIVE_PATH, SIGNER)).rejects.toThrow("already used")
     })
 
     it("a failed status query is an error, never an available path", async () => {
         answer = () => null
-        await expect(assertPathAvailable(ctx, ABSENT_PATH)).rejects.toThrow("failed")
+        await expect(assertPathAvailable(ctx, ABSENT_PATH, SIGNER)).rejects.toThrow("failed")
     })
 
     it("reads and caches the code submission policy per chain", async () => {

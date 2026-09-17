@@ -77,10 +77,16 @@ export async function packageStatus(ctx: ChainContext, path: string, signal?: Ab
     return meta
 }
 
-/** Refuse a path that is already taken, live or waiting for approval. */
-export async function assertPathAvailable(ctx: ChainContext, path: string, signal?: AbortSignal): Promise<void> {
+/**
+ * Refuse a path that is already taken. A package still waiting for approval
+ * that the same signer submitted may be replaced: the chain lets its creator
+ * resubmit to a parked path, which is the only way to repair a parked package.
+ */
+export async function assertPathAvailable(ctx: ChainContext, path: string, signer: string, signal?: AbortSignal): Promise<{ replacesParked: boolean }> {
     const meta = await packageStatus(ctx, path, signal)
-    if (meta.status !== "absent") throw new Error("This path is already used. Choose another realm name.")
+    if (meta.status === "absent") return { replacesParked: false }
+    if (meta.status === "inert" && meta.creator !== undefined && meta.creator === signer) return { replacesParked: true }
+    throw new Error("This path is already used. Choose another realm name.")
 }
 
 const policyCache = new Map<string, Promise<string>>()

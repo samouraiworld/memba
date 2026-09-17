@@ -171,6 +171,17 @@ describe("Create DAO on gnoland-1", () => {
         expect(urls).toContain("https://rpc.fallback.invalid")
     })
 
+    it("replaces the signer's own parked submission, and says so", async () => {
+        const ownParked = meta.inert().replace("g1n4pl5uc4yt5r96m9w6fmdznx3x0jyg8l6arhmt", SIGNER)
+        statuses = [ownParked, meta.live()]
+        resumeReview()
+        confirm()
+        fireEvent.click(deployButton())
+        expect(await screen.findByText("DAO deployed successfully!")).toBeInTheDocument()
+        expect(screen.getByTestId("dao-replaces-parked")).toHaveTextContent("Replaces your earlier submission that gno.land has not enabled")
+        expect(mocks.broadcast.mock.calls[0][1]).toContain("replaces your earlier submission that gno.land has not enabled")
+    })
+
     it("refuses a path that is already used, before any signature", async () => {
         statuses = [meta.inert()]
         resumeReview()

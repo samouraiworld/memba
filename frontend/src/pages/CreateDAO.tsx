@@ -135,6 +135,7 @@ export function CreateDAO() {
     const [deployResult, setDeployResult] = useState<DeploymentResult | undefined>()
     const [approval, setApproval] = useState<Approval | null>(null)
     const [confirmed, setConfirmed] = useState(false)
+    const [replacesParked, setReplacesParked] = useState(false)
     const [error, setError] = useState<string | null>(null)
     // Step-validation messages are shown as a gentle inline notice — NOT routed
     // through the system ErrorToast, which dramatizes "name required" into
@@ -337,13 +338,14 @@ export function CreateDAO() {
             // The chain decides: the signer must own the namespace and the
             // path must be unused (live or waiting for approval).
             await assertCanDeployTo(chain, adena.address, realmPath)
-            await assertPathAvailable(chain, realmPath)
+            const { replacesParked: replacing } = await assertPathAvailable(chain, realmPath, adena.address)
+            setReplacesParked(replacing)
             const policy = await codeSubmissionPolicy(chain)
 
             setDeployStep("signing")
             const res = await doContractBroadcast(
                 [{ type: "/vm.m_addpkg", value: msg.value }],
-                `Deploy realm ${realmPath} (storage deposit up to ${formatGnot(cap)})`,
+                `Deploy realm ${realmPath} (storage deposit up to ${formatGnot(cap)})${replacing ? "; replaces your earlier submission that gno.land has not enabled" : ""}`,
                 { gas: "deploy", gasWanted: estimateDeployGas(config) },
             )
             confirmedTx = res.hash
@@ -561,6 +563,12 @@ export function CreateDAO() {
                     confirmed={confirmed} onConfirmChange={setConfirmed}
                     onGoToStep={goToStep} onDeploy={deployDAO}
                 />
+            )}
+
+            {replacesParked && (
+                <div className="k-card" role="note" data-testid="dao-replaces-parked" style={{ padding: 12, fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)" }}>
+                    Replaces your earlier submission that gno.land has not enabled.
+                </div>
             )}
 
             {/* Waiting for the network to enable the package (inert policy) */}

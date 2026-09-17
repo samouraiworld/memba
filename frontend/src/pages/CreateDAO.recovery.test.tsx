@@ -11,7 +11,7 @@ vi.mock("../hooks/useScrollToTop", () => ({ useScrollToTop: () => {} }))
 // checks are covered by lib/dao/packageStatus.test.ts.
 vi.mock("../lib/config", async (original) => ({ ...await original<typeof import("../lib/config")>(), ACTIVE_NETWORK_KEY: "pearl", GNO_CHAIN_ID: "pearl-1" }))
 vi.mock("../lib/dao/namespace", () => ({ assertCanDeployTo: vi.fn(async () => {}) }))
-vi.mock("../lib/dao/packageStatus", () => ({ assertPathAvailable: vi.fn(async () => {}), codeSubmissionPolicy: mocks.policy, waitForPackage: mocks.wait, savePendingDAO: vi.fn(), removePendingDAO: vi.fn() }))
+vi.mock("../lib/dao/packageStatus", () => ({ assertPathAvailable: vi.fn(async () => ({ replacesParked: false })), codeSubmissionPolicy: mocks.policy, waitForPackage: mocks.wait, savePendingDAO: vi.fn(), removePendingDAO: vi.fn() }))
 import { CreateDAO } from "./CreateDAO"
 
 const draft = (overrides: Record<string, unknown> = {}) => ({
