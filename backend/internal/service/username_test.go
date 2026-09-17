@@ -1,12 +1,15 @@
 package service
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 )
@@ -228,5 +231,32 @@ func TestNamespaceOwnedBy_ParsesOwnerField(t *testing.T) {
 				t.Fatalf("owned = %v, want %v", ok, tc.want)
 			}
 		})
+	}
+}
+
+// An answer that is neither nil nor the expected record is logged at warn level,
+// naming only the address, so a registry format change is visible.
+func TestResolveUsername_UnexpectedShapeIsLogged(t *testing.T) {
+	var buf bytes.Buffer
+	prev := slog.Default()
+	slog.SetDefault(slog.New(slog.NewTextHandler(&buf, nil)))
+	t.Cleanup(func() { slog.SetDefault(prev) })
+
+	const answer = "# Users\n* [someone](/u/someone) SAMPLE-TEXT"
+	var hits int32
+	var data string
+	srv := usersRegistryStub(t, answer, &hits, &data)
+	t.Setenv("QUEST_RPC_URL", srv.URL)
+	t.Setenv("RPC_FALLBACK_URLS", "")
+
+	if _, err := resolveUsername(context.Background(), liveMoulAddr); err == nil {
+		t.Fatal("an unexpected answer must be an error")
+	}
+	out := buf.String()
+	if !strings.Contains(out, "level=WARN") || !strings.Contains(out, liveMoulAddr) {
+		t.Fatalf("want a warn line naming the address, got %q", out)
+	}
+	if strings.Contains(out, "SAMPLE-TEXT") || strings.Contains(out, "someone") {
+		t.Fatalf("the registry answer must not be logged, got %q", out)
 	}
 }

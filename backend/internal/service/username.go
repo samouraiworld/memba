@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"log/slog"
 	"regexp"
 	"strings"
 
@@ -78,6 +79,9 @@ func resolveUsername(ctx context.Context, addr string) (string, error) {
 	}
 	u, ok := parseUserData(out)
 	if !ok {
+		// Log the address only (never the answer) so a registry format change
+		// shows up instead of a silent "try again".
+		slog.Warn("users registry answer has an unexpected shape", "address", addr, "answer_bytes", len(out))
 		return "", errUnexpectedUserData
 	}
 	if u.deleted || u.addr != addr || !usernameRe.MatchString(u.name) {
