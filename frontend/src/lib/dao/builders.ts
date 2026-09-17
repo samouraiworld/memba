@@ -63,10 +63,13 @@ function target(value: string): string {
     return value
 }
 
-function power(value: number): string {
-    if (!Number.isSafeInteger(value) || value < 1) throw new Error("Voting power must be a positive integer")
+function power(value: number, max = Number.MAX_SAFE_INTEGER): string {
+    if (!Number.isSafeInteger(value) || value < 1 || value > max) throw new Error("Voting power must be a positive integer within the DAO's limit")
     return String(value)
 }
+
+/** Bounds of the version-2 realm (templates/dao/v2/realm.ts): power 1..1e9, role lists may be empty. */
+const V2_MAX_POWER = 1_000_000_000
 
 function roles(values: string[], min = 1): string {
     if (!Array.isArray(values) || values.length < min || values.some(r => !IDENTIFIER_RE.test(r))) throw new Error("Invalid roles")
@@ -112,9 +115,9 @@ export function buildDaoMsg(kind: DaoKind, realmPath: string, action: DaoAction,
                 case "vote": return call(caller, realmPath, "Vote", [id(action.id), vote(action.vote)])
                 case "execute": return call(caller, realmPath, "Execute", [id(action.id)])
                 case "propose-text": return call(caller, realmPath, "ProposeText", [action.title, action.description, category(action.category)])
-                case "propose-add-member": return call(caller, realmPath, "ProposeAddMember", [action.title, action.description, target(action.target), power(action.power), roles(action.roles)])
+                case "propose-add-member": return call(caller, realmPath, "ProposeAddMember", [action.title, action.description, target(action.target), power(action.power, V2_MAX_POWER), roles(action.roles, 0)])
                 case "propose-remove-member": return call(caller, realmPath, "ProposeRemoveMember", [action.title, action.description, target(action.target)])
-                case "propose-change-role": return call(caller, realmPath, "ProposeSetRoles", [action.title, action.description, target(action.target), roles(action.roles)])
+                case "propose-change-role": return call(caller, realmPath, "ProposeSetRoles", [action.title, action.description, target(action.target), roles(action.roles, 0)])
                 case "propose-archive": return call(caller, realmPath, "ProposeArchive", [action.title, action.description])
                 default: return unsupported(kind, action)
             }

@@ -99,6 +99,32 @@ describe("builders only call functions the target exports", () => {
         expect(() => buildDaoMsg("memba-v2", realm, { type: "execute", id: 1 }, "")).toThrow()
     })
 
+    it("v2 arguments line up with the parameter names of the generated realm", () => {
+        const realm = "gno.land/r/alice/team"
+        const params = (func: string) => ((membaV2 as Fixture).find(f => f.FuncName === func)?.Params ?? []).map(p => p.Name).filter(n => n !== "cur")
+        const byName: Record<string, string> = { title: "T", desc: "D", category: "governance", target: TARGET, power: "7", rolesCSV: "dev,ops", id: "9", choice: "ABSTAIN" }
+        const cases: DaoAction[] = [
+            { type: "vote", id: 9, vote: "ABSTAIN" },
+            { type: "execute", id: 9 },
+            { type: "propose-text", title: "T", description: "D", category: "governance" },
+            { type: "propose-add-member", title: "T", description: "D", target: TARGET, power: 7, roles: ["dev", "ops"] },
+            { type: "propose-remove-member", title: "T", description: "D", target: TARGET },
+            { type: "propose-change-role", title: "T", description: "D", target: TARGET, roles: ["dev", "ops"] },
+            { type: "propose-archive", title: "T", description: "D" },
+        ]
+        for (const action of cases) {
+            const msg = buildDaoMsg("memba-v2", realm, action, CALLER).value
+            expect(msg.args, `${msg.func}`).toEqual(params(msg.func as string).map(n => byName[n]))
+        }
+    })
+
+    it("v2 accepts what the realm accepts: no roles, and power up to 1,000,000,000", () => {
+        const realm = "gno.land/r/alice/team"
+        expect(buildDaoMsg("memba-v2", realm, { type: "propose-add-member", title: "t", description: "d", target: TARGET, power: 1_000_000_000, roles: [] }, CALLER).value.args).toEqual(["t", "d", TARGET, "1000000000", ""])
+        expect(buildDaoMsg("memba-v2", realm, { type: "propose-change-role", title: "t", description: "d", target: TARGET, roles: [] }, CALLER).value.args).toEqual(["t", "d", TARGET, ""])
+        expect(() => buildDaoMsg("memba-v2", realm, { type: "propose-add-member", title: "t", description: "d", target: TARGET, power: 1_000_000_001, roles: [] }, CALLER)).toThrow()
+    })
+
     it("serializes GovDAO and v2 arguments in ABI order", () => {
         expect(buildDaoMsg("govdao", "gno.land/r/gov/dao", { type: "vote", id: 4, vote: "NO" }, CALLER).value).toMatchObject({ func: "MustVoteOnProposalSimple", args: ["4", "NO"] })
         expect(buildDaoMsg("govdao", "gno.land/r/gov/dao", { type: "execute", id: 4 }, CALLER).value).toMatchObject({ func: "ExecuteOrRejectProposal", args: ["4"] })

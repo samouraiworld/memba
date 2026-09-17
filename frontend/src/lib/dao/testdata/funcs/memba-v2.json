@@ -4,24 +4,30 @@
     "Params": [
       {
         "Name": "cur",
-        "Type": "realm"
+        "Type": "interface {.seal func(); Address func() .uverse.address; IsCode func() bool; IsCurrent func() bool; IsEphemeral func() bool; IsUser func() bool; IsUserCall func() bool; IsUserRun func() bool; PkgPath func() string; Previous func() .uverse.realm; String func() string; Sub func(string) .uverse.realm; Subpath func() string}",
+        "Value": ""
       },
       {
         "Name": "title",
-        "Type": "string"
+        "Type": "string",
+        "Value": ""
       },
       {
         "Name": "desc",
-        "Type": "string"
+        "Type": "string",
+        "Value": ""
       },
       {
         "Name": "category",
-        "Type": "string"
+        "Type": "string",
+        "Value": ""
       }
     ],
     "Results": [
       {
-        "Type": "uint64"
+        "Name": ".res.0",
+        "Type": "uint64",
+        "Value": ""
       }
     ]
   },
@@ -30,32 +36,40 @@
     "Params": [
       {
         "Name": "cur",
-        "Type": "realm"
+        "Type": "interface {.seal func(); Address func() .uverse.address; IsCode func() bool; IsCurrent func() bool; IsEphemeral func() bool; IsUser func() bool; IsUserCall func() bool; IsUserRun func() bool; PkgPath func() string; Previous func() .uverse.realm; String func() string; Sub func(string) .uverse.realm; Subpath func() string}",
+        "Value": ""
       },
       {
         "Name": "title",
-        "Type": "string"
+        "Type": "string",
+        "Value": ""
       },
       {
         "Name": "desc",
-        "Type": "string"
+        "Type": "string",
+        "Value": ""
       },
       {
         "Name": "target",
-        "Type": "address"
+        "Type": "string",
+        "Value": ""
       },
       {
         "Name": "power",
-        "Type": "int"
+        "Type": "int",
+        "Value": ""
       },
       {
         "Name": "rolesCSV",
-        "Type": "string"
+        "Type": "string",
+        "Value": ""
       }
     ],
     "Results": [
       {
-        "Type": "uint64"
+        "Name": ".res.0",
+        "Type": "uint64",
+        "Value": ""
       }
     ]
   },
@@ -64,24 +78,30 @@
     "Params": [
       {
         "Name": "cur",
-        "Type": "realm"
+        "Type": "interface {.seal func(); Address func() .uverse.address; IsCode func() bool; IsCurrent func() bool; IsEphemeral func() bool; IsUser func() bool; IsUserCall func() bool; IsUserRun func() bool; PkgPath func() string; Previous func() .uverse.realm; String func() string; Sub func(string) .uverse.realm; Subpath func() string}",
+        "Value": ""
       },
       {
         "Name": "title",
-        "Type": "string"
+        "Type": "string",
+        "Value": ""
       },
       {
         "Name": "desc",
-        "Type": "string"
+        "Type": "string",
+        "Value": ""
       },
       {
         "Name": "target",
-        "Type": "address"
+        "Type": "string",
+        "Value": ""
       }
     ],
     "Results": [
       {
-        "Type": "uint64"
+        "Name": ".res.0",
+        "Type": "uint64",
+        "Value": ""
       }
     ]
   },
@@ -90,28 +110,35 @@
     "Params": [
       {
         "Name": "cur",
-        "Type": "realm"
+        "Type": "interface {.seal func(); Address func() .uverse.address; IsCode func() bool; IsCurrent func() bool; IsEphemeral func() bool; IsUser func() bool; IsUserCall func() bool; IsUserRun func() bool; PkgPath func() string; Previous func() .uverse.realm; String func() string; Sub func(string) .uverse.realm; Subpath func() string}",
+        "Value": ""
       },
       {
         "Name": "title",
-        "Type": "string"
+        "Type": "string",
+        "Value": ""
       },
       {
         "Name": "desc",
-        "Type": "string"
+        "Type": "string",
+        "Value": ""
       },
       {
         "Name": "target",
-        "Type": "address"
+        "Type": "string",
+        "Value": ""
       },
       {
         "Name": "rolesCSV",
-        "Type": "string"
+        "Type": "string",
+        "Value": ""
       }
     ],
     "Results": [
       {
-        "Type": "uint64"
+        "Name": ".res.0",
+        "Type": "uint64",
+        "Value": ""
       }
     ]
   },
@@ -120,20 +147,25 @@
     "Params": [
       {
         "Name": "cur",
-        "Type": "realm"
+        "Type": "interface {.seal func(); Address func() .uverse.address; IsCode func() bool; IsCurrent func() bool; IsEphemeral func() bool; IsUser func() bool; IsUserCall func() bool; IsUserRun func() bool; PkgPath func() string; Previous func() .uverse.realm; String func() string; Sub func(string) .uverse.realm; Subpath func() string}",
+        "Value": ""
       },
       {
         "Name": "title",
-        "Type": "string"
+        "Type": "string",
+        "Value": ""
       },
       {
         "Name": "desc",
-        "Type": "string"
+        "Type": "string",
+        "Value": ""
       }
     ],
     "Results": [
       {
-        "Type": "uint64"
+        "Name": ".res.0",
+        "Type": "uint64",
+        "Value": ""
       }
     ]
   },
@@ -142,15 +174,18 @@
     "Params": [
       {
         "Name": "cur",
-        "Type": "realm"
+        "Type": "interface {.seal func(); Address func() .uverse.address; IsCode func() bool; IsCurrent func() bool; IsEphemeral func() bool; IsUser func() bool; IsUserCall func() bool; IsUserRun func() bool; PkgPath func() string; Previous func() .uverse.realm; String func() string; Sub func(string) .uverse.realm; Subpath func() string}",
+        "Value": ""
       },
       {
         "Name": "id",
-        "Type": "uint64"
+        "Type": "uint64",
+        "Value": ""
       },
       {
         "Name": "choice",
-        "Type": "string"
+        "Type": "string",
+        "Value": ""
       }
     ],
     "Results": null
@@ -160,111 +195,64 @@
     "Params": [
       {
         "Name": "cur",
-        "Type": "realm"
+        "Type": "interface {.seal func(); Address func() .uverse.address; IsCode func() bool; IsCurrent func() bool; IsEphemeral func() bool; IsUser func() bool; IsUserCall func() bool; IsUserRun func() bool; PkgPath func() string; Previous func() .uverse.realm; String func() string; Sub func(string) .uverse.realm; Subpath func() string}",
+        "Value": ""
       },
       {
         "Name": "id",
-        "Type": "uint64"
+        "Type": "uint64",
+        "Value": ""
       }
     ],
     "Results": null
   },
   {
     "FuncName": "GetTemplateVersion",
-    "Params": [],
+    "Params": null,
     "Results": [
       {
-        "Type": "string"
+        "Name": ".res.0",
+        "Type": "string",
+        "Value": ""
       }
     ]
   },
   {
     "FuncName": "GetAPIVersion",
-    "Params": [],
+    "Params": null,
     "Results": [
       {
-        "Type": "string"
+        "Name": ".res.0",
+        "Type": "string",
+        "Value": ""
       }
     ]
   },
   {
-    "FuncName": "GetConfigJSON",
-    "Params": [],
-    "Results": [
-      {
-        "Type": "string"
-      }
-    ]
-  },
-  {
-    "FuncName": "GetMembersJSON",
+    "FuncName": "IsMember",
     "Params": [
       {
-        "Name": "offset",
-        "Type": "int"
-      },
-      {
-        "Name": "limit",
-        "Type": "int"
+        "Name": "addr",
+        "Type": "string",
+        "Value": ""
       }
     ],
     "Results": [
       {
-        "Type": "string"
+        "Name": ".res.0",
+        "Type": "bool",
+        "Value": ""
       }
     ]
   },
   {
-    "FuncName": "GetProposalsJSON",
-    "Params": [
-      {
-        "Name": "before",
-        "Type": "uint64"
-      },
-      {
-        "Name": "limit",
-        "Type": "int"
-      }
-    ],
+    "FuncName": "IsArchived",
+    "Params": null,
     "Results": [
       {
-        "Type": "string"
-      }
-    ]
-  },
-  {
-    "FuncName": "GetProposalJSON",
-    "Params": [
-      {
-        "Name": "id",
-        "Type": "uint64"
-      }
-    ],
-    "Results": [
-      {
-        "Type": "string"
-      }
-    ]
-  },
-  {
-    "FuncName": "GetVotesJSON",
-    "Params": [
-      {
-        "Name": "id",
-        "Type": "uint64"
-      },
-      {
-        "Name": "offset",
-        "Type": "int"
-      },
-      {
-        "Name": "limit",
-        "Type": "int"
-      }
-    ],
-    "Results": [
-      {
-        "Type": "string"
+        "Name": ".res.0",
+        "Type": "bool",
+        "Value": ""
       }
     ]
   },
@@ -273,16 +261,119 @@
     "Params": [
       {
         "Name": "id",
-        "Type": "uint64"
+        "Type": "uint64",
+        "Value": ""
       },
       {
         "Name": "addr",
-        "Type": "address"
+        "Type": "string",
+        "Value": ""
       }
     ],
     "Results": [
       {
-        "Type": "bool"
+        "Name": ".res.0",
+        "Type": "bool",
+        "Value": ""
+      }
+    ]
+  },
+  {
+    "FuncName": "GetConfigJSON",
+    "Params": null,
+    "Results": [
+      {
+        "Name": ".res.0",
+        "Type": "string",
+        "Value": ""
+      }
+    ]
+  },
+  {
+    "FuncName": "GetMembersJSON",
+    "Params": [
+      {
+        "Name": "offset",
+        "Type": "int",
+        "Value": ""
+      },
+      {
+        "Name": "limit",
+        "Type": "int",
+        "Value": ""
+      }
+    ],
+    "Results": [
+      {
+        "Name": ".res.0",
+        "Type": "string",
+        "Value": ""
+      }
+    ]
+  },
+  {
+    "FuncName": "GetProposalsJSON",
+    "Params": [
+      {
+        "Name": "before",
+        "Type": "uint64",
+        "Value": ""
+      },
+      {
+        "Name": "limit",
+        "Type": "int",
+        "Value": ""
+      }
+    ],
+    "Results": [
+      {
+        "Name": ".res.0",
+        "Type": "string",
+        "Value": ""
+      }
+    ]
+  },
+  {
+    "FuncName": "GetProposalJSON",
+    "Params": [
+      {
+        "Name": "id",
+        "Type": "uint64",
+        "Value": ""
+      }
+    ],
+    "Results": [
+      {
+        "Name": ".res.0",
+        "Type": "string",
+        "Value": ""
+      }
+    ]
+  },
+  {
+    "FuncName": "GetVotesJSON",
+    "Params": [
+      {
+        "Name": "id",
+        "Type": "uint64",
+        "Value": ""
+      },
+      {
+        "Name": "offset",
+        "Type": "int",
+        "Value": ""
+      },
+      {
+        "Name": "limit",
+        "Type": "int",
+        "Value": ""
+      }
+    ],
+    "Results": [
+      {
+        "Name": ".res.0",
+        "Type": "string",
+        "Value": ""
       }
     ]
   },
@@ -291,16 +382,20 @@
     "Params": [
       {
         "Name": "offset",
-        "Type": "int"
+        "Type": "int",
+        "Value": ""
       },
       {
         "Name": "limit",
-        "Type": "int"
+        "Type": "int",
+        "Value": ""
       }
     ],
     "Results": [
       {
-        "Type": "string"
+        "Name": ".res.0",
+        "Type": "string",
+        "Value": ""
       }
     ]
   },
@@ -309,12 +404,15 @@
     "Params": [
       {
         "Name": "path",
-        "Type": "string"
+        "Type": "string",
+        "Value": ""
       }
     ],
     "Results": [
       {
-        "Type": "string"
+        "Name": ".res.0",
+        "Type": "string",
+        "Value": ""
       }
     ]
   }

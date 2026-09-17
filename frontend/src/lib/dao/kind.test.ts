@@ -9,7 +9,8 @@ vi.mock("./shared", async (orig) => ({
 import { queryEval, queryRender } from "./shared"
 import { AbciQueryError } from "../rpcFallback"
 import { NETWORKS } from "../config"
-import { capabilitiesFor, clearDaoKindCache, isGovDAOPath, resolveDaoKind, GOVDAO_PATHS, type DaoKind } from "./kind"
+import { capabilitiesFor, clearDaoKindCache, isGovDAOPath, resolveDaoKind, GOVDAO_PATHS, MEMBA_V2_TEMPLATE_VERSION, type DaoKind } from "./kind"
+import { DAO_TEMPLATE_VERSION } from "../daoTemplate"
 
 const evalMock = vi.mocked(queryEval)
 const renderMock = vi.mocked(queryRender)
@@ -92,7 +93,8 @@ describe("DAO kind", () => {
     })
 
     it("resolves a version-2 template by its version marker", async () => {
-        chain({ template: qstr("memba-dao/2"), api: qstr("2.0") })
+        expect(MEMBA_V2_TEMPLATE_VERSION).toBe(DAO_TEMPLATE_VERSION)
+        chain({ template: qstr(DAO_TEMPLATE_VERSION), api: qstr("2.0") })
         expect(await resolveDaoKind(ctx("gno.land/r/alice/team"))).toBe("memba-v2")
     })
 
