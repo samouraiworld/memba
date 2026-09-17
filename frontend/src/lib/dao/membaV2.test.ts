@@ -132,6 +132,13 @@ describe("memba v2 reader — refuses what it cannot trust", () => {
         }
     })
 
+    it("accepts ARCHIVED for proposals closed by archiving, accepted or not", () => {
+        const text = json("proposal-text")
+        const add = json("proposal-add")
+        expect(membaV2ProposalSchema.safeParse({ ...text, status: "ARCHIVED" }).success).toBe(true)
+        expect(membaV2ProposalSchema.safeParse({ ...add, status: "ARCHIVED" }).success).toBe(true)
+    })
+
     it("refuses inconsistent proposals and forged pages", () => {
         const text = json("proposal-text")
         expect(membaV2ProposalSchema.safeParse(text).success).toBe(true)

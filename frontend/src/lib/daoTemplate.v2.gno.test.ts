@@ -652,6 +652,10 @@ func TestM_ArchiveOnlyByProposal(cur realm, t *testing.T) {
 	if IsArchived() { t.Fatal("archived before execution") }
 	Execute(cross(cur), arch)
 	if !IsArchived() || !strings.Contains(GetConfigJSON(), "\"archived\":true") || !strings.Contains(Render(""), "This DAO is archived.") { t.Fatal("archive not applied") }
+	// Reads close what can no longer be voted or executed.
+	if derivedStatus(getProposal(open)) != "ARCHIVED" || derivedStatus(getProposal(other)) != "ARCHIVED" { t.Fatal("open and accepted proposals must read ARCHIVED") }
+	if !strings.Contains(GetProposalJSON(open), "\"status\":\"ARCHIVED\"") { t.Fatal("JSON must show ARCHIVED") }
+	if derivedStatus(getProposal(arch)) != "EXECUTED" { t.Fatal("the archive proposal itself stays EXECUTED") }
 	mustAbort(t, "execute after archive", func() { Execute(cross(cur), other) })
 	mustAbort(t, "propose after archive", func() { ProposeText(cross(cur), "t", "", "governance") })
 	mustAbort(t, "vote after archive", func() { Vote(cross(cur), open, "YES") })

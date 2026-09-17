@@ -106,6 +106,7 @@ const (
 	statusExpired     = "EXPIRED"
 	statusLapsed      = "LAPSED"
 	statusInvalidated = "INVALIDATED"
+	statusArchived    = "ARCHIVED"
 )
 
 type Member struct {
@@ -420,6 +421,10 @@ func mustProposal(id uint64) *Proposal {
 // derivedStatus is the status every read and write relies on. Time-based and
 // membership-based transitions are computed here, never written.
 func derivedStatus(p *Proposal) string {
+	// Once archived, nothing can be voted or executed any more.
+	if archived && (p.Status == statusActive || p.Status == statusAccepted) {
+		return statusArchived
+	}
 	t := now()
 	if p.Status == statusActive {
 		if p.ElectorateVersion != electorateVersion {

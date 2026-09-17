@@ -64,7 +64,7 @@ const action = z.discriminatedUnion("kind", [
     z.strictObject({ kind: z.literal("set_roles"), target: address, power: z.literal(0), roles: labels }),
 ])
 
-export const MEMBA_V2_STATUSES = ["ACTIVE", "ACCEPTED", "REJECTED", "EXECUTED", "EXPIRED", "LAPSED", "INVALIDATED"] as const
+export const MEMBA_V2_STATUSES = ["ACTIVE", "ACCEPTED", "REJECTED", "EXECUTED", "EXPIRED", "LAPSED", "INVALIDATED", "ARCHIVED"] as const
 
 const proposalFields = {
     id: proposalId,
@@ -92,7 +92,8 @@ function consistent(p: ProposalShape): boolean {
     if (p.yes + p.no + p.abstain > p.electorate_power) return false
     if (p.voting_ends_at <= p.created_at) return false
     const accepted = p.accepted_at > 0
-    if (accepted !== ["ACCEPTED", "EXECUTED", "LAPSED"].includes(p.status)) return false
+    // ARCHIVED closes both open and accepted proposals.
+    if (p.status !== "ARCHIVED" && accepted !== ["ACCEPTED", "EXECUTED", "LAPSED"].includes(p.status)) return false
     if (!accepted) return p.executable_at === 0 && p.execute_by === 0
     return p.accepted_at >= p.created_at && p.executable_at >= p.accepted_at && p.execute_by > p.executable_at
 }
