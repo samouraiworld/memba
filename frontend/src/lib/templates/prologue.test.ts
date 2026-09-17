@@ -9,6 +9,7 @@ import {
     generatePackageDecl,
     buildDeployMsg,
 } from "./prologue"
+import { toAdenaMessages } from "../grc20"
 
 describe("generateImportBlock", () => {
     it("generates a single stdlib import", () => {
@@ -86,14 +87,30 @@ describe("buildDeployMsg", () => {
         expect(gnomod!.body).toContain('module = "gno.land/r/samcrew/test_dao"')
     })
 
-    it("passes deposit amount", () => {
-        const msg = buildDeployMsg("g1test", "gno.land/r/test/dao", "// code", "1000000ugnot")
-        expect(msg.value.deposit).toBe("1000000ugnot")
+    // The chain reads `max_deposit`; an unknown `deposit` key was silently ignored.
+    it("sends the cap as max_deposit, with an empty send and no deposit key", () => {
+        const msg = buildDeployMsg("g1test", "gno.land/r/test/dao", "// code", "13000000ugnot")
+        expect(msg.value.max_deposit).toBe("13000000ugnot")
+        expect(msg.value.send).toBe("")
+        expect(Object.keys(msg.value).sort()).toEqual(["creator", "max_deposit", "package", "send"])
+        expect(msg.value).not.toHaveProperty("deposit")
     })
 
-    it("defaults deposit to empty string", () => {
+    it("defaults max_deposit to empty (no explicit cap)", () => {
         const msg = buildDeployMsg("g1test", "gno.land/r/test/dao", "// code")
-        expect(msg.value.deposit).toBe("")
+        expect(msg.value.max_deposit).toBe("")
+    })
+
+    it.each(["0ugnot", "10GNOT", "1000", "-5ugnot", "1ugnot,1foo", " 5ugnot"])("refuses a malformed max_deposit: %s", (value) => {
+        expect(() => buildDeployMsg("g1test", "gno.land/r/test/dao", "// code", value)).toThrow(/max deposit/i)
+    })
+
+    it("the wallet payload keeps max_deposit unchanged", () => {
+        const msg = buildDeployMsg("g1test", "gno.land/r/test/dao", "// code", "13000000ugnot")
+        const [payload] = toAdenaMessages([msg])
+        expect(payload).toEqual(msg)
+        expect((payload.value as Record<string, unknown>).max_deposit).toBe("13000000ugnot")
+        expect(payload.value).not.toHaveProperty("deposit")
     })
 })
 

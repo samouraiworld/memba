@@ -300,8 +300,10 @@ describe('DAO_PRESETS', () => {
 // ── buildDeployDAOMsg ───────────────────────────────────────────
 
 describe('buildDeployDAOMsg', () => {
-    it('builds a /vm.m_addpkg message with the package files sorted', () => {
-        const msg = buildDeployDAOMsg('g1caller', 'gno.land/r/test/zdao', 'package zdao\n')
+    it('builds a /vm.m_addpkg message with the package files sorted and a max_deposit cap', () => {
+        const msg = buildDeployDAOMsg('g1caller', 'gno.land/r/test/zdao', 'package zdao\n', '13000000ugnot')
+        expect(msg.value.max_deposit).toBe('13000000ugnot')
+        expect(msg.value).not.toHaveProperty('deposit')
         expect(msg.type).toBe('/vm.m_addpkg')
         expect(msg.value.creator).toBe('g1caller')
         const pkg = msg.value.package as { name: string; files: { name: string; body: string }[] }

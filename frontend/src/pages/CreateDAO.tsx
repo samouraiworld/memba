@@ -14,6 +14,7 @@ import type { MemberInput, Step } from "../components/dao/wizardShared"
 import { generateDAOCode, buildDeployDAOMsg, daoStepError, isValidGnoAddress, DAO_PRESETS, type DAOCreationConfig, type DAOPreset, type DAOStepData } from "../lib/daoTemplate"
 import { generateChannelCode, defaultChannelConfig, isValidChannelName } from "../lib/channelTemplate"
 import { buildDeployMsg } from "../lib/templates/prologue"
+import { daoDepositCapUgnot } from "../lib/templates/dao/v2/deposit"
 import { addSavedDAO, encodeSlug } from "../lib/daoSlug"
 import { doContractBroadcast } from "../lib/grc20"
 import type { LayoutContext } from "../types/layout"
@@ -276,7 +277,8 @@ export function CreateDAO() {
                 ...presetWindows(preset),
             }
             const code = generateDAOCode(config)
-            const msg = buildDeployDAOMsg(adena.address, realmPath, code, "10000000ugnot")
+            const maxDeposit = `${daoDepositCapUgnot(config)}ugnot`
+            const msg = buildDeployDAOMsg(adena.address, realmPath, code, maxDeposit)
 
             // Validate both packages before the first wallet request. A local
             // extension error must not leave an unexpectedly partial deployment.
@@ -289,7 +291,7 @@ export function CreateDAO() {
                 const channelConfig = defaultChannelConfig(realmPath, name)
                 channelConfig.channels = channelNames.map(n => ({ name: n, type: "text", acl: { readRoles: [], writeRoles: [] } }))
                 channelConfig.members = config.members.map(m => ({ address: m.address, roles: m.roles }))
-                channelMsg = buildDeployMsg(adena.address, channelConfig.channelRealmPath, generateChannelCode(channelConfig), "10000000ugnot")
+                channelMsg = buildDeployMsg(adena.address, channelConfig.channelRealmPath, generateChannelCode(channelConfig), maxDeposit)
             }
 
             setDeployStep("signing")

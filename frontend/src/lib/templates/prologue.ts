@@ -91,15 +91,22 @@ export function buildDeployMsg(
     callerAddress: string,
     realmPath: string,
     code: string,
-    deposit = "",
+    maxDeposit = "",
 ): {
     type: string
     value: {
         creator: string
         package: { name: string; path: string; files: { name: string; body: string }[] }
-        deposit: string
+        send: string
+        max_deposit: string
     }
 } {
+    // The chain field is `max_deposit` (gno.land/pkg/sdk/vm/msgs.go). A key the
+    // chain does not know is ignored, which silently left the cap at the
+    // network's default deposit. An empty value means "no explicit cap".
+    if (maxDeposit !== "" && !/^[1-9][0-9]{0,17}ugnot$/.test(maxDeposit)) {
+        throw new Error("Invalid max deposit: expected a positive ugnot amount")
+    }
     // Validate HERE, at the shared choke point, not only in each generator.
     //
     // Every current caller happens to be safe: each generateXCode() calls
@@ -122,7 +129,8 @@ export function buildDeployMsg(
         value: {
             creator: callerAddress,
             package: { name: pkgName, path: realmPath, files },
-            deposit: deposit || "",
+            send: "",
+            max_deposit: maxDeposit,
         },
     }
 }

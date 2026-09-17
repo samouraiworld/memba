@@ -408,9 +408,11 @@ describe("buildDeployChannelMsg", () => {
         expect(files[1].name).toBe("mydao_channels.gno")
     })
 
-    it("sets deposit to empty string when not provided", () => {
+    // The shared deploy message now uses the chain's `max_deposit` field.
+    it("sets max_deposit to empty string when not provided", () => {
         const msg = buildDeployChannelMsg("g1caller", "gno.land/r/user/mydao_channels", "code")
-        expect((msg.value as Record<string, unknown>).deposit).toBe("")
+        expect((msg.value as Record<string, unknown>).max_deposit).toBe("")
+        expect(msg.value).not.toHaveProperty("deposit")
     })
 })
 
