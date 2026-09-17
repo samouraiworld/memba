@@ -1,5 +1,14 @@
 import '@testing-library/jest-dom'
 import { configure } from '@testing-library/react'
+import { vi } from 'vitest'
+
+// Strict DAO reads verify the RPC's chain with a /status call before querying.
+// Suites mock the ABCI layer, not the network, so the identity check is stubbed
+// here; lib/dao/chainIdentity.test.ts unmocks it and tests the real one.
+vi.mock('../lib/dao/chainIdentity', async (importOriginal) => ({
+    ...(await importOriginal<typeof import('../lib/dao/chainIdentity')>()),
+    assertActiveRpcChain: async () => undefined,
+}))
 
 // CI-hardening: `npm test` runs the whole suite (400+ files) as one `vitest run`,
 // which loads the runner heavily — and testing-library's default 1000ms async

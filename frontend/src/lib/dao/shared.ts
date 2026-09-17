@@ -11,6 +11,7 @@ import type { AminoMsg } from "../grc20"
 import { GNO_CHAIN_ID, getUserRegistryPath, networkScopedKey } from "../config"
 import { resilientAbciQuery } from "../rpcFallback"
 import { isValidGnoAddressChecksum } from "./address"
+import { assertActiveRpcChain } from "./chainIdentity"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -268,6 +269,9 @@ export function sanitize(str: string): string {
  *  The rpcUrl parameter is kept for API compatibility but the resilient layer
  *  handles failover to backup endpoints automatically. */
 async function abciQuery(_rpcUrl: string, path: string, data: string, strict = false): Promise<string | null> {
+    // Strict reads are the ones whose answers the UI trusts; they first verify
+    // that the RPC endpoints serve the configured chain.
+    if (strict) await assertActiveRpcChain()
     return resilientAbciQuery(path, data, strict)
 }
 
