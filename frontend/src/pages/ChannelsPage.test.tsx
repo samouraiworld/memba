@@ -29,8 +29,9 @@ const mockAdena = { connected: true, address: "g1owner", installed: true, loadin
 const mockAuth = { isAuthenticated: true, address: "g1owner", token: { value: "t" }, loading: false, error: null }
 vi.mock("react-router-dom", () => ({ useOutletContext: () => ({ adena: mockAdena, auth: mockAuth }) }))
 
-vi.mock("../plugins/board/parser", () => ({
-    detectChannelRealm: vi.fn(() => Promise.resolve("gno.land/r/user/mydao_channels")),
+// detectChannelRealm runs for real; only the chain read underneath is mocked.
+vi.mock("../plugins/board/parser", async (orig) => ({
+    ...(await orig<typeof import("../plugins/board/parser")>()),
     getBoardInfo: vi.fn(() => Promise.resolve({
         name: "MyDAO Channels",
         channels: [{ name: "general", type: "text", threadCount: 0, archived: false }],
@@ -42,9 +43,18 @@ vi.mock("../plugins/board/boardHelpers", () => ({
     hasChannelUnread: () => false, markChannelVisited: vi.fn(), updateChannelThreadCount: vi.fn(),
 }))
 vi.mock("./channelHelpers", () => ({ channelIcon: () => "#", defaultChannel: () => "general" }))
-vi.mock("../lib/config", () => ({ GNO_RPC_URL: "https://rpc.test.gno.land" }))
+vi.mock("../lib/config", () => ({
+    GNO_RPC_URL: "https://rpc.test.gno.land",
+    MEMBA_DAO: { realmPath: "gno.land/r/samcrew/memba_dao", channelsPath: "gno.land/r/samcrew/memba_dao_channels_v2" },
+}))
 vi.mock("../lib/grc20", () => ({ doContractBroadcast: vi.fn(() => Promise.resolve()) }))
-vi.mock("../lib/dao/shared", () => ({ queryEval: vi.fn(() => Promise.resolve('("g1owner" .uverse.address)')) }))
+vi.mock("../lib/dao/shared", () => ({
+    queryEval: vi.fn(() => Promise.resolve('("g1owner" .uverse.address)')),
+    // Both this DAO's channels realm and MembaDAO's exist; the page must pick the DAO's own.
+    queryRender: vi.fn((_rpc: string, path: string) => Promise.resolve(
+        path === "gno.land/r/user/mydao_channels" || path === "gno.land/r/samcrew/memba_dao_channels_v2" ? "# Channels" : null,
+    )),
+}))
 vi.mock("../lib/channelTemplate", () => ({
     buildCreateChannelMsg: vi.fn(() => ({ type: "vm/MsgCall", value: { func: "CreateChannel" } })),
     parseOwnerAddress: vi.fn((r: string | null) => (r ? "g1owner" : "")),

@@ -99,27 +99,28 @@ export async function getBoardThread(
 
 /**
  * Check if a board/channel realm exists by querying its Render("").
- * Returns true if the realm responds, false if 404/error.
+ * Only a failed or empty render (null) means absent: board content may
+ * legitimately contain "404". A body that is exactly "404" is a router's
+ * not-found page, not a board.
  */
 export async function boardExists(rpcUrl: string, boardPath: string): Promise<boolean> {
     const raw = await queryRender(rpcUrl, boardPath, "")
-    return raw !== null && !raw.includes("404")
+    return raw !== null && raw.trim() !== "404"
 }
 
 /**
- * v2.1a: Check if a channel realm exists.
- * Tries the configured MEMBA_DAO.channelsPath first (v2), then falls back to
- * suffix-based detection (_channels, _board) for compatibility.
+ * Resolve the channels realm that belongs to `daoRealmPath`.
+ * The centrally configured channels realm serves MembaDAO only; every other
+ * DAO resolves only from paths derived from its own realm path.
  */
 export async function detectChannelRealm(rpcUrl: string, daoRealmPath: string): Promise<string | null> {
-    // Try the centrally-configured channels path first (supports v2 paths)
     const { MEMBA_DAO } = await import("../../lib/config")
-    if (await boardExists(rpcUrl, MEMBA_DAO.channelsPath)) return MEMBA_DAO.channelsPath
-    // Fallback: try suffix-based detection for other DAOs
-    const channelsPath = `${daoRealmPath}_channels`
-    if (await boardExists(rpcUrl, channelsPath)) return channelsPath
-    const boardPath = `${daoRealmPath}_board`
-    if (await boardExists(rpcUrl, boardPath)) return boardPath
+    if (daoRealmPath === MEMBA_DAO.realmPath) {
+        return (await boardExists(rpcUrl, MEMBA_DAO.channelsPath)) ? MEMBA_DAO.channelsPath : null
+    }
+    for (const candidate of [`${daoRealmPath}_channels`, `${daoRealmPath}_board`]) {
+        if (await boardExists(rpcUrl, candidate)) return candidate
+    }
     return null
 }
 
