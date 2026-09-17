@@ -99,7 +99,7 @@ describe("version-2 propose form", () => {
             type: "vm/MsgCall",
             value: { caller: ALICE, send: "", pkg_path: REALM, func: "ProposeText", args: ["Ship the website", "Line one\nLine two", "ops"], max_deposit: expect.stringMatching(/^[0-9]+ugnot$/) },
         })
-        expect(screen.getByText(/Up to 1\.6\d? GNOT/)).toBeInTheDocument()
+        expect(screen.getByText(/Requested cap 1\.6\d? GNOT/)).toBeInTheDocument()
 
         fireEvent.click(screen.getByRole("button", { name: "Submit proposal" }))
         await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent(`/pearl/dao/${REALM}/proposal/6`))

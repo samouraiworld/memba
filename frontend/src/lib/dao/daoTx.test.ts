@@ -34,7 +34,7 @@ describe("DAO transaction plans", () => {
         expect(plan.msg.value).not.toHaveProperty("max_deposit")
     })
 
-    it("never re-sends a proposal, and sends the planned gas limit", async () => {
+    it("never re-sends a version-2 call, and sends the planned gas limit", async () => {
         const action = { type: "propose-archive" as const, title: "Close", description: "" }
         const plan = planDaoTx("memba-v2", REALM, action, CALLER)
         await broadcastDaoTx(plan, action, "Propose: Close")
@@ -42,7 +42,18 @@ describe("DAO transaction plans", () => {
         const vote = { type: "vote" as const, id: 2, vote: "NO" as const }
         const votePlan = planDaoTx("memba-v2", REALM, vote, CALLER)
         await broadcastDaoTx(votePlan, vote, "Vote NO")
-        expect(doContractBroadcast).toHaveBeenLastCalledWith([votePlan.msg], "Vote NO", { gasWanted: 15_000_000 })
+        expect(doContractBroadcast).toHaveBeenLastCalledWith([votePlan.msg], "Vote NO", { gasWanted: 15_000_000, retry: false })
+        const execute = { type: "execute" as const, id: 2 }
+        const executePlan = planDaoTx("memba-v2", REALM, execute, CALLER, { kind: "text", roles: [] })
+        await broadcastDaoTx(executePlan, execute, "Execute #2")
+        expect(doContractBroadcast).toHaveBeenLastCalledWith([executePlan.msg], "Execute #2", { gasWanted: executePlan.gasWanted, retry: false })
+    })
+
+    it("leaves votes on other contracts retryable", async () => {
+        const vote = { type: "vote" as const, id: 2, vote: "NO" as const }
+        const plan = planDaoTx("govdao", "gno.land/r/gov/dao", vote, CALLER)
+        await broadcastDaoTx(plan, vote, "Vote NO")
+        expect(doContractBroadcast).toHaveBeenLastCalledWith([plan.msg], "Vote NO", {})
     })
 })
 

@@ -305,7 +305,7 @@ export function ProposeV2Form({ realmPath, encodedSlug, kinds }: { realmPath: st
                 {plan && (
                     <>
                         <div className="pdao-summary-row"><span>Gas limit</span><span>{plan.gasWanted!.toLocaleString("en-US")}</span></div>
-                        <div className="pdao-summary-row"><span>Storage deposit</span><span>Up to {formatUgnot(plan.maxDepositUgnot!)}, locked in the DAO realm for the data this proposal stores</span></div>
+                        <div className="pdao-summary-row"><span>Storage deposit</span><span>Requested cap {formatUgnot(plan.maxDepositUgnot!)}, locked in the DAO realm for the data this proposal stores</span></div>
                     </>
                 )}
             </div>

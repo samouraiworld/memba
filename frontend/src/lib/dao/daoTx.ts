@@ -33,10 +33,15 @@ export function budgetDaoMsg(kind: DaoKind, msg: AminoMsg, action: DaoAction, ex
 
 const isProposal = (action: DaoAction) => action.type.startsWith("propose-")
 
+/** A plan with a deposit cap was sized for a version-2 realm. */
+const isV2Plan = (plan: DaoTxPlan) => plan.maxDepositUgnot !== undefined
+
 /**
  * Sign and broadcast a plan. Proposals are never re-sent automatically: a
  * response lost after the transaction landed would otherwise create the same
- * proposal twice.
+ * proposal twice. Version-2 votes and executions are not re-sent either: the
+ * realm rejects a repeat deterministically, so a retry would only re-prompt
+ * the wallet and pay another fee.
  */
 export function broadcastDaoTx(plan: DaoTxPlan, action: DaoAction, memo: string) {
     return doContractBroadcast([plan.msg], memo, daoBroadcastOptions(plan, action))
@@ -46,7 +51,7 @@ export function broadcastDaoTx(plan: DaoTxPlan, action: DaoAction, memo: string)
 export function daoBroadcastOptions(plan: DaoTxPlan, action: DaoAction): { gasWanted?: number; retry?: false } {
     return {
         ...(plan.gasWanted !== undefined ? { gasWanted: plan.gasWanted } : {}),
-        ...(isProposal(action) ? { retry: false as const } : {}),
+        ...(isProposal(action) || isV2Plan(plan) ? { retry: false as const } : {}),
     }
 }
 

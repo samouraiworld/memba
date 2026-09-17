@@ -161,7 +161,8 @@ export function V2ProposalView({ realmPath, encodedSlug, proposalId }: { realmPa
 
     const run = async (next: Exclude<Pending, null>) => {
         setPending(null)
-        const p = plan(next)
+        // Sign the plan the dialog showed, so what was reviewed is what is signed.
+        const p = pendingPlan ?? plan(next)
         if (!p) return
         const action = next.kind === "vote" ? { type: "vote" as const, id: proposal.id, vote: next.choice } : { type: "execute" as const, id: proposal.id }
         setTx({ phase: "wallet" })
@@ -359,7 +360,7 @@ export function V2ProposalView({ realmPath, encodedSlug, proposalId }: { realmPa
                             </>
                         )}
                         {pendingPlan && (
-                            <p className="v2p-muted">Contract {realmPath}. Gas limit {pendingPlan.gasWanted!.toLocaleString("en-US")}; storage deposit up to {formatUgnot(pendingPlan.maxDepositUgnot!)}.</p>
+                            <p className="v2p-muted">Contract {realmPath}. Gas limit {pendingPlan.gasWanted!.toLocaleString("en-US")}; requested storage-deposit cap {formatUgnot(pendingPlan.maxDepositUgnot!)}.</p>
                         )}
                         <div className="v2p-dialog__actions">
                             <button className="k-btn-secondary" onClick={() => setPending(null)}>Cancel</button>

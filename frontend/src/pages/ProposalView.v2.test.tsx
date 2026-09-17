@@ -106,13 +106,13 @@ describe("version-2 proposal reader", () => {
         fireEvent.click(await screen.findByRole("button", { name: "Vote yes" }))
         const dialog = screen.getByRole("alertdialog", { name: "Vote YES on proposal #2?" })
         expect(within(dialog).getByText(/counts 2 voting power and cannot be changed/)).toBeInTheDocument()
-        expect(within(dialog).getByText(/storage deposit up to 0.4 GNOT/)).toBeInTheDocument()
+        expect(within(dialog).getByText(/requested storage-deposit cap 0.4 GNOT/)).toBeInTheDocument()
         fireEvent.click(within(dialog).getByRole("button", { name: "Confirm YES" }))
         await waitFor(() => expect(screen.getByText("Your YES vote is recorded.")).toBeInTheDocument())
         expect(state.broadcast).toHaveBeenCalledWith(
             [{ type: "vm/MsgCall", value: { caller: ALICE, send: "", pkg_path: REALM, func: "Vote", args: ["2", "YES"], max_deposit: "400000ugnot" } }],
             "Vote YES on proposal #2",
-            { gasWanted: 15_000_000 },
+            { gasWanted: 15_000_000, retry: false },
         )
         expect(screen.getByRole("link", { name: HASH })).toBeInTheDocument()
     })
@@ -149,7 +149,7 @@ describe("version-2 proposal reader", () => {
         await waitFor(() => expect(screen.getByText("Proposal #2 executed.")).toBeInTheDocument())
         const [msgs, , opts] = state.broadcast.mock.calls[0]
         expect(msgs[0].value).toMatchObject({ func: "Execute", args: ["2"], max_deposit: expect.stringMatching(/ugnot$/) })
-        expect(opts).toEqual({ gasWanted: 25_000_000 })
+        expect(opts).toEqual({ gasWanted: 25_000_000, retry: false })
     })
 
     it("tells the executor of a removal where the freed deposit goes", async () => {

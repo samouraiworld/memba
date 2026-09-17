@@ -266,7 +266,7 @@ describe("ActionInbox — Quick Vote on a version-2 DAO", () => {
         expect(grc20Mod.doContractBroadcast).toHaveBeenCalledWith(
             [{ type: "vm/MsgCall", value: { func: "Vote", max_deposit: "400000ugnot" } }],
             "Vote YES on proposal #4",
-            { gasWanted: 15_000_000 },
+            { gasWanted: 15_000_000, retry: false },
         )
     })
 })
