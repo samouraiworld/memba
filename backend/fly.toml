@@ -127,6 +127,10 @@ primary_region = 'cdg'
   # sign-byte reconstruction diverges (as the login doc did). Validate A3 against a
   # real member signature first, THEN add:
   #   MEMBA_ENFORCE_MULTISIG_SIG_VERIFY = '1'
+  # AI analyst: OFF unless ANALYST_ENABLED = 'true' (the endpoint answers 503).
+  # Not set here on purpose. When enabling, also consider ANALYST_ADMIN_BEARER
+  # (Fly secret, operator-only forced refresh) and ANALYST_DAILY_CAP_PER_WALLET
+  # (default 5 per UTC day; 0 = wallets cannot generate). See docs/OPS_RUNBOOK.md.
   PORT = '8080'
 
 [[mounts]]

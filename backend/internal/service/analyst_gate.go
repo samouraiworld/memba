@@ -73,7 +73,9 @@ func AnalystAdminFrom(ctx context.Context) bool {
 	return v
 }
 
-// analystDailyCap is the number of reports one wallet may generate per UTC day.
+// analystDailyCap is the number of reports one wallet may generate per UTC day
+// (ANALYST_DAILY_CAP_PER_WALLET, default 5). 0 means wallets cannot generate
+// reports at all; cached reports are still served. Invalid values use the default.
 func analystDailyCap() int {
 	if v := strings.TrimSpace(os.Getenv("ANALYST_DAILY_CAP_PER_WALLET")); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n >= 0 {
