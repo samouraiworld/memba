@@ -11,6 +11,7 @@
  */
 
 import type { AminoMsg } from "./shared"
+import { isGovDAOPath } from "./kind"
 
 // ── GovDAO Function Names (configurable for upstream migration) ──
 
@@ -43,10 +44,8 @@ export const GOVDAO_EXECUTE_FUNC = "ExecuteOrRejectProposal"
  */
 export const GOVDAO_PROPOSE_FUNC = "Propose"
 
-/** Known GovDAO paths that use different function names. */
-export function isGovDAO(realmPath: string): boolean {
-    return realmPath.includes("/gov/dao")
-}
+/** GovDAO is recognized by its exact realm path only (see kind.ts). */
+export { isGovDAOPath as isGovDAO, isGovDAOPath } from "./kind"
 
 /** Build vote message. */
 export function buildVoteMsg(
@@ -55,7 +54,7 @@ export function buildVoteMsg(
     proposalId: number,
     vote: "YES" | "NO" | "ABSTAIN",
 ): AminoMsg {
-    if (isGovDAO(realmPath)) {
+    if (isGovDAOPath(realmPath)) {
         return buildDAOMsgCall(realmPath, GOVDAO_VOTE_FUNC, [String(proposalId), vote], caller)
     }
     return buildDAOMsgCall(realmPath, "VoteOnProposal", [String(proposalId), vote], caller)
@@ -67,7 +66,7 @@ export function buildExecuteMsg(
     realmPath: string,
     proposalId: number,
 ): AminoMsg {
-    if (isGovDAO(realmPath)) {
+    if (isGovDAOPath(realmPath)) {
         return buildDAOMsgCall(realmPath, GOVDAO_EXECUTE_FUNC, [String(proposalId)], caller)
     }
     return buildDAOMsgCall(realmPath, "ExecuteProposal", [String(proposalId)], caller)
@@ -81,7 +80,7 @@ export function buildProposeMsg(
     description: string,
     category: string = "governance",
 ): AminoMsg {
-    if (isGovDAO(realmPath)) {
+    if (isGovDAOPath(realmPath)) {
         return buildDAOMsgCall(realmPath, "Propose", [title, description], caller)
     }
     return buildDAOMsgCall(realmPath, "Propose", [title, description, category], caller)

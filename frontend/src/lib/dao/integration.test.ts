@@ -256,12 +256,13 @@ describe("isGovDAO path detection (comprehensive)", () => {
         expect(isGovDAO("gno.land/r/gov/dao")).toBe(true)
     })
 
-    it("detects versioned GovDAO path", () => {
-        expect(isGovDAO("gno.land/r/gov/dao/v3")).toBe(true)
+    it("rejects versioned and sub-paths (exact match only)", () => {
+        expect(isGovDAO("gno.land/r/gov/dao/v3")).toBe(false)
+        expect(isGovDAO("gno.land/r/gov/dao/v3/memberstore")).toBe(false)
     })
 
-    it("detects GovDAO with subpath", () => {
-        expect(isGovDAO("gno.land/r/gov/dao/v3/memberstore")).toBe(true)
+    it("rejects lookalike paths in another namespace", () => {
+        expect(isGovDAO("gno.land/r/alice/gov/dao")).toBe(false)
     })
 
     it("rejects user DAOs", () => {

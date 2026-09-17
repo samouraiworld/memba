@@ -494,9 +494,11 @@ describe('GovDAO detection (via buildVoteMsg)', () => {
         expect(msg.value.func).toBe('MustVoteOnProposalSimple')
     })
 
-    it('detects gno.land/r/gov/dao/v3 as GovDAO', () => {
-        const msg = buildVoteMsg('g1x', 'gno.land/r/gov/dao/v3', 1, 'YES')
-        expect(msg.value.func).toBe('MustVoteOnProposalSimple')
+    it('does NOT treat sub-paths or lookalikes of GovDAO as GovDAO', () => {
+        for (const path of ['gno.land/r/gov/dao/v3', 'gno.land/r/alice/gov/daoz', 'gno.land/r/g1evil/gov/dao']) {
+            const msg = buildVoteMsg('g1x', path, 1, 'YES')
+            expect(msg.value.func).not.toBe('MustVoteOnProposalSimple')
+        }
     })
 
     it('does NOT detect user DAOs as GovDAO', () => {
