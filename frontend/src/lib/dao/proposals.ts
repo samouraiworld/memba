@@ -574,7 +574,7 @@ export async function getProposalDetail(
             const status = matchLast(data, /^##\s+Status\s+-\s+(\w+)/m)
             const proposer = matchLast(data, />\s*proposed by\s+(g1[a-z0-9]+)/)?.[1] || ""
             // The page has exactly one realm-generated Resource block and one
-            // Status block. More than one means user text imitates them, and
+            // Status block. More than one means user text is formatted like them, and
             // the action type cannot be attributed to either copy.
             const actionUnverified = (data.match(/^##\s+Resource\s*-/gm)?.length ?? 0) > 1
                 || (data.match(/^##\s+Status\s+-/gm)?.length ?? 0) > 1

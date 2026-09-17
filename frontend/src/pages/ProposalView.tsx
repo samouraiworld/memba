@@ -389,7 +389,7 @@ export function ProposalView() {
             {proposal.actionUnverified && (
                 <div className="k-card proposal-action-card" role="status">
                     <h3 className="proposal-action-title">Action type could not be verified</h3>
-                    <p className="proposal-desc-text">This proposal&apos;s text imitates the contract&apos;s action details, so no action summary is shown. Review the proposal on the realm before voting.</p>
+                    <p className="proposal-desc-text">This proposal contains text formatted like the contract&apos;s action details, so no action summary is shown. Review the proposal on the realm before voting.</p>
                 </div>
             )}
             {proposal.actionType && /ChangeDAOImplementation/.test(proposal.actionType) && (

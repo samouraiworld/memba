@@ -22,8 +22,8 @@ describe("verified DAO identity", () => {
     })
 
     it("flags a self-declared name that matches a verified DAO at another path", () => {
-        expect(daoIdentity("gnoland-1", "gno.land/r/g1evil/dao", "govdao")).toEqual({ verified: false, verifiedName: null, lookalikeOf: "GovDAO" })
-        expect(daoIdentity("gnoland-1", "gno.land/r/g1evil/dao", "  GovDAO ").lookalikeOf).toBe("GovDAO")
+        expect(daoIdentity("gnoland-1", "gno.land/r/lookalike/dao", "govdao")).toEqual({ verified: false, verifiedName: null, lookalikeOf: "GovDAO" })
+        expect(daoIdentity("gnoland-1", "gno.land/r/lookalike/dao", "  GovDAO ").lookalikeOf).toBe("GovDAO")
         expect(daoIdentity("pearl-1", "gno.land/r/alice/dao", "MEMBA DAO").lookalikeOf).toBe("MembaDAO")
         expect(daoIdentity("gnoland-1", "gno.land/r/alice/dao", "Alice DAO").lookalikeOf).toBeNull()
     })

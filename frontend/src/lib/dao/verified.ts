@@ -23,7 +23,7 @@ export interface DaoIdentity {
     verified: boolean
     /** The verified name when the path is verified on this chain. */
     verifiedName: string | null
-    /** The verified name this DAO's self-declared name imitates, if any. */
+    /** The verified DAO name this DAO's self-declared name matches, if any. */
     lookalikeOf: string | null
 }
 
@@ -35,6 +35,6 @@ export function daoIdentity(chainId: string, realmPath: string, selfDeclaredName
     const exact = list.find((d) => d.path === realmPath)
     if (exact) return { verified: true, verifiedName: exact.name, lookalikeOf: null }
     const name = normalize(selfDeclaredName || "")
-    const imitated = name ? list.find((d) => normalize(d.name) === name) : undefined
-    return { verified: false, verifiedName: null, lookalikeOf: imitated?.name ?? null }
+    const sameName = name ? list.find((d) => normalize(d.name) === name) : undefined
+    return { verified: false, verifiedName: null, lookalikeOf: sameName?.name ?? null }
 }

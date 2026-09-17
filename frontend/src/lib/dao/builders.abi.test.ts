@@ -95,7 +95,7 @@ describe("builders only call functions the target exports", () => {
         expect(() => buildDaoMsg("memba-v2", realm, { type: "propose-remove-member", title: "t", description: "d", target: TARGET.slice(0, -1) + "4" }, CALLER)).toThrow()
         expect(() => buildDaoMsg("memba-v2", realm, { type: "propose-add-member", title: "t", description: "d", target: TARGET, power: 0, roles: ["member"] }, CALLER)).toThrow()
         expect(() => buildDaoMsg("memba-v2", realm, { type: "propose-add-member", title: "t", description: "d", target: TARGET, power: 1, roles: ["bad role"] }, CALLER)).toThrow()
-        expect(() => buildDaoMsg("memba-v2", "gno.land/r/alice/team.Evil()", { type: "execute", id: 1 }, CALLER)).toThrow()
+        expect(() => buildDaoMsg("memba-v2", "gno.land/r/alice/team.Other()", { type: "execute", id: 1 }, CALLER)).toThrow()
         expect(() => buildDaoMsg("memba-v2", realm, { type: "execute", id: 1 }, "")).toThrow()
     })
 

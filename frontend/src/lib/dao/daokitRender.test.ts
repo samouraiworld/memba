@@ -329,7 +329,7 @@ describe("members table and bullet parsing", () => {
     })
 
     it("a table-shaped string outside the Members section never adds members", () => {
-        const injected = memberRow("gno.land/r/x/legacy", "Evil", valid(9), ["owner"])
+        const injected = memberRow("gno.land/r/x/legacy", "Other", valid(9), ["owner"])
         const members = parseMembersFromRender(`## Members\n- ${valid(1)} (roles: admin)\n\n## Profile\nBio: ${injected}\n`)
         expect(members).toHaveLength(1)
         expect(members[0].address).toBe(valid(1))

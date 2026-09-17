@@ -44,7 +44,7 @@ export interface DAOProposal {
     actionBody?: string        // basedao Action.String(), GovDAO ExecutorString()
     executorRealm?: string     // GovDAO ExecutorCreationRealm()
     // Set when the render carries more than one action/status block (user text
-    // imitating the realm-generated one), so no action card can be trusted.
+    // formatted like the realm-generated one), so no action card can be trusted.
     actionUnverified?: boolean
     // v3.2: Temporal metadata for date display
     createdAtBlock?: number    // Block height at proposal creation (if extractable)

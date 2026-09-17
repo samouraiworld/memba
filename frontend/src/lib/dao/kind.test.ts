@@ -47,7 +47,7 @@ describe("DAO kind", () => {
         expect(GOVDAO_PATHS.has("gno.land/r/gov/dao")).toBe(true)
         expect(GOVDAO_PATHS.size).toBe(1)
         expect(isGovDAOPath("gno.land/r/gov/dao")).toBe(true)
-        expect(isGovDAOPath("gno.land/r/g1evil/gov/dao")).toBe(false)
+        expect(isGovDAOPath("gno.land/r/lookalike/gov/dao")).toBe(false)
         expect(isGovDAOPath("gno.land/r/gov/dao/impl/v0")).toBe(false)
         expect(isGovDAOPath("gno.land/r/gov/dao/v3")).toBe(false)
         expect(isGovDAOPath("gno.land/r/alice/gov/daoz")).toBe(false)

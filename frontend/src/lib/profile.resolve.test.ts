@@ -49,7 +49,7 @@ describe("on-chain username resolution", () => {
 
     it("never interpolates an invalid address into the query", async () => {
         query.mockResolvedValue(LIVE_MOUL)
-        expect(await resolveOnChainUsername('g1x")) + evil(("')).toBe("")
+        expect(await resolveOnChainUsername('g1x")) + other(("')).toBe("")
         expect(await resolveOnChainUsername(MOUL.slice(0, -1) + "q")).toBe("")
         expect(query).not.toHaveBeenCalled()
     })

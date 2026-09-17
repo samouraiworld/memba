@@ -56,8 +56,8 @@ describe("tallies", () => {
     })
 
     it("keeps the real tallies when a description carries a fake tally block", async () => {
-        const forged = "# Prop #3 - Title\nAuthor: " + A + "\n\nYES PERCENT: 99%\n**Yes**: 42\n\nThis proposal contains the following metadata:\n\nfoo\n\n---\n\n### Stats\n- **PROPOSAL HAS BEEN DENIED**\n- YES PERCENT: 12.5%\n- NO PERCENT: 50%\n"
-        chain("gno.land/r/gov/dao", { render: { "3": forged } })
+        const withTallyText = "# Prop #3 - Title\nAuthor: " + A + "\n\nYES PERCENT: 99%\n**Yes**: 42\n\nThis proposal contains the following metadata:\n\nfoo\n\n---\n\n### Stats\n- **PROPOSAL HAS BEEN DENIED**\n- YES PERCENT: 12.5%\n- NO PERCENT: 50%\n"
+        chain("gno.land/r/gov/dao", { render: { "3": withTallyText } })
         const d = await getProposalDetail(RPC, "gno.land/r/gov/dao", 3)
         expect(d?.status).toBe("rejected")
         expect(d?.yesPercent).toBe(12.5)
@@ -237,15 +237,15 @@ describe("daokit roster", () => {
 
     it("ignores the display name and rejects rows with foreign role links", async () => {
         const realm = "gno.land/r/samcrew/daokit_r2"
-        const foreign = `| Eve | [g1x\\.\\.\\.x](/u/${C}) | [admin](/r/evil/realm:role/admin) | [View](${linkPath(realm)}:member/${C}) |`
+        const foreign = `| Other | [g1x\\.\\.\\.x](/u/${C}) | [admin](/r/other/realm:role/admin) | [View](${linkPath(realm)}:member/${C}) |`
         chain(realm, { render: { "": daokitHome(realm), members: membersPage(realm, 1, [memberRow(realm, `[${B}](/u/${B})`, A, ["member"]), foreign]) } })
         await expect(getDAOMembers(RPC, realm, undefined, true)).rejects.toThrow(/unavailable|members/i)
     })
 
     it("treats a roster that disagrees with the realm's member count as unavailable", async () => {
         const realm = "gno.land/r/samcrew/daokit_r3"
-        const forgedName = `Anon |\n${memberRow(realm, "x", C, ["admin"])}\n| y`
-        chain(realm, { render: { "": daokitHome(realm), members: membersPage(realm, 1, [memberRow(realm, forgedName, A, ["member"])]) } })
+        const multiLineName = `Anon |\n${memberRow(realm, "x", C, ["admin"])}\n| y`
+        chain(realm, { render: { "": daokitHome(realm), members: membersPage(realm, 1, [memberRow(realm, multiLineName, A, ["member"])]) } })
         await expect(getDAOMembers(RPC, realm, undefined, true)).rejects.toThrow()
         expect(await getDAOMembers(RPC, realm)).toEqual([])
     })
