@@ -340,7 +340,8 @@ export function CreateDAO() {
             await assertCanDeployTo(chain, adena.address, realmPath)
             const { replacesParked: replacing } = await assertPathAvailable(chain, realmPath, adena.address)
             setReplacesParked(replacing)
-            const policy = await codeSubmissionPolicy(chain)
+            // The policy only sizes the transaction; success is read from the chain.
+            const policy = await codeSubmissionPolicy(chain).catch(() => "unknown")
 
             setDeployStep("signing")
             const res = await doContractBroadcast(
@@ -353,16 +354,18 @@ export function CreateDAO() {
 
             // Under the inert policy a confirmed submission is parked until an
             // approver enables it: only "live" is a created DAO.
-            let outcome: DeployOutcome = { outcome: "live", meta: { path: realmPath, status: "live" } }
+            // Record it before polling: closing the tab must not lose the DAO.
+            try {
+                savePendingDAO({ chainId: GNO_CHAIN_ID, path: realmPath, name, txHash: res.hash, reason: "submitted, waiting for the network to enable it" })
+            } catch { /* the waiting panel still shows the path and transaction */ }
+            // Whatever the policy says, the DAO exists only once its package is
+            // live. The first read returns at once when it already is.
             if (policy === "inert") {
-                // Record it before polling: closing the tab must not lose the DAO.
-                try {
-                    savePendingDAO({ chainId: GNO_CHAIN_ID, path: realmPath, name, txHash: res.hash, reason: "submitted, waiting for the network to enable it" })
-                } catch { /* the waiting panel still shows the path and transaction */ }
                 setDeployStep("idle")
                 setApproval({ phase: "waiting", txHash: res.hash })
-                outcome = await waitForPackage(chain, realmPath)
             }
+            const outcome: DeployOutcome = await waitForPackage(chain, realmPath)
+            if (outcome.outcome === "pending") setDeployStep("idle")
 
             if (outcome.outcome === "pending") {
                 clearDraft()
@@ -376,9 +379,7 @@ export function CreateDAO() {
                 return
             }
             setApproval(null)
-            if (policy === "inert") {
-                try { removePendingDAO(GNO_CHAIN_ID, realmPath) } catch { /* storage unavailable */ }
-            }
+            try { removePendingDAO(GNO_CHAIN_ID, realmPath) } catch { /* storage unavailable */ }
             if (outcome.outcome === "failed") {
                 throw new Error(`The DAO was not created: ${outcome.error}`)
             }

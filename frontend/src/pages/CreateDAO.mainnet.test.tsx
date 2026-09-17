@@ -51,6 +51,8 @@ const meta = {
 }
 
 let statuses: string[] = []
+let policyReply = ""
+
 const encode = (s: string) => btoa(String.fromCharCode(...new TextEncoder().encode(s)))
 const decodeHex = (h: string) => new TextDecoder().decode(Uint8Array.from(h.slice(2).match(/../g) ?? [], (x) => parseInt(x, 16)))
 
@@ -62,13 +64,14 @@ beforeEach(() => {
     mocks.caps = { create: true, channelsCompanion: false }
     mocks.broadcast.mockReset().mockResolvedValue({ hash: "DEPLOYHASH" })
     statuses = []
+    policyReply = fixture("policy-inert")
     mocks.rpc.mockImplementation(async (_url: string, method: string, params: Record<string, string>) => {
         if (method === "status") return { node_info: { network: "gnoland-1" } }
         const path = JSON.parse(params.path) as string
         const data = params.data ? decodeHex(params.data) : ""
         let reply: string
         if (path === "vm/qeval") reply = data === `gno.land/r/sys/names.IsAuthorizedAddressForNamespace(address("${SIGNER}"), "${SIGNER}")` ? fixture("names-true") : fixture("names-false")
-        else if (path === "params/vm:p:code_submission_policy") reply = fixture("policy-inert")
+        else if (path === "params/vm:p:code_submission_policy") reply = policyReply
         else if (path === "vm/qpkgmeta_json" && data === PATH) reply = (statuses.length > 1 ? statuses.shift()! : statuses[0] ?? meta.absent())
         else return { response: { ResponseBase: { Data: null, Error: { msg: "unexpected query" } } } }
         return { response: { ResponseBase: { Data: encode(reply), Error: null } } }
@@ -180,6 +183,32 @@ describe("Create DAO on gnoland-1", () => {
         expect(await screen.findByText("DAO deployed successfully!")).toBeInTheDocument()
         expect(screen.getByTestId("dao-replaces-parked")).toHaveTextContent("Replaces your earlier submission that gno.land has not enabled")
         expect(mocks.broadcast.mock.calls[0][1]).toContain("replaces your earlier submission that gno.land has not enabled")
+    })
+
+    // Success is decided by the package status, never by the policy string.
+    it.each(['"permissioned"', '"inert_v2"', '"permissionless"'])("with policy %s a package that is still parked is pending, not success", async (policy) => {
+        policyReply = policy
+        statuses = [meta.absent(), meta.inert()]
+        vi.mocked(waitForPackage).mockImplementationOnce(async (ctx, path, opts) => {
+            const actual = await vi.importActual<typeof import("../lib/dao/packageStatus")>("../lib/dao/packageStatus")
+            return actual.waitForPackage(ctx, path, { ...opts, intervalMs: 5, timeoutMs: 30 })
+        })
+        resumeReview()
+        confirm()
+        fireEvent.click(deployButton())
+        expect(await screen.findByTestId("dao-approval-pending")).toHaveTextContent("DEPLOYHASH")
+        expect(screen.queryByText("DAO deployed successfully!")).not.toBeInTheDocument()
+        expect(mocks.save).not.toHaveBeenCalled()
+        expect(waitForPackage).toHaveBeenCalledTimes(1)
+    })
+
+    it("with an unreadable policy a live package is still a created DAO", async () => {
+        policyReply = "not json"
+        statuses = [meta.absent(), meta.live()]
+        resumeReview()
+        confirm()
+        fireEvent.click(deployButton())
+        expect(await screen.findByText("DAO deployed successfully!")).toBeInTheDocument()
     })
 
     it("refuses a path that is already used, before any signature", async () => {

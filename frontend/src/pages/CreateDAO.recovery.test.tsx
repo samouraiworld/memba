@@ -25,7 +25,7 @@ function resume(overrides: Record<string, unknown> = {}) {
     render(<CreateDAO />)
     fireEvent.click(screen.getByRole("button", { name: "Resume" }))
 }
-beforeEach(() => { cleanup(); localStorage.clear(); vi.clearAllMocks(); mocks.broadcast.mockReset(); mocks.policy.mockResolvedValue("permissionless") })
+beforeEach(() => { cleanup(); localStorage.clear(); vi.clearAllMocks(); mocks.broadcast.mockReset(); mocks.policy.mockResolvedValue("permissionless"); mocks.wait.mockResolvedValue({ outcome: "live", meta: { path: "gno.land/r/test/recovery", status: "live" } }) })
 // v2: deploying requires confirming the permanent-contract notice first.
 function deploy() {
     fireEvent.click(screen.getByRole("checkbox", { name: /permanent contract/ }))
@@ -94,8 +94,8 @@ describe("DAO creation recovery", () => {
         expect(await screen.findByText(/could not be saved in this browser/)).toBeInTheDocument()
         expect(screen.getByText("DAO deployed successfully!")).toBeInTheDocument()
         expect(mocks.broadcast).toHaveBeenCalledTimes(1)
-        // pearl is not inert: no approval polling and no pending record
-        expect(mocks.wait).not.toHaveBeenCalled()
+        // the package status is read once even when the policy is permissionless
+        expect(mocks.wait).toHaveBeenCalledTimes(1)
         expect(localStorage.getItem("memba_pending_daos")).toBeNull()
     })
 
