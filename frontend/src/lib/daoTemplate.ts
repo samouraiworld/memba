@@ -61,18 +61,21 @@ const CONTROL_CHARS = /[\u0000-\u001F\u007F-\u009F\u2028\u2029]/
 // eslint-disable-next-line no-control-regex
 const CONTROL_CHARS_EXCEPT_NEWLINE = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F\u2028\u2029]/
 
+/** Unicode format characters: byte-order mark, zero-width and bidi controls. They are invisible, and a raw byte-order mark does not parse in Gno source. */
+const FORMAT_CHARS = /\p{Cf}/u
+
 function nameError(name: string): string | null {
     if (typeof name !== "string" || !name.trim()) return "DAO name is required"
     if (name.trim().length < 3) return "DAO name must be at least 3 characters"
     if (name.length > DAO_NAME_MAX) return `DAO name must be at most ${DAO_NAME_MAX} characters`
-    if (hasLoneSurrogate(name) || CONTROL_CHARS.test(name)) return "DAO name contains characters that are not allowed"
+    if (hasLoneSurrogate(name) || CONTROL_CHARS.test(name) || FORMAT_CHARS.test(name)) return "DAO name contains characters that are not allowed"
     return null
 }
 
 function descriptionError(description: string): string | null {
     if (typeof description !== "string") return "DAO description must be text"
     if (description.length > DAO_DESCRIPTION_MAX) return `DAO description must be at most ${DAO_DESCRIPTION_MAX} characters`
-    if (hasLoneSurrogate(description) || CONTROL_CHARS_EXCEPT_NEWLINE.test(description)) return "DAO description contains characters that are not allowed"
+    if (hasLoneSurrogate(description) || CONTROL_CHARS_EXCEPT_NEWLINE.test(description) || FORMAT_CHARS.test(description)) return "DAO description contains characters that are not allowed"
     return null
 }
 

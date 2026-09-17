@@ -93,7 +93,7 @@ describe('generateDAOCode — realm shape', () => {
     it('imports no other realm and uses no recover', () => {
         const code = generateDAOCode(makeConfig())
         const imports = code.slice(code.indexOf('import ('), code.indexOf(')', code.indexOf('import (')))
-        expect(imports.match(/"[^"]+"/g)).toEqual(['"chain"', '"strconv"', '"strings"', '"time"', '"unicode/utf8"', '"gno.land/p/nt/avl/v0"'])
+        expect(imports.match(/"[^"]+"/g)).toEqual(['"chain"', '"strconv"', '"strings"', '"time"', '"unicode"', '"unicode/utf8"', '"gno.land/p/nt/avl/v0"'])
         expect(code).not.toMatch(/gno\.land\/r\//)
         expect(code).not.toMatch(/\brecover\(/)
     })
@@ -207,6 +207,15 @@ describe('generateDAOCode — fails closed', () => {
         ['category injection', { proposalCategories: ['governance', '"; INJECT("'] }, /categor/i],
     ] as [string, Partial<DAOCreationConfig>, RegExp][])('%s', (_label, change, error) => {
         expect(() => generateDAOCode(makeConfig(change))).toThrow(error)
+    })
+
+    // Unicode format characters (byte-order mark, zero-width, bidi controls)
+    // are invisible, and a raw byte-order mark does not even parse in Gno source.
+    it.each(['\\ufeff', '\\u200b', '\\u200c', '\\u200d', '\\u200e', '\\u200f', '\\u202a', '\\u202e', '\\u2066', '\\u2069', '\\u00ad', '\\u2060'])('refuses format character %s in the name and the description', (escaped) => {
+        const ch = JSON.parse(`"${escaped}"`) as string
+        expect(() => generateDAOCode(makeConfig({ name: `Team${ch} DAO` }))).toThrow(/not allowed/)
+        expect(() => generateDAOCode(makeConfig({ description: `About${ch}us` }))).toThrow(/not allowed/)
+        expect(daoStepError(1, { name: `Team${ch} DAO`, realmPath: 'gno.land/r/test/mydao', members: [], threshold: 51, quorum: 0 })).toMatch(/not allowed/)
     })
 
     it('refuses more than 100 members', () => {

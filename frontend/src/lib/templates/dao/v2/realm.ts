@@ -67,6 +67,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"gno.land/p/nt/avl/v0"
@@ -318,6 +319,11 @@ func checkTitle(title string) {
 	for _, r := range title {
 		if isControl(r) {
 			panic("title must be a single line without control characters")
+		}
+		// Format characters (zero-width, bidi controls, byte-order mark) are
+		// invisible and can reorder how the rest of the line is displayed.
+		if unicode.Is(unicode.Cf, r) {
+			panic("title must not contain invisible formatting characters")
 		}
 	}
 	if strings.TrimSpace(title) == "" {
