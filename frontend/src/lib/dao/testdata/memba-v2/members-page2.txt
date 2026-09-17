@@ -1,0 +1,1 @@
+("{\"total\":3,\"offset\":1,\"members\":[{\"address\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\",\"power\":30,\"roles\":[\"member\"]}]}" string)

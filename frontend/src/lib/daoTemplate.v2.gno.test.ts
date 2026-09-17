@@ -16,7 +16,7 @@
  */
 import { describe, it, expect, beforeAll, afterAll } from "vitest"
 import { spawnSync } from "node:child_process"
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs"
+import { mkdtempSync, mkdirSync, readFileSync, writeFileSync, rmSync } from "node:fs"
 import { tmpdir } from "node:os"
 import { join } from "node:path"
 
@@ -748,4 +748,70 @@ func TestB_ExactThresholdAtMaximumPower(cur realm, t *testing.T) {
 `
         expectPasses(runPackage(pkg, code, testFile(pkg, body)), ["TestA_MemberLimit", "TestB_ExactThresholdAtMaximumPower"])
     }, 300_000)
+
+    // ── Reads: real outputs, in the qeval wire shape, as reader fixtures ─
+
+    it("JSON reads match the committed reader fixtures (qeval wire format)", () => {
+        const pkg = "v2_reads"
+        const code = generateDAOCode(config(pkg, {
+            name: 'Reads "DAO" \\ é 🚀',
+            description: "First line\nSecond <b>line</b>",
+            threshold: 60,
+            members: [
+                { address: ALICE, power: 50, roles: ["lead"] },
+                { address: BOB, power: 30, roles: ["member"] },
+                { address: CAROL, power: 20, roles: [] },
+            ],
+        }))
+        // qeval renders a string result as ("<Go-quoted>" string); strconv.Quote
+        // reproduces that encoding inside the VM.
+        const body = raw`
+func wire(v string) string { return "(" + strconv.Quote(v) + " string)" }
+
+func fixture(name, v string) { println("FIXTURE " + name + " " + v) }
+
+func TestReads(cur realm, t *testing.T) {
+	testing.SetRealm(alice)
+	text := ProposeText(cross(cur), "say \"hi\" \\ 🚀", "line1\nline2 <b>", "governance")
+	Vote(cross(cur), text, "YES")
+	testing.SetRealm(bob)
+	Vote(cross(cur), text, "YES")
+	advance(1800)
+	Execute(cross(cur), text)
+	add := ProposeAddMember(cross(cur), "add dave", "", address(${q(DAVE)}), 5, "member")
+	testing.SetRealm(alice)
+	Vote(cross(cur), add, "YES")
+	testing.SetRealm(carol)
+	Vote(cross(cur), add, "NO")
+	archive := ProposeArchive(cross(cur), "archive", "")
+	testing.SetRealm(bob)
+	Vote(cross(cur), archive, "NO")
+	testing.SetRealm(alice)
+	Vote(cross(cur), archive, "NO")
+	fixture("config", wire(GetConfigJSON()))
+	fixture("members", wire(GetMembersJSON(0, 50)))
+	fixture("members-page2", wire(GetMembersJSON(1, 1)))
+	fixture("proposals", wire(GetProposalsJSON(0, 50)))
+	fixture("proposals-page", wire(GetProposalsJSON(0, 2)))
+	fixture("proposals-last", wire(GetProposalsJSON(2, 2)))
+	fixture("proposal-text", wire(GetProposalJSON(text)))
+	fixture("proposal-add", wire(GetProposalJSON(add)))
+	fixture("votes", wire(GetVotesJSON(text, 0, 50)))
+	fixture("hasvoted-true", "(" + strconv.FormatBool(HasVoted(add, address(${q(CAROL)}))) + " bool)")
+	fixture("hasvoted-false", "(" + strconv.FormatBool(HasVoted(add, address(${q(BOB)}))) + " bool)")
+}
+`
+        const res = runPackage(pkg, code, testFile(pkg, body))
+        expectPasses(res, ["TestReads"])
+        const fixtures = new Map([...res.out.matchAll(/^FIXTURE (\S+) (.*)$/gm)].map((m) => [m[1], m[2]]))
+        expect(fixtures.size).toBe(11)
+        const dir = join(import.meta.dirname, "dao", "testdata", "memba-v2")
+        if (process.env.DAO_V2_FIXTURES_DIR) {
+            mkdirSync(dir, { recursive: true })
+            for (const [name, value] of fixtures) writeFileSync(join(dir, `${name}.txt`), `${value}\n`)
+        }
+        for (const [name, value] of fixtures) {
+            expect(readFileSync(join(dir, `${name}.txt`), "utf8"), `fixture ${name} is stale: rerun with DAO_V2_FIXTURES_DIR=1`).toBe(`${value}\n`)
+        }
+    }, 180_000)
 })

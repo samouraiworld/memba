@@ -1,0 +1,1 @@
+("{\"total\":3,\"offset\":0,\"members\":[{\"address\":\"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c\",\"power\":50,\"roles\":[\"lead\"]},{\"address\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\",\"power\":30,\"roles\":[\"member\"]},{\"address\":\"g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq\",\"power\":20,\"roles\":[]}]}" string)

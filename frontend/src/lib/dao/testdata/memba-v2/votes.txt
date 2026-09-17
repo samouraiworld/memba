@@ -1,0 +1,1 @@
+("{\"total\":2,\"offset\":0,\"votes\":[{\"voter\":\"g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c\",\"choice\":\"YES\",\"power\":50},{\"voter\":\"g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5\",\"choice\":\"YES\",\"power\":30}]}" string)
