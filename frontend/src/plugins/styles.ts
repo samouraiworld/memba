@@ -2,7 +2,7 @@
  * Shared Plugin Styles — reusable style objects for all plugin UIs.
  *
  * Consolidates the repeated card, button, input, and label styles
- * used across Board, GnoSwap, Leaderboard, and Settings.
+ * used across the Board and Settings.
  *
  * @module plugins/styles
  */

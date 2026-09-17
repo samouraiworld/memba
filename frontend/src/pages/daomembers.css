@@ -202,60 +202,9 @@
   align-items: center;
   gap: 3px;
 }
-.k-members__role-remove {
-  background: none;
-  border: none;
-  color: var(--color-k-danger-text);
-  cursor: pointer;
-  font-size: var(--pro-caption, 9px);
-  padding: 0;
-  line-height: 1;
-}
-.k-members__add-role-btn {
-  background: none;
-  border: 1px solid var(--color-border-light);
-  color: var(--color-text-secondary);
-  cursor: pointer;
-  font-size: var(--pro-caption, 9px);
-  padding: 2px 6px;
-  border-radius: 3px;
-  font-family: var(--font-ui, 'JetBrains Mono', monospace);
-  transition: all 0.15s;
-}
-.k-members__add-role-btn:hover {
-  border-color: var(--color-text-dim);
-  color: var(--color-text-secondary);
-}
 
-/* ── Admin Role Assignment Panel ─────────────────────────────── */
 
-.k-members__assign-panel {
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px solid var(--color-border);
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-}
-.k-members__assign-label {
-  font-size: var(--pro-caption, 9px);
-  color: var(--color-text-muted);
-  font-family: var(--font-ui, 'JetBrains Mono', monospace);
-  text-transform: uppercase;
-}
-.k-members__assign-btn {
-  padding: 2px 8px;
-  border-radius: 4px;
-  font-size: var(--pro-caption, 9px);
-  font-family: var(--font-ui, 'JetBrains Mono', monospace);
-  border: 1px solid var(--color-border-light);
-  background: var(--color-bg-card);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-
-/* ── Empty + Success States ──────────────────────────────────── */
+/* ── Empty State ──────────────────────────────────── */
 
 .k-members__empty {
   background: var(--color-bg-card);
@@ -265,14 +214,5 @@
 .k-members__empty-text {
   color: var(--color-text-muted);
   font-size: var(--pro-small, 12px);
-  font-family: var(--font-ui, 'JetBrains Mono', monospace);
-}
-.k-members__success {
-  padding: 12px 16px;
-  background: var(--color-k-accent-subtle);
-  border-radius: 8px;
-  border: 1px solid var(--color-k-accent-border);
-  color: var(--color-k-accent-text);
-  font-size: var(--pro-small, 13px);
   font-family: var(--font-ui, 'JetBrains Mono', monospace);
 }

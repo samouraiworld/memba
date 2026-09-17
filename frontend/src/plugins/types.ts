@@ -30,7 +30,7 @@ export interface PluginManifest {
 
 // ── Props ───────────────────────────────────────────────────────
 
-/** Props injected into every plugin component by the PluginLoader. */
+/** Props injected into every plugin component. */
 export interface PluginProps {
     /** Fully-qualified realm path, e.g. "gno.land/r/user/mydao". */
     readonly realmPath: string
