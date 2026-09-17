@@ -172,8 +172,8 @@ describe("memba v2 reader — refuses what it cannot trust", () => {
         await expect(readV2Proposal(ctx, 0)).rejects.toThrow("id")
         await expect(readV2Members(ctx, { offset: 0, limit: 51 })).rejects.toThrow("size")
         await expect(readV2Proposals(ctx, -1)).rejects.toThrow("cursor")
-        await expect(hasVotedV2(ctx, 1, 'g1") + evil(')).rejects.toThrow()
-        await expect(readV2Config({ ...ctx, realmPath: "gno.land/r/x/evil\")" })).rejects.toThrow("realm path")
+        await expect(hasVotedV2(ctx, 1, 'g1") + extra(')).rejects.toThrow()
+        await expect(readV2Config({ ...ctx, realmPath: "gno.land/r/x/extra\")" })).rejects.toThrow("realm path")
         expect(directRpcCall).not.toHaveBeenCalled()
     })
 

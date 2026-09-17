@@ -198,7 +198,7 @@ describe("assertCanDeployTo", () => {
         answer = () => "(1 int)"
         await expect(assertCanDeployTo(ctx, SIGNER, "gno.land/r/nym-alice123/team")).rejects.toThrow("Could not verify")
         queries.length = 0
-        await expect(assertCanDeployTo(ctx, SIGNER, 'gno.land/r/x"), evil("/team')).rejects.toThrow("Invalid realm path")
+        await expect(assertCanDeployTo(ctx, SIGNER, 'gno.land/r/x"), extra("/team')).rejects.toThrow("Invalid realm path")
         await expect(assertCanDeployTo(ctx, "g1notvalid", "gno.land/r/nym-alice123/team")).rejects.toThrow("wallet")
         expect(queries).toEqual([])
         expect(realmNamespace("gno.land/r/nym-alice123/team")).toBe("nym-alice123")
