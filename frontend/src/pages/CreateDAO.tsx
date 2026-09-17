@@ -16,7 +16,7 @@ import { generateChannelCode, defaultChannelConfig, isValidChannelName } from ".
 import { buildDeployMsg } from "../lib/templates/prologue"
 import { daoDepositCapUgnot, estimateDAODepositUgnot, estimateDeployGas, formatGnot } from "../lib/templates/dao/v2/deposit"
 import { addSavedDAO, encodeSlug } from "../lib/daoSlug"
-import { doContractBroadcast, feeForGasWanted } from "../lib/grc20"
+import { doContractBroadcast, feeForGasWanted, networkGasPrice, FALLBACK_GAS_PRICE, type GasPrice } from "../lib/grc20"
 import { getGasConfig } from "../lib/gasConfig"
 import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, GNO_RPC_URL, NETWORKS } from "../lib/config"
 import { assertCanDeployTo } from "../lib/dao/namespace"
@@ -144,6 +144,13 @@ export function CreateDAO() {
     // synchronously from localStorage at first render.
     const [showDraftBanner, setShowDraftBanner] = useState(() => !!loadDraft())
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const [gasPrice, setGasPrice] = useState<GasPrice>(FALLBACK_GAS_PRICE)
+
+    useEffect(() => {
+        let active = true
+        networkGasPrice().then((price) => { if (active) setGasPrice(price) })
+        return () => { active = false }
+    }, [])
 
     const windows = presetWindows(DAO_PRESETS.find(p => p.id === selectedPreset))
     const channelsPlanned = caps.channelsCompanion && enableChannels
@@ -285,7 +292,7 @@ export function CreateDAO() {
     // The deploy runs with a gas budget sized to the DAO so a large roster
     // cannot run out of gas after the user signed.
     const deployGas = estimateDeployGas(depositInput)
-    const networkFeeUgnot = feeForGasWanted(getGasConfig(), deployGas, true)
+    const networkFeeUgnot = feeForGasWanted(getGasConfig(), deployGas, gasPrice)
 
     // ── Deploy ────────────────────────────────────────────
 

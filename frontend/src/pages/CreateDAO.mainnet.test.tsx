@@ -100,8 +100,8 @@ describe("Create DAO on gnoland-1", () => {
         resumeReview()
         const disclosure = screen.getByTestId("dao-deploy-disclosure")
         expect(disclosure).toHaveTextContent(/Storage deposit: about 6\.2 GNOT, capped at 13 GNOT/)
-        // 57M gas at the default profile price (1 GNOT per 50M deploy gas)
-        expect(disclosure).toHaveTextContent(/Network fee: about 1\.1 GNOT \(gas limit 57,000,000\)/)
+        // 57M gas x 1.2 at 1 ugnot per 1000 gas is below the default 1 GNOT profile fee
+        expect(disclosure).toHaveTextContent(/Network fee: up to 1 GNOT \(your wallet may lower it\)\. Gas limit 57,000,000\./)
         expect(screen.getAllByText("Roles are labels; they grant no special powers.").length).toBeGreaterThan(0)
         expect(disclosure).toHaveTextContent("No member has special powers")
         expect(disclosure).toHaveTextContent("This DAO cannot hold funds")

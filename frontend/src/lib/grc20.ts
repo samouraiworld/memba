@@ -9,6 +9,8 @@
 
 import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN, GNO_CHAIN_ID, API_BASE_URL } from "./config"
 import { getGasConfig, type GasConfig } from "./gasConfig"
+import { getRpcUrlsInOrder } from "./rpcFallback"
+import { abciQueryText } from "./dao/packageStatus"
 import * as Sentry from "@sentry/react"
 
 // ── Platform Fee ──────────────────────────────────────────────
@@ -181,21 +183,45 @@ export function setTxConfirmationCallback(cb: TxConfirmCallback | null) {
 /** Hard ceiling for an explicit gasWanted (the chains' block limit is 3B). */
 export const MAX_GAS_WANTED = 500_000_000
 
-/**
- * Minimum network gas price: 1 ugnot per 1000 gas, read from `auth/gasprice`
- * on gnoland-1 and pearl-1 (2026-09-17).
- */
-const NETWORK_GAS_PER_UGNOT = 1000
+/** Network gas price: `ugnot` per `gas` units. */
+export interface GasPrice { gas: number; ugnot: number }
+
+/** Used when `auth/gasprice` cannot be read: the value gnoland-1 and pearl-1 reported on 2026-09-17. */
+export const FALLBACK_GAS_PRICE: GasPrice = { gas: 1000, ugnot: 1 }
+
+const gasPriceCache = new Map<string, GasPrice>()
+
+/** Test hook. */
+export function __resetGasPriceCache() {
+    gasPriceCache.clear()
+}
 
 /**
- * Fee for an explicit gas budget. The profile pairs a fee with a gas budget
- * (call or deploy); that ratio is the price the user pays per unit of gas, so
- * a larger budget pays proportionally more. Never below the profile's fee or
- * the network minimum.
+ * The chain's current gas price from `auth/gasprice`, cached per chain. Falls
+ * back to {@link FALLBACK_GAS_PRICE} when no endpoint of that chain answers.
  */
-export function feeForGasWanted(gas: GasConfig, gasWanted: number, isDeploy: boolean): number {
-    const budget = isDeploy ? gas.deployWanted : gas.wanted
-    return Math.max(gas.fee, Math.ceil((gasWanted * gas.fee) / budget), Math.ceil(gasWanted / NETWORK_GAS_PER_UGNOT))
+export async function networkGasPrice(chainId: string = GNO_CHAIN_ID, rpcUrls: string[] = getRpcUrlsInOrder()): Promise<GasPrice> {
+    const cached = gasPriceCache.get(chainId)
+    if (cached) return cached
+    try {
+        const raw = JSON.parse(await abciQueryText({ rpcUrl: rpcUrls[0] ?? "", rpcUrls, chainId }, "auth/gasprice", "")) as { gas?: unknown; price?: unknown }
+        const gas = Number(raw.gas)
+        const match = typeof raw.price === "string" ? /^([0-9]{1,15})ugnot$/.exec(raw.price) : null
+        if (!Number.isSafeInteger(gas) || gas <= 0 || !match) throw new Error("Unexpected gas price")
+        const price = { gas, ugnot: Number(match[1]) }
+        gasPriceCache.set(chainId, price)
+        return price
+    } catch {
+        return FALLBACK_GAS_PRICE
+    }
+}
+
+/**
+ * Fee for an explicit gas limit: the network price with 20 % headroom, never
+ * below the profile's flat fee. Wallets that simulate may lower it.
+ */
+export function feeForGasWanted(gas: GasConfig, gasWanted: number, price: GasPrice): number {
+    return Math.max(gas.fee, Math.ceil((gasWanted * 1.2 * price.ugnot) / price.gas))
 }
 
 export async function doContractBroadcast(
@@ -230,7 +256,7 @@ export async function doContractBroadcast(
     // the wallet sign UI just to fail with "package already exists".
     const isDeploy = opts?.gas === "deploy"
     const gasWanted = opts?.gasWanted ?? (isDeploy ? gas.deployWanted : gas.wanted)
-    const gasFee = opts?.gasWanted !== undefined ? feeForGasWanted(gas, opts.gasWanted, isDeploy) : gas.fee
+    const gasFee = opts?.gasWanted !== undefined ? feeForGasWanted(gas, opts.gasWanted, await networkGasPrice()) : gas.fee
     const maxRetries = isDeploy || opts?.retry === false ? 0 : 2
     let lastError: Error | null = null
 

@@ -69,6 +69,20 @@ describe("packageStatus", () => {
         await expect(packageStatus(ctx, "gno.land/r/other/pkg")).rejects.toThrow("another path")
     })
 
+    it("tries the network's endpoints in order, skipping one that is down or on another chain", async () => {
+        const seen: string[] = []
+        vi.mocked(directRpcCall).mockImplementation(async (url, method, params) => {
+            seen.push(`${url} ${method}`)
+            if (url === "https://down.invalid") throw new TypeError("Failed to fetch")
+            if (method === "status") return { node_info: { network: url === "https://other.invalid" ? "pearl-1" : ctx.chainId } }
+            return { response: { ResponseBase: { Data: encode(answer(JSON.parse(params!.path), decodeHex(params!.data ?? ""))!), Error: null } } }
+        })
+        const list = { ...ctx, rpcUrls: ["https://down.invalid", "https://other.invalid", "https://good.invalid"] }
+        expect((await packageStatus(list, LIVE_PATH)).status).toBe("live")
+        expect(seen).toEqual(["https://down.invalid status", "https://other.invalid status", "https://good.invalid status", "https://good.invalid abci_query"])
+        await expect(packageStatus({ ...ctx, rpcUrls: ["https://down.invalid", "https://other.invalid"] }, LIVE_PATH)).rejects.toThrow("network")
+    })
+
     it("refuses a path that is live or waiting for approval, and allows an absent one", async () => {
         await expect(assertPathAvailable(ctx, LIVE_PATH)).rejects.toThrow("already used")
         await expect(assertPathAvailable(ctx, INERT_PATH)).rejects.toThrow("already used")

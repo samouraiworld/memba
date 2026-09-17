@@ -16,7 +16,13 @@
 import { z } from "zod"
 import { abciErrorPresent, directRpcCall } from "../rpcFallback"
 
-export type ChainContext = { rpcUrl: string; chainId: string }
+/**
+ * Where to read. `rpcUrls`, when given, is tried in order (the network's
+ * endpoint list); an endpoint that is down or serves another chain is skipped.
+ */
+export type ChainContext = { rpcUrl: string; chainId: string; rpcUrls?: string[] }
+
+class ChainAnswerError extends Error {}
 
 const address = z.string().regex(/^g1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{38}$/)
 
@@ -34,20 +40,34 @@ export type PackageMeta = z.infer<typeof packageMetaSchema>
 
 const hex = (s: string) => Array.from(new TextEncoder().encode(s), (b) => b.toString(16).padStart(2, "0")).join("")
 
-async function assertChain(ctx: ChainContext, signal?: AbortSignal) {
-    const status = z.object({ node_info: z.object({ network: z.string() }) }).parse(await directRpcCall(ctx.rpcUrl, "status", {}, signal))
-    if (status.node_info.network !== ctx.chainId) throw new Error("RPC network does not match the selected chain")
+async function assertChain(rpcUrl: string, chainId: string, signal?: AbortSignal) {
+    const status = z.object({ node_info: z.object({ network: z.string() }) }).parse(await directRpcCall(rpcUrl, "status", {}, signal))
+    if (status.node_info.network !== chainId) throw new Error("RPC network does not match the selected chain")
 }
 
-/** One ABCI query on the selected endpoint after checking it serves the expected chain. */
+/**
+ * One ABCI query, on the first endpoint that answers and serves the expected
+ * chain. A chain-level error (the query itself failed) is not retried elsewhere.
+ */
 export async function abciQueryText(ctx: ChainContext, path: string, data: string, signal?: AbortSignal): Promise<string> {
-    await assertChain(ctx, signal)
-    const params: Record<string, string> = { path: `"${path}"` }
-    if (data !== "") params.data = `0x${hex(data)}`
-    const result = await directRpcCall(ctx.rpcUrl, "abci_query", params, signal)
-    const parsed = z.object({ response: z.object({ ResponseBase: z.object({ Data: z.string().nullable(), Error: z.unknown().optional() }) }) }).parse(result)
-    if (abciErrorPresent(parsed.response.ResponseBase.Error) || !parsed.response.ResponseBase.Data) throw new Error(`Query ${path} failed`)
-    return new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(atob(parsed.response.ResponseBase.Data), (c) => c.charCodeAt(0)))
+    const urls = ctx.rpcUrls && ctx.rpcUrls.length > 0 ? ctx.rpcUrls : [ctx.rpcUrl]
+    let lastError: unknown = new Error(`Query ${path} failed`)
+    for (const rpcUrl of urls) {
+        if (signal?.aborted) break
+        try {
+            await assertChain(rpcUrl, ctx.chainId, signal)
+            const params: Record<string, string> = { path: `"${path}"` }
+            if (data !== "") params.data = `0x${hex(data)}`
+            const result = await directRpcCall(rpcUrl, "abci_query", params, signal)
+            const parsed = z.object({ response: z.object({ ResponseBase: z.object({ Data: z.string().nullable(), Error: z.unknown().optional() }) }) }).parse(result)
+            if (abciErrorPresent(parsed.response.ResponseBase.Error) || !parsed.response.ResponseBase.Data) throw new ChainAnswerError(`Query ${path} failed`)
+            return new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(atob(parsed.response.ResponseBase.Data), (c) => c.charCodeAt(0)))
+        } catch (err) {
+            if (err instanceof ChainAnswerError) throw err
+            lastError = err
+        }
+    }
+    throw lastError
 }
 
 /** Read the package status. Throws when the node cannot answer; "absent" is an answer. */

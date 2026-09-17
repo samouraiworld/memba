@@ -28,6 +28,8 @@ import {
     GRC20_FACTORY_PATH,
     doContractBroadcast,
     feeForGasWanted,
+    networkGasPrice,
+    __resetGasPriceCache,
     MAX_GAS_WANTED,
     setWalletRpcContext,
     setTxConfirmationCallback,
@@ -509,20 +511,66 @@ describe('doContractBroadcast — explicit gasWanted', () => {
         }
         return calls
     }
+    /** A node answering status and auth/gasprice with the given price. */
+    function stubGasPrice(price: string, network = GNO_CHAIN_ID) {
+        const fetchSpy = vi.fn(async (input: string) => {
+            const url = new URL(input)
+            const result = url.pathname === '/status'
+                ? { node_info: { network } }
+                : { response: { ResponseBase: { Data: btoa(JSON.stringify({ gas: '1000', price })), Error: null } } }
+            return new Response(JSON.stringify({ result }), { status: 200 })
+        })
+        vi.stubGlobal('fetch', fetchSpy)
+        return fetchSpy
+    }
     const addPkgMsg = { type: '/vm.m_addpkg', value: { creator: 'g1x', package: {} } }
+    const lowFeeProfile = { fee: 10_000, wanted: 10_000_000, deployWanted: 50_000_000 }
+    const defaultProfile = { fee: 1_000_000, wanted: 10_000_000, deployWanted: 50_000_000 }
 
-    it('overrides the profile gas and scales the fee at the profile price, never below the profile fee', async () => {
-        const calls = capture()
-        await doContractBroadcast([addPkgMsg], 'big', { gas: 'deploy', gasWanted: 200_000_000 })
-        await doContractBroadcast([addPkgMsg], 'small', { gas: 'deploy', gasWanted: 20_000_000 })
-        // default profile: 1 GNOT fee for the 50M deploy budget
-        expect(calls[0]).toMatchObject({ gasWanted: 200_000_000, gasFee: 4_000_000 })
-        expect(calls[1]).toMatchObject({ gasWanted: 20_000_000, gasFee: 1_000_000 })
+    beforeEach(() => {
+        __resetGasPriceCache()
+        localStorage.clear()
     })
 
-    it('never goes below the network gas price (1 ugnot per 1000 gas)', () => {
-        expect(feeForGasWanted({ fee: 1, wanted: 10_000_000, deployWanted: 50_000_000 }, 200_000_000, true)).toBe(200_000)
-        expect(feeForGasWanted({ fee: 1_000_000, wanted: 10_000_000, deployWanted: 50_000_000 }, 30_000_000, false)).toBe(3_000_000)
+    it('prices the gas limit at the network rate with 20 % headroom, never below the profile fee', () => {
+        const price = { gas: 1000, ugnot: 1 }
+        // a small DAO deploy (57M gas): 0.0684 GNOT at the network rate
+        const small = feeForGasWanted(lowFeeProfile, 57_000_000, price)
+        expect(small).toBe(68_400)
+        expect(small).toBeGreaterThanOrEqual(57_000)
+        expect(small).toBeLessThanOrEqual(100_000)
+        // the default profile's flat fee stays the floor
+        expect(feeForGasWanted(defaultProfile, 57_000_000, price)).toBe(1_000_000)
+        expect(feeForGasWanted(defaultProfile, 334_000_000, price)).toBe(1_000_000)
+        expect(feeForGasWanted(lowFeeProfile, 334_000_000, price)).toBe(400_800)
+        // independent of the user's gas limit setting
+        expect(feeForGasWanted({ ...lowFeeProfile, wanted: 2_000_000, deployWanted: 10_000_000 }, 57_000_000, price)).toBe(68_400)
+    })
+
+    it('reads the network gas price live and caches it per chain', async () => {
+        const fetchSpy = stubGasPrice('3ugnot')
+        expect(await networkGasPrice(GNO_CHAIN_ID, ['https://rpc.one.invalid'])).toEqual({ gas: 1000, ugnot: 3 })
+        expect(await networkGasPrice(GNO_CHAIN_ID, ['https://rpc.one.invalid'])).toEqual({ gas: 1000, ugnot: 3 })
+        expect(fetchSpy.mock.calls.filter(([u]) => String(u).includes('abci_query'))).toHaveLength(1)
+    })
+
+    it('falls back to 1 ugnot per 1000 gas when the price cannot be read or the node is on another chain', async () => {
+        vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
+        expect(await networkGasPrice(GNO_CHAIN_ID, ['https://rpc.one.invalid'])).toEqual({ gas: 1000, ugnot: 1 })
+        __resetGasPriceCache()
+        stubGasPrice('9ugnot', 'another-chain')
+        expect(await networkGasPrice(GNO_CHAIN_ID, ['https://rpc.one.invalid'])).toEqual({ gas: 1000, ugnot: 1 })
+    })
+
+    it('sends the gas limit and the live-priced fee to the wallet', async () => {
+        localStorage.setItem('memba_settings', JSON.stringify({ gasFee: 10_000, gasWanted: 10_000_000 }))
+        stubGasPrice('2ugnot')
+        const calls = capture()
+        await doContractBroadcast([addPkgMsg], 'big', { gas: 'deploy', gasWanted: 200_000_000 })
+        expect(calls[0]).toMatchObject({ gasWanted: 200_000_000, gasFee: 480_000 })
+        localStorage.clear()
+        await doContractBroadcast([addPkgMsg], 'default profile', { gas: 'deploy', gasWanted: 57_000_000 })
+        expect(calls[1]).toMatchObject({ gasWanted: 57_000_000, gasFee: 1_000_000 })
     })
 
     it.each([0, -1, 1.5, Number.NaN, MAX_GAS_WANTED + 1])('refuses gasWanted %s before asking for confirmation', async (gasWanted) => {

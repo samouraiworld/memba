@@ -125,7 +125,7 @@ export function WizardStepReview({
             {/* What you are about to do */}
             <div style={noticeStyle} data-testid="dao-deploy-disclosure">
                 <div><strong>Storage deposit:</strong> about {formatGnot(depositEstimateUgnot)}, capped at {formatGnot(depositCapUgnot)}. It is locked to the realm and refunded only when its storage is freed.</div>
-                <div><strong>Network fee:</strong> about {formatGnot(networkFeeUgnot)} (gas limit {deployGas.toLocaleString("en-US")}), paid when you sign.</div>
+                <div><strong>Network fee:</strong> up to {formatGnot(networkFeeUgnot)} (your wallet may lower it). Gas limit {deployGas.toLocaleString("en-US")}.</div>
                 <div><strong>No member has special powers:</strong> every change is decided by vote.</div>
                 <div><strong>This DAO cannot hold funds.</strong> Do not send tokens to its address.</div>
                 <div>The code and the realm path are permanent once deployed.</div>
