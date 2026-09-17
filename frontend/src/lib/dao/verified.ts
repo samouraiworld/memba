@@ -14,7 +14,8 @@ export const VERIFIED_DAOS: Readonly<Record<string, ReadonlyArray<VerifiedDao>>>
     [NETWORKS.mainnet.chainId]: [{ path: "gno.land/r/gov/dao", name: "GovDAO" }],
     [NETWORKS.pearl.chainId]: [
         { path: "gno.land/r/gov/dao", name: "GovDAO" },
-        { path: MEMBA_DAO.realmPath, name: "Memba DAO" },
+        // The realm's own on-chain name.
+        { path: MEMBA_DAO.realmPath, name: "MembaDAO" },
     ],
 })
 
@@ -26,7 +27,8 @@ export interface DaoIdentity {
     lookalikeOf: string | null
 }
 
-const normalize = (name: string) => name.trim().replace(/\s+/g, " ").toLowerCase()
+/** Compare names without case, whitespace, punctuation or symbols ("Gov DAO" = "govdao"). */
+const normalize = (name: string) => name.normalize("NFKC").toLowerCase().replace(/[\s\p{P}\p{S}]+/gu, "")
 
 export function daoIdentity(chainId: string, realmPath: string, selfDeclaredName: string): DaoIdentity {
     const list = VERIFIED_DAOS[chainId] ?? []

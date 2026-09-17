@@ -12,10 +12,19 @@ describe("verified DAO identity", () => {
         expect(daoIdentity("unknown-chain", "gno.land/r/gov/dao", "GovDAO").verified).toBe(false)
     })
 
+    it("flags names that match a verified DAO once case, spaces and punctuation are ignored", () => {
+        for (const name of ["MembaDAO", "Memba DAO", "memba-dao", "Memba_DAO."]) {
+            expect(daoIdentity("pearl-1", "gno.land/r/alice/dao", name).lookalikeOf, name).toBe("MembaDAO")
+        }
+        for (const name of ["Gov DAO", "govdao", "Gov-DAO"]) {
+            expect(daoIdentity("pearl-1", "gno.land/r/alice/dao", name).lookalikeOf, name).toBe("GovDAO")
+        }
+    })
+
     it("flags a self-declared name that matches a verified DAO at another path", () => {
         expect(daoIdentity("gnoland-1", "gno.land/r/g1evil/dao", "govdao")).toEqual({ verified: false, verifiedName: null, lookalikeOf: "GovDAO" })
         expect(daoIdentity("gnoland-1", "gno.land/r/g1evil/dao", "  GovDAO ").lookalikeOf).toBe("GovDAO")
-        expect(daoIdentity("pearl-1", "gno.land/r/alice/dao", "MEMBA DAO").lookalikeOf).toBe("Memba DAO")
+        expect(daoIdentity("pearl-1", "gno.land/r/alice/dao", "MEMBA DAO").lookalikeOf).toBe("MembaDAO")
         expect(daoIdentity("gnoland-1", "gno.land/r/alice/dao", "Alice DAO").lookalikeOf).toBeNull()
     })
 
