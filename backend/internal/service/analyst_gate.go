@@ -119,9 +119,26 @@ func PurgeAnalystRows(ctx context.Context, db *sql.DB, now time.Time) error {
 	return err
 }
 
-// StartAnalystPurge runs PurgeAnalystRows every interval until ctx is done.
-func StartAnalystPurge(ctx context.Context, db *sql.DB, every time.Duration) {
+// StartAnalystPurge runs PurgeAnalystRows once after first, then every
+// interval, until ctx is done. The returned channel is closed when the loop
+// exits.
+func StartAnalystPurge(ctx context.Context, db *sql.DB, first, every time.Duration) <-chan struct{} {
+	done := make(chan struct{})
 	go func() {
+		defer close(done)
+		purge := func() {
+			if err := PurgeAnalystRows(ctx, db, time.Now()); err != nil && ctx.Err() == nil {
+				slog.Warn("analyst purge failed", "error", err)
+			}
+		}
+		timer := time.NewTimer(first)
+		defer timer.Stop()
+		select {
+		case <-ctx.Done():
+			return
+		case <-timer.C:
+			purge()
+		}
 		ticker := time.NewTicker(every)
 		defer ticker.Stop()
 		for {
@@ -129,10 +146,9 @@ func StartAnalystPurge(ctx context.Context, db *sql.DB, every time.Duration) {
 			case <-ctx.Done():
 				return
 			case <-ticker.C:
-				if err := PurgeAnalystRows(ctx, db, time.Now()); err != nil {
-					slog.Warn("analyst purge failed", "error", err)
-				}
+				purge()
 			}
 		}
 	}()
+	return done
 }

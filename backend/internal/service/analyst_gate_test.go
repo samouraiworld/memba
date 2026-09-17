@@ -331,3 +331,33 @@ func TestHandleAnalystConsensus_ModelErrorTextNotStored(t *testing.T) {
 		}
 	}
 }
+
+func TestStartAnalystPurge_FirstRunIsEarlyThenStopsOnCancel(t *testing.T) {
+	database := newAnalystTestDB(t)
+	if _, err := database.Exec(`INSERT INTO analyst_reports (realm_path, analysis_type, proposal_id, chain_id, input_digest, consensus, expires_at)
+		VALUES ('gno.land/r/x', 'proposal', 1, 'pearl-1', 'd', '{}', ?)`, time.Now().Add(-time.Minute).UTC()); err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := StartAnalystPurge(ctx, database, 10*time.Millisecond, time.Hour)
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		var n int
+		_ = database.QueryRow(`SELECT COUNT(*) FROM analyst_reports`).Scan(&n)
+		if n == 0 {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the first purge did not run shortly after start")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	cancel()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("purge loop did not stop after cancel")
+	}
+}

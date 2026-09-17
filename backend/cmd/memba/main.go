@@ -402,7 +402,7 @@ func main() {
 	// DAO Analyst consensus (multi-model LLM report). Off unless ANALYST_ENABLED
 	// is set; see analystConsensusHandler.
 	mux.Handle("/api/analyst/consensus", rateLimitMiddleware("analyst", analystConsensusHandler(svc, service.HandleAnalystConsensus(database))))
-	service.StartAnalystPurge(ctx, database, time.Hour)
+	service.StartAnalystPurge(ctx, database, time.Minute, time.Hour)
 
 	// IPFS upload proxy — keeps Lighthouse API key server-side
 	// v6 SEC-02: auth required to prevent API key abuse
