@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"strings"
 	"testing"
 
@@ -82,9 +81,13 @@ func postConsensus(t *testing.T, h http.Handler, req ConsensusRequest, force boo
 	}
 	r := httptest.NewRequest(http.MethodPost, target, bytes.NewReader(body))
 	r.Header.Set("Content-Type", "application/json")
-	r.Header.Set("Authorization", "Bearer test")
+	// Only the analyst admin may force a refresh; other requests come from a wallet.
+	ctx := WithAuthAddress(r.Context(), "g1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa")
+	if force {
+		ctx = WithAnalystAdmin(r.Context())
+	}
 	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, r)
+	h.ServeHTTP(rec, r.WithContext(ctx))
 	var resp ConsensusResponse
 	if rec.Code == http.StatusOK {
 		if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
@@ -260,128 +263,4 @@ func TestBuildChainContext_ResolvesNetworkKeysAndChainIDs(t *testing.T) {
 			t.Errorf("buildChainContext(%q) = %q, want it to name %q", id, got, want)
 		}
 	}
-}
-
-// ── Public cached read: addressed by analysis type + input digest ─────────
-
-func TestHandleAnalystConsensusGet(t *testing.T) {
-	database := newAnalystTestDB(t)
-	stubConsensusModel(t, func(string) string { return "approve" })
-
-	get := func(q url.Values) *httptest.ResponseRecorder {
-		req := httptest.NewRequest(http.MethodGet, "/api/analyst/consensus?"+q.Encode(), nil) // no Authorization header
-		rec := httptest.NewRecorder()
-		HandleAnalystConsensusGet(database).ServeHTTP(rec, req)
-		return rec
-	}
-
-	seed := ConsensusRequest{
-		RealmPath:    "gno.land/r/gov/dao",
-		ProposalID:   22,
-		AnalysisType: "proposal",
-		ChainID:      "pearl",
-		ProposalData: "proposal 22 text",
-		DAOContext:   "govdao",
-	}
-	code, posted, body := postConsensus(t, HandleAnalystConsensus(database), seed, false)
-	if code != http.StatusOK {
-		t.Fatalf("seed POST: got %d (body %s)", code, body)
-	}
-	_ = posted
-	var raw struct {
-		InputDigest string `json:"inputDigest"`
-	}
-	_ = json.Unmarshal([]byte(body), &raw)
-	if len(raw.InputDigest) != 64 {
-		t.Fatalf("POST response inputDigest: got %q, want a 64-char hex digest", raw.InputDigest)
-	}
-
-	addr := func() url.Values {
-		return url.Values{
-			"realm":        {"gno.land/r/gov/dao"},
-			"proposalId":   {"22"},
-			"analysisType": {"proposal"},
-			"chainId":      {"pearl"},
-			"inputDigest":  {raw.InputDigest},
-		}
-	}
-
-	t.Run("returns the report addressed by its input digest without auth", func(t *testing.T) {
-		rec := get(addr())
-		if rec.Code != http.StatusOK {
-			t.Fatalf("expected 200, got %d (body %s)", rec.Code, rec.Body.String())
-		}
-		var got ConsensusResponse
-		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil {
-			t.Fatalf("decode: %v", err)
-		}
-		if got.Consensus.Verdict != "approve" || !got.Cached {
-			t.Errorf("got verdict=%q cached=%v, want cached approve", got.Consensus.Verdict, got.Cached)
-		}
-	})
-
-	t.Run("400 without an input digest", func(t *testing.T) {
-		q := addr()
-		q.Del("inputDigest")
-		if rec := get(q); rec.Code != http.StatusBadRequest {
-			t.Errorf("expected 400, got %d", rec.Code)
-		}
-	})
-
-	t.Run("400 on a malformed input digest", func(t *testing.T) {
-		q := addr()
-		q.Set("inputDigest", "zz")
-		if rec := get(q); rec.Code != http.StatusBadRequest {
-			t.Errorf("expected 400, got %d", rec.Code)
-		}
-	})
-
-	t.Run("400 without an analysis type", func(t *testing.T) {
-		q := addr()
-		q.Del("analysisType")
-		if rec := get(q); rec.Code != http.StatusBadRequest {
-			t.Errorf("expected 400, got %d", rec.Code)
-		}
-	})
-
-	t.Run("204 for a digest with no report", func(t *testing.T) {
-		q := addr()
-		q.Set("inputDigest", strings.Repeat("0", 64))
-		if rec := get(q); rec.Code != http.StatusNoContent {
-			t.Errorf("expected 204, got %d", rec.Code)
-		}
-	})
-
-	t.Run("204 for the same digest under another analysis type", func(t *testing.T) {
-		q := addr()
-		q.Set("analysisType", "dao")
-		if rec := get(q); rec.Code != http.StatusNoContent {
-			t.Errorf("expected 204, got %d", rec.Code)
-		}
-	})
-
-	t.Run("400 on invalid realm path", func(t *testing.T) {
-		q := addr()
-		q.Set("realm", "evil/path")
-		if rec := get(q); rec.Code != http.StatusBadRequest {
-			t.Errorf("expected 400, got %d", rec.Code)
-		}
-	})
-
-	t.Run("400 on junk chainId", func(t *testing.T) {
-		q := addr()
-		q.Set("chainId", "not a chain")
-		if rec := get(q); rec.Code != http.StatusBadRequest {
-			t.Errorf("expected 400, got %d", rec.Code)
-		}
-	})
-
-	t.Run("405 on non-GET", func(t *testing.T) {
-		req := httptest.NewRequest(http.MethodDelete, "/api/analyst/consensus", nil)
-		rec := httptest.NewRecorder()
-		HandleAnalystConsensusGet(database).ServeHTTP(rec, req)
-		if rec.Code != http.StatusMethodNotAllowed {
-			t.Errorf("expected 405, got %d", rec.Code)
-		}
-	})
 }

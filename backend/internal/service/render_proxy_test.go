@@ -114,37 +114,6 @@ func TestHandleRenderProxy_ValidPath(t *testing.T) {
 	}
 }
 
-func TestHandleBalanceProxy_MissingAddress(t *testing.T) {
-	handler := HandleBalanceProxy()
-	req := httptest.NewRequest(http.MethodGet, "/api/balance", nil)
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", rec.Code)
-	}
-}
-
-func TestHandleBalanceProxy_InvalidAddress(t *testing.T) {
-	handler := HandleBalanceProxy()
-
-	// Too short
-	req := httptest.NewRequest(http.MethodGet, "/api/balance?address=g1short", nil)
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for short address, got %d", rec.Code)
-	}
-
-	// Wrong prefix
-	req = httptest.NewRequest(http.MethodGet, "/api/balance?address=cosmos1abcdefghijklmnopqrstuvwxyz12345678", nil)
-	rec = httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400 for wrong prefix, got %d", rec.Code)
-	}
-}
-
 // F-20: a blocklisted feed post must never reach the chain relay, even though
 // the realm's own Hidden/Deleted state knows nothing about an operator
 // takedown (feed_blocklist is deliberately off-chain — 021_feed_blocklist.sql).

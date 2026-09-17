@@ -382,7 +382,6 @@ func main() {
 	// NOTE: /api/eval was removed in v6 (SEC-01) — it allowed arbitrary qeval on any realm.
 	// Use /api/render for legitimate read-only queries.
 	mux.Handle("/api/render", rateLimitMiddleware("render", service.HandleRenderProxy(database)))
-	mux.Handle("/api/balance", rateLimitMiddleware("balance", service.HandleBalanceProxy()))
 	// Recent-activity feed: forwards GraphQL to the FIXED gno tx-indexer server-side
 	// (the browser can't reach it — no CORS). Target is not client-controlled.
 	mux.Handle("/api/indexer", rateLimitMiddleware("indexer", service.HandleIndexerProxy()))
@@ -398,29 +397,12 @@ func main() {
 	// v7.4.0 and is ignored — logged once here if still set).
 	service.WarnIgnoredAgentRegistryAlias()
 	agentRegistryPath := service.AgentRegistryRealmPath()
-	escrowRealmPath := os.Getenv("ESCROW_REALM_PATH")
-	if escrowRealmPath == "" {
-		// escrow_v3 = the IsUserCall-guarded successor (v2 FundMilestone was
-		// unguarded); keep in sync with the frontend escrowPath binding.
-		escrowRealmPath = "gno.land/r/samcrew/escrow_v3"
-	}
 	mux.Handle("/api/marketplace/agents", rateLimitMiddleware("marketplace", service.HandleMarketplaceAgentsProxy(agentRegistryPath)))
-	mux.Handle("/api/marketplace/escrow", rateLimitMiddleware("marketplace", service.HandleMarketplaceAgentsProxy(escrowRealmPath)))
 
-	// DAO Analyst — LLM-powered governance analysis (proxies to free-tier LLMs)
-	// v6 SEC-03: auth required to prevent API key abuse
-	mux.Handle("/api/analyst/analyze", rateLimitMiddleware("analyst", requireAuthAddressMiddleware(svc, service.HandleAnalystAnalyze())))
-	// GET = PUBLIC, no-auth read of an already-cached report (zero LLM cost); POST =
-	// auth-gated generation (v6 SEC-03: prevents unauthenticated 10-model LLM cost-drain).
-	consensusGet := service.HandleAnalystConsensusGet(database)
-	consensusPost := requireAuthMiddleware(svc, service.HandleAnalystConsensus(database))
-	mux.Handle("/api/analyst/consensus", rateLimitMiddleware("analyst", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method == http.MethodGet {
-			consensusGet.ServeHTTP(w, r)
-			return
-		}
-		consensusPost.ServeHTTP(w, r)
-	})))
+	// DAO Analyst consensus (multi-model LLM report). Off unless ANALYST_ENABLED
+	// is set; see analystConsensusHandler.
+	mux.Handle("/api/analyst/consensus", rateLimitMiddleware("analyst", analystConsensusHandler(svc, service.HandleAnalystConsensus(database))))
+	service.StartAnalystPurge(ctx, database, time.Hour)
 
 	// IPFS upload proxy — keeps Lighthouse API key server-side
 	// v6 SEC-02: auth required to prevent API key abuse
@@ -809,6 +791,21 @@ func requireAuthAddressMiddleware(v restTokenAddressValidator, next http.Handler
 		}
 		next.ServeHTTP(w, r.WithContext(service.WithAuthAddress(r.Context(), addr)))
 	})
+}
+
+// analystConsensusHandler composes the analyst consensus route: AnalystGate
+// first (503 while ANALYST_ENABLED is off, before any auth work), then either
+// the analyst admin bearer or a wallet token. The handler receives the caller
+// identity through the request context.
+func analystConsensusHandler(v restTokenAddressValidator, consensus http.Handler) http.Handler {
+	walletAuthed := requireAuthAddressMiddleware(v, consensus)
+	return service.AnalystGate(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if service.IsAnalystAdminRequest(r) {
+			consensus.ServeHTTP(w, r.WithContext(service.WithAnalystAdmin(r.Context())))
+			return
+		}
+		walletAuthed.ServeHTTP(w, r)
+	}))
 }
 
 // requireAuthUploadMiddleware is requireAuthMiddleware PLUS a per-authenticated-wallet

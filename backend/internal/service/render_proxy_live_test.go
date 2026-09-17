@@ -84,23 +84,6 @@ func TestLive_HandleMarketplaceAgentsProxy_ReturnsData(t *testing.T) {
 	}
 }
 
-// TestLive_HandleMarketplaceEscrowProxy_ReturnsData proves the escrow proxy
-// reads the live escrow_v2 realm on test13 (the v1 "escrow" path 404s there).
-func TestLive_HandleMarketplaceEscrowProxy_ReturnsData(t *testing.T) {
-	requireLiveRPC(t)
-	t.Setenv("MARKETPLACE_RPC_URL", liveTest13RPC)
-	rec := httptest.NewRecorder()
-	HandleMarketplaceAgentsProxy("gno.land/r/samcrew/escrow_v2").ServeHTTP(rec,
-		httptest.NewRequest(http.MethodGet, "/api/marketplace/escrow", nil))
-
-	if rec.Code != http.StatusOK {
-		t.Fatalf("expected 200, got %d (body=%q)", rec.Code, rec.Body.String())
-	}
-	if !strings.Contains(rec.Body.String(), "Escrow") {
-		t.Fatalf("expected Escrow render, got %q", rec.Body.String())
-	}
-}
-
 // TestLive_RegisterUsername_ResolveAddress proves the register-username verifier
 // path: r/sys/users.Render ignores its path arg (always-passes bug), so the
 // verifier uses vm/qeval ResolveAddress, which returns "(nil ...)" for an

@@ -86,29 +86,3 @@ func (h *providerHealth) isHealthy(providerName string) bool {
 
 	return true
 }
-
-// selectProvider picks the best available provider for a given index.
-// Prioritizes model diversity via round-robin, skipping unhealthy providers.
-func selectProvider(providers []LLMProvider, index int) (LLMProvider, int) {
-	n := len(providers)
-	for attempt := 0; attempt < n; attempt++ {
-		idx := (index + attempt) % n
-		if health.isHealthy(providers[idx].Name) {
-			return providers[idx], idx
-		}
-	}
-	// All unhealthy — try the requested one anyway (half-open circuit)
-	return providers[index%n], index % n
-}
-
-// selectFallback picks the next healthy provider after the given index.
-func selectFallback(providers []LLMProvider, failedIndex int) (LLMProvider, bool) {
-	n := len(providers)
-	for attempt := 1; attempt < n; attempt++ {
-		idx := (failedIndex + attempt) % n
-		if health.isHealthy(providers[idx].Name) {
-			return providers[idx], true
-		}
-	}
-	return LLMProvider{}, false
-}

@@ -369,42 +369,6 @@ func HandleRenderProxy(db *sql.DB) http.Handler {
 // queries on any realm without authentication. Use HandleRenderProxy for
 // legitimate read-only queries via vm/qrender.
 
-// HandleBalanceProxy handles GET /api/balance?address=...
-// Proxies bank/balances ABCI queries to the Gno RPC.
-func HandleBalanceProxy() http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-			return
-		}
-
-		address := r.URL.Query().Get("address")
-		if address == "" {
-			http.Error(w, `{"error":"address parameter is required"}`, http.StatusBadRequest)
-			return
-		}
-
-		// Validate address format (g1 + 38 lowercase alphanum)
-		if !strings.HasPrefix(address, "g1") || len(address) != 40 {
-			http.Error(w, `{"error":"invalid address format (expected g1 + 38 chars)"}`, http.StatusBadRequest)
-			return
-		}
-
-		result, err := abciQuery(gnoRPCURL(), "bank/balances/"+address, "")
-		if err != nil {
-			slog.Warn("balance proxy failed", "address", address, "error", err)
-			w.Header().Set("Content-Type", "application/json")
-			w.WriteHeader(http.StatusBadGateway)
-			_, _ = fmt.Fprintf(w, `{"error":%q}`, err.Error())
-			return
-		}
-
-		w.Header().Set("Content-Type", "text/plain; charset=utf-8")
-		w.Header().Set("Cache-Control", "public, max-age=10")
-		_, _ = fmt.Fprint(w, result)
-	})
-}
-
 // HandleMarketplaceAgentsProxy handles GET /api/marketplace/agents
 // and GET /api/marketplace/agents?id=<agentId>
 //

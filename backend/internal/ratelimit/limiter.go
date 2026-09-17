@@ -22,7 +22,6 @@ func DefaultConfigs() map[string]Config {
 	return map[string]Config{
 		"render": {MaxRequests: 30, Window: time.Minute}, // SPA makes 3-6 ABCI calls on page load
 		// "eval" removed in v6 (SEC-01) — /api/eval endpoint was removed
-		"balance":        {MaxRequests: 20, Window: time.Minute},  // Balance check
 		"rpc":            {MaxRequests: 60, Window: time.Minute},  // ConnectRPC (all service calls combined)
 		"tx":             {MaxRequests: 10, Window: time.Minute},  // Sign/Complete transaction — stricter
 		"oauth":          {MaxRequests: 5, Window: time.Minute},   // OAuth flows — strict

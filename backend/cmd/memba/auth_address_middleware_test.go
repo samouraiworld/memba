@@ -31,7 +31,7 @@ func TestRequireAuthAddressMiddleware(t *testing.T) {
 			v := &fakeTokenAddressValidator{addr: wallet}
 			called := false
 			next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true })
-			r := httptest.NewRequest(http.MethodPost, "/api/analyst/analyze", nil)
+			r := httptest.NewRequest(http.MethodPost, "/api/analyst/consensus", nil)
 			if header != "" {
 				r.Header.Set("Authorization", header)
 			}
@@ -47,7 +47,7 @@ func TestRequireAuthAddressMiddleware(t *testing.T) {
 		v := &fakeTokenAddressValidator{err: errors.New("token expired")}
 		called := false
 		next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true })
-		r := httptest.NewRequest(http.MethodPost, "/api/analyst/analyze", nil)
+		r := httptest.NewRequest(http.MethodPost, "/api/analyst/consensus", nil)
 		r.Header.Set("Authorization", "Bearer {}")
 		rr := httptest.NewRecorder()
 		requireAuthAddressMiddleware(v, next).ServeHTTP(rr, r)
@@ -60,7 +60,7 @@ func TestRequireAuthAddressMiddleware(t *testing.T) {
 		v := &fakeTokenAddressValidator{addr: ""}
 		called := false
 		next := http.HandlerFunc(func(http.ResponseWriter, *http.Request) { called = true })
-		r := httptest.NewRequest(http.MethodPost, "/api/analyst/analyze", nil)
+		r := httptest.NewRequest(http.MethodPost, "/api/analyst/consensus", nil)
 		r.Header.Set("Authorization", "Bearer {}")
 		rr := httptest.NewRecorder()
 		requireAuthAddressMiddleware(v, next).ServeHTTP(rr, r)
@@ -77,7 +77,7 @@ func TestRequireAuthAddressMiddleware(t *testing.T) {
 			got, ok = service.AuthAddressFrom(r.Context())
 			w.WriteHeader(http.StatusOK)
 		})
-		r := httptest.NewRequest(http.MethodPost, "/api/analyst/analyze", nil)
+		r := httptest.NewRequest(http.MethodPost, "/api/analyst/consensus", nil)
 		r.Header.Set("Authorization", "Bearer {\"token\":1}")
 		rr := httptest.NewRecorder()
 		requireAuthAddressMiddleware(v, next).ServeHTTP(rr, r)

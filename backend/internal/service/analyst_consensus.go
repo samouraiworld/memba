@@ -14,7 +14,6 @@ import (
 	"net/http"
 	"os"
 	"regexp"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -75,8 +74,6 @@ type ConsensusPerspective struct {
 
 var validRealmPath = regexp.MustCompile(`^gno\.land/[rp]/[\w/]+$`)
 
-var validInputDigest = regexp.MustCompile(`^[0-9a-f]{64}$`)
-
 // analystChainIDs maps every network key and chain ID a client may send to the
 // canonical chain ID used for cache scoping and chain context. Anything else is
 // rejected, so arbitrary strings never reach the cache key or the prompt.
@@ -129,13 +126,51 @@ func validateConsensusRequest(req *ConsensusRequest) error {
 	if len(req.DAOContext) > 10*1024 {
 		return fmt.Errorf("daoContext exceeds 10KB limit")
 	}
+	if len(req.TreasuryContext) > 10*1024 {
+		return fmt.Errorf("treasuryContext exceeds 10KB limit")
+	}
 	return nil
+}
+
+// consensusDataTag matches an opening or closing prompt delimiter, with any
+// spacing, so caller-supplied data can neither end its own block early nor
+// open a new one (for example a fake chain_context).
+var consensusDataTag = regexp.MustCompile(`(?i)<\s*/?\s*(chain_context|proposal_data|dao_health_data|dao_context|treasury_context)\b`)
+
+func neutralizeConsensusData(s string) string {
+	return consensusDataTag.ReplaceAllStringFunc(s, func(m string) string {
+		return "&lt;" + m[1:]
+	})
+}
+
+// buildConsensusUserPrompt returns the user message shared by every model:
+// server-written chain context, then each caller-supplied field as tagged,
+// neutralized data. Model instructions stay in the server-owned system prompt.
+func buildConsensusUserPrompt(req *ConsensusRequest) string {
+	dataTag := "proposal_data"
+	if req.AnalysisType == "dao" {
+		dataTag = "dao_health_data"
+	}
+	var b strings.Builder
+	b.WriteString("<chain_context>\n")
+	b.WriteString(buildChainContext(req.ChainID))
+	b.WriteString("\n</chain_context>\n\n<" + dataTag + ">\n")
+	b.WriteString(neutralizeConsensusData(req.ProposalData))
+	b.WriteString("\n</" + dataTag + ">\n\n<dao_context>\n")
+	b.WriteString(neutralizeConsensusData(req.DAOContext))
+	b.WriteString("\n</dao_context>")
+	if req.TreasuryContext != "" {
+		b.WriteString("\n\n<treasury_context>\n")
+		b.WriteString(neutralizeConsensusData(req.TreasuryContext))
+		b.WriteString("\n</treasury_context>")
+	}
+	return b.String()
 }
 
 // analystPromptVersion is folded into every input digest. Bump it whenever the
 // prompts or the prompt layout change so reports generated under the previous
 // prompts are no longer served.
-const analystPromptVersion = "consensus-prompt-v1"
+const analystPromptVersion = "consensus-prompt-v2"
 
 // consensusKey addresses one cached consensus report. A report is shared only
 // with requests that supplied exactly the same inputs: the input digest binds
@@ -395,67 +430,13 @@ func aggregateConsensus(perspectives []ConsensusPerspective) ConsensusVerdict {
 
 // ── Handler ──────────────────────────────────────────────────
 
-// HandleAnalystConsensusGet serves GET /api/analyst/consensus — a PUBLIC, no-auth
-// read of an already-cached consensus report (zero LLM cost, so safe to expose).
-// A report is addressed by realm, analysisType, proposalId, chainId AND the
-// inputDigest returned by the POST that generated it, so a read only ever returns
-// the analysis of known inputs. Generation stays on the auth-gated POST; this
-// returns 204 when no report exists for that address.
-func HandleAnalystConsensusGet(db *sql.DB) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if r.Method != http.MethodGet {
-			http.Error(w, `{"error":"method not allowed"}`, http.StatusMethodNotAllowed)
-			return
-		}
-
-		q := r.URL.Query()
-		if q.Get("analysisType") == "" {
-			http.Error(w, `{"error":"analysisType is required"}`, http.StatusBadRequest)
-			return
-		}
-		digest := q.Get("inputDigest")
-		if !validInputDigest.MatchString(digest) {
-			http.Error(w, `{"error":"inputDigest must be a 64-character hex SHA-256"}`, http.StatusBadRequest)
-			return
-		}
-		req := ConsensusRequest{
-			RealmPath:    q.Get("realm"),
-			AnalysisType: q.Get("analysisType"),
-			ChainID:      q.Get("chainId"),
-		}
-		if pid := q.Get("proposalId"); pid != "" {
-			n, err := strconv.Atoi(pid)
-			if err != nil || n < 0 {
-				http.Error(w, `{"error":"invalid proposalId"}`, http.StatusBadRequest)
-				return
-			}
-			req.ProposalID = n
-		}
-		if err := validateConsensusRequest(&req); err != nil {
-			http.Error(w, fmt.Sprintf(`{"error":%q}`, err.Error()), http.StatusBadRequest)
-			return
-		}
-
-		key := consensusCacheKey(&req)
-		key.InputDigest = digest
-		cached, err := getCachedConsensus(db, key)
-		if err != nil {
-			slog.Warn("analyst public read failed", "error", err)
-			http.Error(w, `{"error":"lookup failed"}`, http.StatusInternalServerError)
-			return
-		}
-		if cached == nil {
-			w.WriteHeader(http.StatusNoContent) // no analysis generated yet
-			return
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(cached)
-	})
-}
-
 // HandleAnalystConsensus handles POST /api/analyst/consensus.
 // Fans out to 10 OpenRouter models (2 batches of 5), aggregates, caches.
+//
+// The route must be wrapped in AnalystGate and must set the caller identity:
+// a wallet address (WithAuthAddress) or the analyst admin (WithAnalystAdmin).
+// Without one the handler answers 401. Only the admin may force a refresh or
+// generate without the per-wallet daily quota.
 func HandleAnalystConsensus(db *sql.DB) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
@@ -480,14 +461,17 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 			return
 		}
 
-		// Check cache (skip if ?force=1 AND request has Authorization header)
-		cacheKey := consensusCacheKey(&req)
-		forceRefresh := r.URL.Query().Get("force") == "1"
-		if forceRefresh && r.Header.Get("Authorization") == "" {
-			// Unauthenticated force refresh not allowed — fall back to cached result
-			slog.Warn("unauthenticated force=1 cache bypass rejected")
-			forceRefresh = false
+		isAdmin := AnalystAdminFrom(r.Context())
+		wallet, hasWallet := AuthAddressFrom(r.Context())
+		if !isAdmin && !hasWallet {
+			http.Error(w, `{"error":"authorization required"}`, http.StatusUnauthorized)
+			return
 		}
+
+		// Only the admin may bypass the cache; a wallet's force request is
+		// served like a normal one.
+		cacheKey := consensusCacheKey(&req)
+		forceRefresh := isAdmin && r.URL.Query().Get("force") == "1"
 		if !forceRefresh {
 			if cached, err := getCachedConsensus(db, cacheKey); err == nil && cached != nil {
 				w.Header().Set("Content-Type", "application/json")
@@ -521,26 +505,23 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 			return
 		}
 
+		if !isAdmin {
+			allowed, err := reserveAnalystQuota(ctx, db, wallet, time.Now())
+			if err != nil {
+				slog.Warn("analyst quota check failed", "error", err)
+				http.Error(w, `{"error":"analysis unavailable"}`, http.StatusServiceUnavailable)
+				return
+			}
+			if !allowed {
+				http.Error(w, `{"error":"daily analysis limit reached"}`, http.StatusTooManyRequests)
+				return
+			}
+		}
+
 		start := time.Now()
 		perspectives := make([]ConsensusPerspective, len(orProviders))
 
-		// Build user prompt (same for all models) with chain context metadata
-		chainMeta := buildChainContext(req.ChainID)
-		var userPrompt string
-		if req.AnalysisType == "dao" {
-			userPrompt = fmt.Sprintf(
-				"<chain_context>\n%s\n</chain_context>\n\n<dao_health_data>\n%s\n</dao_health_data>\n\n<dao_context>\n%s\n</dao_context>",
-				chainMeta, req.ProposalData, req.DAOContext,
-			)
-		} else {
-			userPrompt = fmt.Sprintf(
-				"<chain_context>\n%s\n</chain_context>\n\n<proposal_data>\n%s\n</proposal_data>\n\n<dao_context>\n%s\n</dao_context>",
-				chainMeta, req.ProposalData, req.DAOContext,
-			)
-		}
-		if req.TreasuryContext != "" {
-			userPrompt += fmt.Sprintf("\n\n<treasury_context>\n%s\n</treasury_context>", req.TreasuryContext)
-		}
+		userPrompt := buildConsensusUserPrompt(&req)
 
 		// Select system prompt based on analysis type
 		getSystemPrompt := perspectiveSystemPrompt
@@ -578,7 +559,7 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 							Role:        provider.Role,
 							Verdict:     "abstain",
 							Confidence:  0,
-							Reasoning:   fmt.Sprintf("Model unavailable: %s", err),
+							Reasoning:   "Model unavailable",
 							Risks:       []string{"Analysis unavailable"},
 						}
 						return

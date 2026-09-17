@@ -74,130 +74,7 @@ func TestTruncate(t *testing.T) {
 	}
 }
 
-func TestHandleAnalystAnalyze_BadMethod(t *testing.T) {
-	handler := HandleAnalystAnalyze()
-	req := httptest.NewRequest(http.MethodGet, "/api/analyst/analyze", nil)
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusMethodNotAllowed {
-		t.Errorf("expected 405, got %d", rec.Code)
-	}
-}
-
-func TestHandleAnalystAnalyze_EmptyBody(t *testing.T) {
-	handler := HandleAnalystAnalyze()
-	req := httptest.NewRequest(http.MethodPost, "/api/analyst/analyze", bytes.NewReader([]byte("{}")))
-	req = req.WithContext(WithAuthAddress(req.Context(), analyzeTestAddrA))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", rec.Code)
-	}
-}
-
-func TestHandleAnalystAnalyze_TooManyPerspectives(t *testing.T) {
-	handler := HandleAnalystAnalyze()
-
-	reqBody := AnalysisRequest{
-		Perspectives: make([]PerspectiveRequest, 6),
-		Tier:         "free",
-	}
-	body, _ := json.Marshal(reqBody)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/analyst/analyze", bytes.NewReader(body))
-	req = req.WithContext(WithAuthAddress(req.Context(), analyzeTestAddrA))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("expected 400, got %d", rec.Code)
-	}
-}
-
-func TestHandleAnalystAnalyze_NoProviders(t *testing.T) {
-	// Ensure no API keys are set
-	t.Setenv("GROQ_API_KEY", "")
-	t.Setenv("GOOGLE_AI_KEY", "")
-	t.Setenv("TOGETHER_API_KEY", "")
-	t.Setenv("OLLAMA_URL", "")
-	t.Setenv("OPENROUTER_API_KEY", "")
-
-	handler := HandleAnalystAnalyze()
-
-	reqBody := AnalysisRequest{
-		Perspectives: []PerspectiveRequest{
-			{Perspective: "technical", ProposalData: "test", DaoContext: "test"},
-		},
-		Tier: "free",
-	}
-	body, _ := json.Marshal(reqBody)
-
-	req := httptest.NewRequest(http.MethodPost, "/api/analyst/analyze", bytes.NewReader(body))
-	req = req.WithContext(WithAuthAddress(req.Context(), analyzeTestAddrA))
-	req.Header.Set("Content-Type", "application/json")
-	rec := httptest.NewRecorder()
-	handler.ServeHTTP(rec, req)
-
-	if rec.Code != http.StatusServiceUnavailable {
-		t.Errorf("expected 503, got %d", rec.Code)
-	}
-}
-
 // ── Tier Enforcement Tests ──────────────────────────────────
-
-func TestEnforceTier_Free(t *testing.T) {
-	req := &AnalysisRequest{
-		Perspectives: make([]PerspectiveRequest, 5),
-		Tier:         "free",
-	}
-
-	tier, downgraded := enforceTier(req, analyzeTestAddrA)
-	if tier != "free" {
-		t.Errorf("expected free tier, got %s", tier)
-	}
-	if downgraded {
-		t.Error("should not be downgraded for free tier")
-	}
-	if len(req.Perspectives) != freeTierMaxPerspectives {
-		t.Errorf("expected %d perspectives, got %d", freeTierMaxPerspectives, len(req.Perspectives))
-	}
-}
-
-func TestEnforceTier_FreeFewPerspectives(t *testing.T) {
-	req := &AnalysisRequest{
-		Perspectives: make([]PerspectiveRequest, 1),
-		Tier:         "free",
-	}
-
-	enforceTier(req, analyzeTestAddrA)
-	if len(req.Perspectives) != 1 {
-		t.Errorf("should not truncate when under limit, got %d", len(req.Perspectives))
-	}
-}
-
-func TestEnforceTier_ProNoCredits(t *testing.T) {
-	// No authenticated address = no credits = downgrade
-	req := &AnalysisRequest{
-		Perspectives: make([]PerspectiveRequest, 3),
-		Tier:         "pro",
-		UserAddress:  "",
-	}
-
-	tier, downgraded := enforceTier(req, "")
-	if tier != "free" {
-		t.Errorf("expected free (downgraded), got %s", tier)
-	}
-	if !downgraded {
-		t.Error("should be downgraded when no credits")
-	}
-	if len(req.Perspectives) != freeTierMaxPerspectives {
-		t.Errorf("expected %d perspectives after downgrade, got %d", freeTierMaxPerspectives, len(req.Perspectives))
-	}
-}
 
 // ── Consensus Validation Tests ─────────────────────────────
 
@@ -326,28 +203,13 @@ func TestHandleAnalystConsensus_ProposalZeroValidation(t *testing.T) {
 	body, _ := json.Marshal(reqBody)
 	req := httptest.NewRequest(http.MethodPost, "/api/analyst/consensus", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+	req = req.WithContext(WithAuthAddress(req.Context(), "g1aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"))
 	rec := httptest.NewRecorder()
 	handler.ServeHTTP(rec, req)
 
-	// Should NOT be 400 — validation passes. Expect 503 (no providers configured).
-	if rec.Code == http.StatusBadRequest {
-		t.Errorf("proposal ID 0 should not cause 400 validation error, got body: %s", rec.Body.String())
-	}
-}
-
-func TestEnforceTier_ProWithInvalidAddress(t *testing.T) {
-	// Invalid address = checkProCredits returns 0 = downgrade
-	req := &AnalysisRequest{
-		Perspectives: make([]PerspectiveRequest, 3),
-		Tier:         "pro",
-	}
-
-	tier, downgraded := enforceTier(req, "g1invalid")
-	if tier != "free" {
-		t.Errorf("expected free (downgraded), got %s", tier)
-	}
-	if !downgraded {
-		t.Error("should be downgraded with invalid address")
+	// Validation passes; with no providers configured the handler answers 503.
+	if rec.Code != http.StatusServiceUnavailable {
+		t.Errorf("proposal ID 0: want 503 (no providers), got %d body: %s", rec.Code, rec.Body.String())
 	}
 }
 
