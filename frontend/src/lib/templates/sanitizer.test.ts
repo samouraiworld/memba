@@ -253,6 +253,26 @@ describe("validateRealmPath", () => {
     it("rejects names longer than 30 chars", () => {
         expect(validateRealmPath("gno.land/r/samcrew/" + "a".repeat(31))).not.toBeNull()
     })
+
+    // gnoland-1 namespaces: the deployer's address or a registered nym- name.
+    it("accepts address and nym- namespaces", () => {
+        expect(validateRealmPath("gno.land/r/g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5/team")).toBeNull()
+        expect(validateRealmPath("gno.land/r/nym-alice123/team")).toBeNull()
+        expect(validateRealmPath("gno.land/r/nym-abcdefghijklm123/team_dao")).toBeNull()
+    })
+
+    it.each([
+        "gno.land/r/Nym-A/x",
+        "gno.land/r/nym-abcd123/team",
+        "gno.land/r/nym-abcdefghijklmn123/team",
+        "gno.land/r/nym-alice12/team",
+        "gno.land/r/nym-alice1234/team",
+        "gno.land/r/nym-Alice123/team",
+        "gno.land/r/alice-bob/team",
+        "gno.land/r/nym-alice123/my-dao",
+    ])("rejects malformed namespaces and names: %s", (path) => {
+        expect(validateRealmPath(path)).not.toBeNull()
+    })
 })
 
 // ── Utility Functions ───────────────────────────────────────

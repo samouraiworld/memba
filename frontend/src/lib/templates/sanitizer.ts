@@ -94,6 +94,14 @@ export function sanitizeForGno(s: string, maxLen = 256): string {
 
 // ── Realm Path Validation ───────────────────────────────────
 
+const NYM_NAMESPACE = /^nym-[a-z]{5,13}[0-9]{3}$/
+const LEGACY_NAMESPACE = /^[a-z0-9_]+$/
+
+/** A realm namespace: an address, a `nym-…` registered name, or a legacy lowercase name. */
+export function isValidNamespace(ns: string): boolean {
+    return typeof ns === "string" && (NYM_NAMESPACE.test(ns) || LEGACY_NAMESPACE.test(ns))
+}
+
 /**
  * Validate a Gno realm path.
  * Must follow pattern: gno.land/r/namespace/realmname
@@ -101,11 +109,14 @@ export function sanitizeForGno(s: string, maxLen = 256): string {
  * Returns error string or null if valid.
  */
 export function validateRealmPath(path: string): string | null {
-    if (!path.startsWith("gno.land/r/")) return "Must start with gno.land/r/"
+    if (typeof path !== "string" || !path.startsWith("gno.land/r/")) return "Must start with gno.land/r/"
     const parts = path.replace("gno.land/r/", "").split("/")
     if (parts.length < 2) return "Must include namespace and realm name (e.g., gno.land/r/myname/myrealm)"
     if (parts.some((p) => !p || p.length === 0)) return "Path segments cannot be empty"
-    if (parts.some((p) => !/^[a-z0-9_]+$/.test(p))) return "Path segments must be lowercase alphanumeric with underscores only"
+    // The namespace is an address (g1…), a gnoland-1 registered name
+    // (nym-<letters><3 digits>) or a legacy lowercase name (testnets).
+    if (!isValidNamespace(parts[0])) return "The namespace must be your g1 address or a registered name"
+    if (parts.slice(1).some((p) => !/^[a-z0-9_]+$/.test(p))) return "Path segments must be lowercase alphanumeric with underscores only"
     const name = parts[parts.length - 1]
     if (name.length < 3) return "Realm name must be at least 3 characters"
     if (name.length > 30) return "Realm name must be at most 30 characters"

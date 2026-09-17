@@ -1,0 +1,1 @@
+{"path":"gno.land/r/g1n4pl5uc4yt5r96m9w6fmdznx3x0jyg8l6arhmt/zdex/v1","status":"inert","creator":"g1n4pl5uc4yt5r96m9w6fmdznx3x0jyg8l6arhmt","height":57658,"max_deposit":"12000000ugnot","reason":"waiting for a package approver to enable it","pending":true}
