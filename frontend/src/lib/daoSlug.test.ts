@@ -212,18 +212,33 @@ describe('chain scoping', () => {
         }
     })
 
-    it('migrates legacy entries once: a tagged network keeps its chain, untagged entries belong to pearl', () => {
-        localStorage.setItem('memba_saved_daos', JSON.stringify([
-            { realmPath: 'gno.land/r/legacy/one', name: 'One', addedAt: 1 },
-            { realmPath: 'gno.land/r/legacy/two', name: 'Two', addedAt: 2, network: 'mainnet' },
-        ]))
+    it('migrates only entries tagged with a known network, never rewriting a tag', () => {
+        const legacy = [
+            { realmPath: 'gno.land/r/legacy/untagged', name: 'Untagged', addedAt: 1 },
+            { realmPath: 'gno.land/r/legacy/mainnet', name: 'Mainnet', addedAt: 2, network: 'mainnet' },
+            { realmPath: 'gno.land/r/legacy/retired', name: 'Retired', addedAt: 3, network: 'test12' },
+        ]
+        localStorage.setItem('memba_saved_daos', JSON.stringify(legacy))
         const all = getAllSavedDAOs()
-        expect(all.map(d => [d.realmPath, d.chainId])).toEqual([
-            ['gno.land/r/legacy/one', 'pearl-1'],
-            ['gno.land/r/legacy/two', 'gnoland-1'],
+        expect(all.map(d => [d.realmPath, d.network, d.chainId])).toEqual([
+            ['gno.land/r/legacy/untagged', undefined, undefined],
+            ['gno.land/r/legacy/mainnet', 'mainnet', 'gnoland-1'],
+            ['gno.land/r/legacy/retired', 'test12', undefined],
         ])
-        const stored = JSON.parse(localStorage.getItem('memba_saved_daos')!)
-        expect(stored.every((d: { chainId?: string }) => typeof d.chainId === 'string')).toBe(true)
+        // Idempotent: a second read writes the same thing.
+        const stored = localStorage.getItem('memba_saved_daos')
+        getAllSavedDAOs()
+        expect(localStorage.getItem('memba_saved_daos')).toBe(stored)
+    })
+
+    it('shows untagged legacy entries as before, and hides entries tagged for an unknown network', () => {
+        localStorage.setItem('memba_saved_daos', JSON.stringify([
+            { realmPath: 'gno.land/r/legacy/untagged', name: 'Untagged', addedAt: 1 },
+            { realmPath: 'gno.land/r/legacy/retired', name: 'Retired', addedAt: 3, network: 'test12' },
+        ]))
+        const visible = getSavedDAOs()
+        expect(visible.map(d => d.realmPath)).toEqual(['gno.land/r/legacy/untagged'])
+        expect(visible[0].network).toBeUndefined()
     })
 
     it('scopes org lists the same way', () => {

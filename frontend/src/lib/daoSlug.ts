@@ -32,7 +32,8 @@ export interface SavedDAO {
     network?: string
     /** Chain id the DAO was saved on. Lists show only entries for the active
      *  chain; the same realm path on two chains is two different DAOs. Entries
-     *  saved before this field existed are migrated on first read. */
+     *  saved before this field existed get the chain of their network tag on
+     *  first read; untagged entries stay untagged. */
     chainId?: string
 }
 
@@ -122,9 +123,6 @@ export function validateRealmPath(path: string): string | null {
 
 // ── LocalStorage persistence ──────────────────────────────
 
-/** Chain assigned to legacy entries that carry neither a chain id nor a known network. */
-const LEGACY_CHAIN_ID = NETWORKS.pearl.chainId
-
 function isSavedDAO(d: unknown): d is SavedDAO {
     if (typeof d !== "object" || d === null) return false
     const e = d as Record<string, unknown>
@@ -133,7 +131,12 @@ function isSavedDAO(d: unknown): d is SavedDAO {
         typeof e.addedAt === "number"
 }
 
-/** Read a saved-DAO list, migrating entries without a chain id (written back once). */
+/**
+ * Read a saved-DAO list. Entries without a chain id but tagged with a known
+ * network get that network's chain id (written back once). Tags are never
+ * rewritten; untagged entries and entries tagged for a network no longer in
+ * the config are left as they are.
+ */
 function readList(key: string): SavedDAO[] {
     try {
         const raw = localStorage.getItem(key)
@@ -143,11 +146,12 @@ function readList(key: string): SavedDAO[] {
         const entries = parsed.filter(isSavedDAO)
         let migrated = false
         for (const d of entries) {
-            if (typeof d.chainId === "string" && d.chainId) continue
-            const tagged = d.network ? NETWORKS[d.network]?.chainId : undefined
-            d.chainId = tagged ?? LEGACY_CHAIN_ID
-            if (!tagged) d.network = Object.keys(NETWORKS).find((k) => NETWORKS[k].chainId === LEGACY_CHAIN_ID)
-            migrated = true
+            if (d.chainId || !d.network) continue
+            const chainId = Object.hasOwn(NETWORKS, d.network) ? NETWORKS[d.network].chainId : undefined
+            if (chainId) {
+                d.chainId = chainId
+                migrated = true
+            }
         }
         if (migrated) writeList(key, entries)
         return entries
@@ -163,6 +167,10 @@ function writeList(key: string, daos: SavedDAO[]): void {
 }
 
 const onActiveChain = (d: SavedDAO) => d.chainId === GNO_CHAIN_ID
+/** Saved before network tagging: shown on every network, as before (consumers
+ *  drop the ones whose realm does not resolve on the active chain). */
+const isUntagged = (d: SavedDAO) => !d.chainId && !d.network
+const visibleHere = (d: SavedDAO) => onActiveChain(d) || isUntagged(d)
 
 /** Every saved DAO on every chain (validated, migrated). */
 export function getAllSavedDAOs(): SavedDAO[] {
@@ -171,7 +179,7 @@ export function getAllSavedDAOs(): SavedDAO[] {
 
 /** Saved DAOs for the active chain. */
 export function getSavedDAOs(): SavedDAO[] {
-    return getAllSavedDAOs().filter(onActiveChain)
+    return getAllSavedDAOs().filter(visibleHere)
 }
 
 /** Add or rename a DAO on the active chain. Stamps the network and chain the
@@ -179,10 +187,14 @@ export function getSavedDAOs(): SavedDAO[] {
 function upsert(key: string, realmPath: string, name: string | undefined, orgId?: string): void {
     if (!VALID_REALM_PATH.test(realmPath)) return
     const daos = readList(key)
-    const existing = daos.find((d) => d.realmPath === realmPath && onActiveChain(d))
+    const existing = daos.find((d) => d.realmPath === realmPath && visibleHere(d))
     if (existing) {
         if (name) existing.name = name
-        existing.network = ACTIVE_NETWORK_KEY
+        // Tag an untagged entry on re-pin; never rewrite an existing tag.
+        if (isUntagged(existing)) {
+            existing.network = ACTIVE_NETWORK_KEY
+            existing.chainId = GNO_CHAIN_ID
+        }
     } else {
         daos.push({
             realmPath,
@@ -203,7 +215,7 @@ export function addSavedDAO(realmPath: string, name?: string): void {
 
 /** Remove a DAO from the active chain's saved list. */
 export function removeSavedDAO(realmPath: string): void {
-    writeList(LS_KEY, getAllSavedDAOs().filter((d) => !(d.realmPath === realmPath && onActiveChain(d))))
+    writeList(LS_KEY, getAllSavedDAOs().filter((d) => !(d.realmPath === realmPath && visibleHere(d))))
 }
 
 // ── Org-scoped DAO persistence (v2.22.0) ─────────────────
@@ -218,7 +230,7 @@ function orgKey(orgId: string): string {
  */
 export function getSavedDAOsForOrg(orgId: string | null): SavedDAO[] {
     if (!orgId) return getSavedDAOs()
-    return readList(orgKey(orgId)).filter(onActiveChain)
+    return readList(orgKey(orgId)).filter(visibleHere)
 }
 
 /** Add a DAO to an org's saved list. */
@@ -230,5 +242,5 @@ export function addSavedDAOForOrg(orgId: string | null, realmPath: string, name?
 /** Remove a DAO from an org's saved list on the active chain. */
 export function removeSavedDAOForOrg(orgId: string | null, realmPath: string): void {
     if (!orgId) { removeSavedDAO(realmPath); return }
-    writeList(orgKey(orgId), readList(orgKey(orgId)).filter((d) => !(d.realmPath === realmPath && onActiveChain(d))))
+    writeList(orgKey(orgId), readList(orgKey(orgId)).filter((d) => !(d.realmPath === realmPath && visibleHere(d))))
 }
