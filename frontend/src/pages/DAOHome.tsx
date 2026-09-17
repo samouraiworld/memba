@@ -28,7 +28,8 @@ import { completeQuest, trackPageVisit } from "../lib/quests"
 import type { LayoutContext } from "../types/layout"
 import "./daohome.css"
 
-export function DAOHome() {
+/** `view="proposals"` shows only the proposal list (the shell's Proposals section). */
+export function DAOHome({ view = "overview" }: { view?: "overview" | "proposals" } = {}) {
     const professional = isProGovernanceRoute(useLocation().pathname)
     const navigate = useNetworkNav()
     const { realmPath, encodedSlug } = useDaoRoute()
@@ -214,7 +215,7 @@ export function DAOHome() {
                     <button className="k-btn-secondary" onClick={() => { void configQuery.refetch(); void membersQuery.refetch(); void proposalsQuery.refetch() }}>Retry DAO data</button>
                 </div>
             )}
-            <DAOOverviewCard
+            {view === "overview" && <DAOOverviewCard
                 professional={professional}
                 proposalsKnown={proposalsQuery.isSuccess}
                 membersKnown={!!config && membersQuery.isSuccess}
@@ -233,7 +234,7 @@ export function DAOHome() {
                 proposalsWithVotesCount={proposalsWithVotes.length}
                 totalPower={totalPower}
                 channels={capabilities.channels}
-            />
+            />}
 
             <div aria-live="polite">
             {professional ? <ProDAOProposals
@@ -261,14 +262,14 @@ export function DAOHome() {
             />}
             </div>
 
-            {professional && membersQuery.isError ? <p className="gov-read-notice">Member details are unavailable. Use Retry DAO data above to try again.</p> : <DAOMembersPreview
+            {view === "overview" && (professional && membersQuery.isError ? <p className="gov-read-notice">Member details are unavailable. Use Retry DAO data above to try again.</p> : <DAOMembersPreview
                 professional={professional}
                 encodedSlug={encodedSlug}
                 members={members}
                 memberCount={memberCount}
                 membersLoading={membersLoading}
                 currentUserAddress={adena.address}
-            />}
+            />)}
 
 
             <ErrorToast message={error} onDismiss={() => setFetchErrorDismissed(true)} onRetry={() => { setFetchErrorDismissed(false); void configQuery.refetch(); void membersQuery.refetch(); void proposalsQuery.refetch() }} />

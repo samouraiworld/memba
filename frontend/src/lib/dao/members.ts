@@ -7,6 +7,7 @@
 
 import { queryRender, queryRenderPage, queryEval, parseQevalJSON, resolveUsernames, hasOwnSubpageLink, detectMaxPage, getDaoDialect, setDaoDialect, deleteDaoDialect, isMemberstoreBoundToRealm, type DAOMember } from "./shared"
 import { isValidGnoAddressChecksum } from "./address"
+import { membaV2Route, readAllV2Members, readV2DAOMembers } from "./membaV2Shell"
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
 
@@ -127,6 +128,18 @@ export async function getDAOMembers(
     memberstorePath?: string,
     strict = false,
 ): Promise<DAOMember[]> {
+    // Version-2 DAOs: paginated JSON only.
+    const route = await membaV2Route(rpcUrl, realmPath, strict)
+    if (route === "unresolved") return []
+    if (route === "v2") {
+        try {
+            return await readV2DAOMembers(rpcUrl, realmPath)
+        } catch (err) {
+            if (strict) throw err
+            return []
+        }
+    }
+
     // Try memberstore members list first — only a store bound to this realm
     // (see isMemberstoreBoundToRealm); an unbound path is ignored, not read.
     if (memberstorePath && isMemberstoreBoundToRealm(memberstorePath, realmPath)) {
@@ -260,6 +273,16 @@ export async function getMemberRole(
 ): Promise<DAOMember | null> {
     if (!address) return null
     const target = address.toLowerCase()
+
+    const route = await membaV2Route(rpcUrl, realmPath)
+    if (route === "unresolved") return null
+    if (route === "v2") {
+        try {
+            return (await readAllV2Members(rpcUrl, realmPath)).find((m) => m.address === target) ?? null
+        } catch {
+            return null
+        }
+    }
 
     // Memberstore (tier DAOs like GovDAO): page 1 answers the common case
     // immediately; only a miss fans out to the remaining pages in parallel.

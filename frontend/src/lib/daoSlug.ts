@@ -65,7 +65,7 @@ export function decodeSlug(slug: string): string {
 }
 
 /** Known DAO sub-route keywords — used to parse splat paths. */
-const DAO_SUB_ROUTES = ["proposal", "members", "propose", "treasury", "channels", "plugin", "create"]
+const DAO_SUB_ROUTES = ["proposal", "proposals", "members", "settings", "propose", "treasury", "channels", "plugin", "create"]
 
 /**
  * Parse a DAO splat path to extract the realm path and sub-route.

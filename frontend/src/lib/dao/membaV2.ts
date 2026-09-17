@@ -5,8 +5,7 @@
  * output is never parsed. Each call checks that the RPC endpoint serves the
  * expected chain before trusting the answer.
  *
- * Not wired into the generic DAO readers yet: the DAO shell selects this
- * module once it has resolved a DAO's kind.
+ * The generic DAO readers route version-2 realms here (membaV2Shell.ts).
  */
 import { z } from "zod"
 import { abciErrorPresent, directRpcCall } from "../rpcFallback"
@@ -118,6 +117,9 @@ export const membaV2VotesSchema = z.strictObject({
 export type MembaV2Config = z.infer<typeof membaV2ConfigSchema>
 export type MembaV2Members = z.infer<typeof membaV2MembersSchema>
 export type MembaV2Proposal = z.infer<typeof membaV2ProposalSchema>
+export type MembaV2ProposalSummary = z.infer<typeof proposalSummary>
+export type MembaV2Status = (typeof MEMBA_V2_STATUSES)[number]
+export type MembaV2ActionKind = MembaV2ProposalSummary["action"]["kind"]
 export type MembaV2Proposals = z.infer<typeof membaV2ProposalsSchema>
 export type MembaV2Votes = z.infer<typeof membaV2VotesSchema>
 export type MembaV2Page = { offset: number; limit: number }

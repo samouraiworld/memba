@@ -1,0 +1,122 @@
+/* DAO shell: section navigation, settings, version-2 proposal pages and transaction status. */
+
+.dao-shell {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    min-width: 0;
+}
+
+.dao-shell-nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    border-bottom: 1px solid var(--color-k-edge, rgba(255, 255, 255, 0.08));
+}
+
+.dao-shell-nav__link {
+    padding: 8px 12px;
+    font-size: var(--pro-small, 13px);
+    color: var(--color-k-dim, var(--color-text-secondary));
+    text-decoration: none;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+}
+
+.dao-shell-nav__link:hover,
+.dao-shell-nav__link:focus-visible {
+    color: var(--color-k-text, var(--color-text-primary));
+}
+
+.dao-shell-nav__link--active {
+    color: var(--color-k-text, var(--color-text-primary));
+    border-bottom-color: var(--color-k-accent, var(--color-primary));
+    font-weight: 600;
+}
+
+.dao-shell-banner {
+    padding: 10px 14px;
+    border: 1px solid var(--color-k-edge, rgba(255, 255, 255, 0.08));
+    border-radius: 8px;
+    font-size: var(--pro-small, 13px);
+    color: var(--color-k-dim, var(--color-text-secondary));
+}
+
+.dao-shell-banner strong {
+    color: var(--color-k-text, var(--color-text-primary));
+}
+
+/* ── Settings ─────────────────────────────────────────── */
+
+.dao-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.dao-settings__title {
+    margin: 0;
+    font-size: var(--pro-title, 20px);
+}
+
+.dao-settings__list {
+    display: grid;
+    grid-template-columns: minmax(140px, 220px) minmax(0, 1fr);
+    gap: 10px 16px;
+    margin: 0;
+    padding: 16px;
+}
+
+.dao-settings__list dt {
+    color: var(--color-k-dim, var(--color-text-secondary));
+    font-size: var(--pro-small, 13px);
+}
+
+.dao-settings__list dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+    font-size: var(--pro-body, 14px);
+}
+
+.dao-settings__note {
+    margin: 0;
+    font-size: var(--pro-small, 13px);
+    color: var(--color-k-dim, var(--color-text-secondary));
+}
+
+@media (max-width: 600px) {
+    .dao-settings__list {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 2px;
+    }
+
+    .dao-settings__list dd {
+        margin-bottom: 10px;
+    }
+}
+
+/* ── Transaction status ───────────────────────────────── */
+
+.dao-tx-status {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 10px 14px;
+    border-radius: 8px;
+    border: 1px solid var(--color-k-edge, rgba(255, 255, 255, 0.08));
+    font-size: var(--pro-small, 13px);
+    overflow-wrap: anywhere;
+}
+
+.dao-tx-status--failed {
+    border-color: var(--color-k-danger-text, var(--color-danger));
+}
+
+.dao-tx-status--confirmed {
+    border-color: var(--color-k-accent-text, var(--color-primary));
+}
+
+.dao-tx-status__hash {
+    font-family: var(--font-mono, monospace);
+    font-size: var(--pro-caption, 12px);
+}

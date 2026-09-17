@@ -5,6 +5,8 @@
  *   /:network/dao/gno.land/r/gov/dao → DAOHome
  *   /:network/dao/gno.land/r/gov/dao/proposal/5 → ProposalView
  *   /:network/dao/gno.land/r/gov/dao/members → DAOMembers
+ *   /:network/dao/gno.land/r/gov/dao/proposals → DAOHome, proposals only
+ *   /:network/dao/<version-2 DAO>/settings → DAOSettings (read-only)
  *   /:network/dao/gno.land~r~gov~dao → legacy redirect
  */
 import { lazy, Suspense } from "react"
@@ -14,11 +16,13 @@ import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { ConnectingLoader } from "../ui/ConnectingLoader"
 import { useDaoKind } from "../../hooks/useDaoKind"
 import { DAOUnavailable } from "./DAOUnavailable"
+import { DAOShellNav, type DAOSection } from "./DAOShellNav"
 
 const DAOHome = lazy(() => import("../../pages/DAOHome").then(m => ({ default: m.DAOHome })))
 const ProposalView = lazy(() => import("../../pages/ProposalView").then(m => ({ default: m.ProposalView })))
 const DAOMembers = lazy(() => import("../../pages/DAOMembers").then(m => ({ default: m.DAOMembers })))
 const ProposeDAO = lazy(() => import("../../pages/ProposeDAO").then(m => ({ default: m.ProposeDAO })))
+const DAOSettings = lazy(() => import("../../pages/DAOSettings").then(m => ({ default: m.DAOSettings })))
 const ChannelsPage = lazy(() => import("../../pages/ChannelsPage").then(m => ({ default: m.ChannelsPage })))
 const NotFound = lazy(() => import("../../pages/NotFound").then(m => ({ default: m.NotFound })))
 
@@ -49,15 +53,29 @@ export function DAORouter() {
 
     const daoHome = `/dao/${realmPath}`
     let element: React.ReactNode
+    let section: DAOSection | null = null
     switch (subCommand) {
         case "":
+            section = "overview"
             element = <DAOHome />
             break
+        case "proposals":
+            section = "proposals"
+            element = <DAOHome view="proposals" />
+            break
         case "proposal":
+            section = "proposal"
             element = <ProposalView />
             break
         case "members":
+            section = "members"
             element = <DAOMembers />
+            break
+        case "settings":
+            section = "settings"
+            if (kindLoading) element = <PageLoader />
+            else if (!capabilities.settings) element = <DAOUnavailable backTo={daoHome} reason="This DAO's contract does not publish its settings to Memba." />
+            else element = <DAOSettings />
             break
         case "propose":
             if (kindLoading) element = <PageLoader />
@@ -80,5 +98,11 @@ export function DAORouter() {
             element = <NotFound />
     }
 
-    return <Suspense fallback={<PageLoader />}>{element}</Suspense>
+    if (!section) return <Suspense fallback={<PageLoader />}>{element}</Suspense>
+    return (
+        <div className="dao-shell">
+            <DAOShellNav networkKey={networkKey} realmPath={realmPath} section={section} capabilities={capabilities} />
+            <Suspense fallback={<PageLoader />}>{element}</Suspense>
+        </div>
+    )
 }

@@ -63,6 +63,11 @@ describe('parseDaoSplat', () => {
         expect(r.subRoute).toBe('members')
     })
 
+    it('parses the proposals and settings sections', () => {
+        expect(parseDaoSplat('gno.land/r/alice/team/proposals')).toEqual({ realmPath: 'gno.land/r/alice/team', subRoute: 'proposals' })
+        expect(parseDaoSplat('gno.land/r/alice/team/settings')).toEqual({ realmPath: 'gno.land/r/alice/team', subRoute: 'settings' })
+    })
+
     it('parses treasury/propose nested sub-route', () => {
         const r = parseDaoSplat('gno.land/r/gov/dao/treasury/propose')
         expect(r.realmPath).toBe('gno.land/r/gov/dao')

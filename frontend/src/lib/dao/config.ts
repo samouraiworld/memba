@@ -5,6 +5,7 @@
  */
 
 import { queryRender, queryEval, isMemberstoreBoundToRealm, type DAOConfig, type TierInfo } from "./shared"
+import { membaV2Route, readV2DAOConfig } from "./membaV2Shell"
 
 /**
  * The body of the FIRST "## Members" section of a render: from the line after
@@ -68,6 +69,18 @@ export async function getDAOConfig(
     // realms that don't export them (GovDAO has no IsArchived) answer with a VM
     // error, and a strict throw there would make a DEPLOYED realm look like
     // AbciQueryError → "not deployed here" → E-F9-dropped by useYourWorlds.
+    // Version-2 DAOs are read from their JSON configuration only.
+    const route = await membaV2Route(rpcUrl, realmPath, strict)
+    if (route === "unresolved") return null
+    if (route === "v2") {
+        try {
+            return await readV2DAOConfig(rpcUrl, realmPath)
+        } catch (err) {
+            if (strict) throw err
+            return null
+        }
+    }
+
     const data = await queryRender(rpcUrl, realmPath, "", strict)
     if (!data) return null
 

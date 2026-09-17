@@ -8,6 +8,7 @@ import { queryRender, queryRenderPage, queryEval, parseQevalJSON, normalizeStatu
 import { BECH32_PREFIX } from "../config"
 import { parseGeneratedProposalDetail, readGeneratedProposalRecord } from "./generatedProposalDetail"
 import { isValidGnoAddressChecksum } from "./address"
+import { membaV2Route, readV2DAOProposal, readV2DAOProposals, readV2VoteRecords } from "./membaV2Shell"
 
 // ── Proposal Cache ────────────────────────────────────────────
 // In-memory cache with 30s TTL to avoid redundant ABCI round-trips
@@ -302,6 +303,20 @@ export async function getDAOProposals(
         return cached.proposals
     }
 
+    // Version-2 DAOs: paginated JSON only, never Render.
+    const route = await membaV2Route(rpcUrl, realmPath, strict)
+    if (route === "unresolved") return []
+    if (route === "v2") {
+        try {
+            const proposals = await readV2DAOProposals(rpcUrl, realmPath)
+            proposalCache.set(cacheKey, { proposals, ts: Date.now() })
+            return proposals
+        } catch (err) {
+            if (strict) throw err
+            return []
+        }
+    }
+
     // Dedupe by id, sort newest-first, and optionally cache. Partial reads
     // (a daokit sub-page that failed) must NOT be cached: a non-strict caller
     // (e.g. the notifications poll) caching a transiently-empty list would be
@@ -492,6 +507,10 @@ export async function getProposalDetail(
     id: number,
 ): Promise<DAOProposal | null> {
     try {
+        const route = await membaV2Route(rpcUrl, realmPath)
+        if (route === "unresolved") return null
+        if (route === "v2") return await readV2DAOProposal(rpcUrl, realmPath, id)
+
         // Try multiple render path formats (queryRenderPage so a mux "404"
         // body reads as "no such page" and the chain proceeds — the deployed
         // daokit realm answers Render("1") with literal "404" and serves the
@@ -742,6 +761,12 @@ export async function getProposalVotes(
     realmPath: string,
     id: number,
 ): Promise<VoteRecord[]> {
+    // Version-2 DAOs: the vote list by address. A failed read throws, so a
+    // caller never mistakes it for "nobody voted".
+    const route = await membaV2Route(rpcUrl, realmPath)
+    if (route === "unresolved") throw new Error("Could not identify this DAO contract")
+    if (route === "v2") return readV2VoteRecords(rpcUrl, realmPath, id)
+
     // A memoized daokit realm has NO votes route at all — the deployed
     // renderer serves aggregate tallies inline on the detail page (which the
     // daokit detail leg parses). Both render attempts below would be dead

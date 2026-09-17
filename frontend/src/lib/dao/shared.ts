@@ -7,6 +7,7 @@
  * - Username resolution (cache + batch resolve)
  */
 
+import type { MembaV2Config, MembaV2ProposalSummary } from "./membaV2"
 import type { AminoMsg } from "../grc20"
 import { GNO_CHAIN_ID, getUserRegistryPath, networkScopedKey } from "../config"
 import { resilientAbciQuery } from "../rpcFallback"
@@ -58,6 +59,9 @@ export interface DAOProposal {
     // unknowable (daokit renders aggregate tallies only), which the vote
     // scanners use to avoid phantom "unvoted" claims.
     titleIsPlaceholder?: boolean
+    // Version-2 DAOs: the realm's own proposal record (exact status, action,
+    // voting power and lifecycle times). Absent for every other contract.
+    v2?: MembaV2ProposalSummary
 }
 
 export interface DAOConfig {
@@ -68,6 +72,7 @@ export interface DAOConfig {
     memberstorePath: string    // memberstore realm path (empty if N/A)
     tierDistribution: TierInfo[]
     isArchived: boolean        // true if DAO has been archived
+    v2?: MembaV2Config         // version-2 DAOs: the realm's configuration
 }
 
 export interface TierInfo {

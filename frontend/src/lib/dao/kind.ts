@@ -80,11 +80,15 @@ export function kindSupportsVoting(kind: DaoKind): boolean {
 // ── Resolution ────────────────────────────────────────────────
 
 const kindCache = new Map<string, DaoKind>()
+// Resolutions in progress, shared by concurrent callers (the DAO page's kind
+// hook and the readers it triggers resolve the same realm at the same time).
+const kindInflight = new Map<string, Promise<DaoKind>>()
 const cacheKey = (chainId: string, realmPath: string) => JSON.stringify([chainId, realmPath])
 
 /** Test hook and network-switch reset. */
 export function clearDaoKindCache(): void {
     kindCache.clear()
+    kindInflight.clear()
 }
 
 /** Synchronous cache read (for UIs that already resolved the kind this session). */
@@ -169,8 +173,16 @@ export async function resolveDaoKind(
     const key = cacheKey(ctx.chainId, ctx.realmPath)
     const cached = kindCache.get(key)
     if (cached) return cached
-    const kind = await probeKind(ctx, signal)
+    let pending = kindInflight.get(key)
+    if (!pending) {
+        // Not tied to one caller's signal: a cancelled caller must not fail the others.
+        pending = probeKind(ctx).then((kind) => {
+            kindCache.set(key, kind)
+            return kind
+        }).finally(() => kindInflight.delete(key))
+        kindInflight.set(key, pending)
+    }
+    const kind = await pending
     throwIfAborted(signal)
-    kindCache.set(key, kind)
     return kind
 }

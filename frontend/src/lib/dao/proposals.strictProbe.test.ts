@@ -23,6 +23,14 @@ vi.mock("../rpcFallback", async (importOriginal) => ({
     resilientAbciQuery: vi.fn(),
 }))
 
+// These suites pin the legacy Render/JSON dialect readers. Which reader a realm
+// gets (version-2 JSON or legacy) is decided by kind resolution, tested in
+// membaV2Shell.test.ts; here every realm takes the legacy path.
+vi.mock("./membaV2Shell", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("./membaV2Shell")>()),
+    membaV2Route: vi.fn(async () => "other"),
+}))
+
 const mockQuery = vi.mocked(resilientAbciQuery)
 
 const RPC = "https://rpc.example"
