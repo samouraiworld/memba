@@ -20,6 +20,7 @@ import {
     buildDaoMsg,
     isGovDAOPath as isGovDAO,
 } from "./index"
+import { bech32Encode } from "./realmAddress"
 
 // ── GovDAO v3 Render() format — full page sample ────────────────
 
@@ -150,16 +151,18 @@ describe("Memberstore tier parsing (real format)", () => {
 
 // ── Memba DAO (basedao) member format ────────────────────────────
 
+const V = (i: number) => bech32Encode("g", new Uint8Array(20).fill(i))
+
 const MEMBA_DAO_MEMBERS_V530 = `# MyDAO
 
 A community governance DAO.
 
 ## Members (5)
-- g1creator12345678901234567890123456 (roles: admin, dev) | power: 3
-- g1member1234567890123456789012345a (roles: dev) | power: 2
-- g1member1234567890123456789012345b (roles: member) | power: 1
-- g1member1234567890123456789012345c (roles: finance, ops) | power: 2
-- g1member1234567890123456789012345d (roles: member) | power: 1
+- ${V(1)} (roles: admin, dev) | power: 3
+- ${V(2)} (roles: dev) | power: 2
+- ${V(3)} (roles: member) | power: 1
+- ${V(4)} (roles: finance, ops) | power: 2
+- ${V(5)} (roles: member) | power: 1
 `
 
 describe("Memba DAO member parsing (v5.3.0 format)", () => {

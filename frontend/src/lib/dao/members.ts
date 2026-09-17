@@ -5,50 +5,94 @@
  * basedao Render("") markdown fallback.
  */
 
-import { queryRender, queryRenderPage, queryEval, resolveUsernames, hasOwnSubpageLink, detectMaxPage, getDaoDialect, setDaoDialect, deleteDaoDialect, isMemberstoreBoundToRealm, type DAOMember } from "./shared"
+import { queryRender, queryRenderPage, queryEval, parseQevalJSON, resolveUsernames, hasOwnSubpageLink, detectMaxPage, getDaoDialect, setDaoDialect, deleteDaoDialect, isMemberstoreBoundToRealm, type DAOMember } from "./shared"
+import { isValidGnoAddressChecksum } from "./address"
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")
+
+/** Map one GetMembersJSON row. The generated template emits `power`; older
+ *  basedao exports used `votingPower`. */
+function memberFromJSON(m: Record<string, unknown>): DAOMember {
+    const roles = m.roles ?? m.Roles
+    return {
+        address: String(m.address || m.Address || ""),
+        roles: Array.isArray(roles) ? roles.filter((r): r is string => typeof r === "string") : [],
+        tier: String(m.tier || m.Tier || ""),
+        votingPower: Number(m.power ?? m.Power ?? m.votingPower ?? m.VotingPower ?? 0) || 0,
+        username: "",
+    }
+}
+
+/** Decode a GetMembersJSON qeval answer; null when it is not a JSON array. */
+function membersFromQeval(raw: string | null): DAOMember[] | null {
+    if (!raw) return null
+    const parsed = parseQevalJSON(raw)
+    if (!Array.isArray(parsed)) return null
+    return parsed
+        .filter((m): m is Record<string, unknown> => !!m && typeof m === "object" && !Array.isArray(m))
+        .map(memberFromJSON)
+}
 
 /**
  * Parse gnodaokit/basedao members-table rows (deployed RenderMembersTable):
  * | Name | [g1x7\.\.\.](/u/g1full) | [chip role](path:role/admin), … | [View](path:member/g1full) |
- * The full address comes from the /u/ link (the display text is truncated);
- * roles come from the :role/ link hrefs (immune to the inline SVG chips).
- * Known limitation: cells are positional, so a member whose self-set profile
- * DisplayName contains a literal "|" fails the row shape and is dropped from
- * the parsed roster (never mis-attributed) — the same name breaks the realm's
- * own gnoweb table rendering.
+ *
+ * The Name cell is a member-editable display name and is never used for
+ * identity. A row is accepted only when:
+ * - the address cell is exactly one /u/ link to a valid address,
+ * - the role cell holds only role links to this realm's own :role/ route
+ *   (or the realm's "No role assigned" placeholder), and
+ * - the View link points to this realm's :member/ route for the same address.
+ * Any other table line makes the page invalid (null), so a roster is either
+ * fully attributable or reported as unavailable.
  */
-function parseDaokitMemberRows(data: string): DAOMember[] {
-    if (!data.includes(":member/")) return []
+export function parseDaokitMemberRows(data: string, realmPath: string): DAOMember[] | null {
+    const lp = escapeRe(realmPath.replace(/^[^/]+/, ""))
+    const roleLink = new RegExp(`^\\[(?:!\\[[^\\]\\n]*\\]\\(data:image\\/svg\\+xml;base64,[A-Za-z0-9+/=]*\\) )?([A-Za-z0-9_-]+)\\]\\(${lp}:role\\/([A-Za-z0-9_-]+)\\)`)
+    const noRole = /^!\[ colored chip\]\(data:image\/svg\+xml;base64,[A-Za-z0-9+/=]*\) \*No role assigned\*$/
+    const row = new RegExp(`^\\| [^|\\n]* \\| \\[[^\\]|\\n]*\\]\\(\\/u\\/(g1[a-z0-9]{38})\\) \\| ([^|\\n]*) \\| \\[View\\]\\(${lp}:member\\/(g1[a-z0-9]{38})\\) \\|$`)
     const members: DAOMember[] = []
-    const re = /^\|[^|]*\|[^|]*\]\(\/u\/(g1[a-z0-9]+)\)[^|]*\|([^|]*)\|[^|]*:member\/g1[a-z0-9]+\)[^|]*\|/gm
-    let m: RegExpExecArray | null
-    while ((m = re.exec(data)) !== null) {
-        const roles = [...m[2].matchAll(/:role\/([A-Za-z0-9_-]+)\)/g)].map((r) => r[1])
-        members.push({
-            address: m[1],
-            roles,
-            tier: "",
-            votingPower: 0,
-            username: "",
-        })
+    for (const line of data.replaceAll("\r\n", "\n").split("\n")) {
+        if (!line.startsWith("|")) continue
+        if (/^\|\s*\*\*Name\*\*/.test(line) || /^\|[-| ]+\|$/.test(line)) continue
+        const m = row.exec(line)
+        if (!m || m[1] !== m[3] || !isValidGnoAddressChecksum(m[1])) return null
+        const roles: string[] = []
+        let cell = m[2].trim()
+        if (!noRole.test(cell)) {
+            while (cell) {
+                const link = roleLink.exec(cell)
+                if (!link || link[1] !== link[2]) return null
+                roles.push(link[2])
+                cell = cell.slice(link[0].length).replace(/^, /, "")
+            }
+        }
+        members.push({ address: m[1], roles, tier: "", votingPower: 0, username: "" })
     }
     return members
 }
 
 /**
- * Parse members from basedao Render output.
- * Supports v5.3.0 bullets (roles + pipe), v5.2.0 (em dash), v5.0.x (power
- * only), and the gnodaokit members table. Bullets are tried FIRST: they are
- * the legacy realm-generated contract, so a table-shaped string smuggled into
- * a legacy realm's description can't displace the authentic roster. Pages
- * that genuinely carry the daokit table (the :members sub-page) have no
- * bullets, so the table leg still applies there.
+ * Parse members from a generated/legacy DAO Render("") page. Bullets are read
+ * only inside the page's single "## Members" section (up to the next heading)
+ * and only when every bullet names a valid address. More than one Members
+ * heading, an invalid bullet, or a count that disagrees with "(N)" yields [].
+ * Supports v5.3.0 bullets (roles + pipe), v5.2.0 (em dash) and v5.0.x (power only).
  */
 export function parseMembersFromRender(data: string): DAOMember[] {
+    const text = data.replaceAll("\r\n", "\n")
+    const headings = [...text.matchAll(/^## Members(?: \((\d+)\))?[ \t]*$/gm)]
+    if (headings.length !== 1) return []
+    const start = headings[0].index! + headings[0][0].length
+    const next = text.slice(start).search(/^#{1,3} /m)
+    const section = next === -1 ? text.slice(start) : text.slice(start, start + next)
+
     const members: DAOMember[] = []
-    const re = /[-*]\s+(g\S+)(?:\s*\(([^)]+)\))?(?:\s*[—|]\s*power:\s*(\d+))?/g
-    let match: RegExpExecArray | null
-    while ((match = re.exec(data)) !== null) {
+    const bullet = /^[-*]\s+(\S+)(?:\s*\(([^)\n]+)\))?(?:\s*[—|]\s*power:\s*(\d+))?\s*$/
+    for (const line of section.split("\n")) {
+        if (!/^[-*]\s/.test(line)) continue
+        const match = bullet.exec(line)
+        if (!match || !isValidGnoAddressChecksum(match[1])) return []
         let roles: string[] = []
         let power = 0
         if (match[2]) {
@@ -61,21 +105,12 @@ export function parseMembersFromRender(data: string): DAOMember[] {
                 roles = inner.split(",").map((r) => r.trim()).filter(Boolean)
             }
         }
-        if (match[3]) {
-            power = parseInt(match[3], 10) || 0
-        }
-        members.push({
-            address: match[1],
-            roles,
-            tier: "",
-            votingPower: power,
-            username: "",
-        })
+        if (match[3]) power = parseInt(match[3], 10) || 0
+        members.push({ address: match[1], roles, tier: "", votingPower: power, username: "" })
     }
-    if (members.length > 0) return members
-
-    // No bullets — try the gnodaokit members table.
-    return parseDaokitMemberRows(data)
+    if (headings[0][1] !== undefined && Number(headings[0][1]) !== members.length) return []
+    if (new Set(members.map((m) => m.address)).size !== members.length) return []
+    return members
 }
 
 /**
@@ -116,26 +151,11 @@ export async function getDAOMembers(
         if (table === null) deleteDaoDialect(rpcUrl, realmPath)
     }
 
-    // Try JSON endpoint (basedao)
-    const json = await queryEval(rpcUrl, realmPath, `GetMembersJSON()`)
-    if (json) {
-        try {
-            const match = json.match(/\("(.+)"\s+string\)/s)
-            if (match) {
-                const parsed = JSON.parse(match[1].replace(/\\"/g, '"'))
-                if (Array.isArray(parsed)) {
-                    const members = parsed.map((m: Record<string, unknown>) => ({
-                        address: String(m.address || m.Address || ""),
-                        roles: (m.roles || m.Roles || []) as string[],
-                        tier: String(m.tier || m.Tier || ""),
-                        votingPower: Number(m.votingPower || m.VotingPower || 0),
-                        username: String(m.username || m.Username || ""),
-                    }))
-                    await resolveUsernames(rpcUrl, members)
-                    return members
-                }
-            }
-        } catch { /* fall through */ }
+    // Try JSON endpoint (generated template / basedao)
+    const jsonMembers = membersFromQeval(await queryEval(rpcUrl, realmPath, `GetMembersJSON()`))
+    if (jsonMembers) {
+        await resolveUsernames(rpcUrl, jsonMembers)
+        return jsonMembers
     }
 
     // Fallback: parse Render("") markdown
@@ -184,32 +204,39 @@ export async function getDAOMembers(
 async function fetchDaokitMemberPages(rpcUrl: string, realmPath: string): Promise<DAOMember[] | null> {
     const page1 = await queryRenderPage(rpcUrl, realmPath, "members")
     if (!page1) return null
-    if (!/^##\s+Members\s/m.test(page1) && !page1.includes(":member/")) return null
+    // The realm-generated header precedes the table and carries the total.
+    const header = page1.match(/^##\s+Members\s+👥\s+\((\d+)\)\s*$/m)
+    if (!header) return null
+    const total = Number(header[1])
 
     const allMembers: DAOMember[] = []
     const seen = new Set<string>()
-    const add = (rows: DAOMember[]) => {
+    const add = (rows: DAOMember[] | null): boolean => {
+        if (rows === null) return false
         for (const row of rows) {
-            if (seen.has(row.address)) continue
+            if (seen.has(row.address)) return false
             seen.add(row.address)
             allMembers.push(row)
         }
+        return true
     }
 
-    add(parseDaokitMemberRows(page1))
+    if (!add(parseDaokitMemberRows(page1, realmPath))) return null
 
-    const maxPage = detectMaxPage(page1)
-    if (maxPage > 1) {
+    // Page through every page the total implies (10 per page), bounded.
+    const pages = Math.max(detectMaxPage(page1), Math.ceil(total / 10))
+    if (pages > 50) return null
+    if (pages > 1) {
         const pagePromises: Promise<string | null>[] = []
-        for (let p = 2; p <= Math.min(maxPage, 10); p++) {
+        for (let p = 2; p <= pages; p++) {
             pagePromises.push(queryRenderPage(rpcUrl, realmPath, `members?page=${p}`))
         }
         for (const pageData of await Promise.all(pagePromises)) {
-            if (pageData) add(parseDaokitMemberRows(pageData))
+            if (!pageData || !add(parseDaokitMemberRows(pageData, realmPath))) return null
         }
     }
 
-    return allMembers
+    return allMembers.length === total ? allMembers : null
 }
 
 /**
@@ -279,31 +306,9 @@ export async function getMemberRole(
         deleteDaoDialect(rpcUrl, realmPath)
     }
 
-    // basedao JSON endpoint — find the address without resolving usernames.
-    const json = await queryEval(rpcUrl, realmPath, `GetMembersJSON()`)
-    if (json) {
-        try {
-            const match = json.match(/\("(.+)"\s+string\)/s)
-            if (match) {
-                const parsed = JSON.parse(match[1].replace(/\\"/g, '"'))
-                if (Array.isArray(parsed)) {
-                    const found = parsed.find(
-                        (m: Record<string, unknown>) =>
-                            String(m.address || m.Address || "").toLowerCase() === target,
-                    )
-                    return found
-                        ? {
-                              address: String(found.address || found.Address || ""),
-                              roles: (found.roles || found.Roles || []) as string[],
-                              tier: String(found.tier || found.Tier || ""),
-                              votingPower: Number(found.votingPower || found.VotingPower || 0),
-                              username: "",
-                          }
-                        : null
-                }
-            }
-        } catch { /* fall through to render */ }
-    }
+    // JSON endpoint — find the address without resolving usernames.
+    const jsonMembers = membersFromQeval(await queryEval(rpcUrl, realmPath, `GetMembersJSON()`))
+    if (jsonMembers) return jsonMembers.find((m) => m.address.toLowerCase() === target) ?? null
 
     // Fallback: parse Render("") markdown and find the address. Same daokit
     // landing-page hop as getDAOMembers — without it, members of a daokit DAO

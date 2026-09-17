@@ -154,7 +154,7 @@ describe("getDAOConfig memberstore binding", () => {
 })
 
 describe("member reads ignore an unbound memberstore path", () => {
-    const membersJSON = `("[{\\"address\\":\\"${MEMBER}\\",\\"roles\\":[\\"admin\\"],\\"votingPower\\":1}]" string)`
+    const membersJSON = `("[{\\"address\\":\\"${MEMBER}\\",\\"roles\\":[\\"admin\\"],\\"power\\":1}]" string)`
 
     it("getDAOMembers does not query a foreign memberstore and returns the GetMembersJSON roster", async () => {
         mockQuery.mockImplementation(router(

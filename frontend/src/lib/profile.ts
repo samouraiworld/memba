@@ -7,8 +7,8 @@
  * See: gno.land/r/gnoland/users/v1, Gnolove API
  */
 
-import { getExplorerBaseUrl, getUserRegistryPath } from "./config"
-import { resilientFetch } from "./rpcFallback"
+import { getExplorerBaseUrl } from "./config"
+import { resolveRegisteredUsername } from "./dao/shared"
 import { api } from "./api"
 import type { Token } from "../gen/memba/v1/memba_pb"
 
@@ -62,8 +62,6 @@ export interface UserProfile {
 }
 
 // ── Fetchers ──────────────────────────────────────────────────
-
-const USER_REGISTRY = getUserRegistryPath()
 
 /** Fetch a complete user profile from all data sources in parallel. */
 export async function fetchUserProfile(
@@ -169,38 +167,9 @@ export async function fetchUserProfile(
 
 // ── Internal Helpers ──────────────────────────────────────────
 
-/** Resolve @username from gno.land user registry via ABCI. */
+/** Resolve @username from the gno.land user registry (structured ResolveAddress read). */
 export async function resolveOnChainUsername(address: string): Promise<string> {
-    try {
-        const b64Data = btoa(`${USER_REGISTRY}:${address}`)
-        const res = await resilientFetch((rpcUrl) => ({
-            url: rpcUrl,
-            init: {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    jsonrpc: "2.0",
-                    id: "profile",
-                    method: "abci_query",
-                    params: { path: "vm/qrender", data: b64Data },
-                }),
-            },
-        }))
-        const json = await res.json()
-        const value = json?.result?.response?.ResponseBase?.Data
-        if (!value) return ""
-        const binaryStr = atob(value)
-        const bytes = Uint8Array.from(binaryStr, (c) => c.charCodeAt(0))
-        const data = new TextDecoder().decode(bytes)
-        // Primary format (r/gnoland/users/v1): "# User - `username`"
-        // Secondary format (r/sys/users): may differ — try fallback patterns
-        const m = data.match(/# User - `([^`]+)`/)
-            || data.match(/\*\s+\[([^\]]+)\]\(/)           // " * [username](link)" list format
-            || data.match(/username:\s*([a-zA-Z0-9_]+)/)   // structured fallback
-        return m ? `@${m[1]}` : ""
-    } catch {
-        return ""
-    }
+    return resolveRegisteredUsername(address)
 }
 
 /** Fetch user from gnolove API by wallet address. */

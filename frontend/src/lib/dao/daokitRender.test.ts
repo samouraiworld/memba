@@ -22,7 +22,8 @@
  */
 import { describe, it, expect, vi, beforeEach } from "vitest"
 import { getDAOProposals, getProposalDetail, getProposalVotes, parseProposalList, fallbackProposalTitle, invalidateProposalCache } from "./proposals"
-import { getDAOMembers, getMemberRole, parseMembersFromRender } from "./members"
+import { getDAOMembers, getMemberRole, parseDaokitMemberRows, parseMembersFromRender } from "./members"
+import { bech32Encode } from "./realmAddress"
 import { queryRender, queryRenderPage, clearDaoDialects } from "./shared"
 import { resilientAbciQuery } from "../rpcFallback"
 
@@ -310,27 +311,28 @@ describe("parseProposalList daokit table leg", () => {
 
 // ── parseMembersFromRender: daokit members table ──────────────
 
-describe("parseMembersFromRender daokit table leg", () => {
+describe("members table and bullet parsing", () => {
     const realm = "gno.land/r/samcrew/memba_dao"
+    const valid = (i: number) => bech32Encode("g", new Uint8Array(20).fill(i))
 
     it("parses the members table: full address from the /u/ link, roles from :role/ links", () => {
-        const members = parseMembersFromRender(daokitMembers(realm))
+        const members = parseDaokitMemberRows(daokitMembers(realm), realm)!
         expect(members).toHaveLength(1)
         expect(members[0].address).toBe("g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0")
         expect(members[0].roles).toEqual(["admin", "dev"])
     })
 
-    it("still parses the legacy bullet format (regression)", () => {
-        const members = parseMembersFromRender("- g1abc (roles: admin) | power: 3\n- g1def\n")
+    it("still parses the legacy bullet format inside the Members section (regression)", () => {
+        const members = parseMembersFromRender(`## Members\n- ${valid(1)} (roles: admin) | power: 3\n- ${valid(2)}\n`)
         expect(members).toHaveLength(2)
-        expect(members[0]).toMatchObject({ address: "g1abc", roles: ["admin"], votingPower: 3 })
+        expect(members[0]).toMatchObject({ address: valid(1), roles: ["admin"], votingPower: 3 })
     })
 
-    it("bullets win over an injected table-shaped string (legacy realms keep their authentic roster)", () => {
-        const injected = memberRow("gno.land/r/x/legacy", "Evil", "g1attackerxxxxxxxxxxxxxxxxxxxxxxxxxxxxx", ["owner"])
-        const members = parseMembersFromRender(`- g1realmember (roles: admin)\n\nBio: ${injected}\n`)
+    it("a table-shaped string outside the Members section never adds members", () => {
+        const injected = memberRow("gno.land/r/x/legacy", "Evil", valid(9), ["owner"])
+        const members = parseMembersFromRender(`## Members\n- ${valid(1)} (roles: admin)\n\n## Profile\nBio: ${injected}\n`)
         expect(members).toHaveLength(1)
-        expect(members[0].address).toBe("g1realmember")
+        expect(members[0].address).toBe(valid(1))
     })
 })
 
@@ -480,7 +482,7 @@ describe("getDAOMembers daokit fallthrough", () => {
 
     it("fetches ALL pager pages in parallel off the max-page scan (a next-link walk would stop at page 2)", async () => {
         const realm = "gno.land/r/samcrew/daokit_m2"
-        const addr = (i: number) => `g1member${String(i).padStart(32, "0")}`
+        const addr = (i: number) => bech32Encode("g", new Uint8Array(20).fill(i))
         const rows = (from: number, to: number) =>
             Array.from({ length: to - from + 1 }, (_, k) => memberRow(realm, `M${from + k}`, addr(from + k), ["member"]))
         mockQuery.mockImplementation(
@@ -615,10 +617,12 @@ describe("getProposalDetail daokit leg", () => {
         expect(detail!.yesVotes).toBe(1) // the REAL tally, not 99
         expect(detail!.yesPercent).toBe(33)
         expect(detail!.author).toBe("g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0")
-        expect(detail!.actionBody).toBe("Add member g1newmemberaddrxxxxxxxxxxxxxxxxxxxxxxx with roles []")
+        // A second Status block means the action card cannot be attributed.
+        expect(detail!.actionUnverified).toBe(true)
+        expect(detail!.actionBody).toBeUndefined()
     })
 
-    it("a hostile ACTION BODY cannot re-label the action — the real Resource section renders before it and wins", async () => {
+    it("a hostile ACTION BODY cannot re-label the action — the action is reported as unverified", async () => {
         const realm = "gno.land/r/samcrew/daokit_d4b"
         const hostileAction = [
             "kv profile update:",
@@ -643,8 +647,10 @@ describe("getProposalDetail daokit leg", () => {
         )
 
         const detail = await getProposalDetail(RPC, realm, 1)
-        expect(detail!.actionType).toBe("basedao-edit-profile") // NOT the injected add-member
-        expect(detail!.actionBody!.startsWith("kv profile update:")).toBe(true) // the real block
+        // A second Resource block: neither copy is shown as the action.
+        expect(detail!.actionUnverified).toBe(true)
+        expect(detail!.actionType).toBeUndefined()
+        expect(detail!.actionBody).toBeUndefined()
         expect(detail!.status).toBe("open")
         expect(detail!.yesVotes).toBe(1)
     })
@@ -741,7 +747,8 @@ Yes: 30/30 = 100%
 // guaranteed-dead round-trips on every read.
 
 describe("dao dialect memo", () => {
-    const qevalCalls = () => mockQuery.mock.calls.filter(([p]) => p === "vm/qeval").length
+    // Username lookups (r/sys/users ResolveAddress) are not DAO probes.
+    const qevalCalls = () => mockQuery.mock.calls.filter(([p, d]) => p === "vm/qeval" && !String(d).startsWith("gno.land/r/sys/users.")).length
 
     it("after a daokit realm is learned, getProposalDetail goes straight to proposal/N (no dead Render('N') probe)", async () => {
         const realm = "gno.land/r/samcrew/dialect_1"

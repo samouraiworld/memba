@@ -5,6 +5,7 @@
  * test message builders via their public API.
  */
 import { describe, it, expect } from 'vitest'
+import { bech32Encode } from './realmAddress'
 import {
     // Internal functions exported for testing (via _test exports)
     _normalizeStatus,
@@ -271,15 +272,17 @@ Tier T3 contains 20 members with power: 20
 // ── parseMembersFromRender ──────────────────────────────────────
 
 describe('parseMembersFromRender', () => {
+    const V = (i: number) => bech32Encode('g', new Uint8Array(20).fill(i))
+
     it('parses v5.3.0 format (roles + pipe + power)', () => {
         const data = `## Members (3)
-- g1addr1 (roles: admin, dev) | power: 3
-- g1addr2 (roles: member) | power: 1
-- g1addr3 (roles: finance) | power: 2
+- ${V(1)} (roles: admin, dev) | power: 3
+- ${V(2)} (roles: member) | power: 1
+- ${V(3)} (roles: finance) | power: 2
 `
         const members = _parseMembersFromRender(data)
         expect(members).toHaveLength(3)
-        expect(members[0].address).toBe('g1addr1')
+        expect(members[0].address).toBe(V(1))
         expect(members[0].roles).toEqual(['admin', 'dev'])
         expect(members[0].votingPower).toBe(3)
         expect(members[1].roles).toEqual(['member'])
@@ -287,19 +290,19 @@ describe('parseMembersFromRender', () => {
 
     it('parses v5.0.x format (power only)', () => {
         const data = `## Members (2)
-- g1abc (power: 1)
-- g1def (power: 2)
+- ${V(4)} (power: 1)
+- ${V(5)} (power: 2)
 `
         const members = _parseMembersFromRender(data)
         expect(members).toHaveLength(2)
-        expect(members[0].address).toBe('g1abc')
+        expect(members[0].address).toBe(V(4))
         expect(members[0].votingPower).toBe(1)
         expect(members[0].roles).toEqual([])
     })
 
     it('parses legacy em dash format', () => {
         const data = `## Members
-- g1abc (roles: admin) — power: 5
+- ${V(4)} (roles: admin) — power: 5
 `
         const members = _parseMembersFromRender(data)
         expect(members).toHaveLength(1)

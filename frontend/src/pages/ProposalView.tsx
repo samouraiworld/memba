@@ -397,8 +397,20 @@ export function ProposalView() {
                 />
             )}
 
+            {proposal.actionUnverified && (
+                <div className="k-card proposal-action-card" role="status">
+                    <h3 className="proposal-action-title">Action type could not be verified</h3>
+                    <p className="proposal-desc-text">This proposal&apos;s text imitates the contract&apos;s action details, so no action summary is shown. Review the proposal on the realm before voting.</p>
+                </div>
+            )}
+            {proposal.actionType && /ChangeDAOImplementation/.test(proposal.actionType) && (
+                <div className="proposal-warning" role="alert">
+                    ⚠ This proposal replaces the DAO&apos;s code. If executed, the new code controls the DAO.
+                </div>
+            )}
+
             {/* v2.13: Proposal Action Metadata */}
-            {(proposal.actionType || proposal.actionBody || proposal.executorRealm) && (
+            {!proposal.actionUnverified && (proposal.actionType || proposal.actionBody || proposal.executorRealm) && (
                 <div className="k-card proposal-action-card">
                     <h3 className="proposal-action-title">
                         📦 Proposal Action

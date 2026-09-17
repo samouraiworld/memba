@@ -27,7 +27,8 @@ export function DAOMembers() {
         enabled: !!realmPath,
         queryFn: async () => {
             const cfg = await getDAOConfig(GNO_RPC_URL, realmPath!)
-            const mems = await getDAOMembers(GNO_RPC_URL, realmPath!, cfg?.memberstorePath)
+            // Strict: a failed roster read shows as an error, never as an empty DAO.
+            const mems = await getDAOMembers(GNO_RPC_URL, realmPath!, cfg?.memberstorePath, true)
             return { config: cfg, members: mems }
         },
     })

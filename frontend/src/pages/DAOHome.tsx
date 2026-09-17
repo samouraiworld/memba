@@ -143,8 +143,10 @@ export function DAOHome() {
             title: p.titleIsPlaceholder && detail?.title && detail.title !== fallbackProposalTitle(p.id)
                 ? detail.title
                 : p.title,
-            yesPercent: detail?.yesPercent || (totalCount > 0 ? Math.round((yesCount / totalCount) * 100) : 0),
-            noPercent: detail?.noPercent || (totalCount > 0 ? Math.round((noCount / totalCount) * 100) : 0),
+            // Percentages are voting-power shares from the proposal detail; a
+            // head count of voters is never substituted for them.
+            yesPercent: detail ? detail.yesPercent : p.yesPercent,
+            noPercent: detail ? detail.noPercent : p.noPercent,
             yesVotes: detail?.yesVotes || yesCount,
             noVotes: detail?.noVotes || noCount,
             abstainVotes: detail?.abstainVotes || 0,
