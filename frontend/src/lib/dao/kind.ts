@@ -72,6 +72,11 @@ export function capabilitiesFor(kind: DaoKind, network: NetworkConfig): DaoCapab
     }
 }
 
+/** Whether Memba builds vote transactions for this kind (on any network). */
+export function kindSupportsVoting(kind: DaoKind): boolean {
+    return kind === "govdao" || kind === "memba-v1" || kind === "memba-v2"
+}
+
 // ── Resolution ────────────────────────────────────────────────
 
 const kindCache = new Map<string, DaoKind>()

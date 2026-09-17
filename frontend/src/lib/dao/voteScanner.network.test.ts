@@ -6,6 +6,7 @@ vi.mock("./members", () => ({ getDAOMembers: async () => [{ address }] }))
 vi.mock("./proposals", () => ({ getDAOProposals: calls.proposals, getProposalVotes: calls.votes }))
 vi.mock("./config", () => ({ getDAOConfig: async () => ({}) }))
 vi.mock("../profile", () => ({ resolveOnChainUsername: async () => "" }))
+vi.mock("./kind", () => ({ resolveDaoKind: async () => "govdao", kindSupportsVoting: () => true }))
 vi.mock("../daoSlug", () => ({
     getSavedDAOs: () => [], FEATURED_DAO: { realmPath: "gno.land/r/example/dao", name: "DAO" }, encodeSlug: (path: string) => path,
 }))
@@ -13,7 +14,7 @@ vi.mock("../daoSlug", () => ({
 async function onChain(chain: string) {
     // The application reloads modules when switching networks; sessionStorage survives.
     vi.resetModules()
-    vi.doMock("../config", () => ({ GNO_RPC_URL: `rpc:${chain}`, networkScopedKey: (base: string) => `${base}::${chain}` }))
+    vi.doMock("../config", () => ({ GNO_RPC_URL: `rpc:${chain}`, GNO_CHAIN_ID: chain, networkScopedKey: (base: string) => `${base}::${chain}` }))
     calls.proposals.mockImplementation(async (rpc: string) => [{ id: 1, title: `Decision on ${rpc}`, status: "open" }])
     return import("./voteScanner")
 }

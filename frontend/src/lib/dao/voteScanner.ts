@@ -7,7 +7,8 @@
 import { getDAOMembers } from "./members"
 import { getDAOProposals, getProposalVotes } from "./proposals"
 import { getDAOConfig } from "./config"
-import { GNO_RPC_URL, networkScopedKey } from "../config"
+import { GNO_CHAIN_ID, GNO_RPC_URL, networkScopedKey } from "../config"
+import { kindSupportsVoting, resolveDaoKind } from "./kind"
 import { getSavedDAOs, FEATURED_DAO, encodeSlug } from "../daoSlug"
 import { resolveOnChainUsername } from "../profile"
 import { sameFullAddress } from "../addressMatch"
@@ -113,6 +114,15 @@ function getDAOsToScan(): { path: string; name: string }[] {
         .map(([path, name]) => ({ path, name }))
 }
 
+/** Whether Memba can build a vote for this DAO's contract (unreadable → no). */
+async function daoAcceptsVotes(realmPath: string): Promise<boolean> {
+    try {
+        return kindSupportsVoting(await resolveDaoKind({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID, realmPath }))
+    } catch {
+        return false
+    }
+}
+
 /**
  * Does one rendered voter entry identify the connected user?
  *
@@ -175,6 +185,8 @@ export async function scanUnvotedProposals(address: string): Promise<number> {
 
     for (const dao of daos) {
         try {
+            // Only DAOs whose contract accepts votes from Memba are offered.
+            if (!(await daoAcceptsVotes(dao.path))) { await delay(100); continue }
             // Get config for memberstore path
             let memberstorePath: string | undefined
             try {
@@ -242,6 +254,8 @@ export async function scanUnvotedProposalDetails(address: string): Promise<Unvot
     for (const dao of daos) {
         if (results.length >= MAX_UNVOTED_DETAILS) break
         try {
+            // Only DAOs whose contract accepts votes from Memba are offered.
+            if (!(await daoAcceptsVotes(dao.path))) { await delay(100); continue }
             // Get config for memberstore path
             let memberstorePath: string | undefined
             try {
