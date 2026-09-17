@@ -491,7 +491,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // empty set accepts EVERY chain (F-29b fails open).
     mainnet: {
         chainId: "gnoland-1",
-        userDaos: { create: false, channelsCompanion: false },
+        userDaos: { create: true, channelsCompanion: false },
         // UN-HIDDEN for the read-only lanes only. What this does and does not
         // unlock is the whole point of the split below:
         //

@@ -107,8 +107,15 @@ describe("capability-driven DAO shell", () => {
         expect(screen.getByRole("button", { name: /channels/i })).toBeInTheDocument()
     })
 
-    it("mainnet DAO creation is unavailable while creation is off", async () => {
+    it("mainnet DAO creation is available, without the channels companion", async () => {
+        const { NETWORKS } = await import("../../lib/config")
+        expect(NETWORKS.mainnet.userDaos).toEqual({ create: true, channelsCompanion: false })
         mount("/mainnet/dao/create")
+        expect(await screen.findByText("Create DAO form")).toBeInTheDocument()
+    })
+
+    it("DAO creation is unavailable where the network does not allow it", async () => {
+        mount("/test13/dao/create")
         expect(await screen.findByRole("heading", { name: /not available/i })).toBeInTheDocument()
         expect(screen.queryByText("Create DAO form")).not.toBeInTheDocument()
     })
