@@ -9,7 +9,7 @@
  */
 
 import { AbciQueryError } from "../rpcFallback"
-import type { NETWORKS } from "../config"
+import { NETWORKS } from "../config"
 import { hasOwnSubpageLink, queryEval, queryRender } from "./shared"
 import { parseWeightedQeval, weightedConfigSchema } from "./weighted"
 
@@ -27,7 +27,7 @@ export const MEMBA_V2_TEMPLATE_VERSION = "memba-dao/2"
 /** API version exported by generated DAO realms of template version 1. */
 export const MEMBA_V1_API_VERSION = "1.0"
 
-const MAINNET_CHAIN_ID = "gnoland-1"
+const MAINNET_CHAIN_ID = NETWORKS.mainnet.chainId
 
 /** Gno realm path shape accepted before any query interpolates it. */
 const REALM_PATH_RE = /^gno\.land\/r\/[a-z0-9_-]+(?:\/[a-z0-9_]+)*$/

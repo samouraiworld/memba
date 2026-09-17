@@ -123,7 +123,7 @@ export function validateRealmPath(path: string): string | null {
 // ── LocalStorage persistence ──────────────────────────────
 
 /** Chain assigned to legacy entries that carry neither a chain id nor a known network. */
-const LEGACY_CHAIN_ID = NETWORKS.pearl?.chainId ?? "pearl-1"
+const LEGACY_CHAIN_ID = NETWORKS.pearl.chainId
 
 function isSavedDAO(d: unknown): d is SavedDAO {
     if (typeof d !== "object" || d === null) return false

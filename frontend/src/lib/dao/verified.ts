@@ -3,7 +3,7 @@
  * realm path match; a self-declared name never verifies anything. The demo
  * DAO realms are deliberately absent.
  */
-import { MEMBA_DAO } from "../config"
+import { MEMBA_DAO, NETWORKS } from "../config"
 
 export interface VerifiedDao {
     path: string
@@ -11,8 +11,8 @@ export interface VerifiedDao {
 }
 
 export const VERIFIED_DAOS: Readonly<Record<string, ReadonlyArray<VerifiedDao>>> = Object.freeze({
-    "gnoland-1": [{ path: "gno.land/r/gov/dao", name: "GovDAO" }],
-    "pearl-1": [
+    [NETWORKS.mainnet.chainId]: [{ path: "gno.land/r/gov/dao", name: "GovDAO" }],
+    [NETWORKS.pearl.chainId]: [
         { path: "gno.land/r/gov/dao", name: "GovDAO" },
         { path: MEMBA_DAO.realmPath, name: "Memba DAO" },
     ],
