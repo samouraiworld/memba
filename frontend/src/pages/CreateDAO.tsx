@@ -554,7 +554,7 @@ export function CreateDAO() {
                     walletAddress={adena.address}
                     networkLabel={caps.label} chainId={GNO_CHAIN_ID} windows={windows}
                     depositEstimateUgnot={depositEstimateUgnot} depositCapUgnot={depositCapUgnot}
-                    deployGas={deployGas} networkFeeUgnot={networkFeeUgnot}
+                    deployGas={deployGas} networkFeeUgnot={networkFeeUgnot} channelsFeeUgnot={getGasConfig().fee}
                     channelsPlanned={channelsPlanned}
                     confirmed={confirmed} onConfirmChange={setConfirmed}
                     onGoToStep={goToStep} onDeploy={deployDAO}

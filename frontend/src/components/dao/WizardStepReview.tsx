@@ -25,6 +25,8 @@ interface Props {
     depositCapUgnot: number
     deployGas: number
     networkFeeUgnot: number
+    /** Fee of the channels companion deploy (profile budget), shown when it is planned. */
+    channelsFeeUgnot: number
     channelsPlanned: boolean
     confirmed: boolean
     onConfirmChange: (confirmed: boolean) => void
@@ -43,7 +45,7 @@ export function WizardStepReview({
     name, description, realmPath, selectedPreset,
     threshold, quorum, availableRoles, proposalCategories,
     validMembers, totalPower, generatedCode, deploying, walletAddress,
-    networkLabel, chainId, windows, depositEstimateUgnot, depositCapUgnot, deployGas, networkFeeUgnot, channelsPlanned,
+    networkLabel, chainId, windows, depositEstimateUgnot, depositCapUgnot, deployGas, networkFeeUgnot, channelsFeeUgnot, channelsPlanned,
     confirmed, onConfirmChange, onGoToStep, onDeploy,
 }: Props) {
     const signatures = channelsPlanned ? 2 : 1
@@ -126,6 +128,9 @@ export function WizardStepReview({
             <div style={noticeStyle} data-testid="dao-deploy-disclosure">
                 <div><strong>Storage deposit:</strong> about {formatGnot(depositEstimateUgnot)}, capped at {formatGnot(depositCapUgnot)}. It is locked to the realm and refunded only when its storage is freed.</div>
                 <div><strong>Network fee:</strong> up to {formatGnot(networkFeeUgnot)} (your wallet may lower it). Gas limit {deployGas.toLocaleString("en-US")}.</div>
+                {channelsPlanned && (
+                    <div><strong>Channels companion (second signature):</strong> storage deposit cap {formatGnot(depositCapUgnot)}, network fee up to {formatGnot(channelsFeeUgnot)}.</div>
+                )}
                 <div><strong>No member has special powers:</strong> every change is decided by vote.</div>
                 <div><strong>This DAO cannot hold funds.</strong> Do not send tokens to its address.</div>
                 <div>The code and the realm path are permanent once deployed.</div>

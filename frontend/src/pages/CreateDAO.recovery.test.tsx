@@ -42,6 +42,13 @@ describe("DAO creation recovery", () => {
         resume()
         expect(document.querySelector("code")).toHaveTextContent("package recovery")
     })
+    it("lists the channels companion's own deposit cap and network fee on the review step", () => {
+        resume()
+        expect(screen.getByTestId("dao-deploy-disclosure")).toHaveTextContent(/Channels companion \(second signature\): storage deposit cap 13 GNOT, network fee up to 1 GNOT\./)
+        cleanup(); localStorage.clear()
+        resume({ enableChannels: false })
+        expect(screen.getByTestId("dao-deploy-disclosure")).not.toHaveTextContent("Channels companion")
+    })
     it("keeps an existing draft intact while the resume decision is pending", async () => {
         const saved = JSON.stringify(draft())
         localStorage.setItem("memba_dao_draft", saved)
