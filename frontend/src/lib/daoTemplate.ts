@@ -50,7 +50,7 @@ function daoPackageError(path: string): string | null {
     return null
 }
 
-/** Lone UTF-16 surrogates cannot be written into Gno source (R-13). */
+/** Lone UTF-16 surrogates cannot be written into Gno source. */
 function hasLoneSurrogate(s: string): boolean {
     return /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(s)
 }
