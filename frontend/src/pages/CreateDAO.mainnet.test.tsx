@@ -100,12 +100,12 @@ describe("Create DAO on gnoland-1", () => {
         expect(screen.queryByPlaceholderText("My DAO")).not.toBeInTheDocument()
     })
 
-    it("discloses network, permanence, deposit and powers, and keeps Deploy disabled until confirmed", () => {
+    it("discloses network, permanence, deposit and powers, and keeps Deploy disabled until confirmed", async () => {
         resumeReview()
         const disclosure = screen.getByTestId("dao-deploy-disclosure")
         expect(disclosure).toHaveTextContent(/Storage deposit: about 6\.2 GNOT, capped at 13 GNOT/)
-        // 57M gas x 1.2 at 1 ugnot per 1000 gas is below the default 1 GNOT profile fee
-        expect(disclosure).toHaveTextContent(/Network fee: up to 1 GNOT \(your wallet may lower it\)\. Gas limit 57,000,000\./)
+        // gnoland-1 is inert: the submit model (48M gas) at 1 ugnot per 1000 gas, plus 20 %
+        await waitFor(() => expect(disclosure).toHaveTextContent(/Network fee: up to 0\.058 GNOT \(your wallet may lower it\)\. Gas limit 48,000,000\./))
         expect(screen.getAllByText("Roles are labels; they grant no special powers.").length).toBeGreaterThan(0)
         expect(disclosure).toHaveTextContent("Roles grant no special powers. Voting power decides.")
         expect(disclosure).not.toHaveTextContent("No member has special powers")
@@ -129,7 +129,7 @@ describe("Create DAO on gnoland-1", () => {
         expect(await screen.findByText("DAO deployed successfully!")).toBeInTheDocument()
         expect(mocks.broadcast).toHaveBeenCalledTimes(1)
         const [[msgs, memo, opts]] = mocks.broadcast.mock.calls
-        expect(opts).toEqual({ gas: "deploy", gasWanted: 57_000_000 })
+        expect(opts).toEqual({ gas: "deploy", gasWanted: 48_000_000 })
         expect(msgs[0].value.max_deposit).toBe("13000000ugnot")
         expect(msgs[0].value).not.toHaveProperty("deposit")
         expect(memo).toBe(`Deploy realm ${PATH} (storage deposit up to 13 GNOT)`)
@@ -206,13 +206,14 @@ describe("Create DAO on gnoland-1", () => {
         expect(waitForPackage).toHaveBeenCalledTimes(1)
     })
 
-    it("with an unreadable policy a live package is still a created DAO", async () => {
+    it("with an unreadable policy a live package is still a created DAO, sized with the full deploy model", async () => {
         policyReply = "not json"
         statuses = [meta.absent(), meta.live()]
         resumeReview()
         confirm()
         fireEvent.click(deployButton())
         expect(await screen.findByText("DAO deployed successfully!")).toBeInTheDocument()
+        expect(mocks.broadcast.mock.calls[0][2]).toEqual({ gas: "deploy", gasWanted: 57_000_000 })
     })
 
     it("refuses a path that is already used, before any signature", async () => {

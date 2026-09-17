@@ -524,27 +524,29 @@ describe('doContractBroadcast — explicit gasWanted', () => {
         return fetchSpy
     }
     const addPkgMsg = { type: '/vm.m_addpkg', value: { creator: 'g1x', package: {} } }
-    const lowFeeProfile = { fee: 10_000, wanted: 10_000_000, deployWanted: 50_000_000 }
-    const defaultProfile = { fee: 1_000_000, wanted: 10_000_000, deployWanted: 50_000_000 }
 
     beforeEach(() => {
         __resetGasPriceCache()
         localStorage.clear()
     })
 
-    it('prices the gas limit at the network rate with 20 % headroom, never below the profile fee', () => {
+    it('prices an explicit gas limit at the network rate with 20 % headroom and no profile floor', () => {
         const price = { gas: 1000, ugnot: 1 }
-        // a small DAO deploy (57M gas): 0.0684 GNOT at the network rate
-        const small = feeForGasWanted(lowFeeProfile, 57_000_000, price)
+        // a small DAO deploy (57M gas): 0.0684 GNOT
+        const small = feeForGasWanted(57_000_000, price)
         expect(small).toBe(68_400)
         expect(small).toBeGreaterThanOrEqual(57_000)
         expect(small).toBeLessThanOrEqual(100_000)
-        // the default profile's flat fee stays the floor
-        expect(feeForGasWanted(defaultProfile, 57_000_000, price)).toBe(1_000_000)
-        expect(feeForGasWanted(defaultProfile, 334_000_000, price)).toBe(1_000_000)
-        expect(feeForGasWanted(lowFeeProfile, 334_000_000, price)).toBe(400_800)
-        // independent of the user's gas limit setting
-        expect(feeForGasWanted({ ...lowFeeProfile, wanted: 2_000_000, deployWanted: 10_000_000 }, 57_000_000, price)).toBe(68_400)
+        expect(feeForGasWanted(334_000_000, price)).toBe(400_800)
+        expect(feeForGasWanted(48_000_000, { gas: 1000, ugnot: 10 })).toBe(576_000)
+    })
+
+    it('ignores a reported price above ten times the default and uses the default', async () => {
+        stubGasPrice('11ugnot')
+        expect(await networkGasPrice(GNO_CHAIN_ID, ['https://rpc.one.invalid'])).toEqual({ gas: 1000, ugnot: 1 })
+        __resetGasPriceCache()
+        stubGasPrice('10ugnot')
+        expect(await networkGasPrice(GNO_CHAIN_ID, ['https://rpc.one.invalid'])).toEqual({ gas: 1000, ugnot: 10 })
     })
 
     it('reads the network gas price live and caches it per chain', async () => {
@@ -562,15 +564,17 @@ describe('doContractBroadcast — explicit gasWanted', () => {
         expect(await networkGasPrice(GNO_CHAIN_ID, ['https://rpc.one.invalid'])).toEqual({ gas: 1000, ugnot: 1 })
     })
 
-    it('sends the gas limit and the live-priced fee to the wallet', async () => {
-        localStorage.setItem('memba_settings', JSON.stringify({ gasFee: 10_000, gasWanted: 10_000_000 }))
+    it('sends the gas limit and the live-priced fee to the wallet, whatever the profile fee', async () => {
         stubGasPrice('2ugnot')
         const calls = capture()
         await doContractBroadcast([addPkgMsg], 'big', { gas: 'deploy', gasWanted: 200_000_000 })
         expect(calls[0]).toMatchObject({ gasWanted: 200_000_000, gasFee: 480_000 })
-        localStorage.clear()
-        await doContractBroadcast([addPkgMsg], 'default profile', { gas: 'deploy', gasWanted: 57_000_000 })
-        expect(calls[1]).toMatchObject({ gasWanted: 57_000_000, gasFee: 1_000_000 })
+        localStorage.setItem('memba_settings', JSON.stringify({ gasFee: 5_000_000, gasWanted: 10_000_000 }))
+        await doContractBroadcast([addPkgMsg], 'high profile fee', { gas: 'deploy', gasWanted: 57_000_000 })
+        expect(calls[1]).toMatchObject({ gasWanted: 57_000_000, gasFee: 136_800 })
+        // without an explicit limit the profile applies unchanged
+        await doContractBroadcast([addPkgMsg], 'profile', { gas: 'deploy' })
+        expect(calls[2]).toMatchObject({ gasWanted: 50_000_000, gasFee: 5_000_000 })
     })
 
     it.each([0, -1, 1.5, Number.NaN, MAX_GAS_WANTED + 1])('refuses gasWanted %s before asking for confirmation', async (gasWanted) => {

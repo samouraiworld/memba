@@ -8,7 +8,7 @@
  */
 
 import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN, GNO_CHAIN_ID, API_BASE_URL } from "./config"
-import { getGasConfig, type GasConfig } from "./gasConfig"
+import { getGasConfig } from "./gasConfig"
 import { getRpcUrlsInOrder } from "./rpcFallback"
 import { abciQueryText } from "./dao/packageStatus"
 import * as Sentry from "@sentry/react"
@@ -209,6 +209,9 @@ export async function networkGasPrice(chainId: string = GNO_CHAIN_ID, rpcUrls: s
         const match = typeof raw.price === "string" ? /^([0-9]{1,15})ugnot$/.exec(raw.price) : null
         if (!Number.isSafeInteger(gas) || gas <= 0 || !match) throw new Error("Unexpected gas price")
         const price = { gas, ugnot: Number(match[1]) }
+        // Refuse a price above ten times the default: a misreporting endpoint
+        // must not be able to inflate fees.
+        if (price.ugnot * FALLBACK_GAS_PRICE.gas > 10 * FALLBACK_GAS_PRICE.ugnot * price.gas) throw new Error("Gas price out of range")
         gasPriceCache.set(chainId, price)
         return price
     } catch {
@@ -217,11 +220,12 @@ export async function networkGasPrice(chainId: string = GNO_CHAIN_ID, rpcUrls: s
 }
 
 /**
- * Fee for an explicit gas limit: the network price with 20 % headroom, never
- * below the profile's flat fee. Wallets that simulate may lower it.
+ * Fee for an explicit, measured gas limit: the network price with 20 %
+ * headroom. The profile's flat fee does not apply. Wallets that simulate may
+ * lower it.
  */
-export function feeForGasWanted(gas: GasConfig, gasWanted: number, price: GasPrice): number {
-    return Math.max(gas.fee, Math.ceil((gasWanted * 1.2 * price.ugnot) / price.gas))
+export function feeForGasWanted(gasWanted: number, price: GasPrice): number {
+    return Math.ceil((gasWanted * 1.2 * price.ugnot) / price.gas)
 }
 
 export async function doContractBroadcast(
@@ -256,7 +260,7 @@ export async function doContractBroadcast(
     // the wallet sign UI just to fail with "package already exists".
     const isDeploy = opts?.gas === "deploy"
     const gasWanted = opts?.gasWanted ?? (isDeploy ? gas.deployWanted : gas.wanted)
-    const gasFee = opts?.gasWanted !== undefined ? feeForGasWanted(gas, opts.gasWanted, await networkGasPrice()) : gas.fee
+    const gasFee = opts?.gasWanted !== undefined ? feeForGasWanted(opts.gasWanted, await networkGasPrice()) : gas.fee
     const maxRetries = isDeploy || opts?.retry === false ? 0 : 2
     let lastError: Error | null = null
 

@@ -14,7 +14,7 @@ import type { MemberInput, Step } from "../components/dao/wizardShared"
 import { generateDAOCode, buildDeployDAOMsg, daoStepError, isValidGnoAddress, DAO_PRESETS, type DAOCreationConfig, type DAOPreset, type DAOStepData } from "../lib/daoTemplate"
 import { generateChannelCode, defaultChannelConfig, isValidChannelName } from "../lib/channelTemplate"
 import { buildDeployMsg } from "../lib/templates/prologue"
-import { daoDepositCapUgnot, estimateDAODepositUgnot, estimateDeployGas, formatGnot } from "../lib/templates/dao/v2/deposit"
+import { daoDepositCapUgnot, deployGasForPolicy, estimateDAODepositUgnot, formatGnot } from "../lib/templates/dao/v2/deposit"
 import { addSavedDAO, encodeSlug } from "../lib/daoSlug"
 import { doContractBroadcast, feeForGasWanted, networkGasPrice, FALLBACK_GAS_PRICE, type GasPrice } from "../lib/grc20"
 import { getGasConfig } from "../lib/gasConfig"
@@ -291,15 +291,25 @@ export function CreateDAO() {
     const depositInput = { name, description, roles: availableRoles, proposalCategories, members: members.filter((m) => m.address !== "") }
     const depositEstimateUgnot = estimateDAODepositUgnot(depositInput)
     const depositCapUgnot = daoDepositCapUgnot(depositInput)
-    // The deploy runs with a gas budget sized to the DAO so a large roster
-    // cannot run out of gas after the user signed.
-    const deployGas = estimateDeployGas(depositInput)
-    const networkFeeUgnot = feeForGasWanted(getGasConfig(), deployGas, gasPrice)
 
     // ── Deploy ────────────────────────────────────────────
 
     // Chain checks walk the network's endpoint list (each endpoint must serve this chain).
     const chain = useMemo(() => ({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID, rpcUrls: getRpcUrlsInOrder() }), [])
+
+    // The submission policy sizes the deploy: under "inert" AddPackage only
+    // stores the package. An unknown policy uses the larger full-deploy model.
+    const [submissionPolicy, setSubmissionPolicy] = useState("unknown")
+    useEffect(() => {
+        let active = true
+        codeSubmissionPolicy(chain).then((p) => { if (active) setSubmissionPolicy(p) }, () => {})
+        return () => { active = false }
+    }, [chain])
+
+    // The deploy runs with a gas budget sized to the DAO so a large roster
+    // cannot run out of gas after the user signed.
+    const deployGas = deployGasForPolicy(depositInput, submissionPolicy)
+    const networkFeeUgnot = feeForGasWanted(deployGas, gasPrice)
 
     const deployDAO = async () => {
         if (deploying || deployResult || approval) return
@@ -347,7 +357,7 @@ export function CreateDAO() {
             const res = await doContractBroadcast(
                 [{ type: "/vm.m_addpkg", value: msg.value }],
                 `Deploy realm ${realmPath} (storage deposit up to ${formatGnot(cap)})${replacing ? "; replaces your earlier submission that gno.land has not enabled" : ""}`,
-                { gas: "deploy", gasWanted: estimateDeployGas(config) },
+                { gas: "deploy", gasWanted: deployGasForPolicy(config, policy) },
             )
             confirmedTx = res.hash
             setDeployStep("broadcasting")
