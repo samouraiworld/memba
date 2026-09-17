@@ -138,6 +138,7 @@ interface NetworkConfig {
      *  a notice instead of letting DAO/channel features fail with 404s. Omitted
      *  (or true) means the realms are deployed. */
     realmsDeployed?: boolean
+    userDaos?: { create: boolean; channelsCompanion: boolean }
 }
 
 /** Available Gno networks for the chain selector. */
@@ -161,6 +162,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // redirects; remove the entry once nothing references it.
     test13: {
         chainId: "test-13",
+        userDaos: { create: false, channelsCompanion: false },
         hidden: true,
         isTestnet: true,
         rpcUrl: import.meta.env.VITE_TEST13_RPC_URL || "https://rpc.test13.testnets.gno.land:443",
@@ -203,6 +205,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // entry once nothing references it.
     topaz: {
         chainId: "topaz-1",
+        userDaos: { create: false, channelsCompanion: false },
         hidden: true,
         isTestnet: true,
         // No monitoringChain override: gnomonitoring's registry currently
@@ -264,6 +267,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // faucet answers the standard gno JSON-RPC 2.0 shape.
     sapphire: {
         chainId: "sapphire-1",
+        userDaos: { create: false, channelsCompanion: false },
         // Retired to hidden per the 2026-09-09 sunset (owner directive recorded
         // above): the chain is being decommissioned; a hidden entry keeps
         // stored-network users resolvable (they fall back to the default
@@ -331,6 +335,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // adds pearl-1 to the backend's MEMBA_ACCEPTED_CHAIN_IDS
         // (AUTH-CHAINID-MISMATCH-01), never a wrong-chain tx.
         chainId: "pearl-1",
+        userDaos: { create: true, channelsCompanion: true },
         hidden: false,
         // Flipped by the §6 completion PR: the combined Pearl ceremony (core
         // set + commerce set) records per-artifact vm/qfile evidence in
@@ -367,6 +372,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     },
     gnoland1: {
         chainId: "gnoland1",
+        userDaos: { create: false, channelsCompanion: false },
         rpcUrl: "https://rpc.gnoland1.samourai.live:443",
         fallbackRpcUrls: [
             "https://rpc.gnoland1.moul.p2p.team",
@@ -478,6 +484,7 @@ export const NETWORKS: Record<string, NetworkConfig> = {
     // empty set accepts EVERY chain (F-29b fails open).
     mainnet: {
         chainId: "gnoland-1",
+        userDaos: { create: false, channelsCompanion: false },
         // UN-HIDDEN for the read-only lanes only. What this does and does not
         // unlock is the whole point of the split below:
         //

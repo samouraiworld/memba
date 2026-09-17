@@ -17,6 +17,7 @@ import {
     type DAOProposal,
 } from "../lib/dao"
 import { useDaoRoute } from "../hooks/useDaoRoute"
+import { useDaoKind } from "../hooks/useDaoKind"
 import { resolveOnChainUsername } from "../lib/profile"
 import { voterMatchesUser } from "../lib/dao/voteScanner"
 import { useJitsiContext } from "../contexts/JitsiContext"
@@ -25,7 +26,6 @@ import { DAOOverviewCard } from "../components/dao/DAOOverviewCard"
 import { ProDAOProposals } from "../components/dao/ProDAOProposals"
 import { DAOProposalsSection } from "../components/dao/DAOProposalsSection"
 import { DAOMembersPreview } from "../components/dao/DAOMembersPreview"
-import { DAOTreasuryCard, DAOPluginsGrid } from "../components/dao/DAOPluginsGrid"
 import { completeQuest, trackPageVisit } from "../lib/quests"
 import type { LayoutContext } from "../types/layout"
 import "./daohome.css"
@@ -36,6 +36,7 @@ export function DAOHome() {
     const { realmPath, encodedSlug } = useDaoRoute()
     const { auth, adena } = useOutletContext<LayoutContext>()
     const { session, joinRoom } = useJitsiContext()
+    const { capabilities } = useDaoKind(realmPath)
 
     const [showDeployModal, setShowDeployModal] = useState(false)
 
@@ -193,6 +194,8 @@ export function DAOHome() {
     const nonVoterCount = memberCount > 0 ? Math.max(0, memberCount - maxVoterParticipation) : 0
     const nonVoterPercent = memberCount > 0 ? Math.round((nonVoterCount / memberCount) * 100) : 0
     const currentMember = members.find((m) => m.address === adena.address)
+    // New proposals: only where the contract accepts them, and only for members.
+    const canPropose = capabilities.propose.length > 0 && auth.isAuthenticated && !!currentMember && !config?.isArchived
     const totalPower = config?.tierDistribution?.reduce((sum, t) => sum + t.power, 0) || 0
 
     // Derived values remain unchanged; avoid retaining a manual memo across preview branches.
@@ -252,6 +255,7 @@ export function DAOHome() {
                 healthScore={healthScore}
                 session={session}
                 joinRoom={joinRoom}
+                channels={capabilities.channels}
             />
 
             <div aria-live="polite">
@@ -262,12 +266,13 @@ export function DAOHome() {
                 loading={proposalsLoading}
                 failed={proposalsQuery.isError}
                 retry={() => { void proposalsQuery.refetch() }}
-                canPropose={auth.isAuthenticated && !config?.isArchived}
+                canPropose={canPropose}
                 votedIds={votedIds}
             /> : <DAOProposalsSection
                 encodedSlug={encodedSlug}
                 realmPath={realmPath}
                 isAuthenticated={auth.isAuthenticated}
+                canPropose={canPropose}
                 isArchived={config?.isArchived || false}
                 isMember={!!currentMember}
                 memberCount={memberCount}
@@ -288,8 +293,6 @@ export function DAOHome() {
                 currentUserAddress={adena.address}
             />}
 
-            <DAOTreasuryCard encodedSlug={encodedSlug} />
-            <DAOPluginsGrid encodedSlug={encodedSlug} />
 
             {showDeployModal && (
                 <DeployPluginModal

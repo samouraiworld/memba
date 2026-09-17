@@ -40,8 +40,8 @@ const CreateToken = lazy(() => import("./pages/CreateToken").then(m => ({ defaul
 const TokenView = lazy(() => import("./pages/TokenView").then(m => ({ default: m.TokenView })))
 
 // ── DAO pages (lazy — loaded on /dao/*) ──
-const CreateDAO = lazy(() => import("./pages/CreateDAO").then(m => ({ default: m.CreateDAO })))
 import { DAORouter } from "./components/dao/DAORouter"
+import { CreateDAOGate } from "./components/dao/CreateDAOGate"
 
 // ── GitHub OAuth callback (lazy) ──
 const GithubCallback = lazy(() => import("./pages/GithubCallback").then(m => ({ default: m.GithubCallback })))
@@ -239,7 +239,7 @@ function App() {
 
           {/* DAO routes — splat for clean realm paths with real / */}
           <Route path="dao" element={<Suspense fallback={<PageLoader />}><DAOList /></Suspense>} />
-          <Route path="dao/create" element={<Suspense fallback={<PageLoader />}><CreateDAO /></Suspense>} />
+          <Route path="dao/create" element={<CreateDAOGate />} />
           <Route path="dao/*" element={<DAORouter />} />
           <Route path="weighted-dao/*" element={<Suspense fallback={<PageLoader />}><WeightedDAO /></Suspense>} />
 

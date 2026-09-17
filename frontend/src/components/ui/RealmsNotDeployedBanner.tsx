@@ -39,9 +39,8 @@ export function RealmsNotDeployedBanner({ deployed, networkLabel }: RealmsNotDep
         >
             <span style={{ fontSize: "1.2rem", flexShrink: 0 }} aria-hidden="true">🚧</span>
             <div style={{ flex: 1 }}>
-                Memba isn't on <strong>{networkLabel}</strong> yet — its contracts are not
-                deployed on this network, so DAO and channel features are unavailable here.
-                Switch to a deployed network (e.g. <strong>Pearl</strong>) to use Memba.
+                Memba&apos;s own community realms (channels, candidature, feed, quests) are not on{" "}
+                <strong>{networkLabel}</strong> yet. You can read GovDAO and DAOs deployed by their members.
             </div>
         </div>
     )

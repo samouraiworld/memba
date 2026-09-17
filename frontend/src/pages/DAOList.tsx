@@ -1,10 +1,10 @@
 import { useState, useMemo } from "react"
 import { useQueries } from "@tanstack/react-query"
 import { useOutletContext } from "react-router-dom"
-import { useNetworkNav } from "../hooks/useNetworkNav"
+import { useNetworkKey, useNetworkNav } from "../hooks/useNetworkNav"
 import { Bank, LinkSimple } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
-import { GNO_RPC_URL, getExplorerBaseUrl, PRO_APP_ENABLED } from "../lib/config"
+import { GNO_RPC_URL, NETWORKS, getExplorerBaseUrl, PRO_APP_ENABLED } from "../lib/config"
 import { getDAOConfig, type DAOConfig } from "../lib/dao"
 import {
     FEATURED_DAO,
@@ -29,6 +29,7 @@ interface DAOEntry {
 
 export function DAOList() {
     const navigate = useNetworkNav()
+    const networkKey = useNetworkKey()
     const { auth } = useOutletContext<LayoutContext>()
     const { activeOrgId, activeOrgName, isOrgMode } = useOrg()
 
@@ -249,9 +250,9 @@ export function DAOList() {
 
             {/* ── Quick Actions ─────────────────────────────────── */}
             <div className="k-daolist__actions">
-                <button id="dao-create-btn" className="k-btn-primary" onClick={() => navigate("/dao/create")}>
+                {NETWORKS[networkKey]?.userDaos?.create === true && <button id="dao-create-btn" className="k-btn-primary" onClick={() => navigate("/dao/create")}>
                     + Create a DAO
-                </button>
+                </button>}
                 <button className="k-btn-secondary" onClick={() => setShowConnect(!showConnect)}>
                     <LinkSimple size={14} /> {showConnect ? "Hide" : "Connect to DAO"}
                 </button>

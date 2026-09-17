@@ -54,13 +54,15 @@ const V2_PROPOSALS: ReadonlyArray<DaoProposalKind> = Object.freeze(["text", "add
 export function capabilitiesFor(kind: DaoKind, network: NetworkConfig): DaoCapabilities {
     const mainnet = network.chainId === MAINNET_CHAIN_ID
     const channelsNetwork = !mainnet && network.realmsDeployed !== false
+    // User DAOs read channels from their own companion realm, offered only where enabled.
+    const companionChannels = channelsNetwork && network.userDaos?.channelsCompanion === true
     switch (kind) {
         case "govdao":
             return { propose: NO_PROPOSALS, vote: true, execute: true, membersOnlyWrites: true, channels: false, treasury: false, settings: false }
         case "memba-v2":
-            return { propose: V2_PROPOSALS, vote: true, execute: true, membersOnlyWrites: true, channels: channelsNetwork, treasury: false, settings: true }
+            return { propose: V2_PROPOSALS, vote: true, execute: true, membersOnlyWrites: true, channels: companionChannels, treasury: false, settings: true }
         case "memba-v1":
-            return { propose: V1_PROPOSALS, vote: true, execute: true, membersOnlyWrites: true, channels: channelsNetwork, treasury: false, settings: false }
+            return { propose: V1_PROPOSALS, vote: true, execute: true, membersOnlyWrites: true, channels: companionChannels, treasury: false, settings: false }
         case "daokit":
             return { propose: NO_PROPOSALS, vote: false, execute: false, membersOnlyWrites: true, channels: channelsNetwork, treasury: false, settings: false }
         case "weighted":

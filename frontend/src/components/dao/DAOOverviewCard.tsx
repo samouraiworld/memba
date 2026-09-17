@@ -29,6 +29,8 @@ interface DAOOverviewCardProps {
     healthScore: { grade: string; total: number; color: string; participationPts: number; execPts: number; activityPts: number } | null
     session: { daoSlug: string; channelName: string } | null
     joinRoom: (opts: { daoSlug: string; channelName: string; mode: "voice" | "video"; label: string; description?: string }) => void
+    /** Whether this DAO has channels on this network (capability). */
+    channels?: boolean
 }
 
 /** Build a concise text summary of DAO metrics for AI analysis. */
@@ -83,7 +85,7 @@ export function DAOOverviewCard({
     config, realmPath, encodedSlug, currentMember, isAuthenticated, walletAddress,
     memberCount, activeProposals, awaitingExecution, totalProposals,
     nonVoterPercent, nonVoterCount, maxVoterParticipation, proposalsWithVotesCount,
-    totalPower, healthScore, session, joinRoom, professional = false, proposalsKnown = true, membersKnown = true,
+    totalPower, healthScore, session, joinRoom, professional = false, proposalsKnown = true, membersKnown = true, channels = false,
 }: DAOOverviewCardProps) {
     const navigate = useNetworkNav()
 
@@ -237,14 +239,18 @@ export function DAOOverviewCard({
                     <div className="dao-channels-sidebar__header">
                         {config?.name || "DAO"} Channels
                     </div>
-                    <button aria-label="Open Discussion Channels" className="dao-channels-sidebar__item" onClick={() => navigate(`/dao/${encodedSlug}/channels`)}>
-                        <span className="dao-channels-sidebar__icon">#</span>
-                        <span>general</span>
-                    </button>
-                    <button aria-label="Open Announcements" className="dao-channels-sidebar__item" onClick={() => navigate(`/dao/${encodedSlug}/channels`)}>
-                        <span className="dao-channels-sidebar__icon">#</span>
-                        <span>announcements</span>
-                    </button>
+                    {channels && (
+                        <button aria-label="Open Discussion Channels" className="dao-channels-sidebar__item" onClick={() => navigate(`/dao/${encodedSlug}/channels`)}>
+                            <span className="dao-channels-sidebar__icon">#</span>
+                            <span>general</span>
+                        </button>
+                    )}
+                    {channels && (
+                        <button aria-label="Open Announcements" className="dao-channels-sidebar__item" onClick={() => navigate(`/dao/${encodedSlug}/channels`)}>
+                            <span className="dao-channels-sidebar__icon">#</span>
+                            <span>announcements</span>
+                        </button>
+                    )}
 
                     <div className="dao-channels-sidebar__divider">
                         <span>🎙️ Voice Rooms</span>

@@ -21,6 +21,7 @@ describe("RealmsNotDeployedBanner", () => {
         render(<RealmsNotDeployedBanner deployed={false} networkLabel="Testnet 13" />)
         const status = screen.getByRole("status")
         expect(status).toHaveTextContent(/Testnet 13/)
-        expect(status).toHaveTextContent(/not.*deployed|coming soon|isn't on/i)
+        expect(status).toHaveTextContent(/community realms .* are not on Testnet 13 yet/i)
+        expect(status).toHaveTextContent(/You can read GovDAO and DAOs deployed by their members/)
     })
 })

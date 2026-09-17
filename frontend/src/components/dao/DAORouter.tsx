@@ -12,15 +12,14 @@ import { useParams, Navigate } from "react-router-dom"
 import { parseDaoSplat } from "../../lib/daoSlug"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { ConnectingLoader } from "../ui/ConnectingLoader"
+import { useDaoKind } from "../../hooks/useDaoKind"
+import { DAOUnavailable } from "./DAOUnavailable"
 
 const DAOHome = lazy(() => import("../../pages/DAOHome").then(m => ({ default: m.DAOHome })))
 const ProposalView = lazy(() => import("../../pages/ProposalView").then(m => ({ default: m.ProposalView })))
 const DAOMembers = lazy(() => import("../../pages/DAOMembers").then(m => ({ default: m.DAOMembers })))
 const ProposeDAO = lazy(() => import("../../pages/ProposeDAO").then(m => ({ default: m.ProposeDAO })))
-const Treasury = lazy(() => import("../../pages/Treasury").then(m => ({ default: m.Treasury })))
-const TreasuryProposal = lazy(() => import("../../pages/TreasuryProposal").then(m => ({ default: m.TreasuryProposal })))
 const ChannelsPage = lazy(() => import("../../pages/ChannelsPage").then(m => ({ default: m.ChannelsPage })))
-const PluginPage = lazy(() => import("../../pages/PluginPage").then(m => ({ default: m.PluginPage })))
 const NotFound = lazy(() => import("../../pages/NotFound").then(m => ({ default: m.NotFound })))
 
 function PageLoader() {
@@ -31,6 +30,7 @@ export function DAORouter() {
     const { "*": splat = "" } = useParams()
     const networkKey = useNetworkKey()
     const { realmPath, subRoute } = parseDaoSplat(splat)
+    const { capabilities, loading: kindLoading } = useDaoKind(realmPath || undefined)
 
     // Legacy ~ redirect: /test12/dao/gno.land~r~gov~dao → /test12/dao/gno.land/r/gov/dao
     if (splat.includes("~")) {
@@ -47,6 +47,7 @@ export function DAORouter() {
     const subParts = subRoute.split("/")
     const subCommand = subParts[0] || ""
 
+    const daoHome = `/dao/${realmPath}`
     let element: React.ReactNode
     switch (subCommand) {
         case "":
@@ -59,20 +60,21 @@ export function DAORouter() {
             element = <DAOMembers />
             break
         case "propose":
-            element = <ProposeDAO />
+            if (kindLoading) element = <PageLoader />
+            else if (capabilities.propose.length === 0) element = <DAOUnavailable backTo={daoHome} reason="This DAO's contract does not accept proposals from Memba." />
+            else element = <ProposeDAO />
             break
         case "treasury":
-            if (subParts[1] === "propose") {
-                element = <TreasuryProposal />
-            } else {
-                element = <Treasury />
-            }
+            // No DAO kind Memba supports can hold or spend funds.
+            element = <DAOUnavailable backTo={daoHome} reason="Memba does not offer a treasury for DAOs." />
             break
         case "channels":
-            element = <ChannelsPage />
+            if (kindLoading) element = <PageLoader />
+            else if (!capabilities.channels) element = <DAOUnavailable backTo={daoHome} reason="Channels are not available for this DAO on this network." />
+            else element = <ChannelsPage />
             break
         case "plugin":
-            element = <PluginPage />
+            element = <DAOUnavailable backTo={daoHome} reason="DAO extensions are not available." />
             break
         default:
             element = <NotFound />

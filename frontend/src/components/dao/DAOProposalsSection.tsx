@@ -8,6 +8,8 @@ interface DAOProposalsSectionProps {
     encodedSlug: string
     realmPath: string
     isAuthenticated: boolean
+    /** Contract accepts proposals, the wallet is a member and the DAO is not archived. */
+    canPropose?: boolean
     isArchived: boolean
     isMember: boolean
     memberCount: number
@@ -19,7 +21,7 @@ interface DAOProposalsSectionProps {
 }
 
 export function DAOProposalsSection({
-    encodedSlug, realmPath, isAuthenticated, isArchived, isMember, memberCount,
+    encodedSlug, realmPath, isAuthenticated, canPropose = false, isMember, memberCount,
     activeProposals, completedProposals, votedIds, enrichedIds, proposalsLoading,
 }: DAOProposalsSectionProps) {
     const navigate = useNetworkNav()
@@ -31,7 +33,7 @@ export function DAOProposalsSection({
             <div id="dao-proposals-section">
                 <div className="dao-section-header">
                     <h3 className="dao-section-title">Active Proposals</h3>
-                    {isAuthenticated && !isArchived && (
+                    {canPropose && (
                         <button
                             className="k-btn-primary dao-new-proposal-btn"
                             onClick={() => navigate(`/dao/${encodedSlug}/propose`)}
