@@ -1,4 +1,5 @@
 import { FormField, type MemberInput, type Step } from "./wizardShared"
+import { formatDuration } from "../../lib/templates/dao/v2/duration"
 
 interface Props {
     threshold: number
@@ -6,6 +7,7 @@ interface Props {
     proposalCategories: string[]
     validMembers: MemberInput[]
     totalPower: number
+    windows: { votingPeriodSeconds: number; executionDelaySeconds: number; executionWindowSeconds: number }
     onThresholdChange: (v: number) => void
     onQuorumChange: (v: number) => void
     onToggleCategory: (cat: string) => void
@@ -14,20 +16,21 @@ interface Props {
 }
 
 export function WizardStepConfig({
-    threshold, quorum, proposalCategories, validMembers, totalPower,
+    threshold, quorum, proposalCategories, validMembers, totalPower, windows,
     onThresholdChange, onQuorumChange, onToggleCategory, onGoToStep, onNext,
 }: Props) {
     return (
         <div className="k-card" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
             {/* Threshold */}
-            <FormField label="Voting Threshold" hint="Percentage of total power required to pass a proposal">
+            <FormField label="Voting Threshold" hint="Share of all voting power that must vote YES. More than half is required.">
                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                     <input
                         type="range"
                         value={threshold}
                         onChange={(e) => onThresholdChange(parseInt(e.target.value, 10))}
-                        min="1"
+                        min="51"
                         max="100"
+                        aria-label="Voting threshold"
                         style={{ flex: 1 }}
                     />
                     <span style={{
@@ -40,7 +43,7 @@ export function WizardStepConfig({
             </FormField>
 
             {/* Quorum */}
-            <FormField label="Quorum" hint="Minimum participation % before any proposal can pass (0 = no quorum)">
+            <FormField label="Quorum" hint="Share of all voting power that must take part (YES, NO or ABSTAIN) before a proposal can pass (0 = no quorum)">
                 <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
                     <input
                         type="range"
@@ -67,9 +70,9 @@ export function WizardStepConfig({
             </FormField>
 
             {/* Proposal Categories */}
-            <FormField label="Proposal Categories" hint="Types of proposals allowed in this DAO">
+            <FormField label="Proposal Categories" hint="Labels for text proposals. Membership changes and archiving have their own proposal types.">
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                    {["governance", "treasury", "membership", "operations"].map((cat) => {
+                    {["governance", "membership", "operations"].map((cat) => {
                         const active = proposalCategories.includes(cat)
                         return (
                             <button
@@ -99,6 +102,9 @@ export function WizardStepConfig({
                 <p style={{ fontSize: "var(--pro-small, 13px)", color: "var(--color-text)", marginTop: 4, fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
                     A proposal needs <strong style={{ color: "var(--color-primary)" }}>{Math.ceil(totalPower * threshold / 100)}</strong> YES power to pass
                     {quorum > 0 && <> with at least <strong style={{ color: "var(--color-k-purple-text)" }}>{quorum}%</strong> participation</>}
+                </p>
+                <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", marginTop: 8, fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>
+                    Voting lasts {formatDuration(windows.votingPeriodSeconds)}. An accepted proposal can be executed after {formatDuration(windows.executionDelaySeconds)} and during the following {formatDuration(windows.executionWindowSeconds)}; after that it lapses.
                 </p>
             </div>
 

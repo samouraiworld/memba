@@ -1,6 +1,8 @@
 import { DAO_PRESETS } from "../../lib/daoTemplate"
+import { formatDuration } from "../../lib/templates/dao/v2/duration"
+import { formatGnot } from "../../lib/templates/dao/v2/deposit"
 import { GnoCodeBlock } from "../ui/GnoCodeBlock"
-import { SummaryItem, ROLE_COLORS, ROLE_ICONS, type MemberInput, type Step } from "./wizardShared"
+import { SummaryItem, ROLE_COLORS, type MemberInput, type Step } from "./wizardShared"
 
 interface Props {
     name: string
@@ -16,16 +18,33 @@ interface Props {
     generatedCode: string
     deploying: boolean
     walletAddress: string
+    networkLabel: string
+    chainId: string
+    windows: { votingPeriodSeconds: number; executionDelaySeconds: number; executionWindowSeconds: number }
+    depositEstimateUgnot: number
+    depositCapUgnot: number
+    channelsPlanned: boolean
+    confirmed: boolean
+    onConfirmChange: (confirmed: boolean) => void
     onGoToStep: (s: Step) => void
     onDeploy: () => void
 }
+
+const noticeStyle = {
+    padding: "12px 16px", borderRadius: 8,
+    background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.15)",
+    fontSize: "var(--pro-caption, 11px)", color: "var(--color-text)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
+    lineHeight: 1.6,
+} as const
 
 export function WizardStepReview({
     name, description, realmPath, selectedPreset,
     threshold, quorum, availableRoles, proposalCategories,
     validMembers, totalPower, generatedCode, deploying, walletAddress,
-    onGoToStep, onDeploy,
+    networkLabel, chainId, windows, depositEstimateUgnot, depositCapUgnot, channelsPlanned,
+    confirmed, onConfirmChange, onGoToStep, onDeploy,
 }: Props) {
+    const signatures = channelsPlanned ? 2 : 1
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
             {/* Summary */}
@@ -34,58 +53,26 @@ export function WizardStepReview({
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
                     <SummaryItem label="Name" value={name} />
                     <SummaryItem label="Preset" value={selectedPreset ? DAO_PRESETS.find((p) => p.id === selectedPreset)?.name || "Custom" : "Custom"} />
-                    <SummaryItem label="Threshold" value={`${threshold}%`} accent />
+                    <SummaryItem label="Network" value={`${networkLabel} (${chainId})`} accent />
+                    <SummaryItem label="Signatures" value={String(signatures)} />
+                    <SummaryItem label="Threshold" value={`${threshold}% of all voting power`} accent />
                     <SummaryItem label="Quorum" value={quorum > 0 ? `${quorum}%` : "None"} accent={quorum > 0} />
-                    <SummaryItem label="Members" value={String(validMembers.length)} />
-                    <SummaryItem label="Total Power" value={String(totalPower)} />
+                    <SummaryItem label="Voting period" value={formatDuration(windows.votingPeriodSeconds)} />
+                    <SummaryItem label="Execution delay" value={formatDuration(windows.executionDelaySeconds)} />
+                    <SummaryItem label="Execution window" value={formatDuration(windows.executionWindowSeconds)} />
+                    <SummaryItem label="Members and total power" value={`${validMembers.length} members, power ${totalPower}`} />
                 </div>
                 <div style={{ marginTop: 12 }}>
-                    <SummaryItem label="Realm Path" value={realmPath} />
+                    <SummaryItem label="Realm path (permanent, cannot be changed or reused)" value={realmPath} />
                 </div>
                 {description && (
                     <div style={{ marginTop: 8 }}>
                         <SummaryItem label="Description" value={description} />
                     </div>
                 )}
-
-                {/* Roles distribution */}
-                <div style={{ marginTop: 16 }}>
-                    <div style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", marginBottom: 6 }}>
-                        Roles
-                    </div>
-                    <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-                        {availableRoles.map((role) => {
-                            const count = validMembers.filter((m) => m.roles.includes(role)).length
-                            const color = ROLE_COLORS[role] || "var(--color-text-secondary)"
-                            return (
-                                <span key={role} style={{
-                                    fontSize: "var(--pro-caption, 10px)", padding: "3px 10px", borderRadius: 4,
-                                    background: `${color}15`, color,
-                                    fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
-                                }}>
-                                    {ROLE_ICONS[role] || "•"} {role}: {count}
-                                </span>
-                            )
-                        })}
-                    </div>
-                </div>
-
-                {/* Categories */}
-                <div style={{ marginTop: 12 }}>
-                    <div style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-muted)", textTransform: "uppercase", letterSpacing: "0.05em", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", marginBottom: 6 }}>
-                        Proposal Categories
-                    </div>
-                    <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                        {proposalCategories.map((cat) => (
-                            <span key={cat} style={{
-                                fontSize: "var(--pro-caption, 10px)", padding: "2px 8px", borderRadius: 4,
-                                background: "rgba(0,212,170,0.08)", color: "var(--color-primary)",
-                                fontFamily: "var(--font-ui, JetBrains Mono, monospace)", textTransform: "capitalize",
-                            }}>
-                                {cat}
-                            </span>
-                        ))}
-                    </div>
+                <div style={{ marginTop: 12, display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                    <SummaryItem label="Role labels" value={availableRoles.join(", ") || "None"} />
+                    <SummaryItem label="Proposal categories" value={proposalCategories.join(", ")} />
                 </div>
             </div>
 
@@ -93,7 +80,7 @@ export function WizardStepReview({
             <div className="k-card" style={{ padding: 20 }}>
                 <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)", marginBottom: 12 }}>Members</h3>
                 {validMembers.map((m, i) => (
-                    <div key={i} style={{
+                    <div key={m.address} style={{
                         display: "flex", justifyContent: "space-between", alignItems: "center",
                         padding: "8px 0", borderBottom: i < validMembers.length - 1 ? "1px solid rgba(255,255,255,0.05)" : "none",
                         flexWrap: "wrap", gap: 6,
@@ -129,18 +116,27 @@ export function WizardStepReview({
                 </div>
             </details>
 
-            {/* Warning */}
-            <div style={{
-                padding: "12px 16px", borderRadius: 8,
-                background: "rgba(245,166,35,0.06)", border: "1px solid rgba(245,166,35,0.15)",
-                fontSize: "var(--pro-caption, 11px)", color: "var(--color-warning)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
-            }}>
-                ⚠ This will deploy immutable code on gno.land. Review carefully before deploying.
+            {/* What you are about to do */}
+            <div style={noticeStyle} data-testid="dao-deploy-disclosure">
+                <div><strong>Storage deposit:</strong> about {formatGnot(depositEstimateUgnot)}, capped at {formatGnot(depositCapUgnot)}. It is locked to the realm and refunded only when its storage is freed.</div>
+                <div><strong>No member has special powers:</strong> every change is decided by vote.</div>
+                <div><strong>This DAO cannot hold funds.</strong> Do not send tokens to its address.</div>
+                <div>The code and the realm path are permanent once deployed.</div>
             </div>
+
+            <label style={{ display: "flex", gap: 8, alignItems: "flex-start", fontSize: "var(--pro-small, 12px)", color: "var(--color-text)", cursor: "pointer" }}>
+                <input
+                    type="checkbox"
+                    checked={confirmed}
+                    onChange={(e) => onConfirmChange(e.target.checked)}
+                    disabled={deploying}
+                />
+                <span>I understand this deploys a permanent contract on {networkLabel}</span>
+            </label>
 
             {/* Actions */}
             <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
-                <button className="k-btn-secondary" onClick={() => onGoToStep(4)} style={{ fontSize: "var(--pro-small, 13px)", padding: "10px 20px" }}>
+                <button className="k-btn-secondary" onClick={() => onGoToStep(4)} disabled={deploying} style={{ fontSize: "var(--pro-small, 13px)", padding: "10px 20px" }}>
                     ← Back
                 </button>
                 {!walletAddress ? (
@@ -151,10 +147,10 @@ export function WizardStepReview({
                     <button
                         className="k-btn-primary"
                         onClick={onDeploy}
-                        disabled={deploying}
+                        disabled={deploying || !confirmed}
                         style={{
                             fontSize: "var(--pro-small, 13px)", padding: "12px 28px",
-                            opacity: deploying ? 0.7 : 1,
+                            opacity: deploying || !confirmed ? 0.6 : 1,
                         }}
                     >
                         {deploying ? "Deploying..." : "🚀 Deploy DAO"}

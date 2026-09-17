@@ -1,20 +1,19 @@
 /**
  * WizardStepPreset — Step 1 of the DAO creation wizard.
  *
- * Lets the user choose a DAO preset (Community, Team, Treasury, Enterprise),
+ * Lets the user choose a DAO preset (Basic, Team, Enterprise),
  * set name/description, and auto-generate a realm path.
  */
 import { useEffect, useRef } from "react"
 import { DAO_PRESETS, validateRealmPath, type DAOPreset } from "../../lib/daoTemplate"
 import { FormField, inputStyle, ROLE_COLORS, ROLE_ICONS } from "./wizardShared"
-import { House, UsersThree, Vault, Buildings } from "@phosphor-icons/react"
+import { House, UsersThree, Buildings } from "@phosphor-icons/react"
 import type { ReactNode } from "react"
 
 /** Map emoji icon strings from DAO_PRESETS to Phosphor components */
 const PRESET_ICONS: Record<string, ReactNode> = {
     "🏠": <House size={22} />,
     "👥": <UsersThree size={22} />,
-    "💰": <Vault size={22} />,
     "🏢": <Buildings size={22} />,
 }
 
@@ -105,7 +104,7 @@ export function WizardStepPreset({
                         onChange={(e) => onNameChange(e.target.value)}
                         placeholder="My DAO"
                         style={inputStyle}
-                        maxLength={50}
+                        maxLength={64}
                     />
                 </FormField>
 
@@ -116,11 +115,11 @@ export function WizardStepPreset({
                         onChange={(e) => onDescriptionChange(e.target.value)}
                         placeholder="A governance DAO for..."
                         style={{ ...inputStyle, minHeight: 60, resize: "vertical" }}
-                        maxLength={200}
+                        maxLength={1000}
                     />
                 </FormField>
 
-                <FormField label="Realm Path" hint="On-chain path (e.g., gno.land/r/username/mydao)">
+                <FormField label="Realm Path" hint="Permanent on-chain path under your own address or a name you registered (e.g., gno.land/r/g1…/mydao). It cannot be changed or reused.">
                     <div style={{ display: "flex", gap: 8 }}>
                         <input
                             id="dao-path-input"

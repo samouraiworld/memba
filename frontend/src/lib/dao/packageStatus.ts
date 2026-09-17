@@ -160,7 +160,9 @@ function writePending(list: PendingDAO[]) {
     localStorage.setItem(PENDING_KEY, JSON.stringify(list.slice(-100)))
 }
 
-export function savePendingDAO(entry: PendingDAO): void {
+/** Remember a parked deploy; `submittedAt` defaults to now. */
+export function savePendingDAO(input: Omit<PendingDAO, "submittedAt"> & { submittedAt?: number }): void {
+    const entry: PendingDAO = { ...input, submittedAt: input.submittedAt ?? Date.now() }
     writePending([...readPending().filter((p) => !(p.chainId === entry.chainId && p.path === entry.path)), entry])
 }
 

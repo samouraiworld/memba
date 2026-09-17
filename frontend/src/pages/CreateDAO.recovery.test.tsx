@@ -1,12 +1,17 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor, cleanup } from "@testing-library/react"
 
-const mocks = vi.hoisted(() => ({ broadcast: vi.fn(), navigate: vi.fn(), save: vi.fn() }))
+const mocks = vi.hoisted(() => ({ broadcast: vi.fn(), navigate: vi.fn(), save: vi.fn(), policy: vi.fn(), wait: vi.fn() }))
 vi.mock("../hooks/useNetworkNav", () => ({ useNetworkNav: () => mocks.navigate }))
 vi.mock("react-router-dom", () => ({ useOutletContext: () => ({ adena: { address: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c" } }) }))
 vi.mock("../lib/grc20", async (original) => ({ ...await original<typeof import("../lib/grc20")>(), doContractBroadcast: mocks.broadcast }))
 vi.mock("../lib/daoSlug", () => ({ addSavedDAO: mocks.save, encodeSlug: () => "saved-dao" }))
 vi.mock("../hooks/useScrollToTop", () => ({ useScrollToTop: () => {} }))
+// Pearl: user DAO creation and the channels companion are available; chain
+// checks are covered by lib/dao/packageStatus.test.ts.
+vi.mock("../lib/config", async (original) => ({ ...await original<typeof import("../lib/config")>(), ACTIVE_NETWORK_KEY: "pearl", GNO_CHAIN_ID: "pearl-1" }))
+vi.mock("../lib/dao/namespace", () => ({ assertCanDeployTo: vi.fn(async () => {}) }))
+vi.mock("../lib/dao/packageStatus", () => ({ assertPathAvailable: vi.fn(async () => {}), codeSubmissionPolicy: mocks.policy, waitForPackage: mocks.wait, savePendingDAO: vi.fn() }))
 import { CreateDAO } from "./CreateDAO"
 
 const draft = (overrides: Record<string, unknown> = {}) => ({
@@ -20,7 +25,12 @@ function resume(overrides: Record<string, unknown> = {}) {
     render(<CreateDAO />)
     fireEvent.click(screen.getByRole("button", { name: "Resume" }))
 }
-beforeEach(() => { cleanup(); localStorage.clear(); vi.clearAllMocks(); mocks.broadcast.mockReset() })
+beforeEach(() => { cleanup(); localStorage.clear(); vi.clearAllMocks(); mocks.broadcast.mockReset(); mocks.policy.mockResolvedValue("permissionless") })
+// v2: deploying requires confirming the permanent-contract notice first.
+function deploy() {
+    fireEvent.click(screen.getByRole("checkbox", { name: /permanent contract/ }))
+    fireEvent.click(screen.getByRole("button", { name: /Deploy DAO/ }))
+}
 
 describe("DAO creation recovery", () => {
     it.each([{ members: null }, { availableRoles: null }, { step: 6 }, { savedAt: null }])("ignores malformed drafts without crashing: %j", overrides => {
@@ -43,7 +53,7 @@ describe("DAO creation recovery", () => {
     it("reports companion failure while retaining DAO success and its transaction", async () => {
         mocks.broadcast.mockResolvedValueOnce({ hash: "confirmed-dao-hash" }).mockRejectedValueOnce(new Error("Wallet request rejected"))
         resume()
-        fireEvent.click(screen.getByRole("button", { name: /Deploy DAO/ }))
+        deploy()
         await waitFor(() => expect(mocks.broadcast).toHaveBeenCalledTimes(2))
         expect(await screen.findByText(/Channels deployment was not confirmed/)).toBeInTheDocument()
         expect(screen.getByText("DAO deployed successfully!")).toBeInTheDocument()
@@ -56,14 +66,14 @@ describe("DAO creation recovery", () => {
     })
     it("rejects an invalid companion before publishing the DAO", async () => {
         resume({ channelNames: ["INVALID CHANNEL"] })
-        fireEvent.click(screen.getByRole("button", { name: /Deploy DAO/ }))
+        deploy()
         await waitFor(() => expect(screen.getByTestId("deploy-error")).toBeInTheDocument())
         expect(mocks.broadcast).not.toHaveBeenCalled()
     })
     it("keeps the draft and never deploys Channels when the DAO transaction fails", async () => {
         mocks.broadcast.mockRejectedValueOnce(new Error("Wallet request rejected"))
         resume()
-        fireEvent.click(screen.getByRole("button", { name: /Deploy DAO/ }))
+        deploy()
         expect(await screen.findByTestId("deploy-error")).toBeInTheDocument()
         expect(mocks.broadcast).toHaveBeenCalledTimes(1)
         expect(mocks.save).not.toHaveBeenCalled()
@@ -73,7 +83,7 @@ describe("DAO creation recovery", () => {
         mocks.broadcast.mockResolvedValueOnce({ hash: "confirmed-dao-hash" })
         mocks.save.mockImplementationOnce(() => { throw new Error("Storage unavailable") })
         resume({ enableChannels: false })
-        fireEvent.click(screen.getByRole("button", { name: /Deploy DAO/ }))
+        deploy()
         expect(await screen.findByText(/could not be saved in this browser/)).toBeInTheDocument()
         expect(screen.getByText("DAO deployed successfully!")).toBeInTheDocument()
         expect(mocks.broadcast).toHaveBeenCalledTimes(1)

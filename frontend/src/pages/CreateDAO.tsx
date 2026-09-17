@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react"
+import { useState, useCallback, useEffect, useMemo, useRef } from "react"
 import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { NotePencil } from "@phosphor-icons/react"
@@ -14,9 +14,12 @@ import type { MemberInput, Step } from "../components/dao/wizardShared"
 import { generateDAOCode, buildDeployDAOMsg, daoStepError, isValidGnoAddress, DAO_PRESETS, type DAOCreationConfig, type DAOPreset, type DAOStepData } from "../lib/daoTemplate"
 import { generateChannelCode, defaultChannelConfig, isValidChannelName } from "../lib/channelTemplate"
 import { buildDeployMsg } from "../lib/templates/prologue"
-import { daoDepositCapUgnot } from "../lib/templates/dao/v2/deposit"
+import { daoDepositCapUgnot, estimateDAODepositUgnot, formatGnot } from "../lib/templates/dao/v2/deposit"
 import { addSavedDAO, encodeSlug } from "../lib/daoSlug"
 import { doContractBroadcast } from "../lib/grc20"
+import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, GNO_RPC_URL, NETWORKS } from "../lib/config"
+import { assertCanDeployTo } from "../lib/dao/namespace"
+import { assertPathAvailable, codeSubmissionPolicy, savePendingDAO, waitForPackage, type DeployOutcome } from "../lib/dao/packageStatus"
 import type { LayoutContext } from "../types/layout"
 import "./createdao.css"
 
@@ -91,11 +94,26 @@ function presetWindows(preset: DAOPreset | undefined): Pick<DAOCreationConfig, "
     return { votingPeriodSeconds: p.votingPeriodSeconds, executionDelaySeconds: p.executionDelaySeconds, executionWindowSeconds: p.executionWindowSeconds }
 }
 
+/** What this network offers for user-created DAOs. */
+function userDaoCapabilities() {
+    const network = NETWORKS[ACTIVE_NETWORK_KEY]
+    return {
+        label: network?.label ?? GNO_CHAIN_ID,
+        create: network?.userDaos?.create === true,
+        channelsCompanion: network?.userDaos?.channelsCompanion === true,
+    }
+}
+
+type Approval =
+    | { phase: "waiting"; txHash: string }
+    | { phase: "pending"; txHash: string; reason: string }
+
 // ── Main Component (Orchestrator) ─────────────────────────
 
 export function CreateDAO() {
     const navigate = useNetworkNav()
     const { adena } = useOutletContext<LayoutContext>()
+    const caps = userDaoCapabilities()
 
     // Wizard state — shared across steps
     const [step, setStep] = useState<Step>(1)
@@ -113,6 +131,8 @@ export function CreateDAO() {
     const [deploying, setDeploying] = useState(false)
     const [deployStep, setDeployStep] = useState<DeployStep>("idle")
     const [deployResult, setDeployResult] = useState<DeploymentResult | undefined>()
+    const [approval, setApproval] = useState<Approval | null>(null)
+    const [confirmed, setConfirmed] = useState(false)
     const [error, setError] = useState<string | null>(null)
     // Step-validation messages are shown as a gentle inline notice — NOT routed
     // through the system ErrorToast, which dramatizes "name required" into
@@ -123,6 +143,9 @@ export function CreateDAO() {
     // synchronously from localStorage at first render.
     const [showDraftBanner, setShowDraftBanner] = useState(() => !!loadDraft())
     const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+    const windows = presetWindows(DAO_PRESETS.find(p => p.id === selectedPreset))
+    const channelsPlanned = caps.channelsCompanion && enableChannels
 
     const resumeDraft = () => {
         const draft = loadDraft()
@@ -140,6 +163,7 @@ export function CreateDAO() {
         const draftNames = draft.channelNames ?? draft.boardChannels
         if (draftNames) setChannelNames(draftNames)
         setSelectedPreset(draft.selectedPreset)
+        setConfirmed(false)
         let resumeStep = draft.step
         if (resumeStep === 5) {
             try {
@@ -172,7 +196,7 @@ export function CreateDAO() {
 
     useEffect(() => {
         if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-        if (showDraftBanner || deploying || deployResult) return
+        if (showDraftBanner || deploying || deployResult || approval) return
         saveTimerRef.current = setTimeout(() => {
             if (name || realmPath || members.some((m) => m.address)) {
                 saveDraft({
@@ -183,7 +207,7 @@ export function CreateDAO() {
             }
         }, 500)
         return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
-    }, [name, description, realmPath, members, threshold, quorum, availableRoles, proposalCategories, selectedPreset, step, enableChannels, channelNames, showDraftBanner, deploying, deployResult])
+    }, [name, description, realmPath, members, threshold, quorum, availableRoles, proposalCategories, selectedPreset, step, enableChannels, channelNames, showDraftBanner, deploying, deployResult, approval])
 
     // ── Preset ────────────────────────────────────────────
 
@@ -205,6 +229,13 @@ export function CreateDAO() {
 
     const buildStepData = (): DAOStepData => ({ name, realmPath, members, threshold, quorum })
 
+    const buildConfig = (): DAOCreationConfig => ({
+        name, description, realmPath, threshold, quorum, proposalCategories,
+        roles: availableRoles,
+        members: members.filter((m) => m.address !== ""),
+        ...windows,
+    })
+
     const goToStep = (s: Step) => {
         setError(null)
         setValidationError(null)
@@ -219,18 +250,11 @@ export function CreateDAO() {
             }
         }
         if (s === 5) {
-            const preset = DAO_PRESETS.find(p => p.id === selectedPreset)
-            const config: DAOCreationConfig = {
-                name, description, realmPath, threshold, quorum, proposalCategories,
-                roles: availableRoles,
-                members: members.filter((m) => m.address !== ""),
-                ...presetWindows(preset),
-            }
-            // W1.1: codegen is fail-closed and throws on invalid input. Steps
-            // should have caught everything, but never crash the wizard —
-            // surface the message through the same inline notice.
+            // Codegen is fail-closed and throws on invalid input. Steps should
+            // have caught everything, but never crash the wizard.
             try {
-                setGeneratedCode(generateDAOCode(config))
+                setGeneratedCode(generateDAOCode(buildConfig()))
+                setConfirmed(false)
             } catch (err) {
                 setValidationError(err instanceof Error ? err.message : String(err))
                 return
@@ -239,10 +263,6 @@ export function CreateDAO() {
         setStep(s)
     }
 
-    // ── Validation ────────────────────────────────────────
-
-    // Validation now lives in goToStep's forward-nav guard (single source of
-    // truth), so advancing is just a forward navigation.
     const nextStep = () => goToStep((step + 1) as Step)
 
     // ── Category toggle ───────────────────────────────────
@@ -256,11 +276,21 @@ export function CreateDAO() {
         }
     }
 
+    // ── Deposit ───────────────────────────────────────────
+
+    const depositInput = { name, description, roles: availableRoles, proposalCategories, members: members.filter((m) => m.address !== "") }
+    const depositEstimateUgnot = estimateDAODepositUgnot(depositInput)
+    const depositCapUgnot = daoDepositCapUgnot(depositInput)
+
     // ── Deploy ────────────────────────────────────────────
 
+    const chain = useMemo(() => ({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID }), [])
+
     const deployDAO = async () => {
-        if (deploying || deployResult) return
+        if (deploying || deployResult || approval) return
+        if (!caps.create) { setError(`Creating a DAO is not available on ${caps.label} yet`); return }
         if (!adena.address) { setError("Connect your wallet first"); return }
+        if (!confirmed) { setError("Confirm that you understand this deploys a permanent contract"); return }
         setDeploying(true)
         setDeployStep("preparing")
         setError(null)
@@ -269,21 +299,16 @@ export function CreateDAO() {
                 const error = daoStepError(step, buildStepData())
                 if (error) throw new Error(error)
             }
-            const preset = DAO_PRESETS.find(p => p.id === selectedPreset)
-            const config: DAOCreationConfig = {
-                name, description, realmPath, threshold, quorum, proposalCategories,
-                roles: availableRoles,
-                members: members.filter((m) => m.address !== ""),
-                ...presetWindows(preset),
-            }
+            const config = buildConfig()
             const code = generateDAOCode(config)
-            const maxDeposit = `${daoDepositCapUgnot(config)}ugnot`
+            const cap = daoDepositCapUgnot(config)
+            const maxDeposit = `${cap}ugnot`
             const msg = buildDeployDAOMsg(adena.address, realmPath, code, maxDeposit)
 
-            // Validate both packages before the first wallet request. A local
+            // Validate the companion before the first wallet request. A local
             // extension error must not leave an unexpectedly partial deployment.
             let channelMsg: ReturnType<typeof buildDeployMsg> | undefined
-            if (enableChannels) {
+            if (channelsPlanned) {
                 if (channelNames.length < 1 || channelNames.length > 5 ||
                     channelNames.some(n => !isValidChannelName(n)) || new Set(channelNames).size !== channelNames.length) {
                     throw new Error("Choose one to five valid, distinct channel names before deploying")
@@ -294,19 +319,42 @@ export function CreateDAO() {
                 channelMsg = buildDeployMsg(adena.address, channelConfig.channelRealmPath, generateChannelCode(channelConfig), maxDeposit)
             }
 
-            setDeployStep("signing")
+            // The chain decides: the signer must own the namespace and the
+            // path must be unused (live or waiting for approval).
+            await assertCanDeployTo(chain, adena.address, realmPath)
+            await assertPathAvailable(chain, realmPath)
+            const policy = await codeSubmissionPolicy(chain)
 
-            // TODO: Re-add 2 GNOT dev fee — test11 transfers now allowed (2026-04-09),
-            // but needs on-chain testing before enabling. Add send amount to DoContract.
-            // W2.1: guarded broadcaster — RPC-trust, wrong-chain and A6
-            // confirmation now cover realm deploys too. Throws on failure.
+            setDeployStep("signing")
             const res = await doContractBroadcast(
                 [{ type: "/vm.m_addpkg", value: msg.value }],
-                `Deploy DAO: ${name}`,
+                `Deploy realm ${realmPath} (storage deposit up to ${formatGnot(cap)})`,
                 { gas: "deploy" },
             )
-
             setDeployStep("broadcasting")
+
+            // Under the inert policy a confirmed submission is parked until an
+            // approver enables it: only "live" is a created DAO.
+            let outcome: DeployOutcome = { outcome: "live", meta: { path: realmPath, status: "live" } }
+            if (policy === "inert") {
+                setDeployStep("idle")
+                setApproval({ phase: "waiting", txHash: res.hash })
+                outcome = await waitForPackage(chain, realmPath)
+            }
+
+            if (outcome.outcome === "pending") {
+                clearDraft()
+                const reason = outcome.meta.reason ?? "waiting for a package approver to enable it"
+                try {
+                    savePendingDAO({ chainId: GNO_CHAIN_ID, path: realmPath, name, txHash: res.hash, reason })
+                } catch { /* the pending panel still shows the path and transaction */ }
+                setApproval({ phase: "pending", txHash: res.hash, reason })
+                return
+            }
+            setApproval(null)
+            if (outcome.outcome === "failed") {
+                throw new Error(`The DAO was not created: ${outcome.error}. Transaction ${res.hash}`)
+            }
 
             // Preserve the confirmed primary result even if a later wallet
             // request or local-storage write fails. Never offer to redeploy it.
@@ -336,6 +384,7 @@ export function CreateDAO() {
             setDeployResult({ ...result, warnings })
             setDeployStep("complete")
         } catch (err) {
+            setApproval(null)
             setError(friendlyError(err))
             setDeployStep("error")
         } finally {
@@ -347,9 +396,22 @@ export function CreateDAO() {
 
     const validMembers = members.filter((m) => isValidGnoAddress(m.address))
     const totalPower = validMembers.reduce((sum, m) => sum + m.power, 0)
-    const adminCount = validMembers.filter((m) => m.roles.includes("admin")).length
 
     // ── Render ────────────────────────────────────────────
+
+    if (!caps.create) {
+        return (
+            <div className="animate-fade-in cdao-page">
+                <button id="create-dao-back-btn" aria-label="Back to DAO list" onClick={() => navigate("/dao")} className="cdao-back-btn">
+                    ← Back to DAOs
+                </button>
+                <div className="k-card" role="status" style={{ padding: 20 }}>
+                    <h2 className="cdao-title">Create a DAO</h2>
+                    <p className="cdao-subtitle">Creating a DAO is not available on {caps.label} yet.</p>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="animate-fade-in cdao-page">
@@ -389,7 +451,7 @@ export function CreateDAO() {
                     🏗️ Create a DAO
                 </h2>
                 <p className="cdao-subtitle">
-                    Deploy a new governance realm on gno.land
+                    Deploy a new governance realm on {caps.label}
                 </p>
             </div>
 
@@ -399,7 +461,7 @@ export function CreateDAO() {
                     <div key={s} className="cdao-step-group">
                         <div
                             className={`cdao-step-circle ${s === step ? "cdao-step-circle--active" : s < step ? "cdao-step-circle--done" : "cdao-step-circle--future"}`}
-                            onClick={() => s < step && goToStep(s as Step)}
+                            onClick={() => s < step && !deploying && !approval && goToStep(s as Step)}
                         >
                             {s < step ? "✓" : s}
                         </div>
@@ -431,7 +493,7 @@ export function CreateDAO() {
                 <WizardStepMembers
                     members={members} availableRoles={availableRoles}
                     walletAddress={adena.address} validMembers={validMembers}
-                    adminCount={adminCount} totalPower={totalPower}
+                    totalPower={totalPower}
                     onMembersChange={setMembers} onGoToStep={goToStep} onNext={nextStep}
                 />
             )}
@@ -441,7 +503,7 @@ export function CreateDAO() {
                 <WizardStepConfig
                     threshold={threshold} quorum={quorum}
                     proposalCategories={proposalCategories} validMembers={validMembers}
-                    totalPower={totalPower} onThresholdChange={setThreshold}
+                    totalPower={totalPower} windows={windows} onThresholdChange={setThreshold}
                     onQuorumChange={setQuorum} onToggleCategory={toggleCategory}
                     onGoToStep={goToStep} onNext={nextStep}
                 />
@@ -450,22 +512,56 @@ export function CreateDAO() {
             {/* Step 4: Extensions */}
             {step === 4 && (
                 <WizardStepExtensions
-                    enableChannels={enableChannels} channelNames={channelNames}
+                    enableChannels={channelsPlanned} channelsAvailable={caps.channelsCompanion} channelNames={channelNames}
                     onEnableChannelsChange={setEnableChannels} onChannelNamesChange={setChannelNames}
                     onGoToStep={goToStep} onNext={nextStep}
                 />
             )}
 
             {/* Step 5: Review & Deploy */}
-            {step === 5 && (
+            {step === 5 && !approval && (
                 <WizardStepReview
                     name={name} description={description} realmPath={realmPath}
                     selectedPreset={selectedPreset} threshold={threshold} quorum={quorum}
                     availableRoles={availableRoles} proposalCategories={proposalCategories}
                     validMembers={validMembers} totalPower={totalPower}
                     generatedCode={generatedCode} deploying={deploying}
-                    walletAddress={adena.address} onGoToStep={goToStep} onDeploy={deployDAO}
+                    walletAddress={adena.address}
+                    networkLabel={caps.label} chainId={GNO_CHAIN_ID} windows={windows}
+                    depositEstimateUgnot={depositEstimateUgnot} depositCapUgnot={depositCapUgnot}
+                    channelsPlanned={channelsPlanned}
+                    confirmed={confirmed} onConfirmChange={setConfirmed}
+                    onGoToStep={goToStep} onDeploy={deployDAO}
                 />
+            )}
+
+            {/* Waiting for the network to enable the package (inert policy) */}
+            {approval?.phase === "waiting" && (
+                <div className="k-card" role="status" data-testid="dao-approval-waiting" style={{ padding: 20 }}>
+                    <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)", marginBottom: 8 }}>Waiting for network approval</h3>
+                    <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)" }}>
+                        Your transaction was confirmed. {caps.label} enables new packages after a check; this usually takes a few seconds.
+                    </p>
+                    <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", wordBreak: "break-all" }}>
+                        {realmPath} · TX {approval.txHash}
+                    </p>
+                </div>
+            )}
+
+            {approval?.phase === "pending" && (
+                <div className="k-card" role="status" data-testid="dao-approval-pending" style={{ padding: 20 }}>
+                    <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)", marginBottom: 8 }}>Submitted, not enabled yet</h3>
+                    <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)" }}>
+                        Submitted; gno.land has not enabled it yet. We'll keep checking when you open My DAOs.
+                    </p>
+                    <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)" }}>Network status: {approval.reason}</p>
+                    <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", wordBreak: "break-all" }}>
+                        {realmPath} · TX {approval.txHash}
+                    </p>
+                    <button className="k-btn-secondary" onClick={() => navigate("/dao")} style={{ marginTop: 8 }}>
+                        Go to My DAOs
+                    </button>
+                </div>
             )}
 
             {/* Step validation notice — gentle inline, not the system ErrorToast */}
