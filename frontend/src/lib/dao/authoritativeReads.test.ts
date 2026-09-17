@@ -106,6 +106,23 @@ describe("votes", () => {
         expect(await getProposalVotes(RPC, realm, 1)).toEqual([])
     })
 
+    it("parses a long vote list with many dash-prefixed lines in linear time", async () => {
+        const realm = "gno.land/r/alice/mydao4"
+        const heavy = `# Proposal #1 - Vote List\n\nYES:\n\nNO:\n\nABSTAIN:\n- ` + "- ".repeat(5000) + "\n!"
+        chain(realm, { render: { "1/votes": heavy } })
+        const started = performance.now()
+        const records = await getProposalVotes(RPC, realm, 1)
+        expect(performance.now() - started).toBeLessThan(500)
+        expect(records).toEqual([])
+    })
+
+    it("accepts a generated vote list without a trailing newline", async () => {
+        const realm = "gno.land/r/alice/mydao5"
+        chain(realm, { render: { "1/votes": `# Proposal #1 - Vote List\n\nYES:\n\nNO:\n\nABSTAIN:\n- ${A}` } })
+        const records = await getProposalVotes(RPC, realm, 1)
+        expect(records[0].abstainVoters.map(v => v.username)).toEqual([A])
+    })
+
     it("matches a GovDAO voter listed by username once the username resolves", async () => {
         chain("gno.land/r/gov/dao", { render: { "4/votes": GOVDAO_VOTES } })
         const records = await getProposalVotes(RPC, "gno.land/r/gov/dao", 4)

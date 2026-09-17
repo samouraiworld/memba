@@ -800,21 +800,36 @@ export async function getProposalVotes(
  * when the page is not in this format, and [] when it is but fails validation.
  */
 export function parseGeneratedVoteList(data: string, id: number): VoteRecord[] | undefined {
-    const normalized = data.replaceAll("\r\n", "\n")
-    const m = /^# Proposal #(\d+) - Vote List\n\nYES:\n((?:- [^\n]*\n)*)\nNO:\n((?:- [^\n]*\n)*)\nABSTAIN:\n((?:- [^\n]*\n?)*)$/.exec(normalized)
-    if (!m) return undefined
-    if (Number(m[1]) !== id) return []
-    const voters = (block: string): VoterEntry[] | null => {
+    // Line-based on purpose: a single regex over the whole page backtracks
+    // exponentially on long runs of "- " lines.
+    const lines = data.replaceAll("\r\n", "\n").split("\n")
+    if (lines.length > 0 && lines[lines.length - 1] === "") lines.pop()
+    const header = /^# Proposal #(\d+) - Vote List$/.exec(lines[0] ?? "")
+    if (!header || lines[1] !== "" || lines[2] !== "YES:") return undefined
+    let i = 3
+    const bullets = (): string[] => {
+        const out: string[] = []
+        while (i < lines.length && lines[i].startsWith("- ")) out.push(lines[i++].slice(2))
+        return out
+    }
+    const yesLines = bullets()
+    if (lines[i] !== "" || lines[i + 1] !== "NO:") return undefined
+    i += 2
+    const noLines = bullets()
+    if (lines[i] !== "" || lines[i + 1] !== "ABSTAIN:") return undefined
+    i += 2
+    const abstainLines = bullets()
+    if (i !== lines.length) return undefined
+    if (Number(header[1]) !== id) return []
+    const voters = (addresses: string[]): VoterEntry[] | null => {
         const out: VoterEntry[] = []
-        for (const line of block.split("\n")) {
-            if (!line) continue
-            const address = line.slice(2)
+        for (const address of addresses) {
             if (!isValidGnoAddressChecksum(address)) return null
             out.push({ username: address, profileUrl: "" })
         }
         return out
     }
-    const yes = voters(m[2]), no = voters(m[3]), abstain = voters(m[4])
+    const yes = voters(yesLines), no = voters(noLines), abstain = voters(abstainLines)
     if (!yes || !no || !abstain) return []
     const all = [...yes, ...no, ...abstain].map((v) => v.username)
     if (new Set(all).size !== all.length) return []
