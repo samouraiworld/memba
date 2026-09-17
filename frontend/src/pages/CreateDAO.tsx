@@ -306,6 +306,7 @@ export function CreateDAO() {
         setDeploying(true)
         setDeployStep("preparing")
         setError(null)
+        let confirmedTx = ""
         try {
             for (const step of [1, 2, 3]) {
                 const error = daoStepError(step, buildStepData())
@@ -343,6 +344,7 @@ export function CreateDAO() {
                 `Deploy realm ${realmPath} (storage deposit up to ${formatGnot(cap)})`,
                 { gas: "deploy", gasWanted: estimateDeployGas(config) },
             )
+            confirmedTx = res.hash
             setDeployStep("broadcasting")
 
             // Under the inert policy a confirmed submission is parked until an
@@ -356,7 +358,9 @@ export function CreateDAO() {
 
             if (outcome.outcome === "pending") {
                 clearDraft()
-                const reason = outcome.meta.reason ?? "waiting for a package approver to enable it"
+                const reason = outcome.unconfirmed
+                    ? "the network status could not be read yet"
+                    : outcome.meta?.reason ?? "waiting for a package approver to enable it"
                 try {
                     savePendingDAO({ chainId: GNO_CHAIN_ID, path: realmPath, name, txHash: res.hash, reason })
                 } catch { /* the pending panel still shows the path and transaction */ }
@@ -365,7 +369,7 @@ export function CreateDAO() {
             }
             setApproval(null)
             if (outcome.outcome === "failed") {
-                throw new Error(`The DAO was not created: ${outcome.error}. Transaction ${res.hash}`)
+                throw new Error(`The DAO was not created: ${outcome.error}`)
             }
 
             // Preserve the confirmed primary result even if a later wallet
@@ -397,7 +401,9 @@ export function CreateDAO() {
             setDeployStep("complete")
         } catch (err) {
             setApproval(null)
-            setError(friendlyError(err))
+            // friendlyError may replace the message entirely: keep the hash of a
+            // confirmed transaction outside it so the user can always find it.
+            setError(confirmedTx ? `${friendlyError(err)} Transaction: ${confirmedTx}` : friendlyError(err))
             setDeployStep("error")
         } finally {
             setDeploying(false)

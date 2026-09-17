@@ -104,7 +104,8 @@ export function clearPolicyCache() {
 
 export type DeployOutcome =
     | { outcome: "live"; meta: PackageMeta }
-    | { outcome: "pending"; meta: PackageMeta }
+    /** Parked, or `unconfirmed`: the status could not be read, so nothing is known yet. */
+    | { outcome: "pending"; meta: PackageMeta | null; unconfirmed: boolean }
     | { outcome: "failed"; meta: PackageMeta | null; error: string }
 
 export interface WaitOptions {
@@ -119,28 +120,33 @@ const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(r
 
 /**
  * Poll a just-submitted package until it is live, or until the timeout.
- * "inert" at the timeout is a pending deploy, not a failure; "absent" after the
- * submission was confirmed means it did not land.
+ * "inert" at the timeout is a pending deploy, not a failure. Only a clean
+ * "absent" answer on the last read means the submission did not land: when the
+ * status could not be read, the outcome is pending and unconfirmed.
  */
 export async function waitForPackage(ctx: ChainContext, path: string, options: WaitOptions = {}): Promise<DeployOutcome> {
     const { intervalMs = 3000, timeoutMs = 120_000, signal, sleep = defaultSleep, now = Date.now } = options
     const deadline = now() + timeoutMs
     let last: PackageMeta | null = null
-    let lastError = ""
+    let lastReadFailed = false
     for (;;) {
-        if (signal?.aborted) return { outcome: "failed", meta: last, error: "Cancelled" }
+        if (signal?.aborted) {
+            lastReadFailed = true
+            break
+        }
         try {
             last = await packageStatus(ctx, path, signal)
+            lastReadFailed = false
             if (last.status === "live") return { outcome: "live", meta: last }
-        } catch (err) {
-            lastError = err instanceof Error ? err.message : String(err)
+        } catch {
+            lastReadFailed = true
         }
         if (now() >= deadline) break
         await sleep(intervalMs)
     }
-    if (last?.status === "inert") return { outcome: "pending", meta: last }
-    if (last?.status === "absent") return { outcome: "failed", meta: last, error: "The network has no package at this path" }
-    return { outcome: "failed", meta: last, error: lastError || "Could not read the package status" }
+    if (last?.status === "absent" && !lastReadFailed) return { outcome: "failed", meta: last, error: "The network has no package at this path" }
+    if (last?.status === "inert" && !lastReadFailed) return { outcome: "pending", meta: last, unconfirmed: false }
+    return { outcome: "pending", meta: last?.status === "inert" ? last : null, unconfirmed: true }
 }
 
 // ── Pending deploys (kept in this browser until the network enables them) ──

@@ -127,10 +127,21 @@ describe("waitForPackage", () => {
         expect(c.now()).toBe(120_000)
     })
 
-    it("absent after submission, or unreadable, is a failure", async () => {
+    it("absent after submission is a failure", async () => {
         expect((await waitForPackage(ctx, ABSENT_PATH, { ...fast, ...clock() })).outcome).toBe("failed")
+    })
+
+    it("a status that cannot be read is pending (unconfirmed), never a failure", async () => {
         answer = () => null
-        expect(await waitForPackage(ctx, ABSENT_PATH, { ...fast, ...clock() })).toMatchObject({ outcome: "failed", error: expect.stringContaining("failed") })
+        expect(await waitForPackage(ctx, ABSENT_PATH, { ...fast, ...clock() })).toMatchObject({ outcome: "pending", meta: null, unconfirmed: true })
+        vi.mocked(directRpcCall).mockRejectedValue(Object.assign(new Error("This operation was aborted"), { name: "AbortError" }))
+        expect(await waitForPackage(ctx, ABSENT_PATH, { ...fast, ...clock() })).toMatchObject({ outcome: "pending", unconfirmed: true })
+    })
+
+    it("a last read that errored after an absent answer is still pending", async () => {
+        let polls = 0
+        answer = (path, data) => (++polls === 1 ? fixture("absent").replace(ABSENT_PATH, data) : null)
+        expect(await waitForPackage(ctx, ABSENT_PATH, { ...fast, ...clock() })).toMatchObject({ outcome: "pending", unconfirmed: true })
     })
 })
 

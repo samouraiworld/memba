@@ -168,6 +168,35 @@ describe("Create DAO on gnoland-1", () => {
         expect(mocks.broadcast).not.toHaveBeenCalled()
     })
 
+    it("a confirmed deploy whose status cannot be read is pending with its transaction, not a failure", async () => {
+        statuses = [meta.absent()]
+        mocks.broadcast.mockImplementation(async () => {
+            // after signing, every status read times out
+            mocks.rpc.mockImplementation(async (_url: string, method: string, params: Record<string, string>) => {
+                if (method === "status") return { node_info: { network: "gnoland-1" } }
+                if (JSON.parse(params.path) === "vm/qpkgmeta_json") throw Object.assign(new Error("This operation was aborted"), { name: "AbortError" })
+                return { response: { ResponseBase: { Data: null, Error: { msg: "unexpected" } } } }
+            })
+            return { hash: "DEPLOYHASH" }
+        })
+        resumeReview()
+        confirm()
+        fireEvent.click(deployButton())
+        const pending = await screen.findByTestId("dao-approval-pending", {}, { timeout: 5000 })
+        expect(pending).toHaveTextContent("DEPLOYHASH")
+        expect(pending).toHaveTextContent(PATH)
+        expect(screen.queryByTestId("deploy-error")).not.toBeInTheDocument()
+        expect(mocks.save).not.toHaveBeenCalled()
+    })
+
+    it("an error after a confirmed deploy keeps the transaction hash even when the message is replaced", async () => {
+        vi.mocked(waitForPackage).mockResolvedValueOnce({ outcome: "failed", meta: JSON.parse(meta.absent()), error: "Failed to fetch" })
+        resumeReview()
+        confirm()
+        fireEvent.click(deployButton())
+        await waitFor(() => expect(screen.getByTestId("deploy-error")).toHaveTextContent("DEPLOYHASH"))
+    })
+
     it("a submission that never appears is a failure that shows the transaction", async () => {
         statuses = [meta.absent()]
         resumeReview()
