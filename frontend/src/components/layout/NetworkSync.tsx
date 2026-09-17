@@ -22,19 +22,16 @@ export function NetworkSync() {
     useEffect(() => {
         if (!network || !NETWORKS[network]) return
 
-        const stored = localStorage.getItem(STORAGE_KEY)
-        if (stored !== network) {
+        if (localStorage.getItem(STORAGE_KEY) !== network) {
             localStorage.setItem(STORAGE_KEY, network)
-            // Reload ONLY when the URL network differs from the network config.ts
-            // actually initialized with (RPC URLs etc. are computed at module load
-            // time). A first visit lands here with stored=null but the app ALREADY
-            // loaded on the default network — reloading then is a pure double-load:
-            // it cost every fresh visitor a full page reload, and in e2e it fired
-            // mid-test on every fresh browser context (the firefox cmd-k flake and
-            // the workers:2 first-attempt pass-rate regression).
-            if (network !== ACTIVE_NETWORK_KEY) {
-                window.location.reload()
-            }
+        }
+        // Reload whenever the URL network differs from the network config.ts
+        // actually initialized with (RPC URLs etc. are computed at module load
+        // time) — regardless of what storage holds: another tab may already
+        // have written this network to the echo key. A first visit on the
+        // loaded network never reloads (no double-load for fresh visitors).
+        if (network !== ACTIVE_NETWORK_KEY) {
+            window.location.reload()
         }
     }, [network])
 

@@ -79,6 +79,13 @@ describe("NetworkSync", () => {
         expect(reload).toHaveBeenCalledTimes(1)
     })
 
+    it("another tab already wrote the URL network: still reloads when the loaded config differs", () => {
+        // The echo already equals the URL, but this tab's config was loaded for test13.
+        localStorage.setItem("memba_network", "betanet")
+        renderWithNetwork("betanet")
+        expect(reload).toHaveBeenCalledTimes(1)
+    })
+
     it("unknown network param: inert (no persist, no reload)", () => {
         renderWithNetwork("nonsense")
         expect(localStorage.getItem("memba_network")).toBeNull()
