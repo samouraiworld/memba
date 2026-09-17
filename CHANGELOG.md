@@ -20,6 +20,15 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Backend readiness for DAOs on gno.land mainnet (2026-09-17)
+<!-- categories: memba, network -->
+- **Usernames are read from the users registry's address lookup.** The Username quest now accepts only a registered, non-deleted name recorded for exactly your address, and namespace ownership for deploy quests is read from the registry record's owner field.
+- **The home snapshot is only served for the chain its node is on.** The backend builds it for its own chain, after checking the node reports that chain, and caches it per chain and node. Requests for other chains, or unknown chain ids, are refused instead of being answered with another chain's data.
+- **The DAO Member quest reads membership from the member table itself.** Every page of the members list is checked, an address counts only from the table's own address and member-link cells, and a page whose rows don't match the DAO's member count is not trusted. Members listed after the first page now verify.
+- **Quests no longer point to an unsupported DAO framework.** The "Kit Extender" quest is retired (completions already earned keep their XP), and the DAO and package deploy quests are described without it.
+- **The DAO analyst API is off unless an operator enables it.** When enabled, each wallet can generate a limited number of reports per day, only operators can force a report to be regenerated, submitted proposal and DAO text is passed to the models as marked data, provider error messages are no longer stored in shared reports, and expired reports are purged. The unused analyze route, the public report read route, the balance proxy and the escrow listing proxy were removed.
+- **The MCP servers are no longer advertised as `npx` installs.** Their packages are not published on npm; the agent catalogue and docs now describe a local build. The shared RPC client used by both servers now encodes queries the way gno.land nodes require.
+
 ### Channel mentions and post quests match your exact address (2026-09-16)
 <!-- categories: memba -->
 - **@mention notifications in DAO channels now fire only when a reply mentions your full wallet address.** A mention of another account whose address starts with the same characters no longer notifies you, and a reply from such an account is no longer mistaken for your own and silenced. An address run into surrounding letters or digits is not treated as a mention.
