@@ -13,7 +13,7 @@
  *   - ready:        one ActionDoor per action, count pill, "view all activity" footer
  *
  * Inline vote wiring mirrors Dashboard.tsx exactly:
- *   resolveDaoKind → buildDaoMsg → doContractBroadcast → setVotedIds + clearVoteCache
+ *   resolveDaoKind → buildDaoMsg → doContractBroadcast → record the vote (per chain + wallet) + clearVoteCache
  *
  * Actions come from useHomeActions (single aggregator hook — no duplicate scan).
  */
@@ -40,7 +40,12 @@ export function ActionInbox() {
     // Inline vote state — mirrors Dashboard.tsx handleQuickVote
     const userAddress = auth.isAuthenticated ? (auth.address || null) : null
     const [votingId, setVotingId] = useState<string | null>(null)
-    const [votedIds, setVotedIds] = useState<Set<string>>(new Set())
+    // Votes recorded in this session belong to one chain and one wallet; a
+    // wallet switch starts from an empty set instead of hiding its proposals.
+    const scope = `${GNO_CHAIN_ID}:${userAddress ?? ""}`
+    const [recorded, setRecorded] = useState<{ scope: string; ids: Set<string> }>({ scope, ids: new Set() })
+    const votedIds = recorded.scope === scope ? recorded.ids : new Set<string>()
+    const [voteError, setVoteError] = useState<string | null>(null)
 
     const handleQuickVote = async (
         realmPath: string,
@@ -50,13 +55,15 @@ export function ActionInbox() {
         if (!userAddress) return
         const key = `${realmPath}:${proposalId}`
         setVotingId(key)
+        setVoteError(null)
         try {
             const kind = await resolveDaoKind({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID, realmPath })
             const msg = buildDaoMsg(kind, realmPath, { type: "vote", id: proposalId, vote }, userAddress)
             await doContractBroadcast([msg], `Vote ${vote} on proposal #${proposalId}`)
-            setVotedIds(prev => new Set(prev).add(key))
+            setRecorded(prev => ({ scope, ids: new Set(prev.scope === scope ? prev.ids : []).add(key) }))
             clearVoteCache()
         } catch (err) {
+            setVoteError(err instanceof Error ? err.message : "The vote could not be submitted")
             logChainError(
                 `home:quickVote:${realmPath}#${proposalId}`,
                 err,
@@ -124,6 +131,12 @@ export function ActionInbox() {
                     {totalCount} {totalCount === 1 ? "awaits" : "await"}
                 </span>
             </div>
+
+            {voteError && (
+                <p className="action-inbox__error" role="alert">
+                    Vote failed: {voteError}
+                </p>
+            )}
 
             <div className="action-inbox__list">
                 {actions.map(action => (
