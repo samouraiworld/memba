@@ -194,6 +194,9 @@ func addGenesisMember(addr string, power int, roles []string) {
 	if !a.IsValid() {
 		panic("genesis: invalid member address")
 	}
+	if !isLowerCase(a) {
+		panic("genesis: member address must be lower case")
+	}
 	if members.Has(addr) {
 		panic("genesis: duplicate member")
 	}
@@ -255,6 +258,15 @@ func assertMember(addr address) *Member {
 		panic("caller is not a member")
 	}
 	return m
+}
+
+// isLowerCase refuses the upper-case bech32 spelling, which IsValid accepts:
+// it names the same account under a different member key. Only call it on an
+// address that passed IsValid: bech32 refuses mixed case, so the first
+// character decides (a byte loop would cost gas per character per member).
+func isLowerCase(a address) bool {
+	s := string(a)
+	return len(s) > 0 && s[0] >= 'a' && s[0] <= 'z'
 }
 
 func contains(list []string, s string) bool {
@@ -338,6 +350,9 @@ func validateAction(a Action) {
 	case kindAddMember:
 		if !a.Target.IsValid() {
 			panic("invalid member address")
+		}
+		if !isLowerCase(a.Target) {
+			panic("member address must be lower case")
 		}
 		if getMember(a.Target) != nil {
 			panic("address is already a member")

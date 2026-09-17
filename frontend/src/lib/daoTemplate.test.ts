@@ -193,6 +193,8 @@ describe('generateDAOCode — fails closed', () => {
         ['no members', { members: [] }, /member/i],
         ['bad address checksum', { members: [{ address: ALICE.slice(0, -1) + 'd', power: 1, roles: [] }] }, /checksum/i],
         ['address shape', { members: [{ address: 'INVALID"; panic("x', power: 1, roles: [] }] }, /address/i],
+        ['upper-case address', { members: [{ address: ALICE.toUpperCase(), power: 1, roles: [] }] }, /address/i],
+        ['upper-case duplicate of a member', { members: [{ address: ALICE, power: 1, roles: [] }, { address: 'g1' + ALICE.slice(2).toUpperCase(), power: 1, roles: [] }] }, /address/i],
         ['zero power', { members: [{ address: ALICE, power: 0, roles: [] }] }, /power/i],
         ['power above the bound', { members: [{ address: ALICE, power: 1_000_000_001, roles: [] }] }, /power/i],
         ['fractional power', { members: [{ address: ALICE, power: 2.5, roles: [] }] }, /power/i],

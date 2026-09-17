@@ -307,6 +307,12 @@ func TestInvalidAddressRefused(cur realm, t *testing.T) {
 	mustAbort(t, "non-bech32 address", func() { ProposeAddMember(cross(cur), "add", "", address("NOT_A_VALID_ADDRESS_AT_ALL"), 40, "") })
 	mustAbort(t, "address with a separator", func() { ProposeAddMember(cross(cur), "add", "", address("not-a-bech32-address|x"), 5, "") })
 	mustAbort(t, "bad checksum", func() { ProposeAddMember(cross(cur), "add", "", address(${q(badChecksum)}), 5, "") })
+	upper := address(${q(BOB.toUpperCase())})
+	if !upper.IsValid() { t.Fatal("fixture: the upper-case spelling must be a valid address for this test to mean anything") }
+	mustAbort(t, "upper-case spelling of an existing member", func() { ProposeAddMember(cross(cur), "add", "", upper, 5, "") })
+	mustAbort(t, "upper-case spelling of a new account", func() { ProposeAddMember(cross(cur), "add", "", address(${q(WHALE.toUpperCase())}), 5, "") })
+	// The realm checks only the first character, relying on bech32 refusing mixed case.
+	if address(${q(BOB.slice(0, 20) + BOB.slice(20).toUpperCase())}).IsValid() || address(${q("g" + BOB.slice(1).toUpperCase())}).IsValid() { t.Fatal("mixed-case addresses must be invalid") }
 	mustAbort(t, "remove a non-member", func() { ProposeRemoveMember(cross(cur), "remove", "", address("NOT_A_VALID_ADDRESS_AT_ALL")) })
 }
 
@@ -414,6 +420,7 @@ func TestG_GasRenderLargestDetail(t *testing.T) { _ = Render("51") }
             ["gen_duplicate", (c) => c.replace(aliceRow, `${aliceRow}\n\t${aliceRow}`), /duplicate member/],
             ["gen_period", (c) => c.replace("int64(7200)", "int64(60)"), /voting period/],
             ["gen_role", (c) => c.replace(aliceRow, aliceRow.replace('"lead"', '"owner"')), /invalid role/],
+            ["gen_upper", (c) => c.replace(aliceRow, aliceRow.replace(ALICE, ALICE.toUpperCase())), /lower case/],
         ]
         for (const [pkg, patch, message] of patches) {
             const code = generateDAOCode({ ...base, realmPath: pkgPath(pkg) })

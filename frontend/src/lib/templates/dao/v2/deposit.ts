@@ -5,25 +5,25 @@
  * bytes a package adds, and `max_deposit` caps what the deploy may lock. Under
  * gnoland-1's inert policy the deposit is charged when the package is enabled.
  *
- * MEASURED 2026-09-17 at gno 31b6650a (in-memory gnoland node, `gnokey maketx
+ * MEASURED 2026-09-17 at gno 31b6650a with the final template (in-memory gnoland node, `gnokey maketx
  * addpkg`, then `vm/qstorage`), storage bytes per configuration:
- *   1 member, 2 roles, 1 category, short text ............  60,230
- *   1 member, 16x30-char roles and categories .............  64,133
- *   1 member, 64x3-byte name, 1000x3-byte description .....  65,873
- *   10 members, one role ...................................  90,400
- *   10 members, 16x30-char roles each ...................... 106,034
- *   25 members, two roles each, 440 chars of text .......... 144,087
- *   50 members, one role ................................... 226,795
- *   100 members, 16x30-char roles each ..................... 539,906
- *   100 members, no roles .................................. 391,743
- *   100 members, one 6-char role each ...................... 399,480
- *   50 members, 16x30-char roles each ...................... 298,669
+ *   1 member, 2 roles, 1 category, short text ............  60,292
+ *   1 member, 16x30-char roles and categories .............  64,677
+ *   1 member, 64x3-byte name, 1000x3-byte description .....  66,409
+ *   10 members, one role ...................................  91,186
+ *   10 members, 16x30-char roles each ...................... 106,824
+ *   25 members, two roles each, 440 chars of text .......... 144,873
+ *   50 members, one role ................................... 227,582
+ *   100 members, 16x30-char roles each ..................... 540,701
+ *   100 members, no roles .................................. 391,664
+ *   100 members, one 6-char role each ...................... 398,523
+ *   50 members, 16x30-char roles each ...................... 299,460
  *   100 members, 16x30-char roles each, 16 categories,
- *     maximal name and description (largest possible) ...... 546,792
+ *     maximal name and description (largest possible) ...... 547,579
  * A text proposal added 6,647 bytes (paid by the proposer, not at deploy).
  *
  * The estimate below is a linear model that is at or above every measurement
- * (by 3 % to 23 %). The cap sent as max_deposit is twice the estimate, rounded
+ * (by 3 % to 24 %). The cap sent as max_deposit is twice the estimate, rounded
  * up to a whole GNOT, at least 2 GNOT and at most DAO_V2_MAX_DEPOSIT (twice the
  * largest measured deploy, rounded up to a whole GNOT).
  */
@@ -31,7 +31,7 @@
 const UGNOT_PER_GNOT = 1_000_000
 export const STORAGE_PRICE_UGNOT_PER_BYTE = 100
 
-/** Largest measured deploy (546,792 bytes) x 100 ugnot x 2, rounded up to a whole GNOT. */
+/** Largest measured deploy (547,579 bytes) x 100 ugnot x 2, rounded up to a whole GNOT. */
 export const DAO_V2_MAX_DEPOSIT_UGNOT = 110 * UGNOT_PER_GNOT
 export const DAO_V2_MAX_DEPOSIT = `${DAO_V2_MAX_DEPOSIT_UGNOT}ugnot`
 export const DAO_V2_MIN_DEPOSIT_UGNOT = 2 * UGNOT_PER_GNOT
@@ -72,18 +72,18 @@ export function daoDepositCapUgnot(c: DepositInput): number {
  * Gas budget for the AddPackage transaction that deploys a DAO.
  *
  * MEASURED at gno 31b6650a (in-memory node, gnokey maketx addpkg), gas used:
- *   1 member, short text ....................... 42.9M
- *   1 member, 16x30-char roles and categories .. 45.4M
- *   1 member, maximal name and description ..... 51.1M
- *   10 members, one role ....................... 47.4M
- *   10 members, 16x30-char roles ............... 58.8M
- *   25 members, two roles, 440 chars of text ... 58.0M
- *   50 members, one role ....................... 72.9M
- *   50 members, 16x30-char roles .............. 127.5M
- *   100 members, no roles ..................... 105.8M
- *   100 members, one role ..................... 108.6M
- *   100 members, 16x30-char roles ............. 216.1M
- *   100 members, 16 roles, maximal text ....... 226.1M
+ *   1 member, short text ....................... 43.7M
+ *   1 member, 16x30-char roles and categories .. 46.1M
+ *   1 member, maximal name and description ..... 51.9M
+ *   10 members, one role ....................... 48.2M
+ *   10 members, 16x30-char roles ............... 59.7M
+ *   25 members, two roles, 440 chars of text ... 59.0M
+ *   50 members, one role ....................... 74.1M
+ *   50 members, 16x30-char roles .............. 128.7M
+ *   100 members, no roles ..................... 107.4M
+ *   100 members, one role ..................... 110.2M
+ *   100 members, 16x30-char roles ............. 217.6M
+ *   100 members, 16 roles, maximal text ....... 227.7M
  * A linear model at or above each point, times 1.3, rounded up to a whole
  * million and kept within [50M, 500M].
  */

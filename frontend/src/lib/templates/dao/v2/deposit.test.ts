@@ -10,18 +10,18 @@ const many = (n: number, roles: string[]) => Array.from({ length: n }, () => ({ 
 // Storage bytes and AddPackage gas measured at gno 31b6650a (in-memory node,
 // gnokey maketx addpkg) for these exact configurations.
 const MEASURED: [string, DepositInput, number, number][] = [
-    ["small", small, 60_230, 42_893_247],
-    ["labels", { ...small, roles: roles16, proposalCategories: cats16, members: [{ roles: roles16 }] }, 64_133, 45_368_209],
-    ["text", { ...small, name: "€".repeat(64), description: "€".repeat(1000) }, 65_873, 51_080_278],
-    ["10 members, one role", { ...small, members: many(10, ["member"]) }, 90_400, 47_353_715],
-    ["10 members, 16 roles", { ...small, roles: roles16, members: many(10, roles16) }, 106_034, 58_849_307],
-    ["25 members, mid text", { name: "x".repeat(40), description: "y".repeat(400), roles: ["admin", "dev", "member"], proposalCategories: ["governance"], members: many(25, ["dev", "member"]) }, 144_087, 57_984_431],
-    ["50 members, one role", { ...small, members: many(50, ["member"]) }, 226_795, 72_882_147],
-    ["50 members, 16 roles", { ...small, roles: roles16, members: many(50, roles16) }, 298_669, 127_540_965],
-    ["100 members, no roles", { ...small, members: many(100, []) }, 391_743, 105_811_777],
-    ["100 members, one role", { ...small, members: many(100, ["member"]) }, 399_480, 108_635_263],
-    ["100 members, 16 roles", { ...small, roles: roles16, members: many(100, roles16) }, 539_906, 216_053_738],
-    ["maximal", { name: "€".repeat(64), description: "€".repeat(1000), roles: roles16, proposalCategories: cats16, members: many(100, roles16) }, 546_792, 226_104_759],
+    ["small", small, 60_292, 43_652_595],
+    ["labels", { ...small, roles: roles16, proposalCategories: cats16, members: [{ roles: roles16 }] }, 64_677, 46_143_431],
+    ["text", { ...small, name: "€".repeat(64), description: "€".repeat(1000) }, 66_409, 51_855_364],
+    ["10 members, one role", { ...small, members: many(10, ["member"]) }, 91_186, 48_209_232],
+    ["10 members, 16 roles", { ...small, roles: roles16, members: many(10, roles16) }, 106_824, 59_704_892],
+    ["25 members, mid text", { name: "x".repeat(40), description: "y".repeat(400), roles: ["admin", "dev", "member"], proposalCategories: ["governance"], members: many(25, ["dev", "member"]) }, 144_873, 58_960_471],
+    ["50 members, one role", { ...small, members: many(50, ["member"]) }, 227_582, 74_059_121],
+    ["50 members, 16 roles", { ...small, roles: roles16, members: many(50, roles16) }, 299_460, 128_717_990],
+    ["100 members, no roles", { ...small, members: many(100, []) }, 391_664, 107_368_166],
+    ["100 members, one role", { ...small, members: many(100, ["member"]) }, 398_523, 110_169_043],
+    ["100 members, 16 roles", { ...small, roles: roles16, members: many(100, roles16) }, 540_701, 217_632_679],
+    ["maximal", { name: "€".repeat(64), description: "€".repeat(1000), roles: roles16, proposalCategories: cats16, members: many(100, roles16) }, 547_579, 227_678_456],
 ]
 
 describe("DAO v2 storage deposit", () => {
@@ -37,7 +37,7 @@ describe("DAO v2 storage deposit", () => {
     })
 
     it("the maximum cap is twice the largest measured deploy, rounded up to a whole GNOT", () => {
-        expect(DAO_V2_MAX_DEPOSIT).toBe(`${Math.ceil((546_792 * 100 * 2) / 1_000_000) * 1_000_000}ugnot`)
+        expect(DAO_V2_MAX_DEPOSIT).toBe(`${Math.ceil((547_579 * 100 * 2) / 1_000_000) * 1_000_000}ugnot`)
         expect(daoDepositCapUgnot(MEASURED[11][1])).toBe(110_000_000)
     })
 
