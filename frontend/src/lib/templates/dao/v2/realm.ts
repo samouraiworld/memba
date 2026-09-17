@@ -620,6 +620,8 @@ func Execute(cur realm, id uint64) {
 		memberTotalPower += a.Power
 		electorateVersion++
 	case kindRemoveMember:
+		// Removing a member frees storage; by chain rules the storage deposit it
+		// freed is refunded to whoever executes the removal, not to the payer.
 		m := getMember(a.Target)
 		members.Remove(string(a.Target))
 		memberTotalPower -= m.Power

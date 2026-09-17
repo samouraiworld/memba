@@ -109,6 +109,7 @@ describe("Create DAO on gnoland-1", () => {
         expect(screen.getAllByText("Roles are labels; they grant no special powers.").length).toBeGreaterThan(0)
         expect(disclosure).toHaveTextContent("Roles grant no special powers. Voting power decides.")
         expect(disclosure).not.toHaveTextContent("No member has special powers")
+        expect(disclosure).toHaveTextContent("Storage deposits for removed members are refunded to whoever executes the removal.")
         // the single founder holds all the power
         expect(screen.getByTestId("dao-single-member-warning")).toHaveTextContent(`${SIGNER} can pass proposals alone`)
         expect(disclosure).toHaveTextContent("This DAO cannot hold funds")

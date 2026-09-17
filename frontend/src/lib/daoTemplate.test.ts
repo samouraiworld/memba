@@ -135,6 +135,10 @@ describe('generateDAOCode — realm shape', () => {
         expect(code).toContain('maxPageSize      = 50')
     })
 
+    it('documents who receives the storage refund of a removal', () => {
+        expect(generateDAOCode(makeConfig())).toMatch(/storage deposit it\n\t\t\/\/ freed is refunded to whoever executes the removal/)
+    })
+
     it('emits events for creation, votes, execution and archive', () => {
         const code = generateDAOCode(makeConfig())
         for (const event of ['ProposalCreated', 'VoteCast', 'ProposalExecuted', 'DAOArchived']) {

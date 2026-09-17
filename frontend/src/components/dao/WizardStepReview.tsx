@@ -129,7 +129,7 @@ export function WizardStepReview({
 
             {/* What you are about to do */}
             <div style={noticeStyle} data-testid="dao-deploy-disclosure">
-                <div><strong>Storage deposit:</strong> about {formatGnot(depositEstimateUgnot)}, capped at {formatGnot(depositCapUgnot)}. It is locked to the realm and refunded only when its storage is freed.</div>
+                <div><strong>Storage deposit:</strong> about {formatGnot(depositEstimateUgnot)}, capped at {formatGnot(depositCapUgnot)}. It is locked to the realm and refunded only when its storage is freed. Storage deposits for removed members are refunded to whoever executes the removal.</div>
                 <div><strong>Network fee:</strong> up to {formatGnot(networkFeeUgnot)} (your wallet may lower it). Gas limit {deployGas.toLocaleString("en-US")}.</div>
                 {channelsPlanned && (
                     <div><strong>Channels companion (second signature):</strong> storage deposit cap {formatGnot(depositCapUgnot)}, network fee up to {formatGnot(channelsFeeUgnot)}.</div>
