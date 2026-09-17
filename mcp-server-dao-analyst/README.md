@@ -70,6 +70,9 @@ Add to `.cursor/mcp.json` or `.vscode/mcp.json`:
 
 ## Free vs PRO
 
+> **Historical.** These tiers were enforced by the removed backend analysis
+> route. Do not deposit credits for them.
+
 | | Free | PRO |
 |---|---|---|
 | Perspectives | 2 (technical, financial) | 3 (+ legal) |
@@ -119,14 +122,11 @@ MCP Client (any MCP-compatible client)
 dao-analyst-mcp (local)
   ├─ Fetches on-chain data via ABCI (gno-rpc)
   ├─ Constructs perspective prompts
-  └─ Sends to Memba backend
-       ↕ POST /api/analyst/analyze
-     Memba Backend (Fly.io)
-       ├─ Tier enforcement (on-chain credit check)
-       ├─ LLM routing (Groq, Google AI, Together, Ollama)
-       ├─ Circuit breaker + fallback chain
-       └─ Rate limiting per IP
+  └─ Sends to a Memba backend analysis route
 ```
+
+The hosted Memba backend no longer serves the analysis route this server was
+written against, and its tier enforcement (credit check) was removed with it.
 
 ## License
 

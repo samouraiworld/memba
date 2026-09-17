@@ -117,8 +117,8 @@ ConnectRPC endpoints are protected against CSRF by the content-type requirement:
 - Simple CORS requests cannot set custom content types
 - Therefore, ConnectRPC's content-type requirement provides implicit CSRF protection
 
-REST endpoints (`/api/render`, `/api/balance`, `/api/marketplace/*`) are read-only (GET) and don't require CSRF tokens.
-Authenticated REST endpoints (`/api/upload/avatar`, `/api/analyst/analyze`) require the auth token in the Authorization header, which provides sufficient anti-CSRF protection.
+REST endpoints (`/api/render`, `/api/marketplace/agents`) are read-only (GET) and don't require CSRF tokens.
+Authenticated REST endpoints (`/api/upload/avatar`, `/api/upload/image`, `POST /api/analyst/consensus`) require the auth token (or, for the analyst, the operator bearer) in the Authorization header, which provides sufficient anti-CSRF protection.
 
 ---
 

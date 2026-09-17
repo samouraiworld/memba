@@ -119,11 +119,9 @@ Add a local build to your MCP client's configuration file:
 }
 ```
 
-Free tier covers 2 perspectives (technical, financial) at 10 req/min; PRO (on-chain
-credits via `DepositCredits("dao-analyst")` on the agent registry realm) adds the legal
-perspective, multi-model consensus, and 5-way comparison. See
-`mcp-server-dao-analyst/README.md` for env vars (`DAO_ANALYST_TOKEN`; PRO credits
-are checked for the wallet the token was issued to) and tier details.
+The free and PRO tiers this server describes were enforced by a backend route that
+has been removed; do not deposit analyst credits for them. See
+`mcp-server-dao-analyst/README.md` for env vars.
 
 ## CI/CD Integration
 
