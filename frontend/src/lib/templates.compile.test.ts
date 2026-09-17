@@ -39,7 +39,6 @@ import { join } from "node:path"
 
 import { generateDAOCode } from "./daoTemplate"
 import { generateBoardCode, defaultBoardConfig } from "./boardTemplate"
-import { generateCandidatureCode, defaultCandidatureConfig } from "./candidatureTemplate"
 import { generateChannelCode, defaultChannelConfig } from "./channelTemplate"
 import { generateAgentRegistryCode } from "./agentTemplate"
 import { generateEscrowCode } from "./escrowTemplate"
@@ -67,15 +66,6 @@ const CASES: { name: string; code: string }[] = [
         }),
     },
     { name: "gate_board", code: generateBoardCode(defaultBoardConfig(`${NS}/gate_dao`, "Gate DAO")) },
-    {
-        name: "gate_candidature",
-        // gnovm requires package name == last path element, so the fixture's realm
-        // path must match the pkg dir it's written to or the workspace won't lint.
-        code: generateCandidatureCode({
-            ...defaultCandidatureConfig,
-            candidatureRealmPath: `${NS}/gate_candidature`,
-        }),
-    },
     {
         name: "gate_channels",
         // W1.5 shape: roster seeding + the parent.IsMember cross-realm fallback

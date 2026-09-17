@@ -1,5 +1,5 @@
 /**
- * Candidature Template — types, validation, MsgCall builders, and Render parser
+ * Candidature client — types, validation, MsgCall builders, and Render parser
  * for the MembaDAO candidature realm. Canonical path is gno.land/r/samcrew/memba_dao_candidature_v3
  * (IsUserCall-guarded, P0 fund-drain fix); the older _v2 is paused and retained for legacy withdrawals.
  *
@@ -14,8 +14,7 @@
  */
 
 import type { AminoMsg } from "./grc20"
-import { MEMBA_DAO, MEMBA_TOKEN } from "./config"
-import { requireInt, requireRealmPath } from "./templates/sanitizer"
+import { MEMBA_DAO } from "./config"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -29,32 +28,6 @@ export interface Candidature {
     status: CandidatureStatus
     appliedAt: number    // block height
     applyCount: number   // attempt number
-}
-
-export interface CandidatureConfig {
-    /** MembaDAO realm path (for cross-realm member check). */
-    daoRealmPath: string
-    /** Candidature realm path. */
-    candidatureRealmPath: string
-    /** Token symbol for airdrop. */
-    tokenSymbol: string
-    /** Airdrop amount in smallest unit (e.g. 10 * 10^6 = 10 MEMBA). */
-    airdropAmount: bigint
-    /** Number of approvals required. */
-    requiredApprovals: number
-    /** Transfer lock duration in days (0 = no lock). */
-    transferLockDays: number
-}
-
-// ── Defaults ──────────────────────────────────────────────────
-
-export const defaultCandidatureConfig: CandidatureConfig = {
-    daoRealmPath: MEMBA_DAO.realmPath,
-    candidatureRealmPath: MEMBA_DAO.candidaturePath,
-    tokenSymbol: MEMBA_TOKEN.symbol,
-    airdropAmount: 10_000_000n, // 10 MEMBA (6 decimals)
-    requiredApprovals: 2,
-    transferLockDays: 90,
 }
 
 // ── Validation ────────────────────────────────────────────────
@@ -289,97 +262,4 @@ export function parseCandidatureDetail(raw: string): Candidature | null {
         appliedAt: parseInt(blockMatch?.[1] || "0") || 0,
         applyCount: parseInt(attemptMatch?.[1] || "0") || 0,
     }
-}
-
-/**
- * Generate the candidature realm Gno source code.
- *
- * NOTE: The canonical MembaDAO candidature realm is deployed via samcrew-deployer
- * (projects/memba/realms/memba_dao_candidature_v2/). This generator is kept for
- * user-created DAOs that want their own candidature flow. It generates a
- * simplified version — the deployed realm uses avl trees and banker.
- */
-export function generateCandidatureCode(config: CandidatureConfig = defaultCandidatureConfig): string {
-    // W1.1 fail-closed: the generated realm is immutable once deployed, so
-    // reject bad input at codegen time rather than emitting a broken realm.
-    //
-    // candidatureRealmPath is interpolated into the `package` declaration below
-    // (its last segment becomes the package name, per gnolang/gno#5048). Every
-    // other generator here — dao, channel, escrow, agent — validates its path
-    // before doing that; this one did not, so a path carrying a newline or a
-    // brace could break out of the declaration and inject arbitrary Gno source
-    // into the emitted realm. Latent rather than live (nothing calls this
-    // generator yet), and closing it now keeps the five generators consistent.
-    requireRealmPath("candidatureRealmPath", config.candidatureRealmPath)
-    // requiredApprovals at 0/NaN would let candidatures auto-pass.
-    requireInt("requiredApprovals", config.requiredApprovals, 1, 1000)
-
-    // gnovm rejects a deployed package whose name differs from the last element
-    // of its path (ValidatePkgNameMatchesPath, gnolang/gno#5048), so derive it
-    // from the realm path exactly as every other generator does — a hardcoded
-    // `package candidature` fails to deploy at `.../memba_dao_candidature_v3`.
-    const pkgName = config.candidatureRealmPath.split("/").pop() || "candidature"
-
-    return `package ${pkgName}
-
-import (
-\t"chain/runtime/unsafe"
-\t"strings"
-\t"strconv"
-)
-
-type Application struct {
-\tApplicant  address
-\tBio        string
-\tSkills     string
-\tStatus     string // "pending", "approved", "rejected"
-\tApplyCount int
-}
-
-var (
-\tapplications []Application
-\tadminAddr    address
-\trequiredApprovals int = ${config.requiredApprovals}
-)
-
-func init() {
-\tadminAddr = unsafe.PreviousRealm().Address()
-}
-
-func Apply(cur realm, bio, skills string) {
-\tcaller := unsafe.PreviousRealm().Address()
-\tfor _, a := range applications {
-\t\tif a.Applicant == caller && a.Status == "pending" {
-\t\t\tpanic("you already have a pending application")
-\t\t}
-\t}
-\tif len(bio) == 0 || len(bio) > ${MAX_BIO_LENGTH} {
-\t\tpanic("invalid bio length")
-\t}
-\tif len(skills) > ${MAX_SKILLS_LENGTH} {
-\t\tpanic("skills too long")
-\t}
-\tapplications = append(applications, Application{
-\t\tApplicant:  caller,
-\t\tBio:        bio,
-\t\tSkills:     skills,
-\t\tStatus:     "pending",
-\t\tApplyCount: 1,
-\t})
-}
-
-func Render(path string) string {
-\tvar sb strings.Builder
-\tsb.WriteString("# Candidature\\n\\n")
-\tpending := 0
-\tfor _, a := range applications {
-\t\tif a.Status == "pending" { pending++ }
-\t}
-\tsb.WriteString("**Stats:** " + strconv.Itoa(pending) + " pending\\n\\n")
-\tfor _, a := range applications {
-\t\tsb.WriteString("- " + string(a.Applicant) + " (" + a.Status + ")\\n")
-\t}
-\treturn sb.String()
-}
-`
 }

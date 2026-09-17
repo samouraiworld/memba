@@ -1,5 +1,5 @@
 /**
- * Candidature Template Tests — validation, MsgCall builders, parser, code gen.
+ * Candidature client tests — validation, MsgCall builders, parser.
  *
  * v2.29: Updated to match deployed realm API (Apply instead of SubmitCandidature).
  */
@@ -15,9 +15,7 @@ import {
     parseIsAdminResult,
     parseCandidatureList,
     parseCandidatureDetail,
-    generateCandidatureCode,
     getRequiredDeposit,
-    defaultCandidatureConfig,
     MAX_BIO_LENGTH,
     MAX_SKILLS_LENGTH,
     MIN_DEPOSIT_UGNOT,
@@ -277,106 +275,5 @@ go, rust, typescript`
 
     it("returns null for empty input", () => {
         expect(parseCandidatureDetail("")).toBeNull()
-    })
-})
-
-// ── Config Defaults ───────────────────────────────────────────
-
-describe("defaultCandidatureConfig", () => {
-    it("uses 2 required approvals", () => {
-        expect(defaultCandidatureConfig.requiredApprovals).toBe(2)
-    })
-
-    it("uses 10 MEMBA airdrop (6 decimals)", () => {
-        expect(defaultCandidatureConfig.airdropAmount).toBe(10_000_000n)
-    })
-
-    it("uses 90-day transfer lock", () => {
-        expect(defaultCandidatureConfig.transferLockDays).toBe(90)
-    })
-
-    it("references candidature realm path", () => {
-        expect(defaultCandidatureConfig.candidatureRealmPath).toContain("candidature")
-    })
-})
-
-// ── Code Generation ───────────────────────────────────────────
-
-describe("generateCandidatureCode", () => {
-    it("generates valid Gno code with Apply function", () => {
-        const code = generateCandidatureCode()
-        const lastElem = defaultCandidatureConfig.candidatureRealmPath.split("/").pop()
-        expect(code).toContain(`package ${lastElem}`)
-        expect(code).toContain("func Apply")
-        expect(code).toContain("func Render")
-    })
-
-    // gnovm rejects a deployed package whose name differs from the last element of
-    // its path (ValidatePkgNameMatchesPath). This generator used to hardcode
-    // `package candidature`, which cannot deploy at `.../memba_dao_candidature_v3`.
-    it("derives the package name from the realm path's last element", () => {
-        const code = generateCandidatureCode({
-            ...defaultCandidatureConfig,
-            candidatureRealmPath: "gno.land/r/samcrew/my_dao_candidature_v9",
-        })
-        expect(code).toContain("package my_dao_candidature_v9")
-        expect(code).not.toContain("package candidature\n")
-    })
-
-    // The path's last segment lands in `package ${pkgName}`. Every other
-    // generator (dao, channel, escrow, agent) validated its path before doing
-    // that; this one did not, so a crafted path could close the declaration and
-    // append arbitrary Gno to an immutable realm. Assert the REJECTION, not just
-    // that a validator is wired — a test that only checks "does not contain the
-    // payload" would also pass if the payload were merely escaped away.
-    it.each([
-        ["a newline breaking out of the package declaration", "gno.land/r/x/c\n\nfunc Backdoor() { panic(1) }"],
-        ["a brace closing the declaration", "gno.land/r/x/c}\nfunc Backdoor() {"],
-        ["path traversal", "gno.land/r/x/../../evil"],
-        ["a non-realm path", "https://evil.example/r/x/c"],
-        ["empty", ""],
-    ])("rejects %s", (_label, path) => {
-        expect(() =>
-            generateCandidatureCode({ ...defaultCandidatureConfig, candidatureRealmPath: path }),
-        ).toThrow(/Invalid candidatureRealmPath/)
-    })
-
-    it("still accepts the paths it is supposed to, unchanged", () => {
-        // Guard against over-tightening: the valid case must keep emitting the
-        // same package declaration it did before validation was added.
-        const code = generateCandidatureCode({
-            ...defaultCandidatureConfig,
-            candidatureRealmPath: "gno.land/r/samcrew/my_dao_candidature_v9",
-        })
-        expect(code).toContain("package my_dao_candidature_v9")
-        expect(() => generateCandidatureCode()).not.toThrow()
-    })
-
-    it("includes duplicate submission prevention", () => {
-        const code = generateCandidatureCode()
-        expect(code).toContain("already have a pending application")
-    })
-
-    it("includes bio length validation", () => {
-        const code = generateCandidatureCode()
-        expect(code).toContain(String(MAX_BIO_LENGTH))
-    })
-
-    it("includes skills length validation", () => {
-        const code = generateCandidatureCode()
-        expect(code).toContain("skills too long")
-        expect(code).toContain(String(MAX_SKILLS_LENGTH))
-    })
-})
-
-// ── W1.1: fail-closed codegen — invalid input must THROW, never interpolate ──
-describe("generateCandidatureCode — fail-closed guards (W1.1)", () => {
-    it("throws on non-positive / NaN requiredApprovals", () => {
-        for (const requiredApprovals of [0, -1, NaN, 1.5]) {
-            expect(() => generateCandidatureCode({ ...defaultCandidatureConfig, requiredApprovals })).toThrow(/requiredApprovals/i)
-        }
-    })
-    it("boundary requiredApprovals still generates", () => {
-        expect(generateCandidatureCode({ ...defaultCandidatureConfig, requiredApprovals: 1 })).toContain("requiredApprovals int = 1")
     })
 })
