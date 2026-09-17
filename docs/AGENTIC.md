@@ -97,14 +97,19 @@ It exposes 6 tools:
 | `dao_risk_assessment` | Focused risk analysis — what could go wrong |
 | `dao_set_network` | Switch Gno network mid-conversation |
 
-Add the server to your MCP client's configuration file:
+> **Not available today.** The package is not published on npm, and the hosted
+> Memba backend no longer serves the analysis endpoint this server calls (the
+> backend analyst is off unless an operator enables it). The configuration below
+> is for local development from source only.
+
+Add a local build to your MCP client's configuration file:
 
 ```json
 {
   "mcpServers": {
     "dao-analyst": {
-      "command": "npx",
-      "args": ["-y", "@samouraiworld/dao-analyst-mcp@latest"],
+      "command": "node",
+      "args": ["/path/to/memba/mcp-server-dao-analyst/build/index.js"],
       "env": {
         "GNO_RPC_URL": "https://rpc.pearl.testnets.gno.land:443",
         "MEMBA_BACKEND_URL": "https://memba-backend.fly.dev"

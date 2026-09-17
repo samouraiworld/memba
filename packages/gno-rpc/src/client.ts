@@ -59,8 +59,7 @@ export class GnoRpcClient {
   async queryRender(realmPath: string, path = "", ttlMs = TTL_DEFAULT): Promise<string | null> {
     const key = cacheKey("render", realmPath, path);
     return this.cachedQuery(key, ttlMs, () => {
-      const data = path ? `${realmPath}\n${path}` : `${realmPath}\n`;
-      return this.abciQuery("vm/qrender", data);
+      return this.abciQuery("vm/qrender", `${realmPath}:${path}`);
     });
   }
 
@@ -71,8 +70,7 @@ export class GnoRpcClient {
   async queryEval(realmPath: string, expression: string, ttlMs = TTL_DEFAULT): Promise<string | null> {
     const key = cacheKey("eval", realmPath, expression);
     return this.cachedQuery(key, ttlMs, () => {
-      const data = `${realmPath}\n${expression}`;
-      return this.abciQuery("vm/qeval", data);
+      return this.abciQuery("vm/qeval", `${realmPath}.${expression}`);
     });
   }
 
@@ -161,6 +159,11 @@ export class GnoRpcClient {
     return result;
   }
 
+  /**
+   * Send an abci_query. gno.land decodes `data` as base64 (raw text is rejected
+   * with "illegal base64 data"), so it is encoded here for every query path.
+   * Render data is "<realm>:<path>", eval data is "<realm>.<expression>".
+   */
   private async abciQuery(path: string, data: string): Promise<string | null> {
     let lastError: Error | null = null;
 
@@ -170,7 +173,7 @@ export class GnoRpcClient {
       try {
         const json = await this.jsonRpcCall<AbciResponse>(url, "abci_query", {
           path,
-          data,
+          data: Buffer.from(data, "utf-8").toString("base64"),
         });
 
         if (json?.error) {

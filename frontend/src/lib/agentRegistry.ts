@@ -87,7 +87,7 @@ export const SEED_AGENTS: AgentListing[] = [
         id: "memba-mcp",
         name: "Memba MCP Server",
         description: "Official Memba MCP server — query DAOs, proposals, validators, and contributor data from the Gno blockchain.",
-        longDescription: `The official Memba MCP server (@samouraiworld/memba-mcp) provides 9 tools for interacting with the Gno ecosystem:
+        longDescription: `The official Memba MCP server provides 9 tools for interacting with the Gno ecosystem:
 
 - **memba_query_render** — Query any realm's Render() output
 - **memba_query_eval** — Evaluate realm functions via vm/qeval
@@ -101,7 +101,7 @@ export const SEED_AGENTS: AgentListing[] = [
 
 Works with any MCP-compatible client.
 
-Install: npx @samouraiworld/memba-mcp
+Install: the server is not published on npm. Build it from the Memba repository (mcp-server/) and run node mcp-server/build/index.js.
 Configure GNO_RPC_URL to point to your preferred network.`,
         category: "analytics",
         capabilities: [
@@ -116,7 +116,7 @@ Configure GNO_RPC_URL to point to your preferred network.`,
         ],
         creator: "g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0",
         creatorName: "Samourai.world",
-        mcpEndpoint: "npx @samouraiworld/memba-mcp",
+        mcpEndpoint: "node /path/to/memba/mcp-server/build/index.js",
         mcpTransport: "stdio",
         pricing: "free",
         pricePerCall: 0,

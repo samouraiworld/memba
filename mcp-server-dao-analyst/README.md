@@ -17,6 +17,11 @@ Registers on-chain in [`gno.land/r/samcrew/agent_registry_v2`](https://gno.land/
 
 ## Setup
 
+> **Not available today.** This package is not published on npm, and the hosted
+> Memba backend no longer serves the analysis endpoint this server calls (the
+> backend analyst is off unless an operator enables it). Build from source for
+> local development only (see Development below).
+
 ### MCP client configuration
 
 Add the server to your MCP client's configuration file:
@@ -25,8 +30,8 @@ Add the server to your MCP client's configuration file:
 {
   "mcpServers": {
     "dao-analyst": {
-      "command": "npx",
-      "args": ["-y", "@samouraiworld/dao-analyst-mcp@latest"],
+      "command": "node",
+      "args": ["/path/to/memba/mcp-server-dao-analyst/build/index.js"],
       "env": {
         "GNO_RPC_URL": "https://rpc.gno.land",
         "MEMBA_BACKEND_URL": "https://backend.memba.samourai.app"
@@ -44,8 +49,8 @@ Add to `.cursor/mcp.json` or `.vscode/mcp.json`:
 {
   "servers": {
     "dao-analyst": {
-      "command": "npx",
-      "args": ["-y", "@samouraiworld/dao-analyst-mcp@latest"],
+      "command": "node",
+      "args": ["/path/to/memba/mcp-server-dao-analyst/build/index.js"],
       "env": {
         "GNO_RPC_URL": "https://rpc.gno.land",
         "MEMBA_BACKEND_URL": "https://backend.memba.samourai.app"

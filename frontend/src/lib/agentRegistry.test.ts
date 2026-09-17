@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { parseAgentTable, parseAgentDetail } from "./agentRegistry"
+import { parseAgentTable, parseAgentDetail, SEED_AGENTS } from "./agentRegistry"
 
 describe("parseAgentTable", () => {
     it("parses a single agent table", () => {
@@ -159,5 +159,23 @@ A paid agent
         expect(result!.agent.pricing).toBe("pay-per-use")
         expect(result!.agent.pricePerCall).toBe(100000)
         expect(result!.agent.mcpTransport).toBe("streamable-http")
+    })
+})
+
+describe("SEED_AGENTS install instructions", () => {
+    // The @samouraiworld MCP packages are not published on npm, so an npx
+    // command would fetch whatever package later appears under that name.
+    it("never tells users to npx an @samouraiworld package", () => {
+        for (const agent of SEED_AGENTS) {
+            for (const text of [agent.mcpEndpoint, agent.longDescription ?? "", agent.description]) {
+                expect(text).not.toMatch(/npx\b/)
+                expect(text).not.toMatch(/@samouraiworld\/[a-z-]+-mcp\b.*install/i)
+            }
+        }
+    })
+
+    it("points the Memba MCP server at a local build", () => {
+        const memba = SEED_AGENTS.find(a => a.id === "memba-mcp")!
+        expect(memba.mcpEndpoint).toBe("node /path/to/memba/mcp-server/build/index.js")
     })
 })
