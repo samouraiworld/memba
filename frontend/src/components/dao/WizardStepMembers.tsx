@@ -1,4 +1,5 @@
-import { inputStyle, ROLE_COLORS, ROLE_ICONS, ROLES_ARE_LABELS, type MemberInput, type Step } from "./wizardShared"
+import { inputStyle, ROLE_COLORS, ROLE_ICONS, ROLES_ARE_LABELS, SoloPowerWarning, type MemberInput, type Step } from "./wizardShared"
+import { membersWhoCanPassAlone } from "../../lib/daoTemplate"
 
 interface Props {
     members: MemberInput[]
@@ -6,6 +7,8 @@ interface Props {
     walletAddress: string
     validMembers: MemberInput[]
     totalPower: number
+    threshold: number
+    quorum: number
     onMembersChange: (members: MemberInput[]) => void
     onGoToStep: (s: Step) => void
     onNext: () => void
@@ -13,7 +16,7 @@ interface Props {
 
 export function WizardStepMembers({
     members, availableRoles, walletAddress,
-    validMembers, totalPower,
+    validMembers, totalPower, threshold, quorum,
     onMembersChange, onGoToStep, onNext,
 }: Props) {
     const addMember = () => onMembersChange([...members, { address: "", power: 1, roles: ["member"] }])
@@ -121,6 +124,8 @@ export function WizardStepMembers({
             <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", margin: 0 }}>
                 {ROLES_ARE_LABELS} Adding or removing members, changing roles and archiving are all decided by vote.
             </p>
+
+            <SoloPowerWarning addresses={membersWhoCanPassAlone(validMembers, threshold, quorum)} />
 
             <button
                 onClick={addMember}

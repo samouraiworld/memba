@@ -13,6 +13,7 @@ import {
     validateRealmPath,
     isValidGnoAddress,
     isDeployableMemberAddress,
+    membersWhoCanPassAlone,
     daoStepError,
     DAO_PRESETS,
     DAO_TEMPLATE_VERSION,
@@ -144,14 +145,14 @@ describe('generateDAOCode — realm shape', () => {
     it('writes members, roles, categories, thresholds and windows exactly as configured', () => {
         const code = generateDAOCode(makeConfig({
             threshold: 66, quorum: 50, roles: ['admin', 'dev', 'member'], proposalCategories: ['governance', 'operations'],
-            votingPeriodSeconds: 7 * 86400, executionDelaySeconds: 0, executionWindowSeconds: 14 * 86400,
+            votingPeriodSeconds: 7 * 86400, executionDelaySeconds: 3600, executionWindowSeconds: 14 * 86400,
         }))
         expect(code).toContain(`\taddGenesisMember("${ALICE}", 3, []string{"admin"})`)
         expect(code).toContain(`\taddGenesisMember("${BOB}", 1, []string{"member"})`)
         expect(code).toMatch(/threshold\s+= 66 /)
         expect(code).toMatch(/quorum\s+= 50 /)
         expect(code).toContain('votingPeriod    = int64(604800)')
-        expect(code).toContain('executionDelay  = int64(0)')
+        expect(code).toContain('executionDelay  = int64(3600)')
         expect(code).toContain('executionWindow = int64(1209600)')
         expect(code).toContain('allowedCategories = []string{"governance", "operations"}')
         expect(code).toContain('allowedRoles      = []string{"admin", "dev", "member"}')
@@ -185,6 +186,8 @@ describe('generateDAOCode — fails closed', () => {
         ['voting period under an hour', { votingPeriodSeconds: 3599 }, /votingPeriodSeconds/],
         ['voting period over 30 days', { votingPeriodSeconds: 30 * 86400 + 1 }, /votingPeriodSeconds/],
         ['negative delay', { executionDelaySeconds: -1 }, /executionDelaySeconds/],
+        ['no delay', { executionDelaySeconds: 0 }, /executionDelaySeconds/],
+        ['delay under an hour', { executionDelaySeconds: 3599 }, /executionDelaySeconds/],
         ['delay over 7 days', { executionDelaySeconds: 7 * 86400 + 1 }, /executionDelaySeconds/],
         ['window under a day', { executionWindowSeconds: 86399 }, /executionWindowSeconds/],
         ['window over 30 days', { executionWindowSeconds: 30 * 86400 + 1 }, /executionWindowSeconds/],
@@ -231,12 +234,23 @@ describe('generateDAOCode — fails closed', () => {
     it('accepts the boundary values', () => {
         expect(() => generateDAOCode(makeConfig({
             name: 'x'.repeat(64), description: 'y'.repeat(1000), threshold: 51, quorum: 100,
-            votingPeriodSeconds: 3600, executionDelaySeconds: 0, executionWindowSeconds: 86400,
+            votingPeriodSeconds: 3600, executionDelaySeconds: 3600, executionWindowSeconds: 86400,
             members: [{ address: ALICE, power: 1_000_000_000, roles: [] }],
         }))).not.toThrow()
         expect(() => generateDAOCode(makeConfig({
             threshold: 100, votingPeriodSeconds: 30 * 86400, executionDelaySeconds: 7 * 86400, executionWindowSeconds: 30 * 86400,
         }))).not.toThrow()
+    })
+})
+
+describe('membersWhoCanPassAlone', () => {
+    const m = (address: string, power: number) => ({ address, power, roles: [] })
+    it('lists members whose power alone meets the threshold and the quorum', () => {
+        expect(membersWhoCanPassAlone([m(ALICE, 60), m(BOB, 40)], 60, 0)).toEqual([ALICE])
+        expect(membersWhoCanPassAlone([m(ALICE, 59), m(BOB, 41)], 60, 0)).toEqual([])
+        expect(membersWhoCanPassAlone([m(ALICE, 1)], 100, 100)).toEqual([ALICE])
+        expect(membersWhoCanPassAlone([m(ALICE, 70), m(BOB, 30)], 51, 80)).toEqual([])
+        expect(membersWhoCanPassAlone([m('', 5), m(ALICE, 0)], 51, 0)).toEqual([])
     })
 })
 

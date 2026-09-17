@@ -54,7 +54,7 @@ function config(pkg: string, change: Partial<DAOCreationConfig> & Pick<DAOCreati
         roles: ["admin", "lead", "member"],
         proposalCategories: ["governance", "membership"],
         votingPeriodSeconds: 7200,
-        executionDelaySeconds: 1800,
+        executionDelaySeconds: 3600,
         executionWindowSeconds: 86400,
         ...change,
     }
@@ -229,7 +229,7 @@ func TestSupermajorityRemovesAdminLabelledMember(cur realm, t *testing.T) {
 	testing.SetRealm(carol)
 	Vote(cross(cur), id, "YES")
 	if derivedStatus(getProposal(id)) != "ACCEPTED" { t.Fatal("expected accepted") }
-	advance(1800)
+	advance(3600)
 	Execute(cross(cur), id)
 	if IsMember(address(${q(ALICE)})) { t.Fatal("a 90 % vote must remove the member") }
 }
@@ -239,7 +239,7 @@ func TestLabelledAdminCannotPassAlone(cur realm, t *testing.T) {
 	id := ProposeArchive(cross(cur), "archive", "")
 	Vote(cross(cur), id, "YES")
 	if derivedStatus(getProposal(id)) != "ACTIVE" { t.Fatal("45 % must not decide a 60 % threshold") }
-	advance(1800)
+	advance(3600)
 	mustAbort(t, "execute without acceptance", func() { Execute(cross(cur), id) })
 	if IsArchived() { t.Fatal("archived without a vote") }
 }
@@ -281,7 +281,7 @@ func TestRemovalToZeroRefused(cur realm, t *testing.T) {
 	Vote(cross(cur), removeBob, "YES")
 	removeAlice := ProposeRemoveMember(cross(cur), "remove alice", "", address(${q(ALICE)}))
 	Vote(cross(cur), removeAlice, "YES")
-	advance(1800)
+	advance(3600)
 	Execute(cross(cur), removeBob)
 	mustAbort(t, "execute removal of the last member", func() { Execute(cross(cur), removeAlice) })
 	if !IsMember(address(${q(ALICE)})) || memberTotalPower != 60 { t.Fatal("last member removed") }
@@ -332,7 +332,7 @@ func TestDelayCountsFromAcceptance(cur realm, t *testing.T) {
 	Vote(cross(cur), id, "YES")
 	if derivedStatus(getProposal(id)) != "ACCEPTED" { t.Fatal("expected accepted") }
 	mustAbort(t, "execute right after acceptance", func() { Execute(cross(cur), id) })
-	advance(1800)
+	advance(3600)
 	Execute(cross(cur), id)
 }
 
@@ -342,7 +342,7 @@ func TestAcceptedProposalLapses(cur realm, t *testing.T) {
 	Vote(cross(cur), id, "YES")
 	testing.SetRealm(bob)
 	Vote(cross(cur), id, "YES")
-	advance(1800 + 86400 + 60)
+	advance(3600 + 86400 + 60)
 	if derivedStatus(getProposal(id)) != "LAPSED" { t.Fatal("accepted proposal must lapse after the execution window") }
 	if getProposal(id).Status != "ACCEPTED" { t.Fatal("lapsing must not be written") }
 	mustAbort(t, "execute after the window", func() { Execute(cross(cur), id) })
@@ -419,6 +419,7 @@ func TestG_GasRenderLargestDetail(t *testing.T) { _ = Render("51") }
             ["gen_power", (c) => c.replace(aliceRow, aliceRow.replace(", 50,", ", 0,")), /member power/],
             ["gen_duplicate", (c) => c.replace(aliceRow, `${aliceRow}\n\t${aliceRow}`), /duplicate member/],
             ["gen_period", (c) => c.replace("int64(7200)", "int64(60)"), /voting period/],
+            ["gen_delay", (c) => c.replace("executionDelay  = int64(3600)", "executionDelay  = int64(60)"), /execution delay/],
             ["gen_role", (c) => c.replace(aliceRow, aliceRow.replace('"lead"', '"owner"')), /invalid role/],
             ["gen_upper", (c) => c.replace(aliceRow, aliceRow.replace(ALICE, ALICE.toUpperCase())), /lower case/],
         ]
@@ -547,7 +548,7 @@ func TestG_SetRolesByProposal(cur realm, t *testing.T) {
 	open := ProposeText(cross(cur), "still open", "", "governance")
 	version := electorateVersion
 	mustAbort(t, "execute before the delay", func() { Execute(cross(cur), id) })
-	advance(1800)
+	advance(3600)
 	Execute(cross(cur), id)
 	m := getMember(b)
 	if len(m.Roles) != 2 || m.Roles[0] != "lead" || m.Roles[1] != "member" { t.Fatal("roles not applied") }
@@ -570,7 +571,7 @@ func TestH_ExecuteRevalidatesAndMarksOnlyAfterApplying(cur realm, t *testing.T) 
 	testing.SetRealm(carol)
 	pending := ProposeText(cross(cur), "pending during the change", "", "governance")
 	version := electorateVersion
-	advance(1800)
+	advance(3600)
 	Execute(cross(cur), p1)
 	if !IsMember(d) || electorateVersion != version+1 || memberTotalPower != 105 { t.Fatal("add not applied") }
 	mustAbort(t, "stale second add", func() { Execute(cross(cur), p2) })
@@ -631,7 +632,7 @@ func TestL_RemoveMemberByProposal(cur realm, t *testing.T) {
 	testing.SetRealm(bob)
 	Vote(cross(cur), id, "YES")
 	version := electorateVersion
-	advance(1800)
+	advance(3600)
 	Execute(cross(cur), id)
 	if IsMember(d) || memberTotalPower != 100 || electorateVersion != version+1 { t.Fatal("removal not applied") }
 }
@@ -648,7 +649,7 @@ func TestM_ArchiveOnlyByProposal(cur realm, t *testing.T) {
 	}
 	testing.SetRealm(carol)
 	open := ProposeText(cross(cur), "open at archive", "", "governance")
-	advance(1800)
+	advance(3600)
 	if IsArchived() { t.Fatal("archived before execution") }
 	Execute(cross(cur), arch)
 	if !IsArchived() || !strings.Contains(GetConfigJSON(), "\"archived\":true") || !strings.Contains(Render(""), "This DAO is archived.") { t.Fatal("archive not applied") }
@@ -791,7 +792,7 @@ func TestReads(cur realm, t *testing.T) {
 	Vote(cross(cur), text, "YES")
 	testing.SetRealm(bob)
 	Vote(cross(cur), text, "YES")
-	advance(1800)
+	advance(3600)
 	Execute(cross(cur), text)
 	add := ProposeAddMember(cross(cur), "add dave", "", address(${q(DAVE)}), 5, "member")
 	testing.SetRealm(alice)

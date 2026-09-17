@@ -36,6 +36,7 @@ export const REALM_LIMITS = {
     renderPageSize: 20,
     minVotingPeriod: 3600,
     maxVotingPeriod: 30 * 86400,
+    minExecutionDelay: 3600,
     maxExecutionDelay: 7 * 86400,
     minExecutionWindow: 86400,
     maxExecutionWindow: 30 * 86400,
@@ -223,7 +224,9 @@ func checkGenesis() {
 	if votingPeriod < 3600 || votingPeriod > 30*86400 {
 		panic("genesis: voting period out of range")
 	}
-	if executionDelay < 0 || executionDelay > 7*86400 {
+	// At least an hour between acceptance and execution, so members see a
+	// decision before it applies, even when one member can pass it alone.
+	if executionDelay < 3600 || executionDelay > 7*86400 {
 		panic("genesis: execution delay out of range")
 	}
 	if executionWindow < 86400 || executionWindow > 30*86400 {

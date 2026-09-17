@@ -2,7 +2,8 @@ import { DAO_PRESETS } from "../../lib/daoTemplate"
 import { formatDuration } from "../../lib/templates/dao/v2/duration"
 import { formatGnot } from "../../lib/templates/dao/v2/deposit"
 import { GnoCodeBlock } from "../ui/GnoCodeBlock"
-import { SummaryItem, ROLE_COLORS, ROLES_ARE_LABELS, type MemberInput, type Step } from "./wizardShared"
+import { SummaryItem, ROLE_COLORS, ROLES_ARE_LABELS, SoloPowerWarning, type MemberInput, type Step } from "./wizardShared"
+import { membersWhoCanPassAlone } from "../../lib/daoTemplate"
 
 interface Props {
     name: string
@@ -79,7 +80,7 @@ export function WizardStepReview({
                     <SummaryItem label="Proposal categories" value={proposalCategories.join(", ")} />
                 </div>
                 <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", margin: "8px 0 0" }}>
-                    {ROLES_ARE_LABELS} No member has special powers: every change is decided by vote.
+                    {ROLES_ARE_LABELS} Voting power decides every change.
                 </p>
             </div>
 
@@ -124,6 +125,8 @@ export function WizardStepReview({
                 </div>
             </details>
 
+            <SoloPowerWarning addresses={membersWhoCanPassAlone(validMembers, threshold, quorum)} />
+
             {/* What you are about to do */}
             <div style={noticeStyle} data-testid="dao-deploy-disclosure">
                 <div><strong>Storage deposit:</strong> about {formatGnot(depositEstimateUgnot)}, capped at {formatGnot(depositCapUgnot)}. It is locked to the realm and refunded only when its storage is freed.</div>
@@ -131,7 +134,7 @@ export function WizardStepReview({
                 {channelsPlanned && (
                     <div><strong>Channels companion (second signature):</strong> storage deposit cap {formatGnot(depositCapUgnot)}, network fee up to {formatGnot(channelsFeeUgnot)}.</div>
                 )}
-                <div><strong>No member has special powers:</strong> every change is decided by vote.</div>
+                <div><strong>Roles grant no special powers. Voting power decides.</strong> Every change is a proposal that passes by vote.</div>
                 <div><strong>This DAO cannot hold funds.</strong> Do not send tokens to its address.</div>
                 <div>The code and the realm path are permanent once deployed.</div>
             </div>

@@ -39,8 +39,8 @@ const DAVE = "g15unfxh9zfm75puw2lqmsun2lv8c397e0efkp2u" // DAO member + roster a
 const DAO_PATH = "gno.land/r/samcrew/gate_dao_chn"
 
 // Alice's 70% alone clears the 60% threshold, so she can single-handedly pass
-// the governance removal the revocation test drives. An execution delay of 0
-// keeps Execute immediate.
+// the governance removal the revocation test drives (after the one-hour
+// execution delay).
 const DAO_CODE = generateDAOCode({
     name: "Channels Gate DAO",
     description: "W1.5 membership fixture",
@@ -55,7 +55,7 @@ const DAO_CODE = generateDAOCode({
     quorum: 0,
     proposalCategories: ["governance", "membership"],
     votingPeriodSeconds: 3 * 86400,
-    executionDelaySeconds: 0,
+    executionDelaySeconds: 3600,
     executionWindowSeconds: 7 * 86400,
 })
 
@@ -171,6 +171,7 @@ func TestDAORemovalRevokesChannelAccess(cur realm, t *testing.T) {
 \ttesting.SetRealm(alice)
 \tid := parent.ProposeRemoveMember(cross(cur), "remove carol", "", carol.Address())
 \tparent.Vote(cross(cur), id, "YES")
+\ttesting.SkipHeights(721) // the one-hour execution delay
 \tparent.Execute(cross(cur), id)
 \tif parent.IsMember(carol.Address()) {
 \t\tt.Fatal("fixture: DAO removal did not take effect")

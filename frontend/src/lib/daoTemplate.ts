@@ -133,6 +133,19 @@ export function daoStepError(step: number, d: DAOStepData): string | null {
     return null
 }
 
+/**
+ * Members whose voting power alone reaches the threshold (and the quorum), so
+ * they can pass any proposal by themselves. Rows without an address are ignored.
+ */
+export function membersWhoCanPassAlone(members: { address: string; power?: number }[], threshold: number, quorum: number): string[] {
+    const rows = members.filter((m) => m.address !== "" && Number.isSafeInteger(m.power) && (m.power as number) > 0)
+    const total = rows.reduce((sum, m) => sum + (m.power as number), 0)
+    if (total <= 0) return []
+    return rows
+        .filter((m) => (m.power as number) * 100 >= threshold * total && (m.power as number) * 100 >= quorum * total)
+        .map((m) => m.address)
+}
+
 // ── Types ─────────────────────────────────────────────────────
 
 export interface DAOCreationConfig {
@@ -154,7 +167,7 @@ export interface DAOCreationConfig {
     proposalCategories: string[]
     /** How long a proposal accepts votes, 1 h .. 30 d. */
     votingPeriodSeconds: number
-    /** Wait between acceptance and the earliest execution, 0 .. 7 d. */
+    /** Wait between acceptance and the earliest execution, 1 h .. 7 d. */
     executionDelaySeconds: number
     /** How long an accepted proposal stays executable after the delay, 1 d .. 30 d. */
     executionWindowSeconds: number
@@ -242,7 +255,7 @@ export function generateDAOCode(config: DAOCreationConfig): string {
     requireInt("threshold", config.threshold, DAO_MIN_THRESHOLD, 100)
     requireInt("quorum", config.quorum, 0, 100)
     requireInt("votingPeriodSeconds", config.votingPeriodSeconds, REALM_LIMITS.minVotingPeriod, REALM_LIMITS.maxVotingPeriod)
-    requireInt("executionDelaySeconds", config.executionDelaySeconds, 0, REALM_LIMITS.maxExecutionDelay)
+    requireInt("executionDelaySeconds", config.executionDelaySeconds, REALM_LIMITS.minExecutionDelay, REALM_LIMITS.maxExecutionDelay)
     requireInt("executionWindowSeconds", config.executionWindowSeconds, REALM_LIMITS.minExecutionWindow, REALM_LIMITS.maxExecutionWindow)
 
     if (!Array.isArray(config.members)) throw new Error("Invalid members")

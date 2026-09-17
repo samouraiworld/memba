@@ -14,6 +14,20 @@ export type Step = 1 | 2 | 3 | 4 | 5
 /** Shown wherever the wizard lists roles. */
 export const ROLES_ARE_LABELS = "Roles are labels; they grant no special powers."
 
+/** Warning shown when one member can pass proposals without anyone else. */
+export function SoloPowerWarning({ addresses }: { addresses: string[] }) {
+    if (addresses.length === 0) return null
+    return (
+        <div role="alert" data-testid="dao-single-member-warning" style={{
+            padding: "10px 14px", borderRadius: 8, fontSize: "var(--pro-small, 12px)",
+            background: "var(--color-k-amber-subtle)", border: "1px solid var(--color-k-amber-border)", color: "var(--color-k-warning)",
+            wordBreak: "break-all",
+        }}>
+            {addresses.map((a) => <div key={a}>{a} can pass proposals alone.</div>)}
+        </div>
+    )
+}
+
 // ── Role Colors ───────────────────────────────────────────
 
 export const ROLE_COLORS: Record<string, string> = {

@@ -523,7 +523,7 @@ export function CreateDAO() {
                 <WizardStepMembers
                     members={members} availableRoles={availableRoles}
                     walletAddress={adena.address} validMembers={validMembers}
-                    totalPower={totalPower}
+                    totalPower={totalPower} threshold={threshold} quorum={quorum}
                     onMembersChange={setMembers} onGoToStep={goToStep} onNext={nextStep}
                 />
             )}

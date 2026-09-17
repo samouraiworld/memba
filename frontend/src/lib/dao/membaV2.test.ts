@@ -65,7 +65,7 @@ describe("memba v2 reader — real realm outputs", () => {
         expect(config).toMatchObject({
             template_version: "memba-dao/2", api_version: "2.0", name: 'Reads "DAO" \\ é 🚀',
             description: "First line\nSecond <b>line</b>", threshold: 60, quorum: 0,
-            voting_period: 7200, execution_delay: 1800, execution_window: 86400,
+            voting_period: 7200, execution_delay: 3600, execution_window: 86400,
             member_count: 3, total_power: 100, proposal_count: 3, archived: false,
         })
     })
@@ -94,7 +94,7 @@ describe("memba v2 reader — real realm outputs", () => {
     it("reads one proposal with its action, timing and description", async () => {
         const text = await readV2Proposal(ctx, 1)
         expect(text).toMatchObject({ id: 1, title: 'say "hi" \\ 🚀', description: "line1\nline2 <b>", status: "EXECUTED", yes: 80, electorate_power: 100 })
-        expect(text.executable_at - text.accepted_at).toBe(1800)
+        expect(text.executable_at - text.accepted_at).toBe(3600)
         expect(text.execute_by - text.executable_at).toBe(86400)
         const add = await readV2Proposal(ctx, 2)
         expect(add.action).toEqual({ kind: "add_member", target: expect.stringMatching(/^g1/), power: 5, roles: ["member"] })

@@ -107,7 +107,10 @@ describe("Create DAO on gnoland-1", () => {
         // 57M gas x 1.2 at 1 ugnot per 1000 gas is below the default 1 GNOT profile fee
         expect(disclosure).toHaveTextContent(/Network fee: up to 1 GNOT \(your wallet may lower it\)\. Gas limit 57,000,000\./)
         expect(screen.getAllByText("Roles are labels; they grant no special powers.").length).toBeGreaterThan(0)
-        expect(disclosure).toHaveTextContent("No member has special powers")
+        expect(disclosure).toHaveTextContent("Roles grant no special powers. Voting power decides.")
+        expect(disclosure).not.toHaveTextContent("No member has special powers")
+        // the single founder holds all the power
+        expect(screen.getByTestId("dao-single-member-warning")).toHaveTextContent(`${SIGNER} can pass proposals alone`)
         expect(disclosure).toHaveTextContent("This DAO cannot hold funds")
         expect(screen.getByText("gno.land (gnoland-1)")).toBeInTheDocument()
         expect(screen.getByText(/permanent, cannot be changed or reused/)).toBeInTheDocument()
