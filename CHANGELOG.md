@@ -26,6 +26,10 @@ Full changelogs are split by version range for easier navigation:
 - **What gno.land offers today:** GovDAO and DAOs deployed by their members, validators, chain health, tokens and the directory. Memba's own realms (channels, candidature, feed, quests, marketplace) are not deployed there yet, so those surfaces show the existing "not on gno.land yet" notice and DAO creation still points you at a network that supports it. The activity feed, the home snapshot and the social feed stay scoped to Pearl, where the indexer runs.
 - **Betanet (`gnoland1`) left the network picker.** Every public Betanet endpoint stopped answering: its main RPC, both public fallbacks and its explorer. Existing `/gnoland1/...` links still open, and a saved Betanet selection now moves you to gno.land instead of parking you on a chain with no working endpoint. Betanet joins Sapphire, Topaz and Testnet 13 in the retired set.
 - **Two stale chain names were removed from the code.** The chain id used when no network could be resolved still read `topaz-1`, a chain decommissioned on 2026-08-12, and the Docker Compose dev stack still defaulted to `sapphire`, sunset on 2026-09-09. Both now follow the configured network instead of naming a dead one.
+### DAOs can be created on gno.land (2026-09-17)
+<!-- categories: memba, network -->
+- **Create DAO is available on the gno.land network.** Memba deploys a version-2 DAO under your own address or registered name, waits for gno.land to enable the package, and then opens it. The review step shows the network, the package path and the storage deposit cap before you sign. The channels companion is not offered on gno.land.
+
 ### Proposals, votes and settings for DAOs created with template version 2 (2026-09-17)
 <!-- categories: memba, network -->
 - **DAO pages have Overview, Proposals, Members and Settings sections.** Settings show a version-2 DAO's rules read-only: threshold, quorum, voting period, execution delay and window, categories, roles and the archived state. Rules are permanent; changing them means creating a new DAO. DAOs created with the older contract show a short notice.
