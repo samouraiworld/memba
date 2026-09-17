@@ -118,27 +118,15 @@ test.describe('v1.4.0 — Mobile Responsive', () => {
     })
 })
 
-test.describe('v1.4.0 — ProposeDAO', () => {
-    test('proposal type selector visible with Text active', async ({ page }) => {
-        // Navigate to a DAO proposal page (GovDAO)
+test.describe('ProposeDAO on GovDAO', () => {
+    // GovDAO proposals are created by its members through gnoweb or the CLI;
+    // its contract exports no proposal function Memba can call, so the route
+    // explains that instead of offering a form whose submit would revert.
+    test('the propose route explains GovDAO does not accept proposals from Memba', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao/propose')
-        // The "Text / Sentiment" type button should be visible and active
-        await expect(page.locator('button', { hasText: 'Text / Sentiment' })).toBeVisible()
-    })
-
-    test('add member proposal type is enabled', async ({ page }) => {
-        await page.goto('/dao/gno.land~r~gov~dao/propose')
-        const addMemberBtn = page.locator('button', { hasText: 'Add Member' })
-        await expect(addMemberBtn).toBeVisible()
-        await expect(addMemberBtn).not.toBeDisabled()
-    })
-
-    test('treasury spend and code upgrade types are disabled with tooltip', async ({ page }) => {
-        await page.goto('/dao/gno.land~r~gov~dao/propose')
-        const spendBtn = page.locator('button', { hasText: 'Treasury Spend' })
-        await expect(spendBtn).toBeDisabled()
-        const upgradeBtn = page.locator('button', { hasText: 'Code Upgrade' })
-        await expect(upgradeBtn).toBeDisabled()
+        await expect(page.getByRole('heading', { name: 'Not available for this DAO or network' })).toBeVisible()
+        await expect(page.getByText("This DAO's contract does not accept proposals from Memba.")).toBeVisible()
+        await expect(page.locator('button', { hasText: 'Text / Sentiment' })).toHaveCount(0)
     })
 })
 
