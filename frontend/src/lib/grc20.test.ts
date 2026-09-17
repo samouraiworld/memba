@@ -27,6 +27,8 @@ import {
     FEE_RECIPIENT,
     GRC20_FACTORY_PATH,
     doContractBroadcast,
+    feeForGasWanted,
+    MAX_GAS_WANTED,
     setWalletRpcContext,
     setTxConfirmationCallback,
     assertWalletBroadcastSafe,
@@ -490,6 +492,44 @@ describe('doContractBroadcast — deploy gas budget (W2.1)', () => {
         expect(calls).toHaveLength(2)
         // deployWanted is strictly larger than the normal budget (5x default).
         expect(calls[0].gasWanted).toBeGreaterThan(calls[1].gasWanted)
+    })
+})
+
+describe('doContractBroadcast — explicit gasWanted', () => {
+    function capture() {
+        setTxConfirmationCallback(() => Promise.resolve(true))
+        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
+        const calls: Array<{ gasWanted: number; gasFee: number }> = []
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(window as any).adena = {
+            DoContract: (arg: { gasWanted: number; gasFee: number }) => {
+                calls.push(arg)
+                return Promise.resolve({ status: 'success', data: { hash: 'h' } })
+            },
+        }
+        return calls
+    }
+    const addPkgMsg = { type: '/vm.m_addpkg', value: { creator: 'g1x', package: {} } }
+
+    it('overrides the profile gas and scales the fee at the profile price, never below the profile fee', async () => {
+        const calls = capture()
+        await doContractBroadcast([addPkgMsg], 'big', { gas: 'deploy', gasWanted: 200_000_000 })
+        await doContractBroadcast([addPkgMsg], 'small', { gas: 'deploy', gasWanted: 20_000_000 })
+        // default profile: 1 GNOT fee for the 50M deploy budget
+        expect(calls[0]).toMatchObject({ gasWanted: 200_000_000, gasFee: 4_000_000 })
+        expect(calls[1]).toMatchObject({ gasWanted: 20_000_000, gasFee: 1_000_000 })
+    })
+
+    it('never goes below the network gas price (1 ugnot per 1000 gas)', () => {
+        expect(feeForGasWanted({ fee: 1, wanted: 10_000_000, deployWanted: 50_000_000 }, 200_000_000, true)).toBe(200_000)
+        expect(feeForGasWanted({ fee: 1_000_000, wanted: 10_000_000, deployWanted: 50_000_000 }, 30_000_000, false)).toBe(3_000_000)
+    })
+
+    it.each([0, -1, 1.5, Number.NaN, MAX_GAS_WANTED + 1])('refuses gasWanted %s before asking for confirmation', async (gasWanted) => {
+        const confirm = vi.fn(() => Promise.resolve(true))
+        setTxConfirmationCallback(confirm)
+        await expect(doContractBroadcast([addPkgMsg], 'm', { gas: 'deploy', gasWanted })).rejects.toThrow(/gas/i)
+        expect(confirm).not.toHaveBeenCalled()
     })
 })
 

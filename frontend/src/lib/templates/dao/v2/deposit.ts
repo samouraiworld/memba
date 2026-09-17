@@ -10,6 +10,11 @@
  *   1 member, 2 roles, 1 category, short text ............  60,230
  *   1 member, 16x30-char roles and categories .............  64,133
  *   1 member, 64x3-byte name, 1000x3-byte description .....  65,873
+ *   10 members, one role ...................................  90,400
+ *   10 members, 16x30-char roles each ...................... 106,034
+ *   25 members, two roles each, 440 chars of text .......... 144,087
+ *   50 members, one role ................................... 226,795
+ *   100 members, 16x30-char roles each ..................... 539,906
  *   100 members, no roles .................................. 391,743
  *   100 members, one 6-char role each ...................... 399,480
  *   50 members, 16x30-char roles each ...................... 298,669
@@ -61,6 +66,34 @@ export function daoDepositCapUgnot(c: DepositInput): number {
     const doubled = 2 * estimateDAODepositUgnot(c)
     const wholeGnot = Math.ceil(doubled / UGNOT_PER_GNOT) * UGNOT_PER_GNOT
     return Math.min(DAO_V2_MAX_DEPOSIT_UGNOT, Math.max(DAO_V2_MIN_DEPOSIT_UGNOT, wholeGnot))
+}
+
+/**
+ * Gas budget for the AddPackage transaction that deploys a DAO.
+ *
+ * MEASURED at gno 31b6650a (in-memory node, gnokey maketx addpkg), gas used:
+ *   1 member, short text ....................... 42.9M
+ *   1 member, 16x30-char roles and categories .. 45.4M
+ *   1 member, maximal name and description ..... 51.1M
+ *   10 members, one role ....................... 47.4M
+ *   10 members, 16x30-char roles ............... 58.8M
+ *   25 members, two roles, 440 chars of text ... 58.0M
+ *   50 members, one role ....................... 72.9M
+ *   50 members, 16x30-char roles .............. 127.5M
+ *   100 members, no roles ..................... 105.8M
+ *   100 members, one role ..................... 108.6M
+ *   100 members, 16x30-char roles ............. 216.1M
+ *   100 members, 16 roles, maximal text ....... 226.1M
+ * A linear model at or above each point, times 1.3, rounded up to a whole
+ * million and kept within [50M, 500M].
+ */
+export function estimateDeployGas(c: DepositInput): number {
+    const roleRefs = c.members.reduce((sum, m) => sum + m.roles.reduce((s, r) => s + 20_000 + 2_000 * utf8Bytes(r), 0), 0)
+    const labels = [...c.roles, ...c.proposalCategories].reduce((sum, l) => sum + 2_000 * utf8Bytes(l), 0)
+    const text = 3_000 * (utf8Bytes(c.name) + utf8Bytes(c.description))
+    const raw = 43_000_000 + 750_000 * Math.max(0, c.members.length - 1) + roleRefs + labels + text
+    const withHeadroom = Math.ceil((raw * 1.3) / 1_000_000) * 1_000_000
+    return Math.min(500_000_000, Math.max(50_000_000, withHeadroom))
 }
 
 /** Human form, e.g. 6.2 GNOT or 13 GNOT. */

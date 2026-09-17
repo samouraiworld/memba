@@ -8,7 +8,7 @@
  */
 
 import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN, GNO_CHAIN_ID, API_BASE_URL } from "./config"
-import { getGasConfig } from "./gasConfig"
+import { getGasConfig, type GasConfig } from "./gasConfig"
 import * as Sentry from "@sentry/react"
 
 // ── Platform Fee ──────────────────────────────────────────────
@@ -178,11 +178,35 @@ export function setTxConfirmationCallback(cb: TxConfirmCallback | null) {
  * RESILIENCE: Retries transient network failures (timeout, fetch) up to 2 times
  * with exponential backoff. User-initiated cancellations are never retried.
  */
+/** Hard ceiling for an explicit gasWanted (the chains' block limit is 3B). */
+export const MAX_GAS_WANTED = 500_000_000
+
+/**
+ * Minimum network gas price: 1 ugnot per 1000 gas, read from `auth/gasprice`
+ * on gnoland-1 and pearl-1 (2026-09-17).
+ */
+const NETWORK_GAS_PER_UGNOT = 1000
+
+/**
+ * Fee for an explicit gas budget. The profile pairs a fee with a gas budget
+ * (call or deploy); that ratio is the price the user pays per unit of gas, so
+ * a larger budget pays proportionally more. Never below the profile's fee or
+ * the network minimum.
+ */
+export function feeForGasWanted(gas: GasConfig, gasWanted: number, isDeploy: boolean): number {
+    const budget = isDeploy ? gas.deployWanted : gas.wanted
+    return Math.max(gas.fee, Math.ceil((gasWanted * gas.fee) / budget), Math.ceil(gasWanted / NETWORK_GAS_PER_UGNOT))
+}
+
 export async function doContractBroadcast(
     msgs: AminoMsg[],
     memo: string,
-    opts?: { gas?: "call" | "deploy"; retry?: false; beforeSign?: () => void | Promise<void> },
+    opts?: { gas?: "call" | "deploy"; gasWanted?: number; retry?: false; beforeSign?: () => void | Promise<void> },
 ): Promise<{ hash: string }> {
+    if (opts?.gasWanted !== undefined && (!Number.isSafeInteger(opts.gasWanted) || opts.gasWanted <= 0 || opts.gasWanted > MAX_GAS_WANTED)) {
+        throw new Error(`Invalid gas limit: must be a whole number between 1 and ${MAX_GAS_WANTED}`)
+    }
+
     // A6: Confirmation gate — ask user before broadcasting
     if (_txConfirmCallback) {
         const confirmed = await _txConfirmCallback(msgs, memo)
@@ -205,7 +229,8 @@ export async function doContractBroadcast(
     // NEVER auto-retry: a lost response after a landed deploy would re-prompt
     // the wallet sign UI just to fail with "package already exists".
     const isDeploy = opts?.gas === "deploy"
-    const gasWanted = isDeploy ? gas.deployWanted : gas.wanted
+    const gasWanted = opts?.gasWanted ?? (isDeploy ? gas.deployWanted : gas.wanted)
+    const gasFee = opts?.gasWanted !== undefined ? feeForGasWanted(gas, opts.gasWanted, isDeploy) : gas.fee
     const maxRetries = isDeploy || opts?.retry === false ? 0 : 2
     let lastError: Error | null = null
 
@@ -216,7 +241,7 @@ export async function doContractBroadcast(
         try {
             const res = await adena.DoContract({
                 messages: toAdenaMessages(msgs),
-                gasFee: gas.fee,
+                gasFee,
                 gasWanted,
                 memo,
             })
