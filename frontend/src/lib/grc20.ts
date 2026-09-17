@@ -209,6 +209,8 @@ export async function networkGasPrice(chainId: string = GNO_CHAIN_ID, rpcUrls: s
         const match = typeof raw.price === "string" ? /^([0-9]{1,15})ugnot$/.exec(raw.price) : null
         if (!Number.isSafeInteger(gas) || gas <= 0 || !match) throw new Error("Unexpected gas price")
         const price = { gas, ugnot: Number(match[1]) }
+        // A zero price would produce a zero fee that the chain refuses.
+        if (price.ugnot <= 0) throw new Error("Gas price out of range")
         // Refuse a price above ten times the default: a misreporting endpoint
         // must not be able to inflate fees.
         if (price.ugnot * FALLBACK_GAS_PRICE.gas > 10 * FALLBACK_GAS_PRICE.ugnot * price.gas) throw new Error("Gas price out of range")

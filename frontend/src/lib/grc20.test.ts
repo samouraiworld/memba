@@ -549,6 +549,11 @@ describe('doContractBroadcast — explicit gasWanted', () => {
         expect(await networkGasPrice(GNO_CHAIN_ID, ['https://rpc.one.invalid'])).toEqual({ gas: 1000, ugnot: 10 })
     })
 
+    it('ignores a reported zero price and uses the default', async () => {
+        stubGasPrice('0ugnot')
+        expect(await networkGasPrice(GNO_CHAIN_ID, ['https://rpc.one.invalid'])).toEqual({ gas: 1000, ugnot: 1 })
+    })
+
     it('reads the network gas price live and caches it per chain', async () => {
         const fetchSpy = stubGasPrice('3ugnot')
         expect(await networkGasPrice(GNO_CHAIN_ID, ['https://rpc.one.invalid'])).toEqual({ gas: 1000, ugnot: 3 })
