@@ -69,8 +69,10 @@ test('DAO search and theme interaction', async ({ page }) => {
     await page.getByRole('searchbox', { name: 'Your DAOs' }).fill('no such community')
     await expect(page.getByText(/No DAOs match/)).toBeVisible()
     await page.getByRole('button', { name: 'Clear search' }).click()
-    await expect(page.getByRole('button', { name: 'Open GovDAO' })).toBeVisible()
-    await page.getByRole('button', { name: 'Open GovDAO' }).focus()
+    // The DAO card opens through its name link (no card-level click handler).
+    const govdaoLink = page.getByRole('link', { name: 'GovDAO', exact: true }).and(page.locator('.k-dao-card__link'))
+    await expect(govdaoLink).toBeVisible()
+    await govdaoLink.focus()
     await page.keyboard.press('Enter')
     await expect(page.locator('.gov-proposal-link')).toHaveCount(4)
 })
