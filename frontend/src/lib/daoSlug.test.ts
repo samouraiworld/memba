@@ -1,10 +1,13 @@
-import { describe, it, expect, afterEach } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID } from './config'
 import {
     encodeSlug,
     decodeSlug,
     parseDaoSplat,
     validateRealmPath,
     getSavedDAOs,
+    getAllSavedDAOs,
+    getSavedDAOsForOrg,
     addSavedDAO,
     removeSavedDAO,
     FEATURED_DAO,
@@ -170,29 +173,63 @@ describe('FEATURED_DAO', () => {
     })
 })
 
-describe('network scoping (MH2)', () => {
-    afterEach(() => {
-        try { localStorage.removeItem('memba_network') } catch { /* ignore */ }
-    })
+describe('chain scoping', () => {
+    const PEARL_ENTRY = { realmPath: 'gno.land/r/alice/dao', name: 'Alice', addedAt: 1, network: 'pearl', chainId: 'pearl-1' }
+    const MAINNET_ENTRY = { realmPath: 'gno.land/r/alice/dao', name: 'Alice (mainnet)', addedAt: 2, network: 'mainnet', chainId: 'gnoland-1' }
 
-    it('stamps the active network on a new save', () => {
+    it('stamps the loaded network and chain id on a new save, ignoring the storage echo', () => {
         localStorage.setItem('memba_network', 'test13')
         addSavedDAO('gno.land/r/gov/dao', 'GovDAO')
-        expect(getSavedDAOs()[0].network).toBe('test13')
+        const saved = getSavedDAOs()[0]
+        expect(saved.network).toBe(ACTIVE_NETWORK_KEY)
+        expect(saved.chainId).toBe(GNO_CHAIN_ID)
     })
 
-    it('leaves network undefined when no active network is set', () => {
-        addSavedDAO('gno.land/r/gov/dao', 'GovDAO')
-        expect(getSavedDAOs()[0].network).toBeUndefined()
+    it('shows only entries saved on the active chain', () => {
+        localStorage.setItem('memba_saved_daos', JSON.stringify([PEARL_ENTRY, MAINNET_ENTRY]))
+        const visible = getSavedDAOs()
+        expect(visible).toHaveLength(1)
+        expect(visible[0].chainId).toBe(GNO_CHAIN_ID)
+        expect(getAllSavedDAOs()).toHaveLength(2)
     })
 
-    it('backfills the network tag on re-pin of a legacy untagged entry', () => {
-        // Saved before network-scoping (no active network) → untagged.
-        addSavedDAO('gno.land/r/gov/dao', 'GovDAO')
-        expect(getSavedDAOs()[0].network).toBeUndefined()
-        // Re-pin while on test13 → backfilled.
-        localStorage.setItem('memba_network', 'test13')
-        addSavedDAO('gno.land/r/gov/dao', 'GovDAO')
-        expect(getSavedDAOs()[0].network).toBe('test13')
+    it('a pearl-saved DAO does not appear on mainnet', async () => {
+        vi.resetModules()
+        vi.doMock('./config', async (orig) => ({ ...(await orig<typeof import('./config')>()), GNO_CHAIN_ID: 'gnoland-1', ACTIVE_NETWORK_KEY: 'mainnet' }))
+        try {
+            const mainnet = await import('./daoSlug')
+            localStorage.setItem('memba_saved_daos', JSON.stringify([PEARL_ENTRY]))
+            expect(mainnet.getSavedDAOs()).toEqual([])
+            // Saving the same path on mainnet keeps both chains' entries apart.
+            mainnet.addSavedDAO('gno.land/r/alice/dao', 'Alice (mainnet)')
+            expect(mainnet.getSavedDAOs().map(d => d.name)).toEqual(['Alice (mainnet)'])
+            expect(mainnet.getAllSavedDAOs()).toHaveLength(2)
+            mainnet.removeSavedDAO('gno.land/r/alice/dao')
+            expect(mainnet.getAllSavedDAOs().map(d => d.chainId)).toEqual(['pearl-1'])
+        } finally {
+            vi.doUnmock('./config')
+            vi.resetModules()
+        }
+    })
+
+    it('migrates legacy entries once: a tagged network keeps its chain, untagged entries belong to pearl', () => {
+        localStorage.setItem('memba_saved_daos', JSON.stringify([
+            { realmPath: 'gno.land/r/legacy/one', name: 'One', addedAt: 1 },
+            { realmPath: 'gno.land/r/legacy/two', name: 'Two', addedAt: 2, network: 'mainnet' },
+        ]))
+        const all = getAllSavedDAOs()
+        expect(all.map(d => [d.realmPath, d.chainId])).toEqual([
+            ['gno.land/r/legacy/one', 'pearl-1'],
+            ['gno.land/r/legacy/two', 'gnoland-1'],
+        ])
+        const stored = JSON.parse(localStorage.getItem('memba_saved_daos')!)
+        expect(stored.every((d: { chainId?: string }) => typeof d.chainId === 'string')).toBe(true)
+    })
+
+    it('scopes org lists the same way', () => {
+        localStorage.setItem('memba_saved_daos_org_o1', JSON.stringify([
+            { ...PEARL_ENTRY, orgId: 'o1' }, { ...MAINNET_ENTRY, orgId: 'o1' },
+        ]))
+        expect(getSavedDAOsForOrg('o1').map(d => d.chainId)).toEqual([GNO_CHAIN_ID])
     })
 })
