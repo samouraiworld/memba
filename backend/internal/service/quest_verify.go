@@ -177,13 +177,13 @@ func (s *MultisigService) defaultVerifyOnChainQuest(ctx context.Context, addr, q
 	switch questID {
 	case "register-username":
 		// r/sys/users.Render IGNORES its path arg, so a qrender returns the same
-		// content for any address (an always-passes bug). ResolveAddress returns
-		// *UserData — "(nil ...)" when the address has no @username registered.
-		out, err := questEval(ctx, verifyUserRegistryPath+`.ResolveAddress("`+addr+`")`)
+		// content for any address. resolveUsername uses the ResolveAddress lookup
+		// and accepts only a record for exactly this address.
+		name, err := resolveUsername(ctx, addr)
 		if err != nil {
 			return false, err
 		}
-		return out != "" && !strings.HasPrefix(strings.TrimSpace(out), "(nil"), nil
+		return name != "", nil
 	case "submit-candidature":
 		out, err := questRender(ctx, verifyCandidaturePath, "application/"+addr)
 		if err != nil {
@@ -311,10 +311,10 @@ func (s *MultisigService) namespaceOwnedBy(ctx context.Context, ns, addr string)
 	if err != nil {
 		return false, err
 	}
-	// Match the address as the typed owner FIELD, not as a raw substring, so a
-	// (hypothetical) lookalike username field can't false-positive. ResolveName's
-	// UserData prints the owner as `("<addr>" .uverse.address)`.
-	return strings.Contains(out, `("`+addr+`" .uverse.address)`), nil
+	// Parse the printed UserData and compare its typed owner field, never a raw
+	// substring of the output.
+	u, ok := parseUserData(out)
+	return ok && !u.deleted && u.addr == addr, nil
 }
 
 // pathExists reports whether a realm/package exists at `path` (vm/qfile lists
