@@ -39,6 +39,12 @@ Full changelogs are split by version range for easier navigation:
 - **Quests no longer point to an unsupported DAO framework.** The "Kit Extender" quest is retired (completions already earned keep their XP), and the DAO and package deploy quests are described without it.
 - **The DAO analyst API is off unless an operator enables it.** When enabled, each wallet can generate a limited number of reports per day, only operators can force a report to be regenerated, submitted proposal and DAO text is passed to the models as marked data, provider error messages are no longer stored in shared reports, and expired reports are purged. The unused analyze route, the public report read route, the balance proxy and the escrow listing proxy were removed.
 - **The MCP servers are no longer advertised as `npx` installs.** Their packages are not published on npm; the agent catalogue and docs now describe a local build. The shared RPC client used by both servers now encodes queries the way gno.land nodes require.
+### Create DAO: vote-only governance and network-aware deploys (2026-09-17)
+<!-- categories: memba, network -->
+- **New DAOs use DAO template version 2.** No member or role has special powers: adding or removing members, changing role labels and archiving are all decided by vote. Voting power per member is bounded, thresholds must be above 50 %, member addresses are checked (including their checksum), and every proposal has a voting period, an execution delay and an execution window after which an accepted proposal lapses. Reads are paginated and the realm page escapes user text. DAOs created earlier keep their original rules.
+- **Deploys send a storage deposit cap sized to the DAO** (measured on the gnoland-1 runtime) and a gas limit sized to the DAO, check that you can deploy under the chosen namespace and that the path is free, and wait for the network to enable the package before reporting the DAO as created. A package the network has not enabled yet is kept as pending.
+- **The review step shows the network, the permanent realm path, the deposit estimate and cap, the network fee and the voting windows**, and deploying needs an explicit confirmation. DAO creation is offered only on networks that support it, and the channels companion only where it is available.
+- The unused candidature realm generator was removed.
 
 ### Channel mentions and post quests match your exact address (2026-09-16)
 <!-- categories: memba -->
