@@ -1,0 +1,245 @@
+[
+  {
+    "FuncName": "GetAPIVersion",
+    "Params": [],
+    "Results": [
+      {
+        "Type": "string"
+      }
+    ]
+  },
+  {
+    "FuncName": "GetProposalsJSON",
+    "Params": [],
+    "Results": [
+      {
+        "Type": "string"
+      }
+    ]
+  },
+  {
+    "FuncName": "GetMembersJSON",
+    "Params": [],
+    "Results": [
+      {
+        "Type": "string"
+      }
+    ]
+  },
+  {
+    "FuncName": "Render",
+    "Params": [
+      {
+        "Name": "path",
+        "Type": "string"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "string"
+      }
+    ]
+  },
+  {
+    "FuncName": "Propose",
+    "Params": [
+      {
+        "Name": "cur",
+        "Type": "realm"
+      },
+      {
+        "Name": "title",
+        "Type": "string"
+      },
+      {
+        "Name": "desc",
+        "Type": "string"
+      },
+      {
+        "Name": "category",
+        "Type": "string"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "int"
+      }
+    ]
+  },
+  {
+    "FuncName": "VoteOnProposal",
+    "Params": [
+      {
+        "Name": "cur",
+        "Type": "realm"
+      },
+      {
+        "Name": "id",
+        "Type": "int"
+      },
+      {
+        "Name": "vote",
+        "Type": "string"
+      }
+    ],
+    "Results": null
+  },
+  {
+    "FuncName": "ExecuteProposal",
+    "Params": [
+      {
+        "Name": "cur",
+        "Type": "realm"
+      },
+      {
+        "Name": "id",
+        "Type": "int"
+      }
+    ],
+    "Results": null
+  },
+  {
+    "FuncName": "ProposeAddMember",
+    "Params": [
+      {
+        "Name": "cur",
+        "Type": "realm"
+      },
+      {
+        "Name": "targetAddr",
+        "Type": "address"
+      },
+      {
+        "Name": "power",
+        "Type": "int"
+      },
+      {
+        "Name": "roles",
+        "Type": "string"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "int"
+      }
+    ]
+  },
+  {
+    "FuncName": "ProposeRemoveMember",
+    "Params": [
+      {
+        "Name": "cur",
+        "Type": "realm"
+      },
+      {
+        "Name": "targetAddr",
+        "Type": "address"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "int"
+      }
+    ]
+  },
+  {
+    "FuncName": "ProposeAssignRole",
+    "Params": [
+      {
+        "Name": "cur",
+        "Type": "realm"
+      },
+      {
+        "Name": "targetAddr",
+        "Type": "address"
+      },
+      {
+        "Name": "role",
+        "Type": "string"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "int"
+      }
+    ]
+  },
+  {
+    "FuncName": "AssignRole",
+    "Params": [
+      {
+        "Name": "cur",
+        "Type": "realm"
+      },
+      {
+        "Name": "target",
+        "Type": "address"
+      },
+      {
+        "Name": "role",
+        "Type": "string"
+      }
+    ],
+    "Results": null
+  },
+  {
+    "FuncName": "RemoveRole",
+    "Params": [
+      {
+        "Name": "cur",
+        "Type": "realm"
+      },
+      {
+        "Name": "target",
+        "Type": "address"
+      },
+      {
+        "Name": "role",
+        "Type": "string"
+      }
+    ],
+    "Results": null
+  },
+  {
+    "FuncName": "Archive",
+    "Params": [
+      {
+        "Name": "cur",
+        "Type": "realm"
+      }
+    ],
+    "Results": null
+  },
+  {
+    "FuncName": "IsArchived",
+    "Params": [],
+    "Results": [
+      {
+        "Type": "bool"
+      }
+    ]
+  },
+  {
+    "FuncName": "IsMember",
+    "Params": [
+      {
+        "Name": "addr",
+        "Type": "address"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "bool"
+      }
+    ]
+  },
+  {
+    "FuncName": "GetDAOConfig",
+    "Params": [],
+    "Results": [
+      {
+        "Type": "string"
+      }
+    ]
+  }
+]

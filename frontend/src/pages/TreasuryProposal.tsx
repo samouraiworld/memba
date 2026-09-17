@@ -2,9 +2,9 @@ import { useState } from "react"
 import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
-import { buildProposeMsg } from "../lib/dao"
+import { buildDaoMsg, resolveDaoKind } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
-import { TREASURY_SPEND_ENABLED } from "../lib/config"
+import { GNO_CHAIN_ID, GNO_RPC_URL, TREASURY_SPEND_ENABLED } from "../lib/config"
 import { useDaoRoute } from "../hooks/useDaoRoute"
 import type { LayoutContext } from "../types/layout"
 
@@ -89,7 +89,8 @@ export function TreasuryProposal() {
                 memo ? `**Memo**: ${memo.trim()}` : "",
             ].filter(Boolean).join("\n")
 
-            const msg = buildProposeMsg(adena.address, realmPath, title, description)
+            const kind = await resolveDaoKind({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID, realmPath })
+            const msg = buildDaoMsg(kind, realmPath, { type: "propose-text", title, description, category: "treasury" }, adena.address)
             await doContractBroadcast([msg], `Propose treasury spend: ${trimAmount} ${trimSymbol || "GNOT"}`)
             setSuccess("Treasury proposal created! Requires DAO vote to execute.")
             setTimeout(() => navigate(`/dao/${encodedSlug}`), 2000)

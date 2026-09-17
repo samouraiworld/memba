@@ -2,14 +2,15 @@
  * DAO module barrel — re-exports all public API from sub-modules.
  *
  * Import from here for the full DAO API:
- *   import { getDAOConfig, buildVoteMsg, type DAOMember } from "../lib/dao"
+ *   import { getDAOConfig, buildDaoMsg, type DAOMember } from "../lib/dao"
  *
  * Sub-modules:
  * - shared.ts    → types, ABCI helpers, username resolution
  * - config.ts    → getDAOConfig, getMemberstoreTiers
  * - members.ts   → getDAOMembers
  * - proposals.ts → getDAOProposals, getProposalDetail, getProposalVotes
- * - builders.ts  → buildVoteMsg, buildExecuteMsg, buildProposeMsg, buildArchiveMsg, buildAssignRoleMsg, buildRemoveRoleMsg, buildProposeAddMemberMsg, buildProposeRemoveMemberMsg, buildProposeAssignRoleMsg
+ * - kind.ts      → resolveDaoKind, capabilitiesFor
+ * - builders.ts  → buildDaoMsg (kind-checked MsgCall builder)
  */
 
 // ── Types ─────────────────────────────────────────────────────
@@ -43,20 +44,16 @@ export {
 
 // ── Builders ──────────────────────────────────────────────────
 export {
-    buildVoteMsg,
-    buildExecuteMsg,
-    buildProposeMsg,
-    buildArchiveMsg,
-    buildAssignRoleMsg,
-    buildRemoveRoleMsg,
-    buildProposeAddMemberMsg,
-    buildProposeRemoveMemberMsg,
-    buildProposeAssignRoleMsg,
-    isGovDAO,
+    buildDaoMsg,
+    isGovDAOPath,
     GOVDAO_VOTE_FUNC,
     GOVDAO_EXECUTE_FUNC,
-    GOVDAO_PROPOSE_FUNC,
+    type DaoAction,
+    type VoteChoice,
 } from "./builders"
+
+// ── Kind ──────────────────────────────────────────────────────
+export { resolveDaoKind, capabilitiesFor, type DaoKind, type DaoCapabilities } from "./kind"
 
 // ── Test Exports ──────────────────────────────────────────────
 // Internal pure functions exported with _ prefix for unit testing.

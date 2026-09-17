@@ -16,10 +16,9 @@ import {
     _parseMembersFromRender,
     _normalizeStatus,
     GOVDAO_VOTE_FUNC,
-    GOVDAO_PROPOSE_FUNC,
-    buildVoteMsg,
-    buildProposeMsg,
-    isGovDAO,
+    GOVDAO_EXECUTE_FUNC,
+    buildDaoMsg,
+    isGovDAOPath as isGovDAO,
 } from "./index"
 
 // ── GovDAO v3 Render() format — full page sample ────────────────
@@ -224,28 +223,15 @@ describe("GovDAO function name constants", () => {
         expect(GOVDAO_VOTE_FUNC).toBe("MustVoteOnProposalSimple")
     })
 
-    it("GOVDAO_PROPOSE_FUNC is Propose", () => {
-        expect(GOVDAO_PROPOSE_FUNC).toBe("Propose")
+    it("buildDaoMsg uses the GovDAO functions for GovDAO", () => {
+        const caller = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
+        expect(buildDaoMsg("govdao", "gno.land/r/gov/dao", { type: "vote", id: 1, vote: "YES" }, caller).value.func).toBe(GOVDAO_VOTE_FUNC)
+        expect(buildDaoMsg("govdao", "gno.land/r/gov/dao", { type: "execute", id: 1 }, caller).value.func).toBe(GOVDAO_EXECUTE_FUNC)
     })
 
-    it("buildVoteMsg uses GOVDAO_VOTE_FUNC for GovDAO paths", () => {
-        const msg = buildVoteMsg("g1caller", "gno.land/r/gov/dao", 1, "YES")
-        expect(msg.value.func).toBe(GOVDAO_VOTE_FUNC)
-    })
-
-    it("buildVoteMsg uses VoteOnProposal for Memba DAOs", () => {
-        const msg = buildVoteMsg("g1caller", "gno.land/r/samcrew/mydao", 1, "YES")
+    it("buildDaoMsg uses VoteOnProposal for version-1 Memba DAOs", () => {
+        const msg = buildDaoMsg("memba-v1", "gno.land/r/samcrew/mydao", { type: "vote", id: 1, vote: "YES" }, "g1manfred47kzduec920z88wfr64ylksmdcedlf5")
         expect(msg.value.func).toBe("VoteOnProposal")
-    })
-
-    it("buildProposeMsg for GovDAO omits category arg", () => {
-        const msg = buildProposeMsg("g1caller", "gno.land/r/gov/dao", "Title", "Desc")
-        expect(msg.value.args).toEqual(["Title", "Desc"])
-    })
-
-    it("buildProposeMsg for Memba DAO includes category arg", () => {
-        const msg = buildProposeMsg("g1caller", "gno.land/r/samcrew/dao", "Title", "Desc", "treasury")
-        expect(msg.value.args).toEqual(["Title", "Desc", "treasury"])
     })
 })
 

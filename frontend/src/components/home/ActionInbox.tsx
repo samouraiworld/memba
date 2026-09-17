@@ -13,7 +13,7 @@
  *   - ready:        one ActionDoor per action, count pill, "view all activity" footer
  *
  * Inline vote wiring mirrors Dashboard.tsx exactly:
- *   buildVoteMsg → doContractBroadcast → setVotedIds + clearVoteCache
+ *   resolveDaoKind → buildDaoMsg → doContractBroadcast → setVotedIds + clearVoteCache
  *
  * Actions come from useHomeActions (single aggregator hook — no duplicate scan).
  */
@@ -24,7 +24,8 @@ import { useOutletContext } from "react-router-dom"
 import { useHomeActions } from "../../hooks/home/useHomeActions"
 import { ActionDoor, ActionDoorSkeleton } from "./doors/ActionDoor"
 import { Door } from "./Door"
-import { buildVoteMsg } from "../../lib/dao"
+import { buildDaoMsg, resolveDaoKind } from "../../lib/dao"
+import { GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
 import { doContractBroadcast } from "../../lib/grc20"
 import { clearVoteCache } from "../../lib/dao/voteScanner"
 import { logChainError } from "../../lib/errorLog"
@@ -50,7 +51,8 @@ export function ActionInbox() {
         const key = `${realmPath}:${proposalId}`
         setVotingId(key)
         try {
-            const msg = buildVoteMsg(userAddress, realmPath, proposalId, vote)
+            const kind = await resolveDaoKind({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID, realmPath })
+            const msg = buildDaoMsg(kind, realmPath, { type: "vote", id: proposalId, vote }, userAddress)
             await doContractBroadcast([msg], `Vote ${vote} on proposal #${proposalId}`)
             setVotedIds(prev => new Set(prev).add(key))
             clearVoteCache()

@@ -7,7 +7,7 @@
  *     called directly by ActionInbox any more)
  *   - react-router-dom useOutletContext (layout context)
  *   - useNetworkNav / useNetworkPath (route prefix)
- *   - doContractBroadcast / buildVoteMsg / clearVoteCache (chain calls)
+ *   - doContractBroadcast / buildDaoMsg / clearVoteCache (chain calls)
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
@@ -67,7 +67,8 @@ vi.mock("../../lib/grc20", () => ({
 }))
 
 vi.mock("../../lib/dao", () => ({
-    buildVoteMsg: vi.fn(() => ({ type: "vm/MsgCall", value: {} })),
+    buildDaoMsg: vi.fn(() => ({ type: "vm/MsgCall", value: {} })),
+    resolveDaoKind: vi.fn(async () => "memba-v1"),
 }))
 
 vi.mock("../../lib/dao/voteScanner", () => ({
@@ -222,11 +223,11 @@ describe("ActionInbox — inline vote fires broadcast", () => {
             ],
         })
         vi.mocked(grc20Mod.doContractBroadcast).mockResolvedValue({ hash: "tx123" })
-        vi.mocked(daoMod.buildVoteMsg).mockReturnValue({ type: "vm/MsgCall", value: {} })
+        vi.mocked(daoMod.buildDaoMsg).mockReturnValue({ type: "vm/MsgCall", value: {} })
         vi.mocked(voteScannerMod.clearVoteCache).mockReset()
     })
 
-    it("clicking YES calls doContractBroadcast and buildVoteMsg with the proposal id", async () => {
+    it("clicking YES calls doContractBroadcast and buildDaoMsg with the proposal id", async () => {
         renderWithProviders(<ActionInbox />)
 
         const yesButton = screen.getByRole("button", { name: /vote yes on proposal 1/i })
@@ -234,12 +235,7 @@ describe("ActionInbox — inline vote fires broadcast", () => {
             fireEvent.click(yesButton)
         })
 
-        expect(daoMod.buildVoteMsg).toHaveBeenCalledWith(
-            "g1testaddress",
-            "gno.land/r/memba/dao",
-            1,
-            "YES",
-        )
+        expect(daoMod.buildDaoMsg).toHaveBeenCalledWith("memba-v1", "gno.land/r/memba/dao", { type: "vote", id: 1, vote: "YES" }, "g1testaddress")
         expect(grc20Mod.doContractBroadcast).toHaveBeenCalledTimes(1)
         expect(voteScannerMod.clearVoteCache).toHaveBeenCalledTimes(1)
     })

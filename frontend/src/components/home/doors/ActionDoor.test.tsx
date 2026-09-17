@@ -5,7 +5,7 @@
  *   - useHomeActions (drives ActionInbox integration scenarios)
  *   - react-router-dom useOutletContext
  *   - useNetworkNav / useNetworkPath
- *   - doContractBroadcast / buildVoteMsg / clearVoteCache
+ *   - doContractBroadcast / buildDaoMsg / clearVoteCache
  */
 
 import { describe, it, expect, vi, beforeEach } from "vitest"
@@ -65,7 +65,8 @@ vi.mock("../../../lib/grc20", () => ({
 }))
 
 vi.mock("../../../lib/dao", () => ({
-    buildVoteMsg: vi.fn(() => ({ type: "vm/MsgCall", value: {} })),
+    buildDaoMsg: vi.fn(() => ({ type: "vm/MsgCall", value: {} })),
+    resolveDaoKind: vi.fn(async () => "memba-v1"),
 }))
 
 vi.mock("../../../lib/dao/voteScanner", () => ({
@@ -170,9 +171,9 @@ describe("ActionDoor — vote action (inline approve/reject)", () => {
         expect(matches.length).toBe(1)
     })
 
-    it("clicking Approve (YES) invokes the existing handler (buildVoteMsg + doContractBroadcast)", async () => {
+    it("clicking Approve (YES) invokes the existing handler (buildDaoMsg + doContractBroadcast)", async () => {
         vi.mocked(grc20Mod.doContractBroadcast).mockResolvedValue({ hash: "tx-yes" })
-        vi.mocked(daoMod.buildVoteMsg).mockReturnValue({ type: "vm/MsgCall", value: {} })
+        vi.mocked(daoMod.buildDaoMsg).mockReturnValue({ type: "vm/MsgCall", value: {} })
         vi.mocked(voteScannerMod.clearVoteCache).mockReset()
 
         renderWithProviders(<ActionInbox />)
@@ -180,14 +181,14 @@ describe("ActionDoor — vote action (inline approve/reject)", () => {
         const yesBtn = screen.getByRole("button", { name: /vote yes on proposal 2/i })
         await act(async () => { fireEvent.click(yesBtn) })
 
-        expect(daoMod.buildVoteMsg).toHaveBeenCalledWith("g1testaddress", "gno.land/r/memba/dao", 2, "YES")
+        expect(daoMod.buildDaoMsg).toHaveBeenCalledWith("memba-v1", "gno.land/r/memba/dao", { type: "vote", id: 2, vote: "YES" }, "g1testaddress")
         expect(grc20Mod.doContractBroadcast).toHaveBeenCalledTimes(1)
         expect(voteScannerMod.clearVoteCache).toHaveBeenCalledTimes(1)
     })
 
     it("clicking Reject (NO) invokes the existing handler with NO", async () => {
         vi.mocked(grc20Mod.doContractBroadcast).mockClear().mockResolvedValue({ hash: "tx-no" })
-        vi.mocked(daoMod.buildVoteMsg).mockClear().mockReturnValue({ type: "vm/MsgCall", value: {} })
+        vi.mocked(daoMod.buildDaoMsg).mockClear().mockReturnValue({ type: "vm/MsgCall", value: {} })
         vi.mocked(voteScannerMod.clearVoteCache).mockReset()
 
         renderWithProviders(<ActionInbox />)
@@ -195,7 +196,7 @@ describe("ActionDoor — vote action (inline approve/reject)", () => {
         const noBtn = screen.getByRole("button", { name: /vote no on proposal 2/i })
         await act(async () => { fireEvent.click(noBtn) })
 
-        expect(daoMod.buildVoteMsg).toHaveBeenCalledWith("g1testaddress", "gno.land/r/memba/dao", 2, "NO")
+        expect(daoMod.buildDaoMsg).toHaveBeenCalledWith("memba-v1", "gno.land/r/memba/dao", { type: "vote", id: 2, vote: "NO" }, "g1testaddress")
         expect(grc20Mod.doContractBroadcast).toHaveBeenCalledTimes(1)
     })
 })

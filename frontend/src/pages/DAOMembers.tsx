@@ -6,8 +6,7 @@ import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { GNO_RPC_URL, getExplorerBaseUrl, getUserRegistryPath } from "../lib/config"
-import { getDAOConfig, getDAOMembers, buildAssignRoleMsg, buildRemoveRoleMsg, type DAOMember, type TierInfo } from "../lib/dao"
-import { doContractBroadcast } from "../lib/grc20"
+import { getDAOConfig, getDAOMembers, type DAOMember, type TierInfo } from "../lib/dao"
 import { useDaoRoute } from "../hooks/useDaoRoute"
 import type { LayoutContext } from "../types/layout"
 import "./daomembers.css"
@@ -15,13 +14,11 @@ import "./daomembers.css"
 export function DAOMembers() {
     const navigate = useNetworkNav()
     const { realmPath, encodedSlug } = useDaoRoute()
-    const { auth, adena } = useOutletContext<LayoutContext>()
+    const { adena } = useOutletContext<LayoutContext>()
 
 
     const [tierFilter, setTierFilter] = useState<string>("all")
     const [roleFilter, setRoleFilter] = useState<string>("all")
-    const [actionLoading, setActionLoading] = useState(false)
-    const [actionSuccess, setActionSuccess] = useState<string | null>(null)
 
     // Server state lives in React Query, keyed by realm. Disabled without a
     // realmPath, which keeps the skeleton up exactly like the old early-return.
@@ -38,14 +35,12 @@ export function DAOMembers() {
     const members = membersQuery.data?.members ?? []
     const loading = membersQuery.isPending
 
-    // Role-action errors are UI state and stay local; the fetch error comes
-    // from the query, with a dismissal flag so the toast doesn't resurrect.
-    const [actionError, setActionError] = useState<string | null>(null)
+    // The fetch error comes from the query, with a dismissal flag so the
+    // toast doesn't resurrect.
     const [fetchErrorDismissed, setFetchErrorDismissed] = useState(false)
-    const fetchError = membersQuery.isError && !fetchErrorDismissed
+    const error = membersQuery.isError && !fetchErrorDismissed
         ? (membersQuery.error instanceof Error ? membersQuery.error.message : "Failed to load members")
         : null
-    const error = actionError ?? fetchError
 
     const tiers = config?.tierDistribution || []
     const totalPower = tiers.reduce((sum, t) => sum + t.power, 0)
@@ -55,38 +50,8 @@ export function DAOMembers() {
         filteredMembers = filteredMembers.filter((m) => m.roles.includes(roleFilter))
     }
 
-    const currentUserMember = members.find((m) => m.address === adena.address)
-    const isAdmin = currentUserMember?.roles.includes("admin") ?? false
-    const canManageRoles = isAdmin && auth.isAuthenticated && !!config && !config.isArchived
-    const availableRoles = ["admin", "dev", "finance", "ops", "member"]
-
-    const handleAssignRole = async (target: string, role: string) => {
-        if (!adena.address || !auth.isAuthenticated) { setActionError("Connect your wallet first"); return }
-        if (!canManageRoles) { setActionError("Role management is unavailable for this DAO"); return }
-        setActionLoading(true); setActionError(null); setActionSuccess(null)
-        try {
-            const msg = buildAssignRoleMsg(adena.address, realmPath, target, role)
-            await doContractBroadcast([msg], `Assign role ${role} to ${target.slice(0, 10)}...`)
-            setActionSuccess(`Role "${role}" assigned to ${target.slice(0, 10)}...`)
-            await membersQuery.refetch()
-        } catch (err) {
-            setActionError(err instanceof Error ? err.message : "Failed to assign role")
-        } finally { setActionLoading(false) }
-    }
-
-    const handleRemoveRole = async (target: string, role: string) => {
-        if (!adena.address || !auth.isAuthenticated) { setActionError("Connect your wallet first"); return }
-        if (!canManageRoles) { setActionError("Role management is unavailable for this DAO"); return }
-        setActionLoading(true); setActionError(null); setActionSuccess(null)
-        try {
-            const msg = buildRemoveRoleMsg(adena.address, realmPath, target, role)
-            await doContractBroadcast([msg], `Remove role ${role} from ${target.slice(0, 10)}...`)
-            setActionSuccess(`Role "${role}" removed from ${target.slice(0, 10)}...`)
-            await membersQuery.refetch()
-        } catch (err) {
-            setActionError(err instanceof Error ? err.message : "Failed to remove role")
-        } finally { setActionLoading(false) }
-    }
+    // Membership and roles change only through proposals the DAO votes on;
+    // this page is read-only.
 
     if (loading) {
         return (
@@ -125,7 +90,7 @@ export function DAOMembers() {
             )}
 
             {config?.isArchived && (
-                <p role="status">This DAO is archived — role changes are disabled.</p>
+                <p role="status">This DAO is archived.</p>
             )}
 
             {/* Tier Filters */}
@@ -165,16 +130,11 @@ export function DAOMembers() {
                 )}
 
                 {filteredMembers.map((m) => (
-                    <MemberRow
-                        key={m.address} member={m} isCurrentUser={m.address === adena.address}
-                        isAdmin={canManageRoles} availableRoles={availableRoles}
-                        onAssignRole={handleAssignRole} onRemoveRole={handleRemoveRole} actionLoading={actionLoading}
-                    />
+                    <MemberRow key={m.address} member={m} isCurrentUser={!!adena.address && m.address === adena.address} />
                 ))}
             </div>
 
-            {actionSuccess && <div className="k-members__success">✓ {actionSuccess}</div>}
-            <ErrorToast message={error} onDismiss={() => { setActionError(null); setFetchErrorDismissed(true) }} />
+            <ErrorToast message={error} onDismiss={() => setFetchErrorDismissed(true)} />
         </div>
     )
 }
@@ -217,14 +177,8 @@ function FilterButton({ label, count, active, onClick, color }: {
     )
 }
 
-function MemberRow({ member, isCurrentUser, isAdmin, availableRoles, onAssignRole, onRemoveRole, actionLoading }: {
-    member: DAOMember; isCurrentUser: boolean; isAdmin: boolean;
-    availableRoles: string[]; onAssignRole: (target: string, role: string) => void;
-    onRemoveRole: (target: string, role: string) => void; actionLoading: boolean;
-}) {
-    const [showActions, setShowActions] = useState(false)
+function MemberRow({ member, isCurrentUser }: { member: DAOMember; isCurrentUser: boolean }) {
     const tierColor = tierColors[member.tier] || "var(--color-text-secondary)"
-    const unassignedRoles = availableRoles.filter((r) => !member.roles.includes(r))
 
     return (
         <div className="k-card k-members__row">
@@ -253,36 +207,11 @@ function MemberRow({ member, isCurrentUser, isAdmin, availableRoles, onAssignRol
                         return (
                             <span key={role} className="k-members__role-badge" style={{ background: `${color}15`, color }}>
                                 {role}
-                                {isAdmin && !isCurrentUser && (
-                                    <button className="k-members__role-remove" onClick={() => onRemoveRole(member.address, role)} disabled={actionLoading} title={`Remove ${role} role`} style={{ opacity: actionLoading ? 0.3 : 0.6 }}>
-                                        ✕
-                                    </button>
-                                )}
                             </span>
                         )
                     })}
-                    {isAdmin && !isCurrentUser && (
-                        <button className="k-members__add-role-btn" onClick={() => setShowActions(!showActions)} title="Manage roles">+</button>
-                    )}
                 </div>
             </div>
-
-            {showActions && isAdmin && !isCurrentUser && unassignedRoles.length > 0 && (
-                <div className="k-members__assign-panel">
-                    <span className="k-members__assign-label">Assign:</span>
-                    {unassignedRoles.map((role) => (
-                        <button
-                            key={role}
-                            className="k-members__assign-btn"
-                            onClick={() => { onAssignRole(member.address, role); setShowActions(false) }}
-                            disabled={actionLoading}
-                            style={{ color: roleColors[role] || "var(--color-text-secondary)", opacity: actionLoading ? 0.5 : 1 }}
-                        >
-                            + {role}
-                        </button>
-                    ))}
-                </div>
-            )}
         </div>
     )
 }

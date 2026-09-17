@@ -3,10 +3,11 @@ import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { NotePencil, UsersThree, Vault, GearSix, Archive, FileText } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
-import { buildProposeMsg, buildProposeAddMemberMsg, getDAOConfig, isGovDAO as checkIsGovDAO } from "../lib/dao"
+import { buildDaoMsg, getDAOConfig, isGovDAOPath, type DaoAction } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
 import { GNO_RPC_URL } from "../lib/config"
 import { useDaoRoute } from "../hooks/useDaoRoute"
+import { useDaoKind } from "../hooks/useDaoKind"
 import type { LayoutContext } from "../types/layout"
 import "./proposedao.css"
 
@@ -90,7 +91,8 @@ export function ProposeDAO() {
     const [error, setError] = useState<string | null>(null)
     const [success, setSuccess] = useState<string | null>(null)
     const [isArchived, setIsArchived] = useState(false)
-    const isGovDAO = checkIsGovDAO(realmPath)
+    const isGovDAO = isGovDAOPath(realmPath)
+    const { kind: daoKind } = useDaoKind(realmPath)
 
     const categories = [
         { value: "governance", label: "Governance" },
@@ -147,14 +149,12 @@ export function ProposeDAO() {
         setSuccess(null)
 
         try {
-            let msg
-            if (proposalType === "member") {
-                // Use executable ProposeAddMember — creates governance proposal with embedded action
-                const trimAddr = memberAddress.trim()
-                msg = buildProposeAddMemberMsg(adena.address, realmPath, trimAddr, memberPower, memberRoles.join(","))
-            } else {
-                msg = buildProposeMsg(adena.address, realmPath, finalTitle, finalDesc, finalCategory)
-            }
+            if (!daoKind) throw new Error("This DAO contract could not be identified yet")
+            const action: DaoAction = proposalType === "member"
+                // Executable add-member proposal with the membership change embedded
+                ? { type: "propose-add-member", title: finalTitle, description: finalDesc, target: memberAddress.trim(), power: memberPower, roles: memberRoles }
+                : { type: "propose-text", title: finalTitle, description: finalDesc, category: finalCategory ?? "governance" }
+            const msg = buildDaoMsg(daoKind, realmPath, action, adena.address)
             await doContractBroadcast([msg], `Propose: ${finalTitle}`)
             setSuccess("Proposal created!")
         } catch (err) {
@@ -371,10 +371,14 @@ export function ProposeDAO() {
                         📋 View Source Code (MsgCall)
                     </summary>
                     <pre className="pdao-source-pre">
-                        {JSON.stringify(
-                            buildProposeMsg(adena.address || "", realmPath, title.trim(), description.trim(), isGovDAO ? undefined : category),
-                            null, 2,
-                        )}
+                        {(() => {
+                            try {
+                                if (!daoKind) return "Identifying the DAO contract…"
+                                return JSON.stringify(buildDaoMsg(daoKind, realmPath, { type: "propose-text", title: title.trim(), description: description.trim(), category }, adena.address || ""), null, 2)
+                            } catch (err) {
+                                return err instanceof Error ? err.message : "This DAO does not accept proposals from Memba"
+                            }
+                        })()}
                     </pre>
                 </details>
             )}

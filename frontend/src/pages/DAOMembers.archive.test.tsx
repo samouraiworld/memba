@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
-import { render, screen, fireEvent, waitFor } from "@testing-library/react"
+import { render, screen } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router-dom"
 
@@ -23,25 +23,24 @@ function mount() {
     return render(<QueryClientProvider client={client}><MemoryRouter><DAOMembers /></MemoryRouter></QueryClientProvider>)
 }
 beforeEach(() => { state.archived = false; state.configAvailable = true; state.broadcast.mockReset().mockResolvedValue(undefined) })
-describe("archived DAO member management", () => {
-    it("keeps the active DAO role workflow available", async () => {
+describe("DAO member list", () => {
+    it("offers no unilateral role changes, even to an admin", async () => {
         mount()
-        fireEvent.click(await screen.findByTitle("Manage roles"))
-        fireEvent.click(screen.getByRole("button", { name: "+ dev", exact: true }))
-        await waitFor(() => expect(state.broadcast).toHaveBeenCalledTimes(1))
-    })
-    it("keeps archived membership readable and hides role writes", async () => {
-        state.archived = true; mount()
-        await screen.findByText("This DAO is archived — role changes are disabled.")
-        expect(screen.getByText("g1bob", { exact: true })).toBeInTheDocument()
+        await screen.findByText("g1bob", { exact: true })
         expect(screen.queryByTitle("Manage roles")).not.toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "+ dev", exact: true })).not.toBeInTheDocument()
         expect(screen.queryByTitle("Remove member role")).not.toBeInTheDocument()
         expect(state.broadcast).not.toHaveBeenCalled()
     })
-    it("does not offer role writes when DAO configuration cannot be verified", async () => {
+    it("keeps archived membership readable", async () => {
+        state.archived = true; mount()
+        await screen.findByText("This DAO is archived.")
+        expect(screen.getByText("g1bob", { exact: true })).toBeInTheDocument()
+        expect(state.broadcast).not.toHaveBeenCalled()
+    })
+    it("still lists members when DAO configuration cannot be verified", async () => {
         state.configAvailable = false; mount()
         await screen.findByText("g1bob", { exact: true })
-        expect(screen.queryByTitle("Manage roles")).not.toBeInTheDocument()
         expect(state.broadcast).not.toHaveBeenCalled()
     })
 })

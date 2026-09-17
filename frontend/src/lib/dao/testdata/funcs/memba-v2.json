@@ -1,0 +1,321 @@
+[
+  {
+    "FuncName": "ProposeText",
+    "Params": [
+      {
+        "Name": "cur",
+        "Type": "realm"
+      },
+      {
+        "Name": "title",
+        "Type": "string"
+      },
+      {
+        "Name": "desc",
+        "Type": "string"
+      },
+      {
+        "Name": "category",
+        "Type": "string"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "uint64"
+      }
+    ]
+  },
+  {
+    "FuncName": "ProposeAddMember",
+    "Params": [
+      {
+        "Name": "cur",
+        "Type": "realm"
+      },
+      {
+        "Name": "title",
+        "Type": "string"
+      },
+      {
+        "Name": "desc",
+        "Type": "string"
+      },
+      {
+        "Name": "target",
+        "Type": "address"
+      },
+      {
+        "Name": "power",
+        "Type": "int"
+      },
+      {
+        "Name": "rolesCSV",
+        "Type": "string"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "uint64"
+      }
+    ]
+  },
+  {
+    "FuncName": "ProposeRemoveMember",
+    "Params": [
+      {
+        "Name": "cur",
+        "Type": "realm"
+      },
+      {
+        "Name": "title",
+        "Type": "string"
+      },
+      {
+        "Name": "desc",
+        "Type": "string"
+      },
+      {
+        "Name": "target",
+        "Type": "address"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "uint64"
+      }
+    ]
+  },
+  {
+    "FuncName": "ProposeSetRoles",
+    "Params": [
+      {
+        "Name": "cur",
+        "Type": "realm"
+      },
+      {
+        "Name": "title",
+        "Type": "string"
+      },
+      {
+        "Name": "desc",
+        "Type": "string"
+      },
+      {
+        "Name": "target",
+        "Type": "address"
+      },
+      {
+        "Name": "rolesCSV",
+        "Type": "string"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "uint64"
+      }
+    ]
+  },
+  {
+    "FuncName": "ProposeArchive",
+    "Params": [
+      {
+        "Name": "cur",
+        "Type": "realm"
+      },
+      {
+        "Name": "title",
+        "Type": "string"
+      },
+      {
+        "Name": "desc",
+        "Type": "string"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "uint64"
+      }
+    ]
+  },
+  {
+    "FuncName": "Vote",
+    "Params": [
+      {
+        "Name": "cur",
+        "Type": "realm"
+      },
+      {
+        "Name": "id",
+        "Type": "uint64"
+      },
+      {
+        "Name": "choice",
+        "Type": "string"
+      }
+    ],
+    "Results": null
+  },
+  {
+    "FuncName": "Execute",
+    "Params": [
+      {
+        "Name": "cur",
+        "Type": "realm"
+      },
+      {
+        "Name": "id",
+        "Type": "uint64"
+      }
+    ],
+    "Results": null
+  },
+  {
+    "FuncName": "GetTemplateVersion",
+    "Params": [],
+    "Results": [
+      {
+        "Type": "string"
+      }
+    ]
+  },
+  {
+    "FuncName": "GetAPIVersion",
+    "Params": [],
+    "Results": [
+      {
+        "Type": "string"
+      }
+    ]
+  },
+  {
+    "FuncName": "GetConfigJSON",
+    "Params": [],
+    "Results": [
+      {
+        "Type": "string"
+      }
+    ]
+  },
+  {
+    "FuncName": "GetMembersJSON",
+    "Params": [
+      {
+        "Name": "offset",
+        "Type": "int"
+      },
+      {
+        "Name": "limit",
+        "Type": "int"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "string"
+      }
+    ]
+  },
+  {
+    "FuncName": "GetProposalsJSON",
+    "Params": [
+      {
+        "Name": "before",
+        "Type": "uint64"
+      },
+      {
+        "Name": "limit",
+        "Type": "int"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "string"
+      }
+    ]
+  },
+  {
+    "FuncName": "GetProposalJSON",
+    "Params": [
+      {
+        "Name": "id",
+        "Type": "uint64"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "string"
+      }
+    ]
+  },
+  {
+    "FuncName": "GetVotesJSON",
+    "Params": [
+      {
+        "Name": "id",
+        "Type": "uint64"
+      },
+      {
+        "Name": "offset",
+        "Type": "int"
+      },
+      {
+        "Name": "limit",
+        "Type": "int"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "string"
+      }
+    ]
+  },
+  {
+    "FuncName": "HasVoted",
+    "Params": [
+      {
+        "Name": "id",
+        "Type": "uint64"
+      },
+      {
+        "Name": "addr",
+        "Type": "address"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "bool"
+      }
+    ]
+  },
+  {
+    "FuncName": "GetStateJSON",
+    "Params": [
+      {
+        "Name": "offset",
+        "Type": "int"
+      },
+      {
+        "Name": "limit",
+        "Type": "int"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "string"
+      }
+    ]
+  },
+  {
+    "FuncName": "Render",
+    "Params": [
+      {
+        "Name": "path",
+        "Type": "string"
+      }
+    ],
+    "Results": [
+      {
+        "Type": "string"
+      }
+    ]
+  }
+]
