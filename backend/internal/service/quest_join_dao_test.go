@@ -65,27 +65,27 @@ func TestParseMembaDAOMembersPage_ProseAddressIsNotAMember(t *testing.T) {
 	}
 }
 
-// A member's display name can hold newlines and table syntax. Rows it adds on
-// their own lines exceed the realm's member count, so the page is not trusted.
-func TestParseMembaDAOMembersPage_DisplayNameRowsOnOwnLines(t *testing.T) {
-	forger, victim := testAddr(1), testAddr(2)
-	forgedName := "x\n" + strings.TrimSuffix(memberRow("admin", victim), "\n") + "\nzz"
-	page := membersPage(1, memberRow(forgedName, forger))
+// A display name with line breaks and table markup: a page whose row count
+// exceeds the realm's member count is not trusted.
+func TestParseMembaDAOMembersPage_RowCountAboveMemberCountRejected(t *testing.T) {
+	member, otherAddress := testAddr(1), testAddr(2)
+	nameWithTableMarkup := "x\n" + strings.TrimSuffix(memberRow("admin", otherAddress), "\n") + "\nzz"
+	page := membersPage(1, memberRow(nameWithTableMarkup, member))
 	_, addrs, ok := parseMembaDAOMembersPage(page)
 	if ok {
 		t.Fatalf("a page with more rows than members must not be trusted, got %v", addrs)
 	}
 }
 
-// Table syntax inside a display name on the same line never produces a row:
-// only the realm-written tail of the line is read.
-func TestParseMembaDAOMembersPage_DisplayNameRowOnSameLine(t *testing.T) {
-	forger, victim := testAddr(1), testAddr(2)
-	forgedName := strings.TrimSuffix(memberRow("admin", victim), "\n")
-	page := membersPage(1, memberRow(forgedName, forger))
+// Table markup inside a display name on the same line is not a row: only the
+// realm-generated address cells at the end of the line are read.
+func TestParseMembaDAOMembersPage_ReadsOnlyRealmGeneratedCells(t *testing.T) {
+	member, otherAddress := testAddr(1), testAddr(2)
+	nameWithTableMarkup := strings.TrimSuffix(memberRow("admin", otherAddress), "\n")
+	page := membersPage(1, memberRow(nameWithTableMarkup, member))
 	_, addrs, ok := parseMembaDAOMembersPage(page)
-	if !ok || len(addrs) != 1 || addrs[0] != forger {
-		t.Fatalf("want only the forger's own row, got addrs=%v ok=%v", addrs, ok)
+	if !ok || len(addrs) != 1 || addrs[0] != member {
+		t.Fatalf("want only the member's own row, got addrs=%v ok=%v", addrs, ok)
 	}
 }
 
@@ -166,21 +166,22 @@ func TestVerifyJoinDAO_MemberOnSecondPage(t *testing.T) {
 	}
 }
 
-func TestVerifyJoinDAO_ForgedDisplayNameRowDoesNotCount(t *testing.T) {
-	victim := testAddr(42)
+// Rejects member rows whose address cell is not realm-generated: an address
+// that appears only inside a display name is not a member.
+func TestVerifyJoinDAO_AddressOnlyInDisplayNameIsNotMember(t *testing.T) {
+	otherAddress := testAddr(42)
 	pages := twoPageDAO()
-	// Member 11 sets a display name that injects a row for the victim.
-	forged := "x\n" + strings.TrimSuffix(memberRow("admin", victim), "\n") + "\nzz"
-	pages["members?page=2"] = membersPage(11, memberRow(forged, testAddr(11)))
+	nameWithTableMarkup := "x\n" + strings.TrimSuffix(memberRow("admin", otherAddress), "\n") + "\nzz"
+	pages["members?page=2"] = membersPage(11, memberRow(nameWithTableMarkup, testAddr(11)))
 
 	var hits int32
 	membersRealmStub(t, pages, &hits)
-	ok, err := verifyJoinDAO(context.Background(), victim)
+	ok, err := verifyJoinDAO(context.Background(), otherAddress)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if ok {
-		t.Fatal("a row injected through a display name must not verify membership")
+		t.Fatal("an address that is not in a realm-generated cell must not verify membership")
 	}
 }
 

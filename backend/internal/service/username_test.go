@@ -168,7 +168,7 @@ func TestResolveUsername_InvalidAddressNeverQueries(t *testing.T) {
 	t.Setenv("QUEST_RPC_URL", srv.URL)
 	t.Setenv("RPC_FALLBACK_URLS", "")
 
-	for _, bad := range []string{`g1")+Evil("`, "g1abcdefghijklmnopqrstuvwxyz0123456789ab", ""} {
+	for _, bad := range []string{`g1")+Other("`, "g1abcdefghijklmnopqrstuvwxyz0123456789ab", ""} {
 		if name, _ := resolveUsername(context.Background(), bad); name != "" {
 			t.Errorf("%q resolved to %q", bad, name)
 		}

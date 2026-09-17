@@ -36,10 +36,10 @@ const maxJoinDAOMemberPages = 50
 var (
 	// membersHeaderRe is the realm-written first line of the members page.
 	membersHeaderRe = regexp.MustCompile(`^## Members 👥 \((\d+)\)$`)
-	// memberRowTailRe matches the realm-written end of one members-table row:
+	// memberRowTailRe matches the realm-generated end of one members-table row:
 	//   | [<short>](/u/<addr>) | <role links> | [View](/r/samcrew/memba_dao:member/<addr>) |
-	// The display name before it is member-controlled and is never read. The
-	// role cell holds no "|", so on any line only the real tail can match.
+	// The display name before it is free text and is never read. The role cell
+	// holds no "|", so on any line only the realm-generated tail can match.
 	memberRowTailRe = regexp.MustCompile(`\| \[[^\]|\n]*\]\(/u/(g1[a-z0-9]{38})\) \| [^|\n]* \| \[View\]\(/r/samcrew/memba_dao:member/(g1[a-z0-9]{38})\) \|$`)
 )
 
@@ -47,10 +47,10 @@ var (
 // realm's total member count and the member addresses listed on this page.
 //
 // A row counts only from its realm-written tail, with the address cell link and
-// the member link naming the same address. Display names can contain newlines
-// and table syntax, so extra row lines are possible; ok is false when the page
-// lists more rows than the realm's count allows, or when the header is missing.
-// The caller checks the exact per-page row count.
+// the member link naming the same address. Display names are free text and may
+// contain line breaks or table markup, so the page is accepted only when its
+// row count is consistent with the realm's member count (ok is false otherwise,
+// or when the header is missing). The caller checks the exact per-page count.
 func parseMembaDAOMembersPage(render string) (total int, addrs []string, ok bool) {
 	lines := strings.Split(strings.TrimLeft(render, "\n"), "\n")
 	if len(lines) == 0 {

@@ -468,7 +468,7 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 			return
 		}
 
-		// Only the admin may bypass the cache; a wallet's force request is
+		// Only the admin may skip the cache; a wallet's force request is
 		// served like a normal one.
 		cacheKey := consensusCacheKey(&req)
 		forceRefresh := isAdmin && r.URL.Query().Get("force") == "1"
