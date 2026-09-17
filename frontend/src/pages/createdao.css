@@ -105,6 +105,18 @@
     font-weight: 600;
     font-family: var(--font-ui, var(--font-mono, 'JetBrains Mono', monospace));
     transition: all 0.2s;
+    border: none;
+    padding: 0;
+}
+
+.cdao-step-circle:disabled {
+    cursor: default;
+    opacity: 1;
+}
+
+.cdao-step-circle:focus-visible {
+    outline: 2px solid var(--color-primary, #00d4aa);
+    outline-offset: 2px;
 }
 
 .cdao-step-circle--active {

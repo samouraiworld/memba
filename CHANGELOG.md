@@ -20,6 +20,17 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Proposals, votes and settings for DAOs created with template version 2 (2026-09-17)
+<!-- categories: memba, network -->
+- **DAO pages have Overview, Proposals, Members and Settings sections.** Settings show a version-2 DAO's rules read-only: threshold, quorum, voting period, execution delay and window, categories, roles and the archived state. Rules are permanent; changing them means creating a new DAO. DAOs created with the older contract show a short notice.
+- **Version-2 DAOs are read only through their paginated data exports**, never by parsing their rendered pages, and their proposal list keeps the DAO's own tallies of voting power.
+- **One proposal form covers every proposal type the DAO supports**: text, add member, remove member, change roles and archive. Categories and roles come from the DAO itself, fields are checked with the DAO's own rules before signing, the preview is exactly the transaction the wallet signs, and after submitting the new proposal opens. Descriptions containing invisible formatting characters are flagged.
+- **Each proposal, vote and execution is sent with a gas limit and storage deposit cap sized for it**, so long proposals no longer run out of gas and no call can lock more deposit than it needs (for example 0.4 GNOT for a vote). The wallet confirmation shows the full contract path and the deposit cap.
+- **The proposal page shows when voting ends, when an accepted proposal can be executed and until when**, the voting power reached against the threshold and quorum, and that votes are final. Execute stays disabled until the execution delay has passed, and votes and executions are confirmed with the exact action first. The transaction hash is shown after each action, with an explorer link where one indexes the network. Errors from the DAO contract are shown as plain sentences.
+- **Members pages link to prefilled "Propose role change", "Propose removal" and "Propose a new member" forms** and show each member's voting power.
+- **My DAOs lists DAOs still waiting for gno.land to enable them**, re-checks them when opened or on request, and turns them into normal entries once they are live.
+- **Accessibility and wording:** the Create DAO steps are labelled buttons, member fields and toggles are labelled, DAO cards open through a single link, and emoji were removed from DAO, member and proposal actions.
+
 ### DAO pages show only what each DAO supports (2026-09-17)
 <!-- categories: memba, network -->
 - **DAO pages recognise the kind of DAO contract before offering actions.** GovDAO is identified by its exact realm path; DAOs created with Memba are identified by the version they report. Vote, execute and proposal buttons, the New Proposal page and Quick Vote appear only where Memba can build a transaction the contract accepts, and only for members. GovDAO is vote and execute only; other DAO frameworks and unrecognised contracts are read-only.

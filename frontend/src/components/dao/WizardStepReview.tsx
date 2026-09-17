@@ -168,7 +168,7 @@ export function WizardStepReview({
                             opacity: deploying || !confirmed ? 0.6 : 1,
                         }}
                     >
-                        {deploying ? "Deploying..." : "🚀 Deploy DAO"}
+                        {deploying ? "Deploying..." : "Deploy DAO"}
                     </button>
                 )}
             </div>

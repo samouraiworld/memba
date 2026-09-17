@@ -50,7 +50,7 @@ describe('voted state uses exact voter matching', () => {
     ])('shows the recorded vote when %s voted', async (_label, voter) => {
         state.yesVoters = [{ username: voter, profileUrl: '' }]
         mount()
-        expect(await screen.findByText('✓ You voted YES on this proposal')).toBeInTheDocument()
+        expect(await screen.findByText('You voted YES on this proposal')).toBeInTheDocument()
         expect(screen.queryByRole('button', { name: 'Vote Yes on this proposal' })).not.toBeInTheDocument()
     })
 })

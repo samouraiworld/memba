@@ -115,6 +115,19 @@ describe("DAO shell sections", () => {
         expect(await screen.findByText(/This DAO is archived/)).toBeInTheDocument()
     })
 
+    it("version-1 DAOs carry a neutral notice about their older contract", async () => {
+        state.kind = "memba-v1"
+        mount("/pearl/dao/gno.land/r/alice/team/members")
+        expect(await screen.findByRole("note")).toHaveTextContent("This DAO uses an older contract with known limitations (a single admin can change roles). Consider creating a new DAO.")
+        state.kind = "memba-v2"
+    })
+
+    it("version-2 DAOs carry no such notice", async () => {
+        mount("/pearl/dao/gno.land/r/alice/team")
+        await screen.findByRole("navigation", { name: "DAO sections" })
+        expect(screen.queryByText(/older contract/)).not.toBeInTheDocument()
+    })
+
     it("proposal pages keep the section navigation", async () => {
         mount("/pearl/dao/gno.land/r/alice/team/proposal/3")
         expect(await screen.findByText("Proposal reader")).toBeInTheDocument()

@@ -1,6 +1,7 @@
 import { test, expect, type Page } from '@playwright/test'
 import { fulfillOnchainReads, mockAppChainStatus } from './helpers/onchain'
 import { MOBILE_375, expectNoMobileOverflow } from './helpers/overflow'
+import AxeBuilder from '@axe-core/playwright'
 
 /**
  * DAO E2E — verifies DAO Hub, GovDAO page, Create DAO, and proposal pages.
@@ -73,12 +74,50 @@ async function fulfillGovDaoHome(page: Page) {
         if (path === 'vm/qrender' && arg === 'gno.land/r/gov/dao/v3/memberstore:') return MEMBERSTORE_RENDER
         // A version-1 generated DAO: identified by its API version, so the propose page is offered.
         if (path === 'vm/qeval' && arg === `${V1_DAO}.GetAPIVersion()`) return '("1.0" string)'
+        // A version-2 generated DAO: identified by its template version and read through JSON only.
+        if (path === 'vm/qeval' && arg.startsWith(`${V2_DAO}.`)) return V2_READS[arg.slice(V2_DAO.length + 1)] ?? null
         if (method === 'status') return mockAppChainStatus()
         return null
     })
 }
 
 const V1_DAO = 'gno.land/r/test/mydao'
+
+// ── Version-2 DAO fixture (template memba-dao/2) ──────────────
+const V2_DAO = 'gno.land/r/test/teamv2'
+const V2_ALICE = 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+const V2_BOB = 'g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c'
+const NOW = Math.floor(Date.now() / 1000)
+const wire = (value: unknown) => `(${JSON.stringify(JSON.stringify(value))} string)`
+const V2_PROPOSAL = {
+    id: 1, title: 'Adopt the roadmap', category: 'governance', author: V2_BOB,
+    action: { kind: 'text', target: '', power: 0, roles: [] },
+    electorate_power: 3, electorate_version: 0, created_at: NOW - 3600, voting_ends_at: NOW + 2 * 86400,
+    status: 'ACTIVE', yes: 1, no: 0, abstain: 0, accepted_at: 0, executable_at: 0, execute_by: 0,
+}
+const V2_READS: Record<string, string> = {
+    'GetTemplateVersion()': '("memba-dao/2" string)',
+    'GetConfigJSON()': wire({
+        template_version: 'memba-dao/2', api_version: '2.0', name: 'Team Two', description: 'A version-2 DAO',
+        threshold: 60, quorum: 20, voting_period: 3 * 86400, execution_delay: 3600, execution_window: 7 * 86400,
+        categories: ['governance', 'ops'], roles: ['lead', 'member'], archived: false,
+        member_count: 2, total_power: 3, electorate_version: 0, proposal_count: 1,
+    }),
+    'GetMembersJSON(0, 50)': wire({ total: 2, offset: 0, members: [{ address: V2_ALICE, power: 2, roles: ['lead'] }, { address: V2_BOB, power: 1, roles: [] }] }),
+    'GetProposalsJSON(0, 50)': wire({ proposals: [V2_PROPOSAL], next_before: 0 }),
+    'GetProposalJSON(1)': wire({ ...V2_PROPOSAL, description: 'Line one\nLine two' }),
+    'GetVotesJSON(1, 0, 50)': wire({ total: 1, offset: 0, votes: [{ voter: V2_BOB, choice: 'YES', power: 1 }] }),
+}
+
+const SERIOUS = new Set(['critical', 'serious'])
+async function seriousAxeViolations(page: Page) {
+    const results = await new AxeBuilder({ page })
+        .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+        // Same known, tracked exclusions as accessibility.spec.ts.
+        .disableRules(['color-contrast', 'link-in-text-block', 'nested-interactive'])
+        .analyze()
+    return results.violations.filter(v => SERIOUS.has(v.impact ?? '')).map(v => `${v.id}: ${v.nodes.map(n => n.target.join(' ')).join(', ')}`)
+}
 
 // Every spec in this file runs against the offline GovDAO fixture. Register
 // before each test (routes are per-context) and before any goto.
@@ -272,6 +311,66 @@ test.describe('Proposal Types (ProposeDAO)', () => {
         await page.goto(`/dao/${V1_DAO}/propose`)
         const btn = page.locator('button', { hasText: 'Code Upgrade' })
         await expect(btn).toBeDisabled()
+    })
+})
+
+test.describe('Version-2 DAO', () => {
+    test('shows Overview, Proposals, Members and Settings sections', async ({ page }) => {
+        await page.goto(`/dao/${V2_DAO}`)
+        const nav = page.getByRole('navigation', { name: 'DAO sections' })
+        await expect(nav.getByRole('link')).toHaveText(['Overview', 'Proposals', 'Members', 'Settings'])
+        await expect(page.getByText('This DAO uses an older contract')).toHaveCount(0)
+    })
+
+    test('settings are read-only and pass the accessibility audit', async ({ page }) => {
+        await page.goto(`/dao/${V2_DAO}/settings`)
+        await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible()
+        await expect(page.getByText('60% of all voting power', { exact: true })).toBeVisible()
+        await expect(page.getByText(/Rules are permanent; to change them, create a new DAO/)).toBeVisible()
+        await expect(page.getByRole('textbox')).toHaveCount(0)
+        expect(await seriousAxeViolations(page)).toEqual([])
+    })
+
+    test('the proposal page shows the deadline, the power bar and that votes are final', async ({ page }) => {
+        await page.goto(`/dao/${V2_DAO}/proposal/1`)
+        await expect(page.getByRole('heading', { name: 'Adopt the roadmap' })).toBeVisible()
+        await expect(page.getByText('Voting ends')).toBeVisible()
+        await expect(page.getByRole('img', { name: /Yes 33\.3%.*threshold 60%; quorum 20%/ })).toBeVisible()
+        await expect(page.getByText('Votes are final; a proposal is accepted as soon as the threshold is reached.')).toBeVisible()
+        await expect(page.getByText('Connect your wallet to vote or execute.')).toBeVisible()
+        await expect(page.getByRole('button', { name: 'Vote yes' })).toHaveCount(0)
+    })
+
+    test('the propose page offers the contract\'s proposal types and needs a wallet', async ({ page }) => {
+        await page.goto(`/dao/${V2_DAO}/propose`)
+        const types = page.getByRole('group', { name: 'Proposal type' })
+        await expect(types.getByRole('button')).toHaveText(['Text', 'Add member', 'Remove member', 'Change roles', 'Archive DAO'])
+        await expect(page.getByText('Connect your wallet to create a proposal.')).toBeVisible()
+        await expect(page.getByRole('button', { name: 'Submit proposal' })).toBeDisabled()
+        await types.getByRole('button', { name: 'Add member' }).click()
+        await expect(types.getByRole('button', { name: 'Add member' })).toHaveAttribute('aria-pressed', 'true')
+        await expect(page.getByLabel('New member address')).toBeVisible()
+    })
+
+    test('the members page shows voting power', async ({ page }) => {
+        await page.goto(`/dao/${V2_DAO}/members`)
+        await expect(page.getByRole('heading', { name: 'Members' })).toBeVisible()
+        await expect(page.getByLabel('Voting power 2')).toBeVisible()
+    })
+
+    test('a version-1 DAO carries the older-contract notice', async ({ page }) => {
+        await page.goto(`/dao/${V1_DAO}/members`)
+        await expect(page.getByRole('note')).toContainText('This DAO uses an older contract with known limitations')
+    })
+})
+
+test.describe('Create DAO wizard accessibility', () => {
+    test('the first step passes the accessibility audit', async ({ page }) => {
+        await page.goto('/dao/create')
+        await expect(page.getByRole('heading', { name: 'Create a DAO' })).toBeVisible()
+        await expect(page.getByRole('navigation', { name: 'Create DAO steps' }).getByRole('button')).toHaveCount(5)
+        await expect(page.getByLabel('DAO Name')).toBeVisible()
+        expect(await seriousAxeViolations(page)).toEqual([])
     })
 })
 

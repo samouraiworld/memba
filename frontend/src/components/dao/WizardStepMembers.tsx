@@ -1,4 +1,4 @@
-import { inputStyle, ROLE_COLORS, ROLE_ICONS, ROLES_ARE_LABELS, SoloPowerWarning, type MemberInput, type Step } from "./wizardShared"
+import { inputStyle, ROLE_COLORS, ROLES_ARE_LABELS, SoloPowerWarning, type MemberInput, type Step } from "./wizardShared"
 import { membersWhoCanPassAlone } from "../../lib/daoTemplate"
 
 interface Props {
@@ -64,6 +64,7 @@ export function WizardStepMembers({
                             value={m.address}
                             onChange={(e) => updateMember(i, "address", e.target.value)}
                             placeholder="g1..."
+                            aria-label={`Member ${i + 1} address`}
                             style={{ ...inputStyle, flex: 1 }}
                         />
                         <input
@@ -72,12 +73,14 @@ export function WizardStepMembers({
                             onChange={(e) => updateMember(i, "power", e.target.value)}
                             min="1"
                             max="1000000000"
-                            aria-label="Voting power"
+                            aria-label={`Member ${i + 1} voting power`}
                             style={{ ...inputStyle, width: 70, textAlign: "center" }}
                         />
                         <span style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-muted)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", width: 40 }}>power</span>
                         {members.length > 1 && (
                             <button
+                                type="button"
+                                aria-label={`Remove member ${i + 1}`}
                                 onClick={() => removeMember(i)}
                                 style={{ background: "none", border: "none", cursor: "pointer", color: "var(--color-k-danger-text)", fontSize: 16, padding: 4 }}
                             >
@@ -93,6 +96,9 @@ export function WizardStepMembers({
                             return (
                                 <button
                                     key={role}
+                                    type="button"
+                                    aria-pressed={active}
+                                    aria-label={`Member ${i + 1} role ${role}`}
                                     onClick={() => toggleMemberRole(i, role)}
                                     style={{
                                         fontSize: "var(--pro-caption, 10px)", padding: "3px 8px", borderRadius: 4, cursor: "pointer",
@@ -103,7 +109,7 @@ export function WizardStepMembers({
                                         transition: "all 0.15s",
                                     }}
                                 >
-                                    {ROLE_ICONS[role] || "•"} {role}
+                                    {role}
                                 </button>
                             )
                         })}

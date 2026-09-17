@@ -196,7 +196,7 @@ export function DAOHome({ view = "overview" }: { view?: "overview" | "proposals"
     const currentMember = members.find((m) => m.address === adena.address)
     // New proposals: only where the contract accepts them, and only for members.
     const canPropose = capabilities.propose.length > 0 && auth.isAuthenticated && !!currentMember && !config?.isArchived
-    const totalPower = config?.tierDistribution?.reduce((sum, t) => sum + t.power, 0) || 0
+    const totalPower = config?.tierDistribution?.reduce((sum, t) => sum + t.power, 0) || config?.v2?.total_power || 0
 
     useEffect(() => {
         if (!realmPath) navigate("/dao")

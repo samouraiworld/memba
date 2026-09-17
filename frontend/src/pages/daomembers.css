@@ -216,3 +216,19 @@
   font-size: var(--pro-small, 12px);
   font-family: var(--font-ui, 'JetBrains Mono', monospace);
 }
+
+.k-members__power {
+  font-family: var(--font-ui, 'JetBrains Mono', monospace);
+  font-size: var(--pro-small, 12px);
+  color: var(--color-text-secondary);
+}
+.k-members__row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 8px;
+}
+.k-members__row-action {
+  font-size: var(--pro-small, 12px);
+  color: var(--color-k-accent-text, var(--color-primary));
+}

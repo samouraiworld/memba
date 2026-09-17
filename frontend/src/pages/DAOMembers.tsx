@@ -1,7 +1,8 @@
 import { useState } from "react"
 import { useOutletContext, Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
-import { useNetworkNav } from "../hooks/useNetworkNav"
+import { useNetworkKey, useNetworkNav } from "../hooks/useNetworkNav"
+import { useDaoKind } from "../hooks/useDaoKind"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
@@ -15,6 +16,8 @@ export function DAOMembers() {
     const navigate = useNetworkNav()
     const { realmPath, encodedSlug } = useDaoRoute()
     const { adena } = useOutletContext<LayoutContext>()
+    const networkKey = useNetworkKey()
+    const { capabilities } = useDaoKind(realmPath || undefined)
 
 
     const [tierFilter, setTierFilter] = useState<string>("all")
@@ -52,7 +55,14 @@ export function DAOMembers() {
     }
 
     // Membership and roles change only through proposals the DAO votes on;
-    // this page is read-only.
+    // this page is read-only and links members to the matching proposal form.
+    const viewerIsMember = !!adena.address && members.some((m) => m.address === adena.address)
+    const proposeBase = `/${networkKey}/dao/${encodedSlug}/propose`
+    const canPropose = (kind: "add_member" | "remove_member" | "change_role") =>
+        viewerIsMember && !config?.isArchived && capabilities.propose.includes(kind)
+    const roleChangesPossible = canPropose("change_role") && (config?.v2 ? config.v2.roles.length > 0 : true)
+    const showTiers = members.some((m) => m.tier)
+    const showPower = !showTiers && !!config?.v2
 
     if (loading) {
         return (
@@ -69,8 +79,16 @@ export function DAOMembers() {
             </button>
 
             <div>
-                <h2 className="k-members__title">👥 Members</h2>
-                <p className="k-members__subtitle">{config?.name || "DAO"} — {members.length} members</p>
+                <h2 className="k-members__title">Members</h2>
+                <p className="k-members__subtitle">{config?.name || "DAO"} — {members.length} {members.length === 1 ? "member" : "members"}</p>
+                {capabilities.propose.length > 0 && (
+                    <p className="k-members__subtitle">Members and roles change only through proposals that pass a vote.</p>
+                )}
+                {canPropose("add_member") && (
+                    <Link className="k-btn-secondary" to={`${proposeBase}?type=add_member`} style={{ display: "inline-block", marginTop: 8 }}>
+                        Propose a new member
+                    </Link>
+                )}
             </div>
 
             {/* Power Distribution */}
@@ -120,7 +138,7 @@ export function DAOMembers() {
             <div className="k-members__list">
                 <div className="k-members__list-header">
                     <span>Address</span>
-                    <span>Tier</span>
+                    <span>{showTiers ? "Tier" : showPower ? "Voting power" : ""}</span>
                     <span style={{ textAlign: "right" }}>Role</span>
                 </div>
 
@@ -131,7 +149,14 @@ export function DAOMembers() {
                 )}
 
                 {filteredMembers.map((m) => (
-                    <MemberRow key={m.address} member={m} isCurrentUser={!!adena.address && m.address === adena.address} />
+                    <MemberRow
+                        key={m.address}
+                        member={m}
+                        isCurrentUser={!!adena.address && m.address === adena.address}
+                        showPower={showPower}
+                        proposeRoleChange={roleChangesPossible ? `${proposeBase}?type=change_role&target=${m.address}` : undefined}
+                        proposeRemoval={canPropose("remove_member") && members.length > 1 ? `${proposeBase}?type=remove_member&target=${m.address}` : undefined}
+                    />
                 ))}
             </div>
 
@@ -178,7 +203,13 @@ function FilterButton({ label, count, active, onClick, color }: {
     )
 }
 
-function MemberRow({ member, isCurrentUser }: { member: DAOMember; isCurrentUser: boolean }) {
+function MemberRow({ member, isCurrentUser, showPower, proposeRoleChange, proposeRemoval }: {
+    member: DAOMember
+    isCurrentUser: boolean
+    showPower: boolean
+    proposeRoleChange?: string
+    proposeRemoval?: string
+}) {
     const tierColor = tierColors[member.tier] || "var(--color-text-secondary)"
 
     return (
@@ -189,7 +220,7 @@ function MemberRow({ member, isCurrentUser }: { member: DAOMember; isCurrentUser
                         <a href={`/u/${member.username.replace("@", "")}`} className="k-members__row-username">{member.username}</a>
                     )}
                     <CopyableAddress address={member.address} />
-                    <Link to={`/profile/${member.address}`} title="View profile" className="k-members__row-profile">👤</Link>
+                    <Link to={`/profile/${member.address}`} className="k-members__row-profile">Profile</Link>
                     {isCurrentUser && <span className="k-members__row-you">YOU</span>}
                     {isCurrentUser && !member.username && (
                         <a href={`${getExplorerBaseUrl()}/${getUserRegistryPath().replace("gno.land/", "")}`} target="_blank" rel="noopener noreferrer" className="k-members__row-register">
@@ -200,6 +231,8 @@ function MemberRow({ member, isCurrentUser }: { member: DAOMember; isCurrentUser
 
                 {member.tier ? (
                     <span className="k-members__tier-badge" style={{ background: `${tierColor}15`, color: tierColor }}>{member.tier}</span>
+                ) : showPower ? (
+                    <span className="k-members__power" aria-label={`Voting power ${member.votingPower.toLocaleString("en-US")}`}>{member.votingPower.toLocaleString("en-US")}</span>
                 ) : <span />}
 
                 <div className="k-members__roles">
@@ -213,6 +246,12 @@ function MemberRow({ member, isCurrentUser }: { member: DAOMember; isCurrentUser
                     })}
                 </div>
             </div>
+            {(proposeRoleChange || proposeRemoval) && (
+                <div className="k-members__row-actions">
+                    {proposeRoleChange && <Link to={proposeRoleChange} className="k-members__row-action">Propose role change</Link>}
+                    {proposeRemoval && <Link to={proposeRemoval} className="k-members__row-action">Propose removal</Link>}
+                </div>
+            )}
         </div>
     )
 }

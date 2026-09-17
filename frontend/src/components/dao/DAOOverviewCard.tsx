@@ -153,8 +153,8 @@ export function DAOOverviewCard({
                             { icon: "📋", value: String(activeProposals), label: "Active", accent: true, tip: `${activeProposals} open proposal(s) currently awaiting votes from DAO members. Click to scroll.`, action: "proposals" },
                             { icon: "⚡", value: String(awaitingExecution), label: "Execute", accent: awaitingExecution > 0, tip: `${awaitingExecution} proposal(s) have passed voting and are ready to be executed on-chain. Click to scroll.`, action: "execute" },
                             { icon: "📜", value: String(totalProposals), label: "Proposals", tip: `${totalProposals} total proposals submitted to this DAO (${activeProposals} active, ${awaitingExecution} passed). Click to scroll.`, action: "proposals" },
-                            { icon: "🫥", value: nonVoterPercent > 0 ? `${nonVoterPercent}%` : "—", label: "Non-Voters", tip: `~${nonVoterCount} of ${memberCount} members have never voted. Based on best turnout (${maxVoterParticipation} voters) across ${proposalsWithVotesCount} proposal(s) with votes.` },
-                            ...(totalPower > 0 ? [{ icon: "⚡", value: String(totalPower), label: "Power", tip: `Combined voting power across all ${config?.tierDistribution?.length || 1} tier(s). Voting power determines each member's influence when casting votes on proposals.` }] : []),
+                            ...(nonVoterPercent > 0 ? [{ icon: "🫥", value: `${nonVoterPercent}%`, label: "Non-Voters", tip: `~${nonVoterCount} of ${memberCount} members have never voted. Based on best turnout (${maxVoterParticipation} voters) across ${proposalsWithVotesCount} proposal(s) with votes.` }] : []),
+                            ...(totalPower > 0 ? [{ icon: "⚡", value: String(totalPower), label: "Voting power", tip: `Combined voting power across all ${config?.tierDistribution?.length || 1} tier(s). Voting power determines each member's influence when casting votes on proposals.` }] : []),
                         ].filter(Boolean).map(s => (
                             <button
                                 key={s.label}

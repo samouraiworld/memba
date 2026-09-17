@@ -77,6 +77,8 @@ export function WizardStepConfig({
                         return (
                             <button
                                 key={cat}
+                                type="button"
+                                aria-pressed={active}
                                 onClick={() => onToggleCategory(cat)}
                                 style={{
                                     fontSize: "var(--pro-caption, 11px)", padding: "6px 14px", borderRadius: 6, cursor: "pointer",
@@ -87,7 +89,7 @@ export function WizardStepConfig({
                                     transition: "all 0.15s",
                                 }}
                             >
-                                {active ? "✓ " : ""}{cat}
+                                {cat}
                             </button>
                         )
                     })}

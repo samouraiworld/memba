@@ -38,14 +38,6 @@ export const ROLE_COLORS: Record<string, string> = {
     member: "var(--color-text-secondary)",
 }
 
-export const ROLE_ICONS: Record<string, string> = {
-    admin: "🔑",
-    dev: "💻",
-    finance: "💰",
-    ops: "⚙️",
-    member: "👤",
-}
-
 // ── Shared Styles ─────────────────────────────────────────
 
 export const inputStyle: React.CSSProperties = {
@@ -63,10 +55,10 @@ export const inputStyle: React.CSSProperties = {
 
 // ── Shared Components ─────────────────────────────────────
 
-export function FormField({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+export function FormField({ label, hint, htmlFor, children }: { label: string; hint?: string; htmlFor?: string; children: React.ReactNode }) {
     return (
         <div>
-            <label style={{ fontSize: "var(--pro-small, 12px)", fontWeight: 600, color: "var(--color-text)", display: "block", marginBottom: 6 }}>
+            <label htmlFor={htmlFor} style={{ fontSize: "var(--pro-small, 12px)", fontWeight: 600, color: "var(--color-text)", display: "block", marginBottom: 6 }}>
                 {label}
             </label>
             {hint && (

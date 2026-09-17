@@ -6,7 +6,7 @@
  */
 import { useEffect, useRef } from "react"
 import { DAO_PRESETS, validateRealmPath, type DAOPreset } from "../../lib/daoTemplate"
-import { FormField, inputStyle, ROLE_COLORS, ROLE_ICONS, ROLES_ARE_LABELS } from "./wizardShared"
+import { FormField, inputStyle, ROLE_COLORS, ROLES_ARE_LABELS } from "./wizardShared"
 import { House, UsersThree, Buildings } from "@phosphor-icons/react"
 import type { ReactNode } from "react"
 
@@ -63,6 +63,8 @@ export function WizardStepPreset({
                     {DAO_PRESETS.map((preset) => (
                         <button
                             key={preset.id}
+                            type="button"
+                            aria-pressed={selectedPreset === preset.id}
                             onClick={() => onApplyPreset(preset)}
                             style={{
                                 background: selectedPreset === preset.id ? "rgba(0,212,170,0.08)" : "rgba(255,255,255,0.02)",
@@ -86,7 +88,7 @@ export function WizardStepPreset({
                                         color: ROLE_COLORS[r] || "var(--color-text-secondary)",
                                         fontFamily: "var(--font-ui, JetBrains Mono, monospace)",
                                     }}>
-                                        {ROLE_ICONS[r] || "•"} {r}
+                                        {r}
                                     </span>
                                 ))}
                             </div>
@@ -97,7 +99,7 @@ export function WizardStepPreset({
 
             {/* Name & Path */}
             <div className="k-card" style={{ padding: 24, display: "flex", flexDirection: "column", gap: 20 }}>
-                <FormField label="DAO Name" hint="Display name for your DAO">
+                <FormField label="DAO Name" hint="Display name for your DAO" htmlFor="dao-name-input">
                     <input
                         id="dao-name-input"
                         type="text"
@@ -109,7 +111,7 @@ export function WizardStepPreset({
                     />
                 </FormField>
 
-                <FormField label="Description" hint="Short description (optional)">
+                <FormField label="Description" hint="Short description (optional)" htmlFor="dao-desc-input">
                     <textarea
                         id="dao-desc-input"
                         value={description}
@@ -120,7 +122,7 @@ export function WizardStepPreset({
                     />
                 </FormField>
 
-                <FormField label="Realm Path" hint="Permanent on-chain path under your own address or a name you registered (e.g., gno.land/r/g1…/mydao). It cannot be changed or reused.">
+                <FormField htmlFor="dao-path-input" label="Realm Path" hint="Permanent on-chain path under your own address or a name you registered (e.g., gno.land/r/g1…/mydao). It cannot be changed or reused.">
                     <div style={{ display: "flex", gap: 8 }}>
                         <input
                             id="dao-path-input"

@@ -34,7 +34,7 @@ export function DAORouter() {
     const { "*": splat = "" } = useParams()
     const networkKey = useNetworkKey()
     const { realmPath, subRoute } = parseDaoSplat(splat)
-    const { capabilities, loading: kindLoading } = useDaoKind(realmPath || undefined)
+    const { kind, capabilities, loading: kindLoading } = useDaoKind(realmPath || undefined)
 
     // Legacy ~ redirect: /test12/dao/gno.land~r~gov~dao → /test12/dao/gno.land/r/gov/dao
     if (splat.includes("~")) {
@@ -102,6 +102,11 @@ export function DAORouter() {
     return (
         <div className="dao-shell">
             <DAOShellNav networkKey={networkKey} realmPath={realmPath} section={section} capabilities={capabilities} />
+            {kind === "memba-v1" && (
+                <p className="dao-shell-banner" role="note">
+                    This DAO uses an older contract with known limitations (a single admin can change roles). Consider creating a new DAO.
+                </p>
+            )}
             <Suspense fallback={<PageLoader />}>{element}</Suspense>
         </div>
     )

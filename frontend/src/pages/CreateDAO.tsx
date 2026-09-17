@@ -25,6 +25,14 @@ import { assertPathAvailable, codeSubmissionPolicy, removePendingDAO, savePendin
 import type { LayoutContext } from "../types/layout"
 import "./createdao.css"
 
+const STEP_LABELS: Record<Step, string> = {
+    1: "Name, Path & Preset",
+    2: "Members & Roles",
+    3: "Governance Settings",
+    4: "Extensions",
+    5: "Review & Deploy",
+}
+
 // ── Draft Persistence ─────────────────────────────────────
 
 const DRAFT_KEY = "memba_dao_draft"
@@ -488,7 +496,7 @@ export function CreateDAO() {
             {/* Header */}
             <div>
                 <h2 className="cdao-title">
-                    🏗️ Create a DAO
+                    Create a DAO
                 </h2>
                 <p className="cdao-subtitle">
                     Deploy a new governance realm on {caps.label}
@@ -496,26 +504,24 @@ export function CreateDAO() {
             </div>
 
             {/* Step indicator */}
-            <div className="cdao-steps">
+            <nav className="cdao-steps" aria-label="Create DAO steps">
                 {[1, 2, 3, 4, 5].map((s) => (
                     <div key={s} className="cdao-step-group">
-                        <div
+                        <button
+                            type="button"
                             className={`cdao-step-circle ${s === step ? "cdao-step-circle--active" : s < step ? "cdao-step-circle--done" : "cdao-step-circle--future"}`}
                             onClick={() => s < step && !deploying && !approval && goToStep(s as Step)}
+                            disabled={s >= step || deploying || !!approval}
+                            aria-current={s === step ? "step" : undefined}
+                            aria-label={`Step ${s}: ${STEP_LABELS[s as Step]}${s < step ? " (done, go back)" : ""}`}
                         >
                             {s < step ? "✓" : s}
-                        </div>
+                        </button>
                         {s < 5 && <div className={`cdao-step-connector ${s < step ? "cdao-step-connector--done" : "cdao-step-connector--future"}`} />}
                     </div>
                 ))}
-                <span className="cdao-step-label">
-                    {step === 1 && "Name, Path & Preset"}
-                    {step === 2 && "Members & Roles"}
-                    {step === 3 && "Governance Settings"}
-                    {step === 4 && "Extensions"}
-                    {step === 5 && "Review & Deploy"}
-                </span>
-            </div>
+                <span className="cdao-step-label">{STEP_LABELS[step]}</span>
+            </nav>
 
             {/* Step 1: Name, Path & Preset */}
             {step === 1 && (

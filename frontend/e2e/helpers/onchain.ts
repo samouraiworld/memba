@@ -67,7 +67,7 @@ export interface GnoRpcCall {
      * see rpcFallback.ts resilientRpcCall vs resilientAbciQuery.
      */
     method: string
-    /** ABCI query path ('vm/qrender', 'vm/qeval', 'bank/balances/<addr>', …); '' unless the call is an abci_query. */
+    /** ABCI query path ('vm/qrender', 'vm/qeval', 'bank/balances/<addr>', …), from a POST body or a GET query string; '' unless the call is an abci_query. */
     path: string
     /** Decoded abci_query argument (qrender: 'pkgpath:renderpath', qeval: 'pkgpath.Expr(…)'); '' otherwise. */
     arg: string
@@ -121,10 +121,16 @@ export async function fulfillOnchainReads(
         const url = new URL(req.url())
         const id = body?.id ?? null
         const method = body?.method || url.pathname.replace(/^\/+|\/+$/g, '')
-        const path = body?.params?.path ?? ''
+        let path = body?.params?.path ?? ''
         // For vm/qrender / vm/qeval the query arg is base64(text); bank/balances sends "".
         let arg = ''
         try { arg = body?.params?.data ? Buffer.from(body.params.data, 'base64').toString('utf-8') : '' } catch { /* not base64 */ }
+        // GET-style abci_query (version-2 DAO reads, package status): path="…" and data=0x<hex> in the query string.
+        if (method === 'abci_query' && !body?.params && url.searchParams.has('path')) {
+            path = url.searchParams.get('path')!.replace(/^"|"$/g, '')
+            const data = url.searchParams.get('data') ?? ''
+            arg = /^0x([0-9a-fA-F]{2})*$/.test(data) ? Buffer.from(data.slice(2), 'hex').toString('utf-8') : ''
+        }
 
         const json = (payload: object) =>
             route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(payload) })
