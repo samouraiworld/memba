@@ -131,23 +131,22 @@ test.describe('DAO Hub', () => {
         await expect(page.locator('body')).toContainText(/GovDAO|Governance/)
     })
 
-    test('Create DAO CTA follows the network — offered on pearl, absent on the gno.land default', async ({ page }) => {
-        // `userDaos.create` is PER-NETWORK: pearl supports DAO creation,
-        // gno.land does not yet (#1223 — the Create DAO page says so there).
-        // This spec read as "the hub has a static Create CTA"; it was always
-        // the network capability, and the 2026-09-17 mainnet default is what
-        // made the two distinguishable. Both halves are asserted so neither
+    test('Create DAO CTA follows the network — offered on the gno.land default, absent on Betanet', async ({ page }) => {
+        // `userDaos.create` is PER-NETWORK: gno.land (the default) offers DAO
+        // creation, Betanet does not. Both halves are asserted so neither
         // direction can rot silently.
         await page.goto('/dao')
         await expect(page.getByRole('heading', { name: /DAO Governance/ })).toBeVisible()
-        await expect(page.locator('body')).not.toContainText(/Create a DAO|New DAO/)
-
-        // Re-register the fixture with pearl's chain id: DAO reads identity-check
-        // the RPC against the selected network (#1222), and Playwright matches
-        // routes in reverse registration order, so this handler wins.
-        await fulfillGovDaoHome(page, 'pearl-1')
-        await page.goto('/pearl/dao')
         await expect(page.locator('body')).toContainText(/Create|New DAO/)
+
+        // Re-register the fixture with Betanet's chain id: DAO reads identity-check
+        // the RPC against the selected network (#1222), and Playwright matches
+        // routes in reverse registration order, so this handler wins. Betanet is
+        // hidden from the picker but its deep links still resolve.
+        await fulfillGovDaoHome(page, 'gnoland1')
+        await page.goto('/gnoland1/dao')
+        await expect(page.getByRole('heading', { name: /DAO Governance/ })).toBeVisible()
+        await expect(page.locator('body')).not.toContainText(/Create a DAO|New DAO/)
     })
 
     test('connect form collapsed by default', async ({ page }) => {

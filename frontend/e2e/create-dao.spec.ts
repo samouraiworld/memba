@@ -7,11 +7,10 @@ import { MOBILE_375, expectNoMobileOverflow } from './helpers/overflow'
  * No wallet required.
  *
  * PINNED to /pearl. DAO creation is a per-network capability
- * (`NETWORKS[key].userDaos.create`), and the DEFAULT network is gno.land
- * since 2026-09-17, where it is not available yet (#1223 renders an explicit
- * "not available" page there). These specs are about the WIZARD, not about
- * which networks offer it, so they name the network that does. The gating
- * itself is covered by dao.spec's "Create DAO CTA follows the network".
+ * (`NETWORKS[key].userDaos.create`). These specs are about the WIZARD, not
+ * about which networks offer it, so they name a network explicitly instead of
+ * following the default. The gating itself is covered by dao.spec's
+ * "Create DAO CTA follows the network".
  */
 
 test.describe('Create DAO Wizard', () => {
