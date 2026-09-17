@@ -54,8 +54,8 @@ describe("vote scanner network isolation", () => {
         }
         expect(await mainnet[method](address)).toEqual(second)
         expect(calls.proposals).toHaveBeenCalledTimes(2)
-        expect(sessionStorage.getItem(`${key}::pearl`)).not.toBeNull()
-        expect(sessionStorage.getItem(`${key}::gnoland-1`)).not.toBeNull()
+        expect(sessionStorage.getItem(`${key}::pearl::${address}`)).not.toBeNull()
+        expect(sessionStorage.getItem(`${key}::gnoland-1::${address}`)).not.toBeNull()
     })
 
     it.each(scans)("%s ignores legacy unscoped cache entries", async (method, key) => {
@@ -70,18 +70,30 @@ describe("vote scanner network isolation", () => {
     it("clears all active-chain caches and notifies subscribers", async () => {
         const scanner = await onChain("gnoland-1")
         for (const [,key] of scans) {
-            sessionStorage.setItem(`${key}::gnoland-1`, "current")
-            sessionStorage.setItem(`${key}::pearl`, "other")
+            sessionStorage.setItem(`${key}::gnoland-1::${address}`, "current")
+            sessionStorage.setItem(`${key}::gnoland-1::g1otherwallet`, "current")
+            sessionStorage.setItem(`${key}::pearl::${address}`, "other")
         }
         const listener = vi.fn()
         window.addEventListener("memba:voteCacheCleared", listener)
         try {
             scanner.clearVoteCache()
             for (const [,key] of scans) {
-                expect(sessionStorage.getItem(`${key}::gnoland-1`)).toBeNull()
-                expect(sessionStorage.getItem(`${key}::pearl`)).toBe("other")
+                expect(sessionStorage.getItem(`${key}::gnoland-1::${address}`)).toBeNull()
+                expect(sessionStorage.getItem(`${key}::gnoland-1::g1otherwallet`)).toBeNull()
+                expect(sessionStorage.getItem(`${key}::pearl::${address}`)).toBe("other")
             }
             expect(listener).toHaveBeenCalledTimes(1)
         } finally { window.removeEventListener("memba:voteCacheCleared", listener) }
+    })
+
+    it.each(scans)("%s never serves one wallet's cached result to another wallet", async (method, key) => {
+        const other = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
+        const sentinel = method === "scanUnvotedProposals" ? 42 : [{ proposalTitle: "Cached for the first wallet" }]
+        sessionStorage.setItem(`${key}::gnoland-1::${address}`, JSON.stringify({ data: sentinel, ts: Date.now() }))
+        const scanner = await onChain("gnoland-1")
+        expect(await scanner[method](address)).toEqual(sentinel)
+        const forOther = await settle(scanner[method](other))
+        expect(forOther).not.toEqual(sentinel)
     })
 })

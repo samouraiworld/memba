@@ -36,6 +36,7 @@ export interface UnvotedProposal {
 // Module configuration is fixed until a network reload. Session storage
 // survives that reload, so every chain-derived aggregate needs its chain ID.
 // Ignore legacy unscoped entries: their proposal provenance is unknowable.
+// Results depend on the wallet too, so every entry is also keyed by address.
 
 const UNVOTED_CACHE_KEY = networkScopedKey("memba_unvoted_cache")
 const UNVOTED_DETAILS_CACHE_KEY = networkScopedKey("memba_unvoted_details_cache")
@@ -46,6 +47,11 @@ const MYVOTES_TTL = 5 * 60 * 1000 // 5 minutes
 interface CacheEntry<T> {
     data: T
     ts: number
+}
+
+/** Cache key for one chain-scoped aggregate and one wallet. */
+function walletKey(key: string, address: string): string {
+    return `${key}::${address.toLowerCase()}`
 }
 
 function readCache<T>(key: string, ttl: number): T | null {
@@ -70,9 +76,13 @@ function writeCache<T>(key: string, data: T) {
 /** Clear vote caches — call after voting to immediately update notification dot + Quick Vote. */
 export function clearVoteCache() {
     try {
-        sessionStorage.removeItem(UNVOTED_CACHE_KEY)
-        sessionStorage.removeItem(UNVOTED_DETAILS_CACHE_KEY)
-        sessionStorage.removeItem(MYVOTES_CACHE_KEY)
+        const prefixes = [UNVOTED_CACHE_KEY, UNVOTED_DETAILS_CACHE_KEY, MYVOTES_CACHE_KEY]
+        const stale: string[] = []
+        for (let i = 0; i < sessionStorage.length; i++) {
+            const k = sessionStorage.key(i)
+            if (k && prefixes.some((p) => k === p || k.startsWith(`${p}::`))) stale.push(k)
+        }
+        for (const k of stale) sessionStorage.removeItem(k)
         // Notify hooks that cache was cleared so they re-scan immediately
         window.dispatchEvent(new Event("memba:voteCacheCleared"))
     } catch { /* no-op */ }
@@ -152,10 +162,10 @@ export const _isInVoterList = isInVoterList
  */
 export async function scanUnvotedProposals(address: string): Promise<number> {
     // Check cache first
-    const cached = readCache<number>(UNVOTED_CACHE_KEY, UNVOTED_TTL)
-    if (cached !== null) return cached
-
     if (!address) return 0
+    const cacheKey = walletKey(UNVOTED_CACHE_KEY, address)
+    const cached = readCache<number>(cacheKey, UNVOTED_TTL)
+    if (cached !== null) return cached
 
     let username = ""
     try { username = (await resolveOnChainUsername(address) || "").replace("@", "") } catch { /* silent */ }
@@ -206,7 +216,7 @@ export async function scanUnvotedProposals(address: string): Promise<number> {
         await delay(100) // Rate limit between DAOs
     }
 
-    writeCache(UNVOTED_CACHE_KEY, unvotedCount)
+    writeCache(cacheKey, unvotedCount)
     return unvotedCount
 }
 
@@ -218,10 +228,10 @@ const MAX_UNVOTED_DETAILS = 3
  */
 export async function scanUnvotedProposalDetails(address: string): Promise<UnvotedProposal[]> {
     // Check cache first
-    const cached = readCache<UnvotedProposal[]>(UNVOTED_DETAILS_CACHE_KEY, UNVOTED_TTL)
-    if (cached !== null) return cached
-
     if (!address) return []
+    const cacheKey = walletKey(UNVOTED_DETAILS_CACHE_KEY, address)
+    const cached = readCache<UnvotedProposal[]>(cacheKey, UNVOTED_TTL)
+    if (cached !== null) return cached
 
     let username = ""
     try { username = (await resolveOnChainUsername(address) || "").replace("@", "") } catch { /* silent */ }
@@ -280,7 +290,7 @@ export async function scanUnvotedProposalDetails(address: string): Promise<Unvot
         await delay(100) // Rate limit between DAOs
     }
 
-    writeCache(UNVOTED_DETAILS_CACHE_KEY, results)
+    writeCache(cacheKey, results)
     return results
 }
 
@@ -290,10 +300,10 @@ export async function scanUnvotedProposalDetails(address: string): Promise<Unvot
  */
 export async function scanMyVotes(address: string): Promise<MyVoteEntry[]> {
     // Check cache first
-    const cached = readCache<MyVoteEntry[]>(MYVOTES_CACHE_KEY, MYVOTES_TTL)
-    if (cached !== null) return cached
-
     if (!address) return []
+    const cacheKey = walletKey(MYVOTES_CACHE_KEY, address)
+    const cached = readCache<MyVoteEntry[]>(cacheKey, MYVOTES_TTL)
+    if (cached !== null) return cached
 
     let username = ""
     try { username = (await resolveOnChainUsername(address) || "").replace("@", "") } catch { /* silent */ }
@@ -356,6 +366,6 @@ export async function scanMyVotes(address: string): Promise<MyVoteEntry[]> {
         await delay(100)
     }
 
-    writeCache(MYVOTES_CACHE_KEY, votes)
+    writeCache(cacheKey, votes)
     return votes
 }
