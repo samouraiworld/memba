@@ -137,23 +137,6 @@ export async function getDAOConfig(
 }
 
 /**
- * Resolve a DAO's real governance threshold from its config-page render
- * (`Render("config")`), where basedao surfaces the voting condition — the home
- * `Render("")` only links to the config page, so getDAOConfig can't see it. Kept
- * out of getDAOConfig to avoid an extra render on its many hot-path callers;
- * called only where the threshold is displayed (the DAO list). Returns "" on any
- * failure or when absent — callers show "—", never a fabricated default.
- */
-export async function getDAOThreshold(rpcUrl: string, realmPath: string): Promise<string> {
-    try {
-        const data = await queryRender(rpcUrl, realmPath, "config")
-        return parseDaoThreshold(data || "")
-    } catch {
-        return ""
-    }
-}
-
-/**
  * Fetch memberstore tier distribution.
  * Parses: "Tier T1 contains 11 members with power: 33"
  */

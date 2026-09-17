@@ -21,7 +21,6 @@ import {
     isNftMarketV3Valid,
     SNAPSHOT_NETWORK,
     FEED_INDEXED_NETWORK,
-    getFeaturedDaoRealm,
     selectableNetworksFor,
 } from './config'
 import { SITEMAP_NETWORK } from './sitemap'
@@ -620,9 +619,8 @@ describe('sapphire is SUNSET (2026-09-09) — dark but resolvable', () => {
         // network-scoped predicate.
     })
 
-    it('truthfully keeps realms + a featured DAO after retirement; the PINNED set lives on pearl', () => {
+    it('truthfully keeps realms after retirement; the PINNED set lives on pearl', () => {
         expect(networkHasRealms('sapphire')).toBe(true)
-        expect(getFeaturedDaoRealm('sapphire')).toBe('gno.land/r/samcrew/memba_dao')
         // The pinned constants do NOT derive from the env; desynchronising them
         // from their backend counterparts fails SILENTLY (W3-6), so they are
         // asserted as a set — on the network the §6 completion release moved
@@ -658,7 +656,6 @@ describe('retired networks stay DARK but resolvable (topaz 2026-08-12, test13 20
         // it gates everything and shows the honest banner.
         expect(NETWORKS.gnoland1.hidden).toBe(false)
         expect(networkHasRealms('gnoland1')).toBe(false)
-        expect(getFeaturedDaoRealm('gnoland1')).toBeNull()
         expect(isRealmValidOn('gnoland1', 'gno.land/r/samcrew/memba_dao')).toBe(false)
     })
 
