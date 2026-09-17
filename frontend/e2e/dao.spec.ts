@@ -218,7 +218,7 @@ test.describe('GovDAO Page', () => {
             return
         }
         // Only check for EXECUTE badge if there are passed proposals
-        const executeBadges = page.locator('text=⚡ EXECUTE')
+        const executeBadges = page.locator('text=EXECUTE')
         const badgeCount = await executeBadges.count()
         if (badgeCount === 0) {
             test.skip(true, 'No passed proposals with EXECUTE status on this chain')

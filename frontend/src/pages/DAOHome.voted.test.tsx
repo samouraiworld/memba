@@ -10,7 +10,7 @@ import type { DAOProposal, VoteRecord } from '../lib/dao'
 const ADDR = 'g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m'
 const LOOKALIKE = 'g1aeddlftlqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq'
 
-const state = vi.hoisted(() => ({ voters: [] as string[] }))
+const state = vi.hoisted(() => ({ voters: [] as string[], v2: false, detailCalls: 0 }))
 vi.mock('react-router-dom', async importOriginal => ({ ...await importOriginal<typeof import('react-router-dom')>(), useOutletContext: () => ({ auth: { isAuthenticated: true, token: null }, adena: { address: 'g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m' } }) }))
 vi.mock('../hooks/useDaoRoute', () => ({ useDaoRoute: () => ({ realmPath: 'gno.land/r/team/dao', encodedSlug: 'team-dao' }) }))
 vi.mock('../hooks/useNetworkNav', () => ({ useNetworkNav: () => vi.fn() }))
@@ -31,8 +31,11 @@ vi.mock('../lib/dao', async importOriginal => ({
     ...await importOriginal<typeof import('../lib/dao')>(),
     getDAOConfig: async () => ({ name: 'Team', description: '', threshold: '66%', memberCount: 3, memberstorePath: '', tierDistribution: [], isArchived: false }),
     getDAOMembers: async () => [{ address: 'g1aeddlftlfk27ret5rf750d7w5dume3kcsm8r8m', roles: [], tier: '', votingPower: 1, username: '' }],
-    getDAOProposals: async () => [{ id: 1, title: 'Fund the grant', description: '', category: '', status: 'open', author: '', tiers: [], yesPercent: 0, noPercent: 0, yesVotes: 0, noVotes: 0, abstainVotes: 0, totalVoters: 0 }],
-    getProposalDetail: async () => null,
+    getDAOProposals: async () => [{
+        id: 1, title: 'Fund the grant', description: '', category: '', status: 'open', author: '', tiers: [], yesPercent: 0, noPercent: 0, yesVotes: 0, noVotes: 0, abstainVotes: 0, totalVoters: 0,
+        ...(state.v2 ? { yesVotes: 40, yesPercent: 40, v2: { id: 1, status: 'ACTIVE', yes: 40, no: 0, abstain: 0, electorate_power: 100 } } : {}),
+    }],
+    getProposalDetail: async () => { state.detailCalls++; return null },
     getProposalVotes: async (): Promise<VoteRecord[]> => [{ tier: 'T1', vppm: 3, yesVoters: state.voters.map(username => ({ username, profileUrl: '' })), noVoters: [], abstainVoters: [] }],
 }))
 import { DAOHome } from './DAOHome'
@@ -47,7 +50,7 @@ async function needsVote() {
     await new Promise(r => setTimeout(r, 0))
     return screen.getByTestId('needs-vote').textContent
 }
-beforeEach(() => { state.voters = [] })
+beforeEach(() => { state.voters = []; state.v2 = false; state.detailCalls = 0 })
 
 describe('DAO dashboard voted set uses exact voter matching', () => {
     it.each([
@@ -66,5 +69,16 @@ describe('DAO dashboard voted set uses exact voter matching', () => {
         mount()
         await waitFor(() => expect(screen.getByTestId('needs-vote')).toHaveTextContent(/^$/))
         expect(screen.getByTestId('enriched')).toHaveTextContent('1')
+    })
+})
+
+describe('DAO dashboard with a version-2 DAO', () => {
+    it('reads only the vote list for version-2 rows and keeps the realm tallies', async () => {
+        state.v2 = true
+        state.voters = [ADDR]
+        mount()
+        await waitFor(() => expect(screen.getByTestId('enriched')).toHaveTextContent('1'))
+        await waitFor(() => expect(screen.getByTestId('needs-vote')).toHaveTextContent(/^$/))
+        expect(state.detailCalls).toBe(0)
     })
 })

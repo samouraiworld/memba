@@ -1,0 +1,140 @@
+/* Version-2 DAO proposal reader. */
+
+.v2p-text {
+    overflow-wrap: anywhere;
+    unicode-bidi: plaintext;
+}
+
+.v2p-path,
+.v2p-address {
+    font-family: var(--font-mono, monospace);
+    overflow-wrap: anywhere;
+}
+
+.v2p-muted {
+    margin: 4px 0 0;
+    font-size: var(--pro-small, 13px);
+    color: var(--color-k-dim, var(--color-text-secondary));
+}
+
+.v2p-card {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 16px;
+}
+
+.v2p-heading {
+    margin: 0;
+    font-size: var(--pro-body, 15px);
+    font-weight: 600;
+}
+
+.v2p-facts {
+    display: grid;
+    grid-template-columns: minmax(110px, max-content) minmax(0, 1fr);
+    gap: 6px 14px;
+    margin: 0;
+    font-size: var(--pro-small, 13px);
+}
+
+.v2p-facts dt {
+    color: var(--color-k-dim, var(--color-text-secondary));
+}
+
+.v2p-facts dd {
+    margin: 0;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.v2p-bar {
+    position: relative;
+    display: flex;
+    height: 12px;
+    border-radius: 6px;
+    overflow: visible;
+    background: var(--color-k-edge, rgba(255, 255, 255, 0.08));
+}
+
+.v2p-bar__yes { background: var(--color-k-accent, #00d4aa); border-radius: 6px 0 0 6px; }
+.v2p-bar__no { background: var(--color-k-danger-text, #f44336); }
+.v2p-bar__abstain { background: var(--color-k-dim, #888); }
+
+.v2p-bar__marker {
+    position: absolute;
+    top: -4px;
+    bottom: -4px;
+    width: 2px;
+    background: var(--color-k-text, #fff);
+}
+
+.v2p-bar__marker--quorum {
+    background: var(--color-k-warning-text, #f5a623);
+}
+
+.v2p-votes {
+    margin: 8px 0 0;
+    padding-left: 18px;
+    font-size: var(--pro-small, 13px);
+}
+
+.v2p-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 16px;
+}
+
+.v2p-vote-buttons {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.v2p-vote-buttons > button {
+    flex: 1 1 110px;
+}
+
+.v2p-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    background: var(--color-overlay, rgba(0, 0, 0, 0.6));
+}
+
+.v2p-dialog {
+    width: 100%;
+    max-width: 480px;
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
+    padding: 20px;
+    border-radius: 12px;
+    background: var(--color-k-panel, #141414);
+    border: 1px solid var(--color-k-edge, rgba(255, 255, 255, 0.12));
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.v2p-dialog__title {
+    margin: 0;
+    font-size: var(--pro-body, 15px);
+}
+
+.v2p-dialog__message {
+    margin: 0;
+    font-size: var(--pro-small, 13px);
+    line-height: 1.5;
+}
+
+.v2p-dialog__actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 6px;
+}

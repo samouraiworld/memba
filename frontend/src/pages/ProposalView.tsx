@@ -28,9 +28,21 @@ import { TierVoteBlock } from "../components/proposal"
 import { ProProposalVotes } from "../components/dao/ProProposalVotes"
 import { VotingInsights } from "../components/dao/TierPieChart"
 import type { LayoutContext } from "../types/layout"
+import { V2ProposalView } from "../components/proposal/V2ProposalView"
 import "./proposalview.css"
 
 export function ProposalView() {
+    const { realmPath, encodedSlug, proposalId } = useDaoRoute()
+    const { kind, loading } = useDaoKind(realmPath)
+    if (loading) {
+        return <div className="animate-fade-in proposal-skeleton-col"><SkeletonCard /><SkeletonCard /></div>
+    }
+    // Version-2 DAOs: JSON reads only, with their own lifecycle.
+    if (kind === "memba-v2") return <V2ProposalView realmPath={realmPath} encodedSlug={encodedSlug} proposalId={Number(proposalId)} />
+    return <LegacyProposalView />
+}
+
+function LegacyProposalView() {
     const professional = isProGovernanceRoute(useLocation().pathname)
     const { realmPath, encodedSlug, proposalId: routeProposalId } = useDaoRoute()
     const id = routeProposalId

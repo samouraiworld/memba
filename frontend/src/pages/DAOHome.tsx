@@ -95,8 +95,10 @@ export function DAOHome({ view = "overview" }: { view?: "overview" | "proposals"
         queries: enrichable.map((p) => ({
             queryKey: ["dao", "proposal-enrich", realmPath ?? "", p.id],
             queryFn: async () => {
+                // Version-2 list rows already carry the realm's tallies; only the
+                // vote list is read (to mark proposals the wallet voted on).
                 const [detailRes, votesRes] = await Promise.allSettled([
-                    getProposalDetail(GNO_RPC_URL, realmPath, p.id),
+                    p.v2 ? Promise.resolve(null) : getProposalDetail(GNO_RPC_URL, realmPath, p.id),
                     getProposalVotes(GNO_RPC_URL, realmPath, p.id),
                 ])
                 if (detailRes.status === "rejected" && votesRes.status === "rejected") {
@@ -131,6 +133,8 @@ export function DAOHome({ view = "overview" }: { view?: "overview" | "proposals"
             const voted = allVoters.some(v => voterMatchesUser(v.username, adena.address, myUsername))
             if (voted) votedIds.add(p.id)
         }
+        // Version-2 tallies are voting power from the realm; voter head counts never replace them.
+        if (p.v2) return p
         return {
             ...p,
             // ONLY daokit list rows (titleIsPlaceholder — resource name, not a

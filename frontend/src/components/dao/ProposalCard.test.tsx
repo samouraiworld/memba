@@ -54,3 +54,23 @@ describe("ProposalCard — vote-load-failure honesty (P1-8)", () => {
     })
 
 })
+
+describe("ProposalCard — version-2 DAOs", () => {
+    const v2 = {
+        id: 1, title: "Test proposal", category: "governance", author: "g1abc", action: { kind: "text" as const, target: "", power: 0, roles: [] },
+        electorate_power: 100, electorate_version: 0, created_at: 1, voting_ends_at: 2, status: "LAPSED" as const,
+        yes: 70, no: 0, abstain: 0, accepted_at: 1, executable_at: 1, execute_by: 2,
+    }
+
+    it("shows the realm's exact status and power tallies, without emoji badges", () => {
+        renderCard(makeProposal({ status: "expired", yesVotes: 70, v2 }))
+        expect(screen.getByText("LAPSED")).toBeInTheDocument()
+        expect(screen.queryByText(/⚡|⏳/)).not.toBeInTheDocument()
+    })
+
+    it("marks a passed proposal for execution in plain text", () => {
+        renderCard(makeProposal({ status: "passed", v2: { ...v2, status: "ACCEPTED" } }))
+        expect(screen.getByText("EXECUTE")).toBeInTheDocument()
+        expect(screen.getByText("ACCEPTED")).toBeInTheDocument()
+    })
+})

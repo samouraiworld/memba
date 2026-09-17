@@ -8,6 +8,8 @@
  * Extracted in v1.5.0 from DAOHome.tsx. Redesigned in v1.7.0.
  */
 import { type DAOProposal, PROPOSAL_STATUS_COLORS } from "../../lib/dao/shared"
+import { V2_STATUS_LABELS } from "../../lib/dao/v2Lifecycle"
+import { revealInvisibleFormatting } from "../../lib/dao/v2Text"
 import { useProposalDate } from "../../hooks/useProposalDate"
 
 /**
@@ -75,6 +77,8 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
     proposal: DAOProposal; hasVoted: boolean; isMember: boolean; enriched: boolean; totalMembers: number; realmPath?: string; onClick: () => void
 }) {
     const sc = PROPOSAL_STATUS_COLORS[proposal.status] || PROPOSAL_STATUS_COLORS.open
+    // Version-2 DAOs report their exact status (for example LAPSED or ARCHIVED).
+    const statusLabel = proposal.v2 ? V2_STATUS_LABELS[proposal.v2.status].toUpperCase() : sc.label
     const { timestamp } = useProposalDate(realmPath, proposal.id, proposal.createdAt, proposal.createdAtBlock)
 
     return (
@@ -92,7 +96,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                             #{proposal.id}
                         </span>
                         <span style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)" }}>
-                            {proposal.title}
+                            {proposal.v2 ? revealInvisibleFormatting(proposal.title) : proposal.title}
                         </span>
                     </div>
 
@@ -137,7 +141,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                             background: "rgba(245,166,35,0.1)", color: "var(--color-warning)",
                             animation: "pulse-dot 2s ease-in-out infinite",
                         }}>
-                            ⚡ EXECUTE
+                            EXECUTE
                         </span>
                     )}
                     {/* Voted / Needs Vote badge */}
@@ -148,7 +152,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                                 fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontWeight: 600,
                                 background: "rgba(76,175,80,0.08)", color: "var(--color-success)",
                             }}>
-                                ✓ VOTED
+                                VOTED
                             </span>
                         ) : (
                             <span style={{
@@ -156,7 +160,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                                 fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontWeight: 600,
                                 background: "rgba(245,166,35,0.08)", color: "var(--color-warning)",
                             }}>
-                                ⏳ VOTE
+                                VOTE
                             </span>
                         )
                     )}
@@ -165,7 +169,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                         fontFamily: "var(--font-ui, JetBrains Mono, monospace)", fontWeight: 600,
                         background: sc.bg, color: sc.color, whiteSpace: "nowrap",
                     }}>
-                        {sc.label}
+                        {statusLabel}
                     </span>
                 </div>
             </div>
@@ -176,7 +180,7 @@ export function ProposalCard({ proposal, hasVoted, isMember, enriched, totalMemb
                     <SingleVoteBar
                         yesVotes={proposal.yesVotes || (proposal.yesPercent > 0 ? Math.round(proposal.yesPercent) : 0)}
                         noVotes={proposal.noVotes || (proposal.noPercent > 0 ? Math.round(proposal.noPercent) : 0)}
-                        totalMembers={totalMembers}
+                        totalMembers={proposal.v2 ? proposal.v2.electorate_power : totalMembers}
                     />
                 </div>
             )}
