@@ -182,17 +182,104 @@ func TestGetHomeSnapshot_UnreachableRPCDegrades(t *testing.T) {
 
 func TestVerifyRPCChain(t *testing.T) {
 	pearl := chainStub(t, "pearl-1", "1")
-	if err := verifyRPCChain(context.Background(), pearl.URL, "pearl-1"); err != nil {
-		t.Fatalf("matching network: %v", err)
+	other := chainStub(t, "gnoland-1", "1")
+	ctx := context.Background()
+
+	t.Setenv("RPC_FALLBACK_URLS", pearl.URL)
+	if u, err := verifyRPCChain(ctx, pearl.URL, "pearl-1"); err != nil || u != pearl.URL {
+		t.Fatalf("matching primary: url=%q err=%v", u, err)
 	}
-	err := verifyRPCChain(context.Background(), pearl.URL, "gnoland-1")
-	if !errors.Is(err, errHomeChainMismatch) {
+	if _, err := verifyRPCChain(ctx, pearl.URL, "gnoland-1"); !errors.Is(err, errHomeChainMismatch) {
 		t.Fatalf("mismatch: err = %v, want errHomeChainMismatch", err)
 	}
-	if err := verifyRPCChain(context.Background(), pearl.URL, ""); !errors.Is(err, errHomeChainMismatch) {
+	if _, err := verifyRPCChain(ctx, pearl.URL, ""); !errors.Is(err, errHomeChainMismatch) {
 		t.Fatalf("empty expected chain must fail closed, got %v", err)
 	}
-	if err := verifyRPCChain(context.Background(), "http://127.0.0.1:1", "pearl-1"); err == nil || errors.Is(err, errHomeChainMismatch) {
-		t.Fatalf("unreachable node must be a transport error, got %v", err)
+
+	// Primary down: the next node that answers on the right chain is used.
+	t.Setenv("RPC_FALLBACK_URLS", pearl.URL)
+	if u, err := verifyRPCChain(ctx, "http://127.0.0.1:1", "pearl-1"); err != nil || u != pearl.URL {
+		t.Fatalf("primary down, fallback on chain: url=%q err=%v", u, err)
+	}
+	// Primary on another chain, fallback on the right one: the fallback is used.
+	if u, err := verifyRPCChain(ctx, other.URL, "pearl-1"); err != nil || u != pearl.URL {
+		t.Fatalf("primary wrong chain, fallback on chain: url=%q err=%v", u, err)
+	}
+	// Every reachable node on another chain: mismatch.
+	t.Setenv("RPC_FALLBACK_URLS", other.URL)
+	if _, err := verifyRPCChain(ctx, "http://127.0.0.1:1", "pearl-1"); !errors.Is(err, errHomeChainMismatch) {
+		t.Fatalf("only other-chain nodes reachable: err = %v, want errHomeChainMismatch", err)
+	}
+	// No node reachable: a transport error, not a mismatch.
+	t.Setenv("RPC_FALLBACK_URLS", "http://127.0.0.1:1")
+	if _, err := verifyRPCChain(ctx, "http://127.0.0.1:1", "pearl-1"); err == nil || errors.Is(err, errHomeChainMismatch) {
+		t.Fatalf("unreachable nodes must be a transport error, got %v", err)
+	}
+}
+
+// Primary snapshot node down, failover node healthy on the right chain: the
+// snapshot is still built.
+func TestGetHomeSnapshot_PrimaryDownUsesFailoverNode(t *testing.T) {
+	pearl := chainStub(t, "pearl-1", "491036")
+	s := homeChainService(t, "pearl-1", []string{"pearl-1"}, "http://127.0.0.1:1")
+	t.Setenv("RPC_FALLBACK_URLS", pearl.URL)
+
+	resp, err := s.GetHomeSnapshot(context.Background(),
+		connect.NewRequest(&membav1.GetHomeSnapshotRequest{ChainId: "pearl-1"}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := resp.Msg.GetSnapshot().GetAsOfBlock(); got != 491036 {
+		t.Fatalf("as_of_block = %d, want 491036 from the failover node", got)
+	}
+}
+
+func TestGetHomeSnapshot_PrimaryDownFailoverOnOtherChainRefused(t *testing.T) {
+	other := chainStub(t, "gnoland-1", "109000")
+	s := homeChainService(t, "pearl-1", []string{"pearl-1"}, "http://127.0.0.1:1")
+	t.Setenv("RPC_FALLBACK_URLS", other.URL)
+
+	_, err := s.GetHomeSnapshot(context.Background(),
+		connect.NewRequest(&membav1.GetHomeSnapshotRequest{ChainId: "pearl-1"}))
+	wantConnectCode(t, err, connect.CodeFailedPrecondition)
+	if n := homeCacheLen(s); n != 0 {
+		t.Fatalf("cache has %d entries, want 0", n)
+	}
+}
+
+// A wrong-chain refusal is remembered briefly, so a misconfigured node is not
+// queried on every request.
+func TestGetHomeSnapshot_WrongChainRefusalIsCachedBriefly(t *testing.T) {
+	var statusHits int32
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/status" {
+			atomic.AddInt32(&statusHits, 1)
+			_, _ = w.Write([]byte(`{"result":{"node_info":{"network":"gnoland-1"},"sync_info":{"latest_block_height":"1"}}}`))
+			return
+		}
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	t.Cleanup(srv.Close)
+	s := homeChainService(t, "pearl-1", []string{"pearl-1"}, srv.URL)
+	req := connect.NewRequest(&membav1.GetHomeSnapshotRequest{ChainId: "pearl-1"})
+
+	for i := 0; i < 3; i++ {
+		_, err := s.GetHomeSnapshot(context.Background(), req)
+		wantConnectCode(t, err, connect.CodeFailedPrecondition)
+	}
+	if n := atomic.LoadInt32(&statusHits); n != 1 {
+		t.Fatalf("status queried %d times within the refusal window, want 1", n)
+	}
+
+	// Once the refusal window has passed, the node is checked again.
+	s.homeCacheMu.Lock()
+	for k := range s.homeRefusedAt {
+		s.homeRefusedAt[k] = time.Now().Add(-time.Hour)
+	}
+	s.homeCacheMu.Unlock()
+	_, err := s.GetHomeSnapshot(context.Background(), req)
+	wantConnectCode(t, err, connect.CodeFailedPrecondition)
+	if n := atomic.LoadInt32(&statusHits); n != 2 {
+		t.Fatalf("status queried %d times after the window, want 2", n)
 	}
 }

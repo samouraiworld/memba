@@ -644,8 +644,10 @@ func TestGetHomeSnapshot_DefaultsChainID(t *testing.T) {
 	s.homeQuery = func(rpc, path, data string) (string, error) {
 		return "", fmt.Errorf("offline")
 	}
-	// Force RPC sources (network pulse, validators) to fail fast via connection-refused.
+	// Force RPC sources (network pulse, validators) to fail fast via connection-refused,
+	// including the failover list (never the real pearl nodes).
 	t.Setenv("HOME_SNAPSHOT_RPC_URL", "http://127.0.0.1:1")
+	t.Setenv("RPC_FALLBACK_URLS", "http://127.0.0.1:1")
 
 	resp, err := s.GetHomeSnapshot(
 		context.Background(),

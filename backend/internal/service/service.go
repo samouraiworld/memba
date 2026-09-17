@@ -57,7 +57,10 @@ type MultisigService struct {
 	homeCacheMu  sync.RWMutex
 	homeCached   map[string]*membav1.HomeSnapshot
 	homeCachedAt map[string]time.Time
-	homeQuery    queryFunc
+	// homeRefusedAt remembers wrong-chain refusals per cache key (guarded by
+	// homeCacheMu, created lazily).
+	homeRefusedAt map[string]time.Time
+	homeQuery     queryFunc
 	// homeGroup collapses concurrent cache misses per chain_id so only one
 	// assembly (8 network/DB reads) runs at a time — the rest share its result.
 	homeGroup singleflight.Group
