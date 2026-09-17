@@ -74,6 +74,8 @@ export function toAdenaMessages(msgs: AminoMsg[]) {
                     pkg_path: m.value.pkg_path as string,
                     func: m.value.func as string,
                     args: m.value.args as string[],
+                    // A storage deposit cap travels with the call when the caller sized one.
+                    ...(typeof m.value.max_deposit === "string" && m.value.max_deposit !== "" ? { max_deposit: m.value.max_deposit } : {}),
                 },
             }
         }
@@ -234,7 +236,7 @@ export async function doContractBroadcast(
     msgs: AminoMsg[],
     memo: string,
     opts?: { gas?: "call" | "deploy"; gasWanted?: number; retry?: false; beforeSign?: () => void | Promise<void> },
-): Promise<{ hash: string }> {
+): Promise<{ hash: string; result?: unknown }> {
     if (opts?.gasWanted !== undefined && (!Number.isSafeInteger(opts.gasWanted) || opts.gasWanted <= 0 || opts.gasWanted > MAX_GAS_WANTED)) {
         throw new Error(`Invalid gas limit: must be a whole number between 1 and ${MAX_GAS_WANTED}`)
     }
@@ -290,7 +292,8 @@ export async function doContractBroadcast(
                 }
                 lastError = new Error(errMsg)
             } else {
-                return { hash: res.data?.hash || "" }
+                // `result` is the wallet's broadcast result (e.g. the call's return data).
+                return { hash: res.data?.hash || "", result: res.data }
             }
         } catch (err) {
             const msg = err instanceof Error ? err.message : String(err)

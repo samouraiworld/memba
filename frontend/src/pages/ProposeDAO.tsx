@@ -9,6 +9,7 @@ import { GNO_RPC_URL } from "../lib/config"
 import { useDaoRoute } from "../hooks/useDaoRoute"
 import { useDaoKind } from "../hooks/useDaoKind"
 import type { LayoutContext } from "../types/layout"
+import { ProposeV2Form } from "../components/proposal/ProposeV2Form"
 import "./proposedao.css"
 
 // ── Proposal Templates ───────────────────────────────────────
@@ -60,6 +61,37 @@ function applyTemplate(template: ProposalTemplate): { title: string; description
 }
 
 export function ProposeDAO() {
+    const { realmPath, encodedSlug } = useDaoRoute()
+    const { kind, capabilities, loading } = useDaoKind(realmPath)
+    if (loading) return <div className="animate-fade-in pdao-page" role="status">Identifying the DAO contract…</div>
+    if (kind === "memba-v2") {
+        return (
+            <div className="animate-fade-in pdao-page">
+                <ProposeHeader encodedSlug={encodedSlug} />
+                <ProposeV2Form realmPath={realmPath} encodedSlug={encodedSlug} kinds={capabilities.propose} />
+            </div>
+        )
+    }
+    return <LegacyProposeDAO />
+}
+
+function ProposeHeader({ encodedSlug }: { encodedSlug: string }) {
+    const navigate = useNetworkNav()
+    return (
+        <>
+            <button id="propose-back-btn" className="pdao-back-btn" aria-label="Back to DAO" onClick={() => navigate(`/dao/${encodedSlug}`)}>
+                ← Back to DAO
+            </button>
+            <div>
+                <h2 className="pdao-header-title">New proposal</h2>
+                <p className="pdao-header-subtitle">Members vote on it. Membership, roles and archiving change only through proposals that pass.</p>
+            </div>
+        </>
+    )
+}
+
+/** Proposals for older contracts (version-1 generated DAOs). */
+function LegacyProposeDAO() {
     const navigate = useNetworkNav()
     const { realmPath, encodedSlug } = useDaoRoute()
     const { auth, adena } = useOutletContext<LayoutContext>()
@@ -81,7 +113,6 @@ export function ProposeDAO() {
 
     const categories = [
         { value: "governance", label: "Governance" },
-        { value: "treasury", label: "Treasury" },
         { value: "membership", label: "Membership" },
         { value: "operations", label: "Operations" },
     ]
@@ -187,7 +218,7 @@ export function ProposeDAO() {
 
             {success && (
                 <div className="pdao-success-bar">
-                    <span>✓ {success}</span>
+                    <span>{success}</span>
                     <button
                         className="pdao-success-goto"
                         onClick={() => navigate(`/dao/${encodedSlug}`)}
@@ -352,7 +383,7 @@ export function ProposeDAO() {
             {auth.isAuthenticated && title.trim() && (
                 <details className="pdao-source-details">
                     <summary className="pdao-source-summary">
-                        📋 View Source Code (MsgCall)
+                        View transaction (MsgCall)
                     </summary>
                     <pre className="pdao-source-pre">
                         {(() => {

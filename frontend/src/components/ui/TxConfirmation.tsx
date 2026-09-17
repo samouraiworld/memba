@@ -18,7 +18,7 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import type { AminoMsg } from "../../lib/grc20"
 import { setTxConfirmationCallback } from "../../lib/grc20"
-import { deployEffect } from "../../lib/parseMsgs"
+import { callDepositCap, deployEffect } from "../../lib/parseMsgs"
 import "./tx-confirmation.css"
 
 // ── Types ────────────────────────────────────────────────────
@@ -104,7 +104,7 @@ function TxConfirmationModal({
         const send = (v.send as string) || ""
         const args = (v.args as string[]) || []
         const pkgPath = deploy ? "" : (v.pkg_path as string) || ""
-        const depositCap = deploy?.depositCap ?? null
+        const depositCap = deploy ? deploy.depositCap : callDepositCap(msg)
 
         return { index: i, func, caller, send, args, pkgPath, depositCap }
     })
@@ -192,7 +192,7 @@ function TxConfirmationModal({
                                 <div className="tx-confirm-detail-row">
                                     <span className="tx-confirm-label">Contract</span>
                                     <span className="tx-confirm-value tx-confirm-path">
-                                        {e.pkgPath.split("/").slice(-2).join("/")}
+                                        {e.pkgPath}
                                     </span>
                                 </div>
                             )}

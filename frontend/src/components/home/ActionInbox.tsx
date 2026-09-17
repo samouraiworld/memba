@@ -25,6 +25,8 @@ import { useHomeActions } from "../../hooks/home/useHomeActions"
 import { ActionDoor, ActionDoorSkeleton } from "./doors/ActionDoor"
 import { Door } from "./Door"
 import { buildDaoMsg, resolveDaoKind } from "../../lib/dao"
+import { budgetDaoMsg, daoBroadcastOptions } from "../../lib/dao/daoTx"
+import { friendlyDaoError } from "../../lib/dao/errors"
 import { GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
 import { doContractBroadcast } from "../../lib/grc20"
 import { clearVoteCache } from "../../lib/dao/voteScanner"
@@ -58,12 +60,14 @@ export function ActionInbox() {
         setVoteError(null)
         try {
             const kind = await resolveDaoKind({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID, realmPath })
-            const msg = buildDaoMsg(kind, realmPath, { type: "vote", id: proposalId, vote }, userAddress)
-            await doContractBroadcast([msg], `Vote ${vote} on proposal #${proposalId}`)
+            const action = { type: "vote" as const, id: proposalId, vote }
+            // Version-2 DAOs get a sized gas limit and storage deposit cap.
+            const plan = budgetDaoMsg(kind, buildDaoMsg(kind, realmPath, action, userAddress), action)
+            await doContractBroadcast([plan.msg], `Vote ${vote} on proposal #${proposalId}`, daoBroadcastOptions(plan, action))
             setRecorded(prev => ({ scope, ids: new Set(prev.scope === scope ? prev.ids : []).add(key) }))
             clearVoteCache()
         } catch (err) {
-            setVoteError(err instanceof Error ? err.message : "The vote could not be submitted")
+            setVoteError(err instanceof Error ? friendlyDaoError(err) : "The vote could not be submitted")
             logChainError(
                 `home:quickVote:${realmPath}#${proposalId}`,
                 err,

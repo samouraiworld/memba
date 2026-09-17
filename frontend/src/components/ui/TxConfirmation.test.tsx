@@ -24,4 +24,13 @@ describe("TxConfirmation", () => {
         expect(screen.getByText("Vote", { selector: ".tx-confirm-func" })).toBeInTheDocument()
         expect(screen.queryByText("Storage deposit cap")).not.toBeInTheDocument()
     })
+
+    it("shows the full contract path and the storage deposit cap of a DAO call", async () => {
+        render(<TxConfirmationProvider><div /></TxConfirmationProvider>)
+        const call = { type: "vm/MsgCall", value: { caller: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c", send: "", pkg_path: "gno.land/r/nym-alice123/team_dao", func: "ProposeText", args: ["Title", "", "governance"], max_deposit: "1610000ugnot" } }
+        await act(async () => { void captured.cb!([call], "Propose: Title") })
+        expect(screen.getByText("gno.land/r/nym-alice123/team_dao", { selector: ".tx-confirm-path" })).toBeInTheDocument()
+        expect(screen.getByText("Storage deposit cap")).toBeInTheDocument()
+        expect(screen.getByText("1.61 GNOT")).toBeInTheDocument()
+    })
 })

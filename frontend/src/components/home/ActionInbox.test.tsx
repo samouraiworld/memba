@@ -242,6 +242,35 @@ describe("ActionInbox — inline vote fires broadcast", () => {
     })
 })
 
+describe("ActionInbox — Quick Vote on a version-2 DAO", () => {
+    it("sends the vote with its sized gas limit and deposit cap", async () => {
+        const router = await import("react-router-dom")
+        vi.mocked(router.useOutletContext).mockReturnValue({
+            adena: { connected: true, address: "g1testaddress", pubkeyJSON: "", chainId: "test-13", installed: true, loading: false, connect: vi.fn(), disconnect: vi.fn(), signArbitrary: vi.fn() },
+            balance: "100",
+            auth: { token: { raw: "tok" }, isAuthenticated: true, address: "g1testaddress", loading: false, error: null },
+            isLoggingIn: false,
+            syncTimedOut: false,
+        })
+        vi.mocked(homeActionsMod.useHomeActions).mockReturnValue({
+            actions: [{ id: "vote:gno.land/r/alice/team:4", kind: "vote", accent: "teal", eyebrow: "vote · Team", title: "Proposal Four", meta: "open", href: "/dao/team/proposal/4" }],
+            loading: false,
+            allCaughtUp: false,
+            unvotedProposals: [{ daoName: "Team", daoSlug: "team", realmPath: "gno.land/r/alice/team", proposalId: 4, proposalTitle: "Proposal Four", proposalStatus: "open" }],
+        })
+        vi.mocked(daoMod.resolveDaoKind).mockResolvedValueOnce("memba-v2")
+        vi.mocked(daoMod.buildDaoMsg).mockReturnValue({ type: "vm/MsgCall", value: { func: "Vote" } })
+        vi.mocked(grc20Mod.doContractBroadcast).mockClear().mockResolvedValue({ hash: "tx4" })
+        renderWithProviders(<ActionInbox />)
+        await act(async () => { fireEvent.click(screen.getByRole("button", { name: /vote yes on proposal 4/i })) })
+        expect(grc20Mod.doContractBroadcast).toHaveBeenCalledWith(
+            [{ type: "vm/MsgCall", value: { func: "Vote", max_deposit: "400000ugnot" } }],
+            "Vote YES on proposal #4",
+            { gasWanted: 15_000_000 },
+        )
+    })
+})
+
 describe("ActionInbox — Quick Vote scoping and errors", () => {
     const outletFor = (address: string) => ({
         adena: { connected: true, address, pubkeyJSON: "", chainId: "test-13", installed: true, loading: false, connect: vi.fn(), disconnect: vi.fn(), signArbitrary: vi.fn() },

@@ -67,6 +67,7 @@ function parseSingleMsg(msg: Record<string, unknown>, truncate: (addr: string) =
         const func = (value.func as string) || "—"
         const args = (value.args as string[]) || []
         const send = parseCoins(value.send)
+        const cap = value.max_deposit == null || value.max_deposit === "" ? null : parseCoins(value.max_deposit)
         return {
             type: "Contract Call",
             label: `Call ${func}`,
@@ -75,6 +76,7 @@ function parseSingleMsg(msg: Record<string, unknown>, truncate: (addr: string) =
                 { key: "Function", value: func, accent: true },
                 ...(args.length > 0 ? [{ key: "Arguments", value: args.join(", ") }] : []),
                 ...(send && send !== "—" ? [{ key: "Send", value: send, accent: true }] : []),
+                ...(cap !== null ? [{ key: "Storage deposit cap", value: cap, accent: true }] : []),
             ],
         }
     }
@@ -121,6 +123,18 @@ export function deployEffect(msg: { type?: unknown; value?: unknown }): { path: 
         return readDeploy((msg.value as Record<string, unknown>) ?? {})
     } catch {
         return { path: "—", depositCap: null }
+    }
+}
+
+/** Storage deposit cap of a contract call ("1.61 GNOT"), or null when the call sets none or it cannot be read. */
+export function callDepositCap(msg: { type?: unknown; value?: unknown }): string | null {
+    if (typeof msg.type !== "string" || !(msg.type.includes("MsgCall") || msg.type.includes("m_call"))) return null
+    const cap = (msg.value as Record<string, unknown> | undefined)?.max_deposit
+    if (cap == null || cap === "") return null
+    try {
+        return parseCoins(cap)
+    } catch {
+        return "unreadable"
     }
 }
 

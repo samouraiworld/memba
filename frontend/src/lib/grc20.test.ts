@@ -388,6 +388,13 @@ describe('toAdenaMessages', () => {
         expect(adena[0].value.send).toBe('')
     })
 
+    it('forwards a storage deposit cap on a call, and adds no key when there is none', () => {
+        const call = { type: 'vm/MsgCall', value: { caller: 'g1x', send: '', pkg_path: 'gno.land/r/a/b', func: 'Vote', args: ['1', 'YES'], max_deposit: '400000ugnot' } }
+        expect(toAdenaMessages([call])[0].value).toEqual({ caller: 'g1x', send: '', pkg_path: 'gno.land/r/a/b', func: 'Vote', args: ['1', 'YES'], max_deposit: '400000ugnot' })
+        const plain = buildTransferMsg('g1x', 'FOO', 'g1y', '1')
+        expect(toAdenaMessages([plain])[0].value).not.toHaveProperty('max_deposit')
+    })
+
     it('passes /vm.m_addpkg through unchanged (W2.1)', () => {
         const addPkgMsg = { type: '/vm.m_addpkg', value: { creator: 'g1x', package: {} } }
         expect(toAdenaMessages([addPkgMsg])).toEqual([addPkgMsg])
@@ -472,6 +479,29 @@ describe('doContractBroadcast — deploys never auto-retry (review finding #1)',
         ;(window as any).adena = { DoContract: doContract }
         const call = { type: 'vm/MsgCall', value: { caller: 'g1x', send: '', pkg_path: 'gno.land/r/x/y', func: 'F', args: [] } }
         await expect(doContractBroadcast([call], 'm')).rejects.toThrow(/package already exists/)
+        expect(doContract).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe('doContractBroadcast — broadcast result', () => {
+    it('returns the wallet result beside the hash, so callers can read return data', async () => {
+        setTxConfirmationCallback(() => Promise.resolve(true))
+        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
+        const data = { hash: 'h', deliver_tx: { ResponseBase: { Data: btoa('(3 uint64)') } } }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(window as any).adena = { DoContract: vi.fn().mockResolvedValue({ status: 'success', data }) }
+        const call = { type: 'vm/MsgCall', value: { caller: 'g1x', send: '', pkg_path: 'gno.land/r/x/y', func: 'F', args: [] } }
+        expect(await doContractBroadcast([call], 'm')).toEqual({ hash: 'h', result: data })
+    })
+
+    it('does not re-send a call marked retry: false after a transient failure', async () => {
+        setTxConfirmationCallback(() => Promise.resolve(true))
+        setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
+        const doContract = vi.fn().mockResolvedValue({ status: 'failure', message: 'network timeout' })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(window as any).adena = { DoContract: doContract }
+        const call = { type: 'vm/MsgCall', value: { caller: 'g1x', send: '', pkg_path: 'gno.land/r/x/y', func: 'ProposeText', args: [] } }
+        await expect(doContractBroadcast([call], 'm', { retry: false })).rejects.toThrow(/network timeout/)
         expect(doContract).toHaveBeenCalledTimes(1)
     })
 })
