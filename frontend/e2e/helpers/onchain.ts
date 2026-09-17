@@ -155,6 +155,17 @@ export async function fulfillOnchainReads(
  * specs return this to keep the banner provably out of their shell. The
  * validators page parses the same three fields (network, height, block time).
  */
+/**
+ * A /status result naming the chain the app under test is configured for.
+ * Strict DAO reads verify `node_info.network` before trusting any answer, so
+ * DAO fixtures must report the app's chain (the default network, pearl-1,
+ * unless E2E_CHAIN_ID says otherwise).
+ */
+export function mockAppChainStatus(chainId = process.env.E2E_CHAIN_ID || 'pearl-1'): object {
+    const base = mockChainStatus() as { node_info: Record<string, unknown> }
+    return { ...base, node_info: { ...base.node_info, network: chainId } }
+}
+
 export function mockChainStatus(): object {
     return {
         node_info: { network: 'e2e-offline' },

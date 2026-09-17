@@ -21,7 +21,6 @@ import {
 import { doContractBroadcast } from "../lib/grc20"
 import { clearVoteCache, voterMatchesUser } from "../lib/dao/voteScanner"
 import { logChainError } from "../lib/errorLog"
-import { AnalystReport } from "../components/dao/AnalystReport"
 import { useDaoRoute } from "../hooks/useDaoRoute"
 import { useDaoKind } from "../hooks/useDaoKind"
 import { resolveOnChainUsername } from "../lib/profile"
@@ -387,16 +386,6 @@ export function ProposalView() {
                 </div>
             )}
 
-            {/* AI Analyst Consensus — only render when proposal is loaded */}
-            {proposal && (proposal.description || proposal.title) && (
-                <AnalystReport
-                    realmPath={realmPath}
-                    proposalId={proposalId}
-                    proposalData={proposal.description || proposal.title}
-                    daoContext={`DAO: ${realmPath}, Proposal #${proposalId}: ${proposal.title}`}
-                />
-            )}
-
             {proposal.actionUnverified && (
                 <div className="k-card proposal-action-card" role="status">
                     <h3 className="proposal-action-title">Action type could not be verified</h3>
@@ -485,13 +474,7 @@ export function ProposalView() {
                             {/* Membership warning */}
                             {isMember === false && (
                                 <div className="proposal-warning proposal-warning--mb">
-                                    ⚠ Your wallet ({adena.address?.slice(0, 10)}...{adena.address?.slice(-4)}) is not a member of this DAO. Switch wallets in Adena to vote, or{" "}
-                                    <button
-                                        onClick={() => navigate(`/dao/${encodedSlug}/candidature`)}
-                                        style={{ background: "none", border: "none", padding: 0, color: "var(--color-primary)", cursor: "pointer", fontFamily: "inherit", fontSize: "inherit", textDecoration: "underline" }}
-                                    >
-                                        apply to join this DAO
-                                    </button>.
+                                    ⚠ Your wallet ({adena.address?.slice(0, 10)}...{adena.address?.slice(-4)}) is not a member of this DAO. Switch wallets in Adena to vote.
                                 </div>
                             )}
                             {hasVoted ? (

@@ -20,6 +20,7 @@ import {
     UsersThree, Trophy, ClockCounterClockwise, ShieldStar, Newspaper,
     ChatCircle, Storefront, Medal,
 } from '@phosphor-icons/react'
+import { ACTIVE_NETWORK_KEY, networkHasRealms } from './config'
 
 /** W6.2 4-mode IA: the nav IS the positioning statement. Every primary
  *  destination lives in exactly one mode; 'account' is the bottom-pinned tail. */
@@ -47,6 +48,8 @@ export interface NavEntry {
     requiresAuth?: boolean
     /** Env flag that gates a "coming soon" entry (rendered but badged). */
     flag?: string
+    /** Needs Memba's own community realms; hidden where they are not deployed. */
+    requiresRealms?: boolean
 }
 
 export const NAV: NavEntry[] = [
@@ -65,7 +68,7 @@ export const NAV: NavEntry[] = [
     { id: 'validators', to: '/validators', label: 'Validators', Icon: LinkSimpleHorizontal, group: 'govern', showOn: 'both' },
     { id: 'alerts', to: '/alerts', label: 'Alerts', Icon: Bell, group: 'govern', showOn: 'both' },
     { id: 'gnolove', to: '/gnolove', label: 'Dev Report', Icon: Heart, group: 'explore', showOn: 'both' },
-    { id: 'quests', to: '/quests', label: 'Quests', Icon: GameController, group: 'explore', showOn: 'both' },
+    { id: 'quests', to: '/quests', label: 'Quests', Icon: GameController, group: 'explore', showOn: 'both', requiresRealms: true },
 
     // ── (former manage group — now mode-assigned above/below) ───────
     { id: 'multisig', to: '/multisig', label: 'Multisig', Icon: Briefcase, group: 'wallet', showOn: 'both', requiresAuth: true },
@@ -87,16 +90,21 @@ export const NAV: NavEntry[] = [
     // ── Account ─────────────────────────────────────────────────────
     { id: 'profile', to: '/profile', label: 'Profile', Icon: User, group: 'account', showOn: 'both', requiresAuth: true },
     { id: 'settings', to: '/settings', label: 'Settings', Icon: Gear, group: 'account', showOn: 'both', requiresAuth: true },
-    { id: 'candidature', to: '/candidature', label: 'Candidature', Icon: Bank, group: 'account', showOn: 'both', requiresAuth: true },
+    { id: 'candidature', to: '/candidature', label: 'Candidature', Icon: Bank, group: 'account', showOn: 'both', requiresAuth: true, requiresRealms: true },
     { id: 'feedback', to: '/feedback', label: 'Feedback', Icon: Megaphone, group: 'account', showOn: 'both' },
     { id: 'changelogs', to: '/changelogs', label: 'Changelogs', Icon: ClockCounterClockwise, group: 'account', showOn: 'both' },
     { id: 'blog', to: '/blog', label: 'Blog', Icon: Newspaper, group: 'explore', showOn: 'both' },
     { id: 'quest-admin', to: '/quest-admin', label: 'Quest Admin', Icon: ShieldStar, group: 'account', showOn: 'desktop', requiresAuth: true },
 ]
 
+/** Whether an entry is offered on a network (defaults to the loaded network). */
+export function navEntryAvailable(entry: NavEntry, realmsDeployed = networkHasRealms(ACTIVE_NETWORK_KEY)): boolean {
+    return !entry.requiresRealms || realmsDeployed
+}
+
 /** Entries of a given group, in manifest order. */
 export function navForGroup(group: NavGroup): NavEntry[] {
-    return NAV.filter((e) => e.group === group)
+    return NAV.filter((e) => e.group === group && navEntryAvailable(e))
 }
 
 // ── Mobile tab-bar selection (route-mapped set) ──────────────────────
@@ -121,7 +129,7 @@ const PRIMARY_TABS_MEMBER = ['home', 'feed', 'dao', 'tokens', 'alerts']
 const MORE_NAV_IDS = ['dashboard', 'directory', 'marketplace', 'appstore', 'validators', 'gnolove', 'quests', 'feed', 'blog', 'changelogs', 'extensions', 'alerts']
 const MORE_ACCOUNT_IDS = ['profile', 'points', 'settings', 'multisig', 'feedback']
 
-const visibleFor = (connected: boolean) => (e: NavEntry) => !e.requiresAuth || connected
+const visibleFor = (connected: boolean) => (e: NavEntry) => (!e.requiresAuth || connected) && navEntryAvailable(e)
 
 /** Ordered primary bottom-tab destinations (visitor vs connected member). */
 export function mobilePrimaryTabs(connected: boolean): NavEntry[] {

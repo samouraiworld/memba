@@ -1,9 +1,6 @@
-import { useState, useEffect } from "react"
 import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { Bank, Archive } from "@phosphor-icons/react"
-import { DAOAIInsight } from "./DAOAIInsight"
 import { getExplorerBaseUrl, getUserRegistryPath } from "../../lib/config"
-import { derivePkgBech32Addr } from "../../lib/dao/realmAddress"
 import { PowerDonut } from "./TierPieChart"
 import type { DAOConfig, DAOMember } from "../../lib/dao"
 
@@ -16,7 +13,6 @@ interface DAOOverviewCardProps {
     encodedSlug: string
     currentMember: DAOMember | undefined
     isAuthenticated: boolean
-    walletAddress: string
     memberCount: number
     activeProposals: number
     awaitingExecution: number
@@ -26,66 +22,15 @@ interface DAOOverviewCardProps {
     maxVoterParticipation: number
     proposalsWithVotesCount: number
     totalPower: number
-    healthScore: { grade: string; total: number; color: string; participationPts: number; execPts: number; activityPts: number } | null
-    session: { daoSlug: string; channelName: string } | null
-    joinRoom: (opts: { daoSlug: string; channelName: string; mode: "voice" | "video"; label: string; description?: string }) => void
     /** Whether this DAO has channels on this network (capability). */
     channels?: boolean
 }
 
-/** Build a concise text summary of DAO metrics for AI analysis. */
-function buildDAOSummary(d: {
-    name: string; memberCount: number; activeProposals: number;
-    totalProposals: number; awaitingExecution: number;
-    nonVoterPercent: number; totalPower: number;
-    healthScore: { grade: string; total: number } | null;
-}): string {
-    return [
-        `DAO: ${d.name}`,
-        `Members: ${d.memberCount}`,
-        `Active proposals: ${d.activeProposals} of ${d.totalProposals} total`,
-        `Awaiting execution: ${d.awaitingExecution}`,
-        `Non-voter rate: ${d.nonVoterPercent}%`,
-        `Total voting power: ${d.totalPower}`,
-        d.healthScore ? `Health score: ${d.healthScore.grade} (${d.healthScore.total}/100)` : "",
-    ].filter(Boolean).join(". ")
-}
-
-function RealmAddressBadge({ realmPath }: { realmPath: string }) {
-    const [addr, setAddr] = useState<string | null>(null)
-    const [copied, setCopied] = useState(false)
-
-    useEffect(() => {
-        derivePkgBech32Addr(realmPath).then(setAddr).catch(() => setAddr(null))
-    }, [realmPath])
-
-    if (!addr) return null
-    const truncated = `${addr.slice(0, 8)}…${addr.slice(-6)}`
-
-    return (
-        <button
-            title={`Realm address: ${addr}\nClick to copy`}
-            onClick={(e) => {
-                e.stopPropagation()
-                try {
-                    navigator.clipboard.writeText(addr).then(() => {
-                        setCopied(true)
-                        setTimeout(() => setCopied(false), 1500)
-                    }).catch(() => {})
-                } catch { /* Clipboard API not available */ }
-            }}
-            className="k-realm-address"
-        >
-            {copied ? "✓ Copied!" : <>{truncated} <span style={{ opacity: 0.5, fontSize: "var(--pro-caption, 9px)" }}>📋</span></>}
-        </button>
-    )
-}
-
 export function DAOOverviewCard({
-    config, realmPath, encodedSlug, currentMember, isAuthenticated, walletAddress,
+    config, realmPath, encodedSlug, currentMember, isAuthenticated,
     memberCount, activeProposals, awaitingExecution, totalProposals,
     nonVoterPercent, nonVoterCount, maxVoterParticipation, proposalsWithVotesCount,
-    totalPower, healthScore, session, joinRoom, professional = false, proposalsKnown = true, membersKnown = true, channels = false,
+    totalPower, professional = false, proposalsKnown = true, membersKnown = true, channels = false,
 }: DAOOverviewCardProps) {
     const navigate = useNetworkNav()
 
@@ -149,7 +94,6 @@ export function DAOOverviewCard({
                         &lt;/&gt;
                     </a>
                 </div>
-                <RealmAddressBadge realmPath={realmPath} />
             </div>
 
             {/* Description */}
@@ -209,7 +153,6 @@ export function DAOOverviewCard({
                             { icon: "📜", value: String(totalProposals), label: "Proposals", tip: `${totalProposals} total proposals submitted to this DAO (${activeProposals} active, ${awaitingExecution} passed). Click to scroll.`, action: "proposals" },
                             { icon: "🫥", value: nonVoterPercent > 0 ? `${nonVoterPercent}%` : "—", label: "Non-Voters", tip: `~${nonVoterCount} of ${memberCount} members have never voted. Based on best turnout (${maxVoterParticipation} voters) across ${proposalsWithVotesCount} proposal(s) with votes.` },
                             ...(totalPower > 0 ? [{ icon: "⚡", value: String(totalPower), label: "Power", tip: `Combined voting power across all ${config?.tierDistribution?.length || 1} tier(s). Voting power determines each member's influence when casting votes on proposals.` }] : []),
-                            ...(healthScore ? [{ icon: healthScore.grade, value: `${healthScore.total}`, label: "Health", healthColor: healthScore.color, tip: `DAO Health Score: ${healthScore.grade} (${healthScore.total}/100)\n• Participation: ${healthScore.participationPts}/40 pts\n• Execution backlog: ${healthScore.execPts}/30 pts\n• Activity: ${healthScore.activityPts}/30 pts` }] : []),
                         ].filter(Boolean).map(s => (
                             <button
                                 key={s.label}
@@ -234,86 +177,17 @@ export function DAOOverviewCard({
                     </div>}
                 </div>
 
-                {/* Right: Discord-style channel sidebar */}
-                <div className="dao-channels-sidebar">
-                    <div className="dao-channels-sidebar__header">
-                        {config?.name || "DAO"} Channels
-                    </div>
-                    {channels && (
-                        <button aria-label="Open Discussion Channels" className="dao-channels-sidebar__item" onClick={() => navigate(`/dao/${encodedSlug}/channels`)}>
+                {/* Right: channels, only where this DAO has them */}
+                {channels && (
+                    <div className="dao-channels-sidebar">
+                        <button aria-label="Open channels" className="dao-channels-sidebar__item" onClick={() => navigate(`/dao/${encodedSlug}/channels`)}>
                             <span className="dao-channels-sidebar__icon">#</span>
-                            <span>general</span>
+                            <span>Channels</span>
                         </button>
-                    )}
-                    {channels && (
-                        <button aria-label="Open Announcements" className="dao-channels-sidebar__item" onClick={() => navigate(`/dao/${encodedSlug}/channels`)}>
-                            <span className="dao-channels-sidebar__icon">#</span>
-                            <span>announcements</span>
-                        </button>
-                    )}
-
-                    <div className="dao-channels-sidebar__divider">
-                        <span>🎙️ Voice Rooms</span>
-                        {session && session.daoSlug === encodedSlug && (
-                            <span className="dao-channels-sidebar__live-dot" />
-                        )}
                     </div>
-
-                    <button
-                        aria-label="Join Public Room"
-                        className={`dao-channels-sidebar__item dao-channels-sidebar__item--voice${session?.daoSlug === encodedSlug && session?.channelName === "public-room" ? " active" : ""}`}
-                        onClick={() => walletAddress ? joinRoom({
-                            daoSlug: encodedSlug || "",
-                            channelName: "public-room",
-                            mode: "voice",
-                            label: "Public Room",
-                            description: "Open voice room — anyone with a connected wallet can join.",
-                        }) : undefined}
-                        disabled={!walletAddress}
-                    >
-                        <span className="dao-channels-sidebar__icon">🔊</span>
-                        <span>Public Room</span>
-                    </button>
-
-                    {currentMember && (
-                        <button
-                            aria-label="Join Members Room"
-                            className={`dao-channels-sidebar__item dao-channels-sidebar__item--voice dao-channels-sidebar__item--private${session?.daoSlug === encodedSlug && session?.channelName === "members-room" ? " active" : ""}`}
-                            onClick={() => joinRoom({
-                                daoSlug: encodedSlug || "",
-                                channelName: "members-room",
-                                mode: "voice",
-                                label: "Members Room",
-                                description: "Private voice room for DAO members.",
-                            })}
-                        >
-                            <span className="dao-channels-sidebar__icon">🔒</span>
-                            <span>Members Room</span>
-                        </button>
-                    )}
-
-                    {!walletAddress && (
-                        <div className="dao-channels-sidebar__hint">
-                            Connect wallet to join
-                        </div>
-                    )}
-                </div>
+                )}
             </div>
 
-            {/* AI Governance Insight — stat card + expandable detail below */}
-            <DAOAIInsight
-                realmPath={realmPath}
-                daoSummary={buildDAOSummary({
-                    name: config?.name || "DAO",
-                    memberCount,
-                    activeProposals,
-                    totalProposals,
-                    awaitingExecution,
-                    nonVoterPercent,
-                    totalPower,
-                    healthScore,
-                })}
-            />
         </div>
     )
 }

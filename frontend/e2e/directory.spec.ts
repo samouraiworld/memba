@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { fulfillOnchainReads, mockChainStatus } from './helpers/onchain'
+import { fulfillOnchainReads, mockAppChainStatus } from './helpers/onchain'
 
 // Serial (single worker): the realm source view still ASSERTS on live public-
 // RPC reads, and ChainMetricsBanner (mounted unconditionally on /directory)
@@ -40,7 +40,7 @@ async function fulfillSeedDaoRenders(page: Page) {
         if (path === 'vm/qrender') {
             return '# DAO\n\nDeterministic e2e directory fixture — this realm resolves on every network.\n\nMembers: 12\nProposals: 3\n'
         }
-        if (method === 'status') return mockChainStatus()
+        if (method === 'status') return mockAppChainStatus()
         return null
     })
 }

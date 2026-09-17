@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { buildProposalsCsv, type ProposalCsvRow } from "./csv"
+import { buildProposalsCsv, type ProposalCsvRow } from "./proposalsCsv"
 
 /** Minimal RFC 4180 reader: returns raw (as written) and decoded fields per record. */
 function readCsv(text: string): { raw: string; value: string }[][] {

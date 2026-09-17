@@ -2,11 +2,25 @@ import { useState } from "react"
 import { Link } from "react-router-dom"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
 import type { DAOProposal } from "../../lib/dao"
+import { buildProposalsCsv } from "../../lib/dao/proposalsCsv"
 
 const filters = ["All", "Open for voting", "Awaiting execution", "History"] as const
 type Filter = typeof filters[number]
 const matches = (p: DAOProposal, filter: Filter) => filter === "All" ||
     (filter === "Open for voting" ? p.status === "open" : filter === "Awaiting execution" ? p.status === "passed" : p.status === "executed" || p.status === "rejected" || p.status === "expired" || p.status === "invalidated")
+/** Download the given proposals as a formula-neutralized CSV file. */
+function exportProposalsCsv(encodedSlug: string, proposals: DAOProposal[]) {
+    const blob = new Blob([buildProposalsCsv(proposals)], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `${encodedSlug.split("/").pop() || "dao"}-proposals.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+}
+
 const statusLabel: Record<DAOProposal["status"], string> = { open: "Open for voting", passed: "Awaiting execution", executed: "Executed", rejected: "Rejected", expired: "Expired", invalidated: "Membership changed" }
 
 export function ProDAOProposals({ encodedSlug, proposals, loading, failed, retry, canPropose, votedIds }: {
@@ -20,7 +34,10 @@ export function ProDAOProposals({ encodedSlug, proposals, loading, failed, retry
     return <section id="dao-proposals-section" className="gov-proposals" aria-labelledby="gov-proposals-title" aria-busy={loading}>
         <div className="gov-section-header">
             <div><h3 id="gov-proposals-title">Proposals</h3><p>Follow decisions from discussion to execution.</p></div>
-            {canPropose && <Link className="k-btn-primary" to={path(`dao/${encodedSlug}/propose`)}>New proposal</Link>}
+            <div className="gov-section-actions">
+                {shown.length > 0 && <button type="button" className="k-btn-secondary" onClick={() => exportProposalsCsv(encodedSlug, shown)}>Export CSV</button>}
+                {canPropose && <Link className="k-btn-primary" to={path(`dao/${encodedSlug}/propose`)}>New proposal</Link>}
+            </div>
         </div>
         <div className="gov-list-toolbar">
             <div className="gov-filters" role="group" aria-label="Filter proposals by status">

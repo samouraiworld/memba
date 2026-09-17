@@ -19,8 +19,6 @@ vi.mock('../lib/profile', () => ({ resolveOnChainUsername: async () => 'alice' }
 vi.mock('../lib/quests', () => ({ completeQuest: vi.fn(), trackPageVisit: vi.fn() }))
 vi.mock('../components/dao/DAOOverviewCard', () => ({ DAOOverviewCard: () => null }))
 vi.mock('../components/dao/DAOMembersPreview', () => ({ DAOMembersPreview: () => null }))
-vi.mock('../components/dao/DAOPluginsGrid', () => ({ DAOTreasuryCard: () => null, DAOPluginsGrid: () => null }))
-vi.mock('../components/dao/DeployPluginModal', () => ({ DeployPluginModal: () => null }))
 vi.mock('../components/dao/DAOProposalsSection', () => ({
     DAOProposalsSection: ({ activeProposals, votedIds, enrichedIds }: { activeProposals: DAOProposal[]; votedIds: Set<number>; enrichedIds: Set<number> }) => (
         <div>

@@ -8,14 +8,11 @@ describe("plugin registry", () => {
         expect(plugins.length).toBeGreaterThan(0)
     })
 
-    it("getPlugin('proposals') returns the proposals manifest", () => {
-        const manifest = getPlugin("proposals")
-        expect(manifest).toBeDefined()
-        expect(manifest!.id).toBe("proposals")
-        expect(manifest!.name).toBe("Proposal Explorer")
-        expect(manifest!.icon).toBe("📋")
-        expect(manifest!.route).toBe("proposals")
-        expect(manifest!.version).toBe("2.0.0")
+    it("registers only the channels board", () => {
+        expect(getPlugins().map(p => p.id)).toEqual(["board"])
+        for (const removed of ["proposals", "gnoswap", "leaderboard", "payroll"]) {
+            expect(getPlugin(removed)).toBeUndefined()
+        }
     })
 
     it("getPlugin('nonexistent') returns undefined", () => {

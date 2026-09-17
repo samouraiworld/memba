@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Link } from "react-router-dom"
 import { Plus, Briefcase, ChartBar, Bank, GameController, type Icon } from "@phosphor-icons/react"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
+import { networkHasRealms } from "../../lib/config"
 import { useIsMobile } from "../../hooks/useIsMobile"
 import { useHomeActions } from "../../hooks/home/useHomeActions"
 import type { LayoutContext } from "../../types/layout"
@@ -71,7 +72,7 @@ function ActFabContent({ auth }: { auth: LayoutContext["auth"] }) {
             <BottomSheet open={open} onClose={() => setOpen(false)}>
                 <div className="k-sidebar-section">
                     <div className="k-sidebar-section-label">Act</div>
-                    {ACTIONS.map(({ id, kind, to, label, Icon }) => {
+                    {ACTIONS.filter(a => networkHasRealms(nk) || (a.kind !== "candidature" && a.kind !== "claim")).map(({ id, kind, to, label, Icon }) => {
                         const count = countFor(kind)
                         return (
                             <Link

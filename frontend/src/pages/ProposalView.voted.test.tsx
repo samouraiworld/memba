@@ -18,7 +18,6 @@ vi.mock('../hooks/useDaoRoute', () => ({ useDaoRoute: () => ({ realmPath: 'gno.l
 vi.mock('../hooks/useNetworkNav', () => ({ useNetworkNav: () => vi.fn() }))
 vi.mock('../hooks/useProposalDate', () => ({ useProposalDate: () => ({ timestamp: null }) }))
 vi.mock('../lib/profile', () => ({ resolveOnChainUsername: async () => 'alice' }))
-vi.mock('../components/dao/AnalystReport', () => ({ AnalystReport: () => null }))
 vi.mock('../components/dao/TierPieChart', () => ({ VotingInsights: () => null }))
 vi.mock('../lib/dao/voteScanner', async importOriginal => ({ ...await importOriginal<typeof import('../lib/dao/voteScanner')>(), clearVoteCache: vi.fn() }))
 vi.mock('../lib/dao', async importOriginal => ({

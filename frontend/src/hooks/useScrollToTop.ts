@@ -1,7 +1,7 @@
 /**
  * useScrollToTop — Smooth-scroll viewport to top when trigger transitions to true.
  *
- * Used by modal-opening components: DAORooms, DeployPluginModal, DeploymentPipeline.
+ * Used by modal-opening components such as DeploymentPipeline.
  *
  * @module hooks/useScrollToTop
  */

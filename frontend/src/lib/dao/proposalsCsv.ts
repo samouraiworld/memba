@@ -1,11 +1,11 @@
 /**
- * Proposal Explorer CSV export — pure builder used by the plugin's export
+ * Proposal list CSV export — pure builder used by the proposals list export
  * button. Text columns (title, status, author) and the header go through
  * csvCell; numeric columns are written as bare numbers.
  */
 
-import { csvCell } from "../../lib/csv"
-import type { DAOProposal } from "../../lib/dao"
+import { csvCell } from "../csv"
+import type { DAOProposal } from "./shared"
 
 export type ProposalCsvRow = Pick<DAOProposal, "id" | "title" | "status" | "author" | "yesVotes" | "noVotes" | "abstainVotes" | "yesPercent" | "noPercent">
 

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { fulfillOnchainReads, mockChainStatus } from './helpers/onchain'
+import { fulfillOnchainReads, mockAppChainStatus } from './helpers/onchain'
 import { MOBILE_375, expectNoMobileOverflow } from './helpers/overflow'
 
 /**
@@ -17,7 +17,7 @@ import { MOBILE_375, expectNoMobileOverflow } from './helpers/overflow'
  * green. With zero live reads the serial worker-cap is pointless too, so the
  * file runs fully parallel and a failure stays scoped to its own spec.
  *
- * The proposal-conditional probes (Health Score, pagination, EXECUTE badge)
+ * The proposal-conditional probes (pagination, EXECUTE badge)
  * see the fixture's 0-proposal chain and skip deterministically — the same
  * outcome they had on the then-default topaz, which had no GovDAO proposals.
  * (Pearl, today's default, DOES carry GovDAO proposals — the offline fixture,
@@ -71,10 +71,14 @@ async function fulfillGovDaoHome(page: Page) {
     await fulfillOnchainReads(page, ({ method, path, arg }) => {
         if (path === 'vm/qrender' && arg === 'gno.land/r/gov/dao:') return GOVDAO_RENDER
         if (path === 'vm/qrender' && arg === 'gno.land/r/gov/dao/v3/memberstore:') return MEMBERSTORE_RENDER
-        if (method === 'status') return mockChainStatus()
+        // A version-1 generated DAO: identified by its API version, so the propose page is offered.
+        if (path === 'vm/qeval' && arg === `${V1_DAO}.GetAPIVersion()`) return '("1.0" string)'
+        if (method === 'status') return mockAppChainStatus()
         return null
     })
 }
+
+const V1_DAO = 'gno.land/r/test/mydao'
 
 // Every spec in this file runs against the offline GovDAO fixture. Register
 // before each test (routes are per-context) and before any goto.
@@ -151,31 +155,20 @@ test.describe('GovDAO Page', () => {
         await expect(page.locator('body')).toContainText(/Power Distribution|T1|T2|Members/, { timeout: 20_000 })
     })
 
-    test('treasury section accessible', async ({ page }) => {
-        // The Treasury heading renders unconditionally once the config load
-        // settles (DAOTreasuryCard takes only the slug) — structural assertion.
+    test('no treasury surface on a DAO page', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao')
-        await expect(page.locator('body')).toContainText('Treasury')
+        await expect(page.locator('body')).toContainText('Members', { timeout: 20_000 })
+        await expect(page.locator('.dao-treasury-card')).toHaveCount(0)
+    })
+
+    test('treasury route shows the unavailable page', async ({ page }) => {
+        await page.goto('/dao/gno.land~r~gov~dao/treasury')
+        await expect(page.getByRole('heading', { name: /Not available for this DAO or network/ })).toBeVisible()
     })
 
     test('members section shows View All link', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao')
         await expect(page.locator('body')).toContainText('View All')
-    })
-
-    test('v2.12 — DAO Health Score badge visible when proposals exist', async ({ page }) => {
-        await page.goto('/dao/gno.land~r~gov~dao')
-        // Health Score only renders after proposals load — skip on fresh chain
-        const proposalsStat = page.locator('.k-stat-card', { hasText: 'Proposals' })
-        await expect(proposalsStat).toBeVisible({ timeout: 20_000 })
-        const countText = await proposalsStat.locator('.k-stat-card__value').textContent({ timeout: 10_000 })
-        const count = parseInt(countText || '0', 10)
-        if (count === 0) {
-            test.skip(true, 'No proposals on this chain — Health Score requires proposal history')
-            return
-        }
-        const healthCard = page.locator('.k-stat-card__label', { hasText: 'Health' })
-        await expect(healthCard).toBeVisible({ timeout: 15000 })
     })
 
     test('v2.12 — more than 5 proposals render (pagination proof)', async ({ page }) => {
@@ -201,13 +194,11 @@ test.describe('GovDAO Page', () => {
         expect(count).toBeGreaterThan(5)
     })
 
-    test('v2.12 — channel sidebar visible in 2-column layout', async ({ page }) => {
+    test('GovDAO page offers no channels or voice rooms', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao')
-        // Discord-style channels sidebar lives in the overview card
-        const sidebar = page.locator('.dao-channels-sidebar')
-        await expect(sidebar).toBeVisible({ timeout: 15000 })
-        await expect(sidebar).toContainText('general')
-        await expect(sidebar).toContainText('Public Room')
+        await expect(page.locator('body')).toContainText('Members', { timeout: 20_000 })
+        await expect(page.locator('.dao-channels-sidebar')).toHaveCount(0)
+        await expect(page.locator('body')).not.toContainText('Public Room')
     })
 
     test('v2.13 — GovDAO shows inline EXECUTE badge for passed proposals', async ({ page }) => {
@@ -253,27 +244,32 @@ test.describe('Create DAO Wizard', () => {
 })
 
 test.describe('Proposal Types (ProposeDAO)', () => {
-    test('text proposal type is active', async ({ page }) => {
+    test('GovDAO does not offer a propose page', async ({ page }) => {
         await page.goto('/dao/gno.land~r~gov~dao/propose')
+        await expect(page.getByRole('heading', { name: /Not available for this DAO or network/ })).toBeVisible()
+    })
+
+    test('text proposal type is active', async ({ page }) => {
+        await page.goto(`/dao/${V1_DAO}/propose`)
         const textBtn = page.locator('button', { hasText: 'Text / Sentiment' })
         await expect(textBtn).toBeVisible()
         await expect(textBtn).not.toBeDisabled()
     })
 
     test('add member type is enabled', async ({ page }) => {
-        await page.goto('/dao/gno.land~r~gov~dao/propose')
+        await page.goto(`/dao/${V1_DAO}/propose`)
         const btn = page.locator('button', { hasText: 'Add Member' })
         await expect(btn).not.toBeDisabled()
     })
 
-    test('treasury spend type is disabled', async ({ page }) => {
-        await page.goto('/dao/gno.land~r~gov~dao/propose')
-        const btn = page.locator('button', { hasText: 'Treasury Spend' })
-        await expect(btn).toBeDisabled()
+    test('no treasury spend type is offered', async ({ page }) => {
+        await page.goto(`/dao/${V1_DAO}/propose`)
+        await expect(page.locator('button', { hasText: 'Text / Sentiment' })).toBeVisible()
+        await expect(page.locator('button', { hasText: 'Treasury Spend' })).toHaveCount(0)
     })
 
     test('code upgrade type is disabled', async ({ page }) => {
-        await page.goto('/dao/gno.land~r~gov~dao/propose')
+        await page.goto(`/dao/${V1_DAO}/propose`)
         const btn = page.locator('button', { hasText: 'Code Upgrade' })
         await expect(btn).toBeDisabled()
     })

@@ -1,8 +1,7 @@
-import { useState, useCallback, useEffect, useRef } from "react"
+import { useState, useCallback, useRef } from "react"
 import { Link, useLocation } from "react-router-dom"
 import { BottomSheet } from "./BottomSheet"
 import { ActFab } from "./ActFab"
-import { getPlugins } from "../../plugins"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { PRO_NAV_GROUPS, PRO_PRIMARY_IDS, proEntries, proRouteActive } from "../../lib/proNavigation"
 import { selectableNetworksFor, PRO_SHELL_ENABLED } from "../../lib/config"
@@ -10,7 +9,7 @@ import { ThemeSelect } from "../ui/ThemeSelect"
 import { mobilePrimaryTabs, mobileMoreNav, mobileMoreAccount, type NavEntry } from "../../lib/navManifest"
 import { navFlagOn } from "../../lib/navFlags"
 import type { LayoutContext } from "../../types/layout"
-import { DotsThree, PuzzlePiece, MagnifyingGlass } from "@phosphor-icons/react"
+import { DotsThree, MagnifyingGlass } from "@phosphor-icons/react"
 
 // Member relabels the Alerts destination "Activity" in the primary tab row.
 const TAB_LABEL_OVERRIDE: Record<string, string> = { alerts: "Activity" }
@@ -32,20 +31,6 @@ export function MobileTabBar({ connected, address, auth, network, feedReplyUnrea
     const nk = useNetworkKey()
     const [sheetOpen, setSheetOpen] = useState(false)
     const moreButtonRef = useRef<HTMLButtonElement>(null)
-    const plugins = getPlugins()
-    const [lastVisitedDAO, setLastVisitedDAO] = useState(() => localStorage.getItem("memba_last_dao_slug"))
-
-    // Refresh when DAO slug changes
-    useEffect(() => {
-        const handler = () => setLastVisitedDAO(localStorage.getItem("memba_last_dao_slug"))
-        window.addEventListener("storage", handler)
-        window.addEventListener("memba:daoVisited", handler)
-        return () => {
-            window.removeEventListener("storage", handler)
-            window.removeEventListener("memba:daoVisited", handler)
-        }
-    }, [])
-
     const np = (path: string) => `/${nk}${path}`
 
     const isTabActive = useCallback((to: string) => {
@@ -164,35 +149,6 @@ export function MobileTabBar({ connected, address, auth, network, feedReplyUnrea
                     </div>
 
                     </>}
-                    {/* Plugins section */}
-                    <div className="k-sidebar-section">
-                        <div className="k-sidebar-section-label">Plugins</div>
-                        {plugins.map(p => (
-                            lastVisitedDAO ? (
-                                <Link
-                                    key={p.id}
-                                    to={np(`/dao/${lastVisitedDAO}/plugin/${p.id}`)}
-                                    className="k-sidebar-link"
-                                    onClick={() => setSheetOpen(false)}
-                                >
-                                    <span className="k-sidebar-icon"><PuzzlePiece size={18} /></span>
-                                    <span className="k-sidebar-label">{p.name}</span>
-                                </Link>
-                            ) : (
-                                <span
-                                    key={p.id}
-                                    className="k-sidebar-link disabled"
-                                    aria-disabled="true"
-                                    onClick={() => setSheetOpen(false)}
-                                >
-                                    <span className="k-sidebar-icon"><PuzzlePiece size={18} /></span>
-                                    <span className="k-sidebar-label">{p.name}</span>
-                                    <small style={{ fontSize: "var(--pro-caption, 9px)", color: 'var(--color-k-muted)', marginLeft: 'auto' }}>Select a DAO</small>
-                                </span>
-                            )
-                        ))}
-                    </div>
-
                     {/* Theme section */}
                     <div className="k-sidebar-section">
                         <div className="k-sidebar-section-label">Theme</div>

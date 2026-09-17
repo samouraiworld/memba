@@ -67,11 +67,9 @@ test.describe('Channels — Mobile', () => {
     test('renders at mobile viewport', async ({ page }) => {
         await page.setViewportSize(MOBILE_375)
         await page.goto('/dao/gno.land~r~gov~dao/channels')
-        // `.channels-header` exists ONLY in the settled branches — the loading
-        // branch renders `.channels-shimmer-header` instead — so this waits out
-        // the board resolve rather than measuring the skeleton. Generous budget:
-        // it is a live read (~2.5s locally) and the page has no offline fixture.
-        await expect(page.locator('.channels-header')).toBeVisible({ timeout: 20_000 })
+        // GovDAO has no channels, so the route settles on the unavailable page
+        // (no live read involved) before measuring.
+        await expect(page.getByRole('heading', { name: /Not available for this DAO or network/ })).toBeVisible({ timeout: 20_000 })
         await expectNoMobileOverflow(page)
     })
 })

@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
-import { NotePencil, UsersThree, Vault, GearSix, Archive, FileText } from "@phosphor-icons/react"
+import { NotePencil, UsersThree, GearSix, Archive, FileText } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { buildDaoMsg, getDAOConfig, isGovDAOPath, type DaoAction } from "../lib/dao"
 import { doContractBroadcast } from "../lib/grc20"
@@ -13,31 +13,16 @@ import "./proposedao.css"
 
 // ── Proposal Templates ───────────────────────────────────────
 
-type ProposalTemplate = "none" | "treasury" | "add-member" | "general"
+type ProposalTemplate = "none" | "add-member" | "general"
 
 const PROPOSAL_TEMPLATES: { id: ProposalTemplate; label: string; icon: typeof FileText }[] = [
     { id: "none", label: "Blank", icon: FileText },
-    { id: "treasury", label: "Treasury Transfer", icon: Vault },
     { id: "add-member", label: "Membership", icon: UsersThree },
     { id: "general", label: "General Governance", icon: GearSix },
 ]
 
 function applyTemplate(template: ProposalTemplate): { title: string; description: string } {
     switch (template) {
-        case "treasury":
-            return {
-                title: "Treasury Transfer Request",
-                description: [
-                    "## Treasury Transfer Request",
-                    "",
-                    "**Recipient Address:** g1...",
-                    "**Amount:** ___ GNOT",
-                    "",
-                    "### Justification",
-                    "",
-                    "_Explain why this transfer is needed and how the funds will be used._",
-                ].join("\n"),
-            }
         case "add-member":
             return {
                 title: "Membership Proposal",
@@ -249,7 +234,6 @@ export function ProposeDAO() {
                         {[
                             { id: "text" as const, label: "Text / Sentiment", icon: NotePencil, enabled: true },
                             { id: "member" as const, label: "Add Member", icon: UsersThree, enabled: true },
-                            { id: "spend" as const, label: "Treasury Spend", icon: Vault, enabled: false, hint: "Use Treasury → New Proposal" },
                             { id: "upgrade" as const, label: "Code Upgrade", icon: GearSix, enabled: false, hint: "Coming in v2.x" },
                         ].map(t => (
                             <button

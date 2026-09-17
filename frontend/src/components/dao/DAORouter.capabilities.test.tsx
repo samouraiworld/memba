@@ -25,7 +25,6 @@ vi.mock("../../hooks/useDaoKind", async () => {
 vi.mock("../../contexts/JitsiContext", () => ({ useJitsiContext: () => ({ session: null, joinRoom: vi.fn() }) }))
 vi.mock("../../lib/quests", () => ({ completeQuest: vi.fn(), trackPageVisit: vi.fn() }))
 vi.mock("../../lib/profile", () => ({ resolveOnChainUsername: async () => "" }))
-vi.mock("./DAOAIInsight", () => ({ DAOAIInsight: () => null }))
 vi.mock("../../pages/CreateDAO", () => ({ CreateDAO: () => <div>Create DAO form</div> }))
 vi.mock("../../pages/ChannelsPage", () => ({ ChannelsPage: () => <div>Channels page</div> }))
 vi.mock("../../pages/ProposeDAO", () => ({ ProposeDAO: () => <div>Propose form</div> }))
@@ -92,6 +91,20 @@ describe("capability-driven DAO shell", () => {
         state.members = [MEMBER]
         mount("/pearl/dao/gno.land/r/alice/team")
         expect(await screen.findByRole("button", { name: /new proposal/i })).toBeInTheDocument()
+    })
+
+    it("DAO pages carry no voice rooms, AI panels, health score or deposit address", async () => {
+        state.kind = "memba-v2"
+        state.members = [MEMBER]
+        mount("/pearl/dao/gno.land/r/alice/team")
+        await screen.findByRole("button", { name: /new proposal/i })
+        expect(screen.queryByRole("button", { name: /public room|members room/i })).not.toBeInTheDocument()
+        expect(screen.queryByText(/Voice Rooms/)).not.toBeInTheDocument()
+        expect(screen.queryByText(/AI Governance|Analyst/i)).not.toBeInTheDocument()
+        expect(screen.queryByText(/^Health$/)).not.toBeInTheDocument()
+        expect(screen.queryByTitle(/Realm address/)).not.toBeInTheDocument()
+        // Channels stay reachable where the capability allows them.
+        expect(screen.getByRole("button", { name: /channels/i })).toBeInTheDocument()
     })
 
     it("mainnet DAO creation is unavailable while creation is off", async () => {

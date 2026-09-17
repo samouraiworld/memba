@@ -35,7 +35,7 @@ const EXTENSIONS: ExtensionCard[] = [
         id: "board",
         name: "Channels & Messaging",
         icon: <ChatCircleDots size={28} weight="duotone" />,
-        description: "Discord-like text channels with threaded replies, role-based access, voice & video rooms via Jitsi Meet.",
+        description: "Discord-like text channels with threaded replies and role-based access, where a DAO has a channels realm.",
         status: "active",
         statusLabel: "Active",
         route: "board",
@@ -44,7 +44,7 @@ const EXTENSIONS: ExtensionCard[] = [
         id: "gnoswap",
         name: "GnoSwap Integration",
         icon: <ArrowsLeftRight size={28} weight="duotone" />,
-        description: "DEX integration — swap tokens, add liquidity, manage pools directly from your DAO treasury.",
+        description: "DEX integration — swap tokens, add liquidity and manage pools.",
         status: "coming-soon",
         statusLabel: "Coming Soon",
     },
@@ -73,7 +73,8 @@ export function Extensions() {
     const handleOpen = (ext: ExtensionCard) => {
         if (ext.status !== "active" || !ext.route) return
         if (lastDAO) {
-            navigate(`/dao/${lastDAO}/plugin/${ext.id}`)
+            // Proposals live on the DAO page itself; channels on its channels route.
+            navigate(ext.id === "board" ? `/dao/${lastDAO}/channels` : `/dao/${lastDAO}`)
         } else {
             navigate("/dao")
         }

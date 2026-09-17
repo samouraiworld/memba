@@ -1,4 +1,4 @@
-import { NAV, type NavEntry } from './navManifest'
+import { NAV, navEntryAvailable, type NavEntry } from './navManifest'
 
 /** Presentation only: routes, icons and availability remain owned by NAV. */
 export const PRO_NAV_GROUPS = [
@@ -14,7 +14,7 @@ export function proEntries(ids: readonly string[], connected: boolean, admin = f
     return ids.flatMap(id => {
         const entry = NAV.find(e => e.id === id)
         if (!entry) throw new Error(`Missing navigation entry: ${id}`)
-        if (entry.requiresAuth && !connected || id === 'quest-admin' && !admin) return []
+        if (entry.requiresAuth && !connected || id === 'quest-admin' && !admin || !navEntryAvailable(entry)) return []
         return [entry]
     })
 }

@@ -9,7 +9,7 @@
  * but never surfaced in navigation — a recurring audit finding.
  */
 import { describe, it, expect } from 'vitest'
-import { NAV, mobileMoreNav, mobilePrimaryTabs } from './navManifest'
+import { NAV, mobileMoreNav, mobilePrimaryTabs, navEntryAvailable } from './navManifest'
 
 // Routes in App.tsx that are NOT expected to appear in the nav manifest.
 // Each must have a reason — if you add a route here, document why.
@@ -141,5 +141,15 @@ describe('navManifest completeness', () => {
         for (const connected of [false, true]) {
             expect(mobilePrimaryTabs(connected).length).toBeLessThanOrEqual(5)
         }
+    })
+})
+
+describe('entries that depend on Memba community realms', () => {
+    it('hides quests and candidature where the realms are not deployed', () => {
+        const byId = (id: string) => NAV.find((e) => e.id === id)!
+        expect(navEntryAvailable(byId('quests'), false)).toBe(false)
+        expect(navEntryAvailable(byId('candidature'), false)).toBe(false)
+        expect(navEntryAvailable(byId('quests'), true)).toBe(true)
+        expect(navEntryAvailable(byId('dao'), false)).toBe(true)
     })
 })

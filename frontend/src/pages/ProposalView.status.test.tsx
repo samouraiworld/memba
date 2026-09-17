@@ -21,7 +21,6 @@ vi.mock('../hooks/useDaoRoute', () => ({ useDaoRoute: () => ({ realmPath: state.
 vi.mock('../hooks/useNetworkNav', () => ({ useNetworkNav: () => vi.fn() }))
 vi.mock('../hooks/useProposalDate', () => ({ useProposalDate: () => ({ timestamp: null }) }))
 vi.mock('../lib/profile', () => ({ resolveOnChainUsername: async () => 'alice' }))
-vi.mock('../components/dao/AnalystReport', () => ({ AnalystReport: () => null }))
 vi.mock('../components/dao/TierPieChart', () => ({ VotingInsights: () => <div>Legacy voting insights</div> }))
 vi.mock('../lib/grc20', async importOriginal => ({ ...await importOriginal<typeof import('../lib/grc20')>(), doContractBroadcast: state.broadcast }))
 vi.mock('../lib/dao/voteScanner', () => ({ clearVoteCache: vi.fn() }))
@@ -58,6 +57,7 @@ describe('transaction controls using the real proposal parser', () => {
     it('retains non-member restrictions', async () => {
         state.member = false; mount()
         await waitFor(() => expect(screen.getByRole('button', { name: 'Vote Yes on this proposal' })).toBeDisabled())
+        expect(screen.queryByRole('button', { name: /apply to join/i })).not.toBeInTheDocument()
         expect(state.broadcast).not.toHaveBeenCalled()
     })
     it.each(['open', 'passed'])('retains archive restrictions for %s proposals', async status => {

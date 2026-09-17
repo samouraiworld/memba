@@ -20,8 +20,6 @@ import { useDaoRoute } from "../hooks/useDaoRoute"
 import { useDaoKind } from "../hooks/useDaoKind"
 import { resolveOnChainUsername } from "../lib/profile"
 import { voterMatchesUser } from "../lib/dao/voteScanner"
-import { useJitsiContext } from "../contexts/JitsiContext"
-import { DeployPluginModal } from "../components/dao/DeployPluginModal"
 import { DAOOverviewCard } from "../components/dao/DAOOverviewCard"
 import { ProDAOProposals } from "../components/dao/ProDAOProposals"
 import { DAOProposalsSection } from "../components/dao/DAOProposalsSection"
@@ -35,10 +33,7 @@ export function DAOHome() {
     const navigate = useNetworkNav()
     const { realmPath, encodedSlug } = useDaoRoute()
     const { auth, adena } = useOutletContext<LayoutContext>()
-    const { session, joinRoom } = useJitsiContext()
     const { capabilities } = useDaoKind(realmPath)
-
-    const [showDeployModal, setShowDeployModal] = useState(false)
 
     // ── Server state, in React Query ──────────────────────────────
     // The old page hand-rolled a config → (members ∥ proposals) chain plus a
@@ -198,20 +193,6 @@ export function DAOHome() {
     const canPropose = capabilities.propose.length > 0 && auth.isAuthenticated && !!currentMember && !config?.isArchived
     const totalPower = config?.tierDistribution?.reduce((sum, t) => sum + t.power, 0) || 0
 
-    // Derived values remain unchanged; avoid retaining a manual memo across preview branches.
-    const healthScore = (() => {
-        if (!config || proposals.length === 0) return null
-        const participationPts = proposalsWithVotes.length > 0
-            ? Math.round((1 - nonVoterPercent / 100) * 40) : 0
-        const execBacklog = awaitingExecution.length
-        const execPts = execBacklog === 0 ? 30 : execBacklog <= 2 ? 20 : execBacklog <= 5 ? 10 : 0
-        const activityPts = proposals.length >= 10 ? 30 : proposals.length >= 5 ? 20 : proposals.length >= 2 ? 10 : 5
-        const total = participationPts + execPts + activityPts
-        const grade = total >= 80 ? "A" : total >= 60 ? "B" : total >= 40 ? "C" : "D"
-        const color = grade === "A" ? "var(--color-brand)" : grade === "B" ? "var(--color-accent-blue-sky)" : grade === "C" ? "var(--color-accent-gold-warm)" : "var(--color-status-error-deep)"
-        return { grade, total, color, participationPts, execPts, activityPts }
-    })()
-
     useEffect(() => {
         if (!realmPath) navigate("/dao")
     }, [realmPath, navigate])
@@ -242,7 +223,6 @@ export function DAOHome() {
                 encodedSlug={encodedSlug}
                 currentMember={currentMember}
                 isAuthenticated={auth.isAuthenticated}
-                walletAddress={adena.address}
                 memberCount={memberCount}
                 activeProposals={activeProposals.length}
                 awaitingExecution={awaitingExecution.length}
@@ -252,9 +232,6 @@ export function DAOHome() {
                 maxVoterParticipation={maxVoterParticipation}
                 proposalsWithVotesCount={proposalsWithVotes.length}
                 totalPower={totalPower}
-                healthScore={healthScore}
-                session={session}
-                joinRoom={joinRoom}
                 channels={capabilities.channels}
             />
 
@@ -293,16 +270,6 @@ export function DAOHome() {
                 currentUserAddress={adena.address}
             />}
 
-
-            {showDeployModal && (
-                <DeployPluginModal
-                    daoRealmPath={realmPath}
-                    daoName={config?.name || realmPath.split("/").pop() || "DAO"}
-                    callerAddress={adena.address || ""}
-                    onClose={() => setShowDeployModal(false)}
-                    onDeployed={() => { setShowDeployModal(false); void configQuery.refetch(); void membersQuery.refetch(); void proposalsQuery.refetch() }}
-                />
-            )}
 
             <ErrorToast message={error} onDismiss={() => setFetchErrorDismissed(true)} onRetry={() => { setFetchErrorDismissed(false); void configQuery.refetch(); void membersQuery.refetch(); void proposalsQuery.refetch() }} />
         </div>

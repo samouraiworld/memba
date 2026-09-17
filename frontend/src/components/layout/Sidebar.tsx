@@ -6,7 +6,7 @@ import { Gear } from "@phosphor-icons/react"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { canApplyForMembership } from "../../lib/quests"
 import { ZOOMA_ADDRESS } from "../../lib/membaDAO"
-import { NAV, MODE_SECTIONS, navForGroup } from "../../lib/navManifest"
+import { NAV, MODE_SECTIONS, navEntryAvailable, navForGroup } from "../../lib/navManifest"
 import { navFlagOn } from "../../lib/navFlags"
 
 // ── SidebarLink Sub-component ──────────────────────────────────────────
@@ -230,7 +230,7 @@ export function Sidebar({ connected, address, unvotedCount, notifUnreadCount, fe
                     {connected && (
                         <ManifestLink id="settings" connected={connected} collapsed={collapsed} />
                     )}
-                    {connected && (
+                    {connected && navEntryAvailable(navById("candidature")) && (
                         <ManifestLink
                             id="candidature"
                             connected={connected}
