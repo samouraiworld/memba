@@ -106,6 +106,11 @@ describe("DAO kind", () => {
         expect(await resolveDaoKind(ctx("gno.land/r/alice/team"))).toBe("unknown")
     })
 
+    it("does not fall back to version 1 when a realm reports an unexpected template marker", async () => {
+        chain({ template: qstr("memba-dao/3"), api: qstr("1.0") })
+        expect(await resolveDaoKind(ctx("gno.land/r/alice/team"))).toBe("unknown")
+    })
+
     it("resolves a daokit realm from its own sub-page links", async () => {
         chain({ render: "# Memba DAO\n\n[Proposals](/r/samcrew/memba_dao:proposals) [Members](/r/samcrew/memba_dao:members)" })
         expect(await resolveDaoKind(ctx("gno.land/r/samcrew/memba_dao"))).toBe("daokit")

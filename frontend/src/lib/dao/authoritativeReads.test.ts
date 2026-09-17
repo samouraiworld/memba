@@ -250,6 +250,12 @@ describe("daokit roster", () => {
         expect(await getDAOMembers(RPC, realm)).toEqual([])
     })
 
+    it("treats a well-formed roster with fewer rows than the realm's member count as unavailable", async () => {
+        const realm = "gno.land/r/samcrew/daokit_r6"
+        chain(realm, { render: { "": daokitHome(realm), members: membersPage(realm, 2, [memberRow(realm, "Anon", A, ["member"])]) } })
+        await expect(getDAOMembers(RPC, realm, undefined, true)).rejects.toThrow()
+    })
+
     it("treats a members page that fails to render as unavailable, not empty", async () => {
         const realm = "gno.land/r/samcrew/daokit_r4"
         chain(realm, { render: { "": daokitHome(realm) } })
