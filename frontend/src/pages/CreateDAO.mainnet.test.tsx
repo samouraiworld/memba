@@ -100,6 +100,9 @@ describe("Create DAO on gnoland-1", () => {
         resumeReview()
         const disclosure = screen.getByTestId("dao-deploy-disclosure")
         expect(disclosure).toHaveTextContent(/Storage deposit: about 6\.2 GNOT, capped at 13 GNOT/)
+        // 57M gas at the default profile price (1 GNOT per 50M deploy gas)
+        expect(disclosure).toHaveTextContent(/Network fee: about 1\.1 GNOT \(gas limit 57,000,000\)/)
+        expect(screen.getAllByText("Roles are labels; they grant no special powers.").length).toBeGreaterThan(0)
         expect(disclosure).toHaveTextContent("No member has special powers")
         expect(disclosure).toHaveTextContent("This DAO cannot hold funds")
         expect(screen.getByText("gno.land (gnoland-1)")).toBeInTheDocument()
@@ -117,7 +120,8 @@ describe("Create DAO on gnoland-1", () => {
         fireEvent.click(deployButton())
         expect(await screen.findByText("DAO deployed successfully!")).toBeInTheDocument()
         expect(mocks.broadcast).toHaveBeenCalledTimes(1)
-        const [[msgs, memo]] = mocks.broadcast.mock.calls
+        const [[msgs, memo, opts]] = mocks.broadcast.mock.calls
+        expect(opts).toEqual({ gas: "deploy", gasWanted: 57_000_000 })
         expect(msgs[0].value.max_deposit).toBe("13000000ugnot")
         expect(msgs[0].value).not.toHaveProperty("deposit")
         expect(memo).toBe(`Deploy realm ${PATH} (storage deposit up to 13 GNOT)`)

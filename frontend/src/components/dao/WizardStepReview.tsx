@@ -2,7 +2,7 @@ import { DAO_PRESETS } from "../../lib/daoTemplate"
 import { formatDuration } from "../../lib/templates/dao/v2/duration"
 import { formatGnot } from "../../lib/templates/dao/v2/deposit"
 import { GnoCodeBlock } from "../ui/GnoCodeBlock"
-import { SummaryItem, ROLE_COLORS, type MemberInput, type Step } from "./wizardShared"
+import { SummaryItem, ROLE_COLORS, ROLES_ARE_LABELS, type MemberInput, type Step } from "./wizardShared"
 
 interface Props {
     name: string
@@ -23,6 +23,8 @@ interface Props {
     windows: { votingPeriodSeconds: number; executionDelaySeconds: number; executionWindowSeconds: number }
     depositEstimateUgnot: number
     depositCapUgnot: number
+    deployGas: number
+    networkFeeUgnot: number
     channelsPlanned: boolean
     confirmed: boolean
     onConfirmChange: (confirmed: boolean) => void
@@ -41,7 +43,7 @@ export function WizardStepReview({
     name, description, realmPath, selectedPreset,
     threshold, quorum, availableRoles, proposalCategories,
     validMembers, totalPower, generatedCode, deploying, walletAddress,
-    networkLabel, chainId, windows, depositEstimateUgnot, depositCapUgnot, channelsPlanned,
+    networkLabel, chainId, windows, depositEstimateUgnot, depositCapUgnot, deployGas, networkFeeUgnot, channelsPlanned,
     confirmed, onConfirmChange, onGoToStep, onDeploy,
 }: Props) {
     const signatures = channelsPlanned ? 2 : 1
@@ -74,11 +76,15 @@ export function WizardStepReview({
                     <SummaryItem label="Role labels" value={availableRoles.join(", ") || "None"} />
                     <SummaryItem label="Proposal categories" value={proposalCategories.join(", ")} />
                 </div>
+                <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", margin: "8px 0 0" }}>
+                    {ROLES_ARE_LABELS} No member has special powers: every change is decided by vote.
+                </p>
             </div>
 
             {/* Members Preview */}
             <div className="k-card" style={{ padding: 20 }}>
-                <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)", marginBottom: 12 }}>Members</h3>
+                <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>Members</h3>
+                <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", margin: "0 0 8px" }}>{ROLES_ARE_LABELS}</p>
                 {validMembers.map((m, i) => (
                     <div key={m.address} style={{
                         display: "flex", justifyContent: "space-between", alignItems: "center",
@@ -119,6 +125,7 @@ export function WizardStepReview({
             {/* What you are about to do */}
             <div style={noticeStyle} data-testid="dao-deploy-disclosure">
                 <div><strong>Storage deposit:</strong> about {formatGnot(depositEstimateUgnot)}, capped at {formatGnot(depositCapUgnot)}. It is locked to the realm and refunded only when its storage is freed.</div>
+                <div><strong>Network fee:</strong> about {formatGnot(networkFeeUgnot)} (gas limit {deployGas.toLocaleString("en-US")}), paid when you sign.</div>
                 <div><strong>No member has special powers:</strong> every change is decided by vote.</div>
                 <div><strong>This DAO cannot hold funds.</strong> Do not send tokens to its address.</div>
                 <div>The code and the realm path are permanent once deployed.</div>

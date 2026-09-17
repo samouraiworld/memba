@@ -1,4 +1,4 @@
-import { inputStyle, ROLE_COLORS, ROLE_ICONS, type MemberInput, type Step } from "./wizardShared"
+import { inputStyle, ROLE_COLORS, ROLE_ICONS, ROLES_ARE_LABELS, type MemberInput, type Step } from "./wizardShared"
 
 interface Props {
     members: MemberInput[]
@@ -119,7 +119,7 @@ export function WizardStepMembers({
             )}
 
             <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", margin: 0 }}>
-                Roles are labels only. No member has special powers: adding or removing members, changing roles and archiving are all decided by vote.
+                {ROLES_ARE_LABELS} Adding or removing members, changing roles and archiving are all decided by vote.
             </p>
 
             <button

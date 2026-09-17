@@ -6,7 +6,7 @@
  */
 import { useEffect, useRef } from "react"
 import { DAO_PRESETS, validateRealmPath, type DAOPreset } from "../../lib/daoTemplate"
-import { FormField, inputStyle, ROLE_COLORS, ROLE_ICONS } from "./wizardShared"
+import { FormField, inputStyle, ROLE_COLORS, ROLE_ICONS, ROLES_ARE_LABELS } from "./wizardShared"
 import { House, UsersThree, Buildings } from "@phosphor-icons/react"
 import type { ReactNode } from "react"
 
@@ -57,7 +57,8 @@ export function WizardStepPreset({
 
             {/* Preset Cards */}
             <div className="k-card" style={{ padding: 20 }}>
-                <h3 style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)", marginBottom: 12 }}>DAO Type</h3>
+                <h3 style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 600, color: "var(--color-text)", marginBottom: 4 }}>DAO Type</h3>
+                <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", margin: "0 0 12px" }}>{ROLES_ARE_LABELS}</p>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))", gap: 10 }}>
                     {DAO_PRESETS.map((preset) => (
                         <button

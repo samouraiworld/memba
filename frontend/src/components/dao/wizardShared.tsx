@@ -11,6 +11,9 @@ export interface MemberInput {
 
 export type Step = 1 | 2 | 3 | 4 | 5
 
+/** Shown wherever the wizard lists roles. */
+export const ROLES_ARE_LABELS = "Roles are labels; they grant no special powers."
+
 // ── Role Colors ───────────────────────────────────────────
 
 export const ROLE_COLORS: Record<string, string> = {

@@ -14,9 +14,10 @@ import type { MemberInput, Step } from "../components/dao/wizardShared"
 import { generateDAOCode, buildDeployDAOMsg, daoStepError, isValidGnoAddress, DAO_PRESETS, type DAOCreationConfig, type DAOPreset, type DAOStepData } from "../lib/daoTemplate"
 import { generateChannelCode, defaultChannelConfig, isValidChannelName } from "../lib/channelTemplate"
 import { buildDeployMsg } from "../lib/templates/prologue"
-import { daoDepositCapUgnot, estimateDAODepositUgnot, formatGnot } from "../lib/templates/dao/v2/deposit"
+import { daoDepositCapUgnot, estimateDAODepositUgnot, estimateDeployGas, formatGnot } from "../lib/templates/dao/v2/deposit"
 import { addSavedDAO, encodeSlug } from "../lib/daoSlug"
-import { doContractBroadcast } from "../lib/grc20"
+import { doContractBroadcast, feeForGasWanted } from "../lib/grc20"
+import { getGasConfig } from "../lib/gasConfig"
 import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, GNO_RPC_URL, NETWORKS } from "../lib/config"
 import { assertCanDeployTo } from "../lib/dao/namespace"
 import { assertPathAvailable, codeSubmissionPolicy, savePendingDAO, waitForPackage, type DeployOutcome } from "../lib/dao/packageStatus"
@@ -281,6 +282,10 @@ export function CreateDAO() {
     const depositInput = { name, description, roles: availableRoles, proposalCategories, members: members.filter((m) => m.address !== "") }
     const depositEstimateUgnot = estimateDAODepositUgnot(depositInput)
     const depositCapUgnot = daoDepositCapUgnot(depositInput)
+    // The deploy runs with a gas budget sized to the DAO so a large roster
+    // cannot run out of gas after the user signed.
+    const deployGas = estimateDeployGas(depositInput)
+    const networkFeeUgnot = feeForGasWanted(getGasConfig(), deployGas, true)
 
     // ── Deploy ────────────────────────────────────────────
 
@@ -329,7 +334,7 @@ export function CreateDAO() {
             const res = await doContractBroadcast(
                 [{ type: "/vm.m_addpkg", value: msg.value }],
                 `Deploy realm ${realmPath} (storage deposit up to ${formatGnot(cap)})`,
-                { gas: "deploy" },
+                { gas: "deploy", gasWanted: estimateDeployGas(config) },
             )
             setDeployStep("broadcasting")
 
@@ -529,6 +534,7 @@ export function CreateDAO() {
                     walletAddress={adena.address}
                     networkLabel={caps.label} chainId={GNO_CHAIN_ID} windows={windows}
                     depositEstimateUgnot={depositEstimateUgnot} depositCapUgnot={depositCapUgnot}
+                    deployGas={deployGas} networkFeeUgnot={networkFeeUgnot}
                     channelsPlanned={channelsPlanned}
                     confirmed={confirmed} onConfirmChange={setConfirmed}
                     onGoToStep={goToStep} onDeploy={deployDAO}
