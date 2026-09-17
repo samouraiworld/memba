@@ -19,7 +19,7 @@ import (
 
 // validQuests maps quest IDs to their XP values.
 // Must match frontend/src/lib/gnobuilders.ts ALL_QUESTS array.
-// GnoBuilders v2: 85 quests across 4 categories (developer, everyone, champion, hidden).
+// GnoBuilders v2: 84 quests across 4 categories (developer, everyone, champion, hidden).
 var validQuests = map[string]uint32{
 	// ── Developer: Package Deployment (10) ───────────────
 	"deploy-hello-pkg":      20,
@@ -45,17 +45,16 @@ var validQuests = map[string]uint32{
 	"deploy-multisig-realm":    55,
 	"deploy-full-dapp":         75,
 
-	// ── Developer: Advanced (10) ─────────────────────────
-	"write-10-tests":      30,
-	"fix-upstream-bug":    100,
-	"audit-realm":         40,
-	"deploy-3-chains":     45,
-	"build-mcp-tool":      50,
-	"gas-optimization":    40,
-	"render-masterclass":  30,
-	"gnodaokit-extension": 60,
-	"deploy-ibc-realm":    75,
-	"mentor-developer":    50,
+	// ── Developer: Advanced (9) ──────────────────────────
+	"write-10-tests":     30,
+	"fix-upstream-bug":   100,
+	"audit-realm":        40,
+	"deploy-3-chains":    45,
+	"build-mcp-tool":     50,
+	"gas-optimization":   40,
+	"render-masterclass": 30,
+	"deploy-ibc-realm":   75,
+	"mentor-developer":   50,
 
 	// ── Everyone: Getting Started (10) ───────────────────
 	"connect-wallet":    10,
@@ -131,21 +130,24 @@ var validQuests = map[string]uint32{
 	// Keep accepting them so existing completions don't break.
 	"view-profile":   10,
 	"directory-tabs": 15,
+	// "gnodaokit-extension" was retired from the catalogue (the quest pointed
+	// to a framework that is not supported for new DAOs). It is no longer
+	// verifiable or claimable; existing completions keep their XP.
+	"gnodaokit-extension": 60,
 }
 
 // selfReportQuests is the set of quest IDs that require manual proof submission.
 // Only these quests can be submitted via SubmitQuestClaim.
 var selfReportQuests = map[string]bool{
-	"deploy-test-pkg":     true,
-	"deploy-full-dapp":    true,
-	"write-10-tests":      true,
-	"fix-upstream-bug":    true,
-	"audit-realm":         true,
-	"build-mcp-tool":      true,
-	"gas-optimization":    true,
-	"gnodaokit-extension": true,
-	"mentor-developer":    true,
-	"bug-hunter":          true,
+	"deploy-test-pkg":  true,
+	"deploy-full-dapp": true,
+	"write-10-tests":   true,
+	"fix-upstream-bug": true,
+	"audit-realm":      true,
+	"build-mcp-tool":   true,
+	"gas-optimization": true,
+	"mentor-developer": true,
+	"bug-hunter":       true,
 }
 
 // rankThresholds maps tier numbers to XP thresholds.

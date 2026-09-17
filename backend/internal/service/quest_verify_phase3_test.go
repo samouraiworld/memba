@@ -5,35 +5,6 @@ import (
 	"testing"
 )
 
-// ── join-dao: membership detection from the memba_dao :members render ──
-
-func TestMemberLinked(t *testing.T) {
-	// A representative memba_dao:members render: each member row links the
-	// member's profile (/u/<addr>) and a member-detail page (:member/<addr>).
-	const members = "## Members 👥 (1)\n" +
-		"| Anon | [g1x7\\.\\.\\.uxu0](/u/g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0) " +
-		"| [admin](/r/samcrew/memba_dao:role/admin) " +
-		"| [View](/r/samcrew/memba_dao:member/g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0) |"
-	member := "g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0"
-	nonmember := "g1abcdefghijklmnopqrstuvwxyz0123456789ab"
-
-	if !memberLinked(members, member) {
-		t.Error("a listed member (present in /u/ and :member/ links) must be detected")
-	}
-	if memberLinked(members, nonmember) {
-		t.Error("an address absent from the members render must not be detected")
-	}
-
-	// Spoof-resistance: an address echoed only as bare prose text (NOT inside a
-	// member link) must NOT count — this is what made a raw substring scan
-	// spoofable (a realm could echo an attacker-controlled address).
-	const prose = "> Realm address: g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8\n" +
-		"see also g1abcdefghijklmnopqrstuvwxyz0123456789ab in passing"
-	if memberLinked(prose, nonmember) {
-		t.Error("a bare-text address with no member link must not count as membership")
-	}
-}
-
 // ── create-token: token symbols + per-token admin (creator) attribution ──
 
 func TestParseFactorySymbols(t *testing.T) {

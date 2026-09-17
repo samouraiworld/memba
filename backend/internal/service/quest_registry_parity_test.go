@@ -40,9 +40,9 @@ func TestQuestRegistryParity(t *testing.T) {
 		frontend[m[1]] = uint32(xp) // #nosec G115 -- quest XP is small (<=100)
 	}
 
-	// Sanity: the frontend registry is the full 85-quest set.
-	if len(frontend) < 85 {
-		t.Fatalf("parsed only %d frontend quests, expected >= 85 — parser likely missed some", len(frontend))
+	// Sanity: the frontend registry is the full 84-quest set.
+	if len(frontend) < 84 {
+		t.Fatalf("parsed only %d frontend quests, expected >= 84 — parser likely missed some", len(frontend))
 	}
 
 	// 1. Every frontend quest exists in validQuests with matching XP.
@@ -58,7 +58,7 @@ func TestQuestRegistryParity(t *testing.T) {
 	}
 
 	// 2. Every backend quest exists in the frontend, except known legacy ids.
-	legacy := map[string]bool{"view-profile": true, "directory-tabs": true}
+	legacy := map[string]bool{"view-profile": true, "directory-tabs": true, "gnodaokit-extension": true}
 	for id := range validQuests {
 		if legacy[id] {
 			continue
@@ -82,8 +82,8 @@ func TestQuestVerificationParity(t *testing.T) {
 
 	re := regexp.MustCompile(`id:\s*"([a-z0-9-]+)"[^\n]*?verification:\s*"(\w+)"`)
 	matches := re.FindAllStringSubmatch(string(data), -1)
-	if len(matches) < 85 {
-		t.Fatalf("parsed only %d (id, verification) pairs, expected >= 85", len(matches))
+	if len(matches) < 84 {
+		t.Fatalf("parsed only %d (id, verification) pairs, expected >= 84", len(matches))
 	}
 
 	for _, m := range matches {

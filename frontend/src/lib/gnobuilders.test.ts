@@ -40,16 +40,16 @@ describe("Phase 3 backend-verified quests", () => {
 // ── Quest Registry Tests ────────────────────────────────────
 
 describe("quest registry", () => {
-    it("has 85 total quests", () => {
-        expect(ALL_QUESTS).toHaveLength(85)
+    it("has 84 total quests", () => {
+        expect(ALL_QUESTS).toHaveLength(84)
     })
 
     it("has correct category counts", () => {
-        expect(QUEST_COUNTS.developer).toBe(30)
+        expect(QUEST_COUNTS.developer).toBe(29)
         expect(QUEST_COUNTS.everyone).toBe(30)
         expect(QUEST_COUNTS.champion).toBe(15)
         expect(QUEST_COUNTS.hidden).toBe(10)
-        expect(QUEST_COUNTS.total).toBe(85)
+        expect(QUEST_COUNTS.total).toBe(84)
     })
 
     it("all quests have unique IDs", () => {
@@ -252,8 +252,8 @@ describe("getQuestById", () => {
 })
 
 describe("getQuestsByCategory", () => {
-    it("returns 30 developer quests", () => {
-        expect(getQuestsByCategory("developer")).toHaveLength(30)
+    it("returns 29 developer quests", () => {
+        expect(getQuestsByCategory("developer")).toHaveLength(29)
     })
 
     it("returns 30 everyone quests", () => {
@@ -312,9 +312,9 @@ describe("isQuestAvailable", () => {
 })
 
 describe("buildQuestXPMap", () => {
-    it("returns map with 85 entries", () => {
+    it("returns map with 84 entries", () => {
         const map = buildQuestXPMap()
-        expect(Object.keys(map)).toHaveLength(85)
+        expect(Object.keys(map)).toHaveLength(84)
     })
 
     it("all values are positive", () => {

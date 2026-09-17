@@ -2,7 +2,9 @@ package service
 
 import (
 	"context"
+	"log/slog"
 	"regexp"
+	"strconv"
 	"strings"
 )
 
@@ -22,16 +24,72 @@ const (
 // unbounded RPC per completion attempt.
 const maxFactoryTokensToScan = 100
 
-// ── join-dao ────────────────────────────────────────────────
+// ── join-dao ────────────────────────────────────────────
 
-// memberLinked reports whether addr appears in the memba_dao :members render as
-// an actual member — i.e. inside a member-context link (`/u/<addr>` profile link
-// or `:member/<addr>` detail link), NOT merely as a bare substring. The members
-// render only emits those links for real members, so this is un-spoofable: a
-// realm echoing an address as prose (the old substring-scan weakness) won't match.
-func memberLinked(render, addr string) bool {
-	return strings.Contains(render, "/u/"+addr) ||
-		strings.Contains(render, ":member/"+addr)
+// membaDAOMembersPageSize is basedao RenderMembersTable's fixed page size.
+const membaDAOMembersPageSize = 10
+
+// maxJoinDAOMemberPages bounds how many :members pages one verification walks
+// (one ABCI call each).
+const maxJoinDAOMemberPages = 50
+
+var (
+	// membersHeaderRe is the realm-written first line of the members page.
+	membersHeaderRe = regexp.MustCompile(`^## Members 👥 \((\d+)\)$`)
+	// memberRowTailRe matches the realm-written end of one members-table row:
+	//   | [<short>](/u/<addr>) | <role links> | [View](/r/samcrew/memba_dao:member/<addr>) |
+	// The display name before it is member-controlled and is never read. The
+	// role cell holds no "|", so on any line only the real tail can match.
+	memberRowTailRe = regexp.MustCompile(`\| \[[^\]|\n]*\]\(/u/(g1[a-z0-9]{38})\) \| [^|\n]* \| \[View\]\(/r/samcrew/memba_dao:member/(g1[a-z0-9]{38})\) \|$`)
+)
+
+// parseMembaDAOMembersPage reads one memba_dao :members page. It returns the
+// realm's total member count and the member addresses listed on this page.
+//
+// A row counts only from its realm-written tail, with the address cell link and
+// the member link naming the same address. Display names can contain newlines
+// and table syntax, so extra row lines are possible; ok is false when the page
+// lists more rows than the realm's count allows, or when the header is missing.
+// The caller checks the exact per-page row count.
+func parseMembaDAOMembersPage(render string) (total int, addrs []string, ok bool) {
+	lines := strings.Split(strings.TrimLeft(render, "\n"), "\n")
+	if len(lines) == 0 {
+		return 0, nil, false
+	}
+	m := membersHeaderRe.FindStringSubmatch(strings.TrimSpace(lines[0]))
+	if m == nil {
+		return 0, nil, false
+	}
+	total, err := strconv.Atoi(m[1])
+	if err != nil || total < 0 {
+		return 0, nil, false
+	}
+	for _, line := range lines[1:] {
+		rm := memberRowTailRe.FindStringSubmatch(strings.TrimRight(line, " \r"))
+		if rm == nil {
+			continue
+		}
+		if rm[1] != rm[2] {
+			return 0, nil, false
+		}
+		addrs = append(addrs, rm[1])
+	}
+	if len(addrs) > membaDAOMembersPageSize || len(addrs) > total {
+		return 0, nil, false
+	}
+	return total, addrs, true
+}
+
+// expectedRowsOnPage is how many rows basedao renders on 1-based page p.
+func expectedRowsOnPage(total, p int) int {
+	n := total - (p-1)*membaDAOMembersPageSize
+	if n < 0 {
+		return 0
+	}
+	if n > membaDAOMembersPageSize {
+		return membaDAOMembersPageSize
+	}
+	return n
 }
 
 // ── create-token ────────────────────────────────────────────
@@ -80,16 +138,47 @@ func tokenAdminIs(detail, addr string) bool {
 
 // ── on-chain orchestrators (called from defaultVerifyOnChainQuest) ──
 
-// verifyJoinDAO confirms addr is a member of memba_dao by parsing its
-// authoritative :members render. addr is caller-validated against addrRe.
-// NOTE: queries the members page once; memba_dao lists all members inline (no
-// pagination today). Revisit if membership ever grows past a single page.
+// verifyJoinDAO confirms addr is a member of memba_dao by walking every page
+// of its :members table and reading addresses only from realm-written row
+// cells. A page whose row count differs from what the realm's member count
+// implies is not trusted, and verification returns false. addr is
+// caller-validated against addrRe.
 func verifyJoinDAO(ctx context.Context, addr string) (bool, error) {
-	out, err := questRender(ctx, membaDAOPath, "members")
-	if err != nil {
-		return false, err
+	total := -1
+	for p := 1; p <= maxJoinDAOMemberPages; p++ {
+		arg := "members"
+		if p > 1 {
+			arg = "members?page=" + strconv.Itoa(p)
+		}
+		out, err := questRender(ctx, membaDAOPath, arg)
+		if err != nil {
+			return false, err
+		}
+		pageTotal, addrs, ok := parseMembaDAOMembersPage(out)
+		if !ok {
+			if p > 1 {
+				slog.Warn("join-dao: members page not trusted", "page", p)
+			}
+			return false, nil
+		}
+		if total == -1 {
+			total = pageTotal
+		}
+		if pageTotal != total || len(addrs) != expectedRowsOnPage(total, p) {
+			slog.Warn("join-dao: members page row count mismatch", "page", p, "rows", len(addrs), "total", total)
+			return false, nil
+		}
+		for _, a := range addrs {
+			if a == addr {
+				return true, nil
+			}
+		}
+		if p*membaDAOMembersPageSize >= total {
+			return false, nil
+		}
 	}
-	return memberLinked(out, addr), nil
+	slog.Warn("join-dao: members table exceeds the page walk cap", "total", total)
+	return false, nil
 }
 
 // verifyCreateToken confirms addr created (is the Admin of) at least one token in

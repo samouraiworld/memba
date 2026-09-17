@@ -1,7 +1,7 @@
 /**
  * gnobuilders.ts — GnoBuilders: The Gno Developer Game
  *
- * Expanded quest system with 85 quests across 4 categories,
+ * Expanded quest system with 84 quests across 4 categories,
  * 8-tier rank system, and badge/cosmetics infrastructure.
  *
  * This module defines quest metadata and rank thresholds.
@@ -94,15 +94,15 @@ const DEVELOPER_QUESTS: GnoQuest[] = [
     { id: "deploy-import-pkg", title: "Dependency Chain", description: "Deploy a package that imports another user's package", xp: 35, icon: "🔗", category: "developer", difficulty: "intermediate", verification: "on_chain", prerequisite: "deploy-hello-pkg", season: 1 },
     { id: "deploy-event-pkg", title: "Event Emitter", description: "Deploy a package that uses std.Emit() events", xp: 40, icon: "📡", category: "developer", difficulty: "advanced", verification: "on_chain", prerequisite: "deploy-counter-pkg", season: 1 },
     { id: "deploy-ownable-pkg", title: "Access Control", description: "Deploy a package with owner-only functions", xp: 40, icon: "🔐", category: "developer", difficulty: "advanced", verification: "on_chain", prerequisite: "deploy-interface-pkg", season: 1 },
-    { id: "deploy-upgradable-pkg", title: "Evolving Code", description: "Deploy a package using gnodaokit's upgradable pattern", xp: 50, icon: "🔄", category: "developer", difficulty: "expert", verification: "on_chain", prerequisite: "deploy-ownable-pkg", season: 1 },
-    { id: "deploy-governance-pkg", title: "Governance Architect", description: "Deploy a full DAO with basedao + custom conditions", xp: 60, icon: "🏛️", category: "developer", difficulty: "expert", verification: "on_chain", prerequisite: "deploy-upgradable-pkg", season: 1 },
+    { id: "deploy-upgradable-pkg", title: "Evolving Code", description: "Deploy a package that can be upgraded through a versioned path", xp: 50, icon: "🔄", category: "developer", difficulty: "expert", verification: "on_chain", prerequisite: "deploy-ownable-pkg", season: 1 },
+    { id: "deploy-governance-pkg", title: "Governance Architect", description: "Deploy a governance package with custom voting conditions", xp: 60, icon: "🏛️", category: "developer", difficulty: "expert", verification: "on_chain", prerequisite: "deploy-upgradable-pkg", season: 1 },
 
     // Realm Deployment Series (10)
     { id: "deploy-hello-realm", title: "Realm Rookie", description: "Deploy your first realm with Render()", xp: 20, icon: "🌐", category: "developer", difficulty: "beginner", verification: "on_chain", season: 1 },
     { id: "deploy-grc20-realm", title: "Token Creator", description: "Deploy a GRC20 token realm", xp: 30, icon: "🪙", category: "developer", difficulty: "intermediate", verification: "on_chain", prerequisite: "deploy-hello-realm", season: 1 },
     { id: "deploy-grc721-realm", title: "NFT Artist", description: "Deploy a GRC721 NFT collection realm", xp: 35, icon: "🎨", category: "developer", difficulty: "intermediate", verification: "on_chain", prerequisite: "deploy-hello-realm", season: 1 },
     { id: "deploy-board-realm", title: "Forum Builder", description: "Deploy a realm with board/post functionality", xp: 30, icon: "📝", category: "developer", difficulty: "intermediate", verification: "on_chain", prerequisite: "deploy-hello-realm", season: 1 },
-    { id: "deploy-dao-realm", title: "DAO Deployer", description: "Deploy a DAO realm using gnodaokit", xp: 40, icon: "🏛️", category: "developer", difficulty: "advanced", verification: "on_chain", prerequisite: "deploy-grc20-realm", season: 1 },
+    { id: "deploy-dao-realm", title: "DAO Deployer", description: "Deploy a DAO realm under your namespace", xp: 40, icon: "🏛️", category: "developer", difficulty: "advanced", verification: "on_chain", prerequisite: "deploy-grc20-realm", season: 1 },
     { id: "deploy-crossing-realm", title: "Cross-Realm Caller", description: "Deploy a realm that calls another realm", xp: 45, icon: "🔀", category: "developer", difficulty: "advanced", verification: "on_chain", prerequisite: "deploy-dao-realm", season: 1 },
     { id: "deploy-escrow-realm", title: "Trust Machine", description: "Deploy an escrow realm with milestone payments", xp: 50, icon: "🤝", category: "developer", difficulty: "expert", verification: "on_chain", prerequisite: "deploy-crossing-realm", season: 1 },
     { id: "deploy-marketplace-realm", title: "Market Maker", description: "Deploy a marketplace realm with listings", xp: 50, icon: "🏪", category: "developer", difficulty: "expert", verification: "on_chain", prerequisite: "deploy-crossing-realm", season: 1 },
@@ -117,7 +117,6 @@ const DEVELOPER_QUESTS: GnoQuest[] = [
     { id: "build-mcp-tool", title: "Agent Builder", description: "Create a custom MCP tool that queries Gno", xp: 50, icon: "🤖", category: "developer", difficulty: "expert", verification: "self_report", season: 1 },
     { id: "gas-optimization", title: "Gas Golfer", description: "Reduce gas usage of a realm operation by 20%+", xp: 40, icon: "⛽", category: "developer", difficulty: "advanced", verification: "self_report", prerequisite: "deploy-hello-realm", season: 1 },
     { id: "render-masterclass", title: "Render Wizard", description: "Deploy a realm with rich Render() output (tables, links, formatting)", xp: 30, icon: "🎭", category: "developer", difficulty: "intermediate", verification: "on_chain", prerequisite: "deploy-hello-realm", season: 1 },
-    { id: "gnodaokit-extension", title: "Kit Extender", description: "Create a gnodaokit extension module", xp: 60, icon: "🧰", category: "developer", difficulty: "expert", verification: "self_report", prerequisite: "deploy-dao-realm", season: 1 },
     { id: "deploy-ibc-realm", title: "Bridge Builder", description: "Deploy a realm that handles IBC messages", xp: 75, icon: "🌉", category: "developer", difficulty: "expert", verification: "on_chain", season: 1 },
     { id: "mentor-developer", title: "Gno Mentor", description: "Help 3 other developers complete their first quest", xp: 50, icon: "🎓", category: "developer", difficulty: "advanced", verification: "self_report", season: 1 },
 ]
@@ -258,8 +257,7 @@ export const LIVE_QUEST_IDS: ReadonlySet<string> = new Set([
     // Self-report (proof submitted via SelfReportForm -> admin review). Excludes
     // the hidden bug-hunter quest so it stays discoverable.
     "deploy-test-pkg", "deploy-full-dapp", "write-10-tests", "fix-upstream-bug",
-    "audit-realm", "build-mcp-tool", "gas-optimization", "gnodaokit-extension",
-    "mentor-developer",
+    "audit-realm", "build-mcp-tool", "gas-optimization", "mentor-developer",
     // Deploy quests: backend verifies the submitted realm/package path is under
     // the user's @username namespace, exists on-chain, and is distinct per quest.
     // (deploy-3-chains/deploy-ibc-realm/render-masterclass stay coming-soon — one
