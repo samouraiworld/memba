@@ -26,11 +26,28 @@ const sleep = (ms: number): Promise<void> => new Promise((resolve) => setTimeout
 /** In-memory cache of the last working RPC URL (resets on page reload). */
 let _lastWorkingRpcUrl: string | null = null
 
+/** Endpoints found to serve a different chain; never used for this session. */
+const _excludedRpcUrls = new Set<string>()
+
+/** Stop using an endpoint for the rest of the session (it serves another chain). */
+export function excludeRpcEndpoint(rpcUrl: string): void {
+    _excludedRpcUrls.add(rpcUrl)
+}
+
+/** Test hook. */
+export function clearExcludedRpcEndpoints(): void {
+    _excludedRpcUrls.clear()
+}
+
 /**
  * Returns the ordered list of RPC URLs to try: last-known-good first,
- * then primary, then fallbacks (deduplicated).
+ * then primary, then fallbacks (deduplicated), without excluded endpoints.
  */
 export function getRpcUrlsInOrder(): string[] {
+    return orderedRpcUrls().filter((url) => !_excludedRpcUrls.has(url))
+}
+
+function orderedRpcUrls(): string[] {
     const urls: string[] = []
     // If we found a working fallback previously, try it first
     if (_lastWorkingRpcUrl && _lastWorkingRpcUrl !== GNO_RPC_URL) {
