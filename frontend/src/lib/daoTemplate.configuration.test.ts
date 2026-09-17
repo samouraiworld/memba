@@ -7,11 +7,11 @@ const config = (change: Partial<DAOCreationConfig> = {}): DAOCreationConfig => (
     name: "Founding DAO", description: "Configuration contract", realmPath: "gno.land/r/test/founding",
     members: [{ address: alice, power: 2, roles: ["admin"] }, { address: bob, power: 1, roles: ["member"] }],
     roles: ["admin", "member"], proposalCategories: ["governance"], threshold: 51, quorum: 0,
-    votingPeriodBlocks: 1000, ...change,
+    votingPeriodSeconds: 86400, executionDelaySeconds: 3600, executionWindowSeconds: 86400, ...change,
 })
 
 describe("DAO founding configuration must match the reviewed roster", () => {
-    it("rejects duplicate addresses instead of overwriting the first member and admin role", () => {
+    it("rejects duplicate addresses instead of overwriting the first member", () => {
         const d = config({ members: [{ address: alice, power: 2, roles: ["admin"] }, { address: alice, power: 1, roles: ["member"] }] })
         expect(daoStepError(2, d)).toMatch(/duplicate/i)
         expect(() => generateDAOCode(d)).toThrow(/duplicate/i)
@@ -23,14 +23,16 @@ describe("DAO founding configuration must match the reviewed roster", () => {
     ])("refuses to silently drop members: %j", change => {
         expect(() => generateDAOCode(config(change))).toThrow(/member|address/i)
     })
-    it("requires an admin and nonzero aggregate voting power", () => {
-        expect(() => generateDAOCode(config({ members: [{ address: alice, power: 1, roles: [] }] }))).toThrow(/admin/i)
+    // v2: every member needs voting power >= 1, and no admin role is required
+    // because roles grant no powers.
+    it("requires positive power for every member but no admin", () => {
+        expect(() => generateDAOCode(config({ members: [{ address: alice, power: 1, roles: [] }] }))).not.toThrow()
         const d = config({ members: [{ address: alice, power: 0, roles: ["admin"] }] })
-        expect(daoStepError(2, d)).toMatch(/positive|zero/i)
-        expect(() => generateDAOCode(d)).toThrow(/positive|zero/i)
+        expect(daoStepError(2, d)).toMatch(/power/i)
+        expect(() => generateDAOCode(d)).toThrow(/power/i)
     })
     it.each([
-        { roles: [] }, { roles: ["member"] }, { roles: ["admin", "BAD ROLE"] },
+        { roles: [] }, { roles: ["admin", "BAD ROLE"] },
         { roles: ["admin", "admin"] }, { proposalCategories: [] },
         { proposalCategories: ["governance", "bad-category"] }, { proposalCategories: ["governance", "governance"] },
         { members: [{ address: alice, power: 1, roles: ["admin", "undeclared"] }] },
@@ -42,11 +44,11 @@ describe("DAO founding configuration must match the reviewed roster", () => {
         expect(daoStepError(1, d)).toMatch(/package|identifier|reserved/i)
         expect(() => generateDAOCode(d)).toThrow(/package|identifier|reserved/i)
     })
-    it("preserves a valid roster including role-less and zero-power members", () => {
-        const d = config({ members: [{ address: alice, power: 2, roles: ["admin"] }, { address: bob, power: 0, roles: [] }] })
+    it("preserves a valid roster including role-less members", () => {
+        const d = config({ members: [{ address: alice, power: 2, roles: ["admin"] }, { address: bob, power: 1, roles: [] }] })
         expect(daoStepError(2, d)).toBeNull()
         const code = generateDAOCode(d)
-        expect(code).toContain(`members.Set("${alice}", &Member{Address: address("${alice}"), Power: 2, Roles: []string{"admin"}})`)
-        expect(code).toContain(`members.Set("${bob}", &Member{Address: address("${bob}"), Power: 0, Roles: []string{}})`)
+        expect(code).toContain(`addGenesisMember("${alice}", 2, []string{"admin"})`)
+        expect(code).toContain(`addGenesisMember("${bob}", 1, []string{})`)
     })
 })

@@ -26,7 +26,9 @@ function daoConfig(overrides: Partial<DAOCreationConfig> = {}): DAOCreationConfi
         roles: ["admin"],
         quorum: 0,
         proposalCategories: ["governance"],
-        votingPeriodBlocks: 151200,
+        votingPeriodSeconds: 3 * 86400,
+        executionDelaySeconds: 3600,
+        executionWindowSeconds: 7 * 86400,
         ...overrides,
     }
 }
@@ -50,23 +52,24 @@ const agentConfig = (overrides: Partial<AgentRegistryConfig> = {}): AgentRegistr
 })
 
 describe("DAO codegen — fast-check properties (W1.1)", () => {
-    it("∀ threshold ∈ [1,100] ∧ quorum ∈ [0,100] ⇒ generates with exact values, no NaN", () => {
+    // v2: the threshold must be above 50 %.
+    it("∀ threshold ∈ [51,100] ∧ quorum ∈ [0,100] ⇒ generates with exact values, no NaN", () => {
         fc.assert(
-            fc.property(fc.integer({ min: 1, max: 100 }), fc.integer({ min: 0, max: 100 }), (threshold, quorum) => {
+            fc.property(fc.integer({ min: 51, max: 100 }), fc.integer({ min: 0, max: 100 }), (threshold, quorum) => {
                 const code = generateDAOCode(daoConfig({ threshold, quorum }))
-                expect(code).toContain(`threshold         = ${threshold}`)
-                expect(code).toContain(`quorum            = ${quorum}`)
+                expect(code).toContain(`threshold       = ${threshold} `)
+                expect(code).toContain(`quorum          = ${quorum} `)
                 expect(code).not.toContain("NaN")
                 expect(code).not.toContain("undefined")
             }),
             RUNS,
         )
     })
-    it("∀ threshold ∉ [1,100] (or non-integer) ⇒ throws", () => {
+    it("∀ threshold ∉ [51,100] (or non-integer) ⇒ throws", () => {
         fc.assert(
             fc.property(
                 fc.oneof(
-                    fc.integer({ max: 0 }),
+                    fc.integer({ max: 50 }),
                     fc.integer({ min: 101 }),
                     fc.double({ noInteger: true, noNaN: false, noDefaultInfinity: false }),
                 ),

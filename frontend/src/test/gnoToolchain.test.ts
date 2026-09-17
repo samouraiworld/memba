@@ -133,11 +133,13 @@ describe("STDLIB_CONTRACT_PROBE tracks the contract the generators actually depe
             description: "probe fixture",
             realmPath: "gno.land/r/samcrew/probe_dao",
             members: [{ address: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c", power: 1, roles: ["admin"] }],
-            threshold: 50,
+            threshold: 51,
             roles: ["admin"],
             quorum: 25,
             proposalCategories: ["governance"],
-            votingPeriodBlocks: 151200,
+            votingPeriodSeconds: 3 * 86400,
+            executionDelaySeconds: 3600,
+            executionWindowSeconds: 7 * 86400,
         })
         for (const [name, code] of [
             ["escrowTemplate", escrow],

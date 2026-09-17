@@ -17,18 +17,24 @@ import {
     type DAOCreationConfig,
 } from "./daoTemplate"
 
+// A checksummed address: the v2 generator verifies the bech32 checksum.
+const MEMBER = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
+
 function makeConfig(overrides: Partial<DAOCreationConfig> = {}): DAOCreationConfig {
     return {
         name: "SecTest DAO",
         description: "Security test",
         realmPath: "gno.land/r/test/secdao",
         members: [
-            { address: "g1" + "a".repeat(38), power: 1, roles: ["admin"] },
+            { address: MEMBER, power: 1, roles: ["admin"] },
         ],
         threshold: 51,
         roles: ["admin", "member"],
         quorum: 0,
         proposalCategories: ["governance"],
+        votingPeriodSeconds: 86400,
+        executionDelaySeconds: 3600,
+        executionWindowSeconds: 86400,
         ...overrides,
     }
 }
@@ -54,7 +60,7 @@ describe("address injection prevention", () => {
 
     it("refuses the entire roster rather than dropping invalid members", () => {
         expect(() => generateDAOCode(makeConfig({ members: [
-            { address: "g1" + "a".repeat(38), power: 1, roles: ["admin"] },
+            { address: MEMBER, power: 1, roles: ["admin"] },
             { address: "INJECTED_CODE", power: 1, roles: ["admin"] },
             { address: "", power: 1, roles: ["admin"] },
         ] }))).toThrow(/address/i)
@@ -105,11 +111,10 @@ describe("name/description injection prevention", () => {
         expect(code).toMatch(/description\s+=\s+".*process/)
     })
 
-    it("handles extremely long name without crash", () => {
-        const longName = "A".repeat(1000)
-        const code = generateDAOCode(makeConfig({ name: longName }))
-        expect(code).toContain(longName)
-        expect(code).toMatch(/^package secdao/)
+    // v2: names are capped at 64 characters instead of being accepted at any length.
+    it("refuses an extremely long name instead of writing it into the realm", () => {
+        expect(() => generateDAOCode(makeConfig({ name: "A".repeat(1000) }))).toThrow(/at most 64/)
+        expect(generateDAOCode(makeConfig({ name: "A".repeat(64) }))).toMatch(/^package secdao/)
     })
 })
 
@@ -140,32 +145,32 @@ describe("realm path security", () => {
 describe("power value hardening", () => {
     it("throws on negative power (was silently clamped to 0)", () => {
         expect(() => generateDAOCode(makeConfig({
-            members: [{ address: "g1" + "a".repeat(38), power: -999, roles: ["admin"] }],
+            members: [{ address: MEMBER, power: -999, roles: ["admin"] }],
         }))).toThrow(/power/i)
     })
 
     it("throws on fractional power (was silently floored)", () => {
         expect(() => generateDAOCode(makeConfig({
-            members: [{ address: "g1" + "a".repeat(38), power: 3.99, roles: ["admin"] }],
+            members: [{ address: MEMBER, power: 3.99, roles: ["admin"] }],
         }))).toThrow(/power/i)
     })
 
     it("throws on MAX_SAFE_INTEGER power (exceeds the 1e9 bound)", () => {
         expect(() => generateDAOCode(makeConfig({
-            members: [{ address: "g1" + "a".repeat(38), power: Number.MAX_SAFE_INTEGER, roles: ["admin"] }],
+            members: [{ address: MEMBER, power: Number.MAX_SAFE_INTEGER, roles: ["admin"] }],
         }))).toThrow(/power/i)
     })
 
     it("throws on NaN power (was interpolated as literal NaN)", () => {
         expect(() => generateDAOCode(makeConfig({
-            members: [{ address: "g1" + "a".repeat(38), power: NaN, roles: ["admin"] }],
+            members: [{ address: MEMBER, power: NaN, roles: ["admin"] }],
         }))).toThrow(/power/i)
     })
 
     it("boundary powers still generate", () => {
         const code = generateDAOCode(makeConfig({
-            members: [{ address: "g1" + "a".repeat(38), power: 1_000_000_000, roles: ["admin"] }],
+            members: [{ address: MEMBER, power: 1_000_000_000, roles: ["admin"] }],
         }))
-        expect(code).toContain("Power: 1000000000")
+        expect(code).toContain(`addGenesisMember("${MEMBER}", 1000000000, []string{"admin"})`)
     })
 })

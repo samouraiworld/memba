@@ -84,6 +84,12 @@ function clearDraft() {
     try { localStorage.removeItem(DRAFT_KEY) } catch { /* Storage access must not turn a confirmed transaction into a failure. */ }
 }
 
+/** Voting period, delay and window of the chosen preset (Basic when none). */
+function presetWindows(preset: DAOPreset | undefined): Pick<DAOCreationConfig, "votingPeriodSeconds" | "executionDelaySeconds" | "executionWindowSeconds"> {
+    const p = preset ?? DAO_PRESETS[0]
+    return { votingPeriodSeconds: p.votingPeriodSeconds, executionDelaySeconds: p.executionDelaySeconds, executionWindowSeconds: p.executionWindowSeconds }
+}
+
 // ── Main Component (Orchestrator) ─────────────────────────
 
 export function CreateDAO() {
@@ -145,7 +151,7 @@ export function CreateDAO() {
                     name: draft.name, description: draft.description, realmPath: draft.realmPath,
                     members: draft.members.filter(m => m.address !== ""), roles: draft.availableRoles,
                     threshold: draft.threshold, quorum: draft.quorum, proposalCategories: draft.proposalCategories,
-                    votingPeriodBlocks: preset?.votingPeriodBlocks ?? 151200,
+                    ...presetWindows(preset),
                 }))
             } catch {
                 resumeStep = 1
@@ -217,7 +223,7 @@ export function CreateDAO() {
                 name, description, realmPath, threshold, quorum, proposalCategories,
                 roles: availableRoles,
                 members: members.filter((m) => m.address !== ""),
-                votingPeriodBlocks: preset?.votingPeriodBlocks ?? 151200,
+                ...presetWindows(preset),
             }
             // W1.1: codegen is fail-closed and throws on invalid input. Steps
             // should have caught everything, but never crash the wizard —
@@ -267,7 +273,7 @@ export function CreateDAO() {
                 name, description, realmPath, threshold, quorum, proposalCategories,
                 roles: availableRoles,
                 members: members.filter((m) => m.address !== ""),
-                votingPeriodBlocks: preset?.votingPeriodBlocks ?? 151200,
+                ...presetWindows(preset),
             }
             const code = generateDAOCode(config)
             const msg = buildDeployDAOMsg(adena.address, realmPath, code, "10000000ugnot")

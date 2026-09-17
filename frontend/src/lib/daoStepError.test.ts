@@ -3,6 +3,7 @@ import { daoStepError, type DAOStepData } from "./daoTemplate"
 
 // A syntactically valid g1 address: starts with the bech32 prefix, length >= 39.
 const validAddr = "g1" + "a".repeat(38)
+const checksummedAddr = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
 
 const base: DAOStepData = {
     name: "My DAO",
@@ -33,15 +34,25 @@ describe("daoStepError — pure wizard step validation", () => {
         ).toBe("At least one member with a valid g1 address is required")
     })
 
-    it("step 2: rejects when no member has the admin role", () => {
+    // v2: roles are labels, so no admin is required; the address checksum is.
+    it("step 2: accepts a roster without an admin role", () => {
+        expect(
+            daoStepError(2, { ...base, members: [{ address: checksummedAddr, roles: ["member"] }] }),
+        ).toBeNull()
+    })
+
+    it("step 2: rejects an address whose checksum does not match", () => {
         expect(
             daoStepError(2, { ...base, members: [{ address: validAddr, roles: ["member"] }] }),
-        ).toBe("At least one member must have the admin role")
+        ).toBe("A member address has a typo (its checksum does not match)")
     })
 
     it("step 3: rejects an out-of-range threshold", () => {
         expect(daoStepError(3, { ...base, threshold: 0 })).toBe(
-            "Threshold must be between 1 and 100",
+            "Threshold must be between 51 and 100",
+        )
+        expect(daoStepError(3, { ...base, threshold: 50 })).toBe(
+            "Threshold must be between 51 and 100",
         )
     })
 

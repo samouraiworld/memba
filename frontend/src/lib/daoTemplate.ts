@@ -1,21 +1,32 @@
 /**
- * DAO Template Generator — generates Gno realm code for deploying a new DAO.
+ * DAO Template Generator — generates the Gno realm a user deploys for a new DAO.
  *
- * Creates a self-contained governance realm with:
- * - Member management (address + voting power + roles)
- * - Role-based access control (admin, dev, finance, ops, member)
- * - Configurable quorum (minimum participation %)
- * - Proposal categories (governance, treasury, membership, operations)
- * - Voting (YES / NO / ABSTAIN)
- * - Execution of passed proposals
+ * Template version `memba-dao/2` (see `templates/dao/v2/realm.ts`):
+ * - members with bounded voting power and role labels (roles grant nothing);
+ * - every membership, role or archive change is a proposal members vote on;
+ * - time-based voting period, execution delay and execution window;
+ * - YES / NO / ABSTAIN with overflow-safe threshold and quorum math;
+ * - bounded, paginated JSON reads and an escaped Render.
  *
- * Deployed via MsgAddPackage through Adena DoContract.
+ * Every value is validated here first and the generator throws on anything
+ * invalid: a deployed realm is immutable, so nothing may be silently fixed up.
  */
 
 import type { AminoMsg } from "./grc20"
+import { GNO_BECH32_HRP } from "./config"
 import { isValidGnoAddress, isValidIdentifier, validateRealmPath, requireInt, requireRealmPath } from "./templates/sanitizer"
 import { buildDeployMsg } from "./templates/prologue"
+import { isChecksummedAddress } from "./templates/dao/v2/bech32"
+import { REALM_LIMITS, renderRealmV2 } from "./templates/dao/v2/realm"
 export { validateRealmPath }
+export { TEMPLATE_VERSION as DAO_TEMPLATE_VERSION, API_VERSION as DAO_API_VERSION, REALM_LIMITS as DAO_REALM_LIMITS } from "./templates/dao/v2/realm"
+
+// ── Limits ────────────────────────────────────────────────────
+
+export const DAO_NAME_MAX = 64
+export const DAO_DESCRIPTION_MAX = 1000
+export const DAO_MIN_THRESHOLD = 51
+const MAX_LABELS = 16
 
 // ── Wizard step validation (pure, testable) ───────────────────
 
@@ -23,7 +34,7 @@ export interface DAOStepData {
     name: string
     realmPath: string
     // power optional: some callers only step-validate address/roles; when
-    // present it is range-checked (W1.1) before the fail-closed codegen throw.
+    // present it is range-checked before the fail-closed codegen throw.
     members: { address: string; roles: string[]; power?: number }[]
     threshold: number
     quorum: number
@@ -39,36 +50,66 @@ function daoPackageError(path: string): string | null {
     return null
 }
 
-function daoMemberError(members: DAOStepData["members"]): string | null {
-    if (members.length === 0) return "At least one member with a valid g1 address is required"
-    if (members.some(m => !isValidGnoAddress(m.address))) return "Every member must have a valid g1 address (40 characters)"
-    if (new Set(members.map(m => m.address)).size !== members.length) return "Duplicate member addresses are not allowed"
-    if (!members.some(m => m.roles.includes("admin"))) return "At least one member must have the admin role"
-    if (members.some(m => m.power !== undefined && (!Number.isSafeInteger(m.power) || m.power < 0 || m.power > 1_000_000_000))) {
-        return "Member voting power must be a whole number between 0 and 1,000,000,000"
-    }
-    const total = members.reduce((sum, m) => sum + (m.power ?? 1), 0)
-    if (!Number.isSafeInteger(total) || total <= 0) return "Total member voting power must be positive and within the safe integer range"
+/** Lone UTF-16 surrogates cannot be written into Gno source (R-13). */
+function hasLoneSurrogate(s: string): boolean {
+    return /[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/.test(s)
+}
+
+/** C0/C1 controls, DEL and the Unicode line/paragraph separators. */
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS = /[\u0000-\u001F\u007F-\u009F\u2028\u2029]/
+// eslint-disable-next-line no-control-regex
+const CONTROL_CHARS_EXCEPT_NEWLINE = /[\u0000-\u0009\u000B-\u001F\u007F-\u009F\u2028\u2029]/
+
+function nameError(name: string): string | null {
+    if (typeof name !== "string" || !name.trim()) return "DAO name is required"
+    if (name.trim().length < 3) return "DAO name must be at least 3 characters"
+    if (name.length > DAO_NAME_MAX) return `DAO name must be at most ${DAO_NAME_MAX} characters`
+    if (hasLoneSurrogate(name) || CONTROL_CHARS.test(name)) return "DAO name contains characters that are not allowed"
     return null
 }
 
-function requireIdentifiers(label: string, values: string[]): void {
-    if (values.length === 0 || values.some(value => !isValidIdentifier(value))) {
+function descriptionError(description: string): string | null {
+    if (typeof description !== "string") return "DAO description must be text"
+    if (description.length > DAO_DESCRIPTION_MAX) return `DAO description must be at most ${DAO_DESCRIPTION_MAX} characters`
+    if (hasLoneSurrogate(description) || CONTROL_CHARS_EXCEPT_NEWLINE.test(description)) return "DAO description contains characters that are not allowed"
+    return null
+}
+
+/** True when addr is a well-formed, checksummed address on the configured network. */
+export function isDeployableMemberAddress(addr: string): boolean {
+    return isValidGnoAddress(addr) && isChecksummedAddress(addr, GNO_BECH32_HRP)
+}
+
+function daoMemberError(members: DAOStepData["members"]): string | null {
+    if (members.length === 0) return "At least one member with a valid g1 address is required"
+    if (members.length > REALM_LIMITS.maxMembers) return `A DAO can have at most ${REALM_LIMITS.maxMembers} members`
+    if (members.some(m => !isValidGnoAddress(m.address))) return "Every member must have a valid g1 address (40 characters)"
+    if (members.some(m => !isChecksummedAddress(m.address, GNO_BECH32_HRP))) return "A member address has a typo (its checksum does not match)"
+    if (new Set(members.map(m => m.address)).size !== members.length) return "Duplicate member addresses are not allowed"
+    if (members.some(m => m.power !== undefined && (!Number.isSafeInteger(m.power) || m.power < 1 || m.power > REALM_LIMITS.maxPower))) {
+        return "Member voting power must be a whole number between 1 and 1,000,000,000"
+    }
+    return null
+}
+
+function requireLabels(label: string, values: string[]): void {
+    if (!Array.isArray(values) || values.length === 0 || values.some(value => !isValidIdentifier(value))) {
         throw new Error(`Invalid ${label}: provide at least one valid identifier`)
     }
+    if (values.length > MAX_LABELS) throw new Error(`Too many ${label}: at most ${MAX_LABELS}`)
     if (new Set(values).size !== values.length) throw new Error(`Duplicate ${label} are not allowed`)
 }
 
 /**
  * Validate a single CreateDAO wizard step's data. Returns an error string for
  * the first problem found, or null if the step is valid. Pure (no component
- * state) so it can guard both the "Next" button and direct step-indicator
- * navigation — fixing the bug where clicking a future step skipped validation.
+ * state) so it can guard both the "Next" button and direct step navigation.
  */
 export function daoStepError(step: number, d: DAOStepData): string | null {
     if (step === 1) {
-        if (!d.name.trim()) return "DAO name is required"
-        if (d.name.trim().length < 3) return "DAO name must be at least 3 characters"
+        const err = nameError(d.name)
+        if (err) return err
         if (!d.realmPath.trim()) return "Realm path is required"
         const pathErr = validateRealmPath(d.realmPath)
         if (pathErr) return pathErr
@@ -82,8 +123,8 @@ export function daoStepError(step: number, d: DAOStepData): string | null {
     }
     if (step === 3) {
         // NaN (e.g. an emptied number input) fails BOTH range comparisons —
-        // check integer-ness explicitly or it sails through to codegen (W1.1).
-        if (!Number.isInteger(d.threshold) || d.threshold < 1 || d.threshold > 100) return "Threshold must be between 1 and 100"
+        // check integer-ness explicitly or it sails through to codegen.
+        if (!Number.isInteger(d.threshold) || d.threshold < DAO_MIN_THRESHOLD || d.threshold > 100) return "Threshold must be between 51 and 100"
         if (!Number.isInteger(d.quorum) || d.quorum < 0 || d.quorum > 100) return "Quorum must be between 0 and 100"
     }
     return null
@@ -92,44 +133,28 @@ export function daoStepError(step: number, d: DAOStepData): string | null {
 // ── Types ─────────────────────────────────────────────────────
 
 export interface DAOCreationConfig {
-    /** Human-readable DAO name. */
+    /** Human-readable DAO name (3–64 characters, single line). */
     name: string
-    /** Short description. */
+    /** Short description (at most 1000 characters). */
     description: string
-    /** Gno realm path (e.g., gno.land/r/username/mydao). */
+    /** Gno realm path (e.g., gno.land/r/<address>/mydao). */
     realmPath: string
-    /** Initial members with voting power and roles. */
+    /** Founding members: power 1..1e9, roles are labels only. */
     members: { address: string; power: number; roles: string[] }[]
-    /** Voting threshold percentage (51 = simple majority). */
+    /** Share of ALL voting power that must vote YES, 51..100. */
     threshold: number
-    /** Roles available in this DAO. */
+    /** Role labels available in this DAO. Roles grant no powers. */
     roles: string[]
-    /** Minimum participation % required before votes can pass (0 = disabled). */
+    /** Share of all voting power that must take part (YES, NO or ABSTAIN), 0..100. */
     quorum: number
-    /** Allowed proposal categories. */
+    /** Categories allowed for text proposals. */
     proposalCategories: string[]
-    /** Voting period in blocks (0 = no expiration). ~2s/block on Gno. Default: 151200 (~3.5 days). */
-    votingPeriodBlocks: number
-    /**
-     * W1.3 deliberation floor: minimum blocks between a proposal's creation and
-     * its execution (default 600 ≈ 20 min at 2s/block; 0 disables). A whale whose
-     * single YES vote makes a proposal mathematically final could otherwise
-     * propose-and-execute in the same block, before members even see it.
-     *
-     * Independent of votingPeriodBlocks by design — this is a timelock, and a
-     * timelock LONGER than the voting window is a legitimate pattern (Compound-
-     * style). Execution never checks ExpiresAt, so an ACCEPTED proposal stays
-     * executable once the delay elapses even if voting has since closed.
-     *
-     * Quorum & ABSTAIN semantics (documented per W1.3): all percentages use the
-     * FULL member power as denominator. `quorum` counts participation — YES, NO
-     * and ABSTAIN all count toward it. `threshold` is the YES share needed to
-     * pass; ABSTAIN power never counts toward YES/NO, and since each member votes
-     * once, abstained power can never become YES — a proposal is REJECTED as soon
-     * as passage becomes impossible. Open proposals are invalidated when a
-     * member is added or removed; already ACCEPTED decisions retain finality.
-     */
-    minExecutionDelayBlocks?: number
+    /** How long a proposal accepts votes, 1 h .. 30 d. */
+    votingPeriodSeconds: number
+    /** Wait between acceptance and the earliest execution, 0 .. 7 d. */
+    executionDelaySeconds: number
+    /** How long an accepted proposal stays executable after the delay, 1 d .. 30 d. */
+    executionWindowSeconds: number
 }
 
 // ── Presets ────────────────────────────────────────────────────
@@ -143,53 +168,53 @@ export interface DAOPreset {
     threshold: number
     quorum: number
     categories: string[]
-    votingPeriodBlocks: number
+    votingPeriodSeconds: number
+    executionDelaySeconds: number
+    executionWindowSeconds: number
 }
+
+const HOUR = 3600
+const DAY = 86400
 
 export const DAO_PRESETS: DAOPreset[] = [
     {
         id: "basic",
         name: "Basic",
         icon: "🏠",
-        description: "Simple DAO with admin + member roles. No quorum requirement.",
+        description: "Simple DAO with member roles and no quorum. Votes last 3 days.",
         roles: ["admin", "member"],
         threshold: 51,
         quorum: 0,
         categories: ["governance"],
-        votingPeriodBlocks: 151200, // ~3.5 days at 2s/block
+        votingPeriodSeconds: 3 * DAY,
+        executionDelaySeconds: 1 * HOUR,
+        executionWindowSeconds: 7 * DAY,
     },
     {
         id: "team",
         name: "Team",
         icon: "👥",
-        description: "Team DAO with admin, dev, and member roles. 33% quorum.",
+        description: "Team DAO with admin, dev and member labels, a 33% quorum and 2-day votes.",
         roles: ["admin", "dev", "member"],
         threshold: 51,
         quorum: 33,
         categories: ["governance", "membership"],
-        votingPeriodBlocks: 151200, // ~3.5 days
-    },
-    {
-        id: "treasury",
-        name: "Treasury",
-        icon: "💰",
-        description: "Admin, finance, and member roles with a 66% threshold and longer voting for high-stakes decisions. Governance only — the generated DAO doesn't custody funds on-chain.",
-        roles: ["admin", "finance", "member"],
-        threshold: 66,
-        quorum: 50,
-        categories: ["governance", "treasury"],
-        votingPeriodBlocks: 302400, // ~7 days (longer for treasury decisions)
+        votingPeriodSeconds: 2 * DAY,
+        executionDelaySeconds: 1 * HOUR,
+        executionWindowSeconds: 7 * DAY,
     },
     {
         id: "enterprise",
         name: "Enterprise",
         icon: "🏢",
-        description: "Full-featured DAO with admin, dev, finance, ops, and member roles.",
+        description: "Larger organisation: 66% threshold, 50% quorum, week-long votes and a 24-hour delay.",
         roles: ["admin", "dev", "finance", "ops", "member"],
         threshold: 66,
         quorum: 50,
-        categories: ["governance", "treasury", "membership", "operations"],
-        votingPeriodBlocks: 302400, // ~7 days
+        categories: ["governance", "membership", "operations"],
+        votingPeriodSeconds: 7 * DAY,
+        executionDelaySeconds: 24 * HOUR,
+        executionWindowSeconds: 14 * DAY,
     },
 ]
 
@@ -200,799 +225,49 @@ export { isValidGnoAddress } from "./templates/sanitizer"
 
 /**
  * Generate Gno realm source code from a DAO configuration.
- * Returns a self-contained .gno file as a string.
- *
- * Security: all user inputs are sanitized before interpolation.
- * - Addresses: strict bech32 validation (g1 + 38 lowercase alphanum)
- * - Roles/Categories: lowercase alphanumeric + underscore only
- * - Name/Description: JSON.stringify (auto-escapes) + control char strip
+ * Returns a self-contained .gno file as a string. Throws on any invalid input.
  */
 export function generateDAOCode(config: DAOCreationConfig): string {
-    // W1.1 fail-closed: generated realms are immutable on deploy — reject
-    // invalid input here rather than trusting bypassable wizard HTML attrs.
     requireRealmPath("realmPath", config.realmPath)
-    requireInt("threshold", config.threshold, 1, 100)
-    requireInt("quorum", config.quorum, 0, 100)
-    requireInt("votingPeriodBlocks", config.votingPeriodBlocks ?? 0, 0, 1_000_000_000)
-    const minExecutionDelay = requireInt("minExecutionDelayBlocks", config.minExecutionDelayBlocks ?? 600, 0, 1_000_000_000)
-
-    const pkgName = config.realmPath.split("/").pop() || "mydao"
-
     const packageError = daoPackageError(config.realmPath)
     if (packageError) throw new Error(packageError)
+    const nameErr = nameError(config.name)
+    if (nameErr) throw new Error(nameErr)
+    const descErr = descriptionError(config.description)
+    if (descErr) throw new Error(descErr)
+
+    requireInt("threshold", config.threshold, DAO_MIN_THRESHOLD, 100)
+    requireInt("quorum", config.quorum, 0, 100)
+    requireInt("votingPeriodSeconds", config.votingPeriodSeconds, REALM_LIMITS.minVotingPeriod, REALM_LIMITS.maxVotingPeriod)
+    requireInt("executionDelaySeconds", config.executionDelaySeconds, 0, REALM_LIMITS.maxExecutionDelay)
+    requireInt("executionWindowSeconds", config.executionWindowSeconds, REALM_LIMITS.minExecutionWindow, REALM_LIMITS.maxExecutionWindow)
+
+    if (!Array.isArray(config.members)) throw new Error("Invalid members")
     const memberError = daoMemberError(config.members)
     if (memberError) throw new Error(memberError)
-    requireIdentifiers("roles", config.roles)
-    requireIdentifiers("proposal categories", config.proposalCategories)
-    if (!config.roles.includes("admin")) throw new Error("Available roles must include admin")
+    requireLabels("roles", config.roles)
+    requireLabels("proposal categories", config.proposalCategories)
     for (const member of config.members) {
+        requireInt("member power", member.power, 1, REALM_LIMITS.maxPower)
         if (member.roles.some(role => !config.roles.includes(role))) throw new Error("Member roles must be declared in available roles")
         if (new Set(member.roles).size !== member.roles.length) throw new Error("Duplicate member roles are not allowed")
     }
-    // Preserve the reviewed configuration exactly. Filtering here could change
-    // the founding roster, voting denominator or role configuration silently.
-    const validMembers = config.members
-    const safeCategories = config.proposalCategories
-    const categoriesInit = safeCategories
-        .map((c) => `\tallowedCategories = append(allowedCategories, "${c}")`)
-        .join("\n")
 
-    const safeRoles = config.roles
-    const rolesInit = safeRoles
-        .map((r) => `\tallowedRoles = append(allowedRoles, "${r}")`)
-        .join("\n")
-
-    // v6 GNO-01: members and proposals use AVL trees instead of slices.
-    // This gives O(log n) lookups instead of O(n), preventing gas DoS at scale.
-    const memberInitAVL = validMembers
-        .map((m) => {
-            const safeRoles = m.roles
-            const rolesStr = safeRoles.map((r) => `"${r}"`).join(", ")
-            return `\tmembers.Set("${m.address}", &Member{Address: address("${m.address}"), Power: ${requireInt("member power", m.power, 0, 1_000_000_000)}, Roles: []string{${rolesStr}}})`
-        })
-        .join("\n")
-
-    return `package ${pkgName}
-
-import (
-\t"chain/runtime"
-\t"chain/runtime/unsafe"
-\t"strings"
-\t"strconv"
-
-\t"gno.land/p/nt/avl/v0"
-\t"gno.land/p/nt/ufmt/v0"
-)
-
-// ── Types ─────────────────────────────────────────────────
-
-type Member struct {
-\tAddress address
-\tPower   int
-\tRoles   []string
-}
-
-type Vote struct {
-\tVoter address
-\tValue string // "YES", "NO", "ABSTAIN"
-}
-
-type Proposal struct {
-\tID          int
-\tTitle       string
-\tDescription string
-\tCategory    string
-\tAuthor      address
-\tStatus      string // "ACTIVE", "ACCEPTED", "REJECTED", "EXECUTED", "EXPIRED", "INVALIDATED"
-\tVotes       *avl.Tree // voter address → *Vote (prevents O(n) dedup scan)
-\tYesVotes    int
-\tNoVotes     int
-\tAbstain     int
-\tTotalPower  int
-\tElectorateVersion int // membership revision that may vote on this proposal
-\tElectoratePower int // historical denominator, including after closure
-\tActionType  string // "none", "add_member", "remove_member", "assign_role"
-\tActionData  string // serialized action params (e.g. "addr|power|role1,role2")
-\tCreatedAt   int64  // block height when proposed
-\tExpiresAt   int64  // block height when voting closes (0 = never)
-}
-
-// ── State ─────────────────────────────────────────────────
-
-var (
-\tname              = ${JSON.stringify(config.name)}
-\tdescription       = ${JSON.stringify(config.description)}
-\tthreshold         = ${config.threshold} // percentage required to pass
-\tquorum            = ${config.quorum}  // minimum participation % (0 = disabled)
-\tvotingPeriod      = int64(${config.votingPeriodBlocks || 151200}) // blocks until proposal expires (0 = never)
-\tminExecutionDelay = int64(${minExecutionDelay}) // blocks between Propose and the earliest ExecuteProposal (0 = none)
-\tmembers           = avl.NewTree() // address → *Member (O(log n) lookup)
-\tproposals         = avl.NewTree() // zero-padded ID → *Proposal (ordered iteration)
-\tnextID            = 0
-\telectorateVersion = 0 // increments on successful member addition/removal
-\tallowedCategories []string
-\tallowedRoles      []string
-\tarchived          = false
-)
-
-// padID returns a zero-padded proposal ID key for ordered AVL iteration.
-func padID(id int) string {
-\treturn ufmt.Sprintf("%010d", id)
-}
-
-func init() {
-${memberInitAVL}
-${categoriesInit}
-${rolesInit}
-}
-
-// ── Queries ───────────────────────────────────────────────
-
-func getProposal(id int) *Proposal {
-\tp, ok := proposals.Get(padID(id)).(*Proposal)
-\tif !ok {
-\t\treturn nil
-\t}
-\treturn p
-}
-
-// ── Structured reads (W1.4) ───────────────────────────────
-// APIVersion lets a client detect JSON-export support before falling back to
-// scraping Render() markdown (the frontend prefers these getters). Bump when
-// the JSON shape changes.
-const APIVersion = "1.0"
-
-func GetAPIVersion() string { return APIVersion }
-
-// jsonEsc quotes s as a JSON string literal (RFC 8259). The realm has no
-// encoding/json, and proposal titles/descriptions are user input, so this must
-// escape every control character or a crafted title could break the JSON.
-func jsonEsc(s string) string {
-\tout := "\\""
-\tfor _, r := range s {
-\t\tswitch r {
-\t\tcase '"':
-\t\t\tout += "\\\\\\""
-\t\tcase '\\\\':
-\t\t\tout += "\\\\\\\\"
-\t\tcase '\\n':
-\t\t\tout += "\\\\n"
-\t\tcase '\\r':
-\t\t\tout += "\\\\r"
-\t\tcase '\\t':
-\t\t\tout += "\\\\t"
-\t\tdefault:
-\t\t\tif r < 0x20 {
-\t\t\t\tout += ufmt.Sprintf("\\\\u%04x", int(r))
-\t\t\t} else {
-\t\t\t\tout += string(r)
-\t\t\t}
-\t\t}
-\t}
-\treturn out + "\\""
-}
-
-// Terminal voting states are derived on reads because a refused vote rolls
-// back. Already accepted proposals keep their irreversible execution lifecycle.
-func proposalStatus(p *Proposal) string {
-\tif p.Status == "ACTIVE" && p.ElectorateVersion != electorateVersion {
-\t\treturn "INVALIDATED"
-\t}
-\tif p.Status == "ACTIVE" && p.ExpiresAt > 0 && runtime.ChainHeight() > p.ExpiresAt {
-\t\treturn "EXPIRED"
-\t}
-\treturn p.Status
-}
-
-// GetProposalsJSON returns every proposal as a JSON array (newest first), the
-// snake_case shape dao/proposals.ts already reads. Frontend prefers this over
-// Render() scraping; keep the keys in sync with that parser.
-func GetProposalsJSON() string {
-\tout := "["
-\tfirst := true
-\tproposals.ReverseIterate("", "", func(key string, value interface{}) bool {
-\t\tp := value.(*Proposal)
-\t\tif !first {
-\t\t\tout += ","
-\t\t}
-\t\tfirst = false
-\t\tout += "{\\"id\\":" + strconv.Itoa(p.ID)
-\t\tout += ",\\"title\\":" + jsonEsc(p.Title)
-\t\tout += ",\\"description\\":" + jsonEsc(p.Description)
-\t\tout += ",\\"category\\":" + jsonEsc(p.Category)
-\t\tout += ",\\"status\\":" + jsonEsc(proposalStatus(p))
-\t\tout += ",\\"author\\":" + jsonEsc(string(p.Author))
-\t\tout += ",\\"yes_votes\\":" + strconv.Itoa(p.YesVotes)
-\t\tout += ",\\"no_votes\\":" + strconv.Itoa(p.NoVotes)
-\t\tout += ",\\"abstain_votes\\":" + strconv.Itoa(p.Abstain)
-\t\tout += ",\\"total_power\\":" + strconv.Itoa(p.TotalPower)
-\t\tout += ",\\"created_at_block\\":" + strconv.FormatInt(p.CreatedAt, 10)
-\t\tout += "}"
-\t\treturn false
-\t})
-\treturn out + "]"
-}
-
-// GetMembersJSON returns every member as a JSON array.
-func GetMembersJSON() string {
-\tout := "["
-\tfirst := true
-\tmembers.Iterate("", "", func(key string, value interface{}) bool {
-\t\tm := value.(*Member)
-\t\tif !first {
-\t\t\tout += ","
-\t\t}
-\t\tfirst = false
-\t\tout += "{\\"address\\":" + jsonEsc(string(m.Address))
-\t\tout += ",\\"power\\":" + strconv.Itoa(m.Power)
-\t\tout += ",\\"roles\\":["
-\t\tfor i, r := range m.Roles {
-\t\t\tif i > 0 {
-\t\t\t\tout += ","
-\t\t\t}
-\t\t\tout += jsonEsc(r)
-\t\t}
-\t\tout += "]}"
-\t\treturn false
-\t})
-\treturn out + "]"
-}
-
-const renderPageSize = 20
-
-func Render(path string) string {
-\tif path == "" {
-\t\treturn renderHome(0)
-\t}
-\t// Pagination: "?page=N", 1-indexed to match the frontend + the footer links
-\t// (dao/proposals.ts fetches ?page=2.. after Render("") is page 1). The old
-\t// "page:N" prefix was never sent by any client → pages 2+ 404'd silently.
-\tif strings.HasPrefix(path, "?page=") {
-\t\tpage, err := strconv.Atoi(strings.TrimPrefix(path, "?page="))
-\t\tif err == nil && page >= 1 {
-\t\t\treturn renderHome(page - 1)
-\t\t}
-\t}
-\t// Parse proposal ID from path
-\tparts := strings.Split(path, "/")
-\tif len(parts) >= 1 {
-\t\tid, err := strconv.Atoi(parts[0])
-\t\tif err == nil {
-\t\t\tp := getProposal(id)
-\t\t\tif p != nil {
-\t\t\t\tif len(parts) >= 2 && parts[1] == "votes" {
-\t\t\t\t\treturn renderVotes(p)
-\t\t\t\t}
-\t\t\t\treturn renderProposal(p)
-\t\t\t}
-\t\t}
-\t}
-\treturn "# Not Found"
-}
-
-func renderHome(page int) string {
-\tout := "# " + name + "\\n"
-\tout += description + "\\n\\n"
-\tout += "Threshold: " + strconv.Itoa(threshold) + "% | Quorum: " + strconv.Itoa(quorum) + "%\\n\\n"
-\tout += "## Members (" + strconv.Itoa(members.Size()) + ")\\n"
-\tmembers.Iterate("", "", func(key string, value interface{}) bool {
-\t\tm := value.(*Member)
-\t\tout += "- " + string(m.Address) + " (roles: " + strings.Join(m.Roles, ", ") + ") | power: " + strconv.Itoa(m.Power) + "\\n"
-\t\treturn false
-\t})
-\tout += "\\n## Proposals\\n"
-\t// Paginated reverse iterate (newest first)
-\tskip := page * renderPageSize
-\tshown := 0
-\tskipped := 0
-\tproposals.ReverseIterate("", "", func(key string, value interface{}) bool {
-\t\tif skipped < skip {
-\t\t\tskipped++
-\t\t\treturn false
-\t\t}
-\t\tif shown >= renderPageSize {
-\t\t\treturn true // stop
-\t\t}
-\t\tp := value.(*Proposal)
-\t\tout += "### [Prop #" + strconv.Itoa(p.ID) + " - " + p.Title + "](:" + strconv.Itoa(p.ID) + ")\\n"
-\t\tout += "Author: " + string(p.Author) + "\\n\\n"
-\t\tout += "Category: " + p.Category + "\\n\\n"
-\t\tout += "Status: " + proposalStatus(p) + "\\n\\n---\\n\\n"
-\t\tshown++
-\t\treturn false
-\t})
-\tif proposals.Size() == 0 {
-\t\tout += "No proposals yet.\\n"
-\t}
-\t// Pagination footer — clickable [N](?page=N) links so a client (and
-\t// dao/proposals.ts detectMaxPage) can discover every page; plain "Page N/M"
-\t// text alone left the frontend capped at page 1.
-\ttotalPages := (proposals.Size() + renderPageSize - 1) / renderPageSize
-\tif totalPages > 1 {
-\t\tout += "\\n---\\nPage " + strconv.Itoa(page+1) + "/" + strconv.Itoa(totalPages) + "\\n\\n"
-\t\tfor i := 1; i <= totalPages; i++ {
-\t\t\tout += "[" + strconv.Itoa(i) + "](?page=" + strconv.Itoa(i) + ") "
-\t\t}
-\t\tout += "\\n"
-\t}
-\treturn out
-}
-
-func renderProposal(p *Proposal) string {
-\tout := "# Prop #" + strconv.Itoa(p.ID) + " - " + p.Title + "\\n"
-\tout += p.Description + "\\n\\n"
-\tout += "Author: " + string(p.Author) + "\\n\\n"
-\tout += "Category: " + p.Category + "\\n\\n"
-\tout += "Status: " + proposalStatus(p) + "\\n\\n"
-\tout += "YES: " + strconv.Itoa(p.YesVotes) + " | NO: " + strconv.Itoa(p.NoVotes) + " | ABSTAIN: " + strconv.Itoa(p.Abstain) + "\\n"
-\tout += "Total Power: " + strconv.Itoa(p.TotalPower) + "/" + strconv.Itoa(p.ElectoratePower) + "\\n"
-\tif proposalStatus(p) == "INVALIDATED" {
-\t\tout += "Membership changed; create a new proposal to collect votes from the current members.\\n"
-\t}
-\tif p.ExpiresAt > 0 {
-\t\tout += "Voting closes at block: " + strconv.FormatInt(p.ExpiresAt, 10) + "\\n"
-\t\tif proposalStatus(p) == "EXPIRED" {
-\t\t\tout += "**EXPIRED** — voting period has ended.\\n"
-\t\t}
-\t}
-\treturn out
-}
-
-func renderVotes(p *Proposal) string {
-\tout := "# Proposal #" + strconv.Itoa(p.ID) + " - Vote List\\n\\n"
-\tout += "YES:\\n"
-\tp.Votes.Iterate("", "", func(key string, value interface{}) bool {
-\t\tv := value.(*Vote)
-\t\tif v.Value == "YES" {
-\t\t\tout += "- " + string(v.Voter) + "\\n"
-\t\t}
-\t\treturn false
-\t})
-\tout += "\\nNO:\\n"
-\tp.Votes.Iterate("", "", func(key string, value interface{}) bool {
-\t\tv := value.(*Vote)
-\t\tif v.Value == "NO" {
-\t\t\tout += "- " + string(v.Voter) + "\\n"
-\t\t}
-\t\treturn false
-\t})
-\tout += "\\nABSTAIN:\\n"
-\tp.Votes.Iterate("", "", func(key string, value interface{}) bool {
-\t\tv := value.(*Vote)
-\t\tif v.Value == "ABSTAIN" {
-\t\t\tout += "- " + string(v.Voter) + "\\n"
-\t\t}
-\t\treturn false
-\t})
-\treturn out
-}
-
-// ── Actions ───────────────────────────────────────────────
-
-func Propose(cur realm, title, desc, category string) int {
-\tcaller := unsafe.PreviousRealm().Address()
-\tassertNotArchived()
-\tassertMember(caller)
-\tassertCategory(category)
-\tid := nextID
-\tnextID++
-\tnow := runtime.ChainHeight()
-\texpires := int64(0)
-\tif votingPeriod > 0 {
-\t\texpires = now + votingPeriod
-\t}
-\tproposals.Set(padID(id), &Proposal{
-\t\tID:          id,
-\t\tTitle:       title,
-\t\tDescription: desc,
-\t\tCategory:    category,
-\t\tAuthor:      caller,
-\t\tStatus:      "ACTIVE",
-\t\tElectorateVersion: electorateVersion,
-\t\tElectoratePower: totalPower(),
-\t\tVotes:       avl.NewTree(),
-\t\tActionType:  "none",
-\t\tCreatedAt:   now,
-\t\tExpiresAt:   expires,
-\t})
-\treturn id
-}
-
-func VoteOnProposal(cur realm, id int, vote string) {
-\tcaller := unsafe.PreviousRealm().Address()
-\tassertNotArchived()
-\tassertMember(caller)
-\tp := getProposal(id)
-\tif p == nil {
-\t\tpanic("invalid proposal ID")
-\t}
-\tif p.Status == "ACTIVE" && p.ElectorateVersion != electorateVersion {
-\t\tpanic("proposal invalidated by membership change; create a new proposal")
-\t}
-\t// Check expiration first
-\tif p.ExpiresAt > 0 && runtime.ChainHeight() > p.ExpiresAt {
-\t\tp.Status = "EXPIRED"
-\t\tpanic("proposal has expired (voting period ended at block " + strconv.FormatInt(p.ExpiresAt, 10) + ")")
-\t}
-\tif p.Status != "ACTIVE" {
-\t\tpanic("proposal is not active")
-\t}
-\t// Check for duplicate votes — O(log n) AVL lookup instead of O(n) scan
-\tvoterKey := string(caller)
-\tif p.Votes.Has(voterKey) {
-\t\tpanic("already voted")
-\t}
-\tpower := getMemberPower(caller)
-\tp.Votes.Set(voterKey, &Vote{Voter: caller, Value: vote})
-\tswitch vote {
-\tcase "YES":
-\t\tp.YesVotes += power
-\tcase "NO":
-\t\tp.NoVotes += power
-\tcase "ABSTAIN":
-\t\tp.Abstain += power
-\tdefault:
-\t\tpanic("invalid vote: must be YES, NO, or ABSTAIN")
-\t}
-\tp.TotalPower += power
-\t// Finality (W1.3): a status flips ONLY when the outcome is irreversible.
-\t// Every percentage uses tpow — the FULL member power — as denominator:
-\t//   ACCEPT: YES ≥ threshold% of ALL power. Later votes cannot undo it
-\t//   (they can only raise other counters, never lower YesVotes/tpow).
-\t//   REJECT: passage has become impossible. Each member votes once, so
-\t//   power already cast as NO or ABSTAIN can never become YES; when YES
-\t//   plus ALL still-unvoted power stays below threshold%, no sequence of
-\t//   future votes can pass the proposal. (This replaces the old asymmetric
-\t//   NO > 100-threshold rule, which could reject while passage was still
-\t//   mathematically reachable — or deadlock at threshold=50.)
-\t// ABSTAIN counts toward quorum participation (TotalPower) but never
-\t// toward the YES/NO numerators. A membership revision invalidates open
-\t// voting before any counter changes, so weights never span electorates.
-\ttpow := p.ElectoratePower
-\tif tpow > 0 {
-\t\tquorumMet := quorum == 0 || (p.TotalPower * 100 / tpow >= quorum)
-\t\tif quorumMet && p.YesVotes * 100 / tpow >= threshold {
-\t\t\tp.Status = "ACCEPTED"
-\t\t}
-\t\t// Impossibility needs no quorum gate: more participation cannot make
-\t\t// an unreachable threshold reachable.
-\t\tmaxPossibleYes := p.YesVotes + (tpow - p.TotalPower)
-\t\tif p.Status == "ACTIVE" && maxPossibleYes * 100 / tpow < threshold {
-\t\t\tp.Status = "REJECTED"
-\t\t}
-\t}
-}
-
-func ExecuteProposal(cur realm, id int) {
-\tassertNotArchived()
-\tcaller := unsafe.PreviousRealm().Address()
-\tassertMember(caller)
-\tp := getProposal(id)
-\tif p == nil {
-\t\tpanic("invalid proposal ID")
-\t}
-\tif p.Status != "ACCEPTED" {
-\t\tpanic("proposal must be ACCEPTED to execute")
-\t}
-\t// W1.3 deliberation floor: even a mathematically-final ACCEPTED proposal
-\t// cannot execute immediately — members get minExecutionDelay blocks to
-\t// see what passed (and contest or exit) before the action applies.
-\tif runtime.ChainHeight() < p.CreatedAt+minExecutionDelay {
-\t\tpanic("execution delay not elapsed: executable at block " + strconv.FormatInt(p.CreatedAt+minExecutionDelay, 10))
-\t}
-\t// Dispatch action
-\tswitch p.ActionType {
-\tcase "add_member":
-\t\texecuteAddMember(p.ActionData)
-\tcase "remove_member":
-\t\texecuteRemoveMember(p.ActionData)
-\tcase "assign_role":
-\t\texecuteAssignRole(p.ActionData)
-\tcase "none":
-\t\t// Text-only proposal — no action
-\tdefault:
-\t\tpanic("unknown action type: " + p.ActionType)
-\t}
-\tp.Status = "EXECUTED"
-}
-
-// ── Member Proposals (governance-gated) ───────────────────
-
-func newProposal(caller address, title, desc, category, actionType, actionData string) int {
-\tid := nextID
-\tnextID++
-\tnow := runtime.ChainHeight()
-\texp := int64(0)
-\tif votingPeriod > 0 { exp = now + votingPeriod }
-\tproposals.Set(padID(id), &Proposal{
-\t\tID:          id,
-\t\tTitle:       title,
-\t\tDescription: desc,
-\t\tCategory:    category,
-\t\tAuthor:      caller,
-\t\tStatus:      "ACTIVE",
-\t\tElectorateVersion: electorateVersion,
-\t\tElectoratePower: totalPower(),
-\t\tVotes:       avl.NewTree(),
-\t\tActionType:  actionType,
-\t\tActionData:  actionData,
-\t\tCreatedAt:   now,
-\t\tExpiresAt:   exp,
-\t})
-\treturn id
-}
-
-func ProposeAddMember(cur realm, targetAddr address, power int, roles string) int {
-\tcaller := unsafe.PreviousRealm().Address()
-\tassertNotArchived()
-\tassertMember(caller)
-\tif members.Has(string(targetAddr)) {
-\t\tpanic("address is already a member")
-\t}
-\t// W1.3: fail fast on bad power/roles at propose time (mirrors ProposeAssignRole
-\t// + executeAddMember) so a member never wastes a vote on a proposal that can
-\t// only abort at execution. Empty roles is allowed (a plain power-holder).
-\tif power < 0 {
-\t\tpanic("power must be non-negative")
-\t}
-\tif roles != "" {
-\t\tfor _, r := range strings.Split(roles, ",") {
-\t\t\tassertRole(r)
-\t\t}
-\t}
-\ttitle := "Add member " + string(targetAddr)[:10] + "... with power " + strconv.Itoa(power)
-\tdesc := "**Action**: Add Member\\n**Address**: " + string(targetAddr) + "\\n**Power**: " + strconv.Itoa(power) + "\\n**Roles**: " + roles
-\tdata := string(targetAddr) + "|" + strconv.Itoa(power) + "|" + roles
-\treturn newProposal(caller, title, desc, "membership", "add_member", data)
-}
-
-func ProposeRemoveMember(cur realm, targetAddr address) int {
-\tcaller := unsafe.PreviousRealm().Address()
-\tassertNotArchived()
-\tassertMember(caller)
-\tassertMember(targetAddr)
-\ttitle := "Remove member " + string(targetAddr)[:10] + "..."
-\tdesc := "**Action**: Remove Member\\n**Address**: " + string(targetAddr)
-\treturn newProposal(caller, title, desc, "membership", "remove_member", string(targetAddr))
-}
-
-func ProposeAssignRole(cur realm, targetAddr address, role string) int {
-\tcaller := unsafe.PreviousRealm().Address()
-\tassertNotArchived()
-\tassertMember(caller)
-\tassertMember(targetAddr)
-\tassertRole(role)
-\ttitle := "Assign role " + strconv.Quote(role) + " to " + string(targetAddr)[:10] + "..."
-\tdesc := "**Action**: Assign Role\\n**Address**: " + string(targetAddr) + "\\n**Role**: " + role
-\treturn newProposal(caller, title, desc, "membership", "assign_role", string(targetAddr) + "|" + role)
-}
-
-// ── Action Executors (internal) ───────────────────────────
-
-func executeAddMember(data string) {
-\tparts := strings.Split(data, "|")
-\tif len(parts) != 3 {
-\t\tpanic("invalid add_member action data")
-\t}
-\taddr := address(parts[0])
-\tpower, err := strconv.Atoi(parts[1])
-\tif err != nil {
-\t\tpanic("invalid power in action data")
-\t}
-\tif power < 0 {
-\t\tpanic("invalid power in action data: must be non-negative")
-\t}
-\t// W1.3 CHN-4: validate every role against allowedRoles — mirrors
-\t// executeAssignRole; unvalidated roles slipped in via proposal ActionData.
-\t// Empty roles is a valid shape (a plain power-holder with no permissions):
-\t// strings.Split("", ",") yields [""], so guard it or assertRole("") would
-\t// wrongly brick an ACCEPTED empty-roles proposal forever.
-\tvar roles []string
-\tif parts[2] != "" {
-\t\troles = strings.Split(parts[2], ",")
-\t\tfor _, r := range roles {
-\t\t\tassertRole(r)
-\t\t}
-\t}
-\tif members.Has(string(addr)) {
-\t\tpanic("address is already a member")
-\t}
-\tmembers.Set(string(addr), &Member{Address: addr, Power: power, Roles: roles})
-\telectorateVersion++
-}
-
-func executeRemoveMember(data string) {
-\taddr := address(data)
-\tif hasRole(addr, "admin") {
-\t\tadminCount := 0
-\t\tmembers.Iterate("", "", func(key string, value interface{}) bool {
-\t\t\tm := value.(*Member)
-\t\t\tif hasRoleInternal(m, "admin") {
-\t\t\t\tadminCount++
-\t\t\t}
-\t\t\treturn false
-\t\t})
-\t\tif adminCount <= 1 {
-\t\t\tpanic("cannot remove the last admin")
-\t\t}
-\t}
-\tif !members.Has(string(addr)) {
-\t\tpanic("member not found")
-\t}
-\tmembers.Remove(string(addr))
-\telectorateVersion++
-}
-
-func executeAssignRole(data string) {
-\tparts := strings.Split(data, "|")
-\tif len(parts) != 2 {
-\t\tpanic("invalid assign_role action data")
-\t}
-\taddr := address(parts[0])
-\trole := parts[1]
-\tassertRole(role)
-\tm, ok := members.Get(string(addr)).(*Member)
-\tif !ok {
-\t\tpanic("member not found")
-\t}
-\tfor _, r := range m.Roles {
-\t\tif r == role {
-\t\t\tpanic("role already assigned")
-\t\t}
-\t}
-\tm.Roles = append(m.Roles, role)
-}
-
-// ── Role Management (admin-only) ──────────────────────────
-
-func AssignRole(cur realm, target address, role string) {
-\tassertNotArchived()
-\tcaller := unsafe.PreviousRealm().Address()
-\tassertAdmin(caller)
-\tassertRole(role)
-\tm, ok := members.Get(string(target)).(*Member)
-\tif !ok {
-\t\tpanic("target is not a member")
-\t}
-\tfor _, r := range m.Roles {
-\t\tif r == role {
-\t\t\tpanic("role already assigned")
-\t\t}
-\t}
-\tm.Roles = append(m.Roles, role)
-}
-
-func RemoveRole(cur realm, target address, role string) {
-\tassertNotArchived()
-\tcaller := unsafe.PreviousRealm().Address()
-\tassertAdmin(caller)
-\tif role == "admin" {
-\t\tadminCount := 0
-\t\tmembers.Iterate("", "", func(key string, value interface{}) bool {
-\t\t\tm := value.(*Member)
-\t\t\tif hasRoleInternal(m, "admin") {
-\t\t\t\tadminCount++
-\t\t\t}
-\t\t\treturn false
-\t\t})
-\t\tif adminCount <= 1 {
-\t\t\tpanic("cannot remove the last admin")
-\t\t}
-\t}
-\tm, ok := members.Get(string(target)).(*Member)
-\tif !ok {
-\t\tpanic("target is not a member")
-\t}
-\tnewRoles := []string{}
-\tfor _, r := range m.Roles {
-\t\tif r != role {
-\t\t\tnewRoles = append(newRoles, r)
-\t\t}
-\t}
-\tm.Roles = newRoles
-}
-
-// ── Archive Management ────────────────────────────────────
-
-func Archive(cur realm) {
-\tcaller := unsafe.PreviousRealm().Address()
-\tassertAdmin(caller)
-\tarchived = true
-}
-
-func IsArchived() bool {
-\treturn archived
-}
-
-// ── Helpers ───────────────────────────────────────────────
-
-func assertNotArchived() {
-\tif archived {
-\t\tpanic("DAO is archived — changes are disabled")
-\t}
-}
-
-func assertMember(addr address) {
-\tif !members.Has(string(addr)) {
-\t\tpanic("not a member")
-\t}
-}
-
-// IsMember reports whether addr is a member of this DAO. Exported so a companion
-// realm (e.g. the DAO's board/channels realm) can gate posting on DAO membership
-// via a cross-realm read call — see boardTemplate's assertIsMember.
-func IsMember(addr address) bool {
-\treturn members.Has(string(addr))
-}
-
-func assertAdmin(addr address) {
-\tm, ok := members.Get(string(addr)).(*Member)
-\tif !ok {
-\t\tpanic("admin role required")
-\t}
-\tif !hasRoleInternal(m, "admin") {
-\t\tpanic("admin role required")
-\t}
-}
-
-func hasRole(addr address, role string) bool {
-\tm, ok := members.Get(string(addr)).(*Member)
-\tif !ok {
-\t\treturn false
-\t}
-\treturn hasRoleInternal(m, role)
-}
-
-func hasRoleInternal(m *Member, role string) bool {
-\tfor _, r := range m.Roles {
-\t\tif r == role {
-\t\t\treturn true
-\t\t}
-\t}
-\treturn false
-}
-
-func getMemberPower(addr address) int {
-\tm, ok := members.Get(string(addr)).(*Member)
-\tif !ok {
-\t\treturn 0
-\t}
-\treturn m.Power
-}
-
-func totalPower() int {
-\ttotal := 0
-\tmembers.Iterate("", "", func(key string, value interface{}) bool {
-\t\ttotal += value.(*Member).Power
-\t\treturn false
-\t})
-\treturn total
-}
-
-func assertCategory(cat string) {
-\tfor _, c := range allowedCategories {
-\t\tif c == cat {
-\t\t\treturn
-\t\t}
-\t}
-\tpanic("invalid proposal category: " + cat)
-}
-
-func assertRole(role string) {
-\tfor _, r := range allowedRoles {
-\t\tif r == role {
-\t\t\treturn
-\t\t}
-\t}
-\tpanic("invalid role: " + role)
-}
-
-// ── Config (for Memba integration) ────────────────────────
-
-func GetDAOConfig() string {
-\treturn name
-}
-`
+    // Preserve the reviewed configuration exactly: no filtering or reordering
+    // that could change the founding roster or the voting denominator.
+    return renderRealmV2({
+        pkgName: config.realmPath.split("/").pop() as string,
+        name: config.name,
+        description: config.description,
+        threshold: config.threshold,
+        quorum: config.quorum,
+        votingPeriodSeconds: config.votingPeriodSeconds,
+        executionDelaySeconds: config.executionDelaySeconds,
+        executionWindowSeconds: config.executionWindowSeconds,
+        categories: config.proposalCategories,
+        roles: config.roles,
+        members: config.members,
+    })
 }
 
 // ── MsgAddPackage Builder ─────────────────────────────────
@@ -1010,5 +285,3 @@ export function buildDeployDAOMsg(
 ): AminoMsg {
     return buildDeployMsg(callerAddress, realmPath, code, deposit) as AminoMsg
 }
-
-// validateRealmPath is now re-exported from templates/sanitizer at the top of this file.
