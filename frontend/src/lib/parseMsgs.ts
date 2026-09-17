@@ -80,15 +80,15 @@ function parseSingleMsg(msg: Record<string, unknown>, truncate: (addr: string) =
     }
 
     // ── vm/MsgAddPackage ──────────────────────────────────────
-    if (type.includes("MsgAddPackage") || type.includes("vm/m_addpkg")) {
-        const pkg = (value.package as Record<string, unknown>)
-        const path = pkg?.path as string || (value.pkg_path as string) || "—"
-        const deposit = parseCoins(value.deposit)
+    if (isAddPackage(type)) {
+        const { path, depositCap } = readDeploy(value)
+        const deposit = depositCap === null ? parseCoins(value.deposit) : "—"
         return {
             type: "Deploy Package",
-            label: `Deploy ${path.split("/").pop() || path}`,
+            label: `Deploy realm ${path}`,
             fields: [
                 { key: "Path", value: path },
+                ...(depositCap !== null ? [{ key: "Storage deposit cap", value: depositCap, accent: true }] : []),
                 ...(deposit && deposit !== "—" ? [{ key: "Deposit", value: deposit, accent: true }] : []),
             ],
         }
@@ -99,6 +99,28 @@ function parseSingleMsg(msg: Record<string, unknown>, truncate: (addr: string) =
         type: type.split("/").pop() || type,
         label: type,
         fields: [{ key: "Raw", value: JSON.stringify(value, null, 2) }],
+    }
+}
+
+/** Deploy message types: `/vm.m_addpkg` (sent by the app), `vm/m_addpkg`, `vm/MsgAddPackage`. */
+function isAddPackage(type: string): boolean {
+    return type.includes("MsgAddPackage") || /(^|[/.])m_addpkg$/.test(type)
+}
+
+function readDeploy(value: Record<string, unknown>): { path: string; depositCap: string | null } {
+    const pkg = value.package as Record<string, unknown> | undefined
+    const path = (pkg?.path as string) || (value.pkg_path as string) || "—"
+    const cap = value.max_deposit
+    return { path, depositCap: cap == null || cap === "" ? null : parseCoins(cap) }
+}
+
+/** Path and storage deposit cap of a realm deploy message, or null for any other message. */
+export function deployEffect(msg: { type?: unknown; value?: unknown }): { path: string; depositCap: string | null } | null {
+    if (typeof msg.type !== "string" || !isAddPackage(msg.type)) return null
+    try {
+        return readDeploy((msg.value as Record<string, unknown>) ?? {})
+    } catch {
+        return { path: "—", depositCap: null }
     }
 }
 

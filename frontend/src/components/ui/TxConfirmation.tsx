@@ -18,6 +18,7 @@
 import { useState, useCallback, useRef, useEffect } from "react"
 import type { AminoMsg } from "../../lib/grc20"
 import { setTxConfirmationCallback } from "../../lib/grc20"
+import { deployEffect } from "../../lib/parseMsgs"
 import "./tx-confirmation.css"
 
 // ── Types ────────────────────────────────────────────────────
@@ -97,13 +98,15 @@ function TxConfirmationModal({
     // Parse transaction effects from messages
     const effects = messages.map((msg, i) => {
         const v = msg.value as Record<string, unknown>
-        const func = (v.func as string) || "unknown"
-        const caller = (v.caller as string) || ""
+        const deploy = deployEffect(msg)
+        const func = deploy ? `Deploy realm ${deploy.path}` : (v.func as string) || "unknown"
+        const caller = (v.caller as string) || (v.creator as string) || ""
         const send = (v.send as string) || ""
         const args = (v.args as string[]) || []
-        const pkgPath = (v.pkg_path as string) || ""
+        const pkgPath = deploy ? "" : (v.pkg_path as string) || ""
+        const depositCap = deploy?.depositCap ?? null
 
-        return { index: i, func, caller, send, args, pkgPath }
+        return { index: i, func, caller, send, args, pkgPath, depositCap }
     })
 
     // Detect if any message involves sending funds
@@ -171,6 +174,12 @@ function TxConfirmationModal({
                                     <span className="tx-confirm-value tx-confirm-addr">
                                         {e.caller.slice(0, 10)}...{e.caller.slice(-6)}
                                     </span>
+                                </div>
+                            )}
+                            {e.depositCap && (
+                                <div className="tx-confirm-detail-row">
+                                    <span className="tx-confirm-label">Storage deposit cap</span>
+                                    <span className="tx-confirm-value">{e.depositCap}</span>
                                 </div>
                             )}
                             {e.send && (

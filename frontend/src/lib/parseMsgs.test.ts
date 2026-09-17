@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { parseMsgs, parseFee } from './parseMsgs'
+import { parseMsgs, parseFee, deployEffect } from './parseMsgs'
 
 describe('parseMsgs', () => {
     it('parses MsgSend with ugnot → GNOT conversion', () => {
@@ -45,6 +45,7 @@ describe('parseMsgs', () => {
         expect(result[0].fields.find(f => f.key === 'Arguments')?.value).toBe('1, YES')
     })
 
+    // Legacy stored shape (vm/MsgAddPackage with a deposit key) still reads.
     it('parses MsgAddPackage with path and deposit', () => {
         const json = JSON.stringify([{
             type: 'vm/MsgAddPackage',
@@ -55,7 +56,18 @@ describe('parseMsgs', () => {
         }])
         const result = parseMsgs(json)
         expect(result[0].type).toBe('Deploy Package')
-        expect(result[0].label).toBe('Deploy test_dao')
+        expect(result[0].label).toBe('Deploy realm gno.land/r/zooma/test_dao')
+        expect(result[0].fields.find(f => f.key === 'Deposit')?.value).toBe('10 GNOT')
+    })
+
+    it('parses the /vm.m_addpkg deploy the app sends, with its storage deposit cap', () => {
+        const msg = { type: '/vm.m_addpkg', value: { creator: 'g1x', package: { path: 'gno.land/r/nym-alice123/team', files: [] }, send: '', max_deposit: '13000000ugnot' } }
+        const [parsed] = parseMsgs(JSON.stringify([msg]))
+        expect(parsed.label).toBe('Deploy realm gno.land/r/nym-alice123/team')
+        expect(parsed.fields).toContainEqual({ key: 'Storage deposit cap', value: '13 GNOT', accent: true })
+        expect(parseMsgs(JSON.stringify([{ ...msg, type: 'vm/m_addpkg' }]))[0].label).toBe('Deploy realm gno.land/r/nym-alice123/team')
+        expect(deployEffect(msg)).toEqual({ path: 'gno.land/r/nym-alice123/team', depositCap: '13 GNOT' })
+        expect(deployEffect({ type: 'vm/MsgCall', value: { func: 'Vote' } })).toBeNull()
     })
 
     it('returns fallback for invalid JSON', () => {
