@@ -3,6 +3,7 @@ import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { SkeletonCard } from "../ui/LoadingSkeleton"
 import { ProposalCard } from "./ProposalCard"
 import type { DAOProposal } from "../../lib/dao"
+import { downloadProposalsCsv } from "../../lib/dao/proposalsCsv"
 
 interface DAOProposalsSectionProps {
     encodedSlug: string
@@ -33,6 +34,15 @@ export function DAOProposalsSection({
             <div id="dao-proposals-section">
                 <div className="dao-section-header">
                     <h3 className="dao-section-title">Active Proposals</h3>
+                    {activeProposals.length + completedProposals.length > 0 && (
+                        <button
+                            type="button"
+                            className="k-btn-secondary"
+                            onClick={() => downloadProposalsCsv(realmPath, [...activeProposals, ...completedProposals])}
+                        >
+                            Export CSV
+                        </button>
+                    )}
                     {canPropose && (
                         <button
                             className="k-btn-primary dao-new-proposal-btn"

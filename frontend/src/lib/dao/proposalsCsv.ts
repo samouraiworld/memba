@@ -30,3 +30,16 @@ export function buildProposalsCsv(rows: ProposalCsvRow[]): string {
     ].join(","))
     return [HEADERS.map(csvCell).join(","), ...lines].join("\n")
 }
+
+/** Download proposals as a CSV file named after the DAO's realm. */
+export function downloadProposalsCsv(realmPath: string, rows: ProposalCsvRow[]): void {
+    const blob = new Blob([buildProposalsCsv(rows)], { type: "text/csv" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `${realmPath.split("/").pop() || "dao"}-proposals.csv`
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+}
