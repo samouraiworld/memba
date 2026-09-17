@@ -20,6 +20,17 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### DAO pages show only what each DAO supports (2026-09-17)
+<!-- categories: memba, network -->
+- **DAO pages recognise the kind of DAO contract before offering actions.** GovDAO is identified by its exact realm path; DAOs created with Memba are identified by the version they report. Vote, execute and proposal buttons, the New Proposal page and Quick Vote appear only where Memba can build a transaction the contract accepts, and only for members. GovDAO is vote and execute only; other DAO frameworks and unrecognised contracts are read-only.
+- **Treasury, Payroll, GnoSwap, Leaderboard, DAO plugins, voice rooms, the AI insight panels and the DAO health score were removed from DAO pages.** The treasury and plugin addresses now show a "Not available for this DAO or network" page. The proposal list keeps a CSV export button.
+- **Role changes on the Members page were removed.** The page is read-only; membership changes go through proposals.
+- **Creating a DAO is available only on networks that support it.** On gno.land mainnet the Create DAO page shows that it is not available yet. The notice for networks without Memba's own realms now explains that GovDAO and member-deployed DAOs can still be read, and Quests and Candidature are hidden there.
+- **DAO pages show the realm path first, with a Verified or Unverified label.** Verified means the realm path matches a known DAO on this network. A DAO using the name of a verified DAO at another address shows a warning.
+- **Channels open the DAO's own channels realm.** Each DAO's Channels page reads only a channels realm derived from its own path.
+- **Usernames, votes, tallies and members are read from the DAO's own data.** Usernames resolve through the users registry, "You voted" works for DAOs created with Memba and for GovDAO voters listed by username, GovDAO percentages keep their decimals, member voting power is shown, and members and tallies are read only from the sections the realm itself writes. A members list that cannot be read shows an error instead of an empty DAO.
+- **DAO data stays on the network and wallet it belongs to.** Saved DAOs are listed only on the network they were saved on, vote reminders and Quick Vote are kept per wallet, a failed Quick Vote shows its error, and switching networks in another tab reloads the page. DAO reads first check that the RPC endpoint serves the selected network and skip endpoints that serve another one.
+
 ### Backend readiness for DAOs on gno.land mainnet (2026-09-17)
 <!-- categories: memba, network -->
 - **Usernames are read from the users registry's address lookup.** The Username quest now accepts only a registered, non-deleted name recorded for exactly your address, and namespace ownership for deploy quests is read from the registry record's owner field.
