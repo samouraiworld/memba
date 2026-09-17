@@ -28,6 +28,7 @@ vi.mock("../lib/config", async (original) => {
         ACTIVE_NETWORK_KEY: "mainnet",
         GNO_CHAIN_ID: "gnoland-1",
         GNO_RPC_URL: "https://rpc.selected.invalid",
+        GNO_FALLBACK_RPC_URLS: ["https://rpc.fallback.invalid"],
         NETWORKS: { ...actual.NETWORKS, mainnet: { ...actual.NETWORKS.mainnet, get userDaos() { return mocks.caps } } },
     }
 })
@@ -152,6 +153,22 @@ describe("Create DAO on gnoland-1", () => {
         expect(mocks.save).not.toHaveBeenCalled()
         expect(listPendingDAOs("gnoland-1")).toMatchObject([{ path: PATH, name: "Mainnet DAO", txHash: "DEPLOYHASH" }])
         expect(mocks.broadcast).toHaveBeenCalledTimes(1)
+    })
+
+    it("pre-sign checks use the network's fallback endpoint when the primary is down", async () => {
+        statuses = [meta.absent(), meta.live()]
+        const answered = mocks.rpc.getMockImplementation()!
+        const urls: string[] = []
+        mocks.rpc.mockImplementation(async (url: string, method: string, params: Record<string, string>) => {
+            urls.push(url)
+            if (url === "https://rpc.selected.invalid") throw new TypeError("Failed to fetch")
+            return answered(url, method, params)
+        })
+        resumeReview()
+        confirm()
+        fireEvent.click(deployButton())
+        expect(await screen.findByText("DAO deployed successfully!")).toBeInTheDocument()
+        expect(urls).toContain("https://rpc.fallback.invalid")
     })
 
     it("refuses a path that is already used, before any signature", async () => {

@@ -18,6 +18,7 @@ import { daoDepositCapUgnot, estimateDAODepositUgnot, estimateDeployGas, formatG
 import { addSavedDAO, encodeSlug } from "../lib/daoSlug"
 import { doContractBroadcast, feeForGasWanted, networkGasPrice, FALLBACK_GAS_PRICE, type GasPrice } from "../lib/grc20"
 import { getGasConfig } from "../lib/gasConfig"
+import { getRpcUrlsInOrder } from "../lib/rpcFallback"
 import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, GNO_RPC_URL, NETWORKS } from "../lib/config"
 import { assertCanDeployTo } from "../lib/dao/namespace"
 import { assertPathAvailable, codeSubmissionPolicy, removePendingDAO, savePendingDAO, waitForPackage, type DeployOutcome } from "../lib/dao/packageStatus"
@@ -296,7 +297,8 @@ export function CreateDAO() {
 
     // ── Deploy ────────────────────────────────────────────
 
-    const chain = useMemo(() => ({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID }), [])
+    // Chain checks walk the network's endpoint list (each endpoint must serve this chain).
+    const chain = useMemo(() => ({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID, rpcUrls: getRpcUrlsInOrder() }), [])
 
     const deployDAO = async () => {
         if (deploying || deployResult || approval) return
