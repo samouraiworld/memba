@@ -547,7 +547,6 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 					llmOutput, err := callLLM(ctx, provider, systemPrompt, userPrompt)
 
 					if err != nil {
-						health.recordFailure(provider.Name)
 						slog.Warn("consensus LLM call failed",
 							"provider", provider.Name,
 							"role", provider.Role,
@@ -564,8 +563,6 @@ func HandleAnalystConsensus(db *sql.DB) http.Handler {
 						}
 						return
 					}
-					health.recordSuccess(provider.Name)
-
 					parsed := parseLLMOutput(llmOutput, provider.Role, provider.Model)
 					perspectives[idx] = ConsensusPerspective{
 						Model:           provider.Model,

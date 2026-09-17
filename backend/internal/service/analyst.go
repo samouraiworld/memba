@@ -203,12 +203,6 @@ func callOpenAICompatible(ctx context.Context, provider LLMProvider, systemPromp
 	}
 
 	if resp.StatusCode == http.StatusTooManyRequests {
-		if ra := resp.Header.Get("Retry-After"); ra != "" {
-			var secs int
-			if _, err := fmt.Sscan(ra, &secs); err == nil && secs > 0 {
-				health.setRetryAfter(provider.Name, time.Now().Add(time.Duration(secs)*time.Second))
-			}
-		}
 		return "", fmt.Errorf("rate limited (429): %s", string(body))
 	}
 
