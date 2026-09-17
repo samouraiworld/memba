@@ -11,7 +11,7 @@ vi.mock("../hooks/useScrollToTop", () => ({ useScrollToTop: () => {} }))
 // checks are covered by lib/dao/packageStatus.test.ts.
 vi.mock("../lib/config", async (original) => ({ ...await original<typeof import("../lib/config")>(), ACTIVE_NETWORK_KEY: "pearl", GNO_CHAIN_ID: "pearl-1" }))
 vi.mock("../lib/dao/namespace", () => ({ assertCanDeployTo: vi.fn(async () => {}) }))
-vi.mock("../lib/dao/packageStatus", () => ({ assertPathAvailable: vi.fn(async () => {}), codeSubmissionPolicy: mocks.policy, waitForPackage: mocks.wait, savePendingDAO: vi.fn() }))
+vi.mock("../lib/dao/packageStatus", () => ({ assertPathAvailable: vi.fn(async () => {}), codeSubmissionPolicy: mocks.policy, waitForPackage: mocks.wait, savePendingDAO: vi.fn(), removePendingDAO: vi.fn() }))
 import { CreateDAO } from "./CreateDAO"
 
 const draft = (overrides: Record<string, unknown> = {}) => ({
@@ -87,6 +87,9 @@ describe("DAO creation recovery", () => {
         expect(await screen.findByText(/could not be saved in this browser/)).toBeInTheDocument()
         expect(screen.getByText("DAO deployed successfully!")).toBeInTheDocument()
         expect(mocks.broadcast).toHaveBeenCalledTimes(1)
+        // pearl is not inert: no approval polling and no pending record
+        expect(mocks.wait).not.toHaveBeenCalled()
+        expect(localStorage.getItem("memba_pending_daos")).toBeNull()
     })
 
 })

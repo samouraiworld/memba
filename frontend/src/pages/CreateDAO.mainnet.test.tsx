@@ -132,12 +132,22 @@ describe("Create DAO on gnoland-1", () => {
     it("a package still parked is pending, not success", async () => {
         statuses = [meta.absent(), meta.inert()]
         const inert = JSON.parse(meta.inert())
-        vi.mocked(waitForPackage).mockResolvedValueOnce({ outcome: "pending", meta: inert })
+        let savedBeforePolling: unknown = null
+        vi.mocked(waitForPackage).mockImplementationOnce(async () => {
+            // the record exists before polling starts, so closing the tab keeps it
+            savedBeforePolling = listPendingDAOs("gnoland-1")
+            return { outcome: "pending", meta: inert, unconfirmed: false }
+        })
         resumeReview()
         confirm()
         fireEvent.click(deployButton())
-        expect(await screen.findByTestId("dao-approval-pending")).toHaveTextContent("gno.land has not enabled it yet")
-        expect(screen.getByTestId("dao-approval-pending")).toHaveTextContent("waiting for a package approver to enable it")
+        const pending = await screen.findByTestId("dao-approval-pending")
+        expect(savedBeforePolling).toMatchObject([{ path: PATH, txHash: "DEPLOYHASH" }])
+        expect(pending).toHaveTextContent("Your DAO becomes usable once gno.land enables it")
+        expect(pending).toHaveTextContent("Keep the realm path and transaction hash to check it later")
+        expect(pending).toHaveTextContent("DEPLOYHASH")
+        expect(pending).not.toHaveTextContent(/keep checking|My DAOs/)
+        expect(pending).toHaveTextContent("waiting for a package approver to enable it")
         expect(screen.queryByText("DAO deployed successfully!")).not.toBeInTheDocument()
         expect(mocks.save).not.toHaveBeenCalled()
         expect(listPendingDAOs("gnoland-1")).toMatchObject([{ path: PATH, name: "Mainnet DAO", txHash: "DEPLOYHASH" }])
@@ -204,5 +214,6 @@ describe("Create DAO on gnoland-1", () => {
         fireEvent.click(deployButton())
         await waitFor(() => expect(screen.getByTestId("deploy-error")).toHaveTextContent("DEPLOYHASH"))
         expect(mocks.save).not.toHaveBeenCalled()
+        expect(listPendingDAOs("gnoland-1")).toEqual([])
     })
 })

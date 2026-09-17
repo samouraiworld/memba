@@ -20,7 +20,7 @@ import { doContractBroadcast, feeForGasWanted, networkGasPrice, FALLBACK_GAS_PRI
 import { getGasConfig } from "../lib/gasConfig"
 import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, GNO_RPC_URL, NETWORKS } from "../lib/config"
 import { assertCanDeployTo } from "../lib/dao/namespace"
-import { assertPathAvailable, codeSubmissionPolicy, savePendingDAO, waitForPackage, type DeployOutcome } from "../lib/dao/packageStatus"
+import { assertPathAvailable, codeSubmissionPolicy, removePendingDAO, savePendingDAO, waitForPackage, type DeployOutcome } from "../lib/dao/packageStatus"
 import type { LayoutContext } from "../types/layout"
 import "./createdao.css"
 
@@ -351,6 +351,10 @@ export function CreateDAO() {
             // approver enables it: only "live" is a created DAO.
             let outcome: DeployOutcome = { outcome: "live", meta: { path: realmPath, status: "live" } }
             if (policy === "inert") {
+                // Record it before polling: closing the tab must not lose the DAO.
+                try {
+                    savePendingDAO({ chainId: GNO_CHAIN_ID, path: realmPath, name, txHash: res.hash, reason: "submitted, waiting for the network to enable it" })
+                } catch { /* the waiting panel still shows the path and transaction */ }
                 setDeployStep("idle")
                 setApproval({ phase: "waiting", txHash: res.hash })
                 outcome = await waitForPackage(chain, realmPath)
@@ -368,6 +372,9 @@ export function CreateDAO() {
                 return
             }
             setApproval(null)
+            if (policy === "inert") {
+                try { removePendingDAO(GNO_CHAIN_ID, realmPath) } catch { /* storage unavailable */ }
+            }
             if (outcome.outcome === "failed") {
                 throw new Error(`The DAO was not created: ${outcome.error}`)
             }
@@ -571,15 +578,12 @@ export function CreateDAO() {
                 <div className="k-card" role="status" data-testid="dao-approval-pending" style={{ padding: 20 }}>
                     <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)", marginBottom: 8 }}>Submitted, not enabled yet</h3>
                     <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)" }}>
-                        Submitted; gno.land has not enabled it yet. We'll keep checking when you open My DAOs.
+                        Submitted; gno.land has not enabled it yet. Your DAO becomes usable once gno.land enables it. Keep the realm path and transaction hash to check it later.
                     </p>
                     <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)" }}>Network status: {approval.reason}</p>
                     <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", wordBreak: "break-all" }}>
                         {realmPath} · TX {approval.txHash}
                     </p>
-                    <button className="k-btn-secondary" onClick={() => navigate("/dao")} style={{ marginTop: 8 }}>
-                        Go to My DAOs
-                    </button>
                 </div>
             )}
 
