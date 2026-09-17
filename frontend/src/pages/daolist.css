@@ -229,12 +229,32 @@
 /* ── DAO Card ───────────────────────────────────────────────── */
 
 .k-dao-card {
+  position: relative;
   padding: 20px 24px;
   display: flex;
   flex-direction: column;
   gap: 14px;
   cursor: pointer;
   transition: border-color 0.15s;
+}
+/* The DAO name link covers the card; other controls sit above it. */
+.k-dao-card__link {
+  text-decoration: none;
+}
+.k-dao-card__link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+.k-dao-card__link:focus-visible {
+  outline: 2px solid var(--color-k-accent-text, #00d4aa);
+  outline-offset: 2px;
+}
+.k-dao-card__source-link,
+.k-dao-card__remove {
+  position: relative;
+  z-index: 1;
 }
 .k-dao-card--featured {
   border-color: rgba(0, 212, 170, 0.15);
@@ -420,4 +440,49 @@
   color: var(--color-k-accent-text);
   font-size: var(--pro-small, 12px);
   font-family: var(--font-ui, 'JetBrains Mono', monospace);
+}
+
+/* Pending deploys */
+.k-daolist__pending {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 16px 20px;
+}
+.k-daolist__pending-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.k-daolist__pending-title {
+  margin: 0;
+  font-size: var(--pro-body, 15px);
+}
+.k-daolist__pending-note,
+.k-daolist__pending-status {
+  margin: 0;
+  font-size: var(--pro-small, 13px);
+  color: var(--color-k-dim, var(--color-text-secondary));
+}
+.k-daolist__pending-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.k-daolist__pending-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  align-items: flex-start;
+  min-width: 0;
+}
+.k-daolist__pending-path {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--pro-small, 13px);
+  overflow-wrap: anywhere;
 }

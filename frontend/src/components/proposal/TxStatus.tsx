@@ -22,11 +22,21 @@ const TITLES: Record<Exclude<TxState["phase"], "idle">, string> = {
     failed: "Failed",
 }
 
+/** A transaction hash: an explorer link where one indexes the chain, otherwise copyable text. */
+export function TxStatusHash({ hash, chainId = GNO_CHAIN_ID }: { hash: string; chainId?: string }) {
+    const hex = normalizeTxHashHex(hash) ?? hash
+    const link = txExplorerUrl(hash, chainId)
+    return (
+        <span className="dao-tx-status__hash">
+            Transaction{" "}
+            {link ? <a href={link} target="_blank" rel="noopener noreferrer">{hex}</a> : <code title="Transaction hash">{hex}</code>}
+        </span>
+    )
+}
+
 export function TxStatus({ state, chainId = GNO_CHAIN_ID }: { state: TxState; chainId?: string }) {
     if (state.phase === "idle") return null
     const hash = "hash" in state ? state.hash : undefined
-    const hex = hash ? normalizeTxHashHex(hash) ?? hash : undefined
-    const link = hash ? txExplorerUrl(hash, chainId) : null
     return (
         <div
             className={`dao-tx-status dao-tx-status--${state.phase}`}
@@ -36,16 +46,7 @@ export function TxStatus({ state, chainId = GNO_CHAIN_ID }: { state: TxState; ch
         >
             <strong>{TITLES[state.phase]}</strong>
             {(state.phase === "confirmed" || state.phase === "failed") && <span>{state.message}</span>}
-            {hex && (
-                <span className="dao-tx-status__hash">
-                    Transaction{" "}
-                    {link ? (
-                        <a href={link} target="_blank" rel="noopener noreferrer">{hex}</a>
-                    ) : (
-                        <code title="Transaction hash">{hex}</code>
-                    )}
-                </span>
-            )}
+            {hash && <TxStatusHash hash={hash} chainId={chainId} />}
         </div>
     )
 }

@@ -6,6 +6,7 @@ import {
     assertPathAvailable,
     clearPolicyCache,
     codeSubmissionPolicy,
+    checkPendingDAOs,
     listPendingDAOs,
     packageStatus,
     recheckPendingDAOs,
@@ -165,6 +166,16 @@ describe("pending DAOs", () => {
         expect(listPendingDAOs("gnoland-1").map((p) => p.name)).toEqual(["Parked"])
         expect(listPendingDAOs("gnoland-1")[0].reason).toBe("waiting for a package approver to enable it")
         expect(listPendingDAOs("pearl-1")).toHaveLength(1)
+    })
+
+    it("reports what the network answered for each deploy still pending", async () => {
+        answer = (path, data) => (path === "vm/qpkgmeta_json" ? (data === INERT_PATH ? fixture("inert") : data === ABSENT_PATH ? fixture("absent") : null) : null)
+        savePendingDAO({ chainId: "gnoland-1", path: INERT_PATH, name: "Parked", txHash: "AA", reason: "submitted", submittedAt: 1 })
+        savePendingDAO({ chainId: "gnoland-1", path: ABSENT_PATH, name: "Missing", txHash: "BB", reason: "submitted", submittedAt: 2 })
+        savePendingDAO({ chainId: "gnoland-1", path: "gno.land/r/unreadable/dao", name: "Unreadable", txHash: "CC", reason: "submitted", submittedAt: 3 })
+        const checks = await checkPendingDAOs(ctx, () => {})
+        expect(checks.map((c) => [c.name, c.check])).toEqual([["Parked", "waiting"], ["Missing", "not-found"], ["Unreadable", "unknown"]])
+        expect(checks[0].reason).toBe("waiting for a package approver to enable it")
     })
 
     it("ignores corrupt storage", () => {

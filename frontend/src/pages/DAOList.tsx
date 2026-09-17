@@ -1,10 +1,13 @@
 import { useState, useMemo } from "react"
-import { useQueries } from "@tanstack/react-query"
-import { useOutletContext } from "react-router-dom"
+import { useQueries, useQuery } from "@tanstack/react-query"
+import { Link, useOutletContext } from "react-router-dom"
 import { useNetworkKey, useNetworkNav } from "../hooks/useNetworkNav"
 import { Bank, LinkSimple } from "@phosphor-icons/react"
 import { ErrorToast } from "../components/ui/ErrorToast"
-import { GNO_RPC_URL, NETWORKS, getExplorerBaseUrl, PRO_APP_ENABLED } from "../lib/config"
+import { GNO_CHAIN_ID, GNO_RPC_URL, NETWORKS, getExplorerBaseUrl, PRO_APP_ENABLED } from "../lib/config"
+import { getRpcUrlsInOrder } from "../lib/rpcFallback"
+import { checkPendingDAOs, listPendingDAOs, removePendingDAO, type PendingCheck, type PendingDAO } from "../lib/dao/packageStatus"
+import { TxStatusHash } from "../components/proposal/TxStatus"
 import { getDAOConfig, type DAOConfig } from "../lib/dao"
 import {
     FEATURED_DAO,
@@ -79,6 +82,23 @@ export function DAOList() {
         const config = configQueries[i]?.data ?? null
         return { realmPath: e.realmPath, name: config?.name || e.name, config, featured: e.featured }
     })
+
+    // Deploys gno.land has not enabled yet (kept in this browser by Create DAO).
+    // Opening the list re-checks them; an enabled one becomes a normal entry.
+    const [pendingVersion, setPendingVersion] = useState(0)
+    const pendingNow = useMemo(() => listPendingDAOs(GNO_CHAIN_ID),
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- pendingVersion forces the localStorage re-read
+        [pendingVersion, savedVersion])
+    const pendingQuery = useQuery({
+        queryKey: ["dao", "pending", GNO_CHAIN_ID, pendingVersion],
+        enabled: pendingNow.length > 0,
+        retry: false,
+        queryFn: ({ signal }) => checkPendingDAOs({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID, rpcUrls: getRpcUrlsInOrder() }, (entry: PendingDAO) => {
+            addSavedDAOForOrg(activeOrgId, entry.path, entry.name)
+            setSavedVersion((v) => v + 1)
+        }, signal),
+    })
+    const pendingChecks: (PendingDAO & { check?: PendingCheck["check"] })[] = pendingQuery.data ?? pendingNow
 
     const visibleDAOs = daoEntries.filter(dao => !PRO_APP_ENABLED || `${dao.name} ${dao.realmPath}`.toLowerCase().includes(search.trim().toLowerCase()))
 
@@ -216,6 +236,38 @@ export function DAOList() {
                 </div>
             )}
 
+            {pendingChecks.length > 0 && (
+                <section className="k-card k-daolist__pending" aria-labelledby="pending-daos-title">
+                    <div className="k-daolist__pending-header">
+                        <h3 id="pending-daos-title" className="k-daolist__pending-title">Waiting for gno.land</h3>
+                        <button className="k-btn-secondary" onClick={() => setPendingVersion((v) => v + 1)} disabled={pendingQuery.isFetching}>
+                            {pendingQuery.isFetching ? "Checking…" : "Check again"}
+                        </button>
+                    </div>
+                    <p className="k-daolist__pending-note">These DAOs were submitted from this browser. They become usable once the network enables them.</p>
+                    <ul className="k-daolist__pending-list">
+                        {pendingChecks.map((p) => (
+                            <li key={p.path} className="k-daolist__pending-item">
+                                <div className="k-daolist__pending-path">{p.path}</div>
+                                <div>{p.name}</div>
+                                <div role="status" className="k-daolist__pending-status">
+                                    {pendingQuery.isFetching || p.check === undefined ? "Checking the network…"
+                                        : p.check === "waiting" ? `Not enabled yet: ${p.reason}`
+                                            : p.check === "not-found" ? "The network has no package at this path. The submission may have failed; check the transaction."
+                                                : "The status could not be read. Try again later."}
+                                </div>
+                                {p.txHash && <TxStatusHash hash={p.txHash} />}
+                                {p.check === "not-found" && (
+                                    <button className="k-btn-secondary" onClick={() => { removePendingDAO(GNO_CHAIN_ID, p.path); setPendingVersion((v) => v + 1) }}>
+                                        Remove from this list
+                                    </button>
+                                )}
+                            </li>
+                        ))}
+                    </ul>
+                </section>
+            )}
+
             {/* ── DAO Grid (MOVED UP — primary content) ──────────
                 No loading branch: the base list is synchronous localStorage,
                 so cards render immediately and fill as configs resolve. */}
@@ -235,12 +287,10 @@ export function DAOList() {
                         <DAOCard
                             key={dao.realmPath}
                             dao={dao}
+                            href={`/${networkKey}/dao/${encodeSlug(dao.realmPath)}`}
                             unvotedCount={unvotedByDao.get(dao.realmPath) || 0}
                             notifCount={getDAOUnreadCount(dao.realmPath)}
-                            onOpen={() => {
-                                addSavedDAOForOrg(activeOrgId, dao.realmPath, dao.name)
-                                navigate(`/dao/${encodeSlug(dao.realmPath)}`)
-                            }}
+                            onOpen={() => addSavedDAOForOrg(activeOrgId, dao.realmPath, dao.name)}
                             onRemove={dao.featured ? undefined : () => handleRemove(dao.realmPath)}
                         />
                     ))}
@@ -307,12 +357,14 @@ export function DAOList() {
 
 function DAOCard({
     dao,
+    href,
     unvotedCount,
     notifCount,
     onOpen,
     onRemove,
 }: {
     dao: DAOEntry
+    href: string
     unvotedCount: number
     notifCount: number
     onOpen: () => void
@@ -325,10 +377,9 @@ function DAOCard({
     ].filter(Boolean).join(" ")
 
     return (
-        <div
-            className={cardClass}
-            onClick={onOpen}
-        >
+        // The name link stretches over the card, so the whole card opens the DAO
+        // without nesting the source link or the remove button inside a link.
+        <div className={cardClass}>
             {/* Realm path + source link */}
             <div className="k-dao-card__path-row">
                 <div className="k-dao-card__path">
@@ -340,7 +391,7 @@ function DAOCard({
                     target="_blank"
                     rel="noopener noreferrer"
                     title="View source on gno.land"
-                    onClick={(e) => e.stopPropagation()}
+                    aria-label={`View source of ${dao.realmPath}`}
                 >
                     &lt;/&gt;
                 </a>
@@ -351,9 +402,9 @@ function DAOCard({
                 <div className="k-dao-card__name-row">
                     <span className="k-dao-card__icon"><Bank size={22} /></span>
                     <div>
-                        <button type="button" className="k-dao-card__name" aria-label={`Open ${dao.name}`} onClick={e => { e.stopPropagation(); onOpen() }}>
+                        <Link to={href} className="k-dao-card__name k-dao-card__link" onClick={onOpen}>
                             {dao.name}
-                        </button>
+                        </Link>
                         <DAOIdentityLabel realmPath={dao.realmPath} name={dao.name} />
                         {dao.featured && (
                             <span className="k-dao-card__badge k-dao-card__badge--featured">
@@ -362,7 +413,7 @@ function DAOCard({
                         )}
                         {dao.config?.isArchived && (
                             <span className="k-dao-card__badge k-dao-card__badge--archived">
-                                📦 Archived
+                                Archived
                             </span>
                         )}
                     </div>
@@ -370,7 +421,7 @@ function DAOCard({
                 {onRemove && (
                     <button
                         className="k-dao-card__remove"
-                        onClick={(e) => { e.stopPropagation(); onRemove() }}
+                        onClick={onRemove}
                         title="Remove"
                         aria-label={`Remove ${dao.name}`}
                     >
@@ -402,10 +453,12 @@ function DAOCard({
             {/* Stats */}
             {dao.config && (
                 <div className="k-dao-card__stats">
-                    <div className="k-dao-card__stats-row">
-                        <span>👥 {dao.config.memberCount} members</span>
-                        <span>📊 {dao.config.threshold} threshold</span>
-                    </div>
+                    {(dao.config.memberCount > 0 || dao.config.threshold) && (
+                        <div className="k-dao-card__stats-row">
+                            {dao.config.memberCount > 0 && <span>{dao.config.memberCount} {dao.config.memberCount === 1 ? "member" : "members"}</span>}
+                            {dao.config.threshold && <span>Threshold {dao.config.threshold}</span>}
+                        </div>
+                    )}
 
                     {/* Tier distribution badges */}
                     {dao.config.tierDistribution && dao.config.tierDistribution.length > 0 && (
@@ -416,7 +469,7 @@ function DAOCard({
                                 return (
                                     <span key={t.tier} className="k-dao-card__tier" style={{ background: `${color}12`, color }}>
                                         <span className="k-dao-card__tier-dot" style={{ background: color }} />
-                                        {t.tier}: {t.memberCount} • {t.power}pw
+                                        {t.tier}: {t.memberCount} • {t.power} voting power
                                     </span>
                                 )
                             })}
@@ -434,7 +487,7 @@ function DAOCard({
 
             {/* CTA */}
             <div className="k-dao-card__cta">
-                <span className="k-dao-card__cta-text">Open →</span>
+                <span className="k-dao-card__cta-text" aria-hidden="true">Open →</span>
             </div>
         </div>
     )

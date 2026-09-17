@@ -211,8 +211,25 @@ export function removePendingDAO(chainId: string, path: string): void {
  * Live ones are removed from the pending list and reported to `onLive`.
  */
 export async function recheckPendingDAOs(ctx: ChainContext, onLive: (entry: PendingDAO) => void, signal?: AbortSignal): Promise<PendingDAO[]> {
-    const still: PendingDAO[] = []
+    return (await checkPendingDAOs(ctx, onLive, signal)).map((c) => {
+        const entry: PendingDAO = { chainId: c.chainId, path: c.path, name: c.name, txHash: c.txHash, reason: c.reason, submittedAt: c.submittedAt }
+        return entry
+    })
+}
+
+/**
+ * What the network says about a pending deploy that is not live yet:
+ * "waiting" (stored, not enabled), "not-found" (no package at the path: the
+ * submission may not have landed) or "unknown" (the status could not be read).
+ */
+export type PendingCheck = PendingDAO & { check: "waiting" | "not-found" | "unknown" }
+
+/** Like recheckPendingDAOs, with what the network answered for each entry still pending. */
+export async function checkPendingDAOs(ctx: ChainContext, onLive: (entry: PendingDAO) => void, signal?: AbortSignal): Promise<PendingCheck[]> {
+    const still: PendingCheck[] = []
     for (const entry of listPendingDAOs(ctx.chainId)) {
+        let check: PendingCheck["check"] = "unknown"
+        let current = entry
         try {
             const meta = await packageStatus(ctx, entry.path, signal)
             if (meta.status === "live") {
@@ -220,13 +237,15 @@ export async function recheckPendingDAOs(ctx: ChainContext, onLive: (entry: Pend
                 onLive(entry)
                 continue
             }
+            check = meta.status === "inert" ? "waiting" : "not-found"
             if (meta.status === "inert" && meta.reason && meta.reason !== entry.reason) {
-                savePendingDAO({ ...entry, reason: meta.reason })
+                current = { ...entry, reason: meta.reason }
+                savePendingDAO(current)
             }
         } catch {
             // Unknown for now: keep it pending and try again next time.
         }
-        still.push(entry)
+        still.push({ ...current, check })
     }
     return still
 }
