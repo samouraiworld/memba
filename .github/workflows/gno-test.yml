@@ -17,8 +17,7 @@ on:
       - 'frontend/src/lib/*Template.ts'
       - 'frontend/src/lib/templates/**'
       - 'frontend/src/lib/templates.compile.test.ts'
-      - 'frontend/src/lib/daoTemplate.governance.gno.test.ts'
-      - 'frontend/src/lib/daoTemplate.reads.gno.test.ts'
+      - 'frontend/src/lib/daoTemplate.v2.gno.test.ts'
       - 'frontend/src/lib/channelTemplate.membership.gno.test.ts'
       - 'frontend/src/lib/escrowTemplate.refunds.gno.test.ts'
       # Shared toolchain probe every spec above gates on — a change here can turn the
@@ -37,8 +36,7 @@ on:
       - 'frontend/src/lib/*Template.ts'
       - 'frontend/src/lib/templates/**'
       - 'frontend/src/lib/templates.compile.test.ts'
-      - 'frontend/src/lib/daoTemplate.governance.gno.test.ts'
-      - 'frontend/src/lib/daoTemplate.reads.gno.test.ts'
+      - 'frontend/src/lib/daoTemplate.v2.gno.test.ts'
       - 'frontend/src/lib/channelTemplate.membership.gno.test.ts'
       - 'frontend/src/lib/escrowTemplate.refunds.gno.test.ts'
       # Shared toolchain probe every spec above gates on — a change here can turn the
@@ -95,13 +93,30 @@ env:
   # This value is parsed by frontend/src/test/gnoToolchain.ts (`declaredGnoPin`)
   # so the drift message can quote the real SHA. Keep it a plain hex literal.
   GNO_PIN: c4c72fdd288c757e8da0d93aae867fa479b1b15c
+  # The gnoland-1 (mainnet) app pin. c4c72fdd is NOT an ancestor of it, so a
+  # green pearl lane says nothing about mainnet: every gate runs on both.
+  GNO_PIN_GNOLAND1: 31b6650a100d9baf14e7669f8f0df924f1f841e0
 
 jobs:
   gno-test:
-    name: Gno Test & Lint
+    name: Gno Test & Lint (${{ matrix.lane }})
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        lane: [pearl, gnoland-1]
     steps:
+      - name: Select the gno pin for this lane
+        env:
+          LANE: ${{ matrix.lane }}
+        run: |
+          if [ "$LANE" = "gnoland-1" ]; then
+            echo "GNO_LANE_PIN=${GNO_PIN_GNOLAND1}" >> "$GITHUB_ENV"
+          else
+            echo "GNO_LANE_PIN=${GNO_PIN}" >> "$GITHUB_ENV"
+          fi
+
       - uses: actions/checkout@v7
 
       - uses: actions/setup-go@v7
@@ -115,7 +130,7 @@ jobs:
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
-          key: gno-toolchain-${{ runner.os }}-${{ env.GNO_PIN }}
+          key: gno-toolchain-${{ runner.os }}-${{ env.GNO_LANE_PIN }}
 
       - uses: actions/setup-node@v7
         with:
@@ -124,7 +139,7 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
 
       - name: Install gno toolchain (pinned)
-        run: go install "github.com/gnolang/gno/gnovm/cmd/gno@${GNO_PIN}"
+        run: go install "github.com/gnolang/gno/gnovm/cmd/gno@${GNO_LANE_PIN}"
 
       - name: Install frontend deps
         working-directory: frontend
@@ -136,4 +151,8 @@ jobs:
         # is proven against the pinned toolchain — its negative control asserts the probe
         # still rejects code that cannot type-check, i.e. that it has not rotted into
         # always-green. Every other spec in this list gates on that probe's verdict.
-        run: REQUIRE_GNO=1 npx vitest run src/test/gnoToolchain.test.ts src/lib/templates.compile.test.ts src/lib/daoTemplate.governance.gno.test.ts src/lib/daoTemplate.reads.gno.test.ts src/lib/channelTemplate.membership.gno.test.ts src/lib/escrowTemplate.refunds.gno.test.ts
+        # GNO_REQUIRED_PIN makes the DAO v2 proof check that the toolchain it runs on is
+        # really this lane's pin, so the gnoland-1 lane cannot pass on another runtime.
+        env:
+          GNO_REQUIRED_PIN: ${{ env.GNO_LANE_PIN }}
+        run: REQUIRE_GNO=1 npx vitest run src/test/gnoToolchain.test.ts src/lib/templates.compile.test.ts src/lib/daoTemplate.v2.gno.test.ts src/lib/channelTemplate.membership.gno.test.ts src/lib/escrowTemplate.refunds.gno.test.ts

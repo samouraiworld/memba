@@ -22,7 +22,7 @@ import { join } from "node:path"
 
 import { generateDAOCode, type DAOCreationConfig } from "./daoTemplate"
 import { encodeBech32 } from "./templates/dao/v2/bech32"
-import { REQUIRE_GNO, probeToolchain, vendorGnolandDeps } from "../test/gnoToolchain"
+import { REQUIRE_GNO, gnoRoot, probeToolchain, vendorGnolandDeps } from "../test/gnoToolchain"
 
 // ── Fixture addresses (valid bech32 checksums) ───────────────────────
 
@@ -80,6 +80,23 @@ const describeGno = TOOLCHAIN.ok ? describe : describe.skip
 if (!TOOLCHAIN.ok && !REQUIRE_GNO) {
     console.warn(`[dao.v2] SKIPPED — ${TOOLCHAIN.message}`)
 }
+
+/** Commit of the gno sources the toolchain uses: a git checkout, or a Go module cache path. */
+function toolchainCommit(): string {
+    const root = gnoRoot() ?? ""
+    const git = spawnSync("git", ["-C", root, "rev-parse", "HEAD"], { encoding: "utf8" })
+    if (git.status === 0 && /^[0-9a-f]{40}$/.test(git.stdout.trim())) return git.stdout.trim()
+    return /-([0-9a-f]{12})(?:\/|$)/.exec(root)?.[1] ?? root
+}
+
+// CI sets GNO_REQUIRED_PIN per lane (pearl, gnoland-1).
+it("runs on the gno pin the CI lane requires", () => {
+    const required = process.env.GNO_REQUIRED_PIN
+    if (!required) return
+    expect(TOOLCHAIN.ok, TOOLCHAIN.message).toBe(true)
+    const commit = toolchainCommit()
+    expect(commit.length >= 12 && required.startsWith(commit.slice(0, 12)), `toolchain sources at ${commit}, lane requires ${required}`).toBe(true)
+})
 
 let workdir = ""
 
