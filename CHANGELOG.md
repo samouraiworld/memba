@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Fixed — release recovery (2026-09-21)
+- Bound stale-chunk recovery across later route failures, handle denied storage, and defer recovery during contract confirmation and signing requests.
+- Explain loading failures without claiming an update was detected.
+
 ### gno.land is the default network, and Betanet is retired (2026-09-17)
 <!-- categories: memba, network -->
 - **Opening Memba now lands you on gno.land (`gnoland-1`), the production chain, instead of the Pearl testnet.** Anyone who picked a network before keeps the one they picked; only people who never chose are moved. Pearl stays in the network picker and is unchanged, and every `/pearl/...` link keeps working.

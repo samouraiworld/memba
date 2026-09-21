@@ -17,6 +17,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "test:e2e:release": "node scripts/build-release-fixtures.mjs && playwright test --config playwright.release.config.ts",
     "test:e2e:pro-ui": "playwright test --config playwright.pro-ui.config.ts",
     "test:e2e:guardrails": "playwright test --project=chromium --project=iphone --project=pixel e2e/desktop-layout.spec.ts e2e/mobile/shell.mobile.spec.ts e2e/mobile/home.mobile.spec.ts e2e/mobile/space-invaders.mobile.spec.ts e2e/mobile/validators.mobile.spec.ts e2e/mobile/governance-readiness.mobile.spec.ts e2e/mobile/validator-score.mobile.spec.ts",
     "test:e2e:pro-shell": "playwright test --config playwright.shell.config.ts",

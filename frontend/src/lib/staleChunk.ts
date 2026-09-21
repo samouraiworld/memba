@@ -1,14 +1,18 @@
-/**
- * Stale-chunk detection + reload budget, shared by the root ErrorBoundary and
- * the vite:preloadError handler in main.tsx.
- *
- * After every deploy, the autoUpdate service worker takes over live tabs and
- * purges the previous build's precached chunks; the page's next lazy route
- * load gets the SPA-fallback index.html for a .js URL and the import fails.
- * Both recovery paths reload ONCE per session (the boundary clears the guard
- * on a successful mount), so a genuinely broken deploy shows the error card
- * instead of reload-looping.
- */
+import { isWalletRequestPending } from "./walletActivity"
+
+/** Reload at most once per tab session, including failures on later lazy routes.
+ * If durable storage is denied we cannot enforce a cross-reload budget: show
+ * the manual fallback instead. Never interrupt a pending wallet request. */
+export function tryChunkReload(): boolean {
+    if (isWalletRequestPending()) return false
+    try {
+        if (sessionStorage.getItem(CHUNK_RELOAD_KEY)) return false
+        sessionStorage.setItem(CHUNK_RELOAD_KEY, "1")
+        if (sessionStorage.getItem(CHUNK_RELOAD_KEY) !== "1") return false
+    } catch { return false }
+    window.location.reload()
+    return true
+}
 
 /** SessionStorage key for the one-reload-per-session guard. */
 export const CHUNK_RELOAD_KEY = "memba_chunk_reload"
@@ -25,7 +29,6 @@ export function isStaleChunkError(error: Error): boolean {
     return (
         // Chrome / Edge
         msg.includes("dynamically imported module") ||
-        msg.includes("Failed to fetch") ||
         // webpack-era phrasings, kept for safety
         msg.includes("Loading chunk") ||
         msg.includes("Loading CSS chunk") ||
