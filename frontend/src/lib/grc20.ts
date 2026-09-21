@@ -1,3 +1,4 @@
+import { withWalletActivity } from "./walletActivity"
 /**
  * GRC20 Token helpers for the gno.land/r/samcrew/tokenfactory realm.
  *
@@ -233,6 +234,14 @@ export function feeForGasWanted(gasWanted: number, price: GasPrice): number {
 }
 
 export async function doContractBroadcast(
+    msgs: AminoMsg[],
+    memo: string,
+    opts?: { gas?: "call" | "deploy"; gasWanted?: number; retry?: false; beforeSign?: () => void | Promise<void> },
+): Promise<{ hash: string; result?: unknown }> {
+    return withWalletActivity(() => broadcastContract(msgs, memo, opts))
+}
+
+async function broadcastContract(
     msgs: AminoMsg[],
     memo: string,
     opts?: { gas?: "call" | "deploy"; gasWanted?: number; retry?: false; beforeSign?: () => void | Promise<void> },

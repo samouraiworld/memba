@@ -22,6 +22,9 @@ Full changelogs are split by version range for easier navigation:
 
 ### Mainnet release evidence
 - Correct the documented default network and separate frontend candidates, published artifacts, fixture checks and real wallet verification.
+### Fixed — release recovery (2026-09-21)
+- Bound stale-chunk recovery across later route failures, handle denied storage, and defer recovery during contract confirmation and signing requests.
+- Explain loading failures without claiming an update was detected.
 ### Mainnet Home reflects available capabilities (2026-09-21)
 - Home labels the token launchpad unavailable where its factory is not deployed, omits the undeployed MembaDAO promotion and describes DAO discovery without implying voting membership.
 - Loading token and validator counts use an unknown placeholder instead of a misleading zero.

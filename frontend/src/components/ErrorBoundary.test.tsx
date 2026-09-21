@@ -1,3 +1,4 @@
+import { withWalletActivity } from "../lib/walletActivity"
 /**
  * ErrorBoundary stale-chunk auto-recovery — the owner-reported mobile bug.
  *
@@ -8,7 +9,7 @@
  * missing from the matcher, so mobile users got the generic error card on
  * every deploy instead of a silent recovery.
  */
-import { render, screen } from "@testing-library/react"
+import { act, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
 import { ErrorBoundary } from "./ErrorBoundary"
 import { CHUNK_RELOAD_KEY, isStaleChunkError } from "../lib/staleChunk"
@@ -39,6 +40,7 @@ describe("isStaleChunkError", () => {
 
     it("does not match unrelated errors", () => {
         expect(isStaleChunkError(new Error("Cannot read properties of undefined"))).toBe(false)
+        expect(isStaleChunkError(new Error("Failed to fetch"))).toBe(false)
     })
 })
 
@@ -83,9 +85,30 @@ describe("ErrorBoundary chunk auto-recovery", () => {
             </ErrorBoundary>,
         )
         expect(reload).not.toHaveBeenCalled()
-        expect(screen.getByText("New version available")).toBeInTheDocument()
+        expect(screen.getByText("Page could not load")).toBeInTheDocument()
         // The raw error text must NOT be shown for a recognized chunk error.
         expect(screen.queryByText(WEBKIT_MIME)).not.toBeInTheDocument()
+    })
+
+    it("blocked storage leaves a usable fallback without an unbounded reload", () => {
+        vi.spyOn(Storage.prototype, "getItem").mockImplementation(() => { throw new DOMException("Denied", "SecurityError") })
+        render(<ErrorBoundary><Thrower message={CHROME_IMPORT} /></ErrorBoundary>)
+        expect(reload).not.toHaveBeenCalled()
+        expect(screen.getByRole("button", { name: "Reload Page" })).toBeInTheDocument()
+    })
+
+    it("defers recovery until a pending wallet response settles, without resubmission", async () => {
+        let resolve!: () => void
+        const sign = vi.fn(() => new Promise<void>(r => { resolve = r }))
+        const request = withWalletActivity(sign)
+        render(<ErrorBoundary><Thrower message={CHROME_IMPORT} /></ErrorBoundary>)
+        expect(reload).not.toHaveBeenCalled()
+        expect(screen.getByRole("button", { name: "Reload Page" })).toBeDisabled()
+        await act(async () => { resolve(); await request })
+        expect(reload).not.toHaveBeenCalled()
+        fireEvent.click(screen.getByRole("button", { name: "Reload Page" }))
+        expect(reload).toHaveBeenCalledTimes(1)
+        expect(sign).toHaveBeenCalledTimes(1)
     })
 
     it("generic errors: no reload, generic card with the raw message", () => {
@@ -99,13 +122,13 @@ describe("ErrorBoundary chunk auto-recovery", () => {
         expect(screen.getByText("Cannot read properties of undefined")).toBeInTheDocument()
     })
 
-    it("successful mount clears the reload guard (one budget per broken load, not per session)", () => {
+    it("successful mount preserves the reload budget for later lazy routes", () => {
         sessionStorage.setItem(CHUNK_RELOAD_KEY, "1")
         render(
             <ErrorBoundary>
                 <div>fine</div>
             </ErrorBoundary>,
         )
-        expect(sessionStorage.getItem(CHUNK_RELOAD_KEY)).toBeNull()
+        expect(sessionStorage.getItem(CHUNK_RELOAD_KEY)).toBe("1")
     })
 })

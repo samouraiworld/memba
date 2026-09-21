@@ -43,6 +43,7 @@ export function TxConfirmationProvider({ children }: { children: React.ReactNode
 
     const requestConfirmation = useCallback((summary: TxSummary): Promise<boolean> => {
         return new Promise<boolean>((resolve) => {
+            resolveRef.current?.(false)
             resolveRef.current = resolve
             setRequest({ summary, resolve })
         })
@@ -53,7 +54,11 @@ export function TxConfirmationProvider({ children }: { children: React.ReactNode
         setTxConfirmationCallback(async (msgs: AminoMsg[], memo: string) => {
             return requestConfirmation({ memo, messages: msgs })
         })
-        return () => setTxConfirmationCallback(null)
+        return () => {
+            setTxConfirmationCallback(null)
+            resolveRef.current?.(false)
+            resolveRef.current = null
+        }
     }, [requestConfirmation])
 
     const handleConfirm = useCallback(() => {

@@ -1,6 +1,8 @@
-import { Component, type ReactNode, type ErrorInfo } from "react"
+import { Component, type ReactNode, type ErrorInfo, useSyncExternalStore } from "react"
 import * as Sentry from "@sentry/react"
-import { CHUNK_RELOAD_KEY, isStaleChunkError } from "../lib/staleChunk"
+import { tryChunkReload, isStaleChunkError } from "../lib/staleChunk"
+
+import { isWalletRequestPending, subscribeWalletActivity } from "../lib/walletActivity"
 
 interface Props {
     children: ReactNode
@@ -35,42 +37,14 @@ export class ErrorBoundary extends Component<Props, State> {
     componentDidCatch(error: Error, errorInfo: ErrorInfo) {
         console.error("[ErrorBoundary]", error, errorInfo.componentStack)
 
-        // W6.5: the ROOT boundary never reported — app-wide render crashes
-        // were invisible in Sentry (only the alerts/gnolove boundaries
-        // captured). Captured BEFORE the stale-chunk early-return and tagged,
-        // so auto-reload events are filterable noise but persistent
-        // stale-chunk LOOPS are finally visible (componentDidMount clears the
-        // reload guard on every successful boot, so a chunk that keeps dying
-        // reloads once per boot — invisible without this). No-op when
-        // Sentry.init didn't run (DSN unset).
+        // Record the failure before attempting recovery.
         const stale = isStaleChunkError(error)
         Sentry.captureException(error, {
             tags: { memba_boundary: "root", memba_stale_chunk: stale ? "yes" : "no" },
             contexts: { react: { componentStack: errorInfo.componentStack } },
         })
 
-        // Stale chunk auto-recovery: reload once, guard with sessionStorage
-        if (stale) {
-            const alreadyReloaded = sessionStorage.getItem(CHUNK_RELOAD_KEY)
-            if (!alreadyReloaded) {
-                console.warn("[ErrorBoundary] Stale chunk detected — auto-reloading")
-                sessionStorage.setItem(CHUNK_RELOAD_KEY, "1")
-                window.location.reload()
-                return
-            }
-            // Already reloaded once — fall through to show UI
-            console.warn("[ErrorBoundary] Stale chunk persists after reload — showing fallback")
-        }
-    }
-
-    componentDidMount() {
-        // Clear the stale chunk reload flag on successful mount (page loaded OK).
-        // Only on an error-free mount: when a child dies during the initial
-        // render, React runs this mount hook BEFORE componentDidCatch, and an
-        // unconditional clear would erase the reload budget right before the
-        // catch reads it — a genuinely broken deploy would reload-loop on boot
-        // instead of showing the update card.
-        if (!this.state.hasError) sessionStorage.removeItem(CHUNK_RELOAD_KEY)
+        if (stale) tryChunkReload()
     }
 
     render() {
@@ -93,11 +67,11 @@ export class ErrorBoundary extends Component<Props, State> {
                             {isChunkError ? "🔄" : "⚠️"}
                         </div>
                         <h2 style={{ fontSize: 18, fontWeight: 700, marginBottom: 8 }}>
-                            {isChunkError ? "New version available" : "Something went wrong"}
+                            {isChunkError ? "Page could not load" : "Something went wrong"}
                         </h2>
                         <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", marginBottom: 20, lineHeight: 1.6 }}>
                             {isChunkError
-                                ? "Memba has been updated. Please reload to get the latest version."
+                                ? "Part of Memba could not load. Check your connection, then reload to try again."
                                 : "An unexpected error occurred. Please try reloading the page."}
                         </p>
                         {!isChunkError && this.state.error && (
@@ -110,10 +84,25 @@ export class ErrorBoundary extends Component<Props, State> {
                                 {this.state.error.message}
                             </pre>
                         )}
-                        <button
+                        <RecoveryButton />
+                    </div>
+                </div>
+            )
+        }
+
+        return this.props.children
+    }
+}
+
+function RecoveryButton() {
+    const pending = useSyncExternalStore(subscribeWalletActivity, isWalletRequestPending)
+    return <>
+        {pending && <p id="wallet-recovery-status" role="status">Finish the request in your wallet before reloading. If it was submitted, check its result before trying again.</p>}
+        <button
+            disabled={pending}
+            aria-describedby={pending ? "wallet-recovery-status" : undefined}
                             onClick={() => {
-                                sessionStorage.removeItem(CHUNK_RELOAD_KEY)
-                                window.location.reload()
+                                if (!isWalletRequestPending()) window.location.reload()
                             }}
                             style={{
                                 display: "inline-flex", alignItems: "center", justifyContent: "center",
@@ -125,11 +114,5 @@ export class ErrorBoundary extends Component<Props, State> {
                         >
                             Reload Page
                         </button>
-                    </div>
-                </div>
-            )
-        }
-
-        return this.props.children
-    }
+    </>
 }

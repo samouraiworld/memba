@@ -274,6 +274,8 @@ jobs:
         run: npm ci
       - name: Install Playwright
         run: npx playwright install chromium --with-deps
+      - name: Production build and service-worker continuity
+        run: npm run test:e2e:release
       - name: E2E tests (chromium)
         run: npx playwright test --project=chromium --reporter=list
       - name: Upload E2E artifacts on failure
@@ -284,6 +286,7 @@ jobs:
           path: |
             frontend/test-results/
             frontend/playwright-report/
+            frontend/test-results-release/
           retention-days: 7
 
   frontend-e2e:
