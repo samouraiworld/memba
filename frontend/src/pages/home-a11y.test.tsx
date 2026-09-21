@@ -143,7 +143,7 @@ describe("Home a11y — visitor mode", () => {
     it("primary CTA 'Explore DAOs' is reachable by role", () => {
         renderWithProviders(<Home mode="visitor" />, { route: "/test13/" })
         expect(
-            screen.getByRole("link", { name: /explore daos/i }),
+            screen.getByRole("link", { name: /^explore daos$/i }),
         ).toBeInTheDocument()
     })
 

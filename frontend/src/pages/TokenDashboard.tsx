@@ -2,7 +2,7 @@ import { useMemo } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
-import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
+import { GNO_RPC_URL, GNO_CHAIN_ID, ACTIVE_NETWORK_KEY, GRC20_FACTORY_PATH, isRealmValidOn } from "../lib/config"
 import { listFactoryTokens, getTokenInfo, getTokenBalance, formatTokenAmount } from "../lib/grc20"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import type { LayoutContext } from "../types/layout"
@@ -10,6 +10,7 @@ import "./tokendashboard.css"
 
 export function TokenDashboard() {
     const navigate = useNetworkNav()
+    const factoryAvailable = isRealmValidOn(ACTIVE_NETWORK_KEY, GRC20_FACTORY_PATH)
     const { auth, adena } = useOutletContext<LayoutContext>()
 
     // Token list (public — independent of the wallet). Cached + deduped by React
@@ -22,6 +23,7 @@ export function TokenDashboard() {
             // Enrich every token in parallel (getTokenInfo per symbol).
             return Promise.all(list.map(async (t) => (await getTokenInfo(GNO_RPC_URL, t.symbol)) || t))
         },
+        enabled: factoryAvailable,
         staleTime: 60_000,
     })
     const tokens = useMemo(() => tokensQuery.data ?? [], [tokensQuery.data])
@@ -38,11 +40,25 @@ export function TokenDashboard() {
             )
             return Object.fromEntries(entries) as Record<string, bigint>
         },
-        enabled: adena.connected && !!adena.address && symbols.length > 0,
+        enabled: factoryAvailable && adena.connected && !!adena.address && symbols.length > 0,
         staleTime: 30_000,
     })
     const balances = balancesQuery.data ?? {}
     const balancesStale = balancesQuery.isError
+
+    if (!factoryAvailable) return (
+        <div className="animate-fade-in token-dashboard">
+            <button onClick={() => navigate("/")} className="token-back-btn">← Home</button>
+            <h2 className="token-title">Token launchpad</h2>
+            <div className="k-card token-empty">
+                <h3 className="token-empty-title">Not available on this network</h3>
+                <p className="token-empty-desc">
+                    Memba’s token launchpad is not available on {GNO_CHAIN_ID}.
+                    This page does not list all tokens on the network.
+                </p>
+            </div>
+        </div>
+    )
 
     return (
         <div className="animate-fade-in token-dashboard">

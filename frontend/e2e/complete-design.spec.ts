@@ -184,3 +184,26 @@ if (process.env.DESIGN_REVIEW_FEATURES !== 'true') {
         }
     }
 }
+
+for (const network of ['mainnet', 'pearl'] as const) {
+    for (const width of [390, 1440]) {
+        test(`Home network capability ${network} ${width}`, async ({ page }) => {
+            await page.setViewportSize({ width, height: 900 })
+            await page.goto(`/${network}`)
+            await expect(page.getByTestId('value-card-vote')).toContainText('Explore DAOs')
+            const tokenCard = page.getByTestId('value-card-launch')
+            if (network === 'mainnet') {
+                await expect(tokenCard).toContainText('not available on this network')
+                await expect(page.getByRole('link', { name: 'MembaDAO', exact: true })).toHaveCount(0)
+                await tokenCard.click()
+                await expect(page.getByRole('heading', { name: 'Not available on this network' })).toBeVisible()
+                await expect(page.getByRole('button', { name: /Create a Token/ })).toHaveCount(0)
+            } else {
+                await expect(tokenCard).toContainText('Launch a token')
+                await tokenCard.click()
+                await expect(page.getByRole('button', { name: /Create a Token/ }).first()).toBeVisible()
+            }
+            expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 2)
+        })
+    }
+}

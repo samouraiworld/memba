@@ -21,6 +21,11 @@ describe("ExploreGrid", () => {
         expect(screen.getByTestId("explore-blog")).toHaveAttribute("href", "/test13/blog")
     })
 
+    it("labels the unavailable mainnet token launchpad", () => {
+        render(<MemoryRouter><ExploreGrid networkKey="mainnet" /></MemoryRouter>)
+        expect(screen.getByTestId("explore-tokens")).toHaveTextContent("not available on this network")
+    })
+
     it("surfaces a flag-enabled feature as a live tile", () => {
         vi.stubEnv("VITE_ENABLE_APPSTORE", "true")
         vi.stubEnv("VITE_ENABLE_SPACE_INVADERS", "true")
