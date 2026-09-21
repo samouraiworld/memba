@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from "react"
+import { useState, useEffect, useMemo, useRef, useSyncExternalStore } from "react"
 import { useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { NotePencil } from "@phosphor-icons/react"
@@ -15,14 +15,17 @@ import { generateDAOCode, buildDeployDAOMsg, daoStepError, isValidGnoAddress, DA
 import { generateChannelCode, defaultChannelConfig, isValidChannelName } from "../lib/channelTemplate"
 import { buildDeployMsg } from "../lib/templates/prologue"
 import { daoDepositCapUgnot, deployGasForPolicy, estimateDAODepositUgnot, formatGnot } from "../lib/templates/dao/v2/deposit"
-import { addSavedDAO, encodeSlug } from "../lib/daoSlug"
+import { saveDAOForRecovery, encodeSlug } from "../lib/daoSlug"
 import { doContractBroadcast, feeForGasWanted, networkGasPrice, FALLBACK_GAS_PRICE, type GasPrice } from "../lib/grc20"
 import { getGasConfig } from "../lib/gasConfig"
 import { getRpcUrlsInOrder } from "../lib/rpcFallback"
 import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, GNO_RPC_URL, NETWORKS } from "../lib/config"
 import { assertCanDeployTo } from "../lib/dao/namespace"
-import { assertPathAvailable, codeSubmissionPolicy, removePendingDAO, savePendingDAO, waitForPackage, type DeployOutcome } from "../lib/dao/packageStatus"
+import { assertPathAvailable, codeSubmissionPolicy, listPendingDAOs, hasVolatilePendingDAO, removePendingDAO, savePendingDAO, waitForPackage, type DeployOutcome } from "../lib/dao/packageStatus"
 import type { LayoutContext } from "../types/layout"
+import { loadDraft, saveDraft, clearDraft, adoptDraft, draftKey, discardDraftAtKey } from "../lib/dao/drafts"
+import { beginSubmission, isSubmissionActive, submissionKey, subscribeSubmissions } from "../lib/dao/submissionActivity"
+import { useOrg } from "../contexts/OrgContext"
 import "./createdao.css"
 
 const STEP_LABELS: Record<Step, string> = {
@@ -34,69 +37,6 @@ const STEP_LABELS: Record<Step, string> = {
 }
 
 // ── Draft Persistence ─────────────────────────────────────
-
-const DRAFT_KEY = "memba_dao_draft"
-const DRAFT_TTL_MS = 24 * 60 * 60 * 1000 // 24 hours
-
-interface DraftData {
-    name: string
-    description: string
-    realmPath: string
-    members: MemberInput[]
-    threshold: number
-    quorum: number
-    enableChannels?: boolean
-    channelNames?: string[]
-    /** Legacy draft fields (pre-W1.5 board naming) — read-only fallback. */
-    enableBoard?: boolean
-    boardChannels?: string[]
-    availableRoles: string[]; proposalCategories: string[]
-    selectedPreset: string | null; step: Step
-    savedAt: number
-}
-
-function isDraft(value: unknown): value is DraftData {
-    if (!value || typeof value !== "object" || Array.isArray(value)) return false
-    const d = value as Record<string, unknown>
-    const strings = (v: unknown): v is string[] => Array.isArray(v) && v.every(x => typeof x === "string")
-    if (![d.name, d.description, d.realmPath].every(v => typeof v === "string")) return false
-    if (!strings(d.availableRoles) || !strings(d.proposalCategories)) return false
-    if (!Array.isArray(d.members) || !d.members.every(m => m && typeof m === "object" &&
-        typeof m.address === "string" && Number.isSafeInteger(m.power) && strings(m.roles))) return false
-    if (!Number.isSafeInteger(d.threshold) || !Number.isSafeInteger(d.quorum)) return false
-    if (d.selectedPreset !== null && (typeof d.selectedPreset !== "string" || !DAO_PRESETS.some(p => p.id === d.selectedPreset))) return false
-    if (typeof d.step !== "number" || !Number.isInteger(d.step) || d.step < 1 || d.step > 5) return false
-    if (typeof d.savedAt !== "number" || !Number.isFinite(d.savedAt) || d.savedAt > Date.now() || Date.now() - d.savedAt > DRAFT_TTL_MS) return false
-    if ([d.enableChannels, d.enableBoard].some(v => v !== undefined && typeof v !== "boolean")) return false
-    if ([d.channelNames, d.boardChannels].some(v => v !== undefined && !strings(v))) return false
-    return true
-}
-
-function loadDraft(): DraftData | null {
-    try {
-        const raw = localStorage.getItem(DRAFT_KEY)
-        if (!raw) return null
-        const draft: unknown = JSON.parse(raw)
-        if (!isDraft(draft)) {
-            clearDraft()
-            return null
-        }
-        return draft
-    } catch {
-        clearDraft()
-        return null
-    }
-}
-
-function saveDraft(data: Omit<DraftData, "savedAt">) {
-    try {
-        localStorage.setItem(DRAFT_KEY, JSON.stringify({ ...data, savedAt: Date.now() }))
-    } catch { /* quota exceeded — silently fail */ }
-}
-
-function clearDraft() {
-    try { localStorage.removeItem(DRAFT_KEY) } catch { /* Storage access must not turn a confirmed transaction into a failure. */ }
-}
 
 /** Voting period, delay and window of the chosen preset (Basic when none). */
 function presetWindows(preset: DAOPreset | undefined): Pick<DAOCreationConfig, "votingPeriodSeconds" | "executionDelaySeconds" | "executionWindowSeconds"> {
@@ -116,20 +56,43 @@ function userDaoCapabilities() {
 
 type Approval =
     | { phase: "waiting"; txHash: string }
-    | { phase: "pending"; txHash: string; reason: string }
+    | { phase: "pending"; txHash: string; reason: string; status: "unknown" | "inert" | "absent"; canRepair?: boolean }
 
 // ── Main Component (Orchestrator) ─────────────────────────
 
 export function CreateDAO() {
+    const { adena } = useOutletContext<LayoutContext>()
+    const { activeOrgId } = useOrg()
+    const [revision, setRevision] = useState(0)
+    return <CreateDAOWizard key={`${GNO_CHAIN_ID}:${adena.address || "unbound"}:${activeOrgId || "personal"}:${revision}`} onReset={() => setRevision(n => n + 1)} />
+}
+
+function CreateDAOWizard({ onReset }: { onReset: () => void }) {
     const navigate = useNetworkNav()
     const { adena } = useOutletContext<LayoutContext>()
+    const { activeOrgId } = useOrg()
+    const mounted = useRef(false)
+    const polling = useRef<AbortController | null>(null)
+    useEffect(() => {
+        mounted.current = true
+        polling.current = new AbortController()
+        return () => { mounted.current = false; polling.current?.abort() }
+    }, [])
+    const assertCurrent = () => { if (!mounted.current) throw new Error("Wallet or workspace changed. Review the deployment again before signing.") }
+    const bookmark = (path: string, label: string) => saveDAOForRecovery(activeOrgId, path, label)
     const caps = userDaoCapabilities()
+    const draftContext = useMemo(() => ({ chainId: GNO_CHAIN_ID, wallet: adena.address || "" }), [adena.address])
+
+    const [recovery] = useState(() => {
+        const draft = loadDraft(draftContext)
+        return draft ? listPendingDAOs(GNO_CHAIN_ID).find(p => p.path === draft.data.realmPath && (!p.wallet || p.wallet === adena.address)) : undefined
+    })
 
     // Wizard state — shared across steps
-    const [step, setStep] = useState<Step>(1)
-    const [name, setName] = useState("")
+    const [step, setStep] = useState<Step>(recovery ? 5 : 1)
+    const [name, setName] = useState(recovery?.name ?? "")
     const [description, setDescription] = useState("")
-    const [realmPath, setRealmPath] = useState("")
+    const [realmPath, setRealmPath] = useState(recovery?.path ?? "")
     const [members, setMembers] = useState<MemberInput[]>([{ address: "", power: 1, roles: ["admin"] }])
     const [threshold, setThreshold] = useState(51)
     const [quorum, setQuorum] = useState(0)
@@ -141,7 +104,10 @@ export function CreateDAO() {
     const [deploying, setDeploying] = useState(false)
     const [deployStep, setDeployStep] = useState<DeployStep>("idle")
     const [deployResult, setDeployResult] = useState<DeploymentResult | undefined>()
-    const [approval, setApproval] = useState<Approval | null>(null)
+    const [approval, setApproval] = useState<Approval | null>(recovery ? { phase: "pending", status: "unknown", txHash: recovery.txHash, reason: "A previous submission attempt is saved. Check the network before trying again." } : null)
+    const [acknowledgeRecovery, setAcknowledgeRecovery] = useState(false)
+    const activityKey = submissionKey(GNO_CHAIN_ID, realmPath)
+    const activeSubmission = useSyncExternalStore(subscribeSubmissions, () => isSubmissionActive(activityKey))
     const [confirmed, setConfirmed] = useState(false)
     const [replacesParked, setReplacesParked] = useState(false)
     const [error, setError] = useState<string | null>(null)
@@ -152,8 +118,10 @@ export function CreateDAO() {
     const [generatedCode, setGeneratedCode] = useState("")
     // Lazy initializer, not a mount effect: whether a draft exists is known
     // synchronously from localStorage at first render.
-    const [showDraftBanner, setShowDraftBanner] = useState(() => !!loadDraft())
-    const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const [draftCandidate] = useState(() => loadDraft(draftContext))
+    const [showDraftBanner, setShowDraftBanner] = useState(!!draftCandidate && !recovery)
+    const [confirmReset, setConfirmReset] = useState(false)
+    const [draftWarning, setDraftWarning] = useState<string | null>(null)
     const [gasPrice, setGasPrice] = useState<GasPrice>(FALLBACK_GAS_PRICE)
 
     useEffect(() => {
@@ -166,8 +134,11 @@ export function CreateDAO() {
     const channelsPlanned = caps.channelsCompanion && enableChannels
 
     const resumeDraft = () => {
-        const draft = loadDraft()
-        if (!draft) return
+        const candidate = loadDraft(draftContext)
+        if (!candidate) return
+        let draft
+        try { draft = adoptDraft(draftContext, candidate) }
+        catch { setDraftWarning("This browser could not save your draft. The original is still available; enable browser storage before resuming."); return }
         setName(draft.name)
         setDescription(draft.description)
         setRealmPath(draft.realmPath)
@@ -206,44 +177,46 @@ export function CreateDAO() {
     }
 
     const discardDraft = () => {
-        clearDraft()
-        setShowDraftBanner(false)
+        try {
+            discardDraftAtKey(showDraftBanner && draftCandidate ? draftCandidate.key : draftKey(draftContext))
+            onReset()
+        } catch { setDraftWarning("This browser could not discard your draft. Your input has been kept.") }
     }
 
-    // ── Auto-save draft (debounced 500ms) ─────────────────
-
+    // Save each edit under its original chain/account, without a debounce window
+    // that could lose the final edit when a wallet switch remounts this wizard.
     useEffect(() => {
-        if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
         if (showDraftBanner || deploying || deployResult || approval) return
-        saveTimerRef.current = setTimeout(() => {
-            if (name || realmPath || members.some((m) => m.address)) {
-                saveDraft({
-                    name, description, realmPath, members,
-                    threshold, quorum, availableRoles, proposalCategories,
-                    selectedPreset, step, enableChannels, channelNames,
+        if (name || realmPath || members.some(m => m.address)) {
+            try {
+                saveDraft(draftContext, {
+                    name, description, realmPath, members, threshold, quorum, availableRoles,
+                    proposalCategories, selectedPreset, step, enableChannels, channelNames,
                 })
+            } catch {
+                // eslint-disable-next-line react-hooks/set-state-in-effect -- report a failed persistence operation.
+                setDraftWarning("Changes cannot be saved in this browser. Keep this page open and copy your settings before leaving.")
             }
-        }, 500)
-        return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current) }
-    }, [name, description, realmPath, members, threshold, quorum, availableRoles, proposalCategories, selectedPreset, step, enableChannels, channelNames, showDraftBanner, deploying, deployResult, approval])
+        }
+    }, [draftContext, name, description, realmPath, members, threshold, quorum, availableRoles, proposalCategories, selectedPreset, step, enableChannels, channelNames, showDraftBanner, deploying, deployResult, approval])
 
     // ── Preset ────────────────────────────────────────────
 
-    const applyPreset = useCallback((preset: DAOPreset) => {
+    const applyPreset = (preset: DAOPreset) => {
         setSelectedPreset(preset.id)
         setAvailableRoles(preset.roles)
         setThreshold(preset.threshold)
         setQuorum(preset.quorum)
         setProposalCategories(preset.categories)
         setMembers((prev) => prev.map((m, i) => i === 0 ? { ...m, roles: ["admin"] } : { ...m, roles: ["member"] }))
-    }, [])
+    }
 
     // ── Navigation ────────────────────────────────────────
 
-    const autoFillPath = useCallback(() => {
+    const autoFillPath = () => {
         if (!adena.address) return
         setRealmPath(`gno.land/r/${adena.address}/${name.toLowerCase().replace(/[^a-z0-9]/g, "_").replace(/_+/g, "_").slice(0, 20) || "mydao"}`)
-    }, [adena.address, name])
+    }
 
     const buildStepData = (): DAOStepData => ({ name, realmPath, members, threshold, quorum })
 
@@ -320,14 +293,27 @@ export function CreateDAO() {
     const networkFeeUgnot = feeForGasWanted(deployGas, gasPrice)
 
     const deployDAO = async () => {
-        if (deploying || deployResult || approval) return
+        if (deploying || deployResult || approval || isSubmissionActive(activityKey)) return
+        const existing = listPendingDAOs(GNO_CHAIN_ID).find(p => p.path === realmPath)
+        if (existing) {
+            setApproval({ phase: "pending", status: "unknown", txHash: existing.txHash, reason: "A submission attempt is already recorded. Check its status before trying again." })
+            return
+        }
         if (!caps.create) { setError(`Creating a DAO is not available on ${caps.label} yet`); return }
         if (!adena.address) { setError("Connect your wallet first"); return }
         if (!confirmed) { setError("Confirm that you understand this deploys a permanent contract"); return }
+        const releaseSubmission = beginSubmission(activityKey)
         setDeploying(true)
         setDeployStep("preparing")
         setError(null)
         let confirmedTx = ""
+        let intentSaved = false
+        let walletStarted = false
+        const intent = { chainId: GNO_CHAIN_ID, path: realmPath, name, wallet: adena.address, orgId: activeOrgId, txHash: "", phase: "intent" as const, reason: "Wallet outcome unknown; check the package before resubmitting." }
+        const draftBefore = JSON.stringify(loadDraft(draftContext)?.data)
+        const clearSubmittedDraft = () => {
+            if (JSON.stringify(loadDraft(draftContext)?.data) === draftBefore) clearDraft(draftContext)
+        }
         try {
             for (const step of [1, 2, 3]) {
                 const error = daoStepError(step, buildStepData())
@@ -361,11 +347,16 @@ export function CreateDAO() {
             // The policy only sizes the transaction; success is read from the chain.
             const policy = await codeSubmissionPolicy(chain).catch(() => "unknown")
 
+            assertCurrent()
+            // Durable intent precedes any wallet prompt: a lost response/reload
+            // must leave enough context to reconcile without resubmitting.
+            savePendingDAO(intent)
+            intentSaved = true
             setDeployStep("signing")
             const res = await doContractBroadcast(
                 [{ type: "/vm.m_addpkg", value: msg.value }],
                 `Deploy realm ${realmPath} (storage deposit up to ${formatGnot(cap)})${replacing ? "; replaces your earlier submission that gno.land has not enabled" : ""}`,
-                { gas: "deploy", gasWanted: deployGasForPolicy(config, policy) },
+                { gas: "deploy", gasWanted: deployGasForPolicy(config, policy), beforeSign: () => { assertCurrent(); walletStarted = true } },
             )
             confirmedTx = res.hash
             setDeployStep("broadcasting")
@@ -374,7 +365,7 @@ export function CreateDAO() {
             // approver enables it: only "live" is a created DAO.
             // Record it before polling: closing the tab must not lose the DAO.
             try {
-                savePendingDAO({ chainId: GNO_CHAIN_ID, path: realmPath, name, txHash: res.hash, reason: "submitted, waiting for the network to enable it" })
+                savePendingDAO({ ...intent, phase: "submitted", txHash: res.hash, reason: "Wallet returned; checking package status" })
             } catch { /* the waiting panel still shows the path and transaction */ }
             // Whatever the policy says, the DAO exists only once its package is
             // live. The first read returns at once when it already is.
@@ -382,24 +373,26 @@ export function CreateDAO() {
                 setDeployStep("idle")
                 setApproval({ phase: "waiting", txHash: res.hash })
             }
-            const outcome: DeployOutcome = await waitForPackage(chain, realmPath)
+            if (!mounted.current) return
+            const outcome: DeployOutcome = await waitForPackage(chain, realmPath, { signal: polling.current?.signal })
+            if (!mounted.current) return
             if (outcome.outcome === "pending") setDeployStep("idle")
 
             if (outcome.outcome === "pending") {
-                clearDraft()
                 const reason = outcome.unconfirmed
                     ? "the network status could not be read yet"
                     : outcome.meta?.reason ?? "waiting for a package approver to enable it"
                 try {
-                    savePendingDAO({ chainId: GNO_CHAIN_ID, path: realmPath, name, txHash: res.hash, reason })
+                    savePendingDAO({ ...intent, phase: "submitted", txHash: res.hash, reason })
                 } catch { /* the pending panel still shows the path and transaction */ }
-                setApproval({ phase: "pending", txHash: res.hash, reason })
+                setApproval({ phase: "pending", txHash: res.hash, reason, status: outcome.unconfirmed ? "unknown" : "inert", canRepair: !outcome.unconfirmed && outcome.meta?.creator === adena.address })
                 return
             }
             setApproval(null)
-            try { removePendingDAO(GNO_CHAIN_ID, realmPath) } catch { /* storage unavailable */ }
             if (outcome.outcome === "failed") {
-                throw new Error(`The DAO was not created: ${outcome.error}`)
+                setDeployStep("idle")
+                setApproval({ phase: "pending", status: "absent", txHash: res.hash, reason: outcome.error })
+                return
             }
 
             // Preserve the confirmed primary result even if a later wallet
@@ -410,17 +403,17 @@ export function CreateDAO() {
             }
             const warnings: string[] = []
             setDeployResult(result)
-            try { addSavedDAO(realmPath, name) } catch {
+            try { bookmark(realmPath, name); removePendingDAO(GNO_CHAIN_ID, realmPath) } catch {
                 warnings.push("Your DAO was created, but could not be saved in this browser. Keep its realm path.")
             }
-            clearDraft()
+            clearSubmittedDraft()
 
-            if (channelMsg) {
+            if (channelMsg && mounted.current) {
                 setDeployStep("signing")
                 try {
                     await doContractBroadcast(
                         [{ type: "/vm.m_addpkg", value: channelMsg.value }],
-                        `Deploy Channels for ${name}`, { gas: "deploy" },
+                        `Deploy Channels for ${name}`, { gas: "deploy", beforeSign: assertCurrent },
                     )
                 } catch (channelErr) {
                     warnings.push(`Channels deployment was not confirmed: ${friendlyError(channelErr)}. Your DAO is already created. Check the Channels realm before attempting a separate deployment.`)
@@ -430,13 +423,26 @@ export function CreateDAO() {
             setDeployResult({ ...result, warnings })
             setDeployStep("complete")
         } catch (err) {
+            // Before signing, cancellation is known. Once Adena was invoked,
+            // even cancellation-worded errors can be transport failures.
+            if (intentSaved && !walletStarted) {
+                try { removePendingDAO(GNO_CHAIN_ID, realmPath) } catch { /* Keep the recoverable intent. */ }
+            } else if (intentSaved) {
+                if (mounted.current) {
+                    setApproval({ phase: "pending", status: "unknown", txHash: confirmedTx, reason: "The wallet outcome could not be confirmed. Check the network before resubmitting." })
+                    setDeployStep("idle")
+                }
+                return
+            }
+            if (!mounted.current) return
             setApproval(null)
             // friendlyError may replace the message entirely: keep the hash of a
             // confirmed transaction outside it so the user can always find it.
             setError(confirmedTx ? `${friendlyError(err)} Transaction: ${confirmedTx}` : friendlyError(err))
             setDeployStep("error")
         } finally {
-            setDeploying(false)
+            releaseSubmission()
+            if (mounted.current) setDeploying(false)
         }
     }
 
@@ -473,20 +479,29 @@ export function CreateDAO() {
                 ← Back to DAOs
             </button>
 
+            {draftWarning && <p role="status">{draftWarning}</p>}
+            {hasVolatilePendingDAO(GNO_CHAIN_ID, realmPath) && <p role="alert">This submission could not be saved to browser storage. Keep this tab open and copy the realm path and any transaction hash before leaving.</p>}
+            {confirmReset && <div className="k-card" role="alertdialog" aria-label="Discard DAO draft">
+                <p>Discard this draft and start again? This cannot be undone.</p>
+                <button className="k-btn-secondary" onClick={() => setConfirmReset(false)}>Keep draft</button>
+                <button className="k-btn-primary" onClick={discardDraft}>Confirm discard</button>
+            </div>}
+            {!showDraftBanner && !deploying && !deployResult && !approval && (name || realmPath) &&
+                <button className="k-btn-secondary" onClick={() => setConfirmReset(true)}>Reset draft</button>}
             {/* Draft resume banner */}
             {showDraftBanner && (
                 <div className="k-card cdao-draft-banner">
                     <div className="cdao-draft-banner__info">
                         <span className="cdao-draft-banner__icon"><NotePencil size={16} /></span>
                         <span className="cdao-draft-banner__text">
-                            You have an unsaved draft
+                            {draftCandidate?.needsAdoption ? `Use this older or disconnected draft on ${caps.label} with ${adena.address || "no connected wallet"}? Review the path and members before deploying.` : `You have a saved draft on ${caps.label} for ${adena.address || "this disconnected session"}.`}
                         </span>
                     </div>
                     <div className="cdao-draft-banner__actions">
                         <button className="k-btn-primary" onClick={resumeDraft}>
                             Resume
                         </button>
-                        <button className="k-btn-secondary" onClick={discardDraft}>
+                        <button className="k-btn-secondary" onClick={() => setConfirmReset(true)}>
                             Discard
                         </button>
                     </div>
@@ -593,23 +608,63 @@ export function CreateDAO() {
                 <div className="k-card" role="status" data-testid="dao-approval-waiting" style={{ padding: 20 }}>
                     <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)", marginBottom: 8 }}>Waiting for network approval</h3>
                     <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)" }}>
-                        Your transaction was confirmed. {caps.label} enables new packages after a check; this usually takes a few seconds.
+                        Your wallet returned a transaction response. Memba is checking whether {caps.label} has enabled the package.
                     </p>
                     <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", wordBreak: "break-all" }}>
-                        {realmPath} · TX {approval.txHash}
+                        {realmPath} {approval.txHash ? `· TX ${approval.txHash}` : "· No transaction hash was returned"}
                     </p>
                 </div>
             )}
 
             {approval?.phase === "pending" && (
                 <div className="k-card" role="status" data-testid="dao-approval-pending" style={{ padding: 20 }}>
-                    <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)", marginBottom: 8 }}>Submitted, not enabled yet</h3>
+                    <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 600, color: "var(--color-text)", marginBottom: 8 }}>{approval.status === "inert" ? "Submitted, not enabled yet" : approval.status === "absent" ? "Package not found" : "Submission status unknown"}</h3>
                     <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)" }}>
-                        Submitted; gno.land has not enabled it yet. Your DAO becomes usable once gno.land enables it. Keep the realm path and transaction hash to check it later.
+                        {approval.status === "inert" ? "The package is stored but has not been enabled. It becomes usable only once the network enables it." : approval.status === "absent" ? "The network currently has no package at this path. Check the transaction before attempting another submission." : "The package status is not confirmed. This does not mean it failed or is waiting for approval. Check again before resubmitting."}
                     </p>
                     <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)" }}>Network status: {approval.reason}</p>
+                    {activeSubmission && <p role="status">A submission is still in progress. Finish the wallet request before checking or starting another attempt.</p>}
+                    <button className="k-btn-secondary" disabled={deploying || activeSubmission} onClick={async () => {
+                        setDeploying(true)
+                        try {
+                            const receipt = listPendingDAOs(GNO_CHAIN_ID).find(p => p.path === realmPath)
+                            const knownHash = receipt?.txHash || approval.txHash
+                            const outcome = await waitForPackage(chain, realmPath, { timeoutMs: 0, signal: polling.current?.signal })
+                            if (!mounted.current) return
+                            if (outcome.outcome === "live") {
+                                saveDAOForRecovery(receipt?.orgId ?? null, realmPath, name)
+                                removePendingDAO(GNO_CHAIN_ID, realmPath)
+                                setApproval(null)
+                                setDeployResult({ realmPath, entityPath: `/dao/${encodeSlug(realmPath)}`, entityLabel: "DAO", entityName: name, txHash: knownHash })
+                                setDeployStep("complete")
+                                clearDraft(draftContext)
+                            } else {
+                                setAcknowledgeRecovery(false)
+                                setApproval({ ...approval, txHash: knownHash, canRepair: outcome.outcome === "pending" && !outcome.unconfirmed && outcome.meta?.creator === adena.address, status: outcome.outcome === "failed" ? "absent" : outcome.unconfirmed ? "unknown" : "inert", reason: outcome.outcome === "failed" ? outcome.error : outcome.meta?.reason ?? "Status could not be confirmed" })
+                            }
+                        } catch { if (mounted.current) setError("Could not save the recovered DAO. Its submission record is retained; check again.") }
+                        finally { if (mounted.current) setDeploying(false) }
+                    }}>Check status</button>
+                    {(approval.status === "absent" || approval.canRepair) && <div>
+                        <p>{activeSubmission ? "A wallet request or status check is still in progress. Finish it before starting another attempt." : approval.canRepair ? "This wallet owns the parked package. You can review a replacement; it will require a new signature and deposit check." : "Only continue after checking the transaction in your wallet or explorer. An absent package alone does not prove the transaction cannot still arrive."}</p>
+                        <label><input type="checkbox" checked={acknowledgeRecovery} disabled={activeSubmission} onChange={e => setAcknowledgeRecovery(e.target.checked)} /> I checked the transaction and want to review a new submission.</label>
+                        <button className="k-btn-secondary" disabled={activeSubmission || deploying || !acknowledgeRecovery} onClick={async () => {
+                            if (isSubmissionActive(activityKey)) return
+                            setDeploying(true)
+                            try {
+                                // Revalidate immediately before releasing the saved attempt.
+                                await assertCanDeployTo(chain, adena.address, realmPath)
+                                await assertPathAvailable(chain, realmPath, adena.address)
+                                assertCurrent()
+                                if (isSubmissionActive(activityKey)) throw new Error("This submission is still in progress")
+                                removePendingDAO(GNO_CHAIN_ID, realmPath)
+                                onReset() // The saved form still requires a fresh permanent-contract confirmation.
+                            } catch (err) { if (mounted.current) setError(friendlyError(err)) }
+                            finally { if (mounted.current) setDeploying(false) }
+                        }}>Review another attempt</button>
+                    </div>}
                     <p style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-text-secondary)", fontFamily: "JetBrains Mono, monospace", wordBreak: "break-all" }}>
-                        {realmPath} · TX {approval.txHash}
+                        {realmPath} {approval.txHash ? `· TX ${approval.txHash}` : "· No transaction hash was returned"}
                     </p>
                 </div>
             )}

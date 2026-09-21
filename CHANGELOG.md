@@ -22,6 +22,11 @@ Full changelogs are split by version range for easier navigation:
 
 ### Mainnet release evidence
 - Correct the documented default network and separate frontend candidates, published artifacts, fixture checks and real wallet verification.
+### Fixed — DAO drafts and submission recovery (2026-09-21)
+- Scope creation drafts to their chain and wallet, require explicit adoption of older/disconnected drafts, and preserve originals if saving fails.
+- Preserve unsaved edits across wallet switches, display storage failures, and confirm draft resets.
+- Record submission intent before signing, retain uncertain outcomes and known receipts, and prevent account switches from reopening an in-flight submission.
+- Distinguish unreadable, absent, parked and live packages; keep pending records until bookmarking succeeds in their original workspace.
 ### Fixed — release recovery (2026-09-21)
 - Bound stale-chunk recovery across later route failures, handle denied storage, and defer recovery during contract confirmation and signing requests.
 - Explain loading failures without claiming an update was detected.

@@ -6,7 +6,7 @@ import {
     assertPathAvailable,
     clearPolicyCache,
     codeSubmissionPolicy,
-    checkPendingDAOs,
+    checkPendingDAOs, clearPendingMemory,
     listPendingDAOs,
     packageStatus,
     recheckPendingDAOs,
@@ -35,6 +35,7 @@ const decodeHex = (h: string) => new TextDecoder().decode(Uint8Array.from(h.slic
 beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    clearPendingMemory()
     clearPolicyCache()
     network = ctx.chainId
     queries.length = 0
@@ -178,6 +179,52 @@ describe("pending DAOs", () => {
         expect(checks[0].reason).toBe("waiting for a package approver to enable it")
     })
 
+    it("retains the receipt when live promotion fails and can retry it", async () => {
+        savePendingDAO({ chainId: "gnoland-1", path: LIVE_PATH, name: "Live", txHash: "KEEP", reason: "r", orgId: "team-a" })
+        const failed = await checkPendingDAOs(ctx, () => { throw new Error("quota") })
+        expect(failed[0].check).toBe("live-unsaved")
+        expect(listPendingDAOs("gnoland-1")[0].txHash).toBe("KEEP")
+        const promote = vi.fn()
+        await checkPendingDAOs(ctx, promote)
+        expect(promote).toHaveBeenCalledWith(expect.objectContaining({ orgId: "team-a", txHash: "KEEP" }))
+        expect(listPendingDAOs("gnoland-1")).toEqual([])
+    })
+    it("does not promote or delete after a late aborted status response", async () => {
+        savePendingDAO({ chainId: "gnoland-1", path: LIVE_PATH, name: "Live", txHash: "KEEP", reason: "r" })
+        const controller = new AbortController()
+        answer = () => { controller.abort(); return fixture("live") }
+        const promote = vi.fn()
+        await checkPendingDAOs(ctx, promote, controller.signal)
+        expect(promote).not.toHaveBeenCalled()
+        expect(listPendingDAOs("gnoland-1")).toHaveLength(1)
+    })
+    it("keeps base receipts compatible with the previous strict frontend schema", () => {
+        savePendingDAO({ chainId: "gnoland-1", path: LIVE_PATH, name: "Live", txHash: "KEEP", reason: "r", orgId: "team-a", wallet: SIGNER, phase: "intent" })
+        const previous = JSON.parse(localStorage.getItem("memba_pending_daos")!)[0]
+        expect(Object.keys(previous).sort()).toEqual(["chainId", "path", "name", "txHash", "reason", "submittedAt"].sort())
+        // A previous release can read and write its same base array.
+        localStorage.setItem("memba_pending_daos", JSON.stringify([previous]))
+        expect(listPendingDAOs("gnoland-1")[0]).toMatchObject({ txHash: "KEEP", orgId: "team-a" })
+    })
+    it("keeps a known hash available in memory if writing the updated receipt fails", () => {
+        savePendingDAO({ chainId: "gnoland-1", path: LIVE_PATH, name: "Live", txHash: "", reason: "intent", orgId: "team-a", phase: "intent" })
+        const write = vi.spyOn(localStorage, "setItem").mockImplementation(() => { throw new Error("quota") })
+        expect(() => savePendingDAO({ chainId: "gnoland-1", path: LIVE_PATH, name: "Live", txHash: "KNOWN", reason: "submitted", orgId: "team-a", phase: "submitted" })).toThrow()
+        expect(listPendingDAOs("gnoland-1")[0]).toMatchObject({ txHash: "KNOWN", orgId: "team-a" })
+        write.mockRestore()
+    })
+    it("preserves the prior receipt and original workspace when the base write fails after metadata", () => {
+        savePendingDAO({ chainId: "gnoland-1", path: LIVE_PATH, name: "Live", txHash: "OLD", reason: "intent", orgId: "team-a", phase: "intent", submittedAt: 1 })
+        const original = localStorage.setItem.bind(localStorage)
+        const write = vi.spyOn(localStorage, "setItem").mockImplementation((key, value) => {
+            if (key === "memba_pending_daos") throw new Error("quota")
+            original(key, value)
+        })
+        expect(() => savePendingDAO({ chainId: "gnoland-1", path: LIVE_PATH, name: "Live", txHash: "NEW", reason: "submitted", orgId: "team-a", phase: "submitted", submittedAt: 2 })).toThrow()
+        clearPendingMemory()
+        expect(listPendingDAOs("gnoland-1")[0]).toMatchObject({ txHash: "OLD", orgId: "team-a", phase: "intent" })
+        write.mockRestore()
+    })
     it("ignores corrupt storage", () => {
         localStorage.setItem("memba_pending_daos", '[{"chainId":1}]')
         expect(listPendingDAOs("gnoland-1")).toEqual([])

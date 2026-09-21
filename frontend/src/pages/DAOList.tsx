@@ -13,7 +13,7 @@ import {
     FEATURED_DAO,
     encodeSlug,
     getSavedDAOsForOrg,
-    addSavedDAOForOrg,
+    saveDAOForRecovery, addSavedDAOForOrg,
     removeSavedDAOForOrg,
     validateRealmPath,
 } from "../lib/daoSlug"
@@ -86,19 +86,19 @@ export function DAOList() {
     // Deploys gno.land has not enabled yet (kept in this browser by Create DAO).
     // Opening the list re-checks them; an enabled one becomes a normal entry.
     const [pendingVersion, setPendingVersion] = useState(0)
-    const pendingNow = useMemo(() => listPendingDAOs(GNO_CHAIN_ID),
+    const pendingNow = useMemo(() => listPendingDAOs(GNO_CHAIN_ID).filter(p => (p.orgId ?? null) === activeOrgId),
         // eslint-disable-next-line react-hooks/exhaustive-deps -- pendingVersion forces the localStorage re-read
-        [pendingVersion, savedVersion])
+        [pendingVersion, savedVersion, activeOrgId])
     const pendingQuery = useQuery({
-        queryKey: ["dao", "pending", GNO_CHAIN_ID, pendingVersion],
+        queryKey: ["dao", "pending", GNO_CHAIN_ID, activeOrgId, pendingVersion],
         enabled: pendingNow.length > 0,
         retry: false,
         queryFn: ({ signal }) => checkPendingDAOs({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID, rpcUrls: getRpcUrlsInOrder() }, (entry: PendingDAO) => {
-            addSavedDAOForOrg(activeOrgId, entry.path, entry.name)
+            saveDAOForRecovery(entry.orgId ?? null, entry.path, entry.name)
             setSavedVersion((v) => v + 1)
         }, signal),
     })
-    const pendingChecks: (PendingDAO & { check?: PendingCheck["check"] })[] = pendingQuery.data ?? pendingNow
+    const pendingChecks: (PendingDAO & { check?: PendingCheck["check"] })[] = pendingQuery.data?.filter(p => (p.orgId ?? null) === activeOrgId) ?? pendingNow
 
     const visibleDAOs = daoEntries.filter(dao => !PRO_APP_ENABLED || `${dao.name} ${dao.realmPath}`.toLowerCase().includes(search.trim().toLowerCase()))
 
@@ -239,12 +239,12 @@ export function DAOList() {
             {pendingChecks.length > 0 && (
                 <section className="k-card k-daolist__pending" aria-labelledby="pending-daos-title">
                     <div className="k-daolist__pending-header">
-                        <h3 id="pending-daos-title" className="k-daolist__pending-title">Waiting for gno.land</h3>
+                        <h3 id="pending-daos-title" className="k-daolist__pending-title">DAO submissions</h3>
                         <button className="k-btn-secondary" onClick={() => setPendingVersion((v) => v + 1)} disabled={pendingQuery.isFetching}>
                             {pendingQuery.isFetching ? "Checking…" : "Check again"}
                         </button>
                     </div>
-                    <p className="k-daolist__pending-note">These DAOs were submitted from this browser. They become usable once the network enables them.</p>
+                    <p className="k-daolist__pending-note">These are saved submission attempts from this browser. Only a live package is ready to use.</p>
                     <ul className="k-daolist__pending-list">
                         {pendingChecks.map((p) => (
                             <li key={p.path} className="k-daolist__pending-item">
@@ -254,10 +254,11 @@ export function DAOList() {
                                     {pendingQuery.isFetching || p.check === undefined ? "Checking the network…"
                                         : p.check === "waiting" ? `Not enabled yet: ${p.reason}`
                                             : p.check === "not-found" ? "The network has no package at this path. The submission may have failed; check the transaction."
+                                                : p.check === "live-unsaved" ? "The DAO is live, but could not be saved in this browser. Keep its realm path and check again."
                                                 : "The status could not be read. Try again later."}
                                 </div>
                                 {p.txHash && <TxStatusHash hash={p.txHash} />}
-                                {p.check === "not-found" && (
+                                {p.check === "not-found" && p.phase !== "intent" && (
                                     <button className="k-btn-secondary" onClick={() => { removePendingDAO(GNO_CHAIN_ID, p.path); setPendingVersion((v) => v + 1) }}>
                                         Remove from this list
                                     </button>
