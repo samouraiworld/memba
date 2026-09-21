@@ -8,9 +8,9 @@ At most two implementation PRs are open at once. All changes use isolated featur
 
 ## Published baseline
 
-- Frontend commit: `2b843d4f20ada595d13566a96d2637042de78f3c`, v7.7.0.
-- Netlify site: `memba-multisig`; production deploy: `6aac2039f82cfa0007eb0de8` (2026-09-17).
-- Custom domain `https://memba.samourai.app` matched the immutable deploy artifact in this session. A fresh browser confirmed the current mainnet presentation.
+- Frontend commit: `5e9be8982743ed29d150ed065203089f95b189b8`, v7.7.0, following the owner’s merge of #1234.
+- Netlify site: `memba-multisig`; production deploy: `6ab184e058cc2f00089919d6` (published 2026-09-21 19:27 UTC). Previous baseline: `2b843d4f20ada595d13566a96d2637042de78f3c` / deploy `6aac2039f82cfa0007eb0de8`.
+- Custom domain `https://memba.samourai.app` matched the immutable deploy HTML SHA-256 `cd0f3a09caa49204132d3e48d6ae8804c38a7800e51e778401d2ac08a3a8f870` and entry `/assets/index-DsZ8QD3i.js`. A fresh immutable-origin browser confirmed the corrected Home labels. The returning production origin initially displayed its cached older Home, then adopted the new entry after the service-worker update and a later reload. Mainnet tokens showed “Not available on this network”; Pearl retained its token creation control. No wallet was connected or used.
 - An initially stale browser showed older 7.5.0 content; its cause was not established. This observation motivated controlled production-build/service-worker tests, not a speculative redeploy.
 - This baseline is an observation at the time of verification. Re-read the published commit before and after any merge.
 
@@ -18,10 +18,10 @@ At most two implementation PRs are open at once. All changes use isolated featur
 
 | Slice | Revision / review | Automated evidence | Merge / release |
 |---|---|---|---|
-| A2 truthful Home and unavailable mainnet token factory | `ad9763f6a6bd80469ad178edbc236d62e3ea6f84`; independent CTO + SWE approval | Full unit: 560 files, 5,596 tests; lint/build; four mainnet/Pearl desktop/mobile browser cases; all GitHub checks green | [PR #1234](https://github.com/samouraiworld/memba/pull/1234); required GitHub review pending; not merged/released |
-| A1 release continuity and wallet-safe recovery | `36b17d09d8c917aecb61ad8f07deb36d458a1553`; independent CTO + SWE approval | Full unit: 561 files, 5,595 tests; lint/build; three actual production-build/service-worker upgrade tests; confirmation-provider integration; all GitHub checks green | [PR #1235](https://github.com/samouraiworld/memba/pull/1235); required GitHub review pending; not merged/released |
-| B1+B2 scoped creation drafts and durable approval recovery | `dd4e4df58f31f7c43242d3ee2c130af22b4f1d5d`; independent CTO + SWE approval | Full unit: 561 files, 5,616 tests; lint/build/bundle; Chromium, Firefox and iPhone WebKit mocked mainnet submission → reload during polling → inert-status recovery; one wallet call; 320/390/1440px layouts | Branch `fix/dao-draft-context`; queued behind the two-PR limit; not merged/released |
-| B3 first text proposal and vote | `b2bc79376bfcb1c5b03c113bcef566d35fff8b4e`; independent CTO + SWE approval | Full unit: 561 files, 5,609 tests; lint/build/bundle; mainnet synthetic wallet/RPC proposal → vote → read-back → reload passes Chromium, Firefox and iPhone WebKit; 320/390/1440px layouts pass | Branch `fix/dao-first-governance-journey`; not merged/released |
+| A2 truthful Home and unavailable mainnet token factory | `ad9763f6a6bd80469ad178edbc236d62e3ea6f84`; independent CTO + SWE approval | Full unit: 560 files, 5,596 tests; lint/build; four mainnet/Pearl desktop/mobile browser cases; all GitHub checks green | [PR #1234](https://github.com/samouraiworld/memba/pull/1234); owner merged at `5e9be898`; production verified as above |
+| A1 release continuity and wallet-safe recovery | `488842d79b4170091dc8fb941d6f006e57cd1f5d`; independent CTO + SWE approval after merging current main | Refreshed full unit: 561 files, 5,600 tests; lint/build/bundle; three actual production-build/service-worker upgrade tests pass on the updated head; confirmation-provider integration; hosted CI running | [PR #1235](https://github.com/samouraiworld/memba/pull/1235); required GitHub review pending; not merged/released |
+| B1+B2 scoped creation drafts and durable approval recovery | `e6e8087b849f6f95f381e35cbea1c60e48ac9fd2`; independent CTO + SWE approval after merging current main | Original slice full unit: 561 files, 5,616 tests; lint/build/bundle; updated-head focused recovery: 72 tests pass; hosted full suite running; Chromium, Firefox and iPhone WebKit mocked mainnet submission → reload during polling → inert-status recovery; one wallet call; 320/390/1440px layouts | [PR #1236](https://github.com/samouraiworld/memba/pull/1236); hosted checks running; not merged/released |
+| B3 first text proposal and vote | `215f236a60131bb616439644db25571188335016`; independent CTO + SWE approval after merging current main | Full unit: 561 files, 5,609 tests; lint/build/bundle; mainnet synthetic wallet/RPC proposal → vote → read-back → reload passes Chromium, Firefox and iPhone WebKit; 320/390/1440px layouts pass | Branch `fix/dao-first-governance-journey`; not merged/released |
 
 All full-suite counts exclude one skipped file/test. The unchanged production dependency lockfile passes `audit:ci` (no unallowlisted high/critical advisory). Browser writes above are deterministic fixture behavior, not network transaction evidence.
 

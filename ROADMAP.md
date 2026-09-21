@@ -15,7 +15,7 @@ The v7.6.0 frontend candidate adds structured founding-DAO reads and governed ad
 
 ## Current frontend status (2026-09-21)
 
-The verified production baseline is frontend v7.7.0 at `2b843d4f20ada595d13566a96d2637042de78f3c`, with mainnet (`gnoland-1`) as the default network. This is a frontend deployment observation, not a claim that all shared realms or wallet journeys are ready on mainnet.
+The verified production baseline is frontend v7.7.0 at `5e9be8982743ed29d150ed065203089f95b189b8`, with mainnet (`gnoland-1`) as the default network. This is a frontend deployment observation, not a claim that all shared realms or wallet journeys are ready on mainnet.
 
 The immediate A+B work covers release continuity, honest network capabilities, recoverable DAO creation, and the first text-proposal/vote journey. Candidate code, exact review revisions, automated fixture evidence, release gates and unverified wallet rehearsals are tracked in [the release evidence record](docs/MAINNET_AB_RELEASE_EVIDENCE_2026-09-21.md). Marketplace and shared-community activation remain separate deployment work.
 
