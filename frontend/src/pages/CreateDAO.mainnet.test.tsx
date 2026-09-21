@@ -7,16 +7,20 @@ const SIGNER = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
 const PATH = `gno.land/r/${SIGNER}/mainnet_dao`
 
 const mocks = vi.hoisted(() => ({
+    org: null as string | null,
+    address: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c",
     broadcast: vi.fn(),
     navigate: vi.fn(),
     save: vi.fn(),
+    saveOrg: vi.fn(),
     rpc: vi.fn(),
     caps: { create: true, channelsCompanion: false },
 }))
 vi.mock("../hooks/useNetworkNav", () => ({ useNetworkNav: () => mocks.navigate }))
-vi.mock("react-router-dom", () => ({ useOutletContext: () => ({ adena: { address: SIGNER } }) }))
+vi.mock("react-router-dom", () => ({ useOutletContext: () => ({ adena: { address: mocks.address } }) }))
 vi.mock("../lib/grc20", async (original) => ({ ...await original<typeof import("../lib/grc20")>(), doContractBroadcast: mocks.broadcast }))
-vi.mock("../lib/daoSlug", () => ({ addSavedDAO: mocks.save, encodeSlug: () => "saved-dao" }))
+vi.mock("../contexts/OrgContext", () => ({ useOrg: () => ({ activeOrgId: mocks.org }) }))
+vi.mock("../lib/daoSlug", () => ({ saveDAOForRecovery: (org: string | null, path: string, name: string) => org ? mocks.saveOrg(org, path, name) : mocks.save(path, name), encodeSlug: () => "saved-dao" }))
 vi.mock("../hooks/useScrollToTop", () => ({ useScrollToTop: () => {} }))
 vi.mock("../lib/rpcFallback", async (original) => ({ ...await original<typeof import("../lib/rpcFallback")>(), directRpcCall: mocks.rpc }))
 // gnoland-1, with user DAO creation switched on as the release step will do;
@@ -39,7 +43,7 @@ vi.mock("../lib/dao/packageStatus", async (original) => {
 })
 
 import { CreateDAO } from "./CreateDAO"
-import { clearPolicyCache, listPendingDAOs, waitForPackage } from "../lib/dao/packageStatus"
+import { clearPolicyCache, listPendingDAOs, savePendingDAO, waitForPackage } from "../lib/dao/packageStatus"
 
 // Real gnoland-1 answers captured read-only.
 const fixture = (name: string) => readFileSync(join(import.meta.dirname, "..", "lib", "dao", "testdata", "package-status", `${name}.txt`), "utf8").trim()
@@ -58,6 +62,8 @@ const decodeHex = (h: string) => new TextDecoder().decode(Uint8Array.from(h.slic
 
 beforeEach(() => {
     cleanup()
+    mocks.address = SIGNER
+    mocks.org = null
     localStorage.clear()
     vi.clearAllMocks()
     clearPolicyCache()
@@ -85,14 +91,112 @@ function resumeReview() {
         threshold: 51, quorum: 0, availableRoles: ["admin", "member"], proposalCategories: ["governance"],
         selectedPreset: "basic", step: 5, enableChannels: true, channelNames: ["general"], savedAt: Date.now(),
     }))
-    render(<CreateDAO />)
+    const view = render(<CreateDAO />)
     fireEvent.click(screen.getByRole("button", { name: "Resume" }))
+    return view
 }
 
 const deployButton = () => screen.getByRole("button", { name: /Deploy DAO/ })
 const confirm = () => fireEvent.click(screen.getByRole("checkbox", { name: /permanent contract on gno\.land/ }))
 
 describe("Create DAO on gnoland-1", () => {
+    it("records intent before signing and preserves the receipt across A → B → A", async () => {
+        let finish!: (v: { hash: string }) => void
+        mocks.broadcast.mockImplementationOnce(async (_msgs, _memo, opts) => {
+            expect(listPendingDAOs("gnoland-1")).toMatchObject([{ path: PATH, phase: "intent", txHash: "", wallet: SIGNER }])
+            opts.beforeSign()
+            return await new Promise(resolve => { finish = resolve })
+        })
+        const view = resumeReview()
+        confirm(); fireEvent.click(deployButton())
+        await waitFor(() => expect(mocks.broadcast).toHaveBeenCalledTimes(1))
+        mocks.address = "g1anotherwallet"
+        view.rerender(<CreateDAO />)
+        mocks.address = SIGNER
+        view.rerender(<CreateDAO />)
+        expect(screen.getByText("Submission status unknown")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /Deploy DAO/ })).not.toBeInTheDocument()
+        finish({ hash: "LATEHASH" })
+        await waitFor(() => expect(listPendingDAOs("gnoland-1")[0].txHash).toBe("LATEHASH"))
+        expect(mocks.broadcast).toHaveBeenCalledTimes(1)
+        expect(mocks.save).not.toHaveBeenCalled()
+        expect(localStorage.getItem(`memba_dao_draft:v2:gnoland-1:${SIGNER}`)).not.toBeNull()
+    })
+
+    it("cancels obsolete preflight before opening the wallet", async () => {
+        const normalRpc = mocks.rpc.getMockImplementation()!
+        let release!: () => void
+        mocks.rpc.mockImplementation(async (...args) => {
+            if (args[1] === "abci_query" && args[2].path === '"vm/qeval"') await new Promise<void>(r => { release = r })
+            return normalRpc(...args)
+        })
+        const view = resumeReview()
+        confirm(); fireEvent.click(deployButton())
+        await waitFor(() => expect(release).toBeTypeOf("function"))
+        mocks.address = "g1anotherwallet"
+        view.rerender(<CreateDAO />)
+        release()
+        await waitFor(() => expect(mocks.rpc).toHaveBeenCalledWith(expect.any(String), "abci_query", expect.objectContaining({ path: '"vm/qpkgmeta_json"' }), undefined))
+        expect(mocks.broadcast).not.toHaveBeenCalled()
+        expect(listPendingDAOs("gnoland-1")).toEqual([])
+    })
+
+    it.each(["network response lost", "request cancelled"])("retains uncertain wallet outcome %s", async (message) => {
+        mocks.broadcast.mockImplementationOnce(async (_msgs, _memo, opts) => { opts.beforeSign(); throw new Error(message) })
+        resumeReview(); confirm(); fireEvent.click(deployButton())
+        expect(await screen.findByText("Submission status unknown")).toBeInTheDocument()
+        expect(listPendingDAOs("gnoland-1")).toMatchObject([{ txHash: "", phase: "intent" }])
+    })
+
+    it("retains an uncertain wallet outcome and never advertises approval as known", async () => {
+        mocks.broadcast.mockImplementationOnce(async (_msgs, _memo, opts) => { opts.beforeSign(); throw new Error("network response lost") })
+        resumeReview(); confirm(); fireEvent.click(deployButton())
+        expect(await screen.findByText("Submission status unknown")).toBeInTheDocument()
+        expect(screen.queryByText("Submitted, not enabled yet")).not.toBeInTheDocument()
+        expect(listPendingDAOs("gnoland-1")).toMatchObject([{ txHash: "", phase: "intent" }])
+        expect(mocks.broadcast).toHaveBeenCalledTimes(1)
+    })
+
+    it("promotes recovery into the original organization after an organization switch", async () => {
+        const view = resumeReview()
+        savePendingDAO({ chainId: "gnoland-1", path: PATH, name: "Mainnet DAO", txHash: "ORGHASH", reason: "waiting", wallet: SIGNER, orgId: "team-a", phase: "submitted" })
+        mocks.org = "team-b"
+        view.rerender(<CreateDAO />)
+        statuses = [meta.live()]
+        fireEvent.click(screen.getByRole("button", { name: "Check status" }))
+        expect(await screen.findByText("DAO deployed successfully!")).toBeInTheDocument()
+        expect(mocks.saveOrg).toHaveBeenCalledWith("team-a", PATH, "Mainnet DAO")
+        expect(mocks.save).not.toHaveBeenCalled()
+    })
+
+    it("offers an explicit revalidated retry for an absent abandoned intent", async () => {
+        mocks.broadcast.mockImplementationOnce(async (_msgs, _memo, opts) => { opts.beforeSign(); throw new Error("insufficient funds") })
+        resumeReview(); confirm(); fireEvent.click(deployButton())
+        await screen.findByText("Submission status unknown")
+        fireEvent.click(screen.getByRole("button", { name: "Check status" }))
+        await screen.findByText("Package not found")
+        const retry = screen.getByRole("button", { name: "Review another attempt" })
+        expect(retry).toBeDisabled()
+        fireEvent.click(screen.getByRole("checkbox", { name: /I checked the transaction/ }))
+        fireEvent.click(retry)
+        await screen.findByRole("button", { name: "Resume" })
+        expect(mocks.broadcast).toHaveBeenCalledTimes(1)
+        expect(listPendingDAOs("gnoland-1")).toEqual([])
+        fireEvent.click(screen.getByRole("button", { name: "Resume" }))
+        expect(deployButton()).toBeDisabled()
+    })
+
+    it("offers owned inert repair only after acknowledgement and a new ownership check", async () => {
+        statuses = [meta.absent(), meta.inert().replace(/"creator":"[^"]+"/, `"creator":"${SIGNER}"`)]
+        resumeReview(); confirm(); fireEvent.click(deployButton())
+        await screen.findByText("Submitted, not enabled yet", {}, { timeout: 5000 })
+        fireEvent.click(screen.getByRole("checkbox", { name: /I checked the transaction/ }))
+        fireEvent.click(screen.getByRole("button", { name: "Review another attempt" }))
+        await screen.findByRole("button", { name: "Resume" })
+        expect(mocks.broadcast).toHaveBeenCalledTimes(1)
+        expect(listPendingDAOs("gnoland-1")).toEqual([])
+    })
+
     it("is not offered while the network does not allow user DAO creation", () => {
         mocks.caps = { create: false, channelsCompanion: false }
         render(<CreateDAO />)
@@ -129,7 +233,7 @@ describe("Create DAO on gnoland-1", () => {
         expect(await screen.findByText("DAO deployed successfully!")).toBeInTheDocument()
         expect(mocks.broadcast).toHaveBeenCalledTimes(1)
         const [[msgs, memo, opts]] = mocks.broadcast.mock.calls
-        expect(opts).toEqual({ gas: "deploy", gasWanted: 48_000_000 })
+        expect(opts).toEqual({ gas: "deploy", gasWanted: 48_000_000, beforeSign: expect.any(Function) })
         expect(msgs[0].value.max_deposit).toBe("13000000ugnot")
         expect(msgs[0].value).not.toHaveProperty("deposit")
         expect(memo).toBe(`Deploy realm ${PATH} (storage deposit up to 13 GNOT)`)
@@ -151,8 +255,7 @@ describe("Create DAO on gnoland-1", () => {
         fireEvent.click(deployButton())
         const pending = await screen.findByTestId("dao-approval-pending")
         expect(savedBeforePolling).toMatchObject([{ path: PATH, txHash: "DEPLOYHASH" }])
-        expect(pending).toHaveTextContent("Your DAO becomes usable once gno.land enables it")
-        expect(pending).toHaveTextContent("Keep the realm path and transaction hash to check it later")
+        expect(pending).toHaveTextContent("It becomes usable only once the network enables it")
         expect(pending).toHaveTextContent("DEPLOYHASH")
         expect(pending).not.toHaveTextContent(/keep checking|My DAOs/)
         expect(pending).toHaveTextContent("waiting for a package approver to enable it")
@@ -213,7 +316,7 @@ describe("Create DAO on gnoland-1", () => {
         confirm()
         fireEvent.click(deployButton())
         expect(await screen.findByText("DAO deployed successfully!")).toBeInTheDocument()
-        expect(mocks.broadcast.mock.calls[0][2]).toEqual({ gas: "deploy", gasWanted: 57_000_000 })
+        expect(mocks.broadcast.mock.calls[0][2]).toEqual({ gas: "deploy", gasWanted: 57_000_000, beforeSign: expect.any(Function) })
     })
 
     it("refuses a path that is already used, before any signature", async () => {
@@ -266,16 +369,17 @@ describe("Create DAO on gnoland-1", () => {
         resumeReview()
         confirm()
         fireEvent.click(deployButton())
-        await waitFor(() => expect(screen.getByTestId("deploy-error")).toHaveTextContent("DEPLOYHASH"))
+        await waitFor(() => expect(screen.getByTestId("dao-approval-pending")).toHaveTextContent("DEPLOYHASH"))
     })
 
-    it("a submission that never appears is a failure that shows the transaction", async () => {
+    it("an absent package retains its receipt for reconciliation", async () => {
         statuses = [meta.absent()]
         resumeReview()
         confirm()
         fireEvent.click(deployButton())
-        await waitFor(() => expect(screen.getByTestId("deploy-error")).toHaveTextContent("DEPLOYHASH"))
+        await waitFor(() => expect(screen.getByTestId("dao-approval-pending")).toHaveTextContent("DEPLOYHASH"))
         expect(mocks.save).not.toHaveBeenCalled()
-        expect(listPendingDAOs("gnoland-1")).toEqual([])
+        expect(listPendingDAOs("gnoland-1")).toMatchObject([{ txHash: "DEPLOYHASH" }])
+        expect(screen.getByText("Package not found")).toBeInTheDocument()
     })
 })

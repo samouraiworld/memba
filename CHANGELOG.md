@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Fixed — DAO drafts and submission recovery (2026-09-21)
+- Scope creation drafts to their chain and wallet, require explicit adoption of older/disconnected drafts, and preserve originals if saving fails.
+- Preserve unsaved edits across wallet switches, display storage failures, and confirm draft resets.
+- Record submission intent before signing, retain uncertain outcomes and known receipts, and prevent account switches from reopening an in-flight submission.
+- Distinguish unreadable, absent, parked and live packages; keep pending records until bookmarking succeeds in their original workspace.
+
 ### gno.land is the default network, and Betanet is retired (2026-09-17)
 <!-- categories: memba, network -->
 - **Opening Memba now lands you on gno.land (`gnoland-1`), the production chain, instead of the Pearl testnet.** Anyone who picked a network before keeps the one they picked; only people who never chose are moved. Pearl stays in the network picker and is unchanged, and every `/pearl/...` link keeps working.

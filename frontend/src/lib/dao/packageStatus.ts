@@ -118,11 +118,16 @@ export interface WaitOptions {
     intervalMs?: number
     timeoutMs?: number
     signal?: AbortSignal
-    sleep?: (ms: number) => Promise<void>
+    sleep?: (ms: number, signal?: AbortSignal) => Promise<void>
     now?: () => number
 }
 
-const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms))
+const defaultSleep = (ms: number, signal?: AbortSignal) => new Promise<void>((resolve) => {
+    if (signal?.aborted) { resolve(); return }
+    const done = () => { clearTimeout(timer); signal?.removeEventListener("abort", done); resolve() }
+    const timer = setTimeout(done, ms)
+    signal?.addEventListener("abort", done, { once: true })
+})
 
 /**
  * Poll a just-submitted package until it is live, or until the timeout.
@@ -143,12 +148,13 @@ export async function waitForPackage(ctx: ChainContext, path: string, options: W
         try {
             last = await packageStatus(ctx, path, signal)
             lastReadFailed = false
+            if (signal?.aborted) { lastReadFailed = true; break }
             if (last.status === "live") return { outcome: "live", meta: last }
         } catch {
             lastReadFailed = true
         }
         if (now() >= deadline) break
-        await sleep(intervalMs)
+        await sleep(intervalMs, signal)
     }
     if (last?.status === "absent" && !lastReadFailed) return { outcome: "failed", meta: last, error: "The network has no package at this path" }
     if (last?.status === "inert" && !lastReadFailed) return { outcome: "pending", meta: last, unconfirmed: false }
@@ -164,38 +170,69 @@ export interface PendingDAO {
     txHash: string
     reason: string
     submittedAt: number
+    wallet?: string
+    orgId?: string | null
+    phase?: "intent" | "submitted"
 }
 
 const PENDING_KEY = "memba_pending_daos"
 
-const pendingSchema = z.array(z.strictObject({
-    chainId: z.string().min(1).max(64),
-    path: z.string().min(1).max(512),
-    name: z.string().max(64),
-    txHash: z.string().max(128),
-    reason: z.string().max(512),
+// Keep the deployed base schema byte-for-byte compatible with older frontends.
+// Context lives in a versioned sidecar matched to the exact base receipt, so a
+// rollback can still read/write the original list without erasing new receipts.
+const basePendingSchema = z.strictObject({
+    chainId: z.string().min(1).max(64), path: z.string().min(1).max(512),
+    name: z.string().max(64), txHash: z.string().max(128), reason: z.string().max(512),
     submittedAt: z.number().int().min(0),
-})).max(100)
-
+})
+const metadataSchema = z.strictObject({
+    wallet: z.string().max(128).optional(), orgId: z.string().max(128).nullable().optional(),
+    phase: z.enum(["intent", "submitted"]).optional(),
+})
+const META_KEY = "memba_pending_dao_context:v1"
+const volatilePending = new Map<string, PendingDAO>()
+const pendingIdentity = (p: Pick<PendingDAO, "chainId" | "path">) => JSON.stringify([p.chainId, p.path])
+export const hasVolatilePendingDAO = (chainId: string, path: string) => volatilePending.has(pendingIdentity({ chainId, path }))
+export function clearPendingMemory() { volatilePending.clear() }
+const receiptKey = (p: PendingDAO) => JSON.stringify([p.chainId, p.path, p.submittedAt, p.txHash])
+function readMetadata(): Record<string, z.infer<typeof metadataSchema>> {
+    try {
+        const value = JSON.parse(localStorage.getItem(META_KEY) || "{}")
+        return z.record(z.string(), metadataSchema).parse(value)
+    } catch { return {} }
+}
 function readPending(): PendingDAO[] {
     try {
-        const raw = localStorage.getItem(PENDING_KEY)
-        if (!raw) return []
-        const parsed = pendingSchema.safeParse(JSON.parse(raw))
-        return parsed.success ? parsed.data : []
-    } catch {
-        return []
-    }
+        const parsed = z.array(basePendingSchema).max(100).safeParse(JSON.parse(localStorage.getItem(PENDING_KEY) || "[]"))
+        if (!parsed.success) return [...volatilePending.values()]
+        const metadata = readMetadata()
+        return [...parsed.data.filter(p => !volatilePending.has(pendingIdentity(p))).map(p => ({ ...p, ...metadata[receiptKey(p)] })), ...volatilePending.values()]
+    } catch { return [...volatilePending.values()] }
 }
-
 function writePending(list: PendingDAO[]) {
-    localStorage.setItem(PENDING_KEY, JSON.stringify(list.slice(-100)))
+    if (list.length > 100) throw new Error("Too many saved DAO submissions. Resolve existing submissions before creating another.")
+    const metadata: Record<string, z.infer<typeof metadataSchema>> = { ...readMetadata() }
+    // Preserve both the current and next receipts if either storage write fails.
+    // The next successful write prunes superseded metadata, bounding the sidecar.
+    for (const p of [...readPending(), ...list]) {
+        metadata[receiptKey(p)] = { wallet: p.wallet, orgId: p.orgId, phase: p.phase }
+    }
+    const base = list.map(({ wallet: _wallet, orgId: _org, phase: _phase, ...p }) => {
+        void _wallet; void _org; void _phase
+        return basePendingSchema.parse(p)
+    })
+    localStorage.setItem(META_KEY, JSON.stringify(metadata))
+    localStorage.setItem(PENDING_KEY, JSON.stringify(base))
+    try { localStorage.setItem(META_KEY, JSON.stringify(Object.fromEntries(list.map(p => [receiptKey(p), metadata[receiptKey(p)]])))) } catch { /* Old metadata is harmless; prune on the next successful write. */ }
 }
 
 /** Remember a parked deploy; `submittedAt` defaults to now. */
 export function savePendingDAO(input: Omit<PendingDAO, "submittedAt"> & { submittedAt?: number }): void {
     const entry: PendingDAO = { ...input, submittedAt: input.submittedAt ?? Date.now() }
-    writePending([...readPending().filter((p) => !(p.chainId === entry.chainId && p.path === entry.path)), entry])
+    try {
+        writePending([...readPending().filter((p) => !(p.chainId === entry.chainId && p.path === entry.path)), entry])
+        volatilePending.delete(pendingIdentity(entry))
+    } catch (error) { volatilePending.set(pendingIdentity(entry), entry); throw error }
 }
 
 export function listPendingDAOs(chainId: string): PendingDAO[] {
@@ -204,6 +241,7 @@ export function listPendingDAOs(chainId: string): PendingDAO[] {
 
 export function removePendingDAO(chainId: string, path: string): void {
     writePending(readPending().filter((p) => !(p.chainId === chainId && p.path === path)))
+    volatilePending.delete(pendingIdentity({ chainId, path }))
 }
 
 /**
@@ -212,7 +250,8 @@ export function removePendingDAO(chainId: string, path: string): void {
  */
 export async function recheckPendingDAOs(ctx: ChainContext, onLive: (entry: PendingDAO) => void, signal?: AbortSignal): Promise<PendingDAO[]> {
     return (await checkPendingDAOs(ctx, onLive, signal)).map((c) => {
-        const entry: PendingDAO = { chainId: c.chainId, path: c.path, name: c.name, txHash: c.txHash, reason: c.reason, submittedAt: c.submittedAt }
+        const { check: _check, ...entry } = c
+        void _check
         return entry
     })
 }
@@ -222,19 +261,27 @@ export async function recheckPendingDAOs(ctx: ChainContext, onLive: (entry: Pend
  * "waiting" (stored, not enabled), "not-found" (no package at the path: the
  * submission may not have landed) or "unknown" (the status could not be read).
  */
-export type PendingCheck = PendingDAO & { check: "waiting" | "not-found" | "unknown" }
+export type PendingCheck = PendingDAO & { check: "waiting" | "not-found" | "unknown" | "live-unsaved" }
 
 /** Like recheckPendingDAOs, with what the network answered for each entry still pending. */
 export async function checkPendingDAOs(ctx: ChainContext, onLive: (entry: PendingDAO) => void, signal?: AbortSignal): Promise<PendingCheck[]> {
     const still: PendingCheck[] = []
     for (const entry of listPendingDAOs(ctx.chainId)) {
+        if (signal?.aborted) break
         let check: PendingCheck["check"] = "unknown"
         let current = entry
         try {
             const meta = await packageStatus(ctx, entry.path, signal)
+            if (signal?.aborted) break
+            const latest = listPendingDAOs(ctx.chainId).find(p => p.path === entry.path)
+            if (JSON.stringify(latest) !== JSON.stringify(entry)) {
+                if (latest) still.push({ ...latest, check: "unknown" })
+                continue
+            }
             if (meta.status === "live") {
-                removePendingDAO(ctx.chainId, entry.path)
+                check = "live-unsaved"
                 onLive(entry)
+                removePendingDAO(ctx.chainId, entry.path)
                 continue
             }
             check = meta.status === "inert" ? "waiting" : "not-found"

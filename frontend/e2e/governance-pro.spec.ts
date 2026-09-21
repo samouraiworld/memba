@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { abortOnchainReads } from './helpers/onchain'
+import { abortOnchainReads, fulfillOnchainReads, mockAppChainStatus } from './helpers/onchain'
 import { stubNetwork } from './helpers/stubNetwork'
 import { suppressReleaseAnnouncement } from './helpers/releaseAnnouncement'
 import { fulfillGovernance } from './helpers/proGovernanceFixture'
@@ -100,4 +100,61 @@ test('passed and completed proposals show the appropriate reader guidance mobile
     await page.goto(`${dao}/proposal/2`)
     await expect(page.getByText('Voting is closed. You can review the proposal and recorded votes.')).toBeVisible()
     await expect(page.getByRole('button', { name: /Execute proposal/ })).toHaveCount(0)
+})
+
+// Synthetic wallet + RPC only: this exercises the actual confirmation provider,
+// wallet boundary and reload recovery without submitting to a network.
+test('DAO approval receipt survives reload without another wallet request mobile', async ({ page }) => {
+    const address = 'g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c'
+    const realmPath = `gno.land/r/${address}/recovery_fixture`
+    const hash = 'c'.repeat(64)
+    let submitted = false
+    await page.exposeFunction('fixtureSubmitted', () => { submitted = true })
+    await page.addInitScript(({ address, realmPath, hash }) => {
+        localStorage.setItem('memba_adena_connected', 'true')
+        localStorage.setItem(`memba_wizard_seen_${address}`, '1')
+        if (!localStorage.getItem('recovery-fixture-seeded')) {
+            localStorage.setItem('recovery-fixture-seeded', '1')
+            localStorage.setItem('memba_dao_draft', JSON.stringify({
+                name: 'Recovery fixture', description: 'Offline browser fixture', realmPath,
+                members: [{ address, power: 1, roles: ['admin'] }], threshold: 51, quorum: 0,
+                availableRoles: ['admin', 'member'], proposalCategories: ['governance'],
+                selectedPreset: 'basic', step: 5, enableChannels: false, channelNames: ['general'], savedAt: Date.now(),
+            }))
+        }
+        const reject = async () => { throw new Error('Unexpected fixture wallet method') }
+        Object.defineProperty(window, 'adena', { value: {
+            GetAccount: async () => ({ status: 'success', data: { address, coins: '0ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' }, accountNumber: '0', sequence: '0', chainId: 'gnoland-1' } }),
+            GetNetwork: async () => ({ data: { rpcUrl: 'https://rpc.gno.land' } }), On: () => () => {},
+            DoContract: async () => {
+                localStorage.setItem('fixture-wallet-calls', String(Number(localStorage.getItem('fixture-wallet-calls') || 0) + 1))
+                await (window as unknown as { fixtureSubmitted: () => Promise<void> }).fixtureSubmitted()
+                return { status: 'success', data: { hash } }
+            },
+            Sign: reject, SignTx: reject, AddEstablish: reject,
+        } })
+    }, { address, realmPath, hash })
+    await fulfillOnchainReads(page, ({ method, path, arg }) => {
+        if (method === 'status') return mockAppChainStatus('gnoland-1')
+        if (path === 'vm/qeval' && arg.includes('IsAuthorizedAddressForNamespace')) return '(true bool)'
+        if (path === 'params/vm:p:code_submission_policy') return '"inert"'
+        if (path === 'vm/qpkgmeta_json' && arg === realmPath) return JSON.stringify(submitted
+            ? { path: realmPath, status: 'inert', creator: address, height: 123, max_deposit: '12000000ugnot', reason: 'waiting for a package approver to enable it', pending: true }
+            : { path: realmPath, status: 'absent' })
+        return null
+    })
+    await page.goto('/mainnet/dao/create')
+    await page.getByRole('button', { name: 'Resume', exact: true }).click()
+    await page.getByRole('checkbox', { name: /permanent contract on gno.land/ }).check()
+    await page.getByRole('button', { name: /Deploy DAO/ }).click()
+    await page.getByRole('button', { name: 'Confirm & Broadcast' }).click()
+    await expect(page.getByText('Waiting for network approval', { exact: true })).toBeVisible()
+    await expect(page.getByText(new RegExp(hash))).toBeVisible()
+    await page.reload()
+    await expect(page.getByText('Submission status unknown', { exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Check status', exact: true }).click()
+    await expect(page.getByText('Submitted, not enabled yet', { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: /Deploy DAO/ })).toHaveCount(0)
+    expect(await page.evaluate(() => localStorage.getItem('fixture-wallet-calls'))).toBe('1')
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })

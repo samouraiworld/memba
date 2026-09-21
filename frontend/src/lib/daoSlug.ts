@@ -160,10 +160,12 @@ function readList(key: string): SavedDAO[] {
     }
 }
 
-function writeList(key: string, daos: SavedDAO[]): void {
+function writeList(key: string, daos: SavedDAO[], verified = false): void {
     try {
-        localStorage.setItem(key, JSON.stringify(daos))
-    } catch { /* quota exceeded */ }
+        const raw = JSON.stringify(daos)
+        localStorage.setItem(key, raw)
+        if (verified && localStorage.getItem(key) !== raw) throw new Error("DAO bookmark was not saved")
+    } catch (error) { if (verified) throw error }
 }
 
 const onActiveChain = (d: SavedDAO) => d.chainId === GNO_CHAIN_ID
@@ -184,8 +186,11 @@ export function getSavedDAOs(): SavedDAO[] {
 
 /** Add or rename a DAO on the active chain. Stamps the network and chain the
  *  app was loaded with (never the storage echo another tab may have written). */
-function upsert(key: string, realmPath: string, name: string | undefined, orgId?: string): void {
-    if (!VALID_REALM_PATH.test(realmPath)) return
+function upsert(key: string, realmPath: string, name: string | undefined, orgId?: string, verified = false): void {
+    if (!VALID_REALM_PATH.test(realmPath)) {
+        if (verified) throw new Error("Invalid DAO realm path")
+        return
+    }
     const daos = readList(key)
     const existing = daos.find((d) => d.realmPath === realmPath && visibleHere(d))
     if (existing) {
@@ -205,7 +210,7 @@ function upsert(key: string, realmPath: string, name: string | undefined, orgId?
             chainId: GNO_CHAIN_ID,
         })
     }
-    writeList(key, daos)
+    writeList(key, daos, verified)
 }
 
 /** Add a DAO to saved list (deduplicated by realm path per chain). */
@@ -243,4 +248,9 @@ export function addSavedDAOForOrg(orgId: string | null, realmPath: string, name?
 export function removeSavedDAOForOrg(orgId: string | null, realmPath: string): void {
     if (!orgId) { removeSavedDAO(realmPath); return }
     writeList(orgKey(orgId), readList(orgKey(orgId)).filter((d) => !(d.realmPath === realmPath && visibleHere(d))))
+}
+
+/** Recovery must not discard its sole receipt until its bookmark is durable. */
+export function saveDAOForRecovery(orgId: string | null, realmPath: string, name?: string): void {
+    upsert(orgId ? orgKey(orgId) : LS_KEY, realmPath, name, orgId ?? undefined, true)
 }

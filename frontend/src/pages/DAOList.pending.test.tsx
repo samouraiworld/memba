@@ -63,7 +63,7 @@ describe("My DAOs: deploys waiting for the network", () => {
         savePendingDAO({ chainId: GNO_CHAIN_ID, path: ENABLED, name: "Enabled", txHash: "b".repeat(64), reason: "submitted" })
         state.statuses = { [PARKED]: "inert", [ENABLED]: "live" }
         mount()
-        const section = await screen.findByRole("region", { name: "Waiting for gno.land" })
+        const section = await screen.findByRole("region", { name: "DAO submissions" })
         await waitFor(() => expect(within(section).getByText("Not enabled yet: waiting for a package approver to enable it")).toBeInTheDocument())
         expect(within(section).queryByText(ENABLED)).not.toBeInTheDocument()
         expect(within(section).getByText("a".repeat(64))).toBeInTheDocument()
@@ -72,23 +72,40 @@ describe("My DAOs: deploys waiting for the network", () => {
         expect(await screen.findByRole("link", { name: "enabled_dao" })).toHaveAttribute("href", `/pearl/dao/${ENABLED}`)
     })
 
+    it("retains a live receipt when the real bookmark storage write fails", async () => {
+        savePendingDAO({ chainId: GNO_CHAIN_ID, path: ENABLED, name: "Enabled", txHash: "KEEP", reason: "submitted" })
+        state.statuses = { [ENABLED]: "live" }
+        const original = localStorage.setItem.bind(localStorage)
+        const write = vi.spyOn(localStorage, "setItem").mockImplementation((key, value) => {
+            if (key === "memba_saved_daos") throw new Error("quota")
+            original(key, value)
+        })
+        mount()
+        expect(await screen.findByText(/The DAO is live, but could not be saved/)).toBeInTheDocument()
+        expect(listPendingDAOs(GNO_CHAIN_ID)[0].txHash).toBe("KEEP")
+        write.mockRestore()
+        fireEvent.click(screen.getByRole("button", { name: "Check again" }))
+        await waitFor(() => expect(listPendingDAOs(GNO_CHAIN_ID)).toEqual([]))
+        expect(getSavedDAOs().map(d => d.realmPath)).toContain(ENABLED)
+    })
+
     it("offers to drop a submission the network does not have, and re-checks on demand", async () => {
         savePendingDAO({ chainId: GNO_CHAIN_ID, path: MISSING, name: "Missing", txHash: "", reason: "submitted" })
         state.statuses = { [MISSING]: "error" }
         mount()
-        const section = await screen.findByRole("region", { name: "Waiting for gno.land" })
+        const section = await screen.findByRole("region", { name: "DAO submissions" })
         expect(await within(section).findByText("The status could not be read. Try again later.")).toBeInTheDocument()
         state.statuses = { [MISSING]: "absent" }
         fireEvent.click(within(section).getByRole("button", { name: "Check again" }))
         expect(await within(section).findByText(/The network has no package at this path/)).toBeInTheDocument()
         fireEvent.click(within(section).getByRole("button", { name: "Remove from this list" }))
-        await waitFor(() => expect(screen.queryByRole("region", { name: "Waiting for gno.land" })).not.toBeInTheDocument())
+        await waitFor(() => expect(screen.queryByRole("region", { name: "DAO submissions" })).not.toBeInTheDocument())
     })
 
     it("shows no pending section when nothing is pending, and DAO cards hold no nested controls", async () => {
         mount()
         const link = (await screen.findAllByRole("link")).find((a) => a.classList.contains("k-dao-card__link"))!
-        expect(screen.queryByRole("region", { name: "Waiting for gno.land" })).not.toBeInTheDocument()
+        expect(screen.queryByRole("region", { name: "DAO submissions" })).not.toBeInTheDocument()
         expect(link.querySelector("a, button")).toBeNull()
         expect(link.closest("a")?.parentElement?.closest("a, button")).toBeNull()
     })
