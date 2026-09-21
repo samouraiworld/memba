@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client'
 import * as Sentry from '@sentry/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { ErrorBoundary } from './components/ErrorBoundary'
-import { CHUNK_RELOAD_KEY } from './lib/staleChunk'
+import { tryChunkReload } from './lib/staleChunk'
 import { TxConfirmationProvider } from './components/ui/TxConfirmation'
 import { initTheme } from './lib/themeStore'
 import { queryClient } from './lib/queryClient'
@@ -20,21 +20,10 @@ import App from './App.tsx'
 const disposeTheme = initTheme()
 if (import.meta.hot) import.meta.hot.dispose(disposeTheme)
 
-// ── Stale-chunk auto-recovery (vite:preloadError) ─────────────
-// After every deploy, the autoUpdate service worker takes over live tabs and
-// purges the previous build's precached chunks; the page's NEXT lazy route
-// load then gets the SPA-fallback index.html for a .js URL and the import
-// fails ("'text/html' is not a valid JavaScript MIME type" on iOS Safari).
-// Vite surfaces preload failures through this event BEFORE they become
-// throws — reload once so the tab re-enters on the fresh build. Shares the
-// ErrorBoundary's session guard (cleared on successful mount) so a genuinely
-// broken deploy shows the error card instead of reload-looping.
+// Recover a failed lazy import only when a durable reload budget is available.
+// Otherwise allow the import to reject into the accessible error boundary.
 window.addEventListener('vite:preloadError', (event) => {
-  if (sessionStorage.getItem(CHUNK_RELOAD_KEY)) return // budget spent — let it throw
-  sessionStorage.setItem(CHUNK_RELOAD_KEY, '1')
-  event.preventDefault() // suppress the throw; we recover instead
-  console.warn('[main] Stale chunk preload detected — auto-reloading onto the new build')
-  window.location.reload()
+  if (tryChunkReload()) event.preventDefault()
 })
 
 // ── Sentry initialization ─────────────────────────────────────

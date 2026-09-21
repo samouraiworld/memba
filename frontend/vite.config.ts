@@ -1,3 +1,5 @@
+import { execFileSync } from 'node:child_process'
+import { resolve } from 'node:path'
 import { defineConfig } from 'vitest/config'
 import { loadEnv, type PluginOption } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -12,6 +14,21 @@ import { parseBlogArticles, buildRssXml } from './src/lib/blogParser'
 import { professionalBrandHtml } from './src/lib/proBrand'
 
 const pkg = JSON.parse(readFileSync('./package.json', 'utf-8'))
+function buildIdentityPlugin(): PluginOption {
+  let commit = process.env.COMMIT_REF || ''
+  if (!commit) {
+    try { commit = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim() }
+    catch { commit = 'unknown' }
+  }
+  return {
+    name: 'memba-build-identity',
+    apply: 'build',
+    generateBundle(_options, bundle) {
+      const entry = Object.values(bundle).find(file => file.type === 'chunk' && file.isEntry)?.fileName
+      this.emitFile({ type: 'asset', fileName: 'build-info.json', source: JSON.stringify({ version: pkg.version, commit, entry }) })
+    },
+  }
+}
 
 // Build-time fund-flag safety gate — fails `vite build` (CI AND the Netlify
 // build) if a safety-gated VITE_ENABLE_* flag resolves to "true" from any source
@@ -33,8 +50,10 @@ function safeFlagsPlugin(): PluginOption {
 // Keep review assets and production defaults separate until release activation.
 function professionalBrandPlugin(): PluginOption {
   let enabled = false
+  let outDir = 'dist'
   return {
     name: 'memba-professional-brand',
+    configResolved(config) { outDir = resolve(config.root, config.build.outDir) },
     config(_config, { mode }) {
       enabled = ({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }).VITE_ENABLE_PRO_APP === 'true'
     },
@@ -45,7 +64,7 @@ function professionalBrandPlugin(): PluginOption {
       for (const [source, destination] of [
         ['icon-512.png', 'icons/icon-512.png'], ['maskable-512.png', 'icons/maskable-512.png'],
         ['apple-touch-icon.png', 'apple-touch-icon.png'], ['favicon-32.png', 'memba-icon.png'],
-      ]) copyFileSync(`public/brand/folded-m/${source}`, `dist/${destination}`)
+      ]) copyFileSync(`public/brand/folded-m/${source}`, `${outDir}/${destination}`)
     },
   }
 }
@@ -54,12 +73,14 @@ function professionalBrandPlugin(): PluginOption {
 // src/lib/sitemap.ts for the deliberate static-only scope decision).
 // robots.txt is a static file in public/ and needs no plugin.
 function sitemapPlugin(): PluginOption {
+  let outDir = 'dist'
   return {
     name: 'memba-sitemap',
+    configResolved(config) { outDir = resolve(config.root, config.build.outDir) },
     apply: 'build',
     closeBundle() {
       const lastmod = new Date().toISOString().slice(0, 10)
-      mkdirSync('dist', { recursive: true })
+      mkdirSync(outDir, { recursive: true })
       // W6.4: blog articles from content/blog feed BOTH the RSS feed and the
       // sitemap's per-article entries (article date = truthful lastmod).
       const blogDir = 'content/blog'
@@ -70,9 +91,9 @@ function sitemapPlugin(): PluginOption {
         }
       } catch { /* no blog dir → empty feed */ }
       const articles = parseBlogArticles(files)
-      writeFileSync('dist/sitemap.xml', buildSitemapXml(undefined, undefined, undefined, lastmod,
+      writeFileSync(`${outDir}/sitemap.xml`, buildSitemapXml(undefined, undefined, undefined, lastmod,
         articles.map(a => ({ path: `/blog/${a.slug}`, lastmod: a.date }))))
-      writeFileSync('dist/blog.rss', buildRssXml(SITE_ORIGIN, SITEMAP_NETWORK, articles))
+      writeFileSync(`${outDir}/blog.rss`, buildRssXml(SITE_ORIGIN, SITEMAP_NETWORK, articles))
     },
   }
 }
@@ -107,6 +128,7 @@ export default defineConfig(({ mode }) => ({
   plugins: [
     react(),
     safeFlagsPlugin(),
+    buildIdentityPlugin(),
     sitemapPlugin(),
     professionalBrandPlugin(),
     // PWA: installable manifest + Workbox service worker. SW is OFF in dev

@@ -25,6 +25,9 @@ Full changelogs are split by version range for easier navigation:
 - Preserve unsaved edits across wallet switches, display storage failures, and confirm draft resets.
 - Record submission intent before signing, retain uncertain outcomes and known receipts, and prevent account switches from reopening an in-flight submission.
 - Distinguish unreadable, absent, parked and live packages; keep pending records until bookmarking succeeds in their original workspace.
+### Fixed — release recovery (2026-09-21)
+- Bound stale-chunk recovery across later route failures, handle denied storage, and defer recovery during contract confirmation and signing requests.
+- Explain loading failures without claiming an update was detected.
 ### Mainnet Home reflects available capabilities (2026-09-21)
 - Home labels the token launchpad unavailable where its factory is not deployed, omits the undeployed MembaDAO promotion and describes DAO discovery without implying voting membership.
 - Loading token and validator counts use an unknown placeholder instead of a misleading zero.
