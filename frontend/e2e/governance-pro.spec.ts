@@ -156,5 +156,8 @@ test('DAO approval receipt survives reload without another wallet request mobile
     await expect(page.getByText('Submitted, not enabled yet', { exact: true })).toBeVisible()
     await expect(page.getByRole('button', { name: /Deploy DAO/ })).toHaveCount(0)
     expect(await page.evaluate(() => localStorage.getItem('fixture-wallet-calls'))).toBe('1')
-    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    for (const width of [320, 390, 1440]) {
+        await page.setViewportSize({ width, height: 1000 })
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    }
 })
