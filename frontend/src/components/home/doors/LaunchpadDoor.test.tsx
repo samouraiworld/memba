@@ -16,7 +16,7 @@ const { LaunchpadDoor } = await import("./LaunchpadDoor")
 
 const launch = (over: Partial<TokenLaunch> = {}): TokenLaunch =>
     ({ slug: "HOT", name: "Canicule", symbol: "HOT", path: "gno.land/r/x/factory:HOT", ...over })
-const renderIt = () => render(<MemoryRouter><LaunchpadDoor networkKey="test13" /></MemoryRouter>)
+const renderIt = (networkKey = "pearl") => render(<MemoryRouter><LaunchpadDoor networkKey={networkKey} /></MemoryRouter>)
 
 beforeEach(() => vi.clearAllMocks())
 
@@ -55,10 +55,17 @@ describe("LaunchpadDoor", () => {
         expect(screen.queryByText(/^by /i)).not.toBeInTheDocument()
     })
 
+    it("does not advertise an unavailable factory on mainnet", () => {
+        vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [], total: 0, loading: false })
+        renderIt("mainnet")
+        expect(screen.getByText("Token launchpad")).toBeInTheDocument()
+        expect(screen.queryByText(/launch a token|factory is live/i)).not.toBeInTheDocument()
+    })
+
     it("falls back to the promo (never a fabricated 0) when there are no tokens", () => {
         vi.mocked(useTokenLaunches).mockReturnValue({ tokens: [], total: 0, loading: false })
         renderIt()
-        expect(screen.getByText(/launch a token in minutes/i)).toBeInTheDocument()
+        expect(screen.getByText(/launch a token/i)).toBeInTheDocument()
         expect(screen.queryByText("0")).not.toBeInTheDocument()
     })
 })

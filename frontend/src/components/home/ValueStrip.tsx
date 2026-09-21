@@ -12,7 +12,7 @@
  */
 import { Link } from "react-router-dom"
 import { UsersThree, Rocket, Pulse, SquaresFour } from "@phosphor-icons/react"
-import { isAppStoreEnabled } from "../../lib/config"
+import { GRC20_FACTORY_PATH, isRealmValidOn, isAppStoreEnabled } from "../../lib/config"
 import "./home.css"
 
 export interface ValueStripProps {
@@ -28,13 +28,14 @@ interface ValueCard {
 }
 
 export function ValueStrip({ networkKey }: ValueStripProps) {
+    const canCreateToken = isRealmValidOn(networkKey, GRC20_FACTORY_PATH)
     const cards: ValueCard[] = [
-        { key: "vote", title: "Join a community and vote", sub: "find a DAO and have a say", href: `/${networkKey}/dao`, Icon: UsersThree },
-        { key: "launch", title: "Launch a token", sub: "create one in minutes", href: `/${networkKey}/tokens`, Icon: Rocket },
+        { key: "vote", title: "Explore DAOs", sub: "read proposals and membership rules", href: `/${networkKey}/dao`, Icon: UsersThree },
+        { key: "launch", title: canCreateToken ? "Launch a token" : "Token launchpad", sub: canCreateToken ? "review the token creation flow" : "not available on this network", href: `/${networkKey}/tokens`, Icon: Rocket },
         { key: "track", title: "Track the network", sub: "validators, blocks, activity", href: `/${networkKey}/validators`, Icon: Pulse },
-        // Flag-gated 4th rung: only offered where the App Store is actually live.
+        // Includes the editorial directory where on-chain listings are unavailable.
         ...(isAppStoreEnabled()
-            ? [{ key: "apps", title: "Explore apps & games", sub: "community apps, on-chain", href: `/${networkKey}/apps`, Icon: SquaresFour }]
+            ? [{ key: "apps", title: "Explore apps & games", sub: "discover ecosystem projects", href: `/${networkKey}/apps`, Icon: SquaresFour }]
             : []),
     ]
 

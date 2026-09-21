@@ -82,11 +82,19 @@ describe("ShowcaseBoard — GovDAO-first", () => {
 
 describe("ShowcaseBoard — MembaDAO demoted to a credit", () => {
     it("renders a MembaDAO credit line (not a hero) linking to the memba_dao page", () => {
-        renderWithProviders(<ShowcaseBoard networkKey="test13" />)
+        renderWithProviders(<ShowcaseBoard networkKey="pearl" />)
         const credit = screen.getByTestId("showcase-board-credit")
         expect(credit).toHaveTextContent(/built on memba/i)
         const link = screen.getByRole("link", { name: /membadao/i })
         expect(link.getAttribute("href")).toContain("memba_dao")
+    })
+})
+
+describe("ShowcaseBoard — mainnet availability", () => {
+    it("keeps governance discovery but omits an undeployed MembaDAO promotion", () => {
+        renderWithProviders(<ShowcaseBoard networkKey="mainnet" />)
+        expect(screen.getByTestId("showcase-slot-govdao")).toBeInTheDocument()
+        expect(screen.queryByTestId("showcase-board-credit")).not.toBeInTheDocument()
     })
 })
 

@@ -10,6 +10,7 @@ import { screen, fireEvent, waitFor } from "@testing-library/react"
 import { renderWithProviders, mockLayoutContext } from "../test/test-utils"
 import { TokenDashboard } from "./TokenDashboard"
 
+const capability = vi.hoisted(() => ({ available: true }))
 const mockNavigate = vi.fn()
 vi.mock("../hooks/useNetworkNav", () => ({
     useNetworkNav: () => mockNavigate,
@@ -18,6 +19,9 @@ vi.mock("../hooks/useNetworkNav", () => ({
 vi.mock("../lib/config", () => ({
     GNO_RPC_URL: "https://rpc.test.gno.land",
     GNO_CHAIN_ID: "test-13",
+    ACTIVE_NETWORK_KEY: "test13",
+    GRC20_FACTORY_PATH: "gno.land/r/samcrew/tokenfactory_v2",
+    isRealmValidOn: () => capability.available,
 }))
 
 const listFactoryTokens = vi.fn()
@@ -40,7 +44,18 @@ vi.mock("react-router-dom", async (orig) => ({
 describe("TokenDashboard", () => {
     beforeEach(() => {
         vi.clearAllMocks()
+        capability.available = true
         getTokenBalance.mockResolvedValue(0n)
+    })
+
+    it("does not query or advertise creation when the factory is unavailable", () => {
+        capability.available = false
+        renderWithProviders(<TokenDashboard />)
+        expect(screen.getByText("Not available on this network")).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /Create a Token/ })).not.toBeInTheDocument()
+        expect(screen.queryByText("No tokens yet")).not.toBeInTheDocument()
+        expect(listFactoryTokens).not.toHaveBeenCalled()
+        expect(getTokenBalance).not.toHaveBeenCalled()
     })
 
     it("lists factory tokens enriched with their on-chain info", async () => {

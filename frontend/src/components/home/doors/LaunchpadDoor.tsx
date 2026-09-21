@@ -16,6 +16,7 @@
  * @module components/home/doors/LaunchpadDoor
  */
 
+import { GRC20_FACTORY_PATH, isRealmValidOn } from "../../../lib/config"
 import { Door } from "../Door"
 import { useTokenLaunches } from "../../../hooks/home/useTokenLaunches"
 import { truncateAddr } from "../../../lib/format"
@@ -27,12 +28,13 @@ export interface LaunchpadDoorProps {
 }
 
 export function LaunchpadDoor({ networkKey }: LaunchpadDoorProps) {
+    const canCreateToken = isRealmValidOn(networkKey, GRC20_FACTORY_PATH)
     const tokensHref = `/${networkKey}/tokens`
     const { tokens, total } = useTokenLaunches(1)
     const featured = tokens[0]
 
     return (
-        <Door variant="promo" state="ready" eyebrow="launchpad" href={tokensHref}>
+        <Door variant="promo" state="ready" eyebrow={canCreateToken ? "launchpad" : "tokens"} href={tokensHref}>
             <div className="launchpad-door">
                 {featured ? (
                     <>
@@ -69,10 +71,10 @@ export function LaunchpadDoor({ networkKey }: LaunchpadDoorProps) {
                 ) : (
                     <>
                         <span className="launchpad-door__headline">
-                            Launch a token in minutes
+                            {canCreateToken ? "Launch a token" : "Token launchpad"}
                         </span>
                         <span className="launchpad-door__sub">
-                            Token factory is live on Gno
+                            {canCreateToken ? "Review token creation on this network" : "Not available on this network"}
                         </span>
                     </>
                 )}
