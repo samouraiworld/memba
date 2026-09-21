@@ -265,15 +265,12 @@ cd backend && go test -race -count=1 -cover ./...
 
 | Network | RPC | Chain ID |
 |---------|-----|----------|
-| Pearl ⭐ | `https://rpc.pearl.testnets.gno.land:443` | `pearl-1` |
-| Sapphire (retired — Samouraï sentry dead since 2026-09-02, formal sunset 2026-09-09; hidden in the selector, heals to Pearl) | `https://rpc.sapphire.testnets.gno.land:443` (official node still answers; the app no longer targets it) | `sapphire-1` |
-| test13 (retired 2026-07-26) | — endpoints refuse connections | `test-13` |
-| gnoland1 (Betanet) | `https://rpc.gnoland1.samourai.live:443` | `gnoland1` |
-| **gno.land MAINNET** (launches **Fri 2026-09-11**; ugnot transferable **Mon 2026-09-14** — pre-registered **hidden**; Memba deploys nothing here yet) | `https://rpc.gno.land:443` *(not yet identity-verified)* | `gnoland-1` |
+| **gno.land mainnet — current default** | `https://rpc.gno.land:443` | `gnoland-1` |
+| Pearl — test network | `https://rpc.pearl.testnets.gno.land:443` | `pearl-1` |
 
-> ⚠️ **`gnoland-1` (mainnet) and `gnoland1` (betanet) are DIFFERENT chains**, one hyphen apart. Betanet is *not* becoming mainnet — [gnolang/gno#6154](https://github.com/gnolang/gno/pull/6154) builds mainnet as a **fresh chain** from the audited `gnolang/independence-day` allocation, with **no faucet** and `ugnot` transfers **locked at genesis** (Constitution §126). Memba deploys nothing to mainnet: the `samcrew` namespace needs a GovDAO grant, and §126 would make every custody lane panic.
+Mainnet and betanet (`gnoland1`, without the hyphen) are different chains. The frontend defaults to mainnet, but this does not mean every Memba realm is deployed there. The current configuration supports user-created DAOs but does not declare shared community realms or a token factory available on mainnet. DAO submission can remain inert until network approval; a wallet response alone does not establish that a package is live.
 
-The operative registry is `frontend/src/lib/config.ts` (`NETWORKS`), and which realm generation is live on which chain is recorded per-artifact in `realm-versions.json` — trust those over this table when they disagree.
+The operative network and capability registry is [frontend/src/lib/config.ts](frontend/src/lib/config.ts). [realm-versions.json](realm-versions.json) records per-artifact deployments. See [A+B release evidence](docs/MAINNET_AB_RELEASE_EVIDENCE_2026-09-21.md) for the frontend baseline, candidate changes and separate wallet/chain verification status. Historical Pearl ceremonies do not establish mainnet readiness.
 
 ## Target Multisig
 
