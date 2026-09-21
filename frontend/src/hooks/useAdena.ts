@@ -360,7 +360,7 @@ export function useAdena() {
 
                 // Try SignMultisigTransaction first (correct for multisig)
                 if (typeof adena.SignMultisigTransaction === "function") {
-                    const res = await withWalletActivity(() => adena.SignMultisigTransaction(multisigDoc));
+                    const res = await withWalletActivity(async () => adena.SignMultisigTransaction(multisigDoc));
                     if (res.status !== "failure") {
                         const sig = res.data?.signature?.signature;
                         if (sig) return sig;
@@ -397,7 +397,7 @@ export function useAdena() {
             if (typeof adena.SignMultisigTransaction !== "function") return null;
             try {
                 const doc = buildLoginChallengeDoc(chainId, state.address, nonceBase64);
-                const res = await withWalletActivity(() => adena.SignMultisigTransaction(doc));
+                const res = await withWalletActivity(async () => adena.SignMultisigTransaction(doc));
                 if (!res || res.status === "failure") return null;
                 const signature = res.data?.signature?.signature;
                 if (!signature) return null;
