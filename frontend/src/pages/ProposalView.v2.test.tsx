@@ -1,3 +1,4 @@
+import { clearGovernanceMemory } from "../lib/dao/governanceRecovery"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
@@ -15,6 +16,9 @@ const state = vi.hoisted(() => ({
     address: "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5",
     archived: false,
     voted: false,
+    removed: false,
+    epoch: 0,
+    readFailed: false,
     proposal: null as unknown,
     broadcast: vi.fn(),
 }))
@@ -35,7 +39,7 @@ vi.mock("../lib/dao/membaV2", async (orig) => ({
     readV2Proposal: async () => state.proposal,
     readV2Votes: async () => ({ total: state.voted ? 1 : 0, offset: 0, votes: state.voted ? [{ voter: ALICE, choice: "YES", power: 2 }] : [] }),
 }))
-vi.mock("../lib/dao/membaV2Shell", async (orig) => ({ ...(await orig<typeof import("../lib/dao/membaV2Shell")>()), hasVotedOnV2: async () => state.voted }))
+vi.mock("../lib/dao/membaV2Shell", async (orig) => ({ ...(await orig<typeof import("../lib/dao/membaV2Shell")>()), hasVotedOnV2: async () => { if (state.readFailed) throw new Error("RPC unavailable"); return state.voted } }))
 
 const CONFIG: MembaV2Config = {
     template_version: "memba-dao/2", api_version: "2.0", name: "Team", description: "",
@@ -46,9 +50,9 @@ const CONFIG: MembaV2Config = {
 
 vi.mock("../lib/dao", async (orig) => ({
     ...(await orig<typeof import("../lib/dao")>()),
-    getDAOConfig: async () => ({ name: "Team", description: "", threshold: "60%", memberCount: 2, memberstorePath: "", tierDistribution: [], isArchived: state.archived, v2: { ...CONFIG, archived: state.archived } }),
+    getDAOConfig: async () => ({ name: "Team", description: "", threshold: "60%", memberCount: 2, memberstorePath: "", tierDistribution: [], isArchived: state.archived, v2: { ...CONFIG, archived: state.archived, electorate_version: state.epoch } }),
     getDAOMembers: async () => [
-        { address: ALICE, roles: ["lead"], tier: "", votingPower: 2, username: "" },
+        ...(!state.removed ? [{ address: ALICE, roles: ["lead"], tier: "", votingPower: 2, username: "" }] : []),
         { address: BOB, roles: ["member"], tier: "", votingPower: 1, username: "" },
     ],
 }))
@@ -81,9 +85,14 @@ function mount() {
 }
 
 beforeEach(() => {
+    clearGovernanceMemory()
+    localStorage.clear()
     state.address = ALICE
     state.archived = false
     state.voted = false
+    state.removed = false
+    state.epoch = 0
+    state.readFailed = false
     state.proposal = proposal()
     state.broadcast.mockReset()
 })
@@ -103,7 +112,7 @@ describe("version-2 proposal reader", () => {
     })
 
     it("asks for confirmation, sends a sized vote and shows the transaction", async () => {
-        state.broadcast.mockResolvedValue({ hash: HASH, result: {} })
+        state.broadcast.mockImplementation(async () => { state.voted = true; return { hash: HASH, result: {} } })
         mount()
         fireEvent.click(await screen.findByRole("button", { name: "Vote yes" }))
         const dialog = screen.getByRole("alertdialog", { name: "Vote YES on proposal #2?" })
@@ -114,7 +123,7 @@ describe("version-2 proposal reader", () => {
         expect(state.broadcast).toHaveBeenCalledWith(
             [{ type: "vm/MsgCall", value: { caller: ALICE, send: "", pkg_path: REALM, func: "Vote", args: ["2", "YES"], max_deposit: "400000ugnot" } }],
             "Vote YES on proposal #2",
-            { gasWanted: 15_000_000, retry: false },
+            { gasWanted: 15_000_000, retry: false, beforeSign: expect.any(Function) },
         )
         // The hash links to the explorer only on chains it indexes; elsewhere it is plain text.
         if (txExplorerUrl(HASH, GNO_CHAIN_ID)) expect(screen.getByRole("link", { name: HASH })).toBeInTheDocument()
@@ -140,7 +149,7 @@ describe("version-2 proposal reader", () => {
     })
 
     it("confirms the exact membership change before executing it", async () => {
-        state.broadcast.mockResolvedValue({ hash: HASH, result: {} })
+        state.broadcast.mockImplementation(async () => { state.proposal = { ...(state.proposal as MembaV2Proposal), status: "EXECUTED" }; return { hash: HASH, result: {} } })
         state.proposal = proposal({ status: "ACCEPTED", yes: 2, accepted_at: NOW - 7200, executable_at: NOW - 3600, execute_by: NOW + 86400, action: { kind: "add_member", target: NEW, power: 1500, roles: ["lead", "member"] } })
         mount()
         fireEvent.click(await screen.findByRole("button", { name: "Execute proposal" }))
@@ -153,7 +162,7 @@ describe("version-2 proposal reader", () => {
         await waitFor(() => expect(screen.getByText("Proposal #2 executed.")).toBeInTheDocument())
         const [msgs, , opts] = state.broadcast.mock.calls[0]
         expect(msgs[0].value).toMatchObject({ func: "Execute", args: ["2"], max_deposit: expect.stringMatching(/ugnot$/) })
-        expect(opts).toEqual({ gasWanted: 25_000_000, retry: false })
+        expect(opts).toEqual({ gasWanted: 25_000_000, retry: false, beforeSign: expect.any(Function) })
     })
 
     it("tells the executor of a removal where the freed deposit goes", async () => {
@@ -194,4 +203,58 @@ describe("version-2 proposal reader", () => {
         expect(await screen.findByText("This DAO is archived. Voting and execution are closed.")).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "Vote yes" })).not.toBeInTheDocument()
     })
+    it.each(["archived", "removed", "voted", "expired"])("revalidates %s after confirmation before opening the wallet", async (change) => {
+        const wallet = vi.fn()
+        state.broadcast.mockImplementation(async (_msgs, _memo, opts) => {
+            if (change === "archived") state.archived = true
+            if (change === "removed") state.removed = true
+            if (change === "voted") state.voted = true
+            if (change === "expired") state.proposal = proposal({ voting_ends_at: NOW - 1 })
+            await opts.beforeSign()
+            wallet()
+            return { hash: HASH }
+        })
+        mount()
+        fireEvent.click(await screen.findByRole("button", { name: "Vote yes" }))
+        fireEvent.click(screen.getByRole("button", { name: "Confirm YES" }))
+        await waitFor(() => expect(state.broadcast).toHaveBeenCalledTimes(1))
+        await waitFor(() => expect(screen.getByRole("alert")).toHaveTextContent(change === "archived" || change === "removed" ? "DAO membership or availability changed" : "This vote is no longer available"))
+        expect(wallet).not.toHaveBeenCalled()
+    })
+
+    it("executes an accepted proposal from an older electorate", async () => {
+        state.epoch = 1
+        state.proposal = proposal({ status: "ACCEPTED", electorate_version: 0, yes: 2, accepted_at: NOW - 7200, executable_at: NOW - 3600, execute_by: NOW + 86400 })
+        const wallet = vi.fn()
+        state.broadcast.mockImplementation(async (_msgs, _memo, opts) => { await opts.beforeSign(); wallet(); state.proposal = { ...(state.proposal as MembaV2Proposal), status: "EXECUTED" }; return { hash: HASH } })
+        mount()
+        fireEvent.click(await screen.findByRole("button", { name: "Execute proposal" }))
+        fireEvent.click(screen.getByRole("button", { name: "Confirm execution" }))
+        expect(await screen.findByText("Proposal #2 executed.")).toBeInTheDocument()
+        expect(wallet).toHaveBeenCalledTimes(1)
+    })
+
+    it("retains an uncertain vote across remount and refuses a duplicate", async () => {
+        state.broadcast.mockImplementation(async (_msgs, _memo, opts) => { await opts.beforeSign(); throw new Error("response lost") })
+        const first = mount()
+        fireEvent.click(await screen.findByRole("button", { name: "Vote yes" }))
+        fireEvent.click(screen.getByRole("button", { name: "Confirm YES" }))
+        expect(await screen.findByText(/Submission outcome unknown/)).toBeInTheDocument()
+        first.unmount()
+        mount()
+        await screen.findByRole("heading", { name: "Add Dana", level: 2 })
+        expect(screen.getByRole("button", { name: "Vote yes" })).toBeDisabled()
+        expect(state.broadcast).toHaveBeenCalledTimes(1)
+    })
+
+    it.each([false, true])("keeps vote read-back pending when stale or unavailable (%s)", async failed => {
+        state.broadcast.mockImplementation(async (_msgs, _memo, opts) => { await opts.beforeSign(); state.readFailed = failed; return { hash: HASH } })
+        mount()
+        fireEvent.click(await screen.findByRole("button", { name: "Vote yes" }))
+        fireEvent.click(screen.getByRole("button", { name: "Confirm YES" }))
+        expect(await screen.findByText(/Transaction submitted. The network has not yet confirmed/)).toBeInTheDocument()
+        expect(screen.queryByText("Your YES vote is recorded.")).not.toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Vote yes" })).toBeDisabled()
+    })
+
 })

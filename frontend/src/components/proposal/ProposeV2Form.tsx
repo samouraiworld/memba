@@ -6,7 +6,7 @@
  * realm's rules before signing, the preview is the exact message the wallet
  * signs, and the call carries a gas limit and deposit cap sized for its text.
  */
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useOutletContext, useSearchParams } from "react-router-dom"
 import { GNO_CHAIN_ID, GNO_RPC_URL } from "../../lib/config"
@@ -25,6 +25,8 @@ import { logChainError } from "../../lib/errorLog"
 import { useNetworkNav } from "../../hooks/useNetworkNav"
 import type { LayoutContext } from "../../types/layout"
 import { TxStatus, type TxState } from "./TxStatus"
+import { useCurrentRequest } from "../../hooks/useCurrentRequest"
+import { beginGovernanceRequest, governanceRequestActive, clearGovernanceReceipt, readGovernanceReceipt, saveGovernanceReceipt, readProposalDraft, saveProposalDraft, clearProposalDraft } from "../../lib/dao/governanceRecovery"
 import "../../pages/proposedao.css"
 import "../dao/dao-shell.css"
 
@@ -69,23 +71,47 @@ async function findCreatedProposal(realmPath: string, author: string, title: str
     return null
 }
 
-export function ProposeV2Form({ realmPath, encodedSlug, kinds }: { realmPath: string; encodedSlug: string; kinds: ReadonlyArray<DaoProposalKind> }) {
+type Props = { realmPath: string; encodedSlug: string; kinds: ReadonlyArray<DaoProposalKind> }
+export function ProposeV2Form(props: Props) {
+    const { auth, adena } = useOutletContext<LayoutContext>()
+    const [params] = useSearchParams()
+    return <ScopedProposeV2Form key={`${GNO_CHAIN_ID}:${props.realmPath}:${adena.address}:${auth.isAuthenticated}:${params.toString()}`} {...props} />
+}
+function ScopedProposeV2Form({ realmPath, encodedSlug, kinds }: Props) {
     const navigate = useNetworkNav()
     const queryClient = useQueryClient()
     const { auth, adena } = useOutletContext<LayoutContext>()
     const [params] = useSearchParams()
+    const { isCurrent, assertCurrent } = useCurrentRequest()
+    const scope = useMemo(() => ({ chainId: GNO_CHAIN_ID, realmPath, caller: adena.address || "", operation: "proposal" }), [realmPath, adena.address])
+    // Explicit member-action links have their own draft so they cannot silently
+    // replace either the requested action or an unfinished general proposal.
+    const draftAction = JSON.stringify([params.get("type"), params.get("target"), params.get("roles")])
+    const draftScope = useMemo(() => ({ ...scope, operation: `proposal-draft:${draftAction}` }), [scope, draftAction])
+    const [savedDraft] = useState(() => readProposalDraft(draftScope))
+    const [receipt, setReceipt] = useState(() => readGovernanceReceipt(scope))
+    const [recoveryAcknowledged, setRecoveryAcknowledged] = useState(false)
+    const [storageWarning, setStorageWarning] = useState("")
 
     const initialKind = kinds.includes(params.get("type") as DaoProposalKind) ? params.get("type") as DaoProposalKind : kinds[0]
-    const [kind, setKind] = useState<DaoProposalKind>(initialKind)
-    const [title, setTitle] = useState("")
-    const [description, setDescription] = useState("")
-    const [category, setCategory] = useState<string | null>(null)
-    const [target, setTarget] = useState(params.get("target") ?? "")
-    const [powerText, setPowerText] = useState("1")
-    const [roles, setRoles] = useState<string[] | null>(params.get("roles") !== null ? (params.get("roles") || "").split(",").filter(Boolean) : null)
+    const [kind, setKind] = useState<DaoProposalKind>(savedDraft && kinds.includes(savedDraft.kind) ? savedDraft.kind : initialKind)
+    const [title, setTitle] = useState(savedDraft?.title ?? "")
+    const [description, setDescription] = useState(savedDraft?.description ?? "")
+    const [category, setCategory] = useState<string | null>(savedDraft?.category ?? null)
+    const [target, setTarget] = useState(savedDraft?.target ?? params.get("target") ?? "")
+    const [powerText, setPowerText] = useState(savedDraft?.powerText ?? "1")
+    const [roles, setRoles] = useState<string[] | null>(savedDraft?.roles ?? (params.get("roles") !== null ? (params.get("roles") || "").split(",").filter(Boolean) : null))
     const [showErrors, setShowErrors] = useState(false)
     const [tx, setTx] = useState<TxState>({ phase: "idle" })
-    const [locked, setLocked] = useState(false)
+    const [locked, setLocked] = useState(!!receipt)
+
+    useEffect(() => {
+        try { saveProposalDraft(draftScope, { kind, title, description, category, target, powerText, roles }) }
+        catch {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- communicate persistence failure.
+            setStorageWarning("Draft changes are kept in this tab only. Copy them before closing it.")
+        }
+    }, [draftScope, kind, title, description, category, target, powerText, roles])
 
     const configQuery = useQuery({
         queryKey: ["dao", "config", realmPath],
@@ -175,33 +201,58 @@ export function ProposeV2Form({ realmPath, encodedSlug, kinds }: { realmPath: st
             : !callerIsMember ? "Only members of this DAO can create proposals. Your connected wallet is not a member."
                 : null
     const busy = tx.phase === "wallet" || tx.phase === "block"
-    const disabled = locked || busy
+    const disabled = locked || busy || !auth.isAuthenticated || !caller
     const shown = (field: Field, value: string) => (showErrors || value !== "") ? problems[field] : undefined
 
     const submit = async () => {
         setShowErrors(true)
-        if (blocked || !plan || !action || disabled) return
+        if (blocked || !plan || !action || disabled || governanceRequestActive(scope)) return
         const before = config.proposal_count
         const submittedTitle = title
+        let finish = () => {}
+        let walletStarted = false
+        let submittedHash = ""
         setTx({ phase: "wallet" })
         try {
-            const res = await broadcastDaoTx(plan, action, `Propose: ${submittedTitle}`)
+            finish = beginGovernanceRequest(scope)
+            saveGovernanceReceipt(scope, { phase: "intent", hash: "", label: submittedTitle })
+            const res = await broadcastDaoTx(plan, action, `Propose: ${submittedTitle}`, async () => {
+                assertCurrent()
+                const [freshConfig, freshMembers] = await Promise.all([getDAOConfig(GNO_RPC_URL, realmPath, true), getDAOMembers(GNO_RPC_URL, realmPath, undefined, true)])
+                assertCurrent()
+                if (!freshConfig?.v2 || freshConfig.v2.archived || !freshMembers.some(m => m.address === caller)) throw new Error("DAO membership or availability changed. Review your proposal again.")
+                if (freshConfig.v2.electorate_version !== config.electorate_version) throw new Error("DAO membership changed. Review the proposal again.")
+                walletStarted = true
+            })
+            submittedHash = res.hash
+            const saved = { phase: "submitted" as const, hash: res.hash, label: submittedTitle }
+            try { saveGovernanceReceipt(scope, saved) } catch { if (isCurrent()) setStorageWarning("The transaction receipt is kept in this tab only. Copy its hash before leaving.") }
+            if (!isCurrent()) return
+            setReceipt(saved)
             setLocked(true)
             setTx({ phase: "block", hash: res.hash })
             invalidateProposalCache(realmPath)
             void queryClient.invalidateQueries({ queryKey: ["dao", "proposals", realmPath] })
             void queryClient.invalidateQueries({ queryKey: ["dao", "config", realmPath] })
             const id = proposalIdFromTxResult(res.result) ?? await findCreatedProposal(realmPath, caller, submittedTitle, before)
+            if (!isCurrent()) return
             if (id !== null) {
+                try { saveGovernanceReceipt(scope, { phase: "confirmed", hash: res.hash, label: submittedTitle, proposalId: id }) } catch { /* Known hash remains in memory. */ }
                 setTx({ phase: "confirmed", hash: res.hash, message: `Proposal #${id} created. Opening it…` })
                 navigate(`/dao/${encodedSlug}/proposal/${id}`)
             } else {
-                setTx({ phase: "confirmed", hash: res.hash, message: "Proposal submitted. It will appear in the DAO's proposals once the network shows it." })
+                setTx({ phase: "submitted", hash: res.hash, message: "Proposal submitted. It will appear in the DAO's proposals once the network shows it." })
             }
         } catch (err) {
+            if (!walletStarted && !submittedHash) {
+                // The request never reached Adena; it is safe to edit and try again.
+                finish()
+                try { clearGovernanceReceipt(scope) } catch { /* Retain a conservative recovery record. */ }
+            } else if (isCurrent()) { setLocked(true); setReceipt(readGovernanceReceipt(scope)) }
+            if (!isCurrent()) return
             logChainError(`proposal:propose:${realmPath}`, err, "critical", caller)
-            setTx({ phase: "failed", message: friendlyDaoError(err) })
-        }
+            setTx({ phase: walletStarted ? "unknown" : "failed", message: walletStarted ? "Submission outcome unknown. Check the transaction before submitting again." : friendlyDaoError(err), hash: submittedHash })
+        } finally { finish() }
     }
 
     const needsTarget = kind === "add_member" || kind === "remove_member" || kind === "change_role"
@@ -317,6 +368,16 @@ export function ProposeV2Form({ realmPath, encodedSlug, kinds }: { realmPath: st
                 </pre>
             </details>
 
+            {storageWarning && <p role="status">{storageWarning}</p>}
+            {receipt && <div className="dao-shell-banner" role="status">
+                <p>{receipt.hash ? "A proposal submission is recorded. Check it before starting another." : "A previous submission attempt has an unknown outcome. Check your wallet and the DAO before submitting again."}</p>
+                {receipt.hash && <code>Transaction {receipt.hash}</code>}
+                <label><input type="checkbox" checked={recoveryAcknowledged} onChange={e => setRecoveryAcknowledged(e.target.checked)} /> I checked the previous transaction and want to review another proposal.</label>
+                <button type="button" className="k-btn-secondary" disabled={busy || !recoveryAcknowledged} onClick={() => {
+                    try { clearGovernanceReceipt(scope); clearProposalDraft(draftScope); setReceipt(null); setLocked(false); setTitle(""); setDescription(""); setTx({ phase: "idle" }); setRecoveryAcknowledged(false) }
+                    catch (error) { setStorageWarning(error instanceof Error ? error.message : "Could not clear the saved attempt.") }
+                }}>Review another proposal</button>
+            </div>}
             <TxStatus state={tx} />
 
             <div className="pdao-actions">

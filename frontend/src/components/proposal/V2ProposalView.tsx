@@ -6,7 +6,7 @@
  * All data comes from the realm's JSON reads. User text (title, description)
  * is rendered escaped, with invisible formatting characters made visible.
  */
-import { useEffect, useRef, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useOutletContext } from "react-router-dom"
 import DOMPurify from "dompurify"
@@ -31,11 +31,14 @@ import { CopyableAddress } from "../ui/CopyableAddress"
 import { SkeletonCard } from "../ui/LoadingSkeleton"
 import type { LayoutContext } from "../../types/layout"
 import { TxStatus, type TxState } from "./TxStatus"
+import { useCurrentRequest } from "../../hooks/useCurrentRequest"
+import { beginGovernanceRequest, governanceRequestActive, clearGovernanceReceipt, readGovernanceReceipt, saveGovernanceReceipt } from "../../lib/dao/governanceRecovery"
 import "../../pages/proposalview.css"
 import "../dao/dao-shell.css"
 import "./v2-proposal.css"
 
-type Pending = { kind: "vote"; choice: VoteChoice } | { kind: "execute" } | null
+type Intent = { kind: "vote"; choice: VoteChoice } | { kind: "execute" }
+type Pending = (Intent & { plan: DaoTxPlan; electorateVersion: number }) | null
 
 const ACTION_LABELS: Record<MembaV2Proposal["action"]["kind"], string> = {
     text: "Text proposal",
@@ -69,10 +72,23 @@ function ActionDetails({ proposal }: { proposal: MembaV2Proposal }) {
     )
 }
 
-export function V2ProposalView({ realmPath, encodedSlug, proposalId }: { realmPath: string; encodedSlug: string; proposalId: number }) {
+type Props = { realmPath: string; encodedSlug: string; proposalId: number }
+export function V2ProposalView(props: Props) {
+    const { auth, adena } = useOutletContext<LayoutContext>()
+    return <ScopedV2ProposalView key={`${GNO_CHAIN_ID}:${props.realmPath}:${props.proposalId}:${adena.address}:${auth.isAuthenticated}`} {...props} />
+}
+function ScopedV2ProposalView({ realmPath, encodedSlug, proposalId }: Props) {
     const navigate = useNetworkNav()
     const queryClient = useQueryClient()
     const { auth, adena } = useOutletContext<LayoutContext>()
+    const { isCurrent, assertCurrent } = useCurrentRequest()
+    const scopes = useMemo(() => {
+        const base = { chainId: GNO_CHAIN_ID, realmPath, caller: adena.address || "" }
+        return { vote: { ...base, operation: `vote:${proposalId}` }, execute: { ...base, operation: `execute:${proposalId}` } }
+    }, [realmPath, proposalId, adena.address])
+    const [receipts, setReceipts] = useState(() => ({ vote: readGovernanceReceipt(scopes.vote), execute: readGovernanceReceipt(scopes.execute) }))
+    const [acknowledged, setAcknowledged] = useState(false)
+    const [recoveryMessage, setRecoveryMessage] = useState("")
     const now = useNowSeconds()
     const [pending, setPending] = useState<Pending>(null)
     const [tx, setTx] = useState<TxState>({ phase: "idle" })
@@ -147,7 +163,7 @@ export function V2ProposalView({ realmPath, encodedSlug, proposalId }: { realmPa
     const description = proposal.description
     const invisible = hasInvisibleFormatting(proposal.title) || hasInvisibleFormatting(description)
 
-    const plan = (next: Exclude<Pending, null>): DaoTxPlan | null => {
+    const plan = (next: Intent): DaoTxPlan | null => {
         if (!address) return null
         try {
             return next.kind === "vote"
@@ -157,22 +173,51 @@ export function V2ProposalView({ realmPath, encodedSlug, proposalId }: { realmPa
             return null
         }
     }
-    const pendingPlan = pending ? plan(pending) : null
+    const pendingPlan = pending?.plan ?? null
+    const openConfirmation = (next: Intent) => {
+        const prepared = plan(next)
+        if (prepared && !receipts[next.kind]) setPending({ ...next, plan: prepared, electorateVersion: config?.electorate_version ?? -1 })
+    }
 
     const run = async (next: Exclude<Pending, null>) => {
         setPending(null)
         // Sign the plan the dialog showed, so what was reviewed is what is signed.
-        const p = pendingPlan ?? plan(next)
-        if (!p) return
+        const p = next.plan
+        if (!p || receipts[next.kind] || busy) return
         const action = next.kind === "vote" ? { type: "vote" as const, id: proposal.id, vote: next.choice } : { type: "execute" as const, id: proposal.id }
+        const scope = scopes[next.kind]
+        if (governanceRequestActive(scope)) return
+        let finish = () => {}
+        let walletStarted = false
+        let knownHash = ""
         setTx({ phase: "wallet" })
         try {
+            finish = beginGovernanceRequest(scope)
             const memo = next.kind === "vote" ? `Vote ${next.choice} on proposal #${proposal.id}` : `Execute proposal #${proposal.id}`
-            const res = await broadcastDaoTx(p, action, memo)
+            saveGovernanceReceipt(scope, { phase: "intent", hash: "", label: memo })
+            const res = await broadcastDaoTx(p, action, memo, async () => {
+                assertCurrent()
+                const [freshConfig, freshMembers, freshProposal, freshVoted] = await Promise.all([
+                    getDAOConfig(GNO_RPC_URL, realmPath, true), getDAOMembers(GNO_RPC_URL, realmPath, undefined, true),
+                    readV2Proposal(ctx, proposalId), hasVotedOnV2(GNO_RPC_URL, realmPath, proposalId, address),
+                ])
+                assertCurrent()
+                if (!freshConfig?.v2 || freshConfig.v2.archived || !freshMembers.some(m => m.address === address)) throw new Error("DAO membership or availability changed. Review the action again.")
+                if (freshConfig.v2.electorate_version !== next.electorateVersion || (next.kind === "vote" && freshProposal.electorate_version !== freshConfig.v2.electorate_version)) throw new Error("The proposal electorate changed. Refresh before signing.")
+                const currentTime = Math.floor(Date.now() / 1000)
+                if (next.kind === "vote" && (freshVoted !== false || !canVoteNow(freshProposal, currentTime))) throw new Error("This vote is no longer available. Refresh the proposal.")
+                if (next.kind === "execute" && executionState(freshProposal, currentTime) !== "open") throw new Error("This proposal cannot be executed now. Refresh its status.")
+                walletStarted = true
+            })
+            knownHash = res.hash
+            const saved = { phase: "submitted" as const, hash: res.hash, label: memo }
+            try { saveGovernanceReceipt(scope, saved) } catch { if (isCurrent()) setRecoveryMessage("The receipt is kept in this tab only. Copy its hash before leaving.") }
+            if (!isCurrent()) return
+            setReceipts(current => ({ ...current, [next.kind]: saved }))
             setTx({ phase: "block", hash: res.hash })
             clearVoteCache()
             invalidateProposalCache(realmPath)
-            await Promise.all([
+            const [readProposal, readVotes, readHasVoted] = await Promise.all([
                 proposalQuery.refetch(),
                 votesQuery.refetch(),
                 hasVotedQuery.refetch(),
@@ -180,11 +225,22 @@ export function V2ProposalView({ realmPath, encodedSlug, proposalId }: { realmPa
                 next.kind === "execute" ? queryClient.invalidateQueries({ queryKey: ["dao", "config", realmPath] }) : Promise.resolve(),
                 next.kind === "execute" ? queryClient.invalidateQueries({ queryKey: ["dao", "members-list", realmPath] }) : Promise.resolve(),
             ])
-            setTx({ phase: "confirmed", hash: res.hash, message: next.kind === "vote" ? `Your ${next.choice} vote is recorded.` : `Proposal #${proposal.id} executed.` })
+            if (!isCurrent()) return
+            const verified = next.kind === "vote"
+                ? readHasVoted.isSuccess && readHasVoted.data === true && readVotes.isSuccess && readVotes.data?.votes.some(v => v.voter === address && v.choice === next.choice)
+                : readProposal.isSuccess && readProposal.data?.status === "EXECUTED"
+            setTx(verified
+                ? { phase: "confirmed", hash: res.hash, message: next.kind === "vote" ? `Your ${next.choice} vote is recorded.` : `Proposal #${proposal.id} executed.` }
+                : { phase: "submitted", hash: res.hash, message: "Transaction submitted. The network has not yet confirmed the updated proposal state. Refresh to check; do not submit again." })
         } catch (err) {
+            if (!walletStarted && !knownHash) {
+                finish()
+                try { clearGovernanceReceipt(scope) } catch { /* Retain conservative recovery state. */ }
+            } else if (isCurrent()) setReceipts(current => ({ ...current, [next.kind]: readGovernanceReceipt(scope) }))
+            if (!isCurrent()) return
             logChainError(`proposal:${next.kind}:${realmPath}#${proposal.id}`, err, "critical", address)
-            setTx({ phase: "failed", message: friendlyDaoError(err) })
-        }
+            setTx({ phase: walletStarted ? "unknown" : "failed", message: walletStarted ? "Submission outcome unknown. Check the transaction before trying again." : friendlyDaoError(err), hash: knownHash })
+        } finally { finish() }
     }
 
     const daoName = config?.name
@@ -311,7 +367,7 @@ export function V2ProposalView({ realmPath, encodedSlug, proposalId }: { realmPa
                             ) : (
                                 <div className="v2p-vote-buttons">
                                     {(["YES", "NO", "ABSTAIN"] as const).map((choice) => (
-                                        <button key={choice} className={choice === "YES" ? "k-btn-primary" : "k-btn-secondary"} disabled={busy || hasVotedQuery.isPending} onClick={() => setPending({ kind: "vote", choice })}>
+                                        <button key={choice} className={choice === "YES" ? "k-btn-primary" : "k-btn-secondary"} disabled={busy || hasVotedQuery.isPending || !!receipts.vote} onClick={() => openConfirmation({ kind: "vote", choice })}>
                                             {choice === "YES" ? "Vote yes" : choice === "NO" ? "Vote no" : "Abstain"}
                                         </button>
                                     ))}
@@ -321,7 +377,7 @@ export function V2ProposalView({ realmPath, encodedSlug, proposalId }: { realmPa
 
                         {auth.isAuthenticated && !archived && member && proposal.status === "ACCEPTED" && (
                             <div>
-                                <button className="k-btn-primary" disabled={busy || execState !== "open"} onClick={() => setPending({ kind: "execute" })} aria-describedby="v2p-execute-hint">
+                                <button className="k-btn-primary" disabled={busy || execState !== "open" || !!receipts.execute} onClick={() => openConfirmation({ kind: "execute" })} aria-describedby="v2p-execute-hint">
                                     Execute proposal
                                 </button>
                                 <p id="v2p-execute-hint" className="v2p-muted">
@@ -332,6 +388,16 @@ export function V2ProposalView({ realmPath, encodedSlug, proposalId }: { realmPa
                             </div>
                         )}
 
+                        {recoveryMessage && <p role="status">{recoveryMessage}</p>}
+                        {(["vote", "execute"] as const).map(kind => receipts[kind] && <div className="dao-shell-banner" role="status" key={kind}>
+                            <p>A previous {kind} attempt is saved. Check its outcome before another submission.</p>
+                            {receipts[kind]?.hash && <code>Transaction {receipts[kind]!.hash}</code>}
+                            <label><input type="checkbox" checked={acknowledged} onChange={e => setAcknowledged(e.target.checked)} /> I checked the transaction and want to review this action again.</label>
+                            <button className="k-btn-secondary" disabled={busy || !acknowledged} onClick={() => {
+                                try { clearGovernanceReceipt(scopes[kind]); setReceipts(current => ({ ...current, [kind]: null })); setAcknowledged(false); setTx({ phase: "idle" }); void proposalQuery.refetch(); void hasVotedQuery.refetch() }
+                                catch (error) { setRecoveryMessage(error instanceof Error ? error.message : "Could not clear the saved attempt.") }
+                            }}>Review {kind} again</button>
+                        </div>)}
                         <TxStatus state={tx} />
                     </section>
                 </div>

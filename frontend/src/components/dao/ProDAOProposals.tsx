@@ -42,6 +42,6 @@ export function ProDAOProposals({ encodedSlug, proposals, loading, failed, retry
                     <span className={`gov-status gov-status--${p.status}`}>{statusLabel[p.status]}</span><span className="gov-row-arrow" aria-hidden="true">↗</span>
                 </Link>
             </li>)}</ul>
-        </> : !failed && <div className="gov-empty" role="status"><strong>{proposals.length ? "No matching proposals" : "No proposals yet"}</strong><p>{proposals.length ? "Try another status or search term." : "Proposals will appear here when they are created."}</p>{(search || filter !== "All") && <button className="k-btn-secondary" onClick={() => { setSearch(""); setFilter("All") }}>Clear filters</button>}</div>}
+        </> : !failed && <div className="gov-empty" role="status"><strong>{proposals.length ? "No matching proposals" : "No proposals yet"}</strong><p>{proposals.length ? "Try another status or search term." : canPropose ? "Start with a text proposal to record a decision without moving funds." : "Proposals will appear here when they are created."}</p>{!proposals.length && canPropose && <Link className="k-btn-primary" to={path(`dao/${encodedSlug}/propose?type=text`)}>Create the first text proposal</Link>}{(search || filter !== "All") && <button className="k-btn-secondary" onClick={() => { setSearch(""); setFilter("All") }}>Clear filters</button>}</div>}
     </section>
 }

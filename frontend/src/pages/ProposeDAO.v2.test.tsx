@@ -1,3 +1,4 @@
+import { clearGovernanceMemory } from "../lib/dao/governanceRecovery"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
@@ -71,6 +72,8 @@ const signed = () => {
 }
 
 beforeEach(() => {
+    clearGovernanceMemory()
+    localStorage.clear()
     state.address = ALICE
     state.archived = false
     state.broadcast.mockReset()
@@ -206,4 +209,87 @@ describe("version-2 propose form", () => {
         expect(await screen.findByText(/This DAO is archived/)).toBeInTheDocument()
         expect(screen.getByRole("button", { name: "Submit proposal" })).toBeDisabled()
     })
+    it("keeps a general draft separate from an explicit member-action link", async () => {
+        const first = mount()
+        fireEvent.change(await screen.findByLabelText("Title"), { target: { value: "Unfinished text" } })
+        first.unmount()
+        const linked = mount(`/pearl/dao/${REALM}/propose?type=add_member&target=${NEW}`)
+        expect(await screen.findByLabelText("New member address")).toHaveValue(NEW)
+        expect(screen.getByLabelText("Title")).toHaveValue("")
+        linked.unmount()
+        mount()
+        expect(await screen.findByLabelText("Title")).toHaveValue("Unfinished text")
+    })
+
+    it("keeps disconnected fields disabled until a wallet is available", async () => {
+        state.address = ""
+        mount()
+        expect(await screen.findByLabelText("Title")).toBeDisabled()
+        expect(screen.getByText("Connect your wallet to create a proposal.")).toBeInTheDocument()
+    })
+
+    it("rejects obsolete confirmation after switching wallets", async () => {
+        let release!: () => void
+        let settled = false
+        const wallet = vi.fn()
+        state.broadcast.mockImplementation(async (_msgs, _memo, opts) => {
+            await new Promise<void>(resolve => { release = resolve })
+            try { await opts.beforeSign() } finally { settled = true }
+            wallet()
+            return { hash: "a".repeat(64) }
+        })
+        const first = mount()
+        fireEvent.change(await screen.findByLabelText("Title"), { target: { value: "Alice draft" } })
+        fireEvent.click(screen.getByRole("button", { name: "Submit proposal" }))
+        await waitFor(() => expect(release).toBeTypeOf("function"))
+        first.unmount()
+        state.address = BOB
+        mount()
+        expect(await screen.findByLabelText("Title")).toHaveValue("")
+        release()
+        await waitFor(() => expect(settled).toBe(true))
+        expect(wallet).not.toHaveBeenCalled()
+        expect(screen.getByLabelText("Title")).toHaveValue("")
+    })
+
+    it("preserves a lost wallet outcome on remount and blocks resubmission", async () => {
+        state.broadcast.mockImplementation(async (_msgs, _memo, opts) => { await opts.beforeSign(); throw new Error("response lost") })
+        const first = mount()
+        fireEvent.change(await screen.findByLabelText("Title"), { target: { value: "Once only" } })
+        fireEvent.click(screen.getByRole("button", { name: "Submit proposal" }))
+        expect(await screen.findByText(/Submission outcome unknown/)).toBeInTheDocument()
+        first.unmount()
+        mount()
+        expect(await screen.findByLabelText("Title")).toHaveValue("Once only")
+        expect(screen.getByLabelText("Title")).toBeDisabled()
+        expect(state.broadcast).toHaveBeenCalledTimes(1)
+    })
+
+    it("persists clearing the form instead of resurrecting its previous draft", async () => {
+        const first = mount()
+        fireEvent.change(await screen.findByLabelText("Title"), { target: { value: "Clear me" } })
+        fireEvent.change(screen.getByLabelText("Title"), { target: { value: "" } })
+        first.unmount()
+        mount()
+        expect(await screen.findByLabelText("Title")).toHaveValue("")
+    })
+
+    it("ignores a duplicate submit while the original wallet request is pending", async () => {
+        let finish!: (result: unknown) => void
+        state.broadcast.mockImplementation(async (_msgs, _memo, opts) => {
+            await opts.beforeSign()
+            return await new Promise(resolve => { finish = resolve })
+        })
+        mount()
+        fireEvent.change(await screen.findByLabelText("Title"), { target: { value: "Only once" } })
+        const form = screen.getByRole("form", { name: "New proposal" })
+        fireEvent.submit(form)
+        fireEvent.submit(form)
+        await waitFor(() => expect(finish).toBeTypeOf("function"))
+        expect(state.broadcast).toHaveBeenCalledTimes(1)
+        finish({ hash: "a".repeat(64), result: { deliver_tx: { ResponseBase: { Data: btoa("(6 uint64)") } } } })
+        await waitFor(() => expect(screen.getByTestId("location")).toHaveTextContent("/proposal/6"))
+        expect(state.broadcast).toHaveBeenCalledTimes(1)
+    })
+
 })

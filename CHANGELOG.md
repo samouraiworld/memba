@@ -22,6 +22,10 @@ Full changelogs are split by version range for easier navigation:
 
 ### Mainnet release evidence
 - Correct the documented default network and separate frontend candidates, published artifacts, fixture checks and real wallet verification.
+### Fixed — first DAO governance journey (2026-09-21)
+- Offer eligible members a first text proposal that records a decision without moving funds.
+- Freeze the reviewed vote message and recheck account, membership, archive state, deadlines and prior votes immediately before signing.
+- Preserve scoped proposal drafts and submission receipts across reloads, and require an explicit recovery decision before another attempt.
 ### Fixed — DAO drafts and submission recovery (2026-09-21)
 - Scope creation drafts to their chain and wallet, require explicit adoption of older/disconnected drafts, and preserve originals if saving fails.
 - Preserve unsaved edits across wallet switches, display storage failures, and confirm draft resets.

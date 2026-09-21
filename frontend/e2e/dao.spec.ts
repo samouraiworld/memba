@@ -354,15 +354,15 @@ test.describe('Version-2 DAO', () => {
         await expect(page.getByRole('button', { name: 'Vote yes' })).toHaveCount(0)
     })
 
-    test('the propose page offers the contract\'s proposal types and needs a wallet', async ({ page }) => {
+    test('the propose page shows proposal types but requires a wallet before editing', async ({ page }) => {
         await page.goto(`/dao/${V2_DAO}/propose`)
         const types = page.getByRole('group', { name: 'Proposal type' })
         await expect(types.getByRole('button')).toHaveText(['Text', 'Add member', 'Remove member', 'Change roles', 'Archive DAO'])
         await expect(page.getByText('Connect your wallet to create a proposal.')).toBeVisible()
         await expect(page.getByRole('button', { name: 'Submit proposal' })).toBeDisabled()
-        await types.getByRole('button', { name: 'Add member' }).click()
-        await expect(types.getByRole('button', { name: 'Add member' })).toHaveAttribute('aria-pressed', 'true')
-        await expect(page.getByLabel('New member address')).toBeVisible()
+        for (const button of await types.getByRole('button').all()) await expect(button).toBeDisabled()
+        await expect(page.getByLabel('Title', { exact: true })).toBeDisabled()
+        await expect(page.getByLabel('Description', { exact: true })).toBeDisabled()
     })
 
     test('the members page shows voting power', async ({ page }) => {

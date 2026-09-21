@@ -13,6 +13,8 @@ export type TxState =
     | { phase: "wallet" }
     | { phase: "block"; hash?: string }
     | { phase: "confirmed"; hash: string; message: string }
+    | { phase: "submitted"; message: string; hash?: string }
+    | { phase: "unknown"; message: string; hash?: string }
     | { phase: "failed"; message: string; hash?: string }
 
 const TITLES: Record<Exclude<TxState["phase"], "idle">, string> = {
@@ -20,6 +22,8 @@ const TITLES: Record<Exclude<TxState["phase"], "idle">, string> = {
     block: "Waiting for the block",
     confirmed: "Confirmed",
     failed: "Failed",
+    unknown: "Submission status unknown",
+    submitted: "Submitted",
 }
 
 /** A transaction hash: an explorer link where one indexes the chain, otherwise copyable text. */
@@ -45,7 +49,7 @@ export function TxStatus({ state, chainId = GNO_CHAIN_ID }: { state: TxState; ch
             data-phase={state.phase}
         >
             <strong>{TITLES[state.phase]}</strong>
-            {(state.phase === "confirmed" || state.phase === "failed") && <span>{state.message}</span>}
+            {(state.phase === "confirmed" || state.phase === "failed" || state.phase === "unknown" || state.phase === "submitted") && <span>{state.message}</span>}
             {hash && <TxStatusHash hash={hash} chainId={chainId} />}
         </div>
     )

@@ -102,6 +102,81 @@ test('passed and completed proposals show the appropriate reader guidance mobile
     await expect(page.getByRole('button', { name: /Execute proposal/ })).toHaveCount(0)
 })
 
+
+test('first mainnet text proposal and vote preserve receipts mobile', async ({ page }) => {
+    const address = 'g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c'
+    const realm = `gno.land/r/${address}/governance_fixture`
+    let created = false
+    let voted = false
+    let walletCalls = 0
+    const now = Math.floor(Date.now() / 1000)
+    const config = { template_version: 'memba-dao/2', api_version: '2.0', name: 'Governance fixture', description: '', threshold: 60, quorum: 0, voting_period: 86400, execution_delay: 3600, execution_window: 86400, categories: ['governance'], roles: ['member'], archived: false, member_count: 1, total_power: 1, electorate_version: 0, proposal_count: 0 }
+    const summary = () => ({ id: 1, title: 'First decision', category: 'governance', author: address, action: { kind: 'text', target: '', power: 0, roles: [] }, electorate_power: 1, electorate_version: 0, created_at: now - 10, voting_ends_at: now + 86400, status: voted ? 'ACCEPTED' : 'ACTIVE', yes: voted ? 1 : 0, no: 0, abstain: 0, accepted_at: voted ? now : 0, executable_at: voted ? now + 3600 : 0, execute_by: voted ? now + 90000 : 0 })
+    const jsonValue = (value: unknown) => `(${JSON.stringify(JSON.stringify(value))} string)`
+    await page.exposeFunction('fixtureGovernanceWrite', (func: string) => {
+        walletCalls++
+        if (func === 'ProposeText') created = true
+        else if (func === 'Vote') voted = true
+        else throw new Error(`Unexpected fixture write ${func}`)
+    })
+    await page.addInitScript(({ address }) => {
+        localStorage.setItem('memba_adena_connected', 'true')
+        localStorage.setItem('memba_auth_token', JSON.stringify({ nonce: 'governance-fixture', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId: 'gnoland-1', serverSignature: 'invalid-test-only' }))
+        localStorage.setItem(`memba_wizard_seen_${address}`, '1')
+        const reject = async () => { throw new Error('Unexpected fixture wallet method') }
+        Object.defineProperty(window, 'adena', { value: {
+            GetAccount: async () => ({ status: 'success', data: { address, coins: '0ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' }, accountNumber: '0', sequence: '0', chainId: 'gnoland-1' } }),
+            GetNetwork: async () => ({ data: { rpcUrl: 'https://rpc.gno.land' } }), On: () => () => {},
+            DoContract: async ({ messages }: { messages: { value: { func: string } }[] }) => {
+                const func = messages[0].value.func
+                await (window as unknown as { fixtureGovernanceWrite: (func: string) => Promise<void> }).fixtureGovernanceWrite(func)
+                return { status: 'success', data: { hash: (func === 'Vote' ? 'b' : 'a').repeat(64), deliver_tx: { ResponseBase: { Data: btoa('(1 uint64)') } } } }
+            }, Sign: reject, SignTx: reject, AddEstablish: reject,
+        } })
+    }, { address })
+    await fulfillOnchainReads(page, ({ method, path, arg }) => {
+        if (method === 'status') return mockAppChainStatus('gnoland-1')
+        if (path !== 'vm/qeval') return null
+        if (arg.includes('GetTemplateVersion')) return '("memba-dao/2" string)'
+        if (arg.includes('GetConfigJSON')) return jsonValue({ ...config, proposal_count: created ? 1 : 0 })
+        if (arg.includes('GetMembersJSON')) return jsonValue({ total: 1, offset: 0, members: [{ address, power: 1, roles: ['member'] }] })
+        if (arg.includes('GetProposalsJSON')) return jsonValue({ proposals: created ? [summary()] : [], next_before: 0 })
+        if (arg.includes('GetProposalJSON')) return jsonValue({ ...summary(), description: 'Record our first decision.' })
+        if (arg.includes('HasVoted')) return `(${voted} bool)`
+        if (arg.includes('GetVotesJSON')) return jsonValue({ total: voted ? 1 : 0, offset: 0, votes: voted ? [{ voter: address, choice: 'YES', power: 1 }] : [] })
+        return null
+    })
+    await page.goto(`/mainnet/dao/${realm}`)
+    await page.getByRole('link', { name: 'Create the first text proposal' }).click()
+    const types = page.getByRole('group', { name: 'Proposal type' })
+    await types.getByRole('button', { name: 'Add member', exact: true }).click()
+    await expect(types.getByRole('button', { name: 'Add member', exact: true })).toHaveAttribute('aria-pressed', 'true')
+    await expect(page.getByLabel('New member address')).toBeEnabled()
+    await types.getByRole('button', { name: 'Text', exact: true }).click()
+    await page.getByLabel('Title', { exact: true }).fill('First decision')
+    await page.getByLabel('Description', { exact: true }).fill('Record our first decision.')
+    await expect(page.getByTestId('v2-signed-message')).toContainText('ProposeText')
+    await page.getByRole('button', { name: 'Submit proposal', exact: true }).click()
+    await page.getByRole('button', { name: 'Confirm & Broadcast' }).click()
+    await expect(page).toHaveURL(new RegExp('/proposal/1$'))
+    await expect(page.getByRole('heading', { name: 'First decision', exact: true })).toBeVisible()
+    await page.getByRole('button', { name: 'Vote yes', exact: true }).click()
+    await page.getByRole('button', { name: 'Confirm YES', exact: true }).click()
+    await page.getByRole('button', { name: 'Confirm & Broadcast' }).click()
+    await expect(page.getByText('Your YES vote is recorded.', { exact: true })).toBeVisible()
+    await page.reload()
+    await expect(page.getByRole('img', { name: 'Yes 100%, No 0%, Abstain 0% of all voting power; threshold 60%' })).toBeVisible()
+    await expect(page.locator('.v2p-status')).toHaveText('Accepted')
+    await expect(page.getByText('Transaction ' + 'b'.repeat(64), { exact: true })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Vote yes', exact: true })).toHaveCount(0)
+    expect(walletCalls).toBe(2)
+    expect(await page.evaluate(() => Object.keys(localStorage).filter(k => k.startsWith('memba_governance:v1:') && !k.endsWith(':draft')).length)).toBe(2)
+    for (const width of [320, 390, 1440]) {
+        await page.setViewportSize({ width, height: 1000 })
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    }
+})
+
 // Synthetic wallet + RPC only: this exercises the actual confirmation provider,
 // wallet boundary and reload recovery without submitting to a network.
 test('DAO approval receipt survives reload without another wallet request mobile', async ({ page }) => {

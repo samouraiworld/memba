@@ -19,3 +19,16 @@ describe("professional proposal list expiry", () => {
         expect(screen.queryByRole("link", { name: /Expired decision/ })).not.toBeInTheDocument()
     })
 })
+
+
+describe("first proposal guidance", () => {
+    it("offers a text proposal only after an eligible empty result", () => {
+        const props = { encodedSlug: "example", proposals: [], loading: false, failed: false, retry: vi.fn(), canPropose: true, votedIds: new Set<number>() }
+        const view = render(<MemoryRouter><ProDAOProposals {...props} /></MemoryRouter>)
+        expect(screen.getByRole("link", { name: "Create the first text proposal" })).toHaveAttribute("href", "/test13/dao/example/propose?type=text")
+        for (const state of [{ canPropose: false }, { failed: true }, { loading: true }]) {
+            view.rerender(<MemoryRouter><ProDAOProposals {...props} {...state} /></MemoryRouter>)
+            expect(screen.queryByRole("link", { name: "Create the first text proposal" })).not.toBeInTheDocument()
+        }
+    })
+})
