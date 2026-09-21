@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Mainnet Home reflects available capabilities (2026-09-21)
+- Home labels the token launchpad unavailable where its factory is not deployed, omits the undeployed MembaDAO promotion and describes DAO discovery without implying voting membership.
+- Loading token and validator counts use an unknown placeholder instead of a misleading zero.
+
 ### gno.land is the default network, and Betanet is retired (2026-09-17)
 <!-- categories: memba, network -->
 - **Opening Memba now lands you on gno.land (`gnoland-1`), the production chain, instead of the Pearl testnet.** Anyone who picked a network before keeps the one they picked; only people who never chose are moved. Pearl stays in the network picker and is unchanged, and every `/pearl/...` link keeps working.

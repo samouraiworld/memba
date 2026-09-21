@@ -295,20 +295,20 @@ describe("DirectoryDoor — loading", () => {
 
 describe("LaunchpadDoor — static promo", () => {
     it("the WHOLE card is a single link to the token factory (no nested anchors)", () => {
-        const { container } = renderWithProviders(<LaunchpadDoor networkKey="test13" />)
+        const { container } = renderWithProviders(<LaunchpadDoor networkKey="pearl" />)
         const card = container.querySelector("a.door")
         expect(card).not.toBeNull()
-        expect(card).toHaveAttribute("href", "/test13/tokens")
+        expect(card).toHaveAttribute("href", "/pearl/tokens")
         expect(container.querySelectorAll("a").length).toBe(1)
     })
 
     it("renders promo headline text", () => {
-        renderWithProviders(<LaunchpadDoor networkKey="test13" />)
-        expect(screen.getByText(/launch a token in minutes/i)).toBeInTheDocument()
+        renderWithProviders(<LaunchpadDoor networkKey="pearl" />)
+        expect(screen.getByText(/launch a token/i)).toBeInTheDocument()
     })
 
     it("never renders a fabricated '0' or '—'", () => {
-        renderWithProviders(<LaunchpadDoor networkKey="test13" />)
+        renderWithProviders(<LaunchpadDoor networkKey="pearl" />)
         expect(screen.queryByText("0")).not.toBeInTheDocument()
         expect(screen.queryByText("—")).not.toBeInTheDocument()
     })

@@ -103,7 +103,7 @@ export function EcosystemBand({ networkKey }: EcosystemBandProps) {
                 {showTokens && (
                     <div className="ecosystem-section" data-testid="eco-tokens">
                         <Link to={tokensHref} className="ecosystem-section__header">
-                            <span className="ecosystem-section__count">{tokenCount}</span>
+                            <span className="ecosystem-section__count">{tokensLoading ? "—" : tokenCount}</span>
                             <span className="ecosystem-section__label">{tokenCount === 1 ? "token" : "tokens"}</span>
                             <span className="ecosystem-section__arrow" aria-hidden="true">→</span>
                         </Link>
@@ -141,7 +141,7 @@ export function EcosystemBand({ networkKey }: EcosystemBandProps) {
                 {showValidators && (
                     <div className="ecosystem-section" data-testid="eco-validators">
                         <Link to={validatorsHref} className="ecosystem-section__header">
-                            <span className="ecosystem-section__count">{validatorCount}</span>
+                            <span className="ecosystem-section__count">{validatorsLoading ? "—" : validatorCount}</span>
                             <span className="ecosystem-section__label">Top validators</span>
                             <span className="ecosystem-section__arrow" aria-hidden="true">→</span>
                         </Link>
