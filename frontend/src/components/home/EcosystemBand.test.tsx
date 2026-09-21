@@ -164,6 +164,7 @@ describe("EcosystemBand — tokens listing", () => {
 
         expect(screen.getByTestId("eco-tokens")).toBeInTheDocument()
         expect(screen.getByTestId("eco-tokens-loading")).toBeInTheDocument()
+        expect(screen.getByTestId("eco-tokens").querySelector(".ecosystem-section__count")).toHaveTextContent("—")
         expect(screen.queryByTestId("eco-token-row")).not.toBeInTheDocument()
     })
 })
@@ -268,6 +269,7 @@ describe("EcosystemBand — validators listing", () => {
 
         expect(screen.getByTestId("eco-validators")).toBeInTheDocument()
         expect(screen.getByTestId("eco-validators-loading")).toBeInTheDocument()
+        expect(screen.getByTestId("eco-validators").querySelector(".ecosystem-section__count")).toHaveTextContent("—")
         expect(screen.queryByTestId("eco-validator-row")).not.toBeInTheDocument()
     })
 })

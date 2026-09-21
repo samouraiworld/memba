@@ -22,7 +22,7 @@ import { Link } from "react-router-dom"
 import { PanelBoundary } from "./StateBoard"
 import { useInViewport } from "../../hooks/home/useInViewport"
 import { GovDaoSpotlight } from "./GovDaoSpotlight"
-import { DAO_REALM_PATH } from "../../lib/config"
+import { DAO_REALM_PATH, isRealmValidOn } from "../../lib/config"
 import { ContributorsDoor } from "./doors/ContributorsDoor"
 import { NetworkHealthDoor } from "./doors/NetworkHealthDoor"
 import { DirectoryDoor } from "./doors/DirectoryDoor"
@@ -120,10 +120,10 @@ export function ShowcaseBoard({ networkKey }: ShowcaseBoardProps) {
                 ))}
             </div>
             {/* MembaDAO demoted from the featured hero to a bonus credit line. */}
-            <div className="showcase-board__credit" data-testid="showcase-board-credit">
+            {isRealmValidOn(networkKey, DAO_REALM_PATH) && <div className="showcase-board__credit" data-testid="showcase-board-credit">
                 Built on Memba ·{" "}
                 <Link to={`/${networkKey}/dao/${DAO_REALM_PATH}`}>MembaDAO</Link>
-            </div>
+            </div>}
         </>
     )
 }
