@@ -4,11 +4,11 @@
  * @module components/directory/tabs/RealmsTab
  */
 
-import { useState, useCallback, useMemo, useDeferredValue, type CSSProperties } from "react"
-import { GNO_RPC_URL, getExplorerBaseUrl } from "../../../lib/config"
+import { useState, useMemo, useDeferredValue, type CSSProperties } from "react"
+import { getExplorerBaseUrl } from "../../../lib/config"
 import { useDirectoryDiscovery } from "../../../hooks/useDirectoryDiscovery"
 import { discoveryProvenanceLabel } from "../../../lib/directoryDiscovery"
-import { queryRender } from "../../../lib/dao/shared"
+import { useDirectoryRender } from "../../../hooks/useDirectoryRender"
 import { useNetwork } from "../../../hooks/useNetwork"
 import { RealmDetailDrawer } from "../RealmDetailDrawer"
 import { ExplorerLink } from "../ExplorerLink"
@@ -31,29 +31,14 @@ export function RealmsTab() {
     const [categoryFilter, setCategoryFilter] = useState<string>("all")
     // Phase 3b: Realm Render() preview
     const [expandedRealm, setExpandedRealm] = useState<string | null>(null)
-    const [realmRender, setRealmRender] = useState<string | null>(null)
-    const [renderLoading, setRenderLoading] = useState(false)
+    const preview = useDirectoryRender(expandedRealm)
+    const realmRender = preview.data?.trim() === "404" ? "" : preview.data
+    const renderLoading = preview.loading
     // Drawer for gnoweb-grade detail view
     const [drawerPath, setDrawerPath] = useState<string | null>(null)
     const [drawerGnowebUrl, setDrawerGnowebUrl] = useState<string | undefined>()
 
-    const handleRealmClick = useCallback(async (path: string) => {
-        if (expandedRealm === path) {
-            setExpandedRealm(null)
-            setRealmRender(null)
-            return
-        }
-        setExpandedRealm(path)
-        setRealmRender(null)
-        setRenderLoading(true)
-        try {
-            const raw = await queryRender(GNO_RPC_URL, path, "")
-            setRealmRender(raw && !raw.includes("404") ? raw.slice(0, 1000) : "No Render() output available.")
-        } catch {
-            setRealmRender("Failed to fetch Render() output.")
-        }
-        setRenderLoading(false)
-    }, [expandedRealm])
+    const handleRealmClick = (path: string) => setExpandedRealm(current => current === path ? null : path)
 
     const { discovery: { realms } } = useDirectoryDiscovery()
 
@@ -126,6 +111,7 @@ export function RealmsTab() {
                             <button
                                 className="dir-card__header"
                                 onClick={() => handleRealmClick(r.path)}
+                                aria-expanded={expandedRealm === r.path}
                             >
                                 <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
                                     <div className="dir-token-avatar k-brand-text" style={{
@@ -160,13 +146,13 @@ export function RealmsTab() {
                             {expandedRealm === r.path && (
                                 <div className="dir-render-preview">
                                     {renderLoading ? (
-                                        <div className="k-shimmer" style={{ height: 40, borderRadius: 6, background: "var(--color-border)" }} />
+                                        <p role="status">Loading realm preview…</p>
                                     ) : (
                                         <>
-                                            <div
+                                            {preview.isError ? <p role="status">Could not read this realm’s Render output. <button className="dir-gnoweb-link" type="button" onClick={() => void preview.refetch()}>Retry preview</button></p> : realmRender ? <div
                                                 className="dir-render-preview__content"
-                                                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(realmRender || "")) }}
-                                            />
+                                                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(realmRender.slice(0, 1000))) }}
+                                            /> : <p>This realm returned no preview content.</p>}
                                             <div className="dir-render-preview__links">
                                                 <button
                                                     className="dir-render-preview__link dir-render-preview__link--primary"

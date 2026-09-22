@@ -14,8 +14,10 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
 import DOMPurify from "dompurify"
-import { GNO_RPC_URL, getExplorerBaseUrlFor } from "../../lib/config"
-import { queryRender } from "../../lib/dao/shared"
+import { getExplorerBaseUrlFor } from "../../lib/config"
+import { useDirectoryRender } from "../../hooks/useDirectoryRender"
+import { useFocusTrap } from "../../hooks/useFocusTrap"
+import { useTabListKeyboard } from "../../hooks/useTabListKeyboard"
 import { useNetwork } from "../../hooks/useNetwork"
 import { fetchRealmSourceSmart } from "../../lib/gnowebSource"
 import { renderMarkdown } from "../../lib/markdownLite"
@@ -45,15 +47,21 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
     const [pickedFile, setPickedFile] = useState<string | null>(null)
     const [visible, setVisible] = useState(false)
     const drawerRef = useRef<HTMLDivElement>(null)
+    const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    useFocusTrap(drawerRef, true)
+    const tabs: DrawerTab[] = isPackage ? ["source", "info"] : ["render", "source", "info"]
+    const { tabProps } = useTabListKeyboard<DrawerTab>({ keys: tabs, active: tab, onSelect: setTab, idFor: key => `directory-drawer-tab-${key}` })
 
     const handleClose = useCallback(() => {
         setVisible(false)
-        setTimeout(onClose, 250) // wait for animation
+        if (closeTimer.current) clearTimeout(closeTimer.current)
+        closeTimer.current = setTimeout(onClose, 250) // wait for animation
     }, [onClose])
 
     // Animate in
     useEffect(() => {
-        requestAnimationFrame(() => setVisible(true))
+        const frame = requestAnimationFrame(() => setVisible(true))
+        return () => { cancelAnimationFrame(frame); if (closeTimer.current) clearTimeout(closeTimer.current) }
     }, [])
 
     // Close on Escape
@@ -74,23 +82,14 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
     const gnowebLink = gnowebUrl === canonicalLink ? gnowebUrl : canonicalLink
 
     // Render() output — packages have none, so the query stays disabled there.
-    const renderQuery = useQuery({
-        queryKey: ["realm", "render", networkKey, path],
-        enabled: !isPackage,
-        queryFn: async () => {
-            try {
-                return (await queryRender(GNO_RPC_URL, path, "")) || "No Render() output available."
-            } catch {
-                return "Failed to fetch Render() output."
-            }
-        },
-    })
+    const renderQuery = useDirectoryRender(isPackage ? null : path)
     const renderOutput = renderQuery.data ?? null
-    const renderLoading = !isPackage && renderQuery.isPending
+    const renderLoading = renderQuery.loading
 
     // Source code — RPC vm/qfile first (CORS-safe), gnoweb scrape fallback.
     // The old retry nonce becomes refetch().
     const sourceQuery = useQuery({
+        retry: false, refetchOnWindowFocus: false,
         queryKey: ["realm", "source", networkKey, path, resolvedGnowebUrl],
         queryFn: async () => {
             const realmPath = path.startsWith("gno.land") ? path.replace("gno.land", "") : path
@@ -138,31 +137,12 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
                 </div>
 
                 {/* Tabs */}
-                <div className="drawer-tabs">
-                    {!isPackage && (
-                        <button
-                            className={`drawer-tab${tab === "render" ? " active" : ""}`}
-                            onClick={() => setTab("render")}
-                        >
-                            Render
-                        </button>
-                    )}
-                    <button
-                        className={`drawer-tab${tab === "source" ? " active" : ""}`}
-                        onClick={() => setTab("source")}
-                    >
-                        Source
-                    </button>
-                    <button
-                        className={`drawer-tab${tab === "info" ? " active" : ""}`}
-                        onClick={() => setTab("info")}
-                    >
-                        Info
-                    </button>
+                <div className="drawer-tabs" role="tablist" aria-label="Detail views">
+                    {tabs.map(key => <button key={key} {...tabProps(key)} className={`drawer-tab${tab === key ? " active" : ""}`} onClick={() => setTab(key)}>{key[0].toUpperCase() + key.slice(1)}</button>)}
                 </div>
 
                 {/* Tab Content */}
-                <div className="drawer-content">
+                <div className="drawer-content" role="tabpanel" aria-labelledby={`directory-drawer-tab-${tab}`} tabIndex={0}>
                     {/* Render Tab */}
                     {tab === "render" && !isPackage && (
                         <div className="drawer-render">
@@ -173,12 +153,11 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
                                     <div className="drawer-skeleton__line" style={{ width: "90%" }} />
                                     <div className="drawer-skeleton__line" style={{ width: "40%" }} />
                                 </div>
-                            ) : (
-                                <div
-                                    className="drawer-render__content"
-                                    dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(renderOutput || "")) }}
-                                />
-                            )}
+                            ) : renderQuery.isError ? (
+                                <div className="drawer-empty" role="status">Could not read this realm’s Render output.<button type="button" className="drawer-empty__retry" onClick={() => void renderQuery.refetch()}>Retry render</button></div>
+                            ) : renderOutput ? (
+                                <div className="drawer-render__content" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(renderOutput)) }} />
+                            ) : <p className="drawer-empty">This realm returned no Render output.</p>}
                         </div>
                     )}
 
@@ -202,7 +181,7 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
                                 />
                             ) : (
                                 <div className="drawer-empty">
-                                    Source unavailable — the chain RPC and gnoweb could not be reached.
+                                    Source unavailable for this path. The package may be absent or its source could not be read.
                                     <button
                                         type="button"
                                         className="drawer-empty__retry"

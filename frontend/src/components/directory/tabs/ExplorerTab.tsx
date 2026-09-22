@@ -15,13 +15,14 @@
  * @module components/directory/tabs/ExplorerTab
  */
 
-import { useState, useEffect, useMemo, type FormEvent } from "react"
+import { useState, useMemo, type FormEvent } from "react"
 import DOMPurify from "dompurify"
-import { GNO_RPC_URL, getExplorerBaseUrlFor } from "../../../lib/config"
-import { queryRender } from "../../../lib/dao/shared"
+import { getExplorerBaseUrlFor } from "../../../lib/config"
+import { useQuery } from "@tanstack/react-query"
+import { useDirectoryRender } from "../../../hooks/useDirectoryRender"
 import { useNetwork } from "../../../hooks/useNetwork"
 import { useTabListKeyboard } from "../../../hooks/useTabListKeyboard"
-import { fetchRealmSourceSmart, type RealmSource } from "../../../lib/gnowebSource"
+import { fetchRealmSourceSmart } from "../../../lib/gnowebSource"
 import { renderMarkdown } from "../../../lib/markdownLite"
 import { fetchRealmFuncs, formatSignature, resolveFnList, type GnoFunc } from "../../../lib/gnoFuncs"
 import { toExplorerRelPath } from "../../../lib/explorerLink"
@@ -84,7 +85,7 @@ export function ExplorerTab({ realm, onRealmChange }: ExplorerTabProps) {
             </header>
 
             {realmPath ? (
-                <RealmView key={realmPath} path={realmPath} networkKey={networkKey} />
+                <RealmView key={`${networkKey}:${realmPath}`} path={realmPath} networkKey={networkKey} />
             ) : (
                 <div className="explorer__examples">
                     <span className="explorer__examples-label">Try:</span>
@@ -116,42 +117,26 @@ function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
         onSelect: setTab,
         idFor: (k) => `realmview-tab-${k}`,
     })
-    const [render, setRender] = useState<string | null>(null)
-    const [renderLoading, setRenderLoading] = useState(true)
-    const [source, setSource] = useState<RealmSource | null>(null)
-    const [sourceLoading, setSourceLoading] = useState(true)
-    const [activeFile, setActiveFile] = useState("")
-    const [funcs, setFuncs] = useState<GnoFunc[] | null>(null)
-
     const gnowebUrl = getExplorerBaseUrlFor(networkKey)
     const relPath = path.replace(/^gno\.land/, "")
     const shortName = path.split("/").pop() || path
-
-    // RealmView is keyed by realmPath (remounts per realm), so the initial
-    // loading=true state is fresh each time — no synchronous setState in-effect.
-    useEffect(() => {
-        if (isPackage) return
-        queryRender(GNO_RPC_URL, path, "")
-            .then((raw) => setRender(raw))
-            .catch(() => setRender(null))
-            .finally(() => setRenderLoading(false))
-    }, [path, isPackage])
-
-    useEffect(() => {
-        fetchRealmSourceSmart(gnowebUrl, relPath)
-            .then((src) => {
-                setSource(src)
-                if (src?.files[0]) setActiveFile(src.files[0].name)
-            })
-            .catch(() => setSource(null))
-            .finally(() => setSourceLoading(false))
-    }, [path, relPath, gnowebUrl])
-
-    useEffect(() => {
-        fetchRealmFuncs(relPath)
-            .then(setFuncs)
-            .catch(() => setFuncs([]))
-    }, [relPath])
+    const renderQuery = useDirectoryRender(isPackage ? null : path)
+    const render = renderQuery.data
+    const renderLoading = renderQuery.loading
+    const sourceQuery = useQuery({
+        queryKey: ["realm", "source", networkKey, path, gnowebUrl],
+        queryFn: () => fetchRealmSourceSmart(gnowebUrl, relPath),
+        retry: false, refetchOnWindowFocus: false,
+    })
+    const source = sourceQuery.data
+    const sourceLoading = sourceQuery.isFetching
+    const activeFile = source?.files[0]?.name ?? ""
+    const funcsQuery = useQuery({
+        queryKey: ["realm", "functions", networkKey, path],
+        queryFn: () => fetchRealmFuncs(relPath),
+        retry: false, refetchOnWindowFocus: false,
+    })
+    const funcs = funcsQuery.data ?? null
 
     // Authoritative qfuncs signatures; fall back to the source parser's exported
     // names (resolveFnList owns the precedence — unit-tested in gnoFuncs.test).
@@ -183,17 +168,19 @@ function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
                 ))}
             </div>
 
-            <div className="realmview__body">
+            <div className="realmview__body" role="tabpanel" aria-labelledby={`realmview-tab-${tab}`} tabIndex={0}>
                 {tab === "render" && (
                     renderLoading ? (
                         <p className="realmview__muted">Loading render…</p>
+                    ) : renderQuery.isError ? (
+                        <p className="realmview__muted" role="status">Could not read this realm’s Render output. <button className="explorer__go" onClick={() => void renderQuery.refetch()}>Retry render</button></p>
                     ) : render ? (
                         <div
                             className="realmview__render"
                             dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(render)) }}
                         />
                     ) : (
-                        <p className="realmview__muted">This realm has no <code>Render()</code> output (or it could not be reached).</p>
+                        <p className="realmview__muted">This realm returned no <code>Render()</code> output.</p>
                     )
                 )}
 
@@ -216,7 +203,7 @@ function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
                             <SourceCodeView files={source.files} activeFile={activeFile} />
                         </>
                     ) : (
-                        <p className="realmview__muted">Source unavailable — the chain RPC and gnoweb could not be reached.</p>
+                        <p className="realmview__muted" role="status">Source unavailable for this path. <button className="explorer__go" onClick={() => void sourceQuery.refetch()}>Retry source</button></p>
                     )
                 )}
 
@@ -224,7 +211,7 @@ function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
                     // Still loading while qfuncs is in flight, OR qfuncs came back
                     // empty but the source-parser fallback hasn't resolved yet —
                     // otherwise the tab flashes "no functions" before the fallback.
-                    funcs === null || (fnList.length === 0 && sourceLoading) ? (
+                    funcsQuery.isFetching || (fnList.length === 0 && sourceLoading) ? (
                         <p className="realmview__muted">Loading functions…</p>
                     ) : fnList.length > 0 ? (
                         <ul className="realmview__funcs">
@@ -234,6 +221,8 @@ function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
                                 </li>
                             ))}
                         </ul>
+                    ) : funcsQuery.isError ? (
+                        <p className="realmview__muted" role="status">Functions could not be read. <button className="explorer__go" onClick={() => void funcsQuery.refetch()}>Retry functions</button></p>
                     ) : (
                         <p className="realmview__muted">No exported functions found.</p>
                     )

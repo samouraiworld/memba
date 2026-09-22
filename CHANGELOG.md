@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Discovery request and keyboard behavior
+- Prevent late or cleared preview requests from replacing the current result; add explicit read retries and package source actions.
+- Keep keyboard focus inside detail drawers, restore it on close, and support arrow-key view selection.
+
 ### Directory network provenance
 - Keep mainnet discovery separate from historical references, show source coverage, and open the exact selected realm or package without losing the search.
 - Give package source actions a themed background so their labels remain readable in dark mode.

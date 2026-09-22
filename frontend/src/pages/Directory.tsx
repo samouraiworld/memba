@@ -12,12 +12,12 @@
  */
 
 import { useNetworkNav } from "../hooks/useNetworkNav"
-import { useState, useEffect, useCallback, useMemo, useDeferredValue, useRef } from "react"
+import { useEffect, useCallback, useMemo, useDeferredValue } from "react"
 import { useDirectoryUrlState } from "../hooks/useDirectoryUrlState"
 import { type DirectoryTab, resolveActiveTab } from "../lib/directoryUrl"
 import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
-import { GNO_RPC_URL, getExplorerBaseUrl, isExplorerEnabled } from "../lib/config"
-import { queryRender } from "../lib/dao/shared"
+import { getExplorerBaseUrl, isExplorerEnabled } from "../lib/config"
+import { useDirectoryRender } from "../hooks/useDirectoryRender"
 import { ChainMetricsBanner } from "../components/directory"
 import { DAOsTab, TokensTab, UsersTab, PackagesTab, RealmsTab, GovDAOTab, LeaderboardTab, ExplorerTab } from "../components/directory/tabs"
 import { trackPageVisit, trackDirectoryTab } from "../lib/quests"
@@ -58,8 +58,10 @@ export function Directory() {
     const tab: DirectoryTab = resolveActiveTab(urlState.tab, explorerOn)
     const globalSearch = urlState.q
     const deferredGlobalSearch = useDeferredValue(globalSearch)
-    const [realmPreview, setRealmPreview] = useState<{ path: string; content: string } | null>(null)
-    const [previewLoading, setPreviewLoading] = useState(false)
+    const previewPath = globalSearch.startsWith("gno.land/r/") ? globalSearch : null
+    const preview = useDirectoryRender(previewPath, 300)
+    const realmPreview = preview.data && preview.data.trim() !== "404" ? { path: previewPath!, content: preview.data.slice(0, 500) } : null
+    const packagePath = globalSearch.startsWith("gno.land/p/") && isValidRealmPath(globalSearch.replace(/^gno\.land/, "")) ? globalSearch : null
 
     // M6 pattern: page title + quest tracking. Track the initial (possibly
     // deep-linked via ?tab=) tab once on mount.
@@ -103,31 +105,8 @@ export function Directory() {
         return { daos, packages, realms }
     }, [deferredGlobalSearch, allDAOs, allPackages, allRealms])
 
-    // Phase 3a: Universal search — attempt qrender for gno.land paths
-    // P1 fix: 300ms debounce to avoid firing RPC on every keystroke
-    const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
     const handleGlobalSearch = useCallback((query: string) => {
         setUrlState({ q: query })
-        setRealmPreview(null)
-
-        if (debounceRef.current) clearTimeout(debounceRef.current)
-
-        if (query.startsWith("gno.land/") && query.length > 12) {
-            // P1 fix: validate realm path format before issuing RPC call
-            const realmPath = "/" + query.replace(/^gno\.land/, "").replace(/^\//, "")
-            if (!isValidRealmPath(realmPath)) return
-
-            setPreviewLoading(true)
-            debounceRef.current = setTimeout(async () => {
-                try {
-                    const raw = await queryRender(GNO_RPC_URL, query, "")
-                    if (raw && !raw.includes("404")) {
-                        setRealmPreview({ path: query, content: raw.slice(0, 500) })
-                    }
-                } catch { /* not a valid realm */ }
-                setPreviewLoading(false)
-            }, 300)
-        }
     }, [setUrlState])
 
     const selectTab = useCallback((key: DirectoryTab) => {
@@ -251,9 +230,10 @@ export function Directory() {
             )}
 
             {/* Realm path preview */}
-            {previewLoading && (
-                <div className="k-shimmer" style={{ height: 48, borderRadius: 8, background: "var(--color-border)" }} />
-            )}
+            {preview.loading && <p role="status">Loading realm preview…</p>}
+            {previewPath && preview.isError && <p role="status">Could not read this realm’s Render output. <button type="button" className="dir-gnoweb-link" onClick={() => void preview.refetch()}>Retry preview</button></p>}
+            {previewPath && preview.isSuccess && !realmPreview && <p role="status">This realm returned no preview content. <button type="button" className="dir-gnoweb-link" onClick={() => openResult(previewPath)}>View realm details</button></p>}
+            {packagePath && <p>Packages have source code rather than a rendered page. <button type="button" className="dir-gnoweb-link" onClick={() => openResult(packagePath)}>View package source</button></p>}
             {realmPreview && (
                 <a
                     className="dir-realm-preview"

@@ -253,7 +253,7 @@ for (const network of ['mainnet', 'pearl']) {
             await expect(explorer.getByRole('tab', { name: 'Source' })).toHaveAttribute('aria-selected', 'true')
             await expect(explorer.getByRole('tab', { name: 'Render' })).toHaveCount(0)
         } else {
-            await expect(page.getByRole('dialog').getByRole('button', { name: 'Render', exact: true })).toHaveCount(0)
+            await expect(page.getByRole('dialog').getByRole('tab', { name: 'Render', exact: true })).toHaveCount(0)
         }
     })
 }
@@ -281,3 +281,50 @@ for (const network of ['mainnet', 'pearl']) {
         }
     })
 }
+for (const theme of ['dark', 'light'] as const) {
+    for (const width of [320, 390, 1440]) {
+        test(`discovery bounded audit ${theme} ${width}px`, async ({ page }, info) => {
+            await page.setViewportSize({ width, height: 900 })
+            await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' })
+            await fulfillOnchainReads(page, ({ method, path, arg }) => {
+                if (method === 'status') return mockAppChainStatus('gnoland-1')
+                if (path === 'vm/qrender') return '# Community boards\n\nRead-only preview.'
+                if (path === 'vm/qfile') return arg.endsWith('/demo.gno') ? 'package boards\n// Read-only source' : 'demo.gno'
+                if (path === 'vm/qfuncs') return '[]'
+                return null
+            })
+            for (const route of ['apps', 'directory?tab=realms', 'directory?tab=realms&q=Boards&realm=r/gnoland/boards2/v0']) {
+                await page.goto(`/mainnet/${route.split("&realm=")[0]}`)
+                await waitForRouteSettled(page)
+                if (route.includes('realm=')) {
+                    // Selection chooses Explorer or drawer according to the existing flag.
+                    await page.locator('.dir-cross-item').filter({ hasText: 'gno.land/r/gnoland/boards2/v0' }).click()
+                    await expect(page.getByRole('dialog').or(page.locator('.realmview__path'))).toBeVisible()
+                }
+                const audit = await new AxeBuilder({ page }).include('#main-content').withRules(['color-contrast', 'button-name', 'link-name', 'label', 'nested-interactive']).analyze()
+                expect(audit.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => ({ target: n.target, summary: n.failureSummary })) }))).toEqual([])
+                expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 2)
+                await page.screenshot({ path: info.outputPath(`${route.split('?')[0]}-${route.includes('realm=') ? 'drawer' : 'browse'}.png`), fullPage: true })
+            }
+        })
+    }
+}
+
+test('discovery drawer keyboard interaction', async ({ page }) => {
+    await page.goto('/pearl/directory')
+    const trigger = page.getByRole('button', { name: 'View GRC20 source', exact: true })
+    await trigger.focus()
+    await page.keyboard.press('Enter')
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toBeVisible()
+    await expect(dialog.getByRole('button', { name: 'Close', exact: true })).toBeFocused()
+    await page.keyboard.press('Shift+Tab')
+    expect(await dialog.evaluate(el => el.contains(document.activeElement))).toBe(true)
+    await dialog.getByRole('tab', { name: 'Source', exact: true }).focus()
+    await page.keyboard.press('ArrowRight')
+    await expect(dialog.getByRole('tab', { name: 'Info', exact: true })).toBeFocused()
+    await expect(dialog.getByRole('tab', { name: 'Info', exact: true })).toHaveAttribute('aria-selected', 'true')
+    await page.keyboard.press('Escape')
+    await expect(dialog).toHaveCount(0)
+    await expect(trigger).toBeFocused()
+})

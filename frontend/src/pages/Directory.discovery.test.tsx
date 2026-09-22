@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest"
 import { fireEvent, render, screen } from "@testing-library/react"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter, useLocation, useNavigate } from "react-router-dom"
 const options = vi.hoisted(() => ({ explorer: true }))
 vi.mock("../lib/config", async importOriginal => ({ ...await importOriginal<typeof import("../lib/config")>(), isExplorerEnabled: () => options.explorer }))
@@ -16,7 +17,7 @@ function History() { const location = useLocation(); const navigate = useNavigat
 describe("Directory selected search destinations", () => {
     it.each([true, false])("keeps query and exact realm through selection and Back, explorer=%s", async enabled => {
         options.explorer = enabled
-        render(<MemoryRouter initialEntries={["/mainnet/directory?q=Boards"]}><Directory /><History /></MemoryRouter>)
+        render(<MemoryRouter initialEntries={["/mainnet/directory?q=Boards"]}><QueryClientProvider client={new QueryClient()}><Directory /><History /></QueryClientProvider></MemoryRouter>)
         fireEvent.click(await screen.findByRole("button", { name: /gno.land\/r\/gnoland\/boards2\/v0/ }))
         expect(screen.getByTestId(enabled ? "selected-explorer" : "selected-drawer")).toHaveTextContent("r/gnoland/boards2/v0")
         expect(screen.getByTestId("url")).toHaveTextContent("q=Boards")
@@ -27,7 +28,7 @@ describe("Directory selected search destinations", () => {
     })
     it("opens a package as source in the flag-off fallback", async () => {
         options.explorer = false
-        render(<MemoryRouter initialEntries={["/pearl/directory?q=Boards"]}><Directory /><History /></MemoryRouter>)
+        render(<MemoryRouter initialEntries={["/pearl/directory?q=Boards"]}><QueryClientProvider client={new QueryClient()}><Directory /><History /></QueryClientProvider></MemoryRouter>)
         fireEvent.click(await screen.findByRole("button", { name: /gno.land\/p\/demo\/boards2/ }))
         expect(screen.getByTestId("selected-drawer")).toHaveTextContent("gno.land/p/demo/boards2:source")
         expect(screen.getByTestId("url")).toHaveTextContent("/pearl/directory")

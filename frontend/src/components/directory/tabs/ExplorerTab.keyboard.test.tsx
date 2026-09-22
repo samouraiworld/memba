@@ -8,6 +8,7 @@
  * arrow-selection only works if onSelect reaches setTab.
  */
 import { describe, it, expect, vi } from "vitest"
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { render, screen, fireEvent } from "@testing-library/react"
 
 vi.mock("../../../hooks/useNetwork", () => ({
@@ -18,7 +19,8 @@ vi.mock("../../../lib/dao/shared", () => ({
     queryRender: vi.fn().mockResolvedValue("# demo realm"),
 }))
 
-vi.mock("../../../lib/gnowebSource", () => ({
+vi.mock("../../../lib/gnowebSource", async importOriginal => ({
+    ...await importOriginal<typeof import("../../../lib/gnowebSource")>(),
     fetchRealmSourceSmart: vi.fn().mockResolvedValue({ files: [], functions: [] }),
 }))
 
@@ -36,7 +38,7 @@ import { ExplorerTab } from "./ExplorerTab"
 const tab = (name: RegExp) => screen.getByRole("tab", { name })
 
 async function renderRealmView() {
-    render(<ExplorerTab realm="r/demo/x" onRealmChange={vi.fn()} />)
+    render(<QueryClientProvider client={new QueryClient()}><ExplorerTab realm="r/demo/x" onRealmChange={vi.fn()} /></QueryClientProvider>)
     // The tablist belongs to RealmView, which mounts once a realm is set.
     await screen.findByRole("tab", { name: /render/i })
 }
@@ -64,7 +66,7 @@ describe("ExplorerTab — realm tablist keyboard (APG)", () => {
 
 it("opens package deep links on Source without a Render request", async () => {
     vi.mocked(queryRender).mockClear()
-    render(<ExplorerTab realm="p/demo/boards2" onRealmChange={vi.fn()} />)
+    render(<QueryClientProvider client={new QueryClient()}><ExplorerTab realm="p/demo/boards2" onRealmChange={vi.fn()} /></QueryClientProvider>)
     expect(await screen.findByRole("tab", { name: "Source" })).toHaveAttribute("aria-selected", "true")
     expect(screen.queryByRole("tab", { name: "Render" })).not.toBeInTheDocument()
     expect(queryRender).not.toHaveBeenCalled()

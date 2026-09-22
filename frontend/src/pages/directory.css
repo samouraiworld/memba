@@ -1685,3 +1685,16 @@ a.dir-card {
 
 .dir-discovery-status { color: var(--color-text-secondary); line-height: 1.6; font-size: 14px; }
 .dir-discovery-status button { margin-left: 12px; padding: 8px 12px; min-height: 44px; color: var(--color-k-accent-text); background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; cursor: pointer; }
+
+/* C1 discovery controls and source drawers retain a visible keyboard position. */
+.dir-page :is(button, a, input):focus-visible,
+.drawer-panel :is(button, a, [tabindex]):focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 3px;
+}
+.dir-card-actions { flex-wrap: wrap; }
+.drawer-header__path { overflow-wrap: anywhere; }
+.drawer-close { min-width: 44px; min-height: 44px; }
+@media (prefers-reduced-motion: reduce) {
+    .drawer-overlay, .drawer-panel { transition: none; }
+}

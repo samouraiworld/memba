@@ -4,7 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { MemoryRouter } from "react-router-dom"
 vi.mock("../../hooks/useNetwork", () => ({ useNetwork: () => ({ networkKey: "pearl" }) }))
 vi.mock("../../lib/dao/shared", () => ({ queryRender: vi.fn().mockResolvedValue("# Realm") }))
-vi.mock("../../lib/gnowebSource", () => ({ fetchRealmSourceSmart: vi.fn().mockResolvedValue({ files: [], functions: [], imports: [] }) }))
+vi.mock("../../lib/gnowebSource", async importOriginal => ({ ...await importOriginal<typeof import("../../lib/gnowebSource")>(), fetchRealmSourceSmart: vi.fn().mockResolvedValue({ files: [], functions: [], imports: [] }) }))
 import { RealmDetailDrawer } from "./RealmDetailDrawer"
 import { NETWORKS } from "../../lib/config"
 import { queryRender } from "../../lib/dao/shared"
@@ -16,8 +16,8 @@ describe("Directory drawer network and URL identity", () => {
         const path = "gno.land/p/samcrew/demo"
         const url = variant === "full" ? `${base}/p/samcrew/demo` : variant === "origin" ? base : "https://gno.land/p/samcrew/demo"
         render(<MemoryRouter><QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}><RealmDetailDrawer path={path} isPackage gnowebUrl={url} onClose={vi.fn()} /></QueryClientProvider></MemoryRouter>)
-        expect(screen.queryByRole("button", { name: /Render/ })).not.toBeInTheDocument()
-        fireEvent.click(screen.getByRole("button", { name: /Info/ }))
+        expect(screen.queryByRole("tab", { name: /Render/ })).not.toBeInTheDocument()
+        fireEvent.click(screen.getByRole("tab", { name: /Info/ }))
         expect(await screen.findByRole("link", { name: "Open in gnoweb →" })).toHaveAttribute("href", `${base}/p/samcrew/demo`)
         expect(fetchRealmSourceSmart).toHaveBeenCalledWith(base, "/p/samcrew/demo")
         expect(queryRender).not.toHaveBeenCalled()

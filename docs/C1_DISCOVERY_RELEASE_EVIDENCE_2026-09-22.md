@@ -63,3 +63,11 @@ Namespace fixtures test both mainnet and Pearl, missing/mismatched chain identit
 The refreshed `e5b0ee30` design matrix failed its dark 390px and 1600px group-4 cases (75 other cases passed). Package “View source” buttons reused the link styles without an explicit background, allowing Chromium's default grey button face (`#6b6b6b`) beneath teal text (`#00d4aa`): measured contrast 2.79:1. Both Directory and the legacy Explorer redirect exposed the same issue. The complete-features matrix does not include these routes, so its success did not cover this defect.
 
 The correction assigns the existing themed card background to `.dir-gnoweb-link` and a pointer cursor. Contrast rules, assertions and workflow requirements remain unchanged. The existing route group passed all four cases in both dark and light themes at 390px and 1600px, covering eight routes per case (32 route/theme/width checks). Local log: `/private/tmp/memba-c1-source-contrast-browser.log`. Hosted checks must rerun on the correction before merging.
+
+## Bounded reliability evidence
+
+Five deferred-response regressions failed before the fix and passed afterward: stale global preview, stale expanded-realm preview, stuck loading after clear, delayed read after unmount, and Render attempted for a package path. Recovery tests distinguish successful empty Render output from a failed strict read and verify explicit source retry. Query state is keyed by network and path; existing transport timeouts/fallbacks and NetworkSync reload behavior remain intact.
+
+The targeted browser matrix checks App Store browsing, realm search and one detail view in Light/Black at 320, 390 and 1440 pixels with reduced motion. Axe rules cover contrast, labels, button/link names and nested interactions; overflow is checked. Keyboard checks in Chromium, Firefox and iPhone WebKit cover initial drawer focus, Tab containment, arrow-key selection, Escape and focus return. This is bounded coverage, not a whole-app accessibility certification.
+
+Existing API limitation: function-list transport failures can still become an empty array in `fetchRealmFuncs`; no new transport/API semantics are claimed. CSP continues to block mainnet namespace discovery and the labeled editorial fallback remains intentional. No runtime, realm eligibility or wallet action changed.
