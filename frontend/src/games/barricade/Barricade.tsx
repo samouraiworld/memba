@@ -120,6 +120,7 @@ function prepCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): v
 export default function Barricade() {
     const canvasRef = useRef<HTMLCanvasElement | null>(null)
     const stageRef = useRef<HTMLDivElement | null>(null)
+    const resultHeadingRef = useRef<HTMLHeadingElement | null>(null)
     const stateRef = useRef<SimState>(initState("idle"))
     const wavesRef = useRef<WaveScript[]>(buildWaves("idle"))
     const eventsRef = useRef<SimEvent[]>([])
@@ -178,6 +179,10 @@ export default function Barricade() {
             document.removeEventListener("visibilitychange", onVisibilityChange)
         }
     }, [])
+
+    useEffect(() => {
+        if (status === "done") resultHeadingRef.current?.focus()
+    }, [status])
 
     const start = useCallback((daily: boolean) => {
         const seed = daily ? dailySeed() : `practice-${Date.now()}-${practiceCounter.current++}`
@@ -366,6 +371,7 @@ export default function Barricade() {
     }, [armed])
 
     const onStageKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+        if (e.target !== e.currentTarget) return
         const key = e.key.toLowerCase()
         if (status === "paused" && (key === "p" || key === "escape")) {
             e.preventDefault()
@@ -454,7 +460,7 @@ export default function Barricade() {
     }, [result])
 
     return (
-        <div className="bar-shell">
+        <div className={`bar-shell${status === "done" ? " bar-shell--done" : ""}`}>
             <Link className="bar-exit" to="../.." relative="path">Exit game</Link>
             <header className="bar-wordmark">
                 <span className="bar-eyebrow">Daily run · Season 0</span>
@@ -474,7 +480,9 @@ export default function Barricade() {
                 aria-label="Barricade playfield"
                 aria-describedby="bar-game-controls"
                 onKeyDown={onStageKeyDown}
-                onPointerDown={(e) => e.currentTarget.focus()}
+                onPointerDown={(e) => {
+                    if (e.target === e.currentTarget || e.target instanceof HTMLCanvasElement) e.currentTarget.focus()
+                }}
             >
                 {RENDER_3D ? (
                     <Suspense fallback={<div className="bar-canvas" aria-label="Barricade play area" />}>
@@ -500,6 +508,33 @@ export default function Barricade() {
                         <button className="k-btn-primary" onClick={() => { setStatus("playing"); stageRef.current?.focus() }}>Resume run</button>
                     </div>
                 )}
+                {status === "playing" && hud.phase === "choice" && (
+                    <div className="bar-shop" role="group" aria-label="Between-wave shop">
+                        <p className="bar-shop__title">Between waves <span>◆ {hud.scrap} scrap</span></p>
+                        <div className="bar-shop__actions">
+                            <button className="bar-choice" disabled={hud.scrap < REPAIR_COST} onClick={() => choose("repair")}>
+                                Repair <span className="bar-choice__cost">◆ {REPAIR_COST}</span>
+                            </button>
+                            {!hud.patchUsed && (
+                                <button className="bar-choice" onClick={() => choose("patch")}>
+                                    Patch <span className="bar-choice__cost">free ×1</span>
+                                </button>
+                            )}
+                            <button className="bar-choice" disabled={hud.scrap < TURRET_COST} onClick={() => choose("turret")}>
+                                Turret <span className="bar-choice__cost">◆ {TURRET_COST}</span>
+                            </button>
+                            <button className="bar-choice" disabled={hud.scrap < ARM_COST} onClick={() => choose("arm")}>
+                                Arm crowd <span className="bar-choice__cost">◆ {ARM_COST}</span>
+                            </button>
+                            <button className="bar-choice" disabled={hud.scrap < REFILL_COST} onClick={() => choose("refill")}>
+                                Refill <span className="bar-choice__cost">◆ {REFILL_COST}</span>
+                            </button>
+                            <button className="bar-choice bar-choice--continue" onClick={() => choose("done")}>
+                                To the wall →
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
 
             {status === "playing" && (
@@ -523,7 +558,7 @@ export default function Barricade() {
                 </div>
             )}
 
-            {status === "playing" && (
+            {status === "playing" && hud.phase !== "choice" && (
                 <div className="bar-controls bar-controls--playing">
                     <button
                         className={`k-btn-primary${hud.rallyReady ? " bar-rally-ready" : ""}`}
@@ -554,37 +589,13 @@ export default function Barricade() {
                     >
                         {muted ? "🔇" : "🔊"}
                     </button>
-                    {hud.phase === "choice" && (
-                        <>
-                            <button className="bar-choice" disabled={hud.scrap < REPAIR_COST} onClick={() => choose("repair")}>
-                                Repair <span className="bar-choice__cost">◆ {REPAIR_COST}</span>
-                            </button>
-                            {!hud.patchUsed && (
-                                <button className="bar-choice" onClick={() => choose("patch")}>
-                                    Patch <span className="bar-choice__cost">free ×1</span>
-                                </button>
-                            )}
-                            <button className="bar-choice" disabled={hud.scrap < TURRET_COST} onClick={() => choose("turret")}>
-                                Turret <span className="bar-choice__cost">◆ {TURRET_COST}</span>
-                            </button>
-                            <button className="bar-choice" disabled={hud.scrap < ARM_COST} onClick={() => choose("arm")}>
-                                Arm crowd <span className="bar-choice__cost">◆ {ARM_COST}</span>
-                            </button>
-                            <button className="bar-choice" disabled={hud.scrap < REFILL_COST} onClick={() => choose("refill")}>
-                                Refill <span className="bar-choice__cost">◆ {REFILL_COST}</span>
-                            </button>
-                            <button className="bar-choice" onClick={() => choose("done")}>
-                                To the wall →
-                            </button>
-                        </>
-                    )}
                 </div>
             )}
 
             {status === "done" && result && (
                 <div className="bar-poster">
                     <p className="bar-poster__eyebrow">Memba · Barricade · {isDaily ? result.seed.slice(-10) : "Practice"}</p>
-                    <h2 className={`bar-poster__verdict ${result.won ? "is-won" : "is-lost"}`}>
+                    <h2 ref={resultHeadingRef} tabIndex={-1} className={`bar-poster__verdict ${result.won ? "is-won" : "is-lost"}`}>
                         {result.won ? "THE LINE HELD" : "THE LINE FELL"}
                     </h2>
                     <div className="bar-poster__score">{result.score.toLocaleString()}</div>
