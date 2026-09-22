@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### BARRICADE play controls and run states (2026-09-22)
+- Keep the playfield and its actions together on phones and short landscape screens, with keyboard lane movement, aiming and pause controls.
+- Pause a run when the page loses focus; keep the result date tied to the actual run and label a submitted score as pending attestation until it is written on-chain.
+
 ### Explorer function read states
 - Distinguish a failed function read from a realm with no exported functions, offer Retry, and label names recovered from source when signatures cannot be verified.
 

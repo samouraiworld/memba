@@ -1,5 +1,5 @@
 /**
- * BarricadeCertify — the opt-in "certify this run on-chain" control on the daily
+ * BarricadeCertify — the opt-in verified-run submission on the daily
  * results poster. Rendered ONLY when VITE_ENABLE_BARRICADE_CERTIFY is on and the
  * run self-verified, so the wallet hooks it pulls in (useArcadeCertify) never
  * load on the no-wallet play path.
@@ -19,7 +19,7 @@ export default function BarricadeCertify({ run }: { run: CertifyRun }) {
     const { certify, status, error } = useArcadeCertify()
 
     if (status === "certified") {
-        return <p className="bar-hint bar-verified">Certified on-chain ✓ — it’ll appear on the day’s board once attested.</p>
+        return <p className="bar-hint bar-verified">Run accepted for day-close attestation. It is not on-chain yet.</p>
     }
 
     return (
@@ -37,7 +37,7 @@ export default function BarricadeCertify({ run }: { run: CertifyRun }) {
                     })
                 }
             >
-                {status === "certifying" ? "Certifying…" : "Certify on-chain"}
+                {status === "certifying" ? "Submitting…" : "Submit verified run"}
             </button>
             {status === "error" && error && <p className="bar-hint bar-mismatch">{error}</p>}
         </>

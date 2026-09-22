@@ -29,7 +29,7 @@ describe("BarricadeCertify", () => {
 
     it("certifies the given run on click", () => {
         render(<BarricadeCertify run={run} />)
-        fireEvent.click(screen.getByRole("button", { name: /certify on-chain/i }))
+        fireEvent.click(screen.getByRole("button", { name: /submit verified run/i }))
         expect(certify).toHaveBeenCalledWith({
             seed: "barricade-2026-07-13",
             simVersion: 2,
@@ -49,7 +49,7 @@ describe("BarricadeCertify", () => {
         mockStatus = "certified"
         render(<BarricadeCertify run={run} />)
         expect(screen.queryByRole("button")).toBeNull()
-        expect(screen.getByText(/certified on-chain/i)).toBeInTheDocument()
+        expect(screen.getByText(/not on-chain yet/i)).toBeInTheDocument()
     })
 
     it("surfaces an error message", () => {

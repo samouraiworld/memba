@@ -14,6 +14,7 @@
  */
 
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react"
+import { Link } from "react-router-dom"
 import { isBarricade25DEnabled, isBarricadeCertifyEnabled } from "../../lib/config"
 import { applyEvent, initState, tick } from "./sim/engine"
 import { BOSS_WAVE, buildWaves, WAVE_TOTAL, type WaveScript } from "./sim/waves"
@@ -71,8 +72,19 @@ const RENDER_25D = resolve25dRenderer()
 // takes precedence over the 2.5D comparator if both are somehow enabled.
 const RENDER_3D = resolveRenderer() === "3d"
 
-type RunStatus = "ready" | "playing" | "done"
-type HudMirror = { phase: string; rallyReady: boolean; molotovReady: boolean; scrap: number; patchUsed: boolean }
+type RunStatus = "ready" | "playing" | "paused" | "done"
+type HudMirror = { phase: string; wave: number; playerLane: number; rallyReady: boolean; molotovReady: boolean; scrap: number; patchUsed: boolean }
+function projectHud(s: SimState): HudMirror {
+    return {
+        phase: s.phase,
+        wave: s.wave,
+        playerLane: s.playerLane,
+        rallyReady: s.rallyMeter >= 1000,
+        molotovReady: s.molotovCharge >= MOLOTOV_COST,
+        scrap: s.scrap,
+        patchUsed: s.patchUsed,
+    }
+}
 // Omit over a discriminated union collapses to common members — distribute it.
 type SimEventInput =
     | { type: "move"; lane: number }
@@ -107,6 +119,7 @@ function prepCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): v
 
 export default function Barricade() {
     const canvasRef = useRef<HTMLCanvasElement | null>(null)
+    const stageRef = useRef<HTMLDivElement | null>(null)
     const stateRef = useRef<SimState>(initState("idle"))
     const wavesRef = useRef<WaveScript[]>(buildWaves("idle"))
     const eventsRef = useRef<SimEvent[]>([])
@@ -126,13 +139,8 @@ export default function Barricade() {
     const [muted, setMuted] = useState(true)
     const [copied, setCopied] = useState(false)
     const [armed, setArmed] = useState(false) // molotov aim mode: next canvas tap lobs
-    const [hud, setHud] = useState<HudMirror>({
-        phase: "wave",
-        rallyReady: false,
-        molotovReady: false,
-        scrap: 0,
-        patchUsed: false,
-    })
+    const [aim, setAim] = useState({ lane: 0, dist: Math.round(LANE_LENGTH / 2) })
+    const [hud, setHud] = useState<HudMirror>(() => projectHud(initState("idle")))
     const [result, setResult] = useState<{
         score: number
         won: boolean
@@ -155,8 +163,21 @@ export default function Barricade() {
     }, [])
 
     useEffect(() => {
-        audioRef.current?.setMuted(muted)
-    }, [muted])
+        audioRef.current?.setMuted(muted || status === "paused")
+    }, [muted, status])
+
+    useEffect(() => {
+        const pauseIfPlaying = () => setStatus((current) => current === "playing" ? "paused" : current)
+        const onVisibilityChange = () => {
+            if (document.visibilityState === "hidden") pauseIfPlaying()
+        }
+        window.addEventListener("blur", pauseIfPlaying)
+        document.addEventListener("visibilitychange", onVisibilityChange)
+        return () => {
+            window.removeEventListener("blur", pauseIfPlaying)
+            document.removeEventListener("visibilitychange", onVisibilityChange)
+        }
+    }, [])
 
     const start = useCallback((daily: boolean) => {
         const seed = daily ? dailySeed() : `practice-${Date.now()}-${practiceCounter.current++}`
@@ -168,8 +189,12 @@ export default function Barricade() {
         prevStateRef.current = stateRef.current
         tickPrevRef.current = stateRef.current
         setIsDaily(daily)
+        setArmed(false)
+        setAim({ lane: 0, dist: Math.round(LANE_LENGTH / 2) })
+        setHud(projectHud(stateRef.current))
         setResult(null)
         setStatus("playing")
+        stageRef.current?.focus()
     }, [])
 
     const record = useCallback((ev: SimEventInput) => {
@@ -291,13 +316,7 @@ export default function Barricade() {
         if (status !== "playing") return
         const t = setInterval(() => {
             const s = stateRef.current
-            setHud({
-                phase: s.phase,
-                rallyReady: s.rallyMeter >= 1000,
-                molotovReady: s.molotovCharge >= MOLOTOV_COST,
-                scrap: s.scrap,
-                patchUsed: s.patchUsed,
-            })
+            setHud(projectHud(s))
         }, 200)
         return () => clearInterval(t)
     }, [status])
@@ -339,7 +358,71 @@ export default function Barricade() {
 
     const choose = useCallback((choice: Choice) => record({ type: "choice", choice }), [record])
     const shove = useCallback(() => record({ type: "shove", lane: stateRef.current.playerLane }), [record])
-    const toggleArm = useCallback(() => setArmed((a) => !a), [])
+    const toggleArm = useCallback(() => {
+        if (!armed && stateRef.current.molotovCharge < MOLOTOV_COST) return
+        setAim({ lane: stateRef.current.playerLane, dist: Math.round(LANE_LENGTH / 2) })
+        setArmed((a) => !a)
+        stageRef.current?.focus()
+    }, [armed])
+
+    const onStageKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+        const key = e.key.toLowerCase()
+        if (status === "paused" && (key === "p" || key === "escape")) {
+            e.preventDefault()
+            setStatus("playing")
+            return
+        }
+        if (status !== "playing") return
+        if (key === "p") {
+            e.preventDefault()
+            setStatus("paused")
+            return
+        }
+        if (armed) {
+            const step = Math.max(1, Math.round(LANE_LENGTH / 10))
+            if (key === "arrowleft" || key === "arrowright" || /^[1-3]$/.test(key)) {
+                e.preventDefault()
+                setAim((current) => ({ ...current, lane: /^[1-3]$/.test(key) ? Number(key) - 1 : Math.max(0, Math.min(LANES - 1, current.lane + (key === "arrowleft" ? -1 : 1))) }))
+                return
+            }
+            if (key === "arrowup" || key === "arrowdown") {
+                e.preventDefault()
+                setAim((current) => ({ ...current, dist: Math.max(0, Math.min(LANE_LENGTH, current.dist + (key === "arrowdown" ? step : -step))) }))
+                return
+            }
+            if (key === "enter" || key === " ") {
+                e.preventDefault()
+                record({ type: "throw", lane: aim.lane, dist: aim.dist })
+                setArmed(false)
+                return
+            }
+            if (key === "escape") {
+                e.preventDefault()
+                setArmed(false)
+                return
+            }
+        }
+        const currentLane = stateRef.current.playerLane
+        let action: SimEventInput | null = null
+        if (key === "arrowleft") action = { type: "move", lane: Math.max(0, currentLane - 1) }
+        if (key === "arrowright") action = { type: "move", lane: Math.min(LANES - 1, currentLane + 1) }
+        if (/^[1-3]$/.test(key)) action = { type: "move", lane: Number(key) - 1 }
+        if (key === "r") action = { type: "rally" }
+        if (key === "s") action = { type: "shove", lane: currentLane }
+        if (key === "m") {
+            e.preventDefault()
+            toggleArm()
+            return
+        }
+        if (key === "escape") {
+            e.preventDefault()
+            setStatus("paused")
+            return
+        }
+        if (!action) return
+        e.preventDefault()
+        record(action)
+    }, [aim, armed, record, status, toggleArm])
 
     const toggleMute = useCallback(() => {
         audioRef.current?.resume() // unlock the audio context inside the user gesture
@@ -357,7 +440,7 @@ export default function Barricade() {
             waves: result.waves,
             total: WAVE_TOTAL,
             overtimeRound: result.overtimeRound,
-            date: dailySeed().slice(-10),
+            date: result.seed.slice(-10),
         })
         const clip = typeof navigator !== "undefined" ? navigator.clipboard : undefined
         if (!clip?.writeText) return
@@ -372,6 +455,7 @@ export default function Barricade() {
 
     return (
         <div className="bar-shell">
+            <Link className="bar-exit" to="../.." relative="path">Exit game</Link>
             <header className="bar-wordmark">
                 <span className="bar-eyebrow">Daily run · Season 0</span>
                 <h1 className="bar-title">
@@ -379,7 +463,19 @@ export default function Barricade() {
                 </h1>
             </header>
 
-            <div className="bar-stage">
+            <p id="bar-game-controls" className="bar-sr-only">
+                Focus the playfield. Use left and right arrows or 1, 2, 3 to move lanes. R rallies, M aims a molotov, S shoves, and P pauses. While aiming, use arrows to choose lane and range, then Enter to throw.
+            </p>
+            <div
+                ref={stageRef}
+                className="bar-stage"
+                role="group"
+                tabIndex={0}
+                aria-label="Barricade playfield"
+                aria-describedby="bar-game-controls"
+                onKeyDown={onStageKeyDown}
+                onPointerDown={(e) => e.currentTarget.focus()}
+            >
                 {RENDER_3D ? (
                     <Suspense fallback={<div className="bar-canvas" aria-label="Barricade play area" />}>
                         <Barricade3D store={snapStore} onGroundTap={handleGroundTap} />
@@ -392,29 +488,43 @@ export default function Barricade() {
                         onPointerDown={onCanvasPointer}
                     />
                 )}
+                {status === "playing" && armed && (
+                    <div className="bar-aim-hint" role="status">
+                        Tap to throw · Keyboard: lane {aim.lane + 1}, range {Math.round(100 * aim.dist / LANE_LENGTH)}%. Arrows aim, Enter throws.
+                    </div>
+                )}
+                {status === "paused" && (
+                    <div className="bar-pause">
+                        <strong>Run paused</strong>
+                        <span>Your run is held until you resume.</span>
+                        <button className="k-btn-primary" onClick={() => { setStatus("playing"); stageRef.current?.focus() }}>Resume run</button>
+                    </div>
+                )}
             </div>
+
+            {status === "playing" && (
+                <p className="bar-sr-only" role="status">
+                    Wave {Math.min(hud.wave + 1, WAVE_TOTAL)} of {WAVE_TOTAL}. Lane {hud.playerLane + 1}. {hud.phase === "choice" ? "Choose an upgrade." : "Defend the wall."}
+                </p>
+            )}
 
             {status === "ready" && (
                 <div className="bar-panel">
+                    <div className="bar-controls bar-controls--start">
+                        <button className="k-btn-primary" onClick={() => start(true)}>Daily run</button>
+                        <button className="k-btn-secondary" onClick={() => start(false)}>Practice</button>
+                    </div>
                     <p className="bar-hint">
                         Hold the line to the Broadcast Tower — {WAVE_TOTAL} waves. Tap a lane to move your
                         rebel; kills fill the rally meter; between waves the shop opens — repairs cost
                         scrap now (one free patch a run), and it also sells turrets, crowd arms, and
                         molotov refills. Same daily seed for everyone.
                     </p>
-                    <div className="bar-controls">
-                        <button className="k-btn-primary" onClick={() => start(true)}>
-                            Daily run
-                        </button>
-                        <button className="k-btn-secondary" onClick={() => start(false)}>
-                            Practice
-                        </button>
-                    </div>
                 </div>
             )}
 
             {status === "playing" && (
-                <div className="bar-controls">
+                <div className="bar-controls bar-controls--playing">
                     <button
                         className={`k-btn-primary${hud.rallyReady ? " bar-rally-ready" : ""}`}
                         disabled={!hud.rallyReady}
@@ -428,10 +538,13 @@ export default function Barricade() {
                         aria-pressed={armed}
                         onClick={toggleArm}
                     >
-                        {armed ? "Aim — tap a lane 🔥" : "Molotov"}
+                        {armed ? "Cancel aim" : "Molotov"}
                     </button>
                     <button className="k-btn-secondary" onClick={shove}>
                         Shove
+                    </button>
+                    <button className="k-btn-secondary" onClick={() => { setStatus("paused"); stageRef.current?.focus() }}>
+                        Pause
                     </button>
                     <button
                         className="k-btn-secondary"
@@ -470,7 +583,7 @@ export default function Barricade() {
 
             {status === "done" && result && (
                 <div className="bar-poster">
-                    <p className="bar-poster__eyebrow">Memba · Barricade · {dailySeed().slice(-10)}</p>
+                    <p className="bar-poster__eyebrow">Memba · Barricade · {isDaily ? result.seed.slice(-10) : "Practice"}</p>
                     <h2 className={`bar-poster__verdict ${result.won ? "is-won" : "is-lost"}`}>
                         {result.won ? "THE LINE HELD" : "THE LINE FELL"}
                     </h2>
@@ -489,7 +602,7 @@ export default function Barricade() {
                         )}
                         <span className="bar-poster__dot">·</span>
                         <span className={result.verified ? "bar-verified" : "bar-mismatch"}>
-                            {result.verified ? "VERIFIED ✓" : "MISMATCH"}
+                            {result.verified ? "LOCAL REPLAY ✓" : "REPLAY MISMATCH"}
                         </span>
                     </p>
                     <p className="bar-hint">
