@@ -43,6 +43,13 @@ test('keeps start and live controls alongside the battlefield on portrait phones
   }
 })
 
+test('keeps mainnet start controls clear of the notice and mobile navigation', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/mainnet/game/barricade', { waitUntil: 'domcontentloaded' })
+  await expect(page.getByRole('button', { name: 'Daily run' })).toBeVisible()
+  await expectControlsInView(page)
+})
+
 test('keeps a short landscape game and its actions visible', async ({ page }) => {
   await page.setViewportSize({ width: 667, height: 375 })
   await page.goto(gameURL, { waitUntil: 'domcontentloaded' })

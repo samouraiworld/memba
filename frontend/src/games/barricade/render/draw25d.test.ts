@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import { initState } from "../sim/engine"
 import { ARCHETYPES } from "../sim/waves"
 import type { ArchetypeId, Enemy, SimState } from "../sim/types"
-import { draw25d } from "./draw25d"
+import { draw25d, screenToLaneDist25d } from "./draw25d"
 import { initFx, layout, pushFxEvents } from "./fx"
 
 // The 2.5D comparator is a render-only pass, so its contract is the same as the 2D
@@ -77,6 +77,32 @@ function withEnemies(): SimState {
 }
 
 describe("draw25d (2.5D comparator)", () => {
+    it("maps converging far-field taps back to the visible lane and range", () => {
+        const view = { width: 390, height: 700 }
+        const lay = layout(view.width, view.height)
+        const frac = 0.1
+        const pf = Math.pow(frac, 2.3)
+        const widthScale = 0.32 + (1.24 - 0.32) * pf
+        const flatLaneZeroCenter = lay.laneW / 2
+        const screenX = lay.w / 2 + (flatLaneZeroCenter - lay.w / 2) * widthScale
+        const horizonY = lay.hudH + lay.fieldH * 0.15
+        const screenY = horizonY + (lay.hudH + lay.fieldH - horizonY) * pf
+
+        // This x is inside the middle screen third, but visually belongs to the
+        // left lane because the field has converged toward the horizon.
+        expect(screenX).toBeGreaterThan(lay.laneW)
+        expect(screenToLaneDist25d(view, screenX, screenY)).toEqual({ lane: 0, dist: 10_000 })
+    })
+
+    it("rejects taps outside the projected ground and bounds valid targets", () => {
+        const view = { width: 390, height: 700 }
+        const lay = layout(view.width, view.height)
+        const horizonY = lay.hudH + lay.fieldH * 0.15
+        expect(screenToLaneDist25d(view, 195, horizonY - 1)).toBeNull()
+        expect(screenToLaneDist25d(view, Number.NaN, horizonY)).toBeNull()
+        expect(screenToLaneDist25d(view, 195, lay.hudH + lay.fieldH)).toEqual({ lane: 1, dist: 100_000 })
+    })
+
     it("renders the front line (lanes, parapet, bust, HUD) without mutating the sim", () => {
         const { ctx, calls } = stubCtx()
         const state = initState("draw25d-test")

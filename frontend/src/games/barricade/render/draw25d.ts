@@ -80,6 +80,30 @@ const SCALE_NEAR = 1.62
 
 type Proj = { x: number; y: number; scale: number; pf: number }
 
+export type BarricadeAimPoint = { lane: number; dist: number }
+
+/**
+ * Convert a pointer in the rendered 2.5D field back into the sim's flat lane
+ * and distance coordinates. The visible lanes converge toward the horizon, so
+ * dividing screen x into thirds sends far-away taps to the wrong lane.
+ */
+export function screenToLaneDist25d(view: ViewSize, screenX: number, screenY: number): BarricadeAimPoint | null {
+    if (![view.width, view.height, screenX, screenY].every(Number.isFinite)) return null
+    const lay = layout(view.width, view.height)
+    const horizonY = lay.hudH + lay.fieldH * HORIZON_FRAC
+    const nearY = lay.hudH + lay.fieldH
+    const pf = (screenY - horizonY) / (nearY - horizonY)
+    if (pf < 0 || pf > 1) return null
+
+    const widthScale = FAR_W + (NEAR_W - FAR_W) * pf
+    const flatX = lay.w / 2 + (screenX - lay.w / 2) / widthScale
+    if (flatX < 0 || flatX > lay.w) return null
+
+    const lane = Math.min(LANES - 1, Math.max(0, Math.floor(flatX / lay.laneW)))
+    const frac = Math.pow(clamp01(pf), 1 / GAMMA)
+    return { lane, dist: Math.round(frac * LANE_LENGTH) }
+}
+
 function projectFlat(lay: Layout, flatX: number, frac: number): Proj {
     const pf = Math.pow(clamp01(frac), GAMMA)
     const horizonY = lay.hudH + lay.fieldH * HORIZON_FRAC

@@ -370,11 +370,18 @@
     gap: 6px;
 }
 
-/* Short phones get an immersive cabinet: the app tab bar would otherwise cover
-   both start and action controls. The explicit Exit link keeps navigation clear. */
-@media (max-height: 700px) and (max-width: 500px) {
-    body:has(.bar-shell) .k-mobile-tabbar { display: none; }
+/* Phones get an immersive cabinet. On mainnet the network notice plus the fixed
+   tab bar otherwise consume enough height to hide the start actions even on a
+   844px-tall screen. The game repeats the relevant run status itself and keeps
+   an explicit Exit link, so unrelated shell notices/chrome can step aside while
+   the playfield is active. */
+@media (max-width: 500px) {
+    body:has(.bar-shell) .k-mobile-tabbar,
+    body:has(.bar-shell) .k-topbar,
+    body:has(.bar-shell) .k-footer,
+    body:has(.bar-shell) .k-main-column > div:not(.k-main) { display: none; }
     body:has(.bar-shell) .k-main-column { padding-bottom: 0; }
+    .k-main:has(.bar-shell) { padding: 4px 6px; }
     .bar-shell { gap: 6px; padding: 4px 6px; }
     .bar-wordmark { display: none; }
     .bar-exit {

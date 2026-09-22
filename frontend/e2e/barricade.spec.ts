@@ -63,6 +63,11 @@ test('focuses the playfield, moves by keyboard, and pauses without advancing pla
   await expect(page.getByText(/range 40%/)).toBeVisible()
   await stage.press('Enter')
   await expect(page.getByText(/Keyboard: lane 3/)).toBeHidden()
+  // The throw starts a short sim cooldown. The control must become unavailable
+  // immediately instead of accepting a second input that the sim silently drops.
+  await expect(page.getByRole('button', { name: 'Molotov' })).toBeDisabled()
+  await stage.press('m')
+  await expect(page.getByText(/Keyboard: lane 3/)).toBeHidden()
 
   await stage.press('p')
   await expect(page.getByText('Run paused')).toBeVisible()
@@ -90,7 +95,7 @@ test('has no serious or critical accessibility findings in the ready game', asyn
   expect(blocking, blocking.map(v => `${v.id}: ${v.help}`).join('\n')).toHaveLength(0)
 })
 
-test('keeps every between-wave choice on the battlefield above phone navigation', async ({ page }) => {
+test('keeps every between-wave choice inside the immersive phone battlefield', async ({ page }) => {
   test.setTimeout(120000)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/pearl/game/barricade')
@@ -104,7 +109,10 @@ test('keeps every between-wave choice on the battlefield above phone navigation'
   expect(shopAxe.violations.filter(v => v.impact === 'critical' || v.impact === 'serious')).toHaveLength(0)
   const layout = await page.evaluate(() => ({
     shopTop: document.querySelector('.bar-shop')!.getBoundingClientRect().top,
-    tabTop: document.querySelector('.k-mobile-tabbar')!.getBoundingClientRect().top,
+    availableBottom: (() => {
+      const tabbar = document.querySelector('.k-mobile-tabbar')!.getBoundingClientRect()
+      return tabbar.height ? tabbar.top : innerHeight
+    })(),
     buttons: [...document.querySelectorAll('.bar-shop button')].map(button => {
       const box = button.getBoundingClientRect()
       return { top: box.top, bottom: box.bottom, height: box.height }
@@ -114,11 +122,17 @@ test('keeps every between-wave choice on the battlefield above phone navigation'
   expect(layout.buttons).toHaveLength(6)
   for (const button of layout.buttons) {
     expect(button.top).toBeGreaterThanOrEqual(layout.shopTop)
-    expect(button.bottom).toBeLessThan(layout.tabTop)
+    expect(button.bottom).toBeLessThan(layout.availableBottom)
     expect(button.height).toBeGreaterThanOrEqual(44)
   }
-  await shop.getByRole('button', { name: /Patch/ }).click()
-  await expect(shop.getByRole('button', { name: /Patch/ })).toBeHidden()
+  const patch = shop.getByRole('button', { name: /Patch/ })
+  if (await patch.isEnabled()) {
+    await patch.click()
+    await expect(patch).toBeHidden()
+  } else {
+    // A full wall must not let the one-use patch be wasted.
+    await expect(patch).toBeDisabled()
+  }
   await shop.getByRole('button', { name: /To the wall/ }).click()
   await expect(shop).toBeHidden()
 
@@ -139,10 +153,13 @@ test('keeps every between-wave choice on the battlefield above phone navigation'
   const resultLayout = await page.evaluate(() => ({
     stageVisible: document.querySelector('.bar-stage')!.getBoundingClientRect().height > 0,
     posterBottom: document.querySelector('.bar-poster')!.getBoundingClientRect().bottom,
-    tabTop: document.querySelector('.k-mobile-tabbar')!.getBoundingClientRect().top,
+    availableBottom: (() => {
+      const tabbar = document.querySelector('.k-mobile-tabbar')!.getBoundingClientRect()
+      return tabbar.height ? tabbar.top : innerHeight
+    })(),
   }))
   expect(resultLayout.stageVisible).toBe(false)
-  expect(resultLayout.posterBottom).toBeLessThan(resultLayout.tabTop)
+  expect(resultLayout.posterBottom).toBeLessThan(resultLayout.availableBottom)
 })
 
 test('fits the shop on compact portrait and landscape screens', async ({ page }) => {

@@ -84,7 +84,8 @@ function inkFill(ctx: CanvasRenderingContext2D, fill: string, lw = 3): void {
 // depicting violence against real people). ctx path commands only (no Path2D, so
 // jsdom tests run). Each draws its parts back-to-front, then inks them.
 const WHEEL = "#131022"
-const SHIELD = "#8ea6dd"
+const CIVIC_PLATE = "#d6cfbf"
+const BRASS = "#dba43c"
 
 function inkRect(ctx: CanvasRenderingContext2D, x0: number, y0: number, ww: number, hh: number, fill: string, lw = 3): void {
     ctx.beginPath()
@@ -101,6 +102,20 @@ function eye(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): 
     ctx.beginPath()
     ctx.arc(cx, cy, r, 0, TAU)
     ctx.fill()
+}
+function rivet(ctx: CanvasRenderingContext2D, cx: number, cy: number, r: number): void {
+    ctx.fillStyle = BRASS
+    ctx.beginPath()
+    ctx.arc(cx, cy, r, 0, TAU)
+    ctx.fill()
+}
+function rivetedPlate(ctx: CanvasRenderingContext2D, x0: number, y0: number, ww: number, hh: number, lw = 2.5): void {
+    inkRect(ctx, x0, y0, ww, hh, CIVIC_PLATE, lw)
+    const inset = Math.min(ww, hh) * 0.12
+    const rr = Math.max(1, Math.min(ww, hh) * 0.045)
+    for (const px of [x0 + inset, x0 + ww - inset]) {
+        for (const py of [y0 + inset, y0 + hh - inset]) rivet(ctx, px, py, rr)
+    }
 }
 
 export function drawMachine(
@@ -126,15 +141,17 @@ export function drawMachine(
     }
     switch (kind) {
         case "drone": { // surveillance quad-drone — rotor bar + discs + a camera eye
-            inkRect(ctx, x - s * 0.5, y - s * 0.36, s, s * 0.09, color, 2)
-            inkCircle(ctx, x - s * 0.46, y - s * 0.31, s * 0.14, color, 2)
-            inkCircle(ctx, x + s * 0.46, y - s * 0.31, s * 0.14, color, 2)
+            inkRect(ctx, x - s * 0.5, y - s * 0.36, s, s * 0.09, BRASS, 2)
+            inkCircle(ctx, x - s * 0.46, y - s * 0.31, s * 0.14, BRASS, 2)
+            inkCircle(ctx, x + s * 0.46, y - s * 0.31, s * 0.14, BRASS, 2)
             inkRect(ctx, x - s * 0.2, y - s * 0.28, s * 0.4, s * 0.36, color, 3)
+            rivetedPlate(ctx, x - s * 0.12, y - s * 0.22, s * 0.24, s * 0.12, 1.5)
             eye(ctx, x, y + s * 0.02, s * 0.11)
             break
         }
         case "netter": { // net-cannon / kettling rig — launcher + a net mouth
             inkRect(ctx, x - s * 0.4, y - s * 0.36, s * 0.8, s * 0.42, color, 3)
+            rivetedPlate(ctx, x - s * 0.24, y - s * 0.3, s * 0.48, s * 0.13, 2)
             ctx.beginPath()
             ctx.moveTo(x - s * 0.5, y + s * 0.5)
             ctx.lineTo(x - s * 0.3, y + s * 0.06)
@@ -162,7 +179,7 @@ export function drawMachine(
             ctx.closePath()
             inkFill(ctx, color, 3)
             eye(ctx, x, y - s * 0.3, s * 0.09)
-            inkRect(ctx, x - s * 0.34, y - s * 0.02, s * 0.68, s * 0.56, SHIELD, 3)
+            rivetedPlate(ctx, x - s * 0.34, y - s * 0.02, s * 0.68, s * 0.56, 3)
             ctx.strokeStyle = INK_LINE
             ctx.lineWidth = 2
             ctx.beginPath()
@@ -173,8 +190,10 @@ export function drawMachine(
         }
         case "phalanx": { // riot shield-wall — a line of interlocked shields
             for (let i = -1; i <= 1; i++) {
-                inkRect(ctx, x + i * s * 0.4 - s * 0.17, y - s * 0.4, s * 0.34, s * 0.8, i === 0 ? color : SHIELD, 3)
+                rivetedPlate(ctx, x + i * s * 0.4 - s * 0.17, y - s * 0.4, s * 0.34, s * 0.8, 3)
             }
+            ctx.fillStyle = color
+            ctx.fillRect(x - s * 0.5, y - s * 0.08, s, s * 0.16)
             eye(ctx, x, y - s * 0.16, s * 0.1)
             break
         }
@@ -182,7 +201,8 @@ export function drawMachine(
             inkCircle(ctx, x - s * 0.28, y + s * 0.34, s * 0.17, WHEEL, 2.5)
             inkCircle(ctx, x + s * 0.28, y + s * 0.34, s * 0.17, WHEEL, 2.5)
             inkRect(ctx, x - s * 0.46, y - s * 0.3, s * 0.92, s * 0.6, color, 3)
-            inkRect(ctx, x - s * 0.09, y - s * 0.52, s * 0.18, s * 0.24, color, 2.5)
+            rivetedPlate(ctx, x + s * 0.04, y - s * 0.18, s * 0.3, s * 0.32, 2)
+            inkRect(ctx, x - s * 0.09, y - s * 0.52, s * 0.18, s * 0.24, BRASS, 2.5)
             inkCircle(ctx, x, y - s * 0.52, s * 0.09, "#2b3350", 2)
             eye(ctx, x - s * 0.24, y - s * 0.06, s * 0.09)
             break
@@ -199,6 +219,7 @@ export function drawMachine(
             ctx.lineTo(x + s * 0.28, y + s * 0.3)
             ctx.closePath()
             inkFill(ctx, color, 3)
+            rivetedPlate(ctx, x - s * 0.1, y - s * 0.12, s * 0.2, s * 0.28, 2)
             ctx.strokeStyle = INK_LINE
             ctx.lineWidth = 2
             ctx.beginPath()
@@ -212,7 +233,7 @@ export function drawMachine(
         case "testudo": { // tower-shield bot — a big raised riot shield up front
             inkRect(ctx, x - s * 0.26, y - s * 0.28, s * 0.52, s * 0.74, color, 3) // body
             eye(ctx, x, y - s * 0.36, s * 0.08)
-            inkRect(ctx, x - s * 0.44, y - s * 0.46, s * 0.88, s * 0.9, SHIELD, 3) // full frontal shield
+            rivetedPlate(ctx, x - s * 0.44, y - s * 0.46, s * 0.88, s * 0.9, 3) // full frontal shield
             ctx.strokeStyle = INK_LINE
             ctx.lineWidth = 2
             for (let i = -1; i <= 1; i++) {
@@ -225,10 +246,11 @@ export function drawMachine(
             break
         }
         case "swarm": { // small fast quad-copter — arrives in numbers
-            inkRect(ctx, x - s * 0.4, y - s * 0.11, s * 0.8, s * 0.07, color, 2) // rotor bar
-            inkCircle(ctx, x - s * 0.38, y - s * 0.08, s * 0.1, color, 2)
-            inkCircle(ctx, x + s * 0.38, y - s * 0.08, s * 0.1, color, 2)
+            inkRect(ctx, x - s * 0.4, y - s * 0.11, s * 0.8, s * 0.07, BRASS, 2) // rotor bar
+            inkCircle(ctx, x - s * 0.38, y - s * 0.08, s * 0.1, BRASS, 2)
+            inkCircle(ctx, x + s * 0.38, y - s * 0.08, s * 0.1, BRASS, 2)
             inkRect(ctx, x - s * 0.14, y - s * 0.05, s * 0.28, s * 0.26, color, 2) // body
+            rivet(ctx, x, y - s * 0.02, s * 0.035)
             eye(ctx, x, y + s * 0.07, s * 0.08)
             break
         }
@@ -237,7 +259,7 @@ export function drawMachine(
             inkCircle(ctx, x, y + s * 0.42, s * 0.13, WHEEL, 2.5)
             inkCircle(ctx, x + s * 0.34, y + s * 0.42, s * 0.13, WHEEL, 2.5)
             inkRect(ctx, x - s * 0.5, y - s * 0.24, s, s * 0.62, color, 3.5) // the slab
-            inkRect(ctx, x - s * 0.4, y - s * 0.38, s * 0.8, s * 0.16, color, 2.5) // upper plate
+            rivetedPlate(ctx, x - s * 0.4, y - s * 0.38, s * 0.8, s * 0.16, 2.5) // upper plate
             ctx.strokeStyle = INK_LINE // armor seams
             ctx.lineWidth = 2
             for (let i = -1; i <= 1; i++) {
@@ -256,7 +278,14 @@ export function drawMachine(
             ctx.lineTo(x, y + s * 0.52) // the ram point, raked toward the barricade
             ctx.closePath()
             inkFill(ctx, color, 3)
-            inkRect(ctx, x - s * 0.2, y - s * 0.5, s * 0.4, s * 0.14, color, 2.5) // engine block
+            rivetedPlate(ctx, x - s * 0.2, y - s * 0.5, s * 0.4, s * 0.14, 2.5) // engine block
+            ctx.strokeStyle = BRASS
+            ctx.lineWidth = Math.max(1.5, s * 0.035)
+            ctx.beginPath()
+            ctx.moveTo(x - s * 0.2, y + s * 0.24)
+            ctx.lineTo(x, y + s * 0.5)
+            ctx.lineTo(x + s * 0.2, y + s * 0.24)
+            ctx.stroke()
             eye(ctx, x, y - s * 0.12, s * 0.09)
             break
         }
@@ -273,6 +302,9 @@ export function drawMachine(
             ctx.beginPath()
             ctx.ellipse(x, y + s * 0.02, s * 0.3, s * 0.22, 0, 0, TAU)
             inkFill(ctx, color, 3)
+            rivetedPlate(ctx, x - s * 0.14, y - s * 0.1, s * 0.28, s * 0.12, 1.5)
+            rivet(ctx, x - s * 0.42, y - s * 0.12, s * 0.04)
+            rivet(ctx, x + s * 0.42, y - s * 0.12, s * 0.04)
             eye(ctx, x - s * 0.09, y, s * 0.07)
             eye(ctx, x + s * 0.09, y, s * 0.07)
             break
@@ -280,11 +312,11 @@ export function drawMachine(
         case "mortar": { // standoff artillery — barrel-forward silhouette, parked
             inkCircle(ctx, x - s * 0.26, y + s * 0.42, s * 0.14, WHEEL, 2.5)
             inkCircle(ctx, x + s * 0.26, y + s * 0.42, s * 0.14, WHEEL, 2.5)
-            inkRect(ctx, x - s * 0.4, y + s * 0.06, s * 0.8, s * 0.34, color, 3) // carriage
+            rivetedPlate(ctx, x - s * 0.4, y + s * 0.06, s * 0.8, s * 0.34, 3) // carriage
             ctx.save() // the tube, angled at the barricade
             ctx.translate(x, y + s * 0.1)
             ctx.rotate(0.5)
-            inkRect(ctx, -s * 0.09, -s * 0.62, s * 0.18, s * 0.62, color, 2.5)
+            inkRect(ctx, -s * 0.09, -s * 0.62, s * 0.18, s * 0.62, BRASS, 2.5)
             inkCircle(ctx, 0, -s * 0.62, s * 0.11, "#2b3350", 2)
             ctx.restore()
             eye(ctx, x - s * 0.26, y + s * 0.16, s * 0.08)
@@ -298,7 +330,7 @@ export function drawMachine(
             // exposing the body — "timing is the counterplay" needs a tell.
             const shTop = shieldOpen ? y + s * 0.06 : y - s * 0.42
             const shH = shieldOpen ? s * 0.46 : s * 0.94
-            inkRect(ctx, x - s * 0.5, shTop, s, shH, SHIELD, 3.5)
+            rivetedPlate(ctx, x - s * 0.5, shTop, s, shH, 3.5)
             ctx.strokeStyle = INK_LINE // shield chevrons (rank marks)
             ctx.lineWidth = 2.5
             const chevY = shieldOpen ? s * 0.3 : 0
@@ -316,8 +348,14 @@ export function drawMachine(
             inkCircle(ctx, x - s * 0.36, y + s * 0.46, s * 0.13, WHEEL, 2.5)
             inkCircle(ctx, x + s * 0.36, y + s * 0.46, s * 0.13, WHEEL, 2.5)
             inkRect(ctx, x - s * 0.52, y - s * 0.1, s * 1.04, s * 0.5, color, 3.5) // corral body
-            inkRect(ctx, x - s * 0.52, y - s * 0.44, s * 0.14, s * 0.4, color, 3) // left gate post
-            inkRect(ctx, x + s * 0.38, y - s * 0.44, s * 0.14, s * 0.4, color, 3) // right gate post
+            rivetedPlate(ctx, x - s * 0.52, y - s * 0.44, s * 0.14, s * 0.4, 3) // left gate post
+            rivetedPlate(ctx, x + s * 0.38, y - s * 0.44, s * 0.14, s * 0.4, 3) // right gate post
+            ctx.strokeStyle = BRASS
+            ctx.lineWidth = Math.max(1.5, s * 0.035)
+            ctx.beginPath()
+            ctx.moveTo(x - s * 0.38, y - s * 0.32)
+            ctx.lineTo(x + s * 0.38, y - s * 0.32)
+            ctx.stroke()
             inkRect(ctx, x - s * 0.2, y + s * 0.02, s * 0.4, s * 0.26, "#141026", 2.5) // brood bay
             eye(ctx, x - s * 0.1, y + s * 0.14, s * 0.05) // hatchlings' eyes inside
             eye(ctx, x + s * 0.1, y + s * 0.14, s * 0.05)
@@ -328,19 +366,19 @@ export function drawMachine(
             inkCircle(ctx, x - s * 0.3, y + s * 0.42, s * 0.14, WHEEL, 2.5)
             inkCircle(ctx, x + s * 0.3, y + s * 0.42, s * 0.14, WHEEL, 2.5)
             inkRect(ctx, x - s * 0.5, y - s * 0.26, s, s * 0.62, color, 3.5) // hull
-            inkRect(ctx, x - s * 0.5, y - s * 0.02, s * 0.16, s * 0.3, "#141026", 2.5) // left hatch
-            inkRect(ctx, x + s * 0.34, y - s * 0.02, s * 0.16, s * 0.3, "#141026", 2.5) // right hatch
-            inkRect(ctx, x - s * 0.14, y - s * 0.42, s * 0.28, s * 0.18, color, 2.5) // cab
+            rivetedPlate(ctx, x - s * 0.5, y - s * 0.02, s * 0.16, s * 0.3, 2.5) // left hatch
+            rivetedPlate(ctx, x + s * 0.34, y - s * 0.02, s * 0.16, s * 0.3, 2.5) // right hatch
+            rivetedPlate(ctx, x - s * 0.14, y - s * 0.42, s * 0.28, s * 0.18, 2.5) // cab
             eye(ctx, x, y - s * 0.33, s * 0.08)
             break
         }
         case "jammer": { // jam-ring mast — a thin pylon under a broadcast ring
-            inkRect(ctx, x - s * 0.2, y + s * 0.24, s * 0.4, s * 0.24, color, 2.5) // base
-            inkRect(ctx, x - s * 0.05, y - s * 0.34, s * 0.1, s * 0.6, color, 2.5) // mast
+            rivetedPlate(ctx, x - s * 0.2, y + s * 0.24, s * 0.4, s * 0.24, 2.5) // base
+            inkRect(ctx, x - s * 0.05, y - s * 0.34, s * 0.1, s * 0.6, BRASS, 2.5) // mast
             ctx.beginPath() // the ring
             ctx.ellipse(x, y - s * 0.38, s * 0.3, s * 0.14, 0, 0, TAU)
             ctx.lineWidth = 3
-            ctx.strokeStyle = color
+            ctx.strokeStyle = BRASS
             ctx.stroke()
             ctx.strokeStyle = INK_LINE
             ctx.lineWidth = 1.5
@@ -349,7 +387,7 @@ export function drawMachine(
             break
         }
         case "mender": { // welding nurse-drone — a stubby body with tool arms forward
-            inkCircle(ctx, x, y, s * 0.28, color, 3) // pod body
+            inkCircle(ctx, x, y, s * 0.28, CIVIC_PLATE, 3) // pod body
             ctx.strokeStyle = INK_LINE // twin tool arms reaching up-lane
             ctx.lineWidth = 3
             for (const sx of [-1, 1]) {
@@ -368,10 +406,10 @@ export function drawMachine(
             inkCircle(ctx, x + s * 0.28, y + s * 0.44, s * 0.14, WHEEL, 2.5)
             ctx.beginPath() // rounded tank
             ctx.ellipse(x, y, s * 0.46, s * 0.34, 0, 0, TAU)
-            inkFill(ctx, color, 3)
-            inkRect(ctx, x - s * 0.08, y + s * 0.26, s * 0.42, s * 0.12, color, 2.5) // hose snout
+            inkFill(ctx, CIVIC_PLATE, 3)
+            inkRect(ctx, x - s * 0.08, y + s * 0.26, s * 0.42, s * 0.12, BRASS, 2.5) // hose snout
             inkCircle(ctx, x + s * 0.36, y + s * 0.32, s * 0.08, "#2b3350", 2) // nozzle
-            ctx.strokeStyle = "rgba(239,231,212,0.35)" // tank hoops
+            ctx.strokeStyle = BRASS // tank hoops
             ctx.lineWidth = 1.5
             for (const off of [-0.18, 0.12]) {
                 ctx.beginPath()
@@ -392,7 +430,13 @@ export function drawMachine(
             ctx.lineTo(x + s * 0.34, y + s * 0.44)
             ctx.closePath()
             inkFill(ctx, color, 3.5)
-            inkRect(ctx, x - s * 0.3, y - s * 0.58, s * 0.6, s * 0.18, color, 3) // the observation crown
+            rivetedPlate(ctx, x - s * 0.3, y - s * 0.58, s * 0.6, s * 0.18, 3) // the observation crown
+            ctx.strokeStyle = BRASS
+            ctx.lineWidth = Math.max(1.5, s * 0.035)
+            ctx.beginPath()
+            ctx.moveTo(x - s * 0.24, y + s * 0.18)
+            ctx.lineTo(x + s * 0.24, y + s * 0.18)
+            ctx.stroke()
             eye(ctx, x - s * 0.18, y - s * 0.49, s * 0.06) // the ring of eyes
             eye(ctx, x, y - s * 0.49, s * 0.07)
             eye(ctx, x + s * 0.18, y - s * 0.49, s * 0.06)

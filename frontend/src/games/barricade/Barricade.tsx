@@ -19,10 +19,10 @@ import { isBarricade25DEnabled, isBarricadeCertifyEnabled } from "../../lib/conf
 import { applyEvent, initState, tick } from "./sim/engine"
 import { BOSS_WAVE, buildWaves, WAVE_TOTAL, type WaveScript } from "./sim/waves"
 import { MAX_REPLAY_EVENTS, runReplay } from "./sim/replay"
-import { LANES, LANE_LENGTH, type Choice, type SimEvent, type SimState } from "./sim/types"
-import { ARM_COST, MOLOTOV_COST, REFILL_COST, REPAIR_COST, TURRET_COST } from "./sim/engine"
+import { BARRICADE_MAX_HP, LANES, LANE_LENGTH, TICKS_PER_SECOND, type Choice, type SimEvent, type SimState } from "./sim/types"
+import { ARM_COST, MOLOTOV_COST, MOLOTOV_MAX, REFILL_COST, REPAIR_COST, TURRET_COST } from "./sim/engine"
 import { draw, drawAttract } from "./render/draw"
-import { draw25d } from "./render/draw25d"
+import { draw25d, screenToLaneDist25d } from "./render/draw25d"
 import { loadBarricadeArt } from "./render/art"
 import { resolveRenderer } from "./render/three/caps"
 import { useSimSnapshots } from "./render/three/bridge/useSimSnapshots"
@@ -76,16 +76,33 @@ const RENDER_25D = resolve25dRenderer()
 const RENDER_3D = resolveRenderer() === "3d"
 
 type RunStatus = "ready" | "playing" | "paused" | "done"
-type HudMirror = { phase: string; wave: number; playerLane: number; rallyReady: boolean; molotovReady: boolean; scrap: number; patchUsed: boolean }
+type HudMirror = {
+    phase: string
+    wave: number
+    playerLane: number
+    rallyReady: boolean
+    molotovReady: boolean
+    shoveReady: boolean
+    shoveCooldownSeconds: number
+    scrap: number
+    patchUsed: boolean
+    barricadeDamaged: boolean
+    molotovBankFull: boolean
+}
 function projectHud(s: SimState): HudMirror {
+    const shoveTicks = Math.max(0, s.shoveReadyAt - s.tick)
     return {
         phase: s.phase,
         wave: s.wave,
         playerLane: s.playerLane,
         rallyReady: s.rallyMeter >= 1000,
-        molotovReady: s.molotovCharge >= MOLOTOV_COST,
+        molotovReady: s.molotovCharge >= MOLOTOV_COST && s.tick >= s.molotovReadyAt,
+        shoveReady: shoveTicks === 0 && s.enemies.some((enemy) => enemy.lane === s.playerLane),
+        shoveCooldownSeconds: Math.ceil(shoveTicks / TICKS_PER_SECOND),
         scrap: s.scrap,
         patchUsed: s.patchUsed,
+        barricadeDamaged: s.barricadeHp < BARRICADE_MAX_HP,
+        molotovBankFull: s.molotovCharge >= MOLOTOV_MAX,
     }
 }
 // Omit over a discriminated union collapses to common members — distribute it.
@@ -270,7 +287,12 @@ export default function Barricade() {
         if (eventsRef.current.length >= MAX_REPLAY_EVENTS) return
         const stamped = { ...ev, tick: s.tick } as SimEvent
         eventsRef.current.push(stamped)
-        stateRef.current = applyEvent(s, stamped)
+        const next = applyEvent(s, stamped)
+        stateRef.current = next
+        // Player actions are infrequent enough to mirror immediately. This keeps
+        // cooldowns and shop affordability honest instead of leaving a 200ms
+        // window where an action looks available but the sim will reject it.
+        setHud(projectHud(next))
     }, [])
 
     const onSteps = useCallback(
@@ -396,18 +418,23 @@ export default function Barricade() {
         (e: React.PointerEvent<HTMLCanvasElement>) => {
             if (status !== "playing") return
             const rect = e.currentTarget.getBoundingClientRect()
-            const lane = Math.min(LANES - 1, Math.max(0, Math.floor(((e.clientX - rect.left) / rect.width) * LANES)))
+            const view = viewRef.current
+            const canvasX = ((e.clientX - rect.left) / rect.width) * view.width
+            const canvasY = ((e.clientY - rect.top) / rect.height) * view.height
+            const target = RENDER_25D
+                ? screenToLaneDist25d(view, canvasX, canvasY)
+                : {
+                    lane: Math.min(LANES - 1, Math.max(0, Math.floor((canvasX / view.width) * LANES))),
+                    dist: Math.round(Math.max(0, Math.min(1, (canvasY - layout(view.width, view.height).hudH) / layout(view.width, view.height).fieldH)) * LANE_LENGTH),
+                }
+            if (!target) return
             if (armed) {
                 // Tap-to-lob: the tap's y is the target distance up the lane
                 // (top = spawn end, bottom = barricade). One throw, then disarm.
-                const view = viewRef.current
-                const lay = layout(view.width, view.height)
-                const canvasY = ((e.clientY - rect.top) / rect.height) * view.height
-                const dist = Math.round(Math.max(0, Math.min(1, (canvasY - lay.hudH) / lay.fieldH)) * LANE_LENGTH)
-                record({ type: "throw", lane, dist })
+                record({ type: "throw", lane: target.lane, dist: target.dist })
                 setArmed(false)
             } else {
-                record({ type: "move", lane })
+                record({ type: "move", lane: target.lane })
             }
         },
         [record, status, armed],
@@ -429,9 +456,14 @@ export default function Barricade() {
     )
 
     const choose = useCallback((choice: Choice) => record({ type: "choice", choice }), [record])
-    const shove = useCallback(() => record({ type: "shove", lane: stateRef.current.playerLane }), [record])
+    const shove = useCallback(() => {
+        const s = stateRef.current
+        if (s.tick < s.shoveReadyAt || !s.enemies.some((enemy) => enemy.lane === s.playerLane)) return
+        record({ type: "shove", lane: s.playerLane })
+    }, [record])
     const toggleArm = useCallback(() => {
-        if (!armed && stateRef.current.molotovCharge < MOLOTOV_COST) return
+        const s = stateRef.current
+        if (!armed && (s.molotovCharge < MOLOTOV_COST || s.tick < s.molotovReadyAt)) return
         setAim({ lane: stateRef.current.playerLane, dist: Math.round(LANE_LENGTH / 2) })
         setArmed((a) => !a)
         stageRef.current?.focus()
@@ -481,7 +513,11 @@ export default function Barricade() {
         if (key === "arrowright") action = { type: "move", lane: Math.min(LANES - 1, currentLane + 1) }
         if (/^[1-3]$/.test(key)) action = { type: "move", lane: Number(key) - 1 }
         if (key === "r") action = { type: "rally" }
-        if (key === "s") action = { type: "shove", lane: currentLane }
+        if (key === "s") {
+            e.preventDefault()
+            shove()
+            return
+        }
         if (key === "m") {
             e.preventDefault()
             toggleArm()
@@ -495,7 +531,7 @@ export default function Barricade() {
         if (!action) return
         e.preventDefault()
         record(action)
-    }, [aim, armed, record, status, toggleArm])
+    }, [aim, armed, record, shove, status, toggleArm])
 
     const toggleMute = useCallback(() => {
         audioRef.current?.resume() // unlock the audio context inside the user gesture
@@ -599,11 +635,11 @@ export default function Barricade() {
                     <div className="bar-shop" role="group" aria-label="Between-wave shop">
                         <p className="bar-shop__title">Between waves <span>◆ {hud.scrap} scrap</span></p>
                         <div className="bar-shop__actions">
-                            <button className="bar-choice" disabled={hud.scrap < REPAIR_COST} onClick={() => choose("repair")}>
+                            <button className="bar-choice" disabled={hud.scrap < REPAIR_COST || !hud.barricadeDamaged} onClick={() => choose("repair")}>
                                 Repair <span className="bar-choice__cost">◆ {REPAIR_COST}</span>
                             </button>
                             {!hud.patchUsed && (
-                                <button className="bar-choice" onClick={() => choose("patch")}>
+                                <button className="bar-choice" disabled={!hud.barricadeDamaged} onClick={() => choose("patch")}>
                                     Patch <span className="bar-choice__cost">free ×1</span>
                                 </button>
                             )}
@@ -613,7 +649,7 @@ export default function Barricade() {
                             <button className="bar-choice" disabled={hud.scrap < ARM_COST} onClick={() => choose("arm")}>
                                 Arm crowd <span className="bar-choice__cost">◆ {ARM_COST}</span>
                             </button>
-                            <button className="bar-choice" disabled={hud.scrap < REFILL_COST} onClick={() => choose("refill")}>
+                            <button className="bar-choice" disabled={hud.scrap < REFILL_COST || hud.molotovBankFull} onClick={() => choose("refill")}>
                                 Refill <span className="bar-choice__cost">◆ {REFILL_COST}</span>
                             </button>
                             <button className="bar-choice bar-choice--continue" onClick={() => choose("done")}>
@@ -637,9 +673,9 @@ export default function Barricade() {
                         <button className="k-btn-secondary" onClick={() => start(false)}>Practice</button>
                     </div>
                     <p className="bar-hint">
-                        At a Paris barricade, defend liberty and equal rights for {WAVE_TOTAL} waves. Tap a lane to move, defeat machines to fill
-                        Rally, then spend scrap on repairs and upgrades between waves. Everyone gets the
-                        same daily seed. Practice runs do not count.
+                        At a Paris barricade, defend liberty and equal rights for {WAVE_TOTAL} waves. Tap a lane and you fire automatically;
+                        shove its nearest machine or aim a molotov farther up the street. Defeated machines fill Rally and drop scrap for the
+                        between-wave shop. Everyone gets the same daily seed. Practice runs do not count.
                     </p>
                 </div>
             )}
@@ -661,8 +697,17 @@ export default function Barricade() {
                     >
                         {armed ? "Cancel aim" : "Molotov"}
                     </button>
-                    <button className="k-btn-secondary" onClick={shove}>
-                        Shove
+                    <button
+                        className="k-btn-secondary"
+                        disabled={!hud.shoveReady}
+                        aria-label={hud.shoveReady
+                            ? "Shove the nearest machine"
+                            : hud.shoveCooldownSeconds > 0
+                                ? `Shove recharging, ${hud.shoveCooldownSeconds} seconds`
+                                : "Shove unavailable, no machine in your lane"}
+                        onClick={shove}
+                    >
+                        {hud.shoveCooldownSeconds > 0 ? `Shove ${hud.shoveCooldownSeconds}s` : "Shove"}
                     </button>
                     <button className="k-btn-secondary" onClick={() => { setStatus("paused"); stageRef.current?.focus() }}>
                         Pause
