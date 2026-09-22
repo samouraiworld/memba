@@ -2,9 +2,13 @@
 
 ## Release status
 
-Implementation candidates only. Production verification is pending merge and GitHub's required approving review. A+B remains closed. No wallet, signature, broadcast, publication or deployment-policy change was exercised.
+Catalog PR #1239 is merged and production-verified. Directory PR #1240 remains a candidate pending its required GitHub review and hosted checks. A+B remains closed. No wallet, signature, broadcast, publication or deployment-policy change was exercised.
 
-Catalog candidate: PR #1239, commit `0961f44668aab6bd93e88b2a673f684d93eb6162`. Its Netlify preview build-info matches that commit and entry `assets/index-DmSLVy3n.js`. Read-only browser checks confirmed mainnet filtering, search persistence across reload, fixed-network links, and the gated `/mainnet/apps/submit` route. Independent CTO and SWE reviews cleared that revision. Hosted Node 20/22, backend, E2E, bundle/security/attribution gates passed; additional visual matrix status is recorded in the PR.
+Catalog PR #1239 merged at 07:55:57 UTC as `25ef19793528747d99cafeaf4b1c72605e74a6b7`. Production `/build-info.json` subsequently reported that commit and `assets/index-DmSLVy3n.js`; the same entry was observed in both browser tabs. A tab loaded before rollout received the new catalog after an ordinary reload, retained `boards2/v0` search across another reload, and showed one correct mainnet result. A newly opened tab correctly gated `/mainnet/apps/submit`; its “Browse ecosystem projects” link opened all seven records without registry publishing navigation. This is a fresh-tab and returning-tab check in one browser profile, not a clean-profile or real-wallet claim. Initial rollout sampling still served the previous commit; it converged without manual deployment.
+
+The catalog's preview and pre-merge head were `0961f44668aab6bd93e88b2a673f684d93eb6162`, entry `assets/index-DmSLVy3n.js`. Independent CTO/SWE reviews and all hosted checks, including both complete-design matrices, passed before merge.
+
+Directory was refreshed onto the merged catalog. Two additive test conflicts in `complete-design.spec.ts` and `networkPins.test.ts` were resolved by retaining both sections; no runtime conflict or deployment-owned file changed. Refreshed integration checks are recorded below before release.
 
 ## Directory source boundary
 
@@ -45,3 +49,11 @@ Mainnet editorial realm source pages below were checked over HTTPS with certific
 ## Validation limits
 
 Namespace fixtures test both mainnet and Pearl, missing/mismatched chain identity, successful empty results and failed reads. Browser fixtures are offline data and do not prove real-wallet behavior. The bounded reliability and accessibility pass is a separate C1 slice; do not infer it from the provenance changes.
+
+## Directory integration after catalog merge
+
+- Refreshed onto main `25ef19793528747d99cafeaf4b1c72605e74a6b7`; both additive test sections and test-only pin inventory entries retained.
+- 125 focused unit/component tests passed, covering catalog/gate, directory provenance, network pin inventory, namespace identity and exact search navigation.
+- 12 combined catalog/Directory mainnet/Pearl journeys passed across Chromium, Firefox and iPhone WebKit; six additional Explorer-enabled Directory journeys passed.
+- Lint, TypeScript/production build and bundle isolation/precache checks passed with Node 22. Previous complete Directory suite: 5,658 passed, one existing skip. Fresh hosted checks remain authoritative for the refreshed revision.
+- Local logs: `/private/tmp/memba-c1-directory-refreshed-{unit,navigation-unit,browser,explorer,build}.log`. Browser fixtures remain read-only and do not validate wallet transactions.

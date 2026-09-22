@@ -13,7 +13,7 @@ describe("App Store directory and registry boundary", () => {
     it.each(["/mainnet/apps", "/pearl/apps/"])("keeps ecosystem links available with the registry off at %s", route => {
         vi.stubEnv("VITE_ENABLE_APPSTORE", "false")
         mount(route)
-        for (const name of ["Adena", "GnoSwap", "Boards", "Akkadia", "GnoScan", "Gno Playground"]) {
+        for (const name of ["Adena", "GnoSwap", "Boards", "Akkadia", "GnoScan", "Gno Playground", "mygnoscan"]) {
             const link = screen.getByRole("link", { name: `Visit ${name} (opens in a new tab)` })
             expect(link.getAttribute("href")).toMatch(/^https:\/\//)
             expect(link).toHaveAttribute("rel", "noopener noreferrer")
@@ -29,7 +29,14 @@ describe("App Store directory and registry boundary", () => {
         expect(screen.queryByRole("button")).not.toBeInTheDocument()
         expect(screen.getByRole("link", { name: "Back to Home" })).toHaveAttribute("href", "/pearl/")
     })
-    it("mounts the real registry only when enabled", () => {
+    it.each(["", "/", "/submit", "/review", "/my-submissions", "/r/demo/app"])("keeps mainnet registry routes unavailable with the flag on: %s", suffix => {
+        vi.stubEnv("VITE_ENABLE_APPSTORE", "true")
+        mount(`/mainnet/apps${suffix}`)
+        expect(screen.queryByText("REGISTRY_CONTENT")).not.toBeInTheDocument()
+        if (suffix && suffix !== "/") expect(screen.getByRole("link", { name: "Browse ecosystem projects" })).toHaveAttribute("href", "/mainnet/apps")
+        else expect(screen.getByRole("heading", { name: "App Store", exact: true })).toBeInTheDocument()
+    })
+    it("mounts the real registry only when enabled and eligible", () => {
         vi.stubEnv("VITE_ENABLE_APPSTORE", "true")
         mount("/pearl/apps")
         expect(screen.getByText("REGISTRY_CONTENT")).toBeInTheDocument()
