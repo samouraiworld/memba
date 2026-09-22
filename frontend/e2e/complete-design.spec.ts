@@ -241,7 +241,7 @@ for (const network of ['mainnet', 'pearl']) {
         expect(new URL(page.url()).searchParams.get('realm')).toBe(selectedPath)
         expect(new URL(page.url()).searchParams.get('q')).toBe('Boards')
         const explorer = page.getByTestId('explorer-root')
-        if (await explorer.isVisible()) await expect(explorer.locator('.realmview__path')).toHaveText(`gno.land/${selectedPath}`)
+        if (new URL(page.url()).searchParams.get('tab') === 'explorer') await expect(explorer.locator('.realmview__path')).toHaveText(`gno.land/${selectedPath}`)
         else await expect(page.getByRole('dialog')).toContainText(`gno.land/${selectedPath}`)
         await page.goBack()
         await expect(page.getByTestId('global-search')).toHaveValue('Boards')
@@ -249,7 +249,7 @@ for (const network of ['mainnet', 'pearl']) {
         if (network === 'mainnet') return // no invented mainnet package
         await page.getByTestId('global-search').fill('fixture')
         await page.locator('.dir-cross-item').filter({ hasText: 'gno.land/p/samcrew/fixture' }).click()
-        if (await explorer.isVisible()) {
+        if (new URL(page.url()).searchParams.get('tab') === 'explorer') {
             await expect(explorer.getByRole('tab', { name: 'Source' })).toHaveAttribute('aria-selected', 'true')
             await expect(explorer.getByRole('tab', { name: 'Render' })).toHaveCount(0)
         } else {
