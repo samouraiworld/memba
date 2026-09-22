@@ -1698,3 +1698,70 @@ a.dir-card {
 @media (prefers-reduced-motion: reduce) {
     .drawer-overlay, .drawer-panel { transition: none; }
 }
+
+/* C2b: transaction submissions are distinct from editorial Directory cards. */
+.dir-recent {
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-surface);
+    min-width: 0;
+}
+.dir-recent__heading h2 {
+    margin: 0;
+    color: var(--color-text);
+    font-size: var(--pro-body, 16px);
+}
+.dir-recent__heading p, .dir-recent__coverage, .dir-recent__status, .dir-recent__empty {
+    margin: 6px 0 0;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    font-size: var(--pro-small, 12px);
+}
+.dir-recent__status--error { color: var(--color-k-warning-text); }
+.dir-recent__list {
+    list-style: none;
+    margin: 14px 0 0;
+    padding: 0;
+    display: grid;
+    gap: 8px;
+}
+.dir-recent__row {
+    display: flex;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 12px;
+    border: 1px solid var(--color-border);
+    border-radius: 9px;
+    min-width: 0;
+}
+.dir-recent__identity {
+    display: grid;
+    gap: 5px;
+    min-width: 0;
+    color: var(--color-text-secondary);
+    font-size: var(--pro-small, 12px);
+}
+.dir-recent__identity code { overflow-wrap: anywhere; }
+.dir-recent__path { color: var(--color-text); font-size: var(--pro-small, 12px); }
+.dir-recent__actions { display: flex; flex-wrap: wrap; gap: 8px 12px; align-items: center; }
+.dir-recent__actions :is(button, a), .dir-recent__retry {
+    display: inline-flex;
+    align-items: center;
+    min-height: 44px;
+    padding: 8px 10px;
+    color: var(--color-k-accent-text);
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    font: inherit;
+    font-size: var(--pro-small, 12px);
+    text-decoration: none;
+    cursor: pointer;
+}
+.dir-recent__retry { margin-top: 12px; }
+.dir-recent__retry:disabled { opacity: 0.6; cursor: wait; }
+@media (max-width: 600px) {
+    .dir-recent__row { flex-direction: column; }
+    .dir-recent__actions { width: 100%; }
+}

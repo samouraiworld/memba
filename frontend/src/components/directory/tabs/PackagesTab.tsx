@@ -9,6 +9,7 @@ import { ArrowRight } from "@phosphor-icons/react"
 import { useDirectoryDiscovery } from "../../../hooks/useDirectoryDiscovery"
 import { discoveryProvenanceLabel } from "../../../lib/directoryDiscovery"
 import { RealmDetailDrawer } from "../RealmDetailDrawer"
+import { RecentSubmissionsSection } from "../RecentSubmissionsSection"
 
 export function PackagesTab() {
     const [search, setSearch] = useState("")
@@ -91,6 +92,8 @@ export function PackagesTab() {
                     ))}
                 </div>
             )}
+
+            <RecentSubmissionsSection kind="package" />
 
             {/* Detail drawer */}
             {drawerPath && (

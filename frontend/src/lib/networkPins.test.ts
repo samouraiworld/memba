@@ -87,6 +87,9 @@ interface Pin {
 }
 
 const ALLOWLIST: Pin[] = [
+    { file: "lib/recentSubmissions.ts", allow: ["gnoland-1"], why: "The C2b read accepts only the backend's fixed official mainnet submission source; it does not select the app network or permit writes." },
+    { file: "hooks/useRecentSubmissions.ts", allow: ["mainnet"], why: "The C2b Directory read is intentionally enabled only for the mainnet route, with no polling." },
+    { file: "components/directory/RecentSubmissionsSection.tsx", allow: ["mainnet"], why: "Submission rows are omitted on Pearl and other networks; editorial Directory content remains separate." },
     { file: "lib/directorySeeds.ts", allow: ["mainnet"], why: "Date-checked editorial source paths for mainnet, separate from runtime eligibility; historical references remain labeled." },
     { file: "lib/ecosystemDirectory.ts", allow: ["mainnet", "staging"], why: "Editorial evidence and fixed external realm destinations; not runtime defaults, capability eligibility or backend network pins." },
     { file: "components/appstore/EcosystemDirectory.tsx", allow: ["mainnet"], why: "Availability filter option only; does not switch Memba's selected network." },

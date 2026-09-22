@@ -31,6 +31,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Mainnet submission source for Directory
 - Add a bounded, cached read of recent successful package submissions from the official gno.land indexer. Each response identifies its checked block window; a transaction does not establish package activation.
+- Show those submissions in a separate mainnet-only section on the Packages and Realms tabs, with checked-window status, source and transaction links, and explicit activation uncertainty.
 
 ### Explorer function read states
 - Distinguish a failed function read from a realm with no exported functions, offer Retry, and label names recovered from source when signatures cannot be verified.

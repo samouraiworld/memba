@@ -12,6 +12,7 @@ import { useDirectoryRender } from "../../../hooks/useDirectoryRender"
 import { useNetwork } from "../../../hooks/useNetwork"
 import { RealmDetailDrawer } from "../RealmDetailDrawer"
 import { ExplorerLink } from "../ExplorerLink"
+import { RecentSubmissionsSection } from "../RecentSubmissionsSection"
 import DOMPurify from "dompurify"
 import { renderMarkdown } from "../../../lib/markdownLite"
 
@@ -199,6 +200,8 @@ export function RealmsTab() {
                     ))}
                 </div>
             )}
+
+            <RecentSubmissionsSection kind="realm" />
 
             {/* Detail drawer */}
             {drawerPath && (
