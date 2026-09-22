@@ -22,6 +22,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Directory network provenance
 - Keep mainnet discovery separate from historical references, show source coverage, and open the exact selected realm or package without losing the search.
+- Give package source actions a themed background so their labels remain readable in dark mode.
 ### Ecosystem discovery (2026-09-22)
 - Add searchable editorial projects, availability filters, checked realm/source links and mygnoscan's mainnet view.
 - Keep ecosystem browsing public while requiring existing network eligibility before mounting the App Store registry.

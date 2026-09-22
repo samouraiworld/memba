@@ -57,3 +57,9 @@ Namespace fixtures test both mainnet and Pearl, missing/mismatched chain identit
 - 12 combined catalog/Directory mainnet/Pearl journeys passed across Chromium, Firefox and iPhone WebKit; six additional Explorer-enabled Directory journeys passed.
 - Lint, TypeScript/production build and bundle isolation/precache checks passed with Node 22. Previous complete Directory suite: 5,658 passed, one existing skip. Fresh hosted checks remain authoritative for the refreshed revision.
 - Local logs: `/private/tmp/memba-c1-directory-refreshed-{unit,navigation-unit,browser,explorer,build}.log`. Browser fixtures remain read-only and do not validate wallet transactions.
+
+## Hosted contrast regression and correction
+
+The refreshed `e5b0ee30` design matrix failed its dark 390px and 1600px group-4 cases (75 other cases passed). Package “View source” buttons reused the link styles without an explicit background, allowing Chromium's default grey button face (`#6b6b6b`) beneath teal text (`#00d4aa`): measured contrast 2.79:1. Both Directory and the legacy Explorer redirect exposed the same issue. The complete-features matrix does not include these routes, so its success did not cover this defect.
+
+The correction assigns the existing themed card background to `.dir-gnoweb-link` and a pointer cursor. Contrast rules, assertions and workflow requirements remain unchanged. The existing route group passed all four cases in both dark and light themes at 390px and 1600px, covering eight routes per case (32 route/theme/width checks). Local log: `/private/tmp/memba-c1-source-contrast-browser.log`. Hosted checks must rerun on the correction before merging.
