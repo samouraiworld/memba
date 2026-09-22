@@ -29,7 +29,8 @@ Full changelogs are split by version range for easier navigation:
 - Use the 2.5D front-line view by default on desktop while retaining the portrait phone layout and explicit renderer overrides.
 
 ### BARRICADE play controls and run states (2026-09-22)
-- Keep the playfield and its actions together on phones and short landscape screens, with keyboard lane movement, aiming and pause controls.
+- Use the 2.5D front line as the desktop release renderer with taps aligned to its projected lanes and ranges, while retaining the 2D compact-screen fallback and keeping phone actions with the playfield.
+- Refuse unavailable molotov, shove, repair, patch and refill actions visibly, with cooldown and target feedback instead of silently dropping input or wasting resources.
 - Pause a run when the page loses focus; keep the result date tied to the actual run and label a submitted score as pending attestation until it is written on-chain.
 - Keep all between-wave choices on the battlefield and show the finished-run poster without requiring a phone scroll.
 

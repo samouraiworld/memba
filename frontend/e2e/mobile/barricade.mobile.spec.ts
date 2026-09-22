@@ -47,6 +47,7 @@ test('keeps mainnet start controls clear of the notice and mobile navigation', a
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/mainnet/game/barricade', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('button', { name: 'Daily run' })).toBeVisible()
+  await expect(page.locator('.k-main-column > div[role="status"]')).toBeHidden()
   await expectControlsInView(page)
 })
 
