@@ -10,6 +10,7 @@ The catalog's preview and pre-merge head were `0961f44668aab6bd93e88b2a673f684d9
 
 Directory was refreshed onto the merged catalog. Two additive test conflicts in `complete-design.spec.ts` and `networkPins.test.ts` were resolved by retaining both sections; no runtime conflict or deployment-owned file changed. Refreshed integration checks are recorded below before release.
 
+
 ## Directory source boundary
 
 The old Gnolove package record has no validated chain identifier. Directory does not merge it into selected-network realm/package results. Two bounded gnoweb namespace reads require matching chain metadata. They establish listing provenance, not successful realm rendering or transaction readiness. A failed read keeps editorial/reference entries available with a partial-coverage notice and retry. The existing document CSP excludes bare `gno.land`, so mainnet namespace reads currently fail into the editorial fallback. C1 does not change CSP or proxy behavior; Pearl fixtures cover successful namespace reads. Results are cached per network for five minutes; there is no polling or per-card fan-out.
@@ -71,3 +72,9 @@ Five deferred-response regressions failed before the fix and passed afterward: s
 The targeted browser matrix checks App Store browsing, realm search and one detail view in Light/Black at 320, 390 and 1440 pixels with reduced motion. Axe rules cover contrast, labels, button/link names and nested interactions; overflow is checked. Keyboard checks in Chromium, Firefox and iPhone WebKit cover initial drawer focus, Tab containment, arrow-key selection, Escape and focus return. This is bounded coverage, not a whole-app accessibility certification.
 
 Existing API limitation: function-list transport failures can still become an empty array in `fetchRealmFuncs`; no new transport/API semantics are claimed. CSP continues to block mainnet namespace discovery and the labeled editorial fallback remains intentional. No runtime, realm eligibility or wallet action changed.
+
+## Final local candidate checks
+
+The reliability candidate passed 5,666 unit/component tests (one existing skip), lint, TypeScript/production build and bundle isolation/precache checks. Fifteen focused browser cases passed with the default Explorer flag; the six Explorer-on navigation cases and six Explorer-on size/theme audits passed after correcting a test assertion that raced lazy mounting. The five before/after regressions and three recovery tests are committed beside the affected code.
+
+A temporary uncommitted integration checkout combined all three C1 slices. Both sides of additive conflicts in `complete-design.spec.ts` and the test-only network-pin inventory were retained. Its 32 focused unit tests and 21 browser cases passed, including the new seven-project catalog at 320/390/1440 pixels in Light/Black and the mainnet/Pearl central journeys across Chromium, Firefox and iPhone WebKit. This local integration check does not replace the planned fresh-main rebase, hosted gates or production verification after each reviewed merge.
