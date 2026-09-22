@@ -2,7 +2,7 @@
 
 ## Release status
 
-Catalog PR #1239 and Directory PR #1240 are merged and production-verified. The bounded reliability slice remains a candidate pending hosted checks and GitHub review. A+B remains closed. No wallet, signature, broadcast, publication or deployment-policy change was exercised.
+All three C1 implementation PRs (#1239, #1240 and #1241) are merged and production-verified. A+B remains closed. No wallet, signature, broadcast, publication or deployment-policy change was exercised.
 
 Catalog PR #1239 merged at 07:55:57 UTC as `25ef19793528747d99cafeaf4b1c72605e74a6b7`. Production `/build-info.json` subsequently reported that commit and `assets/index-DmSLVy3n.js`; the same entry was observed in both browser tabs. A tab loaded before rollout received the new catalog after an ordinary reload, retained `boards2/v0` search across another reload, and showed one correct mainnet result. A newly opened tab correctly gated `/mainnet/apps/submit`; its “Browse ecosystem projects” link opened all seven records without registry publishing navigation. This is a fresh-tab and returning-tab check in one browser profile, not a clean-profile or real-wallet claim. Initial rollout sampling still served the previous commit; it converged without manual deployment.
 
@@ -89,4 +89,16 @@ A temporary uncommitted integration checkout combined all three C1 slices. Both 
 
 On main `a65800118e50c83db1fed18578d57bfd658a2177`, 23 focused unit/component tests passed. The combined browser pass completed 23 cases (catalog, drawer keyboard, responsive audits and the former contrast-failing group), plus six Explorer-disabled mainnet/Pearl navigation cases and 12 Explorer-enabled navigation/audit cases: 41 total. Lint, TypeScript/production build and bundle isolation/precache checks passed with Node 22. The previous complete reliability suite passed 5,666 tests with one existing skip; the rebased runtime is unchanged except for the inherited released contrast fix.
 
-Logs: `/private/tmp/memba-c1-reliability-refreshed-{unit,browser,navigation,explorer,build}.log`. Hosted checks, preview, actual GitHub approval and the final production release remain pending.
+Logs: `/private/tmp/memba-c1-reliability-refreshed-{unit,browser,navigation,explorer,build}.log`. Subsequent hosted and production results are recorded below.
+
+## Final reliability release
+
+[PR #1241](https://github.com/samouraiworld/memba/pull/1241) merged at 09:31:30 UTC as `a2ac44d44a7b1bdbba1ce427f241a43acb4a35a6`. Every applicable hosted check passed on reviewed head `9b247c30d991b793930e5d6dd65a5b3ca2adbb39`, including Node 20/22, backend, security, E2E, both complete-design matrices and the four-browser professional preview. Both independent CTO and SWE reviewers cleared that exact revision.
+
+Production `/build-info.json`, directly served route HTML and both verification tabs matched entry `assets/index-Cf0yRZnt.js`, version 7.7.0, for the final merge. A returning tab initially retained the previous entry through two early reloads; a later ordinary reload after the update settled received the new bundle without clearing storage or unregistering the service worker. This records eventual update convergence, not an instantaneous upgrade guarantee.
+
+On the final entry, the returning tab retained the Boards query, opened exact mainnet Boards v0 and restored the query on Back. A newly opened tab browsed all seven catalog entries, followed the fixed mainnet Explorer link, and loaded the live Boards Render and source. On Pearl, a package drawer placed initial focus on Close, selected Info with the arrow key, dismissed on Escape and restored focus to the source-action trigger. Fresh-tab checks do not claim a clean browser profile. Request-race and forced-error recovery evidence remains the controlled tests above; no wallet transaction was attempted.
+
+C1's implementation scope is complete. Remaining source/API boundaries (unidentified indexer data, restricted mainnet namespace access and function-error ambiguity) are explicitly documented above. New feeds, runtime/dependency upgrades, realm publication and authority or financial-policy changes require separate scope; deployment retains those workstreams.
+
+Merged-main follow-up runs: [CI](https://github.com/samouraiworld/memba/actions/runs/35710879996), [frontend gate](https://github.com/samouraiworld/memba/actions/runs/35710879962), [Security](https://github.com/samouraiworld/memba/actions/runs/35710880000), [Attribution](https://github.com/samouraiworld/memba/actions/runs/35710879979). Security and Attribution passed at closeout preparation; CI and the frontend gate were still running without reported failures. These follow-up statuses are separate from the fully passing pre-merge checks above.
