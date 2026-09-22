@@ -4,9 +4,9 @@
  * Same frozen sim, same archetype art (reuses draw.ts's `drawMachine`), but
  * composed as a fake-perspective "front line": a receding ground plane
  * (foreshortened, lanes fanning OUT toward a big PARAPET foreground), a
- * procedural parapet bust + a horizon boss (hero-art placeholders), distance fog,
- * and parallax depth rungs. It is now the default desktop view while the full
- * visual direction and final character art remain in development.
+ * Paris backdrop, original game-only defender and boss art with procedural
+ * fallbacks, distance fog, and parallax depth rungs. It is the default desktop
+ * view; compact screens retain 2D until the physical-phone renderer decision.
  *
  * Render-only: it reads the same per-frame SimState + FxState the 2D renderer
  * does and mutates neither, so the sim, its replay log, and the G3 verifier are
@@ -20,6 +20,8 @@ import { layout, laneCenterX, type FxState, type Layout } from "./fx"
 import { laneThreats } from "./telegraph"
 import { paletteFor } from "./palette"
 import { drawMachine, groundShadow, drawNightSky, paintHalftone, MACHINE_COLOR, type ViewSize } from "./draw"
+import { scenePlate } from "./art"
+import { spriteFor } from "./sprites"
 
 // Riso-plate palette (subset — matches draw.ts / fx.ts).
 const STOCK = "#141026"
@@ -83,10 +85,17 @@ const projLane = (lay: Layout, lane: number, frac: number): Proj => projectFlat(
 // Lane-EDGE x (edge in [0..LANES]) at a depth — for the receding ground trapezoids.
 const edgeX = (lay: Layout, edge: number, frac: number): number => projectFlat(lay, edge * lay.laneW, frac).x
 
-// ── Hero placeholders (procedural; real art is a separate owner-gated drop) ───
+// ── Hero art with procedural fallbacks for unloaded/offline images ───────────
 
 /** A large cold Order chassis rising on the spawn horizon during a boss looming. */
 function drawHorizonBoss(ctx: CanvasRenderingContext2D, cx: number, horizonY: number, s: number): void {
+    const art = scenePlate("broadcast")
+    if (art) {
+        const height = s * 0.9
+        const width = height * art.naturalWidth / art.naturalHeight
+        ctx.drawImage(art, cx - width / 2, horizonY - height * 0.82, width, height)
+        return
+    }
     const y = horizonY - s * 0.02
     ctx.globalAlpha = 0.92
     inkRect(ctx, cx - s * 0.5, y - s * 0.42, s, s * 0.44, "#2b2748", 3) // slab body
@@ -108,8 +117,9 @@ function drawParapet(ctx: CanvasRenderingContext2D, lay: Layout, s: SimState): v
     const { w, h, hudH, fieldH } = lay
     const barricadeY = hudH + fieldH
     const crest = barricadeY - fieldH * 0.015
-    // wall body (crest → bottom of canvas), gently arced toward the viewer
-    ctx.fillStyle = "#1a1330"
+    // The wall is built from street cobbles and cart timber, not a modern
+    // sandbag fortification. Missing stones expose damage as HP drops.
+    ctx.fillStyle = "#211a30"
     ctx.beginPath()
     ctx.moveTo(0, crest + 12)
     ctx.quadraticCurveTo(w / 2, crest - 8, w, crest + 12)
@@ -117,59 +127,71 @@ function drawParapet(ctx: CanvasRenderingContext2D, lay: Layout, s: SimState): v
     ctx.lineTo(0, h)
     ctx.closePath()
     ctx.fill()
-    // warm torn-poster crest line
-    ctx.strokeStyle = OCHRE
-    ctx.lineWidth = 3
-    ctx.beginPath()
-    ctx.moveTo(0, crest + 12)
-    ctx.quadraticCurveTo(w / 2, crest - 8, w, crest + 12)
-    ctx.stroke()
-    // Stitched sandbags along the crest — a low-HP wall reads as gaps toward the right.
-    // Uneven seams and a paper rim keep the large desktop foreground from reading
-    // as a row of UI rectangles.
-    const hpFrac = clamp01(s.barricadeHp / BARRICADE_MAX_HP)
-    const bags = 7
-    const bw = w / bags
-    for (let i = 0; i < bags; i++) {
-        if (i / bags > hpFrac + 0.1) continue // breached section
-        const bx = (i + 0.5) * bw
-        const by = crest - 4 + Math.sin(i * 1.7) * 3
-        const left = bx - bw * 0.43
-        const right = bx + bw * 0.43
-        const bagH = fieldH * 0.058
+    // Salvaged cart rails interrupt the masonry rhythm and make its
+    // street-built origin clear without modern barbed wire or sandbags.
+    for (const side of [0, 1]) {
+        const x = side ? w * 0.84 : w * 0.16
+        const dir = side ? 1 : -1
         ctx.beginPath()
-        ctx.moveTo(left + bw * 0.07, by + bagH * 0.15)
-        ctx.quadraticCurveTo(bx, by - bagH * 0.16, right - bw * 0.06, by + bagH * 0.12)
-        ctx.lineTo(right, by + bagH * 0.78)
-        ctx.quadraticCurveTo(bx, by + bagH * 1.13, left, by + bagH * 0.8)
+        ctx.moveTo(x - dir * w * 0.07, crest + fieldH * 0.06)
+        ctx.lineTo(x + dir * w * 0.04, crest - fieldH * 0.065)
+        ctx.lineTo(x + dir * w * 0.065, crest - fieldH * 0.055)
+        ctx.lineTo(x - dir * w * 0.045, crest + fieldH * 0.07)
         ctx.closePath()
-        inkFill(ctx, i % 2 ? "#2a2140" : "#241a38", 2.5)
-        ctx.strokeStyle = "rgba(239,231,212,0.35)"
-        ctx.lineWidth = 1.2
-        ctx.beginPath()
-        ctx.moveTo(left + bw * 0.1, by + bagH * 0.2)
-        ctx.quadraticCurveTo(bx, by + bagH * 0.04, right - bw * 0.1, by + bagH * 0.19)
-        ctx.stroke()
-        ctx.beginPath()
-        ctx.moveTo(bx - bw * 0.06, by + bagH * 0.38)
-        ctx.lineTo(bx + bw * 0.06, by + bagH * 0.72)
-        ctx.moveTo(bx + bw * 0.06, by + bagH * 0.38)
-        ctx.lineTo(bx - bw * 0.06, by + bagH * 0.72)
-        ctx.stroke()
+        inkFill(ctx, "#81572d", 2.5)
     }
-    // a strand of barbed wire above the crest
-    ctx.strokeStyle = "rgba(239,231,212,0.28)"
-    ctx.lineWidth = 1.5
+    // A timber cart beam braces the lower rows.
+    ctx.strokeStyle = "#81572d"
+    ctx.lineWidth = Math.max(5, fieldH * 0.018)
     ctx.beginPath()
-    for (let x = 0; x <= w; x += 6) ctx.lineTo(x, crest - 10 + Math.sin(x * 0.25) * 3)
+    ctx.moveTo(0, crest + fieldH * 0.06)
+    ctx.lineTo(w, crest + fieldH * 0.038)
     ctx.stroke()
+    ctx.strokeStyle = INK
+    ctx.lineWidth = 2
+    ctx.stroke()
+
+    const hpFrac = clamp01(s.barricadeHp / BARRICADE_MAX_HP)
+    for (let row = 1; row >= 0; row--) {
+        const stones = row ? 11 : 9
+        const bw = w / stones
+        for (let i = 0; i < stones; i++) {
+            if (i / stones > hpFrac + 0.1) continue
+            const shift = row ? bw * 0.35 : 0
+            const bx = i * bw - shift
+            const by = crest + (row ? fieldH * 0.015 : -fieldH * 0.022) + Math.sin(i * 2.3 + row) * 4
+            const stoneH = fieldH * (row ? 0.058 : 0.067)
+            ctx.beginPath()
+            ctx.moveTo(bx + bw * 0.1, by + stoneH * 0.11)
+            ctx.lineTo(bx + bw * (0.68 + (i % 3) * 0.05), by)
+            ctx.lineTo(bx + bw * 0.95, by + stoneH * 0.28)
+            ctx.lineTo(bx + bw * (0.86 + (i % 2) * 0.05), by + stoneH * 0.85)
+            ctx.lineTo(bx + bw * 0.17, by + stoneH)
+            ctx.lineTo(bx, by + stoneH * 0.64)
+            ctx.closePath()
+            inkFill(ctx, row ? (i % 2 ? "#554e62" : "#6b6170") : (i % 3 ? "#807784" : "#9b9090"), 2.5)
+            ctx.strokeStyle = "rgba(239,231,212,0.3)"
+            ctx.lineWidth = 1.3
+            ctx.beginPath()
+            ctx.moveTo(bx + bw * 0.16, by + stoneH * 0.26)
+            ctx.lineTo(bx + bw * 0.62, by + stoneH * 0.2)
+            ctx.stroke()
+        }
+    }
 }
 
-/** The rebel bust at the parapet — a big warm PFP placeholder (Pipeline A). */
+/** Original game-only defender; procedural fallback remains for unloaded art. */
 function drawParapetBust(ctx: CanvasRenderingContext2D, cx: number, baseY: number, s: number, fx?: FxState): void {
     const lean = fx ? fx.playerLean * 0.12 : 0
     const x = cx + lean * s
     const y = baseY - s * 0.02
+    const art = scenePlate("citizen")
+    if (art) {
+        const width = s * 1.18
+        const height = width * art.naturalHeight / art.naturalWidth
+        ctx.drawImage(art, x - width / 2, baseY - height * 0.83, width, height)
+        return
+    }
     ctx.globalAlpha = 0.35 // grounding shadow
     ctx.fillStyle = INK
     ctx.beginPath()
@@ -317,7 +339,7 @@ function drawReadyPlate(ctx: CanvasRenderingContext2D, lay: Layout): void {
     ctx.fillRect(x, top + headline * 1.27, Math.min(w * 0.37, headline * 7), 3)
     ctx.font = `700 ${Math.max(11, Math.floor(headline * 0.24))}px "JetBrains Mono", ui-monospace, monospace`
     ctx.fillStyle = PAPER
-    ctx.fillText(`${WAVE_TOTAL} WAVES  /  ONE WALL`, x, top + headline * 1.66)
+    ctx.fillText(`LIBERTÉ · ÉGALITÉ  /  ${WAVE_TOTAL} WAVES`, x, top + headline * 1.66)
     ctx.restore()
 }
 
@@ -334,7 +356,11 @@ export function draw25d(ctx: CanvasRenderingContext2D, s: SimState, view: ViewSi
     ctx.fillStyle = STOCK
     ctx.fillRect(0, 0, w, h)
 
+    const paris = scenePlate("paris")
+    if (paris) ctx.drawImage(paris, 0, hudH, w, fieldH)
+
     // ── receding ground plane: 3 lane trapezoids, narrow at horizon → fanned near
+    if (paris) ctx.globalAlpha = 0.52
     for (let lane = 0; lane < LANES; lane++) {
         ctx.fillStyle = lane % 2 === 1 ? plate.stockAlt : "#191234"
         ctx.beginPath()
@@ -345,6 +371,7 @@ export function draw25d(ctx: CanvasRenderingContext2D, s: SimState, view: ViewSi
         ctx.closePath()
         ctx.fill()
     }
+    ctx.globalAlpha = 1
     // bright ink lane dividers (converging toward the horizon)
     for (let e = 0; e <= LANES; e++) {
         const edge = e === 0 || e === LANES
@@ -367,7 +394,7 @@ export function draw25d(ctx: CanvasRenderingContext2D, s: SimState, view: ViewSi
     }
 
     // night city at the horizon
-    drawNightSky(ctx, lay, s.tick, fx?.reducedMotion ?? false, plate)
+    if (!paris) drawNightSky(ctx, lay, s.tick, fx?.reducedMotion ?? false, plate)
 
     // horizon boss looming (hero placeholder)
     if (s.phase === "boss" || s.enemies.some((e) => e.archetype === "broadcast" || e.archetype === "panopticon")) {
@@ -418,7 +445,7 @@ export function draw25d(ctx: CanvasRenderingContext2D, s: SimState, view: ViewSi
         const a = ARCHETYPES[e.archetype]
         const hpFrac = Math.max(0.55, e.hp / a.hp)
         const p = projLane(lay, e.lane, frac)
-        const base = e.archetype === "broadcast" ? 0.66 : 0.4
+        const base = e.archetype === "broadcast" ? 0.78 : spriteFor(e.archetype) ? 0.52 : 0.4
         const size = Math.max(laneW * 0.15, base * laneW * p.scale * hpFrac)
         groundShadow(ctx, p.x, p.y, size)
         const shieldOpen = e.archetype === "marshal" && (s.tick - e.bornTick) % MARSHAL_CYCLE >= MARSHAL_UP
@@ -512,9 +539,9 @@ export function draw25d(ctx: CanvasRenderingContext2D, s: SimState, view: ViewSi
     if (showReadyPlate) drawReadyPlate(ctx, lay)
 
     // ── parapet foreground + hero bust (the defining 2.5D framing) ──
-    drawParapet(ctx, lay, s)
     const bustX = projLane(lay, s.playerLane, 1).x
     drawParapetBust(ctx, bustX, barricadeY, laneW * 0.62, fx)
+    drawParapet(ctx, lay, s)
 
     // armed neighbourhood along the crest
     if (s.armed > 0) {

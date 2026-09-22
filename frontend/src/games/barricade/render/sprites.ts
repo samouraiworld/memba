@@ -1,13 +1,11 @@
 /**
- * The hand-inked atlas SEAM (GDD-v2 §5, Track 2): when the collection-pipeline
- * art lands (riso PNGs for the boss + hero chassis families), a loader
- * registers each image here and `drawMachine` swaps it in — death-fling,
- * interpolation, telegraphs and the mode pips all keep working because the
- * seam sits behind the same (x, y, size) contract. Until then the registry is
- * empty and every machine renders procedurally; jsdom tests never register
- * anything, so the suite exercises the procedural path it can actually verify.
+ * The sprite seam (GDD-v2 §5, Track 2): the game-only art loader registers
+ * finished chassis images here and `drawMachine` swaps them in. Death-fling,
+ * interpolation, telegraphs and mode pips keep working behind the same
+ * (x, y, size) contract. Without loaded art every machine stays procedural;
+ * jsdom renderer tests exercise that fallback.
  *
- * CONTRACT NOTE for the future loader: the sprite path returns BEFORE the
+ * CONTRACT NOTE for additions: the sprite path returns BEFORE the
  * shape grammar, so any machine whose procedural case carries a LOAD-BEARING
  * state tell must ship variant art or stay procedural — today that is the
  * MARSHAL (its pavise visibly lowers in the open window; a single static
@@ -19,7 +17,7 @@ import type { ArchetypeId } from "../sim/types"
 
 const registry = new Map<ArchetypeId, CanvasImageSource>()
 
-/** Hand the seam a finished plate (called by the future atlas loader). */
+/** Hand the seam a finished plate (called by the game art loader). */
 export function registerSprite(kind: ArchetypeId, img: CanvasImageSource): void {
     registry.set(kind, img)
 }

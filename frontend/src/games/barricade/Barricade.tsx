@@ -23,6 +23,7 @@ import { LANES, LANE_LENGTH, type Choice, type SimEvent, type SimState } from ".
 import { ARM_COST, MOLOTOV_COST, REFILL_COST, REPAIR_COST, TURRET_COST } from "./sim/engine"
 import { draw, drawAttract } from "./render/draw"
 import { draw25d } from "./render/draw25d"
+import { loadBarricadeArt } from "./render/art"
 import { resolveRenderer } from "./render/three/caps"
 import { useSimSnapshots } from "./render/three/bridge/useSimSnapshots"
 import { deriveFxEvents } from "./render/fxEvents"
@@ -160,6 +161,10 @@ export default function Barricade() {
         seed: string
         events: SimEvent[]
     } | null>(null)
+
+    useEffect(() => {
+        if (RENDER_25D && !RENDER_3D) loadBarricadeArt()
+    }, [])
 
     useEffect(() => {
         const audio = new GameAudio(true)
@@ -632,7 +637,7 @@ export default function Barricade() {
                         <button className="k-btn-secondary" onClick={() => start(false)}>Practice</button>
                     </div>
                     <p className="bar-hint">
-                        Hold the wall for {WAVE_TOTAL} waves. Tap a lane to move, defeat machines to fill
+                        At a Paris barricade, defend liberty and equal rights for {WAVE_TOTAL} waves. Tap a lane to move, defeat machines to fill
                         Rally, then spend scrap on repairs and upgrades between waves. Everyone gets the
                         same daily seed. Practice runs do not count.
                     </p>

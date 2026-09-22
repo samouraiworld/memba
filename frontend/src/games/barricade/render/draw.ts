@@ -11,7 +11,8 @@
  * silhouettes; warm rebel vs. cold Order machines (threat-coding); Memba tokens
  * for chrome (JetBrains Mono, teal accent, gold scrap). The light "Riso Protest"
  * stays the collection PFP + exported share-card look; this is the playable
- * surface only. Full sprite/PFP art is a follow-on.
+ * surface only. The 2.5D view can register original game-only machine art;
+ * any future collection PFP integration remains separate.
  */
 
 import { ARCHETYPES, WAVE_TOTAL } from "../sim/waves"
@@ -111,12 +112,16 @@ export function drawMachine(
     color: string,
     shieldOpen = false, // marshal only: the pavise visibly lowers in its open window
 ): void {
-    // The hand-inked atlas seam: registered art replaces the shape grammar for
+    // The sprite seam: registered art replaces the shape grammar for
     // that machine, same (x, y, size) contract — everything downstream (death
     // anims, interp, telegraphs) is untouched. Empty registry → procedural.
     const sprite = spriteFor(kind)
     if (sprite) {
-        ctx.drawImage(sprite, x - s * 0.55, y - s * 0.55, s * 1.1, s * 1.1)
+        const image = sprite as { naturalWidth?: number; naturalHeight?: number; width?: number; height?: number }
+        const ratio = (image.naturalWidth || image.width || 1) / (image.naturalHeight || image.height || 1)
+        const width = s * 1.1 * Math.min(1, ratio)
+        const height = s * 1.1 * Math.min(1, 1 / ratio)
+        ctx.drawImage(sprite, x - width / 2, y - height / 2, width, height)
         return
     }
     switch (kind) {
