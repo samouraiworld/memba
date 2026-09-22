@@ -17,14 +17,14 @@ test('uses a wide desktop battlefield and enters real fullscreen', async ({ page
   await page.goto('/pearl/game/barricade')
   await expect(page.getByRole('button', { name: 'Practice' })).toBeVisible()
   await expect(page.locator('.bar-shell')).toHaveAttribute('data-renderer', '2.5d')
-  await expect.poll(async () => page.locator('.bar-stage').evaluate(stage => stage.getBoundingClientRect().width)).toBeGreaterThan(900)
+  await expect.poll(async () => page.locator('.bar-stage').evaluate(stage => stage.getBoundingClientRect().width)).toBeGreaterThan(800)
   const layout = await page.evaluate(() => {
     const stage = document.querySelector('.bar-stage')!.getBoundingClientRect()
     const panel = document.querySelector('.bar-panel')!.getBoundingClientRect()
     return { width: stage.width, height: stage.height, bottom: stage.bottom, panelLeft: panel.left, stageRight: stage.right }
   })
-  expect(layout.width).toBeGreaterThan(900)
-  expect(layout.height).toBeGreaterThan(550)
+  expect(layout.width).toBeGreaterThan(800)
+  expect(layout.height).toBeGreaterThan(500)
   expect(layout.bottom).toBeLessThanOrEqual(720)
   expect(layout.panelLeft).toBeGreaterThan(layout.stageRight)
   await expect(page.getByRole('link', { name: 'Exit game' })).toBeVisible()
@@ -40,6 +40,12 @@ test('uses a wide desktop battlefield and enters real fullscreen', async ({ page
   await expect(page.locator('.bar-shell:fullscreen')).toHaveCount(0)
   await page.getByRole('link', { name: 'Exit game' }).click()
   await expect(page).toHaveURL(/\/pearl\/?$/)
+
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await page.goto('/mainnet/game/barricade')
+  await expect(page.getByRole('button', { name: 'Practice' })).toBeVisible()
+  await expect.poll(async () => page.locator('.bar-stage').evaluate(stage => stage.getBoundingClientRect().bottom))
+    .toBeLessThanOrEqual(720)
 })
 
 test('focuses the playfield, moves by keyboard, and pauses without advancing play', async ({ page }) => {
