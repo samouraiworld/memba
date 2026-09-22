@@ -39,7 +39,7 @@
     font-weight: 600;
     letter-spacing: 0.16em;
     text-transform: uppercase;
-    color: var(--color-accent-gold, #f5a623);
+    color: var(--color-k-warning-text, #ffa502);
 }
 .bar-title {
     margin: 0;
@@ -50,12 +50,8 @@
     color: var(--color-k-text, #e8e4ee);
 }
 .bar-title__accent {
-    color: var(--color-brand, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
 }
-[data-theme="light"] .bar-eyebrow { color: #795000; }
-[data-theme="light"] .bar-title__accent,
-[data-theme="light"] .bar-exit,
-[data-theme="light"] .bar-verified { color: #006b57; }
 
 /* ── Cabinet (mirrors space-invaders .si-stage) ───────────────────────────── */
 .bar-stage {
@@ -278,11 +274,11 @@
     opacity: 0.5;
 }
 .bar-verified {
-    color: var(--color-brand, #00d4aa);
+    color: var(--color-k-accent-text, #00d4aa);
     font-weight: 700;
 }
 .bar-mismatch {
-    color: var(--color-danger, #ff4757);
+    color: var(--color-k-danger-text, #f87171);
     font-weight: 700;
 }
 
@@ -314,7 +310,7 @@
         align-items: center;
         font-size: 12px;
         font-weight: 600;
-        color: var(--color-k-accent, #00d4aa);
+        color: var(--color-k-accent-text, #00d4aa);
     }
     .bar-stage { width: min(96vw, calc((100dvh - 185px) * 0.6)); }
 }
@@ -342,7 +338,7 @@
         justify-self: end;
         min-height: 24px;
         align-items: center;
-        color: var(--color-k-accent, #00d4aa);
+        color: var(--color-k-accent-text, #00d4aa);
         font-size: 12px;
         font-weight: 600;
     }
