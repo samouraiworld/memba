@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### BARRICADE desktop battlefield (2026-09-22)
+- Open the desktop game as a wide battlefield with its actions alongside play, and add a real fullscreen control with an Exit game route back to Memba.
+- Use the 2.5D front-line view by default on desktop while retaining the portrait phone layout and explicit renderer overrides.
+
 ### BARRICADE play controls and run states (2026-09-22)
 - Keep the playfield and its actions together on phones and short landscape screens, with keyboard lane movement, aiming and pause controls.
 - Pause a run when the page loses focus; keep the result date tied to the actual run and label a submitted score as pending attestation until it is written on-chain.

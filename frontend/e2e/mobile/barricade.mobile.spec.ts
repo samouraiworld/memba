@@ -29,6 +29,7 @@ test('keeps start and live controls alongside the battlefield on portrait phones
     await page.setViewportSize({ width, height })
     await page.goto(gameURL, { waitUntil: 'domcontentloaded' })
     await expect(page.getByRole('button', { name: 'Daily run' })).toBeVisible()
+    await expect(page.locator('.bar-shell')).toHaveAttribute('data-renderer', '2d')
     await expectControlsInView(page)
 
     await page.getByRole('button', { name: 'Daily run' }).click()

@@ -11,6 +11,37 @@ async function gameURL(page: Page) {
   return `/${network}/game/barricade`
 }
 
+test('uses a wide desktop battlefield and enters real fullscreen', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Desktop fullscreen is covered in Chromium')
+  await page.setViewportSize({ width: 1280, height: 720 })
+  await page.goto('/pearl/game/barricade')
+  await expect(page.getByRole('button', { name: 'Practice' })).toBeVisible()
+  await expect(page.locator('.bar-shell')).toHaveAttribute('data-renderer', '2.5d')
+  await expect.poll(async () => page.locator('.bar-stage').evaluate(stage => stage.getBoundingClientRect().width)).toBeGreaterThan(900)
+  const layout = await page.evaluate(() => {
+    const stage = document.querySelector('.bar-stage')!.getBoundingClientRect()
+    const panel = document.querySelector('.bar-panel')!.getBoundingClientRect()
+    return { width: stage.width, height: stage.height, bottom: stage.bottom, panelLeft: panel.left, stageRight: stage.right }
+  })
+  expect(layout.width).toBeGreaterThan(900)
+  expect(layout.height).toBeGreaterThan(550)
+  expect(layout.bottom).toBeLessThanOrEqual(720)
+  expect(layout.panelLeft).toBeGreaterThan(layout.stageRight)
+  await expect(page.getByRole('link', { name: 'Exit game' })).toBeVisible()
+
+  const beforeResize = await page.locator('.bar-canvas').evaluate(canvas => (canvas as HTMLCanvasElement).width)
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await expect.poll(async () => page.locator('.bar-canvas').evaluate(canvas => (canvas as HTMLCanvasElement).width))
+    .toBeGreaterThan(beforeResize)
+
+  await page.getByRole('button', { name: 'Fullscreen' }).click()
+  await expect(page.locator('.bar-shell:fullscreen')).toBeVisible()
+  await page.getByRole('button', { name: 'Exit fullscreen' }).click()
+  await expect(page.locator('.bar-shell:fullscreen')).toHaveCount(0)
+  await page.getByRole('link', { name: 'Exit game' }).click()
+  await expect(page).toHaveURL(/\/pearl\/?$/)
+})
+
 test('focuses the playfield, moves by keyboard, and pauses without advancing play', async ({ page }) => {
   await page.goto(await gameURL(page))
   await page.getByRole('button', { name: 'Daily run' }).click()

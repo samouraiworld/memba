@@ -34,6 +34,14 @@
     flex-direction: column;
     gap: 2px;
 }
+.bar-wordmark__name { display: flex; flex-direction: column; gap: 2px; }
+.bar-wordmark__actions { display: flex; align-items: center; gap: 10px; }
+.bar-fullscreen { display: none; }
+.bar-fullscreen-error {
+    margin: 0;
+    color: var(--color-k-danger-text, #f87171);
+    font-size: 0.85rem;
+}
 .bar-eyebrow {
     font-family: var(--font-mono, monospace);
     font-size: 11px;
@@ -125,6 +133,10 @@
     font-size: clamp(10px, 2.7vw, 13px);
     line-height: 1.15;
     box-shadow: none;
+}
+.bar-shell .bar-controls--playing > button:disabled {
+    opacity: 0.42;
+    cursor: not-allowed;
 }
 
 .bar-stage:focus-visible {
@@ -423,3 +435,134 @@
     .bar-panel { align-items: stretch; }
     .bar-hint { text-align: left; }
 }
+
+/* Desktop is a battlefield, not a phone cabinet in the middle of a wide page.
+   Keep the three lanes and HUD in one canvas while giving that canvas most of
+   the available viewport. The renderer reads its actual size on resize. */
+@media (min-width: 769px) and (min-height: 600px) {
+    body:has(.bar-shell) .k-sidebar,
+    body:has(.bar-shell) .k-topbar,
+    body:has(.bar-shell) .k-footer { display: none; }
+    body:has(.bar-shell) .k-main-column {
+        margin-left: 0;
+        min-height: 100dvh;
+    }
+    .k-main:has(.bar-shell) {
+        max-width: none;
+        padding: 12px clamp(16px, 2vw, 32px);
+    }
+    .bar-shell {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(220px, 260px);
+        grid-template-rows: auto auto;
+        align-items: start;
+        width: 100%;
+        max-width: 1440px;
+        padding: 0;
+        gap: 12px 18px;
+    }
+    .bar-wordmark {
+        grid-column: 1 / -1;
+        width: 100%;
+        flex-direction: row;
+        align-items: end;
+        justify-content: space-between;
+        text-align: left;
+    }
+    .bar-title { font-size: clamp(2rem, 3.5vw, 3rem); }
+    .bar-exit--desktop {
+        display: inline-flex;
+        align-items: center;
+        min-height: 44px;
+        padding: 0 12px;
+        color: var(--color-k-text, #e8e4ee);
+        font: 600 0.8rem var(--font-mono, monospace);
+    }
+    .bar-exit--desktop:hover { color: var(--color-k-accent-text, #00d4aa); }
+    .bar-exit--desktop:focus-visible {
+        outline: 3px solid var(--color-k-accent, #00d4aa);
+        outline-offset: 2px;
+    }
+    .bar-fullscreen {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 44px;
+        padding: 0 16px;
+        border: 1px solid var(--color-k-edge, #2a2536);
+        border-radius: var(--radius-md, 8px);
+        background: var(--color-bg-card, #16121f);
+        color: var(--color-k-text, #e8e4ee);
+        font: 600 0.8rem var(--font-mono, monospace);
+        cursor: pointer;
+    }
+    .bar-fullscreen:hover { border-color: var(--color-k-accent, #00d4aa); }
+    .bar-fullscreen:focus-visible {
+        outline: 3px solid var(--color-k-accent, #00d4aa);
+        outline-offset: 3px;
+    }
+    .bar-stage {
+        grid-column: 1;
+        grid-row: 2;
+        width: 100%;
+        max-width: none;
+    }
+    .bar-canvas { aspect-ratio: 8 / 5; }
+    .bar-panel {
+        grid-column: 2;
+        grid-row: 2;
+        align-items: stretch;
+        width: 100%;
+        padding: 16px;
+        border: 1px solid var(--color-k-edge, #2a2536);
+        border-radius: var(--radius-lg, 12px);
+        background: var(--color-bg-card, #16121f);
+    }
+    .bar-panel .bar-hint { max-width: none; text-align: left; }
+    .bar-shell .bar-controls--start { grid-template-columns: 1fr; }
+    .bar-shell .bar-controls--playing {
+        grid-column: 2;
+        grid-row: 2;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        align-self: start;
+        width: 100%;
+    }
+    .bar-poster {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        justify-self: center;
+        align-items: center;
+        justify-content: center;
+        max-width: 1040px;
+        min-height: min(70dvh, 600px);
+        background-color: var(--color-bg-card, #16121f);
+        background-image: radial-gradient(color-mix(in srgb, var(--color-k-text, #e8e4ee) 9%, transparent) 0.7px, transparent 0.7px);
+        background-size: 8px 8px;
+    }
+    .bar-poster__verdict { font-size: clamp(2.6rem, 5vw, 4.5rem); }
+    .bar-poster__score { font-size: clamp(4rem, 8vw, 7rem); }
+    .bar-shop {
+        inset: auto 20px 20px auto;
+        width: min(390px, 42%);
+    }
+}
+
+.bar-shell:fullscreen {
+    box-sizing: border-box;
+    width: 100%;
+    max-width: none;
+    min-height: 100%;
+    margin: 0;
+    padding: 14px 24px;
+    gap: 8px;
+    overflow: auto;
+    justify-content: center;
+    background: #0a0812;
+}
+.bar-shell:fullscreen .bar-wordmark { width: 100%; }
+.bar-shell:fullscreen .bar-stage {
+    width: 100%;
+    max-height: calc(100dvh - 120px);
+    aspect-ratio: 8 / 5;
+}
+.bar-shell:fullscreen .bar-canvas { aspect-ratio: 8 / 5; }

@@ -1,20 +1,19 @@
 /**
- * draw25d.ts — THROWAWAY 2.5D comparator renderer (Phase 0 bake-off, arm A).
+ * draw25d.ts — 2.5D front-line renderer, first built for the Phase 0 bake-off.
  *
  * Same frozen sim, same archetype art (reuses draw.ts's `drawMachine`), but
  * composed as a fake-perspective "front line": a receding ground plane
  * (foreshortened, lanes fanning OUT toward a big PARAPET foreground), a
  * procedural parapet bust + a horizon boss (hero-art placeholders), distance fog,
- * and parallax depth rungs. Its ONLY job is the side-by-side "is 'cheap' about
- * dimensionality, or composition + hero art?" question — a 3D-free arm to weigh
- * against the real spike (PR-0c) before committing to three.
+ * and parallax depth rungs. It is now the default desktop view while the full
+ * visual direction and final character art remain in development.
  *
  * Render-only: it reads the same per-frame SimState + FxState the 2D renderer
  * does and mutates neither, so the sim, its replay log, and the G3 verifier are
- * untouched (fx.parity covers this). Gated behind VITE_ENABLE_BARRICADE_25D /
- * ?r25d=1 — never the shipped 2D path.
+ * untouched (fx.parity covers this). Compact screens use 2D by default, and
+ * VITE_ENABLE_BARRICADE_25D / ?r25d=1 can select this view explicitly.
  */
-import { ARCHETYPES } from "../sim/waves"
+import { ARCHETYPES, WAVE_TOTAL } from "../sim/waves"
 import { MARSHAL_CYCLE, MARSHAL_UP, MOLOTOV_MAX, panopticonMode } from "../sim/engine"
 import { BARRICADE_MAX_HP, LANES, LANE_LENGTH, RALLY_FULL, type SimState } from "../sim/types"
 import { layout, laneCenterX, type FxState, type Layout } from "./fx"
@@ -125,7 +124,9 @@ function drawParapet(ctx: CanvasRenderingContext2D, lay: Layout, s: SimState): v
     ctx.moveTo(0, crest + 12)
     ctx.quadraticCurveTo(w / 2, crest - 8, w, crest + 12)
     ctx.stroke()
-    // sandbags along the crest — a low-HP wall reads as gaps toward the right
+    // Stitched sandbags along the crest — a low-HP wall reads as gaps toward the right.
+    // Uneven seams and a paper rim keep the large desktop foreground from reading
+    // as a row of UI rectangles.
     const hpFrac = clamp01(s.barricadeHp / BARRICADE_MAX_HP)
     const bags = 7
     const bw = w / bags
@@ -133,7 +134,28 @@ function drawParapet(ctx: CanvasRenderingContext2D, lay: Layout, s: SimState): v
         if (i / bags > hpFrac + 0.1) continue // breached section
         const bx = (i + 0.5) * bw
         const by = crest - 4 + Math.sin(i * 1.7) * 3
-        inkRect(ctx, bx - bw * 0.42, by, bw * 0.84, fieldH * 0.055, i % 2 ? "#2a2140" : "#241a38", 2.5)
+        const left = bx - bw * 0.43
+        const right = bx + bw * 0.43
+        const bagH = fieldH * 0.058
+        ctx.beginPath()
+        ctx.moveTo(left + bw * 0.07, by + bagH * 0.15)
+        ctx.quadraticCurveTo(bx, by - bagH * 0.16, right - bw * 0.06, by + bagH * 0.12)
+        ctx.lineTo(right, by + bagH * 0.78)
+        ctx.quadraticCurveTo(bx, by + bagH * 1.13, left, by + bagH * 0.8)
+        ctx.closePath()
+        inkFill(ctx, i % 2 ? "#2a2140" : "#241a38", 2.5)
+        ctx.strokeStyle = "rgba(239,231,212,0.35)"
+        ctx.lineWidth = 1.2
+        ctx.beginPath()
+        ctx.moveTo(left + bw * 0.1, by + bagH * 0.2)
+        ctx.quadraticCurveTo(bx, by + bagH * 0.04, right - bw * 0.1, by + bagH * 0.19)
+        ctx.stroke()
+        ctx.beginPath()
+        ctx.moveTo(bx - bw * 0.06, by + bagH * 0.38)
+        ctx.lineTo(bx + bw * 0.06, by + bagH * 0.72)
+        ctx.moveTo(bx + bw * 0.06, by + bagH * 0.38)
+        ctx.lineTo(bx - bw * 0.06, by + bagH * 0.72)
+        ctx.stroke()
     }
     // a strand of barbed wire above the crest
     ctx.strokeStyle = "rgba(239,231,212,0.28)"
@@ -163,6 +185,21 @@ function drawParapetBust(ctx: CanvasRenderingContext2D, cx: number, baseY: numbe
     ctx.quadraticCurveTo(x + s * 0.58, y + s * 0.06, x + s * 0.6, baseY + s * 0.55)
     ctx.closePath()
     inkFill(ctx, VERMILION, 3.5)
+    // Two cut-paper lapels break up the red mass and give the bust a torso.
+    ctx.beginPath()
+    ctx.moveTo(x - s * 0.26, y - s * 0.02)
+    ctx.lineTo(x - s * 0.06, y + s * 0.43)
+    ctx.lineTo(x - s * 0.34, y + s * 0.3)
+    ctx.closePath()
+    inkFill(ctx, "#a72e2b", 2)
+    ctx.beginPath()
+    ctx.moveTo(x + s * 0.26, y - s * 0.02)
+    ctx.lineTo(x + s * 0.06, y + s * 0.43)
+    ctx.lineTo(x + s * 0.34, y + s * 0.3)
+    ctx.closePath()
+    inkFill(ctx, "#b93930", 2)
+    ctx.fillStyle = PAPER
+    ctx.fillRect(x - s * 0.035, y + s * 0.1, s * 0.07, s * 0.24)
     // head
     inkCircle(ctx, x, y - s * 0.28, s * 0.26, OCHRE, 3.5)
     // bandana (tricolore blue)
@@ -173,14 +210,48 @@ function drawParapetBust(ctx: CanvasRenderingContext2D, cx: number, baseY: numbe
     ctx.quadraticCurveTo(x, y - s * 0.38, x - s * 0.26, y - s * 0.26)
     ctx.closePath()
     inkFill(ctx, "#2b49a0", 2.5)
-    // eyes
+    // A tied bandana tail, strong brows and a few ink marks give the front bust
+    // expression at both phone size and the larger desktop scale.
+    ctx.beginPath()
+    ctx.moveTo(x + s * 0.22, y - s * 0.3)
+    ctx.lineTo(x + s * 0.38, y - s * 0.23)
+    ctx.lineTo(x + s * 0.31, y - s * 0.1)
+    ctx.closePath()
+    inkFill(ctx, "#2b49a0", 2)
+    ctx.strokeStyle = INK
+    ctx.lineWidth = Math.max(1.5, s * 0.028)
+    ctx.beginPath()
+    ctx.moveTo(x - s * 0.16, y - s * 0.29)
+    ctx.lineTo(x - s * 0.05, y - s * 0.31)
+    ctx.moveTo(x + s * 0.05, y - s * 0.31)
+    ctx.lineTo(x + s * 0.16, y - s * 0.29)
+    ctx.stroke()
+    // eyes, nose and a determined mouth
     ctx.fillStyle = INK
     ctx.beginPath()
     ctx.arc(x - s * 0.1, y - s * 0.24, s * 0.03, 0, TAU)
     ctx.arc(x + s * 0.1, y - s * 0.24, s * 0.03, 0, TAU)
     ctx.fill()
+    ctx.strokeStyle = INK
+    ctx.lineWidth = Math.max(1, s * 0.015)
+    ctx.beginPath()
+    ctx.moveTo(x, y - s * 0.19)
+    ctx.lineTo(x - s * 0.015, y - s * 0.12)
+    ctx.lineTo(x + s * 0.035, y - s * 0.11)
+    ctx.moveTo(x - s * 0.08, y - s * 0.045)
+    ctx.quadraticCurveTo(x, y - s * 0.02, x + s * 0.08, y - s * 0.05)
+    ctx.stroke()
     // a raised fist beside the shoulder
-    inkRect(ctx, x + s * 0.42, y + s * 0.02, s * 0.18, s * 0.18, OCHRE, 2.5)
+    inkRect(ctx, x + s * 0.43, y + s * 0.17, s * 0.12, s * 0.22, VERMILION, 2.5)
+    inkRect(ctx, x + s * 0.39, y - s * 0.01, s * 0.2, s * 0.2, OCHRE, 2.5)
+    ctx.strokeStyle = INK
+    ctx.lineWidth = Math.max(1, s * 0.012)
+    for (let i = 1; i < 4; i++) {
+        ctx.beginPath()
+        ctx.moveTo(x + s * (0.39 + 0.05 * i), y - s * 0.005)
+        ctx.lineTo(x + s * (0.39 + 0.05 * i), y + s * 0.075)
+        ctx.stroke()
+    }
 }
 
 // ── HUD (compact — the 2.5D arm keeps chrome minimal so the scene reads) ──────
@@ -226,8 +297,32 @@ function drawHud25d(ctx: CanvasRenderingContext2D, lay: Layout, s: SimState): vo
     ctx.fillRect(barX + barW * 0.4, hudH * 0.74, barW * 0.6 * clamp01(s.rallyMeter / RALLY_FULL), hudH * 0.1)
 }
 
+/** A screen-printed title plate fills the calm ready state before the first wave. */
+function drawReadyPlate(ctx: CanvasRenderingContext2D, lay: Layout): void {
+    const { w, hudH, fieldH } = lay
+    const x = w * 0.085
+    const top = hudH + fieldH * 0.36
+    const headline = Math.min(w * 0.072, fieldH * 0.12)
+    ctx.save()
+    ctx.textBaseline = "alphabetic"
+    ctx.font = `900 ${Math.floor(headline)}px "JetBrains Mono", ui-monospace, monospace`
+    ctx.fillStyle = "#2b49a0"
+    ctx.fillText("HOLD THE", x + 4, top + 4)
+    ctx.fillText("LINE.", x + 4, top + headline * 1.05 + 4)
+    ctx.fillStyle = PAPER
+    ctx.fillText("HOLD THE", x, top)
+    ctx.fillStyle = VERMILION
+    ctx.fillText("LINE.", x, top + headline * 1.05)
+    ctx.fillStyle = OCHRE
+    ctx.fillRect(x, top + headline * 1.27, Math.min(w * 0.37, headline * 7), 3)
+    ctx.font = `700 ${Math.max(11, Math.floor(headline * 0.24))}px "JetBrains Mono", ui-monospace, monospace`
+    ctx.fillStyle = PAPER
+    ctx.fillText(`${WAVE_TOTAL} WAVES  /  ONE WALL`, x, top + headline * 1.66)
+    ctx.restore()
+}
+
 // ── The main 2.5D pass ────────────────────────────────────────────────────────
-export function draw25d(ctx: CanvasRenderingContext2D, s: SimState, view: ViewSize, fx?: FxState, interp?: Map<number, number>): void {
+export function draw25d(ctx: CanvasRenderingContext2D, s: SimState, view: ViewSize, fx?: FxState, interp?: Map<number, number>, showReadyPlate = false): void {
     const { width: w, height: h } = view
     const lay = layout(w, h)
     const { hudH, fieldH, laneW } = lay
@@ -413,6 +508,8 @@ export function draw25d(ctx: CanvasRenderingContext2D, s: SimState, view: ViewSi
     }
 
     ctx.restore() // end shaken field group
+
+    if (showReadyPlate) drawReadyPlate(ctx, lay)
 
     // ── parapet foreground + hero bust (the defining 2.5D framing) ──
     drawParapet(ctx, lay, s)

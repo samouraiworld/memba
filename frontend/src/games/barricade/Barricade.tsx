@@ -45,9 +45,9 @@ const Barricade3D = lazy(() => import("./render/three/Barricade3D"))
 const CW = 390
 const CH = 650
 
-// Phase-0 bake-off: the throwaway 2.5D comparator renderer (arm A). Chosen ONCE at
-// module load from the flag or a runtime ?r25d=1 / localStorage override; the shipped
-// 2D path is the default everyone sees. Render-only — the sim is untouched either way.
+// Phase-0 bake-off: the 2.5D comparator renderer (arm A). The desktop front-line
+// view is the default; compact screens retain the 2D fallback until the owner has
+// compared them on a physical phone. Explicit URL/localStorage overrides still win.
 function resolve25dRenderer(): boolean {
     // An explicit ?r25d / localStorage override wins over the env flag (deliberate
     // opt-in/out on prod, and so a side-by-side A/B is one URL apart).
@@ -63,7 +63,9 @@ function resolve25dRenderer(): boolean {
             /* privacy mode / no window — fall through to the flag */
         }
     }
-    return isBarricade25DEnabled()
+    return isBarricade25DEnabled() || (typeof window !== "undefined" &&
+        typeof window.matchMedia === "function" &&
+        window.matchMedia("(min-width: 769px) and (min-height: 600px)").matches)
 }
 const RENDER_25D = resolve25dRenderer()
 
@@ -106,10 +108,10 @@ function prefersReducedMotion(): boolean {
 }
 
 /** Size the backing store to device pixels (crisp on retina) and draw in CSS px. */
-function prepCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): void {
+function prepCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D, view: { width: number; height: number }): void {
     const dpr = Math.min(2, (typeof window !== "undefined" && window.devicePixelRatio) || 1)
-    const bw = Math.round(CW * dpr)
-    const bh = Math.round(CH * dpr)
+    const bw = Math.round(view.width * dpr)
+    const bh = Math.round(view.height * dpr)
     if (canvas.width !== bw || canvas.height !== bh) {
         canvas.width = bw
         canvas.height = bh
@@ -118,8 +120,10 @@ function prepCanvas(canvas: HTMLCanvasElement, ctx: CanvasRenderingContext2D): v
 }
 
 export default function Barricade() {
+    const shellRef = useRef<HTMLDivElement | null>(null)
     const canvasRef = useRef<HTMLCanvasElement | null>(null)
     const stageRef = useRef<HTMLDivElement | null>(null)
+    const viewRef = useRef({ width: CW, height: CH })
     const resultHeadingRef = useRef<HTMLHeadingElement | null>(null)
     const stateRef = useRef<SimState>(initState("idle"))
     const wavesRef = useRef<WaveScript[]>(buildWaves("idle"))
@@ -136,6 +140,9 @@ export default function Barricade() {
     const audioRef = useRef<GameAudio | null>(null)
 
     const [status, setStatus] = useState<RunStatus>("ready")
+    const [canFullscreen, setCanFullscreen] = useState(false)
+    const [isFullscreen, setIsFullscreen] = useState(false)
+    const [fullscreenError, setFullscreenError] = useState("")
     const [isDaily, setIsDaily] = useState(true)
     const [muted, setMuted] = useState(true)
     const [copied, setCopied] = useState(false)
@@ -166,6 +173,53 @@ export default function Barricade() {
     useEffect(() => {
         audioRef.current?.setMuted(muted || status === "paused")
     }, [muted, status])
+
+    useEffect(() => {
+        const canvas = canvasRef.current
+        if (!canvas) return
+        const updateSize = (width: number, height: number) => {
+            if (width > 0 && height > 0) {
+                viewRef.current = { width: Math.round(width), height: Math.round(height) }
+                if (status === "paused") {
+                    const ctx = canvas.getContext("2d")
+                    if (ctx) {
+                        prepCanvas(canvas, ctx, viewRef.current)
+                        if (RENDER_25D) draw25d(ctx, stateRef.current, viewRef.current, fxRef.current)
+                        else draw(ctx, stateRef.current, viewRef.current, fxRef.current)
+                    }
+                }
+            }
+        }
+        updateSize(canvas.clientWidth, canvas.clientHeight)
+        if (typeof ResizeObserver === "undefined") return
+        const observer = new ResizeObserver(([entry]) => {
+            updateSize(entry.contentRect.width, entry.contentRect.height)
+        })
+        observer.observe(canvas)
+        return () => observer.disconnect()
+    }, [status])
+
+    useEffect(() => {
+        setCanFullscreen(Boolean(shellRef.current?.requestFullscreen && document.fullscreenEnabled))
+        const onFullscreenChange = () => {
+            setIsFullscreen(document.fullscreenElement === shellRef.current)
+            setFullscreenError("")
+        }
+        document.addEventListener("fullscreenchange", onFullscreenChange)
+        return () => document.removeEventListener("fullscreenchange", onFullscreenChange)
+    }, [])
+
+    const toggleFullscreen = useCallback(async () => {
+        const shell = shellRef.current
+        if (!shell) return
+        try {
+            if (document.fullscreenElement === shell) await document.exitFullscreen()
+            else await shell.requestFullscreen()
+            if (status === "playing") stageRef.current?.focus()
+        } catch {
+            setFullscreenError("Fullscreen could not start in this browser.")
+        }
+    }, [status])
 
     useEffect(() => {
         const pauseIfPlaying = () => setStatus((current) => current === "playing" ? "paused" : current)
@@ -260,9 +314,10 @@ export default function Barricade() {
         (alpha: number) => {
             const s = stateRef.current
             const fx = fxRef.current
+            const view = viewRef.current
             const events = deriveFxEvents(prevStateRef.current, s)
             if (events.length > 0) {
-                const lay = layout(CW, CH)
+                const lay = layout(view.width, view.height)
                 const audio = audioRef.current
                 // Fold events one at a time so the audio pitch reads the combo AS OF
                 // each kill (a batch would replay the final pitch for the whole frame).
@@ -283,13 +338,13 @@ export default function Barricade() {
             const canvas = canvasRef.current
             const ctx = canvas?.getContext("2d")
             if (!canvas || !ctx) return
-            prepCanvas(canvas, ctx)
+            prepCanvas(canvas, ctx, view)
             // Smooth enemy motion between fixed 60Hz ticks — render-only, so the sim
             // and its replay are untouched. tickPrevRef is the state one tick back;
             // alpha is this frame's fraction of the way to the current tick.
             const interp = interpPositions(tickPrevRef.current, s, alpha)
-            if (RENDER_25D) draw25d(ctx, s, { width: CW, height: CH }, fx, interp)
-            else draw(ctx, s, { width: CW, height: CH }, fx, interp)
+            if (RENDER_25D) draw25d(ctx, s, view, fx, interp)
+            else draw(ctx, s, view, fx, interp)
             prevStateRef.current = s
         },
         [snapStore],
@@ -305,11 +360,17 @@ export default function Barricade() {
         const ctx = canvas?.getContext("2d")
         if (!canvas || !ctx) return
         const rm = prefersReducedMotion()
+        const idle = initState("idle")
         const t0 = performance.now()
         let raf = 0
         const paint = (now: number) => {
-            prepCanvas(canvas, ctx)
-            drawAttract(ctx, { width: CW, height: CH }, (now - t0) / 1000, rm)
+            const view = viewRef.current
+            prepCanvas(canvas, ctx, view)
+            if (RENDER_25D) {
+                draw25d(ctx, { ...idle, tick: Math.floor((now - t0) / 16) }, view, undefined, undefined, true)
+            } else {
+                drawAttract(ctx, view, (now - t0) / 1000, rm)
+            }
             raf = requestAnimationFrame(paint)
         }
         raf = requestAnimationFrame(paint)
@@ -334,8 +395,9 @@ export default function Barricade() {
             if (armed) {
                 // Tap-to-lob: the tap's y is the target distance up the lane
                 // (top = spawn end, bottom = barricade). One throw, then disarm.
-                const lay = layout(CW, CH)
-                const canvasY = ((e.clientY - rect.top) / rect.height) * CH
+                const view = viewRef.current
+                const lay = layout(view.width, view.height)
+                const canvasY = ((e.clientY - rect.top) / rect.height) * view.height
                 const dist = Math.round(Math.max(0, Math.min(1, (canvasY - lay.hudH) / lay.fieldH)) * LANE_LENGTH)
                 record({ type: "throw", lane, dist })
                 setArmed(false)
@@ -460,14 +522,34 @@ export default function Barricade() {
     }, [result])
 
     return (
-        <div className={`bar-shell${status === "done" ? " bar-shell--done" : ""}`}>
-            <Link className="bar-exit" to="../.." relative="path">Exit game</Link>
+        <div
+            ref={shellRef}
+            className={`bar-shell${status === "done" ? " bar-shell--done" : ""}`}
+            data-renderer={RENDER_3D ? "3d" : RENDER_25D ? "2.5d" : "2d"}
+        >
+            <Link className="bar-exit bar-exit--compact" to="../.." relative="path">Exit game</Link>
             <header className="bar-wordmark">
-                <span className="bar-eyebrow">Daily run · Season 0</span>
-                <h1 className="bar-title">
-                    MEMBA: <span className="bar-title__accent">BARRICADE</span>
-                </h1>
+                <div className="bar-wordmark__name">
+                    <span className="bar-eyebrow">Daily run · Season 0</span>
+                    <h1 className="bar-title">
+                        MEMBA: <span className="bar-title__accent">BARRICADE</span>
+                    </h1>
+                </div>
+                <div className="bar-wordmark__actions">
+                    <Link className="bar-exit bar-exit--desktop" to="../.." relative="path">Exit game</Link>
+                    {canFullscreen && (
+                        <button
+                            type="button"
+                            className="bar-fullscreen"
+                            aria-pressed={isFullscreen}
+                            onClick={toggleFullscreen}
+                        >
+                            {isFullscreen ? "Exit fullscreen" : "Fullscreen"}
+                        </button>
+                    )}
+                </div>
             </header>
+            {fullscreenError && <p className="bar-fullscreen-error" role="alert">{fullscreenError}</p>}
 
             <p id="bar-game-controls" className="bar-sr-only">
                 Focus the playfield. Use left and right arrows or 1, 2, 3 to move lanes. R rallies, M aims a molotov, S shoves, and P pauses. While aiming, use arrows to choose lane and range, then Enter to throw.
@@ -550,10 +632,9 @@ export default function Barricade() {
                         <button className="k-btn-secondary" onClick={() => start(false)}>Practice</button>
                     </div>
                     <p className="bar-hint">
-                        Hold the line to the Broadcast Tower — {WAVE_TOTAL} waves. Tap a lane to move your
-                        rebel; kills fill the rally meter; between waves the shop opens — repairs cost
-                        scrap now (one free patch a run), and it also sells turrets, crowd arms, and
-                        molotov refills. Same daily seed for everyone.
+                        Hold the wall for {WAVE_TOTAL} waves. Tap a lane to move, defeat machines to fill
+                        Rally, then spend scrap on repairs and upgrades between waves. Everyone gets the
+                        same daily seed. Practice runs do not count.
                     </p>
                 </div>
             )}
