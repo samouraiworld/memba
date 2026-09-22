@@ -25,6 +25,9 @@ Full changelogs are split by version range for easier navigation:
 - Pause a run when the page loses focus; keep the result date tied to the actual run and label a submitted score as pending attestation until it is written on-chain.
 - Keep all between-wave choices on the battlefield and show the finished-run poster without requiring a phone scroll.
 
+### Mainnet submission source for Directory
+- Add a bounded, cached read of recent successful package submissions from the official gno.land indexer. Each response identifies its checked block window; a transaction does not establish package activation.
+
 ### Explorer function read states
 - Distinguish a failed function read from a realm with no exported functions, offer Retry, and label names recovered from source when signatures cannot be verified.
 

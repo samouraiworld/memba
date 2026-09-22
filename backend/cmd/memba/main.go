@@ -385,6 +385,8 @@ func main() {
 	// Recent-activity feed: forwards GraphQL to the FIXED gno tx-indexer server-side
 	// (the browser can't reach it — no CORS). Target is not client-controlled.
 	mux.Handle("/api/indexer", rateLimitMiddleware("indexer", service.HandleIndexerProxy()))
+	// Fixed, bounded gnoland-1 package-submission read for the Directory.
+	mux.Handle("/api/directory/recent-submissions", rateLimitMiddleware("recent_submissions", service.HandleRecentSubmissions()))
 	// Token launch dates: server-side cached {symbol: launchedAtISO} map. The
 	// creation-time scan is too slow for the browser (exceeds the 10s indexer
 	// proxy timeout), so it's computed + cached here and refreshed in background.
