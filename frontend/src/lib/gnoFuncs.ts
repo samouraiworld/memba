@@ -83,6 +83,9 @@ export function parseQfuncs(raw: string): GnoFunc[] {
     } catch {
         throw new Error("Malformed qfuncs JSON")
     }
+    // Gno marshals a nil FunctionSignatures slice as JSON null when no
+    // exported functions exist. That is an authoritative empty result.
+    if (parsed === null) return []
     if (!Array.isArray(parsed)) throw new Error("Malformed qfuncs response")
     const out: GnoFunc[] = []
     for (const entry of parsed) {

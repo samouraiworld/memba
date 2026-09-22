@@ -59,6 +59,25 @@ it("offers retry instead of claiming no functions when qfuncs fails without a so
     expect(await screen.findByText("Recovered()")).toBeInTheDocument()
 })
 
+it("warns and offers retry when a refresh fails but cached signatures remain", async () => {
+    const first = [{ name: "Read", params: [{ name: "n", type: "int" }], results: [] }]
+    const recovered = [{ name: "Read", params: [{ name: "n", type: "string" }], results: [] }]
+    vi.mocked(fetchRealmFuncs).mockResolvedValueOnce(first).mockRejectedValueOnce(new Error("offline")).mockResolvedValueOnce(recovered)
+    vi.mocked(fetchRealmSourceSmart).mockResolvedValue({ files: [], functions: [], imports: [] })
+    const { client } = show("r/demo/cached")
+    fireEvent.click(screen.getByRole("tab", { name: "Functions" }))
+    expect(await screen.findByText("Read(n int)")).toBeInTheDocument()
+
+    await act(async () => { await client.refetchQueries({ predicate: query => query.queryKey[0] === "realm" && query.queryKey[1] === "functions" }) })
+    expect(fetchRealmFuncs).toHaveBeenCalledTimes(2)
+    expect(client.getQueryCache().findAll({ predicate: query => query.queryKey[1] === "functions" })[0]?.state.status).toBe("error")
+    expect(screen.getByText("Read(n int)")).toBeInTheDocument()
+    expect(await screen.findByText(/Could not refresh functions; showing previously loaded signatures/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole("button", { name: "Retry functions" }))
+    expect(await screen.findByText("Read(n string)")).toBeInTheDocument()
+    expect(screen.queryByText(/Could not refresh functions/)).not.toBeInTheDocument()
+})
+
 it("keeps the current realm's functions when an older request settles later", async () => {
     let resolveOld!: (value: { name: string; params: []; results: [] }[]) => void
     const older = new Promise<{ name: string; params: []; results: [] }[]>(resolve => { resolveOld = resolve })

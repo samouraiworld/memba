@@ -220,11 +220,15 @@ function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
                         <p className="realmview__muted">Loading functions…</p>
                     ) : fnList.length > 0 ? (
                         <>
+                            {funcsQuery.isError && (
+                                <p className="realmview__muted" role="status">
+                                    {funcs?.length ? "Could not refresh functions; showing previously loaded signatures." : "Function query unavailable."}
+                                    {" "}<button className="explorer__go" onClick={() => void funcsQuery.refetch()}>Retry functions</button>
+                                </p>
+                            )}
                             {usingSourceNames && (
                                 <p className="realmview__muted" role="status">
-                                    {funcsQuery.isError && "Function query unavailable. "}
                                     Function names from source; signatures unavailable.
-                                    {funcsQuery.isError && <> <button className="explorer__go" onClick={() => void funcsQuery.refetch()}>Retry functions</button></>}
                                 </p>
                             )}
                             <ul className="realmview__funcs">

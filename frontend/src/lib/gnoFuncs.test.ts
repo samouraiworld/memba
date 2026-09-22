@@ -65,6 +65,7 @@ describe("parseQfuncs", () => {
         expect(() => parseQfuncs('[{"Params":[]}]')).toThrow()
         expect(() => parseQfuncs('[{"FuncName":"A","Params":{}}]')).toThrow()
         expect(parseQfuncs("[]")).toEqual([])
+        expect(parseQfuncs("null")).toEqual([])
     })
 
     it("cleans `.uverse.` qualifiers on bare params/results end-to-end", () => {
@@ -94,6 +95,8 @@ describe("fetchRealmFuncs", () => {
     it("treats a successful empty response as no functions", async () => {
         read.mockResolvedValueOnce({ kind: "empty" })
         await expect(fetchRealmFuncs("r/demo/empty")).resolves.toEqual([])
+        read.mockResolvedValueOnce({ kind: "ok", text: "null" })
+        await expect(fetchRealmFuncs("r/demo/nil-slice")).resolves.toEqual([])
     })
 
     it("rejects ABCI, transport and malformed replies so the UI can retry", async () => {
