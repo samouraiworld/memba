@@ -87,6 +87,8 @@ interface Pin {
 }
 
 const ALLOWLIST: Pin[] = [
+    { file: "lib/ecosystemDirectory.ts", allow: ["mainnet", "staging"], why: "Editorial evidence and fixed external realm destinations; not runtime defaults, capability eligibility or backend network pins." },
+    { file: "components/appstore/EcosystemDirectory.tsx", allow: ["mainnet"], why: "Availability filter option only; does not switch Memba's selected network." },
     { file: "lib/dao/weighted.ts", allow: ["gnoland-1"], why: "Unconditional mainnet write hold for the founding weighted DAO; does not select a default network." },
     { file: "pages/WeightedDAO.tsx", allow: ["gnoland-1"], why: "Read-only mainnet governance UI until launch verification; reads use the URL-selected network." },
     {

@@ -11,7 +11,7 @@
 .ecosystem-app__top { display: flex; align-items: center; gap: 12px; color: var(--color-text-secondary); font-size: 13px; }
 .ecosystem-app__top > svg { margin-left: auto; flex-shrink: 0; }
 .ecosystem-app__icon { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border: 1px solid var(--color-border); border-radius: 12px; color: var(--color-k-accent-text); flex-shrink: 0; }
-.ecosystem-app h3 { font-size: 21px; font-weight: 600; margin: 24px 0 10px; }
+.ecosystem-app h2 { font-size: 21px; font-weight: 600; margin: 24px 0 10px; }
 .ecosystem-app > p { font-size: 14px; color: var(--color-text-secondary); line-height: 1.6; margin: 0 0 28px; }
 .ecosystem-app__footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 18px; border-top: 1px solid var(--color-border); font-size: 12px; color: var(--color-text-secondary); }
 .ecosystem-app__footer > span:first-child { color: var(--color-k-accent-text); }
@@ -22,3 +22,17 @@
 @media (max-width: 1150px) { .ecosystem-directory__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 650px) { .ecosystem-directory__grid { grid-template-columns: 1fr; } .ecosystem-app { padding: 20px; } }
 @media (prefers-reduced-motion: reduce) { .ecosystem-app { transition: none; } }
+
+.ecosystem-directory__filters { display: flex; flex-wrap: wrap; align-items: end; gap: 14px; }
+.ecosystem-directory__filters label { display: flex; flex-direction: column; flex: 1 1 160px; gap: 8px; font-size: 14px; min-width: 0; }
+.ecosystem-directory__filters label:first-child { flex-basis: 260px; }
+.ecosystem-directory__filters input, .ecosystem-directory__filters select, .ecosystem-directory__filters button { min-height: 44px; min-width: 0; max-width: 100%; border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-bg-card); color: var(--color-text); padding: 10px 12px; font: inherit; }
+.ecosystem-directory__filters button { cursor: pointer; }
+.ecosystem-directory__count { color: var(--color-text-secondary); font-size: 14px; margin: 20px 0; }
+.ecosystem-app__links { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 20px; }
+.ecosystem-app__links a { display: inline-flex; align-items: center; gap: 6px; min-height: 44px; color: var(--color-k-accent-text); text-underline-offset: 3px; font-size: 14px; }
+.ecosystem-app__links a:first-child { flex-basis: 100%; font-weight: 600; }
+.ecosystem-app > .ecosystem-app__availability { margin-bottom: 12px; }
+.ecosystem-app > .ecosystem-app__checked { font-size: 12px; margin: 12px 0 0; }
+.ecosystem-app__footer span { overflow-wrap: anywhere; }
+.ecosystem-directory :is(a, input, select, button):focus-visible { outline: 2px solid var(--color-k-accent-text); outline-offset: 3px; }

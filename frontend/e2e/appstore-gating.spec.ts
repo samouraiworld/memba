@@ -27,7 +27,7 @@ test.describe('App Store gating (VITE_ENABLE_APPSTORE=false)', () => {
         const network = await resolveNetwork(page)
         await page.goto(`/${network}/apps`, { waitUntil: 'domcontentloaded' })
         await expect(page.getByRole('heading', { name: 'App Store', exact: true })).toBeVisible()
-        for (const name of ['Adena', 'GnoSwap', 'Boards', 'Akkadia', 'GnoScan', 'Gno Playground']) {
+        for (const name of ['Adena', 'GnoSwap', 'Boards', 'Akkadia', 'GnoScan', 'Gno Playground', 'mygnoscan']) {
             await expect(page.getByRole('link', { name: `Visit ${name} (opens in a new tab)` })).toBeVisible()
         }
         await expect(page.getByTestId('appstore-root')).toHaveCount(0)

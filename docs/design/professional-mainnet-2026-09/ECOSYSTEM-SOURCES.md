@@ -1,16 +1,19 @@
 # App Store ecosystem directory
 
-Reviewed 2026-09-15. These six editorial links are distinct from the on-chain App Store registry. They do not create realm registrations, bypass curation, borrow registry verification badges, or assert that an app is deployed on the network selected in Memba. External destinations open in a new tab with `noopener noreferrer`.
+Checked 2026-09-22. These seven editorial projects are separate from on-chain listings, review scores and Memba realm eligibility. External links open in a new tab with `noopener noreferrer`. Network evidence describes read access or a network selector, never successful transactions.
 
-| Project | Destination | Basis for inclusion / label |
+| Project | Canonical destination | Evidence and limits |
 |---|---|---|
-| Adena | https://adena.app/ | Gno browser wallet; [official Gno wallet documentation](https://docs.gno.land/users/third-party-wallets/) |
-| GnoSwap | https://beta.gnoswap.io/ | Beta destination linked by [NewTendermint’s ecosystem directory](https://newtendermint.org/); [project documentation](https://docs.gnoswap.io/) describes the exchange |
-| Boards | https://gno.land/r/gnoland/boards2/v0 | Working destination linked by the [Gno home page](https://gno.land/). The alternative `boards2/v1:OpenDiscussions` link in the NewTendermint directory returned 404 and is not used. |
-| Akkadia | https://abp.akkadia.land/ | Official builder-preview landing page. Labelled **Builder preview**, not a generally available mainnet game. |
-| GnoScan | https://gnoscan.io/ | Project explorer and [NewTendermint ecosystem listing](https://newtendermint.org/) |
-| Gno Playground | https://play.gno.land/ | Browser development environment linked by the [Gno home page](https://gno.land/) |
+| Adena | https://www.adena.app/ | [Official Gno documentation](https://docs.gno.land/users/third-party-wallets/) identifies the browser wallet. adena.app redirects here. External tool; no installed-release network matrix was verified. |
+| GnoSwap | https://gnoswap.io/ | beta.gnoswap.io now redirects here. Live application links [core realm source](https://github.com/gnoswap-labs/gnoswap). Network remains unverified; the old Beta label is removed. |
+| Boards | https://gno.land/r/gnoland/boards2/v0 | Realm and [$source](https://gno.land/r/gnoland/boards2/v0$source) return 200 with `gnoconnect:chainid=gnoland-1`. v1 returns 404 on this chain. Fixed mainnet links do not inherit Memba's selected network. |
+| Akkadia | https://abp.akkadia.land/ | Project identifies a builder preview. Network not verified; no general mainnet availability claim. |
+| GnoScan | https://gnoscan.io/ | The project UI offers Mainnet, Staging and custom network choices. Link opens the explorer root; visitor selects its network. No guessed realm deep-link format. |
+| Gno Playground | https://play.gno.land/ | Reachable browser workspace. Sandbox/tool, no chain-deployment claim. |
+| mygnoscan | https://mygnoscan.moul.p2p.team/storage?network=mainnet | Browser shows mainnet selected and live block 236,314 at inspection. Footer links [source](https://github.com/gnoverse/mygnoscan) and attributes indexed data. External link only; no data ingestion or authoritative deployment-pricing claim. |
 
-All six destinations returned HTTP 200 with certificate verification enabled on this date. Reachability is not a security endorsement or a guarantee that every app operation is available. Recheck destination, release status and descriptions when projects change their URLs or availability.
+All seven destinations returned HTTPS 200 after redirects with certificate verification enabled. Public source repositories for GnoSwap and mygnoscan were also verified through GitHub. Reachability is distinct from network availability and endorsement. Recheck destinations and evidence before editing availability claims.
 
-The directory remains public when the registry flag is off. `/apps/submit`, `/apps/review`, `/apps/my-submissions` and registry detail routes retain their existing gates. Registry fetches, moderation and review scores remain separate from this static directory.
+`lib/ecosystemDirectory.ts` records project identity, category, maturity, explicit network evidence, check date and optional verified realm/source links. The availability filter keeps tools and unknown app networks distinct; All remains the default. Search and facets use bounded URL parameters. No remote lookup is needed to browse the editorial catalog.
+
+The public index remains available when the registry flag is off **or** the exact configured registry path is ineligible on the selected network. Nested detail, publishing, submission and curation routes retain that same boundary. This consumes existing `isRealmValidOn` policy; it does not change flags, allowlists or publication records. On an eligible network the existing registry remains available when enabled.

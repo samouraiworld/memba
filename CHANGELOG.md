@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Ecosystem discovery (2026-09-22)
+- Add searchable editorial projects, availability filters, checked realm/source links and mygnoscan's mainnet view.
+- Keep ecosystem browsing public while requiring existing network eligibility before mounting the App Store registry.
+
 ### Mainnet release evidence
 - Correct the documented default network and separate frontend candidates, published artifacts, fixture checks and real wallet verification.
 ### Fixed — first DAO governance journey (2026-09-21)
