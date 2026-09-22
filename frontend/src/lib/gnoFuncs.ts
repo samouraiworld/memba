@@ -10,7 +10,7 @@
  * @module lib/gnoFuncs
  */
 
-import { resilientAbciQuery } from "./rpcFallback"
+import { resilientAbciQueryDetailed } from "./rpcFallback"
 
 export interface GnoParam {
     name: string
@@ -54,40 +54,42 @@ export function resolveFnList(qfuncs: GnoFunc[] | null, sourceExportedNames: str
 }
 
 function toParams(list: unknown): GnoParam[] {
-    if (!Array.isArray(list)) return []
+    if (list == null) return []
+    if (!Array.isArray(list)) throw new Error("Malformed qfuncs parameters")
     return list
-        .filter((p): p is Record<string, unknown> => !!p && typeof p === "object")
         .map((p) => {
+            if (!p || typeof p !== "object" || typeof p.Type !== "string") {
+                throw new Error("Malformed qfuncs parameter")
+            }
             // Unnamed results come back with internal gno names like ".res.0" —
             // treat those as unnamed so the signature shows just the type.
             const rawName = typeof p.Name === "string" ? p.Name : ""
             return {
                 name: rawName.startsWith(".") ? "" : rawName,
-                type: simplifyType(typeof p.Type === "string" ? p.Type : ""),
+                type: simplifyType(p.Type),
             }
         })
 }
 
 /**
- * Parse a raw `vm/qfuncs` JSON payload into GnoFunc[]. Defensive: any malformed
- * or non-array input yields an empty list (never throws), so a realm that isn't
- * found / returns an error simply shows no functions.
+ * Parse a successful `vm/qfuncs` JSON payload. A valid [] is genuinely empty;
+ * malformed replies must fail so the Explorer can offer retry instead of
+ * claiming the realm has no functions.
  */
-export function parseQfuncs(raw: string | null): GnoFunc[] {
-    if (!raw) return []
+export function parseQfuncs(raw: string): GnoFunc[] {
     let parsed: unknown
     try {
         parsed = JSON.parse(raw)
     } catch {
-        return []
+        throw new Error("Malformed qfuncs JSON")
     }
-    if (!Array.isArray(parsed)) return []
+    if (!Array.isArray(parsed)) throw new Error("Malformed qfuncs response")
     const out: GnoFunc[] = []
     for (const entry of parsed) {
-        if (!entry || typeof entry !== "object") continue
+        if (!entry || typeof entry !== "object") throw new Error("Malformed qfuncs entry")
         const rec = entry as Record<string, unknown>
         const name = typeof rec.FuncName === "string" ? rec.FuncName : ""
-        if (!name) continue
+        if (!name) throw new Error("Malformed qfuncs function name")
         out.push({ name, params: toParams(rec.Params), results: toParams(rec.Results) })
     }
     return out
@@ -105,12 +107,16 @@ export function formatSignature(fn: GnoFunc): string {
 
 /**
  * Normalize a realm path (`/r/x/y` or `gno.land/r/x/y`) to the qfuncs pkgpath
- * form and fetch its exported functions. Non-strict — returns [] on any error.
+ * form and fetch its exported functions. Only a successful empty ABCI reply or
+ * valid [] means no functions; query/transport/format errors are left for the
+ * caller's error state and retry action.
  */
 export async function fetchRealmFuncs(realmPath: string): Promise<GnoFunc[]> {
     const pkgPath = realmPath.startsWith("gno.land")
         ? realmPath
         : `gno.land${realmPath.startsWith("/") ? realmPath : `/${realmPath}`}`
-    const raw = await resilientAbciQuery("vm/qfuncs", pkgPath)
-    return parseQfuncs(raw)
+    const result = await resilientAbciQueryDetailed("vm/qfuncs", pkgPath)
+    if (result.kind === "abci-error") throw result.error
+    if (result.kind === "empty") return []
+    return parseQfuncs(result.text)
 }

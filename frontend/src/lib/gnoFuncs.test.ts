@@ -1,5 +1,11 @@
-import { describe, it, expect } from "vitest"
-import { parseQfuncs, simplifyType, resolveFnList, formatSignature, type GnoFunc } from "./gnoFuncs"
+import { describe, it, expect, vi } from "vitest"
+import { parseQfuncs, simplifyType, resolveFnList, formatSignature, fetchRealmFuncs, type GnoFunc } from "./gnoFuncs"
+import { AbciQueryError, resilientAbciQueryDetailed } from "./rpcFallback"
+
+vi.mock("./rpcFallback", async importOriginal => ({
+    ...await importOriginal<typeof import("./rpcFallback")>(),
+    resilientAbciQueryDetailed: vi.fn(),
+}))
 
 // Shape mirrors a real test13 `vm/qfuncs` payload: the interrealm-v2 realm
 // transition param `cur` reports a giant inline interface type.
@@ -53,11 +59,12 @@ describe("parseQfuncs", () => {
         expect(fns[1].results).toEqual([{ name: "", type: "uint64" }])
     })
 
-    it("returns [] for null / malformed / non-array / entries without a name", () => {
-        expect(parseQfuncs(null)).toEqual([])
-        expect(parseQfuncs("not json")).toEqual([])
-        expect(parseQfuncs('{"not":"an array"}')).toEqual([])
-        expect(parseQfuncs('[{"Params":[]}]')).toEqual([]) // no FuncName → skipped
+    it("rejects malformed replies rather than presenting them as no functions", () => {
+        expect(() => parseQfuncs("not json")).toThrow()
+        expect(() => parseQfuncs('{"not":"an array"}')).toThrow()
+        expect(() => parseQfuncs('[{"Params":[]}]')).toThrow()
+        expect(() => parseQfuncs('[{"FuncName":"A","Params":{}}]')).toThrow()
+        expect(parseQfuncs("[]")).toEqual([])
     })
 
     it("cleans `.uverse.` qualifiers on bare params/results end-to-end", () => {
@@ -71,6 +78,31 @@ describe("parseQfuncs", () => {
         const [fn] = parseQfuncs(raw)
         expect(fn.params).toEqual([{ name: "to", type: "address" }])
         expect(fn.results).toEqual([{ name: "", type: "realm" }])
+    })
+})
+
+describe("fetchRealmFuncs", () => {
+    const read = vi.mocked(resilientAbciQueryDetailed)
+
+    it("returns authoritative functions from the exact qfuncs path", async () => {
+        read.mockResolvedValueOnce({ kind: "ok", text: SAMPLE })
+        const funcs = await fetchRealmFuncs("/r/demo/boards")
+        expect(funcs.map(fn => fn.name)).toEqual(["PauseRealm", "CreatePost"])
+        expect(read).toHaveBeenLastCalledWith("vm/qfuncs", "gno.land/r/demo/boards")
+    })
+
+    it("treats a successful empty response as no functions", async () => {
+        read.mockResolvedValueOnce({ kind: "empty" })
+        await expect(fetchRealmFuncs("r/demo/empty")).resolves.toEqual([])
+    })
+
+    it("rejects ABCI, transport and malformed replies so the UI can retry", async () => {
+        read.mockResolvedValueOnce({ kind: "abci-error", error: new AbciQueryError("vm/qfuncs", "missing") })
+        await expect(fetchRealmFuncs("/r/demo/missing")).rejects.toThrow(AbciQueryError)
+        read.mockRejectedValueOnce(new Error("offline"))
+        await expect(fetchRealmFuncs("/r/demo/offline")).rejects.toThrow("offline")
+        read.mockResolvedValueOnce({ kind: "ok", text: "not json" })
+        await expect(fetchRealmFuncs("/r/demo/broken")).rejects.toThrow()
     })
 })
 

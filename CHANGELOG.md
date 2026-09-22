@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Explorer function read states
+- Distinguish a failed function read from a realm with no exported functions, offer Retry, and label names recovered from source when signatures cannot be verified.
+
 ### Discovery request and keyboard behavior
 - Prevent late or cleared preview requests from replacing the current result; add explicit read retries and package source actions.
 - Keep keyboard focus inside detail drawers, restore it on close, and support arrow-key view selection.
