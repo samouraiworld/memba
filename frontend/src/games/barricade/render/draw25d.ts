@@ -34,6 +34,18 @@ const GOLD = "#f5a623"
 const TAU = Math.PI * 2
 const clamp01 = (v: number): number => Math.max(0, Math.min(1, v))
 
+function drawCover(ctx: CanvasRenderingContext2D, art: HTMLImageElement, x: number, y: number, w: number, h: number): void {
+    const sourceRatio = art.naturalWidth / art.naturalHeight
+    const targetRatio = w / h
+    if (sourceRatio > targetRatio) {
+        const sw = art.naturalHeight * targetRatio
+        ctx.drawImage(art, (art.naturalWidth - sw) / 2, 0, sw, art.naturalHeight, x, y, w, h)
+    } else {
+        const sh = art.naturalWidth / targetRatio
+        ctx.drawImage(art, 0, (art.naturalHeight - sh) / 2, art.naturalWidth, sh, x, y, w, h)
+    }
+}
+
 function inkFill(ctx: CanvasRenderingContext2D, fill: string, lw = 3): void {
     ctx.fillStyle = fill
     ctx.fill()
@@ -357,7 +369,7 @@ export function draw25d(ctx: CanvasRenderingContext2D, s: SimState, view: ViewSi
     ctx.fillRect(0, 0, w, h)
 
     const paris = scenePlate("paris")
-    if (paris) ctx.drawImage(paris, 0, hudH, w, fieldH)
+    if (paris) drawCover(ctx, paris, 0, hudH, w, fieldH)
 
     // ── receding ground plane: 3 lane trapezoids, narrow at horizon → fanned near
     if (paris) ctx.globalAlpha = 0.52
