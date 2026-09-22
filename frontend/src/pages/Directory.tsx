@@ -21,10 +21,13 @@ import { queryRender } from "../lib/dao/shared"
 import { ChainMetricsBanner } from "../components/directory"
 import { DAOsTab, TokensTab, UsersTab, PackagesTab, RealmsTab, GovDAOTab, LeaderboardTab, ExplorerTab } from "../components/directory/tabs"
 import { trackPageVisit, trackDirectoryTab } from "../lib/quests"
-import { getDirectoryDAOs, fetchPackages, fetchRealms } from "../lib/directory"
+import { getDirectoryDAOs } from "../lib/directory"
 import type { DirectoryDAO, DirectoryPackage, DirectoryRealm } from "../lib/directory"
 import { encodeSlug } from "../lib/daoSlug"
 import { isValidRealmPath } from "../lib/gnowebSource"
+import { useDirectoryDiscovery } from "../hooks/useDirectoryDiscovery"
+import { RealmDetailDrawer } from "../components/directory/RealmDetailDrawer"
+import { toExplorerRelPath } from "../lib/explorerLink"
 import "./directory.css"
 
 // W5.2: Packages leads — it is by far the most-filled tab on test13 today
@@ -69,8 +72,16 @@ export function Directory() {
 
     // Cross-tab search data (loaded once for filtering)
     const allDAOs = useMemo(() => getDirectoryDAOs(), [])
-    const allPackages = useMemo(() => fetchPackages(), [])
-    const allRealms = useMemo(() => fetchRealms(), [])
+    const { discovery, isPending: discoveryLoading, refetch: retryDiscovery } = useDirectoryDiscovery()
+    const allPackages = discovery.packages
+    const allRealms = discovery.realms
+    const openResult = (path: string) => setUrlState({
+        tab: explorerOn ? "explorer" : path.startsWith("gno.land/p/") ? "packages" : "realms",
+        realm: toExplorerRelPath(path),
+    })
+    const selectedPath = `/${toExplorerRelPath(urlState.realm)}`
+    const showSelectedDrawer = !explorerOn && ["packages", "realms"].includes(tab) && isValidRealmPath(selectedPath)
+
 
     // Cross-tab search results
     const crossTabResults = useMemo(() => {
@@ -144,6 +155,11 @@ export function Directory() {
 
             {/* Phase 3a: Live chain metrics */}
             <ChainMetricsBanner />
+            <p className="dir-discovery-status" role="status">
+                {discoveryLoading ? "Checking this network’s namespace listings…" : discovery.status === "ready" ? "Namespace listings checked. This is a curated directory, not a complete chain index." : "Live namespace discovery is unavailable or incomplete. Available editorial and reference paths are shown below."}
+                {" Reference and saved paths may not be deployed on this network."}
+                {!discoveryLoading && discovery.status !== "ready" && <button type="button" onClick={() => void retryDiscovery()}>Retry discovery</button>}
+            </p>
 
             {/* Phase 3a: Universal search */}
             <div role="search" aria-label="Search directory">
@@ -192,7 +208,7 @@ export function Directory() {
                                     <button
                                         key={r.path}
                                         className="dir-cross-item"
-                                        onClick={() => setUrlState({ tab: "realms", q: "" })}
+                                        onClick={() => openResult(r.path)}
                                     >
                                         <span className="dir-cross-item__icon">🌐</span>
                                         <span className="dir-cross-item__name">{r.name}</span>
@@ -210,7 +226,7 @@ export function Directory() {
                                     <button
                                         key={p.path}
                                         className="dir-cross-item"
-                                        onClick={() => setUrlState({ tab: "packages", q: "" })}
+                                        onClick={() => openResult(p.path)}
                                     >
                                         <span className="dir-cross-item__icon">📦</span>
                                         <span className="dir-cross-item__name">{p.name}</span>
@@ -280,6 +296,7 @@ export function Directory() {
                     />
                 )}
             </div>
+            {showSelectedDrawer && <RealmDetailDrawer key={selectedPath} path={`gno.land${selectedPath}`} isPackage={selectedPath.startsWith("/p/")} onClose={() => setUrlState({ realm: "" })} />}
         </div>
     )
 }

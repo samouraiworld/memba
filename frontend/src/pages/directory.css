@@ -1680,3 +1680,6 @@ a.dir-card {
         width: 100%;
     }
 }
+
+.dir-discovery-status { color: var(--color-text-secondary); line-height: 1.6; font-size: 14px; }
+.dir-discovery-status button { margin-left: 12px; padding: 8px 12px; min-height: 44px; color: var(--color-k-accent-text); background: var(--color-bg-card); border: 1px solid var(--color-border); border-radius: 8px; cursor: pointer; }

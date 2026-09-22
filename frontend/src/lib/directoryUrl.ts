@@ -28,7 +28,7 @@ export interface DirectoryUrlState {
     tab: DirectoryTab
     /** Global search query (raw text). */
     q: string
-    /** Explorer tab: the realm path being viewed, as a bare relpath (`r/x/y`).
+    /** Explorer or fallback detail drawer: the realm path being viewed, as a bare relpath (`r/x/y`).
      *  Empty when no realm is selected (the Explorer tab shows its examples). */
     realm: string
 }
@@ -61,7 +61,7 @@ export function serializeDirectoryUrl(s: DirectoryUrlState): URLSearchParams {
     const out = new URLSearchParams()
     if (s.tab !== DEFAULT_DIRECTORY_TAB) out.set("tab", s.tab)
     if (s.q.trim() !== "") out.set("q", s.q)
-    // `realm` only carries meaning on the explorer tab; keep it out of other URLs.
-    if (s.realm.trim() !== "" && s.tab === "explorer") out.set("realm", s.realm)
+    // The selected realm also opens a detail drawer when the Explorer flag is off.
+    if (s.realm.trim() !== "" && ["explorer", "realms", "packages"].includes(s.tab)) out.set("realm", s.realm)
     return out
 }

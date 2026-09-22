@@ -30,6 +30,7 @@ vi.mock("../../../lib/gnoFuncs", async () => {
     }
 })
 
+import { queryRender } from "../../../lib/dao/shared"
 import { ExplorerTab } from "./ExplorerTab"
 
 const tab = (name: RegExp) => screen.getByRole("tab", { name })
@@ -58,4 +59,13 @@ describe("ExplorerTab — realm tablist keyboard (APG)", () => {
         expect(tab(/source/i)).toHaveAttribute("tabindex", "0")
         expect(tab(/render/i)).toHaveAttribute("tabindex", "-1")
     })
+})
+
+
+it("opens package deep links on Source without a Render request", async () => {
+    vi.mocked(queryRender).mockClear()
+    render(<ExplorerTab realm="p/demo/boards2" onRealmChange={vi.fn()} />)
+    expect(await screen.findByRole("tab", { name: "Source" })).toHaveAttribute("aria-selected", "true")
+    expect(screen.queryByRole("tab", { name: "Render" })).not.toBeInTheDocument()
+    expect(queryRender).not.toHaveBeenCalled()
 })

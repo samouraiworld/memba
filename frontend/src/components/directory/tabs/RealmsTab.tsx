@@ -4,9 +4,10 @@
  * @module components/directory/tabs/RealmsTab
  */
 
-import { useState, useEffect, useCallback, useMemo, useDeferredValue, type CSSProperties } from "react"
+import { useState, useCallback, useMemo, useDeferredValue, type CSSProperties } from "react"
 import { GNO_RPC_URL, getExplorerBaseUrl } from "../../../lib/config"
-import { fetchRealms, fetchRealmsLive } from "../../../lib/directory"
+import { useDirectoryDiscovery } from "../../../hooks/useDirectoryDiscovery"
+import { discoveryProvenanceLabel } from "../../../lib/directoryDiscovery"
 import { queryRender } from "../../../lib/dao/shared"
 import { useNetwork } from "../../../hooks/useNetwork"
 import { RealmDetailDrawer } from "../RealmDetailDrawer"
@@ -54,12 +55,7 @@ export function RealmsTab() {
         setRenderLoading(false)
     }, [expandedRealm])
 
-    const [realms, setRealms] = useState(() => fetchRealms())
-
-    // Phase 3c: fetch live realms on mount
-    useEffect(() => {
-        fetchRealmsLive().then(setRealms)
-    }, [])
+    const { discovery: { realms } } = useDirectoryDiscovery()
 
     const categories = useMemo(() => {
         const cats = new Set(realms.map(r => r.category))
@@ -91,6 +87,7 @@ export function RealmsTab() {
                 onChange={e => setSearch(e.target.value)}
                 className="dir-search"
                 data-testid="realm-search"
+                aria-label="Search realms"
             />
 
             {/* Category filter pills */}
@@ -101,6 +98,7 @@ export function RealmsTab() {
                         onClick={() => setCategoryFilter(cat)}
                         className={`dir-category-pill${categoryFilter === cat ? " k-brand-text" : ""}`}
                         data-active={categoryFilter === cat}
+                        aria-pressed={categoryFilter === cat}
                         style={{
                             borderColor: categoryFilter === cat
                                 ? (REALM_CATEGORY_COLORS[cat] || "var(--color-text-dim)")
@@ -154,6 +152,7 @@ export function RealmsTab() {
                                         </div>
                                         <div className="dir-card-path">{r.path}</div>
                                         <div className="dir-card-desc">{r.description}</div>
+                                        <div className="dir-card-desc">{discoveryProvenanceLabel(r)}</div>
                                     </div>
                                 </div>
                                 <span className={`dir-expand-icon${expandedRealm === r.path ? " open" : ""}`}>▶</span>

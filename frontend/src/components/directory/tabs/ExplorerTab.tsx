@@ -26,6 +26,7 @@ import { renderMarkdown } from "../../../lib/markdownLite"
 import { fetchRealmFuncs, formatSignature, resolveFnList, type GnoFunc } from "../../../lib/gnoFuncs"
 import { toExplorerRelPath } from "../../../lib/explorerLink"
 import { SourceCodeView } from "../SourceCodeView"
+import { directorySeeds } from "../../../lib/directorySeeds"
 import "../../../pages/explorer.css"
 
 type Tab = "render" | "source" | "functions"
@@ -34,12 +35,6 @@ type Tab = "render" | "source" | "functions"
 // hook. Prefixed ids: this tablist renders inside Directory's own tab panel,
 // whose tabs use the hook's default `tab-*` ids.
 const REALM_TAB_KEYS: readonly Tab[] = ["render", "source", "functions"]
-
-const EXAMPLES = [
-    "r/samcrew/memba_feed_v1",
-    "r/gnops/valopers",
-    "r/gnoland/users/v1",
-]
 
 /** Normalize any user input / URL value to a `gno.land/...` pkg path (or ""). */
 function toRealmPath(raw: string): string {
@@ -78,7 +73,7 @@ export function ExplorerTab({ realm, onRealmChange }: ExplorerTabProps) {
                         name="realm"
                         className="explorer__input"
                         defaultValue={toExplorerRelPath(realm)}
-                        placeholder="r/samcrew/memba_feed_v1"
+                        placeholder="r/gov/dao"
                         aria-label="Realm path"
                         autoCapitalize="off"
                         autoCorrect="off"
@@ -93,7 +88,7 @@ export function ExplorerTab({ realm, onRealmChange }: ExplorerTabProps) {
             ) : (
                 <div className="explorer__examples">
                     <span className="explorer__examples-label">Try:</span>
-                    {EXAMPLES.map((ex) => (
+                    {directorySeeds(networkKey).realms.slice(0, 3).map(item => toExplorerRelPath(item.path)).map((ex) => (
                         <button
                             key={ex}
                             className="explorer__example"
@@ -109,12 +104,14 @@ export function ExplorerTab({ realm, onRealmChange }: ExplorerTabProps) {
 }
 
 function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
-    const [tab, setTab] = useState<Tab>("render")
+    const isPackage = toExplorerRelPath(path).startsWith("p/")
+    const [tab, setTab] = useState<Tab>(isPackage ? "source" : "render")
+    const tabs = isPackage ? REALM_TAB_KEYS.filter(key => key !== "render") : REALM_TAB_KEYS
 
     // APG tabs keyboard contract (roving tabindex, arrows, Home/End) — the
     // shared hook Directory extracted; these tabs had no keyboard support.
     const { tabProps } = useTabListKeyboard<Tab>({
-        keys: REALM_TAB_KEYS,
+        keys: tabs,
         active: tab,
         onSelect: setTab,
         idFor: (k) => `realmview-tab-${k}`,
@@ -133,11 +130,12 @@ function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
     // RealmView is keyed by realmPath (remounts per realm), so the initial
     // loading=true state is fresh each time — no synchronous setState in-effect.
     useEffect(() => {
+        if (isPackage) return
         queryRender(GNO_RPC_URL, path, "")
             .then((raw) => setRender(raw))
             .catch(() => setRender(null))
             .finally(() => setRenderLoading(false))
-    }, [path])
+    }, [path, isPackage])
 
     useEffect(() => {
         fetchRealmSourceSmart(gnowebUrl, relPath)
@@ -173,7 +171,7 @@ function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
             </div>
 
             <div className="realmview__tabs" role="tablist" aria-label="Realm views">
-                {REALM_TAB_KEYS.map((t) => (
+                {tabs.map((t) => (
                     <button
                         key={t}
                         {...tabProps(t)}

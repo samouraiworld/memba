@@ -9,8 +9,10 @@
  */
 
 import { getSavedDAOs, type SavedDAO } from "./daoSlug"
-import { DEFAULT_NETWORK, NETWORKS, GNO_RPC_URL, getUserRegistryPath } from "./config"
-import { getGnowebUrl, fetchNamespaceRealms, fetchNamespacePackages } from "./gnoweb"
+import { DEFAULT_NETWORK, NETWORKS, ACTIVE_NETWORK_KEY, GNO_RPC_URL } from "./config"
+import { directorySeeds } from "./directorySeeds"
+import { directorySeedData, fetchDirectoryDiscovery } from "./directoryDiscovery"
+export { SEED_PACKAGES, SEED_REALMS } from "./directorySeeds"
 import { listFactoryTokens } from "./grc20"
 
 // ── Types ────────────────────────────────────────────────────
@@ -176,8 +178,10 @@ export function unionDaoMembers(memberMap: Map<string, string[]>): DirectoryUser
 /**
  * Get all known DAOs: seed list + user's saved DAOs (deduplicated).
  */
-export function getDirectoryDAOs(): DirectoryDAO[] {
-    const saved = getSavedDAOs()
+export function getDirectoryDAOs(networkKey = ACTIVE_NETWORK_KEY): DirectoryDAO[] {
+    // Saved storage is scoped to the chain loaded by config. Never retag its
+    // records when a caller explicitly asks for another network.
+    const saved = networkKey === ACTIVE_NETWORK_KEY ? getSavedDAOs() : []
     const savedPaths = new Set(saved.map((s: SavedDAO) => s.realmPath))
     const result: DirectoryDAO[] = []
 
@@ -415,7 +419,12 @@ export function calculateContributionScores(
 
 // ── Package Discovery ────────────────────────────────────────
 
-export interface DirectoryPackage {
+export interface DiscoveryProvenance {
+    networkKey?: string
+    provenance?: "editorial" | "reference" | "saved" | "namespace"
+    checkedAt?: string
+}
+export interface DirectoryPackage extends DiscoveryProvenance {
     name: string
     path: string
     description: string
@@ -425,95 +434,17 @@ export interface DirectoryPackage {
     gnowebUrl?: string
 }
 
-/** Well-known standard library and community packages on gno.land. */
-export const SEED_PACKAGES: DirectoryPackage[] = [
-    { name: "GRC20", path: "gno.land/p/demo/grc/grc20", description: "Fungible token standard (ERC-20 equivalent)" },
-    { name: "GRC721", path: "gno.land/p/demo/grc/grc721", description: "Non-fungible token standard (ERC-721 equivalent)" },
-    { name: "GRC1155", path: "gno.land/p/demo/grc/grc1155", description: "Multi-token standard" },
-    { name: "AVL Tree", path: "gno.land/p/demo/avl", description: "Self-balancing binary search tree" },
-    { name: "DAO", path: "gno.land/p/demo/dao", description: "Core DAO primitives (proposals, votes)" },
-    { name: "Ownable", path: "gno.land/p/demo/ownable", description: "Ownership management pattern" },
-    { name: "Pausable", path: "gno.land/p/demo/pausable", description: "Contract pause/unpause pattern" },
-    { name: "Seqid", path: "gno.land/p/demo/seqid", description: "Sequential ID generator" },
-    { name: "uassert", path: "gno.land/p/demo/uassert", description: "Assertion helpers for testing" },
-    { name: "ufmt", path: "gno.land/p/demo/ufmt", description: "String formatting utilities" },
-    { name: "json", path: "gno.land/p/demo/json", description: "JSON parser and builder" },
-    { name: "Membstore", path: "gno.land/p/demo/membstore", description: "DAO member storage" },
-    { name: "Simpledao", path: "gno.land/p/demo/simpledao", description: "Simple DAO implementation" },
-    { name: "Entropy", path: "gno.land/p/demo/entropy", description: "Pseudo-random number generation" },
-    { name: "Boards", path: "gno.land/p/demo/boards2", description: "Discussion board framework" },
-]
-
-/**
- * Fetch packages — live from gnolove API + gnoweb namespace, with seed list as fallback.
- * Phase 3c: replaces static-only list with live on-chain data.
- * Sprint 3: adds gnoweb namespace discovery for samcrew packages with deployment badges.
- */
-export async function fetchPackagesLive(): Promise<DirectoryPackage[]> {
-    const result = [...SEED_PACKAGES]
-    const existingPaths = new Set(result.map(p => p.path))
-
-    try {
-        const { getPackages } = await import("./gnoloveApi")
-        const livePackages = await getPackages()
-
-        for (const pkg of livePackages) {
-            if (!existingPaths.has(pkg.path) && pkg.path.includes("/p/")) {
-                const name = pkg.path.split("/").pop() || pkg.path
-                result.push({
-                    name: name.charAt(0).toUpperCase() + name.slice(1),
-                    path: pkg.path,
-                    description: `Deployed at block ${pkg.blockHeight}`,
-                })
-                existingPaths.add(pkg.path)
-            }
-        }
-    } catch { /* fallback to seed only */ }
-
-    // Sprint 3: gnoweb namespace discovery — mark deployment status
-    const gnowebBaseUrl = getGnowebUrl(_activeNetworkKey())
-    if (gnowebBaseUrl) {
-        try {
-            const livePackages = await fetchNamespacePackages(gnowebBaseUrl, "samcrew")
-            const livePaths = new Set(livePackages.map(p => "gno.land" + p.path))
-
-            // Mark existing entries with deployment status
-            for (const pkg of result) {
-                if (livePaths.has(pkg.path)) {
-                    pkg.deploymentStatus = "live"
-                    const match = livePackages.find(p => "gno.land" + p.path === pkg.path)
-                    if (match) pkg.gnowebUrl = match.gnowebUrl
-                }
-            }
-
-            // Add gnoweb-discovered packages not already in the list
-            for (const item of livePackages) {
-                const fullPath = "gno.land" + item.path
-                if (!existingPaths.has(fullPath)) {
-                    result.push({
-                        name: item.name,
-                        path: fullPath,
-                        description: "Deployed on-chain",
-                        deploymentStatus: "live",
-                        gnowebUrl: item.gnowebUrl,
-                    })
-                    existingPaths.add(fullPath)
-                }
-            }
-        } catch { /* gnoweb unavailable */ }
-    }
-
-    return result
+/** Selected-network discovery; unscoped indexer rows are deliberately excluded. */
+export async function fetchPackagesLive(networkKey = ACTIVE_NETWORK_KEY): Promise<DirectoryPackage[]> {
+    return (await fetchDirectoryDiscovery(networkKey, [])).packages
 }
-
-/** Synchronous fallback — returns the static seed list only. */
-export function fetchPackages(): DirectoryPackage[] {
-    return [...SEED_PACKAGES]
+export function fetchPackages(networkKey = ACTIVE_NETWORK_KEY): DirectoryPackage[] {
+    return directorySeeds(networkKey).packages
 }
 
 // ── Realm Discovery ──────────────────────────────────────────
 
-export interface DirectoryRealm {
+export interface DirectoryRealm extends DiscoveryProvenance {
     name: string
     path: string
     description: string
@@ -524,106 +455,10 @@ export interface DirectoryRealm {
     gnowebUrl?: string
 }
 
-/** Well-known realms deployed on gno.land. */
-export const SEED_REALMS: DirectoryRealm[] = [
-    { name: "GRC20 Registry", path: "gno.land/r/demo/grc20reg", description: "Token registry — lists all GRC20 tokens", category: "standard" },
-    { name: "User Registry", path: getUserRegistryPath(), description: "On-chain username registry", category: "standard" },
-    { name: "GnoSwap", path: "gno.land/r/gnoswap/v1/router", description: "Decentralized token exchange", category: "defi" },
-    { name: "GRC20 Factory", path: "gno.land/r/samcrew/tokenfactory_v2", description: "Deploy new GRC20 tokens", category: "defi" },
-    { name: "Boards v2", path: "gno.land/r/gnoland/boards2/v1", description: "Discussion boards with threads", category: "social" },
-    { name: "Blog", path: "gno.land/r/gnoland/blog", description: "Official gno.land blog", category: "social" },
-    { name: "Faucet", path: "gno.land/r/gnoland/faucet", description: "Faucet for ugnot", category: "utility" },
-    { name: "GovDAO", path: "gno.land/r/gov/dao", description: "Chain governance DAO", category: "standard" },
-    { name: "GovDAO v2", path: "gno.land/r/gov/dao/v2", description: "Governance DAO v2", category: "standard" },
-    { name: "Worx", path: "gno.land/r/demo/worx", description: "Community workspace DAO", category: "social" },
-    { name: "Faucet Admin", path: "gno.land/r/faucet/admin", description: "Faucet administration realm", category: "utility" },
-]
-
-/**
- * Fetch realms: live from gnolove API + gnoweb namespace + seed + saved DAOs (deduplicated).
- * Phase 3c: replaces static-only list with live on-chain data.
- * Sprint 3: adds gnoweb namespace discovery for samcrew realms with deployment badges.
- */
-export async function fetchRealmsLive(): Promise<DirectoryRealm[]> {
-    const result = [...SEED_REALMS]
-    const existingPaths = new Set(result.map(r => r.path))
-
-    // Merge saved DAOs
-    const savedDAOs = getDirectoryDAOs()
-    for (const dao of savedDAOs) {
-        if (!existingPaths.has(dao.path)) {
-            result.push({ name: dao.name, path: dao.path, description: "DAO governance realm", category: "standard" })
-            existingPaths.add(dao.path)
-        }
-    }
-
-    // Merge live packages that are realms (/r/) from gnolove API
-    try {
-        const { getPackages } = await import("./gnoloveApi")
-        const livePackages = await getPackages()
-        for (const pkg of livePackages) {
-            if (!existingPaths.has(pkg.path) && pkg.path.includes("/r/")) {
-                const name = pkg.path.split("/").pop() || pkg.path
-                result.push({
-                    name: name.charAt(0).toUpperCase() + name.slice(1),
-                    path: pkg.path,
-                    description: `Deployed at block ${pkg.blockHeight}`,
-                    category: "unknown",
-                })
-                existingPaths.add(pkg.path)
-            }
-        }
-    } catch { /* fallback to seed only */ }
-
-    // Sprint 3: gnoweb namespace discovery — mark deployment status
-    const gnowebBaseUrl = getGnowebUrl(_activeNetworkKey())
-    if (gnowebBaseUrl) {
-        try {
-            const liveRealms = await fetchNamespaceRealms(gnowebBaseUrl, "samcrew")
-            const livePaths = new Set(liveRealms.map(r => "gno.land" + r.path))
-
-            // Mark existing entries with deployment status
-            for (const realm of result) {
-                if (livePaths.has(realm.path)) {
-                    realm.deploymentStatus = "live"
-                    const match = liveRealms.find(r => "gno.land" + r.path === realm.path)
-                    if (match) realm.gnowebUrl = match.gnowebUrl
-                }
-            }
-
-            // Add gnoweb-discovered realms not already in the list
-            for (const item of liveRealms) {
-                const fullPath = "gno.land" + item.path
-                if (!existingPaths.has(fullPath)) {
-                    result.push({
-                        name: item.name,
-                        path: fullPath,
-                        description: "Deployed on-chain",
-                        category: "unknown",
-                        deploymentStatus: "live",
-                        gnowebUrl: item.gnowebUrl,
-                    })
-                    existingPaths.add(fullPath)
-                }
-            }
-        } catch { /* gnoweb unavailable — no status badges */ }
-    }
-
-    return result
+/** Selected-network discovery; no chain identity is inferred from a path/height. */
+export async function fetchRealmsLive(networkKey = ACTIVE_NETWORK_KEY): Promise<DirectoryRealm[]> {
+    return (await fetchDirectoryDiscovery(networkKey, getDirectoryDAOs(networkKey))).realms
 }
-
-/** Synchronous fallback — returns seed + saved DAOs only. */
-export function fetchRealms(): DirectoryRealm[] {
-    const result = [...SEED_REALMS]
-    const existingPaths = new Set(result.map(r => r.path))
-
-    const savedDAOs = getDirectoryDAOs()
-    for (const dao of savedDAOs) {
-        if (!existingPaths.has(dao.path)) {
-            result.push({ name: dao.name, path: dao.path, description: "DAO governance realm", category: "standard" })
-            existingPaths.add(dao.path)
-        }
-    }
-
-    return result
+export function fetchRealms(networkKey = ACTIVE_NETWORK_KEY): DirectoryRealm[] {
+    return directorySeedData(networkKey, getDirectoryDAOs(networkKey)).realms
 }

@@ -4,22 +4,18 @@
  * @module components/directory/tabs/PackagesTab
  */
 
-import { useState, useEffect, useMemo, useDeferredValue } from "react"
+import { useState, useMemo, useDeferredValue } from "react"
 import { ArrowRight } from "@phosphor-icons/react"
-import { fetchPackages, fetchPackagesLive } from "../../../lib/directory"
+import { useDirectoryDiscovery } from "../../../hooks/useDirectoryDiscovery"
+import { discoveryProvenanceLabel } from "../../../lib/directoryDiscovery"
 import { RealmDetailDrawer } from "../RealmDetailDrawer"
 
 export function PackagesTab() {
     const [search, setSearch] = useState("")
     const deferredSearch = useDeferredValue(search)
-    const [packages, setPackages] = useState(() => fetchPackages())
+    const { discovery: { packages } } = useDirectoryDiscovery()
     const [drawerPath, setDrawerPath] = useState<string | null>(null)
     const [drawerGnowebUrl, setDrawerGnowebUrl] = useState<string | undefined>()
-
-    // Phase 3c: fetch live packages on mount
-    useEffect(() => {
-        fetchPackagesLive().then(setPackages)
-    }, [])
 
     const filtered = useMemo(() =>
         deferredSearch
@@ -40,6 +36,7 @@ export function PackagesTab() {
                 onChange={e => setSearch(e.target.value)}
                 className="dir-search"
                 data-testid="package-search"
+                aria-label="Search packages"
             />
 
             <div className="dir-count" role="status" aria-live="polite">
@@ -48,19 +45,15 @@ export function PackagesTab() {
 
             {filtered.length === 0 ? (
                 <div className="dir-empty">
-                    <p>{search ? `No packages matching "${search}"` : "No packages found"}</p>
+                    <p>{search ? `No packages matching "${search}"` : "No verified packages in this directory yet. Explore the Realms tab or enter an exact path above."}</p>
                 </div>
             ) : (
                 <div className="dir-grid">
                     {filtered.map(p => (
-                        <button
+                        <div
                             key={p.path}
                             className="dir-card dir-card--clickable"
                             data-testid="package-card"
-                            onClick={() => {
-                                setDrawerPath(p.path)
-                                setDrawerGnowebUrl(p.gnowebUrl)
-                            }}
                         >
                             <div style={{ display: "flex", alignItems: "center", gap: 12, flex: 1, minWidth: 0 }}>
                                 <div className="dir-token-avatar" style={{ background: "rgba(99,102,241,0.15)", color: "var(--color-k-purple-text)" }}>
@@ -75,9 +68,11 @@ export function PackagesTab() {
                                     </div>
                                     <div className="dir-card-path">{p.path}</div>
                                     <div className="dir-card-desc">{p.description}</div>
+                                    <div className="dir-card-desc">{discoveryProvenanceLabel(p)}</div>
                                 </div>
                             </div>
                             <div className="dir-card-actions">
+                                <button type="button" className="dir-gnoweb-link" onClick={() => { setDrawerPath(p.path); setDrawerGnowebUrl(p.gnowebUrl) }} aria-label={`View ${p.name} source`}>View source</button>
                                 {p.gnowebUrl && (
                                     <a
                                         href={p.gnowebUrl}
@@ -92,7 +87,7 @@ export function PackagesTab() {
                                 )}
                                 <ArrowRight size={14} className="dir-arrow" />
                             </div>
-                        </button>
+                        </div>
                     ))}
                 </div>
             )}

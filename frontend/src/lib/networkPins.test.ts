@@ -87,6 +87,7 @@ interface Pin {
 }
 
 const ALLOWLIST: Pin[] = [
+    { file: "lib/directorySeeds.ts", allow: ["mainnet"], why: "Date-checked editorial source paths for mainnet, separate from runtime eligibility; historical references remain labeled." },
     { file: "lib/dao/weighted.ts", allow: ["gnoland-1"], why: "Unconditional mainnet write hold for the founding weighted DAO; does not select a default network." },
     { file: "pages/WeightedDAO.tsx", allow: ["gnoland-1"], why: "Read-only mainnet governance UI until launch verification; reads use the URL-selected network." },
     {

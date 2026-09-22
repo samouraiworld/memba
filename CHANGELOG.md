@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Directory network provenance
+- Keep mainnet discovery separate from historical references, show source coverage, and open the exact selected realm or package without losing the search.
+
 ### Mainnet release evidence
 - Correct the documented default network and separate frontend candidates, published artifacts, fixture checks and real wallet verification.
 ### Fixed — first DAO governance journey (2026-09-21)

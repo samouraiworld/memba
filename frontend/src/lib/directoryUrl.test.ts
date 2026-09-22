@@ -70,10 +70,11 @@ describe("directory URL realm axis (merged Explorer)", () => {
         expect(parseDirectoryUrl(new URLSearchParams(`realm=${long}`)).realm.length).toBe(200)
     })
 
-    test("emits realm only on the explorer tab", () => {
+    test("preserves selected paths for explorer and discovery drawers", () => {
         expect(serializeDirectoryUrl({ tab: "explorer", q: "", realm: "r/x/y" }).get("realm")).toBe("r/x/y")
-        // A stray realm on a non-explorer tab is dropped (keeps other URLs clean).
-        expect(serializeDirectoryUrl({ tab: "packages", q: "", realm: "r/x/y" }).get("realm")).toBeNull()
+        expect(serializeDirectoryUrl({ tab: "packages", q: "x", realm: "p/x/y" }).get("realm")).toBe("p/x/y")
+        expect(serializeDirectoryUrl({ tab: "realms", q: "x", realm: "r/x/y" }).get("realm")).toBe("r/x/y")
+        expect(serializeDirectoryUrl({ tab: "users", q: "", realm: "r/x/y" }).get("realm")).toBeNull()
     })
 
     test("round-trips an explorer view through serialize → parse", () => {

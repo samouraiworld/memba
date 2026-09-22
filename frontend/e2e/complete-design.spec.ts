@@ -207,3 +207,53 @@ for (const network of ['mainnet', 'pearl'] as const) {
         })
     }
 }
+
+// C1: selected-network namespace evidence and exact search-result destinations.
+import { fulfillOnchainReads, mockAppChainStatus } from './helpers/onchain'
+for (const network of ['mainnet', 'pearl']) {
+    test(`directory provenance and navigation interaction ${network}`, async ({ page }) => {
+        const chain = network === 'mainnet' ? 'gnoland-1' : 'pearl-1'
+        await fulfillOnchainReads(page, ({ method, path, arg }) => {
+            if (method === 'status') return mockAppChainStatus(chain)
+            if (path === 'vm/qrender') return `# Selected ${arg}`
+            if (path === 'vm/qfile') return arg.endsWith('/demo.gno') ? 'package boards\n// Source fixture' : 'demo.gno'
+            if (path === 'vm/qfuncs') return '[]'
+            return null
+        })
+        await page.route(/https:\/\/(gno\.land|[^/]+\.gno\.land)\/[rp]\/samcrew$/, route => route.fulfill({
+            contentType: 'text/html', body: `<meta name="gnoconnect:chainid" content="${chain}"><a href="/p/samcrew/fixture">fixture</a>`,
+        }))
+        await page.goto(`/${network}/directory`)
+        if (network === 'mainnet') {
+            // Existing CSP intentionally excludes bare gno.land. Exercise the real
+            // browser fallback; do not bypass security just to fulfill a fixture.
+            await expect(page.getByRole('button', { name: 'Retry discovery' })).toBeVisible()
+            await expect(page.getByTestId('package-card')).toHaveCount(0)
+        } else {
+            await expect(page.getByText('Namespace listings checked.', { exact: false })).toBeVisible()
+            await expect(page.getByTestId('package-card').filter({ hasText: 'fixture' })).toContainText('Namespace listing')
+        }
+        await expect(page.locator('main')).not.toContainText('Deployed at block')
+        await page.getByTestId('global-search').fill('Boards')
+        const selectedPath = network === 'mainnet' ? 'r/gnoland/boards2/v0' : 'r/gnoland/boards2/v1'
+        await page.locator('.dir-cross-item').filter({ hasText: `gno.land/${selectedPath}` }).click()
+        await expect(page).toHaveURL(new RegExp(`/${network}/directory\\?`))
+        expect(new URL(page.url()).searchParams.get('realm')).toBe(selectedPath)
+        expect(new URL(page.url()).searchParams.get('q')).toBe('Boards')
+        const explorer = page.getByTestId('explorer-root')
+        if (await explorer.isVisible()) await expect(explorer.locator('.realmview__path')).toHaveText(`gno.land/${selectedPath}`)
+        else await expect(page.getByRole('dialog')).toContainText(`gno.land/${selectedPath}`)
+        await page.goBack()
+        await expect(page.getByTestId('global-search')).toHaveValue('Boards')
+        expect(new URL(page.url()).searchParams.has('realm')).toBe(false)
+        if (network === 'mainnet') return // no invented mainnet package
+        await page.getByTestId('global-search').fill('fixture')
+        await page.locator('.dir-cross-item').filter({ hasText: 'gno.land/p/samcrew/fixture' }).click()
+        if (await explorer.isVisible()) {
+            await expect(explorer.getByRole('tab', { name: 'Source' })).toHaveAttribute('aria-selected', 'true')
+            await expect(explorer.getByRole('tab', { name: 'Render' })).toHaveCount(0)
+        } else {
+            await expect(page.getByRole('dialog').getByRole('button', { name: 'Render', exact: true })).toHaveCount(0)
+        }
+    })
+}

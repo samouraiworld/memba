@@ -317,13 +317,13 @@ describe("calculateContributionScores", () => {
 
 describe("fetchPackages", () => {
     test("returns all seed packages", () => {
-        const packages = fetchPackages()
+        const packages = fetchPackages("pearl")
         expect(packages.length).toBe(SEED_PACKAGES.length)
         expect(packages.length).toBeGreaterThanOrEqual(10)
     })
 
     test("all packages have required fields", () => {
-        for (const pkg of fetchPackages()) {
+        for (const pkg of fetchPackages("pearl")) {
             expect(typeof pkg.name).toBe("string")
             expect(typeof pkg.path).toBe("string")
             expect(typeof pkg.description).toBe("string")
@@ -333,14 +333,14 @@ describe("fetchPackages", () => {
     })
 
     test("returns a copy (not a reference to the seed array)", () => {
-        const a = fetchPackages()
-        const b = fetchPackages()
+        const a = fetchPackages("pearl")
+        const b = fetchPackages("pearl")
         expect(a).not.toBe(b)
         expect(a).toEqual(b)
     })
 
     test("includes well-known packages", () => {
-        const packages = fetchPackages()
+        const packages = fetchPackages("pearl")
         const names = packages.map(p => p.name)
         expect(names).toContain("GRC20")
         expect(names).toContain("AVL Tree")
@@ -355,8 +355,8 @@ describe("fetchRealms", () => {
         localStorage.clear()
     })
 
-    test("returns at least seed realms", () => {
-        const realms = fetchRealms()
+    test("retains historical references explicitly on testnet", () => {
+        const realms = fetchRealms("pearl")
         expect(realms.length).toBeGreaterThanOrEqual(SEED_REALMS.length)
     })
 
@@ -373,7 +373,8 @@ describe("fetchRealms", () => {
     test("includes well-known realms", () => {
         const realms = fetchRealms()
         const paths = realms.map(r => r.path)
-        expect(paths).toContain("gno.land/r/demo/grc20reg")
+        expect(paths).toContain("gno.land/r/gnoland/boards2/v0")
+        expect(paths).not.toContain("gno.land/r/demo/grc20reg")
         expect(paths).toContain("gno.land/r/gov/dao")
     })
 

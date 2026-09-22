@@ -67,11 +67,15 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
 
     // Derive gnoweb URL from chain config if not provided
     // P1 fix: use active network key instead of hardcoded "gnoland1"
-    const resolvedGnowebUrl = gnowebUrl || getExplorerBaseUrlFor(networkKey)
+    const resolvedGnowebUrl = getExplorerBaseUrlFor(networkKey)
+    // A listing provides a complete URL, not a base. Keep its path only when
+    // it exactly matches this realm on the selected network.
+    const canonicalLink = `${resolvedGnowebUrl}/${path.replace("gno.land/", "")}`
+    const gnowebLink = gnowebUrl === canonicalLink ? gnowebUrl : canonicalLink
 
     // Render() output — packages have none, so the query stays disabled there.
     const renderQuery = useQuery({
-        queryKey: ["realm", "render", path],
+        queryKey: ["realm", "render", networkKey, path],
         enabled: !isPackage,
         queryFn: async () => {
             try {
@@ -87,7 +91,7 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
     // Source code — RPC vm/qfile first (CORS-safe), gnoweb scrape fallback.
     // The old retry nonce becomes refetch().
     const sourceQuery = useQuery({
-        queryKey: ["realm", "source", path, resolvedGnowebUrl],
+        queryKey: ["realm", "source", networkKey, path, resolvedGnowebUrl],
         queryFn: async () => {
             const realmPath = path.startsWith("gno.land") ? path.replace("gno.land", "") : path
             try {
@@ -108,7 +112,6 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
     const shortName = path.split("/").pop() || path
 
     // External gnoweb link
-    const gnowebLink = `${resolvedGnowebUrl}/${path.replace("gno.land/", "")}`
 
     return (
         <div

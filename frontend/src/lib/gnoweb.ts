@@ -201,3 +201,20 @@ export async function fetchNamespacePackages(gnowebBaseUrl: string, namespace: s
         return []
     }
 }
+
+/** Status-preserving, chain-identified namespace read for discovery. Older callers
+ * retain the array API above. Transient failures are never cached as empty lists.
+ */
+export async function fetchNamespaceListing(baseUrl: string, namespace: string, kind: "r" | "p", chainId: string): Promise<{ items: NamespaceItem[]; status: "ready" | "unavailable" }> {
+    try {
+        const response = await fetch(`${baseUrl}/${kind}/${namespace}`, { signal: AbortSignal.timeout(10_000) })
+        if (!response.ok && response.status !== 404) return { items: [], status: "unavailable" }
+        const html = await response.text()
+        // gnoweb renamed chainid to gnoconnect:chainid; parse either order of attributes.
+        const doc = new DOMParser().parseFromString(html, "text/html")
+        const observedChain = doc.querySelector('meta[name="gnoconnect:chainid"], meta[name="chainid"]')?.getAttribute("content")
+        if (observedChain !== chainId) return { items: [], status: "unavailable" }
+        if (response.status === 404) return { items: [], status: "ready" }
+        return { items: parseGnowebListing(html, baseUrl, kind).filter(item => item.path.startsWith(`/${kind}/${namespace}/`) && /^\/[rp]\/[a-zA-Z0-9_/-]+$/.test(item.path)), status: "ready" }
+    } catch { return { items: [], status: "unavailable" } }
+}
