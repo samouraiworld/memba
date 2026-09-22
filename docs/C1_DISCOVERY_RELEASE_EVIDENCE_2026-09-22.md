@@ -2,7 +2,7 @@
 
 ## Release status
 
-Catalog PR #1239 is merged and production-verified. Directory PR #1240 remains a candidate pending its required GitHub review and hosted checks. A+B remains closed. No wallet, signature, broadcast, publication or deployment-policy change was exercised.
+Catalog PR #1239 and Directory PR #1240 are merged and production-verified. The bounded reliability slice remains a candidate pending hosted checks and GitHub review. A+B remains closed. No wallet, signature, broadcast, publication or deployment-policy change was exercised.
 
 Catalog PR #1239 merged at 07:55:57 UTC as `25ef19793528747d99cafeaf4b1c72605e74a6b7`. Production `/build-info.json` subsequently reported that commit and `assets/index-DmSLVy3n.js`; the same entry was observed in both browser tabs. A tab loaded before rollout received the new catalog after an ordinary reload, retained `boards2/v0` search across another reload, and showed one correct mainnet result. A newly opened tab correctly gated `/mainnet/apps/submit`; its “Browse ecosystem projects” link opened all seven records without registry publishing navigation. This is a fresh-tab and returning-tab check in one browser profile, not a clean-profile or real-wallet claim. Initial rollout sampling still served the previous commit; it converged without manual deployment.
 
@@ -10,6 +10,12 @@ The catalog's preview and pre-merge head were `0961f44668aab6bd93e88b2a673f684d9
 
 Directory was refreshed onto the merged catalog. Two additive test conflicts in `complete-design.spec.ts` and `networkPins.test.ts` were resolved by retaining both sections; no runtime conflict or deployment-owned file changed. Refreshed integration checks are recorded below before release.
 
+
+## Directory production verification
+
+PR #1240 merged at 08:59:34 UTC as `a65800118e50c83db1fed18578d57bfd658a2177`. Production build-info and actual script entry match `assets/index-Cey-zz9V.js`. A returning tab initially loaded the prior catalog entry, then received the Directory release after an ordinary reload. It showed the mainnet partial-coverage notice and zero invented packages; searching Boards opened exact `r/gnoland/boards2/v0` in Explorer, and Back retained `q=Boards`. A fresh tab on the same profile showed the current entry and all three explicitly labeled mainnet editorial realms. No clean-profile or wallet claim is made.
+
+The reliability branch was rebased onto this merged main. Only its two prepared commits were replayed; additive evidence/browser sections were retained and the released source-button contrast fix remains intact. All previously reviewed reliability runtime files remain byte-identical apart from that inherited two-line Directory CSS correction.
 
 ## Directory source boundary
 
@@ -63,7 +69,7 @@ Namespace fixtures test both mainnet and Pearl, missing/mismatched chain identit
 
 The refreshed `e5b0ee30` design matrix failed its dark 390px and 1600px group-4 cases (75 other cases passed). Package “View source” buttons reused the link styles without an explicit background, allowing Chromium's default grey button face (`#6b6b6b`) beneath teal text (`#00d4aa`): measured contrast 2.79:1. Both Directory and the legacy Explorer redirect exposed the same issue. The complete-features matrix does not include these routes, so its success did not cover this defect.
 
-The correction assigns the existing themed card background to `.dir-gnoweb-link` and a pointer cursor. Contrast rules, assertions and workflow requirements remain unchanged. The existing route group passed all four cases in both dark and light themes at 390px and 1600px, covering eight routes per case (32 route/theme/width checks). Local log: `/private/tmp/memba-c1-source-contrast-browser.log`. Hosted checks must rerun on the correction before merging.
+The correction assigns the existing themed card background to `.dir-gnoweb-link` and a pointer cursor. Contrast rules, assertions and workflow requirements remain unchanged. The existing route group passed all four cases in both dark and light themes at 390px and 1600px, covering eight routes per case (32 route/theme/width checks). Local log: `/private/tmp/memba-c1-source-contrast-browser.log`. All hosted checks, including both complete-design matrices, passed on corrected head `c6e2683eac16527515d81c6af3b48c43d78eb0d6` before merge.
 
 ## Bounded reliability evidence
 
@@ -78,3 +84,9 @@ Existing API limitation: function-list transport failures can still become an em
 The reliability candidate passed 5,666 unit/component tests (one existing skip), lint, TypeScript/production build and bundle isolation/precache checks. Fifteen focused browser cases passed with the default Explorer flag; the six Explorer-on navigation cases and six Explorer-on size/theme audits passed after correcting a test assertion that raced lazy mounting. The five before/after regressions and three recovery tests are committed beside the affected code.
 
 A temporary uncommitted integration checkout combined all three C1 slices. Both sides of additive conflicts in `complete-design.spec.ts` and the test-only network-pin inventory were retained. Its 32 focused unit tests and 21 browser cases passed, including the new seven-project catalog at 320/390/1440 pixels in Light/Black and the mainnet/Pearl central journeys across Chromium, Firefox and iPhone WebKit. This local integration check does not replace the planned fresh-main rebase, hosted gates or production verification after each reviewed merge.
+
+## Reliability integration on released Directory
+
+On main `a65800118e50c83db1fed18578d57bfd658a2177`, 23 focused unit/component tests passed. The combined browser pass completed 23 cases (catalog, drawer keyboard, responsive audits and the former contrast-failing group), plus six Explorer-disabled mainnet/Pearl navigation cases and 12 Explorer-enabled navigation/audit cases: 41 total. Lint, TypeScript/production build and bundle isolation/precache checks passed with Node 22. The previous complete reliability suite passed 5,666 tests with one existing skip; the rebased runtime is unchanged except for the inherited released contrast fix.
+
+Logs: `/private/tmp/memba-c1-reliability-refreshed-{unit,browser,navigation,explorer,build}.log`. Hosted checks, preview, actual GitHub approval and the final production release remain pending.
