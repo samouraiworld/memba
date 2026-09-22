@@ -40,6 +40,7 @@ Full changelogs are split by version range for easier navigation:
 ### BARRICADE French civic art (2026-09-22)
 - Give the 2.5D battlefield an original Paris street, defender, boss and four distinct machine families inspired by the French Revolution's civic language.
 - Build the parapet from street cobbles and cart timber, and explain the game's liberty and equal-rights theme in the ready state.
+- Carry the approved defender and machine plates into the compact 2D phone fallback, replacing its placeholder block wall with cobble and recovered cart timber.
 
 ### BARRICADE desktop battlefield (2026-09-22)
 - Open the desktop game as a wide battlefield with its actions alongside play, and add a real fullscreen control with an Exit game route back to Memba.

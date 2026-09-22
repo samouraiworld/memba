@@ -23,6 +23,7 @@ import { laneThreats } from "./telegraph"
 import { paletteFor, type Plate } from "./palette"
 import { spriteFor } from "./sprites"
 import { buildSkyline } from "./nightsky"
+import { scenePlate } from "./art"
 
 export type ViewSize = { width: number; height: number }
 
@@ -580,6 +581,92 @@ export function paintHalftone(ctx: CanvasRenderingContext2D, x: number, y: numbe
     ctx.restore()
 }
 
+/**
+ * The compact renderer keeps its flat lane projection, but shares the same
+ * authored citizen as the desktop front line. The old silhouette remains as a
+ * resilient offline/loading fallback.
+ */
+function drawCitizenAtWall(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    wallY: number,
+    laneW: number,
+    offsetX = 0,
+    offsetY = 0,
+): void {
+    const x = cx + offsetX
+    const art = scenePlate("citizen")
+    if (art) {
+        const width = laneW * 0.68
+        const height = width * art.naturalHeight / art.naturalWidth
+        ctx.drawImage(art, x - width / 2, wallY - height * 0.82 + offsetY, width, height)
+        return
+    }
+
+    const size = laneW * 0.34
+    const y = wallY - size * 0.5 - 6 + offsetY
+    groundShadow(ctx, x, y, size)
+    rebelPath(ctx, x, y, size)
+    inkFill(ctx, VERMILION, 3)
+}
+
+/** Street cobbles and salvaged cart timber, flattened for the phone renderer. */
+function drawFlatBarricade(ctx: CanvasRenderingContext2D, lay: Layout, hpFrac: number): void {
+    const { w, hudH, fieldH, barricadeH } = lay
+    const wallY = hudH + fieldH
+    const durability = Math.max(0, Math.min(1, hpFrac))
+
+    ctx.fillStyle = STOCK
+    ctx.fillRect(0, wallY, w, barricadeH)
+
+    // One recovered cart beam gives the wall a hand-built street origin. It is
+    // quiet enough not to compete with enemies or the authored defender.
+    ctx.strokeStyle = "#81572d"
+    ctx.lineWidth = Math.max(5, barricadeH * 0.2)
+    ctx.beginPath()
+    ctx.moveTo(-w * 0.02, wallY + barricadeH * 0.76)
+    ctx.lineTo(w * 1.02, wallY + barricadeH * 0.28)
+    ctx.stroke()
+    ctx.strokeStyle = INK_LINE
+    ctx.lineWidth = 2
+    ctx.stroke()
+
+    for (let row = 0; row < 2; row++) {
+        const stones = row === 0 ? 9 : 10
+        const stoneW = w / stones
+        const visible = Math.ceil(durability * stones)
+        for (let i = 0; i < visible; i++) {
+            const shift = row === 0 ? stoneW * 0.32 : 0
+            const x = i * stoneW - shift
+            const y = wallY + row * barricadeH * 0.42 + Math.sin(i * 2.3 + row) * 1.5
+            const stoneH = barricadeH * 0.52
+            ctx.beginPath()
+            ctx.moveTo(x + stoneW * 0.1, y + stoneH * 0.12)
+            ctx.lineTo(x + stoneW * (0.7 + (i % 3) * 0.04), y)
+            ctx.lineTo(x + stoneW * 0.96, y + stoneH * 0.25)
+            ctx.lineTo(x + stoneW * 0.88, y + stoneH * 0.84)
+            ctx.lineTo(x + stoneW * 0.16, y + stoneH)
+            ctx.lineTo(x, y + stoneH * 0.62)
+            ctx.closePath()
+            inkFill(ctx, row === 0 ? (i % 2 ? "#807784" : "#9b9090") : (i % 2 ? "#554e62" : "#6b6170"), 2)
+        }
+    }
+
+    // A modest tricolour marks the civic line without turning the wall into a
+    // flag graphic.
+    const pole = w * 0.5
+    ctx.strokeStyle = INK_LINE
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    ctx.moveTo(pole, wallY + 2)
+    ctx.lineTo(pole, wallY - 16)
+    ctx.stroke()
+    for (let k = 0; k < 3; k++) {
+        ctx.fillStyle = ["#2b49a0", PAPER, VERMILION][k]
+        ctx.fillRect(pole + 1 + k * 4, wallY - 16, 4, 12)
+    }
+}
+
 export function draw(
     ctx: CanvasRenderingContext2D,
     s: SimState,
@@ -589,7 +676,7 @@ export function draw(
 ): void {
     const { width: w, height: h } = view
     const lay = layout(w, h)
-    const { hudH, barricadeH, fieldH, laneW } = lay
+    const { hudH, fieldH, laneW } = lay
     const fieldTop = hudH
     const fieldBottom = hudH + fieldH
 
@@ -804,14 +891,11 @@ export function draw(
         ctx.globalAlpha = 1
     }
 
-    // Rebel — warm bust silhouette; leans on lane moves.
+    // The approved citizen anchors the flat fallback too; the lane lean keeps
+    // the same immediate move feedback as the procedural silhouette.
     const lean = fx ? fx.playerLean * laneW * 0.12 : 0
     const px = laneCenterX(lay, s.playerLane) + lean
-    const rebelS = laneW * 0.34
-    const rebelY = fieldBottom - rebelS * 0.5 - 6
-    groundShadow(ctx, px, rebelY, rebelS)
-    rebelPath(ctx, px, rebelY, rebelS)
-    inkFill(ctx, VERMILION, 3)
+    drawCitizenAtWall(ctx, px, fieldBottom, laneW)
 
     // Particles — hard ink/print flecks, inside the shake group.
     if (fx) {
@@ -826,34 +910,10 @@ export function draw(
     }
     ctx.restore()
 
-    // ── Barricade as a built object: a row of outlined timber blocks whose
-    // count follows HP; a small tricolore flag on top. ──────────────────────
+    // ── Barricade as a built object: street cobble and recovered cart timber.
+    // Its surviving width follows HP, preserving the original damage read. ──
     const hpFrac = Math.max(0, s.barricadeHp / BARRICADE_MAX_HP)
-    const planks = 10
-    const intact = Math.ceil(hpFrac * planks)
-    const pw = w / planks
-    ctx.fillStyle = STOCK
-    ctx.fillRect(0, fieldBottom, w, barricadeH)
-    for (let i = 0; i < planks; i++) {
-        const alive = i < intact
-        const bx = i * pw
-        const bh = alive ? barricadeH : barricadeH * 0.4
-        ctx.beginPath()
-        ctx.rect(bx + 1, fieldBottom + (barricadeH - bh), pw - 2, bh)
-        inkFill(ctx, alive ? OCHRE : "#3a2f1e", 2)
-    }
-    // flag pole + tricolore at the strongest point of the line
-    const fx0 = w * 0.5
-    ctx.strokeStyle = INK_LINE
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.moveTo(fx0, fieldBottom + 2)
-    ctx.lineTo(fx0, fieldBottom - 16)
-    ctx.stroke()
-    for (let k = 0; k < 3; k++) {
-        ctx.fillStyle = [VERMILION, PAPER, "#2b49a0"][k]
-        ctx.fillRect(fx0 + 1, fieldBottom - 16 + k * 4, 14, 4)
-    }
+    drawFlatBarricade(ctx, lay, hpFrac)
 
     // ── Full-field pops (unshaken). ──────────────────────────────────────────
     if (fx && fx.impact > 0) {
@@ -949,7 +1009,7 @@ export function draw(
 export function drawAttract(ctx: CanvasRenderingContext2D, view: ViewSize, t: number, reducedMotion = false): void {
     const { width: w, height: h } = view
     const lay = layout(w, h)
-    const { hudH, barricadeH, fieldH, laneW } = lay
+    const { hudH, fieldH, laneW } = lay
     const fieldTop = hudH
     const fieldBottom = hudH + fieldH
     const tt = reducedMotion ? 0 : t
@@ -984,33 +1044,8 @@ export function drawAttract(ctx: CanvasRenderingContext2D, view: ViewSize, t: nu
     })
 
     const bob = Math.sin(tt * 2) * 2
-    const px = laneCenterX(lay, 1)
-    const rebelS = laneW * 0.34
-    const rebelY = fieldBottom - rebelS * 0.5 - 6 + bob
-    groundShadow(ctx, px, rebelY, rebelS)
-    rebelPath(ctx, px, rebelY, rebelS)
-    inkFill(ctx, VERMILION, 3)
-
-    const planks = 10
-    const pw = w / planks
-    ctx.fillStyle = STOCK
-    ctx.fillRect(0, fieldBottom, w, barricadeH)
-    for (let i = 0; i < planks; i++) {
-        ctx.beginPath()
-        ctx.rect(i * pw + 1, fieldBottom, pw - 2, barricadeH)
-        inkFill(ctx, OCHRE, 2)
-    }
-    const pole = w * 0.5
-    ctx.strokeStyle = INK_LINE
-    ctx.lineWidth = 2
-    ctx.beginPath()
-    ctx.moveTo(pole, fieldBottom + 2)
-    ctx.lineTo(pole, fieldBottom - 16)
-    ctx.stroke()
-    for (let k = 0; k < 3; k++) {
-        ctx.fillStyle = [VERMILION, PAPER, "#2b49a0"][k]
-        ctx.fillRect(pole + 1, fieldBottom - 16 + k * 4, 14, 4)
-    }
+    drawCitizenAtWall(ctx, laneCenterX(lay, 1), fieldBottom, laneW, 0, bob)
+    drawFlatBarricade(ctx, lay, 1)
 
     const pulse = reducedMotion ? 0.85 : 0.55 + 0.45 * Math.sin(tt * 3)
     ctx.globalAlpha = pulse

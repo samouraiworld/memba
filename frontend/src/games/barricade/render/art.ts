@@ -1,8 +1,14 @@
 import { registerSprite } from "./sprites"
 
-type ScenePlate = "paris" | "citizen" | "broadcast"
+export type ScenePlate = "paris" | "citizen" | "broadcast"
 const sceneArt = new Map<ScenePlate, HTMLImageElement>()
 let started = false
+
+/** Register a decoded scene plate; exported as the asset seam and test hook. */
+export function registerScenePlate(key: ScenePlate, image: HTMLImageElement): void {
+    sceneArt.set(key, image)
+    if (key === "broadcast") registerSprite("broadcast", image)
+}
 
 /** Load only when BARRICADE mounts; the sim and replay never depend on art. */
 export function loadBarricadeArt(): void {
@@ -17,10 +23,7 @@ export function loadBarricadeArt(): void {
     for (const [key, file] of Object.entries(scene) as [ScenePlate, string][]) {
         const image = new Image()
         image.decoding = "async"
-        image.onload = () => {
-            sceneArt.set(key, image)
-            if (key === "broadcast") registerSprite("broadcast", image)
-        }
+        image.onload = () => registerScenePlate(key, image)
         image.src = `/games/barricade/${file}.webp`
     }
 
@@ -36,4 +39,10 @@ export function loadBarricadeArt(): void {
 
 export function scenePlate(key: ScenePlate): HTMLImageElement | null {
     return sceneArt.get(key) ?? null
+}
+
+/** Test hook: restore the unloaded state without changing the sprite registry. */
+export function clearScenePlates(): void {
+    sceneArt.clear()
+    started = false
 }

@@ -180,7 +180,11 @@ export default function Barricade() {
     } | null>(null)
 
     useEffect(() => {
-        if (RENDER_25D && !RENDER_3D) loadBarricadeArt()
+        // Both canvas renderers share the approved game-only defender and
+        // machine plates. The compact 2D path remains the fast fallback, but it
+        // should not fall back to placeholder identity just because a phone did
+        // not opt into the perspective renderer.
+        if (!RENDER_3D) loadBarricadeArt()
     }, [])
 
     useEffect(() => {

@@ -1,12 +1,15 @@
-import { describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it } from "vitest"
 import { initState } from "../sim/engine"
 import { ARCHETYPES } from "../sim/waves"
 import type { ArchetypeId, Enemy, SimState } from "../sim/types"
-import { draw } from "./draw"
+import { draw, drawAttract } from "./draw"
 import { initFx, layout, pushFxEvents } from "./fx"
+import { clearScenePlates, registerScenePlate } from "./art"
+
+afterEach(() => clearScenePlates())
 
 function stubCtx() {
-    const calls = { fillRect: 0, arc: 0, fillText: 0, stroke: 0, ellipseYs: [] as number[] }
+    const calls = { fillRect: 0, arc: 0, fillText: 0, stroke: 0, drawImage: 0, ellipseYs: [] as number[] }
     return {
         ctx: {
             save() {},
@@ -40,6 +43,9 @@ function stubCtx() {
             fillText() {
                 calls.fillText++
             },
+            drawImage() {
+                calls.drawImage++
+            },
             set fillStyle(_v: string) {},
             set strokeStyle(_v: string) {},
             set globalAlpha(_v: number) {},
@@ -71,6 +77,18 @@ function withEnemies(): SimState {
 }
 
 describe("draw", () => {
+    it("uses the authored citizen in compact ready and active scenes when it is loaded", () => {
+        registerScenePlate("citizen", { naturalWidth: 640, naturalHeight: 673 } as HTMLImageElement)
+
+        const active = stubCtx()
+        draw(active.ctx, initState("draw-test"), { width: 390, height: 700 })
+        expect(active.calls.drawImage).toBe(1)
+
+        const ready = stubCtx()
+        drawAttract(ready.ctx, { width: 390, height: 700 }, 0, true)
+        expect(ready.calls.drawImage).toBe(1)
+    })
+
     it("renders lanes, barricade and HUD without mutating the sim state", () => {
         const { ctx, calls } = stubCtx()
         const state = initState("draw-test")
