@@ -168,6 +168,37 @@ describe('config constants', () => {
         }
     })
 
+    it('mainnet allowlist is exactly the exposed wave-1 realms, each backed by a realm-versions.json mainnet record', async () => {
+        const { readFileSync, existsSync } = await import('node:fs')
+        const { resolve, dirname } = await import('node:path')
+        let dir = process.cwd()
+        let file = ''
+        for (let i = 0; i < 6 && !file; i++) {
+            const candidate = resolve(dir, 'realm-versions.json')
+            if (existsSync(candidate)) file = candidate
+            else dir = dirname(dir)
+        }
+        expect(file).not.toBe('')
+        const records = (JSON.parse(readFileSync(file, 'utf8')) as Record<string, Record<string, unknown>>).mainnet
+        const exposed = ['memba_appstore_v3', 'memba_reviews_v2', 'memba_feedback_v2', 'gnobuilders_badges_v2']
+        for (const base of exposed) {
+            expect(isRealmValidOn('mainnet', `gno.land/r/samcrew/${base}`), `${base} must be allowlisted on mainnet`).toBe(true)
+            expect(records?.[base], `mainnet realm '${base}' has no realm-versions.json mainnet record`).toBeDefined()
+        }
+        // Live on chain but deliberately NOT exposed: custody, commerce-only,
+        // DAO-dependent, and unconfigured attestation/attester lanes.
+        const liveButGated = ['escrow_v3', 'memba_market_config', 'memba_dao_channels_v2',
+            'memba_quest_attestation_v1', 'memba_arcade_leaderboard_v1']
+        for (const base of liveButGated) {
+            expect(records?.[base], `${base} should be recorded as live on mainnet`).toBeDefined()
+            expect(isRealmValidOn('mainnet', `gno.land/r/samcrew/${base}`), `${base} must stay gated on mainnet`).toBe(false)
+        }
+        // Not deployed on mainnet: the v1/v2 predecessors must never validate there.
+        for (const base of ['memba_reviews_v1', 'memba_appstore_v2', 'memba_appstore_reviews_v1']) {
+            expect(isRealmValidOn('mainnet', `gno.land/r/samcrew/${base}`)).toBe(false)
+        }
+    })
+
     it('mainnet is both a valid default key AND the hard fallback', () => {
         // The fallback tracks the current default chain. Every value it has
         // held so far has been a TESTNET that later died (test13, topaz,

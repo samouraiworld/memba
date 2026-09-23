@@ -14,13 +14,10 @@
 
 import { queryEval, parseQevalJSON } from "./dao/shared"
 import type { AminoMsg } from "./grc20"
-import { GNO_RPC_URL } from "./config"
+import { GNO_RPC_URL, MEMBA_DAO } from "./config"
 
-// The active App Store realm. Env-overridable so the front end can be pointed at the v3
-// money-path realm (memba_appstore_v3) once it's deployed + migrated, WITHOUT a code change —
-// the default stays on the live v2 realm so nothing breaks before that flip.
-export const APPSTORE_REALM_PATH =
-    import.meta.env.VITE_APPSTORE_REALM_PATH || "gno.land/r/samcrew/memba_appstore_v2"
+// The active App Store realm, chosen per network in config (MEMBA_DAO.appStorePath).
+export const APPSTORE_REALM_PATH = MEMBA_DAO.appStorePath
 
 /**
  * True when the active realm is the v3 realm, which exposes the richer read surface

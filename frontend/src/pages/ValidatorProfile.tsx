@@ -21,7 +21,7 @@ import {
     Copy, CheckCircle, GlobeSimple, GithubLogo, XLogo, PencilSimple,
     Coins, Package, Scales, ShieldCheck, ArrowsLeftRight, Play, Cube, ArrowClockwise,
 } from "@phosphor-icons/react"
-import { GNO_RPC_URL, GNO_CHAIN_ID, GNOLOVE_API_URL, getExplorerBaseUrl, isReviewsEnabled } from "../lib/config"
+import { GNO_RPC_URL, GNO_CHAIN_ID, GNOLOVE_API_URL, getExplorerBaseUrl, isReviewsAvailable } from "../lib/config"
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import {
     fetchValopers,
@@ -666,7 +666,7 @@ export default function ValidatorProfile() {
             )}
 
             {/* ── Persistent community reviews (below the tabs) ── */}
-            {isReviewsEnabled() && (valoper?.operatorAddress || address) ? (
+            {isReviewsAvailable() && (valoper?.operatorAddress || address) ? (
                 (() => {
                     // Post to the operator address (stable identity). Merge reads from the
                     // signing address + the raw URL address too, so reviews posted before the

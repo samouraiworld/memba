@@ -818,17 +818,20 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
     // absent key — absent means "no allowlist", which isRealmValidOn used to
     // read as "everything is valid" (F-28).
     gnoland1: [],
-    // Mainnet (`gnoland-1`): Memba deploys nothing here, and unlike every
-    // other empty entry this is not merely "not yet". Two independent gates
-    // hold, either of which alone is sufficient (see the NETWORKS.mainnet
-    // note): the `samcrew` NAMESPACE is unreachable without a GovDAO grant,
-    // and §126 locks `ugnot` transfers chain-wide so every custody lane would
-    // panic on both funding and payout. An EXPLICIT empty list, not an absent
-    // key — the predicate below already fails closed, so this states intent.
-    // ⛔ Do not add a path here for mainnet until BOTH gates clear AND the
-    // realm is verified live with a realm-versions.json `mainnet` record
-    // (that file is keyed by NETWORK KEY, like `pearl` — not by chain id).
-    mainnet: [],
+    // Mainnet (`gnoland-1`): wave 1 was published 2026-09-23 by the samcrew
+    // namespace multisig (realm-versions.json `mainnet`). Only realms whose
+    // Memba surface is safe to expose are listed: escrow_v3 (custodies funds;
+    // its builder is not mainnet-ready), memba_market_config (commerce-only),
+    // memba_dao_channels_v2 (needs memba_dao), memba_quest_attestation_v1 (no
+    // signer set) and memba_arcade_leaderboard_v1 (no attester) are live on
+    // chain but deliberately NOT listed. Every entry needs a realm-versions.json
+    // `mainnet` record (keyed by NETWORK KEY, not chain id).
+    mainnet: [
+        "gno.land/r/samcrew/memba_appstore_v3",
+        "gno.land/r/samcrew/memba_reviews_v2",
+        "gno.land/r/samcrew/memba_feedback_v2",
+        "gno.land/r/samcrew/gnobuilders_badges_v2",
+    ],
     // Pearl — the combined-ceremony set (§4 of docs/PEARL_CUTOVER_PLAN.md):
     // the default core lane + the commerce set in one window. Entry list =
     // exactly the deployer's dry-run walk on the [pearl] lane (verified
@@ -1324,7 +1327,12 @@ export const MEMBA_DAO = {
     nftMarketPath: "gno.land/r/samcrew/memba_nft_market_v2",
     nftCollectionsPath: "gno.land/r/samcrew/memba_collections", // Phase 2 launchpad registry (pending deploy)
     badgesPath: "gno.land/r/samcrew/gnobuilders_badges_v2",
-    reviewsPath: import.meta.env.VITE_REVIEWS_REALM_PATH || "gno.land/r/samcrew/memba_reviews_v1",
+    // Mainnet ships reviews_v2 (same public API as v1); pearl and older testnets carry v1.
+    reviewsPath: import.meta.env.VITE_REVIEWS_REALM_PATH
+        || (ACTIVE_NETWORK_KEY === "mainnet" ? "gno.land/r/samcrew/memba_reviews_v2" : "gno.land/r/samcrew/memba_reviews_v1"),
+    // App Store registry: mainnet ships only v3; pearl and older testnets carry v2.
+    appStorePath: import.meta.env.VITE_APPSTORE_REALM_PATH
+        || (ACTIVE_NETWORK_KEY === "mainnet" ? "gno.land/r/samcrew/memba_appstore_v3" : "gno.land/r/samcrew/memba_appstore_v2"),
     // Reputation-isolated App Store reviews realm (shares the reviews engine but keeps its
     // reputation graph separate from the validator/profile web-of-trust). Deployed to test13.
     appReviewsPath: import.meta.env.VITE_APPSTORE_REVIEWS_REALM_PATH || "gno.land/r/samcrew/memba_appstore_reviews_v1",
@@ -1456,6 +1464,8 @@ export const isTokensEnabled = (): boolean => import.meta.env.VITE_ENABLE_TOKENS
 export const isAgentsEnabled = (): boolean => import.meta.env.VITE_ENABLE_AGENTS === "true"
 export const isReviewsEnabled = (): boolean => import.meta.env.VITE_ENABLE_REVIEWS === "true"
 export const isReviewsValid = (): boolean => isRealmValid(MEMBA_DAO.reviewsPath)
+/** Reviews surfaces render only when the flag is on AND the reviews realm is live on the active network. */
+export const isReviewsAvailable = (): boolean => isReviewsEnabled() && isReviewsValid()
 /** Community reviews on App Store listings (B2b). Ordinary flag — the App Store reviews
  * realm moves no funds (reputation graph only). Literal reader (prod-bundle safe). Gates the
  * ReviewsSection mount + AppReviewStars on the App Store detail page. */

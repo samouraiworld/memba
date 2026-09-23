@@ -25,7 +25,7 @@ import { Link, useSearchParams, useLocation } from "react-router-dom"
 import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { Copy, CheckCircle } from "@phosphor-icons/react"
-import { GNO_RPC_URL, GNO_CHAIN_ID, getTelemetryRpcUrls, isReviewsEnabled } from "../lib/config"
+import { GNO_RPC_URL, GNO_CHAIN_ID, getTelemetryRpcUrls, isReviewsAvailable } from "../lib/config"
 import {
     getValidators,
     getNetworkStats,
@@ -173,7 +173,7 @@ function ValidatorRowPreview({ v, signingToOperator }: { v: ValidatorInfo; signi
                 {v.participationRate != null && <div><dt>Participation</dt><dd>{formatPercent(v.participationRate)}</dd></div>}
                 <div><dt>Rank</dt><dd>#{v.rank}</dd></div>
             </dl>
-            {isReviewsEnabled() && subject && <ValidatorReviewPreview subject={subject} aliases={aliases} />}
+            {isReviewsAvailable() && subject && <ValidatorReviewPreview subject={subject} aliases={aliases} />}
             <div className="vhc-foot">Open profile →</div>
         </div>
     )
@@ -682,7 +682,7 @@ export default function Validators() {
                             <SortableTh column="powerPercent" label="Share" align="right" sortKey={sortKey} sortAsc={sortAsc} onSort={handleSort} />
                             <th hidden={compactColumns} className="val-th val-th-center">Active Since</th>
                             <th hidden={compactColumns} className="val-th val-th-center">Profile</th>
-                            {isReviewsEnabled() && (
+                            {isReviewsAvailable() && (
                                 <th hidden={compactColumns} className="val-th val-th-center">Reviews</th>
                             )}
                             {hasMonitoring && (
@@ -764,7 +764,7 @@ export default function Validators() {
                                         </a>
                                     ) : "—"}
                                 </td>
-                                {isReviewsEnabled() && (() => {
+                                {isReviewsAvailable() && (() => {
                                     const { subject, aliases } = resolveReviewSubjects(v.gnoAddr, signingToOperator)
                                     return (
                                         <td hidden={compactColumns} className="val-td val-td-center">

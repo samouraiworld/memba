@@ -7,7 +7,7 @@ import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { GitHubIcon } from "../components/ui/GitHubIcon"
 import { ConnectingLoader } from "../components/ui/ConnectingLoader"
-import { GNOLOVE_API_URL, GITHUB_OAUTH_CLIENT_ID, API_BASE_URL, getExplorerBaseUrl, isReviewsEnabled } from "../lib/config"
+import { GNOLOVE_API_URL, GITHUB_OAUTH_CLIENT_ID, API_BASE_URL, getExplorerBaseUrl, isReviewsAvailable } from "../lib/config"
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import { resolveAvatarUrl } from "../lib/ipfs"
 import { fetchUserProfile, updateBackendProfile, type UserProfile } from "../lib/profile"
@@ -387,7 +387,7 @@ export function ProfilePage() {
                             )}
 
                             {/* Community reviews */}
-                            {isReviewsEnabled() && address && (
+                            {isReviewsAvailable() && address && (
                                 <ReviewsSection subject={address} />
                             )}
                         </div>
