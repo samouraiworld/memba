@@ -26,7 +26,7 @@
 |---------|-----|------|---------------|
 | Frontend | `memba.samourai.app` | React + Vite SPA | Netlify (`memba-multisig` site) |
 | Backend | `memba-backend.fly.dev` | Go + ConnectRPC | Fly.io (app `memba-backend`, region `cdg`, 1 shared-cpu-1x machine, `min_machines_running=1`, volume `memba_data` mounted at `/data`) |
-| Chain | `pearl-1` (live since 2026-08-27, full app since the 2026-08-31 ceremony; sapphire-1 retired — Samouraï sentry dead since 2026-09-02, off the allowlist and out of the RPC defaults the same day (#1139, #1138), formal sunset 2026-09-09; topaz-1 decommissioned 2026-08-12); `gnoland1` accepted (`MEMBA_ACCEPTED_CHAIN_IDS=pearl-1,gnoland1`), realms after Phase 5 | Gno | Official RPC: `rpc.pearl.testnets.gno.land`; samourai sentry: `rpc.pearl.samourai.live`; betanet: `rpc.gnoland1.samourai.live`. ⚠️ `rpc.sapphire.samourai.live` has answered HTTP 000 since 2026-09-02 — nothing sapphire-named is a valid target; never trust hostname or HTTP 200, the only identity test is `node_info.network` |
+| Chain | `gnoland-1` — gno.land mainnet, the default since the 2026-09-23 mainnet cutover (`MEMBA_ACCEPTED_CHAIN_IDS=gnoland-1`; realms in realm-versions.json `mainnet`). pearl-1 retired 2026-09-23 (shut down; hidden-but-resolvable in the frontend); sapphire-1 retired (sentry dead since 2026-09-02, sunset 2026-09-09); topaz-1 decommissioned 2026-08-12 | Gno | Official RPC: `rpc.gno.land`; Samouraï mainnet node: `rpc.mainnet.samourai.live`; tx-indexer: `indexer.gno.land/graphql/query`. ⚠️ nothing pearl- or sapphire-named is a valid target; never trust hostname or HTTP 200, the only identity test is `node_info.network` |
 
 > **Chain-cutover invariants (learned test13→topaz→sapphire→pearl).** A default-network change is
 > ONE coordinated window: frontend constants (config.ts + sitemap.ts + chainHealth.ts + netlify.toml),
@@ -36,12 +36,15 @@
 > missed `HOME_SNAPSHOT_RPC_URL` at first and prod kept serving sapphire snapshots after a
 > "successful" cutover), and the **mandatory feed-state reset** — `loadFeedCursor` reads the DB first
 > and the env is only a first-run floor, so stale rows from the old chain silently pin or poison the
-> tailer (realm-scoped post ids collide across chains). Pearl values of record (cutover executed
-> 2026-08-31; scoped-probe-verified 2026-09-01): `FEED_START_BLOCK=99236` (= `memba_feed_v1` deploy
-> height, realm-versions.json `pearl`), FEED on the samourai sentry `rpc.pearl.samourai.live` / GNO
-> on the canonical node (two-node rule — the public node 403-throttles sustained polling). ⚠️ Heights
-> are chain-scoped: the old sapphire value 187503 is ABOVE pearl's current head — setting it would
-> pin the tailer past the tip and it silently indexes nothing. **Autoheal footgun:** the sapphire VPS autoheal safely restarts a single
+> tailer (realm-scoped post ids collide across chains). **Mainnet values of record** (cutover
+> 2026-09-23): `GNO_CHAIN_ID=gnoland-1`, `MEMBA_ACCEPTED_CHAIN_IDS=gnoland-1`,
+> `FEED_START_BLOCK=265728` (= `memba_feed_v1` deploy height, realm-versions.json `mainnet`), FEED
+> (and `HOME_SNAPSHOT_RPC_URL`) on the Samouraï node `https://rpc.mainnet.samourai.live` / GNO on the
+> canonical `https://rpc.gno.land:443` (two-node rule — the public node 403-throttles sustained
+> polling), `INDEXER_GRAPHQL_URL=https://indexer.gno.land/graphql/query`. Superseded pearl values
+> (2026-08-31): `FEED_START_BLOCK=99236`, FEED on `rpc.pearl.samourai.live`. ⚠️ Heights are
+> chain-scoped: a height from another chain can sit ABOVE the current head — setting it would pin
+> the tailer past the tip and it silently indexes nothing. **Autoheal footgun:** the sapphire VPS autoheal safely restarts a single
 > lagging node but can permanently deadlock tmkms during a network-wide halt — disable the
 > validator timer during any coordinated outage, and never "fix" a mid-ceremony halt by restarting
 > the validator.
@@ -61,7 +64,7 @@
 | Var | Surface | Owner | Notes |
 |-----|---------|-------|-------|
 | `ED25519_SEED` | Fly | server-keypair | If empty, ephemeral keypair → every restart logs out all users. See `backend/internal/service/service.go`. |
-| `GNO_CHAIN_ID` | Fly | auth | Required for AUTH-CHAINID-01 enforcement; set to `pearl-1` in prod since the 2026-08-31 cutover (`sapphire-1` 08-15→08-31, `topaz-1` before that, `test-13` before 2026-07-26). No hardcoded default — `service.go` reads it from env and logs a warning if empty. |
+| `GNO_CHAIN_ID` | Fly | auth | Required for AUTH-CHAINID-01 enforcement; set to `gnoland-1` in prod since the 2026-09-23 mainnet cutover (`pearl-1` 08-31→09-23, `sapphire-1` 08-15→08-31, `topaz-1` before that, `test-13` before 2026-07-26). No hardcoded default — `service.go` reads it from env and logs a warning if empty. |
 | `FLY_API_TOKEN` | GitHub Actions | deploys + GHCR mirror | |
 | `NETLIFY_AUTH_TOKEN`, `NETLIFY_SITE_ID` | GitHub Actions (legacy) | Netlify deploy | Consumed only by the Actions deploy job removed 2026-07-11; `deploy-frontend.yml` has no Netlify step today. Production deploys are Netlify-native (§3.1). Candidate for removal at the next rotation drill. |
 | `SENTRY_AUTH_TOKEN` | Netlify env | source-map upload | Read by `@sentry/vite-plugin` during the Netlify-native build (no-op when unset); was unwired before `v6.0.2`. `deploy-frontend.yml` carries no Sentry step since 2026-07-11. Frontend only — the backend has no Sentry (§3.3). |

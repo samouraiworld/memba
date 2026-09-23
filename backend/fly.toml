@@ -27,10 +27,12 @@ primary_region = 'cdg'
   # — never bare printenv); changes to those go through `fly secrets set`
   # (owner-only) AND an edit here so the file stays truthful. Everything else
   # in [env] (NFT_INDEXER_DISABLED, the realm sets, …) is LOAD-BEARING from
-  # this file. Values below mirrored from a scoped prod read 2026-09-01.
+  # this file. Values below mirrored from a scoped prod read 2026-09-01, then
+  # moved to the gno.land mainnet (gnoland-1) truth at the 2026-09-23 cutover —
+  # the secrets must be set to match at deploy time.
   CORS_ORIGINS = 'https://memba.samourai.app,http://localhost:5173'
   DB_PATH = '/data/memba.db'
-  GNO_CHAIN_ID = 'pearl-1'
+  GNO_CHAIN_ID = 'gnoland-1'
   # Token chain-id allowlist (validation). Comma-separated → parseAcceptedChainIDs
   # (service.go) splits it into a set; ValidateToken 401s any token whose chain
   # isn't listed. Topaz cutover PHASE B (2026-07-26) kept 'test-13' here so
@@ -79,12 +81,19 @@ primary_region = 'cdg'
   # sunset 2026-09-09): a sapphire-issued token now 401s and the client's
   # transport interceptor forces one clean re-login on pearl. Mirrors the
   # owner's `fly secrets set` of the same date — keep the two in step.
-  MEMBA_ACCEPTED_CHAIN_IDS = 'pearl-1,gnoland1'
-  GNO_RPC_URL = 'https://rpc.pearl.testnets.gno.land:443'
-  # NFT indexer — STILL DISABLED after the pearl ceremony, deliberately: the
-  # fund-custody NFT realms ARE deployed on pearl-1 now (2026-08-31, recorded
-  # in realm-versions.json's `pearl` section), but re-enabling waits for the
-  # owner to wire the Prometheus scraper + Alertmanager so the
+  #
+  # MAINNET CUTOVER (2026-09-23): straight cut to 'gnoland-1' — pearl-1 is shut
+  # down, so a pearl session has nothing left to do (same reasoning as the
+  # sapphire cut); a pearl-issued token 401s and the transport interceptor
+  # forces one clean re-login on mainnet. The legacy 'gnoland1' spelling is
+  # dropped with it. Never blank (see above).
+  MEMBA_ACCEPTED_CHAIN_IDS = 'gnoland-1'
+  # Generic low-volume reads → the public mainnet canonical. The feed tailer
+  # polls a DIFFERENT node (FEED_RPC_URL → rpc.mainnet.samourai.live).
+  GNO_RPC_URL = 'https://rpc.gno.land:443'
+  # NFT indexer — DISABLED. No NFT market is deployed on gno.land mainnet
+  # (realm-versions.json `mainnet`, 2026-09-23); the pearl-era notes below
+  # apply once one ships. Re-enabling also waits for the owner to wire the Prometheus scraper + Alertmanager so the
   # `memba_indexer_*{indexer="nft"}` alerts are live BEFORE the tailer runs.
   # Re-enabling REQUIRES running `fly ssh console -C "/app/memba nft-reset"`
   # first — it wipes nft_indexer_state + the eight event/projection tables in
@@ -103,8 +112,9 @@ primary_region = 'cdg'
   # the Fly IP under sustained indexer polling; confirmed on topaz 2026-08-10).
   # Low-volume reads are fine. If the NFT indexer is ever re-enabled, give it
   # its own dedicated node rather than this default — the feed already follows
-  # that rule (FEED_RPC_URL → our pearl sentry).
-  NFT_RPC_URL = 'https://rpc.pearl.samourai.live:443'
+  # that rule (FEED_RPC_URL → our mainnet node). Mainnet cutover (2026-09-23):
+  # the Samourai-operated gnoland-1 node, matching the code default.
+  NFT_RPC_URL = 'https://rpc.mainnet.samourai.live'
   # NFT tailer realm sets — versioned here so prod can never silently fall back
   # to the code defaults (that's exactly how the retired memba_nft_market_v3
   # stayed indexed while v3.1 sales went missing until 2026-07-11). Watched =
@@ -116,7 +126,9 @@ primary_region = 'cdg'
   # from Sale events on the v3.2 engine (its seeded history emits SaleSeeded,
   # which the dispatcher ignores — no double-count).
   # Neither key is a Fly secret (verified 2026-09-06 via `fly secrets list`) —
-  # these values are authoritative.
+  # these values are authoritative. They are pearl-era and name realms NOT
+  # deployed on mainnet; inert while NFT_INDEXER_DISABLED=1 — replace them
+  # with the mainnet market realms before any re-enable.
   NFT_WATCHED_REALMS = 'gno.land/r/samcrew/memba_nft_market_v3_2,gno.land/r/samcrew/memba_collections'
   NFT_SALE_VOLUME_REALMS = 'gno.land/r/samcrew/memba_nft_market_v3_2'
   # AUTH ENFORCEMENT — fail-closed by default since Wave 1 (2026-06-28).

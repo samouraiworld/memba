@@ -80,14 +80,15 @@ const (
 // questRPCURL returns the RPC endpoint for server-side quest verification. It
 // reads its own vars (QUEST_RPC_URL, then NFT_RPC_URL) rather than GNO_RPC_URL,
 // keeping verification reads decoupled from the generic render proxy. Failover
-// backups are appended by rpcURLsInOrder.
+// backups are appended by rpcURLsInOrder. Defaults to the public gno.land
+// mainnet canonical (low-volume reads).
 func questRPCURL() string {
 	for _, env := range []string{"QUEST_RPC_URL", "NFT_RPC_URL"} {
 		if url := os.Getenv(env); url != "" {
 			return url
 		}
 	}
-	return "https://rpc.pearl.testnets.gno.land:443"
+	return "https://rpc.gno.land:443"
 }
 
 var (

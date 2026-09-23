@@ -10,6 +10,8 @@ import (
 )
 
 // indexerURL returns the gno tx-indexer GraphQL endpoint (fixed; env-overridable).
+// The default is the gno.land mainnet (gnoland-1) indexer since the 2026-09-23
+// cutover.
 // The browser cannot call it directly — the indexer sends no CORS headers — so the
 // frontend POSTs its GraphQL queries to /api/indexer and we forward them here,
 // server-side, where CORS does not apply.
@@ -17,7 +19,7 @@ func indexerURL() string {
 	if v := os.Getenv("INDEXER_GRAPHQL_URL"); v != "" {
 		return v
 	}
-	return "https://indexer.pearl.testnets.gno.land/graphql/query"
+	return "https://indexer.gno.land/graphql/query"
 }
 
 const (

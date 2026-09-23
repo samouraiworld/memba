@@ -261,22 +261,23 @@ func main() {
 	// their OWN rpc env (NFT_RPC_URL) — NOT GNO_RPC_URL.
 	//
 	// NFT_INDEXER_DISABLED=1 skips the poller AND the event tailer entirely.
-	// The NFT stack (memba_collections + memba_nft_market_v3_2) IS deployed on
-	// pearl (2026-08-31 combined ceremony); the indexer stays disabled pending
-	// observability wiring (memba_indexer_lag_blocks is pinned at 0 while it's
+	// No NFT market is deployed on gno.land mainnet (gnoland-1, the chain
+	// served since the 2026-09-23 cutover); the indexer stays disabled until
+	// one ships AND pending observability wiring (memba_indexer_lag_blocks is pinned at 0 while it's
 	// off, so a re-enable without scrape + alerting would fail silently).
 	// Re-enabling REQUIRES clearing nft_indexer_state (and the nft
 	// projections) first: NFT_SEED_REALM_CURSOR is INSERT OR IGNORE and will
 	// NOT rewind the retained test13/topaz-era rows, and the projections' keys
 	// collide across chains exactly like the feed's did. The NFT_START_BLOCK
-	// default below is the pearl memba_nft_market_v3_2 deploy height; a floor
-	// ABOVE the chain head silently indexes nothing, so re-check it against
-	// realm-versions.json on any chain switch.
+	// default below is the first samcrew mainnet deploy height (a placeholder
+	// floor — set NFT_START_BLOCK to the market's deploy height when one
+	// ships); a floor ABOVE the chain head silently indexes nothing, so
+	// re-check it against realm-versions.json on any chain switch.
 	nftDisabled := os.Getenv("NFT_INDEXER_DISABLED") == "1"
 	if nftDisabled {
 		slog.Info("NFT indexer disabled (NFT_INDEXER_DISABLED=1)")
 	}
-	// Default is OUR pearl sentry, not the public canonical: the poller is a
+	// Default is the Samourai-operated mainnet node, not the public canonical: the poller is a
 	// sustained-polling client, and the public node rate-limits the Fly egress
 	// IP under exactly that load (#466, presenting as 403). Same dedicated-node
 	// rule as home_rpc.go; mirrors the fly.toml [env] value.
@@ -337,13 +338,14 @@ func main() {
 		indexer.StartFeedTailer(ctx, database, indexer.FeedTailerConfig{
 			RPCURL:        envOr("FEED_RPC_URL", nftRPCURL),
 			WatchedRealms: splitOrigins(feedRealms),
-			// Default = the PEARL memba_feed_v1 deploy block (add_package tx at
-			// height 99236, 2026-08-31 ceremony — recorded in realm-versions.json;
-			// prod pins FEED_START_BLOCK to the same value as a secret). A start
-			// block ABOVE the chain head silently indexes nothing — set
-			// FEED_START_BLOCK explicitly on any chain switch (the old test13-era
-			// default 260000 did exactly that hazard on topaz; the sapphire-era
-			// 187503 would have done it again here).
+			// Default = the MAINNET memba_feed_v1 deploy block (add_package tx
+			// at height 265728, gnoland-1, 2026-09-23 — recorded in
+			// realm-versions.json `mainnet`; prod pins FEED_START_BLOCK to the
+			// same value as a secret). A start block ABOVE the chain head
+			// silently indexes nothing — set FEED_START_BLOCK explicitly on any
+			// chain switch (the old test13-era default 260000 did exactly that
+			// hazard on topaz; the sapphire-era 187503 would have done it again
+			// on pearl).
 			// NOTE: the env/default is only a FIRST-RUN floor — the DB cursor
 			// wins, which is why a chain switch also requires the feed-state
 			// reset (see OPS_RUNBOOK).
@@ -594,15 +596,15 @@ func main() {
 
 // envOr returns the env var value, or fallback when unset/empty.
 // defaultNFTRPCURL is the NFT poller's RPC when NFT_RPC_URL is unset — the
-// pearl sentry (see the comment at the call site). Pinned by main_test.go so
+// Samourai-operated mainnet node (see the comment at the call site). Pinned by main_test.go so
 // a retired-chain host can never come back here silently.
-const defaultNFTRPCURL = "https://rpc.pearl.samourai.live:443"
+const defaultNFTRPCURL = "https://rpc.mainnet.samourai.live"
 
 // First-run cursor floors when FEED_START_BLOCK / NFT_START_BLOCK are unset —
-// the pearl-1 deploy heights of memba_feed_v1 and memba_nft_market_v3_2, shared
-// with the indexer package so there is exactly one literal per realm. Pinned by
-// TestDefaultStartHeightsArePearlEra: a floor above the chain head indexes
-// nothing, silently.
+// the gnoland-1 memba_feed_v1 deploy height and the first samcrew mainnet
+// deploy height (NFT placeholder), shared with the indexer package so there is
+// exactly one literal per realm. Pinned by TestDefaultStartHeightsAreMainnetEra:
+// a floor above the chain head indexes nothing, silently.
 const (
 	defaultFeedStartBlock = indexer.DefaultFeedStartBlock
 	defaultNFTStartBlock  = indexer.DefaultNFTStartBlock

@@ -19,17 +19,21 @@ import (
 const (
 	defaultTailerInterval = 3 * time.Second
 	// DefaultNFTStartBlock is the first-run cursor floor when NFT_START_BLOCK
-	// is unset: the earliest pearl-1 deploy height among the watched NFT realms,
-	// memba_collections (seq 28, realm-versions.json `pearl`, verified
-	// 2026-08-31); memba_nft_market_v3_2 followed 8 blocks later (100497). A
-	// floor ABOVE the chain head silently indexes nothing — the old 260000
-	// test13-era value did exactly that against pearl — so this is the one
-	// shared constant for cmd/memba too. Documented in .env.example.
-	DefaultNFTStartBlock = int64(100489)
+	// is unset. No NFT market is deployed on gno.land mainnet (gnoland-1) and
+	// the NFT indexer is disabled in prod, so this is the first samcrew
+	// mainnet deploy height (p/samcrew/avl, seq 0, realm-versions.json
+	// `mainnet`) — a floor that is known to be at or below every samcrew
+	// realm. Set NFT_START_BLOCK explicitly to the market's deploy height
+	// when an NFT market ships on mainnet. A floor ABOVE the chain head
+	// silently indexes nothing — the old 260000 test13-era value did exactly
+	// that against pearl — so this is the one shared constant for cmd/memba
+	// too. Documented in .env.example.
+	DefaultNFTStartBlock = int64(265293)
 	// DefaultFeedStartBlock is the feed tailer's counterpart when
-	// FEED_START_BLOCK is unset: the pearl-1 memba_feed_v1 deploy height
-	// (seq 22). Production pins FEED_START_BLOCK explicitly to this value.
-	DefaultFeedStartBlock = int64(99236)
+	// FEED_START_BLOCK is unset: the gnoland-1 memba_feed_v1 deploy height
+	// (seq 6, realm-versions.json `mainnet`, 2026-09-23). Production pins
+	// FEED_START_BLOCK explicitly to this value.
+	DefaultFeedStartBlock = int64(265728)
 	// maxBlocksPerCycle caps how many blocks one catch-up cycle processes so a
 	// far-behind cursor doesn't hold the loop (and the DB writer) indefinitely.
 	maxBlocksPerCycle = 500

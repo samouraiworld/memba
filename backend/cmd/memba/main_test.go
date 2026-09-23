@@ -295,16 +295,16 @@ func TestLitestreamManaged(t *testing.T) {
 // memba_nft_market_v3 (deauthorized 2026-06-27), so prod silently indexed a
 // dead realm and missed every v3.1 sale until 2026-07-11. Changing these sets
 // means changing this test AND backend/fly.toml [env] — deliberately.
-// The NFT poller's built-in RPC must be a pearl node — and the SENTRY, not the
-// public canonical: it polls continuously, and the public node 403s the Fly
+// The NFT poller's built-in RPC must be a gnoland-1 mainnet node — and OUR
+// dedicated node, not the public canonical: it polls continuously, and the public node 403s the Fly
 // egress IP under sustained polling (#466). A retired-chain host here is dead
 // at best and answers from the wrong chain at worst.
-func TestDefaultNFTRPCURL_IsThePearlSentry(t *testing.T) {
-	const want = "https://rpc.pearl.samourai.live:443"
+func TestDefaultNFTRPCURL_IsTheMainnetDedicatedNode(t *testing.T) {
+	const want = "https://rpc.mainnet.samourai.live"
 	if defaultNFTRPCURL != want {
-		t.Fatalf("defaultNFTRPCURL = %q, want the pearl sentry %q", defaultNFTRPCURL, want)
+		t.Fatalf("defaultNFTRPCURL = %q, want the samourai mainnet node %q", defaultNFTRPCURL, want)
 	}
-	for _, retired := range []string{"sapphire", "topaz", "test13", "testnet13", "test-13", "test12"} {
+	for _, retired := range []string{"pearl", "sapphire", "topaz", "test13", "testnet13", "test-13", "test12"} {
 		if strings.Contains(defaultNFTRPCURL, retired) {
 			t.Fatalf("defaultNFTRPCURL %q names retired chain marker %q", defaultNFTRPCURL, retired)
 		}
@@ -312,23 +312,25 @@ func TestDefaultNFTRPCURL_IsThePearlSentry(t *testing.T) {
 }
 
 // A backend booted without FEED_START_BLOCK / NFT_START_BLOCK must start
-// tailing at the PEARL deploy heights. A default above the chain head is the
-// "silently indexes nothing" trap: the 260000 test13-era NFT default sat above
-// pearl's head (~249k on 2026-09-06), and the 187503 feed default was the
-// retired sapphire height. Production sets FEED_START_BLOCK explicitly, so
-// this pins the fresh-machine contract, not prod. Heights come from
-// realm-versions.json `pearl` (memba_feed_v1 seq 22; memba_nft_market_v3_2
-// seq 32); the pearl head at pin time bounds the NFT default from above.
-func TestDefaultStartHeightsArePearlEra(t *testing.T) {
+// tailing at the gno.land MAINNET (gnoland-1) deploy heights. A default above
+// the chain head is the "silently indexes nothing" trap: the 260000 test13-era
+// NFT default sat above pearl's head (~249k on 2026-09-06), and the 187503 feed
+// default was the retired sapphire height. Production sets FEED_START_BLOCK
+// explicitly, so this pins the fresh-machine contract, not prod. Heights come
+// from realm-versions.json `mainnet` (memba_feed_v1 seq 6; the NFT floor is
+// the first samcrew deploy, seq 0, as no NFT market ships on mainnet yet); the
+// mainnet head at pin time bounds the NFT default from above.
+func TestDefaultStartHeightsAreMainnetEra(t *testing.T) {
 	const (
-		pearlFeedDeployHeight = int64(99236)
-		pearlHeadAtPin        = int64(249000) // 2026-09-06
+		mainnetFeedDeployHeight   = int64(265728)
+		mainnetFirstSamcrewDeploy = int64(265293)
+		mainnetHeadAtPin          = int64(267000) // 2026-09-23
 	)
-	if defaultFeedStartBlock != pearlFeedDeployHeight {
-		t.Fatalf("defaultFeedStartBlock = %d, want the pearl memba_feed_v1 deploy height %d", defaultFeedStartBlock, pearlFeedDeployHeight)
+	if defaultFeedStartBlock != mainnetFeedDeployHeight {
+		t.Fatalf("defaultFeedStartBlock = %d, want the mainnet memba_feed_v1 deploy height %d", defaultFeedStartBlock, mainnetFeedDeployHeight)
 	}
-	if defaultNFTStartBlock <= 0 || defaultNFTStartBlock >= pearlHeadAtPin {
-		t.Fatalf("defaultNFTStartBlock = %d, want 0 < h < pearl head %d (a default above the head indexes nothing)", defaultNFTStartBlock, pearlHeadAtPin)
+	if defaultNFTStartBlock < mainnetFirstSamcrewDeploy || defaultNFTStartBlock >= mainnetHeadAtPin {
+		t.Fatalf("defaultNFTStartBlock = %d, want %d <= h < mainnet head %d (a default above the head indexes nothing)", defaultNFTStartBlock, mainnetFirstSamcrewDeploy, mainnetHeadAtPin)
 	}
 	if defaultNFTStartBlock != indexer.DefaultNFTStartBlock {
 		t.Fatalf("defaultNFTStartBlock = %d but indexer.DefaultNFTStartBlock = %d — one shared constant, not two literals", defaultNFTStartBlock, indexer.DefaultNFTStartBlock)
