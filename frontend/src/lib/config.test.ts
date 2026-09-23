@@ -547,11 +547,15 @@ describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl + m
         // come from the independence-day allocation, "No faucets"). An
         // invented faucet URL would send users somewhere that cannot help.
         expect(NETWORKS.mainnet.faucetUrl).toBe('')
-        // No second official node published — an unreachable fallback is
-        // indistinguishable from a slow one (the sapphire dead-failover
-        // lesson), so the list stays empty rather than guessing hostnames.
-        expect(NETWORKS.mainnet.fallbackRpcUrls).toEqual([])
+        // One identity-verified fallback (Samourai's gnoland-1 node, checked
+        // node_info.network == "gnoland-1" on 2026-09-23). Pinned exactly: a
+        // guessed or unverified host here is the sapphire dead-failover lesson.
+        expect(NETWORKS.mainnet.fallbackRpcUrls).toEqual(['https://rpc.mainnet.samourai.live:443'])
         expect(isTrustedRpcDomain(NETWORKS.mainnet.rpcUrl)).toBe(true)
+        for (const url of NETWORKS.mainnet.fallbackRpcUrls) {
+            expect(isTrustedRpcDomain(url), url).toBe(true)
+            expect(url, 'a fallback must not repeat the primary').not.toBe(NETWORKS.mainnet.rpcUrl)
+        }
     })
 
     it('mainnet `gnoland-1` is NOT betanet `gnoland1` — distinct chain ids', () => {

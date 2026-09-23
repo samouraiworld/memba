@@ -573,11 +573,16 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // TRUSTED_RPC_DOMAINS and covered by the netlify CSP's
         // `https://*.gno.land`.
         rpcUrl: import.meta.env.VITE_MAINNET_RPC_URL || "https://rpc.gno.land:443",
-        // Deliberately EMPTY: no second official node is published yet, and an
-        // unreachable fallback is indistinguishable from a slow one. The
-        // sapphire post-mortem was three dead hosts left in a failover list —
-        // do not guess hostnames here.
-        fallbackRpcUrls: [],
+        // Samourai's own gnoland-1 node. IDENTITY-VERIFIED 2026-09-23:
+        // /status → node_info.network "gnoland-1", v1.0.0-rc.0, same height as
+        // rpc.gno.land, catching_up false; serves `Access-Control-Allow-Origin: *`.
+        // Covered by TRUSTED_RPC_DOMAINS (`samourai.live`) and the netlify CSP
+        // (`https://*.samourai.live`). The sapphire post-mortem was three dead
+        // hosts left in a failover list — re-verify node_info.network before
+        // adding another, never on DNS or a 200.
+        fallbackRpcUrls: [
+            "https://rpc.mainnet.samourai.live:443",
+        ],
         telemetryRpcUrls: [],
         // gno.land mainnet tx-indexer (verified 2026-09-23: it serves
         // gnoland-1, latestBlockHeight tracking the RPC). The browser never

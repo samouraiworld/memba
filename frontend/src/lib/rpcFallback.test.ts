@@ -252,3 +252,37 @@ describe("resilientAbciQuery — node-level JSON-RPC errors are transport failur
         await expect(resilientAbciQueryDetailed("vm/qrender", "gno.land/r/nodeerr-d:")).rejects.toThrow(/catching up/)
     })
 })
+
+// Mainnet (`gnoland-1`) gained its first fallback on 2026-09-23: Samourai's own
+// node, identity-verified. Hermetic: the module graph is re-imported under a
+// stubbed default so a local .env pinning another chain cannot skew it.
+describe("mainnet failover to the verified fallback node", () => {
+    afterEach(() => {
+        vi.unstubAllEnvs()
+        vi.resetModules()
+        window.history.replaceState({}, "", "/")
+    })
+
+    it("orders rpc.gno.land first, then rpc.mainnet.samourai.live, and fails over to it", async () => {
+        vi.stubEnv("VITE_GNO_CHAIN_ID", "mainnet")
+        window.history.replaceState({}, "", "/mainnet/")
+        vi.resetModules()
+        const rf = await import("./rpcFallback")
+        expect(rf.getRpcUrlsInOrder()).toEqual([
+            "https://rpc.gno.land:443",
+            "https://rpc.mainnet.samourai.live:443",
+        ])
+
+        const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+            const url = String(input)
+            if (url.startsWith("https://rpc.gno.land")) throw new TypeError("Failed to fetch")
+            return okData("from fallback")
+        })
+        vi.stubGlobal("fetch", fetchMock)
+
+        await expect(rf.resilientAbciQuery("vm/qrender", "gno.land/r/x:")).resolves.toBe("from fallback")
+        expect(fetchMock.mock.calls.some(([u]) => String(u).startsWith("https://rpc.mainnet.samourai.live"))).toBe(true)
+        // The working fallback is tried first for the rest of the session.
+        expect(rf.getRpcUrlsInOrder()[0]).toBe("https://rpc.mainnet.samourai.live:443")
+    })
+})

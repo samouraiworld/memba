@@ -84,9 +84,10 @@ export default function ValidatorsHacker() {
     // One in-flight pass per loop. Without this the intervals STACK: the heatmap
     // pass alone issues 100 /block calls in 10 sequential chunks at an 8s
     // per-call timeout, so a degraded RPC makes one pass take up to 80s while a
-    // new pass starts every 30s. On mainnet `fallbackRpcUrls` is empty, so every
-    // stacked pass lands on the same single host — a self-inflicted DoS that gets
-    // worse exactly when the chain is already struggling.
+    // new pass starts every 30s. On mainnet there is one primary and a single
+    // fallback, so stacked passes land on the same one or two hosts — a
+    // self-inflicted DoS that gets worse exactly when the chain is already
+    // struggling.
     const inFlight = useRef<Set<string>>(new Set())
     const latestHeightRef = useRef<number>(0) // tracks height without setState for heatmap interval
 
