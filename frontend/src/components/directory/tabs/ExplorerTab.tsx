@@ -16,7 +16,7 @@
  */
 
 import { useState, useMemo, type FormEvent } from "react"
-import DOMPurify from "dompurify"
+import { sanitizeMarkdownHtml } from "../../../lib/sanitizeMarkdownHtml"
 import { getExplorerBaseUrlFor } from "../../../lib/config"
 import { useQuery } from "@tanstack/react-query"
 import { useDirectoryRender } from "../../../hooks/useDirectoryRender"
@@ -182,7 +182,7 @@ function RealmView({ path, networkKey }: { path: string; networkKey: string }) {
                     ) : render ? (
                         <div
                             className="realmview__render"
-                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(render)) }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeMarkdownHtml(renderMarkdown(render)) }}
                         />
                     ) : (
                         <p className="realmview__muted">This realm returned no <code>Render()</code> output.</p>

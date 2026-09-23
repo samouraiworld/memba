@@ -10,6 +10,7 @@ import { addSavedDAO } from "../../lib/daoSlug"
 import type { DAOMetadata } from "../../lib/daoMetadata"
 import type { DAOCategory } from "../../lib/directory"
 import { DAOIdentityLabel } from "../dao/DAOIdentityLabel"
+import { revealInvisibleFormatting } from "../../lib/dao/v2Text"
 
 const CATEGORY_CONFIG: Record<DAOCategory, { label: string; color: string }> = {
     governance: { label: "Governance", color: "hsl(210, 80%, 60%)" },
@@ -65,7 +66,7 @@ export function DAOCard({ name, path, isSaved, category, metadata, degraded, onC
                 <div className="dir-card-path">{path}</div>
                 <div className="dir-card-name">
                     <Buildings size={14} weight="duotone" style={{ marginRight: 6, verticalAlign: -2 }} />
-                    {name}
+                    {revealInvisibleFormatting(name)}
                     {cat && (
                         <span
                             className="dir-inline-badge dir-category-badge"
@@ -121,7 +122,7 @@ export function DAOCard({ name, path, isSaved, category, metadata, degraded, onC
                         className="dir-save-btn"
                         onClick={handleSave}
                         data-testid="dao-save-btn"
-                        aria-label={`Save ${name} to Memba`}
+                        aria-label={`Save ${revealInvisibleFormatting(name)} to Memba`}
                     >
                         <BookmarkSimple size={10} weight="bold" style={{ marginRight: 3, verticalAlign: -1 }} />
                         Save

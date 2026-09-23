@@ -9,6 +9,7 @@
 
 import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { encodeSlug, getSavedDAOs, type SavedDAO } from "../../lib/daoSlug"
+import { revealInvisibleFormatting } from "../../lib/dao/v2Text"
 
 interface Props {
     /** The profile's wallet address. */
@@ -62,7 +63,7 @@ export function DAOMembershipsCard(props: Props) {
                     >
                         <div>
                             <div style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 500, color: "var(--color-text)" }}>
-                                {dao.name}
+                                {revealInvisibleFormatting(dao.name)}
                             </div>
                             <div style={{
                                 fontSize: "var(--pro-caption, 10px)", fontFamily: "JetBrains Mono, monospace",

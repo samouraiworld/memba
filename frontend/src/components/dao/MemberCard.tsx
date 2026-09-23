@@ -5,6 +5,7 @@
  */
 import type { CSSProperties } from "react"
 import type { DAOMember } from "../../lib/dao/shared"
+import { revealInvisibleFormatting } from "../../lib/dao/v2Text"
 
 export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: DAOMember; isCurrentUser: boolean; onProfileClick: (addr: string) => void }) {
     const truncAddr = member.address.length > 16
@@ -32,7 +33,7 @@ export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: 
                         href={`/u/${member.username.replace("@", "")}`}
                         style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-primary)", fontWeight: 600, fontFamily: "var(--font-ui, JetBrains Mono, monospace)", textDecoration: "none", whiteSpace: "nowrap" }}
                     >
-                        {member.username}
+                        {revealInvisibleFormatting(member.username)}
                     </a>
                 )}
                 <span style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-text-muted)", fontFamily: "JetBrains Mono, monospace", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}
@@ -71,7 +72,7 @@ export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: 
                             whiteSpace: "nowrap",
                             background: `${c}15`, ["--ck"]: c,
                         } as CSSProperties}>
-                            {role}
+                            {revealInvisibleFormatting(role)}
                         </span>
                     )
                 })}

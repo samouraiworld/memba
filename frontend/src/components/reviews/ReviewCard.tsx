@@ -10,7 +10,7 @@
  */
 
 import { useState, useCallback } from "react"
-import DOMPurify from "dompurify"
+import { sanitizeMarkdownHtml } from "../../lib/sanitizeMarkdownHtml"
 import { renderMarkdown } from "../../lib/markdownLite"
 import { useAdena } from "../../hooks/useAdena"
 import { useBlockTime } from "../../hooks/useBlockTime"
@@ -137,7 +137,7 @@ function CommentRow({ comment, address, onRefetch, realmPath }: CommentRowProps)
       ) : (
         <div
           className="review-comment__body"
-          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(comment.body || "")) }}
+          dangerouslySetInnerHTML={{ __html: sanitizeMarkdownHtml(renderMarkdown(comment.body || "")) }}
         />
       )}
 
@@ -328,7 +328,7 @@ export function ReviewCard({ review, onRefetch, realmPath }: ReviewCardProps) {
       ) : (
         <div
           className="review-card__body"
-          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(review.body || "")) }}
+          dangerouslySetInnerHTML={{ __html: sanitizeMarkdownHtml(renderMarkdown(review.body || "")) }}
         />
       )}
 

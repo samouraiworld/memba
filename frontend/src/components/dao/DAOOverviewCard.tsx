@@ -3,6 +3,7 @@ import { Bank, Archive } from "@phosphor-icons/react"
 import { getExplorerBaseUrl, getUserRegistryPath } from "../../lib/config"
 import { PowerDonut } from "./TierPieChart"
 import { DAOIdentityLabel } from "./DAOIdentityLabel"
+import { revealInvisibleFormatting } from "../../lib/dao/v2Text"
 import type { DAOConfig, DAOMember } from "../../lib/dao"
 
 interface DAOOverviewCardProps {
@@ -49,7 +50,7 @@ export function DAOOverviewCard({
                 </button>
                 <span className="dao-breadcrumb-sep">›</span>
                 <span className="dao-breadcrumb-name">
-                    {config?.name || "DAO"}
+                    {revealInvisibleFormatting(config?.name || "DAO")}
                 </span>
             </div>
 
@@ -73,7 +74,7 @@ export function DAOOverviewCard({
             {/* Title + membership pill */}
             <div className="dao-title-row">
                 <h2 className="dao-title">
-                    <Bank size={20} style={{ color: "var(--color-k-dim)" }} /> {config?.name || "DAO Governance"}
+                    <Bank size={20} style={{ color: "var(--color-k-dim)" }} /> {revealInvisibleFormatting(config?.name || "DAO Governance")}
                     {config?.isArchived && (
                         <span className="dao-badge-archived">
                             <Archive size={12} /> ARCHIVED
@@ -88,7 +89,7 @@ export function DAOOverviewCard({
                     >
                         <span className="dao-member-pill__check">✓</span>
                         <span className="dao-member-pill__text">
-                            {currentMember.tier || ""}
+                            {revealInvisibleFormatting(currentMember.tier || "")}
                             {currentMember.votingPower ? ` · Power ${currentMember.votingPower}` : ""}
                         </span>
                     </div>
@@ -101,7 +102,7 @@ export function DAOOverviewCard({
             {/* Description */}
             {(config?.description || realmPath === "gno.land/r/gov/dao") && (
                 <p className="dao-description">
-                    {config?.description || "Gno chain governance — proposals and membership management."}
+                    {revealInvisibleFormatting(config?.description || "Gno chain governance — proposals and membership management.")}
                 </p>
             )}
 

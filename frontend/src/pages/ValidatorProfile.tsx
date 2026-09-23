@@ -37,7 +37,7 @@ import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { fetchUserProfile, type UserProfile } from "../lib/profile"
 import { resolveAvatarUrl } from "../lib/ipfs"
 import { renderMarkdown } from "../lib/markdownLite"
-import DOMPurify from "dompurify"
+import { sanitizeMarkdownHtml } from "../lib/sanitizeMarkdownHtml"
 import { resolveValidatorIdentity } from "../lib/validatorIdentity"
 import { useGnoloveContributor } from "../hooks/gnolove"
 import { useGnoloveTeam } from "../hooks/gnolove/useGnoloveTeams"
@@ -405,7 +405,7 @@ export default function ValidatorProfile() {
                         <div
                             className="vp-id__bio vp-id__bio--md"
                             data-testid="vp-bio"
-                            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(bio)) }}
+                            dangerouslySetInnerHTML={{ __html: sanitizeMarkdownHtml(renderMarkdown(bio)) }}
                         />
                     )}
 

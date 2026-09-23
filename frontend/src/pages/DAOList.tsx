@@ -22,6 +22,7 @@ import { useNotifications } from "../hooks/useNotifications"
 import { useOrg } from "../contexts/OrgContext"
 import type { LayoutContext } from "../types/layout"
 import { DAOIdentityLabel } from "../components/dao/DAOIdentityLabel"
+import { revealInvisibleFormatting } from "../lib/dao/v2Text"
 import "./daolist.css"
 
 interface DAOEntry {
@@ -196,10 +197,10 @@ export function DAOList() {
                                 className="k-daolist__action-item"
                                 onClick={() => navigate(`/dao/${p.daoSlug}/proposal/${p.proposalId}`)}
                             >
-                                <span className="k-daolist__action-dao">{p.daoName}</span>
+                                <span className="k-daolist__action-dao">{revealInvisibleFormatting(p.daoName)}</span>
                                 <span className="k-daolist__action-sep">—</span>
                                 <span className="k-daolist__action-proposal">
-                                    #{p.proposalId}: {p.proposalTitle}
+                                    #{p.proposalId}: {revealInvisibleFormatting(p.proposalTitle)}
                                 </span>
                                 <span className="k-daolist__action-arrow">→</span>
                             </div>
@@ -249,7 +250,7 @@ export function DAOList() {
                         {pendingChecks.map((p) => (
                             <li key={p.path} className="k-daolist__pending-item">
                                 <div className="k-daolist__pending-path">{p.path}</div>
-                                <div>{p.name}</div>
+                                <div>{revealInvisibleFormatting(p.name)}</div>
                                 <div role="status" className="k-daolist__pending-status">
                                     {pendingQuery.isFetching || p.check === undefined ? "Checking the network…"
                                         : p.check === "waiting" ? `Not enabled yet: ${p.reason}`
@@ -404,7 +405,7 @@ function DAOCard({
                     <span className="k-dao-card__icon"><Bank size={22} /></span>
                     <div>
                         <Link to={href} className="k-dao-card__name k-dao-card__link" onClick={onOpen}>
-                            {dao.name}
+                            {revealInvisibleFormatting(dao.name)}
                         </Link>
                         <DAOIdentityLabel realmPath={dao.realmPath} name={dao.name} />
                         {dao.featured && (
@@ -424,7 +425,7 @@ function DAOCard({
                         className="k-dao-card__remove"
                         onClick={onRemove}
                         title="Remove"
-                        aria-label={`Remove ${dao.name}`}
+                        aria-label={`Remove ${revealInvisibleFormatting(dao.name)}`}
                     >
                         ×
                     </button>
@@ -482,7 +483,7 @@ function DAOCard({
             {/* Description */}
             {dao.config?.description && (
                 <p className="k-dao-card__desc">
-                    {dao.config.description}
+                    {revealInvisibleFormatting(dao.config.description)}
                 </p>
             )}
 

@@ -13,7 +13,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useQuery } from "@tanstack/react-query"
-import DOMPurify from "dompurify"
+import { sanitizeMarkdownHtml } from "../../lib/sanitizeMarkdownHtml"
 import { getExplorerBaseUrlFor } from "../../lib/config"
 import { useDirectoryRender } from "../../hooks/useDirectoryRender"
 import { useFocusTrap } from "../../hooks/useFocusTrap"
@@ -156,7 +156,7 @@ export function RealmDetailDrawer({ path, gnowebUrl, isPackage, onClose }: Realm
                             ) : renderQuery.isError ? (
                                 <div className="drawer-empty" role="status">Could not read this realm’s Render output.<button type="button" className="drawer-empty__retry" onClick={() => void renderQuery.refetch()}>Retry render</button></div>
                             ) : renderOutput ? (
-                                <div className="drawer-render__content" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(renderOutput)) }} />
+                                <div className="drawer-render__content" dangerouslySetInnerHTML={{ __html: sanitizeMarkdownHtml(renderMarkdown(renderOutput)) }} />
                             ) : <p className="drawer-empty">This realm returned no Render output.</p>}
                         </div>
                     )}

@@ -9,6 +9,7 @@ import { CopyableAddress } from "../components/ui/CopyableAddress"
 import { GNO_RPC_URL, getExplorerBaseUrl, getUserRegistryPath } from "../lib/config"
 import { getDAOConfig, getDAOMembers, type DAOMember, type TierInfo } from "../lib/dao"
 import { useDaoRoute } from "../hooks/useDaoRoute"
+import { revealInvisibleFormatting } from "../lib/dao/v2Text"
 import type { LayoutContext } from "../types/layout"
 import "./daomembers.css"
 
@@ -80,7 +81,7 @@ export function DAOMembers() {
 
             <div>
                 <h2 className="k-members__title">Members</h2>
-                <p className="k-members__subtitle">{config?.name || "DAO"} — {members.length} {members.length === 1 ? "member" : "members"}</p>
+                <p className="k-members__subtitle">{revealInvisibleFormatting(config?.name || "DAO")} — {members.length} {members.length === 1 ? "member" : "members"}</p>
                 {capabilities.propose.length > 0 && (
                     <p className="k-members__subtitle">Members and roles change only through proposals that pass a vote.</p>
                 )}
@@ -129,7 +130,7 @@ export function DAOMembers() {
                     <FilterButton label="All Roles" count={members.length} active={roleFilter === "all"} onClick={() => setRoleFilter("all")} color="var(--color-surface-light)" />
                     {allRoles.map((role) => {
                         const count = members.filter((m) => m.roles.includes(role)).length
-                        return <FilterButton key={role} label={role} count={count} active={roleFilter === role} onClick={() => setRoleFilter(role)} color={roleColors[role] || "var(--color-text-secondary)"} />
+                        return <FilterButton key={role} label={revealInvisibleFormatting(role)} count={count} active={roleFilter === role} onClick={() => setRoleFilter(role)} color={roleColors[role] || "var(--color-text-secondary)"} />
                     })}
                 </div>
             )}
@@ -217,7 +218,7 @@ function MemberRow({ member, isCurrentUser, showPower, proposeRoleChange, propos
             <div className="k-members__row-grid">
                 <div className="k-members__row-addr">
                     {member.username && (
-                        <a href={`/u/${member.username.replace("@", "")}`} className="k-members__row-username">{member.username}</a>
+                        <a href={`/u/${member.username.replace("@", "")}`} className="k-members__row-username">{revealInvisibleFormatting(member.username)}</a>
                     )}
                     <CopyableAddress address={member.address} />
                     <Link to={`/profile/${member.address}`} className="k-members__row-profile">Profile</Link>
@@ -240,7 +241,7 @@ function MemberRow({ member, isCurrentUser, showPower, proposeRoleChange, propos
                         const color = roleColors[role] || "var(--color-text-secondary)"
                         return (
                             <span key={role} className="k-members__role-badge" style={{ background: `${color}15`, color }}>
-                                {role}
+                                {revealInvisibleFormatting(role)}
                             </span>
                         )
                     })}

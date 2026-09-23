@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { MAX_GAS_WANTED } from "../grc20"
 import type { DaoAction } from "./builders"
-import { estimateV2Call, formatUgnot, v2CallBudget, V2_MAX_CALL_GAS, type V2ExecuteTarget } from "./v2Budget"
+import { depositNeedsOverride, estimateV2Call, formatUgnot, formatUgnotExact, v2CallBudget, V2_MAX_CALL_GAS, V2_MAX_DEPOSIT_UGNOT, type V2ExecuteTarget } from "./v2Budget"
 
 const ROLES = Array.from({ length: 16 }, (_, i) => `r${String(i).padStart(2, "0")}${"x".repeat(27)}`)
 const TARGET = "g1f5qqqqqqqqqqqqqqqqqqqqqqqqqqqq05299ypz"
@@ -57,5 +57,26 @@ describe("version-2 DAO call budgets", () => {
     it("formats deposit caps in GNOT", () => {
         expect(formatUgnot(400_000)).toBe("0.4 GNOT")
         expect(formatUgnot(8_830_000)).toBe("8.83 GNOT")
+    })
+
+    it("caps the storage deposit of one call at 10 GNOT unless the member explicitly overrides it", () => {
+        expect(V2_MAX_DEPOSIT_UGNOT).toBe(10_000_000)
+        expect(depositNeedsOverride(10_000_000)).toBe(false)
+        expect(depositNeedsOverride(10_000_001)).toBe(true)
+        expect(depositNeedsOverride(0)).toBe(false)
+    })
+
+    it("keeps every modelled call under the deposit ceiling, so the default flow never needs an override", () => {
+        const largest = v2CallBudget({ type: "propose-add-member", title: "\u{10FFFF}".repeat(128), description: MAX_DESC, target: TARGET, power: 1_000_000_000, roles: ROLES })
+        expect(depositNeedsOverride(largest.maxDepositUgnot)).toBe(false)
+        for (const [action, executes] of MEASURED) expect(depositNeedsOverride(v2CallBudget(action, executes).maxDepositUgnot)).toBe(false)
+    })
+
+    it("formats an exact GNOT amount without rounding away a single ugnot", () => {
+        expect(formatUgnotExact(10_000_001)).toBe("10.000001 GNOT")
+        expect(formatUgnotExact(10_000_000)).toBe("10 GNOT")
+        expect(formatUgnotExact(1_610_000)).toBe("1.61 GNOT")
+        expect(formatUgnotExact(123_456_789_012)).toBe("123,456.789012 GNOT")
+        expect(formatUgnotExact(1)).toBe("0.000001 GNOT")
     })
 })

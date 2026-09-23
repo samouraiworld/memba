@@ -11,6 +11,7 @@ import { formatDuration } from "../lib/templates/dao/v2/duration"
 import { useDaoRoute } from "../hooks/useDaoRoute"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { DAOIdentityLabel } from "../components/dao/DAOIdentityLabel"
+import { revealInvisibleFormatting } from "../lib/dao/v2Text"
 import "../components/dao/dao-shell.css"
 
 const ROLES_GRANT_NOTHING = "Roles are labels; they grant no special powers."
@@ -64,7 +65,7 @@ export function DAOSettings() {
             <div>
                 <h2 id="dao-settings-title" className="dao-settings__title">Settings</h2>
                 <p className="dao-settings__note">
-                    {v2.name}
+                    {revealInvisibleFormatting(v2.name)}
                     <DAOIdentityLabel realmPath={realmPath} name={v2.name} />
                 </p>
             </div>
@@ -75,7 +76,7 @@ export function DAOSettings() {
                 {rows.map(([label, value]) => (
                     <div key={label} style={{ display: "contents" }}>
                         <dt>{label}</dt>
-                        <dd>{value}</dd>
+                        <dd>{revealInvisibleFormatting(value)}</dd>
                     </div>
                 ))}
             </dl>

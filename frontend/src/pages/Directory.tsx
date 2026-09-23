@@ -29,6 +29,7 @@ import { useDirectoryDiscovery } from "../hooks/useDirectoryDiscovery"
 import { RealmDetailDrawer } from "../components/directory/RealmDetailDrawer"
 import { toExplorerRelPath } from "../lib/explorerLink"
 import "./directory.css"
+import { revealInvisibleFormatting } from "../lib/dao/v2Text"
 
 // W5.2: Packages leads — it is by far the most-filled tab on test13 today
 // (DAO count is still small). Revisit the order once DAOs catch up.
@@ -167,7 +168,7 @@ export function Directory() {
                                         onClick={() => navigate(`/dao/${encodeSlug(d.path)}`)}
                                     >
                                         <span className="dir-cross-item__icon">🏛️</span>
-                                        <span className="dir-cross-item__name">{d.name}</span>
+                                        <span className="dir-cross-item__name">{revealInvisibleFormatting(d.name)}</span>
                                         <span className="dir-cross-item__path">{d.path}</span>
                                     </button>
                                 ))}

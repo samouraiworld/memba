@@ -121,6 +121,48 @@
 .tx-confirm-addr {
     font-family: "JetBrains Mono", monospace;
     font-size: var(--pro-caption, 11px);
+    overflow-wrap: anywhere;
+    word-break: break-all;
+}
+
+/* Addresses, realm paths and expanded arguments: shown in full, wrapped, monospace. */
+.tx-confirm-arg-wrap {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 4px;
+    max-width: 100%;
+    min-width: 0;
+}
+
+.tx-confirm-arg--full {
+    font-family: "JetBrains Mono", monospace;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+    white-space: pre-wrap;
+    text-align: left;
+}
+
+.tx-confirm-arg-marker {
+    font-size: var(--pro-caption, 10px);
+    color: var(--color-k-warning-text);
+    font-weight: 600;
+}
+
+.tx-confirm-copy {
+    padding: 1px 6px;
+    border: 1px solid var(--color-k-edge);
+    border-radius: 4px;
+    background: transparent;
+    color: var(--color-k-dim);
+    font-size: var(--pro-caption, 10px);
+    cursor: pointer;
+}
+
+.tx-confirm-copy:hover,
+.tx-confirm-copy:focus-visible {
+    color: var(--color-k-text);
 }
 
 .tx-confirm-send {

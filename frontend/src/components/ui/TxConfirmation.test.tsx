@@ -34,3 +34,81 @@ describe("TxConfirmation", () => {
         expect(screen.getByText("1.61 GNOT")).toBeInTheDocument()
     })
 })
+
+describe("TxConfirmation arguments", () => {
+    const CALLER = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
+    const TARGET = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
+    // Differs from TARGET only in the middle, where a head…tail shortening would hide it.
+    const LOOKALIKE = "g1u7y667z64x2h7vqqqqqqqqqqqqqqq33jaww9zq"
+    const open = async (args: string[], extra: Record<string, unknown> = {}) => {
+        render(<TxConfirmationProvider><div /></TxConfirmationProvider>)
+        const call = { type: "vm/MsgCall", value: { caller: CALLER, send: "", pkg_path: "gno.land/r/x/dao", func: "Do", args, ...extra } }
+        await act(async () => { void captured.cb!([call], "memo") })
+    }
+
+    it("shows a bech32 address argument in full, with a copy button", async () => {
+        const writeText = vi.fn(async () => {})
+        Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true })
+        await open([TARGET])
+        expect(screen.getByText(TARGET, { selector: ".tx-confirm-arg" })).toBeInTheDocument()
+        await act(async () => { screen.getByRole("button", { name: `Copy ${TARGET}` }).click() })
+        expect(writeText).toHaveBeenCalledWith(TARGET)
+    })
+
+    it("never hides the middle of an address that differs from a lookalike", async () => {
+        await open([LOOKALIKE])
+        expect(screen.getByText(LOOKALIKE, { selector: ".tx-confirm-arg" })).toBeInTheDocument()
+        expect(screen.queryByText(/\.\.\./)).not.toBeInTheDocument()
+    })
+
+    it("shows the caller address in full", async () => {
+        await open(["1"])
+        expect(screen.getByText(CALLER, { selector: ".tx-confirm-addr" })).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: `Copy ${CALLER}` })).toBeInTheDocument()
+    })
+
+    it("shows a realm path argument in full", async () => {
+        const path = "gno.land/r/nym-alice123/some_long_realm_name/v2"
+        await open([path])
+        expect(screen.getByText(path, { selector: ".tx-confirm-arg" })).toBeInTheDocument()
+    })
+
+    it("shows in full any argument that carries an address, such as a list", async () => {
+        const list = `${TARGET},${LOOKALIKE}`
+        await open([list])
+        expect(screen.getByText(list, { selector: ".tx-confirm-arg" })).toBeInTheDocument()
+    })
+
+    it("truncates other long arguments only behind a visible marker and an explicit Show full toggle", async () => {
+        const long = "a".repeat(100) + "TAIL"
+        await open([long])
+        expect(screen.queryByText(long)).not.toBeInTheDocument()
+        expect(screen.getByText(/more characters hidden/)).toBeInTheDocument()
+        await act(async () => { screen.getByRole("button", { name: "Show full argument" }).click() })
+        expect(screen.getByText(long, { selector: ".tx-confirm-arg" })).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Show less" })).toBeInTheDocument()
+    })
+
+    it("reveals invisible formatting characters that could reorder an argument, and still copies the exact value", async () => {
+        const writeText = vi.fn(async () => {})
+        Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true })
+        const spoof = `${TARGET.slice(0, 20)}\u202E${TARGET.slice(20)}`
+        await open([spoof, "to\u200Bken"])
+        expect(screen.getByText(`${TARGET.slice(0, 20)}[U+202E]${TARGET.slice(20)}`, { selector: ".tx-confirm-arg" })).toBeInTheDocument()
+        expect(screen.getByText("to[U+200B]ken", { selector: ".tx-confirm-arg" })).toBeInTheDocument()
+        await act(async () => { screen.getAllByRole("button", { name: /^Copy g1u7y/ })[0].click() })
+        expect(writeText).toHaveBeenCalledWith(spoof)
+    })
+
+    it("shows in full an address glued to other text", async () => {
+        const glued = "x".repeat(70) + TARGET
+        await open([glued])
+        expect(screen.getByText(glued, { selector: ".tx-confirm-arg" })).toBeInTheDocument()
+    })
+
+    it("shows short arguments as they are", async () => {
+        await open(["1", "YES"])
+        expect(screen.getByText("YES", { selector: ".tx-confirm-arg" })).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Show full argument" })).not.toBeInTheDocument()
+    })
+})

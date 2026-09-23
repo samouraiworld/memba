@@ -6,7 +6,7 @@
 import { doContractBroadcast, type AminoMsg } from "../grc20"
 import { buildDaoMsg, type DaoAction } from "./builders"
 import type { DaoKind } from "./kind"
-import { v2CallBudget, type V2ExecuteTarget } from "./v2Budget"
+import { depositNeedsOverride, formatUgnotExact, v2CallBudget, V2_MAX_DEPOSIT_UGNOT, type V2ExecuteTarget } from "./v2Budget"
 
 export interface DaoTxPlan {
     msg: AminoMsg
@@ -31,6 +31,45 @@ export function budgetDaoMsg(kind: DaoKind, msg: AminoMsg, action: DaoAction, ex
     }
 }
 
+/**
+ * The storage-deposit cap the message itself carries, in ugnot: what the
+ * wallet signs, not the preview field. Null when the message has no cap.
+ * Throws on any other shape, or when the preview field disagrees with it.
+ */
+export function signedDepositUgnot(plan: DaoTxPlan): number | null {
+    const raw = (plan.msg.value as Record<string, unknown>).max_deposit
+    if (raw === undefined || raw === "") {
+        if (plan.maxDepositUgnot !== undefined) throw new Error("The transaction does not carry the storage-deposit cap it was reviewed with. Review it again.")
+        return null
+    }
+    const m = typeof raw === "string" ? /^(\d{1,15})ugnot$/.exec(raw) : null
+    if (!m) throw new Error("The transaction carries a storage-deposit cap in an unexpected form. Review it again.")
+    const ugnot = Number(m[1])
+    if (plan.maxDepositUgnot !== undefined && plan.maxDepositUgnot !== ugnot) throw new Error("The transaction's storage-deposit cap differs from the one reviewed. Review it again.")
+    return ugnot
+}
+
+/** True when this plan's deposit cap is above the 10 GNOT ceiling. */
+export function planNeedsDepositOverride(plan: DaoTxPlan): boolean {
+    const ugnot = signedDepositUgnot(plan)
+    return ugnot !== null && depositNeedsOverride(ugnot)
+}
+
+/**
+ * Refuse to sign a deposit cap above the ceiling unless the member approved
+ * that exact amount. An approval of any other amount does not count.
+ */
+function assertDepositAllowed(plan: DaoTxPlan, approvedDepositUgnot?: number): void {
+    const ugnot = signedDepositUgnot(plan)
+    if (ugnot === null || !depositNeedsOverride(ugnot) || approvedDepositUgnot === ugnot) return
+    throw new Error(`The storage-deposit cap of ${formatUgnotExact(ugnot)} is above the ${formatUgnotExact(V2_MAX_DEPOSIT_UGNOT)} limit. Approve that exact amount before signing.`)
+}
+
+export interface DaoSignOptions {
+    /** The deposit cap, in ugnot, the member explicitly approved above the ceiling. */
+    approvedDepositUgnot?: number
+}
+
 const isProposal = (action: DaoAction) => action.type.startsWith("propose-")
 
 /** A plan with a deposit cap was sized for a version-2 realm. */
@@ -43,12 +82,18 @@ const isV2Plan = (plan: DaoTxPlan) => plan.maxDepositUgnot !== undefined
  * realm rejects a repeat deterministically, so a retry would only re-prompt
  * the wallet and pay another fee.
  */
-export function broadcastDaoTx(plan: DaoTxPlan, action: DaoAction, memo: string, beforeSign?: () => void | Promise<void>) {
-    return doContractBroadcast([plan.msg], memo, { ...daoBroadcastOptions(plan, action), ...(beforeSign ? { beforeSign } : {}) })
+export async function broadcastDaoTx(plan: DaoTxPlan, action: DaoAction, memo: string, beforeSign?: () => void | Promise<void>, sign: DaoSignOptions = {}) {
+    const options = daoBroadcastOptions(plan, action, sign)
+    return doContractBroadcast([plan.msg], memo, { ...options, ...(beforeSign ? { beforeSign } : {}) })
 }
 
-/** Broadcast options for a plan (for callers that call doContractBroadcast themselves). */
-export function daoBroadcastOptions(plan: DaoTxPlan, action: DaoAction): { gasWanted?: number; retry?: false } {
+/**
+ * Broadcast options for a plan (for callers that call doContractBroadcast
+ * themselves). Throws when the plan's deposit cap is above the ceiling and was
+ * not explicitly approved.
+ */
+export function daoBroadcastOptions(plan: DaoTxPlan, action: DaoAction, sign: DaoSignOptions = {}): { gasWanted?: number; retry?: false } {
+    assertDepositAllowed(plan, sign.approvedDepositUgnot)
     return {
         ...(plan.gasWanted !== undefined ? { gasWanted: plan.gasWanted } : {}),
         ...(isProposal(action) || isV2Plan(plan) ? { retry: false as const } : {}),

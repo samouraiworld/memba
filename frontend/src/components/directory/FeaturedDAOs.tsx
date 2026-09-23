@@ -12,6 +12,7 @@ import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { encodeSlug } from "../../lib/daoSlug"
 import { type DAOMetadata } from "../../lib/daoMetadata"
 import { SEED_DAOS } from "../../lib/directory"
+import { revealInvisibleFormatting } from "../../lib/dao/v2Text"
 
 interface FeaturedDAOsProps {
     metadata: Map<string, DAOMetadata>
@@ -33,9 +34,9 @@ export function FeaturedDAOs({ metadata }: FeaturedDAOsProps) {
                         onClick={() => navigate(`/dao/${encodeSlug(dao.path)}`)}
                         data-testid="featured-dao-card"
                     >
-                        <div className="dir-featured-name">{dao.name}</div>
+                        <div className="dir-featured-name">{revealInvisibleFormatting(dao.name)}</div>
                         <div className="dir-featured-desc">
-                            {meta?.description || `Explore ${dao.name} on gno.land`}
+                            {revealInvisibleFormatting(meta?.description || `Explore ${dao.name} on gno.land`)}
                         </div>
                         <div className="dir-featured-stats">
                             <span className="dir-card-stat">

@@ -16,7 +16,8 @@ import { isValidGnoAddressChecksum } from "../../lib/dao/address"
 import { resolveRegisteredUsername } from "../../lib/dao/shared"
 import { readV2Proposals } from "../../lib/dao/membaV2"
 import { v2Context } from "../../lib/dao/membaV2Shell"
-import { broadcastDaoTx, planDaoTx, proposalIdFromTxResult, type DaoTxPlan } from "../../lib/dao/daoTx"
+import { broadcastDaoTx, planDaoTx, planNeedsDepositOverride, proposalIdFromTxResult, type DaoTxPlan } from "../../lib/dao/daoTx"
+import { DepositOverride } from "./DepositOverride"
 import { formatUgnot } from "../../lib/dao/v2Budget"
 import { formatDuration } from "../../lib/templates/dao/v2/duration"
 import { friendlyDaoError } from "../../lib/dao/errors"
@@ -92,6 +93,8 @@ function ScopedProposeV2Form({ realmPath, encodedSlug, kinds }: Props) {
     const [receipt, setReceipt] = useState(() => readGovernanceReceipt(scope))
     const [recoveryAcknowledged, setRecoveryAcknowledged] = useState(false)
     const [storageWarning, setStorageWarning] = useState("")
+    // The exact signed message whose above-ceiling deposit cap the member allowed.
+    const [depositApprovedFor, setDepositApprovedFor] = useState<string | null>(null)
 
     const initialKind = kinds.includes(params.get("type") as DaoProposalKind) ? params.get("type") as DaoProposalKind : kinds[0]
     const [kind, setKind] = useState<DaoProposalKind>(savedDraft && kinds.includes(savedDraft.kind) ? savedDraft.kind : initialKind)
@@ -188,13 +191,17 @@ function ScopedProposeV2Form({ realmPath, encodedSlug, kinds }: Props) {
         }
     }
     let plan: DaoTxPlan | null = null
+    let needsDepositOverride = false
     if (action && caller) {
         try {
             plan = planDaoTx("memba-v2", realmPath, action, caller)
+            needsDepositOverride = planNeedsDepositOverride(plan)
         } catch {
             plan = null
         }
     }
+    const planKey = plan ? JSON.stringify(plan.msg) : null
+    const depositApproved = !needsDepositOverride || (planKey !== null && depositApprovedFor === planKey)
 
     const blocked = !auth.isAuthenticated || !caller ? "Connect your wallet to create a proposal."
         : config.archived ? "This DAO is archived. It no longer accepts proposals."
@@ -206,7 +213,7 @@ function ScopedProposeV2Form({ realmPath, encodedSlug, kinds }: Props) {
 
     const submit = async () => {
         setShowErrors(true)
-        if (blocked || !plan || !action || disabled || governanceRequestActive(scope)) return
+        if (blocked || !plan || !action || disabled || !depositApproved || governanceRequestActive(scope)) return
         const before = config.proposal_count
         const submittedTitle = title
         let finish = () => {}
@@ -223,7 +230,7 @@ function ScopedProposeV2Form({ realmPath, encodedSlug, kinds }: Props) {
                 if (!freshConfig?.v2 || freshConfig.v2.archived || !freshMembers.some(m => m.address === caller)) throw new Error("DAO membership or availability changed. Review your proposal again.")
                 if (freshConfig.v2.electorate_version !== config.electorate_version) throw new Error("DAO membership changed. Review the proposal again.")
                 walletStarted = true
-            })
+            }, { approvedDepositUgnot: needsDepositOverride && depositApproved ? plan.maxDepositUgnot : undefined })
             submittedHash = res.hash
             const saved = { phase: "submitted" as const, hash: res.hash, label: submittedTitle }
             try { saveGovernanceReceipt(scope, saved) } catch { if (isCurrent()) setStorageWarning("The transaction receipt is kept in this tab only. Copy its hash before leaving.") }
@@ -368,6 +375,14 @@ function ScopedProposeV2Form({ realmPath, encodedSlug, kinds }: Props) {
                 </pre>
             </details>
 
+            {plan && needsDepositOverride && (
+                <DepositOverride
+                    maxDepositUgnot={plan.maxDepositUgnot!}
+                    approved={depositApproved}
+                    onApprovedChange={(approved) => setDepositApprovedFor(approved ? planKey : null)}
+                />
+            )}
+
             {storageWarning && <p role="status">{storageWarning}</p>}
             {receipt && <div className="dao-shell-banner" role="status">
                 <p>{receipt.hash ? "A proposal submission is recorded. Check it before starting another." : "A previous submission attempt has an unknown outcome. Check your wallet and the DAO before submitting again."}</p>
@@ -381,7 +396,7 @@ function ScopedProposeV2Form({ realmPath, encodedSlug, kinds }: Props) {
             <TxStatus state={tx} />
 
             <div className="pdao-actions">
-                <button type="submit" className="k-btn-primary" disabled={!!blocked || disabled} style={{ flex: 1 }}>
+                <button type="submit" className="k-btn-primary" disabled={!!blocked || disabled || !depositApproved} style={{ flex: 1 }}>
                     {busy ? "Submitting…" : locked ? "Submitted" : "Submit proposal"}
                 </button>
                 <button type="button" className="k-btn-secondary" onClick={() => navigate(`/dao/${encodedSlug}`)} disabled={busy}>

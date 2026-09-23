@@ -19,6 +19,7 @@ import { useState, useCallback, useRef, useEffect } from "react"
 import type { AminoMsg } from "../../lib/grc20"
 import { setTxConfirmationCallback } from "../../lib/grc20"
 import { callDepositCap, deployEffect } from "../../lib/parseMsgs"
+import { revealInvisibleFormatting } from "../../lib/dao/v2Text"
 import "./tx-confirmation.css"
 
 // ── Types ────────────────────────────────────────────────────
@@ -33,6 +34,80 @@ export interface TxSummary {
 interface ConfirmationRequest {
     summary: TxSummary
     resolve: (confirmed: boolean) => void
+}
+
+// ── Argument display ─────────────────────────────────────────
+
+/** Anything that looks like a bech32 address or a realm/package path, even glued to other text. */
+const ADDRESS_OR_PATH = /g1[a-z0-9]{38}|gno\.land\/[pr]\//i
+const FORMAT_CHARS = /\p{Cf}/gu
+
+/** Arguments longer than this are cut behind a visible marker and a "Show full" toggle. */
+const ARG_PREVIEW_CHARS = 64
+
+/**
+ * True when an argument must never be shortened: it is, or contains, an
+ * address or a realm path. A signer tells lookalike addresses apart by any
+ * character, including the middle ones a head…tail shortening would hide.
+ */
+function mustShowInFull(arg: string): boolean {
+    // Invisible characters inside an address must not stop it being recognised.
+    return ADDRESS_OR_PATH.test(arg.replace(FORMAT_CHARS, ""))
+}
+
+function CopyValueButton({ value }: { value: string }) {
+    const [copied, setCopied] = useState(false)
+    return (
+        <button
+            type="button"
+            className="tx-confirm-copy"
+            aria-label={`Copy ${value}`}
+            title={copied ? "Copied" : "Copy"}
+            onClick={() => {
+                void navigator.clipboard?.writeText(value).then(() => setCopied(true), () => {})
+            }}
+        >
+            {copied ? "Copied" : "Copy"}
+        </button>
+    )
+}
+
+/**
+ * One call argument. Invisible formatting characters (zero-width, bidi
+ * overrides) are shown as [U+XXXX] so they cannot reorder or hide what is
+ * signed; Copy still copies the exact signed value.
+ */
+function TxArg({ value }: { value: string }) {
+    const [expanded, setExpanded] = useState(false)
+    const shown = revealInvisibleFormatting(value)
+    if (mustShowInFull(value)) {
+        return (
+            <span className="tx-confirm-arg-wrap">
+                <span className="tx-confirm-arg tx-confirm-arg--full">{shown}</span>
+                <CopyValueButton value={value} />
+            </span>
+        )
+    }
+    const chars = Array.from(shown)
+    if (chars.length <= ARG_PREVIEW_CHARS) {
+        return <span className="tx-confirm-arg">{shown}</span>
+    }
+    const hidden = chars.length - ARG_PREVIEW_CHARS
+    return (
+        <span className="tx-confirm-arg-wrap">
+            <span className="tx-confirm-arg tx-confirm-arg--full">{expanded ? shown : chars.slice(0, ARG_PREVIEW_CHARS).join("")}</span>
+            {!expanded && <span className="tx-confirm-arg-marker">… {hidden.toLocaleString("en-US")} more characters hidden</span>}
+            <button
+                type="button"
+                className="tx-confirm-copy"
+                aria-expanded={expanded}
+                aria-label={expanded ? "Show less" : "Show full argument"}
+                onClick={() => setExpanded(v => !v)}
+            >
+                {expanded ? "Show less" : "Show full"}
+            </button>
+        </span>
+    )
 }
 
 // ── Provider ─────────────────────────────────────────────────
@@ -149,7 +224,7 @@ function TxConfirmationModal({
 
                 {/* Memo */}
                 <div className="tx-confirm-memo">
-                    {memo}
+                    {revealInvisibleFormatting(memo)}
                 </div>
 
                 {/* Warning */}
@@ -176,8 +251,9 @@ function TxConfirmationModal({
                             {e.caller && (
                                 <div className="tx-confirm-detail-row">
                                     <span className="tx-confirm-label">From</span>
-                                    <span className="tx-confirm-value tx-confirm-addr">
-                                        {e.caller.slice(0, 10)}...{e.caller.slice(-6)}
+                                    <span className="tx-confirm-value tx-confirm-arg-wrap">
+                                        <span className="tx-confirm-addr">{revealInvisibleFormatting(e.caller)}</span>
+                                        <CopyValueButton value={e.caller} />
                                     </span>
                                 </div>
                             )}
@@ -205,11 +281,7 @@ function TxConfirmationModal({
                                 <div className="tx-confirm-detail-row">
                                     <span className="tx-confirm-label">Args</span>
                                     <span className="tx-confirm-value tx-confirm-args">
-                                        {e.args.map((a, i) => (
-                                            <span key={i} className="tx-confirm-arg">
-                                                {a.length > 20 ? a.slice(0, 10) + "..." + a.slice(-6) : a}
-                                            </span>
-                                        ))}
+                                        {e.args.map((a, i) => <TxArg key={i} value={String(a)} />)}
                                     </span>
                                 </div>
                             )}

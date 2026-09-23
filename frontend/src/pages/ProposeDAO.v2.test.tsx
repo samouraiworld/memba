@@ -15,6 +15,7 @@ const state = vi.hoisted(() => ({
     archived: false,
     broadcast: vi.fn(),
     proposals: vi.fn(),
+    deposit: null as number | null,
 }))
 
 vi.mock("react-router-dom", async (orig) => ({
@@ -30,6 +31,11 @@ vi.mock("../lib/grc20", async (orig) => ({ ...(await orig<typeof import("../lib/
 vi.mock("../lib/dao/membaV2", async (orig) => ({ ...(await orig<typeof import("../lib/dao/membaV2")>()), readV2Proposals: state.proposals }))
 vi.mock("../lib/dao/shared", async (orig) => ({ ...(await orig<typeof import("../lib/dao/shared")>()), resolveRegisteredUsername: async (a: string) => (a === NEW ? "@dana" : "") }))
 vi.mock("../lib/errorLog", () => ({ logChainError: vi.fn() }))
+// Every modelled call stays under the 10 GNOT deposit ceiling; tests force a larger cap.
+vi.mock("../lib/dao/v2Budget", async (orig) => {
+    const real = await orig<typeof import("../lib/dao/v2Budget")>()
+    return { ...real, v2CallBudget: (...args: Parameters<typeof real.v2CallBudget>) => ({ ...real.v2CallBudget(...args), ...(state.deposit === null ? {} : { maxDepositUgnot: state.deposit }) }) }
+})
 
 const CONFIG: MembaV2Config = {
     template_version: "memba-dao/2", api_version: "2.0", name: "Team", description: "",
@@ -78,6 +84,7 @@ beforeEach(() => {
     state.archived = false
     state.broadcast.mockReset()
     state.proposals.mockReset()
+    state.deposit = null
 })
 
 describe("version-2 propose form", () => {
@@ -114,6 +121,44 @@ describe("version-2 propose form", () => {
         expect(screen.getByLabelText("Title")).toBeDisabled()
         expect(screen.getByRole("button", { name: "Submitted" })).toBeDisabled()
         expect(state.proposals).not.toHaveBeenCalled()
+    })
+
+    it("signs a 10 GNOT deposit cap without an override", async () => {
+        state.deposit = 10_000_000
+        state.broadcast.mockResolvedValue({ hash: "a".repeat(64), result: { deliver_tx: { ResponseBase: { Data: btoa("(6 uint64)") } } } })
+        mount()
+        fireEvent.change(await screen.findByLabelText("Title"), { target: { value: "Ten" } })
+        expect(signed().value.max_deposit).toBe("10000000ugnot")
+        expect(screen.queryByRole("checkbox", { name: /Allow a storage deposit/ })).not.toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Submit proposal" }))
+        await waitFor(() => expect(state.broadcast).toHaveBeenCalledTimes(1))
+    })
+
+    it("needs an explicit override, showing the exact GNOT amount, for a deposit cap above 10 GNOT", async () => {
+        state.deposit = 10_000_001
+        state.broadcast.mockResolvedValue({ hash: "a".repeat(64), result: { deliver_tx: { ResponseBase: { Data: btoa("(6 uint64)") } } } })
+        mount()
+        fireEvent.change(await screen.findByLabelText("Title"), { target: { value: "Big" } })
+        expect(signed().value.max_deposit).toBe("10000001ugnot")
+        expect(screen.getByRole("alert", { name: "Storage deposit above the limit" })).toHaveTextContent("10.000001 GNOT")
+        const allow = screen.getByRole("checkbox", { name: "Allow a storage deposit of up to 10.000001 GNOT" })
+        expect(allow).not.toBeChecked()
+        const submit = screen.getByRole("button", { name: "Submit proposal" })
+        expect(submit).toBeDisabled()
+        fireEvent.submit(submit.closest("form")!)
+        expect(state.broadcast).not.toHaveBeenCalled()
+
+        fireEvent.click(allow)
+        // Editing the proposal to a different deposit cap withdraws the approval.
+        state.deposit = 12_000_000
+        fireEvent.change(screen.getByLabelText("Title"), { target: { value: "Bigger" } })
+        expect(screen.getByRole("checkbox", { name: "Allow a storage deposit of up to 12 GNOT" })).not.toBeChecked()
+        expect(screen.getByRole("button", { name: "Submit proposal" })).toBeDisabled()
+
+        fireEvent.click(screen.getByRole("checkbox", { name: "Allow a storage deposit of up to 12 GNOT" }))
+        fireEvent.click(screen.getByRole("button", { name: "Submit proposal" }))
+        await waitFor(() => expect(state.broadcast).toHaveBeenCalledTimes(1))
+        expect(state.broadcast.mock.calls[0][0][0].value.max_deposit).toBe("12000000ugnot")
     })
 
     it("finds the new proposal by author and title when the wallet result carries no id", async () => {

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { doContractBroadcast } from "../grc20"
-import { broadcastDaoTx, planDaoTx, proposalIdFromTxResult } from "./daoTx"
+import { broadcastDaoTx, daoBroadcastOptions, planDaoTx, planNeedsDepositOverride, proposalIdFromTxResult, type DaoTxPlan } from "./daoTx"
 
 vi.mock("../grc20", async (orig) => ({ ...(await orig<typeof import("../grc20")>()), doContractBroadcast: vi.fn(async () => ({ hash: "h" })) }))
 
@@ -54,6 +54,45 @@ describe("DAO transaction plans", () => {
         const plan = planDaoTx("govdao", "gno.land/r/gov/dao", vote, CALLER)
         await broadcastDaoTx(plan, vote, "Vote NO")
         expect(doContractBroadcast).toHaveBeenLastCalledWith([plan.msg], "Vote NO", {})
+    })
+})
+
+describe("storage deposit ceiling", () => {
+    const action = { type: "propose-text" as const, title: "Big", description: "", category: "governance" }
+    const withDeposit = (ugnot: number, signed = `${ugnot}ugnot`): DaoTxPlan => {
+        const base = planDaoTx("memba-v2", REALM, action, CALLER)
+        return { ...base, msg: { ...base.msg, value: { ...base.msg.value, max_deposit: signed } }, maxDepositUgnot: ugnot }
+    }
+
+    it("signs a plan at exactly 10 GNOT without an override", async () => {
+        const plan = withDeposit(10_000_000)
+        expect(planNeedsDepositOverride(plan)).toBe(false)
+        await broadcastDaoTx(plan, action, "Propose: Big")
+        expect(doContractBroadcast).toHaveBeenCalledTimes(1)
+    })
+
+    it("refuses 10 GNOT + 1 ugnot unless that exact amount was approved", async () => {
+        const plan = withDeposit(10_000_001)
+        expect(planNeedsDepositOverride(plan)).toBe(true)
+        await expect(broadcastDaoTx(plan, action, "Propose: Big")).rejects.toThrow(/10\.000001 GNOT/)
+        await expect(broadcastDaoTx(plan, action, "Propose: Big", undefined, { approvedDepositUgnot: 10_000_000 })).rejects.toThrow(/above the 10 GNOT limit/)
+        await expect(broadcastDaoTx(plan, action, "Propose: Big", undefined, { approvedDepositUgnot: 20_000_000 })).rejects.toThrow(/above the 10 GNOT limit/)
+        expect(doContractBroadcast).not.toHaveBeenCalled()
+        await broadcastDaoTx(plan, action, "Propose: Big", undefined, { approvedDepositUgnot: 10_000_001 })
+        expect(doContractBroadcast).toHaveBeenCalledWith([plan.msg], "Propose: Big", { gasWanted: plan.gasWanted, retry: false })
+    })
+
+    it("judges the amount the message carries, not the preview field", async () => {
+        const spoofed = withDeposit(1_000_000, "50000000ugnot")
+        await expect(broadcastDaoTx(spoofed, action, "Propose: Big", undefined, { approvedDepositUgnot: 1_000_000 })).rejects.toThrow()
+        const odd = withDeposit(1_000_000, "1000000ugnot,1gnot")
+        await expect(broadcastDaoTx(odd, action, "Propose: Big")).rejects.toThrow()
+        expect(doContractBroadcast).not.toHaveBeenCalled()
+    })
+
+    it("also guards callers that broadcast a plan themselves", () => {
+        expect(() => daoBroadcastOptions(withDeposit(10_000_001), action)).toThrow(/above the 10 GNOT limit/)
+        expect(daoBroadcastOptions(withDeposit(10_000_000), action)).toEqual({ gasWanted: expect.any(Number), retry: false })
     })
 })
 

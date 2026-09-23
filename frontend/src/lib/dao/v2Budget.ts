@@ -23,6 +23,19 @@ export const STORAGE_PRICE_UGNOT = 100
 /** Largest gas limit these models produce (a proposal with maximal text and 16 roles). */
 export const V2_MAX_CALL_GAS = 490_000_000
 
+/**
+ * Default ceiling on the storage-deposit cap of one call: 10 GNOT. Every
+ * modelled call stays below it (the largest proposal needs about 9.5 GNOT);
+ * a plan above it is signed only after the member explicitly approves that
+ * exact amount (see daoTx `approvedDepositUgnot`).
+ */
+export const V2_MAX_DEPOSIT_UGNOT = 10_000_000
+
+/** True when a deposit cap is above the ceiling and needs an explicit override. */
+export function depositNeedsOverride(maxDepositUgnot: number): boolean {
+    return maxDepositUgnot > V2_MAX_DEPOSIT_UGNOT
+}
+
 export interface V2CallBudget {
     gasWanted: number
     /** Storage deposit cap in ugnot. */
@@ -78,4 +91,12 @@ export function v2CallBudget(action: DaoAction, executes?: V2ExecuteTarget): V2C
 export function formatUgnot(ugnot: number): string {
     const gnot = ugnot / 1_000_000
     return `${gnot.toLocaleString("en-US", { maximumFractionDigits: 2 })} GNOT`
+}
+
+/** Exact "10.000001 GNOT" style amount for a ugnot value: no rounding, trailing zeros trimmed. */
+export function formatUgnotExact(ugnot: number): string {
+    const units = BigInt(Math.trunc(ugnot))
+    const whole = units / 1_000_000n
+    const fraction = (units % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "")
+    return `${whole.toLocaleString("en-US")}${fraction ? `.${fraction}` : ""} GNOT`
 }

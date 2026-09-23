@@ -13,6 +13,7 @@ import { useState, useEffect } from "react"
 import { getChannelACL } from "./parser"
 import type { ChannelACLInfo } from "./types"
 import { GNO_RPC_URL } from "../../lib/config"
+import { revealInvisibleFormatting } from "../../lib/dao/v2Text"
 
 interface GatedChannelBannerProps {
     boardPath: string
@@ -54,7 +55,7 @@ export function GatedChannelBanner({ boardPath, channel, userRoles, isConnected,
                 {!isConnected ? (
                     <span>Connect your wallet to access this channel.</span>
                 ) : !hasReadAccess ? (
-                    <span>This channel is restricted. Join <strong>{daoName}</strong> to view content.</span>
+                    <span>This channel is restricted. Join <strong>{revealInvisibleFormatting(daoName)}</strong> to view content.</span>
                 ) : (
                     <span>This channel is read-only for your role. {acl.writeRoles.length > 0 && (
                         <>Required: <strong>{acl.writeRoles.join(", ")}</strong></>

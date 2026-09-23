@@ -5,6 +5,7 @@
 import { useNetworkNav } from "../../hooks/useNetworkNav"
 import type { UnvotedProposal } from "../../lib/dao/voteScanner"
 import "../home/home.css"
+import { revealInvisibleFormatting } from "../../lib/dao/v2Text"
 
 interface Props {
     proposals: UnvotedProposal[]
@@ -41,7 +42,7 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                         }}>
                             <div style={{ flex: 1, minWidth: 160 }}>
                                 <div style={{ fontSize: "var(--pro-caption, 11px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", color: "var(--color-k-dim)", marginBottom: 2 }}>
-                                    {p.daoName}
+                                    {revealInvisibleFormatting(p.daoName)}
                                 </div>
                                 <div
                                     style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 500, cursor: "pointer", color: "var(--color-k-text)" }}

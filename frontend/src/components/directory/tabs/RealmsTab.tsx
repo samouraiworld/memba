@@ -13,7 +13,7 @@ import { useNetwork } from "../../../hooks/useNetwork"
 import { RealmDetailDrawer } from "../RealmDetailDrawer"
 import { ExplorerLink } from "../ExplorerLink"
 import { RecentSubmissionsSection } from "../RecentSubmissionsSection"
-import DOMPurify from "dompurify"
+import { sanitizeMarkdownHtml } from "../../../lib/sanitizeMarkdownHtml"
 import { renderMarkdown } from "../../../lib/markdownLite"
 
 const REALM_CATEGORY_COLORS: Record<string, string> = {
@@ -152,7 +152,7 @@ export function RealmsTab() {
                                         <>
                                             {preview.isError ? <p role="status">Could not read this realm’s Render output. <button className="dir-gnoweb-link" type="button" onClick={() => void preview.refetch()}>Retry preview</button></p> : realmRender ? <div
                                                 className="dir-render-preview__content"
-                                                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(realmRender.slice(0, 1000))) }}
+                                                dangerouslySetInnerHTML={{ __html: sanitizeMarkdownHtml(renderMarkdown(realmRender.slice(0, 1000))) }}
                                             /> : <p>This realm returned no preview content.</p>}
                                             <div className="dir-render-preview__links">
                                                 <button

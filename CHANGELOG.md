@@ -30,6 +30,11 @@ Full changelogs are split by version range for easier navigation:
 
 ### Dependency refresh (2026-09-23)
 - Update Remotion, TanStack Query, Sentry, three.js, the dev tooling group and the backend SQLite driver to their latest patch and minor releases (bundles Dependabot #1228–#1233).
+### Security — signing surfaces show what is signed (2026-09-23)
+- **Transaction confirmation shows every address in full.** Addresses and realm paths in a transaction's arguments, and the sending account, now appear in full, wrapped and in a fixed-width font with a Copy button, instead of being shortened to their first and last characters, which hid the middle characters that set a lookalike address apart. Other long arguments are shortened only behind a visible "more characters hidden" marker and a Show full toggle, and invisible formatting characters in arguments and the memo are shown as `[U+XXXX]` markers so they cannot reorder what is signed.
+- **Invisible characters are revealed on every DAO page.** Zero-width and text-direction characters in DAO names, descriptions, member usernames, roles and categories are shown as `[U+XXXX]` markers on the DAO list, overview, members and settings pages and in the directory, profile and vote widgets, as proposals already did.
+- **Links in on-chain descriptions open in a new tab.** Markdown from the chain (proposal descriptions, realm renders, reviews, validator bios) is sanitised by a dedicated instance that opens http(s) links in a new tab with `rel="noopener noreferrer"`, so a link no longer replaces the app in its own tab; `javascript:`, `data:` and `vbscript:` links stay removed.
+- **A DAO call's storage deposit is capped at 10 GNOT by default.** Version-2 DAO proposals, votes and executions are refused before signing when their storage-deposit cap is above 10 GNOT, unless the member ticks an unchecked-by-default approval that shows the exact amount in GNOT; the approval covers only that exact transaction. Every call Memba builds today stays below the ceiling.
 
 ### Home snapshot follows the current chain (2026-09-23)
 - Report NFT indexer progress only for the realms the indexer watches on the current chain, and none while it is switched off, so a cursor left over from the previous chain no longer shows as the indexed height.

@@ -7,6 +7,7 @@
 import { useState } from "react"
 import { useMyVotes, type MyVoteEntry } from "../../hooks/useMyVotes"
 import type { GovVote } from "../../lib/profile"
+import { revealInvisibleFormatting } from "../../lib/dao/v2Text"
 
 export function MyVotesSection({ address, gnoloveVotes }: { address: string; gnoloveVotes: GovVote[] }) {
     const { votes: crossDaoVotes, loading } = useMyVotes(address)
@@ -99,7 +100,7 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
                             <div style={{ flex: 1, minWidth: 0 }}>
                                 {daoName && (
                                     <span style={{ fontSize: "var(--pro-caption, 9px)", color: "var(--color-primary)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", marginRight: 6, opacity: 0.7 }}>
-                                        {daoName}
+                                        {revealInvisibleFormatting(daoName)}
                                     </span>
                                 )}
                                 <span style={{ fontSize: "var(--pro-caption, 10px)", color: "var(--color-text-muted)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)" }}>

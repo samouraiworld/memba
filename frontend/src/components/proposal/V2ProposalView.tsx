@@ -9,12 +9,13 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { useOutletContext } from "react-router-dom"
-import DOMPurify from "dompurify"
+import { sanitizeMarkdownHtml } from "../../lib/sanitizeMarkdownHtml"
 import { GNO_CHAIN_ID, GNO_RPC_URL, getExplorerBaseUrl } from "../../lib/config"
 import { getDAOConfig, getDAOMembers, invalidateProposalCache, type VoteChoice } from "../../lib/dao"
 import { readV2Proposal, readV2Votes, type MembaV2Proposal } from "../../lib/dao/membaV2"
 import { hasVotedOnV2, v2Context } from "../../lib/dao/membaV2Shell"
-import { broadcastDaoTx, planDaoTx, type DaoTxPlan } from "../../lib/dao/daoTx"
+import { broadcastDaoTx, planDaoTx, planNeedsDepositOverride, type DaoTxPlan } from "../../lib/dao/daoTx"
+import { DepositOverride } from "./DepositOverride"
 import { formatUgnot } from "../../lib/dao/v2Budget"
 import { friendlyDaoError } from "../../lib/dao/errors"
 import { hasInvisibleFormatting, revealInvisibleFormatting } from "../../lib/dao/v2Text"
@@ -38,7 +39,8 @@ import "../dao/dao-shell.css"
 import "./v2-proposal.css"
 
 type Intent = { kind: "vote"; choice: VoteChoice } | { kind: "execute" }
-type Pending = (Intent & { plan: DaoTxPlan; electorateVersion: number }) | null
+/** `depositApproved`: the member allowed this plan's above-ceiling deposit cap in this dialog. */
+type Pending = (Intent & { plan: DaoTxPlan; electorateVersion: number; needsDepositOverride: boolean; depositApproved: boolean }) | null
 
 const ACTION_LABELS: Record<MembaV2Proposal["action"]["kind"], string> = {
     text: "Text proposal",
@@ -176,14 +178,17 @@ function ScopedV2ProposalView({ realmPath, encodedSlug, proposalId }: Props) {
     const pendingPlan = pending?.plan ?? null
     const openConfirmation = (next: Intent) => {
         const prepared = plan(next)
-        if (prepared && !receipts[next.kind]) setPending({ ...next, plan: prepared, electorateVersion: config?.electorate_version ?? -1 })
+        if (!prepared || receipts[next.kind]) return
+        let needsDepositOverride: boolean
+        try { needsDepositOverride = planNeedsDepositOverride(prepared) } catch { return }
+        setPending({ ...next, plan: prepared, electorateVersion: config?.electorate_version ?? -1, needsDepositOverride, depositApproved: false })
     }
 
     const run = async (next: Exclude<Pending, null>) => {
         setPending(null)
         // Sign the plan the dialog showed, so what was reviewed is what is signed.
         const p = next.plan
-        if (!p || receipts[next.kind] || busy) return
+        if (!p || receipts[next.kind] || busy || (next.needsDepositOverride && !next.depositApproved)) return
         const action = next.kind === "vote" ? { type: "vote" as const, id: proposal.id, vote: next.choice } : { type: "execute" as const, id: proposal.id }
         const scope = scopes[next.kind]
         if (governanceRequestActive(scope)) return
@@ -208,7 +213,7 @@ function ScopedV2ProposalView({ realmPath, encodedSlug, proposalId }: Props) {
                 if (next.kind === "vote" && (freshVoted !== false || !canVoteNow(freshProposal, currentTime))) throw new Error("This vote is no longer available. Refresh the proposal.")
                 if (next.kind === "execute" && executionState(freshProposal, currentTime) !== "open") throw new Error("This proposal cannot be executed now. Refresh its status.")
                 walletStarted = true
-            })
+            }, { approvedDepositUgnot: next.needsDepositOverride && next.depositApproved ? p.maxDepositUgnot : undefined })
             knownHash = res.hash
             const saved = { phase: "submitted" as const, hash: res.hash, label: memo }
             try { saveGovernanceReceipt(scope, saved) } catch { if (isCurrent()) setRecoveryMessage("The receipt is kept in this tab only. Copy its hash before leaving.") }
@@ -312,7 +317,7 @@ function ScopedV2ProposalView({ realmPath, encodedSlug, proposalId }: Props) {
                             <div
                                 className="proposal-desc-text v2p-text"
                                 dir="auto"
-                                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(revealInvisibleFormatting(description))) }}
+                                dangerouslySetInnerHTML={{ __html: sanitizeMarkdownHtml(renderMarkdown(revealInvisibleFormatting(description))) }}
                             />
                         </section>
                     )}
@@ -428,9 +433,16 @@ function ScopedV2ProposalView({ realmPath, encodedSlug, proposalId }: Props) {
                         {pendingPlan && (
                             <p className="v2p-muted">Contract {realmPath}. Gas limit {pendingPlan.gasWanted!.toLocaleString("en-US")}; requested storage-deposit cap {formatUgnot(pendingPlan.maxDepositUgnot!)}.</p>
                         )}
+                        {pendingPlan && pending.needsDepositOverride && (
+                            <DepositOverride
+                                maxDepositUgnot={pendingPlan.maxDepositUgnot!}
+                                approved={pending.depositApproved}
+                                onApprovedChange={(approved) => setPending(current => current && current.plan === pendingPlan ? { ...current, depositApproved: approved } : current)}
+                            />
+                        )}
                         <div className="v2p-dialog__actions">
                             <button className="k-btn-secondary" onClick={() => setPending(null)}>Cancel</button>
-                            <button ref={confirmRef} className="k-btn-primary" onClick={() => { void run(pending) }}>
+                            <button ref={confirmRef} className="k-btn-primary" disabled={pending.needsDepositOverride && !pending.depositApproved} onClick={() => { void run(pending) }}>
                                 {pending.kind === "vote" ? `Confirm ${pending.choice}` : "Confirm execution"}
                             </button>
                         </div>

@@ -8,7 +8,7 @@
  */
 import { useEffect } from "react"
 import { useParams, Link } from "react-router-dom"
-import DOMPurify from "dompurify"
+import { sanitizeMarkdownHtml } from "../lib/sanitizeMarkdownHtml"
 import { Rss, ArrowLeft } from "@phosphor-icons/react"
 import { useBlogArticles, useBlogArticle } from "../lib/blogSource"
 import { renderMarkdown } from "../lib/markdownLite"
@@ -138,7 +138,7 @@ export function BlogArticlePage() {
             <div
                 className="blog-body"
                 data-testid="blog-body"
-                dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(renderMarkdown(article.body, { images: true })) }}
+                dangerouslySetInnerHTML={{ __html: sanitizeMarkdownHtml(renderMarkdown(article.body, { images: true })) }}
             />
         </article>
     )

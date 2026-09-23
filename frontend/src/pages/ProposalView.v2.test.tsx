@@ -21,6 +21,7 @@ const state = vi.hoisted(() => ({
     readFailed: false,
     proposal: null as unknown,
     broadcast: vi.fn(),
+    deposit: null as number | null,
 }))
 
 vi.mock("react-router-dom", async (orig) => ({
@@ -34,6 +35,11 @@ vi.mock("../hooks/useDaoKind", async () => {
 })
 vi.mock("../lib/grc20", async (orig) => ({ ...(await orig<typeof import("../lib/grc20")>()), doContractBroadcast: state.broadcast }))
 vi.mock("../lib/errorLog", () => ({ logChainError: vi.fn() }))
+// Every modelled call stays under the 10 GNOT deposit ceiling; tests force a larger cap.
+vi.mock("../lib/dao/v2Budget", async (orig) => {
+    const real = await orig<typeof import("../lib/dao/v2Budget")>()
+    return { ...real, v2CallBudget: (...args: Parameters<typeof real.v2CallBudget>) => ({ ...real.v2CallBudget(...args), ...(state.deposit === null ? {} : { maxDepositUgnot: state.deposit }) }) }
+})
 vi.mock("../lib/dao/membaV2", async (orig) => ({
     ...(await orig<typeof import("../lib/dao/membaV2")>()),
     readV2Proposal: async () => state.proposal,
@@ -95,6 +101,7 @@ beforeEach(() => {
     state.readFailed = false
     state.proposal = proposal()
     state.broadcast.mockReset()
+    state.deposit = null
 })
 
 describe("version-2 proposal reader", () => {
@@ -128,6 +135,40 @@ describe("version-2 proposal reader", () => {
         // The hash links to the explorer only on chains it indexes; elsewhere it is plain text.
         if (txExplorerUrl(HASH, GNO_CHAIN_ID)) expect(screen.getByRole("link", { name: HASH })).toBeInTheDocument()
         else expect(screen.getByText(HASH)).toBeInTheDocument()
+    })
+
+    it("keeps the confirmation locked until an above-limit deposit cap is explicitly allowed", async () => {
+        state.deposit = 10_000_001
+        state.broadcast.mockImplementation(async () => { state.voted = true; return { hash: HASH, result: {} } })
+        mount()
+        fireEvent.click(await screen.findByRole("button", { name: "Vote yes" }))
+        let dialog = screen.getByRole("alertdialog", { name: "Vote YES on proposal #2?" })
+        expect(within(dialog).getByRole("alert", { name: "Storage deposit above the limit" })).toHaveTextContent("10.000001 GNOT")
+        const confirm = within(dialog).getByRole("button", { name: "Confirm YES" })
+        expect(confirm).toBeDisabled()
+        fireEvent.click(confirm)
+        expect(state.broadcast).not.toHaveBeenCalled()
+        fireEvent.click(within(dialog).getByRole("checkbox", { name: "Allow a storage deposit of up to 10.000001 GNOT" }))
+        // Closing the dialog withdraws the approval.
+        fireEvent.click(within(dialog).getByRole("button", { name: "Cancel" }))
+        fireEvent.click(screen.getByRole("button", { name: "Vote yes" }))
+        dialog = screen.getByRole("alertdialog", { name: "Vote YES on proposal #2?" })
+        expect(within(dialog).getByRole("checkbox", { name: "Allow a storage deposit of up to 10.000001 GNOT" })).not.toBeChecked()
+        fireEvent.click(within(dialog).getByRole("checkbox", { name: "Allow a storage deposit of up to 10.000001 GNOT" }))
+        fireEvent.click(within(dialog).getByRole("button", { name: "Confirm YES" }))
+        await waitFor(() => expect(state.broadcast).toHaveBeenCalledTimes(1))
+        expect(state.broadcast.mock.calls[0][0][0].value.max_deposit).toBe("10000001ugnot")
+    })
+
+    it("confirms a 10 GNOT deposit cap without an override", async () => {
+        state.deposit = 10_000_000
+        state.broadcast.mockImplementation(async () => { state.voted = true; return { hash: HASH, result: {} } })
+        mount()
+        fireEvent.click(await screen.findByRole("button", { name: "Vote yes" }))
+        const dialog = screen.getByRole("alertdialog", { name: "Vote YES on proposal #2?" })
+        expect(within(dialog).queryByRole("checkbox")).not.toBeInTheDocument()
+        fireEvent.click(within(dialog).getByRole("button", { name: "Confirm YES" }))
+        await waitFor(() => expect(state.broadcast).toHaveBeenCalledTimes(1))
     })
 
     it("does not offer a second vote", async () => {
@@ -180,6 +221,18 @@ describe("version-2 proposal reader", () => {
         expect(screen.getByText(/pay \[U\+202E\]evil/)).toBeInTheDocument()
         expect(container.textContent).not.toContain("‮")
         expect(screen.getByRole("alert")).toHaveTextContent(/invisible formatting characters/)
+    })
+
+    it("opens external description links in a new tab and keeps hostile links dead", async () => {
+        state.proposal = proposal({ description: "See [the spec](https://example.com/spec) and [this](javascript:alert(1))." })
+        mount()
+        const link = await screen.findByRole("link", { name: "the spec" })
+        expect(link).toHaveAttribute("href", "https://example.com/spec")
+        expect(link).toHaveAttribute("target", "_blank")
+        expect(link).toHaveAttribute("rel", "noopener noreferrer")
+        const dead = screen.getByRole("link", { name: "this" })
+        expect(dead).toHaveAttribute("href", "#")
+        expect(dead).not.toHaveAttribute("target")
     })
 
     it("shows failures in plain words", async () => {
