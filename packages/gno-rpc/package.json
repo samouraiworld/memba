@@ -1,6 +1,7 @@
 {
   "name": "@samouraiworld/gno-rpc",
   "version": "0.1.0",
+  "private": true,
   "description": "TypeScript ABCI query helpers for Gno blockchain — shared by Memba MCP servers",
   "type": "module",
   "main": "build/index.js",
