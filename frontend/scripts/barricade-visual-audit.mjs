@@ -5,7 +5,7 @@ if (!output) throw new Error('usage: node scripts/barricade-visual-audit.mjs OUT
 
 const browser = await chromium.launch({ headless: true })
 const page = await browser.newPage({ viewport: { width: 1280, height: 960 }, deviceScaleFactor: 1 })
-await page.goto('http://localhost:5174/pearl/game/barricade?r25d=1')
+await page.goto('http://localhost:5174/mainnet/game/barricade?r25d=1')
 await page.getByRole('button', { name: 'Practice' }).waitFor()
 
 await page.evaluate(async () => {

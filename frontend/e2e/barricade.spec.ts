@@ -6,7 +6,7 @@ test.use({ baseURL: 'http://localhost:5174' })
 test('uses a wide desktop battlefield and enters real fullscreen', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Desktop fullscreen is covered in Chromium')
   await page.setViewportSize({ width: 1280, height: 720 })
-  await page.goto('/pearl/game/barricade')
+  await page.goto('/mainnet/game/barricade')
   await expect(page.getByRole('button', { name: 'Practice' })).toBeVisible()
   await expect(page.locator('.bar-shell')).toHaveAttribute('data-renderer', '2.5d')
   await expect.poll(async () => page.locator('.bar-stage').evaluate(stage => stage.getBoundingClientRect().width)).toBeGreaterThan(800)
@@ -31,7 +31,7 @@ test('uses a wide desktop battlefield and enters real fullscreen', async ({ page
   await page.getByRole('button', { name: 'Exit fullscreen' }).click()
   await expect(page.locator('.bar-shell:fullscreen')).toHaveCount(0)
   await page.getByRole('link', { name: 'Exit game' }).click()
-  await expect(page).toHaveURL(/\/pearl\/?$/)
+  await expect(page).toHaveURL(/\/mainnet\/?$/)
 
   await page.setViewportSize({ width: 1280, height: 720 })
   await page.goto('/mainnet/game/barricade')
@@ -41,7 +41,7 @@ test('uses a wide desktop battlefield and enters real fullscreen', async ({ page
 })
 
 test('focuses the playfield, moves by keyboard, and pauses without advancing play', async ({ page }) => {
-  await page.goto('/pearl/game/barricade')
+  await page.goto('/mainnet/game/barricade')
   await page.getByRole('button', { name: 'Daily run' }).click()
   const stage = page.getByRole('group', { name: 'Barricade playfield' })
   await expect(stage).toBeFocused()
@@ -85,7 +85,7 @@ test('focuses the playfield, moves by keyboard, and pauses without advancing pla
 })
 
 test('has no serious or critical accessibility findings in the ready game', async ({ page }) => {
-  await page.goto('/pearl/game/barricade')
+  await page.goto('/mainnet/game/barricade')
   await expect(page.getByRole('button', { name: 'Daily run' })).toBeVisible()
   const results = await new AxeBuilder({ page })
     .include('.bar-shell')
@@ -98,7 +98,7 @@ test('has no serious or critical accessibility findings in the ready game', asyn
 test('keeps every between-wave choice inside the immersive phone battlefield', async ({ page }) => {
   test.setTimeout(120000)
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.goto('/pearl/game/barricade')
+  await page.goto('/mainnet/game/barricade')
   await page.getByRole('button', { name: 'Daily run' }).click()
   const shop = page.getByRole('group', { name: 'Between-wave shop' })
   await expect(shop).toBeVisible({ timeout: 60000 })
@@ -173,7 +173,7 @@ test('fits the shop on compact portrait and landscape screens', async ({ page })
   test.setTimeout(120000)
   for (const [width, height] of [[320, 568], [667, 375], [667, 500]]) {
     await page.setViewportSize({ width, height })
-    await page.goto('/pearl/game/barricade')
+    await page.goto('/mainnet/game/barricade')
     await page.getByRole('button', { name: 'Daily run' }).click()
     await expect(page.getByRole('group', { name: 'Between-wave shop' })).toBeVisible({ timeout: 60000 })
     const layout = await page.evaluate(() => {

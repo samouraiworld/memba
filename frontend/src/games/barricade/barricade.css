@@ -403,6 +403,9 @@
 @media (max-height: 500px) and (min-width: 501px) {
     body:has(.bar-shell) .k-mobile-tabbar,
     body:has(.bar-shell) .k-topbar { display: none; }
+    /* Same inline-flex network notice as the portrait cabinet: on mainnet it
+       pushes a short landscape battlefield below the fold. */
+    body:has(.bar-shell) .k-main-column > div:not(.k-main) { display: none !important; }
     body:has(.bar-shell) .k-main-column { padding-bottom: 0; }
     .bar-shell {
         display: grid;

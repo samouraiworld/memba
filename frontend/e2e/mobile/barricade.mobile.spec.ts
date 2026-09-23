@@ -2,7 +2,7 @@ import { expect, test, type Page } from '@playwright/test'
 
 test.use({ baseURL: 'http://localhost:5174' })
 
-const gameURL = '/pearl/game/barricade'
+const gameURL = '/mainnet/game/barricade'
 
 async function expectControlsInView(page: Page) {
   const layout = await page.evaluate(() => {
@@ -74,5 +74,5 @@ test('keeps a short landscape game and its actions visible', async ({ page }) =>
   await page.getByRole('button', { name: 'Daily run' }).click()
   await expectControlsInView(page)
   await page.getByRole('link', { name: 'Exit game' }).click()
-  await expect(page).toHaveURL(/\/pearl\/?$/)
+  await expect(page).toHaveURL(/\/mainnet\/?$/)
 })
