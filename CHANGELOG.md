@@ -27,6 +27,13 @@ Full changelogs are split by version range for easier navigation:
 - Report NFT indexer progress only for the realms the indexer watches on the current chain, and none while it is switched off, so a cursor left over from the previous chain no longer shows as the indexed height.
 - Drop any indexer height above the current chain head instead of serving it, and flag that source as stale.
 - Leave the featured DAO out of the home snapshot until its realm is deployed on the current chain, instead of returning an empty entry that points at a missing realm.
+### Pearl links move to gno.land mainnet (2026-09-23)
+<!-- categories: memba, network -->
+- **Old `/pearl/...` links now open the same page on gno.land mainnet**, with a one-time notice that the Pearl testnet has been retired. Once dismissed, the notice does not come back.
+- **Memba opens the network you last chose, or gno.land.** It no longer returns you to the last network you happened to visit, and a saved choice of a retired network such as Pearl opens gno.land.
+- **gno.land reads fail over to a second node.** When rpc.gno.land does not answer, Memba retries on Samouraï's own gno.land node.
+- **The directory's Refresh button stays readable while it loads.**
+- Local and Docker builds default to gno.land, and the README, llms.txt and operator docs describe gno.land as the live network.
 
 ### Space Invaders controls and feel (2026-09-23)
 - Play with A/D and W (or ZQSD on AZERTY) as well as the arrows and Space; Esc pauses, and Enter starts a run or plays again.
@@ -130,7 +137,7 @@ Full changelogs are split by version range for easier navigation:
 ### gno.land is the default network, and Betanet is retired (2026-09-17)
 <!-- categories: memba, network -->
 - **Opening Memba now lands you on gno.land (`gnoland-1`), the production chain, instead of the Pearl testnet.** Anyone who picked a network before keeps the one they picked; only people who never chose are moved. Pearl stays in the network picker and is unchanged, and every `/pearl/...` link keeps working.
-- **What gno.land offers today:** GovDAO and DAOs deployed by their members, validators, chain health, tokens and the directory. Memba's own realms (channels, candidature, feed, quests, marketplace) are not deployed there yet, so those surfaces show the existing "not on gno.land yet" notice and DAO creation still points you at a network that supports it. The activity feed, the home snapshot and the social feed stay scoped to Pearl, where the indexer runs.
+- **What gno.land offers today:** GovDAO and DAOs deployed by their members, validators, chain health, tokens and the directory. Memba's own realms (channels, candidature, feed, quests, marketplace) are not deployed there yet, so those surfaces show the existing "not on gno.land yet" notice. DAO creation on gno.land shipped the same day (see "DAOs can be created on gno.land"). The activity feed, the home snapshot and the social feed stay scoped to Pearl, where the indexer runs.
 - **Betanet (`gnoland1`) left the network picker.** Every public Betanet endpoint stopped answering: its main RPC, both public fallbacks and its explorer. Existing `/gnoland1/...` links still open, and a saved Betanet selection now moves you to gno.land instead of parking you on a chain with no working endpoint. Betanet joins Sapphire, Topaz and Testnet 13 in the retired set.
 - **Two stale chain names were removed from the code.** The chain id used when no network could be resolved still read `topaz-1`, a chain decommissioned on 2026-08-12, and the Docker Compose dev stack still defaulted to `sapphire`, sunset on 2026-09-09. Both now follow the configured network instead of naming a dead one.
 ### DAOs can be created on gno.land (2026-09-17)
@@ -153,7 +160,7 @@ Full changelogs are split by version range for easier navigation:
 - **DAO pages recognise the kind of DAO contract before offering actions.** GovDAO is identified by its exact realm path; DAOs created with Memba are identified by the version they report. Vote, execute and proposal buttons, the New Proposal page and Quick Vote appear only where Memba can build a transaction the contract accepts, and only for members. GovDAO is vote and execute only; other DAO frameworks and unrecognised contracts are read-only.
 - **Treasury, Payroll, GnoSwap, Leaderboard, DAO plugins, voice rooms, the AI insight panels and the DAO health score were removed from DAO pages.** The treasury and plugin addresses now show a "Not available for this DAO or network" page. The proposal list keeps a CSV export button.
 - **Role changes on the Members page were removed.** The page is read-only; membership changes go through proposals.
-- **Creating a DAO is available only on networks that support it.** On gno.land mainnet the Create DAO page shows that it is not available yet. The notice for networks without Memba's own realms now explains that GovDAO and member-deployed DAOs can still be read, and Quests and Candidature are hidden there.
+- **Creating a DAO is available only on networks that support it**, gno.land mainnet included (see "DAOs can be created on gno.land"); elsewhere the Create DAO page shows that it is not available. The notice for networks without Memba's own realms now explains that GovDAO and member-deployed DAOs can still be read, and Quests and Candidature are hidden there.
 - **DAO pages show the realm path first, with a Verified or Unverified label.** Verified means the realm path matches a known DAO on this network. A DAO using the name of a verified DAO at another address shows a warning.
 - **Channels open the DAO's own channels realm.** Each DAO's Channels page reads only a channels realm derived from its own path.
 - **Usernames, votes, tallies and members are read from the DAO's own data.** Usernames resolve through the users registry, "You voted" works for DAOs created with Memba and for GovDAO voters listed by username, GovDAO percentages keep their decimals, member voting power is shown, and members and tallies are read only from the sections the realm itself writes. A members list that cannot be read shows an error instead of an empty DAO.
