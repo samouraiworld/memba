@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Security — signing surfaces show what is signed (2026-09-23)
+- **Transaction confirmation and the multisig co-sign page show every address in full.** Addresses and realm paths in a transaction's arguments, the sending account and a multisig transfer's recipient now appear in full, wrapped and in a fixed-width font with a Copy button, instead of being shortened to their first and last characters, which hid the middle characters that set a lookalike address apart. Each argument is shown on its own, so a comma inside one cannot pass for two; other long arguments are shortened only behind a visible "more characters hidden" marker and a Show full toggle. Invisible characters in arguments and the memo are shown as `[U+XXXX]` markers, and each value is laid out left to right in the order it is signed, so neither invisible characters nor right-to-left letters can reorder it.
+- **Invisible characters are revealed on every DAO page.** Zero-width and text-direction characters, variation selectors and Hangul fillers in DAO names, descriptions, member usernames, roles and categories are shown as `[U+XXXX]` markers on the DAO list, overview, members and settings pages and in the directory, profile and vote widgets, as proposals already did.
+- **Links in on-chain descriptions open in a new tab.** Markdown from the chain (proposal descriptions, realm renders, reviews, validator bios) is sanitised by a dedicated instance that opens http(s) links in a new tab with `rel="noopener noreferrer"`, so a link no longer replaces the app in its own tab; `javascript:`, `data:` and `vbscript:` links stay removed, and markdown links written as `//host` or with backslashes, which browsers send to another host, are refused.
+- **A DAO call's storage deposit is capped at 10 GNOT by default.** Version-2 DAO proposals, votes and executions are refused before signing when their storage-deposit cap is above 10 GNOT, unless the member ticks an unchecked-by-default approval that shows the exact amount in GNOT; the approval covers only that exact transaction. Every call Memba builds today stays below the ceiling.
+
 ### Pearl links move to gno.land mainnet (2026-09-23)
 <!-- categories: memba, network -->
 - **Old `/pearl/...` links now open the same page on gno.land mainnet**, with a one-time notice that the Pearl testnet has been retired. Once dismissed, the notice does not come back.
@@ -27,14 +33,6 @@ Full changelogs are split by version range for easier navigation:
 - **gno.land reads fail over to a second node.** When rpc.gno.land does not answer, Memba retries on Samouraï's own gno.land node.
 - **The directory's Refresh button stays readable while it loads.**
 - Local and Docker builds default to gno.land, and the README, llms.txt and operator docs describe gno.land as the live network.
-
-### Dependency refresh (2026-09-23)
-- Update Remotion, TanStack Query, Sentry, three.js, the dev tooling group and the backend SQLite driver to their latest patch and minor releases (bundles Dependabot #1228–#1233).
-### Security — signing surfaces show what is signed (2026-09-23)
-- **Transaction confirmation and the multisig co-sign page show every address in full.** Addresses and realm paths in a transaction's arguments, the sending account and a multisig transfer's recipient now appear in full, wrapped and in a fixed-width font with a Copy button, instead of being shortened to their first and last characters, which hid the middle characters that set a lookalike address apart. Each argument is shown on its own, so a comma inside one cannot pass for two; other long arguments are shortened only behind a visible "more characters hidden" marker and a Show full toggle. Invisible characters in arguments and the memo are shown as `[U+XXXX]` markers, and each value is laid out left to right in the order it is signed, so neither invisible characters nor right-to-left letters can reorder it.
-- **Invisible characters are revealed on every DAO page.** Zero-width and text-direction characters, variation selectors and Hangul fillers in DAO names, descriptions, member usernames, roles and categories are shown as `[U+XXXX]` markers on the DAO list, overview, members and settings pages and in the directory, profile and vote widgets, as proposals already did.
-- **Links in on-chain descriptions open in a new tab.** Markdown from the chain (proposal descriptions, realm renders, reviews, validator bios) is sanitised by a dedicated instance that opens http(s) links in a new tab with `rel="noopener noreferrer"`, so a link no longer replaces the app in its own tab; `javascript:`, `data:` and `vbscript:` links stay removed, and markdown links written as `//host` or with backslashes, which browsers send to another host, are refused.
-- **A DAO call's storage deposit is capped at 10 GNOT by default.** Version-2 DAO proposals, votes and executions are refused before signing when their storage-deposit cap is above 10 GNOT, unless the member ticks an unchecked-by-default approval that shows the exact amount in GNOT; the approval covers only that exact transaction. Every call Memba builds today stays below the ceiling.
 
 ### Dependency refresh (2026-09-23)
 - Update Remotion, TanStack Query, Sentry, three.js, the dev tooling group and the backend SQLite driver to their latest patch and minor releases (bundles Dependabot #1228–#1233).
