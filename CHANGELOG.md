@@ -25,6 +25,11 @@ Full changelogs are split by version range for easier navigation:
 - **Invisible characters are revealed on every DAO page.** Zero-width and text-direction characters, variation selectors and Hangul fillers in DAO names, descriptions, member usernames, roles and categories are shown as `[U+XXXX]` markers on the DAO list, overview, members and settings pages and in the directory, profile and vote widgets, as proposals already did.
 - **Links in on-chain descriptions open in a new tab.** Markdown from the chain (proposal descriptions, realm renders, reviews, validator bios) is sanitised by a dedicated instance that opens http(s) links in a new tab with `rel="noopener noreferrer"`, so a link no longer replaces the app in its own tab; `javascript:`, `data:` and `vbscript:` links stay removed, and markdown links written as `//host` or with backslashes, which browsers send to another host, are refused.
 - **A DAO call's storage deposit is capped at 10 GNOT by default.** Version-2 DAO proposals, votes and executions are refused before signing when their storage-deposit cap is above 10 GNOT, unless the member ticks an unchecked-by-default approval that shows the exact amount in GNOT; the approval covers only that exact transaction. Every call Memba builds today stays below the ceiling.
+### Pearl retirement follow-ups (2026-09-23)
+<!-- categories: memba, network -->
+- The Pearl retirement notice appears once per redirected link; reloading the page no longer brings it back.
+- Navigation outside a network page and the directory cache follow the network you are on or last chose, never a retired one you merely visited.
+- The MCP servers default to the gno.land mainnet node, and their `pearl` network alias is removed.
 
 ### Pearl links move to gno.land mainnet (2026-09-23)
 <!-- categories: memba, network -->
