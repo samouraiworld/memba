@@ -11,8 +11,7 @@
  */
 
 import type { ReactNode } from "react"
-import { APPSTORE_REALM_PATH } from "../../lib/appStore"
-import { isAppStoreEnabled, isRealmValidOn } from "../../lib/config"
+import { appStorePathFor, isAppStoreEnabled, isRealmValidOn } from "../../lib/config"
 import { ComingSoonGate } from "./ComingSoonGate"
 import { Link, useLocation, useParams } from "react-router-dom"
 import { EcosystemDirectory } from "../appstore/EcosystemDirectory"
@@ -20,7 +19,7 @@ import { EcosystemDirectory } from "../appstore/EcosystemDirectory"
 export function AppStoreGate({ children }: { children: ReactNode }) {
     const { pathname } = useLocation()
     const { network } = useParams()
-    if (!isAppStoreEnabled() || !isRealmValidOn(network ?? "", APPSTORE_REALM_PATH)) {
+    if (!isAppStoreEnabled() || !isRealmValidOn(network ?? "", appStorePathFor(network ?? ""))) {
         // A public directory does not mount any gated registry or wallet flow.
         if (pathname.replace(/\/$/, "") === `/${network}/apps`) return <EcosystemDirectory standalone />
         return (

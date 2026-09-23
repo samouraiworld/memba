@@ -10,13 +10,16 @@ import {
     fetchAppStoreStats,
 } from "./appStore"
 import * as shared from "./dao/shared"
+import { ACTIVE_NETWORK_KEY, appStorePathFor } from "./config"
 
 describe("APPSTORE_REALM_PATH", () => {
-    it("defaults to the v2 realm (repoint to v3 is env-driven, not a code change)", () => {
-        // Default (no VITE_APPSTORE_REALM_PATH override) stays on the live v2 realm so the App
-        // Store keeps working before v3 is deployed + migrated.
-        expect(APPSTORE_REALM_PATH.endsWith("_v2")).toBe(true)
-        expect(isAppStoreV3()).toBe(false)
+    it("follows the per-network path for the active network", () => {
+        expect(APPSTORE_REALM_PATH).toBe(appStorePathFor(ACTIVE_NETWORK_KEY))
+        expect(isAppStoreV3()).toBe(isV3Path(APPSTORE_REALM_PATH))
+    })
+    it("uses v3 on mainnet and v2 on pearl", () => {
+        expect(appStorePathFor("mainnet")).toBe("gno.land/r/samcrew/memba_appstore_v3")
+        expect(appStorePathFor("pearl")).toBe("gno.land/r/samcrew/memba_appstore_v2")
     })
 })
 

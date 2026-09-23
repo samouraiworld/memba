@@ -41,7 +41,7 @@ vi.mock("../lib/config", async (importActual) => {
     return {
         ...actual,
         isAppStoreSubmitEnabled: () => submitEnabled,
-        isAppReviewsEnabled: () => reviewsEnabled,
+        isAppReviewsAvailable: () => reviewsEnabled,
     }
 })
 

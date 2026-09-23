@@ -1,5 +1,5 @@
 /**
- * appStore — read-only client for the memba_appstore_v2 realm (W9 App Store).
+ * appStore — read-only client for the App Store realm (W9; v2 on testnets, v3 on mainnet).
  *
  * Reads the realm's JSON getters (`ListLiveJSON`, `GetListingJSON`) via ABCI
  * `vm/qeval` and parses them. Read-only: the money path (RegisterApp) is a wallet
@@ -23,7 +23,7 @@ export const APPSTORE_REALM_PATH = MEMBA_DAO.appStorePath
  * True when the active realm is the v3 realm, which exposes the richer read surface
  * (per-status listing windows via `ListByStatusJSON`, screenshots + `rejectReason` in
  * `GetListingJSON`, publisher windows, curator getters). v3-only UI MUST gate on this so the
- * app never calls a getter the live v2 realm doesn't expose. Flips purely from the env override.
+ * app never calls a getter the live v2 realm doesn't expose. Follows the per-network path in config.
  */
 export function isV3Path(path: string): boolean {
     return /_v3$/.test(path)

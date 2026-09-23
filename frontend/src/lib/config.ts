@@ -824,7 +824,10 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
     // its builder is not mainnet-ready), memba_market_config (commerce-only),
     // memba_dao_channels_v2 (needs memba_dao), memba_quest_attestation_v1 (no
     // signer set) and memba_arcade_leaderboard_v1 (no attester) are live on
-    // chain but deliberately NOT listed. Every entry needs a realm-versions.json
+    // chain but deliberately NOT listed. memba_appstore_v3 carries one money
+    // path — RegisterApp pays the listing fee to the realm treasury (the
+    // publisher multisig at deploy) — and stays behind VITE_ENABLE_APPSTORE and
+    // VITE_ENABLE_APPSTORE_SUBMIT. Every entry needs a realm-versions.json
     // `mainnet` record (keyed by NETWORK KEY, not chain id).
     mainnet: [
         "gno.land/r/samcrew/memba_appstore_v3",
@@ -1317,6 +1320,21 @@ export const MEMBA_TOKEN = import.meta.env.PROD
     ? MEMBA_TOKEN_PROD
     : MEMBA_TOKEN_DEV
 
+/**
+ * Realm generations differ per network: mainnet ships memba_reviews_v2 (same public API as v1)
+ * and only the v3 App Store, while pearl and older testnets carry reviews v1 and App Store v2.
+ * An env override wins everywhere (deploy previews). Callers that know the URL network (route
+ * gates) pass it explicitly; MEMBA_DAO resolves them for the active network.
+ */
+export function reviewsPathFor(networkKey: string): string {
+    return import.meta.env.VITE_REVIEWS_REALM_PATH
+        || (networkKey === "mainnet" ? "gno.land/r/samcrew/memba_reviews_v2" : "gno.land/r/samcrew/memba_reviews_v1")
+}
+export function appStorePathFor(networkKey: string): string {
+    return import.meta.env.VITE_APPSTORE_REALM_PATH
+        || (networkKey === "mainnet" ? "gno.land/r/samcrew/memba_appstore_v3" : "gno.land/r/samcrew/memba_appstore_v2")
+}
+
 /** MembaDAO realm paths and deployment params. */
 export const MEMBA_DAO = {
     realmPath: "gno.land/r/samcrew/memba_dao",
@@ -1327,12 +1345,8 @@ export const MEMBA_DAO = {
     nftMarketPath: "gno.land/r/samcrew/memba_nft_market_v2",
     nftCollectionsPath: "gno.land/r/samcrew/memba_collections", // Phase 2 launchpad registry (pending deploy)
     badgesPath: "gno.land/r/samcrew/gnobuilders_badges_v2",
-    // Mainnet ships reviews_v2 (same public API as v1); pearl and older testnets carry v1.
-    reviewsPath: import.meta.env.VITE_REVIEWS_REALM_PATH
-        || (ACTIVE_NETWORK_KEY === "mainnet" ? "gno.land/r/samcrew/memba_reviews_v2" : "gno.land/r/samcrew/memba_reviews_v1"),
-    // App Store registry: mainnet ships only v3; pearl and older testnets carry v2.
-    appStorePath: import.meta.env.VITE_APPSTORE_REALM_PATH
-        || (ACTIVE_NETWORK_KEY === "mainnet" ? "gno.land/r/samcrew/memba_appstore_v3" : "gno.land/r/samcrew/memba_appstore_v2"),
+    reviewsPath: reviewsPathFor(ACTIVE_NETWORK_KEY),
+    appStorePath: appStorePathFor(ACTIVE_NETWORK_KEY),
     // Reputation-isolated App Store reviews realm (shares the reviews engine but keeps its
     // reputation graph separate from the validator/profile web-of-trust). Deployed to test13.
     appReviewsPath: import.meta.env.VITE_APPSTORE_REVIEWS_REALM_PATH || "gno.land/r/samcrew/memba_appstore_reviews_v1",
@@ -1470,6 +1484,8 @@ export const isReviewsAvailable = (): boolean => isReviewsEnabled() && isReviews
  * realm moves no funds (reputation graph only). Literal reader (prod-bundle safe). Gates the
  * ReviewsSection mount + AppReviewStars on the App Store detail page. */
 export const isAppReviewsEnabled = (): boolean => import.meta.env.VITE_ENABLE_APP_REVIEWS === "true"
+/** App Store reviews render only when the flag is on AND the app-reviews realm is live on the active network. */
+export const isAppReviewsAvailable = (): boolean => isAppReviewsEnabled() && isRealmValid(MEMBA_DAO.appReviewsPath)
 /** Social feed (W7.2). Ordinary flag — no funds. Literal reader (dynamic
  * import.meta.env[key] is undefined in prod bundles). */
 export const isFeedEnabled = (): boolean => import.meta.env.VITE_ENABLE_FEED === "true"

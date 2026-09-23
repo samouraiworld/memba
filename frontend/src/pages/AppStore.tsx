@@ -22,7 +22,7 @@ import { useNetwork } from "../hooks/useNetwork"
 import { fetchLiveApps, fetchApp, fetchByStatus, fetchAppStoreStats, isSafeRealmPath, isAppStoreV3, type AppListing } from "../lib/appStore"
 import { fetchSummary, fetchSummaries, type SubjectSummary } from "../lib/reviews"
 import { getIpfsGatewayUrl, isValidCid } from "../lib/ipfs"
-import { MEMBA_DAO, API_BASE_URL, isAppReviewsEnabled, isAppStoreSubmitEnabled } from "../lib/config"
+import { MEMBA_DAO, API_BASE_URL, isAppReviewsAvailable, isAppStoreSubmitEnabled } from "../lib/config"
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import { ReportAppButton } from "../components/appstore/ReportAppButton"
 import { AppReviewStars, MIN_RATED_COUNT } from "../components/reviews/AppReviewStars"
@@ -192,7 +192,7 @@ function relPath(pkgPath: string): string {
 
 function AppGrid() {
     const { networkKey } = useNetwork()
-    const appReviews = isAppReviewsEnabled()
+    const appReviews = isAppReviewsAvailable()
     const { data: apps, isPending, isError } = useQuery({
         queryKey: ["appStore", "live"],
         queryFn: () => fetchLiveApps(0, 30),
@@ -441,7 +441,7 @@ function shortAddr(addr: string): string {
 function AppDetail({ pkgPath }: { pkgPath: string }) {
     const { networkKey } = useNetwork()
     const rel = relPath(pkgPath)
-    const appReviews = isAppReviewsEnabled()
+    const appReviews = isAppReviewsAvailable()
     const { data: app, isPending, isError } = useQuery({
         queryKey: ["appStore", "detail", pkgPath],
         queryFn: () => fetchApp(pkgPath),

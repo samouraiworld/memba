@@ -29,12 +29,15 @@ describe("App Store directory and registry boundary", () => {
         expect(screen.queryByRole("button")).not.toBeInTheDocument()
         expect(screen.getByRole("link", { name: "Back to Home" })).toHaveAttribute("href", "/pearl/")
     })
-    it.each(["", "/", "/submit", "/review", "/my-submissions", "/r/demo/app"])("keeps mainnet registry routes unavailable with the flag on: %s", suffix => {
+    it.each(["", "/submit", "/review", "/my-submissions", "/r/demo/app"])("mounts the mainnet registry (v3) with the flag on: %s", suffix => {
         vi.stubEnv("VITE_ENABLE_APPSTORE", "true")
         mount(`/mainnet/apps${suffix}`)
+        expect(screen.getByText("REGISTRY_CONTENT")).toBeInTheDocument()
+    })
+    it.each(["", "/submit"])("keeps the registry closed with the flag on where no App Store realm is live (betanet): %s", suffix => {
+        vi.stubEnv("VITE_ENABLE_APPSTORE", "true")
+        mount(`/gnoland1/apps${suffix}`)
         expect(screen.queryByText("REGISTRY_CONTENT")).not.toBeInTheDocument()
-        if (suffix && suffix !== "/") expect(screen.getByRole("link", { name: "Browse ecosystem projects" })).toHaveAttribute("href", "/mainnet/apps")
-        else expect(screen.getByRole("heading", { name: "App Store", exact: true })).toBeInTheDocument()
     })
     it("mounts the real registry only when enabled and eligible", () => {
         vi.stubEnv("VITE_ENABLE_APPSTORE", "true")

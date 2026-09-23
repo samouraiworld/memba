@@ -22,6 +22,10 @@ import {
     SNAPSHOT_NETWORK,
     FEED_INDEXED_NETWORK,
     selectableNetworksFor,
+    reviewsPathFor,
+    isReviewsAvailable,
+    isRealmValid,
+    ACTIVE_NETWORK_KEY,
 } from './config'
 import { SITEMAP_NETWORK } from './sitemap'
 import { NFT_MARKETPLACE_V3_PATH, NFT_MARKETPLACE_PATH } from './nftConfig'
@@ -197,6 +201,18 @@ describe('config constants', () => {
         for (const base of ['memba_reviews_v1', 'memba_appstore_v2', 'memba_appstore_reviews_v1']) {
             expect(isRealmValidOn('mainnet', `gno.land/r/samcrew/${base}`)).toBe(false)
         }
+    })
+
+    it('chooses the reviews realm per network and gates review surfaces on it', () => {
+        expect(reviewsPathFor('mainnet')).toBe('gno.land/r/samcrew/memba_reviews_v2')
+        expect(reviewsPathFor('pearl')).toBe('gno.land/r/samcrew/memba_reviews_v1')
+        expect(isRealmValidOn('mainnet', reviewsPathFor('mainnet'))).toBe(true)
+        expect(isRealmValidOn('pearl', reviewsPathFor('pearl'))).toBe(true)
+        vi.stubEnv('VITE_ENABLE_REVIEWS', 'false')
+        expect(isReviewsAvailable()).toBe(false)
+        vi.stubEnv('VITE_ENABLE_REVIEWS', 'true')
+        expect(isReviewsAvailable()).toBe(isRealmValid(reviewsPathFor(ACTIVE_NETWORK_KEY)))
+        vi.unstubAllEnvs()
     })
 
     it('mainnet is both a valid default key AND the hard fallback', () => {
