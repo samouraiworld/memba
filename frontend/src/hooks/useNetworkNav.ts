@@ -1,19 +1,18 @@
 import { useCallback } from "react"
 import { useNavigate, useParams } from "react-router-dom"
-import { DEFAULT_NETWORK, NETWORKS } from "../lib/config"
+import { NETWORKS, storedNetworkKey } from "../lib/config"
 
 /**
  * Returns the current network key from the URL /:network param.
- * Falls back to localStorage → DEFAULT_NETWORK if not present.
+ * Outside a /:network route, falls back to the same rule as the redirects
+ * (`storedNetworkKey`): the explicit choice if it names a visible network, else
+ * DEFAULT_NETWORK. It used to read the raw URL echo (`memba_network`), which
+ * could hand back a hidden or retired network (pearl) the redirects never use.
  */
 export function useNetworkKey(): string {
     const { network } = useParams<{ network: string }>()
     if (network && NETWORKS[network]) return network
-    try {
-        const stored = localStorage.getItem("memba_network")
-        if (stored && NETWORKS[stored]) return stored
-    } catch { /* SSR */ }
-    return DEFAULT_NETWORK
+    return storedNetworkKey()
 }
 
 /**

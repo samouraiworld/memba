@@ -9,7 +9,7 @@
  */
 
 import { getSavedDAOs, type SavedDAO } from "./daoSlug"
-import { DEFAULT_NETWORK, NETWORKS, ACTIVE_NETWORK_KEY, GNO_RPC_URL } from "./config"
+import { ACTIVE_NETWORK_KEY, GNO_RPC_URL, currentNetworkKey } from "./config"
 import { directorySeeds } from "./directorySeeds"
 import { directorySeedData, fetchDirectoryDiscovery } from "./directoryDiscovery"
 export { SEED_PACKAGES, SEED_REALMS } from "./directorySeeds"
@@ -125,20 +125,13 @@ function setCache<T>(key: string, data: T): void {
 
 // ── Network Helpers ─────────────────────────────────────────
 
-/** Returns the active network key for gnoweb lookups. */
+/** Returns the active network key for gnoweb lookups and cache keys: the
+ *  network in the current URL, else the stored explicit choice, else the
+ *  default (`currentNetworkKey`). It used to read the raw URL echo
+ *  (`memba_network`), which could name a hidden or retired network (pearl)
+ *  after the redirects had moved the user elsewhere. */
 function _activeNetworkKey(): string {
-    try {
-        // Validate against NETWORKS, as config.getActiveNetworkKey, useNetworkKey
-        // and useNetwork all do. Returning an unvalidated stored key (e.g. a
-        // pre-cutover "test12") made getGnowebUrl return undefined and silently
-        // skipped discovery while the rest of the app ran on the real network.
-        const stored = localStorage.getItem("memba_network")
-        if (stored && NETWORKS[stored]) return stored
-    } catch { /* SSR */ }
-    // Derive from config, never a literal: this returned "test13" until the
-    // Phase C sweep, so a user with no stored selection had their gnoweb
-    // lookups pinned to the retired testnet.
-    return DEFAULT_NETWORK
+    return currentNetworkKey()
 }
 
 // ── Known Seed DAOs ──────────────────────────────────────────

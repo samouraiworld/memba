@@ -582,8 +582,9 @@ export const DEFAULT_NETWORK = resolveDefaultNetwork(import.meta.env.VITE_GNO_CH
 export const NETWORK_PREF_STORAGE_KEY = "memba_network_pref"
 
 /** localStorage key NetworkSync rewrites on every `/:network/*` visit — an ECHO of
- *  the last URL, not a choice. Still read by `daoSlug` and `directory` as "the
- *  network the user is on"; NOT an input to `resolveNetworkKey` any more. */
+ *  the last URL, not a choice. Written by NetworkSync and `switchNetwork`;
+ *  nothing resolves a network from it any more (`resolveNetworkKey`,
+ *  `useNetworkKey` and `directory` all ignore it). */
 export const NETWORK_ECHO_STORAGE_KEY = "memba_network"
 
 /** The successor of a RETIRED network (its `retiredTo`), or null when `key` is
@@ -661,6 +662,14 @@ export function resolveStoredNetworkKey(stored: string | null | undefined): stri
  *  storage — so `/` and legacy paths initialise on exactly the network the
  *  redirects send them to, instead of bouncing through a reload. */
 function getActiveNetworkKey(): string {
+    return currentNetworkKey()
+}
+
+/** The same rule evaluated NOW rather than at module load: the network in the
+ *  current URL (a retired one resolves to its successor), else the stored
+ *  explicit choice, else the default — never the URL echo. For code outside
+ *  the router that needs "the network this page is on" (e.g. cache keys). */
+export function currentNetworkKey(): string {
     let pathname: string | undefined
     try { pathname = window.location.pathname } catch { /* SSR */ }
     try {

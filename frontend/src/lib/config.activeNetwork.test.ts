@@ -1,5 +1,5 @@
 import { describe, it, expect, afterAll, afterEach, beforeAll, vi } from "vitest"
-import { resolveNetworkKey, retiredNetworkSuccessor, DEFAULT_NETWORK, NETWORKS } from "./config"
+import { resolveNetworkKey, retiredNetworkSuccessor, currentNetworkKey, DEFAULT_NETWORK, NETWORKS } from "./config"
 
 /**
  * Which network the app initialises on, and where `/` or a legacy path sends you.
@@ -172,5 +172,25 @@ describe("retiredNetworkSuccessor — which networks redirect, and where", () =>
         expect(resolveNetworkKey({ pathname: "/pearl" })).toBe("mainnet")
         // A hidden-but-NOT-retired deep link is unaffected.
         expect(resolveNetworkKey({ pathname: "/test13/create-token" })).toBe("test13")
+    })
+})
+
+describe("currentNetworkKey — the rule evaluated now, for code outside the router", () => {
+    afterEach(() => {
+        localStorage.clear()
+        window.history.replaceState({}, "", "/")
+    })
+
+    it("follows the current URL, resolving a retired network to its successor", () => {
+        window.history.replaceState({}, "", "/test13/directory")
+        expect(currentNetworkKey()).toBe("test13")
+        window.history.replaceState({}, "", "/pearl/directory")
+        expect(currentNetworkKey()).toBe("mainnet")
+    })
+
+    it("off a network URL, never returns the URL echo", () => {
+        window.history.replaceState({}, "", "/directory")
+        localStorage.setItem("memba_network", "pearl")
+        expect(currentNetworkKey()).toBe(DEFAULT_NETWORK)
     })
 })
