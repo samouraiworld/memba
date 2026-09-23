@@ -2,7 +2,7 @@
 
 Multi-model AI governance analyst for Gno DAOs. Analyzes proposals from legal, technical, and financial perspectives using free-tier LLM consensus.
 
-Registers on-chain in [`gno.land/r/samcrew/agent_registry_v2`](https://gno.land/r/samcrew/agent_registry_v2:agent/dao-analyst) — run `register-agent.sh` to register. It defaults to pearl (the current Memba chain, chain-id `pearl-1`) on the Pearl canonical node; set `REMOTE`/`CHAIN` to target another network.
+Registers on-chain in [`gno.land/r/samcrew/agent_registry_v2`](https://gno.land/r/samcrew/agent_registry_v2:agent/dao-analyst) — run `register-agent.sh` to register. The script still defaults to the Pearl testnet (chain-id `pearl-1`), where `agent_registry_v2` was deployed; Pearl was retired on 2026-09-23 and the registry is not deployed on gno.land mainnet, so there is currently no live registry to register on. `REMOTE`/`CHAIN` target another network.
 
 ## Tools
 
@@ -64,7 +64,7 @@ Add to `.cursor/mcp.json` or `.vscode/mcp.json`:
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `GNO_RPC_URL` | No | `https://rpc.pearl.samourai.live:443` (Pearl canonical node, chain-id `pearl-1`) | Gno RPC endpoint |
+| `GNO_RPC_URL` | No | `https://rpc.gno.land:443` (gno.land mainnet, chain-id `gnoland-1`) | Gno RPC endpoint |
 | `MEMBA_BACKEND_URL` | No | `http://localhost:8080` | Memba backend for LLM routing |
 | `DAO_ANALYST_TOKEN` | No | — | Memba auth token; PRO credits are checked for the wallet it was issued to |
 
@@ -89,11 +89,10 @@ Built-in network aliases:
 
 | Name | Chain id | RPC |
 |------|----------|-----|
-| `pearl` | `pearl-1` | `https://rpc.pearl.samourai.live:443` (override with `PEARL_RPC_URL`) |
-| `mainnet` | — | `https://rpc.gno.land` |
+| `mainnet` | `gnoland-1` | `https://rpc.gno.land` |
 | `test5` | — | `https://rpc.test5.gno.land` |
 
-`pearl` is the current Memba chain and the default when `GNO_RPC_URL` is unset. Any full RPC URL is also accepted; retired chains (test13, topaz, sapphire) have no alias.
+`mainnet` is the current Memba chain; its node is the default when `GNO_RPC_URL` is unset. Any full RPC URL is also accepted; retired chains (pearl, test13, topaz, sapphire) have no alias.
 
 Switch mid-conversation: use the `dao_set_network` tool.
 

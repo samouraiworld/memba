@@ -9,15 +9,16 @@ import type { AbciResponse, NetworkStatus, StatusResponse } from "./types.js";
 import { QueryCache, cacheKey, TTL_DEFAULT } from "./cache.js";
 
 /**
- * Endpoint used when neither `endpoints` nor GNO_RPC_URL is set: the Pearl
- * canonical node (chain-id `pearl-1`, the current Memba chain).
+ * Endpoint used when neither `endpoints` nor GNO_RPC_URL is set: the official
+ * gno.land mainnet node (chain-id `gnoland-1`, Memba's chain since 2026-09-23;
+ * it replaced the retired Pearl testnet).
  */
-export const DEFAULT_RPC = "https://rpc.pearl.samourai.live:443";
+export const DEFAULT_RPC = "https://rpc.gno.land:443";
 const DEFAULT_TIMEOUT_MS = 10_000;
 const MAX_RETRIES = 2;
 
 export interface GnoRpcConfig {
-  /** RPC endpoints — rotates on failure. Defaults to the Pearl canonical node. */
+  /** RPC endpoints — rotates on failure. Defaults to the gno.land mainnet node. */
   endpoints?: string[];
   /** Request timeout in milliseconds. Default: 10000. */
   timeoutMs?: number;

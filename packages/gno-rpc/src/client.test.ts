@@ -3,7 +3,7 @@ import { GnoRpcClient, DEFAULT_RPC } from "./client.js"
 
 // Chains that no longer exist. A default that names one of them is a client
 // that fails on first use for everyone who did not set GNO_RPC_URL.
-const RETIRED = ["test13", "testnet13", "topaz", "sapphire", "test12"]
+const RETIRED = ["test13", "testnet13", "topaz", "sapphire", "test12", "pearl"]
 
 describe("GnoRpcClient default endpoint", () => {
     const saved = process.env.GNO_RPC_URL
@@ -14,8 +14,8 @@ describe("GnoRpcClient default endpoint", () => {
         for (const marker of RETIRED) expect(DEFAULT_RPC.toLowerCase()).not.toContain(marker)
     })
 
-    it("defaults to the pearl canonical node", () => {
-        expect(DEFAULT_RPC).toBe("https://rpc.pearl.samourai.live:443")
+    it("defaults to the gno.land mainnet node", () => {
+        expect(DEFAULT_RPC).toBe("https://rpc.gno.land:443")
         expect(new GnoRpcClient().rpcUrl).toBe(DEFAULT_RPC)
     })
 

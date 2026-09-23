@@ -7,7 +7,7 @@
  *
  * Transport: stdio
  * Backend: Memba API (/api/analyst/*)
- * Chain: Gno — GNO_RPC_URL, defaulting to the Pearl canonical node (pearl-1)
+ * Chain: Gno — GNO_RPC_URL, defaulting to the gno.land mainnet node (gnoland-1)
  *
  * @module dao-analyst-mcp
  */
@@ -459,7 +459,7 @@ server.registerTool(
       network: z
         .string()
         .describe(
-          'Network name ("pearl", "mainnet", "test5") or a full RPC URL (e.g., "https://rpc.gno.land")'
+          'Network name ("mainnet", "test5") or a full RPC URL (e.g., "https://rpc.gno.land")'
         ),
     },
   },

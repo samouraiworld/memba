@@ -29,7 +29,7 @@ Add the server to your MCP client's configuration file:
       "command": "node",
       "args": ["/path/to/memba/mcp-server/build/index.js"],
       "env": {
-        "GNO_RPC_URL": "https://rpc.pearl.testnets.gno.land:443"
+        "GNO_RPC_URL": "https://rpc.gno.land:443"
       }
     }
   }
@@ -68,7 +68,7 @@ Add to Cursor MCP settings:
 
 | Env Var | Default | Description |
 |---------|---------|-------------|
-| `GNO_RPC_URL` | `https://rpc.pearl.samourai.live:443` (Pearl canonical node, chain-id `pearl-1`) | Gno RPC endpoint |
+| `GNO_RPC_URL` | `https://rpc.gno.land:443` (gno.land mainnet, chain-id `gnoland-1`) | Gno RPC endpoint |
 | `GNOLOVE_API_URL` | `https://backend.gnolove.world` | Gnolove API endpoint |
 
 ## Development

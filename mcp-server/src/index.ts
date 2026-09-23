@@ -6,7 +6,7 @@
  * and on-chain data. Designed for use with any MCP-compatible client.
  *
  * Transport: stdio (standard input/output)
- * Config: GNO_RPC_URL env var (defaults to the Pearl canonical node, chain-id pearl-1)
+ * Config: GNO_RPC_URL env var (defaults to the gno.land mainnet node, chain-id gnoland-1)
  *
  * @module memba-mcp
  */

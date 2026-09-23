@@ -1,21 +1,13 @@
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { describe, it, expect } from "vitest";
 import { KNOWN_NETWORKS, resolveNetworkRpc } from "./networks.js";
 
-const RETIRED = ["test13", "testnet13", "topaz", "sapphire", "test12"];
+// Pearl joined the retired set on 2026-09-23, when Memba moved to mainnet.
+const RETIRED = ["test13", "testnet13", "topaz", "sapphire", "test12", "pearl"];
 
 describe("dao_set_network aliases", () => {
-  const saved = process.env.PEARL_RPC_URL;
-  beforeEach(() => { delete process.env.PEARL_RPC_URL; });
-  afterEach(() => { if (saved !== undefined) process.env.PEARL_RPC_URL = saved; });
-
-  it("resolves pearl (the current Memba chain) to the canonical node", () => {
-    expect(resolveNetworkRpc("pearl")).toBe("https://rpc.pearl.samourai.live:443");
-    expect(resolveNetworkRpc("PEARL")).toBe("https://rpc.pearl.samourai.live:443");
-  });
-
-  it("lets PEARL_RPC_URL override the pearl alias at call time", () => {
-    process.env.PEARL_RPC_URL = "https://pearl.example:443";
-    expect(resolveNetworkRpc("pearl")).toBe("https://pearl.example:443");
+  it("resolves mainnet (the current Memba chain) to the official node", () => {
+    expect(resolveNetworkRpc("mainnet")).toBe("https://rpc.gno.land");
+    expect(resolveNetworkRpc("MAINNET")).toBe("https://rpc.gno.land");
   });
 
   it("has no alias for a retired chain", () => {
