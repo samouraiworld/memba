@@ -265,10 +265,11 @@ cd backend && go test -race -count=1 -cover ./...
 
 | Network | RPC | Chain ID |
 |---------|-----|----------|
-| **gno.land mainnet — current default** | `https://rpc.gno.land:443` | `gnoland-1` |
-| Pearl — test network | `https://rpc.pearl.testnets.gno.land:443` | `pearl-1` |
+| **gno.land mainnet — default** | `https://rpc.gno.land:443` (fallback `https://rpc.mainnet.samourai.live:443`) | `gnoland-1` |
 
-Mainnet and betanet (`gnoland1`, without the hyphen) are different chains. The frontend defaults to mainnet, but this does not mean every Memba realm is deployed there. The current configuration supports user-created DAOs but does not declare shared community realms or a token factory available on mainnet. DAO submission can remain inert until network approval; a wallet response alone does not establish that a package is live.
+The Pearl testnet (`pearl-1`) was retired on 2026-09-23: old `/pearl/…` links redirect to the same page on mainnet, and its configuration stays in code, hidden, for a future testnet. Mainnet and betanet (`gnoland1`, without the hyphen) are different chains.
+
+Mainnet does not carry every Memba realm. The first wave of shared community realms is live and allowlisted there — `memba_appstore_v3`, `memba_reviews_v2`, `memba_feedback_v2`, `gnobuilders_badges_v2` and `memba_feed_v1` — and user-created DAOs are supported. `memba_dao` and the token factory are not deployed on mainnet, so the surfaces that need them stay gated. DAO submission can remain inert until network approval; a wallet response alone does not establish that a package is live.
 
 The operative network and capability registry is [frontend/src/lib/config.ts](frontend/src/lib/config.ts). [realm-versions.json](realm-versions.json) records per-artifact deployments. See [A+B release evidence](docs/MAINNET_AB_RELEASE_EVIDENCE_2026-09-21.md) for the frontend baseline, candidate changes and separate wallet/chain verification status. Historical Pearl ceremonies do not establish mainnet readiness.
 

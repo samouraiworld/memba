@@ -1,7 +1,9 @@
 # Memba — On-Chain Deployment Runbook
 
 > **Status:** COMPLETE — Full procedures for all samcrew on-chain deployments.
-> **Last updated:** 2026-09-01 — **pearl (chain id `pearl-1`) is the current live network** (combined ceremony 2026-08-31; sapphire-1 retired — Samouraï sentry dead since 2026-09-02, hidden and off the accepted-chain list, formal sunset 2026-09-09; topaz-1 decommissioned 2026-08-12; test13 retired 2026-07-26 — retired RPCs refuse connections). The test12 inventory below is retained as deployment history (`realm-versions.json` is authoritative for the live paths/blocks per chain).
+> **Current network (2026-09-23):** **gno.land mainnet (chain id `gnoland-1`)**. Wave 1 was published there on 2026-09-23 by the samcrew namespace multisig — `realm-versions.json` `mainnet` is the ledger. **Pearl (`pearl-1`) was retired the same day.** Sections below that call pearl current are Pearl-era procedure, kept for reference; a mainnet procedure is pending.
+>
+> **Last updated (Pearl era):** 2026-09-01 — pearl (chain id `pearl-1`) was then the current live network (combined ceremony 2026-08-31; sapphire-1 retired — Samouraï sentry dead since 2026-09-02, hidden and off the accepted-chain list, formal sunset 2026-09-09; topaz-1 decommissioned 2026-08-12; test13 retired 2026-07-26 — retired RPCs refuse connections). The test12 inventory below is retained as deployment history (`realm-versions.json` is authoritative for the live paths/blocks per chain).
 > **Deployer tool:** [`samcrew-deployer`](https://github.com/samouraiworld/samcrew-deployer)
 > **Source of truth for deployed state:** [`realm-versions.json`](../realm-versions.json) — this runbook is the procedural reference; the JSON is the authoritative ledger.
 
@@ -24,7 +26,7 @@
 
 ## Realm Inventory
 
-> **pearl (chain id `pearl-1`) is the current live network** — the 2026-08-31 combined ceremony deployed Memba's full set there (32 artifacts; sapphire carried the phase-1 set from 2026-08-15 until the cutover and is retired — Samouraï sentry dead since 2026-09-02, formal sunset 2026-09-09); see [`realm-versions.json`](../realm-versions.json) for the authoritative live paths/blocks (per-artifact heights included since sapphire). The table below is the original **test12** deployment history (real blocks/dates), kept for procedure reference. gnoland1 is intentionally empty — Memba activates it in v7.1 Phase 5 after the upstream transfer-lock lift and after the Custody section in [`MAINNET_APP_HARDENING.md`](MAINNET_APP_HARDENING.md) is signed.
+> **Mainnet (`gnoland-1`) is the current network since 2026-09-23** (wave 1 in `realm-versions.json` `mainnet`); pearl is retired. The rest of this note is the Pearl-era record: the 2026-08-31 combined ceremony deployed Memba's full set there (32 artifacts; sapphire carried the phase-1 set from 2026-08-15 until the cutover and is retired — Samouraï sentry dead since 2026-09-02, formal sunset 2026-09-09); see [`realm-versions.json`](../realm-versions.json) for the authoritative live paths/blocks (per-artifact heights included since sapphire). The table below is the original **test12** deployment history (real blocks/dates), kept for procedure reference. gnoland1 is intentionally empty — Memba activates it in v7.1 Phase 5 after the upstream transfer-lock lift and after the Custody section in [`MAINNET_APP_HARDENING.md`](MAINNET_APP_HARDENING.md) is signed.
 
 **Original test12 deployment (historical)** — these paths and blocks are the 2026-03/04 test12 record, not what Pearl serves; Pearl's live generations (`agent_registry_v2`, `escrow_v3`, `memba_nft_market_v3_2`, `tokenfactory_v2`, …) are in `realm-versions.json`.
 
@@ -169,9 +171,9 @@ Passwords are prompted once per session, held in memory, cleared on exit. Accoun
 
 When deploying to a new or restarted network, follow this order:
 
-### Priority 1 — pearl (current default)
+### Priority 1 — pearl (RETIRED 2026-09-23 — Pearl-era procedure)
 
-pearl is the current primary network (since the 2026-08-31 combined ceremony). All features are tested here first.
+pearl was the primary network from the 2026-08-31 combined ceremony until its 2026-09-23 retirement; mainnet (`gnoland-1`) replaced it.
 
 ```bash
 ./samcrew-deploy.sh pearl all   # NOTE: `all` excludes memba — deploy memba explicitly
@@ -179,7 +181,7 @@ pearl is the current primary network (since the 2026-08-31 combined ceremony). A
 
 ### Priority 2 — gnoland1 (betanet / production)
 
-gnoland1 is the production chain. Deploy after pearl is verified stable.
+⚠️ Pre-launch text: betanet (`gnoland1`, no hyphen) is NOT mainnet — mainnet is the separate chain `gnoland-1`. Memba deploys nothing to betanet.
 
 ```bash
 # Pre-flight is critical for production
@@ -386,12 +388,13 @@ npm run build              # verify build succeeds
 
 | Network | Chain ID | RPC | Gas Fee | Gas Wanted | Deposit |
 |---------|----------|-----|---------|------------|---------|
-| pearl | `pearl-1` | `rpc.pearl.testnets.gno.land` (fallback `rpc.pearl.samourai.live`) | 10M ugnot | 150M | 100M ugnot |
+| **mainnet** | `gnoland-1` | `rpc.gno.land` (fallback `rpc.mainnet.samourai.live`) | see deployer | see deployer | see deployer |
+| pearl *(retired 2026-09-23)* | `pearl-1` | `rpc.pearl.testnets.gno.land` (fallback `rpc.pearl.samourai.live`) | 10M ugnot | 150M | 100M ugnot |
 | sapphire *(retired 2026-09-02; formal sunset 2026-09-09)* | `sapphire-1` | `rpc.sapphire.testnets.gno.land` (official node; app no longer targets it) | 10M ugnot | 150M | 100M ugnot |
 | topaz (RETIRED 2026-08-12) | `topaz-1` | — | — | — | — |
 | test13 *(retired)* | `test-13` | `rpc.test13.testnets.gno.land` *(dead)* | — | — | — |
 | betanet | `gnoland1` | `rpc.gnoland1.samourai.live` | 10M ugnot | 80M | 1M ugnot |
-| portal-loop | `portal-loop` | `rpc.gno.land` | 10M ugnot | 80M | 1 ugnot |
+| portal-loop *(historical — `rpc.gno.land` now serves mainnet `gnoland-1`)* | `portal-loop` | `rpc.gno.land` | 10M ugnot | 80M | 1 ugnot |
 | local | `dev` | `127.0.0.1:26657` | 1M ugnot | 10M | 1 ugnot |
 
 ### Deploy key

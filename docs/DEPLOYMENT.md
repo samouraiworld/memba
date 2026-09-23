@@ -40,11 +40,11 @@ npm run dev
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `VITE_API_URL` | `""` (same-origin) | Backend ConnectRPC base URL |
-| `VITE_PEARL_RPC_URL` | `https://rpc.pearl.testnets.gno.land:443` | Override Pearl's RPC (same `VITE_<NETWORK>_RPC_URL` pattern per network). Optional — the endpoint is baked into `config.ts`. (There is no `VITE_GNO_RPC_URL`: no code reads it.) |
+| `VITE_MAINNET_RPC_URL` | `https://rpc.gno.land:443` | Override mainnet's (`gnoland-1`) RPC (same `VITE_<NETWORK>_RPC_URL` pattern per network; retired Pearl keeps `VITE_PEARL_RPC_URL`). Optional — the endpoint is baked into `config.ts`. (There is no `VITE_GNO_RPC_URL`: no code reads it.) |
 | `VITE_DAO_REALM_PATH` | `gno.land/r/samcrew/memba_dao` | Canonical Memba dApp DAO realm path on-chain |
 | `VITE_GNOLOVE_API_URL` | `https://backend.gnolove.world` | Gnolove Go API (scoreboard, reports, analytics) |
 
-> **On-chain verification**: Browse deployed Samouraï Coop realms and packages at [gnoweb pearl](https://pearl.testnets.gno.land/r/samcrew) (gno-core's official gnoweb).
+> **On-chain verification**: Browse deployed Samouraï Coop realms and packages on mainnet at [gno.land/r/samcrew](https://gno.land/r/samcrew) (gno-core's official gnoweb). Pearl (`pearl-1`) was retired on 2026-09-23.
 > Note: `samourai_dao` is a separate Samouraï Coop DAO for crew members only — do **not** use it as `VITE_DAO_REALM_PATH`.
 
 ### Proto Generation

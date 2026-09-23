@@ -1,5 +1,7 @@
 # Memba — Product Roadmap
 
+> **Current state (2026-09-23):** Memba runs on gno.land mainnet (`gnoland-1`), the default and only offered network. The first wave of shared community realms is live there (`memba_appstore_v3`, `memba_reviews_v2`, `memba_feedback_v2`, `gnobuilders_badges_v2`, `memba_feed_v1`), the backend follows mainnet, and the games no longer depend on Pearl. The Pearl testnet (`pearl-1`) is retired: `/pearl/…` links redirect to mainnet, and its configuration stays in code, hidden, for a future testnet. Dated sections below — including snapshots that name Pearl as the default network or v7.4.0 as the latest release — are kept as history.
+
 Recovery frontend candidate (7.7.0): v1/v2 structured contracts, governed same-person key replacement, historical former-member addresses and post-confirmation authority checks. Real signing rehearsal, migration and target authority remain required before mainnet.
 
 > Versioned roadmap for Memba, the standalone Gno multisig & DAO wallet.

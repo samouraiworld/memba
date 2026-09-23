@@ -420,12 +420,12 @@ Until a secondary owner is recruited (v7.1 plan §1.8 / R-12):
 # Live chain probes (used in Phase 0/1 acceptance + every release).
 # Always identity-check alongside liveness: .result.node_info.network must be
 # the chain you think you are probing (DNS + HTTP 200 are both false positives).
-curl -s https://rpc.pearl.testnets.gno.land/status | jq '{net:.result.node_info.network,h:.result.sync_info.latest_block_height}'
-curl -s https://rpc.gnoland1.samourai.live/status | jq '{net:.result.node_info.network,h:.result.sync_info.latest_block_height}'
+# Mainnet (gnoland-1): the official node and the Samouraï fallback.
+curl -s https://rpc.gno.land/status | jq '{net:.result.node_info.network,h:.result.sync_info.latest_block_height}'
+curl -s https://rpc.mainnet.samourai.live/status | jq '{net:.result.node_info.network,h:.result.sync_info.latest_block_height}'
 
-# Transfer-lock probe (Phase 1.5 / Phase 5 gate)
-gnokey query params/bank:p:restricted_denoms -remote https://rpc.gnoland1.samourai.live:443
-gnokey query params/auth:p:unrestricted_addrs -remote https://rpc.gnoland1.samourai.live:443
+# Transfer-lock probe (`[]` = ugnot transferable on mainnet)
+gnokey query params/bank:p:restricted_denoms -remote https://rpc.gno.land:443
 
 # Block Party seed cross-check (canonical node vs the sentry the backend uses;
 # identical seed/height/hash on both = the public verification claim holds)

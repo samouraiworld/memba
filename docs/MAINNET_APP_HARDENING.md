@@ -4,17 +4,18 @@
 
 This document tracks items to be addressed before the mainnet release.
 
-## Chain Status (2026-09-01)
+## Chain Status (2026-09-23)
 
 | Chain | Status | Notes |
 |-------|--------|-------|
-| **pearl** | ✅ Active | Primary since 2026-08-31 (chain id `pearl-1`). The combined ceremony deployed the core set **and** the fund-custody commerce set (32 artifacts, per-height records in `realm-versions.json`); commerce stays **feature-gated** pending the 2-wallet live-money test. Official RPC: `rpc.pearl.testnets.gno.land`; Samouraï sentry: `rpc.pearl.samourai.live`. |
+| **mainnet** | ✅ Active — default | Chain id `gnoland-1` (hyphen), live since 2026-09-12, the app's default since 2026-09-17 and its only offered network since 2026-09-23. Wave 1 published 2026-09-23 (`realm-versions.json` `mainnet`); the app exposes exactly `REALM_ALLOWLIST.mainnet` in `frontend/src/lib/config.ts` (`memba_appstore_v3`, `memba_reviews_v2`, `memba_feedback_v2`, `gnobuilders_badges_v2`, `memba_feed_v1`). `memba_dao` and the commerce set are not deployed there. Official RPC: `rpc.gno.land`; Samouraï node: `rpc.mainnet.samourai.live`. |
+| **pearl** | ⚰️ Retired 2026-09-23 | Primary 2026-08-31 → 2026-09-17 (chain id `pearl-1`); `/pearl/...` links now redirect to the same page on mainnet, and a remembered pearl selection resolves to mainnet. The entry stays in code, hidden, for a future testnet. Pearl-era notes:  The combined ceremony deployed the core set **and** the fund-custody commerce set (32 artifacts, per-height records in `realm-versions.json`); commerce stays **feature-gated** pending the 2-wallet live-money test. Official RPC: `rpc.pearl.testnets.gno.land`; Samouraï sentry: `rpc.pearl.samourai.live`. |
 | **sapphire** | ⚰️ Retired 2026-09-02 | Primary 2026-08-15 → 2026-08-31 (chain id `sapphire-1`); phase-1 funds-free set (24 artifacts) was published there. Hidden from the selector 2026-09-01 (#1126), off the accepted-chain allowlist and out of every backend RPC default 2026-09-02 (#1139, #1138) after the Samouraï sapphire sentry (`rpc.sapphire.samourai.live`) went dark (HTTP 000). The formal 2026-09-09 sunset is paperwork. A remembered sapphire selection or old `/sapphire/...` link heals to pearl. Never trust a hostname or HTTP 200 — the only identity test is `node_info.network`. |
 | **topaz** | ⚰️ Retired 2026-08-12 | Full realm set (32 artifacts) remains published on the dead chain; Adena dropped `topaz-1` in v1.20.3. |
 | **testnet13** | ⚰️ Retired 2026-07-26 | Historical primary; carried `memba_appstore_v3`, NFT engine v3.2, and the commerce stack (2026-07-10 ceremony). |
 | **testnet12** | 🔴 Retired | Migration complete. See `TEST12_WINDDOWN_RUNBOOK.md`. |
-| **gnoland1 (betanet)** | 🟡 Live, transfer-locked | Chain is running; transfers gated by `params/bank:p:restricted_denoms` (gno #5629). Memba RPC: `rpc.gnoland1.samourai.live` (+ 3 community fallbacks). No samcrew realms deployed yet — activation planned for v7.1 Phase 5. |
-| **portal-loop** | ✅ Active | Used for validator monitoring. Unstable (frequent resets). |
+| **gnoland1 (betanet)** | 🟡 Hidden | A different chain from mainnet `gnoland-1` (one hyphen apart). Hidden from the selector since 2026-09-17; Memba deploys nothing there. |
+| **portal-loop** | Historical | `rpc.gno.land` now serves mainnet `gnoland-1`. |
 
 ## v7.1 progress
 
@@ -140,5 +141,5 @@ The seed is stored as a Fly.io secret and never committed. Challenge expiry is 5
 | NavManifest Completeness | post-v6.3.1 | 5 tests prevent hidden-page drift (#646) |
 
 ---
-*Updated 2026-09-07: sapphire marked retired (sentry dead 09-02; hidden 09-01, off allowlist 09-02). Previous: 2026-09-01 at the pearl cutover (renamed from `MAINNET_PREPARATION.md`; chain table: pearl primary, sapphire slated to sunset 09-09) · 2026-08-15 sapphire cutover (sapphire primary; topaz + test13 retired) · 2026-06-28 Wave 0-4 audit (test13 primary, test12 retired) · 2026-05-11 during v7.1 Phase 1.*
+*Updated 2026-09-23: mainnet active and default, pearl retired. Previous: 2026-09-07: sapphire marked retired (sentry dead 09-02; hidden 09-01, off allowlist 09-02). Previous: 2026-09-01 at the pearl cutover (renamed from `MAINNET_PREPARATION.md`; chain table: pearl primary, sapphire slated to sunset 09-09) · 2026-08-15 sapphire cutover (sapphire primary; topaz + test13 retired) · 2026-06-28 Wave 0-4 audit (test13 primary, test12 retired) · 2026-05-11 during v7.1 Phase 1.*
 

@@ -26,10 +26,12 @@ cat SKILL.md
 ```
 
 ### Query a DAO's state
+Renders GovDAO on gno.land mainnet (`gnoland-1`). `data` is the base64 of
+`<realm path>:<render path>` — here `gno.land/r/gov/dao:`.
 ```bash
-curl -s https://rpc.pearl.testnets.gno.land:443 \
+curl -s https://rpc.gno.land:443 \
   -H 'Content-Type: application/json' \
-  -d '{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"vm/qrender","data":"gno.land/r/samcrew/memba_dao\n"}}'
+  -d '{"jsonrpc":"2.0","id":1,"method":"abci_query","params":{"path":"vm/qrender","data":"Z25vLmxhbmQvci9nb3YvZGFvOg=="}}'
 ```
 
 ### Get contributor leaderboard
@@ -111,7 +113,7 @@ Add a local build to your MCP client's configuration file:
       "command": "node",
       "args": ["/path/to/memba/mcp-server-dao-analyst/build/index.js"],
       "env": {
-        "GNO_RPC_URL": "https://rpc.pearl.testnets.gno.land:443",
+        "GNO_RPC_URL": "https://rpc.gno.land:443",
         "MEMBA_BACKEND_URL": "https://memba-backend.fly.dev"
       }
     }

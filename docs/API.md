@@ -92,7 +92,7 @@ its move log and the server replays it against the day's seeded board.
 
 | RPC | Auth | Description |
 |-----|------|-------------|
-| `GetDailyChallenge` | No | The day's challenge (`date`, `seed`, `modifier`, `par`, `moveBudget`, `blockHeight`, `blockHash`, `ready`). Derived once per date from the first pearl block ≥ 00:00 UTC (single node, chain-identity-verified, no failover) and cached immutably. `ready:false` = the day's block isn't mined yet |
+| `GetDailyChallenge` | No | The day's challenge (`date`, `seed`, `modifier`, `par`, `moveBudget`, `blockHeight`, `blockHash`, `ready`). Derived once per date from the first gno.land mainnet (`gnoland-1`) block ≥ 00:00 UTC (single node, chain-identity-verified, no failover) and cached immutably. `ready:false` = the day's block isn't mined yet |
 | `SubmitScore` | Yes | Body: `{authToken, date, moveLog}` — never a score. Server replays the log and derives the score itself. One submission per address per UTC day, first-write-wins |
 | `GetDailyLeaderboard` | No | Top scores for a date (`limit` ≤ 100, default 50) |
 | `GetStreak` | No | Current/longest streak + weekly freeze for an address |

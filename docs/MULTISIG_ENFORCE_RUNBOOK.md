@@ -2,13 +2,13 @@
 
 **Purpose:** safely flip `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY=1` (reject member signatures that fail server-side A3 verification) **without bricking multisig signing**.
 
-**Status after the propose-format PR:** the frontend now **stores the exact canonical doc Adena signs** (`lib/multisigTx.ts` → `ProposeTransaction` + `useAdena.signArbitrary`), the backend `CreateTransaction` rejects the old cosmos fee shape, and the A3 test locks the canonical `/vm.m_call` round-trip (originally proven on test13; the same canonical round-trip is what prod now exercises on **pearl-1**). **The A3 enforce gate is still OPEN as of 2026-09-01 — `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY` remains unset in prod.** The remaining gate is empirical: confirm a REAL Adena member signature verifies (on the current chain) before flipping. Do not skip it — the in-Go test proves internal consistency, not Adena's exact byte output (the `args:null` / field-presence assumptions).
+**Status after the propose-format PR:** the frontend now **stores the exact canonical doc Adena signs** (`lib/multisigTx.ts` → `ProposeTransaction` + `useAdena.signArbitrary`), the backend `CreateTransaction` rejects the old cosmos fee shape, and the A3 test locks the canonical `/vm.m_call` round-trip (originally proven on test13; the same canonical round-trip is what prod exercised on pearl-1 and now exercises on **gnoland-1**, gno.land mainnet, since the 2026-09-23 cutover). **The A3 enforce gate is still OPEN as of 2026-09-01 — `MEMBA_ENFORCE_MULTISIG_SIG_VERIFY` remains unset in prod.** The remaining gate is empirical: confirm a REAL Adena member signature verifies (on the current chain) before flipping. Do not skip it — the in-Go test proves internal consistency, not Adena's exact byte output (the `args:null` / field-presence assumptions).
 
 ---
 
 ## Gate 1 — capture a real Adena signature (the definitive proof)
 
-1. On the deploy preview (NOT local — multisig RPC reads need the live node), connect a real Adena wallet that is a **member** of a multisig on the current prod chain (pearl-1).
+1. On the deploy preview (NOT local — multisig RPC reads need the live node), connect a real Adena wallet that is a **member** of a multisig on the current prod chain (`gnoland-1`, gno.land mainnet — Pearl was retired on 2026-09-23).
 2. Propose a real `/vm.m_call` transaction (e.g. a DAO `Vote`/`Propose`), then click **Sign Transaction**. Adena signs via `SignMultisigTransaction`.
 3. From the backend DB (or `GetTransaction`), capture for that tx:
    - `msgs_json`, `fee_json`, `account_number`, `sequence`, `chain_id`, `memo`
@@ -24,7 +24,7 @@ func TestA3_RealAdenaSignature(t *testing.T) {
     err := auth.VerifyMultisigMemberSignature(
         `<multisig_pubkey_json>`, `<user_address>`, `<signature_b64>`,
         auth.StoredTxFields{
-            ChainID: "pearl-1", AccountNumber: <n>, Sequence: <n>, // the chain the signature was captured on
+            ChainID: "gnoland-1", AccountNumber: <n>, Sequence: <n>, // the chain the signature was captured on
             MsgsJSON: `<msgs_json>`, FeeJSON: `<fee_json>`, Memo: `<memo>`,
         })
     if err != nil { t.Fatalf("real Adena sig must verify: %v", err) }

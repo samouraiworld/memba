@@ -1,5 +1,7 @@
 # Arcade on-chain certify — go-live ceremony runbook (multi-game)
 
+> **Pearl-era; mainnet runbook pending.** This procedure targets `pearl-1`, which was retired on 2026-09-23. Do not run it against mainnet (`gnoland-1`) as written; it will be rewritten for mainnet.
+
 This is the OWNER-GATED procedure to take the arcade certify pipeline from
 "dark" (all code merged, nothing enabled) to a live pre-mainnet beta on
 **pearl-1**. The pipeline is multi-game since 2026-09-01 (realm amended in
