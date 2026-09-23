@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
-import { newGame, step, type GameEvent, type GameState, type InputIntent } from "../engine";
-import { createChainTracker, isNewBest, summarizeRun, trackChain } from "./results";
+import { CONFIG, newGame, step, type GameEvent, type GameState, type InputIntent } from "../engine";
+import { chainCues, createChainTracker, isNewBest, summarizeRun, trackChain } from "./results";
 
 const kill: GameEvent = { type: "alienKilled", x: 0, y: 0, row: 0 };
 const miss: GameEvent = { type: "shotMissed" };
@@ -89,5 +89,35 @@ describe("isNewBest", () => {
   it("never celebrates a zero score or an unknown previous best", () => {
     expect(isNewBest(0, 0)).toBe(false);
     expect(isNewBest(900, null)).toBe(false);
+  });
+});
+
+describe("chainCues", () => {
+  const kill = (x = 10, y = 20): GameEvent => ({ type: "alienKilled", x, y, row: 0 });
+  const miss: GameEvent = { type: "shotMissed" };
+
+  it("reports each tier jump (×1.5, ×2, ×3, ×4) at the kill that reached it", () => {
+    const events = Array.from({ length: 10 }, (_, i) => kill(i * 10, 30));
+    const cues = chainCues(0, events);
+    expect(cues.map((c) => c.type === "tierUp" && c.mult10)).toEqual([15, 20, 30, 40]);
+    // kill #2 (index 1) produced the ×1.5 jump; the cue sits on that alien
+    expect(cues[0]).toMatchObject({ type: "tierUp", x: 10 + CONFIG.alien.w / 2, y: 30 + CONFIG.alien.h / 2 });
+  });
+
+  it("continues from the chain before the frame and stays quiet inside a tier", () => {
+    expect(chainCues(4, [kill(), kill()])).toEqual([]); // 5, 6 → still ×2
+    expect(chainCues(6, [kill()]).map((c) => c.type)).toEqual(["tierUp"]); // 7 → ×3
+  });
+
+  it("flags a broken chain only when it was worth at least ×1.5", () => {
+    expect(chainCues(1, [miss])).toEqual([]);
+    expect(chainCues(2, [miss])).toEqual([{ type: "broken", mult10: 15 }]);
+    expect(chainCues(7, [miss, miss])).toEqual([{ type: "broken", mult10: 30 }]);
+  });
+
+  it("agrees with trackChain on the chain it walks", () => {
+    const events: GameEvent[] = [kill(), kill(), miss, kill(), kill(), kill(), kill()];
+    expect(chainCues(0, events).map((c) => c.type)).toEqual(["tierUp", "broken", "tierUp", "tierUp"]);
+    expect(trackChain(createChainTracker(), events)).toEqual({ chain: 4, best: 4 });
   });
 });

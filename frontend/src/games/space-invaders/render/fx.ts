@@ -1,5 +1,6 @@
 import { CONFIG, type GameEvent } from "../engine";
 import { rngFloat } from "../engine/prng";
+import type { ChainCue } from "../lib/results";
 
 // Cosmetic state has an RNG stream separate from the deterministic simulation.
 // It is deliberately bounded and never reads or writes GameState, so adding
@@ -206,6 +207,25 @@ export function fxConsume(fx: FxState, events: GameEvent[]): void {
       case "alienStep":
       case "shotMissed":
         break;
+    }
+  }
+  capFx(fx);
+}
+
+/** Chain feedback on top of the per-kill "HIT": a larger multiplier popup
+ *  with a spark ring when the chain reaches a new tier, and a short "CHAIN
+ *  BROKEN" cue when a miss drops a chain worth ×1.5 or more. Reduced motion
+ *  keeps the text (it carries information) and drops sparks and glow. */
+export function fxChainCues(fx: FxState, cues: readonly ChainCue[]): void {
+  for (const cue of cues) {
+    const label = `×${(cue.mult10 / 10).toFixed(1)}`;
+    if (cue.type === "tierUp") {
+      const top = cue.mult10 >= 40;
+      popup(fx, cue.x, cue.y - 12, `${label} CHAIN`, top ? "signal" : "gold", top ? 14 : 12, BANNER_MS);
+      burst(fx, cue.x, cue.y, top ? 26 : 16, "gold", 0.11);
+      if (!fx.reducedMotion) fx.signal = Math.max(fx.signal, top ? 0.9 : 0.55);
+    } else {
+      popup(fx, CONFIG.arena.w / 2, CONFIG.player.baselineY - 42, `CHAIN BROKEN ${label}`, "danger", 9, POPUP_MS);
     }
   }
   capFx(fx);

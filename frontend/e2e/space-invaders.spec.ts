@@ -62,6 +62,33 @@ test.describe('Space Invaders', () => {
 		await expect(page.getByText(/relay online/i).first()).toBeVisible()
 	})
 
+	test('Enter launches, Esc holds and resumes, and a six-digit best fits the HUD', async ({ page }) => {
+		await page.addInitScript(() => localStorage.setItem('memba.space-invaders.best', '999999'))
+		const network = await resolveNetwork(page)
+		await page.goto(`/${network}/game/space-invaders`, { waitUntil: 'domcontentloaded' })
+		await expect(page.getByRole('heading', { name: 'Space Invaders' })).toBeVisible({ timeout: 10_000 })
+
+		const best = page.locator('.si-stat--best strong')
+		await expect(best).toHaveText('999,999')
+		expect(await best.evaluate(n => n.scrollWidth <= n.clientWidth + 1)).toBe(true)
+
+		await page.getByRole('button', { name: /free play/i }).click()
+		const surface = page.getByRole('group', { name: /signal defense game surface/i })
+		await expect(surface).toBeFocused()
+		const readyPrompt = page.getByRole('heading', { name: /relay standing by/i })
+		await expect(readyPrompt).toBeVisible()
+
+		await surface.press('Enter')
+		await expect(readyPrompt).toBeHidden({ timeout: 10_000 })
+		await expect(page.getByTestId('si-wave-banner')).toContainText(/wave 1/i)
+
+		await surface.press('Escape')
+		await expect(page.getByRole('heading', { name: /relay paused/i })).toBeVisible()
+		await surface.press('Escape')
+		await expect(page.getByRole('heading', { name: /relay paused/i })).toBeHidden()
+		await expect(surface).toBeFocused()
+	})
+
 	test('has no serious or critical WCAG 2.1 AA violations in the ready cabinet', async ({ page }) => {
 		const network = await resolveNetwork(page)
 		await page.goto(`/${network}/game/space-invaders`, { waitUntil: 'domcontentloaded' })

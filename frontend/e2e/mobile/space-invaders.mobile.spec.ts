@@ -1,4 +1,4 @@
-import { test, expect, type Locator } from '@playwright/test'
+import { test, expect, type Locator, type Page } from '@playwright/test'
 
 test.use({ baseURL: 'http://localhost:5174' })
 
@@ -24,6 +24,13 @@ async function expectContainedWithin(inner: Locator, outer: Locator, label: stri
 	)
 	expect(innerBox!.y + innerBox!.height, `${label} bottom edge`).toBeLessThanOrEqual(
 		outerBox!.y + outerBox!.height + tolerance,
+	)
+}
+
+/** HUD labels/values whose text is clipped (an ellipsis would be showing). */
+async function truncatedHudText(page: Page) {
+	return page.locator('.si-hud .si-stat > span, .si-hud .si-stat > strong').evaluateAll(nodes =>
+		nodes.filter(n => n.scrollWidth > n.clientWidth + 1).map(n => n.textContent),
 	)
 }
 
@@ -76,10 +83,14 @@ test.describe('Space Invaders: Signal Defense mobile cabinet', () => {
 
 	test('keeps lives visible at 320px and makes short-landscape menus reachable', async ({ page }) => {
 		await page.setViewportSize({ width: 320, height: 568 })
+		// A six-digit best must fit the HUD without an ellipsis.
+		await page.addInitScript(() => localStorage.setItem('memba.space-invaders.best', '999999'))
 		const network = await resolveNetwork(page)
 		await page.goto(`/${network}/game/space-invaders`, { waitUntil: 'domcontentloaded' })
 
 		await expect(page.locator('.si-stat--lives')).toBeVisible()
+		await expect(page.locator('.si-stat--best strong')).toHaveText('999,999')
+		expect(await truncatedHudText(page)).toEqual([])
 		expect(await page.evaluate(() => document.documentElement.scrollWidth > 321)).toBe(false)
 
 		await page.setViewportSize({ width: 667, height: 320 })

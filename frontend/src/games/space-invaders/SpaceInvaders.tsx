@@ -5,11 +5,18 @@ import { useKeyboard } from "./hooks/useKeyboard";
 import { useTouch } from "./hooks/useTouch";
 import { Canvas } from "./render/Canvas";
 import { draw } from "./render/draw";
-import { createFx, fxConsume, fxUpdate, type FxState } from "./render/fx";
+import { createFx, fxChainCues, fxConsume, fxUpdate, type FxState } from "./render/fx";
 import { loadBest, saveBest } from "./lib/highScore";
 import { newRunSeed } from "./lib/seed";
 import { vibrate } from "./lib/haptics";
-import { createAudioEngine, soundsForEvents, loadMuted, type AudioEngine } from "./lib/audio";
+import {
+  createAudioEngine,
+  soundsForChainCues,
+  soundsForEvents,
+  loadMuted,
+  ufoDroneWanted,
+  type AudioEngine,
+} from "./lib/audio";
 import { dailySeedString, seedFromSeedString, formatStateHash } from "./lib/daily";
 import { createInputRecorder, REPLAY_VERSION, type InputRecorder } from "./lib/replay";
 import { simulateReplay, hashState } from "./lib/verify";
@@ -21,7 +28,8 @@ import { PausedScreen } from "./screens/PausedScreen";
 import { GameOverScreen } from "./screens/GameOverScreen";
 import type { RunMode } from "./screens/types";
 import { prefersReducedMotion } from "./lib/motion";
-import { createChainTracker, summarizeRun, trackChain, isNewBest, type ChainTracker } from "./lib/results";
+import { chainCues, createChainTracker, summarizeRun, trackChain, isNewBest, type ChainTracker } from "./lib/results";
+import { HOWTO_MIN_MS, WAVE_BANNER_MS, loadHowtoSeen, saveHowtoSeen } from "./lib/intro";
 import { shareUrlFromLocation } from "./lib/shareText";
 import "./space-invaders.css";
 
@@ -99,6 +107,16 @@ export default function SpaceInvaders({
   const last = useRef<number | null>(null);
   const accRef = useRef(0);
   const lastHudUpdateRef = useRef(0);
+  // Enter on the armed ready screen launches the run. It is delivered to the
+  // engine as a fire press (an existing action, exactly like Space) and held
+  // until a real simulation step consumes it, so a zero-step frame on a
+  // high-refresh display cannot swallow it.
+  const launchPendingRef = useRef(false);
+  // Presentation-only overlays driven from step events; never read by the sim.
+  const [waveBanner, setWaveBanner] = useState<{ wave: number; id: number } | null>(null);
+  const [howtoOpen, setHowtoOpen] = useState(false);
+  const howtoRef = useRef<{ open: boolean; shownAt: number }>({ open: false, shownAt: 0 });
+  const confirmRef = useRef<() => void>(() => {});
 
   // Construct WebAudio inside the effect that owns it. This remains correct
   // under React StrictMode's setup → cleanup → setup development cycle and
@@ -121,11 +139,19 @@ export default function SpaceInvaders({
     };
   }, []);
 
+  // The wave banner is a moment, not a state: it clears itself.
+  useEffect(() => {
+    if (!waveBanner) return;
+    const timer = setTimeout(() => setWaveBanner(null), WAVE_BANNER_MS);
+    return () => clearTimeout(timer);
+  }, [waveBanner]);
+
   const areaRef = useRef<HTMLDivElement>(null);
   const focusGameSurface = useCallback(() => {
     areaRef.current?.focus({ preventScroll: true });
   }, []);
-  const getKeyInput = useKeyboard(areaRef);
+  const onConfirm = useCallback(() => confirmRef.current(), []);
+  const getKeyInput = useKeyboard(areaRef, { onConfirm });
   // useTouch's signature predates the stricter RefObject<T | null> inference;
   // the ref is always non-null by the time the effect inside useTouch runs.
   const { read: getTouchInput, consumeFire: consumeTouchFire, reset: resetTouchInput } = useTouch(areaRef as RefObject<HTMLElement>);
@@ -208,7 +234,9 @@ export default function SpaceInvaders({
       // Inputs made on inactive screens must not be replayed on resume/start.
       if (phaseBeforeInput === "paused" || phaseBeforeInput === "gameover" ||
         (phaseBeforeInput === "ready" && !runArmedRef.current)) resetTouchInput();
-      const input = getInput();
+      let input = getInput();
+      if (phaseBeforeInput !== "ready" || !runArmedRef.current) launchPendingRef.current = false;
+      else if (launchPendingRef.current && !input.fire) input = { ...input, fire: true };
 
       // Pause edge handled once per frame (never per sub-step).
       if (input.pause) {
@@ -243,6 +271,7 @@ export default function SpaceInvaders({
         if (steps > 0) {
           // Polling a zero-step rAF must not acknowledge a completed touch tap.
           consumeTouchFire();
+          launchPendingRef.current = false;
           const prev = stateRef.current;
           const engineInput = { move: input.move, fire: input.fire, pause: false };
           // Daily mode: record the exact input the engine is about to consume,
@@ -255,9 +284,22 @@ export default function SpaceInvaders({
           // the frame's events for the cosmetic + haptic layers.
           const { state: next, events } = advanceWithEvents(prev, steps, engineInput);
           stateRef.current = next;
+          // Chain cues read the chain as it stood BEFORE this frame's events.
+          const cues = chainCues(chainRef.current.chain, events);
           fxConsume(fxRef.current, events);
+          fxChainCues(fxRef.current, cues);
           chainRef.current = trackChain(chainRef.current, events);
           for (const s of soundsForEvents(events)) audioRef.current?.play(s);
+          for (const s of soundsForChainCues(cues)) audioRef.current?.play(s);
+          const launched = prev.phase === "ready" && next.phase === "playing";
+          if (next.phase === "playing" && (launched || next.wave > prev.wave)) {
+            const wave = next.wave;
+            setWaveBanner((b) => ({ wave, id: (b?.id ?? 0) + 1 }));
+          }
+          if (launched && next.wave === 1 && !loadHowtoSeen()) {
+            howtoRef.current = { open: true, shownAt: time };
+            setHowtoOpen(true);
+          }
           if (events.some((e) => e.type === "playerHit")) vibrate(40);
           else if (events.some((e) => e.type === "waveCleared")) vibrate([15, 30, 15]);
           // Canvas paint reads the authoritative ref at frame rate. React only
@@ -272,11 +314,28 @@ export default function SpaceInvaders({
             const previousBest = loadBest();
             setBest(saveBest(next.score));
             setRunResult({ previousBest, bestChain: chainRef.current.best });
+            audioRef.current?.play("gameOver");
             vibrate(120);
             finishDailyRun(next);
           }
         }
       }
+
+      // The one-time how-to leaves on the first move or fire once it has been
+      // readable for a moment, and never outlives wave 1 or the run.
+      const howto = howtoRef.current;
+      if (howto.open) {
+        const cur = stateRef.current;
+        const acted = cur.phase === "playing" && time - howto.shownAt >= HOWTO_MIN_MS && (input.move !== 0 || input.fire);
+        if (acted || cur.phase === "gameover" || cur.wave > 1) {
+          howtoRef.current = { open: false, shownAt: 0 };
+          if (acted) saveHowtoSeen();
+          setHowtoOpen(false);
+        }
+      }
+      // The saucer drone follows the live state, so pause, game over, the menu
+      // and mute all silence it without extra bookkeeping.
+      audioRef.current?.setDrone(ufoDroneWanted(stateRef.current));
 
       // Active play paints at frame rate. Static menu, armed-idle, paused, and
       // game-over states paint exactly once per state change: input polling can
@@ -301,8 +360,16 @@ export default function SpaceInvaders({
   // ever raises a score, so replaying the daily is safe); free play keeps the
   // crypto-random per-run seed and records nothing. Plain handler (not
   // memoized) — only ever called from click handlers.
+  const closeOverlays = () => {
+    launchPendingRef.current = false;
+    howtoRef.current = { open: false, shownAt: 0 };
+    setHowtoOpen(false);
+    setWaveBanner(null);
+  };
+
   const beginRun = (nextMode: RunMode) => {
     resetTouchInput();
+    closeOverlays();
     let nextSeed: number;
     if (nextMode === "daily") {
       const seedStr = dailySeedString();
@@ -337,6 +404,7 @@ export default function SpaceInvaders({
 
   const openMenu = () => {
     resetTouchInput();
+    closeOverlays();
     const nextSeed = seed ?? newRunSeed();
     modeRef.current = "free";
     runArmedRef.current = false;
@@ -367,6 +435,22 @@ export default function SpaceInvaders({
     setState(next);
     focusGameSurface();
   };
+
+  // Enter on the game surface: pick the primary (daily) transmission from the
+  // menu, launch an armed run, resume a held one, or play again after game
+  // over. Focused buttons keep their native Enter, so nothing fires twice.
+  const handleConfirm = () => {
+    const cur = stateRef.current;
+    if (cur.phase === "gameover") restart();
+    else if (cur.phase === "paused") togglePause();
+    else if (cur.phase === "ready") {
+      if (!runArmedRef.current) beginRun("daily");
+      else launchPendingRef.current = true;
+    }
+  };
+  useEffect(() => {
+    confirmRef.current = handleConfirm;
+  });
 
   const certifyOn = isSpaceInvadersEnabled() && isSpaceInvadersCertifyEnabled();
 
@@ -408,8 +492,8 @@ export default function SpaceInvaders({
         <section className="si-console" aria-label="Space Invaders: Signal Defense arcade cabinet">
           <div className="si-hud" aria-label="Current run status">
             <div className="si-stat si-stat--score"><span>Score</span><strong>{state.score.toLocaleString()}</strong></div>
-            <div className="si-stat"><span>Best</span><strong>{best.toLocaleString()}</strong></div>
-            <div className="si-stat"><span>Wave</span><strong>{state.wave}</strong></div>
+            <div className="si-stat si-stat--best"><span>Best</span><strong>{best.toLocaleString()}</strong></div>
+            <div className="si-stat si-stat--wave"><span>Wave</span><strong>{state.wave}</strong></div>
             <div
               className={`si-stat si-combo${state.combo < 2 ? " si-combo--idle" : ""}`}
               aria-hidden={state.combo < 2 ? "true" : undefined}
@@ -437,8 +521,9 @@ export default function SpaceInvaders({
               </button>
               <button
                 type="button"
-                className="si-icon-button"
+                className="si-icon-button si-icon-button--pause"
                 onClick={togglePause}
+                aria-keyshortcuts="P Escape"
                 aria-label={state.phase === "paused" ? "Resume" : "Pause"}
                 title={state.phase === "paused" ? "Resume" : "Pause"}
                 disabled={state.phase !== "playing" && state.phase !== "paused"}
@@ -457,10 +542,25 @@ export default function SpaceInvaders({
             aria-describedby="si-controls"
           >
             <Canvas canvasRef={canvasRef} />
-            {state.phase === "ready" && runArmed && (
-              <div className="si-touch-hints" aria-hidden="true">
+            {((state.phase === "ready" && runArmed) || state.phase === "playing") && (
+              <div className={`si-touch-hints${state.phase === "playing" ? " si-touch-hints--live" : ""}`} aria-hidden="true">
                 <div className="si-touch-zone si-touch-steer">drag · steer</div>
                 <div className="si-touch-zone si-touch-fire">tap · fire</div>
+              </div>
+            )}
+            {state.phase === "playing" && waveBanner && (
+              <div key={waveBanner.id} className="si-wave-banner" aria-hidden="true" data-testid="si-wave-banner">
+                <span>Incoming signal</span>
+                <strong>Wave {waveBanner.wave}</strong>
+              </div>
+            )}
+            {state.phase === "playing" && howtoOpen && (
+              <div className="si-howto" aria-hidden="true" data-testid="si-howto">
+                <p className="si-howto-keys">
+                  <kbd>←</kbd><kbd>→</kbd> or <kbd>A</kbd><kbd>D</kbd> move · <kbd>Space</kbd> fire · <kbd>Esc</kbd> pause
+                </p>
+                <p className="si-howto-touch">Drag on the left half to steer · tap the right half to fire</p>
+                <p className="si-howto-tip">Chain hits without missing to raise your multiplier</p>
               </div>
             )}
             {state.phase === "ready" && !runArmed && (
@@ -510,11 +610,13 @@ export default function SpaceInvaders({
           <section className="si-brief-card" id="si-controls">
             <p className="si-brief-label">Controls</p>
             <dl className="si-controls">
-              <div><dt><kbd>←</kbd><kbd>→</kbd></dt><dd>Move relay</dd></div>
-              <div><dt><kbd>Space</kbd></dt><dd>Fire pulse</dd></div>
-              <div><dt><kbd>P</kbd></dt><dd>Hold signal</dd></div>
+              <div><dt><kbd>←</kbd><kbd>→</kbd><kbd>A</kbd><kbd>D</kbd></dt><dd>Move relay</dd></div>
+              <div><dt><kbd>Space</kbd><kbd>W</kbd></dt><dd>Fire pulse</dd></div>
+              <div><dt><kbd>P</kbd><kbd>Esc</kbd></dt><dd>Hold signal</dd></div>
+              <div><dt><kbd>Enter</kbd></dt><dd>Launch · play again</dd></div>
               <div><dt>Touch</dt><dd>Drag left · tap right</dd></div>
             </dl>
+            <p className="si-controls-note">On AZERTY, Z Q D work too.</p>
           </section>
           <section className="si-brief-card si-brief-card--mission">
             <p className="si-brief-label">Operator note</p>

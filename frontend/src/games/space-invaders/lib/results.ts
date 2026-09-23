@@ -2,7 +2,7 @@
 // here is DERIVED from the finished GameState (or from the step events the
 // shell already receives) — nothing feeds back into the simulation, the
 // replay log, or the certify payload.
-import { CONFIG, type GameEvent, type GameState } from "../engine";
+import { CONFIG, comboMultiplier10, type GameEvent, type GameState } from "../engine";
 
 /** The live no-miss chain and the longest one reached this run. */
 export interface ChainTracker {
@@ -31,6 +31,38 @@ export function trackChain(tracker: ChainTracker, events: readonly GameEvent[]):
     }
   }
   return chain === tracker.chain && best === tracker.best ? tracker : { chain, best };
+}
+
+/** A cosmetic cue derived from the chain: a jump to a higher multiplier tier
+ *  (×1.5, ×2, ×3, ×4) at the kill that produced it, or a miss that broke a
+ *  chain worth at least ×1.5. Read-only over the step events. */
+export type ChainCue =
+  | { type: "tierUp"; mult10: number; x: number; y: number }
+  | { type: "broken"; mult10: number };
+
+/** A miss only reads as a broken chain once the chain was paying ×1.5. */
+export const CHAIN_BREAK_MIN_MULT10 = 15;
+
+/** Walk a frame's events from the chain length before the frame, applying the
+ *  same rule as trackChain, and report tier jumps and notable breaks. */
+export function chainCues(chainBefore: number, events: readonly GameEvent[]): ChainCue[] {
+  let chain = Math.max(0, Math.floor(chainBefore));
+  const out: ChainCue[] = [];
+  for (const e of events) {
+    if (e.type === "alienKilled") {
+      const before = comboMultiplier10(chain);
+      chain += 1;
+      const after = comboMultiplier10(chain);
+      if (after > before) {
+        out.push({ type: "tierUp", mult10: after, x: e.x + CONFIG.alien.w / 2, y: e.y + CONFIG.alien.h / 2 });
+      }
+    } else if (e.type === "shotMissed") {
+      const mult10 = comboMultiplier10(chain);
+      if (mult10 >= CHAIN_BREAK_MIN_MULT10) out.push({ type: "broken", mult10 });
+      chain = 0;
+    }
+  }
+  return out;
 }
 
 export interface RunSummary {

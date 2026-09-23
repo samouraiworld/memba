@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest";
-import { createFx, fxConsume, fxUpdate } from "./fx";
+import { createFx, fxChainCues, fxConsume, fxUpdate } from "./fx";
 import type { GameEvent } from "../engine";
 
 const kill: GameEvent = { type: "alienKilled", x: 100, y: 50, row: 0 };
@@ -71,5 +71,36 @@ describe("cosmetic fx layer", () => {
     fxUpdate(fx, 100);
     expect(fx.particles).toBe(particles);
     expect(fx.popups).toBe(popups);
+  });
+});
+
+describe("chain cues", () => {
+  it("pops a larger multiplier label with sparks on a tier jump", () => {
+    const fx = createFx(3);
+    fxConsume(fx, [kill]);
+    fxChainCues(fx, [{ type: "tierUp", mult10: 20, x: 50, y: 60 }]);
+    const cue = fx.popups.find((p) => p.text === "×2.0 CHAIN");
+    expect(cue).toBeDefined();
+    expect(cue!.size).toBeGreaterThan(fx.popups[0]!.size); // stronger than the per-kill HIT
+    expect(fx.particles.length).toBeGreaterThan(11);
+    expect(fx.signal).toBeGreaterThan(0);
+  });
+
+  it("says CHAIN BROKEN on a notable miss without shaking or flashing", () => {
+    const fx = createFx(3);
+    fxChainCues(fx, [{ type: "broken", mult10: 30 }]);
+    expect(fx.popups.map((p) => p.text)).toEqual(["CHAIN BROKEN ×3.0"]);
+    expect(fx.shake).toBe(0);
+    expect(fx.flash).toBe(0);
+  });
+
+  it("keeps the text but drops sparks and glow under reduced motion", () => {
+    const fx = createFx(3, { reducedMotion: true });
+    fxChainCues(fx, [{ type: "tierUp", mult10: 40, x: 50, y: 60 }, { type: "broken", mult10: 40 }]);
+    expect(fx.popups.length).toBe(2);
+    expect(fx.particles.length).toBe(0);
+    expect(fx.signal).toBe(0);
+    expect(fx.shake).toBe(0);
+    expect(fx.flash).toBe(0);
   });
 });

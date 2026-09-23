@@ -97,7 +97,7 @@ export function GameOverScreen({
           </p>
         )}
         <div className="si-mode-row">
-          <button className="si-button si-button--primary" type="button" onClick={onRestart}>Play again</button>
+          <button className="si-button si-button--primary" type="button" onClick={onRestart} aria-keyshortcuts="Enter">Play again</button>
           <button className="si-button si-button--secondary" type="button" onClick={() => void share()}>Share result</button>
           <button className="si-button si-button--secondary" type="button" onClick={onMenu}>Menu</button>
         </div>

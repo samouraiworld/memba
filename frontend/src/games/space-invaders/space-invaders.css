@@ -35,12 +35,22 @@
 .si-phase--gameover { color: var(--color-k-danger-text); }
 
 .si-cabinet { display: grid; grid-template-columns: minmax(0, 520px) minmax(210px, 1fr); align-items: start; gap: clamp(12px, 2vw, 20px); }
-.si-console { min-width: 0; overflow: hidden; padding: clamp(7px, 1.4vw, 12px); border: 1px solid rgba(101, 251, 210, .3); border-radius: 18px; background: linear-gradient(145deg, rgba(101, 251, 210, .09), transparent 30%), var(--si-ink); box-shadow: 0 24px 60px -34px rgba(0, 0, 0, .9), 0 0 0 1px rgba(0, 0, 0, .45) inset, 0 0 34px -25px var(--si-mint); }
+.si-console { min-width: 0; overflow: hidden; container: si-console / inline-size; padding: clamp(7px, 1.4vw, 12px); border: 1px solid rgba(101, 251, 210, .3); border-radius: 18px; background: linear-gradient(145deg, rgba(101, 251, 210, .09), transparent 30%), var(--si-ink); box-shadow: 0 24px 60px -34px rgba(0, 0, 0, .9), 0 0 0 1px rgba(0, 0, 0, .45) inset, 0 0 34px -25px var(--si-mint); }
 
-.si-hud { display: grid; grid-template-columns: minmax(68px, 1.35fr) repeat(4, minmax(46px, .8fr)) auto; align-items: stretch; min-height: 58px; margin-bottom: 8px; overflow: hidden; border: 1px solid rgba(101, 251, 210, .2); border-radius: 11px; background: rgba(0, 0, 0, .28); color: var(--si-text-bright); font-variant-numeric: tabular-nums; }
-.si-stat { display: flex; min-width: 0; padding: 9px 10px; flex-direction: column; justify-content: center; border-right: 1px solid rgba(101, 251, 210, .12); }
-.si-stat > span { overflow: hidden; color: var(--si-text-muted); font-family: var(--font-mono); font-size: .56rem; font-weight: 700; letter-spacing: .12em; line-height: 1.2; text-overflow: ellipsis; text-transform: uppercase; }
-.si-stat > strong { overflow: hidden; margin-top: 2px; color: var(--si-text-strong); font-family: var(--font-mono); font-size: clamp(.76rem, 2.2vw, 1rem); letter-spacing: .025em; line-height: 1.2; text-overflow: ellipsis; }
+/* HUD. One row while the console is wide enough, two rows (score + best over
+   wave, chain and relays) on narrow consoles. Sized by the console's own
+   width (container query), so 999,999 fits in Score and Best at 320px phones,
+   short landscape and desktop alike. */
+.si-hud { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1.3fr) minmax(0, .62fr) minmax(0, .8fr) minmax(0, .95fr) auto; grid-template-areas: "score best wave chain lives actions"; align-items: stretch; min-height: 58px; margin-bottom: 8px; overflow: hidden; border: 1px solid rgba(101, 251, 210, .2); border-radius: 11px; background: rgba(0, 0, 0, .28); color: var(--si-text-bright); font-variant-numeric: tabular-nums; }
+.si-stat--score { grid-area: score; }
+.si-stat--best { grid-area: best; }
+.si-stat--wave { grid-area: wave; }
+.si-combo { grid-area: chain; }
+.si-stat--lives { grid-area: lives; }
+.si-actions { grid-area: actions; }
+.si-stat { display: flex; min-width: 0; padding: 9px 8px; flex-direction: column; justify-content: center; border-right: 1px solid rgba(101, 251, 210, .12); }
+.si-stat > span { overflow: hidden; color: var(--si-text-muted); font-family: var(--font-mono); font-size: .56rem; font-weight: 700; letter-spacing: .12em; line-height: 1.2; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.si-stat > strong { overflow: hidden; margin-top: 2px; color: var(--si-text-strong); font-family: var(--font-mono); font-size: clamp(.72rem, 3.1cqi, 1rem); letter-spacing: .01em; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
 .si-stat--score > strong { color: var(--si-gold); }
 .si-stat--lives > strong { color: var(--si-mint); font-size: .72rem; letter-spacing: .12em; }
 .si-combo > strong { color: var(--si-magenta); }
@@ -50,6 +60,21 @@
 .si-icon-button:hover:not(:disabled) { border-color: var(--si-mint); background: rgba(101, 251, 210, .16); }
 .si-icon-button:active:not(:disabled) { transform: translateY(1px); }
 .si-icon-button:disabled { cursor: default; opacity: .38; }
+
+@container si-console (max-width: 440px) {
+  .si-hud { grid-template-columns: repeat(6, minmax(0, 1fr)) auto; grid-template-areas: "score score score best best best actions" "wave wave chain chain lives lives actions"; }
+  .si-stat { padding: 6px 7px; }
+  .si-stat--score, .si-stat--best { border-bottom: 1px solid rgba(101, 251, 210, .12); }
+  .si-stat > span { font-size: .52rem; letter-spacing: .1em; }
+  .si-stat > strong { font-size: clamp(.8rem, 4.6cqi, 1rem); }
+  .si-stat--wave > strong, .si-combo > strong { font-size: clamp(.74rem, 3.8cqi, .92rem); }
+  .si-actions { align-self: center; }
+}
+
+/* Touch devices get a roomier pause (and mute) target mid-run. */
+@media (pointer: coarse) {
+  .si-icon-button { width: 48px; height: 48px; flex-basis: 48px; }
+}
 
 .si-stage { position: relative; width: 100%; overflow: hidden; border: 1px solid rgba(101, 251, 210, .35); border-radius: 11px; background: var(--si-screen); box-shadow: 0 0 30px -20px var(--si-mint) inset; isolation: isolate; outline: none; overscroll-behavior: contain; touch-action: none; user-select: none; }
 .si-stage--overlay { touch-action: pan-y; }
@@ -78,6 +103,34 @@
 .si-touch-hints { position: absolute; z-index: 3; inset: auto 0 0; display: flex; min-height: 42px; pointer-events: none; }
 .si-touch-zone { display: flex; flex: 1; align-items: center; justify-content: center; color: var(--si-text-hint); font-family: var(--font-mono); font-size: .58rem; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
 .si-touch-steer { border-right: 1px dashed rgba(101, 251, 210, .32); }
+/* During play the zones stay as a faint guide on touch screens only. */
+.si-touch-hints--live { display: none; inset: 0; min-height: 0; }
+.si-touch-hints--live .si-touch-zone { align-items: flex-end; padding-bottom: 6px; opacity: .55; }
+.si-touch-hints--live .si-touch-steer { border-right-color: rgba(101, 251, 210, .16); background: linear-gradient(to top, rgba(101, 251, 210, .07), transparent 22%); }
+.si-touch-hints--live .si-touch-fire { background: linear-gradient(to top, rgba(255, 199, 96, .06), transparent 22%); }
+@media (pointer: coarse) {
+  .si-touch-hints--live { display: flex; }
+}
+
+/* Wave intro and the one-time how-to: purely visual, never intercept input. */
+.si-wave-banner { position: absolute; z-index: 3; inset: 30% 0 auto; display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 10px 0; background: linear-gradient(to right, transparent, color-mix(in srgb, var(--si-ink) 72%, transparent) 20%, color-mix(in srgb, var(--si-ink) 72%, transparent) 80%, transparent); pointer-events: none; animation: si-wave-in 1.4s ease-out both; }
+.si-wave-banner > span { color: var(--si-text-overlay-muted); font-family: var(--font-mono); font-size: .6rem; font-weight: 700; letter-spacing: .24em; text-transform: uppercase; }
+.si-wave-banner > strong { color: var(--si-mint); font-family: var(--font-mono); font-size: clamp(1.4rem, 7cqi, 2.2rem); font-weight: 800; letter-spacing: .14em; line-height: 1.05; text-shadow: 0 0 16px color-mix(in srgb, var(--si-mint) 70%, transparent); text-transform: uppercase; }
+@keyframes si-wave-in {
+  0% { opacity: 0; transform: scale(1.12); }
+  14% { opacity: 1; transform: scale(1); }
+  78% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.si-howto { position: absolute; z-index: 3; inset: auto 8% 31%; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 9px 12px; border: 1px solid color-mix(in srgb, var(--si-mint) 30%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--si-ink) 80%, transparent); color: var(--si-text-overlay); font-family: var(--font-mono); font-size: clamp(.6rem, 2.6cqi, .74rem); line-height: 1.5; text-align: center; pointer-events: none; }
+.si-howto p { margin: 0; }
+.si-howto kbd { display: inline-block; min-width: 1.6em; margin: 0 1px; padding: 0 4px; border: 1px solid color-mix(in srgb, var(--si-mint) 40%, transparent); border-radius: 4px; color: var(--si-text-strong); font: inherit; }
+.si-howto-touch { display: none; }
+.si-howto-tip { color: var(--si-gold); }
+@media (pointer: coarse) {
+  .si-howto-keys { display: none; }
+  .si-howto-touch { display: block; }
+}
 .si-pause-sheet { background: rgba(2, 14, 12, .82); }
 
 .si-result-score { display: flex; margin: 2px 0 5px; flex-direction: column; }
@@ -122,11 +175,12 @@
 .si-brief-card--status { border-color: color-mix(in srgb, var(--color-k-accent) 35%, var(--color-k-edge)); background: linear-gradient(135deg, color-mix(in srgb, var(--color-k-accent) 10%, var(--color-k-panel)), var(--color-k-panel)); }
 .si-brief-card--status strong { display: block; margin: 5px 0 4px; color: var(--color-k-text); font-size: .98rem; }
 .si-brief-card p:not(.si-brief-label) { margin: 0; color: var(--color-k-dim); font-size: .72rem; line-height: 1.5; }
-.si-controls { display: grid; gap: 9px; margin: 11px 0 0; }
-.si-controls > div { display: grid; grid-template-columns: 84px 1fr; align-items: center; gap: 7px; }
+.si-controls { display: grid; grid-template-columns: max-content 1fr; align-items: center; gap: 9px 10px; margin: 11px 0 0; }
+.si-controls > div { display: contents; }
 .si-controls dt, .si-controls dd { margin: 0; }
 .si-controls dt { color: var(--color-k-text); font-family: var(--font-mono); font-size: .66rem; font-weight: 700; }
 .si-controls dd { color: var(--color-k-dim); font-size: .7rem; }
+.si-brief-card .si-controls-note { margin-top: 9px; font-size: .66rem; }
 .si-controls kbd { display: inline-grid; min-width: 27px; min-height: 27px; margin-right: 4px; padding: 4px 6px; place-items: center; border: 1px solid var(--color-k-edge-hover); border-bottom-width: 2px; border-radius: 5px; background: var(--color-k-elevated); color: var(--color-k-text); font: inherit; }
 .si-brief-card--mission { border-left: 2px solid var(--color-k-govdao-text); }
 .si-brief-card--mission .si-brief-label { margin-bottom: 7px; color: var(--color-k-govdao-text); }
@@ -148,10 +202,6 @@
   .si-deck { max-width: 25ch; }
   .si-phase { max-width: 128px; min-height: 30px; padding: 6px 9px; font-size: .58rem; }
   .si-console { padding: 6px; border-radius: 14px; }
-  .si-hud { grid-template-columns: minmax(48px, 1.2fr) repeat(4, minmax(32px, .7fr)) auto; min-height: 52px; }
-  .si-stat { padding: 7px 6px; }
-  .si-stat > span { font-size: .48rem; }
-  .si-stat > strong { font-size: clamp(.68rem, 3.6vw, .84rem); }
   .si-actions { gap: 3px; padding: 3px; }
   .si-overlay { padding: 16px; }
   .si-overlay h2 { margin-bottom: 7px; }
@@ -170,12 +220,7 @@
 @media (max-width: 360px) {
   .si-heading { gap: 10px; }
   .si-deck { display: none; }
-  .si-stat { padding-inline: 4px; }
-  .si-hud { grid-template-columns: minmax(44px, 1.2fr) repeat(4, minmax(29px, .65fr)) auto; }
-  .si-stat > span { font-size: .42rem; letter-spacing: .06em; }
-  .si-stat--lives > strong { font-size: .62rem; letter-spacing: .04em; }
   .si-mode-button > small { font-size: .58rem; }
-  .si-controls > div { grid-template-columns: 76px 1fr; }
 }
 
 @media (orientation: landscape) and (max-height: 560px) {
@@ -185,7 +230,7 @@
   .si-deck { display: none; }
   .si-cabinet { grid-template-columns: minmax(0, 1fr); justify-content: center; }
   .si-console { padding: 5px; }
-  .si-hud { grid-template-columns: minmax(54px, 1.2fr) repeat(4, minmax(38px, .7fr)) auto; min-height: 46px; margin-bottom: 5px; }
+  .si-hud { min-height: 46px; margin-bottom: 5px; }
   .si-stat { padding: 5px 6px; }
   .si-actions { gap: 3px; padding: 3px; }
   .si-brief { grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; }
@@ -209,4 +254,5 @@
   .si-root *, .si-root *::before, .si-root *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
   .si-button:hover { transform: none; }
   .si-new-best { animation: none; }
+  .si-wave-banner { animation: none; }
 }

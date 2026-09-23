@@ -1,6 +1,8 @@
-import { afterEach, describe, it, expect } from "vitest";
+import { afterEach, describe, it, expect, vi } from "vitest";
 import { renderHook } from "@testing-library/react";
-import { useKeyboard } from "./useKeyboard";
+import { keyAction, useKeyboard } from "./useKeyboard";
+import { combineInput, toWireDeltas } from "../lib/wire";
+import { createInputRecorder } from "../lib/replay";
 
 // The hook attaches window-level key listeners and exposes a poll function the
 // game loop calls once per frame. These tests pin the polled contract: held
@@ -166,5 +168,159 @@ describe("useKeyboard", () => {
     unmount();
     key("keyup", "ArrowRight");
     expect(poll().move).toBe(0);
+  });
+});
+
+describe("keyAction (alternate keys map onto the existing actions)", () => {
+  it("maps WASD, AZERTY and arrow keys onto move, fire, pause and confirm", () => {
+    expect(["ArrowLeft", "a", "A", "q", "Q"].map(keyAction)).toEqual(Array(5).fill("left"));
+    expect(["ArrowRight", "d", "D"].map(keyAction)).toEqual(Array(3).fill("right"));
+    expect([" ", "Spacebar", "w", "W", "z", "Z"].map(keyAction)).toEqual(Array(6).fill("fire"));
+    expect(["p", "P", "Escape", "Esc"].map(keyAction)).toEqual(Array(4).fill("pause"));
+    expect(keyAction("Enter")).toBe("confirm");
+  });
+
+  it("leaves unrelated keys alone (S has no action; Tab keeps focus navigation)", () => {
+    for (const k of ["s", "S", "Tab", "Shift", "x", "ArrowUp", "ArrowDown"]) expect(keyAction(k)).toBeNull();
+  });
+});
+
+describe("useKeyboard alternate keys", () => {
+  it("A/D/W poll exactly like arrows/Space", () => {
+    const { result } = renderHook(() => useKeyboard());
+    key("keydown", "a");
+    key("keydown", "w");
+    expect(result.current()).toEqual({ move: -1, fire: true, pause: false });
+    key("keyup", "a");
+    key("keydown", "d");
+    expect(result.current()).toEqual({ move: 1, fire: true, pause: false });
+    key("keyup", "d");
+    key("keyup", "w");
+    expect(result.current()).toEqual({ move: 0, fire: false, pause: false });
+  });
+
+  it("keeps an action held while any of its keys is still down", () => {
+    const { result } = renderHook(() => useKeyboard());
+    key("keydown", "ArrowLeft");
+    key("keydown", "a");
+    key("keyup", "a");
+    expect(result.current().move).toBe(-1);
+    key("keyup", "ArrowLeft");
+    expect(result.current().move).toBe(0);
+
+    key("keydown", " ");
+    key("keydown", "W"); // Shift+W reports an uppercase key
+    key("keyup", " ");
+    expect(result.current().fire).toBe(true);
+    key("keyup", "w"); // released after Shift: lowercase key
+    expect(result.current().fire).toBe(false);
+  });
+
+  it("prevents page scrolling for every movement and fire key on the surface", () => {
+    renderHook(() => useKeyboard());
+    for (const k of ["a", "d", "w", "q", "z"]) {
+      expect(key("keydown", k).defaultPrevented).toBe(true);
+      key("keyup", k);
+    }
+  });
+
+  it("Escape is a one-shot pause edge like P, and ignores auto-repeat", () => {
+    const { result } = renderHook(() => useKeyboard());
+    key("keydown", "Escape");
+    expect(result.current().pause).toBe(true);
+    expect(result.current().pause).toBe(false);
+    key("keydown", "Escape", true);
+    expect(result.current().pause).toBe(false);
+  });
+
+  it("Escape still pauses from a button on the surface, but never from a text field", () => {
+    const { result } = renderHook(() => useKeyboard());
+    const button = document.createElement("button");
+    const input = document.createElement("input");
+    document.body.append(button, input);
+    key("keydown", "Escape", false, input);
+    expect(result.current().pause).toBe(false);
+    key("keydown", "Escape", false, button);
+    expect(result.current().pause).toBe(true);
+    // P keeps its old guard: a focused button does not pause.
+    key("keydown", "p", false, button);
+    expect(result.current().pause).toBe(false);
+    button.remove();
+    input.remove();
+  });
+
+  it("Enter calls onConfirm once per press and never reaches the polled input", () => {
+    const onConfirm = vi.fn();
+    const { result } = renderHook(() => useKeyboard(undefined, { onConfirm }));
+    const enter = key("keydown", "Enter");
+    expect(enter.defaultPrevented).toBe(true);
+    key("keydown", "Enter", true);
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+    expect(result.current()).toEqual({ move: 0, fire: false, pause: false });
+  });
+
+  it("does not double-fire Enter on a focused button (the button's own activation wins)", () => {
+    const onConfirm = vi.fn();
+    renderHook(() => useKeyboard(undefined, { onConfirm }));
+    const button = document.createElement("button");
+    document.body.append(button);
+    const enter = key("keydown", "Enter", false, button);
+    expect(enter.defaultPrevented).toBe(false);
+    expect(onConfirm).not.toHaveBeenCalled();
+    button.remove();
+  });
+
+  it("uses the latest onConfirm without re-subscribing", () => {
+    const first = vi.fn();
+    const second = vi.fn();
+    const { rerender } = renderHook(({ cb }) => useKeyboard(undefined, { onConfirm: cb }), { initialProps: { cb: first } });
+    rerender({ cb: second });
+    key("keydown", "Enter");
+    expect(first).not.toHaveBeenCalled();
+    expect(second).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("replay input is unchanged for equivalent keys", () => {
+  // Drive one scripted session through the real hook → input seam → recorder
+  // for each key layout. The recorded log (and its wire form) must be
+  // byte-identical: alternate keys are aliases, not new inputs.
+  const layouts = {
+    arrows: { left: "ArrowLeft", right: "ArrowRight", fire: " " },
+    wasd: { left: "a", right: "d", fire: "w" },
+    azerty: { left: "q", right: "d", fire: "z" },
+  } as const;
+  type Layout = (typeof layouts)[keyof typeof layouts];
+
+  function record(layout: Layout) {
+    const { result, unmount } = renderHook(() => useKeyboard());
+    const recorder = createInputRecorder(42);
+    const idleTouch = { move: 0, fire: false, pause: false };
+    const script: Array<[number, "keydown" | "keyup", keyof Layout]> = [
+      [3, "keydown", "right"],
+      [9, "keydown", "fire"],
+      [12, "keyup", "fire"],
+      [20, "keyup", "right"],
+      [21, "keydown", "left"],
+      [25, "keydown", "fire"],
+      [30, "keyup", "left"],
+      [34, "keyup", "fire"],
+    ];
+    for (let tick = 0; tick < 40; tick++) {
+      for (const [at, type, action] of script) if (at === tick) key(type, layout[action]);
+      const input = combineInput(result.current(), idleTouch);
+      recorder.record(tick, { move: input.move, fire: input.fire, pause: false });
+    }
+    unmount();
+    return recorder.build(40);
+  }
+
+  it("records the same log and wire tuples on arrows, WASD and AZERTY", () => {
+    const arrows = record(layouts.arrows);
+    expect(arrows.inputs.length).toBeGreaterThan(4);
+    for (const other of [record(layouts.wasd), record(layouts.azerty)]) {
+      expect(other).toEqual(arrows);
+      expect(toWireDeltas(other)).toEqual(toWireDeltas(arrows));
+    }
   });
 });

@@ -27,6 +27,8 @@ vi.mock("./lib/audio", async (importOriginal) => {
         unlock: vi.fn(),
         play: vi.fn(),
         setMuted: vi.fn(),
+        setDrone: vi.fn(),
+        droning: false,
         dispose: audioSpies.dispose,
       };
     },
