@@ -140,3 +140,16 @@ describe('native monetary display', () => {
         expect(parseMsgs(raw, { full: true })[0].fields[0].value).toBe(raw)
     })
 })
+
+describe("parseMsgs signing fields", () => {
+    it("keeps each call argument separate and marks addresses and paths to show in full", () => {
+        const [msg] = parseMsgs(JSON.stringify([{ type: "vm/MsgCall", value: { pkg_path: "gno.land/r/demo/bank", func: "Pay", args: ["1, 2", "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"] } }]), { full: true })
+        const args = msg.fields.find(f => f.key === "Arguments")
+        expect(args?.args).toEqual(["1, 2", "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"])
+        expect(msg.fields.find(f => f.key === "Package")?.identifier).toBe(true)
+        const [send] = parseMsgs(JSON.stringify([{ type: "bank/MsgSend", value: { from_address: "g1from", to_address: "g1to", amount: "1ugnot" } }]), { full: true })
+        expect(send.fields.find(f => f.key === "Recipient")).toMatchObject({ value: "g1to", identifier: true })
+        expect(send.fields.find(f => f.key === "From")).toMatchObject({ value: "g1from", identifier: true })
+    })
+})
+

@@ -3,8 +3,18 @@
 export interface ParsedMsg {
     type: string
     label: string
-    fields: { key: string; value: string; accent?: boolean }[]
+    fields: ParsedField[]
     reviewError?: string
+}
+
+export interface ParsedField {
+    key: string
+    value: string
+    accent?: boolean
+    /** An address or package path: show it in full, with Copy. */
+    identifier?: boolean
+    /** Call arguments, one entry each (`value` joins them for plain-text use). */
+    args?: string[]
 }
 
 /** Display options for parseMsgs. */
@@ -54,9 +64,9 @@ function parseSingleMsg(msg: Record<string, unknown>, truncate: (addr: string) =
             type: "Send",
             label: `Send ${coins}`,
             fields: [
-                { key: "Recipient", value: truncate(to) },
+                { key: "Recipient", value: truncate(to), identifier: true },
                 { key: "Amount", value: coins, accent: true },
-                ...(value.from_address ? [{ key: "From", value: truncate(value.from_address as string) }] : []),
+                ...(value.from_address ? [{ key: "From", value: truncate(value.from_address as string), identifier: true }] : []),
             ],
         }
     }
@@ -65,16 +75,16 @@ function parseSingleMsg(msg: Record<string, unknown>, truncate: (addr: string) =
     if (type.includes("MsgCall") || type.includes("vm/m_call")) {
         const pkg = (value.pkg_path as string) || (value.pkgPath as string) || "—"
         const func = (value.func as string) || "—"
-        const args = (value.args as string[]) || []
+        const args = ((value.args as unknown[]) || []).map(String)
         const send = parseCoins(value.send)
         const cap = value.max_deposit == null || value.max_deposit === "" ? null : parseCoins(value.max_deposit)
         return {
             type: "Contract Call",
             label: `Call ${func}`,
             fields: [
-                { key: "Package", value: pkg },
+                { key: "Package", value: pkg, identifier: true },
                 { key: "Function", value: func, accent: true },
-                ...(args.length > 0 ? [{ key: "Arguments", value: args.join(", ") }] : []),
+                ...(args.length > 0 ? [{ key: "Arguments", value: args.join(", "), args }] : []),
                 ...(send && send !== "—" ? [{ key: "Send", value: send, accent: true }] : []),
                 ...(cap !== null ? [{ key: "Storage deposit cap", value: cap, accent: true }] : []),
             ],
@@ -89,7 +99,7 @@ function parseSingleMsg(msg: Record<string, unknown>, truncate: (addr: string) =
             type: "Deploy Package",
             label: `Deploy realm ${path}`,
             fields: [
-                { key: "Path", value: path },
+                { key: "Path", value: path, identifier: true },
                 ...(depositCap !== null ? [{ key: "Storage deposit cap", value: depositCap, accent: true }] : []),
                 ...(deposit && deposit !== "—" ? [{ key: "Deposit", value: deposit, accent: true }] : []),
             ],

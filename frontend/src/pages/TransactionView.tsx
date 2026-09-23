@@ -4,7 +4,8 @@ import { useQuery } from "@tanstack/react-query"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { MagnifyingGlass } from "@phosphor-icons/react"
 import { api } from "../lib/api"
-import { parseMsgs, parseFee } from "../lib/parseMsgs"
+import { parseMsgs, parseFee, type ParsedField } from "../lib/parseMsgs"
+import { SignedAddress, SignedArgs, SignedText } from "../components/ui/SigningValue"
 import { StatusBadge } from "../components/ui/StatusBadge"
 import { getTxStatus } from "../components/ui/txStatus"
 import { SkeletonCard, SkeletonRow } from "../components/ui/LoadingSkeleton"
@@ -63,7 +64,8 @@ export function TransactionView() {
     const receipt = useSyncExternalStore(subscribeNativeReceipts, () => readNativeReceipt(receiptKey), () => "")
     const [recoveryWarning, setRecoveryWarning] = useState("")
     const broadcastBusy = useRef(false)
-    const parsedMsgs = tx ? parseMsgs(tx.msgsJson) : []
+    // Full addresses everywhere: a shortened one hides the bytes a lookalike forges.
+    const parsedMsgs = tx ? parseMsgs(tx.msgsJson, { full: true }) : []
     const fee = parseFee(tx?.feeJson ?? "")
     const reviewError = parsedMsgs.find(msg => msg.reviewError)?.reviewError || fee.reviewError
 
@@ -240,7 +242,7 @@ export function TransactionView() {
                 <div key={i} className="k-card k-txview__msg-card">
                     <div className="k-txview__msg-header">
                         <span className="k-txview__msg-type">{msg.type}</span>
-                        <span className="k-txview__msg-label">{msg.label}</span>
+                        <SignedText value={msg.label} className="k-txview__msg-label" />
                     </div>
                     {msg.fields.map((field, j) => (
                         <div key={j} className="k-txview__field-row">
@@ -250,7 +252,7 @@ export function TransactionView() {
                                 field.accent ? "k-txview__field-value--accent" : "",
                                 field.key === "Raw" ? "k-txview__field-value--raw" : "",
                             ].filter(Boolean).join(" ")}>
-                                {field.value}
+                                <SigningField field={field} />
                             </span>
                         </div>
                     ))}
@@ -261,7 +263,7 @@ export function TransactionView() {
             <div className="k-card k-txview__detail-card">
                 <DetailRow label="Multisig" value={<CopyableAddress address={tx.multisigAddress} fontSize={13} />} />
                 <DetailRow label="Chain" value={tx.chainId} />
-                <DetailRow label="Memo" value={tx.memo || "—"} />
+                <DetailRow label="Memo" value={tx.memo ? <SignedText value={tx.memo} /> : "—"} />
                 <DetailRow label="Fee" value={fee.amount !== "—" ? `${fee.amount} (gas: ${fee.gas})` : `Gas: ${fee.gas}`} />
                 <DetailRow label="Account #" value={String(tx.accountNumber)} />
                 <DetailRow label="Sequence" value={String(tx.sequence)} />
@@ -381,17 +383,23 @@ export function TransactionView() {
                     <h3 style={{ fontSize: "var(--pro-body, 14px)", fontWeight: 700, margin: 0 }}>
                         Review before you {pendingAction === "sign" ? "sign" : "broadcast"}
                     </h3>
-                    {parseMsgs(tx.msgsJson, { full: true }).map((msg, i) => (
+                    {parsedMsgs.map((msg, i) => (
                         <div key={i} style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                            <span style={{ fontSize: "var(--pro-small, 12px)", fontWeight: 600 }}>{msg.label}</span>
+                            <span style={{ fontSize: "var(--pro-small, 12px)", fontWeight: 600 }}><SignedText value={msg.label} /></span>
                             {msg.fields.map((field, j) => (
                                 <div key={j} style={{ display: "flex", gap: 8, fontSize: "var(--pro-small, 12px)" }}>
                                     <span className="k-label" style={{ minWidth: 90 }}>{field.key}</span>
-                                    <span style={{ fontFamily: "var(--font-ui, JetBrains Mono, monospace)", wordBreak: "break-all" }}>{field.value}</span>
+                                    <span style={{ fontFamily: "var(--font-ui, JetBrains Mono, monospace)", wordBreak: "break-all" }}><SigningField field={field} /></span>
                                 </div>
                             ))}
                         </div>
                     ))}
+                    {tx.memo && (
+                        <div style={{ display: "flex", gap: 8, fontSize: "var(--pro-small, 12px)" }}>
+                            <span className="k-label" style={{ minWidth: 90 }}>Memo</span>
+                            <SignedText value={tx.memo} />
+                        </div>
+                    )}
                     <div style={{ display: "flex", gap: 8, fontSize: "var(--pro-small, 12px)" }}>
                         <span className="k-label" style={{ minWidth: 90 }}>Fee</span>
                         <span>{fee.amount !== "—" ? `${fee.amount} (gas: ${fee.gas})` : `Gas: ${fee.gas}`}</span>
@@ -513,6 +521,13 @@ export function TransactionView() {
             <ErrorToast message={error} onDismiss={dismissError} />
         </div>
     )
+}
+
+/** One parsed field as a co-signer must read it: full addresses, separate arguments, invisible characters revealed. */
+function SigningField({ field }: { field: ParsedField }) {
+    if (field.args) return <SignedArgs args={field.args} />
+    if (field.identifier && field.value !== "—") return <SignedAddress value={field.value} />
+    return <SignedText value={field.value} />
 }
 
 function DetailRow({ label, value }: { label: string; value: React.ReactNode }) {

@@ -111,4 +111,22 @@ describe("TxConfirmation arguments", () => {
         expect(screen.getByText("YES", { selector: ".tx-confirm-arg" })).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "Show full argument" })).not.toBeInTheDocument()
     })
+
+    it("pins arguments, the sender and the memo to their signed left-to-right order", async () => {
+        render(<TxConfirmationProvider><div /></TxConfirmationProvider>)
+        const call = { type: "vm/MsgCall", value: { caller: CALLER, send: "", pkg_path: "gno.land/r/x/dao", func: "Do", args: ["100 \u05D0 5"] } }
+        await act(async () => { void captured.cb!([call], "memo \u05D0 1") })
+        for (const el of [screen.getByText("100 \u05D0 5", { selector: ".tx-confirm-arg" }), screen.getByText(CALLER, { selector: ".tx-confirm-addr" }), screen.getByText("memo \u05D0 1")]) {
+            expect(el).toHaveAttribute("dir", "ltr")
+            expect(el).toHaveClass("signing-text")
+        }
+    })
+
+    it("recognises an address split by a Hangul filler or a variation selector, and reveals it", async () => {
+        const split = `${TARGET.slice(0, 20)}\u3164${TARGET.slice(20)}\uFE0F`
+        await open(["x".repeat(70) + split])
+        expect(screen.getByText("x".repeat(70) + `${TARGET.slice(0, 20)}[U+3164]${TARGET.slice(20)}[U+FE0F]`, { selector: ".tx-confirm-arg" })).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Show full argument" })).not.toBeInTheDocument()
+    })
 })
+

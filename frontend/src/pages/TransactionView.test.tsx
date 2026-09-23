@@ -338,7 +338,7 @@ describe("TransactionView — two-step confirmation (W2.4)", () => {
 
         // Review card visible with the FULL recipient and network match.
         expect(screen.getByRole("alertdialog")).toBeInTheDocument()
-        expect(screen.getByText(FULL_RECIPIENT)).toBeInTheDocument()
+        expect(within(screen.getByRole("alertdialog")).getByText(FULL_RECIPIENT)).toBeInTheDocument()
         expect(screen.getByText(/matches this app's network/)).toBeInTheDocument()
         // No wallet interaction yet.
         expect(mockAdena.signArbitrary).not.toHaveBeenCalled()
@@ -480,3 +480,47 @@ describe("TransactionView — completion + verified flag", () => {
         expect(screen.queryByText("Broadcast to Chain")).not.toBeInTheDocument()
     })
 })
+
+describe("TransactionView — what a co-signer reads", () => {
+    const TARGET = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
+    const callTx = (args: string[], memo = "") => makeTx({
+        memo,
+        msgsJson: JSON.stringify([{ type: "vm/MsgCall", value: { caller: "g1multisig000000000000000000000000000000", send: "", pkg_path: "gno.land/r/demo/bank", func: "Transfer", args } }]),
+    })
+
+    it("shows the recipient in full with a copy button on the page and in the review card", async () => {
+        await renderTx(makeTx())
+        const onPage = screen.getByText(FULL_RECIPIENT)
+        expect(onPage).toHaveAttribute("dir", "ltr")
+        expect(screen.getByRole("button", { name: `Copy ${FULL_RECIPIENT}` })).toBeInTheDocument()
+        fireEvent.click(screen.getByText("Sign Transaction"))
+        expect(within(screen.getByRole("alertdialog")).getByText(FULL_RECIPIENT)).toBeInTheDocument()
+    })
+
+    it("shows each argument on its own, so a comma inside one cannot pass for two", async () => {
+        await renderTx(callTx(["1, 2", TARGET]))
+        fireEvent.click(screen.getByText("Sign Transaction"))
+        const dialog = within(screen.getByRole("alertdialog"))
+        expect(dialog.getByText("1, 2", { selector: ".tx-confirm-arg" })).toBeInTheDocument()
+        expect(dialog.getByText(TARGET, { selector: ".tx-confirm-arg" })).toBeInTheDocument()
+        expect(dialog.getByRole("button", { name: `Copy ${TARGET}` })).toBeInTheDocument()
+    })
+
+    it("reveals invisible characters and pins right-to-left text in arguments and the memo to its signed order", async () => {
+        await renderTx(callTx(["100 \u05D0 5", "pay\u202Eevil"], "memo\u200Bnote"))
+        fireEvent.click(screen.getByText("Sign Transaction"))
+        const dialog = within(screen.getByRole("alertdialog"))
+        const rtl = dialog.getByText("100 \u05D0 5", { selector: ".tx-confirm-arg" })
+        expect(rtl).toHaveAttribute("dir", "ltr")
+        expect(rtl).toHaveClass("signing-text")
+        expect(dialog.getByText("pay[U+202E]evil", { selector: ".tx-confirm-arg" })).toBeInTheDocument()
+        // The memo appears in the details and in the review card.
+        expect(dialog.getByText("memo[U+200B]note")).toBeInTheDocument()
+        for (const memo of screen.getAllByText("memo[U+200B]note")) {
+            expect(memo).toHaveAttribute("dir", "ltr")
+            expect(memo).toHaveClass("signing-text")
+        }
+        expect(document.body.textContent).not.toMatch(/[\u202E\u200B]/)
+    })
+})
+
