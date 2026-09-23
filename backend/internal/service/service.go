@@ -198,20 +198,20 @@ func (s *MultisigService) SetBlockParty(enabled bool, seedRPC, seedChainID strin
 }
 
 // blockPartyFetcher returns the httpBlockFetcher configured for this service,
-// defaulting to the pearl sentry with a pearl-1 identity requirement.
+// defaulting to the gnoland-1 sentry with a gnoland-1 identity requirement.
 func (s *MultisigService) blockPartyFetcher() httpBlockFetcher {
 	url := s.blockPartySeedRPC
 	if url == "" {
-		// Pearl era (2026-09-01): the default must name the LIVE chain so a
+		// Mainnet (2026-09-23): the default must name the LIVE chain so a
 		// re-enable without the secret cannot seed from a dead or wrong one
-		// (the old test13 secret + sapphire default did exactly that). The
+		// (a retired-testnet secret + default did exactly that before). The
 		// sentry rather than the canonical node: same split as FEED_RPC_URL —
 		// the public node 403-throttles sustained polling from Fly egress.
-		url = "https://rpc.pearl.samourai.live:443"
+		url = "https://rpc.mainnet.samourai.live:443"
 	}
 	chainID := s.blockPartySeedChainID
 	if chainID == "" {
-		chainID = "pearl-1"
+		chainID = "gnoland-1"
 	}
 	return httpBlockFetcher{rpcURL: url, expectChainID: chainID}
 }

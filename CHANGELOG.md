@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Block Party daily seed on gno.land mainnet (2026-09-23)
+- Seed the Block Party daily board from gno.land mainnet (`gnoland-1`) by default, through the Samouraï sentry, while keeping the single-node, identity-checked, no-failover rules.
+- Point the public seed verifier and its guide at mainnet, and re-capture the wire-format test fixtures from a live `gnoland-1` block.
+
 ### Mainnet wave-1 realms (2026-09-23)
 - Record the eleven samcrew packages and realms published on gno.land mainnet (`gnoland-1`) in `realm-versions.json`, each verified by `vm/qfile`.
 - Point mainnet at the realms that are actually live there — the App Store at `memba_appstore_v3` and reviews at `memba_reviews_v2` — while Pearl keeps v2 and v1.

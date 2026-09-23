@@ -16,8 +16,8 @@
 //   node scripts/verify-blockparty-seed.mjs [--date YYYY-MM-DD] [--rpc <url>] [--chain <id>]
 //   node scripts/verify-blockparty-seed.mjs --selftest
 //
-// Defaults: --date = today (UTC), --rpc = https://rpc.pearl.testnets.gno.land,
-// --chain = pearl-1.
+// Defaults: --date = today (UTC), --rpc = https://rpc.gno.land,
+// --chain = gnoland-1.
 //
 // The script queries the CANONICAL public node while the backend seeds from
 // the samourai sentry — agreement across two independent nodes is the point
@@ -27,8 +27,8 @@
 
 import { createHash } from "node:crypto";
 
-const DEFAULT_RPC = "https://rpc.pearl.testnets.gno.land";
-const DEFAULT_CHAIN = "pearl-1";
+const DEFAULT_RPC = "https://rpc.gno.land";
+const DEFAULT_CHAIN = "gnoland-1";
 
 // ---------------------------------------------------------------------------
 // Derivation (must match backend/internal/blockparty exactly)

@@ -239,9 +239,9 @@ func main() {
 	// Block Party feature flag + seed source (B6). Disabled unless
 	// BLOCKPARTY_ENABLED is "1"/"true" (disabled = the entire BP surface
 	// answers Unimplemented, reads included). BLOCKPARTY_SEED_RPC_URL
-	// overrides the built-in default (the pearl sentry) and
+	// overrides the built-in default (the gnoland-1 sentry) and
 	// BLOCKPARTY_SEED_CHAIN_ID the identity that node must prove (default
-	// pearl-1) — override them TOGETHER; seeding is single-node, no failover,
+	// gnoland-1) — override them TOGETHER; seeding is single-node, no failover,
 	// and hard-fails on a chain-id mismatch.
 	bpEnabled := os.Getenv("BLOCKPARTY_ENABLED") == "1" || os.Getenv("BLOCKPARTY_ENABLED") == "true"
 	svc.SetBlockParty(bpEnabled, os.Getenv("BLOCKPARTY_SEED_RPC_URL"), os.Getenv("BLOCKPARTY_SEED_CHAIN_ID"))

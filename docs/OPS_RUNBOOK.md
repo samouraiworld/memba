@@ -103,8 +103,8 @@ The byte-parity evidence backing this flip lives in `backend/internal/auth/testd
 | Var | Surface | Notes |
 |-----|---------|-------|
 | `BLOCKPARTY_ENABLED` | Fly | **Total kill switch.** Unset/`0` = the entire BP surface (all four RPCs, reads included) answers `Unimplemented`; nothing touches the chain or the DB. `1`/`true` = live. First response to any BP incident — no deploy needed. |
-| `BLOCKPARTY_SEED_RPC_URL` | Fly | Seed node. Default (code): the pearl sentry `https://rpc.pearl.samourai.live:443`. **Single node, no failover** — a wrong seed is permanent (`blockparty_challenges` is INSERT-OR-IGNORE), so seeding fails loud instead of substituting a chain. Override together with the chain id below. |
-| `BLOCKPARTY_SEED_CHAIN_ID` | Fly | Identity the seed node must prove (default `pearl-1`) — checked on `/status` `node_info.network` AND every `/block` header. Mismatch = clean error, no mint. |
+| `BLOCKPARTY_SEED_RPC_URL` | Fly | Seed node. Default (code): the gnoland-1 sentry `https://rpc.mainnet.samourai.live:443`. **Single node, no failover** — a wrong seed is permanent (`blockparty_challenges` is INSERT-OR-IGNORE), so seeding fails loud instead of substituting a chain. Override together with the chain id below. |
+| `BLOCKPARTY_SEED_CHAIN_ID` | Fly | Identity the seed node must prove (default `gnoland-1`) — checked on `/status` `node_info.network` AND every `/block` header. Mismatch = clean error, no mint. |
 
 Seed provenance chain: configured node → chain-identity check → first block with
 `header.time >= 00:00Z` (binary search) → `SHA256(blockHash + "blockparty:" + date)`
@@ -113,13 +113,13 @@ Seed provenance chain: configured node → chain-identity check → first block 
 backend-vs-script cross-node agreement is the verification point; see
 `scripts/VERIFY_BLOCKPARTY.md`).
 
-**Enable checklist** (revival): (1) purge pre-pearl rows —
+**Enable checklist** (revival): (1) purge rows from any earlier chain —
 `DELETE FROM blockparty_challenges; DELETE FROM blockparty_scores; DELETE FROM blockparty_streaks;`
 (no provenance column: stale-chain rows for a recent date would be served
 verbatim and publicly fail verification on day one); (2) one
-`fly secrets set BLOCKPARTY_SEED_RPC_URL=… BLOCKPARTY_SEED_CHAIN_ID=pearl-1 BLOCKPARTY_ENABLED=1 -a memba-backend`
-(one command = one restart); (3) probes — both pearl RPCs report
-`node_info.network == "pearl-1"`; `GetDailyChallenge` returns `ready:true`
+`fly secrets set BLOCKPARTY_SEED_RPC_URL=… BLOCKPARTY_SEED_CHAIN_ID=gnoland-1 BLOCKPARTY_ENABLED=1 -a memba-backend`
+(one command = one restart); (3) probes — both gnoland-1 RPCs (`rpc.gno.land`, `rpc.mainnet.samourai.live`) report
+`node_info.network == "gnoland-1"`; `GetDailyChallenge` returns `ready:true`
 with height+hash; `verify-blockparty-seed.mjs` derives the identical
 seed/height/hash; `GetDailyLeaderboard` answers (not `Unimplemented`);
 (4) Netlify dashboard → `VITE_ENABLE_GAME=true` → redeploy (netlify.toml
@@ -422,7 +422,7 @@ gnokey query params/auth:p:unrestricted_addrs -remote https://rpc.gnoland1.samou
 # Block Party seed cross-check (canonical node vs the sentry the backend uses;
 # identical seed/height/hash on both = the public verification claim holds)
 node scripts/verify-blockparty-seed.mjs
-node scripts/verify-blockparty-seed.mjs --rpc https://rpc.pearl.samourai.live:443
+node scripts/verify-blockparty-seed.mjs --rpc https://rpc.mainnet.samourai.live:443
 
 # Backend
 cd backend && go install golang.org/x/vuln/cmd/govulncheck@v1.3.0 && govulncheck ./...

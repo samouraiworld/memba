@@ -27,7 +27,7 @@ import (
 // identity; only the reported network id counts.
 type httpBlockFetcher struct {
 	rpcURL string
-	// expectChainID is the chain the seed MUST come from (e.g. "pearl-1").
+	// expectChainID is the chain the seed MUST come from (e.g. "gnoland-1").
 	// Empty is a misconfiguration and fails closed on use — never construct
 	// this fetcher without it (blockPartyFetcher always sets it).
 	expectChainID string
@@ -74,7 +74,7 @@ func (f httpBlockFetcher) BlockAt(ctx context.Context, height int64) (blockparty
 			// The live Gno RPC nests block_id + header under `block_meta`;
 			// some nodes may also expose a top-level `block_id`. Read both and
 			// prefer block_meta (chain_id + hash shapes re-verified against
-			// rpc.pearl.testnets.gno.land 2026-09-01).
+			// the gnoland-1 sentry rpc.mainnet.samourai.live 2026-09-23).
 			BlockMeta struct {
 				BlockID struct {
 					Hash string `json:"hash"`
