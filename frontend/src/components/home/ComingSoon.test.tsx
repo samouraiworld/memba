@@ -38,6 +38,7 @@ describe("ComingSoon", () => {
             "VITE_ENABLE_MARKETPLACE",
             "VITE_ENABLE_APPSTORE",
             "VITE_ENABLE_SPACE_INVADERS",
+            "VITE_ENABLE_BARRICADE",
             "VITE_ENABLE_FEED",
             "VITE_ENABLE_GAME",
             "VITE_ENABLE_SERVICES",
