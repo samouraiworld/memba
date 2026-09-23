@@ -37,7 +37,20 @@ async function swipeUntilBoardChanges(page: Page): Promise<void> {
             }))
         }, [dx, dy])
         await page.waitForTimeout(50)
-        if (await snapshot() !== before) return
+        if (await snapshot() !== before) {
+            // The sliding tile layer settles onto exactly the accessible board.
+            await expect.poll(() => page.evaluate(() => {
+                const cells = Array.from(document.querySelectorAll('[role="gridcell"]')).map((cell) =>
+                    cell.getAttribute('aria-label')?.match(/column \d+, (\d+)/)?.[1] ?? '0')
+                const tiles = new Array(16).fill('0')
+                for (const tile of Array.from(document.querySelectorAll<HTMLElement>('.k-bp-tile-pos:not([data-kind="consumed"])'))) {
+                    tiles[Number(tile.style.getPropertyValue('--bp-row')) * 4 + Number(tile.style.getPropertyValue('--bp-col'))] =
+                        tile.querySelector('.k-bp-tile-val')?.textContent ?? '?'
+                }
+                return cells.join(',') === tiles.join(',')
+            })).toBe(true)
+            return
+        }
     }
     throw new Error('all four swipe directions were ignored')
 }

@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Block Party sliding tiles (2026-09-23)
+- Tiles now slide to their new cells, fuse with a short pulse, and new signals pop in once the slide lands; fast play never waits on an animation.
+- Every tile value from 2 to 2048 has its own colour, readable in both light and dark themes.
+- The score counts up after each fusion with a brief "+N" gain; all motion switches off when the device asks for reduced motion.
+
 ### Games ready for mainnet (2026-09-23)
 - Drop the retired Pearl testnet from Space Invaders and Block Party copy and test fixtures; both games now speak of the Gno network.
 - Open Block Party in Practice when ranked Daily play is switched off, instead of a locked board with an error panel, and stop retrying that answer.

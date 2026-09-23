@@ -1,7 +1,8 @@
-import { useId } from "react";
+import { useId, useState } from "react";
 import { useSwipe } from "../hooks/useSwipe";
 import type { Move } from "../engine";
-import { Tile } from "./Tile";
+import { advanceLayout, layoutFromBoard, type TileLayout } from "../lib/tileMotion";
+import { Cell, Tile } from "./Tile";
 import "./board.css";
 
 const KEY_MOVES: Record<string, Move> = {
@@ -11,8 +12,43 @@ const KEY_MOVES: Record<string, Move> = {
   ArrowLeft: "L",
 };
 
-export function Board({ board, onMove, disabled = false }: { board: number[]; onMove: (m: Move) => void; disabled?: boolean }) {
+type Motion = { board: number[]; log: string; layout: TileLayout };
+
+/** The move that turned the previous board into this one, when exactly one was played. */
+function playedMove(prevLog: string, log: string | undefined): Move | null {
+  if (log === undefined || log.length !== prevLog.length + 1 || !log.startsWith(prevLog)) return null;
+  return log[log.length - 1] as Move;
+}
+
+export function Board({
+  board,
+  onMove,
+  disabled = false,
+  moveLog,
+}: {
+  board: number[];
+  onMove: (m: Move) => void;
+  disabled?: boolean;
+  /** The accepted-move log for this round; lets tiles slide in the direction actually played. */
+  moveLog?: string;
+}) {
   const swipe = useSwipe(onMove);
+  // Tile motion is derived from the authoritative board, never the reverse:
+  // each new board advances the layout once, during render, so fast input
+  // retargets tiles mid-slide instead of queueing or dropping moves.
+  const [motion, setMotion] = useState<Motion>(() => ({
+    board,
+    log: moveLog ?? "",
+    layout: layoutFromBoard(board, 1, "spawned"),
+  }));
+  if (motion.board !== board) {
+    const unchanged = motion.board.every((value, index) => value === board[index]);
+    setMotion({
+      board,
+      log: moveLog ?? "",
+      layout: unchanged ? motion.layout : advanceLayout(motion.layout, playedMove(motion.log, moveLog), board),
+    });
+  }
   const instructionsId = useId();
   const announcementId = useId();
   const boardSummary = [0, 1, 2, 3]
@@ -55,10 +91,13 @@ export function Board({ board, onMove, disabled = false }: { board: number[]; on
           <div className="k-bp-board-row" role="row" aria-rowindex={row + 1} key={row}>
             {board.slice(row * 4, row * 4 + 4).map((value, col) => {
               const index = row * 4 + col;
-              return <Tile key={`${index}-${value}`} value={value} index={index} />;
+              return <Cell key={index} value={value} index={index} />;
             })}
           </div>
         ))}
+      </div>
+      <div className="k-bp-tile-layer" aria-hidden="true">
+        {motion.layout.tiles.map((tile) => <Tile key={tile.id} tile={tile} />)}
       </div>
       <p id={announcementId} className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         Board updated. {boardSummary}.

@@ -26,6 +26,20 @@ async function resolveNetwork(page) {
 	return network!
 }
 
+/** The aria-hidden tile layer must always show exactly the accessible grid's values. */
+async function tileLayerMatchesGrid(page) {
+	return page.evaluate(() => {
+		const cells = Array.from(document.querySelectorAll('[role="gridcell"]')).map((cell) =>
+			cell.getAttribute('aria-label')?.match(/column \d+, (\d+)/)?.[1] ?? '0')
+		const tiles = new Array(16).fill('0')
+		for (const tile of Array.from(document.querySelectorAll<HTMLElement>('.k-bp-tile-pos:not([data-kind="consumed"])'))) {
+			const index = Number(tile.style.getPropertyValue('--bp-row')) * 4 + Number(tile.style.getPropertyValue('--bp-col'))
+			tiles[index] = tile.querySelector('.k-bp-tile-val')?.textContent ?? '?'
+		}
+		return cells.length === 16 && cells.join(',') === tiles.join(',')
+	})
+}
+
 test.describe('Block Party', () => {
 	test.beforeEach(async ({ page }) => {
 		await page.setViewportSize({ width: 1280, height: 800 })
@@ -61,6 +75,24 @@ test.describe('Block Party', () => {
 		}
 		await expect(page.getByRole('dialog')).toBeVisible({ timeout: 5_000 })
 		await expect(page.getByRole('button', { name: /share/i })).toBeVisible()
+	})
+
+	test('sliding tiles keep up with fast keyboard play', async ({ page }) => {
+		await stubBlockPartyBackend(page)
+		const network = await resolveNetwork(page)
+		await page.goto(`/${network}/game`, { waitUntil: 'domcontentloaded' })
+		const board = page.getByRole('grid', { name: /block party signal board/i })
+		await expect(page.getByText(/block #99,236/)).toBeVisible({ timeout: 10_000 })
+		await expect(page.locator('.k-bp-tile-layer')).toHaveAttribute('aria-hidden', 'true')
+		expect(await tileLayerMatchesGrid(page)).toBe(true)
+
+		await board.focus()
+		const keys = ['ArrowDown', 'ArrowLeft', 'ArrowUp', 'ArrowRight']
+		// Faster than the slide: every press lands mid-animation.
+		for (let i = 0; i < 12; i++) await page.keyboard.press(keys[(i * 3) % 4], { delay: 10 })
+		expect(await tileLayerMatchesGrid(page), 'tile layer mirrors the board mid-animation').toBe(true)
+		await expect.poll(() => tileLayerMatchesGrid(page)).toBe(true)
+		expect(await page.locator('.k-bp-tile-pos').first().evaluate((tile) => getComputedStyle(tile).transitionDuration)).not.toBe('0s')
 	})
 
 	test('failed challenge fetch shows the error notice and never the sheet', async ({ page }) => {
@@ -125,6 +157,9 @@ test.describe('Block Party', () => {
 		await expect.poll(() => board.getByRole('gridcell').evaluateAll((cells) =>
 			cells.map((cell) => cell.getAttribute('aria-label')).join('|'))).not.toBe(before)
 		expect(await page.locator('.k-bp-tile').first().evaluate((tile) => getComputedStyle(tile).animationName)).toBe('none')
+		// Tiles still land on the right cells, just without the slide.
+		expect(await page.locator('.k-bp-tile-pos').first().evaluate((tile) => getComputedStyle(tile).transitionDuration)).toBe('0s')
+		await expect.poll(() => tileLayerMatchesGrid(page)).toBe(true)
 
 		if (await page.locator('html').getAttribute('data-theme') !== 'light') {
 			await page.getByRole('button', { name: 'Switch to Light theme' }).click()

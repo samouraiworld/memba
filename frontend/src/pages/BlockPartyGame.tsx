@@ -366,7 +366,7 @@ export default function BlockPartyGame() {
           )}
 
           <div className={`k-bp-board-wrap ${ranked && !canPlayRanked ? "k-bp-board-wrap--locked" : ""}`}>
-            <Board board={board} onMove={onMove} disabled={ranked && !canPlayRanked} />
+            <Board board={board} moveLog={moveLog} onMove={onMove} disabled={ranked && !canPlayRanked} />
             {showHint && (!ranked || canPlayRanked) && (
               <div className="k-bp-hint" aria-hidden="true">
                 <span className="k-bp-hint-arrows">← ↑ → ↓</span>

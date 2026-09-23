@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { ScoreBar } from "./ScoreBar";
 
@@ -15,5 +15,19 @@ describe("ScoreBar", () => {
     render(<ScoreBar score={32} par={undefined} movesLeft={Infinity} />);
     expect(screen.queryByText(/target/i)).toBeNull();
     expect(screen.queryByText(/moves/i)).toBeNull();
+  });
+
+  it("counts up to a new score and pops the gain without touching the accessible total", async () => {
+    const { container, rerender } = render(<ScoreBar score={32} movesLeft={Infinity} />);
+    expect(container.querySelector(".k-bp-score-pop")).toBeNull();
+    rerender(<ScoreBar score={96} movesLeft={Infinity} />);
+    const pop = container.querySelector(".k-bp-score-pop");
+    expect(pop).toHaveTextContent("+64");
+    expect(pop).toHaveAttribute("aria-hidden", "true");
+    await waitFor(() => expect(container.querySelector(".k-bp-score")?.firstChild?.textContent).toBe("96"));
+    // A new round resets instead of popping a negative gain.
+    rerender(<ScoreBar score={0} movesLeft={Infinity} />);
+    expect(container.querySelector(".k-bp-score-pop")).toBeNull();
+    await waitFor(() => expect(container.querySelector(".k-bp-score")?.firstChild?.textContent).toBe("0"));
   });
 });
