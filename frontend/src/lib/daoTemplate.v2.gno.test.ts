@@ -95,7 +95,16 @@ it("runs on the gno pin the CI lane requires", () => {
     if (!required) return
     expect(TOOLCHAIN.ok, TOOLCHAIN.message).toBe(true)
     const commit = toolchainCommit()
-    expect(commit.length >= 12 && required.startsWith(commit.slice(0, 12)), `toolchain sources at ${commit}, lane requires ${required}`).toBe(true)
+    // A pin that upstream later tagged lives in the module cache under its tag (gno@v1.3.0),
+    // not a pseudo-version; ask Go which version the required commit resolves to.
+    const tag = /@(v\d+\.\d+\.\d+)(?:\/|$)/.exec(commit)?.[1]
+    const resolved = tag
+        ? spawnSync("go", ["mod", "download", "-json", `github.com/gnolang/gno@${required}`], { encoding: "utf8" })
+        : undefined
+    const matches = tag
+        ? resolved?.status === 0 && (JSON.parse(resolved.stdout) as { Version?: string }).Version === tag
+        : commit.length >= 12 && required.startsWith(commit.slice(0, 12))
+    expect(matches, `toolchain sources at ${commit}, lane requires ${required}`).toBe(true)
 })
 
 let workdir = ""
