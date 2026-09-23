@@ -42,11 +42,19 @@ export function RetiredNetworkNotice() {
     const navigate = useNavigate()
     const { pathname, search, hash } = location
     const incoming = (location.state as Partial<RetiredNetworkState> | null)?.retiredNetwork
-    // The shell (and this notice with it) mounts fresh on every redirect —
-    // NetworkGate renders the redirect instead of the shell for a retired key —
-    // so the handed-over key is captured once, at mount.
-    const [captured] = useState(() => incoming ? { key: incoming, pathname } : null)
+    // NetworkGate renders the redirect instead of the shell for a retired key,
+    // so the shell (and this notice with it) mounts fresh after each redirect
+    // and captures the handed-over key at mount. The shell then STAYS mounted
+    // across same-network navigation, so the capture is cleared the first time
+    // the user leaves the landing page — otherwise Back to it would re-show the
+    // notice.
+    const [captured, setCaptured] = useState(() => incoming ? { key: incoming, pathname } : null)
     const [dismissedNow, setDismissedNow] = useState<string | null>(null)
+
+    // Adjusted while rendering (React's pattern for state derived from a
+    // changing input), not in an effect: the landing page is left the moment
+    // the pathname differs, and it must never count as "still here" again.
+    if (captured && captured.pathname !== pathname) setCaptured(null)
 
     // Consume the router state: replace this entry with a state-free copy so a
     // reload (history.state survives it) or Back/Forward does not re-show it.
