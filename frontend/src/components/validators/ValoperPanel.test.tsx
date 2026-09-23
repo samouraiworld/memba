@@ -11,8 +11,11 @@ import { describe, it, expect, vi } from "vitest"
 // network is never restored from storage — only honoured when it is IN THE
 // URL. So the pin moved from localStorage to the jsdom URL: pearl keeps its
 // full realm allowlist, which is what this file needs.
+// Pearl links redirect to mainnet since the same day (`retiredTo`), so a
+// /pearl/ URL now initialises on mainnet; the pin moved to /test13/, a hidden
+// but NOT retired network that still resolves by URL with its realm allowlist.
 vi.hoisted(() => {
-    window.history.replaceState(null, "", "/pearl/")
+    window.history.replaceState(null, "", "/test13/")
 })
 
 import { screen, within } from "@testing-library/react"
