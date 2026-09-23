@@ -20,6 +20,26 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Coming next
+<!-- categories: memba, network -->
+- Escrow, marketplace configuration, DAO channels, quest attestation and the arcade leaderboard stay gated on gno.land mainnet until their own setup is complete.
+- The token launchpad, collectibles and the marketplace are not deployed on mainnet yet; Home labels them unavailable there.
+- Space Invaders certification (day-close attestation and the on-chain leaderboard) stays off, and the weighted founding-DAO workspace keeps mainnet writes blocked.
+
+## [v7.7.0] — 2026-09-23
+
+### Memba moves to gno.land mainnet (#1225, #1227, #1251, #1253, #1254, #1259, #1260, 2026-09-23)
+<!-- categories: memba, network -->
+- **Memba runs on gno.land mainnet (`gnoland-1`).** Mainnet launched on 2026-09-12 and became Memba's default network on 2026-09-17; on 2026-09-23 the wave-1 realms, the backend and the indexers followed. Each change is described in full in the sections below.
+- **Wave-1 realms are live.** Eleven samcrew packages and realms are published on `gnoland-1`, recorded in `realm-versions.json` and each verified by `vm/qfile`. The App Store, reviews, feedback, badges and the social feed run on mainnet.
+- **The backend and indexers moved with them.** Reads use `rpc.gno.land` and fail over to Samouraï's own mainnet node; the feed, home snapshot, recent activity and address history come from mainnet; a brand-new wallet completes its first sign-in through gno.land's own `r/demo/profile` realm.
+- **DAOs can be created on mainnet.** New DAOs use template version 2: voting power decides, every change is a proposal with an execution delay and window, and the review step shows the permanent realm path and the storage deposit cap before signing. Proposals, votes, members and settings have pages built for it.
+- **Signing surfaces show what is signed.** Confirmations show every address in full, reveal invisible and text-direction characters, and keep on-chain links from replacing the app; a DAO call's storage deposit is capped at 10 GNOT by default; channel mentions, post quests and "You voted" match only your full address (or, for votes, your exact username).
+- **The games are Pearl-free.** Block Party's ranked daily board is seeded from a gno.land mainnet block that anyone can check with the public verifier, and gains sliding tiles, saved runs and Undo in Practice; Space Invaders gets a results card and sharing; BARRICADE gets a desktop battlefield and French civic art.
+- **Validators on mainnet.** Validator pages show reliability scores, governance readiness and live consensus, fit a phone, and poll the chain far less.
+- **Pearl is retired.** It left the network picker; old `/pearl/...` links open the same page on gno.land with a one-time notice, and a saved Pearl choice opens gno.land. Betanet (`gnoland1`) was retired from the picker on 2026-09-17.
+- **About 7.6.0:** the app version moved from 7.5.0 to 7.6.0 and then 7.7.0 on 2026-09-15 without a tag or release in between. This release covers everything since v7.5.0, including the sections below labelled "v7.6.0 candidate" and "v7.7.0 candidate".
+
 ### Pearl retirement follow-ups (2026-09-23)
 <!-- categories: memba, network -->
 - The Pearl retirement notice appears once per redirected link; reloading the page no longer brings it back.
@@ -440,12 +460,6 @@ Full changelogs are split by version range for easier navigation:
 - **Memba deploys nothing to mainnet yet, and says so** rather than showing features that would fail. Two things have to happen first, neither of them ours alone: the `samcrew` name has to be granted on mainnet by gno.land governance, and mainnet's launch settings **lock all GNOT transfers** — so escrow, OTC and the marketplace could not move funds even if they were deployed. That lock lifts on **Monday 2026-09-14**, the announced moment tokens become transferable; the `samcrew` name grant has no such date and is the constraint that actually holds.
 - **There is no mainnet faucet**, by design. Test-network faucet links are not shown for mainnet.
 - The addresses gno.land has published for mainnet were checked on 2026-09-10 and are **still serving betanet today** — they get pointed at the new chain when it launches. Memba will only switch mainnet on after asking the node which chain it actually is, rather than trusting that an address responds.
-
-### Coming next
-<!-- categories: memba -->
-- The commerce lanes — creating tokens, the NFT marketplace, escrow and OTC trading — have been deployed on Pearl since the 2026-08-31 ceremony (`tokenfactory_v2`, the NFT/market v3.2 set, `escrow_v3`, OTC). They switch on once the two-wallet live-money check passes.
-- The collectibles (NFT) indexer switches on once observability is wired; marketplace registration follows it.
-- Block Party's Daily and the Space Invaders certify pipeline switch on after their owner ceremonies.
 
 ## [v7.5.0] — 2026-09-07
 

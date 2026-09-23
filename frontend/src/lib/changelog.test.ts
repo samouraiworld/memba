@@ -140,4 +140,19 @@ describe("parseChangelogMarkdown — THE REAL FILE (drift tripwire)", () => {
         expect(v73.items.length).toBeGreaterThanOrEqual(5)
         expect(v73.items[0]).toContain("Behavior changes")
     })
+
+    it("v7.7.0 carries its release date and leads with the mainnet headline", () => {
+        // Release PRs must touch frontend/ so the /changelogs page is rebuilt;
+        // a root-only CHANGELOG change is skipped by the frontend deploy.
+        const entries = parseChangelogMarkdown(real)
+        const v77 = entries.find(e => e.version === "v7.7.0")!
+        expect(v77.date).toBe("2026-09-23")
+        expect(v77.unreleased).toBe(false)
+        expect(v77.items[0]).toContain("Memba moves to gno.land mainnet")
+        // Newest release sits directly below the canonical [Unreleased] block.
+        expect(entries[0].unreleased).toBe(true)
+        expect(entries[1].version).toBe("v7.7.0")
+        // 7.6.0 was never tagged: it is folded into v7.7.0, not a block of its own.
+        expect(entries.some(e => e.version === "v7.6.0")).toBe(false)
+    })
 })

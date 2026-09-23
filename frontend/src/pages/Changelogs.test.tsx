@@ -10,6 +10,8 @@ import { Changelogs } from "./Changelogs"
 describe("Changelogs page (real CHANGELOG.md)", () => {
     it("renders current releases parsed from CHANGELOG.md", () => {
         render(<Changelogs />)
+        expect(screen.getByText("v7.7.0")).toBeTruthy()
+        expect(screen.getAllByText(/September 23, 2026/).length).toBeGreaterThan(0)
         expect(screen.getByText("v7.3.0")).toBeTruthy()
         expect(screen.getAllByText(/July 11, 2026/).length).toBeGreaterThan(0)
         expect(screen.getByText("v7.2.0")).toBeTruthy()
