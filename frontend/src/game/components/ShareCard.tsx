@@ -18,7 +18,7 @@ export function ShareCard(props: {
   const showTransientStatus = (next: Exclude<ShareStatus, "error" | null>) => {
     setStatus(next);
     if (resetTimer.current) clearTimeout(resetTimer.current);
-    resetTimer.current = setTimeout(() => setStatus(null), 1800);
+    resetTimer.current = setTimeout(() => setStatus(null), 2600);
   };
 
   const share = async () => {
@@ -45,11 +45,12 @@ export function ShareCard(props: {
 
   return (
     <div className="k-bp-share">
-      <button className="k-bp-btn k-bp-btn--accent" type="button" onClick={share}>
+      <button className="k-bp-btn k-bp-btn--accent k-bp-share-btn" type="button" onClick={share}>
+        <span className="k-bp-share-icon" aria-hidden="true">↗</span>
         Share result
       </button>
-      {status === "copied" && <span className="k-bp-share-toast" role="status">Result copied</span>}
-      {status === "shared" && <span className="k-bp-share-toast" role="status">Result shared</span>}
+      {status === "copied" && <span className="k-bp-share-toast" role="status"><span aria-hidden="true">✓ </span>Copied to clipboard</span>}
+      {status === "shared" && <span className="k-bp-share-toast" role="status"><span aria-hidden="true">✓ </span>Shared</span>}
       {status === "error" && <span className="k-bp-share-error" role="alert">Sharing is unavailable in this browser. Please try again.</span>}
     </div>
   );

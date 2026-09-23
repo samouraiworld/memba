@@ -47,4 +47,28 @@ describe("DailyLeaderboardPanel", () => {
     );
     await waitFor(() => expect(gameApi.getDailyLeaderboard).toHaveBeenCalledTimes(2));
   });
+
+  it("highlights your row and states your rank when you made the top 50", async () => {
+    wrap(<DailyLeaderboardPanel date="2026-07-06" you="G1SECOND" />);
+    expect(await screen.findByTestId("bp-lb-you")).toHaveTextContent(/you're #2 today with 800 points/i);
+    const rows = screen.getAllByRole("listitem");
+    expect(rows[1]).toHaveClass("k-bp-lb-row--you");
+    expect(rows[1]).toHaveAttribute("aria-current", "true");
+    expect(rows[1]).toHaveTextContent(/you/i);
+    expect(rows[0]).not.toHaveClass("k-bp-lb-row--you");
+    expect(rows[0]).not.toHaveAttribute("aria-current");
+  });
+
+  it("says so when your address is not on the board, and shows no you-row", async () => {
+    wrap(<DailyLeaderboardPanel date="2026-07-06" you="g1nobody" />);
+    expect(await screen.findByText(/not on today's leaderboard yet/i)).toBeTruthy();
+    expect(document.querySelector(".k-bp-lb-row--you")).toBeNull();
+  });
+
+  it("shows no personal line without an address", async () => {
+    wrap(<DailyLeaderboardPanel date="2026-07-06" />);
+    await screen.findByText("9,000");
+    expect(screen.queryByTestId("bp-lb-you")).toBeNull();
+    expect(screen.queryByText(/leaderboard yet/i)).toBeNull();
+  });
 });

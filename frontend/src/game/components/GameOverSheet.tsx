@@ -4,6 +4,7 @@ import { rankFromPercentile } from "../lib/tiers";
 import { getLocalBest, setLocalBest, bumpLocalStreak } from "../lib/localStore";
 import { gameApi } from "../../lib/gameApi";
 import { ShareCard } from "./ShareCard";
+import { NextBoardCountdown } from "./NextBoardCountdown";
 import type { Token } from "../../gen/memba/v1/memba_pb";
 import "./gameover.css";
 
@@ -13,8 +14,10 @@ type AuthLike = { isAuthenticated: boolean; token?: Token; address?: string; aut
 export function GameOverSheet(props: {
   date: string; score: number; par?: number; moveLog: string; board: number[]; modifier: string;
   wallet: WalletLike; auth: AuthLike;
+  /** Called once the server has verified the replay (e.g. to refresh the leaderboard). */
+  onVerified?: () => void;
 }) {
-  const { date, score, moveLog, wallet, auth } = props;
+  const { date, score, moveLog, wallet, auth, onVerified } = props;
   const [result, setResult] = useState<{ percentile: number; streak: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<{ message: string; retryable: boolean } | null>(null);
@@ -63,6 +66,8 @@ export function GameOverSheet(props: {
     }
   }, [auth.isAuthenticated, auth.token, date, moveLog]);
 
+  useEffect(() => { if (result) onVerified?.(); }, [result, onVerified]);
+
   // Auto-submit the exact replay once when an authenticated round completes.
   useEffect(() => {
     const timer = window.setTimeout(() => void submitScore(), 0);
@@ -77,12 +82,14 @@ export function GameOverSheet(props: {
 
   return (
     <div className="k-bp-over" role="dialog" aria-labelledby="k-bp-result-title" aria-describedby="k-bp-result-summary">
-      <span className="k-bp-over-kicker">Signal complete</span>
+      <span className="k-bp-over-kicker">Today's Daily is done</span>
       <h2 id="k-bp-result-title" className="k-bp-over-title" ref={titleRef} tabIndex={-1}>Round complete</h2>
       <p className="k-bp-over-score"><span className="sr-only">Final score </span>{score.toLocaleString()}</p>
       {parDelta != null && (
         <p id="k-bp-result-summary" className="k-bp-over-par">
-          {parDelta >= 0 ? `+${parDelta.toLocaleString()}` : parDelta.toLocaleString()} vs target
+          {parDelta >= 0
+            ? `${parDelta.toLocaleString()} points over today's target`
+            : `${Math.abs(parDelta).toLocaleString()} points short of today's target`}
         </p>
       )}
       {parDelta == null && <p id="k-bp-result-summary" className="sr-only">Final result for {date || "this round"}.</p>}
@@ -97,10 +104,10 @@ export function GameOverSheet(props: {
       {result && (
         <div className="k-bp-over-rank" role="status" aria-live="polite">
           <span className="k-bp-over-grade" aria-label={`Rank ${rankFromPercentile(result.percentile)}`}>{rankFromPercentile(result.percentile)}</span>
-          <span><strong>Replay verified</strong><small>Beat {result.percentile}% · {result.streak} day streak</small></span>
+          <span><strong>Score verified and posted</strong><small>Better than {result.percentile}% of players · {result.streak} day streak</small></span>
         </div>
       )}
-      {submitting && <p className="k-bp-over-note k-bp-over-note--pending" role="status">Checking your replay…</p>}
+      {submitting && <p className="k-bp-over-note k-bp-over-note--pending" role="status">Checking your moves and posting your score…</p>}
       {err && (
         <div className="k-bp-over-submit-error" role="alert">
           <p>{err.message}</p>
@@ -112,24 +119,6 @@ export function GameOverSheet(props: {
         </div>
       )}
 
-      {auth.isAuthenticated && (
-        <p className="k-bp-over-policy">
-          Ranked posting is first-write: your first verified replay today is your leaderboard entry. Later runs do not replace it.
-        </p>
-      )}
-
-      {!auth.isAuthenticated && wallet.installed && (
-        <button className="k-bp-btn k-bp-btn--accent" type="button" onClick={() => auth.authenticate?.()}>
-          Connect to post today's score
-        </button>
-      )}
-      {!auth.isAuthenticated && !wallet.installed && (
-        <p className="k-bp-over-note">
-          Saved locally · best {localBest.toLocaleString()} · {localStreak} day streak.<br />
-          Posting to the leaderboard requires the Adena extension on desktop.
-        </p>
-      )}
-
       <ShareCard
         kind="daily"
         date={date}
@@ -138,6 +127,29 @@ export function GameOverSheet(props: {
         streak={result?.streak ?? localStreak}
         percentile={result?.percentile}
       />
+
+      {auth.isAuthenticated && (
+        <p className="k-bp-over-policy">
+          Only your first verified run today counts on the leaderboard. Playing again won't replace it.
+        </p>
+      )}
+
+      {!auth.isAuthenticated && wallet.installed && (
+        <div className="k-bp-over-post">
+          <button className="k-bp-btn k-bp-btn--accent" type="button" onClick={() => auth.authenticate?.()}>
+            Connect to post today's score
+          </button>
+          <p className="k-bp-over-note">This run stays saved on this device until you post it.</p>
+        </div>
+      )}
+      {!auth.isAuthenticated && !wallet.installed && (
+        <p className="k-bp-over-note">
+          Saved on this device · best {localBest.toLocaleString()} · {localStreak} day streak.<br />
+          Posting to the leaderboard requires the Adena extension on desktop.
+        </p>
+      )}
+
+      <NextBoardCountdown />
     </div>
   );
 }

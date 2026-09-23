@@ -1,7 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
 import { gameApi } from "../../lib/gameApi";
 import "./panels.css";
-export function DailyLeaderboardPanel({ date, scope = "default" }: { date: string; scope?: string }) {
+/**
+ * Today's top 50. `you` is the connected or signed-in address: its row is
+ * highlighted and its rank summarised above the list when it made the cut.
+ */
+export function DailyLeaderboardPanel({ date, scope = "default", you }: { date: string; scope?: string; you?: string }) {
   const { data, isLoading, isError, isFetching, refetch } = useQuery({
     queryKey: ["bp", "leaderboard", scope, date],
     queryFn: () => gameApi.getDailyLeaderboard(date, 50),
@@ -32,6 +36,8 @@ export function DailyLeaderboardPanel({ date, scope = "default" }: { date: strin
   }
 
   const entries = data?.entries ?? [];
+  const me = you?.trim().toLowerCase() || null;
+  const mine = me ? entries.find((entry) => entry.address.toLowerCase() === me) : undefined;
   if (entries.length === 0) {
     return (
       <section className="k-bp-panel k-bp-panel--empty" aria-label="Daily leaderboard">
@@ -51,17 +57,35 @@ export function DailyLeaderboardPanel({ date, scope = "default" }: { date: strin
         </div>
         <span className="k-bp-lb-count">{entries.length} {entries.length === 1 ? "player" : "players"}</span>
       </div>
+      {mine && (
+        <p className="k-bp-lb-you" data-testid="bp-lb-you">
+          You're <strong>#{mine.rank}</strong> today with {mine.score.toLocaleString("en-US")} points.
+        </p>
+      )}
+      {me && !mine && (
+        <p className="k-bp-lb-you k-bp-lb-you--out">
+          {entries.length >= 50 ? "You're outside today's top 50." : "You're not on today's leaderboard yet."}
+        </p>
+      )}
       <ol className="k-bp-lb-list">
-        {entries.map((entry) => (
-          <li key={`${entry.rank}-${entry.address}`} className="k-bp-lb-row">
+        {entries.map((entry) => {
+          const isYou = entry === mine;
+          return (
+          <li
+            key={`${entry.rank}-${entry.address}`}
+            className={`k-bp-lb-row${isYou ? " k-bp-lb-row--you" : ""}`}
+            aria-current={isYou ? "true" : undefined}
+          >
             <span className="k-bp-lb-rank" aria-label={`Rank ${entry.rank}`}>#{entry.rank}</span>
             <span className="k-bp-lb-addr">
+              {isYou && <span className="k-bp-lb-you-tag">You</span>}
               <span aria-hidden="true">{entry.address.slice(0, 8)}…</span>
-              <span className="sr-only">Player {entry.address}</span>
+              <span className="sr-only">{isYou ? "You, " : "Player "}{entry.address}</span>
             </span>
             <strong className="k-bp-lb-score">{entry.score.toLocaleString("en-US")}</strong>
           </li>
-        ))}
+          );
+        })}
       </ol>
     </section>
   );

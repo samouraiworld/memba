@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Block Party daily loop (2026-09-23)
+- Your Daily run is saved as you play, so a refresh or a detour to Practice brings back the same board instead of dealing a fresh try; a finished run waits there until you post it.
+- Practice now has Undo (button, U or Ctrl+Z); ranked Daily never does.
+- The result screen counts down to the next board at 00:00 UTC, puts Share result up front, and the leaderboard highlights your row and rank.
+- First-time players get a short three-step intro, the rules are rewritten in plain language, and supported phones give a light buzz on merges and at game over.
+
 ### Block Party sliding tiles (2026-09-23)
 - Tiles now slide to their new cells, fuse with a short pulse, and new signals pop in once the slide lands; fast play never waits on an animation.
 - Every tile value from 2 to 2048 has its own colour, readable in both light and dark themes.

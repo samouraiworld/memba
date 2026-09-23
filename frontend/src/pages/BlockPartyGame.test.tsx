@@ -16,6 +16,7 @@ vi.mock("../lib/gameApi", () => ({
 vi.mock("../hooks/useAdena", () => ({ useAdena: () => ({ installed: false, connected: false, address: "" }) }));
 import { gameApi } from "../lib/gameApi";
 import BlockPartyGame from "./BlockPartyGame";
+import { initGame, step, type Move } from "../game/engine";
 const TODAY = new Date().toISOString().slice(0, 10);
 const readyChallenge = {
   date: TODAY, seed: 12345, modifier: "standard", par: 1500n, moveBudget: 30,
@@ -27,6 +28,7 @@ const wrap = (ui: React.ReactNode) => {
 };
 describe("BlockPartyGame", () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.mocked(gameApi.getDailyChallenge).mockReset().mockResolvedValue(readyChallenge);
     vi.mocked(gameApi.getDailyLeaderboard).mockReset().mockResolvedValue({ entries: [] });
     vi.mocked(gameApi.getStreak).mockReset().mockResolvedValue({
@@ -157,4 +159,180 @@ describe("BlockPartyGame", () => {
     expect(screen.getByRole("button", { name: /play practice/i })).toBeTruthy();
     expect(screen.getByRole("grid")).toBeTruthy();
   });
+
+  describe("daily run persistence", () => {
+    // Enumerate with key(i): this test environment's Storage does not expose keys to Object.keys.
+    const runKeys = () => {
+      const out: string[] = [];
+      for (let k = 0; k < localStorage.length; k++) {
+        const key = localStorage.key(k);
+        if (key?.startsWith("bp:run:v1:")) out.push(key);
+      }
+      return out;
+    };
+    const storedLog = () => {
+      const keys = runKeys();
+      expect(keys).toHaveLength(1);
+      return (JSON.parse(localStorage.getItem(keys[0])!) as { log: string }).log;
+    };
+
+    async function readyDaily() {
+      const view = wrap(<BlockPartyGame />);
+      await waitFor(() => expect(screen.getByText(/block #42/i)).toBeTruthy());
+      await waitFor(() => expect(screen.getByText(/live daily/i)).toBeTruthy());
+      return view;
+    }
+
+    it("restores an in-progress Daily run after a reload instead of dealing a fresh board", async () => {
+      const first = await readyDaily();
+      for (let i = 0; i < 3; i++) playOneMove();
+      const board = cells();
+      const log = storedLog();
+      expect(log).toHaveLength(3);
+      first.unmount();
+
+      await readyDaily();
+      await waitFor(() => expect(cells()).toEqual(board));
+      expect(screen.getByText("27")).toBeTruthy(); // moves remaining carried over
+      expect(storedLog()).toBe(log);
+    });
+
+    it("restores a finished, unsubmitted run as finished", async () => {
+      const first = await readyDaily();
+      const key = runKeys()[0];
+      first.unmount();
+      localStorage.setItem(key, JSON.stringify({
+        version: 1, date: TODAY, seed: 12345, modifier: "standard", log: legalLog(12345, 30),
+      }));
+
+      await readyDaily();
+      expect(await screen.findByRole("heading", { name: /round complete/i })).toBeTruthy();
+    });
+
+    it("ignores a saved run for a different challenge", async () => {
+      const first = await readyDaily();
+      const key = runKeys()[0];
+      first.unmount();
+      localStorage.setItem(key, JSON.stringify({ version: 1, date: TODAY, seed: 999, modifier: "standard", log: "L" }));
+
+      await readyDaily();
+      await waitFor(() => expect(cells()).toEqual(openingCells(12345)));
+      expect(storedLog()).toBe("");
+    });
+
+    it("ignores a corrupt saved run", async () => {
+      const first = await readyDaily();
+      const key = runKeys()[0];
+      first.unmount();
+      for (const raw of ["{oops", JSON.stringify({ version: 1, date: TODAY, seed: 12345, modifier: "standard", log: "LLLLLLLLLLLLLLLL" })]) {
+        localStorage.setItem(key, raw);
+        const view = await readyDaily();
+        await waitFor(() => expect(cells()).toEqual(openingCells(12345)));
+        expect(storedLog()).toBe("");
+        view.unmount();
+      }
+    });
+
+    it("never persists Practice moves", async () => {
+      await readyDaily();
+      fireEvent.click(screen.getByRole("tab", { name: /practice/i }));
+      for (let i = 0; i < 3; i++) playOneMove();
+      expect(storedLog()).toBe("");
+    });
+  });
+
+  describe("undo", () => {
+    it("steps back in Practice from the button and the U key", async () => {
+      wrap(<BlockPartyGame />);
+      await waitFor(() => expect(screen.getByRole("grid")).toBeTruthy());
+      fireEvent.click(screen.getByRole("tab", { name: /practice/i }));
+      const undo = screen.getByRole("button", { name: /^undo/i });
+      expect(undo).toBeDisabled();
+
+      const start = cells();
+      playOneMove();
+      expect(undo).toBeEnabled();
+      fireEvent.click(undo);
+      expect(cells()).toEqual(start);
+
+      playOneMove();
+      fireEvent.keyDown(window, { key: "u" });
+      expect(cells()).toEqual(start);
+
+      playOneMove();
+      fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+      expect(cells()).toEqual(start);
+    });
+
+    it("is not offered in the ranked Daily", async () => {
+      wrap(<BlockPartyGame />);
+      await waitFor(() => expect(screen.getByText(/live daily/i)).toBeTruthy());
+      expect(screen.queryByRole("button", { name: /undo/i })).toBeNull();
+      playOneMove();
+      const after = cells();
+      fireEvent.keyDown(window, { key: "u" });
+      fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+      expect(cells()).toEqual(after);
+    });
+  });
+
+  describe("first-run intro", () => {
+    it("shows three plain steps once and remembers the dismissal", async () => {
+      const first = wrap(<BlockPartyGame />);
+      const intro = await screen.findByRole("region", { name: /how to play/i });
+      expect(intro).toHaveTextContent(/swipe or the arrow keys/i);
+      expect(intro).toHaveTextContent(/equal numbers/i);
+      expect(intro).toHaveTextContent(/one ranked run per day/i);
+      fireEvent.click(screen.getByRole("button", { name: /got it/i }));
+      expect(screen.queryByRole("region", { name: /how to play/i })).toBeNull();
+      expect(localStorage.getItem("bp:intro:v1")).toBe("1");
+      first.unmount();
+
+      wrap(<BlockPartyGame />);
+      await waitFor(() => expect(screen.getByRole("grid")).toBeTruthy());
+      expect(screen.queryByRole("region", { name: /how to play/i })).toBeNull();
+    });
+
+    it("uses plain language on the page, keeping the lab flavour to the kicker", async () => {
+      wrap(<BlockPartyGame />);
+      await waitFor(() => expect(screen.getByRole("grid")).toBeTruthy());
+      expect(screen.getByText(/equal numbers merge and add to your score/i)).toBeTruthy();
+      expect(screen.queryByText(/route matching signals/i)).toBeNull();
+      expect(screen.queryByText(/nodes fuse/i)).toBeNull();
+      expect(screen.getByText(/signal lab/i)).toBeTruthy();
+    });
+  });
 });
+
+function cells(): string[] {
+  return Array.from(screen.getByRole("grid").querySelectorAll('[role="gridcell"]')).map(
+    (el) => el.getAttribute("aria-label") ?? "",
+  );
+}
+
+function openingCells(seed: number): string[] {
+  const board = initGame(seed, "standard").board;
+  return board.map((v, i) => `Row ${Math.floor(i / 4) + 1}, column ${(i % 4) + 1}, ${v === 0 ? "empty" : v}`);
+}
+
+/** Press arrows on the board until one changes it. */
+function playOneMove(): void {
+  const grid = screen.getByRole("grid");
+  const before = cells().join("|");
+  for (const key of ["ArrowLeft", "ArrowUp", "ArrowRight", "ArrowDown"]) {
+    fireEvent.keyDown(grid, { key });
+    if (cells().join("|") !== before) return;
+  }
+  throw new Error("no direction changed the board");
+}
+
+function legalLog(seed: number, n: number): string {
+  let g = initGame(seed, "standard");
+  let log = "";
+  const dirs: Move[] = ["L", "U", "R", "D"];
+  for (let i = 0; log.length < n && i < n * 8 && !g.over; i++) {
+    const next = step(g, dirs[i % 4]);
+    if (next !== g) { g = next; log += dirs[i % 4]; }
+  }
+  return log;
+}

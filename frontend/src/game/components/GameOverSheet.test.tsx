@@ -45,7 +45,7 @@ describe("GameOverSheet", () => {
     await waitFor(() => expect(submit).toHaveBeenCalledTimes(1));
     expect(submit).toHaveBeenCalledWith(token, baseProps.date, baseProps.moveLog); // token, date, moveLog — no score arg
     await screen.findByText(/88%/);
-    expect(screen.getByText(/first verified replay today/i)).toBeTruthy();
+    expect(screen.getByText(/first verified run today/i)).toBeTruthy();
   });
 
   it("Share button actually shares: falls back to clipboard with the real result text", async () => {
@@ -87,7 +87,7 @@ describe("GameOverSheet", () => {
 
     expect(await screen.findByRole("alert")).toHaveTextContent(/couldn't verify this replay/i);
     fireEvent.click(screen.getByRole("button", { name: /retry verification/i }));
-    expect(await screen.findByText(/replay verified/i)).toBeTruthy();
+    expect(await screen.findByText(/score verified/i)).toBeTruthy();
     expect(submit).toHaveBeenCalledTimes(2);
     expect(submit).toHaveBeenLastCalledWith(token, baseProps.date, baseProps.moveLog);
   });

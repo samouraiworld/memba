@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Code, ConnectError } from "@connectrpc/connect";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAdena } from "../hooks/useAdena";
 import { useAuth } from "../hooks/useAuth";
 import { useTabListKeyboard } from "../hooks/useTabListKeyboard";
@@ -16,11 +17,17 @@ import { SeedProof } from "../game/components/SeedProof";
 import { ShareCard } from "../game/components/ShareCard";
 import { DailyLeaderboardPanel } from "../game/components/DailyLeaderboardPanel";
 import { StreakBadge } from "../game/components/StreakBadge";
+import { FirstRunIntro } from "../game/components/FirstRunIntro";
+import { NextBoardCountdown } from "../game/components/NextBoardCountdown";
 import { getLocalBest, getLocalStreak } from "../game/lib/localStore";
+import { clearRun, loadRun, saveRun } from "../game/lib/runStore";
+import { haptic, HAPTIC_GAME_OVER, HAPTIC_MERGE } from "../game/lib/haptics";
 import { seedScoreCeiling, type Modifier } from "../game/engine";
 import "./blockparty.css";
 
-const HINT_KEY = "bp:hinted";
+// First-visit intro, shown once per browser. Versioned: the pre-mainnet
+// "bp:hinted" arrow hint did not explain Daily vs Practice.
+const INTRO_KEY = "bp:intro:v1";
 
 // Mode tabs in display order — shared by the tablist markup and the keyboard hook.
 const MODE_TAB_KEYS = ["ranked", "practice"] as const;
@@ -37,6 +44,15 @@ function bytesToBase64(bytes: Uint8Array): string {
 
 function randomSeed(): number {
   return crypto.getRandomValues(new Uint32Array(1))[0];
+}
+
+/** Undo shortcut: `U`, or Ctrl/Cmd+Z. Never while typing in a field. */
+function isUndoKey(e: KeyboardEvent): boolean {
+  const t = e.target;
+  if (t instanceof HTMLElement && (t.isContentEditable || t.closest("input, select, textarea"))) return false;
+  if (e.altKey || e.shiftKey) return false;
+  if (e.ctrlKey || e.metaKey) return e.key === "z" || e.key === "Z";
+  return e.key === "u" || e.key === "U";
 }
 
 function utcDate(now = new Date()): string {
@@ -65,6 +81,7 @@ export default function BlockPartyGame() {
   const adena = useAdena();
   const auth = useAuth();
   const network = useNetwork();
+  const queryClient = useQueryClient();
   const today = useUtcDate();
   const {
     data: challenge,
@@ -96,8 +113,8 @@ export default function BlockPartyGame() {
     onSelect: selectMode,
     idFor: (k) => `bp-mode-tab-${k}`,
   });
-  const [hinted, setHinted] = useState(true); // default true (hidden) until effect confirms first-session
-  const [showHint, setShowHint] = useState(false);
+  const [introSeen, setIntroSeen] = useState(true); // default true (hidden) until effect confirms first visit
+  const [showIntro, setShowIntro] = useState(false);
   const [authError, setAuthError] = useState<string | null>(null);
   const authBusyRef = useRef(false);
 
@@ -112,30 +129,30 @@ export default function BlockPartyGame() {
     };
   }, []);
 
-  // First-session ghost-swipe hint: read localStorage only in an effect.
+  // First-visit intro: read localStorage only in an effect.
   useEffect(() => {
     let seen = true;
     try {
-      seen = localStorage.getItem(HINT_KEY) === "1";
+      seen = localStorage.getItem(INTRO_KEY) === "1";
     } catch {
-      /* localStorage unavailable — don't show the hint */
+      /* localStorage unavailable — don't show the intro */
     }
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: localStorage is only readable in an effect, gates first-session hint
-    setHinted(seen);
-    setShowHint(!seen);
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- intentional: localStorage is only readable in an effect, gates the first-visit intro
+    setIntroSeen(seen);
+    setShowIntro(!seen);
   }, []);
 
-  const dismissHint = useCallback(() => {
-    setShowHint(false);
-    if (!hinted) {
+  const dismissIntro = useCallback(() => {
+    setShowIntro(false);
+    if (!introSeen) {
       try {
-        localStorage.setItem(HINT_KEY, "1");
+        localStorage.setItem(INTRO_KEY, "1");
       } catch {
         /* no-op */
       }
-      setHinted(true);
+      setIntroSeen(true);
     }
-  }, [hinted]);
+  }, [introSeen]);
 
   const ranked = mode === "ranked";
   const seed = ranked ? (challenge?.seed ?? 0) : practiceSeed;
@@ -160,7 +177,7 @@ export default function BlockPartyGame() {
     ? challenge.par
     : undefined;
 
-  const { board, score, movesLeft, over, moveLog, play, restart } = useGame({
+  const { board, score, movesLeft, over, moveLog, roundSeed, roundModifier, canUndo, play, restart, undo } = useGame({
     seed,
     modifier,
     mode,
@@ -170,27 +187,71 @@ export default function BlockPartyGame() {
   // A locked Daily board has no budget to show — "0 remaining" reads as spent.
   const shownMovesLeft = ranked && !canPlayRanked ? Infinity : movesLeft;
 
+  const chainId = network.chainId;
+  const dailyKey = challenge?.ready
+    ? `daily:${chainId}:${challenge.date}:${challenge.seed}:${challenge.modifier}`
+    : null;
   const appliedRound = useRef<string | null>(null);
   useEffect(() => {
-    const key = ranked
-      ? (challenge?.ready ? `daily:${challenge.date}:${challenge.seed}:${challenge.modifier}` : null)
-      : `practice:${practiceSeed}:${practiceModifier}`;
+    const key = ranked ? dailyKey : `practice:${practiceSeed}:${practiceModifier}`;
     if (key && appliedRound.current !== key) {
       appliedRound.current = key;
-      restart(seed);
+      // A Daily run in progress (or finished but not yet posted) survives a
+      // refresh or a trip to Practice: reloading must never deal a fresh try.
+      const saved = ranked && challenge?.ready
+        ? loadRun(chainId, { date: challenge.date, seed: challenge.seed, modifier: challenge.modifier })
+        : null;
+      if (!restart(seed, saved ?? "") && challenge?.ready) clearRun(chainId, challenge.date);
     }
-  }, [ranked, challenge, practiceSeed, practiceModifier, restart, seed]);
+  }, [ranked, dailyKey, chainId, challenge, practiceSeed, practiceModifier, restart, seed]);
+
+  // Persist every accepted Daily move. Only once the hook holds the round for
+  // THIS challenge — in the commit that restores it, the previous round's log
+  // is still rendered and must not overwrite the saved one.
+  useEffect(() => {
+    if (!ranked || !canPlayRanked || !challenge?.ready || appliedRound.current !== dailyKey) return;
+    if (roundSeed !== challenge.seed || roundModifier !== challenge.modifier) return;
+    saveRun(chainId, { date: challenge.date, seed: challenge.seed, modifier: challenge.modifier }, moveLog);
+  }, [ranked, canPlayRanked, challenge, dailyKey, chainId, roundSeed, roundModifier, moveLog]);
+
+  // Haptics only for a move just played — not for a restored or restarted board.
+  const hapticPrev = useRef({ log: moveLog, score, seed: roundSeed });
+  useEffect(() => {
+    const prev = hapticPrev.current;
+    hapticPrev.current = { log: moveLog, score, seed: roundSeed };
+    if (roundSeed !== prev.seed || moveLog.length !== prev.log.length + 1 || !moveLog.startsWith(prev.log)) return;
+    if (over) haptic(HAPTIC_GAME_OVER);
+    else if (score > prev.score) haptic(HAPTIC_MERGE);
+  }, [moveLog, score, over, roundSeed]);
 
   const onMove = useCallback(
     (m: Parameters<typeof play>[0]) => {
       if (ranked && !canPlayRanked) return;
-      dismissHint();
+      dismissIntro();
       play(m);
     },
-    [ranked, canPlayRanked, dismissHint, play]
+    [ranked, canPlayRanked, dismissIntro, play]
   );
 
   useKeyboard(onMove, !over && (ranked ? canPlayRanked : true));
+
+  // Practice-only undo. Ranked never registers the shortcut.
+  useEffect(() => {
+    if (ranked) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (!isUndoKey(e)) return;
+      e.preventDefault();
+      undo();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [ranked, undo]);
+
+  const refreshAfterVerify = useCallback(() => {
+    void queryClient.invalidateQueries({ queryKey: ["bp", "leaderboard"] });
+    void queryClient.invalidateQueries({ queryKey: ["bp", "streak"] });
+  }, [queryClient]);
+  const you = auth.address || (adena.connected ? adena.address : "") || undefined;
 
   // ── Auth bridge: same challenge-response pattern as components/layout/Layout.tsx ──
   const authenticate = useCallback(async () => {
@@ -276,7 +337,7 @@ export default function BlockPartyGame() {
         <div className="k-bp-header-row">
           <div>
             <h1 className="k-bp-title">Block Party</h1>
-            <p className="k-bp-date">{ranked ? `${date} · resets 00:00 UTC` : "Practice · unranked sandbox"}</p>
+            <p className="k-bp-date">{ranked ? `${date} · resets 00:00 UTC` : "Practice · not ranked · no move limit"}</p>
           </div>
           <ModifierBadge modifier={modifier} />
         </div>
@@ -302,7 +363,7 @@ export default function BlockPartyGame() {
         <section className="k-bp-play" aria-label={ranked ? "Daily game" : "Practice game"}>
           <div className="k-bp-mission">
             <span className="k-bp-mission-mark" aria-hidden="true">⌁</span>
-            <p><strong>Route matching signals.</strong> Equal nodes fuse; every accepted move emits one new signal.</p>
+            <p><strong>Slide the tiles.</strong> Equal numbers merge and add to your score.</p>
             <span>{ranked ? `${challenge?.moveBudget ?? "—"} moves` : "No move limit"}</span>
           </div>
 
@@ -365,17 +426,27 @@ export default function BlockPartyGame() {
             </p>
           )}
 
+          {showIntro && (!ranked || canPlayRanked) && <FirstRunIntro onDismiss={dismissIntro} />}
+
           <div className={`k-bp-board-wrap ${ranked && !canPlayRanked ? "k-bp-board-wrap--locked" : ""}`}>
             <Board board={board} moveLog={moveLog} onMove={onMove} disabled={ranked && !canPlayRanked} />
-            {showHint && (!ranked || canPlayRanked) && (
-              <div className="k-bp-hint" aria-hidden="true">
-                <span className="k-bp-hint-arrows">← ↑ → ↓</span>
-                <span className="k-bp-hint-label">Swipe or use arrow keys</span>
-              </div>
-            )}
           </div>
 
           <ScoreBar score={score} par={reachablePar} movesLeft={shownMovesLeft} />
+          {!ranked && (
+            <div className="k-bp-tools">
+              <button
+                type="button"
+                className="k-bp-btn k-bp-undo"
+                onClick={undo}
+                disabled={!canUndo}
+                aria-keyshortcuts="U Control+Z Meta+Z"
+              >
+                <span aria-hidden="true">↶</span> Undo
+              </button>
+              <span className="k-bp-tools-note">Practice only · press U</span>
+            </div>
+          )}
           {ranked && challenge?.ready && reachablePar == null && (
             <p className="k-bp-target-note">Target hidden: the legacy value exceeds this board's mathematical score ceiling.</p>
           )}
@@ -392,6 +463,7 @@ export default function BlockPartyGame() {
                 modifier={modifier}
                 wallet={walletForSheet}
                 auth={authForSheet}
+                onVerified={refreshAfterVerify}
               />
               {authError && <p className="k-bp-error" role="alert">{authError}</p>}
             </>
@@ -399,20 +471,27 @@ export default function BlockPartyGame() {
 
           {over && !ranked && (
             <div className="k-bp-over" role="dialog" aria-label="Practice round complete">
-              <span className="k-bp-over-kicker">Sandbox complete</span>
-              <h2 className="k-bp-over-title">Practice result</h2>
-              <p className="k-bp-over-score">{score.toLocaleString()}</p>
-              <p className="k-bp-over-note">Local best: {getLocalBest("practice").toLocaleString()}</p>
+              <span className="k-bp-over-kicker">Practice · not ranked</span>
+              <h2 className="k-bp-over-title">No moves left</h2>
+              <p className="k-bp-over-score"><span className="sr-only">Final score </span>{score.toLocaleString()}</p>
+              <p className="k-bp-over-note">Your best practice score: {Math.max(score, getLocalBest("practice")).toLocaleString()}</p>
               <ShareCard kind="practice" date={date} board={board} streak={getLocalStreak().current} modifier={modifier} />
-              <button
-                className="k-bp-btn"
-                onClick={() => {
-                  setPracticeSeed(randomSeed());
-                  setPracticeModifier("standard");
-                }}
-              >
-                New practice board
-              </button>
+              <div className="k-bp-over-actions">
+                <button className="k-bp-btn" type="button" onClick={undo} disabled={!canUndo}>
+                  Undo last move
+                </button>
+                <button
+                  className="k-bp-btn"
+                  type="button"
+                  onClick={() => {
+                    setPracticeSeed(randomSeed());
+                    setPracticeModifier("standard");
+                  }}
+                >
+                  New practice board
+                </button>
+              </div>
+              <NextBoardCountdown />
             </div>
           )}
         </section>
@@ -420,19 +499,21 @@ export default function BlockPartyGame() {
         <aside className="k-bp-side" aria-label="Daily details">
           <div className="k-bp-rules">
             <p className="k-bp-panel-kicker">How it works</p>
-            <h2>Build the strongest signal</h2>
+            <h2>Build the biggest tile</h2>
             <ol>
-              <li>Swipe or use arrow keys to route every node.</li>
-              <li>Matching values fuse and add their result to your score.</li>
-              <li>Daily counts accepted moves and resets at 00:00 UTC.</li>
+              <li>Swipe, or press the arrow keys, to slide every tile at once.</li>
+              <li>Two tiles with the same number merge into one, and its value is added to your score.</li>
+              <li>A new tile appears after every move. The game ends when nothing can move or your moves run out.</li>
             </ol>
-            {ranked && <p>Ranked policy: one authenticated, server-verified replay per UTC day. The first accepted replay is final.</p>}
+            {ranked
+              ? <p>Daily: everyone gets the same board and the same number of moves. Sign in with your wallet and your first finished run of the day is checked and posted. A new board arrives at 00:00 UTC.</p>
+              : <p>Practice: a random board, no move limit, and undo. Nothing is posted.</p>}
           </div>
           <div className="k-bp-panels">
             {challenge?.ready && (
               <SeedProof height={challenge.blockHeight} hash={challenge.blockHash} />
             )}
-            {ranked && !featurePaused && <DailyLeaderboardPanel date={date} scope={network.chainId} />}
+            {ranked && !featurePaused && <DailyLeaderboardPanel date={date} scope={network.chainId} you={you} />}
             <StreakBadge
               address={adena.connected ? adena.address : undefined}
               localStreak={getLocalStreak().current}
