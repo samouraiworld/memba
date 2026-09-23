@@ -17,11 +17,12 @@ vi.mock("./Layout", async () => {
     const { RetiredNetworkNotice } = await import("../ui/RetiredNetworkNotice")
     return {
         Layout: () => {
-            const { pathname, search, hash } = useLocation()
+            const { pathname, search, hash, state } = useLocation()
             return (
                 <div>
                     <RetiredNetworkNotice />
                     <div data-testid="landed">{`${pathname}${search}${hash}`}</div>
+                    <div data-testid="history-state">{JSON.stringify(state ?? null)}</div>
                     <Link to="/mainnet/validators">next page</Link>
                 </div>
             )
@@ -32,7 +33,7 @@ vi.mock("./NetworkSync", () => ({ NetworkSync: () => null }))
 
 const NOTICE = "The Pearl testnet has been retired — you're now on gno.land mainnet."
 
-function renderAt(entry: string) {
+function renderAt(entry: string | { pathname: string; state: unknown }) {
     cleanup()
     render(
         <MemoryRouter initialEntries={[entry]}>
@@ -94,6 +95,18 @@ describe("NetworkGate — retired networks redirect to their successor", () => {
         expect(notice()).not.toBeNull()
         fireEvent.click(screen.getByRole("link", { name: "next page" }))
         expect(screen.getByTestId("landed").textContent).toBe("/mainnet/validators")
+        expect(notice()).toBeNull()
+    })
+
+    it("shows once per redirect: the router state is consumed, so a reload does not re-show it", () => {
+        renderAt("/pearl/validators")
+        expect(notice()).not.toBeNull()
+        // The redirect's state was replaced with a state-free entry…
+        const persisted = JSON.parse(screen.getByTestId("history-state").textContent ?? "null")
+        expect(persisted).toBeNull()
+        // …so reloading that entry (history.state restored as-is) stays quiet,
+        // even though the notice was never dismissed.
+        expect(renderAt({ pathname: "/mainnet/validators", state: persisted })).toBe("/mainnet/validators")
         expect(notice()).toBeNull()
     })
 
