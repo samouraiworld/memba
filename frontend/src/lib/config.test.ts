@@ -11,6 +11,7 @@ import {
     GNOLOVE_API_URL,
     isTrustedRpcDomain,
     networkHasRealms,
+    networkHasAllowlistedRealms,
     isRealmValidOn,
     TRUSTED_RPC_DOMAINS,
     getTelemetryRpcUrl,
@@ -519,26 +520,26 @@ describe('getTelemetryRpcUrls', () => {
 describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl + mainnet only', () => {
     it('exposes only test13, topaz, gnoland1, sapphire, pearl, and mainnet', () => {
         const keys = Object.keys(NETWORKS).sort()
-        // pearl is DEFAULT since 2026-08-27; sapphire stays selectable until
-        // its 09-09 sunset; gnoland1 (BETANET) is selectable; topaz + test13
-        // stay as hidden retired entries so old links resolve; mainnet
-        // (`gnoland-1`) is PRE-REGISTERED HIDDEN ahead of the 2026-09-11
-        // launch. See the live/dark contract blocks below.
+        // mainnet (`gnoland-1`) is the default and only visible network since
+        // 2026-09-23. pearl (retired that day, `retiredTo: "mainnet"`),
+        // sapphire, topaz, test13 and gnoland1 (BETANET) stay as hidden
+        // entries so old links and stored keys resolve. See the live/dark
+        // contract blocks below.
         expect(keys).toEqual(['gnoland1', 'mainnet', 'pearl', 'sapphire', 'test13', 'topaz'])
     })
 
-    it('mainnet is selectable but still realm-free, and NOT a testnet', () => {
-        // Un-hidden for the read-only lanes (validators, chain health, network
-        // pulse) once the chain was identity-verified and producing blocks.
-        // The realm half does NOT move with it: visibility and deployment are
-        // separate claims, and conflating them is how a lane renders fake-live.
+    it('mainnet is visible, keeps realmsDeployed false, and is NOT a testnet', () => {
+        // Visible (and the default) since the chain was identity-verified and
+        // producing blocks. Visibility and deployment are separate claims:
+        // wave 1 is live, but the realm-level gate is REALM_ALLOWLIST.mainnet
+        // (see the next cases), not `realmsDeployed`.
         expect(NETWORKS.mainnet).toBeDefined()
         expect(NETWORKS.mainnet.chainId).toBe('gnoland-1')
         expect(NETWORKS.mainnet.hidden).toBe(false)
         expect(Object.keys(VISIBLE_NETWORKS)).toContain('mainnet')
-        // ⛔ These two must NOT follow the un-hide. A visible network with no
-        // deployed realms is the intended state; the guard below pins that
-        // every realm still gates false.
+        // ⛔ `realmsDeployed` stays false because memba_dao is not on mainnet:
+        // it drives the "Memba's own realms are not here" banner for the
+        // DAO-backed surfaces. Wave-1 lanes are gated per realm instead.
         expect(NETWORKS.mainnet.realmsDeployed).toBe(false)
         expect(networkHasRealms('mainnet')).toBe(false)
         // Production chain — drives the off-production disclosures.
@@ -567,12 +568,12 @@ describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl + m
         expect(NETWORKS.mainnet.chainId).not.toBe(NETWORKS.gnoland1.chainId)
     })
 
-    it('mainnet gates EVERY realm — namespace + §126 both unresolved', () => {
-        // Two independent gates, either sufficient on its own: `samcrew` is
-        // unreachable without a GovDAO grant (r/sys/namereg/v1 admits only
-        // `nym-[a-z]{5,13}\d{3}`, so "samcrew" is ErrInvalidFormat), and §126
-        // locks ugnot transfers chain-wide so every custody lane would panic
-        // on BOTH funding and payout.
+    it('mainnet gates every realm outside wave 1 — memba_dao and the custody lanes', () => {
+        // The namespace grant and the §126 transfer lock that once gated ALL of
+        // mainnet are both resolved (samcrew resolves to its multisig; ugnot is
+        // transferable). What gates these realms now is that they are not
+        // published there, or deliberately not exposed: REALM_ALLOWLIST.mainnet
+        // lists wave 1 only.
         //
         // ANTI-VACUITY: isRealmValidOn returns false for any unlisted string,
         // so asserting `false` on a typo'd path passes for the wrong reason
@@ -581,8 +582,8 @@ describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl + m
         // real, currently-allowlisted realm, which is what makes the `false`
         // on mainnet mean "gated" rather than "unknown string".
         //
-        // The three custody realms are included deliberately: they are exactly
-        // the lanes §126 would break.
+        // The three custody realms are included deliberately: funds-custody
+        // lanes must stay gated until they are deployed and reviewed.
         const realPearlRealms = [
             'gno.land/r/samcrew/memba_dao',
             'gno.land/r/samcrew/escrow_v3',
@@ -593,10 +594,10 @@ describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl + m
             expect(isRealmValidOn('pearl', realmPath), `${realmPath} must be live on pearl for this guard to be non-vacuous`).toBe(true)
             expect(isRealmValidOn('mainnet', realmPath)).toBe(false)
         }
-        // REALM_ALLOWLIST is module-private, so "explicit empty entry" vs
-        // "absent key" is not observable from here — both fail closed since
-        // F-28. The explicit entry in config.ts states intent; this asserts
-        // the behaviour that actually protects users.
+        // …while wave 1 itself is callable, so the gate is per realm, not
+        // network-wide.
+        expect(isRealmValidOn('mainnet', 'gno.land/r/samcrew/memba_feed_v1')).toBe(true)
+        expect(networkHasAllowlistedRealms('mainnet')).toBe(true)
     })
     it('defaults to mainnet in an env-less (CI/shipped) build', () => {
         // CI runs without a .env, so DEFAULT_NETWORK exercises the fallback;

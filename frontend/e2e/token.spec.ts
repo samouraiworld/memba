@@ -23,10 +23,8 @@ test.describe('Token Dashboard', () => {
 // its 2026-07-26 retirement, which is exactly why nothing here may depend on a
 // live read). The DEFAULT network (gno.land) does NOT allowlist the factory,
 // which the last test in this block asserts (pearl served it until its
-// 2026-09-23 retirement; /pearl/ links now redirect to /mainnet/). Repointing
-// these three to the default route is worthwhile follow-up cleanup, but it
-// changes the redirect/document-load behaviour the mobile case below carefully
-// pins, so it is deliberately not bundled into a comment-only change.
+// 2026-09-23 retirement; /pearl/ links now redirect to /mainnet/), so the form
+// cases need a network whose allowlist carries it — test13.
 test.describe('Create Token Page', () => {
     test('form fields present', async ({ page }) => {
         await page.goto('/test13/create-token')
@@ -39,34 +37,23 @@ test.describe('Create Token Page', () => {
     })
 
     test('admin field visible', async ({ page }) => {
-        // Boot straight onto test13 (same reason as the 375px case below): CI has
-        // no .env, so the app defaults to pearl and this URL would render a pearl
-        // document first, then NetworkSync-reload into test13.
-        //
-        // That two-document dance used to be HARMLESS here and is now a trap. The
-        // previous comment argued 'Multisig Admin' could not go green early
-        // "because the FIRST document is the ComingSoonGate" — true only while
-        // tokenfactory_v2 was absent from the default network's REALM_ALLOWLIST.
-        // It is present (topaz since 2026-07-31, pearl since 2026-08-31), so the
-        // default-network document renders the REAL form, 'Multisig Admin' and
-        // all, and the assertion would pass without test13 ever loading — the
-        // exact false-green class #1032 hardened this test against. Seeding the
-        // key the module-load resolver reads makes it a single, unambiguous load.
-        await page.addInitScript(() => localStorage.setItem('memba_network', 'test13'))
+        // config.ts initialises from the URL first, so /test13/create-token is a
+        // single document on test13 — no storage seeding needed (the URL echo
+        // `memba_network` this used to seed is no longer read at all). And the
+        // default network (gno.land) does not allowlist tokenfactory_v2, so a
+        // default-network document shows the gate, never 'Multisig Admin': this
+        // cannot go green without test13 loading (the false-green class #1032
+        // hardened against).
         await page.goto('/test13/create-token')
         await expect(page.locator('body')).toContainText('Multisig Admin')
     })
 
     test('form at 375px — no overflow', async ({ page }) => {
-        // Boot straight onto test13 so this URL does NOT trigger a hard reload.
-        // config.ts computes its network at module load; NetworkSync reloads the
-        // whole document when the /:network param disagrees with it. CI has no
-        // .env (only .env.example is tracked), so the app defaults to pearl while
-        // this URL asks for test13 — the reload then destroys the execution
-        // context out from under a bare evaluate(). Seeding the key the same
-        // resolver reads makes it a single load. Verified: 2 document loads
-        // without this, 1 with it.
-        await page.addInitScript(() => localStorage.setItem('memba_network', 'test13'))
+        // A single document: config.ts initialises from the URL first, so
+        // NetworkSync has no mismatch to reload over and the bare evaluate()
+        // below keeps its execution context.
+        let documentLoads = 0
+        page.on('load', () => { documentLoads++ })
         await page.setViewportSize({ width: 375, height: 667 })
         await page.goto('/test13/create-token')
         // Then wait for the form before measuring: the threshold (380) is above
@@ -76,6 +63,7 @@ test.describe('Create Token Page', () => {
         await expect(page.locator('input[placeholder*="Token"]').first()).toBeVisible()
         const bodyWidth = await page.evaluate(() => document.body.scrollWidth)
         expect(bodyWidth).toBeLessThanOrEqual(380)
+        expect(documentLoads).toBe(1)
     })
 
     test('a retired /pearl factory link lands on gno.land, which honestly gates it', async ({ page }) => {
