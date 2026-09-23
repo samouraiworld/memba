@@ -40,4 +40,13 @@ describe("version-2 proposal text rules", () => {
         expect(revealInvisibleFormatting("a‮b​c\u{E0001}")).toBe("a[U+202E]b[U+200B]c[U+E0001]")
         expect(revealInvisibleFormatting("no change")).toBe("no change")
     })
+
+    it("also reveals invisible fillers and variation selectors that are not format characters", () => {
+        for (const [ch, marker] of [["\uFE0F", "[U+FE0F]"], ["\uFE00", "[U+FE00]"], ["\u{E0100}", "[U+E0100]"], ["\u{E01EF}", "[U+E01EF]"], ["\u3164", "[U+3164]"], ["\uFFA0", "[U+FFA0]"], ["\u115F", "[U+115F]"], ["\u1160", "[U+1160]"]]) {
+            expect(hasInvisibleFormatting(`a${ch}b`), marker).toBe(true)
+            expect(revealInvisibleFormatting(`a${ch}b`)).toBe(`a${marker}b`)
+        }
+        // The realm's title rule refuses only format characters; the form mirrors it exactly.
+        expect(v2TitleProblem("Hangul\u3164filler")).toBeNull()
+    })
 })

@@ -14,8 +14,18 @@ function isControl(cp: number): boolean {
     return cp < 0x20 || (cp >= 0x7f && cp <= 0x9f) || cp === 0x2028 || cp === 0x2029
 }
 
+/** Format characters: what the realm refuses in titles (mirrored exactly by v2TitleProblem). */
 const FORMAT_CHAR = /\p{Cf}/u
-const FORMAT_CHARS = /\p{Cf}/gu
+
+/**
+ * Characters shown as [U+XXXX] wherever chain text is displayed: format
+ * characters (zero-width, bidi controls, byte-order marks, tags), variation
+ * selectors (U+FE00–FE0F, U+E0100–E01EF, Mongolian U+180B–180D, U+180F) and
+ * the Hangul fillers (U+115F, U+1160, U+3164, U+FFA0), which all draw nothing
+ * or change a neighbour.
+ */
+const INVISIBLE_CHAR = /[\p{Cf}\p{Variation_Selector}\u115F\u1160\u3164\uFFA0]/u
+const INVISIBLE_CHARS = new RegExp(INVISIBLE_CHAR.source, "gu")
 
 /** Why the realm would refuse this title, or null. */
 export function v2TitleProblem(title: string): string | null {
@@ -45,15 +55,21 @@ export function v2CharCount(s: string): number {
 }
 
 /**
- * True when the text holds invisible formatting characters (zero-width spaces,
- * bidirectional controls, byte-order marks). The realm accepts them in
- * descriptions; they can make text read differently from what it contains.
+ * True when the text holds invisible characters (zero-width spaces,
+ * bidirectional controls, byte-order marks, variation selectors, fillers). The
+ * realm accepts them in descriptions; they can make text read differently from
+ * what it contains.
  */
 export function hasInvisibleFormatting(s: string): boolean {
-    return FORMAT_CHAR.test(s)
+    return INVISIBLE_CHAR.test(s)
 }
 
-/** Replace each invisible formatting character with a visible `[U+XXXX]` marker. */
+/** Remove every invisible character (for recognising an address split by one). */
+export function stripInvisibleFormatting(s: string): string {
+    return s.replace(INVISIBLE_CHARS, "")
+}
+
+/** Replace each invisible character with a visible `[U+XXXX]` marker. */
 export function revealInvisibleFormatting(s: string): string {
-    return s.replace(FORMAT_CHARS, (ch) => `[U+${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}]`)
+    return s.replace(INVISIBLE_CHARS, (ch) => `[U+${ch.codePointAt(0)!.toString(16).toUpperCase().padStart(4, "0")}]`)
 }
