@@ -297,7 +297,10 @@ for (const theme of ['dark', 'light'] as const) {
 }
 
 test('discovery drawer keyboard interaction', async ({ page }) => {
-    await page.goto('/mainnet/directory')
+    // Needs a curated package card, and mainnet lists no historical seed
+    // packages (directorySeeds). Pearl served this until its 2026-09-23
+    // retirement; test13 is hidden but still resolves by URL with the seeds.
+    await page.goto('/test13/directory')
     const trigger = page.getByRole('button', { name: 'View GRC20 source', exact: true })
     await trigger.focus()
     await page.keyboard.press('Enter')
