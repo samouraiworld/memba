@@ -30,6 +30,10 @@ Full changelogs are split by version range for easier navigation:
 - Tiles now slide to their new cells, fuse with a short pulse, and new signals pop in once the slide lands; fast play never waits on an animation.
 - Every tile value from 2 to 2048 has its own colour, readable in both light and dark themes.
 - The score counts up after each fusion with a brief "+N" gain; all motion switches off when the device asks for reduced motion.
+### Space Invaders results and sharing (2026-09-23)
+- Turn the Space Invaders game-over sheet into a results card: the final score counts up, and the card shows wave, accuracy, best chain, remaining relays and where your points came from.
+- Mark a new personal best when a run beats your previous best score.
+- Share a daily or free-play result in one tap, through your device's share sheet or copied to the clipboard.
 
 ### Games ready for mainnet (2026-09-23)
 - Drop the retired Pearl testnet from Space Invaders and Block Party copy and test fixtures; both games now speak of the Gno network.

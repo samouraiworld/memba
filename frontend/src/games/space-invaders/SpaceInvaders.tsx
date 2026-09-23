@@ -20,6 +20,9 @@ import { ReadyScreen } from "./screens/ReadyScreen";
 import { PausedScreen } from "./screens/PausedScreen";
 import { GameOverScreen } from "./screens/GameOverScreen";
 import type { RunMode } from "./screens/types";
+import { prefersReducedMotion } from "./lib/motion";
+import { createChainTracker, summarizeRun, trackChain, isNewBest, type ChainTracker } from "./lib/results";
+import { shareUrlFromLocation } from "./lib/shareText";
 import "./space-invaders.css";
 
 // The on-chain certify control is a lazy chunk (it pulls in the wallet hooks),
@@ -44,10 +47,12 @@ interface DailyOutcome {
   verified: boolean;
 }
 
-function prefersReducedMotion(): boolean {
-  return typeof window !== "undefined" && typeof window.matchMedia === "function"
-    ? window.matchMedia("(prefers-reduced-motion: reduce)").matches
-    : false;
+// Snapshotted at the gameover transition for the results card: the stored
+// best as it stood BEFORE this run was saved (so a new best can be told
+// apart from a tie with itself), and the longest no-miss chain of the run.
+interface RunResult {
+  previousBest: number;
+  bestChain: number;
 }
 
 export default function SpaceInvaders({
@@ -83,6 +88,10 @@ export default function SpaceInvaders({
   const [runArmed, setRunArmed] = useState(() => initialState?.phase != null && initialState.phase !== "ready");
   const [dailyDay, setDailyDay] = useState("");
   const [dailyOutcome, setDailyOutcome] = useState<DailyOutcome | null>(null);
+  const [runResult, setRunResult] = useState<RunResult | null>(null);
+  // Cosmetic chain tracking from step events (the engine keeps only the live
+  // combo). Presentation-only: never read by the simulation or the recorder.
+  const chainRef = useRef<ChainTracker>(createChainTracker(initialState?.combo));
   const modeRef = useRef<RunMode>("free");
   const runArmedRef = useRef(initialState?.phase != null && initialState.phase !== "ready");
   const dailySeedStrRef = useRef("");
@@ -247,6 +256,7 @@ export default function SpaceInvaders({
           const { state: next, events } = advanceWithEvents(prev, steps, engineInput);
           stateRef.current = next;
           fxConsume(fxRef.current, events);
+          chainRef.current = trackChain(chainRef.current, events);
           for (const s of soundsForEvents(events)) audioRef.current?.play(s);
           if (events.some((e) => e.type === "playerHit")) vibrate(40);
           else if (events.some((e) => e.type === "waveCleared")) vibrate([15, 30, 15]);
@@ -259,7 +269,9 @@ export default function SpaceInvaders({
           }
           // Persist the high score exactly on the transition into game over.
           if (next.phase === "gameover" && prev.phase !== "gameover") {
+            const previousBest = loadBest();
             setBest(saveBest(next.score));
+            setRunResult({ previousBest, bestChain: chainRef.current.best });
             vibrate(120);
             finishDailyRun(next);
           }
@@ -309,6 +321,8 @@ export default function SpaceInvaders({
     runArmedRef.current = true;
     setRunArmed(true);
     setDailyOutcome(null);
+    setRunResult(null);
+    chainRef.current = createChainTracker();
     seedRef.current = nextSeed;
     const fresh = newGame(nextSeed);
     stateRef.current = fresh;
@@ -338,6 +352,8 @@ export default function SpaceInvaders({
     setRunArmed(false);
     setDailyDay("");
     setDailyOutcome(null);
+    setRunResult(null);
+    chainRef.current = createChainTracker();
     setState(fresh);
   };
 
@@ -369,7 +385,7 @@ export default function SpaceInvaders({
     : state.phase === "paused"
       ? "Signal held. Game paused."
       : state.phase === "gameover"
-        ? `Signal lost. Final score ${state.score}.`
+        ? `Signal lost. Final score ${state.score}.${runResult && isNewBest(state.score, runResult.previousBest) ? " New best." : ""}`
         : runArmed
           ? `${mode === "daily" ? "Daily signal" : "Free signal"} armed. Use movement or fire to begin.`
           : "Choose daily run or free play.";
@@ -457,8 +473,12 @@ export default function SpaceInvaders({
             {state.phase === "gameover" && (
               <GameOverScreen
                 mode={mode}
-                score={state.score}
+                day={dailyDay}
+                summary={summarizeRun(state, runResult?.bestChain)}
                 best={best}
+                previousBest={runResult?.previousBest ?? null}
+                shareUrl={shareUrlFromLocation(typeof window !== "undefined" ? window.location : undefined)}
+                reducedMotion={reducedMotion}
                 verification={dailyOutcome ? { day: dailyOutcome.day, verified: dailyOutcome.verified } : null}
                 certifySlot={certifyOn && mode === "daily" && dailyOutcome?.verified ? (
                   <Suspense fallback={null}>

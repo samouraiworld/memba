@@ -90,6 +90,33 @@
 .si-mode-row { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; }
 .si-certify { display: flex; margin-top: 10px; flex-direction: column; align-items: center; gap: 4px; }
 
+/* Results card. The overlay top-aligns and the card centres itself with auto
+   margins, so a tall card on a short stage scrolls instead of clipping its
+   head (plain centring would cut the top off an overflowing flex column). */
+.si-gameover { justify-content: flex-start; }
+.si-result-card { display: flex; width: min(100%, 380px); margin-block: auto; flex-direction: column; align-items: center; }
+.si-new-best { display: inline-flex; align-items: center; gap: 6px; margin: 0 0 8px; padding: 4px 11px; border: 1px solid color-mix(in srgb, var(--si-gold) 60%, transparent); border-radius: var(--radius-full); background: color-mix(in srgb, var(--si-gold) 14%, transparent); color: var(--si-gold); box-shadow: 0 0 22px -6px var(--si-gold); font-family: var(--font-mono); font-size: .68rem; font-weight: 800; letter-spacing: .2em; text-transform: uppercase; animation: si-best-pulse 1.6s ease-in-out 3; }
+.si-gameover--best .si-result-score strong { text-shadow: 0 0 18px color-mix(in srgb, var(--si-gold) 55%, transparent); }
+.si-result-score strong { font-variant-numeric: tabular-nums; }
+.si-result-stats { display: grid; width: 100%; grid-template-columns: repeat(4, minmax(0, 1fr)); margin: 0 0 8px; overflow: hidden; border: 1px solid color-mix(in srgb, var(--si-mint) 24%, transparent); border-radius: 10px; background: color-mix(in srgb, var(--si-ink) 55%, transparent); }
+.si-result-stats > div { display: flex; min-width: 0; padding: 7px 4px; flex-direction: column; align-items: center; border-right: 1px solid color-mix(in srgb, var(--si-mint) 14%, transparent); }
+.si-result-stats > div:last-child { border-right: 0; }
+.si-result-stats dt { overflow: hidden; max-width: 100%; color: var(--si-text-result-label); font-family: var(--font-mono); font-size: .52rem; font-weight: 700; letter-spacing: .1em; text-overflow: ellipsis; text-transform: uppercase; white-space: nowrap; }
+.si-result-stats dd { margin: 2px 0 0; color: var(--si-text-strong); font-family: var(--font-mono); font-size: .95rem; font-variant-numeric: tabular-nums; font-weight: 700; }
+.si-result-stats dd small { color: var(--si-magenta); font-size: .62rem; }
+.si-result-breakdown { display: flex; flex-wrap: wrap; justify-content: center; gap: 2px 12px; margin: 0 0 12px; color: var(--si-text-result); font-family: var(--font-mono); font-size: .6rem; }
+.si-result-breakdown > div { display: flex; gap: 4px; }
+.si-result-breakdown dt { letter-spacing: .06em; text-transform: uppercase; }
+.si-result-breakdown dd { margin: 0; color: var(--si-text-overlay); font-variant-numeric: tabular-nums; }
+.si-share-status { min-height: 1.2em; margin: 6px 0 0; color: var(--si-mint); font-family: var(--font-mono); font-size: .66rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+.si-share-fallback { width: 100%; margin-top: 4px; color: var(--si-text-overlay-muted); font-size: .68rem; }
+.si-share-fallback p { margin: 0 0 4px; }
+.si-share-fallback pre { margin: 0; padding: 8px; border: 1px dashed color-mix(in srgb, var(--si-mint) 35%, transparent); border-radius: 8px; color: var(--si-text-overlay); font-family: var(--font-mono); font-size: .64rem; text-align: left; white-space: pre-wrap; word-break: break-all; user-select: text; }
+@keyframes si-best-pulse {
+  0%, 100% { box-shadow: 0 0 22px -6px var(--si-gold); transform: scale(1); }
+  50% { box-shadow: 0 0 30px -2px var(--si-gold); transform: scale(1.06); }
+}
+
 .si-brief { display: grid; gap: 10px; }
 .si-brief-card { padding: 15px; border: 1px solid var(--color-k-edge); border-radius: 12px; background: var(--color-k-panel); }
 .si-brief-card--status { border-color: color-mix(in srgb, var(--color-k-accent) 35%, var(--color-k-edge)); background: linear-gradient(135deg, color-mix(in srgb, var(--color-k-accent) 10%, var(--color-k-panel)), var(--color-k-panel)); }
@@ -130,6 +157,12 @@
   .si-overlay h2 { margin-bottom: 7px; }
   .si-mode-stack { gap: 7px; margin-top: 13px; }
   .si-mode-button { min-height: 54px; }
+  .si-gameover h2 { margin-block: 2px 6px; }
+  .si-result-score strong { font-size: clamp(1.8rem, 10vw, 2.6rem); }
+  .si-result-best { margin-bottom: 8px; }
+  .si-result-breakdown { margin-bottom: 8px; }
+  .si-verification { margin-bottom: 10px; }
+  .si-gameover .si-mode-row .si-button { padding-inline: 12px; }
   .si-brief { grid-template-columns: 1fr; }
   .si-brief-card--status { grid-column: auto; }
 }
@@ -175,4 +208,5 @@
   .si-stage::after { display: none; }
   .si-root *, .si-root *::before, .si-root *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; animation-duration: .01ms !important; animation-iteration-count: 1 !important; }
   .si-button:hover { transform: none; }
+  .si-new-best { animation: none; }
 }
