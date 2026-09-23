@@ -138,6 +138,7 @@ func TestCountCollections(t *testing.T) {
 
 func TestMaxIndexerBlock(t *testing.T) {
 	s := newTestService(t)
+	s.SetNFTIndexedRealms([]string{"r1", "r2"})
 	_, err := s.db.Exec(`INSERT INTO nft_indexer_state (realm_path, last_processed_block) VALUES ('r1', 100), ('r2', 250)`)
 	if err != nil {
 		t.Fatal(err)

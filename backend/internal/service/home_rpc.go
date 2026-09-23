@@ -336,14 +336,22 @@ func (s *MultisigService) assembleHomeSnapshot(ctx context.Context, rpcURL strin
 		snap.Counts.Collections = collections
 	}
 
-	// DB source: highest block seen by the NFT indexer.
-	if indexerBlockErr != nil {
+	// DB source: highest block seen by the NFT indexer. Realm paths are reused
+	// across chains, so a cursor above this chain's head was written against
+	// another chain (a cutover without an NFT reset): drop it, flag stale.
+	switch {
+	case indexerBlockErr != nil:
 		snap.StaleSources = append(snap.StaleSources, "indexer_block")
-	} else {
+	case snap.Network != nil && indexerBlock > snap.AsOfBlock:
+		slog.Warn("home snapshot: NFT indexer cursor is above the chain head; not serving it",
+			"cursor", indexerBlock, "head", snap.AsOfBlock)
+		snap.StaleSources = append(snap.StaleSources, "indexer_block")
+	default:
 		snap.IndexerLastBlock = indexerBlock
 	}
 
 	// On-chain source: featured DAO summary (name, open proposals, treasury).
+	// dao is nil when the realm is not deployed on this chain (field omitted).
 	if daoErr != nil {
 		snap.StaleSources = append(snap.StaleSources, "featured_dao")
 	} else {
@@ -453,11 +461,25 @@ func (s *MultisigService) countCollections(ctx context.Context) (uint32, error) 
 	return n, err
 }
 
-// maxIndexerBlock returns the highest last_processed_block across all indexed
-// realms. Returns 0 when the table is empty (MAX returns NULL on an empty set).
+// maxIndexerBlock returns the highest last_processed_block across the realms
+// the NFT tailer currently watches (SetNFTIndexedRealms). nft_indexer_state is
+// not keyed by chain and survives a chain cutover, so rows for any other realm
+// are ignored, and with the tailer off (no watched realms) it returns 0.
+// Returns 0 when no watched realm has a cursor (MAX over no rows is NULL).
 func (s *MultisigService) maxIndexerBlock(ctx context.Context) (int64, error) {
+	if len(s.nftIndexedRealms) == 0 {
+		return 0, nil
+	}
+	args := make([]any, len(s.nftIndexedRealms))
+	for i, r := range s.nftIndexedRealms {
+		args[i] = r
+	}
+	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(args)), ",")
 	var b sql.NullInt64
-	err := s.db.QueryRowContext(ctx, `SELECT MAX(last_processed_block) FROM nft_indexer_state`).Scan(&b)
+	// #nosec G202 -- only "?" placeholders are concatenated; values are bound.
+	err := s.db.QueryRowContext(ctx,
+		`SELECT MAX(last_processed_block) FROM nft_indexer_state WHERE realm_path IN (`+placeholders+`)`,
+		args...).Scan(&b)
 	if err != nil {
 		return 0, err
 	}
@@ -466,6 +488,8 @@ func (s *MultisigService) maxIndexerBlock(ctx context.Context) (int64, error) {
 
 // featuredDaoRealmPath returns the on-chain path for the featured DAO.
 // Env FEATURED_DAO_REALM overrides the default (gno.land/r/samcrew/memba_dao).
+// The realm need not exist on the served chain: fetchFeaturedDao omits the
+// featured DAO until it is deployed there.
 func featuredDaoRealmPath() string {
 	if v := os.Getenv("FEATURED_DAO_REALM"); v != "" {
 		return v
@@ -562,6 +586,12 @@ func parseUserRegistryMembers(raw string) []*membav1.DirectoryMember {
 // fetchFeaturedDao fetches the featured DAO summary from the chain.
 // Sub-parts (proposals, treasury) are best-effort: a failure degrades that field to 0/""
 // without failing the whole source.
+//
+// It returns (nil, nil) when the bare render is empty: abciQuery maps the
+// chain's "package not found" answer to "", and a deployed DAO always renders
+// at least its "# Name" heading. The featured DAO is then omitted from the
+// snapshot rather than served as a nameless entry for a realm that is not on
+// this chain.
 func (s *MultisigService) fetchFeaturedDao(ctx context.Context, rpcURL string) (*membav1.FeaturedDao, error) {
 	realmPath := featuredDaoRealmPath()
 
@@ -570,6 +600,9 @@ func (s *MultisigService) fetchFeaturedDao(ctx context.Context, rpcURL string) (
 	bareRaw, err := s.homeQuery(rpcURL, "vm/qrender", bareData)
 	if err != nil {
 		return nil, fmt.Errorf("fetchFeaturedDao bare render: %w", err)
+	}
+	if strings.TrimSpace(bareRaw) == "" {
+		return nil, nil
 	}
 
 	// Parse name from "# ..." heading (primary, reliable).

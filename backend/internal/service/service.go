@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"slices"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -64,6 +65,12 @@ type MultisigService struct {
 	// homeGroup collapses concurrent cache misses per chain_id so only one
 	// assembly (8 network/DB reads) runs at a time — the rest share its result.
 	homeGroup singleflight.Group
+
+	// nftIndexedRealms are the realms the NFT event tailer watches on this
+	// server's chain; empty when the tailer is off (NFT_INDEXER_DISABLED=1).
+	// The home snapshot reads indexer progress for these realms only, so a
+	// cursor row left in nft_indexer_state by another chain is never served.
+	nftIndexedRealms []string
 
 	// Feed stats cache (B.5) — a single global entry (the stats have no chain_id
 	// dimension), in-memory, serve-stale-on-error. feedStatsGroup collapses
@@ -195,6 +202,13 @@ func (s *MultisigService) SetBlockParty(enabled bool, seedRPC, seedChainID strin
 	if seedChainID != "" {
 		s.blockPartySeedChainID = seedChainID
 	}
+}
+
+// SetNFTIndexedRealms records the realms the NFT event tailer watches. Wired
+// in production (cmd/memba) only when the tailer runs; left empty otherwise,
+// which makes the home snapshot report no NFT indexer progress.
+func (s *MultisigService) SetNFTIndexedRealms(realms []string) {
+	s.nftIndexedRealms = slices.Clone(realms)
 }
 
 // blockPartyFetcher returns the httpBlockFetcher configured for this service,

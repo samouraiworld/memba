@@ -319,9 +319,14 @@ func main() {
 	// GnoEvents from the NFT realms, and writes normalized listings/sales/offers/
 	// ownership. This is the source of truth for floor, activity and portfolio.
 	if !nftDisabled {
+		nftWatchedRealms := splitOrigins(envOr("NFT_WATCHED_REALMS", defaultNFTWatchedRealms(marketRealm, collectionRealm)))
+		// The home snapshot reports indexer progress for these realms only;
+		// with the tailer off it reports none (leftover cursor rows are not
+		// this chain's progress).
+		svc.SetNFTIndexedRealms(nftWatchedRealms)
 		indexer.StartNFTTailer(ctx, database, indexer.TailerConfig{
 			RPCURL:           nftRPCURL,
-			WatchedRealms:    splitOrigins(envOr("NFT_WATCHED_REALMS", defaultNFTWatchedRealms(marketRealm, collectionRealm))),
+			WatchedRealms:    nftWatchedRealms,
 			SaleVolumeRealms: splitOrigins(envOr("NFT_SALE_VOLUME_REALMS", defaultNFTSaleVolumeRealms())),
 			StartBlock:       int64Or("NFT_START_BLOCK", defaultNFTStartBlock),
 			Confirmations:    int64Or("NFT_CONFIRMATIONS", 5),

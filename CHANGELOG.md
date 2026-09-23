@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Home snapshot follows the current chain (2026-09-23)
+- Report NFT indexer progress only for the realms the indexer watches on the current chain, and none while it is switched off, so a cursor left over from the previous chain no longer shows as the indexed height.
+- Drop any indexer height above the current chain head instead of serving it, and flag that source as stale.
+- Leave the featured DAO out of the home snapshot until its realm is deployed on the current chain, instead of returning an empty entry that points at a missing realm.
+
 ### Space Invaders controls and feel (2026-09-23)
 - Play with A/D and W (or ZQSD on AZERTY) as well as the arrows and Space; Esc pauses, and Enter starts a run or plays again.
 - Keep Score and Best readable up to 999,999 on every screen size, with a faint steer/fire guide and a larger pause button on touch screens.
