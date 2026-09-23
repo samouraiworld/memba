@@ -16,8 +16,11 @@ export function GameOverSheet(props: {
   wallet: WalletLike; auth: AuthLike;
   /** Called once the server has verified the replay (e.g. to refresh the leaderboard). */
   onVerified?: () => void;
+  /** False for a finished run restored from this device: whoever is signed in
+   *  now may not be who played it, so posting waits for an explicit click. */
+  autoSubmit?: boolean;
 }) {
-  const { date, score, moveLog, wallet, auth, onVerified } = props;
+  const { date, score, moveLog, wallet, auth, onVerified, autoSubmit = true } = props;
   const [result, setResult] = useState<{ percentile: number; streak: number } | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [err, setErr] = useState<{ message: string; retryable: boolean } | null>(null);
@@ -70,9 +73,11 @@ export function GameOverSheet(props: {
 
   // Auto-submit the exact replay once when an authenticated round completes.
   useEffect(() => {
+    if (!autoSubmit) return;
     const timer = window.setTimeout(() => void submitScore(), 0);
     return () => window.clearTimeout(timer);
-  }, [submitScore]);
+  }, [autoSubmit, submitScore]);
+  const awaitingManualPost = !autoSubmit && auth.isAuthenticated && !result && !submitting && !err;
 
   const hasTarget = props.par != null && Number.isFinite(props.par);
   const parDelta = hasTarget ? score - props.par! : null;
@@ -127,6 +132,15 @@ export function GameOverSheet(props: {
         streak={result?.streak ?? localStreak}
         percentile={result?.percentile}
       />
+
+      {awaitingManualPost && (
+        <div className="k-bp-over-post">
+          <button className="k-bp-btn k-bp-btn--accent" type="button" onClick={() => void submitScore()}>
+            Post this run
+          </button>
+          <p className="k-bp-over-note">This run was restored from this device. Post it only if you played it.</p>
+        </div>
+      )}
 
       {auth.isAuthenticated && (
         <p className="k-bp-over-policy">

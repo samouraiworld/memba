@@ -48,6 +48,28 @@ describe("GameOverSheet", () => {
     expect(screen.getByText(/first verified run today/i)).toBeTruthy();
   });
 
+  it("a restored finished run is never auto-posted: it waits for an explicit Post click", async () => {
+    const submit = vi.mocked(gameApi.submitScore);
+    submit.mockResolvedValue(
+      create(SubmitScoreResponseSchema, {
+        score: 1200n,
+        percentile: 50,
+        par: 1500n,
+        streak: { current: 1, longest: 1, freezesRemaining: 1 },
+      }),
+    );
+    const token = create(TokenSchema, { nonce: "n", userAddress: "g1me", expiration: "", serverSignature: "s" });
+    render(<GameOverSheet {...baseProps} autoSubmit={false}
+      wallet={{ installed: true, connect: vi.fn() }}
+      auth={{ isAuthenticated: true, token }} />);
+    await new Promise((r) => setTimeout(r, 20));
+    expect(submit).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("button", { name: /post this run/i }));
+    await waitFor(() => expect(submit).toHaveBeenCalledWith(token, baseProps.date, baseProps.moveLog));
+    await screen.findByText(/50%/);
+    expect(screen.queryByRole("button", { name: /post this run/i })).toBeNull();
+  });
+
   it("Share button actually shares: falls back to clipboard with the real result text", async () => {
     const originalShare = (navigator as unknown as { share?: unknown }).share;
     // Ensure navigator.share is undefined so the clipboard fallback path is taken.

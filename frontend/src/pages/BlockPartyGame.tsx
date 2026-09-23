@@ -192,6 +192,8 @@ export default function BlockPartyGame() {
     ? `daily:${chainId}:${challenge.date}:${challenge.seed}:${challenge.modifier}`
     : null;
   const appliedRound = useRef<string | null>(null);
+  // The log a Daily round was restored with; a finished restored run is not auto-posted.
+  const [restoredLog, setRestoredLog] = useState<string | null>(null);
   useEffect(() => {
     const key = ranked ? dailyKey : `practice:${practiceSeed}:${practiceModifier}`;
     if (key && appliedRound.current !== key) {
@@ -201,13 +203,15 @@ export default function BlockPartyGame() {
       const saved = ranked && challenge?.ready
         ? loadRun(chainId, { date: challenge.date, seed: challenge.seed, modifier: challenge.modifier })
         : null;
-      if (!restart(seed, saved ?? "") && challenge?.ready) clearRun(chainId, challenge.date);
+      const restored = restart(seed, saved ?? "");
+      if (!restored && challenge?.ready) clearRun(chainId, challenge.date);
+      setRestoredLog(restored && saved ? saved : null);
     }
   }, [ranked, dailyKey, chainId, challenge, practiceSeed, practiceModifier, restart, seed]);
 
-  // Persist every accepted Daily move. Only once the hook holds the round for
-  // THIS challenge — in the commit that restores it, the previous round's log
-  // is still rendered and must not overwrite the saved one.
+  // Persist every accepted Daily move, once the hook holds the round for THIS
+  // challenge. Re-entering with the challenge already in memory can briefly
+  // save the pre-restore log; the next commit rewrites the restored one.
   useEffect(() => {
     if (!ranked || !canPlayRanked || !challenge?.ready || appliedRound.current !== dailyKey) return;
     if (roundSeed !== challenge.seed || roundModifier !== challenge.modifier) return;
@@ -464,6 +468,7 @@ export default function BlockPartyGame() {
                 wallet={walletForSheet}
                 auth={authForSheet}
                 onVerified={refreshAfterVerify}
+                autoSubmit={restoredLog == null || moveLog !== restoredLog}
               />
               {authError && <p className="k-bp-error" role="alert">{authError}</p>}
             </>
