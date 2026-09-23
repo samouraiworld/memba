@@ -102,6 +102,28 @@ for (const theme of ['dark', 'light'] as const) {
     })
 }
 
+// The protected workflow above visits create-token on mainnet, where the factory
+// is not deployed and the page is the honest gate. The FORM's design review runs
+// on /test13, whose allowlist carries tokenfactory_v2 (it ran on /pearl until
+// the 2026-09-23 retirement).
+for (const theme of ['dark', 'light'] as const) {
+    for (const width of [390, 1600]) {
+        test(`create-token form design ${theme} ${width}px`, async ({ page }, info) => {
+            await page.setViewportSize({ width, height: 1000 })
+            await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' })
+            await page.goto('/test13/create-token')
+            await expect(page.locator('.k-pro-app')).toBeVisible()
+            await expect(page.locator('input[placeholder*="Token"]').first()).toBeVisible()
+            await waitForRouteSettled(page, { quietMs: 500 })
+            expect.soft(await page.locator('main').innerText()).not.toContain('Something went wrong')
+            expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 2)).toBe(true)
+            const a11y = await new AxeBuilder({ page }).include('#main-content').withRules(['color-contrast', 'button-name', 'link-name', 'label', 'nested-interactive']).analyze()
+            expect(a11y.violations.map(v => ({ id: v.id, nodes: v.nodes.map(n => ({ target: n.target, summary: n.failureSummary })) }))).toEqual([])
+            await page.screenshot({ path: info.outputPath(`create-token-form-${theme}-${width}.png`), fullPage: true })
+        })
+    }
+}
+
 // Validate populated data under the complete system as well as the standalone pilot.
 import { fulfillProValidatorRoster } from './helpers/proValidatorsFixture'
 for (const theme of ['dark', 'light'] as const) {
@@ -185,63 +207,85 @@ if (process.env.DESIGN_REVIEW_FEATURES !== 'true') {
     }
 }
 
-// Pearl (a realm-deployed testnet) was the second leg of the network-capability
-// cases below until its 2026-09-23 retirement; /pearl/ now redirects to
-// /mainnet/, so they cover the one live network. Restore a second leg when a
-// realm-deployed testnet is visible again.
-for (const width of [390, 1440]) {
-    test(`Home network capability mainnet ${width}`, async ({ page }) => {
-        await page.setViewportSize({ width, height: 900 })
-        await page.goto('/mainnet')
-        await expect(page.getByTestId('value-card-vote')).toContainText('Explore DAOs')
-        const tokenCard = page.getByTestId('value-card-launch')
-        await expect(tokenCard).toContainText('not available on this network')
-        await expect(page.getByRole('link', { name: 'MembaDAO', exact: true })).toHaveCount(0)
-        await tokenCard.click()
-        await expect(page.getByRole('heading', { name: 'Not available on this network' })).toBeVisible()
-        await expect(page.getByRole('button', { name: /Create a Token/ })).toHaveCount(0)
-        expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 2)
-    })
+// Second legs on /test13: a hidden-but-resolvable network with Memba's realm
+// allowlist (token factory, curated package seeds), so the realm-backed branch
+// of each case still runs. These legs ran on /pearl until its 2026-09-23
+// retirement (/pearl/ now redirects to /mainnet/). Every read is fulfilled or
+// stubbed; test13's own RPC has refused connections since 2026-07-26.
+for (const network of ['mainnet', 'test13'] as const) {
+    for (const width of [390, 1440]) {
+        test(`Home network capability ${network} ${width}`, async ({ page }) => {
+            await page.setViewportSize({ width, height: 900 })
+            await page.goto(`/${network}`)
+            await expect(page.getByTestId('value-card-vote')).toContainText('Explore DAOs')
+            const tokenCard = page.getByTestId('value-card-launch')
+            if (network === 'mainnet') {
+                await expect(tokenCard).toContainText('not available on this network')
+                await expect(page.getByRole('link', { name: 'MembaDAO', exact: true })).toHaveCount(0)
+                await tokenCard.click()
+                await expect(page.getByRole('heading', { name: 'Not available on this network' })).toBeVisible()
+                await expect(page.getByRole('button', { name: /Create a Token/ })).toHaveCount(0)
+            } else {
+                await expect(tokenCard).toContainText('Launch a token')
+                await tokenCard.click()
+                await expect(page.getByRole('button', { name: /Create a Token/ }).first()).toBeVisible()
+            }
+            expect(await page.evaluate(() => document.documentElement.scrollWidth)).toBeLessThanOrEqual(width + 2)
+        })
+    }
 }
 
 // C1: selected-network namespace evidence and exact search-result destinations.
 import { fulfillOnchainReads, mockAppChainStatus } from './helpers/onchain'
-test('directory provenance and navigation interaction mainnet', async ({ page }) => {
-    const chain = 'gnoland-1'
-    await fulfillOnchainReads(page, ({ method, path, arg }) => {
-        if (method === 'status') return mockAppChainStatus(chain)
-        if (path === 'vm/qrender') return `# Selected ${arg}`
-        if (path === 'vm/qfile') return arg.endsWith('/demo.gno') ? 'package boards\n// Source fixture' : 'demo.gno'
-        if (path === 'vm/qfuncs') return '[]'
-        return null
+for (const network of ['mainnet', 'test13']) {
+    test(`directory provenance and navigation interaction ${network}`, async ({ page }) => {
+        const chain = network === 'mainnet' ? 'gnoland-1' : 'test-13'
+        await fulfillOnchainReads(page, ({ method, path, arg }) => {
+            if (method === 'status') return mockAppChainStatus(chain)
+            if (path === 'vm/qrender') return `# Selected ${arg}`
+            if (path === 'vm/qfile') return arg.endsWith('/demo.gno') ? 'package boards\n// Source fixture' : 'demo.gno'
+            if (path === 'vm/qfuncs') return '[]'
+            return null
+        })
+        await page.route(/https:\/\/(gno\.land|[^/]+\.gno\.land)\/[rp]\/samcrew$/, route => route.fulfill({
+            contentType: 'text/html', body: `<meta name="gnoconnect:chainid" content="${chain}"><a href="/p/samcrew/fixture">fixture</a>`,
+        }))
+        await page.goto(`/${network}/directory`)
+        if (network === 'mainnet') {
+            // Existing CSP intentionally excludes bare gno.land. Exercise the real
+            // browser fallback; do not bypass security just to fulfill a fixture.
+            await expect(page.getByRole('button', { name: 'Retry discovery' })).toBeVisible()
+            await expect(page.getByTestId('package-card')).toHaveCount(0)
+        } else {
+            await expect(page.getByText('Namespace listings checked.', { exact: false })).toBeVisible()
+            await expect(page.getByTestId('package-card').filter({ hasText: 'fixture' })).toContainText('Namespace listing')
+        }
+        await expect(page.locator('main')).not.toContainText('Deployed at block')
+        await page.getByTestId('global-search').fill('Boards')
+        const selectedPath = network === 'mainnet' ? 'r/gnoland/boards2/v0' : 'r/gnoland/boards2/v1'
+        await page.locator('.dir-cross-item').filter({ hasText: `gno.land/${selectedPath}` }).click()
+        await expect(page).toHaveURL(new RegExp(`/${network}/directory\\?`))
+        expect(new URL(page.url()).searchParams.get('realm')).toBe(selectedPath)
+        expect(new URL(page.url()).searchParams.get('q')).toBe('Boards')
+        const explorer = page.getByTestId('explorer-root')
+        if (new URL(page.url()).searchParams.get('tab') === 'explorer') await expect(explorer.locator('.realmview__path')).toHaveText(`gno.land/${selectedPath}`)
+        else await expect(page.getByRole('dialog')).toContainText(`gno.land/${selectedPath}`)
+        await page.goBack()
+        await expect(page.getByTestId('global-search')).toHaveValue('Boards')
+        expect(new URL(page.url()).searchParams.has('realm')).toBe(false)
+        if (network === 'mainnet') return // no invented mainnet package
+        await page.getByTestId('global-search').fill('fixture')
+        await page.locator('.dir-cross-item').filter({ hasText: 'gno.land/p/samcrew/fixture' }).click()
+        if (new URL(page.url()).searchParams.get('tab') === 'explorer') {
+            await expect(explorer.getByRole('tab', { name: 'Source' })).toHaveAttribute('aria-selected', 'true')
+            await expect(explorer.getByRole('tab', { name: 'Render' })).toHaveCount(0)
+        } else {
+            await expect(page.getByRole('dialog').getByRole('tab', { name: 'Render', exact: true })).toHaveCount(0)
+        }
     })
-    await page.route(/https:\/\/(gno\.land|[^/]+\.gno\.land)\/[rp]\/samcrew$/, route => route.fulfill({
-        contentType: 'text/html', body: `<meta name="gnoconnect:chainid" content="${chain}"><a href="/p/samcrew/fixture">fixture</a>`,
-    }))
-    await page.goto('/mainnet/directory')
-    // Existing CSP intentionally excludes bare gno.land. Exercise the real
-    // browser fallback; do not bypass security just to fulfill a fixture.
-    await expect(page.getByRole('button', { name: 'Retry discovery' })).toBeVisible()
-    await expect(page.getByTestId('package-card')).toHaveCount(0)
-    await expect(page.locator('main')).not.toContainText('Deployed at block')
-    await page.getByTestId('global-search').fill('Boards')
-    const selectedPath = 'r/gnoland/boards2/v0'
-    await page.locator('.dir-cross-item').filter({ hasText: `gno.land/${selectedPath}` }).click()
-    await expect(page).toHaveURL(new RegExp('/mainnet/directory\\?'))
-    expect(new URL(page.url()).searchParams.get('realm')).toBe(selectedPath)
-    expect(new URL(page.url()).searchParams.get('q')).toBe('Boards')
-    const explorer = page.getByTestId('explorer-root')
-    if (new URL(page.url()).searchParams.get('tab') === 'explorer') await expect(explorer.locator('.realmview__path')).toHaveText(`gno.land/${selectedPath}`)
-    else await expect(page.getByRole('dialog')).toContainText(`gno.land/${selectedPath}`)
-    await page.goBack()
-    await expect(page.getByTestId('global-search')).toHaveValue('Boards')
-    expect(new URL(page.url()).searchParams.has('realm')).toBe(false)
-    // No invented mainnet package: the namespace-listing leg ran on pearl until
-    // its 2026-09-23 retirement.
-})
+}
 
-{
-    const network = 'mainnet'
+for (const network of ['mainnet', 'test13']) {
     test(`ecosystem discovery interaction ${network}`, async ({ page }) => {
         await page.goto(`/${network}/apps?availability=mainnet`)
         await expect(page.getByRole('status').filter({ hasText: 'projects found' })).toHaveText('3 projects found')
@@ -257,10 +301,11 @@ test('directory provenance and navigation interaction mainnet', async ({ page })
         await expect(page.getByRole('link', { name: 'Visit mygnoscan (opens in a new tab)' })).toHaveAttribute('href', 'https://mygnoscan.moul.p2p.team/storage?network=mainnet')
         await expect(page.getByRole('button', { name: /connect wallet/i })).toHaveCount(0)
         if (process.env.DESIGN_REVIEW_FEATURES === 'true') {
-            // The v3 registry is live on mainnet since 2026-09-23, so with the flag on it
-            // mounts (networks without an App Store realm stay closed: AppStoreGate
-            // unit tests).
-            await expect(page.getByTestId('appstore-root')).toBeVisible()
+            // With the flag on, the App Store mounts only where its v3 registry is
+            // allowlisted: mainnet since 2026-09-23. test13 allowlists no App Store
+            // realm, so it stays closed there (AppStoreGate unit tests pin the rule).
+            if (network === 'mainnet') await expect(page.getByTestId('appstore-root')).toBeVisible()
+            else await expect(page.getByTestId('appstore-root')).toHaveCount(0)
         } else {
             await expect(page.getByTestId('appstore-root')).toHaveCount(0)
             await expect(page.getByRole('link', { name: 'Submit your app', exact: true })).toHaveCount(0)
