@@ -52,6 +52,14 @@ describe("sanitizeMarkdownHtml", () => {
         expect(html).not.toMatch(/onclick|onerror|<script/i)
     })
 
+    it("treats protocol-relative, backslash and single-slash http links in raw HTML as external", () => {
+        const html = sanitizeMarkdownHtml(['<a href="//evil.com">a</a>', '<a href="/\\evil.com">b</a>', '<a href="http:/evil.com">c</a>', '<a href="/&#x09;/evil.com">d</a>'].join(""))
+        for (const link of links(html)) {
+            expect(link.getAttribute("target"), link.textContent ?? "").toBe("_blank")
+            expect(link.getAttribute("rel")).toBe("noopener noreferrer")
+        }
+    })
+
     it("does not change the shared DOMPurify instance used elsewhere", () => {
         sanitizeMarkdownHtml('<a href="https://example.com">x</a>')
         const [a] = links(DOMPurify.sanitize('<a href="https://example.com" target="_blank">x</a>'))

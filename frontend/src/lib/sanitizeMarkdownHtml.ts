@@ -7,8 +7,8 @@
  * the wallet session. This sanitizer runs on a DEDICATED DOMPurify instance so
  * its hook never affects the default instance other call sites use. After
  * sanitising attributes it:
- *   - opens absolute http(s) links in a new tab with rel="noopener noreferrer"
- *     (replacing any author-supplied target or rel);
+ *   - opens http(s) and protocol-relative ("//host", "/\\host") links in a new
+ *     tab with rel="noopener noreferrer" (replacing any author target or rel);
  *   - removes `target` from every other link, so in-app links stay in the tab.
  * Dangerous URLs (javascript:, data:, vbscript:) are still removed by DOMPurify
  * itself before the hook runs.
@@ -17,7 +17,14 @@
  */
 import DOMPurify from "dompurify"
 
-const EXTERNAL = /^https?:\/\//i
+/**
+ * Leaves the app: an http(s) scheme (browsers also read "http:/host" as a host)
+ * or a protocol-relative "//host", including backslash forms browsers treat alike.
+ */
+const EXTERNAL = /^(?:https?:|[/\\]{2})/i
+
+/** How a browser reads an href: tabs and line breaks removed, outer spaces trimmed. */
+const normaliseHref = (href: string) => href.replace(/[\t\n\r]/g, "").trim()
 
 let instance: ReturnType<typeof DOMPurify> | null = null
 
@@ -28,7 +35,7 @@ function purifier(): ReturnType<typeof DOMPurify> {
         if (node.nodeName !== "A" && node.nodeName !== "AREA") return
         const el = node as Element
         el.removeAttribute("target")
-        if (EXTERNAL.test((el.getAttribute("href") ?? "").trim())) {
+        if (EXTERNAL.test(normaliseHref(el.getAttribute("href") ?? ""))) {
             el.setAttribute("target", "_blank")
             el.setAttribute("rel", "noopener noreferrer")
         }

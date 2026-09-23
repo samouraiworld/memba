@@ -43,6 +43,15 @@ describe("markdownLite", () => {
 
     // ── XSS Safety ────────────────────────────────────────
 
+    it("blocks protocol-relative and backslash links that browsers resolve to another host", () => {
+        for (const href of ["//evil.com", "/\\evil.com", "\\\\evil.com", "\\/evil.com", "/\t/evil.com", "/\r/evil.com", " //evil.com"]) {
+            const html = renderMarkdown(`[x](${href})`)
+            expect(html, href).toContain('href="#"')
+            expect(html, href).not.toContain("evil.com")
+        }
+        expect(renderMarkdown("[home](/dao/x)")).toContain('href="/dao/x"')
+    })
+
     it("blocks javascript: protocol in links", () => {
         const html = renderMarkdown("[click](javascript:alert(1))")
         expect(html).not.toContain("javascript:")

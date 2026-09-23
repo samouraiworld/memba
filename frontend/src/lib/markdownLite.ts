@@ -28,7 +28,10 @@ function escapeHtml(str: string): string {
 
 /** Only allow safe URL protocols. Reject javascript:, data:, vbscript: etc. */
 function sanitizeUrl(href: string): string {
-    const trimmed = href.trim()
+    // Browsers drop tabs and line breaks inside a URL, and read "\" as "/":
+    // "/\t/evil.com" and "/\evil.com" both resolve to another host.
+    const trimmed = href.replace(/[\t\n\r]/g, "").trim()
+    if (/^[/\\]{2}/.test(trimmed) || trimmed.includes("\\")) return "#"
     // Allow relative paths, anchor links, gno.land paths
     if (trimmed.startsWith("/") || trimmed.startsWith("#") || trimmed.startsWith("gno.land/")) {
         return escapeHtml(trimmed)
