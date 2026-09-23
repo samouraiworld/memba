@@ -15,13 +15,17 @@ import { createInputRecorder, REPLAY_VERSION, type InputRecorder } from "./lib/r
 import { simulateReplay, hashState } from "./lib/verify";
 import { combineInput, toWireDeltas, fromWireDeltas, MAX_CERTIFY_FINAL_TICK, MAX_CERTIFY_EVENTS } from "./lib/wire";
 import { isSpaceInvadersEnabled, isSpaceInvadersCertifyEnabled } from "../../lib/config";
+import { MenuScreen } from "./screens/MenuScreen";
+import { ReadyScreen } from "./screens/ReadyScreen";
+import { PausedScreen } from "./screens/PausedScreen";
+import { GameOverScreen } from "./screens/GameOverScreen";
+import type { RunMode } from "./screens/types";
 import "./space-invaders.css";
 
 // The on-chain certify control is a lazy chunk (it pulls in the wallet hooks),
 // so the no-wallet play path never loads them — mirror of BarricadeCertify.
 const SpaceInvadersCertify = lazy(() => import("./SpaceInvadersCertify"));
 
-type RunMode = "free" | "daily";
 
 const HUD_UPDATE_MS = 100;
 
@@ -444,72 +448,35 @@ export default function SpaceInvaders({
               </div>
             )}
             {state.phase === "ready" && !runArmed && (
-              <div className="si-overlay si-menu">
-                <p className="si-overlay-kicker">Choose transmission</p>
-                <h2>Defend the Gno relay</h2>
-                <p className="si-overlay-copy">One shared signal. One score to beat. The daily run is replay-checked on this device when it ends.</p>
-                <div className="si-mode-stack">
-                  <button className="si-button si-button--primary si-mode-button" type="button" onClick={() => beginRun("daily")}>
-                    <span>Daily run</span>
-                    <small>{certifyOn ? "Shared UTC signal · replay eligible" : "Shared UTC signal · same waves for everyone"}</small>
-                  </button>
-                  <button className="si-button si-button--secondary si-mode-button" type="button" onClick={() => beginRun("free")}>
-                    <span>Free play</span>
-                    <small>Fresh signal · practice without certification</small>
-                  </button>
-                </div>
-              </div>
+              <MenuScreen certifyOn={certifyOn} onDaily={() => beginRun("daily")} onFree={() => beginRun("free")} />
             )}
             {state.phase === "ready" && runArmed && (
-              <div className="si-overlay si-ready">
-                <p className="si-overlay-kicker">{mode === "daily" ? `Daily signal · ${dailyDay}` : "Free signal"}</p>
-                <h2>Relay standing by</h2>
-                <p className="si-control-line">← → move · Space fire</p>
-                <p className="si-overlay-copy">Make a move to begin. On touch, drag left to steer and tap right to fire.</p>
-                <button className="si-text-button" type="button" onClick={openMenu}>Change transmission</button>
-              </div>
+              <ReadyScreen mode={mode} dailyDay={dailyDay} onChangeTransmission={openMenu} />
             )}
-            {state.phase === "paused" && (
-              <div className="si-overlay si-pause-sheet">
-                <p className="si-overlay-kicker">Signal held</p>
-                <h2>Relay paused</h2>
-                <p className="si-overlay-copy">The simulation is frozen. Resume when you are ready.</p>
-                <button className="si-button si-button--primary" type="button" onClick={togglePause}>Resume defense</button>
-              </div>
-            )}
+            {state.phase === "paused" && <PausedScreen onResume={togglePause} />}
             {state.phase === "gameover" && (
-              <div className="si-overlay si-gameover">
-                <p className="si-overlay-kicker">Signal lost</p>
-                <h2>Game Over</h2>
-                <div className="si-result-score"><span>Final score</span><strong>{state.score.toLocaleString()}</strong></div>
-                <p className="si-result-best">Best signal {best.toLocaleString()}</p>
-                {mode === "daily" && dailyOutcome && (
-                  <p className={`si-verification ${dailyOutcome.verified ? "si-verification--ok" : "si-verification--pending"}`}>
-                    <span aria-hidden="true">{dailyOutcome.verified ? "✓" : "…"}</span>
-                    Daily · {dailyOutcome.day} · {dailyOutcome.verified ? "Replay checked on this device" : "Replay check pending"}
-                  </p>
-                )}
-                <div className="si-mode-row">
-                  <button className="si-button si-button--primary" type="button" onClick={restart}>Play again</button>
-                  <button className="si-button si-button--secondary" type="button" onClick={openMenu}>Menu</button>
-                </div>
-                {certifyOn && mode === "daily" && dailyOutcome?.verified && (
-                  <div className="si-certify">
-                    <Suspense fallback={null}>
-                      <SpaceInvadersCertify
-                        run={{
-                          seed: dailyOutcome.seed,
-                          simVersion: REPLAY_VERSION,
-                          events: dailyOutcome.events,
-                          finalTick: dailyOutcome.finalTick,
-                          claimedScore: dailyOutcome.score,
-                          claimedHash: dailyOutcome.hash,
-                        }}
-                      />
-                    </Suspense>
-                  </div>
-                )}
-              </div>
+              <GameOverScreen
+                mode={mode}
+                score={state.score}
+                best={best}
+                verification={dailyOutcome ? { day: dailyOutcome.day, verified: dailyOutcome.verified } : null}
+                certifySlot={certifyOn && mode === "daily" && dailyOutcome?.verified ? (
+                  <Suspense fallback={null}>
+                    <SpaceInvadersCertify
+                      run={{
+                        seed: dailyOutcome.seed,
+                        simVersion: REPLAY_VERSION,
+                        events: dailyOutcome.events,
+                        finalTick: dailyOutcome.finalTick,
+                        claimedScore: dailyOutcome.score,
+                        claimedHash: dailyOutcome.hash,
+                      }}
+                    />
+                  </Suspense>
+                ) : null}
+                onRestart={restart}
+                onMenu={openMenu}
+              />
             )}
           </div>
         </section>
