@@ -20,6 +20,9 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Dependency refresh (2026-09-23)
+- Update Remotion, TanStack Query, Sentry, three.js, the dev tooling group and the backend SQLite driver to their latest patch and minor releases (bundles Dependabot #1228–#1233).
+
 ### Home snapshot follows the current chain (2026-09-23)
 - Report NFT indexer progress only for the realms the indexer watches on the current chain, and none while it is switched off, so a cursor left over from the previous chain no longer shows as the indexed height.
 - Drop any indexer height above the current chain head instead of serving it, and flag that source as stale.
