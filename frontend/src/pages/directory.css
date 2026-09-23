@@ -1760,7 +1760,11 @@ a.dir-card {
     cursor: pointer;
 }
 .dir-recent__retry { margin-top: 12px; }
-.dir-recent__retry:disabled { opacity: 0.6; cursor: wait; }
+/* Disabled while a read is in flight (including the first load). Opacity is NOT
+   used: 0.6 dropped the label to ~4.2:1 and failed axe color-contrast whenever a
+   scan landed mid-fetch. The label keeps full contrast; the dashed border and
+   wait cursor carry the busy state, and the status line above announces it. */
+.dir-recent .dir-recent__retry:disabled { cursor: wait; border-style: dashed; }
 @media (max-width: 600px) {
     .dir-recent__row { flex-direction: column; }
     .dir-recent__actions { width: 100%; }

@@ -14,7 +14,7 @@ const response = {
 }
 
 for (const viewport of [{ name: 'desktop', width: 1280, height: 800 }, { name: '390 px', width: 390, height: 844 }]) {
-    test(`mainnet submissions stay separate and Pearl stays empty at ${viewport.name}`, async ({ page }) => {
+    test(`mainnet submissions stay separate and other networks stay empty at ${viewport.name}`, async ({ page }) => {
         await page.setViewportSize({ width: viewport.width, height: viewport.height })
         let calls = 0
         await page.route('**/api/directory/recent-submissions', async route => {
@@ -45,7 +45,10 @@ for (const viewport of [{ name: 'desktop', width: 1280, height: 800 }, { name: '
         const realmCalls = calls
         expect(realmCalls).toBeGreaterThan(packageCalls)
 
-        await page.goto('/pearl/directory?tab=packages')
+        // The lane is mainnet-only. Pearl was the non-mainnet case until its
+        // 2026-09-23 retirement (/pearl/ now redirects to /mainnet/); test13 is
+        // a hidden, non-retired network that still resolves by URL.
+        await page.goto('/test13/directory?tab=packages')
         await expect(page.getByRole('region', { name: 'Recent package submissions · gno.land' })).toHaveCount(0)
         expect(calls).toBe(realmCalls)
     })
@@ -86,3 +89,58 @@ test('submission heading and disclosure remain legible in dark mode at 390 px', 
     expect(contrast.disclosure).toBeGreaterThanOrEqual(4.5)
     expect(await section.evaluate(node => node.scrollWidth <= node.clientWidth + 1)).toBe(true)
 })
+
+// The Refresh/Retry button is disabled while any read is in flight — including
+// the first load, which is when axe scans usually land. It used to fade to
+// opacity 0.6 (≈4.2:1, an axe color-contrast failure); the label must keep
+// ≥4.5:1 against its own surface while disabled, in both themes.
+for (const theme of ['light', 'dark'] as const) {
+    test(`refresh stays legible while a refetch is in flight (${theme})`, async ({ page }) => {
+        await page.addInitScript(t => localStorage.setItem('memba_theme', t), theme)
+        let release: () => void = () => {}
+        const held = new Promise<void>(resolve => { release = resolve })
+        let holding = false
+        await page.route('**/api/directory/recent-submissions', async route => {
+            if (holding) await held // hold the clicked refetch so the disabled state is observable
+            await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(response) })
+        })
+        await page.goto('/mainnet/directory?tab=packages')
+        const section = page.getByRole('region', { name: 'Recent package submissions · gno.land' })
+        await expect(section.getByText(PACKAGE)).toBeVisible()
+        const button = section.getByRole('button', { name: 'Refresh' })
+        await expect(button).toBeEnabled()
+        holding = true
+        await button.click()
+        await expect(button).toBeDisabled()
+
+        const measured = await button.evaluate(node => {
+            const channels = (value: string) => (value.match(/[\d.]+/g) ?? []).map(Number)
+            const over = (top: number[], bottom: number[]) => {
+                const alpha = top[3] ?? 1
+                return [0, 1, 2].map(i => top[i] * alpha + bottom[i] * (1 - alpha))
+            }
+            // Resolve the button's effective surface: its own background over
+            // every translucent ancestor, down to the page.
+            const stack: number[][] = []
+            for (let el: Element | null = node; el; el = el.parentElement) stack.push(channels(getComputedStyle(el).backgroundColor))
+            let surface = [255, 255, 255]
+            for (const layer of stack.reverse()) surface = over(layer, surface)
+            // Element opacity blends the label toward the surface it sits on.
+            let opacity = 1
+            for (let el: Element | null = node; el; el = el.parentElement) opacity *= Number(getComputedStyle(el).opacity)
+            const text = over([...channels(getComputedStyle(node).color).slice(0, 3), opacity], surface)
+            const luminance = (rgb: number[]) => {
+                const [r, g, b] = rgb.map(c => { const n = c / 255; return n <= 0.04045 ? n / 12.92 : ((n + 0.055) / 1.055) ** 2.4 })
+                return 0.2126 * r + 0.7152 * g + 0.0722 * b
+            }
+            const [a, b] = [luminance(text), luminance(surface)]
+            return { ratio: (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05), opacity, cursor: getComputedStyle(node).cursor }
+        })
+        expect(measured.opacity).toBe(1)
+        expect(measured.ratio).toBeGreaterThanOrEqual(4.5)
+        expect(measured.cursor).toBe('wait')
+
+        release()
+        await expect(button).toBeEnabled()
+    })
+}
