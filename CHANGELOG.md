@@ -20,13 +20,6 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Dependency refresh (2026-09-23)
-- Update Remotion, TanStack Query, Sentry, three.js, the dev tooling group and the backend SQLite driver to their latest patch and minor releases (bundles Dependabot #1228–#1233).
-
-### Home snapshot follows the current chain (2026-09-23)
-- Report NFT indexer progress only for the realms the indexer watches on the current chain, and none while it is switched off, so a cursor left over from the previous chain no longer shows as the indexed height.
-- Drop any indexer height above the current chain head instead of serving it, and flag that source as stale.
-- Leave the featured DAO out of the home snapshot until its realm is deployed on the current chain, instead of returning an empty entry that points at a missing realm.
 ### Pearl links move to gno.land mainnet (2026-09-23)
 <!-- categories: memba, network -->
 - **Old `/pearl/...` links now open the same page on gno.land mainnet**, with a one-time notice that the Pearl testnet has been retired. Once dismissed, the notice does not come back.
@@ -34,6 +27,14 @@ Full changelogs are split by version range for easier navigation:
 - **gno.land reads fail over to a second node.** When rpc.gno.land does not answer, Memba retries on Samouraï's own gno.land node.
 - **The directory's Refresh button stays readable while it loads.**
 - Local and Docker builds default to gno.land, and the README, llms.txt and operator docs describe gno.land as the live network.
+
+### Dependency refresh (2026-09-23)
+- Update Remotion, TanStack Query, Sentry, three.js, the dev tooling group and the backend SQLite driver to their latest patch and minor releases (bundles Dependabot #1228–#1233).
+
+### Home snapshot follows the current chain (2026-09-23)
+- Report NFT indexer progress only for the realms the indexer watches on the current chain, and none while it is switched off, so a cursor left over from the previous chain no longer shows as the indexed height.
+- Drop any indexer height above the current chain head instead of serving it, and flag that source as stale.
+- Leave the featured DAO out of the home snapshot until its realm is deployed on the current chain, instead of returning an empty entry that points at a missing realm.
 
 ### Space Invaders controls and feel (2026-09-23)
 - Play with A/D and W (or ZQSD on AZERTY) as well as the arrows and Space; Esc pauses, and Enter starts a run or plays again.
