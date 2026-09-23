@@ -33,20 +33,19 @@ import { test, expect } from '@playwright/test'
  *    node answers /health in ms while starving the vm reads).
  */
 
-// Mirrors NETWORKS.pearl rpcUrl + fallbackRpcUrls in frontend/src/lib/config.ts
+// Mirrors NETWORKS.mainnet rpcUrl + fallbackRpcUrls in frontend/src/lib/config.ts
 // (their ":443" suffix is the https default and normalizes away).
 //
-// PINNED to /pearl since the 2026-09-17 mainnet default flip. This smoke rode
-// the default network while that was pearl; it is really a PEARL smoke — the
-// URLs above, the seed DAOs it expects to resolve, and the outage probe all
-// name that chain. Driving it explicitly keeps it honest instead of
+// PINNED to /mainnet — the chain users land on. This smoke rode pearl until
+// pearl's 2026-09-23 retirement (/pearl/ now redirects to /mainnet/); on
+// gno.land the seed DAO (GovDAO, gno.land/r/gov/dao) resolves live against
+// rpc.gno.land. Driving the network explicitly keeps the URLs below, the
+// expected seed DAO and the outage probe naming the same chain, instead of
 // silently re-targeting whichever chain the default happens to be.
-// FOLLOW-UP worth having: a sibling smoke on gno.land, where GovDAO resolves
-// live against rpc.gno.land — that one would cover the chain users land on.
-const ACTIVE_NETWORK = 'pearl'
+const ACTIVE_NETWORK = 'mainnet'
 const ACTIVE_RPC_URLS = [
-    'https://rpc.pearl.testnets.gno.land',
-    'https://rpc.pearl.samourai.live',
+    'https://rpc.gno.land',
+    'https://rpc.mainnet.samourai.live',
 ]
 
 test.describe('Directory — live chain resolution (smoke)', () => {
@@ -84,7 +83,7 @@ test.describe('Directory — live chain resolution (smoke)', () => {
                     .then(r => r.ok())
                     .catch(() => false),
             ))
-            test.skip(!answers.some(Boolean), 'default-network (pearl) RPC (primary + fallback) unreachable — live resolution cannot be smoked')
+            test.skip(!answers.some(Boolean), 'mainnet (gnoland-1) RPC (primary + fallback) unreachable — live resolution cannot be smoked')
             throw err
         }
         expect(await resolvedCard.count()).toBeGreaterThanOrEqual(1)
