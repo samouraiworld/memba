@@ -21,8 +21,9 @@ test.describe('Token Dashboard', () => {
 // factory realm has long been allowlist-valid there, so the real form renders
 // (statically — no chain read gates it; test13's RPC refuses connections since
 // its 2026-07-26 retirement, which is exactly why nothing here may depend on a
-// live read). The DEFAULT network (pearl) serves tokenfactory_v2 too since the
-// 2026-08-31 ceremony, which the last test in this block asserts. Repointing
+// live read). The DEFAULT network (gno.land) does NOT allowlist the factory,
+// which the last test in this block asserts (pearl served it until its
+// 2026-09-23 retirement; /pearl/ links now redirect to /mainnet/). Repointing
 // these three to the default route is worthwhile follow-up cleanup, but it
 // changes the redirect/document-load behaviour the mobile case below carefully
 // pins, so it is deliberately not bundled into a comment-only change.
@@ -77,24 +78,26 @@ test.describe('Create Token Page', () => {
         expect(bodyWidth).toBeLessThanOrEqual(380)
     })
 
-    test('pearl serves the factory, and the gno.land default honestly gates it', async ({ page }) => {
-        // Was 'the DEFAULT network serves the factory'. That phrasing bound two
-        // separate claims together — "pearl has tokenfactory_v2" and "the
-        // default network is pearl" — and the 2026-09-17 mainnet flip pulled
-        // them apart. Both are asserted here, by KEY, so neither can rot:
-        //
-        //   pearl   — the combined ceremony deploys + allowlists
-        //             tokenfactory_v2, so CreateToken renders the real form.
-        //             This still goes red the moment REALM_ALLOWLIST.pearl
-        //             drops the factory.
-        //   gno.land — REALM_ALLOWLIST.mainnet is explicitly empty (nothing of
-        //             ours is deployed on `gnoland-1`), so the page must gate
-        //             rather than offer a form that cannot broadcast.
+    test('a retired /pearl factory link lands on gno.land, which honestly gates it', async ({ page }) => {
+        // Was 'pearl serves the factory, and the gno.land default honestly
+        // gates it'. Pearl was retired on 2026-09-23 and /pearl/… now
+        // redirects to the same route on mainnet with a one-time notice, so an
+        // old factory bookmark must land on gno.land — where
+        // REALM_ALLOWLIST.mainnet does not list tokenfactory_v2 — and gate
+        // rather than offer a form that cannot broadcast. The factory FORM is
+        // anchored by the test13 cases above.
         await page.goto('/pearl/create-token')
-        await expect(page.locator('input[placeholder*="Token"]').first()).toBeVisible()
-
-        await page.addInitScript(() => localStorage.setItem('memba_network', 'mainnet'))
-        await page.goto('/mainnet/create-token')
+        await expect(page).toHaveURL(/\/mainnet\/create-token$/)
+        await expect(page.getByTestId('retired-network-notice'))
+            .toContainText("The Pearl testnet has been retired — you're now on gno.land mainnet.")
         await expect(page.locator('input[placeholder*="Token"]')).toHaveCount(0)
+
+        // One-time: dismissed, it stays away on the next retired link.
+        await page.getByRole('button', { name: 'Dismiss notice' }).click()
+        await expect(page.getByTestId('retired-network-notice')).toHaveCount(0)
+        await page.goto('/pearl/create-token')
+        await expect(page).toHaveURL(/\/mainnet\/create-token$/)
+        await expect(page.locator('input[placeholder*="Token"]')).toHaveCount(0)
+        await expect(page.getByTestId('retired-network-notice')).toHaveCount(0)
     })
 })

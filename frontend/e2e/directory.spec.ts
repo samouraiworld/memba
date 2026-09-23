@@ -241,19 +241,17 @@ test.describe('Directory — v2.2b Badges', () => {
 // (gnoweb serves no CORS headers; the RPC path does).
 test.describe('Directory — Realm Source View (W5.2)', () => {
     test('drawer shows source files and metadata for a known realm', async ({ page }) => {
-        // PINNED to /pearl. This is a LIVE vm/qfile read against a realm known
-        // to ship in pearl's genesis; it rode the default network until the
-        // 2026-09-17 mainnet flip, which is a different chain with a different
-        // realm set. The subject is the source drawer, not which chain is the
-        // default, so it names the chain whose contents it asserts.
-        await page.goto('/pearl/directory?tab=realms')
+        // PINNED to /mainnet. This is a LIVE vm/qfile read against a realm
+        // known to ship in gnoland-1's genesis. It was pinned to /pearl until
+        // pearl's 2026-09-23 retirement; the subject is the source drawer, not
+        // which chain is the default, so it names the chain whose contents it
+        // asserts.
+        await page.goto('/mainnet/directory?tab=realms')
 
-        // Narrow to a seed realm known-good on pearl (memba_dao only appears
-        // when saved in localStorage; the gno.land Blog is in SEED_REALMS and
-        // ships in the pearl genesis — re-verified via vm/qfile 2026-09-07,
-        // 6 files). tokenfactory_v2 is on pearl too since the 2026-08-31
-        // ceremony, but the Blog is the genesis-shipped, ceremony-independent
-        // target, so it stays the live-read anchor.
+        // Narrow to a seed realm known-good on mainnet: the gno.land Blog is in
+        // SEED_REALMS and ships in the gnoland-1 genesis (re-verified via
+        // vm/qfile on rpc.gno.land 2026-09-23, 6 files). It is the
+        // genesis-shipped, deployment-independent live-read anchor.
         const search = page.locator('[data-testid="realm-search"]')
         await search.fill('blog')
         const card = page.locator('[data-testid="realm-card"]').first()

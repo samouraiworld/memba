@@ -4,7 +4,7 @@ import { stubNetwork } from './helpers/stubNetwork'
 test('System follows device changes; an explicit choice survives reload', async ({ page }) => {
     await stubNetwork(page)
     await page.emulateMedia({ colorScheme: 'light' })
-    await page.goto('/pearl/settings')
+    await page.goto('/mainnet/settings')
     await page.getByRole('button', { name: /Appearance/ }).click()
     const theme = page.getByRole('combobox', { name: 'Theme', exact: true })
     await expect(theme).toHaveValue('system')

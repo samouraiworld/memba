@@ -8,8 +8,8 @@ export const proposalRows = [
 ]
 export async function fulfillGovernance(page: Page, options: { empty?: boolean; missing?: boolean } = {}) {
     await fulfillOnchainReads(page, ({ path, arg, method }) => {
-        // Both consumers (governance-pro, complete-design) drive `/pearl/...`.
-        if (method === 'status') return mockAppChainStatus('pearl-1')
+        // Both consumers (governance-pro, complete-design) drive `/mainnet/...`.
+        if (method === 'status') return mockAppChainStatus('gnoland-1')
         if (path === 'vm/qrender' && arg === 'gno.land/r/gov/dao:') return '# GovDAO\n\nGno chain governance — proposals and membership management.\n\n## Members\n[Memberstore](https://gno.land/r/gov/dao/v3/memberstore)\n\n## Proposals\n\nThreshold: 66%'
         if (path === 'vm/qrender' && arg === 'gno.land/r/gov/dao/v3/memberstore:') return '# GovDAO Memberstore\nTier T1 contains 2 members with power: 6\nTier T2 contains 3 members with power: 6\nTier T3 contains 5 members with power: 5'
         if (path === 'vm/qeval' && arg.includes('GetMembersJSON')) return `(${JSON.stringify(JSON.stringify([

@@ -13,7 +13,7 @@ test.beforeEach(async ({ page }) => {
 })
 
 test('release announcement stays closed for the current app version', async ({ page }) => {
-    await page.goto('/pearl/validators')
+    await page.goto('/mainnet/validators')
     await expect(page.getByTestId('validator-row-1')).toBeVisible()
     // WhatsNewToast opens three seconds after load when the seen version is stale.
     await page.waitForTimeout(3500)
@@ -24,7 +24,7 @@ for (const width of [769, 1024, 1280, 1440, 1920, 768, 390, 320]) {
     test(`readable black overview fits at ${width}px`, async ({ page }, testInfo) => {
         await page.setViewportSize({ width, height: 1000 })
         await page.emulateMedia({ colorScheme: 'dark' })
-        await page.goto('/pearl/validators')
+        await page.goto('/mainnet/validators')
         await expect(page.locator('.k-pro-ui')).toBeVisible()
         await expect(page.getByTestId('validators-page')).toBeVisible()
         await expect(page.locator('.val-header h1')).toHaveCSS('font-size', width < 769 ? '26px' : '30px')
@@ -73,7 +73,7 @@ for (const width of [769, 1024, 1280, 1440, 1920, 768, 390, 320]) {
 
 test('optional fields, sort, search, tabs and light theme remain usable', async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 1440, height: 1000 })
-    await page.goto('/pearl/validators')
+    await page.goto('/mainnet/validators')
     await expect(page.getByTestId('validator-row-1')).toBeVisible()
     if (await page.locator('html').getAttribute('data-theme') !== 'light') {
         await page.getByRole('button', { name: 'Switch to Light theme' }).click()
@@ -107,7 +107,7 @@ for (const theme of ['dark', 'light'] as const) {
         await fulfillProValidatorRoster(page, 'mixed')
         await page.setViewportSize({ width: 1440, height: 1000 })
         await page.emulateMedia({ colorScheme: theme })
-        await page.goto('/pearl/validators')
+        await page.goto('/mainnet/validators')
         await expect(page.locator('.val-table tbody tr')).toHaveCount(4)
         for (const label of ['Healthy', 'Degraded', 'Down', 'Unknown']) {
             await expect(page.locator('.val-table .val-health-badge__label').getByText(label, { exact: true })).toBeVisible()
@@ -152,7 +152,7 @@ for (const theme of ['dark', 'light'] as const) {
 
 test('missing metrics stay unknown and empty roster stays distinct', async ({ page }) => {
     await fulfillProValidatorRoster(page, 'missing')
-    await page.goto('/pearl/validators')
+    await page.goto('/mainnet/validators')
     await expect(page.locator('.val-table tbody tr')).toHaveCount(3)
     await expect(page.locator('.val-table .val-health-badge__label')).toHaveText(['Unknown', 'Unknown', 'Unknown'])
     await expect(page.getByText(/Monitoring metrics are unavailable/)).toBeVisible()
@@ -166,7 +166,7 @@ test('missing metrics stay unknown and empty roster stays distinct', async ({ pa
 
 test('larger roster pagination and filter reset', async ({ page }) => {
     await fulfillProValidatorRoster(page, 'large')
-    await page.goto('/pearl/validators')
+    await page.goto('/mainnet/validators')
     await expect(page.locator('.val-table tbody tr')).toHaveCount(50)
     await page.getByRole('button', { name: 'Next page' }).click()
     await expect(page.locator('.val-table tbody tr')).toHaveCount(23)
@@ -185,7 +185,7 @@ test('larger roster pagination and filter reset', async ({ page }) => {
 test('mobile health filter preserves unknown data and disclosure keyboard access', async ({ page }) => {
     await fulfillProValidatorRoster(page, 'mixed')
     await page.setViewportSize({ width: 390, height: 844 })
-    await page.goto('/pearl/validators')
+    await page.goto('/mainnet/validators')
     await expect(page.getByTestId('validator-card-1')).toBeVisible()
     const health = page.getByRole('combobox', { name: 'Filter by health' })
     await expect(health).toHaveCSS('font-size', '16px')
@@ -201,7 +201,7 @@ test('mobile health filter preserves unknown data and disclosure keyboard access
 
 test('resolved incident badge remains readable in both themes', async ({ page }) => {
     await fulfillProValidatorRoster(page, 'resolved')
-    await page.goto('/pearl/validators')
+    await page.goto('/mainnet/validators')
     await expect(page.locator('.val-incident-badge--resolved')).toHaveText('RESOLVED')
     await expect(page.locator('.val-incident-badge--resolved')).toHaveCSS('font-size', '12px')
     for (const theme of ['dark', 'light']) {

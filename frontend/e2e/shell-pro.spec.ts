@@ -14,7 +14,7 @@ for (const theme of ['dark', 'light'] as const) {
     test(`desktop ${theme} navigation, disclosures and brand`, async ({ page }, info) => {
         await page.setViewportSize({ width: 1440, height: 1000 })
         await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' })
-        await page.goto('/pearl/validators')
+        await page.goto('/mainnet/validators')
         const sidebar = page.getByTestId('sidebar')
         await expect(sidebar).toHaveCSS('width', '240px')
         await expect(sidebar).toHaveCSS('background-color', theme === 'dark' ? 'rgb(0, 0, 0)' : 'rgb(255, 255, 255)')
@@ -29,7 +29,10 @@ for (const theme of ['dark', 'light'] as const) {
         await page.screenshot({ path: info.outputPath(`shell-${theme}.png`), fullPage: true })
         const community = sidebar.locator('summary', { hasText: 'Community' })
         await community.focus(); await page.keyboard.press('Enter')
-        await expect(sidebar.getByRole('link', { name: 'Quests', exact: true })).toBeVisible()
+        // Dev Report, not Quests: Quests needs Memba's realms (navManifest
+        // `requiresRealms`), which mainnet does not have — this ran on pearl
+        // until its 2026-09-23 retirement.
+        await expect(sidebar.getByRole('link', { name: 'Dev Report', exact: true })).toBeVisible()
         await expect(new AxeBuilder({ page }).include('.pro-sidebar').analyze().then(a => a.violations)).resolves.toEqual([])
         await sidebar.getByRole('button', { name: 'Collapse sidebar' }).click()
         await expect(sidebar).toHaveCSS('width', '76px')
@@ -43,7 +46,7 @@ for (const theme of ['dark', 'light'] as const) {
 for (const width of [320, 390, 768, 769, 1024, 1280, 1920]) {
     test(`responsive navigation fits ${width}px${width < 769 ? ' mobile' : ''}`, async ({ page }) => {
         await page.setViewportSize({ width, height: 1000 })
-        await page.goto('/pearl/validators')
+        await page.goto('/mainnet/validators')
         await expect(page.getByTestId('validators-page')).toBeVisible()
         expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
         if (width >= 1280) {
@@ -63,7 +66,7 @@ for (const theme of ['dark', 'light'] as const) {
     test(`mobile ${theme} More menu contains focus and keeps every public destination`, async ({ page }, info) => {
         await page.setViewportSize({ width: 390, height: 844 })
         await page.emulateMedia({ colorScheme: theme, reducedMotion: 'reduce' })
-        await page.goto('/pearl/validators')
+        await page.goto('/mainnet/validators')
         const more = page.getByTestId('mobile-tabbar').getByRole('button', { name: 'More', exact: true })
         await more.click()
         const dialog = page.getByRole('dialog', { name: 'More options' })
@@ -87,7 +90,7 @@ for (const theme of ['dark', 'light'] as const) {
 }
 
 test('shell persists on hacker route without extending the validators body scope', async ({ page }) => {
-    await page.goto('/pearl/validators/hacker')
+    await page.goto('/mainnet/validators/hacker')
     await expect(page.locator('.k-pro-shell')).toBeVisible()
     await expect(page.locator('.k-pro-ui')).toHaveCount(0)
     await expect(page.getByTestId('sidebar').getByRole('link', { name: 'Validators', exact: true })).toHaveAttribute('aria-current', 'page')

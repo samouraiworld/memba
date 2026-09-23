@@ -10,7 +10,7 @@ for (const version of [1, 2] as const) for (const width of [1280, 390]) {
         await stubNetwork(page)
         const fixture = weightedFixture(version)
         if (version === 2) fixture.proposal.action = { type: 'recover-member', personId: fixture.members[1].personId, oldAddress: fixture.members[1].address, newAddress: bech32Encode('g', new Uint8Array(20).fill(9)) }
-        await page.route('**/status', route => route.fulfill({ json: { result: { node_info: { network: 'pearl-1' } } } }))
+        await page.route('**/status', route => route.fulfill({ json: { result: { node_info: { network: 'gnoland-1' } } } }))
         await page.route('**/abci_query?**', route => {
             const expression = Buffer.from(new URL(route.request().url()).searchParams.get('data')!.slice(2), 'hex').toString('utf8')
             const value = expression.includes('GetConfigJSON') ? fixture.config : expression.includes('GetMembersJSON') ? fixture.roster : fixture.page
@@ -18,8 +18,8 @@ for (const version of [1, 2] as const) for (const width of [1280, 390]) {
         })
         await page.setViewportSize({ width, height: 1100 })
         await suppressReleaseAnnouncement(page)
-        await page.addInitScript(() => localStorage.setItem('memba_network', 'pearl'))
-        await page.goto(`/pearl/weighted-dao/${weightedRealm}`)
+        await page.addInitScript(() => localStorage.setItem('memba_network', 'mainnet'))
+        await page.goto(`/mainnet/weighted-dao/${weightedRealm}`)
         const workspace = page.locator('.weighted-dao')
         await expect(workspace.getByText('Founder · 2 points')).toBeVisible()
         await expect(workspace.getByText('Core developer · 1 point')).toHaveCount(6)
@@ -40,9 +40,9 @@ for (const version of [1, 2] as const) for (const width of [1280, 390]) {
 }
 test('malformed weighted contract never falls back to legacy role controls', async ({ page }) => {
     await stubNetwork(page)
-    await page.route('**/status', route => route.fulfill({ json: { result: { node_info: { network: 'pearl-1' } } } }))
+    await page.route('**/status', route => route.fulfill({ json: { result: { node_info: { network: 'gnoland-1' } } } }))
     await page.route('**/abci_query?**', route => route.fulfill({ json: { result: { response: { ResponseBase: { Data: Buffer.from(qevalWire({ schema: 'unknown', kind: 'config' })).toString('base64'), Error: null } } } } }))
-    await page.goto(`/pearl/weighted-dao/${weightedRealm}`)
+    await page.goto(`/mainnet/weighted-dao/${weightedRealm}`)
     await expect(page.locator('.weighted-dao [role=alert]')).toBeVisible()
     await expect(page.locator('.weighted-dao').getByRole('button', { name: 'Review role proposal' })).toHaveCount(0)
 })

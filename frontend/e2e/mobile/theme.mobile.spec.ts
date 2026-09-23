@@ -5,7 +5,7 @@ test('mobile theme remains in More while network and wallet fit the narrow heade
     await stubNetwork(page)
     await page.setViewportSize({ width: 320, height: 844 })
     await page.emulateMedia({ colorScheme: 'light' })
-    await page.goto('/pearl/validators')
+    await page.goto('/mainnet/validators')
     await expect(page.locator('.k-topbar')).toBeVisible()
     await expect(page.locator('.k-topbar .k-theme-toggle')).toBeHidden()
     const fits = await page.locator('.k-topbar').evaluate(el => {

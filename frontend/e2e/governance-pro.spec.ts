@@ -4,7 +4,7 @@ import { abortOnchainReads, fulfillOnchainReads, mockAppChainStatus } from './he
 import { stubNetwork } from './helpers/stubNetwork'
 import { suppressReleaseAnnouncement } from './helpers/releaseAnnouncement'
 import { fulfillGovernance } from './helpers/proGovernanceFixture'
-const dao = '/pearl/dao/gno.land/r/gov/dao'
+const dao = '/mainnet/dao/gno.land/r/gov/dao'
 test.beforeEach(async ({ page }) => {
     await stubNetwork(page)
     await fulfillGovernance(page)

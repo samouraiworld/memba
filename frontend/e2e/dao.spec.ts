@@ -379,10 +379,10 @@ test.describe('Version-2 DAO', () => {
 
 test.describe('Create DAO wizard accessibility', () => {
     test('the first step passes the accessibility audit', async ({ page }) => {
-        // Pinned to /pearl like create-dao.spec: this audits the wizard, and DAO
+        // Pinned to /mainnet like create-dao.spec: this audits the wizard, and DAO
         // creation is a per-network capability the default network may not offer.
-        await fulfillGovDaoHome(page, 'pearl-1')
-        await page.goto('/pearl/dao/create')
+        await fulfillGovDaoHome(page, 'gnoland-1')
+        await page.goto('/mainnet/dao/create')
         await expect(page.getByRole('heading', { name: 'Create a DAO' })).toBeVisible()
         await expect(page.getByRole('navigation', { name: 'Create DAO steps' }).getByRole('button')).toHaveCount(5)
         await expect(page.getByLabel('DAO Name')).toBeVisible()

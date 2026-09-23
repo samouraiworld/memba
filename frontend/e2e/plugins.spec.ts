@@ -27,10 +27,9 @@ test.describe('Plugin Routes', () => {
 
 test.describe('CreateDAO Extensions Step', () => {
     test('create DAO wizard shows step indicator', async ({ page }) => {
-        // /pearl, not the default: DAO creation is per-network and gno.land
-        // (the default since 2026-09-17) does not offer it yet. See
+        // Named explicitly, not the default: DAO creation is per-network. See
         // create-dao.spec's header.
-        await page.goto('/pearl/dao/create')
+        await page.goto('/mainnet/dao/create')
         // Step indicator should show step text
         await expect(page.locator('body')).toContainText(/Name.*Path|Preset/)
     })

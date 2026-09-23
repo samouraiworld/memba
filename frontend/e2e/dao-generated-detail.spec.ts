@@ -33,9 +33,10 @@ for (const structured of [false, true]) {
     test(`generated proposal shows authentic metadata and full membership text (JSON: ${structured})`, async ({ page }) => {
         await stubNetwork(page)
         await fulfillOnchainReads(page, ({ method, path, arg }) => {
-            // Pearl-scoped spec (it drives `/pearl/...`), so pin the identity
-            // check to pearl rather than inheriting the mainnet default.
-            if (method === 'status') return mockAppChainStatus('pearl-1')
+            // Mainnet-scoped spec (it drives `/mainnet/...`), so the identity
+            // check answers gnoland-1. (Pearl-scoped until its 2026-09-23
+            // retirement.)
+            if (method === 'status') return mockAppChainStatus('gnoland-1')
             if (path === 'vm/qrender' && arg === `${realm}:4`) return `# Prop #4 - Membership - Proposal Detail\n${description}\n\nAuthor: ${author}\n\nCategory: membership\n\nStatus: ACTIVE\n\nYES: 2 | NO: 1 | ABSTAIN: 0\nTotal Power: 3/8\n`
             if (structured && path === 'vm/qeval' && arg === `${realm}.GetProposalsJSON()`) {
                 const rows = [{ id: 4, title: 'Membership - Proposal Detail', description, category: 'membership', status: 'ACTIVE', author, yes_votes: 2, no_votes: 1, abstain_votes: 0, total_power: 3, created_at_block: 12345 }]
@@ -43,7 +44,7 @@ for (const structured of [false, true]) {
             }
             return null
         })
-        await page.goto(`/pearl/dao/${realm}/proposal/4`)
+        await page.goto(`/mainnet/dao/${realm}/proposal/4`)
         await expect(page.locator('.proposal-title')).toHaveText('Membership - Proposal Detail')
         await expect(page.locator('.proposal-status-badge')).toContainText(/active|open/i)
         await expect(page.locator('.proposal-desc-text')).toContainText(target)
