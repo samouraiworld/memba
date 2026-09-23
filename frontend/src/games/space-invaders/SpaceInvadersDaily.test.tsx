@@ -85,7 +85,7 @@ describe("SpaceInvaders daily mode", () => {
     render(<SpaceInvaders />);
     expect(screen.getByRole("button", { name: /daily run/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /free play/i })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: /defend the pearl relay/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /defend the gno relay/i })).toBeInTheDocument();
     expect(screen.queryByText(/space fire/i)).toBeNull();
   });
 
@@ -103,7 +103,7 @@ describe("SpaceInvaders daily mode", () => {
     fireEvent.click(screen.getByRole("button", { name: /daily run/i }));
     nudgeAndDie();
     expect(screen.getByText(/daily · 2026-09-01/i)).toBeInTheDocument();
-    expect(screen.getByText(/verified locally/i)).toBeInTheDocument();
+    expect(screen.getByText(/replay checked on this device/i)).toBeInTheDocument();
     // Certify flags are OFF here — the wallet surface must not render.
     expect(screen.queryByText(/certify on-chain/i)).toBeNull();
   });
@@ -126,7 +126,7 @@ describe("SpaceInvaders daily mode", () => {
     render(<SpaceInvaders />);
     fireEvent.click(screen.getByRole("button", { name: /daily run/i }));
     nudgeAndDie();
-    expect(screen.getByText(/verified locally/i)).toBeInTheDocument();
+    expect(screen.getByText(/replay checked on this device/i)).toBeInTheDocument();
     expect(screen.queryByText(/certify on-chain/i)).toBeNull();
   });
 
@@ -150,7 +150,7 @@ describe("SpaceInvaders daily mode", () => {
     expect(screen.getByText(/game over/i)).toBeInTheDocument();
     expect(screen.queryByText(/daily ·/i)).toBeNull();
     expect(screen.queryByText(/verified/i)).toBeNull();
-    expect(screen.queryByText(/verification pending/i)).toBeNull();
+    expect(screen.queryByText(/replay check pending/i)).toBeNull();
     expect(screen.queryByText(/certify/i)).toBeNull();
   });
 

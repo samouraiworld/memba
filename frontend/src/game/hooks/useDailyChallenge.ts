@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Code, ConnectError } from "@connectrpc/connect";
 import { gameApi } from "../../lib/gameApi";
 
 const CACHE_VERSION = 1;
@@ -183,6 +184,9 @@ export function useDailyChallenge(scope = "default", requestedDate?: string) {
     // Mark it stale so every mount immediately attempts live confirmation.
     initialDataUpdatedAt: cached ? 0 : undefined,
     staleTime: 5 * 60 * 1000,
-    retry: 2,
+    // A disabled service (Unimplemented) is a deliberate answer, not a
+    // transient failure: retrying it only delays the paused state.
+    retry: (failureCount, error) =>
+      failureCount < 2 && ConnectError.from(error).code !== Code.Unimplemented,
   });
 }

@@ -147,6 +147,15 @@ export default function BlockPartyGame() {
   const seedCeiling = challenge?.ready
     ? seedScoreCeiling(challenge.seed, challenge.modifier as Modifier, challenge.moveBudget)
     : 0;
+  // A paused service must not strand players on a locked board: fall into
+  // Practice once per visit. Choosing Daily again still shows the paused notice.
+  const autoPracticed = useRef(false);
+  useEffect(() => {
+    if (featurePaused && mode === "ranked" && !autoPracticed.current) {
+      autoPracticed.current = true;
+      selectMode("practice");
+    }
+  }, [featurePaused, mode, selectMode]);
   const reachablePar = ranked && challenge?.ready && challenge.par <= seedCeiling
     ? challenge.par
     : undefined;
@@ -157,6 +166,9 @@ export default function BlockPartyGame() {
     mode,
     moveBudget,
   });
+
+  // A locked Daily board has no budget to show — "0 remaining" reads as spent.
+  const shownMovesLeft = ranked && !canPlayRanked ? Infinity : movesLeft;
 
   const appliedRound = useRef<string | null>(null);
   useEffect(() => {
@@ -260,7 +272,7 @@ export default function BlockPartyGame() {
       <div className="k-bp-orbit k-bp-orbit--one" aria-hidden="true" />
       <div className="k-bp-orbit k-bp-orbit--two" aria-hidden="true" />
       <header className="k-bp-header">
-        <p className="k-bp-kicker">Pearl signal lab · daily merge protocol</p>
+        <p className="k-bp-kicker">Gno signal lab · daily merge protocol</p>
         <div className="k-bp-header-row">
           <div>
             <h1 className="k-bp-title">Block Party</h1>
@@ -294,6 +306,12 @@ export default function BlockPartyGame() {
             <span>{ranked ? `${challenge?.moveBudget ?? "—"} moves` : "No move limit"}</span>
           </div>
 
+          {!ranked && featurePaused && (
+            <p className="k-bp-live-status k-bp-live-status--paused" role="status">
+              <span aria-hidden="true" /> Daily ranked play is paused · Practice is open
+            </p>
+          )}
+
           {ranked && challengeLoading && !challenge && (
             <div className="k-bp-notice" role="status" aria-live="polite" aria-busy="true">
               <span className="k-bp-pulse" aria-hidden="true" />
@@ -314,7 +332,7 @@ export default function BlockPartyGame() {
               <strong>{featurePaused ? "Daily play is paused" : online ? "Daily seed unavailable" : "You're offline"}</strong>
               <span>
                 {featurePaused
-                  ? "The public game route is open, but ranked play is disabled at the service. Practice is still available."
+                  ? "Today's ranked board is switched off for now. Practice plays the same way, with no move limit."
                   : online
                     ? "We couldn't verify today's board. Ranked input stays locked to protect the leaderboard."
                     : "Reconnect to verify today's board. Ranked input stays locked while offline."}
@@ -357,11 +375,11 @@ export default function BlockPartyGame() {
             )}
           </div>
 
-          <ScoreBar score={score} par={reachablePar} movesLeft={movesLeft} />
+          <ScoreBar score={score} par={reachablePar} movesLeft={shownMovesLeft} />
           {ranked && challenge?.ready && reachablePar == null && (
             <p className="k-bp-target-note">Target hidden: the legacy value exceeds this board's mathematical score ceiling.</p>
           )}
-          <div className="sr-only" aria-live="polite">Score {score}. {Number.isFinite(movesLeft) ? `${movesLeft} moves remaining.` : "Practice has no move limit."}</div>
+          <div className="sr-only" aria-live="polite">Score {score}. {Number.isFinite(shownMovesLeft) ? `${shownMovesLeft} moves remaining.` : ranked ? "Daily is locked." : "Practice has no move limit."}</div>
 
           {over && ranked && canPlayRanked && (
             <>
@@ -414,7 +432,7 @@ export default function BlockPartyGame() {
             {challenge?.ready && (
               <SeedProof height={challenge.blockHeight} hash={challenge.blockHash} />
             )}
-            {ranked && <DailyLeaderboardPanel date={date} scope={network.chainId} />}
+            {ranked && !featurePaused && <DailyLeaderboardPanel date={date} scope={network.chainId} />}
             <StreakBadge
               address={adena.connected ? adena.address : undefined}
               localStreak={getLocalStreak().current}

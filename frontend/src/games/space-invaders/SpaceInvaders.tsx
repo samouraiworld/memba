@@ -374,9 +374,9 @@ export default function SpaceInvaders({
     <section className="si-root" aria-labelledby="si-title">
       <header className="si-heading">
         <div>
-          <p className="si-eyebrow">Memba // Pearl signal network</p>
+          <p className="si-eyebrow">Memba // Gno signal network</p>
           <h1 id="si-title">Space Invaders</h1>
-          <p className="si-deck">Signal Defense — hold the relay, clear the swarm, keep Pearl online.</p>
+          <p className="si-deck">Signal Defense — hold the relay, clear the swarm, keep the network online.</p>
         </div>
         <div className={`si-phase si-phase--${state.phase}`}>
           <span aria-hidden="true" />
@@ -446,12 +446,12 @@ export default function SpaceInvaders({
             {state.phase === "ready" && !runArmed && (
               <div className="si-overlay si-menu">
                 <p className="si-overlay-kicker">Choose transmission</p>
-                <h2>Defend the Pearl relay</h2>
-                <p className="si-overlay-copy">One shared signal. One score to beat. The daily run is locally replay-checked when it ends.</p>
+                <h2>Defend the Gno relay</h2>
+                <p className="si-overlay-copy">One shared signal. One score to beat. The daily run is replay-checked on this device when it ends.</p>
                 <div className="si-mode-stack">
                   <button className="si-button si-button--primary si-mode-button" type="button" onClick={() => beginRun("daily")}>
                     <span>Daily run</span>
-                    <small>Shared UTC signal · replay eligible</small>
+                    <small>{certifyOn ? "Shared UTC signal · replay eligible" : "Shared UTC signal · same waves for everyone"}</small>
                   </button>
                   <button className="si-button si-button--secondary si-mode-button" type="button" onClick={() => beginRun("free")}>
                     <span>Free play</span>
@@ -486,7 +486,7 @@ export default function SpaceInvaders({
                 {mode === "daily" && dailyOutcome && (
                   <p className={`si-verification ${dailyOutcome.verified ? "si-verification--ok" : "si-verification--pending"}`}>
                     <span aria-hidden="true">{dailyOutcome.verified ? "✓" : "…"}</span>
-                    Daily · {dailyOutcome.day} · {dailyOutcome.verified ? "Verified locally" : "Verification pending"}
+                    Daily · {dailyOutcome.day} · {dailyOutcome.verified ? "Replay checked on this device" : "Replay check pending"}
                   </p>
                 )}
                 <div className="si-mode-row">

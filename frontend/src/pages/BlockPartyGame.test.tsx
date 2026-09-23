@@ -2,6 +2,7 @@
 import { beforeEach, describe, it, expect, vi } from "vitest";
 import { render, screen, waitFor, fireEvent } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { Code, ConnectError } from "@connectrpc/connect";
 vi.mock("../lib/gameApi", () => ({
   gameApi: {
     getDailyChallenge: vi.fn().mockResolvedValue({
@@ -86,6 +87,25 @@ describe("BlockPartyGame", () => {
     await waitFor(() => expect(screen.getByText(/daily seed unavailable/i)).toBeTruthy());
     expect(screen.getByRole("button", { name: /retry daily/i })).toBeTruthy();
     expect(screen.queryByRole("dialog")).toBeNull();
+  });
+
+  it("falls into Practice when the service has Daily disabled, and keeps Daily honest", async () => {
+    vi.mocked(gameApi.getDailyChallenge).mockRejectedValue(
+      new ConnectError("block party is disabled", Code.Unimplemented)
+    );
+    wrap(<BlockPartyGame />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("tab", { name: /practice/i })).toHaveAttribute("aria-selected", "true")
+    );
+    expect(screen.getByText(/daily ranked play is paused/i)).toBeTruthy();
+    // A disabled service is final: no retries.
+    expect(gameApi.getDailyChallenge).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("tab", { name: /daily/i }));
+    expect(screen.getByText(/daily play is paused/i)).toBeTruthy();
+    expect(screen.queryByText(/leaderboard unavailable/i)).toBeNull();
+    expect(screen.queryByText(/0 moves remaining/i)).toBeNull();
   });
 
   it("re-seeds the ranked board when the challenge arrives", async () => {

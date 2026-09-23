@@ -41,7 +41,7 @@ describe("DailyLeaderboardPanel", () => {
   it("keeps leaderboard caches separate across source scopes", async () => {
     wrap(
       <>
-        <DailyLeaderboardPanel date="2026-07-06" scope="pearl" />
+        <DailyLeaderboardPanel date="2026-07-06" scope="gnoland-1" />
         <DailyLeaderboardPanel date="2026-07-06" scope="testnet" />
       </>,
     );

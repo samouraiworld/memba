@@ -177,6 +177,7 @@
   font-size: .65rem;
 }
 .k-bp-live-status > span { width: 6px; height: 6px; border-radius: 50%; background: var(--color-k-success-text); }
+.k-bp-live-status--paused > span { background: var(--color-k-warning-text); }
 
 .k-bp-board-wrap { position: relative; max-width: 480px; margin: var(--space-2) auto; }
 .k-bp-board-wrap--locked { opacity: .58; filter: saturate(.55); }

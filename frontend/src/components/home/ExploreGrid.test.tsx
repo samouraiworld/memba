@@ -29,7 +29,9 @@ describe("ExploreGrid", () => {
     it("surfaces a flag-enabled feature as a live tile", () => {
         vi.stubEnv("VITE_ENABLE_APPSTORE", "true")
         vi.stubEnv("VITE_ENABLE_SPACE_INVADERS", "true")
+        vi.stubEnv("VITE_ENABLE_BARRICADE", "true")
         renderIt()
+        expect(screen.getByTestId("explore-barricade")).toHaveAttribute("href", "/test13/game/barricade")
         expect(screen.getByTestId("explore-apps")).toHaveAttribute("href", "/test13/apps")
         expect(screen.getByTestId("explore-space-invaders")).toHaveAttribute(
             "href",

@@ -15,8 +15,8 @@ describe("buildShareText", () => {
   });
 
   it("drops existing query data and fragments from the result reference", () => {
-    expect(buildDatedResultUrl("https://memba.example/pearl/game?token=secret#round", "2026-07-06"))
-      .toBe("https://memba.example/pearl/game?result=2026-07-06");
+    expect(buildDatedResultUrl("https://memba.example/mainnet/game?token=secret#round", "2026-07-06"))
+      .toBe("https://memba.example/mainnet/game?result=2026-07-06");
   });
 
   it("does not attach an invalid date marker", () => {

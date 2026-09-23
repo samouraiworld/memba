@@ -40,6 +40,10 @@ Full changelogs are split by version range for easier navigation:
 - Show review surfaces only where the reviews realm is live, so a network without it no longer offers a review that would fail on chain.
 - Open the on-chain App Store registry on mainnet behind the existing flag, and show App Store reviews only where their realm is live.
 - Move the social feed to mainnet: the backend now indexes `memba_feed_v1` on `gnoland-1`, so mainnet posts are written and shown there; the Pearl feed is no longer indexed.
+### Games ready for mainnet (2026-09-23)
+- Drop the retired Pearl testnet from Space Invaders and Block Party copy and test fixtures; both games now speak of the Gno network.
+- Open Block Party in Practice when ranked Daily play is switched off, instead of a locked board with an error panel, and stop retrying that answer.
+- Stop implying a leaderboard for Space Invaders daily runs while certification is off, and list BARRICADE on the Home explore grid.
 
 ### BARRICADE French civic art (2026-09-22)
 - Give the 2.5D battlefield an original Paris street, defender, boss and four distinct machine families inspired by the French Revolution's civic language.

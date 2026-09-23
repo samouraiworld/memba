@@ -93,8 +93,8 @@ describe("pause determinism (daily replay fidelity)", () => {
     flushFrame(20);
     expect(screen.queryByRole("heading", { name: /relay standing by/i })).not.toBeInTheDocument();
     driveToGameover(20);
-    expect(screen.getByText(/verified locally/i)).toBeInTheDocument();
-    expect(screen.queryByText(/verification pending/i)).toBeNull();
+    expect(screen.getByText(/replay checked on this device/i)).toBeInTheDocument();
+    expect(screen.queryByText(/replay check pending/i)).toBeNull();
   });
 
   it("pause/resume mid-run: the recorded log still re-simulates to the identical score/hash", () => {
@@ -142,8 +142,8 @@ describe("pause determinism (daily replay fidelity)", () => {
 
     // The self-verify (simulateReplay over the recorded wire log vs the live
     // final state) must pass — the pause left no hole in the timeline.
-    expect(screen.getByText(/verified locally/i)).toBeInTheDocument();
-    expect(screen.queryByText(/verification pending/i)).toBeNull();
+    expect(screen.getByText(/replay checked on this device/i)).toBeInTheDocument();
+    expect(screen.queryByText(/replay check pending/i)).toBeNull();
   });
 
   it("a paused game consumes no ticks: score and wave are byte-identical across a long pause", () => {
@@ -218,6 +218,6 @@ describe("pause determinism (daily replay fidelity)", () => {
     });
     fireEvent.click(screen.getByRole("button", { name: /resume defense/i }));
     driveToGameover(60_000);
-    expect(screen.getByText(/verified locally/i)).toBeInTheDocument();
+    expect(screen.getByText(/replay checked on this device/i)).toBeInTheDocument();
   });
 });

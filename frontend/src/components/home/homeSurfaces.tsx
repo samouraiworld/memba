@@ -20,6 +20,7 @@ import {
     SquaresFour,
     Article,
     Alien,
+    Barricade,
     ChatCircleText,
     GridFour,
     Briefcase,
@@ -29,6 +30,7 @@ import {
 import {
     isMarketplaceEnabled,
     isSpaceInvadersEnabled,
+    isBarricadeEnabled,
     isFeedEnabled,
     isGameEnabled,
     isServicesEnabled,
@@ -61,6 +63,7 @@ export const HOME_SURFACES: HomeSurface[] = [
     { key: "apps", route: "apps", label: "App Store", sub: "wallets, tools & dApps", Icon: SquaresFour, live: always },
     { key: "blog", route: "blog", label: "Blog", sub: "news & deep dives", Icon: Article, live: always },
     { key: "space-invaders", route: "game/space-invaders", label: "Space Invaders", sub: "daily arcade run", Icon: Alien, live: isSpaceInvadersEnabled },
+    { key: "barricade", route: "game/barricade", label: "Barricade", sub: "daily lane defense", Icon: Barricade, live: isBarricadeEnabled },
     { key: "feed", route: "feed", label: "Social feed", sub: "posts, on-chain", Icon: ChatCircleText, live: isFeedEnabled },
     { key: "game", route: "game", label: "Block Party", sub: "chain-seeded daily puzzle", Icon: GridFour, live: isGameEnabled },
     { key: "services", route: "marketplace/services", label: "Services", sub: "freelance marketplace", Icon: Briefcase, live: isServicesEnabled },

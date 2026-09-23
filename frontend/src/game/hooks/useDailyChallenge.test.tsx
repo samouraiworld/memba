@@ -26,18 +26,18 @@ describe("useDailyChallenge", () => {
   });
 
   it("returns and caches a normalized, scoped challenge", async () => {
-    const { result } = renderHook(() => useDailyChallenge("pearl-1", "2026-07-06"), { wrapper: wrapper() });
+    const { result } = renderHook(() => useDailyChallenge("gnoland-1", "2026-07-06"), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.data).toBeTruthy());
     expect(getDailyChallenge).toHaveBeenCalledWith("2026-07-06");
     expect(result.current.data).toMatchObject({
       seed: 12345, modifier: "standard", par: 1500, moveBudget: 30,
       blockHeight: 42, ready: true, source: "network",
     });
-    expect(localStorage.getItem("bp:challenge:v1:pearl-1:2026-07-06")).toContain('"seed":12345');
+    expect(localStorage.getItem("bp:challenge:v1:gnoland-1:2026-07-06")).toContain('"seed":12345');
   });
 
   it("does not reuse another network's cache", async () => {
-    const first = renderHook(() => useDailyChallenge("pearl-1", "2026-07-06"), { wrapper: wrapper() });
+    const first = renderHook(() => useDailyChallenge("gnoland-1", "2026-07-06"), { wrapper: wrapper() });
     await waitFor(() => expect(first.result.current.isSuccess).toBe(true));
     first.unmount();
     getDailyChallenge.mockReset().mockRejectedValue(new Error("offline"));
@@ -48,12 +48,12 @@ describe("useDailyChallenge", () => {
   });
 
   it("serves a validated same-scope cache while an offline revalidation fails", async () => {
-    const online = renderHook(() => useDailyChallenge("pearl-1", "2026-07-06"), { wrapper: wrapper() });
+    const online = renderHook(() => useDailyChallenge("gnoland-1", "2026-07-06"), { wrapper: wrapper() });
     await waitFor(() => expect(online.result.current.data?.source).toBe("network"));
     online.unmount();
     getDailyChallenge.mockReset().mockRejectedValue(new Error("offline"));
 
-    const offline = renderHook(() => useDailyChallenge("pearl-1", "2026-07-06"), { wrapper: wrapper() });
+    const offline = renderHook(() => useDailyChallenge("gnoland-1", "2026-07-06"), { wrapper: wrapper() });
     expect(offline.result.current.data).toMatchObject({ seed: 12345, source: "cache" });
     await waitFor(() => expect(offline.result.current.isError).toBe(true));
     expect(getDailyChallenge).toHaveBeenCalledTimes(3);
@@ -62,7 +62,7 @@ describe("useDailyChallenge", () => {
 
   it("rejects malformed successful responses instead of caching them", async () => {
     getDailyChallenge.mockResolvedValue({ ...response, moveBudget: 0 });
-    const { result } = renderHook(() => useDailyChallenge("pearl-1", "2026-07-06"), { wrapper: wrapper() });
+    const { result } = renderHook(() => useDailyChallenge("gnoland-1", "2026-07-06"), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.isError).toBe(true));
     expect(result.current.data).toBeUndefined();
     expect(localStorage.length).toBe(0);
@@ -70,7 +70,7 @@ describe("useDailyChallenge", () => {
 
   it("represents a not-ready response without persisting it", async () => {
     getDailyChallenge.mockResolvedValue({ date: "2026-07-06", ready: false });
-    const { result } = renderHook(() => useDailyChallenge("pearl-1", "2026-07-06"), { wrapper: wrapper() });
+    const { result } = renderHook(() => useDailyChallenge("gnoland-1", "2026-07-06"), { wrapper: wrapper() });
     await waitFor(() => expect(result.current.isSuccess).toBe(true));
     expect(result.current.data).toMatchObject({ date: "2026-07-06", ready: false, source: "network" });
     expect(localStorage.length).toBe(0);
