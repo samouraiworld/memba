@@ -315,10 +315,9 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         //
         // Visible since 2026-08-27, and the DEFAULT network 2026-08-27 →
         // 2026-09-17 (mainnet took over — see the `mainnet` entry). Pearl
-        // remains the chain Memba's own realms are deployed on, which is why
-        // SNAPSHOT_NETWORK / FEED_INDEXED_NETWORK / INDEXER_PROXIED_NETWORK
-        // and SITEMAP_NETWORK all still name it: those pin CONTENT, not the
-        // landing network. Realm-dependent
+        // remains the chain SNAPSHOT_NETWORK, INDEXER_PROXIED_NETWORK and
+        // SITEMAP_NETWORK name: those pin CONTENT, not the landing network.
+        // (FEED_INDEXED_NETWORK moved to mainnet on 2026-09-23.) Realm-dependent
         // surfaces stay behind `realmsDeployed: false` (honest
         // RealmsNotDeployedBanner) until the combined ceremony. Auth is
         // fail-closed regardless: a pearl-1 token is refused until the owner
@@ -527,11 +526,12 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // false (gno.land/r/samcrew/memba_dao → 404, re-checked 2026-09-17),
         // so the landing page is the honest RealmsNotDeployedBanner plus the
         // realm-free lanes — DAOs (GovDAO and member-deployed), Validators,
-        // Tokens, Directory, chain health. The three backend-pinned constants
-        // (SNAPSHOT_NETWORK / FEED_INDEXED_NETWORK / INDEXER_PROXIED_NETWORK)
-        // deliberately STAY on pearl and self-disable here — they track Fly
-        // secrets, not the landing network, and moving them without the
-        // secrets is the partial-cutover failure this repo keeps re-learning.
+        // Tokens, Directory, chain health. The backend-pinned constants track Fly
+        // secrets, not the landing network: SNAPSHOT_NETWORK and
+        // INDEXER_PROXIED_NETWORK stay on pearl; FEED_INDEXED_NETWORK moved here
+        // on 2026-09-23 together with FEED_RPC_URL/FEED_START_BLOCK and the
+        // feed-state reset. Moving one without its secrets is the
+        // partial-cutover failure this repo keeps re-learning.
         hidden: false,
         realmsDeployed: false,
         // NOT a testnet — this is the production chain. Drives the disclosures
@@ -1164,8 +1164,9 @@ export function getExplorerBaseUrlFor(networkKey: string): string {
  *  (see networkPins.test.ts): without this gate, any active network that
  *  merely HAS an indexerUrl configured (pearl does — its own indexer is live)
  *  would render the PROXIED chain's transactions and block times as its own,
- *  with explorer links built for the wrong chain. Moves with the ceremony's
- *  backend secret window, alongside the feed pins.
+ *  with explorer links built for the wrong chain. Moves with the backend
+ *  INDEXER_GRAPHQL_URL secret; since 2026-09-23 it no longer shares a network with
+ *  the feed (no gnoland-1 GraphQL indexer exists yet).
  *  Pearl cutover: flipped to "pearl" in the §6 completion release, in the same
  *  window as the backend INDEXER_GRAPHQL_URL secret move. */
 export const INDEXER_PROXIED_NETWORK = "pearl"
