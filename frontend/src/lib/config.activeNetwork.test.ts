@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach, vi } from "vitest"
+import { describe, it, expect, afterAll, afterEach, beforeAll, vi } from "vitest"
 import { resolveNetworkKey, DEFAULT_NETWORK, NETWORKS } from "./config"
 
 /**
@@ -18,17 +18,28 @@ import { resolveNetworkKey, DEFAULT_NETWORK, NETWORKS } from "./config"
  * whole page to correct it.
  */
 
-// Fixture networks, by the visibility config.test.ts already pins:
-// mainnet (the default since 2026-09-17) + pearl visible; test13, sapphire,
-// topaz and gnoland1 hidden. VISIBLE_B was `gnoland1` until Betanet was
-// retired to hidden — this file needs TWO visible networks to tell "the URL
-// wins" apart from "the default answered", so it must track the selector.
+// Fixture networks, by the visibility config.test.ts already pins: mainnet
+// (the default since 2026-09-17) is the ONLY visible network since pearl's
+// 2026-09-23 retirement; pearl, test13, sapphire, topaz and gnoland1 are
+// hidden. VISIBLE_B was `gnoland1` until Betanet was retired to hidden. The
+// pure-resolver block needs TWO visible networks to tell "the URL wins" /
+// "the choice wins" apart from "the default answered", so it un-hides pearl
+// for its duration (resolveNetworkKey reads `hidden` at call time).
 const VISIBLE_A = "pearl"
 const VISIBLE_B = "mainnet"
 const HIDDEN = "sapphire"
 const HIDDEN_DEEP_LINK = "test13"
 
 describe("resolveNetworkKey — the one ordering rule", () => {
+    let wasHidden: boolean | undefined
+    beforeAll(() => {
+        wasHidden = NETWORKS[VISIBLE_A].hidden
+        NETWORKS[VISIBLE_A].hidden = false
+    })
+    afterAll(() => {
+        NETWORKS[VISIBLE_A].hidden = wasHidden
+    })
+
     it("fixtures are what they claim to be", () => {
         expect(NETWORKS[VISIBLE_A]?.hidden).toBeFalsy()
         expect(NETWORKS[VISIBLE_B]?.hidden).toBeFalsy()
@@ -72,6 +83,7 @@ describe("ACTIVE_NETWORK_KEY — what config.ts initialises with", () => {
     afterEach(() => {
         localStorage.clear()
         window.history.replaceState({}, "", "/")
+        vi.unstubAllEnvs()
         vi.resetModules()
     })
 
@@ -85,17 +97,24 @@ describe("ACTIVE_NETWORK_KEY — what config.ts initialises with", () => {
     }
 
     it("a deep link loads the linked network's config, whatever the echo says", async () => {
-        // Before: storage alone decided, so this loaded pearl's RPC and realm
-        // constants and NetworkSync then reloaded the page onto gnoland1.
-        expect(await loadAt(`/${VISIBLE_B}/validators`, { echo: VISIBLE_A })).toBe(VISIBLE_B)
+        // Before: storage alone decided, so this loaded the echo's RPC and
+        // realm constants and NetworkSync then reloaded the page. A fresh
+        // module has pearl hidden (reality), so the URL is pearl and the echo
+        // the one visible network — only the URL-first rule yields pearl.
+        expect(await loadAt(`/${VISIBLE_A}/validators`, { echo: VISIBLE_B })).toBe(VISIBLE_A)
     })
 
     it("a deep link to a hidden network still loads that network", async () => {
         expect(await loadAt(`/${HIDDEN_DEEP_LINK}/create-token`)).toBe(HIDDEN_DEEP_LINK)
     })
 
-    it("on `/`, an explicit choice outranks the echo", async () => {
-        expect(await loadAt("/", { pref: VISIBLE_B, echo: VISIBLE_A })).toBe(VISIBLE_B)
+    it("on `/`, a stored explicit choice is honoured at module load", async () => {
+        // With one visible network the pref-vs-echo RANKING cannot be observed
+        // here (it is pinned on the pure resolver above). What this pins is the
+        // wiring: config.ts reads the stored choice at load. The default is
+        // stubbed to a hidden network so "the default answered" cannot pass.
+        vi.stubEnv("VITE_GNO_CHAIN_ID", HIDDEN_DEEP_LINK)
+        expect(await loadAt("/", { pref: VISIBLE_B, echo: HIDDEN })).toBe(VISIBLE_B)
     })
 
     it("on a legacy path with a hidden echo, loads what LegacyRedirect will send you to", async () => {

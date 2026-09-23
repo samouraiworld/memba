@@ -313,11 +313,15 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // matches the RPC (it served the frozen sapphire height for ~4h after
         // launch — identity-check indexers like RPCs).
         //
-        // Visible since 2026-08-27, and the DEFAULT network 2026-08-27 →
-        // 2026-09-17 (mainnet took over — see the `mainnet` entry). Pearl
-        // remains the chain SNAPSHOT_NETWORK, INDEXER_PROXIED_NETWORK and
-        // SITEMAP_NETWORK name: those pin CONTENT, not the landing network.
-        // (FEED_INDEXED_NETWORK moved to mainnet on 2026-09-23.) Realm-dependent
+        // Visible 2026-08-27 → 2026-09-23, and the DEFAULT network 2026-08-27 →
+        // 2026-09-17 (mainnet took over — see the `mainnet` entry).
+        // RETIRED 2026-09-23: the chain is shut down. Hidden-but-resolvable
+        // exactly like topaz/sapphire — the entry, realmsDeployed and its
+        // REALM_ALLOWLIST stay so old /pearl/ deep links still resolve (and
+        // land on the chain-health degraded view) without a dead chain being
+        // offered in the selector. SNAPSHOT_NETWORK, INDEXER_PROXIED_NETWORK,
+        // SITEMAP_NETWORK and FEED_INDEXED_NETWORK all moved to mainnet the
+        // same day. Historical note from the launch window: realm-dependent
         // surfaces stay behind `realmsDeployed: false` (honest
         // RealmsNotDeployedBanner) until the combined ceremony. Auth is
         // fail-closed regardless: a pearl-1 token is refused until the owner
@@ -325,7 +329,8 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // (AUTH-CHAINID-MISMATCH-01), never a wrong-chain tx.
         chainId: "pearl-1",
         userDaos: { create: true, channelsCompanion: true },
-        hidden: false,
+        // Retired 2026-09-23 (chain shut down) — see the header above.
+        hidden: true,
         // Flipped by the §6 completion PR: the combined Pearl ceremony (core
         // set + commerce set) records per-artifact vm/qfile evidence in
         // realm-versions.json's `pearl` section — same rule as sapphire's
@@ -527,10 +532,11 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // so the landing page is the honest RealmsNotDeployedBanner plus the
         // realm-free lanes — DAOs (GovDAO and member-deployed), Validators,
         // Tokens, Directory, chain health. The backend-pinned constants track Fly
-        // secrets, not the landing network: SNAPSHOT_NETWORK and
-        // INDEXER_PROXIED_NETWORK stay on pearl; FEED_INDEXED_NETWORK moved here
-        // on 2026-09-23 together with FEED_RPC_URL/FEED_START_BLOCK and the
-        // feed-state reset. Moving one without its secrets is the
+        // secrets, not the landing network: FEED_INDEXED_NETWORK,
+        // SNAPSHOT_NETWORK, INDEXER_PROXIED_NETWORK and SITEMAP_NETWORK all
+        // moved here at the 2026-09-23 mainnet cutover, together with the
+        // backend FEED_*/HOME_SNAPSHOT_RPC_URL/INDEXER_GRAPHQL_URL secrets and
+        // the feed-state reset. Moving one without its secrets is the
         // partial-cutover failure this repo keeps re-learning.
         hidden: false,
         realmsDeployed: false,
@@ -565,9 +571,12 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // do not guess hostnames here.
         fallbackRpcUrls: [],
         telemetryRpcUrls: [],
-        // No public mainnet indexer announced. Absent ⇒ the activity feed
-        // hides itself rather than erroring.
-        indexerUrl: import.meta.env.VITE_MAINNET_INDEXER_URL || undefined,
+        // gno.land mainnet tx-indexer (verified 2026-09-23: it serves
+        // gnoland-1, latestBlockHeight tracking the RPC). The browser never
+        // calls it directly — getIndexerUrl() returns the backend proxy
+        // (/api/indexer), whose INDEXER_GRAPHQL_URL points here. The host is
+        // covered by the `https://*.gno.land` CSP entry regardless.
+        indexerUrl: import.meta.env.VITE_MAINNET_INDEXER_URL || "https://indexer.gno.land/graphql/query",
         label: "gno.land",
         userRegistryPath: "gno.land/r/sys/users",
         // ⛔ THERE IS NO MAINNET FAUCET, by design (#6154: balances come from
@@ -846,7 +855,9 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
     // legacy NFT v2 pair and v3_1 are NOT deployed on pearl, so never listed.
     // Every entry must be backed by a realm-versions.json `pearl` record
     // (merge-blocking rule above) — the record set lands with the ceremony,
-    // and this PR stays red until it does.
+    // and this PR stays red until it does. Chain RETIRED 2026-09-23; the list
+    // stays truthful about what is published on the (dead) chain for as long
+    // as the hidden entry resolves.
     pearl: [
         "gno.land/r/samcrew/memba_dao",
         "gno.land/r/samcrew/memba_dao_candidature_v3",
@@ -1001,6 +1012,14 @@ export function isRealmValidOn(networkKey: string, realmPath: string): boolean {
     // statement for any network we have not explicitly provisioned.
     if (!allow) return false
     return allow.includes(realmPath)
+}
+
+/** Whether Memba has at least one realm allowlisted (verified live) on a
+ *  network. Finer than `networkHasRealms` for a partially-deployed chain —
+ *  mainnet wave 1 keeps `realmsDeployed: false` while its REALM_ALLOWLIST is
+ *  non-empty. An explicit empty list (gnoland1) or an absent key is false. */
+export function networkHasAllowlistedRealms(networkKey: string): boolean {
+    return (REALM_ALLOWLIST[networkKey]?.length ?? 0) > 0
 }
 
 /**
@@ -1162,14 +1181,15 @@ export function getExplorerBaseUrlFor(networkKey: string): string {
  *  forwards to — the backend's INDEXER_GRAPHQL_URL is a single fixed endpoint,
  *  not per-network. NETWORK-PINNED like FEED_INDEXED_NETWORK/SNAPSHOT_NETWORK
  *  (see networkPins.test.ts): without this gate, any active network that
- *  merely HAS an indexerUrl configured (pearl does — its own indexer is live)
- *  would render the PROXIED chain's transactions and block times as its own,
- *  with explorer links built for the wrong chain. Moves with the backend
- *  INDEXER_GRAPHQL_URL secret; since 2026-09-23 it no longer shares a network with
- *  the feed (no gnoland-1 GraphQL indexer exists yet).
+ *  merely HAS an indexerUrl configured would render the PROXIED chain's
+ *  transactions and block times as its own, with explorer links built for the
+ *  wrong chain. Moves with the backend INDEXER_GRAPHQL_URL secret.
  *  Pearl cutover: flipped to "pearl" in the §6 completion release, in the same
- *  window as the backend INDEXER_GRAPHQL_URL secret move. */
-export const INDEXER_PROXIED_NETWORK = "pearl"
+ *  window as the backend INDEXER_GRAPHQL_URL secret move.
+ *  Mainnet cutover (2026-09-23): flipped to "mainnet" with the backend
+ *  INDEXER_GRAPHQL_URL move to https://indexer.gno.land/graphql/query — it
+ *  shares a network with the feed again. */
+export const INDEXER_PROXIED_NETWORK = "mainnet"
 
 /** GraphQL endpoint the frontend POSTs indexer queries to. The browser cannot
  *  call the public tx-indexer directly (it sends no CORS headers), so requests go
@@ -1374,8 +1394,11 @@ export const FEEDBACK_REALM_PATH = "gno.land/r/samcrew/memba_feedback_v2"
  *
  * Pearl cutover: flipped to "pearl" in the §6 completion release together with
  * the backend snapshot/NFT RPC secret window.
+ *
+ * Mainnet cutover (2026-09-23): flipped to "mainnet" together with the backend
+ * HOME_SNAPSHOT_RPC_URL / NFT_RPC_URL move to the Samourai gnoland-1 node.
  */
-export const SNAPSHOT_NETWORK = "pearl"
+export const SNAPSHOT_NETWORK = "mainnet"
 
 /**
  * The network key the backend FEED INDEXER is scoped to — i.e. the one chain

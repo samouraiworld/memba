@@ -82,16 +82,16 @@ describe('config constants', () => {
         expect(NETWORKS.topaz).toBeDefined()
     })
 
-    // Pearl is LIVE: un-hidden + default since 2026-08-27 (#1117), and the
-    // §6 completion PR flipped realmsDeployed together with the ceremony's
-    // realm-versions `pearl` records (the allowlist merge-blocker enforces
-    // the backing). The pre-registration dark-contract this test used to pin
-    // is history — the flip happened exactly the way its comment demanded:
-    // both pins together, in the ceremony PR, never before.
-    it('pearl is the visible default with LIVE realms and a record-backed allowlist', () => {
+    // Pearl was LIVE 2026-08-27 → 2026-09-23 (default until the 09-17 mainnet
+    // flip), with realmsDeployed flipped by the §6 completion PR together with
+    // the ceremony's realm-versions `pearl` records. RETIRED 2026-09-23 (chain
+    // shut down): hidden like topaz/sapphire, but the entry, realmsDeployed
+    // and the record-backed allowlist stay so old /pearl/ deep links resolve
+    // and the allowlist stays truthful about what was published there.
+    it('pearl is RETIRED — hidden, but keeps its realms and record-backed allowlist', () => {
         expect(NETWORKS.pearl).toBeDefined()
-        expect(NETWORKS.pearl.hidden).toBe(false)
-        expect(Object.keys(VISIBLE_NETWORKS)).toContain('pearl')
+        expect(NETWORKS.pearl.hidden).toBe(true)
+        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('pearl')
         expect(NETWORKS.pearl.realmsDeployed).toBe(true)
         expect(NETWORKS.pearl.isTestnet).toBe(true)
         expect(NETWORKS.pearl.chainId).toBe('pearl-1')
@@ -588,10 +588,10 @@ describe('network reduction — test13 + topaz + gnoland1 + sapphire + pearl + m
         // F-28. The explicit entry in config.ts states intent; this asserts
         // the behaviour that actually protects users.
     })
-    it('defaults to pearl in an env-less (CI/shipped) build', () => {
+    it('defaults to mainnet in an env-less (CI/shipped) build', () => {
         // CI runs without a .env, so DEFAULT_NETWORK exercises the fallback;
         // a local .env pinning another chain skews this test — the known
-        // env-test-divergence class, run with VITE_GNO_CHAIN_ID=pearl.
+        // env-test-divergence class, run with VITE_GNO_CHAIN_ID=mainnet.
         expect(DEFAULT_NETWORK).toBe(resolveDefaultNetwork(import.meta.env.VITE_GNO_CHAIN_ID))
     })
     it('no longer references test12 / staging / portal', () => {
@@ -677,17 +677,16 @@ describe('sapphire is SUNSET (2026-09-09) — dark but resolvable', () => {
         // network-scoped predicate.
     })
 
-    it('truthfully keeps realms after retirement; the PINNED set lives on pearl', () => {
+    it('truthfully keeps realms after retirement; the PINNED set lives on mainnet', () => {
         expect(networkHasRealms('sapphire')).toBe(true)
         // The pinned constants do NOT derive from the env; desynchronising them
         // from their backend counterparts fails SILENTLY (W3-6), so they are
-        // asserted as a set — on the network the §6 completion release moved
-        // them to, together with the backend secret window.
-        expect(SNAPSHOT_NETWORK).toBe('pearl')
-        // The feed indexer moved to mainnet on 2026-09-23 with its own backend
-        // secret window and feed-state reset.
+        // asserted as a set — on the network the 2026-09-23 mainnet cutover
+        // moved them to, together with the backend secret window (FEED_*,
+        // HOME_SNAPSHOT_RPC_URL, INDEXER_GRAPHQL_URL) and the feed-state reset.
+        expect(SNAPSHOT_NETWORK).toBe('mainnet')
         expect(FEED_INDEXED_NETWORK).toBe('mainnet')
-        expect(SITEMAP_NETWORK).toBe('pearl')
+        expect(SITEMAP_NETWORK).toBe('mainnet')
     })
 })
 
@@ -702,7 +701,23 @@ describe('retired networks stay DARK but resolvable (topaz 2026-08-12, test13 20
         const selectable = Object.keys(selectableNetworksFor('topaz'))
         expect(selectable).toContain('topaz')
         expect(selectable).toContain('mainnet')
+        // pearl retired 2026-09-23 — never offered as a destination.
+        expect(selectable).not.toContain('pearl')
+    })
+
+    it('pearl is hidden after its 2026-09-23 retirement, never the default, but resolves and remains escapable', () => {
+        expect(NETWORKS.pearl.hidden).toBe(true)
+        expect(Object.keys(VISIBLE_NETWORKS)).not.toContain('pearl')
+        expect(resolveDefaultNetwork(undefined)).toBe('mainnet')
+        // Still a valid explicit pin (deep links, env pins) — NETWORKS
+        // membership is the only requirement.
+        expect(resolveDefaultNetwork('pearl')).toBe('pearl')
+        const selectable = Object.keys(selectableNetworksFor('pearl'))
         expect(selectable).toContain('pearl')
+        expect(selectable).toContain('mainnet')
+        // Its realms are truthfully still "deployed" — the dead chain presents
+        // through the chain-health degraded view, not RealmsNotDeployedBanner.
+        expect(networkHasRealms('pearl')).toBe(true)
     })
 
     it('topaz truthfully keeps realmsDeployed (the realms exist; the chain is gone)', () => {
@@ -823,14 +838,15 @@ describe('FEED_INDEXED_NETWORK — drift tripwire', () => {
             // move to land in the same PR.
             expect(nets[DEFAULT_NETWORK].realmsDeployed).toBe(false)
         }
-        // The feed moved to mainnet on 2026-09-23 on its own (FEED_RPC_URL +
-        // FEED_START_BLOCK + feed-reset). The indexer proxy did NOT: there is no
-        // gnoland-1 GraphQL indexer behind INDEXER_GRAPHQL_URL yet, so it stays on
-        // pearl. Both pins are asserted literally so neither can drift silently;
-        // re-couple them when a mainnet indexer lands.
+        // Mainnet cutover (2026-09-23): the feed (FEED_RPC_URL + FEED_START_BLOCK
+        // + feed-reset) and the indexer proxy (INDEXER_GRAPHQL_URL →
+        // indexer.gno.land) both serve gnoland-1, so the two pins are
+        // RE-COUPLED. Asserted literally AND against each other so neither can
+        // drift silently.
         const { INDEXER_PROXIED_NETWORK } = await import('./config')
         expect(FEED_INDEXED_NETWORK).toBe('mainnet')
-        expect(INDEXER_PROXIED_NETWORK).toBe('pearl')
+        expect(INDEXER_PROXIED_NETWORK).toBe('mainnet')
+        expect(INDEXER_PROXIED_NETWORK).toBe(FEED_INDEXED_NETWORK)
     })
 
     it('indexer-backed surfaces hide themselves off the proxied network', async () => {
@@ -875,16 +891,16 @@ describe('explorerUrl — the host every "view on gnoweb" link is built from', (
         }
     })
 
-    it('resolves the active network to the pearl gnoweb host, by value', async () => {
+    it('resolves the active network to the mainnet gnoweb host, by value', async () => {
         // Asserting against NETWORKS[DEFAULT_NETWORK].explorerUrl would be X === X
         // (tests clear localStorage, so _activeNetwork IS DEFAULT_NETWORK) and would
-        // pass for any garbage value. Pin the literal instead: pearl's gnoweb,
-        // live-verified 2026-08-27 (403 during the launch window, then 200).
+        // pass for any garbage value. Pin the literal instead: mainnet's gnoweb
+        // (gno.land, serving gnoland-1 since the 2026-09-12 launch).
         // NOTE this literal is env-coupled like DEFAULT_NETWORK — a local .env
         // pinning another chain skews it (env-test-divergence class).
         const { getExplorerBaseUrl, DEFAULT_NETWORK: dn } = await import('./config')
-        if (dn === 'pearl') {
-            expect(getExplorerBaseUrl()).toBe('https://pearl.testnets.gno.land')
+        if (dn === 'mainnet') {
+            expect(getExplorerBaseUrl()).toBe('https://gno.land')
         } else {
             const { NETWORKS: nets } = await import('./config')
             expect(getExplorerBaseUrl()).toBe(nets[dn].explorerUrl)
@@ -1076,7 +1092,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
 
     /** config as a SHIPPED build sees it (prod, deploy previews, CI's :5173). */
     async function shippedBuild() {
-        vi.stubEnv('VITE_GNO_CHAIN_ID', 'pearl')
+        vi.stubEnv('VITE_GNO_CHAIN_ID', 'mainnet')
         vi.resetModules()
         return await import('./config')
     }
@@ -1088,9 +1104,9 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
         // failure mode it was meant to catch (healing one hidden network to
         // another leaves the user precisely where they started).
         // 'topaz' joined this list at its 2026-08-12 retirement, 'sapphire' at
-        // its 2026-09-09 sunset: every returning pre-sunset user carries exactly
-        // that stored key.
-        for (const stored of ['gnoland1', 'test13', 'topaz', 'sapphire']) {
+        // its 2026-09-09 sunset, 'pearl' at its 2026-09-23 retirement: every
+        // returning pre-sunset user carries exactly that stored key.
+        for (const stored of ['gnoland1', 'test13', 'topaz', 'sapphire', 'pearl']) {
             const healed = resolveStoredNetworkKey(stored)
             expect(NETWORKS[healed], `${stored} must heal to a real network`).toBeDefined()
             expect(NETWORKS[healed].hidden, `${stored} must heal to a VISIBLE network`).not.toBe(true)
@@ -1109,7 +1125,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
 
     it('keeps a stored VISIBLE network', async () => {
         const { resolveStoredNetworkKey } = await shippedBuild()
-        expect(resolveStoredNetworkKey('pearl')).toBe('pearl')
+        expect(resolveStoredNetworkKey('mainnet')).toBe('mainnet')
     })
 
     it('falls back for unknown/empty input rather than throwing', async () => {
@@ -1185,7 +1201,7 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
 describe('selectableNetworksFor — the switcher escape hatch', () => {
     it('offers the ACTIVE network even when it is hidden', async () => {
         const { selectableNetworksFor } = await import('./config')
-        for (const hidden of ['test13', 'topaz', 'sapphire']) {
+        for (const hidden of ['test13', 'topaz', 'sapphire', 'pearl']) {
             const offered = selectableNetworksFor(hidden)
             expect(offered[hidden], `${hidden} must stay selectable while active`).toBeDefined()
             // A one-option <select> cannot fire onChange — there must be somewhere to go.
@@ -1195,7 +1211,7 @@ describe('selectableNetworksFor — the switcher escape hatch', () => {
 
     it('is the plain visible set for a visible active network', async () => {
         const { selectableNetworksFor, VISIBLE_NETWORKS } = await import('./config')
-        expect(selectableNetworksFor('pearl')).toBe(VISIBLE_NETWORKS)
+        expect(selectableNetworksFor('mainnet')).toBe(VISIBLE_NETWORKS)
     })
 
     it('does not invent an option for an unknown network', async () => {

@@ -48,7 +48,7 @@ import { readFileSync, readdirSync, statSync } from "node:fs"
 import path from "node:path"
 import { fileURLToPath } from "node:url"
 import { describe, it, expect } from "vitest"
-import { networkHasRealms } from "./config"
+import { networkHasAllowlistedRealms, networkHasRealms } from "./config"
 
 const dir = path.dirname(fileURLToPath(import.meta.url))
 const SRC = path.join(dir, "..")
@@ -105,22 +105,24 @@ const ALLOWLIST: Pin[] = [
     },
     {
         file: "lib/sitemap.ts",
-        allow: ["pearl"],
+        allow: ["mainnet"],
         cutoverCritical: true,
         why:
             "SITEMAP_NETWORK — the chain whose URLs are published to search engines. " +
-            "Left stale across the topaz cutover and advertised a dead chain.",
+            "Left stale across the topaz cutover and advertised a dead chain. " +
+            "Moved pearl -> mainnet at the 2026-09-23 mainnet cutover.",
     },
     {
         file: "lib/chainHealth.ts",
-        allow: ["pearl", "gnoland1"],
+        allow: ["mainnet", "gnoland1"],
         cutoverCritical: true,
         why:
             "fallbackOrder — the chains ChainHaltedBanner may offer as a one-click " +
             "escape when the active one is unreachable, best-first, filtered at " +
-            "runtime by networkHasRealms (pearl leads since the §6 completion; " +
-            "sapphire left the order with the cutover — never suggest the " +
-            "outgoing chain; gnoland1 is the realm-free last resort).",
+            "runtime by networkHasRealms (mainnet leads since the 2026-09-23 " +
+            "cutover; pearl left the order then, as sapphire did before it — " +
+            "never suggest a dead or outgoing chain; gnoland1 is the realm-free " +
+            "last resort).",
     },
     {
         file: "lib/txExplorerUrl.ts",
@@ -285,10 +287,16 @@ describe("network-pin drift guard", () => {
             // since the 2026-08-27 pearl-default flip it exempts pearl the same
             // way — exactly until the ceremony flips realmsDeployed:true, at
             // which point pearl re-enters this check and forces the sitemap /
-            // fallback pins to move in the same PR. (Names here are NETWORK
-            // KEYS; if a critical pin ever allows a chain-id form, map it to
-            // its key before this filter.)
-            const active = [...(names ?? [])].filter((n) => networkHasRealms(n))
+            // fallback pins to move in the same PR. Mainnet cutover
+            // (2026-09-23): mainnet wave 1 is PARTIAL — `realmsDeployed` stays
+            // false while its REALM_ALLOWLIST lists the live realms — so a
+            // non-empty allowlist also counts as "Memba's realms are live
+            // there". gnoland1 (explicit empty list) stays exempt. (Names here
+            // are NETWORK KEYS; if a critical pin ever allows a chain-id form,
+            // map it to its key before this filter.)
+            const active = [...(names ?? [])].filter(
+                (n) => networkHasRealms(n) || networkHasAllowlistedRealms(n),
+            )
             return { file: p.file, active }
         })
 
@@ -309,7 +317,12 @@ describe("network-pin drift guard", () => {
     it("no cutover-critical pin names a retired chain", () => {
         // config.ts keeps retired networks so old deep links resolve; the pins
         // that decide what the app SERVES must not.
-        const RETIRED = ["test11", "test12", "test13", "test-13", "topaz", "topaz-1", "topaz-dev"]
+        const RETIRED = [
+            "test11", "test12", "test13", "test-13", "topaz", "topaz-1", "topaz-dev",
+            "sapphire", "sapphire-1",
+            // Retired at the 2026-09-23 mainnet cutover (chain shut down).
+            "pearl", "pearl-1",
+        ]
         const offenders: string[] = []
         for (const p of ALLOWLIST.filter((x) => x.cutoverCritical)) {
             for (const n of found.get(p.file) ?? []) {

@@ -23,6 +23,10 @@ Full changelogs are split by version range for easier navigation:
 ### Block Party daily seed on gno.land mainnet (2026-09-23)
 - Seed the Block Party daily board from gno.land mainnet (`gnoland-1`) by default, through the Samouraï sentry, while keeping the single-node, identity-checked, no-failover rules.
 - Point the public seed verifier and its guide at mainnet, and re-capture the wire-format test fixtures from a live `gnoland-1` block.
+### Mainnet backend and indexer cutover (2026-09-23)
+- Point the backend at gno.land mainnet (`gnoland-1`) by default: generic reads use `rpc.gno.land`, while the home snapshot, feed and NFT pollers use the Samourai mainnet node, and RPC failover lists only mainnet nodes.
+- Serve recent activity, block times and address history from the mainnet tx-indexer, and scope the home snapshot and the published sitemap to mainnet.
+- Retire Pearl: it is no longer offered in the network switcher or suggested as an escape when a chain is unreachable, but old `/pearl/` links still open.
 
 ### Mainnet wave-1 realms (2026-09-23)
 - Record the eleven samcrew packages and realms published on gno.land mainnet (`gnoland-1`) in `realm-versions.json`, each verified by `vm/qfile`.

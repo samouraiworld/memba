@@ -10,9 +10,12 @@ import { afterEach, describe, expect, test, vi } from 'vitest'
 // testnet, and became load-bearing at the 2026-09-17 mainnet flip: on a
 // realm-free default this file's subject changes behaviour for reasons that
 // have nothing to do with what it asserts.
+// Mainnet cutover (2026-09-23): pearl is RETIRED (hidden), and a hidden
+// network is never restored from storage — only honoured when it is IN THE
+// URL. So the pin moved from localStorage to the jsdom URL: pearl keeps its
+// full realm allowlist, which is what this file needs.
 vi.hoisted(() => {
-    localStorage.setItem("memba_network_pref", "pearl")
-    localStorage.setItem("memba_network", "pearl")
+    window.history.replaceState(null, "", "/pearl/")
 })
 
 

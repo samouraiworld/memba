@@ -17,16 +17,16 @@ test.describe('Settings Page', () => {
         await expect(page.locator('body')).toContainText(/v\d+/)
     })
 
-    test('network section offers the active network AND Pearl (mainnet default 2026-09-17)', async ({ page }) => {
+    test('network section offers the active network, never a retired one (mainnet cutover 2026-09-23)', async ({ page }) => {
         await page.goto('/settings')
         // Network section is open by default.
         //
-        // Pearl is the second offered network now that Betanet is retired
-        // (every public gnoland1 endpoint dead, 2026-09-17). Hidden (retired)
-        // networks must still not be offered here.
+        // Pearl was the second offered network after Betanet's retirement
+        // (2026-09-17) until its own shutdown at the 2026-09-23 mainnet
+        // cutover. Hidden (retired) networks must not be offered here.
         const active = page.locator('#settings-page button[id^="network-"]')
         await expect(active.first()).toBeVisible()
-        await expect(page.locator('#network-pearl')).toHaveCount(1)
+        await expect(page.locator('#network-pearl')).toHaveCount(0)
         await expect(page.locator('#network-gnoland1')).toHaveCount(0)
         await expect(page.locator('#network-topaz')).toHaveCount(0)
         await expect(page.locator('#network-test13')).toHaveCount(0)

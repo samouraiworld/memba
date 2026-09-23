@@ -9,7 +9,7 @@
  * v3.0: Initial implementation for betanet fallback UX.
  */
 
-import { NETWORKS, networkHasRealms } from "./config"
+import { NETWORKS, networkHasAllowlistedRealms, networkHasRealms } from "./config"
 
 export interface ChainHealthResult {
     /** Whether at least one RPC endpoint responded successfully. */
@@ -124,10 +124,18 @@ export function getSuggestedFallback(currentNetworkKey: string): string | null {
     // the removal days later anyway — the networkPins tooth demands exactly
     // one active-realms network per pin file). gnoland1 stays last
     // (realm-free, filtered anyway).
-    const fallbackOrder = ["pearl", "gnoland1"]
+    // Mainnet cutover (2026-09-23): pearl left the list — it is shut down, and
+    // a dead chain must never be offered as an escape. mainnet leads: it is
+    // where Memba's realms live now. Its wave 1 is PARTIAL (`realmsDeployed`
+    // stays false while REALM_ALLOWLIST lists the live realms), so "has Memba
+    // realms" also accepts a non-empty allowlist — otherwise a dead /pearl/
+    // deep link would get no escape at all. gnoland1's explicit empty list
+    // still keeps it out.
+    const fallbackOrder = ["mainnet", "gnoland1"]
     for (const key of fallbackOrder) {
         const net = NETWORKS[key]
-        if (key !== currentNetworkKey && net && !net.hidden && networkHasRealms(key)) {
+        const hasMembaRealms = networkHasRealms(key) || networkHasAllowlistedRealms(key)
+        if (key !== currentNetworkKey && net && !net.hidden && hasMembaRealms) {
             return key
         }
     }

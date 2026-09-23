@@ -82,15 +82,25 @@ describe("ChainHaltedBanner — test13 is not exempt", () => {
 })
 
 describe("ChainHaltedBanner — fallback suggestion", () => {
-    it("suggests Pearl (Memba realms live) for a down test13, never Betanet", async () => {
+    it("suggests gno.land mainnet (Memba realms live) for a down test13, never Betanet", async () => {
         checkChainHealth.mockResolvedValue(unreachable)
         render(<ChainHaltedBanner networkKey="test13" onSwitchNetwork={() => {}} />)
 
         await settleTwoStrikes()
         const alert = await screen.findByRole("alert")
-        // Pearl carries Memba's realm set since the §6 completion; Betanet/
-        // gnoland1 does not — never steer there.
-        expect(alert).toHaveTextContent(/pearl/i)
+        // Mainnet carries Memba's wave-1 realms since the 2026-09-23 cutover;
+        // Betanet/gnoland1 does not, and pearl is shut down — never steer there.
+        expect(alert).toHaveTextContent(/Switch to gno\.land/)
         expect(alert).not.toHaveTextContent(/betanet/i)
+        expect(alert).not.toHaveTextContent(/pearl/i)
+    })
+
+    it("offers mainnet as the escape from a dead pearl deep link", async () => {
+        checkChainHealth.mockResolvedValue(unreachable)
+        render(<ChainHaltedBanner networkKey="pearl" onSwitchNetwork={() => {}} />)
+
+        await settleTwoStrikes()
+        const alert = await screen.findByRole("alert")
+        expect(alert).toHaveTextContent(/Switch to gno\.land/)
     })
 })

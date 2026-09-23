@@ -22,10 +22,10 @@ vi.mock("../../lib/homeApi", () => ({
 
 vi.mock("../useNetwork", () => ({
     useNetwork: vi.fn(() => ({
-        networkKey: "pearl",
-        chainId: "pearl-1",
-        rpcUrl: "https://rpc.pearl.testnets.gno.land:443",
-        label: "Pearl",
+        networkKey: "mainnet",
+        chainId: "gnoland-1",
+        rpcUrl: "https://rpc.gno.land:443",
+        label: "gno.land",
     })),
 }))
 
@@ -49,10 +49,10 @@ describe("useHomeSnapshot — on SNAPSHOT_NETWORK with populated snapshot", () =
     beforeEach(() => {
         vi.clearAllMocks()
         vi.mocked(networkMod.useNetwork).mockReturnValue({
-            networkKey: "pearl",
-            chainId: "pearl-1",
-            rpcUrl: "https://rpc.pearl.testnets.gno.land:443",
-            label: "Pearl",
+            networkKey: "mainnet",
+            chainId: "gnoland-1",
+            rpcUrl: "https://rpc.gno.land:443",
+            label: "gno.land",
             switchNetwork: vi.fn(),
             networks: {},
         })
@@ -109,10 +109,10 @@ describe("useHomeSnapshot — snapshot resolves to null", () => {
     beforeEach(() => {
         vi.clearAllMocks()
         vi.mocked(networkMod.useNetwork).mockReturnValue({
-            networkKey: "pearl",
-            chainId: "pearl-1",
-            rpcUrl: "https://rpc.pearl.testnets.gno.land:443",
-            label: "Pearl",
+            networkKey: "mainnet",
+            chainId: "gnoland-1",
+            rpcUrl: "https://rpc.gno.land:443",
+            label: "gno.land",
             switchNetwork: vi.fn(),
             networks: {},
         })
@@ -134,10 +134,10 @@ describe("useHomeSnapshot — snapshot is the empty failure shell", () => {
     beforeEach(() => {
         vi.clearAllMocks()
         vi.mocked(networkMod.useNetwork).mockReturnValue({
-            networkKey: "pearl",
-            chainId: "pearl-1",
-            rpcUrl: "https://rpc.pearl.testnets.gno.land:443",
-            label: "Pearl",
+            networkKey: "mainnet",
+            chainId: "gnoland-1",
+            rpcUrl: "https://rpc.gno.land:443",
+            label: "gno.land",
             switchNetwork: vi.fn(),
             networks: {},
         })

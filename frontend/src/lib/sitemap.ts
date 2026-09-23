@@ -28,23 +28,15 @@ export const SITE_ORIGIN = "https://memba.samourai.app"
 //  network became pearl on 2026-08-27 (#1117) and the ceremony made its realm
 //  pages real, so the published sitemap/RSS follow.
 //
-// ⚠️ DELIBERATE DIVERGENCE since the 2026-09-17 mainnet default flip: the
-//  landing network is now `mainnet`, and this pin stays `pearl` ON PURPOSE.
-//  The invariant above is "publish the chain whose pages have CONTENT", and
-//  mainnet's realm-backed routes (/marketplace, /feed, /tokens, /apps) render
-//  gated placeholders while `NETWORKS.mainnet.realmsDeployed` is false —
-//  indexing them would advertise empty pages. Two consequences to weigh,
-//  both left for a maintainer call rather than decided here:
-//    1. SEO: the sitemap/RSS now name a different prefix than the one every
-//       visitor lands on. If that matters more than page emptiness, move this
-//       to "mainnet" — but see 2.
-//    2. `networkPins.test.ts` tooth 2 ("cutover-critical pins all name the
-//       same network") filters on `networkHasRealms`, so a realm-free pin
-//       reads as ZERO active networks and the guard goes red. That guard's
-//       premise — landing network == fallback chain == sitemap chain — is
-//       what this flip breaks; fixing it is a separate change.
-//  MOVE THIS THE DAY Memba's realms ship on gnoland-1.
-export const SITEMAP_NETWORK = "pearl"
+// 2026-09-17 → 2026-09-23 this pin stayed `pearl` ON PURPOSE while the
+//  landing network was already `mainnet` (mainnet had no Memba realms yet, so
+//  indexing it would have advertised empty pages).
+//
+// Mainnet cutover (2026-09-23): moved to "mainnet" — pearl is shut down (a
+//  sitemap naming it would advertise a dead chain, the test13 failure again),
+//  Memba's wave-1 realms are live on gnoland-1, and the pin is equal to
+//  netlify.toml's VITE_GNO_CHAIN_ID again.
+export const SITEMAP_NETWORK = "mainnet"
 
 /**
  * Public, indexable, STATIC routes (network-relative). Auth-gated pages
