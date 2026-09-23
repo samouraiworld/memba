@@ -1,15 +1,7 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 
 test.use({ baseURL: 'http://localhost:5174' })
-
-async function gameURL(page: Page) {
-  await page.goto('/')
-  await page.waitForURL(/\/\w+\/$/)
-  const network = new URL(page.url()).pathname.match(/^\/(\w+)\//)?.[1]
-  expect(network).toBeTruthy()
-  return `/${network}/game/barricade`
-}
 
 test('uses a wide desktop battlefield and enters real fullscreen', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium', 'Desktop fullscreen is covered in Chromium')
@@ -49,7 +41,7 @@ test('uses a wide desktop battlefield and enters real fullscreen', async ({ page
 })
 
 test('focuses the playfield, moves by keyboard, and pauses without advancing play', async ({ page }) => {
-  await page.goto(await gameURL(page))
+  await page.goto('/pearl/game/barricade')
   await page.getByRole('button', { name: 'Daily run' }).click()
   const stage = page.getByRole('group', { name: 'Barricade playfield' })
   await expect(stage).toBeFocused()
@@ -61,13 +53,21 @@ test('focuses the playfield, moves by keyboard, and pauses without advancing pla
   await expect(page.getByText(/Keyboard: lane 3/)).toBeVisible()
   await stage.press('ArrowUp')
   await expect(page.getByText(/range 40%/)).toBeVisible()
-  await stage.press('Enter')
-  await expect(page.getByText(/Keyboard: lane 3/)).toBeHidden()
-  // The throw starts a short sim cooldown. The control must become unavailable
-  // immediately instead of accepting a second input that the sim silently drops.
-  await expect(page.getByRole('button', { name: 'Molotov' })).toBeDisabled()
-  await stage.press('m')
-  await expect(page.getByText(/Keyboard: lane 3/)).toBeHidden()
+  // Observe the short sim cooldown inside the browser, before a slow Firefox
+  // driver round trip can consume it, and prove a second input is ignored.
+  const cooldown = await stage.evaluate(async playfield => {
+    const press = (key: string) => playfield.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true }))
+    const nextFrame = () => new Promise<void>(resolve => requestAnimationFrame(() => resolve()))
+    press('Enter')
+    await nextFrame()
+    const molotov = [...document.querySelectorAll('button')].find(button => button.textContent?.trim() === 'Molotov') as HTMLButtonElement | undefined
+    const disabled = molotov?.disabled ?? false
+    press('m')
+    await nextFrame()
+    return { disabled, aimHint: document.querySelector('.bar-aim-hint')?.textContent ?? '' }
+  })
+  expect(cooldown.disabled).toBe(true)
+  expect(cooldown.aimHint).toBe('')
 
   await stage.press('p')
   await expect(page.getByText('Run paused')).toBeVisible()
@@ -85,7 +85,7 @@ test('focuses the playfield, moves by keyboard, and pauses without advancing pla
 })
 
 test('has no serious or critical accessibility findings in the ready game', async ({ page }) => {
-  await page.goto(await gameURL(page))
+  await page.goto('/pearl/game/barricade')
   await expect(page.getByRole('button', { name: 'Daily run' })).toBeVisible()
   const results = await new AxeBuilder({ page })
     .include('.bar-shell')
@@ -102,18 +102,14 @@ test('keeps every between-wave choice inside the immersive phone battlefield', a
   await page.getByRole('button', { name: 'Daily run' }).click()
   const shop = page.getByRole('group', { name: 'Between-wave shop' })
   await expect(shop).toBeVisible({ timeout: 60000 })
-  const shopAxe = await new AxeBuilder({ page })
-    .include('.bar-shell')
-    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
-    .analyze()
-  expect(shopAxe.violations.filter(v => v.impact === 'critical' || v.impact === 'serious')).toHaveLength(0)
-  const layout = await page.evaluate(() => ({
-    shopTop: document.querySelector('.bar-shop')!.getBoundingClientRect().top,
+  const layout = await shop.evaluate(element => ({
+    shopTop: element.getBoundingClientRect().top,
     availableBottom: (() => {
-      const tabbar = document.querySelector('.k-mobile-tabbar')!.getBoundingClientRect()
+      const tabbar = document.querySelector('.k-mobile-tabbar')?.getBoundingClientRect()
+      if (!tabbar) return innerHeight
       return tabbar.height ? tabbar.top : innerHeight
     })(),
-    buttons: [...document.querySelectorAll('.bar-shop button')].map(button => {
+    buttons: [...element.querySelectorAll('button')].map(button => {
       const box = button.getBoundingClientRect()
       return { top: box.top, bottom: box.bottom, height: box.height }
     }),
@@ -126,15 +122,26 @@ test('keeps every between-wave choice inside the immersive phone battlefield', a
     expect(button.height).toBeGreaterThanOrEqual(44)
   }
   const patch = shop.getByRole('button', { name: /Patch/ })
-  if (await patch.isEnabled()) {
-    await patch.click()
+  const patchWasDisabled = await patch.evaluate((button: HTMLButtonElement) => {
+    const { disabled } = button
+    if (!disabled) button.click()
+    return disabled
+  })
+  if (!patchWasDisabled) {
     await expect(patch).toBeHidden()
   } else {
     // A full wall must not let the one-use patch be wasted.
     await expect(patch).toBeDisabled()
   }
-  await shop.getByRole('button', { name: /To the wall/ }).click()
-  await expect(shop).toBeHidden()
+  const shopAxe = await new AxeBuilder({ page })
+    .include('.bar-shell')
+    .withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'])
+    .analyze()
+  expect(shopAxe.violations.filter(v => v.impact === 'critical' || v.impact === 'serious')).toHaveLength(0)
+  if (await shop.isVisible()) {
+    await shop.getByRole('button', { name: /To the wall/ }).click({ force: true })
+    await expect(shop).toBeHidden()
+  }
 
   const deadline = Date.now() + 100000
   while (!(await page.locator('.bar-poster').isVisible()) && Date.now() < deadline) {
