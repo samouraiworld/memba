@@ -27,6 +27,7 @@ Full changelogs are split by version range for easier navigation:
 - Point the backend at gno.land mainnet (`gnoland-1`) by default: generic reads use `rpc.gno.land`, while the home snapshot, feed and NFT pollers use the Samourai mainnet node, and RPC failover lists only mainnet nodes.
 - Serve recent activity, block times and address history from the mainnet tx-indexer, and scope the home snapshot and the published sitemap to mainnet.
 - Retire Pearl: it is no longer offered in the network switcher or suggested as an escape when a chain is unreachable, but old `/pearl/` links still open.
+- Activate brand-new mainnet wallets through gno.land's own `r/demo/profile` realm, which is live there, so a wallet's first sign-in can complete on mainnet.
 
 ### Mainnet wave-1 realms (2026-09-23)
 - Record the eleven samcrew packages and realms published on gno.land mainnet (`gnoland-1`) in `realm-versions.json`, each verified by `vm/qfile`.

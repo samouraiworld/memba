@@ -23,6 +23,7 @@ import {
     FEED_INDEXED_NETWORK,
     selectableNetworksFor,
     reviewsPathFor,
+    activationRealmFor,
     isReviewsAvailable,
     isRealmValid,
     ACTIVE_NETWORK_KEY,
@@ -201,6 +202,11 @@ describe('config constants', () => {
         for (const base of ['memba_reviews_v1', 'memba_appstore_v2', 'memba_appstore_reviews_v1']) {
             expect(isRealmValidOn('mainnet', `gno.land/r/samcrew/${base}`)).toBe(false)
         }
+    })
+
+    it('activates new wallets through a profile realm that is live on each network', () => {
+        expect(activationRealmFor('mainnet')).toBe('gno.land/r/demo/profile')
+        expect(activationRealmFor('pearl')).toBe('gno.land/r/samcrew/deps/demo/profile')
     })
 
     it('chooses the reviews realm per network and gates review surfaces on it', () => {

@@ -1154,8 +1154,14 @@ export const GNO_FAUCET_URL = NETWORKS[_activeNetwork]?.faucetUrl || ""
  * activation call must use a field from ITS schema ("Bio"), never an invented
  * key ("unknown string profile field" panic, caught live in Adena's gas sim).
  */
-export const ACTIVATION_PROFILE_REALM =
-    import.meta.env.VITE_ACTIVATION_REALM_PATH || "gno.land/r/samcrew/deps/demo/profile"
+export function activationRealmFor(networkKey: string): string {
+    // Mainnet has no samcrew deps/demo/profile vendor copy; gno core's own
+    // gno.land/r/demo/profile is live there with the same SetStringField and a
+    // schema that includes "Bio" (read back from the deployed source 2026-09-23).
+    return import.meta.env.VITE_ACTIVATION_REALM_PATH
+        || (networkKey === "mainnet" ? "gno.land/r/demo/profile" : "gno.land/r/samcrew/deps/demo/profile")
+}
+export const ACTIVATION_PROFILE_REALM = activationRealmFor(ACTIVE_NETWORK_KEY)
 
 /** Explorer base URL for the active network (for user profile links, realm links, etc). */
 export function getExplorerBaseUrl(): string {

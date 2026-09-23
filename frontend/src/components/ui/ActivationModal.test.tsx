@@ -1,3 +1,4 @@
+import { ACTIVATION_PROFILE_REALM } from "../../lib/config"
 import { describe, it, expect, vi } from "vitest"
 import { render, screen, fireEvent } from "@testing-library/react"
 
@@ -72,7 +73,7 @@ describe("ActivationModal", () => {
                     value: {
                         caller: "g1abc",
                         send: "",
-                        pkg_path: "gno.land/r/samcrew/deps/demo/profile",
+                        pkg_path: ACTIVATION_PROFILE_REALM,
                         func: "SetStringField",
                         // "Bio" is from the realm's OWN field schema — custom
                         // keys panic ("unknown string profile field"). Empty

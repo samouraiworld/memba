@@ -41,7 +41,12 @@
 > `FEED_START_BLOCK=265728` (= `memba_feed_v1` deploy height, realm-versions.json `mainnet`), FEED
 > (and `HOME_SNAPSHOT_RPC_URL`) on the Samouraï node `https://rpc.mainnet.samourai.live` / GNO on the
 > canonical `https://rpc.gno.land:443` (two-node rule — the public node 403-throttles sustained
-> polling), `INDEXER_GRAPHQL_URL=https://indexer.gno.land/graphql/query`. Superseded pearl values
+> polling), `INDEXER_GRAPHQL_URL=https://indexer.gno.land/graphql/query`, `NFT_RPC_URL` on the Samouraï node.
+> **Cutover order:** set every chain secret in ONE `fly secrets set` first (the running image reads them
+> all from env), then merge the code (backend auto-deploys, Netlify deploys the frontend), then smoke-test
+> sign-in, first-wallet activation, the home snapshot, `/api/indexer` and the feed. The indexer proxy does
+> not check chain identity, so a frontend on the new chain before `INDEXER_GRAPHQL_URL` moves would show
+> the old chain's transactions. Rollback is forward-only once the old chain is shut down. Superseded pearl values
 > (2026-08-31): `FEED_START_BLOCK=99236`, FEED on `rpc.pearl.samourai.live`. ⚠️ Heights are
 > chain-scoped: a height from another chain can sit ABOVE the current head — setting it would pin
 > the tailer past the tip and it silently indexes nothing. **Autoheal footgun:** the sapphire VPS autoheal safely restarts a single
