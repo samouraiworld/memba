@@ -1,16 +1,16 @@
 import { describe, it, expect, afterAll, afterEach, beforeAll, vi } from "vitest"
-import { resolveNetworkKey, DEFAULT_NETWORK, NETWORKS } from "./config"
+import { resolveNetworkKey, retiredNetworkSuccessor, DEFAULT_NETWORK, NETWORKS } from "./config"
 
 /**
  * Which network the app initialises on, and where `/` or a legacy path sends you.
  *
- * TWO storage keys, because one key cannot be both things it was asked to be:
+ * Only the EXPLICIT choice is read from storage:
+ *  - `memba_network_pref` is written ONLY by an explicit switch.
  *  - `memba_network` is an ECHO. NetworkSync rewrites it on every `/:network/*`
  *    visit, so anyone who ever opened a `/pearl/...` link has "pearl" there
- *    without having chosen anything.
- *  - `memba_network_pref` is written ONLY by an explicit switch.
- * Keeping a real choice apart from the echo is what lets a change of default
- * network move the people who never chose, and leave alone the ones who did.
+ *    without having chosen anything. It used to be a fallback step; it was
+ *    dropped at pearl's retirement (2026-09-23) so the default moves everyone
+ *    who never chose.
  *
  * And the URL comes FIRST at module load. config.ts computes every RPC and realm
  * constant before the router mounts; reading storage alone meant a deep link to
@@ -22,13 +22,16 @@ import { resolveNetworkKey, DEFAULT_NETWORK, NETWORKS } from "./config"
 // (the default since 2026-09-17) is the ONLY visible network since pearl's
 // 2026-09-23 retirement; pearl, test13, sapphire, topaz and gnoland1 are
 // hidden. VISIBLE_B was `gnoland1` until Betanet was retired to hidden. The
-// pure-resolver block needs TWO visible networks to tell "the URL wins" /
-// "the choice wins" apart from "the default answered", so it un-hides pearl
-// for its duration (resolveNetworkKey reads `hidden` at call time).
+// pure-resolver block needs TWO visible networks to tell "the choice wins"
+// apart from "the default answered", so it un-hides pearl for its duration
+// (resolveNetworkKey reads `hidden` at call time). Pearl is also RETIRED
+// (`retiredTo: "mainnet"`), which only affects the URL step — so VISIBLE_A is
+// used as a stored choice, never as a URL, in that block.
 const VISIBLE_A = "pearl"
 const VISIBLE_B = "mainnet"
 const HIDDEN = "sapphire"
 const HIDDEN_DEEP_LINK = "test13"
+const RETIRED = "pearl"
 
 describe("resolveNetworkKey — the one ordering rule", () => {
     let wasHidden: boolean | undefined
@@ -48,7 +51,7 @@ describe("resolveNetworkKey — the one ordering rule", () => {
     })
 
     it("the network in the URL wins over anything stored", () => {
-        expect(resolveNetworkKey({ pathname: `/${VISIBLE_B}/validators`, pref: VISIBLE_A, echo: VISIBLE_A })).toBe(VISIBLE_B)
+        expect(resolveNetworkKey({ pathname: `/${VISIBLE_B}/validators`, pref: VISIBLE_A })).toBe(VISIBLE_B)
     })
 
     it("a URL may name a hidden network — deep links keep working", () => {
@@ -57,20 +60,23 @@ describe("resolveNetworkKey — the one ordering rule", () => {
 
     it("a first path segment that is not a network is ignored", () => {
         expect(resolveNetworkKey({ pathname: "/directory" })).toBe(DEFAULT_NETWORK)
-        expect(resolveNetworkKey({ pathname: "/no-such-network/x", echo: VISIBLE_B })).toBe(VISIBLE_B)
+        expect(resolveNetworkKey({ pathname: "/no-such-network/x", pref: VISIBLE_A })).toBe(VISIBLE_A)
     })
 
-    it("an explicit choice outranks the URL echo", () => {
-        expect(resolveNetworkKey({ pathname: "/", pref: VISIBLE_B, echo: VISIBLE_A })).toBe(VISIBLE_B)
+    it("an explicit choice answers when the URL names no network", () => {
+        expect(resolveNetworkKey({ pathname: "/", pref: VISIBLE_A })).toBe(VISIBLE_A)
     })
 
-    it("the echo still answers when nothing was chosen", () => {
-        expect(resolveNetworkKey({ pathname: "/", echo: VISIBLE_B })).toBe(VISIBLE_B)
+    it("the URL echo is no longer an input — nothing chosen means the default", () => {
+        // `echo` is not part of the signature any more; a caller passing one
+        // (as the pre-2026-09-23 resolver accepted) must not move the result.
+        const withEcho = { pathname: "/", echo: VISIBLE_A } as Parameters<typeof resolveNetworkKey>[0]
+        expect(resolveNetworkKey(withEcho)).toBe(DEFAULT_NETWORK)
     })
 
-    it("a stored key never restores a hidden network — neither the choice nor the echo", () => {
-        expect(resolveNetworkKey({ pref: HIDDEN, echo: VISIBLE_B })).toBe(VISIBLE_B)
-        expect(resolveNetworkKey({ pref: HIDDEN, echo: HIDDEN_DEEP_LINK })).toBe(DEFAULT_NETWORK)
+    it("a stored choice never restores a hidden network", () => {
+        expect(resolveNetworkKey({ pref: HIDDEN })).toBe(DEFAULT_NETWORK)
+        expect(resolveNetworkKey({ pref: HIDDEN_DEEP_LINK })).toBe(DEFAULT_NETWORK)
     })
 
     it("unknown stored values and an empty store fall back to the default", () => {
@@ -88,6 +94,7 @@ describe("ACTIVE_NETWORK_KEY — what config.ts initialises with", () => {
     })
 
     // config.ts resolves once, at module evaluation: re-evaluate it for each case.
+    // `echo` is still written for the cases that prove it is IGNORED.
     async function loadAt(pathname: string, stored: { pref?: string; echo?: string } = {}) {
         vi.resetModules()
         window.history.replaceState({}, "", pathname)
@@ -96,12 +103,20 @@ describe("ACTIVE_NETWORK_KEY — what config.ts initialises with", () => {
         return (await import("./config")).ACTIVE_NETWORK_KEY
     }
 
-    it("a deep link loads the linked network's config, whatever the echo says", async () => {
-        // Before: storage alone decided, so this loaded the echo's RPC and
-        // realm constants and NetworkSync then reloaded the page. A fresh
-        // module has pearl hidden (reality), so the URL is pearl and the echo
-        // the one visible network — only the URL-first rule yields pearl.
-        expect(await loadAt(`/${VISIBLE_A}/validators`, { echo: VISIBLE_B })).toBe(VISIBLE_A)
+    it("a deep link loads the linked network's config, whatever storage says", async () => {
+        // Before: storage alone decided, so this loaded the stored network's
+        // RPC and realm constants and NetworkSync then reloaded the page. The
+        // stubbed default is a hidden network so "the default answered" cannot
+        // pass; only the URL-first rule yields mainnet.
+        vi.stubEnv("VITE_GNO_CHAIN_ID", HIDDEN_DEEP_LINK)
+        expect(await loadAt(`/${VISIBLE_B}/validators`, { echo: HIDDEN })).toBe(VISIBLE_B)
+    })
+
+    it("a deep link to a RETIRED network loads its successor's config", async () => {
+        // NetworkGate redirects /pearl/… to /mainnet/…; initialising on pearl
+        // would load a dead chain's RPC and then cost a reload on arrival.
+        expect(await loadAt(`/${RETIRED}/validators`)).toBe(retiredNetworkSuccessor(RETIRED))
+        expect(await loadAt(`/${RETIRED}/validators`)).toBe("mainnet")
     })
 
     it("a deep link to a hidden network still loads that network", async () => {
@@ -121,5 +136,41 @@ describe("ACTIVE_NETWORK_KEY — what config.ts initialises with", () => {
         // Before: this loaded the hidden network, LegacyRedirect healed to the
         // default, and the mismatch cost a full reload.
         expect(await loadAt("/directory", { echo: HIDDEN })).toBe(DEFAULT_NETWORK)
+    })
+
+    it("a stored RETIRED choice (pearl) loads the default, never the dead chain", async () => {
+        expect(await loadAt("/", { pref: RETIRED, echo: RETIRED })).toBe(DEFAULT_NETWORK)
+        expect(await loadAt("/directory", { pref: RETIRED })).toBe(DEFAULT_NETWORK)
+    })
+})
+
+describe("retiredNetworkSuccessor — which networks redirect, and where", () => {
+    it("pearl is retired to mainnet (owner ruling 2026-09-23)", () => {
+        expect(NETWORKS.pearl.retiredTo).toBe("mainnet")
+        expect(retiredNetworkSuccessor("pearl")).toBe("mainnet")
+        // Retired is not removed: the entry stays, hidden.
+        expect(NETWORKS.pearl).toBeDefined()
+        expect(NETWORKS.pearl.hidden).toBe(true)
+    })
+
+    it("non-retired networks, unknown keys and empty input have no successor", () => {
+        for (const key of ["mainnet", "test13", "sapphire", "topaz", "gnoland1", "no-such-network", "", null, undefined]) {
+            expect(retiredNetworkSuccessor(key), String(key)).toBeNull()
+        }
+    })
+
+    it("every declared successor is a real, non-retired network (no redirect chains or dead ends)", () => {
+        for (const [key, net] of Object.entries(NETWORKS)) {
+            if (!net.retiredTo) continue
+            expect(NETWORKS[net.retiredTo], `${key} → ${net.retiredTo}`).toBeDefined()
+            expect(NETWORKS[net.retiredTo].retiredTo, `${key} → ${net.retiredTo} must not be retired`).toBeUndefined()
+        }
+    })
+
+    it("a retired network in the URL resolves to its successor; the path is not otherwise read", () => {
+        expect(resolveNetworkKey({ pathname: "/pearl/dao/create" })).toBe("mainnet")
+        expect(resolveNetworkKey({ pathname: "/pearl" })).toBe("mainnet")
+        // A hidden-but-NOT-retired deep link is unaffected.
+        expect(resolveNetworkKey({ pathname: "/test13/create-token" })).toBe("test13")
     })
 })

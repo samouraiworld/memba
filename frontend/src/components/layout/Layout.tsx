@@ -32,6 +32,7 @@ import { setupKonamiDetector, trackDailyLogin } from "../../lib/questVerifier"
 import { NetworkStatusToast } from "../ui/NetworkStatusToast"
 import { ChainHaltedBanner } from "../ui/ChainHaltedBanner"
 import { RealmsNotDeployedBanner } from "../ui/RealmsNotDeployedBanner"
+import { RetiredNetworkNotice } from "../ui/RetiredNetworkNotice"
 import { ActivationModal } from "../ui/ActivationModal"
 import { networkHasRealms, GNO_FAUCET_URL } from "../../lib/config"
 import { OnboardingWizard } from "../ui/OnboardingWizard"
@@ -368,6 +369,9 @@ export function Layout() {
                 networkKey={network.networkKey}
                 onSwitchNetwork={network.switchNetwork}
             />
+
+            {/* ── A /<retired-network>/ link was redirected here (pearl → mainnet) ── */}
+            <RetiredNetworkNotice />
 
             {/* ── test13 cutover: Memba realms not yet deployed on this network ── */}
             <RealmsNotDeployedBanner

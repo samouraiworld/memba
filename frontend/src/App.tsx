@@ -1,11 +1,9 @@
 import { lazy, Suspense, useEffect } from "react"
-import { BrowserRouter, Routes, Route, Navigate, useParams } from "react-router-dom"
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { useAdena } from "./hooks/useAdena"
 import { useNetworkKey } from "./hooks/useNetworkNav"
-import { Layout } from "./components/layout/Layout"
 import { ScrollToTop } from "./components/layout/ScrollToTop"
-import { NetworkSync } from "./components/layout/NetworkSync"
-import { LegacyRedirect } from "./components/layout/LegacyRedirect"
+import { NetworkGate } from "./components/layout/NetworkGate"
 import { ConnectingLoader } from "./components/ui/ConnectingLoader"
 import { NftGate } from "./components/ui/NftGate"
 import { FeedGate } from "./components/ui/FeedGate"
@@ -14,7 +12,6 @@ import { SpaceInvadersGate } from "./components/ui/SpaceInvadersGate"
 import { BarricadeGate } from "./components/ui/BarricadeGate"
 import { AppStoreGate } from "./components/ui/AppStoreGate"
 import { ValoperRouteRedirect } from "./components/validators/ValoperRouteRedirect"
-import { NETWORKS } from "./lib/config"
 import { RootRedirect } from "./components/layout/RootRedirect"
 
 // ── Core multisig pages (small, always needed) ──
@@ -173,20 +170,6 @@ function DashboardRedirect() {
 function AdvancedWizardRedirect() {
   const networkKey = useNetworkKey()
   return <Navigate to={`/${networkKey}/nft/create`} replace />
-}
-
-/** Validates the /:network param. If invalid, treats as legacy URL and redirects. */
-function NetworkGate() {
-  const { network } = useParams<{ network: string }>()
-  if (!network || !NETWORKS[network]) {
-    return <LegacyRedirect />
-  }
-  return (
-    <>
-      <NetworkSync />
-      <Layout />
-    </>
-  )
 }
 
 function App() {

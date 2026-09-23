@@ -111,6 +111,12 @@ interface NetworkConfig {
     explorerUrl: string
     /** When true, the network is reachable by URL/env but hidden from the selector. */
     hidden?: boolean
+    /** Set on a RETIRED network: the network key that replaces it. A URL naming
+     *  a retired network is redirected to the same route on this network (with a
+     *  one-time notice) instead of loading a chain that no longer serves the app.
+     *  The entry itself stays in NETWORKS so the redirect has something to read
+     *  and a future network can reuse its config. Must name a non-retired key. */
+    retiredTo?: string
     /** True for experimental test chains. Drives disclosures that only make sense
      *  off a production chain — e.g. Team Hub's "Data: mainnet" note, which says
      *  the gnolove roster comes from a mainnet-backed source rather than the chain
@@ -315,11 +321,12 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         //
         // Visible 2026-08-27 → 2026-09-23, and the DEFAULT network 2026-08-27 →
         // 2026-09-17 (mainnet took over — see the `mainnet` entry).
-        // RETIRED 2026-09-23: the chain is shut down. Hidden-but-resolvable
-        // exactly like topaz/sapphire — the entry, realmsDeployed and its
-        // REALM_ALLOWLIST stay so old /pearl/ deep links still resolve (and
-        // land on the chain-health degraded view) without a dead chain being
-        // offered in the selector. SNAPSHOT_NETWORK, INDEXER_PROXIED_NETWORK,
+        // RETIRED 2026-09-23. Hidden, and `retiredTo: "mainnet"` (owner
+        // ruling): an old /pearl/… link redirects to the same route under
+        // /mainnet/ with a one-time notice, and a stored pearl choice resolves
+        // to the default. The entry, realmsDeployed and its REALM_ALLOWLIST
+        // stay in code — a mainnet-state testnet is expected to follow and
+        // may reuse them. SNAPSHOT_NETWORK, INDEXER_PROXIED_NETWORK,
         // SITEMAP_NETWORK and FEED_INDEXED_NETWORK all moved to mainnet the
         // same day. Historical note from the launch window: realm-dependent
         // surfaces stay behind `realmsDeployed: false` (honest
@@ -329,8 +336,9 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         // (AUTH-CHAINID-MISMATCH-01), never a wrong-chain tx.
         chainId: "pearl-1",
         userDaos: { create: true, channelsCompanion: true },
-        // Retired 2026-09-23 (chain shut down) — see the header above.
+        // Retired 2026-09-23 — see the header above.
         hidden: true,
+        retiredTo: "mainnet",
         // Flipped by the §6 completion PR: the combined Pearl ceremony (core
         // set + commerce set) records per-artifact vm/qfile evidence in
         // realm-versions.json's `pearl` section — same rule as sapphire's
@@ -663,44 +671,52 @@ export const NETWORK_PREF_STORAGE_KEY = "memba_network_pref"
 
 /** localStorage key NetworkSync rewrites on every `/:network/*` visit — an ECHO of
  *  the last URL, not a choice. Still read by `daoSlug` and `directory` as "the
- *  network the user is on". */
+ *  network the user is on"; NOT an input to `resolveNetworkKey` any more. */
 export const NETWORK_ECHO_STORAGE_KEY = "memba_network"
+
+/** The successor of a RETIRED network (its `retiredTo`), or null when `key` is
+ *  not retired. Validated: a successor that is missing from NETWORKS, or is
+ *  itself retired, yields null rather than a redirect into a dead end. */
+export function retiredNetworkSuccessor(key: string | null | undefined): string | null {
+    const to = key ? NETWORKS[key]?.retiredTo : undefined
+    if (!to || !NETWORKS[to] || NETWORKS[to].retiredTo) return null
+    return to
+}
 
 /**
  * THE network-resolution rule. Every resolver goes through here — module load,
  * RootRedirect, LegacyRedirect, useNetwork — so they cannot drift apart again.
  *
  *  1. The network in the URL (`/:network/…`), hidden networks included, so deep
- *     links keep working.
+ *     links keep working. A RETIRED network in the URL resolves to its
+ *     successor — NetworkGate redirects that URL there, and module load must
+ *     initialise on the network the redirect lands on.
  *  2. The user's explicit choice (`memba_network_pref`), visible networks only.
- *  3. The URL echo (`memba_network`), visible networks only.
- *  4. DEFAULT_NETWORK.
+ *  3. DEFAULT_NETWORK.
  *
- * Why an explicit choice needs its own key: NetworkSync rewrites the echo on
- * every `/:network/*` visit, so anyone who once opened a /pearl/… link "has
- * pearl stored" without ever choosing it. With a single key, changing the
- * default network could move nobody. Step 3 keeps today's users landing where
- * they did; removing it is what lets a new DEFAULT_NETWORK move everyone who
- * never chose.
+ * The URL echo (`memba_network`) used to be step 3. It kept users landing where
+ * they last were while the default moved from pearl to mainnet (2026-09-17);
+ * with pearl retired (2026-09-23) it could only send people toward a network
+ * they never chose, so it was dropped — which is what makes a new
+ * DEFAULT_NETWORK move everyone who never chose. No stored value was migrated
+ * or rewritten: the echo is simply no longer read here.
  *
  * Why stored keys must be visible: a hidden network has no option in the
  * switcher, and when only one network is visible a single-option <select> cannot
  * fire `onChange` at all — a restored hidden key would pin the user to it on
- * every visit. That does NOT guarantee a visible result: DEFAULT_NETWORK is
- * visible in every shipped build but deliberately hidden on the pinned-flag e2e
- * servers (`.env.e2e` sets test13; see `resolveDefaultNetwork`). Nobody is
- * stranded because `selectableNetworksFor` always offers the active network.
+ * every visit. A stored retired key (pearl) is hidden, so it resolves to the
+ * default. That does NOT guarantee a visible result: DEFAULT_NETWORK is visible
+ * in every shipped build but deliberately hidden on the pinned-flag e2e servers
+ * (`.env.e2e` sets test13; see `resolveDefaultNetwork`). Nobody is stranded
+ * because `selectableNetworksFor` always offers the active network.
  */
-export function resolveNetworkKey({ pathname, pref, echo }: {
+export function resolveNetworkKey({ pathname, pref }: {
     pathname?: string
     pref?: string | null
-    echo?: string | null
 }): string {
     const urlKey = pathname?.split("/")[1]
-    if (urlKey && NETWORKS[urlKey]) return urlKey
-    for (const stored of [pref, echo]) {
-        if (stored && NETWORKS[stored] && !NETWORKS[stored].hidden) return stored
-    }
+    if (urlKey && NETWORKS[urlKey]) return retiredNetworkSuccessor(urlKey) ?? urlKey
+    if (pref && NETWORKS[pref] && !NETWORKS[pref].hidden) return pref
     return DEFAULT_NETWORK
 }
 
@@ -708,18 +724,15 @@ export function resolveNetworkKey({ pathname, pref, echo }: {
  *  (`/`, legacy bookmarks, the switcher's fallback). */
 export function storedNetworkKey(): string {
     try {
-        return resolveNetworkKey({
-            pref: localStorage.getItem(NETWORK_PREF_STORAGE_KEY),
-            echo: localStorage.getItem(NETWORK_ECHO_STORAGE_KEY),
-        })
+        return resolveNetworkKey({ pref: localStorage.getItem(NETWORK_PREF_STORAGE_KEY) })
     } catch { /* SSR or storage blocked */ }
     return DEFAULT_NETWORK
 }
 
-/** Resolve ONE stored echo value by the same rule — for callers and tests that
+/** Resolve ONE stored choice by the same rule — for callers and tests that
  *  reason about a single stored value. See `resolveNetworkKey`. */
 export function resolveStoredNetworkKey(stored: string | null | undefined): string {
-    return resolveNetworkKey({ echo: stored })
+    return resolveNetworkKey({ pref: stored })
 }
 
 /** Module-load active network — the URL first.
@@ -739,11 +752,7 @@ function getActiveNetworkKey(): string {
     let pathname: string | undefined
     try { pathname = window.location.pathname } catch { /* SSR */ }
     try {
-        return resolveNetworkKey({
-            pathname,
-            pref: localStorage.getItem(NETWORK_PREF_STORAGE_KEY),
-            echo: localStorage.getItem(NETWORK_ECHO_STORAGE_KEY),
-        })
+        return resolveNetworkKey({ pathname, pref: localStorage.getItem(NETWORK_PREF_STORAGE_KEY) })
     } catch { /* storage blocked */ }
     return resolveNetworkKey({ pathname })
 }

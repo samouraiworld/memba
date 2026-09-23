@@ -2,9 +2,9 @@
  * RootRedirect — sends bare `/` to `/:network/`.
  *
  * Shares one rule with LegacyRedirect and config.ts's module load
- * (`resolveNetworkKey`): an explicit choice outranks the URL echo, and a stored
- * network that is `hidden` is never restored, because it has no option in the
- * switcher. The redirects used to inline the rule separately and drifted — `/`
+ * (`resolveNetworkKey`): only an explicit choice is read from storage (never the
+ * URL echo), and a stored network that is `hidden` is never restored, because
+ * it has no option in the switcher. The redirects used to inline the rule separately and drifted — `/`
  * healed off Betanet while every bookmarked legacy URL stayed pinned to it.
  *
  * Lives beside LegacyRedirect rather than inside App.tsx so the wiring is
