@@ -23,9 +23,10 @@ Full changelogs are split by version range for easier navigation:
 ### Mainnet wave-1 realms (2026-09-23)
 - Record the eleven samcrew packages and realms published on gno.land mainnet (`gnoland-1`) in `realm-versions.json`, each verified by `vm/qfile`.
 - Point mainnet at the realms that are actually live there — the App Store at `memba_appstore_v3` and reviews at `memba_reviews_v2` — while Pearl keeps v2 and v1.
-- Allow the App Store, reviews, feedback and badges realms on mainnet. Escrow, market config, DAO channels, quest attestation and the arcade leaderboard stay gated there until their own setup is complete.
+- Allow the App Store, reviews, feedback, badges and feed realms on mainnet. Escrow, market config, DAO channels, quest attestation and the arcade leaderboard stay gated there until their own setup is complete.
 - Show review surfaces only where the reviews realm is live, so a network without it no longer offers a review that would fail on chain.
 - Open the on-chain App Store registry on mainnet behind the existing flag, and show App Store reviews only where their realm is live.
+- Move the social feed to mainnet: the backend now indexes `memba_feed_v1` on `gnoland-1`, so mainnet posts are written and shown there; the Pearl feed is no longer indexed.
 
 ### BARRICADE French civic art (2026-09-22)
 - Give the 2.5D battlefield an original Paris street, defender, boss and four distinct machine families inspired by the French Revolution's civic language.

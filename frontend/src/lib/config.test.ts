@@ -184,7 +184,7 @@ describe('config constants', () => {
         }
         expect(file).not.toBe('')
         const records = (JSON.parse(readFileSync(file, 'utf8')) as Record<string, Record<string, unknown>>).mainnet
-        const exposed = ['memba_appstore_v3', 'memba_reviews_v2', 'memba_feedback_v2', 'gnobuilders_badges_v2']
+        const exposed = ['memba_appstore_v3', 'memba_reviews_v2', 'memba_feedback_v2', 'gnobuilders_badges_v2', 'memba_feed_v1']
         for (const base of exposed) {
             expect(isRealmValidOn('mainnet', `gno.land/r/samcrew/${base}`), `${base} must be allowlisted on mainnet`).toBe(true)
             expect(records?.[base], `mainnet realm '${base}' has no realm-versions.json mainnet record`).toBeDefined()
@@ -684,7 +684,9 @@ describe('sapphire is SUNSET (2026-09-09) — dark but resolvable', () => {
         // asserted as a set — on the network the §6 completion release moved
         // them to, together with the backend secret window.
         expect(SNAPSHOT_NETWORK).toBe('pearl')
-        expect(FEED_INDEXED_NETWORK).toBe('pearl')
+        // The feed indexer moved to mainnet on 2026-09-23 with its own backend
+        // secret window and feed-state reset.
+        expect(FEED_INDEXED_NETWORK).toBe('mainnet')
         expect(SITEMAP_NETWORK).toBe('pearl')
     })
 })
@@ -810,7 +812,10 @@ describe('FEED_INDEXED_NETWORK — drift tripwire', () => {
         // The feed's network must stay REACHABLE while the divergence lasts —
         // hidden-but-indexed would disable posting for everyone with no path.
         expect(nets[FEED_INDEXED_NETWORK].hidden).not.toBe(true)
-        expect(nets[FEED_INDEXED_NETWORK].realmsDeployed).toBe(true)
+        // The feed realm itself must be live there (mainnet has no memba_dao, so
+        // realmsDeployed stays false, but memba_feed_v1 is published and allowlisted).
+        const { isRealmValidOn: validOn, MEMBA_DAO: dao } = await import('./config')
+        expect(validOn(FEED_INDEXED_NETWORK, dao.feedPath)).toBe(true)
         if (DEFAULT_NETWORK !== FEED_INDEXED_NETWORK) {
             // Divergence is only legitimate while the default's realms are
             // DARK (nothing to post to there anyway). The ceremony flips
@@ -818,11 +823,14 @@ describe('FEED_INDEXED_NETWORK — drift tripwire', () => {
             // move to land in the same PR.
             expect(nets[DEFAULT_NETWORK].realmsDeployed).toBe(false)
         }
-        // The indexer proxy is pinned to the same backend-secret window as the
-        // feed: INDEXER_GRAPHQL_URL and FEED_RPC_URL move together, so the two
-        // frontend pins must never drift apart.
+        // The feed moved to mainnet on 2026-09-23 on its own (FEED_RPC_URL +
+        // FEED_START_BLOCK + feed-reset). The indexer proxy did NOT: there is no
+        // gnoland-1 GraphQL indexer behind INDEXER_GRAPHQL_URL yet, so it stays on
+        // pearl. Both pins are asserted literally so neither can drift silently;
+        // re-couple them when a mainnet indexer lands.
         const { INDEXER_PROXIED_NETWORK } = await import('./config')
-        expect(INDEXER_PROXIED_NETWORK).toBe(FEED_INDEXED_NETWORK)
+        expect(FEED_INDEXED_NETWORK).toBe('mainnet')
+        expect(INDEXER_PROXIED_NETWORK).toBe('pearl')
     })
 
     it('indexer-backed surfaces hide themselves off the proxied network', async () => {

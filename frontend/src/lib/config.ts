@@ -834,6 +834,7 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         "gno.land/r/samcrew/memba_reviews_v2",
         "gno.land/r/samcrew/memba_feedback_v2",
         "gno.land/r/samcrew/gnobuilders_badges_v2",
+        "gno.land/r/samcrew/memba_feed_v1",
     ],
     // Pearl — the combined-ceremony set (§4 of docs/PEARL_CUTOVER_PLAN.md):
     // the default core lane + the commerce set in one window. Entry list =
@@ -1404,8 +1405,13 @@ export const SNAPSHOT_NETWORK = "pearl"
  * Pearl cutover: flipped to "pearl" in the §6 completion release — same rule
  * as sapphire: SAME release as the backend FEED_RPC_URL + FEED_START_BLOCK
  * secret flip AND the mandatory feed-state reset (`/app/memba feed-reset`).
+ *
+ * Mainnet cutover (2026-09-23): flipped to "mainnet" after the backend moved
+ * FEED_RPC_URL to the Samourai gnoland-1 node, FEED_START_BLOCK to 265728 (the
+ * memba_feed_v1 deploy height, realm-versions.json `mainnet`) and the feed-state
+ * reset ran. The Pearl feed is no longer indexed.
  */
-export const FEED_INDEXED_NETWORK = "pearl"
+export const FEED_INDEXED_NETWORK = "mainnet"
 
 /** Human-readable label for the indexed network (for user-facing copy). */
 export const FEED_INDEXED_NETWORK_LABEL =
