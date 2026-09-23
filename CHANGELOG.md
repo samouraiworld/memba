@@ -36,6 +36,9 @@ Full changelogs are split by version range for easier navigation:
 - **Links in on-chain descriptions open in a new tab.** Markdown from the chain (proposal descriptions, realm renders, reviews, validator bios) is sanitised by a dedicated instance that opens http(s) links in a new tab with `rel="noopener noreferrer"`, so a link no longer replaces the app in its own tab; `javascript:`, `data:` and `vbscript:` links stay removed, and markdown links written as `//host` or with backslashes, which browsers send to another host, are refused.
 - **A DAO call's storage deposit is capped at 10 GNOT by default.** Version-2 DAO proposals, votes and executions are refused before signing when their storage-deposit cap is above 10 GNOT, unless the member ticks an unchecked-by-default approval that shows the exact amount in GNOT; the approval covers only that exact transaction. Every call Memba builds today stays below the ceiling.
 
+### Dependency refresh (2026-09-23)
+- Update Remotion, TanStack Query, Sentry, three.js, the dev tooling group and the backend SQLite driver to their latest patch and minor releases (bundles Dependabot #1228–#1233).
+
 ### Home snapshot follows the current chain (2026-09-23)
 - Report NFT indexer progress only for the realms the indexer watches on the current chain, and none while it is switched off, so a cursor left over from the previous chain no longer shows as the indexed height.
 - Drop any indexer height above the current chain head instead of serving it, and flag that source as stale.
