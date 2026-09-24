@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### A multisig transaction page starts fresh for each transaction (2026-09-24)
+<!-- categories: multisig -->
+- Moving from one transaction to another (`/tx/7` → `/tx/12`) no longer keeps what you did on the first one. A gnokey signature pasted for tx 7, an open review or an error now clear on tx 12, so "Submit Signature" can't file tx 7's signature under tx 12. This mattered most for legacy multisigs, where the backend stores an unverified signature until signature enforcement is on.
+
 ### Links keep the network you are on (2026-09-24)
 <!-- categories: memba -->
 - **Links no longer drop the network from the URL.** These were the Hacker view's "← Validators", "+ Launch a collection", the profile's "View analytics →", the DAO members' @username and "Profile" links, the profile's vote links, and addresses auto-linked in rendered text. Each pointed at a bare path, which took an extra redirect and could switch you to the stored or default network. A new test scans every component and library file and fails if a link to an app page leaves the network out of the path.

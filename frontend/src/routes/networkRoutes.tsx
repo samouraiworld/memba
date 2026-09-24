@@ -24,7 +24,7 @@ import { CreateMultisig } from "../pages/CreateMultisig"
 import { ImportMultisig } from "../pages/ImportMultisig"
 import { MultisigView } from "../pages/MultisigView"
 import { ProposeTransaction } from "../pages/ProposeTransaction"
-import { TransactionView } from "../pages/TransactionView"
+import { TransactionRoute } from "../pages/TransactionView"
 
 // ── Critical Lazy Pages (Prefetched for Performance) ──
 const ProfilePage = lazy(() => import("../pages/ProfilePage").then(m => ({ default: m.ProfilePage })))
@@ -193,7 +193,7 @@ export function networkRouteChildren() {
       <Route path="import" element={<ImportMultisig />} />
       <Route path="multisig/:address" element={<MultisigView />} />
       <Route path="multisig/:address/propose" element={<ProposeTransaction />} />
-      <Route path="tx/:id" element={<TransactionView />} />
+      <Route path="tx/:id" element={<TransactionRoute />} />
 
       {/* Token routes (lazy chunk) */}
       <Route path="create-token" element={<Suspense fallback={<PageLoader />}><CreateToken /></Suspense>} />

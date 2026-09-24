@@ -35,6 +35,17 @@ function buildSignDoc(tx: Transaction): Record<string, unknown> {
     }
 }
 
+/**
+ * The `tx/:id` route: one TransactionView per transaction. Navigating from
+ * tx/7 to tx/12 reuses the route element, so without the key a signature
+ * pasted, an error shown or a review opened for tx 7 would survive onto
+ * tx 12 (and "Submit Signature" would file tx 7's signature under tx 12).
+ */
+export function TransactionRoute() {
+    const { id } = useParams<{ id: string }>()
+    return <TransactionView key={id} />
+}
+
 export function TransactionView() {
     const { id } = useParams<{ id: string }>()
     const navigate = useNetworkNav()
