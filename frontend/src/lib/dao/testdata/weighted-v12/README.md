@@ -1,8 +1,8 @@
 # Weighted host v12 native fixtures
 
 `native.json` is verbatim structured-read output (`GetConfigJSON`,
-`GetMembersJSON`, `GetProposalsJSON`, `GetProposalJSON`, and `Render("")`
-under `render`) of the mainnet
+`GetMembersJSON`, `GetProposalsJSON`, `GetProposalJSON`, `GetBallotJSON`,
+`GetPendingVotesJSON`, and `Render("")` under `render`) of the mainnet
 governing DAO candidate `gno.land/r/samcrew/memba_dao`, read contract
 `memba-weighted-host/v12`. Nothing here was hand-edited; re-capture instead.
 
@@ -13,11 +13,12 @@ governing DAO candidate `gno.land/r/samcrew/memba_dao`, read contract
 | Gno VM | `gnolang/gno` `e75fef82c02876a4df92ad6e325c5479b9532168` (the gnoland-1 runtime pin), `gno` built with `CGO_ENABLED=0` |
 | `gno` binary SHA-256 | `fcf6996b569331af92622aa85d53a0e12218e9586d60897879788c5854264b85` |
 | Realm | `gno.land/r/samcrew/memba_dao`, generated from the approved gnoland-1 roster and adapter configuration |
-| Host package | `gno.land/p/samcrew/memba_weighted_host`, `reads.gno` SHA-256 `d002e5d53573cdff2c4a6c34a7e20fdfdecfa64b804ac464767e0616bd6e9011` |
+| Host package | `gno.land/p/samcrew/memba_weighted_host`, `reads.gno` SHA-256 `0d8921f2337bf5b9a04f2a413d69cb97becdfb5289650044e09ac344db3a578c`, `host.gno` SHA-256 `b8687fa6985681099b5d3efca4f82e7160d0c1b47cacacc065e4b2844e856027` |
 | Policy package | `gno.land/p/samcrew/memba_weighted_policy`, `policy.gno` SHA-256 `dfeca4ef26bff1f97335d9808e2152a6cb8f64aecea2ce4f3f2ad6da5390e683` |
 
 The twelve generated realm files matched the recorded gnoland-1 candidate
-digests before the run (`realmSha256` in `native.json`):
+digests before the run (`realmSha256` in `native.json`; this host build adds
+the ballot reads, so only `memba_dao.gno` changed from the previous capture):
 
 ```
 b6d10eae19f707c9b9884bfbd685ed8ef79ff2a1410d752be11d85a9b7ae3b5c  appstore_adapter.gno
@@ -29,7 +30,7 @@ a84c69382821031e5cb43d32d1d1ce6012ce71028ee103de415b0fba797c530d  arcade_adapter
 595702fd91e30ed5ee1dfb5d0c87e15ac2d499f5cb45ba38de78cb0a016c1522  feedback_adapter.gno
 234f1774eebb2de700b8f0d71d070b4b923d166dc84a2884825013529313de18  gnomod.toml
 17e2b294b901663f99f832e5c20f9baee8d0f3f759a9a84a9fa507be032664a6  market_adapter.gno
-06b0d79e6c07dc4da9346b7dc57b117bb35ea4c5ddbf9259869f427f619bcdc7  memba_dao.gno
+66d3957cfbcafa4347d81e62a71aa4b524e3bd9e667cf138e7e75fc481327c33  memba_dao.gno
 2e31e4afed29796f2bb424ff6a5ec2ce26a07458bbf0364074e8f557a744b40e  quest_adapter.gno
 172a91718b86b0fbf6e58536bfde6af04ffb33b74eb37bade47c5c5283a369c4  reviews_adapter.gno
 ```
@@ -74,4 +75,19 @@ Records 1–7 are unchanged by what follows.
    one proposal for each remaining operation, all against the same state.
    Together with records 1–7 this covers every operation the host can encode,
    role grant and removal, and member recovery. `catalog_total` is the final
-   proposal count.
+   proposal count. Before the badges pause, a quest proposal is opened so
+   `proposal_invalidated_by_pause` records a `pause` invalidation.
+9. Phase 3 (`ballot_*`, `pending_*`): ballots that are yes, changed (a later
+   height), abstain, not voted, from a non-member, on an invalidated, an
+   executed and an expired proposal; pending pages for a voter, with cursor,
+   limit clamps (0 and 500), a non-member, and a scan-capped page (205 open
+   proposals the voter already voted on: no items, a cursor) and its
+   continuation. A member-key recovery then executes: the old key keeps its
+   ballot on the recovery proposal and is not eligible on the next one; the
+   replacement key is the reverse (`ballot_old_key_*`, `ballot_new_key_*`,
+   `pending_old_key`, `pending_new_key`). `proposal_superseded` is invalidated
+   by that recovery (target `null`); `proposal_expired_sticky` is #14 read
+   again at the end: still `EXPIRED`, tallies cleared, `invalidation: null`.
+
+Each `advance` in the scenario also moves one block, so ballot and
+invalidation heights differ.

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useOutletContext, useParams } from "react-router-dom"
 import { NETWORKS, GNO_CHAIN_ID, GNO_RPC_URL } from "../lib/config"
-import { isUnreadableProposal, validateWeightedRecovery, weightedApplicationPolicies, weightedWritesSupported, weightedAuthority, assertWeightedWrites, buildWeightedMessage, readWeightedProposal, readWeightedSnapshot, WEIGHTED_APPLICATIONS_SCHEMA, type WeightedAction, type WeightedConfig, type WeightedContext, type WeightedPageEntry, type WeightedProposal } from "../lib/dao/weighted"
+import { isUnreadableProposal, readWeightedBallot, validateWeightedRecovery, weightedApplicationPolicies, weightedWritesSupported, weightedAuthority, assertWeightedWrites, buildWeightedMessage, readWeightedProposal, readWeightedSnapshot, WEIGHTED_APPLICATIONS_SCHEMA, type WeightedAction, type WeightedConfig, type WeightedBallot, type WeightedContext, type WeightedInvalidation, type WeightedPageEntry, type WeightedProposal } from "../lib/dao/weighted"
 import { revealInvisibleFormatting as reveal } from "../lib/dao/v2Text"
 import { APPLICATION_LABELS, IMMEDIATE_THRESHOLDS, applicationDetails, flattenBefore, type ApplicationPolicyKey, type WeightedApplicationAction } from "../lib/dao/weightedApplications"
 import { doContractBroadcast } from "../lib/grc20"
@@ -48,6 +48,21 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
         } finally { if (active.current && ticket === request.current) setLoading(false) }
     }, [rpcUrl, chainId, realmPath])
     useEffect(() => { const controller = new AbortController(); void Promise.resolve().then(() => { if (!controller.signal.aborted) return refresh("0", controller.signal) }); return () => controller.abort() }, [refresh])
+    // Read-only ballot indicators for the connected address (v12 publishes ballots).
+    // Results are tagged with the snapshot and voter they answer, so a stale
+    // answer is never shown for a newer page or another wallet.
+    const [ballotState, setBallotState] = useState<{ data: Snapshot | null; voter: string; ballots: Record<string, WeightedBallot | "error"> }>({ data: null, voter: "", ballots: {} })
+    const voter = wallet.connected && /^g1[0-9a-z]{38}$/.test(wallet.address) ? wallet.address : ""
+    const ballots = ballotState.data === data && ballotState.voter === voter ? ballotState.ballots : {}
+    useEffect(() => {
+        if (!data || !voter || data.config.schema !== WEIGHTED_APPLICATIONS_SCHEMA) return
+        const controller = new AbortController()
+        const ids = data.page.proposals.filter(p => !isUnreadableProposal(p)).map(p => p.id)
+        void Promise.all(ids.map(id => readWeightedBallot({ rpcUrl, chainId, realmPath }, id, voter, controller.signal)
+            .then(b => [id, b] as const, () => [id, "error"] as const)))
+            .then(entries => { if (active.current && !controller.signal.aborted) setBallotState({ data, voter, ballots: Object.fromEntries(entries) }) })
+        return () => controller.abort()
+    }, [data, voter, rpcUrl, chainId, realmPath])
     const member = data?.members.find(m => m.address === wallet.address)
     const writable = !!data && weightedWritesSupported(data.config.schema)
     const canAct = writable && !!member && wallet.connected && authenticated && wallet.chainId === chainId && chainId === GNO_CHAIN_ID && rpcUrl === GNO_RPC_URL && chainId !== "gnoland-1" && !busy && !loading
@@ -145,7 +160,7 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
             </section> : <p>This v1 DAO does not support member-key recovery.</p>}
             <section aria-labelledby="weighted-proposals"><h2 id="weighted-proposals">Governance proposals</h2><p>{data.page.total} proposals recorded</p>
                 {data.page.proposals.length === 0 && <p>No proposals on this page.</p>}
-                {data.page.proposals.map(p => <ProposalEntry key={p.id} proposal={p} canAct={canAct} submit={submit} />)}
+                {data.page.proposals.map(p => <ProposalEntry key={p.id} proposal={p} ballot={ballots[p.id]} canAct={canAct} submit={submit} />)}
                 <div className="weighted-dao__actions">{before !== "0" && <button disabled={loading || busy} onClick={() => void refresh("0")}>Newest proposals</button>}{data.page.nextBefore && <button disabled={loading || busy} onClick={() => void refresh(data.page.nextBefore!)}>Older proposals</button>}</div>
             </section>
         </>}
@@ -198,15 +213,29 @@ function ApplicationAction({ action }: { action: WeightedApplicationAction }) {
     </>
 }
 
-function ProposalEntry({ proposal, canAct, submit }: { proposal: WeightedPageEntry; canAct: boolean; submit: (action: WeightedAction) => Promise<void> }) {
+type BallotView = WeightedBallot | "error" | undefined
+function ProposalEntry({ proposal, ballot, canAct, submit }: { proposal: WeightedPageEntry; ballot: BallotView; canAct: boolean; submit: (action: WeightedAction) => Promise<void> }) {
     if (isUnreadableProposal(proposal)) return <article className="k-card weighted-dao__proposal" aria-label={`Proposal ${proposal.id}`}>
         <h3>Unreadable proposal #{proposal.id}</h3>
         <p role="note">Memba could not validate this proposal against the DAO contract, so it is not shown and cannot be acted on here. Other proposals are unaffected.</p>
     </article>
-    return <Proposal proposal={proposal} canAct={canAct} submit={submit} />
+    return <Proposal proposal={proposal} ballot={ballot} canAct={canAct} submit={submit} />
 }
 
-function Proposal({ proposal: p, canAct, submit }: { proposal: WeightedProposal; canAct: boolean; submit: (action: WeightedAction) => Promise<void> }) {
+function ballotText(ballot: BallotView, open: boolean): string | null {
+    if (ballot === undefined) return null
+    if (ballot === "error") return "Your ballot could not be read."
+    if (!ballot.eligible) return "Your address is not eligible to vote on this proposal."
+    if (ballot.choice) return `You voted ${ballot.choice} (block ${ballot.votedAtHeight}).`
+    return open ? "You have not voted." : "You did not vote."
+}
+
+function invalidationText(v: WeightedInvalidation): string {
+    if (v.cause === "pause") return `Invalidated at block ${v.height}: a member paused ${reveal(v.target ?? "an application")}.`
+    return `Invalidated at block ${v.height}: proposal #${v.proposalId} executed${v.target ? ` (${reveal(v.target)})` : ""}.`
+}
+
+function Proposal({ proposal: p, ballot, canAct, submit }: { proposal: WeightedProposal; ballot: BallotView; canAct: boolean; submit: (action: WeightedAction) => Promise<void> }) {
     const voteOpen = !p.votingClosed && !["EXECUTED", "INVALIDATED", "EXPIRED"].includes(p.status)
     const pending = ["VOTING", "TIMELOCKED", "READY"].includes(p.status)
     return <article className="k-card weighted-dao__proposal" aria-label={`Proposal ${p.id}`}>
@@ -214,7 +243,8 @@ function Proposal({ proposal: p, canAct, submit }: { proposal: WeightedProposal;
         <ProposalAction action={p.action} />
         <p className="weighted-dao__path">Proposed by: {reveal(p.proposer)}</p>
         <strong>{p.status}</strong><p>{p.talliesAvailable ? `${p.weightYes} ${p.weightYes === 1 ? "point" : "points"} · ${p.peopleYes} ${p.peopleYes === 1 ? "person" : "people"} · ${p.developersYes} ${p.developersYes === 1 ? "developer" : "developers"} voting yes` : "Historical vote totals are unavailable."}</p>
-        {p.status === "INVALIDATED" && <p>Invalidated: another proposal executed, or an emergency pause ran, after this was proposed.</p>}
+        {p.status === "INVALIDATED" && <p>{p.invalidation ? invalidationText(p.invalidation) : "Invalidated: another proposal executed, or an emergency pause ran, after this was proposed."}</p>}
+        {ballotText(ballot, voteOpen) && <p className="weighted-dao__ballot">{ballotText(ballot, voteOpen)}</p>}
         {pending && <p className="weighted-dao__warning" role="note">Executing this proposal invalidates every other outstanding proposal.</p>}
         {p.category !== "critical" && p.status === "READY" && <p>{CATEGORY_TEXT[p.category]} proposals can execute as soon as they qualify.</p>}
         <p>Voting closes: <time dateTime={p.votingDeadline}>{p.votingDeadline}</time>{p.votingClosed ? " (closed)" : ""}</p>

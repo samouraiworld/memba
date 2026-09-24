@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import native from "./testdata/weighted-v12/native.json"
-import { assertWeightedWrites, buildWeightedMessage, isUnreadableProposal, readWeightedProposal, readWeightedSnapshot, validateWeightedRecovery, weightedApplicationPolicies, weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema, WEIGHTED_APPLICATIONS_SCHEMA } from "./weighted"
+import { assertWeightedWrites, buildWeightedMessage, isUnreadableProposal, readWeightedBallot, readWeightedPendingVotes, readWeightedProposal, readWeightedSnapshot, validateWeightedRecovery, weightedBallotSchema, weightedApplicationPolicies, weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema, WEIGHTED_APPLICATIONS_SCHEMA } from "./weighted"
 import { APPLICATION_POLICY_KEYS, IMMEDIATE_THRESHOLDS, applicationDetails, expectedCategory, flattenBefore, type WeightedApplicationAction } from "./weightedApplications"
 import { directRpcCall } from "../rpcFallback"
 import { qevalWire, weightedFixture } from "./testdata/weighted"
@@ -42,7 +42,7 @@ describe("weighted host v12 native reads", () => {
         expect(native.gnoRef).toBe("e75fef82c02876a4df92ad6e325c5479b9532168")
         expect(native.realm).toBe(realmPath)
         expect(Object.keys(native.realmSha256)).toHaveLength(12)
-        expect(native.realmSha256["memba_dao.gno"]).toBe("06b0d79e6c07dc4da9346b7dc57b117bb35ea4c5ddbf9259869f427f619bcdc7")
+        expect(native.realmSha256["memba_dao.gno"]).toBe("66d3957cfbcafa4347d81e62a71aa4b524e3bd9e667cf138e7e75fc481327c33")
     })
 
     it("accepts the config with application actions and all ten adapter policies", () => {
@@ -119,7 +119,12 @@ describe("weighted host v12 native reads", () => {
     it("validates operation fields and the frozen before-state strictly", () => {
         const mutate = (id: number, change: (a: Json) => void) => { const r = proposalRecord(id); change(r.proposal.action); return parseProposal(r) }
         expect(mutate(17, a => { a.recipient = (records.config.marketPolicy as Json).treasury })).toBe(false)
-        expect(mutate(17, a => { a.bps = 501 })).toBe(false)
+        expect(mutate(17, a => { a.bps = "501" })).toBe(false)
+        expect(mutate(17, a => { a.bps = 150 })).toBe(false)
+        expect(mutate(17, a => { (a.before as Json).bps = 200 })).toBe(false)
+        expect(mutate(18, a => { ((a.before as Json).item as Json).rating = 5 })).toBe(false)
+        expect(mutate(18, a => { const item = (a.before as Json).item as Json; item.createdAt = item.createdAtHeight; delete item.createdAtHeight })).toBe(false)
+        expect(mutate(22, a => { a.milestoneIndex = "0" })).toBe(false)
         expect(mutate(22, a => { a.contractId = "1" })).toBe(false)
         expect(mutate(22, a => { a.operation = "withdraw" })).toBe(false)
         expect(mutate(22, a => { a.type = "treasury" })).toBe(false)
@@ -254,6 +259,7 @@ describe("every operation the host can encode", () => {
         expect(parseProposal(refund)).toBe(true)
         const mutate = (change: (a: Json & { before: { contract: Json } }) => void) => { const r = structuredClone(refund); change(r.proposal.action as Json & { before: { contract: Json } }); return parseProposal(r) }
         expect(mutate(a => { a.milestoneIndex = "1" })).toBe(false)
+        expect(mutate(a => { a.milestoneIndex = null })).toBe(false)
         expect(mutate(a => { a.contractId = "1" })).toBe(false)
         expect(mutate(a => { a.before.contract.exists = false })).toBe(false)
         expect(mutate(a => { a.contractId = "" })).toBe(false)
@@ -273,10 +279,158 @@ describe("every operation the host can encode", () => {
         expect(() => validateWeightedRecovery(snapshot, actions[3])).toThrow("does not support")
     })
 
+    it("keeps feedback room fields distinct from channels fields", () => {
+        const [, feedback] = opRecords.find(([key]) => key === "op:feedback:set-roles")!
+        const before = feedback.proposal.action.before as Json
+        expect(Object.keys(before).filter(k => k.startsWith("feedbackChannel"))).toHaveLength(6)
+        const renamed = structuredClone(feedback)
+        const state = renamed.proposal.action.before as Json
+        state.channelCount = state.feedbackChannelCount; delete state.feedbackChannelCount
+        expect(parseProposal(renamed)).toBe(false)
+        const [, channels] = opRecords.find(([key]) => key === "op:channels:set-roles")!
+        expect(Object.keys(channels.proposal.action.before as Json)).toContain("channelCount")
+    })
+
     it("records the generated realm's own Render, which carries no DAO sub-page links", () => {
         expect(typeof records.render).toBe("string")
         expect(records.render as unknown as string).toMatch(/^# Memba DAO\n/)
         expect(records.render as unknown as string).not.toMatch(/:proposals|\]\(/)
+    })
+})
+
+describe("invalidation records and sticky expiry", () => {
+    it("explains every INVALIDATED proposal and nothing else", () => {
+        const all = [...opRecords.map(([, r]) => r), ...Object.entries(records).filter(([k]) => /^proposal_/.test(k)).map(([, r]) => r)]
+        let invalidated = 0
+        for (const record of all) {
+            const p = weightedProposalSchema.parse(record).proposal
+            expect(p.invalidation === null, p.id).toBe(p.status !== "INVALIDATED")
+            if (p.invalidation) invalidated++
+        }
+        expect(invalidated).toBeGreaterThan(2)
+        expect((records.proposal_2 as { proposal: Json }).proposal.invalidation).toEqual({ cause: "superseded-execution", height: expect.stringMatching(/^\d+$/), proposalId: "4", target: "gno.land/r/samcrew/memba_market_config" })
+        expect((records.proposal_invalidated_by_pause as { proposal: Json }).proposal.invalidation).toMatchObject({ cause: "pause", proposalId: null, target: "gno.land/r/samcrew/gnobuilders_badges_v2" })
+        expect((records.proposal_superseded as { proposal: Json }).proposal.invalidation).toMatchObject({ cause: "superseded-execution", target: null })
+    })
+
+    it("rejects missing, contradictory or self-referencing invalidation records", () => {
+        const wrap = (id: string, change: (p: Json) => void) => { const r = structuredClone(records[id]) as { proposal: Json }; change(r.proposal); return parseProposal(r) }
+        expect(wrap("proposal_2", p => { delete p.invalidation })).toBe(false)
+        expect(wrap("proposal_2", p => { p.invalidation = null })).toBe(false)
+        expect(wrap("proposal_17", p => { p.invalidation = (records.proposal_2 as { proposal: Json }).proposal.invalidation })).toBe(false)
+        expect(wrap("proposal_2", p => { (p.invalidation as Json).proposalId = "2" })).toBe(false)
+        expect(wrap("proposal_2", p => { (p.invalidation as Json).cause = "pause" })).toBe(false)
+        expect(wrap("proposal_2", p => { (p.invalidation as Json).height = 127 })).toBe(false)
+        expect(wrap("proposal_2", p => { (p.invalidation as Json).target = "gno.land/r/samcrew/elsewhere" })).toBe(false)
+        expect(wrap("proposal_invalidated_by_pause", p => { (p.invalidation as Json).target = null })).toBe(false)
+    })
+
+    it("keeps an expired proposal EXPIRED after a later reconfiguration, with its tallies cleared", () => {
+        const sticky = weightedProposalSchema.parse(records.proposal_expired_sticky).proposal
+        expect([sticky.status, sticky.talliesAvailable, sticky.weightYes, sticky.invalidation]).toEqual(["EXPIRED", false, null, null])
+        const before = weightedProposalSchema.parse(records.proposal_14).proposal
+        expect([before.status, before.talliesAvailable, before.weightYes]).toEqual(["EXPIRED", true, 1])
+        // Older hosts without invalidation records never clear an EXPIRED tally.
+        const legacy = { schema: "memba-weighted-host/v2", kind: "proposal", proposal: { ...(records.proposal_expired_sticky as { proposal: Json }).proposal, action: { type: "set-role", target: (records.members as { members: Json[] }).members[2].address, role: "admin", grant: true } } }
+        expect(parseProposal(legacy)).toBe(true)
+        delete (legacy.proposal as Json).invalidation
+        expect(parseProposal(legacy)).toBe(false)
+    })
+
+    it("accepts invalidation on v1/v2 proposals only when it is well-formed, and older fixtures without it", () => {
+        const v2 = { ...(records.proposal_superseded as Json), schema: "memba-weighted-host/v2" }
+        const action = ((v2 as { proposal: Json }).proposal.action as Json)
+        expect(action.type).toBe("set-role")
+        expect(parseProposal(v2)).toBe(true)
+        expect(parseProposal({ ...v2, schema: "memba-weighted-host/v1" })).toBe(true)
+        const broken = structuredClone(v2) as { proposal: Json }; (broken.proposal.invalidation as Json).extra = 1
+        expect(parseProposal(broken)).toBe(false)
+    })
+})
+
+describe("config category fields", () => {
+    it("checks every published category against the host's own classification", () => {
+        const config = records.config
+        expect(config.marketPolicy).toMatchObject({ feeCategory: "financial", treasuryCategory: "financial" })
+        expect(config.reviewsPolicy).toMatchObject({ moderationCategory: "routine" })
+        for (const [key, field, wrong] of [["marketPolicy", "feeCategory", "critical"], ["marketPolicy", "treasuryCategory", "routine"], ["reviewsPolicy", "moderationCategory", "critical"], ["escrowPolicy", "resolutionCategory", "critical"], ["appstorePolicy", "sealCategory", "financial"], ["questPolicy", "signerCategory", "routine"]] as const) {
+            expect(weightedConfigSchema.safeParse({ ...config, [key]: { ...(config[key] as Json), [field]: wrong } }).success, `${key}.${field}`).toBe(false)
+        }
+        const { feeCategory: _fee, ...withoutFee } = config.marketPolicy as Json
+        void _fee
+        expect(weightedConfigSchema.safeParse({ ...config, marketPolicy: withoutFee }).success).toBe(false)
+    })
+})
+
+describe("ballots and pending votes", () => {
+    const ballotKeys = Object.keys(records).filter(k => k.startsWith("ballot_"))
+    it("accepts every native ballot, and each case reads as recorded", () => {
+        expect(ballotKeys.length).toBeGreaterThanOrEqual(12)
+        for (const key of ballotKeys) expect(weightedBallotSchema.safeParse(records[key]).success, key).toBe(true)
+        const b = (key: string) => weightedBallotSchema.parse(records[key])
+        expect([b("ballot_yes").choice, b("ballot_abstain").choice, b("ballot_not_voted").choice]).toEqual(["yes", "abstain", null])
+        expect(BigInt(b("ballot_changed").votedAtHeight!)).toBeGreaterThan(BigInt(b("ballot_yes").votedAtHeight!))
+        expect([b("ballot_non_member").eligible, b("ballot_non_member").choice]).toEqual([false, null])
+        expect(b("ballot_invalidated").choice).toBe("yes")
+        expect(b("ballot_expired").choice).toBe("yes")
+        expect([b("ballot_old_key_before").eligible, b("ballot_old_key_before").choice]).toEqual([true, "yes"])
+        expect([b("ballot_old_key_after").eligible, b("ballot_new_key_before").eligible, b("ballot_new_key_after").eligible]).toEqual([false, false, true])
+    })
+
+    it("rejects inconsistent or unknown ballot shapes", () => {
+        const base = records.ballot_yes
+        for (const change of [{ choice: "maybe" }, { votedAtHeight: null }, { choice: null }, { eligible: false }, { votedAtHeight: 283 }, { schema: "memba-weighted-host/v2" }, { extra: true }]) {
+            expect(weightedBallotSchema.safeParse({ ...base, ...change }).success, JSON.stringify(change)).toBe(false)
+        }
+    })
+
+    const pendingRoute = (payload: unknown) => vi.mocked(directRpcCall).mockImplementation(async (_url, method) => {
+        if (method === "status") return { node_info: { network: ctx.chainId } }
+        return { response: { ResponseBase: { Data: btoa(String.fromCharCode(...new TextEncoder().encode(qevalWire(payload)))), Error: null } } }
+    })
+
+    it("reads native pending pages, including a scan-capped page with no items", async () => {
+        const voter = (records.pending_page as Json).voter as string
+        pendingRoute(records.pending_page)
+        const page = await readWeightedPendingVotes(ctx, voter, "0", 20)
+        expect([page.items.length, page.next]).toEqual([20, (records.pending_page as Json).next])
+        pendingRoute(records.pending_scan_cap)
+        const capped = await readWeightedPendingVotes(ctx, (records.pending_scan_cap as Json).voter as string, "0", 50)
+        expect(capped.items).toEqual([]); expect(capped.next).toMatch(/^\d+$/)
+        pendingRoute(records.pending_after_cap)
+        const after = await readWeightedPendingVotes(ctx, (records.pending_after_cap as Json).voter as string, capped.next!, 50)
+        expect(after.items.length).toBeGreaterThan(0); expect(after.next).toBeNull()
+        for (const key of Object.keys(records).filter(k => k.startsWith("pending_"))) {
+            const r = records[key] as { voter: string; items: Json[]; next: string | null }
+            pendingRoute(r)
+            await expect(readWeightedPendingVotes(ctx, r.voter, "0", 50), key).resolves.toBeTruthy()
+        }
+    })
+
+    it("refuses mismatched voters, closed or out-of-order items, and bad cursors", async () => {
+        const r = records.pending_page as { voter: string; items: Json[]; next: string }
+        pendingRoute({ ...r, voter: (records.members as { members: Json[] }).members[0].address })
+        await expect(readWeightedPendingVotes(ctx, r.voter)).rejects.toThrow("do not match")
+        pendingRoute({ ...r, items: [r.items[1], r.items[0]] })
+        await expect(readWeightedPendingVotes(ctx, r.voter)).rejects.toThrow("Invalid pending-vote page")
+        pendingRoute({ ...r, items: [records.proposal_2.proposal, ...r.items.slice(1)] })
+        await expect(readWeightedPendingVotes(ctx, r.voter)).rejects.toThrow()
+        pendingRoute({ ...r, next: "999" })
+        await expect(readWeightedPendingVotes(ctx, r.voter)).rejects.toThrow("cursor")
+        pendingRoute({ ...r, extra: 1 })
+        await expect(readWeightedPendingVotes(ctx, r.voter)).rejects.toThrow()
+        await expect(readWeightedPendingVotes(ctx, r.voter, "0", 51)).rejects.toThrow("page size")
+        const mis = structuredClone(r); (mis.items[2].action as Json).operation = "grant-everything"
+        pendingRoute(mis)
+        expect((await readWeightedPendingVotes(ctx, r.voter)).items.filter(isUnreadableProposal)).toHaveLength(1)
+    })
+
+    it("reads one ballot and checks it answers the question asked", async () => {
+        const b = records.ballot_not_voted as { proposalId: string; voter: string }
+        pendingRoute(b)
+        expect((await readWeightedBallot(ctx, b.proposalId, b.voter)).choice).toBeNull()
+        await expect(readWeightedBallot(ctx, "1", b.voter)).rejects.toThrow("does not match")
+        expect(vi.mocked(directRpcCall).mock.calls.some(c => new TextDecoder().decode(Uint8Array.from(String(c[2]?.data).slice(2).match(/../g)!, h => parseInt(h, 16))).endsWith(`GetBallotJSON("${b.proposalId}", "${b.voter}")`))).toBe(true)
     })
 })
 

@@ -87,7 +87,7 @@ for (const width of [1280, 390]) {
         await page.screenshot({ path: info.outputPath(`weighted-dao-v12-${width}.png`), fullPage: true, animations: 'disabled' })
         await workspace.getByRole('button', { name: 'Older proposals' }).click()
         const invalidated = workspace.getByRole('article', { name: 'Proposal 2' })
-        await expect(invalidated.getByText(/another proposal executed, or an emergency pause ran/)).toBeVisible()
+        await expect(invalidated.getByText(/^Invalidated at block \d+: proposal #4 executed \(gno\.land\/r\/samcrew\/memba_market_config\)\.$/)).toBeVisible()
         await expect(workspace.getByRole('article', { name: 'Proposal 1' }).getByText('EXECUTED')).toBeVisible()
     })
 }

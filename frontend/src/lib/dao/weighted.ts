@@ -3,7 +3,7 @@ import { z } from "zod"
 import { abciErrorPresent, directRpcCall } from "../rpcFallback"
 import type { AminoMsg } from "./shared"
 import { address, id, personID, realm, role, time, uint64 } from "./weightedPrimitives"
-import { APPLICATION_POLICY_KEYS, IMMEDIATE_THRESHOLDS, applicationActionMatchesPolicy, applicationPolicySchemas, expectedCategory, recoverMemberAction, setRoleAction, v12Action } from "./weightedApplications"
+import { APPLICATION_LABELS, APPLICATION_POLICY_KEYS, APPLICATION_TARGETS, IMMEDIATE_THRESHOLDS, applicationActionMatchesPolicy, applicationPolicySchemas, expectedCategory, recoverMemberAction, setRoleAction, v12Action } from "./weightedApplications"
 
 export const WEIGHTED_SCHEMA = "memba-weighted-host/v1"
 export const WEIGHTED_RECOVERY_SCHEMA = "memba-weighted-host/v2"
@@ -35,22 +35,43 @@ export const weightedMembersSchema = z.strictObject({ ...envelope, kind: z.liter
     new Set(members.map(m => m.address)).size === 7 && new Set(members.map(m => m.personId)).size === 7 &&
     members.filter(m => m.founder).length === 1 && members.some(m => m.admin) && members.every(m => m.weight === (m.founder ? 2 : 1)), "Invalid founding roster")
 
+/**
+ * Why an INVALIDATED proposal stopped: another proposal executed (proposalId
+ * names it; target is its application realm, or null for a role or recovery
+ * change) or a member's emergency pause of target (proposalId null).
+ */
+const invalidationSchema = z.strictObject({
+    cause: z.enum(["superseded-execution", "pause"]), height: uint64,
+    proposalId: id.nullable(), target: z.enum(Object.values(APPLICATION_TARGETS) as [string, ...string[]]).nullable(),
+}).refine(v => v.cause === "pause" ? v.proposalId === null && v.target !== null : v.proposalId !== null, "Inconsistent invalidation record")
+export type WeightedInvalidation = z.infer<typeof invalidationSchema>
+
 type ProposalState = {
-    action: { type: string; operation?: string }; category: "routine" | "financial" | "critical"; status: string
+    id: string; action: { type: string; operation?: string }; category: "routine" | "financial" | "critical"; status: string
     qualified: boolean; ready: boolean; votingClosed: boolean; talliesAvailable: boolean
     weightYes: number | null; peopleYes: number | null; developersYes: number | null
     createdAt: string; votingDeadline: string; weightedAfter: string | null; developerAfter: string | null
+    invalidation?: WeightedInvalidation | null
 }
-/** Mirrors the policy's State(): terminal states clear tallies; routine/financial are ready once qualified. */
+/**
+ * Mirrors the policy's State(): terminal states clear tallies; routine and
+ * financial proposals are ready once qualified. Host builds that publish
+ * `invalidation` also keep EXPIRED sticky: a proposal that expired before a
+ * later reconfiguration stays EXPIRED, with its tallies cleared.
+ */
 function consistentProposal(p: ProposalState): boolean {
     if (p.category !== expectedCategory(p.action)) return false
-    const terminal = p.status === "EXECUTED" || p.status === "INVALIDATED"
-    if (p.ready !== (p.status === "READY") || p.talliesAvailable === terminal) return false
+    const recordsInvalidation = p.invalidation !== undefined
+    if (recordsInvalidation && (p.invalidation === null) === (p.status === "INVALIDATED")) return false
+    if (p.invalidation && p.invalidation.proposalId === p.id) return false
+    const stickyExpiry = recordsInvalidation && p.status === "EXPIRED" && !p.talliesAvailable
+    const cleared = p.status === "EXECUTED" || p.status === "INVALIDATED" || stickyExpiry
+    if (p.ready !== (p.status === "READY") || p.talliesAvailable === cleared) return false
     if (Date.parse(p.votingDeadline) - Date.parse(p.createdAt) !== 604800000) return false
-    if (terminal) return p.weightYes === null && p.peopleYes === null && p.developersYes === null && !p.qualified && p.weightedAfter === null && p.developerAfter === null
+    if (p.status === "EXPIRED" && !p.votingClosed) return false
+    if (cleared) return p.weightYes === null && p.peopleYes === null && p.developersYes === null && !p.qualified && p.weightedAfter === null && p.developerAfter === null
     if (p.weightYes === null || p.peopleYes === null || p.developersYes === null) return false
     if (p.peopleYes - p.developersYes < 0 || p.peopleYes - p.developersYes > 1 || p.weightYes !== p.developersYes + 2 * (p.peopleYes - p.developersYes)) return false
-    if (p.status === "EXPIRED" && !p.votingClosed) return false
     if (p.status === "VOTING" && p.votingClosed) return false
     if (p.category !== "critical") {
         const threshold = IMMEDIATE_THRESHOLDS[p.category]
@@ -62,16 +83,21 @@ function consistentProposal(p: ProposalState): boolean {
     return (p.weightedAfter === null || p.weightYes >= 6 && p.peopleYes >= 4) && (p.developerAfter === null || p.developersYes >= 5)
 }
 const tally = (max: number) => z.number().int().min(0).max(max).nullable()
-const proposalFor = <A extends z.ZodType<{ type: string }>>(action: A) => z.strictObject({
-    id, proposer: address, action,
+const proposalFields = {
+    id, proposer: address,
     category: z.enum(["routine", "financial", "critical"]), status: z.enum(["VOTING", "TIMELOCKED", "READY", "EXPIRED", "INVALIDATED", "EXECUTED"]),
     qualified: z.boolean(), ready: z.boolean(), votingClosed: z.boolean(), talliesAvailable: z.boolean(),
     weightYes: tally(8), peopleYes: tally(7), developersYes: tally(6),
     createdAt: time, votingDeadline: time, weightedAfter: time.nullable(), developerAfter: time.nullable(),
-}).refine(p => consistentProposal(p as ProposalState), "Inconsistent proposal state")
+}
+// v1/v2 realms deployed before invalidation records omit the field; current
+// host builds emit it on every version. v12 always carries it.
+const proposalFor = <A extends z.ZodType<{ type: string }>>(action: A) => z.strictObject({ ...proposalFields, action, invalidation: invalidationSchema.nullable().optional() })
+    .refine(p => consistentProposal(p as ProposalState), "Inconsistent proposal state")
 const v1Proposal = proposalFor(z.discriminatedUnion("type", [setRoleAction]))
 const v2Proposal = proposalFor(z.discriminatedUnion("type", [setRoleAction, recoverMemberAction]))
-const v12Proposal = proposalFor(v12Action)
+const v12Proposal = z.strictObject({ ...proposalFields, action: v12Action, invalidation: invalidationSchema.nullable() })
+    .refine(p => consistentProposal(p as ProposalState), "Inconsistent proposal state")
 /** Per-version proposal item, reusable by later list reads (for example pending votes). */
 export const weightedProposalFor = { [WEIGHTED_SCHEMA]: v1Proposal, [WEIGHTED_RECOVERY_SCHEMA]: v2Proposal, [WEIGHTED_APPLICATIONS_SCHEMA]: v12Proposal } as const
 export const weightedProposalSchema = z.discriminatedUnion("schema", [
@@ -84,7 +110,8 @@ export const weightedPageSchema = z.discriminatedUnion("schema", [pageFor(WEIGHT
 /** The page envelope is strict; each item is validated on its own (see readWeightedSnapshot). */
 const envelopeFor = <S extends WeightedSchemaVersion>(schema: S) => z.strictObject({ schema: z.literal(schema), kind: z.literal("proposals"), total: uint64, proposals: z.array(z.unknown()).max(50), nextBefore: id.nullable() })
 const weightedPageEnvelopeSchema = z.discriminatedUnion("schema", [envelopeFor(WEIGHTED_SCHEMA), envelopeFor(WEIGHTED_RECOVERY_SCHEMA), envelopeFor(WEIGHTED_APPLICATIONS_SCHEMA)])
-export type WeightedProposal = z.infer<typeof v12Proposal>
+/** Any supported version's proposal; only v12 is guaranteed to carry `invalidation`. */
+export type WeightedProposal = Omit<z.infer<typeof v12Proposal>, "invalidation"> & { invalidation?: WeightedInvalidation | null }
 /** A list item the contract returned but Memba could not validate. It is shown by ID only and offers no action. */
 export type UnreadableWeightedProposal = { id: string; unreadable: true }
 export type WeightedPageEntry = WeightedProposal | UnreadableWeightedProposal
@@ -215,6 +242,69 @@ export async function readWeightedProposal(ctx: WeightedContext, proposalId: str
     const result = response.proposal
     if (result.id !== proposalId) throw new Error("Unexpected proposal ID")
     return result
+}
+
+// ── Per-voter reads (host builds that publish ballots; v12) ─────────────────
+
+const choice = z.enum(["yes", "no", "abstain"])
+export const weightedBallotSchema = z.strictObject({
+    schema: z.literal(WEIGHTED_APPLICATIONS_SCHEMA), proposalId: id, voter: address,
+    eligible: z.boolean(), choice: choice.nullable(), votedAtHeight: uint64.nullable(),
+}).refine(b => (b.choice === null) === (b.votedAtHeight === null) && (b.eligible || b.choice === null), "Inconsistent ballot")
+export type WeightedBallot = z.infer<typeof weightedBallotSchema>
+const pendingEnvelopeSchema = z.strictObject({ schema: z.literal(WEIGHTED_APPLICATIONS_SCHEMA), voter: address, items: z.array(z.unknown()).max(50), next: id.nullable() })
+export type WeightedPendingVotes = { voter: string; items: WeightedPageEntry[]; next: string | null }
+
+async function assertChain(ctx: WeightedContext, signal?: AbortSignal) {
+    const status = z.object({ node_info: z.object({ network: z.string() }) }).parse(await directRpcCall(ctx.rpcUrl, "status", {}, signal))
+    if (status.node_info.network !== ctx.chainId) throw new Error("RPC network does not match the selected chain")
+}
+
+/** One address's ballot on one proposal. Eligibility is the electorate frozen when the proposal was created. */
+export async function readWeightedBallot(ctx: WeightedContext, proposalId: string, voter: string, signal?: AbortSignal): Promise<WeightedBallot> {
+    id.parse(proposalId); address.parse(voter)
+    const ballot = weightedBallotSchema.parse(await read(ctx, `GetBallotJSON("${proposalId}", "${voter}")`, signal))
+    if (ballot.proposalId !== proposalId || ballot.voter !== voter) throw new Error("Ballot does not match the request")
+    return ballot
+}
+
+/**
+ * Open proposals where `voter` is eligible and has not voted, newest first.
+ * The host examines at most 200 proposals per call, so `next` can be set on
+ * a page with no items. Items it cannot validate are listed by ID only.
+ */
+export async function readWeightedPendingVotes(ctx: WeightedContext, voter: string, before = "0", limit = 20, signal?: AbortSignal): Promise<WeightedPendingVotes> {
+    address.parse(voter); uint64.parse(before)
+    if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new Error("Invalid pending-vote page size")
+    await assertChain(ctx, signal)
+    const envelope = pendingEnvelopeSchema.parse(await read(ctx, `GetPendingVotesJSON("${voter}", "${before}", ${limit})`, signal))
+    if (envelope.voter !== voter) throw new Error("Pending votes do not match the request")
+    if (envelope.items.length > limit) throw new Error("Invalid pending-vote page")
+    let previous = before === "0" ? null : BigInt(before)
+    const items: WeightedPageEntry[] = []
+    for (const raw of envelope.items) {
+        const parsed = v12Proposal.safeParse(raw)
+        const rawID = typeof raw === "object" && raw !== null && "id" in raw ? raw.id : undefined
+        const itemID = parsed.success ? parsed.data.id : id.parse(rawID)
+        if (previous !== null && BigInt(itemID) >= previous) throw new Error("Invalid pending-vote page")
+        previous = BigInt(itemID)
+        if (!parsed.success) { items.push({ id: itemID, unreadable: true }); continue }
+        const p = parsed.data
+        if (p.votingClosed || !["VOTING", "TIMELOCKED", "READY"].includes(p.status)) throw new Error("Pending votes include a closed proposal")
+        items.push(p)
+    }
+    if (envelope.next !== null && previous !== null && BigInt(envelope.next) > previous) throw new Error("Invalid pending-vote cursor")
+    if (envelope.next !== null && before !== "0" && BigInt(envelope.next) >= BigInt(before)) throw new Error("Invalid pending-vote cursor")
+    return { voter, items, next: envelope.next }
+}
+
+/** Short, display-only description of a proposal's action. */
+export function weightedProposalTitle(p: WeightedPageEntry): string {
+    if (isUnreadableProposal(p)) return `Unreadable proposal #${p.id}`
+    const a = p.action
+    if (a.type === "set-role") return `${a.grant ? "Grant" : "Remove"} ${a.role}`
+    if (a.type === "recover-member") return "Recover member key"
+    return `${APPLICATION_LABELS[a.type]} · ${a.operation}`
 }
 
 /**

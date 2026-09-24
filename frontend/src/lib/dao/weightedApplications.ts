@@ -44,21 +44,43 @@ export const APPLICATION_TARGETS = {
 // ── Config: one closed policy object per adapter ──────────────────────────────
 
 const staged = { successor: address, returnStagesOnly: z.literal(true), invalidatesOtherProposals: z.literal(true) }
-const pausable = { unpauseCategory: z.literal("financial"), emergencyPause: z.literal(true) }
+const category = z.enum(["routine", "financial", "critical"])
+const pausable = { unpauseCategory: category, emergencyPause: z.literal(true) }
+
+/**
+ * Each published category field names the category of one operation. The
+ * reader checks it against expectedCategory (the host's own classification)
+ * instead of trusting either side alone.
+ */
+const CATEGORY_WITNESS: Record<string, Record<string, [string, string]>> = {
+    marketPolicy: { feeCategory: ["market-config", "set-fee"], treasuryCategory: ["market-config", "set-treasury"] },
+    reviewsPolicy: { moderationCategory: ["reviews", "hide-review"] },
+    questPolicy: { signerCategory: ["quest", "set-signer"] },
+    arcadePolicy: { attesterCategory: ["arcade", "add-attester"], unpauseCategory: ["arcade", "unpause"] },
+    appstorePolicy: { curatorCategory: ["appstore", "add-curator"], sealCategory: ["appstore", "seal-import"], moderationCategory: ["appstore", "approve"], unpauseCategory: ["appstore", "unpause"] },
+    escrowPolicy: { resolutionCategory: ["escrow", "refund-client"], unpauseCategory: ["escrow", "unpause"] },
+    badgesPolicy: { adminCategory: ["badges", "add-admin"], unpauseCategory: ["badges", "unpause"] },
+    feedPolicy: { moderatorCategory: ["feed", "add-moderator"], unpauseCategory: ["feed", "unpause"] },
+    channelsPolicy: { memberCategory: ["channels", "add-member"], unpauseCategory: ["channels", "unpause"] },
+    feedbackPolicy: { memberCategory: ["feedback", "add-member"], unpauseCategory: ["feedback", "unpause"] },
+}
+const categoriesMatch = (key: string) => (policy: Record<string, unknown>) =>
+    Object.entries(CATEGORY_WITNESS[key]).every(([field, [type, operation]]) => policy[field] === expectedCategory({ type, operation }))
+
 export const applicationPolicySchemas = {
-    marketPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.market), treasury: address, ...staged }),
-    reviewsPolicy: z.strictObject({ target: z.enum([APPLICATION_TARGETS.reviewsV1, APPLICATION_TARGETS.reviewsV2]), ...staged }),
-    questPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.quest), signerCategory: z.literal("critical"), ...staged }),
-    arcadePolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.arcade), attesterCategory: z.literal("critical"), ...pausable, ...staged }),
+    marketPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.market), treasury: address, feeCategory: category, treasuryCategory: category, ...staged }).refine(categoriesMatch("marketPolicy"), "Unexpected market categories"),
+    reviewsPolicy: z.strictObject({ target: z.enum([APPLICATION_TARGETS.reviewsV1, APPLICATION_TARGETS.reviewsV2]), moderationCategory: category, ...staged }).refine(categoriesMatch("reviewsPolicy"), "Unexpected reviews categories"),
+    questPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.quest), signerCategory: category, ...staged }).refine(categoriesMatch("questPolicy"), "Unexpected quest categories"),
+    arcadePolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.arcade), attesterCategory: category, ...pausable, ...staged }).refine(categoriesMatch("arcadePolicy"), "Unexpected arcade categories"),
     appstorePolicy: z.strictObject({
         target: z.literal(APPLICATION_TARGETS.appstore), treasury: address, maxRegistrationFee: z.literal("100000000"),
-        curatorCategory: z.literal("critical"), sealCategory: z.literal("critical"), moderationCategory: z.literal("routine"), ...pausable, ...staged,
-    }),
-    escrowPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.escrow), resolutionCategory: z.literal("financial"), ...pausable, ...staged }),
-    badgesPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.badges), adminCategory: z.literal("critical"), ...pausable, ...staged }),
-    feedPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.feed), moderatorCategory: z.literal("critical"), ...pausable, ...staged }),
-    channelsPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.channels), memberCategory: z.literal("critical"), ...pausable, ...staged }),
-    feedbackPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.feedback), memberCategory: z.literal("critical"), ...pausable, ...staged }),
+        curatorCategory: category, sealCategory: category, moderationCategory: category, ...pausable, ...staged,
+    }).refine(categoriesMatch("appstorePolicy"), "Unexpected App Store categories"),
+    escrowPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.escrow), resolutionCategory: category, ...pausable, ...staged }).refine(categoriesMatch("escrowPolicy"), "Unexpected escrow categories"),
+    badgesPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.badges), adminCategory: category, ...pausable, ...staged }).refine(categoriesMatch("badgesPolicy"), "Unexpected badges categories"),
+    feedPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.feed), moderatorCategory: category, ...pausable, ...staged }).refine(categoriesMatch("feedPolicy"), "Unexpected feed categories"),
+    channelsPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.channels), memberCategory: category, ...pausable, ...staged }).refine(categoriesMatch("channelsPolicy"), "Unexpected channels categories"),
+    feedbackPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.feedback), memberCategory: category, ...pausable, ...staged }).refine(categoriesMatch("feedbackPolicy"), "Unexpected feedback categories"),
 }
 export type ApplicationPolicyKey = keyof typeof applicationPolicySchemas
 export const APPLICATION_POLICY_KEYS = Object.keys(applicationPolicySchemas) as ApplicationPolicyKey[]
@@ -76,20 +98,20 @@ const exactly = (needed: boolean, value: string) => needed ? value !== "" : valu
 const ownerState = { owner: address, pendingOwner: optionalAddress, paused: z.boolean() }
 const count = uint64
 
+const basisPoints = uint64.refine(s => BigInt(s) <= 500n)
 const marketAction = z.strictObject({
     type: z.literal("market-config"), target: z.literal(APPLICATION_TARGETS.market),
     operation: z.enum(["accept-admin", "set-fee", "set-treasury", "return-admin", "abort-return"]),
-    lane: z.enum(["", "nft", "service", "token"]), bps: z.number().int().min(0).max(500), recipient: optionalAddress,
-    before: z.strictObject({ admin: address, pendingAdmin: optionalAddress, treasury: optionalAddress, bps: z.number().int().min(0).max(500) }),
+    lane: z.enum(["", "nft", "service", "token"]), bps: basisPoints, recipient: optionalAddress,
+    before: z.strictObject({ admin: address, pendingAdmin: optionalAddress, treasury: optionalAddress, bps: basisPoints }),
 }).refine(a => a.operation === "set-fee"
     ? a.lane !== "" && a.recipient === ""
-    : a.lane === "" && a.bps === 0 && exactly(a.operation !== "accept-admin", a.recipient), "Malformed market action")
+    : a.lane === "" && a.bps === "0" && exactly(a.operation !== "accept-admin", a.recipient), "Malformed market action")
 
 const reviewsItem = z.strictObject({
     id: uint64, review: z.boolean(), parentId: uint64, subject: text(1000), author: optionalAddress,
-    rating: z.number().int().min(0).max(5), bodyHash: z.union([blank, sha256Hex]),
-    // Block heights, not timestamps.
-    createdAt: uint64, editedAt: uint64, hidden: z.boolean(), deleted: z.boolean(), flagged: z.boolean(),
+    rating: z.enum(["0", "1", "2", "3", "4", "5"]), bodyHash: z.union([blank, sha256Hex]),
+    createdAtHeight: uint64, editedAtHeight: uint64, hidden: z.boolean(), deleted: z.boolean(), flagged: z.boolean(),
 })
 const reviewsAction = z.strictObject({
     type: z.literal("reviews"), target: z.enum([APPLICATION_TARGETS.reviewsV1, APPLICATION_TARGETS.reviewsV2]),
@@ -136,7 +158,8 @@ const escrowNumber = uint64
 const escrowAction = z.strictObject({
     type: z.literal("escrow"), target: z.literal(APPLICATION_TARGETS.escrow),
     operation: z.enum(["accept-owner", ...RETURN_OPS, "unpause", "refund-client", "pay-freelancer"]),
-    recipient: optionalAddress, contractId: z.union([blank, uint64]), milestoneIndex: escrowNumber.refine(s => BigInt(s) < 20n),
+    // Only the two dispute actions name a milestone; it is null everywhere else.
+    recipient: optionalAddress, contractId: z.union([blank, uint64]), milestoneIndex: escrowNumber.refine(s => BigInt(s) < 20n).nullable(),
     before: z.strictObject({
         ...ownerState,
         contract: z.strictObject({
@@ -146,13 +169,12 @@ const escrowAction = z.strictObject({
         fees: z.strictObject({ rawBPS: escrowNumber, effectiveBPS: escrowNumber, rawTreasury: optionalAddress, fallbackTreasury: optionalAddress, effectiveTreasury: optionalAddress }),
     }),
 }).refine(a => {
-    // milestoneIndex "0" is also the unset value outside dispute resolutions.
     // Contract IDs start at "0" (escrow_v3 allocates from a zero-valued counter).
     if (has(["refund-client", "pay-freelancer"], a.operation)) {
         const c = a.before.contract
-        return a.contractId !== "" && a.recipient === "" && c.exists && c.id === a.contractId && BigInt(a.milestoneIndex) < BigInt(c.count)
+        return a.milestoneIndex !== null && a.contractId !== "" && a.recipient === "" && c.exists && c.id === a.contractId && BigInt(a.milestoneIndex) < BigInt(c.count)
     }
-    return a.contractId === "" && a.milestoneIndex === "0" && exactly(has(RETURN_OPS, a.operation), a.recipient)
+    return a.contractId === "" && a.milestoneIndex === null && exactly(has(RETURN_OPS, a.operation), a.recipient)
 }, "Malformed escrow action")
 
 const subjectAction = <T extends string, Ops extends readonly [string, ...string[]]>(type: T, target: string, ops: Ops, subjectOps: readonly string[], state: z.ZodRawShape) => z.strictObject({
@@ -165,18 +187,21 @@ const badgesAction = subjectAction("badges", APPLICATION_TARGETS.badges, ["accep
 const feedAction = subjectAction("feed", APPLICATION_TARGETS.feed, ["accept-owner", ...RETURN_OPS, "add-moderator", "remove-moderator", "unpause"], ["add-moderator", "remove-moderator"],
     { moderatorCount: count, ownerModerator: z.boolean(), daoModerator: z.boolean(), successorModerator: z.boolean(), subjectModerator: z.boolean() })
 
-// Channels and feedback share one membership/room state shape in the host.
-const roomState = {
+// Channels and feedback share membership fields; each names its own room fields.
+const membershipState = {
     memberCount: count, membershipRevision: uint64,
     ownerMember: z.boolean(), daoMember: z.boolean(), successorMember: z.boolean(), subjectMember: z.boolean(),
     ownerRoles: text(500), daoRoles: text(500), successorRoles: text(500), subjectRoles: text(500),
-    channelCount: count, channelExists: z.boolean(), channelDescription: text(1000), channelType: text(64), channelReadRoles: text(500), channelWriteRoles: text(500),
+}
+const roomState = {
+    channels: { channelCount: count, channelExists: z.boolean(), channelDescription: text(1000), channelType: text(64), channelReadRoles: text(500), channelWriteRoles: text(500) },
+    feedback: { feedbackChannelCount: count, feedbackChannelExists: z.boolean(), feedbackChannelDescription: text(1000), feedbackChannelType: text(64), feedbackChannelReadRoles: text(500), feedbackChannelWriteRoles: text(500) },
 }
 const ROOM_OPS = ["accept-owner", ...RETURN_OPS, "add-member", "remove-member", "set-roles", "create-text-channel", "unpause"] as const
 const roomAction = <T extends "channels" | "feedback">(type: T, target: string) => z.strictObject({
     type: z.literal(type), target: z.literal(target), operation: z.enum(ROOM_OPS),
     recipient: optionalAddress, subject: optionalAddress, roles: text(500), name: text(64), description: text(1000),
-    before: z.strictObject({ ...ownerState, ...roomState }),
+    before: z.strictObject({ ...ownerState, ...membershipState, ...roomState[type] }),
 }).refine(a => {
     const member = has(["add-member", "remove-member", "set-roles"], a.operation), create = a.operation === "create-text-channel"
     return exactly(has(RETURN_OPS, a.operation), a.recipient) && exactly(member, a.subject) && exactly(has(["add-member", "set-roles"], a.operation), a.roles) &&
@@ -232,7 +257,7 @@ export function applicationDetails(action: WeightedApplicationAction): [string, 
     const skip = new Set(["type", "target", "operation", "before"])
     const out: [string, string][] = []
     for (const [key, value] of Object.entries(action)) {
-        if (skip.has(key) || value === "" || (action.type === "escrow" && key === "milestoneIndex" && action.contractId === "") || (action.type === "market-config" && key === "bps" && action.operation !== "set-fee") || (action.type === "appstore" && key === "fee" && action.operation !== "set-fee") || (action.type === "reviews" && key === "id" && value === "0")) continue
+        if (skip.has(key) || value === "" || value === null || (action.type === "market-config" && key === "bps" && action.operation !== "set-fee") || (action.type === "appstore" && key === "fee" && action.operation !== "set-fee") || (action.type === "reviews" && key === "id" && value === "0")) continue
         out.push([key, revealInvisibleFormatting(String(value))])
     }
     return out
@@ -240,7 +265,8 @@ export function applicationDetails(action: WeightedApplicationAction): [string, 
 
 /** Flatten the frozen pre-state into labelled rows (nested objects use dotted keys); invisible characters are made visible. */
 export function flattenBefore(value: unknown, prefix = ""): [string, string][] {
-    if (value === null || typeof value !== "object") return [[prefix, value === "" ? "(unset)" : revealInvisibleFormatting(String(value))]]
+    if (value === null) return [[prefix, "(none)"]]
+    if (typeof value !== "object") return [[prefix, value === "" ? "(unset)" : revealInvisibleFormatting(String(value))]]
     const rows: [string, string][] = []
     const entries = Array.isArray(value) ? value.map((v, i) => [String(i), v] as const) : Object.entries(value)
     if (entries.length === 0) return [[prefix, "(none)"]]

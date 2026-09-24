@@ -2,14 +2,14 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { MemoryRouter, Outlet, Route, Routes } from "react-router-dom"
 import { beforeEach, expect, it, vi } from "vitest"
 import { WeightedDAO } from "./WeightedDAO"
-import { readWeightedProposal, readWeightedSnapshot } from "../lib/dao/weighted"
+import { readWeightedBallot, readWeightedProposal, readWeightedSnapshot } from "../lib/dao/weighted"
 import { doContractBroadcast } from "../lib/grc20"
 import { bech32Encode } from "../lib/dao/realmAddress"
 import { weightedFixture, weightedRealm } from "../lib/dao/testdata/weighted"
 import v12Native from "../lib/dao/testdata/weighted-v12/native.json"
 import { weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema } from "../lib/dao/weighted"
 vi.mock("../lib/config", () => ({ NETWORKS: { pearl: { chainId: "pearl", rpcUrl: "https://selected.invalid" }, mainnet: { chainId: "gnoland-1", rpcUrl: "https://main.invalid" } }, GNO_CHAIN_ID: "pearl", GNO_RPC_URL: "https://selected.invalid" }))
-vi.mock("../lib/dao/weighted", async importOriginal => ({ ...await importOriginal<typeof import("../lib/dao/weighted")>(), readWeightedSnapshot: vi.fn(), readWeightedProposal: vi.fn() }))
+vi.mock("../lib/dao/weighted", async importOriginal => ({ ...await importOriginal<typeof import("../lib/dao/weighted")>(), readWeightedSnapshot: vi.fn(), readWeightedProposal: vi.fn(), readWeightedBallot: vi.fn() }))
 vi.mock("../lib/grc20", () => ({ doContractBroadcast: vi.fn() }))
 let fixture = weightedFixture()
 function snapshot() { return { config: fixture.config, members: fixture.members, page: fixture.page } as Awaited<ReturnType<typeof readWeightedSnapshot>> }
@@ -22,6 +22,7 @@ beforeEach(() => {
     vi.mocked(readWeightedSnapshot).mockImplementation(async () => snapshot())
     vi.mocked(readWeightedProposal).mockImplementation(async () => fixture.proposal as Awaited<ReturnType<typeof readWeightedProposal>>)
     vi.mocked(doContractBroadcast).mockImplementation(async (_msgs, _memo, opts) => { await opts?.beforeSign?.(); return { hash: "a".repeat(64) } })
+    vi.mocked(readWeightedBallot).mockImplementation(async (_ctx, proposalId, voter) => ({ schema: "memba-weighted-host/v12", proposalId, voter, eligible: true, choice: null, votedAtHeight: null }))
 })
 it("shows seven people, 2/1 weights and exact role actions without a percent threshold", async () => {
     render(<App />)
@@ -175,7 +176,7 @@ it("explains invalidated and executed v12 history on the older page", async () =
     vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot("proposals_page_2"))
     render(<App network="mainnet" />)
     const invalidated = await screen.findByRole("article", { name: "Proposal 2" })
-    expect(within(invalidated).getByText(/another proposal executed, or an emergency pause ran/)).toBeTruthy()
+    expect(within(invalidated).getByText(/^Invalidated at block \d+: proposal #4 executed \(gno\.land\/r\/samcrew\/memba_market_config\)\.$/)).toBeTruthy()
     const accept = screen.getByRole("article", { name: "Proposal 4" })
     expect(within(accept).getByRole("heading", { name: "Market config · accept-admin" })).toBeTruthy()
     expect(within(accept).getByText("Historical vote totals are unavailable.")).toBeTruthy()
@@ -226,4 +227,43 @@ it("reveals bidi and zero-width characters in realm-controlled text", async () =
     expect(screen.getByText("room[U+200D]notes")).toBeTruthy()
     expect(screen.getAllByText("zx[U+202E]xma").length).toBeGreaterThan(0)
     expect(view.container.textContent).not.toMatch(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069]/)
+})
+
+it("shows the connected member's own ballot on each v12 proposal, read-only", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    const data = v12Snapshot()
+    const voter = data.members[1].address
+    vi.mocked(readWeightedBallot).mockImplementation(async (_ctx, proposalId, who) => {
+        if (proposalId === "17") return { schema: "memba-weighted-host/v12", proposalId, voter: who, eligible: true, choice: "yes", votedAtHeight: "123" }
+        if (proposalId === "18") return { schema: "memba-weighted-host/v12", proposalId, voter: who, eligible: false, choice: null, votedAtHeight: null }
+        if (proposalId === "19") throw new Error("read failed")
+        return { schema: "memba-weighted-host/v12", proposalId, voter: who, eligible: true, choice: null, votedAtHeight: null }
+    })
+    render(<App network="mainnet" address={voter} />)
+    const fee = await screen.findByRole("article", { name: "Proposal 17" })
+    expect(await within(fee).findByText("You voted yes (block 123).")).toBeTruthy()
+    expect(within(screen.getByRole("article", { name: "Proposal 18" })).getByText("Your address is not eligible to vote on this proposal.")).toBeTruthy()
+    expect(within(screen.getByRole("article", { name: "Proposal 19" })).getByText("Your ballot could not be read.")).toBeTruthy()
+    expect(within(screen.getByRole("article", { name: "Proposal 20" })).getByText("You have not voted.")).toBeTruthy()
+    expect(within(screen.getByRole("article", { name: "Proposal 14" })).getByText("You did not vote.")).toBeTruthy()
+    expect(vi.mocked(readWeightedBallot).mock.calls.every(c => c[2] === voter)).toBe(true)
+    for (const button of screen.getAllByRole("button", { name: /^(Vote .*|Execute proposal)$/ })) expect(button.hasAttribute("disabled")).toBe(true)
+})
+it("reads no ballots without a connected wallet or for older contract versions", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    render(<App network="mainnet" connected={false} />)
+    await screen.findByRole("article", { name: "Proposal 17" })
+    expect(readWeightedBallot).not.toHaveBeenCalled()
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => snapshot())
+    render(<App />)
+    await screen.findByRole("article", { name: "Proposal 1" })
+    expect(readWeightedBallot).not.toHaveBeenCalled()
+})
+it("explains a pause invalidation with the paused realm", async () => {
+    const r = v12Native.records as unknown as Record<string, unknown>
+    const data = v12Snapshot()
+    data.page = { ...data.page, proposals: [weightedProposalSchema.parse(r.proposal_invalidated_by_pause).proposal] }
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => data)
+    render(<App network="mainnet" />)
+    expect(await screen.findByText(/^Invalidated at block \d+: a member paused gno\.land\/r\/samcrew\/gnobuilders_badges_v2\.$/)).toBeTruthy()
 })

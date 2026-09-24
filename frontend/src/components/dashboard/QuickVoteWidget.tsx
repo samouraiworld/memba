@@ -46,12 +46,16 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                                 </div>
                                 <div
                                     style={{ fontSize: "var(--pro-small, 13px)", fontWeight: 500, cursor: "pointer", color: "var(--color-k-text)" }}
-                                    onClick={() => navigate(`/dao/${p.daoSlug}/proposal/${p.proposalId}`)}
+                                    onClick={() => navigate(p.href ?? `/dao/${p.daoSlug}/proposal/${p.proposalId}`)}
                                 >
                                     #{p.proposalId} — {p.proposalTitle.length > 50 ? p.proposalTitle.slice(0, 50) + "…" : p.proposalTitle}
                                 </div>
                             </div>
-                            {hasVoted ? (
+                            {p.readOnly ? (
+                                <button type="button" className="quick-vote-btn" onClick={() => navigate(p.href ?? `/dao/${p.daoSlug}`)} aria-label={`Review proposal ${p.proposalId} (read-only)`}>
+                                    Review · read-only
+                                </button>
+                            ) : hasVoted ? (
                                 <span style={{ fontSize: "var(--pro-caption, 11px)", fontFamily: "var(--font-ui, JetBrains Mono, monospace)", color: "var(--color-k-accent-text)" }}>
                                     ✓ Voted
                                 </span>
