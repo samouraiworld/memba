@@ -454,6 +454,20 @@ it("checks the wallet's live network right before signing a v12 call, and stops 
     expect(assertLiveWalletChain).toHaveBeenCalledWith({ chainId: "pearl", address: voter })
     expect(screen.queryByText(/Transaction submitted:/)).toBeNull()
 })
+it("checks the wallet's network again after the pre-sign reads, and stops if it moved in between", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    acceptance.marketPolicy = { current: PUBLISHER, pending: DAO, failed: [] }
+    vi.mocked(assertLiveWalletChain)
+        .mockResolvedValueOnce(undefined)
+        .mockRejectedValueOnce(new Error("Your wallet is on gnoland-1, where governance writes remain on hold"))
+    const voter = v12Snapshot().members[1].address
+    render(<App network="pearl" address={voter} />)
+    const market = await screen.findByRole("listitem", { name: "marketPolicy adapter" })
+    fireEvent.click(await within(market).findByRole("button", { name: "Propose acceptance" }))
+    expect((await screen.findByRole("alert")).textContent).toMatch(/where governance writes remain on hold/)
+    expect(assertLiveWalletChain).toHaveBeenCalledTimes(2)
+    expect(screen.queryByText(/Transaction submitted:/)).toBeNull()
+})
 it("finds an open acceptance on an older page before proposing another", async () => {
     vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
     acceptance.marketPolicy = { current: PUBLISHER, pending: DAO, failed: [] }

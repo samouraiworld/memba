@@ -176,6 +176,9 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
                     if (action.type === "execute" && JSON.stringify(p.action) !== JSON.stringify(executes)) throw new Error("Proposal changed during confirmation; refresh")
                     if (action.type === "vote" && isV12) await assertBallot(action.id, action.vote)
                 }
+                // Ask again right before the wallet is called: the reads above can take
+                // dozens of round trips, long enough for the wallet to switch networks.
+                if (isV12) { await assertLiveWalletChain({ chainId, address: wallet.address }); assertCurrent() }
             }
             const acceptTarget = action.type === "accept" && fresh.config.schema === WEIGHTED_APPLICATIONS_SCHEMA ? fresh.config[action.adapter].target : ""
             const memo = action.type === "recover" ? `Recover ${reveal(action.personId)}: ${action.oldAddress} → ${action.newAddress}. Preserve voting weight and roles.`
