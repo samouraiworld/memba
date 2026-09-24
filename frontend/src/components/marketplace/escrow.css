@@ -1,0 +1,157 @@
+/* Escrow contract screens and the hire-by-address form (theme tokens only). */
+
+.escrow-input {
+    background: var(--color-surface-input);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    padding: var(--space-2, 8px) var(--space-3, 12px);
+    color: var(--color-text);
+    font-size: var(--text-sm, 14px);
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.escrow-input:focus {
+    outline: none;
+    border-color: var(--color-primary);
+}
+
+.escrow-input[aria-invalid="true"] {
+    border-color: var(--color-k-danger);
+}
+
+.escrow-input--mono {
+    font-family: var(--font-mono);
+}
+
+textarea.escrow-input {
+    resize: vertical;
+    min-height: 72px;
+}
+
+.escrow-muted {
+    color: var(--color-text-muted);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.escrow-field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 12px;
+}
+
+.escrow-field-error {
+    color: var(--color-k-danger-text);
+    font-size: 12px;
+    margin: 0;
+}
+
+.escrow-notice {
+    background: var(--color-k-amber-subtle);
+    border: 1px solid var(--color-k-amber-border);
+    border-radius: var(--radius-md);
+    padding: 12px 14px;
+    margin: 12px 0;
+    color: var(--color-text);
+    font-size: 13px;
+    line-height: 1.5;
+}
+
+.escrow-notice ul {
+    margin: 6px 0 0;
+    padding-left: 18px;
+}
+
+.escrow-grid {
+    display: grid;
+    grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+    gap: 6px 12px;
+    align-items: baseline;
+    margin: 12px 0;
+    font-size: 13px;
+}
+
+.escrow-grid dt {
+    color: var(--color-text-muted);
+}
+
+.escrow-grid dd {
+    margin: 0;
+    color: var(--color-text);
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.escrow-milestones {
+    list-style: none;
+    margin: 8px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.escrow-milestone {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    background: var(--color-surface-panel);
+}
+
+.escrow-milestone-head {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: space-between;
+    gap: 6px 12px;
+    color: var(--color-text);
+    font-size: 14px;
+}
+
+.escrow-status {
+    font-size: 12px;
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    background: var(--color-bg-hover);
+    color: var(--color-text-muted);
+    white-space: nowrap;
+}
+
+.escrow-action {
+    margin-top: 10px;
+}
+
+.escrow-action p {
+    margin: 6px 0 0;
+}
+
+.escrow-share {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.escrow-share .escrow-input {
+    flex: 1 1 240px;
+}
+
+.escrow-milestone-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 9rem) auto;
+    gap: 8px;
+    align-items: start;
+    margin-bottom: 8px;
+}
+
+@media (max-width: 480px) {
+    .escrow-milestone-row {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .escrow-milestone-row > button {
+        grid-column: 1 / -1;
+    }
+}

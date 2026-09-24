@@ -11,11 +11,22 @@ import { renderWithProviders } from "../../test/test-utils"
 import { EscrowContractPanel } from "./EscrowContractPanel"
 import type { EscrowContractsPage, EscrowContractView, EscrowPauseState } from "../../lib/marketplace/escrowState"
 
-const gate = vi.hoisted(() => ({ live: true }))
+const gate = vi.hoisted(() => ({ live: true, indexer: null as string | null }))
 vi.mock("../../lib/config", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/config")>()),
     isServicesEnabled: () => gate.live,
     isEscrowValid: () => gate.live,
+    getIndexerUrl: () => gate.indexer,
+}))
+
+const indexer = vi.hoisted(() => ({ ids: [] as string[] | Error, calls: [] as unknown[][] }))
+vi.mock("../../lib/marketplace/escrowIndexer", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/marketplace/escrowIndexer")>()),
+    findFreelancerContractIds: async (...args: unknown[]) => {
+        indexer.calls.push(args)
+        if (indexer.ids instanceof Error) throw indexer.ids
+        return indexer.ids
+    },
 }))
 
 const doContractBroadcast = vi.hoisted(() => vi.fn(async () => ({ hash: "TX" })))
@@ -79,6 +90,9 @@ const lookUp = async (caller: string, id = "7") => {
 
 beforeEach(() => {
     gate.live = true
+    gate.indexer = null
+    indexer.ids = []
+    indexer.calls = []
     chain.contract = null
     chain.pause = OPEN
     chain.height = 2_000_000
@@ -117,11 +131,11 @@ describe("EscrowContractPanel — archive", () => {
         expect(screen.getByTestId("escrow-archive-client-only")).toHaveTextContent("Only the client can archive this contract.")
     })
 
-    it("disables archiving of an open contract", async () => {
+    it("does not offer archiving on an open contract", async () => {
         chain.contract = contract({ status: "active", milestones: [milestone("funded")] })
         await lookUp(CLIENT)
-        expect(screen.getByRole("button", { name: /archive and reclaim deposit/i })).toBeDisabled()
-        expect(screen.getByTestId("escrow-archive")).toHaveTextContent(/Only a completed or cancelled contract/)
+        expect(screen.queryByRole("button", { name: /archive/i })).not.toBeInTheDocument()
+        expect(screen.queryByTestId("escrow-archive")).not.toBeInTheDocument()
     })
 
     it("holds archiving inside a pause's blocking window and names the reopen block", async () => {
@@ -265,5 +279,40 @@ describe("EscrowContractPanel — My contracts", () => {
         await screen.findByTestId("escrow-contract-details")
         expect(readEscrowContract).toHaveBeenCalledWith(ESCROW, "13")
         expect(screen.getByLabelText("Contract id")).toHaveValue("13")
+    })
+})
+
+describe("EscrowContractPanel — contracts where I am the freelancer", () => {
+    it("lists only the indexer's ids that the chain confirms name the caller as freelancer", async () => {
+        gate.indexer = "https://api.example/api/indexer"
+        indexer.ids = ["9", "8", "5"]
+        readEscrowContract.mockImplementation(async (_p, id) => {
+            if (id === "9") return contract({ id: "9", title: "Logo", status: "active", milestones: [milestone("funded")] })
+            if (id === "8") return contract({ id: "8", freelancer: CLIENT, client: FREELANCER }) // the indexer was wrong
+            return null // archived
+        })
+        renderWithProviders(<EscrowContractPanel caller={FREELANCER} />)
+        const section = await screen.findByTestId("escrow-freelancer-contracts")
+        await waitFor(() => expect(within(section).getAllByRole("listitem")).toHaveLength(1))
+        expect(within(section).getByRole("listitem")).toHaveTextContent("#9Logo · active")
+        expect(indexer.calls[0]).toEqual(["https://api.example/api/indexer", expect.any(String), ESCROW, FREELANCER, expect.anything()])
+        fireEvent.click(within(section).getByRole("button", { name: "Open contract 9" }))
+        await screen.findByTestId("escrow-contract-details")
+        expect(screen.getByRole("button", { name: "Mark delivered" })).toBeEnabled()
+        readEscrowContract.mockImplementation(async () => chain.contract)
+    })
+
+    it("says to ask for the link when the indexer cannot be searched", async () => {
+        gate.indexer = "https://api.example/api/indexer"
+        indexer.ids = new Error("indexer HTTP 502")
+        renderWithProviders(<EscrowContractPanel caller={FREELANCER} />)
+        expect(await screen.findByText(/Could not search for them \(indexer HTTP 502\)\. Ask the client for the contract's link\./)).toBeInTheDocument()
+    })
+
+    it("is not shown where the indexer does not serve this network", async () => {
+        renderWithProviders(<EscrowContractPanel caller={FREELANCER} />)
+        await screen.findByTestId("escrow-my-contracts")
+        expect(screen.queryByTestId("escrow-freelancer-contracts")).not.toBeInTheDocument()
+        expect(indexer.calls).toHaveLength(0)
     })
 })
