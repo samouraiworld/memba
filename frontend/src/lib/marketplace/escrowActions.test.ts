@@ -1,6 +1,6 @@
 /**
  * escrowActions — the calls offered on a contract mirror escrow_v4's guards
- * (escrow.gno at samcrew-deployer 89f559da): who may call, in which contract
+ * (escrow.gno of gno.land/r/samcrew/escrow_v4 as published at gnoland-1 h299934): who may call, in which contract
  * and milestone state, and when the pause or the realm's pause-adjusted
  * deadlines hold a call back.
  */

@@ -1,7 +1,7 @@
 /**
  * escrowActions.ts — which escrow_v4 calls the connected address can make on a
- * contract now, mirroring the realm's own guards (escrow.gno at samcrew-deployer
- * 89f559da). The realm enforces every rule; this list only keeps Memba from
+ * contract now, mirroring the realm's own guards (escrow.gno of gno.land/r/samcrew/escrow_v4 as
+ * published at gnoland-1 h299934). The realm enforces every rule; this list only keeps Memba from
  * offering a call it would refuse, since a refused call still costs its fee.
  *
  * Who and when (role and state decide whether an action is listed at all):
