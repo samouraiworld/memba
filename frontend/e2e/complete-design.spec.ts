@@ -236,7 +236,7 @@ for (const network of ['mainnet', 'test13'] as const) {
 }
 
 // C1: selected-network namespace evidence and exact search-result destinations.
-import { fulfillOnchainReads, mockAppChainStatus } from './helpers/onchain'
+import { fulfillOnchainReads, isOnchainRead, mockAppChainStatus } from './helpers/onchain'
 for (const network of ['mainnet', 'test13']) {
     test(`directory provenance and navigation interaction ${network}`, async ({ page }) => {
         const chain = network === 'mainnet' ? 'gnoland-1' : 'test-13'
@@ -247,13 +247,24 @@ for (const network of ['mainnet', 'test13']) {
             if (path === 'vm/qfuncs') return '[]'
             return null
         })
-        await page.route(/https:\/\/(gno\.land|[^/]+\.gno\.land)\/[rp]\/samcrew$/, route => route.fulfill({
-            contentType: 'text/html', body: `<meta name="gnoconnect:chainid" content="${chain}"><a href="/p/samcrew/fixture">fixture</a>`,
-        }))
+        // Namespace discovery is an RPC vm/qpaths read (data = base64 of the
+        // "gno.land/{p,r}/samcrew/" prefix), after the /status chain check above.
+        // Registered after fulfillOnchainReads so it answers first; every other
+        // read falls through to it. Mainnet gets a VM error (the failure path),
+        // test13 a one-package listing (the success path).
+        await page.route('**/*', route => {
+            const req = route.request()
+            let body: { id?: unknown; params?: { path?: string; data?: string } } = {}
+            try { body = JSON.parse(req.postData() || '{}') } catch { /* not a JSON-RPC POST */ }
+            if (!isOnchainRead(req.url()) || !body.params?.path?.startsWith('vm/qpaths')) return route.fallback()
+            const prefix = Buffer.from(body.params.data ?? '', 'base64').toString('utf-8')
+            const ResponseBase = network === 'mainnet'
+                ? { Error: { '@type': '/abci.StringError', value: 'fixture failure' }, Data: null, Log: 'fixture failure', Info: '', Events: null }
+                : { Error: null, Data: prefix === 'gno.land/p/samcrew/' ? Buffer.from('gno.land/p/samcrew/fixture').toString('base64') : '', Log: '', Info: '', Events: null }
+            return route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ jsonrpc: '2.0', id: body.id ?? null, result: { response: { ResponseBase } } }) })
+        })
         await page.goto(`/${network}/directory`)
         if (network === 'mainnet') {
-            // Existing CSP intentionally excludes bare gno.land. Exercise the real
-            // browser fallback; do not bypass security just to fulfill a fixture.
             await expect(page.getByRole('button', { name: 'Retry discovery' })).toBeVisible()
             await expect(page.getByTestId('package-card')).toHaveCount(0)
         } else {
