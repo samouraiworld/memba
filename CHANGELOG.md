@@ -39,6 +39,11 @@ Full changelogs are split by version range for easier navigation:
 - **The Services lane shows when escrow is paused.** With the lane on, it reads the realm's pause state and says when new contracts and funding are refused (or when the state can't be read), and keeps hiring disabled until the realm takes new contracts.
 - **Canary runbook.** `docs/ESCROW_MAINNET_CANARY.md` walks one minimum-amount contract between the owner's two wallets through create, fund, complete, release and archive in the Memba UI, with the reads expected after each step, `gnokey` commands as fallback, stop conditions, rollback (flag off, admin pause) and what to monitor.
 
+### Only verified quests are attested on-chain (2026-09-24)
+<!-- categories: memba, network -->
+- **The server only signs attestation vouchers for quests it verified.** It used to sign them for self-claimed quests too (visit or click quests, "First 100 users", "Season 1 complete"), so any wallet could record that XP on-chain. Those quests still count toward your total XP, but are no longer attested, and vouchers already signed for them are no longer handed out.
+- **Quests approved by an admin reviewer are now attested.** Approving a proof-based claim used to grant the XP without ever producing a voucher.
+
 ### Quest claim review has no built-in admin (2026-09-24)
 <!-- categories: memba -->
 - **Quest claim review no longer falls back to a hardcoded testnet admin.** Without `QUEST_ADMIN_ADDRESSES`, the backend trusted a testnet multisig, which could not sign in anyway.
