@@ -36,7 +36,12 @@ export interface WindowSpec {
     target: OsTarget | null
 }
 
-export interface DeskSize { w: number; h: number }
+export interface DeskSize {
+    w: number
+    h: number
+    /** Room kept free at the top for new windows (the guest banner), in px. */
+    top?: number
+}
 
 /** Room kept free at the bottom of the desk for the dock. */
 export const DOCK_ROOM = 86
@@ -130,14 +135,15 @@ function keepReachable(x: number, y: number, width: number, desk: DeskSize) {
 }
 
 function place(spec: WindowSpec, n: number, desk: DeskSize, center: boolean) {
+    const top = desk.top ?? 0
     const width = Math.min(spec.width, Math.max(MIN_W, desk.w - 16))
-    const height = Math.min(spec.height, Math.max(MIN_H, desk.h - DOCK_ROOM - 16))
-    if (center) return { width, height, x: Math.max(8, Math.round((desk.w - width) / 2)), y: Math.max(8, Math.round((desk.h - DOCK_ROOM - height) / 2)) }
+    const height = Math.min(spec.height, Math.max(MIN_H, desk.h - top - DOCK_ROOM - 16))
+    if (center) return { width, height, x: Math.max(8, Math.round((desk.w - width) / 2)), y: top + Math.max(8, Math.round((desk.h - top - DOCK_ROOM - height) / 2)) }
     // Cascade from the top left, as in the mockup, staying clear of the desk items column.
     return {
         width, height,
         x: clamp(60 + (n % 8) * 34, 8, Math.max(8, desk.w - width - 230)),
-        y: clamp(22 + (n % 8) * 28, 8, Math.max(8, desk.h - height - DOCK_ROOM)),
+        y: clamp(top + 22 + (n % 8) * 28, top + 8, Math.max(top + 8, desk.h - height - DOCK_ROOM)),
     }
 }
 
@@ -187,8 +193,9 @@ export function windowsReducer(s: WindowsState, a: WindowsAction): WindowsState 
             const two = visibleWindows(s.wins).sort((a, b) => b.z - a.z).slice(0, 2)
             if (!two.length) return s
             const half = Math.floor(a.desk.w / two.length)
-            const height = Math.max(MIN_H, a.desk.h - DOCK_ROOM - 16)
-            const byId = new Map(two.map((w, i) => [w.id, { x: 8 + i * half, y: 8, width: Math.max(MIN_W, half - 16), height, max: false }]))
+            const top = a.desk.top ?? 0
+            const height = Math.max(MIN_H, a.desk.h - top - DOCK_ROOM - 16)
+            const byId = new Map(two.map((w, i) => [w.id, { x: 8 + i * half, y: top + 8, width: Math.max(MIN_W, half - 16), height, max: false }]))
             return { ...s, wins: s.wins.map((w) => (byId.has(w.id) ? { ...w, ...byId.get(w.id) } : w)) }
         }
         case "next": {

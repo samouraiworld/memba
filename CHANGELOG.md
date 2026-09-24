@@ -152,6 +152,9 @@ Full changelogs are split by version range for easier navigation:
 - The address bar follows the windows. Its path is the front window's link, and `?w=` lists the others. Opening a link opens its windows. A plain visit, or a reload, brings back this browser's last windows where they were.
 - Desktop icons: pin apps, DAOs, proposals and multisigs from the start menu or a window's menu, then drag them on a grid or remove them with a right-click. Each wallet keeps its own desk in this browser. Guests start from a few featured items.
 
+### Memba OS guest banner stays clear of windows
+<!-- categories: memba -->
+- When a shared link opens Memba OS as a guest, the windows it opens (and any opened while "Browsing as guest" shows) start below that banner, still behind `VITE_MEMBA_OS`. A large window centred on a short screen used to start under it, with its title bar and close button covered.
 ### Memba OS shell
 <!-- categories: memba -->
 - Memba OS gets its shell, still behind `VITE_MEMBA_OS`. A lock screen greets first visits only. A wallet session resumes without it, and a shared link opens its content right away as a guest.

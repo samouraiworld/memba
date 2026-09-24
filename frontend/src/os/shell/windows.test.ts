@@ -31,6 +31,26 @@ describe("windowsReducer", () => {
         }
     })
 
+    it("keeps the room at the top of the desk free (the guest banner): centred, cascaded and tiled windows start below it", () => {
+        const banner = { ...desk, top: 52 }
+        const page = { ...appSpec("feed"), width: 960, height: 660 }
+        const s = run(
+            { type: "open", spec: page, desk: banner, center: true },
+            { type: "open", spec: appSpec("daos"), desk: banner },
+        )
+        for (const w of s.wins) {
+            expect(w.y).toBeGreaterThanOrEqual(52)
+            expect(w.y + w.height).toBeLessThanOrEqual(desk.h - DOCK_ROOM)
+        }
+        const tiled = windowsReducer(s, { type: "tile", desk: banner })
+        for (const w of tiled.wins) {
+            expect(w.y).toBeGreaterThanOrEqual(52)
+            expect(w.y + w.height).toBeLessThanOrEqual(desk.h - DOCK_ROOM)
+        }
+        // Without the banner, the same centred window uses the full height.
+        expect(run({ type: "open", spec: page, desk, center: true }).wins[0].y).toBeLessThan(52)
+    })
+
     it("shrinks a window that doesn't fit a small desk", () => {
         const s = windowsReducer(EMPTY_WINDOWS, { type: "open", spec: appSpec("feed"), desk: { w: 360, h: 500 } })
         expect(s.wins[0].width).toBeLessThanOrEqual(360)

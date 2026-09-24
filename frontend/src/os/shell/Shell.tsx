@@ -34,6 +34,9 @@ import {
 
 const TOAST_MS = 2600
 const MENU_BAR = 30
+/** The guest banner (`.os-banner`: 40 px from the top, about 36 px tall) seen from the desk, plus a gap:
+ * windows placed while it shows start below it, so it never covers their title bar. */
+const BANNER_ROOM = 52
 
 /** First guess before the desk is measured (the ResizeObserver corrects it). */
 function initialDesk(): DeskSize {
@@ -116,7 +119,13 @@ export function Shell() {
     const [locked, setLocked] = useState(entry === "lock")
     const [linkGuest, setLinkGuest] = useState(entry === "link")
 
-    const win = useWindows(() => arrivalWindows(arrival, fromLink, entry, deskNow.current))
+    // Windows placed while the guest banner shows start below it (it sits above windows).
+    const bannerUp = linkGuest && session.status !== "member"
+    const bannerNow = useRef(bannerUp)
+    useEffect(() => { bannerNow.current = bannerUp }, [bannerUp])
+    const placeDesk = useCallback((): DeskSize => ({ ...deskNow.current, top: bannerNow.current ? BANNER_ROOM : 0 }), [])
+
+    const win = useWindows(() => arrivalWindows(arrival, fromLink, entry, { ...deskNow.current, top: entry === "link" ? BANNER_ROOM : 0 }))
     const { dispatch } = win
 
     useEffect(() => {
@@ -152,8 +161,8 @@ export function Shell() {
         lastUrl.current = here
         const t = targetsFromUrl(location.pathname, location.search)
         const specs = [...t.others, t.front].map(specForTarget).filter((x): x is WindowSpec => x !== null)
-        dispatch({ type: "navigate", specs, desk: deskNow.current, exact: navType === "POP" })
-    }, [here, location.pathname, location.search, navType, dispatch])
+        dispatch({ type: "navigate", specs, desk: placeDesk(), exact: navType === "POP" })
+    }, [here, location.pathname, location.search, navType, dispatch, placeDesk])
     // Declared after the reader on purpose: effects run in order, and the reader
     // must see the URL before this one replaces it, or it would take the old URL
     // for a back/forward navigation.
@@ -165,12 +174,12 @@ export function Shell() {
     }, [win.wins, navigate])
 
     // ── actions ──
-    const open = useCallback((spec: WindowSpec, center = false) => dispatch({ type: "open", spec, desk: deskNow.current, center }), [dispatch])
+    const open = useCallback((spec: WindowSpec, center = false) => dispatch({ type: "open", spec, desk: placeDesk(), center }), [dispatch, placeDesk])
     const openApp = useCallback((app: OsAppId) => open(appSpec(app)), [open])
     const move = useCallback((id: string, x: number, y: number) => dispatch({ type: "move", id, x, y, desk: deskNow.current }), [dispatch])
     const resize = useCallback((id: string, width: number, height: number) => dispatch({ type: "resize", id, width, height, desk: deskNow.current }), [dispatch])
     const frame: FrameActions = { focus: win.focus, close: win.close, minimise: win.minimise, toggleMax: win.toggleMax, move, resize }
-    const tile = useCallback(() => dispatch({ type: "tile", desk: deskNow.current }), [dispatch])
+    const tile = useCallback(() => dispatch({ type: "tile", desk: placeDesk() }), [dispatch, placeDesk])
 
     const member = session.status === "member"
     const deskOwner = session.status === "resuming" ? undefined : member ? session.address : null
@@ -294,7 +303,7 @@ export function Shell() {
                 {menu && <ContextMenu x={menu.x} y={menu.y} entries={menuEntries} onClose={closeMenu} />}
                 {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={() => setLauncher(false)} />}
             </main>
-            {linkGuest && !member && (
+            {bannerUp && (
                 <div className="os-banner os-glass" role="status">
                     Browsing as guest
                     <button type="button" className="os-btn" onClick={session.openConnect}>Connect to vote</button>

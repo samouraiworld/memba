@@ -97,6 +97,24 @@ test.describe('Memba OS shell · entry scenarios', () => {
         await expect(connectModal(page)).toBeVisible()
     })
 
+    test('shared link: the guest banner never covers the title bar of the window it opened', async ({ page }) => {
+        // A page window (960 × 660) centred on a short screen used to start under the banner.
+        await page.setViewportSize({ width: 1280, height: 760 })
+        await page.goto(`${OS_ON}/os/validators`)
+        const win = page.getByRole('region', { name: 'Validators', exact: true })
+        await expect(win).toBeVisible()
+        await expect(page.getByText('Browsing as guest')).toBeVisible()
+        await win.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
+        const covered = await win.locator('.os-tb').evaluate((bar) => {
+            const r = bar.getBoundingClientRect()
+            const hit = document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2)
+            return !bar.contains(hit)
+        })
+        expect(covered).toBe(false)
+        const banner = (await page.locator('.os-banner').boundingBox())!
+        expect((await win.boundingBox())!.y).toBeGreaterThanOrEqual(banner.y + banner.height)
+    })
+
     test('the root opens Memba OS when the flag is on, and stays classic when it is off', async ({ page }) => {
         await page.goto(`${OS_ON}/`)
         await expect(page).toHaveURL(`${OS_ON}/os`)
