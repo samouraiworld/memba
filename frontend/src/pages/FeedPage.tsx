@@ -210,6 +210,8 @@ export default function FeedPage() {
                         <FeedList
                             posts={posts}
                             loading={timeline.isLoading}
+                            failed={timeline.isError}
+                            onRetry={onRefetch}
                             connected={connected}
                             selfAddress={address}
                             onRefetch={onRefetch}
@@ -239,6 +241,8 @@ export default function FeedPage() {
 function FeedList({
     posts,
     loading,
+    failed,
+    onRetry,
     connected,
     selfAddress,
     onRefetch,
@@ -248,6 +252,10 @@ function FeedList({
 }: {
     posts: UiPost[]
     loading: boolean
+    /** The timeline request failed (see fetchFeedTimeline). */
+    failed: boolean
+    /** Refetch; the query returns to pending, so the skeleton shows while it retries. */
+    onRetry: () => void
     connected: boolean
     selfAddress: string | undefined
     onRefetch: () => void
@@ -263,6 +271,19 @@ function FeedList({
                     <div key={i} className="feed-post feed-post--skeleton" />
                 ))}
             </div>
+        )
+    }
+
+    // A failed load is not an empty feed: say so and offer a retry. Posts that
+    // already loaded stay on screen when a later refetch fails.
+    if (failed && posts.length === 0) {
+        return (
+            <EmptyState
+                icon="ti-alert-triangle"
+                title="Couldn't load the feed"
+                body="The Memba feed service didn't respond. Posts are stored on-chain, so nothing is lost."
+                action={{ label: "Retry", onClick: onRetry }}
+            />
         )
     }
 

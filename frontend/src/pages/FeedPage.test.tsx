@@ -148,3 +148,24 @@ describe("FeedPage moderation transparency link", () => {
         expect(link).toHaveAttribute("href", "/test13/feed/transparency")
     })
 })
+
+describe("FeedPage load failure", () => {
+    it("shows an error with a retry instead of 'No posts yet' when the timeline fails", async () => {
+        mockFetch.mockRejectedValue(new Error("unavailable"))
+        renderWithClient(<FeedPage />)
+        expect(await screen.findByText("Couldn't load the feed")).toBeInTheDocument()
+        expect(screen.queryByText("No posts yet")).toBeNull()
+
+        mockFetch.mockResolvedValue({ posts: [post(30n, "newest post")], nextCursor: 0n, indexerLastBlock: 0n })
+        fireEvent.click(screen.getByRole("button", { name: "Retry" }))
+        expect(await screen.findByText("newest post")).toBeInTheDocument()
+        expect(screen.queryByText("Couldn't load the feed")).toBeNull()
+    })
+
+    it("still says 'No posts yet' when the feed is genuinely empty", async () => {
+        mockFetch.mockResolvedValue({ posts: [], nextCursor: 0n, indexerLastBlock: 0n })
+        renderWithClient(<FeedPage />)
+        expect(await screen.findByText("No posts yet")).toBeInTheDocument()
+        expect(screen.queryByText("Couldn't load the feed")).toBeNull()
+    })
+})

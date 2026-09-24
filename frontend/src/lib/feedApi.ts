@@ -1,9 +1,10 @@
 /**
  * feedApi.ts — typed wrappers over the social-feed ConnectRPC endpoints
- * (GetFeedTimeline / GetUserFeed / GetFeedThread). Each returns a safe empty
- * shape on any error — the backend feed indexer may be undeployed (the
- * FEED_WATCHED_REALMS env gates it off), so callers treat empty as "nothing to
- * show yet", never a hard failure.
+ * (GetFeedTimeline / GetUserFeed / GetFeedThread). The timeline THROWS on a
+ * failed request so the feed page can show an error with a retry: the backend
+ * answers an empty list, not an error, when nothing is indexed, so a failure is
+ * never "no posts yet". The other readers still return a safe empty shape on
+ * any error.
  *
  * @module lib/feedApi
  */
@@ -20,18 +21,15 @@ export interface TimelinePage {
 }
 
 /** Home timeline — newest top-level posts. cursor 0n = from the newest.
+ *  Throws when the request fails (see the module note).
  *  `viewer` (optional) fills each post's viewerHasFlagged from the durable
  *  feed_flags projection — omit for an anonymous/disconnected read. */
 export async function fetchFeedTimeline(cursor = 0n, limit = 20, viewer?: string): Promise<TimelinePage> {
-    try {
-        const res = await api.getFeedTimeline({ cursor, limit, viewerAddress: viewer ?? "" })
-        return {
-            posts: res.posts ?? [],
-            nextCursor: res.nextCursor ?? 0n,
-            indexerLastBlock: res.indexerLastBlock ?? 0n,
-        }
-    } catch {
-        return { posts: [], nextCursor: 0n, indexerLastBlock: 0n }
+    const res = await api.getFeedTimeline({ cursor, limit, viewerAddress: viewer ?? "" })
+    return {
+        posts: res.posts ?? [],
+        nextCursor: res.nextCursor ?? 0n,
+        indexerLastBlock: res.indexerLastBlock ?? 0n,
     }
 }
 
