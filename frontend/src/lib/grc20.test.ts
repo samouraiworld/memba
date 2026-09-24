@@ -39,6 +39,7 @@ import {
     __resetTokenDecimalsCache,
 } from './grc20'
 import { GNO_CHAIN_ID } from './config'
+import { liveWallet } from '../test/walletStub'
 
 // getTokenDecimals -> getTokenInfo -> queryRender -> abciQuery, which is a
 // module-private fetch() call (not imported from ./dao/shared) — mock fetch
@@ -510,7 +511,7 @@ describe('doContractBroadcast — deploys never auto-retry (review finding #1)',
         setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
         const doContract = vi.fn().mockResolvedValue({ status: 'failure', message: 'network timeout' })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(window as any).adena = { DoContract: doContract }
+        ;(window as any).adena = { ...liveWallet(), DoContract: doContract }
         const addPkgMsg = { type: '/vm.m_addpkg', value: { creator: 'g1x', package: {} } }
         await expect(doContractBroadcast([addPkgMsg], 'm', { gas: 'deploy' })).rejects.toThrow(/network timeout/)
         expect(doContract).toHaveBeenCalledTimes(1)
@@ -521,7 +522,7 @@ describe('doContractBroadcast — deploys never auto-retry (review finding #1)',
         setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
         const doContract = vi.fn().mockResolvedValue({ status: 'failure', message: 'package already exists: gno.land/r/x/y' })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(window as any).adena = { DoContract: doContract }
+        ;(window as any).adena = { ...liveWallet(), DoContract: doContract }
         const call = { type: 'vm/MsgCall', value: { caller: 'g1x', send: '', pkg_path: 'gno.land/r/x/y', func: 'F', args: [] } }
         await expect(doContractBroadcast([call], 'm')).rejects.toThrow(/package already exists/)
         expect(doContract).toHaveBeenCalledTimes(1)
@@ -534,7 +535,7 @@ describe('doContractBroadcast — broadcast result', () => {
         setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
         const data = { hash: 'h', deliver_tx: { ResponseBase: { Data: btoa('(3 uint64)') } } }
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(window as any).adena = { DoContract: vi.fn().mockResolvedValue({ status: 'success', data }) }
+        ;(window as any).adena = { ...liveWallet(), DoContract: vi.fn().mockResolvedValue({ status: 'success', data }) }
         const call = { type: 'vm/MsgCall', value: { caller: 'g1x', send: '', pkg_path: 'gno.land/r/x/y', func: 'F', args: [] } }
         expect(await doContractBroadcast([call], 'm')).toEqual({ hash: 'h', result: data })
     })
@@ -544,7 +545,7 @@ describe('doContractBroadcast — broadcast result', () => {
         setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
         const doContract = vi.fn().mockResolvedValue({ status: 'failure', message: 'network timeout' })
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        ;(window as any).adena = { DoContract: doContract }
+        ;(window as any).adena = { ...liveWallet(), DoContract: doContract }
         const call = { type: 'vm/MsgCall', value: { caller: 'g1x', send: '', pkg_path: 'gno.land/r/x/y', func: 'ProposeText', args: [] } }
         await expect(doContractBroadcast([call], 'm', { retry: false })).rejects.toThrow(/network timeout/)
         expect(doContract).toHaveBeenCalledTimes(1)
@@ -558,6 +559,7 @@ describe('doContractBroadcast — deploy gas budget (W2.1)', () => {
         const calls: Array<{ gasWanted: number }> = []
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(window as any).adena = {
+            ...liveWallet(),
             DoContract: (arg: { gasWanted: number }) => {
                 calls.push(arg)
                 return Promise.resolve({ status: 'success', data: { hash: 'h' } })
@@ -579,6 +581,7 @@ describe('doContractBroadcast — explicit gasWanted', () => {
         const calls: Array<{ gasWanted: number; gasFee: number }> = []
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         ;(window as any).adena = {
+            ...liveWallet(),
             DoContract: (arg: { gasWanted: number; gasFee: number }) => {
                 calls.push(arg)
                 return Promise.resolve({ status: 'success', data: { hash: 'h' } })

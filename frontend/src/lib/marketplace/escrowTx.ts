@@ -5,6 +5,7 @@
  * the message and refuses anything that differs from what was reviewed.
  */
 import { doContractBroadcast } from "../grc20"
+import { WalletNetworkError } from "../walletNetworkGuard"
 import { MEMBA_DAO, isEscrowValid, isServicesEnabled } from "../config"
 import { signedDepositUgnot } from "../dao/daoTx"
 import { depositNeedsOverride, formatUgnotExact, V2_MAX_DEPOSIT_UGNOT } from "../dao/v2Budget"
@@ -137,7 +138,7 @@ const DID_NOT_LAND = /user (rejected|denied)|cancelled by user|Transaction block
  * deposit.
  */
 export function escrowFailureMayHaveLanded(err: unknown): boolean {
-    if (err instanceof EscrowInputError || err instanceof EscrowPlanError) return false
+    if (err instanceof EscrowInputError || err instanceof EscrowPlanError || err instanceof WalletNetworkError) return false
     const message = err instanceof Error ? err.message : ""
     return !DID_NOT_LAND.test(message)
 }

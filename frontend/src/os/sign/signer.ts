@@ -18,6 +18,7 @@ import {
 } from "../../lib/dao/governanceRecovery"
 import { friendlyDaoError } from "../../lib/dao/errors"
 import { sameMsgs } from "./decode"
+import { WalletNetworkError } from "../../lib/walletNetworkGuard"
 
 export interface SignChoice<C extends string> { label: string; options: readonly C[]; initial: C }
 
@@ -100,7 +101,8 @@ export async function executeSignature<C extends string>(
         return { outcome: "sent", hash, result: res.result }
     } catch (err) {
         const raw = err instanceof Error ? err.message : String(err)
-        const nothingSent = (!walletStarted && !hash) || REJECTED_IN_WALLET.test(raw)
+        // A wallet-network refusal is thrown before the wallet is asked to sign.
+        const nothingSent = (!walletStarted && !hash) || REJECTED_IN_WALLET.test(raw) || err instanceof WalletNetworkError
         if (nothingSent) {
             finish()
             if (req.receipt) { try { clearGovernanceReceipt(req.receipt) } catch { /* keep the conservative lock */ } }

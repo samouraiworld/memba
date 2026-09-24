@@ -12,6 +12,7 @@ import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN, GNO_CHAIN_ID, API_BAS
 import { getGasConfig } from "./gasConfig"
 import { getRpcUrlsInOrder } from "./rpcFallback"
 import { abciQueryText } from "./dao/packageStatus"
+import { assertLiveWalletNetwork } from "./walletNetworkGuard"
 import * as Sentry from "@sentry/react"
 
 // ── Platform Fee ──────────────────────────────────────────────
@@ -187,6 +188,9 @@ export function setTxConfirmationCallback(cb: TxConfirmCallback | null): TxConfi
  *
  * SECURITY: Blocks all transactions if the wallet's RPC URL is untrusted.
  * The wallet RPC is validated by useAdena via Adena's GetNetwork() API.
+ * Immediately before each wallet request the wallet's live network is read
+ * again (walletNetworkGuard): an empty/unknown chain, an account and network
+ * that disagree, or a chain other than GNO_CHAIN_ID refuses to sign.
  *
  * A6: Blocks with a user confirmation modal before broadcasting.
  * The modal shows a summary of the transaction effects (action, recipients,
@@ -290,9 +294,18 @@ async function broadcastContract(
     let lastError: Error | null = null
 
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
+        // SECURITY: the cached chain id checked by assertWalletBroadcastSafe
+        // can be stale or empty (a wallet that switched network without firing
+        // its event, or reports none). Ask the wallet itself and refuse unless
+        // it names this page's chain. Asked first before the caller's
+        // beforeSign, which callers treat as "the wallet is opening", so a
+        // wallet on the wrong network is reported as nothing sent.
+        await assertLiveWalletNetwork(GNO_CHAIN_ID)
         // Await caller revalidation after confirmation, then recheck wallet safety.
         await opts?.beforeSign?.()
         assertWalletBroadcastSafe()
+        // Asked again right before the wallet request: beforeSign can take a while.
+        await assertLiveWalletNetwork(GNO_CHAIN_ID)
         try {
             const res = await adena.DoContract({
                 messages: toAdenaMessages(msgs),

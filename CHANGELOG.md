@@ -34,6 +34,10 @@ Full changelogs are split by version range for easier navigation:
 ### The "not on this network yet" notice names only what is missing (2026-09-24)
 <!-- categories: memba, network -->
 - On gno.land the notice said the feed and quests were missing although both are live. It now lists only the community features whose realm is not usable on the network you are on (on mainnet today: channels and candidature), and disappears when none are missing.
+### Signing needs the wallet to name this page's network (2026-09-25)
+<!-- categories: memba -->
+- **Memba now asks Adena for its network right before sending it any transaction to sign, and refuses unless it matches the page.** The old check compared a chain id saved at connect time and skipped the comparison when that id was empty. A wallet that reported no network, or had switched network without telling the page, could then sign a realm call for another chain, where the same realm paths exist.
+- **You now see why the request stopped.** A wallet that reports no network, is on another network, or reports two different networks for its account and its connection gets a message naming the network to switch to (for example "switch Adena to gno.land (gnoland-1) and try again"). Nothing reaches the wallet, and the action is reported as not sent rather than as an unknown outcome.
 
 ### Only verified quests are attested on-chain (2026-09-24)
 <!-- categories: memba, network -->

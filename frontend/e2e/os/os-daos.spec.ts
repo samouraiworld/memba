@@ -115,4 +115,21 @@ test.describe('Memba OS DAOs', () => {
         await expect(review.getByRole('button', { name: 'Switch Adena to gnoland-1' })).toBeVisible()
         await expect(review.getByRole('button', { name: 'Sign in Adena' })).toHaveCount(0)
     })
+
+    test('a wallet that reports no network is refused before Adena signs anything', async ({ page }) => {
+        await member(page, 'ok')
+        await page.addInitScript(() => {
+            const a = (window as unknown as { adena: { GetAccount: () => Promise<{ data: { chainId: string } }> } }).adena
+            const get = a.GetAccount
+            a.GetAccount = async () => { const r = await get(); r.data.chainId = ''; return r }
+        })
+        await page.goto(`${OS_ON}/os/dao/govdao/proposals/4`)
+        const prop = win(page, 'govdao · Proposal #4')
+        await prop.getByRole('button', { name: 'Vote…' }).click()
+        await sheet(page).getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(page.getByText(/Your wallet did not report its network — switch Adena to gno\.land \(gnoland-1\) and try again\./).first()).toBeVisible()
+        expect(await page.evaluate(() => (window as unknown as { __adenaCalls: unknown[] }).__adenaCalls)).toHaveLength(0)
+        // Nothing was sent, so the vote is not locked behind an unknown outcome.
+        await expect(prop.getByText('Outcome unknown.')).toHaveCount(0)
+    })
 })

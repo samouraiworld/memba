@@ -4,6 +4,7 @@ import { ErrorBoundary } from './ErrorBoundary'
 import { TxConfirmationProvider } from './ui/TxConfirmation'
 import { doContractBroadcast, setTxConfirmationCallback, setWalletRpcContext } from '../lib/grc20'
 import { GNO_CHAIN_ID } from '../lib/config'
+import { liveWallet } from '../test/walletStub'
 import { isWalletRequestPending } from '../lib/walletActivity'
 vi.mock('@sentry/react', () => ({ captureException: vi.fn() }))
 function Content({ fail }: { fail: boolean }) {
@@ -29,7 +30,7 @@ afterEach(() => {
 })
 it('cancels an unmounted confirmation instead of leaving recovery permanently disabled', async () => {
     const DoContract = vi.fn()
-    vi.stubGlobal('adena', { DoContract })
+    vi.stubGlobal('adena', { ...liveWallet(), DoContract })
     const view = render(tree(false))
     let result!: Promise<unknown>
     await act(async () => { result = doContractBroadcast([], 'test', { retry: false }).catch(e => e) })
@@ -43,7 +44,7 @@ it('cancels an unmounted confirmation instead of leaving recovery permanently di
 it('does not reload or repeat a deferred Adena request when the root fails', async () => {
     let resolve!: (value: unknown) => void
     const DoContract = vi.fn(() => new Promise(r => { resolve = r }))
-    vi.stubGlobal('adena', { DoContract })
+    vi.stubGlobal('adena', { ...liveWallet(), DoContract })
     const view = render(tree(false))
     let result!: ReturnType<typeof doContractBroadcast>
     await act(async () => { result = doContractBroadcast([], 'test', { retry: false }) })
