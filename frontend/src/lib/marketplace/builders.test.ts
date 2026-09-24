@@ -123,6 +123,42 @@ describe("escrow builders — input checks mirror the realm", () => {
         expect(() => create({ description: "é".repeat(2501) })).toThrow(EscrowInputError)
     })
 
+    // escrow.gno sanitizeMilestoneTitle removes these before storing the title,
+    // the description and every milestone title; signing them would store other text.
+    const STRIPPED = {
+        brackets: ["[", "]", "(", ")"],
+        markdown: ["#", "*", "`", "!", "_", "~"],
+        html: ["<", ">"],
+        tables: ["|"],
+        escapes: ["\\"],
+        whitespace: ["\n", "\r", "\t"],
+    }
+
+    it.each(Object.entries(STRIPPED))("refuses characters the realm strips: %s", (_, chars) => {
+        for (const c of chars) {
+            const inner = `a${c}b`
+            expect(() => create({ title: inner }), `title ${JSON.stringify(c)}`).toThrow(EscrowInputError)
+            expect(() => create({ description: inner }), `description ${JSON.stringify(c)}`).toThrow(/strips/)
+            expect(() => create({ milestones: [{ title: inner, amountUgnot: 1000 }] }), `milestone ${JSON.stringify(c)}`).toThrow(EscrowInputError)
+            expect(() => parseMilestonesArg(`${inner}:1000`), `arg ${JSON.stringify(c)}`).toThrow(EscrowInputError)
+        }
+    })
+
+    it("names the character it refuses", () => {
+        expect(() => create({ title: "Logo (v2)" })).toThrow(/"\("/)
+        expect(() => create({ description: "line one\nline two" })).toThrow(/line break/)
+    })
+
+    it("refuses a title made only of stripped characters, which the realm would store empty", () => {
+        expect(() => create({ title: "***" })).toThrow(EscrowInputError)
+        expect(() => create({ title: "[]()#*`!<>|\\_~" })).toThrow(EscrowInputError)
+        expect(() => create({ milestones: [{ title: "**", amountUgnot: 1000 }] })).toThrow(EscrowInputError)
+    })
+
+    it("keeps ordinary punctuation and non-ASCII text", () => {
+        expect(() => create({ title: "Logo & brand, v2 — 50% off? «ok» é 🚀", description: "Plain text; with: punctuation. {braces} 'quotes' \"double\" / slash + - = @ $ ^" })).not.toThrow()
+    })
+
     it("allows 1 to 20 milestones", () => {
         const ms = (n: number) => Array.from({ length: n }, (_, i) => ({ title: `M${i}`, amountUgnot: 1000 }))
         expect(() => create({ milestones: [] })).toThrow(EscrowInputError)

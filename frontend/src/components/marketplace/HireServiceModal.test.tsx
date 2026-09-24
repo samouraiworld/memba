@@ -11,6 +11,7 @@ import { beforeEach, describe, it, expect, vi } from "vitest"
 import { renderWithProviders } from "../../test/test-utils"
 import { HireServiceModal, type Service } from "./HireServiceModal"
 import { planHireService } from "../../lib/marketplace/escrowTx"
+import { formatUgnotExact } from "../../lib/dao/v2Budget"
 
 const gate = vi.hoisted(() => ({ services: false, escrow: false }))
 vi.mock("../../lib/config", async (importOriginal) => ({
@@ -122,11 +123,61 @@ describe("HireServiceModal — live", () => {
         expect(sign()).toBeDisabled()
     })
 
-    it("shows the wallet error and stays open when signing fails", async () => {
+    it("discloses that the storage deposit is not refunded, with this contract's exact cap", () => {
+        open()
+        const plan = planHireService(CLIENT, ESCROW, service)
+        expect(screen.getByTestId("hire-deposit-disclosure")).toHaveTextContent(
+            `The storage deposit (up to ${formatUgnotExact(plan.maxDepositUgnot)}) is not refunded. Contracts are kept on-chain permanently.`,
+        )
+    })
+
+    it("refuses text the realm would store differently: no broadcast", () => {
+        const { sign } = open({ ...service, title: "Audit (v2)" })
+        expect(screen.getByRole("alert")).toHaveTextContent(/strips/)
+        expect(sign()).toBeDisabled()
+    })
+
+    it("offers a plain retry after a failure that certainly did not land", async () => {
         doContractBroadcast.mockRejectedValueOnce(new Error("Transaction cancelled by user"))
         const { onSuccess, sign } = open()
         fireEvent.click(sign())
         expect(await screen.findByText(/cancelled by user/i)).toBeInTheDocument()
         expect(onSuccess).not.toHaveBeenCalled()
+        expect(sign()).toBeEnabled()
+        expect(screen.queryByRole("button", { name: /create anyway/i })).not.toBeInTheDocument()
+    })
+
+    it("after a failure that may have landed, asks to check contracts and needs an explicit create-anyway", async () => {
+        doContractBroadcast.mockRejectedValueOnce(new Error("Request timed out"))
+        const { onSuccess, sign } = open()
+        fireEvent.click(sign())
+        expect(await screen.findByText(/could not confirm/i)).toBeInTheDocument()
+        expect(onSuccess).not.toHaveBeenCalled()
+        // No plain retry: the sign button is gone, the check link and a gated create-anyway replace it.
+        expect(screen.queryByRole("button", { name: /sign escrow tx/i })).not.toBeInTheDocument()
+        const link = screen.getByRole("link", { name: /check your escrow contracts/i })
+        expect(link.getAttribute("href")).toContain("realm=r/samcrew/escrow_v3")
+        const anyway = screen.getByRole("button", { name: /create anyway/i })
+        expect(anyway).toBeDisabled()
+        fireEvent.click(anyway)
+        expect(doContractBroadcast).toHaveBeenCalledTimes(1)
+
+        fireEvent.click(screen.getByRole("checkbox", { name: /no contract was created/i }))
+        expect(anyway).toBeEnabled()
+        fireEvent.click(anyway)
+        await waitFor(() => expect(onSuccess).toHaveBeenCalled())
+        expect(doContractBroadcast).toHaveBeenCalledTimes(2)
+    })
+
+    it("stays in the check-first state when create-anyway fails ambiguously again", async () => {
+        doContractBroadcast.mockRejectedValueOnce(new Error("Failed to fetch")).mockRejectedValueOnce(new Error("Failed to fetch"))
+        open()
+        fireEvent.click(screen.getByRole("button", { name: /sign escrow tx/i }))
+        await screen.findByText(/could not confirm/i)
+        fireEvent.click(screen.getByRole("checkbox", { name: /no contract was created/i }))
+        fireEvent.click(screen.getByRole("button", { name: /create anyway/i }))
+        await waitFor(() => expect(doContractBroadcast).toHaveBeenCalledTimes(2))
+        expect(await screen.findByRole("button", { name: /create anyway/i })).toBeDisabled()
+        expect(screen.getByRole("checkbox", { name: /no contract was created/i })).not.toBeChecked()
     })
 })

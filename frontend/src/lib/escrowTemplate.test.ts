@@ -5,7 +5,7 @@
  * 1. Chain API compliance (no deprecated std.* usage)
  * 2. Security patterns (state-before-send, bounds checks, access control)
  * 3. Query helpers (listings, search, categories)
- * 4. MsgCall builders (message structure validation)
+ * 4. Deploy message builder (escrow MsgCalls live in lib/marketplace/builders)
  */
 
 import { describe, it, expect } from "vitest"
@@ -16,15 +16,9 @@ import {
     getListing,
     SEED_LISTINGS,
     SERVICE_CATEGORIES,
-    buildCreateContractMsg,
-    buildFundMilestoneMsg,
-    buildCompleteMilestoneMsg,
-    buildReleaseFundsMsg,
-    buildRaiseDisputeMsg,
     buildDeployEscrowMsg,
     type EscrowConfig,
 } from "./escrowTemplate"
-import { toAdenaMessages } from "./grc20"
 
 // ── Fixtures ──────────────────────────────────────────────────
 
@@ -305,59 +299,17 @@ describe("getListings / searchListings / getListing", () => {
     })
 })
 
-// ── 4. MsgCall Builders ───────────────────────────────────────
+// ── 4. Builders ───────────────────────────────────────
 
-describe("MsgCall builders", () => {
+describe("builders", () => {
     const caller = "g1testcaller"
     const escrowPath = "gno.land/r/test/escrow"
 
-    it("every escrow MsgCall builder survives toAdenaMessages (broadcast path)", () => {
-        const msgs = [
-            buildCreateContractMsg(caller, escrowPath, "g1freelancer", "Build app", "Full stack", "Design:1000"),
-            buildFundMilestoneMsg(caller, escrowPath, "0", 1, 5000000),
-            buildCompleteMilestoneMsg(caller, escrowPath, "0", 0),
-            buildReleaseFundsMsg(caller, escrowPath, "0", 2),
-            buildRaiseDisputeMsg(caller, escrowPath, "1", 0),
-        ]
-        expect(() => toAdenaMessages(msgs)).not.toThrow()
-        expect(toAdenaMessages(msgs).every((m) => m.type === "/vm.m_call")).toBe(true)
-    })
-
-    it("buildCreateContractMsg has correct type and args", () => {
-        const msg = buildCreateContractMsg(caller, escrowPath, "g1freelancer", "Build app", "Full stack", "Design:1000,Code:2000")
-        expect(msg.type).toBe("vm/MsgCall")
-        expect(msg.value.caller).toBe(caller)
-        expect(msg.value.pkg_path).toBe(escrowPath)
-        expect(msg.value.func).toBe("CreateContract")
-        expect(msg.value.args).toEqual(["g1freelancer", "Build app", "Full stack", "Design:1000,Code:2000"])
-    })
-
-    it("buildFundMilestoneMsg includes send field", () => {
-        const msg = buildFundMilestoneMsg(caller, escrowPath, "0", 1, 5000000)
-        expect(msg.type).toBe("vm/MsgCall")
-        expect(msg.value.send).toBe("5000000ugnot")
-        expect(msg.value.func).toBe("FundMilestone")
-        expect(msg.value.args).toEqual(["0", "1"])
-    })
-
-    it("buildCompleteMilestoneMsg has no send field", () => {
-        const msg = buildCompleteMilestoneMsg(caller, escrowPath, "0", 0)
-        expect(msg.type).toBe("vm/MsgCall")
-        expect(msg.value.send).toBe("")
-        expect(msg.value.func).toBe("CompleteMilestone")
-    })
-
-    it("buildReleaseFundsMsg structure is valid", () => {
-        const msg = buildReleaseFundsMsg(caller, escrowPath, "0", 2)
-        expect(msg.type).toBe("vm/MsgCall")
-        expect(msg.value.func).toBe("ReleaseFunds")
-        expect(msg.value.args).toEqual(["0", "2"])
-    })
-
-    it("buildRaiseDisputeMsg structure is valid", () => {
-        const msg = buildRaiseDisputeMsg(caller, escrowPath, "1", 0)
-        expect(msg.type).toBe("vm/MsgCall")
-        expect(msg.value.func).toBe("RaiseDispute")
+    it("no longer exports the uncapped escrow MsgCall builders", async () => {
+        const mod: Record<string, unknown> = await import("./escrowTemplate")
+        for (const name of ["buildCreateContractMsg", "buildFundMilestoneMsg", "buildCompleteMilestoneMsg", "buildReleaseFundsMsg", "buildRaiseDisputeMsg"]) {
+            expect(mod[name], name).toBeUndefined()
+        }
     })
 
     it("buildDeployEscrowMsg uses /vm.m_addpkg type", () => {

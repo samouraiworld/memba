@@ -631,59 +631,11 @@ func truncAddr(addr address) string {
 `
 }
 
-// ── MsgCall Builders ─────────────────────────────────────────
-
-export function buildCreateContractMsg(
-    caller: string, escrowPath: string, freelancer: string,
-    title: string, description: string, milestones: string,
-) {
-    return {
-        type: "vm/MsgCall",
-        value: { caller, send: "", pkg_path: escrowPath, func: "CreateContract",
-            args: [freelancer, title, description, milestones] },
-    }
-}
-
-export function buildFundMilestoneMsg(
-    caller: string, escrowPath: string, contractId: string,
-    milestoneIdx: number, amountUgnot: number,
-) {
-    return {
-        type: "vm/MsgCall",
-        value: { caller, send: `${amountUgnot}ugnot`, pkg_path: escrowPath,
-            func: "FundMilestone", args: [contractId, String(milestoneIdx)] },
-    }
-}
-
-export function buildCompleteMilestoneMsg(
-    caller: string, escrowPath: string, contractId: string, milestoneIdx: number,
-) {
-    return {
-        type: "vm/MsgCall",
-        value: { caller, send: "", pkg_path: escrowPath,
-            func: "CompleteMilestone", args: [contractId, String(milestoneIdx)] },
-    }
-}
-
-export function buildReleaseFundsMsg(
-    caller: string, escrowPath: string, contractId: string, milestoneIdx: number,
-) {
-    return {
-        type: "vm/MsgCall",
-        value: { caller, send: "", pkg_path: escrowPath,
-            func: "ReleaseFunds", args: [contractId, String(milestoneIdx)] },
-    }
-}
-
-export function buildRaiseDisputeMsg(
-    caller: string, escrowPath: string, contractId: string, milestoneIdx: number,
-) {
-    return {
-        type: "vm/MsgCall",
-        value: { caller, send: "", pkg_path: escrowPath,
-            func: "RaiseDispute", args: [contractId, String(milestoneIdx)] },
-    }
-}
+// ── Builders ─────────────────────────────────────────────────
+//
+// The MsgCall builders that lived here carried no storage-deposit cap. Escrow
+// calls are built by lib/marketplace/builders.ts and signed through
+// lib/marketplace/escrowTx.ts, which size and check them.
 
 /**
  * Build a MsgAddPackage for deploying an escrow realm.

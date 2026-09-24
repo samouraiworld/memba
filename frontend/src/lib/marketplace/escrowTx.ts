@@ -16,6 +16,7 @@ import {
     buildFundMilestoneMsg,
     buildRaiseDisputeMsg,
     buildReleaseFundsMsg,
+    EscrowInputError,
     parseMilestonesArg,
     type EscrowMilestone,
     type EscrowMsgCall,
@@ -33,11 +34,19 @@ export interface EscrowTxPlan {
 
 const bytes = (s: string) => new TextEncoder().encode(s).length
 
+/** The plan differs from what was reviewed; raised before the wallet is reached. */
+export class EscrowPlanError extends Error {
+    constructor(message: string) {
+        super(message)
+        this.name = "EscrowPlanError"
+    }
+}
+
 /** The budget a message needs, derived from its function and arguments alone. */
 function budgetFor(msg: EscrowMsgCall) {
     const { func, args } = msg.value
     if (func === "CreateContract") {
-        if (!Array.isArray(args) || args.length !== 4 || args.some((a) => typeof a !== "string")) throw new Error("Malformed CreateContract arguments. Review it again.")
+        if (!Array.isArray(args) || args.length !== 4 || args.some((a) => typeof a !== "string")) throw new EscrowPlanError("Malformed CreateContract arguments. Review it again.")
         return createContractBudget({ titleBytes: bytes(args[1]), descriptionBytes: bytes(args[2]), milestonesArg: args[3] })
     }
     return escrowCallBudget(func)
@@ -61,26 +70,31 @@ const KNOWN: ReadonlySet<string> = new Set<EscrowFunc>(["CreateContract", ...(Ob
  */
 export function assertEscrowPlanSignable(p: EscrowTxPlan): void {
     const { msg } = p
-    if (msg?.type !== "vm/MsgCall" || !KNOWN.has(msg.value?.func)) throw new Error("Not an escrow call. Review it again.")
+    if (msg?.type !== "vm/MsgCall" || !KNOWN.has(msg.value?.func)) throw new EscrowPlanError("Not an escrow call. Review it again.")
     // Same strict read the DAO flows use; the exact-string check below also refuses leading zeros.
-    const signed = signedDepositUgnot(p)
+    let signed: number | null
+    try {
+        signed = signedDepositUgnot(p)
+    } catch (err) {
+        throw new EscrowPlanError(err instanceof Error ? err.message : String(err))
+    }
     if (signed === null || msg.value.max_deposit !== `${p.maxDepositUgnot}ugnot`) {
-        throw new Error("The transaction does not carry the storage-deposit cap it was reviewed with. Review it again.")
+        throw new EscrowPlanError("The transaction does not carry the storage-deposit cap it was reviewed with. Review it again.")
     }
     if (depositNeedsOverride(signed)) {
-        throw new Error(`The storage-deposit cap of ${formatUgnotExact(signed)} is above the ${formatUgnotExact(V2_MAX_DEPOSIT_UGNOT)} limit.`)
+        throw new EscrowPlanError(`The storage-deposit cap of ${formatUgnotExact(signed)} is above the ${formatUgnotExact(V2_MAX_DEPOSIT_UGNOT)} limit.`)
     }
     const needed = budgetFor(msg)
     if (needed.maxDepositUgnot !== p.maxDepositUgnot || needed.gasWanted !== p.gasWanted) {
-        throw new Error("The transaction changed after it was reviewed. Review it again.")
+        throw new EscrowPlanError("The transaction changed after it was reviewed. Review it again.")
     }
     const payable = msg.value.func === "FundMilestone"
     if (!Number.isSafeInteger(p.sendUgnot) || (payable ? p.sendUgnot <= 0 : p.sendUgnot !== 0)) {
-        throw new Error("The transaction sends an unexpected amount. Review it again.")
+        throw new EscrowPlanError("The transaction sends an unexpected amount. Review it again.")
     }
     const expectedSend = payable ? `${p.sendUgnot}ugnot` : ""
     if (msg.value.send !== expectedSend) {
-        throw new Error("The amount the transaction sends differs from the one reviewed. Review it again.")
+        throw new EscrowPlanError("The amount the transaction sends differs from the one reviewed. Review it again.")
     }
 }
 
@@ -92,6 +106,27 @@ export function assertEscrowPlanSignable(p: EscrowTxPlan): void {
 export async function broadcastEscrowTx(p: EscrowTxPlan, memo: string, beforeSign?: () => void | Promise<void>) {
     assertEscrowPlanSignable(p)
     return doContractBroadcast([p.msg], memo, { gasWanted: p.gasWanted, retry: false, ...(beforeSign ? { beforeSign } : {}) })
+}
+
+/**
+ * Failures that certainly left the chain unchanged: the user cancelled or
+ * rejected, a guard refused before the wallet, or the chain refused the
+ * transaction (insufficient funds, out of gas: a failed transaction changes no
+ * state). Wallet guard texts come from grc20.ts.
+ */
+const DID_NOT_LAND = /user (rejected|denied)|cancelled by user|Transaction blocked|wallet not available|insufficient funds|out of gas/i
+
+/**
+ * Whether a failed broadcast may still have landed. Timeouts, network errors
+ * and anything unrecognised count as "may have": the transaction can be in a
+ * block although the reply was lost. A caller must not offer a plain retry
+ * then: a second CreateContract makes a second contract and locks a second
+ * deposit.
+ */
+export function escrowFailureMayHaveLanded(err: unknown): boolean {
+    if (err instanceof EscrowInputError || err instanceof EscrowPlanError) return false
+    const message = err instanceof Error ? err.message : ""
+    return !DID_NOT_LAND.test(message)
 }
 
 export interface CreateContractInput {

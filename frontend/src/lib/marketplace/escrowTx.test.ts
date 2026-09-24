@@ -6,6 +6,7 @@ vi.mock("../grc20", async (importOriginal) => ({ ...(await importOriginal<typeof
 import {
     assertEscrowPlanSignable,
     broadcastEscrowTx,
+    escrowFailureMayHaveLanded,
     planCancelContract,
     planClaimDisputeTimeout,
     planClaimRefund,
@@ -18,6 +19,7 @@ import {
     type EscrowTxPlan,
 } from "./escrowTx"
 import { createContractBudget } from "./escrowBudget"
+import { EscrowInputError } from "./builders"
 
 const CLIENT = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
 const FREELANCER = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
@@ -110,6 +112,33 @@ describe("the signing guard refuses anything but the reviewed plan", () => {
         expect(() => assertEscrowPlanSignable({ ...fund(), gasWanted: 10_000_000 })).toThrow()
         expect(() => assertEscrowPlanSignable(tamper(fund(), { func: "ResolveDispute" }))).toThrow()
         expect(() => assertEscrowPlanSignable({ ...fund(), msg: { ...fund().msg, type: "/vm.m_call" } } as unknown as EscrowTxPlan)).toThrow()
+    })
+})
+
+describe("escrowFailureMayHaveLanded", () => {
+    it("is false only for failures that certainly left the chain unchanged", () => {
+        for (const msg of [
+            "Transaction cancelled by user",
+            "User rejected the request",
+            "user denied transaction signature",
+            "🛡️ Transaction blocked — Your wallet is using an untrusted RPC: https://x",
+            "Adena wallet not available — please install or refresh the page",
+            "insufficient funds to pay for fees",
+            "out of gas in location: ReadFlat",
+        ]) expect(escrowFailureMayHaveLanded(new Error(msg)), msg).toBe(false)
+        expect(escrowFailureMayHaveLanded(new EscrowInputError("Invalid caller address"))).toBe(false)
+    })
+
+    it("is true for timeouts, network errors and anything unknown", () => {
+        for (const err of [
+            new Error("Request timed out"),
+            new Error("Failed to fetch"),
+            new Error("Transaction failed after retries"),
+            new Error("Transaction failed"),
+            new Error(""),
+            "string error",
+            undefined,
+        ]) expect(escrowFailureMayHaveLanded(err), String(err)).toBe(true)
     })
 })
 

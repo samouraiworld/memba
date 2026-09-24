@@ -80,12 +80,36 @@ function milestoneAmount(value: unknown): number {
     return amount
 }
 
+/**
+ * Characters escrow.gno's sanitizeMilestoneTitle removes from the title, the
+ * description and every milestone title before storing them. Refuse them, so
+ * the stored text is exactly the text signed (and a title made only of them is
+ * never stored empty).
+ */
+const STRIPPED = /[[\]()#*`!<>|\\_~\n\r\t]/
+const STRIPPED_LIST = "[ ] ( ) # * ` ! < > | \\ _ ~"
+
+function charName(c: string): string {
+    if (c === "\n" || c === "\r") return "a line break"
+    if (c === "\t") return "a tab"
+    return `"${c}"`
+}
+
+function storedAsSigned(value: string, what: string): string {
+    const hit = STRIPPED.exec(value)
+    if (hit) {
+        fail(`Remove ${charName(hit[0])} from the ${what}: the escrow contract strips ${STRIPPED_LIST}, tabs and line breaks, so it would store different text`)
+    }
+    return value
+}
+
 /** Characters Go's strings.TrimSpace removes that JS trim() may not. */
 const EDGE_SPACE = /^[\s\u0085]|[\s\u0085]$/u
 
 function milestoneTitle(title: string): string {
     if (typeof title !== "string" || title === "") fail("Every milestone needs a title")
     if (title.includes(",") || title.includes(":")) fail(`Milestone title "${title}" cannot contain "," or ":"`)
+    storedAsSigned(title, "milestone title")
     // The realm trims each title; refuse rather than sign text that is stored differently.
     if (EDGE_SPACE.test(title)) fail(`Milestone title "${title}" cannot start or end with a space`)
     if (bytes(title) > ESCROW_V3_LIMITS.maxMilestoneTitleBytes) {
@@ -142,7 +166,7 @@ function textArg(value: string, what: string, min: number, maxBytes: number): st
     if (typeof value !== "string") fail(`Invalid ${what}`)
     const n = bytes(value)
     if (n < min || n > maxBytes) fail(`The ${what} must be ${min}-${maxBytes} bytes`)
-    return value
+    return storedAsSigned(value, what)
 }
 
 function msgCall(caller: string, escrowPath: string, func: EscrowFunc, args: string[], send: string, maxDepositUgnot: number): EscrowMsgCall {
