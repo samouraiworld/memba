@@ -1,6 +1,6 @@
 # escrow_v4 on gno.land mainnet: canary runbook
 
-This is the owner-run procedure for the first real escrow contract on gno.land mainnet (`gnoland-1`), after the PR that allowlists `gno.land/r/samcrew/escrow_v4` is merged and before the Services lane is announced. Nothing in it is automated, and nothing in it is signed by CI or by Memba's backend.
+This is the owner-run procedure for the first real escrow contract on gno.land mainnet (`gnoland-1`), run **before** the go-live PR (#1302) is merged and before the Services lane is announced. Nothing in it is automated, and nothing in it is signed by CI or by Memba's backend.
 
 The canary is one small contract between the owner's two personal single-key wallets, one acting as client and one as freelancer: one milestone of the realm's minimum amount (0.001 GNOT), taken through Create, Fund, Complete, Release and Archive in the Memba UI, with an on-chain read after every step. Each step also gives the `gnokey` command to use instead if the UI misbehaves.
 
@@ -19,6 +19,19 @@ The canary is one small contract between the owner's two personal single-key wal
 | Pause | admin only. New contracts and funding stop until `Unpause`; every other state change stops for `MaxPauseBlks` = 183,273 blocks (about 7 days), then exits reopen on their own. After an `Unpause`, the next `Pause` is refused for another 183,273 blocks. |
 
 State read on 2026-09-24 (about height 300737): not paused, `cooldownUntil` 0, `GetCreatedCount()` 0, `TotalLiabilities()` 0, realm balance empty, no pending admin or fee recipient.
+
+## Where the canary runs
+
+**Primary: a private canary on the PR's deploy preview.** Production stays off until the O7 go.
+
+1. In Netlify, set `VITE_ENABLE_SERVICES=true` **scoped to the Deploy previews context only**. Leave the Production context unset (off), and leave `VITE_ENABLE_MARKETPLACE_V2` off in every context.
+2. Trigger a new deploy preview for #1302 (push or "Retry deploy") so the build picks the variable up, and open its URL (`https://deploy-preview-1302--<site>.netlify.app`). The preview is a production build, so it defaults to mainnet: confirm the network selector says gno.land mainnet and the Services tab is there.
+3. Run every step below on that URL. Production memba is unchanged throughout; the contract links you share are preview links, which is fine for two owner wallets.
+4. After the canary: merge #1302 (still inert in production), and turn `VITE_ENABLE_SERVICES` on for the Production context only at the O7 go.
+
+The deploy preview talks to the chain directly (`rpc.gno.land`), so every escrow read and signature is real. Only the backend-proxied pieces can differ: if the backend's CORS does not admit preview origins, "Contracts where you are the freelancer" shows "Could not search for them". That is expected on a preview and not a stop condition; the shared link is the supported path.
+
+**Alternative: a short production window.** Merge #1302, set `VITE_ENABLE_SERVICES=true` for Production, redeploy, run the canary, and set it off again (redeploy) until the O7 go. Anyone visiting memba during the window sees the Services lane, so keep it short and do not announce it.
 
 ## What Memba does
 
@@ -142,7 +155,9 @@ Expected:
 
 **In Memba**, switch Adena to F (or open the shared link in F's browser profile) and open the link from step 1. The page must say Freelancer (you) and offer **Mark delivered** and **Raise dispute**, and nothing of the client's (no Fund, Release or Cancel). **Mark delivered**; the dialog must show `CompleteMilestone`, arguments `0`, `0`, no coins sent. Confirm and sign.
 
-Also check discovery: in the Services lane, connected as F, "Contracts where you are the freelancer" should list `#0` (it comes from the tx-indexer, so allow a few blocks). If it does not, note it; the link is the supported path.
+Before F marks it delivered, F also sees a **disabled "Refund to client"** on the milestone, naming the `refundAt` block (about 33 days out). That is expected: anyone may refund a funded milestone nobody delivered once that deadline passes, and the button only says when. It is not a stop condition.
+
+Also check discovery: in the Services lane, connected as F, "Contracts where you are the freelancer" should list `#0` (it comes from the tx-indexer, so allow a few blocks; on a deploy preview it may be unavailable, see "Where the canary runs"). If it does not, note it; the link is the supported path.
 
 Fallback (gnokey):
 
@@ -188,7 +203,7 @@ Expected:
 - `GetLiveCount()` 0, `GetArchivedCount()` 1, `GetCreatedCount()` 1 (ids are never reused), `GetActiveCount()` 0, `TotalLiabilities()` 0, realm balance empty.
 - UI: "Contract 0 archived. The chain refunds its storage deposit to you." then "Contract 0 does not exist or has been archived."; "My contracts" in the lane is empty again.
 
-The canary passes when every expectation above held. Only then announce the lane.
+The canary passes when every expectation above held. Only then merge #1302 and, at the O7 go, turn `VITE_ENABLE_SERVICES` on for the Production context and announce the lane.
 
 ## If a step's outcome is unknown
 
@@ -210,7 +225,7 @@ Stop, do not continue to the next step, and do not announce the lane if any of t
 
 From least to most disruptive:
 
-1. **Hide the lane.** Set `VITE_ENABLE_SERVICES` off in Netlify and redeploy. The Services tab, the contract pages and every escrow screen disappear (a shared contract link then redirects to a live lane); no funds move, and contracts stay on chain, callable with gnokey.
+1. **Hide the lane.** Set `VITE_ENABLE_SERVICES` off in Netlify (in the context where it is on) and redeploy. The Services tab, the contract pages and every escrow screen disappear (a shared contract link then redirects to a live lane); no funds move, and contracts stay on chain, callable with gnokey.
 2. **Pause the realm.** The admin (the publisher 2-of-3) signs a `Pause` MsgCall on `gno.land/r/samcrew/escrow_v4` (no arguments, nothing sent). CreateContract and FundMilestone are refused until `Unpause`; every other state change is refused for 183,273 blocks (about 7 days), after which exits reopen by themselves so funds are never stuck. Unpausing starts a 183,273-block cooldown before the next `Pause`, so pause only for a real incident. Memba's lane then shows the paused banner, Hire by address is disabled, contract pages refuse funding and hold every other call until the blocking window ends.
 3. **Remove the allowlist entry** by reverting the go-live PR. Memba stops offering any escrow call on mainnet; the realm itself is unaffected.
 
