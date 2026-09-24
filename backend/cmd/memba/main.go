@@ -55,8 +55,10 @@ func productionConfigWarnings(getenv func(string) string) []string {
 	case "1", "true", "TRUE":
 		warns = append(warns, auth.AllowUnsignedAuthEnv+" is enabled — empty/invalid/address-only signatures are accepted (impersonation-capable; the A2 Phase-1 posture). Flip to enforce once the signed-login ratio ≈ 100% (OPS_RUNBOOK §2.1).")
 	}
-	if strings.TrimSpace(getenv("QUEST_ADMIN_ADDRESSES")) == "" {
-		warns = append(warns, "QUEST_ADMIN_ADDRESSES is unset — quest-claim review falls back to the baked-in default admin; set it explicitly in production.")
+	// Same emptiness rule as service.questAdminAddresses: blanks and stray commas
+	// resolve to no admins.
+	if strings.Trim(getenv("QUEST_ADMIN_ADDRESSES"), ", \t\r\n") == "" {
+		warns = append(warns, "QUEST_ADMIN_ADDRESSES is unset — quest claim review is disabled (no admin can list or review claims) until it is set to the reviewer wallet address(es).")
 	}
 	if strings.TrimSpace(getenv("METRICS_BEARER")) == "" {
 		warns = append(warns, "METRICS_BEARER is unset — /metrics is disabled (fail-closed in prod); set it to enable authenticated Prometheus scrapes.")
@@ -218,8 +220,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	// W0.6: surface unsafe/hygiene production config (unsigned-auth enabled, baked-in
-	// quest admin, public /metrics) as loud startup warnings — never boot-blocking, so
+	// W0.6: surface unsafe/hygiene production config (unsigned-auth enabled, quest
+	// claim review disabled, /metrics disabled) as loud startup warnings — never boot-blocking, so
 	// a deliberate posture (e.g. A2 Phase-1) can't take prod down. No-op off Fly.
 	for _, w := range productionConfigWarnings(os.Getenv) {
 		slog.Warn("production config warning", "detail", w)

@@ -7,7 +7,7 @@
 ## Service: `MultisigService`
 
 All 38 RPCs live on the single `MultisigService`. Auth legend: **✅** = requires a valid
-auth `Token` · **Admin** = requires auth **and** the caller to be in `QUEST_ADMIN_ADDRESSES` ·
+auth `Token` · **Admin** = requires auth **and** the caller to be in `QUEST_ADMIN_ADDRESSES` (unset = no admins, denied to everyone) ·
 **No** = public, unauthenticated read.
 
 ### Auth, Multisig, Transactions, Profile

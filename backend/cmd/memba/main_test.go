@@ -200,8 +200,8 @@ func TestParseSeedCursorSpec(t *testing.T) {
 
 // W0.6: production boot guard. When FLY_APP_NAME is set the server must refuse to
 // start on an unsafe config — unsigned auth enabled (impersonation-capable), or a
-// missing METRICS_BEARER (/metrics would be public) / QUEST_ADMIN_ADDRESSES (would
-// fall back to a baked-in admin). Off Fly (dev) none of these are enforced.
+// missing METRICS_BEARER (/metrics would be public) / QUEST_ADMIN_ADDRESSES (quest
+// claim review is disabled). Off Fly (dev) none of these are enforced.
 func TestValidateProductionConfig(t *testing.T) {
 	base := map[string]string{
 		"FLY_APP_NAME":              "memba-backend",
@@ -245,6 +245,11 @@ func TestValidateProductionConfig(t *testing.T) {
 	})
 	t.Run("production + whitespace quest admin: warned", func(t *testing.T) {
 		if warns := productionConfigWarnings(getenv(map[string]string{"QUEST_ADMIN_ADDRESSES": " "})); !has(warns, "QUEST_ADMIN_ADDRESSES") {
+			t.Fatalf("expected quest-admin warning, got %v", warns)
+		}
+	})
+	t.Run("production + separators-only quest admin: warned", func(t *testing.T) {
+		if warns := productionConfigWarnings(getenv(map[string]string{"QUEST_ADMIN_ADDRESSES": " , ,"})); !has(warns, "QUEST_ADMIN_ADDRESSES") {
 			t.Fatalf("expected quest-admin warning, got %v", warns)
 		}
 	})

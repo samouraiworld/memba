@@ -993,28 +993,19 @@ func (s *MultisigService) checkAndQueueRankBadge(ctx context.Context, address st
 
 // ── Admin: Quest Claim Review ───────────────────────────────
 
-// defaultQuestAdmins is the built-in set of addresses authorized to review quest
-// claims, used when QUEST_ADMIN_ADDRESSES is unset (the samcrew-core-test1
-// multisig + deployer address).
-var defaultQuestAdmins = map[string]bool{
-	"g1x7k4628w93a7wzdhqc06atzx0v50rnshweuxu0": true, // samcrew-core-test1
-}
-
-// questAdminAddresses returns the addresses allowed to review quest claims.
-// QUEST_ADMIN_ADDRESSES (comma-separated) REPLACES the built-in default — so
-// admins can be added/rotated via env without a code change/redeploy, and the
-// privileged set isn't hard-pinned in source. Unset/empty keeps the default.
+// questAdminAddresses returns the addresses allowed to review quest claims,
+// read from QUEST_ADMIN_ADDRESSES (comma-separated) so reviewers can be
+// added/rotated without a code change. There is no built-in admin: unset/empty
+// yields an empty set and claim review is denied to everyone (fail closed).
+// Reviewers must be single-key wallets — a multisig can't sign the login.
 func questAdminAddresses() map[string]bool {
-	if v := strings.TrimSpace(os.Getenv("QUEST_ADMIN_ADDRESSES")); v != "" {
-		out := make(map[string]bool)
-		for _, a := range strings.Split(v, ",") {
-			if t := strings.TrimSpace(a); t != "" {
-				out[t] = true
-			}
+	out := make(map[string]bool)
+	for _, a := range strings.Split(os.Getenv("QUEST_ADMIN_ADDRESSES"), ",") {
+		if t := strings.TrimSpace(a); t != "" {
+			out[t] = true
 		}
-		return out
 	}
-	return defaultQuestAdmins
+	return out
 }
 
 // ReviewQuestClaim approves or rejects a self-report quest claim.

@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Quest claim review has no built-in admin (2026-09-24)
+<!-- categories: memba -->
+- **Quest claim review no longer falls back to a hardcoded testnet admin.** Without `QUEST_ADMIN_ADDRESSES`, the backend trusted a testnet multisig, which could not sign in anyway.
+- **An unset or empty `QUEST_ADMIN_ADDRESSES` now means no reviewers.** Listing and reviewing claims is denied to everyone, and production logs a startup warning until the reviewer wallets are set.
+
 ### Avatar and image uploads sign in again (2026-09-24)
 <!-- categories: memba -->
 - **Uploading an avatar or App Store image, and submitting an arcade run, work again.** These requests sent the saved wallet session in the format the app stores it, which the server could not read, so it refused them as signed out. The server now reads both formats. Tampered or unsigned sessions are still refused.
