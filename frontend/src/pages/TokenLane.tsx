@@ -4,7 +4,7 @@ import { fetchOtcListings } from "../lib/tokenOtcApi"
 import { EmptyState } from "../components/ui/EmptyState"
 import { formatGnotCompact } from "../lib/formatGnot"
 import { getTokenDecimals, formatTokenAmount } from "../lib/grc20"
-import { GNO_RPC_URL } from "../lib/config"
+import { GNO_RPC_URL, ACTIVE_NETWORK_KEY, MEMBA_TOKEN_DEV, MEMBA_TOKEN_PROD, isTestnetNetwork } from "../lib/config"
 import { useAuth } from "../hooks/useAuth"
 import { TokenTradeModal, type TokenTradeModalProps } from "../components/nft/TokenTradeModal"
 import { ErrorToast } from "../components/ui/ErrorToast"
@@ -33,6 +33,14 @@ export function TokenLane() {
     // Modal state
     const [modalProps, setModalProps] = useState<Omit<TokenTradeModalProps, "onClose" | "onSuccess"> | null>(null)
     const [toast, setToast] = useState<string | null>(null)
+    // Which token to list. Defaults to the Memba token of the network the lane
+    // runs on (MEMBATEST on test chains, MEMBA otherwise) instead of hardcoding
+    // the testnet symbol; the modal resolves decimals/allowance for whatever
+    // symbol is chosen.
+    const [listSymbol, setListSymbol] = useState<string>(
+        isTestnetNetwork(ACTIVE_NETWORK_KEY) ? MEMBA_TOKEN_DEV.symbol : MEMBA_TOKEN_PROD.symbol,
+    )
+    const listSymbolValid = /^[A-Z0-9]{1,10}$/.test(listSymbol)
 
 
     // Resolve decimals for every distinct symbol currently listed. Best-effort,
@@ -64,16 +72,25 @@ export function TokenLane() {
 
     return (
         <section className="mhub-collections">
-            <div className="mhub-lane-toolbar" style={{ justifyContent: "flex-end" }}>
+            <div className="mhub-lane-toolbar" style={{ justifyContent: "flex-end", gap: 8 }}>
+                <input
+                    type="text"
+                    value={listSymbol}
+                    onChange={(e) => setListSymbol(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10))}
+                    aria-label="Token symbol to list"
+                    placeholder="SYMBOL"
+                    className="trade-modal__input"
+                    style={{ width: 120 }}
+                />
                 <button 
+                    disabled={!listSymbolValid}
                     className="mhub-launch-link"
                     onClick={() => {
                         // TODO(marketplace-v2 Phase 5): replace the toast with a connect-then-continue flow.
                         if (!address) { setToast("Please connect your wallet first."); return }
                         setModalProps({
                             action: "list",
-                            // TODO(marketplace-v2 Phase 7.3): replace hardcoded symbol with a real token select (OTC Block Desk rebuild).
-                            symbol: "MEMBATEST",
+                            symbol: listSymbol,
                             callerAddress: address,
                         })
                     }}

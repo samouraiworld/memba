@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### OTC desk lists the token you choose (2026-09-24)
+<!-- categories: memba -->
+- **The Tokens lane's "List Tokens" button no longer always lists the testnet token MEMBATEST.** A symbol field next to it picks the token. It starts on the network's Memba token (MEMBATEST on test chains, MEMBA elsewhere), and the listing dialog loads that token's decimals and approval.
+
 ### Escrow targets escrow_v4: archive refunds, per-client cap, bounded pause (2026-09-24)
 <!-- categories: memba, network -->
 - **Escrow calls now target `gno.land/r/samcrew/escrow_v4`.** It is not listed on any network yet, so the Services lane stays gated (`VITE_ENABLE_SERVICES && isEscrowValid()`) until a separate go-live change. The e2e fixtures pin `escrow_v3` with the new `VITE_ESCROW_REALM_PATH` override, which can only select a realm that is already allowlisted.

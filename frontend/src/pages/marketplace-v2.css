@@ -670,3 +670,8 @@
     cursor: pointer;
     white-space: nowrap;
 }
+
+.mhub-launch-link:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
