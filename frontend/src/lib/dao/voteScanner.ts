@@ -114,7 +114,16 @@ function getDAOsToScan(): { path: string; name: string }[] {
         .map(([path, name]) => ({ path, name }))
 }
 
-/** Whether Memba can build a vote for this DAO's contract (unreadable → no). */
+/**
+ * Whether Memba can build a vote for this DAO's contract (unreadable → no).
+ *
+ * Weighted hosts stay excluded (kindSupportsVoting is false for them): an
+ * "unvoted" indicator needs the member's own ballot, and no released
+ * weighted read contract exposes one. TODO(weighted ballots): once the host
+ * ships GetBallotJSON / GetPendingVotesJSON, list weighted proposals from
+ * that read — never by inferring ballots from tallies — and keep them
+ * read-only indicators while mainnet writes are on hold.
+ */
 async function daoAcceptsVotes(realmPath: string): Promise<boolean> {
     try {
         return kindSupportsVoting(await resolveDaoKind({ rpcUrl: GNO_RPC_URL, chainId: GNO_CHAIN_ID, realmPath }))

@@ -1,0 +1,2534 @@
+{
+  "gnoRef": "e75fef82c02876a4df92ad6e325c5479b9532168",
+  "realm": "gno.land/r/samcrew/memba_dao",
+  "realmSha256": {
+    "gnomod.toml": "234f1774eebb2de700b8f0d71d070b4b923d166dc84a2884825013529313de18",
+    "memba_dao.gno": "06b0d79e6c07dc4da9346b7dc57b117bb35ea4c5ddbf9259869f427f619bcdc7",
+    "market_adapter.gno": "17e2b294b901663f99f832e5c20f9baee8d0f3f759a9a84a9fa507be032664a6",
+    "reviews_adapter.gno": "172a91718b86b0fbf6e58536bfde6af04ffb33b74eb37bade47c5c5283a369c4",
+    "quest_adapter.gno": "2e31e4afed29796f2bb424ff6a5ec2ce26a07458bbf0364074e8f557a744b40e",
+    "arcade_adapter.gno": "a84c69382821031e5cb43d32d1d1ce6012ce71028ee103de415b0fba797c530d",
+    "appstore_adapter.gno": "b6d10eae19f707c9b9884bfbd685ed8ef79ff2a1410d752be11d85a9b7ae3b5c",
+    "escrow_adapter.gno": "7e3492cd09b906d2bcbdba0173e6727915491729fc4eb189be2ef2e06d2688e7",
+    "badges_adapter.gno": "087f3bb72305049d15b61c43effb2348c8cb858244e9d51f72e8013899fc980f",
+    "feed_adapter.gno": "8f9213fbd3a0dca2c4e22a16888b312a8617eb8b73821395073ac480f9d180b3",
+    "channels_adapter.gno": "2d192580ddf5cea1ff1e90babc92b235e0e094ac73ad154f25e45d87a713d1a6",
+    "feedback_adapter.gno": "595702fd91e30ed5ee1dfb5d0c87e15ac2d499f5cb45ba38de78cb0a016c1522"
+  },
+  "packageSha256": {
+    "gno.land/p/samcrew/memba_weighted_host/appstore_actions.gno": "c43d3796405ff10029935250e0d64ab369a14ef54fd1abce39b9f9c4acbac3ac",
+    "gno.land/p/samcrew/memba_weighted_host/appstore_host.gno": "31992ac16f2cd88e5cd63b6e1af4393fa4ff8d9846beec9569ecb83826150560",
+    "gno.land/p/samcrew/memba_weighted_host/appstore_reads.gno": "0c85fd40dc83910d08ddada074f4720409ad2ac59c3f4ec3944af99271171447",
+    "gno.land/p/samcrew/memba_weighted_host/arcade_actions.gno": "5cd97b75c336fdb5702461f2bd944d97600137a16f8844dbe09a31998d975f7a",
+    "gno.land/p/samcrew/memba_weighted_host/arcade_host.gno": "c22251bd9f182ace0fe2aa489f71e049572a9147ebfb3d526b69421abf8380c1",
+    "gno.land/p/samcrew/memba_weighted_host/arcade_reads.gno": "7f6ee32062d96f7482c9b9b7e714e393e098e9226dbf050a16822e1f28d9753e",
+    "gno.land/p/samcrew/memba_weighted_host/badges_actions.gno": "de72f2719472123b7b93fbedabf54ab24059870230751182444377d4026e0e86",
+    "gno.land/p/samcrew/memba_weighted_host/badges_host.gno": "843bba2676d9769d20fa9448d42e43062b70a56ca56445aab7ee27a245741523",
+    "gno.land/p/samcrew/memba_weighted_host/badges_reads.gno": "c2748a7d68dadfb30a8f5d590c1ce58b95a51e1c40af04e356acee4cccae81aa",
+    "gno.land/p/samcrew/memba_weighted_host/channels_actions.gno": "7e72a72bc95fad9a26a1dc357dc082a43dd02510090ccc629732cc93c0061e02",
+    "gno.land/p/samcrew/memba_weighted_host/channels_host.gno": "471ede629e6879945644d59b59ae3e4231f0b09be07c24240b3224ee790149cc",
+    "gno.land/p/samcrew/memba_weighted_host/channels_reads.gno": "761481cb81ea5670a3a0d3bba64bc17de0510bf687f53a5753be0667c371b74a",
+    "gno.land/p/samcrew/memba_weighted_host/escrow_actions.gno": "ee3df7da0682725c91de29c5efb2d4e7eb46fdcbe0e542e671829bebdbf77da6",
+    "gno.land/p/samcrew/memba_weighted_host/escrow_host.gno": "d5a6766faf6ba9a62a5118ccd49756d6ca25ae7f739f9e292408ebc24b466ec6",
+    "gno.land/p/samcrew/memba_weighted_host/escrow_reads.gno": "db25a51587b7a04d7f327ed1885e2e3c4927b6180b7731cc2bde4b9e62f9697a",
+    "gno.land/p/samcrew/memba_weighted_host/feed_actions.gno": "def3d97d9778668d01e5e1758b93843483ca40dd4819f9f13cfe047ad3c59589",
+    "gno.land/p/samcrew/memba_weighted_host/feed_host.gno": "177f02751e703e27f63aa06d6e87e710f5fcf68a3f281c56ec09286045b8793e",
+    "gno.land/p/samcrew/memba_weighted_host/feed_reads.gno": "3011e6d55ef3a91f8e056c1fba902f12534990b1bae5720b251cb77e10861510",
+    "gno.land/p/samcrew/memba_weighted_host/feedback_actions.gno": "fe020a7347f7b56ecdf3081b8fcf7e0770785e9fcd297da4e48aedb705d356db",
+    "gno.land/p/samcrew/memba_weighted_host/feedback_host.gno": "83c0e74aa19a511906a8d576a285409fe553d958285238f7bcd3510b9b97826e",
+    "gno.land/p/samcrew/memba_weighted_host/feedback_reads.gno": "0500a55b654ddee76ec1ee91940b0e12fb950c81ad135127dd59c5b5ffb12ffa",
+    "gno.land/p/samcrew/memba_weighted_host/host.gno": "6e832dbfaf6b4de327b0f25956b07dfa3ed238791c97540e7e6d256ec2d8b32c",
+    "gno.land/p/samcrew/memba_weighted_host/market_actions.gno": "987519779fd70ee5c9150f784a9735dae44fa843f61a9add04de90b55696601d",
+    "gno.land/p/samcrew/memba_weighted_host/market_host.gno": "467bf8463e826b135482d40700b4f9adcade8639441a522c4202da2e89f9511e",
+    "gno.land/p/samcrew/memba_weighted_host/quest_actions.gno": "237e2f7b82ef1a631e11974c5a0cedd05c063c6aeff42f716f5037ad028e9489",
+    "gno.land/p/samcrew/memba_weighted_host/quest_host.gno": "dce058df8462b5ccab9e83d57a9c5c35b67eca86d2447ce799d660766add96c2",
+    "gno.land/p/samcrew/memba_weighted_host/quest_reads.gno": "85c1f40dd093fcebf41f7af031d80d079532569ceae7b232db27ddb369553be1",
+    "gno.land/p/samcrew/memba_weighted_host/reads.gno": "d002e5d53573cdff2c4a6c34a7e20fdfdecfa64b804ac464767e0616bd6e9011",
+    "gno.land/p/samcrew/memba_weighted_host/reviews_actions.gno": "07eca86a03d9aefda8132bccf8c4cfe74e84d844bb4fa61bc74067210271d559",
+    "gno.land/p/samcrew/memba_weighted_host/reviews_host.gno": "d3f8f12469c2cc632b7720a8e880fd62babdc5f93f761afd85b729584a8a5387",
+    "gno.land/p/samcrew/memba_weighted_host/reviews_reads.gno": "e8e6b554865e5459a6893b3494be98bc08597c58ad8c61f8f1b644801ea64cb2",
+    "gno.land/p/samcrew/memba_weighted_policy/policy.gno": "dfeca4ef26bff1f97335d9808e2152a6cb8f64aecea2ce4f3f2ad6da5390e683"
+  },
+  "gnoBinarySha256": "fcf6996b569331af92622aa85d53a0e12218e9586d60897879788c5854264b85",
+  "records": {
+    "config": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "config",
+      "realmPath": "gno.land/r/samcrew/memba_dao",
+      "rosterSize": 7,
+      "totalPoints": 8,
+      "founderWeight": 2,
+      "developerWeight": 1,
+      "votingPeriodSeconds": 604800,
+      "roleChanges": {
+        "category": "critical",
+        "weightedPoints": 6,
+        "weightedPeople": 4,
+        "weightedDelaySeconds": 86400,
+        "independentDevelopers": 5,
+        "independentDelaySeconds": 259200
+      },
+      "mutableRoles": [
+        "admin",
+        "finance"
+      ],
+      "capabilities": {
+        "roleProposals": true,
+        "memberReplacement": true,
+        "migration": false,
+        "treasuryExecution": false,
+        "applicationActions": true
+      },
+      "maxProposalPage": 50,
+      "marketPolicy": {
+        "target": "gno.land/r/samcrew/memba_market_config",
+        "treasury": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+        "successor": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+        "returnStagesOnly": true,
+        "invalidatesOtherProposals": true
+      },
+      "reviewsPolicy": {
+        "target": "gno.land/r/samcrew/memba_reviews_v2",
+        "successor": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+        "returnStagesOnly": true,
+        "invalidatesOtherProposals": true
+      },
+      "questPolicy": {
+        "target": "gno.land/r/samcrew/memba_quest_attestation_v1",
+        "successor": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+        "signerCategory": "critical",
+        "returnStagesOnly": true,
+        "invalidatesOtherProposals": true
+      },
+      "arcadePolicy": {
+        "target": "gno.land/r/samcrew/memba_arcade_leaderboard_v1",
+        "successor": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+        "attesterCategory": "critical",
+        "unpauseCategory": "financial",
+        "emergencyPause": true,
+        "returnStagesOnly": true,
+        "invalidatesOtherProposals": true
+      },
+      "appstorePolicy": {
+        "target": "gno.land/r/samcrew/memba_appstore_v3",
+        "successor": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+        "treasury": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+        "maxRegistrationFee": "100000000",
+        "curatorCategory": "critical",
+        "sealCategory": "critical",
+        "moderationCategory": "routine",
+        "unpauseCategory": "financial",
+        "emergencyPause": true,
+        "returnStagesOnly": true,
+        "invalidatesOtherProposals": true
+      },
+      "escrowPolicy": {
+        "target": "gno.land/r/samcrew/escrow_v3",
+        "successor": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+        "resolutionCategory": "financial",
+        "unpauseCategory": "financial",
+        "emergencyPause": true,
+        "returnStagesOnly": true,
+        "invalidatesOtherProposals": true
+      },
+      "badgesPolicy": {
+        "target": "gno.land/r/samcrew/gnobuilders_badges_v2",
+        "successor": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+        "adminCategory": "critical",
+        "unpauseCategory": "financial",
+        "emergencyPause": true,
+        "returnStagesOnly": true,
+        "invalidatesOtherProposals": true
+      },
+      "feedPolicy": {
+        "target": "gno.land/r/samcrew/memba_feed_v1",
+        "successor": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+        "moderatorCategory": "critical",
+        "unpauseCategory": "financial",
+        "emergencyPause": true,
+        "returnStagesOnly": true,
+        "invalidatesOtherProposals": true
+      },
+      "channelsPolicy": {
+        "target": "gno.land/r/samcrew/memba_dao_channels_v2",
+        "successor": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+        "memberCategory": "critical",
+        "unpauseCategory": "financial",
+        "emergencyPause": true,
+        "returnStagesOnly": true,
+        "invalidatesOtherProposals": true
+      },
+      "feedbackPolicy": {
+        "target": "gno.land/r/samcrew/memba_feedback_v2",
+        "successor": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+        "memberCategory": "critical",
+        "unpauseCategory": "financial",
+        "emergencyPause": true,
+        "returnStagesOnly": true,
+        "invalidatesOtherProposals": true
+      }
+    },
+    "members_initial": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "members",
+      "members": [
+        {
+          "personId": "zxxma",
+          "address": "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c",
+          "founder": true,
+          "weight": 2,
+          "admin": true,
+          "finance": true
+        },
+        {
+          "personId": "mikael",
+          "address": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "ghost",
+          "address": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "mikecito",
+          "address": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "david",
+          "address": "g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "lours",
+          "address": "g1nvxz94ukmggfx4mlldwae3cpde99qmldtcgm9u",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "dadidou",
+          "address": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        }
+      ]
+    },
+    "proposals_empty": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposals",
+      "total": "0",
+      "proposals": [],
+      "nextBefore": null
+    },
+    "members_after": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "members",
+      "members": [
+        {
+          "personId": "zxxma",
+          "address": "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c",
+          "founder": true,
+          "weight": 2,
+          "admin": true,
+          "finance": true
+        },
+        {
+          "personId": "mikael",
+          "address": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": true
+        },
+        {
+          "personId": "ghost",
+          "address": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "mikecito",
+          "address": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "david",
+          "address": "g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "lours",
+          "address": "g1nvxz94ukmggfx4mlldwae3cpde99qmldtcgm9u",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "dadidou",
+          "address": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        }
+      ]
+    },
+    "members": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "members",
+      "members": [
+        {
+          "personId": "zxxma",
+          "address": "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c",
+          "founder": true,
+          "weight": 2,
+          "admin": true,
+          "finance": true
+        },
+        {
+          "personId": "mikael",
+          "address": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": true
+        },
+        {
+          "personId": "ghost",
+          "address": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "mikecito",
+          "address": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "david",
+          "address": "g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "lours",
+          "address": "g1nvxz94ukmggfx4mlldwae3cpde99qmldtcgm9u",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        },
+        {
+          "personId": "dadidou",
+          "address": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
+          "founder": false,
+          "weight": 1,
+          "admin": false,
+          "finance": false
+        }
+      ]
+    },
+    "proposals_page_1": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposals",
+      "total": "26",
+      "proposals": [
+        {
+          "id": "26",
+          "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
+          "action": {
+            "type": "feedback",
+            "target": "gno.land/r/samcrew/memba_feedback_v2",
+            "operation": "create-text-channel",
+            "recipient": "",
+            "subject": "",
+            "roles": "",
+            "name": "governance",
+            "description": "DAO governance room",
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "paused": false,
+              "memberCount": "2",
+              "membershipRevision": "1",
+              "ownerMember": true,
+              "daoMember": true,
+              "successorMember": true,
+              "subjectMember": false,
+              "ownerRoles": "admin",
+              "daoRoles": "admin",
+              "successorRoles": "member",
+              "subjectRoles": "",
+              "channelCount": "4",
+              "channelExists": false,
+              "channelDescription": "",
+              "channelType": "",
+              "channelReadRoles": "",
+              "channelWriteRoles": ""
+            }
+          },
+          "category": "critical",
+          "status": "TIMELOCKED",
+          "qualified": true,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 7,
+          "peopleYes": 6,
+          "developersYes": 5,
+          "createdAt": "2026-10-12T01:31:00Z",
+          "votingDeadline": "2026-10-19T01:31:00Z",
+          "weightedAfter": "2026-10-13T01:31:00Z",
+          "developerAfter": "2026-10-15T01:31:00Z"
+        },
+        {
+          "id": "25",
+          "proposer": "g1nvxz94ukmggfx4mlldwae3cpde99qmldtcgm9u",
+          "action": {
+            "type": "channels",
+            "target": "gno.land/r/samcrew/memba_dao_channels_v2",
+            "operation": "unpause",
+            "recipient": "",
+            "subject": "",
+            "roles": "",
+            "name": "",
+            "description": "",
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "paused": true,
+              "memberCount": "1",
+              "membershipRevision": "1",
+              "ownerMember": true,
+              "daoMember": true,
+              "successorMember": false,
+              "subjectMember": false,
+              "ownerRoles": "admin",
+              "daoRoles": "admin",
+              "successorRoles": "",
+              "subjectRoles": "",
+              "channelCount": "6",
+              "channelExists": false,
+              "channelDescription": "",
+              "channelType": "",
+              "channelReadRoles": "",
+              "channelWriteRoles": ""
+            }
+          },
+          "category": "financial",
+          "status": "VOTING",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 0,
+          "peopleYes": 0,
+          "developersYes": 0,
+          "createdAt": "2026-10-12T01:30:00Z",
+          "votingDeadline": "2026-10-19T01:30:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "24",
+          "proposer": "g1nvxz94ukmggfx4mlldwae3cpde99qmldtcgm9u",
+          "action": {
+            "type": "feed",
+            "target": "gno.land/r/samcrew/memba_feed_v1",
+            "operation": "add-moderator",
+            "recipient": "",
+            "subject": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquwjqthlf",
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "paused": false,
+              "moderatorCount": "0",
+              "ownerModerator": false,
+              "daoModerator": false,
+              "successorModerator": false,
+              "subjectModerator": false
+            }
+          },
+          "category": "critical",
+          "status": "VOTING",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 0,
+          "peopleYes": 0,
+          "developersYes": 0,
+          "createdAt": "2026-10-12T01:29:00Z",
+          "votingDeadline": "2026-10-19T01:29:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "23",
+          "proposer": "g1nvxz94ukmggfx4mlldwae3cpde99qmldtcgm9u",
+          "action": {
+            "type": "badges",
+            "target": "gno.land/r/samcrew/gnobuilders_badges_v2",
+            "operation": "add-admin",
+            "recipient": "",
+            "subject": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquwjqthlf",
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "paused": false,
+              "adminCount": "1",
+              "ownerAdmin": true,
+              "daoAdmin": true,
+              "successorAdmin": false,
+              "subjectAdmin": false
+            }
+          },
+          "category": "critical",
+          "status": "TIMELOCKED",
+          "qualified": true,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 5,
+          "peopleYes": 5,
+          "developersYes": 5,
+          "createdAt": "2026-10-12T01:28:00Z",
+          "votingDeadline": "2026-10-19T01:28:00Z",
+          "weightedAfter": null,
+          "developerAfter": "2026-10-15T01:28:00Z"
+        },
+        {
+          "id": "22",
+          "proposer": "g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2",
+          "action": {
+            "type": "escrow",
+            "target": "gno.land/r/samcrew/escrow_v3",
+            "operation": "unpause",
+            "recipient": "",
+            "contractId": "",
+            "milestoneIndex": "0",
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "paused": true,
+              "contract": {
+                "exists": false,
+                "id": "",
+                "contentHash": "",
+                "status": "",
+                "client": "",
+                "freelancer": "",
+                "count": "0",
+                "milestones": []
+              },
+              "fees": {
+                "rawBPS": "0",
+                "effectiveBPS": "0",
+                "rawTreasury": "",
+                "fallbackTreasury": "",
+                "effectiveTreasury": ""
+              }
+            }
+          },
+          "category": "financial",
+          "status": "VOTING",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 2,
+          "peopleYes": 1,
+          "developersYes": 0,
+          "createdAt": "2026-10-12T01:27:00Z",
+          "votingDeadline": "2026-10-19T01:27:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "21",
+          "proposer": "g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2",
+          "action": {
+            "type": "appstore",
+            "target": "gno.land/r/samcrew/memba_appstore_v3",
+            "operation": "add-curator",
+            "recipient": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquwjqthlf",
+            "fee": "0",
+            "path": "",
+            "reason": "",
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "treasury": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+              "fee": "1000000",
+              "paused": true,
+              "sealed": false,
+              "ownerCurator": true,
+              "daoCurator": true,
+              "successorCurator": false,
+              "subjectCurator": false,
+              "listing": {
+                "exists": false,
+                "contentHash": "",
+                "status": "",
+                "reason": "",
+                "credit": false,
+                "flags": "0",
+                "clearKeys": ""
+              }
+            }
+          },
+          "category": "critical",
+          "status": "VOTING",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 1,
+          "peopleYes": 1,
+          "developersYes": 1,
+          "createdAt": "2026-10-12T01:26:00Z",
+          "votingDeadline": "2026-10-19T01:26:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "20",
+          "proposer": "g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2",
+          "action": {
+            "type": "arcade",
+            "target": "gno.land/r/samcrew/memba_arcade_leaderboard_v1",
+            "operation": "unpause",
+            "recipient": "",
+            "attester": "",
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "paused": true,
+              "ownerListed": false,
+              "daoListed": false,
+              "successorListed": false,
+              "subjectListed": false
+            }
+          },
+          "category": "financial",
+          "status": "VOTING",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 4,
+          "peopleYes": 3,
+          "developersYes": 2,
+          "createdAt": "2026-10-12T01:25:00Z",
+          "votingDeadline": "2026-10-19T01:25:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "19",
+          "proposer": "g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2",
+          "action": {
+            "type": "quest",
+            "target": "gno.land/r/samcrew/memba_quest_attestation_v1",
+            "operation": "set-signer",
+            "signer": "8139770ea87d175f56a35466c34c7ecccb8d8a91b4ee37a25df60f5b8fc9b394",
+            "recipient": "",
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "signer": ""
+            }
+          },
+          "category": "critical",
+          "status": "VOTING",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 1,
+          "peopleYes": 1,
+          "developersYes": 1,
+          "createdAt": "2026-10-12T01:24:00Z",
+          "votingDeadline": "2026-10-19T01:24:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "18",
+          "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+          "action": {
+            "type": "reviews",
+            "target": "gno.land/r/samcrew/memba_reviews_v2",
+            "operation": "hide-review",
+            "id": "1",
+            "recipient": "",
+            "before": {
+              "moderator": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingModerator": "",
+              "item": {
+                "id": "1",
+                "review": true,
+                "parentId": "0",
+                "subject": "gno.land/r/samcrew/memba_dao",
+                "author": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqucmwq2kd",
+                "rating": 5,
+                "bodyHash": "8b6bd479b4f7d5550e607760f1b9c7c548604846e943dec4a62f4ad9f9cab344",
+                "createdAt": "123",
+                "editedAt": "0",
+                "hidden": false,
+                "deleted": false,
+                "flagged": false
+              }
+            }
+          },
+          "category": "routine",
+          "status": "READY",
+          "qualified": true,
+          "ready": true,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 3,
+          "peopleYes": 2,
+          "developersYes": 1,
+          "createdAt": "2026-10-12T01:23:00Z",
+          "votingDeadline": "2026-10-19T01:23:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "17",
+          "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+          "action": {
+            "type": "market-config",
+            "target": "gno.land/r/samcrew/memba_market_config",
+            "operation": "set-fee",
+            "lane": "service",
+            "bps": 150,
+            "recipient": "",
+            "before": {
+              "admin": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingAdmin": "",
+              "treasury": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+              "bps": 200
+            }
+          },
+          "category": "financial",
+          "status": "READY",
+          "qualified": true,
+          "ready": true,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 5,
+          "peopleYes": 4,
+          "developersYes": 3,
+          "createdAt": "2026-10-12T01:22:00Z",
+          "votingDeadline": "2026-10-19T01:22:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "16",
+          "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+          "action": {
+            "type": "recover-member",
+            "personId": "dadidou",
+            "oldAddress": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
+            "newAddress": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquyl3wcje"
+          },
+          "category": "critical",
+          "status": "TIMELOCKED",
+          "qualified": true,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 6,
+          "peopleYes": 5,
+          "developersYes": 4,
+          "createdAt": "2026-10-12T01:21:00Z",
+          "votingDeadline": "2026-10-19T01:21:00Z",
+          "weightedAfter": "2026-10-13T01:21:00Z",
+          "developerAfter": null
+        },
+        {
+          "id": "15",
+          "proposer": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
+          "action": {
+            "type": "set-role",
+            "target": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
+            "role": "admin",
+            "grant": true
+          },
+          "category": "critical",
+          "status": "VOTING",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 1,
+          "peopleYes": 1,
+          "developersYes": 1,
+          "createdAt": "2026-10-12T01:20:00Z",
+          "votingDeadline": "2026-10-19T01:20:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "14",
+          "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+          "action": {
+            "type": "quest",
+            "target": "gno.land/r/samcrew/memba_quest_attestation_v1",
+            "operation": "set-signer",
+            "signer": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+            "recipient": "",
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "signer": ""
+            }
+          },
+          "category": "critical",
+          "status": "EXPIRED",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": true,
+          "talliesAvailable": true,
+          "weightYes": 1,
+          "peopleYes": 1,
+          "developersYes": 1,
+          "createdAt": "2026-10-05T00:20:00Z",
+          "votingDeadline": "2026-10-12T00:20:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "13",
+          "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+          "action": {
+            "type": "feedback",
+            "target": "gno.land/r/samcrew/memba_feedback_v2",
+            "operation": "accept-owner",
+            "recipient": "",
+            "subject": "",
+            "roles": "",
+            "name": "",
+            "description": "",
+            "before": {
+              "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+              "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "paused": false,
+              "memberCount": "1",
+              "membershipRevision": "0",
+              "ownerMember": true,
+              "daoMember": false,
+              "successorMember": true,
+              "subjectMember": false,
+              "ownerRoles": "admin",
+              "daoRoles": "",
+              "successorRoles": "admin",
+              "subjectRoles": "",
+              "channelCount": "4",
+              "channelExists": false,
+              "channelDescription": "",
+              "channelType": "",
+              "channelReadRoles": "",
+              "channelWriteRoles": ""
+            }
+          },
+          "category": "critical",
+          "status": "EXECUTED",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": true,
+          "talliesAvailable": false,
+          "weightYes": null,
+          "peopleYes": null,
+          "developersYes": null,
+          "createdAt": "2026-10-04T00:20:00Z",
+          "votingDeadline": "2026-10-11T00:20:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "12",
+          "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+          "action": {
+            "type": "channels",
+            "target": "gno.land/r/samcrew/memba_dao_channels_v2",
+            "operation": "accept-owner",
+            "recipient": "",
+            "subject": "",
+            "roles": "",
+            "name": "",
+            "description": "",
+            "before": {
+              "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+              "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "paused": false,
+              "memberCount": "1",
+              "membershipRevision": "0",
+              "ownerMember": true,
+              "daoMember": false,
+              "successorMember": true,
+              "subjectMember": false,
+              "ownerRoles": "admin",
+              "daoRoles": "",
+              "successorRoles": "admin",
+              "subjectRoles": "",
+              "channelCount": "6",
+              "channelExists": false,
+              "channelDescription": "",
+              "channelType": "",
+              "channelReadRoles": "",
+              "channelWriteRoles": ""
+            }
+          },
+          "category": "critical",
+          "status": "EXECUTED",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": true,
+          "talliesAvailable": false,
+          "weightYes": null,
+          "peopleYes": null,
+          "developersYes": null,
+          "createdAt": "2026-10-03T00:20:00Z",
+          "votingDeadline": "2026-10-10T00:20:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "11",
+          "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+          "action": {
+            "type": "feed",
+            "target": "gno.land/r/samcrew/memba_feed_v1",
+            "operation": "accept-owner",
+            "recipient": "",
+            "subject": "",
+            "before": {
+              "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+              "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "paused": false,
+              "moderatorCount": "0",
+              "ownerModerator": false,
+              "daoModerator": false,
+              "successorModerator": false,
+              "subjectModerator": false
+            }
+          },
+          "category": "critical",
+          "status": "EXECUTED",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": true,
+          "talliesAvailable": false,
+          "weightYes": null,
+          "peopleYes": null,
+          "developersYes": null,
+          "createdAt": "2026-10-02T00:20:00Z",
+          "votingDeadline": "2026-10-09T00:20:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "10",
+          "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+          "action": {
+            "type": "badges",
+            "target": "gno.land/r/samcrew/gnobuilders_badges_v2",
+            "operation": "accept-owner",
+            "recipient": "",
+            "subject": "",
+            "before": {
+              "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+              "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "paused": false,
+              "adminCount": "1",
+              "ownerAdmin": true,
+              "daoAdmin": false,
+              "successorAdmin": true,
+              "subjectAdmin": false
+            }
+          },
+          "category": "critical",
+          "status": "EXECUTED",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": true,
+          "talliesAvailable": false,
+          "weightYes": null,
+          "peopleYes": null,
+          "developersYes": null,
+          "createdAt": "2026-10-01T00:20:00Z",
+          "votingDeadline": "2026-10-08T00:20:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "9",
+          "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+          "action": {
+            "type": "escrow",
+            "target": "gno.land/r/samcrew/escrow_v3",
+            "operation": "accept-owner",
+            "recipient": "",
+            "contractId": "",
+            "milestoneIndex": "0",
+            "before": {
+              "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+              "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "paused": false,
+              "contract": {
+                "exists": false,
+                "id": "",
+                "contentHash": "",
+                "status": "",
+                "client": "",
+                "freelancer": "",
+                "count": "0",
+                "milestones": []
+              },
+              "fees": {
+                "rawBPS": "0",
+                "effectiveBPS": "0",
+                "rawTreasury": "",
+                "fallbackTreasury": "",
+                "effectiveTreasury": ""
+              }
+            }
+          },
+          "category": "critical",
+          "status": "EXECUTED",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": true,
+          "talliesAvailable": false,
+          "weightYes": null,
+          "peopleYes": null,
+          "developersYes": null,
+          "createdAt": "2026-09-30T00:20:00Z",
+          "votingDeadline": "2026-10-07T00:20:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "8",
+          "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+          "action": {
+            "type": "appstore",
+            "target": "gno.land/r/samcrew/memba_appstore_v3",
+            "operation": "accept-owner",
+            "recipient": "",
+            "fee": "0",
+            "path": "",
+            "reason": "",
+            "before": {
+              "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+              "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "treasury": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+              "fee": "1000000",
+              "paused": false,
+              "sealed": false,
+              "ownerCurator": true,
+              "daoCurator": false,
+              "successorCurator": true,
+              "subjectCurator": false,
+              "listing": {
+                "exists": false,
+                "contentHash": "",
+                "status": "",
+                "reason": "",
+                "credit": false,
+                "flags": "0",
+                "clearKeys": ""
+              }
+            }
+          },
+          "category": "critical",
+          "status": "EXECUTED",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": true,
+          "talliesAvailable": false,
+          "weightYes": null,
+          "peopleYes": null,
+          "developersYes": null,
+          "createdAt": "2026-09-29T00:20:00Z",
+          "votingDeadline": "2026-10-06T00:20:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "7",
+          "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+          "action": {
+            "type": "arcade",
+            "target": "gno.land/r/samcrew/memba_arcade_leaderboard_v1",
+            "operation": "accept-owner",
+            "recipient": "",
+            "attester": "",
+            "before": {
+              "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+              "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "paused": false,
+              "ownerListed": false,
+              "daoListed": false,
+              "successorListed": false,
+              "subjectListed": false
+            }
+          },
+          "category": "critical",
+          "status": "EXECUTED",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": true,
+          "talliesAvailable": false,
+          "weightYes": null,
+          "peopleYes": null,
+          "developersYes": null,
+          "createdAt": "2026-09-28T00:20:00Z",
+          "votingDeadline": "2026-10-05T00:20:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        }
+      ],
+      "nextBefore": "7"
+    },
+    "proposals_page_2": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposals",
+      "total": "26",
+      "proposals": [
+        {
+          "id": "6",
+          "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+          "action": {
+            "type": "quest",
+            "target": "gno.land/r/samcrew/memba_quest_attestation_v1",
+            "operation": "accept-owner",
+            "signer": "",
+            "recipient": "",
+            "before": {
+              "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+              "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "signer": ""
+            }
+          },
+          "category": "critical",
+          "status": "EXECUTED",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": true,
+          "talliesAvailable": false,
+          "weightYes": null,
+          "peopleYes": null,
+          "developersYes": null,
+          "createdAt": "2026-09-27T00:20:00Z",
+          "votingDeadline": "2026-10-04T00:20:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "5",
+          "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+          "action": {
+            "type": "reviews",
+            "target": "gno.land/r/samcrew/memba_reviews_v2",
+            "operation": "accept-moderator",
+            "id": "0",
+            "recipient": "",
+            "before": {
+              "moderator": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+              "pendingModerator": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "item": {
+                "id": "0",
+                "review": false,
+                "parentId": "0",
+                "subject": "",
+                "author": "",
+                "rating": 0,
+                "bodyHash": "",
+                "createdAt": "0",
+                "editedAt": "0",
+                "hidden": false,
+                "deleted": false,
+                "flagged": false
+              }
+            }
+          },
+          "category": "critical",
+          "status": "EXECUTED",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": true,
+          "talliesAvailable": false,
+          "weightYes": null,
+          "peopleYes": null,
+          "developersYes": null,
+          "createdAt": "2026-09-26T00:20:00Z",
+          "votingDeadline": "2026-10-03T00:20:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "4",
+          "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+          "action": {
+            "type": "market-config",
+            "target": "gno.land/r/samcrew/memba_market_config",
+            "operation": "accept-admin",
+            "lane": "",
+            "bps": 0,
+            "recipient": "",
+            "before": {
+              "admin": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+              "pendingAdmin": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "treasury": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+              "bps": 0
+            }
+          },
+          "category": "critical",
+          "status": "EXECUTED",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": true,
+          "talliesAvailable": false,
+          "weightYes": null,
+          "peopleYes": null,
+          "developersYes": null,
+          "createdAt": "2026-09-25T00:20:00Z",
+          "votingDeadline": "2026-10-02T00:20:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "3",
+          "proposer": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
+          "action": {
+            "type": "recover-member",
+            "personId": "ghost",
+            "oldAddress": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
+            "newAddress": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquyl3wcje"
+          },
+          "category": "critical",
+          "status": "INVALIDATED",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": true,
+          "talliesAvailable": false,
+          "weightYes": null,
+          "peopleYes": null,
+          "developersYes": null,
+          "createdAt": "2026-09-25T00:10:00Z",
+          "votingDeadline": "2026-10-02T00:10:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "2",
+          "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+          "action": {
+            "type": "set-role",
+            "target": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
+            "role": "admin",
+            "grant": true
+          },
+          "category": "critical",
+          "status": "INVALIDATED",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": true,
+          "talliesAvailable": false,
+          "weightYes": null,
+          "peopleYes": null,
+          "developersYes": null,
+          "createdAt": "2026-09-25T00:10:00Z",
+          "votingDeadline": "2026-10-02T00:10:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "1",
+          "proposer": "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c",
+          "action": {
+            "type": "set-role",
+            "target": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+            "role": "finance",
+            "grant": true
+          },
+          "category": "critical",
+          "status": "EXECUTED",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": true,
+          "talliesAvailable": false,
+          "weightYes": null,
+          "peopleYes": null,
+          "developersYes": null,
+          "createdAt": "2026-09-24T00:00:00Z",
+          "votingDeadline": "2026-10-01T00:00:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        }
+      ],
+      "nextBefore": null
+    },
+    "proposals_page_small": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposals",
+      "total": "26",
+      "proposals": [
+        {
+          "id": "25",
+          "proposer": "g1nvxz94ukmggfx4mlldwae3cpde99qmldtcgm9u",
+          "action": {
+            "type": "channels",
+            "target": "gno.land/r/samcrew/memba_dao_channels_v2",
+            "operation": "unpause",
+            "recipient": "",
+            "subject": "",
+            "roles": "",
+            "name": "",
+            "description": "",
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "paused": true,
+              "memberCount": "1",
+              "membershipRevision": "1",
+              "ownerMember": true,
+              "daoMember": true,
+              "successorMember": false,
+              "subjectMember": false,
+              "ownerRoles": "admin",
+              "daoRoles": "admin",
+              "successorRoles": "",
+              "subjectRoles": "",
+              "channelCount": "6",
+              "channelExists": false,
+              "channelDescription": "",
+              "channelType": "",
+              "channelReadRoles": "",
+              "channelWriteRoles": ""
+            }
+          },
+          "category": "financial",
+          "status": "VOTING",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 0,
+          "peopleYes": 0,
+          "developersYes": 0,
+          "createdAt": "2026-10-12T01:30:00Z",
+          "votingDeadline": "2026-10-19T01:30:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "24",
+          "proposer": "g1nvxz94ukmggfx4mlldwae3cpde99qmldtcgm9u",
+          "action": {
+            "type": "feed",
+            "target": "gno.land/r/samcrew/memba_feed_v1",
+            "operation": "add-moderator",
+            "recipient": "",
+            "subject": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquwjqthlf",
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "paused": false,
+              "moderatorCount": "0",
+              "ownerModerator": false,
+              "daoModerator": false,
+              "successorModerator": false,
+              "subjectModerator": false
+            }
+          },
+          "category": "critical",
+          "status": "VOTING",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 0,
+          "peopleYes": 0,
+          "developersYes": 0,
+          "createdAt": "2026-10-12T01:29:00Z",
+          "votingDeadline": "2026-10-19T01:29:00Z",
+          "weightedAfter": null,
+          "developerAfter": null
+        },
+        {
+          "id": "23",
+          "proposer": "g1nvxz94ukmggfx4mlldwae3cpde99qmldtcgm9u",
+          "action": {
+            "type": "badges",
+            "target": "gno.land/r/samcrew/gnobuilders_badges_v2",
+            "operation": "add-admin",
+            "recipient": "",
+            "subject": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquwjqthlf",
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "paused": false,
+              "adminCount": "1",
+              "ownerAdmin": true,
+              "daoAdmin": true,
+              "successorAdmin": false,
+              "subjectAdmin": false
+            }
+          },
+          "category": "critical",
+          "status": "TIMELOCKED",
+          "qualified": true,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 5,
+          "peopleYes": 5,
+          "developersYes": 5,
+          "createdAt": "2026-10-12T01:28:00Z",
+          "votingDeadline": "2026-10-19T01:28:00Z",
+          "weightedAfter": null,
+          "developerAfter": "2026-10-15T01:28:00Z"
+        }
+      ],
+      "nextBefore": "23"
+    },
+    "proposal_1": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "1",
+        "proposer": "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c",
+        "action": {
+          "type": "set-role",
+          "target": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+          "role": "finance",
+          "grant": true
+        },
+        "category": "critical",
+        "status": "EXECUTED",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": true,
+        "talliesAvailable": false,
+        "weightYes": null,
+        "peopleYes": null,
+        "developersYes": null,
+        "createdAt": "2026-09-24T00:00:00Z",
+        "votingDeadline": "2026-10-01T00:00:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_2": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "2",
+        "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+        "action": {
+          "type": "set-role",
+          "target": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
+          "role": "admin",
+          "grant": true
+        },
+        "category": "critical",
+        "status": "INVALIDATED",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": true,
+        "talliesAvailable": false,
+        "weightYes": null,
+        "peopleYes": null,
+        "developersYes": null,
+        "createdAt": "2026-09-25T00:10:00Z",
+        "votingDeadline": "2026-10-02T00:10:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_3": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "3",
+        "proposer": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
+        "action": {
+          "type": "recover-member",
+          "personId": "ghost",
+          "oldAddress": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
+          "newAddress": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquyl3wcje"
+        },
+        "category": "critical",
+        "status": "INVALIDATED",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": true,
+        "talliesAvailable": false,
+        "weightYes": null,
+        "peopleYes": null,
+        "developersYes": null,
+        "createdAt": "2026-09-25T00:10:00Z",
+        "votingDeadline": "2026-10-02T00:10:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_4": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "4",
+        "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+        "action": {
+          "type": "market-config",
+          "target": "gno.land/r/samcrew/memba_market_config",
+          "operation": "accept-admin",
+          "lane": "",
+          "bps": 0,
+          "recipient": "",
+          "before": {
+            "admin": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+            "pendingAdmin": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "treasury": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+            "bps": 0
+          }
+        },
+        "category": "critical",
+        "status": "EXECUTED",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": true,
+        "talliesAvailable": false,
+        "weightYes": null,
+        "peopleYes": null,
+        "developersYes": null,
+        "createdAt": "2026-09-25T00:20:00Z",
+        "votingDeadline": "2026-10-02T00:20:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_5": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "5",
+        "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+        "action": {
+          "type": "reviews",
+          "target": "gno.land/r/samcrew/memba_reviews_v2",
+          "operation": "accept-moderator",
+          "id": "0",
+          "recipient": "",
+          "before": {
+            "moderator": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+            "pendingModerator": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "item": {
+              "id": "0",
+              "review": false,
+              "parentId": "0",
+              "subject": "",
+              "author": "",
+              "rating": 0,
+              "bodyHash": "",
+              "createdAt": "0",
+              "editedAt": "0",
+              "hidden": false,
+              "deleted": false,
+              "flagged": false
+            }
+          }
+        },
+        "category": "critical",
+        "status": "EXECUTED",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": true,
+        "talliesAvailable": false,
+        "weightYes": null,
+        "peopleYes": null,
+        "developersYes": null,
+        "createdAt": "2026-09-26T00:20:00Z",
+        "votingDeadline": "2026-10-03T00:20:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_6": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "6",
+        "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+        "action": {
+          "type": "quest",
+          "target": "gno.land/r/samcrew/memba_quest_attestation_v1",
+          "operation": "accept-owner",
+          "signer": "",
+          "recipient": "",
+          "before": {
+            "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+            "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "signer": ""
+          }
+        },
+        "category": "critical",
+        "status": "EXECUTED",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": true,
+        "talliesAvailable": false,
+        "weightYes": null,
+        "peopleYes": null,
+        "developersYes": null,
+        "createdAt": "2026-09-27T00:20:00Z",
+        "votingDeadline": "2026-10-04T00:20:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_7": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "7",
+        "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+        "action": {
+          "type": "arcade",
+          "target": "gno.land/r/samcrew/memba_arcade_leaderboard_v1",
+          "operation": "accept-owner",
+          "recipient": "",
+          "attester": "",
+          "before": {
+            "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+            "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "paused": false,
+            "ownerListed": false,
+            "daoListed": false,
+            "successorListed": false,
+            "subjectListed": false
+          }
+        },
+        "category": "critical",
+        "status": "EXECUTED",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": true,
+        "talliesAvailable": false,
+        "weightYes": null,
+        "peopleYes": null,
+        "developersYes": null,
+        "createdAt": "2026-09-28T00:20:00Z",
+        "votingDeadline": "2026-10-05T00:20:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_8": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "8",
+        "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+        "action": {
+          "type": "appstore",
+          "target": "gno.land/r/samcrew/memba_appstore_v3",
+          "operation": "accept-owner",
+          "recipient": "",
+          "fee": "0",
+          "path": "",
+          "reason": "",
+          "before": {
+            "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+            "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "treasury": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+            "fee": "1000000",
+            "paused": false,
+            "sealed": false,
+            "ownerCurator": true,
+            "daoCurator": false,
+            "successorCurator": true,
+            "subjectCurator": false,
+            "listing": {
+              "exists": false,
+              "contentHash": "",
+              "status": "",
+              "reason": "",
+              "credit": false,
+              "flags": "0",
+              "clearKeys": ""
+            }
+          }
+        },
+        "category": "critical",
+        "status": "EXECUTED",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": true,
+        "talliesAvailable": false,
+        "weightYes": null,
+        "peopleYes": null,
+        "developersYes": null,
+        "createdAt": "2026-09-29T00:20:00Z",
+        "votingDeadline": "2026-10-06T00:20:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_9": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "9",
+        "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+        "action": {
+          "type": "escrow",
+          "target": "gno.land/r/samcrew/escrow_v3",
+          "operation": "accept-owner",
+          "recipient": "",
+          "contractId": "",
+          "milestoneIndex": "0",
+          "before": {
+            "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+            "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "paused": false,
+            "contract": {
+              "exists": false,
+              "id": "",
+              "contentHash": "",
+              "status": "",
+              "client": "",
+              "freelancer": "",
+              "count": "0",
+              "milestones": []
+            },
+            "fees": {
+              "rawBPS": "0",
+              "effectiveBPS": "0",
+              "rawTreasury": "",
+              "fallbackTreasury": "",
+              "effectiveTreasury": ""
+            }
+          }
+        },
+        "category": "critical",
+        "status": "EXECUTED",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": true,
+        "talliesAvailable": false,
+        "weightYes": null,
+        "peopleYes": null,
+        "developersYes": null,
+        "createdAt": "2026-09-30T00:20:00Z",
+        "votingDeadline": "2026-10-07T00:20:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_10": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "10",
+        "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+        "action": {
+          "type": "badges",
+          "target": "gno.land/r/samcrew/gnobuilders_badges_v2",
+          "operation": "accept-owner",
+          "recipient": "",
+          "subject": "",
+          "before": {
+            "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+            "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "paused": false,
+            "adminCount": "1",
+            "ownerAdmin": true,
+            "daoAdmin": false,
+            "successorAdmin": true,
+            "subjectAdmin": false
+          }
+        },
+        "category": "critical",
+        "status": "EXECUTED",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": true,
+        "talliesAvailable": false,
+        "weightYes": null,
+        "peopleYes": null,
+        "developersYes": null,
+        "createdAt": "2026-10-01T00:20:00Z",
+        "votingDeadline": "2026-10-08T00:20:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_11": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "11",
+        "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+        "action": {
+          "type": "feed",
+          "target": "gno.land/r/samcrew/memba_feed_v1",
+          "operation": "accept-owner",
+          "recipient": "",
+          "subject": "",
+          "before": {
+            "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+            "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "paused": false,
+            "moderatorCount": "0",
+            "ownerModerator": false,
+            "daoModerator": false,
+            "successorModerator": false,
+            "subjectModerator": false
+          }
+        },
+        "category": "critical",
+        "status": "EXECUTED",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": true,
+        "talliesAvailable": false,
+        "weightYes": null,
+        "peopleYes": null,
+        "developersYes": null,
+        "createdAt": "2026-10-02T00:20:00Z",
+        "votingDeadline": "2026-10-09T00:20:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_12": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "12",
+        "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+        "action": {
+          "type": "channels",
+          "target": "gno.land/r/samcrew/memba_dao_channels_v2",
+          "operation": "accept-owner",
+          "recipient": "",
+          "subject": "",
+          "roles": "",
+          "name": "",
+          "description": "",
+          "before": {
+            "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+            "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "paused": false,
+            "memberCount": "1",
+            "membershipRevision": "0",
+            "ownerMember": true,
+            "daoMember": false,
+            "successorMember": true,
+            "subjectMember": false,
+            "ownerRoles": "admin",
+            "daoRoles": "",
+            "successorRoles": "admin",
+            "subjectRoles": "",
+            "channelCount": "6",
+            "channelExists": false,
+            "channelDescription": "",
+            "channelType": "",
+            "channelReadRoles": "",
+            "channelWriteRoles": ""
+          }
+        },
+        "category": "critical",
+        "status": "EXECUTED",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": true,
+        "talliesAvailable": false,
+        "weightYes": null,
+        "peopleYes": null,
+        "developersYes": null,
+        "createdAt": "2026-10-03T00:20:00Z",
+        "votingDeadline": "2026-10-10T00:20:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_13": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "13",
+        "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
+        "action": {
+          "type": "feedback",
+          "target": "gno.land/r/samcrew/memba_feedback_v2",
+          "operation": "accept-owner",
+          "recipient": "",
+          "subject": "",
+          "roles": "",
+          "name": "",
+          "description": "",
+          "before": {
+            "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+            "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "paused": false,
+            "memberCount": "1",
+            "membershipRevision": "0",
+            "ownerMember": true,
+            "daoMember": false,
+            "successorMember": true,
+            "subjectMember": false,
+            "ownerRoles": "admin",
+            "daoRoles": "",
+            "successorRoles": "admin",
+            "subjectRoles": "",
+            "channelCount": "4",
+            "channelExists": false,
+            "channelDescription": "",
+            "channelType": "",
+            "channelReadRoles": "",
+            "channelWriteRoles": ""
+          }
+        },
+        "category": "critical",
+        "status": "EXECUTED",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": true,
+        "talliesAvailable": false,
+        "weightYes": null,
+        "peopleYes": null,
+        "developersYes": null,
+        "createdAt": "2026-10-04T00:20:00Z",
+        "votingDeadline": "2026-10-11T00:20:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_14": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "14",
+        "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+        "action": {
+          "type": "quest",
+          "target": "gno.land/r/samcrew/memba_quest_attestation_v1",
+          "operation": "set-signer",
+          "signer": "8a88e3dd7409f195fd52db2d3cba5d72ca6709bf1d94121bf3748801b40f6f5c",
+          "recipient": "",
+          "before": {
+            "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "pendingOwner": "",
+            "signer": ""
+          }
+        },
+        "category": "critical",
+        "status": "EXPIRED",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": true,
+        "talliesAvailable": true,
+        "weightYes": 1,
+        "peopleYes": 1,
+        "developersYes": 1,
+        "createdAt": "2026-10-05T00:20:00Z",
+        "votingDeadline": "2026-10-12T00:20:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_15": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "15",
+        "proposer": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
+        "action": {
+          "type": "set-role",
+          "target": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
+          "role": "admin",
+          "grant": true
+        },
+        "category": "critical",
+        "status": "VOTING",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 1,
+        "peopleYes": 1,
+        "developersYes": 1,
+        "createdAt": "2026-10-12T01:20:00Z",
+        "votingDeadline": "2026-10-19T01:20:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_16": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "16",
+        "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+        "action": {
+          "type": "recover-member",
+          "personId": "dadidou",
+          "oldAddress": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
+          "newAddress": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquyl3wcje"
+        },
+        "category": "critical",
+        "status": "TIMELOCKED",
+        "qualified": true,
+        "ready": false,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 6,
+        "peopleYes": 5,
+        "developersYes": 4,
+        "createdAt": "2026-10-12T01:21:00Z",
+        "votingDeadline": "2026-10-19T01:21:00Z",
+        "weightedAfter": "2026-10-13T01:21:00Z",
+        "developerAfter": null
+      }
+    },
+    "proposal_17": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "17",
+        "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+        "action": {
+          "type": "market-config",
+          "target": "gno.land/r/samcrew/memba_market_config",
+          "operation": "set-fee",
+          "lane": "service",
+          "bps": 150,
+          "recipient": "",
+          "before": {
+            "admin": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "pendingAdmin": "",
+            "treasury": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+            "bps": 200
+          }
+        },
+        "category": "financial",
+        "status": "READY",
+        "qualified": true,
+        "ready": true,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 5,
+        "peopleYes": 4,
+        "developersYes": 3,
+        "createdAt": "2026-10-12T01:22:00Z",
+        "votingDeadline": "2026-10-19T01:22:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_18": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "18",
+        "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+        "action": {
+          "type": "reviews",
+          "target": "gno.land/r/samcrew/memba_reviews_v2",
+          "operation": "hide-review",
+          "id": "1",
+          "recipient": "",
+          "before": {
+            "moderator": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "pendingModerator": "",
+            "item": {
+              "id": "1",
+              "review": true,
+              "parentId": "0",
+              "subject": "gno.land/r/samcrew/memba_dao",
+              "author": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqucmwq2kd",
+              "rating": 5,
+              "bodyHash": "8b6bd479b4f7d5550e607760f1b9c7c548604846e943dec4a62f4ad9f9cab344",
+              "createdAt": "123",
+              "editedAt": "0",
+              "hidden": false,
+              "deleted": false,
+              "flagged": false
+            }
+          }
+        },
+        "category": "routine",
+        "status": "READY",
+        "qualified": true,
+        "ready": true,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 3,
+        "peopleYes": 2,
+        "developersYes": 1,
+        "createdAt": "2026-10-12T01:23:00Z",
+        "votingDeadline": "2026-10-19T01:23:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_19": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "19",
+        "proposer": "g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2",
+        "action": {
+          "type": "quest",
+          "target": "gno.land/r/samcrew/memba_quest_attestation_v1",
+          "operation": "set-signer",
+          "signer": "8139770ea87d175f56a35466c34c7ecccb8d8a91b4ee37a25df60f5b8fc9b394",
+          "recipient": "",
+          "before": {
+            "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "pendingOwner": "",
+            "signer": ""
+          }
+        },
+        "category": "critical",
+        "status": "VOTING",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 1,
+        "peopleYes": 1,
+        "developersYes": 1,
+        "createdAt": "2026-10-12T01:24:00Z",
+        "votingDeadline": "2026-10-19T01:24:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_20": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "20",
+        "proposer": "g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2",
+        "action": {
+          "type": "arcade",
+          "target": "gno.land/r/samcrew/memba_arcade_leaderboard_v1",
+          "operation": "unpause",
+          "recipient": "",
+          "attester": "",
+          "before": {
+            "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "pendingOwner": "",
+            "paused": true,
+            "ownerListed": false,
+            "daoListed": false,
+            "successorListed": false,
+            "subjectListed": false
+          }
+        },
+        "category": "financial",
+        "status": "VOTING",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 4,
+        "peopleYes": 3,
+        "developersYes": 2,
+        "createdAt": "2026-10-12T01:25:00Z",
+        "votingDeadline": "2026-10-19T01:25:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_21": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "21",
+        "proposer": "g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2",
+        "action": {
+          "type": "appstore",
+          "target": "gno.land/r/samcrew/memba_appstore_v3",
+          "operation": "add-curator",
+          "recipient": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquwjqthlf",
+          "fee": "0",
+          "path": "",
+          "reason": "",
+          "before": {
+            "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "pendingOwner": "",
+            "treasury": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+            "fee": "1000000",
+            "paused": true,
+            "sealed": false,
+            "ownerCurator": true,
+            "daoCurator": true,
+            "successorCurator": false,
+            "subjectCurator": false,
+            "listing": {
+              "exists": false,
+              "contentHash": "",
+              "status": "",
+              "reason": "",
+              "credit": false,
+              "flags": "0",
+              "clearKeys": ""
+            }
+          }
+        },
+        "category": "critical",
+        "status": "VOTING",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 1,
+        "peopleYes": 1,
+        "developersYes": 1,
+        "createdAt": "2026-10-12T01:26:00Z",
+        "votingDeadline": "2026-10-19T01:26:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_22": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "22",
+        "proposer": "g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2",
+        "action": {
+          "type": "escrow",
+          "target": "gno.land/r/samcrew/escrow_v3",
+          "operation": "unpause",
+          "recipient": "",
+          "contractId": "",
+          "milestoneIndex": "0",
+          "before": {
+            "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "pendingOwner": "",
+            "paused": true,
+            "contract": {
+              "exists": false,
+              "id": "",
+              "contentHash": "",
+              "status": "",
+              "client": "",
+              "freelancer": "",
+              "count": "0",
+              "milestones": []
+            },
+            "fees": {
+              "rawBPS": "0",
+              "effectiveBPS": "0",
+              "rawTreasury": "",
+              "fallbackTreasury": "",
+              "effectiveTreasury": ""
+            }
+          }
+        },
+        "category": "financial",
+        "status": "VOTING",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 2,
+        "peopleYes": 1,
+        "developersYes": 0,
+        "createdAt": "2026-10-12T01:27:00Z",
+        "votingDeadline": "2026-10-19T01:27:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_23": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "23",
+        "proposer": "g1nvxz94ukmggfx4mlldwae3cpde99qmldtcgm9u",
+        "action": {
+          "type": "badges",
+          "target": "gno.land/r/samcrew/gnobuilders_badges_v2",
+          "operation": "add-admin",
+          "recipient": "",
+          "subject": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquwjqthlf",
+          "before": {
+            "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "pendingOwner": "",
+            "paused": false,
+            "adminCount": "1",
+            "ownerAdmin": true,
+            "daoAdmin": true,
+            "successorAdmin": false,
+            "subjectAdmin": false
+          }
+        },
+        "category": "critical",
+        "status": "TIMELOCKED",
+        "qualified": true,
+        "ready": false,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 5,
+        "peopleYes": 5,
+        "developersYes": 5,
+        "createdAt": "2026-10-12T01:28:00Z",
+        "votingDeadline": "2026-10-19T01:28:00Z",
+        "weightedAfter": null,
+        "developerAfter": "2026-10-15T01:28:00Z"
+      }
+    },
+    "proposal_24": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "24",
+        "proposer": "g1nvxz94ukmggfx4mlldwae3cpde99qmldtcgm9u",
+        "action": {
+          "type": "feed",
+          "target": "gno.land/r/samcrew/memba_feed_v1",
+          "operation": "add-moderator",
+          "recipient": "",
+          "subject": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquwjqthlf",
+          "before": {
+            "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "pendingOwner": "",
+            "paused": false,
+            "moderatorCount": "0",
+            "ownerModerator": false,
+            "daoModerator": false,
+            "successorModerator": false,
+            "subjectModerator": false
+          }
+        },
+        "category": "critical",
+        "status": "VOTING",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 0,
+        "peopleYes": 0,
+        "developersYes": 0,
+        "createdAt": "2026-10-12T01:29:00Z",
+        "votingDeadline": "2026-10-19T01:29:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_25": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "25",
+        "proposer": "g1nvxz94ukmggfx4mlldwae3cpde99qmldtcgm9u",
+        "action": {
+          "type": "channels",
+          "target": "gno.land/r/samcrew/memba_dao_channels_v2",
+          "operation": "unpause",
+          "recipient": "",
+          "subject": "",
+          "roles": "",
+          "name": "",
+          "description": "",
+          "before": {
+            "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "pendingOwner": "",
+            "paused": true,
+            "memberCount": "1",
+            "membershipRevision": "1",
+            "ownerMember": true,
+            "daoMember": true,
+            "successorMember": false,
+            "subjectMember": false,
+            "ownerRoles": "admin",
+            "daoRoles": "admin",
+            "successorRoles": "",
+            "subjectRoles": "",
+            "channelCount": "6",
+            "channelExists": false,
+            "channelDescription": "",
+            "channelType": "",
+            "channelReadRoles": "",
+            "channelWriteRoles": ""
+          }
+        },
+        "category": "financial",
+        "status": "VOTING",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 0,
+        "peopleYes": 0,
+        "developersYes": 0,
+        "createdAt": "2026-10-12T01:30:00Z",
+        "votingDeadline": "2026-10-19T01:30:00Z",
+        "weightedAfter": null,
+        "developerAfter": null
+      }
+    },
+    "proposal_26": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "26",
+        "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
+        "action": {
+          "type": "feedback",
+          "target": "gno.land/r/samcrew/memba_feedback_v2",
+          "operation": "create-text-channel",
+          "recipient": "",
+          "subject": "",
+          "roles": "",
+          "name": "governance",
+          "description": "DAO governance room",
+          "before": {
+            "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "pendingOwner": "",
+            "paused": false,
+            "memberCount": "2",
+            "membershipRevision": "1",
+            "ownerMember": true,
+            "daoMember": true,
+            "successorMember": true,
+            "subjectMember": false,
+            "ownerRoles": "admin",
+            "daoRoles": "admin",
+            "successorRoles": "member",
+            "subjectRoles": "",
+            "channelCount": "4",
+            "channelExists": false,
+            "channelDescription": "",
+            "channelType": "",
+            "channelReadRoles": "",
+            "channelWriteRoles": ""
+          }
+        },
+        "category": "critical",
+        "status": "TIMELOCKED",
+        "qualified": true,
+        "ready": false,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 7,
+        "peopleYes": 6,
+        "developersYes": 5,
+        "createdAt": "2026-10-12T01:31:00Z",
+        "votingDeadline": "2026-10-19T01:31:00Z",
+        "weightedAfter": "2026-10-13T01:31:00Z",
+        "developerAfter": "2026-10-15T01:31:00Z"
+      }
+    },
+    "recovery_later": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "16",
+        "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+        "action": {
+          "type": "recover-member",
+          "personId": "dadidou",
+          "oldAddress": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
+          "newAddress": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquyl3wcje"
+        },
+        "category": "critical",
+        "status": "READY",
+        "qualified": true,
+        "ready": true,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 6,
+        "peopleYes": 5,
+        "developersYes": 4,
+        "createdAt": "2026-10-12T01:21:00Z",
+        "votingDeadline": "2026-10-19T01:21:00Z",
+        "weightedAfter": "2026-10-13T01:21:00Z",
+        "developerAfter": null
+      }
+    },
+    "badges_later": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "23",
+        "proposer": "g1nvxz94ukmggfx4mlldwae3cpde99qmldtcgm9u",
+        "action": {
+          "type": "badges",
+          "target": "gno.land/r/samcrew/gnobuilders_badges_v2",
+          "operation": "add-admin",
+          "recipient": "",
+          "subject": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquwjqthlf",
+          "before": {
+            "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "pendingOwner": "",
+            "paused": false,
+            "adminCount": "1",
+            "ownerAdmin": true,
+            "daoAdmin": true,
+            "successorAdmin": false,
+            "subjectAdmin": false
+          }
+        },
+        "category": "critical",
+        "status": "TIMELOCKED",
+        "qualified": true,
+        "ready": false,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 5,
+        "peopleYes": 5,
+        "developersYes": 5,
+        "createdAt": "2026-10-12T01:28:00Z",
+        "votingDeadline": "2026-10-19T01:28:00Z",
+        "weightedAfter": null,
+        "developerAfter": "2026-10-15T01:28:00Z"
+      }
+    }
+  }
+}

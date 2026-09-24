@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useOutletContext, useParams } from "react-router-dom"
 import { NETWORKS, GNO_CHAIN_ID, GNO_RPC_URL } from "../lib/config"
-import { validateWeightedRecovery, weightedAuthority, assertWeightedWrites, buildWeightedMessage, readWeightedProposal, readWeightedSnapshot, type WeightedAction, type WeightedContext, type WeightedProposal } from "../lib/dao/weighted"
+import { validateWeightedRecovery, weightedApplicationPolicies, weightedAuthority, assertWeightedWrites, buildWeightedMessage, readWeightedProposal, readWeightedSnapshot, WEIGHTED_APPLICATIONS_SCHEMA, type WeightedAction, type WeightedConfig, type WeightedContext, type WeightedProposal } from "../lib/dao/weighted"
+import { APPLICATION_LABELS, IMMEDIATE_THRESHOLDS, applicationDetails, flattenBefore, type ApplicationPolicyKey, type WeightedApplicationAction } from "../lib/dao/weightedApplications"
 import { doContractBroadcast } from "../lib/grc20"
 import type { LayoutContext } from "../types/layout"
 import "./weighteddao.css"
@@ -49,6 +50,7 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
     const member = data?.members.find(m => m.address === wallet.address)
     const canAct = !!member && wallet.connected && authenticated && wallet.chainId === chainId && chainId === GNO_CHAIN_ID && rpcUrl === GNO_RPC_URL && chainId !== "gnoland-1" && !busy && !loading
     const recoverySeat = data?.members.find(m => m.address === recoverTarget)
+    const applications = data?.config.schema === WEIGHTED_APPLICATIONS_SCHEMA
     const submit = async (action: WeightedAction) => {
         if (operation.current || !canAct) return
         operation.current = true; setBusy(true); setError(""); setNotice("")
@@ -98,15 +100,19 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
         } finally { operation.current = false; if (active.current) setBusy(false) }
     }
     return <div className="weighted-dao">
-        <header><p className="weighted-dao__eyebrow">Founding governance</p><h1>Memba weighted DAO</h1><p className="weighted-dao__path">{realmPath}</p><p>{chainId} · Role governance</p></header>
+        <header><p className="weighted-dao__eyebrow">Founding governance</p><h1>Memba weighted DAO</h1><p className="weighted-dao__path">{realmPath}</p><p>{chainId} · {applications ? "Role and application governance" : "Role governance"}</p></header>
         <section className="k-card" aria-labelledby="weighted-policy"><h2 id="weighted-policy">How decisions pass</h2>
             <p>7 people · 8 voting points. The founder has 2 points; each of the six developers has 1.</p>
-            <p>Role changes and supported key recoveries require <strong>6 points and at least 4 people, then 24 hours</strong>, or <strong>5 developers, then 72 hours</strong>.</p>
-            <p>Voting lasts 7 days. Proposals qualified before closing retain their execution delay. Every executed role or key change invalidates other outstanding proposals.</p>
+            <p>{applications ? "Critical actions (role changes, key recoveries, authority handoffs and appointments)" : "Role changes and supported key recoveries"} require <strong>6 points and at least 4 people, then 24 hours</strong>, or <strong>5 developers, then 72 hours</strong>.</p>
+            {applications && <>
+                <p>Financial actions (fees, treasury, unpausing, escrow disputes) require <strong>{IMMEDIATE_THRESHOLDS.financial.points} points and at least {IMMEDIATE_THRESHOLDS.financial.people} people</strong> and can execute as soon as they qualify.</p>
+                <p>Routine moderation requires <strong>{IMMEDIATE_THRESHOLDS.routine.points} points and at least {IMMEDIATE_THRESHOLDS.routine.people} people</strong> and can execute as soon as it qualifies.</p>
+            </>}
+            <p>Voting lasts 7 days. Proposals qualified before closing retain their execution delay. {applications ? "Every executed proposal and every emergency pause invalidates all other outstanding proposals." : "Every executed role or key change invalidates other outstanding proposals."}</p>
             <p>Admin and finance labels do not add voting power or exclusive execution rights.</p>
         </section>
         {chainId === "gnoland-1" && <p role="status">Mainnet governance is read-only while launch verification is unfinished.</p>}
-        <p>Migration, treasury spending and application actions are not available in this DAO version.</p>
+        <p>{applications ? "Fixed application actions are available for the adapters below. Migration and treasury spending are not." : "Migration, treasury spending and application actions are not available in this DAO version."}</p>
         <button disabled={loading || busy} onClick={() => void refresh("0")}>Refresh chain state</button>
         {loading && <p role="status">Reading governance state…</p>}
         {error && <p role="alert">{error}</p>}
@@ -116,6 +122,7 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
                 <strong>{m.personId}</strong><span>{m.founder ? "Founder" : "Core developer"} · {m.weight} {m.weight === 1 ? "point" : "points"}</span>
                 <code>{m.address}</code><span>{[m.admin && "Admin", m.finance && "Finance"].filter(Boolean).join(" · ") || "No admin or finance role"}</span>
             </li>)}</ul></section>
+            {applications && <ApplicationPolicies config={data.config} />}
             <section className="k-card" aria-labelledby="weighted-propose"><h2 id="weighted-propose">Propose a role change</h2>
                 {!canAct && !busy && <p>Actions require a connected, authenticated member on the selected test network.</p>}
                 <form onSubmit={e => { e.preventDefault(); void submit({ type: "propose", target, role, grant }) }}><fieldset disabled={!canAct}>
@@ -143,12 +150,63 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
     </div>
 }
 
+const POLICY_NOTES: Partial<Record<ApplicationPolicyKey, string>> = {
+    reviewsPolicy: "Moderator handoffs are critical; hiding and unhiding items is routine.",
+    marketPolicy: "Admin handoffs are critical; fees and the treasury are financial.",
+}
+const CATEGORY_KEYS = ["signerCategory", "attesterCategory", "curatorCategory", "sealCategory", "moderationCategory", "unpauseCategory", "resolutionCategory", "adminCategory", "moderatorCategory", "memberCategory"] as const
+
+function ApplicationPolicies({ config }: { config: WeightedConfig }) {
+    return <section aria-labelledby="weighted-adapters"><h2 id="weighted-adapters">Application adapters</h2>
+        <p>Each adapter governs one fixed realm. A return proposal only stages the configured successor, who must accept separately.</p>
+        <ul className="weighted-dao__adapters">{weightedApplicationPolicies(config).map(({ key, policy }) => <li className="k-card" key={key} aria-label={`${key} adapter`}>
+            <h3>{POLICY_LABELS[key]}</h3>
+            <p className="weighted-dao__path">Target: {policy.target}</p>
+            <p className="weighted-dao__path">Successor: {policy.successor}</p>
+            {"treasury" in policy && <p className="weighted-dao__path">Treasury: {policy.treasury}</p>}
+            {"maxRegistrationFee" in policy && <p>Maximum registration fee: {policy.maxRegistrationFee} ugnot</p>}
+            <p>{CATEGORY_KEYS.filter(k => k in policy).map(k => `${k.replace(/Category$/, "")}: ${(policy as Record<string, unknown>)[k]}`).join(" · ") || POLICY_NOTES[key]}</p>
+            {"emergencyPause" in policy && <p>Any current member can pause it immediately; unpausing needs a financial vote.</p>}
+        </li>)}</ul>
+    </section>
+}
+const POLICY_LABELS: Record<ApplicationPolicyKey, string> = {
+    marketPolicy: APPLICATION_LABELS["market-config"], reviewsPolicy: APPLICATION_LABELS.reviews, questPolicy: APPLICATION_LABELS.quest, arcadePolicy: APPLICATION_LABELS.arcade,
+    appstorePolicy: APPLICATION_LABELS.appstore, escrowPolicy: APPLICATION_LABELS.escrow, badgesPolicy: APPLICATION_LABELS.badges, feedPolicy: APPLICATION_LABELS.feed,
+    channelsPolicy: APPLICATION_LABELS.channels, feedbackPolicy: APPLICATION_LABELS.feedback,
+}
+const CATEGORY_TEXT = { routine: "Routine", financial: "Financial", critical: "Critical" } as const
+
+function ProposalAction({ action }: { action: WeightedProposal["action"] }) {
+    if (action.type === "set-role") return <><h3>{action.grant ? "Grant" : "Remove"} {action.role}</h3><p className="weighted-dao__path">Target: {action.target}</p></>
+    if (action.type === "recover-member") return <><h3>Recover member key</h3><p>Person: {action.personId}</p><p className="weighted-dao__path">Old address: {action.oldAddress}</p><p className="weighted-dao__path">Replacement address: {action.newAddress}</p><p>Identity, voting weight and roles are preserved.</p></>
+    return <ApplicationAction action={action} />
+}
+
+function ApplicationAction({ action }: { action: WeightedApplicationAction }) {
+    const details = applicationDetails(action)
+    return <>
+        <h3>{APPLICATION_LABELS[action.type]} · {action.operation}</h3>
+        <p className="weighted-dao__path">Target realm: {action.target}</p>
+        {details.length > 0 && <dl className="weighted-dao__facts">{details.map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>}
+        <details className="weighted-dao__before"><summary>State frozen at proposal time</summary>
+            <p>Execution is refused if the target realm no longer matches this state.</p>
+            <dl className="weighted-dao__facts">{flattenBefore(action.before).map(([k, v]) => <div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>
+        </details>
+    </>
+}
+
 function Proposal({ proposal: p, canAct, submit }: { proposal: WeightedProposal; canAct: boolean; submit: (action: WeightedAction) => Promise<void> }) {
     const voteOpen = !p.votingClosed && !["EXECUTED", "INVALIDATED", "EXPIRED"].includes(p.status)
+    const pending = ["VOTING", "TIMELOCKED", "READY"].includes(p.status)
     return <article className="k-card weighted-dao__proposal" aria-label={`Proposal ${p.id}`}>
-        {p.action.type === "set-role" ? <><h3>#{p.id} · {p.action.grant ? "Grant" : "Remove"} {p.action.role}</h3><p className="weighted-dao__path">Target: {p.action.target}</p></> : <><h3>#{p.id} · Recover member key</h3><p>Person: {p.action.personId}</p><p className="weighted-dao__path">Old address: {p.action.oldAddress}</p><p className="weighted-dao__path">Replacement address: {p.action.newAddress}</p><p>Identity, voting weight and roles are preserved.</p></>}
+        <p className="weighted-dao__eyebrow">#{p.id} · <span className={`weighted-dao__category weighted-dao__category--${p.category}`}>{CATEGORY_TEXT[p.category]}</span></p>
+        <ProposalAction action={p.action} />
         <p className="weighted-dao__path">Proposed by: {p.proposer}</p>
         <strong>{p.status}</strong><p>{p.talliesAvailable ? `${p.weightYes} ${p.weightYes === 1 ? "point" : "points"} · ${p.peopleYes} ${p.peopleYes === 1 ? "person" : "people"} · ${p.developersYes} ${p.developersYes === 1 ? "developer" : "developers"} voting yes` : "Historical vote totals are unavailable."}</p>
+        {p.status === "INVALIDATED" && <p>Invalidated: another proposal executed, or an emergency pause ran, after this was proposed.</p>}
+        {pending && <p className="weighted-dao__warning" role="note">Executing this proposal invalidates every other outstanding proposal.</p>}
+        {p.category !== "critical" && p.status === "READY" && <p>{CATEGORY_TEXT[p.category]} proposals can execute as soon as they qualify.</p>}
         <p>Voting closes: <time dateTime={p.votingDeadline}>{p.votingDeadline}</time>{p.votingClosed ? " (closed)" : ""}</p>
         {p.weightedAfter && <p>Weighted route matures: <time dateTime={p.weightedAfter}>{p.weightedAfter}</time></p>}
         {p.developerAfter && <p>Developer route matures: <time dateTime={p.developerAfter}>{p.developerAfter}</time></p>}

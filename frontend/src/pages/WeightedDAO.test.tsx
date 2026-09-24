@@ -6,6 +6,8 @@ import { readWeightedProposal, readWeightedSnapshot } from "../lib/dao/weighted"
 import { doContractBroadcast } from "../lib/grc20"
 import { bech32Encode } from "../lib/dao/realmAddress"
 import { weightedFixture, weightedRealm } from "../lib/dao/testdata/weighted"
+import v12Native from "../lib/dao/testdata/weighted-v12/native.json"
+import { weightedConfigSchema, weightedMembersSchema, weightedPageSchema } from "../lib/dao/weighted"
 vi.mock("../lib/config", () => ({ NETWORKS: { pearl: { chainId: "pearl", rpcUrl: "https://selected.invalid" }, mainnet: { chainId: "gnoland-1", rpcUrl: "https://main.invalid" } }, GNO_CHAIN_ID: "pearl", GNO_RPC_URL: "https://selected.invalid" }))
 vi.mock("../lib/dao/weighted", async importOriginal => ({ ...await importOriginal<typeof import("../lib/dao/weighted")>(), readWeightedSnapshot: vi.fn(), readWeightedProposal: vi.fn() }))
 vi.mock("../lib/grc20", () => ({ doContractBroadcast: vi.fn() }))
@@ -132,4 +134,50 @@ it("shows exact former addresses in recovery history without restoring their con
     expect(screen.getByText(`Replacement address: ${replacement}`)).toBeTruthy()
     expect(screen.getByText("Historical vote totals are unavailable.")).toBeTruthy()
     expect(screen.getByRole("button", { name: "Vote yes" }).hasAttribute("disabled")).toBe(true)
+})
+
+function v12Snapshot(page: "proposals_page_1" | "proposals_page_2" = "proposals_page_1") {
+    const r = v12Native.records
+    return { config: weightedConfigSchema.parse(r.config), members: weightedMembersSchema.parse(r.members).members, page: weightedPageSchema.parse(r[page]) } as Awaited<ReturnType<typeof readWeightedSnapshot>>
+}
+it("renders the v12 adapter policies, categories, operations and frozen state read-only on mainnet", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    const data = v12Snapshot()
+    render(<App network="mainnet" address={data.members[1].address} />)
+    expect(await screen.findByRole("heading", { name: "Application adapters" })).toBeTruthy()
+    expect(screen.getAllByRole("listitem", { name: /adapter$/ })).toHaveLength(10)
+    expect(screen.getByText("Target: gno.land/r/samcrew/escrow_v3")).toBeTruthy()
+    expect(screen.getByText(/Financial actions .* require/)).toBeTruthy()
+    expect(screen.getByText(/Routine moderation requires/)).toBeTruthy()
+    expect(screen.getByText(/Mainnet governance is read-only/)).toBeTruthy()
+    const fee = screen.getByRole("article", { name: "Proposal 17" })
+    expect(within(fee).getByRole("heading", { name: "Market config · set-fee" })).toBeTruthy()
+    expect(within(fee).getByText("Financial")).toBeTruthy()
+    expect(within(fee).getByText("READY")).toBeTruthy()
+    expect(within(fee).getByText("150")).toBeTruthy()
+    expect(within(fee).getByText("State frozen at proposal time")).toBeTruthy()
+    expect(within(fee).getByText("pendingAdmin")).toBeTruthy()
+    expect(within(fee).getAllByText("bps")).toHaveLength(2)
+    expect(within(fee).getByRole("note").textContent).toMatch(/invalidates every other outstanding proposal/)
+    expect(within(fee).getByRole("button", { name: "Execute proposal" }).hasAttribute("disabled")).toBe(true)
+    const hide = screen.getByRole("article", { name: "Proposal 18" })
+    expect(within(hide).getByText("Routine")).toBeTruthy()
+    expect(within(hide).getByText(/Routine proposals can execute as soon as they qualify/)).toBeTruthy()
+    const room = screen.getByRole("article", { name: "Proposal 26" })
+    expect(within(room).getByText("Critical")).toBeTruthy()
+    expect(within(room).getByText(/Weighted route matures/)).toBeTruthy()
+    expect(within(room).getByText(/Developer route matures/)).toBeTruthy()
+    expect(within(screen.getByRole("article", { name: "Proposal 14" })).queryByRole("note")).toBeNull()
+    for (const button of screen.getAllByRole("button", { name: /^Vote / })) expect(button.hasAttribute("disabled")).toBe(true)
+    expect(doContractBroadcast).not.toHaveBeenCalled()
+})
+it("explains invalidated and executed v12 history on the older page", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot("proposals_page_2"))
+    render(<App network="mainnet" />)
+    const invalidated = await screen.findByRole("article", { name: "Proposal 2" })
+    expect(within(invalidated).getByText(/another proposal executed, or an emergency pause ran/)).toBeTruthy()
+    const accept = screen.getByRole("article", { name: "Proposal 4" })
+    expect(within(accept).getByRole("heading", { name: "Market config · accept-admin" })).toBeTruthy()
+    expect(within(accept).getByText("Historical vote totals are unavailable.")).toBeTruthy()
+    expect(within(accept).queryByRole("note")).toBeNull()
 })

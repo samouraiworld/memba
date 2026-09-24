@@ -65,6 +65,10 @@ export function capabilitiesFor(kind: DaoKind, network: NetworkConfig): DaoCapab
             return { propose: V1_PROPOSALS, vote: true, execute: true, membersOnlyWrites: true, channels: companionChannels, treasury: false, settings: false }
         case "daokit":
             return { propose: NO_PROPOSALS, vote: false, execute: false, membersOnlyWrites: true, channels: channelsNetwork, treasury: false, settings: false }
+        // Weighted hosts (v1, v2 and the v12 mainnet governing DAO) are read in
+        // their own workspace (/:network/weighted-dao/<realm>); the legacy shell
+        // never builds their transactions. Workspace writes stay blocked on
+        // gnoland-1 by assertWeightedWrites.
         case "weighted":
         case "unknown":
         default:
@@ -144,6 +148,7 @@ async function probeKind(ctx: { rpcUrl: string; realmPath: string }, signal?: Ab
     const landing = await probe(() => queryRender(rpcUrl, realmPath, "", true))
     if (landing && hasOwnSubpageLink(landing, realmPath, "proposals")) return "daokit"
 
+    // Accepts every supported weighted read contract (v1, v2, v12) and nothing else.
     if (WEIGHTED_REALM_RE.test(realmPath)) {
         throwIfAborted(signal)
         const raw = await probe(() => queryEval(rpcUrl, realmPath, "GetConfigJSON()", true))

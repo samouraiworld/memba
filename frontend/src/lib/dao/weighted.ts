@@ -1,66 +1,87 @@
 /** Versioned founding DAO contract. Never fall back to legacy Render parsing. */
 import { z } from "zod"
 import { abciErrorPresent, directRpcCall } from "../rpcFallback"
-import { bech32Encode } from "./realmAddress"
 import type { AminoMsg } from "./shared"
+import { address, id, personID, realm, role, time, uint64 } from "./weightedPrimitives"
+import { APPLICATION_POLICY_KEYS, IMMEDIATE_THRESHOLDS, applicationActionMatchesPolicy, applicationPolicySchemas, expectedCategory, recoverMemberAction, setRoleAction, v12Action } from "./weightedApplications"
 
 export const WEIGHTED_SCHEMA = "memba-weighted-host/v1"
 export const WEIGHTED_RECOVERY_SCHEMA = "memba-weighted-host/v2"
-const realm = z.string().regex(/^gno\.land\/r\/samcrew\/[a-z][a-z0-9_]{0,63}$/)
-const uint64 = z.string().regex(/^(0|[1-9][0-9]{0,19})$/).refine(s => BigInt(s) <= 18446744073709551615n)
-const id = uint64.refine(s => s !== "0")
-const address = z.string().regex(/^g1[qpzry9x8gf2tvdw0s3jn54khce6mua7l]{38}$/).refine(value => {
-    const alphabet = "qpzry9x8gf2tvdw0s3jn54khce6mua7l", bytes: number[] = []
-    let acc = 0, bits = 0
-    for (const c of value.slice(2, 34)) {
-        const word = alphabet.indexOf(c)
-        if (word < 0) return false
-        acc = (acc << 5) | word; bits += 5
-        if (bits >= 8) { bits -= 8; bytes.push((acc >> bits) & 255) }
-    }
-    return bytes.length === 20 && bech32Encode("g", new Uint8Array(bytes)) === value
-}, "Invalid Gno address checksum")
-const personID = z.string().min(1).max(320)
-const role = z.enum(["admin", "finance"])
-const time = z.string().regex(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{1,9})?Z$/).refine(s => Number.isFinite(Date.parse(s)) && new Date(s).toISOString().slice(0, 19) === s.slice(0, 19))
-const envelope = { schema: z.enum([WEIGHTED_SCHEMA, WEIGHTED_RECOVERY_SCHEMA]) }
-export const weightedConfigSchema = z.strictObject({
-    ...envelope, kind: z.literal("config"), realmPath: realm,
+/** Role, recovery and the ten fixed application adapters (mainnet governing DAO). */
+export const WEIGHTED_APPLICATIONS_SCHEMA = "memba-weighted-host/v12"
+export const WEIGHTED_SCHEMAS = [WEIGHTED_SCHEMA, WEIGHTED_RECOVERY_SCHEMA, WEIGHTED_APPLICATIONS_SCHEMA] as const
+export type WeightedSchemaVersion = (typeof WEIGHTED_SCHEMAS)[number]
+
+// Intermediate host versions (v3..v11) were review candidates, never a
+// deployment target; they stay rejected like any other unknown version.
+const configBase = {
+    kind: z.literal("config"), realmPath: realm,
     rosterSize: z.literal(7), totalPoints: z.literal(8), founderWeight: z.literal(2), developerWeight: z.literal(1),
     votingPeriodSeconds: z.literal(604800), maxProposalPage: z.literal(50),
     mutableRoles: z.tuple([z.literal("admin"), z.literal("finance")]),
     roleChanges: z.strictObject({ category: z.literal("critical"), weightedPoints: z.literal(6), weightedPeople: z.literal(4), weightedDelaySeconds: z.literal(86400), independentDevelopers: z.literal(5), independentDelaySeconds: z.literal(259200) }),
-    capabilities: z.strictObject({ roleProposals: z.literal(true), memberReplacement: z.boolean(), migration: z.literal(false), treasuryExecution: z.literal(false), applicationActions: z.literal(false) }),
-}).refine(c => c.capabilities.memberReplacement === (c.schema === WEIGHTED_RECOVERY_SCHEMA), "Capability does not match contract version")
+}
+const capabilities = (memberReplacement: boolean, applicationActions: boolean) => z.strictObject({ roleProposals: z.literal(true), memberReplacement: z.literal(memberReplacement), migration: z.literal(false), treasuryExecution: z.literal(false), applicationActions: z.literal(applicationActions) })
+const v1Config = z.strictObject({ schema: z.literal(WEIGHTED_SCHEMA), ...configBase, capabilities: capabilities(false, false) })
+const v2Config = z.strictObject({ schema: z.literal(WEIGHTED_RECOVERY_SCHEMA), ...configBase, capabilities: capabilities(true, false) })
+const v12Config = z.strictObject({ schema: z.literal(WEIGHTED_APPLICATIONS_SCHEMA), ...configBase, capabilities: capabilities(true, true), ...applicationPolicySchemas })
+export const weightedConfigSchema = z.discriminatedUnion("schema", [v1Config, v2Config, v12Config])
+export type WeightedConfig = z.infer<typeof weightedConfigSchema>
+export type WeightedV12Config = z.infer<typeof v12Config>
+
+const envelope = { schema: z.enum(WEIGHTED_SCHEMAS) }
 const member = z.strictObject({ personId: personID, address, founder: z.boolean(), weight: z.union([z.literal(1), z.literal(2)]), admin: z.boolean(), finance: z.boolean() })
 export const weightedMembersSchema = z.strictObject({ ...envelope, kind: z.literal("members"), members: z.array(member).length(7) }).refine(({ members }) =>
     new Set(members.map(m => m.address)).size === 7 && new Set(members.map(m => m.personId)).size === 7 &&
     members.filter(m => m.founder).length === 1 && members.some(m => m.admin) && members.every(m => m.weight === (m.founder ? 2 : 1)), "Invalid founding roster")
-const proposal = z.strictObject({
-    id, proposer: address, action: z.discriminatedUnion("type", [
-        z.strictObject({ type: z.literal("set-role"), target: address, role, grant: z.boolean() }),
-        z.strictObject({ type: z.literal("recover-member"), personId: personID, oldAddress: address, newAddress: address }).refine(a => a.oldAddress !== a.newAddress),
-    ]),
-    category: z.literal("critical"), status: z.enum(["VOTING", "TIMELOCKED", "READY", "EXPIRED", "INVALIDATED", "EXECUTED"]),
-    qualified: z.boolean(), ready: z.boolean(), votingClosed: z.boolean(), talliesAvailable: z.boolean(),
-    weightYes: z.number().int().min(0).max(8).nullable(), peopleYes: z.number().int().min(0).max(7).nullable(), developersYes: z.number().int().min(0).max(6).nullable(),
-    createdAt: time, votingDeadline: time, weightedAfter: time.nullable(), developerAfter: time.nullable(),
-}).refine(p => {
+
+type ProposalState = {
+    action: { type: string; operation?: string }; category: "routine" | "financial" | "critical"; status: string
+    qualified: boolean; ready: boolean; votingClosed: boolean; talliesAvailable: boolean
+    weightYes: number | null; peopleYes: number | null; developersYes: number | null
+    createdAt: string; votingDeadline: string; weightedAfter: string | null; developerAfter: string | null
+}
+/** Mirrors the policy's State(): terminal states clear tallies; routine/financial are ready once qualified. */
+function consistentProposal(p: ProposalState): boolean {
+    if (p.category !== expectedCategory(p.action)) return false
     const terminal = p.status === "EXECUTED" || p.status === "INVALIDATED"
     if (p.ready !== (p.status === "READY") || p.talliesAvailable === terminal) return false
     if (Date.parse(p.votingDeadline) - Date.parse(p.createdAt) !== 604800000) return false
-    if (terminal) return p.weightYes === null && p.peopleYes === null && p.developersYes === null && !p.qualified
+    if (terminal) return p.weightYes === null && p.peopleYes === null && p.developersYes === null && !p.qualified && p.weightedAfter === null && p.developerAfter === null
     if (p.weightYes === null || p.peopleYes === null || p.developersYes === null) return false
     if (p.peopleYes - p.developersYes < 0 || p.peopleYes - p.developersYes > 1 || p.weightYes !== p.developersYes + 2 * (p.peopleYes - p.developersYes)) return false
-    const qualified = (p.weightedAfter !== null || p.developerAfter !== null)
-    if (p.qualified !== qualified || p.qualified !== ["TIMELOCKED", "READY"].includes(p.status)) return false
     if (p.status === "EXPIRED" && !p.votingClosed) return false
     if (p.status === "VOTING" && p.votingClosed) return false
+    if (p.category !== "critical") {
+        const threshold = IMMEDIATE_THRESHOLDS[p.category]
+        const qualified = p.weightYes >= threshold.points && p.peopleYes >= threshold.people
+        return p.weightedAfter === null && p.developerAfter === null && p.qualified === qualified && (qualified ? p.status === "READY" : p.status === "VOTING" || p.status === "EXPIRED")
+    }
+    const qualified = (p.weightedAfter !== null || p.developerAfter !== null)
+    if (p.qualified !== qualified || p.qualified !== ["TIMELOCKED", "READY"].includes(p.status)) return false
     return (p.weightedAfter === null || p.weightYes >= 6 && p.peopleYes >= 4) && (p.developerAfter === null || p.developersYes >= 5)
-}, "Inconsistent proposal state")
-export const weightedProposalSchema = z.strictObject({ ...envelope, kind: z.literal("proposal"), proposal }).refine(v => v.schema !== WEIGHTED_SCHEMA || v.proposal.action.type === "set-role", "Recovery requires v2")
-export const weightedPageSchema = z.strictObject({ ...envelope, kind: z.literal("proposals"), total: uint64, proposals: z.array(proposal).max(50), nextBefore: id.nullable() }).refine(v => v.schema !== WEIGHTED_SCHEMA || v.proposals.every(p => p.action.type === "set-role"), "Recovery requires v2")
-export type WeightedProposal = z.infer<typeof proposal>
+}
+const tally = (max: number) => z.number().int().min(0).max(max).nullable()
+const proposalFor = <A extends z.ZodType<{ type: string }>>(action: A) => z.strictObject({
+    id, proposer: address, action,
+    category: z.enum(["routine", "financial", "critical"]), status: z.enum(["VOTING", "TIMELOCKED", "READY", "EXPIRED", "INVALIDATED", "EXECUTED"]),
+    qualified: z.boolean(), ready: z.boolean(), votingClosed: z.boolean(), talliesAvailable: z.boolean(),
+    weightYes: tally(8), peopleYes: tally(7), developersYes: tally(6),
+    createdAt: time, votingDeadline: time, weightedAfter: time.nullable(), developerAfter: time.nullable(),
+}).refine(p => consistentProposal(p as ProposalState), "Inconsistent proposal state")
+const v1Proposal = proposalFor(z.discriminatedUnion("type", [setRoleAction]))
+const v2Proposal = proposalFor(z.discriminatedUnion("type", [setRoleAction, recoverMemberAction]))
+const v12Proposal = proposalFor(v12Action)
+/** Per-version proposal item, reusable by later list reads (for example pending votes). */
+export const weightedProposalFor = { [WEIGHTED_SCHEMA]: v1Proposal, [WEIGHTED_RECOVERY_SCHEMA]: v2Proposal, [WEIGHTED_APPLICATIONS_SCHEMA]: v12Proposal } as const
+export const weightedProposalSchema = z.discriminatedUnion("schema", [
+    z.strictObject({ schema: z.literal(WEIGHTED_SCHEMA), kind: z.literal("proposal"), proposal: v1Proposal }),
+    z.strictObject({ schema: z.literal(WEIGHTED_RECOVERY_SCHEMA), kind: z.literal("proposal"), proposal: v2Proposal }),
+    z.strictObject({ schema: z.literal(WEIGHTED_APPLICATIONS_SCHEMA), kind: z.literal("proposal"), proposal: v12Proposal }),
+])
+const pageFor = <S extends WeightedSchemaVersion>(schema: S) => z.strictObject({ schema: z.literal(schema), kind: z.literal("proposals"), total: uint64, proposals: z.array(weightedProposalFor[schema]).max(50), nextBefore: id.nullable() })
+export const weightedPageSchema = z.discriminatedUnion("schema", [pageFor(WEIGHTED_SCHEMA), pageFor(WEIGHTED_RECOVERY_SCHEMA), pageFor(WEIGHTED_APPLICATIONS_SCHEMA)])
+export type WeightedProposal = z.infer<typeof v12Proposal>
 export type WeightedMember = z.infer<typeof member>
 export type WeightedPage = z.infer<typeof weightedPageSchema>
 export type WeightedContext = { rpcUrl: string; chainId: string; realmPath: string }
@@ -140,12 +161,18 @@ export async function readWeightedSnapshot(ctx: WeightedContext, before = "0", s
     let previous = before === "0" ? BigInt(page.total) + 1n : BigInt(before)
     for (const p of page.proposals) {
         if (BigInt(p.id) !== previous - 1n || BigInt(p.id) > BigInt(page.total)) throw new Error("Invalid proposal page")
+        const action = p.action
         const historical = ["EXECUTED", "INVALIDATED"].includes(p.status)
         if (!historical || config.schema === WEIGHTED_SCHEMA) {
-            const action = p.action
-            const target = action.type === "set-role" ? action.target : action.oldAddress
-            if (!roster.members.some(m => m.address === p.proposer) || !roster.members.some(m => m.address === target && (action.type === "set-role" || m.personId === action.personId))) throw new Error("Proposal does not match current members")
+            if (!roster.members.some(m => m.address === p.proposer)) throw new Error("Proposal does not match current members")
+            // Only role and recovery actions name a DAO seat; application
+            // actions target a fixed realm and are checked against the config.
+            if (action.type === "set-role" || action.type === "recover-member") {
+                const target = action.type === "set-role" ? action.target : action.oldAddress
+                if (!roster.members.some(m => m.address === target && (action.type === "set-role" || m.personId === action.personId))) throw new Error("Proposal does not match current members")
+            }
         }
+        if (action.type !== "set-role" && action.type !== "recover-member" && (config.schema !== WEIGHTED_APPLICATIONS_SCHEMA || !applicationActionMatchesPolicy(action, config))) throw new Error("Proposal does not match the DAO's configured adapters")
         previous = BigInt(p.id)
     }
     const expectedCount = (before === "0" ? BigInt(page.total) : BigInt(before) - 1n)
@@ -153,6 +180,13 @@ export async function readWeightedSnapshot(ctx: WeightedContext, before = "0", s
     const remaining = previous > 1n
     if (page.proposals.length > 20 || (page.total !== "0" && before !== "1" && page.proposals.length === 0) || (page.nextBefore !== null) !== remaining || (page.nextBefore !== null && page.nextBefore !== page.proposals.at(-1)?.id)) throw new Error("Invalid proposal cursor")
     return { config, members: roster.members, page }
+}
+export type WeightedSnapshot = Awaited<ReturnType<typeof readWeightedSnapshot>>
+
+/** Adapter policies in host order; empty before v12. */
+export function weightedApplicationPolicies(config: WeightedConfig) {
+    if (config.schema !== WEIGHTED_APPLICATIONS_SCHEMA) return []
+    return APPLICATION_POLICY_KEYS.map(key => ({ key, policy: config[key] }))
 }
 
 export async function readWeightedProposal(ctx: WeightedContext, proposalId: string, schema?: string) {
@@ -186,7 +220,7 @@ export function weightedAuthority(snapshot: Awaited<ReturnType<typeof readWeight
 }
 
 export function validateWeightedRecovery(snapshot: Awaited<ReturnType<typeof readWeightedSnapshot>>, action: Extract<WeightedAction, { type: "recover" }>) {
-    if (!snapshot.config.capabilities.memberReplacement || snapshot.config.schema !== WEIGHTED_RECOVERY_SCHEMA) throw new Error("This DAO does not support member-key recovery")
+    if (!snapshot.config.capabilities.memberReplacement) throw new Error("This DAO does not support member-key recovery")
     address.parse(action.newAddress)
     if (!snapshot.members.some(m => m.personId === action.personId && m.address === action.oldAddress)) throw new Error("Recovery seat changed; refresh before preparing again")
     if (snapshot.members.some(m => m.address === action.newAddress)) throw new Error("Replacement address already belongs to a DAO member")

@@ -183,6 +183,11 @@ Full changelogs are split by version range for easier navigation:
 - **Each attestation's storage deposit has a cap.** gnokey always gets `-max-deposit`: `MEMBA_ARCADE_MAX_DEPOSIT_UGNOT`, default 2 GNOT, at most 5 GNOT. Without it, the chain would allow up to 100 GNOT. If the setting is 0 or above the maximum, the attester stays off.
 - **Funding guide.** The arcade runbook now shows the cost per attestation, about 1.1 GNOT: the fee plus about 1 GNOT of realm storage deposit. It also lists the GNOT per day for 10 to 100 attestations. The attester is still off in production.
 
+### Read the mainnet weighted DAO (2026-09-24)
+<!-- categories: memba, network -->
+- **The weighted DAO workspace reads the mainnet governing DAO contract (`memba-weighted-host/v12`).** It shows the ten fixed application adapters (market config, reviews, quests, arcade, App Store, escrow, badges, feed, channels, feedback) with their targets, successors and categories, and each proposal's category, operation and the target state frozen when it was proposed. Routine and financial proposals are shown as ready as soon as they qualify; critical ones keep their 24 hour and 72 hour routes. Open proposals warn that executing them invalidates every other outstanding proposal.
+- **Strict by version.** Versions 1 and 2 keep their exact contracts; unknown versions, unknown adapters or operations, and any category the contract would not assign are refused, never shown as prose. Tests use verbatim reads of the generated realm run on the gnoland-1 Gno version.
+- **One entry point.** Opening a weighted DAO from the DAO pages goes to its workspace. It stays read-only on gnoland-1, and Quick Vote leaves it out until the contract can report a member's own ballot.
 ### Quest vouchers are signed for one chain only (#1264, 2026-09-24)
 <!-- categories: memba, network -->
 - **The quest voucher key only signs for the chain it was made for.** The attestation realm's signed message has no chain id, so each chain now gets its own key, and the backend signs only when `QUEST_SIGNER_CHAIN_ID` matches the chain it runs on. Otherwise the signer is turned off: it is logged, shown on `/health` and in a metric, and voucher requests get a clear "unavailable" error. Boot never fails because of it. The Pearl-era key in production is now off, not signing for gno.land mainnet.

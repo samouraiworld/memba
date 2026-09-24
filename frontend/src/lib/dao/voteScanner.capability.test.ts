@@ -51,6 +51,12 @@ describe("Quick Vote offers only DAOs whose contract accepts votes from Memba", 
         expect(details.map((d) => d.realmPath)).toEqual(["gno.land/r/alice/voteable"])
     })
 
+    it("leaves a weighted featured DAO out until ballot reads exist", async () => {
+        kinds.byPath["gno.land/r/samcrew/memba_dao"] = "weighted"
+        const details = await settle(scanUnvotedProposalDetails(address))
+        expect(details.map((d) => d.realmPath)).toEqual(["gno.land/r/alice/voteable"])
+    })
+
     it("counts only proposals from voteable DAO kinds", async () => {
         expect(await settle(scanUnvotedProposals(address))).toBe(1)
     })

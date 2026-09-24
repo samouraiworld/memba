@@ -11,6 +11,7 @@ import { AbciQueryError } from "../rpcFallback"
 import { NETWORKS } from "../config"
 import { capabilitiesFor, clearDaoKindCache, isGovDAOPath, resolveDaoKind, GOVDAO_PATHS, MEMBA_V2_TEMPLATE_VERSION, type DaoKind } from "./kind"
 import { DAO_TEMPLATE_VERSION } from "../daoTemplate"
+import weightedV12 from "./testdata/weighted-v12/native.json"
 
 const evalMock = vi.mocked(queryEval)
 const renderMock = vi.mocked(queryRender)
@@ -137,6 +138,20 @@ describe("DAO kind", () => {
         clearDaoKindCache()
         chain({ weighted: qstr(JSON.stringify({ ...config, realmPath: "gno.land/r/samcrew/other" })), render: "# Founders" })
         expect(await resolveDaoKind(ctx("gno.land/r/samcrew/founders"))).toBe("unknown")
+    })
+
+    it("resolves the native v12 mainnet DAO config as weighted, read-only in the shell on every network", async () => {
+        // Render text of the generated realm: informational, with no daokit sub-page links.
+        const render = "# Memba DAO\n\n## Members (7)\n\nOne founder with 2 voting points and six equal core developers with 1 point each."
+        chain({ weighted: qstr(JSON.stringify(weightedV12.records.config)), render })
+        expect(await resolveDaoKind(ctx("gno.land/r/samcrew/memba_dao", "gnoland-1"))).toBe("weighted")
+        for (const network of [NETWORKS.mainnet, NETWORKS.pearl]) {
+            const c = capabilitiesFor("weighted", network)
+            expect([c.propose, c.vote, c.execute, c.channels, c.settings, c.treasury]).toEqual([[], false, false, false, false, false])
+        }
+        clearDaoKindCache()
+        chain({ weighted: qstr(JSON.stringify({ ...weightedV12.records.config, schema: "memba-weighted-host/v11" })), render })
+        expect(await resolveDaoKind(ctx("gno.land/r/samcrew/memba_dao", "gnoland-1"))).toBe("unknown")
     })
 
     it("a realm whose path contains /gov/dao but is not exact resolves to its probed kind", async () => {

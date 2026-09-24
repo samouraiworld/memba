@@ -8,6 +8,7 @@
  *   /:network/dao/gno.land/r/gov/dao/proposals → DAOHome, proposals only
  *   /:network/dao/<version-2 DAO>/settings → DAOSettings (read-only)
  *   /:network/dao/gno.land~r~gov~dao → legacy redirect
+ *   /:network/dao/<weighted DAO>[/...] → /:network/weighted-dao/<weighted DAO>
  */
 import { lazy, Suspense } from "react"
 import { useParams, Navigate } from "react-router-dom"
@@ -45,6 +46,12 @@ export function DAORouter() {
     // Invalid realm path
     if (!realmPath) {
         return <Suspense fallback={<PageLoader />}><NotFound /></Suspense>
+    }
+
+    // Weighted hosts have their own workspace; the equal-headcount shell
+    // cannot represent their points, categories or delays.
+    if (kind === "weighted") {
+        return <Navigate to={`/${networkKey}/weighted-dao/${realmPath}`} replace />
     }
 
     // Parse sub-route
