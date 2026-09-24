@@ -14,6 +14,8 @@ const ServiceLane = lazy(() => import("../components/marketplace/ServiceLane"))
 const AgentLane = lazy(() => import("../components/marketplace/AgentLane"))
 const TokenLane = lazy(() => import("./TokenLane").then(m => ({ default: m.TokenLane })))
 const MyListingsView = lazy(() => import("../components/marketplace/MyListingsView"))
+// One escrow contract's shareable page (services/contract/:id), mounted with the Services lane.
+const EscrowContractPage = lazy(() => import("../components/marketplace/EscrowContractPage"))
 
 // marketplace-v2 lanes (rebuilt on LaneView/MarketCard). Behind VITE_ENABLE_MARKETPLACE_V2
 // so the old lanes stay the prod default until the flag flips at cutover.
@@ -132,9 +134,11 @@ export default function UnifiedMarketplace() {
     // Roving tabindex (WAI-ARIA tabs): exactly one tab is in the page tab order —
     // the selected one, or the first tab while the shell is mid-redirect and no
     // lane is selected yet (all -1 would make the tablist keyboard-unreachable).
+    // A lane's own sub-pages (services/contract/:id) keep its tab selected.
+    const onLane = (slug: string) => pathname.endsWith(`/${slug}`) || pathname.includes(`/${slug}/`)
     const activeSlug = pathname.endsWith(`/${MY_LISTINGS_SLUG}`)
         ? MY_LISTINGS_SLUG
-        : liveLanes.find(l => pathname.endsWith(`/${l.slug}`))?.slug
+        : liveLanes.find(l => onLane(l.slug))?.slug
     const rovingSlug =
         activeSlug && (activeSlug !== MY_LISTINGS_SLUG || showMyListings)
             ? activeSlug
@@ -190,7 +194,7 @@ export default function UnifiedMarketplace() {
                                 // current URL (/marketplace/nfts + "services" → /nfts/services),
                                 // which the catch-all bounces straight back — tabs never switch.
                                 to={`${marketplaceBase}/${lane.slug}`}
-                                aria-selected={pathname.endsWith(`/${lane.slug}`)}
+                                aria-selected={onLane(lane.slug)}
                                 aria-controls="um-lane-panel"
                                 tabIndex={rovingSlug === lane.slug ? 0 : -1}
                                 className={({ isActive }) => `um-tab ${isActive ? "active" : ""}`}
@@ -250,6 +254,9 @@ export default function UnifiedMarketplace() {
                             const LaneComponent = LANE_COMPONENTS[lane.assetType]
                             return <Route key={lane.assetType} path={lane.slug} element={<LaneComponent />} />
                         })}
+                        {liveLanes.some(l => l.assetType === "service") && (
+                            <Route path="services/contract/:contractId" element={<EscrowContractPage />} />
+                        )}
                         {/* My Listings management — mounts whenever a lane it manages is live
                             (the view itself prompts to connect when disconnected). */}
                         {canManageListings && (

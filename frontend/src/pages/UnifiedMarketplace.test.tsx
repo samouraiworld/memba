@@ -40,6 +40,7 @@ vi.mock("../components/marketplace/NftLane", () => ({ default: () => <div data-t
 vi.mock("../components/marketplace/ServiceLane", () => ({ default: () => <div data-testid="service-lane" /> }))
 vi.mock("../components/marketplace/AgentLane", () => ({ default: () => <div data-testid="agent-lane" /> }))
 vi.mock("./TokenLane", () => ({ TokenLane: () => <div data-testid="token-lane" /> }))
+vi.mock("../components/marketplace/EscrowContractPage", () => ({ default: () => <div data-testid="escrow-contract-page" /> }))
 
 vi.mock("../hooks/useNetworkNav", () => ({ useNetworkKey: () => "pearl" }))
 
@@ -187,5 +188,17 @@ describe("UnifiedMarketplace — unavailable network", () => {
         expect(preview.querySelectorAll("a, button, input")).toHaveLength(0)
         expect(screen.queryByRole("tab")).not.toBeInTheDocument()
         expect(screen.queryByTestId("agent-lane")).not.toBeInTheDocument()
+    })
+})
+
+describe("UnifiedMarketplace — escrow contract page", () => {
+    beforeEach(onlyNftAndServicesLive)
+
+    it("mounts a contract's shareable page under the Services lane, with that tab selected", async () => {
+        mountAt("/services/contract/5")
+        expect(await screen.findByTestId("escrow-contract-page")).toBeInTheDocument()
+        expect(screen.getByRole("tab", { name: /Services/i })).toHaveAttribute("aria-selected", "true")
+        expect(screen.getByRole("tab", { name: /NFTs/i })).toHaveAttribute("aria-selected", "false")
+        expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "um-tab-services")
     })
 })
