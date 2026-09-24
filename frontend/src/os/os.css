@@ -19,6 +19,8 @@
   --os-hover: rgba(0, 0, 0, .06);
   --os-scrim: rgba(20, 25, 40, .14);
   --os-lockbg: rgba(236, 241, 252, .32);
+  --os-doc-ink: #4C6EF5;
+  --os-doc-bg: linear-gradient(180deg, #fff, #EEF1F8);
   --os-shadow: rgba(15, 25, 70, .42);
   --os-label-shadow: 0 1px 8px rgba(255, 255, 255, .75);
   --os-solid: #1B1F2A;
@@ -56,6 +58,8 @@
   --os-hover: rgba(255, 255, 255, .08);
   --os-scrim: rgba(0, 0, 0, .38);
   --os-lockbg: rgba(8, 10, 16, .45);
+  --os-doc-ink: #8FA4FA;
+  --os-doc-bg: linear-gradient(180deg, #2A3042, #1F2433);
   --os-shadow: rgba(0, 0, 0, .62);
   --os-label-shadow: 0 1px 8px rgba(0, 0, 0, .7);
   --os-solid: #E9ECF3;

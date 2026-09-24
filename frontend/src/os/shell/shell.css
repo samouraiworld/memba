@@ -23,8 +23,7 @@
   box-shadow: 0 8px 18px -8px rgba(20, 30, 70, .45), inset 0 1px 0 rgba(255, 255, 255, .35);
 }
 .memba-os .os-tile svg { width: 52%; height: 52%; }
-.memba-os .os-doc { background: linear-gradient(180deg, #fff, #EEF1F8); color: #4C6EF5; }
-.memba-os[data-os-theme="dark"] .os-doc { background: linear-gradient(180deg, #2A3042, #1F2433); color: #8FA4FA; }
+.memba-os .os-doc { background: var(--os-doc-bg); color: var(--os-doc-ink); }
 .memba-os .os-av {
   width: 30px; height: 30px; border-radius: 9px; flex: none; display: grid; place-items: center;
   color: #fff; font-weight: 800; font-size: 12px; background: linear-gradient(135deg, #4C6EF5, #B07CF7);
