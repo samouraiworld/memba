@@ -48,16 +48,21 @@ export type Recipient =
 /** What the registry said about a name (the component looks it up; this module stays pure). */
 export type NameLookup = { status: "loading" } | { status: "found"; address: string } | { status: "missing" } | { status: "error" }
 
-/** r/sys/users name rule (as the resolver applies it): lowercase, max 64. */
+/** r/sys/users name rule (validateName on gnoland-1): lowercase, max 64, and never shaped like an address. */
 const REGISTRY_NAME = /^[a-z][a-z0-9]*([_-][a-z0-9]+)*$/
+const ADDRESS_LOOKALIKE = /^g1[a-z0-9]{20,38}$/
 const ADDRESS = /^g1[02-9ac-hj-np-z]{38}$/
+/** Only ASCII whitespace is trimmed: String.trim() would also drop U+FEFF and U+00A0. */
+const trimAscii = (s: string) => s.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, "")
 
-/** The registry name to look up for this To field, or null when it isn't a well-formed @name. */
+/** The registry name to look up for this To field, or null when it isn't a well-formed @name.
+ *  Anything outside printable ASCII is refused BEFORE lower-casing: Unicode case folding maps
+ *  look-alikes such as U+212A (Kelvin sign) to "k", which would pay a real, different user. */
 export function nameToLookUp(input: string): string | null {
-    const v = input.trim()
-    if (!v.startsWith("@")) return null
+    const v = trimAscii(input)
+    if (!v.startsWith("@") || /[^\x21-\x7e]/.test(v)) return null
     const name = v.slice(1).toLowerCase()
-    return name.length <= 64 && REGISTRY_NAME.test(name) ? name : null
+    return name.length <= 64 && REGISTRY_NAME.test(name) && !ADDRESS_LOOKALIKE.test(name) ? name : null
 }
 
 /** The address a recipient pays, once there is one. */
@@ -67,7 +72,7 @@ export function recipientAddress(r: Recipient): string | null {
 
 /** What the To field names: a g1 address, or an @name resolved through `lookup`. */
 export function readRecipient(input: string, lookup?: (name: string) => NameLookup | undefined, hrp = "g"): Recipient {
-    const v = input.trim()
+    const v = trimAscii(input)
     if (!v) return null
     if (v.startsWith("@")) {
         const name = nameToLookUp(v)

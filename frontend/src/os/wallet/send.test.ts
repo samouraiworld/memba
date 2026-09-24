@@ -48,6 +48,17 @@ describe("recipients", () => {
         expect(readRecipient("alice")).toMatchObject({ kind: "error", error: expect.stringContaining("@") })
     })
 
+    it("refuse look-alikes instead of folding them into a real name (checked before lower-casing)", () => {
+        // U+212A KELVIN SIGN lower-cases to "k": "@\u212Aelvin" must never become @kelvin.
+        for (const bad of ["@\u212Aelvin", "@al\u200Bice", "@\uFEFFalice", "@\u00A0alice", "@alicé", "@ａlice"]) {
+            expect(nameToLookUp(bad), JSON.stringify(bad)).toBeNull()
+            expect(readRecipient(bad, () => ({ status: "found", address: B })), JSON.stringify(bad)).toMatchObject({ kind: "error" })
+        }
+        // A name shaped like an address is refused by the registry too (reAddressLookalike).
+        expect(nameToLookUp("@g1abcdefghijklmnopqrstu")).toBeNull()
+        expect(nameToLookUp(" @alice\t")).toBe("alice")
+    })
+
     it("names the lookup to run: only for a well-formed @name", () => {
         expect(nameToLookUp("@Alice ")).toBe("alice")
         expect(nameToLookUp("@1abc")).toBeNull()

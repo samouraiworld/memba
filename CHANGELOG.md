@@ -180,7 +180,7 @@ Full changelogs are split by version range for easier navigation:
 <!-- categories: memba, wallet -->
 - Send in Memba OS takes a gno.land username (`@alice`) as well as a g1… address, still behind `VITE_MEMBA_OS` (D16, D23). The name is looked up in the gno.land user registry (`r/sys/users.ResolveName`, on an RPC checked to serve the right chain), and the form shows the address it belongs to.
 - The Memba review shows the name together with the full address, and that address is the one signed. Just before Adena opens, the name is looked up again: if it now points to another address, or can't be read, nothing is sent. The new-address and 100 GNOT checks apply to the resolved address.
-- A bare word (`alice`) asks for the @; an unregistered name says so.
+- A bare word (`alice`) asks for the @; an unregistered name says so. A name with any character outside plain ASCII (an accent, a full-width or invisible character, a look-alike such as the Kelvin sign that lower-cases to `k`) is refused, never folded into a registered name.
 ### Memba OS accessibility and speed
 <!-- categories: memba, accessibility -->
 - Memba OS meets WCAG 2.1 AA contrast in both themes, still behind `VITE_MEMBA_OS`: the accent for buttons and links is darker, muted text is darker in the light theme, and the dark theme gets its own accent for text on tinted backgrounds and white text on accent-filled controls. The start menu's app list is a proper menu for screen readers.
