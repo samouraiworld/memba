@@ -20,9 +20,6 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Token pages say when the token factory is missing (2026-09-24)
-<!-- categories: memba, network -->
-- **Token pages now say when Memba's token factory isn't deployed on the current network, which is the case on gno.land mainnet.** A token page used to retry for several seconds and then show "Token not found". The Directory's Tokens tab showed "No tokens registered", as if the network had no tokens at all. Both now say the factory isn't deployed here, the same way the token dashboard already did, and Home stops asking for a token list that can't exist.
 ### Escrow targets escrow_v4: archive refunds, per-client cap, bounded pause (2026-09-24)
 <!-- categories: memba, network -->
 - **Escrow calls now target `gno.land/r/samcrew/escrow_v4`.** It is not listed on any network yet, so the Services lane stays gated (`VITE_ENABLE_SERVICES && isEscrowValid()`) until a separate go-live change. The e2e fixtures pin `escrow_v3` with the new `VITE_ESCROW_REALM_PATH` override, which can only select a realm that is already allowlisted.
@@ -33,6 +30,10 @@ Full changelogs are split by version range for easier navigation:
 - **Only the escrow realm.** Escrow transactions are refused for any realm other than the configured one, and while the Services lane is gated. `VITE_ESCROW_REALM_PATH` accepts only `escrow_v3` or `escrow_v4`.
 - **Text checks match the realm.** Titles, descriptions and milestone titles refuse unpaired surrogates, control characters and every Unicode 15.0 format character on the realm's explicit list (as well as the characters it strips), and a title made only of spaces.
 - **Budgets re-sized from escrow_v4 measurements.** CreateContract: 10,000 B + text + 1,000 B per milestone, 30M + 28k gas per text byte (2.21 GNOT cap for the smallest contract, 7.91 GNOT and the 350M gas clamp for the largest). Text with characters the realm checks against the Unicode format table (U+0600–U+206F, U+FEFF and above) adds 48k gas each, with a 450M clamp. Other calls: 0.2 GNOT cap, 32M to 40M gas, covering 5,000 open contracts.
+
+### Token pages say when the token factory is missing (2026-09-24)
+<!-- categories: memba, network -->
+- **Token pages now say when Memba's token factory isn't deployed on the current network, which is the case on gno.land mainnet.** A token page used to retry for several seconds and then show "Token not found". The Directory's Tokens tab showed "No tokens registered", as if the network had no tokens at all. Both now say the factory isn't deployed here, the same way the token dashboard already did, and Home stops asking for a token list that can't exist.
 
 ### Candidature says when it is not available (2026-09-24)
 <!-- categories: memba, network -->
