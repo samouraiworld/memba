@@ -26,6 +26,8 @@ const OsRoot = OS_ENABLED ? lazy(() => import("./os/OsRoot")) : null
  *  routes as network "os". With the flag off, /os stays a network path as before. */
 function OsOrClassic({ children }: { children: ReactNode }) {
   const { pathname } = useLocation()
+  // Builds with Memba OS on (the memba.club beta site only) open it at the root too.
+  if (OsRoot && pathname === "/") return <Navigate to="/os" replace />
   if (OsRoot && (pathname === "/os" || pathname.startsWith("/os/"))) {
     return <Suspense fallback={null}><OsRoot /></Suspense>
   }

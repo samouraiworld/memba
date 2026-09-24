@@ -1,5 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { OS_ON } from '../../playwright.os.config'
+import { OS_OFF, OS_ON } from '../../playwright.os.config'
 
 // The four entry scenarios of mockup v4, on the real shell, wallet hooks and
 // login code. Adena is a page-level stub and the backend's auth calls are
@@ -95,6 +95,15 @@ test.describe('Memba OS shell · entry scenarios', () => {
         await expect(lockScreen(page)).toHaveCount(0)
         await page.getByRole('status').getByRole('button', { name: 'Connect to vote' }).click()
         await expect(connectModal(page)).toBeVisible()
+    })
+
+    test('the root opens Memba OS when the flag is on, and stays classic when it is off', async ({ page }) => {
+        await page.goto(`${OS_ON}/`)
+        await expect(page).toHaveURL(`${OS_ON}/os`)
+        await expect(page.getByTestId('memba-os')).toBeVisible()
+        await page.goto(`${OS_OFF}/`)
+        await expect(page).toHaveURL(/\/mainnet\/?$/)
+        await expect(page.getByTestId('memba-os')).toHaveCount(0)
     })
 
     test('shared link to an app whose name is also a classic route stays in Memba OS', async ({ page }) => {
