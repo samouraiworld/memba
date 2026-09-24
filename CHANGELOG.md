@@ -20,14 +20,6 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### The "not on this network yet" notice names only what is missing (2026-09-24)
-<!-- categories: memba, network -->
-- On gno.land the notice said the feed and quests were missing although both are live. It now lists only the community features whose realm is not usable on the network you are on (on mainnet today: channels and candidature), and disappears when none are missing.
-
-### Only verified quests are attested on-chain (2026-09-24)
-<!-- categories: memba, network -->
-- **The server only signs attestation vouchers for quests it verified.** It used to sign them for self-claimed quests too (visit or click quests, "First 100 users", "Season 1 complete"), so any wallet could record that XP on-chain. Those quests still count toward your total XP, but are no longer attested, and vouchers already signed for them are no longer handed out.
-- **Quests approved by an admin reviewer are now attested.** Approving a proof-based claim used to grant the XP without ever producing a voucher.
 ### Escrow on gno.land mainnet: contract screens, hire by address, canary runbook (2026-09-24)
 <!-- categories: memba, network -->
 - **`gno.land/r/samcrew/escrow_v4` is allowlisted on mainnet.** It was published at height 299934 and enabled at 299936; its `realm-versions.json` record carries the publish tx and the state read the same day (not paused, no contracts, no liabilities). This changes nothing users see until the owner turns on `VITE_ENABLE_SERVICES`, which stays off in production. Every other network keeps escrow gated, and `escrow_v3` stays unlisted on mainnet.
@@ -38,6 +30,10 @@ Full changelogs are split by version range for easier navigation:
 - **The v2 marketplace lanes never run on mainnet.** Their Services lane is the design seed catalogue with placeholder sellers, so `VITE_ENABLE_MARKETPLACE_V2` now takes effect only on test networks; on gno.land mainnet the v1 lanes stay whatever the flag says.
 - **The Services lane shows when escrow is paused.** With the lane on, it reads the realm's pause state and says when new contracts and funding are refused (or when the state can't be read), and keeps hiring disabled until the realm takes new contracts.
 - **Canary runbook.** `docs/ESCROW_MAINNET_CANARY.md` walks one minimum-amount contract between the owner's two wallets through create, fund, complete, release and archive in the Memba UI, with the reads expected after each step, `gnokey` commands as fallback, stop conditions, rollback (flag off, admin pause) and what to monitor.
+
+### The "not on this network yet" notice names only what is missing (2026-09-24)
+<!-- categories: memba, network -->
+- On gno.land the notice said the feed and quests were missing although both are live. It now lists only the community features whose realm is not usable on the network you are on (on mainnet today: channels and candidature), and disappears when none are missing.
 
 ### Only verified quests are attested on-chain (2026-09-24)
 <!-- categories: memba, network -->
