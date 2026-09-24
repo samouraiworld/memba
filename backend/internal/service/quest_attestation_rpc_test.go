@@ -39,10 +39,11 @@ func TestCompleteQuest_IssuesAttestationVoucher(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.svc.SetAttestationSigner(signer)
+	h.stubChainVerify(true)
 
 	token := h.makeToken(t, "g1alice")
 	if _, err := h.svc.CompleteQuest(context.Background(), connect.NewRequest(&membav1.CompleteQuestRequest{
-		AuthToken: token, QuestId: "connect-wallet", // off_chain, 10 XP, no network
+		AuthToken: token, QuestId: "register-username", // on_chain (stubbed verifier), 20 XP
 	})); err != nil {
 		t.Fatal("CompleteQuest:", err)
 	}
@@ -63,7 +64,7 @@ func TestCompleteQuest_IssuesAttestationVoucher(t *testing.T) {
 		t.Fatalf("expected 1 voucher, got %d", len(resp.Msg.Vouchers))
 	}
 	v := resp.Msg.Vouchers[0]
-	if v.QuestId != "connect-wallet" || v.Xp != 10 {
+	if v.QuestId != "register-username" || v.Xp != 20 {
 		t.Fatalf("unexpected voucher: %+v", v)
 	}
 
@@ -86,11 +87,12 @@ func TestCompleteQuest_VoucherIsIdempotent(t *testing.T) {
 	h := setup(t)
 	signer, _ := newBoundTestSigner(testAttestationSeed)
 	h.svc.SetAttestationSigner(signer)
+	h.stubChainVerify(true)
 	token := h.makeToken(t, "g1bob")
 
 	complete := func() {
 		_, _ = h.svc.CompleteQuest(context.Background(), connect.NewRequest(&membav1.CompleteQuestRequest{
-			AuthToken: token, QuestId: "connect-wallet",
+			AuthToken: token, QuestId: "register-username",
 		}))
 	}
 	complete()
@@ -106,19 +108,20 @@ func TestCompleteQuest_VoucherIsIdempotent(t *testing.T) {
 	}
 }
 
-// SyncQuests must also issue vouchers — many off-chain quest UI triggers reach
-// the backend only via sync (not CompleteQuest), so without this they'd never
-// attest. This also backfills completions recorded before attestation was on.
+// SyncQuests must also issue vouchers for verified quests that reach the backend
+// only via sync (not CompleteQuest). This also backfills completions recorded
+// before attestation was on.
 func TestSyncQuests_IssuesAttestationVouchers(t *testing.T) {
 	h := setup(t)
 	signer, _ := newBoundTestSigner(testAttestationSeed)
 	h.svc.SetAttestationSigner(signer)
+	h.stubChainVerify(true)
 	token := h.makeToken(t, "g1dave")
 
 	if _, err := h.svc.SyncQuests(context.Background(), connect.NewRequest(&membav1.SyncQuestsRequest{
 		AuthToken: token,
 		Completions: []*membav1.QuestCompletion{
-			{QuestId: "use-cmdk", CompletedAt: "2026-06-27T00:00:00Z"}, // off_chain, low-trust accept
+			{QuestId: "register-username", CompletedAt: "2026-06-27T00:00:00Z"}, // on_chain (stubbed verifier)
 		},
 	})); err != nil {
 		t.Fatal("SyncQuests:", err)
@@ -128,8 +131,8 @@ func TestSyncQuests_IssuesAttestationVouchers(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if len(resp.Msg.Vouchers) != 1 || resp.Msg.Vouchers[0].QuestId != "use-cmdk" {
-		t.Fatalf("sync should issue a voucher for the off-chain quest, got %+v", resp.Msg.Vouchers)
+	if len(resp.Msg.Vouchers) != 1 || resp.Msg.Vouchers[0].QuestId != "register-username" {
+		t.Fatalf("sync should issue a voucher for the verified quest, got %+v", resp.Msg.Vouchers)
 	}
 }
 
@@ -137,9 +140,10 @@ func TestSyncQuests_IssuesAttestationVouchers(t *testing.T) {
 // realm/signer — so the frontend cleanly shows nothing.
 func TestAttestation_DisabledWhenNoSigner(t *testing.T) {
 	h := setup(t) // no SetAttestationSigner
+	h.stubChainVerify(true)
 	token := h.makeToken(t, "g1carol")
 	if _, err := h.svc.CompleteQuest(context.Background(), connect.NewRequest(&membav1.CompleteQuestRequest{
-		AuthToken: token, QuestId: "connect-wallet",
+		AuthToken: token, QuestId: "register-username",
 	})); err != nil {
 		t.Fatal(err)
 	}
@@ -359,8 +363,8 @@ func TestQuestRewards_RequireStoredCompletion(t *testing.T) {
 	h.svc.SetAttestationSigner(signer)
 	ctx := context.Background()
 
-	h.svc.issueAttestationVoucher(ctx, "g1erin", "connect-wallet")
-	h.svc.queueBadgeMint(ctx, "g1erin", "connect-wallet")
+	h.svc.issueAttestationVoucher(ctx, "g1erin", "register-username")
+	h.svc.queueBadgeMint(ctx, "g1erin", "register-username")
 
 	if n := countRows(t, h, `SELECT COUNT(*) FROM attestation_vouchers_bound WHERE address = 'g1erin'`); n != 0 {
 		t.Fatalf("voucher issued without a stored completion (%d rows)", n)
@@ -390,10 +394,11 @@ func TestAttestation_MisconfiguredSignerFailsClosed(t *testing.T) {
 			}
 			h := setup(t)
 			h.svc.DisableAttestation(state)
+			h.stubChainVerify(true)
 			addr := fmt.Sprintf("g1misconf%d", i)
 			token := h.makeToken(t, addr)
 			if _, err := h.svc.CompleteQuest(context.Background(), connect.NewRequest(&membav1.CompleteQuestRequest{
-				AuthToken: token, QuestId: "connect-wallet",
+				AuthToken: token, QuestId: "register-username",
 			})); err != nil {
 				t.Fatal("quest completion must still work with attestation disabled:", err)
 			}
@@ -419,9 +424,10 @@ func TestSetAttestationSigner_RefusesUnboundSigner(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.svc.SetAttestationSigner(unbound)
+	h.stubChainVerify(true)
 	token := h.makeToken(t, "g1frank")
 	if _, err := h.svc.CompleteQuest(context.Background(), connect.NewRequest(&membav1.CompleteQuestRequest{
-		AuthToken: token, QuestId: "connect-wallet",
+		AuthToken: token, QuestId: "register-username",
 	})); err != nil {
 		t.Fatal(err)
 	}
@@ -444,6 +450,7 @@ func TestAttestation_VouchersScopedToChainAndKey(t *testing.T) {
 		t.Fatal(err)
 	}
 	h.svc.SetAttestationSigner(signer)
+	h.stubChainVerify(true)
 	ctx := context.Background()
 	const addr = "g1grace"
 
@@ -453,21 +460,21 @@ func TestAttestation_VouchersScopedToChainAndKey(t *testing.T) {
 	}
 	for _, st := range stale {
 		if _, err := h.db.ExecContext(ctx,
-			`INSERT INTO attestation_vouchers_bound (chain_id, signer_pubkey, address, quest_id, xp, nonce, sig_hex) VALUES (?, ?, ?, 'connect-wallet', 10, 'stale', 'stale')`,
+			`INSERT INTO attestation_vouchers_bound (chain_id, signer_pubkey, address, quest_id, xp, nonce, sig_hex) VALUES (?, ?, ?, 'register-username', 20, 'stale', 'stale')`,
 			st.chain, st.pubkey, addr,
 		); err != nil {
 			t.Fatal(err)
 		}
 	}
 	if _, err := h.db.ExecContext(ctx,
-		`INSERT INTO attestation_vouchers (address, quest_id, xp, nonce, sig_hex) VALUES (?, 'connect-wallet', 10, 'legacy', 'legacy')`, addr,
+		`INSERT INTO attestation_vouchers (address, quest_id, xp, nonce, sig_hex) VALUES (?, 'register-username', 20, 'legacy', 'legacy')`, addr,
 	); err != nil {
 		t.Fatal(err)
 	}
 
 	token := h.makeToken(t, addr)
 	if _, err := h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
-		AuthToken: token, QuestId: "connect-wallet",
+		AuthToken: token, QuestId: "register-username",
 	})); err != nil {
 		t.Fatal(err)
 	}

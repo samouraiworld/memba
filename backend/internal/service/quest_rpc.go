@@ -282,7 +282,8 @@ func (s *MultisigService) CompleteQuest(ctx context.Context, req *connect.Reques
 	s.checkAndQueueRankBadge(ctx, userAddr, state.TotalXp)
 
 	// Issue an on-chain attestation voucher for this completion (Q-05). Best-effort
-	// and idempotent; no-op when the attestation signer is unconfigured.
+	// and idempotent; no-op when the attestation signer is unconfigured or the
+	// quest is not verified (off_chain/legacy).
 	s.issueAttestationVoucher(ctx, userAddr, questID)
 
 	return connect.NewResponse(&membav1.CompleteQuestResponse{State: state}), nil
@@ -303,10 +304,24 @@ func (s *MultisigService) hasQuestCompletion(ctx context.Context, addr, questID 
 	return true, nil
 }
 
+// isCompletionVerified applies completionVerified to (addr, questID), looking up
+// whether an admin approved the address's claim for it.
+func (s *MultisigService) isCompletionVerified(ctx context.Context, addr, questID string) (bool, error) {
+	var one int
+	err := s.db.QueryRowContext(ctx,
+		`SELECT 1 FROM quest_claims WHERE address = ? AND quest_id = ? AND status = 'approved'`, addr, questID,
+	).Scan(&one)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, err
+	}
+	return completionVerified(questID, err == nil), nil
+}
+
 // issueAttestationVoucher signs + persists an on-chain attestation voucher for a
 // completion (Q-05). No-op when the signer is unconfigured, when no completion is
-// stored for (addr, questID), or when a voucher already exists for it. The
-// backend never broadcasts — the user does.
+// stored for (addr, questID), when the completion is not verified
+// (completionVerified), or when a voucher already exists for it. The backend
+// never broadcasts — the user does.
 func (s *MultisigService) issueAttestationVoucher(ctx context.Context, addr, questID string) {
 	if s.attSigner == nil {
 		return
@@ -318,6 +333,16 @@ func (s *MultisigService) issueAttestationVoucher(ctx context.Context, addr, que
 		return
 	}
 	if !stored {
+		return
+	}
+	// The realm records attested XP permanently, so self-claimed completions
+	// (off_chain, legacy ids, unapproved claims) are never signed, whoever calls.
+	verified, err := s.isCompletionVerified(ctx, addr, questID)
+	if err != nil {
+		slog.Warn("attestation voucher verification lookup failed", "address", addr, "quest", questID, "err", err)
+		return
+	}
+	if !verified {
 		return
 	}
 	// Skip if already issued under THIS (chain, key) — avoids re-signing on
@@ -353,7 +378,9 @@ func (s *MultisigService) issueAttestationVoucher(ctx context.Context, addr, que
 // the client can broadcast them to the attestation realm (Q-05). Public read;
 // empty (with no realm/signer) when attestation is off, Unavailable when a
 // signer is configured but refused (O4 chain binding). Only vouchers signed by
-// the current key for the current chain are served.
+// the current key for the current chain, for verified completions
+// (completionVerified), are served. Rows signed for unverified quests before
+// that rule existed are kept but withheld.
 func (s *MultisigService) GetAttestationVouchers(ctx context.Context, req *connect.Request[membav1.GetAttestationVouchersRequest]) (*connect.Response[membav1.GetAttestationVouchersResponse], error) {
 	resp := &membav1.GetAttestationVouchersResponse{}
 	if s.attSigner == nil {
@@ -370,6 +397,10 @@ func (s *MultisigService) GetAttestationVouchers(ctx context.Context, req *conne
 	if addr == "" {
 		return connect.NewResponse(resp), nil
 	}
+	approved, err := s.approvedQuestClaims(ctx, addr)
+	if err != nil {
+		return nil, internalError("GetAttestationVouchers.claims", err)
+	}
 	rows, err := s.db.QueryContext(ctx,
 		`SELECT quest_id, xp, nonce, sig_hex FROM attestation_vouchers_bound WHERE chain_id = ? AND signer_pubkey = ? AND address = ? ORDER BY created_at, quest_id`,
 		s.attSigner.ChainID(), resp.SignerPubkeyHex, addr,
@@ -385,6 +416,9 @@ func (s *MultisigService) GetAttestationVouchers(ctx context.Context, req *conne
 		)
 		if err := rows.Scan(&questID, &xp, &nonce, &sigHex); err != nil {
 			return nil, internalError("GetAttestationVouchers.scan", err)
+		}
+		if !completionVerified(questID, approved[questID]) {
+			continue
 		}
 		resp.Vouchers = append(resp.Vouchers, &membav1.AttestationVoucher{
 			QuestId: questID,
@@ -494,12 +528,12 @@ func (s *MultisigService) SyncQuests(ctx context.Context, req *connect.Request[m
 			return nil, internalError("SyncQuests", err)
 		}
 
-		// Q-05: issue an attestation voucher for synced completions too. Many
-		// off-chain quest UI triggers call completeQuest() WITHOUT the auth token,
-		// so they reach the backend only via this sync path — without this, those
-		// completions would never get an on-chain voucher. Idempotent per
-		// (addr, questId); no-op when attestation is disabled. This also backfills
-		// vouchers for completions recorded before attestation was enabled.
+		// Q-05: issue an attestation voucher for synced completions too, so a
+		// verified quest that reaches the backend only via sync still attests.
+		// issueAttestationVoucher skips unverified (off_chain/legacy) quests.
+		// Idempotent per (addr, questId); no-op when attestation is disabled. This
+		// also backfills vouchers for completions recorded before attestation was
+		// enabled.
 		s.issueAttestationVoucher(ctx, userAddr, questID)
 	}
 
@@ -552,29 +586,52 @@ func (s *MultisigService) grantDerivedMetaQuests(ctx context.Context, addr strin
 	return granted
 }
 
+// completionVerified is the single rule for which stored completions are
+// verified: on_chain quests (re-verified on-chain at grant time) and self_report
+// quests whose claim an admin approved through ReviewQuestClaim. off_chain,
+// social, retired and legacy ids are self-claimed and never verified. It backs
+// both VerifiedXp (the candidature gate) and attestation vouchers (XP the realm
+// records permanently).
+func completionVerified(questID string, claimApproved bool) bool {
+	switch questVerification[questID] {
+	case "on_chain":
+		return true
+	case "self_report":
+		return claimApproved
+	default:
+		return false
+	}
+}
+
+// approvedQuestClaims returns the quest ids whose claim an admin approved for addr.
+func (s *MultisigService) approvedQuestClaims(ctx context.Context, addr string) (map[string]bool, error) {
+	rows, err := s.db.QueryContext(ctx,
+		`SELECT quest_id FROM quest_claims WHERE address = ? AND status = 'approved'`,
+		addr,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	approved := map[string]bool{}
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, err
+		}
+		approved[id] = true
+	}
+	return approved, rows.Err()
+}
+
 // loadUserQuestState reads all completions for a user and calculates XP server-side.
 // TotalXp sums every completion; VerifiedXp (BE-4) sums only proof-backed ones —
 // on_chain quests (re-verified server-side at grant time) and self_report quests
 // whose claim an admin approved. off_chain/social/legacy rows never count toward
 // VerifiedXp, which is what the 350-XP candidature gate reads.
 func (s *MultisigService) loadUserQuestState(ctx context.Context, address string) (*membav1.UserQuestState, error) {
-	approved := map[string]bool{}
-	claimRows, err := s.db.QueryContext(ctx,
-		`SELECT quest_id FROM quest_claims WHERE address = ? AND status = 'approved'`,
-		address,
-	)
+	approved, err := s.approvedQuestClaims(ctx, address)
 	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = claimRows.Close() }()
-	for claimRows.Next() {
-		var id string
-		if err := claimRows.Scan(&id); err != nil {
-			return nil, err
-		}
-		approved[id] = true
-	}
-	if err := claimRows.Err(); err != nil {
 		return nil, err
 	}
 
@@ -596,13 +653,8 @@ func (s *MultisigService) loadUserQuestState(ctx context.Context, address string
 		state.Completed = append(state.Completed, &qc)
 		if xp, ok := validQuests[qc.QuestId]; ok {
 			state.TotalXp += xp
-			switch questVerification[qc.QuestId] {
-			case "on_chain":
+			if completionVerified(qc.QuestId, approved[qc.QuestId]) {
 				state.VerifiedXp += xp
-			case "self_report":
-				if approved[qc.QuestId] {
-					state.VerifiedXp += xp
-				}
 			}
 		}
 	}
@@ -1070,6 +1122,10 @@ func (s *MultisigService) ReviewQuestClaim(ctx context.Context, req *connect.Req
 		); err != nil {
 			return nil, internalError("ReviewQuestClaim.complete", err)
 		}
+
+		// The approved claim makes this completion verified: attest it (Q-05).
+		// Best-effort and idempotent, like the other grant paths.
+		s.issueAttestationVoucher(ctx, claimAddr, questID)
 
 		// Update rank cache
 		state, err := s.loadUserQuestState(ctx, claimAddr)
