@@ -10,6 +10,7 @@
     "dev:e2e-marketplace-v1": "vite --mode e2e-marketplace-v1 --port 5176 --strictPort",
     "build": "tsc -b && vite build",
     "check:bundle": "node scripts/check-three-chunk.mjs",
+    "check:bundle:os": "node scripts/check-os-chunk.mjs",
     "audit:ci": "node scripts/audit-ci.mjs",
     "audit:ci:dev": "node scripts/audit-ci.mjs --include-dev",
     "lint": "eslint . --max-warnings=0",

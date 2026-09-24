@@ -203,6 +203,13 @@ jobs:
         # Inert-but-passing until the 3D renderer actually imports three (PR-0c).
         run: npm run check:bundle
 
+      - name: "Bundle gate: no Memba OS code in the flag-off build"
+        # Memba OS ships only on the beta site (VITE_MEMBA_OS + MEMBA_OS_BETA_SITE).
+        # This build has the flag off, so any OS chunk or "memba-os" string in
+        # dist/ means the gated lazy import stopped folding away and every user
+        # would download and precache it.
+        run: npm run check:bundle:os
+
       # Lighthouse is gated to the Node 22 leg only (it exercises the built
       # bundle in a static preview; the Node *runner* version is irrelevant).
       # The full Playwright E2E used to run here too — it has been moved to its
