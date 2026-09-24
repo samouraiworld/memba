@@ -107,8 +107,16 @@ export function weightedDaoAddress(realmPath: string): string { return packageAd
 
 const targetPath = z.enum(Object.values(APPLICATION_TARGETS) as [string, ...string[]])
 
-/** Read one target's authority and, once the DAO is pending, the extra accept preconditions. */
+/**
+ * Read one target's authority and, once the DAO is pending, the extra accept
+ * preconditions, after checking the RPC serves the selected chain.
+ */
 export async function readTargetAuthority(ctx: WeightedContext, key: ApplicationPolicyKey, target: string, successor: string, signal?: AbortSignal): Promise<AuthorityRead> {
+    await assertWeightedChain(ctx, signal)
+    return readTargetAuthorityUnchecked(ctx, key, target, successor, signal)
+}
+
+async function readTargetAuthorityUnchecked(ctx: WeightedContext, key: ApplicationPolicyKey, target: string, successor: string, signal?: AbortSignal): Promise<AuthorityRead> {
     targetPath.parse(target); address.parse(successor)
     const dao = weightedDaoAddress(ctx.realmPath)
     const getters = AUTHORITY_GETTERS[key]
@@ -134,7 +142,7 @@ export async function readTargetAuthority(ctx: WeightedContext, key: Application
 export async function readAcceptanceStates(ctx: WeightedContext, policies: { key: ApplicationPolicyKey; policy: { target: string; successor: string } }[], signal?: AbortSignal) {
     await assertWeightedChain(ctx, signal)
     const dao = weightedDaoAddress(ctx.realmPath)
-    const entries = await Promise.all(policies.map(({ key, policy }) => readTargetAuthority(ctx, key, policy.target, policy.successor, signal)
+    const entries = await Promise.all(policies.map(({ key, policy }) => readTargetAuthorityUnchecked(ctx, key, policy.target, policy.successor, signal)
         .then(read => [key, acceptanceState(read, dao)] as const, () => [key, "error"] as const)))
     return Object.fromEntries(entries) as Partial<Record<ApplicationPolicyKey, AcceptanceState | "error">>
 }

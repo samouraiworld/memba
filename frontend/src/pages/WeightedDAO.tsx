@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useOutletContext, useParams } from "react-router-dom"
 import { NETWORKS, GNO_CHAIN_ID, GNO_RPC_URL } from "../lib/config"
-import { isUnreadableProposal, readWeightedBallot, validateWeightedRecovery, weightedApplicationPolicies, weightedWritesSupported, weightedWriteKinds, weightedVoteChoices, weightedAuthority, assertWeightedWrites, assertWeightedPlanSignable, planWeightedTx, readWeightedProposal, readWeightedSnapshot, WEIGHTED_APPLICATIONS_SCHEMA, WEIGHTED_WRITE_HOLD_CHAINS, type WeightedAction, type WeightedConfig, type WeightedBallot, type WeightedContext, type WeightedInvalidation, type WeightedPageEntry, type WeightedProposal, type WeightedWriteKind } from "../lib/dao/weighted"
+import { isUnreadableProposal, readWeightedBallot, validateWeightedRecovery, weightedApplicationPolicies, weightedWritesSupported, weightedWriteKinds, weightedVoteChoices, weightedAuthority, assertWeightedWrites, assertWeightedPlanSignable, planWeightedTx, readOpenWeightedProposals, readWeightedProposal, readWeightedSnapshot, WEIGHTED_APPLICATIONS_SCHEMA, WEIGHTED_WRITE_HOLD_CHAINS, type WeightedAction, type WeightedConfig, type WeightedBallot, type WeightedContext, type WeightedInvalidation, type WeightedPageEntry, type WeightedProposal, type WeightedWriteKind } from "../lib/dao/weighted"
 import { revealInvisibleFormatting as reveal } from "../lib/dao/v2Text"
 import { ACCEPT_FUNCS, APPLICATION_LABELS, IMMEDIATE_THRESHOLDS, acceptAdapterFor, applicationDetails, flattenBefore, type ApplicationPolicyKey, type WeightedApplicationAction } from "../lib/dao/weightedApplications"
 import { ACCEPTANCE_LABELS, AUTHORITY_GETTERS, acceptanceState, readAcceptanceStates, readTargetAuthority, weightedDaoAddress, type AcceptanceState } from "../lib/dao/weightedAcceptance"
 import { v12CallBudget } from "../lib/dao/weightedBudget"
+import { assertLiveWalletChain } from "../lib/dao/weightedWallet"
 import { formatUgnotExact } from "../lib/dao/v2Budget"
 import { proposalIdFromTxResult } from "../lib/dao/daoTx"
 import { doContractBroadcast } from "../lib/grc20"
@@ -103,11 +104,13 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
             if (rpcUrl !== GNO_RPC_URL) throw new Error("Selected RPC changed")
         }
         // v12: the target must still name the DAO as its pending authority, and no
-        // other acceptance may be open (whichever executes first voids the rest).
+        // other acceptance may be open anywhere in the history (whichever
+        // executes first voids the rest).
         const assertAcceptable = async (snapshot: Snapshot, adapter: ApplicationPolicyKey) => {
             if (snapshot.config.schema !== WEIGHTED_APPLICATIONS_SCHEMA) throw new Error("This DAO has no application adapters")
             const policy = snapshot.config[adapter]
-            const open = snapshot.page.proposals.find(p => !isUnreadableProposal(p) && OPEN_STATUSES.includes(p.status) && acceptAdapterFor(p.action) !== null)
+            const open = (await readOpenWeightedProposals(ctx)).find(p => acceptAdapterFor(p.action) !== null)
+            assertCurrent()
             if (open) throw new Error(`Acceptance proposal #${open.id} is still open; propose the next acceptance after it executes or closes`)
             const state = acceptanceState(await readTargetAuthority(ctx, adapter, policy.target, policy.successor), weightedDaoAddress(realmPath))
             assertCurrent()
@@ -148,7 +151,10 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
                     const policy = fresh.config[handoff]
                     const state = acceptanceState(await readTargetAuthority(ctx, handoff, policy.target, policy.successor), weightedDaoAddress(realmPath))
                     assertCurrent()
-                    if (state.kind !== "ready") throw new Error(`${reveal(policy.target)} no longer names the DAO as its pending ${AUTHORITY_GETTERS[handoff].authority}, so this acceptance would fail; refresh before acting`)
+                    const role = AUTHORITY_GETTERS[handoff].authority, target = reveal(policy.target)
+                    if (state.kind === "dao") throw new Error(`The DAO already controls ${target}, so this acceptance would fail; refresh before acting`)
+                    if (state.kind === "blocked") throw new Error(`${target} would refuse this acceptance: ${state.reasons.join(" ")}`)
+                    if (state.kind === "awaiting") throw new Error(`${target} no longer names the DAO as its pending ${role} (pending: ${reveal(state.pending || "none")}), so this acceptance would fail; refresh before acting`)
                 }
             }
             const plan = planWeightedTx(wallet.address, realmPath, action, fresh.config.schema, chainId, executes)
@@ -156,6 +162,8 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
             const beforeSign = async () => {
                 assertCurrent()
                 assertWeightedPlanSignable(plan)
+                // v12: ask the wallet for its network now; the cached chain id may be empty.
+                if (isV12) { await assertLiveWalletChain({ chainId, address: wallet.address }); assertCurrent() }
                 const current = await readWeightedSnapshot(ctx)
                 assertCurrent()
                 if (weightedAuthority(current) !== weightedAuthority(fresh)) throw new Error("DAO roster or roles changed during confirmation; review again")

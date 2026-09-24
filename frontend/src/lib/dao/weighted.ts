@@ -245,6 +245,7 @@ export function weightedApplicationPolicies(config: WeightedConfig) {
 
 export async function readWeightedProposal(ctx: WeightedContext, proposalId: string, schema?: string) {
     id.parse(proposalId)
+    await assertWeightedChain(ctx)
     const response = weightedProposalSchema.parse(await read(ctx, `GetProposalJSON(${proposalId})`))
     if (schema && response.schema !== schema) throw new Error("DAO contract version changed")
     const result = response.proposal
@@ -428,4 +429,28 @@ export function weightedVoteChoices(p: Pick<WeightedProposal, "status" | "voting
     if (!ballot || ballot === "error" || !ballot.eligible) return new Set()
     if (p.votingClosed || !["VOTING", "TIMELOCKED", "READY"].includes(p.status)) return new Set()
     return new Set((["yes", "no", "abstain"] as const).filter(choice => choice !== ballot.choice))
+}
+
+/**
+ * Every open (VOTING, TIMELOCKED or READY) proposal, newest first, paging the
+ * whole history up to `maxPages` pages of 20. A qualified proposal stays open
+ * past its voting deadline until it executes or is invalidated, so no page
+ * can be skipped by date. Each page is read through the chain check and must
+ * carry the same contract, roster and roles; more pages than the bound, or
+ * an unreadable proposal, refuse rather than report a partial answer.
+ */
+export async function readOpenWeightedProposals(ctx: WeightedContext, maxPages = 25, signal?: AbortSignal): Promise<WeightedProposal[]> {
+    const first = await readWeightedSnapshot(ctx, "0", signal)
+    const open: WeightedProposal[] = []
+    let page = first
+    for (let n = 1; ; n++) {
+        for (const p of page.page.proposals) {
+            if (isUnreadableProposal(p)) throw new Error(`Proposal #${p.id} could not be validated, so open proposals cannot be listed completely`)
+            if (["VOTING", "TIMELOCKED", "READY"].includes(p.status)) open.push(p)
+        }
+        if (page.page.nextBefore === null) return open
+        if (n >= maxPages) throw new Error("Too many proposals to check every open one; refresh and try again later")
+        page = await readWeightedSnapshot(ctx, page.page.nextBefore, signal)
+        if (weightedAuthority(page) !== weightedAuthority(first)) throw new Error("DAO roster or roles changed while reading proposals; refresh and review again")
+    }
 }

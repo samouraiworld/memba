@@ -162,23 +162,24 @@ test('one mis-encoded weighted proposal is listed as unreadable without hiding t
 // A member's wallet on a non-mainnet network (test13: hidden but resolvable).
 // The wallet records what it is asked to sign and never reaches a chain.
 const MEMBER = (v12.members as { members: { address: string }[] }).members[1].address
-async function memberWallet(page: Page) {
-    await page.addInitScript(({ address }) => {
-        localStorage.setItem('memba_network', 'test13')
+const TEST13 = { network: 'test13', chainId: 'test-13', rpcUrl: 'https://rpc.test13.testnets.gno.land:443' }
+async function memberWallet(page: Page, where = TEST13) {
+    await page.addInitScript(({ address, network, chainId, rpcUrl }) => {
+        localStorage.setItem('memba_network', network)
         localStorage.setItem('memba_adena_connected', 'true')
-        localStorage.setItem('memba_auth_token', JSON.stringify({ nonce: 'e2e', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId: 'test-13', serverSignature: 'invalid-test-only' }))
+        localStorage.setItem('memba_auth_token', JSON.stringify({ nonce: 'e2e', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId, serverSignature: 'invalid-test-only' }))
         localStorage.setItem(`memba_wizard_seen_${address}`, '1')
         const w = window as unknown as { __signRequests: unknown[] }
         w.__signRequests = []
         const reject = async () => { throw new Error('e2e wallet: not available') }
         Object.defineProperty(window, 'adena', { value: {
-            GetAccount: async () => ({ status: 'success', data: { address, coins: '100000000ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' }, accountNumber: '1', sequence: '0', chainId: 'test-13' } }),
-            GetNetwork: async () => ({ data: { chainId: 'test-13', rpcUrl: 'https://rpc.test13.testnets.gno.land:443' } }),
+            GetAccount: async () => ({ status: 'success', data: { address, coins: '100000000ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' }, accountNumber: '1', sequence: '0', chainId } }),
+            GetNetwork: async () => ({ data: { chainId, rpcUrl } }),
             On: () => () => {},
             DoContract: async (request: unknown) => { w.__signRequests.push(request); return { status: 'success', data: { hash: 'ab'.repeat(32) } } },
             Sign: reject, SignTx: reject, AddEstablish: reject,
         } })
-    }, { address: MEMBER })
+    }, { address: MEMBER, ...where })
 }
 test('weighted DAO v12 on a test network proposes an adapter acceptance with its exact deposit cap', async ({ page }, info) => {
     await stubNetwork(page)
@@ -226,5 +227,22 @@ test('weighted DAO v12 on a test network warns before an execution invalidates o
     await fee.screenshot({ path: info.outputPath('weighted-dao-v12-execute-warning.png'), animations: 'disabled' })
     await confirm.getByRole('button', { name: 'Keep proposals open' }).click()
     await expect(confirm).toHaveCount(0)
+    expect(await page.evaluate(() => (window as unknown as { __signRequests: unknown[] }).__signRequests)).toHaveLength(0)
+})
+test('weighted DAO v12 on mainnet keeps every control disabled for a connected, authenticated member', async ({ page }) => {
+    await stubNetwork(page)
+    await routeV12(page, 'gnoland-1')
+    await memberWallet(page, { network: 'mainnet', chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land:443' })
+    await suppressReleaseAnnouncement(page)
+    await page.goto(`/mainnet/weighted-dao/${weightedRealm}`)
+    const workspace = page.locator('.weighted-dao')
+    await expect(workspace.getByText('Mainnet governance is read-only while launch verification is unfinished.')).toBeVisible()
+    const market = workspace.getByRole('listitem', { name: 'marketPolicy adapter' })
+    await expect(market.getByText('Ready to accept')).toBeVisible()
+    // The member is recognised (ballots are read) and still cannot act.
+    await expect(workspace.getByRole('article', { name: 'Proposal 17' }).getByText('You have not voted.')).toBeVisible()
+    const controls = await workspace.getByRole('button', { name: /^(Propose acceptance|Vote .*|Execute proposal|Review role proposal)$/ }).all()
+    expect(controls.length).toBeGreaterThan(30)
+    for (const button of controls) await expect(button).toBeDisabled()
     expect(await page.evaluate(() => (window as unknown as { __signRequests: unknown[] }).__signRequests)).toHaveLength(0)
 })

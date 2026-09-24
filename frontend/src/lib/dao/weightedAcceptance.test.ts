@@ -191,5 +191,7 @@ describe("acceptance state machine", () => {
         expect(Object.keys(states)).toHaveLength(10)
         network = "gnoland-1"
         await expect(readAcceptanceStates(ctx, weightedApplicationPolicies(config))).rejects.toThrow("RPC network does not match")
+        // A single re-read (before signing, after executing) checks the chain too.
+        await expect(read("marketPolicy")).rejects.toThrow("RPC network does not match")
     })
 })

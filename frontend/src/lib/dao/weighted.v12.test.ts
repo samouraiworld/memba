@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import native from "./testdata/weighted-v12/native.json"
-import { assertWeightedWrites, buildWeightedMessage, isUnreadableProposal, readWeightedBallot, readWeightedPendingVotes, readWeightedProposal, readWeightedSnapshot, validateWeightedRecovery, weightedBallotSchema, weightedApplicationPolicies, weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema, WEIGHTED_APPLICATIONS_SCHEMA } from "./weighted"
+import { assertWeightedWrites, buildWeightedMessage, readOpenWeightedProposals, isUnreadableProposal, readWeightedBallot, readWeightedPendingVotes, readWeightedProposal, readWeightedSnapshot, validateWeightedRecovery, weightedBallotSchema, weightedApplicationPolicies, weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema, WEIGHTED_APPLICATIONS_SCHEMA } from "./weighted"
 import { APPLICATION_POLICY_KEYS, IMMEDIATE_THRESHOLDS, packageAddress, applicationDetails, expectedCategory, flattenBefore, type WeightedApplicationAction } from "./weightedApplications"
 import { directRpcCall } from "../rpcFallback"
 import { qevalWire, weightedFixture } from "./testdata/weighted"
@@ -263,6 +263,18 @@ describe("every operation the host can encode", () => {
         expect(mutate(a => { a.contractId = "1" })).toBe(false)
         expect(mutate(a => { a.before.contract.exists = false })).toBe(false)
         expect(mutate(a => { a.contractId = "" })).toBe(false)
+    })
+
+    it("lists every open proposal across pages, bounded, and refuses a partial answer", async () => {
+        const open = await readOpenWeightedProposals(ctx)
+        const expected = [...(replies.pages["0"] as { proposals: Json[] }).proposals, ...(replies.pages["7"] as { proposals: Json[] }).proposals]
+            .filter(p => ["VOTING", "TIMELOCKED", "READY"].includes(p.status as string)).map(p => p.id)
+        expect(open.map(p => p.id)).toEqual(expected)
+        expect(expected.length).toBeGreaterThan(0)
+        await expect(readOpenWeightedProposals(ctx, 1)).rejects.toThrow("Too many proposals")
+        const older = replies.pages["7"] as { proposals: Json[] }
+        older.proposals[0] = { ...older.proposals[0], category: "routine" }
+        await expect(readOpenWeightedProposals(ctx)).rejects.toThrow("could not be validated")
     })
 
     it("builds no v12 transaction on gnoland-1, and no role or recovery proposal anywhere yet", async () => {

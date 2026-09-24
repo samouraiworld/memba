@@ -2,7 +2,8 @@ import { act, fireEvent, render, screen, waitFor, within } from "@testing-librar
 import { MemoryRouter, Outlet, Route, Routes } from "react-router-dom"
 import { beforeEach, expect, it, vi } from "vitest"
 import { WeightedDAO } from "./WeightedDAO"
-import { readWeightedBallot, readWeightedProposal, readWeightedSnapshot } from "../lib/dao/weighted"
+import { readOpenWeightedProposals, readWeightedBallot, readWeightedProposal, readWeightedSnapshot, type WeightedProposal } from "../lib/dao/weighted"
+import { assertLiveWalletChain } from "../lib/dao/weightedWallet"
 import { doContractBroadcast } from "../lib/grc20"
 import { bech32Encode } from "../lib/dao/realmAddress"
 import { weightedFixture, weightedRealm } from "../lib/dao/testdata/weighted"
@@ -11,7 +12,8 @@ import { weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weight
 import { readAcceptanceStates, readTargetAuthority, weightedDaoAddress, type AcceptanceState } from "../lib/dao/weightedAcceptance"
 import { APPLICATION_POLICY_KEYS, type ApplicationPolicyKey } from "../lib/dao/weightedApplications"
 vi.mock("../lib/config", async importOriginal => ({ ...await importOriginal<typeof import("../lib/config")>(), NETWORKS: { pearl: { chainId: "pearl", rpcUrl: "https://selected.invalid" }, mainnet: { chainId: "gnoland-1", rpcUrl: "https://main.invalid" } }, GNO_CHAIN_ID: "pearl", GNO_RPC_URL: "https://selected.invalid" }))
-vi.mock("../lib/dao/weighted", async importOriginal => ({ ...await importOriginal<typeof import("../lib/dao/weighted")>(), readWeightedSnapshot: vi.fn(), readWeightedProposal: vi.fn(), readWeightedBallot: vi.fn() }))
+vi.mock("../lib/dao/weighted", async importOriginal => ({ ...await importOriginal<typeof import("../lib/dao/weighted")>(), readWeightedSnapshot: vi.fn(), readWeightedProposal: vi.fn(), readWeightedBallot: vi.fn(), readOpenWeightedProposals: vi.fn() }))
+vi.mock("../lib/dao/weightedWallet", () => ({ assertLiveWalletChain: vi.fn() }))
 vi.mock("../lib/grc20", () => ({ doContractBroadcast: vi.fn() }))
 vi.mock("../lib/dao/weightedAcceptance", async importOriginal => ({ ...await importOriginal<typeof import("../lib/dao/weightedAcceptance")>(), readAcceptanceStates: vi.fn(), readTargetAuthority: vi.fn() }))
 let fixture = weightedFixture()
@@ -26,11 +28,16 @@ beforeEach(() => {
     vi.mocked(readWeightedProposal).mockImplementation(async () => fixture.proposal as Awaited<ReturnType<typeof readWeightedProposal>>)
     vi.mocked(doContractBroadcast).mockImplementation(async (_msgs, _memo, opts) => { await opts?.beforeSign?.(); return { hash: "a".repeat(64) } })
     vi.mocked(readWeightedBallot).mockImplementation(async (_ctx, proposalId, voter) => ({ schema: "memba-weighted-host/v12", proposalId, voter, eligible: true, choice: null, votedAtHeight: null }))
+    // Every open proposal: in these tests, the open ones of the snapshot's single page.
+    vi.mocked(readOpenWeightedProposals).mockImplementation(async () => (await vi.mocked(readWeightedSnapshot)(ctxOf())).page.proposals
+        .filter((p): p is WeightedProposal => !("unreadable" in p) && ["VOTING", "TIMELOCKED", "READY"].includes(p.status)))
+    vi.mocked(assertLiveWalletChain).mockResolvedValue(undefined)
     acceptance = Object.fromEntries(APPLICATION_POLICY_KEYS.map(key => [key, { current: DAO, pending: "", failed: [] }]))
     vi.mocked(readTargetAuthority).mockImplementation(async (_ctx, key) => acceptance[key])
     vi.mocked(readAcceptanceStates).mockImplementation(async () => Object.fromEntries(APPLICATION_POLICY_KEYS.map(key => [key, stateOf(key)])))
 })
 const DAO = weightedDaoAddress(weightedRealm)
+const ctxOf = () => ({ realmPath: weightedRealm, rpcUrl: "https://selected.invalid", chainId: "pearl" })
 const PUBLISHER = "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf"
 let acceptance: Record<string, { current: string; pending: string; failed: string[] }>
 function stateOf(key: ApplicationPolicyKey): AcceptanceState {
@@ -433,5 +440,49 @@ it("refuses to execute an acceptance whose nomination was withdrawn", async () =
     fireEvent.click(await within(card).findByRole("button", { name: "Execute proposal" }))
     fireEvent.click(within(card).getByRole("button", { name: "Confirm execution" }))
     expect((await screen.findByRole("alert")).textContent).toMatch(/no longer names the DAO as its pending admin/)
+    expect(doContractBroadcast).not.toHaveBeenCalled()
+})
+it("checks the wallet's live network right before signing a v12 call, and stops if it moved", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    acceptance.marketPolicy = { current: PUBLISHER, pending: DAO, failed: [] }
+    vi.mocked(assertLiveWalletChain).mockRejectedValue(new Error("Your wallet is on gnoland-1, where governance writes remain on hold"))
+    const voter = v12Snapshot().members[1].address
+    render(<App network="pearl" address={voter} />)
+    const market = await screen.findByRole("listitem", { name: "marketPolicy adapter" })
+    fireEvent.click(await within(market).findByRole("button", { name: "Propose acceptance" }))
+    expect((await screen.findByRole("alert")).textContent).toMatch(/where governance writes remain on hold/)
+    expect(assertLiveWalletChain).toHaveBeenCalledWith({ chainId: "pearl", address: voter })
+    expect(screen.queryByText(/Transaction submitted:/)).toBeNull()
+})
+it("finds an open acceptance on an older page before proposing another", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    acceptance.marketPolicy = { current: PUBLISHER, pending: DAO, failed: [] }
+    const older = structuredClone(weightedProposalSchema.parse(v12Native.records.recovery_later).proposal)
+    older.action = weightedProposalSchema.parse(v12Native.records.proposal_5).proposal.action
+    older.id = "3"
+    vi.mocked(readOpenWeightedProposals).mockResolvedValue([older])
+    render(<App network="pearl" address={v12Snapshot().members[1].address} />)
+    const market = await screen.findByRole("listitem", { name: "marketPolicy adapter" })
+    fireEvent.click(await within(market).findByRole("button", { name: "Propose acceptance" }))
+    expect((await screen.findByRole("alert")).textContent).toMatch(/Acceptance proposal #3 is still open/)
+    expect(doContractBroadcast).not.toHaveBeenCalled()
+})
+for (const [label, read, reason] of [
+    ["the DAO already controls the target", { current: "DAO", pending: "", failed: [] }, /The DAO already controls gno\.land\/r\/samcrew\/memba_market_config/],
+    ["a host precondition fails", { current: PUBLISHER, pending: "DAO", failed: ["The current owner is still a feed moderator."] }, /would refuse this acceptance: The current owner is still a feed moderator\./],
+] as const) it(`names the real reason an acceptance cannot execute: ${label}`, async () => {
+    const data = v12Snapshot()
+    const ready = structuredClone(weightedProposalSchema.parse(v12Native.records.recovery_later).proposal)
+    ready.action = weightedProposalSchema.parse(v12Native.records.proposal_4).proposal.action
+    ready.id = "27"
+    data.page = { ...data.page, total: "27", proposals: [ready] }
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => data)
+    vi.mocked(readWeightedProposal).mockImplementation(async () => ready as Awaited<ReturnType<typeof readWeightedProposal>>)
+    acceptance.marketPolicy = { current: read.current === "DAO" ? DAO : read.current, pending: read.pending === "DAO" ? DAO : read.pending, failed: [...read.failed] }
+    render(<App network="pearl" address={data.members[1].address} />)
+    const card = await screen.findByRole("article", { name: "Proposal 27" })
+    fireEvent.click(await within(card).findByRole("button", { name: "Execute proposal" }))
+    fireEvent.click(within(card).getByRole("button", { name: "Confirm execution" }))
+    expect((await screen.findByRole("alert")).textContent).toMatch(reason)
     expect(doContractBroadcast).not.toHaveBeenCalled()
 })
