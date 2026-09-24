@@ -100,7 +100,11 @@ func TestPlanAttestFee(t *testing.T) {
 		{name: "explicit fee below the live minimum refuses", s: FeeSettings{GasFeeUgnot: 49_999}, live: launch, wantFail: true},
 		{name: "explicit fee at the live minimum", s: FeeSettings{GasFeeUgnot: 50_000}, live: launch,
 			want: FeePlan{GasWanted: 50_000_000, GasFeeUgnot: 50_000, Source: "env"}},
-		{name: "huge gas wanted refuses", s: FeeSettings{GasWanted: 3_000_000_000}, live: launch, wantCap: true},
+		{name: "explicit fee below the floor without a live read refuses", s: FeeSettings{GasFeeUgnot: 49_999}, live: nil, wantFail: true},
+		{name: "gas wanted at the ceiling with a raised cap", s: FeeSettings{GasWanted: 1_000_000_000, MaxGasFeeUgnot: 2_000_000}, live: launch,
+			want: FeePlan{GasWanted: 1_000_000_000, GasFeeUgnot: 2_000_000, Source: "gasprice"}},
+		{name: "gas wanted above the ceiling refuses even with an explicit fee", s: FeeSettings{GasWanted: 1_000_000_001, GasFeeUgnot: 150_000}, live: nil, wantFail: true},
+		{name: "chain block max gas refuses", s: FeeSettings{GasWanted: 3_000_000_000}, live: launch, wantFail: true},
 		{name: "negative knobs take defaults", s: FeeSettings{GasWanted: -1, GasFeeUgnot: -1, MaxGasFeeUgnot: -1}, live: launch,
 			want: FeePlan{GasWanted: 50_000_000, GasFeeUgnot: 100_000, Source: "gasprice"}},
 	}
@@ -125,14 +129,129 @@ func TestPlanAttestFee(t *testing.T) {
 	}
 }
 
-// The zero-config broadcaster must never fall back to the old flat 1 GNOT.
+// The zero-config broadcaster must never fall back to the old flat 1 GNOT, and
+// its derived fee is capped like the env path's.
 func TestAttesterConfigDefaultFee(t *testing.T) {
-	c := AttesterConfig{}.withDefaults()
-	if c.GasWanted != DefaultAttestGasWanted || c.GasFeeUgnot != 100_000 {
-		t.Fatalf("defaults = gas %d fee %d, want %d / 100000", c.GasWanted, c.GasFeeUgnot, DefaultAttestGasWanted)
+	cases := []struct {
+		name      string
+		in        AttesterConfig
+		wantGas   int64
+		wantFee   int64
+		wantDepos int64
+	}{
+		{"zero config", AttesterConfig{}, DefaultAttestGasWanted, 100_000, DefaultAttestMaxDepositUgnot},
+		{"small gas", AttesterConfig{GasWanted: 5_000_000}, 5_000_000, 10_000, DefaultAttestMaxDepositUgnot},
+		{"derived fee above the cap is capped", AttesterConfig{GasWanted: 150_000_000}, 150_000_000, DefaultMaxAttestFeeUgnot, DefaultAttestMaxDepositUgnot},
+		{"gas above the ceiling is capped", AttesterConfig{GasWanted: 5_000_000_000}, 5_000_000_000, DefaultMaxAttestFeeUgnot, DefaultAttestMaxDepositUgnot},
+		{"explicit values kept", AttesterConfig{GasWanted: 3, GasFeeUgnot: 7, MaxDepositUgnot: 9}, 3, 7, 9},
 	}
-	if c.GasFeeUgnot > DefaultMaxAttestFeeUgnot {
-		t.Fatalf("default fee %d above the default cap %d", c.GasFeeUgnot, DefaultMaxAttestFeeUgnot)
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			c := tc.in.withDefaults()
+			if c.GasWanted != tc.wantGas || c.GasFeeUgnot != tc.wantFee || c.MaxDepositUgnot != tc.wantDepos {
+				t.Fatalf("got gas %d fee %d deposit %d; want %d / %d / %d",
+					c.GasWanted, c.GasFeeUgnot, c.MaxDepositUgnot, tc.wantGas, tc.wantFee, tc.wantDepos)
+			}
+		})
+	}
+}
+
+func envMap(m map[string]string) func(string) string {
+	return func(k string) string { return m[k] }
+}
+
+func TestFeeSettingsFromEnv(t *testing.T) {
+	cases := []struct {
+		name    string
+		env     map[string]string
+		want    FeeSettings
+		wantErr string
+	}{
+		{name: "unset takes defaults", env: nil, want: FeeSettings{}},
+		{name: "blank takes defaults", env: map[string]string{"MEMBA_ARCADE_GAS_WANTED": " "}, want: FeeSettings{}},
+		{name: "all set", env: map[string]string{"MEMBA_ARCADE_GAS_WANTED": "40000000", "MEMBA_ARCADE_GAS_FEE_UGNOT": "90000", "MEMBA_ARCADE_MAX_GAS_FEE_UGNOT": "150000"},
+			want: FeeSettings{GasWanted: 40_000_000, GasFeeUgnot: 90_000, MaxGasFeeUgnot: 150_000}},
+		{name: "gas at the ceiling", env: map[string]string{"MEMBA_ARCADE_GAS_WANTED": "1000000000"}, want: FeeSettings{GasWanted: 1_000_000_000}},
+		{name: "gas above the ceiling", env: map[string]string{"MEMBA_ARCADE_GAS_WANTED": "1000000001"}, wantErr: "MEMBA_ARCADE_GAS_WANTED"},
+		{name: "underscore digits", env: map[string]string{"MEMBA_ARCADE_GAS_WANTED": "50_000"}, wantErr: "MEMBA_ARCADE_GAS_WANTED"},
+		{name: "coin string fee", env: map[string]string{"MEMBA_ARCADE_GAS_FEE_UGNOT": "100000ugnot"}, wantErr: "MEMBA_ARCADE_GAS_FEE_UGNOT"},
+		{name: "zero fee", env: map[string]string{"MEMBA_ARCADE_GAS_FEE_UGNOT": "0"}, wantErr: "MEMBA_ARCADE_GAS_FEE_UGNOT"},
+		// The case this guards: a tighter cap lost to a typo would silently
+		// revert to the 200000 default.
+		{name: "malformed cap", env: map[string]string{"MEMBA_ARCADE_MAX_GAS_FEE_UGNOT": "50k"}, wantErr: "MEMBA_ARCADE_MAX_GAS_FEE_UGNOT"},
+		{name: "negative cap", env: map[string]string{"MEMBA_ARCADE_MAX_GAS_FEE_UGNOT": "-5"}, wantErr: "MEMBA_ARCADE_MAX_GAS_FEE_UGNOT"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := FeeSettingsFromEnv(envMap(tc.env))
+			if tc.wantErr != "" {
+				if err == nil || !strings.Contains(err.Error(), tc.wantErr) {
+					t.Fatalf("want an error naming %s, got %+v, %v", tc.wantErr, got, err)
+				}
+				return
+			}
+			if err != nil || got != tc.want {
+				t.Fatalf("got %+v, %v; want %+v", got, err, tc.want)
+			}
+		})
+	}
+}
+
+func TestResolveAttestBudget(t *testing.T) {
+	const live = `{"gas":"1000","price":"1ugnot"}`
+	good := rpcStub(t, "gnoland-1", live, "null")
+	other := rpcStub(t, "gnoland-0", live, "null")
+	down := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		http.Error(w, "bad gateway", http.StatusBadGateway)
+	}))
+	t.Cleanup(down.Close)
+
+	cases := []struct {
+		name       string
+		srv        *httptest.Server
+		env        map[string]string
+		want       AttestBudget
+		wantGPErr  bool
+		wantErrIs  error
+		wantErrAny bool
+	}{
+		{name: "live price", srv: good,
+			want: AttestBudget{FeePlan: FeePlan{GasWanted: 50_000_000, GasFeeUgnot: 100_000, Source: "gasprice"}, MaxDepositUgnot: 2_000_000}},
+		{name: "overrides", srv: good, env: map[string]string{"MEMBA_ARCADE_GAS_WANTED": "20000000", "MEMBA_ARCADE_MAX_DEPOSIT_UGNOT": "1500000"},
+			want: AttestBudget{FeePlan: FeePlan{GasWanted: 20_000_000, GasFeeUgnot: 40_000, Source: "gasprice"}, MaxDepositUgnot: 1_500_000}},
+		{name: "unreachable RPC falls back", srv: down, wantGPErr: true,
+			want: AttestBudget{FeePlan: FeePlan{GasWanted: 50_000_000, GasFeeUgnot: 100_000, Source: "fallback"}, MaxDepositUgnot: 2_000_000}},
+		{name: "wrong network refuses", srv: other, wantErrIs: ErrRPCWrongNetwork},
+		{name: "malformed knob refuses", srv: good, env: map[string]string{"MEMBA_ARCADE_MAX_GAS_FEE_UGNOT": "100000ugnot"}, wantErrAny: true},
+		{name: "bad deposit refuses", srv: good, env: map[string]string{"MEMBA_ARCADE_MAX_DEPOSIT_UGNOT": "0"}, wantErrAny: true},
+		{name: "fee above a tightened cap refuses", srv: good, env: map[string]string{"MEMBA_ARCADE_MAX_GAS_FEE_UGNOT": "50000"}, wantErrIs: ErrAttestFeeAboveCap},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			got, err := ResolveAttestBudget(context.Background(), tc.srv.Client(), envMap(tc.env), tc.srv.URL, "gnoland-1")
+			switch {
+			case tc.wantErrIs != nil:
+				if !errors.Is(err, tc.wantErrIs) {
+					t.Fatalf("want %v, got %+v, %v", tc.wantErrIs, got, err)
+				}
+				return
+			case tc.wantErrAny:
+				if err == nil {
+					t.Fatalf("want a refusal, got %+v", got)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+			if (got.GasPriceErr != nil) != tc.wantGPErr {
+				t.Fatalf("GasPriceErr = %v, want set=%v", got.GasPriceErr, tc.wantGPErr)
+			}
+			got.GasPriceErr = nil
+			if got != tc.want {
+				t.Fatalf("got %+v; want %+v", got, tc.want)
+			}
+		})
 	}
 }
 
@@ -171,7 +290,7 @@ func TestFetchGasPrice(t *testing.T) {
 		{name: "gnoland-1", network: "gnoland-1", data: live, queryErr: "null", want: GasPrice{1000, 1}},
 		{name: "trailing slash", network: "gnoland-1", data: live, queryErr: "null",
 			remote: func(u string) string { return u + "/" }, want: GasPrice{1000, 1}},
-		{name: "wrong chain", network: "gnoland-0", data: live, queryErr: "null", errPart: `serves network "gnoland-0"`},
+		{name: "wrong chain", network: "gnoland-0", data: live, queryErr: "null", errPart: `serves "gnoland-0"`},
 		{name: "query error", network: "gnoland-1", data: "", queryErr: `{"msg":"unknown"}`, errPart: "query error"},
 		{name: "bad payload", network: "gnoland-1", data: `{"gas":"1000","price":"1uatom"}`, queryErr: "null", errPart: "not in ugnot"},
 		{name: "not http", network: "gnoland-1", data: live, queryErr: "null",

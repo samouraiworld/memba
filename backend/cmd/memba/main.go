@@ -528,31 +528,19 @@ func main() {
 			slog.Warn("MEMBA_ARCADE_ATTESTER_ENABLED set but GNO_CHAIN_ID or the RPC URL is empty — attester stays dormant (every broadcast would fail)", "chainID", chainID, "remote", remote)
 		default:
 			// Size the per-tx fee from the chain's live gas price (read-only, after
-			// a node_info.network check), falling back to gnoland-1's launch price.
-			// A fee above the cap keeps the attester dormant: at up to
-			// MaxPerCycle txs per cycle, a bad fee would drain the key.
+			// a node_info.network check), falling back to gnoland-1's launch price
+			// when the RPC is unreachable. A malformed knob, a fee or deposit out of
+			// bounds, or an RPC serving another chain keeps the attester dormant: at
+			// up to MaxPerCycle txs per cycle, a bad budget would drain the key.
 			gpCtx, gpCancel := context.WithTimeout(ctx, 5*time.Second)
-			gp, gpErr := arcade.FetchGasPrice(gpCtx, nil, remote, chainID)
+			budget, budgetErr := arcade.ResolveAttestBudget(gpCtx, nil, os.Getenv, remote, chainID)
 			gpCancel()
-			var liveGasPrice *arcade.GasPrice
-			if gpErr != nil {
-				slog.Warn("arcade attester: auth/gasprice read failed — sizing the fee from the fallback gas price", "error", gpErr)
-			} else {
-				liveGasPrice = &gp
-			}
-			fee, feeErr := arcade.PlanAttestFee(arcade.FeeSettings{
-				GasWanted:      int64Or("MEMBA_ARCADE_GAS_WANTED", 0),
-				GasFeeUgnot:    int64Or("MEMBA_ARCADE_GAS_FEE_UGNOT", 0),
-				MaxGasFeeUgnot: int64Or("MEMBA_ARCADE_MAX_GAS_FEE_UGNOT", 0),
-			}, liveGasPrice)
-			if feeErr != nil {
-				slog.Error("arcade attester fee refused — attester stays dormant", "error", feeErr)
+			if budgetErr != nil {
+				slog.Error("arcade attester budget refused — attester stays dormant", "error", budgetErr)
 				break
 			}
-			maxDeposit, depErr := arcade.ResolveMaxDeposit(os.Getenv("MEMBA_ARCADE_MAX_DEPOSIT_UGNOT"))
-			if depErr != nil {
-				slog.Error("arcade attester max deposit refused — attester stays dormant", "error", depErr)
-				break
+			if budget.GasPriceErr != nil {
+				slog.Warn("arcade attester: auth/gasprice read failed — fee sized from the fallback gas price", "error", budget.GasPriceErr)
 			}
 			bcfg := arcade.AttesterConfig{
 				Realm:   envOr("MEMBA_ARCADE_REALM", "gno.land/r/samcrew/memba_arcade_leaderboard_v1"),
@@ -564,9 +552,9 @@ func main() {
 				// ephemeral container-only keyring this is a gnokey formality.
 				KeyringPassword: envOr("MEMBA_ARCADE_KEYRING_PW", "arcade"),
 				GnokeyBin:       gnokeyBin,
-				GasWanted:       int(fee.GasWanted),
-				GasFeeUgnot:     int(fee.GasFeeUgnot),
-				MaxDepositUgnot: int(maxDeposit),
+				GasWanted:       budget.GasWanted,
+				GasFeeUgnot:     budget.GasFeeUgnot,
+				MaxDepositUgnot: budget.MaxDepositUgnot,
 			}
 			arcade.StartDayCloseBatcher(ctx, arcade.NewStore(database), arcade.NewGnokeyBroadcaster(bcfg), arcade.BatcherConfig{
 				Enabled:     true,
@@ -574,7 +562,7 @@ func main() {
 				Interval:    durationOr("MEMBA_ARCADE_ATTEST_INTERVAL", 15*time.Minute),
 			})
 			slog.Info("arcade day-close attester enabled", "realm", bcfg.Realm, "key", attesterKey, "chainID", bcfg.ChainID,
-				"gasWanted", fee.GasWanted, "gasFeeUgnot", fee.GasFeeUgnot, "feeSource", fee.Source, "maxDepositUgnot", maxDeposit)
+				"gasWanted", budget.GasWanted, "gasFeeUgnot", budget.GasFeeUgnot, "feeSource", budget.Source, "maxDepositUgnot", budget.MaxDepositUgnot)
 		}
 	}
 	// Feed link-preview image proxy — serves only images vetted by GetLinkPreview

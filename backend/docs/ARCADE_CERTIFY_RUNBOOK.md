@@ -88,9 +88,13 @@ for it:
 1. **The gas fee.** At boot the backend reads `auth/gasprice` from the RPC
    (after checking `node_info.network` equals `GNO_CHAIN_ID`) and sets
    `-gas-fee` to twice the minimum that price demands for `-gas-wanted`. If the
-   read fails, it uses gnoland-1's launch price, 1ugnot per 1000 gas. With the
-   default `-gas-wanted 50000000`, that is **100000ugnot (0.1 GNOT) per tx**.
-   The chain charges the whole fee, not the gas used. The boot line
+   read fails because the RPC is unreachable, it uses gnoland-1's launch price,
+   1ugnot per 1000 gas. If the RPC answers for a different chain, the attester
+   refuses to start. With the default `-gas-wanted 50000000`, the fee is
+   **100000ugnot (0.1 GNOT) per tx**. The chain charges the whole fee, not the
+   gas used. The price is read **once, at boot**. If the chain's price later
+   rises above the 2× margin, txs fail `insufficient fee` at no cost until you
+   restart the machine, which re-reads the price. The boot line
    `arcade day-close attester enabled` prints `gasWanted`, `gasFeeUgnot` and
    `feeSource` (`gasprice`, `fallback` or `env`).
 2. **The storage deposit.** The realm grows by about 10 KB per new entry. That
@@ -118,14 +122,17 @@ budget, a fee below the gas price, or a realm panic costs nothing. The run
 retries each cycle and parks `errored` after 8 tries. Look for `out of gas` or
 `insufficient fee` in the `arcade attest failed` warnings.
 
-Knobs (Fly secrets, all optional):
+Knobs (Fly secrets, all optional). Each one must be unset or a plain whole
+number such as `150000`: no `_`, no `ugnot`, no `0`. A malformed value, or one
+outside its bounds, keeps the attester **dormant** with an `ERROR` line
+(`arcade attester budget refused`). It never falls back to the default.
 
 | Env | Default | Effect |
 |---|---|---|
-| `MEMBA_ARCADE_GAS_WANTED` | `50000000` | Gas budget per tx. Raise it when attestations fail `out of gas`. |
-| `MEMBA_ARCADE_GAS_FEE_UGNOT` | unset (sized from the price) | Explicit fee. It overrides the price-derived fee. If it is below the live minimum, the attester stays dormant. |
-| `MEMBA_ARCADE_MAX_GAS_FEE_UGNOT` | `200000` | Cap. Above it, the attester **refuses to start**, logs an `ERROR` line (`arcade attester fee refused`) and stays dormant. |
-| `MEMBA_ARCADE_MAX_DEPOSIT_UGNOT` | `2000000` | The most storage deposit one attestation can lock, passed to gnokey as `-max-deposit`. The measured worst case is 10,290 bytes (1,029,000 ugnot), and the default is ×1.5 of that, rounded up. Setting it to `0`, a non-integer, or more than `5000000` (5 GNOT) makes the attester **refuse to start** (`arcade attester max deposit refused`). |
+| `MEMBA_ARCADE_GAS_WANTED` | `50000000` | Gas budget per tx, at most `1000000000`. Raise it when attestations fail `out of gas`. |
+| `MEMBA_ARCADE_GAS_FEE_UGNOT` | unset (sized from the price) | Explicit fee. It overrides the price-derived fee. If it is below the minimum for the gas budget, the attester stays dormant. The minimum uses the live price, or 1ugnot/1000gas when the read fails. |
+| `MEMBA_ARCADE_MAX_GAS_FEE_UGNOT` | `200000` | Fee cap. If the fee is above it, the attester **refuses to start** and stays dormant. |
+| `MEMBA_ARCADE_MAX_DEPOSIT_UGNOT` | `2000000` | The most storage deposit one attestation can lock, passed to gnokey as `-max-deposit`. The measured worst case is 10,290 bytes (1,029,000 ugnot), and the default is ×1.5 of that, rounded up. Setting it to `0`, a non-integer, or more than `5000000` (5 GNOT) makes the attester **refuse to start**. |
 
 With the defaults, the live gas price can double before the fee cap trips. Raise
 the fee cap on purpose, and only after you have checked the price.
@@ -135,8 +142,10 @@ the fee cap on purpose, and only after you have checked the price.
 One attestation is one wallet's best run for one game on one closed day. At the
 default fee and today's gas price, each one costs about **1.11 GNOT**: 0.10
 GNOT fee plus about 1.01 GNOT storage deposit. No single attestation can lock
-more than `MEMBA_ARCADE_MAX_DEPOSIT_UGNOT` (2 GNOT by default), so the most one
-tx can cost is 2.1 GNOT. If a tx needs more deposit than the cap allows, gnokey's
+more than `MEMBA_ARCADE_MAX_DEPOSIT_UGNOT` (2 GNOT by default), and no fee can
+be above `MEMBA_ARCADE_MAX_GAS_FEE_UGNOT` (0.2 GNOT by default). With the default
+caps, the most one tx can cost is **2.2 GNOT**. Raising either cap raises that
+limit. If a tx needs more deposit than the cap allows, gnokey's
 simulation rejects it with `not enough deposit to cover the storage usage`, and
 it costs nothing (checked on the local node: the balance did not change).
 The run retries and parks like any other failure. Raise the cap only if the
@@ -151,8 +160,8 @@ realm's per-entry storage really grew.
 The batcher sends at most `MEMBA_ARCADE_ATTEST_MAX_PER_CYCLE` txs (default 100)
 every `MEMBA_ARCADE_ATTEST_INTERVAL` (default 15m). That is 9,600 a day in the
 worst case, about 10,700 GNOT. Lower the per-cycle cap to bound spend below what
-the key holds. With the caps, one full cycle can cost at most
-100 × 2.1 GNOT = 210 GNOT. Fund for the expected daily volume times the top-up interval,
+the key holds. With the default caps, one full cycle can cost at most
+100 × 2.2 GNOT = **220 GNOT**. Raising a cap raises that limit too. Fund for the expected daily volume times the top-up interval,
 plus headroom, and watch the balance (M6). **Owner decision:** the storage
 deposit, not the fee, sets the budget. Reducing it means a realm change, which
 is out of scope here.

@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"math"
 	"math/big"
 	"net/http"
 	"strconv"
@@ -27,6 +28,10 @@ const (
 	// broadcasting, so an undersized value burns no fee, but the run retries
 	// and then parks 'errored'.
 	DefaultAttestGasWanted = 50_000_000
+	// MaxAttestGasWanted is the hard ceiling on MEMBA_ARCADE_GAS_WANTED: 20×
+	// the default and a third of gnoland-1's 3B block max gas. It also keeps
+	// every gas and fee value well inside a 32-bit int.
+	MaxAttestGasWanted = 1_000_000_000
 	// DefaultAttestFeeMargin multiplies the minimum fee the gas price demands,
 	// so a moderate rise of the chain's dynamic gas price doesn't reject txs.
 	DefaultAttestFeeMargin = 2
@@ -50,9 +55,15 @@ const (
 // gas), used when the live read at start fails.
 var FallbackGasPrice = GasPrice{Gas: 1000, PriceUgnot: 1}
 
-// ErrAttestFeeAboveCap: the resolved per-tx fee exceeds the cap. The attester
-// must not start — at up to MaxPerCycle txs per cycle a bad fee drains the key.
-var ErrAttestFeeAboveCap = errors.New("arcade: attester gas fee above cap")
+var (
+	// ErrAttestFeeAboveCap: the resolved per-tx fee exceeds the cap. The attester
+	// must not start — at up to MaxPerCycle txs per cycle a bad fee drains the key.
+	ErrAttestFeeAboveCap = errors.New("arcade: attester gas fee above cap")
+	// ErrRPCWrongNetwork: the RPC answered for a different chain than the one
+	// the attester signs for. Unlike an unreachable RPC this is a config error,
+	// so the attester must not start.
+	ErrRPCWrongNetwork = errors.New("arcade: RPC serves a different network")
+)
 
 // GasPrice is the chain's auth/gasprice: PriceUgnot ugnot per Gas units.
 type GasPrice struct {
@@ -115,12 +126,17 @@ type FeePlan struct {
 // PlanAttestFee resolves the per-tx fee. live is the chain's gas price read at
 // start (nil when that read failed). An explicit fee wins; otherwise the fee is
 // MinFee × DefaultAttestFeeMargin at the live price, else at FallbackGasPrice.
-// Errors (the attester must stay dormant) when the fee exceeds the cap, or when
-// an explicit fee is below what the live price demands (every tx would bounce).
+// Errors (the attester must stay dormant) when gas-wanted exceeds
+// MaxAttestGasWanted, when the fee exceeds the cap, or when an explicit fee is
+// below the minimum at the live price (or, with no live read, at the
+// FallbackGasPrice floor) — every tx would bounce.
 func PlanAttestFee(s FeeSettings, live *GasPrice) (FeePlan, error) {
 	p := FeePlan{GasWanted: s.GasWanted}
 	if p.GasWanted <= 0 {
 		p.GasWanted = DefaultAttestGasWanted
+	}
+	if p.GasWanted > MaxAttestGasWanted {
+		return FeePlan{}, fmt.Errorf("arcade: gas-wanted %d is above the ceiling %d", p.GasWanted, MaxAttestGasWanted)
 	}
 	maxFee := s.MaxGasFeeUgnot
 	if maxFee <= 0 {
@@ -131,11 +147,13 @@ func PlanAttestFee(s FeeSettings, live *GasPrice) (FeePlan, error) {
 	switch {
 	case s.GasFeeUgnot > 0:
 		fee, p.Source = big.NewInt(s.GasFeeUgnot), "env"
+		floor := FallbackGasPrice
 		if live != nil {
-			if lo := MinFeeUgnot(p.GasWanted, *live); fee.Cmp(lo) < 0 {
-				return FeePlan{}, fmt.Errorf("arcade: MEMBA_ARCADE_GAS_FEE_UGNOT=%d is below the chain minimum %s ugnot for gas-wanted %d at %dugnot/%d gas",
-					s.GasFeeUgnot, lo, p.GasWanted, live.PriceUgnot, live.Gas)
-			}
+			floor = *live
+		}
+		if lo := MinFeeUgnot(p.GasWanted, floor); fee.Cmp(lo) < 0 {
+			return FeePlan{}, fmt.Errorf("arcade: MEMBA_ARCADE_GAS_FEE_UGNOT=%d is below the chain minimum %s ugnot for gas-wanted %d at %dugnot/%d gas",
+				s.GasFeeUgnot, lo, p.GasWanted, floor.PriceUgnot, floor.Gas)
 		}
 	case live != nil:
 		fee, p.Source = MinFeeUgnot(p.GasWanted, *live), "gasprice"
@@ -157,15 +175,85 @@ func PlanAttestFee(s FeeSettings, live *GasPrice) (FeePlan, error) {
 // (0, MaxAttestMaxDepositUgnot]; otherwise the attester must stay dormant. A 0
 // would hand the choice back to the chain's 100 GNOT default_deposit.
 func ResolveMaxDeposit(raw string) (int64, error) {
-	raw = strings.TrimSpace(raw)
-	if raw == "" {
+	n, err := parseEnvAmount("MEMBA_ARCADE_MAX_DEPOSIT_UGNOT", raw, MaxAttestMaxDepositUgnot)
+	if err != nil {
+		return 0, err
+	}
+	if n == 0 {
 		return DefaultAttestMaxDepositUgnot, nil
 	}
+	return n, nil
+}
+
+// FeeSettingsFromEnv parses the fee knobs strictly: unset (or blank) takes the
+// default, anything else must be a whole number in 1..max. A malformed value
+// ("50_000", "100000ugnot", "0") is an error, never a silent default, so a
+// tighter cap an operator set can't be dropped by a typo.
+func FeeSettingsFromEnv(getenv func(string) string) (FeeSettings, error) {
+	var s FeeSettings
+	var err error
+	if s.GasWanted, err = parseEnvAmount("MEMBA_ARCADE_GAS_WANTED", getenv("MEMBA_ARCADE_GAS_WANTED"), MaxAttestGasWanted); err != nil {
+		return FeeSettings{}, err
+	}
+	if s.GasFeeUgnot, err = parseEnvAmount("MEMBA_ARCADE_GAS_FEE_UGNOT", getenv("MEMBA_ARCADE_GAS_FEE_UGNOT"), math.MaxInt64); err != nil {
+		return FeeSettings{}, err
+	}
+	if s.MaxGasFeeUgnot, err = parseEnvAmount("MEMBA_ARCADE_MAX_GAS_FEE_UGNOT", getenv("MEMBA_ARCADE_MAX_GAS_FEE_UGNOT"), math.MaxInt64); err != nil {
+		return FeeSettings{}, err
+	}
+	return s, nil
+}
+
+// parseEnvAmount returns 0 for an unset/blank value (take the default) and
+// otherwise requires a base-10 integer in 1..max.
+func parseEnvAmount(name, raw string, max int64) (int64, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return 0, nil
+	}
 	n, err := strconv.ParseInt(raw, 10, 64)
-	if err != nil || n <= 0 || n > MaxAttestMaxDepositUgnot {
-		return 0, fmt.Errorf("arcade: MEMBA_ARCADE_MAX_DEPOSIT_UGNOT=%q must be a whole ugnot amount in 1..%d", raw, MaxAttestMaxDepositUgnot)
+	if err != nil || n <= 0 || n > max {
+		return 0, fmt.Errorf("arcade: %s=%q must be a whole number in 1..%d", name, raw, max)
 	}
 	return n, nil
+}
+
+// AttestBudget is everything the attester's gnokey call spends per tx.
+type AttestBudget struct {
+	FeePlan
+	MaxDepositUgnot int64
+	// GasPriceErr is the (non-fatal) auth/gasprice read failure that made the
+	// plan use FallbackGasPrice; nil when the live price was used.
+	GasPriceErr error
+}
+
+// ResolveAttestBudget reads the knobs from getenv, the gas price from remote,
+// and returns the per-tx budget. Any error means the attester must stay
+// dormant: a malformed knob, a fee or deposit outside its bounds, or an RPC
+// that serves a different chain than chainID. An unreachable RPC is not fatal —
+// the fee is sized from FallbackGasPrice and GasPriceErr says why.
+func ResolveAttestBudget(ctx context.Context, client *http.Client, getenv func(string) string, remote, chainID string) (AttestBudget, error) {
+	settings, err := FeeSettingsFromEnv(getenv)
+	if err != nil {
+		return AttestBudget{}, err
+	}
+	maxDeposit, err := ResolveMaxDeposit(getenv("MEMBA_ARCADE_MAX_DEPOSIT_UGNOT"))
+	if err != nil {
+		return AttestBudget{}, err
+	}
+	var live *GasPrice
+	gp, gpErr := FetchGasPrice(ctx, client, remote, chainID)
+	switch {
+	case errors.Is(gpErr, ErrRPCWrongNetwork):
+		return AttestBudget{}, gpErr
+	case gpErr == nil:
+		live = &gp
+	}
+	plan, err := PlanAttestFee(settings, live)
+	if err != nil {
+		return AttestBudget{}, err
+	}
+	return AttestBudget{FeePlan: plan, MaxDepositUgnot: maxDeposit, GasPriceErr: gpErr}, nil
 }
 
 // FetchGasPrice reads auth/gasprice from the RPC at remote, after checking the
@@ -190,8 +278,11 @@ func FetchGasPrice(ctx context.Context, client *http.Client, remote, chainID str
 	if err := getJSON(ctx, client, base+"/status", &status); err != nil {
 		return GasPrice{}, err
 	}
-	if got := status.Result.NodeInfo.Network; got != chainID {
-		return GasPrice{}, fmt.Errorf("arcade: RPC %s serves network %q, not %q", base, got, chainID)
+	switch got := status.Result.NodeInfo.Network; {
+	case got == "":
+		return GasPrice{}, fmt.Errorf("arcade: RPC %s status has no node_info.network", base)
+	case got != chainID:
+		return GasPrice{}, fmt.Errorf("%w: %s serves %q, not %q", ErrRPCWrongNetwork, base, got, chainID)
 	}
 
 	var q struct {

@@ -52,9 +52,9 @@ type AttesterConfig struct {
 	// single-user keyring this is a gnokey formality, not a security control — the
 	// key material lives in the Fly secret + the keyring, never in this process.
 	KeyringPassword string
-	GasWanted       int           // default DefaultAttestGasWanted
-	GasFeeUgnot     int           // default: sized from FallbackGasPrice (see PlanAttestFee)
-	MaxDepositUgnot int           // storage-deposit cap per tx (-max-deposit); default DefaultAttestMaxDepositUgnot
+	GasWanted       int64         // default DefaultAttestGasWanted
+	GasFeeUgnot     int64         // default: sized from FallbackGasPrice, never above DefaultMaxAttestFeeUgnot
+	MaxDepositUgnot int64         // storage-deposit cap per tx (-max-deposit); default DefaultAttestMaxDepositUgnot
 	Timeout         time.Duration // per-broadcast wall clock; default 60s
 }
 
@@ -66,7 +66,13 @@ func (c AttesterConfig) withDefaults() AttesterConfig {
 		c.GasWanted = DefaultAttestGasWanted
 	}
 	if c.GasFeeUgnot <= 0 {
-		c.GasFeeUgnot = int(MinFeeUgnot(int64(c.GasWanted), FallbackGasPrice).Int64()) * DefaultAttestFeeMargin
+		// Same sizing and cap as the env path. An over-ceiling GasWanted can't
+		// be planned; the capped fee then under-pays, so gnokey's simulation or
+		// CheckTx rejects the tx and it costs nothing — never an uncapped fee.
+		c.GasFeeUgnot = DefaultMaxAttestFeeUgnot
+		if p, err := PlanAttestFee(FeeSettings{GasWanted: c.GasWanted}, nil); err == nil {
+			c.GasFeeUgnot = p.GasFeeUgnot
+		}
 	}
 	if c.MaxDepositUgnot <= 0 {
 		c.MaxDepositUgnot = DefaultAttestMaxDepositUgnot
@@ -159,9 +165,9 @@ func (b *gnokeyBroadcaster) attestScoreArgv(run Run) []string {
 		"-args", run.StateHash,
 		"-args", run.LogHash,
 		"-args", run.Stats,
-		"-gas-fee", strconv.Itoa(b.cfg.GasFeeUgnot) + "ugnot",
-		"-gas-wanted", strconv.Itoa(b.cfg.GasWanted),
-		"-max-deposit", strconv.Itoa(b.cfg.MaxDepositUgnot) + "ugnot", // never let the chain's 100 GNOT default apply
+		"-gas-fee", strconv.FormatInt(b.cfg.GasFeeUgnot, 10) + "ugnot",
+		"-gas-wanted", strconv.FormatInt(b.cfg.GasWanted, 10),
+		"-max-deposit", strconv.FormatInt(b.cfg.MaxDepositUgnot, 10) + "ugnot", // never let the chain's 100 GNOT default apply
 		"-chainid", b.cfg.ChainID,
 		"-remote", b.cfg.Remote,
 		"-insecure-password-stdin", // read the keyring password from stdin (no TTY)
