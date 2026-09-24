@@ -1095,6 +1095,35 @@ describe('topaz commerce-v2 allowlist — funds-free realms only', () => {
         }
     })
 
+    it('VITE_ESCROW_REALM_PATH selects only escrow_v3 or escrow_v4; anything else falls back to v4 with a warning', async () => {
+        const { resolveEscrowPath } = await import('./config')
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+        expect(resolveEscrowPath(undefined)).toBe('gno.land/r/samcrew/escrow_v4')
+        expect(resolveEscrowPath('')).toBe('gno.land/r/samcrew/escrow_v4')
+        expect(resolveEscrowPath('gno.land/r/samcrew/escrow_v3')).toBe('gno.land/r/samcrew/escrow_v3')
+        expect(resolveEscrowPath('gno.land/r/samcrew/escrow_v4')).toBe('gno.land/r/samcrew/escrow_v4')
+        expect(warn).not.toHaveBeenCalled()
+        for (const bad of ['gno.land/r/samcrew/escrow_v2', 'gno.land/r/evil/escrow', 'gno.land/r/samcrew/escrow_v4 ', 'gno.land/r/samcrew/memba_token_otc_v2']) {
+            expect(resolveEscrowPath(bad), bad).toBe('gno.land/r/samcrew/escrow_v4')
+        }
+        expect(warn).toHaveBeenCalledTimes(4)
+        warn.mockRestore()
+    })
+
+    it('an unsupported VITE_ESCROW_REALM_PATH never reaches MEMBA_DAO.escrowPath', async () => {
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+        vi.stubEnv('VITE_ESCROW_REALM_PATH', 'gno.land/r/samcrew/escrow_v2')
+        vi.resetModules()
+        const { MEMBA_DAO } = await import('./config')
+        expect(MEMBA_DAO.escrowPath).toBe('gno.land/r/samcrew/escrow_v4')
+        vi.stubEnv('VITE_ESCROW_REALM_PATH', 'gno.land/r/samcrew/escrow_v3')
+        vi.resetModules()
+        expect((await import('./config')).MEMBA_DAO.escrowPath).toBe('gno.land/r/samcrew/escrow_v3')
+        vi.unstubAllEnvs()
+        vi.resetModules()
+        warn.mockRestore()
+    })
+
     it('does not touch the test13 allowlist', async () => {
         const { isRealmValidOn, MEMBA_DAO } = await import('./config')
         expect(isRealmValidOn('test13', 'gno.land/r/samcrew/escrow_v3')).toBe(true)

@@ -75,7 +75,12 @@ export function EscrowContractPanel({ caller, createdContract }: EscrowContractP
     const [error, setError] = useState<string | null>(null)
     const [done, setDone] = useState<string | null>(null)
 
-    const load = async (contractId: string) => {
+    const load = useCallback(async (contractId: string) => {
+        // Like My contracts: no reads unless the lane is live here, where the realm may not exist.
+        if (!live) {
+            setError("Service escrow is not available on this network yet.")
+            return
+        }
         setLoading(true)
         setError(null)
         try {
@@ -91,7 +96,7 @@ export function EscrowContractPanel({ caller, createdContract }: EscrowContractP
         } finally {
             setLoading(false)
         }
-    }
+    }, [live])
 
     // Reads only while the lane is live here: elsewhere the realm may not exist.
     const loadMine = useCallback(async (before: string) => {
@@ -114,7 +119,7 @@ export function EscrowContractPanel({ caller, createdContract }: EscrowContractP
             void load(createdId)
         }
         // The effect follows the caller and each new hire only.
-    }, [loadMine, createdN, createdId])
+    }, [load, loadMine, createdN, createdId])
 
     const onLookup = (e: FormEvent) => {
         e.preventDefault()

@@ -35,6 +35,12 @@
  * locks only the bytes a call really adds, so the cap is a ceiling, not a
  * price. The largest contract the builders produce caps at 7.91 GNOT, under the
  * 10 GNOT ceiling, so no escrow call ever needs an override.
+ *
+ * Text with runes in U+0600–U+206F or at or above U+FEFF costs more gas: the
+ * realm looks each one up in the Unicode format table. That worst case (up to
+ * 4,600 such runes) was not measured; the model adds a conservative per-rune
+ * cost and a higher clamp for it (ESCROW_FORMAT_LOOKUP_GAS,
+ * ESCROW_MAX_LOOKUP_CALL_GAS).
  */
 import { STORAGE_PRICE_UGNOT } from "../dao/v2Budget"
 
@@ -94,8 +100,25 @@ export const ESCROW_CALL_GAS_BASIS: Record<EscrowStateFunc, number> = Object.fro
  */
 export const ESCROW_STATE_CALL_STORAGE_BYTES = 1_000
 
-/** Largest gas limit these models produce (CreateContract at the realm's limits). */
+/** Largest gas limit for text with no format-table lookups (CreateContract at the realm's limits: 275M worst). */
 export const ESCROW_MAX_CALL_GAS = 350_000_000
+
+/**
+ * Largest gas limit for CreateContract text with format-table lookups (see
+ * countFormatLookupRunes). Not measured at the worst case: estimated at about
+ * 357M for maximum-size text of 2-byte runes in U+0600–U+07FF with 5,000 open
+ * contracts. Stays under Memba's 500M MAX_GAS_WANTED.
+ */
+export const ESCROW_MAX_LOOKUP_CALL_GAS = 450_000_000
+
+/**
+ * Extra gas per rune the realm checks against the Unicode format table.
+ * cleanText calls unicode.Is(unicode.Cf, c) only for U+00AD, U+0600–U+206F and
+ * runes at or above U+FEFF. From the measured maximum-size texts (4-byte emoji
+ * with lookups 231.5M, 3-byte 日 162.2M and 2-byte é 180.4M without) a lookup
+ * costs about 34,000 gas on top of the per-rune walk; 48,000 leaves a margin.
+ */
+export const ESCROW_FORMAT_LOOKUP_GAS = 48_000
 
 export interface EscrowCallBudget {
     gasWanted: number
@@ -108,6 +131,20 @@ export interface CreateContractSizes {
     descriptionBytes: number
     /** The encoded `title:amount,…` argument, exactly as sent. */
     milestonesArg: string
+    /** Runes of the title, description and milestones argument that cost a format-table lookup (countFormatLookupRunes). */
+    formatLookupRunes?: number
+}
+
+/** Runes the realm's cleanText checks against the Unicode format table (its mayBeFormat test). */
+export function countFormatLookupRunes(...texts: string[]): number {
+    let n = 0
+    for (const text of texts) {
+        for (const c of text) {
+            const cp = c.codePointAt(0) as number
+            if (cp === 0xad || (cp >= 0x600 && cp <= 0x206f) || cp >= 0xfeff) n++
+        }
+    }
+    return n
 }
 
 const bytes = (s: string) => new TextEncoder().encode(s).length
@@ -127,20 +164,20 @@ export function estimateCreateContract(sizes: CreateContractSizes): { gas: numbe
     const argBytes = bytes(sizes.milestonesArg)
     const milestones = sizes.milestonesArg.split(",").length
     return {
-        gas: 30_000_000 + 28_000 * (sizes.titleBytes + sizes.descriptionBytes + argBytes),
+        gas: 30_000_000 + 28_000 * (sizes.titleBytes + sizes.descriptionBytes + argBytes) + ESCROW_FORMAT_LOOKUP_GAS * (sizes.formatLookupRunes ?? 0),
         storageBytes: 10_000 + sizes.titleBytes + sizes.descriptionBytes + 1_000 * milestones + argBytes,
     }
 }
 
-const budget = (gas: number, storageBytes: number): EscrowCallBudget => ({
-    gasWanted: Math.min(ESCROW_MAX_CALL_GAS, roundUp(gas * 1.25, 1_000_000)),
+const budget = (gas: number, storageBytes: number, maxGas = ESCROW_MAX_CALL_GAS): EscrowCallBudget => ({
+    gasWanted: Math.min(maxGas, roundUp(gas * 1.25, 1_000_000)),
     maxDepositUgnot: roundUp(storageBytes * 2 * STORAGE_PRICE_UGNOT, 10_000),
 })
 
 /** Gas limit and deposit cap for a CreateContract with these argument sizes. */
 export function createContractBudget(sizes: CreateContractSizes): EscrowCallBudget {
     const { gas, storageBytes } = estimateCreateContract(sizes)
-    return budget(gas, storageBytes)
+    return budget(gas, storageBytes, (sizes.formatLookupRunes ?? 0) > 0 ? ESCROW_MAX_LOOKUP_CALL_GAS : ESCROW_MAX_CALL_GAS)
 }
 
 /** Gas limit and deposit cap for any escrow call other than CreateContract. */

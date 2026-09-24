@@ -6,6 +6,9 @@ import {
     ESCROW_FULL_SET_GAS_GROWTH,
     ESCROW_STATE_CALL_STORAGE_BYTES,
     ESCROW_MAX_CALL_GAS,
+    ESCROW_MAX_LOOKUP_CALL_GAS,
+    ESCROW_FORMAT_LOOKUP_GAS,
+    countFormatLookupRunes,
     createContractBudget,
     estimateArchiveRefundBytes,
     estimateArchiveRefundUgnot,
@@ -36,7 +39,8 @@ const CREATE_POINTS = [
     { name: "smallest, full set, new client counter", title: 1, desc: 0, arg: "m:1000", storage: 8_874, gas: 28_400_000 },
     { name: "smallest, full set, existing client counter", title: 1, desc: 0, arg: "m:1000", storage: 6_553, gas: 28_600_000 },
     { name: "max ASCII (largest storage)", title: 200, desc: 5000, arg: msArg(20, 200, "1000"), storage: 32_589, gas: 201_800_000 },
-    { name: "max 4-byte UTF-8", title: 200, desc: 5000, arg: msArg(20, 200, "1000", "\u{1F680}"), storage: 32_497, gas: 231_500_000 },
+    // Every emoji rune (U+1F680, at or above U+FEFF) costs the realm a format-table lookup: 50 + 1,250 + 20 × 50.
+    { name: "max 4-byte UTF-8", title: 200, desc: 5000, arg: msArg(20, 200, "1000", "\u{1F680}"), lookups: 2_300, storage: 32_497, gas: 231_500_000 },
     { name: "max 2-byte UTF-8", title: 200, desc: 5000, arg: msArg(20, 200, "1000", "é"), storage: 32_589, gas: 180_400_000 },
     { name: "max 3-byte UTF-8", title: 200, desc: 5000, arg: Array.from({ length: 20 }, () => "日".repeat(66) + "xx:1000").join(","), storage: 32_521, gas: 162_200_000 },
     // Half of the text is characters the realm strips. The builders refuse those, so Memba never sends
@@ -63,12 +67,12 @@ const MEASURED_STORAGE: Record<EscrowStateFunc, number> = {
     ArchiveContract: -6_718,
 }
 
-const create = (title: number, desc: number, arg: string) =>
-    createContractBudget({ titleBytes: title, descriptionBytes: desc, milestonesArg: arg })
+const create = (title: number, desc: number, arg: string, lookups = 0) =>
+    createContractBudget({ titleBytes: title, descriptionBytes: desc, milestonesArg: arg, formatLookupRunes: lookups })
 
 describe("escrow_v4 CreateContract model", () => {
     it.each(CREATE_POINTS)("bounds the measured point: $name", (p) => {
-        const est = estimateCreateContract({ titleBytes: p.title, descriptionBytes: p.desc, milestonesArg: p.arg })
+        const est = estimateCreateContract({ titleBytes: p.title, descriptionBytes: p.desc, milestonesArg: p.arg, formatLookupRunes: "lookups" in p ? p.lookups : 0 })
         expect(est.storageBytes).toBeGreaterThanOrEqual(p.storage)
         expect(est.gas).toBeGreaterThanOrEqual(p.gas)
     })
@@ -102,6 +106,42 @@ describe("escrow_v4 CreateContract model", () => {
     it("pins the smallest contract's budget: 2.21 GNOT cap, 38M gas", () => {
         expect(create(1, 0, "m:1000")).toEqual({ maxDepositUgnot: 2_210_000, gasWanted: 38_000_000 })
         expect(create(1, 0, "m:1000").maxDepositUgnot).toBeGreaterThanOrEqual(2 * 8_874 * 100)
+    })
+
+    it("counts the runes the realm looks up in the format table, and only those", () => {
+        const cp = (...n: number[]) => String.fromCodePoint(...n)
+        expect(countFormatLookupRunes(cp(0x5ff, 0x600, 0x206f, 0x2070))).toBe(2)
+        expect(countFormatLookupRunes(cp(0xfefe, 0xfeff, 0x1f680, 0xf0000))).toBe(3)
+        expect(countFormatLookupRunes(cp(0xad, 0xac, 0xe9, 0x65e5), "plain ASCII")).toBe(1)
+        expect(countFormatLookupRunes(cp(0x627), cp(0x627, 0x628), "a:1000")).toBe(3)
+    })
+
+    it("sizes lookup-heavy text above the measured per-lookup cost, with a higher clamp", () => {
+        // Emoji: 231.5M measured with 2,300 lookups, +19.7M on the full set.
+        const emoji = create(200, 5000, msArg(20, 200, "1000", "\u{1F680}"), 2_300)
+        expect(emoji.gasWanted).toBe(ESCROW_MAX_LOOKUP_CALL_GAS)
+        expect(emoji.gasWanted).toBeGreaterThanOrEqual(231_500_000 + FULL_SET_EXTRA.gas)
+        // Estimated, not measured: maximum-size text of 2-byte runes in U+0600–U+07FF (4,600 lookups).
+        // Per-rune walk ~11.9k and base ~125.8M (from 日 162.2M and é 180.4M), lookup ~34.1k (from the emoji point).
+        const perRune = (180_400_000 - 162_200_000) / (4_600 - 3_066)
+        const base = 162_200_000 - 3_066 * perRune
+        const lookup = (231_500_000 - base - 2_300 * perRune) / 2_300
+        expect(lookup).toBeLessThan(ESCROW_FORMAT_LOOKUP_GAS)
+        const worstArabic = base + 4_600 * (perRune + lookup) + FULL_SET_EXTRA.gas
+        expect(worstArabic).toBeGreaterThan(ESCROW_MAX_CALL_GAS) // why lookup-heavy text needs the higher clamp
+        const arabic = create(200, 5000, msArg(20, 200, "1000", String.fromCodePoint(0x627)), 4_600)
+        expect(arabic.gasWanted).toBe(ESCROW_MAX_LOOKUP_CALL_GAS)
+        expect(arabic.gasWanted).toBeGreaterThanOrEqual(worstArabic * 1.2)
+        expect(ESCROW_MAX_LOOKUP_CALL_GAS).toBeLessThanOrEqual(MAX_GAS_WANTED)
+    })
+
+    it("text without lookups keeps the 350M clamp, and a few lookups add only their cost", () => {
+        expect(create(200, 5000, msArg(20, 200, "999999999999999")).gasWanted).toBe(ESCROW_MAX_CALL_GAS)
+        const plain = create(10, 0, "m:1000")
+        const arabicTitle = create(10, 0, "m:1000", 5)
+        expect(arabicTitle.gasWanted - plain.gasWanted).toBeLessThanOrEqual(1_000_000)
+        expect(estimateCreateContract({ titleBytes: 10, descriptionBytes: 0, milestonesArg: "m:1000", formatLookupRunes: 5 }).gas -
+            estimateCreateContract({ titleBytes: 10, descriptionBytes: 0, milestonesArg: "m:1000" }).gas).toBe(5 * ESCROW_FORMAT_LOOKUP_GAS)
     })
 
     it("counts bytes in UTF-8", () => {

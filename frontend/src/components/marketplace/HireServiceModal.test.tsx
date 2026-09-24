@@ -34,11 +34,13 @@ const chain = vi.hoisted(() => ({
 const readEscrowPauseState = vi.hoisted(() => vi.fn(async () => { if (chain.fail) throw chain.fail; return chain.pause }))
 const readClientActiveCount = vi.hoisted(() => vi.fn(async () => chain.active))
 const findCreatedContract = vi.hoisted(() => vi.fn<() => Promise<string | null>>(async () => "12"))
+const readCreatedCount = vi.hoisted(() => vi.fn<() => Promise<number>>(async () => 12))
 vi.mock("../../lib/marketplace/escrowState", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/marketplace/escrowState")>()),
     readEscrowPauseState,
     readClientActiveCount,
     findCreatedContract,
+    readCreatedCount,
 }))
 vi.mock("../../lib/dao/proposalDates", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/dao/proposalDates")>()),
@@ -85,6 +87,8 @@ beforeEach(() => {
     readClientActiveCount.mockClear()
     findCreatedContract.mockReset()
     findCreatedContract.mockResolvedValue("12")
+    readCreatedCount.mockReset()
+    readCreatedCount.mockResolvedValue(12)
 })
 
 describe("HireServiceModal — gated", () => {
@@ -150,7 +154,9 @@ describe("HireServiceModal — live", () => {
         const { onSuccess, sign } = await openReady()
         fireEvent.click(sign())
         await waitFor(() => expect(onSuccess).toHaveBeenCalledWith("12"))
-        expect(findCreatedContract).toHaveBeenCalledWith(ESCROW, CLIENT, {
+        // The counter is read before the wallet is reached, and bounds the id accepted afterwards.
+        expect(readCreatedCount.mock.invocationCallOrder[0]).toBeLessThan(doContractBroadcast.mock.invocationCallOrder[0])
+        expect(findCreatedContract).toHaveBeenCalledWith(ESCROW, CLIENT, 12, {
             freelancer: FREELANCER,
             title: "Smart Contract Audit",
             description: "audit",
@@ -164,6 +170,21 @@ describe("HireServiceModal — live", () => {
         fireEvent.click(sign())
         await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(null))
         expect(doContractBroadcast).toHaveBeenCalledTimes(1)
+    })
+
+    it("does not guess an id when the counter could not be read before signing", async () => {
+        readCreatedCount.mockRejectedValueOnce(new Error("Could not read the escrow contract counter"))
+        const { onSuccess, sign } = await openReady()
+        fireEvent.click(sign())
+        await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(null))
+        expect(findCreatedContract).not.toHaveBeenCalled()
+        expect(doContractBroadcast).toHaveBeenCalledTimes(1)
+    })
+
+    it("shows the total to fund exactly, in BigInt", async () => {
+        const milestones = Array.from({ length: 20 }, (_, i) => `M${i}:999999999999999`).join(",")
+        await openReady({ ...service, milestones })
+        expect(screen.getByText("19,999,999,999.99998 GNOT")).toBeInTheDocument()
     })
 
     it("does not look for a contract after a failed broadcast", async () => {

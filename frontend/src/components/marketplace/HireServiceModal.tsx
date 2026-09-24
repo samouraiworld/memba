@@ -4,8 +4,8 @@ import { ACTIVE_NETWORK_KEY, MEMBA_DAO, isEscrowValid, isServicesEnabled } from 
 import { explorerHref } from "../../lib/explorerLink"
 import { formatUgnotExact } from "../../lib/dao/v2Budget"
 import { getCurrentBlock } from "../../lib/dao/proposalDates"
-import { broadcastEscrowTx, escrowFailureMayHaveLanded, planHireService, type HirePlan } from "../../lib/marketplace/escrowTx"
-import { findCreatedContract, hireAvailability, readClientActiveCount, readEscrowPauseState } from "../../lib/marketplace/escrowState"
+import { broadcastEscrowTx, escrowFailureMayHaveLanded, formatUgnotExactBig, planHireService, type HirePlan } from "../../lib/marketplace/escrowTx"
+import { findCreatedContract, hireAvailability, readClientActiveCount, readCreatedCount, readEscrowPauseState } from "../../lib/marketplace/escrowState"
 import "../nft/TradeModal.css" // Reuse existing modal styles
 
 export interface Service {
@@ -89,6 +89,14 @@ export function HireServiceModal({ service, caller, onClose, onSuccess }: HireSe
         if (!plan || preflightHolds || (uncertain && !confirmedNone)) return
         setError(null)
         setSubmitting(true)
+        // The next contract id, read before signing: after the call lands, only a
+        // contract at least this new can be the one it created.
+        let createdBefore: number | null = null
+        try {
+            createdBefore = await readCreatedCount(MEMBA_DAO.escrowPath)
+        } catch {
+            createdBefore = null
+        }
         try {
             await broadcastEscrowTx(plan, `Create escrow: ${service.title}`)
         } catch (err) {
@@ -104,7 +112,7 @@ export function HireServiceModal({ service, caller, onClose, onSuccess }: HireSe
         // reply, so read the client's newest contract back and check it is this one.
         let contractId: string | null = null
         try {
-            contractId = await findCreatedContract(MEMBA_DAO.escrowPath, caller, {
+            contractId = createdBefore === null ? null : await findCreatedContract(MEMBA_DAO.escrowPath, caller, createdBefore, {
                 freelancer: service.freelancer,
                 title: service.title,
                 description: service.description,
@@ -171,7 +179,7 @@ export function HireServiceModal({ service, caller, onClose, onSuccess }: HireSe
                                 <div style={{ display: "flex", justifyContent: "space-between", borderTop: "1px solid var(--color-border)", paddingTop: "12px", marginTop: "12px" }}>
                                     <span style={{ color: "var(--color-text)", fontWeight: 600 }}>Total to fund</span>
                                     <strong style={{ color: "var(--color-primary)", fontSize: "18px" }}>
-                                        {formatUgnotExact(plan.totalUgnot)}
+                                        {formatUgnotExactBig(plan.totalUgnot)}
                                     </strong>
                                 </div>
                             </>

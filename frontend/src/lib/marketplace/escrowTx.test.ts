@@ -2,6 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const doContractBroadcast = vi.hoisted(() => vi.fn(async () => ({ hash: "ABC" })))
 vi.mock("../grc20", async (importOriginal) => ({ ...(await importOriginal<typeof import("../grc20")>()), doContractBroadcast }))
+const gate = vi.hoisted(() => ({ services: true, escrow: true }))
+vi.mock("../config", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../config")>()),
+    isServicesEnabled: () => gate.services,
+    isEscrowValid: () => gate.escrow,
+}))
 
 import {
     assertEscrowPlanSignable,
@@ -16,6 +22,7 @@ import {
     planCreateContract,
     planFundMilestone,
     planHireService,
+    formatUgnotExactBig,
     planRaiseDispute,
     planReleaseFunds,
     type EscrowTxPlan,
@@ -31,7 +38,11 @@ const MS = [{ title: "Deposit", amountUgnot: 250_000_000 }, { title: "Final", am
 const tamper = (plan: EscrowTxPlan, value: Record<string, unknown>): EscrowTxPlan =>
     ({ ...plan, msg: { ...plan.msg, value: { ...plan.msg.value, ...value } } } as EscrowTxPlan)
 
-beforeEach(() => doContractBroadcast.mockClear())
+beforeEach(() => {
+    doContractBroadcast.mockClear()
+    gate.services = true
+    gate.escrow = true
+})
 
 describe("escrow transaction plans", () => {
     it("a CreateContract plan carries the budget it was sized with, and sends nothing", () => {
@@ -90,9 +101,32 @@ describe("escrow transaction plans", () => {
         expect(plan.msg.value.func).toBe("CreateContract")
         expect(plan.msg.value.args).toEqual([FREELANCER, "Audit", "x", "Deposit:250000000,Final:250000000"])
         expect(plan.milestones).toEqual(MS)
-        expect(plan.totalUgnot).toBe(500_000_000)
+        expect(plan.totalUgnot).toBe(500_000_000n)
         expect(() => planHireService(CLIENT, ESCROW, { freelancer: FREELANCER, title: "Audit", description: "x", milestones: "Deposit:2.5" })).toThrow()
         expect(() => planHireService(FREELANCER, ESCROW, { freelancer: FREELANCER, title: "Audit", description: "x", milestones: "A:1000" })).toThrow(/yourself/)
+    })
+})
+
+describe("format-table lookups in the text", () => {
+    it("raise the planned gas, and editing the text re-derives it", () => {
+        const arabic = String.fromCodePoint(0x627).repeat(100) // 200 bytes, 100 lookups
+        const ascii = planCreateContract(CLIENT, ESCROW, { freelancer: FREELANCER, title: "x".repeat(200), description: "", milestones: MS })
+        const plan = planCreateContract(CLIENT, ESCROW, { freelancer: FREELANCER, title: arabic, description: "", milestones: MS })
+        expect(plan.gasWanted).toBe(createContractBudget({ titleBytes: 200, descriptionBytes: 0, milestonesArg: "Deposit:250000000,Final:250000000", formatLookupRunes: 100 }).gasWanted)
+        expect(plan.gasWanted).toBeGreaterThan(ascii.gasWanted)
+        const args = [...ascii.msg.value.args]
+        args[1] = arabic
+        expect(() => assertEscrowPlanSignable(tamper(ascii, { args }))).toThrow(/changed/)
+    })
+})
+
+describe("hire total", () => {
+    it("sums in BigInt, exactly, past 2^53", () => {
+        const milestones = Array.from({ length: 20 }, (_, i) => `M${i}:999999999999999`).join(",")
+        const plan = planHireService(CLIENT, ESCROW, { freelancer: FREELANCER, title: "Big", description: "", milestones })
+        expect(plan.totalUgnot).toBe(19_999_999_999_999_980n)
+        expect(formatUgnotExactBig(plan.totalUgnot)).toBe("19,999,999,999.99998 GNOT")
+        expect(formatUgnotExactBig(500_000_000n)).toBe("500 GNOT")
     })
 })
 
@@ -124,6 +158,11 @@ describe("the signing guard refuses anything but the reviewed plan", () => {
         const args = [...plan.msg.value.args]
         args[2] = "d".repeat(5000)
         expect(() => assertEscrowPlanSignable(tamper(plan, { args }))).toThrow()
+    })
+
+    it("a realm other than the configured escrow realm, even one the builders accept", () => {
+        expect(() => planCancelContract(CLIENT, "gno.land/r/samcrew/escrow_v3", "7")).toThrow(/another realm/)
+        expect(() => assertEscrowPlanSignable(tamper(fund(), { pkg_path: "gno.land/r/evil/escrow" }))).toThrow(/another realm/)
     })
 
     it("a different gas limit, function or message type", () => {
@@ -170,6 +209,16 @@ describe("broadcastEscrowTx", () => {
         expect(msgs[0]).toBe(plan.msg)
         expect(memo).toBe("Create escrow: Audit")
         expect(opts).toMatchObject({ gasWanted: plan.gasWanted, retry: false })
+    })
+
+    it("never reaches the wallet while the services lane is gated, whoever calls it", async () => {
+        const plan = planCancelContract(CLIENT, ESCROW, "7")
+        gate.escrow = false
+        await expect(broadcastEscrowTx(plan, "Cancel")).rejects.toThrow(/not available/)
+        gate.escrow = true
+        gate.services = false
+        await expect(broadcastEscrowTx(plan, "Cancel")).rejects.toThrow(/not available/)
+        expect(doContractBroadcast).not.toHaveBeenCalled()
     })
 
     it("never reaches the wallet with a tampered plan", async () => {

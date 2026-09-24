@@ -187,6 +187,15 @@ describe("EscrowContractPanel — lookup", () => {
         expect(readEscrowContract).not.toHaveBeenCalled()
     })
 
+    it("reads nothing while the services lane is gated", async () => {
+        gate.live = false
+        renderWithProviders(<EscrowContractPanel caller={CLIENT} />)
+        fireEvent.change(screen.getByLabelText("Contract id"), { target: { value: "7" } })
+        fireEvent.click(screen.getByRole("button", { name: /look up/i }))
+        expect(screen.getByRole("alert")).toHaveTextContent(/not available on this network/)
+        expect(readEscrowContract).not.toHaveBeenCalled()
+    })
+
     it("reads the id from the active escrow realm", async () => {
         chain.contract = contract()
         await lookUp(CLIENT, "42")

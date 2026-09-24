@@ -11,7 +11,7 @@
  * not on top).
  */
 import { isValidGnoAddressChecksum } from "../dao/address"
-import { createContractBudget, escrowCallBudget, type EscrowFunc } from "./escrowBudget"
+import { countFormatLookupRunes, createContractBudget, escrowCallBudget, type EscrowFunc } from "./escrowBudget"
 
 export type { EscrowFunc } from "./escrowBudget"
 
@@ -257,7 +257,12 @@ export function buildCreateContractMsg(
     if (ALL_SPACE.test(title)) fail("The title must contain visible characters")
     textArg(description, "description", 0, ESCROW_LIMITS.maxDescriptionBytes)
     const milestonesArg = encodeMilestones(milestones)
-    const { maxDepositUgnot } = createContractBudget({ titleBytes: bytes(title), descriptionBytes: bytes(description), milestonesArg })
+    const { maxDepositUgnot } = createContractBudget({
+        titleBytes: bytes(title),
+        descriptionBytes: bytes(description),
+        milestonesArg,
+        formatLookupRunes: countFormatLookupRunes(title, description, milestonesArg),
+    })
     return msgCall(caller, escrowPath, "CreateContract", [freelancer, title, description, milestonesArg], "", maxDepositUgnot)
 }
 

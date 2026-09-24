@@ -19,7 +19,8 @@
  * throw on anything else, so a changed or unexpected answer never becomes an
  * offered transaction.
  */
-import { parseQevalJSON, queryEval } from "../dao/shared"
+import { queryEval } from "../dao/shared"
+import { parseQevalGoJSON } from "../goQuote"
 import { GNO_RPC_URL } from "../config"
 import { isValidGnoAddressChecksum } from "../dao/address"
 import { ESCROW_LIMITS } from "./builders"
@@ -150,10 +151,14 @@ function oneOf<T extends string>(v: unknown, set: ReadonlySet<string>, what: str
     return set.has(s) ? (s as T) : bad(`${what} "${s}"`)
 }
 
-/** The JSON payload of a qeval string return, or throw. */
+/**
+ * The JSON payload of a qeval string return, or throw. Decoded with the full
+ * strconv.Quote grammar: stored text may hold runes the node prints as
+ * `\UXXXXXXXX` (newer emoji, private use), which JSON.parse alone rejects.
+ */
 function payload(raw: string | null, what: string): unknown {
     if (raw === null) throw new Error(`Could not read ${what}`)
-    const v = parseQevalJSON(raw)
+    const v = parseQevalGoJSON(raw)
     return v === null ? bad(`${what} is not JSON`) : v
 }
 
@@ -281,20 +286,30 @@ export async function readClientContracts(escrowPath: string, client: string, be
     return parseClientContractsJSON(payload(raw, "your escrow contracts"), limit, before)
 }
 
+/** Read `GetCreatedCount()`: every contract ever created, so the next id is this number. */
+export async function readCreatedCount(escrowPath: string): Promise<number> {
+    const n = parseQevalInt(await queryEval(GNO_RPC_URL, escrowPath, "GetCreatedCount()", true))
+    if (n === null || n < 0) throw new Error("Could not read the escrow contract counter")
+    return n
+}
+
 /**
  * After a CreateContract landed, find the contract it made: the client's
- * newest contract, if it has this freelancer, title, description and
- * milestones. Null when it cannot be confirmed (for example a node that has
- * not caught up yet).
+ * newest contract, if its id is at least `createdBefore` (GetCreatedCount()
+ * read before broadcasting, so an older contract can never be taken for it)
+ * and it has this freelancer, title, description and milestones. Null when it
+ * cannot be confirmed (for example a node that has not caught up yet).
  */
 export async function findCreatedContract(
     escrowPath: string,
     client: string,
+    createdBefore: number,
     expected: { freelancer: string; title: string; description: string; milestones: readonly { title: string; amountUgnot: number }[] },
 ): Promise<string | null> {
+    if (!Number.isSafeInteger(createdBefore) || createdBefore < 0) return null
     const page = await readClientContracts(escrowPath, client, "", 1)
     const newest = page.items[0]
-    if (!newest) return null
+    if (!newest || Number(newest.id) < createdBefore) return null
     const c = await readEscrowContract(escrowPath, newest.id)
     const same = c !== null && c.client === client && c.freelancer === expected.freelancer && c.title === expected.title &&
         c.description === expected.description && c.milestones.length === expected.milestones.length &&

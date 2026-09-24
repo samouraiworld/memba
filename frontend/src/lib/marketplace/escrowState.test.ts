@@ -20,6 +20,7 @@ import {
     parseQevalInt,
     readClientActiveCount,
     readClientContracts,
+    readCreatedCount,
     readEscrowContract,
     readEscrowPauseState,
     EscrowViewError,
@@ -37,6 +38,23 @@ const LAPSED: EscrowPauseState = { paused: true, exitsOpen: true, exitsReopenAt:
 
 /** Wrap a JSON string the way vm/qeval returns a Gno string: `("<go-quoted>" string)`. */
 const qeval = (json: string) => `(${JSON.stringify(json)} string)`
+
+/**
+ * Go's strconv.Quote for the text in these fixtures: it escapes `"` and `\`, and
+ * writes runes it cannot print as `\UXXXXXXXX` (checked against Go 1.24 for
+ * U+1FAE9, Unicode 16, and the private-use U+F0000).
+ */
+const goQuote = (s: string) => {
+    let out = '"'
+    for (const c of s) {
+        const cp = c.codePointAt(0) as number
+        if (c === '"' || c === "\\") out += "\\" + c
+        else if (cp === 0x1fae9 || cp === 0xf0000) out += "\\U" + cp.toString(16).padStart(8, "0")
+        else out += c
+    }
+    return out + '"'
+}
+const qevalGo = (json: string) => `(${goQuote(json)} string)`
 
 /*
  * Fixtures copied from the realm's own tests (escrow_views_test.gno), with the
@@ -207,6 +225,33 @@ describe("GetPauseStateJSON parsing", () => {
     })
 })
 
+describe("text the node prints with Go-only escapes", () => {
+    const face = String.fromCodePoint(0x1fae9) // Unicode 16: newer than the node's tables
+    const privateUse = String.fromCodePoint(0xf0000)
+
+    it("is quoted with \\U escapes that JSON.parse alone rejects", () => {
+        const raw = qevalGo(`{"t":"${face}"}`)
+        expect(raw).toContain("\\U0001fae9")
+        expect(() => JSON.parse(raw.slice(1, -8))).toThrow()
+    })
+
+    it("reads a contract whose title and description hold U+1FAE9 and U+F0000, end to end", async () => {
+        const json = PENDING
+            .replace(`"title":"Say \\"hi\\""`, `"title":"Face ${face} and ${privateUse}"`)
+            .replace(`"description":"Line"`, `"description":"Private ${privateUse} use ${face}"`)
+        rpc.queryEval.mockResolvedValue(qevalGo(json))
+        const c = await readEscrowContract(ESCROW, "7")
+        expect(c?.title).toBe(`Face ${face} and ${privateUse}`)
+        expect(c?.description).toBe(`Private ${privateUse} use ${face}`)
+        expect(archiveRefundEstimateUgnot({ ...c!, status: "completed" })).toBeGreaterThan(0)
+    })
+
+    it("still reads the plain fixtures through the Go decoder", async () => {
+        rpc.queryEval.mockResolvedValue(qevalGo(PENDING))
+        await expect(readEscrowContract(ESCROW, "7")).resolves.toMatchObject({ title: 'Say "hi"' })
+    })
+})
+
 describe("reads", () => {
     it("reads GetPauseStateJSON with one strict query", async () => {
         rpc.queryEval.mockResolvedValue(qeval(PAUSE_ON))
@@ -261,16 +306,33 @@ describe("findCreatedContract", () => {
 
     it("returns the client's newest contract id when it is the one just created", async () => {
         answer(`{"items":[{"id":"7","status":"active","createdAtHeight":"100"}],"next":"7"}`, PENDING)
-        await expect(findCreatedContract(ESCROW, CLIENT, expected)).resolves.toBe("7")
+        await expect(findCreatedContract(ESCROW, CLIENT, 7, expected)).resolves.toBe("7")
         expect(rpc.queryEval).toHaveBeenCalledWith(expect.any(String), ESCROW, `GetClientContractsJSON("${CLIENT}", "", 1)`, true)
     })
 
     it("returns null when the newest contract is a different one, or there is none yet", async () => {
         answer(`{"items":[{"id":"7","status":"active","createdAtHeight":"100"}],"next":"7"}`, PENDING)
-        await expect(findCreatedContract(ESCROW, CLIENT, { ...expected, title: "Other" })).resolves.toBeNull()
-        await expect(findCreatedContract(ESCROW, CLIENT, { ...expected, milestones: [{ title: "A", amountUgnot: 1000 }] })).resolves.toBeNull()
+        await expect(findCreatedContract(ESCROW, CLIENT, 7, { ...expected, title: "Other" })).resolves.toBeNull()
+        await expect(findCreatedContract(ESCROW, CLIENT, 7, { ...expected, milestones: [{ title: "A", amountUgnot: 1000 }] })).resolves.toBeNull()
         answer(`{"items":[],"next":null}`, PENDING)
-        await expect(findCreatedContract(ESCROW, CLIENT, expected)).resolves.toBeNull()
+        await expect(findCreatedContract(ESCROW, CLIENT, 7, expected)).resolves.toBeNull()
+    })
+
+    it("never takes an older identical contract for the new one", async () => {
+        // The client already had contract 7 with the same fields; the counter read before signing was 8,
+        // and the node has not caught up with the new contract yet.
+        answer(`{"items":[{"id":"7","status":"active","createdAtHeight":"100"}],"next":"7"}`, PENDING)
+        await expect(findCreatedContract(ESCROW, CLIENT, 8, expected)).resolves.toBeNull()
+        await expect(findCreatedContract(ESCROW, CLIENT, -1, expected)).resolves.toBeNull()
+        await expect(findCreatedContract(ESCROW, CLIENT, Number.NaN, expected)).resolves.toBeNull()
+    })
+
+    it("reads GetCreatedCount as the next id", async () => {
+        rpc.queryEval.mockResolvedValue("(8 int)")
+        await expect(readCreatedCount(ESCROW)).resolves.toBe(8)
+        expect(rpc.queryEval).toHaveBeenCalledWith(expect.any(String), ESCROW, "GetCreatedCount()", true)
+        rpc.queryEval.mockResolvedValue(null)
+        await expect(readCreatedCount(ESCROW)).rejects.toThrow(/counter/)
     })
 })
 

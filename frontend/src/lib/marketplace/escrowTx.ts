@@ -5,6 +5,7 @@
  * the message and refuses anything that differs from what was reviewed.
  */
 import { doContractBroadcast } from "../grc20"
+import { MEMBA_DAO, isEscrowValid, isServicesEnabled } from "../config"
 import { signedDepositUgnot } from "../dao/daoTx"
 import { depositNeedsOverride, formatUgnotExact, V2_MAX_DEPOSIT_UGNOT } from "../dao/v2Budget"
 import {
@@ -23,7 +24,7 @@ import {
     type EscrowMilestone,
     type EscrowMsgCall,
 } from "./builders"
-import { createContractBudget, escrowCallBudget, ESCROW_CALL_GAS_BASIS, type EscrowFunc } from "./escrowBudget"
+import { countFormatLookupRunes, createContractBudget, escrowCallBudget, ESCROW_CALL_GAS_BASIS, type EscrowFunc } from "./escrowBudget"
 
 export interface EscrowTxPlan {
     msg: EscrowMsgCall
@@ -49,7 +50,12 @@ function budgetFor(msg: EscrowMsgCall) {
     const { func, args } = msg.value
     if (func === "CreateContract") {
         if (!Array.isArray(args) || args.length !== 4 || args.some((a) => typeof a !== "string")) throw new EscrowPlanError("Malformed CreateContract arguments. Review it again.")
-        return createContractBudget({ titleBytes: bytes(args[1]), descriptionBytes: bytes(args[2]), milestonesArg: args[3] })
+        return createContractBudget({
+            titleBytes: bytes(args[1]),
+            descriptionBytes: bytes(args[2]),
+            milestonesArg: args[3],
+            formatLookupRunes: countFormatLookupRunes(args[1], args[2], args[3]),
+        })
     }
     return escrowCallBudget(func)
 }
@@ -66,13 +72,16 @@ const KNOWN: ReadonlySet<string> = new Set<EscrowFunc>(["CreateContract", ...(Ob
 /**
  * Refuse to sign a plan whose message is not exactly the one reviewed: the
  * deposit cap, send amount and gas limit must be the canonical values derived
- * from the message, the cap must be within the 10 GNOT ceiling (no escrow call
+ * from the message, the realm must be the configured escrow realm, the cap must
+ * be within the 10 GNOT ceiling (no escrow call
  * can legitimately exceed it, so there is no override), and only FundMilestone
  * may send coins.
  */
 export function assertEscrowPlanSignable(p: EscrowTxPlan): void {
     const { msg } = p
     if (msg?.type !== "vm/MsgCall" || !KNOWN.has(msg.value?.func)) throw new EscrowPlanError("Not an escrow call. Review it again.")
+    // Only the configured escrow realm: a plan for any other path is refused whoever builds it.
+    if (msg.value.pkg_path !== MEMBA_DAO.escrowPath) throw new EscrowPlanError("The transaction targets another realm than the escrow contract. Review it again.")
     // Same strict read the DAO flows use; the exact-string check below also refuses leading zeros.
     let signed: number | null
     try {
@@ -106,6 +115,8 @@ export function assertEscrowPlanSignable(p: EscrowTxPlan): void {
  * every other call is rejected deterministically on a repeat.
  */
 export async function broadcastEscrowTx(p: EscrowTxPlan, memo: string, beforeSign?: () => void | Promise<void>) {
+    // The services lane gate, enforced here too so no future caller can skip it.
+    if (!isServicesEnabled() || !isEscrowValid()) throw new EscrowPlanError("Service escrow is not available on this network yet.")
     assertEscrowPlanSignable(p)
     return doContractBroadcast([p.msg], memo, { gasWanted: p.gasWanted, retry: false, ...(beforeSign ? { beforeSign } : {}) })
 }
@@ -152,15 +163,15 @@ export interface HireableService {
 
 export interface HirePlan extends EscrowTxPlan {
     milestones: EscrowMilestone[]
-    /** Sum of the milestone amounts, funded later one milestone at a time. */
-    totalUgnot: number
+    /** Sum of the milestone amounts, funded later one milestone at a time. BigInt: 20 amounts of 15 digits exceed 2^53. */
+    totalUgnot: bigint
 }
 
 /** Plan the CreateContract that hires a listing's freelancer on its milestones. */
 export function planHireService(caller: string, escrowPath: string, service: HireableService): HirePlan {
     const milestones = parseMilestonesArg(service.milestones)
     const p = planCreateContract(caller, escrowPath, { freelancer: service.freelancer, title: service.title, description: service.description, milestones })
-    return { ...p, milestones, totalUgnot: milestones.reduce((sum, m) => sum + m.amountUgnot, 0) }
+    return { ...p, milestones, totalUgnot: milestones.reduce((sum, m) => sum + BigInt(m.amountUgnot), 0n) }
 }
 
 /**
@@ -195,3 +206,10 @@ export const planExpireUnfunded = (caller: string, escrowPath: string, contractI
 
 export const planArchiveContract = (caller: string, escrowPath: string, contractId: string) =>
     plan(buildArchiveContractMsg(caller, escrowPath, contractId))
+
+/** Exact GNOT for a BigInt ugnot amount, like formatUgnotExact. */
+export function formatUgnotExactBig(ugnot: bigint): string {
+    const whole = ugnot / 1_000_000n
+    const fraction = (ugnot % 1_000_000n).toString().padStart(6, "0").replace(/0+$/, "")
+    return `${whole.toLocaleString("en-US")}${fraction ? `.${fraction}` : ""} GNOT`
+}
