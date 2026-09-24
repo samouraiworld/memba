@@ -101,6 +101,18 @@ describe("memba v2 reader — real realm outputs", () => {
         expect(add.accepted_at).toBe(0)
     })
 
+    it("reads configuration and proposal text the node prints with \\U and \\x escapes", async () => {
+        // What Go 1.24's strconv.Quote prints for U+1FAE9 (newer than its
+        // Unicode tables), private-use U+F0000 and DEL, after the realm's
+        // encoder wrote BEL and VT as \u0007 / \u000b. JSON.parse rejects \U and \x.
+        const escaped = String.raw`\U0001fae9 \U000f0000 \\u0007\\u000b\x7f`
+        const decoded = "\u{1FAE9} \u{F0000} \x07\x0b\x7f"
+        replies["GetConfigJSON()"] = fixture("config").replace("🚀", escaped)
+        replies["GetProposalJSON(1)"] = fixture("proposal-text").replace("🚀", escaped)
+        expect((await readV2Config(ctx)).name).toBe(`Reads "DAO" \\ é ${decoded}`)
+        expect((await readV2Proposal(ctx, 1)).title).toBe(`say "hi" \\ ${decoded}`)
+    })
+
     it("reads votes and HasVoted", async () => {
         const votes = await readV2Votes(ctx, 1)
         expect(votes.total).toBe(2)

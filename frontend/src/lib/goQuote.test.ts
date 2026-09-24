@@ -30,6 +30,7 @@ describe("decodeGoQuoted", () => {
         ["a byte above ASCII", String.raw`"\xff"`],
         ["a surrogate", String.raw`"\ud800"`],
         ["a code point beyond Unicode", String.raw`"\U00110000"`],
+        ["a raw control character", '"a\nb"'],
     ])("throws on %s", (_name, literal) => {
         expect(() => decodeGoQuoted(literal)).toThrow(SyntaxError)
     })
@@ -45,5 +46,16 @@ describe("parseQevalGoJSON", () => {
         for (const raw of ["(1 int)", `("{" string)`, `("x" string)`.replace("x", "\\q"), "", `("{}" bool)`]) {
             expect(parseQevalGoJSON(raw), raw).toBeNull()
         }
+    })
+
+    it("still accepts the JSON-only escapes the JSON.parse decode accepted", () => {
+        expect(parseQevalGoJSON(String.raw`("[\"a\/b\"]" string)`)).toEqual(["a/b"])
+        expect(parseQevalGoJSON(String.raw`("[\"\ud83d\ude80\"]" string)`)).toEqual(["\u{1F680}"])
+    })
+
+    it("rejects a raw control character, which neither strconv.Quote nor JSON writes", () => {
+        // The payload "[\n1]" is valid JSON; only the literal carrying it is malformed.
+        expect(parseQevalGoJSON('("[\n1]" string)')).toBeNull()
+        expect(parseQevalGoJSON(String.raw`("[\n1]" string)`)).toEqual([1])
     })
 })

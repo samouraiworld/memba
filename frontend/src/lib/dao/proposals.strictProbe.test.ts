@@ -103,6 +103,21 @@ describe("getDAOProposals strict-mode JSON probe", () => {
         expect(mockQuery.mock.calls.every(([p]) => p === "vm/qeval")).toBe(true)
     })
 
+    it("reads a JSON title the node prints with \\U and \\x escapes instead of falling back to Render", async () => {
+        // Printed by Go 1.24's strconv.Quote over the realm's JSON string encoder
+        // for "Ban U+1FAE9 spam U+F0000 bell<BEL> vt<VT> del<DEL>".
+        const goPrinted = String.raw`("[{\"id\":7,\"title\":\"Ban \U0001fae9 spam \U000f0000 bell\\u0007 vt\\u000b del\x7f\",\"status\":\"active\"}]" string)`
+        mockQuery.mockImplementation(async (path) => {
+            if (path === "vm/qeval") return goPrinted
+            throw new Error("unexpected non-qeval query")
+        })
+
+        const proposals = await getDAOProposals(RPC, "gno.land/r/samcrew/dao_probe_quote", true)
+
+        expect(proposals).toHaveLength(1)
+        expect(proposals[0]).toMatchObject({ id: 7, title: "Ban \u{1FAE9} spam \u{F0000} bell\x07 vt\x0b del\x7f", status: "open" })
+    })
+
     it("strict callers still see REAL failures: probe nulls, Render transport failure throws", async () => {
         const transportDown = new Error("all RPC endpoints failed")
         mockQuery.mockImplementation(async (path, _data, strict = false) => {

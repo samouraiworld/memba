@@ -33,6 +33,7 @@ export function decodeGoQuoted(literal: string): string {
     for (let i = 1; i < literal.length - 1; i++) {
         const c = literal[i]
         if (c === '"') throw new SyntaxError("Unescaped quote")
+        if (c < " ") throw new SyntaxError("Raw control character")
         if (c !== "\\") {
             out += c
             continue
@@ -60,14 +61,32 @@ export function decodeGoQuoted(literal: string): string {
 
 /**
  * Decode a qeval string return that carries JSON — `("<go-quoted-json>" string)`
- * — into the parsed value, or null on any failure.
+ * — into the parsed value, or null on any failure. Escrow reads use it, and
+ * dao/shared's parseQevalJSON delegates to it.
+ *
+ * The literal is decoded as strconv.Quote output. A literal that is not, but is
+ * a valid JSON string literal, is still accepted, because parseQevalJSON used to
+ * decode with JSON.parse and must keep accepting what it accepted. That adds
+ * only the `\/` escape and `\u` escapes of UTF-16 surrogates, neither of which
+ * strconv.Quote writes. Where both decoders accept a literal they return the
+ * same string.
  */
 export function parseQevalGoJSON(raw: string): unknown {
     const m = raw.match(/^\(\s*("[\s\S]*")\s+string\s*\)\s*$/)
     if (!m) return null
     try {
-        return JSON.parse(decodeGoQuoted(m[1]))
+        return JSON.parse(decodeQevalLiteral(m[1]))
     } catch {
         return null
+    }
+}
+
+function decodeQevalLiteral(literal: string): string {
+    try {
+        return decodeGoQuoted(literal)
+    } catch {
+        const legacy: unknown = JSON.parse(literal)
+        if (typeof legacy !== "string") throw new SyntaxError("Not a string literal")
+        return legacy
     }
 }

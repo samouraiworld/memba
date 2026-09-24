@@ -13,6 +13,7 @@ import { GNO_CHAIN_ID, getUserRegistryPath, networkScopedKey } from "../config"
 import { resilientAbciQuery } from "../rpcFallback"
 import { isValidGnoAddressChecksum } from "./address"
 import { assertActiveRpcChain } from "./chainIdentity"
+import { parseQevalGoJSON } from "../goQuote"
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -234,24 +235,16 @@ export async function queryEval(rpcUrl: string, pkgPath: string, expr: string, s
  * `("<go-quoted-json>" string)` — into the parsed value, or null on any failure
  * (so callers can fall back to Render scraping).
  *
- * qeval re-quotes the returned Go string with strconv.Quote-style escaping,
- * which — for our realm encoders that pre-escape control chars to `\uXXXX` —
- * coincides exactly with JSON string escaping. So the correct decode is a
- * DOUBLE JSON.parse: parse the quoted literal to undo the Go-quote, then parse
- * the JSON payload. The old single-pass `.replace(/\\"/g,'"')` corrupted any
- * field carrying a backslash or newline (a title like `Adopt "v2"` round-tripped
- * by luck; `a\b` or a real newline did not — the escapes doubled).
+ * qeval prints the returned string with Go's strconv.Quote, which is not always
+ * a JSON string literal: runes the node cannot print come out as `\UXXXXXXXX`
+ * (Unicode 16 emoji such as U+1FAE9, private use such as U+F0000) and DEL as
+ * `\x7f`, both of which JSON.parse rejects. So the literal is decoded with the
+ * full strconv.Quote grammar (goQuote.ts), then the payload is JSON-parsed.
+ * Every literal the previous JSON.parse-based decode accepted is still accepted
+ * with the same result; see parseQevalGoJSON.
  */
 export function parseQevalJSON(raw: string): unknown {
-    const m = raw.match(/^\(\s*("[\s\S]*")\s+string\s*\)\s*$/)
-    if (!m) return null
-    try {
-        const payload = JSON.parse(m[1]) // undo the Go-quote → the raw JSON text
-        if (typeof payload !== "string") return null
-        return JSON.parse(payload) // parse the JSON payload
-    } catch {
-        return null
-    }
+    return parseQevalGoJSON(raw)
 }
 
 /**

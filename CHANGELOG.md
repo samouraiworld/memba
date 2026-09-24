@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### DAO and realm JSON reads decode the node's full string quoting (2026-09-24)
+<!-- categories: memba -->
+- **Text with newer emoji, private-use characters or DEL no longer breaks a read.** The node quotes a realm's JSON answer with Go's `strconv.Quote`, which prints such characters as `\U0001fae9`, `\U000f0000` or `\x7f`. The shared qeval JSON decoder used by DAO proposal and member reads, the App Store, arcade, points and the on-chain blog passed that to `JSON.parse`, which rejects those escapes, so a proposal titled with U+1FAE9 made the whole list unreadable. It now uses the same strconv.Quote decoder as escrow. Every answer the old decoder accepted decodes to the same value; version-2 DAO reads already used a full decoder and are unchanged.
+
 ### @username registration works on gno.land mainnet (2026-09-24)
 <!-- categories: memba, network -->
 - **The profile's Register button now uses mainnet's public registrar, `r/sys/namereg/v0`.** It used to call `r/sys/users.Register`, which doesn't exist on `gnoland-1`; only whitelisted controller realms can write names there, and namereg is the one controller. The form now follows the registrar's rules: names like `nym-builder042` (`nym-`, 5–13 letters, 3 digits) and the exact current price read from the realm (free today). It no longer attaches a fixed 0.2 GNOT, which the registrar would reject.

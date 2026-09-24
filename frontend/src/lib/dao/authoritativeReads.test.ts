@@ -87,6 +87,34 @@ describe("tallies", () => {
     })
 })
 
+describe("JSON reads the node prints with strconv.Quote escapes JSON.parse rejects", () => {
+    // Printed by Go 1.24's strconv.Quote over the realm's JSON string encoder
+    // for "Ban U+1FAE9 spam U+F0000 bell<BEL> vt<VT> del<DEL>": \U for runes
+    // the node cannot print, \x7f for DEL.
+    const TITLE = "Ban \u{1FAE9} spam \u{F0000} bell\x07 vt\x0b del\x7f"
+
+    it("reads a generated proposal's JSON row", async () => {
+        const realm = "gno.land/r/alice/tdao_quote"
+        const render = `# Prop #1 - Hello\nbody\n\nAuthor: ${A}\n\nCategory: governance\n\nStatus: ACTIVE\n\nYES: 3 | NO: 1 | ABSTAIN: 0\nTotal Power: 4/6\n`
+        const json = String.raw`("[{\"id\":1,\"title\":\"Ban \U0001fae9 spam \U000f0000 bell\\u0007 vt\\u000b del\x7f\",\"description\":\"body\",\"category\":\"governance\",\"status\":\"ACTIVE\",\"author\":\"${A}\",\"yes_votes\":3,\"no_votes\":1,\"abstain_votes\":0,\"total_power\":4,\"created_at_block\":10}]" string)`
+        chain(realm, { render: { "1": render }, eval: { "GetProposalsJSON()": json } })
+        const d = await getProposalDetail(RPC, realm, 1)
+        expect(d?.title).toBe(TITLE)
+        expect(d?.yesPercent).toBe(50)
+        expect(d?.createdAtBlock).toBe(10)
+    })
+
+    it("reads member roles", async () => {
+        const realm = "gno.land/r/alice/mydao_quote"
+        const json = String.raw`("[{\"address\":\"${A}\",\"power\":5,\"roles\":[\"\U0001fae9 lead\U000f0000\\u0007\\u000b\x7f\"]}]" string)`
+        chain(realm, { eval: { "GetMembersJSON()": json } })
+        const members = await getDAOMembers(RPC, realm)
+        expect(members).toHaveLength(1)
+        expect(members[0].votingPower).toBe(5)
+        expect(members[0].roles).toEqual(["\u{1FAE9} lead\u{F0000}\x07\x0b\x7f"])
+    })
+})
+
 describe("votes", () => {
     it("recognizes voters in a generated DAO's vote list", async () => {
         const realm = "gno.land/r/alice/mydao"
