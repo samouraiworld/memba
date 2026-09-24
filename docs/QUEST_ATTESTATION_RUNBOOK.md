@@ -158,7 +158,7 @@ Note that the QuestHub attestation panel keys off the backend answer, not the al
   3. Verify with step 4, then deploy with step 5.
 
   Vouchers from the old key stop verifying on-chain and are no longer served. Each user's next quest sync re-issues their completions under the new key. Completions already recorded on-chain are unaffected, because the realm is idempotent per `(addr, questId)`.
-- **Stop issuing at once.** Run `fly secrets unset QUEST_SIGNER_CHAIN_ID -a memba-backend`. The state goes to `disabled_unbound`, and the seed stays in place for a later re-enable. Alternatively, unset `MEMBA_ATTESTATION_SEED` for `off`.
+- **Stop issuing at once.** Run `fly secrets unset QUEST_SIGNER_CHAIN_ID -a memba-backend`. The state goes to `disabled_unbound`, and the seed stays in place for a later re-enable. Alternatively, unset `MEMBA_ATTESTATION_SEED` for `off`. Without `--stage`, `fly secrets unset` redeploys at once, and that deploy also applies any secret still staged (for example halfway through a rotation). Run `fly secrets list` first and check that nothing is staged.
 - **Revoke on-chain.** The realm has no "unset". Rotate to a fresh key, and never deploy its seed if the goal is only to invalidate a leaked one.
 - Backend attestation is off by default. Disabling it never affects quest completion, XP or badges.
 

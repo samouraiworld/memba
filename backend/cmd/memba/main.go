@@ -92,7 +92,7 @@ func configureAttestation(svc attestationSigner, getenv func(string) string) att
 		svc.DisableAttestation(state)
 		slog.Error("QUEST ATTESTATION SIGNER DISABLED — MEMBA_ATTESTATION_SEED is set but refused; no vouchers will be issued (see docs/QUEST_ATTESTATION_RUNBOOK.md)",
 			"state", string(state), "reason", err,
-			"questSignerChainID", strings.TrimSpace(getenv("QUEST_SIGNER_CHAIN_ID")), "gnoChainID", strings.TrimSpace(getenv("GNO_CHAIN_ID")))
+			"questSignerChainID", attestation.LoggableChainID(getenv("QUEST_SIGNER_CHAIN_ID")), "gnoChainID", attestation.LoggableChainID(getenv("GNO_CHAIN_ID")))
 	default:
 		svc.SetAttestationSigner(nil)
 		if strings.TrimSpace(getenv("QUEST_SIGNER_CHAIN_ID")) != "" {

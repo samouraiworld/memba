@@ -280,7 +280,10 @@ groups:
             A voucher seed is configured but not bound to this backend's chain, so
             quest attestation is off and GetAttestationVouchers answers
             Unavailable. Expected while a retired chain's seed is still set and
-            before the mainnet signer ceremony; after it, fix the binding.
+            before the mainnet signer ceremony. Fix it by rotating to a key
+            generated for this chain, per the runbook. Never bind the existing
+            seed to this chain: that is the cross-chain key reuse this guard
+            exists to prevent.
           runbook: "docs/QUEST_ATTESTATION_RUNBOOK.md"
 
   # ───────────────────────────────────────────────────────────────────────────

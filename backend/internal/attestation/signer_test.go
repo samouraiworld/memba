@@ -185,3 +185,22 @@ func TestIssueVoucher_UnboundSignerRefuses(t *testing.T) {
 		t.Fatal("unbound signer must not issue vouchers")
 	}
 }
+
+// A seed pasted into QUEST_SIGNER_CHAIN_ID must never reach the refusal error
+// (which main logs at ERROR level).
+func TestNewBoundSigner_MismatchNeverEchoesNonChainID(t *testing.T) {
+	seed := strings.Repeat("ab", 32)
+	_, state, err := NewBoundSigner(seed, seed, "gnoland-1")
+	if state != StateDisabledChainMismatch || err == nil {
+		t.Fatalf("got state %q err %v, want chain mismatch", state, err)
+	}
+	if strings.Contains(err.Error(), seed) || strings.Contains(err.Error(), "abab") {
+		t.Fatalf("mismatch error echoes the seed: %v", err)
+	}
+	if got := LoggableChainID(" gnoland-1 "); got != `"gnoland-1"` {
+		t.Fatalf("LoggableChainID(gnoland-1) = %s", got)
+	}
+	if got := LoggableChainID("Gnoland 1"); !strings.HasPrefix(got, "<redacted") {
+		t.Fatalf("LoggableChainID kept a non chain id: %s", got)
+	}
+}

@@ -29,6 +29,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 )
@@ -103,6 +104,22 @@ func (st State) Misconfigured() bool {
 	return false
 }
 
+// chainIDPattern is the shape of a gno chain id ("gnoland-1", "test13"), at
+// most 32 characters so a 64-hex seed or a mnemonic can never match. A
+// value outside it is never echoed: an operator who swaps lines in
+// `fly secrets import` could otherwise put the seed in an ERROR log.
+var chainIDPattern = regexp.MustCompile(`^[a-z0-9][a-z0-9-]{0,31}$`)
+
+// LoggableChainID returns the trimmed chain id quoted when it looks like a
+// chain id, and a redacted length marker otherwise, so it is always safe to log.
+func LoggableChainID(v string) string {
+	v = strings.TrimSpace(v)
+	if chainIDPattern.MatchString(v) {
+		return strconv.Quote(v)
+	}
+	return fmt.Sprintf("<redacted: %d chars, not a chain id>", len(v))
+}
+
 // NewBoundSigner resolves the signer from its three inputs: the hex seed
 // (MEMBA_ATTESTATION_SEED), the chain the key is bound to (QUEST_SIGNER_CHAIN_ID)
 // and the chain the backend runs on (GNO_CHAIN_ID). It returns a Signer ONLY
@@ -126,7 +143,7 @@ func NewBoundSigner(seedHex, boundChainID, runtimeChainID string) (*Signer, Stat
 		return nil, StateDisabledNoRuntimeChain, errors.New("GNO_CHAIN_ID is empty — cannot verify the attestation signer's chain binding")
 	}
 	if boundChainID != runtimeChainID {
-		return nil, StateDisabledChainMismatch, fmt.Errorf("attestation signer is bound to chain %q but the backend runs on %q", boundChainID, runtimeChainID)
+		return nil, StateDisabledChainMismatch, fmt.Errorf("attestation signer is bound to chain %s but the backend runs on %s", LoggableChainID(boundChainID), LoggableChainID(runtimeChainID))
 	}
 	s, err := NewFromSeedHex(seedHex)
 	if err != nil {
