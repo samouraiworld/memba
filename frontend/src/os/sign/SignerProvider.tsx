@@ -51,6 +51,9 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
 
     const go = useCallback(async () => {
         if (!review || busy.current) return
+        // The button is disabled in these cases; the sheet enforces them here too.
+        if (!review.acked.every(Boolean)) return
+        if (session.walletChainId && session.walletChainId !== session.network.chainId) return
         const { req, choice } = review
         let msgs
         try { msgs = req.prepare(choice).msgs } catch (err) {
@@ -79,7 +82,7 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
         const id = ++seq
         setPending((p) => [...p, { id, label }])
         // Without a way to read the result back (older DAOs), "sent" is all we can say.
-        const ok = req.verify ? await verifyWithRetries(() => req.verify!(choice, hash)) : null
+        const ok = req.verify ? await verifyWithRetries(() => req.verify!(choice, hash, res.result), req.verifyAttempts) : null
         setPending((p) => p.filter((x) => x.id !== id))
         const where = `${session.network.chainId} · ${hash.slice(0, 10)}…`
         notify(ok === true
@@ -89,7 +92,7 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
                 : { kind: "warn", title: `Submitted · ${label}`, sub: "The chain hasn't shown it yet. Don't send it again." })
         if (ok === false) toast(`Submitted: ${label}. Not visible on chain yet.`)
         settle(req, choice, ok === true ? "confirmed" : "submitted")
-    }, [review, notify, toast, settle, session.network.chainId])
+    }, [review, notify, toast, settle, session.network.chainId, session.walletChainId])
 
     const cancel = useCallback(() => {
         if (review?.stage === "checking" || review?.stage === "wallet") return // the wallet request is in flight

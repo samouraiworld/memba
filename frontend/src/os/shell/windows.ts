@@ -51,6 +51,11 @@ export function appSpec(app: OsAppId, section: string | null = null): WindowSpec
     return { key: `app:${app}`, title: getApp(app).name, app, width: 480, height: 400, target: { kind: "app", app, section } }
 }
 
+/** The Create DAO wizard (/os/daos/new): its own window, so the DAOs app stays open beside it. */
+export function newDaoSpec(): WindowSpec {
+    return { key: "flow:dao", title: "Create a DAO", app: "daos", width: 820, height: 560, target: { kind: "app", app: "daos", section: "new" } }
+}
+
 export function daoSpec(name: string, section: DaoSection = "overview"): WindowSpec {
     return { key: `dao:${name}`, title: name, app: "daos", width: 560, height: 420, target: { kind: "dao", name, section } }
 }
@@ -59,9 +64,10 @@ export function daoSpec(name: string, section: DaoSection = "overview"): WindowS
 export function specForTarget(t: OsTarget): WindowSpec | null {
     switch (t.kind) {
         case "desktop": return null
-        case "app": return appSpec(t.app, t.section)
+        case "app": return t.app === "daos" && t.section === "new" ? newDaoSpec() : appSpec(t.app, t.section)
         case "dao": return daoSpec(t.name, t.section)
         case "proposal": return { key: `prop:${t.dao}:${t.n}`, title: `${t.dao} · Proposal #${t.n}`, app: "daos", width: 460, height: 380, target: t }
+        case "new-proposal": return { key: `flow:prop:${t.dao}`, title: `New proposal · ${t.dao}`, app: "daos", width: 760, height: 540, target: t }
         case "multisig": return { key: `msig:${t.address}`, title: `Multisig ${t.address.slice(0, 8)}…${t.address.slice(-4)}`, app: "multisig", width: 540, height: 440, target: t }
         case "unknown": return { key: "notfound", title: "Not found", app: null, width: 420, height: 280, target: t }
     }
@@ -75,6 +81,7 @@ export function urlForWindow(w: Pick<OsWindow, "target">): string {
         case "app": return `/os/${getApp(t.app).slug}${t.section ? `/${t.section}` : ""}`
         case "dao": return `/os/dao/${encodeURIComponent(t.name)}${t.section === "overview" ? "" : `/${t.section}`}`
         case "proposal": return `/os/dao/${encodeURIComponent(t.dao)}/proposals/${t.n}`
+        case "new-proposal": return `/os/dao/${encodeURIComponent(t.dao)}/proposals/new`
         case "multisig": return `/os/multisig/${t.address}`
         default: return "/os"
     }

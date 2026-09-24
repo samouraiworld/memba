@@ -4,6 +4,7 @@
  *   /os/<app>[/<section>]                 an app, e.g. /os/wallet
  *   /os/dao/<name>[/proposals|treasury|members]  a DAO folder
  *   /os/dao/<name>/proposals/<n>          a proposal
+ *   /os/dao/<name>/proposals/new          the New proposal wizard
  *   /os/multisig/<address>                a multisig
  * Anything else is "unknown" and opens the not-found window.
  *
@@ -18,6 +19,7 @@ export type OsTarget =
     | { kind: "app"; app: OsAppId; section: string | null }
     | { kind: "dao"; name: string; section: DaoSection }
     | { kind: "proposal"; dao: string; n: number }
+    | { kind: "new-proposal"; dao: string }
     | { kind: "multisig"; address: string }
     | { kind: "unknown"; path: string }
 
@@ -45,6 +47,7 @@ export function parseOsPath(pathname: string): OsTarget {
     if (first === "dao") {
         if (!second || !DAO_NAME.test(second) || rest.length) return { kind: "unknown", path: pathname }
         if (!third) return { kind: "dao", name: second, section: "overview" }
+        if (third === "proposals" && fourth === "new") return { kind: "new-proposal", dao: second }
         if (third === "proposals" && fourth !== undefined) {
             return PROPOSAL_N.test(fourth) ? { kind: "proposal", dao: second, n: Number(fourth) } : { kind: "unknown", path: pathname }
         }

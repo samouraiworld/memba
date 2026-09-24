@@ -65,6 +65,11 @@ Full changelogs are split by version range for easier navigation:
 - A transaction tray shows pending signatures in the menu bar and their results in notifications. When the outcome is unknown, the action locks until you confirm you've checked it. The lock uses the same saved attempt as the classic pages, so it holds in both.
 - DAOs open natively in Memba OS: the DAOs app, a DAO folder with Overview, Proposals, Members and Treasury (a target design for now), and proposal windows where members vote Yes, No or Abstain. The checks the classic proposal page runs just before signing apply here too. DAO links use the realm path with dots, like `/os/dao/alice.team`, plus the short names `govdao` and `memba_dao`.
 - On the beta site, `memba.club/` opens Memba OS.
+### Memba OS wizards
+<!-- categories: memba -->
+- Memba OS creates proposals and DAOs in wizard windows, still behind `VITE_MEMBA_OS`. Each has steps, a live preview and a draft saved in this browser, and ends in the Memba review before Adena opens.
+- New proposal (`/os/dao/<name>/proposals/new`, version-2 DAOs): text, add member, remove member, change roles and archive, with the classic form's rules and its checks just before signing. The draft is the classic one, so either interface can continue it.
+- Create a DAO (`/os/daos/new`): name, preset, members, rules, extras, review. The review checks on-chain that you may publish under the address and that it is free, and shows the deposit estimate and cap and the network fee. The deploy follows the classic pipeline: a record saved before the wallet opens, "live" read from the chain only, "waiting for network approval" on gnoland-1, and an unknown outcome locks that address until it is checked. Treasury shows as a target design.
 
 ### Memba OS windows
 <!-- categories: memba -->

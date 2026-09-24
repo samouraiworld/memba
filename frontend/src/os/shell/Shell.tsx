@@ -25,7 +25,7 @@ import { useOsSession } from "./useOsSession"
 import { SignerProvider } from "../sign/SignerProvider"
 import { WindowFrame, type FrameActions } from "./WindowFrame"
 import {
-    appSpec, EMPTY_WINDOWS, specForTarget, useWindows, visibleWindows, welcomeSpec, windowsReducer,
+    appSpec, EMPTY_WINDOWS, newDaoSpec, specForTarget, useWindows, visibleWindows, welcomeSpec, windowsReducer,
     type DeskSize, type OsWindow, type WindowSpec, type WindowsState,
 } from "./windows"
 
@@ -226,7 +226,7 @@ export function Shell() {
     const visible = visibleWindows(win.wins)
     return (
         <SignerProvider session={session} toast={showToast}>
-            <MenuBar session={session} wins={win.wins} front={front} openApp={openApp} focusWin={win.focus} closeWin={win.close}
+            <MenuBar session={session} wins={win.wins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={win.close}
                 closeAll={win.closeAll} minimiseAll={win.minimiseAll} tile={tile} nextWin={win.next} lock={lock} toast={showToast}
                 isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} />
             <main ref={deskRef} className="os-desk" aria-label="Desktop"
@@ -238,7 +238,7 @@ export function Shell() {
                         <div className="os-sub">Anything you join or bookmark appears here as an icon.</div>
                         <div className="os-g2">
                             <button type="button" className="os-btn os-ghost" onClick={() => openApp("daos")}>Join a DAO</button>
-                            <button type="button" className="os-btn os-ghost" onClick={() => openApp("daos")}>Create a DAO</button>
+                            <button type="button" className="os-btn os-ghost" onClick={() => open(newDaoSpec())}>Create a DAO</button>
                             <button type="button" className="os-btn os-ghost" onClick={() => openApp("multisig")}>Set up a multisig</button>
                             <button type="button" className="os-btn os-ghost" onClick={() => openApp("arcade")}>Play a game</button>
                         </div>

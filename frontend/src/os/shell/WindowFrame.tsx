@@ -11,6 +11,8 @@ import { classicPath } from "./format"
 import { AppTile, ThingTile } from "./icons"
 import type { OsSession } from "./useOsSession"
 import { DaoFolder, DaosApp, ProposalWindow } from "../daos/DaoWindows"
+import { CreateDaoWizard } from "../daos/CreateDaoWizard"
+import { ProposeWizard } from "../daos/ProposeWizard"
 import { DOCK_ROOM, type DeskSize, type OsWindow, type WindowSpec } from "./windows"
 
 interface Actions {
@@ -65,9 +67,11 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
             </Holding>
         )
     }
+    if (t.kind === "app" && t.app === "daos" && t.section === "new") return <CreateDaoWizard session={a.session} open={a.open} close={a.close} />
     if (t.kind === "app" && t.app === "daos") return <DaosApp open={a.open} />
     if (t.kind === "dao") return <DaoFolder name={t.name} section={t.section} open={a.open} />
     if (t.kind === "proposal") return <ProposalWindow dao={t.dao} n={t.n} session={a.session} />
+    if (t.kind === "new-proposal") return <ProposeWizard dao={t.dao} session={a.session} open={a.open} close={a.close} />
     if (t.kind === "app") {
         const app = getApp(t.app)
         const path = classicPath(t.app)

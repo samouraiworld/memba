@@ -21,6 +21,10 @@ describe("parseOsPath", () => {
         expect(parseOsPath("/os/dao/memba_dao/proposals")).toEqual({ kind: "dao", name: "memba_dao", section: "proposals" })
     })
 
+    it("reads the New proposal wizard link", () => {
+        expect(parseOsPath("/os/dao/memba_dao/proposals/new")).toEqual({ kind: "new-proposal", dao: "memba_dao" })
+    })
+
     it("reads a proposal", () => {
         expect(parseOsPath("/os/dao/memba_dao/proposals/12")).toEqual({ kind: "proposal", dao: "memba_dao", n: 12 })
     })

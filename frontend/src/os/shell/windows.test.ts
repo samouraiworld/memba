@@ -160,6 +160,13 @@ describe("link windows", () => {
         }
     })
 
+    it("opens the Create DAO wizard in its own window, beside the DAOs app", () => {
+        const spec = specForTarget(parseOsPath("/os/daos/new"))!
+        expect(spec).toMatchObject({ key: "flow:dao", title: "Create a DAO", app: "daos" })
+        expect(specForTarget(parseOsPath("/os/daos"))!.key).not.toBe(spec.key)
+        expect(urlForWindow(spec)).toBe("/os/daos/new")
+    })
+
     it("opens nothing for the bare desktop and a not-found window for a bad link", () => {
         expect(specForTarget(parseOsPath("/os"))).toBeNull()
         expect(specForTarget(parseOsPath("/os/nope"))?.key).toBe("notfound")

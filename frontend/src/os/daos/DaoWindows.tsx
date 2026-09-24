@@ -16,7 +16,7 @@ import { shortAddr } from "../shell/format"
 import { ThingTile } from "../shell/icons"
 import type { DaoSection } from "../shell/osPath"
 import type { OsSession } from "../shell/useOsSession"
-import { daoSpec, specForTarget, type WindowSpec } from "../shell/windows"
+import { daoSpec, newDaoSpec, specForTarget, type WindowSpec } from "../shell/windows"
 import { useSigner } from "../sign/signerContext"
 import { nameForRealm, realmForName } from "./daoNames"
 import { useDaoConfig, useDaoMembers, useDaoProposals, useMyVote, useProposal } from "./useOsDao"
@@ -79,6 +79,9 @@ export function DaosApp({ open }: { open: (spec: WindowSpec) => void }) {
     )
     return (
         <div className="os-stack">
+            <div className="os-row os-end">
+                <button type="button" className="os-btn" onClick={() => open(newDaoSpec())}>Create a DAO</button>
+            </div>
             <section>
                 <h3 className="os-h">Featured</h3>
                 <ul className="os-list">{featured.map(row)}</ul>
@@ -149,7 +152,12 @@ function DaoFolderBody({ name, realmPath, section, open }: { name: string; realm
             </div>
         )
     } else if (section === "proposals") {
-        body = proposals.isPending ? <Loading what="proposals" /> : proposals.isError ? <Failed what="proposals" retry={() => void proposals.refetch()} /> : (proposals.data ?? []).length === 0
+        const newProposal = (
+            <div className="os-row os-end">
+                <button type="button" className="os-btn" onClick={() => open(specForTarget({ kind: "new-proposal", dao: name })!)}>New proposal</button>
+            </div>
+        )
+        const list = proposals.isPending ? <Loading what="proposals" /> : proposals.isError ? <Failed what="proposals" retry={() => void proposals.refetch()} /> : (proposals.data ?? []).length === 0
             ? <p className="os-sub">No proposals yet.</p>
             : <ul className="os-list">{(proposals.data ?? []).map((p) => (
                 <li key={p.id}><button type="button" className="os-it os-click" onClick={() => open(specForTarget({ kind: "proposal", dao: name, n: p.id })!)}>
@@ -157,6 +165,7 @@ function DaoFolderBody({ name, realmPath, section, open }: { name: string; realm
                     <span className="os-grow"><b>#{p.id} {revealInvisibleFormatting(p.title)}</b><span className="os-sub os-block">{p.status} · {p.yesVotes} yes · {p.noVotes} no</span></span>
                 </button></li>
             ))}</ul>
+        body = <div className="os-stack os-tight">{newProposal}{list}</div>
     } else if (section === "members") {
         body = members.isPending ? <Loading what="members" /> : members.isError ? <Failed what="members" retry={() => void members.refetch()} />
             : <ul className="os-list">{(members.data ?? []).map((m) => (

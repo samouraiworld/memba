@@ -36,7 +36,7 @@ describe("executeSignature", () => {
         setTxConfirmationCallback(classic)
         const onWallet = vi.fn()
         const res = await executeSignature(request({}), "YES", [msg], onWallet)
-        expect(res).toEqual({ outcome: "sent", hash: "ABC" })
+        expect(res).toEqual({ outcome: "sent", hash: "ABC", result: undefined })
         expect(onWallet).toHaveBeenCalledOnce()
         expect(classic).not.toHaveBeenCalled() // the OS sheet stood in for it
         expect(setTxConfirmationCallback(null)).toBe(classic) // …and it's back
@@ -64,6 +64,21 @@ describe("executeSignature", () => {
         expect(readGovernanceReceipt(scope)).toBeNull()
     })
 
+    it("calls onNothingSent when nothing reached the chain, and not otherwise", async () => {
+        const refused = vi.fn()
+        await executeSignature({ ...request({ recheck: async () => { throw new Error("path taken") } }), onNothingSent: refused }, "YES", [msg], () => {})
+        expect(refused).toHaveBeenCalledOnce()
+        const rejected = vi.fn()
+        await executeSignature({ ...request({ wallet: async () => { throw new Error("User rejected the transaction") } }), onNothingSent: rejected }, "YES", [msg], () => {})
+        expect(rejected).toHaveBeenCalledOnce()
+        const unknown = vi.fn()
+        await executeSignature({ ...request({ receipt: false, wallet: async () => { throw new Error("network timeout") } }), onNothingSent: unknown }, "YES", [msg], () => {})
+        const sent = vi.fn()
+        await executeSignature({ ...request({ receipt: false }), onNothingSent: sent }, "YES", [msg], () => {})
+        expect(unknown).not.toHaveBeenCalled()
+        expect(sent).not.toHaveBeenCalled()
+    })
+
     it("an error after the wallet opened is an unknown outcome, and stays locked", async () => {
         const res = await executeSignature(request({ wallet: async () => { throw new Error("network timeout") } }), "YES", [msg], () => {})
         expect(res.outcome).toBe("unknown")
@@ -77,7 +92,7 @@ describe("executeSignature", () => {
         await vi.waitFor(() => expect(release).toBeTypeOf("function"))
         await expect(executeSignature(request({}), "YES", [msg], () => {})).resolves.toMatchObject({ outcome: "failed", error: expect.stringContaining("already waiting") })
         release({ hash: "H" })
-        await expect(first).resolves.toEqual({ outcome: "sent", hash: "H" })
+        await expect(first).resolves.toEqual({ outcome: "sent", hash: "H", result: undefined })
     })
 
     it("works through the real broadcaster's confirmation step", async () => {

@@ -17,15 +17,17 @@ import { frontWindow, urlForWindow, visibleWindows, type OsWindow } from "./wind
 export function windowToken(t: OsTarget | null): string | null {
     if (!t) return null
     switch (t.kind) {
-        case "app": return `app.${getApp(t.app).slug}`
+        case "app": return t.app === "daos" && t.section === "new" ? "newdao" : `app.${getApp(t.app).slug}`
         case "dao": return `dao.${t.name}`
         case "proposal": return `prop.${t.dao}.${t.n}`
+        case "new-proposal": return `newprop.${t.dao}`
         case "multisig": return `msig.${t.address}`
         default: return null
     }
 }
 
 export function tokenToTarget(token: string): OsTarget | null {
+    if (token === "newdao") return parseOsPath("/os/daos/new")
     const dot = token.indexOf(".")
     if (dot < 1) return null
     const kind = token.slice(0, dot)
@@ -34,6 +36,7 @@ export function tokenToTarget(token: string): OsTarget | null {
     if (kind === "app" && OS_APPS.some((a) => a.slug === rest)) path = `/os/${rest}`
     else if (kind === "dao") path = `/os/dao/${rest}`
     else if (kind === "msig") path = `/os/multisig/${rest}`
+    else if (kind === "newprop") path = `/os/dao/${rest}/proposals/new`
     else if (kind === "prop") {
         const last = rest.lastIndexOf(".")
         if (last > 0) path = `/os/dao/${rest.slice(0, last)}/proposals/${rest.slice(last + 1)}`

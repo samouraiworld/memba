@@ -44,13 +44,17 @@ export interface SignRequest<C extends string = string> {
     recheck?: (choice: C | undefined) => Promise<void>
     /** Sends exactly the prepared messages; must pass `beforeSign` to the broadcaster. */
     send: (choice: C | undefined, beforeSign: () => Promise<void>) => Promise<{ hash: string; result?: unknown }>
-    /** After sending: does the chain show the result? */
-    verify?: (choice: C | undefined, hash: string) => Promise<boolean>
+    /** After sending: does the chain show the result? Gets the wallet's result too (e.g. a new proposal's id). */
+    verify?: (choice: C | undefined, hash: string, result: unknown) => Promise<boolean>
+    /** How many times to run `verify` (default 3). Use 1 when `verify` polls by itself. */
+    verifyAttempts?: number
+    /** Nothing reached the chain (refused before the wallet, or rejected in it): drop what `send` saved. */
+    onNothingSent?: () => void
     onSettled?: (outcome: SettledOutcome, choice: C | undefined) => void
 }
 
 export type SignResult =
-    | { outcome: "sent"; hash: string }
+    | { outcome: "sent"; hash: string; result?: unknown }
     | { outcome: "failed" | "cancelled"; error: string }
     | { outcome: "unknown"; error: string; hash: string }
 
@@ -93,13 +97,14 @@ export async function executeSignature<C extends string>(
         if (req.receipt) {
             try { saveGovernanceReceipt(req.receipt, { phase: "submitted", hash, label }) } catch { /* kept in memory by governanceRecovery */ }
         }
-        return { outcome: "sent", hash }
+        return { outcome: "sent", hash, result: res.result }
     } catch (err) {
         const raw = err instanceof Error ? err.message : String(err)
         const nothingSent = (!walletStarted && !hash) || REJECTED_IN_WALLET.test(raw)
         if (nothingSent) {
             finish()
             if (req.receipt) { try { clearGovernanceReceipt(req.receipt) } catch { /* keep the conservative lock */ } }
+            try { req.onNothingSent?.() } catch { /* keep whatever lock the request saved */ }
             if (mismatch) return { outcome: "failed", error: "The transaction changed after your review. Nothing was sent. Review it again." }
             if (/cancelled/i.test(raw) || REJECTED_IN_WALLET.test(raw)) return { outcome: "cancelled", error: "Cancelled. Nothing was sent." }
             return { outcome: "failed", error: friendlyDaoError(err) }

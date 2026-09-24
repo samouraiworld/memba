@@ -13,7 +13,7 @@ import { shortAddr } from "./format"
 import { selectableOsNetworks, switchOsNetwork } from "./network"
 import type { OsSession } from "./useOsSession"
 import { itemForTarget, type DeskItemType } from "./desk"
-import { urlForWindow, type OsWindow } from "./windows"
+import { specForTarget, urlForWindow, type OsWindow, type WindowSpec } from "./windows"
 import { useSigner } from "../sign/signerContext"
 
 type PanelId = "start" | "spaces" | "app" | "window" | "net" | "notif" | "acct"
@@ -23,6 +23,7 @@ export interface MenuBarProps {
     wins: readonly OsWindow[]
     front: OsWindow | null
     openApp: (app: OsAppId) => void
+    openSpec: (spec: WindowSpec) => void
     focusWin: (id: string) => void
     closeWin: (id: string) => void
     closeAll: () => void
@@ -152,6 +153,9 @@ export function MenuBar(p: MenuBarProps) {
                 content = (
                     <div className="os-menu" role="menu" aria-label={f.title}>
                         <div className="os-mhd">{f.app ? OS_APPS.find((a) => a.id === f.app)?.name : f.title}</div>
+                        {f.target?.kind === "dao" && (
+                            <Item onClick={run(() => p.openSpec(specForTarget({ kind: "new-proposal", dao: (f.target as { name: string }).name })!))}>New proposal</Item>
+                        )}
                         {pinnable && (
                             <Item onClick={run(() => { p.pin(pinnable); p.toast("Added to your desktop") })} disabled={p.isPinned(pinnable)}>
                                 {f.target?.kind === "proposal" ? "Bookmark to desktop" : "Add to desktop"}

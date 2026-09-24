@@ -10,7 +10,7 @@ afterEach(() => localStorage.clear())
 
 describe("?w= tokens", () => {
     it("round-trip every linkable window", () => {
-        for (const url of ["/os/feed", "/os/dev-report", "/os/dao/memba_dao", "/os/dao/my.dao", "/os/dao/memba_dao/proposals/12", "/os/dao/my.dao/proposals/3", `/os/multisig/${MSIG}`]) {
+        for (const url of ["/os/feed", "/os/dev-report", "/os/dao/memba_dao", "/os/dao/my.dao", "/os/dao/memba_dao/proposals/12", "/os/dao/my.dao/proposals/3", "/os/dao/memba_dao/proposals/new", "/os/daos/new", `/os/multisig/${MSIG}`]) {
             const t = parseOsPath(url)
             expect(tokenToTarget(windowToken(t)!), url).toEqual(t)
         }
