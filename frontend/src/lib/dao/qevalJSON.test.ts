@@ -116,7 +116,7 @@ function legacyParseQevalJSON(raw: string): unknown {
 describe("parseQevalJSON — backward compatibility with the JSON.parse decode", () => {
     it("accepts the JSON-only escapes \\/ and \\u surrogates", () => {
         expect(parseQevalJSON(String.raw`("[\"a\/b\"]" string)`)).toEqual(["a/b"])
-        expect(parseQevalJSON(String.raw`("[\"🚀\"]" string)`)).toEqual(["\u{1F680}"])
+        expect(parseQevalJSON(String.raw`("[\"\ud83d\ude80\"]" string)`)).toEqual(["\u{1F680}"])
     })
 
     it("returns the same value for every literal the old decode accepted", () => {
