@@ -125,6 +125,28 @@ describe("windowsReducer", () => {
     })
 })
 
+describe("navigation", () => {
+    const specs = (...urls: string[]) => urls.map((u) => specForTarget(parseOsPath(u))!)
+
+    it("a link opens its window on top of the others", () => {
+        let s = run(open(appSpec("feed")))
+        s = windowsReducer(s, { type: "navigate", specs: specs("/os/validators"), desk, exact: false })
+        expect(s.wins.map((w) => w.key)).toEqual(["app:feed", "app:validators"])
+        expect(frontWindow(s.wins)?.key).toBe("app:validators")
+    })
+
+    it("back/forward returns to exactly the URL's windows, keeping the ones that stay where they were", () => {
+        let s = run(open(appSpec("feed")), open(appSpec("wallet")), open(appSpec("arcade")))
+        const feed = byKey(s, "app:feed")
+        s = windowsReducer(s, { type: "minimise", id: byKey(s, "app:arcade").id })
+        s = windowsReducer(s, { type: "move", id: feed.id, x: 333, y: 99, desk })
+        s = windowsReducer(s, { type: "navigate", specs: specs("/os/feed"), desk, exact: true })
+        expect(s.wins.map((w) => w.key).sort()).toEqual(["app:arcade", "app:feed"])
+        expect(byKey(s, "app:feed")).toMatchObject({ x: 333, y: 99 })
+        expect(byKey(s, "app:arcade").min).toBe(true) // not in URLs, left alone
+    })
+})
+
 describe("link windows", () => {
     it("titles a proposal link and round-trips its URL", () => {
         const spec = specForTarget(parseOsPath("/os/dao/memba_dao/proposals/12"))!

@@ -55,15 +55,19 @@ test.describe('Memba OS windows', () => {
         await expect.poll(() => path(page)).toBe('/os/feed')
     })
 
-    test('a navigation to another /os URL opens its window', async ({ page }) => {
+    test('back and forward return to exactly the windows each URL lists', async ({ page }) => {
         await page.goto(`${OS_ON}/os/feed`)
         await expect(win(page, 'Feed')).toBeVisible()
+        await page.goto(`${OS_ON}/os/validators`)
+        await expect(win(page, 'Validators')).toBeVisible()
+        // Back: a real history pop (a new document would restore from storage instead).
         await page.evaluate(() => {
-            window.history.pushState({}, '', '/os/validators')
+            window.history.pushState({}, '', '/os/arcade')
             window.dispatchEvent(new PopStateEvent('popstate'))
         })
-        await expect(win(page, 'Validators')).toBeVisible()
-        await expect(win(page, 'Validators')).not.toHaveClass(/os-inactive/)
+        await expect(win(page, 'Arcade')).toBeVisible()
+        await expect(win(page, 'Validators')).toHaveCount(0)
+        await expect.poll(() => path(page)).toBe('/os/arcade')
     })
 
     test('drag by the title bar moves; the corner resizes', async ({ page }) => {

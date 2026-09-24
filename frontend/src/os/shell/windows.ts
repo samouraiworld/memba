@@ -97,6 +97,8 @@ export type WindowsAction =
     | { type: "next" }
     /** Replace everything (restoring a saved session). */
     | { type: "restore"; wins: OsWindow[] }
+    /** Arrive at a URL: see windowsForNavigation. */
+    | { type: "navigate"; specs: readonly WindowSpec[]; desk: DeskSize; exact: boolean }
 
 export const EMPTY_WINDOWS: WindowsState = { top: 0, seq: 0, wins: [] }
 
@@ -176,12 +178,26 @@ export function windowsReducer(s: WindowsState, a: WindowsAction): WindowsState 
             const back = vis.reduce((a, b) => (a.z < b.z ? a : b))
             return raise(s, back.id)
         }
+        case "navigate": return windowsForNavigation(s, a.specs, a.desk, a.exact)
         case "restore": {
             const top = a.wins.reduce((m, w) => Math.max(m, w.z), 0)
             const seq = a.wins.reduce((m, w) => Math.max(m, Number(w.id.replace(/^w/, "")) || 0), 0)
             return { top, seq, wins: a.wins }
         }
     }
+}
+
+/**
+ * The windows after navigating to a URL. A link (push) opens its windows on
+ * top of the others; back/forward (pop) makes the visible windows exactly the
+ * ones the URL lists, so going back really returns to that set. Minimised
+ * windows aren't in URLs and are left alone. Windows that stay keep their
+ * geometry.
+ */
+export function windowsForNavigation(s: WindowsState, specs: readonly WindowSpec[], desk: DeskSize, exact: boolean): WindowsState {
+    const keys = new Set(specs.map((x) => x.key))
+    const kept = exact ? { ...s, wins: s.wins.filter((w) => w.min || keys.has(w.key)) } : s
+    return specs.reduce((acc, spec) => windowsReducer(acc, { type: "open", spec, desk }), kept)
 }
 
 export function visibleWindows(wins: readonly OsWindow[]): OsWindow[] {

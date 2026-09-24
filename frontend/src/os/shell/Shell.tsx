@@ -7,7 +7,7 @@
  * @module os/shell/Shell
  */
 import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react"
-import { useLocation, useNavigate } from "react-router-dom"
+import { useLocation, useNavigate, useNavigationType } from "react-router-dom"
 import type { OsAppId } from "../apps"
 import { ConnectModal } from "./ConnectModal"
 import { itemTarget } from "./desk"
@@ -130,22 +130,34 @@ export function Shell() {
     }, [session.status, showToast])
 
     // ── windows ⇄ URL, and the saved session ──
+    /** The URL we last wrote (or arrived at). */
     const lastUrl = useRef(location.pathname + location.search)
+    /** The location the reader last looked at. */
+    const seenUrl = useRef(location.pathname + location.search)
     const here = location.pathname + location.search
+    const navType = useNavigationType()
+    useEffect(() => {
+        // A navigation we didn't write: a link opens its windows on top; back/forward
+        // (POP) returns to exactly the windows that URL lists. Only a location that
+        // changed since the last look counts (StrictMode runs effects twice), and
+        // not our own replace.
+        if (here === seenUrl.current) return
+        seenUrl.current = here
+        if (here === lastUrl.current) return
+        lastUrl.current = here
+        const t = targetsFromUrl(location.pathname, location.search)
+        const specs = [...t.others, t.front].map(specForTarget).filter((x): x is WindowSpec => x !== null)
+        dispatch({ type: "navigate", specs, desk: deskNow.current, exact: navType === "POP" })
+    }, [here, location.pathname, location.search, navType, dispatch])
+    // Declared after the reader on purpose: effects run in order, and the reader
+    // must see the URL before this one replaces it, or it would take the old URL
+    // for a back/forward navigation.
     useEffect(() => {
         saveWindows(win.wins)
         const url = urlForWindows(win.wins)
         lastUrl.current = url
         if (url !== window.location.pathname + window.location.search) navigate(url, { replace: true })
     }, [win.wins, navigate])
-    useEffect(() => {
-        // A navigation we didn't write (a link inside Memba OS, back/forward): open what it points to.
-        if (here === lastUrl.current) return
-        lastUrl.current = here
-        const t = targetsFromUrl(location.pathname, location.search)
-        const specs = [...t.others, t.front].map(specForTarget).filter((x): x is WindowSpec => x !== null)
-        for (const spec of specs) dispatch({ type: "open", spec, desk: deskNow.current })
-    }, [here, location.pathname, location.search, dispatch])
 
     // ── actions ──
     const open = useCallback((spec: WindowSpec, center = false) => dispatch({ type: "open", spec, desk: deskNow.current, center }), [dispatch])
@@ -169,17 +181,18 @@ export function Shell() {
 
     // ── ⌥ shortcuts (D13) ──
     const front = win.front
+    const { close: closeWin, next: nextWin } = win
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
             if (locked || session.stage || !e.altKey) return
             const t = e.target as HTMLElement | null
             if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
-            if (e.code === "KeyW" && front) { e.preventDefault(); win.close(front.id) }
-            else if (e.code === "Backquote") { e.preventDefault(); win.next() }
+            if (e.code === "KeyW" && front) { e.preventDefault(); closeWin(front.id) }
+            else if (e.code === "Backquote") { e.preventDefault(); nextWin() }
         }
         window.addEventListener("keydown", onKey)
         return () => window.removeEventListener("keydown", onKey)
-    }, [locked, session.stage, front, win])
+    }, [locked, session.stage, front, closeWin, nextWin])
 
     // ── right-click menus ──
     const [menu, setMenu] = useState<{ x: number; y: number; item: number | null } | null>(null)
