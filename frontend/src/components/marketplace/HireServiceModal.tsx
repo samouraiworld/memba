@@ -5,7 +5,7 @@ import { explorerHref } from "../../lib/explorerLink"
 import { formatUgnotExact } from "../../lib/dao/v2Budget"
 import { getCurrentBlock } from "../../lib/dao/proposalDates"
 import { broadcastEscrowTx, escrowFailureMayHaveLanded, planHireService, type HirePlan } from "../../lib/marketplace/escrowTx"
-import { hireAvailability, readClientActiveCount, readEscrowPauseState } from "../../lib/marketplace/escrowState"
+import { findCreatedContract, hireAvailability, readClientActiveCount, readEscrowPauseState } from "../../lib/marketplace/escrowState"
 import "../nft/TradeModal.css" // Reuse existing modal styles
 
 export interface Service {
@@ -24,7 +24,8 @@ export interface HireServiceModalProps {
     /** Connected wallet address; it becomes the escrow client. */
     caller: string
     onClose: () => void
-    onSuccess: () => void
+    /** Called once CreateContract landed, with the new contract's id when it could be read back (else null). */
+    onSuccess: (contractId: string | null) => void
 }
 
 const muted = { color: "var(--color-text-muted)", fontSize: "14px" }
@@ -90,16 +91,30 @@ export function HireServiceModal({ service, caller, onClose, onSuccess }: HireSe
         setSubmitting(true)
         try {
             await broadcastEscrowTx(plan, `Create escrow: ${service.title}`)
-            onSuccess()
         } catch (err) {
             if (escrowFailureMayHaveLanded(err)) {
                 setUncertain(true)
                 setConfirmedNone(false)
             }
             setError(err instanceof Error ? err.message : String(err))
-        } finally {
             setSubmitting(false)
+            return
         }
+        // The contract landed. CreateContract's return value does not reach the wallet
+        // reply, so read the client's newest contract back and check it is this one.
+        let contractId: string | null = null
+        try {
+            contractId = await findCreatedContract(MEMBA_DAO.escrowPath, caller, {
+                freelancer: service.freelancer,
+                title: service.title,
+                description: service.description,
+                milestones: plan.milestones,
+            })
+        } catch {
+            contractId = null
+        }
+        setSubmitting(false)
+        onSuccess(contractId)
     }
 
     const contractsHref = explorerHref(ACTIVE_NETWORK_KEY, MEMBA_DAO.escrowPath)

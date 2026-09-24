@@ -2,7 +2,7 @@
  * builders.test.ts — the escrow MsgCall builders, pinned to the realm API.
  *
  * The API table below is copied from the frozen API of `gno.land/r/samcrew/escrow_v4`
- * (escrow.gno, pause.gno, text.gno at its security-reviewed final revision). It keeps
+ * (escrow.gno and views.gno at its security-reviewed revision). It keeps
  * escrow_v3's user API (names, argument order, `title:amount` milestones, exact-send
  * funding) and adds ArchiveContract and ExpireUnfunded. Realms are immutable once
  * published: if a builder test here fails, the builder is wrong, not the table.

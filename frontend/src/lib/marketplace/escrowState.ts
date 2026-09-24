@@ -6,19 +6,20 @@
  *
  *   - Per-client cap: CreateContract is refused while the caller holds
  *     MaxActivePerClient (5) open contracts (`GetClientActiveCount`).
- *   - Time-boxed pause (`PauseState()`): CreateContract and FundMilestone are
- *     refused while Paused; every other state change only while Paused and
- *     not ExitsOpen, i.e. until block ExitsReopenAt.
+ *   - Time-boxed pause (`GetPauseStateJSON`): CreateContract and FundMilestone
+ *     are refused while paused; every other state change only while paused
+ *     and exits are not open, i.e. until block exitsReopenAt.
  *   - ArchiveContract: client only, on a completed or cancelled contract.
  *   - ExpireUnfunded: anyone, on an active contract no milestone of which was
- *     ever funded, UnfundedExpiryBlks after creation (blocks inside a pause's
- *     blocking window do not count).
+ *     ever funded, from the realm's pause-adjusted `expireAt`.
  *
- * Contract details come from `Render("contract/<id>")`. Its layout is fixed by
- * render.gno, and user text cannot break it: the realm strips `*`, `#`,
- * brackets and line breaks from every stored title and description.
+ * Every read goes through the realm's JSON views (`GetContractJSON`,
+ * `GetClientContractsJSON`, `GetPauseStateJSON`): integers are decimal
+ * strings, absent values are null. The parsers accept exactly that shape and
+ * throw on anything else, so a changed or unexpected answer never becomes an
+ * offered transaction.
  */
-import { queryEval, queryRender } from "../dao/shared"
+import { parseQevalJSON, queryEval } from "../dao/shared"
 import { GNO_RPC_URL } from "../config"
 import { isValidGnoAddressChecksum } from "../dao/address"
 import { ESCROW_LIMITS } from "./builders"
@@ -38,6 +39,20 @@ export interface EscrowPauseState {
 export type EscrowContractStatus = "active" | "completed" | "disputed" | "cancelled"
 export type EscrowMilestoneStatus = "pending" | "funded" | "completed" | "released" | "disputed" | "refunded"
 
+export interface EscrowMilestoneView {
+    index: number
+    title: string
+    amountUgnot: number
+    status: EscrowMilestoneStatus
+    fundedAt: number | null
+    completedAt: number | null
+    disputedAt: number | null
+    /** Height from which ClaimRefund is accepted (funded milestones only). */
+    refundAt: number | null
+    /** Height from which ClaimDisputeTimeout is accepted (disputed milestones only). */
+    resolveAt: number | null
+}
+
 export interface EscrowContractView {
     id: string
     title: string
@@ -47,7 +62,26 @@ export interface EscrowContractView {
     status: EscrowContractStatus
     /** Block height of CreateContract. */
     createdAt: number
-    milestones: { title: string; amountUgnot: number; status: EscrowMilestoneStatus }[]
+    /** First funding height, or null when nothing was ever funded. */
+    fundedAt: number | null
+    /** Earliest pause-adjusted deadlines (null when none applies). */
+    refundAt: number | null
+    expireAt: number | null
+    resolveAt: number | null
+    milestones: EscrowMilestoneView[]
+    totals: { amountUgnot: number; escrowedUgnot: number; releasedUgnot: number; refundedUgnot: number }
+}
+
+export interface EscrowContractSummary {
+    id: string
+    status: EscrowContractStatus
+    createdAt: number
+}
+
+export interface EscrowContractsPage {
+    items: EscrowContractSummary[]
+    /** Cursor for the next (older) page, or null on the last page. */
+    next: string | null
 }
 
 /** Something a user can or cannot do now, and why. */
@@ -56,35 +90,171 @@ export type EscrowAvailability = { available: true; note?: string } | { availabl
 /** gnoland-1's observed average block time, used only for rough "about N days" estimates. */
 export const APPROX_BLOCK_SECONDS = 3.3
 
+/** Page size for GetClientContractsJSON (the realm clamps to 1..50). */
+export const ESCROW_PAGE_LIMIT = 20
+
 const CONTRACT_STATUSES: ReadonlySet<string> = new Set(["active", "completed", "disputed", "cancelled"])
 const MILESTONE_STATUSES: ReadonlySet<string> = new Set(["pending", "funded", "completed", "released", "disputed", "refunded"])
+const CONTRACT_ID = /^(0|[1-9]\d{0,8})$/
 
-/** `(true bool)` → true. Anything else → null. */
-export function parseQevalBool(raw: string | null): boolean | null {
-    const m = raw?.trim().match(/^\(\s*(true|false)\s+bool\s*\)$/)
-    return m ? m[1] === "true" : null
-}
-
-/** `(42 int)` or `(42 int64)` → 42. Anything else, or an unsafe integer → null. */
-export function parseQevalInt(raw: string | null): number | null {
-    const m = raw?.trim().match(/^\(\s*(-?\d{1,16})\s+int(?:64)?\s*\)$/)
-    if (!m) return null
-    const n = Number(m[1])
-    return Number.isSafeInteger(n) ? n : null
-}
-
-/** Read `PauseState()`, field by field. Throws when any field cannot be read. */
-export async function readEscrowPauseState(escrowPath: string): Promise<EscrowPauseState> {
-    const [paused, exitsOpen, exitsReopenAt, pausedBlocks] = await Promise.all([
-        queryEval(GNO_RPC_URL, escrowPath, "PauseState().Paused", true).then(parseQevalBool),
-        queryEval(GNO_RPC_URL, escrowPath, "PauseState().ExitsOpen", true).then(parseQevalBool),
-        queryEval(GNO_RPC_URL, escrowPath, "PauseState().ExitsReopenAt", true).then(parseQevalInt),
-        queryEval(GNO_RPC_URL, escrowPath, "PauseState().PausedBlocks", true).then(parseQevalInt),
-    ])
-    if (paused === null || exitsOpen === null || exitsReopenAt === null || pausedBlocks === null) {
-        throw new Error("Could not read the escrow pause state")
+/** A view answer the parser does not recognise. */
+export class EscrowViewError extends Error {
+    constructor(message: string) {
+        super(message)
+        this.name = "EscrowViewError"
     }
-    return { paused, exitsOpen, exitsReopenAt, pausedBlocks }
+}
+
+const bad = (what: string): never => { throw new EscrowViewError(`Unexpected escrow answer: ${what}`) }
+
+type Obj = Record<string, unknown>
+
+/** A plain object with exactly these keys. */
+function exact(v: unknown, keys: readonly string[], what: string): Obj {
+    if (typeof v !== "object" || v === null || Array.isArray(v)) return bad(`${what} is not an object`)
+    const got = Object.keys(v).sort()
+    const want = [...keys].sort()
+    if (got.length !== want.length || got.some((k, i) => k !== want[i])) return bad(`${what} has fields ${got.join(",")}`)
+    return v as Obj
+}
+
+/** A decimal-string integer, as the realm's jint writes it, within the safe integer range. */
+function dec(v: unknown, what: string): number {
+    if (typeof v !== "string" || !/^(0|[1-9]\d{0,15})$/.test(v)) return bad(`${what} is not a decimal string`)
+    const n = Number(v)
+    return Number.isSafeInteger(n) ? n : bad(`${what} is out of range`)
+}
+
+/** A block height (jheight): null when unset, else a positive decimal string. */
+function height(v: unknown, what: string): number | null {
+    if (v === null) return null
+    const n = dec(v, what)
+    return n > 0 ? n : bad(`${what} is zero`)
+}
+
+function str(v: unknown, what: string): string {
+    return typeof v === "string" ? v : bad(`${what} is not a string`)
+}
+
+function bool(v: unknown, what: string): boolean {
+    return typeof v === "boolean" ? v : bad(`${what} is not a boolean`)
+}
+
+function addr(v: unknown, what: string): string {
+    const s = str(v, what)
+    return isValidGnoAddressChecksum(s) ? s : bad(`${what} is not an address`)
+}
+
+function oneOf<T extends string>(v: unknown, set: ReadonlySet<string>, what: string): T {
+    const s = str(v, what)
+    return set.has(s) ? (s as T) : bad(`${what} "${s}"`)
+}
+
+/** The JSON payload of a qeval string return, or throw. */
+function payload(raw: string | null, what: string): unknown {
+    if (raw === null) throw new Error(`Could not read ${what}`)
+    const v = parseQevalJSON(raw)
+    return v === null ? bad(`${what} is not JSON`) : v
+}
+
+/** Parse GetPauseStateJSON. */
+export function parsePauseStateJSON(v: unknown): EscrowPauseState {
+    const o = exact(v, ["paused", "pausedAt", "exitsReopenAt", "exitsOpen", "cooldownUntil", "pausedBlocks"], "pause state")
+    const paused = bool(o.paused, "paused")
+    const exitsOpen = bool(o.exitsOpen, "exitsOpen")
+    const pausedAt = height(o.pausedAt, "pausedAt")
+    const exitsReopenAt = height(o.exitsReopenAt, "exitsReopenAt")
+    dec(o.cooldownUntil, "cooldownUntil")
+    const pausedBlocks = dec(o.pausedBlocks, "pausedBlocks")
+    // The realm sets both heights exactly while paused, and exits are always open otherwise.
+    if (paused ? pausedAt === null || exitsReopenAt === null || exitsReopenAt !== pausedAt + ESCROW_LIMITS.maxPauseBlocks : pausedAt !== null || exitsReopenAt !== null || !exitsOpen) {
+        return bad("inconsistent pause state")
+    }
+    return { paused, exitsOpen, exitsReopenAt: exitsReopenAt ?? 0, pausedBlocks }
+}
+
+function parseMilestone(v: unknown, i: number): EscrowMilestoneView {
+    const what = `milestone ${i}`
+    const o = exact(v, ["index", "title", "amountUgnot", "status", "fundedAtHeight", "completedAtHeight", "disputedAtHeight", "refundAt", "resolveAt"], what)
+    if (dec(o.index, `${what} index`) !== i) bad(`${what} index`)
+    return {
+        index: i,
+        title: str(o.title, `${what} title`),
+        amountUgnot: dec(o.amountUgnot, `${what} amount`),
+        status: oneOf<EscrowMilestoneStatus>(o.status, MILESTONE_STATUSES, `${what} status`),
+        fundedAt: height(o.fundedAtHeight, `${what} fundedAtHeight`),
+        completedAt: height(o.completedAtHeight, `${what} completedAtHeight`),
+        disputedAt: height(o.disputedAtHeight, `${what} disputedAtHeight`),
+        refundAt: height(o.refundAt, `${what} refundAt`),
+        resolveAt: height(o.resolveAt, `${what} resolveAt`),
+    }
+}
+
+/**
+ * Parse GetContractJSON(id). Null for an unknown or archived id
+ * (`{"exists":false,"id":…}`); throws on any other shape, or when the answer
+ * is about another id.
+ */
+export function parseContractJSON(id: string, v: unknown): EscrowContractView | null {
+    if (typeof v === "object" && v !== null && (v as Obj).exists === false) {
+        const o = exact(v, ["exists", "id"], "missing contract")
+        return o.id === id ? null : bad("answer for another id")
+    }
+    const o = exact(v, ["exists", "id", "client", "freelancer", "title", "description", "status", "createdAtHeight", "fundedAtHeight", "refundAt", "expireAt", "resolveAt", "milestones", "totals"], "contract")
+    if (o.exists !== true) bad("exists")
+    if (o.id !== id) bad("answer for another id")
+    if (!Array.isArray(o.milestones) || o.milestones.length === 0 || o.milestones.length > ESCROW_LIMITS.maxMilestones) bad("milestones")
+    const t = exact(o.totals, ["amountUgnot", "escrowedUgnot", "releasedUgnot", "refundedUgnot"], "totals")
+    const createdAt = height(o.createdAtHeight, "createdAtHeight")
+    return {
+        id,
+        client: addr(o.client, "client"),
+        freelancer: addr(o.freelancer, "freelancer"),
+        title: str(o.title, "title"),
+        description: str(o.description, "description"),
+        status: oneOf<EscrowContractStatus>(o.status, CONTRACT_STATUSES, "status"),
+        createdAt: createdAt ?? bad("createdAtHeight is null"),
+        fundedAt: height(o.fundedAtHeight, "fundedAtHeight"),
+        refundAt: height(o.refundAt, "refundAt"),
+        expireAt: height(o.expireAt, "expireAt"),
+        resolveAt: height(o.resolveAt, "resolveAt"),
+        milestones: (o.milestones as unknown[]).map(parseMilestone),
+        totals: {
+            amountUgnot: dec(t.amountUgnot, "total amount"),
+            escrowedUgnot: dec(t.escrowedUgnot, "escrowed total"),
+            releasedUgnot: dec(t.releasedUgnot, "released total"),
+            refundedUgnot: dec(t.refundedUgnot, "refunded total"),
+        },
+    }
+}
+
+/**
+ * Parse GetClientContractsJSON: at most `limit` items, ids strictly newest
+ * first, and a `next` cursor that is either null or the last id of the page.
+ */
+export function parseClientContractsJSON(v: unknown, limit: number, before = ""): EscrowContractsPage {
+    const o = exact(v, ["items", "next"], "contract page")
+    if (!Array.isArray(o.items) || o.items.length > limit) bad("page items")
+    const items = (o.items as unknown[]).map((item, i) => {
+        const it = exact(item, ["id", "status", "createdAtHeight"], `page item ${i}`)
+        const id = str(it.id, "item id")
+        if (!CONTRACT_ID.test(id)) bad(`item id "${id}"`)
+        const createdAt = height(it.createdAtHeight, "item createdAtHeight")
+        return { id, status: oneOf<EscrowContractStatus>(it.status, CONTRACT_STATUSES, "item status"), createdAt: createdAt ?? bad("item createdAtHeight is null") }
+    })
+    const ids = items.map((it) => Number(it.id))
+    if (ids.some((n, i) => i > 0 && n >= ids[i - 1]) || (before !== "" && ids.length > 0 && ids[0] >= Number(before))) bad("page order")
+    let next: string | null = null
+    if (o.next !== null) {
+        next = str(o.next, "next")
+        if (items.length === 0 || next !== items[items.length - 1].id) bad("next cursor")
+    }
+    return { items, next }
+}
+
+/** Read GetPauseStateJSON(). */
+export async function readEscrowPauseState(escrowPath: string): Promise<EscrowPauseState> {
+    return parsePauseStateJSON(payload(await queryEval(GNO_RPC_URL, escrowPath, "GetPauseStateJSON()", true), "the escrow pause state"))
 }
 
 /** Read `GetClientActiveCount(client)`: the open contracts this address created. */
@@ -96,56 +266,48 @@ export async function readClientActiveCount(escrowPath: string, client: string):
     return n
 }
 
-const MILESTONE_LINE = /^- \*\*([^*]*)\*\* — (\d{1,16}) ugnot \[([a-z]+)\](?: \((?:funded|completed|disputed) block \d+\))*$/
-
-/**
- * Parse `Render("contract/<id>")`. Returns null for an unknown or archived id
- * (the realm answers "# 404"), and throws on output it does not recognise.
- */
-export function parseContractRender(id: string, md: string): EscrowContractView | null {
-    const lines = md.replace(/\r\n/g, "\n").split("\n")
-    if (lines[0] === "# 404" && (lines[1] ?? "").startsWith("Contract not found")) return null
-    const unexpected = (): never => { throw new Error(`Unexpected escrow contract page for id ${id}`) }
-    if (!lines[0]?.startsWith("# ")) unexpected()
-    const title = lines[0].slice(2)
-    const field = (label: string) => {
-        const line = lines.find((l) => l.startsWith(`**${label}:** `))
-        return line === undefined ? unexpected() : line.slice(label.length + 6)
-    }
-    const idIndex = lines.findIndex((l) => l.startsWith("**ID:** "))
-    if (idIndex < 1 || field("ID") !== id) unexpected()
-    const description = lines.slice(1, idIndex).filter((l) => l !== "").join("\n")
-    const client = field("Client")
-    const freelancer = field("Freelancer")
-    const status = field("Status")
-    const created = field("Created").match(/^block (\d{1,16})$/)
-    if (!isValidGnoAddressChecksum(client) || !isValidGnoAddressChecksum(freelancer) || !CONTRACT_STATUSES.has(status) || !created) unexpected()
-    const start = lines.indexOf("## Milestones")
-    if (start < 0) unexpected()
-    const milestones = lines.slice(start + 1).filter((l) => l !== "").map((l) => {
-        const m = l.match(MILESTONE_LINE)
-        if (!m || !MILESTONE_STATUSES.has(m[3])) return unexpected()
-        return { title: m[1], amountUgnot: Number(m[2]), status: m[3] as EscrowMilestoneStatus }
-    })
-    if (milestones.length === 0 || milestones.length > ESCROW_LIMITS.maxMilestones) unexpected()
-    return {
-        id,
-        title,
-        description,
-        client,
-        freelancer,
-        status: status as EscrowContractStatus,
-        createdAt: Number(created![1]),
-        milestones,
-    }
-}
-
 /** Read one contract, or null when the id is unknown or the contract was archived. */
 export async function readEscrowContract(escrowPath: string, id: string): Promise<EscrowContractView | null> {
-    if (!/^(0|[1-9]\d{0,8})$/.test(id)) throw new Error(`Invalid contract id "${id}"`)
-    const md = await queryRender(GNO_RPC_URL, escrowPath, `contract/${id}`, true)
-    if (md === null) throw new Error("Could not read the escrow contract")
-    return parseContractRender(id, md)
+    if (!CONTRACT_ID.test(id)) throw new Error(`Invalid contract id "${id}"`)
+    return parseContractJSON(id, payload(await queryEval(GNO_RPC_URL, escrowPath, `GetContractJSON("${id}")`, true), "the escrow contract"))
+}
+
+/** Read one page of the contracts `client` created, newest first. `before` is "" or the previous page's `next`. */
+export async function readClientContracts(escrowPath: string, client: string, before = "", limit = ESCROW_PAGE_LIMIT): Promise<EscrowContractsPage> {
+    if (!isValidGnoAddressChecksum(client)) throw new Error("Invalid client address")
+    if (before !== "" && !CONTRACT_ID.test(before)) throw new Error(`Invalid page cursor "${before}"`)
+    if (!Number.isSafeInteger(limit) || limit < 1 || limit > 50) throw new Error("Invalid page size")
+    const raw = await queryEval(GNO_RPC_URL, escrowPath, `GetClientContractsJSON("${client}", "${before}", ${limit})`, true)
+    return parseClientContractsJSON(payload(raw, "your escrow contracts"), limit, before)
+}
+
+/**
+ * After a CreateContract landed, find the contract it made: the client's
+ * newest contract, if it has this freelancer, title, description and
+ * milestones. Null when it cannot be confirmed (for example a node that has
+ * not caught up yet).
+ */
+export async function findCreatedContract(
+    escrowPath: string,
+    client: string,
+    expected: { freelancer: string; title: string; description: string; milestones: readonly { title: string; amountUgnot: number }[] },
+): Promise<string | null> {
+    const page = await readClientContracts(escrowPath, client, "", 1)
+    const newest = page.items[0]
+    if (!newest) return null
+    const c = await readEscrowContract(escrowPath, newest.id)
+    const same = c !== null && c.client === client && c.freelancer === expected.freelancer && c.title === expected.title &&
+        c.description === expected.description && c.milestones.length === expected.milestones.length &&
+        c.milestones.every((m, i) => m.title === expected.milestones[i].title && m.amountUgnot === expected.milestones[i].amountUgnot)
+    return same ? newest.id : null
+}
+
+/** `(42 int)` → 42. Anything else, or an unsafe integer → null. */
+export function parseQevalInt(raw: string | null): number | null {
+    const m = raw?.trim().match(/^\(\s*(-?\d{1,16})\s+int(?:64)?\s*\)$/)
+    if (!m) return null
+    const n = Number(m[1])
+    return Number.isSafeInteger(n) ? n : null
 }
 
 /** "about 3 days", "about 5 hours", "about 12 minutes" for a number of blocks. */
@@ -196,26 +358,17 @@ export function archiveAvailability(c: EscrowContractView, caller: string, pause
 
 /**
  * Whether anyone can expire this contract now. Null when it was funded or is
- * no longer active. The realm skips blocks inside a pause's blocking window,
- * counted from the contract's creation; that mark is not readable, so after a
- * pause the earliest block is known only within `pausedBlocks`.
+ * no longer active (the realm then reports no `expireAt`). `expireAt` is the
+ * realm's own pause-adjusted deadline, assuming no further pause.
  */
 export function expireAvailability(c: EscrowContractView, pause: EscrowPauseState, height: number): EscrowAvailability | null {
-    if (c.status !== "active" || c.milestones.some((m) => m.status !== "pending")) return null
+    if (c.status !== "active" || c.expireAt === null || c.milestones.some((m) => m.status !== "pending")) return null
     if (height <= 0) return { available: false, reason: "Could not read the current block height." }
-    const earliest = c.createdAt + ESCROW_LIMITS.unfundedExpiryBlocks
-    if (height < earliest) {
-        return { available: false, reason: `Never funded. Anyone can expire it from block ${earliest.toLocaleString("en-US")} (${formatBlocksEta(earliest - height)}).` }
+    if (height < c.expireAt) {
+        return { available: false, reason: `Never funded. Anyone can expire it from block ${c.expireAt.toLocaleString("en-US")} (${formatBlocksEta(c.expireAt - height)}).` }
     }
     const shut = exitsClosedReason(pause, height)
-    if (shut) return { available: false, reason: shut }
-    if (pause.pausedBlocks > 0 && height < earliest + pause.pausedBlocks) {
-        return {
-            available: true,
-            note: `A pause may have moved this deadline by up to ${pause.pausedBlocks.toLocaleString("en-US")} blocks. If it is still too early, the escrow contract refuses the call and only the fee is spent.`,
-        }
-    }
-    return { available: true }
+    return shut ? { available: false, reason: shut } : { available: true }
 }
 
 /** About how much ArchiveContract would refund for this contract, in ugnot. */

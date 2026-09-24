@@ -33,10 +33,12 @@ const chain = vi.hoisted(() => ({
 }))
 const readEscrowPauseState = vi.hoisted(() => vi.fn(async () => { if (chain.fail) throw chain.fail; return chain.pause }))
 const readClientActiveCount = vi.hoisted(() => vi.fn(async () => chain.active))
+const findCreatedContract = vi.hoisted(() => vi.fn<() => Promise<string | null>>(async () => "12"))
 vi.mock("../../lib/marketplace/escrowState", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/marketplace/escrowState")>()),
     readEscrowPauseState,
     readClientActiveCount,
+    findCreatedContract,
 }))
 vi.mock("../../lib/dao/proposalDates", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/dao/proposalDates")>()),
@@ -81,6 +83,8 @@ beforeEach(() => {
     doContractBroadcast.mockClear()
     readEscrowPauseState.mockClear()
     readClientActiveCount.mockClear()
+    findCreatedContract.mockReset()
+    findCreatedContract.mockResolvedValue("12")
 })
 
 describe("HireServiceModal — gated", () => {
@@ -140,6 +144,34 @@ describe("HireServiceModal — live", () => {
             args: [FREELANCER, "Smart Contract Audit", "audit", "Deposit:250000000,Final:250000000"],
         })
         expect(opts).toMatchObject({ gasWanted: plan.gasWanted, retry: false })
+    })
+
+    it("reads the new contract's id back after it lands and hands it over", async () => {
+        const { onSuccess, sign } = await openReady()
+        fireEvent.click(sign())
+        await waitFor(() => expect(onSuccess).toHaveBeenCalledWith("12"))
+        expect(findCreatedContract).toHaveBeenCalledWith(ESCROW, CLIENT, {
+            freelancer: FREELANCER,
+            title: "Smart Contract Audit",
+            description: "audit",
+            milestones: [{ title: "Deposit", amountUgnot: 250_000_000 }, { title: "Final", amountUgnot: 250_000_000 }],
+        })
+    })
+
+    it("still reports success, without an id, when the new contract cannot be read back", async () => {
+        findCreatedContract.mockRejectedValueOnce(new Error("Could not read your escrow contracts"))
+        const { onSuccess, sign } = await openReady()
+        fireEvent.click(sign())
+        await waitFor(() => expect(onSuccess).toHaveBeenCalledWith(null))
+        expect(doContractBroadcast).toHaveBeenCalledTimes(1)
+    })
+
+    it("does not look for a contract after a failed broadcast", async () => {
+        doContractBroadcast.mockRejectedValueOnce(new Error("Transaction cancelled by user"))
+        const { sign } = await openReady()
+        fireEvent.click(sign())
+        await screen.findByText(/cancelled by user/i)
+        expect(findCreatedContract).not.toHaveBeenCalled()
     })
 
     it("refuses milestones the realm would reject or reinterpret: no broadcast", async () => {

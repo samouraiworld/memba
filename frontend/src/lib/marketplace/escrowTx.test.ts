@@ -50,7 +50,7 @@ describe("escrow transaction plans", () => {
         expect(plan.sendUgnot).toBe(250_000_000)
         expect(plan.msg.value.send).toBe("250000000ugnot")
         expect(plan.msg.value.max_deposit).toBe("200000ugnot")
-        expect(plan.gasWanted).toBe(25_000_000)
+        expect(plan.gasWanted).toBe(32_000_000)
     })
 
     it("ArchiveContract and ExpireUnfunded plans send nothing, carry the flat cap and pass the guard", () => {
@@ -58,8 +58,8 @@ describe("escrow transaction plans", () => {
         const expire = planExpireUnfunded(FREELANCER, ESCROW, "7")
         expect(archive.msg.value).toMatchObject({ func: "ArchiveContract", args: ["7"], caller: CLIENT, send: "", max_deposit: "200000ugnot" })
         expect(expire.msg.value).toMatchObject({ func: "ExpireUnfunded", args: ["7"], caller: FREELANCER, send: "", max_deposit: "200000ugnot" })
-        expect(archive.gasWanted).toBe(31_000_000)
-        expect(expire.gasWanted).toBe(25_000_000)
+        expect(archive.gasWanted).toBe(39_000_000)
+        expect(expire.gasWanted).toBe(33_000_000)
         expect(() => assertEscrowPlanSignable(archive)).not.toThrow()
         expect(() => assertEscrowPlanSignable(expire)).not.toThrow()
         // Neither may send coins.

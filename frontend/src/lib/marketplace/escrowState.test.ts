@@ -2,7 +2,6 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 
 const rpc = vi.hoisted(() => ({
     queryEval: vi.fn<(url: string, path: string, expr: string, strict?: boolean) => Promise<string | null>>(async () => null),
-    queryRender: vi.fn<(url: string, path: string, renderPath: string, strict?: boolean) => Promise<string | null>>(async () => null),
 }))
 vi.mock("../dao/shared", async (importOriginal) => ({ ...(await importOriginal<typeof import("../dao/shared")>()), ...rpc }))
 
@@ -11,15 +10,19 @@ import {
     archiveRefundEstimateUgnot,
     exitsClosedReason,
     expireAvailability,
+    findCreatedContract,
     formatApproxGnot,
     formatBlocksEta,
     hireAvailability,
-    parseContractRender,
-    parseQevalBool,
+    parseClientContractsJSON,
+    parseContractJSON,
+    parsePauseStateJSON,
     parseQevalInt,
     readClientActiveCount,
+    readClientContracts,
     readEscrowContract,
     readEscrowPauseState,
+    EscrowViewError,
     type EscrowContractView,
     type EscrowPauseState,
 } from "./escrowState"
@@ -32,26 +35,36 @@ const OPEN: EscrowPauseState = { paused: false, exitsOpen: true, exitsReopenAt: 
 const BLOCKING: EscrowPauseState = { paused: true, exitsOpen: false, exitsReopenAt: 1_183_273, pausedBlocks: 50_000 }
 const LAPSED: EscrowPauseState = { paused: true, exitsOpen: true, exitsReopenAt: 1_183_273, pausedBlocks: 183_273 }
 
-/** Render("contract/7") exactly as render.gno writes it. */
-const RENDER = [
-    "# Logo design",
-    "",
-    "A logo — with an em dash, «quotes» and é",
-    "",
-    "**ID:** 7",
-    `**Client:** ${CLIENT}`,
-    `**Freelancer:** ${FREELANCER}`,
-    "**Status:** completed",
-    "**Created:** block 1000",
-    "",
-    "**Total Value:** 20000000 ugnot",
-    "",
-    "## Milestones",
-    "",
-    "- **Sketches — v1** — 5000000 ugnot [released] (funded block 1200) (completed block 1300)",
-    "- **Final** — 15000000 ugnot [released] (funded block 1210) (completed block 1400)",
-    "",
-].join("\n")
+/** Wrap a JSON string the way vm/qeval returns a Gno string: `("<go-quoted>" string)`. */
+const qeval = (json: string) => `(${JSON.stringify(json)} string)`
+
+/*
+ * Fixtures copied from the realm's own tests (escrow_views_test.gno), with the
+ * heights they compute filled in: created at h = 100, funded at f = 103,
+ * disputed at d = 104; AutoRefundBlks = 864000, AutoResolveBlks = 806400,
+ * UnfundedExpiryBlks = 864000.
+ */
+const PENDING = `{"exists":true,"id":"7","client":"${CLIENT}","freelancer":"${FREELANCER}","title":"Say \\"hi\\"","description":"Line","status":"active","createdAtHeight":"100",` +
+    `"fundedAtHeight":null,"refundAt":null,"expireAt":"864100","resolveAt":null,"milestones":[` +
+    `{"index":"0","title":"A","amountUgnot":"1000","status":"pending","fundedAtHeight":null,"completedAtHeight":null,"disputedAtHeight":null,"refundAt":null,"resolveAt":null},` +
+    `{"index":"1","title":"B","amountUgnot":"2000","status":"pending","fundedAtHeight":null,"completedAtHeight":null,"disputedAtHeight":null,"refundAt":null,"resolveAt":null}` +
+    `],"totals":{"amountUgnot":"3000","escrowedUgnot":"0","releasedUgnot":"0","refundedUgnot":"0"}}`
+
+const DISPUTED = `{"exists":true,"id":"7","client":"${CLIENT}","freelancer":"${FREELANCER}","title":"Say \\"hi\\"","description":"Line","status":"disputed","createdAtHeight":"100",` +
+    `"fundedAtHeight":"103","refundAt":"864103","expireAt":null,"resolveAt":"806504","milestones":[` +
+    `{"index":"0","title":"A","amountUgnot":"1000","status":"funded","fundedAtHeight":"103","completedAtHeight":null,"disputedAtHeight":null,"refundAt":"864103","resolveAt":null},` +
+    `{"index":"1","title":"B","amountUgnot":"2000","status":"disputed","fundedAtHeight":"104","completedAtHeight":null,"disputedAtHeight":"104","refundAt":null,"resolveAt":"806504"}` +
+    `],"totals":{"amountUgnot":"3000","escrowedUgnot":"3000","releasedUgnot":"0","refundedUgnot":"0"}}`
+
+const CANCELLED = DISPUTED
+    .replace(`"status":"disputed","createdAtHeight"`, `"status":"cancelled","createdAtHeight"`)
+    .replace(`"refundAt":"864103","expireAt":null,"resolveAt":"806504"`, `"refundAt":null,"expireAt":null,"resolveAt":null`)
+    .replace(`"status":"funded","fundedAtHeight":"103","completedAtHeight":null,"disputedAtHeight":null,"refundAt":"864103"`, `"status":"refunded","fundedAtHeight":"103","completedAtHeight":null,"disputedAtHeight":null,"refundAt":null`)
+    .replace(`"status":"disputed","fundedAtHeight":"104","completedAtHeight":null,"disputedAtHeight":"104","refundAt":null,"resolveAt":"806504"`, `"status":"refunded","fundedAtHeight":"104","completedAtHeight":null,"disputedAtHeight":"104","refundAt":null,"resolveAt":null`)
+    .replace(`"escrowedUgnot":"3000","releasedUgnot":"0","refundedUgnot":"0"`, `"escrowedUgnot":"0","releasedUgnot":"0","refundedUgnot":"3000"`)
+
+const PAUSE_OFF = `{"paused":false,"pausedAt":null,"exitsReopenAt":null,"exitsOpen":true,"cooldownUntil":"0","pausedBlocks":"0"}`
+const PAUSE_ON = `{"paused":true,"pausedAt":"1000000","exitsReopenAt":"1183273","exitsOpen":false,"cooldownUntil":"0","pausedBlocks":"50000"}`
 
 const contract = (over: Partial<EscrowContractView> = {}): EscrowContractView => ({
     id: "7",
@@ -61,42 +74,174 @@ const contract = (over: Partial<EscrowContractView> = {}): EscrowContractView =>
     freelancer: FREELANCER,
     status: "active",
     createdAt: 1_000,
-    milestones: [{ title: "A", amountUgnot: 1000, status: "pending" }],
+    fundedAt: null,
+    refundAt: null,
+    expireAt: 865_000,
+    resolveAt: null,
+    milestones: [{ index: 0, title: "A", amountUgnot: 1000, status: "pending", fundedAt: null, completedAt: null, disputedAt: null, refundAt: null, resolveAt: null }],
+    totals: { amountUgnot: 1000, escrowedUgnot: 0, releasedUgnot: 0, refundedUgnot: 0 },
     ...over,
 })
 
+const settledMilestone = { index: 0, title: "A", amountUgnot: 1000, status: "released" as const, fundedAt: 2_000, completedAt: 2_100, disputedAt: null, refundAt: null, resolveAt: null }
+
 beforeEach(() => {
     rpc.queryEval.mockReset()
-    rpc.queryRender.mockReset()
 })
 
-describe("qeval parsing", () => {
-    it("reads bools and ints, and nothing else", () => {
-        expect(parseQevalBool("(true bool)")).toBe(true)
-        expect(parseQevalBool("(false bool)\n")).toBe(false)
-        expect(parseQevalInt("(5 int)")).toBe(5)
-        expect(parseQevalInt("(1183273 int64)")).toBe(1_183_273)
-        for (const bad of [null, "", "true", "(1 bool)", "(\"true\" string)", "(x int)", "(1.5 int64)", "(99999999999999999 int64)"]) {
-            expect(parseQevalBool(bad) ?? parseQevalInt(bad), String(bad)).toBeNull()
-        }
+describe("GetContractJSON parsing", () => {
+    it("parses the realm's pending-contract JSON exactly", () => {
+        expect(parseContractJSON("7", JSON.parse(PENDING))).toEqual({
+            id: "7",
+            client: CLIENT,
+            freelancer: FREELANCER,
+            title: 'Say "hi"',
+            description: "Line",
+            status: "active",
+            createdAt: 100,
+            fundedAt: null,
+            refundAt: null,
+            expireAt: 864_100,
+            resolveAt: null,
+            milestones: [
+                { index: 0, title: "A", amountUgnot: 1000, status: "pending", fundedAt: null, completedAt: null, disputedAt: null, refundAt: null, resolveAt: null },
+                { index: 1, title: "B", amountUgnot: 2000, status: "pending", fundedAt: null, completedAt: null, disputedAt: null, refundAt: null, resolveAt: null },
+            ],
+            totals: { amountUgnot: 3000, escrowedUgnot: 0, releasedUgnot: 0, refundedUgnot: 0 },
+        })
+    })
+
+    it("parses deadlines of a funded and disputed contract", () => {
+        const c = parseContractJSON("7", JSON.parse(DISPUTED))!
+        expect(c).toMatchObject({ status: "disputed", fundedAt: 103, refundAt: 864_103, expireAt: null, resolveAt: 806_504 })
+        expect(c.milestones[1]).toMatchObject({ status: "disputed", disputedAt: 104, resolveAt: 806_504, refundAt: null })
+        expect(parseContractJSON("7", JSON.parse(CANCELLED))).toMatchObject({ status: "cancelled", refundAt: null, totals: { refundedUgnot: 3000 } })
+    })
+
+    it("reads an archived or unknown id as null, only for the id asked", () => {
+        expect(parseContractJSON("7", { exists: false, id: "7" })).toBeNull()
+        expect(() => parseContractJSON("7", { exists: false, id: "8" })).toThrow(EscrowViewError)
+        expect(() => parseContractJSON("7", { exists: false, id: "7", title: "x" })).toThrow(EscrowViewError)
+    })
+
+    const mutate = (fn: (o: Record<string, unknown>) => void) => {
+        const o = JSON.parse(PENDING) as Record<string, unknown>
+        fn(o)
+        return o
+    }
+
+    it.each([
+        ["an integer as a JSON number", (o: Record<string, unknown>) => { o.createdAtHeight = 100 }],
+        ["a leading zero", (o: Record<string, unknown>) => { o.createdAtHeight = "0100" }],
+        ["a zero height", (o: Record<string, unknown>) => { o.expireAt = "0" }],
+        ["a negative amount", (o: Record<string, unknown>) => { (o.totals as Record<string, unknown>).amountUgnot = "-1" }],
+        ["an amount beyond 2^53", (o: Record<string, unknown>) => { (o.totals as Record<string, unknown>).amountUgnot = "9223372036854775807" }],
+        ["an extra field", (o: Record<string, unknown>) => { o.extra = null }],
+        ["a missing field", (o: Record<string, unknown>) => { delete o.resolveAt }],
+        ["an unknown status", (o: Record<string, unknown>) => { o.status = "done" }],
+        ["a bad address", (o: Record<string, unknown>) => { o.client = "g1bad" }],
+        ["another id", (o: Record<string, unknown>) => { o.id = "8" }],
+        ["exists missing", (o: Record<string, unknown>) => { o.exists = "true" }],
+        ["no milestones", (o: Record<string, unknown>) => { o.milestones = [] }],
+        ["21 milestones", (o: Record<string, unknown>) => { o.milestones = Array.from({ length: 21 }, (_, i) => ({ ...(o.milestones as Record<string, unknown>[])[0], index: String(i) })) }],
+        ["a milestone index out of order", (o: Record<string, unknown>) => { (o.milestones as Record<string, unknown>[])[1].index = "0" }],
+        ["a milestone status unknown", (o: Record<string, unknown>) => { (o.milestones as Record<string, unknown>[])[0].status = "paid" }],
+        ["a title that is not a string", (o: Record<string, unknown>) => { o.title = null }],
+    ])("fails closed on %s", (_name, fn) => {
+        expect(() => parseContractJSON("7", mutate(fn))).toThrow(EscrowViewError)
+    })
+
+    it("fails closed on answers that are not objects", () => {
+        for (const v of [null, [], "x", 1, true]) expect(() => parseContractJSON("7", v)).toThrow(EscrowViewError)
     })
 })
 
-describe("readEscrowPauseState / readClientActiveCount", () => {
-    it("reads each PauseState field with a strict query", async () => {
-        const answers: Record<string, string> = {
-            "PauseState().Paused": "(true bool)",
-            "PauseState().ExitsOpen": "(false bool)",
-            "PauseState().ExitsReopenAt": "(1183273 int64)",
-            "PauseState().PausedBlocks": "(50000 int64)",
-        }
-        rpc.queryEval.mockImplementation(async (_u, path, expr, strict) => (path === ESCROW && strict ? answers[expr] ?? null : null))
+describe("GetClientContractsJSON parsing", () => {
+    const item = (id: string, status = "active", h = "100") => `{"id":"${id}","status":"${status}","createdAtHeight":"${h}"}`
+
+    it("parses a page newest first with its cursor, as the realm writes it", () => {
+        const page = JSON.parse(`{"items":[${item("12")},${item("9", "cancelled")},${item("4", "completed")}],"next":"4"}`)
+        expect(parseClientContractsJSON(page, 3)).toEqual({
+            items: [
+                { id: "12", status: "active", createdAt: 100 },
+                { id: "9", status: "cancelled", createdAt: 100 },
+                { id: "4", status: "completed", createdAt: 100 },
+            ],
+            next: "4",
+        })
+        expect(parseClientContractsJSON(JSON.parse(`{"items":[],"next":null}`), 20)).toEqual({ items: [], next: null })
+        expect(parseClientContractsJSON(JSON.parse(`{"items":[${item("3")}],"next":null}`), 20, "4")).toEqual({ items: [{ id: "3", status: "active", createdAt: 100 }], next: null })
+    })
+
+    it.each([
+        ["more items than asked", `{"items":[${item("2")},${item("1")}],"next":null}`, 1, ""],
+        ["ids not newest first", `{"items":[${item("1")},${item("2")}],"next":null}`, 20, ""],
+        ["a repeated id", `{"items":[${item("2")},${item("2")}],"next":null}`, 20, ""],
+        ["an id at or after the cursor", `{"items":[${item("4")}],"next":null}`, 20, "4"],
+        ["a cursor that is not the last id", `{"items":[${item("5")},${item("4")}],"next":"5"}`, 2, ""],
+        ["a cursor on an empty page", `{"items":[],"next":"4"}`, 20, ""],
+        ["a numeric cursor", `{"items":[${item("4")}],"next":4}`, 1, ""],
+        ["a malformed id", `{"items":[${item("04")}],"next":null}`, 20, ""],
+        ["an extra field", `{"items":[],"next":null,"total":"0"}`, 20, ""],
+        ["an item without a height", `{"items":[{"id":"4","status":"active","createdAtHeight":null}],"next":null}`, 20, ""],
+    ])("fails closed on %s", (_name, json, limit, before) => {
+        expect(() => parseClientContractsJSON(JSON.parse(json), limit, before)).toThrow(EscrowViewError)
+    })
+})
+
+describe("GetPauseStateJSON parsing", () => {
+    it("parses the unpaused and paused shapes", () => {
+        expect(parsePauseStateJSON(JSON.parse(PAUSE_OFF))).toEqual(OPEN)
+        expect(parsePauseStateJSON(JSON.parse(PAUSE_ON))).toEqual(BLOCKING)
+    })
+
+    it.each([
+        ["paused without heights", PAUSE_ON.replace(`"pausedAt":"1000000"`, `"pausedAt":null`)],
+        ["a reopen height that is not pausedAt + MaxPauseBlks", PAUSE_ON.replace("1183273", "1183274")],
+        ["unpaused with a height", PAUSE_OFF.replace(`"pausedAt":null`, `"pausedAt":"5"`)],
+        ["unpaused with exits shut", PAUSE_OFF.replace(`"exitsOpen":true`, `"exitsOpen":false`)],
+        ["a string boolean", PAUSE_OFF.replace(`"paused":false`, `"paused":"false"`)],
+        ["a missing field", PAUSE_OFF.replace(`,"pausedBlocks":"0"`, "")],
+    ])("fails closed on %s", (_name, json) => {
+        expect(() => parsePauseStateJSON(JSON.parse(json))).toThrow(EscrowViewError)
+    })
+})
+
+describe("reads", () => {
+    it("reads GetPauseStateJSON with one strict query", async () => {
+        rpc.queryEval.mockResolvedValue(qeval(PAUSE_ON))
         await expect(readEscrowPauseState(ESCROW)).resolves.toEqual(BLOCKING)
+        expect(rpc.queryEval).toHaveBeenCalledTimes(1)
+        expect(rpc.queryEval).toHaveBeenCalledWith(expect.any(String), ESCROW, "GetPauseStateJSON()", true)
     })
 
-    it("throws when a field cannot be read", async () => {
+    it("fails closed when the pause state is unreadable or not JSON", async () => {
+        rpc.queryEval.mockResolvedValue(null)
+        await expect(readEscrowPauseState(ESCROW)).rejects.toThrow(/Could not read/)
         rpc.queryEval.mockResolvedValue("(true bool)")
-        await expect(readEscrowPauseState(ESCROW)).rejects.toThrow(/pause state/)
+        await expect(readEscrowPauseState(ESCROW)).rejects.toThrow(EscrowViewError)
+    })
+
+    it("reads GetContractJSON for a validated id, decoding the qeval string", async () => {
+        rpc.queryEval.mockResolvedValue(qeval(PENDING))
+        await expect(readEscrowContract(ESCROW, "7")).resolves.toMatchObject({ id: "7", title: 'Say "hi"', expireAt: 864_100 })
+        expect(rpc.queryEval).toHaveBeenCalledWith(expect.any(String), ESCROW, `GetContractJSON("7")`, true)
+        await expect(readEscrowContract(ESCROW, "07")).rejects.toThrow(/Invalid contract id/)
+        await expect(readEscrowContract(ESCROW, `7") + x("`)).rejects.toThrow(/Invalid contract id/)
+        expect(rpc.queryEval).toHaveBeenCalledTimes(1)
+    })
+
+    it("reads GetClientContractsJSON pages with a validated client and cursor", async () => {
+        rpc.queryEval.mockResolvedValue(qeval(`{"items":[{"id":"3","status":"active","createdAtHeight":"9"}],"next":"3"}`))
+        await expect(readClientContracts(ESCROW, CLIENT, "", 1)).resolves.toEqual({ items: [{ id: "3", status: "active", createdAt: 9 }], next: "3" })
+        expect(rpc.queryEval).toHaveBeenLastCalledWith(expect.any(String), ESCROW, `GetClientContractsJSON("${CLIENT}", "", 1)`, true)
+        rpc.queryEval.mockResolvedValue(qeval(`{"items":[],"next":null}`))
+        await readClientContracts(ESCROW, CLIENT, "3")
+        expect(rpc.queryEval).toHaveBeenLastCalledWith(expect.any(String), ESCROW, `GetClientContractsJSON("${CLIENT}", "3", 20)`, true)
+        for (const [client, before, limit] of [['g1") + x("', "", 20], [CLIENT, "03", 20], [CLIENT, `3", "`, 20], [CLIENT, "", 0], [CLIENT, "", 51]] as const) {
+            await expect(readClientContracts(ESCROW, client, before, limit), `${client} ${before} ${limit}`).rejects.toThrow(/Invalid/)
+        }
+        expect(rpc.queryEval).toHaveBeenCalledTimes(2)
     })
 
     it("reads GetClientActiveCount for a checksummed address only", async () => {
@@ -105,47 +250,27 @@ describe("readEscrowPauseState / readClientActiveCount", () => {
         expect(rpc.queryEval).toHaveBeenCalledWith(expect.any(String), ESCROW, `GetClientActiveCount("${CLIENT}")`, true)
         await expect(readClientActiveCount(ESCROW, 'g1") + Evil("')).rejects.toThrow(/Invalid/)
         expect(rpc.queryEval).toHaveBeenCalledTimes(1)
+        expect(parseQevalInt("(1.5 int)")).toBeNull()
     })
 })
 
-describe("contract render parsing", () => {
-    it("parses render.gno's detail page", () => {
-        expect(parseContractRender("7", RENDER)).toEqual({
-            id: "7",
-            title: "Logo design",
-            description: "A logo — with an em dash, «quotes» and é",
-            client: CLIENT,
-            freelancer: FREELANCER,
-            status: "completed",
-            createdAt: 1000,
-            milestones: [
-                { title: "Sketches — v1", amountUgnot: 5_000_000, status: "released" },
-                { title: "Final", amountUgnot: 15_000_000, status: "released" },
-            ],
-        })
+describe("findCreatedContract", () => {
+    const expected = { freelancer: FREELANCER, title: 'Say "hi"', description: "Line", milestones: [{ title: "A", amountUgnot: 1000 }, { title: "B", amountUgnot: 2000 }] }
+    const answer = (page: string, detail: string) =>
+        rpc.queryEval.mockImplementation(async (_u, _p, expr) => (expr.startsWith("GetClientContractsJSON") ? qeval(page) : expr === `GetContractJSON("7")` ? qeval(detail) : null))
+
+    it("returns the client's newest contract id when it is the one just created", async () => {
+        answer(`{"items":[{"id":"7","status":"active","createdAtHeight":"100"}],"next":"7"}`, PENDING)
+        await expect(findCreatedContract(ESCROW, CLIENT, expected)).resolves.toBe("7")
+        expect(rpc.queryEval).toHaveBeenCalledWith(expect.any(String), ESCROW, `GetClientContractsJSON("${CLIENT}", "", 1)`, true)
     })
 
-    it("parses a contract without a description", () => {
-        const md = RENDER.replace("A logo — with an em dash, «quotes» and é\n\n", "")
-        expect(parseContractRender("7", md)?.description).toBe("")
-    })
-
-    it("reads an unknown or archived id as null, even next to a contract titled 404", () => {
-        expect(parseContractRender("7", "# 404\nContract not found: 7")).toBeNull()
-        expect(parseContractRender("7", RENDER.replace("# Logo design", "# 404"))?.title).toBe("404")
-    })
-
-    it("refuses pages it does not recognise instead of guessing", () => {
-        for (const md of ["", "# Escrow Contracts", RENDER.replace("**ID:** 7", "**ID:** 8"), RENDER.replace("completed", "done"), RENDER.replace(`**Client:** ${CLIENT}`, "**Client:** g1bad"), RENDER.replace("[released]", "[paid]")]) {
-            expect(() => parseContractRender("7", md), md.slice(0, 40)).toThrow(/Unexpected/)
-        }
-    })
-
-    it("readEscrowContract queries contract/<id> strictly and validates the id first", async () => {
-        rpc.queryRender.mockResolvedValue(RENDER)
-        await expect(readEscrowContract(ESCROW, "7")).resolves.toMatchObject({ id: "7", status: "completed" })
-        expect(rpc.queryRender).toHaveBeenCalledWith(expect.any(String), ESCROW, "contract/7", true)
-        await expect(readEscrowContract(ESCROW, "07")).rejects.toThrow(/Invalid contract id/)
+    it("returns null when the newest contract is a different one, or there is none yet", async () => {
+        answer(`{"items":[{"id":"7","status":"active","createdAtHeight":"100"}],"next":"7"}`, PENDING)
+        await expect(findCreatedContract(ESCROW, CLIENT, { ...expected, title: "Other" })).resolves.toBeNull()
+        await expect(findCreatedContract(ESCROW, CLIENT, { ...expected, milestones: [{ title: "A", amountUgnot: 1000 }] })).resolves.toBeNull()
+        answer(`{"items":[],"next":null}`, PENDING)
+        await expect(findCreatedContract(ESCROW, CLIENT, expected)).resolves.toBeNull()
     })
 })
 
@@ -172,7 +297,7 @@ describe("hire availability: per-client cap and pause", () => {
 })
 
 describe("archive availability", () => {
-    const settled = contract({ status: "completed", milestones: [{ title: "A", amountUgnot: 1000, status: "released" }] })
+    const settled = contract({ status: "completed", expireAt: null, milestones: [settledMilestone] })
 
     it("is for the client only", () => {
         expect(archiveAvailability(settled, FREELANCER, OPEN, 5_000)).toBeNull()
@@ -183,8 +308,8 @@ describe("archive availability", () => {
     it("needs a completed or cancelled contract with nothing escrowed", () => {
         expect(archiveAvailability(contract({ status: "active" }), CLIENT, OPEN, 5_000)).toMatchObject({ available: false })
         expect(archiveAvailability(contract({ status: "disputed" }), CLIENT, OPEN, 5_000)).toMatchObject({ available: false })
-        expect(archiveAvailability(contract({ status: "cancelled", milestones: [{ title: "A", amountUgnot: 1000, status: "refunded" }, { title: "B", amountUgnot: 1000, status: "pending" }] }), CLIENT, OPEN, 5_000)).toEqual({ available: true })
-        expect(archiveAvailability(contract({ status: "cancelled", milestones: [{ title: "A", amountUgnot: 1000, status: "funded" }] }), CLIENT, OPEN, 5_000)).toMatchObject({ available: false })
+        expect(archiveAvailability(contract({ status: "cancelled", expireAt: null, milestones: [{ ...settledMilestone, index: 0, title: "A", status: "refunded" }, { ...settledMilestone, index: 1, title: "B", status: "pending" }] }), CLIENT, OPEN, 5_000)).toEqual({ available: true })
+        expect(archiveAvailability(contract({ status: "cancelled", expireAt: null, milestones: [{ ...settledMilestone, index: 0, title: "A", status: "funded" }] }), CLIENT, OPEN, 5_000)).toMatchObject({ available: false })
     })
 
     it("is refused inside a pause's blocking window, with the reopen block, and allowed once it lapses", () => {
@@ -195,25 +320,28 @@ describe("archive availability", () => {
     })
 
     it("estimates the refund from the stored text", () => {
-        const refund = archiveRefundEstimateUgnot(contract({ title: "L", milestones: [{ title: "A", amountUgnot: 1000, status: "released" }] }))
-        expect(refund).toBe((3_780 + 1 + 1 + 889) * 100)
-        expect(formatApproxGnot(refund)).toBe("~0.47 GNOT")
+        // The smallest measured archive: 1-byte title, one 1-byte milestone, 671,800 ugnot refunded.
+        const refund = archiveRefundEstimateUgnot(contract({ title: "L", milestones: [settledMilestone] }))
+        expect(refund).toBe(671_800)
+        expect(formatApproxGnot(refund)).toBe("~0.67 GNOT")
     })
 })
 
 describe("expire availability", () => {
     it("applies only to an active contract none of whose milestones was funded", () => {
-        expect(expireAvailability(contract({ status: "cancelled" }), OPEN, 900_000)).toBeNull()
-        expect(expireAvailability(contract({ milestones: [{ title: "A", amountUgnot: 1000, status: "pending" }, { title: "B", amountUgnot: 1000, status: "refunded" }] }), OPEN, 900_000)).toBeNull()
+        expect(expireAvailability(contract({ status: "cancelled", expireAt: null }), OPEN, 900_000)).toBeNull()
+        expect(expireAvailability(contract({ milestones: [{ ...settledMilestone, index: 0, title: "A", status: "pending" }, { ...settledMilestone, index: 1, title: "B", status: "refunded" }] }), OPEN, 900_000)).toBeNull()
+        // The realm reports no expireAt once anything was funded.
+        expect(expireAvailability(contract({ expireAt: null }), OPEN, 900_000)).toBeNull()
     })
 
-    it("is not yet available before UnfundedExpiryBlks, and says from which block", () => {
+    it("is not yet available before the realm's expireAt, and says from which block", () => {
         const a = expireAvailability(contract(), OPEN, 864_999)
         expect(a).toMatchObject({ available: false })
         if (a && !a.available) expect(a.reason).toMatch(/from block 865,000 \(about 1 minute\)/)
     })
 
-    it("is available from createdAt + 864000", () => {
+    it("is available from expireAt", () => {
         expect(expireAvailability(contract(), OPEN, 865_000)).toEqual({ available: true })
     })
 
@@ -221,11 +349,10 @@ describe("expire availability", () => {
         expect(expireAvailability(contract(), BLOCKING, 1_100_000)).toMatchObject({ available: false })
     })
 
-    it("after a pause, warns that the deadline may have moved by up to the paused blocks", () => {
-        const a = expireAvailability(contract(), LAPSED, 900_000)
-        expect(a).toMatchObject({ available: true })
-        if (a?.available) expect(a.note).toMatch(/up to 183,273 blocks/)
-        expect(expireAvailability(contract(), LAPSED, 865_000 + 183_273)).toEqual({ available: true })
+    it("follows the realm's pause-adjusted expireAt exactly, with no guesswork after a pause", () => {
+        const moved = contract({ expireAt: 865_000 + 100 })
+        expect(expireAvailability(moved, LAPSED, 865_099)).toMatchObject({ available: false })
+        expect(expireAvailability(moved, LAPSED, 865_100)).toEqual({ available: true })
     })
 
     it("needs the current height", () => {

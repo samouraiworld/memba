@@ -9,21 +9,23 @@
  * refunds the freed deposit to its signer.
  *
  * Measured on an in-memory gnoland node built from the gnoland-1 runtime pin
- * (e75fef82) against the escrow_v4 production source (STORAGE DELTA and GAS
- * USED as gnokey prints them). "Full" means 4,999 other open contracts; escrow_v4
- * has no global cap, so the realm can grow past that:
+ * (e75fef82) against the escrow_v4 production source, with its per-client
+ * contract index (STORAGE DELTA and GAS USED as gnokey prints them). "Full"
+ * means 4,999 other open contracts; escrow_v4 has no global cap, so the realm
+ * can grow past that:
  *
- *   CreateContract  4,672 B / 8.3M (smallest) · 6,770 B / 22.0M (smallest, full)
- *                   30,548 B / 201.3M (200 B title, 5,000 B description, 20
- *                   milestones with 200 B titles) · 255.1M (same sizes, half of
+ *   CreateContract  6,714 B / 8.7M (smallest) · 8,874 B / 28.4M and 6,553 B /
+ *                   28.6M (smallest, full, new / existing client counter) ·
+ *                   32,589 B / 201.8M (200 B title, 5,000 B description, 20
+ *                   milestones with 200 B titles) · 255.5M (same sizes, half of
  *                   it characters the realm strips: the most gas)
  *   FundMilestone   ≤ 238 B, 6.7M small / 9.4M full   CompleteMilestone ≤ 3 B,  6.0M / 8.7M
- *   ReleaseFunds    ≤ 9 B,  10.5M / 18.1M              RaiseDispute      ≤ 34 B, 6.2M / 8.9M
- *   CancelContract  ≤ 51 B, 12.7M (20 funded)          ClaimRefund       ≤ 5 B,  7.8M / 16.4M
- *   ClaimDisputeTimeout ≤ 1 B, 10.0M / 18.4M           ExpireUnfunded    27 B,   6.6M
- *   ArchiveContract −4,671 B to −30,753 B, 11.1M (largest) / 20.1M (full)
+ *   ReleaseFunds    ≤ 16 B, 10.4M / 18.5M              RaiseDispute      ≤ 34 B, 6.2M / 8.9M
+ *   CancelContract  ≤ 51 B, 13.1M (20 funded)          ClaimRefund       ≤ 12 B, 8.2M / 16.8M
+ *   ClaimDisputeTimeout ≤ 9 B, 10.4M / 18.8M           ExpireUnfunded    33 B,   7.0M
+ *   ArchiveContract −6,718 B to −32,801 B, 11.9M (largest) / 26.7M (full)
  *
- * The full set adds up to 13.2M gas to a call (ArchiveContract, 6.9M → 20.1M).
+ * The full set adds up to 18.9M gas to a call (ArchiveContract, 7.8M → 26.7M).
  * Where a case was not measured on the full set, its gas basis is the worst
  * small-set figure plus that growth. `escrowBudget.test.ts` checks every
  * measured point against these models.
@@ -31,7 +33,7 @@
  * Deposit caps are twice the storage estimate at 100 ugnot per byte, rounded up
  * to 0.01 GNOT; gas limits carry a 25 % margin, rounded up to 1M. The chain
  * locks only the bytes a call really adds, so the cap is a ceiling, not a
- * price. The largest contract the builders produce caps at 7.51 GNOT, under the
+ * price. The largest contract the builders produce caps at 7.91 GNOT, under the
  * 10 GNOT ceiling, so no escrow call ever needs an override.
  */
 import { STORAGE_PRICE_UGNOT } from "../dao/v2Budget"
@@ -52,30 +54,30 @@ export type EscrowFunc =
 export type EscrowStateFunc = Exclude<EscrowFunc, "CreateContract">
 
 /** Gas a call gained when the realm went from a few contracts to 5,000 open ones (largest seen: ArchiveContract). */
-export const ESCROW_FULL_SET_GAS_GROWTH = 13_200_000
+export const ESCROW_FULL_SET_GAS_GROWTH = 18_900_000
 
 /** Worst gas measured per call with a few contracts in the realm. */
 export const ESCROW_CALL_SMALL_SET_GAS: Record<EscrowStateFunc, number> = {
     FundMilestone: 6_700_000,
     CompleteMilestone: 6_000_000,
-    ReleaseFunds: 10_500_000,
+    ReleaseFunds: 10_400_000,
     RaiseDispute: 6_200_000,
-    CancelContract: 12_700_000,
-    ClaimRefund: 7_800_000,
-    ClaimDisputeTimeout: 10_000_000,
-    ExpireUnfunded: 6_600_000,
-    ArchiveContract: 11_100_000,
+    CancelContract: 13_100_000,
+    ClaimRefund: 8_200_000,
+    ClaimDisputeTimeout: 10_400_000,
+    ExpireUnfunded: 7_000_000,
+    ArchiveContract: 11_900_000,
 }
 
 /** Gas measured per call with 5,000 open contracts, where that case was run. */
 export const ESCROW_CALL_FULL_SET_GAS: Partial<Record<EscrowStateFunc, number>> = {
     FundMilestone: 9_400_000,
     CompleteMilestone: 8_700_000,
-    ReleaseFunds: 18_100_000,
+    ReleaseFunds: 18_500_000,
     RaiseDispute: 8_900_000,
-    ClaimRefund: 16_400_000,
-    ClaimDisputeTimeout: 18_400_000,
-    ArchiveContract: 20_100_000,
+    ClaimRefund: 16_800_000,
+    ClaimDisputeTimeout: 18_800_000,
+    ArchiveContract: 26_700_000,
 }
 
 /** The gas each call is sized for: the full-set measurement, or the small-set worst plus the full-set growth, whichever is larger. */
@@ -113,19 +115,20 @@ const roundUp = (value: number, step: number) => Math.ceil(value / step) * step
 
 /**
  * Raw upper-bound model for CreateContract, before margins. The fixed part
- * (8,000 B, 24M gas) covers the contract record, the per-client slot counter
- * and the tree nodes rewritten on insert with 5,000 open contracts (6,770 B and
- * 22.0M measured for the smallest contract there). Each milestone is stored as
- * its own struct (under 900 bytes measured) on top of its title; the encoded
- * argument bounds the titles. Gas grows by at most about 26,000 per argument
- * byte, which the realm walks while it validates and sanitises the text.
+ * (10,000 B, 30M gas) covers the contract record, the per-client slot counter,
+ * the client index entry (about 2 KB) and the tree nodes rewritten on insert
+ * with 5,000 open contracts (8,874 B and 28.6M measured for the smallest
+ * contract there). Each milestone is stored as its own struct (under 900 bytes
+ * measured) on top of its title; the encoded argument bounds the titles. Gas
+ * grows by at most about 26,000 per argument byte, which the realm walks while
+ * it validates and sanitises the text.
  */
 export function estimateCreateContract(sizes: CreateContractSizes): { gas: number; storageBytes: number } {
     const argBytes = bytes(sizes.milestonesArg)
     const milestones = sizes.milestonesArg.split(",").length
     return {
-        gas: 24_000_000 + 28_000 * (sizes.titleBytes + sizes.descriptionBytes + argBytes),
-        storageBytes: 8_000 + sizes.titleBytes + sizes.descriptionBytes + 1_000 * milestones + argBytes,
+        gas: 30_000_000 + 28_000 * (sizes.titleBytes + sizes.descriptionBytes + argBytes),
+        storageBytes: 10_000 + sizes.titleBytes + sizes.descriptionBytes + 1_000 * milestones + argBytes,
     }
 }
 
@@ -157,16 +160,16 @@ export interface StoredContractText {
 }
 
 /**
- * About how many bytes ArchiveContract frees, fitted to the measured archives:
- * 4,671 B (1-byte title, one 1-byte milestone), 5,561 B (two milestones) and
- * 30,753 B (200 B title, 5,000 B description, 20 × 200 B milestones; the fit
- * gives 30,760). The client's last archive also frees its slot counter, and
- * with many contracts in the realm more tree bytes come back (6,983 B for the
- * smallest contract with 5,000 open), so this is an estimate, not a promise.
+ * About how many bytes ArchiveContract frees (the contract and its client
+ * index entry), fitted to the measured archives: 6,718 B (1-byte title, one
+ * 1-byte milestone), 7,610 B (two milestones) and 32,801 B (200 B title,
+ * 5,000 B description, 20 × 200 B milestones; the fit gives 32,845). With many
+ * contracts in the realm more tree bytes come back (9,073 B for the smallest
+ * contract with 5,000 open), so this is an estimate, not a promise.
  */
 export function estimateArchiveRefundBytes(text: StoredContractText): number {
     const titles = text.milestoneTitleBytes.reduce((sum, n) => sum + n, 0)
-    return 3_780 + text.titleBytes + text.descriptionBytes + titles + 889 * text.milestoneTitleBytes.length
+    return 5_825 + text.titleBytes + text.descriptionBytes + titles + 891 * text.milestoneTitleBytes.length
 }
 
 /**

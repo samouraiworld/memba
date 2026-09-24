@@ -1,5 +1,6 @@
 /**
- * EscrowContractPanel — look up an escrow contract by id and offer the two
+ * EscrowContractPanel — the connected client's contracts ("My contracts",
+ * newest first, from GetClientContractsJSON), a lookup by id, and the two
  * clean-up calls escrow_v4 added:
  *
  *   - ArchiveContract (the client, once the contract is completed or
@@ -12,7 +13,7 @@
  * until which block. Like the hire dialog, nothing is broadcast unless the
  * services lane is live on this network (VITE_ENABLE_SERVICES && isEscrowValid()).
  */
-import { useState, type FormEvent, type ReactNode } from "react"
+import { useCallback, useEffect, useState, type FormEvent, type ReactNode } from "react"
 import { MEMBA_DAO, isEscrowValid, isServicesEnabled } from "../../lib/config"
 import { formatUgnotExact } from "../../lib/dao/v2Budget"
 import { getCurrentBlock } from "../../lib/dao/proposalDates"
@@ -22,9 +23,11 @@ import {
     archiveRefundEstimateUgnot,
     expireAvailability,
     formatApproxGnot,
+    readClientContracts,
     readEscrowContract,
     readEscrowPauseState,
     type EscrowAvailability,
+    type EscrowContractSummary,
     type EscrowContractView,
     type EscrowPauseState,
 } from "../../lib/marketplace/escrowState"
@@ -32,7 +35,11 @@ import {
 export interface EscrowContractPanelProps {
     /** Connected wallet address, or "" when none. */
     caller: string
+    /** Bumped (n) after a hire lands: re-read My contracts and open `id` when it is known. */
+    createdContract?: { id: string | null; n: number }
 }
+
+type MyList = { caller: string; items: EscrowContractSummary[]; next: string | null; error: string | null; loading: boolean }
 
 type Loaded = { id: string; contract: EscrowContractView | null; pause: EscrowPauseState; height: number }
 
@@ -58,7 +65,9 @@ function ActionRow({ testId, label, availability, busy, onRun, children }: {
     )
 }
 
-export function EscrowContractPanel({ caller }: EscrowContractPanelProps) {
+export function EscrowContractPanel({ caller, createdContract }: EscrowContractPanelProps) {
+    const live = isServicesEnabled() && isEscrowValid()
+    const [mine, setMine] = useState<MyList | null>(null)
     const [id, setId] = useState("")
     const [loaded, setLoaded] = useState<Loaded | null>(null)
     const [loading, setLoading] = useState(false)
@@ -84,6 +93,29 @@ export function EscrowContractPanel({ caller }: EscrowContractPanelProps) {
         }
     }
 
+    // Reads only while the lane is live here: elsewhere the realm may not exist.
+    const loadMine = useCallback(async (before: string) => {
+        if (!live || !caller) return
+        setMine((m) => ({ caller, items: before && m?.caller === caller ? m.items : [], next: m?.next ?? null, error: null, loading: true }))
+        try {
+            const page = await readClientContracts(MEMBA_DAO.escrowPath, caller, before)
+            setMine((m) => ({ caller, items: [...(before && m?.caller === caller ? m.items : []), ...page.items], next: page.next, error: null, loading: false }))
+        } catch (err) {
+            setMine((m) => ({ caller, items: m?.caller === caller ? m.items : [], next: null, error: err instanceof Error ? err.message : String(err), loading: false }))
+        }
+    }, [live, caller])
+
+    const createdN = createdContract?.n ?? 0
+    const createdId = createdContract?.id ?? null
+    useEffect(() => {
+        void loadMine("")
+        if (createdN > 0 && createdId) {
+            setId(createdId)
+            void load(createdId)
+        }
+        // The effect follows the caller and each new hire only.
+    }, [loadMine, createdN, createdId])
+
     const onLookup = (e: FormEvent) => {
         e.preventDefault()
         setDone(null)
@@ -108,6 +140,7 @@ export function EscrowContractPanel({ caller }: EscrowContractPanelProps) {
             await broadcastEscrowTx(plan(), memo)
             setDone(success)
             await load(loaded.id)
+            await loadMine("")
         } catch (err) {
             setError(err instanceof Error ? err.message : String(err))
         } finally {
@@ -127,6 +160,39 @@ export function EscrowContractPanel({ caller }: EscrowContractPanelProps) {
                 Look up a contract to archive it once it is settled (the storage deposit comes back to the client),
                 or to expire one that was never funded.
             </p>
+            {caller && live && (
+                <div data-testid="escrow-my-contracts" style={{ margin: "0 0 16px" }}>
+                    <h4 style={{ margin: "0 0 6px", fontSize: "14px", color: "var(--color-text)" }}>My contracts</h4>
+                    {mine?.error && <p role="alert" style={{ ...muted, margin: "0 0 6px" }}>{`Could not load your contracts: ${mine.error}`}</p>}
+                    {mine && !mine.error && !mine.loading && mine.items.length === 0 && (
+                        <p style={{ ...muted, margin: 0 }}>You have not created any escrow contracts that are still stored.</p>
+                    )}
+                    {mine && mine.items.length > 0 && (
+                        <ul style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: "4px" }}>
+                            {mine.items.map((it) => (
+                                <li key={it.id} style={{ display: "flex", gap: "8px", alignItems: "center", flexWrap: "wrap" }}>
+                                    <button
+                                        className="k-btn k-btn--secondary"
+                                        onClick={() => { setId(it.id); setDone(null); void load(it.id) }}
+                                        disabled={loading || busy}
+                                        aria-label={`Open contract ${it.id}`}
+                                    >
+                                        {`#${it.id}`}
+                                    </button>
+                                    <span style={muted}>{`${it.status} · created at block ${it.createdAt.toLocaleString("en-US")}`}</span>
+                                </li>
+                            ))}
+                        </ul>
+                    )}
+                    {mine?.loading && <p style={{ ...muted, margin: "6px 0 0" }}>Loading your contracts...</p>}
+                    {mine?.next && !mine.loading && (
+                        <button className="k-btn k-btn--secondary" style={{ marginTop: "8px" }} onClick={() => void loadMine(mine.next!)}>
+                            Load older contracts
+                        </button>
+                    )}
+                </div>
+            )}
+
             <form onSubmit={onLookup} style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
                 <label className="k-label" htmlFor="escrow-contract-id" style={{ alignSelf: "center" }}>Contract id</label>
                 <input

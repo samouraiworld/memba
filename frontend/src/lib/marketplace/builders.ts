@@ -15,7 +15,7 @@ import { createContractBudget, escrowCallBudget, type EscrowFunc } from "./escro
 
 export type { EscrowFunc } from "./escrowBudget"
 
-/** Realm limits (escrow_v4 escrow.gno and pause.gno constants). Lengths are UTF-8 bytes, as Gno's len(). */
+/** Realm limits (escrow_v4 escrow.gno constants). Lengths are UTF-8 bytes, as Gno's len(). */
 export const ESCROW_LIMITS = {
     maxTitleBytes: 200,
     maxDescriptionBytes: 5000,
@@ -91,7 +91,7 @@ function milestoneAmount(value: unknown): number {
 
 /**
  * Characters escrow_v4's cleanText removes from the title, the description and
- * every milestone title before storing them (isStripped in text.gno). Refuse
+ * every milestone title before storing them (isStripped in escrow.gno). Refuse
  * them, so the stored text is exactly the text signed (and a title made only of
  * them is never stored empty).
  */

@@ -23,6 +23,15 @@ Full changelogs are split by version range for easier navigation:
 ### Token pages say when the token factory is missing (2026-09-24)
 <!-- categories: memba, network -->
 - **Token pages now say when Memba's token factory isn't deployed on the current network, which is the case on gno.land mainnet.** A token page used to retry for several seconds and then show "Token not found". The Directory's Tokens tab showed "No tokens registered", as if the network had no tokens at all. Both now say the factory isn't deployed here, the same way the token dashboard already did, and Home stops asking for a token list that can't exist.
+### Escrow targets escrow_v4: archive refunds, per-client cap, bounded pause (2026-09-24)
+<!-- categories: memba, network -->
+- **Escrow calls now target `gno.land/r/samcrew/escrow_v4`.** It is not listed on any network yet, so the Services lane stays gated (`VITE_ENABLE_SERVICES && isEscrowValid()`) until a separate go-live change. The e2e fixtures pin `escrow_v3` with the new `VITE_ESCROW_REALM_PATH` override, which can only select a realm that is already allowlisted.
+- **Storage deposits come back.** Clients can archive a completed or cancelled contract ("Archive and reclaim deposit (~X GNOT)"); the chain refunds the freed deposit to the signer. Anyone can expire a never-funded contract from the realm's pause-adjusted expiry height. The hire dialog now says the deposit is refunded on archive, instead of "not refunded".
+- **My contracts.** The Services lane lists the connected client's contracts, newest first and paged, and opens any of them. After a hire lands, it reads the new contract back and names its id.
+- **Limits shown before signing.** Hire is disabled, with the reason, when the client already has 5 open contracts or when escrow is paused. Archive and expire are disabled during a pause's blocking window, with the block (and rough time) at which they reopen.
+- **Structured reads.** Contracts, the client's contract list and the pause state come from the realm's JSON views (`GetContractJSON`, `GetClientContractsJSON`, `GetPauseStateJSON`), parsed strictly: any unexpected shape is refused instead of shown.
+- **Text checks match the realm.** Titles, descriptions and milestone titles refuse unpaired surrogates, control characters and every Unicode 15.0 format character on the realm's explicit list (as well as the characters it strips), and a title made only of spaces.
+- **Budgets re-sized from escrow_v4 measurements.** CreateContract: 10,000 B + text + 1,000 B per milestone, 30M + 28k gas per text byte (2.21 GNOT cap for the smallest contract, 7.91 GNOT and the 350M gas clamp for the largest). Other calls: 0.2 GNOT cap, 32M to 40M gas, covering 5,000 open contracts.
 
 ### Candidature says when it is not available (2026-09-24)
 <!-- categories: memba, network -->
@@ -35,13 +44,6 @@ Full changelogs are split by version range for easier navigation:
 ### Links keep the network you are on (2026-09-24)
 <!-- categories: memba -->
 - **Links no longer drop the network from the URL.** These were the Hacker view's "← Validators", "+ Launch a collection", the profile's "View analytics →", the DAO members' @username and "Profile" links, the profile's vote links, and addresses auto-linked in rendered text. Each pointed at a bare path, which took an extra redirect and could switch you to the stored or default network. A new test scans every component and library file and fails if a link to an app page leaves the network out of the path.
-### Escrow targets escrow_v4: archive refunds, per-client cap, bounded pause (2026-09-24)
-<!-- categories: memba, network -->
-- **Escrow calls now target `gno.land/r/samcrew/escrow_v4`.** It is not listed on any network yet, so the Services lane stays gated (`VITE_ENABLE_SERVICES && isEscrowValid()`) until a separate go-live change. The e2e fixtures pin `escrow_v3` with the new `VITE_ESCROW_REALM_PATH` override, which can only select a realm that is already allowlisted.
-- **Storage deposits come back.** Clients can archive a completed or cancelled contract ("Archive and reclaim deposit (~X GNOT)"); the chain refunds the freed deposit to the signer. Anyone can expire a contract that was never funded once 864,000 blocks have passed. The hire dialog now says the deposit is refunded on archive, instead of "not refunded".
-- **Limits shown before signing.** Hire is disabled, with the reason, when the client already has 5 open contracts or when escrow is paused. Archive and expire are disabled during a pause's blocking window, with the block (and rough time) at which they reopen.
-- **Text checks match the realm.** Titles, descriptions and milestone titles refuse unpaired surrogates, control characters and every Unicode 15.0 format character on the realm's explicit list (as well as the characters it strips), and a title made only of spaces.
-- **Budgets re-sized from escrow_v4 measurements.** CreateContract: 8,000 B + text + 1,000 B per milestone, 24M + 28k gas per text byte (7.51 GNOT cap and the 350M gas clamp for the largest contract). Other calls: 0.2 GNOT cap, 24M to 33M gas, covering 5,000 open contracts.
 
 ### Feed edits respect the 1,000-character limit (2026-09-24)
 <!-- categories: memba -->
