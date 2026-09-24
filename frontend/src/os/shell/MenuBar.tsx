@@ -174,6 +174,9 @@ export function MenuBar(p: MenuBarProps) {
                 <div className="os-menu" role="menu" aria-label="Window">
                     <Item onClick={run(p.minimiseAll)} disabled={!p.front}>Minimise all</Item>
                     <Item onClick={run(p.tile)} disabled={!p.front}>Tile two front windows</Item>
+                    <Item hint="⌥F" disabled={!p.front} onClick={run(() => {
+                        if (p.front) void document.querySelector<HTMLElement>(`[data-win="${CSS.escape(p.front.key)}"]`)?.requestFullscreen?.()
+                    })}>Full screen</Item>
                     <Item onClick={run(p.closeAll)} disabled={!p.wins.length}>Close all</Item>
                     <div className="os-msep" role="separator" />
                     {p.wins.length

@@ -11,6 +11,7 @@
   --os-ink: #1B1F2A;
   --os-mut: #646C7E;
   --os-glass: rgba(255, 255, 255, .78);
+  --os-opaque: #F3F5FA;
   --os-line: rgba(20, 30, 60, .09);
   --os-chip: rgba(76, 110, 245, .11);
   --os-bar: rgba(255, 255, 255, .45);
@@ -50,6 +51,7 @@
   --os-ink: #E9ECF3;
   --os-mut: #9AA2B5;
   --os-glass: rgba(26, 30, 41, .76);
+  --os-opaque: #161A23;
   --os-line: rgba(255, 255, 255, .08);
   --os-chip: rgba(129, 153, 248, .17);
   --os-bar: rgba(12, 15, 22, .5);

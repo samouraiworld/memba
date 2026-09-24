@@ -194,6 +194,12 @@ export function Shell() {
             if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
             if (e.code === "KeyW" && front) { e.preventDefault(); closeWin(front.id) }
             else if (e.code === "Backquote") { e.preventDefault(); nextWin() }
+            else if (e.code === "KeyF" && front) {
+                // ⌥F: the front window full screen and back (D32: every game has a full-screen mode).
+                e.preventDefault()
+                if (document.fullscreenElement) void document.exitFullscreen()
+                else void document.querySelector<HTMLElement>(`[data-win="${CSS.escape(front.key)}"]`)?.requestFullscreen?.()
+            }
         }
         window.addEventListener("keydown", onKey)
         return () => window.removeEventListener("keydown", onKey)

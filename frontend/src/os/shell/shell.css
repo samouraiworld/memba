@@ -383,3 +383,15 @@
 .memba-os .os-launch-r[aria-selected="true"] { background: var(--os-hover); }
 .memba-os .os-launch-empty { padding: 12px; }
 .memba-os .os-big { font-size: 28px; font-weight: 800; letter-spacing: -.02em; }
+/* multisig (mockup .sigdots) */
+.memba-os .os-sigdots { display: flex; gap: 4px; }
+.memba-os .os-sigdots span {
+  width: 22px; height: 22px; border-radius: 50%; display: grid; place-items: center; font-size: 10px; font-weight: 800;
+  border: 1.5px solid var(--os-line); color: var(--os-mut);
+}
+.memba-os .os-sigdots span.os-on { background: var(--os-ok); border-color: var(--os-ok); color: var(--os-solid-ink); }
+.memba-os .os-it.os-top { align-items: flex-start; }
+.memba-os .os-right { text-align: right; }
+.memba-os .os-pill.os-ok { background: var(--os-ok-bg); color: var(--os-ok); }
+/* ⌥F full screen (D32): the window fills the screen on an opaque background */
+.memba-os .os-win:fullscreen { border-radius: 0; background: var(--os-opaque); }

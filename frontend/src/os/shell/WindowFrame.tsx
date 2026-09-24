@@ -13,6 +13,7 @@ import { DaoFolder, DaosApp, ProposalWindow } from "../daos/DaoWindows"
 import { CreateDaoWizard } from "../daos/CreateDaoWizard"
 import { ProposeWizard } from "../daos/ProposeWizard"
 import { ClassicPage } from "../page/ClassicPage"
+import { MultisigApp, MultisigWindow } from "../multisig/MultisigWindows"
 import { SendWindow, WalletWindow } from "../wallet/WalletWindows"
 import { classicForSection, pageNeedsWallet } from "../page/classicRoute"
 import { DOCK_ROOM, type DeskSize, type OsWindow, type WindowSpec } from "./windows"
@@ -44,14 +45,13 @@ function Welcome({ session, openApp }: Actions) {
     )
 }
 
-function Holding({ tile, title, text, href, linkLabel, children }: { tile: ReactNode; title: string; text: string; href: string | null; linkLabel: string; children?: ReactNode }) {
+function Holding({ tile, title, text, children }: { tile: ReactNode; title: string; text: string; children?: ReactNode }) {
     return (
         <div className="os-holding">
             {tile}
             <div className="os-holding-title">{title}</div>
             <p className="os-sub">{text}</p>
             <div className="os-row">
-                {href !== null && <a className="os-btn os-ghost" href={href}>{linkLabel}</a>}
                 {children}
             </div>
         </div>
@@ -64,7 +64,7 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
     const t = win.target
     if (!t || t.kind === "unknown") {
         return (
-            <Holding tile={<ThingTile icon="doc" size={44} />} title="Nothing lives here" href={null} linkLabel=""
+            <Holding tile={<ThingTile icon="doc" size={44} />} title="Nothing lives here"
                 text="This link doesn't open anything in Memba. Check it for typos, or start from an app.">
                 <button type="button" className="os-btn" onClick={() => { a.close(); a.openApp("daos") }}>Open DAOs</button>
             </Holding>
@@ -78,22 +78,24 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
     if (t.kind === "desktop") return null
     if (t.kind === "app" && t.app === "wallet" && t.section === null) return <WalletWindow session={a.session} open={a.open} toast={a.toast} />
     if (t.kind === "app" && t.app === "wallet" && t.section === "send") return <SendWindow session={a.session} close={a.close} />
+    if (t.kind === "multisig") return <MultisigWindow address={t.address} session={a.session} open={a.open} />
+    if (t.kind === "app" && t.app === "multisig" && t.section === null) return <MultisigApp session={a.session} open={a.open} />
     if (t.kind === "feedback") return <ClassicPage key={`${win.id}:feedback`} network={net} page="feedback" layout={a.session.layout} />
-    const page = t.kind === "multisig" ? `multisig/${t.address}` : classicForSection(t.app, t.section)
+    const page = classicForSection(t.app, t.section)
     if (page === null) {
-        const app = getApp(t.kind === "multisig" ? "multisig" : t.app)
-        return t.kind === "app" && t.section === null
-            ? <Holding tile={<AppTile app={t.app} size={44} />} title={app.name} href={null} linkLabel="" text={`${app.summary}. Coming to Memba OS in a later version.`} />
+        const app = getApp(t.app)
+        return t.section === null
+            ? <Holding tile={<AppTile app={t.app} size={44} />} title={app.name} text={`${app.summary}. Coming to Memba OS in a later version.`} />
             : (
-                <Holding tile={<AppTile app={app.id} size={44} />} title="Nothing lives here" href={null} linkLabel="" text={`${app.name} has no page at this address.`}>
+                <Holding tile={<AppTile app={app.id} size={44} />} title="Nothing lives here" text={`${app.name} has no page at this address.`}>
                     <button type="button" className="os-btn" onClick={() => a.openApp(app.id)}>Open {app.name}</button>
                 </Holding>
             )
     }
     if (pageNeedsWallet(page) && a.session.status !== "member") {
-        const app = getApp(t.kind === "multisig" ? "multisig" : t.app)
+        const app = getApp(t.app)
         return (
-            <Holding tile={<AppTile app={app.id} size={44} />} title={app.name} href={null} linkLabel="" text={`Connect a wallet to use ${app.name}.`}>
+            <Holding tile={<AppTile app={app.id} size={44} />} title={app.name} text={`Connect a wallet to use ${app.name}.`}>
                 <button type="button" className="os-btn" onClick={a.session.openConnect}>Connect</button>
             </Holding>
         )

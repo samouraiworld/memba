@@ -49,7 +49,8 @@ export function welcomeSpec(): WindowSpec {
 
 export function appSpec(app: OsAppId, section: string | null = null): WindowSpec {
     // The DAOs app is a native list; the others show a full Memba page for now, so they open larger.
-    const [width, height] = app === "daos" ? [480, 400] : app === "wallet" && section === null ? [420, 420] : [960, 660]
+    // Native app windows are compact; the others show a full Memba page for now, so they open larger.
+    const [width, height] = app === "daos" ? [480, 400] : app === "wallet" && section === null ? [420, 420] : app === "multisig" && section === null ? [520, 460] : [960, 660]
     return { key: `app:${app}`, title: getApp(app).name, app, width, height, target: { kind: "app", app, section } }
 }
 
@@ -78,7 +79,7 @@ export function specForTarget(t: OsTarget): WindowSpec | null {
         case "dao": return daoSpec(t.name, t.section)
         case "proposal": return { key: `prop:${t.dao}:${t.n}`, title: `${t.dao} · Proposal #${t.n}`, app: "daos", width: 460, height: 380, target: t }
         case "new-proposal": return { key: `flow:prop:${t.dao}`, title: `New proposal · ${t.dao}`, app: "daos", width: 760, height: 540, target: t }
-        case "multisig": return { key: `msig:${t.address}`, title: `Multisig ${t.address.slice(0, 8)}…${t.address.slice(-4)}`, app: "multisig", width: 540, height: 440, target: t }
+        case "multisig": return { key: `msig:${t.address}`, title: `Multisig ${t.address.slice(0, 8)}…${t.address.slice(-4)}`, app: "multisig", width: 620, height: 540, target: t }
         case "feedback": return { key: "feedback", title: "Send feedback", app: null, width: 640, height: 620, target: t }
         case "unknown": return { key: "notfound", title: "Not found", app: null, width: 420, height: 280, target: t }
     }
