@@ -158,15 +158,18 @@ export function assertWalletBroadcastSafe(): void {
  *
  * @see components/ui/TxConfirmation.tsx
  */
-type TxConfirmCallback = (msgs: AminoMsg[], memo: string) => Promise<boolean>
+export type TxConfirmCallback = (msgs: AminoMsg[], memo: string) => Promise<boolean>
 let _txConfirmCallback: TxConfirmCallback | null = null
 
 /**
  * Register the confirmation callback. Called by TxConfirmationProvider on mount.
- * Pass null to unregister (e.g., on unmount or in tests).
+ * Pass null to unregister (e.g., on unmount or in tests). Returns the previous
+ * callback so a caller that swaps in its own review (Memba OS) can restore it.
  */
-export function setTxConfirmationCallback(cb: TxConfirmCallback | null) {
+export function setTxConfirmationCallback(cb: TxConfirmCallback | null): TxConfirmCallback | null {
+    const previous = _txConfirmCallback
     _txConfirmCallback = cb
+    return previous
 }
 
 /**

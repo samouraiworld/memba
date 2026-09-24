@@ -417,6 +417,31 @@ describe('toAdenaMessages', () => {
     })
 })
 
+describe('setTxConfirmationCallback — swap and restore', () => {
+    // Memba OS swaps its own review in around its broadcasts and must be able to
+    // put the classic confirmation back exactly as it was.
+    it('returns the callback it replaces', () => {
+        const classic = () => Promise.resolve(true)
+        const os = () => Promise.resolve(false)
+        setTxConfirmationCallback(null)
+        expect(setTxConfirmationCallback(classic)).toBeNull()
+        expect(setTxConfirmationCallback(os)).toBe(classic)
+        expect(setTxConfirmationCallback(classic)).toBe(os)
+        setTxConfirmationCallback(null)
+    })
+
+    it('the restored callback is the one that gates the next broadcast', async () => {
+        const seen: string[] = []
+        const classic = () => { seen.push('classic'); return Promise.resolve(false) }
+        setTxConfirmationCallback(classic)
+        const previous = setTxConfirmationCallback(() => { seen.push('os'); return Promise.resolve(false) })
+        setTxConfirmationCallback(previous)
+        await expect(doContractBroadcast([], 'memo')).rejects.toThrow(/cancelled/i)
+        expect(seen).toEqual(['classic'])
+        setTxConfirmationCallback(null)
+    })
+})
+
 describe('doContractBroadcast — wrong-chain guard (defense-in-depth)', () => {
     // A wallet reporting a chainId other than the app's active chain must be
     // blocked before any broadcast. Chain ids derive from GNO_CHAIN_ID (top of

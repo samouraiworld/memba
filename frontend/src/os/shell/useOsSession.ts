@@ -12,7 +12,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { useAdena } from "../../hooks/useAdena"
 import { useAuth } from "../../hooks/useAuth"
 import { useBalance } from "../../hooks/useBalance"
-import { ACTIVATION_PROFILE_REALM } from "../../lib/config"
+import { ACTIVATION_PROFILE_REALM, NETWORKS } from "../../lib/config"
 import { doContractBroadcast } from "../../lib/grc20"
 import { ACTIVATION_REQUIRED_CODE } from "../../lib/loginErrors"
 import { completeQuest, setQuestWalletAddress, syncQuestsToBackend } from "../../lib/quests"
@@ -164,6 +164,12 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
         setNote(null)
     }, [go])
 
+    /** Ask Adena to switch to Memba's network (adding it first if Adena doesn't know it). */
+    const switchWallet = useCallback(
+        () => adena.switchWalletNetwork(network.chainId, network.label, NETWORKS[network.key]?.rpcUrl),
+        [adena, network.chainId, network.label, network.key],
+    )
+
     const disconnect = useCallback(() => {
         epoch.current++
         adena.disconnect()
@@ -176,6 +182,8 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
         status,
         address: member ? adena.address : "",
         walletAddress: adena.address,
+        /** The chain Adena is on ("" before it reports one). */
+        walletChainId: adena.chainId,
         network,
         stage: activationForced && stage !== "activatewait" ? ("activate" as const) : stage,
         activationForced,
@@ -190,6 +198,7 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
         activate,
         cancel,
         disconnect,
+        switchWallet,
     }
 }
 

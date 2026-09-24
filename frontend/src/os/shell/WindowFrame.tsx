@@ -10,11 +10,13 @@ import { getApp, type OsAppId } from "../apps"
 import { classicPath } from "./format"
 import { AppTile, ThingTile } from "./icons"
 import type { OsSession } from "./useOsSession"
-import { DOCK_ROOM, type DeskSize, type OsWindow } from "./windows"
+import { DaoFolder, DaosApp, ProposalWindow } from "../daos/DaoWindows"
+import { DOCK_ROOM, type DeskSize, type OsWindow, type WindowSpec } from "./windows"
 
 interface Actions {
     session: OsSession
     openApp: (app: OsAppId) => void
+    open: (spec: WindowSpec) => void
     close: () => void
 }
 
@@ -53,7 +55,6 @@ function Holding({ tile, title, text, href, linkLabel, children }: { tile: React
 
 function Body({ win, ...a }: Actions & { win: OsWindow }) {
     const net = a.session.network.key
-    const guest = a.session.status !== "member"
     if (win.key === "welcome") return <Welcome {...a} />
     const t = win.target
     if (!t || t.kind === "unknown") {
@@ -64,6 +65,9 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
             </Holding>
         )
     }
+    if (t.kind === "app" && t.app === "daos") return <DaosApp open={a.open} />
+    if (t.kind === "dao") return <DaoFolder name={t.name} section={t.section} open={a.open} />
+    if (t.kind === "proposal") return <ProposalWindow dao={t.dao} n={t.n} session={a.session} />
     if (t.kind === "app") {
         const app = getApp(t.app)
         const path = classicPath(t.app)
@@ -73,22 +77,13 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
                 text={path === null ? `${app.summary}. Coming to Memba OS in a later version.` : `${app.summary}. Its window is on the way; until then it opens as the current Memba page.`} />
         )
     }
-    const connect = guest && t.kind !== "multisig"
-        ? <button type="button" className="os-btn" onClick={a.session.openConnect}>Connect to vote</button>
-        : null
     if (t.kind === "multisig") {
         return (
             <Holding tile={<AppTile app="multisig" size={44} />} title={win.title} linkLabel="Open multisigs in Memba" href={`/${net}/multisig`}
                 text="Multisig windows are on the way. Until then, find this account in the current Memba." />
         )
     }
-    return (
-        <Holding tile={<ThingTile icon={t.kind === "proposal" ? "doc" : "folder"} tint={t.kind === "dao" ? ["#5B7CFA", "#3D5BE0"] : undefined} size={44} />}
-            title={win.title} linkLabel="Browse DAOs in Memba" href={`/${net}/dao`}
-            text={t.kind === "proposal" ? "Proposals will open right here. Until then, find it from the DAO list." : "DAO folders will open right here. Until then, find it from the DAO list."}>
-            {connect}
-        </Holding>
-    )
+    return null
 }
 
 export interface FrameActions {

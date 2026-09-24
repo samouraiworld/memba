@@ -14,6 +14,7 @@ import { selectableOsNetworks, switchOsNetwork } from "./network"
 import type { OsSession } from "./useOsSession"
 import { itemForTarget, type DeskItemType } from "./desk"
 import { urlForWindow, type OsWindow } from "./windows"
+import { useSigner } from "../sign/signerContext"
 
 type PanelId = "start" | "spaces" | "app" | "window" | "net" | "notif" | "acct"
 
@@ -62,6 +63,7 @@ export function MenuBar(p: MenuBarProps) {
     const [time] = useClock()
     const guest = session.status !== "member"
     const net = session.network
+    const signer = useSigner()
 
     // "Add an app…" on the desktop menu opens the start menu (state adjusted
     // while rendering when the request changes, React's pattern for this).
@@ -198,9 +200,14 @@ export function MenuBar(p: MenuBarProps) {
                 <div className="os-panel-list">
                     <div className="os-nh"><b>Notifications</b></div>
                     <div className="os-nl">
+                        {signer.notices.map((n) => (
+                            <div key={n.id} className={`os-nc os-nc-${n.kind}`}>
+                                <span className="os-grow"><b>{n.title}</b><span className="os-sub os-block">{n.sub}</span></span>
+                            </div>
+                        ))}
                         {guest
                             ? <div className="os-gate"><span>Connect for DAO, multisig and prize alerts.</span><button type="button" className="os-btn" onClick={run(session.openConnect)}>Connect</button></div>
-                            : <p className="os-sub os-pad">You're all caught up. Votes, signature requests and replies will show here.</p>}
+                            : signer.notices.length === 0 && <p className="os-sub os-pad">You're all caught up. Votes, signature requests and replies will show here.</p>}
                     </div>
                 </div>
             )
@@ -232,7 +239,13 @@ export function MenuBar(p: MenuBarProps) {
             <button type="button" className={`os-mb os-net${net.isTestnet ? " os-test" : ""}`} aria-label={`Network: ${net.chainId}`} {...mb("net")}>
                 <i aria-hidden="true" /><span className="os-mono">{net.chainId}</span>{net.isTestnet && <span className="os-testpill">TESTNET</span>}
             </button>
-            <button type="button" className="os-mb" aria-label="Notifications" {...mb("notif")}>🔔</button>
+            {signer.pending.length > 0 && (
+                <span className="os-mb" role="status" title="Waiting for the chain"><span className="os-spin" aria-hidden="true" />{signer.pending.length} pending</span>
+            )}
+            <button type="button" className="os-mb" aria-label={signer.unread ? `Notifications, ${signer.unread} new` : "Notifications"} {...mb("notif")}
+                onClick={(e) => { toggle("notif")(e); signer.markRead() }}>
+                🔔{signer.unread > 0 && <span className="os-badge" aria-hidden="true">{signer.unread}</span>}
+            </button>
             {session.status === "member"
                 ? <button type="button" className="os-mb os-acct" aria-label={`Account ${session.address}`} {...mb("acct")}>
                     <span className="os-av os-av-xs" aria-hidden="true">{session.address.slice(2, 3).toUpperCase()}</span>

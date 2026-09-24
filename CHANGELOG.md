@@ -55,6 +55,13 @@ Full changelogs are split by version range for easier navigation:
 <!-- categories: memba -->
 - Memba OS, the desktop redesign, starts behind the `VITE_MEMBA_OS` flag at `/os`: an empty Aqua desktop in light and dark, the app registry that gives every Memba page a home, and its own end-to-end suite.
 - A flag-on build fails everywhere except the Memba OS beta site, and a flag-off build ships none of its code.
+### Memba OS DAOs and signing
+<!-- categories: memba -->
+- Memba OS reviews every signature before Adena opens, still behind `VITE_MEMBA_OS`. The review sheet shows in plain language what happens, where, and the deposit cap, then the "Adena should show" checklist, decoded from the exact messages that will be signed. Adena opens only when those messages are identical to the reviewed ones; the sheet replaces the classic confirmation instead of adding a second one. A wallet on another network is blocked until you switch it.
+- A transaction tray shows pending signatures in the menu bar and their results in notifications. When the outcome is unknown, the action locks until you confirm you've checked it. The lock uses the same saved attempt as the classic pages, so it holds in both.
+- DAOs open natively in Memba OS: the DAOs app, a DAO folder with Overview, Proposals, Members and Treasury (a target design for now), and proposal windows where members vote Yes, No or Abstain. The checks the classic proposal page runs just before signing apply here too. DAO links use the realm path with dots, like `/os/dao/alice.team`, plus the short names `govdao` and `memba_dao`.
+- On the beta site, `memba.club/` opens Memba OS.
+
 ### Memba OS windows
 <!-- categories: memba -->
 - Memba OS windows now behave like a desktop, still behind `VITE_MEMBA_OS`. You can drag them by the title bar, resize them from the corner, minimise them to the dock, maximise them, and tile the two front ones. ⌥W closes the front window and ⌥` switches to the next one.

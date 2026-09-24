@@ -22,6 +22,7 @@ import type { OsTarget } from "./osPath"
 import { loadSavedTargets, saveWindows, targetsFromUrl, urlForWindows, windowToken } from "./urlSync"
 import { useDesk } from "./useDesk"
 import { useOsSession } from "./useOsSession"
+import { SignerProvider } from "../sign/SignerProvider"
 import { WindowFrame, type FrameActions } from "./WindowFrame"
 import {
     appSpec, EMPTY_WINDOWS, specForTarget, useWindows, visibleWindows, welcomeSpec, windowsReducer,
@@ -224,7 +225,7 @@ export function Shell() {
 
     const visible = visibleWindows(win.wins)
     return (
-        <>
+        <SignerProvider session={session} toast={showToast}>
             <MenuBar session={session} wins={win.wins} front={front} openApp={openApp} focusWin={win.focus} closeWin={win.close}
                 closeAll={win.closeAll} minimiseAll={win.minimiseAll} tile={tile} nextWin={win.next} lock={lock} toast={showToast}
                 isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} />
@@ -244,7 +245,7 @@ export function Shell() {
                     </div>
                 )}
                 {visible.map((w) => (
-                    <WindowFrame key={w.id} win={w} active={w.id === front?.id} desk={desk} frame={frame} session={session} openApp={openApp} />
+                    <WindowFrame key={w.id} win={w} active={w.id === front?.id} desk={desk} frame={frame} session={session} openApp={openApp} open={open} />
                 ))}
                 {menu && <ContextMenu x={menu.x} y={menu.y} entries={menuEntries} onClose={closeMenu} />}
             </main>
@@ -263,6 +264,6 @@ export function Shell() {
                     onGuest={() => { unlock(); open(welcomeSpec(), true) }}
                 />
             )}
-        </>
+        </SignerProvider>
     )
 }
