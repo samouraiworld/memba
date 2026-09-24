@@ -74,9 +74,9 @@ describe("osTargetForClassic", () => {
         expect(parseOsPath(urlForWindow(specForTarget(propose)!))).toEqual(propose)
     })
 
-    it("maps the home page to Wallet, ignores query strings, and refuses other networks and unknown pages", () => {
+    it("maps the home page to Wallet, keeps the page's query, and refuses other networks and unknown pages", () => {
         expect(osTargetForClassic("/mainnet/", "mainnet")).toEqual({ kind: "app", app: "wallet", section: null })
-        expect(osTargetForClassic("/mainnet/tx/5?ms=g1", "mainnet")).toEqual({ kind: "app", app: "wallet", section: "tx/5" })
+        expect(osTargetForClassic("/mainnet/tx/5?ms=g1", "mainnet")).toEqual({ kind: "app", app: "wallet", section: "tx/5", query: "ms=g1" })
         expect(osTargetForClassic("/betanet/feed", "mainnet")).toBeNull()
         expect(osTargetForClassic("/mainnet/github/callback", "mainnet")).toBeNull()
         expect(osTargetForClassic("/mainnet/feedback", "mainnet")).toEqual({ kind: "feedback" })
@@ -85,6 +85,14 @@ describe("osTargetForClassic", () => {
     it("gives a bare legacy path the current network, as LegacyRedirect does", () => {
         expect(osTargetForClassic("/validators/hacker", "mainnet")).toEqual({ kind: "app", app: "validators", section: "hacker" })
         expect(osTargetForClassic("/os/feed", "mainnet")).toBeNull()
+    })
+
+    it("keeps a page's query string with its window target", () => {
+        expect(osTargetForClassic("/mainnet/validators?tab=alerts", "mainnet")).toEqual({ kind: "app", app: "validators", section: null, query: "tab=alerts" })
+        expect(osTargetForClassic("/mainnet/directory?tab=tokens#top", "mainnet")).toEqual({ kind: "app", app: "explorer", section: null, query: "tab=tokens" })
+        expect(osTargetForClassic("/mainnet/validators", "mainnet")).toStrictEqual({ kind: "app", app: "validators", section: null })
+        // DAO windows are native: a query means nothing to them.
+        expect(osTargetForClassic("/mainnet/dao/gno.land/r/gov/dao?x=1", "mainnet")).toEqual({ kind: "dao", name: "govdao", section: "overview" })
     })
 })
 

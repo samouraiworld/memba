@@ -52,11 +52,11 @@ export function welcomeSpec(): WindowSpec {
     return { key: "welcome", title: "Welcome to Memba", app: null, width: 560, height: 360, target: null }
 }
 
-export function appSpec(app: OsAppId, section: string | null = null): WindowSpec {
+export function appSpec(app: OsAppId, section: string | null = null, query?: string): WindowSpec {
     // The DAOs app is a native list; the others show a full Memba page for now, so they open larger.
     // Native app windows are compact; the others show a full Memba page for now, so they open larger.
     const [width, height] = app === "daos" ? [480, 400] : app === "wallet" && section === null ? [420, 420] : app === "multisig" && section === null ? [520, 460] : [960, 660]
-    return { key: `app:${app}`, title: getApp(app).name, app, width, height, target: { kind: "app", app, section } }
+    return { key: `app:${app}`, title: getApp(app).name, app, width, height, target: { kind: "app", app, section, ...(query === undefined ? {} : { query }) } }
 }
 
 /** The Create DAO wizard (/os/daos/new): its own window, so the DAOs app stays open beside it. */
@@ -80,7 +80,7 @@ export function specForTarget(t: OsTarget): WindowSpec | null {
         case "app":
             if (t.app === "daos" && t.section === "new") return newDaoSpec()
             if (t.app === "wallet" && t.section === "send") return sendSpec()
-            return appSpec(t.app, t.section)
+            return appSpec(t.app, t.section, t.query)
         case "dao": return daoSpec(t.name, t.section)
         case "proposal": return { key: `prop:${t.dao}:${t.n}`, title: `${t.dao} · Proposal #${t.n}`, app: "daos", width: 460, height: 380, target: t }
         case "new-proposal": return { key: `flow:prop:${t.dao}`, title: `New proposal · ${t.dao}`, app: "daos", width: 760, height: 540, target: t }
@@ -95,7 +95,7 @@ export function urlForWindow(w: Pick<OsWindow, "target">): string {
     const t = w.target
     if (!t) return "/os"
     switch (t.kind) {
-        case "app": return `/os/${getApp(t.app).slug}${t.section ? `/${t.section}` : ""}`
+        case "app": return `/os/${getApp(t.app).slug}${t.section ? `/${t.section}` : ""}${t.query ? `?${t.query}` : ""}`
         case "dao": return `/os/dao/${encodeURIComponent(t.name)}${t.section === "overview" ? "" : `/${t.section}`}`
         case "proposal": return `/os/dao/${encodeURIComponent(t.dao)}/proposals/${t.n}`
         case "new-proposal": return `/os/dao/${encodeURIComponent(t.dao)}/proposals/new`
@@ -147,6 +147,12 @@ function place(spec: WindowSpec, n: number, desk: DeskSize, center: boolean) {
     }
 }
 
+/** A link with no query of its own (a ?w= token, the dock) keeps the page's current query; another page starts clean. */
+function keepQuery(next: OsTarget | null, prev: OsTarget | null): OsTarget | null {
+    if (next?.kind !== "app" || next.query !== undefined || prev?.kind !== "app") return next
+    return prev.app === next.app && prev.section === next.section && prev.query !== undefined ? { ...next, query: prev.query } : next
+}
+
 function raise(s: WindowsState, id: string, patch: Partial<OsWindow> = {}): WindowsState {
     const top = s.top + 1
     return { ...s, top, wins: s.wins.map((w) => (w.id === id ? { ...w, ...patch, z: top } : w)) }
@@ -157,7 +163,7 @@ export function windowsReducer(s: WindowsState, a: WindowsAction): WindowsState 
         case "open": {
             const existing = s.wins.find((w) => w.key === a.spec.key)
             // Reopening keeps the window where it is, but follows the link's section.
-            if (existing) return raise(s, existing.id, { min: false, target: a.spec.target ?? existing.target })
+            if (existing) return raise(s, existing.id, { min: false, target: keepQuery(a.spec.target, existing.target) ?? existing.target })
             const seq = s.seq + 1
             const top = s.top + 1
             const g = place(a.spec, s.wins.length, a.desk, !!a.center)

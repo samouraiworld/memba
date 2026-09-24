@@ -192,3 +192,26 @@ describe("link windows", () => {
         expect(specForTarget(parseOsPath("/os/nope"))?.key).toBe("notfound")
     })
 })
+
+describe("page query strings", () => {
+    const vq = (query?: string) => specForTarget({ kind: "app", app: "validators", section: null, ...(query === undefined ? {} : { query }) })!
+
+    it("a link without a query (w token, dock, search) keeps the window's current query; one with a query replaces it", () => {
+        let s = run({ type: "open", spec: vq("tab=alerts"), desk })
+        s = windowsReducer(s, { type: "open", spec: vq(), desk })
+        expect(s.wins[0].target).toEqual({ kind: "app", app: "validators", section: null, query: "tab=alerts" })
+        s = windowsReducer(s, { type: "open", spec: vq(""), desk })
+        expect(s.wins[0].target).toEqual({ kind: "app", app: "validators", section: null, query: "" })
+    })
+
+    it("another page of the app starts without the old page's query", () => {
+        let s = run({ type: "open", spec: vq("tab=alerts"), desk })
+        s = windowsReducer(s, { type: "open", spec: specForTarget({ kind: "app", app: "validators", section: "hacker" })!, desk })
+        expect(s.wins[0].target).toEqual({ kind: "app", app: "validators", section: "hacker" })
+    })
+
+    it("the window's link carries its query", () => {
+        expect(urlForWindow({ target: { kind: "app", app: "validators", section: null, query: "tab=alerts" } })).toBe("/os/validators?tab=alerts")
+        expect(urlForWindow({ target: { kind: "app", app: "validators", section: null, query: "" } })).toBe("/os/validators")
+    })
+})

@@ -51,16 +51,25 @@ export function tokenToTarget(token: string): OsTarget | null {
 
 const MAX_W_TOKENS = 12
 
-/** The windows a URL asks for: the path first (it becomes the front window), then ?w= in order. */
+/** A page window's query from a URL's search, without the reserved w key ("" when there is none). */
+export function pageQuery(search: string): string {
+    const params = new URLSearchParams(search)
+    params.delete("w")
+    return params.toString()
+}
+
+/** The windows a URL asks for: the path first (it becomes the front window), then ?w= in order.
+ *  The front window, when it shows a Memba page, also gets the URL's other query parameters. */
 export function targetsFromUrl(pathname: string, search: string): { front: OsTarget; others: OsTarget[] } {
-    const front = parseOsPath(pathname)
+    const path = parseOsPath(pathname)
+    const front: OsTarget = path.kind === "app" ? { ...path, query: pageQuery(search) } : path
     const raw = new URLSearchParams(search).get("w") ?? ""
     const others = raw.split(",").filter(Boolean).slice(0, MAX_W_TOKENS)
         .map(tokenToTarget).filter((t): t is OsTarget => t !== null)
     return { front, others }
 }
 
-/** The URL for the current windows: the front one's path, the other visible ones in ?w=. */
+/** The URL for the current windows: the front one's path (and its page's query), the other visible ones in ?w=. */
 export function urlForWindows(wins: readonly OsWindow[]): string {
     const front = frontWindow(wins)
     const path = front ? urlForWindow(front) : "/os"
@@ -69,19 +78,20 @@ export function urlForWindows(wins: readonly OsWindow[]): string {
         .sort((a, b) => a.z - b.z)
         .map((w) => windowToken(w.target))
         .filter((t): t is string => t !== null)
-    return others.length ? `${path}?w=${others.join(",")}` : path
+    return others.length ? `${path}${path.includes("?") ? "&" : "?"}w=${others.join(",")}` : path
 }
 
 // ── saved session ──────────────────────────────────────────────────────────
 
 export const OS_WINDOWS_KEY = "memba_os_windows"
 
-type Saved = Pick<OsWindow, "x" | "y" | "width" | "height" | "z" | "min" | "max"> & { token: string }
+type Saved = Pick<OsWindow, "x" | "y" | "width" | "height" | "z" | "min" | "max"> & { token: string; query?: string }
 
 export function saveWindows(wins: readonly OsWindow[]): void {
     const saved: Saved[] = wins.flatMap((w) => {
         const token = windowToken(w.target)
-        return token ? [{ token, x: w.x, y: w.y, width: w.width, height: w.height, z: w.z, min: w.min, max: w.max }] : []
+        const query = w.target?.kind === "app" && w.target.query ? { query: w.target.query } : {}
+        return token ? [{ token, ...query, x: w.x, y: w.y, width: w.width, height: w.height, z: w.z, min: w.min, max: w.max }] : []
     })
     try {
         localStorage.setItem(OS_WINDOWS_KEY, JSON.stringify(saved))
@@ -93,7 +103,7 @@ export function saveWindows(wins: readonly OsWindow[]): void {
 const num = (v: unknown, fallback: number) => (typeof v === "number" && Number.isFinite(v) ? v : fallback)
 
 /** The saved windows, re-validated (anything malformed is dropped). */
-export function loadSavedTargets(): { target: OsTarget; geom: Omit<Saved, "token"> }[] {
+export function loadSavedTargets(): { target: OsTarget; geom: Omit<Saved, "token" | "query"> }[] {
     let raw: unknown
     try {
         raw = JSON.parse(localStorage.getItem(OS_WINDOWS_KEY) ?? "[]")
@@ -102,8 +112,10 @@ export function loadSavedTargets(): { target: OsTarget; geom: Omit<Saved, "token
     }
     if (!Array.isArray(raw)) return []
     return raw.slice(0, MAX_W_TOKENS).flatMap((e: Partial<Saved>) => {
-        const target = typeof e?.token === "string" ? tokenToTarget(e.token) : null
-        if (!target) return []
+        const found = typeof e?.token === "string" ? tokenToTarget(e.token) : null
+        if (!found) return []
+        // A page's query comes back through URLSearchParams, so only a plain query string survives.
+        const target: OsTarget = found.kind === "app" && typeof e.query === "string" && e.query ? { ...found, query: pageQuery(e.query) } : found
         return [{ target, geom: { x: num(e.x, 60), y: num(e.y, 22), width: num(e.width, 480), height: num(e.height, 400), z: num(e.z, 1), min: e.min === true, max: e.max === true } }]
     })
 }

@@ -17,7 +17,9 @@ export type DaoSection = "overview" | "proposals" | "treasury" | "members"
 
 export type OsTarget =
     | { kind: "desktop" }
-    | { kind: "app"; app: OsAppId; section: string | null }
+    /** `query`: the Memba page's own query string (no "?"), for app windows that show a page.
+     *  Undefined means "no opinion" (a ?w= token, the dock): reopening keeps the window's current one. */
+    | { kind: "app"; app: OsAppId; section: string | null; query?: string }
     | { kind: "dao"; name: string; section: DaoSection }
     | { kind: "proposal"; dao: string; n: number }
     | { kind: "new-proposal"; dao: string }

@@ -76,3 +76,50 @@ describe("saved session", () => {
         expect(back[0].geom.x).toBe(60)
     })
 })
+
+describe("page query strings", () => {
+    const open = (s: WindowsState, url: string, search = "") => {
+        const t = targetsFromUrl(url, search).front
+        return windowsReducer(s, { type: "open", spec: specForTarget(t)!, desk })
+    }
+
+    it("give the front window its page's query, beside the reserved w key", () => {
+        const { front, others } = targetsFromUrl("/os/validators", "?tab=alerts&w=app.feed")
+        expect(front).toEqual({ kind: "app", app: "validators", section: null, query: "tab=alerts" })
+        expect(others).toEqual([{ kind: "app", app: "feed", section: null }])
+        expect(targetsFromUrl("/os/validators", "").front).toEqual({ kind: "app", app: "validators", section: null, query: "" })
+    })
+
+    it("write the front window's query first, then w", () => {
+        let s = open(EMPTY_WINDOWS, "/os/feed")
+        s = open(s, "/os/validators", "?tab=alerts")
+        expect(urlForWindows(s.wins)).toBe("/os/validators?tab=alerts&w=app.feed")
+        const alone = open(EMPTY_WINDOWS, "/os/store", "?category=games&q=a%20b")
+        expect(urlForWindows(alone.wins)).toBe("/os/store?category=games&q=a+b")
+    })
+
+    it("round-trip through the address bar", () => {
+        const s = open(open(EMPTY_WINDOWS, "/os/feed"), "/os/validators", "?tab=alerts")
+        const url = new URL(urlForWindows(s.wins), "https://memba.club")
+        expect(targetsFromUrl(url.pathname, url.search).front).toEqual({ kind: "app", app: "validators", section: null, query: "tab=alerts" })
+    })
+
+    it("only belong to page windows: DAO, proposal and multisig windows ignore them", () => {
+        expect(targetsFromUrl("/os/dao/memba_dao/proposals/12", "?tab=x").front).toEqual({ kind: "proposal", dao: "memba_dao", n: 12 })
+        const s = open(EMPTY_WINDOWS, "/os/dao/memba_dao", "?tab=x")
+        expect(urlForWindows(s.wins)).toBe("/os/dao/memba_dao")
+    })
+
+    it("stay with a window behind the front one: kept in the saved session, not in w", () => {
+        const s = open(open(EMPTY_WINDOWS, "/os/validators", "?tab=alerts"), "/os/feed")
+        expect(urlForWindows(s.wins)).toBe("/os/feed?w=app.validators")
+        saveWindows(s.wins)
+        const back = loadSavedTargets().find((x) => x.target.kind === "app" && x.target.app === "validators")!
+        expect(back.target).toEqual({ kind: "app", app: "validators", section: null, query: "tab=alerts" })
+    })
+
+    it("drop anything that isn't a plain query string from saved state", () => {
+        localStorage.setItem(OS_WINDOWS_KEY, JSON.stringify([{ token: "app.validators", query: 42, x: 1, y: 1, width: 400, height: 300, z: 1 }]))
+        expect(loadSavedTargets()[0].target).toEqual({ kind: "app", app: "validators", section: null })
+    })
+})

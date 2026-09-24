@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { OS_ON } from '../../playwright.os.config'
 import { abortOnchainReads } from '../helpers/onchain'
+import { fulfillProValidatorRoster } from '../helpers/proValidatorsFixture'
 
 // Day 5a: every app without a native window shows its existing Memba page
 // inside the window (no "Open in Memba" links), links inside a page open the
@@ -34,6 +35,30 @@ test.describe('Memba OS pages in windows', () => {
         await expect(nft.getByRole('heading', { name: 'Marketplace' }).first()).toBeVisible()
         await expect.poll(() => new URL(page.url()).pathname).toBe('/os/nft/marketplace/nfts')
         await expect(page.getByRole('region', { name: 'NFT', exact: true })).toHaveCount(1)
+    })
+
+    test("a page's own query (a Validators tab) works in its window, follows the address bar and survives Back and reload", async ({ page }) => {
+        // A served roster (registered after the chain-read abort, so it wins): the tabs render with data.
+        await fulfillProValidatorRoster(page)
+        await page.goto(`${OS_ON}/os/validators?w=app.feed`)
+        const val = win(page, 'Validators')
+        const selected = (id: string) => val.getByTestId(id)
+        await expect(selected('seg-validators')).toHaveAttribute('aria-selected', 'true')
+        await selected('seg-network').click()
+        await expect(selected('seg-network')).toHaveAttribute('aria-selected', 'true')
+        // The page's query sits beside the reserved w key; the Feed window stays open.
+        await expect.poll(() => new URL(page.url()).search).toBe('?tab=network&w=app.feed')
+        await expect(win(page, 'Feed')).toBeVisible()
+        await page.goBack()
+        await expect(selected('seg-validators')).toHaveAttribute('aria-selected', 'true')
+        await expect.poll(() => new URL(page.url()).search).toBe('?w=app.feed')
+        await page.goForward()
+        await expect(selected('seg-network')).toHaveAttribute('aria-selected', 'true')
+        await page.reload()
+        await expect(win(page, 'Validators').getByTestId('seg-network')).toHaveAttribute('aria-selected', 'true')
+        // A shared link opens straight on that tab.
+        await page.goto(`${OS_ON}/os/validators?tab=candidates`)
+        await expect(win(page, 'Validators').getByTestId('seg-candidates')).toHaveAttribute('aria-selected', 'true')
     })
 
     test('a link inside the page stays in its window, and the address bar follows', async ({ page }) => {

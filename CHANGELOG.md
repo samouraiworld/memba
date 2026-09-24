@@ -182,6 +182,10 @@ Full changelogs are split by version range for easier navigation:
 - Sign, broadcast, new transaction, create and import open Memba's own multisig pages inside the window, unchanged; native wizards come after the multisig signing-path review.
 - ⌥F (or Window → Full screen) shows the front window full screen, for games and anything else (D32).
 
+### Memba OS page windows keep their query string
+<!-- categories: memba -->
+- A Memba page inside a Memba OS window now gets its own query string, still behind `VITE_MEMBA_OS`. Tabs and filters that live in the address (Validators sections, the App Store directory, the Explorer directory tabs) switch inside the window, and shared import links (`/import?pubkey=…`) carry their data again. Before, the window dropped the query, so those tabs never changed.
+- The front window's query sits in the address beside the other windows: `/os/validators?tab=network&w=app.feed`. `w` stays reserved for the other windows. Back, Forward, reload and Copy link keep the query. A window behind the front one keeps its query in this browser's saved session, and reopening it from the dock or `w` keeps it too.
 ### Memba OS windows
 <!-- categories: memba -->
 - Memba OS windows now behave like a desktop, still behind `VITE_MEMBA_OS`. You can drag them by the title bar, resize them from the corner, minimise them to the dock, maximise them, and tile the two front ones. ⌥W closes the front window and ⌥` switches to the next one.

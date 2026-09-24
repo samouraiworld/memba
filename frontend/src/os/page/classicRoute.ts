@@ -96,7 +96,12 @@ export function osTargetForClassic(pathname: string, network: string): OsTarget 
     const ms = /^multisig\/([^/]+)$/.exec(rest)
     if (ms && ADDRESS.test(ms[1])) return { kind: "multisig", address: ms[1] }
     const app = OS_APPS.find((a) => owns(a, rest))
-    return app ? { kind: "app", app: app.id, section: sectionForClassic(app.id, rest) } : null
+    if (!app) return null
+    // The page's own query rides with its window (w is reserved for the other windows).
+    const search = /\?([^#]*)/.exec(pathname)
+    const params = new URLSearchParams(search?.[1] ?? "")
+    params.delete("w")
+    return { kind: "app", app: app.id, section: sectionForClassic(app.id, rest), ...(search ? { query: params.toString() } : {}) }
 }
 
 /** Pages that send a guest away in the classic app (they need a signed-in wallet): the window asks to connect instead. */

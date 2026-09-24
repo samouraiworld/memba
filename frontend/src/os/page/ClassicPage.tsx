@@ -36,17 +36,20 @@ function WindowOutlet({ layout }: { layout: LayoutContext }) {
 
 const pathOf = (to: To) => (typeof to === "string" ? to : createPath(to))
 
-export function ClassicPage({ network, page, layout }: {
+export function ClassicPage({ network, page, query, layout }: {
     network: string
     /** The classic page, relative to /:network ("" is the home page). */
     page: string
+    /** The page's query string (no "?"), read by useSearchParams inside the page. */
+    query?: string
     layout: LayoutContext
 }) {
     const parent = useContext(UNSAFE_NavigationContext)
     const nav = useMemo(() => {
         const specFor = (to: To) => {
             const t = osTargetForClassic(pathOf(to), network)
-            return t ? specForTarget(t) : null
+            // A page link is the whole address: no query means the page has none (never "keep the old one").
+            return t ? specForTarget(t.kind === "app" ? { ...t, query: t.query ?? "" } : t) : null
         }
         // Through the real router, so an in-page link is a history entry (Back returns
         // to the previous page); the shell's URL reader then opens or retargets the window.
@@ -72,7 +75,7 @@ export function ClassicPage({ network, page, layout }: {
     return (
         <div className="os-classic">
             <UNSAFE_NavigationContext.Provider value={nav}>
-                <Routes location={`/${network}/${page}`}>
+                <Routes location={{ pathname: `/${network}/${page}`, search: query ? `?${query}` : "" }}>
                     <Route path="/:network" element={<WindowOutlet layout={layout} />}>{networkRouteChildren()}</Route>
                 </Routes>
             </UNSAFE_NavigationContext.Provider>
