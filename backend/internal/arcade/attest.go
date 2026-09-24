@@ -52,8 +52,8 @@ type AttesterConfig struct {
 	// single-user keyring this is a gnokey formality, not a security control — the
 	// key material lives in the Fly secret + the keyring, never in this process.
 	KeyringPassword string
-	GasWanted       int           // default 5_000_000
-	GasFeeUgnot     int           // default 1_000_000
+	GasWanted       int           // default DefaultAttestGasWanted
+	GasFeeUgnot     int           // default: sized from FallbackGasPrice (see PlanAttestFee)
 	Timeout         time.Duration // per-broadcast wall clock; default 60s
 }
 
@@ -62,10 +62,10 @@ func (c AttesterConfig) withDefaults() AttesterConfig {
 		c.GnokeyBin = "gnokey"
 	}
 	if c.GasWanted <= 0 {
-		c.GasWanted = 5_000_000
+		c.GasWanted = DefaultAttestGasWanted
 	}
 	if c.GasFeeUgnot <= 0 {
-		c.GasFeeUgnot = 1_000_000
+		c.GasFeeUgnot = int(MinFeeUgnot(int64(c.GasWanted), FallbackGasPrice).Int64()) * DefaultAttestFeeMargin
 	}
 	if c.Timeout <= 0 {
 		c.Timeout = 60 * time.Second

@@ -527,6 +527,28 @@ func main() {
 		case chainID == "" || remote == "":
 			slog.Warn("MEMBA_ARCADE_ATTESTER_ENABLED set but GNO_CHAIN_ID or the RPC URL is empty — attester stays dormant (every broadcast would fail)", "chainID", chainID, "remote", remote)
 		default:
+			// Size the per-tx fee from the chain's live gas price (read-only, after
+			// a node_info.network check), falling back to gnoland-1's launch price.
+			// A fee above the cap keeps the attester dormant: at up to
+			// MaxPerCycle txs per cycle, a bad fee would drain the key.
+			gpCtx, gpCancel := context.WithTimeout(ctx, 5*time.Second)
+			gp, gpErr := arcade.FetchGasPrice(gpCtx, nil, remote, chainID)
+			gpCancel()
+			var liveGasPrice *arcade.GasPrice
+			if gpErr != nil {
+				slog.Warn("arcade attester: auth/gasprice read failed — sizing the fee from the fallback gas price", "error", gpErr)
+			} else {
+				liveGasPrice = &gp
+			}
+			fee, feeErr := arcade.PlanAttestFee(arcade.FeeSettings{
+				GasWanted:      int64Or("MEMBA_ARCADE_GAS_WANTED", 0),
+				GasFeeUgnot:    int64Or("MEMBA_ARCADE_GAS_FEE_UGNOT", 0),
+				MaxGasFeeUgnot: int64Or("MEMBA_ARCADE_MAX_GAS_FEE_UGNOT", 0),
+			}, liveGasPrice)
+			if feeErr != nil {
+				slog.Error("arcade attester fee refused — attester stays dormant", "error", feeErr)
+				break
+			}
 			bcfg := arcade.AttesterConfig{
 				Realm:   envOr("MEMBA_ARCADE_REALM", "gno.land/r/samcrew/memba_arcade_leaderboard_v1"),
 				ChainID: chainID,
@@ -537,13 +559,16 @@ func main() {
 				// ephemeral container-only keyring this is a gnokey formality.
 				KeyringPassword: envOr("MEMBA_ARCADE_KEYRING_PW", "arcade"),
 				GnokeyBin:       gnokeyBin,
+				GasWanted:       int(fee.GasWanted),
+				GasFeeUgnot:     int(fee.GasFeeUgnot),
 			}
 			arcade.StartDayCloseBatcher(ctx, arcade.NewStore(database), arcade.NewGnokeyBroadcaster(bcfg), arcade.BatcherConfig{
 				Enabled:     true,
 				MaxPerCycle: envInt("MEMBA_ARCADE_ATTEST_MAX_PER_CYCLE", 100),
 				Interval:    durationOr("MEMBA_ARCADE_ATTEST_INTERVAL", 15*time.Minute),
 			})
-			slog.Info("arcade day-close attester enabled", "realm", bcfg.Realm, "key", attesterKey, "chainID", bcfg.ChainID)
+			slog.Info("arcade day-close attester enabled", "realm", bcfg.Realm, "key", attesterKey, "chainID", bcfg.ChainID,
+				"gasWanted", fee.GasWanted, "gasFeeUgnot", fee.GasFeeUgnot, "feeSource", fee.Source)
 		}
 	}
 	// Feed link-preview image proxy — serves only images vetted by GetLinkPreview

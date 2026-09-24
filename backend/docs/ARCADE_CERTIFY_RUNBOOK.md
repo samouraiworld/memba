@@ -80,18 +80,73 @@ allowlisted (M3). For M4, keep the mnemonic on a single line in a mode-0600 file
 (for example `~/secure/memba-arcade-attester-gnoland-1.mnemonic`), stored
 offline per `docs/SECRETS_ROTATION.md`.
 
-### M2. Fund the attester for gas
+### M2. Fund the attester
 
-Each attestation is one `AttestScore` tx. The broadcaster pays
-`-gas-fee 1000000ugnot` (1 GNOT) with `-gas-wanted 5000000`; see
-`internal/arcade/attest.go`. A cycle sends at most
-`MEMBA_ARCADE_ATTEST_MAX_PER_CYCLE` txs (default 100) every
-`MEMBA_ARCADE_ATTEST_INTERVAL` (default 15m).
+Each attestation is one `AttestScore` tx, and the attester key pays two things
+for it:
 
-Fund for the expected wallet-days × 1 GNOT, plus headroom. Lower the per-cycle
-cap to bound the worst-case spend. **Owner decision:** whether 1 GNOT per
-attestation is the right fee at mainnet gas prices. Changing it is a separate
-backend PR.
+1. **The gas fee.** At boot the backend reads `auth/gasprice` from the RPC
+   (after checking `node_info.network` equals `GNO_CHAIN_ID`) and sets
+   `-gas-fee` to twice the minimum that price demands for `-gas-wanted`. If the
+   read fails, it uses gnoland-1's launch price, 1ugnot per 1000 gas. With the
+   default `-gas-wanted 50000000`, that is **100000ugnot (0.1 GNOT) per tx**.
+   The chain charges the whole fee, not the gas used. The boot line
+   `arcade day-close attester enabled` prints `gasWanted`, `gasFeeUgnot` and
+   `feeSource` (`gasprice`, `fallback` or `env`).
+2. **The storage deposit.** The realm grows by about 10 KB per new entry. That
+   is three AVL trees plus the entry, at `storage_price` 100ugnot per byte, so
+   about **1.0 GNOT per tx**. The deposit stays locked in the realm, because
+   entries are never deleted. It is the larger cost by 10×, and no fee setting
+   changes it.
+
+Measured on 2026-09-24 on a local node at the gnoland-1 ref (`e75fef82`), with
+the realm and `p/samcrew/avl` byte-identical to the published ones:
+
+| Realm state | Gas used | Storage delta |
+|---|---|---|
+| Empty (first entry) | 6.6M | 6.0 KB |
+| ~30 entries | 17.6M avg | 10.2 KB |
+| ~90 entries | 21.4M avg | 10.2 KB |
+| ~120 entries | 23.8M | 10.2 KB |
+
+Gas grows by about 2M for each doubling of the entry count. The 50M default
+lasts until roughly 150k entries; at 100 attestations a day that is about 4
+years. The old default, `-gas-wanted 5000000`, already runs **out of gas on
+the first entry**. gnokey simulates before it broadcasts, so an undersized
+budget, a fee below the gas price, or a realm panic costs nothing. The run
+retries each cycle and parks `errored` after 8 tries. Look for `out of gas` or
+`insufficient fee` in the `arcade attest failed` warnings.
+
+Knobs (Fly secrets, all optional):
+
+| Env | Default | Effect |
+|---|---|---|
+| `MEMBA_ARCADE_GAS_WANTED` | `50000000` | Gas budget per tx. Raise it when attestations fail `out of gas`. |
+| `MEMBA_ARCADE_GAS_FEE_UGNOT` | unset (sized from the price) | Explicit fee. It overrides the price-derived fee. If it is below the live minimum, the attester stays dormant. |
+| `MEMBA_ARCADE_MAX_GAS_FEE_UGNOT` | `200000` | Cap. Above it, the attester **refuses to start**, logs an `ERROR` line (`arcade attester fee refused`) and stays dormant. |
+
+With the defaults, the live gas price can double before the cap trips. Raise
+the cap on purpose, and only after you have checked the price.
+
+#### Funding the attester account
+
+One attestation is one wallet's best run for one game on one closed day. At the
+default fee and today's gas price, each one costs about **1.11 GNOT**: 0.10
+GNOT fee plus about 1.01 GNOT storage deposit.
+
+| Attestations per day | GNOT per day | GNOT per 30 days |
+|---|---|---|
+| 10 | ~11 | ~335 |
+| 50 | ~56 | ~1,670 |
+| 100 | ~111 | ~3,340 |
+
+The batcher sends at most `MEMBA_ARCADE_ATTEST_MAX_PER_CYCLE` txs (default 100)
+every `MEMBA_ARCADE_ATTEST_INTERVAL` (default 15m). That is 9,600 a day in the
+worst case, about 10,700 GNOT. Lower the per-cycle cap to bound spend below what
+the key holds. Fund for the expected daily volume times the top-up interval,
+plus headroom, and watch the balance (M6). **Owner decision:** the storage
+deposit, not the fee, sets the budget. Reducing it means a realm change, which
+is out of scope here.
 
 ### M3. Publisher `AddAttester` (MsgCall)
 
@@ -185,7 +240,8 @@ and replace the "no attester" note with the `AddAttester` height and tx.
    wallet. The run flips to `attested` with a tx hash.
 4. On-chain, check `GetBoardJSON("invaders", "<YYYY-MM-DD>", 0, 10)` or the
    Render path `:board/invaders/<YYYY-MM-DD>`. The entry is listed. The
-   attester's balance should drop by about 1 GNOT per attested wallet-day.
+   attester's balance should drop by about 1.1 GNOT per attested wallet-day:
+   0.1 GNOT fee plus about 1 GNOT storage deposit (see M2).
 
 Rollback is described under [Disable / rollback](#disable--rollback). On
 mainnet, `RemoveAttester` and `Pause` are owner MsgCalls through
