@@ -1,0 +1,106 @@
+/*
+ * Memba OS · Aqua tokens (light + dark). Scoped to .memba-os so nothing here
+ * leaks into the current app. The reference is the validated mockup v4.
+ * Manrope isn't bundled yet (the CSP only allows self-hosted fonts), so the
+ * stack falls back to Inter, which Memba already ships.
+ */
+.memba-os {
+  --os-font: 'Manrope', 'Inter', system-ui, -apple-system, sans-serif;
+  --os-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  --os-acc: #4C6EF5;
+  --os-ink: #1B1F2A;
+  --os-mut: #646C7E;
+  --os-glass: rgba(255, 255, 255, .78);
+  --os-line: rgba(20, 30, 60, .09);
+  --os-chip: rgba(76, 110, 245, .11);
+  --os-bar: rgba(255, 255, 255, .45);
+  --os-dock: rgba(255, 255, 255, .5);
+  --os-card: rgba(255, 255, 255, .55);
+  --os-hover: rgba(0, 0, 0, .06);
+  --os-scrim: rgba(20, 25, 40, .14);
+  --os-shadow: rgba(15, 25, 70, .42);
+  --os-label-shadow: 0 1px 8px rgba(255, 255, 255, .75);
+  --os-solid: #1B1F2A;
+  --os-solid-ink: #FFFFFF;
+  --os-ok: #12805F;
+  --os-ok-bg: #E1F5EC;
+  --os-warn: #B45309;
+  --os-warn-bg: #FEF0DC;
+  --os-err: #C53030;
+  --os-err-bg: rgba(217, 58, 58, .1);
+  --os-rim: rgba(255, 255, 255, .6);
+  --os-blur: blur(28px) saturate(1.4);
+  --os-radius-win: 14px;
+  --os-radius-ctl: 10px;
+
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  color: var(--os-ink);
+  font-family: var(--os-font);
+  font-size: 13px;
+  color-scheme: light;
+  transition: background .7s ease;
+}
+
+.memba-os[data-os-theme="dark"] {
+  --os-ink: #E9ECF3;
+  --os-mut: #9AA2B5;
+  --os-glass: rgba(26, 30, 41, .76);
+  --os-line: rgba(255, 255, 255, .08);
+  --os-chip: rgba(129, 153, 248, .17);
+  --os-bar: rgba(12, 15, 22, .5);
+  --os-dock: rgba(24, 28, 38, .55);
+  --os-card: rgba(255, 255, 255, .04);
+  --os-hover: rgba(255, 255, 255, .08);
+  --os-scrim: rgba(0, 0, 0, .38);
+  --os-shadow: rgba(0, 0, 0, .62);
+  --os-label-shadow: 0 1px 8px rgba(0, 0, 0, .7);
+  --os-solid: #E9ECF3;
+  --os-solid-ink: #12151C;
+  --os-ok: #5ED3A4;
+  --os-ok-bg: rgba(94, 211, 164, .14);
+  --os-warn: #F6B25E;
+  --os-warn-bg: rgba(246, 178, 94, .15);
+  --os-err: #FF8A8A;
+  --os-err-bg: rgba(255, 120, 120, .12);
+  --os-rim: rgba(255, 255, 255, .08);
+  color-scheme: dark;
+}
+
+.memba-os .os-glass {
+  background: var(--os-glass);
+  -webkit-backdrop-filter: var(--os-blur);
+  backdrop-filter: var(--os-blur);
+}
+
+.memba-os .os-menubar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 30px;
+  padding: 0 12px;
+  padding-top: env(safe-area-inset-top, 0px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 700;
+  font-size: 12.5px;
+  background: var(--os-bar);
+  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(22px);
+  z-index: 900;
+}
+
+.memba-os .os-mark {
+  width: 15px;
+  height: 15px;
+  border-radius: 5px;
+  background: linear-gradient(135deg, var(--os-acc), #B07CF7);
+  flex: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .memba-os, .memba-os * { transition: none !important; animation: none !important; }
+}

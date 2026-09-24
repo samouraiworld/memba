@@ -1,0 +1,49 @@
+import { useEffect, useState } from "react"
+
+/** Appearance is per device (D12): stored in this browser only, never synced. */
+export type OsThemePref = "auto" | "light" | "dark"
+export type OsTheme = "light" | "dark"
+
+export const OS_THEME_KEY = "memba_os_theme"
+
+export function readThemePref(): OsThemePref {
+    try {
+        const v = localStorage.getItem(OS_THEME_KEY)
+        return v === "light" || v === "dark" ? v : "auto"
+    } catch {
+        return "auto"
+    }
+}
+
+export function writeThemePref(pref: OsThemePref): void {
+    try {
+        if (pref === "auto") localStorage.removeItem(OS_THEME_KEY)
+        else localStorage.setItem(OS_THEME_KEY, pref)
+    } catch {
+        // Private windows can refuse storage; the preference then lasts for this visit only.
+    }
+}
+
+export function resolveTheme(pref: OsThemePref, systemDark: boolean): OsTheme {
+    if (pref === "auto") return systemDark ? "dark" : "light"
+    return pref
+}
+
+const DARK_QUERY = "(prefers-color-scheme: dark)"
+
+function systemPrefersDark(): boolean {
+    return typeof window !== "undefined" && typeof window.matchMedia === "function" && window.matchMedia(DARK_QUERY).matches
+}
+
+/** The resolved theme, following the system while the preference is "auto". */
+export function useOsTheme(pref: OsThemePref = readThemePref()): OsTheme {
+    const [systemDark, setSystemDark] = useState(systemPrefersDark)
+    useEffect(() => {
+        if (typeof window.matchMedia !== "function") return
+        const mq = window.matchMedia(DARK_QUERY)
+        const onChange = (e: MediaQueryListEvent) => setSystemDark(e.matches)
+        mq.addEventListener("change", onChange)
+        return () => mq.removeEventListener("change", onChange)
+    }, [])
+    return resolveTheme(pref, systemDark)
+}

@@ -278,6 +278,10 @@ jobs:
         run: npm run test:e2e:release
       - name: E2E tests (chromium)
         run: npx playwright test --project=chromium --reporter=list
+      # Memba OS: two dev servers (flag on / flag off) — proves /os renders only
+      # behind VITE_MEMBA_OS and stays unreachable without it.
+      - name: E2E Memba OS (chromium)
+        run: npm run test:e2e:os -- --project=chromium
       - name: Upload E2E artifacts on failure
         if: failure()
         uses: actions/upload-artifact@v7
@@ -287,6 +291,7 @@ jobs:
             frontend/test-results/
             frontend/playwright-report/
             frontend/test-results-release/
+            frontend/test-results-os/
           retention-days: 7
 
   frontend-e2e:

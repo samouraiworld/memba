@@ -13,6 +13,12 @@ import { BarricadeGate } from "./components/ui/BarricadeGate"
 import { AppStoreGate } from "./components/ui/AppStoreGate"
 import { ValoperRouteRedirect } from "./components/validators/ValoperRouteRedirect"
 import { RootRedirect } from "./components/layout/RootRedirect"
+import { OS_ENABLED } from "./os/flag"
+
+// ── Memba OS (behind VITE_MEMBA_OS; its own shell, outside the network Layout) ──
+// The import sits behind the flag so a flag-off build drops the chunk entirely:
+// otherwise it would still be emitted and precached by the service worker.
+const OsRoot = OS_ENABLED ? lazy(() => import("./os/OsRoot")) : null
 
 // ── Core multisig pages (small, always needed) ──
 import { CreateMultisig } from "./pages/CreateMultisig"
@@ -198,6 +204,10 @@ function App() {
       <Routes>
         {/* Root → redirect to /:defaultNetwork/ */}
         <Route path="/" element={<RootRedirect />} />
+
+        {/* Memba OS — only exists when the flag is on. Static "/os" outranks "/:network",
+            so with the flag off "/os" falls through to the network routes as before. */}
+        {OsRoot && <Route path="/os/*" element={<Suspense fallback={null}><OsRoot /></Suspense>} />}
 
         {/* ── Network-scoped routes ─────────────────────────── */}
         <Route path="/:network" element={<NetworkGate />}>
