@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Quest attestation is live on gno.land mainnet (#PRNUM, 2026-09-24)
+<!-- categories: memba, network -->
+- **Quest XP can be recorded on mainnet.** `memba_quest_attestation_v1` is now allowlisted on `gnoland-1`: its owner installed the backend's voucher key with `SetSigner` at height 292610, and the backend signs with that key for `gnoland-1` only. The arcade leaderboard stays off.
+- **The attestation panel only offers vouchers the chain will accept.** It now needs the backend's realm to be allowlisted on the active network and the realm's on-chain signer to equal the backend's key. When either fails (key not installed yet, a rotation in progress, another chain), the panel stays hidden instead of letting you pay gas for a call that reverts.
+- **Attesting is sized for mainnet.** Each `RecordCompletion` now sends a 1.6 GNOT storage-deposit cap and a 50M gas limit, measured against the deployed realm (up to 6.7 KB and 25M gas at 16,000 entries per tree). Before, it sent no cap (mainnet allows up to 100 GNOT) and the 10M default gas, which ran out after a few dozen records (9.3M gas at five). The panel says that about 0.3–0.7 GNOT per quest stays locked with the record. A lost wallet response is no longer retried, since the retry could only fail on the used nonce.
+- **Runbook order changed:** `SetSigner` first, then `fly secrets import` without `--stage`. A staged key goes live with whatever backend PR merges next.
+
 ### Escrow calls are sized for gno.land mainnet (#1279, 2026-09-24)
 <!-- categories: memba, network -->
 - **Every escrow call now carries a storage-deposit cap and a gas limit.** Mainnet charges a deposit for the bytes each call stores, and a call without a cap lets the chain lock up to 100 GNOT. The caps come from measurements of the deployed `escrow_v3` at the mainnet runtime, filled to its 500-contract limit: creating a contract stores 3.5 KB to 29 KB, and its cap is twice the estimate (at most 6.91 GNOT, under the 10 GNOT ceiling); every other call stores under 50 bytes and caps at 0.2 GNOT. Most escrow calls need more than the wallet's default 10M gas, so each one sends a measured limit.

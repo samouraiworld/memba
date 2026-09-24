@@ -717,7 +717,8 @@
       "txHash": "jNObKychXc74X1TU18roE1zpVKszH6fpyEMeNXvUnpc=",
       "verifiedOn": "2026-09-23",
       "verifiedVia": "vm/qfile",
-      "fileCount": 4
+      "fileCount": 4,
+      "note": "Signer configured 2026-09-24: the owner (samcrew 2-of-3) ran SetSigner at height 292610, tx j+sVyELYa8ssS2SVMF22XDs0D3aRgr+ADPl9G95HAow= (success, 2,679,879 gas). GetSigner() = 4dbf5a291e6a363780a1dfe75671562d894240f4c138129f336116a2adc795ba, equal to the backend's gnoland-1 voucher key; re-read via vm/qeval the same day. Allowlisted on mainnet from then on."
     },
     "memba_reviews_v2": {
       "path": "gno.land/r/samcrew/memba_reviews_v2",

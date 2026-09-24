@@ -186,15 +186,16 @@ describe('config constants', () => {
         }
         expect(file).not.toBe('')
         const records = (JSON.parse(readFileSync(file, 'utf8')) as Record<string, Record<string, unknown>>).mainnet
-        const exposed = ['memba_appstore_v3', 'memba_reviews_v2', 'memba_feedback_v2', 'gnobuilders_badges_v2', 'memba_feed_v1']
+        const exposed = ['memba_appstore_v3', 'memba_reviews_v2', 'memba_feedback_v2', 'gnobuilders_badges_v2', 'memba_feed_v1',
+            'memba_quest_attestation_v1']
         for (const base of exposed) {
             expect(isRealmValidOn('mainnet', `gno.land/r/samcrew/${base}`), `${base} must be allowlisted on mainnet`).toBe(true)
             expect(records?.[base], `mainnet realm '${base}' has no realm-versions.json mainnet record`).toBeDefined()
         }
         // Live on chain but deliberately NOT exposed: custody, commerce-only,
-        // DAO-dependent, and unconfigured attestation/attester lanes.
+        // DAO-dependent, and the arcade lane (its backend attester is off).
         const liveButGated = ['escrow_v3', 'memba_market_config', 'memba_dao_channels_v2',
-            'memba_quest_attestation_v1', 'memba_arcade_leaderboard_v1']
+            'memba_arcade_leaderboard_v1']
         for (const base of liveButGated) {
             expect(records?.[base], `${base} should be recorded as live on mainnet`).toBeDefined()
             expect(isRealmValidOn('mainnet', `gno.land/r/samcrew/${base}`), `${base} must stay gated on mainnet`).toBe(false)

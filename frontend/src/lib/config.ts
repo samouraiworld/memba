@@ -760,20 +760,25 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
     // Mainnet (`gnoland-1`): wave 1 was published 2026-09-23 by the samcrew
     // namespace multisig (realm-versions.json `mainnet`). Only realms whose
     // Memba surface is safe to expose are listed: escrow_v3 (custodies funds;
-    // its builder is not mainnet-ready), memba_market_config (commerce-only),
-    // memba_dao_channels_v2 (needs memba_dao), memba_quest_attestation_v1 (no
-    // signer set) and memba_arcade_leaderboard_v1 (no attester) are live on
-    // chain but deliberately NOT listed. memba_appstore_v3 carries one money
-    // path — RegisterApp pays the listing fee to the realm treasury (the
-    // publisher multisig at deploy) — and stays behind VITE_ENABLE_APPSTORE and
-    // VITE_ENABLE_APPSTORE_SUBMIT. Every entry needs a realm-versions.json
-    // `mainnet` record (keyed by NETWORK KEY, not chain id).
+    // not listed until an owner go), memba_market_config (commerce-only),
+    // memba_dao_channels_v2 (needs memba_dao) and memba_arcade_leaderboard_v1
+    // (attester added on chain at h292613, but the backend attester stays
+    // disabled pending a cost decision) are live on chain but deliberately NOT
+    // listed. memba_appstore_v3 carries one money path — RegisterApp pays the
+    // listing fee to the realm treasury (the publisher multisig at deploy) —
+    // and stays behind VITE_ENABLE_APPSTORE and VITE_ENABLE_APPSTORE_SUBMIT.
+    // memba_quest_attestation_v1 is listed since its signer went live: the
+    // publisher 2-of-3 ran SetSigner at h292610 and the backend signs with the
+    // same key, bound to gnoland-1 (docs/QUEST_ATTESTATION_RUNBOOK.md). Every
+    // entry needs a realm-versions.json `mainnet` record (keyed by NETWORK
+    // KEY, not chain id).
     mainnet: [
         "gno.land/r/samcrew/memba_appstore_v3",
         "gno.land/r/samcrew/memba_reviews_v2",
         "gno.land/r/samcrew/memba_feedback_v2",
         "gno.land/r/samcrew/gnobuilders_badges_v2",
         "gno.land/r/samcrew/memba_feed_v1",
+        "gno.land/r/samcrew/memba_quest_attestation_v1",
     ],
     // Pearl — the combined-ceremony set (§4 of docs/PEARL_CUTOVER_PLAN.md):
     // the default core lane + the commerce set in one window. Entry list =
