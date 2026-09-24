@@ -56,7 +56,7 @@ The arcade leaderboard is a separate lane. Its attester was added on `memba_arca
 | 16,000 entries per tree, first for a user | 6,654 B | 22.8M |
 | 16,000 entries per tree, later | ~4,230 B | 24.2M–24.9M |
 
-Every call sends `max_deposit` = 1.6 GNOT (twice an 8,000-byte estimate at 100 ugnot per byte) and a 50M gas limit (0.06 GNOT fee at 1 ugnot per 1,000 gas). The chain locks only the bytes the call adds: about 0.3–0.7 GNOT per quest, which stays locked with the permanent record. The panel says so.
+Every call sends `max_deposit` = 1.6 GNOT (twice an 8,000-byte estimate at 100 ugnot per byte) and a 50M gas limit (0.06 GNOT fee at 1 ugnot per 1,000 gas). The chain locks only the bytes the call adds: about 0.3–0.7 GNOT per quest, which stays locked with the permanent record. The panel warns before signing that up to 1.6 GNOT per quest stays locked with the record, and the confirmation dialog shows the deposit cap.
 
 ## Procedure
 
