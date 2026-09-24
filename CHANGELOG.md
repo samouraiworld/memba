@@ -20,7 +20,7 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Escrow calls are sized for gno.land mainnet (2026-09-24)
+### Escrow calls are sized for gno.land mainnet (#1279, 2026-09-24)
 <!-- categories: memba, network -->
 - **Every escrow call now carries a storage-deposit cap and a gas limit.** Mainnet charges a deposit for the bytes each call stores, and a call without a cap lets the chain lock up to 100 GNOT. The caps come from measurements of the deployed `escrow_v3` at the mainnet runtime, filled to its 500-contract limit: creating a contract stores 3.5 KB to 29 KB, and its cap is twice the estimate (at most 6.91 GNOT, under the 10 GNOT ceiling); every other call stores under 50 bytes and caps at 0.2 GNOT. Most escrow calls need more than the wallet's default 10M gas, so each one sends a measured limit.
 - **The escrow builders match the deployed realm and refuse what it would reject.** Function names and argument order are pinned to the published source in tests. Addresses, title and description sizes (in bytes), milestone count, titles and amounts are checked before signing, and amounts must be whole ugnot. Only funding a milestone sends coins, and it sends exactly that milestone's amount.
