@@ -1009,6 +1009,8 @@ describe('topaz commerce-v2 allowlist — funds-free realms only', () => {
         //                         (listing them alone gives a half-wired launchpad).
         const custodyFunds: Record<string, string> = {
             escrow: MEMBA_DAO.escrowPath,
+            // escrow_v3 stays listed on test13 (the e2e fixture) after the switch to v4.
+            escrowV3: 'gno.land/r/samcrew/escrow_v3',
             tokenOtc: MEMBA_DAO.tokenOtcPath,
             nftMarketV2: MEMBA_DAO.nftMarketPath,
             nftMarketV3_2: NFT_MARKETPLACE_V3_PATH,
@@ -1028,7 +1030,8 @@ describe('topaz commerce-v2 allowlist — funds-free realms only', () => {
         // The ONE held-back path that test13 does not list, single-sourced so the
         // exclusion is stated exactly once. Everything else gets BOTH guards by
         // default — a new entry added above cannot silently miss the anchor.
-        const notOnTest13 = new Set<string>([MEMBA_MARKET_CONFIG_PATH])
+        // escrow_v4 (the active escrowPath) is listed on no network until its go-live.
+        const notOnTest13 = new Set<string>([MEMBA_MARKET_CONFIG_PATH, 'gno.land/r/samcrew/escrow_v4'])
 
         for (const [name, path] of Object.entries({ ...custodyFunds, ...fundsFreeButCoupled })) {
             // GUARD 1 — SHAPE, checked first. Catches a mistyped CONSTANT name,
@@ -1084,9 +1087,17 @@ describe('topaz commerce-v2 allowlist — funds-free realms only', () => {
         vi.resetModules()
     })
 
+    it('targets escrow_v4, which stays gated on every network until its go-live', async () => {
+        const { isRealmValidOn, MEMBA_DAO, NETWORKS } = await import('./config')
+        expect(MEMBA_DAO.escrowPath).toBe('gno.land/r/samcrew/escrow_v4')
+        for (const key of Object.keys(NETWORKS)) {
+            expect(isRealmValidOn(key, MEMBA_DAO.escrowPath), key).toBe(false)
+        }
+    })
+
     it('does not touch the test13 allowlist', async () => {
         const { isRealmValidOn, MEMBA_DAO } = await import('./config')
-        expect(isRealmValidOn('test13', MEMBA_DAO.escrowPath)).toBe(true)
+        expect(isRealmValidOn('test13', 'gno.land/r/samcrew/escrow_v3')).toBe(true)
         expect(isRealmValidOn('test13', MEMBA_DAO.tokenOtcPath)).toBe(true)
     })
 })
@@ -1156,6 +1167,9 @@ describe('resolveStoredNetworkKey — hiding a network must not strand anyone', 
         // landing lane would vanish. Adding `!hidden` to resolveDefaultNetwork
         // would therefore red the e2e suite for no user-facing gain.
         vi.stubEnv('VITE_GNO_CHAIN_ID', 'test13')
+        // .env.e2e also pins the escrow realm to escrow_v3: the default, escrow_v4,
+        // is allowlisted nowhere yet and would gate the Services lane there.
+        vi.stubEnv('VITE_ESCROW_REALM_PATH', 'gno.land/r/samcrew/escrow_v3')
         vi.resetModules()
         const { DEFAULT_NETWORK, NETWORKS, selectableNetworksFor, isRealmValidOn, MEMBA_DAO } = await import('./config')
         expect(DEFAULT_NETWORK).toBe('test13')

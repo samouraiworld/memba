@@ -1304,7 +1304,10 @@ export const MEMBA_DAO = {
     channelsPath: import.meta.env.VITE_CHANNELS_REALM_PATH || "gno.land/r/samcrew/memba_dao_channels_v2",
     candidaturePath: import.meta.env.VITE_CANDIDATURE_REALM_PATH || "gno.land/r/samcrew/memba_dao_candidature_v3",
     agentRegistryPath: "gno.land/r/samcrew/agent_registry_v2", // IsUserCall-guarded (v1 UseCredit was unguarded)
-    escrowPath: "gno.land/r/samcrew/escrow_v3", // IsUserCall-guarded (v2 FundMilestone was unguarded)
+    // escrow_v4: per-client cap, archive refunds, time-boxed pause (v3's lifetime cap could be filled for good).
+    // Not in any REALM_ALLOWLIST yet, so isEscrowValid() keeps the lane gated everywhere until go-live.
+    // The override can only pick another allowlisted realm (the e2e fixture pins escrow_v3 on test13).
+    escrowPath: import.meta.env.VITE_ESCROW_REALM_PATH || "gno.land/r/samcrew/escrow_v4",
     nftMarketPath: "gno.land/r/samcrew/memba_nft_market_v2",
     nftCollectionsPath: "gno.land/r/samcrew/memba_collections", // Phase 2 launchpad registry (pending deploy)
     badgesPath: "gno.land/r/samcrew/gnobuilders_badges_v2",

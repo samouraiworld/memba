@@ -5,6 +5,8 @@ vi.mock("../grc20", async (importOriginal) => ({ ...(await importOriginal<typeof
 
 import {
     assertEscrowPlanSignable,
+    planArchiveContract,
+    planExpireUnfunded,
     broadcastEscrowTx,
     escrowFailureMayHaveLanded,
     planCancelContract,
@@ -23,7 +25,7 @@ import { EscrowInputError } from "./builders"
 
 const CLIENT = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
 const FREELANCER = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
-const ESCROW = "gno.land/r/samcrew/escrow_v3"
+const ESCROW = "gno.land/r/samcrew/escrow_v4"
 const MS = [{ title: "Deposit", amountUgnot: 250_000_000 }, { title: "Final", amountUgnot: 250_000_000 }]
 
 const tamper = (plan: EscrowTxPlan, value: Record<string, unknown>): EscrowTxPlan =>
@@ -48,7 +50,21 @@ describe("escrow transaction plans", () => {
         expect(plan.sendUgnot).toBe(250_000_000)
         expect(plan.msg.value.send).toBe("250000000ugnot")
         expect(plan.msg.value.max_deposit).toBe("200000ugnot")
-        expect(plan.gasWanted).toBe(14_000_000)
+        expect(plan.gasWanted).toBe(25_000_000)
+    })
+
+    it("ArchiveContract and ExpireUnfunded plans send nothing, carry the flat cap and pass the guard", () => {
+        const archive = planArchiveContract(CLIENT, ESCROW, "7")
+        const expire = planExpireUnfunded(FREELANCER, ESCROW, "7")
+        expect(archive.msg.value).toMatchObject({ func: "ArchiveContract", args: ["7"], caller: CLIENT, send: "", max_deposit: "200000ugnot" })
+        expect(expire.msg.value).toMatchObject({ func: "ExpireUnfunded", args: ["7"], caller: FREELANCER, send: "", max_deposit: "200000ugnot" })
+        expect(archive.gasWanted).toBe(31_000_000)
+        expect(expire.gasWanted).toBe(25_000_000)
+        expect(() => assertEscrowPlanSignable(archive)).not.toThrow()
+        expect(() => assertEscrowPlanSignable(expire)).not.toThrow()
+        // Neither may send coins.
+        expect(() => assertEscrowPlanSignable(tamper(archive, { send: "1ugnot" }))).toThrow()
+        expect(() => assertEscrowPlanSignable({ ...expire, sendUgnot: 1 })).toThrow()
     })
 
     it("every other call sends nothing and carries its flat cap", () => {
@@ -59,6 +75,8 @@ describe("escrow transaction plans", () => {
             planCancelContract(CLIENT, ESCROW, "7"),
             planClaimRefund(FREELANCER, ESCROW, "7", 0),
             planClaimDisputeTimeout(FREELANCER, ESCROW, "7", 0),
+            planExpireUnfunded(FREELANCER, ESCROW, "7"),
+            planArchiveContract(CLIENT, ESCROW, "7"),
         ]) {
             expect(plan.sendUgnot).toBe(0)
             expect(plan.msg.value.send).toBe("")

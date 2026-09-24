@@ -17,7 +17,7 @@ import { TxConfirmationProvider } from "../ui/TxConfirmation"
 
 const CLIENT = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
 const FREELANCER = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
-const ESCROW = "gno.land/r/samcrew/escrow_v3"
+const ESCROW = "gno.land/r/samcrew/escrow_v4"
 
 const row = (label: string) => screen.getByText(label).closest(".tx-confirm-detail-row") as HTMLElement
 

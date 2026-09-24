@@ -4,6 +4,7 @@ import { EmptyState } from "../ui/EmptyState"
 import { formatGnotCompact } from "../../lib/formatGnot"
 import { nftFallbackUri } from "../../lib/nftFallbackArt"
 import { HireServiceModal, type Service } from "./HireServiceModal"
+import { EscrowContractPanel } from "./EscrowContractPanel"
 import { ErrorToast } from "../ui/ErrorToast"
 
 // Real service listings will come from the on-chain services engine once the lane is
@@ -73,6 +74,8 @@ export default function ServiceLane() {
                     </div>
                 ))}
             </div>
+
+            <EscrowContractPanel caller={adena.connected ? adena.address : ""} />
 
             {hiringService && (
                 <HireServiceModal 

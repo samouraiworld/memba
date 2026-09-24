@@ -8,11 +8,13 @@ import { doContractBroadcast } from "../grc20"
 import { signedDepositUgnot } from "../dao/daoTx"
 import { depositNeedsOverride, formatUgnotExact, V2_MAX_DEPOSIT_UGNOT } from "../dao/v2Budget"
 import {
+    buildArchiveContractMsg,
     buildCancelContractMsg,
     buildClaimDisputeTimeoutMsg,
     buildClaimRefundMsg,
     buildCompleteMilestoneMsg,
     buildCreateContractMsg,
+    buildExpireUnfundedMsg,
     buildFundMilestoneMsg,
     buildRaiseDisputeMsg,
     buildReleaseFundsMsg,
@@ -21,7 +23,7 @@ import {
     type EscrowMilestone,
     type EscrowMsgCall,
 } from "./builders"
-import { createContractBudget, escrowCallBudget, ESCROW_CALL_MEASURED_GAS, type EscrowFunc } from "./escrowBudget"
+import { createContractBudget, escrowCallBudget, ESCROW_CALL_GAS_BASIS, type EscrowFunc } from "./escrowBudget"
 
 export interface EscrowTxPlan {
     msg: EscrowMsgCall
@@ -59,7 +61,7 @@ function plan(msg: EscrowMsgCall, sendUgnot = 0): EscrowTxPlan {
     return p
 }
 
-const KNOWN: ReadonlySet<string> = new Set<EscrowFunc>(["CreateContract", ...(Object.keys(ESCROW_CALL_MEASURED_GAS) as EscrowFunc[])])
+const KNOWN: ReadonlySet<string> = new Set<EscrowFunc>(["CreateContract", ...(Object.keys(ESCROW_CALL_GAS_BASIS) as EscrowFunc[])])
 
 /**
  * Refuse to sign a plan whose message is not exactly the one reviewed: the
@@ -187,3 +189,9 @@ export const planClaimRefund = (caller: string, escrowPath: string, contractId: 
 
 export const planClaimDisputeTimeout = (caller: string, escrowPath: string, contractId: string, milestoneIdx: number) =>
     plan(buildClaimDisputeTimeoutMsg(caller, escrowPath, contractId, milestoneIdx))
+
+export const planExpireUnfunded = (caller: string, escrowPath: string, contractId: string) =>
+    plan(buildExpireUnfundedMsg(caller, escrowPath, contractId))
+
+export const planArchiveContract = (caller: string, escrowPath: string, contractId: string) =>
+    plan(buildArchiveContractMsg(caller, escrowPath, contractId))
