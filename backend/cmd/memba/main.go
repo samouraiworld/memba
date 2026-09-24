@@ -549,6 +549,11 @@ func main() {
 				slog.Error("arcade attester fee refused — attester stays dormant", "error", feeErr)
 				break
 			}
+			maxDeposit, depErr := arcade.ResolveMaxDeposit(os.Getenv("MEMBA_ARCADE_MAX_DEPOSIT_UGNOT"))
+			if depErr != nil {
+				slog.Error("arcade attester max deposit refused — attester stays dormant", "error", depErr)
+				break
+			}
 			bcfg := arcade.AttesterConfig{
 				Realm:   envOr("MEMBA_ARCADE_REALM", "gno.land/r/samcrew/memba_arcade_leaderboard_v1"),
 				ChainID: chainID,
@@ -561,6 +566,7 @@ func main() {
 				GnokeyBin:       gnokeyBin,
 				GasWanted:       int(fee.GasWanted),
 				GasFeeUgnot:     int(fee.GasFeeUgnot),
+				MaxDepositUgnot: int(maxDeposit),
 			}
 			arcade.StartDayCloseBatcher(ctx, arcade.NewStore(database), arcade.NewGnokeyBroadcaster(bcfg), arcade.BatcherConfig{
 				Enabled:     true,
@@ -568,7 +574,7 @@ func main() {
 				Interval:    durationOr("MEMBA_ARCADE_ATTEST_INTERVAL", 15*time.Minute),
 			})
 			slog.Info("arcade day-close attester enabled", "realm", bcfg.Realm, "key", attesterKey, "chainID", bcfg.ChainID,
-				"gasWanted", fee.GasWanted, "gasFeeUgnot", fee.GasFeeUgnot, "feeSource", fee.Source)
+				"gasWanted", fee.GasWanted, "gasFeeUgnot", fee.GasFeeUgnot, "feeSource", fee.Source, "maxDepositUgnot", maxDeposit)
 		}
 	}
 	// Feed link-preview image proxy — serves only images vetted by GetLinkPreview

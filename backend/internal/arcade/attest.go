@@ -54,6 +54,7 @@ type AttesterConfig struct {
 	KeyringPassword string
 	GasWanted       int           // default DefaultAttestGasWanted
 	GasFeeUgnot     int           // default: sized from FallbackGasPrice (see PlanAttestFee)
+	MaxDepositUgnot int           // storage-deposit cap per tx (-max-deposit); default DefaultAttestMaxDepositUgnot
 	Timeout         time.Duration // per-broadcast wall clock; default 60s
 }
 
@@ -66,6 +67,9 @@ func (c AttesterConfig) withDefaults() AttesterConfig {
 	}
 	if c.GasFeeUgnot <= 0 {
 		c.GasFeeUgnot = int(MinFeeUgnot(int64(c.GasWanted), FallbackGasPrice).Int64()) * DefaultAttestFeeMargin
+	}
+	if c.MaxDepositUgnot <= 0 {
+		c.MaxDepositUgnot = DefaultAttestMaxDepositUgnot
 	}
 	if c.Timeout <= 0 {
 		c.Timeout = 60 * time.Second
@@ -157,6 +161,7 @@ func (b *gnokeyBroadcaster) attestScoreArgv(run Run) []string {
 		"-args", run.Stats,
 		"-gas-fee", strconv.Itoa(b.cfg.GasFeeUgnot) + "ugnot",
 		"-gas-wanted", strconv.Itoa(b.cfg.GasWanted),
+		"-max-deposit", strconv.Itoa(b.cfg.MaxDepositUgnot) + "ugnot", // never let the chain's 100 GNOT default apply
 		"-chainid", b.cfg.ChainID,
 		"-remote", b.cfg.Remote,
 		"-insecure-password-stdin", // read the keyring password from stdin (no TTY)

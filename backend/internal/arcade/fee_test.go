@@ -207,3 +207,60 @@ func TestFetchGasPrice_HTTPError(t *testing.T) {
 		t.Fatalf("want an HTTP 504 error, got %v", err)
 	}
 }
+
+func TestResolveMaxDeposit(t *testing.T) {
+	cases := []struct {
+		raw     string
+		want    int64
+		wantErr bool
+	}{
+		{raw: "", want: 2_000_000},           // default: 1.5× the measured worst 10,290 bytes, rounded up
+		{raw: "  ", want: 2_000_000},         // blank counts as unset
+		{raw: "1500000", want: 1_500_000},    // override
+		{raw: "5000000", want: 5_000_000},    // at the hard ceiling
+		{raw: "0", wantErr: true},            // would hand the cap back to the chain's 100 GNOT default
+		{raw: "-1", wantErr: true},           // negative
+		{raw: "5000001", wantErr: true},      // above the 5 GNOT ceiling
+		{raw: "100000000", wantErr: true},    // the chain default, 100 GNOT
+		{raw: "2000000ugnot", wantErr: true}, // a coin string, not a bare amount
+		{raw: "2e6", wantErr: true},
+	}
+	for _, tc := range cases {
+		t.Run(tc.raw, func(t *testing.T) {
+			got, err := ResolveMaxDeposit(tc.raw)
+			if tc.wantErr {
+				if err == nil {
+					t.Fatalf("want a refusal, got %d", got)
+				}
+				return
+			}
+			if err != nil || got != tc.want {
+				t.Fatalf("got %d, %v; want %d", got, err, tc.want)
+			}
+		})
+	}
+}
+
+// The production broadcaster always passes -max-deposit, so no attestation can
+// fall back to the chain's 100 GNOT default_deposit.
+func TestGnokeyBroadcaster_AlwaysCapsDeposit(t *testing.T) {
+	for _, tc := range []struct {
+		cfg  AttesterConfig
+		want string
+	}{
+		{AttesterConfig{}, "2000000ugnot"},
+		{AttesterConfig{MaxDepositUgnot: 1_200_000}, "1200000ugnot"},
+	} {
+		b := NewGnokeyBroadcaster(tc.cfg).(*gnokeyBroadcaster)
+		argv := b.attestScoreArgv(Run{Game: "invaders", Addr: "g1abc", Day: "2026-09-24", Seed: "s", SimVersion: 1, StateHash: "h", LogHash: "l"})
+		got := ""
+		for i := 0; i+1 < len(argv); i++ {
+			if argv[i] == "-max-deposit" {
+				got = argv[i+1]
+			}
+		}
+		if got != tc.want {
+			t.Fatalf("-max-deposit = %q, want %q (argv %v)", got, tc.want, argv)
+		}
+	}
+}

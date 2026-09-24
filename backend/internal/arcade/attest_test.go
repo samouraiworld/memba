@@ -368,6 +368,7 @@ func TestGnokeyBroadcaster_Argv(t *testing.T) {
 	b := &gnokeyBroadcaster{cfg: AttesterConfig{
 		Realm: "gno.land/r/samcrew/memba_arcade_leaderboard_v1", ChainID: "test-13",
 		Remote: "https://rpc.example:443", KeyName: "arcade-attester", GasWanted: 3000000, GasFeeUgnot: 1000000,
+		MaxDepositUgnot: 1500000,
 	}}
 	// Every field is DISTINCT (score/simVersion are adjacent same-type args) so
 	// an exact-slice compare catches a transposition that a substring check
@@ -393,6 +394,7 @@ func TestGnokeyBroadcaster_Argv(t *testing.T) {
 		"-args", `{"wave":7,"shots":90,"hits":41}`, // stats
 		"-gas-fee", "1000000ugnot",
 		"-gas-wanted", "3000000",
+		"-max-deposit", "1500000ugnot",
 		"-chainid", "test-13",
 		"-remote", "https://rpc.example:443",
 		"-insecure-password-stdin",

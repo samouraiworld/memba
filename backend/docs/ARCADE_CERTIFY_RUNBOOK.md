@@ -97,7 +97,8 @@ for it:
    is three AVL trees plus the entry, at `storage_price` 100ugnot per byte, so
    about **1.0 GNOT per tx**. The deposit stays locked in the realm, because
    entries are never deleted. It is the larger cost by 10×, and no fee setting
-   changes it.
+   changes it. Every tx passes `-max-deposit` (default 2000000ugnot, 2 GNOT).
+   Without it, the chain would allow up to its `default_deposit` of 100 GNOT.
 
 Measured on 2026-09-24 on a local node at the gnoland-1 ref (`e75fef82`), with
 the realm and `p/samcrew/avl` byte-identical to the published ones:
@@ -124,15 +125,22 @@ Knobs (Fly secrets, all optional):
 | `MEMBA_ARCADE_GAS_WANTED` | `50000000` | Gas budget per tx. Raise it when attestations fail `out of gas`. |
 | `MEMBA_ARCADE_GAS_FEE_UGNOT` | unset (sized from the price) | Explicit fee. It overrides the price-derived fee. If it is below the live minimum, the attester stays dormant. |
 | `MEMBA_ARCADE_MAX_GAS_FEE_UGNOT` | `200000` | Cap. Above it, the attester **refuses to start**, logs an `ERROR` line (`arcade attester fee refused`) and stays dormant. |
+| `MEMBA_ARCADE_MAX_DEPOSIT_UGNOT` | `2000000` | The most storage deposit one attestation can lock, passed to gnokey as `-max-deposit`. The measured worst case is 10,290 bytes (1,029,000 ugnot), and the default is ×1.5 of that, rounded up. Setting it to `0`, a non-integer, or more than `5000000` (5 GNOT) makes the attester **refuse to start** (`arcade attester max deposit refused`). |
 
-With the defaults, the live gas price can double before the cap trips. Raise
-the cap on purpose, and only after you have checked the price.
+With the defaults, the live gas price can double before the fee cap trips. Raise
+the fee cap on purpose, and only after you have checked the price.
 
 #### Funding the attester account
 
 One attestation is one wallet's best run for one game on one closed day. At the
 default fee and today's gas price, each one costs about **1.11 GNOT**: 0.10
-GNOT fee plus about 1.01 GNOT storage deposit.
+GNOT fee plus about 1.01 GNOT storage deposit. No single attestation can lock
+more than `MEMBA_ARCADE_MAX_DEPOSIT_UGNOT` (2 GNOT by default), so the most one
+tx can cost is 2.1 GNOT. If a tx needs more deposit than the cap allows, gnokey's
+simulation rejects it with `not enough deposit to cover the storage usage`, and
+it costs nothing (checked on the local node: the balance did not change).
+The run retries and parks like any other failure. Raise the cap only if the
+realm's per-entry storage really grew.
 
 | Attestations per day | GNOT per day | GNOT per 30 days |
 |---|---|---|
@@ -143,7 +151,8 @@ GNOT fee plus about 1.01 GNOT storage deposit.
 The batcher sends at most `MEMBA_ARCADE_ATTEST_MAX_PER_CYCLE` txs (default 100)
 every `MEMBA_ARCADE_ATTEST_INTERVAL` (default 15m). That is 9,600 a day in the
 worst case, about 10,700 GNOT. Lower the per-cycle cap to bound spend below what
-the key holds. Fund for the expected daily volume times the top-up interval,
+the key holds. With the caps, one full cycle can cost at most
+100 × 2.1 GNOT = 210 GNOT. Fund for the expected daily volume times the top-up interval,
 plus headroom, and watch the balance (M6). **Owner decision:** the storage
 deposit, not the fee, sets the budget. Reducing it means a realm change, which
 is out of scope here.

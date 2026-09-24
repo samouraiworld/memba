@@ -35,6 +35,15 @@ const (
 	// default budget costs 100_000 ugnot at today's price, so the live price can
 	// double before the attester refuses.
 	DefaultMaxAttestFeeUgnot = 200_000
+
+	// DefaultAttestMaxDepositUgnot bounds the storage deposit one AttestScore
+	// may lock (gnokey -max-deposit). Unset, the chain falls back to its
+	// default_deposit param (100 GNOT on gnoland-1). Measured worst case: 10,290
+	// bytes at 100ugnot/byte = 1,029,000 ugnot; ×1.5 rounds up to 2 GNOT. A tx
+	// that needs more fails in gnokey's simulation, so it locks and pays nothing.
+	DefaultAttestMaxDepositUgnot = 2_000_000
+	// MaxAttestMaxDepositUgnot is the hard ceiling on MEMBA_ARCADE_MAX_DEPOSIT_UGNOT (5 GNOT).
+	MaxAttestMaxDepositUgnot = 5_000_000
 )
 
 // FallbackGasPrice is gnoland-1's auth/gasprice at launch (1ugnot per 1000
@@ -141,6 +150,22 @@ func PlanAttestFee(s FeeSettings, live *GasPrice) (FeePlan, error) {
 	}
 	p.GasFeeUgnot = fee.Int64() // <= maxFee, so it fits
 	return p, nil
+}
+
+// ResolveMaxDeposit parses MEMBA_ARCADE_MAX_DEPOSIT_UGNOT. Empty takes the
+// default. Anything else must be a whole ugnot amount in
+// (0, MaxAttestMaxDepositUgnot]; otherwise the attester must stay dormant. A 0
+// would hand the choice back to the chain's 100 GNOT default_deposit.
+func ResolveMaxDeposit(raw string) (int64, error) {
+	raw = strings.TrimSpace(raw)
+	if raw == "" {
+		return DefaultAttestMaxDepositUgnot, nil
+	}
+	n, err := strconv.ParseInt(raw, 10, 64)
+	if err != nil || n <= 0 || n > MaxAttestMaxDepositUgnot {
+		return 0, fmt.Errorf("arcade: MEMBA_ARCADE_MAX_DEPOSIT_UGNOT=%q must be a whole ugnot amount in 1..%d", raw, MaxAttestMaxDepositUgnot)
+	}
+	return n, nil
 }
 
 // FetchGasPrice reads auth/gasprice from the RPC at remote, after checking the
