@@ -88,8 +88,8 @@ const HERO_META: Record<string, { title: string; subtitle: string; chips: string
     },
     services: {
         title: "Freelance Services",
-        subtitle: "Hire talent with milestone escrow settled on-chain — funds release only when work is accepted.",
-        chips: ["Milestone escrow", "On-chain dispute freeze", "Fees fund the DAO"],
+        subtitle: "Hire talent with milestone escrow settled on-chain — each milestone is paid when the client accepts the work, or under the dispute and timeout rules.",
+        chips: ["Milestone escrow", "On-chain dispute freeze", "Fee only at release"],
     },
     agents: {
         title: "AI Agents",
