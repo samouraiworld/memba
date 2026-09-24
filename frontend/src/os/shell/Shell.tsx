@@ -23,6 +23,8 @@ import { loadSavedTargets, saveWindows, targetsFromUrl, urlForWindows, windowTok
 import { useDesk } from "./useDesk"
 import { useOsSession } from "./useOsSession"
 import { SignerProvider } from "../sign/SignerProvider"
+import { useIsMobile } from "../../hooks/useIsMobile"
+import { PhoneShell } from "../phone/PhoneShell"
 import { Launcher } from "./Launcher"
 import { WindowFrame, type FrameActions } from "./WindowFrame"
 import {
@@ -69,24 +71,25 @@ function arrivalWindows(arrival: ReturnType<typeof targetsFromUrl>, fromLink: bo
 }
 
 export function Shell() {
+    const phone = useIsMobile()
     const location = useLocation()
     const navigate = useNavigate()
 
     // ── desk size (windows and items are placed in it) ──
-    const deskRef = useRef<HTMLElement>(null)
+    // A state ref: the desk mounts again after a phone → desktop switch, and must be observed again.
+    const [deskEl, setDeskEl] = useState<HTMLElement | null>(null)
     const [desk, setDesk] = useState<DeskSize>(initialDesk)
     const deskNow = useRef(desk)
     useEffect(() => {
-        const el = deskRef.current
-        if (!el || typeof ResizeObserver === "undefined") return
+        if (!deskEl || typeof ResizeObserver === "undefined") return
         const ro = new ResizeObserver(() => {
-            const next = { w: el.clientWidth, h: el.clientHeight }
+            const next = { w: deskEl.clientWidth, h: deskEl.clientHeight }
             deskNow.current = next
             setDesk(next)
         })
-        ro.observe(el)
+        ro.observe(deskEl)
         return () => ro.disconnect()
-    }, [])
+    }, [deskEl])
 
     // ── toast ──
     const [toast, setToast] = useState<string | null>(null)
@@ -210,7 +213,7 @@ export function Shell() {
     const [startRequest, setStartRequest] = useState(0)
     const closeMenu = useCallback(() => setMenu(null), [])
     const openMenu = (e: ReactMouseEvent, item: number | null) => {
-        const r = deskRef.current?.getBoundingClientRect()
+        const r = deskEl?.getBoundingClientRect()
         if (!r) return
         setMenu({ x: Math.min(e.clientX - r.left, r.width - 240), y: Math.min(e.clientY - r.top, r.height - 200), item })
     }
@@ -234,12 +237,43 @@ export function Shell() {
     }
 
     const visible = visibleWindows(win.wins)
+    const shared = (
+        <>
+            <ConnectModal session={session} />
+            {toast && <div className="os-toast os-glass" role="status">{toast}</div>}
+            {locked && (
+                <LockScreen
+                    onConnect={() => { unlock(); session.openConnect() }}
+                    onGuest={() => { unlock(); open(welcomeSpec(), true) }}
+                />
+            )}
+        </>
+    )
+    // A phone draws the same windows as full-screen sheets on a home screen (day 6).
+    if (phone) {
+        return (
+            <SignerProvider session={session} toast={showToast}>
+                <PhoneShell session={session} front={front} items={deskItems.items} open={open} openApp={openApp} openItem={openItem}
+                    close={win.close} toast={showToast} openSearch={() => setLauncher(true)}
+                    home={(id) => {
+                        // A history entry for the sheet we leave, so Back (a phone habit) reopens it;
+                        // the minimise then rewrites this new entry to /os.
+                        // Only for a window with an address: Welcome or Not found share /os with Home.
+                        const w = win.wins.find((x) => x.id === id)
+                        if (w && windowToken(w.target) !== null) navigate(location.pathname + location.search)
+                        win.minimise(id)
+                    }} />
+                {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={() => setLauncher(false)} />}
+                {shared}
+            </SignerProvider>
+        )
+    }
     return (
         <SignerProvider session={session} toast={showToast}>
             <MenuBar session={session} wins={win.wins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={win.close}
                 closeAll={win.closeAll} minimiseAll={win.minimiseAll} tile={tile} nextWin={win.next} lock={lock} toast={showToast}
                 isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} openSearch={() => setLauncher(true)} />
-            <main ref={deskRef} className="os-desk" aria-label="Desktop"
+            <main ref={setDeskEl} className="os-desk" aria-label="Desktop"
                 onContextMenu={(e) => { if (e.target === e.currentTarget && !locked) { e.preventDefault(); openMenu(e, null) } }}>
                 <DeskItems items={deskItems.items} deskWidth={desk.w} onOpen={openItem} onMove={deskItems.move} onMenu={openMenu} />
                 {member && deskItems.items.length === 0 && visible.length === 0 && (
@@ -267,14 +301,7 @@ export function Shell() {
                 </div>
             )}
             <Dock wins={win.wins} openApp={openApp} restore={win.focus} />
-            <ConnectModal session={session} />
-            {toast && <div className="os-toast os-glass" role="status">{toast}</div>}
-            {locked && (
-                <LockScreen
-                    onConnect={() => { unlock(); session.openConnect() }}
-                    onGuest={() => { unlock(); open(welcomeSpec(), true) }}
-                />
-            )}
+            {shared}
         </SignerProvider>
     )
 }

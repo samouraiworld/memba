@@ -121,6 +121,11 @@ Full changelogs are split by version range for easier navigation:
 - Send GNOT from Memba OS (`/os/wallet/send`, or "Send GNOT" in ⌘K). The amount is exact to the ugnot; commas are refused rather than guessed, so "12,5" can never become 125. On mainnet, a first send to an address or a send of 100 GNOT or more needs an explicit "I checked the address" in the review. Recent and saved recipients stay in this browser.
 - The send goes through the Memba review, then Adena shows it as a Transfer: one `/bank.MsgSend` with a single coin amount, the shape Adena accepts (the earlier attempt in #1078 used another spelling). It is never retried automatically, Memba asks Adena which account is active right before signing, and an unknown outcome locks Send until you confirm you checked it.
 - `toAdenaMessages` accepts `/bank.MsgSend` only in that shape: two `g1` addresses and one positive `ugnot` amount. The old `bank/MsgSend` form still throws.
+### Memba OS on phones
+<!-- categories: memba, mobile -->
+- On a phone (768 px and narrower), Memba OS becomes a home screen, still behind `VITE_MEMBA_OS`: a status bar with the clock, network and notifications; a space chip; a widget with your balance and Send (or Connect for guests); your desktop items; All apps; and a dock with DAOs, Wallet, Feed and Search.
+- Every window opens as one full-screen sheet with ‹ Home. Links, shared URLs and Back work as on the desktop: a shared proposal link opens straight as a sheet, and Back after Home reopens the sheet you left. DAO sections show as tabs, and Memba's pages use their own mobile layout inside a sheet.
+
 ### Memba OS multisig windows
 <!-- categories: memba -->
 - Memba OS has native Multisig windows, still behind `VITE_MEMBA_OS`: the Multisig app lists your multisigs and the ones you're a member of (with Join), and a multisig window shows its threshold, balance, members and transactions, with a dot per signer.

@@ -58,7 +58,8 @@ function Holding({ tile, title, text, children }: { tile: ReactNode; title: stri
     )
 }
 
-function Body({ win, ...a }: Actions & { win: OsWindow }) {
+/** What a window shows: the native window for its target, or the Memba page. Also drawn as a phone sheet. */
+export function WindowBody({ win, ...a }: Actions & { win: OsWindow }) {
     const net = a.session.network.key
     if (win.key === "welcome") return <Welcome {...a} />
     const t = win.target
@@ -179,7 +180,7 @@ export function WindowFrame({ win, active, desk, frame, ...a }: Omit<Actions, "c
                 </span>
                 <h2 className="os-tb-title">{win.title}</h2>
             </div>
-            <div className="os-wbody"><Body win={win} {...a} close={() => frame.close(win.id)} /></div>
+            <div className="os-wbody"><WindowBody win={win} {...a} close={() => frame.close(win.id)} /></div>
             {!win.max && <span className="os-rz" aria-hidden="true" data-testid="resize" onPointerDown={(e) => begin("resize", e)} {...handlers} />}
         </section>
     )

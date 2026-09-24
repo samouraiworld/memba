@@ -29,6 +29,12 @@ function itemLook(it: DeskItem): { label: string; tile: ReactNode } {
     }
 }
 
+/** A desk item's tile and label, for the phone home screen (tap only). */
+export function DeskIcon({ item }: { item: DeskItem }) {
+    const look = itemLook(item)
+    return <>{look.tile}<span className="os-ph-label">{look.label}</span></>
+}
+
 type Drag = { index: number; el: HTMLElement; sx: number; sy: number; ox: number; oy: number; moved: boolean }
 
 export function DeskItems({ items, deskWidth, onOpen, onMove, onMenu }: {

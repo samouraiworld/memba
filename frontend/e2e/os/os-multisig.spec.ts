@@ -18,7 +18,7 @@ const ready = { ...pending, id: 9, memo: 'payroll', signatures: [{ userAddress: 
 const done = { ...pending, id: 3, memo: '', finalHash: 'ABCDEF0123456789', signatures: [{ userAddress: BOB, value: 'x' }, { userAddress: ALICE, value: 'y' }] }
 
 async function setup(page: Page) {
-    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]|monitoring\./, (route) => route.abort())
+    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
     const json = (body: unknown) => ({ status: 200, contentType: 'application/json', body: JSON.stringify(body) })
     await page.route('**/memba.v1.MultisigService/Multisigs', (route) => route.fulfill(json({ multisigs: [team, invite] })))
     await page.route('**/memba.v1.MultisigService/MultisigInfo', (route) => route.fulfill(json({ multisig: team })))
@@ -70,7 +70,7 @@ test.describe('Memba OS multisig', () => {
     })
 
     test('a guest is asked to connect', async ({ page }) => {
-        await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]|monitoring\./, (route) => route.abort())
+        await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
         await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
         await page.goto(`${OS_ON}/os/multisig/${MSIG}`)
         await expect(page.getByText('Only members of a multisig can see and sign its transactions.')).toBeVisible()

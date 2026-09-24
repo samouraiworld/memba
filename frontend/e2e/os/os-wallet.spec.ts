@@ -9,7 +9,7 @@ const ALICE = 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
 const BOB = 'g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c'
 
 async function offline(page: Page) {
-    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]|monitoring\./, (route) => route.abort())
+    await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (route) => route.abort())
     await fulfillOnchainReads(page, ({ method, path }) => {
         if (method === 'status') return mockAppChainStatus('gnoland-1')
         // 250 GNOT
