@@ -1,11 +1,13 @@
 /**
  * Memba OS root — mounted at /os/* when VITE_MEMBA_OS is on (see flag.ts).
- * Day 1 renders the empty Aqua desktop in the resolved theme; the shell,
- * windows and apps land on top of it in the following PRs.
+ * Paints the Aqua wallpaper in the resolved theme and mounts the shell
+ * (menu bar, windows, dock, connect flow) on top of it.
  *
  * @module os/OsRoot
  */
 import "./os.css"
+import "./shell/shell.css"
+import { Shell } from "./shell/Shell"
 import { useOsTheme } from "./theme"
 import { DEFAULT_WALLPAPER } from "./wallpapers"
 
@@ -19,11 +21,7 @@ export default function OsRoot() {
             data-os-theme={theme}
             style={{ background: theme === "dark" ? wallpaper.dark : wallpaper.light }}
         >
-            <header className="os-menubar" aria-label="Menu bar">
-                <span className="os-mark" aria-hidden="true" />
-                <span>Memba</span>
-            </header>
-            <main aria-label="Desktop" />
+            <Shell />
         </div>
     )
 }

@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect } from "react"
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
+import { lazy, Suspense, useEffect, type ReactNode } from "react"
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from "react-router-dom"
 import { useAdena } from "./hooks/useAdena"
 import { useNetworkKey } from "./hooks/useNetworkNav"
 import { ScrollToTop } from "./components/layout/ScrollToTop"
@@ -19,6 +19,18 @@ import { OS_ENABLED } from "./os/flag"
 // The import sits behind the flag so a flag-off build drops the chunk entirely:
 // otherwise it would still be emitted and precached by the service worker.
 const OsRoot = OS_ENABLED ? lazy(() => import("./os/OsRoot")) : null
+
+/** Every /os URL belongs to Memba OS. Decided before route matching: as an
+ *  "/os/*" route, deeper classic routes outrank it (/:network/dao/*
+ *  scores higher than /os/*), so /os/dao/… would fall into the network
+ *  routes as network "os". With the flag off, /os stays a network path as before. */
+function OsOrClassic({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation()
+  if (OsRoot && (pathname === "/os" || pathname.startsWith("/os/"))) {
+    return <Suspense fallback={null}><OsRoot /></Suspense>
+  }
+  return children
+}
 
 // ── Core multisig pages (small, always needed) ──
 import { CreateMultisig } from "./pages/CreateMultisig"
@@ -201,13 +213,10 @@ function App() {
   return (
     <BrowserRouter>
       <ScrollToTop />
+      <OsOrClassic>
       <Routes>
         {/* Root → redirect to /:defaultNetwork/ */}
         <Route path="/" element={<RootRedirect />} />
-
-        {/* Memba OS — only exists when the flag is on. Static "/os" outranks "/:network",
-            so with the flag off "/os" falls through to the network routes as before. */}
-        {OsRoot && <Route path="/os/*" element={<Suspense fallback={null}><OsRoot /></Suspense>} />}
 
         {/* ── Network-scoped routes ─────────────────────────── */}
         <Route path="/:network" element={<NetworkGate />}>
@@ -358,6 +367,7 @@ function App() {
           <Route path="*" element={<Suspense fallback={<PageLoader />}><NotFound /></Suspense>} />
         </Route>
       </Routes>
+      </OsOrClassic>
     </BrowserRouter>
   )
 }

@@ -1,4 +1,5 @@
 import { render, screen } from "@testing-library/react"
+import { MemoryRouter } from "react-router-dom"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import OsRoot from "./OsRoot"
 import { OS_THEME_KEY } from "./theme"
@@ -12,6 +13,8 @@ function mockSystemDark(dark: boolean) {
     }))
 }
 
+const renderOs = () => render(<MemoryRouter initialEntries={["/os"]}><OsRoot /></MemoryRouter>)
+
 afterEach(() => {
     vi.unstubAllGlobals()
     localStorage.clear()
@@ -20,7 +23,7 @@ afterEach(() => {
 describe("OsRoot", () => {
     it("renders the empty desktop in light when the system is light", () => {
         mockSystemDark(false)
-        render(<OsRoot />)
+        renderOs()
         expect(screen.getByTestId("memba-os")).toHaveAttribute("data-os-theme", "light")
         expect(screen.getByRole("banner", { name: "Menu bar" })).toBeInTheDocument()
         expect(screen.getByRole("main", { name: "Desktop" })).toBeInTheDocument()
@@ -28,14 +31,14 @@ describe("OsRoot", () => {
 
     it("renders dark when the system is dark", () => {
         mockSystemDark(true)
-        render(<OsRoot />)
+        renderOs()
         expect(screen.getByTestId("memba-os")).toHaveAttribute("data-os-theme", "dark")
     })
 
     it("lets the stored per-device choice win over the system", () => {
         mockSystemDark(true)
         localStorage.setItem(OS_THEME_KEY, "light")
-        render(<OsRoot />)
+        renderOs()
         expect(screen.getByTestId("memba-os")).toHaveAttribute("data-os-theme", "light")
     })
 })

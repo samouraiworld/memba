@@ -29,6 +29,12 @@ Full changelogs are split by version range for easier navigation:
 <!-- categories: memba -->
 - Memba OS, the desktop redesign, starts behind the `VITE_MEMBA_OS` flag at `/os`: an empty Aqua desktop in light and dark, the app registry that gives every Memba page a home, and its own end-to-end suite.
 - A flag-on build fails everywhere except the Memba OS beta site, and a flag-off build ships none of its code.
+### Memba OS shell
+<!-- categories: memba -->
+- Memba OS gets its shell, still behind `VITE_MEMBA_OS`. A lock screen greets first visits only. A wallet session resumes without it, and a shared link opens its content right away as a guest.
+- The menu bar has the start menu with every app, the space switcher, the app and Window menus, the network (with a TESTNET warning off mainnet), notifications, the account menu and a clock. There's also a dock and a Welcome window.
+- Connect runs on Memba's existing Adena sign-in: install help, approval, the free login signature, and one-time activation for a new address.
+- Every `/os/...` link now opens in Memba OS. Before, links such as `/os/dao/...` or `/os/feed` fell into the regular pages.
 
 ### Coming next
 <!-- categories: memba, network -->

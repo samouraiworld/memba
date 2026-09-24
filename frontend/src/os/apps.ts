@@ -70,7 +70,6 @@ export const OS_APPS: readonly OsApp[] = [
 /** Routes that aren't an app: the desktop itself, redirects, callbacks and retired previews. */
 export const OS_SYSTEM_ROUTES: readonly { route: string; handling: string }[] = [
     { route: "/", handling: "The desktop" },
-    { route: "/os/*", handling: "Memba OS itself (behind VITE_MEMBA_OS)" },
     { route: "/:network", handling: "The desktop, on that network" },
     { route: "dashboard", handling: "The desktop (dashboard cards become widgets)" },
     { route: "github/callback", handling: "Sign-in callback, no window" },

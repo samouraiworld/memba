@@ -18,6 +18,7 @@
   --os-card: rgba(255, 255, 255, .55);
   --os-hover: rgba(0, 0, 0, .06);
   --os-scrim: rgba(20, 25, 40, .14);
+  --os-lockbg: rgba(236, 241, 252, .32);
   --os-shadow: rgba(15, 25, 70, .42);
   --os-label-shadow: 0 1px 8px rgba(255, 255, 255, .75);
   --os-solid: #1B1F2A;
@@ -54,6 +55,7 @@
   --os-card: rgba(255, 255, 255, .04);
   --os-hover: rgba(255, 255, 255, .08);
   --os-scrim: rgba(0, 0, 0, .38);
+  --os-lockbg: rgba(8, 10, 16, .45);
   --os-shadow: rgba(0, 0, 0, .62);
   --os-label-shadow: 0 1px 8px rgba(0, 0, 0, .7);
   --os-solid: #E9ECF3;
@@ -84,8 +86,8 @@
   padding-top: env(safe-area-inset-top, 0px);
   display: flex;
   align-items: center;
-  gap: 8px;
-  font-weight: 700;
+  gap: 4px;
+  font-weight: 600;
   font-size: 12.5px;
   background: var(--os-bar);
   -webkit-backdrop-filter: blur(22px);
