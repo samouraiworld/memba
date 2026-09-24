@@ -44,6 +44,9 @@
 .soon-preview__note { margin: 14px 0 0; font-size: 13px; color: var(--color-text-secondary); line-height: 1.6; }
 @media (max-width: 1000px) { .coming-soon-gate { grid-template-columns: 1fr; } .coming-soon-desc { max-width: 620px; } }
 @media (max-width: 480px) { .coming-soon-gate { padding: 12px 0; } .soon-preview__collection { gap: 8px; padding: 0 16px 20px; } .soon-preview__tile > span { display: none; } .soon-preview__top, .soon-preview__intro { padding-inline: 16px; } .soon-preview__tabs { margin-inline: 16px; gap: 14px; } .soon-preview__art--1 i { border-width: 6px; } }
+/* The same layout in a Memba OS window, whose width the viewport rules can't see. */
+@container os-window (max-width: 1000px) { .coming-soon-gate { grid-template-columns: 1fr; } .coming-soon-desc { max-width: 620px; } }
+@container os-window (max-width: 480px) { .coming-soon-gate { padding: 12px 0; } .soon-preview__collection { gap: 8px; padding: 0 16px 20px; } .soon-preview__tile > span { display: none; } .soon-preview__top, .soon-preview__intro { padding-inline: 16px; } .soon-preview__tabs { margin-inline: 16px; gap: 14px; } .soon-preview__art--1 i { border-width: 6px; } }
 
 /* ── IBC Coming Soon pill ────────────────────────────── */
 .ibc-coming-soon-pill {

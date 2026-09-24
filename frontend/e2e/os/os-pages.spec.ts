@@ -28,6 +28,14 @@ test.describe('Memba OS pages in windows', () => {
         await expect(page.locator('.os-classic nav[aria-label="Main navigation"], .os-classic .k-sidebar')).toHaveCount(0)
     })
 
+    test('a page that redirects as it opens (NFT → the marketplace) follows the redirect in its window', async ({ page }) => {
+        await page.goto(`${OS_ON}/os/nft`)
+        const nft = win(page, 'NFT')
+        await expect(nft.getByRole('heading', { name: 'Marketplace' }).first()).toBeVisible()
+        await expect.poll(() => new URL(page.url()).pathname).toBe('/os/nft/marketplace/nfts')
+        await expect(page.getByRole('region', { name: 'NFT', exact: true })).toHaveCount(1)
+    })
+
     test('a link inside the page stays in its window, and the address bar follows', async ({ page }) => {
         await page.goto(`${OS_ON}/os/quests`)
         const quests = win(page, 'Quests')

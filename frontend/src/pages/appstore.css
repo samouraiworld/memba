@@ -461,6 +461,20 @@
         justify-content: center;
     }
 }
+/* The same layout in a narrow Memba OS window. */
+@container os-window (max-width: 560px) {
+    .appfeatured__body,
+    .appdetail__hero {
+        flex-direction: column;
+    }
+    .appfeatured__actions {
+        width: 100%;
+    }
+    .appfeatured__actions .appbtn {
+        flex: 1 1 auto;
+        justify-content: center;
+    }
+}
 
 @media (prefers-reduced-motion: reduce) {
     .appcard,

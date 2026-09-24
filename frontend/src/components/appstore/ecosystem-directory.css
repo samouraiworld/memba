@@ -22,6 +22,9 @@
 @media (max-width: 1150px) { .ecosystem-directory__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 @media (max-width: 650px) { .ecosystem-directory__grid { grid-template-columns: 1fr; } .ecosystem-app { padding: 20px; } }
 @media (prefers-reduced-motion: reduce) { .ecosystem-app { transition: none; } }
+/* The same layout in a Memba OS window, whose width the viewport rules can't see. */
+@container os-window (max-width: 1150px) { .ecosystem-directory__grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@container os-window (max-width: 650px) { .ecosystem-directory__grid { grid-template-columns: 1fr; } .ecosystem-app { padding: 20px; } }
 
 .ecosystem-directory__filters { display: flex; flex-wrap: wrap; align-items: end; gap: 14px; }
 .ecosystem-directory__filters label { display: flex; flex-direction: column; flex: 1 1 160px; gap: 8px; font-size: 14px; min-width: 0; }

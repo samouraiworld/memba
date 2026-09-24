@@ -699,6 +699,37 @@
     }
 }
 
+/* The same layout in a narrow Memba OS window (the viewport is still a desktop's). */
+@container os-window (max-width: 768px) {
+    .k-questhub-hero {
+        flex-direction: column;
+        text-align: center;
+    }
+
+    .k-questhub-hero-stats {
+        align-items: center;
+        min-width: 0;
+    }
+
+    .k-questhub-filters {
+        flex-direction: column;
+    }
+
+    .k-questhub-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .k-questhub-tabs {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+    }
+
+    .k-questhub-select,
+    .k-questhub-search {
+        width: 100%;
+    }
+}
+
 /* ── Quest Completion Celebration ─────────────── */
 
 .k-quest-celebration {

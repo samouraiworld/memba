@@ -326,7 +326,8 @@
 .memba-os .os-wiz-steps li.os-done .os-wiz-dot { background: var(--os-ok-bg); color: var(--os-ok); }
 .memba-os .os-wiz-main { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 18px; align-items: start; }
 @container (max-width: 620px) { .memba-os .os-wiz-main { grid-template-columns: 1fr; } }
-.memba-os .os-wbody { container-type: inline-size; }
+/* Named so a Memba page can mirror its phone rules for a narrow window: @container os-window (max-width: …) never matches outside Memba OS. */
+.memba-os .os-wbody { container: os-window / inline-size; }
 .memba-os .os-wiz-form { display: grid; gap: 14px; min-width: 0; }
 .memba-os .os-wiz-preview { display: grid; gap: 10px; padding: 12px; border-radius: 14px; background: var(--os-hover); }
 .memba-os .os-wiz-foot { display: flex; align-items: center; gap: 8px; padding-top: 12px; border-top: 1px solid var(--os-line); }

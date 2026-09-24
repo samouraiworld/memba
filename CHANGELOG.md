@@ -128,6 +128,10 @@ Full changelogs are split by version range for easier navigation:
 - ⌘K (or the ⌕ button in the menu bar) searches apps, DAOs and their sections, Memba's pages and commands; a pasted `g1…` address opens its profile or validator page, and a realm path opens its DAO.
 - Send feedback opens in its own window (`/os/feedback`). Multisig and your own profile ask a guest to connect first.
 - The network route table moves from `App.tsx` to `routes/networkRoutes.tsx`, unchanged, so both interfaces render the same pages.
+### Memba OS pages that redirect, and narrow windows
+<!-- categories: memba -->
+- A Memba page that redirects as it opens now follows the redirect inside its Memba OS window, still behind `VITE_MEMBA_OS`. The NFT app (which opens the marketplace), Services and the other redirecting pages showed an empty window, because the window's address was written back over the redirect.
+- Feed, App Store, Arcade, Validators and Quests keep their phone layout in a narrow Memba OS window on a desktop screen, instead of spilling sideways out of it. The window body is a named `os-window` container, so a page can mirror its phone rules with `@container os-window (…)`; those rules never apply outside Memba OS.
 ### Memba OS wallet and GNOT send
 <!-- categories: memba, wallet -->
 - Memba OS has a native Wallet window, still behind `VITE_MEMBA_OS`: your GNOT balance, Send, Receive (copies your address), and tokens, shown as "Not on gnoland-1 yet" where the token factory isn't live.

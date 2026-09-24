@@ -794,6 +794,35 @@
     }
 }
 
+/* The same layout in a narrow Memba OS window (the viewport is still a desktop's;
+   the roster stays a table there, scrolling sideways inside its wrapper). */
+@container os-window (max-width: 768px) {
+    .val-stats-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .val-stat-value {
+        font-size: 20px;
+    }
+
+    .val-table-wrap {
+        overflow-x: auto;
+    }
+
+    .val-toolbar {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .val-search {
+        max-width: 100%;
+    }
+
+    .val-toolbar-right {
+        justify-content: space-between;
+    }
+}
+
 /* ── v2.14: Last 20 Blocks Signature Strip ──────────────── */
 
 .val-block-strip {

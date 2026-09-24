@@ -166,9 +166,17 @@ export function Shell() {
     // Declared after the reader on purpose: effects run in order, and the reader
     // must see the URL before this one replaces it, or it would take the old URL
     // for a back/forward navigation.
+    // It writes only when the windows change, and only a URL they haven't written or
+    // been read from yet: a page that redirects as it opens (NFT → the marketplace)
+    // has already replaced the address, and writing the stale windows' URL over it
+    // would leave the window blank.
+    const wroteFor = useRef<readonly OsWindow[] | null>(null)
     useEffect(() => {
+        if (wroteFor.current === win.wins) return
+        wroteFor.current = win.wins
         saveWindows(win.wins)
         const url = urlForWindows(win.wins)
+        if (url === lastUrl.current) return
         lastUrl.current = url
         if (url !== window.location.pathname + window.location.search) navigate(url, { replace: true })
     }, [win.wins, navigate])
