@@ -28,6 +28,7 @@ Full changelogs are split by version range for easier navigation:
 ### @username links open the right profile (2026-09-24)
 <!-- categories: memba, network -->
 - **`/u/<username>` now resolves through the registry's `ResolveName`.** It used to scrape the first address out of the `r/sys/users` page, but that realm renders its home page for every path. On gno.land mainnet that page lists no address, so every link showed "User not found"; on a registry page that did list one, the link would have opened the wrong profile. If the registry can't be reached, the page says so instead of claiming the user doesn't exist.
+- **Look-alike names are refused, not folded.** A name containing an accented, full-width or invisible character, or a Unicode look-alike such as the Kelvin sign that lowercases to `k`, is no longer rewritten into a registered name: `/u/` shows "User not found" for it. Only plain ASCII spaces are trimmed from the edges.
 
 ### OTC desk lists the token you choose (2026-09-24)
 <!-- categories: memba -->
