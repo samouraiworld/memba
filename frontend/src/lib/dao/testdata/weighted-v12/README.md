@@ -1,7 +1,8 @@
 # Weighted host v12 native fixtures
 
 `native.json` is verbatim structured-read output (`GetConfigJSON`,
-`GetMembersJSON`, `GetProposalsJSON`, `GetProposalJSON`) of the mainnet
+`GetMembersJSON`, `GetProposalsJSON`, `GetProposalJSON`, and `Render("")`
+under `render`) of the mainnet
 governing DAO candidate `gno.land/r/samcrew/memba_dao`, read contract
 `memba-weighted-host/v12`. Nothing here was hand-edited; re-capture instead.
 
@@ -33,9 +34,11 @@ a84c69382821031e5cb43d32d1d1ce6012ce71028ee103de415b0fba797c530d  arcade_adapter
 172a91718b86b0fbf6e58536bfde6af04ffb33b74eb37bade47c5c5283a369c4  reviews_adapter.gno
 ```
 
-`packageSha256` records every host and policy source file used.
-`memba_weighted_policy.gno.txt` is a verbatim copy of the policy source; the
-unit tests check its digest and pin the routine/financial thresholds that
+`packageSha256` records every host and policy source file used. `host/`
+holds verbatim copies of the host's ten `*_actions.gno` encoders and of
+`policy.gno`. The unit tests check each against its recorded digest, derive
+the list of encodable operations from the encoders (69) and require a
+native proposal for every one, and pin the routine/financial thresholds that
 the config JSON does not publish.
 
 ## Scenario
@@ -60,6 +63,15 @@ time starts at 2026-09-24T00:00:00Z.
    single proposal, and #16/#23 one day later (`recovery_later`,
    `badges_later`).
 
-Every action type appears: `set-role`, `recover-member`, `market-config`,
-`reviews`, `quest`, `arcade`, `appstore`, `escrow`, `badges`, `feed`,
-`channels`, `feedback`.
+Records 1–7 are unchanged by what follows.
+
+8. Phase 2 (`op:<type>:<operation>` records, each read right after it was
+   proposed): unpauses, then a return and an abort-return executed for every
+   adapter; appointments (attester, admin, moderator, curator, channel and
+   feedback members); a comment, a hidden review, two flags on a seeded
+   pending listing, a seeded delisted listing, and an escrow contract `"0"`
+   funded and disputed; emergency pauses of badges, feed and feedback; then
+   one proposal for each remaining operation, all against the same state.
+   Together with records 1–7 this covers every operation the host can encode,
+   role grant and removal, and member recovery. `catalog_total` is the final
+   proposal count.

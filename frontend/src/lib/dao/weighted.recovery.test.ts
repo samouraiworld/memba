@@ -29,7 +29,7 @@ it("checks the recovery checksum, exact current seat and unused replacement", as
     const snapshot = await readWeightedSnapshot(ctx)
     const action = { type: "recover" as const, personId: fixture.members[0].personId, oldAddress: fixture.members[0].address, newAddress: replacement }
     expect(() => validateWeightedRecovery(snapshot, action)).not.toThrow()
-    expect(buildWeightedMessage(fixture.members[1].address, weightedRealm, action).value).toMatchObject({ func: "ProposeRecovery", args: [action.personId, action.oldAddress, replacement], send: "" })
+    expect(buildWeightedMessage(fixture.members[1].address, weightedRealm, action, fixture.config.schema).value).toMatchObject({ func: "ProposeRecovery", args: [action.personId, action.oldAddress, replacement], send: "" })
     expect(() => validateWeightedRecovery(snapshot, { ...action, personId: "another human" })).toThrow("seat changed")
     expect(() => validateWeightedRecovery(snapshot, { ...action, newAddress: fixture.members[1].address })).toThrow("already belongs")
     expect(() => validateWeightedRecovery(snapshot, { ...action, newAddress: replacement.slice(0, -1) + (replacement.endsWith("q") ? "p" : "q") })).toThrow("checksum")

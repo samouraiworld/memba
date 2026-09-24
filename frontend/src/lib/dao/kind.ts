@@ -134,6 +134,22 @@ async function probe<T>(read: () => Promise<T>): Promise<T | null> {
 async function probeKind(ctx: { rpcUrl: string; realmPath: string }, signal?: AbortSignal): Promise<DaoKind> {
     const { rpcUrl, realmPath } = ctx
 
+    // Weighted hosts first, and only on the paths they can live at: their
+    // Render is informational text, so no Render heuristic may classify them.
+    // Accepts every supported weighted read contract (v1, v2, v12) and nothing else.
+    if (WEIGHTED_REALM_RE.test(realmPath)) {
+        throwIfAborted(signal)
+        const raw = await probe(() => queryEval(rpcUrl, realmPath, "GetConfigJSON()", true))
+        if (raw) {
+            try {
+                const config = weightedConfigSchema.parse(parseWeightedQeval(raw))
+                if (config.realmPath === realmPath) return "weighted"
+            } catch {
+                // Not a weighted host config — fall through to the other probes.
+            }
+        }
+    }
+
     throwIfAborted(signal)
     const template = parseQevalString(await probe(() => queryEval(rpcUrl, realmPath, "GetTemplateVersion()", true)))
     if (template === MEMBA_V2_TEMPLATE_VERSION) return "memba-v2"
@@ -148,19 +164,6 @@ async function probeKind(ctx: { rpcUrl: string; realmPath: string }, signal?: Ab
     const landing = await probe(() => queryRender(rpcUrl, realmPath, "", true))
     if (landing && hasOwnSubpageLink(landing, realmPath, "proposals")) return "daokit"
 
-    // Accepts every supported weighted read contract (v1, v2, v12) and nothing else.
-    if (WEIGHTED_REALM_RE.test(realmPath)) {
-        throwIfAborted(signal)
-        const raw = await probe(() => queryEval(rpcUrl, realmPath, "GetConfigJSON()", true))
-        if (raw) {
-            try {
-                const config = weightedConfigSchema.parse(parseWeightedQeval(raw))
-                if (config.realmPath === realmPath) return "weighted"
-            } catch {
-                // Not a weighted host config — fall through.
-            }
-        }
-    }
     return "unknown"
 }
 

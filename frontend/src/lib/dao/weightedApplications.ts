@@ -9,6 +9,7 @@
  * action encoders, so a read that the host could not have produced is refused.
  */
 import { z } from "zod"
+import { revealInvisibleFormatting } from "./v2Text"
 import { address, blank, optionalAddress, personID, role, sha256Hex, text, uint64 } from "./weightedPrimitives"
 
 export type WeightedCategory = "routine" | "financial" | "critical"
@@ -146,7 +147,11 @@ const escrowAction = z.strictObject({
     }),
 }).refine(a => {
     // milestoneIndex "0" is also the unset value outside dispute resolutions.
-    if (has(["refund-client", "pay-freelancer"], a.operation)) return a.contractId !== "" && a.recipient === ""
+    // Contract IDs start at "0" (escrow_v3 allocates from a zero-valued counter).
+    if (has(["refund-client", "pay-freelancer"], a.operation)) {
+        const c = a.before.contract
+        return a.contractId !== "" && a.recipient === "" && c.exists && c.id === a.contractId && BigInt(a.milestoneIndex) < BigInt(c.count)
+    }
     return a.contractId === "" && a.milestoneIndex === "0" && exactly(has(RETURN_OPS, a.operation), a.recipient)
 }, "Malformed escrow action")
 
@@ -222,20 +227,20 @@ export const APPLICATION_LABELS: Record<WeightedApplicationAction["type"], strin
     escrow: "Escrow", badges: "Badges", feed: "Feed", channels: "DAO channels", feedback: "Feedback",
 }
 
-/** Operation parameters worth showing, in host field order; unset values are omitted. */
+/** Operation parameters worth showing, in host field order; unset values are omitted. Invisible and bidi characters are made visible. */
 export function applicationDetails(action: WeightedApplicationAction): [string, string][] {
     const skip = new Set(["type", "target", "operation", "before"])
     const out: [string, string][] = []
     for (const [key, value] of Object.entries(action)) {
         if (skip.has(key) || value === "" || (action.type === "escrow" && key === "milestoneIndex" && action.contractId === "") || (action.type === "market-config" && key === "bps" && action.operation !== "set-fee") || (action.type === "appstore" && key === "fee" && action.operation !== "set-fee") || (action.type === "reviews" && key === "id" && value === "0")) continue
-        out.push([key, String(value)])
+        out.push([key, revealInvisibleFormatting(String(value))])
     }
     return out
 }
 
-/** Flatten the frozen pre-state into labelled rows (nested objects use dotted keys). */
+/** Flatten the frozen pre-state into labelled rows (nested objects use dotted keys); invisible characters are made visible. */
 export function flattenBefore(value: unknown, prefix = ""): [string, string][] {
-    if (value === null || typeof value !== "object") return [[prefix, value === "" ? "(unset)" : String(value)]]
+    if (value === null || typeof value !== "object") return [[prefix, value === "" ? "(unset)" : revealInvisibleFormatting(String(value))]]
     const rows: [string, string][] = []
     const entries = Array.isArray(value) ? value.map((v, i) => [String(i), v] as const) : Object.entries(value)
     if (entries.length === 0) return [[prefix, "(none)"]]

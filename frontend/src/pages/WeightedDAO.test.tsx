@@ -7,7 +7,7 @@ import { doContractBroadcast } from "../lib/grc20"
 import { bech32Encode } from "../lib/dao/realmAddress"
 import { weightedFixture, weightedRealm } from "../lib/dao/testdata/weighted"
 import v12Native from "../lib/dao/testdata/weighted-v12/native.json"
-import { weightedConfigSchema, weightedMembersSchema, weightedPageSchema } from "../lib/dao/weighted"
+import { weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema } from "../lib/dao/weighted"
 vi.mock("../lib/config", () => ({ NETWORKS: { pearl: { chainId: "pearl", rpcUrl: "https://selected.invalid" }, mainnet: { chainId: "gnoland-1", rpcUrl: "https://main.invalid" } }, GNO_CHAIN_ID: "pearl", GNO_RPC_URL: "https://selected.invalid" }))
 vi.mock("../lib/dao/weighted", async importOriginal => ({ ...await importOriginal<typeof import("../lib/dao/weighted")>(), readWeightedSnapshot: vi.fn(), readWeightedProposal: vi.fn() }))
 vi.mock("../lib/grc20", () => ({ doContractBroadcast: vi.fn() }))
@@ -180,4 +180,50 @@ it("explains invalidated and executed v12 history on the older page", async () =
     expect(within(accept).getByRole("heading", { name: "Market config · accept-admin" })).toBeTruthy()
     expect(within(accept).getByText("Historical vote totals are unavailable.")).toBeTruthy()
     expect(within(accept).queryByRole("note")).toBeNull()
+})
+it("keeps v12 read-only on a test network even for a connected, authenticated member", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    const data = v12Snapshot()
+    render(<App network="pearl" address={data.members[1].address} />)
+    expect(await screen.findByText(/This DAO version is read-only in Memba for now/)).toBeTruthy()
+    expect(screen.getByLabelText("Member").closest("fieldset")?.disabled).toBe(true)
+    expect(screen.getByLabelText("Recovery member").closest("fieldset")?.disabled).toBe(true)
+    for (const button of screen.getAllByRole("button", { name: /^(Vote .*|Execute proposal)$/ })) {
+        expect(button.hasAttribute("disabled")).toBe(true)
+        fireEvent.click(button)
+    }
+    expect(doContractBroadcast).not.toHaveBeenCalled()
+})
+it("lists an unreadable proposal by ID and keeps the rest of the page", async () => {
+    const data = v12Snapshot()
+    data.page.proposals[2] = { id: data.page.proposals[2].id, unreadable: true }
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => data)
+    render(<App network="mainnet" />)
+    const item = await screen.findByRole("article", { name: "Proposal 24" })
+    expect(within(item).getByRole("heading", { name: "Unreadable proposal #24" })).toBeTruthy()
+    expect(within(item).queryByRole("button")).toBeNull()
+    expect(screen.getAllByRole("article")).toHaveLength(20)
+    expect(screen.getByRole("heading", { name: "Market config · set-fee" })).toBeTruthy()
+})
+it("reveals bidi and zero-width characters in realm-controlled text", async () => {
+    const r = v12Native.records as unknown as Record<string, { proposal: { action: Record<string, unknown> } }>
+    const reject = structuredClone(r["op:appstore:reject"])
+    reject.proposal.action.path = "gno.land/r/samcrew/app\u202Egpj.exe"
+    reject.proposal.action.reason = "looks\u200Bfine"
+    const before = reject.proposal.action.before as { listing: Record<string, unknown> }
+    before.listing.status = "pen\u2066ding"
+    const room = structuredClone(r["op:channels:create-text-channel"])
+    room.proposal.action.description = "room\u200Dnotes"
+    const parse = (x: unknown) => weightedProposalSchema.parse(x).proposal
+    const data = v12Snapshot()
+    data.members[0] = { ...data.members[0], personId: "zx\u202Exma" }
+    data.page = { ...data.page, proposals: [parse(reject), parse(room)] }
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => data)
+    const view = render(<App network="mainnet" />)
+    expect(await screen.findByText("gno.land/r/samcrew/app[U+202E]gpj.exe")).toBeTruthy()
+    expect(screen.getByText("looks[U+200B]fine")).toBeTruthy()
+    expect(screen.getByText("pen[U+2066]ding")).toBeTruthy()
+    expect(screen.getByText("room[U+200D]notes")).toBeTruthy()
+    expect(screen.getAllByText("zx[U+202E]xma").length).toBeGreaterThan(0)
+    expect(view.container.textContent).not.toMatch(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069]/)
 })

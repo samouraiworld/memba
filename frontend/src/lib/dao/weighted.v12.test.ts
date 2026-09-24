@@ -1,14 +1,19 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import native from "./testdata/weighted-v12/native.json"
-import policySource from "./testdata/weighted-v12/memba_weighted_policy.gno.txt?raw"
-import { readWeightedProposal, readWeightedSnapshot, validateWeightedRecovery, weightedApplicationPolicies, weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema, WEIGHTED_APPLICATIONS_SCHEMA } from "./weighted"
+import { assertWeightedWrites, buildWeightedMessage, isUnreadableProposal, readWeightedProposal, readWeightedSnapshot, validateWeightedRecovery, weightedApplicationPolicies, weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema, WEIGHTED_APPLICATIONS_SCHEMA } from "./weighted"
 import { APPLICATION_POLICY_KEYS, IMMEDIATE_THRESHOLDS, applicationDetails, expectedCategory, flattenBefore, type WeightedApplicationAction } from "./weightedApplications"
 import { directRpcCall } from "../rpcFallback"
 import { qevalWire, weightedFixture } from "./testdata/weighted"
 vi.mock("../rpcFallback", async importOriginal => ({ ...await importOriginal<typeof import("../rpcFallback")>(), directRpcCall: vi.fn() }))
 
 type Json = Record<string, unknown>
+// Verbatim host sources: the action encoders and the policy, pinned by SHA-256.
+const hostSources = Object.fromEntries(Object.entries(import.meta.glob("./testdata/weighted-v12/host/*.gno.txt", { query: "?raw", import: "default", eager: true }) as Record<string, string>)
+    .map(([path, text]) => [path.split("/").pop()!.replace(/\.txt$/, ""), text]))
+const policySource = hostSources["policy.gno"]
+const sha256 = async (text: string) => Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text))), b => b.toString(16).padStart(2, "0")).join("")
 const records = native.records as unknown as Record<string, Json>
+const opRecords = Object.entries(records).filter(([key]) => key.startsWith("op:")) as [string, Json & { proposal: Json & { action: Json } }][]
 const realmPath = "gno.land/r/samcrew/memba_dao"
 const ctx = { realmPath, rpcUrl: "https://selected.invalid", chainId: "gnoland-1" }
 const proposalRecord = (id: number) => structuredClone(records[`proposal_${id}`]) as Json & { proposal: Json & { action: Json } }
@@ -144,7 +149,6 @@ describe("weighted host v12 native reads", () => {
         expect(second.page.proposals.map(p => p.id)).toEqual(["6", "5", "4", "3", "2", "1"])
         expect(second.page.nextBefore).toBeNull()
         expect((await readWeightedProposal(ctx, "18", WEIGHTED_APPLICATIONS_SCHEMA)).category).toBe("routine")
-        expect(() => validateWeightedRecovery(first, { type: "recover", personId: "dadidou", oldAddress: first.members[6].address, newAddress: "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquyl3wcje" })).not.toThrow()
     })
 
     it("checks proposers for application actions but names no member target", async () => {
@@ -159,17 +163,37 @@ describe("weighted host v12 native reads", () => {
         await expect(readWeightedSnapshot(ctx)).rejects.toThrow("current members")
     })
 
-    it("binds returns, treasury changes and the reviews target to the configured adapters", async () => {
+    it("lists a proposal that does not match the configured adapters as unreadable, keeping the rest", async () => {
         const config = replies.config as Json
         config.reviewsPolicy = { ...(config.reviewsPolicy as Json), target: "gno.land/r/samcrew/memba_reviews_v1" }
-        await expect(readWeightedSnapshot(ctx)).rejects.toThrow("configured adapters")
+        const snapshot = await readWeightedSnapshot(ctx)
+        const unreadable = snapshot.page.proposals.filter(isUnreadableProposal).map(p => p.id)
+        expect(unreadable).toEqual(["18"]) // the only reviews proposal on the page
+        expect(snapshot.page.proposals).toHaveLength(20)
         replies.config = structuredClone(records.config)
         const page = replies.pages["0"] as { proposals: Json[] }
         const fee = page.proposals[9] as { action: Json } // #17 market set-fee
-        fee.action = { ...fee.action, operation: "return-admin", lane: "", bps: 0, recipient: (records.config.marketPolicy as Json).treasury }
+        fee.action = { ...fee.action, operation: "set-treasury", lane: "", bps: 0, recipient: (records.config.marketPolicy as Json).successor }
+        expect((await readWeightedSnapshot(ctx)).page.proposals.filter(isUnreadableProposal).map(p => p.id)).toEqual(["17"])
+    })
+
+    it("keeps the workspace readable when one item is mis-encoded, but not when the page itself is", async () => {
+        const page = replies.pages["0"] as { proposals: Json[] }
+        const item = page.proposals[3] as { action: Json } // #23 badges add-admin
+        item.action = { ...item.action, operation: "grant-everything" }
+        const snapshot = await readWeightedSnapshot(ctx)
+        expect(snapshot.page.proposals.filter(isUnreadableProposal)).toEqual([{ id: "23", unreadable: true }])
+        expect(snapshot.page.proposals.filter(p => !isUnreadableProposal(p))).toHaveLength(19)
+        // Without a decimal ID the page order and cursor cannot be checked.
+        page.proposals[3] = { id: "twenty-three" }
         await expect(readWeightedSnapshot(ctx)).rejects.toThrow()
-        fee.action = { ...fee.action, operation: "set-treasury", recipient: (records.config.marketPolicy as Json).successor }
-        await expect(readWeightedSnapshot(ctx)).rejects.toThrow("configured adapters")
+        page.proposals[3] = { ...item, id: "22" }
+        await expect(readWeightedSnapshot(ctx)).rejects.toThrow("Invalid proposal page")
+        replies.pages["0"] = { ...(records.proposals_page_1 as Json), unexpected: true }
+        await expect(readWeightedSnapshot(ctx)).rejects.toThrow()
+        replies.pages["0"] = structuredClone(records.proposals_page_1)
+        replies.config = { ...(records.config as Json), feedbackPolicy: { ...(records.config.feedbackPolicy as Json), memberCategory: "routine" } }
+        await expect(readWeightedSnapshot(ctx)).rejects.toThrow()
     })
 
     it("rejects mixed versions and malformed replies without a prose fallback", async () => {
@@ -183,9 +207,82 @@ describe("weighted host v12 native reads", () => {
     })
 })
 
+describe("every operation the host can encode", () => {
+    const TYPE_FOR: Record<string, string> = { appstore: "appstore", arcade: "arcade", badges: "badges", channels: "channels", escrow: "escrow", feed: "feed", feedback: "feedback", market: "market-config", quest: "quest", reviews: "reviews" }
+    const encodable = () => Object.entries(hostSources).filter(([name]) => name.endsWith("_actions.gno"))
+        .flatMap(([name, text]) => [...text.matchAll(/Kind\s*=\s*"([a-z-]+)"/g)].map(m => `${TYPE_FOR[name.split("_")[0]]}:${m[1]}`))
+
+    it("vendors the exact host encoders and policy recorded with the fixtures", async () => {
+        const names = Object.keys(hostSources).sort()
+        expect(names).toEqual(["appstore_actions.gno", "arcade_actions.gno", "badges_actions.gno", "channels_actions.gno", "escrow_actions.gno", "feed_actions.gno", "feedback_actions.gno", "market_actions.gno", "policy.gno", "quest_actions.gno", "reviews_actions.gno"])
+        for (const name of names) {
+            const module = name === "policy.gno" ? "memba_weighted_policy" : "memba_weighted_host"
+            expect(await sha256(hostSources[name]), name).toBe((native.packageSha256 as Record<string, string>)[`gno.land/p/samcrew/${module}/${name}`])
+        }
+    })
+
+    it("has a native proposal for each encodable operation, and every one parses", () => {
+        const ops = encodable()
+        expect(ops).toHaveLength(69)
+        const covered = new Set<string>()
+        const all = [...opRecords.map(([, r]) => r), ...Array.from({ length: 26 }, (_, i) => records[`proposal_${i + 1}`])]
+        for (const record of all) {
+            const parsed = weightedProposalSchema.safeParse(record)
+            expect(parsed.success, JSON.stringify((record as { proposal: Json }).proposal.action)).toBe(true)
+            const action = (record as { proposal: { action: Json } }).proposal.action
+            if (typeof action.operation === "string") covered.add(`${action.type}:${action.operation}`)
+            else covered.add(action.type === "set-role" ? `set-role:${action.grant ? "grant" : "remove"}` : String(action.type))
+        }
+        expect(ops.filter(op => !covered.has(op))).toEqual([])
+        for (const extra of ["set-role:grant", "set-role:remove", "recover-member"]) expect(covered.has(extra)).toBe(true)
+    })
+
+    it("accepts every operation the encoders define and nothing else", () => {
+        for (const op of encodable()) {
+            const [type, operation] = op.split(":")
+            expect(expectedCategory({ type, operation }), op).toMatch(/^(routine|financial|critical)$/)
+        }
+        const [, sample] = opRecords.find(([key]) => key === "op:badges:unpause")!
+        const bogus = structuredClone(sample); bogus.proposal.action.operation = "pause"
+        expect(parseProposal(bogus)).toBe(false)
+    })
+
+    it("binds escrow dispute actions to the frozen contract and milestone", () => {
+        const [, refund] = opRecords.find(([key]) => key === "op:escrow:refund-client")!
+        const action = refund.proposal.action as Json & { before: { contract: Json } }
+        expect([action.contractId, action.before.contract.id, action.before.contract.exists]).toEqual(["0", "0", true])
+        expect(parseProposal(refund)).toBe(true)
+        const mutate = (change: (a: Json & { before: { contract: Json } }) => void) => { const r = structuredClone(refund); change(r.proposal.action as Json & { before: { contract: Json } }); return parseProposal(r) }
+        expect(mutate(a => { a.milestoneIndex = "1" })).toBe(false)
+        expect(mutate(a => { a.contractId = "1" })).toBe(false)
+        expect(mutate(a => { a.before.contract.exists = false })).toBe(false)
+        expect(mutate(a => { a.contractId = "" })).toBe(false)
+    })
+
+    it("builds no transaction for v12 on any network", async () => {
+        const snapshot = await readWeightedSnapshot(ctx)
+        const caller = snapshot.members[1].address, schema = snapshot.config.schema
+        const actions = [
+            { type: "vote", id: "17", vote: "yes" }, { type: "execute", id: "17" },
+            { type: "propose", target: snapshot.members[2].address, role: "admin", grant: true },
+            { type: "recover", personId: "dadidou", oldAddress: snapshot.members[6].address, newAddress: "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquyl3wcje" },
+        ] as const
+        for (const action of actions) expect(() => buildWeightedMessage(caller, realmPath, action, schema)).toThrow("read-only")
+        for (const chain of ["gnoland-1", "pearl", "test13", "dev"]) expect(() => assertWeightedWrites(chain, chain, chain, schema)).toThrow()
+        expect(() => assertWeightedWrites("pearl", "pearl", "pearl", "memba-weighted-host/v2")).not.toThrow()
+        expect(() => validateWeightedRecovery(snapshot, actions[3])).toThrow("does not support")
+    })
+
+    it("records the generated realm's own Render, which carries no DAO sub-page links", () => {
+        expect(typeof records.render).toBe("string")
+        expect(records.render as unknown as string).toMatch(/^# Memba DAO\n/)
+        expect(records.render as unknown as string).not.toMatch(/:proposals|\]\(/)
+    })
+})
+
 describe("immediate thresholds", () => {
     it("match the vendored policy source recorded in the fixture provenance", async () => {
-        const digest = Array.from(new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(policySource))), b => b.toString(16).padStart(2, "0")).join("")
+        const digest = await sha256(policySource)
         expect(digest).toBe(native.packageSha256["gno.land/p/samcrew/memba_weighted_policy/policy.gno"])
         const rule = (category: string) => {
             const match = policySource.match(new RegExp(`case ${category}:\\n\\t\\ts\\.Qualified = s\\.WeightYes >= (\\d+) && s\\.PeopleYes >= (\\d+)\\n\\t\\ts\\.Ready = s\\.Qualified\\n`))

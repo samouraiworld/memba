@@ -105,3 +105,19 @@ test('unknown weighted host versions are refused, not rendered as an older contr
     await expect(page.locator('.weighted-dao').getByRole('heading', { name: 'Application adapters' })).toHaveCount(0)
     await expect(page.locator('.weighted-dao').getByRole('article')).toHaveCount(0)
 })
+test('one mis-encoded weighted proposal is listed as unreadable without hiding the rest', async ({ page }) => {
+    await stubNetwork(page)
+    await routeV12(page)
+    const firstPage = structuredClone(v12.proposals_page_1) as { proposals: { action: Record<string, unknown> }[] }
+    firstPage.proposals[3].action.operation = 'grant-everything'
+    await page.route('**/abci_query?**', async route => {
+        const expression = Buffer.from(new URL(route.request().url()).searchParams.get('data')!.slice(2), 'hex').toString('utf8')
+        if (!expression.endsWith('GetProposalsJSON(0, 20)')) return route.fallback()
+        return route.fulfill({ json: { result: { response: { ResponseBase: { Data: Buffer.from(qevalWire(firstPage)).toString('base64'), Error: null } } } } })
+    })
+    await page.goto(`/mainnet/weighted-dao/${weightedRealm}`)
+    const workspace = page.locator('.weighted-dao')
+    await expect(workspace.getByRole('heading', { name: 'Unreadable proposal #23' })).toBeVisible()
+    await expect(workspace.getByRole('article')).toHaveCount(20)
+    await expect(workspace.getByRole('heading', { name: 'Market config · set-fee' })).toBeVisible()
+})

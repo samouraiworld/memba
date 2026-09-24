@@ -81,9 +81,16 @@ export const weightedProposalSchema = z.discriminatedUnion("schema", [
 ])
 const pageFor = <S extends WeightedSchemaVersion>(schema: S) => z.strictObject({ schema: z.literal(schema), kind: z.literal("proposals"), total: uint64, proposals: z.array(weightedProposalFor[schema]).max(50), nextBefore: id.nullable() })
 export const weightedPageSchema = z.discriminatedUnion("schema", [pageFor(WEIGHTED_SCHEMA), pageFor(WEIGHTED_RECOVERY_SCHEMA), pageFor(WEIGHTED_APPLICATIONS_SCHEMA)])
+/** The page envelope is strict; each item is validated on its own (see readWeightedSnapshot). */
+const envelopeFor = <S extends WeightedSchemaVersion>(schema: S) => z.strictObject({ schema: z.literal(schema), kind: z.literal("proposals"), total: uint64, proposals: z.array(z.unknown()).max(50), nextBefore: id.nullable() })
+const weightedPageEnvelopeSchema = z.discriminatedUnion("schema", [envelopeFor(WEIGHTED_SCHEMA), envelopeFor(WEIGHTED_RECOVERY_SCHEMA), envelopeFor(WEIGHTED_APPLICATIONS_SCHEMA)])
 export type WeightedProposal = z.infer<typeof v12Proposal>
+/** A list item the contract returned but Memba could not validate. It is shown by ID only and offers no action. */
+export type UnreadableWeightedProposal = { id: string; unreadable: true }
+export type WeightedPageEntry = WeightedProposal | UnreadableWeightedProposal
+export function isUnreadableProposal(p: WeightedPageEntry): p is UnreadableWeightedProposal { return "unreadable" in p }
 export type WeightedMember = z.infer<typeof member>
-export type WeightedPage = z.infer<typeof weightedPageSchema>
+export type WeightedPage = Omit<z.infer<typeof weightedPageSchema>, "proposals"> & { proposals: WeightedPageEntry[] }
 export type WeightedContext = { rpcUrl: string; chainId: string; realmPath: string }
 export type WeightedAction = { type: "recover"; personId: string; oldAddress: string; newAddress: string } | { type: "propose"; target: string; role: "admin" | "finance"; grant: boolean } | { type: "vote"; id: string; vote: "yes" | "no" | "abstain" } | { type: "execute"; id: string }
 
@@ -151,16 +158,27 @@ export async function readWeightedSnapshot(ctx: WeightedContext, before = "0", s
     uint64.parse(before)
     const status = z.object({ node_info: z.object({ network: z.string() }) }).parse(await directRpcCall(ctx.rpcUrl, "status", {}, signal))
     if (status.node_info.network !== ctx.chainId) throw new Error("RPC network does not match the selected chain")
-    const [config, roster, page] = await Promise.all([
+    const [config, roster, envelope] = await Promise.all([
         read(ctx, "GetConfigJSON()", signal).then(v => weightedConfigSchema.parse(v)),
         read(ctx, "GetMembersJSON()", signal).then(v => weightedMembersSchema.parse(v)),
-        read(ctx, `GetProposalsJSON(${before}, 20)`, signal).then(v => weightedPageSchema.parse(v)),
+        read(ctx, `GetProposalsJSON(${before}, 20)`, signal).then(v => weightedPageEnvelopeSchema.parse(v)),
     ])
     if (config.realmPath !== ctx.realmPath) throw new Error("DAO realm does not match the requested path")
-    if (config.schema !== roster.schema || config.schema !== page.schema) throw new Error("Mixed DAO contract versions")
-    let previous = before === "0" ? BigInt(page.total) + 1n : BigInt(before)
-    for (const p of page.proposals) {
-        if (BigInt(p.id) !== previous - 1n || BigInt(p.id) > BigInt(page.total)) throw new Error("Invalid proposal page")
+    if (config.schema !== roster.schema || config.schema !== envelope.schema) throw new Error("Mixed DAO contract versions")
+    const itemSchema = weightedProposalFor[envelope.schema]
+    let previous = before === "0" ? BigInt(envelope.total) + 1n : BigInt(before)
+    const proposals: WeightedPageEntry[] = []
+    for (const raw of envelope.proposals) {
+        // Config, roster and page shape stay strict. One item the reader cannot
+        // validate (for example an operation encoded differently) is listed by
+        // its ID only, so the rest of the governance history stays readable.
+        const parsed = itemSchema.safeParse(raw)
+        const rawID = typeof raw === "object" && raw !== null && "id" in raw ? raw.id : undefined
+        const itemID = parsed.success ? parsed.data.id : id.parse(rawID)
+        if (BigInt(itemID) !== previous - 1n || BigInt(itemID) > BigInt(envelope.total)) throw new Error("Invalid proposal page")
+        previous = BigInt(itemID)
+        if (!parsed.success) { proposals.push({ id: itemID, unreadable: true }); continue }
+        const p = parsed.data as WeightedProposal
         const action = p.action
         const historical = ["EXECUTED", "INVALIDATED"].includes(p.status)
         if (!historical || config.schema === WEIGHTED_SCHEMA) {
@@ -172,9 +190,10 @@ export async function readWeightedSnapshot(ctx: WeightedContext, before = "0", s
                 if (!roster.members.some(m => m.address === target && (action.type === "set-role" || m.personId === action.personId))) throw new Error("Proposal does not match current members")
             }
         }
-        if (action.type !== "set-role" && action.type !== "recover-member" && (config.schema !== WEIGHTED_APPLICATIONS_SCHEMA || !applicationActionMatchesPolicy(action, config))) throw new Error("Proposal does not match the DAO's configured adapters")
-        previous = BigInt(p.id)
+        const configured = action.type === "set-role" || action.type === "recover-member" || (config.schema === WEIGHTED_APPLICATIONS_SCHEMA && applicationActionMatchesPolicy(action, config))
+        proposals.push(configured ? p : { id: itemID, unreadable: true })
     }
+    const page: WeightedPage = { ...envelope, proposals }
     const expectedCount = (before === "0" ? BigInt(page.total) : BigInt(before) - 1n)
     if (BigInt(before) > BigInt(page.total) || page.proposals.length !== Number(expectedCount > 20n ? 20n : expectedCount)) throw new Error("Truncated proposal page")
     const remaining = previous > 1n
@@ -198,7 +217,15 @@ export async function readWeightedProposal(ctx: WeightedContext, proposalId: str
     return result
 }
 
-export function buildWeightedMessage(caller: string, realmPath: string, action: WeightedAction): AminoMsg {
+/**
+ * Contract versions Memba builds transactions for. v12 (the mainnet governing
+ * DAO) is read-only on every network until its write slices land.
+ */
+export const WEIGHTED_WRITABLE_SCHEMAS: readonly string[] = [WEIGHTED_SCHEMA, WEIGHTED_RECOVERY_SCHEMA]
+export function weightedWritesSupported(schema: string): boolean { return WEIGHTED_WRITABLE_SCHEMAS.includes(schema) }
+
+export function buildWeightedMessage(caller: string, realmPath: string, action: WeightedAction, schema: string): AminoMsg {
+    if (!weightedWritesSupported(schema)) throw new Error("This DAO version is read-only in Memba")
     address.parse(caller); realm.parse(realmPath)
     let func: string, args: string[]
     if (action.type === "recover") { func = "ProposeRecovery"; args = [personID.parse(action.personId), address.parse(action.oldAddress), address.parse(action.newAddress)]; if (action.oldAddress === action.newAddress) throw new Error("Recovery must change the address") }
@@ -209,8 +236,9 @@ export function buildWeightedMessage(caller: string, realmPath: string, action: 
     return { type: "vm/MsgCall", value: { caller, send: "", pkg_path: realmPath, func, args } }
 }
 
-export function assertWeightedWrites(chainId: string, activeChain: string, walletChain: string) {
+export function assertWeightedWrites(chainId: string, activeChain: string, walletChain: string, schema: string) {
     if (chainId === "gnoland-1") throw new Error("Mainnet governance writes remain on hold")
+    if (!weightedWritesSupported(schema)) throw new Error("This DAO version is read-only in Memba")
     if (chainId !== activeChain || chainId !== walletChain) throw new Error("Wallet or selected network changed")
 }
 
@@ -220,7 +248,7 @@ export function weightedAuthority(snapshot: Awaited<ReturnType<typeof readWeight
 }
 
 export function validateWeightedRecovery(snapshot: Awaited<ReturnType<typeof readWeightedSnapshot>>, action: Extract<WeightedAction, { type: "recover" }>) {
-    if (!snapshot.config.capabilities.memberReplacement) throw new Error("This DAO does not support member-key recovery")
+    if (!snapshot.config.capabilities.memberReplacement || snapshot.config.schema !== WEIGHTED_RECOVERY_SCHEMA) throw new Error("This DAO does not support member-key recovery")
     address.parse(action.newAddress)
     if (!snapshot.members.some(m => m.personId === action.personId && m.address === action.oldAddress)) throw new Error("Recovery seat changed; refresh before preparing again")
     if (snapshot.members.some(m => m.address === action.newAddress)) throw new Error("Replacement address already belongs to a DAO member")
