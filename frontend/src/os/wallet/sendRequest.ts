@@ -7,7 +7,7 @@
  * @module os/wallet/sendRequest
  */
 import { GNO_CHAIN_ID } from "../../lib/config"
-import { resolveUsernameToAddress } from "../../lib/dao/shared"
+import { resolveRecipient } from "../../lib/nameResolve"
 import { doContractBroadcast } from "../../lib/grc20"
 import type { SignRequest } from "../sign/signer"
 import { buildSendMsg, clearSendLock, formatUgnot, SEND_GAS_WANTED, writeSendLock } from "./send"
@@ -17,7 +17,8 @@ export interface SendContext {
     to: string
     /** The @name the member typed (D23), shown with the address; looked up again before the wallet opens. */
     toName?: string
-    /** The registry lookup used for that re-check (the resolver on the active RPC; injectable for tests). */
+    /** The registry lookup used for that re-check: the address, "" when no longer registered, null when
+     *  unreadable (defaults to the shared resolveRecipient; injectable for tests). */
     resolveName?: (name: string) => Promise<string | null>
     ugnot: bigint
     memo: string
@@ -26,6 +27,13 @@ export interface SendContext {
     /** The wallet's account right now, asked of the wallet itself; the send stops if it changed since the review. */
     currentWallet: () => Promise<string>
     onSent: (hash: string) => void
+}
+
+/** The shared resolver (#1305), reduced to what the re-check needs. */
+async function resolveNameNow(name: string): Promise<string | null> {
+    const r = await resolveRecipient(`@${name}`)
+    if (r.kind === "address") return r.name ? r.address : null
+    return r.kind === "unregistered" ? "" : null
 }
 
 export function sendRequest(ctx: SendContext): SignRequest<string> {
@@ -53,8 +61,9 @@ export function sendRequest(ctx: SendContext): SignRequest<string> {
             if ((await ctx.currentWallet()) !== ctx.from) throw new Error("Your wallet changed since the review. Review the send again.")
             // A name can change owner: the address reviewed is the one paid, but only while the name still points there.
             if (ctx.toName) {
-                const now = await (ctx.resolveName ?? resolveUsernameToAddress)(ctx.toName)
+                const now = await (ctx.resolveName ?? resolveNameNow)(ctx.toName)
                 if (now === null) throw new Error(`Couldn't confirm @${ctx.toName} just now. Nothing was sent; try again.`)
+                if (now === "") throw new Error(`@${ctx.toName} is no longer registered. Nothing was sent.`)
                 if (now !== ctx.to) throw new Error(`@${ctx.toName} now points to another address. Nothing was sent; review the send again.`)
             }
         },

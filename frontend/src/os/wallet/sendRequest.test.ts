@@ -74,6 +74,8 @@ describe("sendRequest", () => {
     it("looks the name up again just before the wallet opens, and stops if it moved or can't be read", async () => {
         const moved = await run(ctx({ toName: "alice", resolveName: async () => A }))
         expect(moved).toMatchObject({ outcome: "failed", error: expect.stringContaining("@alice now points to another address") })
+        const gone = await run(ctx({ toName: "alice", resolveName: async () => "" }))
+        expect(gone).toMatchObject({ outcome: "failed", error: expect.stringContaining("@alice is no longer registered") })
         const unread = await run(ctx({ toName: "alice", resolveName: async () => null }))
         expect(unread).toMatchObject({ outcome: "failed", error: expect.stringContaining("Couldn't confirm @alice") })
         expect(wallet.impl).not.toHaveBeenCalled()

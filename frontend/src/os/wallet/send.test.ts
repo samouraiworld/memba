@@ -1,5 +1,10 @@
-import { afterEach, describe, expect, it } from "vitest"
-import { buildSendMsg, checkSend, clearSendLock, formatUgnot, nameToLookUp, parseGnot, readRecipient, readRecipients, readSendLock, rememberRecipient, writeSendLock } from "./send"
+import { afterEach, describe, expect, it, vi } from "vitest"
+
+vi.mock("../../lib/dao/shared", async (orig) => ({ ...(await orig<typeof import("../../lib/dao/shared")>()), resolveUsernameToAddress: vi.fn(async () => "") }))
+
+import { resolveUsernameToAddress } from "../../lib/dao/shared"
+import type { RecipientResolution } from "../../lib/nameResolve"
+import { buildSendMsg, checkSend, clearSendLock, formatUgnot, lookUpName, nameToLookUp, parseGnot, readRecipient, readRecipients, readSendLock, rememberRecipient, writeSendLock } from "./send"
 
 const A = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 const B = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
@@ -30,45 +35,55 @@ describe("recipients", () => {
         expect(readRecipient("")).toBeNull()
     })
 
-    it("take an @name through the user registry (D23), lower-cased, with its resolved address", () => {
-        const found = () => ({ status: "found", address: B }) as const
+    it("take an @name through the user registry (D23), with the name and address the registry gave", () => {
+        const found = () => ({ status: "found", name: "alice", address: B }) as const
         expect(readRecipient("@Alice", found)).toEqual({ kind: "name", name: "alice", address: B })
         expect(readRecipient("@alice", () => ({ status: "loading" }))).toEqual({ kind: "pending", name: "alice" })
         expect(readRecipient("@alice")).toEqual({ kind: "pending", name: "alice" })
-        expect(readRecipient("@nobody", () => ({ status: "missing" }))).toMatchObject({ kind: "error", error: expect.stringContaining("No gno.land user") })
-        expect(readRecipient("@alice", () => ({ status: "error" }))).toMatchObject({ kind: "error", error: expect.stringContaining("Couldn't look up") })
+        expect(readRecipient("@nobody", () => ({ status: "missing", name: "nobody" }))).toMatchObject({ kind: "error", error: "No gno.land user is named @nobody." })
+        expect(readRecipient("@alice", () => ({ status: "error", name: "alice" }))).toMatchObject({ kind: "error", error: expect.stringContaining("Couldn't look up @alice") })
+        expect(readRecipient("@a__b", () => ({ status: "invalid", reason: "Usernames start with a letter…" }))).toEqual({ kind: "error", error: "Usernames start with a letter…" })
     })
 
     it("never trust a looked-up address that fails its checksum", () => {
-        expect(readRecipient("@alice", () => ({ status: "found", address: `${B.slice(0, -1)}q` }))).toMatchObject({ kind: "error" })
+        expect(readRecipient("@alice", () => ({ status: "found", name: "alice", address: `${B.slice(0, -1)}q` }))).toMatchObject({ kind: "error" })
     })
 
-    it("refuse what the registry would never hold, and ask for the @ on a bare word", () => {
-        for (const bad of ["@", "@1abc", "@al ice", "@a__b", `@${"a".repeat(65)}`]) expect(readRecipient(bad, () => ({ status: "found", address: B })), bad).toMatchObject({ kind: "error", error: expect.stringContaining("username") })
+    it("ask for the @ on a bare word, and look up only what starts with @ (ASCII-trimmed)", () => {
         expect(readRecipient("alice")).toMatchObject({ kind: "error", error: expect.stringContaining("@") })
-    })
-
-    it("refuse look-alikes instead of folding them into a real name (checked before lower-casing)", () => {
-        // U+212A KELVIN SIGN lower-cases to "k": "@\u212Aelvin" must never become @kelvin.
-        for (const bad of ["@\u212Aelvin", "@al\u200Bice", "@\uFEFFalice", "@\u00A0alice", "@alicé", "@ａlice"]) {
-            expect(nameToLookUp(bad), JSON.stringify(bad)).toBeNull()
-            expect(readRecipient(bad, () => ({ status: "found", address: B })), JSON.stringify(bad)).toMatchObject({ kind: "error" })
-        }
-        // A name shaped like an address is refused by the registry too (reAddressLookalike).
-        expect(nameToLookUp("@g1abcdefghijklmnopqrstu")).toBeNull()
-        expect(nameToLookUp(" @alice\t")).toBe("alice")
-    })
-
-    it("names the lookup to run: only for a well-formed @name", () => {
-        expect(nameToLookUp("@Alice ")).toBe("alice")
-        expect(nameToLookUp("@1abc")).toBeNull()
+        expect(nameToLookUp(" @Alice\t")).toBe("@Alice")
         expect(nameToLookUp(B)).toBeNull()
+        expect(nameToLookUp("alice")).toBeNull()
+    })
+})
+
+describe("lookUpName (the shared resolveRecipient, #1305)", () => {
+    it("maps each resolution to a form state", async () => {
+        const via = (r: RecipientResolution) => lookUpName("@x", async () => r)
+        await expect(via({ kind: "address", address: B, name: "bob" })).resolves.toEqual({ status: "found", name: "bob", address: B })
+        await expect(via({ kind: "unregistered", name: "bob" })).resolves.toEqual({ status: "missing", name: "bob" })
+        await expect(via({ kind: "unreachable", name: "bob" })).resolves.toEqual({ status: "error", name: "bob" })
+        await expect(via({ kind: "invalid", reason: "no" })).resolves.toEqual({ status: "invalid", reason: "no" })
+        // An address typed after the @ is never a name.
+        await expect(via({ kind: "address", address: B })).resolves.toMatchObject({ status: "invalid" })
+    })
+
+    it("refuses look-alikes before any lookup (Kelvin sign, invisible, accented, full-width, address-shaped)", async () => {
+        const resolve = vi.mocked(resolveUsernameToAddress)
+        resolve.mockClear()
+        for (const bad of ["@\u212Aelvin", "@al\u200Bice", "@\uFEFFalice", "@\u00A0alice", "@alicé", "@ａlice", "@g1abcdefghijklmnopqrstu"]) {
+            await expect(lookUpName(bad), JSON.stringify(bad)).resolves.toMatchObject({ status: "invalid" })
+        }
+        expect(resolve).not.toHaveBeenCalled()
+        resolve.mockResolvedValueOnce(B)
+        await expect(lookUpName("@Bob")).resolves.toEqual({ status: "found", name: "bob", address: B })
+        expect(resolve).toHaveBeenCalledWith("bob")
     })
 })
 
 describe("checkSend", () => {
     it("sends to a name's address: pending blocks, your own name is refused, and the tiers use the address", () => {
-        const found = (address: string) => () => ({ status: "found", address }) as const
+        const found = (address: string) => () => ({ status: "found", name: "alice", address }) as const
         const d = { to: "@alice", amount: "1", memo: "", save: false }
         expect(checkSend(d, ctx()).problems.to).toMatch(/Looking up @alice/)
         const ok = checkSend(d, ctx({ lookup: found(B) }))

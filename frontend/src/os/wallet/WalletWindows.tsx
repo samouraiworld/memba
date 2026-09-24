@@ -8,7 +8,6 @@
  */
 import { useQuery } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
-import { resolveUsernameToAddress } from "../../lib/dao/shared"
 import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, GRC20_FACTORY_PATH, isRealmValidOn } from "../../lib/config"
 import { feeForGasWanted, FALLBACK_GAS_PRICE, networkGasPrice, type GasPrice } from "../../lib/grc20"
 import { AppTile } from "../shell/icons"
@@ -17,7 +16,7 @@ import { appSpec, sendSpec, type WindowSpec } from "../shell/windows"
 import { useSigner } from "../sign/signerContext"
 import { Field, WizardFrame } from "../wizard/WizardFrame"
 import {
-    checkSend, clearSendLock, formatUgnot, MEMO_MAX, nameToLookUp, readRecipients, readSendLock, recipientAddress, rememberRecipient, SEND_GAS_WANTED,
+    checkSend, clearSendLock, formatUgnot, lookUpName, MEMO_MAX, nameToLookUp, readRecipients, readSendLock, recipientAddress, rememberRecipient, SEND_GAS_WANTED,
     type NameLookup, type SendDraft,
 } from "./send"
 import { sendRequest } from "./sendRequest"
@@ -99,7 +98,7 @@ function SendForm({ session, close }: { session: OsSession; close: () => void })
         return () => { active = false }
     }, [])
 
-    // @name recipients (D23): looked up in the user registry once typing pauses.
+    // @name recipients (D23): looked up through the shared resolver (#1305) once typing pauses.
     const typedName = nameToLookUp(draft.to)
     const [lookupName, setLookupName] = useState<string | null>(null)
     useEffect(() => {
@@ -108,16 +107,14 @@ function SendForm({ session, close }: { session: OsSession; close: () => void })
     }, [typedName])
     const names = useQuery({
         queryKey: ["os-send-name", GNO_CHAIN_ID, lookupName],
-        queryFn: () => resolveUsernameToAddress(lookupName ?? ""),
+        queryFn: () => lookUpName(lookupName ?? ""),
         enabled: lookupName !== null,
         staleTime: 60_000,
         retry: false,
     })
-    const lookup = (name: string): NameLookup => {
-        if (name !== lookupName || names.isPending) return { status: "loading" }
-        if (names.isError || names.data === null || names.data === undefined) return { status: "error" }
-        return names.data ? { status: "found", address: names.data } : { status: "missing" }
-    }
+    // Only an answer for exactly what is typed now counts; anything else is still loading.
+    const lookup = (atName: string): NameLookup =>
+        atName !== lookupName || names.isPending ? { status: "loading" } : names.data ?? { status: "error", name: atName.slice(1) }
 
     const people = readRecipients(GNO_CHAIN_ID, from)
     const known = (a: string) => people.recent.includes(a) || people.saved.includes(a)

@@ -7,6 +7,8 @@
  *
  * @module os/wallet/send
  */
+import { ASCII_EDGE_WHITESPACE_RE } from "../../lib/dao/shared"
+import { resolveRecipient, type RecipientResolution } from "../../lib/nameResolve"
 import { isChecksummedAddress } from "../../lib/templates/dao/v2/bech32"
 import type { AminoMsg } from "../../lib/grc20"
 
@@ -45,24 +47,35 @@ export type Recipient =
     | { kind: "error"; error: string }
     | null
 
-/** What the registry said about a name (the component looks it up; this module stays pure). */
-export type NameLookup = { status: "loading" } | { status: "found"; address: string } | { status: "missing" } | { status: "error" }
+/** What the registry said about the @name in the To field (from #1305's resolveRecipient). */
+export type NameLookup =
+    | { status: "loading" }
+    | { status: "found"; name: string; address: string }
+    | { status: "missing"; name: string }
+    | { status: "error"; name: string }
+    | { status: "invalid"; reason: string }
 
-/** r/sys/users name rule (validateName on gnoland-1): lowercase, max 64, and never shaped like an address. */
-const REGISTRY_NAME = /^[a-z][a-z0-9]*([_-][a-z0-9]+)*$/
-const ADDRESS_LOOKALIKE = /^g1[a-z0-9]{20,38}$/
 const ADDRESS = /^g1[02-9ac-hj-np-z]{38}$/
-/** Only ASCII whitespace is trimmed: String.trim() would also drop U+FEFF and U+00A0. */
-const trimAscii = (s: string) => s.replace(/^[ \t\r\n]+|[ \t\r\n]+$/g, "")
+const trimAscii = (s: string) => s.replace(ASCII_EDGE_WHITESPACE_RE, "")
 
-/** The registry name to look up for this To field, or null when it isn't a well-formed @name.
- *  Anything outside printable ASCII is refused BEFORE lower-casing: Unicode case folding maps
- *  look-alikes such as U+212A (Kelvin sign) to "k", which would pay a real, different user. */
+/** The @name input to look up (ASCII-trimmed, as typed), or null when the To field isn't an @name.
+ *  All name rules (ASCII only before lower-casing, the registry rule, address look-alikes) live in
+ *  the shared resolveRecipient; Send only insists on the leading @. */
 export function nameToLookUp(input: string): string | null {
     const v = trimAscii(input)
-    if (!v.startsWith("@") || /[^\x21-\x7e]/.test(v)) return null
-    const name = v.slice(1).toLowerCase()
-    return name.length <= 64 && REGISTRY_NAME.test(name) && !ADDRESS_LOOKALIKE.test(name) ? name : null
+    return v.startsWith("@") ? v : null
+}
+
+/** Look an @name up through the shared recipient resolver (#1305) and map it to a form state. */
+export async function lookUpName(input: string, resolve: (input: string) => Promise<RecipientResolution> = resolveRecipient): Promise<NameLookup> {
+    const r = await resolve(input)
+    switch (r.kind) {
+        // An @ in front of an address is never a name.
+        case "address": return r.name ? { status: "found", name: r.name, address: r.address } : { status: "invalid", reason: "That's an address: remove the @." }
+        case "unregistered": return { status: "missing", name: r.name }
+        case "unreachable": return { status: "error", name: r.name }
+        case "invalid": return { status: "invalid", reason: r.reason }
+    }
 }
 
 /** The address a recipient pays, once there is one. */
@@ -70,20 +83,20 @@ export function recipientAddress(r: Recipient): string | null {
     return r?.kind === "address" || r?.kind === "name" ? r.address : null
 }
 
-/** What the To field names: a g1 address, or an @name resolved through `lookup`. */
-export function readRecipient(input: string, lookup?: (name: string) => NameLookup | undefined, hrp = "g"): Recipient {
+/** What the To field names: a g1 address, or an @name resolved through `lookup` (keyed by the typed @input). */
+export function readRecipient(input: string, lookup?: (atName: string) => NameLookup | undefined, hrp = "g"): Recipient {
     const v = trimAscii(input)
     if (!v) return null
     if (v.startsWith("@")) {
-        const name = nameToLookUp(v)
-        if (!name) return { kind: "error", error: "That isn't a gno.land username (lowercase letters, digits, - or _)." }
-        const found = lookup?.(name) ?? { status: "loading" }
-        if (found.status === "loading") return { kind: "pending", name }
-        if (found.status === "missing") return { kind: "error", error: `No gno.land user is named @${name}.` }
-        if (found.status === "error") return { kind: "error", error: `Couldn't look up @${name} right now. Try again, or paste the g1… address.` }
+        const found = lookup?.(v) ?? { status: "loading" }
+        // Shown as typed while waiting: never a case-folded look-alike.
+        if (found.status === "loading") return { kind: "pending", name: v.slice(1) }
+        if (found.status === "invalid") return { kind: "error", error: found.reason }
+        if (found.status === "missing") return { kind: "error", error: `No gno.land user is named @${found.name}.` }
+        if (found.status === "error") return { kind: "error", error: `Couldn't look up @${found.name} right now. Try again, or paste the g1… address.` }
         // The registry's answer is checked like a typed address: a bad one never becomes a recipient.
-        if (!ADDRESS.test(found.address) || !isChecksummedAddress(found.address, hrp)) return { kind: "error", error: `@${name} resolved to an invalid address. Paste the g1… address instead.` }
-        return { kind: "name", name, address: found.address }
+        if (!ADDRESS.test(found.address) || !isChecksummedAddress(found.address, hrp)) return { kind: "error", error: `@${found.name} resolved to an invalid address. Paste the g1… address instead.` }
+        return { kind: "name", name: found.name, address: found.address }
     }
     if (/^[a-z][a-z0-9_-]{2,}$/i.test(v) && !v.startsWith("g1")) return { kind: "error", error: "Start a username with @ (like @alice), or paste the g1… address." }
     if (!ADDRESS.test(v)) return { kind: "error", error: "That isn't a g1… address." }
@@ -101,7 +114,7 @@ export interface SendCheck {
     tiers: string[]
 }
 
-export function checkSend(d: SendDraft, ctx: { from: string; balance: bigint | null; fee: bigint; mainnet: boolean; known: (a: string) => boolean; lookup?: (name: string) => NameLookup | undefined }): SendCheck {
+export function checkSend(d: SendDraft, ctx: { from: string; balance: bigint | null; fee: bigint; mainnet: boolean; known: (a: string) => boolean; lookup?: (atName: string) => NameLookup | undefined }): SendCheck {
     const recipient = readRecipient(d.to, ctx.lookup)
     const to = recipientAddress(recipient)
     const ugnot = parseGnot(d.amount)

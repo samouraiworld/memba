@@ -178,7 +178,7 @@ Full changelogs are split by version range for easier navigation:
 - `toAdenaMessages` accepts `/bank.MsgSend` only in that shape: two `g1` addresses and one positive `ugnot` amount. The old `bank/MsgSend` form still throws.
 ### Memba OS sends to @names
 <!-- categories: memba, wallet -->
-- Send in Memba OS takes a gno.land username (`@alice`) as well as a g1… address, still behind `VITE_MEMBA_OS` (D16, D23). The name is looked up in the gno.land user registry (`r/sys/users.ResolveName`, on an RPC checked to serve the right chain), and the form shows the address it belongs to.
+- Send in Memba OS takes a gno.land username (`@alice`) as well as a g1… address, still behind `VITE_MEMBA_OS` (D16, D23). The name goes through the shared recipient resolver (`resolveRecipient`, #1305: `r/sys/users.ResolveName` on an RPC checked to serve the right chain), and the form shows the address it belongs to.
 - The Memba review shows the name together with the full address, and that address is the one signed. Just before Adena opens, the name is looked up again: if it now points to another address, or can't be read, nothing is sent. The new-address and 100 GNOT checks apply to the resolved address.
 - A bare word (`alice`) asks for the @; an unregistered name says so. A name with any character outside plain ASCII (an accent, a full-width or invisible character, a look-alike such as the Kelvin sign that lower-cases to `k`) is refused, never folded into a registered name.
 ### Memba OS accessibility and speed
