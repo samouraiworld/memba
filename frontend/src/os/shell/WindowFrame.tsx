@@ -13,6 +13,7 @@ import { DaoFolder, DaosApp, ProposalWindow } from "../daos/DaoWindows"
 import { CreateDaoWizard } from "../daos/CreateDaoWizard"
 import { ProposeWizard } from "../daos/ProposeWizard"
 import { ClassicPage } from "../page/ClassicPage"
+import { SendWindow, WalletWindow } from "../wallet/WalletWindows"
 import { classicForSection, pageNeedsWallet } from "../page/classicRoute"
 import { DOCK_ROOM, type DeskSize, type OsWindow, type WindowSpec } from "./windows"
 
@@ -21,6 +22,7 @@ interface Actions {
     openApp: (app: OsAppId) => void
     open: (spec: WindowSpec) => void
     close: () => void
+    toast: (msg: string) => void
 }
 
 function Welcome({ session, openApp }: Actions) {
@@ -74,7 +76,9 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
     if (t.kind === "proposal") return <ProposalWindow dao={t.dao} n={t.n} session={a.session} />
     if (t.kind === "new-proposal") return <ProposeWizard dao={t.dao} session={a.session} open={a.open} close={a.close} />
     if (t.kind === "desktop") return null
-    if (t.kind === "feedback") return <ClassicPage key={win.id} network={net} page="feedback" layout={a.session.layout} />
+    if (t.kind === "app" && t.app === "wallet" && t.section === null) return <WalletWindow session={a.session} open={a.open} toast={a.toast} />
+    if (t.kind === "app" && t.app === "wallet" && t.section === "send") return <SendWindow session={a.session} close={a.close} />
+    if (t.kind === "feedback") return <ClassicPage key={`${win.id}:feedback`} network={net} page="feedback" layout={a.session.layout} />
     const page = t.kind === "multisig" ? `multisig/${t.address}` : classicForSection(t.app, t.section)
     if (page === null) {
         const app = getApp(t.kind === "multisig" ? "multisig" : t.app)
@@ -94,7 +98,9 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
             </Holding>
         )
     }
-    return <ClassicPage key={win.id} network={net} page={page} layout={a.session.layout} />
+    // Keyed by the page too: a window that follows a link to another page (tx 7 → tx 12)
+    // must start that page fresh, never carry the previous page's typed state over.
+    return <ClassicPage key={`${win.id}:${page}`} network={net} page={page} layout={a.session.layout} />
 }
 
 export interface FrameActions {

@@ -401,14 +401,34 @@ describe('toAdenaMessages', () => {
     })
 
     it('throws on bank/MsgSend — Adena DoContract rejects the TYPE (#1078)', () => {
-        // The passthrough existed solely for the activation self-send; now that
-        // activation is a MsgCall, letting a send-shaped message through would
-        // only smuggle a guaranteed wallet rejection past the guard.
+        // The Amino spelling with an array amount is what Adena rejected; only
+        // the /bank.MsgSend shape below passes.
         const sendMsg = {
             type: 'bank/MsgSend',
             value: { from_address: 'g1x', to_address: 'g1x', amount: [{ denom: 'ugnot', amount: '1' }] },
         }
         expect(() => toAdenaMessages([sendMsg])).toThrow('unsupported message type')
+    })
+
+    it('passes a /bank.MsgSend through in the one shape Adena accepts (D37)', () => {
+        const A = 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+        const B = 'g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c'
+        const send = { type: '/bank.MsgSend', value: { from_address: A, to_address: B, amount: '1000000ugnot', extra: 'dropped' } }
+        expect(toAdenaMessages([send])).toEqual([{ type: '/bank.MsgSend', value: { from_address: A, to_address: B, amount: '1000000ugnot' } }])
+    })
+
+    it('refuses a /bank.MsgSend that is not one positive ugnot amount between two g1 addresses', () => {
+        const A = 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+        for (const value of [
+            { from_address: A, to_address: A, amount: [{ denom: 'ugnot', amount: '1' }] },
+            { from_address: A, to_address: A, amount: '0ugnot' },
+            { from_address: A, to_address: A, amount: '1.5ugnot' },
+            { from_address: A, to_address: A, amount: '5foo' },
+            { from_address: A, to_address: A, amount: '1ugnot,1foo' },
+            { from_address: A, to_address: 'g1short', amount: '1ugnot' },
+        ]) {
+            expect(() => toAdenaMessages([{ type: '/bank.MsgSend', value }]), JSON.stringify(value)).toThrow('bank send')
+        }
     })
 
     it('throws on unknown message types (R2-M1 fix)', () => {

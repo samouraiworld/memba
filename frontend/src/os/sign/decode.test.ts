@@ -49,4 +49,15 @@ describe("sameMsgs", () => {
         expect(sameMsgs([vote], [vote, vote])).toBe(false)
         expect(sameMsgs([vote], [])).toBe(false)
     })
+
+})
+
+describe("adenaChecklist for a GNOT send", () => {
+    it("shows it as Adena labels it", () => {
+        const rows = adenaChecklist([{ type: "/bank.MsgSend", value: { from_address: "g1a", to_address: "g1b", amount: "1500000ugnot" } }], "gnoland-1")
+        expect(rows).toEqual([
+            { label: "Action", value: "Transfer" }, { label: "To", value: "g1b", mono: true }, { label: "Amount", value: "1.5 GNOT" },
+            { label: "Network", value: "gnoland-1", mono: true },
+        ])
+    })
 })

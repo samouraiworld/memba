@@ -92,6 +92,12 @@ Full changelogs are split by version range for easier navigation:
 - ⌘K (or the ⌕ button in the menu bar) searches apps, DAOs and their sections, Memba's pages and commands; a pasted `g1…` address opens its profile or validator page, and a realm path opens its DAO.
 - Send feedback opens in its own window (`/os/feedback`). Multisig and your own profile ask a guest to connect first.
 - The network route table moves from `App.tsx` to `routes/networkRoutes.tsx`, unchanged, so both interfaces render the same pages.
+### Memba OS wallet and GNOT send
+<!-- categories: memba, wallet -->
+- Memba OS has a native Wallet window, still behind `VITE_MEMBA_OS`: your GNOT balance, Send, Receive (copies your address), and tokens, shown as "Not on gnoland-1 yet" where the token factory isn't live.
+- Send GNOT from Memba OS (`/os/wallet/send`, or "Send GNOT" in ⌘K). The amount is exact to the ugnot; commas are refused rather than guessed, so "12,5" can never become 125. On mainnet, a first send to an address or a send of 100 GNOT or more needs an explicit "I checked the address" in the review. Recent and saved recipients stay in this browser.
+- The send goes through the Memba review, then Adena shows it as a Transfer: one `/bank.MsgSend` with a single coin amount, the shape Adena accepts (the earlier attempt in #1078 used another spelling). It is never retried automatically, Memba asks Adena which account is active right before signing, and an unknown outcome locks Send until you confirm you checked it.
+- `toAdenaMessages` accepts `/bank.MsgSend` only in that shape: two `g1` addresses and one positive `ugnot` amount. The old `bank/MsgSend` form still throws.
 
 ### Memba OS windows
 <!-- categories: memba -->

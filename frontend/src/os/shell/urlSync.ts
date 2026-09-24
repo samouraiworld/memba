@@ -17,7 +17,7 @@ import { frontWindow, urlForWindow, visibleWindows, type OsWindow } from "./wind
 export function windowToken(t: OsTarget | null): string | null {
     if (!t) return null
     switch (t.kind) {
-        case "app": return t.app === "daos" && t.section === "new" ? "newdao" : `app.${getApp(t.app).slug}`
+        case "app": return t.app === "daos" && t.section === "new" ? "newdao" : t.app === "wallet" && t.section === "send" ? "send" : `app.${getApp(t.app).slug}`
         case "dao": return `dao.${t.name}`
         case "proposal": return `prop.${t.dao}.${t.n}`
         case "new-proposal": return `newprop.${t.dao}`
@@ -30,6 +30,7 @@ export function windowToken(t: OsTarget | null): string | null {
 export function tokenToTarget(token: string): OsTarget | null {
     if (token === "newdao") return parseOsPath("/os/daos/new")
     if (token === "feedback") return { kind: "feedback" }
+    if (token === "send") return parseOsPath("/os/wallet/send")
     const dot = token.indexOf(".")
     if (dot < 1) return null
     const kind = token.slice(0, dot)

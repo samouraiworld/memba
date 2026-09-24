@@ -382,3 +382,4 @@
 .memba-os .os-launch-r { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; cursor: pointer; }
 .memba-os .os-launch-r[aria-selected="true"] { background: var(--os-hover); }
 .memba-os .os-launch-empty { padding: 12px; }
+.memba-os .os-big { font-size: 28px; font-weight: 800; letter-spacing: -.02em; }

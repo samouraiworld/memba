@@ -49,13 +49,18 @@ export function welcomeSpec(): WindowSpec {
 
 export function appSpec(app: OsAppId, section: string | null = null): WindowSpec {
     // The DAOs app is a native list; the others show a full Memba page for now, so they open larger.
-    const [width, height] = app === "daos" ? [480, 400] : [960, 660]
+    const [width, height] = app === "daos" ? [480, 400] : app === "wallet" && section === null ? [420, 420] : [960, 660]
     return { key: `app:${app}`, title: getApp(app).name, app, width, height, target: { kind: "app", app, section } }
 }
 
 /** The Create DAO wizard (/os/daos/new): its own window, so the DAOs app stays open beside it. */
 export function newDaoSpec(): WindowSpec {
     return { key: "flow:dao", title: "Create a DAO", app: "daos", width: 820, height: 560, target: { kind: "app", app: "daos", section: "new" } }
+}
+
+/** The Send window (/os/wallet/send), beside the Wallet. */
+export function sendSpec(): WindowSpec {
+    return { key: "flow:send", title: "Send", app: "wallet", width: 700, height: 540, target: { kind: "app", app: "wallet", section: "send" } }
 }
 
 export function daoSpec(name: string, section: DaoSection = "overview"): WindowSpec {
@@ -66,7 +71,10 @@ export function daoSpec(name: string, section: DaoSection = "overview"): WindowS
 export function specForTarget(t: OsTarget): WindowSpec | null {
     switch (t.kind) {
         case "desktop": return null
-        case "app": return t.app === "daos" && t.section === "new" ? newDaoSpec() : appSpec(t.app, t.section)
+        case "app":
+            if (t.app === "daos" && t.section === "new") return newDaoSpec()
+            if (t.app === "wallet" && t.section === "send") return sendSpec()
+            return appSpec(t.app, t.section)
         case "dao": return daoSpec(t.name, t.section)
         case "proposal": return { key: `prop:${t.dao}:${t.n}`, title: `${t.dao} · Proposal #${t.n}`, app: "daos", width: 460, height: 380, target: t }
         case "new-proposal": return { key: `flow:prop:${t.dao}`, title: `New proposal · ${t.dao}`, app: "daos", width: 760, height: 540, target: t }

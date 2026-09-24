@@ -92,7 +92,7 @@ describe("windowsReducer", () => {
         expect(arcade.x).toBe(8)
         expect(feed.x).toBe(8 + desk.w / 2)
         expect(arcade.width).toBe(desk.w / 2 - 16)
-        expect(byKey(s, "app:wallet").width).toBe(960) // untouched: only the two front windows tile
+        expect(byKey(s, "app:wallet").width).toBe(420) // untouched: only the two front windows tile
     })
 
     it("cycles through visible windows with next", () => {

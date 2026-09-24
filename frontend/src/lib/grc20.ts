@@ -55,11 +55,11 @@ export interface AminoMsg {
  * - /vm.m_addpkg (realm deploys built by templates/prologue) is already
  *   wire-shaped — passed through so deploys ride the SAME guarded
  *   broadcaster (W2.1).
+ * - /bank.MsgSend (a native GNOT send, Memba OS Send, D37) passes through
+ *   in the one shape Adena accepts: string addresses and ONE coin string
+ *   ("<n>ugnot"). The old Amino spelling `bank/MsgSend` with an array amount
+ *   is what Adena rejected in #1078; it still throws here.
  * - Anything else throws: an unknown type must never reach the wallet.
- *   bank/MsgSend used to pass through for the activation self-send, but
- *   Adena's DoContract rejects that TYPE wholesale (#1078) — activation is a
- *   MsgCall now, and the passthrough would only smuggle a guaranteed-to-fail
- *   message to the wallet.
  *
  * NOTE: MsgRun (/vm.m_run) was tested but can't modify external realm state,
  *       so all DAO calls must use MsgCall with crossing() functions.
@@ -82,6 +82,15 @@ export function toAdenaMessages(msgs: AminoMsg[]) {
         }
         if (m.type === "/vm.m_addpkg") {
             return m
+        }
+        if (m.type === "/bank.MsgSend") {
+            const { from_address, to_address, amount } = m.value
+            if (typeof from_address !== "string" || typeof to_address !== "string" || typeof amount !== "string"
+                || !/^g1[02-9ac-hj-np-z]{38}$/.test(from_address) || !/^g1[02-9ac-hj-np-z]{38}$/.test(to_address)
+                || !/^[1-9][0-9]{0,18}ugnot$/.test(amount)) {
+                throw new Error("toAdenaMessages: a bank send needs two g1 addresses and one positive ugnot amount")
+            }
+            return { type: "/bank.MsgSend", value: { from_address, to_address, amount } }
         }
         throw new Error(`toAdenaMessages: unsupported message type: ${m.type}`)
     })

@@ -10,7 +10,7 @@ import { COMMANDS } from "../../components/ui/commands"
 import { OS_APPS, type OsAppId } from "../apps"
 import { nameForRealm } from "../daos/daoNames"
 import { osTargetForClassic } from "../page/classicRoute"
-import { appSpec, daoSpec, newDaoSpec, specForTarget, type WindowSpec } from "./windows"
+import { appSpec, daoSpec, newDaoSpec, sendSpec, specForTarget, type WindowSpec } from "./windows"
 
 export type LaunchIcon = { app: OsAppId } | { thing: "folder" | "doc" | "prof" }
 
@@ -61,6 +61,7 @@ function all(ctx: LaunchContext): LaunchItem[] {
         out.push({ id: `dao:${name}:members`, title: `${d.name} › Members`, sub: "DAO section", icon: { thing: "prof" }, spec: daoSpec(name, "members") })
     }
     out.push({ id: "cmd:new-dao", title: "Create a DAO", sub: "Command · DAOs", icon: { app: "daos" }, spec: newDaoSpec() })
+    out.push({ id: "cmd:send", title: "Send GNOT", sub: "Command · Wallet", keywords: "transfer pay", icon: { app: "wallet" }, spec: sendSpec() })
     for (const c of COMMANDS) {
         if (!c.path || c.path === "/" || c.path === "/dashboard" || c.path === "/dao/create") continue
         const t = osTargetForClassic(`/${ctx.network}${c.path}`, ctx.network)

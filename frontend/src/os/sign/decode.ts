@@ -27,6 +27,10 @@ export function adenaChecklist(msgs: readonly AminoMsg[], chainId: string): Sign
     const rows: SignRow[] = []
     for (const msg of msgs) {
         const v = msg.value ?? {}
+        if (msg.type === "/bank.MsgSend") {
+            rows.push({ label: "Action", value: "Transfer" }, { label: "To", value: String(v.to_address ?? "—"), mono: true }, { label: "Amount", value: formatSend(v.amount) ?? "—" })
+            continue
+        }
         const deploy = deployEffect(msg)
         if (deploy) {
             rows.push({ label: "Action", value: "Deploy a package" }, { label: "Path", value: deploy.path, mono: true })
