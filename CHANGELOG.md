@@ -41,6 +41,9 @@ Full changelogs are split by version range for easier navigation:
 - The menu bar has the start menu with every app, the space switcher, the app and Window menus, the network (with a TESTNET warning off mainnet), notifications, the account menu and a clock. There's also a dock and a Welcome window.
 - Connect runs on Memba's existing Adena sign-in: install help, approval, the free login signature, and one-time activation for a new address.
 - Every `/os/...` link now opens in Memba OS. Before, links such as `/os/dao/...` or `/os/feed` fell into the regular pages.
+### Directory lists the samcrew namespace again (2026-09-24)
+<!-- categories: memba, network -->
+- The Directory reads which samcrew realms and packages are deployed from the chain's RPC (`vm/qpaths`) instead of gnoweb pages, which browsers could never load. On gno.land mainnet it now lists the eleven samcrew realms and four packages; the node's own chain id is checked first.
 
 ### Coming next
 <!-- categories: memba, network -->

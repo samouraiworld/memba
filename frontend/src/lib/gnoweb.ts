@@ -1,13 +1,15 @@
 /**
- * gnoweb — Gnoweb namespace explorer client.
+ * gnoweb — namespace discovery and gnoweb links.
  *
- * Queries gnoweb HTML pages to discover deployed realms and packages
- * under a given namespace (e.g., "r/samcrew", "p/samcrew").
- *
- * Uses sessionStorage caching with 5-minute TTL.
+ * Lists the realms and packages deployed under a namespace (e.g. "r/samcrew",
+ * "p/samcrew") with the RPC's `vm/qpaths` ABCI query, and builds gnoweb URLs
+ * for them. The listing is NOT read from gnoweb's HTML: gnoweb sends no
+ * `Access-Control-Allow-Origin` header, so a browser fetch of it always failed.
  */
 
-import { NETWORKS } from "./config"
+import { GNO_CHAIN_ID, NETWORKS } from "./config"
+import { assertActiveRpcChain } from "./dao/chainIdentity"
+import { resilientAbciQueryDetailed } from "./rpcFallback"
 
 // ── Types ────────────────────────────────────────────────────
 
@@ -41,180 +43,71 @@ export function getGnowebUrl(networkKey: string): string | undefined {
     return NETWORKS[networkKey]?.explorerUrl
 }
 
-// ── Caching ──────────────────────────────────────────────────
+// ── Namespace discovery (vm/qpaths) ──────────────────────────
 
-const CACHE_TTL = 5 * 60 * 1000 // 5 minutes
-const CACHE_PREFIX = "memba_gnoweb_"
+/** Chain domain every package path starts with. directoryDiscovery prepends
+ *  the same literal to the paths returned here. */
+const CHAIN_DOMAIN = "gno.land"
 
-function getCached<T>(key: string): T | null {
-    try {
-        const raw = sessionStorage.getItem(CACHE_PREFIX + key)
-        if (!raw) return null
-        const entry = JSON.parse(raw)
-        if (
-            typeof entry !== "object" || entry === null ||
-            typeof entry.ts !== "number" || !("data" in entry)
-        ) {
-            sessionStorage.removeItem(CACHE_PREFIX + key)
-            return null
-        }
-        if (Date.now() - entry.ts > CACHE_TTL) {
-            sessionStorage.removeItem(CACHE_PREFIX + key)
-            return null
-        }
-        return entry.data as T
-    } catch {
-        return null
-    }
-}
+/** Explicit `vm/qpaths` limit (the node's default is 1,000, its cap 10,000).
+ *  The node truncates silently at the limit, so a listing this long is a
+ *  prefix of the namespace, not all of it. */
+export const NAMESPACE_LISTING_LIMIT = 1_000
 
-function setCache<T>(key: string, data: T): void {
-    try {
-        sessionStorage.setItem(
-            CACHE_PREFIX + key,
-            JSON.stringify({ data, ts: Date.now() }),
-        )
-    } catch { /* quota exceeded */ }
-}
-
-// ── HTML Parsing ─────────────────────────────────────────────
+/** A namespace is one non-empty path segment; a slash or dot in it would
+ *  change which prefix the query lists. */
+const NAMESPACE_RE = /^[a-zA-Z0-9_-]+$/
+/** No dots (so no `..`), no empty segments, no trailing slash. */
+const PACKAGE_PATH_RE = /^gno\.land\/[rp](\/[a-zA-Z0-9_-]+)+$/
 
 /**
- * Parse gnoweb namespace listing HTML into NamespaceItem[].
+ * Parse a `vm/qpaths` answer (newline-separated package paths) into items for
+ * `kind`/`namespace`. Lines are trimmed and deduplicated; anything outside the
+ * requested namespace and kind, or not a well-formed package path, is dropped.
  *
- * Gnoweb namespace pages list deployed items as links:
- *   <a href="/r/samcrew/memba_dao">/r/samcrew/memba_dao</a>
- *
- * We extract all unique paths matching the namespace prefix pattern.
+ * `path` keeps the gnoweb form without the domain ("/r/samcrew/home"); `name`
+ * is the path below the namespace ("home", "piechart/v0") so a versioned
+ * package is not listed as just "v0".
  */
-export function parseGnowebListing(html: string, gnowebBaseUrl: string, kind: "r" | "p"): NamespaceItem[] {
-    // Match href="/r/..." or "/p/..." patterns in the HTML
-    const pattern = new RegExp(`href="(/${kind}/[^"]+)"`, "g")
+export function parseQpathsListing(text: string, gnowebBaseUrl: string, namespace: string, kind: "r" | "p"): NamespaceItem[] {
+    const prefix = `${CHAIN_DOMAIN}/${kind}/${namespace}/`
     const seen = new Set<string>()
     const items: NamespaceItem[] = []
-
-    let match: RegExpExecArray | null
-    while ((match = pattern.exec(html)) !== null) {
-        const path = match[1]
-        // Skip the namespace root itself (e.g., /r/samcrew) and parent paths (e.g., /r/)
-        // We want sub-paths only (paths with at least 3 segments: /r/namespace/item)
-        const segments = path.split("/").filter(Boolean)
-        if (segments.length < 3) continue
-
-        if (!seen.has(path)) {
-            seen.add(path)
-            const name = segments[segments.length - 1]
-            items.push({
-                path,
-                name,
-                gnowebUrl: `${gnowebBaseUrl}${path}`,
-            })
-        }
+    for (const raw of text.split("\n")) {
+        const line = raw.trim()
+        if (!line.startsWith(prefix) || !PACKAGE_PATH_RE.test(line) || seen.has(line)) continue
+        seen.add(line)
+        const path = line.slice(CHAIN_DOMAIN.length)
+        items.push({ path, name: line.slice(prefix.length), gnowebUrl: `${gnowebBaseUrl}${path}` })
     }
-
     return items
 }
 
-// ── Fetch ────────────────────────────────────────────────────
-
 /**
- * Fetch all deployed realms under a namespace from gnoweb.
- * Returns cached results if available (5-min TTL).
+ * List what is deployed under `/{kind}/{namespace}/` on `chainId`, via the RPC.
  *
- * @param gnowebBaseUrl - Base gnoweb URL (e.g., "https://gnoweb.test12.moul.p2p.team")
- * @param namespace - Namespace path (e.g., "samcrew")
- * @returns Array of deployed realm items, or empty array on error
+ * `status: "ready"` means the chain answered (an empty namespace is `ready`
+ * with no items); `"unavailable"` means it could not be asked. Nothing is
+ * cached here: the caller's query cache (useDirectoryDiscovery, 5 minutes)
+ * already holds the result, and a transient failure must not read as empty.
  *
- * ⚠️ gnoweb sends NO `Access-Control-Allow-Origin` header on any network
- * (verified 2026-07-31 against topaz, betanet and mainnet with an explicit
- * Origin). A browser `fetch()` here is therefore CORS-blocked — `no-cors`
- * returns an opaque body that cannot be parsed. So the two fetchers below
- * cannot succeed from the app today, on ANY network, and never could;
- * `deploymentStatus: "live"` has never actually been reachable in a browser.
+ * The RPC failover list belongs to the ACTIVE network, so a `chainId` other
+ * than the active one is `unavailable` rather than answered by the wrong
+ * chain, and the endpoint's own chain id is checked before it is trusted.
  *
- * They are kept (rather than deleted) because they work verbatim behind a
- * same-origin proxy — the route `/api/indexer` already takes for the tx-indexer,
- * which has the same restriction. Until such a proxy exists, every call fails.
- * The failure paths below therefore cache their empty result: without that, each
- * Directory tab mount re-fired two requests that can only ever fail, uncached.
- */
-export async function fetchNamespaceRealms(gnowebBaseUrl: string, namespace: string): Promise<NamespaceItem[]> {
-    // Scope by host: the key omitted it, so a listing cached on one network was
-    // served after switching to another (sessionStorage survives NetworkSync's reload).
-    const cacheKey = `${gnowebBaseUrl}_realms_${namespace}`
-    const cached = getCached<NamespaceItem[]>(cacheKey)
-    if (cached) return cached
-
-    try {
-        const url = `${gnowebBaseUrl}/r/${namespace}`
-        const response = await fetch(url, { signal: AbortSignal.timeout(10_000) })
-        // Cache a definitive rejection only. A 5xx/429 is transient and must not
-        // blackhole the next 5 minutes once a same-origin proxy makes this reachable.
-        if (!response.ok) {
-            if (response.status < 500 && response.status !== 429) setCache(cacheKey, [])
-            return []
-        }
-
-        const html = await response.text()
-        const items = parseGnowebListing(html, gnowebBaseUrl, "r")
-        setCache(cacheKey, items)
-        return items
-    } catch (err) {
-        // Only a CORS/network rejection (TypeError) is permanent for this host.
-        // AbortSignal.timeout(10s) raises AbortError, which is transient — caching
-        // that would turn one slow response into a 5-minute blackhole.
-        if (err instanceof TypeError) setCache(cacheKey, [])
-        return []
-    }
-}
-
-/**
- * Fetch all deployed packages under a namespace from gnoweb.
- * Returns cached results if available (5-min TTL).
- *
- * Subject to the same CORS limitation as fetchNamespaceRealms above.
- */
-export async function fetchNamespacePackages(gnowebBaseUrl: string, namespace: string): Promise<NamespaceItem[]> {
-    const cacheKey = `${gnowebBaseUrl}_packages_${namespace}`
-    const cached = getCached<NamespaceItem[]>(cacheKey)
-    if (cached) return cached
-
-    try {
-        const url = `${gnowebBaseUrl}/p/${namespace}`
-        const response = await fetch(url, { signal: AbortSignal.timeout(10_000) })
-        // Cache a definitive rejection only. A 5xx/429 is transient and must not
-        // blackhole the next 5 minutes once a same-origin proxy makes this reachable.
-        if (!response.ok) {
-            if (response.status < 500 && response.status !== 429) setCache(cacheKey, [])
-            return []
-        }
-
-        const html = await response.text()
-        const items = parseGnowebListing(html, gnowebBaseUrl, "p")
-        setCache(cacheKey, items)
-        return items
-    } catch (err) {
-        // Only a CORS/network rejection (TypeError) is permanent for this host.
-        // AbortSignal.timeout(10s) raises AbortError, which is transient — caching
-        // that would turn one slow response into a 5-minute blackhole.
-        if (err instanceof TypeError) setCache(cacheKey, [])
-        return []
-    }
-}
-
-/** Status-preserving, chain-identified namespace read for discovery. Older callers
- * retain the array API above. Transient failures are never cached as empty lists.
+ * `baseUrl` is the network's gnoweb URL; it only builds the item links.
  */
 export async function fetchNamespaceListing(baseUrl: string, namespace: string, kind: "r" | "p", chainId: string): Promise<{ items: NamespaceItem[]; status: "ready" | "unavailable" }> {
+    if (chainId !== GNO_CHAIN_ID || !NAMESPACE_RE.test(namespace)) return { items: [], status: "unavailable" }
     try {
-        const response = await fetch(`${baseUrl}/${kind}/${namespace}`, { signal: AbortSignal.timeout(10_000) })
-        if (!response.ok && response.status !== 404) return { items: [], status: "unavailable" }
-        const html = await response.text()
-        // gnoweb renamed chainid to gnoconnect:chainid; parse either order of attributes.
-        const doc = new DOMParser().parseFromString(html, "text/html")
-        const observedChain = doc.querySelector('meta[name="gnoconnect:chainid"], meta[name="chainid"]')?.getAttribute("content")
-        if (observedChain !== chainId) return { items: [], status: "unavailable" }
-        if (response.status === 404) return { items: [], status: "ready" }
-        return { items: parseGnowebListing(html, baseUrl, kind).filter(item => item.path.startsWith(`/${kind}/${namespace}/`) && /^\/[rp]\/[a-zA-Z0-9_/-]+$/.test(item.path)), status: "ready" }
+        await assertActiveRpcChain()
+        const result = await resilientAbciQueryDetailed(
+            `vm/qpaths?limit=${NAMESPACE_LISTING_LIMIT}`,
+            `${CHAIN_DOMAIN}/${kind}/${namespace}/`,
+        )
+        // A namespace with nothing deployed answers with empty Data.
+        if (result.kind === "empty") return { items: [], status: "ready" }
+        if (result.kind === "abci-error") return { items: [], status: "unavailable" }
+        return { items: parseQpathsListing(result.text, baseUrl, namespace, kind), status: "ready" }
     } catch { return { items: [], status: "unavailable" } }
 }
