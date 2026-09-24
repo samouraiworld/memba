@@ -263,6 +263,34 @@ describe("PostCard author edit / delete", () => {
         expect(screen.queryByText("hello feed")).toBeNull()
     })
 
+    it("counts the edit against the 1,000-character cap and blocks an over-long save", async () => {
+        render(<PostCard post={basePost({})} {...own} />)
+        fireEvent.click(screen.getByTestId("feed-post-menu"))
+        fireEvent.click(screen.getByTestId("feed-post-edit"))
+        const input = screen.getByTestId("feed-edit-input")
+        expect(input).toHaveAttribute("maxLength", "1100")
+        expect(screen.getByTestId("feed-edit-count")).toHaveTextContent("10/1000")
+
+        fireEvent.change(input, { target: { value: "x".repeat(1001) } })
+        await waitFor(() => expect(screen.getByTestId("feed-edit-count")).toHaveTextContent("1001/1000"))
+        expect(screen.getByTestId("feed-edit-count")).toHaveClass("over")
+        expect(screen.getByTestId("feed-edit-save")).toBeDisabled()
+        fireEvent.click(screen.getByTestId("feed-edit-save"))
+        expect(mockSubmit).not.toHaveBeenCalled()
+
+        fireEvent.change(input, { target: { value: "x".repeat(1000) } })
+        await waitFor(() => expect(screen.getByTestId("feed-edit-save")).toBeEnabled())
+    })
+
+    it("measures the edit in UTF-8 bytes, as the realm does", async () => {
+        render(<PostCard post={basePost({})} {...own} />)
+        fireEvent.click(screen.getByTestId("feed-post-menu"))
+        fireEvent.click(screen.getByTestId("feed-post-edit"))
+        fireEvent.change(screen.getByTestId("feed-edit-input"), { target: { value: "é".repeat(501) } })
+        await waitFor(() => expect(screen.getByTestId("feed-edit-count")).toHaveTextContent("1002/1000"))
+        expect(screen.getByTestId("feed-edit-save")).toBeDisabled()
+    })
+
     it("deletes: confirm discloses on-chain permanence, then broadcasts DeletePost → tombstone", async () => {
         mockSubmit.mockResolvedValueOnce("hash")
         render(<PostCard post={basePost({})} {...own} />)

@@ -822,6 +822,7 @@
 }
 .feed-post__edit-input:focus { outline: none; border-color: var(--color-primary); }
 .feed-post__edit-row { display: flex; gap: 8px; }
+.feed-post__edit-count { margin-left: auto; align-self: center; }
 
 .feed-post__confirm {
     border: 1px solid var(--color-k-danger-text, #d33);

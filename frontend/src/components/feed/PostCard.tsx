@@ -28,6 +28,7 @@ import { FeedShareCard } from "./FeedShareCard"
 import { PostUnfurls } from "./PostUnfurls"
 import { ReactionBar } from "./ReactionBar"
 import { renderPostBody } from "../../lib/markdownLite"
+import { MAX_FEED_BODY, feedBodyLength } from "../../lib/feedConstants"
 
 /** Short display form of a bech32 address, e.g. g1abcd…wxyz. */
 function shortAddr(a: string): string {
@@ -212,9 +213,14 @@ function PostCardInner({
         }
     }, [connected, selfAddress, post.id, post.optimistic, flagging, flagged, onRefetch, onConnect])
 
+    // Same rule as the composer: the realm refuses a body over MaxBodyLen, so an
+    // over-long edit is blocked here instead of failing on-chain after signing.
+    const editLength = feedBodyLength(editBody)
+    const editOverLimit = editLength > MAX_FEED_BODY
+
     const saveEdit = useCallback(async () => {
         const body = editBody.trim()
-        if (!body || !selfAddress || busy) return
+        if (!body || feedBodyLength(body) > MAX_FEED_BODY || !selfAddress || busy) return
         setBusy(true)
         setActionError(null)
         try {
@@ -351,17 +357,21 @@ function PostCardInner({
                         className="feed-post__edit-input"
                         value={editBody}
                         onChange={(e) => setEditBody(e.target.value)}
+                        maxLength={MAX_FEED_BODY + 100 /* allow paste, then show over-limit */}
                         rows={3}
                         aria-label="Edit your post"
                         data-testid="feed-edit-input"
                     />
                     <div className="feed-post__edit-row">
-                        <button type="button" className="feed-btn feed-btn--primary" disabled={busy || !editBody.trim()} onClick={saveEdit} data-testid="feed-edit-save">
+                        <button type="button" className="feed-btn feed-btn--primary" disabled={busy || !editBody.trim() || editOverLimit} onClick={saveEdit} data-testid="feed-edit-save">
                             {busy ? "Saving…" : "Save"}
                         </button>
                         <button type="button" className="feed-btn" onClick={() => { setEditing(false); setActionError(null) }} data-testid="feed-edit-cancel">
                             Cancel
                         </button>
+                        <span className={"feed-composer__count feed-post__edit-count" + (editOverLimit ? " over" : "")} data-testid="feed-edit-count">
+                            {editLength}/{MAX_FEED_BODY}
+                        </span>
                     </div>
                 </div>
             ) : (

@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Feed edits respect the 1,000-character limit (2026-09-24)
+<!-- categories: memba -->
+- **Editing a post now has the same limit and counter as writing one.** The edit box had no cap, so a long edit was signed and then refused by the feed realm. Both boxes now count length the way the realm does, in UTF-8 bytes, so accented letters and emoji can no longer pass the counter and then fail on-chain.
+
 ### The feed shows load errors instead of an empty timeline (2026-09-24)
 <!-- categories: memba -->
 - **When the feed service can't be reached, the timeline says so and offers Retry.** A failed request used to be passed off as an empty feed, so users saw "No posts yet" during an outage. The backend returns an empty list, not an error, when nothing is indexed, so "No posts yet" now appears only for a feed that really is empty. Posts that already loaded stay on screen if a later refresh fails.

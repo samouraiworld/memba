@@ -13,7 +13,7 @@ import { useCallback, useEffect, useRef, useState } from "react"
 import { PaperPlaneTilt } from "@phosphor-icons/react"
 import { buildCreatePostMsg, submitFeedMsg } from "../../lib/feed"
 import { makeOptimisticPost, type UiPost } from "../../lib/feedTypes"
-import { MAX_FEED_BODY } from "../../lib/feedConstants"
+import { MAX_FEED_BODY, feedBodyLength } from "../../lib/feedConstants"
 import { isFeedWritable, FEED_INDEXED_NETWORK, FEED_INDEXED_NETWORK_LABEL } from "../../lib/config"
 import { useNetwork } from "../../hooks/useNetwork"
 
@@ -49,7 +49,8 @@ export function FeedComposer({
     const nonce = useRef(0)
 
     const trimmed = body.trim()
-    const overLimit = trimmed.length > MAX_FEED_BODY
+    const bodyLength = feedBodyLength(body)
+    const overLimit = bodyLength > MAX_FEED_BODY
 
     const broadcast = useCallback(async (from: string, text: string) => {
         setSubmitting(true)
@@ -138,7 +139,7 @@ export function FeedComposer({
             />
             <div className="feed-composer__row">
                 <span className={"feed-composer__count" + (overLimit ? " over" : "")}>
-                    {trimmed.length}/{MAX_FEED_BODY}
+                    {bodyLength}/{MAX_FEED_BODY}
                 </span>
                 <button
                     type="button"

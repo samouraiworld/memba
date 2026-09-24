@@ -80,3 +80,12 @@ describe("FeedComposer permanence disclosure", () => {
         expect(screen.getByText(/on-chain|public/i)).toBeInTheDocument()
     })
 })
+
+describe("FeedComposer length cap", () => {
+    it("counts UTF-8 bytes like the realm and blocks an over-long post", async () => {
+        render(<FeedComposer connected={true} address="g1meeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" onConnect={() => {}} onPosted={() => {}} />)
+        fireEvent.change(screen.getByTestId("feed-composer-input"), { target: { value: "é".repeat(501) } })
+        expect(await screen.findByText("1002/1000")).toBeInTheDocument()
+        expect(screen.getByTestId("feed-post-btn")).toBeDisabled()
+    })
+})
