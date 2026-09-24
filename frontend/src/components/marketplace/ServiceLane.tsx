@@ -76,7 +76,8 @@ export default function ServiceLane() {
 
             {hiringService && (
                 <HireServiceModal 
-                    service={hiringService} 
+                    service={hiringService}
+                    caller={adena.address}
                     onClose={() => setHiringService(null)}
                     onSuccess={() => {
                         setHiringService(null)

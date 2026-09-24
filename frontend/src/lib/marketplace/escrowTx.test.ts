@@ -1,0 +1,133 @@
+import { beforeEach, describe, expect, it, vi } from "vitest"
+
+const doContractBroadcast = vi.hoisted(() => vi.fn(async () => ({ hash: "ABC" })))
+vi.mock("../grc20", async (importOriginal) => ({ ...(await importOriginal<typeof import("../grc20")>()), doContractBroadcast }))
+
+import {
+    assertEscrowPlanSignable,
+    broadcastEscrowTx,
+    planCancelContract,
+    planClaimDisputeTimeout,
+    planClaimRefund,
+    planCompleteMilestone,
+    planCreateContract,
+    planFundMilestone,
+    planHireService,
+    planRaiseDispute,
+    planReleaseFunds,
+    type EscrowTxPlan,
+} from "./escrowTx"
+import { createContractBudget } from "./escrowBudget"
+
+const CLIENT = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
+const FREELANCER = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
+const ESCROW = "gno.land/r/samcrew/escrow_v3"
+const MS = [{ title: "Deposit", amountUgnot: 250_000_000 }, { title: "Final", amountUgnot: 250_000_000 }]
+
+const tamper = (plan: EscrowTxPlan, value: Record<string, unknown>): EscrowTxPlan =>
+    ({ ...plan, msg: { ...plan.msg, value: { ...plan.msg.value, ...value } } } as EscrowTxPlan)
+
+beforeEach(() => doContractBroadcast.mockClear())
+
+describe("escrow transaction plans", () => {
+    it("a CreateContract plan carries the budget it was sized with, and sends nothing", () => {
+        const plan = planCreateContract(CLIENT, ESCROW, { freelancer: FREELANCER, title: "Audit", description: "Audit the realm", milestones: MS })
+        const budget = createContractBudget({ titleBytes: 5, descriptionBytes: 15, milestonesArg: "Deposit:250000000,Final:250000000" })
+        expect(plan.maxDepositUgnot).toBe(budget.maxDepositUgnot)
+        expect(plan.gasWanted).toBe(budget.gasWanted)
+        expect(plan.msg.value.max_deposit).toBe(`${budget.maxDepositUgnot}ugnot`)
+        expect(plan.sendUgnot).toBe(0)
+        expect(plan.msg.value.send).toBe("")
+        expect(() => assertEscrowPlanSignable(plan)).not.toThrow()
+    })
+
+    it("a FundMilestone plan sends exactly the milestone amount", () => {
+        const plan = planFundMilestone(CLIENT, ESCROW, "7", 1, 250_000_000)
+        expect(plan.sendUgnot).toBe(250_000_000)
+        expect(plan.msg.value.send).toBe("250000000ugnot")
+        expect(plan.msg.value.max_deposit).toBe("200000ugnot")
+        expect(plan.gasWanted).toBe(14_000_000)
+    })
+
+    it("every other call sends nothing and carries its flat cap", () => {
+        for (const plan of [
+            planCompleteMilestone(FREELANCER, ESCROW, "7", 0),
+            planReleaseFunds(CLIENT, ESCROW, "7", 0),
+            planRaiseDispute(CLIENT, ESCROW, "7", 0),
+            planCancelContract(CLIENT, ESCROW, "7"),
+            planClaimRefund(FREELANCER, ESCROW, "7", 0),
+            planClaimDisputeTimeout(FREELANCER, ESCROW, "7", 0),
+        ]) {
+            expect(plan.sendUgnot).toBe(0)
+            expect(plan.msg.value.send).toBe("")
+            expect(plan.msg.value.max_deposit).toBe("200000ugnot")
+            expect(() => assertEscrowPlanSignable(plan)).not.toThrow()
+        }
+    })
+
+    it("planHireService parses the listing's milestones strictly and hires its freelancer", () => {
+        const plan = planHireService(CLIENT, ESCROW, { freelancer: FREELANCER, title: "Audit", description: "x", milestones: "Deposit:250000000,Final:250000000" })
+        expect(plan.msg.value.func).toBe("CreateContract")
+        expect(plan.msg.value.args).toEqual([FREELANCER, "Audit", "x", "Deposit:250000000,Final:250000000"])
+        expect(plan.milestones).toEqual(MS)
+        expect(plan.totalUgnot).toBe(500_000_000)
+        expect(() => planHireService(CLIENT, ESCROW, { freelancer: FREELANCER, title: "Audit", description: "x", milestones: "Deposit:2.5" })).toThrow()
+        expect(() => planHireService(FREELANCER, ESCROW, { freelancer: FREELANCER, title: "Audit", description: "x", milestones: "A:1000" })).toThrow(/yourself/)
+    })
+})
+
+describe("the signing guard refuses anything but the reviewed plan", () => {
+    const fund = () => planFundMilestone(CLIENT, ESCROW, "7", 1, 250_000_000)
+    const createPlan = () => planCreateContract(CLIENT, ESCROW, { freelancer: FREELANCER, title: "Audit", description: "short", milestones: MS })
+
+    it("a missing, different or non-canonical deposit cap", () => {
+        for (const max_deposit of [undefined, "", "200001ugnot", "0200000ugnot", "200000 ugnot", "200000ugnot,1ugnot", "0.2gnot", 200000]) {
+            expect(() => assertEscrowPlanSignable(tamper(fund(), { max_deposit })), String(max_deposit)).toThrow()
+        }
+    })
+
+    it("a cap above the 10 GNOT ceiling, even when the message agrees with the plan", () => {
+        const plan = tamper({ ...fund(), maxDepositUgnot: 10_000_001 }, { max_deposit: "10000001ugnot" })
+        expect(() => assertEscrowPlanSignable(plan)).toThrow(/10 GNOT/)
+    })
+
+    it("a send that differs from the milestone amount, or any send on a non-payable call", () => {
+        for (const send of ["", "250000001ugnot", "0250000000ugnot", "250000000 ugnot", "250000000ugnot,1ugnot", "250gnot", "250000000ugnot "]) {
+            expect(() => assertEscrowPlanSignable(tamper(fund(), { send })), JSON.stringify(send)).toThrow()
+        }
+        expect(() => assertEscrowPlanSignable({ ...fund(), sendUgnot: 1 })).toThrow()
+        expect(() => assertEscrowPlanSignable(tamper(planReleaseFunds(CLIENT, ESCROW, "7", 0), { send: "1ugnot" }))).toThrow()
+    })
+
+    it("arguments edited after planning, which would change the deposit the call needs", () => {
+        const plan = createPlan()
+        const args = [...plan.msg.value.args]
+        args[2] = "d".repeat(5000)
+        expect(() => assertEscrowPlanSignable(tamper(plan, { args }))).toThrow()
+    })
+
+    it("a different gas limit, function or message type", () => {
+        expect(() => assertEscrowPlanSignable({ ...fund(), gasWanted: 10_000_000 })).toThrow()
+        expect(() => assertEscrowPlanSignable(tamper(fund(), { func: "ResolveDispute" }))).toThrow()
+        expect(() => assertEscrowPlanSignable({ ...fund(), msg: { ...fund().msg, type: "/vm.m_call" } } as unknown as EscrowTxPlan)).toThrow()
+    })
+})
+
+describe("broadcastEscrowTx", () => {
+    it("signs the planned message itself with its gas limit and no automatic retry", async () => {
+        const plan = planCreateContract(CLIENT, ESCROW, { freelancer: FREELANCER, title: "Audit", description: "short", milestones: MS })
+        await broadcastEscrowTx(plan, "Create escrow: Audit")
+        expect(doContractBroadcast).toHaveBeenCalledTimes(1)
+        const [msgs, memo, opts] = doContractBroadcast.mock.calls[0] as unknown as [unknown[], string, Record<string, unknown>]
+        expect(msgs).toEqual([plan.msg])
+        expect(msgs[0]).toBe(plan.msg)
+        expect(memo).toBe("Create escrow: Audit")
+        expect(opts).toMatchObject({ gasWanted: plan.gasWanted, retry: false })
+    })
+
+    it("never reaches the wallet with a tampered plan", async () => {
+        const plan = tamper(planFundMilestone(CLIENT, ESCROW, "7", 1, 250_000_000), { send: "250000001ugnot" })
+        await expect(broadcastEscrowTx(plan, "Fund")).rejects.toThrow()
+        expect(doContractBroadcast).not.toHaveBeenCalled()
+    })
+})

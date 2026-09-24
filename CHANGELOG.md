@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Escrow calls are sized for gno.land mainnet (2026-09-24)
+<!-- categories: memba, network -->
+- **Every escrow call now carries a storage-deposit cap and a gas limit.** Mainnet charges a deposit for the bytes each call stores, and a call without a cap lets the chain lock up to 100 GNOT. The caps come from measurements of the deployed `escrow_v3` at the mainnet runtime, filled to its 500-contract limit: creating a contract stores 3.5 KB to 29 KB, and its cap is twice the estimate (at most 6.91 GNOT, under the 10 GNOT ceiling); every other call stores under 50 bytes and caps at 0.2 GNOT. Most escrow calls need more than the wallet's default 10M gas, so each one sends a measured limit.
+- **The escrow builders match the deployed realm and refuse what it would reject.** Function names and argument order are pinned to the published source in tests. Addresses, title and description sizes (in bytes), milestone count, titles and amounts are checked before signing, and amounts must be whole ugnot. Only funding a milestone sends coins, and it sends exactly that milestone's amount.
+- **Hiring shows what it signs.** The hire dialog previews the milestones, the total to fund later and the deposit cap from the same plan the wallet signs, and says that nothing is sent when the contract is created. Escrow stays gated: nothing is broadcast unless the services lane is enabled and `escrow_v3` is listed for the network, which it is not on mainnet yet.
+
 ### Quest vouchers are signed for one chain only (#1264, 2026-09-24)
 <!-- categories: memba, network -->
 - **The quest voucher key only signs for the chain it was made for.** The attestation realm's signed message has no chain id, so each chain now gets its own key, and the backend signs only when `QUEST_SIGNER_CHAIN_ID` matches the chain it runs on. Otherwise the signer is turned off: it is logged, shown on `/health` and in a metric, and voucher requests get a clear "unavailable" error. Boot never fails because of it. The Pearl-era key in production is now off, not signing for gno.land mainnet.
