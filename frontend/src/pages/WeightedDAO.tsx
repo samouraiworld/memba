@@ -215,7 +215,7 @@ function ApplicationAction({ action }: { action: WeightedApplicationAction }) {
 
 type BallotView = WeightedBallot | "error" | undefined
 function ProposalEntry({ proposal, ballot, canAct, submit }: { proposal: WeightedPageEntry; ballot: BallotView; canAct: boolean; submit: (action: WeightedAction) => Promise<void> }) {
-    if (isUnreadableProposal(proposal)) return <article className="k-card weighted-dao__proposal" aria-label={`Proposal ${proposal.id}`}>
+    if (isUnreadableProposal(proposal)) return <article className="k-card weighted-dao__proposal" id={`proposal-${proposal.id}`} aria-label={`Proposal ${proposal.id}`}>
         <h3>Unreadable proposal #{proposal.id}</h3>
         <p role="note">Memba could not validate this proposal against the DAO contract, so it is not shown and cannot be acted on here. Other proposals are unaffected.</p>
     </article>
@@ -238,7 +238,7 @@ function invalidationText(v: WeightedInvalidation): string {
 function Proposal({ proposal: p, ballot, canAct, submit }: { proposal: WeightedProposal; ballot: BallotView; canAct: boolean; submit: (action: WeightedAction) => Promise<void> }) {
     const voteOpen = !p.votingClosed && !["EXECUTED", "INVALIDATED", "EXPIRED"].includes(p.status)
     const pending = ["VOTING", "TIMELOCKED", "READY"].includes(p.status)
-    return <article className="k-card weighted-dao__proposal" aria-label={`Proposal ${p.id}`}>
+    return <article className="k-card weighted-dao__proposal" id={`proposal-${p.id}`} aria-label={`Proposal ${p.id}`}>
         <p className="weighted-dao__eyebrow">#{p.id} · <span className={`weighted-dao__category weighted-dao__category--${p.category}`}>{CATEGORY_TEXT[p.category]}</span></p>
         <ProposalAction action={p.action} />
         <p className="weighted-dao__path">Proposed by: {reveal(p.proposer)}</p>

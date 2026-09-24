@@ -195,7 +195,7 @@ export function DAOList() {
                             <div
                                 key={`${p.realmPath}:${p.proposalId}`}
                                 className="k-daolist__action-item"
-                                onClick={() => navigate(`/dao/${p.daoSlug}/proposal/${p.proposalId}`)}
+                                onClick={() => navigate(p.href ?? `/dao/${p.daoSlug}/proposal/${p.proposalId}`)}
                             >
                                 <span className="k-daolist__action-dao">{revealInvisibleFormatting(p.daoName)}</span>
                                 <span className="k-daolist__action-sep">—</span>

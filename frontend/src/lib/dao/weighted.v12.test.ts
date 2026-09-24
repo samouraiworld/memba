@@ -345,6 +345,18 @@ describe("invalidation records and sticky expiry", () => {
         expect(parseProposal({ ...v2, schema: "memba-weighted-host/v1" })).toBe(true)
         const broken = structuredClone(v2) as { proposal: Json }; (broken.proposal.invalidation as Json).extra = 1
         expect(parseProposal(broken)).toBe(false)
+        // v1/v2 have no adapters: no pause and no application target can invalidate them.
+        for (const schema of ["memba-weighted-host/v1", "memba-weighted-host/v2"]) {
+            const pause = structuredClone(v2) as { schema: string; proposal: Json }; pause.schema = schema
+            pause.proposal.invalidation = (records.proposal_invalidated_by_pause as { proposal: Json }).proposal.invalidation
+            expect(parseProposal(pause), `${schema} pause`).toBe(false)
+            const targeted = structuredClone(v2) as { schema: string; proposal: Json }; targeted.schema = schema
+            targeted.proposal.invalidation = { ...(targeted.proposal.invalidation as Json), target: "gno.land/r/samcrew/memba_market_config" }
+            expect(parseProposal(targeted), `${schema} target`).toBe(false)
+            const pauseNoTarget = structuredClone(v2) as { schema: string; proposal: Json }; pauseNoTarget.schema = schema
+            pauseNoTarget.proposal.invalidation = { ...(pauseNoTarget.proposal.invalidation as Json), cause: "pause", proposalId: null }
+            expect(parseProposal(pauseNoTarget), `${schema} pause without target`).toBe(false)
+        }
     })
 })
 
@@ -431,6 +443,14 @@ describe("ballots and pending votes", () => {
         expect((await readWeightedBallot(ctx, b.proposalId, b.voter)).choice).toBeNull()
         await expect(readWeightedBallot(ctx, "1", b.voter)).rejects.toThrow("does not match")
         expect(vi.mocked(directRpcCall).mock.calls.some(c => new TextDecoder().decode(Uint8Array.from(String(c[2]?.data).slice(2).match(/../g)!, h => parseInt(h, 16))).endsWith(`GetBallotJSON("${b.proposalId}", "${b.voter}")`))).toBe(true)
+        // The ballot read checks the RPC's chain identity before trusting it.
+        vi.mocked(directRpcCall).mockClear()
+        vi.mocked(directRpcCall).mockImplementation(async (_url, method) => {
+            if (method === "status") return { node_info: { network: "gnoland-0" } }
+            return { response: { ResponseBase: { Data: btoa(String.fromCharCode(...new TextEncoder().encode(qevalWire(b)))), Error: null } } }
+        })
+        await expect(readWeightedBallot(ctx, b.proposalId, b.voter)).rejects.toThrow("network")
+        expect(vi.mocked(directRpcCall).mock.calls.filter(c => c[1] === "abci_query")).toHaveLength(0)
     })
 })
 

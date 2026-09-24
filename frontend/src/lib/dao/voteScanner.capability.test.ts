@@ -77,9 +77,20 @@ describe("Quick Vote offers only DAOs whose contract accepts votes from Memba", 
         expect(pending.calls.map(c => c[2])).toEqual(["0", "92"])
         const listed = details.filter(d => d.realmPath === "gno.land/r/samcrew/memba_dao")
         expect(listed.map(d => [d.proposalId, d.readOnly, d.href, d.proposalTitle])).toEqual([
-            [Number(items[0].id), true, "/weighted-dao/gno.land/r/samcrew/memba_dao", "Market config · set-fee"],
-            [Number(items[1].id), true, "/weighted-dao/gno.land/r/samcrew/memba_dao", "Unreadable proposal #" + items[1].id],
+            [items[0].id, true, `/weighted-dao/gno.land/r/samcrew/memba_dao#proposal-${items[0].id}`, "Market config · set-fee"],
+            [items[1].id, true, `/weighted-dao/gno.land/r/samcrew/memba_dao#proposal-${items[1].id}`, "Unreadable proposal #" + items[1].id],
         ])
+    })
+
+    it("keeps weighted uint64 IDs exact above 2^53", async () => {
+        kinds.byPath["gno.land/r/samcrew/memba_dao"] = "weighted"
+        const huge = "18446744073709551615"
+        pending.pages = [{ voter: address, items: [{ id: huge, unreadable: true }], next: null }]
+        const details = await settle(scanUnvotedProposalDetails(address))
+        const row = details.find(d => d.realmPath === "gno.land/r/samcrew/memba_dao")!
+        expect(row.proposalId).toBe(huge)
+        expect(row.href).toBe(`/weighted-dao/gno.land/r/samcrew/memba_dao#proposal-${huge}`)
+        expect(row.proposalTitle).toBe(`Unreadable proposal #${huge}`)
     })
 
     it("contributes nothing when a weighted DAO has no ballot reads", async () => {

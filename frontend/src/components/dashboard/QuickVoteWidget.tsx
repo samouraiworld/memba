@@ -52,7 +52,7 @@ export function QuickVoteWidget({ proposals, votingId, votedIds, onVote }: Props
                                 </div>
                             </div>
                             {p.readOnly ? (
-                                <button type="button" className="quick-vote-btn" onClick={() => navigate(p.href ?? `/dao/${p.daoSlug}`)} aria-label={`Review proposal ${p.proposalId} (read-only)`}>
+                                <button type="button" className="quick-vote-btn" onClick={() => navigate(p.href)} aria-label={`Review proposal ${p.proposalId} (read-only)`}>
                                     Review · read-only
                                 </button>
                             ) : hasVoted ? (

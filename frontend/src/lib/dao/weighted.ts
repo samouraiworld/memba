@@ -91,8 +91,10 @@ const proposalFields = {
     createdAt: time, votingDeadline: time, weightedAfter: time.nullable(), developerAfter: time.nullable(),
 }
 // v1/v2 realms deployed before invalidation records omit the field; current
-// host builds emit it on every version. v12 always carries it.
-const proposalFor = <A extends z.ZodType<{ type: string }>>(action: A) => z.strictObject({ ...proposalFields, action, invalidation: invalidationSchema.nullable().optional() })
+// host builds emit it on every version. v12 always carries it. v1/v2 have no
+// application adapters, so only a role or recovery execution can invalidate.
+const legacyInvalidationSchema = z.strictObject({ cause: z.literal("superseded-execution"), height: uint64, proposalId: id, target: z.null() })
+const proposalFor = <A extends z.ZodType<{ type: string }>>(action: A) => z.strictObject({ ...proposalFields, action, invalidation: legacyInvalidationSchema.nullable().optional() })
     .refine(p => consistentProposal(p as ProposalState), "Inconsistent proposal state")
 const v1Proposal = proposalFor(z.discriminatedUnion("type", [setRoleAction]))
 const v2Proposal = proposalFor(z.discriminatedUnion("type", [setRoleAction, recoverMemberAction]))
@@ -263,6 +265,7 @@ async function assertChain(ctx: WeightedContext, signal?: AbortSignal) {
 /** One address's ballot on one proposal. Eligibility is the electorate frozen when the proposal was created. */
 export async function readWeightedBallot(ctx: WeightedContext, proposalId: string, voter: string, signal?: AbortSignal): Promise<WeightedBallot> {
     id.parse(proposalId); address.parse(voter)
+    await assertChain(ctx, signal)
     const ballot = weightedBallotSchema.parse(await read(ctx, `GetBallotJSON("${proposalId}", "${voter}")`, signal))
     if (ballot.proposalId !== proposalId || ballot.voter !== voter) throw new Error("Ballot does not match the request")
     return ballot

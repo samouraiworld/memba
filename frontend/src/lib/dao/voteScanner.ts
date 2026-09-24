@@ -25,18 +25,23 @@ export interface MyVoteEntry {
     proposalStatus: string
 }
 
-export interface UnvotedProposal {
+interface UnvotedProposalBase {
     daoName: string
     daoSlug: string
     realmPath: string
-    proposalId: number
     proposalTitle: string
     proposalStatus: string
-    /** Listed for awareness only: Memba builds no vote for this DAO's contract here. */
-    readOnly?: boolean
-    /** Where to review it, when the proposal page is not the legacy DAO route. */
-    href?: string
 }
+
+/**
+ * A proposal awaiting the user's vote. Votable rows keep the legacy numeric
+ * ID. Weighted rows are read-only indicators: Memba builds no vote for them,
+ * their uint64 ID stays a decimal string (never a lossy Number) and `href`
+ * points at the weighted workspace.
+ */
+export type UnvotedProposal =
+    | (UnvotedProposalBase & { proposalId: number; readOnly?: false; href?: undefined })
+    | (UnvotedProposalBase & { proposalId: string; readOnly: true; href: string })
 
 // ── Cache ─────────────────────────────────────────────────────
 // Module configuration is fixed until a network reload. Session storage
@@ -148,9 +153,9 @@ async function weightedPending(address: string, dao: { path: string; name: strin
             if (out.length >= limit) break
             out.push({
                 daoName: dao.name, daoSlug: encodeSlug(dao.path), realmPath: dao.path,
-                proposalId: Number(item.id), proposalTitle: weightedProposalTitle(item),
+                proposalId: item.id, proposalTitle: weightedProposalTitle(item),
                 proposalStatus: isUnreadableProposal(item) ? "unreadable" : item.status.toLowerCase(),
-                readOnly: true, href: `/weighted-dao/${dao.path}`,
+                readOnly: true, href: `/weighted-dao/${dao.path}#proposal-${item.id}`,
             })
         }
         if (page.next === null) break
