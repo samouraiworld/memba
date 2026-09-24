@@ -320,7 +320,9 @@ const USER_DATA_RE = /^\(&\(struct\{\("(g1[a-z0-9]{38})" \.uverse\.address\),\("
 
 /** r/sys/users name rule (lowercase: `^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`, max
  *  64); anything else is never queried. */
-const REGISTRY_NAME_RE = /^[a-z][a-z0-9]*([_-][a-z0-9]+)*$/
+export const REGISTRY_NAME_RE = /^[a-z][a-z0-9]*([_-][a-z0-9]+)*$/
+/** r/sys/users `maxNameLen`. */
+export const REGISTRY_NAME_MAX_LEN = 64
 
 /**
  * Parse `r/sys/users.ResolveAddress(address)` qeval output.
@@ -362,7 +364,7 @@ export function parseResolveNameResult(raw: string): string | null {
  */
 export async function resolveUsernameToAddress(username: string): Promise<string | null> {
     const name = username.trim().replace(/^@/, "").toLowerCase()
-    if (name.length > 64 || !REGISTRY_NAME_RE.test(name)) return ""
+    if (name.length > REGISTRY_NAME_MAX_LEN || !REGISTRY_NAME_RE.test(name)) return ""
     try {
         await assertActiveRpcChain()
         const raw = await resilientAbciQuery("vm/qeval", `${getUserRegistryPath()}.ResolveName(${JSON.stringify(name)})`, true)
