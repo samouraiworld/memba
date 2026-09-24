@@ -8,6 +8,7 @@ import { useState, useMemo, useDeferredValue } from "react"
 import { useQuery } from "@tanstack/react-query"
 import { ArrowRight } from "@phosphor-icons/react"
 import { fetchTokens, type DirectoryToken } from "../../../lib/directory"
+import { GNO_CHAIN_ID, isTokenFactoryValid } from "../../../lib/config"
 import { SkeletonCard } from "../../ui/LoadingSkeleton"
 import { TokenDetailDrawer } from "../TokenDetailDrawer"
 
@@ -20,9 +21,14 @@ export function TokensTab() {
     const [page, setPage] = useState(0)
     const PAGE_SIZE = 20
 
+    // The tab lists Memba token-factory tokens only; where the factory isn't
+    // deployed (e.g. gno.land mainnet) an empty list would read as "no tokens
+    // exist on this network", so say what is actually missing.
+    const factoryAvailable = isTokenFactoryValid()
     const tokensQuery = useQuery({
         queryKey: ["directory", "tokens"],
         queryFn: fetchTokens,
+        enabled: factoryAvailable,
     })
     // Stable fallback: a fresh [] here would churn the filter memo every render.
     const tokens = tokensQuery.data ?? NO_TOKENS
@@ -43,6 +49,14 @@ export function TokensTab() {
     // M1 audit fix: memoize pageItems to avoid new array on every render
     const pageItems = useMemo(() => filtered.slice(0, (page + 1) * PAGE_SIZE), [filtered, page])
     const hasMore = pageItems.length < filtered.length
+
+    if (!factoryAvailable) {
+        return (
+            <div className="dir-empty" data-testid="tokens-tab-unavailable">
+                <p>Memba&rsquo;s token factory is not deployed on {GNO_CHAIN_ID}, so there are no factory tokens to list here.</p>
+            </div>
+        )
+    }
 
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>

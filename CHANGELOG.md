@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Token pages say when the token factory is missing (2026-09-24)
+<!-- categories: memba, network -->
+- **Token pages now say when Memba's token factory isn't deployed on the current network, which is the case on gno.land mainnet.** A token page used to retry for several seconds and then show "Token not found". The Directory's Tokens tab showed "No tokens registered", as if the network had no tokens at all. Both now say the factory isn't deployed here, the same way the token dashboard already did, and Home stops asking for a token list that can't exist.
+
 ### Candidature says when it is not available (2026-09-24)
 <!-- categories: memba, network -->
 - **The Memba DAO candidature page tells you when it can't be used on the current network.** The candidature realm is not deployed on gno.land mainnet, so the page used to show an XP gate and an empty applications list for a form that could never be submitted. It now says candidatures aren't available here yet, links to the Quest Hub, and makes no requests to the missing realm.

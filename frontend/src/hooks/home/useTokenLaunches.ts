@@ -24,6 +24,7 @@
 
 import { useQuery } from "@tanstack/react-query"
 import { useNetwork } from "../useNetwork"
+import { GRC20_FACTORY_PATH, isRealmValidOn } from "../../lib/config"
 import { fetchTokens, type DirectoryToken } from "../../lib/directory"
 import { getTokenInfo, formatSupply, fetchTokenLaunchDates } from "../../lib/grc20"
 
@@ -57,6 +58,9 @@ export function useTokenLaunches(limit: number): TokenLaunchesResult {
 
     const query = useQuery({
         queryKey: ["home", "token-launches", networkKey, limit],
+        // The list comes from Memba's token factory only; where it isn't
+        // deployed (gno.land mainnet) there is nothing to fetch.
+        enabled: isRealmValidOn(networkKey, GRC20_FACTORY_PATH),
         queryFn: async () => {
             // The token list (per-token RPC enrichment) and the server-cached
             // launch-date map are fetched together; launch dates are best-effort.

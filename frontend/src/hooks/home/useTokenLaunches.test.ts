@@ -109,3 +109,14 @@ describe("useTokenLaunches", () => {
         expect(result.current.total).toBe(0)
     })
 })
+
+describe("useTokenLaunches without a token factory", () => {
+    it("fetches nothing and is not loading where the factory is not deployed", async () => {
+        const net = await import("../useNetwork")
+        vi.mocked(net.useNetwork).mockReturnValueOnce({ networkKey: "mainnet", rpcUrl: "https://rpc.gno.land" } as never)
+        const { useTokenLaunches } = await import("./useTokenLaunches")
+        const { result } = renderHook(() => useTokenLaunches(3), { wrapper: makeWrapper() })
+        expect(result.current).toEqual({ tokens: [], total: 0, loading: false })
+        expect(dir.fetchTokens).not.toHaveBeenCalled()
+    })
+})

@@ -154,10 +154,16 @@ test.describe('Directory — Tab Switching', () => {
         await page.goto('/directory')
     })
 
-    test('switching to Tokens tab shows token search', async ({ page }) => {
+    test('Tokens tab says the token factory is missing on the default network (mainnet)', async ({ page }) => {
         await page.locator('.dir-tab', { hasText: 'Tokens' }).click()
-        const search = page.locator('[data-testid="token-search"]')
-        await expect(search).toBeVisible()
+        await expect(page.locator('[data-testid="tokens-tab-unavailable"]')).toBeVisible()
+        await expect(page.locator('[data-testid="token-search"]')).toHaveCount(0)
+    })
+
+    test('Tokens tab shows token search where the factory is deployed (test13)', async ({ page }) => {
+        await page.goto('/test13/directory')
+        await page.locator('.dir-tab', { hasText: 'Tokens' }).click()
+        await expect(page.locator('[data-testid="token-search"]')).toBeVisible()
     })
 
     test('switching to Users tab shows user search', async ({ page }) => {

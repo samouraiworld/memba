@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useParams, useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ArrowsClockwise } from "@phosphor-icons/react"
-import { GNO_RPC_URL, GNO_CHAIN_ID } from "../lib/config"
+import { GNO_RPC_URL, GNO_CHAIN_ID, isTokenFactoryValid } from "../lib/config"
 import {
     getTokenInfo, getTokenBalance, buildTransferMsg, buildFaucetMsg,
     buildMintMsgs, buildBurnMsg, calculateFee,
@@ -22,6 +22,9 @@ export function TokenView() {
     const { symbol } = useParams<{ symbol: string }>()
     const navigate = useNetworkNav()
     const { auth, adena } = useOutletContext<LayoutContext>()
+    // No token factory on this network (e.g. gno.land mainnet): say so instead
+    // of retrying a lookup that can only end in "Token not found".
+    const factoryAvailable = isTokenFactoryValid()
 
     // Token metadata (public — independent of wallet connection). A token may
     // not be indexed immediately after creation, so retry up to 3 more times,
@@ -29,7 +32,7 @@ export function TokenView() {
     // not-found state silently, exactly as before.
     const tokenQuery = useQuery({
         queryKey: ["token", "info", symbol ?? ""],
-        enabled: !!symbol,
+        enabled: !!symbol && factoryAvailable,
         queryFn: async () => {
             const info = await getTokenInfo(GNO_RPC_URL, symbol!)
             if (!info) throw new Error("token not indexed yet")
@@ -120,6 +123,20 @@ export function TokenView() {
         } finally {
             setTxLoading(false)
         }
+    }
+
+    if (!factoryAvailable) {
+        return (
+            <div className="animate-fade-in tv-empty" data-testid="token-view-unavailable">
+                <h2 className="tv-empty__title">Not available on this network</h2>
+                <p className="tv-empty__hint">
+                    Memba&rsquo;s token factory is not deployed on {GNO_CHAIN_ID}, so its tokens can&rsquo;t be viewed or traded here.
+                </p>
+                <div className="tv-empty__actions">
+                    <button onClick={() => navigate("/tokens")} className="tv-back-btn">← Back to Tokens</button>
+                </div>
+            </div>
+        )
     }
 
     if (loading) {
