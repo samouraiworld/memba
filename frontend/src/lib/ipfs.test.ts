@@ -12,6 +12,7 @@ import {
     isValidCid,
     getIpfsGatewayUrl,
     resolveAvatarUrl,
+    toStorableAvatarUrl,
     uploadToLighthouse,
     uploadImage,
 } from "./ipfs"
@@ -110,6 +111,47 @@ describe("resolveAvatarUrl", () => {
     it("passes through GitHub avatar URLs", () => {
         const url = "https://avatars.githubusercontent.com/u/12345?v=4"
         expect(resolveAvatarUrl(url)).toBe(url)
+    })
+})
+
+// ── toStorableAvatarUrl ───────────────────────────────────────
+// The backend's UpdateProfile blanks every non-http(s) avatar URL, so the
+// uploader must never hand it an ipfs:// link.
+
+describe("toStorableAvatarUrl", () => {
+    const cid = "bafybei" + "c".repeat(52)
+    const gateway = `https://gateway.lighthouse.storage/ipfs/${cid}`
+
+    it("rewrites ipfs:// (any case, optional ipfs/ segment) to the https gateway URL", () => {
+        expect(toStorableAvatarUrl(`ipfs://${cid}`)).toBe(gateway)
+        expect(toStorableAvatarUrl(`IPFS://${cid}`)).toBe(gateway)
+        expect(toStorableAvatarUrl(`ipfs://ipfs/${cid}`)).toBe(gateway)
+    })
+
+    it("rewrites a bare CID to the https gateway URL", () => {
+        expect(toStorableAvatarUrl(`  ${cid}  `)).toBe(gateway)
+    })
+
+    it("refuses ipfs:// links without a valid CID", () => {
+        expect(toStorableAvatarUrl("ipfs://")).toBeNull()
+        expect(toStorableAvatarUrl("ipfs://hello world")).toBeNull()
+    })
+
+    it("keeps https URLs, normalized to what the backend will parse", () => {
+        expect(toStorableAvatarUrl("https://github.com/user.png")).toBe("https://github.com/user.png")
+        expect(toStorableAvatarUrl("https:evil.com/a.png")).toBe("https://evil.com/a.png")
+        expect(toStorableAvatarUrl("https:\\\\evil.com/a.png")).toBe("https://evil.com/a.png")
+    })
+
+    it("rejects what the backend would blank or the browser would block", () => {
+        expect(toStorableAvatarUrl("http://example.com/a.png")).toBeNull() // mixed content
+        expect(toStorableAvatarUrl("https://a.com/%zz")).toBeNull() // Go url.Parse error
+        expect(toStorableAvatarUrl("https://a.com/" + "x".repeat(260))).toBeNull() // > maxURLLen
+        expect(toStorableAvatarUrl("javascript:alert(1)")).toBeNull()
+        expect(toStorableAvatarUrl("data:image/png;base64,AAAA")).toBeNull()
+        expect(toStorableAvatarUrl("ftp://example.com/a.png")).toBeNull()
+        expect(toStorableAvatarUrl("not a url")).toBeNull()
+        expect(toStorableAvatarUrl("")).toBeNull()
     })
 })
 

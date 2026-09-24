@@ -65,6 +65,35 @@ export function resolveAvatarUrl(url: string): string {
     return url // regular HTTP URL
 }
 
+/** The backend's avatar URL cap (profile_rpc.go maxURLLen) — longer is blanked. */
+const MAX_AVATAR_URL_LEN = 256
+
+/**
+ * Normalize an avatar URL into the form the backend stores. UpdateProfile keeps
+ * only http(s) URLs that Go's url.Parse accepts with a host, up to 256 chars,
+ * and silently blanks anything else (profile_rpc.go sanitizeURL). This returns
+ * the https URL to store — an `ipfs://CID` or bare CID becomes its gateway
+ * URL — or null when the input can never be stored. Plain http is refused: the
+ * app is served over https, so an http avatar would be blocked as mixed content.
+ */
+export function toStorableAvatarUrl(input: string): string | null {
+    const trimmed = input.trim()
+    const ipfs = /^ipfs:\/\/(?:ipfs\/)?(.*)$/i.exec(trimmed)
+    const cid = ipfs ? ipfs[1] : trimmed
+    if (ipfs || isValidCid(cid)) return isValidCid(cid) ? getIpfsGatewayUrl(cid) : null
+    let href: string
+    try {
+        const u = new URL(trimmed)
+        if (u.protocol !== "https:" || !u.host) return null
+        href = u.href // normalized: what the backend will parse and store
+    } catch {
+        return null
+    }
+    // Go's url.Parse rejects a "%" that does not start a valid escape.
+    if (/%(?![0-9a-f]{2})/i.test(href) || href.length > MAX_AVATAR_URL_LEN) return null
+    return href
+}
+
 // ── Image Preprocessing ───────────────────────────────────────
 
 /**

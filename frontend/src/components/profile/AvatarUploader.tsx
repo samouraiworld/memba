@@ -2,8 +2,9 @@
  * AvatarUploader — File picker + URL input for profile avatars.
  *
  * v2.1a Phase 2: IPFS upload via Lighthouse.
- * - Upload mode: Select image → preview → pin to IPFS → save CID as avatarUrl
- * - URL mode: Direct URL input (fallback for non-IPFS avatars)
+ * - Upload mode: Select image → preview → pin to IPFS → save the CID's https
+ *   gateway URL as avatarUrl (the backend drops non-http(s) URLs, ipfs:// included)
+ * - URL mode: Direct URL input; ipfs:// and bare CIDs are rewritten the same way
  * - Shows IPFS CID after successful pin
  *
  * Constraints:
@@ -14,7 +15,7 @@
  */
 
 import { useState, useRef, useCallback } from "react"
-import { uploadAvatar, resolveAvatarUrl, isValidImageMime } from "../../lib/ipfs"
+import { uploadAvatar, resolveAvatarUrl, isValidImageMime, getIpfsGatewayUrl, toStorableAvatarUrl } from "../../lib/ipfs"
 
 const MAX_INPUT_SIZE = 2 * 1024 * 1024 // 2MB input limit
 const ACCEPTED_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"]
@@ -66,7 +67,7 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
         try {
             const result = await uploadAvatar(selectedFile)
             setUploadedCid(result.cid)
-            onUrlChange(`ipfs://${result.cid}`)
+            onUrlChange(getIpfsGatewayUrl(result.cid))
             setPreviewUrl(null)
             setSelectedFile(null)
         } catch (err) {
@@ -77,11 +78,16 @@ export function AvatarUploader({ currentUrl, onUrlChange }: Props) {
     }
 
     const applyUrl = () => {
-        if (urlInput.trim()) {
-            onUrlChange(urlInput.trim())
-            setPreviewUrl(null)
-            setError(null)
+        if (!urlInput.trim()) return
+        const storable = toStorableAvatarUrl(urlInput)
+        if (!storable) {
+            setError("Use an https:// link (256 characters max), an ipfs:// link, or an IPFS CID")
+            return
         }
+        onUrlChange(storable)
+        setUrlInput(storable)
+        setPreviewUrl(null)
+        setError(null)
     }
 
     const resolvedCurrent = resolveAvatarUrl(currentUrl)

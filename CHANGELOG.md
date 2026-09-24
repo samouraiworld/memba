@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Profile avatars uploaded to IPFS are kept (2026-09-24)
+<!-- categories: memba -->
+- **An avatar pinned to IPFS now survives the save.** The uploader stored an `ipfs://` link, which the backend drops because it keeps only http(s) links, so the profile showed success and then lost the avatar. The uploader now stores the https gateway link, and the URL field rewrites `ipfs://` links and bare CIDs the same way. It rejects links the save would drop (anything that isn't https, or longer than 256 characters) instead of losing them silently.
+
 ### Profile assets name the right network (2026-09-24)
 <!-- categories: memba, network -->
 - **The native balance card on a profile's Assets tab names the active network.** It always said "Gno.land Testnet", including on gno.land mainnet. It now shows "gno.land" on mainnet and marks test chains as testnets.
