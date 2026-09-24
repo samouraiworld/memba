@@ -16,7 +16,7 @@
  * read or broadcast unless the services lane is live on this network
  * (VITE_ENABLE_SERVICES && isEscrowValid()).
  */
-import { useCallback, useEffect, useState, type FormEvent } from "react"
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react"
 import { GNO_CHAIN_ID, MEMBA_DAO, getIndexerUrl, isEscrowValid, isServicesEnabled } from "../../lib/config"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
 import { escrowContractPath } from "../../lib/marketplace/escrowActions"
@@ -47,6 +47,8 @@ const muted = { color: "var(--color-text-muted)", fontSize: "13px" }
  */
 function useFreelancerContracts(caller: string, enabled: boolean): (FreelancerList & { loadMore: () => void }) | null {
     const [list, setList] = useState<FreelancerList | null>(null)
+    // The "Load more" request in flight, aborted when the account (or the indexer target) changes.
+    const more = useRef<AbortController | null>(null)
     const indexerUrl = getIndexerUrl()
     const active = enabled && Boolean(caller) && indexerUrl !== null
 
@@ -64,17 +66,30 @@ function useFreelancerContracts(caller: string, enabled: boolean): (FreelancerLi
             ({ items, next }) => { if (!cancelled) setList({ caller, items, next, error: null, loading: false }) },
             (err: unknown) => { if (!cancelled) setList({ caller, items: null, next: null, error: err instanceof Error ? err.message : String(err), loading: false }) },
         )
-        return () => { cancelled = true; ctrl.abort() }
+        return () => {
+            cancelled = true
+            ctrl.abort()
+            more.current?.abort()
+            more.current = null
+        }
     }, [active, caller, fetchPage])
 
     const loadMore = useCallback(() => {
         const cursor = list?.caller === caller ? list.next : null
         if (!cursor || list?.loading) return
-        setList((l) => (l ? { ...l, loading: true } : l))
-        fetchPage(cursor).then(
-            ({ items, next }) => setList((l) => ({ caller, items: [...(l?.caller === caller ? l.items ?? [] : []), ...items], next, error: null, loading: false })),
-            (err: unknown) => setList((l) => (l ? { ...l, loading: false, error: err instanceof Error ? err.message : String(err) } : l)),
-        )
+        more.current?.abort()
+        const ctrl = new AbortController()
+        more.current = ctrl
+        // A result counts only for the account and the cursor it was asked for: after an
+        // account switch (which aborts it) or a newer page, it is dropped.
+        const current = (l: FreelancerList | null): l is FreelancerList => !ctrl.signal.aborted && l?.caller === caller && l.next === cursor
+        setList((l) => (current(l) ? { ...l, loading: true } : l))
+        fetchPage(cursor, ctrl.signal)
+            .then(
+                ({ items, next }) => setList((l) => (current(l) ? { caller, items: [...(l.items ?? []), ...items], next, error: null, loading: false } : l)),
+                (err: unknown) => setList((l) => (current(l) ? { ...l, loading: false, error: err instanceof Error ? err.message : String(err) } : l)),
+            )
+            .finally(() => { if (more.current === ctrl) more.current = null })
     }, [list, caller, fetchPage])
 
     if (!active) return null

@@ -5,7 +5,8 @@
  * while a pause's blocking window is open, and neither broadcast while the
  * services lane is gated.
  */
-import { fireEvent, screen, waitFor, within } from "@testing-library/react"
+import { act, fireEvent, render, screen, waitFor, within } from "@testing-library/react"
+import { MemoryRouter } from "react-router-dom"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { renderWithProviders } from "../../test/test-utils"
 import { EscrowContractPanel } from "./EscrowContractPanel"
@@ -20,7 +21,7 @@ vi.mock("../../lib/config", async (importOriginal) => ({
 }))
 
 type Page = { ids: string[]; next: { top: number; belowId: number | null } | null }
-const indexer = vi.hoisted(() => ({ ids: [] as string[] | Error, pages: null as Page[] | null, calls: [] as unknown[][] }))
+const indexer = vi.hoisted(() => ({ ids: [] as string[] | Error, pages: null as (Page | Promise<Page>)[] | null, calls: [] as unknown[][] }))
 vi.mock("../../lib/marketplace/escrowIndexer", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../../lib/marketplace/escrowIndexer")>()),
     findFreelancerContractsPage: async (...args: unknown[]) => {
@@ -320,6 +321,36 @@ describe("EscrowContractPanel — contracts where I am the freelancer", () => {
         expect(within(section).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["#30Job 30 · active", "#29Job 29 · active", "#12Job 12 · active"])
         expect(indexer.calls[1][4]).toEqual({ top: 700_000, belowId: 29 })
         expect(within(section).queryByRole("button", { name: "Load more" })).not.toBeInTheDocument()
+        readEscrowContract.mockImplementation(async () => chain.contract)
+    })
+
+    it("drops a Load more answer that arrives after the wallet switched accounts", async () => {
+        gate.indexer = "https://api.example/api/indexer"
+        let answerA: (p: Page) => void = () => {}
+        indexer.pages = [
+            { ids: ["30"], next: { top: 700_000, belowId: 30 } }, // A, first page
+            new Promise<Page>((resolve) => { answerA = resolve }), // A, Load more (held)
+            { ids: ["40"], next: null }, // B, first page
+        ]
+        readEscrowContract.mockImplementation(async (_p, id) =>
+            contract({ id, title: `Job ${id}`, status: "active", freelancer: id === "40" ? CLIENT : FREELANCER, client: id === "40" ? FREELANCER : CLIENT, milestones: [milestone("funded")] }))
+        // Plain render: rerender must update props in place, as an account switch does (renderWithProviders' would remount).
+        const { rerender } = render(<EscrowContractPanel caller={FREELANCER} />, { wrapper: MemoryRouter })
+        const section = await screen.findByTestId("escrow-freelancer-contracts")
+        await waitFor(() => expect(within(section).getAllByRole("listitem")).toHaveLength(1))
+        fireEvent.click(within(section).getByRole("button", { name: "Load more" }))
+        await waitFor(() => expect(indexer.calls).toHaveLength(2))
+        const loadMoreSignal = indexer.calls[1][5] as AbortSignal
+
+        rerender(<EscrowContractPanel caller={CLIENT} />)
+        expect(loadMoreSignal.aborted).toBe(true)
+        await waitFor(() => expect(within(screen.getByTestId("escrow-freelancer-contracts")).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["#40Job 40 · active"]))
+
+        // A's page finally answers: it must not replace B's list.
+        await act(async () => { answerA({ ids: ["29"], next: null }) })
+        const after = screen.getByTestId("escrow-freelancer-contracts")
+        expect(within(after).getAllByRole("listitem").map((li) => li.textContent)).toEqual(["#40Job 40 · active"])
+        expect(within(after).queryByText("Searching...")).not.toBeInTheDocument()
         readEscrowContract.mockImplementation(async () => chain.contract)
     })
 
