@@ -302,7 +302,7 @@ export default function QuestHub() {
                 <details className="k-questhub-comingsoon">
                     <summary>Coming soon ({comingSoon.length})</summary>
                     <p className="k-questhub-comingsoon-note">
-                        These quests aren&apos;t live on test13 yet — their verification or rewards are still being wired up.
+                        These quests aren&apos;t live yet — their verification or rewards are still being wired up.
                     </p>
                     <div className="k-questhub-comingsoon-grid">
                         {comingSoon.map(q => (

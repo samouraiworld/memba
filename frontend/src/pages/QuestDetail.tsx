@@ -221,7 +221,7 @@ export default function QuestDetail() {
             {!isCompleted && !isLive && (
                 <div className="k-questdetail-verify">
                     <p className="k-questdetail-hint">
-                        This quest isn&apos;t live on test13 yet — its verification or reward is still
+                        This quest isn&apos;t live yet — its verification or reward is still
                         being wired up. It&apos;ll open in a future season.
                     </p>
                 </div>

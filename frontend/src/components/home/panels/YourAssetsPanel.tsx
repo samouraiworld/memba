@@ -3,6 +3,8 @@ import { useAdena } from "../../../hooks/useAdena"
 import { useBalance } from "../../../hooks/useBalance"
 import { formatGnotCompact } from "../../../lib/formatGnot"
 import { useNetworkPath } from "../../../hooks/useNetworkNav"
+import { useNetwork } from "../../../hooks/useNetwork"
+import { GNO_FAUCET_URL, isTestnetNetwork } from "../../../lib/config"
 import { Door } from "../Door"
 import "../home.css"
 
@@ -13,6 +15,9 @@ export function YourAssetsPanel() {
     const adena = useAdena()
     const { rawUgnot } = useBalance(adena.connected ? adena.address : null)
     const np = useNetworkPath()
+    const { networkKey, label } = useNetwork()
+    // The active network's own label ("gno.land" on mainnet); test chains say so.
+    const networkName = isTestnetNetwork(networkKey) && !/testnet/i.test(label) ? `${label} testnet` : label
 
     // If not connected, or we haven't loaded balances, just return null or empty state
     if (!adena.connected) return null
@@ -41,7 +46,7 @@ export function YourAssetsPanel() {
                         </div>
                         <div style={{ flex: 1 }}>
                             <div style={{ fontSize: "14px", fontWeight: 600, color: "var(--color-text)" }}>Native Balance</div>
-                            <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }}>Gno.land Testnet</div>
+                            <div style={{ fontSize: "12px", color: "var(--color-text-muted)" }} data-testid="your-assets-network">{networkName}</div>
                         </div>
                         <div style={{ textAlign: "right" }}>
                             <div style={{ fontSize: "16px", fontWeight: 700, color: "var(--color-primary)" }}>
@@ -54,7 +59,8 @@ export function YourAssetsPanel() {
                         variant="invitation"
                         state="empty"
                         eyebrow="no native tokens"
-                        invitation={{ label: "Get Testnet GNOT", href: "https://faucet.gno.land" }}
+                        // Only a network with a faucet can offer free GNOT (mainnet has none).
+                        invitation={GNO_FAUCET_URL ? { label: "Get testnet GNOT", href: GNO_FAUCET_URL } : undefined}
                     />
                 )}
 

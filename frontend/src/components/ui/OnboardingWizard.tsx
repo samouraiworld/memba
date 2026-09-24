@@ -43,8 +43,8 @@ const STEPS = [
 const FEATURES = [
     { icon: "🏛️", label: "DAO Governance", desc: "Vote, propose, and manage treasuries" },
     { icon: "🔑", label: "Multisig Wallets", desc: "Shared wallets with threshold signing" },
-    { icon: "🎮", label: "GnoBuilders Quests", desc: "85 quests, earn XP, climb ranks" },
-    { icon: "🤖", label: "AI Analyst", desc: "10-model consensus on proposals" },
+    { icon: "🎮", label: "GnoBuilders Quests", desc: "Complete quests, earn XP, climb ranks" },
+    { icon: "💬", label: "Social Feed", desc: "Post and discuss on-chain" },
     { icon: "📊", label: "Validators", desc: "Monitor network health and performance" },
     { icon: "❤️", label: "Dev Report", desc: "Open source contributor analytics" },
 ]

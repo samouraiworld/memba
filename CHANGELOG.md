@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Mainnet screens drop stale testnet copy (2026-09-24)
+<!-- categories: memba, network -->
+- **Quest, onboarding and Home copy now fits gno.land mainnet.**
+- The quests' "Coming soon" notes no longer say they are pending on test13.
+- Onboarding no longer promises "85 quests" or the 10-model AI Analyst, which is switched off in production; the Social Feed takes its place.
+- Home's Your Assets panel labels the balance with the active network and links a faucet only where one exists. Mainnet has none.
+
 ### Quest attestation is live on gno.land mainnet (#1283, 2026-09-24)
 <!-- categories: memba, network -->
 - **Quest XP can be recorded on mainnet.** `memba_quest_attestation_v1` is now allowlisted on `gnoland-1`: its owner installed the backend's voucher key with `SetSigner` at height 292610, and the backend signs with that key for `gnoland-1` only. The arcade leaderboard stays off.
