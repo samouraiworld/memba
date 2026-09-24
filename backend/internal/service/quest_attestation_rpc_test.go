@@ -4,6 +4,8 @@ import (
 	"context"
 	"crypto/ed25519"
 	"encoding/hex"
+	"fmt"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -16,13 +18,23 @@ import (
 // testAttestationSeed = 0x01..0x20 (same vector the realm + signer parity tests use).
 const testAttestationSeed = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
 
+// testAttestationChain is the chain test signers are bound to (O4).
+const testAttestationChain = "gnoland-1"
+
+// newBoundTestSigner builds a signer bound to testAttestationChain, as
+// production does via NewBoundSigner(seed, QUEST_SIGNER_CHAIN_ID, GNO_CHAIN_ID).
+func newBoundTestSigner(seedHex string) (*attestation.Signer, error) {
+	s, _, err := attestation.NewBoundSigner(seedHex, testAttestationChain, testAttestationChain)
+	return s, err
+}
+
 // TestCompleteQuest_IssuesAttestationVoucher is the A.3b end-to-end backend check:
 // with a signer configured, completing a quest issues a voucher that
 // GetAttestationVouchers returns AND that verifies on-chain (ed25519 over the
 // canonical message) — i.e. the realm would accept it.
 func TestCompleteQuest_IssuesAttestationVoucher(t *testing.T) {
 	h := setup(t)
-	signer, err := attestation.NewFromSeedHex(testAttestationSeed)
+	signer, err := newBoundTestSigner(testAttestationSeed)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -72,7 +84,7 @@ func TestCompleteQuest_IssuesAttestationVoucher(t *testing.T) {
 // nonce), never a duplicate or a re-sign.
 func TestCompleteQuest_VoucherIsIdempotent(t *testing.T) {
 	h := setup(t)
-	signer, _ := attestation.NewFromSeedHex(testAttestationSeed)
+	signer, _ := newBoundTestSigner(testAttestationSeed)
 	h.svc.SetAttestationSigner(signer)
 	token := h.makeToken(t, "g1bob")
 
@@ -99,7 +111,7 @@ func TestCompleteQuest_VoucherIsIdempotent(t *testing.T) {
 // attest. This also backfills completions recorded before attestation was on.
 func TestSyncQuests_IssuesAttestationVouchers(t *testing.T) {
 	h := setup(t)
-	signer, _ := attestation.NewFromSeedHex(testAttestationSeed)
+	signer, _ := newBoundTestSigner(testAttestationSeed)
 	h.svc.SetAttestationSigner(signer)
 	token := h.makeToken(t, "g1dave")
 
@@ -161,7 +173,7 @@ func countRows(t *testing.T, h *testHarness, query string, args ...any) int {
 // barrier, so both pass the precheck before either inserts — deterministic.
 func TestCompleteQuest_ConflictingDeployProofGetsNoVoucher(t *testing.T) {
 	h := setup(t)
-	signer, err := attestation.NewFromSeedHex(testAttestationSeed)
+	signer, err := newBoundTestSigner(testAttestationSeed)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -251,7 +263,7 @@ func TestCompleteQuest_ConflictingDeployProofGetsNoVoucher(t *testing.T) {
 // succeeds both times and keeps the single original voucher.
 func TestCompleteQuest_IdempotentRetryKeepsVoucher(t *testing.T) {
 	h := setup(t)
-	signer, err := attestation.NewFromSeedHex(testAttestationSeed)
+	signer, err := newBoundTestSigner(testAttestationSeed)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -318,7 +330,7 @@ func TestCompleteQuest_ConflictNoSignerNoBadge(t *testing.T) {
 		t.Fatalf("conflicting proof must be rejected with FailedPrecondition, got %v", err)
 	}
 
-	if n := countRows(t, h, `SELECT COUNT(*) FROM attestation_vouchers WHERE address = ?`, deployTestAddr); n != 0 {
+	if n := countRows(t, h, `SELECT COUNT(*) FROM attestation_vouchers_bound WHERE address = ?`, deployTestAddr); n != 0 {
 		t.Fatalf("no voucher expected without a signer, got %d", n)
 	}
 	if n := countRows(t, h, `SELECT COUNT(*) FROM badge_mints WHERE address = ?`, deployTestAddr); n != 1 {
@@ -340,7 +352,7 @@ func TestCompleteQuest_ConflictNoSignerNoBadge(t *testing.T) {
 // stored completion, independent of the caller.
 func TestQuestRewards_RequireStoredCompletion(t *testing.T) {
 	h := setup(t)
-	signer, err := attestation.NewFromSeedHex(testAttestationSeed)
+	signer, err := newBoundTestSigner(testAttestationSeed)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -350,10 +362,126 @@ func TestQuestRewards_RequireStoredCompletion(t *testing.T) {
 	h.svc.issueAttestationVoucher(ctx, "g1erin", "connect-wallet")
 	h.svc.queueBadgeMint(ctx, "g1erin", "connect-wallet")
 
-	if n := countRows(t, h, `SELECT COUNT(*) FROM attestation_vouchers WHERE address = 'g1erin'`); n != 0 {
+	if n := countRows(t, h, `SELECT COUNT(*) FROM attestation_vouchers_bound WHERE address = 'g1erin'`); n != 0 {
 		t.Fatalf("voucher issued without a stored completion (%d rows)", n)
 	}
 	if n := countRows(t, h, `SELECT COUNT(*) FROM badge_mints WHERE address = 'g1erin'`); n != 0 {
 		t.Fatalf("badge mint queued without a stored completion (%d rows)", n)
+	}
+}
+
+// O4: a seed that is configured but refused (no binding, wrong chain, no
+// runtime chain, bad seed) must issue nothing, and GetAttestationVouchers must
+// say Unavailable rather than look like a quiet "attestation off".
+func TestAttestation_MisconfiguredSignerFailsClosed(t *testing.T) {
+	cases := []struct {
+		name, bound, runtime, seed string
+	}{
+		{"missing binding (Pearl-era prod secret)", "", "gnoland-1", testAttestationSeed},
+		{"chain mismatch", "pearl-1", "gnoland-1", testAttestationSeed},
+		{"no runtime chain", "gnoland-1", "", testAttestationSeed},
+		{"invalid seed", "gnoland-1", "gnoland-1", "not-hex"},
+	}
+	for i, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			signer, state, err := attestation.NewBoundSigner(tc.seed, tc.bound, tc.runtime)
+			if signer != nil || err == nil || !state.Misconfigured() {
+				t.Fatalf("expected a refused signer, got signer=%v state=%s err=%v", signer != nil, state, err)
+			}
+			h := setup(t)
+			h.svc.DisableAttestation(state)
+			addr := fmt.Sprintf("g1misconf%d", i)
+			token := h.makeToken(t, addr)
+			if _, err := h.svc.CompleteQuest(context.Background(), connect.NewRequest(&membav1.CompleteQuestRequest{
+				AuthToken: token, QuestId: "connect-wallet",
+			})); err != nil {
+				t.Fatal("quest completion must still work with attestation disabled:", err)
+			}
+			if n := countRows(t, h, `SELECT COUNT(*) FROM attestation_vouchers_bound WHERE address = ?`, addr); n != 0 {
+				t.Fatalf("no voucher may be issued by a refused signer, got %d", n)
+			}
+			_, err = h.svc.GetAttestationVouchers(context.Background(), connect.NewRequest(&membav1.GetAttestationVouchersRequest{Address: addr}))
+			if connect.CodeOf(err) != connect.CodeUnavailable {
+				t.Fatalf("want Unavailable, got %v", err)
+			}
+			if !strings.Contains(err.Error(), string(state)) {
+				t.Fatalf("error should name the state %q: %v", state, err)
+			}
+		})
+	}
+}
+
+// Defense in depth: an unbound signer handed to the service is refused.
+func TestSetAttestationSigner_RefusesUnboundSigner(t *testing.T) {
+	h := setup(t)
+	unbound, err := attestation.NewFromSeedHex(testAttestationSeed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.svc.SetAttestationSigner(unbound)
+	token := h.makeToken(t, "g1frank")
+	if _, err := h.svc.CompleteQuest(context.Background(), connect.NewRequest(&membav1.CompleteQuestRequest{
+		AuthToken: token, QuestId: "connect-wallet",
+	})); err != nil {
+		t.Fatal(err)
+	}
+	if n := countRows(t, h, `SELECT COUNT(*) FROM attestation_vouchers_bound WHERE address = 'g1frank'`); n != 0 {
+		t.Fatalf("unbound signer must not issue, got %d", n)
+	}
+	_, err = h.svc.GetAttestationVouchers(context.Background(), connect.NewRequest(&membav1.GetAttestationVouchersRequest{Address: "g1frank"}))
+	if connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("want Unavailable for an unbound signer, got %v", err)
+	}
+}
+
+// Vouchers are scoped to (chain, key): a voucher left by an earlier key, by the
+// same key on another chain, or in the legacy unscoped table is never served
+// under the current signer and never blocks issuing a fresh one for it.
+func TestAttestation_VouchersScopedToChainAndKey(t *testing.T) {
+	h := setup(t)
+	signer, err := newBoundTestSigner(testAttestationSeed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	h.svc.SetAttestationSigner(signer)
+	ctx := context.Background()
+	const addr = "g1grace"
+
+	stale := []struct{ chain, pubkey string }{
+		{testAttestationChain, strings.Repeat("ab", 32)}, // earlier key, same chain
+		{"pearl-1", signer.PublicKeyHex()},               // same key, other chain
+	}
+	for _, st := range stale {
+		if _, err := h.db.ExecContext(ctx,
+			`INSERT INTO attestation_vouchers_bound (chain_id, signer_pubkey, address, quest_id, xp, nonce, sig_hex) VALUES (?, ?, ?, 'connect-wallet', 10, 'stale', 'stale')`,
+			st.chain, st.pubkey, addr,
+		); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := h.db.ExecContext(ctx,
+		`INSERT INTO attestation_vouchers (address, quest_id, xp, nonce, sig_hex) VALUES (?, 'connect-wallet', 10, 'legacy', 'legacy')`, addr,
+	); err != nil {
+		t.Fatal(err)
+	}
+
+	token := h.makeToken(t, addr)
+	if _, err := h.svc.CompleteQuest(ctx, connect.NewRequest(&membav1.CompleteQuestRequest{
+		AuthToken: token, QuestId: "connect-wallet",
+	})); err != nil {
+		t.Fatal(err)
+	}
+	resp, err := h.svc.GetAttestationVouchers(ctx, connect.NewRequest(&membav1.GetAttestationVouchersRequest{Address: addr}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(resp.Msg.Vouchers) != 1 {
+		t.Fatalf("want exactly the fresh voucher, got %+v", resp.Msg.Vouchers)
+	}
+	v := resp.Msg.Vouchers[0]
+	pub, _ := hex.DecodeString(resp.Msg.SignerPubkeyHex)
+	sig, err := hex.DecodeString(v.SigHex)
+	if err != nil || !ed25519.Verify(pub, attestation.Canonical(addr, v.QuestId, int(v.Xp), v.Nonce), sig) {
+		t.Fatalf("served voucher must verify under the current key: %+v", v)
 	}
 }

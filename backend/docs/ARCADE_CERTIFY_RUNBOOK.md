@@ -1,10 +1,10 @@
 # Arcade on-chain certify — go-live ceremony runbook (multi-game)
 
-> **Pearl-era; mainnet runbook pending.** This procedure targets `pearl-1`, which was retired on 2026-09-23. Do not run it against mainnet (`gnoland-1`) as written; it will be rewritten for mainnet.
+> **Mainnet (`gnoland-1`): follow [Mainnet go-live](#mainnet-go-live-gnoland-1-owner-ruling-o5).** The numbered steps under [Pearl-era steps](#pearl-era-steps-historical) target `pearl-1`, which was retired on 2026-09-23. They are kept as history. Do not run them against mainnet.
 
 This is the OWNER-GATED procedure to take the arcade certify pipeline from
-"dark" (all code merged, nothing enabled) to a live pre-mainnet beta on
-**pearl-1**. The pipeline is multi-game since 2026-09-01 (realm amended in
+"dark" (all code merged, nothing enabled) to live. It was first written for a
+pre-mainnet beta on **pearl-1**. The pipeline is multi-game since 2026-09-01 (realm amended in
 place pre-first-deploy; `MEMBA_ARCADE_GAMES` picks which games accept
 submissions — the launch recommendation is `invaders` while BARRICADE stays
 parked post-mainnet). Everything below is off/404/dormant until these steps
@@ -35,7 +35,166 @@ run. Do them in order.
   day to the realm's competitive board, attester-pays via a dedicated gnokey key.
 - **Certify UI** (#931): the opt-in poster action + the read-only board client.
 
-## Owner-gated steps (nothing here is automated)
+## Mainnet go-live (`gnoland-1`, owner ruling O5)
+
+Nothing here is automated, and **no code changes**. `verify.ts` and `replay.ts`
+are a FROZEN CONTRACT: going live on mainnet is configuration plus one publisher
+transaction. Do **M3 before the DAO handoff**; after it, `AddAttester` costs a
+DAO vote.
+
+### State on 2026-09-24
+
+- **Realm:** `gno.land/r/samcrew/memba_arcade_leaderboard_v1` is published on
+  `gnoland-1` (height 265720, `realm-versions.json` `mainnet`). A read-only
+  probe returned `GetOwner()` = the samcrew 2-of-3
+  `g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf`, `IsPaused()` = `false`, and **no
+  attester registered**.
+- **Fly `memba-backend`:** `ARCADE_ATTESTER_MNEMONIC`,
+  `MEMBA_ARCADE_ATTESTER_ENABLED`, `MEMBA_ARCADE_ATTESTER_KEY` and
+  `MEMBA_ARCADE_SUBMIT_ENABLED` are present. That is a names-only
+  `fly secrets list`; the values were not read. They date from the **Pearl
+  beta**. The attester broadcasts to `GNO_CHAIN_ID`, which is now `gnoland-1`,
+  so if they are on, the batcher signs mainnet `AttestScore` calls with the
+  Pearl key. That key is not an attester there, so every attestation fails and
+  the runs park `errored`. `MEMBA_ARCADE_GAMES` is unset, which means
+  `barricade` only.
+  **Owner check:** read the boot log line `arcade day-close attester enabled`
+  (it prints `chainID`). Until M4 lands, either unset
+  `MEMBA_ARCADE_ATTESTER_ENABLED` or accept the parked runs.
+- **Frontend:** `memba_arcade_leaderboard_v1` is deliberately absent from
+  `REALM_ALLOWLIST.mainnet` ("no attester"). The certify flags are off.
+
+### M1. Generate a NEW mainnet attester key (owner's machine)
+
+Use a dedicated, low-privilege key made only for mainnet. It is **never** the
+Pearl key and **never** a deploy or namespace multisig member. If it leaks, the
+worst case is forged board entries. The realm holds no funds, and the owner can
+`RemoveAttester` the key.
+
+```bash
+gnokey add memba-arcade-attester-gnoland-1   # record the mnemonic + address ONCE, offline
+```
+
+The mnemonic becomes a Fly secret (M4). The address gets funded (M2) and
+allowlisted (M3). For M4, keep the mnemonic on a single line in a mode-0600 file
+(for example `~/secure/memba-arcade-attester-gnoland-1.mnemonic`), stored
+offline per `docs/SECRETS_ROTATION.md`.
+
+### M2. Fund the attester for gas
+
+Each attestation is one `AttestScore` tx. The broadcaster pays
+`-gas-fee 1000000ugnot` (1 GNOT) with `-gas-wanted 5000000`; see
+`internal/arcade/attest.go`. A cycle sends at most
+`MEMBA_ARCADE_ATTEST_MAX_PER_CYCLE` txs (default 100) every
+`MEMBA_ARCADE_ATTEST_INTERVAL` (default 15m).
+
+Fund for the expected wallet-days × 1 GNOT, plus headroom. Lower the per-cycle
+cap to bound the worst-case spend. **Owner decision:** whether 1 GNOT per
+attestation is the right fee at mainnet gas prices. Changing it is a separate
+backend PR.
+
+### M3. Publisher `AddAttester` (MsgCall)
+
+The realm owner (the samcrew 2-of-3) signs one `vm/MsgCall` through the
+samcrew-deployer `tools/mainnet-manual` flow:
+
+| Field | Value |
+|---|---|
+| `pkg_path` | `gno.land/r/samcrew/memba_arcade_leaderboard_v1` |
+| `func` | `AddAttester` |
+| `args` | `["<attester g1 address from M1>"]` |
+| `send` | `""` (no coins) |
+| `chain_id` | `gnoland-1` |
+
+`samcrew-arcade-admin.sh` is pinned to the testnet multisig `g1x7k4628…`, so it
+refuses `gnoland-1` on the owner check. Do not use it for mainnet.
+
+Before signing, check the preconditions over read-only RPC. Accept an answer
+only when `node_info.network == "gnoland-1"`. After the tx, check the
+postcondition:
+
+```bash
+R=https://rpc.mainnet.samourai.live
+curl -s $R/status | jq -r .result.node_info.network                           # gnoland-1
+q() { curl -s "$R/abci_query?path=%22vm/qeval%22&data=%22$(printf '%s' "$1" | base64 | tr -d '\n' | jq -sRr @uri)%22" \
+      | jq -r .result.response.ResponseBase.Data | base64 -d; echo; }
+A=gno.land/r/samcrew/memba_arcade_leaderboard_v1
+q "$A.GetOwner()"                    # ("g136j0m08…9s5cpf" .uverse.address)
+q "$A.IsPaused()"                    # (false bool)
+q "$A.IsAttester(\"<attester>\")"    # (false bool) before, (true bool) after
+```
+
+Record the height and tx hash in the deployer journal.
+
+### M4. Enable the backend (Fly)
+
+The image already bakes in gnokey, the `start.sh` boot import and the ephemeral
+keyring. Stage the secrets, then deploy them together. The mnemonic travels on
+stdin, so it never appears in `argv` or shell history:
+
+```bash
+{ printf 'ARCADE_ATTESTER_MNEMONIC=%s\n' "$(cat ~/secure/memba-arcade-attester-gnoland-1.mnemonic)"
+  printf 'MEMBA_ARCADE_ATTESTER_KEY=memba-arcade-attester-gnoland-1\n'
+  printf 'MEMBA_ARCADE_ATTESTER_ENABLED=1\n'
+  printf 'MEMBA_ARCADE_SUBMIT_ENABLED=1\n'
+  printf 'MEMBA_ARCADE_GAMES=invaders\n'; } \
+  | fly secrets import --stage -a memba-backend
+fly secrets list -a memba-backend          # names + digests only
+fly secrets deploy -a memba-backend
+```
+
+Do not merge a backend PR while secrets are staged: backend merges auto-deploy,
+and a deploy activates staged secrets.
+
+- `MEMBA_ARCADE_REALM` defaults to the mainnet path.
+- `MEMBA_ARCADE_RPC_URL` defaults to `GNO_RPC_URL`. Confirm that node reports
+  `node_info.network == "gnoland-1"`.
+- BARRICADE stays out of `MEMBA_ARCADE_GAMES` until its own launch.
+
+Check the boot logs for these three lines:
+
+- `arcade attester key 'memba-arcade-attester-gnoland-1' imported into the keyring`
+- `arcade submit endpoint enabled` with `games` = `invaders`
+- `arcade day-close attester enabled` with `chainID` = **`gnoland-1`** and the
+  mainnet realm
+
+`start.sh` unsets the mnemonic before the app starts. Each feature disables
+itself, with a warning, when node, gnokey, the key or the chain is missing.
+
+### M5. Enable the frontend (Netlify)
+
+Set the build env in the Netlify UI and trigger a native redeploy. Never use
+`deploy-frontend.yml`.
+
+```
+VITE_ENABLE_SPACE_INVADERS=true            # the game (if not already on)
+VITE_ENABLE_SPACE_INVADERS_CERTIFY=true    # daily Certify action + board client
+# VITE_ENABLE_BARRICADE_CERTIFY stays off until MEMBA_ARCADE_GAMES includes barricade.
+```
+
+None of these flags is in `SAFETY_GATED_FLAGS`, because no funds move. After
+M3, a separate frontend PR should add the realm to `REALM_ALLOWLIST.mainnet`
+and replace the "no attester" note with the `AddAttester` height and tx.
+
+### M6. Verify on mainnet
+
+1. Play a Space Invaders daily run, tap **Certify on-chain** and sign in. The
+   poster shows "Run verified and queued".
+2. The backend stores the run as `verified` (logs, `/metrics`).
+3. Once the day is fully closed (D+2 UTC), the batcher attests the best run per
+   wallet. The run flips to `attested` with a tx hash.
+4. On-chain, check `GetBoardJSON("invaders", "<YYYY-MM-DD>", 0, 10)` or the
+   Render path `:board/invaders/<YYYY-MM-DD>`. The entry is listed. The
+   attester's balance should drop by about 1 GNOT per attested wallet-day.
+
+Rollback is described under [Disable / rollback](#disable--rollback). On
+mainnet, `RemoveAttester` and `Pause` are owner MsgCalls through
+`tools/mainnet-manual`.
+
+## Pearl-era steps (historical)
+
+The steps below were written for `pearl-1`, which is retired. Keep them for
+reference only.
 
 ### 1. Deploy the realm (pearl)
 
@@ -135,12 +294,14 @@ the wiring is proven before any ceremony.
 
 ## Disable / rollback
 
-- **Frontend:** unset `VITE_ENABLE_BARRICADE_CERTIFY` (Netlify), redeploy → the
-  Certify action disappears; play is unaffected.
+- **Frontend:** unset the game's certify flag (`VITE_ENABLE_SPACE_INVADERS_CERTIFY`
+  or `VITE_ENABLE_BARRICADE_CERTIFY`, Netlify), redeploy → the Certify action
+  disappears; play is unaffected.
 - **Backend:** unset `MEMBA_ARCADE_SUBMIT_ENABLED` → submit 404s; unset
   `MEMBA_ARCADE_ATTESTER_ENABLED` → the attester stops. Deploy.
 - **Realm:** `Pause(true)` freezes all attestation (reads stay live);
-  `RemoveAttester` revokes the key.
+  `RemoveAttester` revokes the key. Both are owner-only (on mainnet: a
+  2-of-3 MsgCall via `tools/mainnet-manual`).
 - A run parked `errored` (too many transient attest failures) can be requeued by
   flipping its `arcade_runs.status` back to `verified`.
 
@@ -153,4 +314,4 @@ the wiring is proven before any ceremony.
   the differentiator; the `arcade.ts` `getBoard` reader is ready).
 - **Season-boundary `SIM_VERSION` cutover** — bumping the sim's version when a v2
   season closes so old attestations stay verifiable under their frozen build.
-- The **mainnet** Genesis drop plan (waits on the pearl beta).
+- The **mainnet** Genesis drop plan.

@@ -320,10 +320,14 @@ func (s *MultisigService) issueAttestationVoucher(ctx context.Context, addr, que
 	if !stored {
 		return
 	}
-	// Skip if already issued (avoids re-signing on idempotent re-completion).
+	// Skip if already issued under THIS (chain, key) — avoids re-signing on
+	// idempotent re-completion. A voucher from an earlier key or another chain
+	// does not count, so registering a new key re-issues on the next sync.
+	chainID, pubkey := s.attSigner.ChainID(), s.attSigner.PublicKeyHex()
 	var exists int
 	_ = s.db.QueryRowContext(ctx,
-		`SELECT 1 FROM attestation_vouchers WHERE address = ? AND quest_id = ?`, addr, questID,
+		`SELECT 1 FROM attestation_vouchers_bound WHERE chain_id = ? AND signer_pubkey = ? AND address = ? AND quest_id = ?`,
+		chainID, pubkey, addr, questID,
 	).Scan(&exists)
 	if exists == 1 {
 		return
@@ -338,8 +342,8 @@ func (s *MultisigService) issueAttestationVoucher(ctx context.Context, addr, que
 		return
 	}
 	if _, err := s.db.ExecContext(ctx,
-		`INSERT OR IGNORE INTO attestation_vouchers (address, quest_id, xp, nonce, sig_hex) VALUES (?, ?, ?, ?, ?)`,
-		v.Address, v.QuestID, v.XP, v.Nonce, v.SigHex,
+		`INSERT OR IGNORE INTO attestation_vouchers_bound (chain_id, signer_pubkey, address, quest_id, xp, nonce, sig_hex) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+		chainID, pubkey, v.Address, v.QuestID, v.XP, v.Nonce, v.SigHex,
 	); err != nil {
 		slog.Warn("attestation voucher persist failed", "address", addr, "quest", questID, "err", err)
 	}
@@ -347,10 +351,16 @@ func (s *MultisigService) issueAttestationVoucher(ctx context.Context, addr, que
 
 // GetAttestationVouchers returns the backend-signed vouchers for an address so
 // the client can broadcast them to the attestation realm (Q-05). Public read;
-// empty (with no realm/signer) when attestation is disabled.
+// empty (with no realm/signer) when attestation is off, Unavailable when a
+// signer is configured but refused (O4 chain binding). Only vouchers signed by
+// the current key for the current chain are served.
 func (s *MultisigService) GetAttestationVouchers(ctx context.Context, req *connect.Request[membav1.GetAttestationVouchersRequest]) (*connect.Response[membav1.GetAttestationVouchersResponse], error) {
 	resp := &membav1.GetAttestationVouchersResponse{}
 	if s.attSigner == nil {
+		if s.attState.Misconfigured() {
+			return nil, connect.NewError(connect.CodeUnavailable,
+				fmt.Errorf("quest attestation vouchers are unavailable: the voucher signer is disabled on this server (%s)", s.attState))
+		}
 		return connect.NewResponse(resp), nil
 	}
 	resp.RealmPath = attestation.RealmPath
@@ -361,7 +371,8 @@ func (s *MultisigService) GetAttestationVouchers(ctx context.Context, req *conne
 		return connect.NewResponse(resp), nil
 	}
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT quest_id, xp, nonce, sig_hex FROM attestation_vouchers WHERE address = ? ORDER BY created_at, quest_id`, addr,
+		`SELECT quest_id, xp, nonce, sig_hex FROM attestation_vouchers_bound WHERE chain_id = ? AND signer_pubkey = ? AND address = ? ORDER BY created_at, quest_id`,
+		s.attSigner.ChainID(), resp.SignerPubkeyHex, addr,
 	)
 	if err != nil {
 		return nil, internalError("GetAttestationVouchers", err)

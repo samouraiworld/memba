@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Quest vouchers are signed for one chain only (2026-09-24)
+<!-- categories: memba, network -->
+- **The quest voucher key only signs for the chain it was made for.** The attestation realm's signed message has no chain id, so each chain now gets its own key, and the backend signs only when `QUEST_SIGNER_CHAIN_ID` matches the chain it runs on. Otherwise the signer is turned off: it is logged, shown on `/health` and in a metric, and voucher requests get a clear "unavailable" error. Boot never fails because of it. The Pearl-era key in production is now off, not signing for gno.land mainnet.
+- **Vouchers stay with the key and chain that signed them.** The backend no longer serves a voucher from an older key or another chain, and such a voucher no longer blocks a new one: the next quest sync re-issues it under the current key.
+- **Mainnet runbooks.** `docs/QUEST_ATTESTATION_RUNBOOK.md` covers the steps from the offline key tool (`backend/cmd/quest-signer-keygen`) to `SetSigner` and a smoke test. `backend/docs/ARCADE_CERTIFY_RUNBOOK.md` gains the mainnet attester steps: key, `AddAttester`, Fly and Netlify flags, and checks.
+
 ### Coming next
 <!-- categories: memba, network -->
 - Escrow, marketplace configuration, DAO channels, quest attestation and the arcade leaderboard stay gated on gno.land mainnet until their own setup is complete.

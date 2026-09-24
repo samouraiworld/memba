@@ -168,3 +168,14 @@ var RenderBlocklistSuppressedTotal = promauto.NewCounterVec(
 	},
 	[]string{"reason"},
 )
+
+// QuestAttestationSignerState is the boot-resolved state of the quest voucher
+// signer (O4 chain binding): exactly one state label reads 1, the rest 0. state
+// ∈ {off, enabled, disabled_unbound, disabled_no_runtime_chain,
+// disabled_chain_mismatch, disabled_invalid_seed}. Any disabled_* = 1 means a
+// seed is configured but the signer was refused and GetAttestationVouchers
+// answers Unavailable. Set once at boot in cmd/memba.
+var QuestAttestationSignerState = promauto.NewGaugeVec(prometheus.GaugeOpts{
+	Name: "memba_quest_attestation_signer_state",
+	Help: "Quest voucher signer state resolved at boot (1 = current); disabled_* means a seed is set but refused (chain binding).",
+}, []string{"state"})

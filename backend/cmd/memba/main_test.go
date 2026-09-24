@@ -8,8 +8,11 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	"github.com/rs/cors"
+	"github.com/samouraiworld/memba/backend/internal/attestation"
 	"github.com/samouraiworld/memba/backend/internal/indexer"
+	"github.com/samouraiworld/memba/backend/internal/metrics"
 )
 
 // SEC-2: /metrics is gated by METRICS_BEARER when set. When unset it stays open
@@ -370,5 +373,62 @@ func TestDefaultNFTTailerRealms(t *testing.T) {
 	// The retired engine must never re-enter either default.
 	if slices.Contains(watched, retiredV3) || slices.Contains(saleVolume, retiredV3) {
 		t.Errorf("retired realm %s must not appear in the default sets", retiredV3)
+	}
+}
+
+// fakeAttestationSvc records what configureAttestation installs.
+type fakeAttestationSvc struct {
+	signer   *attestation.Signer
+	disabled attestation.State
+	setCalls int
+}
+
+func (f *fakeAttestationSvc) SetAttestationSigner(s *attestation.Signer) { f.signer = s; f.setCalls++ }
+func (f *fakeAttestationSvc) DisableAttestation(st attestation.State)    { f.disabled = st }
+
+// O4 boot wiring: only a seed bound to GNO_CHAIN_ID installs a signer; the
+// current prod shape (a Pearl-era seed with no QUEST_SIGNER_CHAIN_ID on
+// gnoland-1) must end up disabled, and nothing here may exit the process.
+func TestConfigureAttestation(t *testing.T) {
+	const seed = "0102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f20"
+	cases := []struct {
+		name        string
+		env         map[string]string
+		want        attestation.State
+		wantSigner  bool
+		wantDisable bool
+	}{
+		{"bound and matching", map[string]string{"MEMBA_ATTESTATION_SEED": seed, "QUEST_SIGNER_CHAIN_ID": "gnoland-1", "GNO_CHAIN_ID": "gnoland-1"}, attestation.StateEnabled, true, false},
+		{"prod today: seed, no binding", map[string]string{"MEMBA_ATTESTATION_SEED": seed, "GNO_CHAIN_ID": "gnoland-1"}, attestation.StateDisabledUnbound, false, true},
+		{"bound to pearl, running mainnet", map[string]string{"MEMBA_ATTESTATION_SEED": seed, "QUEST_SIGNER_CHAIN_ID": "pearl-1", "GNO_CHAIN_ID": "gnoland-1"}, attestation.StateDisabledChainMismatch, false, true},
+		{"seed without chain", map[string]string{"MEMBA_ATTESTATION_SEED": seed, "QUEST_SIGNER_CHAIN_ID": "gnoland-1"}, attestation.StateDisabledNoRuntimeChain, false, true},
+		{"invalid seed no longer exits", map[string]string{"MEMBA_ATTESTATION_SEED": "nope", "QUEST_SIGNER_CHAIN_ID": "gnoland-1", "GNO_CHAIN_ID": "gnoland-1"}, attestation.StateDisabledInvalidSeed, false, true},
+		{"nothing configured", map[string]string{"GNO_CHAIN_ID": "gnoland-1"}, attestation.StateOff, false, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			svc := &fakeAttestationSvc{}
+			got := configureAttestation(svc, func(k string) string { return tc.env[k] })
+			if got != tc.want {
+				t.Fatalf("state = %s, want %s", got, tc.want)
+			}
+			if (svc.signer != nil) != tc.wantSigner {
+				t.Fatalf("signer installed = %v, want %v", svc.signer != nil, tc.wantSigner)
+			}
+			if (svc.disabled != "") != tc.wantDisable || (tc.wantDisable && svc.disabled != tc.want) {
+				t.Fatalf("disabled = %q, want disable=%v (%s)", svc.disabled, tc.wantDisable, tc.want)
+			}
+			if tc.wantSigner && svc.signer.ChainID() != "gnoland-1" {
+				t.Fatalf("installed signer bound to %q", svc.signer.ChainID())
+			}
+			if v := testutil.ToFloat64(metrics.QuestAttestationSignerState.WithLabelValues(string(tc.want))); v != 1 {
+				t.Fatalf("gauge for %s = %v, want 1", tc.want, v)
+			}
+			for _, st := range attestation.AllStates {
+				if st != tc.want && testutil.ToFloat64(metrics.QuestAttestationSignerState.WithLabelValues(string(st))) != 0 {
+					t.Fatalf("gauge for %s must be 0 when state is %s", st, tc.want)
+				}
+			}
+		})
 	}
 }

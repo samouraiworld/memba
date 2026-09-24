@@ -264,6 +264,25 @@ groups:
             sybil cohort hitting quota together.
           runbook: "docs/OPS_RUNBOOK.md#34-prometheus-metrics--signals--alert-thresholds"
 
+      - alert: MembaQuestAttestationSignerRefused
+        # O4 chain binding: MEMBA_ATTESTATION_SEED is set but the signer was
+        # refused (no QUEST_SIGNER_CHAIN_ID, a chain other than GNO_CHAIN_ID, no
+        # GNO_CHAIN_ID, or a malformed seed), so no quest voucher is issued. The
+        # gauge is set once at boot; exactly one state label reads 1.
+        expr: max by (state) (memba_quest_attestation_signer_state{state=~"disabled_.*"}) > 0
+        for: 10m
+        labels:
+          severity: warn
+          service: memba-backend
+        annotations:
+          summary: "Memba quest attestation signer is refused ({{ $labels.state }})"
+          description: >-
+            A voucher seed is configured but not bound to this backend's chain, so
+            quest attestation is off and GetAttestationVouchers answers
+            Unavailable. Expected while a retired chain's seed is still set and
+            before the mainnet signer ceremony; after it, fix the binding.
+          runbook: "docs/QUEST_ATTESTATION_RUNBOOK.md"
+
   # ───────────────────────────────────────────────────────────────────────────
   - name: memba.moderation
     interval: 60s

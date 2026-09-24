@@ -64,6 +64,44 @@ func productionConfigWarnings(getenv func(string) string) []string {
 	return warns
 }
 
+// attestationSigner is the slice of the service configureAttestation drives
+// (an interface so the boot wiring is testable without a database).
+type attestationSigner interface {
+	SetAttestationSigner(*attestation.Signer)
+	DisableAttestation(attestation.State)
+}
+
+// configureAttestation resolves the quest voucher signer from
+// MEMBA_ATTESTATION_SEED + QUEST_SIGNER_CHAIN_ID + GNO_CHAIN_ID (O4), installs
+// or disables it on svc, publishes memba_quest_attestation_signer_state, and
+// returns the state for /health. A seed that is set but refused is logged at
+// ERROR (never the seed itself) and disables vouchers; it never blocks boot.
+func configureAttestation(svc attestationSigner, getenv func(string) string) attestation.State {
+	signer, state, err := attestation.NewBoundSigner(
+		getenv("MEMBA_ATTESTATION_SEED"), getenv("QUEST_SIGNER_CHAIN_ID"), getenv("GNO_CHAIN_ID"))
+	for _, st := range attestation.AllStates {
+		metrics.QuestAttestationSignerState.WithLabelValues(string(st)).Set(0)
+	}
+	metrics.QuestAttestationSignerState.WithLabelValues(string(state)).Set(1)
+
+	switch {
+	case signer != nil:
+		svc.SetAttestationSigner(signer)
+		slog.Info("attestation signer configured", "pubkey", signer.PublicKeyHex(), "chainID", signer.ChainID())
+	case state.Misconfigured():
+		svc.DisableAttestation(state)
+		slog.Error("QUEST ATTESTATION SIGNER DISABLED — MEMBA_ATTESTATION_SEED is set but refused; no vouchers will be issued (see docs/QUEST_ATTESTATION_RUNBOOK.md)",
+			"state", string(state), "reason", err,
+			"questSignerChainID", strings.TrimSpace(getenv("QUEST_SIGNER_CHAIN_ID")), "gnoChainID", strings.TrimSpace(getenv("GNO_CHAIN_ID")))
+	default:
+		svc.SetAttestationSigner(nil)
+		if strings.TrimSpace(getenv("QUEST_SIGNER_CHAIN_ID")) != "" {
+			slog.Warn("QUEST_SIGNER_CHAIN_ID is set but MEMBA_ATTESTATION_SEED is empty — attestation stays off")
+		}
+	}
+	return state
+}
+
 // litestreamManaged reports whether Litestream owns WAL checkpointing for this
 // process (start.sh exports LITESTREAM_MANAGED=1 before `litestream replicate
 // -exec`). When true the app must never checkpoint. Only the exact value "1"
@@ -226,15 +264,9 @@ func main() {
 
 	// Attestation signer (Q-05) — offline ed25519 key that signs quest vouchers
 	// the user broadcasts to memba_quest_attestation_v1. Unset = attestation off.
-	if seed := os.Getenv("MEMBA_ATTESTATION_SEED"); seed != "" {
-		signer, err := attestation.NewFromSeedHex(seed)
-		if err != nil {
-			slog.Error("invalid MEMBA_ATTESTATION_SEED — attestation disabled", "error", err)
-			os.Exit(1)
-		}
-		svc.SetAttestationSigner(signer)
-		slog.Info("attestation signer configured", "pubkey", signer.PublicKeyHex())
-	}
+	// O4: the seed only signs when QUEST_SIGNER_CHAIN_ID equals GNO_CHAIN_ID;
+	// any other combination disables it (never boot-blocking).
+	attState := configureAttestation(svc, os.Getenv)
 
 	// Block Party feature flag + seed source (B6). Disabled unless
 	// BLOCKPARTY_ENABLED is "1"/"true" (disabled = the entire BP surface
@@ -375,7 +407,7 @@ func main() {
 	mux.Handle(path, rateLimitMiddleware("rpc", maxBodySize(1<<20, handler))) // 1MB max body
 
 	// Health check — enhanced with DB, uptime, memory diagnostics
-	mux.HandleFunc("/health", healthHandler(database, dbPath))
+	mux.HandleFunc("/health", healthHandler(database, dbPath, attState))
 
 	// Prometheus metrics (observability keystone, P0-2) — exposes the signed-login
 	// ratio (memba_auth_login_total) + Go runtime metrics for an external drain.
@@ -934,7 +966,10 @@ const healthPingTimeout = 2 * time.Second
 // indicating that periodic checkpointing may not be keeping up.
 const walSizeWarnBytes = 50 * 1024 * 1024 // 50 MB
 
-func healthHandler(database *sql.DB, dbPath string) http.HandlerFunc {
+// healthHandler reports liveness. questAttestation is the boot-resolved voucher
+// signer state: informational only, it never degrades status (a refused signer
+// must not fail Fly's health check and restart-loop the app).
+func healthHandler(database *sql.DB, dbPath string, questAttestation attestation.State) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		status := "ok"
 		httpCode := http.StatusOK
@@ -979,8 +1014,9 @@ func healthHandler(database *sql.DB, dbPath string) http.HandlerFunc {
 				"size_bytes":     dbSize,
 				"wal_size_bytes": walSize,
 			},
-			"memory_mb": mem.Alloc / 1024 / 1024,
-			"timestamp": time.Now().UTC().Format(time.RFC3339),
+			"memory_mb":         mem.Alloc / 1024 / 1024,
+			"quest_attestation": string(questAttestation),
+			"timestamp":         time.Now().UTC().Format(time.RFC3339),
 		}
 
 		w.Header().Set("Content-Type", "application/json")

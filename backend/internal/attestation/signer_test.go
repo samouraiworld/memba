@@ -18,6 +18,16 @@ const (
 	realmSigHex = "5063c9dae045cb2d56312f5084dc9ef239bd782612354b9571ebae20a34d7d1fe3e7bb7bb3207a6b80272fee72a8ac3798d592c849b131f1038ad1073871270e"
 )
 
+// boundTestSigner returns the parity-vector signer bound to gnoland-1.
+func boundTestSigner(t *testing.T) *Signer {
+	t.Helper()
+	s, st, err := NewBoundSigner(testSeedHex, "gnoland-1", "gnoland-1")
+	if err != nil || st != StateEnabled {
+		t.Fatalf("bound signer: state=%s err=%v", st, err)
+	}
+	return s
+}
+
 func TestSigner_ParityWithRealmVectors(t *testing.T) {
 	s, err := NewFromSeedHex(testSeedHex)
 	if err != nil {
@@ -52,7 +62,7 @@ func TestCanonical_XPFormatting(t *testing.T) {
 }
 
 func TestIssueVoucher_VerifiesAndIsFresh(t *testing.T) {
-	s, _ := NewFromSeedHex(testSeedHex)
+	s := boundTestSigner(t)
 	pub, _ := hex.DecodeString(s.PublicKeyHex())
 
 	v1, err := s.IssueVoucher("g1alice", "use-cmdk", 10)
@@ -87,11 +97,91 @@ func TestNewFromSeedHex_RejectsBadSeed(t *testing.T) {
 }
 
 func TestIssueVoucher_RejectsSeparatorInFields(t *testing.T) {
-	s, _ := NewFromSeedHex(testSeedHex)
+	s := boundTestSigner(t)
 	if _, err := s.IssueVoucher("g1a|lice", "q", 10); err == nil {
 		t.Error("separator in addr must error")
 	}
 	if _, err := s.IssueVoucher("g1alice", "qu|est", 10); err == nil {
 		t.Error("separator in questId must error")
+	}
+}
+
+// O4 chain binding: the signer exists ONLY when the seed is valid and bound to
+// exactly the chain the backend runs on. Every other combination with a seed
+// fails closed; no seed at all stays inert (the pre-existing default).
+func TestNewBoundSigner(t *testing.T) {
+	cases := []struct {
+		name           string
+		seed, bound    string
+		runtime        string
+		want           State
+		wantSigner     bool
+		wantErr        bool
+		wantMisconfigd bool
+	}{
+		{"bound and matching signs", testSeedHex, "gnoland-1", "gnoland-1", StateEnabled, true, false, false},
+		{"whitespace is trimmed", " " + testSeedHex + "\n", " gnoland-1 ", "gnoland-1\n", StateEnabled, true, false, false},
+		{"missing binding disabled", testSeedHex, "", "gnoland-1", StateDisabledUnbound, false, true, true},
+		{"blank binding disabled", testSeedHex, "   ", "gnoland-1", StateDisabledUnbound, false, true, true},
+		{"pearl-era seed, no binding, on mainnet", testSeedHex, "", "gnoland-1", StateDisabledUnbound, false, true, true},
+		{"mismatch disabled", testSeedHex, "pearl-1", "gnoland-1", StateDisabledChainMismatch, false, true, true},
+		{"hyphen trap is a mismatch", testSeedHex, "gnoland1", "gnoland-1", StateDisabledChainMismatch, false, true, true},
+		{"case differs is a mismatch", testSeedHex, "Gnoland-1", "gnoland-1", StateDisabledChainMismatch, false, true, true},
+		{"seed without runtime chain disabled", testSeedHex, "gnoland-1", "", StateDisabledNoRuntimeChain, false, true, true},
+		{"seed without any chain disabled", testSeedHex, "", "", StateDisabledUnbound, false, true, true},
+		{"invalid seed disabled", "zz" + testSeedHex[2:], "gnoland-1", "gnoland-1", StateDisabledInvalidSeed, false, true, true},
+		{"short seed disabled", "abcd", "gnoland-1", "gnoland-1", StateDisabledInvalidSeed, false, true, true},
+		{"nothing configured is inert", "", "", "gnoland-1", StateOff, false, false, false},
+		{"binding without seed is inert", "", "gnoland-1", "gnoland-1", StateOff, false, false, false},
+		{"whitespace-only seed is inert", "  ", "gnoland-1", "gnoland-1", StateOff, false, false, false},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			s, st, err := NewBoundSigner(tc.seed, tc.bound, tc.runtime)
+			if st != tc.want {
+				t.Fatalf("state = %s, want %s", st, tc.want)
+			}
+			if (s != nil) != tc.wantSigner {
+				t.Fatalf("signer present = %v, want %v", s != nil, tc.wantSigner)
+			}
+			if (err != nil) != tc.wantErr {
+				t.Fatalf("err = %v, wantErr %v", err, tc.wantErr)
+			}
+			if st.Misconfigured() != tc.wantMisconfigd {
+				t.Fatalf("Misconfigured() = %v, want %v", st.Misconfigured(), tc.wantMisconfigd)
+			}
+			// The error is logged at boot: it must never carry the seed or a byte of it.
+			if err != nil && tc.seed != "" && (strings.Contains(err.Error(), strings.TrimSpace(tc.seed)) || strings.Contains(err.Error(), "U+")) {
+				t.Fatalf("error leaks seed material: %v", err)
+			}
+			if s == nil {
+				return
+			}
+			if s.ChainID() != "gnoland-1" {
+				t.Fatalf("bound chain = %q, want gnoland-1", s.ChainID())
+			}
+			// Binding changes nothing about the key or the frozen message.
+			if s.PublicKeyHex() != realmPubHex || s.Sign("g1alice", "connect-wallet", 10, "nonce-001") != realmSigHex {
+				t.Fatal("bound signer must keep realm parity")
+			}
+			if _, err := s.IssueVoucher("g1alice", "connect-wallet", 10); err != nil {
+				t.Fatalf("bound signer must issue: %v", err)
+			}
+		})
+	}
+}
+
+// Defense in depth: a signer built without a binding can still Sign (parity,
+// keygen) but must refuse to mint a voucher.
+func TestIssueVoucher_UnboundSignerRefuses(t *testing.T) {
+	s, err := NewFromSeedHex(testSeedHex)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if s.ChainID() != "" {
+		t.Fatalf("NewFromSeedHex must be unbound, got %q", s.ChainID())
+	}
+	if _, err := s.IssueVoucher("g1alice", "connect-wallet", 10); err == nil {
+		t.Fatal("unbound signer must not issue vouchers")
 	}
 }

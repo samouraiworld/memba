@@ -50,8 +50,12 @@ type MultisigService struct {
 	userLimiter *ratelimit.Limiter
 
 	// attSigner issues on-chain attestation vouchers (Q-05). nil disables
-	// attestation (the default; production sets it from MEMBA_ATTESTATION_SEED).
+	// attestation (the default; production sets it from MEMBA_ATTESTATION_SEED
+	// bound to QUEST_SIGNER_CHAIN_ID). attState tells a plain "off" apart from a
+	// refused, misconfigured signer (O4), which GetAttestationVouchers reports as
+	// Unavailable instead of an empty answer.
 	attSigner *attestation.Signer
+	attState  attestation.State
 
 	// Home snapshot cache (Phase 2) — single entry per chain_id, in-memory,
 	// serve-stale-on-error. See home_rpc.go.
@@ -181,10 +185,27 @@ func (s *MultisigService) SetUserLimiter(l *ratelimit.Limiter) {
 }
 
 // SetAttestationSigner installs the offline attestation signer (Q-05). Wired in
-// production from MEMBA_ATTESTATION_SEED; nil (the default, incl. tests) disables
-// attestation so no vouchers are issued and GetAttestationVouchers is empty.
+// production from attestation.NewBoundSigner; nil (the default, incl. tests)
+// disables attestation so no vouchers are issued and GetAttestationVouchers is
+// empty. Fails closed on a signer with no chain binding (O4): it is refused and
+// attestation reports StateDisabledUnbound.
 func (s *MultisigService) SetAttestationSigner(signer *attestation.Signer) {
-	s.attSigner = signer
+	switch {
+	case signer == nil:
+		s.attSigner, s.attState = nil, attestation.StateOff
+	case signer.ChainID() == "":
+		slog.Error("attestation signer refused: not bound to a chain")
+		s.attSigner, s.attState = nil, attestation.StateDisabledUnbound
+	default:
+		s.attSigner, s.attState = signer, attestation.StateEnabled
+	}
+}
+
+// DisableAttestation records that a signer seed is configured but was refused
+// (O4 chain binding or an invalid seed). No voucher is issued, and
+// GetAttestationVouchers answers Unavailable so the misconfiguration is visible.
+func (s *MultisigService) DisableAttestation(state attestation.State) {
+	s.attSigner, s.attState = nil, state
 }
 
 // SetBlockParty enables/disables the Block Party feature and configures the
