@@ -51,6 +51,14 @@ vi.mock("../../lib/marketplace/v3Reads", () => ({
 
 import { TokenTradeModal } from "./TokenTradeModal"
 
+// The list flow asks for the amount first, then approves exactly that amount.
+async function fillListing(amount = "5", price = "1") {
+    const qty = await screen.findByLabelText("Quantity to List")
+    await waitFor(() => expect(qty).not.toBeDisabled()) // decimals resolved
+    fireEvent.change(qty, { target: { value: amount } })
+    fireEvent.change(screen.getByLabelText("Price per Token (GNOT)"), { target: { value: price } })
+}
+
 describe("TokenTradeModal — list flow spender/allowance targeting", () => {
     beforeEach(() => {
         vi.clearAllMocks()
@@ -86,8 +94,8 @@ describe("TokenTradeModal — list flow spender/allowance targeting", () => {
             />,
         )
 
-        const approveBtn = await screen.findByRole("button", { name: /approve otc desk/i })
-        fireEvent.click(approveBtn)
+        await fillListing()
+        fireEvent.click(await screen.findByRole("button", { name: /approve 5 FORGE/i }))
 
         await waitFor(() => expect(mocks.buildApproveMsg).toHaveBeenCalled())
         const [, , spenderArg] = mocks.buildApproveMsg.mock.calls[0]
@@ -105,14 +113,55 @@ describe("TokenTradeModal — list flow spender/allowance targeting", () => {
             />,
         )
 
-        // Falls back to the "approve" step (existing catch-and-default behavior).
-        const approveBtn = await screen.findByRole("button", { name: /approve otc desk/i })
-        fireEvent.click(approveBtn)
+        // Unknown allowance ⇒ approval required once an amount is entered.
+        await fillListing()
+        fireEvent.click(await screen.findByRole("button", { name: /approve 5 FORGE/i }))
 
         // Must show the guard error, not call buildApproveMsg with a bad/missing spender.
         expect(await screen.findByRole("alert")).toHaveTextContent(/could not resolve/i)
         expect(mocks.buildApproveMsg).not.toHaveBeenCalled()
         expect(mocks.doContractBroadcast).not.toHaveBeenCalled()
+    })
+})
+
+describe("TokenTradeModal — list flow approves exactly the listed amount", () => {
+    beforeEach(() => {
+        vi.clearAllMocks()
+        mocks.doContractBroadcast.mockResolvedValue(undefined)
+        mocks.getOtcEngineAddress.mockResolvedValue(ENGINE_ADDRESS)
+        mocks.getTokenDecimals.mockResolvedValue(6)
+    })
+
+    const renderList = () => render(
+        <TokenTradeModal action="list" symbol="FORGE" callerAddress="g1caller" onClose={vi.fn()} onSuccess={vi.fn()} />,
+    )
+
+    it("approves the listing's amount in base units, not a fixed 1,000,000,000", async () => {
+        mocks.getTokenAllowance.mockResolvedValue(0n)
+        renderList()
+        await fillListing("2500") // 2,500 FORGE at 6 decimals
+        fireEvent.click(await screen.findByRole("button", { name: /approve 2,?500 FORGE/i }))
+        await waitFor(() => expect(mocks.buildApproveMsg).toHaveBeenCalled())
+        const [caller, symbol, spender, amount] = mocks.buildApproveMsg.mock.calls[0]
+        expect([caller, symbol, spender, amount]).toEqual(["g1caller", "FORGE", ENGINE_ADDRESS, "2500000000"])
+        // Once approved, the next step is listing.
+        expect(await screen.findByRole("button", { name: "List Tokens" })).toBeEnabled()
+    })
+
+    it("requires approval when an existing allowance is too small for the listing", async () => {
+        mocks.getTokenAllowance.mockResolvedValue(1_000_000n) // 1 FORGE approved
+        renderList()
+        await fillListing("5")
+        expect(await screen.findByRole("button", { name: /approve 5 FORGE/i })).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "List Tokens" })).toBeNull()
+    })
+
+    it("skips approval when the existing allowance already covers the listing", async () => {
+        mocks.getTokenAllowance.mockResolvedValue(5_000_000n)
+        renderList()
+        await fillListing("5")
+        expect(await screen.findByRole("button", { name: "List Tokens" })).toBeEnabled()
+        expect(screen.queryByRole("button", { name: /approve/i })).toBeNull()
     })
 })
 

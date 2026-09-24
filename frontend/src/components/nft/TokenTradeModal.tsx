@@ -10,7 +10,7 @@ import { getTokenAllowance, getOtcEngineAddress } from "../../lib/tokenOtcApi"
 import "./TradeModal.css" // Reuse existing modal styles
 
 type TokenTradeAction = "buy" | "list"
-type ListStep = "loading" | "approve" | "list" | "submitting-approve" | "submitting-list"
+type ListStep = "loading" | "list" | "submitting-approve" | "submitting-list"
 
 export interface TokenTradeModalProps {
     action: TokenTradeAction
@@ -154,6 +154,9 @@ export function TokenTradeModal({
     // sense. If resolution fails, engineAddress stays null and handleApprove
     // below refuses to send a broken approval instead of silently mis-targeting it.
     const [engineAddress, setEngineAddress] = useState<string | null>(null)
+    // The seller's current allowance for the engine, in base units; null when
+    // unknown (lookup failed), which is treated as "approval needed".
+    const [allowance, setAllowance] = useState<bigint | null>(null)
     useEffect(() => {
         if (action !== "list") return
         let cancelled = false
@@ -162,13 +165,15 @@ export function TokenTradeModal({
                 const addr = await getOtcEngineAddress()
                 if (cancelled) return
                 setEngineAddress(addr)
-                const allowance = await getTokenAllowance(symbol, callerAddress, addr)
-                // If allowance is large enough, go straight to list.
-                // For simplicity, if > 0, we assume it's approved for *something*, but to be perfectly safe,
-                // we should check it against the listAmount later. We'll set "approve" initially if 0.
-                if (!cancelled) setListStep(allowance > 0n ? "list" : "approve")
+                const current = await getTokenAllowance(symbol, callerAddress, addr)
+                if (!cancelled) setAllowance(current)
             } catch {
-                if (!cancelled) setListStep("approve")
+                /* engineAddress / allowance stay null: approval needed, and
+                   handleApprove refuses to send without a resolved engine. */
+            } finally {
+                // The amount is entered first; whether an approval is needed is
+                // decided against THAT amount (needsApproval below).
+                if (!cancelled) setListStep("list")
             }
         }
         init()
@@ -210,6 +215,11 @@ export function TokenTradeModal({
         listPriceUgnotWhole > 0n &&
         listAmountBaseUnits > 0n &&
         listUnitPricePerBaseUnit > 0n
+    // Approve exactly what is being listed, and only when the current allowance
+    // does not already cover it. (This used to approve a fixed 1,000,000,000
+    // base units before any amount was known — decimals-blind, and any non-zero
+    // allowance skipped approval even when it was too small for the listing.)
+    const needsApproval = allowance === null || allowance < listAmountBaseUnits
 
     const buyParsed = parseAmountSafe(buyAmount, effectiveDecimals)
     const buyAmountBaseUnits = buyParsed.value
@@ -253,6 +263,7 @@ export function TokenTradeModal({
     }
 
     const handleApprove = async () => {
+        if (!isListValid) return
         if (!engineAddress) {
             setError("Could not resolve the OTC engine's address — please close and retry.")
             return
@@ -261,18 +272,20 @@ export function TokenTradeModal({
         setError(null)
         try {
             const { doContractBroadcast } = await import("../../lib/grc20")
-            // Approve a large amount so they don't have to re-approve
-            const msg = buildApproveMsg(callerAddress, symbol, engineAddress, "1000000000")
-            await doContractBroadcast([msg], `Approve ${symbol} for OTC`)
+            const msg = buildApproveMsg(callerAddress, symbol, engineAddress, listAmountBaseUnits.toString())
+            const humanAmount = formatTokenAmount(listAmountBaseUnits, effectiveDecimals)
+            await doContractBroadcast([msg], `Approve ${humanAmount} ${symbol} for OTC`)
+            // GRC20 Approve SETS the allowance (it does not add to it).
+            setAllowance(listAmountBaseUnits)
             setListStep("list")
         } catch (err) {
             setError(friendlyError(err))
-            setListStep("approve")
+            setListStep("list")
         }
     }
 
     const handleList = async () => {
-        if (!isListValid) return
+        if (!isListValid || needsApproval) return
         setListStep("submitting-list")
         setError(null)
         try {
@@ -385,25 +398,7 @@ export function TokenTradeModal({
                             <p className="trade-modal__hint">Checking approval status…</p>
                         )}
 
-                        {(listStep === "approve" || listStep === "submitting-approve") && (
-                            <div className="trade-modal__section">
-                                <p className="trade-modal__hint">
-                                    The OTC desk needs permission to escrow your tokens when listed.
-                                    This is a one-time approval.
-                                </p>
-                                {error && <p className="trade-modal__error" role="alert">{error}</p>}
-                                <div className="trade-modal__actions">
-                                    <button className="trade-modal__cancel" onClick={onClose} disabled={listStep === "submitting-approve"}>
-                                        Cancel
-                                    </button>
-                                    <button className="trade-modal__confirm" onClick={handleApprove} disabled={listStep === "submitting-approve"}>
-                                        {listStep === "submitting-approve" ? "Approving…" : "Approve OTC Desk"}
-                                    </button>
-                                </div>
-                            </div>
-                        )}
-
-                        {(listStep === "list" || listStep === "submitting-list") && (
+                        {listStep !== "loading" && (
                             <div className="trade-modal__section">
                                 <DecimalsStatusHint
                             loading={decimalsState.status === "loading"}
@@ -466,13 +461,29 @@ export function TokenTradeModal({
 
                                 {error && <p className="trade-modal__error" role="alert">{error}</p>}
 
+                                {isListValid && needsApproval && (
+                                    <p className="trade-modal__hint">
+                                        The OTC desk needs permission to escrow the{" "}
+                                        {formatTokenAmount(listAmountBaseUnits, effectiveDecimals)} {symbol} you are listing.
+                                        Approve exactly that amount first.
+                                    </p>
+                                )}
+
                                 <div className="trade-modal__actions">
-                                    <button className="trade-modal__cancel" onClick={onClose} disabled={listStep === "submitting-list"}>
+                                    <button className="trade-modal__cancel" onClick={onClose} disabled={listStep !== "list"}>
                                         Cancel
                                     </button>
-                                    <button className="trade-modal__confirm" onClick={handleList} disabled={listStep === "submitting-list" || !isListValid}>
-                                        {listStep === "submitting-list" ? "Listing…" : "List Tokens"}
-                                    </button>
+                                    {isListValid && needsApproval ? (
+                                        <button className="trade-modal__confirm" onClick={handleApprove} disabled={listStep !== "list"}>
+                                            {listStep === "submitting-approve"
+                                                ? "Approving…"
+                                                : `Approve ${formatTokenAmount(listAmountBaseUnits, effectiveDecimals)} ${symbol}`}
+                                        </button>
+                                    ) : (
+                                        <button className="trade-modal__confirm" onClick={handleList} disabled={listStep !== "list" || !isListValid}>
+                                            {listStep === "submitting-list" ? "Listing…" : "List Tokens"}
+                                        </button>
+                                    )}
                                 </div>
                             </div>
                         )}

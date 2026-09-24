@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### OTC listings approve exactly what you list (2026-09-24)
+<!-- categories: memba -->
+- **Listing tokens on the OTC desk now asks you to approve exactly the amount you list, and only when needed.** The desk used to ask for approval before you entered an amount and always granted 1,000,000,000 base units. That meant 1,000 tokens at 6 decimals, but only 10 tokens at 8 decimals. Any existing approval, however small, then skipped the step, so a larger listing failed on-chain. You now enter the quantity and price first; if your current approval doesn't cover them, you approve exactly that quantity and then list.
+
 ### DAO and realm JSON reads decode the node's full string quoting (2026-09-24)
 <!-- categories: memba -->
 - **Text with newer emoji, private-use characters or DEL no longer breaks a read.** The node quotes a realm's JSON answer with Go's `strconv.Quote`, which prints such characters as `\U0001fae9`, `\U000f0000` or `\x7f`. The shared qeval JSON decoder used by DAO proposal and member reads, the App Store, arcade, points and the on-chain blog passed that to `JSON.parse`, which rejects those escapes, so a proposal titled with U+1FAE9 made the whole list unreadable. It now uses the same strconv.Quote decoder as escrow. Every answer the old decoder accepted decodes to the same value; version-2 DAO reads already used a full decoder and are unchanged.
