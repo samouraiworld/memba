@@ -88,6 +88,47 @@ test.describe('Memba OS wallet', () => {
         await expect(page.getByText('Sent · Send 1.5 GNOT')).toBeVisible()
     })
 
+    test('an @name is looked up in the user registry, shown with its address, signed to that address, and checked again before Adena', async ({ page }) => {
+        // r/sys/users.ResolveName answers (qeval literals); `owner` is read at request time, so it can move mid-test.
+        let owner = BOB
+        const record = (addr: string, name: string) => `(&(struct{("${addr}" .uverse.address),("${name}" string),(false bool)} gno.land/r/sys/users.UserData) *gno.land/r/sys/users.UserData)\n(true bool)`
+        await fulfillOnchainReads(page, ({ method, path, arg }) => {
+            if (method === 'status') return mockAppChainStatus('gnoland-1')
+            if (method === 'abci_query' && path.startsWith('bank/balances/')) return '"250000000ugnot"'
+            if (method === 'abci_query' && path === 'vm/qeval' && arg.includes('ResolveName("bob")')) return record(owner, 'bob')
+            if (method === 'abci_query' && path === 'vm/qeval' && arg.includes('ResolveName(')) return '(nil *gno.land/r/sys/users.UserData)\n(false bool)'
+            return null
+        })
+        await member(page)
+        await page.goto(`${OS_ON}/os/wallet/send`)
+        const send = win(page, 'Send')
+        const to = send.getByLabel('To', { exact: true })
+        await to.fill('@nobody')
+        await expect(send.getByText('No gno.land user is named @nobody.')).toBeVisible()
+        await to.fill('bob')
+        await expect(send.getByText(/Start a username with @/)).toBeVisible()
+        await to.fill('@Bob')
+        await expect(send.getByText(`@bob is ${BOB}`)).toBeVisible()
+        await send.getByLabel('Amount', { exact: true }).fill('2')
+        await send.getByRole('button', { name: 'Review…' }).click()
+
+        const review = page.getByRole('dialog', { name: 'Review · Send' })
+        await expect(review.getByText(`@bob · ${BOB}`)).toBeVisible()
+        await review.getByLabel(/I checked the full address/).check()
+        // The name changes owner after the review: nothing is sent.
+        owner = ALICE
+        await review.getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(review.getByRole('alert')).toContainText('@bob now points to another address')
+        expect(await calls(page)).toHaveLength(0)
+
+        // Back to Bob: the same review signs to the address it showed.
+        owner = BOB
+        await review.getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(review).toHaveCount(0)
+        const [call] = await calls(page)
+        expect(call.messages).toEqual([{ type: '/bank.MsgSend', value: { from_address: ALICE, to_address: BOB, amount: '2000000ugnot' } }])
+    })
+
     test('switching the Adena account after the review stops the send before the wallet opens', async ({ page }) => {
         await member(page)
         await page.goto(`${OS_ON}/os/wallet/send`)

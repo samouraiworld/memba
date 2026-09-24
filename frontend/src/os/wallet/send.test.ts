@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest"
-import { buildSendMsg, checkSend, clearSendLock, formatUgnot, parseGnot, readRecipient, readRecipients, readSendLock, rememberRecipient, writeSendLock } from "./send"
+import { buildSendMsg, checkSend, clearSendLock, formatUgnot, nameToLookUp, parseGnot, readRecipient, readRecipients, readSendLock, rememberRecipient, writeSendLock } from "./send"
 
 const A = "g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5"
 const B = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
@@ -24,15 +24,51 @@ describe("amounts", () => {
 })
 
 describe("recipients", () => {
-    it("take a checksummed g1 address; names wait for the registry resolver", () => {
+    it("take a checksummed g1 address", () => {
         expect(readRecipient(B)).toEqual({ kind: "address", address: B })
         expect(readRecipient(`${B.slice(0, -1)}q`)).toMatchObject({ kind: "error", error: expect.stringContaining("typo") })
-        expect(readRecipient("@alice")).toMatchObject({ kind: "error", error: expect.stringContaining("g1") })
         expect(readRecipient("")).toBeNull()
+    })
+
+    it("take an @name through the user registry (D23), lower-cased, with its resolved address", () => {
+        const found = () => ({ status: "found", address: B }) as const
+        expect(readRecipient("@Alice", found)).toEqual({ kind: "name", name: "alice", address: B })
+        expect(readRecipient("@alice", () => ({ status: "loading" }))).toEqual({ kind: "pending", name: "alice" })
+        expect(readRecipient("@alice")).toEqual({ kind: "pending", name: "alice" })
+        expect(readRecipient("@nobody", () => ({ status: "missing" }))).toMatchObject({ kind: "error", error: expect.stringContaining("No gno.land user") })
+        expect(readRecipient("@alice", () => ({ status: "error" }))).toMatchObject({ kind: "error", error: expect.stringContaining("Couldn't look up") })
+    })
+
+    it("never trust a looked-up address that fails its checksum", () => {
+        expect(readRecipient("@alice", () => ({ status: "found", address: `${B.slice(0, -1)}q` }))).toMatchObject({ kind: "error" })
+    })
+
+    it("refuse what the registry would never hold, and ask for the @ on a bare word", () => {
+        for (const bad of ["@", "@1abc", "@al ice", "@a__b", `@${"a".repeat(65)}`]) expect(readRecipient(bad, () => ({ status: "found", address: B })), bad).toMatchObject({ kind: "error", error: expect.stringContaining("username") })
+        expect(readRecipient("alice")).toMatchObject({ kind: "error", error: expect.stringContaining("@") })
+    })
+
+    it("names the lookup to run: only for a well-formed @name", () => {
+        expect(nameToLookUp("@Alice ")).toBe("alice")
+        expect(nameToLookUp("@1abc")).toBeNull()
+        expect(nameToLookUp(B)).toBeNull()
     })
 })
 
 describe("checkSend", () => {
+    it("sends to a name's address: pending blocks, your own name is refused, and the tiers use the address", () => {
+        const found = (address: string) => () => ({ status: "found", address }) as const
+        const d = { to: "@alice", amount: "1", memo: "", save: false }
+        expect(checkSend(d, ctx()).problems.to).toMatch(/Looking up @alice/)
+        const ok = checkSend(d, ctx({ lookup: found(B) }))
+        expect(ok.problems.to).toBeUndefined()
+        expect(ok.recipient).toEqual({ kind: "name", name: "alice", address: B })
+        expect(ok.tiers).toContain("new address")
+        expect(checkSend(d, ctx({ lookup: found(B), known: (a) => a === B })).tiers).not.toContain("new address")
+        expect(checkSend(d, ctx({ lookup: found(A) })).problems.to).toMatch(/own address/)
+    })
+
+
     it("refuses your own address, a missing amount and more than the balance keeps for the fee", () => {
         expect(checkSend({ to: A, amount: "1", memo: "", save: false }, ctx()).problems.to).toMatch(/own address/)
         expect(checkSend({ to: B, amount: "", memo: "", save: false }, ctx()).problems.amount).toBeDefined()

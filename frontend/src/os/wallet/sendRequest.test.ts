@@ -64,6 +64,24 @@ describe("sendRequest", () => {
         expect(readSendLock("gnoland-1", A)).toBeNull()
     })
 
+    it("shows an @name with its full address in the review, and signs that address", async () => {
+        const r = sendRequest(ctx({ toName: "alice", resolveName: async () => B }))
+        expect(r.sub).toBe(`to @alice (${B})`)
+        expect(r.lines()).toContainEqual(["To", `@alice · ${B}`])
+        expect(r.prepare(undefined).msgs[0]).toMatchObject({ value: { to_address: B } })
+    })
+
+    it("looks the name up again just before the wallet opens, and stops if it moved or can't be read", async () => {
+        const moved = await run(ctx({ toName: "alice", resolveName: async () => A }))
+        expect(moved).toMatchObject({ outcome: "failed", error: expect.stringContaining("@alice now points to another address") })
+        const unread = await run(ctx({ toName: "alice", resolveName: async () => null }))
+        expect(unread).toMatchObject({ outcome: "failed", error: expect.stringContaining("Couldn't confirm @alice") })
+        expect(wallet.impl).not.toHaveBeenCalled()
+        const same = await run(ctx({ toName: "alice", resolveName: async () => B }))
+        expect(same).toMatchObject({ outcome: "sent" })
+        expect(wallet.impl).toHaveBeenCalledOnce()
+    })
+
     it("stops before the wallet when the connected wallet changed since the review", async () => {
         const res = await run(ctx({ currentWallet: async () => B }))
         expect(res).toMatchObject({ outcome: "failed", error: expect.stringContaining("wallet changed") })

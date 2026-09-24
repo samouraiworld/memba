@@ -39,15 +39,49 @@ export function formatUgnot(v: bigint): string {
 
 export type Recipient =
     | { kind: "address"; address: string }
+    /** An @name from the gno.land user registry (D23), with the address it resolved to. */
+    | { kind: "name"; name: string; address: string }
+    | { kind: "pending"; name: string }
     | { kind: "error"; error: string }
     | null
 
-/** What the To field names. `@name` resolution arrives with the user registry resolver (D23). */
-export function readRecipient(input: string, hrp = "g"): Recipient {
+/** What the registry said about a name (the component looks it up; this module stays pure). */
+export type NameLookup = { status: "loading" } | { status: "found"; address: string } | { status: "missing" } | { status: "error" }
+
+/** r/sys/users name rule (as the resolver applies it): lowercase, max 64. */
+const REGISTRY_NAME = /^[a-z][a-z0-9]*([_-][a-z0-9]+)*$/
+const ADDRESS = /^g1[02-9ac-hj-np-z]{38}$/
+
+/** The registry name to look up for this To field, or null when it isn't a well-formed @name. */
+export function nameToLookUp(input: string): string | null {
+    const v = input.trim()
+    if (!v.startsWith("@")) return null
+    const name = v.slice(1).toLowerCase()
+    return name.length <= 64 && REGISTRY_NAME.test(name) ? name : null
+}
+
+/** The address a recipient pays, once there is one. */
+export function recipientAddress(r: Recipient): string | null {
+    return r?.kind === "address" || r?.kind === "name" ? r.address : null
+}
+
+/** What the To field names: a g1 address, or an @name resolved through `lookup`. */
+export function readRecipient(input: string, lookup?: (name: string) => NameLookup | undefined, hrp = "g"): Recipient {
     const v = input.trim()
     if (!v) return null
-    if (/^@?[a-z][a-z0-9_]{2,}$/i.test(v) && !v.startsWith("g1")) return { kind: "error", error: "Name lookup isn't in Memba OS yet. Paste the g1… address." }
-    if (!/^g1[02-9ac-hj-np-z]{38}$/.test(v)) return { kind: "error", error: "That isn't a g1… address." }
+    if (v.startsWith("@")) {
+        const name = nameToLookUp(v)
+        if (!name) return { kind: "error", error: "That isn't a gno.land username (lowercase letters, digits, - or _)." }
+        const found = lookup?.(name) ?? { status: "loading" }
+        if (found.status === "loading") return { kind: "pending", name }
+        if (found.status === "missing") return { kind: "error", error: `No gno.land user is named @${name}.` }
+        if (found.status === "error") return { kind: "error", error: `Couldn't look up @${name} right now. Try again, or paste the g1… address.` }
+        // The registry's answer is checked like a typed address: a bad one never becomes a recipient.
+        if (!ADDRESS.test(found.address) || !isChecksummedAddress(found.address, hrp)) return { kind: "error", error: `@${name} resolved to an invalid address. Paste the g1… address instead.` }
+        return { kind: "name", name, address: found.address }
+    }
+    if (/^[a-z][a-z0-9_-]{2,}$/i.test(v) && !v.startsWith("g1")) return { kind: "error", error: "Start a username with @ (like @alice), or paste the g1… address." }
+    if (!ADDRESS.test(v)) return { kind: "error", error: "That isn't a g1… address." }
     if (!isChecksummedAddress(v, hrp)) return { kind: "error", error: "This address has a typo (its checksum doesn't match)." }
     return { kind: "address", address: v }
 }
@@ -62,18 +96,20 @@ export interface SendCheck {
     tiers: string[]
 }
 
-export function checkSend(d: SendDraft, ctx: { from: string; balance: bigint | null; fee: bigint; mainnet: boolean; known: (a: string) => boolean }): SendCheck {
-    const recipient = readRecipient(d.to)
+export function checkSend(d: SendDraft, ctx: { from: string; balance: bigint | null; fee: bigint; mainnet: boolean; known: (a: string) => boolean; lookup?: (name: string) => NameLookup | undefined }): SendCheck {
+    const recipient = readRecipient(d.to, ctx.lookup)
+    const to = recipientAddress(recipient)
     const ugnot = parseGnot(d.amount)
     const problems: SendCheck["problems"] = {}
     if (!recipient) problems.to = "Who should receive it?"
     else if (recipient.kind === "error") problems.to = recipient.error
-    else if (recipient.address === ctx.from) problems.to = "That's your own address."
+    else if (recipient.kind === "pending") problems.to = `Looking up @${recipient.name}…`
+    else if (to === ctx.from) problems.to = "That's your own address."
     if (ugnot === null) problems.amount = d.amount.includes(",") ? "Use a dot for decimals, and no commas (12.5)." : "Enter an amount, up to 6 decimals."
     else if (ctx.balance !== null && ugnot + ctx.fee > ctx.balance) problems.amount = `More than you have (${formatUgnot(ctx.balance)}), keeping ${formatUgnot(ctx.fee)} for the fee.`
     if ([...d.memo].length > MEMO_MAX) problems.memo = `Up to ${MEMO_MAX} characters.`
     const tiers: string[] = []
-    if (ctx.mainnet && recipient?.kind === "address" && !ctx.known(recipient.address)) tiers.push("new address")
+    if (ctx.mainnet && to !== null && !ctx.known(to)) tiers.push("new address")
     if (ctx.mainnet && ugnot !== null && ugnot >= LARGE_SEND_UGNOT) tiers.push("100 GNOT or more")
     return { recipient, ugnot, problems, tiers }
 }

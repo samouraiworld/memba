@@ -7,6 +7,7 @@
  * @module os/wallet/sendRequest
  */
 import { GNO_CHAIN_ID } from "../../lib/config"
+import { resolveUsernameToAddress } from "../../lib/dao/shared"
 import { doContractBroadcast } from "../../lib/grc20"
 import type { SignRequest } from "../sign/signer"
 import { buildSendMsg, clearSendLock, formatUgnot, SEND_GAS_WANTED, writeSendLock } from "./send"
@@ -14,6 +15,10 @@ import { buildSendMsg, clearSendLock, formatUgnot, SEND_GAS_WANTED, writeSendLoc
 export interface SendContext {
     from: string
     to: string
+    /** The @name the member typed (D23), shown with the address; looked up again before the wallet opens. */
+    toName?: string
+    /** The registry lookup used for that re-check (the resolver on the active RPC; injectable for tests). */
+    resolveName?: (name: string) => Promise<string | null>
     ugnot: bigint
     memo: string
     feeUgnot: bigint
@@ -27,12 +32,13 @@ export function sendRequest(ctx: SendContext): SignRequest<string> {
     const amount = formatUgnot(ctx.ugnot)
     const msgs = [buildSendMsg(ctx.from, ctx.to, ctx.ugnot)]
     const label = `Send ${amount}`
+    const who = ctx.toName ? `@${ctx.toName} · ${ctx.to}` : ctx.to
     return {
         title: "Send",
         summary: `Send ${amount}`,
-        sub: `to ${ctx.to}`,
+        sub: ctx.toName ? `to @${ctx.toName} (${ctx.to})` : `to ${ctx.to}`,
         lines: () => [
-            ["To", ctx.to],
+            ["To", who],
             ["Amount", amount],
             ["Network", GNO_CHAIN_ID],
             ["Network fee", `up to ${formatUgnot(ctx.feeUgnot)}`],
@@ -45,6 +51,12 @@ export function sendRequest(ctx: SendContext): SignRequest<string> {
         prepare: () => ({ msgs }),
         recheck: async () => {
             if ((await ctx.currentWallet()) !== ctx.from) throw new Error("Your wallet changed since the review. Review the send again.")
+            // A name can change owner: the address reviewed is the one paid, but only while the name still points there.
+            if (ctx.toName) {
+                const now = await (ctx.resolveName ?? resolveUsernameToAddress)(ctx.toName)
+                if (now === null) throw new Error(`Couldn't confirm @${ctx.toName} just now. Nothing was sent; try again.`)
+                if (now !== ctx.to) throw new Error(`@${ctx.toName} now points to another address. Nothing was sent; review the send again.`)
+            }
         },
         send: async (_c, beforeSign) => {
             // Durable before the wallet opens: a lost response must not look like "nothing happened".

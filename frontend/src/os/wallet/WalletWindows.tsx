@@ -6,7 +6,9 @@
  *
  * @module os/wallet/WalletWindows
  */
+import { useQuery } from "@tanstack/react-query"
 import { useEffect, useState } from "react"
+import { resolveUsernameToAddress } from "../../lib/dao/shared"
 import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, GRC20_FACTORY_PATH, isRealmValidOn } from "../../lib/config"
 import { feeForGasWanted, FALLBACK_GAS_PRICE, networkGasPrice, type GasPrice } from "../../lib/grc20"
 import { AppTile } from "../shell/icons"
@@ -15,7 +17,8 @@ import { appSpec, sendSpec, type WindowSpec } from "../shell/windows"
 import { useSigner } from "../sign/signerContext"
 import { Field, WizardFrame } from "../wizard/WizardFrame"
 import {
-    checkSend, clearSendLock, formatUgnot, MEMO_MAX, readRecipients, readSendLock, rememberRecipient, SEND_GAS_WANTED, type SendDraft,
+    checkSend, clearSendLock, formatUgnot, MEMO_MAX, nameToLookUp, readRecipients, readSendLock, recipientAddress, rememberRecipient, SEND_GAS_WANTED,
+    type NameLookup, type SendDraft,
 } from "./send"
 import { sendRequest } from "./sendRequest"
 
@@ -96,11 +99,32 @@ function SendForm({ session, close }: { session: OsSession; close: () => void })
         return () => { active = false }
     }, [])
 
+    // @name recipients (D23): looked up in the user registry once typing pauses.
+    const typedName = nameToLookUp(draft.to)
+    const [lookupName, setLookupName] = useState<string | null>(null)
+    useEffect(() => {
+        const t = setTimeout(() => setLookupName(typedName), 350)
+        return () => clearTimeout(t)
+    }, [typedName])
+    const names = useQuery({
+        queryKey: ["os-send-name", GNO_CHAIN_ID, lookupName],
+        queryFn: () => resolveUsernameToAddress(lookupName ?? ""),
+        enabled: lookupName !== null,
+        staleTime: 60_000,
+        retry: false,
+    })
+    const lookup = (name: string): NameLookup => {
+        if (name !== lookupName || names.isPending) return { status: "loading" }
+        if (names.isError || names.data === null || names.data === undefined) return { status: "error" }
+        return names.data ? { status: "found", address: names.data } : { status: "missing" }
+    }
+
     const people = readRecipients(GNO_CHAIN_ID, from)
     const known = (a: string) => people.recent.includes(a) || people.saved.includes(a)
     const fee = BigInt(feeForGasWanted(SEND_GAS_WANTED, price))
     const balance = session.layout.rawUgnot ?? null
-    const c = checkSend(draft, { from, balance, fee, mainnet: !session.network.isTestnet, known })
+    const c = checkSend(draft, { from, balance, fee, mainnet: !session.network.isTestnet, known, lookup })
+    const to = recipientAddress(c.recipient)
     const set = (patch: Partial<SendDraft>) => setDraft((d) => ({ ...d, ...patch }))
     const shown = (f: "to" | "amount" | "memo", value: string) => ((showErrors || value !== "") ? c.problems[f] : undefined)
 
@@ -118,11 +142,11 @@ function SendForm({ session, close }: { session: OsSession; close: () => void })
     }
 
     const submit = () => {
-        if (Object.keys(c.problems).length || c.recipient?.kind !== "address" || c.ugnot === null) { setShowErrors(true); return }
-        const to = c.recipient.address
+        if (Object.keys(c.problems).length || to === null || c.ugnot === null) { setShowErrors(true); return }
         signer.sign({
             ...sendRequest({
                 from, to, ugnot: c.ugnot, memo: draft.memo.trim(), feeUgnot: fee, tiers: c.tiers,
+                toName: c.recipient?.kind === "name" ? c.recipient.name : undefined,
                 // Asked of Adena at signing time, not read from this render's session.
                 currentWallet: activeWalletAddress,
                 onSent: () => { rememberRecipient(GNO_CHAIN_ID, from, to, draft.save) },
@@ -146,7 +170,8 @@ function SendForm({ session, close }: { session: OsSession; close: () => void })
                         <span className="os-sub">You send</span>
                         <div className="os-big">{amountLabel}</div>
                         <span className="os-sub">to</span>
-                        <b className="os-mono os-break">{c.recipient?.kind === "address" ? c.recipient.address : "—"}</b>
+                        {c.recipient?.kind === "name" && <b>@{c.recipient.name}</b>}
+                        <b className="os-mono os-break">{to ?? "—"}</b>
                     </div>
                     <dl className="os-kv">
                         <div className="os-kv-row"><dt>Network</dt><dd>{GNO_CHAIN_ID}</dd></div>
@@ -163,9 +188,10 @@ function SendForm({ session, close }: { session: OsSession; close: () => void })
                     </div>
                 </Field>
                 <Field label="To" htmlFor="os-send-to" error={shown("to", draft.to)}>
-                    <input id="os-send-to" className="os-in os-mono" value={draft.to} onChange={(e) => set({ to: e.target.value })} placeholder="g1… address" autoComplete="off" spellCheck={false} />
+                    <input id="os-send-to" className="os-in os-mono" value={draft.to} onChange={(e) => set({ to: e.target.value })} placeholder="@name or g1… address" autoComplete="off" spellCheck={false} />
                 </Field>
-                {c.recipient?.kind === "address" && !known(c.recipient.address) && <p className="os-note os-warn">New address: you haven't sent to it from this browser.</p>}
+                {c.recipient?.kind === "name" && <p className="os-note" aria-live="polite">@{c.recipient.name} is <span className="os-mono os-break">{c.recipient.address}</span></p>}
+                {to !== null && !known(to) && <p className="os-note os-warn">New address: you haven't sent to it from this browser.</p>}
                 {recents.length > 0 && (
                     <div className="os-chipset" aria-label="Recent recipients">
                         {recents.map((a) => (
@@ -185,7 +211,7 @@ function SendForm({ session, close }: { session: OsSession; close: () => void })
                 <Field label="Memo" htmlFor="os-send-memo" hint="Optional. Public on chain: never put secrets here." error={shown("memo", draft.memo)} count={`${[...draft.memo].length} / ${MEMO_MAX}`}>
                     <input id="os-send-memo" className="os-in" value={draft.memo} onChange={(e) => set({ memo: e.target.value })} placeholder="Optional note" autoComplete="off" />
                 </Field>
-                {c.recipient?.kind === "address" && !people.saved.includes(c.recipient.address) && (
+                {to !== null && !people.saved.includes(to) && (
                     <label className="os-ack"><input type="checkbox" checked={draft.save} onChange={(e) => set({ save: e.target.checked })} /> Save this address to my recipients</label>
                 )}
             </div>

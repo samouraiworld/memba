@@ -176,6 +176,11 @@ Full changelogs are split by version range for easier navigation:
 - Send GNOT from Memba OS (`/os/wallet/send`, or "Send GNOT" in ⌘K). The amount is exact to the ugnot; commas are refused rather than guessed, so "12,5" can never become 125. On mainnet, a first send to an address or a send of 100 GNOT or more needs an explicit "I checked the address" in the review. Recent and saved recipients stay in this browser.
 - The send goes through the Memba review, then Adena shows it as a Transfer: one `/bank.MsgSend` with a single coin amount, the shape Adena accepts (the earlier attempt in #1078 used another spelling). It is never retried automatically, Memba asks Adena which account is active right before signing, and an unknown outcome locks Send until you confirm you checked it.
 - `toAdenaMessages` accepts `/bank.MsgSend` only in that shape: two `g1` addresses and one positive `ugnot` amount. The old `bank/MsgSend` form still throws.
+### Memba OS sends to @names
+<!-- categories: memba, wallet -->
+- Send in Memba OS takes a gno.land username (`@alice`) as well as a g1… address, still behind `VITE_MEMBA_OS` (D16, D23). The name is looked up in the gno.land user registry (`r/sys/users.ResolveName`, on an RPC checked to serve the right chain), and the form shows the address it belongs to.
+- The Memba review shows the name together with the full address, and that address is the one signed. Just before Adena opens, the name is looked up again: if it now points to another address, or can't be read, nothing is sent. The new-address and 100 GNOT checks apply to the resolved address.
+- A bare word (`alice`) asks for the @; an unregistered name says so.
 ### Memba OS accessibility and speed
 <!-- categories: memba, accessibility -->
 - Memba OS meets WCAG 2.1 AA contrast in both themes, still behind `VITE_MEMBA_OS`: the accent for buttons and links is darker, muted text is darker in the light theme, and the dark theme gets its own accent for text on tinted backgrounds and white text on accent-filled controls. The start menu's app list is a proper menu for screen readers.
