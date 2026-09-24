@@ -24,6 +24,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react"
 import { Link } from "react-router-dom"
+import { useNetworkPath } from "../hooks/useNetworkNav"
 import { GNO_CHAIN_ID, getTelemetryRpcUrl, getTelemetryRpcUrls } from "../lib/config"
 import {
     getAggregatedNetPeers,
@@ -74,6 +75,7 @@ const MONITORING_MS = 60_000     // 60s: per-validator monitoring data
 const NODESTATUS_MS = 60_000     // 60s: node identity (rarely changes)
 
 export default function ValidatorsHacker() {
+    const np = useNetworkPath()
     const rpcUrl = getTelemetryRpcUrl()
     // Peer topology is aggregated across all trusted nodes: /net_info is
     // node-local, so a single RPC misses most of the network (the "missing
@@ -337,7 +339,7 @@ export default function ValidatorsHacker() {
         <div className="vh-page" data-testid="validators-hacker-page">
             {/* ── Navigation breadcrumb ──────────────────────── */}
             <div className="vh-nav">
-                <Link to="/validators" className="vh-back">← Validators</Link>
+                <Link to={np("validators")} className="vh-back">← Validators</Link>
                 <span className="vh-nav__sep">/</span>
                 <span className="vh-nav__current">🕵️ Hacker view</span>
                 <span className="vh-nav__chain">{GNO_CHAIN_ID}</span>

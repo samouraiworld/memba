@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Links keep the network you are on (2026-09-24)
+<!-- categories: memba -->
+- **Links no longer drop the network from the URL.** These were the Hacker view's "← Validators", "+ Launch a collection", the profile's "View analytics →", the DAO members' @username and "Profile" links, the profile's vote links, and addresses auto-linked in rendered text. Each pointed at a bare path, which took an extra redirect and could switch you to the stored or default network. A new test scans every component and library file and fails if a link to an app page leaves the network out of the path.
+
 ### Feed edits respect the 1,000-character limit (2026-09-24)
 <!-- categories: memba -->
 - **Editing a post now has the same limit and counter as writing one.** The edit box had no cap, so a long edit was signed and then refused by the feed realm. Both boxes now count length the way the realm does, in UTF-8 bytes, so accented letters and emoji can no longer pass the counter and then fail on-chain.

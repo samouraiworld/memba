@@ -8,9 +8,11 @@ import { useState } from "react"
 import { useMyVotes, type MyVoteEntry } from "../../hooks/useMyVotes"
 import type { GovVote } from "../../lib/profile"
 import { revealInvisibleFormatting } from "../../lib/dao/v2Text"
+import { useNetworkPath } from "../../hooks/useNetworkNav"
 
 export function MyVotesSection({ address, gnoloveVotes }: { address: string; gnoloveVotes: GovVote[] }) {
     const { votes: crossDaoVotes, loading } = useMyVotes(address)
+    const np = useNetworkPath()
     const [filter, setFilter] = useState<"ALL" | "YES" | "NO">("ALL")
 
     // Merge: cross-DAO votes first, then gnolove votes (dedup by proposalId)
@@ -108,7 +110,7 @@ export function MyVotesSection({ address, gnoloveVotes }: { address: string; gno
                                 </span>
                                 <span style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", marginLeft: 8 }}>
                                     {daoSlug ? (
-                                        <a href={`/dao/${daoSlug}/${v.proposalId}`} style={{ color: "var(--color-text-secondary)", textDecoration: "none" }}
+                                        <a href={np(`dao/${daoSlug}/${v.proposalId}`)} style={{ color: "var(--color-text-secondary)", textDecoration: "none" }}
                                             onMouseEnter={e => e.currentTarget.style.color = "var(--color-brand)"}
                                             onMouseLeave={e => e.currentTarget.style.color = "var(--color-text-subtle)"}
                                         >

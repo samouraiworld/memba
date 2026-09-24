@@ -6,7 +6,7 @@ import { MemoryRouter } from "react-router-dom"
 const state = vi.hoisted(() => ({ archived: false, configAvailable: true, broadcast: vi.fn() }))
 vi.mock("react-router-dom", async original => ({ ...await original<typeof import("react-router-dom")>(), useOutletContext: () => ({ auth: { isAuthenticated: true }, adena: { address: "g1alice" } }) }))
 vi.mock("../hooks/useDaoRoute", () => ({ useDaoRoute: () => ({ realmPath: "gno.land/r/team/dao", encodedSlug: "team-dao" }) }))
-vi.mock("../hooks/useNetworkNav", () => ({ useNetworkNav: () => vi.fn(), useNetworkKey: () => "pearl" }))
+vi.mock("../hooks/useNetworkNav", () => ({ useNetworkNav: () => vi.fn(), useNetworkKey: () => "pearl", useNetworkPath: () => (p: string) => `/pearl/${p}` }))
 vi.mock("../hooks/useDaoKind", async () => {
     const { capabilitiesFor } = await import("../lib/dao/kind")
     const { NETWORKS } = await import("../lib/config")

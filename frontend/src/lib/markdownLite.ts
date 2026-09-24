@@ -10,6 +10,8 @@
  * @module lib/markdownLite
  */
 
+import { currentNetworkKey } from "./config"
+
 // ── HTML Escaping ───────────────────────────────────────────
 
 const ESC_MAP: Record<string, string> = {
@@ -49,8 +51,11 @@ function sanitizeUrl(href: string): string {
 const BECH32_PATTERN = /\bg1[a-z0-9]{38}\b/g
 
 function autoLinkAddresses(text: string): string {
+    // Every app route lives under /:network; a bare /profile/… would bounce
+    // through LegacyRedirect onto the stored/default network.
+    const network = currentNetworkKey()
     return text.replace(BECH32_PATTERN, addr =>
-        `<a href="/profile/${addr}" class="md-address">${addr}</a>`,
+        `<a href="/${network}/profile/${addr}" class="md-address">${addr}</a>`,
     )
 }
 

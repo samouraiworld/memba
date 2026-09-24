@@ -64,7 +64,7 @@ export function CreatorProfile() {
         <div className="creator-profile">
             <h1>{isMe ? "My Collections" : "Collections"}</h1>
             <p className="form-hint">Creator: <code>{creator}</code></p>
-            {isMe && <Link to="/nft/create" className="btn-primary">+ Launch a collection</Link>}
+            {isMe && <Link to={np("nft/create")} className="btn-primary">+ Launch a collection</Link>}
 
             {verifiedIds.size > 0 && (
                 <label className="form-hint">

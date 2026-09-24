@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { useOutletContext, Link } from "react-router-dom"
 import { useQuery } from "@tanstack/react-query"
-import { useNetworkKey, useNetworkNav } from "../hooks/useNetworkNav"
+import { useNetworkKey, useNetworkNav, useNetworkPath } from "../hooks/useNetworkNav"
 import { useDaoKind } from "../hooks/useDaoKind"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
@@ -211,6 +211,7 @@ function MemberRow({ member, isCurrentUser, showPower, proposeRoleChange, propos
     proposeRoleChange?: string
     proposeRemoval?: string
 }) {
+    const np = useNetworkPath()
     const tierColor = tierColors[member.tier] || "var(--color-text-secondary)"
 
     return (
@@ -218,10 +219,10 @@ function MemberRow({ member, isCurrentUser, showPower, proposeRoleChange, propos
             <div className="k-members__row-grid">
                 <div className="k-members__row-addr">
                     {member.username && (
-                        <a href={`/u/${member.username.replace("@", "")}`} className="k-members__row-username">{revealInvisibleFormatting(member.username)}</a>
+                        <a href={np(`u/${member.username.replace("@", "")}`)} className="k-members__row-username">{revealInvisibleFormatting(member.username)}</a>
                     )}
                     <CopyableAddress address={member.address} />
-                    <Link to={`/profile/${member.address}`} className="k-members__row-profile">Profile</Link>
+                    <Link to={np(`profile/${member.address}`)} className="k-members__row-profile">Profile</Link>
                     {isCurrentUser && <span className="k-members__row-you">YOU</span>}
                     {isCurrentUser && !member.username && (
                         <a href={`${getExplorerBaseUrl()}/${getUserRegistryPath().replace("gno.land/", "")}`} target="_blank" rel="noopener noreferrer" className="k-members__row-register">

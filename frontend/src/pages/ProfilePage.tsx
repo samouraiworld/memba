@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react"
-import { useParams, useOutletContext, useSearchParams } from "react-router-dom"
+import { Link, useParams, useOutletContext, useSearchParams } from "react-router-dom"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
-import { useNetworkNav } from "../hooks/useNetworkNav"
+import { useNetworkNav, useNetworkPath } from "../hooks/useNetworkNav"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { SkeletonCard } from "../components/ui/LoadingSkeleton"
 import { CopyableAddress } from "../components/ui/CopyableAddress"
@@ -35,6 +35,7 @@ function hasSocials(profile: UserProfile | null): boolean {
 export function ProfilePage() {
     const { address } = useParams<{ address: string }>()
     const navigate = useNetworkNav()
+    const np = useNetworkPath()
     const { adena, auth, isLoggingIn } = useOutletContext<LayoutContext>()
     const [searchParams, setSearchParams] = useSearchParams()
 
@@ -399,7 +400,7 @@ export function ProfilePage() {
                                 <div className="k-card profile-contrib-card">
                                     <div className="profile-contrib-header">
                                         <h3 className="profile-contrib-title">❤️ Gno Contributions</h3>
-                                        <a href="/gnolove" className="profile-contrib-link">View analytics →</a>
+                                        <Link to={np("gnolove")} className="profile-contrib-link">View analytics →</Link>
                                     </div>
                                     <div className="profile-contrib-grid">
                                         <ContribStat label="Love Power" value={String(profile.lovePowerScore)} icon="💜" accent />

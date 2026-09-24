@@ -6,8 +6,10 @@
 import type { CSSProperties } from "react"
 import type { DAOMember } from "../../lib/dao/shared"
 import { revealInvisibleFormatting } from "../../lib/dao/v2Text"
+import { useNetworkPath } from "../../hooks/useNetworkNav"
 
 export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: DAOMember; isCurrentUser: boolean; onProfileClick: (addr: string) => void }) {
+    const np = useNetworkPath()
     const truncAddr = member.address.length > 16
         ? `${member.address.slice(0, 8)}...${member.address.slice(-6)}`
         : member.address
@@ -30,7 +32,7 @@ export function MemberCard({ member, isCurrentUser, onProfileClick }: { member: 
                 </button>
                 {member.username && (
                     <a
-                        href={`/u/${member.username.replace("@", "")}`}
+                        href={np(`u/${member.username.replace("@", "")}`)}
                         style={{ fontSize: "var(--pro-caption, 11px)", color: "var(--color-primary)", fontWeight: 600, fontFamily: "var(--font-ui, JetBrains Mono, monospace)", textDecoration: "none", whiteSpace: "nowrap" }}
                     >
                         {revealInvisibleFormatting(member.username)}
