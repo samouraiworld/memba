@@ -16,7 +16,10 @@ import { MemoryRouter, Routes, Route } from "react-router-dom"
 import { describe, it, expect, vi, beforeEach } from "vitest"
 
 // ── Drive the lane predicates. Default: only NFT + Services live. ────────────
+const net = vi.hoisted(() => ({ key: "test13" }))
 vi.mock("../lib/config", () => ({
+    get ACTIVE_NETWORK_KEY() { return net.key },
+    isTestnetNetwork: (key: string) => key === "test13" || key === "pearl",
     isMarketplaceV2Enabled: vi.fn(() => false),
     isNftEnabled: vi.fn(() => true),
     isNftMarketV3Valid: vi.fn(() => true),
@@ -38,6 +41,8 @@ vi.mock("../hooks/useAdena", () => ({
 // ── Stub the lazy lane components (no heavy chain deps). ──────────────────────
 vi.mock("../components/marketplace/NftLane", () => ({ default: () => <div data-testid="nft-lane" /> }))
 vi.mock("../components/marketplace/ServiceLane", () => ({ default: () => <div data-testid="service-lane" /> }))
+vi.mock("../components/marketplace/ServiceLaneV2", () => ({ default: () => <div data-testid="service-lane-v2" /> }))
+vi.mock("../components/marketplace/NftLaneV2", () => ({ default: () => <div data-testid="nft-lane-v2" /> }))
 vi.mock("../components/marketplace/AgentLane", () => ({ default: () => <div data-testid="agent-lane" /> }))
 vi.mock("./TokenLane", () => ({ TokenLane: () => <div data-testid="token-lane" /> }))
 vi.mock("../components/marketplace/EscrowContractPage", () => ({ default: () => <div data-testid="escrow-contract-page" /> }))
@@ -200,5 +205,28 @@ describe("UnifiedMarketplace — escrow contract page", () => {
         expect(screen.getByRole("tab", { name: /Services/i })).toHaveAttribute("aria-selected", "true")
         expect(screen.getByRole("tab", { name: /NFTs/i })).toHaveAttribute("aria-selected", "false")
         expect(screen.getByRole("tabpanel")).toHaveAttribute("aria-labelledby", "um-tab-services")
+    })
+})
+
+describe("UnifiedMarketplace — the v2 seed lanes never run on mainnet", () => {
+    beforeEach(onlyNftAndServicesLive)
+
+    it("keeps the v1 Services lane on mainnet even with VITE_ENABLE_MARKETPLACE_V2 on", async () => {
+        net.key = "mainnet"
+        vi.mocked(config.isMarketplaceV2Enabled).mockReturnValue(true)
+        mountAt("/services")
+        expect(await screen.findByTestId("service-lane")).toBeInTheDocument()
+        expect(screen.queryByTestId("service-lane-v2")).not.toBeInTheDocument()
+        // The v1 shell search stays too.
+        expect(screen.getByPlaceholderText("Search marketplace...")).toBeInTheDocument()
+    })
+
+    it("runs the v2 lanes on a test network with the flag on", async () => {
+        net.key = "test13"
+        vi.mocked(config.isMarketplaceV2Enabled).mockReturnValue(true)
+        mountAt("/services")
+        expect(await screen.findByTestId("service-lane-v2")).toBeInTheDocument()
+        expect(screen.queryByPlaceholderText("Search marketplace...")).not.toBeInTheDocument()
+        vi.mocked(config.isMarketplaceV2Enabled).mockReturnValue(false)
     })
 })

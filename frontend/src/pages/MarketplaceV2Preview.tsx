@@ -18,7 +18,8 @@ import { seedNfts, seedServices, seedTokens } from "../lib/marketplace/seed/foun
 import { useMarketFilters } from "../lib/marketplace/useMarketFilters"
 import { applyFilters } from "../lib/marketplace/marketFilters"
 import { buildSellOptions } from "../lib/marketplace/sellOptions"
-import { isMarketplaceV2Enabled, DEFAULT_NETWORK } from "../lib/config"
+import { DEFAULT_NETWORK } from "../lib/config"
+import { isMarketplaceV2Active } from "../lib/marketplace/marketplaceV2"
 
 const NFT_CARDS = seedNfts.map(seedNftToCard)
 const SERVICE_CARDS = seedServices.map(seedServiceToCard)
@@ -40,8 +41,9 @@ export default function MarketplaceV2Preview() {
     // Demo: show all three sell options (real shell derives these from live-lane flags).
     const sellOptions = buildSellOptions(network, { nft: true, service: true, token: true })
 
-    // Dev-only harness — never reachable in prod (flag off).
-    if (!isMarketplaceV2Enabled()) return <Navigate to="../marketplace" replace />
+    // Dev-only harness — never reachable in prod (flag off), and never on mainnet
+    // even with the flag on: it renders the seed catalogue's placeholder sellers.
+    if (!isMarketplaceV2Active()) return <Navigate to="../marketplace" replace />
 
     return (
         <div className="mktv2-preview" style={{ maxWidth: "1200px", margin: "0 auto", padding: "var(--space-6, 24px)" }}>

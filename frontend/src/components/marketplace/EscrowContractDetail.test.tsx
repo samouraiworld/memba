@@ -4,7 +4,7 @@
  * lands, no retry when the outcome is unknown, and nothing offered from a read
  * that failed or was malformed.
  */
-import { fireEvent, screen, waitFor, within } from "@testing-library/react"
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react"
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import { renderWithProviders } from "../../test/test-utils"
 import { EscrowContractDetail } from "./EscrowContractDetail"
@@ -228,5 +228,23 @@ describe("EscrowContractDetail — calls", () => {
         fireEvent.click(within(screen.getByTestId("escrow-fund-0")).getByRole("button"))
         expect(await screen.findByRole("alert")).toHaveTextContent(/not available/)
         expect(doContractBroadcast).not.toHaveBeenCalled()
+    })
+})
+
+describe("EscrowContractDetail — switching contracts", () => {
+    it("drops the previous contract and its calls as soon as the id changes", async () => {
+        // Plain render: its rerender updates props in place (renderWithProviders' would remount the tree).
+        const { rerender } = render(<EscrowContractDetail id="7" caller={CLIENT} />)
+        await screen.findByTestId("escrow-fund-0")
+        let answer: (c: EscrowContractView) => void = () => {}
+        readEscrowContract.mockImplementationOnce(() => new Promise<EscrowContractView>((resolve) => { answer = resolve }))
+        rerender(<EscrowContractDetail id="8" caller={CLIENT} />)
+        // While contract 8 is being read, nothing of contract 7 can be signed.
+        expect(screen.queryByTestId("escrow-contract-details")).not.toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: /Fund milestone/ })).not.toBeInTheDocument()
+        expect(screen.getByText("Loading contract 8...")).toBeInTheDocument()
+        answer(contract({ id: "8", title: "Other", milestones: [ms(0, "completed")], expireAt: null }))
+        expect(await screen.findByRole("button", { name: "Release payment" })).toBeEnabled()
+        expect(screen.getByText("Other")).toBeInTheDocument()
     })
 })

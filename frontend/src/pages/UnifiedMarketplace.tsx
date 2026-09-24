@@ -4,7 +4,7 @@ import { ConnectingLoader } from "../components/ui/ConnectingLoader"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { getLiveLanes, getDefaultLaneSlug } from "../lib/marketplace/lanes"
 import { useAdena } from "../hooks/useAdena"
-import { isMarketplaceV2Enabled } from "../lib/config"
+import { isMarketplaceV2Active } from "../lib/marketplace/marketplaceV2"
 import { Image, Briefcase, Coins, Robot, Tag, type Icon } from "@phosphor-icons/react"
 import type { AssetType } from "../lib/marketplace/types"
 
@@ -37,7 +37,9 @@ import "./unified-marketplace.css"
 // assetType → the lane's UI. A lane only appears in the shell when getLiveLanes()
 // says it is live (flag + backing realm both valid on the active network), so a
 // gated lane is unreachable via both its tab and a direct URL (W0.1).
-const LANE_COMPONENTS: Record<AssetType, ComponentType> = isMarketplaceV2Enabled()
+// v2 only on test networks (isMarketplaceV2Active): its Services lane is the seed
+// catalogue with placeholder sellers, which must never render on mainnet.
+const laneComponents = (): Record<AssetType, ComponentType> => isMarketplaceV2Active()
     ? {
           nft: NftLaneV2,
           service: ServiceLaneV2,
@@ -108,6 +110,8 @@ export default function UnifiedMarketplace() {
 
     // Single source of truth: only lanes that are live on this network render.
     const liveLanes = getLiveLanes()
+    const v2 = isMarketplaceV2Active()
+    const components = laneComponents()
 
     // Show the "My Listings" tab only to a connected wallet with a live lane to
     // manage. The route itself stays mounted (it renders a connect prompt when
@@ -220,7 +224,7 @@ export default function UnifiedMarketplace() {
                 </nav>
                 {/* v2 lanes own their search via the LaneToolbar — hide the shell search
                     to avoid two boxes bound to the same ?q. */}
-                {!isMarketplaceV2Enabled() && (
+                {!v2 && (
                     <div className="um-search">
                         <input
                             type="search"
@@ -251,7 +255,7 @@ export default function UnifiedMarketplace() {
                     <Routes>
                         <Route path="/" element={<Navigate to={defaultLanePath} replace />} />
                         {liveLanes.map((lane) => {
-                            const LaneComponent = LANE_COMPONENTS[lane.assetType]
+                            const LaneComponent = components[lane.assetType]
                             return <Route key={lane.assetType} path={lane.slug} element={<LaneComponent />} />
                         })}
                         {liveLanes.some(l => l.assetType === "service") && (

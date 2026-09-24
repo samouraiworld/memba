@@ -107,7 +107,16 @@ export function EscrowShareLink({ url, lead }: { url: string; lead: string }) {
     )
 }
 
-export function EscrowContractDetail({ id, caller, onChanged, shareUrl, justCreated }: EscrowContractDetailProps) {
+/**
+ * One contract. Keyed by id: when the id changes on the same page (another
+ * link, the lookup form), the previous contract and its buttons are unmounted
+ * at once instead of staying live until the new read returns.
+ */
+export function EscrowContractDetail(props: EscrowContractDetailProps) {
+    return <ContractDetail key={props.id} {...props} />
+}
+
+function ContractDetail({ id, caller, onChanged, shareUrl, justCreated }: EscrowContractDetailProps) {
     const live = isServicesEnabled() && isEscrowValid()
     const [loaded, setLoaded] = useState<Loaded | null>(null)
     const [loading, setLoading] = useState(true)

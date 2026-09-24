@@ -20,7 +20,7 @@ import { useCallback, useEffect, useState, type FormEvent } from "react"
 import { GNO_CHAIN_ID, MEMBA_DAO, getIndexerUrl, isEscrowValid, isServicesEnabled } from "../../lib/config"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
 import { escrowContractPath } from "../../lib/marketplace/escrowActions"
-import { findFreelancerContractIds } from "../../lib/marketplace/escrowIndexer"
+import { findFreelancerContractsPage, type FreelancerCursor } from "../../lib/marketplace/escrowIndexer"
 import { readClientContracts, readEscrowContract, type EscrowContractSummary, type EscrowContractView } from "../../lib/marketplace/escrowState"
 import { EscrowContractDetail } from "./EscrowContractDetail"
 import { SignedText } from "../ui/SigningValue"
@@ -35,36 +35,50 @@ export interface EscrowContractPanelProps {
 
 type MyList = { caller: string; items: EscrowContractSummary[]; next: string | null; error: string | null; loading: boolean }
 
-type FreelancerList = { caller: string; items: EscrowContractView[] | null; error: string | null }
+type FreelancerList = { caller: string; items: EscrowContractView[] | null; next: FreelancerCursor | null; error: string | null; loading: boolean }
 
 const muted = { color: "var(--color-text-muted)", fontSize: "13px" }
 
 /**
- * The contracts naming `caller` as freelancer: ids from the indexer, each read
- * back from the realm and kept only if the chain names `caller` (archived ones
- * read as absent and drop out).
+ * The contracts naming `caller` as freelancer, newest first, one page at a
+ * time: ids from the indexer (bounded windows, at most
+ * FREELANCER_CONTRACTS_MAX per page), each read back from the realm and kept
+ * only if the chain names `caller` (archived ones read as absent and drop out).
  */
-function useFreelancerContracts(caller: string, enabled: boolean): FreelancerList | null {
+function useFreelancerContracts(caller: string, enabled: boolean): (FreelancerList & { loadMore: () => void }) | null {
     const [list, setList] = useState<FreelancerList | null>(null)
+    const indexerUrl = getIndexerUrl()
+    const active = enabled && Boolean(caller) && indexerUrl !== null
+
+    const fetchPage = useCallback(async (cursor: FreelancerCursor | null, signal?: AbortSignal) => {
+        const page = await findFreelancerContractsPage(indexerUrl!, GNO_CHAIN_ID, MEMBA_DAO.escrowPath, caller, cursor, signal)
+        const read = await Promise.all(page.ids.map((id) => readEscrowContract(MEMBA_DAO.escrowPath, id)))
+        return { items: read.filter((c): c is EscrowContractView => c !== null && c.freelancer === caller), next: page.next }
+    }, [indexerUrl, caller])
+
     useEffect(() => {
-        const indexerUrl = getIndexerUrl()
-        if (!enabled || !caller || !indexerUrl) return
+        if (!active) return
         const ctrl = new AbortController()
         let cancelled = false
-        void (async () => {
-            try {
-                const ids = await findFreelancerContractIds(indexerUrl, GNO_CHAIN_ID, MEMBA_DAO.escrowPath, caller, ctrl.signal)
-                const read = await Promise.all(ids.map((id) => readEscrowContract(MEMBA_DAO.escrowPath, id)))
-                const items = read.filter((c): c is EscrowContractView => c !== null && c.freelancer === caller)
-                if (!cancelled) setList({ caller, items, error: null })
-            } catch (err) {
-                if (!cancelled) setList({ caller, items: null, error: err instanceof Error ? err.message : String(err) })
-            }
-        })()
+        fetchPage(null, ctrl.signal).then(
+            ({ items, next }) => { if (!cancelled) setList({ caller, items, next, error: null, loading: false }) },
+            (err: unknown) => { if (!cancelled) setList({ caller, items: null, next: null, error: err instanceof Error ? err.message : String(err), loading: false }) },
+        )
         return () => { cancelled = true; ctrl.abort() }
-    }, [caller, enabled])
-    if (!enabled || !caller || !getIndexerUrl()) return null
-    return list?.caller === caller ? list : { caller, items: null, error: null }
+    }, [active, caller, fetchPage])
+
+    const loadMore = useCallback(() => {
+        const cursor = list?.caller === caller ? list.next : null
+        if (!cursor || list?.loading) return
+        setList((l) => (l ? { ...l, loading: true } : l))
+        fetchPage(cursor).then(
+            ({ items, next }) => setList((l) => ({ caller, items: [...(l?.caller === caller ? l.items ?? [] : []), ...items], next, error: null, loading: false })),
+            (err: unknown) => setList((l) => (l ? { ...l, loading: false, error: err instanceof Error ? err.message : String(err) } : l)),
+        )
+    }, [list, caller, fetchPage])
+
+    if (!active) return null
+    return { ...(list?.caller === caller ? list : { caller, items: null, next: null, error: null, loading: true }), loadMore }
 }
 
 export function EscrowContractPanel({ caller, createdContract }: EscrowContractPanelProps) {
@@ -162,12 +176,12 @@ export function EscrowContractPanel({ caller, createdContract }: EscrowContractP
                 <div data-testid="escrow-freelancer-contracts" style={{ margin: "0 0 16px" }}>
                     <h4 style={{ margin: "0 0 6px", fontSize: "14px", color: "var(--color-text)" }}>Contracts where you are the freelancer</h4>
                     {freelancer.error && (
-                        <p style={{ ...muted, margin: 0 }}>
+                        <p style={{ ...muted, margin: "0 0 6px" }}>
                             {`Could not search for them (${freelancer.error}). Ask the client for the contract's link.`}
                         </p>
                     )}
                     {!freelancer.error && freelancer.items === null && <p style={{ ...muted, margin: 0 }}>Searching...</p>}
-                    {freelancer.items?.length === 0 && (
+                    {freelancer.items?.length === 0 && !freelancer.next && (
                         <p style={{ ...muted, margin: 0 }}>None found. The client can send you the contract&apos;s link.</p>
                     )}
                     {freelancer.items && freelancer.items.length > 0 && (
@@ -181,6 +195,14 @@ export function EscrowContractPanel({ caller, createdContract }: EscrowContractP
                                 </li>
                             ))}
                         </ul>
+                    )}
+                    {freelancer.items?.length === 0 && freelancer.next && (
+                        <p style={{ ...muted, margin: 0 }}>None in the most recent blocks.</p>
+                    )}
+                    {freelancer.items !== null && freelancer.next && (
+                        <button className="k-btn-secondary" style={{ marginTop: "8px" }} onClick={freelancer.loadMore} disabled={freelancer.loading}>
+                            {freelancer.loading ? "Searching..." : "Load more"}
+                        </button>
                     )}
                     <p style={{ ...muted, margin: "6px 0 0", fontSize: "12px" }}>
                         Found through the transaction indexer, then read from the chain. A contract missing here still works from its link.

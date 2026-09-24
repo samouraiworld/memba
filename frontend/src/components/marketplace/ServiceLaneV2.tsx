@@ -10,6 +10,7 @@
  * @module components/marketplace/ServiceLaneV2
  */
 import { LaneView } from "./LaneView"
+import { isMarketplaceV2Active } from "../../lib/marketplace/marketplaceV2"
 import { seedServiceToCard } from "../../lib/marketplace/adapters/seedToCard"
 import { seedServices, type SeedService } from "../../lib/marketplace/seed/foundingSupply.seed"
 
@@ -19,7 +20,8 @@ export default function ServiceLaneV2() {
     return (
         <LaneView<SeedService>
             lane="service"
-            fetchFn={async () => seedServices}
+            // The seed's sellers are placeholders: never on a network where v2 may not run (mainnet), even if mounted there.
+            fetchFn={async () => (isMarketplaceV2Active() ? seedServices : [])}
             toCard={seedServiceToCard}
             categories={SERVICE_CATEGORIES}
             empty={{

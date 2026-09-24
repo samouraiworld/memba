@@ -20,8 +20,18 @@ import { isValidGnoAddressChecksum } from "../dao/address"
 const CONTRACT_ID = /^(0|[1-9]\d{0,8})$/
 const REALM_PATH = /^gno\.land\/r\/[a-z0-9_]+(\/[a-z0-9_]+)*$/
 
-/** Most ids returned (newest first); each one costs a chain read. */
-export const FREELANCER_CONTRACTS_MAX = 20
+/** Most ids per page (newest first); each one costs a chain read. */
+export const FREELANCER_CONTRACTS_MAX = 10
+
+/**
+ * The indexer's transaction query takes no limit, so a query is bounded by
+ * its block range instead: one window is about 7.6 days at gnoland-1's
+ * ~3.3 s per block, and one page scans at most FREELANCER_MAX_WINDOWS windows
+ * (about a month) before handing back a cursor. Each query stays far inside
+ * the backend proxy's 10 s budget whatever the realm's age.
+ */
+export const FREELANCER_WINDOW_BLOCKS = 200_000
+export const FREELANCER_MAX_WINDOWS = 4
 
 /**
  * Publish height of each escrow realm, by chain id, from realm-versions.json
@@ -49,12 +59,14 @@ export class EscrowIndexerError extends Error {
 const bad = (what: string): never => { throw new EscrowIndexerError(`Unexpected indexer answer: ${what}`) }
 
 /** The GraphQL query: successful transactions whose ContractCreated event on this realm names this freelancer. */
-export function freelancerContractsQuery(escrowPath: string, freelancer: string, fromHeight = 1): string {
+export function freelancerContractsQuery(escrowPath: string, freelancer: string, fromHeight = 1, toHeight?: number): string {
     // Both values are interpolated into the query, so only a realm path and a checksummed address get in.
     if (!REALM_PATH.test(escrowPath)) throw new Error("Invalid escrow realm path")
     if (!isValidGnoAddressChecksum(freelancer)) throw new Error("Invalid freelancer address")
     if (!Number.isSafeInteger(fromHeight) || fromHeight < 1) throw new Error("Invalid start height")
-    return `{ transactions(filter:{ from_block_height:${fromHeight}, success:true, events:[{ gno_event:{ pkg_path:"${escrowPath}", type:"ContractCreated", attrs:[{ key:"freelancer", value:"${freelancer}" }] } }] }) {
+    if (toHeight !== undefined && (!Number.isSafeInteger(toHeight) || toHeight < fromHeight)) throw new Error("Invalid end height")
+    const to = toHeight === undefined ? "" : ` to_block_height:${toHeight},`
+    return `{ transactions(filter:{ from_block_height:${fromHeight},${to} success:true, events:[{ gno_event:{ pkg_path:"${escrowPath}", type:"ContractCreated", attrs:[{ key:"freelancer", value:"${freelancer}" }] } }] }) {
         response { events { ... on GnoEvent { type pkg_path attrs { key value } } } }
     } }`
 }
@@ -96,8 +108,59 @@ export function parseFreelancerContracts(data: unknown, escrowPath: string, free
     return [...ids].sort((a, b) => b - a).slice(0, max).map(String)
 }
 
-/** Ids of this realm's contracts created with `freelancer` as freelancer, newest first (a hint: read each back from the chain). */
-export async function findFreelancerContractIds(indexerUrl: string, chainId: string, escrowPath: string, freelancer: string, signal?: AbortSignal): Promise<string[]> {
-    const data = await gql<unknown>(indexerUrl, freelancerContractsQuery(escrowPath, freelancer, escrowScanFromHeight(chainId, escrowPath)), signal)
-    return parseFreelancerContracts(data, escrowPath, freelancer)
+/**
+ * Where the next page resumes: scan down from block `top`, skipping ids at or
+ * above `belowId` (the last one already shown; ids grow with height, so older
+ * contracts in the same window come next).
+ */
+export interface FreelancerCursor {
+    top: number
+    belowId: number | null
 }
+
+export interface FreelancerPage {
+    /** Contract ids, newest first, at most FREELANCER_CONTRACTS_MAX: a hint to read back from the chain. */
+    ids: string[]
+    /** Null once the scan reached the realm's publish height. */
+    next: FreelancerCursor | null
+}
+
+/**
+ * One page of this realm's contracts naming `freelancer`, newest first. The
+ * first page (`cursor` null) starts at the indexer's latest height. Each query
+ * covers one bounded window; a page stops at FREELANCER_CONTRACTS_MAX ids or
+ * after FREELANCER_MAX_WINDOWS windows, whichever comes first. Errors
+ * (including the proxy's timeout, "indexer HTTP 502") propagate.
+ */
+export async function findFreelancerContractsPage(
+    indexerUrl: string,
+    chainId: string,
+    escrowPath: string,
+    freelancer: string,
+    cursor: FreelancerCursor | null,
+    signal?: AbortSignal,
+): Promise<FreelancerPage> {
+    const floor = escrowScanFromHeight(chainId, escrowPath)
+    let top = cursor?.top ?? (await gql<{ latestBlockHeight: number }>(indexerUrl, "{ latestBlockHeight }", signal)).latestBlockHeight
+    if (!Number.isSafeInteger(top) || top < 0) bad("latest block height")
+    let belowId = cursor?.belowId ?? null
+    const ids: number[] = []
+    for (let w = 0; w < FREELANCER_MAX_WINDOWS && top >= floor; w++) {
+        const from = Math.max(floor, top - FREELANCER_WINDOW_BLOCKS + 1)
+        const data = await gql<unknown>(indexerUrl, freelancerContractsQuery(escrowPath, freelancer, from, top), signal)
+        const found = parseFreelancerContracts(data, escrowPath, freelancer, Number.MAX_SAFE_INTEGER)
+            .map(Number)
+            .filter((id) => belowId === null || id < belowId)
+        const room = FREELANCER_CONTRACTS_MAX - ids.length
+        ids.push(...found.slice(0, room))
+        if (found.length > room) {
+            // This window holds more: the next page re-reads it below the last id shown.
+            return { ids: ids.map(String), next: { top, belowId: ids[ids.length - 1] } }
+        }
+        top = from - 1
+        belowId = null
+        if (ids.length === FREELANCER_CONTRACTS_MAX) break
+    }
+    return { ids: ids.map(String), next: top >= floor ? { top, belowId: null } : null }
+}
+
