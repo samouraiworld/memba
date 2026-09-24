@@ -149,22 +149,31 @@
 /* windows */
 .memba-os .os-win {
   position: absolute; display: flex; flex-direction: column; overflow: hidden; border-radius: var(--os-radius-win);
-  width: min(var(--os-w), calc(100% - 24px)); height: min(var(--os-h), calc(100% - 110px));
-  left: max(12px, calc(50% - var(--os-w) / 2 + var(--os-off)));
-  top: calc(max(12px, 14% - 40px) + var(--os-off));
   box-shadow: 0 30px 70px -22px var(--os-shadow), 0 0 0 .5px var(--os-line); animation: os-pop .22s cubic-bezier(.2, .9, .3, 1.2);
 }
+.memba-os .os-win.os-max { border-radius: 10px; }
 .memba-os .os-win.os-inactive { box-shadow: 0 18px 40px -22px var(--os-shadow), 0 0 0 .5px var(--os-line); }
 .memba-os .os-win.os-inactive .os-tb { opacity: .65; }
 .memba-os .os-tb { height: 38px; flex: none; display: flex; align-items: center; padding: 0 12px; border-bottom: 1px solid var(--os-line); position: relative; }
 .memba-os .os-tb-title { position: absolute; left: 80px; right: 80px; text-align: center; font-size: 12.5px; font-weight: 800; margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.memba-os .os-lights { display: flex; gap: 8px; }
-.memba-os .os-lights > * { width: 12px; height: 12px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center; }
-.memba-os .os-light-close { background: #FF5F57; cursor: pointer; color: rgba(0, 0, 0, .55); font-size: 10px; line-height: 1; }
-.memba-os .os-light-close span { opacity: 0; }
-.memba-os .os-lights:hover .os-light-close span, .memba-os .os-light-close:focus-visible span { opacity: 1; }
-.memba-os .os-light-min { background: #FEBC2E; opacity: .45; }
-.memba-os .os-light-max { background: #28C840; opacity: .45; }
+.memba-os .os-tb { cursor: grab; touch-action: none; }
+.memba-os .os-tb:active { cursor: grabbing; }
+.memba-os .os-win.os-max .os-tb { cursor: default; }
+.memba-os .os-lights { display: flex; gap: 8px; position: relative; z-index: 1; }
+.memba-os .os-lights > button {
+  width: 12px; height: 12px; border-radius: 50%; border: 0; padding: 0; display: grid; place-items: center;
+  cursor: pointer; color: rgba(0, 0, 0, .55); font-size: 9px; line-height: 1; font-weight: 800;
+}
+.memba-os .os-lights > button span { opacity: 0; }
+.memba-os .os-lights:hover > button span, .memba-os .os-lights > button:focus-visible span { opacity: 1; }
+.memba-os .os-light-close { background: #FF5F57; }
+.memba-os .os-light-min { background: #FEBC2E; }
+.memba-os .os-light-max { background: #28C840; }
+.memba-os .os-rz { position: absolute; right: 0; bottom: 0; width: 16px; height: 16px; cursor: nwse-resize; touch-action: none; }
+.memba-os .os-rz::after {
+  content: ""; position: absolute; right: 4px; bottom: 4px; width: 7px; height: 7px; border-right: 2px solid var(--os-mut);
+  border-bottom: 2px solid var(--os-mut); opacity: .4; border-radius: 0 0 3px 0;
+}
 .memba-os .os-wbody { flex: 1; overflow: auto; padding: 16px 18px; font-size: 12.8px; min-height: 0; user-select: text; -webkit-user-select: text; }
 
 .memba-os .os-welcome { display: grid; gap: 14px; }
@@ -218,3 +227,29 @@
 }
 .memba-os .os-dk:hover .os-tip, .memba-os .os-dk:focus-visible .os-tip { opacity: 1; }
 .memba-os .os-dsep { width: 1px; align-self: stretch; background: var(--os-line); margin: 4px 2px; }
+
+/* desktop items */
+.memba-os .os-thing {
+  position: absolute; width: 88px; display: grid; justify-items: center; gap: 6px; border: 0; background: none; cursor: pointer;
+  font: 600 11.5px/1.25 var(--os-font); color: var(--os-ink); padding: 6px 2px; border-radius: 12px; text-shadow: var(--os-label-shadow);
+  z-index: 1; text-align: center; touch-action: none;
+}
+.memba-os .os-thing:hover { background: var(--os-hover); }
+.memba-os .os-thing.os-dragging { opacity: .85; z-index: 5; }
+.memba-os .os-thing-label { max-width: 84px; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow-wrap: anywhere; }
+.memba-os .os-badged { position: relative; display: inline-block; }
+.memba-os .os-badge2 {
+  position: absolute; right: -4px; bottom: -4px; width: 18px; height: 18px; border-radius: 6px; background: var(--os-solid-ink);
+  color: var(--os-ink); font: 800 9.5px var(--os-font); display: grid; place-items: center; box-shadow: 0 2px 6px rgba(0, 0, 0, .2); text-shadow: none;
+}
+.memba-os .os-badge2-dao { background: var(--os-acc); color: var(--os-solid-ink); }
+.memba-os .os-ctx { position: absolute; z-index: 945; border-radius: 12px; box-shadow: 0 20px 40px -14px var(--os-shadow), 0 0 0 .5px var(--os-line); min-width: 220px; animation: os-pop .12s; }
+
+/* start menu pin buttons */
+.memba-os .os-pinbox { position: relative; }
+.memba-os .os-pn {
+  position: absolute; top: 2px; right: 6px; width: 18px; height: 18px; border-radius: 50%; border: 0; padding: 0;
+  background: var(--os-acc); color: var(--os-solid-ink); font: 800 12px/1 var(--os-font); cursor: pointer; opacity: 0; transition: opacity .12s;
+}
+.memba-os .os-pinbox:hover .os-pn, .memba-os .os-pn:focus-visible { opacity: 1; }
+.memba-os .os-pn.os-done { background: var(--os-ok); opacity: 1; font-size: 10px; cursor: default; }

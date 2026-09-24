@@ -1,31 +1,92 @@
 /**
- * The Memba OS shell: entry logic (D7), menu bar, windows, dock, connect flow.
- * Scenarios from mockup v4: first visit (lock screen), returning member
- * (session resumes, no lock), shared link (opens as guest), new wallet
- * (connect → activation, empty desk).
+ * The Memba OS shell: entry logic (D7), menu bar, windows, desktop items,
+ * dock, connect flow. The address bar follows the windows (front window's
+ * path + ?w= for the others) and a link opens its windows; a plain /os visit
+ * restores this browser's last windows.
  *
  * @module os/shell/Shell
  */
-import { useCallback, useEffect, useRef, useState } from "react"
-import { useLocation } from "react-router-dom"
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react"
+import { useLocation, useNavigate } from "react-router-dom"
 import type { OsAppId } from "../apps"
 import { ConnectModal } from "./ConnectModal"
+import { itemTarget } from "./desk"
+import { ContextMenu, DeskItems, type MenuEntry } from "./DeskItems"
 import { Dock } from "./Dock"
-import { markSeen, readSeen, resolveEntry } from "./entry"
-import { LockScreen } from "./LockScreen"
+import { markSeen, readSeen, resolveEntry, type OsEntry } from "./entry"
 import { shortAddr } from "./format"
+import { LockScreen } from "./LockScreen"
 import { MenuBar } from "./MenuBar"
 import { takeNetworkSwitchNotice } from "./network"
-import { isDeepLink, parseOsPath } from "./osPath"
+import type { OsTarget } from "./osPath"
+import { loadSavedTargets, saveWindows, targetsFromUrl, urlForWindows, windowToken } from "./urlSync"
+import { useDesk } from "./useDesk"
 import { useOsSession } from "./useOsSession"
-import { WindowFrame } from "./WindowFrame"
-import { appSpec, specForTarget, useWindows, welcomeSpec } from "./windows"
+import { WindowFrame, type FrameActions } from "./WindowFrame"
+import {
+    appSpec, EMPTY_WINDOWS, specForTarget, useWindows, visibleWindows, welcomeSpec, windowsReducer,
+    type DeskSize, type OsWindow, type WindowSpec, type WindowsState,
+} from "./windows"
 
 const TOAST_MS = 2600
+const MENU_BAR = 30
+
+/** First guess before the desk is measured (the ResizeObserver corrects it). */
+function initialDesk(): DeskSize {
+    const root = document.documentElement
+    return { w: root.clientWidth, h: Math.max(0, root.clientHeight - MENU_BAR) }
+}
+
+/** The windows a link opens: its ?w= windows first, the path's window last (so on top). */
+function openTargets(s: WindowsState, front: OsTarget, others: OsTarget[], desk: DeskSize): WindowsState {
+    const specs = [...others, front].map(specForTarget).filter((x): x is WindowSpec => x !== null)
+    return specs.reduce((acc, spec, i) => windowsReducer(acc, { type: "open", spec, desk, center: specs.length === 1 && i === 0 }), s)
+}
+
+function arrivalWindows(arrival: ReturnType<typeof targetsFromUrl>, fromLink: boolean, entry: OsEntry, desk: DeskSize): WindowsState {
+    const saved = entry === "lock" ? [] : loadSavedTargets()
+    if (fromLink) {
+        // A link decides which windows open; where this browser had the same
+        // window before (a reload), it keeps the position and size it had.
+        const s = openTargets(EMPTY_WINDOWS, arrival.front, arrival.others, desk)
+        const geomByToken = new Map(saved.map(({ target, geom }) => [windowToken(target), geom]))
+        return {
+            ...s,
+            wins: s.wins.map((w) => {
+                const g = geomByToken.get(windowToken(w.target))
+                return g ? { ...w, x: g.x, y: g.y, width: g.width, height: g.height, max: g.max } : w
+            }),
+        }
+    }
+    if (entry === "lock") return EMPTY_WINDOWS
+    const wins: OsWindow[] = saved.flatMap(({ target, geom }, i) => {
+        const spec = specForTarget(target)
+        return spec ? [{ ...spec, ...geom, id: `w${i + 1}` }] : []
+    })
+    return windowsReducer(EMPTY_WINDOWS, { type: "restore", wins })
+}
 
 export function Shell() {
-    const { pathname } = useLocation()
-    const [target] = useState(() => parseOsPath(pathname))
+    const location = useLocation()
+    const navigate = useNavigate()
+
+    // ── desk size (windows and items are placed in it) ──
+    const deskRef = useRef<HTMLElement>(null)
+    const [desk, setDesk] = useState<DeskSize>(initialDesk)
+    const deskNow = useRef(desk)
+    useEffect(() => {
+        const el = deskRef.current
+        if (!el || typeof ResizeObserver === "undefined") return
+        const ro = new ResizeObserver(() => {
+            const next = { w: el.clientWidth, h: el.clientHeight }
+            deskNow.current = next
+            setDesk(next)
+        })
+        ro.observe(el)
+        return () => ro.disconnect()
+    }, [])
+
+    // ── toast ──
     const [toast, setToast] = useState<string | null>(null)
     const toastTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
     const showToast = useCallback((msg: string) => {
@@ -35,21 +96,23 @@ export function Shell() {
     }, [])
     useEffect(() => () => clearTimeout(toastTimer.current), [])
 
-    const initialSpec = specForTarget(target)
-    const { wins, front, open, focus, close, closeKey, closeAll } = useWindows(initialSpec ? [initialSpec] : [])
+    // ── arrival: decided once ──
+    const [arrival] = useState(() => targetsFromUrl(location.pathname, location.search))
+    const fromLink = arrival.front.kind !== "desktop" || arrival.others.length > 0
 
     const session = useOsSession({
         onSignedIn: (address) => {
-            closeKey("welcome")
+            win.closeKey("welcome")
             setLinkGuest(false)
             showToast(`Connected with Adena · ${shortAddr(address)}`)
         },
     })
-
-    // Decided once, on arrival.
-    const [entry] = useState(() => resolveEntry({ seen: readSeen(), resuming: session.status === "resuming", deepLink: isDeepLink(target) }))
+    const [entry] = useState(() => resolveEntry({ seen: readSeen(), resuming: session.status === "resuming", deepLink: fromLink }))
     const [locked, setLocked] = useState(entry === "lock")
     const [linkGuest, setLinkGuest] = useState(entry === "link")
+
+    const win = useWindows(() => arrivalWindows(arrival, fromLink, entry, deskNow.current))
+    const { dispatch } = win
 
     useEffect(() => {
         if (entry !== "lock") markSeen()
@@ -58,7 +121,6 @@ export function Shell() {
         if (switched) showToast(switched)
     }, [entry, showToast])
 
-    // A resumed session says so once; a failed resume just leaves a guest desktop.
     const wasResuming = useRef(session.status === "resuming")
     useEffect(() => {
         if (!wasResuming.current || session.status === "resuming") return
@@ -67,23 +129,96 @@ export function Shell() {
         if (session.status === "member") showToast("Welcome back · session resumed")
     }, [session.status, showToast])
 
+    // ── windows ⇄ URL, and the saved session ──
+    const lastUrl = useRef(location.pathname + location.search)
+    const here = location.pathname + location.search
+    useEffect(() => {
+        saveWindows(win.wins)
+        const url = urlForWindows(win.wins)
+        lastUrl.current = url
+        if (url !== window.location.pathname + window.location.search) navigate(url, { replace: true })
+    }, [win.wins, navigate])
+    useEffect(() => {
+        // A navigation we didn't write (a link inside Memba OS, back/forward): open what it points to.
+        if (here === lastUrl.current) return
+        lastUrl.current = here
+        const t = targetsFromUrl(location.pathname, location.search)
+        const specs = [...t.others, t.front].map(specForTarget).filter((x): x is WindowSpec => x !== null)
+        for (const spec of specs) dispatch({ type: "open", spec, desk: deskNow.current })
+    }, [here, location.pathname, location.search, dispatch])
+
+    // ── actions ──
+    const open = useCallback((spec: WindowSpec, center = false) => dispatch({ type: "open", spec, desk: deskNow.current, center }), [dispatch])
     const openApp = useCallback((app: OsAppId) => open(appSpec(app)), [open])
+    const move = useCallback((id: string, x: number, y: number) => dispatch({ type: "move", id, x, y, desk: deskNow.current }), [dispatch])
+    const resize = useCallback((id: string, width: number, height: number) => dispatch({ type: "resize", id, width, height, desk: deskNow.current }), [dispatch])
+    const frame: FrameActions = { focus: win.focus, close: win.close, minimise: win.minimise, toggleMax: win.toggleMax, move, resize }
+    const tile = useCallback(() => dispatch({ type: "tile", desk: deskNow.current }), [dispatch])
+
+    const member = session.status === "member"
+    const deskOwner = session.status === "resuming" ? undefined : member ? session.address : null
+    const deskItems = useDesk(deskOwner)
 
     const unlock = () => { setLocked(false); markSeen() }
     const lock = () => {
-        if (session.status === "member") session.disconnect()
-        closeAll()
+        if (member) session.disconnect()
+        win.closeAll()
         setLinkGuest(false)
         setLocked(true)
     }
 
-    const member = session.status === "member"
+    // ── ⌥ shortcuts (D13) ──
+    const front = win.front
+    useEffect(() => {
+        const onKey = (e: KeyboardEvent) => {
+            if (locked || session.stage || !e.altKey) return
+            const t = e.target as HTMLElement | null
+            if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
+            if (e.code === "KeyW" && front) { e.preventDefault(); win.close(front.id) }
+            else if (e.code === "Backquote") { e.preventDefault(); win.next() }
+        }
+        window.addEventListener("keydown", onKey)
+        return () => window.removeEventListener("keydown", onKey)
+    }, [locked, session.stage, front, win])
+
+    // ── right-click menus ──
+    const [menu, setMenu] = useState<{ x: number; y: number; item: number | null } | null>(null)
+    const [startRequest, setStartRequest] = useState(0)
+    const closeMenu = useCallback(() => setMenu(null), [])
+    const openMenu = (e: ReactMouseEvent, item: number | null) => {
+        const r = deskRef.current?.getBoundingClientRect()
+        if (!r) return
+        setMenu({ x: Math.min(e.clientX - r.left, r.width - 240), y: Math.min(e.clientY - r.top, r.height - 200), item })
+    }
+    const openItem = (i: number) => {
+        const t = itemTarget(deskItems.items[i])
+        const spec = t && specForTarget(t)
+        if (spec) open(spec)
+    }
+    let menuEntries: (MenuEntry | "sep")[] = []
+    if (menu && menu.item !== null) {
+        const i = menu.item
+        menuEntries = [{ label: "Open", run: () => openItem(i) }, "sep", { label: "Remove from desktop", run: () => deskItems.unpin(i) }]
+    } else if (menu) {
+        menuEntries = [
+            { label: "Change wallpaper…", run: () => openApp("settings") },
+            { label: "Add an app…", run: () => setStartRequest((n) => n + 1) },
+            { label: "Clean up icons", run: deskItems.tidy },
+            "sep",
+            { label: "Show desktop", run: win.minimiseAll },
+        ]
+    }
+
+    const visible = visibleWindows(win.wins)
     return (
         <>
-            <MenuBar session={session} wins={wins} front={front} openApp={openApp} focusWin={focus} closeWin={close}
-                closeAll={closeAll} lock={lock} toast={showToast} />
-            <main className="os-desk" aria-label="Desktop">
-                {member && wins.length === 0 && (
+            <MenuBar session={session} wins={win.wins} front={front} openApp={openApp} focusWin={win.focus} closeWin={win.close}
+                closeAll={win.closeAll} minimiseAll={win.minimiseAll} tile={tile} nextWin={win.next} lock={lock} toast={showToast}
+                isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} />
+            <main ref={deskRef} className="os-desk" aria-label="Desktop"
+                onContextMenu={(e) => { if (e.target === e.currentTarget && !locked) { e.preventDefault(); openMenu(e, null) } }}>
+                <DeskItems items={deskItems.items} deskWidth={desk.w} onOpen={openItem} onMove={deskItems.move} onMenu={openMenu} />
+                {member && deskItems.items.length === 0 && visible.length === 0 && (
                     <div className="os-getstarted os-glass">
                         <div className="os-getstarted-title">Your desk is empty — let's fill it.</div>
                         <div className="os-sub">Anything you join or bookmark appears here as an icon.</div>
@@ -95,10 +230,10 @@ export function Shell() {
                         </div>
                     </div>
                 )}
-                {wins.map((w, i) => (
-                    <WindowFrame key={w.id} win={w} index={i} active={w.id === front?.id} session={session} openApp={openApp}
-                        onFocus={() => { if (w.id !== front?.id) focus(w.id) }} onClose={() => close(w.id)} />
+                {visible.map((w) => (
+                    <WindowFrame key={w.id} win={w} active={w.id === front?.id} desk={desk} frame={frame} session={session} openApp={openApp} />
                 ))}
+                {menu && <ContextMenu x={menu.x} y={menu.y} entries={menuEntries} onClose={closeMenu} />}
             </main>
             {linkGuest && !member && (
                 <div className="os-banner os-glass" role="status">
@@ -106,13 +241,13 @@ export function Shell() {
                     <button type="button" className="os-btn" onClick={session.openConnect}>Connect to vote</button>
                 </div>
             )}
-            <Dock wins={wins} openApp={openApp} />
+            <Dock wins={win.wins} openApp={openApp} restore={win.focus} />
             <ConnectModal session={session} />
             {toast && <div className="os-toast os-glass" role="status">{toast}</div>}
             {locked && (
                 <LockScreen
                     onConnect={() => { unlock(); session.openConnect() }}
-                    onGuest={() => { unlock(); open(welcomeSpec()) }}
+                    onGuest={() => { unlock(); open(welcomeSpec(), true) }}
                 />
             )}
         </>

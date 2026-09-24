@@ -12,6 +12,7 @@ import { useClock } from "./clock"
 import { shortAddr } from "./format"
 import { selectableOsNetworks, switchOsNetwork } from "./network"
 import type { OsSession } from "./useOsSession"
+import { itemForTarget, type DeskItemType } from "./desk"
 import { urlForWindow, type OsWindow } from "./windows"
 
 type PanelId = "start" | "spaces" | "app" | "window" | "net" | "notif" | "acct"
@@ -24,8 +25,16 @@ export interface MenuBarProps {
     focusWin: (id: string) => void
     closeWin: (id: string) => void
     closeAll: () => void
+    minimiseAll: () => void
+    tile: () => void
+    nextWin: () => void
     lock: () => void
     toast: (msg: string) => void
+    /** Desktop items: is this thing on the desk, and put it there. */
+    isPinned: (item: { ty: DeskItemType; ref: string }) => boolean
+    pin: (item: { ty: DeskItemType; ref: string }) => void
+    /** Bumped to open the start menu from elsewhere (desktop menu "Add an app…"). */
+    startRequest: number
 }
 
 function Item({ children, onClick, disabled, hint }: { children: ReactNode; onClick?: () => void; disabled?: boolean; hint?: string }) {
@@ -53,6 +62,15 @@ export function MenuBar(p: MenuBarProps) {
     const [time] = useClock()
     const guest = session.status !== "member"
     const net = session.network
+
+    // "Add an app…" on the desktop menu opens the start menu (state adjusted
+    // while rendering when the request changes, React's pattern for this).
+    const [seenStart, setSeenStart] = useState(p.startRequest)
+    if (seenStart !== p.startRequest) {
+        setSeenStart(p.startRequest)
+        setAnchor(10)
+        setPanel("start")
+    }
 
     // Close on Escape or on any click outside the bar and its panel.
     useEffect(() => {
@@ -86,13 +104,20 @@ export function MenuBar(p: MenuBarProps) {
                         </div>
                         {guest && <button type="button" className="os-btn" onClick={run(session.openConnect)}>Connect</button>}
                     </div>
-                    <div className="os-mhd">All apps</div>
+                    <div className="os-mhd">All apps · ＋ adds to desktop</div>
                     <div className="os-pins">
-                        {OS_APPS.map((a) => (
-                            <button key={a.id} type="button" role="menuitem" className="os-pin" onClick={run(() => p.openApp(a.id))}>
-                                <AppTile app={a.id} size={38} /><span>{a.name}</span>
-                            </button>
-                        ))}
+                        {OS_APPS.map((a) => {
+                            const on = p.isPinned({ ty: "app", ref: a.id })
+                            return (
+                                <div key={a.id} className="os-pinbox">
+                                    <button type="button" role="menuitem" className="os-pin" onClick={run(() => p.openApp(a.id))}>
+                                        <AppTile app={a.id} size={38} /><span>{a.name}</span>
+                                    </button>
+                                    <button type="button" className={`os-pn${on ? " os-done" : ""}`} aria-label={on ? `${a.name} is on the desktop` : `Add ${a.name} to desktop`}
+                                        disabled={on} onClick={() => p.pin({ ty: "app", ref: a.id })}>{on ? "✓" : "+"}</button>
+                                </div>
+                            )
+                        })}
                     </div>
                     <div className="os-menu os-menu-top" role="menu" aria-label="Memba">
                         <Item onClick={run(() => p.openApp("settings"))}>Personalise desktop…</Item>
@@ -121,11 +146,17 @@ export function MenuBar(p: MenuBarProps) {
         case "app":
             if (p.front) {
                 const f = p.front
+                const pinnable = itemForTarget(f.target)
                 content = (
                     <div className="os-menu" role="menu" aria-label={f.title}>
                         <div className="os-mhd">{f.app ? OS_APPS.find((a) => a.id === f.app)?.name : f.title}</div>
+                        {pinnable && (
+                            <Item onClick={run(() => { p.pin(pinnable); p.toast("Added to your desktop") })} disabled={p.isPinned(pinnable)}>
+                                {f.target?.kind === "proposal" ? "Bookmark to desktop" : "Add to desktop"}
+                            </Item>
+                        )}
                         <Item onClick={copy(`${window.location.origin}${urlForWindow(f)}`, "the link")}>Copy link to this window</Item>
-                        <Item onClick={run(() => p.closeWin(f.id))}>Close window</Item>
+                        <Item onClick={run(() => p.closeWin(f.id))} hint="⌥W">Close window</Item>
                     </div>
                 )
             }
@@ -133,13 +164,16 @@ export function MenuBar(p: MenuBarProps) {
         case "window":
             content = (
                 <div className="os-menu" role="menu" aria-label="Window">
+                    <Item onClick={run(p.minimiseAll)} disabled={!p.front}>Minimise all</Item>
+                    <Item onClick={run(p.tile)} disabled={!p.front}>Tile two front windows</Item>
+                    <Item onClick={run(p.closeAll)} disabled={!p.wins.length}>Close all</Item>
+                    <div className="os-msep" role="separator" />
                     {p.wins.length
                         ? [...p.wins].sort((a, b) => a.z - b.z).map((w) => (
-                            <Item key={w.id} onClick={run(() => p.focusWin(w.id))}>{w.id === p.front?.id ? "• " : ""}{w.title}</Item>
+                            <Item key={w.id} onClick={run(() => p.focusWin(w.id))}>{w.id === p.front?.id ? "• " : ""}{w.title}{w.min ? " (minimised)" : ""}</Item>
                         ))
                         : <div className="os-sub os-pad">No windows open</div>}
-                    <div className="os-msep" role="separator" />
-                    <Item onClick={run(p.closeAll)} disabled={!p.wins.length}>Close all</Item>
+                    <Item onClick={run(p.nextWin)} disabled={p.wins.filter((w) => !w.min).length < 2} hint="⌥`">Next window</Item>
                 </div>
             )
             break

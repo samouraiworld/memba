@@ -35,6 +35,12 @@ Full changelogs are split by version range for easier navigation:
 <!-- categories: memba -->
 - Memba OS, the desktop redesign, starts behind the `VITE_MEMBA_OS` flag at `/os`: an empty Aqua desktop in light and dark, the app registry that gives every Memba page a home, and its own end-to-end suite.
 - A flag-on build fails everywhere except the Memba OS beta site, and a flag-off build ships none of its code.
+### Memba OS windows
+<!-- categories: memba -->
+- Memba OS windows now behave like a desktop, still behind `VITE_MEMBA_OS`. You can drag them by the title bar, resize them from the corner, minimise them to the dock, maximise them, and tile the two front ones. ⌥W closes the front window and ⌥` switches to the next one.
+- The address bar follows the windows. Its path is the front window's link, and `?w=` lists the others. Opening a link opens its windows. A plain visit, or a reload, brings back this browser's last windows where they were.
+- Desktop icons: pin apps, DAOs, proposals and multisigs from the start menu or a window's menu, then drag them on a grid or remove them with a right-click. Each wallet keeps its own desk in this browser. Guests start from a few featured items.
+
 ### Memba OS shell
 <!-- categories: memba -->
 - Memba OS gets its shell, still behind `VITE_MEMBA_OS`. A lock screen greets first visits only. A wallet session resumes without it, and a shared link opens its content right away as a guest.

@@ -1,16 +1,16 @@
 /**
- * Window frame and the day-2 window contents: Welcome, and a holding window
+ * Window frame and window contents: Welcome, and a holding window
  * for apps and links whose native window isn't built yet (it points to the
  * same page in the current Memba).
  *
  * @module os/shell/WindowFrame
  */
-import type { CSSProperties, ReactNode } from "react"
+import { useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
 import { getApp, type OsAppId } from "../apps"
 import { classicPath } from "./format"
 import { AppTile, ThingTile } from "./icons"
 import type { OsSession } from "./useOsSession"
-import type { OsWindow } from "./windows"
+import { DOCK_ROOM, type DeskSize, type OsWindow } from "./windows"
 
 interface Actions {
     session: OsSession
@@ -91,30 +91,82 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
     )
 }
 
-export function WindowFrame({ win, index, active, onFocus, onClose, ...a }: Omit<Actions, "close"> & {
+export interface FrameActions {
+    focus: (id: string) => void
+    close: (id: string) => void
+    minimise: (id: string) => void
+    toggleMax: (id: string) => void
+    move: (id: string, x: number, y: number) => void
+    resize: (id: string, width: number, height: number) => void
+}
+
+type Drag = { mode: "move" | "resize"; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number; moved: boolean }
+
+/**
+ * A window: title bar (drag to move, double-click to maximise), traffic
+ * lights (close, minimise to the dock, maximise), resize corner. While
+ * dragging, the frame moves through its own style and commits on release, so
+ * the window's content doesn't re-render on every pointer move.
+ */
+export function WindowFrame({ win, active, desk, frame, ...a }: Omit<Actions, "close"> & {
     win: OsWindow
-    index: number
     active: boolean
-    onFocus: () => void
-    onClose: () => void
+    desk: DeskSize
+    frame: FrameActions
 }) {
-    const style = {
-        "--os-w": `${win.width}px`,
-        "--os-h": `${win.height}px`,
-        "--os-off": `${(index % 6) * 26}px`,
-        zIndex: 10 + win.z,
-    } as CSSProperties
+    const ref = useRef<HTMLElement>(null)
+    const drag = useRef<Drag | null>(null)
+    const g = win.max
+        ? { x: 8, y: 6, width: Math.max(0, desk.w - 16), height: Math.max(0, desk.h - 6 - DOCK_ROOM) }
+        : { x: win.x, y: win.y, width: win.width, height: win.height }
+    const style = { left: g.x, top: g.y, width: g.width, height: g.height, zIndex: 10 + win.z } as CSSProperties
+
+    const begin = (mode: Drag["mode"], e: ReactPointerEvent<HTMLElement>) => {
+        if (e.button !== 0) return
+        if (mode === "move" && (win.max || (e.target as HTMLElement).closest("button"))) return
+        e.currentTarget.setPointerCapture(e.pointerId)
+        drag.current = { mode, sx: e.clientX, sy: e.clientY, ox: g.x, oy: g.y, ow: g.width, oh: g.height, moved: false }
+    }
+    const onMove = (e: ReactPointerEvent<HTMLElement>) => {
+        const d = drag.current
+        const el = ref.current
+        if (!d || !el) return
+        const dx = e.clientX - d.sx
+        const dy = e.clientY - d.sy
+        if (!d.moved && Math.hypot(dx, dy) < 3) return
+        d.moved = true
+        if (d.mode === "move") { el.style.left = `${d.ox + dx}px`; el.style.top = `${Math.max(0, d.oy + dy)}px` }
+        else { el.style.width = `${Math.max(320, d.ow + dx)}px`; el.style.height = `${Math.max(220, d.oh + dy)}px` }
+    }
+    const end = (e: ReactPointerEvent<HTMLElement>) => {
+        const d = drag.current
+        drag.current = null
+        if (!d?.moved) return
+        const dx = e.clientX - d.sx
+        const dy = e.clientY - d.sy
+        // Put the frame back where React last rendered it: if the reducer clamps
+        // the drop to the old geometry, React sees no change and wouldn't undo
+        // the live offset.
+        const el = ref.current
+        if (el) Object.assign(el.style, { left: `${g.x}px`, top: `${g.y}px`, width: `${g.width}px`, height: `${g.height}px` })
+        if (d.mode === "move") frame.move(win.id, d.ox + dx, d.oy + dy)
+        else frame.resize(win.id, d.ow + dx, d.oh + dy)
+    }
+    const handlers = { onPointerMove: onMove, onPointerUp: end, onPointerCancel: end }
+
     return (
-        <section className={`os-win os-glass${active ? "" : " os-inactive"}`} style={style} aria-label={win.title} onPointerDown={onFocus} data-win={win.key}>
-            <div className="os-tb">
+        <section ref={ref} className={`os-win os-glass${active ? "" : " os-inactive"}${win.max ? " os-max" : ""}`} style={style}
+            aria-label={win.title} data-win={win.key} onPointerDown={() => { if (!active) frame.focus(win.id) }}>
+            <div className="os-tb" onPointerDown={(e) => begin("move", e)} {...handlers} onDoubleClick={(e) => { if (!(e.target as HTMLElement).closest("button")) frame.toggleMax(win.id) }}>
                 <span className="os-lights">
-                    <button type="button" className="os-light-close" aria-label={`Close ${win.title}`} onClick={onClose}><span aria-hidden="true">×</span></button>
-                    <span className="os-light-min" aria-hidden="true" />
-                    <span className="os-light-max" aria-hidden="true" />
+                    <button type="button" className="os-light-close" aria-label={`Close ${win.title}`} onClick={() => frame.close(win.id)}><span aria-hidden="true">×</span></button>
+                    <button type="button" className="os-light-min" aria-label={`Minimise ${win.title}`} onClick={() => frame.minimise(win.id)}><span aria-hidden="true">–</span></button>
+                    <button type="button" className="os-light-max" aria-label={`${win.max ? "Restore" : "Maximise"} ${win.title}`} aria-pressed={win.max} onClick={() => frame.toggleMax(win.id)}><span aria-hidden="true">+</span></button>
                 </span>
                 <h2 className="os-tb-title">{win.title}</h2>
             </div>
-            <div className="os-wbody"><Body win={win} {...a} close={onClose} /></div>
+            <div className="os-wbody"><Body win={win} {...a} close={() => frame.close(win.id)} /></div>
+            {!win.max && <span className="os-rz" aria-hidden="true" data-testid="resize" onPointerDown={(e) => begin("resize", e)} {...handlers} />}
         </section>
     )
 }

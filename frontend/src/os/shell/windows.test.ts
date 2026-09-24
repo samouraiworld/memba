@@ -1,40 +1,131 @@
 import { describe, expect, it } from "vitest"
 import { parseOsPath } from "./osPath"
-import { appSpec, frontWindow, specForTarget, urlForWindow, welcomeSpec, windowsReducer } from "./windows"
+import {
+    appSpec, DOCK_ROOM, EMPTY_WINDOWS, frontWindow, specForTarget, urlForWindow, welcomeSpec, windowsReducer,
+    type WindowsAction, type WindowsState,
+} from "./windows"
 
-const empty = { top: 0, seq: 0, wins: [] }
+const desk = { w: 1200, h: 760 }
+const run = (...actions: WindowsAction[]) => actions.reduce<WindowsState>(windowsReducer, EMPTY_WINDOWS)
+const open = (spec = appSpec("feed"), center = false): WindowsAction => ({ type: "open", spec, desk, center })
+const byKey = (s: WindowsState, key: string) => s.wins.find((w) => w.key === key)!
 
 describe("windowsReducer", () => {
-    it("opens windows on top and focuses an already-open key instead of duplicating it", () => {
-        let s = windowsReducer(empty, { type: "open", spec: welcomeSpec() })
-        s = windowsReducer(s, { type: "open", spec: appSpec("feed") })
+    it("opens windows on top and refocuses an already-open key instead of duplicating it", () => {
+        let s = run(open(welcomeSpec()), open(appSpec("feed")))
         expect(frontWindow(s.wins)?.key).toBe("app:feed")
-        s = windowsReducer(s, { type: "open", spec: welcomeSpec() })
+        s = windowsReducer(s, open(welcomeSpec()))
         expect(s.wins).toHaveLength(2)
         expect(frontWindow(s.wins)?.key).toBe("welcome")
     })
 
-    it("focuses and closes by id", () => {
-        let s = windowsReducer(empty, { type: "open", spec: welcomeSpec() })
-        s = windowsReducer(s, { type: "open", spec: appSpec("feed") })
-        const welcome = s.wins.find((w) => w.key === "welcome")!
-        s = windowsReducer(s, { type: "focus", id: welcome.id })
-        expect(frontWindow(s.wins)?.id).toBe(welcome.id)
-        s = windowsReducer(s, { type: "close", id: welcome.id })
-        expect(s.wins.map((w) => w.key)).toEqual(["app:feed"])
+    it("cascades new windows and centres on request, inside the desk and above the dock", () => {
+        const s = run(open(appSpec("feed")), open(appSpec("wallet")), open(welcomeSpec(), true))
+        const [a, b, c] = s.wins
+        expect(b.x - a.x).toBe(34)
+        expect(b.y - a.y).toBe(28)
+        expect(c.x).toBe((desk.w - c.width) / 2)
+        for (const w of s.wins) {
+            expect(w.x).toBeGreaterThanOrEqual(0)
+            expect(w.y + w.height).toBeLessThanOrEqual(desk.h - DOCK_ROOM)
+        }
+    })
+
+    it("shrinks a window that doesn't fit a small desk", () => {
+        const s = windowsReducer(EMPTY_WINDOWS, { type: "open", spec: appSpec("feed"), desk: { w: 360, h: 500 } })
+        expect(s.wins[0].width).toBeLessThanOrEqual(360)
+    })
+
+    it("moves, but always keeps the title bar reachable", () => {
+        let s = run(open())
+        const id = s.wins[0].id
+        s = windowsReducer(s, { type: "move", id, x: 300, y: 120, desk })
+        expect(s.wins[0]).toMatchObject({ x: 300, y: 120 })
+        s = windowsReducer(s, { type: "move", id, x: 5000, y: -50, desk })
+        expect(s.wins[0].x).toBe(desk.w - 80)
+        expect(s.wins[0].y).toBe(0)
+        s = windowsReducer(s, { type: "move", id, x: -5000, y: 5000, desk })
+        expect(s.wins[0].x).toBe(80 - s.wins[0].width)
+        expect(s.wins[0].y).toBe(desk.h - 40)
+    })
+
+    it("resizes within a minimum and the desk", () => {
+        let s = run(open())
+        const id = s.wins[0].id
+        s = windowsReducer(s, { type: "resize", id, width: 100, height: 100, desk })
+        expect(s.wins[0]).toMatchObject({ width: 320, height: 220 })
+        s = windowsReducer(s, { type: "resize", id, width: 9999, height: 9999, desk })
+        expect(s.wins[0].x + s.wins[0].width).toBe(desk.w - 8)
+    })
+
+    it("minimises out of focus, and focusing restores", () => {
+        let s = run(open(appSpec("wallet")), open(appSpec("feed")))
+        const feed = byKey(s, "app:feed")
+        s = windowsReducer(s, { type: "minimise", id: feed.id })
+        expect(frontWindow(s.wins)?.key).toBe("app:wallet")
+        s = windowsReducer(s, { type: "focus", id: feed.id })
+        expect(byKey(s, "app:feed").min).toBe(false)
+        expect(frontWindow(s.wins)?.key).toBe("app:feed")
+    })
+
+    it("reopening a minimised key restores it", () => {
+        let s = run(open(appSpec("feed")))
+        s = windowsReducer(s, { type: "minimise", id: s.wins[0].id })
+        s = windowsReducer(s, open(appSpec("feed")))
+        expect(s.wins[0].min).toBe(false)
+    })
+
+    it("toggles maximise, and a drag leaves maximised", () => {
+        let s = run(open())
+        const id = s.wins[0].id
+        s = windowsReducer(s, { type: "toggleMax", id })
+        expect(s.wins[0].max).toBe(true)
+        s = windowsReducer(s, { type: "move", id, x: 40, y: 40, desk })
+        expect(s.wins[0].max).toBe(false)
+    })
+
+    it("tiles the two front windows side by side", () => {
+        let s = run(open(appSpec("wallet")), open(appSpec("feed")), open(appSpec("arcade")))
+        s = windowsReducer(s, { type: "tile", desk })
+        const arcade = byKey(s, "app:arcade")
+        const feed = byKey(s, "app:feed")
+        expect(arcade.x).toBe(8)
+        expect(feed.x).toBe(8 + desk.w / 2)
+        expect(arcade.width).toBe(desk.w / 2 - 16)
+        expect(byKey(s, "app:wallet").width).toBe(480)
+    })
+
+    it("cycles through visible windows with next", () => {
+        let s = run(open(appSpec("wallet")), open(appSpec("feed")), open(appSpec("arcade")))
+        const order = [0, 1, 2].map(() => {
+            s = windowsReducer(s, { type: "next" })
+            return frontWindow(s.wins)?.key
+        })
+        expect(order).toEqual(["app:wallet", "app:feed", "app:arcade"])
+    })
+
+    it("minimise all leaves no front window; close and close-all remove", () => {
+        let s = run(open(appSpec("wallet")), open(appSpec("feed")))
+        expect(frontWindow(windowsReducer(s, { type: "minimiseAll" }).wins)).toBeNull()
+        s = windowsReducer(s, { type: "close", id: byKey(s, "app:feed").id })
+        expect(s.wins.map((w) => w.key)).toEqual(["app:wallet"])
         expect(windowsReducer(s, { type: "closeAll" }).wins).toEqual([])
     })
 
-    it("never reuses an id after a close", () => {
-        let s = windowsReducer(empty, { type: "open", spec: welcomeSpec() })
+    it("never reuses an id, including after a restore", () => {
+        let s = run(open(welcomeSpec()))
         const first = s.wins[0].id
         s = windowsReducer(s, { type: "close", id: first })
-        s = windowsReducer(s, { type: "open", spec: welcomeSpec() })
+        s = windowsReducer(s, open(welcomeSpec()))
         expect(s.wins[0].id).not.toBe(first)
+        const restored = windowsReducer(EMPTY_WINDOWS, { type: "restore", wins: s.wins })
+        const after = windowsReducer(restored, open(appSpec("feed")))
+        expect(new Set(after.wins.map((w) => w.id)).size).toBe(2)
+        expect(frontWindow(after.wins)?.key).toBe("app:feed")
     })
 })
 
-describe("deep-link windows", () => {
+describe("link windows", () => {
     it("titles a proposal link and round-trips its URL", () => {
         const spec = specForTarget(parseOsPath("/os/dao/memba_dao/proposals/12"))!
         expect(spec.title).toBe("memba_dao · Proposal #12")
@@ -42,7 +133,7 @@ describe("deep-link windows", () => {
     })
 
     it("round-trips app, DAO section and multisig URLs", () => {
-        for (const url of ["/os/wallet", "/os/dev-report", "/os/dao/memba_dao", "/os/dao/memba_dao/treasury", "/os/multisig/g103kjrkw6l0a9le0a0q0dsgy0uyt4jyha55cd4l"]) {
+        for (const url of ["/os/wallet", "/os/wallet/send", "/os/dev-report", "/os/dao/memba_dao", "/os/dao/memba_dao/treasury", "/os/multisig/g103kjrkw6l0a9le0a0q0dsgy0uyt4jyha55cd4l"]) {
             expect(urlForWindow(specForTarget(parseOsPath(url))!)).toBe(url)
         }
     })
