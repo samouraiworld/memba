@@ -9,7 +9,7 @@ export async function accountReviewFixture(page: Page) {
         const rejectWrite = async () => { throw new Error('Review fixture: wallet actions are disabled') }
         const api = {
             GetAccount: async () => ({ status: 'success', data: { address, coins: '0ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' }, accountNumber: '0', sequence: '0', chainId: 'gnoland-1' } }),
-            GetNetwork: async () => ({ data: { rpcUrl: 'https://rpc.gno.land' } }),
+            GetNetwork: async () => ({ status: 'success', data: { chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land' } }),
             On: () => () => {},
             Sign: rejectWrite, SignTx: rejectWrite, DoContract: rejectWrite, AddEstablish: rejectWrite,
             CreateMultisigAccount: rejectWrite, CreateMultisigTransaction: rejectWrite, SignMultisigTransaction: rejectWrite, BroadcastMultisigTransaction: rejectWrite,

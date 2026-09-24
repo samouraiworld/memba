@@ -49,7 +49,7 @@ async function member(page: Page) {
         Object.defineProperty(window, '__adenaCalls', { value: calls })
         Object.defineProperty(window, 'adena', { value: {
             GetAccount: async () => ({ status: 'success', data: { address, coins: '500000000ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' }, accountNumber: '1', sequence: '1', chainId: 'gnoland-1' } }),
-            GetNetwork: async () => ({ data: { rpcUrl: 'https://rpc.gno.land' } }),
+            GetNetwork: async () => ({ status: 'success', data: { chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land' } }),
             On: () => true,
             DoContract: async (tx: unknown) => {
                 calls.push(tx)

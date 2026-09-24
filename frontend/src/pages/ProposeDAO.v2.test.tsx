@@ -54,6 +54,7 @@ vi.mock("../lib/dao", async (orig) => ({
 }))
 
 import { ProposeDAO } from "./ProposeDAO"
+import { WalletNetworkError } from "../lib/walletNetworkGuard"
 
 function Where() {
     return <div data-testid="location">{useLocation().pathname}</div>
@@ -295,6 +296,19 @@ describe("version-2 propose form", () => {
         await waitFor(() => expect(settled).toBe(true))
         expect(wallet).not.toHaveBeenCalled()
         expect(screen.getByLabelText("Title")).toHaveValue("")
+    })
+
+    it("reports a wallet-network refusal after the rechecks as not sent, and leaves the form editable", async () => {
+        state.broadcast.mockImplementation(async (_msgs, _memo, opts) => { await opts.beforeSign(); throw new WalletNetworkError("Your wallet did not report its network — switch Adena to gno.land (gnoland-1) and try again.") })
+        const first = mount()
+        fireEvent.change(await screen.findByLabelText("Title"), { target: { value: "Try again" } })
+        fireEvent.click(screen.getByRole("button", { name: "Submit proposal" }))
+        expect(await screen.findByText(/did not report its network/)).toBeInTheDocument()
+        expect(screen.queryByText(/Submission outcome unknown/)).not.toBeInTheDocument()
+        expect(screen.getByLabelText("Title")).toBeEnabled()
+        first.unmount()
+        mount()
+        expect(await screen.findByLabelText("Title")).toBeEnabled()
     })
 
     it("preserves a lost wallet outcome on remount and blocks resubmission", async () => {

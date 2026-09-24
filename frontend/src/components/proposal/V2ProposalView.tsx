@@ -15,6 +15,7 @@ import { getDAOConfig, getDAOMembers, invalidateProposalCache, type VoteChoice }
 import { readV2Proposal, readV2Votes, type MembaV2Proposal } from "../../lib/dao/membaV2"
 import { hasVotedOnV2, v2Context } from "../../lib/dao/membaV2Shell"
 import { broadcastDaoTx, planDaoTx, planNeedsDepositOverride, type DaoTxPlan } from "../../lib/dao/daoTx"
+import { WalletNetworkError } from "../../lib/walletNetworkGuard"
 import { DepositOverride } from "./DepositOverride"
 import { formatUgnot } from "../../lib/dao/v2Budget"
 import { friendlyDaoError } from "../../lib/dao/errors"
@@ -238,6 +239,8 @@ function ScopedV2ProposalView({ realmPath, encodedSlug, proposalId }: Props) {
                 ? { phase: "confirmed", hash: res.hash, message: next.kind === "vote" ? `Your ${next.choice} vote is recorded.` : `Proposal #${proposal.id} executed.` }
                 : { phase: "submitted", hash: res.hash, message: "Transaction submitted. The network has not yet confirmed the updated proposal state. Refresh to check; do not submit again." })
         } catch (err) {
+            // A wallet-network refusal is thrown before the wallet is asked to sign.
+            if (err instanceof WalletNetworkError) walletStarted = false
             if (!walletStarted && !knownHash) {
                 finish()
                 try { clearGovernanceReceipt(scope) } catch { /* Retain conservative recovery state. */ }

@@ -12,7 +12,7 @@
  */
 import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, NETWORKS, isTrustedRpcDomain } from "./config"
 
-type WalletReply = { status?: unknown; data?: { address?: unknown; chainId?: unknown; rpcUrl?: unknown } | null } | null | undefined
+type WalletReply = { status?: unknown; type?: unknown; data?: { address?: unknown; chainId?: unknown; rpcUrl?: unknown } | null } | null | undefined
 
 type AdenaNetworkApi = {
     GetAccount?: () => Promise<WalletReply>
@@ -55,6 +55,20 @@ function unreported(expectedChainId: string): WalletNetworkError {
     return new WalletNetworkError(`Your wallet did not report its network — switch Adena to ${networkLabelForChain(expectedChainId)} and try again.`)
 }
 
+/**
+ * The refusal for a failed reply. Adena answers GetAccount and GetNetwork with
+ * `{ status: "failure", type: "WALLET_LOCKED" }` while it is locked (it
+ * auto-locks after a few idle minutes) and `type: "NOT_CONNECTED"` when this
+ * site is no longer connected; telling those users to switch networks would
+ * be wrong advice.
+ */
+function failedReply(replies: WalletReply[], expectedChainId: string): WalletNetworkError {
+    const types = replies.map((r) => (r?.status === "failure" ? text(r.type) : ""))
+    if (types.includes("WALLET_LOCKED")) return new WalletNetworkError("Adena is locked — unlock it, then try again.")
+    if (types.includes("NOT_CONNECTED")) return new WalletNetworkError("Adena is not connected to Memba — reconnect your wallet, then try again.")
+    return unreported(expectedChainId)
+}
+
 async function ask(call: (() => Promise<WalletReply>) | undefined, timeoutMs: number): Promise<WalletReply> {
     if (!call) return undefined
     let timer: ReturnType<typeof setTimeout> | undefined
@@ -75,11 +89,13 @@ async function ask(call: (() => Promise<WalletReply>) | undefined, timeoutMs: nu
  *
  * GetAccount is required. GetNetwork is read when the wallet has it (older
  * Adena builds do not); when it reports a chain it must agree with the
- * account's, and when it reports an RPC that RPC must be trusted.
+ * account's, and when it reports an RPC that RPC must be trusted. When
+ * `opts.address` is given (the connected session's account), the wallet's
+ * current account must be that one: a silent account switch refuses too.
  */
 export async function assertLiveWalletNetwork(
     expectedChainId: string = GNO_CHAIN_ID,
-    opts: { timeoutMs?: number } = {},
+    opts: { timeoutMs?: number; address?: string | null } = {},
 ): Promise<LiveWalletNetwork> {
     const adena = (window as unknown as { adena?: AdenaNetworkApi }).adena
     if (!adena || typeof adena.GetAccount !== "function") throw unreported(expectedChainId)
@@ -95,7 +111,7 @@ export async function assertLiveWalletNetwork(
     } catch {
         throw unreported(expectedChainId)
     }
-    if (!account || account.status === "failure" || network?.status === "failure") throw unreported(expectedChainId)
+    if (!account || account.status === "failure" || network?.status === "failure") throw failedReply([account, network], expectedChainId)
 
     const accountChain = text(account.data?.chainId)
     const networkChain = text(network?.data?.chainId)
@@ -116,5 +132,9 @@ export async function assertLiveWalletNetwork(
     if (rpcUrl && !isTrustedRpcDomain(rpcUrl)) {
         throw new WalletNetworkError(`Your wallet is using an untrusted RPC (${rpcUrl}) — switch Adena to a trusted ${wanted} RPC and try again.`)
     }
-    return { chainId, address: text(account.data?.address), rpcUrl }
+    const address = text(account.data?.address)
+    if (opts.address && address !== opts.address) {
+        throw new WalletNetworkError("Your Adena account is not the one connected to Memba — switch back to it, or reconnect, then try again.")
+    }
+    return { chainId, address, rpcUrl }
 }

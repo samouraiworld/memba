@@ -28,7 +28,7 @@ async function member(page: Page, mode: 'ok' | 'timeout' = 'ok') {
         Object.defineProperty(window, '__adenaCalls', { value: calls })
         Object.defineProperty(window, 'adena', { value: {
             GetAccount: async () => ({ status: 'success', data: { address, coins: '250000000ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' }, accountNumber: '1', sequence: '1', chainId: 'gnoland-1' } }),
-            GetNetwork: async () => ({ data: { rpcUrl: 'https://rpc.gno.land' } }),
+            GetNetwork: async () => ({ status: 'success', data: { chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land' } }),
             On: () => true,
             DoContract: async (tx: unknown) => {
                 calls.push(tx)
@@ -147,7 +147,8 @@ test.describe('Memba OS wallet', () => {
             a.GetAccount = async () => { const r = await get(); r.data.address = other; return r }
         }, BOB)
         await review.getByRole('button', { name: 'Sign in Adena' }).click()
-        await expect(review.getByRole('alert')).toContainText('Your wallet changed since the review')
+        // The broadcaster's live wallet check refuses first: Adena's account is not the connected one.
+        await expect(review.getByRole('alert')).toContainText('Your Adena account is not the one connected to Memba')
         expect(await calls(page)).toHaveLength(0)
     })
 

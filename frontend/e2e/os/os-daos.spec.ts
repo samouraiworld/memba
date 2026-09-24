@@ -24,7 +24,7 @@ async function member(page: Page, mode: WalletMode) {
         Object.defineProperty(window, '__adenaCalls', { value: calls })
         Object.defineProperty(window, 'adena', { value: {
             GetAccount: async () => ({ status: 'success', data: { address, coins: '5000000ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' }, accountNumber: '1', sequence: '1', chainId: 'gnoland-1' } }),
-            GetNetwork: async () => ({ data: { rpcUrl: 'https://rpc.gno.land' } }),
+            GetNetwork: async () => ({ status: 'success', data: { chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land' } }),
             On: () => true,
             DoContract: async (tx: unknown) => {
                 calls.push(tx)
@@ -119,9 +119,12 @@ test.describe('Memba OS DAOs', () => {
     test('a wallet that reports no network is refused before Adena signs anything', async ({ page }) => {
         await member(page, 'ok')
         await page.addInitScript(() => {
-            const a = (window as unknown as { adena: { GetAccount: () => Promise<{ data: { chainId: string } }> } }).adena
-            const get = a.GetAccount
-            a.GetAccount = async () => { const r = await get(); r.data.chainId = ''; return r }
+            type Reply = { data: { chainId: string } }
+            const a = (window as unknown as { adena: { GetAccount: () => Promise<Reply>; GetNetwork: () => Promise<Reply> } }).adena
+            const account = a.GetAccount, network = a.GetNetwork
+            // Neither the account nor the network names a chain.
+            a.GetAccount = async () => { const r = await account(); r.data.chainId = ''; return r }
+            a.GetNetwork = async () => { const r = await network(); r.data.chainId = ''; return r }
         })
         await page.goto(`${OS_ON}/os/dao/govdao/proposals/4`)
         const prop = win(page, 'govdao · Proposal #4')
@@ -130,6 +133,24 @@ test.describe('Memba OS DAOs', () => {
         await expect(page.getByText(/Your wallet did not report its network — switch Adena to gno\.land \(gnoland-1\) and try again\./).first()).toBeVisible()
         expect(await page.evaluate(() => (window as unknown as { __adenaCalls: unknown[] }).__adenaCalls)).toHaveLength(0)
         // Nothing was sent, so the vote is not locked behind an unknown outcome.
+        await expect(prop.getByText('Outcome unknown.')).toHaveCount(0)
+    })
+
+    test('a wallet that locked itself is asked to unlock, not to switch networks', async ({ page }) => {
+        await member(page, 'ok')
+        await page.goto(`${OS_ON}/os/dao/govdao/proposals/4`)
+        const prop = win(page, 'govdao · Proposal #4')
+        await prop.getByRole('button', { name: 'Vote…' }).click()
+        // Adena auto-locks while the review is open; locked, it answers reads with WALLET_LOCKED.
+        await page.evaluate(() => {
+            const locked = async () => ({ code: 2000, status: 'failure', type: 'WALLET_LOCKED', message: 'Adena is Locked.', data: {} })
+            const a = (window as unknown as { adena: Record<string, unknown> }).adena
+            a.GetAccount = locked
+            a.GetNetwork = locked
+        })
+        await sheet(page).getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(page.getByText('Adena is locked — unlock it, then try again.').first()).toBeVisible()
+        expect(await page.evaluate(() => (window as unknown as { __adenaCalls: unknown[] }).__adenaCalls)).toHaveLength(0)
         await expect(prop.getByText('Outcome unknown.')).toHaveCount(0)
     })
 })

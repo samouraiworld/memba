@@ -106,13 +106,16 @@ export function toAdenaMessages(msgs: AminoMsg[]) {
 let _walletRpcUrl: string | null = null
 let _walletRpcTrusted = false
 let _walletChainId: string | null = null
+let _walletAddress: string | null = null
 
 /** Called by useAdena to sync the wallet's active RPC validation state +
- *  the wallet's active chainId (used to block wrong-chain broadcasts). */
-export function setWalletRpcContext(url: string | null, trusted: boolean, chainId: string | null = null) {
+ *  the wallet's active chainId (used to block wrong-chain broadcasts) + the
+ *  connected account (the live check refuses when Adena's account differs). */
+export function setWalletRpcContext(url: string | null, trusted: boolean, chainId: string | null = null, address: string | null = null) {
     _walletRpcUrl = url
     _walletRpcTrusted = trusted
     _walletChainId = chainId
+    _walletAddress = address
 }
 
 /**
@@ -257,6 +260,27 @@ export async function doContractBroadcast(
     return withWalletActivity(() => broadcastContract(msgs, memo, opts))
 }
 
+/**
+ * The wallet checks run before each wallet request. On the first attempt a
+ * refusal means nothing was sent. On a retry an earlier request already
+ * reached the wallet and may have landed, so a refusal must not read as
+ * "nothing sent": it becomes a plain error saying the outcome is unknown.
+ */
+async function walletStillSafe(attempt: number, lastError: Error | null): Promise<void> {
+    try {
+        assertWalletBroadcastSafe()
+        await assertLiveWalletNetwork(GNO_CHAIN_ID, { address: _walletAddress })
+    } catch (err) {
+        if (attempt === 0) throw err
+        const reason = err instanceof Error ? err.message : String(err)
+        throw new Error(
+            `Stopped before retrying: ${reason} An earlier attempt${lastError ? ` (${lastError.message})` : ""} may have reached the chain, ` +
+            `so the outcome is unknown. Check the transaction before trying again.`,
+            { cause: err },
+        )
+    }
+}
+
 async function broadcastContract(
     msgs: AminoMsg[],
     memo: string,
@@ -297,15 +321,14 @@ async function broadcastContract(
         // SECURITY: the cached chain id checked by assertWalletBroadcastSafe
         // can be stale or empty (a wallet that switched network without firing
         // its event, or reports none). Ask the wallet itself and refuse unless
-        // it names this page's chain. Asked first before the caller's
-        // beforeSign, which callers treat as "the wallet is opening", so a
-        // wallet on the wrong network is reported as nothing sent.
-        await assertLiveWalletNetwork(GNO_CHAIN_ID)
+        // it names this page's chain (and account). Asked first before the
+        // caller's beforeSign, which callers treat as "the wallet is opening",
+        // so a wallet on the wrong network is reported as nothing sent.
+        await walletStillSafe(attempt, lastError)
         // Await caller revalidation after confirmation, then recheck wallet safety.
         await opts?.beforeSign?.()
-        assertWalletBroadcastSafe()
         // Asked again right before the wallet request: beforeSign can take a while.
-        await assertLiveWalletNetwork(GNO_CHAIN_ID)
+        await walletStillSafe(attempt, lastError)
         try {
             const res = await adena.DoContract({
                 messages: toAdenaMessages(msgs),

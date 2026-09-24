@@ -66,6 +66,7 @@ vi.mock("../lib/dao", async (orig) => ({
 import { ProposalView } from "./ProposalView"
 import { GNO_CHAIN_ID } from "../lib/config"
 import { txExplorerUrl } from "../lib/txExplorerUrl"
+import { WalletNetworkError } from "../lib/walletNetworkGuard"
 
 function proposal(overrides: Partial<MembaV2Proposal> = {}): MembaV2Proposal {
     return {
@@ -285,6 +286,19 @@ describe("version-2 proposal reader", () => {
         fireEvent.click(screen.getByRole("button", { name: "Confirm execution" }))
         expect(await screen.findByText("Proposal #2 executed.")).toBeInTheDocument()
         expect(wallet).toHaveBeenCalledTimes(1)
+    })
+
+    it("reports a wallet-network refusal after the rechecks as not sent, and keeps the vote available", async () => {
+        state.broadcast.mockImplementation(async (_msgs, _memo, opts) => { await opts.beforeSign(); throw new WalletNetworkError("Adena is locked — unlock it, then try again.") })
+        const first = mount()
+        fireEvent.click(await screen.findByRole("button", { name: "Vote yes" }))
+        fireEvent.click(screen.getByRole("button", { name: "Confirm YES" }))
+        expect(await screen.findByText(/Adena is locked — unlock it, then try again\./)).toBeInTheDocument()
+        expect(screen.queryByText(/Submission outcome unknown/)).not.toBeInTheDocument()
+        first.unmount()
+        mount()
+        await screen.findByRole("heading", { name: "Add Dana", level: 2 })
+        expect(screen.getByRole("button", { name: "Vote yes" })).toBeEnabled()
     })
 
     it("retains an uncertain vote across remount and refuses a duplicate", async () => {

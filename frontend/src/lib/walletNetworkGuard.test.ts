@@ -83,6 +83,46 @@ describe("assertLiveWalletNetwork", () => {
         await expect(assertLiveWalletNetwork()).rejects.toThrow(/did not report its network/)
     })
 
+    // Reply shapes as Adena sends them (adena-extension inject/message/methods/wallet.ts
+    // getAccount/getNetwork; common.ts checkEstablished).
+    const LOCKED = { code: 2000, status: "failure", type: "WALLET_LOCKED", message: "Adena is Locked.", data: {} }
+    const NOT_CONNECTED = { status: "failure", type: "NOT_CONNECTED", data: {} }
+
+    it("asks a locked wallet to be unlocked instead of switched", async () => {
+        const wallet = liveWallet()
+        wallet.GetAccount.mockResolvedValue(LOCKED as never)
+        wallet.GetNetwork.mockResolvedValue(LOCKED as never)
+        vi.stubGlobal("adena", wallet)
+        await expect(assertLiveWalletNetwork()).rejects.toThrow("Adena is locked — unlock it, then try again.")
+        // Either reply is enough.
+        wallet.GetAccount.mockResolvedValue({ status: "success", data: { address: "g1stub", chainId: GNO_CHAIN_ID } })
+        await expect(assertLiveWalletNetwork()).rejects.toThrow(/Adena is locked/)
+    })
+
+    it("asks a disconnected site to reconnect", async () => {
+        const wallet = liveWallet()
+        wallet.GetAccount.mockResolvedValue(NOT_CONNECTED as never)
+        wallet.GetNetwork.mockResolvedValue(NOT_CONNECTED as never)
+        vi.stubGlobal("adena", wallet)
+        await expect(assertLiveWalletNetwork()).rejects.toThrow("Adena is not connected to Memba — reconnect your wallet, then try again.")
+    })
+
+    it("keeps the network message for other failures", async () => {
+        const wallet = liveWallet()
+        wallet.GetAccount.mockResolvedValue({ status: "failure", type: "NO_ACCOUNT", data: {} } as never)
+        vi.stubGlobal("adena", wallet)
+        await expect(assertLiveWalletNetwork()).rejects.toThrow(/did not report its network/)
+    })
+
+    it("refuses when Adena's account is not the connected one", async () => {
+        vi.stubGlobal("adena", liveWallet({ address: "g1other" }))
+        await expect(assertLiveWalletNetwork(GNO_CHAIN_ID, { address: "g1me" })).rejects.toThrow(/account is not the one connected/)
+        vi.stubGlobal("adena", liveWallet({ address: "" }))
+        await expect(assertLiveWalletNetwork(GNO_CHAIN_ID, { address: "g1me" })).rejects.toThrow(/account is not the one connected/)
+        vi.stubGlobal("adena", liveWallet({ address: "g1me" }))
+        await expect(assertLiveWalletNetwork(GNO_CHAIN_ID, { address: "g1me" })).resolves.toMatchObject({ address: "g1me" })
+    })
+
     it("refuses when the wallet does not answer in time", async () => {
         vi.useFakeTimers()
         const wallet = liveWallet()

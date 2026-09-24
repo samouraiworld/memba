@@ -25,7 +25,7 @@ async function returningMember(page: Page) {
         const deny = async () => { throw new Error('e2e: wallet writes disabled') }
         Object.defineProperty(window, 'adena', { value: {
             GetAccount: async () => ({ status: 'success', data: { address, coins: '0ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: pubkey }, accountNumber: '1', sequence: '1', chainId: 'gnoland-1' } }),
-            GetNetwork: async () => ({ data: { rpcUrl: 'https://rpc.gno.land' } }),
+            GetNetwork: async () => ({ status: 'success', data: { chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land' } }),
             On: () => true,
             AddEstablish: deny, DoContract: deny, SignMultisigTransaction: deny,
         } })
@@ -42,7 +42,7 @@ async function newWallet(page: Page) {
         Object.defineProperty(window, 'adena', { value: {
             GetAccount: async () => account(),
             AddEstablish: async () => { approved = true; return { status: 'success' } },
-            GetNetwork: async () => ({ data: { rpcUrl: 'https://rpc.gno.land' } }),
+            GetNetwork: async () => ({ status: 'success', data: { chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land' } }),
             SignMultisigTransaction: async () => ({ status: 'failure', type: 'NO_PUBKEY' }),
             On: () => true,
             DoContract: async () => { throw new Error('e2e: wallet writes disabled') },

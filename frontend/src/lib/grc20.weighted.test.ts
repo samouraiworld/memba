@@ -26,7 +26,8 @@ it("waits for asynchronous authority validation before invoking the wallet", asy
     setWalletRpcContext("https://selected.invalid", true, GNO_CHAIN_ID)
     let fail: ((error: Error) => void) | undefined
     const result = doContractBroadcast([], "recovery", { retry: false, beforeSign: () => new Promise<void>((_resolve, reject) => { fail = reject }) })
-    await Promise.resolve()
+    // The live wallet-network check runs first; wait until beforeSign is pending.
+    await vi.waitFor(() => expect(fail).toBeDefined())
     expect(DoContract).not.toHaveBeenCalled()
     fail!(new Error("member key was replaced"))
     await expect(result).rejects.toThrow("member key was replaced")

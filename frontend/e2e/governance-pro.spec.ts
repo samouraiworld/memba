@@ -126,7 +126,7 @@ test('first mainnet text proposal and vote preserve receipts mobile', async ({ p
         const reject = async () => { throw new Error('Unexpected fixture wallet method') }
         Object.defineProperty(window, 'adena', { value: {
             GetAccount: async () => ({ status: 'success', data: { address, coins: '0ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' }, accountNumber: '0', sequence: '0', chainId: 'gnoland-1' } }),
-            GetNetwork: async () => ({ data: { rpcUrl: 'https://rpc.gno.land' } }), On: () => () => {},
+            GetNetwork: async () => ({ status: 'success', data: { chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land' } }), On: () => () => {},
             DoContract: async ({ messages }: { messages: { value: { func: string } }[] }) => {
                 const func = messages[0].value.func
                 await (window as unknown as { fixtureGovernanceWrite: (func: string) => Promise<void> }).fixtureGovernanceWrite(func)
@@ -200,7 +200,7 @@ test('DAO approval receipt survives reload without another wallet request mobile
         const reject = async () => { throw new Error('Unexpected fixture wallet method') }
         Object.defineProperty(window, 'adena', { value: {
             GetAccount: async () => ({ status: 'success', data: { address, coins: '0ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' }, accountNumber: '0', sequence: '0', chainId: 'gnoland-1' } }),
-            GetNetwork: async () => ({ data: { rpcUrl: 'https://rpc.gno.land' } }), On: () => () => {},
+            GetNetwork: async () => ({ status: 'success', data: { chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land' } }), On: () => () => {},
             DoContract: async () => {
                 localStorage.setItem('fixture-wallet-calls', String(Number(localStorage.getItem('fixture-wallet-calls') || 0) + 1))
                 await (window as unknown as { fixtureSubmitted: () => Promise<void> }).fixtureSubmitted()

@@ -266,7 +266,7 @@ export function useAdena() {
             logWalletEvent("connected", opts?.silent ? "silent" : "interactive");
             if (gotFreshNetwork) setCachedRpc(rpcUrl);
 
-            setWalletRpcContext(rpcUrl || null, rpcTrusted, chainId || null);
+            setWalletRpcContext(rpcUrl || null, rpcTrusted, chainId || null, address || null);
 
             setState({
                 connected: true,
@@ -507,15 +507,19 @@ export function useAdena() {
                 // R2-CHN-E: the NEW chainId must reach grc20's wrong-chain guard.
                 // Calling setWalletRpcContext with 2 args resets _walletChainId
                 // to null, which silently DISABLES the guard right when it
-                // matters most (the wallet just switched networks). GetNetwork
-                // doesn't return a chainId, so re-fetch the account; if that
-                // fails, fail CLOSED with the unverified sentinel — signing
-                // stays blocked until the chain is verified again.
+                // matters most (the wallet just switched networks). The cached
+                // chain id and account come from the account read (GetNetwork
+                // also reports a chainId; the live check before every signature
+                // requires the two to agree). If the account read fails, fail
+                // CLOSED with the unverified sentinel — signing stays blocked
+                // until the chain is verified again.
                 let chainId: string = UNVERIFIED_CHAIN_ID;
+                let address: string | null = null;
                 try {
                     const acct = await adena.GetAccount();
                     if (acct.status !== "failure" && acct.data) {
                         chainId = acct.data.chainId || UNVERIFIED_CHAIN_ID;
+                        address = acct.data.address || null;
                         setState((s) => ({
                             ...s,
                             address: acct.data.address,
@@ -524,7 +528,7 @@ export function useAdena() {
                     }
                 } catch { /* keep the fail-closed sentinel */ }
 
-                setWalletRpcContext(url || null, trusted, chainId);
+                setWalletRpcContext(url || null, trusted, chainId, address);
                 setState((s) => ({ ...s, rpcUrl: url, rpcTrusted: trusted }));
             } catch {
                 // GetNetwork failed after switch → strict: untrusted + unverified chain

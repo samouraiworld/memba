@@ -14,6 +14,8 @@ vi.mock("../lib/dao/namespace", () => ({ assertCanDeployTo: vi.fn(async () => {}
 vi.mock("../lib/dao/packageStatus", () => ({ listPendingDAOs: () => [], hasVolatilePendingDAO: () => false, assertPathAvailable: vi.fn(async () => ({ replacesParked: false })), codeSubmissionPolicy: mocks.policy, waitForPackage: mocks.wait, savePendingDAO: vi.fn(), removePendingDAO: vi.fn() }))
 import { draftKey, loadDraft, saveDraft, clearDraftMemory } from "../lib/dao/drafts"
 import { CreateDAO } from "./CreateDAO"
+import { removePendingDAO } from "../lib/dao/packageStatus"
+import { WalletNetworkError } from "../lib/walletNetworkGuard"
 
 const draft = (overrides: Record<string, unknown> = {}) => ({
     name: "Recovery DAO", description: "Recovery test", realmPath: "gno.land/r/test/recovery",
@@ -131,6 +133,18 @@ describe("DAO creation recovery", () => {
         expect(mocks.broadcast).toHaveBeenCalledTimes(1)
         expect(mocks.save).not.toHaveBeenCalled()
         expect(localStorage.getItem(draftKey({ chainId: "pearl-1", wallet: mocks.address }))).not.toBeNull()
+    })
+    it("treats a wallet-network refusal after the rechecks as nothing sent", async () => {
+        mocks.broadcast.mockImplementationOnce(async (_msgs: unknown, _memo: unknown, opts: { beforeSign: () => void }) => {
+            opts.beforeSign()
+            throw new WalletNetworkError("Adena is locked — unlock it, then try again.")
+        })
+        resume()
+        deploy()
+        expect(await screen.findByTestId("deploy-error")).toHaveTextContent("Adena is locked")
+        expect(screen.queryByText(/wallet outcome could not be confirmed/)).not.toBeInTheDocument()
+        expect(removePendingDAO).toHaveBeenCalledWith("pearl-1", "gno.land/r/test/recovery")
+        expect(mocks.broadcast).toHaveBeenCalledTimes(1)
     })
     it("reports a local bookmark failure without losing the confirmed DAO", async () => {
         mocks.broadcast.mockResolvedValueOnce({ hash: "confirmed-dao-hash" })

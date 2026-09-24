@@ -17,6 +17,7 @@ import { resolveRegisteredUsername } from "../../lib/dao/shared"
 import { readV2Proposals } from "../../lib/dao/membaV2"
 import { v2Context } from "../../lib/dao/membaV2Shell"
 import { broadcastDaoTx, planDaoTx, planNeedsDepositOverride, proposalIdFromTxResult, type DaoTxPlan } from "../../lib/dao/daoTx"
+import { WalletNetworkError } from "../../lib/walletNetworkGuard"
 import { DepositOverride } from "./DepositOverride"
 import { formatUgnot } from "../../lib/dao/v2Budget"
 import { formatDuration } from "../../lib/templates/dao/v2/duration"
@@ -251,6 +252,8 @@ function ScopedProposeV2Form({ realmPath, encodedSlug, kinds }: Props) {
                 setTx({ phase: "submitted", hash: res.hash, message: "Proposal submitted. It will appear in the DAO's proposals once the network shows it." })
             }
         } catch (err) {
+            // A wallet-network refusal is thrown before the wallet is asked to sign.
+            if (err instanceof WalletNetworkError) walletStarted = false
             if (!walletStarted && !submittedHash) {
                 // The request never reached Adena; it is safe to edit and try again.
                 finish()

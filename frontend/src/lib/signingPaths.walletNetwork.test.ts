@@ -17,6 +17,7 @@ vi.mock("./config", async (importOriginal) => ({
 
 import { GNO_CHAIN_ID } from "./config"
 import { doContractBroadcast, setTxConfirmationCallback, setWalletRpcContext, type AminoMsg } from "./grc20"
+import { WalletNetworkError } from "./walletNetworkGuard"
 import { broadcastDaoTx, planDaoTx } from "./dao/daoTx"
 import { broadcastEscrowTx, escrowFailureMayHaveLanded, planCancelContract } from "./marketplace/escrowTx"
 import { submitFeedMsg } from "./feed"
@@ -115,6 +116,23 @@ describe("a refusal is reported as nothing sent", () => {
         expect(escrowFailureMayHaveLanded(err)).toBe(false)
     })
 
+    it("in the Memba OS signer, the request's recheck runs before the last wallet check, and that check before the wallet", async () => {
+        const order: string[] = []
+        const wallet = liveWallet()
+        wallet.GetAccount.mockImplementation(async () => { order.push("guard"); return { status: "success", data: { address: "g1stub", chainId: GNO_CHAIN_ID } } })
+        DoContract.mockImplementation(async () => { order.push("wallet"); return { status: "success", data: { hash: "H" } } })
+        vi.stubGlobal("adena", { ...wallet, DoContract })
+        const msg = call("Vote", "gno.land/r/alice/team")
+        const res = await executeSignature({
+            title: "Vote", summary: "Vote on #1", lines: () => [], label: () => "Vote on #1",
+            prepare: () => ({ msgs: [msg] }),
+            recheck: async () => { order.push("recheck") },
+            send: (_c, beforeSign) => doContractBroadcast([msg], "vote", { retry: false, beforeSign }),
+        }, undefined, [msg], () => {})
+        expect(res.outcome).toBe("sent")
+        expect(order).toEqual(["guard", "recheck", "guard", "wallet"])
+    })
+
     it("the Memba OS signer reports it as failed and keeps no governance lock", async () => {
         const scope: GovernanceScope = { chainId: GNO_CHAIN_ID, realmPath: "gno.land/r/alice/team", caller: CALLER, operation: "vote:1" }
         const msg = call("Vote", "gno.land/r/alice/team")
@@ -129,5 +147,50 @@ describe("a refusal is reported as nothing sent", () => {
             expect(readGovernanceReceipt(scope)).toBeNull()
         }
         expect(DoContract).not.toHaveBeenCalled()
+    })
+})
+
+describe("the connected account", () => {
+    it("refuses when Adena's account is not the one the session connected", async () => {
+        setWalletRpcContext("https://rpc.gno.land:443", true, GNO_CHAIN_ID, CALLER)
+        vi.stubGlobal("adena", { ...liveWallet({ address: PAYEE }), DoContract })
+        await expect(submitReviewMsg(buildHideCommentMsg(CALLER, 1), "hide")).rejects.toThrow(/account is not the one connected/)
+        expect(DoContract).not.toHaveBeenCalled()
+        vi.stubGlobal("adena", { ...liveWallet({ address: CALLER }), DoContract })
+        await submitReviewMsg(buildHideCommentMsg(CALLER, 1), "hide")
+        expect(DoContract).toHaveBeenCalledTimes(1)
+    })
+})
+
+describe("a refusal on a retry", () => {
+    it("is not reported as nothing sent: a v1 DAO vote retried after a lost reply says the outcome is unknown", async () => {
+        vi.useFakeTimers()
+        try {
+            const wallet = liveWallet()
+            vi.stubGlobal("adena", { ...wallet, DoContract })
+            // First request reaches the wallet and its reply is lost; then the wallet switches network.
+            DoContract.mockImplementationOnce(async () => {
+                wallet.GetAccount.mockResolvedValue({ status: "success", data: { address: CALLER, chainId: OTHER } })
+                wallet.GetNetwork.mockResolvedValue({ status: "success", data: { chainId: OTHER, rpcUrl: "https://rpc.gno.land:443" } })
+                return { status: "failure", message: "network timeout" }
+            })
+            const plan = planDaoTx("memba-v1", "gno.land/r/alice/team", { type: "vote", id: 1, vote: "YES" }, CALLER)
+            const settled = broadcastDaoTx(plan, { type: "vote", id: 1, vote: "YES" }, "vote").catch((e: unknown) => e)
+            await vi.runAllTimersAsync()
+            const err = await settled
+            expect(err).toBeInstanceOf(Error)
+            expect(err).not.toBeInstanceOf(WalletNetworkError)
+            expect((err as Error).message).toMatch(/outcome is unknown/)
+            expect((err as Error).message).toMatch(/network timeout/)
+            expect(DoContract).toHaveBeenCalledTimes(1)
+        } finally {
+            vi.useRealTimers()
+        }
+    })
+
+    it("on the first attempt stays a WalletNetworkError", async () => {
+        vi.stubGlobal("adena", { ...liveWallet({ chainId: OTHER }), DoContract })
+        const plan = planDaoTx("memba-v1", "gno.land/r/alice/team", { type: "vote", id: 1, vote: "YES" }, CALLER)
+        await expect(broadcastDaoTx(plan, { type: "vote", id: 1, vote: "YES" }, "vote")).rejects.toBeInstanceOf(WalletNetworkError)
     })
 })

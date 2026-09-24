@@ -17,6 +17,7 @@ import { buildDeployMsg } from "../lib/templates/prologue"
 import { daoDepositCapUgnot, deployGasForPolicy, estimateDAODepositUgnot, formatGnot } from "../lib/templates/dao/v2/deposit"
 import { saveDAOForRecovery, encodeSlug } from "../lib/daoSlug"
 import { doContractBroadcast, feeForGasWanted, networkGasPrice, FALLBACK_GAS_PRICE, type GasPrice } from "../lib/grc20"
+import { WalletNetworkError } from "../lib/walletNetworkGuard"
 import { getGasConfig } from "../lib/gasConfig"
 import { getRpcUrlsInOrder } from "../lib/rpcFallback"
 import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, GNO_RPC_URL, NETWORKS } from "../lib/config"
@@ -424,7 +425,9 @@ function CreateDAOWizard({ onReset }: { onReset: () => void }) {
             setDeployStep("complete")
         } catch (err) {
             // Before signing, cancellation is known. Once Adena was invoked,
-            // even cancellation-worded errors can be transport failures.
+            // even cancellation-worded errors can be transport failures. A
+            // wallet-network refusal is thrown before the wallet is asked to sign.
+            if (err instanceof WalletNetworkError) walletStarted = false
             if (intentSaved && !walletStarted) {
                 try { removePendingDAO(GNO_CHAIN_ID, realmPath) } catch { /* Keep the recoverable intent. */ }
             } else if (intentSaved) {
