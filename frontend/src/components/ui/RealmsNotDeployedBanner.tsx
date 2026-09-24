@@ -15,10 +15,24 @@ interface RealmsNotDeployedBannerProps {
     deployed: boolean
     /** Human-readable label of the active network (e.g. "Testnet 13"). */
     networkLabel: string
+    /**
+     * Community features whose realm is not usable on this network. When given,
+     * the notice names only these, and renders nothing if the list is empty, so
+     * a partial rollout (e.g. feed and quests live, channels not yet) is not
+     * reported as "nothing is here".
+     */
+    missing?: readonly string[]
 }
 
-export function RealmsNotDeployedBanner({ deployed, networkLabel }: RealmsNotDeployedBannerProps) {
-    if (deployed) return null
+const DEFAULT_MISSING = ["channels", "candidature", "feed", "quests"] as const
+
+function listFeatures(items: readonly string[]): string {
+    if (items.length <= 1) return items.join("")
+    return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`
+}
+
+export function RealmsNotDeployedBanner({ deployed, networkLabel, missing = DEFAULT_MISSING }: RealmsNotDeployedBannerProps) {
+    if (deployed || missing.length === 0) return null
 
     return (
         <div
@@ -39,8 +53,9 @@ export function RealmsNotDeployedBanner({ deployed, networkLabel }: RealmsNotDep
         >
             <span style={{ fontSize: "1.2rem", flexShrink: 0 }} aria-hidden="true">🚧</span>
             <div style={{ flex: 1 }}>
-                Memba&apos;s own community realms (channels, candidature, feed, quests) are not on{" "}
-                <strong>{networkLabel}</strong> yet. You can read GovDAO and DAOs deployed by their members.
+                Memba&apos;s community {missing.length === 1 ? "realm" : "realms"} for {listFeatures(missing)}{" "}
+                {missing.length === 1 ? "is" : "are"} not on <strong>{networkLabel}</strong> yet. You can read GovDAO and
+                DAOs deployed by their members.
             </div>
         </div>
     )

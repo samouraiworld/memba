@@ -35,6 +35,7 @@ import { RealmsNotDeployedBanner } from "../ui/RealmsNotDeployedBanner"
 import { RetiredNetworkNotice } from "../ui/RetiredNetworkNotice"
 import { ActivationModal } from "../ui/ActivationModal"
 import { networkHasRealms, GNO_FAUCET_URL } from "../../lib/config"
+import { missingCommunityRealms } from "../../lib/communityRealms"
 import { OnboardingWizard } from "../ui/OnboardingWizard"
 import { hasSeenWizard } from "../../lib/onboarding"
 import { RouteMetaSync } from "./RouteMetaSync"
@@ -377,6 +378,7 @@ export function Layout() {
             <RealmsNotDeployedBanner
                 deployed={networkHasRealms(network.networkKey)}
                 networkLabel={network.label}
+                missing={missingCommunityRealms(network.networkKey)}
             />
 
             {/* ── Untransacted wallet: two entry points into Activation.

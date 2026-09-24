@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### The "not on this network yet" notice names only what is missing (2026-09-24)
+<!-- categories: memba, network -->
+- On gno.land the notice said the feed and quests were missing although both are live. It now lists only the community features whose realm is not usable on the network you are on (on mainnet today: channels and candidature), and disappears when none are missing.
+
 ### Only verified quests are attested on-chain (2026-09-24)
 <!-- categories: memba, network -->
 - **The server only signs attestation vouchers for quests it verified.** It used to sign them for self-claimed quests too (visit or click quests, "First 100 users", "Season 1 complete"), so any wallet could record that XP on-chain. Those quests still count toward your total XP, but are no longer attested, and vouchers already signed for them are no longer handed out.

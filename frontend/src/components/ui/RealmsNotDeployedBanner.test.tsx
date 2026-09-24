@@ -24,4 +24,21 @@ describe("RealmsNotDeployedBanner", () => {
         expect(status).toHaveTextContent(/community realms .* are not on Testnet 13 yet/i)
         expect(status).toHaveTextContent(/You can read GovDAO and DAOs deployed by their members/)
     })
+
+    it("names only the features that are missing on a partial rollout", () => {
+        render(<RealmsNotDeployedBanner deployed={false} networkLabel="gno.land" missing={["channels", "candidature"]} />)
+        const status = screen.getByRole("status")
+        expect(status).toHaveTextContent(/community realms for channels and candidature are not on gno\.land yet/i)
+        expect(status).not.toHaveTextContent(/feed|quests/)
+    })
+
+    it("uses the singular for a single missing feature", () => {
+        render(<RealmsNotDeployedBanner deployed={false} networkLabel="gno.land" missing={["channels"]} />)
+        expect(screen.getByRole("status")).toHaveTextContent(/community realm for channels is not on gno\.land yet/i)
+    })
+
+    it("renders nothing when no community feature is missing", () => {
+        const { container } = render(<RealmsNotDeployedBanner deployed={false} networkLabel="gno.land" missing={[]} />)
+        expect(container).toBeEmptyDOMElement()
+    })
 })
