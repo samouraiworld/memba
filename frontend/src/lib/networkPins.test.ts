@@ -95,6 +95,7 @@ const ALLOWLIST: Pin[] = [
     { file: "components/appstore/EcosystemDirectory.tsx", allow: ["mainnet"], why: "Availability filter option only; does not switch Memba's selected network." },
     { file: "lib/dao/weighted.ts", allow: ["gnoland-1"], why: "Unconditional mainnet write hold for the founding weighted DAO; does not select a default network." },
     { file: "pages/WeightedDAO.tsx", allow: ["gnoland-1"], why: "Read-only mainnet governance UI until launch verification; reads use the URL-selected network." },
+    { file: "lib/marketplace/escrowIndexer.ts", allow: ["gnoland-1"], why: "escrow_v4's mainnet publish height (checked against realm-versions.json in escrowIndexer.test.ts); only bounds the freelancer-contracts indexer scan, never selects a network." },
     {
         file: "lib/config.ts",
         allow: NETWORK_NAMES,
