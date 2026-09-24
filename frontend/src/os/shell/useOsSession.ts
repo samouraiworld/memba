@@ -8,7 +8,7 @@
  *
  * @module os/shell/useOsSession
  */
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useAdena } from "../../hooks/useAdena"
 import { useAuth } from "../../hooks/useAuth"
 import { useBalance } from "../../hooks/useBalance"
@@ -17,6 +17,7 @@ import { doContractBroadcast } from "../../lib/grc20"
 import { ACTIVATION_REQUIRED_CODE } from "../../lib/loginErrors"
 import { completeQuest, setQuestWalletAddress, syncQuestsToBackend } from "../../lib/quests"
 import { activeOsNetwork } from "./network"
+import type { LayoutContext } from "../../types/layout"
 import { signInWithWallet } from "./walletLogin"
 
 export type ConnectStage = "pick" | "missing" | "approve" | "login" | "loginwait" | "activate" | "activatewait"
@@ -178,8 +179,20 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
         setNote(null)
     }, [adena, auth, go])
 
+    // What Layout hands classic pages, for the pages Memba OS shows in windows. Connecting
+    // and signing out go through the OS flow, not the page's own wallet calls.
+    const layout = useMemo<LayoutContext>(() => ({
+        adena: { ...adena, connect: async () => { openConnect(); return false }, disconnect },
+        balance,
+        rawUgnot,
+        auth: { token: auth.token, isAuthenticated: auth.isAuthenticated, address: auth.address, loading: auth.loading, error: auth.error },
+        isLoggingIn: resuming || stage === "loginwait",
+        syncTimedOut: resumeTimedOut,
+    }), [adena, openConnect, disconnect, balance, rawUgnot, auth.token, auth.isAuthenticated, auth.address, auth.loading, auth.error, resuming, stage, resumeTimedOut])
+
     return {
         status,
+        layout,
         address: member ? adena.address : "",
         walletAddress: adena.address,
         /** The chain Adena is on ("" before it reports one). */

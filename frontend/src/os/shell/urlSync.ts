@@ -22,12 +22,14 @@ export function windowToken(t: OsTarget | null): string | null {
         case "proposal": return `prop.${t.dao}.${t.n}`
         case "new-proposal": return `newprop.${t.dao}`
         case "multisig": return `msig.${t.address}`
+        case "feedback": return "feedback"
         default: return null
     }
 }
 
 export function tokenToTarget(token: string): OsTarget | null {
     if (token === "newdao") return parseOsPath("/os/daos/new")
+    if (token === "feedback") return { kind: "feedback" }
     const dot = token.indexOf(".")
     if (dot < 1) return null
     const kind = token.slice(0, dot)

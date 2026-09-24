@@ -48,7 +48,9 @@ export function welcomeSpec(): WindowSpec {
 }
 
 export function appSpec(app: OsAppId, section: string | null = null): WindowSpec {
-    return { key: `app:${app}`, title: getApp(app).name, app, width: 480, height: 400, target: { kind: "app", app, section } }
+    // The DAOs app is a native list; the others show a full Memba page for now, so they open larger.
+    const [width, height] = app === "daos" ? [480, 400] : [960, 660]
+    return { key: `app:${app}`, title: getApp(app).name, app, width, height, target: { kind: "app", app, section } }
 }
 
 /** The Create DAO wizard (/os/daos/new): its own window, so the DAOs app stays open beside it. */
@@ -69,6 +71,7 @@ export function specForTarget(t: OsTarget): WindowSpec | null {
         case "proposal": return { key: `prop:${t.dao}:${t.n}`, title: `${t.dao} · Proposal #${t.n}`, app: "daos", width: 460, height: 380, target: t }
         case "new-proposal": return { key: `flow:prop:${t.dao}`, title: `New proposal · ${t.dao}`, app: "daos", width: 760, height: 540, target: t }
         case "multisig": return { key: `msig:${t.address}`, title: `Multisig ${t.address.slice(0, 8)}…${t.address.slice(-4)}`, app: "multisig", width: 540, height: 440, target: t }
+        case "feedback": return { key: "feedback", title: "Send feedback", app: null, width: 640, height: 620, target: t }
         case "unknown": return { key: "notfound", title: "Not found", app: null, width: 420, height: 280, target: t }
     }
 }
@@ -83,6 +86,7 @@ export function urlForWindow(w: Pick<OsWindow, "target">): string {
         case "proposal": return `/os/dao/${encodeURIComponent(t.dao)}/proposals/${t.n}`
         case "new-proposal": return `/os/dao/${encodeURIComponent(t.dao)}/proposals/new`
         case "multisig": return `/os/multisig/${t.address}`
+        case "feedback": return "/os/feedback"
         default: return "/os"
     }
 }

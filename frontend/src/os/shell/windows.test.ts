@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { parseOsPath } from "./osPath"
 import {
-    appSpec, DOCK_ROOM, EMPTY_WINDOWS, frontWindow, specForTarget, urlForWindow, welcomeSpec, windowsReducer,
+    appSpec, daoSpec, DOCK_ROOM, EMPTY_WINDOWS, frontWindow, specForTarget, urlForWindow, welcomeSpec, windowsReducer,
     type WindowsAction, type WindowsState,
 } from "./windows"
 
@@ -20,7 +20,7 @@ describe("windowsReducer", () => {
     })
 
     it("cascades new windows and centres on request, inside the desk and above the dock", () => {
-        const s = run(open(appSpec("feed")), open(appSpec("wallet")), open(welcomeSpec(), true))
+        const s = run(open(appSpec("daos")), open(daoSpec("crew")), open(welcomeSpec(), true))
         const [a, b, c] = s.wins
         expect(b.x - a.x).toBe(34)
         expect(b.y - a.y).toBe(28)
@@ -92,7 +92,7 @@ describe("windowsReducer", () => {
         expect(arcade.x).toBe(8)
         expect(feed.x).toBe(8 + desk.w / 2)
         expect(arcade.width).toBe(desk.w / 2 - 16)
-        expect(byKey(s, "app:wallet").width).toBe(480)
+        expect(byKey(s, "app:wallet").width).toBe(960) // untouched: only the two front windows tile
     })
 
     it("cycles through visible windows with next", () => {

@@ -37,6 +37,7 @@ export interface MenuBarProps {
     pin: (item: { ty: DeskItemType; ref: string }) => void
     /** Bumped to open the start menu from elsewhere (desktop menu "Add an app…"). */
     startRequest: number
+    openSearch: () => void
 }
 
 function Item({ children, onClick, disabled, hint }: { children: ReactNode; onClick?: () => void; disabled?: boolean; hint?: string }) {
@@ -123,8 +124,9 @@ export function MenuBar(p: MenuBarProps) {
                         })}
                     </div>
                     <div className="os-menu os-menu-top" role="menu" aria-label="Memba">
+                        <Item onClick={run(p.openSearch)} hint="⌘K">Search and commands…</Item>
                         <Item onClick={run(() => p.openApp("settings"))}>Personalise desktop…</Item>
-                        <Item onClick={run(() => { window.location.assign(`/${net.key}/feedback`) })}>Send feedback…</Item>
+                        <Item onClick={run(() => p.openSpec(specForTarget({ kind: "feedback" })!))}>Send feedback…</Item>
                         <Item onClick={run(() => p.toast("Memba OS · beta preview"))}>About Memba OS</Item>
                         <div className="os-msep" role="separator" />
                         <Item onClick={run(p.lock)}>{guest ? "Lock screen" : "Disconnect & lock"}</Item>
@@ -246,6 +248,7 @@ export function MenuBar(p: MenuBarProps) {
             {signer.pending.length > 0 && (
                 <span className="os-mb" role="status" title="Waiting for the chain"><span className="os-spin" aria-hidden="true" />{signer.pending.length} pending</span>
             )}
+            <button type="button" className="os-mb" aria-label="Search (⌘K)" onClick={() => { setPanel(null); p.openSearch() }}>⌕</button>
             <button type="button" className="os-mb" aria-label={signer.unread ? `Notifications, ${signer.unread} new` : "Notifications"} {...mb("notif")}
                 onClick={(e) => { toggle("notif")(e); signer.markRead() }}>
                 🔔{signer.unread > 0 && <span className="os-badge" aria-hidden="true">{signer.unread}</span>}

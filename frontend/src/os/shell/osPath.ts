@@ -10,6 +10,7 @@
  *
  * @module os/shell/osPath
  */
+import { classicForSection } from "../page/classicRoute"
 import { OS_APPS, type OsAppId } from "../apps"
 
 export type DaoSection = "overview" | "proposals" | "treasury" | "members"
@@ -21,6 +22,7 @@ export type OsTarget =
     | { kind: "proposal"; dao: string; n: number }
     | { kind: "new-proposal"; dao: string }
     | { kind: "multisig"; address: string }
+    | { kind: "feedback" }
     | { kind: "unknown"; path: string }
 
 const DAO_NAME = /^[A-Za-z0-9_.-]{1,64}$/
@@ -55,9 +57,17 @@ export function parseOsPath(pathname: string): OsTarget {
         return section && fourth === undefined ? { kind: "dao", name: second, section } : { kind: "unknown", path: pathname }
     }
 
+    // /os/multisig/<address> is the multisig window; its other pages (create, …/propose) are Multisig app sections.
     if (first === "multisig" && second !== undefined) {
-        return ADDRESS.test(second) && third === undefined ? { kind: "multisig", address: second } : { kind: "unknown", path: pathname }
+        if (ADDRESS.test(second) && third === undefined) return { kind: "multisig", address: second }
+        const section = [second, third, fourth, ...rest].filter(Boolean).join("/")
+        const page = classicForSection("multisig", section)
+        // multisig/<x>/… pages need x to be an address.
+        const ok = page !== null && (!page.startsWith("multisig/") || ADDRESS.test(second))
+        return ok ? { kind: "app", app: "multisig", section } : { kind: "unknown", path: pathname }
     }
+
+    if (first === "feedback") return second === undefined ? { kind: "feedback" } : { kind: "unknown", path: pathname }
 
     const app = OS_APPS.find((a) => a.slug === first)
     if (!app) return { kind: "unknown", path: pathname }

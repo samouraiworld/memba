@@ -3,8 +3,8 @@ import { resolve } from "node:path"
 import { describe, expect, it } from "vitest"
 import { appForRoute, DOCK_APPS, getApp, OS_APPS, OS_SYSTEM_ROUTES } from "./apps"
 
-// Every `path="…"` in App.tsx, as written (nested gnolove children are bare).
-const appTsx = readFileSync(resolve(__dirname, "../App.tsx"), "utf8")
+// Every `path="…"` in the route table (App.tsx + routes/networkRoutes.tsx), as written (nested gnolove children are bare).
+const appTsx = ["../App.tsx", "../routes/networkRoutes.tsx"].map((f) => readFileSync(resolve(__dirname, f), "utf8")).join("\n")
 const appRoutes = [...appTsx.matchAll(/path="([^"]+)"/g)].map((m) => m[1])
 
 const registered = [...OS_APPS.flatMap((a) => a.routes), ...OS_SYSTEM_ROUTES.map((s) => s.route)]

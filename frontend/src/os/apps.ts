@@ -1,9 +1,9 @@
 /**
  * Memba OS app registry — every Memba route belongs to exactly one app, or to
- * the system list. apps.test.ts reads App.tsx and fails if a route is added
+ * the system list. apps.test.ts reads the route table (App.tsx, routes/networkRoutes.tsx) and fails if a route is added
  * without a home here, so the desktop can never silently lose a page.
  *
- * Route strings are relative to /:network, exactly as App.tsx writes them;
+ * Route strings are relative to /:network, exactly as the route table writes them;
  * nested routes carry their parent (gnolove/report).
  *
  * @module os/apps
@@ -73,7 +73,7 @@ export const OS_SYSTEM_ROUTES: readonly { route: string; handling: string }[] = 
     { route: "/:network", handling: "The desktop, on that network" },
     { route: "dashboard", handling: "The desktop (dashboard cards become widgets)" },
     { route: "github/callback", handling: "Sign-in callback, no window" },
-    { route: "feedback", handling: "The Send feedback window, from the start menu" },
+    { route: "feedback", handling: "The Send feedback window (/os/feedback), from the start menu" },
     { route: "marketplace-v2-preview", handling: "Dropped: preview route, not carried over" },
     { route: "*", handling: "A not-found window that offers search" },
 ]
@@ -86,7 +86,7 @@ export function getApp(id: OsAppId): OsApp {
     return app
 }
 
-/** The app that owns a route string (as written in App.tsx), if any. */
+/** The app that owns a route string (as written in the route table), if any. */
 export function appForRoute(route: string): OsApp | undefined {
     return OS_APPS.find((app) => app.routes.includes(route))
 }

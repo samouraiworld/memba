@@ -82,6 +82,12 @@ Full changelogs are split by version range for easier navigation:
 - Memba OS creates proposals and DAOs in wizard windows, still behind `VITE_MEMBA_OS`. Each has steps, a live preview and a draft saved in this browser, and ends in the Memba review before Adena opens.
 - New proposal (`/os/dao/<name>/proposals/new`, version-2 DAOs): text, add member, remove member, change roles and archive, with the classic form's rules and its checks just before signing. The draft is the classic one, so either interface can continue it.
 - Create a DAO (`/os/daos/new`): name, preset, members, rules, extras, review. The review checks on-chain that you may publish under the address and that it is free, and shows the deposit estimate and cap and the network fee. The deploy follows the classic pipeline: a record saved before the wallet opens, "live" read from the chain only, "waiting for network approval" on gnoland-1, and an unknown outcome locks that address until it is checked. Treasury shows as a target design.
+### Memba OS pages and search
+<!-- categories: memba -->
+- Every Memba page now opens inside a Memba OS window, still behind `VITE_MEMBA_OS`: apps without a native window yet (Feed, App Store, Arcade, Validators, Settings, Tokens, NFT, Quests, Explorer, Profile, News, Dev Report) show their current page in the window instead of an "Open in Memba" link. Links inside a page stay in Memba OS: the same app's pages open in its window as history entries, other apps open their own window, and DAO pages open the native DAO windows.
+- ⌘K (or the ⌕ button in the menu bar) searches apps, DAOs and their sections, Memba's pages and commands; a pasted `g1…` address opens its profile or validator page, and a realm path opens its DAO.
+- Send feedback opens in its own window (`/os/feedback`). Multisig and your own profile ask a guest to connect first.
+- The network route table moves from `App.tsx` to `routes/networkRoutes.tsx`, unchanged, so both interfaces render the same pages.
 
 ### Memba OS windows
 <!-- categories: memba -->

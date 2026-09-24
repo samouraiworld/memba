@@ -23,6 +23,7 @@ import { loadSavedTargets, saveWindows, targetsFromUrl, urlForWindows, windowTok
 import { useDesk } from "./useDesk"
 import { useOsSession } from "./useOsSession"
 import { SignerProvider } from "../sign/SignerProvider"
+import { Launcher } from "./Launcher"
 import { WindowFrame, type FrameActions } from "./WindowFrame"
 import {
     appSpec, EMPTY_WINDOWS, newDaoSpec, specForTarget, useWindows, visibleWindows, welcomeSpec, windowsReducer,
@@ -183,8 +184,11 @@ export function Shell() {
     // ── ⌥ shortcuts (D13) ──
     const front = win.front
     const { close: closeWin, next: nextWin } = win
+    const [launcher, setLauncher] = useState(false)
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
+            // ⌘K / Ctrl+K opens search, from anywhere (D13).
+            if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && !locked && !session.stage) { e.preventDefault(); setLauncher((v) => !v); return }
             if (locked || session.stage || !e.altKey) return
             const t = e.target as HTMLElement | null
             if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return
@@ -228,7 +232,7 @@ export function Shell() {
         <SignerProvider session={session} toast={showToast}>
             <MenuBar session={session} wins={win.wins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={win.close}
                 closeAll={win.closeAll} minimiseAll={win.minimiseAll} tile={tile} nextWin={win.next} lock={lock} toast={showToast}
-                isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} />
+                isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} openSearch={() => setLauncher(true)} />
             <main ref={deskRef} className="os-desk" aria-label="Desktop"
                 onContextMenu={(e) => { if (e.target === e.currentTarget && !locked) { e.preventDefault(); openMenu(e, null) } }}>
                 <DeskItems items={deskItems.items} deskWidth={desk.w} onOpen={openItem} onMove={deskItems.move} onMenu={openMenu} />
@@ -248,6 +252,7 @@ export function Shell() {
                     <WindowFrame key={w.id} win={w} active={w.id === front?.id} desk={desk} frame={frame} session={session} openApp={openApp} open={open} />
                 ))}
                 {menu && <ContextMenu x={menu.x} y={menu.y} entries={menuEntries} onClose={closeMenu} />}
+                {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={() => setLauncher(false)} />}
             </main>
             {linkGuest && !member && (
                 <div className="os-banner os-glass" role="status">

@@ -74,11 +74,13 @@ test.describe('Memba OS windows', () => {
         await page.goto(`${OS_ON}/os/feed`)
         const w = await settled(page, 'Feed')
         const before = (await w.boundingBox())!
-        const title = w.getByRole('heading', { name: 'Feed' })
+        // Grab the title bar left of its centred title: the guest toast sits over the middle of the desk's top.
+        const title = w.getByRole('heading', { name: 'Feed', exact: true })
         const t = (await title.boundingBox())!
-        await page.mouse.move(t.x + t.width / 2, t.y + t.height / 2)
+        const gx = before.x + 120
+        await page.mouse.move(gx, t.y + t.height / 2)
         await page.mouse.down()
-        await page.mouse.move(t.x + t.width / 2 + 150, t.y + t.height / 2 + 60, { steps: 6 })
+        await page.mouse.move(gx + 150, t.y + t.height / 2 + 60, { steps: 6 })
         await page.mouse.up()
         await expect.poll(async () => Math.round((await w.boundingBox())!.x - before.x)).toBe(150)
         const moved = (await w.boundingBox())!
@@ -87,16 +89,17 @@ test.describe('Memba OS windows', () => {
         const corner = (await w.getByTestId('resize').boundingBox())!
         await page.mouse.move(corner.x + 8, corner.y + 8)
         await page.mouse.down()
-        await page.mouse.move(corner.x + 108, corner.y + 58, { steps: 6 })
+        // Shrink: a page window is wide, so there may be no room to grow it.
+        await page.mouse.move(corner.x - 92, corner.y - 42, { steps: 6 })
         await page.mouse.up()
-        await expect.poll(async () => Math.round((await w.boundingBox())!.width - moved.width)).toBe(100)
+        await expect.poll(async () => Math.round((await w.boundingBox())!.width - moved.width)).toBe(-100)
 
         // A reload of the same link keeps this browser's layout.
         await page.reload()
         const again = await settled(page, 'Feed')
         const box = (await again.boundingBox())!
         expect(Math.round(box.x - before.x)).toBe(150)
-        expect(Math.round(box.width - moved.width)).toBe(100)
+        expect(Math.round(box.width - moved.width)).toBe(-100)
     })
 
     test('minimise to the dock and back; maximise fills the desk', async ({ page }) => {
@@ -109,7 +112,7 @@ test.describe('Memba OS windows', () => {
         await win(page, 'Feed').getByRole('button', { name: 'Maximise Feed' }).click()
         await expect.poll(async () => Math.round((await win(page, 'Feed').boundingBox())!.width)).toBe(1280 - 16)
         await win(page, 'Feed').getByRole('button', { name: 'Restore Feed' }).click()
-        await expect.poll(async () => Math.round((await win(page, 'Feed').boundingBox())!.width)).toBe(480)
+        await expect.poll(async () => Math.round((await win(page, 'Feed').boundingBox())!.width)).toBe(960) // page windows open at 960
     })
 
     test('Window menu: tile the two front windows, minimise all, next', async ({ page }) => {
@@ -198,7 +201,7 @@ test.describe('Memba OS desktop items', () => {
     test('desktop menu: show desktop minimises everything', async ({ page }) => {
         await page.goto(`${OS_ON}/os/feed`)
         await settled(page, 'Feed')
-        await page.mouse.click(700, 700, { button: 'right' })
+        await page.mouse.click(1200, 650, { button: 'right' }) // empty desk, right of the window
         await page.getByRole('menuitem', { name: 'Show desktop' }).click()
         await expect(page.locator('.os-win')).toHaveCount(0)
     })

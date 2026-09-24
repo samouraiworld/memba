@@ -372,3 +372,13 @@
 .memba-os .os-pipe li.os-done::before { content: "✓"; background: var(--os-ok-bg); color: var(--os-ok); }
 .memba-os .os-pipe li.os-cur { color: var(--os-ink); }
 .memba-os .os-pipe li.os-cur::before { box-shadow: inset 0 0 0 2px var(--os-acc); }
+/* ⌘K launcher (mockup .launch .res) */
+.memba-os .os-launch { width: min(580px, 92vw); border-radius: 18px; overflow: hidden; display: grid; }
+.memba-os .os-launch-in {
+  width: 100%; border: 0; background: transparent; font: 500 18px var(--os-font); padding: 18px 20px; color: var(--os-ink);
+  outline: none; border-bottom: 1px solid var(--os-line);
+}
+.memba-os .os-launch-res { list-style: none; margin: 0; padding: 6px; max-height: 340px; overflow: auto; }
+.memba-os .os-launch-r { display: flex; align-items: center; gap: 12px; padding: 8px 10px; border-radius: 10px; cursor: pointer; }
+.memba-os .os-launch-r[aria-selected="true"] { background: var(--os-hover); }
+.memba-os .os-launch-empty { padding: 12px; }

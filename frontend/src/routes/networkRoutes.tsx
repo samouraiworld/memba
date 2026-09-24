@@ -1,0 +1,331 @@
+/* eslint-disable react-refresh/only-export-components -- the route table: helper redirects live beside the routes they serve */
+/**
+ * The network-scoped route table (everything under `/:network`), shared by the
+ * classic app (App.tsx, inside NetworkGate) and Memba OS, which renders the
+ * same pages inside its windows. Moved out of App.tsx unchanged.
+ *
+ * @module routes/networkRoutes
+ */
+import { lazy, Suspense } from "react"
+import { Navigate, Route } from "react-router-dom"
+import { useAdena } from "../hooks/useAdena"
+import { useNetworkKey } from "../hooks/useNetworkNav"
+import { ConnectingLoader } from "../components/ui/ConnectingLoader"
+import { NftGate } from "../components/ui/NftGate"
+import { FeedGate } from "../components/ui/FeedGate"
+import { GameGate } from "../components/ui/GameGate"
+import { SpaceInvadersGate } from "../components/ui/SpaceInvadersGate"
+import { BarricadeGate } from "../components/ui/BarricadeGate"
+import { AppStoreGate } from "../components/ui/AppStoreGate"
+import { ValoperRouteRedirect } from "../components/validators/ValoperRouteRedirect"
+
+// ── Core multisig pages (small, always needed) ──
+import { CreateMultisig } from "../pages/CreateMultisig"
+import { ImportMultisig } from "../pages/ImportMultisig"
+import { MultisigView } from "../pages/MultisigView"
+import { ProposeTransaction } from "../pages/ProposeTransaction"
+import { TransactionView } from "../pages/TransactionView"
+
+// ── Critical Lazy Pages (Prefetched for Performance) ──
+const ProfilePage = lazy(() => import("../pages/ProfilePage").then(m => ({ default: m.ProfilePage })))
+const UnifiedMarketplace = lazy(() => import("../pages/UnifiedMarketplace"))
+const MarketplaceV2Preview = lazy(() => import("../pages/MarketplaceV2Preview"))
+const DAOList = lazy(() => import("../pages/DAOList").then(m => ({ default: m.DAOList })))
+const WeightedDAO = lazy(() => import("../pages/WeightedDAO").then(m => ({ default: m.WeightedDAO })))
+const TokenDashboard = lazy(() => import("../pages/TokenDashboard").then(m => ({ default: m.TokenDashboard })))
+
+// ── Home — the Control Room landing (lazy so it stays out of the main entry chunk) ──
+const Home = lazy(() => import("../pages/Home").then(m => ({ default: m.Home })))
+
+// ── Token pages (lazy — loaded on /tokens or /create-token) ──
+const CreateToken = lazy(() => import("../pages/CreateToken").then(m => ({ default: m.CreateToken })))
+const TokenView = lazy(() => import("../pages/TokenView").then(m => ({ default: m.TokenView })))
+
+// ── DAO pages (lazy — loaded on /dao/*) ──
+import { DAORouter } from "../components/dao/DAORouter"
+import { CreateDAOGate } from "../components/dao/CreateDAOGate"
+
+// ── GitHub OAuth callback (lazy) ──
+const GithubCallback = lazy(() => import("../pages/GithubCallback").then(m => ({ default: m.GithubCallback })))
+
+// ── Username resolver (lazy) ──
+const UserRedirect = lazy(() => import("../pages/UserRedirect").then(m => ({ default: m.UserRedirect })))
+const NotFound = lazy(() => import("../pages/NotFound").then(m => ({ default: m.NotFound })))
+
+// ── Settings page (lazy) ──
+const Settings = lazy(() => import("../pages/Settings").then(m => ({ default: m.Settings })))
+
+// ── Directory page (lazy) ──
+const Directory = lazy(() => import("../pages/Directory").then(m => ({ default: m.Directory })))
+
+// ── Reputation (points_v1) page (lazy, default export) ──
+const PointsPage = lazy(() => import("../pages/PointsPage"))
+
+// ── Validators pages (lazy) — ORDER MATTERS: /hacker before /:address ──
+// CRITICAL: /validators/hacker must be declared before /validators/:address,
+// otherwise React Router will match the literal string "hacker" as an :address param.
+const Validators = lazy(() => import("../pages/Validators"))
+const ValidatorsHacker = lazy(() => import("../pages/ValidatorsHacker"))
+const ValidatorProfile = lazy(() => import("../pages/ValidatorProfile"))
+
+// ── Multisig Hub (lazy — v2.7) ──
+const MultisigHub = lazy(() => import("../pages/MultisigHub"))
+
+// ── Extensions Hub (lazy — v2.6) ──
+const Extensions = lazy(() => import("../pages/Extensions").then(m => ({ default: m.Extensions })))
+
+// ── Feedback page (lazy — v2.10) ──
+const FeedbackPage = lazy(() => import("../pages/FeedbackPage"))
+// ── Social feed (W7.2, behind VITE_ENABLE_FEED via FeedGate) ──
+const FeedPage = lazy(() => import("../pages/FeedPage"))
+const FeedThread = lazy(() => import("../pages/FeedThread"))
+const FeedProfile = lazy(() => import("../pages/FeedProfile"))
+const FeedMod = lazy(() => import("../pages/FeedMod"))
+const FeedTransparency = lazy(() => import("../pages/FeedTransparency"))
+const Explorer = lazy(() => import("../pages/Explorer").then(m => ({ default: m.Explorer })))
+const AppStore = lazy(() => import("../pages/AppStore").then(m => ({ default: m.AppStore })))
+const AppSubmit = lazy(() => import("../pages/AppSubmit").then(m => ({ default: m.AppSubmit })))
+const AppCurator = lazy(() => import("../pages/AppCurator").then(m => ({ default: m.AppCurator })))
+const PublisherConsole = lazy(() => import("../pages/PublisherConsole").then(m => ({ default: m.PublisherConsole })))
+const QuestHub = lazy(() => import("../pages/QuestHub"))
+const QuestDetail = lazy(() => import("../pages/QuestDetail"))
+const QuestAdmin = lazy(() => import("../pages/QuestAdmin"))
+const Leaderboard = lazy(() => import("../pages/Leaderboard"))
+
+// ── Alerts page (lazy — v2.18.0) ──
+const AlertsPage = lazy(() => import("../pages/AlertsPage"))
+
+// ── Block Party game (lazy — gated behind VITE_ENABLE_GAME) ──
+const BlockPartyGame = lazy(() => import("../pages/BlockPartyGame"))
+
+// ── Space Invaders game (lazy — gated behind VITE_ENABLE_SPACE_INVADERS) ──
+const SpaceInvadersGame = lazy(() => import("../pages/SpaceInvadersGame"))
+
+// ── MEMBA: BARRICADE game (lazy — gated behind VITE_ENABLE_BARRICADE) ──
+const BarricadeGame = lazy(() => import("../pages/BarricadeGame"))
+
+// ── Organizations page (lazy — v2.22.0) ──
+const OrganizationsPage = lazy(() => import("../pages/OrganizationsPage"))
+
+// ── Gnolove section (lazy — v2.19.0) ──
+const GnoloveLayout = lazy(() => import("../layouts/GnoloveLayout"))
+const GnoloveHome = lazy(() => import("../pages/gnolove/GnoloveHome"))
+const GnoloveReport = lazy(() => import("../pages/gnolove/GnoloveReport"))
+const GnoloveNotablePRs = lazy(() => import("../pages/gnolove/GnoloveNotablePRs"))
+const GnoloveAnalytics = lazy(() => import("../pages/gnolove/GnoloveAnalytics"))
+const GnoloveContributorProfile = lazy(() => import("../pages/gnolove/GnoloveContributorProfile"))
+const GnoloveTeams = lazy(() => import("../pages/gnolove/GnoloveTeams"))
+const GnoloveTeamProfile = lazy(() => import("../pages/gnolove/GnoloveTeamProfile"))
+const GnoloveAIReports = lazy(() => import("../pages/gnolove/GnoloveAIReports"))
+const GnoloveMilestone = lazy(() => import("../pages/gnolove/GnoloveMilestone"))
+
+// ── NFT section (lazy — v3.0 gallery → v3.1 launchpad → Phase 2 marketplace) ──
+const CollectionPublic = lazy(() => import("../pages/CollectionPublic").then(m => ({ default: m.CollectionPublic })))
+const TokenDetail = lazy(() => import("../pages/TokenDetail").then(m => ({ default: m.TokenDetail })))
+const LegacyCollectionView = lazy(() => import("../pages/LegacyCollectionView").then(m => ({ default: m.LegacyCollectionView })))
+const CreateCollectionLaunchpad = lazy(() => import("../pages/CreateCollectionLaunchpad"))
+const CreatorProfile = lazy(() => import("../pages/CreatorProfile"))
+const StudioHome = lazy(() => import("../pages/studio/StudioHome").then(m => ({ default: m.StudioHome })))
+const StudioManage = lazy(() => import("../pages/studio/StudioManage").then(m => ({ default: m.StudioManage })))
+
+// ── Candidature page (lazy — v2.28) ──
+const CandidaturePage = lazy(() => import("../pages/CandidaturePage"))
+
+// ── Changelogs page (lazy — v2.14) ──
+const Changelogs = lazy(() => import("../pages/Changelogs"))
+const BlogList = lazy(() => import("../pages/Blog").then(m => ({ default: m.BlogList })))
+const BlogArticlePage = lazy(() => import("../pages/Blog").then(m => ({ default: m.BlogArticlePage })))
+
+/** Route-level loading fallback — unified Memba logo loader (v2.10). */
+function PageLoader() {
+  return <ConnectingLoader message="Loading..." minHeight="30vh" />
+}
+
+/** Redirects /:network/profile → /:network/profile/{address} when connected. */
+function ProfileRedirect() {
+  const adena = useAdena()
+  const networkKey = useNetworkKey()
+  if (adena.connected && adena.address) {
+    return <Navigate to={`/${networkKey}/profile/${adena.address}`} replace />
+  }
+  return <Navigate to={`/${networkKey}/`} replace />
+}
+
+/** Renders the mode-aware Control Room Home for both visitors and members. */
+function HomeRedirect() {
+  const adena = useAdena()
+  return (
+    <Suspense fallback={<PageLoader />}>
+      <Home mode={adena.connected ? "member" : "visitor"} />
+    </Suspense>
+  )
+}
+
+/** Legacy /:network/dashboard → the network home (canonical trailing-slash URL). */
+function DashboardRedirect() {
+  const networkKey = useNetworkKey()
+  return <Navigate to={`/${networkKey}/`} replace />
+}
+
+/**
+ * Retires the standalone code-gen wizard (nft/create/advanced).
+ * Redirects to the network-scoped /nft/create, preserving the :network prefix.
+ * e.g. /test13/nft/create/advanced → /test13/nft/create
+ */
+function AdvancedWizardRedirect() {
+  const networkKey = useNetworkKey()
+  return <Navigate to={`/${networkKey}/nft/create`} replace />
+}
+
+/** The children of `/:network`, as route elements. */
+export function networkRouteChildren() {
+  return (
+    <>
+      {/* Network index → the Control Room home (mode-aware: visitor / member) */}
+      <Route index element={<HomeRedirect />} />
+
+      {/* Dashboard — old /dashboard links land on the new home */}
+      <Route path="dashboard" element={<DashboardRedirect />} />
+
+      {/* Multisig Hub (v2.7 — dedicated wallet management overview) */}
+      <Route path="multisig" element={<Suspense fallback={<PageLoader />}><MultisigHub /></Suspense>} />
+      <Route path="create" element={<CreateMultisig />} />
+      <Route path="import" element={<ImportMultisig />} />
+      <Route path="multisig/:address" element={<MultisigView />} />
+      <Route path="multisig/:address/propose" element={<ProposeTransaction />} />
+      <Route path="tx/:id" element={<TransactionView />} />
+
+      {/* Token routes (lazy chunk) */}
+      <Route path="create-token" element={<Suspense fallback={<PageLoader />}><CreateToken /></Suspense>} />
+      <Route path="tokens" element={<Suspense fallback={<PageLoader />}><TokenDashboard /></Suspense>} />
+      <Route path="tokens/:symbol" element={<Suspense fallback={<PageLoader />}><TokenView /></Suspense>} />
+
+      {/* DAO routes — splat for clean realm paths with real / */}
+      <Route path="dao" element={<Suspense fallback={<PageLoader />}><DAOList /></Suspense>} />
+      <Route path="dao/create" element={<CreateDAOGate />} />
+      <Route path="dao/*" element={<DAORouter />} />
+      <Route path="weighted-dao/*" element={<Suspense fallback={<PageLoader />}><WeightedDAO /></Suspense>} />
+
+      {/* Profile routes (lazy) */}
+      <Route path="profile" element={<ProfileRedirect />} />
+      <Route path="profile/:address" element={<Suspense fallback={<PageLoader />}><ProfilePage /></Suspense>} />
+
+      {/* Settings */}
+      <Route path="settings" element={<Suspense fallback={<PageLoader />}><Settings /></Suspense>} />
+
+      {/* Directory */}
+      <Route path="directory" element={<Suspense fallback={<PageLoader />}><Directory /></Suspense>} />
+      {/* Legacy /explorer/* → merged Directory explorer tab (redirect keeps old links alive) */}
+      <Route path="explorer/*" element={<Suspense fallback={<PageLoader />}><Explorer /></Suspense>} />
+      {/* Explicit submit route BEFORE the splat — /apps/* parses its splat as a pkgPath,
+          so without this /apps/submit would fall through to the grid. The page itself is
+          additionally gated on VITE_ENABLE_APPSTORE_SUBMIT (ordinary flag — de-gated
+          2026-07-10 after the live fee-path ceremony) + the v3 realm. */}
+      <Route path="apps/submit" element={<AppStoreGate><Suspense fallback={<PageLoader />}><AppSubmit /></Suspense></AppStoreGate>} />
+      <Route path="apps/review" element={<AppStoreGate><Suspense fallback={<PageLoader />}><AppCurator /></Suspense></AppStoreGate>} />
+      <Route path="apps/my-submissions" element={<AppStoreGate><Suspense fallback={<PageLoader />}><PublisherConsole /></Suspense></AppStoreGate>} />
+      <Route path="apps/*" element={<AppStoreGate><Suspense fallback={<PageLoader />}><AppStore /></Suspense></AppStoreGate>} />
+
+      {/* Validators suite (v2.14) — order: /validators, /validators/hacker, /validators/:address */}
+      <Route path="validators" element={<Suspense fallback={<PageLoader />}><Validators /></Suspense>} />
+      {/* CRITICAL: /validators/hacker + /validators/valoper/* must come BEFORE /validators/:address */}
+      <Route path="validators/hacker" element={<Suspense fallback={<PageLoader />}><ValidatorsHacker /></Suspense>} />
+      {/* Legacy operator route → redirect to the unified canonical profile. */}
+      <Route path="validators/valoper/:operatorAddress" element={<ValoperRouteRedirect />} />
+      <Route path="validators/:address" element={<Suspense fallback={<PageLoader />}><ValidatorProfile /></Suspense>} />
+
+      {/* NFT section (Phase 2) — ORDER MATTERS: specific routes before /nft/:realmPath catch-all */}
+      {/* Hub: Redirect old /nft to the unified marketplace */}
+      <Route path="nft" element={<Navigate to="../marketplace/nfts" replace />} />
+      {/* Create: register into the shared memba_collections registry. */}
+      <Route path="nft/create" element={<Suspense fallback={<PageLoader />}><CreateCollectionLaunchpad /></Suspense>} />
+      {/* Advanced wizard retired — redirect to /nft/create, preserving :network prefix. */}
+      <Route path="nft/create/advanced" element={<AdvancedWizardRedirect />} />
+      {/* Collection public page: detail / mint / activity. NftGate preserves the
+          #472 route-level VITE_ENABLE_NFT enforcement on top of page self-gating. */}
+      <Route path="nft/collection/:creator/:slug" element={<NftGate><Suspense fallback={<PageLoader />}><CollectionPublic /></Suspense></NftGate>} />
+      <Route path="nft/token/:creator/:slug/:tokenId" element={<NftGate><Suspense fallback={<PageLoader />}><TokenDetail /></Suspense></NftGate>} />
+      {/* Creator profiles — must be before nft/:realmPath catch-all */}
+      <Route path="nft/creator/:address" element={<NftGate><Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense></NftGate>} />
+      <Route path="nft/creator" element={<NftGate><Suspense fallback={<PageLoader />}><CreatorProfile /></Suspense></NftGate>} />
+      {/* Creator Studio — must be before nft/:realmPath catch-all */}
+      <Route path="nft/studio" element={<NftGate><Suspense fallback={<PageLoader />}><StudioHome /></Suspense></NftGate>} />
+      <Route path="nft/studio/:creator/:slug" element={<NftGate><Suspense fallback={<PageLoader />}><StudioManage /></Suspense></NftGate>} />
+      {/* LAST: legacy catch-all for standalone realm paths (e.g. /nft/gno.land/r/...). */}
+      <Route path="nft/:realmPath" element={<NftGate><Suspense fallback={<PageLoader />}><LegacyCollectionView /></Suspense></NftGate>} />
+
+      {/* Freelance Services (v3.0) - redirected to unified marketplace */}
+      <Route path="services" element={<Navigate to="../marketplace/services" replace />} />
+
+      {/* Extensions Hub (v2.6) */}
+      <Route path="extensions" element={<Suspense fallback={<PageLoader />}><Extensions /></Suspense>} />
+
+      {/* Unified Marketplace (v3.0) */}
+      <Route path="marketplace/*" element={<Suspense fallback={<PageLoader />}><UnifiedMarketplace /></Suspense>} />
+
+      {/* Marketplace v2 design preview — dev-only, gated by VITE_ENABLE_MARKETPLACE_V2 (off in prod) */}
+      <Route path="marketplace-v2-preview" element={<Suspense fallback={<PageLoader />}><MarketplaceV2Preview /></Suspense>} />
+
+      {/* Alerts — Professional alerting (v2.18.0) */}
+      <Route path="alerts" element={<Suspense fallback={<PageLoader />}><AlertsPage /></Suspense>} />
+
+      {/* Organizations — Team management (v2.22.0) */}
+      <Route path="organizations" element={<Suspense fallback={<PageLoader />}><OrganizationsPage /></Suspense>} />
+
+      {/* Gnolove — Contributor scoreboard & analytics (v2.19.0) */}
+      <Route path="gnolove" element={<Suspense fallback={<PageLoader />}><GnoloveLayout /></Suspense>}>
+        <Route index element={<GnoloveHome />} />
+        <Route path="report" element={<GnoloveReport />} />
+        <Route path="notable-prs" element={<GnoloveNotablePRs />} />
+        <Route path="analytics" element={<GnoloveAnalytics />} />
+        <Route path="contributor/:login" element={<GnoloveContributorProfile />} />
+        <Route path="teams" element={<GnoloveTeams />} />
+        <Route path="teams/:teamName" element={<GnoloveTeamProfile />} />
+        <Route path="reports" element={<GnoloveAIReports />} />
+        <Route path="milestone" element={<GnoloveMilestone />} />
+      </Route>
+
+      {/* GnoBuilders — Quest catalog and leaderboard (v4.0) */}
+      <Route path="quests" element={<Suspense fallback={<PageLoader />}><QuestHub /></Suspense>} />
+      <Route path="quests/:questId" element={<Suspense fallback={<PageLoader />}><QuestDetail /></Suspense>} />
+      <Route path="quest-admin" element={<Suspense fallback={<PageLoader />}><QuestAdmin /></Suspense>} />
+      <Route path="leaderboard" element={<Suspense fallback={<PageLoader />}><Leaderboard /></Suspense>} />
+      <Route path="points" element={<Suspense fallback={<PageLoader />}><PointsPage /></Suspense>} />
+
+      {/* Block Party — Daily puzzle game (gated behind VITE_ENABLE_GAME) */}
+      <Route path="game" element={<Suspense fallback={<PageLoader />}><GameGate><BlockPartyGame /></GameGate></Suspense>} />
+
+      {/* Space Invaders — arcade game (gated behind VITE_ENABLE_SPACE_INVADERS) */}
+      <Route path="game/space-invaders" element={<Suspense fallback={<PageLoader />}><SpaceInvadersGate><SpaceInvadersGame /></SpaceInvadersGate></Suspense>} />
+
+      {/* MEMBA: BARRICADE — daily lane-defense (gated behind VITE_ENABLE_BARRICADE) */}
+      <Route path="game/barricade" element={<Suspense fallback={<PageLoader />}><BarricadeGate><BarricadeGame /></BarricadeGate></Suspense>} />
+
+      {/* Candidature — Memba DAO membership application (v2.28) */}
+      <Route path="candidature" element={<Suspense fallback={<PageLoader />}><CandidaturePage /></Suspense>} />
+
+      {/* Feedback (v2.10) */}
+      <Route path="feedback" element={<Suspense fallback={<PageLoader />}><FeedbackPage /></Suspense>} />
+      {/* Social feed — FeedGate makes the flag-off state authoritative at the router. */}
+      <Route path="feed" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedPage /></Suspense></FeedGate>} />
+      <Route path="feed/post/:id" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedThread /></Suspense></FeedGate>} />
+      <Route path="feed/user/:address" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedProfile /></Suspense></FeedGate>} />
+      <Route path="feed/mod" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedMod /></Suspense></FeedGate>} />
+      <Route path="feed/transparency" element={<FeedGate><Suspense fallback={<PageLoader />}><FeedTransparency /></Suspense></FeedGate>} />
+
+      {/* Changelogs (v2.14) */}
+      <Route path="changelogs" element={<Suspense fallback={<PageLoader />}><Changelogs /></Suspense>} />
+      <Route path="blog" element={<Suspense fallback={<PageLoader />}><BlogList /></Suspense>} />
+      <Route path="blog/:slug" element={<Suspense fallback={<PageLoader />}><BlogArticlePage /></Suspense>} />
+
+      {/* GitHub OAuth callback (lazy) */}
+      <Route path="github/callback" element={<Suspense fallback={<PageLoader />}><GithubCallback /></Suspense>} />
+
+      {/* Username → profile resolver (lazy) */}
+      <Route path="u/:username" element={<Suspense fallback={<PageLoader />}><UserRedirect /></Suspense>} />
+
+      {/* Catch-all 404 within network scope */}
+      <Route path="*" element={<Suspense fallback={<PageLoader />}><NotFound /></Suspense>} />
+    </>
+  )
+}

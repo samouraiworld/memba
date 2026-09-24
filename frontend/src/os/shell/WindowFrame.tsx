@@ -1,18 +1,19 @@
 /**
- * Window frame and window contents: Welcome, and a holding window
- * for apps and links whose native window isn't built yet (it points to the
- * same page in the current Memba).
+ * Window frame and window contents: Welcome, the native windows, and the
+ * existing Memba page inside the window for apps whose native window isn't
+ * built yet (ClassicPage).
  *
  * @module os/shell/WindowFrame
  */
 import { useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
 import { getApp, type OsAppId } from "../apps"
-import { classicPath } from "./format"
 import { AppTile, ThingTile } from "./icons"
 import type { OsSession } from "./useOsSession"
 import { DaoFolder, DaosApp, ProposalWindow } from "../daos/DaoWindows"
 import { CreateDaoWizard } from "../daos/CreateDaoWizard"
 import { ProposeWizard } from "../daos/ProposeWizard"
+import { ClassicPage } from "../page/ClassicPage"
+import { classicForSection, pageNeedsWallet } from "../page/classicRoute"
 import { DOCK_ROOM, type DeskSize, type OsWindow, type WindowSpec } from "./windows"
 
 interface Actions {
@@ -68,26 +69,32 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
         )
     }
     if (t.kind === "app" && t.app === "daos" && t.section === "new") return <CreateDaoWizard session={a.session} open={a.open} close={a.close} />
-    if (t.kind === "app" && t.app === "daos") return <DaosApp open={a.open} />
+    if (t.kind === "app" && t.app === "daos" && t.section === null) return <DaosApp open={a.open} />
     if (t.kind === "dao") return <DaoFolder name={t.name} section={t.section} open={a.open} />
     if (t.kind === "proposal") return <ProposalWindow dao={t.dao} n={t.n} session={a.session} />
     if (t.kind === "new-proposal") return <ProposeWizard dao={t.dao} session={a.session} open={a.open} close={a.close} />
-    if (t.kind === "app") {
-        const app = getApp(t.app)
-        const path = classicPath(t.app)
+    if (t.kind === "desktop") return null
+    if (t.kind === "feedback") return <ClassicPage key={win.id} network={net} page="feedback" layout={a.session.layout} />
+    const page = t.kind === "multisig" ? `multisig/${t.address}` : classicForSection(t.app, t.section)
+    if (page === null) {
+        const app = getApp(t.kind === "multisig" ? "multisig" : t.app)
+        return t.kind === "app" && t.section === null
+            ? <Holding tile={<AppTile app={t.app} size={44} />} title={app.name} href={null} linkLabel="" text={`${app.summary}. Coming to Memba OS in a later version.`} />
+            : (
+                <Holding tile={<AppTile app={app.id} size={44} />} title="Nothing lives here" href={null} linkLabel="" text={`${app.name} has no page at this address.`}>
+                    <button type="button" className="os-btn" onClick={() => a.openApp(app.id)}>Open {app.name}</button>
+                </Holding>
+            )
+    }
+    if (pageNeedsWallet(page) && a.session.status !== "member") {
+        const app = getApp(t.kind === "multisig" ? "multisig" : t.app)
         return (
-            <Holding tile={<AppTile app={t.app} size={44} />} title={app.name} linkLabel={`Open ${app.name} in Memba`}
-                href={path === null ? null : `/${net}/${path}`}
-                text={path === null ? `${app.summary}. Coming to Memba OS in a later version.` : `${app.summary}. Its window is on the way; until then it opens as the current Memba page.`} />
+            <Holding tile={<AppTile app={app.id} size={44} />} title={app.name} href={null} linkLabel="" text={`Connect a wallet to use ${app.name}.`}>
+                <button type="button" className="os-btn" onClick={a.session.openConnect}>Connect</button>
+            </Holding>
         )
     }
-    if (t.kind === "multisig") {
-        return (
-            <Holding tile={<AppTile app="multisig" size={44} />} title={win.title} linkLabel="Open multisigs in Memba" href={`/${net}/multisig`}
-                text="Multisig windows are on the way. Until then, find this account in the current Memba." />
-        )
-    }
-    return null
+    return <ClassicPage key={win.id} network={net} page={page} layout={a.session.layout} />
 }
 
 export interface FrameActions {
