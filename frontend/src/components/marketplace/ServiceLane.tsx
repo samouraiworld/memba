@@ -5,18 +5,18 @@ import { MEMBA_DAO, isEscrowValid, isServicesEnabled } from "../../lib/config"
 import { getCurrentBlock } from "../../lib/dao/proposalDates"
 import { hireAvailability, readEscrowPauseState } from "../../lib/marketplace/escrowState"
 import { EmptyState } from "../ui/EmptyState"
-import { formatGnotCompact } from "../../lib/formatGnot"
-import { nftFallbackUri } from "../../lib/nftFallbackArt"
 import { HireServiceModal, type Service } from "./HireServiceModal"
 import { EscrowContractPanel } from "./EscrowContractPanel"
 import { HireByAddressForm } from "./HireByAddressForm"
 import { escrowContractPath } from "../../lib/marketplace/escrowActions"
+import { CURATED_SERVICES, type CuratedService } from "../../lib/marketplace/curatedServices"
+import type { HireDraft } from "../../lib/marketplace/hireByAddress"
+import { CuratedServiceCard } from "./CuratedServiceCard"
 import { ErrorToast } from "../ui/ErrorToast"
 
-// Real service listings will come from the on-chain services engine once the lane is
-// production-ready. Until then the lane renders an honest empty state — never fake
-// listings with placeholder addresses (W0.2).
-const SERVICES: Service[] = []
+// Listings are the reviewed curated entries in lib/marketplace/curatedServices.ts only:
+// never fake listings with placeholder addresses (W0.2). There is no on-chain services
+// registry; anyone else is hired by address.
 
 /**
  * Whether the escrow realm takes new contracts, from its on-chain pause state.
@@ -53,37 +53,33 @@ export default function ServiceLane() {
     const nav = useNetworkNav()
     
     const [hiringService, setHiringService] = useState<Service | null>(null)
-    const [byAddress, setByAddress] = useState(false)
+    // The open Hire by address form: free-form, or a curated listing's (freelancer locked).
+    const [byAddress, setByAddress] = useState<{ key: string; initial?: Partial<HireDraft>; locked?: string; heading?: string } | null>(null)
     const [notice, setNotice] = useState<string | null>(null)
     const [toast, setToast] = useState<string | null>(null)
     // Bumped after a hire lands, so the contract panel re-reads "My contracts" and opens the new one.
     const [created, setCreated] = useState<{ id: string | null; n: number }>({ id: null, n: 0 })
 
-    const handleHireClick = (service: Service) => {
-        if (hiring.state !== "open") return
-        if (!adena.connected || !adena.address) {
-            setToast("Please connect your wallet first.")
-            return
-        }
-        setHiringService(service)
-    }
-
-    const openHireByAddress = () => {
+    const openHireByAddress = (curated?: CuratedService) => {
         if (hiring.state !== "open") return
         if (!adena.connected || !adena.address) {
             setToast("Please connect your wallet first.")
             return
         }
         setNotice(null)
-        setByAddress(true)
+        setByAddress(curated
+            ? { key: curated.id, initial: { title: curated.titlePrefix }, locked: curated.freelancer, heading: `Hire ${curated.title}` }
+            : { key: "free" })
     }
+    // Curated listings follow the lane's own gate: none unless the lane is live on this network.
+    const curated = hiring.state === "off" ? [] : CURATED_SERVICES
 
     return (
         <div className="animate-fade-in">
             <div className="um-lane-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
                 <h2 className="um-lane-title">Verified Services</h2>
                 {hiring.state !== "off" && !byAddress && (
-                    <button className="k-btn-primary" onClick={openHireByAddress} disabled={hiring.state !== "open"} data-testid="hire-by-address-open">
+                    <button className="k-btn-primary" onClick={() => openHireByAddress()} disabled={hiring.state !== "open"} data-testid="hire-by-address-open">
                         Hire by address
                     </button>
                 )}
@@ -99,9 +95,13 @@ export default function ServiceLane() {
 
             {byAddress && (
                 <HireByAddressForm
+                    key={byAddress.key}
+                    initial={byAddress.initial}
+                    lockedFreelancer={byAddress.locked}
+                    heading={byAddress.heading}
                     caller={adena.connected ? adena.address : ""}
                     closedReason={hiring.state === "open" ? null : hiring.state === "closed" ? hiring.reason : "Checking whether escrow takes new contracts..."}
-                    onCancel={() => setByAddress(false)}
+                    onCancel={() => setByAddress(null)}
                     onReview={(svc, totalUgnot) => setHiringService({
                         id: "by-address",
                         title: svc.title,
@@ -115,50 +115,23 @@ export default function ServiceLane() {
                 />
             )}
 
-            {SERVICES.length === 0 && !byAddress && (
+            {curated.length === 0 && !byAddress && (
                 <EmptyState
                     icon="ti-briefcase"
                     title="No services yet"
                     body={hiring.state === "off"
                         ? "The Services lane is coming soon — real on-chain listings will appear here."
-                        : "No public listings yet. To work with someone you already know, hire them by address."}
+                        : "No listings yet. To work with someone you already know, hire them by address."}
                 />
             )}
 
-            <div className="um-grid">
-                {SERVICES.map(svc => (
-                    <div key={svc.id} className="k-card" style={{ display: "flex", flexDirection: "column", padding: 0, overflow: "hidden", border: "1px solid var(--color-border)" }}>
-                        <div style={{ width: "100%", height: "140px", position: "relative", backgroundColor: "var(--color-bg-tertiary)", overflow: "hidden" }}>
-                            <img src={nftFallbackUri(svc.id)} alt={svc.title} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                            <div style={{ position: "absolute", top: 0, left: 0, width: "100%", height: "100%", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "64px", background: "rgba(0,0,0,0.4)" }}>
-                                {svc.image}
-                            </div>
-                        </div>
-                        <div style={{ padding: "20px", flex: 1, display: "flex", flexDirection: "column" }}>
-                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-                                <h3 style={{ margin: 0, fontSize: "18px", color: "var(--color-text)" }}>{svc.title}</h3>
-                                <span style={{ fontSize: "12px", background: "var(--color-bg-tertiary)", padding: "4px 8px", borderRadius: "12px", color: "var(--color-text-muted)" }}>
-                                    {svc.category}
-                                </span>
-                            </div>
-                            <p style={{ fontSize: "14px", color: "var(--color-text-muted)", marginBottom: "20px", flex: 1, lineHeight: 1.5 }}>
-                                {svc.description}
-                            </p>
-                            
-                            <div style={{ borderTop: "1px solid var(--color-border)", paddingTop: "16px", marginBottom: "16px" }}>
-                                <div style={{ fontSize: "12px", color: "var(--color-text-muted)", marginBottom: "4px" }}>Starting at</div>
-                                <div style={{ fontSize: "20px", fontWeight: 700, color: "var(--color-primary)" }}>
-                                    {formatGnotCompact(svc.priceUgnot)} GNOT
-                                </div>
-                            </div>
-
-                            <button className="k-btn-secondary" style={{ width: "100%" }} onClick={() => handleHireClick(svc)} disabled={hiring.state !== "open"}>
-                                Hire Freelancer
-                            </button>
-                        </div>
-                    </div>
-                ))}
-            </div>
+            {curated.length > 0 && !byAddress && (
+                <div className="um-grid" data-testid="curated-services">
+                    {curated.map((svc) => (
+                        <CuratedServiceCard key={svc.id} service={svc} disabled={hiring.state !== "open"} onHire={() => openHireByAddress(svc)} />
+                    ))}
+                </div>
+            )}
 
             <EscrowContractPanel caller={adena.connected ? adena.address : ""} createdContract={created} />
 
@@ -169,7 +142,7 @@ export default function ServiceLane() {
                     onClose={() => setHiringService(null)}
                     onSuccess={(contractId) => {
                         setHiringService(null)
-                        setByAddress(false)
+                        setByAddress(null)
                         if (contractId) {
                             // The contract's own page: its link is what the freelancer needs.
                             nav(escrowContractPath(contractId), { state: { created: true } })

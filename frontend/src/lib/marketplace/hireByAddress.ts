@@ -60,7 +60,7 @@ export function checkHireDraft(caller: string, escrowPath: string, draft: HireDr
     if (!isValidGnoAddressChecksum(freelancer)) {
         return fail("freelancer", "This is not a valid gno.land address: check it letter by letter (the last characters are a checksum).")
     }
-    if (caller && freelancer === caller) return fail("freelancer", "You cannot hire yourself.")
+    if (caller && freelancer === caller) return fail("freelancer", "You cannot hire yourself: the escrow contract refuses a contract whose client is also the freelancer.")
     if (draft.milestones.length === 0) return fail("milestones", "Add at least one milestone.")
     if (draft.milestones.length > ESCROW_LIMITS.maxMilestones) return fail("milestones", `At most ${ESCROW_LIMITS.maxMilestones} milestones are allowed.`)
     let milestones: EscrowMilestone[]

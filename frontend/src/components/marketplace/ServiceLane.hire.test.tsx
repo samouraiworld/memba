@@ -15,9 +15,9 @@ const CLIENT = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
 const FREELANCER = "g1u7y667z64x2h7vc6fmpcprgey4ck233jaww9zq"
 const ESCROW = "gno.land/r/samcrew/escrow_v4"
 
-const wallet = vi.hoisted(() => ({ connected: true }))
+const wallet = vi.hoisted(() => ({ connected: true, address: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c" }))
 vi.mock("../../hooks/useAdena", () => ({
-    useAdena: () => ({ address: wallet.connected ? "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c" : "", connected: wallet.connected, connect: vi.fn() }),
+    useAdena: () => ({ address: wallet.connected ? wallet.address : "", connected: wallet.connected, connect: vi.fn() }),
 }))
 
 vi.mock("../../lib/config", async (importOriginal) => ({
@@ -82,6 +82,7 @@ const fill = (form: HTMLElement, v: { freelancer?: string; title?: string; amoun
 
 beforeEach(() => {
     wallet.connected = true
+    wallet.address = CLIENT
     chain.pause = { paused: false, exitsOpen: true, exitsReopenAt: 0, pausedBlocks: 0 }
     chain.created = "13"
     doContractBroadcast.mockClear()
@@ -158,5 +159,70 @@ describe("ServiceLane — hire by address", () => {
         expect(screen.queryByTestId("hire-by-address")).not.toBeInTheDocument()
         // The lane's error toast (its wording is mapped by errorMap).
         expect(await screen.findByRole("alert")).toBeInTheDocument()
+    })
+})
+
+describe("ServiceLane — the curated listing", () => {
+    /** The curated Samourai Coop listing's freelancer (lib/marketplace/curatedServices.ts). */
+    const COOP = "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c"
+    const card = () => screen.findByTestId("curated-service-samourai-coop-dev")
+
+    it("shows the card on a live lane: full address, curated badge, a quote instead of a price, and no empty state", async () => {
+        renderLane()
+        const c = await card()
+        expect(c).toHaveTextContent("Samourai Coop — dev services")
+        expect(c).toHaveTextContent("Development")
+        expect(c).toHaveTextContent("Curated by Memba")
+        expect(within(c).getByText(COOP)).toBeInTheDocument()
+        expect(within(c).getByRole("button", { name: `Copy ${COOP}` })).toBeInTheDocument()
+        expect(within(c).getByTestId("curated-price")).toHaveTextContent("Quote per project")
+        expect(c).not.toHaveTextContent(/Starting at|GNOT/)
+        expect(screen.queryByText("No services yet")).not.toBeInTheDocument()
+        // The free-form entry stays.
+        expect(screen.getByTestId("hire-by-address-open")).toBeInTheDocument()
+    })
+
+    it("opens the Hire by address form with the freelancer locked and an editable title, then signs for that freelancer", async () => {
+        wallet.address = FREELANCER // any client but the coop itself
+        renderLane()
+        const hire = within(await card()).getByRole("button", { name: "Hire: Samourai Coop — dev services" })
+        await waitFor(() => expect(hire).toBeEnabled())
+        fireEvent.click(hire)
+        const form = screen.getByTestId("hire-by-address")
+        expect(form).toHaveTextContent("Hire Samourai Coop — dev services")
+        const locked = within(form).getByTestId("hire-locked-freelancer")
+        expect(locked).toHaveTextContent(COOP)
+        expect(within(form).queryByRole("textbox", { name: "Freelancer address" })).not.toBeInTheDocument()
+        const title = within(form).getByLabelText("Title")
+        expect(title).toHaveValue("Samourai Coop — ")
+        fireEvent.change(title, { target: { value: "Samourai Coop — realm audit" } })
+        fireEvent.change(within(form).getByLabelText("Milestone 1 title"), { target: { value: "Audit report" } })
+        fireEvent.change(within(form).getByLabelText("Milestone 1 amount in GNOT"), { target: { value: "2" } })
+        fireEvent.click(within(form).getByRole("button", { name: "Review and sign" }))
+        const sign = await screen.findByRole("button", { name: /sign escrow tx/i })
+        await waitFor(() => expect(sign).toBeEnabled())
+        fireEvent.click(sign)
+        await screen.findByTestId("landed")
+        const [msgs] = doContractBroadcast.mock.calls[0] as unknown as [{ value: Record<string, unknown> }[]]
+        expect(msgs[0].value).toMatchObject({ caller: FREELANCER, func: "CreateContract", args: [COOP, "Samourai Coop — realm audit", "", "Audit report:2000000"], send: "" })
+    })
+
+    it("refuses self-hire up front when the connected wallet is the listed freelancer", async () => {
+        wallet.address = COOP
+        renderLane()
+        const hire = within(await card()).getByRole("button", { name: "Hire: Samourai Coop — dev services" })
+        await waitFor(() => expect(hire).toBeEnabled())
+        fireEvent.click(hire)
+        const form = screen.getByTestId("hire-by-address")
+        expect(within(form).getByTestId("hire-self")).toHaveTextContent("You cannot hire yourself: the escrow contract refuses a contract whose client is also the freelancer.")
+        expect(within(form).getByRole("button", { name: "Review and sign" })).toBeDisabled()
+        expect(doContractBroadcast).not.toHaveBeenCalled()
+    })
+
+    it("is disabled with the lane's own hiring state while escrow is paused", async () => {
+        chain.pause = { paused: true, exitsOpen: true, exitsReopenAt: 100_000, pausedBlocks: 183_273 }
+        renderLane()
+        await screen.findByTestId("escrow-hiring-closed")
+        expect(within(await card()).getByRole("button", { name: /^Hire:/ })).toBeDisabled()
     })
 })

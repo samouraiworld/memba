@@ -12,6 +12,7 @@ import { formatUgnotExact } from "../../lib/dao/v2Budget"
 import { ESCROW_LIMITS } from "../../lib/marketplace/builders"
 import { formatUgnotExactBig, planCreateContract, type HireableService } from "../../lib/marketplace/escrowTx"
 import { checkHireDraft, type HireDraft, type HireDraftField } from "../../lib/marketplace/hireByAddress"
+import { SignedAddress } from "../ui/SigningValue"
 import "./escrow.css"
 
 export interface HireByAddressFormProps {
@@ -21,12 +22,27 @@ export interface HireByAddressFormProps {
     closedReason: string | null
     onReview: (service: HireableService, totalUgnot: bigint) => void
     onCancel: () => void
+    /** Starting values (e.g. a curated listing's title prefix). */
+    initial?: Partial<HireDraft>
+    /**
+     * A freelancer address fixed by a curated listing: shown in full, not
+     * editable, and always the one signed.
+     */
+    lockedFreelancer?: string
+    /** Heading, e.g. the curated listing's title. */
+    heading?: string
 }
 
 const EMPTY: HireDraft = { freelancer: "", title: "", description: "", milestones: [{ title: "", amountGnot: "" }] }
 
-export function HireByAddressForm({ caller, closedReason, onReview, onCancel }: HireByAddressFormProps) {
-    const [draft, setDraft] = useState<HireDraft>(EMPTY)
+/** Shown before anything else when the connected wallet is the locked freelancer. */
+export const SELF_HIRE_MESSAGE = "This listing's freelancer is your own address. You cannot hire yourself: the escrow contract refuses a contract whose client is also the freelancer. Connect another wallet to hire."
+
+export function HireByAddressForm({ caller, closedReason, onReview, onCancel, initial, lockedFreelancer, heading }: HireByAddressFormProps) {
+    const [editable, setDraft] = useState<HireDraft>(() => ({ ...EMPTY, ...initial }))
+    // A locked freelancer always wins over anything in the draft.
+    const draft = useMemo(() => (lockedFreelancer === undefined ? editable : { ...editable, freelancer: lockedFreelancer }), [editable, lockedFreelancer])
+    const selfHire = lockedFreelancer !== undefined && caller !== "" && caller === lockedFreelancer
     const [problem, setProblem] = useState<{ field: HireDraftField | null; message: string } | null>(null)
 
     const check = useMemo(() => checkHireDraft(caller, MEMBA_DAO.escrowPath, draft), [caller, draft])
@@ -46,7 +62,7 @@ export function HireByAddressForm({ caller, closedReason, onReview, onCancel }: 
 
     const onSubmit = (e: FormEvent) => {
         e.preventDefault()
-        if (closedReason) return
+        if (closedReason || selfHire) return
         if (!check.ok) {
             setProblem({ field: check.field, message: check.message })
             return
@@ -60,25 +76,34 @@ export function HireByAddressForm({ caller, closedReason, onReview, onCancel }: 
 
     return (
         <form className="k-card" data-testid="hire-by-address" onSubmit={onSubmit} noValidate style={{ padding: "20px", marginBottom: "16px" }}>
-            <h3 style={{ margin: "0 0 4px", fontSize: "16px", color: "var(--color-text)" }}>Hire by address</h3>
+            <h3 style={{ margin: "0 0 4px", fontSize: "16px", color: "var(--color-text)" }}>{heading ?? "Hire by address"}</h3>
             <p className="escrow-muted" style={{ margin: "0 0 12px" }}>
                 Hire someone you already work with. Agree on the milestones with them first: the contract cannot be edited once created.
             </p>
 
-            <div className="escrow-field">
-                <label className="k-label" htmlFor="hire-freelancer">Freelancer address</label>
-                <input
-                    id="hire-freelancer"
-                    className="escrow-input escrow-input--mono"
-                    value={draft.freelancer}
-                    onChange={(e) => set({ freelancer: e.target.value })}
-                    placeholder="g1..."
-                    autoComplete="off"
-                    spellCheck={false}
-                    aria-invalid={invalid("freelancer")}
-                />
-                {fieldError("freelancer")}
-            </div>
+            {lockedFreelancer !== undefined ? (
+                <div className="escrow-field" data-testid="hire-locked-freelancer">
+                    <span className="k-label">Freelancer address</span>
+                    <SignedAddress value={lockedFreelancer} />
+                    <p className="escrow-muted" style={{ margin: 0 }}>Set by this curated listing; it cannot be changed here.</p>
+                    {!selfHire && fieldError("freelancer")}
+                </div>
+            ) : (
+                <div className="escrow-field">
+                    <label className="k-label" htmlFor="hire-freelancer">Freelancer address</label>
+                    <input
+                        id="hire-freelancer"
+                        className="escrow-input escrow-input--mono"
+                        value={draft.freelancer}
+                        onChange={(e) => set({ freelancer: e.target.value })}
+                        placeholder="g1..."
+                        autoComplete="off"
+                        spellCheck={false}
+                        aria-invalid={invalid("freelancer")}
+                    />
+                    {fieldError("freelancer")}
+                </div>
+            )}
 
             <div className="escrow-field">
                 <label className="k-label" htmlFor="hire-title">Title</label>
@@ -168,10 +193,11 @@ export function HireByAddressForm({ caller, closedReason, onReview, onCancel }: 
             )}
             {problem && problem.field === null && <div className="k-error-banner" role="alert">{problem.message}</div>}
             {closedReason && <div className="k-error-banner" role="alert">{closedReason}</div>}
+            {selfHire && <div className="k-error-banner" role="alert" data-testid="hire-self">{SELF_HIRE_MESSAGE}</div>}
 
             <div style={{ display: "flex", gap: "12px", flexWrap: "wrap", marginTop: "12px" }}>
                 <button type="button" className="k-btn-secondary" onClick={onCancel}>Cancel</button>
-                <button type="submit" className="k-btn-primary" disabled={closedReason !== null}>Review and sign</button>
+                <button type="submit" className="k-btn-primary" disabled={closedReason !== null || selfHire}>Review and sign</button>
             </div>
         </form>
     )

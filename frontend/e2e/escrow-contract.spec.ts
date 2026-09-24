@@ -164,6 +164,13 @@ test.describe('Escrow contract screens (offline fixture)', () => {
         await page.goto('/test13/marketplace/services')
         const open = page.getByTestId('hire-by-address-open')
         await expect(open).toBeEnabled({ timeout: 15_000 })
+        // The curated listing shows on the live lane, quoted per project, and fits a phone.
+        const curated = page.getByTestId('curated-service-samourai-coop-dev')
+        await expect(curated).toContainText('Curated by Memba')
+        await expect(curated).toContainText('Quote per project')
+        await page.setViewportSize({ width: 375, height: 900 })
+        expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+        await page.setViewportSize({ width: 1280, height: 720 })
         await open.click()
         const form = page.getByTestId('hire-by-address')
         await form.getByLabel('Freelancer address').fill(FREELANCER)

@@ -67,6 +67,19 @@ describe("ServiceLane — shared EmptyState parity (A7)", () => {
     })
 })
 
+describe("ServiceLane — curated listings follow the lane's gate", () => {
+    it("shows none while the lane is gated, and the curated card once it is live", async () => {
+        const { unmount } = renderWithProviders(<ServiceLane />)
+        await screen.findByText(/no services yet/i)
+        expect(screen.queryByTestId("curated-services")).not.toBeInTheDocument()
+        unmount()
+        gate.live = true
+        renderWithProviders(<ServiceLane />)
+        expect(await screen.findByTestId("curated-service-samourai-coop-dev")).toBeInTheDocument()
+        expect(screen.queryByText(/no services yet/i)).not.toBeInTheDocument()
+    })
+})
+
 describe("ServiceLane — hiring follows the escrow realm's pause state", () => {
     it("reads nothing while the lane is gated on this network", async () => {
         renderWithProviders(<ServiceLane />)
