@@ -20,7 +20,7 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
-### Quest attestation is live on gno.land mainnet (#PRNUM, 2026-09-24)
+### Quest attestation is live on gno.land mainnet (#1283, 2026-09-24)
 <!-- categories: memba, network -->
 - **Quest XP can be recorded on mainnet.** `memba_quest_attestation_v1` is now allowlisted on `gnoland-1`: its owner installed the backend's voucher key with `SetSigner` at height 292610, and the backend signs with that key for `gnoland-1` only. The arcade leaderboard stays off.
 - **The attestation panel only offers vouchers the chain will accept.** It now needs the backend's realm to be allowlisted on the active network and the realm's on-chain signer to equal the backend's key. When either fails (key not installed yet, a rotation in progress, another chain), the panel stays hidden instead of letting you pay gas for a call that reverts.
