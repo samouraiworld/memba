@@ -6,57 +6,18 @@ import { useNetworkNav } from "../hooks/useNetworkNav"
 import { useEffect, useState } from "react"
 import { useParams } from "react-router-dom"
 import { MagnifyingGlass } from "@phosphor-icons/react"
-import { getUserRegistryPath } from "../lib/config"
-import { resilientFetch } from "../lib/rpcFallback"
-
-/**
- * Resolve a gno.land username to a wallet address
- * via the users/v1 realm ABCI render query.
- *
- * The render path `gno.land/r/gnoland/users/v1:username` returns
- * a markdown page containing `# User - \`username\`` and the address.
- */
-async function resolveUsernameToAddress(username: string): Promise<string | null> {
-    try {
-        const registryPath = getUserRegistryPath()
-        const b64Data = btoa(`${registryPath}:${username}`)
-        const res = await resilientFetch((rpcUrl) => ({
-            url: rpcUrl,
-            init: {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                    jsonrpc: "2.0",
-                    id: "resolve-user",
-                    method: "abci_query",
-                    params: { path: "vm/qrender", data: b64Data },
-                }),
-            },
-        }))
-        const json = await res.json()
-        const value = json?.result?.response?.ResponseBase?.Data
-        if (!value) return null
-        const binaryStr = atob(value)
-        const bytes = Uint8Array.from(binaryStr, (c) => c.charCodeAt(0))
-        const data = new TextDecoder().decode(bytes)
-        // The render contains the address in a markdown link like [g1abc...xyz](/r/.../g1abc...xyz)
-        // or just the raw address string. Try multiple patterns:
-        const addrMatch = data.match(/(g1[a-z0-9]{38})/i)
-        return addrMatch ? addrMatch[1] : null
-    } catch {
-        return null
-    }
-}
+import { resolveUsernameToAddress } from "../lib/dao/shared"
 
 export function UserRedirect() {
     const { username } = useParams<{ username: string }>()
     const navigate = useNetworkNav()
-    const [error, setError] = useState(false)
+    // "missing": not a registered name; "unavailable": the registry could not be read.
+    const [error, setError] = useState<"missing" | "unavailable" | null>(null)
 
     useEffect(() => {
         if (!username) {
             // Defer state update to avoid synchronous setState in effect
-            const t = setTimeout(() => setError(true), 0)
+            const t = setTimeout(() => setError("missing"), 0)
             return () => clearTimeout(t)
         }
 
@@ -68,7 +29,7 @@ export function UserRedirect() {
             if (address) {
                 navigate(`/profile/${address}`, { replace: true })
             } else {
-                setError(true)
+                setError(address === null ? "unavailable" : "missing")
             }
         }
 
@@ -88,10 +49,12 @@ export function UserRedirect() {
                 <div className="k-card" style={{ padding: 32 }}>
                     <div style={{ fontSize: 40, marginBottom: 16, display: 'flex', justifyContent: 'center' }}><MagnifyingGlass size={40} /></div>
                     <h2 style={{ fontSize: 18, fontWeight: 700, color: "var(--color-text)", marginBottom: 8 }}>
-                        User not found
+                        {error === "unavailable" ? "Couldn't look up this user" : "User not found"}
                     </h2>
                     <p style={{ fontSize: "var(--pro-small, 12px)", color: "var(--color-text-secondary)", marginBottom: 20 }}>
-                        @{username} is not a registered gno.land username.
+                        {error === "unavailable"
+                            ? <>The gno.land user registry could not be reached to resolve @{username}. Try again in a moment.</>
+                            : <>@{username} is not a registered gno.land username.</>}
                     </p>
                     <button
                         className="k-btn-secondary"

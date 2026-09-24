@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### @username links open the right profile (2026-09-24)
+<!-- categories: memba, network -->
+- **`/u/<username>` now resolves through the registry's `ResolveName`.** It used to scrape the first address out of the `r/sys/users` page, but that realm renders its home page for every path. On gno.land mainnet that page lists no address, so every link showed "User not found"; on a registry page that did list one, the link would have opened the wrong profile. If the registry can't be reached, the page says so instead of claiming the user doesn't exist.
+
 ### OTC desk lists the token you choose (2026-09-24)
 <!-- categories: memba -->
 - **The Tokens lane's "List Tokens" button no longer always lists the testnet token MEMBATEST.** A symbol field next to it picks the token. It starts on the network's Memba token (MEMBATEST on test chains, MEMBA elsewhere), and the listing dialog loads that token's decimals and approval.

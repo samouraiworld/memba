@@ -313,17 +313,63 @@ function writeUsernameCache(cache: UsernameCache): void {
     } catch { /* quota exceeded */ }
 }
 
+/** qeval literal of a nil `*r/sys/users.UserData`. */
+const NIL_USER_DATA_RE = /^\(nil \*gno\.land\/r\/sys\/users\.UserData\)$/
+/** qeval literal of a `*r/sys/users.UserData`: address, name, deleted flag. */
+const USER_DATA_RE = /^\(&\(struct\{\("(g1[a-z0-9]{38})" \.uverse\.address\),\("([A-Za-z0-9_.-]{1,64})" string\),\((true|false) bool\)\} gno\.land\/r\/sys\/users\.UserData\) \*gno\.land\/r\/sys\/users\.UserData\)$/
+
+/** r/sys/users name rule (lowercase: `^[a-z][a-z0-9]*([_-][a-z0-9]+)*$`, max
+ *  64); anything else is never queried. */
+const REGISTRY_NAME_RE = /^[a-z][a-z0-9]*([_-][a-z0-9]+)*$/
+
 /**
  * Parse `r/sys/users.ResolveAddress(address)` qeval output.
  * Returns the username, "" when the address has no (or a deleted)
  * registration, or null when the output is not the expected literal.
  */
 export function parseResolveAddressResult(raw: string, address: string): string | null {
-    if (/^\(nil \*gno\.land\/r\/sys\/users\.UserData\)$/.test(raw.trim())) return ""
-    const m = raw.trim().match(/^\(&\(struct\{\("(g1[a-z0-9]{38})" \.uverse\.address\),\("([A-Za-z0-9_.-]{1,64})" string\),\((true|false) bool\)\} gno\.land\/r\/sys\/users\.UserData\) \*gno\.land\/r\/sys\/users\.UserData\)$/)
+    if (NIL_USER_DATA_RE.test(raw.trim())) return ""
+    const m = raw.trim().match(USER_DATA_RE)
     if (!m) return null
     if (m[1] !== address) return ""
     return m[3] === "true" ? "" : m[2]
+}
+
+/**
+ * Parse `r/sys/users.ResolveName(name)` qeval output — two lines, the
+ * `*UserData` and an "is latest name" bool. Returns the owner's address, ""
+ * when the name is unregistered or its user deleted, or null when the output
+ * is not the expected literal. A previous name of a user still resolves to
+ * that user, like gnoweb's /u/ does.
+ */
+export function parseResolveNameResult(raw: string): string | null {
+    const record = raw.trim().split("\n")[0]?.trim() ?? ""
+    if (NIL_USER_DATA_RE.test(record)) return ""
+    const m = record.match(USER_DATA_RE)
+    if (!m) return null
+    if (m[3] === "true") return ""
+    return isValidGnoAddressChecksum(m[1]) ? m[1] : null
+}
+
+/**
+ * Resolve a registered username to its g1 address through the user
+ * registry's `ResolveName` (structured qeval — the registry's Render ignores
+ * its path, so scraping a render can only ever return the home page).
+ * Returns the address, "" when the name is not registered (or not a valid
+ * registry name), or null when the registry could not be read. The answer
+ * sends the user to a profile, so the RPC's chain is verified first (a
+ * fallback serving another chain must not pick the profile).
+ */
+export async function resolveUsernameToAddress(username: string): Promise<string | null> {
+    const name = username.trim().replace(/^@/, "").toLowerCase()
+    if (name.length > 64 || !REGISTRY_NAME_RE.test(name)) return ""
+    try {
+        await assertActiveRpcChain()
+        const raw = await resilientAbciQuery("vm/qeval", `${getUserRegistryPath()}.ResolveName(${JSON.stringify(name)})`, true)
+        return raw === null ? null : parseResolveNameResult(raw)
+    } catch {
+        return null
+    }
 }
 
 /** Session cache of definitive username answers, keyed by chain and address. */
