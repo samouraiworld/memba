@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### @username registration works on gno.land mainnet (2026-09-24)
+<!-- categories: memba, network -->
+- **The profile's Register button now uses mainnet's public registrar, `r/sys/namereg/v0`.** It used to call `r/sys/users.Register`, which doesn't exist on `gnoland-1`; only whitelisted controller realms can write names there, and namereg is the one controller. The form now follows the registrar's rules: names like `nym-builder042` (`nym-`, 5–13 letters, 3 digits) and the exact current price read from the realm (free today). It no longer attaches a fixed 0.2 GNOT, which the registrar would reject.
+- The form no longer links to a faucet on mainnet, which has none, and it stays hidden on networks where no registrar has been verified.
+
 ### @username links open the right profile (2026-09-24)
 <!-- categories: memba, network -->
 - **`/u/<username>` now resolves through the registry's `ResolveName`.** It used to scrape the first address out of the `r/sys/users` page, but that realm renders its home page for every path. On gno.land mainnet that page lists no address, so every link showed "User not found"; on a registry page that did list one, the link would have opened the wrong profile. If the registry can't be reached, the page says so instead of claiming the user doesn't exist.

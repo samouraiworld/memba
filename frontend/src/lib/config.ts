@@ -94,6 +94,13 @@ interface NetworkConfig {
     monitoringChain?: string
     label: string
     userRegistryPath: string
+    /** The realm whose public `Register(cur, username)` lets an account claim
+     *  its own @username. `r/sys/users` itself has no public Register — after
+     *  genesis only its whitelisted controller realms can write names (verified
+     *  on gnoland-1: `Controllers()` = the address of `r/sys/namereg/v0`).
+     *  Absent when no public registrar is verified on the network, which hides
+     *  the registration form rather than sending a call that can only fail. */
+    usernameRegistrarPath?: string
     faucetUrl: string
     /** gnoweb base URL — the block explorer, used for `getExplorerBaseUrl()`
      *  and `lib/gnoweb`'s "view on gnoweb" links. Namespace discovery no longer
@@ -501,6 +508,11 @@ export const NETWORKS: Record<string, NetworkConfig> = {
         indexerUrl: import.meta.env.VITE_MAINNET_INDEXER_URL || "https://indexer.gno.land/graphql/query",
         label: "gno.land",
         userRegistryPath: "gno.land/r/sys/users",
+        // Verified 2026-09-24 (read-only, node_info.network "gnoland-1"):
+        // r/sys/users.Controllers() = [g1t2a5cfc8y860kzp6yf7fsnfm3dq0a5dxx5svzy],
+        // the package address of r/sys/namereg/v0. r/gnoland/users/v1 does not
+        // exist on this chain.
+        usernameRegistrarPath: "gno.land/r/sys/namereg/v0",
         // ⛔ THERE IS NO MAINNET FAUCET, by design (#6154: balances come from
         // the independence-day allocation). Empty string, not a guess at a hub.
         faucetUrl: "",
@@ -693,6 +705,12 @@ export const ACTIVE_NETWORK_KEY = _activeNetwork
  */
 export function getUserRegistryPath(): string {
     return NETWORKS[_activeNetwork]?.userRegistryPath || "gno.land/r/sys/users"
+}
+
+/** The active network's public @username registrar, or null when none is
+ *  verified there (see NetworkConfig.usernameRegistrarPath). */
+export function getUsernameRegistrarPath(): string | null {
+    return NETWORKS[_activeNetwork]?.usernameRegistrarPath || null
 }
 
 /**

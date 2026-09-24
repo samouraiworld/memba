@@ -8,7 +8,7 @@ vi.mock("./rpcFallback", async (orig) => ({
 
 import { resilientAbciQuery, resilientFetch } from "./rpcFallback"
 import { resolveOnChainUsername } from "./profile"
-import { clearRegisteredUsernameCache, parseResolveAddressResult } from "./dao/shared"
+import { clearRegisteredUsernameCache, forgetRegisteredUsername, parseResolveAddressResult } from "./dao/shared"
 
 const query = vi.mocked(resilientAbciQuery)
 const MOUL = "g1manfred47kzduec920z88wfr64ylksmdcedlf5"
@@ -68,5 +68,18 @@ describe("on-chain username resolution", () => {
         expect(parseResolveAddressResult(LIVE_NIL, MOUL)).toBe("")
         expect(parseResolveAddressResult("# r/sys/users\n\nhome page", MOUL)).toBeNull()
         expect(parseResolveAddressResult(LIVE_MOUL.replace('"moul"', '"mo ul"'), MOUL)).toBeNull()
+    })
+})
+
+describe("forgetRegisteredUsername", () => {
+    it("makes the next lookup read the registry again after a registration", async () => {
+        clearRegisteredUsernameCache()
+        query.mockReset()
+        query.mockResolvedValueOnce(LIVE_NIL)
+        expect(await resolveOnChainUsername(MOUL)).toBe("")
+        query.mockResolvedValueOnce(LIVE_MOUL)
+        expect(await resolveOnChainUsername(MOUL)).toBe("") // still the cached answer
+        forgetRegisteredUsername(MOUL)
+        expect(await resolveOnChainUsername(MOUL)).toBe("@moul")
     })
 })

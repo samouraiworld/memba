@@ -380,6 +380,18 @@ export function clearRegisteredUsernameCache(): void {
     registeredUsernames.clear()
 }
 
+/** Drop every cached username answer for one address (session map and the
+ *  localStorage member cache) — call it after the address registers a name,
+ *  or the cached "no username" keeps being served until a full reload. */
+export function forgetRegisteredUsername(address: string): void {
+    registeredUsernames.delete(`${GNO_CHAIN_ID}:${address}`)
+    const cache = readUsernameCache()
+    if (address in cache.entries) {
+        delete cache.entries[address]
+        writeUsernameCache(cache)
+    }
+}
+
 /**
  * Resolve a g1 address to "@username" through the user registry's
  * `ResolveAddress` (structured qeval; the registry's Render is its home page).
