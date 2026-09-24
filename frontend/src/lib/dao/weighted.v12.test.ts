@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest"
 import native from "./testdata/weighted-v12/native.json"
 import { assertWeightedWrites, buildWeightedMessage, isUnreadableProposal, readWeightedBallot, readWeightedPendingVotes, readWeightedProposal, readWeightedSnapshot, validateWeightedRecovery, weightedBallotSchema, weightedApplicationPolicies, weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema, WEIGHTED_APPLICATIONS_SCHEMA } from "./weighted"
-import { APPLICATION_POLICY_KEYS, IMMEDIATE_THRESHOLDS, applicationDetails, expectedCategory, flattenBefore, type WeightedApplicationAction } from "./weightedApplications"
+import { APPLICATION_POLICY_KEYS, IMMEDIATE_THRESHOLDS, packageAddress, applicationDetails, expectedCategory, flattenBefore, type WeightedApplicationAction } from "./weightedApplications"
 import { directRpcCall } from "../rpcFallback"
 import { qevalWire, weightedFixture } from "./testdata/weighted"
 vi.mock("../rpcFallback", async importOriginal => ({ ...await importOriginal<typeof import("../rpcFallback")>(), directRpcCall: vi.fn() }))
@@ -228,7 +228,7 @@ describe("every operation the host can encode", () => {
 
     it("has a native proposal for each encodable operation, and every one parses", () => {
         const ops = encodable()
-        expect(ops).toHaveLength(69)
+        expect(ops).toHaveLength(70)
         const covered = new Set<string>()
         const all = [...opRecords.map(([, r]) => r), ...Array.from({ length: 26 }, (_, i) => records[`proposal_${i + 1}`])]
         for (const record of all) {
@@ -277,6 +277,58 @@ describe("every operation the host can encode", () => {
         for (const chain of ["gnoland-1", "pearl", "test13", "dev"]) expect(() => assertWeightedWrites(chain, chain, chain, schema)).toThrow()
         expect(() => assertWeightedWrites("pearl", "pearl", "pearl", "memba-weighted-host/v2")).not.toThrow()
         expect(() => validateWeightedRecovery(snapshot, actions[3])).toThrow("does not support")
+    })
+
+    it("reads the escrow_v4 re-point: fee recipient rotation, pause fields and index-numbered milestones", () => {
+        const escrowPolicy = records.config.escrowPolicy as Json
+        expect(escrowPolicy).toMatchObject({ target: "gno.land/r/samcrew/escrow_v4", feeRecipientCategory: "financial" })
+        expect(weightedConfigSchema.safeParse({ ...records.config, escrowPolicy: { ...escrowPolicy, feeRecipientCategory: "critical" } }).success).toBe(false)
+        expect(weightedConfigSchema.safeParse({ ...records.config, escrowPolicy: { ...escrowPolicy, target: "gno.land/r/samcrew/escrow_v3" } }).success).toBe(false)
+        const [, rotate] = opRecords.find(([key]) => key === "op:escrow:set-fee-recipient")!
+        const a = rotate.proposal.action as Json & { before: Json }
+        expect([rotate.proposal.category, a.milestoneIndex, a.contractId]).toEqual(["financial", null, ""])
+        expect(Object.keys(a.before)).toEqual(["owner", "pendingOwner", "feeRecipient", "pendingFeeRecipient", "paused", "pausedAt", "exitsReopenAt", "cooldownUntil", "contract", "fees"])
+        const mutate = (change: (x: Json & { before: Json }) => void) => { const r = structuredClone(rotate); change(r.proposal.action as Json & { before: Json }); return parseProposal(r) }
+        expect(mutate(() => undefined)).toBe(true)
+        expect(mutate(x => { x.recipient = "" })).toBe(false)
+        expect(mutate(x => { x.milestoneIndex = "0" })).toBe(false)
+        expect(mutate(x => { x.recipient = packageAddress("gno.land/r/samcrew/escrow_v4") })).toBe(false)
+        expect(mutate(x => { x.recipient = x.before.feeRecipient })).toBe(false)
+        expect(mutate(x => { x.before.pendingFeeRecipient = x.recipient })).toBe(false)
+        expect(mutate(x => { x.before.pendingFeeRecipient = (records.members as { members: Json[] }).members[3].address })).toBe(true)
+        expect(mutate(x => { x.before.pendingFeeRecipient = null })).toBe(false)
+        expect(mutate(x => { x.before.feeRecipient = "" })).toBe(false)
+        expect(mutate(x => { x.before.exitsOpen = true })).toBe(false)
+        expect(mutate(x => { x.before.pausedBlocks = "0" })).toBe(false)
+        expect(mutate(x => { x.before.cooldownUntil = 183525 })).toBe(false)
+        expect(mutate(x => { x.before.pausedAt = "5" })).toBe(false)
+        // A paused pre-state must name when the pause began and when exits reopen.
+        const [, unpause] = opRecords.find(([key]) => key === "op:escrow:unpause")!
+        const paused = (unpause.proposal.action as { before: Json }).before
+        expect(paused.paused).toBe(true)
+        expect(BigInt(paused.exitsReopenAt as string)).toBeGreaterThan(BigInt(paused.pausedAt as string))
+        const badPause = structuredClone(unpause); ((badPause.proposal.action as { before: Json }).before).exitsReopenAt = paused.pausedAt
+        expect(parseProposal(badPause)).toBe(false)
+        const [, refund] = opRecords.find(([key]) => key === "op:escrow:refund-client")!
+        const milestones = ((refund.proposal.action as { before: { contract: { milestones: Json[] } } }).before.contract.milestones)
+        expect(milestones.map(m => m.id)).toEqual(["0"])
+        const renumbered = structuredClone(refund); ((renumbered.proposal.action as { before: { contract: { milestones: Json[] } } }).before.contract.milestones[0]).id = "1"
+        expect(parseProposal(renumbered)).toBe(false)
+        expect(expectedCategory({ type: "escrow", operation: "set-fee-recipient" })).toBe("financial")
+    })
+
+    it("refuses a fee recipient that is the DAO itself", async () => {
+        const [, rotate] = opRecords.find(([key]) => key === "op:escrow:set-fee-recipient")!
+        const page = replies.pages["0"] as { proposals: Json[] }
+        const dao = packageAddress(realmPath)
+        const item = structuredClone(rotate.proposal) as Json & { action: Json }
+        item.id = (page.proposals[0] as Json).id
+        item.proposer = (page.proposals[0] as Json).proposer
+        page.proposals[0] = item
+        expect((await readWeightedSnapshot(ctx)).page.proposals.filter(isUnreadableProposal)).toEqual([])
+        item.action = { ...item.action, recipient: dao }
+        expect((await readWeightedSnapshot(ctx)).page.proposals.filter(isUnreadableProposal).map(p => p.id)).toEqual([item.id])
+        expect(dao).toBe(((records.proposal_9 as { proposal: { action: { before: Json } } }).proposal.action.before.pendingOwner))
     })
 
     it("keeps feedback room fields distinct from channels fields", () => {

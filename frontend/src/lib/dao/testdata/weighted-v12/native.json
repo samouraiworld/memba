@@ -9,7 +9,7 @@
     "quest_adapter.gno": "2e31e4afed29796f2bb424ff6a5ec2ce26a07458bbf0364074e8f557a744b40e",
     "arcade_adapter.gno": "a84c69382821031e5cb43d32d1d1ce6012ce71028ee103de415b0fba797c530d",
     "appstore_adapter.gno": "b6d10eae19f707c9b9884bfbd685ed8ef79ff2a1410d752be11d85a9b7ae3b5c",
-    "escrow_adapter.gno": "7e3492cd09b906d2bcbdba0173e6727915491729fc4eb189be2ef2e06d2688e7",
+    "escrow_adapter.gno": "8899b9e708bb7f12a67dd837eab010223aa4e1cde2421fe39558cc40e87eb3ec",
     "badges_adapter.gno": "087f3bb72305049d15b61c43effb2348c8cb858244e9d51f72e8013899fc980f",
     "feed_adapter.gno": "8f9213fbd3a0dca2c4e22a16888b312a8617eb8b73821395073ac480f9d180b3",
     "channels_adapter.gno": "2d192580ddf5cea1ff1e90babc92b235e0e094ac73ad154f25e45d87a713d1a6",
@@ -28,9 +28,9 @@
     "gno.land/p/samcrew/memba_weighted_host/channels_actions.gno": "7e72a72bc95fad9a26a1dc357dc082a43dd02510090ccc629732cc93c0061e02",
     "gno.land/p/samcrew/memba_weighted_host/channels_host.gno": "919b9071461be82e8abff4e48b3c29088082591418bebdb4bba0c884045268ee",
     "gno.land/p/samcrew/memba_weighted_host/channels_reads.gno": "761481cb81ea5670a3a0d3bba64bc17de0510bf687f53a5753be0667c371b74a",
-    "gno.land/p/samcrew/memba_weighted_host/escrow_actions.gno": "ee3df7da0682725c91de29c5efb2d4e7eb46fdcbe0e542e671829bebdbf77da6",
-    "gno.land/p/samcrew/memba_weighted_host/escrow_host.gno": "8a9d45c235f652d551bbbebf165b6b1bcc012e86d82d2a55a5a41971f657b80b",
-    "gno.land/p/samcrew/memba_weighted_host/escrow_reads.gno": "22b87445ed909185d241c39594fe6139e3ea4b9c46cb1465e946f89f3274af56",
+    "gno.land/p/samcrew/memba_weighted_host/escrow_actions.gno": "4d02739adf6cfbc558c02c0ad3e3a777640ca5248f6c96289a0ff30688c98868",
+    "gno.land/p/samcrew/memba_weighted_host/escrow_host.gno": "36437278418d56a5e6ede4ad528630b9cd399082f082d4ba26e2b959069b890f",
+    "gno.land/p/samcrew/memba_weighted_host/escrow_reads.gno": "ac8040297eef5399049d33428893c62c93871701f7e4b025f3f10b03218eb684",
     "gno.land/p/samcrew/memba_weighted_host/feed_actions.gno": "def3d97d9778668d01e5e1758b93843483ca40dd4819f9f13cfe047ad3c59589",
     "gno.land/p/samcrew/memba_weighted_host/feed_host.gno": "f467f0e20ac35276e4a20f5abc89a5326b8ee9446bb9d28f48ce7c43485b807a",
     "gno.land/p/samcrew/memba_weighted_host/feed_reads.gno": "3011e6d55ef3a91f8e056c1fba902f12534990b1bae5720b251cb77e10861510",
@@ -49,7 +49,7 @@
     "gno.land/p/samcrew/memba_weighted_host/reviews_reads.gno": "87306810dbb80aa8ef9fc33871f93f5ff068c06da2d91949b1be1bf9143dd470",
     "gno.land/p/samcrew/memba_weighted_policy/policy.gno": "dfeca4ef26bff1f97335d9808e2152a6cb8f64aecea2ce4f3f2ad6da5390e683"
   },
-  "gnoBinarySha256": "fcf6996b569331af92622aa85d53a0e12218e9586d60897879788c5854264b85",
+  "gnoBinarySha256": "94ae0155570ae4f7e452c3975298620285dd1eefb0d0d88ab6ecfe32c582877c",
   "records": {
     "config": {
       "schema": "memba-weighted-host/v12",
@@ -126,10 +126,11 @@
         "invalidatesOtherProposals": true
       },
       "escrowPolicy": {
-        "target": "gno.land/r/samcrew/escrow_v3",
+        "target": "gno.land/r/samcrew/escrow_v4",
         "successor": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
         "resolutionCategory": "financial",
         "unpauseCategory": "financial",
+        "feeRecipientCategory": "financial",
         "emergencyPause": true,
         "returnStagesOnly": true,
         "invalidatesOtherProposals": true
@@ -542,7 +543,7 @@
           "proposer": "g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2",
           "action": {
             "type": "escrow",
-            "target": "gno.land/r/samcrew/escrow_v3",
+            "target": "gno.land/r/samcrew/escrow_v4",
             "operation": "unpause",
             "recipient": "",
             "contractId": "",
@@ -550,7 +551,12 @@
             "before": {
               "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
               "pendingOwner": "",
+              "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+              "pendingFeeRecipient": "",
               "paused": true,
+              "pausedAt": "136",
+              "exitsReopenAt": "183409",
+              "cooldownUntil": "0",
               "contract": {
                 "exists": false,
                 "id": "",
@@ -1023,7 +1029,7 @@
           "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
           "action": {
             "type": "escrow",
-            "target": "gno.land/r/samcrew/escrow_v3",
+            "target": "gno.land/r/samcrew/escrow_v4",
             "operation": "accept-owner",
             "recipient": "",
             "contractId": "",
@@ -1031,7 +1037,12 @@
             "before": {
               "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
               "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+              "pendingFeeRecipient": "",
               "paused": false,
+              "pausedAt": "0",
+              "exitsReopenAt": "0",
+              "cooldownUntil": "0",
               "contract": {
                 "exists": false,
                 "id": "",
@@ -1782,7 +1793,7 @@
         "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
         "action": {
           "type": "escrow",
-          "target": "gno.land/r/samcrew/escrow_v3",
+          "target": "gno.land/r/samcrew/escrow_v4",
           "operation": "accept-owner",
           "recipient": "",
           "contractId": "",
@@ -1790,7 +1801,12 @@
           "before": {
             "owner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
             "pendingOwner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+            "pendingFeeRecipient": "",
             "paused": false,
+            "pausedAt": "0",
+            "exitsReopenAt": "0",
+            "cooldownUntil": "0",
             "contract": {
               "exists": false,
               "id": "",
@@ -2315,7 +2331,7 @@
         "proposer": "g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2",
         "action": {
           "type": "escrow",
-          "target": "gno.land/r/samcrew/escrow_v3",
+          "target": "gno.land/r/samcrew/escrow_v4",
           "operation": "unpause",
           "recipient": "",
           "contractId": "",
@@ -2323,7 +2339,12 @@
           "before": {
             "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
             "pendingOwner": "",
+            "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+            "pendingFeeRecipient": "",
             "paused": true,
+            "pausedAt": "136",
+            "exitsReopenAt": "183409",
+            "cooldownUntil": "0",
             "contract": {
               "exists": false,
               "id": "",
@@ -2657,7 +2678,7 @@
         "proposer": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
         "action": {
           "type": "escrow",
-          "target": "gno.land/r/samcrew/escrow_v3",
+          "target": "gno.land/r/samcrew/escrow_v4",
           "operation": "unpause",
           "recipient": "",
           "contractId": "",
@@ -2665,7 +2686,12 @@
           "before": {
             "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
             "pendingOwner": "",
+            "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+            "pendingFeeRecipient": "",
             "paused": true,
+            "pausedAt": "136",
+            "exitsReopenAt": "183409",
+            "cooldownUntil": "0",
             "contract": {
               "exists": false,
               "id": "",
@@ -3281,7 +3307,7 @@
         "proposer": "g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2",
         "action": {
           "type": "escrow",
-          "target": "gno.land/r/samcrew/escrow_v3",
+          "target": "gno.land/r/samcrew/escrow_v4",
           "operation": "return-owner",
           "recipient": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
           "contractId": "",
@@ -3289,7 +3315,12 @@
           "before": {
             "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
             "pendingOwner": "",
+            "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+            "pendingFeeRecipient": "",
             "paused": false,
+            "pausedAt": "0",
+            "exitsReopenAt": "0",
+            "cooldownUntil": "183525",
             "contract": {
               "exists": false,
               "id": "",
@@ -3333,7 +3364,7 @@
         "proposer": "g1rayfgklwl0aspz488wvrcrvt7t2quy6q06lgk2",
         "action": {
           "type": "escrow",
-          "target": "gno.land/r/samcrew/escrow_v3",
+          "target": "gno.land/r/samcrew/escrow_v4",
           "operation": "abort-return",
           "recipient": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
           "contractId": "",
@@ -3341,7 +3372,12 @@
           "before": {
             "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
             "pendingOwner": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+            "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+            "pendingFeeRecipient": "",
             "paused": false,
+            "pausedAt": "0",
+            "exitsReopenAt": "0",
+            "cooldownUntil": "183525",
             "contract": {
               "exists": false,
               "id": "",
@@ -4600,7 +4636,7 @@
         "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
         "action": {
           "type": "escrow",
-          "target": "gno.land/r/samcrew/escrow_v3",
+          "target": "gno.land/r/samcrew/escrow_v4",
           "operation": "refund-client",
           "recipient": "",
           "contractId": "0",
@@ -4608,18 +4644,23 @@
           "before": {
             "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
             "pendingOwner": "",
+            "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+            "pendingFeeRecipient": "",
             "paused": false,
+            "pausedAt": "0",
+            "exitsReopenAt": "0",
+            "cooldownUntil": "183525",
             "contract": {
               "exists": true,
               "id": "0",
-              "contentHash": "065b2d92630d575df06f4639856288c0353700ec4c659bc5fef3d95aba60c695",
+              "contentHash": "7782d9a767ff098e40790bf6de92dd01d57f715e02a986d9da575d98003f6a99",
               "status": "disputed",
               "client": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqazvrz89g",
               "freelancer": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqavwc9w8z",
               "count": "1",
               "milestones": [
                 {
-                  "id": "1",
+                  "id": "0",
                   "amount": "1000000",
                   "status": "disputed",
                   "fundedAt": "282",
@@ -4662,7 +4703,7 @@
         "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
         "action": {
           "type": "escrow",
-          "target": "gno.land/r/samcrew/escrow_v3",
+          "target": "gno.land/r/samcrew/escrow_v4",
           "operation": "pay-freelancer",
           "recipient": "",
           "contractId": "0",
@@ -4670,18 +4711,23 @@
           "before": {
             "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
             "pendingOwner": "",
+            "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+            "pendingFeeRecipient": "",
             "paused": false,
+            "pausedAt": "0",
+            "exitsReopenAt": "0",
+            "cooldownUntil": "183525",
             "contract": {
               "exists": true,
               "id": "0",
-              "contentHash": "065b2d92630d575df06f4639856288c0353700ec4c659bc5fef3d95aba60c695",
+              "contentHash": "7782d9a767ff098e40790bf6de92dd01d57f715e02a986d9da575d98003f6a99",
               "status": "disputed",
               "client": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqazvrz89g",
               "freelancer": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqavwc9w8z",
               "count": "1",
               "milestones": [
                 {
-                  "id": "1",
+                  "id": "0",
                   "amount": "1000000",
                   "status": "disputed",
                   "fundedAt": "282",
@@ -4716,11 +4762,68 @@
         "invalidation": null
       }
     },
-    "op:badges:remove-admin": {
+    "op:escrow:set-fee-recipient": {
       "schema": "memba-weighted-host/v12",
       "kind": "proposal",
       "proposal": {
         "id": "76",
+        "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
+        "action": {
+          "type": "escrow",
+          "target": "gno.land/r/samcrew/escrow_v4",
+          "operation": "set-fee-recipient",
+          "recipient": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqq755rca3x",
+          "contractId": "",
+          "milestoneIndex": null,
+          "before": {
+            "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+            "pendingOwner": "",
+            "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+            "pendingFeeRecipient": "",
+            "paused": false,
+            "pausedAt": "0",
+            "exitsReopenAt": "0",
+            "cooldownUntil": "183525",
+            "contract": {
+              "exists": false,
+              "id": "",
+              "contentHash": "",
+              "status": "",
+              "client": "",
+              "freelancer": "",
+              "count": "0",
+              "milestones": []
+            },
+            "fees": {
+              "rawBPS": "0",
+              "effectiveBPS": "0",
+              "rawTreasury": "",
+              "fallbackTreasury": "",
+              "effectiveTreasury": ""
+            }
+          }
+        },
+        "category": "financial",
+        "status": "VOTING",
+        "qualified": false,
+        "ready": false,
+        "votingClosed": false,
+        "talliesAvailable": true,
+        "weightYes": 0,
+        "peopleYes": 0,
+        "developersYes": 0,
+        "createdAt": "2026-11-14T02:44:15Z",
+        "votingDeadline": "2026-11-21T02:44:15Z",
+        "weightedAfter": null,
+        "developerAfter": null,
+        "invalidation": null
+      }
+    },
+    "op:badges:remove-admin": {
+      "schema": "memba-weighted-host/v12",
+      "kind": "proposal",
+      "proposal": {
+        "id": "77",
         "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
         "action": {
           "type": "badges",
@@ -4759,7 +4862,7 @@
       "schema": "memba-weighted-host/v12",
       "kind": "proposal",
       "proposal": {
-        "id": "77",
+        "id": "78",
         "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
         "action": {
           "type": "badges",
@@ -4798,7 +4901,7 @@
       "schema": "memba-weighted-host/v12",
       "kind": "proposal",
       "proposal": {
-        "id": "78",
+        "id": "79",
         "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
         "action": {
           "type": "feed",
@@ -4837,7 +4940,7 @@
       "schema": "memba-weighted-host/v12",
       "kind": "proposal",
       "proposal": {
-        "id": "79",
+        "id": "80",
         "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
         "action": {
           "type": "feed",
@@ -4876,7 +4979,7 @@
       "schema": "memba-weighted-host/v12",
       "kind": "proposal",
       "proposal": {
-        "id": "80",
+        "id": "81",
         "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
         "action": {
           "type": "channels",
@@ -4929,7 +5032,7 @@
       "schema": "memba-weighted-host/v12",
       "kind": "proposal",
       "proposal": {
-        "id": "81",
+        "id": "82",
         "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
         "action": {
           "type": "channels",
@@ -4982,7 +5085,7 @@
       "schema": "memba-weighted-host/v12",
       "kind": "proposal",
       "proposal": {
-        "id": "82",
+        "id": "83",
         "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
         "action": {
           "type": "channels",
@@ -5035,7 +5138,7 @@
       "schema": "memba-weighted-host/v12",
       "kind": "proposal",
       "proposal": {
-        "id": "83",
+        "id": "84",
         "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
         "action": {
           "type": "feedback",
@@ -5088,7 +5191,7 @@
       "schema": "memba-weighted-host/v12",
       "kind": "proposal",
       "proposal": {
-        "id": "84",
+        "id": "85",
         "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
         "action": {
           "type": "feedback",
@@ -5141,7 +5244,7 @@
       "schema": "memba-weighted-host/v12",
       "kind": "proposal",
       "proposal": {
-        "id": "85",
+        "id": "86",
         "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
         "action": {
           "type": "arcade",
@@ -5179,7 +5282,7 @@
       "schema": "memba-weighted-host/v12",
       "kind": "proposal",
       "proposal": {
-        "id": "86",
+        "id": "87",
         "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
         "action": {
           "type": "market-config",
@@ -5214,10 +5317,10 @@
     "catalog_total": {
       "schema": "memba-weighted-host/v12",
       "kind": "proposals",
-      "total": "86",
+      "total": "87",
       "proposals": [
         {
-          "id": "86",
+          "id": "87",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "market-config",
@@ -5249,7 +5352,7 @@
           "invalidation": null
         }
       ],
-      "nextBefore": "86"
+      "nextBefore": "87"
     },
     "ballot_yes": {
       "schema": "memba-weighted-host/v12",
@@ -5320,7 +5423,7 @@
       "voter": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
       "items": [
         {
-          "id": "86",
+          "id": "87",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "market-config",
@@ -5352,7 +5455,7 @@
           "invalidation": null
         },
         {
-          "id": "85",
+          "id": "86",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "arcade",
@@ -5386,7 +5489,7 @@
           "invalidation": null
         },
         {
-          "id": "84",
+          "id": "85",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "feedback",
@@ -5435,7 +5538,7 @@
           "invalidation": null
         },
         {
-          "id": "83",
+          "id": "84",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "feedback",
@@ -5484,7 +5587,7 @@
           "invalidation": null
         },
         {
-          "id": "82",
+          "id": "83",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "channels",
@@ -5533,7 +5636,7 @@
           "invalidation": null
         },
         {
-          "id": "81",
+          "id": "82",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "channels",
@@ -5582,7 +5685,7 @@
           "invalidation": null
         },
         {
-          "id": "80",
+          "id": "81",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "channels",
@@ -5631,7 +5734,7 @@
           "invalidation": null
         },
         {
-          "id": "79",
+          "id": "80",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "feed",
@@ -5666,7 +5769,7 @@
           "invalidation": null
         },
         {
-          "id": "78",
+          "id": "79",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "feed",
@@ -5701,7 +5804,7 @@
           "invalidation": null
         },
         {
-          "id": "77",
+          "id": "78",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "badges",
@@ -5736,7 +5839,7 @@
           "invalidation": null
         },
         {
-          "id": "76",
+          "id": "77",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "badges",
@@ -5771,11 +5874,64 @@
           "invalidation": null
         },
         {
+          "id": "76",
+          "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
+          "action": {
+            "type": "escrow",
+            "target": "gno.land/r/samcrew/escrow_v4",
+            "operation": "set-fee-recipient",
+            "recipient": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqq755rca3x",
+            "contractId": "",
+            "milestoneIndex": null,
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+              "pendingFeeRecipient": "",
+              "paused": false,
+              "pausedAt": "0",
+              "exitsReopenAt": "0",
+              "cooldownUntil": "183525",
+              "contract": {
+                "exists": false,
+                "id": "",
+                "contentHash": "",
+                "status": "",
+                "client": "",
+                "freelancer": "",
+                "count": "0",
+                "milestones": []
+              },
+              "fees": {
+                "rawBPS": "0",
+                "effectiveBPS": "0",
+                "rawTreasury": "",
+                "fallbackTreasury": "",
+                "effectiveTreasury": ""
+              }
+            }
+          },
+          "category": "financial",
+          "status": "VOTING",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 0,
+          "peopleYes": 0,
+          "developersYes": 0,
+          "createdAt": "2026-11-14T02:44:15Z",
+          "votingDeadline": "2026-11-21T02:44:15Z",
+          "weightedAfter": null,
+          "developerAfter": null,
+          "invalidation": null
+        },
+        {
           "id": "75",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "escrow",
-            "target": "gno.land/r/samcrew/escrow_v3",
+            "target": "gno.land/r/samcrew/escrow_v4",
             "operation": "pay-freelancer",
             "recipient": "",
             "contractId": "0",
@@ -5783,18 +5939,23 @@
             "before": {
               "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
               "pendingOwner": "",
+              "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+              "pendingFeeRecipient": "",
               "paused": false,
+              "pausedAt": "0",
+              "exitsReopenAt": "0",
+              "cooldownUntil": "183525",
               "contract": {
                 "exists": true,
                 "id": "0",
-                "contentHash": "065b2d92630d575df06f4639856288c0353700ec4c659bc5fef3d95aba60c695",
+                "contentHash": "7782d9a767ff098e40790bf6de92dd01d57f715e02a986d9da575d98003f6a99",
                 "status": "disputed",
                 "client": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqazvrz89g",
                 "freelancer": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqavwc9w8z",
                 "count": "1",
                 "milestones": [
                   {
-                    "id": "1",
+                    "id": "0",
                     "amount": "1000000",
                     "status": "disputed",
                     "fundedAt": "282",
@@ -5833,7 +5994,7 @@
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "escrow",
-            "target": "gno.land/r/samcrew/escrow_v3",
+            "target": "gno.land/r/samcrew/escrow_v4",
             "operation": "refund-client",
             "recipient": "",
             "contractId": "0",
@@ -5841,18 +6002,23 @@
             "before": {
               "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
               "pendingOwner": "",
+              "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+              "pendingFeeRecipient": "",
               "paused": false,
+              "pausedAt": "0",
+              "exitsReopenAt": "0",
+              "cooldownUntil": "183525",
               "contract": {
                 "exists": true,
                 "id": "0",
-                "contentHash": "065b2d92630d575df06f4639856288c0353700ec4c659bc5fef3d95aba60c695",
+                "contentHash": "7782d9a767ff098e40790bf6de92dd01d57f715e02a986d9da575d98003f6a99",
                 "status": "disputed",
                 "client": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqazvrz89g",
                 "freelancer": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqavwc9w8z",
                 "count": "1",
                 "milestones": [
                   {
-                    "id": "1",
+                    "id": "0",
                     "amount": "1000000",
                     "status": "disputed",
                     "fundedAt": "282",
@@ -6173,64 +6339,16 @@
           "weightedAfter": null,
           "developerAfter": null,
           "invalidation": null
-        },
-        {
-          "id": "67",
-          "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
-          "action": {
-            "type": "appstore",
-            "target": "gno.land/r/samcrew/memba_appstore_v3",
-            "operation": "set-treasury",
-            "recipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
-            "fee": "0",
-            "path": "",
-            "reason": "",
-            "before": {
-              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
-              "pendingOwner": "",
-              "treasury": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
-              "fee": "1000000",
-              "paused": false,
-              "sealed": false,
-              "ownerCurator": true,
-              "daoCurator": true,
-              "successorCurator": false,
-              "subjectCurator": false,
-              "listing": {
-                "exists": false,
-                "contentHash": "",
-                "status": "",
-                "reason": "",
-                "credit": false,
-                "flags": "0",
-                "clearKeys": ""
-              }
-            }
-          },
-          "category": "financial",
-          "status": "VOTING",
-          "qualified": false,
-          "ready": false,
-          "votingClosed": false,
-          "talliesAvailable": true,
-          "weightYes": 0,
-          "peopleYes": 0,
-          "developersYes": 0,
-          "createdAt": "2026-11-14T02:44:15Z",
-          "votingDeadline": "2026-11-21T02:44:15Z",
-          "weightedAfter": null,
-          "developerAfter": null,
-          "invalidation": null
         }
       ],
-      "next": "67"
+      "next": "68"
     },
     "pending_voted_some": {
       "schema": "memba-weighted-host/v12",
       "voter": "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c",
       "items": [
         {
-          "id": "86",
+          "id": "87",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "market-config",
@@ -6262,7 +6380,7 @@
           "invalidation": null
         },
         {
-          "id": "85",
+          "id": "86",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "arcade",
@@ -6296,7 +6414,7 @@
           "invalidation": null
         },
         {
-          "id": "84",
+          "id": "85",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "feedback",
@@ -6345,7 +6463,7 @@
           "invalidation": null
         },
         {
-          "id": "83",
+          "id": "84",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "feedback",
@@ -6394,7 +6512,7 @@
           "invalidation": null
         },
         {
-          "id": "82",
+          "id": "83",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "channels",
@@ -6443,7 +6561,7 @@
           "invalidation": null
         },
         {
-          "id": "81",
+          "id": "82",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "channels",
@@ -6492,7 +6610,7 @@
           "invalidation": null
         },
         {
-          "id": "80",
+          "id": "81",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "channels",
@@ -6541,7 +6659,7 @@
           "invalidation": null
         },
         {
-          "id": "79",
+          "id": "80",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "feed",
@@ -6576,7 +6694,7 @@
           "invalidation": null
         },
         {
-          "id": "78",
+          "id": "79",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "feed",
@@ -6611,7 +6729,7 @@
           "invalidation": null
         },
         {
-          "id": "77",
+          "id": "78",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "badges",
@@ -6646,7 +6764,7 @@
           "invalidation": null
         },
         {
-          "id": "76",
+          "id": "77",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "badges",
@@ -6681,11 +6799,64 @@
           "invalidation": null
         },
         {
+          "id": "76",
+          "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
+          "action": {
+            "type": "escrow",
+            "target": "gno.land/r/samcrew/escrow_v4",
+            "operation": "set-fee-recipient",
+            "recipient": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqq755rca3x",
+            "contractId": "",
+            "milestoneIndex": null,
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+              "pendingFeeRecipient": "",
+              "paused": false,
+              "pausedAt": "0",
+              "exitsReopenAt": "0",
+              "cooldownUntil": "183525",
+              "contract": {
+                "exists": false,
+                "id": "",
+                "contentHash": "",
+                "status": "",
+                "client": "",
+                "freelancer": "",
+                "count": "0",
+                "milestones": []
+              },
+              "fees": {
+                "rawBPS": "0",
+                "effectiveBPS": "0",
+                "rawTreasury": "",
+                "fallbackTreasury": "",
+                "effectiveTreasury": ""
+              }
+            }
+          },
+          "category": "financial",
+          "status": "VOTING",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 0,
+          "peopleYes": 0,
+          "developersYes": 0,
+          "createdAt": "2026-11-14T02:44:15Z",
+          "votingDeadline": "2026-11-21T02:44:15Z",
+          "weightedAfter": null,
+          "developerAfter": null,
+          "invalidation": null
+        },
+        {
           "id": "75",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "escrow",
-            "target": "gno.land/r/samcrew/escrow_v3",
+            "target": "gno.land/r/samcrew/escrow_v4",
             "operation": "pay-freelancer",
             "recipient": "",
             "contractId": "0",
@@ -6693,18 +6864,23 @@
             "before": {
               "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
               "pendingOwner": "",
+              "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+              "pendingFeeRecipient": "",
               "paused": false,
+              "pausedAt": "0",
+              "exitsReopenAt": "0",
+              "cooldownUntil": "183525",
               "contract": {
                 "exists": true,
                 "id": "0",
-                "contentHash": "065b2d92630d575df06f4639856288c0353700ec4c659bc5fef3d95aba60c695",
+                "contentHash": "7782d9a767ff098e40790bf6de92dd01d57f715e02a986d9da575d98003f6a99",
                 "status": "disputed",
                 "client": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqazvrz89g",
                 "freelancer": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqavwc9w8z",
                 "count": "1",
                 "milestones": [
                   {
-                    "id": "1",
+                    "id": "0",
                     "amount": "1000000",
                     "status": "disputed",
                     "fundedAt": "282",
@@ -6743,7 +6919,7 @@
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "escrow",
-            "target": "gno.land/r/samcrew/escrow_v3",
+            "target": "gno.land/r/samcrew/escrow_v4",
             "operation": "refund-client",
             "recipient": "",
             "contractId": "0",
@@ -6751,18 +6927,23 @@
             "before": {
               "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
               "pendingOwner": "",
+              "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+              "pendingFeeRecipient": "",
               "paused": false,
+              "pausedAt": "0",
+              "exitsReopenAt": "0",
+              "cooldownUntil": "183525",
               "contract": {
                 "exists": true,
                 "id": "0",
-                "contentHash": "065b2d92630d575df06f4639856288c0353700ec4c659bc5fef3d95aba60c695",
+                "contentHash": "7782d9a767ff098e40790bf6de92dd01d57f715e02a986d9da575d98003f6a99",
                 "status": "disputed",
                 "client": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqazvrz89g",
                 "freelancer": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqavwc9w8z",
                 "count": "1",
                 "milestones": [
                   {
-                    "id": "1",
+                    "id": "0",
                     "amount": "1000000",
                     "status": "disputed",
                     "fundedAt": "282",
@@ -7388,7 +7569,7 @@
       "voter": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
       "items": [
         {
-          "id": "86",
+          "id": "87",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "market-config",
@@ -7420,14 +7601,14 @@
           "invalidation": null
         }
       ],
-      "next": "86"
+      "next": "87"
     },
     "pending_clamp_high": {
       "schema": "memba-weighted-host/v12",
       "voter": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
       "items": [
         {
-          "id": "86",
+          "id": "87",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "market-config",
@@ -7459,7 +7640,7 @@
           "invalidation": null
         },
         {
-          "id": "85",
+          "id": "86",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "arcade",
@@ -7493,7 +7674,7 @@
           "invalidation": null
         },
         {
-          "id": "84",
+          "id": "85",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "feedback",
@@ -7542,7 +7723,7 @@
           "invalidation": null
         },
         {
-          "id": "83",
+          "id": "84",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "feedback",
@@ -7591,7 +7772,7 @@
           "invalidation": null
         },
         {
-          "id": "82",
+          "id": "83",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "channels",
@@ -7640,7 +7821,7 @@
           "invalidation": null
         },
         {
-          "id": "81",
+          "id": "82",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "channels",
@@ -7689,7 +7870,7 @@
           "invalidation": null
         },
         {
-          "id": "80",
+          "id": "81",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "channels",
@@ -7738,7 +7919,7 @@
           "invalidation": null
         },
         {
-          "id": "79",
+          "id": "80",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "feed",
@@ -7773,7 +7954,7 @@
           "invalidation": null
         },
         {
-          "id": "78",
+          "id": "79",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "feed",
@@ -7808,7 +7989,7 @@
           "invalidation": null
         },
         {
-          "id": "77",
+          "id": "78",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "badges",
@@ -7843,7 +8024,7 @@
           "invalidation": null
         },
         {
-          "id": "76",
+          "id": "77",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "badges",
@@ -7878,11 +8059,64 @@
           "invalidation": null
         },
         {
+          "id": "76",
+          "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
+          "action": {
+            "type": "escrow",
+            "target": "gno.land/r/samcrew/escrow_v4",
+            "operation": "set-fee-recipient",
+            "recipient": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqq755rca3x",
+            "contractId": "",
+            "milestoneIndex": null,
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+              "pendingFeeRecipient": "",
+              "paused": false,
+              "pausedAt": "0",
+              "exitsReopenAt": "0",
+              "cooldownUntil": "183525",
+              "contract": {
+                "exists": false,
+                "id": "",
+                "contentHash": "",
+                "status": "",
+                "client": "",
+                "freelancer": "",
+                "count": "0",
+                "milestones": []
+              },
+              "fees": {
+                "rawBPS": "0",
+                "effectiveBPS": "0",
+                "rawTreasury": "",
+                "fallbackTreasury": "",
+                "effectiveTreasury": ""
+              }
+            }
+          },
+          "category": "financial",
+          "status": "VOTING",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 0,
+          "peopleYes": 0,
+          "developersYes": 0,
+          "createdAt": "2026-11-14T02:44:15Z",
+          "votingDeadline": "2026-11-21T02:44:15Z",
+          "weightedAfter": null,
+          "developerAfter": null,
+          "invalidation": null
+        },
+        {
           "id": "75",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "escrow",
-            "target": "gno.land/r/samcrew/escrow_v3",
+            "target": "gno.land/r/samcrew/escrow_v4",
             "operation": "pay-freelancer",
             "recipient": "",
             "contractId": "0",
@@ -7890,18 +8124,23 @@
             "before": {
               "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
               "pendingOwner": "",
+              "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+              "pendingFeeRecipient": "",
               "paused": false,
+              "pausedAt": "0",
+              "exitsReopenAt": "0",
+              "cooldownUntil": "183525",
               "contract": {
                 "exists": true,
                 "id": "0",
-                "contentHash": "065b2d92630d575df06f4639856288c0353700ec4c659bc5fef3d95aba60c695",
+                "contentHash": "7782d9a767ff098e40790bf6de92dd01d57f715e02a986d9da575d98003f6a99",
                 "status": "disputed",
                 "client": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqazvrz89g",
                 "freelancer": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqavwc9w8z",
                 "count": "1",
                 "milestones": [
                   {
-                    "id": "1",
+                    "id": "0",
                     "amount": "1000000",
                     "status": "disputed",
                     "fundedAt": "282",
@@ -7940,7 +8179,7 @@
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "escrow",
-            "target": "gno.land/r/samcrew/escrow_v3",
+            "target": "gno.land/r/samcrew/escrow_v4",
             "operation": "refund-client",
             "recipient": "",
             "contractId": "0",
@@ -7948,18 +8187,23 @@
             "before": {
               "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
               "pendingOwner": "",
+              "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+              "pendingFeeRecipient": "",
               "paused": false,
+              "pausedAt": "0",
+              "exitsReopenAt": "0",
+              "cooldownUntil": "183525",
               "contract": {
                 "exists": true,
                 "id": "0",
-                "contentHash": "065b2d92630d575df06f4639856288c0353700ec4c659bc5fef3d95aba60c695",
+                "contentHash": "7782d9a767ff098e40790bf6de92dd01d57f715e02a986d9da575d98003f6a99",
                 "status": "disputed",
                 "client": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqazvrz89g",
                 "freelancer": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqavwc9w8z",
                 "count": "1",
                 "milestones": [
                   {
-                    "id": "1",
+                    "id": "0",
                     "amount": "1000000",
                     "status": "disputed",
                     "fundedAt": "282",
@@ -8615,6 +8859,54 @@
       "voter": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
       "items": [
         {
+          "id": "67",
+          "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
+          "action": {
+            "type": "appstore",
+            "target": "gno.land/r/samcrew/memba_appstore_v3",
+            "operation": "set-treasury",
+            "recipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+            "fee": "0",
+            "path": "",
+            "reason": "",
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "treasury": "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf",
+              "fee": "1000000",
+              "paused": false,
+              "sealed": false,
+              "ownerCurator": true,
+              "daoCurator": true,
+              "successorCurator": false,
+              "subjectCurator": false,
+              "listing": {
+                "exists": false,
+                "contentHash": "",
+                "status": "",
+                "reason": "",
+                "credit": false,
+                "flags": "0",
+                "clearKeys": ""
+              }
+            }
+          },
+          "category": "financial",
+          "status": "VOTING",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 0,
+          "peopleYes": 0,
+          "developersYes": 0,
+          "createdAt": "2026-11-14T02:44:15Z",
+          "votingDeadline": "2026-11-21T02:44:15Z",
+          "weightedAfter": null,
+          "developerAfter": null,
+          "invalidation": null
+        },
+        {
           "id": "66",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
@@ -8893,14 +9185,14 @@
       "schema": "memba-weighted-host/v12",
       "voter": "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c",
       "items": [],
-      "next": "92"
+      "next": "93"
     },
     "pending_after_cap": {
       "schema": "memba-weighted-host/v12",
       "voter": "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c",
       "items": [
         {
-          "id": "86",
+          "id": "87",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "market-config",
@@ -8932,7 +9224,7 @@
           "invalidation": null
         },
         {
-          "id": "85",
+          "id": "86",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "arcade",
@@ -8966,7 +9258,7 @@
           "invalidation": null
         },
         {
-          "id": "84",
+          "id": "85",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "feedback",
@@ -9015,7 +9307,7 @@
           "invalidation": null
         },
         {
-          "id": "83",
+          "id": "84",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "feedback",
@@ -9064,7 +9356,7 @@
           "invalidation": null
         },
         {
-          "id": "82",
+          "id": "83",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "channels",
@@ -9113,7 +9405,7 @@
           "invalidation": null
         },
         {
-          "id": "81",
+          "id": "82",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "channels",
@@ -9162,7 +9454,7 @@
           "invalidation": null
         },
         {
-          "id": "80",
+          "id": "81",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "channels",
@@ -9211,7 +9503,7 @@
           "invalidation": null
         },
         {
-          "id": "79",
+          "id": "80",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "feed",
@@ -9246,7 +9538,7 @@
           "invalidation": null
         },
         {
-          "id": "78",
+          "id": "79",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "feed",
@@ -9281,7 +9573,7 @@
           "invalidation": null
         },
         {
-          "id": "77",
+          "id": "78",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "badges",
@@ -9316,7 +9608,7 @@
           "invalidation": null
         },
         {
-          "id": "76",
+          "id": "77",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "badges",
@@ -9351,11 +9643,64 @@
           "invalidation": null
         },
         {
+          "id": "76",
+          "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
+          "action": {
+            "type": "escrow",
+            "target": "gno.land/r/samcrew/escrow_v4",
+            "operation": "set-fee-recipient",
+            "recipient": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqq755rca3x",
+            "contractId": "",
+            "milestoneIndex": null,
+            "before": {
+              "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
+              "pendingOwner": "",
+              "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+              "pendingFeeRecipient": "",
+              "paused": false,
+              "pausedAt": "0",
+              "exitsReopenAt": "0",
+              "cooldownUntil": "183525",
+              "contract": {
+                "exists": false,
+                "id": "",
+                "contentHash": "",
+                "status": "",
+                "client": "",
+                "freelancer": "",
+                "count": "0",
+                "milestones": []
+              },
+              "fees": {
+                "rawBPS": "0",
+                "effectiveBPS": "0",
+                "rawTreasury": "",
+                "fallbackTreasury": "",
+                "effectiveTreasury": ""
+              }
+            }
+          },
+          "category": "financial",
+          "status": "VOTING",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 0,
+          "peopleYes": 0,
+          "developersYes": 0,
+          "createdAt": "2026-11-14T02:44:15Z",
+          "votingDeadline": "2026-11-21T02:44:15Z",
+          "weightedAfter": null,
+          "developerAfter": null,
+          "invalidation": null
+        },
+        {
           "id": "75",
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "escrow",
-            "target": "gno.land/r/samcrew/escrow_v3",
+            "target": "gno.land/r/samcrew/escrow_v4",
             "operation": "pay-freelancer",
             "recipient": "",
             "contractId": "0",
@@ -9363,18 +9708,23 @@
             "before": {
               "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
               "pendingOwner": "",
+              "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+              "pendingFeeRecipient": "",
               "paused": false,
+              "pausedAt": "0",
+              "exitsReopenAt": "0",
+              "cooldownUntil": "183525",
               "contract": {
                 "exists": true,
                 "id": "0",
-                "contentHash": "065b2d92630d575df06f4639856288c0353700ec4c659bc5fef3d95aba60c695",
+                "contentHash": "7782d9a767ff098e40790bf6de92dd01d57f715e02a986d9da575d98003f6a99",
                 "status": "disputed",
                 "client": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqazvrz89g",
                 "freelancer": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqavwc9w8z",
                 "count": "1",
                 "milestones": [
                   {
-                    "id": "1",
+                    "id": "0",
                     "amount": "1000000",
                     "status": "disputed",
                     "fundedAt": "282",
@@ -9413,7 +9763,7 @@
           "proposer": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
           "action": {
             "type": "escrow",
-            "target": "gno.land/r/samcrew/escrow_v3",
+            "target": "gno.land/r/samcrew/escrow_v4",
             "operation": "refund-client",
             "recipient": "",
             "contractId": "0",
@@ -9421,18 +9771,23 @@
             "before": {
               "owner": "g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8",
               "pendingOwner": "",
+              "feeRecipient": "g1jw76lxvzjafw2kyjhdnzwggcftyhnlfjaer2u0",
+              "pendingFeeRecipient": "",
               "paused": false,
+              "pausedAt": "0",
+              "exitsReopenAt": "0",
+              "cooldownUntil": "183525",
               "contract": {
                 "exists": true,
                 "id": "0",
-                "contentHash": "065b2d92630d575df06f4639856288c0353700ec4c659bc5fef3d95aba60c695",
+                "contentHash": "7782d9a767ff098e40790bf6de92dd01d57f715e02a986d9da575d98003f6a99",
                 "status": "disputed",
                 "client": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqazvrz89g",
                 "freelancer": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqavwc9w8z",
                 "count": "1",
                 "milestones": [
                   {
-                    "id": "1",
+                    "id": "0",
                     "amount": "1000000",
                     "status": "disputed",
                     "fundedAt": "282",
@@ -10058,6 +10413,30 @@
       "voter": "g1cvr48r7l7lkmvp77cr6zg2zhu26jgfwr0y8pew",
       "items": [
         {
+          "id": "292",
+          "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+          "action": {
+            "type": "set-role",
+            "target": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
+            "role": "finance",
+            "grant": true
+          },
+          "category": "critical",
+          "status": "VOTING",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": true,
+          "weightYes": 2,
+          "peopleYes": 1,
+          "developersYes": 0,
+          "createdAt": "2026-11-14T02:46:25Z",
+          "votingDeadline": "2026-11-21T02:46:25Z",
+          "weightedAfter": null,
+          "developerAfter": null,
+          "invalidation": null
+        },
+        {
           "id": "291",
           "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
           "action": {
@@ -10104,33 +10483,9 @@
           "weightedAfter": null,
           "developerAfter": null,
           "invalidation": null
-        },
-        {
-          "id": "289",
-          "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
-          "action": {
-            "type": "set-role",
-            "target": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
-            "role": "finance",
-            "grant": true
-          },
-          "category": "critical",
-          "status": "VOTING",
-          "qualified": false,
-          "ready": false,
-          "votingClosed": false,
-          "talliesAvailable": true,
-          "weightYes": 2,
-          "peopleYes": 1,
-          "developersYes": 0,
-          "createdAt": "2026-11-14T02:46:25Z",
-          "votingDeadline": "2026-11-21T02:46:25Z",
-          "weightedAfter": null,
-          "developerAfter": null,
-          "invalidation": null
         }
       ],
-      "next": "289"
+      "next": "290"
     },
     "members_recovered": {
       "schema": "memba-weighted-host/v12",
@@ -10198,7 +10553,7 @@
       "schema": "memba-weighted-host/v12",
       "kind": "proposal",
       "proposal": {
-        "id": "292",
+        "id": "293",
         "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
         "action": {
           "type": "recover-member",
@@ -10250,14 +10605,14 @@
         "invalidation": {
           "cause": "superseded-execution",
           "height": "286",
-          "proposalId": "292",
+          "proposalId": "293",
           "target": null
         }
       }
     },
     "ballot_old_key_before": {
       "schema": "memba-weighted-host/v12",
-      "proposalId": "292",
+      "proposalId": "293",
       "voter": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
       "eligible": true,
       "choice": "yes",
@@ -10265,7 +10620,7 @@
     },
     "ballot_old_key_after": {
       "schema": "memba-weighted-host/v12",
-      "proposalId": "293",
+      "proposalId": "294",
       "voter": "g1jjeuv48j3pmsmnvga8jwfnc2amfyv9c30zx04y",
       "eligible": false,
       "choice": null,
@@ -10273,7 +10628,7 @@
     },
     "ballot_new_key_before": {
       "schema": "memba-weighted-host/v12",
-      "proposalId": "292",
+      "proposalId": "293",
       "voter": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquyl3wcje",
       "eligible": false,
       "choice": null,
@@ -10281,7 +10636,7 @@
     },
     "ballot_new_key_after": {
       "schema": "memba-weighted-host/v12",
-      "proposalId": "293",
+      "proposalId": "294",
       "voter": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquyl3wcje",
       "eligible": true,
       "choice": null,
@@ -10298,7 +10653,7 @@
       "voter": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquyl3wcje",
       "items": [
         {
-          "id": "293",
+          "id": "294",
           "proposer": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquyl3wcje",
           "action": {
             "type": "set-role",
@@ -10328,7 +10683,7 @@
       "schema": "memba-weighted-host/v12",
       "kind": "proposal",
       "proposal": {
-        "id": "293",
+        "id": "294",
         "proposer": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquyl3wcje",
         "action": {
           "type": "set-role",
@@ -10355,10 +10710,10 @@
     "proposals_final": {
       "schema": "memba-weighted-host/v12",
       "kind": "proposals",
-      "total": "293",
+      "total": "294",
       "proposals": [
         {
-          "id": "293",
+          "id": "294",
           "proposer": "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquyl3wcje",
           "action": {
             "type": "set-role",
@@ -10382,7 +10737,7 @@
           "invalidation": null
         },
         {
-          "id": "292",
+          "id": "293",
           "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
           "action": {
             "type": "recover-member",
@@ -10404,6 +10759,35 @@
           "weightedAfter": null,
           "developerAfter": null,
           "invalidation": null
+        },
+        {
+          "id": "292",
+          "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
+          "action": {
+            "type": "set-role",
+            "target": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
+            "role": "finance",
+            "grant": true
+          },
+          "category": "critical",
+          "status": "INVALIDATED",
+          "qualified": false,
+          "ready": false,
+          "votingClosed": false,
+          "talliesAvailable": false,
+          "weightYes": null,
+          "peopleYes": null,
+          "developersYes": null,
+          "createdAt": "2026-11-14T02:46:25Z",
+          "votingDeadline": "2026-11-21T02:46:25Z",
+          "weightedAfter": null,
+          "developerAfter": null,
+          "invalidation": {
+            "cause": "superseded-execution",
+            "height": "286",
+            "proposalId": "293",
+            "target": null
+          }
         },
         {
           "id": "291",
@@ -10430,7 +10814,7 @@
           "invalidation": {
             "cause": "superseded-execution",
             "height": "286",
-            "proposalId": "292",
+            "proposalId": "293",
             "target": null
           }
         },
@@ -10459,41 +10843,12 @@
           "invalidation": {
             "cause": "superseded-execution",
             "height": "286",
-            "proposalId": "292",
-            "target": null
-          }
-        },
-        {
-          "id": "289",
-          "proposer": "g1lyejwwmxef5tn8nx69saykmgm8rlr4xq9yeh3z",
-          "action": {
-            "type": "set-role",
-            "target": "g12yg9nh4ncma44emgm8msxe8aavzywt0p95tanv",
-            "role": "finance",
-            "grant": true
-          },
-          "category": "critical",
-          "status": "INVALIDATED",
-          "qualified": false,
-          "ready": false,
-          "votingClosed": false,
-          "talliesAvailable": false,
-          "weightYes": null,
-          "peopleYes": null,
-          "developersYes": null,
-          "createdAt": "2026-11-14T02:46:25Z",
-          "votingDeadline": "2026-11-21T02:46:25Z",
-          "weightedAfter": null,
-          "developerAfter": null,
-          "invalidation": {
-            "cause": "superseded-execution",
-            "height": "286",
-            "proposalId": "292",
+            "proposalId": "293",
             "target": null
           }
         }
       ],
-      "nextBefore": "289"
+      "nextBefore": "290"
     },
     "proposal_expired_sticky": {
       "schema": "memba-weighted-host/v12",

@@ -9,6 +9,8 @@
  * action encoders, so a read that the host could not have produced is refused.
  */
 import { z } from "zod"
+import { sha256 } from "@noble/hashes/sha2.js"
+import { bech32Encode } from "./realmAddress"
 import { revealInvisibleFormatting } from "./v2Text"
 import { address, blank, optionalAddress, personID, role, sha256Hex, text, uint64 } from "./weightedPrimitives"
 
@@ -34,7 +36,7 @@ export const APPLICATION_TARGETS = {
     quest: "gno.land/r/samcrew/memba_quest_attestation_v1",
     arcade: "gno.land/r/samcrew/memba_arcade_leaderboard_v1",
     appstore: "gno.land/r/samcrew/memba_appstore_v3",
-    escrow: "gno.land/r/samcrew/escrow_v3",
+    escrow: "gno.land/r/samcrew/escrow_v4",
     badges: "gno.land/r/samcrew/gnobuilders_badges_v2",
     feed: "gno.land/r/samcrew/memba_feed_v1",
     channels: "gno.land/r/samcrew/memba_dao_channels_v2",
@@ -58,7 +60,7 @@ const CATEGORY_WITNESS: Record<string, Record<string, [string, string]>> = {
     questPolicy: { signerCategory: ["quest", "set-signer"] },
     arcadePolicy: { attesterCategory: ["arcade", "add-attester"], unpauseCategory: ["arcade", "unpause"] },
     appstorePolicy: { curatorCategory: ["appstore", "add-curator"], sealCategory: ["appstore", "seal-import"], moderationCategory: ["appstore", "approve"], unpauseCategory: ["appstore", "unpause"] },
-    escrowPolicy: { resolutionCategory: ["escrow", "refund-client"], unpauseCategory: ["escrow", "unpause"] },
+    escrowPolicy: { resolutionCategory: ["escrow", "refund-client"], unpauseCategory: ["escrow", "unpause"], feeRecipientCategory: ["escrow", "set-fee-recipient"] },
     badgesPolicy: { adminCategory: ["badges", "add-admin"], unpauseCategory: ["badges", "unpause"] },
     feedPolicy: { moderatorCategory: ["feed", "add-moderator"], unpauseCategory: ["feed", "unpause"] },
     channelsPolicy: { memberCategory: ["channels", "add-member"], unpauseCategory: ["channels", "unpause"] },
@@ -76,7 +78,7 @@ export const applicationPolicySchemas = {
         target: z.literal(APPLICATION_TARGETS.appstore), treasury: address, maxRegistrationFee: z.literal("100000000"),
         curatorCategory: category, sealCategory: category, moderationCategory: category, ...pausable, ...staged,
     }).refine(categoriesMatch("appstorePolicy"), "Unexpected App Store categories"),
-    escrowPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.escrow), resolutionCategory: category, ...pausable, ...staged }).refine(categoriesMatch("escrowPolicy"), "Unexpected escrow categories"),
+    escrowPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.escrow), resolutionCategory: category, feeRecipientCategory: category, ...pausable, ...staged }).refine(categoriesMatch("escrowPolicy"), "Unexpected escrow categories"),
     badgesPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.badges), adminCategory: category, ...pausable, ...staged }).refine(categoriesMatch("badgesPolicy"), "Unexpected badges categories"),
     feedPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.feed), moderatorCategory: category, ...pausable, ...staged }).refine(categoriesMatch("feedPolicy"), "Unexpected feed categories"),
     channelsPolicy: z.strictObject({ target: z.literal(APPLICATION_TARGETS.channels), memberCategory: category, ...pausable, ...staged }).refine(categoriesMatch("channelsPolicy"), "Unexpected channels categories"),
@@ -155,21 +157,36 @@ const appstoreAction = z.strictObject({
 }, "Malformed app store action")
 
 const escrowNumber = uint64
+/** The on-chain address of a realm: bech32("g", sha256("pkgPath:" + path)[:20]). */
+export function packageAddress(realmPath: string): string {
+    return bech32Encode("g", sha256(new TextEncoder().encode("pkgPath:" + realmPath)).slice(0, 20))
+}
+const ESCROW_ADDRESS = packageAddress(APPLICATION_TARGETS.escrow)
 const escrowAction = z.strictObject({
     type: z.literal("escrow"), target: z.literal(APPLICATION_TARGETS.escrow),
-    operation: z.enum(["accept-owner", ...RETURN_OPS, "unpause", "refund-client", "pay-freelancer"]),
+    operation: z.enum(["accept-owner", ...RETURN_OPS, "unpause", "refund-client", "pay-freelancer", "set-fee-recipient"]),
     // Only the two dispute actions name a milestone; it is null everywhere else.
     recipient: optionalAddress, contractId: z.union([blank, uint64]), milestoneIndex: escrowNumber.refine(s => BigInt(s) < 20n).nullable(),
+    // escrow_v4 pre-state. The height-derived exitsOpen and pausedBlocks are
+    // deliberately not frozen, so they must not appear here.
     before: z.strictObject({
-        ...ownerState,
+        owner: address, pendingOwner: optionalAddress, feeRecipient: address, pendingFeeRecipient: optionalAddress,
+        paused: z.boolean(), pausedAt: uint64, exitsReopenAt: uint64, cooldownUntil: uint64,
         contract: z.strictObject({
             exists: z.boolean(), id: z.union([blank, uint64]), contentHash: z.union([blank, sha256Hex]), status: text(64), client: optionalAddress, freelancer: optionalAddress, count: escrowNumber,
             milestones: z.array(z.strictObject({ id: escrowNumber, amount: escrowNumber, status: text(64), fundedAt: escrowNumber, completedAt: escrowNumber, disputedAt: escrowNumber, preDisputeStatus: text(64) })).max(20),
-        }).refine(c => BigInt(c.count) === BigInt(c.milestones.length), "Escrow milestone count mismatch"),
+        // escrow_v4 numbers each milestone by its index.
+        }).refine(c => BigInt(c.count) === BigInt(c.milestones.length) && c.milestones.every((m, i) => m.id === String(i)), "Escrow milestone count or IDs mismatch"),
         fees: z.strictObject({ rawBPS: escrowNumber, effectiveBPS: escrowNumber, rawTreasury: optionalAddress, fallbackTreasury: optionalAddress, effectiveTreasury: optionalAddress }),
-    }),
+    }).refine(s => s.paused ? BigInt(s.pausedAt) > 0n && BigInt(s.exitsReopenAt) > BigInt(s.pausedAt) : s.pausedAt === "0" && s.exitsReopenAt === "0", "Inconsistent escrow pause state"),
 }).refine(a => {
-    // Contract IDs start at "0" (escrow_v3 allocates from a zero-valued counter).
+    // Contract IDs start at "0" (the escrow realm allocates from a zero-valued counter).
+    if (a.operation === "set-fee-recipient") {
+        // Stages a new fallback fee recipient; never the escrow realm itself
+        // (the DAO is checked against the config's realm path), never a no-op.
+        const s = a.before
+        return a.recipient !== "" && a.contractId === "" && a.milestoneIndex === null && a.recipient !== ESCROW_ADDRESS && a.recipient !== s.feeRecipient && a.recipient !== s.pendingFeeRecipient
+    }
     if (has(["refund-client", "pay-freelancer"], a.operation)) {
         const c = a.before.contract
         return a.milestoneIndex !== null && a.contractId !== "" && a.recipient === "" && c.exists && c.id === a.contractId && BigInt(a.milestoneIndex) < BigInt(c.count)
@@ -225,7 +242,7 @@ export function expectedCategory(action: { type: string; operation?: string }): 
             if (has(APPSTORE_LISTING, op)) return "routine"
             return has(["set-fee", "set-treasury", "unpause"], op) ? "financial" : "critical"
         case "market-config": return has(["set-fee", "set-treasury"], op) ? "financial" : "critical"
-        case "escrow": return has(["refund-client", "pay-freelancer", "unpause"], op) ? "financial" : "critical"
+        case "escrow": return has(["refund-client", "pay-freelancer", "unpause", "set-fee-recipient"], op) ? "financial" : "critical"
         case "arcade": case "badges": case "feed": case "channels": case "feedback": return op === "unpause" ? "financial" : "critical"
         default: return "critical"
     }
@@ -238,10 +255,12 @@ const POLICY_FOR: Record<WeightedApplicationAction["type"], ApplicationPolicyKey
 export function policyKeyFor(action: WeightedApplicationAction): ApplicationPolicyKey { return POLICY_FOR[action.type] }
 
 /** Configured destinations bind every staged return and treasury change. */
-export function applicationActionMatchesPolicy(action: WeightedApplicationAction, policies: { [K in ApplicationPolicyKey]: z.infer<(typeof applicationPolicySchemas)[K]> }): boolean {
+export function applicationActionMatchesPolicy(action: WeightedApplicationAction, policies: { [K in ApplicationPolicyKey]: z.infer<(typeof applicationPolicySchemas)[K]> } & { realmPath: string }): boolean {
     const policy = policies[POLICY_FOR[action.type]]
     if (action.target !== policy.target) return false
     const op = action.operation
+    // The DAO has no withdrawal path: fees sent to it would be trapped.
+    if (op === "set-fee-recipient") return action.recipient !== packageAddress(policies.realmPath)
     if (op === "return-owner" || op === "return-admin" || op === "return-moderator" || op === "abort-return") return "recipient" in action && action.recipient === policy.successor
     if (op === "set-treasury" && "treasury" in policy) return action.recipient === policy.treasury
     return true

@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Read the mainnet weighted DAO (2026-09-24)
+<!-- categories: memba, network -->
+- **The weighted DAO workspace reads the mainnet governing DAO contract (`memba-weighted-host/v12`).** It shows the ten fixed application adapters (market config, reviews, quests, arcade, App Store, escrow on `escrow_v4` with its fee-recipient rotation, badges, feed, channels, feedback) with their targets, successors and categories, and each proposal's category, operation and the target state frozen when it was proposed. Routine and financial proposals are shown as ready as soon as they qualify; critical ones keep their 24 hour and 72 hour routes. Open proposals warn that executing them invalidates every other outstanding proposal.
+- **Strict by version.** Versions 1 and 2 keep their exact contracts; unknown versions, unknown adapters or operations, and any category the contract would not assign are refused, never shown as prose. Tests use verbatim reads of the generated realm run on the gnoland-1 Gno version, with a proposal for every operation the contract can encode.
+- **One entry point.** Opening a weighted DAO from the DAO pages goes to its workspace. Memba builds no transaction for this contract version on any network yet.
+- **Your own ballot, read-only.** With a wallet connected, each proposal says whether you voted (and how), have not voted, or are not eligible, using the electorate frozen when it was proposed. Weighted DAOs now appear in Quick Vote and the home action inbox as read-only items that link to the workspace, with no vote buttons. Invalidated proposals say which proposal or pause invalidated them, and at which block.
+- **Hard to spoof, hard to break.** Text copied from target realms (app paths, reasons, room names, person IDs) shows hidden and direction-changing characters as `[U+XXXX]`. A single proposal Memba cannot validate is listed as "Unreadable proposal #N" while the rest of the list stays readable.
 ### Multisig import and lists stick to the right members and network (2026-09-24)
 <!-- categories: memba, network -->
 - **Invited members can import a multisig by address.** Import by address said "You are not a member" to anyone who had not joined yet. Any address in the multisig's key set can now load it; other addresses are still refused.
@@ -164,13 +171,6 @@ Full changelogs are split by version range for easier navigation:
 - Onboarding no longer promises "85 quests" or the 10-model AI Analyst, which is switched off in production; the Social Feed takes its place.
 - Home's Your Assets panel labels the balance with the active network and links a faucet only where one exists. Mainnet has none.
 
-### Read the mainnet weighted DAO (2026-09-24)
-<!-- categories: memba, network -->
-- **The weighted DAO workspace reads the mainnet governing DAO contract (`memba-weighted-host/v12`).** It shows the ten fixed application adapters (market config, reviews, quests, arcade, App Store, escrow, badges, feed, channels, feedback) with their targets, successors and categories, and each proposal's category, operation and the target state frozen when it was proposed. Routine and financial proposals are shown as ready as soon as they qualify; critical ones keep their 24 hour and 72 hour routes. Open proposals warn that executing them invalidates every other outstanding proposal.
-- **Strict by version.** Versions 1 and 2 keep their exact contracts; unknown versions, unknown adapters or operations, and any category the contract would not assign are refused, never shown as prose. Tests use verbatim reads of the generated realm run on the gnoland-1 Gno version, with a proposal for every operation the contract can encode.
-- **One entry point.** Opening a weighted DAO from the DAO pages goes to its workspace. Memba builds no transaction for this contract version on any network yet.
-- **Your own ballot, read-only.** With a wallet connected, each proposal says whether you voted (and how), have not voted, or are not eligible, using the electorate frozen when it was proposed. Weighted DAOs now appear in Quick Vote and the home action inbox as read-only items that link to the workspace, with no vote buttons. Invalidated proposals say which proposal or pause invalidated them, and at which block.
-- **Hard to spoof, hard to break.** Text copied from target realms (app paths, reasons, room names, person IDs) shows hidden and direction-changing characters as `[U+XXXX]`. A single proposal Memba cannot validate is listed as "Unreadable proposal #N" while the rest of the list stays readable.
 ### Quest attestation is live on gno.land mainnet (#1283, 2026-09-24)
 <!-- categories: memba, network -->
 - **Quest XP can be recorded on mainnet.** `memba_quest_attestation_v1` is now allowlisted on `gnoland-1`: its owner installed the backend's voucher key with `SetSigner` at height 292610, and the backend signs with that key for `gnoland-1` only. The arcade leaderboard stays off.

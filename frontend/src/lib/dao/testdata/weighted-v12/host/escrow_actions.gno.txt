@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-const EscrowPath = "gno.land/r/samcrew/escrow_v3"
+const EscrowPath = "gno.land/r/samcrew/escrow_v4"
 
 type EscrowActionKind string
 
@@ -17,6 +17,9 @@ const (
 	EscrowUnpause       EscrowActionKind = "unpause"
 	EscrowRefundClient  EscrowActionKind = "refund-client"
 	EscrowPayFreelancer EscrowActionKind = "pay-freelancer"
+	// EscrowSetFeeRecipient stages a new fallback fee recipient (escrow_v4
+	// two-step rotation); the staged address accepts with its own transaction.
+	EscrowSetFeeRecipient EscrowActionKind = "set-fee-recipient"
 )
 
 type EscrowPolicy struct{ dao, successor address }
@@ -48,6 +51,11 @@ func (p EscrowPolicy) AbortReturn() EscrowAction {
 	return EscrowAction{kind: EscrowAbortReturn, recipient: p.successor}
 }
 func EscrowResume() EscrowAction { return EscrowAction{kind: EscrowUnpause} }
+func EscrowFeeRecipient(recipient address) EscrowAction {
+	a := EscrowAction{kind: EscrowSetFeeRecipient, recipient: recipient}
+	a.Bytes()
+	return a
+}
 func EscrowResolution(id string, index int, refund bool) EscrowAction {
 	kind := EscrowPayFreelancer
 	if refund {
@@ -87,13 +95,18 @@ func (a EscrowAction) Bytes() string {
 			panic("invalid escrow return action")
 		}
 		return base + "|" + string(a.recipient)
+	case EscrowSetFeeRecipient:
+		if !a.recipient.IsValid() {
+			panic("invalid escrow fee recipient action")
+		}
+		return base + "|" + string(a.recipient)
 	default:
 		panic("unsupported escrow action")
 	}
 }
 func (a EscrowAction) Category() memba_weighted_policy.Category {
 	a.Bytes()
-	if a.IsResolution() || a.kind == EscrowUnpause {
+	if a.IsResolution() || a.kind == EscrowUnpause || a.kind == EscrowSetFeeRecipient {
 		return memba_weighted_policy.Financial
 	}
 	return memba_weighted_policy.Critical

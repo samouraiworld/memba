@@ -147,7 +147,7 @@ it("renders the v12 adapter policies, categories, operations and frozen state re
     render(<App network="mainnet" address={data.members[1].address} />)
     expect(await screen.findByRole("heading", { name: "Application adapters" })).toBeTruthy()
     expect(screen.getAllByRole("listitem", { name: /adapter$/ })).toHaveLength(10)
-    expect(screen.getByText("Target: gno.land/r/samcrew/escrow_v3")).toBeTruthy()
+    expect(screen.getByText("Target: gno.land/r/samcrew/escrow_v4")).toBeTruthy()
     expect(screen.getByText(/Financial actions .* require/)).toBeTruthy()
     expect(screen.getByText(/Routine moderation requires/)).toBeTruthy()
     expect(screen.getByText(/Mainnet governance is read-only/)).toBeTruthy()

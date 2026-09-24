@@ -11,21 +11,22 @@ governing DAO candidate `gno.land/r/samcrew/memba_dao`, read contract
 | Item | Value |
 |---|---|
 | Gno VM | `gnolang/gno` `e75fef82c02876a4df92ad6e325c5479b9532168` (the gnoland-1 runtime pin), `gno` built with `CGO_ENABLED=0` |
-| `gno` binary SHA-256 | `fcf6996b569331af92622aa85d53a0e12218e9586d60897879788c5854264b85` |
+| `gno` binary SHA-256 | `94ae0155570ae4f7e452c3975298620285dd1eefb0d0d88ab6ecfe32c582877c` |
 | Realm | `gno.land/r/samcrew/memba_dao`, generated from the approved gnoland-1 roster and adapter configuration |
-| Host package | `gno.land/p/samcrew/memba_weighted_host`, `reads.gno` SHA-256 `0d8921f2337bf5b9a04f2a413d69cb97becdfb5289650044e09ac344db3a578c`, `host.gno` SHA-256 `b8687fa6985681099b5d3efca4f82e7160d0c1b47cacacc065e4b2844e856027` |
+| Host package | `gno.land/p/samcrew/memba_weighted_host`, `reads.gno` SHA-256 `0d8921f2337bf5b9a04f2a413d69cb97becdfb5289650044e09ac344db3a578c`, `host.gno` `b8687fa6985681099b5d3efca4f82e7160d0c1b47cacacc065e4b2844e856027`, `escrow_actions.gno` `4d02739adf6cfbc558c02c0ad3e3a777640ca5248f6c96289a0ff30688c98868`, `escrow_host.gno` `36437278418d56a5e6ede4ad528630b9cd399082f082d4ba26e2b959069b890f`, `escrow_reads.gno` `ac8040297eef5399049d33428893c62c93871701f7e4b025f3f10b03218eb684` |
 | Policy package | `gno.land/p/samcrew/memba_weighted_policy`, `policy.gno` SHA-256 `dfeca4ef26bff1f97335d9808e2152a6cb8f64aecea2ce4f3f2ad6da5390e683` |
 
 The twelve generated realm files matched the recorded gnoland-1 candidate
-digests before the run (`realmSha256` in `native.json`; this host build adds
-the ballot reads, so only `memba_dao.gno` changed from the previous capture):
+digests before the run (`realmSha256` in `native.json`). This build adds the
+ballot reads (`memba_dao.gno`) and re-points the escrow adapter at
+`gno.land/r/samcrew/escrow_v4` (`escrow_adapter.gno`):
 
 ```
 b6d10eae19f707c9b9884bfbd685ed8ef79ff2a1410d752be11d85a9b7ae3b5c  appstore_adapter.gno
 a84c69382821031e5cb43d32d1d1ce6012ce71028ee103de415b0fba797c530d  arcade_adapter.gno
 087f3bb72305049d15b61c43effb2348c8cb858244e9d51f72e8013899fc980f  badges_adapter.gno
 2d192580ddf5cea1ff1e90babc92b235e0e094ac73ad154f25e45d87a713d1a6  channels_adapter.gno
-7e3492cd09b906d2bcbdba0173e6727915491729fc4eb189be2ef2e06d2688e7  escrow_adapter.gno
+8899b9e708bb7f12a67dd837eab010223aa4e1cde2421fe39558cc40e87eb3ec  escrow_adapter.gno
 8f9213fbd3a0dca2c4e22a16888b312a8617eb8b73821395073ac480f9d180b3  feed_adapter.gno
 595702fd91e30ed5ee1dfb5d0c87e15ac2d499f5cb45ba38de78cb0a016c1522  feedback_adapter.gno
 234f1774eebb2de700b8f0d71d070b4b923d166dc84a2884825013529313de18  gnomod.toml
@@ -38,7 +39,7 @@ a84c69382821031e5cb43d32d1d1ce6012ce71028ee103de415b0fba797c530d  arcade_adapter
 `packageSha256` records every host and policy source file used. `host/`
 holds verbatim copies of the host's ten `*_actions.gno` encoders and of
 `policy.gno`. The unit tests check each against its recorded digest, derive
-the list of encodable operations from the encoders (69) and require a
+the list of encodable operations from the encoders (70) and require a
 native proposal for every one, and pin the routine/financial thresholds that
 the config JSON does not publish.
 
@@ -70,9 +71,10 @@ Records 1–7 are unchanged by what follows.
    proposed): unpauses, then a return and an abort-return executed for every
    adapter; appointments (attester, admin, moderator, curator, channel and
    feedback members); a comment, a hidden review, two flags on a seeded
-   pending listing, a seeded delisted listing, and an escrow contract `"0"`
-   funded and disputed; emergency pauses of badges, feed and feedback; then
-   one proposal for each remaining operation, all against the same state.
+   pending listing, a seeded delisted listing, and an `escrow_v4` contract
+   `"0"` funded and disputed (its milestone is numbered `"0"`, by index); emergency pauses of badges, feed and feedback; then
+   one proposal for each remaining operation, all against the same state,
+   including the escrow fee-recipient rotation (`op:escrow:set-fee-recipient`).
    Together with records 1–7 this covers every operation the host can encode,
    role grant and removal, and member recovery. `catalog_total` is the final
    proposal count. Before the badges pause, a quest proposal is opened so
