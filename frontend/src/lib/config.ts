@@ -1414,6 +1414,8 @@ export const isNftMarketV3Valid = () => isRealmValid(NFT_MARKETPLACE_V3_PATH)
 /** Phase 2 launchpad — backed by the canonical memba_collections registry. */
 export const isNftLaunchpadValid = () => isRealmValid(MEMBA_DAO.nftCollectionsPath)
 export const isFeedbackValid = () => isRealmValid(FEEDBACK_REALM_PATH)
+/** Memba DAO candidature realm — not deployed on gno.land mainnet (wave 1 deferred it). */
+export const isCandidatureValid = () => isRealmValid(MEMBA_DAO.candidaturePath)
 export const isTokenOtcValid = () => isRealmValid(MEMBA_DAO.tokenOtcPath)
 export const isAgentRegistryValid = () => isRealmValid(MEMBA_DAO.agentRegistryPath)
 

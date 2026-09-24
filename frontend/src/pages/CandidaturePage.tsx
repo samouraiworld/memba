@@ -31,7 +31,7 @@ import {
     MAX_BIO_LENGTH,
     MAX_SKILLS_LENGTH,
 } from "../lib/candidatureTemplate"
-import { MEMBA_DAO, GNO_RPC_URL } from "../lib/config"
+import { MEMBA_DAO, GNO_RPC_URL, isCandidatureValid } from "../lib/config"
 import { doContractBroadcast } from "../lib/grc20"
 import { queryRender, queryEval } from "../lib/dao/shared"
 import type { LayoutContext } from "../types/layout"
@@ -50,6 +50,9 @@ export default function CandidaturePage() {
     const [submitted, setSubmitted] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [actioning, setActioning] = useState<string | null>(null)
+    // No candidature realm on this network (e.g. gno.land mainnet): skip every
+    // read and say so, instead of rendering an empty applications list.
+    const realmValid = isCandidatureValid()
 
     useEffect(() => {
         document.title = "Candidature — Memba"
@@ -61,6 +64,7 @@ export default function CandidaturePage() {
     // the application form on its own. Fails closed: no data → not eligible.
     const eligibilityQuery = useQuery({
         queryKey: ["candidature", "eligibility", auth.address || adena.address || ""],
+        enabled: realmValid,
         queryFn: () => resolveCandidatureEligibility(auth.address || adena.address),
     })
     const eligible = eligibilityQuery.data?.eligible ?? false
@@ -70,6 +74,7 @@ export default function CandidaturePage() {
     // a query failure degrades gracefully to an empty list instead of an error.
     const candidaturesQuery = useQuery({
         queryKey: ["candidature", "list"],
+        enabled: realmValid,
         queryFn: async () => {
             try {
                 const raw = await queryRender(GNO_RPC_URL, MEMBA_DAO.candidaturePath, "")
@@ -95,7 +100,7 @@ export default function CandidaturePage() {
     // admin → false → hidden).
     const isAdminQuery = useQuery({
         queryKey: ["candidature", "isAdmin", userAddr ?? ""],
-        enabled: !!userAddr,
+        enabled: !!userAddr && realmValid,
         queryFn: async () => {
             try {
                 return parseIsAdminResult(await queryEval(GNO_RPC_URL, MEMBA_DAO.candidaturePath, `IsAdmin(${JSON.stringify(userAddr)})`))
@@ -162,6 +167,29 @@ export default function CandidaturePage() {
     }
 
     const requiredDeposit = getRequiredDeposit(applyCount)
+
+    if (!realmValid) {
+        return (
+            <div className="candidature-page animate-fade-in">
+                <h1 className="candidature-title">Memba DAO Candidature</h1>
+                <div className="k-card candidature-gate" data-testid="candidature-unavailable">
+                    <div className="candidature-gate__header">
+                        <span className="candidature-gate__icon">🚧</span>
+                        <div>
+                            <h3 className="candidature-gate__title">Not available on this network yet</h3>
+                            <p className="candidature-gate__desc">
+                                The Memba DAO candidature realm isn&apos;t deployed on this network, so applications
+                                can&apos;t be submitted or reviewed here yet.
+                            </p>
+                        </div>
+                    </div>
+                    <button className="k-btn-secondary" onClick={() => navigate("/quests")}>
+                        Earn XP in the Quest Hub meanwhile →
+                    </button>
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="candidature-page animate-fade-in">

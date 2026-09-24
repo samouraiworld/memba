@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Candidature says when it is not available (2026-09-24)
+<!-- categories: memba, network -->
+- **The Memba DAO candidature page tells you when it can't be used on the current network.** The candidature realm is not deployed on gno.land mainnet, so the page used to show an XP gate and an empty applications list for a form that could never be submitted. It now says candidatures aren't available here yet, links to the Quest Hub, and makes no requests to the missing realm.
+
 ### A multisig transaction page starts fresh for each transaction (2026-09-24)
 <!-- categories: multisig -->
 - Moving from one transaction to another (`/tx/7` → `/tx/12`) no longer keeps what you did on the first one. A gnokey signature pasted for tx 7, an open review or an error now clear on tx 12, so "Submit Signature" can't file tx 7's signature under tx 12. This mattered most for legacy multisigs, where the backend stores an unverified signature until signature enforcement is on.

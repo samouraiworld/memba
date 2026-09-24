@@ -17,8 +17,8 @@ test.describe('Candidature Page', () => {
         await expect(page.locator('body')).toContainText('Memba DAO Candidature')
     })
 
-    test('shows XP requirement info', async ({ page }) => {
-        await page.goto('/candidature')
+    test('shows XP requirement info where the realm is deployed', async ({ page }) => {
+        await page.goto('/test13/candidature')
         // Should mention XP requirement (either gate or description)
         await expect(page.locator('body')).toContainText(/XP|quests|membership/)
     })
@@ -29,15 +29,27 @@ test.describe('Candidature Page', () => {
     })
 })
 
+// The candidature realm is not deployed on gno.land mainnet (the default
+// network): the page says so instead of showing the XP gate.
+test.describe('Candidature — realm not deployed (mainnet)', () => {
+    test('shows the not-available state', async ({ page }) => {
+        await page.goto('/candidature')
+        await expect(page.getByTestId('candidature-unavailable')).toContainText('Not available on this network yet')
+        await expect(page.getByText(/XP Required/)).toHaveCount(0)
+    })
+})
+
+// The XP gate, on a network whose allowlist carries the candidature realm
+// (test13: hidden but resolvable).
 test.describe('Candidature — XP Gate', () => {
     test('shows lock icon when not eligible (no wallet)', async ({ page }) => {
-        await page.goto('/candidature')
+        await page.goto('/test13/candidature')
         // Without wallet, user has 0 XP — should show locked state
-        await expect(page.locator('body')).toContainText(/XP Required|XP/)
+        await expect(page.locator('body')).toContainText(/XP Required/)
     })
 
     test('quest progress widget shown when locked', async ({ page }) => {
-        await page.goto('/candidature')
+        await page.goto('/test13/candidature')
         // Quest progress widget should be embedded in the gate
         await expect(page.locator('body')).toContainText(/Quest|XP/)
     })

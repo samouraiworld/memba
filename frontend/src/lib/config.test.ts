@@ -28,6 +28,7 @@ import {
     isReviewsAvailable,
     isRealmValid,
     ACTIVE_NETWORK_KEY,
+    MEMBA_DAO,
 } from './config'
 import { SITEMAP_NETWORK } from './sitemap'
 import { NFT_MARKETPLACE_V3_PATH, NFT_MARKETPLACE_PATH } from './nftConfig'
@@ -1229,5 +1230,15 @@ describe('selectableNetworksFor — the switcher escape hatch', () => {
     it('does not invent an option for an unknown network', async () => {
         const { selectableNetworksFor, VISIBLE_NETWORKS } = await import('./config')
         expect(selectableNetworksFor('no-such-network')).toBe(VISIBLE_NETWORKS)
+    })
+})
+
+describe("candidature realm gate", () => {
+    it("is closed on gno.land mainnet, where the candidature realm is not deployed", () => {
+        expect(isRealmValidOn("mainnet", MEMBA_DAO.candidaturePath)).toBe(false)
+    })
+
+    it("is open where the realm is published", () => {
+        expect(isRealmValidOn("test13", MEMBA_DAO.candidaturePath)).toBe(true)
     })
 })

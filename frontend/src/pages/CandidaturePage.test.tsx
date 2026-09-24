@@ -63,6 +63,7 @@ vi.mock("../lib/candidatureTemplate", () => ({
 vi.mock("../lib/config", () => ({
     MEMBA_DAO: { candidaturePath: "gno.land/r/samcrew/memba_dao_candidature_v3" },
     GNO_RPC_URL: "https://rpc.test.gno.land",
+    isCandidatureValid: vi.fn(() => true),
 }))
 
 vi.mock("../lib/grc20", () => ({
@@ -114,6 +115,7 @@ const questsMock = await import("../lib/quests")
 const candidatureMock = await import("../lib/candidatureTemplate")
 const daoShared = await import("../lib/dao/shared")
 const grc20Mock = await import("../lib/grc20")
+const configMock = await import("../lib/config")
 
 // Renders the page with the candidature form unlocked. Eligibility is resolved
 // asynchronously from backend XP, so the form appears after a tick — await it.
@@ -136,6 +138,34 @@ beforeEach(() => {
     vi.mocked(daoShared.queryRender).mockResolvedValue(null)
     mockAdena.connected = true
     mockAuth.isAuthenticated = true
+    vi.mocked(configMock.isCandidatureValid).mockReturnValue(true)
+})
+
+describe("CandidaturePage — realm validity gate", () => {
+    it("says candidatures are not available where the realm is not deployed", () => {
+        vi.mocked(configMock.isCandidatureValid).mockReturnValue(false)
+        render(<CandidaturePage />)
+        expect(screen.getByTestId("candidature-unavailable")).toHaveTextContent("Not available on this network yet")
+        // No form, no XP gate, no (empty) applications list.
+        expect(screen.queryByLabelText("Bio")).toBeNull()
+        expect(screen.queryByText(/No candidatures/i)).toBeNull()
+    })
+
+    it("never queries the missing realm or the eligibility backend", async () => {
+        vi.mocked(configMock.isCandidatureValid).mockReturnValue(false)
+        render(<CandidaturePage />)
+        await new Promise(r => setTimeout(r, 0))
+        expect(daoShared.queryRender).not.toHaveBeenCalled()
+        expect(daoShared.queryEval).not.toHaveBeenCalled()
+        expect(questsMock.resolveCandidatureEligibility).not.toHaveBeenCalled()
+    })
+
+    it("points to the Quest Hub", () => {
+        vi.mocked(configMock.isCandidatureValid).mockReturnValue(false)
+        render(<CandidaturePage />)
+        fireEvent.click(screen.getByText(/Quest Hub/))
+        expect(mockNavigate).toHaveBeenCalledWith("/quests")
+    })
 })
 
 describe("CandidaturePage — XP Gate", () => {
