@@ -6,7 +6,6 @@ import (
 	srand "crypto/rand"
 	"database/sql"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
 	"log/slog"
 	"os"
@@ -18,6 +17,7 @@ import (
 
 	"connectrpc.com/connect"
 	"golang.org/x/sync/singleflight"
+	"google.golang.org/protobuf/encoding/protojson"
 
 	membav1 "github.com/samouraiworld/memba/backend/gen/memba/v1"
 	"github.com/samouraiworld/memba/backend/internal/attestation"
@@ -298,8 +298,13 @@ func (s *MultisigService) ValidateRESTToken(tokenJSON string) error {
 // address on success — for REST callers that need the authenticated identity (e.g.
 // the per-wallet image-upload cap). Same validation contract as ValidateRESTToken.
 func (s *MultisigService) ValidateRESTTokenAddress(tokenJSON string) (string, error) {
+	// protojson, not encoding/json: it accepts both the proto field names
+	// (user_address) and their JSON names (userAddress). The frontend stores
+	// the session token camelCase (useAuth.saveToken) and sends that string as
+	// the Bearer, which encoding/json decoded to an empty address and
+	// signature — every upload / arcade-submit request failed with 401.
 	var token membav1.Token
-	if err := json.Unmarshal([]byte(tokenJSON), &token); err != nil {
+	if err := (protojson.UnmarshalOptions{DiscardUnknown: true}).Unmarshal([]byte(tokenJSON), &token); err != nil {
 		return "", fmt.Errorf("invalid token format: %w", err)
 	}
 	if err := auth.ValidateToken(s.publicKey, &token, s.acceptedChainIDs...); err != nil {

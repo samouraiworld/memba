@@ -65,3 +65,42 @@ func TestAllowUpload_PerWalletCap(t *testing.T) {
 		t.Fatal("a different wallet must have its own bucket")
 	}
 }
+
+// The frontend stores the session token camelCase (useAuth.saveToken) and
+// sends that exact string as the Bearer for /api/upload/* and
+// /api/arcade/submit. encoding/json decoded it to an empty address and
+// signature, so every such request was refused with 401. Both spellings must
+// authenticate, and a tampered token must still fail.
+func TestValidateRESTTokenAddress_AcceptsFrontendCamelCaseToken(t *testing.T) {
+	h := setup(t)
+	tok := h.makeToken(t, "g1uploader")
+
+	camel, err := json.Marshal(map[string]string{
+		"nonce":           tok.Nonce,
+		"userAddress":     tok.UserAddress,
+		"expiration":      tok.Expiration,
+		"chainId":         tok.ChainId,
+		"serverSignature": tok.ServerSignature,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	addr, err := h.svc.ValidateRESTTokenAddress(string(camel))
+	if err != nil {
+		t.Fatalf("the frontend's camelCase token must authenticate: %v", err)
+	}
+	if addr != "g1uploader" {
+		t.Fatalf("expected g1uploader, got %q", addr)
+	}
+
+	tampered, _ := json.Marshal(map[string]string{
+		"nonce": tok.Nonce, "userAddress": "g1attacker", "expiration": tok.Expiration,
+		"chainId": tok.ChainId, "serverSignature": tok.ServerSignature,
+	})
+	if _, err := h.svc.ValidateRESTTokenAddress(string(tampered)); err == nil {
+		t.Fatal("a token whose address was changed must be rejected")
+	}
+	if _, err := h.svc.ValidateRESTTokenAddress(`{"userAddress":"g1x","extra":1}`); err == nil {
+		t.Fatal("an unsigned token must be rejected")
+	}
+}

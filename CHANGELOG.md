@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Avatar and image uploads sign in again (2026-09-24)
+<!-- categories: memba -->
+- **Uploading an avatar or App Store image, and submitting an arcade run, work again.** These requests sent the saved wallet session in the format the app stores it, which the server could not read, so it refused them as signed out. The server now reads both formats. Tampered or unsigned sessions are still refused.
+
 ### OTC listings approve exactly what you list (2026-09-24)
 <!-- categories: memba -->
 - **Listing tokens on the OTC desk now asks you to approve exactly the amount you list, and only when needed.** The desk used to ask for approval before you entered an amount and always granted 1,000,000,000 base units. That meant 1,000 tokens at 6 decimals, but only 10 tokens at 8 decimals. Any existing approval, however small, then skipped the step, so a larger listing failed on-chain. You now enter the quantity and price first; if your current approval doesn't cover them, you approve exactly that quantity and then list.
