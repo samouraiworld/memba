@@ -7,9 +7,13 @@
 .memba-os {
   --os-font: 'Manrope', 'Inter', system-ui, -apple-system, sans-serif;
   --os-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
-  --os-acc: #4C6EF5;
+  /* 5.7:1 under white text (WCAG AA 4.5); --os-acc-ink is the accent used as text. */
+  --os-acc: #3B5BDB;
+  --os-acc-ink: #3B5BDB;
+  /* text on an accent fill: white in both themes (5.7:1 on --os-acc) */
+  --os-on-acc: #FFFFFF;
   --os-ink: #1B1F2A;
-  --os-mut: #646C7E;
+  --os-mut: #5B6274;
   --os-glass: rgba(255, 255, 255, .78);
   --os-opaque: #F3F5FA;
   --os-line: rgba(20, 30, 60, .09);
@@ -50,6 +54,7 @@
 .memba-os[data-os-theme="dark"] {
   --os-ink: #E9ECF3;
   --os-mut: #9AA2B5;
+  --os-acc-ink: #91A7FF;
   --os-glass: rgba(26, 30, 41, .76);
   --os-opaque: #161A23;
   --os-line: rgba(255, 255, 255, .08);

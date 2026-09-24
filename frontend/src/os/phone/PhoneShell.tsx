@@ -7,7 +7,7 @@
  *
  * @module os/phone/PhoneShell
  */
-import { useState, type ReactNode } from "react"
+import { useEffect, useRef, useState, type ReactNode } from "react"
 import { OS_APPS, type OsAppId } from "../apps"
 import type { DeskItem } from "../shell/desk"
 import { DeskIcon } from "../shell/DeskItems"
@@ -131,6 +131,13 @@ export function PhoneShell(p: PhoneShellProps) {
 }
 
 function Sheet({ title, onHome, guest, onConnect, children }: { title: string; onHome: () => void; guest?: boolean; onConnect?: () => void; children: ReactNode }) {
+    // A new sheet takes focus at its title, so screen readers and keyboards start there.
+    const heading = useRef<HTMLHeadingElement>(null)
+    useEffect(() => {
+        const cur = document.activeElement
+        if (cur?.closest('[aria-modal="true"]')) return
+        heading.current?.focus({ preventScroll: true })
+    }, [title])
     return (
         <section className="os-ph-sheet" role="region" aria-label={title}>
             <div className="os-ph-sheet-h">
@@ -138,7 +145,7 @@ function Sheet({ title, onHome, guest, onConnect, children }: { title: string; o
                 <span className="os-grow" />
                 {guest && onConnect && <button type="button" className="os-btn" onClick={onConnect}>Connect</button>}
             </div>
-            <h2 className="os-ph-title">{title}</h2>
+            <h2 className="os-ph-title" ref={heading} tabIndex={-1}>{title}</h2>
             <div className="os-ph-sheet-b">{children}</div>
         </section>
     )

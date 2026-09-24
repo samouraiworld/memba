@@ -67,6 +67,11 @@ test.describe('Memba OS on a phone', () => {
 
         await page.getByRole('button', { name: '‹ Home' }).click()
         await expect.poll(() => path(page)).toBe('/os')
+        // The address changes before React Router commits it (a transition): wait for the home
+        // screen, as a person would, or a Back inside that gap lands in the same batched render.
+        await expect(page.getByRole('main', { name: 'Home' })).toBeVisible()
+        await expect(sheet(page, 'govdao · Proposal #4')).toHaveCount(0)
+        await page.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))))
         await page.goBack()
         await expect(sheet(page, 'govdao · Proposal #4')).toBeVisible()
 

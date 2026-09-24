@@ -5,17 +5,23 @@
  *
  * @module os/shell/WindowFrame
  */
-import { useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
+import { lazy, Suspense, useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
 import { getApp, type OsAppId } from "../apps"
 import { AppTile, ThingTile } from "./icons"
 import type { OsSession } from "./useOsSession"
-import { DaoFolder, DaosApp, ProposalWindow } from "../daos/DaoWindows"
-import { CreateDaoWizard } from "../daos/CreateDaoWizard"
-import { ProposeWizard } from "../daos/ProposeWizard"
-import { ClassicPage } from "../page/ClassicPage"
-import { MultisigApp, MultisigWindow } from "../multisig/MultisigWindows"
-import { SendWindow, WalletWindow } from "../wallet/WalletWindows"
+// Each app's windows load when first opened (day 7), keeping the shell chunk small.
+const DaoFolder = lazy(() => import("../daos/DaoWindows").then((m) => ({ default: m.DaoFolder })))
+const DaosApp = lazy(() => import("../daos/DaoWindows").then((m) => ({ default: m.DaosApp })))
+const ProposalWindow = lazy(() => import("../daos/DaoWindows").then((m) => ({ default: m.ProposalWindow })))
+const CreateDaoWizard = lazy(() => import("../daos/CreateDaoWizard").then((m) => ({ default: m.CreateDaoWizard })))
+const ProposeWizard = lazy(() => import("../daos/ProposeWizard").then((m) => ({ default: m.ProposeWizard })))
+const ClassicPage = lazy(() => import("../page/ClassicPage").then((m) => ({ default: m.ClassicPage })))
+const MultisigApp = lazy(() => import("../multisig/MultisigWindows").then((m) => ({ default: m.MultisigApp })))
+const MultisigWindow = lazy(() => import("../multisig/MultisigWindows").then((m) => ({ default: m.MultisigWindow })))
+const SendWindow = lazy(() => import("../wallet/WalletWindows").then((m) => ({ default: m.SendWindow })))
+const WalletWindow = lazy(() => import("../wallet/WalletWindows").then((m) => ({ default: m.WalletWindow })))
 import { classicForSection, pageNeedsWallet } from "../page/classicRoute"
+import { WindowError } from "./WindowError"
 import { DOCK_ROOM, type DeskSize, type OsWindow, type WindowSpec } from "./windows"
 
 interface Actions {
@@ -59,7 +65,18 @@ function Holding({ tile, title, text, children }: { tile: ReactNode; title: stri
 }
 
 /** What a window shows: the native window for its target, or the Memba page. Also drawn as a phone sheet. */
-export function WindowBody({ win, ...a }: Actions & { win: OsWindow }) {
+export function WindowBody(props: Actions & { win: OsWindow }) {
+    // A window that fails (its code or its page) fails alone; lazy windows made that likelier.
+    return (
+        <WindowError resetKey={`${props.win.id}:${JSON.stringify(props.win.target ?? null)}`} close={props.close}>
+            <Suspense fallback={<div className="os-row" role="status"><span className="os-spin" aria-hidden="true" /><span className="os-sub">Loading…</span></div>}>
+                <Body {...props} />
+            </Suspense>
+        </WindowError>
+    )
+}
+
+function Body({ win, ...a }: Actions & { win: OsWindow }) {
     const net = a.session.network.key
     if (win.key === "welcome") return <Welcome {...a} />
     const t = win.target
@@ -169,9 +186,19 @@ export function WindowFrame({ win, active, desk, frame, ...a }: Omit<Actions, "c
     }
     const handlers = { onPointerMove: onMove, onPointerUp: end, onPointerCancel: end }
 
+    // Keyboard users follow the front window: focus moves into it when it comes to the front,
+    // unless focus is already inside it or in a modal (review sheet, connect, lock screen).
+    useEffect(() => {
+        const el = ref.current
+        if (!active || !el) return
+        const cur = document.activeElement
+        if (cur && (el.contains(cur) || cur.closest('[aria-modal="true"]'))) return
+        el.focus({ preventScroll: true })
+    }, [active])
+
     return (
         <section ref={ref} className={`os-win os-glass${active ? "" : " os-inactive"}${win.max ? " os-max" : ""}`} style={style}
-            aria-label={win.title} data-win={win.key} onPointerDown={() => { if (!active) frame.focus(win.id) }}>
+            aria-label={win.title} data-win={win.key} tabIndex={-1} onPointerDown={() => { if (!active) frame.focus(win.id) }}>
             <div className="os-tb" onPointerDown={(e) => begin("move", e)} {...handlers} onDoubleClick={(e) => { if (!(e.target as HTMLElement).closest("button")) frame.toggleMax(win.id) }}>
                 <span className="os-lights">
                     <button type="button" className="os-light-close" aria-label={`Close ${win.title}`} onClick={() => frame.close(win.id)}><span aria-hidden="true">×</span></button>

@@ -142,7 +142,7 @@ test.describe('Memba OS shell · entry scenarios', () => {
         await expect(bar.getByRole('button', { name: 'Network: gnoland-1' })).toBeVisible()
         await expect(bar.getByText('TESTNET')).toHaveCount(0)
         await bar.getByRole('button', { name: 'Memba menu' }).click()
-        await page.getByRole('menuitem', { name: 'Arcade' }).click()
+        await page.getByRole('menuitem', { name: 'Arcade', exact: true }).click()
         await expect(page.getByRole('region', { name: 'Arcade' })).toBeVisible()
         await page.getByRole('navigation', { name: 'Dock' }).getByRole('button', { name: 'Validators' }).click()
         await expect(page.getByRole('region', { name: 'Validators' })).toBeVisible()

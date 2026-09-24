@@ -37,7 +37,7 @@
   background: var(--os-acc); color: #fff; display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; text-decoration: none;
 }
 .memba-os .os-btn:disabled { opacity: .45; cursor: not-allowed; }
-.memba-os .os-btn.os-ghost { background: var(--os-chip); color: var(--os-acc); }
+.memba-os .os-btn.os-ghost { background: var(--os-chip); color: var(--os-acc-ink); }
 .memba-os .os-btn.os-quiet { background: var(--os-hover); color: var(--os-ink); }
 .memba-os .os-spin {
   width: 10px; height: 10px; border-radius: 50%; border: 2px solid var(--os-acc); border-right-color: transparent;
@@ -138,7 +138,7 @@
 }
 .memba-os .os-wopt:hover { border-color: var(--os-acc); }
 .memba-os .os-steps { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.9; }
-.memba-os .os-steps a { color: var(--os-acc); font-weight: 700; }
+.memba-os .os-steps a { color: var(--os-acc-ink); font-weight: 700; }
 .memba-os .os-kv { display: grid; grid-template-columns: auto 1fr; gap: 6px 14px; font-size: 12px; align-items: baseline; margin: 0; }
 .memba-os .os-kv dt { color: var(--os-mut); }
 .memba-os .os-kv dd { margin: 0; text-align: right; font-weight: 700; }
@@ -242,14 +242,14 @@
   position: absolute; right: -4px; bottom: -4px; width: 18px; height: 18px; border-radius: 6px; background: var(--os-solid-ink);
   color: var(--os-ink); font: 800 9.5px var(--os-font); display: grid; place-items: center; box-shadow: 0 2px 6px rgba(0, 0, 0, .2); text-shadow: none;
 }
-.memba-os .os-badge2-dao { background: var(--os-acc); color: var(--os-solid-ink); }
+.memba-os .os-badge2-dao { background: var(--os-acc); color: var(--os-on-acc); }
 .memba-os .os-ctx { position: absolute; z-index: 945; border-radius: 12px; box-shadow: 0 20px 40px -14px var(--os-shadow), 0 0 0 .5px var(--os-line); min-width: 220px; animation: os-pop .12s; }
 
 /* start menu pin buttons */
 .memba-os .os-pinbox { position: relative; }
 .memba-os .os-pn {
   position: absolute; top: 2px; right: 6px; width: 18px; height: 18px; border-radius: 50%; border: 0; padding: 0;
-  background: var(--os-acc); color: var(--os-solid-ink); font: 800 12px/1 var(--os-font); cursor: pointer; opacity: 0; transition: opacity .12s;
+  background: var(--os-acc); color: var(--os-on-acc); font: 800 12px/1 var(--os-font); cursor: pointer; opacity: 0; transition: opacity .12s;
 }
 .memba-os .os-pinbox:hover .os-pn, .memba-os .os-pn:focus-visible { opacity: 1; }
 .memba-os .os-pn.os-done { background: var(--os-ok); opacity: 1; font-size: 10px; cursor: default; }
@@ -278,7 +278,7 @@
 .memba-os .os-in.os-mono { font-family: var(--os-mono); }
 .memba-os .os-in:focus { outline: 2px solid var(--os-acc); outline-offset: 0; border-color: transparent; }
 .memba-os .os-fe { color: var(--os-err); font-size: 11.5px; }
-.memba-os .os-pill { font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: var(--os-chip); color: var(--os-acc); }
+.memba-os .os-pill { font-size: 10.5px; font-weight: 800; padding: 2px 8px; border-radius: 999px; background: var(--os-chip); color: var(--os-acc-ink); }
 .memba-os .os-tgt { justify-self: start; font-size: 10px; font-weight: 800; letter-spacing: .04em; padding: 2px 8px; border-radius: 999px; background: var(--os-warn-bg); color: var(--os-warn); }
 .memba-os .os-inline { padding: 3px 8px; }
 .memba-os .os-badge {
@@ -311,8 +311,7 @@
 .memba-os .os-rvf { padding: 12px 20px 16px; display: flex; justify-content: flex-end; gap: 8px; border-top: 1px solid var(--os-line); }
 .memba-os .os-segm { display: inline-flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--os-hover); justify-self: start; }
 .memba-os .os-segm button { border: 0; background: none; cursor: pointer; font: 700 12.5px var(--os-font); color: var(--os-mut); padding: 6px 14px; border-radius: 8px; }
-.memba-os .os-segm button[aria-checked="true"] { background: var(--os-acc); color: var(--os-solid-ink); }
-.memba-os[data-os-theme="light"] .os-segm button[aria-checked="true"] { color: #fff; }
+.memba-os .os-segm button[aria-checked="true"] { background: var(--os-acc); color: var(--os-on-acc); }
 .memba-os .os-ack { display: flex; gap: 8px; align-items: flex-start; font-size: 12.5px; font-weight: 600; cursor: pointer; }
 .memba-os .os-ack input { margin-top: 2px; accent-color: var(--os-acc); }
 .memba-os .os-adena summary { cursor: pointer; font-weight: 800; font-size: 12px; margin-bottom: 8px; }
@@ -323,8 +322,7 @@
 .memba-os .os-wiz-steps li { display: flex; align-items: center; gap: 6px; }
 .memba-os .os-wiz-steps li[aria-current="step"] { color: var(--os-ink); }
 .memba-os .os-wiz-dot { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-size: 10.5px; background: var(--os-hover); }
-.memba-os .os-wiz-steps li[aria-current="step"] .os-wiz-dot { background: var(--os-acc); color: var(--os-solid-ink); }
-.memba-os[data-os-theme="light"] .os-wiz-steps li[aria-current="step"] .os-wiz-dot { color: #fff; }
+.memba-os .os-wiz-steps li[aria-current="step"] .os-wiz-dot { background: var(--os-acc); color: var(--os-on-acc); }
 .memba-os .os-wiz-steps li.os-done .os-wiz-dot { background: var(--os-ok-bg); color: var(--os-ok); }
 .memba-os .os-wiz-main { display: grid; grid-template-columns: minmax(0, 1fr) 240px; gap: 18px; align-items: start; }
 @container (max-width: 620px) { .memba-os .os-wiz-main { grid-template-columns: 1fr; } }
@@ -349,7 +347,7 @@
   border: 1px solid var(--os-line); background: var(--os-card); border-radius: 999px; padding: 4px 10px; cursor: pointer;
   font: 700 11.5px var(--os-font); color: var(--os-ink);
 }
-.memba-os .os-chipset button[aria-pressed="true"] { background: var(--os-chip); border-color: var(--os-acc); color: var(--os-acc); }
+.memba-os .os-chipset button[aria-pressed="true"] { background: var(--os-chip); border-color: var(--os-acc-ink); color: var(--os-acc-ink); }
 .memba-os .os-pvcard { display: grid; gap: 4px; padding: 12px; border-radius: 12px; background: var(--os-card); border: 1px solid var(--os-line); }
 .memba-os .os-clamp { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 .memba-os .os-note.os-ok { background: var(--os-ok-bg); color: var(--os-ok); }
@@ -438,3 +436,6 @@
 .memba-os .os-ph-title { margin: 6px 16px 8px; font-size: 20px; font-weight: 800; letter-spacing: -.01em; overflow-wrap: anywhere; }
 .memba-os .os-ph-sheet-b { flex: 1; min-height: 0; overflow-y: auto; padding: 0 16px 104px; }
 .memba-os .os-ph-body { padding: 0; }
+/* keyboard focus on windows and sheets (day 7) */
+.memba-os .os-win:focus, .memba-os .os-ph-title:focus { outline: none; }
+.memba-os .os-win:focus-visible { outline: 2px solid var(--os-acc); outline-offset: 2px; }

@@ -125,6 +125,12 @@ Full changelogs are split by version range for easier navigation:
 - Send GNOT from Memba OS (`/os/wallet/send`, or "Send GNOT" in ⌘K). The amount is exact to the ugnot; commas are refused rather than guessed, so "12,5" can never become 125. On mainnet, a first send to an address or a send of 100 GNOT or more needs an explicit "I checked the address" in the review. Recent and saved recipients stay in this browser.
 - The send goes through the Memba review, then Adena shows it as a Transfer: one `/bank.MsgSend` with a single coin amount, the shape Adena accepts (the earlier attempt in #1078 used another spelling). It is never retried automatically, Memba asks Adena which account is active right before signing, and an unknown outcome locks Send until you confirm you checked it.
 - `toAdenaMessages` accepts `/bank.MsgSend` only in that shape: two `g1` addresses and one positive `ugnot` amount. The old `bank/MsgSend` form still throws.
+### Memba OS accessibility and speed
+<!-- categories: memba, accessibility -->
+- Memba OS meets WCAG 2.1 AA contrast in both themes, still behind `VITE_MEMBA_OS`: the accent for buttons and links is darker, muted text is darker in the light theme, and the dark theme gets its own accent for text on tinted backgrounds and white text on accent-filled controls. The start menu's app list is a proper menu for screen readers.
+- Keyboard focus follows the front window: opening a window (from search, the dock or a link) moves focus into it, and closing it with ⌥W moves focus to the next one. A phone sheet puts focus on its title. Reduced motion turns every Memba OS animation off.
+- Each app's windows load the first time you open them, so Memba OS itself loads about 40% less code. A window that can't load, or whose page breaks, now shows that inside itself (Reload Memba, Try again, Close window) and the other windows keep working, instead of the whole screen being replaced by an error.
+
 ### Memba OS on phones
 <!-- categories: memba, mobile -->
 - On a phone (768 px and narrower), Memba OS becomes a home screen, still behind `VITE_MEMBA_OS`: a status bar with the clock, network and notifications; a space chip; a widget with your balance and Send (or Connect for guests); your desktop items; All apps; and a dock with DAOs, Wallet, Feed and Search.

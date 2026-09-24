@@ -109,15 +109,15 @@ export function MenuBar(p: MenuBarProps) {
                         {guest && <button type="button" className="os-btn" onClick={run(session.openConnect)}>Connect</button>}
                     </div>
                     <div className="os-mhd">All apps · ＋ adds to desktop</div>
-                    <div className="os-pins">
+                    <div className="os-pins" role="menu" aria-label="All apps">
                         {OS_APPS.map((a) => {
                             const on = p.isPinned({ ty: "app", ref: a.id })
                             return (
-                                <div key={a.id} className="os-pinbox">
+                                <div key={a.id} className="os-pinbox" role="none">
                                     <button type="button" role="menuitem" className="os-pin" onClick={run(() => p.openApp(a.id))}>
                                         <AppTile app={a.id} size={38} /><span>{a.name}</span>
                                     </button>
-                                    <button type="button" className={`os-pn${on ? " os-done" : ""}`} aria-label={on ? `${a.name} is on the desktop` : `Add ${a.name} to desktop`}
+                                    <button type="button" role="menuitem" className={`os-pn${on ? " os-done" : ""}`} aria-label={on ? `${a.name} is on the desktop` : `Add ${a.name} to desktop`}
                                         disabled={on} onClick={() => p.pin({ ty: "app", ref: a.id })}>{on ? "✓" : "+"}</button>
                                 </div>
                             )
