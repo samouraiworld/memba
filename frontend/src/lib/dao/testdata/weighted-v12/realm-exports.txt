@@ -1,0 +1,90 @@
+# Exported functions of gno.land/r/samcrew/memba_dao (host schema memba-weighted-host/v12),
+# one per line: <file> <name>(<params>) <result>. Grouped Go parameters are expanded.
+# Extracted from the twelve generated files pinned by realmSha256 in native.json.
+appstore_adapter.gno ProposeAppstoreAccept(cur realm) uint64
+appstore_adapter.gno ProposeAppstoreReturn(cur realm) uint64
+appstore_adapter.gno ProposeAppstoreAbortReturn(cur realm) uint64
+appstore_adapter.gno ProposeAppstoreTreasury(cur realm) uint64
+appstore_adapter.gno ProposeAppstoreFee(cur realm, fee int64) uint64
+appstore_adapter.gno ProposeAppstoreCurator(cur realm, who address, grant bool) uint64
+appstore_adapter.gno ProposeAppstoreUnpause(cur realm) uint64
+appstore_adapter.gno ProposeAppstoreSeal(cur realm) uint64
+appstore_adapter.gno ProposeAppstoreApprove(cur realm, path string) uint64
+appstore_adapter.gno ProposeAppstoreReject(cur realm, path string, reason string) uint64
+appstore_adapter.gno ProposeAppstoreDelist(cur realm, path string) uint64
+appstore_adapter.gno ProposeAppstoreRestore(cur realm, path string) uint64
+appstore_adapter.gno ProposeAppstoreClearFlags(cur realm, path string) uint64
+appstore_adapter.gno EmergencyPauseAppstore(cur realm)
+arcade_adapter.gno ProposeArcadeAccept(cur realm) uint64
+arcade_adapter.gno ProposeArcadeReturn(cur realm) uint64
+arcade_adapter.gno ProposeArcadeAbortReturn(cur realm) uint64
+arcade_adapter.gno ProposeArcadeAddAttester(cur realm, who address) uint64
+arcade_adapter.gno ProposeArcadeRemoveAttester(cur realm, who address) uint64
+arcade_adapter.gno ProposeArcadeUnpause(cur realm) uint64
+arcade_adapter.gno EmergencyPauseArcade(cur realm)
+badges_adapter.gno ProposeBadgesAccept(cur realm) uint64
+badges_adapter.gno ProposeBadgesReturn(cur realm) uint64
+badges_adapter.gno ProposeBadgesAbortReturn(cur realm) uint64
+badges_adapter.gno ProposeBadgesAddAdmin(cur realm, who address) uint64
+badges_adapter.gno ProposeBadgesRemoveAdmin(cur realm, who address) uint64
+badges_adapter.gno ProposeBadgesUnpause(cur realm) uint64
+badges_adapter.gno EmergencyPauseBadges(cur realm)
+channels_adapter.gno ProposeChannelsAccept(cur realm) uint64
+channels_adapter.gno ProposeChannelsReturn(cur realm) uint64
+channels_adapter.gno ProposeChannelsAbortReturn(cur realm) uint64
+channels_adapter.gno ProposeChannelsAddMember(cur realm, who address, roles string) uint64
+channels_adapter.gno ProposeChannelsRemoveMember(cur realm, who address) uint64
+channels_adapter.gno ProposeChannelsSetRoles(cur realm, who address, roles string) uint64
+channels_adapter.gno ProposeChannelsCreateText(cur realm, name string, description string) uint64
+channels_adapter.gno ProposeChannelsUnpause(cur realm) uint64
+channels_adapter.gno EmergencyPauseChannels(cur realm)
+escrow_adapter.gno ProposeEscrowAccept(cur realm) uint64
+escrow_adapter.gno ProposeEscrowReturn(cur realm) uint64
+escrow_adapter.gno ProposeEscrowAbortReturn(cur realm) uint64
+escrow_adapter.gno ProposeEscrowUnpause(cur realm) uint64
+escrow_adapter.gno ProposeEscrowRefund(cur realm, id string, index int) uint64
+escrow_adapter.gno ProposeEscrowPayFreelancer(cur realm, id string, index int) uint64
+escrow_adapter.gno ProposeEscrowFeeRecipient(cur realm, recipient address) uint64
+escrow_adapter.gno EmergencyPauseEscrow(cur realm)
+feed_adapter.gno ProposeFeedAccept(cur realm) uint64
+feed_adapter.gno ProposeFeedReturn(cur realm) uint64
+feed_adapter.gno ProposeFeedAbortReturn(cur realm) uint64
+feed_adapter.gno ProposeFeedAddModerator(cur realm, who address) uint64
+feed_adapter.gno ProposeFeedRemoveModerator(cur realm, who address) uint64
+feed_adapter.gno ProposeFeedUnpause(cur realm) uint64
+feed_adapter.gno EmergencyPauseFeed(cur realm)
+feedback_adapter.gno ProposeFeedbackAccept(cur realm) uint64
+feedback_adapter.gno ProposeFeedbackReturn(cur realm) uint64
+feedback_adapter.gno ProposeFeedbackAbortReturn(cur realm) uint64
+feedback_adapter.gno ProposeFeedbackAddMember(cur realm, who address, roles string) uint64
+feedback_adapter.gno ProposeFeedbackRemoveMember(cur realm, who address) uint64
+feedback_adapter.gno ProposeFeedbackSetRoles(cur realm, who address, roles string) uint64
+feedback_adapter.gno ProposeFeedbackCreateText(cur realm, name string, description string) uint64
+feedback_adapter.gno ProposeFeedbackUnpause(cur realm) uint64
+feedback_adapter.gno EmergencyPauseFeedback(cur realm)
+market_adapter.gno ProposeMarketAccept(cur realm) uint64
+market_adapter.gno ProposeMarketFee(cur realm, lane string, bps int64) uint64
+market_adapter.gno ProposeMarketTreasury(cur realm) uint64
+market_adapter.gno ProposeMarketReturn(cur realm) uint64
+market_adapter.gno ProposeMarketAbortReturn(cur realm) uint64
+memba_dao.gno ProposeRole(cur realm, target address, role string, grant bool) uint64
+memba_dao.gno ProposeRecovery(cur realm, personID string, oldAddress address, newAddress address) uint64
+memba_dao.gno Vote(cur realm, id uint64, vote string)
+memba_dao.gno Execute(cur realm, id uint64)
+memba_dao.gno GetConfigJSON() string
+memba_dao.gno GetMembersJSON() string
+memba_dao.gno GetProposalJSON(id uint64) string
+memba_dao.gno GetProposalsJSON(before uint64, limit int) string
+memba_dao.gno GetBallotJSON(proposalID string, voter address) string
+memba_dao.gno GetPendingVotesJSON(voter address, before string, limit int) string
+memba_dao.gno Render(path string) string
+quest_adapter.gno ProposeQuestAccept(cur realm) uint64
+quest_adapter.gno ProposeQuestSigner(cur realm, key string) uint64
+quest_adapter.gno ProposeQuestReturn(cur realm) uint64
+quest_adapter.gno ProposeQuestAbortReturn(cur realm) uint64
+reviews_adapter.gno ProposeReviewsAccept(cur realm) uint64
+reviews_adapter.gno ProposeReviewsReturn(cur realm) uint64
+reviews_adapter.gno ProposeReviewsAbortReturn(cur realm) uint64
+reviews_adapter.gno ProposeReviewsHideReview(cur realm, id uint64) uint64
+reviews_adapter.gno ProposeReviewsHideComment(cur realm, id uint64) uint64
+reviews_adapter.gno ProposeReviewsUnhide(cur realm, id uint64) uint64

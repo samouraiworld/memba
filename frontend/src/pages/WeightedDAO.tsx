@@ -1,14 +1,21 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useOutletContext, useParams } from "react-router-dom"
 import { NETWORKS, GNO_CHAIN_ID, GNO_RPC_URL } from "../lib/config"
-import { isUnreadableProposal, readWeightedBallot, validateWeightedRecovery, weightedApplicationPolicies, weightedWritesSupported, weightedAuthority, assertWeightedWrites, buildWeightedMessage, readWeightedProposal, readWeightedSnapshot, WEIGHTED_APPLICATIONS_SCHEMA, type WeightedAction, type WeightedConfig, type WeightedBallot, type WeightedContext, type WeightedInvalidation, type WeightedPageEntry, type WeightedProposal } from "../lib/dao/weighted"
+import { isUnreadableProposal, readWeightedBallot, validateWeightedRecovery, weightedApplicationPolicies, weightedWritesSupported, weightedWriteKinds, weightedVoteChoices, weightedAuthority, assertWeightedWrites, assertWeightedPlanSignable, planWeightedTx, readWeightedProposal, readWeightedSnapshot, WEIGHTED_APPLICATIONS_SCHEMA, WEIGHTED_WRITE_HOLD_CHAINS, type WeightedAction, type WeightedConfig, type WeightedBallot, type WeightedContext, type WeightedInvalidation, type WeightedPageEntry, type WeightedProposal, type WeightedWriteKind } from "../lib/dao/weighted"
 import { revealInvisibleFormatting as reveal } from "../lib/dao/v2Text"
-import { APPLICATION_LABELS, IMMEDIATE_THRESHOLDS, applicationDetails, flattenBefore, type ApplicationPolicyKey, type WeightedApplicationAction } from "../lib/dao/weightedApplications"
+import { ACCEPT_FUNCS, APPLICATION_LABELS, IMMEDIATE_THRESHOLDS, acceptAdapterFor, applicationDetails, flattenBefore, type ApplicationPolicyKey, type WeightedApplicationAction } from "../lib/dao/weightedApplications"
+import { ACCEPTANCE_LABELS, AUTHORITY_GETTERS, acceptanceState, readAcceptanceStates, readTargetAuthority, weightedDaoAddress, type AcceptanceState } from "../lib/dao/weightedAcceptance"
+import { v12CallBudget } from "../lib/dao/weightedBudget"
+import { formatUgnotExact } from "../lib/dao/v2Budget"
+import { proposalIdFromTxResult } from "../lib/dao/daoTx"
 import { doContractBroadcast } from "../lib/grc20"
 import type { LayoutContext } from "../types/layout"
 import "./weighteddao.css"
 
 type Snapshot = Awaited<ReturnType<typeof readWeightedSnapshot>>
+type AcceptanceStates = Partial<Record<ApplicationPolicyKey, AcceptanceState | "error">>
+const NO_KINDS: ReadonlySet<WeightedWriteKind> = new Set()
+const OPEN_STATUSES = ["VOTING", "TIMELOCKED", "READY"]
 
 /** Separate route: the weighted host is not a legacy equal-headcount DAO. */
 export function WeightedDAO() {
@@ -63,54 +70,127 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
             .then(entries => { if (active.current && !controller.signal.aborted) setBallotState({ data, voter, ballots: Object.fromEntries(entries) }) })
         return () => controller.abort()
     }, [data, voter, rpcUrl, chainId, realmPath])
+    // Acceptance readiness of each adapter target (v12), tagged with the
+    // snapshot it answers so a stale read never shows for a newer page.
+    const [acceptanceView, setAcceptanceView] = useState<{ data: Snapshot | null; states: AcceptanceStates }>({ data: null, states: {} })
+    const acceptance = acceptanceView.data === data ? acceptanceView.states : {}
+    useEffect(() => {
+        if (!data || data.config.schema !== WEIGHTED_APPLICATIONS_SCHEMA) return
+        const controller = new AbortController()
+        void readAcceptanceStates({ rpcUrl, chainId, realmPath }, weightedApplicationPolicies(data.config), controller.signal)
+            .then(states => states, () => Object.fromEntries(weightedApplicationPolicies(data.config).map(({ key }) => [key, "error"])) as AcceptanceStates)
+            .then(states => { if (active.current && !controller.signal.aborted) setAcceptanceView({ data, states }) })
+        return () => controller.abort()
+    }, [data, rpcUrl, chainId, realmPath])
     const member = data?.members.find(m => m.address === wallet.address)
     const writable = !!data && weightedWritesSupported(data.config.schema)
-    const canAct = writable && !!member && wallet.connected && authenticated && wallet.chainId === chainId && chainId === GNO_CHAIN_ID && rpcUrl === GNO_RPC_URL && chainId !== "gnoland-1" && !busy && !loading
+    const kinds = data ? weightedWriteKinds(data.config.schema, chainId) : NO_KINDS
+    const held = WEIGHTED_WRITE_HOLD_CHAINS.includes(chainId)
+    // A member who could act here once the current read or submission settles.
+    const eligible = kinds.size > 0 && !!member && wallet.connected && authenticated && wallet.chainId === chainId && chainId === GNO_CHAIN_ID && rpcUrl === GNO_RPC_URL && !held
+    const canAct = eligible && !busy && !loading
     const recoverySeat = data?.members.find(m => m.address === recoverTarget)
     const applications = data?.config.schema === WEIGHTED_APPLICATIONS_SCHEMA
+    // Open proposals on the newest page: executing any one invalidates the others.
+    const openProposals = data && before === "0" ? data.page.proposals.filter((p): p is WeightedProposal => !isUnreadableProposal(p) && OPEN_STATUSES.includes(p.status)) : []
     const submit = async (action: WeightedAction) => {
-        if (operation.current || !canAct) return
+        if (operation.current || !canAct || !kinds.has(action.type)) return
         operation.current = true; setBusy(true); setError(""); setNotice("")
         const location = window.location.pathname
         const assertCurrent = () => {
             if (!active.current || window.location.pathname !== location || !wallet.connected || !authenticated) throw new Error("Wallet or page changed; prepare the action again")
-            assertWeightedWrites(chainId, GNO_CHAIN_ID, wallet.chainId, data?.config.schema ?? "")
+            assertWeightedWrites(chainId, GNO_CHAIN_ID, wallet.chainId, data?.config.schema ?? "", action.type)
             if (rpcUrl !== GNO_RPC_URL) throw new Error("Selected RPC changed")
         }
+        // v12: the target must still name the DAO as its pending authority, and no
+        // other acceptance may be open (whichever executes first voids the rest).
+        const assertAcceptable = async (snapshot: Snapshot, adapter: ApplicationPolicyKey) => {
+            if (snapshot.config.schema !== WEIGHTED_APPLICATIONS_SCHEMA) throw new Error("This DAO has no application adapters")
+            const policy = snapshot.config[adapter]
+            const open = snapshot.page.proposals.find(p => !isUnreadableProposal(p) && OPEN_STATUSES.includes(p.status) && acceptAdapterFor(p.action) !== null)
+            if (open) throw new Error(`Acceptance proposal #${open.id} is still open; propose the next acceptance after it executes or closes`)
+            const state = acceptanceState(await readTargetAuthority(ctx, adapter, policy.target, policy.successor), weightedDaoAddress(realmPath))
+            assertCurrent()
+            if (state.kind !== "ready") throw new Error(`${reveal(policy.target)} is not ready for the DAO to accept (${ACCEPTANCE_LABELS[state.kind].toLowerCase()}); refresh before acting`)
+        }
+        // v12: a ballot is valid only for an eligible voter and a changed choice.
+        const assertBallot = async (proposalId: string, vote: "yes" | "no" | "abstain") => {
+            const ballot = await readWeightedBallot(ctx, proposalId, wallet.address)
+            assertCurrent()
+            if (!ballot.eligible) throw new Error("Your address is not eligible to vote on this proposal")
+            if (ballot.choice === vote) throw new Error(`You already voted ${vote}; the same ballot again would change nothing`)
+        }
+        const isV12 = data?.config.schema === WEIGHTED_APPLICATIONS_SCHEMA
         try {
             assertCurrent()
             const fresh = await readWeightedSnapshot(ctx)
             assertCurrent()
             if (data && weightedAuthority(fresh) !== weightedAuthority(data)) throw new Error("DAO roster or roles changed; refresh and review again")
             if (!fresh.members.some(m => m.address === wallet.address)) throw new Error("Only current DAO members can act")
+            let executes: WeightedProposal["action"] | undefined
             if (action.type === "recover") {
                 validateWeightedRecovery(fresh, action)
             } else if (action.type === "propose") {
                 const subject = fresh.members.find(m => m.address === action.target)
                 if (!subject || subject[action.role] === action.grant) throw new Error("Select a role change for a current member")
                 if (action.role === "admin" && !action.grant && fresh.members.filter(m => m.admin).length === 1) throw new Error("Grant a replacement admin before removing the last admin")
+            } else if (action.type === "accept") {
+                await assertAcceptable(fresh, action.adapter)
             } else {
                 const proposal = await readWeightedProposal(ctx, action.id, fresh.config.schema)
                 assertCurrent()
                 if (action.type === "execute" ? !proposal.ready : proposal.votingClosed || ["EXECUTED", "INVALIDATED", "EXPIRED"].includes(proposal.status)) throw new Error("Proposal state changed; refresh before acting")
+                if (action.type === "vote" && isV12) await assertBallot(action.id, action.vote)
+                executes = proposal.action
+                // The host refuses an acceptance whose frozen nomination no longer holds.
+                const handoff = action.type === "execute" && fresh.config.schema === WEIGHTED_APPLICATIONS_SCHEMA ? acceptAdapterFor(proposal.action) : null
+                if (handoff && fresh.config.schema === WEIGHTED_APPLICATIONS_SCHEMA) {
+                    const policy = fresh.config[handoff]
+                    const state = acceptanceState(await readTargetAuthority(ctx, handoff, policy.target, policy.successor), weightedDaoAddress(realmPath))
+                    assertCurrent()
+                    if (state.kind !== "ready") throw new Error(`${reveal(policy.target)} no longer names the DAO as its pending ${AUTHORITY_GETTERS[handoff].authority}, so this acceptance would fail; refresh before acting`)
+                }
             }
+            const plan = planWeightedTx(wallet.address, realmPath, action, fresh.config.schema, chainId, executes)
+            assertWeightedPlanSignable(plan)
             const beforeSign = async () => {
                 assertCurrent()
+                assertWeightedPlanSignable(plan)
                 const current = await readWeightedSnapshot(ctx)
                 assertCurrent()
                 if (weightedAuthority(current) !== weightedAuthority(fresh)) throw new Error("DAO roster or roles changed during confirmation; review again")
                 if (action.type === "recover") validateWeightedRecovery(current, action)
+                if (action.type === "accept") await assertAcceptable(current, action.adapter)
                 if (action.type === "vote" || action.type === "execute") {
                     const p = await readWeightedProposal(ctx, action.id, current.config.schema)
                     assertCurrent()
                     if (action.type === "execute" ? !p.ready : p.votingClosed || ["EXECUTED", "INVALIDATED", "EXPIRED"].includes(p.status)) throw new Error("Proposal changed during confirmation; refresh")
+                    if (action.type === "execute" && JSON.stringify(p.action) !== JSON.stringify(executes)) throw new Error("Proposal changed during confirmation; refresh")
+                    if (action.type === "vote" && isV12) await assertBallot(action.id, action.vote)
                 }
             }
-            const memo = action.type === "recover" ? `Recover ${reveal(action.personId)}: ${action.oldAddress} → ${action.newAddress}. Preserve voting weight and roles.` : action.type === "propose" ? `Propose ${action.grant ? "grant" : "removal"} of ${action.role}: ${action.target}` : `${action.type} weighted proposal ${action.id}`
-            const result = await doContractBroadcast([buildWeightedMessage(wallet.address, realmPath, action, fresh.config.schema)], memo, { retry: false, beforeSign })
+            const acceptTarget = action.type === "accept" && fresh.config.schema === WEIGHTED_APPLICATIONS_SCHEMA ? fresh.config[action.adapter].target : ""
+            const memo = action.type === "recover" ? `Recover ${reveal(action.personId)}: ${action.oldAddress} → ${action.newAddress}. Preserve voting weight and roles.`
+                : action.type === "propose" ? `Propose ${action.grant ? "grant" : "removal"} of ${action.role}: ${action.target}`
+                : action.type === "accept" ? `Propose that the DAO accepts authority over ${acceptTarget}`
+                : `${action.type} weighted proposal ${action.id}`
+            const result = await doContractBroadcast([plan.msg], memo, { retry: false, beforeSign, ...(plan.gasWanted !== undefined ? { gasWanted: plan.gasWanted } : {}) })
             assertCurrent()
             if (!/^[a-f0-9]{64}$/i.test(result.hash)) throw new Error("Wallet returned no valid transaction hash; check chain state before trying again")
-            setNotice(`Transaction submitted: ${result.hash}. Verify its result in the refreshed proposal list.`)
+            const created = action.type === "accept" ? proposalIdFromTxResult(result.result) : null
+            let outcome = `Transaction submitted: ${result.hash}. Verify its result in the refreshed proposal list.`
+            if (action.type === "accept") outcome = `Transaction submitted: ${result.hash}. ${created ? `Acceptance proposal #${created} is open for votes.` : "Find the new acceptance proposal in the refreshed list."}`
+            const executedAdapter = action.type === "execute" && executes && fresh.config.schema === WEIGHTED_APPLICATIONS_SCHEMA ? acceptAdapterFor(executes) : null
+            if (executedAdapter && fresh.config.schema === WEIGHTED_APPLICATIONS_SCHEMA) {
+                // Confirm the handoff on the target itself, not only the DAO's status.
+                const policy = fresh.config[executedAdapter]
+                const after = await readTargetAuthority(ctx, executedAdapter, policy.target, policy.successor).then(read => acceptanceState(read, weightedDaoAddress(realmPath)), () => null)
+                assertCurrent()
+                outcome = after?.kind === "dao" && after.pending === ""
+                    ? `Transaction submitted: ${result.hash}. ${reveal(policy.target)} now names the DAO as its ${AUTHORITY_GETTERS[executedAdapter].authority}.`
+                    : `Transaction submitted: ${result.hash}. ${reveal(policy.target)} does not show the DAO as its ${AUTHORITY_GETTERS[executedAdapter].authority} yet; check the proposal result after the refresh.`
+            }
+            setNotice(outcome)
             await refresh("0")
         } catch (err) {
             if (active.current) setError(`${err instanceof Error && err.name !== "ZodError" ? err.message : "Invalid action data; verify the replacement address and its checksum"}. No automatic retry. Refresh chain state before trying again.`)
@@ -139,10 +219,12 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
                 <strong>{reveal(m.personId)}</strong><span>{m.founder ? "Founder" : "Core developer"} · {m.weight} {m.weight === 1 ? "point" : "points"}</span>
                 <code>{reveal(m.address)}</code><span>{[m.admin && "Admin", m.finance && "Finance"].filter(Boolean).join(" · ") || "No admin or finance role"}</span>
             </li>)}</ul></section>
-            {applications && <ApplicationPolicies config={data.config} />}
+            {applications && <ApplicationPolicies config={data.config} acceptance={acceptance} canAccept={canAct && kinds.has("accept")} eligible={eligible && kinds.has("accept")} held={held} openProposals={openProposals} submit={submit} />}
             <section className="k-card" aria-labelledby="weighted-propose"><h2 id="weighted-propose">Propose a role change</h2>
-                {!writable ? <p>This DAO version is read-only in Memba for now. Voting and proposing arrive in a later release.</p> : !canAct && !busy && <p>Actions require a connected, authenticated member on the selected test network.</p>}
-                <form onSubmit={e => { e.preventDefault(); void submit({ type: "propose", target, role, grant }) }}><fieldset disabled={!canAct}>
+                {!writable ? <p>This DAO version is read-only in Memba for now. Voting and proposing arrive in a later release.</p>
+                    : applications ? <p>Role proposals for this DAO version arrive in a later Memba release. Use the adapter acceptances and proposal votes below.</p>
+                    : !canAct && !busy && <p>Actions require a connected, authenticated member on the selected test network.</p>}
+                <form onSubmit={e => { e.preventDefault(); void submit({ type: "propose", target, role, grant }) }}><fieldset disabled={!canAct || !kinds.has("propose")}>
                     <label>Member<select value={target} onChange={e => setTarget(e.target.value)} required><option value="">Choose a member</option>{data.members.map(m => <option key={m.address} value={m.address}>{reveal(m.personId)} — {reveal(m.address)}</option>)}</select></label>
                     <label>Role<select value={role} onChange={e => setRole(e.target.value as "admin" | "finance")}><option value="admin">Admin</option><option value="finance">Finance</option></select></label>
                     <label>Change<select value={String(grant)} onChange={e => setGrant(e.target.value === "true")}><option value="true">Grant role</option><option value="false">Remove role</option></select></label>
@@ -151,7 +233,7 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
             </section>
             {data.config.capabilities.memberReplacement ? <section className="k-card" aria-labelledby="weighted-recover"><h2 id="weighted-recover">Recover a member’s DAO key</h2>
                 <p>Replace one person’s DAO address while preserving their identity, voting weight and roles. The old key loses DAO access after execution. This does not rotate the operations or reserve multisig.</p>
-                <form onSubmit={e => { e.preventDefault(); if (recoverySeat) void submit({ type: "recover", personId: recoverySeat.personId, oldAddress: recoverySeat.address, newAddress: replacement }) }}><fieldset disabled={!canAct}>
+                <form onSubmit={e => { e.preventDefault(); if (recoverySeat) void submit({ type: "recover", personId: recoverySeat.personId, oldAddress: recoverySeat.address, newAddress: replacement }) }}><fieldset disabled={!canAct || !kinds.has("recover")}>
                     <label>Recovery member<select value={recoverTarget} onChange={e => setRecoverTarget(e.target.value)} required><option value="">Choose a member</option>{data.members.map(m => <option key={m.address} value={m.address}>{reveal(m.personId)} — {reveal(m.address)}</option>)}</select></label>
                     {recoverySeat && <p className="weighted-dao__path">Current address: {reveal(recoverySeat.address)}. Preserve {recoverySeat.weight} voting {recoverySeat.weight === 1 ? "point" : "points"}{recoverySeat.admin ? ", Admin" : ""}{recoverySeat.finance ? ", Finance" : ""}.</p>}
                     <label>Replacement Gno address<input value={replacement} onChange={e => setReplacement(e.target.value)} required autoComplete="off" spellCheck={false} maxLength={40} /></label>
@@ -160,7 +242,7 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
             </section> : <p>This v1 DAO does not support member-key recovery.</p>}
             <section aria-labelledby="weighted-proposals"><h2 id="weighted-proposals">Governance proposals</h2><p>{data.page.total} proposals recorded</p>
                 {data.page.proposals.length === 0 && <p>No proposals on this page.</p>}
-                {data.page.proposals.map(p => <ProposalEntry key={p.id} proposal={p} ballot={ballots[p.id]} canAct={canAct} submit={submit} />)}
+                {data.page.proposals.map(p => <ProposalEntry key={p.id} proposal={p} ballot={ballots[p.id]} canAct={canAct} kinds={kinds} ballotAware={applications} otherOpen={openProposals.filter(o => o.id !== p.id).map(o => o.id)} newestPage={before === "0"} submit={submit} />)}
                 <div className="weighted-dao__actions">{before !== "0" && <button disabled={loading || busy} onClick={() => void refresh("0")}>Newest proposals</button>}{data.page.nextBefore && <button disabled={loading || busy} onClick={() => void refresh(data.page.nextBefore!)}>Older proposals</button>}</div>
             </section>
         </>}
@@ -173,9 +255,12 @@ const POLICY_NOTES: Partial<Record<ApplicationPolicyKey, string>> = {
 }
 const CATEGORY_KEYS = ["signerCategory", "attesterCategory", "curatorCategory", "sealCategory", "moderationCategory", "unpauseCategory", "resolutionCategory", "adminCategory", "moderatorCategory", "memberCategory"] as const
 
-function ApplicationPolicies({ config }: { config: WeightedConfig }) {
+function ApplicationPolicies({ config, acceptance, canAccept, eligible, held, openProposals, submit }: { config: WeightedConfig; acceptance: AcceptanceStates; canAccept: boolean; eligible: boolean; held: boolean; openProposals: WeightedProposal[]; submit: (action: WeightedAction) => Promise<void> }) {
+    const openAccept = openProposals.find(p => acceptAdapterFor(p.action) !== null)
     return <section aria-labelledby="weighted-adapters"><h2 id="weighted-adapters">Application adapters</h2>
         <p>Each adapter governs one fixed realm. A return proposal only stages the configured successor, who must accept separately.</p>
+        <p className="weighted-dao__warning" role="note">Executing any application action invalidates every other open proposal. Hand the adapters over one at a time: propose the next acceptance only after the previous one has executed.</p>
+        {held && <p>Acceptance proposals stay disabled on mainnet until the governance write hold is lifted.</p>}
         <ul className="weighted-dao__adapters">{weightedApplicationPolicies(config).map(({ key, policy }) => <li className="k-card" key={key} aria-label={`${key} adapter`}>
             <h3>{POLICY_LABELS[key]}</h3>
             <p className="weighted-dao__path">Target: {reveal(policy.target)}</p>
@@ -184,8 +269,35 @@ function ApplicationPolicies({ config }: { config: WeightedConfig }) {
             {"maxRegistrationFee" in policy && <p>Maximum registration fee: {reveal(policy.maxRegistrationFee)} ugnot</p>}
             <p>{CATEGORY_KEYS.filter(k => k in policy).map(k => `${k.replace(/Category$/, "")}: ${(policy as Record<string, unknown>)[k]}`).join(" · ") || POLICY_NOTES[key]}</p>
             {"emergencyPause" in policy && <p>Any current member can pause it immediately; unpausing needs a financial vote.</p>}
+            <AdapterAuthority adapter={key} state={acceptance[key]} dao={weightedDaoAddress(config.realmPath)} canAccept={canAccept} eligible={eligible} held={held} openAccept={openAccept?.id} submit={submit} />
         </li>)}</ul>
     </section>
+}
+
+function AdapterAuthority({ adapter, state, dao, canAccept, eligible, held, openAccept, submit }: { adapter: ApplicationPolicyKey; state: AcceptanceState | "error" | undefined; dao: string; canAccept: boolean; eligible: boolean; held: boolean; openAccept?: string; submit: (action: WeightedAction) => Promise<void> }) {
+    const role = AUTHORITY_GETTERS[adapter].authority
+    if (state === undefined) return <p className="weighted-dao__authority" role="status">Reading the target's {role}…</p>
+    if (state === "error") return <p className="weighted-dao__authority">Handoff status: the target's {role} could not be read. Refresh chain state to try again.</p>
+    const budget = v12CallBudget(ACCEPT_FUNCS[adapter])
+    return <div className="weighted-dao__authority" data-state={state.kind}>
+        <p><strong>{ACCEPTANCE_LABELS[state.kind]}</strong></p>
+        {state.kind === "awaiting" && <>
+            <p className="weighted-dao__path">Current {role}: {reveal(state.current || "(none)")}. Pending {role}: {reveal(state.pending || "(none)")}.</p>
+            <p className="weighted-dao__path">The publisher must first nominate the DAO ({dao}) as pending {role}.</p>
+        </>}
+        {state.kind === "blocked" && <>
+            <p className="weighted-dao__path">The DAO is the pending {role}. Current {role}: {reveal(state.current)}.</p>
+            <ul>{state.reasons.map(r => <li key={r}>{r}</li>)}</ul>
+        </>}
+        {state.kind === "dao" && <p className="weighted-dao__path">The DAO is the current {role}.{state.pending ? ` A return to ${reveal(state.pending)} is staged.` : ""}</p>}
+        {state.kind === "ready" && <>
+            <p className="weighted-dao__path">The DAO is the pending {role}. Current {role}: {reveal(state.current)}.</p>
+            <p>The proposal locks up to {formatUgnotExact(budget.maxDepositUgnot)} of storage deposit from the proposer.</p>
+            {openAccept && <p>Acceptance proposal #{openAccept} is still open. Propose this one after it executes or closes.</p>}
+            {!eligible && !held && <p>Proposing requires a connected, authenticated member on the selected test network.</p>}
+            <button type="button" disabled={!canAccept || !!openAccept} onClick={() => void submit({ type: "accept", adapter })}>Propose acceptance</button>
+        </>}
+    </div>
 }
 const POLICY_LABELS: Record<ApplicationPolicyKey, string> = {
     marketPolicy: APPLICATION_LABELS["market-config"], reviewsPolicy: APPLICATION_LABELS.reviews, questPolicy: APPLICATION_LABELS.quest, arcadePolicy: APPLICATION_LABELS.arcade,
@@ -214,12 +326,13 @@ function ApplicationAction({ action }: { action: WeightedApplicationAction }) {
 }
 
 type BallotView = WeightedBallot | "error" | undefined
-function ProposalEntry({ proposal, ballot, canAct, submit }: { proposal: WeightedPageEntry; ballot: BallotView; canAct: boolean; submit: (action: WeightedAction) => Promise<void> }) {
+type ProposalProps = { ballot: BallotView; canAct: boolean; kinds: ReadonlySet<WeightedWriteKind>; ballotAware: boolean; otherOpen: string[]; newestPage: boolean; submit: (action: WeightedAction) => Promise<void> }
+function ProposalEntry({ proposal, ...props }: ProposalProps & { proposal: WeightedPageEntry }) {
     if (isUnreadableProposal(proposal)) return <article className="k-card weighted-dao__proposal" id={`proposal-${proposal.id}`} aria-label={`Proposal ${proposal.id}`}>
         <h3>Unreadable proposal #{proposal.id}</h3>
         <p role="note">Memba could not validate this proposal against the DAO contract, so it is not shown and cannot be acted on here. Other proposals are unaffected.</p>
     </article>
-    return <Proposal proposal={proposal} ballot={ballot} canAct={canAct} submit={submit} />
+    return <Proposal proposal={proposal} {...props} />
 }
 
 function ballotText(ballot: BallotView, open: boolean): string | null {
@@ -235,9 +348,16 @@ function invalidationText(v: WeightedInvalidation): string {
     return `Invalidated at block ${v.height}: proposal #${v.proposalId} executed${v.target ? ` (${reveal(v.target)})` : ""}.`
 }
 
-function Proposal({ proposal: p, ballot, canAct, submit }: { proposal: WeightedProposal; ballot: BallotView; canAct: boolean; submit: (action: WeightedAction) => Promise<void> }) {
+function Proposal({ proposal: p, ballot, canAct, kinds, ballotAware, otherOpen, newestPage, submit }: ProposalProps & { proposal: WeightedProposal }) {
+    const [confirming, setConfirming] = useState(false)
     const voteOpen = !p.votingClosed && !["EXECUTED", "INVALIDATED", "EXPIRED"].includes(p.status)
     const pending = ["VOTING", "TIMELOCKED", "READY"].includes(p.status)
+    // v12 publishes ballots: offer only a choice the realm would record (an
+    // eligible voter, a different choice, voting still open).
+    const choices = ballotAware ? weightedVoteChoices(p, ballot) : null
+    const canVote = (vote: "yes" | "no" | "abstain") => canAct && kinds.has("vote") && voteOpen && (choices === null || choices.has(vote))
+    const canExecute = canAct && kinds.has("execute") && p.ready
+    const voted = ballot && ballot !== "error" ? ballot.choice : null
     return <article className="k-card weighted-dao__proposal" id={`proposal-${p.id}`} aria-label={`Proposal ${p.id}`}>
         <p className="weighted-dao__eyebrow">#{p.id} · <span className={`weighted-dao__category weighted-dao__category--${p.category}`}>{CATEGORY_TEXT[p.category]}</span></p>
         <ProposalAction action={p.action} />
@@ -245,11 +365,25 @@ function Proposal({ proposal: p, ballot, canAct, submit }: { proposal: WeightedP
         <strong>{p.status}</strong><p>{p.talliesAvailable ? `${p.weightYes} ${p.weightYes === 1 ? "point" : "points"} · ${p.peopleYes} ${p.peopleYes === 1 ? "person" : "people"} · ${p.developersYes} ${p.developersYes === 1 ? "developer" : "developers"} voting yes` : "Historical vote totals are unavailable."}</p>
         {p.status === "INVALIDATED" && <p>{p.invalidation ? invalidationText(p.invalidation) : "Invalidated: another proposal executed, or an emergency pause ran, after this was proposed."}</p>}
         {ballotText(ballot, voteOpen) && <p className="weighted-dao__ballot">{ballotText(ballot, voteOpen)}</p>}
+        {ballotAware && voted && voteOpen && <p>You can change your ballot until voting closes. Casting the same choice again changes nothing.</p>}
         {pending && <p className="weighted-dao__warning" role="note">Executing this proposal invalidates every other outstanding proposal.</p>}
         {p.category !== "critical" && p.status === "READY" && <p>{CATEGORY_TEXT[p.category]} proposals can execute as soon as they qualify.</p>}
+        {p.status === "TIMELOCKED" && <p>Qualified. Execution opens when a route below matures.</p>}
         <p>Voting closes: <time dateTime={p.votingDeadline}>{p.votingDeadline}</time>{p.votingClosed ? " (closed)" : ""}</p>
         {p.weightedAfter && <p>Weighted route matures: <time dateTime={p.weightedAfter}>{p.weightedAfter}</time></p>}
         {p.developerAfter && <p>Developer route matures: <time dateTime={p.developerAfter}>{p.developerAfter}</time></p>}
-        <div className="weighted-dao__actions">{(["yes", "no", "abstain"] as const).map(vote => <button key={vote} disabled={!canAct || !voteOpen} onClick={() => void submit({ type: "vote", id: p.id, vote })}>Vote {vote}</button>)}<button disabled={!canAct || !p.ready} onClick={() => void submit({ type: "execute", id: p.id })}>Execute proposal</button></div>
+        <div className="weighted-dao__actions">
+            {(["yes", "no", "abstain"] as const).map(vote => <button key={vote} aria-pressed={ballotAware ? voted === vote : undefined} disabled={!canVote(vote)} onClick={() => void submit({ type: "vote", id: p.id, vote })}>Vote {vote}</button>)}
+            <button disabled={!canExecute || confirming} onClick={() => ballotAware ? setConfirming(true) : void submit({ type: "execute", id: p.id })}>Execute proposal</button>
+        </div>
+        {confirming && <div className="weighted-dao__confirm" role="group" aria-label={`Confirm execution of proposal ${p.id}`}>
+            <p className="weighted-dao__warning">{otherOpen.length
+                ? `Executing #${p.id} invalidates ${otherOpen.length === 1 ? "open proposal" : `${otherOpen.length} open proposals`} ${otherOpen.map(id => `#${id}`).join(", ")}${newestPage ? "" : " and any other open proposal"}. They cannot be revived; their proposers would need to propose again.`
+                : `Executing #${p.id} invalidates every other open proposal.`}</p>
+            <div className="weighted-dao__actions">
+                <button disabled={!canExecute} onClick={() => { setConfirming(false); void submit({ type: "execute", id: p.id }) }}>Confirm execution</button>
+                <button onClick={() => setConfirming(false)}>Keep proposals open</button>
+            </div>
+        </div>}
     </article>
 }

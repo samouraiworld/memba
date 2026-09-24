@@ -64,10 +64,10 @@ describe("weighted contract", () => {
     })
     it("preserves uint64 IDs and exact governed entrypoints without sent coins", () => {
         const caller = fixture.members[0].address, max = "18446744073709551615"
-        expect(buildWeightedMessage(caller, weightedRealm, { type: "vote", id: max, vote: "yes" }, fixture.config.schema).value).toEqual({ caller, send: "", pkg_path: weightedRealm, func: "Vote", args: [max, "yes"] })
-        expect(buildWeightedMessage(caller, weightedRealm, { type: "execute", id: max }, fixture.config.schema).value.func).toBe("Execute")
-        expect(buildWeightedMessage(caller, weightedRealm, { type: "propose", target: fixture.members[1].address, role: "finance", grant: false }, fixture.config.schema).value.args).toEqual([fixture.members[1].address, "finance", "false"])
-        for (const id of ["0", "01", "-1", "1e3", "18446744073709551616", '1);panic("x")']) expect(() => buildWeightedMessage(caller, weightedRealm, { type: "execute", id }, fixture.config.schema)).toThrow()
+        expect(buildWeightedMessage(caller, weightedRealm, { type: "vote", id: max, vote: "yes" }, fixture.config.schema, "pearl").value).toEqual({ caller, send: "", pkg_path: weightedRealm, func: "Vote", args: [max, "yes"] })
+        expect(buildWeightedMessage(caller, weightedRealm, { type: "execute", id: max }, fixture.config.schema, "pearl").value.func).toBe("Execute")
+        expect(buildWeightedMessage(caller, weightedRealm, { type: "propose", target: fixture.members[1].address, role: "finance", grant: false }, fixture.config.schema, "pearl").value.args).toEqual([fixture.members[1].address, "finance", "false"])
+        for (const id of ["0", "01", "-1", "1e3", "18446744073709551616", '1);panic("x")']) expect(() => buildWeightedMessage(caller, weightedRealm, { type: "execute", id }, fixture.config.schema, "pearl")).toThrow()
     })
     it("blocks mainnet and stale wallet/network contexts unconditionally", () => {
         expect(() => assertWeightedWrites("gnoland-1", "gnoland-1", "gnoland-1", fixture.config.schema)).toThrow("hold")

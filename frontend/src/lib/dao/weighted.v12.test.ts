@@ -265,18 +265,26 @@ describe("every operation the host can encode", () => {
         expect(mutate(a => { a.contractId = "" })).toBe(false)
     })
 
-    it("builds no transaction for v12 on any network", async () => {
+    it("builds no v12 transaction on gnoland-1, and no role or recovery proposal anywhere yet", async () => {
         const snapshot = await readWeightedSnapshot(ctx)
         const caller = snapshot.members[1].address, schema = snapshot.config.schema
-        const actions = [
-            { type: "vote", id: "17", vote: "yes" }, { type: "execute", id: "17" },
+        const executes = snapshot.page.proposals.find(p => !isUnreadableProposal(p) && p.id === "17")
+        if (!executes || isUnreadableProposal(executes)) throw new Error("fixture")
+        const writes = [{ type: "vote", id: "17", vote: "yes" }, { type: "execute", id: "17" }, { type: "accept", adapter: "marketPolicy" }] as const
+        const later = [
             { type: "propose", target: snapshot.members[2].address, role: "admin", grant: true },
             { type: "recover", personId: "dadidou", oldAddress: snapshot.members[6].address, newAddress: "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquyl3wcje" },
         ] as const
-        for (const action of actions) expect(() => buildWeightedMessage(caller, realmPath, action, schema)).toThrow("read-only")
-        for (const chain of ["gnoland-1", "pearl", "test13", "dev"]) expect(() => assertWeightedWrites(chain, chain, chain, schema)).toThrow()
+        for (const action of [...writes, ...later]) expect(() => buildWeightedMessage(caller, realmPath, action, schema, "gnoland-1", executes.action)).toThrow("on hold")
+        expect(() => assertWeightedWrites("gnoland-1", "gnoland-1", "gnoland-1", schema)).toThrow("on hold")
+        for (const chain of ["pearl-1", "test-13", "dev"]) {
+            for (const action of writes) expect(buildWeightedMessage(caller, realmPath, action, schema, chain, executes.action).value.pkg_path).toBe(realmPath)
+            for (const action of later) expect(() => buildWeightedMessage(caller, realmPath, action, schema, chain)).toThrow("read-only")
+            expect(() => assertWeightedWrites(chain, chain, chain, schema, "vote")).not.toThrow()
+            expect(() => assertWeightedWrites(chain, chain, chain, schema, "propose")).toThrow("read-only")
+        }
         expect(() => assertWeightedWrites("pearl", "pearl", "pearl", "memba-weighted-host/v2")).not.toThrow()
-        expect(() => validateWeightedRecovery(snapshot, actions[3])).toThrow("does not support")
+        expect(() => validateWeightedRecovery(snapshot, later[1])).toThrow("does not support")
     })
 
     it("reads the escrow_v4 re-point: fee recipient rotation, pause fields and index-numbered milestones", () => {

@@ -8,9 +8,12 @@ import { bech32Encode } from "../lib/dao/realmAddress"
 import { weightedFixture, weightedRealm } from "../lib/dao/testdata/weighted"
 import v12Native from "../lib/dao/testdata/weighted-v12/native.json"
 import { weightedConfigSchema, weightedMembersSchema, weightedPageSchema, weightedProposalSchema } from "../lib/dao/weighted"
-vi.mock("../lib/config", () => ({ NETWORKS: { pearl: { chainId: "pearl", rpcUrl: "https://selected.invalid" }, mainnet: { chainId: "gnoland-1", rpcUrl: "https://main.invalid" } }, GNO_CHAIN_ID: "pearl", GNO_RPC_URL: "https://selected.invalid" }))
+import { readAcceptanceStates, readTargetAuthority, weightedDaoAddress, type AcceptanceState } from "../lib/dao/weightedAcceptance"
+import { APPLICATION_POLICY_KEYS, type ApplicationPolicyKey } from "../lib/dao/weightedApplications"
+vi.mock("../lib/config", async importOriginal => ({ ...await importOriginal<typeof import("../lib/config")>(), NETWORKS: { pearl: { chainId: "pearl", rpcUrl: "https://selected.invalid" }, mainnet: { chainId: "gnoland-1", rpcUrl: "https://main.invalid" } }, GNO_CHAIN_ID: "pearl", GNO_RPC_URL: "https://selected.invalid" }))
 vi.mock("../lib/dao/weighted", async importOriginal => ({ ...await importOriginal<typeof import("../lib/dao/weighted")>(), readWeightedSnapshot: vi.fn(), readWeightedProposal: vi.fn(), readWeightedBallot: vi.fn() }))
 vi.mock("../lib/grc20", () => ({ doContractBroadcast: vi.fn() }))
+vi.mock("../lib/dao/weightedAcceptance", async importOriginal => ({ ...await importOriginal<typeof import("../lib/dao/weightedAcceptance")>(), readAcceptanceStates: vi.fn(), readTargetAuthority: vi.fn() }))
 let fixture = weightedFixture()
 function snapshot() { return { config: fixture.config, members: fixture.members, page: fixture.page } as Awaited<ReturnType<typeof readWeightedSnapshot>> }
 function App({ address = fixture.members[5].address, network = "pearl", connected = true }: { address?: string; network?: string; connected?: boolean }) {
@@ -23,7 +26,19 @@ beforeEach(() => {
     vi.mocked(readWeightedProposal).mockImplementation(async () => fixture.proposal as Awaited<ReturnType<typeof readWeightedProposal>>)
     vi.mocked(doContractBroadcast).mockImplementation(async (_msgs, _memo, opts) => { await opts?.beforeSign?.(); return { hash: "a".repeat(64) } })
     vi.mocked(readWeightedBallot).mockImplementation(async (_ctx, proposalId, voter) => ({ schema: "memba-weighted-host/v12", proposalId, voter, eligible: true, choice: null, votedAtHeight: null }))
+    acceptance = Object.fromEntries(APPLICATION_POLICY_KEYS.map(key => [key, { current: DAO, pending: "", failed: [] }]))
+    vi.mocked(readTargetAuthority).mockImplementation(async (_ctx, key) => acceptance[key])
+    vi.mocked(readAcceptanceStates).mockImplementation(async () => Object.fromEntries(APPLICATION_POLICY_KEYS.map(key => [key, stateOf(key)])))
 })
+const DAO = weightedDaoAddress(weightedRealm)
+const PUBLISHER = "g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf"
+let acceptance: Record<string, { current: string; pending: string; failed: string[] }>
+function stateOf(key: ApplicationPolicyKey): AcceptanceState {
+    const r = acceptance[key]
+    if (r.current === DAO) return { kind: "dao", pending: r.pending }
+    if (r.pending !== DAO) return { kind: "awaiting", current: r.current, pending: r.pending }
+    return r.failed.length ? { kind: "blocked", current: r.current, reasons: r.failed } : { kind: "ready", current: r.current }
+}
 it("shows seven people, 2/1 weights and exact role actions without a percent threshold", async () => {
     render(<App />)
     expect(await screen.findByText(fixture.members[0].personId)).toBeTruthy()
@@ -182,18 +197,155 @@ it("explains invalidated and executed v12 history on the older page", async () =
     expect(within(accept).getByText("Historical vote totals are unavailable.")).toBeTruthy()
     expect(within(accept).queryByRole("note")).toBeNull()
 })
-it("keeps v12 read-only on a test network even for a connected, authenticated member", async () => {
+it("enables only v12 acceptances, votes and execution on a test network, never role or recovery proposals", async () => {
     vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
     const data = v12Snapshot()
     render(<App network="pearl" address={data.members[1].address} />)
-    expect(await screen.findByText(/This DAO version is read-only in Memba for now/)).toBeTruthy()
+    expect(await screen.findByText(/Role proposals for this DAO version arrive in a later Memba release/)).toBeTruthy()
     expect(screen.getByLabelText("Member").closest("fieldset")?.disabled).toBe(true)
     expect(screen.getByLabelText("Recovery member").closest("fieldset")?.disabled).toBe(true)
-    for (const button of screen.getAllByRole("button", { name: /^(Vote .*|Execute proposal)$/ })) {
+    const fee = screen.getByRole("article", { name: "Proposal 17" })
+    await waitFor(() => expect(within(fee).getByRole("button", { name: "Vote no" }).hasAttribute("disabled")).toBe(false))
+    expect(within(fee).getByRole("button", { name: "Execute proposal" }).hasAttribute("disabled")).toBe(false)
+    expect(within(screen.getByRole("article", { name: "Proposal 14" })).getByRole("button", { name: "Vote yes" }).hasAttribute("disabled")).toBe(true)
+    expect(doContractBroadcast).not.toHaveBeenCalled()
+})
+
+const adapterCard = (key: ApplicationPolicyKey) => screen.getByRole("listitem", { name: `${key} adapter` })
+it("shows each target's handoff state and offers acceptance only when the DAO is the pending authority", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    acceptance.marketPolicy = { current: PUBLISHER, pending: DAO, failed: [] }
+    acceptance.questPolicy = { current: PUBLISHER, pending: "", failed: [] }
+    acceptance.feedPolicy = { current: PUBLISHER, pending: DAO, failed: ["The current owner is still a feed moderator."] }
+    acceptance.escrowPolicy = { current: DAO, pending: PUBLISHER, failed: [] }
+    render(<App network="pearl" address={v12Snapshot().members[1].address} />)
+    const market = await screen.findByRole("listitem", { name: "marketPolicy adapter" })
+    expect(await within(market).findByText("Ready to accept")).toBeTruthy()
+    expect(within(market).getByText("The proposal locks up to 2.13 GNOT of storage deposit from the proposer.")).toBeTruthy()
+    expect(within(market).getByRole("button", { name: "Propose acceptance" }).hasAttribute("disabled")).toBe(false)
+    expect(within(adapterCard("questPolicy")).getByText("Awaiting publisher nomination")).toBeTruthy()
+    expect(within(adapterCard("questPolicy")).getByText(`The publisher must first nominate the DAO (${DAO}) as pending owner.`)).toBeTruthy()
+    expect(within(adapterCard("feedPolicy")).getByText("The current owner is still a feed moderator.")).toBeTruthy()
+    expect(within(adapterCard("escrowPolicy")).getByText("DAO controls")).toBeTruthy()
+    expect(within(adapterCard("escrowPolicy")).getByText(`The DAO is the current admin. A return to ${PUBLISHER} is staged.`)).toBeTruthy()
+    for (const key of ["questPolicy", "feedPolicy", "escrowPolicy", "badgesPolicy"] as const) expect(within(adapterCard(key)).queryByRole("button", { name: "Propose acceptance" })).toBeNull()
+    expect(screen.getByText(/Hand the adapters over one at a time/)).toBeTruthy()
+
+    fireEvent.click(within(market).getByRole("button", { name: "Propose acceptance" }))
+    await screen.findByText(/Transaction submitted:/)
+    const [msgs, memo, opts] = vi.mocked(doContractBroadcast).mock.calls[0]
+    expect(msgs).toEqual([{ type: "vm/MsgCall", value: { caller: v12Snapshot().members[1].address, send: "", pkg_path: weightedRealm, func: "ProposeMarketAccept", args: [], max_deposit: "2130000ugnot" } }])
+    expect(memo).toBe("Propose that the DAO accepts authority over gno.land/r/samcrew/memba_market_config")
+    expect(opts).toMatchObject({ retry: false, gasWanted: 24_000_000 })
+    // Checked once when preparing and again right before signing.
+    expect(vi.mocked(readTargetAuthority).mock.calls.filter(c => c[1] === "marketPolicy")).toHaveLength(2)
+})
+it("refuses an acceptance whose nomination changed before signing", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    acceptance.marketPolicy = { current: PUBLISHER, pending: DAO, failed: [] }
+    let check: (() => void | Promise<void>) | undefined
+    vi.mocked(doContractBroadcast).mockImplementation((_msgs, _memo, opts) => { check = opts?.beforeSign; return new Promise(() => {}) })
+    render(<App network="pearl" address={v12Snapshot().members[1].address} />)
+    const market = await screen.findByRole("listitem", { name: "marketPolicy adapter" })
+    fireEvent.click(await within(market).findByRole("button", { name: "Propose acceptance" }))
+    await waitFor(() => expect(check).toBeTypeOf("function"))
+    acceptance.marketPolicy = { current: PUBLISHER, pending: "", failed: [] }
+    await expect(check?.()).rejects.toThrow("not ready for the DAO to accept")
+})
+it("keeps one acceptance open at a time", async () => {
+    const data = v12Snapshot()
+    const open = structuredClone(weightedProposalSchema.parse(v12Native.records.recovery_later).proposal)
+    open.action = weightedProposalSchema.parse(v12Native.records.proposal_4).proposal.action
+    open.id = "27"
+    data.page = { ...data.page, total: "27", proposals: [open, ...data.page.proposals.slice(0, 19)] }
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => data)
+    acceptance.badgesPolicy = { current: PUBLISHER, pending: DAO, failed: [] }
+    render(<App network="pearl" address={data.members[1].address} />)
+    const badges = await screen.findByRole("listitem", { name: "badgesPolicy adapter" })
+    expect(await within(badges).findByText("Acceptance proposal #27 is still open. Propose this one after it executes or closes.")).toBeTruthy()
+    expect(within(badges).getByRole("button", { name: "Propose acceptance" }).hasAttribute("disabled")).toBe(true)
+})
+it("renders every acceptance control disabled on mainnet and builds nothing", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    for (const key of APPLICATION_POLICY_KEYS) acceptance[key] = { current: PUBLISHER, pending: DAO, failed: [] }
+    render(<App network="mainnet" address={v12Snapshot().members[1].address} />)
+    await waitFor(() => expect(screen.getAllByRole("button", { name: "Propose acceptance" })).toHaveLength(10))
+    expect(screen.getByText(/Mainnet governance is read-only/)).toBeTruthy()
+    expect(screen.getByText("Acceptance proposals stay disabled on mainnet until the governance write hold is lifted.")).toBeTruthy()
+    for (const button of screen.getAllByRole("button", { name: /^(Propose acceptance|Vote .*|Execute proposal)$/ })) {
         expect(button.hasAttribute("disabled")).toBe(true)
         fireEvent.click(button)
     }
     expect(doContractBroadcast).not.toHaveBeenCalled()
+})
+it("offers a changed ballot but never the same one, and nothing to an ineligible voter", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    const voter = v12Snapshot().members[1].address
+    vi.mocked(readWeightedBallot).mockImplementation(async (_ctx, proposalId, who) => proposalId === "18"
+        ? { schema: "memba-weighted-host/v12", proposalId, voter: who, eligible: false, choice: null, votedAtHeight: null }
+        : { schema: "memba-weighted-host/v12", proposalId, voter: who, eligible: true, choice: "yes", votedAtHeight: "77" })
+    render(<App network="pearl" address={voter} />)
+    const fee = await screen.findByRole("article", { name: "Proposal 17" })
+    await within(fee).findByText("You voted yes (block 77).")
+    const yes = within(fee).getByRole("button", { name: "Vote yes" })
+    expect([yes.hasAttribute("disabled"), yes.getAttribute("aria-pressed")]).toEqual([true, "true"])
+    expect(within(fee).getByText(/You can change your ballot until voting closes/)).toBeTruthy()
+    for (const button of within(screen.getByRole("article", { name: "Proposal 18" })).getAllByRole("button", { name: /^Vote / })) expect(button.hasAttribute("disabled")).toBe(true)
+    fireEvent.click(within(fee).getByRole("button", { name: "Vote no" }))
+    await screen.findByText(/Transaction submitted:/)
+    const [msgs, , opts] = vi.mocked(doContractBroadcast).mock.calls[0]
+    expect(msgs[0].value).toMatchObject({ func: "Vote", args: ["17", "no"], max_deposit: "40000ugnot" })
+    expect(opts).toMatchObject({ gasWanted: 24_800_000, retry: false })
+})
+it("refuses a repeated ballot found on chain before signing", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    render(<App network="pearl" address={v12Snapshot().members[1].address} />)
+    const fee = await screen.findByRole("article", { name: "Proposal 17" })
+    await waitFor(() => expect(within(fee).getByRole("button", { name: "Vote no" }).hasAttribute("disabled")).toBe(false))
+    vi.mocked(readWeightedBallot).mockImplementation(async (_ctx, proposalId, who) => ({ schema: "memba-weighted-host/v12", proposalId, voter: who, eligible: true, choice: "no", votedAtHeight: "80" }))
+    fireEvent.click(within(fee).getByRole("button", { name: "Vote no" }))
+    expect((await screen.findByRole("alert")).textContent).toMatch(/You already voted no/)
+    expect(doContractBroadcast).not.toHaveBeenCalled()
+})
+it("warns which open proposals an execution invalidates before building it", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    const data = v12Snapshot()
+    vi.mocked(readWeightedProposal).mockImplementation(async (_ctx, id) => data.page.proposals.find(p => p.id === id) as Awaited<ReturnType<typeof readWeightedProposal>>)
+    render(<App network="pearl" address={data.members[1].address} />)
+    const fee = await screen.findByRole("article", { name: "Proposal 17" })
+    fireEvent.click(await within(fee).findByRole("button", { name: "Execute proposal" }))
+    const confirm = within(fee).getByRole("group", { name: "Confirm execution of proposal 17" })
+    const open = data.page.proposals.filter(p => !("unreadable" in p) && ["VOTING", "TIMELOCKED", "READY"].includes(p.status) && p.id !== "17").map(p => `#${p.id}`)
+    expect(open.length).toBeGreaterThan(1)
+    expect(within(confirm).getByText(`Executing #17 invalidates ${open.length} open proposals ${open.join(", ")}. They cannot be revived; their proposers would need to propose again.`)).toBeTruthy()
+    expect(doContractBroadcast).not.toHaveBeenCalled()
+    fireEvent.click(within(confirm).getByRole("button", { name: "Keep proposals open" }))
+    expect(within(fee).queryByRole("group", { name: "Confirm execution of proposal 17" })).toBeNull()
+    fireEvent.click(within(fee).getByRole("button", { name: "Execute proposal" }))
+    fireEvent.click(within(fee).getByRole("button", { name: "Confirm execution" }))
+    await screen.findByText(/Transaction submitted:/)
+    const [msgs, , opts] = vi.mocked(doContractBroadcast).mock.calls[0]
+    expect(msgs[0].value).toMatchObject({ func: "Execute", args: ["17"], max_deposit: "190000ugnot" })
+    expect(opts).toMatchObject({ gasWanted: 41_000_000 })
+})
+it("re-reads the target after executing an acceptance and reports the handoff", async () => {
+    const data = v12Snapshot()
+    const ready = structuredClone(weightedProposalSchema.parse(v12Native.records.recovery_later).proposal)
+    ready.action = weightedProposalSchema.parse(v12Native.records.proposal_4).proposal.action
+    ready.id = "27"
+    data.page = { ...data.page, total: "27", proposals: [ready] }
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => data)
+    vi.mocked(readWeightedProposal).mockImplementation(async () => ready as Awaited<ReturnType<typeof readWeightedProposal>>)
+    acceptance.marketPolicy = { current: PUBLISHER, pending: DAO, failed: [] }
+    vi.mocked(doContractBroadcast).mockImplementation(async (_msgs, _memo, opts) => { await opts?.beforeSign?.(); acceptance.marketPolicy = { current: DAO, pending: "", failed: [] }; return { hash: "b".repeat(64) } })
+    render(<App network="pearl" address={data.members[1].address} />)
+    const card = await screen.findByRole("article", { name: "Proposal 27" })
+    fireEvent.click(await within(card).findByRole("button", { name: "Execute proposal" }))
+    expect(within(card).getByText("Executing #27 invalidates every other open proposal.")).toBeTruthy()
+    fireEvent.click(within(card).getByRole("button", { name: "Confirm execution" }))
+    expect(await screen.findByText(`Transaction submitted: ${"b".repeat(64)}. gno.land/r/samcrew/memba_market_config now names the DAO as its admin.`)).toBeTruthy()
+    expect(vi.mocked(doContractBroadcast).mock.calls[0][2]).toMatchObject({ gasWanted: 44_700_000 })
+    expect(vi.mocked(doContractBroadcast).mock.calls[0][0][0].value.max_deposit).toBe("230000ugnot")
 })
 it("lists an unreadable proposal by ID and keeps the rest of the page", async () => {
     const data = v12Snapshot()
@@ -266,4 +418,20 @@ it("explains a pause invalidation with the paused realm", async () => {
     vi.mocked(readWeightedSnapshot).mockImplementation(async () => data)
     render(<App network="mainnet" />)
     expect(await screen.findByText(/^Invalidated at block \d+: a member paused gno\.land\/r\/samcrew\/gnobuilders_badges_v2\.$/)).toBeTruthy()
+})
+it("refuses to execute an acceptance whose nomination was withdrawn", async () => {
+    const data = v12Snapshot()
+    const ready = structuredClone(weightedProposalSchema.parse(v12Native.records.recovery_later).proposal)
+    ready.action = weightedProposalSchema.parse(v12Native.records.proposal_4).proposal.action
+    ready.id = "27"
+    data.page = { ...data.page, total: "27", proposals: [ready] }
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => data)
+    vi.mocked(readWeightedProposal).mockImplementation(async () => ready as Awaited<ReturnType<typeof readWeightedProposal>>)
+    acceptance.marketPolicy = { current: PUBLISHER, pending: "", failed: [] }
+    render(<App network="pearl" address={data.members[1].address} />)
+    const card = await screen.findByRole("article", { name: "Proposal 27" })
+    fireEvent.click(await within(card).findByRole("button", { name: "Execute proposal" }))
+    fireEvent.click(within(card).getByRole("button", { name: "Confirm execution" }))
+    expect((await screen.findByRole("alert")).textContent).toMatch(/no longer names the DAO as its pending admin/)
+    expect(doContractBroadcast).not.toHaveBeenCalled()
 })

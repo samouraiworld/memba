@@ -30,3 +30,6 @@
 .weighted-dao__category--routine { color: var(--color-k-info-text); }
 .weighted-dao__warning { border-left: 3px solid var(--color-k-amber-border); padding-left: 10px; }
 @media (max-width: 480px) { .weighted-dao__facts div { grid-template-columns: minmax(0, 1fr); gap: 0; } }
+.weighted-dao__authority { border-top: 1px solid var(--color-border); margin-top: 12px; padding-top: 12px; overflow-wrap: anywhere; }
+.weighted-dao__authority ul { margin: 8px 0; padding-left: 20px; }
+.weighted-dao__confirm { margin-top: 12px; }

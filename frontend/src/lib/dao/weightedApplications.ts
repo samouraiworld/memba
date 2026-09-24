@@ -266,6 +266,31 @@ export function applicationActionMatchesPolicy(action: WeightedApplicationAction
     return true
 }
 
+// ── Authority handoff ─────────────────────────────────────────────────────────
+
+/** The realm's exported acceptance proposal of each adapter; each takes no argument. */
+export const ACCEPT_FUNCS = {
+    marketPolicy: "ProposeMarketAccept", reviewsPolicy: "ProposeReviewsAccept", questPolicy: "ProposeQuestAccept",
+    arcadePolicy: "ProposeArcadeAccept", appstorePolicy: "ProposeAppstoreAccept", escrowPolicy: "ProposeEscrowAccept",
+    badgesPolicy: "ProposeBadgesAccept", feedPolicy: "ProposeFeedAccept", channelsPolicy: "ProposeChannelsAccept",
+    feedbackPolicy: "ProposeFeedbackAccept",
+} as const satisfies Record<ApplicationPolicyKey, string>
+
+/** Action type and operation the host records for each acceptance. */
+export const ACCEPT_ACTIONS: Record<ApplicationPolicyKey, { type: string; operation: string }> = {
+    marketPolicy: { type: "market-config", operation: "accept-admin" }, reviewsPolicy: { type: "reviews", operation: "accept-moderator" },
+    questPolicy: { type: "quest", operation: "accept-owner" }, arcadePolicy: { type: "arcade", operation: "accept-owner" },
+    appstorePolicy: { type: "appstore", operation: "accept-owner" }, escrowPolicy: { type: "escrow", operation: "accept-owner" },
+    badgesPolicy: { type: "badges", operation: "accept-owner" }, feedPolicy: { type: "feed", operation: "accept-owner" },
+    channelsPolicy: { type: "channels", operation: "accept-owner" }, feedbackPolicy: { type: "feedback", operation: "accept-owner" },
+}
+
+export function acceptAdapterFor(action: { type: string; operation?: string }): ApplicationPolicyKey | null {
+    const hit = (Object.entries(ACCEPT_ACTIONS) as [ApplicationPolicyKey, { type: string; operation: string }][])
+        .find(([, a]) => a.type === action.type && a.operation === action.operation)
+    return hit ? hit[0] : null
+}
+
 export const APPLICATION_LABELS: Record<WeightedApplicationAction["type"], string> = {
     "market-config": "Market config", reviews: "Reviews", quest: "Quests", arcade: "Arcade", appstore: "App Store",
     escrow: "Escrow", badges: "Badges", feed: "Feed", channels: "DAO channels", feedback: "Feedback",

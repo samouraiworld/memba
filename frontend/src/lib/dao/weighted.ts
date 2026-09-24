@@ -3,7 +3,8 @@ import { z } from "zod"
 import { abciErrorPresent, directRpcCall } from "../rpcFallback"
 import type { AminoMsg } from "./shared"
 import { address, id, personID, realm, role, time, uint64 } from "./weightedPrimitives"
-import { APPLICATION_LABELS, APPLICATION_POLICY_KEYS, APPLICATION_TARGETS, IMMEDIATE_THRESHOLDS, applicationActionMatchesPolicy, applicationPolicySchemas, expectedCategory, recoverMemberAction, setRoleAction, v12Action } from "./weightedApplications"
+import { ACCEPT_FUNCS, APPLICATION_LABELS, APPLICATION_POLICY_KEYS, APPLICATION_TARGETS, IMMEDIATE_THRESHOLDS, applicationActionMatchesPolicy, applicationPolicySchemas, expectedCategory, recoverMemberAction, setRoleAction, v12Action, type ApplicationPolicyKey } from "./weightedApplications"
+import { v12BudgetWithinCeiling, v12CallBudget, v12ExecuteBudget } from "./weightedBudget"
 
 export const WEIGHTED_SCHEMA = "memba-weighted-host/v1"
 export const WEIGHTED_RECOVERY_SCHEMA = "memba-weighted-host/v2"
@@ -121,7 +122,7 @@ export function isUnreadableProposal(p: WeightedPageEntry): p is UnreadableWeigh
 export type WeightedMember = z.infer<typeof member>
 export type WeightedPage = Omit<z.infer<typeof weightedPageSchema>, "proposals"> & { proposals: WeightedPageEntry[] }
 export type WeightedContext = { rpcUrl: string; chainId: string; realmPath: string }
-export type WeightedAction = { type: "recover"; personId: string; oldAddress: string; newAddress: string } | { type: "propose"; target: string; role: "admin" | "finance"; grant: boolean } | { type: "vote"; id: string; vote: "yes" | "no" | "abstain" } | { type: "execute"; id: string }
+export type WeightedAction = { type: "recover"; personId: string; oldAddress: string; newAddress: string } | { type: "propose"; target: string; role: "admin" | "finance"; grant: boolean } | { type: "vote"; id: string; vote: "yes" | "no" | "abstain" } | { type: "execute"; id: string } | { type: "accept"; adapter: ApplicationPolicyKey }
 
 /** Decode the Go string literal, including non-JSON \x, \U and octal escapes. */
 export function parseWeightedQeval(raw: string): unknown {
@@ -172,15 +173,20 @@ export function parseWeightedQeval(raw: string): unknown {
     return value
 }
 
-async function read(ctx: WeightedContext, expression: string, signal?: AbortSignal): Promise<unknown> {
-    realm.parse(ctx.realmPath)
+/** Raw `vm/qeval` result text of `<pkgPath>.<expression>` (a samcrew realm only). */
+export async function qevalText(rpcUrl: string, pkgPath: string, expression: string, signal?: AbortSignal): Promise<string> {
+    realm.parse(pkgPath)
     if (signal?.aborted) throw new Error("Read cancelled")
-    const data = Array.from(new TextEncoder().encode(`${ctx.realmPath}.${expression}`), b => b.toString(16).padStart(2, "0")).join("")
-    const result = await directRpcCall(ctx.rpcUrl, "abci_query", { path: '"vm/qeval"', data: `0x${data}` }, signal)
+    const data = Array.from(new TextEncoder().encode(`${pkgPath}.${expression}`), b => b.toString(16).padStart(2, "0")).join("")
+    const result = await directRpcCall(rpcUrl, "abci_query", { path: '"vm/qeval"', data: `0x${data}` }, signal)
     const parsed = z.object({ response: z.object({ ResponseBase: z.object({ Data: z.string(), Error: z.unknown().optional() }) }) }).parse(result)
-    if (signal?.aborted || abciErrorPresent(parsed.response.ResponseBase.Error)) throw new Error("DAO read failed")
-    const raw = new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(atob(parsed.response.ResponseBase.Data), c => c.charCodeAt(0)))
-    return parseWeightedQeval(raw)
+    if (signal?.aborted || abciErrorPresent(parsed.response.ResponseBase.Error)) throw new Error("Chain read failed")
+    return new TextDecoder("utf-8", { fatal: true }).decode(Uint8Array.from(atob(parsed.response.ResponseBase.Data), c => c.charCodeAt(0)))
+}
+
+async function read(ctx: WeightedContext, expression: string, signal?: AbortSignal): Promise<unknown> {
+    try { return parseWeightedQeval(await qevalText(ctx.rpcUrl, ctx.realmPath, expression, signal)) }
+    catch (err) { if (err instanceof Error && err.message === "Chain read failed") throw new Error("DAO read failed"); throw err }
 }
 
 export async function readWeightedSnapshot(ctx: WeightedContext, before = "0", signal?: AbortSignal) {
@@ -257,7 +263,8 @@ export type WeightedBallot = z.infer<typeof weightedBallotSchema>
 const pendingEnvelopeSchema = z.strictObject({ schema: z.literal(WEIGHTED_APPLICATIONS_SCHEMA), voter: address, items: z.array(z.unknown()).max(50), next: id.nullable() })
 export type WeightedPendingVotes = { voter: string; items: WeightedPageEntry[]; next: string | null }
 
-async function assertChain(ctx: WeightedContext, signal?: AbortSignal) {
+/** Refuse an RPC that answers for another chain than the selected one. */
+export async function assertWeightedChain(ctx: Pick<WeightedContext, "rpcUrl" | "chainId">, signal?: AbortSignal) {
     const status = z.object({ node_info: z.object({ network: z.string() }) }).parse(await directRpcCall(ctx.rpcUrl, "status", {}, signal))
     if (status.node_info.network !== ctx.chainId) throw new Error("RPC network does not match the selected chain")
 }
@@ -265,7 +272,7 @@ async function assertChain(ctx: WeightedContext, signal?: AbortSignal) {
 /** One address's ballot on one proposal. Eligibility is the electorate frozen when the proposal was created. */
 export async function readWeightedBallot(ctx: WeightedContext, proposalId: string, voter: string, signal?: AbortSignal): Promise<WeightedBallot> {
     id.parse(proposalId); address.parse(voter)
-    await assertChain(ctx, signal)
+    await assertWeightedChain(ctx, signal)
     const ballot = weightedBallotSchema.parse(await read(ctx, `GetBallotJSON("${proposalId}", "${voter}")`, signal))
     if (ballot.proposalId !== proposalId || ballot.voter !== voter) throw new Error("Ballot does not match the request")
     return ballot
@@ -279,7 +286,7 @@ export async function readWeightedBallot(ctx: WeightedContext, proposalId: strin
 export async function readWeightedPendingVotes(ctx: WeightedContext, voter: string, before = "0", limit = 20, signal?: AbortSignal): Promise<WeightedPendingVotes> {
     address.parse(voter); uint64.parse(before)
     if (!Number.isInteger(limit) || limit < 1 || limit > 50) throw new Error("Invalid pending-vote page size")
-    await assertChain(ctx, signal)
+    await assertWeightedChain(ctx, signal)
     const envelope = pendingEnvelopeSchema.parse(await read(ctx, `GetPendingVotesJSON("${voter}", "${before}", ${limit})`, signal))
     if (envelope.voter !== voter) throw new Error("Pending votes do not match the request")
     if (envelope.items.length > limit) throw new Error("Invalid pending-vote page")
@@ -310,28 +317,90 @@ export function weightedProposalTitle(p: WeightedPageEntry): string {
     return `${APPLICATION_LABELS[a.type]} · ${a.operation}`
 }
 
-/**
- * Contract versions Memba builds transactions for. v12 (the mainnet governing
- * DAO) is read-only on every network until its write slices land.
- */
-export const WEIGHTED_WRITABLE_SCHEMAS: readonly string[] = [WEIGHTED_SCHEMA, WEIGHTED_RECOVERY_SCHEMA]
-export function weightedWritesSupported(schema: string): boolean { return WEIGHTED_WRITABLE_SCHEMAS.includes(schema) }
+/** Which calls Memba builds for a contract version on a chain. */
+export type WeightedWriteKind = WeightedAction["type"]
+const NO_WRITES: ReadonlySet<WeightedWriteKind> = new Set()
+const WRITE_KINDS: Record<WeightedSchemaVersion, ReadonlySet<WeightedWriteKind>> = {
+    [WEIGHTED_SCHEMA]: new Set(["propose", "vote", "execute"]),
+    [WEIGHTED_RECOVERY_SCHEMA]: new Set(["propose", "recover", "vote", "execute"]),
+    // v12 (the mainnet governing DAO): adapter acceptance, ballots and
+    // execution. Role and key-recovery proposals arrive in a later slice.
+    [WEIGHTED_APPLICATIONS_SCHEMA]: new Set(["accept", "vote", "execute"]),
+}
 
-export function buildWeightedMessage(caller: string, realmPath: string, action: WeightedAction, schema: string): AminoMsg {
-    if (!weightedWritesSupported(schema)) throw new Error("This DAO version is read-only in Memba")
+/** The gnoland-1 governance write hold. Lifting it is a separate, owner-gated change. */
+export const WEIGHTED_WRITE_HOLD_CHAINS: readonly string[] = ["gnoland-1"]
+
+/**
+ * Calls Memba may build for `schema` on `chainId`: none on a held chain
+ * (gnoland-1) or for an unknown version.
+ */
+export function weightedWriteKinds(schema: string, chainId: string): ReadonlySet<WeightedWriteKind> {
+    if (WEIGHTED_WRITE_HOLD_CHAINS.includes(chainId) || !Object.hasOwn(WRITE_KINDS, schema)) return NO_WRITES
+    return WRITE_KINDS[schema as WeightedSchemaVersion]
+}
+/** True when some write exists for this version off the held chains. */
+export function weightedWritesSupported(schema: string): boolean { return Object.hasOwn(WRITE_KINDS, schema) }
+
+/** A signable call: the exact message, and for v12 the gas limit and deposit cap it is sent with. */
+export interface WeightedTxPlan {
+    msg: AminoMsg
+    gasWanted?: number
+    /** Storage deposit cap in ugnot, also carried in `msg.value.max_deposit` (v12). */
+    maxDepositUgnot?: number
+}
+
+/**
+ * Build the one realm call for `action`. On a held chain nothing is built.
+ * v12 calls carry their measured `max_deposit`; an Execute needs the stored
+ * action it runs (`executes`) to size it.
+ */
+export function planWeightedTx(caller: string, realmPath: string, action: WeightedAction, schema: string, chainId: string, executes?: { type: string; operation?: string; grant?: boolean }): WeightedTxPlan {
+    if (WEIGHTED_WRITE_HOLD_CHAINS.includes(chainId)) throw new Error("Mainnet governance writes remain on hold")
+    if (!weightedWriteKinds(schema, chainId).has(action.type)) throw new Error("This DAO version is read-only in Memba for this action")
     address.parse(caller); realm.parse(realmPath)
     let func: string, args: string[]
     if (action.type === "recover") { func = "ProposeRecovery"; args = [personID.parse(action.personId), address.parse(action.oldAddress), address.parse(action.newAddress)]; if (action.oldAddress === action.newAddress) throw new Error("Recovery must change the address") }
     else if (action.type === "propose") { func = "ProposeRole"; args = [address.parse(action.target), role.parse(action.role), String(z.boolean().parse(action.grant))] }
     else if (action.type === "vote") { func = "Vote"; args = [id.parse(action.id), z.enum(["yes", "no", "abstain"]).parse(action.vote)] }
     else if (action.type === "execute") { func = "Execute"; args = [id.parse(action.id)] }
+    else if (action.type === "accept") {
+        if (!Object.hasOwn(ACCEPT_FUNCS, action.adapter)) throw new Error("Unknown application adapter")
+        func = ACCEPT_FUNCS[action.adapter]; args = []
+    }
     else throw new Error("Unsupported weighted action")
-    return { type: "vm/MsgCall", value: { caller, send: "", pkg_path: realmPath, func, args } }
+    const value = { caller, send: "", pkg_path: realmPath, func, args }
+    if (schema !== WEIGHTED_APPLICATIONS_SCHEMA) return { msg: { type: "vm/MsgCall", value } }
+    if (action.type === "execute" && !executes) throw new Error("Execute needs the proposal's action to size its budget")
+    const budget = action.type === "execute" ? v12ExecuteBudget(executes!) : v12CallBudget(func)
+    if (!v12BudgetWithinCeiling(budget)) throw new Error("Call budget is above the storage-deposit ceiling")
+    return {
+        msg: { type: "vm/MsgCall", value: { ...value, max_deposit: `${budget.maxDepositUgnot}ugnot` } },
+        gasWanted: budget.gasWanted, maxDepositUgnot: budget.maxDepositUgnot,
+    }
 }
 
-export function assertWeightedWrites(chainId: string, activeChain: string, walletChain: string, schema: string) {
-    if (chainId === "gnoland-1") throw new Error("Mainnet governance writes remain on hold")
-    if (!weightedWritesSupported(schema)) throw new Error("This DAO version is read-only in Memba")
+export function buildWeightedMessage(caller: string, realmPath: string, action: WeightedAction, schema: string, chainId: string, executes?: { type: string; operation?: string; grant?: boolean }): AminoMsg {
+    return planWeightedTx(caller, realmPath, action, schema, chainId, executes).msg
+}
+
+/**
+ * Re-check a v12 plan right before signing: the message carries exactly the
+ * reviewed cap, in canonical form, and it stays under the 10 GNOT ceiling.
+ */
+export function assertWeightedPlanSignable(plan: WeightedTxPlan): void {
+    const raw = (plan.msg.value as Record<string, unknown>).max_deposit
+    if (plan.maxDepositUgnot === undefined) { if (raw !== undefined) throw new Error("Unexpected storage-deposit cap"); return }
+    const m = typeof raw === "string" ? /^(\d{1,15})ugnot$/.exec(raw) : null
+    if (!m || Number(m[1]) !== plan.maxDepositUgnot) throw new Error("The transaction's storage-deposit cap differs from the one reviewed. Review it again.")
+    if (!v12BudgetWithinCeiling({ gasWanted: plan.gasWanted ?? 0, maxDepositUgnot: plan.maxDepositUgnot })) throw new Error("The storage-deposit cap is above the 10 GNOT ceiling")
+    if (!Number.isSafeInteger(plan.gasWanted) || plan.gasWanted! <= 0) throw new Error("Invalid gas limit")
+}
+
+export function assertWeightedWrites(chainId: string, activeChain: string, walletChain: string, schema: string, kind?: WeightedWriteKind) {
+    if (WEIGHTED_WRITE_HOLD_CHAINS.includes(chainId)) throw new Error("Mainnet governance writes remain on hold")
+    const kinds = weightedWriteKinds(schema, chainId)
+    if (kinds.size === 0 || (kind !== undefined && !kinds.has(kind))) throw new Error("This DAO version is read-only in Memba")
     if (chainId !== activeChain || chainId !== walletChain) throw new Error("Wallet or selected network changed")
 }
 
@@ -345,4 +414,18 @@ export function validateWeightedRecovery(snapshot: Awaited<ReturnType<typeof rea
     address.parse(action.newAddress)
     if (!snapshot.members.some(m => m.personId === action.personId && m.address === action.oldAddress)) throw new Error("Recovery seat changed; refresh before preparing again")
     if (snapshot.members.some(m => m.address === action.newAddress)) throw new Error("Replacement address already belongs to a DAO member")
+}
+
+export type WeightedVoteChoice = "yes" | "no" | "abstain"
+/**
+ * Ballots the realm would record for this voter (v12). The policy accepts a
+ * vote from an eligible member while the proposal is active and before its
+ * deadline, in VOTING, TIMELOCKED or READY alike; a change of choice is
+ * allowed until then, and the same choice again is a no-op. Nothing is
+ * offered until the voter's ballot has been read.
+ */
+export function weightedVoteChoices(p: Pick<WeightedProposal, "status" | "votingClosed">, ballot: WeightedBallot | "error" | undefined): ReadonlySet<WeightedVoteChoice> {
+    if (!ballot || ballot === "error" || !ballot.eligible) return new Set()
+    if (p.votingClosed || !["VOTING", "TIMELOCKED", "READY"].includes(p.status)) return new Set()
+    return new Set((["yes", "no", "abstain"] as const).filter(choice => choice !== ballot.choice))
 }

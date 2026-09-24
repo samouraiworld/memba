@@ -93,3 +93,21 @@ Records 1–7 are unchanged by what follows.
 
 Each `advance` in the scenario also moves one block, so ballot and
 invalidation heights differ.
+
+## Write-side fixtures
+
+- `realm-exports.txt`: every exported function of the generated realm (the
+  twelve files pinned above), one signature per line with grouped parameters
+  expanded. Builders are checked against it: function names, argument order
+  and types.
+- `target-getters.txt`: the authority getters of the ten adapter targets
+  (both reviews versions), with their return types, copied from each target
+  realm's source. The acceptance reads use exactly these.
+- `budget.json`: gas and storage-deposit measurements of every member call
+  (every `Propose*` entry point, `Vote` in each ballot variant, `Execute` of
+  each operation, the emergency pauses), with their provenance. Two runs on
+  an in-process gno.land node at `e75fef82` with the mainnet VM parameters:
+  the exact candidate bytes, and a full lifecycle with the critical delays
+  shortened in a measurement-only policy copy. `weightedBudget.ts` derives its
+  table from these (1.5 × the highest value) and `weightedBudget.test.ts`
+  recomputes it.

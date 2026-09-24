@@ -1,0 +1,30 @@
+# Authority getters of the ten adapter targets, copied from each target realm's source,
+# one per line: <realm path> <signature>. Used by the acceptance readiness reads.
+gno.land/r/samcrew/memba_market_config GetAdmin() address
+gno.land/r/samcrew/memba_market_config GetPendingAdmin() address
+gno.land/r/samcrew/memba_reviews_v1 GetModerator() string
+gno.land/r/samcrew/memba_reviews_v1 GetPendingModerator() string
+gno.land/r/samcrew/memba_reviews_v2 GetModerator() string
+gno.land/r/samcrew/memba_reviews_v2 GetPendingModerator() string
+gno.land/r/samcrew/memba_quest_attestation_v1 GetOwner() string
+gno.land/r/samcrew/memba_quest_attestation_v1 GetPendingOwner() string
+gno.land/r/samcrew/memba_arcade_leaderboard_v1 GetOwner() address
+gno.land/r/samcrew/memba_arcade_leaderboard_v1 GetPendingOwner() address
+gno.land/r/samcrew/memba_appstore_v3 GetOwner() address
+gno.land/r/samcrew/memba_appstore_v3 GetPendingOwner() address
+gno.land/r/samcrew/escrow_v4 GetAdmin() string
+gno.land/r/samcrew/escrow_v4 GetPendingAdmin() string
+gno.land/r/samcrew/gnobuilders_badges_v2 GetOwner() address
+gno.land/r/samcrew/gnobuilders_badges_v2 GetPendingOwner() address
+gno.land/r/samcrew/gnobuilders_badges_v2 IsAdmin(addr address) bool
+gno.land/r/samcrew/memba_feed_v1 GetOwner() address
+gno.land/r/samcrew/memba_feed_v1 GetPendingOwner() address
+gno.land/r/samcrew/memba_feed_v1 IsModerator(addr address) bool
+gno.land/r/samcrew/memba_dao_channels_v2 GetMemberRoles(addr address) string
+gno.land/r/samcrew/memba_dao_channels_v2 GetOwner() address
+gno.land/r/samcrew/memba_dao_channels_v2 GetPendingOwner() address
+gno.land/r/samcrew/memba_dao_channels_v2 IsMember(addr address) bool
+gno.land/r/samcrew/memba_feedback_v2 GetMemberRoles(addr address) string
+gno.land/r/samcrew/memba_feedback_v2 GetOwner() address
+gno.land/r/samcrew/memba_feedback_v2 GetPendingOwner() address
+gno.land/r/samcrew/memba_feedback_v2 IsMember(addr address) bool
