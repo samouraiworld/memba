@@ -6,7 +6,13 @@
  */
 
 import { isValidGnoAddressChecksum } from "./dao/address"
-import { REGISTRY_NAME_MAX_LEN, REGISTRY_NAME_RE, resolveUsernameToAddress } from "./dao/shared"
+import {
+    ASCII_EDGE_WHITESPACE_RE,
+    NON_PRINTABLE_ASCII_RE,
+    REGISTRY_NAME_MAX_LEN,
+    REGISTRY_NAME_RE,
+    resolveUsernameToAddress,
+} from "./dao/shared"
 
 export type RecipientResolution =
     | { kind: "address"; address: string; name?: string }
@@ -40,15 +46,20 @@ function resolveAddress(input: string): RecipientResolution {
 }
 
 /**
- * Resolve what a user typed as a recipient. A g1 address is checked locally
+ * Resolve what a user typed as a recipient. Only ASCII edge whitespace is
+ * trimmed, and any other character outside printable ASCII is rejected, never
+ * normalised (case folding turns U+212A into "k"). A g1 address is checked locally
  * (bech32 checksum) with no network call. A name (one leading "@" optional,
  * case-insensitive like the registry's lowercase-only names) must pass the
  * r/sys/users name rule before it is looked up through `ResolveName`.
  * Never throws: any failure of the lookup is "unreachable".
  */
 export async function resolveRecipient(input: string): Promise<RecipientResolution> {
-    const trimmed = typeof input === "string" ? input.trim() : ""
+    const trimmed = typeof input === "string" ? input.replace(ASCII_EDGE_WHITESPACE_RE, "") : ""
     if (!trimmed) return invalid("Enter a @username or a g1 address.")
+    if (NON_PRINTABLE_ASCII_RE.test(trimmed)) {
+        return invalid("Only plain ASCII letters, digits and symbols are allowed: no spaces, accents or invisible characters.")
+    }
 
     const hasAt = trimmed.startsWith("@")
     const body = hasAt ? trimmed.slice(1) : trimmed

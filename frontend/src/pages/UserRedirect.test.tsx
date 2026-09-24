@@ -88,6 +88,20 @@ describe("resolveUsernameToAddress", () => {
         expect(query).not.toHaveBeenCalled()
     })
 
+    it("rejects non-ASCII input instead of case-folding or trimming it", async () => {
+        // U+212A KELVIN SIGN lowercases to "k"; U+FEFF / U+00A0 are stripped by trim().
+        for (const name of ["\u212Aelvin", "@\u212Aelvin", "\uFEFFsamcrew", "samcrew\u00A0", "sam\u200Bcrew"]) {
+            expect(await resolveUsernameToAddress(name)).toBe("")
+        }
+        expect(query).not.toHaveBeenCalled()
+    })
+
+    it("still trims ASCII whitespace around a valid name", async () => {
+        query.mockResolvedValue(LIVE_SAMCREW)
+        expect(await resolveUsernameToAddress(" \t@samcrew\n")).toBe(SAMCREW)
+        expect(query).toHaveBeenCalledWith("vm/qeval", 'gno.land/r/sys/users.ResolveName("samcrew")', true)
+    })
+
     it("returns null when the registry cannot be read", async () => {
         query.mockRejectedValue(new Error("RPC down"))
         expect(await resolveUsernameToAddress("samcrew")).toBeNull()

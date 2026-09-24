@@ -323,6 +323,13 @@ const USER_DATA_RE = /^\(&\(struct\{\("(g1[a-z0-9]{38})" \.uverse\.address\),\("
 export const REGISTRY_NAME_RE = /^[a-z][a-z0-9]*([_-][a-z0-9]+)*$/
 /** r/sys/users `maxNameLen`. */
 export const REGISTRY_NAME_MAX_LEN = 64
+/** Edge whitespace that is trimmed from typed or linked names: ASCII only.
+ *  `String.trim()` would also drop U+FEFF / U+00A0. */
+export const ASCII_EDGE_WHITESPACE_RE = /^[ \t\r\n]+|[ \t\r\n]+$/g
+/** Anything outside printable ASCII. Checked BEFORE lowercasing: Unicode
+ *  case folding maps e.g. U+212A (Kelvin sign) to "k", so a lookalike
+ *  would otherwise resolve as a real name. */
+export const NON_PRINTABLE_ASCII_RE = /[^\x21-\x7e]/
 
 /**
  * Parse `r/sys/users.ResolveAddress(address)` qeval output.
@@ -363,7 +370,9 @@ export function parseResolveNameResult(raw: string): string | null {
  * fallback serving another chain must not pick the profile).
  */
 export async function resolveUsernameToAddress(username: string): Promise<string | null> {
-    const name = username.trim().replace(/^@/, "").toLowerCase()
+    const trimmed = username.replace(ASCII_EDGE_WHITESPACE_RE, "")
+    if (NON_PRINTABLE_ASCII_RE.test(trimmed)) return ""
+    const name = trimmed.replace(/^@/, "").toLowerCase()
     if (name.length > REGISTRY_NAME_MAX_LEN || !REGISTRY_NAME_RE.test(name)) return ""
     try {
         await assertActiveRpcChain()

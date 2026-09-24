@@ -137,17 +137,48 @@ describe("resolveRecipient: names", () => {
     })
 })
 
+describe("resolveRecipient: non-ASCII input is rejected, never normalised", () => {
+    const ASCII_ONLY = { kind: "invalid", reason: expect.stringMatching(/plain ASCII/) }
+
+    it.each([
+        // U+212A KELVIN SIGN lowercases to "k": this must not become "kelvin".
+        ["a Kelvin sign in a name", "@\u212Aelvin"],
+        ["a Kelvin sign in a bare name", "sam\u212Arew"],
+        // U+212A is its own uppercase, so it would pass the mixed-case guard.
+        ["a Kelvin sign in an uppercase address", SAMCREW.toUpperCase().replace("K", "\u212A")],
+        // String.trim() would silently strip these two.
+        ["U+FEFF before a name", "\uFEFFsamcrew"],
+        ["U+00A0 after a name", "@samcrew\u00A0"],
+        ["U+FEFF before an address", "\uFEFF" + SAMCREW],
+        ["U+00A0 after an address", SAMCREW + "\u00A0"],
+        ["U+200B inside a name", "@sam\u200Bcrew"],
+        ["U+200B inside an address", SAMCREW.slice(0, 10) + "\u200B" + SAMCREW.slice(10)],
+        ["a fullwidth letter", "\uFF53amcrew"],
+    ])("%s", async (_label, input) => {
+        expect(SAMCREW.toUpperCase()).toContain("K")
+        expect(await resolveRecipient(input)).toEqual(ASCII_ONLY)
+        expect(query).not.toHaveBeenCalled()
+        expect(resolveUsernameToAddress).not.toHaveBeenCalled()
+    })
+
+    it("still trims ASCII space, tab, CR and LF at the edges", async () => {
+        query.mockResolvedValue(LIVE_SAMCREW)
+        expect(await resolveRecipient(" \t\r\n@samcrew\r\n\t ")).toEqual({ kind: "address", address: SAMCREW, name: "samcrew" })
+    })
+})
+
 describe("resolveRecipient: invalid input", () => {
     it.each([
         ["", /Enter a @username or a g1 address/],
         ["   ", /Enter a @username or a g1 address/],
         ["@", /Enter a username after the @/],
-        ["sam crew", /start with a letter/],
+        ["sam crew", /plain ASCII/],
         ["1samcrew", /start with a letter/],
         ["sam--crew", /start with a letter/],
         ["samcrew_", /start with a letter/],
         ["sam.crew", /start with a letter/],
-        ['x") + evil("', /start with a letter/],
+        ['x") + evil("', /plain ASCII/],
+        ['x")+evil("', /start with a letter/],
         ["a".repeat(65), /at most 64 characters/],
     ])("%j is invalid", async (input, reason) => {
         expect(await resolveRecipient(input)).toEqual({ kind: "invalid", reason: expect.stringMatching(reason) })
