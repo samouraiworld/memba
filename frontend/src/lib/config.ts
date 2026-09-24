@@ -95,9 +95,9 @@ interface NetworkConfig {
     label: string
     userRegistryPath: string
     faucetUrl: string
-    /** gnoweb base URL — on gno this one host is both the block explorer and the
-     *  namespace-discovery endpoint, so it serves `getExplorerBaseUrl()` and
-     *  `lib/gnoweb`'s lookups alike.
+    /** gnoweb base URL — the block explorer, used for `getExplorerBaseUrl()`
+     *  and `lib/gnoweb`'s "view on gnoweb" links. Namespace discovery no longer
+     *  reads it: that goes through the RPC `vm/qpaths` query.
      *
      *  Declared per network rather than derived. It used to be built as
      *  `https://${chainId}.testnets.gno.land`, which is only correct where the
