@@ -778,8 +778,11 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
     // Mainnet (`gnoland-1`): wave 1 was published 2026-09-23 by the samcrew
     // namespace multisig (realm-versions.json `mainnet`). Only realms whose
     // Memba surface is safe to expose are listed: escrow_v3 (custodies funds;
-    // not listed until an owner go), memba_market_config (commerce-only),
-    // memba_dao_channels_v2 (needs memba_dao) and memba_arcade_leaderboard_v1
+    // superseded by escrow_v4 and never listed), memba_market_config (the
+    // frontend reads it only for the NFT fee row; escrow_v4 reads its fee and
+    // treasury on chain, so the Services lane does not need it listed),
+    // memba_dao_channels_v2 (needs memba_dao) and
+    // memba_arcade_leaderboard_v1
     // (attester added on chain at h292613, but the backend attester stays
     // disabled pending a cost decision) are live on chain but deliberately NOT
     // listed. memba_appstore_v3 carries one money path — RegisterApp pays the
@@ -797,6 +800,14 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         "gno.land/r/samcrew/gnobuilders_badges_v2",
         "gno.land/r/samcrew/memba_feed_v1",
         "gno.land/r/samcrew/memba_quest_attestation_v1",
+        // ── escrow_v4 go-live ─────────────────────────────────────────────────
+        // CUSTODIES FUNDS. Published at h299934 and enabled at h299936
+        // (realm-versions.json `mainnet`); admin and fallback fee recipient are
+        // the publisher 2-of-3, which can Pause it. Listing it opens nothing
+        // alone: the Services lane also needs VITE_ENABLE_SERVICES (Netlify,
+        // owner-controlled), and the hire dialog refuses to sign while
+        // GetPauseStateJSON reports paused. Canary: docs/ESCROW_MAINNET_CANARY.md.
+        "gno.land/r/samcrew/escrow_v4",
     ],
     // Pearl — the combined-ceremony set (§4 of docs/PEARL_CUTOVER_PLAN.md):
     // the default core lane + the commerce set in one window. Entry list =
@@ -844,7 +855,7 @@ const REALM_ALLOWLIST: Record<string, readonly string[] | undefined> = {
         // Commerce realms redeployed to interrealm-v2 _v2 paths (2026-06-16).
         "gno.land/r/samcrew/tokenfactory_v2",
         "gno.land/r/samcrew/escrow_v2", // superseded by escrow_v3; empty on test13, kept allowlisted defensively (no UI targets it)
-        "gno.land/r/samcrew/escrow_v3", // IsUserCall-guarded successor — canonical (active escrowPath)
+        "gno.land/r/samcrew/escrow_v3", // IsUserCall-guarded successor of v2; superseded by escrow_v4 (the default escrowPath), kept for the e2e fixture
         "gno.land/r/samcrew/gnobuilders_badges_v2",
         "gno.land/r/samcrew/memba_feedback_v2",
         // NFT realms deployed 2026-06-16.
@@ -1339,7 +1350,7 @@ export const MEMBA_DAO = {
     candidaturePath: import.meta.env.VITE_CANDIDATURE_REALM_PATH || "gno.land/r/samcrew/memba_dao_candidature_v3",
     agentRegistryPath: "gno.land/r/samcrew/agent_registry_v2", // IsUserCall-guarded (v1 UseCredit was unguarded)
     // escrow_v4: per-client cap, archive refunds, time-boxed pause (v3's lifetime cap could be filled for good).
-    // Not in any REALM_ALLOWLIST yet, so isEscrowValid() keeps the lane gated everywhere until go-live.
+    // Allowlisted on mainnet only, so isEscrowValid() is false on every other network.
     escrowPath: resolveEscrowPath(import.meta.env.VITE_ESCROW_REALM_PATH),
     nftMarketPath: "gno.land/r/samcrew/memba_nft_market_v2",
     nftCollectionsPath: "gno.land/r/samcrew/memba_collections", // Phase 2 launchpad registry (pending deploy)

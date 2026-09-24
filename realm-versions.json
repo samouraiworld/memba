@@ -743,6 +743,19 @@
       "verifiedOn": "2026-09-23",
       "verifiedVia": "vm/qfile",
       "fileCount": 7
+    },
+    "escrow_v4": {
+      "path": "gno.land/r/samcrew/escrow_v4",
+      "version": "v1",
+      "date": "2026-09-24",
+      "sourceCommit": "89f559d",
+      "seq": 24,
+      "height": 299934,
+      "txHash": "1lodnG2cv0gzOzIpbqJYefDUkNWQaL3AY1mwfYQUbFI=",
+      "verifiedOn": "2026-09-24",
+      "verifiedVia": "vm/qfile",
+      "fileCount": 4,
+      "note": "Published by the samcrew 2-of-3 g136j0m08pkm2lwwde9dmlx8uee26llent9s5cpf (account sequence 24; gnomod [addpkg] creator and height 299934 stamped by the chain) and enabled two blocks later at height 299936, tx GyJFAfNcjBAcjxozt3FUJlIqiuw94hkLiNdWEuD2IOA= (storage deposit 7,473,500 ugnot for 74,735 bytes). Read via vm/qeval on 2026-09-24 at about height 300737: GetAdmin() and GetFeeRecipient() = the 2-of-3, GetPauseStateJSON() not paused with cooldownUntil 0, GetCreatedCount() 0, TotalLiabilities() 0; memba_market_config GetFeeBPS(\"service\") 200 and GetTreasury() = the 2-of-3. Allowlisted on mainnet from then on (Services lane still needs VITE_ENABLE_SERVICES)."
     }
   },
   "_note_stale_networks": "test11, portal-loop, staging removed 2026-06-28 (no Memba realms deployed; test12 retained for historical record).",

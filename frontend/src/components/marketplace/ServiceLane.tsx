@@ -1,5 +1,8 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { useAdena } from "../../hooks/useAdena"
+import { MEMBA_DAO, isEscrowValid, isServicesEnabled } from "../../lib/config"
+import { getCurrentBlock } from "../../lib/dao/proposalDates"
+import { hireAvailability, readEscrowPauseState } from "../../lib/marketplace/escrowState"
 import { EmptyState } from "../ui/EmptyState"
 import { formatGnotCompact } from "../../lib/formatGnot"
 import { nftFallbackUri } from "../../lib/nftFallbackArt"
@@ -12,8 +15,38 @@ import { ErrorToast } from "../ui/ErrorToast"
 // listings with placeholder addresses (W0.2).
 const SERVICES: Service[] = []
 
+/**
+ * Whether the escrow realm takes new contracts, from its on-chain pause state.
+ * "off" when the lane is gated here (no read then: the realm may not exist).
+ * Anything but "open" keeps hiring shut; a failed read shuts it too.
+ */
+type Hiring = { state: "off" } | { state: "loading" } | { state: "open" } | { state: "closed"; reason: string }
+
+function useEscrowHiring(): Hiring {
+    const live = isServicesEnabled() && isEscrowValid()
+    const [hiring, setHiring] = useState<Hiring>({ state: "loading" })
+    useEffect(() => {
+        if (!live) return
+        let cancelled = false
+        Promise.all([readEscrowPauseState(MEMBA_DAO.escrowPath), getCurrentBlock()])
+            .then(([pause, height]): Hiring => {
+                // Pause only: the per-client cap is checked in the hire dialog, for the connected wallet.
+                const a = hireAvailability(pause, 0, height)
+                return a.available ? { state: "open" } : { state: "closed", reason: a.reason }
+            })
+            .catch((err: unknown): Hiring => ({
+                state: "closed",
+                reason: `Could not read the escrow contract's pause state (${err instanceof Error ? err.message : String(err)}). Hiring is unavailable until it can be read.`,
+            }))
+            .then((h) => { if (!cancelled) setHiring(h) })
+        return () => { cancelled = true }
+    }, [live])
+    return live ? hiring : { state: "off" }
+}
+
 export default function ServiceLane() {
     const adena = useAdena()
+    const hiring = useEscrowHiring()
     
     const [hiringService, setHiringService] = useState<Service | null>(null)
     const [toast, setToast] = useState<string | null>(null)
@@ -21,6 +54,7 @@ export default function ServiceLane() {
     const [created, setCreated] = useState<{ id: string | null; n: number }>({ id: null, n: 0 })
 
     const handleHireClick = (service: Service) => {
+        if (hiring.state !== "open") return
         if (!adena.connected || !adena.address) {
             setToast("Please connect your wallet first.")
             return
@@ -33,6 +67,12 @@ export default function ServiceLane() {
             <div className="um-lane-header">
                 <h2 className="um-lane-title">Verified Services</h2>
             </div>
+
+            {hiring.state === "closed" && (
+                <div className="k-error-banner" role="alert" data-testid="escrow-hiring-closed" style={{ marginBottom: "16px" }}>
+                    {hiring.reason}
+                </div>
+            )}
             
             {SERVICES.length === 0 && (
                 <EmptyState
@@ -69,7 +109,7 @@ export default function ServiceLane() {
                                 </div>
                             </div>
 
-                            <button className="k-btn-secondary" style={{ width: "100%" }} onClick={() => handleHireClick(svc)}>
+                            <button className="k-btn-secondary" style={{ width: "100%" }} onClick={() => handleHireClick(svc)} disabled={hiring.state !== "open"}>
                                 Hire Freelancer
                             </button>
                         </div>

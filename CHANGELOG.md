@@ -59,6 +59,11 @@ Full changelogs are split by version range for easier navigation:
 ### OTC desk lists the token you choose (2026-09-24)
 <!-- categories: memba -->
 - **The Tokens lane's "List Tokens" button no longer always lists the testnet token MEMBATEST.** A symbol field next to it picks the token. It starts on the network's Memba token (MEMBATEST on test chains, MEMBA elsewhere), and the listing dialog loads that token's decimals and approval.
+### escrow_v4 listed on gno.land mainnet, with a canary runbook (2026-09-24)
+<!-- categories: memba, network -->
+- **`gno.land/r/samcrew/escrow_v4` is allowlisted on mainnet.** It was published at height 299934 and enabled at 299936; its `realm-versions.json` record carries the publish tx and the state read the same day (not paused, no contracts, no liabilities). This changes nothing users see until the owner turns on `VITE_ENABLE_SERVICES`, which stays off in production. Every other network keeps escrow gated, and `escrow_v3` stays unlisted on mainnet.
+- **The Services lane shows when escrow is paused.** With the lane on, it reads the realm's pause state and says when new contracts and funding are refused (or when the state can't be read), and keeps Hire disabled until the realm takes new contracts.
+- **Canary runbook.** `docs/ESCROW_MAINNET_CANARY.md` walks one minimum-amount contract between two owner wallets through create, fund, complete, release and archive, with the reads expected after each step, stop conditions, rollback (flag off, admin pause) and what to monitor.
 
 ### Escrow targets escrow_v4: archive refunds, per-client cap, bounded pause (2026-09-24)
 <!-- categories: memba, network -->

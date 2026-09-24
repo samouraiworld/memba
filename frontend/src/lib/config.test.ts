@@ -188,13 +188,14 @@ describe('config constants', () => {
         expect(file).not.toBe('')
         const records = (JSON.parse(readFileSync(file, 'utf8')) as Record<string, Record<string, unknown>>).mainnet
         const exposed = ['memba_appstore_v3', 'memba_reviews_v2', 'memba_feedback_v2', 'gnobuilders_badges_v2', 'memba_feed_v1',
-            'memba_quest_attestation_v1']
+            'memba_quest_attestation_v1', 'escrow_v4']
         for (const base of exposed) {
             expect(isRealmValidOn('mainnet', `gno.land/r/samcrew/${base}`), `${base} must be allowlisted on mainnet`).toBe(true)
             expect(records?.[base], `mainnet realm '${base}' has no realm-versions.json mainnet record`).toBeDefined()
         }
-        // Live on chain but deliberately NOT exposed: custody, commerce-only,
-        // DAO-dependent, and the arcade lane (its backend attester is off).
+        // Live on chain but deliberately NOT exposed: the superseded escrow,
+        // the fee config (escrow_v4 reads it on chain), DAO-dependent, and the
+        // arcade lane (its backend attester is off).
         const liveButGated = ['escrow_v3', 'memba_market_config', 'memba_dao_channels_v2',
             'memba_arcade_leaderboard_v1']
         for (const base of liveButGated) {
@@ -1030,7 +1031,8 @@ describe('topaz commerce-v2 allowlist — funds-free realms only', () => {
         // The ONE held-back path that test13 does not list, single-sourced so the
         // exclusion is stated exactly once. Everything else gets BOTH guards by
         // default — a new entry added above cannot silently miss the anchor.
-        // escrow_v4 (the active escrowPath) is listed on no network until its go-live.
+        // escrow_v4 (the active escrowPath) is listed on mainnet only; its
+        // typo guard is the mainnet assertion in the escrow_v4 test below.
         const notOnTest13 = new Set<string>([MEMBA_MARKET_CONFIG_PATH, 'gno.land/r/samcrew/escrow_v4'])
 
         for (const [name, path] of Object.entries({ ...custodyFunds, ...fundsFreeButCoupled })) {
@@ -1087,12 +1089,32 @@ describe('topaz commerce-v2 allowlist — funds-free realms only', () => {
         vi.resetModules()
     })
 
-    it('targets escrow_v4, which stays gated on every network until its go-live', async () => {
+    it('targets escrow_v4, which is open on mainnet and gated on every other network', async () => {
         const { isRealmValidOn, MEMBA_DAO, NETWORKS } = await import('./config')
         expect(MEMBA_DAO.escrowPath).toBe('gno.land/r/samcrew/escrow_v4')
+        expect(Object.keys(NETWORKS)).toContain('mainnet')
         for (const key of Object.keys(NETWORKS)) {
-            expect(isRealmValidOn(key, MEMBA_DAO.escrowPath), key).toBe(false)
+            expect(isRealmValidOn(key, MEMBA_DAO.escrowPath), key).toBe(key === 'mainnet')
         }
+        // An override back to escrow_v3 stays gated on mainnet: v3 is never listed there.
+        expect(isRealmValidOn('mainnet', 'gno.land/r/samcrew/escrow_v3')).toBe(false)
+    })
+
+    it('opens the Services lane on mainnet only with VITE_ENABLE_SERVICES on', async () => {
+        vi.stubEnv('VITE_GNO_CHAIN_ID', 'mainnet')
+        vi.stubEnv('VITE_ESCROW_REALM_PATH', '')
+        vi.stubEnv('VITE_ENABLE_SERVICES', '')
+        vi.resetModules()
+        let cfg = await import('./config')
+        expect(cfg.ACTIVE_NETWORK_KEY).toBe('mainnet')
+        expect(cfg.isEscrowValid()).toBe(true)
+        expect(cfg.isServicesEnabled()).toBe(false)
+        vi.stubEnv('VITE_ENABLE_SERVICES', 'true')
+        vi.resetModules()
+        cfg = await import('./config')
+        expect(cfg.isServicesEnabled() && cfg.isEscrowValid()).toBe(true)
+        vi.unstubAllEnvs()
+        vi.resetModules()
     })
 
     it('VITE_ESCROW_REALM_PATH selects only escrow_v3 or escrow_v4; anything else falls back to v4 with a warning', async () => {
