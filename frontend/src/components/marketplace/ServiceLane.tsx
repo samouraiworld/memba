@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react"
 import { useAdena } from "../../hooks/useAdena"
+import { useNetworkNav } from "../../hooks/useNetworkNav"
 import { MEMBA_DAO, isEscrowValid, isServicesEnabled } from "../../lib/config"
 import { getCurrentBlock } from "../../lib/dao/proposalDates"
 import { hireAvailability, readEscrowPauseState } from "../../lib/marketplace/escrowState"
@@ -8,6 +9,8 @@ import { formatGnotCompact } from "../../lib/formatGnot"
 import { nftFallbackUri } from "../../lib/nftFallbackArt"
 import { HireServiceModal, type Service } from "./HireServiceModal"
 import { EscrowContractPanel } from "./EscrowContractPanel"
+import { HireByAddressForm } from "./HireByAddressForm"
+import { escrowContractPath } from "../../lib/marketplace/escrowActions"
 import { ErrorToast } from "../ui/ErrorToast"
 
 // Real service listings will come from the on-chain services engine once the lane is
@@ -47,8 +50,11 @@ function useEscrowHiring(): Hiring {
 export default function ServiceLane() {
     const adena = useAdena()
     const hiring = useEscrowHiring()
+    const nav = useNetworkNav()
     
     const [hiringService, setHiringService] = useState<Service | null>(null)
+    const [byAddress, setByAddress] = useState(false)
+    const [notice, setNotice] = useState<string | null>(null)
     const [toast, setToast] = useState<string | null>(null)
     // Bumped after a hire lands, so the contract panel re-reads "My contracts" and opens the new one.
     const [created, setCreated] = useState<{ id: string | null; n: number }>({ id: null, n: 0 })
@@ -62,10 +68,25 @@ export default function ServiceLane() {
         setHiringService(service)
     }
 
+    const openHireByAddress = () => {
+        if (hiring.state !== "open") return
+        if (!adena.connected || !adena.address) {
+            setToast("Please connect your wallet first.")
+            return
+        }
+        setNotice(null)
+        setByAddress(true)
+    }
+
     return (
         <div className="animate-fade-in">
-            <div className="um-lane-header">
+            <div className="um-lane-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
                 <h2 className="um-lane-title">Verified Services</h2>
+                {hiring.state !== "off" && !byAddress && (
+                    <button className="k-btn-primary" onClick={openHireByAddress} disabled={hiring.state !== "open"} data-testid="hire-by-address-open">
+                        Hire by address
+                    </button>
+                )}
             </div>
 
             {hiring.state === "closed" && (
@@ -74,11 +95,33 @@ export default function ServiceLane() {
                 </div>
             )}
             
-            {SERVICES.length === 0 && (
+            {notice && <p role="status" data-testid="hire-notice" style={{ color: "var(--color-text-muted)", fontSize: "14px" }}>{notice}</p>}
+
+            {byAddress && (
+                <HireByAddressForm
+                    caller={adena.connected ? adena.address : ""}
+                    closedReason={hiring.state === "open" ? null : hiring.state === "closed" ? hiring.reason : "Checking whether escrow takes new contracts..."}
+                    onCancel={() => setByAddress(false)}
+                    onReview={(svc, totalUgnot) => setHiringService({
+                        id: "by-address",
+                        title: svc.title,
+                        freelancer: svc.freelancer,
+                        description: svc.description,
+                        priceUgnot: Number(totalUgnot),
+                        milestones: svc.milestones,
+                        category: "",
+                        image: "",
+                    })}
+                />
+            )}
+
+            {SERVICES.length === 0 && !byAddress && (
                 <EmptyState
                     icon="ti-briefcase"
                     title="No services yet"
-                    body="The Services lane is coming soon — real on-chain listings will appear here."
+                    body={hiring.state === "off"
+                        ? "The Services lane is coming soon — real on-chain listings will appear here."
+                        : "No public listings yet. To work with someone you already know, hire them by address."}
                 />
             )}
 
@@ -126,10 +169,14 @@ export default function ServiceLane() {
                     onClose={() => setHiringService(null)}
                     onSuccess={(contractId) => {
                         setHiringService(null)
+                        setByAddress(false)
+                        if (contractId) {
+                            // The contract's own page: its link is what the freelancer needs.
+                            nav(escrowContractPath(contractId), { state: { created: true } })
+                            return
+                        }
                         setCreated((c) => ({ id: contractId, n: c.n + 1 }))
-                        alert(contractId
-                            ? `Success! Escrow contract ${contractId} created for ${hiringService.title}.`
-                            : `Success! Escrow contract created for ${hiringService.title}. It will appear under My contracts.`)
+                        setNotice("The escrow contract was created, but it could not be read back yet. It will appear under My contracts below: open it there to get the link for your freelancer.")
                     }}
                 />
             )}
