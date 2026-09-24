@@ -136,6 +136,10 @@ test.describe('Memba OS windows', () => {
         await dock(page).getByRole('button', { name: 'Arcade' }).click()
         await dock(page).getByRole('button', { name: 'Validators' }).click()
         await expect.poll(() => path(page)).toBe('/os/validators?w=app.arcade')
+        // Let the windows settle first: Firefox aborts a goto (NS_ERROR_FAILURE) that lands while
+        // the page is still committing its own navigation.
+        await expect(win(page, 'Validators')).not.toHaveClass(/os-inactive/)
+        await page.waitForLoadState('networkidle')
         await page.goto(`${OS_ON}/os`)
         await expect(win(page, 'Arcade')).toBeVisible()
         await expect(win(page, 'Validators')).not.toHaveClass(/os-inactive/)
