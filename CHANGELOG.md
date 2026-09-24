@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Profile assets name the right network (2026-09-24)
+<!-- categories: memba, network -->
+- **The native balance card on a profile's Assets tab names the active network.** It always said "Gno.land Testnet", including on gno.land mainnet. It now shows "gno.land" on mainnet and marks test chains as testnets.
+
 ### Mainnet screens drop stale testnet copy (2026-09-24)
 <!-- categories: memba, network -->
 - **Quest, onboarding and Home copy now fits gno.land mainnet.**

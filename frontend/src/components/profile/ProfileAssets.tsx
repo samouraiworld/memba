@@ -3,6 +3,8 @@ import { fetchNFTPortfolio, type NFTPortfolioToken } from "../../lib/nftApi"
 import { useBalance } from "../../hooks/useBalance"
 import { formatGnotCompact } from "../../lib/formatGnot"
 import { useNetworkPath } from "../../hooks/useNetworkNav"
+import { useNetwork } from "../../hooks/useNetwork"
+import { isTestnetNetwork } from "../../lib/config"
 import { SkeletonCard } from "../ui/LoadingSkeleton"
 import { NFTMedia } from "../nft/NFTMedia"
 import "./profileAssets.css"
@@ -12,6 +14,9 @@ export function ProfileAssets({ address }: { address: string }) {
     const [nfts, setNfts] = useState<NFTPortfolioToken[]>([])
     const [loadingNfts, setLoadingNfts] = useState(true)
     const np = useNetworkPath()
+    const { networkKey, label } = useNetwork()
+    // The active network's own label ("gno.land" on mainnet); test chains say so.
+    const networkName = isTestnetNetwork(networkKey) && !/testnet/i.test(label) ? `${label} testnet` : label
 
     useEffect(() => {
         let mounted = true
@@ -32,7 +37,7 @@ export function ProfileAssets({ address }: { address: string }) {
             <div className="k-card asset-native-card">
                 <div className="asset-native-icon">💰</div>
                 <div className="asset-native-info">
-                    <h4>Gno.land Testnet</h4>
+                    <h4 data-testid="asset-native-network">{networkName}</h4>
                     <p>Native GNOT</p>
                 </div>
                 <div className="asset-native-balance">
