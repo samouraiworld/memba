@@ -65,10 +65,21 @@ describe("EscrowContractPage", () => {
         expect(await screen.findByRole("button", { name: "Mark delivered" })).toBeEnabled()
     })
 
-    it("after creation, asks the client to share the link", async () => {
+    it("after creation, asks the client to share the link until the first milestone is funded", async () => {
         wallet.address = CLIENT
-        visit("/mainnet/marketplace/services/contract/42", { created: true })
+        const funded = await readEscrowContract("", "42")
+        readEscrowContract.mockImplementationOnce(async (_p, id) => ({
+            ...funded!, id, fundedAt: null, refundAt: null, expireAt: 864_010,
+            milestones: [{ ...funded!.milestones[0], status: "pending", fundedAt: null, refundAt: null }],
+            totals: { ...funded!.totals, escrowedUgnot: 0 },
+        }))
+        const { unmount } = visit("/mainnet/marketplace/services/contract/42", { created: true })
         expect(await screen.findByTestId("escrow-created")).toHaveTextContent("Share this link with your freelancer:")
+        unmount()
+        // Once funded, the banner (which says nothing is in escrow yet) gives way to the plain link.
+        visit("/mainnet/marketplace/services/contract/42", { created: true })
+        expect(await screen.findByText("Link to this contract:")).toBeInTheDocument()
+        expect(screen.queryByTestId("escrow-created")).not.toBeInTheDocument()
     })
 
     it("refuses an id that is not a contract id, without reading the chain", async () => {

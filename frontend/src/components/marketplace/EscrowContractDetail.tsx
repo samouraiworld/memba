@@ -207,6 +207,8 @@ export function EscrowContractDetail({ id, caller, onChanged, shareUrl, justCrea
             ? { ...a, availability: { available: false, reason: "Sent a moment ago. Reload once the chain shows the change before trying again." } }
             : a)
     const contractActions = actions.filter((a) => a.milestone === null)
+    // Right after creation, until the first milestone is funded: ask the client to share the link.
+    const showCreated = Boolean(justCreated && shareUrl && c && role === "client" && c.status === "active" && c.milestones.every((m) => m.status === "pending"))
     const label = (a: EscrowAction) => (a.kind === "archive" && c ? `${escrowActionLabel(a)} (${formatApproxGnot(archiveRefundEstimateUgnot(c))})` : escrowActionLabel(a))
     const row = (a: EscrowAction) => (
         <ActionRow key={actionKey(a)} action={a} label={label(a)} busy={busy || loading || uncertain} onRun={() => { if (c) void run(a, c) }} />
@@ -234,7 +236,7 @@ export function EscrowContractDetail({ id, caller, onChanged, shareUrl, justCrea
 
             {c && loaded && (
                 <div data-testid="escrow-contract-details" style={{ marginTop: "16px" }}>
-                    {justCreated && shareUrl && role === "client" && (
+                    {showCreated && shareUrl && (
                         <div className="escrow-notice" data-testid="escrow-created">
                             <strong>{`Contract ${c.id} is created.`}</strong> Nothing is in escrow yet: fund the first milestone
                             below when you are ready. Your freelancer cannot find this contract on their own, so send them its link.
@@ -323,7 +325,7 @@ export function EscrowContractDetail({ id, caller, onChanged, shareUrl, justCrea
                         </p>
                     )}
 
-                    {shareUrl && !(justCreated && role === "client") && <EscrowShareLink url={shareUrl} lead="Link to this contract:" />}
+                    {shareUrl && !showCreated && <EscrowShareLink url={shareUrl} lead="Link to this contract:" />}
 
                     <button className="k-btn-secondary" style={{ marginTop: "12px" }} onClick={() => void reload()} disabled={loading || busy}>
                         {loading ? "Reloading..." : "Reload"}
