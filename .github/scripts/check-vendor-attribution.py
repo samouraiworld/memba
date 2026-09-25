@@ -11,8 +11,11 @@ prescribes misses the two ways it has actually arrived here:
   2. Base64. A provenance manifest embedded in an SVG holds the name encoded,
      so it is not present as text at all and no plain grep can see it.
 
-So this reads every tracked file as bytes, decodes base64 runs, and inflates
-compressed PNG text chunks.
+So this reads every tracked file as bytes, decodes base64 runs, whether on
+one line or wrapped across several, and inflates compressed PNG text chunks.
+What it decodes or inflates is read again the same way, because a data URI is
+a file inside a file: a PNG in an SVG carries its chunks as surely as the PNG
+does on its own.
 
 It also fails on the metadata containers themselves, whoever wrote them: a
 design asset has no reason to carry a text or provenance chunk, and checking
@@ -81,7 +84,35 @@ FORBIDDEN_CHUNKS = tuple(
 
 # 40 characters decode to 30 bytes — short enough to catch a name tucked into a
 # small blob. The earlier threshold of 120 let a 96-character run through.
-B64_RUN = re.compile(rb"[A-Za-z0-9+/=]{40,}")
+B64_FLOOR = 40
+B64_RUN = re.compile(rb"[A-Za-z0-9+/=]{%d,}" % B64_FLOOR)
+
+# Base64 as encoders emit it: wrapped at 76 columns (`base64`, MIME) or 64
+# (PEM), with LF or CRLF line ends, indented inside a YAML block, or broken by
+# the escaped line ends of a JSON string. B64_RUN sees each line as a run of its
+# own, so a short last line falls under the floor and a name across a line
+# break is split between two decodes. This matches the run that ends one line,
+# every following line that is nothing but the alphabet, and the run that
+# starts the line after those; the pieces are joined before decoding.
+#
+# Linear time, whatever the input: a match can start only where the character
+# before it is outside the alphabet, so each run is tried once, and every line
+# break starts with a character outside the alphabet, so a failed attempt gives
+# back at most the run it started on.
+B64_BREAK = re.compile(rb"(?:\r?\n|(?:\\r)?\\n)[ \t]*")
+B64_WRAPPED = re.compile(
+    rb"(?<![A-Za-z0-9+/=])[A-Za-z0-9+/=]+(?:" + B64_BREAK.pattern + rb"[A-Za-z0-9+/=]+)+"
+)
+
+# Containers opened one inside another, and no deeper: an HTML page holding an
+# SVG as a data URI, holding a PNG as a data URI, whose profile is compressed,
+# is three. What sits deeper is still searched for the names, just not opened.
+MAX_DEPTH = 3
+
+# Inflation is the one step that makes a payload larger than the file it came
+# from, so it is the one step that is capped. A chunk that inflates past the
+# cap is reported: read in part and passed, it would be a place to hide a name.
+MAX_INFLATE = 32 << 20
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
@@ -126,19 +157,53 @@ def png_chunks(raw):
 
 
 def inflate(body):
-    """Decompress a compressed text chunk payload, or return nothing.
+    """Decompress a compressed chunk payload: (bytes, whole), or None.
 
     A name inside one of these is neither readable text nor base64, so it
-    would otherwise pass both of the other scans.
+    would otherwise pass both of the other scans. `whole` is False when the
+    payload inflates past MAX_INFLATE, and the bytes are then its first
+    MAX_INFLATE.
     """
     # Skip the keyword and the compression flags, then inflate what is left.
     _, _, tail = body.partition(b"\0")
     for start in range(min(len(tail), 4) + 1):
+        stream = zlib.decompressobj()
         try:
-            return zlib.decompress(tail[start:])
+            blob = stream.decompress(tail[start:], MAX_INFLATE + 1)
         except zlib.error:
             continue
+        if len(blob) > MAX_INFLATE:
+            return blob[:MAX_INFLATE], False
+        # A stream that stopped short is the wrong starting offset, as it was
+        # when this read the chunk in one call and that call raised.
+        if stream.eof:
+            return blob, True
     return None
+
+
+def b64decode(run):
+    """Decode one run of the base64 alphabet, or return nothing."""
+    try:
+        return base64.b64decode(run + b"=" * (-len(run) % 4), validate=False)
+    except Exception:  # noqa: BLE001 - a run that will not decode is simply
+        # not base64. That is the common case, not an error worth logging:
+        # every long alphanumeric token in the tree reaches this line.
+        return None
+
+
+def b64_runs(payload):
+    """Every run of base64 worth decoding in PAYLOAD, one line or wrapped."""
+    yield from B64_RUN.findall(payload)
+    for match in B64_WRAPPED.finditer(payload):
+        pieces = B64_BREAK.split(match.group())
+        # From the first piece, and again from the first whole line: the first
+        # piece is only the tail of its line, and when that line is prose
+        # rather than a data URI's prefix, the tail puts every later line out
+        # of step with base64's four-character groups.
+        for start in (0, 1) if len(pieces) > 2 else (0,):
+            joined = b"".join(pieces[start:])
+            if len(joined) >= B64_FLOOR:
+                yield joined
 
 
 def findings(path):
@@ -180,25 +245,32 @@ def findings_in(raw):
             if b"xmlns:" + needle in low or needle + b":" in low:
                 note(needle.decode() + suffix)
 
-    scan(raw)
+    def examine(payload, via):
+        # VIA names the containers PAYLOAD came out of, innermost first, and
+        # every reason found in it says so: "(base64)", "(compressed chunk)",
+        # "(compressed chunk in base64)" for a PNG profile in a data URI.
+        suffix = f" ({' in '.join(via)})" if via else ""
+        scan(payload, suffix)
+        opened = len(via) < MAX_DEPTH
 
-    for run in B64_RUN.findall(raw):
-        padded = run + b"=" * (-len(run) % 4)
-        try:
-            decoded = base64.b64decode(padded, validate=False)
-        except Exception:  # noqa: S112 - a run that will not decode is simply
-            # not base64. That is the common case, not an error worth logging:
-            # every long alphanumeric token in the tree reaches this line.
-            continue
-        scan(decoded, " (base64)")
+        if opened:
+            for run in b64_runs(payload):
+                decoded = b64decode(run)
+                if decoded:
+                    examine(decoded, ("base64", *via))
 
-    for kind, body in png_chunks(raw):
-        if kind in FORBIDDEN_CHUNKS:
-            note(kind.decode() + " chunk")
-        if kind in COMPRESSED_CHUNKS:
-            blob = inflate(body)
-            if blob is not None:
-                scan(blob, " (compressed chunk)")
+        for kind, body in png_chunks(payload):
+            if kind in FORBIDDEN_CHUNKS:
+                note(kind.decode() + " chunk" + suffix)
+            if opened and kind in COMPRESSED_CHUNKS:
+                inflated = inflate(body)
+                if inflated is not None:
+                    blob, whole = inflated
+                    if not whole:
+                        note("compressed chunk too large to inflate" + suffix)
+                    examine(blob, ("compressed chunk", *via))
+
+    examine(raw, ())
 
     return sorted(set(hits))
 
@@ -268,18 +340,26 @@ def scan_tracked(root):
     # untrusted input. Resolving an absolute path for `git` would break the
     # runners and developer machines that rely on PATH, which is every one.
     listing = subprocess.run(  # noqa: S603
-        ["git", "-C", root, "ls-files", "-z"],  # noqa: S607
+        ["git", "-C", root, "ls-files", "-z", "--stage"],  # noqa: S607
         capture_output=True,
         check=True,
     ).stdout
     bad = {}
-    for blob in listing.split(b"\0"):
-        if not blob:
+    for entry in listing.split(b"\0"):
+        if not entry:
             continue
+        meta, _, blob = entry.partition(b"\t")
         rel = blob.decode("utf-8", "surrogateescape")
         if rel in allow:
             continue
         hits = path_findings(rel)
+        # A submodule is a commit id in this tree, not a file: its contents are
+        # published by its own repository, which runs its own check. Its path
+        # is still a name this repository publishes, so it is scanned above.
+        if meta.startswith(b"160000 "):
+            if hits:
+                bad[rel] = sorted(set(hits))
+            continue
         try:
             hits += findings(os.path.join(root, rel))
         except OSError as exc:
