@@ -32,7 +32,7 @@
 - ✏️ Inline multisig rename (per-user, backend-persisted)
 
 ### DAO Governance
-- **Weighted founding DAO (v7.6.0 candidate):** dedicated role-governance workspace with 2/1 voting points, independent developer approval and strict chain-scoped reads. Mainnet remains read-only. See [integration and rehearsal](docs/WEIGHTED_DAO.md).
+- **Weighted founding DAO (v7.6.0 candidate):** dedicated role-governance workspace with 2/1 voting points, independent developer approval and strict chain-scoped reads. Mainnet is read-only except the released governing DAO (v12 at `r/samcrew/memba_dao`). See [integration and rehearsal](docs/WEIGHTED_DAO.md).
 - 🏛️ Multi-DAO hub — proposals, voting, execution, member management
 - 🏗️ DAO Factory — 4 presets (Basic, Team, Treasury, Enterprise)
 - 🎭 Roles — admin, dev, finance, ops, member + role management
@@ -299,4 +299,4 @@ Contributions are welcome! See [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines
 
 [MIT](LICENSE) © 2026 Samouraï Coop
 
-Weighted governance also supports the v2 same-person key-recovery candidate; see [the guarded DAO workspace](docs/WEIGHTED_DAO.md). Mainnet writes remain held.
+Weighted governance also supports the v2 same-person key-recovery candidate; see [the guarded DAO workspace](docs/WEIGHTED_DAO.md). Mainnet writes remain held for these candidate versions.

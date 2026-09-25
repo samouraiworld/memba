@@ -21,20 +21,26 @@ describe("RealmsNotDeployedBanner", () => {
         render(<RealmsNotDeployedBanner deployed={false} networkLabel="Testnet 13" />)
         const status = screen.getByRole("status")
         expect(status).toHaveTextContent(/Testnet 13/)
-        expect(status).toHaveTextContent(/community realms .* are not on Testnet 13 yet/i)
+        expect(status).toHaveTextContent(/Memba's channels, candidature, feed and quests are not available on Testnet 13 yet/i)
         expect(status).toHaveTextContent(/You can read GovDAO and DAOs deployed by their members/)
     })
 
     it("names only the features that are missing on a partial rollout", () => {
         render(<RealmsNotDeployedBanner deployed={false} networkLabel="gno.land" missing={["channels", "candidature"]} />)
         const status = screen.getByRole("status")
-        expect(status).toHaveTextContent(/community realms for channels and candidature are not on gno\.land yet/i)
+        // "Not available", not "not on gno.land": the channels realm IS on chain,
+        // it is just not open to members yet.
+        expect(status).toHaveTextContent(/Memba's channels and candidature are not available on gno\.land yet/i)
         expect(status).not.toHaveTextContent(/feed|quests/)
+        expect(status).not.toHaveTextContent(/realms? .*not on gno\.land/i)
     })
 
-    it("uses the singular for a single missing feature", () => {
+    it("agrees the verb with a single missing feature", () => {
+        const { unmount } = render(<RealmsNotDeployedBanner deployed={false} networkLabel="gno.land" missing={["candidature"]} />)
+        expect(screen.getByRole("status")).toHaveTextContent(/Memba's candidature is not available on gno\.land yet/i)
+        unmount()
         render(<RealmsNotDeployedBanner deployed={false} networkLabel="gno.land" missing={["channels"]} />)
-        expect(screen.getByRole("status")).toHaveTextContent(/community realm for channels is not on gno\.land yet/i)
+        expect(screen.getByRole("status")).toHaveTextContent(/Memba's channels are not available on gno\.land yet/i)
     })
 
     it("renders nothing when no community feature is missing", () => {

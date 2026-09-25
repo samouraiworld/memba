@@ -10,13 +10,16 @@
  *
  * @module lib/navFlags
  */
-import { isNftEnabled, isServicesEnabled, isMarketplaceEnabled, isFeedEnabled, isAppStoreEnabled, isPointsEnabled } from "./config"
+import { isNftEnabled, isServicesEnabled, isFeedEnabled, isAppStoreEnabled, isPointsEnabled } from "./config"
+import { isMarketplaceEntryLive } from "./marketplace/lanes"
 
 // VITE_ENABLE_EXPLORER is intentionally absent: the Explorer is no longer a nav
 // entry (merged into the Directory as a gated tab, 2026-07-08), so no nav pill
 // resolves it. Keep this map limited to flags a nav entry actually references.
 const FLAG_READERS: Record<string, () => boolean> = {
-    VITE_ENABLE_MARKETPLACE: isMarketplaceEnabled,
+    // Not the bare flag: a live Services lane also makes the Marketplace entry
+    // live (see isMarketplaceEntryLive).
+    VITE_ENABLE_MARKETPLACE: isMarketplaceEntryLive,
     VITE_ENABLE_SERVICES: isServicesEnabled,
     VITE_ENABLE_NFT: isNftEnabled,
     VITE_ENABLE_FEED: isFeedEnabled,

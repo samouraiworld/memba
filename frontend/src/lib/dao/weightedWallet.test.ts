@@ -16,7 +16,8 @@ function wallet({ accountChain = "test-13", networkChain = "test-13" as string |
     vi.stubGlobal("adena", adena)
     return adena
 }
-const check = () => assertLiveWalletChain({ chainId: "test-13", address })
+const V12 = "memba-weighted-host/v12", RELEASED = "gno.land/r/samcrew/memba_dao", OTHER = "gno.land/r/samcrew/memba_dao_v2"
+const check = () => assertLiveWalletChain({ chainId: "test-13", address, schema: V12, realmPath: RELEASED })
 let actualGuard: typeof assertLiveWalletNetwork
 beforeEach(async () => {
     actualGuard = (await vi.importActual<typeof import("../walletNetworkGuard")>("../walletNetworkGuard")).assertLiveWalletNetwork
@@ -48,7 +49,8 @@ it("refuses a wallet on gnoland-1 even when the page is on a test network", asyn
 
 it("refuses a held page chain without asking the wallet", async () => {
     const adena = wallet({ accountChain: "gnoland-1", networkChain: "gnoland-1", rpcUrl: "https://rpc.gno.land:443" })
-    await expect(assertLiveWalletChain({ chainId: "gnoland-1", address })).rejects.toThrow("on hold")
+    for (const dao of [{ schema: V12, realmPath: OTHER }, { schema: "memba-weighted-host/v2", realmPath: RELEASED }])
+        await expect(assertLiveWalletChain({ chainId: "gnoland-1", address, ...dao })).rejects.toThrow("on hold")
     expect(adena.GetAccount).not.toHaveBeenCalled()
     expect(assertLiveWalletNetwork).not.toHaveBeenCalled()
 })
@@ -56,7 +58,20 @@ it("refuses a held page chain without asking the wallet", async () => {
 it("adds the hold list on top of whatever chain the shared guard accepted", async () => {
     // Should the shared guard ever accept a held chain, the wrapper still refuses.
     vi.mocked(assertLiveWalletNetwork).mockResolvedValue({ chainId: "gnoland-1", address, rpcUrl: "" })
-    await expect(check()).rejects.toThrow("where governance writes remain on hold")
+    await expect(assertLiveWalletChain({ chainId: "test-13", address, schema: V12, realmPath: OTHER })).rejects.toThrow("where governance writes remain on hold")
+    // For the released DAO, a wallet on another chain than the page's is still refused.
+    await expect(check()).rejects.toThrow("not ")
+})
+
+it("lets the released mainnet DAO through the shared guard on gnoland-1", async () => {
+    wallet({ accountChain: "gnoland-1", networkChain: "gnoland-1", rpcUrl: "https://rpc.gno.land:443" })
+    await expect(assertLiveWalletChain({ chainId: "gnoland-1", address, schema: V12, realmPath: RELEASED })).resolves.toMatchObject({ chainId: "gnoland-1", address })
+    expect(assertLiveWalletNetwork).toHaveBeenCalledExactlyOnceWith("gnoland-1", { address })
+    // The shared guard's refusals still apply to it: another account, another chain.
+    wallet({ accountChain: "gnoland-1", networkChain: "gnoland-1", rpcUrl: "https://rpc.gno.land:443", who: "g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c" })
+    await expect(assertLiveWalletChain({ chainId: "gnoland-1", address, schema: V12, realmPath: RELEASED })).rejects.toThrow("not the one connected")
+    wallet({ accountChain: "test-13", networkChain: "test-13" })
+    await expect(assertLiveWalletChain({ chainId: "gnoland-1", address, schema: V12, realmPath: RELEASED })).rejects.toThrow()
 })
 
 it("keeps the shared guard's other refusals: another chain, untrusted RPC, another account", async () => {

@@ -17,6 +17,13 @@ describe("missingCommunityRealms", () => {
         )
     })
 
+    it("on gno.land mainnet names exactly channels and candidature", () => {
+        // Pinned, not derived from the allowlist: feed and quests work on mainnet;
+        // the channels realm is on chain but closed to members, and candidature is
+        // not deployed. Changing this list must be a deliberate, verified decision.
+        expect(missingCommunityRealms("mainnet")).toEqual(["channels", "candidature"])
+    })
+
     it("mirrors isRealmValidOn for every feature", () => {
         const paths: Record<string, string> = {
             channels: MEMBA_DAO.channelsPath,

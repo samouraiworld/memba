@@ -28,7 +28,6 @@ import {
     Medal,
 } from "@phosphor-icons/react"
 import {
-    isMarketplaceEnabled,
     isSpaceInvadersEnabled,
     isBarricadeEnabled,
     isFeedEnabled,
@@ -37,6 +36,7 @@ import {
     isAgentsEnabled,
     isPointsEnabled,
 } from "../../lib/config"
+import { isMarketplaceEntryLive } from "../../lib/marketplace/lanes"
 
 export interface HomeSurface {
     /** testid suffix (`explore-<key>` / `soon-<key>`) */
@@ -59,7 +59,7 @@ export const HOME_SURFACES: HomeSurface[] = [
     { key: "gnolove", route: "gnolove", label: "Dev Report", sub: "contributor board", Icon: Heart, live: always },
     { key: "quests", route: "quests", label: "Quests", sub: "earn XP", Icon: Trophy, live: always },
     { key: "multisig", route: "multisig", label: "Multisig", sub: "shared treasury", Icon: Vault, live: always },
-    { key: "marketplace", route: "marketplace", label: "Marketplace", sub: "NFTs, tokens & services", Icon: Storefront, live: isMarketplaceEnabled },
+    { key: "marketplace", route: "marketplace", label: "Marketplace", sub: "NFTs, tokens & services", Icon: Storefront, live: isMarketplaceEntryLive },
     { key: "apps", route: "apps", label: "App Store", sub: "wallets, tools & dApps", Icon: SquaresFour, live: always },
     { key: "blog", route: "blog", label: "Blog", sub: "news & deep dives", Icon: Article, live: always },
     { key: "space-invaders", route: "game/space-invaders", label: "Space Invaders", sub: "daily arcade run", Icon: Alien, live: isSpaceInvadersEnabled },

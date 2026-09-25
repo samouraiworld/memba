@@ -196,6 +196,30 @@ describe("UnifiedMarketplace — unavailable network", () => {
     })
 })
 
+describe("UnifiedMarketplace — only the Services lane live (gno.land mainnet today)", () => {
+    beforeEach(() => {
+        onlyNftAndServicesLive()
+        vi.mocked(config.isNftEnabled).mockReturnValue(false)
+    })
+
+    it("lands /marketplace on the Services lane, not the coming-soon preview", () => {
+        // The bare /marketplace URL redirects to the first live lane.
+        expect(getDefaultLaneSlug()).toBe("services")
+        mountAt("/services")
+        expect(screen.queryByRole("figure", { name: "Marketplace design preview" })).not.toBeInTheDocument()
+        expect(screen.getAllByRole("tab").map(t => t.textContent?.trim())).toEqual(["Services"])
+        expect(screen.getByRole("heading", { name: "Freelance Services", level: 1 })).toBeInTheDocument()
+    })
+
+    it("falls back to the coming-soon preview once escrow is not valid on the network", () => {
+        vi.mocked(config.isEscrowValid).mockReturnValue(false)
+        expect(getDefaultLaneSlug()).toBeUndefined()
+        mountAt("/services")
+        expect(screen.getByRole("figure", { name: "Marketplace design preview" })).toBeInTheDocument()
+        expect(screen.queryByRole("tab")).not.toBeInTheDocument()
+    })
+})
+
 describe("UnifiedMarketplace — escrow contract page", () => {
     beforeEach(onlyNftAndServicesLive)
 

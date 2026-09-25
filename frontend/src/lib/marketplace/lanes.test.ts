@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest"
 
 // Mock the config predicates so we can drive each lane's flag/realm state.
 vi.mock("../config", () => ({
+    isMarketplaceEnabled: vi.fn(() => false),
     isNftEnabled: vi.fn(() => false),
     isNftMarketV3Valid: vi.fn(() => false),
     isServicesEnabled: vi.fn(() => false),
@@ -12,7 +13,7 @@ vi.mock("../config", () => ({
     isAgentRegistryValid: vi.fn(() => false),
 }))
 
-import { getLiveLanes, isLaneLive, LANES } from "./lanes"
+import { getLiveLanes, isLaneLive, isMarketplaceEntryLive, LANES } from "./lanes"
 import * as config from "../config"
 
 const setLane = (
@@ -81,5 +82,35 @@ describe("marketplace lane registry (panel C2 — tab renders only when live)", 
         expect(getLiveLanes().map((l) => l.assetType)).toEqual(["nft"])
         setLane(true, true, true, true, true, true, true, true) // all live
         expect(getLiveLanes().map((l) => l.assetType)).toEqual(["nft", "service", "token", "agent"])
+    })
+})
+
+describe("isMarketplaceEntryLive — the Marketplace nav entry and home tile", () => {
+    beforeEach(() => {
+        setLane(false, false, false, false)
+        vi.mocked(config.isMarketplaceEnabled).mockReturnValue(false)
+    })
+
+    it("is live when the Services lane is live, even with VITE_ENABLE_MARKETPLACE off", () => {
+        setLane(false, false, true, true)
+        expect(isMarketplaceEntryLive()).toBe(true)
+    })
+
+    it("stays 'soon' when the Services flag is on but escrow is not valid on the network", () => {
+        setLane(false, false, true, false)
+        expect(isMarketplaceEntryLive()).toBe(false)
+    })
+
+    it("stays 'soon' when escrow is valid but the Services flag is off", () => {
+        setLane(false, false, false, true)
+        expect(isMarketplaceEntryLive()).toBe(false)
+    })
+
+    it("follows VITE_ENABLE_MARKETPLACE when Services is not live (unchanged behaviour)", () => {
+        vi.mocked(config.isMarketplaceEnabled).mockReturnValue(true)
+        expect(isMarketplaceEntryLive()).toBe(true)
+        vi.mocked(config.isMarketplaceEnabled).mockReturnValue(false)
+        setLane(true, true, false, false) // another lane alone does not change the entry
+        expect(isMarketplaceEntryLive()).toBe(false)
     })
 })
