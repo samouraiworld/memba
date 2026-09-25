@@ -13,7 +13,8 @@ import { ThingTile } from "./icons"
 interface Props {
     /** Changes when the window shows something else; clears a previous error. */
     resetKey: string
-    close: () => void
+    /** Offers "Close window" when set; a boundary inside a window (an AppShell section) has none. */
+    close?: () => void
     children: ReactNode
 }
 
@@ -61,7 +62,7 @@ export class WindowError extends Component<Props, State> {
                     {stale
                         ? <button type="button" className="os-btn" onClick={() => window.location.reload()}>Reload Memba</button>
                         : <button type="button" className="os-btn" onClick={() => this.setState({ error: null })}>Try again</button>}
-                    <button type="button" className="os-btn os-quiet" onClick={this.props.close}>Close window</button>
+                    {this.props.close && <button type="button" className="os-btn os-quiet" onClick={this.props.close}>Close window</button>}
                 </div>
             </div>
         )

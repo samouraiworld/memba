@@ -2,7 +2,11 @@
  * Memba OS kit: sidebar window, table, stat cards, switch, loading/empty/
  * error states, not-on-mainnet warning. Mockup v4 values, tokens only.
  */
-.memba-os .os-fw { display: grid; grid-template-columns: 170px 1fr; height: 100%; min-height: 0; margin: -16px -18px; }
+/* The sidebar window fills the window body edge to edge: the body drops its
+   padding for it (instead of a negative margin, which overflowed the body by
+   the padding and clipped the bottom), so height: 100% is the body's height. */
+.memba-os .os-wbody:has(> .os-fw) { padding: 0; }
+.memba-os .os-fw { display: grid; grid-template-columns: 170px 1fr; height: 100%; min-height: 0; }
 .memba-os .os-fw nav { border-right: 1px solid var(--os-line); padding: 10px 8px; display: grid; align-content: start; gap: 2px; background: var(--os-card); overflow: auto; }
 .memba-os .os-fw nav button { border: 0; background: none; text-align: left; padding: 7px 10px; border-radius: 8px; display: flex; gap: 8px; align-items: center; font-weight: 600; font-size: 12.5px; cursor: pointer; }
 .memba-os .os-fw nav button:hover { background: var(--os-hover); }
