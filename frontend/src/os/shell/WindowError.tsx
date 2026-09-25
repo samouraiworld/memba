@@ -56,7 +56,7 @@ export class WindowError extends Component<Props, State> {
                 <p className="os-sub">
                     {stale
                         ? "Part of Memba could not load. Check your connection, then reload Memba. Your other windows are fine."
-                        : "Your other windows are fine. Try again, or close this window."}
+                        : this.props.close ? "Your other windows are fine. Try again, or close this window." : "Your other windows are fine. Try again."}
                 </p>
                 <div className="os-row">
                     {stale

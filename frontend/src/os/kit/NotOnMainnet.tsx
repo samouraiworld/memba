@@ -9,7 +9,7 @@ import { Pill } from "./Pill"
 export function NotOnMainnet({ what, network = "gnoland-1" }: { what: string; network?: string }) {
     return (
         <div className="os-note os-warn" role="note">
-            <Pill tone="warn">Not on {network} yet</Pill> {what} isn't available on {network} yet. You can look around; actions stay off.
+            <Pill tone="neutral">Not on {network} yet</Pill> {what} isn't available yet. You can look around; actions stay off.
         </div>
     )
 }

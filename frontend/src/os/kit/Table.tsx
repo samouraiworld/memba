@@ -12,9 +12,11 @@
  * also trigger the row's handler.
  *
  * Sorting: a column with `sort` gets a header button that cycles none →
- * ascending → descending → none (`aria-sort` on the `<th>`). Paging: with
- * `pageSize`, a pager shows "Showing x–y of n"; it goes back to page 1 when
- * the number of rows changes.
+ * ascending → descending → none; only the sorted `<th>` carries `aria-sort`.
+ * Paging: with `pageSize`, a pager shows "Showing x–y of n", plus
+ * Previous/Next when there's more than one page; it goes back to page 1 when
+ * the number of rows changes. The sort arrows are text glyphs: shell/icons
+ * has no arrow or chevron icon.
  *
  * @module os/kit/Table
  */
@@ -91,7 +93,7 @@ export function Table<T>({ columns, rows, rowKey, empty, openColumn, pageSize, o
                 <thead>
                     <tr>{columns.map((c) => {
                         if (!c.sort) return <th key={c.key} data-align={c.align}>{c.label}</th>
-                        const dir = sort?.key === c.key ? sort.dir : "none"
+                        const dir = sort?.key === c.key ? sort.dir : undefined
                         return (
                             <th key={c.key} data-align={c.align} aria-sort={dir}>
                                 <button type="button" className="os-t-sort" onClick={() => cycle(c.key)}>
@@ -124,8 +126,10 @@ export function Table<T>({ columns, rows, rowKey, empty, openColumn, pageSize, o
             {pageSize ? (
                 <div className="os-t-pager">
                     <span className="os-sub">Showing {current * size + 1}–{current * size + shown.length} of {rows.length}</span>
-                    <button type="button" className="os-btn os-quiet" disabled={current === 0} onClick={() => setPage(current - 1)}>Previous</button>
-                    <button type="button" className="os-btn os-quiet" disabled={current >= pages - 1} onClick={() => setPage(current + 1)}>Next</button>
+                    {pages > 1 && <>
+                        <button type="button" className="os-btn os-quiet" disabled={current === 0} onClick={() => setPage(current - 1)}>Previous</button>
+                        <button type="button" className="os-btn os-quiet" disabled={current >= pages - 1} onClick={() => setPage(current + 1)}>Next</button>
+                    </>}
                 </div>
             ) : null}
         </div>

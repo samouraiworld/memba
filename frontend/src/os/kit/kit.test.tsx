@@ -98,7 +98,8 @@ describe("os kit", () => {
         it("sorts by a sortable header: none, ascending, descending, none", () => {
             render(<Table columns={cols} rows={ROWS} rowKey={(r) => r.n} empty="-" />)
             const th = screen.getByRole("columnheader", { name: "Amount" })
-            expect(th).toHaveAttribute("aria-sort", "none")
+            expect(th).not.toHaveAttribute("aria-sort")
+            expect(screen.getByRole("columnheader", { name: "Name" })).not.toHaveAttribute("aria-sort")
             expect(screen.getByRole("columnheader", { name: "Actions" })).not.toHaveAttribute("aria-sort")
             expect(names()).toEqual(["b", "a", "c"])
             const sortBtn = screen.getByRole("button", { name: "Amount" })
@@ -109,11 +110,12 @@ describe("os kit", () => {
             expect(th).toHaveAttribute("aria-sort", "descending")
             expect(names()).toEqual(["a", "b", "c"])
             fireEvent.click(sortBtn)
-            expect(th).toHaveAttribute("aria-sort", "none")
+            expect(th).not.toHaveAttribute("aria-sort")
             expect(names()).toEqual(["b", "a", "c"])
             fireEvent.click(screen.getByRole("button", { name: "Name" }))
             expect(screen.getByRole("columnheader", { name: "Name" })).toHaveAttribute("aria-sort", "ascending")
-            expect(th).toHaveAttribute("aria-sort", "none")
+            expect(th).not.toHaveAttribute("aria-sort")
+            expect(screen.getByRole("button", { name: "Amount" })).toBeInTheDocument()
             expect(names()).toEqual(["a", "b", "c"])
         })
 
@@ -133,6 +135,13 @@ describe("os kit", () => {
             rerender(<Table columns={cols} rows={five.slice(0, 4)} rowKey={(r) => r.n} pageSize={2} empty="-" />)
             expect(screen.getByText("Showing 1–2 of 4")).toBeInTheDocument()
             expect(names()).toEqual(["a", "b"])
+        })
+
+        it("keeps the count but drops Previous/Next when everything fits on one page", () => {
+            render(<Table columns={cols} rows={ROWS} rowKey={(r) => r.n} pageSize={5} empty="-" />)
+            expect(screen.getByText("Showing 1–3 of 3")).toBeInTheDocument()
+            expect(screen.queryByRole("button", { name: "Previous" })).toBeNull()
+            expect(screen.queryByRole("button", { name: "Next" })).toBeNull()
         })
 
         it("shows the empty state in a div, so it can hold block content", () => {
@@ -168,13 +177,13 @@ describe("os kit", () => {
         fireEvent.click(screen.getByRole("button", { name: "Retry" }))
         expect(onRetry).toHaveBeenCalled()
     })
-    it("NotOnMainnet names the network once in a pill and once in the copy", () => {
+    it("NotOnMainnet names the network once, in a neutral pill", () => {
         const { rerender } = render(<NotOnMainnet what="The NFT launchpad" />)
-        expect(screen.getByText("Not on gnoland-1 yet")).toHaveClass("os-pill", "os-warn")
-        expect(screen.getByRole("note")).toHaveTextContent("The NFT launchpad isn't available on gnoland-1 yet. You can look around; actions stay off.")
+        expect(screen.getByText("Not on gnoland-1 yet")).toHaveClass("os-pill", "os-neutral")
+        expect(screen.getByRole("note")).toHaveTextContent(/^Not on gnoland-1 yet The NFT launchpad isn't available yet\. You can look around; actions stay off\.$/)
         rerender(<NotOnMainnet what="Channels" network="test12" />)
         expect(screen.getByText("Not on test12 yet")).toBeInTheDocument()
-        expect(screen.getByRole("note")).toHaveTextContent("Channels isn't available on test12 yet.")
+        expect(screen.getByRole("note")).toHaveTextContent(/^Not on test12 yet Channels isn't available yet\./)
     })
     it("AppShell draws section icons and badges, 0 included", () => {
         render(<AppShell label="Inbox" sections={[{ id: "a", name: "All", icon: "doc", badge: 0 }, { id: "b", name: "Mine", badge: 4 }, { id: "c", name: "None" }]} current="a" onSelect={() => {}}>body</AppShell>)
