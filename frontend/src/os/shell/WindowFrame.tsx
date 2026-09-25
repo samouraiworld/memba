@@ -5,7 +5,7 @@
  *
  * @module os/shell/WindowFrame
  */
-import { lazy, Suspense, useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
+import { createElement, lazy, Suspense, useEffect, useRef, type CSSProperties, type PointerEvent as ReactPointerEvent, type ReactNode } from "react"
 import { getApp, type OsAppId } from "../apps"
 import { AppTile, ThingTile } from "./icons"
 import type { OsSession } from "./useOsSession"
@@ -21,6 +21,7 @@ const MultisigWindow = lazy(() => import("../multisig/MultisigWindows").then((m)
 const SendWindow = lazy(() => import("../wallet/WalletWindows").then((m) => ({ default: m.SendWindow })))
 const WalletWindow = lazy(() => import("../wallet/WalletWindows").then((m) => ({ default: m.WalletWindow })))
 import { classicForSection, pageNeedsWallet } from "../page/classicRoute"
+import { nativeView } from "../native/registry"
 import { WindowError } from "./WindowError"
 import { DOCK_ROOM, type DeskSize, type OsWindow, type WindowSpec } from "./windows"
 
@@ -99,8 +100,16 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
     if (t.kind === "multisig") return <MultisigWindow address={t.address} session={a.session} open={a.open} />
     if (t.kind === "app" && t.app === "multisig" && t.section === null) return <MultisigApp session={a.session} open={a.open} />
     if (t.kind === "feedback") return <ClassicPage key={`${win.id}:feedback`} network={net} page="feedback" layout={a.session.layout} />
-    const page = classicForSection(t.app, t.section)
-    if (page === null) {
+    // Keyed by the page too: a window that follows a link to another page (tx 7 → tx 12)
+    // must start that page fresh, never carry the previous page's typed state over.
+    // Its query isn't in the key: a tab change is the same page, which re-renders in place.
+    const classicPage = classicForSection(t.app, t.section)
+    const classicEl = classicPage === null ? null : <ClassicPage key={`${win.id}:${classicPage}`} network={net} page={classicPage} query={t.query} layout={a.session.layout} />
+    const native = nativeView(t.app)
+    if (native) {
+        return createElement(native, { section: t.section, query: t.query, session: a.session, open: a.open, openApp: a.openApp, close: a.close, toast: a.toast, classic: classicEl })
+    }
+    if (classicPage === null) {
         const app = getApp(t.app)
         return t.section === null
             ? <Holding tile={<AppTile app={t.app} size={44} />} title={app.name} text={`${app.summary}. Coming to Memba OS in a later version.`} />
@@ -110,7 +119,7 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
                 </Holding>
             )
     }
-    if (pageNeedsWallet(page) && a.session.status !== "member") {
+    if (pageNeedsWallet(classicPage) && a.session.status !== "member") {
         const app = getApp(t.app)
         return (
             <Holding tile={<AppTile app={app.id} size={44} />} title={app.name} text={`Connect a wallet to use ${app.name}.`}>
@@ -118,10 +127,7 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
             </Holding>
         )
     }
-    // Keyed by the page too: a window that follows a link to another page (tx 7 → tx 12)
-    // must start that page fresh, never carry the previous page's typed state over.
-    // Its query isn't in the key: a tab change is the same page, which re-renders in place.
-    return <ClassicPage key={`${win.id}:${page}`} network={net} page={page} query={t.query} layout={a.session.layout} />
+    return classicEl
 }
 
 export interface FrameActions {
