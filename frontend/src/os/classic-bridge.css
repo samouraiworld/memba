@@ -86,6 +86,17 @@
   --gl-color-chart-series-issues: var(--os-err);
   --gl-color-chart-series-danger: var(--os-err);
   --gl-color-chart-series-neutral: var(--os-mut);
+  /* Dev Report heatmap ramp (gnolove.css :root — same :root-token pattern as the
+   * chart series above); l0 (near-transparent) and the light-theme l0 override
+   * are already theme-neutral and don't need a redeclare. */
+  --gl-color-heatmap-l1: color-mix(in srgb, var(--os-acc) 15%, transparent);
+  --gl-color-heatmap-l2: color-mix(in srgb, var(--os-acc) 35%, transparent);
+  --gl-color-heatmap-l3: color-mix(in srgb, var(--os-acc) 60%, transparent);
+  --gl-color-heatmap-l4: var(--os-acc);
+  /* gnolove.css .gl-thub-inline-retry reads var(--gl-accent, #00d4aa) — --gl-accent
+   * is never defined anywhere, so that fallback is always live. Defining it here
+   * is simpler than overriding the class directly. */
+  --gl-accent: var(--os-acc-ink);
   color: var(--os-ink);
   font-family: var(--os-font);
 }
@@ -108,10 +119,12 @@
 }
 .memba-os .os-classic :is(input, select, textarea):focus-visible { outline: none; border-color: var(--os-acc); box-shadow: 0 0 0 3px var(--os-chip); }
 .memba-os .os-classic a:not([class]) { color: var(--os-acc-ink); }
-/* The route loader (ConnectingLoader via PageLoader) is sized for a browser page. */
+/* .animate-glow's keyframes (index.css) pulse a literal teal box-shadow — Beta
+ * styling with no OS token to redeclare it against, so the animation is removed
+ * outright rather than re-themed. */
 .memba-os .os-classic .animate-glow { animation: none; }
 
-/* Literal teal in page CSS (removed as each app goes native) */
+/* Literal teal in page CSS, including hover/active states (removed as each app goes native) */
 /* pages/questhub.css .k-quest-card-xp: literal rgba(0, 212, 170, .1) fill behind the XP pill. */
 .memba-os .os-classic .k-quest-card-xp { background: var(--os-chip); }
 /* pages/FeedbackPage.tsx "Submit Feedback" CTA row: inline style={{ background, border }} with
@@ -124,3 +137,39 @@
 /* pages/validators.css .val-retry-btn: literal teal border/fill, and its :hover fill. */
 .memba-os .os-classic .val-retry-btn { border-color: var(--os-acc); background: var(--os-chip); }
 .memba-os .os-classic .val-retry-btn:hover { background: var(--os-chip); }
+
+/* Controller's real-data probe (guest/e2e fixtures render gated or empty states
+ * that never reach these): validators.css .val-chain-badge and .val-profile-link
+ * (base + border), dev-report's active nav/tab/filter pills, explorer's live-chain
+ * pulse. Bar gradients (.val-power-mini-bar / .val-power-segment) go flat
+ * var(--os-acc) rather than a two-stop gradient into --os-ok: the original was two
+ * shades of the SAME teal (depth only), and --os-ok is a semantic success colour —
+ * mixing it in would read as a health/status signal these bars don't carry. */
+.memba-os .os-classic .val-chain-badge { background: var(--os-chip); border-color: var(--os-acc); }
+.memba-os .os-classic .val-profile-link { border-color: var(--os-acc); }
+.memba-os .os-classic .val-profile-link:hover { border-color: var(--os-acc); background: var(--os-chip); }
+.memba-os .os-classic :is(.val-power-mini-bar, .val-power-segment) { background: var(--os-acc); }
+.memba-os .os-classic :is(.gl-subnav-link--active, .gl-tab--active, .gl-filter-btn--active, .val-active) { background: var(--os-chip); }
+/* explorer's live-chain dot: same Beta pulse as .animate-glow (index.css @keyframes
+ * glow), applied directly rather than via that class — removed the same way. */
+.memba-os .os-classic .chain-metric__live { animation: none; }
+
+/* Hover/active/focus states the sweep's snapshot can't reach without triggering them. */
+.memba-os .os-classic .gl-milestone-fill { background: var(--os-acc); }
+.memba-os .os-classic :is(.gl-issue-row, .gl-pr-row, .gl-repo-card, .gl-activity-item, .gl-profile-link, .gl-profile-copy-btn, .gl-activity-row, .gl-repo-card-profile, .gl-team-repo):hover {
+  border-color: var(--os-acc);
+}
+.memba-os .os-classic :is(.gl-week-btn, .gl-export-btn):hover:not(:disabled) { border-color: var(--os-acc); }
+.memba-os .os-classic .gl-team-repo:hover { background: var(--os-chip); }
+.memba-os .os-classic :is(.gl-team-award, .gl-pagination-btn--active, .val-role-badge--validator, .val-valopers__count) { background: var(--os-chip); }
+.memba-os .os-classic :is(.gl-pagination-btn--active, .val-role-badge--validator, .val-valopers__count) { border-color: var(--os-acc); }
+.memba-os .os-classic .gl-view-btn--active { background: var(--os-chip); }
+.memba-os .os-classic .gl-thub-active-repo-pct { background: var(--os-chip); }
+.memba-os .os-classic :is(.val-stat-card, .val-stat-card--link):hover,
+.memba-os .os-classic .val-search:focus,
+.memba-os .os-classic .val-page-size:hover,
+.memba-os .os-classic .val-page-size:focus {
+  border-color: var(--os-acc);
+}
+.memba-os .os-classic .val-page-btn { border-color: var(--os-acc); background: var(--os-chip); }
+.memba-os .os-classic .val-page-btn:hover:not(:disabled) { border-color: var(--os-acc); background: var(--os-chip); }
