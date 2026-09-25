@@ -71,3 +71,4 @@
 }
 .memba-os button.os-scard { cursor: pointer; }
 .memba-os button.os-scard:hover { border-color: var(--os-acc); }
+.memba-os .os-scard > svg { width: 20px; height: 20px; flex: none; color: var(--os-mut); }

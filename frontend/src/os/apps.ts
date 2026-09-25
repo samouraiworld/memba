@@ -49,7 +49,7 @@ export const OS_APPS: readonly OsApp[] = [
       routes: ["settings"] },
     { id: "tokens", name: "Tokens", slug: "tokens", summary: "Create, hold and trade GRC20 tokens", tier: "v1.1", tint: ["#F2B544", "#E08A1E"], dock: false,
       routes: ["tokens", "tokens/:symbol", "create-token"] },
-    { id: "nft", name: "NFT", slug: "nft", summary: "Collections, studio, launchpad, marketplace", tier: "v1.1", tint: ["#EC6FCF", "#A34FE0"], dock: false,
+    { id: "nft", name: "NFT", slug: "nft", summary: "Collections, studio and launchpad", tier: "v1.1", tint: ["#EC6FCF", "#A34FE0"], dock: false,
       routes: ["nft", "nft/create", "nft/create/advanced", "nft/collection/:creator/:slug", "nft/token/:creator/:slug/:tokenId", "nft/creator",
           "nft/creator/:address", "nft/studio", "nft/studio/:creator/:slug", "nft/:realmPath"] },
     { id: "market", name: "Market", slug: "market", summary: "Hire with escrow, trade NFTs and tokens", tier: "v1.1", tint: ["#5AA9FF", "#6B5BFA"], dock: false,
