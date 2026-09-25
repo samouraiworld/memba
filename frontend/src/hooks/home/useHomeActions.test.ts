@@ -32,6 +32,11 @@ vi.mock("../../lib/quests", () => ({
     canApplyForMembership: vi.fn(() => false),
 }))
 
+vi.mock("../../lib/config", async (importOriginal) => ({
+    ...(await importOriginal<typeof import("../../lib/config")>()),
+    GNO_CHAIN_ID: "gnoland-1",
+}))
+
 // ── Resolve mocked modules for per-test control ───────────────
 
 const unvotedMod = await import("../useUnvotedProposals")
@@ -204,6 +209,28 @@ describe("useHomeActions — empty / all caught up", () => {
         await waitFor(() => expect(result.current.loading).toBe(false))
         expect(result.current.allCaughtUp).toBe(true)
         expect(result.current.actions).toHaveLength(0)
+    })
+})
+
+describe("useHomeActions — chain scope", () => {
+    it("asks only for the active chain's pending transactions", async () => {
+        vi.mocked(unvotedMod.useUnvotedProposals).mockReturnValue({
+            proposals: [],
+            loading: false,
+            refresh: vi.fn(),
+        })
+        vi.mocked(apiMod.api.transactions).mockClear()
+        vi.mocked(apiMod.api.transactions).mockResolvedValue({ transactions: [] })
+        vi.mocked(questsMod.canApplyForMembership).mockReturnValue(false)
+
+        const { result } = renderHook(
+            () => useHomeActions(makeAuth()),
+            { wrapper: makeWrapper() },
+        )
+
+        await waitFor(() => expect(result.current.loading).toBe(false))
+        expect(apiMod.api.transactions).toHaveBeenCalledTimes(1)
+        expect(vi.mocked(apiMod.api.transactions).mock.calls[0][0]).toMatchObject({ chainId: "gnoland-1" })
     })
 })
 

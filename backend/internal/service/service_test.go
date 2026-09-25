@@ -242,6 +242,52 @@ func TestMultisigInfo_NonMemberRejected(t *testing.T) {
 	}
 }
 
+// Import by address: CreateOrJoinMultisig pre-inserts every key-set member with
+// joined = FALSE, so an invited member who has not joined yet must still be able
+// to read the multisig (to import it). A non-member stays denied.
+func TestMultisigInfo_UnjoinedMemberAllowed(t *testing.T) {
+	h := setup(t)
+	h.seedMultisig(t, "test11", "g1multisig1", `{"threshold":2}`, 2, 2, []string{"g1alice"})
+	if _, err := h.db.Exec(
+		"INSERT INTO user_multisigs (chain_id, user_address, multisig_address, joined, created_at) VALUES (?, ?, ?, FALSE, ?)",
+		"test11", "g1bob", "g1multisig1", time.Now().UTC().Format(time.RFC3339),
+	); err != nil {
+		t.Fatal("seed unjoined member:", err)
+	}
+
+	ctx := context.Background()
+	resp, err := h.svc.MultisigInfo(ctx, connect.NewRequest(&membav1.MultisigInfoRequest{
+		AuthToken:       h.makeToken(t, "g1bob"),
+		ChainId:         "test11",
+		MultisigAddress: "g1multisig1",
+	}))
+	if err != nil {
+		t.Fatal("expected an unjoined member to read MultisigInfo:", err)
+	}
+	if len(resp.Msg.Multisig.UsersAddresses) != 2 {
+		t.Fatalf("expected 2 members, got %d", len(resp.Msg.Multisig.UsersAddresses))
+	}
+
+	_, err = h.svc.MultisigInfo(ctx, connect.NewRequest(&membav1.MultisigInfoRequest{
+		AuthToken:       h.makeToken(t, "g1stranger"),
+		ChainId:         "test11",
+		MultisigAddress: "g1multisig1",
+	}))
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("expected CodePermissionDenied for a non-member, got %v", err)
+	}
+
+	// Membership is per chain: bob's row on test11 does not open the same address elsewhere.
+	_, err = h.svc.MultisigInfo(ctx, connect.NewRequest(&membav1.MultisigInfoRequest{
+		AuthToken:       h.makeToken(t, "g1bob"),
+		ChainId:         "other-chain",
+		MultisigAddress: "g1multisig1",
+	}))
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("expected CodePermissionDenied on another chain, got %v", err)
+	}
+}
+
 func TestTransactionLifecycle(t *testing.T) {
 	h := setup(t)
 	creator := "g1alice"

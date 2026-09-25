@@ -16,9 +16,12 @@ type Auth = LayoutContext["auth"]
 export function useMyMultisigs(auth: Auth) {
     const token = auth.token
     return useQuery({
-        queryKey: ["multisig", "os-list", token?.userAddress ?? ""],
+        // Scoped to the active chain, like MultisigHub: the details below are
+        // read on GNO_CHAIN_ID, so another chain's entry could not be opened.
+        queryKey: ["multisig", "os-list", GNO_CHAIN_ID, token?.userAddress ?? ""],
         enabled: !!token && auth.isAuthenticated,
-        queryFn: async (): Promise<Multisig[]> => (await api.multisigs({ authToken: token!, limit: 50 })).multisigs,
+        queryFn: async (): Promise<Multisig[]> =>
+            (await api.multisigs({ authToken: token!, chainId: GNO_CHAIN_ID, limit: 50 })).multisigs,
     })
 }
 

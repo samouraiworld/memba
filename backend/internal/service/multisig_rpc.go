@@ -209,13 +209,14 @@ func (s *MultisigService) MultisigInfo(
 	chainID := req.Msg.GetChainId()
 	addr := req.Msg.GetMultisigAddress()
 
-	// BE-1: only members may read a multisig's pubkey set + member list — mirror the
-	// joined-membership gate GetTransaction uses. Checked before the existence lookup
-	// so a non-member cannot probe which multisigs exist (returns PermissionDenied,
-	// not NotFound, regardless of whether the multisig exists).
+	// BE-1: only members may read a multisig's pubkey set + member list. Checked before
+	// the existence lookup so a non-member cannot probe which multisigs exist (returns
+	// PermissionDenied, not NotFound, regardless of whether the multisig exists).
+	// Joined or not: CreateOrJoinMultisig only writes rows for addresses in the key
+	// set, and an invited member must read the pubkey to import (join) by address.
 	var isMember bool
 	if err := s.db.QueryRowContext(ctx,
-		"SELECT EXISTS(SELECT 1 FROM user_multisigs WHERE chain_id = ? AND multisig_address = ? AND user_address = ? AND joined = TRUE)",
+		"SELECT EXISTS(SELECT 1 FROM user_multisigs WHERE chain_id = ? AND multisig_address = ? AND user_address = ?)",
 		chainID, addr, userAddress,
 	).Scan(&isMember); err != nil {
 		return nil, internalError("MultisigInfo: membership check", err)

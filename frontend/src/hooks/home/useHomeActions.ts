@@ -16,6 +16,7 @@ import type { UnvotedProposal } from "../../lib/dao/voteScanner"
 import { api } from "../../lib/api"
 import { ExecutionState } from "../../gen/memba/v1/memba_pb"
 import { canApplyForMembership } from "../../lib/quests"
+import { GNO_CHAIN_ID } from "../../lib/config"
 import type { LayoutContext } from "../../types/layout"
 import type { ActionAccent } from "../../components/home/ActionCard"
 
@@ -54,6 +55,7 @@ export function useHomeActions(auth: LayoutContext["auth"]): {
             if (!token) return { transactions: [] }
             return api.transactions({
                 authToken: token,
+                chainId: GNO_CHAIN_ID,
                 executionState: ExecutionState.PENDING,
                 limit: 20,
             })

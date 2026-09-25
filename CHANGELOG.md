@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Multisig import and lists stick to the right members and network (2026-09-24)
+<!-- categories: memba, network -->
+- **Invited members can import a multisig by address.** Import by address said "You are not a member" to anyone who had not joined yet. Any address in the multisig's key set can now load it; other addresses are still refused.
+- **The multisig hub and the Home sign actions only show the active network.** They listed wallets and pending transactions from every chain, so testnet transactions could appear as things to sign on mainnet.
+
 ### Activity bot refuses mainnet (2026-09-24)
 <!-- categories: memba, network -->
 - **Operator tool fix: the testnet activity bot no longer defaults to gno.land mainnet.** The mainnet cutover had switched its default chain and RPC to `gnoland-1`, so a run without flags targeted mainnet.

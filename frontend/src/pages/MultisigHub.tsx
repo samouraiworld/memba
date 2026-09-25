@@ -37,7 +37,7 @@ export default function MultisigHub() {
         queryKey: ["multisig", "hub", token?.userAddress ?? ""],
         enabled,
         queryFn: async () => {
-            const res = await api.multisigs({ authToken: token!, limit: 50 })
+            const res = await api.multisigs({ authToken: token!, chainId: GNO_CHAIN_ID, limit: 50 })
             return res.multisigs
         },
     })
