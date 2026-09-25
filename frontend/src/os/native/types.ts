@@ -1,7 +1,10 @@
 /**
  * The props a native app window receives from WindowFrame's Body: the same
- * session and actions every window gets, plus the ready-made classic page
- * element for the sections the native view doesn't handle yet.
+ * session and actions every window gets, plus `fallback`: exactly what the
+ * window would show without a native view (the classic page, or the Connect
+ * tile when that page needs a wallet and there's no member session, or a
+ * holding tile). Render it for the sections the native view doesn't handle
+ * yet; never rebuild the classic page yourself, or the wallet gate is lost.
  *
  * @module os/native/types
  */
@@ -21,5 +24,5 @@ export interface NativeViewProps {
     openApp: (app: OsAppId) => void
     close: () => void
     toast: (msg: string) => void
-    classic: ReactNode
+    fallback: ReactNode
 }
