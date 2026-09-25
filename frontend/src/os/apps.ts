@@ -14,7 +14,7 @@ export type AppTier = "mvp" | "v1.1" | "v1.2" | "v1.3"
 
 export type OsAppId =
     | "daos" | "wallet" | "multisig" | "feed" | "store" | "arcade" | "validators" | "settings"
-    | "tokens" | "nft" | "quests" | "explorer" | "profile" | "news" | "devreport" | "terminal"
+    | "tokens" | "nft" | "market" | "quests" | "explorer" | "profile" | "news" | "devreport" | "terminal"
 
 export interface OsApp {
     id: OsAppId
@@ -40,7 +40,7 @@ export const OS_APPS: readonly OsApp[] = [
     { id: "feed", name: "Feed", slug: "feed", summary: "Posts, threads and moderation", tier: "mvp", tint: ["#FF9A62", "#F0703F"], dock: true,
       routes: ["feed", "feed/post/:id", "feed/user/:address", "feed/mod", "feed/transparency"] },
     { id: "store", name: "App Store", slug: "store", summary: "On-chain app listings, submissions, extensions", tier: "mvp", tint: ["#46B8F0", "#1E90D8"], dock: true,
-      routes: ["apps/*", "apps/submit", "apps/review", "apps/my-submissions", "extensions", "services"] },
+      routes: ["apps/*", "apps/submit", "apps/review", "apps/my-submissions", "extensions"] },
     { id: "arcade", name: "Arcade", slug: "arcade", summary: "Games with verified scores", tier: "mvp", tint: ["#F46BA0", "#D9467E"], dock: true,
       routes: ["game", "game/space-invaders", "game/barricade"] },
     { id: "validators", name: "Validators", slug: "validators", summary: "Validator set, monitoring and alerts", tier: "mvp", tint: ["#4A5368", "#232836"], dock: true,
@@ -51,7 +51,9 @@ export const OS_APPS: readonly OsApp[] = [
       routes: ["tokens", "tokens/:symbol", "create-token"] },
     { id: "nft", name: "NFT", slug: "nft", summary: "Collections, studio, launchpad, marketplace", tier: "v1.1", tint: ["#EC6FCF", "#A34FE0"], dock: false,
       routes: ["nft", "nft/create", "nft/create/advanced", "nft/collection/:creator/:slug", "nft/token/:creator/:slug/:tokenId", "nft/creator",
-          "nft/creator/:address", "nft/studio", "nft/studio/:creator/:slug", "nft/:realmPath", "marketplace/*"] },
+          "nft/creator/:address", "nft/studio", "nft/studio/:creator/:slug", "nft/:realmPath"] },
+    { id: "market", name: "Market", slug: "market", summary: "Hire with escrow, trade NFTs and tokens", tier: "v1.1", tint: ["#5AA9FF", "#6B5BFA"], dock: false,
+      routes: ["marketplace/*", "services"] },
     { id: "quests", name: "Quests", slug: "quests", summary: "Quests, XP, ranks and the XP leaderboard", tier: "v1.1", tint: ["#7AD36B", "#2FA35A"], dock: false,
       routes: ["quests", "quests/:questId", "quest-admin", "points", "leaderboard"] },
     { id: "explorer", name: "Explorer", slug: "explorer", summary: "Realm directory and on-chain explorer", tier: "v1.1", tint: ["#5AC8C8", "#2E8C9C"], dock: false,

@@ -52,4 +52,10 @@ describe("Memba OS app registry", () => {
         // @ts-expect-error — deliberately invalid id
         expect(() => getApp("nope")).toThrow(/Unknown Memba OS app/)
     })
+
+    it("gives the marketplace its own Market app (owner decision 09-25)", () => {
+        expect(appForRoute("marketplace/*")?.id).toBe("market")
+        expect(appForRoute("services")?.id).toBe("market")
+        expect(getApp("market").slug).toBe("market")
+    })
 })

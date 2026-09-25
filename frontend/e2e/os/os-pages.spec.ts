@@ -29,11 +29,11 @@ test.describe('Memba OS pages in windows', () => {
         await expect(page.locator('.os-classic nav[aria-label="Main navigation"], .os-classic .k-sidebar')).toHaveCount(0)
     })
 
-    test('a page that redirects as it opens (NFT → the marketplace) follows the redirect in its window', async ({ page }) => {
+    test('a page that redirects as it opens (NFT → the marketplace) opens the Market window that now owns it', async ({ page }) => {
         await page.goto(`${OS_ON}/os/nft`)
-        const nft = win(page, 'NFT')
-        await expect(nft.getByRole('heading', { name: 'Marketplace' }).first()).toBeVisible()
-        await expect.poll(() => new URL(page.url()).pathname).toBe('/os/nft/marketplace/nfts')
+        const market = win(page, 'Market')
+        await expect(market.getByRole('heading', { name: 'Marketplace' }).first()).toBeVisible()
+        await expect.poll(() => new URL(page.url()).pathname).toBe('/os/market/nfts')
         await expect(page.getByRole('region', { name: 'NFT', exact: true })).toHaveCount(1)
     })
 

@@ -37,6 +37,12 @@ describe("sections", () => {
         expect(classicHome("terminal")).toBeNull()
     })
 
+    it("gives Market the classic marketplace page as its home, and round-trips a services section", () => {
+        expect(classicForSection("market", null)).toBe("marketplace")
+        expect(classicForSection("market", "services")).toBe("services")
+        expect(sectionForClassic("market", "services")).toBe("services")
+    })
+
     it("round-trip every static route of every app", () => {
         for (const app of OS_APPS) {
             for (const route of app.routes) {
