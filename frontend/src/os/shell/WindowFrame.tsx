@@ -107,6 +107,9 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
     const classicEl = classicPage === null ? null : <ClassicPage key={`${win.id}:${classicPage}`} network={net} page={classicPage} query={t.query} layout={a.session.layout} />
     const native = nativeView(t.app)
     if (native) {
+        // JSX (<native .../>) would trip react-hooks/static-components ("component created
+        // during render"); nativeView() returns a component cached per app, so its identity
+        // is stable across renders and the window never remounts.
         return createElement(native, { section: t.section, query: t.query, session: a.session, open: a.open, openApp: a.openApp, close: a.close, toast: a.toast, classic: classicEl })
     }
     if (classicPage === null) {
