@@ -51,8 +51,8 @@ test('malformed weighted contract never falls back to legacy role controls', asy
 
 // Host v12 (the mainnet governing DAO): verbatim native reads, no hand-built JSON.
 const v12 = JSON.parse(readFileSync(new URL('../src/lib/dao/testdata/weighted-v12/native.json', import.meta.url), 'utf8')).records as Record<string, unknown>
-// The DAO's own package address, and each adapter target's authority getters (see weightedAcceptance.ts).
-const DAO = bech32Encode('g', new Uint8Array(createHash('sha256').update(`pkgPath:${weightedRealm}`).digest().subarray(0, 20)))
+// A DAO's own package address, and each adapter target's authority getters (see weightedAcceptance.ts).
+const daoAddress = (realmPath: string) => bech32Encode('g', new Uint8Array(createHash('sha256').update(`pkgPath:${realmPath}`).digest().subarray(0, 20)))
 const PUBLISHER = (v12.config as { marketPolicy: { successor: string } }).marketPolicy.successor
 const AUTHORITY: Record<string, [string, string, 'address' | 'string']> = {
     'gno.land/r/samcrew/memba_market_config': ['GetAdmin', 'GetPendingAdmin', 'address'],
@@ -66,8 +66,9 @@ const AUTHORITY: Record<string, [string, string, 'address' | 'string']> = {
     'gno.land/r/samcrew/memba_dao_channels_v2': ['GetOwner', 'GetPendingOwner', 'address'],
     'gno.land/r/samcrew/memba_feedback_v2': ['GetOwner', 'GetPendingOwner', 'address'],
 }
-/** Target authority on the fake chain: the market-config admin is nominated to the DAO; the DAO already controls the rest. */
-function targetRead(expression: string): string | undefined {
+/** Target authority on the fake chain: the market-config admin is nominated to the DAO at `realmPath`; that DAO already controls the rest. */
+function targetRead(expression: string, realmPath: string): string | undefined {
+    const DAO = daoAddress(realmPath)
     const realm = Object.keys(AUTHORITY).find(path => expression.startsWith(`${path}.`))
     if (!realm) return undefined
     const [current, pending, type] = AUTHORITY[realm]
@@ -81,7 +82,7 @@ async function routeV12(page: Page, network = 'gnoland-1', realmPath = weightedR
     await page.route('**/abci_query?**', route => {
         const params = new URL(route.request().url()).searchParams
         const expression = params.get('path') === '"vm/qeval"' ? Buffer.from(params.get('data')!.slice(2), 'hex').toString('utf8') : ''
-        const target = targetRead(expression)
+        const target = targetRead(expression, realmPath)
         if (target) return route.fulfill({ json: { result: { response: { ResponseBase: { Data: Buffer.from(target).toString('base64'), Error: null } } } } })
         if (!expression.startsWith(`${realmPath}.`)) return route.fulfill({ json: { result: { response: { ResponseBase: { Data: '', Error: { '@type': '/vm.UnauthorizedUserError' }, Log: `unexpected ${expression}` } } } } })
         const call = expression.slice(realmPath.length + 1)
@@ -239,6 +240,15 @@ test('weighted DAO v12 on a test network warns before an execution invalidates o
     expect(await page.evaluate(() => (window as unknown as { __signRequests: unknown[] }).__signRequests)).toHaveLength(0)
 })
 const MAINNET = { network: 'mainnet', chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land:443' }
+/** Every write control is disabled (the same set as on the released DAO) and nothing reached the wallet. */
+async function expectEveryControlDisabled(page: Page, workspace: ReturnType<Page['locator']>) {
+    const controls = workspace.getByRole('button', { name: /^(Propose acceptance|Vote .*|Execute proposal|Review role proposal)$/ })
+    await expect(controls).toHaveCount(CONTROL_COUNT)
+    for (const button of await controls.all()) await expect(button).toBeDisabled()
+    expect(await page.evaluate(() => (window as unknown as { __signRequests: unknown[] }).__signRequests)).toHaveLength(0)
+}
+// Write controls the v12 fixture renders for a recognised member, acceptance buttons included.
+const CONTROL_COUNT = 82
 test('weighted DAO v12 on mainnet lets a member of the released governing DAO propose an acceptance with its exact deposit cap', async ({ page }) => {
     await stubNetwork(page)
     await routeV12(page, 'gnoland-1')
@@ -274,10 +284,26 @@ test('weighted DAO v12 on mainnet keeps every control of an unreleased DAO disab
     const workspace = page.locator('.weighted-dao')
     await expect(workspace.getByText('Mainnet governance is read-only for this DAO in Memba.')).toBeVisible()
     await expect(workspace.getByText('Acceptance proposals stay disabled on mainnet until the governance write hold is lifted.')).toBeVisible()
+    // The nomination to this DAO is readable, so the acceptance path is on the page, and held.
+    const market = workspace.getByRole('listitem', { name: 'marketPolicy adapter' })
+    await expect(market.getByText('Ready to accept')).toBeVisible()
+    await expect(market.getByRole('button', { name: 'Propose acceptance' })).toBeDisabled()
     // The member is recognised (ballots are read) and still cannot act.
     await expect(workspace.getByRole('article', { name: 'Proposal 17' }).getByText('You have not voted.')).toBeVisible()
-    const controls = await workspace.getByRole('button', { name: /^(Propose acceptance|Vote .*|Execute proposal|Review role proposal)$/ }).all()
-    expect(controls.length).toBeGreaterThan(20)
-    for (const button of controls) await expect(button).toBeDisabled()
+    await expectEveryControlDisabled(page, workspace)
     expect(await page.evaluate(() => (window as unknown as { __signRequests: unknown[] }).__signRequests)).toHaveLength(0)
+})
+test('weighted DAO v12 on mainnet keeps the released governing DAO disabled for a member whose wallet is on another chain', async ({ page }) => {
+    await stubNetwork(page)
+    await routeV12(page, 'gnoland-1')
+    await memberWallet(page, { network: 'mainnet', chainId: TEST13.chainId, rpcUrl: TEST13.rpcUrl })
+    await suppressReleaseAnnouncement(page)
+    await page.goto(`/mainnet/weighted-dao/${weightedRealm}`)
+    const workspace = page.locator('.weighted-dao')
+    const market = workspace.getByRole('listitem', { name: 'marketPolicy adapter' })
+    await expect(market.getByText('Ready to accept')).toBeVisible()
+    await expect(workspace.getByText('Mainnet governance is read-only for this DAO in Memba.')).toHaveCount(0)
+    await expect(market.getByRole('button', { name: 'Propose acceptance' })).toBeDisabled()
+    await expect(workspace.getByRole('article', { name: 'Proposal 17' }).getByRole('button', { name: 'Vote yes' })).toBeDisabled()
+    await expectEveryControlDisabled(page, workspace)
 })
