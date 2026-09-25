@@ -109,7 +109,12 @@ B64_WRAPPED = re.compile(
 # straight after it. B64_RUN takes `=` as part of the alphabet, so it keeps
 # such a run whole, and decoding it whole puts everything after the `=` out of
 # step with base64's four-character groups.
-B64_PADDING = re.compile(rb"=+(?=[A-Za-z0-9+/])")
+#
+# Only from the first `=` of a run. Without the lookbehind, a long run of `=`
+# that nothing follows is tried again from each of its characters, and each try
+# reads to its end before failing: 80,000 of them held one file for half a
+# minute. Anchored, each run is tried once, and the splits are the same.
+B64_PADDING = re.compile(rb"(?<!=)=+(?=[A-Za-z0-9+/])")
 
 # Containers opened one inside another, and no deeper: an HTML page holding an
 # SVG as a data URI, holding a PNG as a data URI, whose profile is compressed,
@@ -241,9 +246,12 @@ def b64_runs(payload):
         # other end: the last piece is only the head of its line, and when that
         # line is prose, its first word is glued on. With no padding before it,
         # a word one character past a four-character group fails the decode,
-        # and the whole block with it.
+        # and the whole block with it. The block may be followed by more than
+        # one line holding a single word, each of which joins it, so up to
+        # three of them are dropped: a fixed number of joins per block, however
+        # many lines follow it.
         for start in (0, 1) if len(pieces) > 2 else (0,):
-            for end in (len(pieces), len(pieces) - 1):
+            for end in range(len(pieces), len(pieces) - 4, -1):
                 # A single piece is a run B64_RUN has already found.
                 if end - start > 1:
                     runs.append(b"".join(pieces[start:end]))

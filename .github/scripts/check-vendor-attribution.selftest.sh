@@ -464,6 +464,14 @@ expect_line "a wrapped block followed by a short word is decoded short of the wo
   "::error file=short-word.txt::carries $needle (base64)"
 rm "$work/short-word.txt"
 
+# More than one line of a single word after the block: each is joined on as a
+# piece of its own, so dropping only the last still leaves "Hello" glued on,
+# five characters, one past a four-character group.
+{ cat "$spare/unpadded.b64"; printf '\nHello\nabcd\n'; } > "$work/short-words.txt"
+expect_line "a wrapped block followed by two one-word lines is decoded short of both" \
+  "::error file=short-words.txt::carries $needle (base64)"
+rm "$work/short-words.txt"
+
 # Blanks before the line break: two of them are a hard line break in Markdown.
 printf '%055d%s%040d' 0 "$needle" 0 | base64 | tr -d '\n' | fold -w 76 \
   | awk '{ printf "%s  \n", $0 }' > "$spare/blanks.b64"
@@ -497,6 +505,23 @@ if grep -qi "$needle" "$work/prefixed.env"; then fail "the key-prefix fixture is
 expect_line "base64 behind a key= prefix is decoded from after the =" \
   "::error file=prefixed.env::carries $needle (base64)"
 rm "$work/prefixed.env"
+
+# A long run of `=` that nothing in the alphabet follows. Splitting at padding
+# once tried such a run again from each of its characters, reading to its end
+# every time: 80,000 of them took half a minute, and this file would take
+# minutes. Fixed, it takes a fraction of a second; the bound is generous so a
+# slow runner cannot fail it. The blob before the run, behind a key= prefix,
+# proves the split still happens.
+printf 'token=%s' "$encoded" > "$work/padding-run.env"
+python3 -c 'import sys; open(sys.argv[1], "ab").write(b"=" * 200000 + b"\n")' "$work/padding-run.env"
+if grep -qi "$needle" "$work/padding-run.env"; then fail "the padding-run fixture is not hidden"; fi
+started="$(date +%s)"
+expect_line "a 200,000-character run of padding is split, and the blob before it decoded" \
+  "::error file=padding-run.env::carries $needle (base64)"
+elapsed=$(( $(date +%s) - started ))
+[ "$elapsed" -le 5 ] || fail "a 200,000-character run of padding took ${elapsed}s to scan, wanted 5s at most"
+printf '  ok  %s\n' "...and in ${elapsed}s, under the 5s bound"
+rm "$work/padding-run.env"
 
 # ── what base64 carries is read like a file ─────────────────────────────────
 # A PNG in a `data:` URI is the same bytes as the PNG file, and was read as
@@ -786,9 +811,9 @@ echo "self-test passed: plain text, binary metadata, base64 long and short, a"
 echo "permitted compressed chunk, a forbidden chunk type, the summary count,"
 echo "the listing order, the allowlist, the path scan, the unreadable-file"
 echo "report, the manifest namespace, wrapped base64 in seven shapes, base64"
-echo "behind escaped slashes and behind a key= prefix, the PNG inside a data"
-echo "URI, three containers of nesting, the inflation cap and the per-file"
-echo "inflation budget each"
+echo "behind escaped slashes and behind a key= prefix, a long run of padding in"
+echo "bounded time, the PNG inside a data URI, three containers of nesting, the"
+echo "inflation cap and the per-file inflation budget each"
 echo "proved by their own message AND their own exit status — and, for the"
 echo "surfaces that are not files, the label, the scanned size, base64, the"
 echo "refusal of an empty surface, the narrowness of --allow-empty and the usage"
