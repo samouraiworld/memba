@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Linking GitHub no longer erases the rest of your profile (2026-09-24)
+<!-- categories: memba -->
+- **Linking or unlinking GitHub kept only the GitHub link.** Your bio, company, title, avatar, X handle and website were blanked on every link, unlink or deferred link.
+- A save now keeps every field it doesn't change. If your current profile can't be loaded, nothing is saved rather than blanking the other fields.
+
 ### Quests that need undeployed realms say so on mainnet (2026-09-24)
 <!-- categories: memba, network -->
 - **DAO Member, Applicant and Token Minter could never complete on gno.land mainnet.** Their checks read `memba_dao`, `memba_dao_candidature_v3` and `tokenfactory_v2`, none of which is deployed on `gnoland-1`, and the failure read as "requirements not met", so people kept retrying.

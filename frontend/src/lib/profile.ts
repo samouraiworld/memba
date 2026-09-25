@@ -255,7 +255,14 @@ export async function fetchBackendProfile(address: string): Promise<BackendProfi
     }
 }
 
-/** Save editable profile fields via Memba backend. Returns updated profile. */
+/**
+ * Save editable profile fields via Memba backend.
+ *
+ * The backend overwrites every column, so a partial update is merged onto the
+ * currently stored profile first: omitted fields keep their stored value, and a
+ * field passed as "" is cleared. If the stored profile can't be read this
+ * throws before writing, rather than sending blanks over the other fields.
+ */
 export async function updateBackendProfile(
     token: Token,
     fields: {
@@ -268,17 +275,22 @@ export async function updateBackendProfile(
         website?: string
     },
 ): Promise<void> {
+    const loadError = "Could not load your current profile, so nothing was saved. Please try again."
+    const current = await api.getProfile({ address: token.userAddress })
+        .then((res) => res.profile)
+        .catch(() => { throw new Error(loadError) })
+    if (!current) throw new Error(loadError)
     await api.updateProfile({
         authToken: token,
         profile: {
             address: token.userAddress,
-            bio: fields.bio ?? "",
-            company: fields.company ?? "",
-            title: fields.title ?? "",
-            avatarUrl: fields.avatarUrl ?? "",
-            twitter: fields.twitter ?? "",
-            github: fields.github ?? "",
-            website: fields.website ?? "",
+            bio: fields.bio ?? current.bio,
+            company: fields.company ?? current.company,
+            title: fields.title ?? current.title,
+            avatarUrl: fields.avatarUrl ?? current.avatarUrl,
+            twitter: fields.twitter ?? current.twitter,
+            github: fields.github ?? current.github,
+            website: fields.website ?? current.website,
         },
     })
 }
