@@ -1,5 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { GNO_CHAIN_ID } from "../../lib/config"
 import { AppShell, Card, CardGrid, Chips, Empty, ErrorState, Gate, Loading, NotOnMainnet, Pill, Segmented, StatGrid, Table, Toggle } from "./index"
 
 vi.mock("@sentry/react", () => ({ captureException: vi.fn() }))
@@ -179,8 +180,8 @@ describe("os kit", () => {
     })
     it("NotOnMainnet names the network once, in a neutral pill", () => {
         const { rerender } = render(<NotOnMainnet what="The NFT launchpad" />)
-        expect(screen.getByText("Not on gnoland-1 yet")).toHaveClass("os-pill", "os-neutral")
-        expect(screen.getByRole("note")).toHaveTextContent(/^Not on gnoland-1 yet The NFT launchpad isn't available yet\. You can look around; actions stay off\.$/)
+        expect(screen.getByText(`Not on ${GNO_CHAIN_ID} yet`)).toHaveClass("os-pill", "os-neutral")
+        expect(screen.getByRole("note")).toHaveTextContent(new RegExp(`^Not on ${GNO_CHAIN_ID} yet The NFT launchpad isn't available yet\\. You can look around; actions stay off\\.$`))
         rerender(<NotOnMainnet what="Channels" network="test12" />)
         expect(screen.getByText("Not on test12 yet")).toBeInTheDocument()
         expect(screen.getByRole("note")).toHaveTextContent(/^Not on test12 yet Channels isn't available yet\./)
