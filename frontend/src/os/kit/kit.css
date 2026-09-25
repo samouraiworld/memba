@@ -1,0 +1,38 @@
+/*
+ * Memba OS kit: sidebar window, table, stat cards, switch, loading/empty/
+ * error states, not-on-mainnet warning. Mockup v4 values, tokens only.
+ */
+.memba-os .os-fw { display: grid; grid-template-columns: 170px 1fr; height: 100%; min-height: 0; margin: -16px -18px; }
+.memba-os .os-fw nav { border-right: 1px solid var(--os-line); padding: 10px 8px; display: grid; align-content: start; gap: 2px; background: var(--os-card); overflow: auto; }
+.memba-os .os-fw nav button { border: 0; background: none; text-align: left; padding: 7px 10px; border-radius: 8px; display: flex; gap: 8px; align-items: center; font-weight: 600; font-size: 12.5px; cursor: pointer; }
+.memba-os .os-fw nav button:hover { background: var(--os-hover); }
+.memba-os .os-fw nav button[aria-current="true"] { background: var(--os-chip); color: var(--os-acc-ink); }
+.memba-os .os-fw nav svg { width: 16px; height: 16px; flex: none; }
+.memba-os .os-navh { font-size: 10.5px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--os-mut); padding: 8px 10px 4px; }
+.memba-os .os-fw-badge { margin-left: auto; }
+.memba-os .os-fw > section { overflow: auto; padding: 16px 18px; min-height: 0; }
+@container os-window (max-width: 560px) {
+  .memba-os .os-fw { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .memba-os .os-fw nav { border-right: 0; border-bottom: 1px solid var(--os-line); display: flex; overflow-x: auto; }
+  .memba-os .os-navh { display: none; }
+}
+.memba-os .os-tw { overflow-x: auto; }
+.memba-os .os-t { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+.memba-os .os-t th { text-align: left; font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: var(--os-mut); font-weight: 800; padding: 0 8px 6px 0; }
+.memba-os .os-t td { padding: 8px 8px 8px 0; border-top: 1px solid var(--os-line); }
+.memba-os .os-t [data-align="end"] { text-align: right; }
+.memba-os .os-t tr.os-click { cursor: pointer; }
+.memba-os .os-t tr.os-click:hover td, .memba-os .os-t tr.os-click:focus-visible td { background: var(--os-hover); }
+.memba-os .os-grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.memba-os .os-stat-l { font-size: 11px; font-weight: 700; color: var(--os-mut); }
+.memba-os .os-stat-v { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 2px; }
+.memba-os .os-toggle { width: 40px; height: 24px; border-radius: 999px; border: 0; background: var(--os-hover); position: relative; cursor: pointer; flex: none; }
+/* the knob uses --os-on-acc (white in both themes), not --os-solid-ink (which
+   flips to near-black in dark mode and would nearly vanish against the
+   dark-mode off-state track); it stays visible against both --os-hover and
+   the --os-acc fill below. */
+.memba-os .os-toggle span { position: absolute; top: 3px; left: 3px; width: 18px; height: 18px; border-radius: 50%; background: var(--os-on-acc); box-shadow: 0 1px 3px var(--os-shadow); transition: left .15s; }
+.memba-os .os-toggle[aria-checked="true"] { background: var(--os-acc); }
+.memba-os .os-toggle[aria-checked="true"] span { left: 19px; }
+.memba-os .os-empty { display: grid; justify-items: start; gap: 8px; padding: 12px 0; }
+@media (prefers-reduced-motion: reduce) { .memba-os .os-toggle span { transition: none; } }

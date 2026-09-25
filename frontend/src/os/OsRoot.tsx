@@ -7,6 +7,7 @@
  */
 import "./os.css"
 import "./shell/shell.css"
+import "./kit/kit.css"
 import { Shell } from "./shell/Shell"
 import { useOsTheme } from "./theme"
 import { DEFAULT_WALLPAPER } from "./wallpapers"
