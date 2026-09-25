@@ -18,7 +18,13 @@ type TokenKey = (typeof TOKEN_KEYS)[number]
 type TokenMap = Record<TokenKey, string>
 
 function readTokens(): TokenMap {
-    const style = getComputedStyle(document.documentElement)
+    // Inside Memba OS the chart sits in a window whose tokens are the Aqua ones (os/classic-bridge.css).
+    // ".os-classic" only ever exists nested in the OS root (checked via the bundle-isolation gate, so
+    // this file can't literally reference the OS root's own class name). With several OS windows open
+    // this picks the first one: the bridge values are identical in every window (they all follow the
+    // same OS theme), so which window answers doesn't matter.
+    const source = document.querySelector(".os-classic") ?? document.documentElement
+    const style = getComputedStyle(source)
     const map = {} as TokenMap
     for (const key of TOKEN_KEYS) {
         map[key] = style.getPropertyValue(key).trim()
@@ -40,6 +46,9 @@ function subscribe(cb: () => void) {
             attributeFilter: ["data-theme", "class", "style"],
         })
     }
+    // A subscriber mounting now (e.g. a chart inside a freshly-opened OS window) must not reuse a
+    // `cached` value read before it existed - reset it so the next getSnapshot() re-reads the DOM.
+    cached = null
     listeners.push(cb)
     return () => {
         listeners = listeners.filter(l => l !== cb)
