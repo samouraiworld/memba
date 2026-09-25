@@ -57,7 +57,6 @@
   --os-boot-glow-3: rgba(120, 160, 240, .3);
   --os-boot-scanline: rgba(20, 30, 80, .22);
   --os-boot-vignette: rgba(0, 0, 20, .55);
-  --os-boot-mark: #182852;
 
   position: fixed;
   inset: 0;

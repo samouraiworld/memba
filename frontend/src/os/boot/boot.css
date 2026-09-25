@@ -3,7 +3,7 @@
    0.72–0.9   the text collapses into a bright horizontal line
    0.86–1.35  that line becomes the CRT beam; the black halves open (C)
    0.95–1.9   glow and scanlines settle over the page underneath
-   1.05–2.0   the Memba mark flickers in once, then fades
+   ~1.1       the picture flickers once as the tube warms (the lock screen shows the Memba mark)
    Colours are os.css tokens (--os-boot-*); the global reduced-motion rule and
    shouldBoot() keep it off for anyone who asked for less motion. */
 .memba-os .os-boot { position: absolute; inset: 0; z-index: 1100; /* above the lock screen (1000) and every modal */ overflow: hidden; cursor: pointer; }
@@ -12,19 +12,13 @@
 .memba-os .os-boot-glow {
   inset: 0; z-index: 1;
   background: radial-gradient(70% 60% at 50% 50%, var(--os-boot-glow-1), var(--os-boot-glow-2) 60%, var(--os-boot-glow-3) 100%);
-  animation: os-boot-fade .9s ease-out .95s both;
+  animation: os-boot-warm .95s ease-out .95s both;
 }
 .memba-os .os-boot-scan {
   inset: 0; z-index: 2;
   background: repeating-linear-gradient(to bottom, var(--os-boot-scanline) 0 1px, transparent 1px 3px);
   box-shadow: inset 0 0 12vmin 3vmin var(--os-boot-vignette);
   animation: os-boot-fade .7s ease-out 1.2s both;
-}
-.memba-os .os-boot-mark {
-  left: 50%; top: 46%; z-index: 3; display: flex; align-items: center; gap: 12px;
-  transform: translate(-50%, -50%);
-  font: 800 clamp(22px, 6vmin, 40px)/1 var(--os-font); letter-spacing: -.025em; color: var(--os-boot-mark);
-  animation: os-boot-flicker 1s linear 1.05s both;
 }
 .memba-os .os-boot-half { left: 0; right: 0; height: 50.5%; z-index: 4; background: var(--os-boot-black); }
 .memba-os .os-boot-top { top: 0; transform-origin: 50% 0; animation: os-boot-open .3s cubic-bezier(.2, .8, .25, 1) .95s both; }
@@ -74,11 +68,10 @@
   45% { transform: scaleX(1) scaleY(6); opacity: .8; }
   100% { transform: scaleX(1) scaleY(30); opacity: 0; }
 }
-@keyframes os-boot-flicker {
-  0% { opacity: 0; transform: translate(-50%, -50%) scale(1.04); text-shadow: 0 0 18px var(--os-boot-beam-glow); }
-  6% { opacity: 1; }
-  11% { opacity: .12; transform: translate(calc(-50% + 1.5px), -50%) scale(1.02); }
-  17% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-  55% { opacity: 1; text-shadow: 0 0 0 transparent; }
-  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+@keyframes os-boot-warm {
+  /* the picture flickers once as the tube warms, then the glow settles away */
+  0% { opacity: 1; }
+  12% { opacity: .35; }
+  20% { opacity: 1; }
+  100% { opacity: 0; }
 }

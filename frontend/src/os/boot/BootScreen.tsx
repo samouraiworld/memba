@@ -49,7 +49,6 @@ export function BootScreen({ lines, onDone }: { lines: BootLine[]; onDone: () =>
         <div className="os-boot" data-testid="os-boot" aria-hidden="true" onClick={finish}>
             <div className="os-boot-glow" />
             <div className="os-boot-scan" />
-            <div className="os-boot-mark"><span className="os-mark os-mark-lg" /><span>Memba</span></div>
             <div className="os-boot-half os-boot-top" />
             <div className="os-boot-half os-boot-bot" />
             <div className="os-boot-beam" />

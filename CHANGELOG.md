@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS boots like an old computer (2026-09-25)
+<!-- categories: memba -->
+- A first visit to Memba OS opens with a short boot, still behind `VITE_MEMBA_OS`: a power-on self-test types out what this browser knows (the network, whether a wallet is installed, the desktop items, the apps), collapses into a bright line, and that line opens into the lock screen like a warming CRT. It lasts about two seconds, a click or any key skips it (without pressing anything underneath), and it never plays again, on a shared link, or when the device asks for reduced motion.
+
 ### A build with an http backend URL now fails (2026-09-25)
 <!-- categories: security, build -->
 - **The production build refuses a plain-http backend.** memba.club was built with `VITE_API_URL=http://memba-backend.fly.dev`: the browser blocks http calls from an https page, so signing in failed with "Failed to fetch". `npm run build` (CI and Netlify production builds) now fails when `VITE_API_URL`, `VITE_GNOLOVE_API_URL` or `VITE_GNO_MONITORING_API_URL` is set to anything but https; loopback http stays allowed for local e2e builds. The beta site's value was corrected to https.
