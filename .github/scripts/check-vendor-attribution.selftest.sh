@@ -57,12 +57,16 @@ expect_status() {
   actual output: $_out"
 }
 
+# Output reaches grep as a here-string, never through a pipe: `grep -q` exits
+# at the first match and closes the pipe, and under pipefail the writer's
+# SIGPIPE then fails a case whose line did match.
+#
 # The whole line, matched literally. Substring-matching the reason alone would
 # also accept a line that carried a second, unexpected reason beside it.
 expect_line() {
   local label="$1" want="$2" out
   run; out="$_out"
-  if ! printf '%s\n' "$out" | grep -qxF -- "$want"; then
+  if ! grep -qxF -- "$want" <<<"$out"; then
     fail "$label
   expected line: $want
   actual output: $out"
@@ -74,7 +78,7 @@ expect_line() {
 expect_text() {
   local label="$1" want="$2" out
   run; out="$_out"
-  if ! printf '%s\n' "$out" | grep -qF -- "$want"; then
+  if ! grep -qF -- "$want" <<<"$out"; then
     fail "$label
   expected text: $want
   actual output: $out"
@@ -86,14 +90,14 @@ expect_text() {
 expect_clean() {
   local label="$1" out
   run; out="$_out"
-  if ! printf '%s\n' "$out" | grep -qxF -- 'no tracked file carries assistant attribution'; then
+  if ! grep -qxF -- 'no tracked file carries assistant attribution' <<<"$out"; then
     fail "$label
   expected the clean-tree message
   actual output: $out"
   fi
   # ...and that it reported nothing alongside it. A check that printed both
   # would still have exited 0, so the exit status cannot separate these two.
-  if printf '%s\n' "$out" | grep -q '::error'; then
+  if grep -q '::error' <<<"$out"; then
     fail "$label
   reported a finding on a clean tree: $out"
   fi
@@ -222,7 +226,7 @@ printf 'exempt %s\n' "$needle" > "$work/exempt.txt"
 git -C "$work" add -A
 
 before="$(python3 "$spare/check-vendor-attribution.py" "$work" 2>&1 || true)"
-if ! printf '%s\n' "$before" | grep -qxF -- "::error file=exempt.txt::carries $needle"; then
+if ! grep -qxF -- "::error file=exempt.txt::carries $needle" <<<"$before"; then
   fail "with no allowlist, the file should have been reported
   actual output: $before"
 fi
@@ -230,7 +234,7 @@ printf '  ok  %s\n' "with no allowlist the file is reported"
 
 printf 'exempt.txt\n' > "$spare/vendor-attribution-allowlist.txt"
 after="$(python3 "$spare/check-vendor-attribution.py" "$work" 2>&1 || true)"
-if ! printf '%s\n' "$after" | grep -qxF -- 'no tracked file carries assistant attribution'; then
+if ! grep -qxF -- 'no tracked file carries assistant attribution' <<<"$after"; then
   fail "an allowlisted file should have been exempt
   actual output: $after"
 fi
@@ -240,7 +244,7 @@ printf '  ok  %s\n' "an allowlisted path is exempt, and the tree reads clean"
 # commented out, the same entry must stop exempting anything.
 printf '# exempt.txt\n' > "$spare/vendor-attribution-allowlist.txt"
 commented="$(python3 "$spare/check-vendor-attribution.py" "$work" 2>&1 || true)"
-if ! printf '%s\n' "$commented" | grep -qxF -- "::error file=exempt.txt::carries $needle"; then
+if ! grep -qxF -- "::error file=exempt.txt::carries $needle" <<<"$commented"; then
   fail "a commented-out allowlist entry should not exempt anything
   actual output: $commented"
 fi
@@ -293,7 +297,7 @@ chmod 000 "$work/locked.txt"
 # itself fails on a mode-000 file, so the harness would never reach the checker.
 # The file is already tracked, which is the only precondition that matters here.
 if _out="$(python3 "$check" "$work" 2>&1)"; then _status=0; else _status=$?; fi
-if ! printf '%s\n' "$_out" | grep -q 'locked.txt.*could not be read'; then
+if ! grep -q 'locked.txt.*could not be read' <<<"$_out"; then
   chmod 644 "$work/locked.txt"; rm -f "$work/locked.txt"
   fail "an unreadable tracked file was not reported
   actual output: $_out"
@@ -305,7 +309,7 @@ fi
 
 ln -s nowhere/at/all "$work/ghost.txt"
 run
-if ! printf '%s\n' "$_out" | grep -q 'ghost.txt.*could not be read'; then
+if ! grep -q 'ghost.txt.*could not be read' <<<"$_out"; then
   rm -f "$work/ghost.txt"
   fail "a dangling symlink was not reported
   actual output: $_out"
@@ -314,6 +318,28 @@ expect_status "a dangling symlink is reported, not skipped" 1
 printf '  ok  %s\n' "a dangling symlink is reported, not skipped"
 rm "$work/ghost.txt"
 expect_clean "the tree is clean once the unreadable fixtures are removed"
+
+# ── a submodule is a commit id, not a file ───────────────────────────────────
+# Its contents belong to another repository and are checked there. Before this
+# case, the check tried to open the submodule's directory as a file and
+# reported it as unreadable, failing every tree that has one. Its PATH is still
+# published here, so a marker in the path must still be caught.
+nested="$work/vendored"
+git -C "$work" config advice.addEmbeddedRepo false
+git init -q "$nested"
+git -C "$nested" config user.email ci@example.invalid
+git -C "$nested" config user.name ci
+printf 'made with %s\n' "$needle" > "$nested/inside.txt"
+git -C "$nested" add -A
+git -C "$nested" commit -q -m fixture
+expect_clean "a submodule's contents are not this tree's files"
+git -C "$work" rm -q -f --cached vendored
+mv "$nested" "$work/$needle-vendored"
+expect_line "a marker in a submodule's path is still caught" \
+  "::error file=$needle-vendored::carries $needle (in the path)"
+git -C "$work" rm -q -f --cached "$needle-vendored"
+mv "$work/$needle-vendored" "$spare/"
+expect_clean "the tree is clean once the submodule fixtures are removed"
 
 # ── the manifest namespace, which had no fixture at all ──────────────────────
 # It is FOUR bytes. Matched as a bare substring it collides with base64: it
@@ -337,6 +363,299 @@ printf '{"integrity":"sha512-R8gLRTZeyp03ymzP6Lil28tGeGEzhx1q2k703KGWRAI1VdvPIXd
 expect_clean "four characters inside an integrity hash are not a manifest"
 rm "$work/package-lock.json"
 
+# ── base64 as encoders actually emit it: wrapped ────────────────────────────
+# `base64` wraps at 76 columns by default, PEM and MIME at 64 or 76, often with
+# CRLF, and YAML indents the block. Each line is then a run of its own, so a
+# name in a short last line fell under the 40-character floor, and a name
+# across a line break was split between two decodes. Every earlier base64
+# fixture strips its newlines, so none of them could show it. The fixtures fold
+# explicitly rather than trusting `base64` to wrap: BSD `base64` does not.
+
+# Prints the lines of the base64 in $1 that a single-line decode would catch: at
+# least the 40-character floor, and carrying the name once decoded alone. A
+# wrapped fixture must print nothing, or a single-line decode could be what
+# catches it and the wrapped path would go untested.
+lines_alone_carry() {
+  NEEDLE="$needle" python3 - "$1" <<'PY'
+import base64, os, re, sys
+needle = os.environ["NEEDLE"].encode()
+for line in re.split(rb"\r?\n|\\n", open(sys.argv[1], "rb").read()):
+    run = re.sub(rb"[^A-Za-z0-9+/=]", b"", line)
+    if len(run) < 40:
+        continue
+    run += b"=" * (-len(run) % 4)
+    try:
+        if needle in base64.b64decode(run).lower():
+            print(line.decode())
+    except Exception:
+        pass
+PY
+}
+
+printf '%060d%s' 0 "$needle" | base64 | tr -d '\n' | fold -w 76 > "$spare/tail.b64"
+if [ "$(awk 'END { print length($0) }' "$spare/tail.b64")" -ge 40 ]; then
+  fail "the short-last-line fixture's last line is not short"
+fi
+[ -z "$(lines_alone_carry "$spare/tail.b64")" ] || fail "the short-last-line fixture is caught line by line"
+printf '<svg><desc>\n%s\n</desc></svg>\n' "$(cat "$spare/tail.b64")" > "$work/wrapped-tail.svg"
+expect_line "wrapped at 76, a name in a short last line is decoded" \
+  "::error file=wrapped-tail.svg::carries $needle (base64)"
+rm "$work/wrapped-tail.svg"
+
+# Both lines here are well over the floor, so it is the split, not the length,
+# that the single-line decode misses.
+printf '%055d%s%040d' 0 "$needle" 0 | base64 | tr -d '\n' | fold -w 76 > "$spare/split.b64"
+[ -z "$(lines_alone_carry "$spare/split.b64")" ] || fail "the line-break fixture is caught line by line"
+printf '<svg><desc>\n%s\n</desc></svg>\n' "$(cat "$spare/split.b64")" > "$work/wrapped-split.svg"
+expect_line "wrapped at 76, a name across the line break is decoded" \
+  "::error file=wrapped-split.svg::carries $needle (base64)"
+rm "$work/wrapped-split.svg"
+
+# PEM shape: 64 columns, CRLF, and the indentation of a YAML block scalar.
+printf '%046d%s%040d' 0 "$needle" 0 | base64 | tr -d '\n' | fold -w 64 \
+  | awk '{ printf "  %s\r\n", $0 }' > "$spare/pem.b64"
+[ -z "$(lines_alone_carry "$spare/pem.b64")" ] || fail "the CRLF fixture is caught line by line"
+{ printf 'blob: |\r\n'; cat "$spare/pem.b64"; } > "$work/wrapped.yaml"
+expect_line "wrapped at 64 with CRLF and indentation, the name is decoded" \
+  "::error file=wrapped.yaml::carries $needle (base64)"
+rm "$work/wrapped.yaml"
+
+# Inside a JSON string a line break is the two characters backslash and n.
+printf '%046d%s%040d' 0 "$needle" 0 | base64 | tr -d '\n' | fold -w 64 \
+  | awk '{ printf "%s\\n", $0 }' > "$spare/json.b64"
+[ -z "$(lines_alone_carry "$spare/json.b64")" ] || fail "the JSON fixture is caught line by line"
+printf '{"blob": "%s"}\n' "$(cat "$spare/json.b64")" > "$work/wrapped.json"
+expect_line "wrapped inside a JSON string, the name is decoded" \
+  "::error file=wrapped.json::carries $needle (base64)"
+rm "$work/wrapped.json"
+
+# A block after a line of prose: the join takes the last word of that line as
+# its first piece, three characters that put every later line out of step with
+# base64's four-character groups, so the block is decoded again from its first
+# whole line.
+printf '%055d%s%040d' 0 "$needle" 0 | base64 | tr -d '\n' | fold -w 76 > "$spare/prose.b64"
+[ -z "$(lines_alone_carry "$spare/prose.b64")" ] || fail "the prose fixture is caught line by line"
+printf 'the signing key\n%s\n' "$(cat "$spare/prose.b64")" > "$work/after-prose.txt"
+expect_line "a wrapped block after a line of prose is decoded in step" \
+  "::error file=after-prose.txt::carries $needle (base64)"
+rm "$work/after-prose.txt"
+
+# The converse, because joining lines is exactly how a check starts reading
+# prose as base64: a wrapped block of clean bytes, and a column of words each
+# on a line of its own, which joins into one long run of the alphabet.
+printf '%0200d' 0 | base64 | tr -d '\n' | fold -w 76 > "$work/clean-wrapped.txt"
+seq 1 200 | awk '{ printf "word%s\n", $0 }' > "$work/column.txt"
+expect_clean "clean wrapped base64 and a column of words read clean"
+rm "$work/clean-wrapped.txt" "$work/column.txt"
+
+# ── what sits next to a blob must not cost the blob ─────────────────────────
+# Each of these is the whole blob, readable as it stands, lost only to what is
+# written beside it.
+
+# The join takes the first word of the line after a block as its last piece.
+# With no padding at the end of the block, a word one character past a
+# four-character group ("Hello", five) fails the decode, and the whole joined
+# block with it, so the block is decoded again short of that word.
+printf '%055d%s%053d' 0 "$needle" 0 | base64 | tr -d '\n' | fold -w 76 > "$spare/unpadded.b64"
+if grep -q '=' "$spare/unpadded.b64"; then fail "the short-word fixture is padded"; fi
+[ -z "$(lines_alone_carry "$spare/unpadded.b64")" ] || fail "the short-word fixture is caught line by line"
+{ cat "$spare/unpadded.b64"; printf '\nHello world\n'; } > "$work/short-word.txt"
+expect_line "a wrapped block followed by a short word is decoded short of the word" \
+  "::error file=short-word.txt::carries $needle (base64)"
+rm "$work/short-word.txt"
+
+# More than one line of a single word after the block: each is joined on as a
+# piece of its own, so dropping only the last still leaves "Hello" glued on,
+# five characters, one past a four-character group.
+{ cat "$spare/unpadded.b64"; printf '\nHello\nabcd\n'; } > "$work/short-words.txt"
+expect_line "a wrapped block followed by two one-word lines is decoded short of both" \
+  "::error file=short-words.txt::carries $needle (base64)"
+rm "$work/short-words.txt"
+
+# Blanks before the line break: two of them are a hard line break in Markdown.
+printf '%055d%s%040d' 0 "$needle" 0 | base64 | tr -d '\n' | fold -w 76 \
+  | awk '{ printf "%s  \n", $0 }' > "$spare/blanks.b64"
+[ -z "$(lines_alone_carry "$spare/blanks.b64")" ] || fail "the trailing-blanks fixture is caught line by line"
+cp "$spare/blanks.b64" "$work/hard-breaks.md"
+expect_line "wrapped with trailing blanks before each break, the name is decoded" \
+  "::error file=hard-breaks.md::carries $needle (base64)"
+rm "$work/hard-breaks.md"
+
+# A JSON encoder may escape every slash, and base64 of high bytes is full of
+# them. Each escape cuts the run, and no piece between two of them is long
+# enough to decode.
+NEEDLE="$needle" python3 - "$work/escaped.json" <<'PY'
+import base64, os, sys
+text = (bytes(range(250, 256)) * 8 + b" by " + os.environ["NEEDLE"].encode()
+        + b" " + bytes((255, 254, 253)) * 20)
+encoded = base64.b64encode(text)
+assert encoded.count(b"/") > 5
+open(sys.argv[1], "wb").write(b'{"u": "' + encoded.replace(b"/", b"\\/") + b'"}\n')
+PY
+if grep -qi "$needle" "$work/escaped.json"; then fail "the escaped-slash fixture is not hidden"; fi
+expect_line "base64 with every slash escaped, as JSON may write it, is decoded" \
+  "::error file=escaped.json::carries $needle (base64)"
+rm "$work/escaped.json"
+
+# A `key=` prefix: `=` is in the alphabet, so the key and the blob are one run,
+# and the key's five characters put the blob out of step when it is decoded.
+encoded="$(printf 'a note written by %s and kept here for later reference ok' "$needle" | base64 | tr -d '\n')"
+printf 'token=%s\n' "$encoded" > "$work/prefixed.env"
+if grep -qi "$needle" "$work/prefixed.env"; then fail "the key-prefix fixture is not hidden"; fi
+expect_line "base64 behind a key= prefix is decoded from after the =" \
+  "::error file=prefixed.env::carries $needle (base64)"
+rm "$work/prefixed.env"
+
+# A long run of `=` that nothing in the alphabet follows. Splitting at padding
+# once tried such a run again from each of its characters, reading to its end
+# every time: 80,000 of them took half a minute, and this file would take
+# minutes. Fixed, it takes a fraction of a second; the bound is generous so a
+# slow runner cannot fail it. The blob before the run, behind a key= prefix,
+# proves the split still happens.
+printf 'token=%s' "$encoded" > "$work/padding-run.env"
+python3 -c 'import sys; open(sys.argv[1], "ab").write(b"=" * 200000 + b"\n")' "$work/padding-run.env"
+if grep -qi "$needle" "$work/padding-run.env"; then fail "the padding-run fixture is not hidden"; fi
+started="$(date +%s)"
+expect_line "a 200,000-character run of padding is split, and the blob before it decoded" \
+  "::error file=padding-run.env::carries $needle (base64)"
+elapsed=$(( $(date +%s) - started ))
+[ "$elapsed" -le 5 ] || fail "a 200,000-character run of padding took ${elapsed}s to scan, wanted 5s at most"
+printf '  ok  %s\n' "...and in ${elapsed}s, under the 5s bound"
+rm "$work/padding-run.env"
+
+# ── what base64 carries is read like a file ─────────────────────────────────
+# A PNG in a `data:` URI is the same bytes as the PNG file, and was read as
+# nothing but text: a text chunk that fails as a file passed inside an SVG, and
+# so did a name in a compressed chunk. The decoded bytes now go through the
+# same reading a file gets, and the reason says which container they came out
+# of, innermost first.
+
+# Writes a one-pixel PNG to $1, carrying the chunk named by $2: a text chunk
+# with nothing incriminating in it, a compressed text chunk or a colour profile
+# naming the assistant, or no extra chunk at all.
+make_png() {
+  NEEDLE="$needle" python3 - "$1" "$2" <<'PY'
+import os, struct, sys, zlib
+
+def chunk(kind, body):
+    return (struct.pack(">I", len(body)) + kind + body
+            + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF))
+
+named = ("made with " + os.environ["NEEDLE"]).encode()
+extra = {
+    "none": b"",
+    "tEXt": chunk(b"tEXt", b"Comment\x00nothing incriminating here"),
+    "zTXt": chunk(b"zTXt", b"Comment\x00\x00" + zlib.compress(named)),
+    "iCCP": chunk(b"iCCP", b"ICC profile\x00\x00" + zlib.compress(named)),
+    "iCCP-clean": chunk(b"iCCP", b"ICC profile\x00\x00" + zlib.compress(b"sRGB")),
+}[sys.argv[2]]
+png = (b"\x89PNG\r\n\x1a\n"
+       + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 0, 0, 0, 0))
+       + extra
+       + chunk(b"IDAT", zlib.compress(b"\x00\x00"))
+       + chunk(b"IEND", b""))
+open(sys.argv[1], "wb").write(png)
+PY
+}
+
+data_uri() { printf 'data:image/png;base64,%s' "$(base64 < "$1" | tr -d '\n')"; }
+
+make_png "$spare/text.png" tEXt
+printf '<svg><image href="%s"/></svg>\n' "$(data_uri "$spare/text.png")" > "$work/icon.svg"
+expect_line "a text chunk in a data URI is reported as the chunk, from base64" \
+  "::error file=icon.svg::carries tEXt chunk (base64)"
+rm "$work/icon.svg"
+
+make_png "$spare/ztxt.png" zTXt
+printf '<svg><image href="%s"/></svg>\n' "$(data_uri "$spare/ztxt.png")" > "$work/note.svg"
+if grep -qi "$needle" "$work/note.svg"; then fail "the compressed-text data URI is not hidden"; fi
+expect_line "a compressed text chunk in a data URI is inflated as well as refused" \
+  "::error file=note.svg::carries $needle (compressed chunk in base64), zTXt chunk (base64)"
+rm "$work/note.svg"
+
+# The permitted chunk type, so that inflation is the only thing that can catch
+# it, as in case 5.
+make_png "$spare/iccp.png" iCCP
+printf '<svg><image href="%s"/></svg>\n' "$(data_uri "$spare/iccp.png")" > "$work/profile.svg"
+expect_line "a colour profile in a data URI is inflated and reported as such" \
+  "::error file=profile.svg::carries $needle (compressed chunk in base64)"
+rm "$work/profile.svg"
+
+# Both gaps at once: the data URI wrapped and indented inside an HTML
+# attribute. The compressed chunk runs past the first line, so only the joined
+# block can be inflated; the chunk type alone is in the first line.
+{
+  printf '<img src="data:image/png;base64,\n'
+  base64 < "$spare/ztxt.png" | tr -d '\n' | fold -w 76 | sed 's/^/    /'
+  printf '\n">\n'
+} > "$work/page.html"
+expect_line "a wrapped data URI is joined, decoded and read as a PNG" \
+  "::error file=page.html::carries $needle (compressed chunk in base64), zTXt chunk (base64)"
+rm "$work/page.html"
+
+# Nesting, to the depth the check follows: an HTML page holding an SVG as a
+# data URI, which holds a PNG as a data URI, whose colour profile names the
+# assistant. Three containers, each opened in turn.
+printf '<svg><image href="%s"/></svg>' "$(data_uri "$spare/iccp.png")" \
+  | base64 | tr -d '\n' > "$spare/svg.b64"
+printf '<object data="data:image/svg+xml;base64,%s"/>\n' "$(cat "$spare/svg.b64")" > "$work/nested.html"
+expect_line "three containers deep, each is opened and named, innermost first" \
+  "::error file=nested.html::carries $needle (compressed chunk in base64 in base64)"
+rm "$work/nested.html"
+
+# A clean PNG stays clean as a data URI, including one with a permitted
+# profile that inflates to nothing forbidden.
+make_png "$spare/plain.png" none
+make_png "$spare/srgb.png" iCCP-clean
+printf '<svg><image href="%s"/><image href="%s"/></svg>\n' \
+  "$(data_uri "$spare/plain.png")" "$(data_uri "$spare/srgb.png")" > "$work/clean.svg"
+expect_clean "clean PNGs in data URIs read clean"
+rm "$work/clean.svg"
+
+# Inflation is the one step that makes a payload larger than the file it came
+# from, so it is capped, and a chunk over the cap is reported rather than read
+# in part and passed.
+python3 - "$work/bomb.png" <<'PY'
+import struct, sys, zlib
+
+def chunk(kind, body):
+    return (struct.pack(">I", len(body)) + kind + body
+            + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF))
+
+png = (b"\x89PNG\r\n\x1a\n"
+       + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 0, 0, 0, 0))
+       + chunk(b"iCCP", b"ICC profile\x00\x00" + zlib.compress(bytes((32 << 20) + 1), 9))
+       + chunk(b"IDAT", zlib.compress(b"\x00\x00"))
+       + chunk(b"IEND", b""))
+open(sys.argv[1], "wb").write(png)
+PY
+expect_line "a chunk that inflates past the cap is reported, not read in part" \
+  "::error file=bomb.png::carries compressed chunk too large to inflate"
+rm "$work/bomb.png"
+
+# The cap is per chunk, so a file is held to a total as well: three chunks each
+# under the cap, which together inflate past the per-file budget. Reported, for
+# the same reason as a chunk over the cap, rather than read in part and passed.
+python3 - "$work/budget.png" <<'PY'
+import struct, sys, zlib
+
+def chunk(kind, body):
+    return (struct.pack(">I", len(body)) + kind + body
+            + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF))
+
+profile = chunk(b"iCCP", b"ICC profile\x00\x00" + zlib.compress(bytes(30 << 20), 9))
+png = (b"\x89PNG\r\n\x1a\n"
+       + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 0, 0, 0, 0))
+       + profile * 3
+       + chunk(b"IDAT", zlib.compress(b"\x00\x00"))
+       + chunk(b"IEND", b""))
+open(sys.argv[1], "wb").write(png)
+PY
+expect_line "chunks under the cap that together pass the file's budget are reported" \
+  "::error file=budget.png::carries inflate budget exceeded"
+rm "$work/budget.png"
+expect_clean "the tree is clean once the base64 fixtures are removed"
+
 # ── the surfaces that are not files ─────────────────────────────────────────
 # The rule names five of them — commit messages, branch names, pull-request
 # titles and bodies, tags and release notes — and `git ls-files` can see none.
@@ -358,7 +677,7 @@ run_text() {
 expect_text_line() {
   local label="$1" want="$2" input="$3"; shift 3
   run_text "$input" "$@"
-  if ! printf '%s\n' "$_out" | grep -qxF -- "$want"; then
+  if ! grep -qxF -- "$want" <<<"$_out"; then
     fail "$label
   expected line: $want
   actual output: $_out"
@@ -381,7 +700,7 @@ expect_clean_surface() {
   local size
   size="$(printf '%s' "$input" | wc -c | tr -d ' ')"
   local want="no assistant attribution in the $surface ($size bytes scanned)"
-  if ! printf '%s\n' "$_out" | grep -qxF -- "$want"; then
+  if ! grep -qxF -- "$want" <<<"$_out"; then
     fail "$label
   expected line: $want
   actual output: $_out"
@@ -418,7 +737,7 @@ expect_text_line "an uppercase name in a branch is caught" \
 # Base64 reaches a text surface too: a footer can arrive encoded in a body.
 body_payload="$(printf 'padding%.0s' $(seq 1 40))$needle"
 body_encoded="$(printf '%s' "$body_payload" | base64 | tr -d '\n')"
-if printf '%s' "$body_encoded" | grep -qi "$needle"; then
+if grep -qi "$needle" <<<"$body_encoded"; then
   fail "the base64 body fixture is not actually hidden"
 fi
 expect_text_line "base64 inside a body is decoded, and reported as base64" \
@@ -431,7 +750,7 @@ expect_text_line "base64 inside a body is decoded, and reported as base64" \
 # to nothing, or an expression naming a field the event does not carry, arrives
 # here as empty — and reporting it clean is how a gate becomes a comment.
 run_text '' 'commit messages on this branch'
-if ! printf '%s\n' "$_out" | grep -qF -- 'nothing was scanned: the commit messages on this branch arrived empty'; then
+if ! grep -qF -- 'nothing was scanned: the commit messages on this branch arrived empty' <<<"$_out"; then
   fail "an empty surface should be refused, not passed
   actual output: $_out"
 fi
@@ -443,7 +762,7 @@ printf '  ok  %s\n' "an empty surface is refused, and says the step is wrong"
 run_text '
    
 ' 'commit messages on this branch'
-if ! printf '%s\n' "$_out" | grep -qF -- 'arrived empty. This surface is never legitimately empty'; then
+if ! grep -qF -- 'arrived empty. This surface is never legitimately empty' <<<"$_out"; then
   fail "a whitespace-only surface should be refused
   actual output: $_out"
 fi
@@ -452,7 +771,7 @@ printf '  ok  %s\n' "a whitespace-only surface counts as empty"
 
 # ...and the opt-out works, for the surfaces that really are absent most runs.
 run_text '' 'release notes' --allow-empty
-if ! printf '%s\n' "$_out" | grep -qxF -- 'nothing to scan: no release notes on this event'; then
+if ! grep -qxF -- 'nothing to scan: no release notes on this event' <<<"$_out"; then
   fail "a declared-empty surface should pass and say so
   actual output: $_out"
 fi
@@ -473,8 +792,8 @@ expect_text_line "--allow-empty does not exempt a surface that carries the name"
 # are repaired differently, and one bit cannot tell them apart.
 expect_usage() {
   local label="$1"; shift
-  if _out="$(printf 'x' | python3 "$check" "$@" 2>&1)"; then _status=0; else _status=$?; fi
-  printf '%s\n' "$_out" | grep -qF -- '--text LABEL' || fail "$label
+  if _out="$(python3 "$check" "$@" 2>&1 <<<'x')"; then _status=0; else _status=$?; fi
+  grep -qF -- '--text LABEL' <<<"$_out" || fail "$label
   expected the usage text
   actual output: $_out"
   expect_status "$label: printed usage but exited wrong" 2
@@ -491,7 +810,11 @@ expect_usage "two labels are refused rather than one being picked" --text a b
 echo "self-test passed: plain text, binary metadata, base64 long and short, a"
 echo "permitted compressed chunk, a forbidden chunk type, the summary count,"
 echo "the listing order, the allowlist, the path scan, the unreadable-file"
-echo "report and the manifest namespace each proved by their own message AND"
-echo "their own exit status — and, for the surfaces that are not files, the"
-echo "label, the scanned size, base64, the refusal of an empty surface, the"
-echo "narrowness of --allow-empty and the usage status of a miswired step"
+echo "report, the manifest namespace, wrapped base64 in seven shapes, base64"
+echo "behind escaped slashes and behind a key= prefix, a long run of padding in"
+echo "bounded time, the PNG inside a data URI, three containers of nesting, the"
+echo "inflation cap and the per-file inflation budget each"
+echo "proved by their own message AND their own exit status — and, for the"
+echo "surfaces that are not files, the label, the scanned size, base64, the"
+echo "refusal of an empty surface, the narrowness of --allow-empty and the usage"
+echo "status of a miswired step"
