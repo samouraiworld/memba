@@ -2,16 +2,31 @@ import { expect, test, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { OS_ON } from '../../playwright.os.config'
 import { fulfillGovernance } from '../helpers/proGovernanceFixture'
+import { abortOnchainReads } from '../helpers/onchain'
 
 // Day 7: no serious or critical WCAG 2.1 AA violations (contrast included) on
 // the main Memba OS surfaces, in the light and dark themes, desktop and phone.
-// Memba's own pages inside windows are covered by e2e/accessibility.spec.ts.
+// Task 6 extends the scan to the classic pages rendered inside windows
+// (.os-classic), which used to be excluded here entirely.
 
 async function violations(page: Page): Promise<string[]> {
     // Scan settled colours, not a panel mid fade-in.
     await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))))
-    const r = await new AxeBuilder({ page }).include('.memba-os').exclude('.os-classic').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+    const r = await new AxeBuilder({ page }).include('.memba-os').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     return r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)
+}
+
+/**
+ * Findings inside a classic page that need a markup change (a missing label,
+ * a decorative icon exposed as content, …) rather than a colour fix in
+ * classic-bridge.css. Each entry is the exact `ruleId: target` string
+ * violations() would report; filtered out of classicViolations() only — wave-1
+ * follow-up work for that app, tracked in the PR description.
+ */
+const KNOWN_CLASSIC: string[] = []
+
+async function classicViolations(page: Page): Promise<string[]> {
+    return (await violations(page)).filter((v) => !KNOWN_CLASSIC.includes(v))
 }
 
 /** Accent-filled controls whose text axe can't measure (aria-hidden step numbers, hover-only
@@ -85,6 +100,34 @@ for (const scheme of ['light', 'dark'] as const) {
             await expect(page.getByRole('region', { name: 'govdao', exact: true }).getByText('GovDAO', { exact: true })).toBeVisible()
             expect(await violations(page)).toEqual([])
         })
+    })
+}
+
+/** Apps with no native OS window: they render their existing Memba page (.os-classic)
+ * inside the window instead. Store's extensions sub-route isn't scanned separately —
+ * this is the app's landing deep link, /os/<slug> (osPath.ts requires a slug). */
+const CLASSIC_APPS = ['feed', 'store', 'settings', 'quests', 'validators', 'news', 'dev-report', 'explorer', 'tokens']
+
+for (const scheme of ['light', 'dark'] as const) {
+    test.describe(`Memba OS classic pages accessibility · ${scheme}`, () => {
+        test.beforeEach(async ({ page }) => {
+            await page.emulateMedia({ colorScheme: scheme })
+            await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
+            await abortOnchainReads(page)
+            await page.addInitScript(() => {
+                localStorage.setItem('memba_os_seen', '1')
+                localStorage.setItem('memba_os_booted', '1')
+            })
+            await page.setViewportSize({ width: 1280, height: 860 })
+        })
+
+        for (const app of CLASSIC_APPS) {
+            test(`${app} window`, async ({ page }) => {
+                await page.goto(`${OS_ON}/os/${app}`)
+                await expect(page.locator('.os-classic').first()).toBeVisible()
+                expect(await classicViolations(page)).toEqual([])
+            })
+        }
     })
 }
 
