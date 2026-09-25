@@ -9,4 +9,4 @@ Shared building blocks for Memba OS native app windows (mockup v4).
 - `Loading` / `Empty` / `ErrorState` — the three states any async view can be in; use these, not ad-hoc markup.
 - `NotOnMainnet` — wraps a feature that isn't live on gnoland-1 yet; still viewable, actions stay disabled.
 
-Rules: one accent color per view, no emoji icons (use `Icon` from `../shell/icons`), only the OS states above (no bespoke spinners/banners), and container queries (`@container os-window`) for responsive layout — never viewport `@media` queries, since a window's size is unrelated to the browser's.
+Rules: one accent color per view, no emoji icons (use `Icon` from `../shell/icons`), only the OS states above (no bespoke spinners/banners), container queries (`@container os-window`) for responsive layout — never viewport `@media` queries, since a window's size is unrelated to the browser's — and both themes come from the `--os-*` tokens (never hard-coded colours).

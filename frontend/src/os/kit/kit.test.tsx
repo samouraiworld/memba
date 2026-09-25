@@ -10,12 +10,17 @@ describe("os kit", () => {
         fireEvent.click(screen.getByRole("button", { name: "Network" }))
         expect(onSelect).toHaveBeenCalledWith("net")
     })
-    it("Table opens a row by click and by Enter, and shows the empty copy", () => {
+    it("Table opens a row by clicking it or its first-cell button (exactly once each), and shows the empty copy", () => {
         const onRowClick = vi.fn()
-        const cols = [{ key: "n", label: "Name", render: (r: { n: string }) => r.n }]
-        const { rerender } = render(<Table columns={cols} rows={[{ n: "a" }]} rowKey={(r) => r.n} onRowClick={onRowClick} empty="Nothing here." />)
-        fireEvent.click(screen.getByText("a"))
-        fireEvent.keyDown(screen.getByText("a").closest("tr")!, { key: "Enter" })
+        const cols = [
+            { key: "n", label: "Name", render: (r: { n: string; amt: string }) => r.n },
+            { key: "amt", label: "Amount", render: (r: { n: string; amt: string }) => r.amt },
+        ]
+        const { rerender } = render(<Table columns={cols} rows={[{ n: "a", amt: "10" }]} rowKey={(r) => r.n} onRowClick={onRowClick} empty="Nothing here." />)
+        const open = screen.getByRole("button", { name: "a" })
+        fireEvent.click(screen.getByText("10"))
+        expect(onRowClick).toHaveBeenCalledTimes(1)
+        fireEvent.click(open)
         expect(onRowClick).toHaveBeenCalledTimes(2)
         rerender(<Table columns={cols} rows={[]} rowKey={(r) => r.n} empty="Nothing here." />)
         expect(screen.getByText("Nothing here.")).toBeInTheDocument()

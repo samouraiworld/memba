@@ -14,8 +14,8 @@ export interface Stat {
 export function StatGrid({ stats }: { stats: readonly Stat[] }) {
     return (
         <div className="os-grid2">
-            {stats.map((s) => (
-                <div key={s.label} className="os-card os-stat">
+            {stats.map((s, i) => (
+                <div key={`${i}:${s.label}`} className="os-card os-stat">
                     <div className="os-stat-l">{s.label}</div>
                     <div className="os-stat-v">{s.value}</div>
                     {s.hint && <div className="os-sub">{s.hint}</div>}
