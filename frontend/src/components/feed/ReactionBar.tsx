@@ -1,6 +1,7 @@
 /**
  * ReactionBar — on-chain-optimistic reactions for a feed post. Shows the live
- * per-emoji counts (from the indexer's GetPostReactions), highlights the ones
+ * per-emoji counts (from the indexer's GetPostReactions, batched across every
+ * bar on the page by feedReactionsLoader), highlights the ones
  * the viewer left, and toggles a reaction with a single on-chain
  * AddReaction/RemoveReaction tx. A disconnected tap connects first.
  *
@@ -13,9 +14,9 @@
  * @module components/feed/ReactionBar
  */
 import { useState } from "react"
-import { Plus } from "@phosphor-icons/react"
+import { ArrowClockwise, Plus } from "@phosphor-icons/react"
 import { useQuery } from "@tanstack/react-query"
-import { fetchPostReactions } from "../../lib/feedApi"
+import { loadPostReactions } from "../../lib/feedReactionsLoader"
 import { buildAddReactionMsg, buildRemoveReactionMsg, submitFeedMsg, REACTION_EMOJIS } from "../../lib/feed"
 import { isFeedWritable } from "../../lib/config"
 
@@ -41,12 +42,14 @@ function ReactionBarInner({ postId, connected, selfAddress, onConnect }: Reactio
 
     const q = useQuery({
         queryKey: ["feed-reactions", postId.toString(), selfAddress ?? ""],
-        queryFn: () => fetchPostReactions([postId], selfAddress),
+        // One post per query (so a reaction refreshes just this post), but the
+        // loader merges every bar's read into one batched request.
+        queryFn: () => loadPostReactions(postId, selfAddress ?? ""),
         staleTime: 15_000,
         retry: false,
     })
 
-    const counts = q.data?.get(postId) ?? []
+    const counts = q.data ?? []
 
     const toggle = async (emoji: string, reacted: boolean) => {
         if (!connected || !selfAddress) {
@@ -70,6 +73,19 @@ function ReactionBarInner({ postId, connected, selfAddress, onConnect }: Reactio
 
     return (
         <div className="feed-reactions" data-testid="feed-reactions">
+            {q.isError && (
+                <button
+                    type="button"
+                    className="feed-reaction"
+                    aria-label="Reactions failed to load. Retry"
+                    title="Reactions failed to load. Retry"
+                    data-testid="feed-reactions-retry"
+                    disabled={q.isFetching}
+                    onClick={() => void q.refetch()}
+                >
+                    <ArrowClockwise size={13} />
+                </button>
+            )}
             {counts.filter(c => c.count > 0).map(c => (
                 <button
                     key={c.emoji}

@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Feed reactions load in one request per page (2026-09-24)
+<!-- categories: memba -->
+- **A feed page no longer spends one API request per post on reaction counts.** Each post asked for its own counts, so a long page used up the shared per-minute request limit and other calls started failing.
+- Reaction counts for the posts on screen now load together in one request (split into groups of 100). Reacting still refreshes that post's counts, and a failed load shows a retry button on each affected post.
+
 ### Leaderboard names can't be faked (2026-09-24)
 <!-- categories: memba -->
 - **The leaderboard shows each player's registered gno.land username, or a short address.** It used to show the free-text profile title, so anyone could set a title like "@alice" and appear as someone else.
