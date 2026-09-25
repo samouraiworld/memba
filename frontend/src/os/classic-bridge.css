@@ -110,3 +110,17 @@
 .memba-os .os-classic a:not([class]) { color: var(--os-acc-ink); }
 /* The route loader (ConnectingLoader via PageLoader) is sized for a browser page. */
 .memba-os .os-classic .animate-glow { animation: none; }
+
+/* Literal teal in page CSS (removed as each app goes native) */
+/* pages/questhub.css .k-quest-card-xp: literal rgba(0, 212, 170, .1) fill behind the XP pill. */
+.memba-os .os-classic .k-quest-card-xp { background: var(--os-chip); }
+/* pages/FeedbackPage.tsx "Submit Feedback" CTA row: inline style={{ background, border }} with
+ * literal teal (no class to target), identified by its child #feedback-submit-btn. !important
+ * because a plain declaration loses to the element's own inline (non-important) style. */
+.memba-os .os-classic #feedback-page > div:has(> #feedback-submit-btn) {
+  background: var(--os-chip) !important;
+  border-color: var(--os-acc) !important;
+}
+/* pages/validators.css .val-retry-btn: literal teal border/fill, and its :hover fill. */
+.memba-os .os-classic .val-retry-btn { border-color: var(--os-acc); background: var(--os-chip); }
+.memba-os .os-classic .val-retry-btn:hover { background: var(--os-chip); }

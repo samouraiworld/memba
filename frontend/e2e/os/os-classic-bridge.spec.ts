@@ -44,3 +44,39 @@ for (const theme of ['light', 'dark'] as const) {
         expect(probe.font).toContain('Manrope')
     })
 }
+
+const APPS = ['feed', 'store', 'settings', 'quests', 'validators', 'tokens', 'profile', 'news', 'explorer', 'arcade', 'feedback']
+
+test('no Beta teal inside the app windows', async ({ page }) => {
+    await guest(page)
+    await page.addInitScript(() => {
+        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_booted', '1')
+    })
+    const hits: string[] = []
+    for (const app of APPS) {
+        await page.goto(`${OS_ON}/os/${app}`)
+        const classic = page.locator('.os-classic').first()
+        // A guest-gated page (e.g. Profile: "Connect a wallet to use Profile.") never
+        // renders .os-classic — that empty/gated state is fine; nothing to sweep.
+        try {
+            await classic.waitFor({ timeout: 5_000 })
+        } catch {
+            continue
+        }
+        await page.waitForTimeout(600)
+        hits.push(...await classic.evaluate((root, app) => {
+            const teal = /rgba?\(0, (212|168|230|148), (170|138|187|120)/
+            const out: string[] = []
+            for (const el of root.querySelectorAll('*')) {
+                const s = getComputedStyle(el)
+                for (const p of ['color', 'backgroundColor', 'borderTopColor', 'borderBottomColor', 'outlineColor', 'fill', 'stroke'] as const) {
+                    if (teal.test(s[p])) out.push(`${app}: ${el.tagName.toLowerCase()}.${[...el.classList].join('.')} ${p}`)
+                }
+                if (/0, 212, 170|0, 168, 138/.test(s.boxShadow + s.backgroundImage)) out.push(`${app}: ${el.tagName.toLowerCase()}.${[...el.classList].join('.')} shadow/gradient`)
+            }
+            return out
+        }, app))
+    }
+    expect(hits).toEqual([])
+})
