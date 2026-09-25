@@ -164,7 +164,7 @@ function v12Snapshot(page: "proposals_page_1" | "proposals_page_2" = "proposals_
     const r = v12Native.records
     return { config: weightedConfigSchema.parse(r.config), members: weightedMembersSchema.parse(r.members).members, page: weightedPageSchema.parse(r[page]) } as Awaited<ReturnType<typeof readWeightedSnapshot>>
 }
-it("renders the v12 adapter policies, categories, operations and frozen state read-only on mainnet", async () => {
+it("renders the v12 adapter policies, categories, operations and frozen state read-only on mainnet when it is not the selected network", async () => {
     vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
     const data = v12Snapshot()
     render(<App network="mainnet" address={data.members[1].address} />)
@@ -173,7 +173,8 @@ it("renders the v12 adapter policies, categories, operations and frozen state re
     expect(screen.getByText("Target: gno.land/r/samcrew/escrow_v4")).toBeTruthy()
     expect(screen.getByText(/Financial actions .* require/)).toBeTruthy()
     expect(screen.getByText(/Routine moderation requires/)).toBeTruthy()
-    expect(screen.getByText(/Mainnet governance is read-only/)).toBeTruthy()
+    // The mainnet DAO is released from the hold; here it is read-only because pearl is the selected network.
+    expect(screen.queryByText(/Mainnet governance is read-only/)).toBeNull()
     const fee = screen.getByRole("article", { name: "Proposal 17" })
     expect(within(fee).getByRole("heading", { name: "Market config · set-fee" })).toBeTruthy()
     expect(within(fee).getByText("Financial")).toBeTruthy()
@@ -273,13 +274,12 @@ it("keeps one acceptance open at a time", async () => {
     expect(await within(badges).findByText("Acceptance proposal #27 is still open. Propose this one after it executes or closes.")).toBeTruthy()
     expect(within(badges).getByRole("button", { name: "Propose acceptance" }).hasAttribute("disabled")).toBe(true)
 })
-it("renders every acceptance control disabled on mainnet and builds nothing", async () => {
+it("renders every acceptance control disabled on mainnet when it is not the selected network, and builds nothing", async () => {
     vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
     for (const key of APPLICATION_POLICY_KEYS) acceptance[key] = { current: PUBLISHER, pending: DAO, failed: [] }
     render(<App network="mainnet" address={v12Snapshot().members[1].address} />)
     await waitFor(() => expect(screen.getAllByRole("button", { name: "Propose acceptance" })).toHaveLength(10))
-    expect(screen.getByText(/Mainnet governance is read-only/)).toBeTruthy()
-    expect(screen.getByText("Acceptance proposals stay disabled on mainnet until the governance write hold is lifted.")).toBeTruthy()
+    expect(screen.queryByText(/until the governance write hold is lifted/)).toBeNull()
     for (const button of screen.getAllByRole("button", { name: /^(Propose acceptance|Vote .*|Execute proposal)$/ })) {
         expect(button.hasAttribute("disabled")).toBe(true)
         fireEvent.click(button)
@@ -452,7 +452,7 @@ it("checks the wallet's live network right before signing a v12 call, and stops 
     const market = await screen.findByRole("listitem", { name: "marketPolicy adapter" })
     fireEvent.click(await within(market).findByRole("button", { name: "Propose acceptance" }))
     expect((await screen.findByRole("alert")).textContent).toMatch(/where governance writes remain on hold/)
-    expect(assertLiveWalletChain).toHaveBeenCalledWith({ chainId: "pearl", address: voter })
+    expect(assertLiveWalletChain).toHaveBeenCalledWith({ chainId: "pearl", address: voter, schema: "memba-weighted-host/v12", realmPath: weightedRealm })
     expect(screen.queryByText(/Transaction submitted:/)).toBeNull()
 })
 it("runs the hold-list wallet check once, after the page's own pre-sign rechecks", async () => {

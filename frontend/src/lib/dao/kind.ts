@@ -68,7 +68,8 @@ export function capabilitiesFor(kind: DaoKind, network: NetworkConfig): DaoCapab
         // Weighted hosts (v1, v2 and the v12 mainnet governing DAO) are read in
         // their own workspace (/:network/weighted-dao/<realm>); the legacy shell
         // never builds their transactions. Workspace writes stay blocked on
-        // gnoland-1 by assertWeightedWrites.
+        // gnoland-1 by assertWeightedWrites, except for the released mainnet
+        // governing DAO (WEIGHTED_WRITE_RELEASES).
         case "weighted":
         case "unknown":
         default:

@@ -70,10 +70,11 @@ describe("weighted contract", () => {
         for (const id of ["0", "01", "-1", "1e3", "18446744073709551616", '1);panic("x")']) expect(() => buildWeightedMessage(caller, weightedRealm, { type: "execute", id }, fixture.config.schema, "pearl")).toThrow()
     })
     it("blocks mainnet and stale wallet/network contexts unconditionally", () => {
-        expect(() => assertWeightedWrites("gnoland-1", "gnoland-1", "gnoland-1", fixture.config.schema)).toThrow("hold")
-        expect(() => assertWeightedWrites("pearl", "pearl", "other", fixture.config.schema)).toThrow()
-        expect(() => assertWeightedWrites("pearl", "other", "pearl", fixture.config.schema)).toThrow()
-        expect(() => assertWeightedWrites("pearl", "pearl", "pearl", fixture.config.schema)).not.toThrow()
+        // The mainnet release covers v12 only: an older version at the same path stays on hold.
+        expect(() => assertWeightedWrites("gnoland-1", "gnoland-1", "gnoland-1", fixture.config.schema, weightedRealm)).toThrow("hold")
+        expect(() => assertWeightedWrites("pearl", "pearl", "other", fixture.config.schema, weightedRealm)).toThrow()
+        expect(() => assertWeightedWrites("pearl", "other", "pearl", fixture.config.schema, weightedRealm)).toThrow()
+        expect(() => assertWeightedWrites("pearl", "pearl", "pearl", fixture.config.schema, weightedRealm)).not.toThrow()
     })
 })
 

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react"
 import { useOutletContext, useParams } from "react-router-dom"
 import { NETWORKS, GNO_CHAIN_ID, GNO_RPC_URL } from "../lib/config"
-import { isUnreadableProposal, readWeightedBallot, validateWeightedRecovery, weightedApplicationPolicies, weightedWritesSupported, weightedWriteKinds, weightedVoteChoices, weightedAuthority, assertWeightedWrites, assertWeightedPlanSignable, planWeightedTx, readOpenWeightedProposals, readWeightedProposal, readWeightedSnapshot, WEIGHTED_APPLICATIONS_SCHEMA, WEIGHTED_WRITE_HOLD_CHAINS, type WeightedAction, type WeightedConfig, type WeightedBallot, type WeightedContext, type WeightedInvalidation, type WeightedPageEntry, type WeightedProposal, type WeightedWriteKind } from "../lib/dao/weighted"
+import { isUnreadableProposal, readWeightedBallot, validateWeightedRecovery, weightedApplicationPolicies, weightedWritesSupported, weightedWriteKinds, weightedWritesHeld, weightedVoteChoices, weightedAuthority, assertWeightedWrites, assertWeightedPlanSignable, planWeightedTx, readOpenWeightedProposals, readWeightedProposal, readWeightedSnapshot, WEIGHTED_APPLICATIONS_SCHEMA, type WeightedAction, type WeightedConfig, type WeightedBallot, type WeightedContext, type WeightedInvalidation, type WeightedPageEntry, type WeightedProposal, type WeightedWriteKind } from "../lib/dao/weighted"
 import { revealInvisibleFormatting as reveal } from "../lib/dao/v2Text"
 import { ACCEPT_FUNCS, APPLICATION_LABELS, IMMEDIATE_THRESHOLDS, acceptAdapterFor, applicationDetails, flattenBefore, type ApplicationPolicyKey, type WeightedApplicationAction } from "../lib/dao/weightedApplications"
 import { ACCEPTANCE_CONSEQUENCES, ACCEPTANCE_LABELS, ACCEPTANCE_ORDER, AUTHORITY_GETTERS, nextRecommendedAcceptance, acceptanceState, readAcceptanceStates, readTargetAuthority, weightedDaoAddress, type AcceptanceState } from "../lib/dao/weightedAcceptance"
@@ -86,8 +86,8 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
     }, [data, rpcUrl, chainId, realmPath])
     const member = data?.members.find(m => m.address === wallet.address)
     const writable = !!data && weightedWritesSupported(data.config.schema)
-    const kinds = data ? weightedWriteKinds(data.config.schema, chainId) : NO_KINDS
-    const held = WEIGHTED_WRITE_HOLD_CHAINS.includes(chainId)
+    const kinds = data ? weightedWriteKinds(data.config.schema, chainId, realmPath) : NO_KINDS
+    const held = weightedWritesHeld(chainId, data?.config.schema ?? "", realmPath)
     // A member who could act here once the current read or submission settles.
     const eligible = kinds.size > 0 && !!member && wallet.connected && authenticated && wallet.chainId === chainId && chainId === GNO_CHAIN_ID && rpcUrl === GNO_RPC_URL && !held
     const canAct = eligible && !busy && !loading
@@ -101,7 +101,7 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
         const location = window.location.pathname
         const assertCurrent = () => {
             if (!active.current || window.location.pathname !== location || !wallet.connected || !authenticated) throw new Error("Wallet or page changed; prepare the action again")
-            assertWeightedWrites(chainId, GNO_CHAIN_ID, wallet.chainId, data?.config.schema ?? "", action.type)
+            assertWeightedWrites(chainId, GNO_CHAIN_ID, wallet.chainId, data?.config.schema ?? "", realmPath, action.type)
             if (rpcUrl !== GNO_RPC_URL) throw new Error("Selected RPC changed")
         }
         // v12: the target must still name the DAO as its pending authority, and no
@@ -177,7 +177,7 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
                 }
                 // doContractBroadcast runs the shared wallet-network guard before and
                 // after these rechecks; v12 adds only the governance hold list.
-                if (isV12) { await assertLiveWalletChain({ chainId, address: wallet.address }); assertCurrent() }
+                if (isV12) { await assertLiveWalletChain({ chainId, address: wallet.address, schema: fresh.config.schema, realmPath }); assertCurrent() }
             }
             const acceptTarget = action.type === "accept" && fresh.config.schema === WEIGHTED_APPLICATIONS_SCHEMA ? fresh.config[action.adapter].target : ""
             const memo = action.type === "recover" ? `Recover ${reveal(action.personId)}: ${action.oldAddress} → ${action.newAddress}. Preserve voting weight and roles.`
@@ -220,7 +220,7 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
             <p>Voting lasts 7 days. Proposals qualified before closing retain their execution delay. {applications ? "Every executed proposal and every emergency pause invalidates all other outstanding proposals." : "Every executed role or key change invalidates other outstanding proposals."}</p>
             <p>Admin and finance labels do not add voting power or exclusive execution rights.</p>
         </section>
-        {chainId === "gnoland-1" && <p role="status">Mainnet governance is read-only while launch verification is unfinished.</p>}
+        {held && <p role="status">Mainnet governance is read-only for this DAO in Memba.</p>}
         <p>{applications ? "Fixed application actions are available for the adapters below. Migration and treasury spending are not." : "Migration, treasury spending and application actions are not available in this DAO version."}</p>
         <button disabled={loading || busy} onClick={() => void refresh("0")}>Refresh chain state</button>
         {loading && <p role="status">Reading governance state…</p>}

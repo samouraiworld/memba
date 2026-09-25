@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest"
 import native from "./testdata/weighted-v12/native.json"
 import exportsText from "./testdata/weighted-v12/realm-exports.txt?raw"
 import policySource from "./testdata/weighted-v12/host/policy.gno.txt?raw"
-import { assertWeightedPlanSignable, planWeightedTx, weightedProposalSchema, weightedVoteChoices, weightedWriteKinds, WEIGHTED_APPLICATIONS_SCHEMA, WEIGHTED_RECOVERY_SCHEMA, WEIGHTED_SCHEMA, type WeightedAction, type WeightedBallot, type WeightedProposal } from "./weighted"
+import { assertWeightedPlanSignable, planWeightedTx, weightedProposalSchema, weightedVoteChoices, weightedWriteKinds, weightedWritesHeld, WEIGHTED_WRITE_RELEASES, WEIGHTED_APPLICATIONS_SCHEMA, WEIGHTED_RECOVERY_SCHEMA, WEIGHTED_SCHEMA, type WeightedAction, type WeightedBallot, type WeightedProposal } from "./weighted"
 import { ACCEPT_FUNCS, APPLICATION_POLICY_KEYS } from "./weightedApplications"
 import { V12_EXECUTE_FALLBACK, v12CallBudget, v12ExecuteBudget } from "./weightedBudget"
 import { toAdenaMessages } from "../grc20"
@@ -63,14 +63,24 @@ describe("v12 message builders match the realm's exported signatures", () => {
         expect(toAdenaMessages([plan.msg])[0]).toMatchObject({ type: "/vm.m_call", value: { func: "ProposeEscrowAccept", args: [], max_deposit: "4340000ugnot" } })
     })
 
-    it("builds nothing at all on gnoland-1, for any contract version", () => {
-        for (const version of [WEIGHTED_SCHEMA, WEIGHTED_RECOVERY_SCHEMA, WEIGHTED_APPLICATIONS_SCHEMA]) {
-            expect(weightedWriteKinds(version, "gnoland-1").size).toBe(0)
-            for (const action of [{ type: "vote", id: "1", vote: "yes" }, { type: "execute", id: "1" }, { type: "accept", adapter: "marketPolicy" }] as const)
-                expect(() => planWeightedTx(caller, realmPath, action, version, "gnoland-1", { type: "set-role", grant: true })).toThrow("Mainnet governance writes remain on hold")
+    it("on gnoland-1 builds calls only for the released DAO (v12 at r/samcrew/memba_dao)", () => {
+        const actions = [{ type: "vote", id: "1", vote: "yes" }, { type: "execute", id: "1" }, { type: "accept", adapter: "marketPolicy" }] as const
+        // Held: every other version at the released path, and v12 at any other path.
+        const held: [string, string][] = [[WEIGHTED_SCHEMA, realmPath], [WEIGHTED_RECOVERY_SCHEMA, realmPath], [schema, "gno.land/r/samcrew/memba_dao_v2"], [schema, "gno.land/r/other/memba_dao"], [schema, `${realmPath} `]]
+        for (const [version, path] of held) {
+            expect(weightedWritesHeld("gnoland-1", version, path)).toBe(true)
+            expect(weightedWriteKinds(version, "gnoland-1", path).size).toBe(0)
+            for (const action of actions)
+                expect(() => planWeightedTx(caller, path, action, version, "gnoland-1", { type: "set-role", grant: true })).toThrow("Mainnet governance writes remain on hold")
         }
-        expect([...weightedWriteKinds(schema, "test-chain")].sort()).toEqual(["accept", "execute", "vote"])
-        expect(weightedWriteKinds("memba-weighted-host/v13", "test-chain").size).toBe(0)
+        // Released: the same calls, budgets and caps as on any test network.
+        expect(weightedWritesHeld("gnoland-1", schema, realmPath)).toBe(false)
+        expect([...weightedWriteKinds(schema, "gnoland-1", realmPath)].sort()).toEqual(["accept", "execute", "vote"])
+        for (const action of actions)
+            expect(planWeightedTx(caller, realmPath, action, schema, "gnoland-1", { type: "set-role", grant: true })).toEqual(planWeightedTx(caller, realmPath, action, schema, "test-chain", { type: "set-role", grant: true }))
+        expect(WEIGHTED_WRITE_RELEASES).toEqual([{ chainId: "gnoland-1", schema, realmPath }])
+        expect([...weightedWriteKinds(schema, "test-chain", realmPath)].sort()).toEqual(["accept", "execute", "vote"])
+        expect(weightedWriteKinds("memba-weighted-host/v13", "test-chain", realmPath).size).toBe(0)
         expect(() => planWeightedTx(caller, realmPath, { type: "accept", adapter: "marketPolicy" }, WEIGHTED_RECOVERY_SCHEMA, "test-chain")).toThrow("read-only")
     })
 

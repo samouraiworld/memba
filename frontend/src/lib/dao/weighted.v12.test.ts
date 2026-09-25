@@ -277,7 +277,7 @@ describe("every operation the host can encode", () => {
         await expect(readOpenWeightedProposals(ctx)).rejects.toThrow("could not be validated")
     })
 
-    it("builds no v12 transaction on gnoland-1, and no role or recovery proposal anywhere yet", async () => {
+    it("builds v12 calls on gnoland-1 only for the released DAO, and no role or recovery proposal anywhere yet", async () => {
         const snapshot = await readWeightedSnapshot(ctx)
         const caller = snapshot.members[1].address, schema = snapshot.config.schema
         const executes = snapshot.page.proposals.find(p => !isUnreadableProposal(p) && p.id === "17")
@@ -287,15 +287,18 @@ describe("every operation the host can encode", () => {
             { type: "propose", target: snapshot.members[2].address, role: "admin", grant: true },
             { type: "recover", personId: "dadidou", oldAddress: snapshot.members[6].address, newAddress: "g1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqquyl3wcje" },
         ] as const
-        for (const action of [...writes, ...later]) expect(() => buildWeightedMessage(caller, realmPath, action, schema, "gnoland-1", executes.action)).toThrow("on hold")
-        expect(() => assertWeightedWrites("gnoland-1", "gnoland-1", "gnoland-1", schema)).toThrow("on hold")
-        for (const chain of ["pearl-1", "test-13", "dev"]) {
+        // Any other realm path, even a v12 one, stays on hold on gnoland-1.
+        const other = "gno.land/r/samcrew/memba_dao_v2"
+        for (const action of [...writes, ...later]) expect(() => buildWeightedMessage(caller, other, action, schema, "gnoland-1", executes.action)).toThrow("on hold")
+        expect(() => assertWeightedWrites("gnoland-1", "gnoland-1", "gnoland-1", schema, other)).toThrow("on hold")
+        expect(() => assertWeightedWrites("gnoland-1", "gnoland-1", "gnoland-1", "memba-weighted-host/v2", realmPath)).toThrow("on hold")
+        for (const chain of ["gnoland-1", "pearl-1", "test-13", "dev"]) {
             for (const action of writes) expect(buildWeightedMessage(caller, realmPath, action, schema, chain, executes.action).value.pkg_path).toBe(realmPath)
             for (const action of later) expect(() => buildWeightedMessage(caller, realmPath, action, schema, chain)).toThrow("read-only")
-            expect(() => assertWeightedWrites(chain, chain, chain, schema, "vote")).not.toThrow()
-            expect(() => assertWeightedWrites(chain, chain, chain, schema, "propose")).toThrow("read-only")
+            expect(() => assertWeightedWrites(chain, chain, chain, schema, realmPath, "vote")).not.toThrow()
+            expect(() => assertWeightedWrites(chain, chain, chain, schema, realmPath, "propose")).toThrow("read-only")
         }
-        expect(() => assertWeightedWrites("pearl", "pearl", "pearl", "memba-weighted-host/v2")).not.toThrow()
+        expect(() => assertWeightedWrites("pearl", "pearl", "pearl", "memba-weighted-host/v2", realmPath)).not.toThrow()
         expect(() => validateWeightedRecovery(snapshot, later[1])).toThrow("does not support")
     })
 

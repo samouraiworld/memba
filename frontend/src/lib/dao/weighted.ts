@@ -329,15 +329,30 @@ const WRITE_KINDS: Record<WeightedSchemaVersion, ReadonlySet<WeightedWriteKind>>
     [WEIGHTED_APPLICATIONS_SCHEMA]: new Set(["accept", "vote", "execute"]),
 }
 
-/** The gnoland-1 governance write hold. Lifting it is a separate, owner-gated change. */
+/** The gnoland-1 governance write hold: no weighted DAO call is built there unless released below. */
 export const WEIGHTED_WRITE_HOLD_CHAINS: readonly string[] = ["gnoland-1"]
 
 /**
- * Calls Memba may build for `schema` on `chainId`: none on a held chain
- * (gnoland-1) or for an unknown version.
+ * Exact (chain, version, realm) releases from the hold, each an owner-gated
+ * change. Released: the mainnet governing DAO (v12 at r/samcrew/memba_dao,
+ * published h315078). Any other weighted DAO on gnoland-1 stays read-only.
  */
-export function weightedWriteKinds(schema: string, chainId: string): ReadonlySet<WeightedWriteKind> {
-    if (WEIGHTED_WRITE_HOLD_CHAINS.includes(chainId) || !Object.hasOwn(WRITE_KINDS, schema)) return NO_WRITES
+export const WEIGHTED_WRITE_RELEASES: readonly { chainId: string; schema: string; realmPath: string }[] = [
+    { chainId: "gnoland-1", schema: WEIGHTED_APPLICATIONS_SCHEMA, realmPath: "gno.land/r/samcrew/memba_dao" },
+]
+
+/** True when governance writes stay on hold for this DAO on this chain. */
+export function weightedWritesHeld(chainId: string, schema: string, realmPath: string): boolean {
+    return WEIGHTED_WRITE_HOLD_CHAINS.includes(chainId)
+        && !WEIGHTED_WRITE_RELEASES.some(r => r.chainId === chainId && r.schema === schema && r.realmPath === realmPath)
+}
+
+/**
+ * Calls Memba may build for `schema` at `realmPath` on `chainId`: none while
+ * the hold applies or for an unknown version.
+ */
+export function weightedWriteKinds(schema: string, chainId: string, realmPath: string): ReadonlySet<WeightedWriteKind> {
+    if (weightedWritesHeld(chainId, schema, realmPath) || !Object.hasOwn(WRITE_KINDS, schema)) return NO_WRITES
     return WRITE_KINDS[schema as WeightedSchemaVersion]
 }
 /** True when some write exists for this version off the held chains. */
@@ -352,13 +367,13 @@ export interface WeightedTxPlan {
 }
 
 /**
- * Build the one realm call for `action`. On a held chain nothing is built.
+ * Build the one realm call for `action`. While the hold applies nothing is built.
  * v12 calls carry their measured `max_deposit`; an Execute needs the stored
  * action it runs (`executes`) to size it.
  */
 export function planWeightedTx(caller: string, realmPath: string, action: WeightedAction, schema: string, chainId: string, executes?: { type: string; operation?: string; grant?: boolean }): WeightedTxPlan {
-    if (WEIGHTED_WRITE_HOLD_CHAINS.includes(chainId)) throw new Error("Mainnet governance writes remain on hold")
-    if (!weightedWriteKinds(schema, chainId).has(action.type)) throw new Error("This DAO version is read-only in Memba for this action")
+    if (weightedWritesHeld(chainId, schema, realmPath)) throw new Error("Mainnet governance writes remain on hold")
+    if (!weightedWriteKinds(schema, chainId, realmPath).has(action.type)) throw new Error("This DAO version is read-only in Memba for this action")
     address.parse(caller); realm.parse(realmPath)
     let func: string, args: string[]
     if (action.type === "recover") { func = "ProposeRecovery"; args = [personID.parse(action.personId), address.parse(action.oldAddress), address.parse(action.newAddress)]; if (action.oldAddress === action.newAddress) throw new Error("Recovery must change the address") }
@@ -398,9 +413,9 @@ export function assertWeightedPlanSignable(plan: WeightedTxPlan): void {
     if (!Number.isSafeInteger(plan.gasWanted) || plan.gasWanted! <= 0) throw new Error("Invalid gas limit")
 }
 
-export function assertWeightedWrites(chainId: string, activeChain: string, walletChain: string, schema: string, kind?: WeightedWriteKind) {
-    if (WEIGHTED_WRITE_HOLD_CHAINS.includes(chainId)) throw new Error("Mainnet governance writes remain on hold")
-    const kinds = weightedWriteKinds(schema, chainId)
+export function assertWeightedWrites(chainId: string, activeChain: string, walletChain: string, schema: string, realmPath: string, kind?: WeightedWriteKind) {
+    if (weightedWritesHeld(chainId, schema, realmPath)) throw new Error("Mainnet governance writes remain on hold")
+    const kinds = weightedWriteKinds(schema, chainId, realmPath)
     if (kinds.size === 0 || (kind !== undefined && !kinds.has(kind))) throw new Error("This DAO version is read-only in Memba")
     if (chainId !== activeChain || chainId !== walletChain) throw new Error("Wallet or selected network changed")
 }

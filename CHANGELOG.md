@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### The mainnet governing DAO can vote (2026-09-25)
+<!-- categories: memba, network, security -->
+- **Members of the mainnet governing DAO (`gno.land/r/samcrew/memba_dao`, v12) can propose adapter acceptances, vote and execute from Memba on gno.land.** Every call keeps its measured gas limit and storage-deposit cap, the pre-sign re-reads, the one-open-acceptance rule and the live wallet check.
+- **Only that DAO is released.** The mainnet write hold stays for every other weighted DAO: the release matches chain, contract version and realm path exactly, so another v12 realm, an older version or a look-alike path on gno.land stays read-only.
+- **A wallet on another chain than the page's is refused** by the weighted DAO's own check as well as the shared signing guard.
+
 ### Memba OS boots like an old computer (2026-09-25)
 <!-- categories: memba -->
 - A first visit to Memba OS opens with a short boot, still behind `VITE_MEMBA_OS`: a power-on self-test types out what this browser knows (the network, whether a wallet is installed, the desktop items, the apps), collapses into a bright line, and that line opens into the lock screen like a warming CRT. It lasts about two seconds, a click or any key skips it (without pressing anything underneath), and it never plays again, on a shared link, or when the device asks for reduced motion.
