@@ -29,12 +29,17 @@ test.describe('Memba OS pages in windows', () => {
         await expect(page.locator('.os-classic nav[aria-label="Main navigation"], .os-classic .k-sidebar')).toHaveCount(0)
     })
 
-    test('a page that redirects as it opens (NFT → the marketplace) opens the Market window that now owns it', async ({ page }) => {
+    test('the NFT window shows its own native home instead of opening Market by itself', async ({ page }) => {
         await page.goto(`${OS_ON}/os/nft`)
-        const market = win(page, 'Market')
-        await expect(market.getByRole('heading', { name: 'Marketplace' }).first()).toBeVisible()
-        await expect.poll(() => new URL(page.url()).pathname).toBe('/os/market/nfts')
-        await expect(page.getByRole('region', { name: 'NFT', exact: true })).toHaveCount(1)
+        const nft = win(page, 'NFT')
+        // This e2e's default network is gnoland-1 (mainnet): the NFT realms aren't
+        // live there yet, so the home explains that instead of the classic page.
+        await expect(nft.getByText(/isn't available yet/)).toBeVisible()
+        await expect.poll(() => new URL(page.url()).pathname).toBe('/os/nft')
+        await expect(page.getByRole('region', { name: 'Market', exact: true })).toHaveCount(0)
+        await nft.getByRole('button', { name: 'Open Market' }).click()
+        await expect(win(page, 'Market').getByRole('heading', { name: 'Marketplace' }).first()).toBeVisible()
+        await expect(win(page, 'NFT')).toBeVisible()
     })
 
     test("a page's own query (a Validators tab) works in its window, follows the address bar and survives Back and reload", async ({ page }) => {
