@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest"
 import native from "./testdata/weighted-v12/native.json"
 import gettersText from "./testdata/weighted-v12/target-getters.txt?raw"
 import exportsText from "./testdata/weighted-v12/realm-exports.txt?raw"
-import { ACCEPT_ACTIONS, ACCEPT_FUNCS, ACCEPT_PROBES, AUTHORITY_GETTERS, acceptAdapterFor, acceptanceState, parseQevalAddress, parseQevalBool, parseQevalString, readAcceptanceStates, readTargetAuthority, weightedDaoAddress } from "./weightedAcceptance"
+import { ACCEPT_ACTIONS, ACCEPT_FUNCS, ACCEPT_PROBES, ACCEPTANCE_CONSEQUENCES, ACCEPTANCE_ORDER, AUTHORITY_GETTERS, nextRecommendedAcceptance, acceptAdapterFor, acceptanceState, parseQevalAddress, parseQevalBool, parseQevalString, readAcceptanceStates, readTargetAuthority, weightedDaoAddress } from "./weightedAcceptance"
 import { APPLICATION_POLICY_KEYS, APPLICATION_TARGETS, type ApplicationPolicyKey } from "./weightedApplications"
 import { weightedApplicationPolicies, weightedConfigSchema } from "./weighted"
 import { directRpcCall } from "../rpcFallback"
@@ -193,5 +193,33 @@ describe("acceptance state machine", () => {
         await expect(readAcceptanceStates(ctx, weightedApplicationPolicies(config))).rejects.toThrow("RPC network does not match")
         // A single re-read (before signing, after executing) checks the chain too.
         await expect(read("marketPolicy")).rejects.toThrow("RPC network does not match")
+    })
+})
+
+describe("recommended handoff order", () => {
+    it("orders all ten targets as the handoff plan does, market config first and escrow last", () => {
+        expect(ACCEPTANCE_ORDER.map(k => config[k].target.replace("gno.land/r/samcrew/", ""))).toEqual([
+            "memba_market_config", "gnobuilders_badges_v2", "memba_feed_v1", "memba_feedback_v2", "memba_dao_channels_v2",
+            "memba_reviews_v2", "memba_arcade_leaderboard_v1", "memba_quest_attestation_v1", "memba_appstore_v3", "escrow_v4",
+        ])
+        expect(new Set(ACCEPTANCE_ORDER)).toEqual(new Set(APPLICATION_POLICY_KEYS))
+        expect(Object.keys(ACCEPTANCE_CONSEQUENCES).sort()).toEqual([...APPLICATION_POLICY_KEYS].sort())
+        expect(ACCEPTANCE_CONSEQUENCES.escrowPolicy).toMatch(/real-money path: accept it last/)
+    })
+
+    it("recommends the first target the DAO does not control yet, only once every earlier state is known", () => {
+        const dao = { kind: "dao", pending: "" } as const, ready = { kind: "ready", current: PUBLISHER } as const
+        const all = (state: typeof dao | typeof ready) => Object.fromEntries(APPLICATION_POLICY_KEYS.map(k => [k, state]))
+        expect(nextRecommendedAcceptance(all(ready))).toBe("marketPolicy")
+        expect(nextRecommendedAcceptance({ ...all(dao), feedPolicy: ready, escrowPolicy: ready })).toBe("feedPolicy")
+        expect(nextRecommendedAcceptance({ ...all(dao), feedbackPolicy: { kind: "awaiting", current: PUBLISHER, pending: "" } })).toBe("feedbackPolicy")
+        expect(nextRecommendedAcceptance(all(dao))).toBeNull()
+        expect(nextRecommendedAcceptance({ ...all(ready), marketPolicy: "error" })).toBeNull()
+        expect(nextRecommendedAcceptance({ ...all(dao), badgesPolicy: undefined, escrowPolicy: ready })).toBeNull()
+    })
+
+    it("hands over to the live mainnet DAO's own package address", () => {
+        // gno.land/r/samcrew/memba_dao on gnoland-1 (published at height 315078).
+        expect(DAO).toBe("g1dmaqdpwr6xw6ukday0g66033j6ta4wc0r5ypf8")
     })
 })

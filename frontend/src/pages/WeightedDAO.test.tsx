@@ -237,7 +237,7 @@ it("shows each target's handoff state and offers acceptance only when the DAO is
     expect(within(adapterCard("escrowPolicy")).getByText("DAO controls")).toBeTruthy()
     expect(within(adapterCard("escrowPolicy")).getByText(`The DAO is the current admin. A return to ${PUBLISHER} is staged.`)).toBeTruthy()
     for (const key of ["questPolicy", "feedPolicy", "escrowPolicy", "badgesPolicy"] as const) expect(within(adapterCard(key)).queryByRole("button", { name: "Propose acceptance" })).toBeNull()
-    expect(screen.getByText(/Hand the adapters over one at a time/)).toBeTruthy()
+    expect(screen.getByText(/One open acceptance at a time/)).toBeTruthy()
 
     fireEvent.click(within(market).getByRole("button", { name: "Propose acceptance" }))
     await screen.findByText(/Transaction submitted:/)
@@ -511,4 +511,34 @@ for (const [label, read, reason] of [
     fireEvent.click(within(card).getByRole("button", { name: "Confirm execution" }))
     expect((await screen.findByRole("alert")).textContent).toMatch(reason)
     expect(doContractBroadcast).not.toHaveBeenCalled()
+})
+it("numbers the adapters in the handoff order, marks the next one and explains the path", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    acceptance.marketPolicy = { current: DAO, pending: "", failed: [] }
+    acceptance.badgesPolicy = { current: DAO, pending: "", failed: [] }
+    acceptance.feedPolicy = { current: PUBLISHER, pending: "", failed: [] }
+    acceptance.appstorePolicy = { current: PUBLISHER, pending: DAO, failed: [] }
+    render(<App network="pearl" address={v12Snapshot().members[1].address} />)
+    await screen.findByText("Next recommended")
+    const cards = screen.getAllByRole("listitem", { name: /adapter$/ })
+    expect(cards.map(c => c.getAttribute("aria-label"))).toEqual([
+        "marketPolicy adapter", "badgesPolicy adapter", "feedPolicy adapter", "feedbackPolicy adapter", "channelsPolicy adapter",
+        "reviewsPolicy adapter", "arcadePolicy adapter", "questPolicy adapter", "appstorePolicy adapter", "escrowPolicy adapter",
+    ])
+    expect(within(cards[0]).getByText(/^Handoff 1 of 10/)).toBeTruthy()
+    expect(within(cards[9]).getByText(/^Handoff 10 of 10/)).toBeTruthy()
+    // The feed is the first target the DAO does not control yet.
+    expect(screen.getAllByText("Next recommended")).toHaveLength(1)
+    expect(within(adapterCard("feedPolicy")).getByText("Next recommended")).toBeTruthy()
+    expect(within(adapterCard("appstorePolicy")).getByText("The recommended order hands over Feed first.")).toBeTruthy()
+    expect(within(adapterCard("appstorePolicy")).getByRole("button", { name: "Propose acceptance" }).hasAttribute("disabled")).toBe(false)
+    expect(within(adapterCard("badgesPolicy")).getByText(/retires the publisher's admin grant/)).toBeTruthy()
+    expect(within(adapterCard("feedPolicy")).getByText(/moderators appointed by a critical vote/)).toBeTruthy()
+    for (const key of ["feedbackPolicy", "channelsPolicy"] as const) expect(within(adapterCard(key)).getByText(/outgoing owner's admin role and membership are retired/)).toBeTruthy()
+    expect(within(adapterCard("reviewsPolicy")).getByText(/becomes a DAO vote/)).toBeTruthy()
+    expect(within(adapterCard("appstorePolicy")).getByText(/makes the DAO the curator/)).toBeTruthy()
+    expect(within(adapterCard("escrowPolicy")).getByText(/only real-money path: accept it last/)).toBeTruthy()
+    const path = screen.getByRole("heading", { name: "Handing a target over to the DAO" }).parentElement!
+    expect(within(path).getByText("At least 4 people with 6 points vote yes, then 24 hours pass. Or 5 core developers vote yes, then 72 hours pass.")).toBeTruthy()
+    expect(within(path).getByRole("note").textContent).toMatch(/One open acceptance at a time: executing any application action invalidates every other open proposal/)
 })

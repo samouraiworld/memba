@@ -146,3 +146,43 @@ export async function readAcceptanceStates(ctx: WeightedContext, policies: { key
         .then(read => [key, acceptanceState(read, dao)] as const, () => [key, "error"] as const)))
     return Object.fromEntries(entries) as Partial<Record<ApplicationPolicyKey, AcceptanceState | "error">>
 }
+
+// ── Recommended handoff order ────────────────────────────────────────────────
+
+/**
+ * The order in which the DAO should accept the ten targets (mainnet handoff
+ * plan, step B): the simplest target first to prove the pipeline, escrow
+ * (the only real-money path) last. Acceptances run strictly one at a time.
+ */
+export const ACCEPTANCE_ORDER: readonly ApplicationPolicyKey[] = [
+    "marketPolicy", "badgesPolicy", "feedPolicy", "feedbackPolicy", "channelsPolicy",
+    "reviewsPolicy", "arcadePolicy", "questPolicy", "appstorePolicy", "escrowPolicy",
+]
+
+/** What changes on each target once the DAO has accepted it. */
+export const ACCEPTANCE_CONSEQUENCES: Record<ApplicationPolicyKey, string> = {
+    marketPolicy: "The simplest target: accept it first to prove the handoff. Fees and the treasury then need financial votes.",
+    badgesPolicy: "Acceptance retires the publisher's admin grant. Appoint an operational admin by a critical vote if badges must keep being minted.",
+    feedPolicy: "Afterwards, content moderation needs moderators appointed by a critical vote.",
+    feedbackPolicy: "The outgoing owner's admin role and membership are retired on acceptance.",
+    channelsPolicy: "The outgoing owner's admin role and membership are retired on acceptance.",
+    reviewsPolicy: "Routine moderation (hide and unhide) becomes a DAO vote.",
+    arcadePolicy: "Accept only once the publisher has appointed the score attester; later appointments need a critical vote.",
+    questPolicy: "Accept only once the publisher has set the voucher signer; later rotations need a critical vote.",
+    appstorePolicy: "Acceptance makes the DAO the curator and removes the publisher's curator grant. Listing approvals then need routine votes.",
+    escrowPolicy: "The only real-money path: accept it last. Dispute resolution then becomes a financial DAO vote.",
+}
+
+/**
+ * The first target in the recommended order that the DAO does not control
+ * yet, or null when all ten are handed over. Unknown until every earlier
+ * target's state has been read: a failed or pending read returns null.
+ */
+export function nextRecommendedAcceptance(states: Partial<Record<ApplicationPolicyKey, AcceptanceState | "error">>): ApplicationPolicyKey | null {
+    for (const key of ACCEPTANCE_ORDER) {
+        const state = states[key]
+        if (state === undefined || state === "error") return null
+        if (state.kind !== "dao") return key
+    }
+    return null
+}

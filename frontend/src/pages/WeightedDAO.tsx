@@ -4,7 +4,7 @@ import { NETWORKS, GNO_CHAIN_ID, GNO_RPC_URL } from "../lib/config"
 import { isUnreadableProposal, readWeightedBallot, validateWeightedRecovery, weightedApplicationPolicies, weightedWritesSupported, weightedWriteKinds, weightedVoteChoices, weightedAuthority, assertWeightedWrites, assertWeightedPlanSignable, planWeightedTx, readOpenWeightedProposals, readWeightedProposal, readWeightedSnapshot, WEIGHTED_APPLICATIONS_SCHEMA, WEIGHTED_WRITE_HOLD_CHAINS, type WeightedAction, type WeightedConfig, type WeightedBallot, type WeightedContext, type WeightedInvalidation, type WeightedPageEntry, type WeightedProposal, type WeightedWriteKind } from "../lib/dao/weighted"
 import { revealInvisibleFormatting as reveal } from "../lib/dao/v2Text"
 import { ACCEPT_FUNCS, APPLICATION_LABELS, IMMEDIATE_THRESHOLDS, acceptAdapterFor, applicationDetails, flattenBefore, type ApplicationPolicyKey, type WeightedApplicationAction } from "../lib/dao/weightedApplications"
-import { ACCEPTANCE_LABELS, AUTHORITY_GETTERS, acceptanceState, readAcceptanceStates, readTargetAuthority, weightedDaoAddress, type AcceptanceState } from "../lib/dao/weightedAcceptance"
+import { ACCEPTANCE_CONSEQUENCES, ACCEPTANCE_LABELS, ACCEPTANCE_ORDER, AUTHORITY_GETTERS, nextRecommendedAcceptance, acceptanceState, readAcceptanceStates, readTargetAuthority, weightedDaoAddress, type AcceptanceState } from "../lib/dao/weightedAcceptance"
 import { v12CallBudget } from "../lib/dao/weightedBudget"
 import { WalletNetworkError } from "../lib/walletNetworkGuard"
 import { assertLiveWalletChain } from "../lib/dao/weightedWallet"
@@ -269,24 +269,42 @@ const CATEGORY_KEYS = ["signerCategory", "attesterCategory", "curatorCategory", 
 
 function ApplicationPolicies({ config, acceptance, canAccept, eligible, held, openProposals, submit }: { config: WeightedConfig; acceptance: AcceptanceStates; canAccept: boolean; eligible: boolean; held: boolean; openProposals: WeightedProposal[]; submit: (action: WeightedAction) => Promise<void> }) {
     const openAccept = openProposals.find(p => acceptAdapterFor(p.action) !== null)
+    const policies = new Map(weightedApplicationPolicies(config).map(({ key, policy }) => [key, policy]))
+    const next = nextRecommendedAcceptance(acceptance)
     return <section aria-labelledby="weighted-adapters"><h2 id="weighted-adapters">Application adapters</h2>
         <p>Each adapter governs one fixed realm. A return proposal only stages the configured successor, who must accept separately.</p>
-        <p className="weighted-dao__warning" role="note">Executing any application action invalidates every other open proposal. Hand the adapters over one at a time: propose the next acceptance only after the previous one has executed.</p>
+        <div className="k-card weighted-dao__handoff" aria-labelledby="weighted-handoff">
+            <h3 id="weighted-handoff">Handing a target over to the DAO</h3>
+            <p>The publisher first nominates the DAO as the target's pending owner. Then each acceptance is a critical proposal:</p>
+            <ol>
+                <li>Any member proposes the acceptance.</li>
+                <li>At least 4 people with 6 points vote yes, then 24 hours pass. Or 5 core developers vote yes, then 72 hours pass.</li>
+                <li>Any member executes it. The page then reads the target again to confirm the DAO controls it.</li>
+            </ol>
+            <p>Voting closes after 7 days; a proposal that qualified before that keeps its delay.</p>
+            <p className="weighted-dao__warning" role="note">One open acceptance at a time: executing any application action invalidates every other open proposal. Propose the next acceptance only after the previous one has executed, in the numbered order below.</p>
+        </div>
         {held && <p>Acceptance proposals stay disabled on mainnet until the governance write hold is lifted.</p>}
-        <ul className="weighted-dao__adapters">{weightedApplicationPolicies(config).map(({ key, policy }) => <li className="k-card" key={key} aria-label={`${key} adapter`}>
-            <h3>{POLICY_LABELS[key]}</h3>
-            <p className="weighted-dao__path">Target: {reveal(policy.target)}</p>
-            <p className="weighted-dao__path">Successor: {reveal(policy.successor)}</p>
-            {"treasury" in policy && <p className="weighted-dao__path">Treasury: {reveal(policy.treasury)}</p>}
-            {"maxRegistrationFee" in policy && <p>Maximum registration fee: {reveal(policy.maxRegistrationFee)} ugnot</p>}
-            <p>{CATEGORY_KEYS.filter(k => k in policy).map(k => `${k.replace(/Category$/, "")}: ${(policy as Record<string, unknown>)[k]}`).join(" · ") || POLICY_NOTES[key]}</p>
-            {"emergencyPause" in policy && <p>Any current member can pause it immediately; unpausing needs a financial vote.</p>}
-            <AdapterAuthority adapter={key} state={acceptance[key]} dao={weightedDaoAddress(config.realmPath)} canAccept={canAccept} eligible={eligible} held={held} openAccept={openAccept?.id} submit={submit} />
-        </li>)}</ul>
+        <ol className="weighted-dao__adapters">{ACCEPTANCE_ORDER.map((key, index) => {
+            const policy = policies.get(key)
+            if (!policy) return null
+            return <li className={`k-card${key === next ? " weighted-dao__adapter--next" : ""}`} key={key} aria-label={`${key} adapter`}>
+                <p className="weighted-dao__eyebrow">Handoff {index + 1} of {ACCEPTANCE_ORDER.length}{key === next && <> · <strong className="weighted-dao__next">Next recommended</strong></>}</p>
+                <h3>{POLICY_LABELS[key]}</h3>
+                <p className="weighted-dao__path">Target: {reveal(policy.target)}</p>
+                <p className="weighted-dao__path">Successor: {reveal(policy.successor)}</p>
+                {"treasury" in policy && <p className="weighted-dao__path">Treasury: {reveal(policy.treasury)}</p>}
+                {"maxRegistrationFee" in policy && <p>Maximum registration fee: {reveal(policy.maxRegistrationFee)} ugnot</p>}
+                <p>{CATEGORY_KEYS.filter(k => k in policy).map(k => `${k.replace(/Category$/, "")}: ${(policy as Record<string, unknown>)[k]}`).join(" · ") || POLICY_NOTES[key]}</p>
+                {"emergencyPause" in policy && <p>Any current member can pause it immediately; unpausing needs a financial vote.</p>}
+                <p className="weighted-dao__consequence">{ACCEPTANCE_CONSEQUENCES[key]}</p>
+                <AdapterAuthority adapter={key} state={acceptance[key]} dao={weightedDaoAddress(config.realmPath)} canAccept={canAccept} eligible={eligible} held={held} openAccept={openAccept?.id} next={next} submit={submit} />
+            </li>
+        })}</ol>
     </section>
 }
 
-function AdapterAuthority({ adapter, state, dao, canAccept, eligible, held, openAccept, submit }: { adapter: ApplicationPolicyKey; state: AcceptanceState | "error" | undefined; dao: string; canAccept: boolean; eligible: boolean; held: boolean; openAccept?: string; submit: (action: WeightedAction) => Promise<void> }) {
+function AdapterAuthority({ adapter, state, dao, canAccept, eligible, held, openAccept, next, submit }: { adapter: ApplicationPolicyKey; state: AcceptanceState | "error" | undefined; dao: string; canAccept: boolean; eligible: boolean; held: boolean; openAccept?: string; next: ApplicationPolicyKey | null; submit: (action: WeightedAction) => Promise<void> }) {
     const role = AUTHORITY_GETTERS[adapter].authority
     if (state === undefined) return <p className="weighted-dao__authority" role="status">Reading the target's {role}…</p>
     if (state === "error") return <p className="weighted-dao__authority">Handoff status: the target's {role} could not be read. Refresh chain state to try again.</p>
@@ -306,6 +324,7 @@ function AdapterAuthority({ adapter, state, dao, canAccept, eligible, held, open
             <p className="weighted-dao__path">The DAO is the pending {role}. Current {role}: {reveal(state.current)}.</p>
             <p>The proposal locks up to {formatUgnotExact(budget.maxDepositUgnot)} of storage deposit from the proposer.</p>
             {openAccept && <p>Acceptance proposal #{openAccept} is still open. Propose this one after it executes or closes.</p>}
+            {next && next !== adapter && <p>The recommended order hands over {POLICY_LABELS[next]} first.</p>}
             {!eligible && !held && <p>Proposing requires a connected, authenticated member on the selected test network.</p>}
             <button type="button" disabled={!canAccept || !!openAccept} onClick={() => void submit({ type: "accept", adapter })}>Propose acceptance</button>
         </>}

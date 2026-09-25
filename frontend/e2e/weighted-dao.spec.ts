@@ -192,6 +192,12 @@ test('weighted DAO v12 on a test network proposes an adapter acceptance with its
     const market = workspace.getByRole('listitem', { name: 'marketPolicy adapter' })
     await expect(market.getByText('Ready to accept')).toBeVisible()
     await expect(market.getByText('The proposal locks up to 2.13 GNOT of storage deposit from the proposer.')).toBeVisible()
+    // Handoff order: market config is number 1 and, the others being DAO-controlled here, the next one.
+    await expect(market.getByText(/^Handoff 1 of 10/)).toBeVisible()
+    await expect(workspace.getByText('Next recommended')).toHaveCount(1)
+    await expect(market.getByText('Next recommended')).toBeVisible()
+    await expect(workspace.getByRole('listitem', { name: /adapter$/ }).last()).toHaveAttribute('aria-label', 'escrowPolicy adapter')
+    await expect(workspace.getByText('At least 4 people with 6 points vote yes, then 24 hours pass. Or 5 core developers vote yes, then 72 hours pass.')).toBeVisible()
     await expect(workspace.getByRole('listitem', { name: 'questPolicy adapter' }).getByText('DAO controls')).toBeVisible()
     await expect(workspace.getByRole('listitem', { name: 'questPolicy adapter' }).getByRole('button')).toHaveCount(0)
     // Role and recovery proposals stay unavailable for this contract version.
