@@ -6,6 +6,7 @@ import { revealInvisibleFormatting as reveal } from "../lib/dao/v2Text"
 import { ACCEPT_FUNCS, APPLICATION_LABELS, IMMEDIATE_THRESHOLDS, acceptAdapterFor, applicationDetails, flattenBefore, type ApplicationPolicyKey, type WeightedApplicationAction } from "../lib/dao/weightedApplications"
 import { ACCEPTANCE_LABELS, AUTHORITY_GETTERS, acceptanceState, readAcceptanceStates, readTargetAuthority, weightedDaoAddress, type AcceptanceState } from "../lib/dao/weightedAcceptance"
 import { v12CallBudget } from "../lib/dao/weightedBudget"
+import { WalletNetworkError } from "../lib/walletNetworkGuard"
 import { assertLiveWalletChain } from "../lib/dao/weightedWallet"
 import { formatUgnotExact } from "../lib/dao/v2Budget"
 import { proposalIdFromTxResult } from "../lib/dao/daoTx"
@@ -202,7 +203,9 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
             setNotice(outcome)
             await refresh("0")
         } catch (err) {
-            if (active.current) setError(`${err instanceof Error && err.name !== "ZodError" ? err.message : "Invalid action data; verify the replacement address and its checksum"}. No automatic retry. Refresh chain state before trying again.`)
+            // A wallet-network refusal already says what to do (unlock, reconnect, switch network) and sent nothing.
+            if (active.current) setError(err instanceof WalletNetworkError ? err.message
+                : `${err instanceof Error && err.name !== "ZodError" ? err.message : "Invalid action data; verify the replacement address and its checksum"}. No automatic retry. Refresh chain state before trying again.`)
         } finally { operation.current = false; if (active.current) setBusy(false) }
     }
     return <div className="weighted-dao">

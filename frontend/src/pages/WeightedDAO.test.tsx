@@ -5,6 +5,7 @@ import { WeightedDAO } from "./WeightedDAO"
 import { readOpenWeightedProposals, readWeightedBallot, readWeightedProposal, readWeightedSnapshot, type WeightedProposal } from "../lib/dao/weighted"
 import { assertLiveWalletChain } from "../lib/dao/weightedWallet"
 import { doContractBroadcast } from "../lib/grc20"
+import { WalletNetworkError } from "../lib/walletNetworkGuard"
 import { bech32Encode } from "../lib/dao/realmAddress"
 import { weightedFixture, weightedRealm } from "../lib/dao/testdata/weighted"
 import v12Native from "../lib/dao/testdata/weighted-v12/native.json"
@@ -467,6 +468,17 @@ it("runs the hold-list wallet check once, after the page's own pre-sign rechecks
     const walletCheck = vi.mocked(assertLiveWalletChain).mock.invocationCallOrder[0]
     const recheck = vi.mocked(readTargetAuthority).mock.invocationCallOrder.at(-1)!
     expect(recheck).toBeLessThan(walletCheck)
+})
+it("shows a wallet refusal as the wallet's own instruction, without the refresh-chain-state suffix", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    acceptance.marketPolicy = { current: PUBLISHER, pending: DAO, failed: [] }
+    vi.mocked(assertLiveWalletChain).mockRejectedValue(new WalletNetworkError("Adena is locked — unlock it, then try again."))
+    render(<App network="pearl" address={v12Snapshot().members[1].address} />)
+    const market = await screen.findByRole("listitem", { name: "marketPolicy adapter" })
+    fireEvent.click(await within(market).findByRole("button", { name: "Propose acceptance" }))
+    const alert = await screen.findByRole("alert")
+    expect(alert.textContent).toContain("Adena is locked — unlock it, then try again.")
+    expect(alert.textContent).not.toMatch(/Refresh chain state|No automatic retry|\.\./)
 })
 it("finds an open acceptance on an older page before proposing another", async () => {
     vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
