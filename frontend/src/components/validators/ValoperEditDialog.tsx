@@ -138,7 +138,6 @@ export function ValoperEditDialog({ open, onClose, profile, token, onSaved }: Pr
                         />
                     </div>
                     <EditField label="Twitter / X" value={form.twitter} onChange={(v) => set("twitter", v)} maxLen={256} placeholder="@handle or URL" />
-                    <EditField label="GitHub" value={form.github} onChange={(v) => set("github", v)} maxLen={256} placeholder="https://github.com/..." />
                     <EditField label="Website" value={form.website} onChange={(v) => set("website", v)} maxLen={256} placeholder="https://..." />
                 </div>
 

@@ -322,8 +322,9 @@ func TestUpdateProfile_ReadBackAfterUpdate(t *testing.T) {
 	if resp.Msg.Profile.Bio != "Round-trip test" {
 		t.Fatalf("expected bio 'Round-trip test', got %q", resp.Msg.Profile.Bio)
 	}
-	if resp.Msg.Profile.Github != "samouraiworld" {
-		t.Fatalf("expected github 'samouraiworld', got %q", resp.Msg.Profile.Github)
+	// github is only set by the verified OAuth exchange, never by UpdateProfile.
+	if resp.Msg.Profile.Github != "" {
+		t.Fatalf("expected unverified github to be ignored, got %q", resp.Msg.Profile.Github)
 	}
 	if resp.Msg.Profile.Website != "https://memba.app" {
 		t.Fatalf("expected website 'https://memba.app', got %q", resp.Msg.Profile.Website)

@@ -11,6 +11,7 @@ import { GNOLOVE_API_URL, GITHUB_OAUTH_CLIENT_ID, API_BASE_URL, getExplorerBaseU
 import { ReviewsSection } from "../components/reviews/ReviewsSection"
 import { resolveAvatarUrl } from "../lib/ipfs"
 import { fetchUserProfile, updateBackendProfile, type UserProfile } from "../lib/profile"
+import { walletBearer } from "../lib/walletBearer"
 import { MetaChip, SocialLink, ContribStat, EditField, RegisterUsernameForm, MyVotesSection } from "../components/profile"
 // Lazy — AdminPanelLink pulls in the Clerk SDK (~72KB gz via useClerkAuth). It
 // only renders on your OWN authenticated profile, and this page is prefetched on
@@ -74,8 +75,7 @@ export function ProfilePage() {
 
     // The old loadProfile also cleared the avatar-error flag on every reload —
     // a refetched profile may carry a new (working) avatar URL. refetch is
-    // referentially stable, so reloadProfile is too (the pending-GitHub-link
-    // effect depends on it).
+    // referentially stable, so reloadProfile is too.
     const { refetch: refetchProfile } = profileQuery
     const reloadProfile = useCallback(() => {
         setAvatarError(false)
@@ -90,24 +90,9 @@ export function ProfilePage() {
         trackPageVisit("profile", auth.token ?? undefined)
     }, [isOwnProfile, auth.token])
 
-    // Auto-apply pending GitHub link (deferred from OAuth redirect)
-    useEffect(() => {
-        const pending = localStorage.getItem("pendingGithubLink")
-        if (pending && auth.isAuthenticated && auth.token && isOwnProfile) {
-            try {
-                const { login, ts } = JSON.parse(pending)
-                if (Date.now() - ts < 600_000) { // 10min expiry
-                    const ghUrl = login.startsWith("http") ? login : `https://github.com/${login}`
-                    updateBackendProfile(auth.token, { github: ghUrl })
-                        .then(() => { localStorage.removeItem("pendingGithubLink"); void reloadProfile() })
-                        .catch(() => { /* silent — user can retry manually */ })
-                } else {
-                    localStorage.removeItem("pendingGithubLink")
-                }
-            } catch { localStorage.removeItem("pendingGithubLink") }
-        }
-    }, [auth.isAuthenticated, auth.token, isOwnProfile, reloadProfile])
-
+    // github stays in the form so a save sends back the current link, but it
+    // is not editable: the backend only sets it through the verified GitHub
+    // OAuth exchange (Link GitHub) and ignores any other value.
     const startEditing = () => {
         if (!profile) return
         setEditForm({
@@ -268,7 +253,6 @@ export function ProfilePage() {
                             />
                         </div>
                         <EditField label="Twitter / X" value={editForm.twitter} onChange={(v) => setEditForm(f => ({ ...f, twitter: v }))} maxLen={256} placeholder="@handle or URL" />
-                        <EditField label="GitHub" value={editForm.github} onChange={(v) => setEditForm(f => ({ ...f, github: v }))} maxLen={256} placeholder="https://github.com/..." />
                         <EditField label="Website" value={editForm.website} onChange={(v) => setEditForm(f => ({ ...f, website: v }))} maxLen={256} placeholder="https://..." />
                     </div>
                     <div className="profile-edit-actions">
@@ -351,16 +335,21 @@ export function ProfilePage() {
                                         </div>
                                         <button
                                             onClick={async () => {
+                                                // The backend binds the OAuth state to this wallet's
+                                                // session, so a link can only complete for the wallet
+                                                // that started it. No session → no state → no redirect.
+                                                if (!auth.token) { setActionError("Sign in with your wallet to link GitHub."); return }
                                                 if (adena.address) sessionStorage.setItem("returnToProfile", adena.address)
                                                 try {
-                                                    const res = await fetch(`${API_BASE_URL}/github/oauth/state`)
+                                                    const res = await fetch(`${API_BASE_URL}/github/oauth/state`, {
+                                                        headers: { Authorization: walletBearer(auth.token) },
+                                                    })
                                                     const data = await res.json()
-                                                    const state = data.state || ""
+                                                    if (!res.ok || !data.state) throw new Error(data.error || `HTTP ${res.status}`)
                                                     const redirectUri = encodeURIComponent(window.location.origin + "/github/callback")
-                                                    window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_OAUTH_CLIENT_ID}&redirect_uri=${redirectUri}&scope=read:user&state=${state}`
+                                                    window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_OAUTH_CLIENT_ID}&redirect_uri=${redirectUri}&scope=read:user&state=${encodeURIComponent(data.state)}`
                                                 } catch {
-                                                    const redirectUri = encodeURIComponent(window.location.origin + "/github/callback")
-                                                    window.location.href = `https://github.com/login/oauth/authorize?client_id=${GITHUB_OAUTH_CLIENT_ID}&redirect_uri=${redirectUri}&scope=read:user`
+                                                    setActionError("Could not start the GitHub link. Please try again.")
                                                 }
                                             }}
                                             className="profile-github-link-btn"

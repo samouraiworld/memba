@@ -63,24 +63,35 @@ func (s *MultisigService) UpdateProfile(ctx context.Context, req *connect.Reques
 	p.Title = sanitize(p.Title, maxFieldLen)
 	p.AvatarUrl = sanitizeURL(p.AvatarUrl, maxURLLen)
 	p.Twitter = sanitize(p.Twitter, maxSocialLen)
-	p.Github = sanitize(p.Github, maxSocialLen)
 	p.Website = sanitizeURL(p.Website, maxURLLen)
+
+	// github is server-verified: only the GitHub OAuth exchange
+	// (HandleGitHubOAuthExchange) sets it, for the wallet that proved the
+	// account. Here a client may only clear it ("" = unlink). Any other value
+	// is ignored and the stored link is kept, rather than rejecting the whole
+	// save, because profile forms send github back alongside the other fields.
+	unlinkGithub := strings.TrimSpace(p.Github) == ""
 
 	now := time.Now().UTC().Format(time.RFC3339)
 
-	_, err = s.db.ExecContext(ctx, `
+	// A new row never gets a client-supplied github (it is always ''); an
+	// existing row keeps its stored github unless this is an unlink. RETURNING
+	// hands back the value actually stored, in the same statement, so the
+	// response can't race a concurrent OAuth link.
+	err = s.db.QueryRowContext(ctx, `
 		INSERT INTO profiles (address, bio, company, title, avatar_url, twitter, github, website, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+		VALUES (?, ?, ?, ?, ?, ?, '', ?, ?)
 		ON CONFLICT(address) DO UPDATE SET
 			bio = excluded.bio,
 			company = excluded.company,
 			title = excluded.title,
 			avatar_url = excluded.avatar_url,
 			twitter = excluded.twitter,
-			github = excluded.github,
+			github = CASE WHEN ? THEN '' ELSE profiles.github END,
 			website = excluded.website,
 			updated_at = excluded.updated_at
-	`, p.Address, p.Bio, p.Company, p.Title, p.AvatarUrl, p.Twitter, p.Github, p.Website, now)
+		RETURNING github
+	`, p.Address, p.Bio, p.Company, p.Title, p.AvatarUrl, p.Twitter, p.Website, now, unlinkGithub).Scan(&p.Github)
 	if err != nil {
 		return nil, internalError("UpdateProfile", err)
 	}

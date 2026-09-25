@@ -25,7 +25,7 @@ auth `Token` · **Admin** = requires auth **and** the caller to be in `QUEST_ADM
 | `SignTransaction` | ✅ | Add signature to pending transaction |
 | `CompleteTransaction` | ✅ | Record final tx hash after broadcast; the backend then does a best-effort `/tx` lookup against the chain and stores `Transaction.verified` accordingly (W2.3) |
 | `GetProfile` | No | Get public user profile (bio, social links, avatar) |
-| `UpdateProfile` | ✅ | Update own profile (bio, company, title, avatar, socials) |
+| `UpdateProfile` | ✅ | Update own profile (bio, company, title, avatar, socials). `github` can only be cleared (`""`); it is set by the GitHub OAuth exchange |
 
 ### Quests (GnoBuilders)
 
@@ -110,8 +110,8 @@ Public verification: `scripts/verify-blockparty-seed.mjs` +
 | Endpoint | Auth | Description |
 |----------|------|-------------|
 | `GET /health` | No | Health check → `{"status":"ok"}` |
-| `GET /github/oauth/state` | No | Generate CSRF state token (256-bit, 10min TTL, one-time-use) |
-| `GET /github/oauth/exchange?code=X&state=Y` | No | Exchange GitHub OAuth code for user info (validates CSRF state) |
+| `GET /github/oauth/state` | Yes (`Authorization: Bearer <token JSON>`) | Generate a CSRF state token bound to the caller's wallet (256-bit, 10min TTL, one-time-use); the exchange accepts it only from that wallet |
+| `GET /github/oauth/exchange?code=X&state=Y` | Yes (`Authorization: Bearer <token JSON>`) | Exchange GitHub OAuth code (validates CSRF state), store the verified GitHub link on the caller's profile, return user info |
 
 ## Protocol
 

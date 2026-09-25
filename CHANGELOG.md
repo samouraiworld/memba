@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### GitHub links on profiles are verified (2026-09-24)
+<!-- categories: memba -->
+- **New GitHub links on profiles are verified.** Before, "Link GitHub" checked the account but the page then saved the link itself, and any wallet could set any GitHub URL through a profile update. Links saved before this change are kept as they are.
+- The server now saves the link for the signed-in wallet once GitHub confirms the login. The link flow is tied to the wallet that started it, so a shared callback link can't attach someone else's GitHub account to your profile. Profile edits can only remove the link (Unlink GitHub), and the GitHub field is gone from the profile and validator edit forms.
+- If your wallet disconnects during the GitHub redirect, the callback page waits for you to sign in again, then finishes linking.
+
 ### Linking GitHub no longer erases the rest of your profile (2026-09-24)
 <!-- categories: memba -->
 - **Linking or unlinking GitHub kept only the GitHub link.** Your bio, company, title, avatar, X handle and website were blanked on every link, unlink or deferred link.

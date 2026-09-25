@@ -576,8 +576,11 @@ func main() {
 	mux.Handle("/api/feed/moderation", rateLimitMiddleware("feed_moderation", service.HandleFeedModeration(database)))
 
 	// GitHub OAuth — CSRF-protected state generation + code exchange
-	mux.Handle("/github/oauth/state", rateLimitMiddleware("oauth", service.HandleGitHubOAuthState(oauthStore)))
-	mux.Handle("/github/oauth/exchange", rateLimitMiddleware("oauth", service.HandleGitHubOAuthExchange(oauthStore)))
+	// The state is bound to the requesting wallet, so this needs the session too.
+	mux.Handle("/github/oauth/state", rateLimitMiddleware("oauth", githubOAuthStateHandler(svc, oauthStore)))
+	// The exchange writes the verified link onto the caller's profile, so it
+	// needs the wallet session token (401 without one, before any GitHub call).
+	mux.Handle("/github/oauth/exchange", rateLimitMiddleware("oauth", githubOAuthExchangeHandler(svc, oauthStore, database)))
 
 	// CORS – use connectrpc.com/cors helpers for correct header lists.
 	c := cors.New(corsOptions(corsOrigins))
@@ -853,6 +856,17 @@ func requireAuthAddressMiddleware(v restTokenAddressValidator, next http.Handler
 		}
 		next.ServeHTTP(w, r.WithContext(service.WithAuthAddress(r.Context(), addr)))
 	})
+}
+
+// githubOAuthExchangeHandler composes the GitHub OAuth exchange route: the
+// wallet session token is required, and the handler links the GitHub account
+// to that token's wallet.
+func githubOAuthStateHandler(v restTokenAddressValidator, store *service.OAuthStateStore) http.Handler {
+	return requireAuthAddressMiddleware(v, service.HandleGitHubOAuthState(store))
+}
+
+func githubOAuthExchangeHandler(v restTokenAddressValidator, store *service.OAuthStateStore, database *sql.DB) http.Handler {
+	return requireAuthAddressMiddleware(v, service.HandleGitHubOAuthExchange(store, database))
 }
 
 // analystConsensusHandler composes the analyst consensus route: AnalystGate

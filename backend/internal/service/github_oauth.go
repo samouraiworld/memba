@@ -3,12 +3,14 @@ package service
 import (
 	"context"
 	"crypto/rand"
+	"database/sql"
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"sync"
@@ -24,6 +26,11 @@ const (
 
 type oauthStateEntry struct {
 	expiry time.Time
+	// wallet is the authenticated address the state was issued to. The
+	// exchange only accepts the state from that same wallet, so a state (and
+	// the GitHub code minted with it) cannot be replayed into someone else's
+	// session to link a GitHub account they never authorized.
+	wallet string
 }
 
 // OAuthStateStore manages CSRF state tokens for GitHub OAuth.
@@ -57,21 +64,26 @@ func NewOAuthStateStore(ctx context.Context) *OAuthStateStore {
 	return s
 }
 
-// Generate creates a new cryptographically random state token and stores it.
-func (s *OAuthStateStore) Generate() (string, error) {
+// Generate creates a new cryptographically random state token bound to wallet
+// and stores it.
+func (s *OAuthStateStore) Generate(wallet string) (string, error) {
+	if wallet == "" {
+		return "", fmt.Errorf("oauth state needs an authenticated wallet")
+	}
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return "", fmt.Errorf("failed to generate state token: %w", err)
 	}
 	token := hex.EncodeToString(b)
 	s.mu.Lock()
-	s.entries[token] = oauthStateEntry{expiry: time.Now().Add(oauthStateTTL)}
+	s.entries[token] = oauthStateEntry{expiry: time.Now().Add(oauthStateTTL), wallet: wallet}
 	s.mu.Unlock()
 	return token, nil
 }
 
-// Validate checks and consumes a state token (one-time use).
-func (s *OAuthStateStore) Validate(token string) bool {
+// Validate checks and consumes a state token (one-time use). It succeeds only
+// for the wallet the state was issued to, and only before it expires.
+func (s *OAuthStateStore) Validate(token, wallet string) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	entry, ok := s.entries[token]
@@ -79,7 +91,7 @@ func (s *OAuthStateStore) Validate(token string) bool {
 		return false
 	}
 	delete(s.entries, token) // one-time use
-	return time.Now().Before(entry.expiry)
+	return time.Now().Before(entry.expiry) && wallet != "" && entry.wallet == wallet
 }
 
 // ── GitHub OAuth Types ───────────────────────────────────────────
@@ -108,13 +120,22 @@ type GitHubOAuthExchangeResponse struct {
 
 // ── Handlers ─────────────────────────────────────────────────────
 
-// HandleGitHubOAuthState generates a CSRF state token for the OAuth flow.
+// HandleGitHubOAuthState generates a CSRF state token for the OAuth flow,
+// bound to the authenticated wallet. Like the exchange, the route must sit
+// behind requireAuthAddressMiddleware; without a wallet it answers 401.
 //
 // GET /github/oauth/state → {"state": "<hex>"}
+// Authorization: Bearer <token JSON>
 func HandleGitHubOAuthState(store *OAuthStateStore) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		state, err := store.Generate()
+		wallet, ok := AuthAddressFrom(r.Context())
+		if !ok || wallet == "" {
+			w.WriteHeader(http.StatusUnauthorized)
+			writeJSON(w, map[string]string{"error": "authorization required"})
+			return
+		}
+		state, err := store.Generate(wallet)
 		if err != nil {
 			slog.Error("failed to generate oauth state", "error", err)
 			w.WriteHeader(http.StatusInternalServerError)
@@ -125,13 +146,29 @@ func HandleGitHubOAuthState(store *OAuthStateStore) http.HandlerFunc {
 	}
 }
 
-// HandleGitHubOAuthExchange exchanges a GitHub OAuth code for an access token
-// and returns the GitHub user info. Validates the CSRF state parameter.
+// HandleGitHubOAuthExchange exchanges a GitHub OAuth code for an access token,
+// then stores the confirmed GitHub account as the authenticated wallet's
+// profile link and returns the GitHub user info. Validates the CSRF state
+// parameter.
+//
+// The route must sit behind requireAuthAddressMiddleware: the wallet comes
+// from the validated session token (AuthAddressFrom), never from the request,
+// and the handler refuses with 401 when it is absent. This is the only path
+// that writes profiles.github to a non-empty value; UpdateProfile can only
+// clear it.
 //
 // GET /github/oauth/exchange?code=OAUTH_CODE&state=STATE_TOKEN
-func HandleGitHubOAuthExchange(store *OAuthStateStore) http.HandlerFunc {
+// Authorization: Bearer <token JSON>
+func HandleGitHubOAuthExchange(store *OAuthStateStore, db *sql.DB) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
+
+		wallet, ok := AuthAddressFrom(r.Context())
+		if !ok {
+			w.WriteHeader(http.StatusUnauthorized)
+			writeJSON(w, map[string]string{"error": "authorization required"})
+			return
+		}
 
 		// Validate CSRF state parameter
 		state := r.URL.Query().Get("state")
@@ -140,7 +177,10 @@ func HandleGitHubOAuthExchange(store *OAuthStateStore) http.HandlerFunc {
 			writeJSON(w, map[string]string{"error": "missing state parameter"})
 			return
 		}
-		if !store.Validate(state) {
+		// The state must have been issued to this same wallet: otherwise a
+		// callback link carrying someone else's code+state could attach their
+		// GitHub account to the victim's wallet (login CSRF).
+		if !store.Validate(state, wallet) {
 			slog.Warn("invalid or expired oauth state", "state_prefix", state[:min(8, len(state))])
 			w.WriteHeader(http.StatusForbidden)
 			writeJSON(w, map[string]string{"error": "invalid or expired state token (CSRF protection)"})
@@ -181,12 +221,39 @@ func HandleGitHubOAuthExchange(store *OAuthStateStore) http.HandlerFunc {
 			return
 		}
 
+		if user.Login == "" {
+			slog.Error("github user fetch returned no login")
+			w.WriteHeader(http.StatusBadGateway)
+			writeJSON(w, map[string]string{"error": "GitHub returned no login"})
+			return
+		}
+
+		if err := saveVerifiedGitHub(r.Context(), db, wallet, "https://github.com/"+url.PathEscape(user.Login)); err != nil {
+			slog.Error("failed to save verified github link", "error", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			writeJSON(w, map[string]string{"error": "Failed to save GitHub link"})
+			return
+		}
+
 		writeJSON(w, GitHubOAuthExchangeResponse{
 			Login:     user.Login,
 			AvatarURL: user.AvatarURL,
 			Name:      user.Name,
 		})
 	}
+}
+
+// saveVerifiedGitHub stores a GitHub link confirmed by the OAuth exchange on
+// the wallet's profile. It only touches the github column: an existing row
+// keeps every other field (updated_at included), and a new row gets the
+// column defaults.
+func saveVerifiedGitHub(ctx context.Context, db *sql.DB, wallet, githubURL string) error {
+	_, err := db.ExecContext(ctx, `
+		INSERT INTO profiles (address, github, updated_at)
+		VALUES (?, ?, ?)
+		ON CONFLICT(address) DO UPDATE SET github = excluded.github
+	`, wallet, githubURL, time.Now().UTC().Format(time.RFC3339))
+	return err
 }
 
 // writeJSON encodes v as JSON to w, logging any encode error.
