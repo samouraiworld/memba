@@ -48,6 +48,12 @@ export const DOCK_ROOM = 86
 const MIN_W = 320
 const MIN_H = 220
 
+/** Where a maximised window sits: the whole desk, under the guest banner while it shows. */
+export function maxGeometry(desk: DeskSize): { x: number; y: number; width: number; height: number } {
+    const top = 6 + (desk.top ?? 0)
+    return { x: 8, y: top, width: Math.max(0, desk.w - 16), height: Math.max(0, desk.h - top - DOCK_ROOM) }
+}
+
 export function welcomeSpec(): WindowSpec {
     return { key: "welcome", title: "Welcome to Memba", app: null, width: 560, height: 360, target: null }
 }

@@ -23,7 +23,7 @@ const WalletWindow = lazy(() => import("../wallet/WalletWindows").then((m) => ({
 import { classicForSection, pageNeedsWallet } from "../page/classicRoute"
 import { nativeView } from "../native/registry"
 import { WindowError } from "./WindowError"
-import { DOCK_ROOM, type DeskSize, type OsWindow, type WindowSpec } from "./windows"
+import { maxGeometry, type DeskSize, type OsWindow, type WindowSpec } from "./windows"
 
 interface Actions {
     session: OsSession
@@ -168,9 +168,7 @@ export function WindowFrame({ win, active, desk, frame, ...a }: Omit<Actions, "c
 }) {
     const ref = useRef<HTMLElement>(null)
     const drag = useRef<Drag | null>(null)
-    const g = win.max
-        ? { x: 8, y: 6, width: Math.max(0, desk.w - 16), height: Math.max(0, desk.h - 6 - DOCK_ROOM) }
-        : { x: win.x, y: win.y, width: win.width, height: win.height }
+    const g = win.max ? maxGeometry(desk) : { x: win.x, y: win.y, width: win.width, height: win.height }
     const style = { left: g.x, top: g.y, width: g.width, height: g.height, zIndex: 10 + win.z } as CSSProperties
 
     const begin = (mode: Drag["mode"], e: ReactPointerEvent<HTMLElement>) => {
