@@ -9,11 +9,13 @@
  * precaches it for every user — and the dev-server e2e can't see it.
  *
  * Detection: the "memba-os" root class (os.css + OsRoot.tsx), the OsRoot
- * chunk name, and any file whose name contains "manrope" — the self-hosted
- * font in src/os/fonts/, which the service worker would precache for every
- * user if it ever shipped flag-off. None of these appear anywhere outside
- * src/os, so any hit in dist/ is a leak. Positive control: run it on a beta
- * build (VITE_MEMBA_OS=true MEMBA_OS_BETA_SITE=true) and it must fail.
+ * chunk name, any file whose name contains "manrope", and — since a flag-off
+ * build inlines the self-hosted font as base64 (vite.config.ts's
+ * assetsInlineLimit override) rather than emitting a separate manrope-named
+ * file — any text file whose *contents* contain "manrope" too. None of these
+ * appear anywhere outside src/os, so any hit in dist/ is a leak. Positive
+ * control: run it on a beta build (VITE_MEMBA_OS=true
+ * MEMBA_OS_BETA_SITE=true) and it must fail.
  *
  * Usage (after `vite build`): node scripts/check-os-chunk.mjs [distDir]
  */
@@ -49,15 +51,18 @@ for (const p of all) {
 for (const p of files) {
   const rel = relative(DIST, p)
   const base = rel.split("/").pop()
-  if (FONT_NAME.test(base)) { leaks.push(`${rel} (Memba OS font)`); continue }
-  if (CHUNK_NAME.test(base)) leaks.push(`${rel} (Memba OS chunk)`)
-  else if (readFileSync(p, "utf8").includes(SENTINEL)) leaks.push(`${rel} (contains "${SENTINEL}")`)
+  if (CHUNK_NAME.test(base)) { leaks.push(`${rel} (Memba OS chunk)`); continue }
+  const text = readFileSync(p, "utf8")
+  if (text.includes(SENTINEL)) leaks.push(`${rel} (contains "${SENTINEL}")`)
+  else if (FONT_NAME.test(text)) leaks.push(`${rel} (contains "manrope" — a flag-off build inlines the font as base64; see assetsInlineLimit in vite.config.ts)`)
 }
 
 if (leaks.length) {
   fail(
     `Memba OS code is in a flag-off build:\n  - ${leaks.join("\n  - ")}\n` +
-      `Keep the lazy import in App.tsx behind OS_ENABLED so the chunk is never emitted or precached.`,
+      `Keep the lazy import in App.tsx behind OS_ENABLED so the chunk is never emitted or precached, ` +
+      `and keep any src/os import (including os-fonts.css) reachable only from that lazy subtree — ` +
+      `see the assetsInlineLimit override in vite.config.ts for why the font can't just be a public asset.`,
   )
 }
 
