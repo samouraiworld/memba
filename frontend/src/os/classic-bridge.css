@@ -1,0 +1,112 @@
+/*
+ * Memba pages inside Memba OS windows wear the Aqua tokens. OS chunk only: nothing
+ * here reaches production. Every alias from index.css/tokens.css is redeclared,
+ * because a var() in a custom property resolves where it is declared (:root).
+ */
+.memba-os .os-classic {
+  /* base layer (index.css) */
+  --color-k-bg: transparent;
+  --color-k-elevated: var(--os-card);
+  --color-k-panel: var(--os-card);
+  --color-k-panel-hover: var(--os-hover);
+  --color-k-edge: var(--os-line);
+  --color-k-edge-hover: color-mix(in srgb, var(--os-ink) 18%, transparent);
+  --color-k-dashed: var(--os-line);
+  --color-k-text: var(--os-ink);
+  --color-k-dim: var(--os-mut);
+  --color-k-muted: var(--os-mut);
+  --color-k-accent: var(--os-acc);
+  --color-k-accent-hover: var(--os-acc);
+  --color-k-accent-text: var(--os-acc-ink);
+  --color-k-on-accent: var(--os-on-acc);
+  --color-k-accent-subtle: var(--os-chip);
+  --color-k-accent-tint: var(--os-chip);
+  --color-k-accent-border: color-mix(in srgb, var(--os-acc) 30%, transparent);
+  --color-k-accent-border-strong: color-mix(in srgb, var(--os-acc) 45%, transparent);
+  --color-k-amber-subtle: var(--os-warn-bg);
+  --color-k-amber-tint: var(--os-warn-bg);
+  --color-k-amber-border: color-mix(in srgb, var(--os-warn) 35%, transparent);
+  --color-k-warning: var(--os-warn);
+  --color-k-warning-text: var(--os-warn);
+  --color-k-danger: var(--os-err);
+  --color-k-danger-text: var(--os-err);
+  --color-k-danger-tint: var(--os-err-bg);
+  --color-k-danger-border: color-mix(in srgb, var(--os-err) 30%, transparent);
+  --color-k-success-text: var(--os-ok);
+  --color-k-info-text: var(--os-acc-ink);
+  --color-k-purple-text: var(--os-acc-ink);
+  --color-k-featured-border: var(--os-line);
+  --color-k-featured-bg: var(--os-chip);
+  --color-k-scrim: var(--os-scrim);
+  --color-k-hover-surface: var(--os-hover);
+  /* aliases (tokens.css, professional.css) */
+  --color-primary: var(--os-acc);
+  --color-brand: var(--os-acc);
+  --color-primary-bg: var(--os-chip);
+  --color-primary-border: color-mix(in srgb, var(--os-acc) 25%, transparent);
+  --color-primary-hover: var(--os-chip);
+  --color-text: var(--os-ink);
+  --color-text-primary: var(--os-ink);
+  --color-text-secondary: var(--os-mut);
+  --color-text-muted: var(--os-mut);
+  --color-text-dim: var(--os-mut);
+  --color-text-contrast: var(--os-on-acc);
+  --color-bg: transparent;
+  --color-bg-card: var(--os-card);
+  --color-bg-hover: var(--os-hover);
+  --color-surface: var(--os-card);
+  --color-surface-hover: var(--os-hover);
+  --color-surface-active: var(--os-chip);
+  --color-surface-input: var(--os-card);
+  --color-border: var(--os-line);
+  --color-border-light: var(--os-line);
+  --color-overlay: var(--os-scrim);
+  --color-overlay-light: var(--os-scrim);
+  --color-danger: var(--os-err);
+  --color-danger-bg: var(--os-err-bg);
+  --color-warning: var(--os-warn);
+  --color-warning-bg: var(--os-warn-bg);
+  --color-success: var(--os-ok);
+  --color-info: var(--os-acc-ink);
+  /* type and shape: body text in Manrope; --font-mono stays for addresses and code */
+  --font-sans: var(--os-font);
+  --font-ui: var(--os-font);
+  --gl-font-mono: var(--os-font);
+  --radius-md: var(--os-radius-ctl);
+  --radius-lg: 12px;
+  /* Dev Report charts (read by hooks/useChartTokens) */
+  --gl-color-chart-bg: transparent;
+  --gl-color-chart-grid: var(--os-line);
+  --gl-color-chart-axis-fg: var(--os-mut);
+  --gl-color-chart-tooltip-border: var(--os-line);
+  --gl-color-chart-series-primary: var(--os-acc);
+  --gl-color-chart-series-reviewed: var(--os-ok);
+  --gl-color-chart-series-open: var(--os-warn);
+  --gl-color-chart-series-commits: var(--os-acc-ink);
+  --gl-color-chart-series-issues: var(--os-err);
+  --gl-color-chart-series-danger: var(--os-err);
+  --gl-color-chart-series-neutral: var(--os-mut);
+  color: var(--os-ink);
+  font-family: var(--os-font);
+}
+
+/* Shared classic primitives, reshaped like the OS controls (shell.css os-btn / os-card / os-in). */
+.memba-os .os-classic .k-card { background: var(--os-card); border: 1px solid var(--os-line); border-radius: 12px; box-shadow: none; }
+.memba-os .os-classic .k-btn-primary {
+  background: var(--os-acc); color: var(--os-on-acc); border: 0; border-radius: var(--os-radius-ctl);
+  font-weight: 700; box-shadow: none; text-shadow: none;
+}
+.memba-os .os-classic .k-btn-primary:hover:not(:disabled) { filter: brightness(1.06); }
+.memba-os .os-classic .k-btn-secondary {
+  background: var(--os-card); color: var(--os-ink); border: 1px solid var(--os-line); border-radius: var(--os-radius-ctl); font-weight: 600;
+}
+.memba-os .os-classic .k-btn-secondary:hover:not(:disabled) { background: var(--os-hover); }
+.memba-os .os-classic .k-label { font-family: var(--os-font); font-weight: 800; letter-spacing: .06em; color: var(--os-mut); }
+.memba-os .os-classic :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea) {
+  font-family: var(--os-font); color: var(--os-ink); background: var(--os-card);
+  border: 1px solid var(--os-line); border-radius: var(--os-radius-ctl);
+}
+.memba-os .os-classic :is(input, select, textarea):focus-visible { outline: none; border-color: var(--os-acc); box-shadow: 0 0 0 3px var(--os-chip); }
+.memba-os .os-classic a:not([class]) { color: var(--os-acc-ink); }
+/* The route loader (ConnectingLoader via PageLoader) is sized for a browser page. */
+.memba-os .os-classic .animate-glow { animation: none; }
