@@ -8,10 +8,12 @@
  * ever stops folding, the chunk is emitted again and the service worker
  * precaches it for every user — and the dev-server e2e can't see it.
  *
- * Detection: the "memba-os" root class (os.css + OsRoot.tsx) and the OsRoot
- * chunk name. Neither appears anywhere outside src/os, so any hit in dist/ is a
- * leak. Positive control: run it on a beta build (VITE_MEMBA_OS=true
- * MEMBA_OS_BETA_SITE=true) and it must fail.
+ * Detection: the "memba-os" root class (os.css + OsRoot.tsx), the OsRoot
+ * chunk name, and any file whose name contains "manrope" — the self-hosted
+ * font in src/os/fonts/, which the service worker would precache for every
+ * user if it ever shipped flag-off. None of these appear anywhere outside
+ * src/os, so any hit in dist/ is a leak. Positive control: run it on a beta
+ * build (VITE_MEMBA_OS=true MEMBA_OS_BETA_SITE=true) and it must fail.
  *
  * Usage (after `vite build`): node scripts/check-os-chunk.mjs [distDir]
  */
@@ -21,6 +23,7 @@ import { join, relative, resolve } from "node:path"
 const DIST = resolve(process.argv[2] || "dist")
 const SENTINEL = "memba-os"
 const CHUNK_NAME = /^OsRoot[-.]/i
+const FONT_NAME = /manrope/i
 
 function fail(msg) {
   console.error(`\n❌ bundle gate (check-os-chunk): ${msg}\n`)
@@ -36,11 +39,17 @@ function walk(dir) {
   })
 }
 
-const files = walk(DIST).filter((p) => /\.(js|mjs|css|html|webmanifest|json)$/.test(p))
+const all = walk(DIST)
+const files = all.filter((p) => /\.(js|mjs|css|html|webmanifest|json)$/.test(p))
 const leaks = []
+for (const p of all) {
+  const rel = relative(DIST, p)
+  if (FONT_NAME.test(rel)) leaks.push(`${rel} (Memba OS font)`)
+}
 for (const p of files) {
   const rel = relative(DIST, p)
   const base = rel.split("/").pop()
+  if (FONT_NAME.test(base)) { leaks.push(`${rel} (Memba OS font)`); continue }
   if (CHUNK_NAME.test(base)) leaks.push(`${rel} (Memba OS chunk)`)
   else if (readFileSync(p, "utf8").includes(SENTINEL)) leaks.push(`${rel} (contains "${SENTINEL}")`)
 }

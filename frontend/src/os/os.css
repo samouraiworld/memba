@@ -1,8 +1,6 @@
 /*
  * Memba OS · Aqua tokens (light + dark). Scoped to .memba-os so nothing here
  * leaks into the current app. The reference is the validated mockup v4.
- * Manrope isn't bundled yet (the CSP only allows self-hosted fonts), so the
- * stack falls back to Inter, which Memba already ships.
  */
 .memba-os {
   --os-font: 'Manrope', 'Inter', system-ui, -apple-system, sans-serif;

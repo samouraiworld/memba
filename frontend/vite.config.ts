@@ -104,141 +104,160 @@ function sitemapPlugin(): PluginOption {
 }
 
 // https://vite.dev/config/
-export default defineConfig(({ mode }) => ({
-  envDir: '..', // Load .env from repo root (where all VITE_* vars live)
-  define: {
-    __APP_VERSION__: JSON.stringify(pkg.version),
-  },
-  build: {
-    sourcemap: true, // Required for Sentry source map uploads
-    rollupOptions: {
-      output: {
-        // Function form (BARRICADE 3D, PR-0c): unlike the object form, a module is
-        // grouped ONLY when it is actually in the graph — so three / react-three-fiber
-        // land in `vendor-three` EXCLUSIVELY via the lazy Barricade3D import (async),
-        // never force-bundled into the eager graph the way object-form roots would be.
-        // The Workbox precache-exclusion + bundle CI gate below keep it isolated
-        // end-to-end. The other groups replicate the previous long-lived vendor chunks.
-        manualChunks(id) {
-          if (!id.includes('node_modules')) return
-          if (/[\\/]node_modules[\\/](three|@react-three)[\\/]/.test(id)) return 'vendor-three'
-          if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|@remix-run[\\/]router|scheduler)[\\/]/.test(id)) return 'vendor-react'
-          if (/[\\/]node_modules[\\/]@phosphor-icons[\\/]/.test(id)) return 'vendor-ui'
-          if (/[\\/]node_modules[\\/]@sentry[\\/]/.test(id)) return 'vendor-sentry'
-          if (/[\\/]node_modules[\\/](@connectrpc|@bufbuild)[\\/]/.test(id)) return 'vendor-rpc'
+export default defineConfig(({ mode }) => {
+  // Memba OS's self-hosted Manrope (src/os/fonts/*.woff2, ~14KB each) is only
+  // ever reached through a dynamic import() gated on OS_ENABLED (see App.tsx).
+  // Rollup still resolves and transforms that whole subtree while building the
+  // module graph, even when the branch folds to dead code and the OsRoot chunk
+  // itself never makes it to the output — and a CSS url() asset gets emitted
+  // (this.emitFile) the moment its module is transformed, which is NOT undone
+  // by later tree-shaking of the (now orphaned) chunk. On a flag-off build,
+  // force these specific fonts to inline as base64 in the CSS text instead of
+  // becoming separate hashed files: the CSS text itself is proven to drop
+  // cleanly (no "memba-os" sentinel ever leaks), so inlining removes the one
+  // asset-level leak vector text-based tree-shaking can't reach. When the flag
+  // is actually on (the beta site), leave Vite's normal hashed-asset handling
+  // in place so the fonts cache like any other static asset.
+  const osEnabled = ({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }).VITE_MEMBA_OS === 'true'
+  return {
+    envDir: '..', // Load .env from repo root (where all VITE_* vars live)
+    define: {
+      __APP_VERSION__: JSON.stringify(pkg.version),
+    },
+    build: {
+      sourcemap: true, // Required for Sentry source map uploads
+      assetsInlineLimit: osEnabled
+        ? undefined
+        : (filePath: string) => /manrope-latin-\d+-normal\.woff2$/.test(filePath) || undefined,
+      rollupOptions: {
+        output: {
+          // Function form (BARRICADE 3D, PR-0c): unlike the object form, a module is
+          // grouped ONLY when it is actually in the graph — so three / react-three-fiber
+          // land in `vendor-three` EXCLUSIVELY via the lazy Barricade3D import (async),
+          // never force-bundled into the eager graph the way object-form roots would be.
+          // The Workbox precache-exclusion + bundle CI gate below keep it isolated
+          // end-to-end. The other groups replicate the previous long-lived vendor chunks.
+          manualChunks(id) {
+            if (!id.includes('node_modules')) return
+            if (/[\\/]node_modules[\\/](three|@react-three)[\\/]/.test(id)) return 'vendor-three'
+            if (/[\\/]node_modules[\\/](react|react-dom|react-router|react-router-dom|@remix-run[\\/]router|scheduler)[\\/]/.test(id)) return 'vendor-react'
+            if (/[\\/]node_modules[\\/]@phosphor-icons[\\/]/.test(id)) return 'vendor-ui'
+            if (/[\\/]node_modules[\\/]@sentry[\\/]/.test(id)) return 'vendor-sentry'
+            if (/[\\/]node_modules[\\/](@connectrpc|@bufbuild)[\\/]/.test(id)) return 'vendor-rpc'
+          },
         },
       },
     },
-  },
-  plugins: [
-    react(),
-    safeFlagsPlugin(),
-    buildIdentityPlugin(),
-    sitemapPlugin(),
-    professionalBrandPlugin(),
-    // PWA: installable manifest + Workbox service worker. SW is OFF in dev
-    // (devOptions.enabled:false) so it never affects dev / Playwright / tests.
-    // Colors track the real app canvas (--color-k-bg dark = #000000), not a
-    // separate brand value, to stay aligned with the §13 design system.
-    VitePWA({
-      registerType: 'autoUpdate',
-      devOptions: { enabled: false },
-      includeAssets: ['apple-touch-icon.png'],
-      manifest: {
-        name: 'Memba',
-        short_name: 'Memba',
-        id: '/',
-        start_url: '/',
-        scope: '/',
-        display: 'standalone',
-        background_color: '#000000',
-        theme_color: '#000000',
-        description: 'Gno-native multisig wallet and DAO governance.',
-        icons: [
-          ...(({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }).VITE_ENABLE_PRO_APP === 'true' ? [] : [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }]),
-          { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
-          { src: '/icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
-        ],
-      },
-      workbox: {
-        navigateFallback: '/index.html',
-        globPatterns: ['**/*.{js,css,html,woff2}'],
-        // The BARRICADE 3D renderer chunk is precache-EXCLUDED: globPatterns above
-        // precaches **/*.js ≤4MB, so without this every user — including 2D-mode
-        // users who never load three — would download the ~300-360KB three stack on
-        // SW install. It is fetched on demand and cached at runtime (below) instead.
-        // Wired ahead of the renderer: the vendor-three chunk itself is created when
-        // the 3D renderer lands and lazily imports three.
-        // Review-only brand specimens should not enter the production offline precache.
-        globIgnores: ['**/vendor-three-*.js', '**/brand/folded-m/**'],
-        // recharts/jspdf chunks are large; allow them into the precache.
-        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
-        runtimeCaching: [
-          { urlPattern: /\/fonts\//, handler: 'CacheFirst', options: { cacheName: 'fonts' } },
-          // The precache-excluded 3D chunk: cache-on-first-use so repeat 3D sessions
-          // stay offline-capable without burdening the install-time precache.
-          { urlPattern: /vendor-three-.*\.js$/, handler: 'StaleWhileRevalidate', options: { cacheName: 'barricade-3d' } },
-          // NEVER cache auth/tx / RPC writes — always hit the network.
-          { urlPattern: ({ url }) => url.pathname.startsWith('/memba.v1.'), handler: 'NetworkOnly' },
-        ],
-      },
-    }),
-    // Sentry source map upload — only in production builds with auth token
-    ...(process.env.SENTRY_AUTH_TOKEN
-      ? [
-        sentryVitePlugin({
-          org: "samourai-coop",
-          project: "memba",
-          url: "https://sentry.samourai.pro",
-          authToken: process.env.SENTRY_AUTH_TOKEN,
-          release: {
-            name: `memba@${pkg.version}`,
-          },
-          sourcemaps: {
-            filesToDeleteAfterUpload: ["./dist/**/*.map"],
-          },
-          telemetry: false,
-        }),
-      ]
-      : []),
-  ],
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: ['./src/test/setup.ts'],
-    exclude: ['e2e/**', 'node_modules/**', '.netlify/**'],
-    // MUST stay strictly greater than the `asyncUtilTimeout` set in
-    // `src/test/setup.ts` (5s), with room to spare for the work a test does
-    // BEFORE its first `waitFor`. Vitest's own default is 5000ms — exactly
-    // equal to that async budget — which made the headroom setup.ts grants
-    // unusable: the enclosing test timeout fires at the same instant, so a
-    // `waitFor` could never actually spend the 5s it was promised, and any
-    // pre-`waitFor` cost came straight out of it.
-    //
-    // That is a full-suite-only failure mode. `vitest run` loads 480+ files at
-    // once and a test that dynamically imports a heavy component graph inside
-    // its body pays the transform+eval cost against this budget: measured at
-    // 3149ms for DAOsTab.test.tsx's `await import("./DAOsTab")` under load,
-    // leaving <1.9s for a render that needs 97ms. The same file imports in
-    // milliseconds when run alone, so the test passed in isolation and failed
-    // in the suite — as did SpaceInvadersPauseReplay.test.tsx, on load alone.
-    //
-    // 15s keeps a genuine hang failing fast AND makes it fail through
-    // testing-library's error (which dumps the DOM) instead of a bare,
-    // undiagnosable "Test timed out in 5000ms".
-    testTimeout: 15_000,
-  },
-  server: {
-    port: 5173,
-    proxy: {
-      '/memba.v1.MultisigService': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
-      },
-      '/github/oauth': {
-        target: 'http://localhost:8080',
-        changeOrigin: true,
+    plugins: [
+      react(),
+      safeFlagsPlugin(),
+      buildIdentityPlugin(),
+      sitemapPlugin(),
+      professionalBrandPlugin(),
+      // PWA: installable manifest + Workbox service worker. SW is OFF in dev
+      // (devOptions.enabled:false) so it never affects dev / Playwright / tests.
+      // Colors track the real app canvas (--color-k-bg dark = #000000), not a
+      // separate brand value, to stay aligned with the §13 design system.
+      VitePWA({
+        registerType: 'autoUpdate',
+        devOptions: { enabled: false },
+        includeAssets: ['apple-touch-icon.png'],
+        manifest: {
+          name: 'Memba',
+          short_name: 'Memba',
+          id: '/',
+          start_url: '/',
+          scope: '/',
+          display: 'standalone',
+          background_color: '#000000',
+          theme_color: '#000000',
+          description: 'Gno-native multisig wallet and DAO governance.',
+          icons: [
+            ...(({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }).VITE_ENABLE_PRO_APP === 'true' ? [] : [{ src: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' }]),
+            { src: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+            { src: '/icons/maskable-512.png', sizes: '512x512', type: 'image/png', purpose: 'maskable' },
+          ],
+        },
+        workbox: {
+          navigateFallback: '/index.html',
+          globPatterns: ['**/*.{js,css,html,woff2}'],
+          // The BARRICADE 3D renderer chunk is precache-EXCLUDED: globPatterns above
+          // precaches **/*.js ≤4MB, so without this every user — including 2D-mode
+          // users who never load three — would download the ~300-360KB three stack on
+          // SW install. It is fetched on demand and cached at runtime (below) instead.
+          // Wired ahead of the renderer: the vendor-three chunk itself is created when
+          // the 3D renderer lands and lazily imports three.
+          // Review-only brand specimens should not enter the production offline precache.
+          globIgnores: ['**/vendor-three-*.js', '**/brand/folded-m/**'],
+          // recharts/jspdf chunks are large; allow them into the precache.
+          maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
+          runtimeCaching: [
+            { urlPattern: /\/fonts\//, handler: 'CacheFirst', options: { cacheName: 'fonts' } },
+            // The precache-excluded 3D chunk: cache-on-first-use so repeat 3D sessions
+            // stay offline-capable without burdening the install-time precache.
+            { urlPattern: /vendor-three-.*\.js$/, handler: 'StaleWhileRevalidate', options: { cacheName: 'barricade-3d' } },
+            // NEVER cache auth/tx / RPC writes — always hit the network.
+            { urlPattern: ({ url }) => url.pathname.startsWith('/memba.v1.'), handler: 'NetworkOnly' },
+          ],
+        },
+      }),
+      // Sentry source map upload — only in production builds with auth token
+      ...(process.env.SENTRY_AUTH_TOKEN
+        ? [
+          sentryVitePlugin({
+            org: "samourai-coop",
+            project: "memba",
+            url: "https://sentry.samourai.pro",
+            authToken: process.env.SENTRY_AUTH_TOKEN,
+            release: {
+              name: `memba@${pkg.version}`,
+            },
+            sourcemaps: {
+              filesToDeleteAfterUpload: ["./dist/**/*.map"],
+            },
+            telemetry: false,
+          }),
+        ]
+        : []),
+    ],
+    test: {
+      environment: 'jsdom',
+      globals: true,
+      setupFiles: ['./src/test/setup.ts'],
+      exclude: ['e2e/**', 'node_modules/**', '.netlify/**'],
+      // MUST stay strictly greater than the `asyncUtilTimeout` set in
+      // `src/test/setup.ts` (5s), with room to spare for the work a test does
+      // BEFORE its first `waitFor`. Vitest's own default is 5000ms — exactly
+      // equal to that async budget — which made the headroom setup.ts grants
+      // unusable: the enclosing test timeout fires at the same instant, so a
+      // `waitFor` could never actually spend the 5s it was promised, and any
+      // pre-`waitFor` cost came straight out of it.
+      //
+      // That is a full-suite-only failure mode. `vitest run` loads 480+ files at
+      // once and a test that dynamically imports a heavy component graph inside
+      // its body pays the transform+eval cost against this budget: measured at
+      // 3149ms for DAOsTab.test.tsx's `await import("./DAOsTab")` under load,
+      // leaving <1.9s for a render that needs 97ms. The same file imports in
+      // milliseconds when run alone, so the test passed in isolation and failed
+      // in the suite — as did SpaceInvadersPauseReplay.test.tsx, on load alone.
+      //
+      // 15s keeps a genuine hang failing fast AND makes it fail through
+      // testing-library's error (which dumps the DOM) instead of a bare,
+      // undiagnosable "Test timed out in 5000ms".
+      testTimeout: 15_000,
+    },
+    server: {
+      port: 5173,
+      proxy: {
+        '/memba.v1.MultisigService': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+        },
+        '/github/oauth': {
+          target: 'http://localhost:8080',
+          changeOrigin: true,
+        },
       },
     },
-  },
-}))
+  }
+})
