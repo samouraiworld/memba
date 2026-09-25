@@ -13,7 +13,7 @@ prescribes misses the two ways it has actually arrived here:
 
 So this reads every tracked file as bytes, decodes base64 runs in either
 alphabet, whether on one line or wrapped across several, reads UTF-16 text,
-and inflates compressed PNG chunks, in a PNG file or in an icon. What it
+and inflates compressed PNG chunks, wherever a PNG sits in a file. What it
 decodes or inflates is read again the same way, because a data URI is a file
 inside a file: a PNG in an SVG carries its chunks as surely as the PNG does on
 its own.
@@ -71,6 +71,11 @@ NAMESPACE = tuple(
 # boundary inside a real PNG, never as a substring: their four letters are
 # ordinary words in prose (and in this file), and matching them loosely would
 # flag every document that discusses image internals.
+#
+# Rollout note: the stock create-next-app `favicon.ico` carries an exif chunk,
+# so a repository scaffolded from it fails this policy until the icon is
+# re-exported without it. That failure is by design: the chunk is metadata a
+# design asset has no reason to publish.
 FORBIDDEN_CHUNKS = tuple(
     bytes.fromhex(h)
     for h in (
@@ -160,12 +165,14 @@ MAX_INFLATE = 32 << 20
 # ...and capped per file as well. A PNG may hold any number of chunks under
 # the cap, and a data URI is opened again for each way its wrapped lines can be
 # joined, so a small crafted file could otherwise hold CI for minutes. Every
-# byte inflated counts, whether it is kept or not, and a file that runs out is
-# reported, for the same reason as a chunk over the cap.
+# byte read into a stream or inflated out of one counts, whether it is kept or
+# not, and a file that runs out is reported, for the same reason as a chunk
+# over the cap.
 INFLATE_BUDGET = 64 << 20
 
-# Inflated a step at a time, so that a stream abandoned partway, because it
-# raised or stopped short of its end, is still charged for what it produced.
+# Inflated a slice at a time, at most this much, so that a stream abandoned
+# partway, because it raised or stopped short of its end, is still charged for
+# what it read and produced.
 INFLATE_STEP = 1 << 20
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
@@ -199,9 +206,24 @@ IMAGE_DATA = (
     bytes.fromhex("66644154"),  # animation frame data
 )
 
-# An icon or cursor file is a directory of images, and each may be a whole PNG
-# stored verbatim: a favicon carries chunks exactly as a PNG file does.
-ICO_HEADERS = (b"\0\0\1\0", b"\0\0\2\0")
+# Registered chunk types that never hold a zlib stream. Any other chunk that
+# begins with a valid zlib header and gives nothing when inflated is reported,
+# as a profile that does not inflate is; these are exempt because their first
+# bytes are numbers, a palette colour for one, and two of them form a valid
+# header by chance about once in two thousand. A private chunk is also read as
+# a bare deflate stream, with no zlib header at all; these are not.
+PLAIN_CHUNKS = (
+    b"IHDR", b"PLTE", b"IEND", b"tRNS", b"cHRM", b"gAMA", b"sBIT", b"sRGB",
+    b"cICP", b"mDCV", b"cLLI", b"bKGD", b"hIST", b"pHYs", b"sPLT", b"tIME",
+    b"acTL", b"fcTL", b"oFFs", b"pCAL", b"sCAL", b"sTER", b"gIFg", b"gIFx",
+    *FORBIDDEN_CHUNKS,
+)
+
+# Input is fed to zlib in slices that start small and double, so a stream that
+# fails early costs little, and a stream that fails late loses only the slice
+# the fault is in -- which is then replayed in halves, to keep every byte of
+# output the stream gave before its fault.
+INFLATE_FIRST_SLICE = 64
 
 ALLOWLIST = os.path.join(os.path.dirname(__file__), "vendor-attribution-allowlist.txt")
 
@@ -218,41 +240,34 @@ def load_allowlist():
 
 
 def png_chunks(raw):
-    """Yield (type, body) for each chunk of a PNG. Nothing if not a PNG."""
-    if not raw.startswith(PNG_SIGNATURE):
-        return
-    offset = len(PNG_SIGNATURE)
-    while offset + 8 <= len(raw):
-        length = int.from_bytes(raw[offset : offset + 4], "big")
-        kind = raw[offset + 4 : offset + 8]
-        body = raw[offset + 8 : offset + 8 + length]
-        offset += 12 + length
-        yield kind, body
-        if kind == b"IEND":
-            return
+    """Yield (type, start, end) for each chunk of every PNG anywhere in RAW.
 
-
-def ico_images(raw):
-    """Each PNG stored in an icon or cursor file. Nothing if not one.
-
-    Each image runs to the start of the next, so however many directory entries
-    a file declares, and wherever they point, the images read are disjoint and
-    their total is at most the file.
+    A PNG is found by its signature wherever it sits: at the start of a file,
+    as an image in an icon, an .icns or a cursor, appended to another file, or
+    inside another PNG's chunk. Each is walked to its end over the whole buffer
+    rather than over a slice a directory declared, so a directory entry cannot
+    cut an image short. A chunk offset already walked is not walked again: two
+    walks that reach the same offset go the same way from there, so every
+    offset is visited once however the signatures overlap.
     """
-    if raw[:4] not in ICO_HEADERS:
-        return
-    starts = set()
-    for entry in range(int.from_bytes(raw[4:6], "little")):
-        at = 6 + 16 * entry
-        if at + 16 > len(raw):
-            break
-        start = int.from_bytes(raw[at + 12 : at + 16], "little")
-        if raw.startswith(PNG_SIGNATURE, start):
-            starts.add(start)
-    order = sorted(starts)
-    for at, start in enumerate(order):
-        yield raw[start : order[at + 1] if at + 1 < len(order) else len(raw)]
-
+    walked = set()
+    at = raw.find(PNG_SIGNATURE)
+    while at >= 0:
+        offset = at + len(PNG_SIGNATURE)
+        while offset + 8 <= len(raw) and offset not in walked:
+            walked.add(offset)
+            length = int.from_bytes(raw[offset : offset + 4], "big")
+            kind = raw[offset + 4 : offset + 8]
+            # A chunk type is four ASCII letters. Anything else is not a PNG,
+            # or a walk that has left one: a copy of the signature in prose
+            # or in a binary, which is not worth reading as chunks.
+            if not kind.isalpha():
+                break
+            yield kind, offset + 8, min(offset + 8 + length, len(raw))
+            if kind == b"IEND":
+                break
+            offset += 12 + length
+        at = raw.find(PNG_SIGNATURE, at + 1)
 
 def utf16_texts(payload):
     """Every run of UTF-16 text in PAYLOAD, with its NULs taken out.
@@ -272,55 +287,148 @@ def utf16_texts(payload):
         yield lead + match.group()[1::2]
 
 
-def inflate_starts(kind, body):
-    """Where a zlib stream may begin in a chunk's payload, in the order tried."""
-    # Past the keyword, then past up to four bytes of flags and empty fields.
-    _, _, tail = body.partition(b"\0")
-    starts = [tail[start:] for start in range(min(len(tail), 4) + 1)]
-    if kind not in COMPRESSED_CHUNKS:
-        # A private chunk need not have a keyword at all.
-        starts = [body[start:] for start in range(min(len(body), 4) + 1)] + starts
+def zlib_header(view, at):
+    """Whether VIEW holds a valid zlib header at AT: deflate, with no preset
+    dictionary, and a check value that divides as the format requires."""
+    if at + 2 > len(view):
+        return False
+    method, flags = view[at], view[at + 1]
+    return method & 0x0F == 8 and method >> 4 <= 7 and not flags & 0x20 and (
+        (method << 8 | flags) % 31 == 0
+    )
+
+
+def deflate_start(view, at):
+    """Whether a bare deflate stream can begin at AT: its first block is not
+    of the reserved type, and a stored block's length matches its complement.
+    Half of all bytes fail this at once, and a run of anything else, a PNG
+    signature among them, is not worth decompressing to find that out."""
+    if at + 5 > len(view):
+        return at < len(view)
+    block = view[at] >> 1 & 3
+    if block == 3:
+        return False
+    return block != 0 or (
+        view[at + 1] ^ view[at + 3] == 0xFF and view[at + 2] ^ view[at + 4] == 0xFF
+    )
+
+
+def inflate_starts(kind, view):
+    """Where a stream may begin in a chunk's payload: (offset, wbits, claimed).
+
+    A zlib stream is tried only where a valid zlib header is, past up to four
+    bytes of flags and empty fields after the keyword, and for a chunk other
+    than the compressed ones, at the start of the payload too: a private chunk
+    need not have a keyword. CLAIMED marks the two places where a header means
+    the chunk holds a stream, so that nothing coming out of it is a finding:
+    the start of the payload, and past a keyword and a method byte, as in a
+    compressed text chunk. A private chunk is also tried as bare deflate.
+    """
+    # A keyword is 1 to 79 bytes, so its NUL is in the first 80: looking no
+    # further keeps this constant however long the payload.
+    nul = bytes(view[:80]).find(b"\0")
+    tail = [] if nul < 0 else [nul + 1 + skip for skip in range(5)]
+    private = kind not in PLAIN_CHUNKS and kind not in COMPRESSED_CHUNKS
+    places = tail if kind in COMPRESSED_CHUNKS else [*range(5), *tail]
+    starts = []
+    for at in dict.fromkeys(places):
+        if zlib_header(view, at):
+            claimed = private and (at == 0 or tail[1:2] == [at])
+            starts.append((at, zlib.MAX_WBITS, claimed))
+    if private and deflate_start(view, 0):
+        starts.append((0, -zlib.MAX_WBITS, False))
     return starts
 
 
-def inflate(starts, limit=MAX_INFLATE):
-    """Decompress a compressed chunk payload: (bytes, state, spent).
+def replay(state, piece, room):
+    """The output STATE gives from PIECE before the byte where it fails.
+
+    Halving the piece, the half that fails is narrowed and the half that does
+    not is kept, so at most twice the piece is decompressed.
+    """
+    out = bytearray()
+    while piece and room > 0:
+        trial = state.copy()
+        half = piece[: max(1, len(piece) // 2)]
+        try:
+            got = trial.decompress(half, room)
+        except zlib.error:
+            if len(half) == len(piece):
+                break
+            piece = half
+            continue
+        out += got
+        room -= len(got)
+        state = trial
+        piece = piece[len(half) :]
+        if trial.eof:
+            break
+    return bytes(out)
+
+
+def stream(view, at, wbits, room):
+    """Inflate one stream from AT: (bytes, reached its end, bytes charged).
+
+    Every byte in and out is charged, input as well as output: a run of empty
+    blocks gives nothing and yet takes time to read. Stops once the charge
+    passes ROOM.
+    """
+    state = zlib.decompressobj(wbits)
+    blob, spent, size = bytearray(), 0, INFLATE_FIRST_SLICE
+    while at < len(view) and not state.eof and spent <= room:
+        piece = view[at : at + size]
+        left = room + 1 - spent
+        saved = state.copy() if blob or spent else None
+        try:
+            step = state.decompress(piece, left)
+        except zlib.error:
+            got = replay(saved or zlib.decompressobj(wbits), piece, left)
+            blob += got
+            spent += len(piece) + len(got)
+            break
+        used = len(piece) - len(state.unconsumed_tail)
+        blob += step
+        spent += used + len(step)
+        if not used and not step:
+            break
+        at += used
+        size = min(size * 2, INFLATE_STEP)
+    return bytes(blob), state.eof, spent
+
+
+def inflate(kind, view, limit=MAX_INFLATE):
+    """Decompress a chunk payload: (bytes, state, spent, claimed).
 
     A name inside one of these is neither readable text nor base64, so it
-    would otherwise pass both of the other scans. STARTS are the offsets at
-    which the stream may begin, and the first to inflate to the end of a stream
-    wins: STATE is "whole". Past LIMIT, the state is "over" and the bytes are
-    the first LIMIT. When no offset reaches the end, because the stream is cut
-    short or corrupt, the longest output any of them gave is returned as
-    "partial": what a stream holds before it breaks is still published, and a
-    stream cut short after the name would otherwise hide it. With no output at
-    all, the bytes are None. `spent` counts every byte inflated, from abandoned
-    offsets too, so that a caller can hold every chunk in a file to one budget.
+    would otherwise pass both of the other scans. The first stream to inflate
+    to its end wins: STATE is "whole". A charge past LIMIT makes the state
+    "over", with what came out by then. When no stream reaches its end,
+    because it is cut short or corrupt, the longest output any of them gave is
+    returned as "partial": what a stream holds before it breaks is still
+    published. A zlib stream that fails is tried again as the bare deflate
+    inside it, two bytes in, which reads past a bad checksum at its end. With
+    no output at all, the bytes are None, and CLAIMED says whether a header
+    promised some. `spent` counts every byte read and inflated, from abandoned
+    streams too, so that a caller can hold every chunk in a file to one budget.
     """
-    spent = 0
-    longest = b""
-    for tail in starts:
-        stream = zlib.decompressobj()
-        pending, blob = tail, bytearray()
-        try:
-            while not stream.eof and len(blob) <= limit:
-                room = min(INFLATE_STEP, limit + 1 - len(blob))
-                step = stream.decompress(pending, room)
-                pending = stream.unconsumed_tail
-                if not step:
-                    break
-                blob += step
-                spent += len(step)
-        except zlib.error:
-            pass
-        if len(blob) > limit:
-            return bytes(blob[:limit]), "over", spent
-        if stream.eof:
-            return bytes(blob), "whole", spent
-        if len(blob) > len(longest):
-            longest = bytes(blob)
-    return (longest, "partial", spent) if longest else (None, None, spent)
-
+    spent, longest, claimed = 0, b"", kind in MUST_INFLATE
+    for at, wbits, claims in inflate_starts(kind, view):
+        claimed = claimed or claims
+        tries = [(at, wbits)]
+        if wbits > 0 and deflate_start(view, at + 2):
+            tries.append((at + 2, -zlib.MAX_WBITS))
+        for start, bits in tries:
+            blob, whole, cost = stream(view, start, bits, limit - spent)
+            spent += cost
+            if spent > limit:
+                return max(blob, longest, key=len), "over", spent, claimed
+            if whole:
+                return blob, "whole", spent, claimed
+            if len(blob) > len(longest):
+                longest = blob
+    if longest:
+        return longest, "partial", spent, claimed
+    return None, None, spent, claimed
 
 def b64decode(run):
     """Decode one run of the base64 alphabet, or return nothing."""
@@ -382,8 +490,11 @@ def b64_runs(payload):
     # four-character group holds less than a byte, and would fail the decode.
     # Unwrapped only: wrapped URL-safe base64 is not something encoders emit.
     for run in urlsafe:
+        # Rewritten before the split, not after: B64_PADDING looks for the
+        # standard alphabet after a `key=`, and a URL-safe value that starts
+        # with `-` or `_` would otherwise stay glued to its key.
+        run = run.translate(B64URL_TO_STD)
         for part in (run, *B64_PADDING.split(run)[1:]):
-            part = part.translate(B64URL_TO_STD)
             for start in range(4):
                 shifted = part[start:].rstrip(b"=")
                 if len(shifted) % 4 == 1:
@@ -454,9 +565,9 @@ def findings_in(raw):
             for text in utf16_texts(payload):
                 examine(text, ("UTF-16", *via))
 
-        for image in (payload, *ico_images(payload)):
-            for kind, body in png_chunks(image):
-                chunk(kind, body, suffix, via, opened)
+        view = memoryview(payload)
+        for kind, start, end in png_chunks(payload):
+            chunk(kind, view[start:end], suffix, via, opened)
 
     def chunk(kind, body, suffix, via, opened):
         if kind in FORBIDDEN_CHUNKS:
@@ -467,10 +578,10 @@ def findings_in(raw):
             note("inflate budget exceeded")
             return
         limit = min(MAX_INFLATE, budget[0])
-        blob, state, spent = inflate(inflate_starts(kind, body), limit)
+        blob, state, spent, claimed = inflate(kind, body, limit)
         budget[0] -= spent
         if blob is None:
-            if kind in MUST_INFLATE:
+            if claimed:
                 note("compressed chunk does not inflate" + suffix)
             return
         if state == "over":

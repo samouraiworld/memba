@@ -776,6 +776,96 @@ expect_line "a compressed chunk that does not inflate at all is reported" \
   "::error file=corrupt.png::carries compressed chunk does not inflate"
 rm "$work/corrupt.png"
 
+# A PNG is found by its signature wherever it sits, not only where a directory
+# says. This icon's second entry points at a copy of the signature planted in
+# the first image's private chunk: read as the directory declares, the first
+# image ends there, before the compressed text chunk that names the assistant.
+fixture "$work/overlap.ico" <<'PY'
+from fixture import *
+first_head = b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 0, 0, 0, 0))
+decoy = chunk(b"prVt", b"\x89PNG\r\n\x1a\n" + struct.pack(">I", 0x7FFFFFFF) + b"xxxx")
+first = (first_head + decoy + chunk(b"zTXt", b"Comment\x00\x00" + zlib.compress(NAMED))
+         + chunk(b"IDAT", zlib.compress(b"\x00\x00")) + chunk(b"IEND", b""))
+start = 6 + 16 * 2
+planted = start + len(first_head) + 8
+head = struct.pack("<HHH", 0, 1, 2)
+for offset in (start, planted):
+    head += struct.pack("<BBBBHHII", 1, 1, 0, 0, 1, 32, len(first), offset)
+write(head + first)
+PY
+hidden "$work/overlap.ico" "overlapping-icon"
+expect_line "an icon entry pointing into another image cannot cut it short" \
+  "::error file=overlap.ico::carries $needle (compressed chunk), zTXt chunk"
+rm "$work/overlap.ico"
+
+# ...and with no directory at all: a PNG appended to another file.
+fixture "$work/appended.gif" <<'PY'
+from fixture import *
+write(b"GIF89a" + bytes(20) + png(chunk(b"iCCP", b"ICC profile\x00\x00" + zlib.compress(NAMED))))
+PY
+hidden "$work/appended.gif" "appended-PNG"
+expect_line "a PNG appended to another file is read as a PNG" \
+  "::error file=appended.gif::carries $needle (compressed chunk)"
+rm "$work/appended.gif"
+
+# A key= before a URL-safe value that starts with `-`: the split after the
+# `=` has to know the URL-safe alphabet, or the value stays glued to its key.
+fixture "$work/keyed.env" <<'PY'
+from fixture import *
+blob = base64.urlsafe_b64encode(b"\xf8" + b" a note " + NAMED + b" kept here for later")
+assert blob.startswith(b"-") and len(blob.rstrip(b"=")) >= 40
+write(b"token=" + blob + b"\n")
+PY
+hidden "$work/keyed.env" "keyed URL-safe"
+expect_line "URL-safe base64 after key= that starts with - is decoded" \
+  "::error file=keyed.env::carries $needle (base64)"
+rm "$work/keyed.env"
+
+# A stream whose checksum is wrong still holds every byte before it: read
+# again as the bare deflate inside the zlib wrapper, it inflates to its end.
+fixture "$work/badsum.png" <<'PY'
+from fixture import *
+stream = zlib.compress(NAMED)
+write(png(chunk(b"prVt", stream[:-4] + b"\x00\x00\x00\x00")))
+PY
+hidden "$work/badsum.png" "bad-checksum"
+expect_line "a zlib stream with a bad checksum is read past it" \
+  "::error file=badsum.png::carries $needle (compressed chunk)"
+rm "$work/badsum.png"
+
+# A stream that gives the name and then a corrupt block: the output before
+# the fault is kept, to the byte, not dropped with the call that raised.
+fixture "$work/fault.png" <<'PY'
+from fixture import *
+deflate = zlib.compressobj(9)
+write(png(chunk(b"prVt", deflate.compress(NAMED + b" ") + deflate.flush(zlib.Z_FULL_FLUSH) + b"\xff\xff\xff")))
+PY
+hidden "$work/fault.png" "corrupt-block"
+expect_line "what a stream gives before a corrupt block is read" \
+  "::error file=fault.png::carries $needle (compressed chunk)"
+rm "$work/fault.png"
+
+# Bare deflate with no zlib header at all, in a private chunk.
+fixture "$work/bare-deflate.png" <<'PY'
+from fixture import *
+deflate = zlib.compressobj(9, zlib.DEFLATED, -15)
+write(png(chunk(b"prVt", deflate.compress(NAMED) + deflate.flush())))
+PY
+hidden "$work/bare-deflate.png" "bare-deflate"
+expect_line "a private chunk holding bare deflate is inflated" \
+  "::error file=bare-deflate.png::carries $needle (compressed chunk)"
+rm "$work/bare-deflate.png"
+
+# A private chunk that opens with a valid zlib header and gives nothing is a
+# chunk that cannot be read, reported as a profile that does not inflate is.
+fixture "$work/claimed.png" <<'PY'
+from fixture import *
+write(png(chunk(b"prVt", b"\x78\x9c" + b"\xff" * 30)))
+PY
+expect_line "a private chunk with a zlib header that gives nothing is reported" \
+  "::error file=claimed.png::carries compressed chunk does not inflate"
+rm "$work/claimed.png"
+
 # Base64 in a comment block, wrapped at 70: not a multiple of four, so read
 # line by line, every line after the first is out of step. The name is in the
 # second line.
@@ -827,10 +917,11 @@ write("﻿nothing to declare here at all\r\n".encode("utf-16-le"))
 PY
 fixture "$work/clean.ico" <<'PY'
 from fixture import *
-write(ico(png(), png(chunk(b"iCCP", b"ICC profile\x00\x00" + zlib.compress(b"sRGB")))))
+write(ico(png(), png(chunk(b"iCCP", b"ICC profile\x00\x00" + zlib.compress(b"sRGB")),
+                    chunk(b"prVt", bytes(range(64))))))
 PY
 seq 1 200 | awk '{ printf "some-long-kebab-case-identifier_with_parts-%s\n", $0 }' > "$work/idents.txt"
-expect_clean "comment prose, clean UTF-16, a clean icon and identifiers read clean"
+expect_clean "comment prose, clean UTF-16, a clean icon with a private chunk and identifiers read clean"
 rm "$work/comments.txt" "$work/clean16.txt" "$work/clean.ico" "$work/idents.txt"
 
 # ── the surfaces that are not files ─────────────────────────────────────────
@@ -990,10 +1081,11 @@ echo "the listing order, the allowlist, the path scan, the unreadable-file"
 echo "report, the manifest namespace, wrapped base64 in seven shapes, base64"
 echo "behind escaped slashes and behind a key= prefix, a long run of padding in"
 echo "bounded time, the PNG inside a data URI, three containers of nesting, the"
-echo "inflation cap and the per-file inflation budget, URL-safe base64, UTF-16"
-echo "in either byte order, the PNGs in an icon, a private compressed chunk, a"
-echo "stream cut short and one that does not inflate, base64 wrapped in comments"
-echo "and in YAML continuations each"
+echo "inflation cap and the per-file inflation budget, URL-safe base64 with and"
+echo "without a key=, UTF-16 in either byte order, a PNG wherever it sits in a"
+echo "file, a private compressed chunk, a stream cut short, one with a bad"
+echo "checksum, one with a corrupt block, bare deflate, and streams that do not"
+echo "inflate, base64 wrapped in comments and in YAML continuations each"
 echo "proved by their own message AND their own exit status — and, for the"
 echo "surfaces that are not files, the label, the scanned size, base64, the"
 echo "refusal of an empty surface, the narrowness of --allow-empty and the usage"
