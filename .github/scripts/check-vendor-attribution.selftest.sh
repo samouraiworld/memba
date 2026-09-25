@@ -57,12 +57,16 @@ expect_status() {
   actual output: $_out"
 }
 
+# Output reaches grep as a here-string, never through a pipe: `grep -q` exits
+# at the first match and closes the pipe, and under pipefail the writer's
+# SIGPIPE then fails a case whose line did match.
+#
 # The whole line, matched literally. Substring-matching the reason alone would
 # also accept a line that carried a second, unexpected reason beside it.
 expect_line() {
   local label="$1" want="$2" out
   run; out="$_out"
-  if ! printf '%s\n' "$out" | grep -qxF -- "$want"; then
+  if ! grep -qxF -- "$want" <<<"$out"; then
     fail "$label
   expected line: $want
   actual output: $out"
@@ -74,7 +78,7 @@ expect_line() {
 expect_text() {
   local label="$1" want="$2" out
   run; out="$_out"
-  if ! printf '%s\n' "$out" | grep -qF -- "$want"; then
+  if ! grep -qF -- "$want" <<<"$out"; then
     fail "$label
   expected text: $want
   actual output: $out"
@@ -86,14 +90,14 @@ expect_text() {
 expect_clean() {
   local label="$1" out
   run; out="$_out"
-  if ! printf '%s\n' "$out" | grep -qxF -- 'no tracked file carries assistant attribution'; then
+  if ! grep -qxF -- 'no tracked file carries assistant attribution' <<<"$out"; then
     fail "$label
   expected the clean-tree message
   actual output: $out"
   fi
   # ...and that it reported nothing alongside it. A check that printed both
   # would still have exited 0, so the exit status cannot separate these two.
-  if printf '%s\n' "$out" | grep -q '::error'; then
+  if grep -q '::error' <<<"$out"; then
     fail "$label
   reported a finding on a clean tree: $out"
   fi
@@ -222,7 +226,7 @@ printf 'exempt %s\n' "$needle" > "$work/exempt.txt"
 git -C "$work" add -A
 
 before="$(python3 "$spare/check-vendor-attribution.py" "$work" 2>&1 || true)"
-if ! printf '%s\n' "$before" | grep -qxF -- "::error file=exempt.txt::carries $needle"; then
+if ! grep -qxF -- "::error file=exempt.txt::carries $needle" <<<"$before"; then
   fail "with no allowlist, the file should have been reported
   actual output: $before"
 fi
@@ -230,7 +234,7 @@ printf '  ok  %s\n' "with no allowlist the file is reported"
 
 printf 'exempt.txt\n' > "$spare/vendor-attribution-allowlist.txt"
 after="$(python3 "$spare/check-vendor-attribution.py" "$work" 2>&1 || true)"
-if ! printf '%s\n' "$after" | grep -qxF -- 'no tracked file carries assistant attribution'; then
+if ! grep -qxF -- 'no tracked file carries assistant attribution' <<<"$after"; then
   fail "an allowlisted file should have been exempt
   actual output: $after"
 fi
@@ -240,7 +244,7 @@ printf '  ok  %s\n' "an allowlisted path is exempt, and the tree reads clean"
 # commented out, the same entry must stop exempting anything.
 printf '# exempt.txt\n' > "$spare/vendor-attribution-allowlist.txt"
 commented="$(python3 "$spare/check-vendor-attribution.py" "$work" 2>&1 || true)"
-if ! printf '%s\n' "$commented" | grep -qxF -- "::error file=exempt.txt::carries $needle"; then
+if ! grep -qxF -- "::error file=exempt.txt::carries $needle" <<<"$commented"; then
   fail "a commented-out allowlist entry should not exempt anything
   actual output: $commented"
 fi
@@ -293,7 +297,7 @@ chmod 000 "$work/locked.txt"
 # itself fails on a mode-000 file, so the harness would never reach the checker.
 # The file is already tracked, which is the only precondition that matters here.
 if _out="$(python3 "$check" "$work" 2>&1)"; then _status=0; else _status=$?; fi
-if ! printf '%s\n' "$_out" | grep -q 'locked.txt.*could not be read'; then
+if ! grep -q 'locked.txt.*could not be read' <<<"$_out"; then
   chmod 644 "$work/locked.txt"; rm -f "$work/locked.txt"
   fail "an unreadable tracked file was not reported
   actual output: $_out"
@@ -305,7 +309,7 @@ fi
 
 ln -s nowhere/at/all "$work/ghost.txt"
 run
-if ! printf '%s\n' "$_out" | grep -q 'ghost.txt.*could not be read'; then
+if ! grep -q 'ghost.txt.*could not be read' <<<"$_out"; then
   rm -f "$work/ghost.txt"
   fail "a dangling symlink was not reported
   actual output: $_out"
@@ -576,7 +580,7 @@ run_text() {
 expect_text_line() {
   local label="$1" want="$2" input="$3"; shift 3
   run_text "$input" "$@"
-  if ! printf '%s\n' "$_out" | grep -qxF -- "$want"; then
+  if ! grep -qxF -- "$want" <<<"$_out"; then
     fail "$label
   expected line: $want
   actual output: $_out"
@@ -599,7 +603,7 @@ expect_clean_surface() {
   local size
   size="$(printf '%s' "$input" | wc -c | tr -d ' ')"
   local want="no assistant attribution in the $surface ($size bytes scanned)"
-  if ! printf '%s\n' "$_out" | grep -qxF -- "$want"; then
+  if ! grep -qxF -- "$want" <<<"$_out"; then
     fail "$label
   expected line: $want
   actual output: $_out"
@@ -636,7 +640,7 @@ expect_text_line "an uppercase name in a branch is caught" \
 # Base64 reaches a text surface too: a footer can arrive encoded in a body.
 body_payload="$(printf 'padding%.0s' $(seq 1 40))$needle"
 body_encoded="$(printf '%s' "$body_payload" | base64 | tr -d '\n')"
-if printf '%s' "$body_encoded" | grep -qi "$needle"; then
+if grep -qi "$needle" <<<"$body_encoded"; then
   fail "the base64 body fixture is not actually hidden"
 fi
 expect_text_line "base64 inside a body is decoded, and reported as base64" \
@@ -649,7 +653,7 @@ expect_text_line "base64 inside a body is decoded, and reported as base64" \
 # to nothing, or an expression naming a field the event does not carry, arrives
 # here as empty — and reporting it clean is how a gate becomes a comment.
 run_text '' 'commit messages on this branch'
-if ! printf '%s\n' "$_out" | grep -qF -- 'nothing was scanned: the commit messages on this branch arrived empty'; then
+if ! grep -qF -- 'nothing was scanned: the commit messages on this branch arrived empty' <<<"$_out"; then
   fail "an empty surface should be refused, not passed
   actual output: $_out"
 fi
@@ -661,7 +665,7 @@ printf '  ok  %s\n' "an empty surface is refused, and says the step is wrong"
 run_text '
    
 ' 'commit messages on this branch'
-if ! printf '%s\n' "$_out" | grep -qF -- 'arrived empty. This surface is never legitimately empty'; then
+if ! grep -qF -- 'arrived empty. This surface is never legitimately empty' <<<"$_out"; then
   fail "a whitespace-only surface should be refused
   actual output: $_out"
 fi
@@ -670,7 +674,7 @@ printf '  ok  %s\n' "a whitespace-only surface counts as empty"
 
 # ...and the opt-out works, for the surfaces that really are absent most runs.
 run_text '' 'release notes' --allow-empty
-if ! printf '%s\n' "$_out" | grep -qxF -- 'nothing to scan: no release notes on this event'; then
+if ! grep -qxF -- 'nothing to scan: no release notes on this event' <<<"$_out"; then
   fail "a declared-empty surface should pass and say so
   actual output: $_out"
 fi
@@ -691,8 +695,8 @@ expect_text_line "--allow-empty does not exempt a surface that carries the name"
 # are repaired differently, and one bit cannot tell them apart.
 expect_usage() {
   local label="$1"; shift
-  if _out="$(printf 'x' | python3 "$check" "$@" 2>&1)"; then _status=0; else _status=$?; fi
-  printf '%s\n' "$_out" | grep -qF -- '--text LABEL' || fail "$label
+  if _out="$(python3 "$check" "$@" 2>&1 <<<'x')"; then _status=0; else _status=$?; fi
+  grep -qF -- '--text LABEL' <<<"$_out" || fail "$label
   expected the usage text
   actual output: $_out"
   expect_status "$label: printed usage but exited wrong" 2
