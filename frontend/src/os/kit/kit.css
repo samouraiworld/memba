@@ -28,7 +28,15 @@
 .memba-os .os-t tr.os-click { cursor: pointer; }
 .memba-os .os-t tr.os-click:hover td { background: var(--os-hover); }
 .memba-os .os-t-open { border: 0; background: none; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; }
-.memba-os .os-t-open:focus-visible { outline: 2px solid var(--os-acc); outline-offset: 2px; background: var(--os-chip); border-radius: 4px; }
+/* The ring colour comes from shell.css's global :focus-visible; inset it so the
+   table wrapper's overflow doesn't clip it. */
+.memba-os .os-t-open:focus-visible { outline-offset: -2px; background: var(--os-chip); border-radius: 4px; }
+.memba-os .os-t-sort { border: 0; background: none; padding: 0; font: inherit; color: inherit; letter-spacing: inherit; text-transform: inherit; cursor: pointer; display: inline-flex; gap: 4px; align-items: center; }
+.memba-os .os-t-sort:hover { color: var(--os-ink); }
+.memba-os .os-t-sort:focus-visible { outline-offset: -2px; border-radius: 4px; }
+.memba-os .os-t-dir { min-width: 1ch; }
+.memba-os .os-t-pager { display: flex; align-items: center; gap: 8px; justify-content: flex-end; padding-top: 10px; }
+.memba-os .os-t-pager .os-sub { margin-right: auto; font-variant-numeric: tabular-nums; }
 .memba-os .os-grid2 { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
 .memba-os .os-stat-l { font-size: 11px; font-weight: 700; color: var(--os-mut); }
 .memba-os .os-stat-v { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; margin-top: 2px; }

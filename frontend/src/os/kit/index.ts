@@ -6,7 +6,7 @@
  * @module os/kit
  */
 export { AppShell, type ShellSection } from "./AppShell"
-export { Table, type Column } from "./Table"
+export { Table, type Column, type TableProps } from "./Table"
 export { StatGrid, type Stat } from "./StatGrid"
 export { Toggle } from "./Toggle"
 export { Loading, Empty, ErrorState } from "./States"
