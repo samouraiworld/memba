@@ -88,44 +88,46 @@ curl -s https://memba-backend.fly.dev/memba.v1.MultisigService/Multisigs \
 
 ### Gnolove API (Contributor Data)
 
-**Base URL:** `https://backend.gnolove.world`
+**Base URL:** `https://gnolove-api.samourai.live`
 
 #### Get contributor leaderboard
 ```bash
-curl -s 'https://backend.gnolove.world/stats?time_filter=all'
+curl -s 'https://gnolove-api.samourai.live/stats?time_filter=all'
 ```
 
 #### Get contributor profile
 ```bash
-curl -s 'https://backend.gnolove.world/users/USERNAME'
+curl -s 'https://gnolove-api.samourai.live/users/USERNAME'
 ```
 
 #### Get tracked repositories
 ```bash
-curl -s 'https://backend.gnolove.world/repositories'
+curl -s 'https://gnolove-api.samourai.live/repositories'
 ```
 
 #### Get PR report for a date range
 ```bash
-curl -s 'https://backend.gnolove.world/pull-requests/report?startdate=2026-01-01&enddate=2026-03-30'
+curl -s 'https://gnolove-api.samourai.live/pull-requests/report?startdate=2026-01-01&enddate=2026-03-30'
 ```
 
 #### Get on-chain proposals
 ```bash
-curl -s 'https://backend.gnolove.world/onchain/proposals'
+curl -s 'https://gnolove-api.samourai.live/onchain/proposals'
 ```
 
 #### Get GovDAO members
 ```bash
-curl -s 'https://backend.gnolove.world/onchain/govdao-members'
+curl -s 'https://gnolove-api.samourai.live/onchain/govdao-members'
 ```
 
 ### Gnomonitoring API (Validator Metrics)
 
-**Base URL:** `https://monitoring.gnolove.world`
+**Base URL:** `https://gnomonitoring.samourai.live`
+
+Every read takes the chain id (`chain=gnoland-1`); `/Participation`, `/latest_incidents`, `/missing_block` and `/tx_contrib` also need `period` (e.g. `current_month`).
 
 ```bash
-curl -s 'https://monitoring.gnolove.world/validators'
+curl -s 'https://gnomonitoring.samourai.live/uptime?chain=gnoland-1'
 ```
 
 ## DAO Lifecycle

@@ -12,7 +12,7 @@ test.describe.configure({ mode: 'serial' })
  * contract holds. Backend health auto-degrade is covered by the unit
  * test next to `useGnoloveBackendHealth`.
  *
- * Data source: backend.gnolove.world (the live prod backend). Tests
+ * Data source: config.ts GNOLOVE_API_URL (the live prod backend). Tests
  * tolerate a backend hiccup with a soft skip rather than failing the
  * suite — the canary's job is to surface frontend regressions, not
  * to alarm on every transient 502.
@@ -101,7 +101,7 @@ test.describe("Gnolove Analytics canary", () => {
         await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => {})
 
         // Each plan §2 panel gates its <h2> behind `{data && (...)}`. When the
-        // dev/CI environment can't reach backend.gnolove.world (CORS blocks
+        // dev/CI environment can't reach the gnolove backend (CORS blocks
         // localhost:5173 in production; Phase 5.5 CORS-glob work was dropped),
         // no panels mount. Soft-skip in that case rather than failing — the
         // canary's job is to surface frontend regressions, not to alarm on

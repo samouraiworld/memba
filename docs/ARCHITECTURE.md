@@ -333,7 +333,7 @@ resolveUsernames(members[])
 | **MultisigHub** | ✅ multisig list | ✅ balances | — |
 | **Gnolove** | — | — | — |
 
-> **Note**: Gnolove section uses a **dual-backend** pattern: data from `GNOLOVE_API_URL` (default `https://gnolove.world`) is fetched client-side through `gnoloveApi.ts`. React Query cache is scoped to `/gnolove` routes via a section-level `QueryClientProvider` in `GnoloveLayout.tsx` — fully isolated from Memba core data.
+> **Note**: Gnolove section uses a **dual-backend** pattern: data from `GNOLOVE_API_URL` (default `https://gnolove-api.samourai.live`) is fetched client-side through `gnoloveApi.ts`. React Query cache is scoped to `/gnolove` routes via a section-level `QueryClientProvider` in `GnoloveLayout.tsx` — fully isolated from Memba core data.
 
 ## Data Flow — User Profile (Hybrid)
 

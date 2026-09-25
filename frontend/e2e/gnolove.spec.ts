@@ -8,7 +8,7 @@ test.describe.configure({ mode: 'serial' })
  * Gnolove section E2E tests — verify the contributor analytics section
  * renders correctly and sub-navigation works.
  *
- * Note: Data comes from the gnolove Go API (backend.gnolove.world).
+ * Note: Data comes from the gnolove Go API (config.ts GNOLOVE_API_URL).
  * Tests are structured to skip gracefully if the API is unreachable.
  *
  * Routes tested:

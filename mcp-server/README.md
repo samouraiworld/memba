@@ -69,7 +69,7 @@ Add to Cursor MCP settings:
 | Env Var | Default | Description |
 |---------|---------|-------------|
 | `GNO_RPC_URL` | `https://rpc.gno.land:443` (gno.land mainnet, chain-id `gnoland-1`) | Gno RPC endpoint |
-| `GNOLOVE_API_URL` | `https://backend.gnolove.world` | Gnolove API endpoint |
+| `GNOLOVE_API_URL` | `https://gnolove-api.samourai.live` | Gnolove API endpoint |
 
 ## Development
 

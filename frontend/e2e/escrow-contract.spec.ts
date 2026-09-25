@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { fulfillOnchainReads, mockAppChainStatus } from './helpers/onchain'
+import { fulfillOnchainReads, mockAppChainStatus, GNO_MONITORING_HOST } from './helpers/onchain'
 
 /**
  * Escrow happy path through the UI, fully offline: hire by address → fund →
@@ -108,7 +108,7 @@ const qevalString = (s: string) => `(${JSON.stringify(s)} string)`
 
 async function setup(page: Page, escrow: EscrowModel) {
     await page.route(/memba\.v1\./, (route) => route.abort())
-    await page.route(/monitoring\.gnolove\.world/, (route) => route.abort())
+    await page.route(GNO_MONITORING_HOST, (route) => route.abort())
     await page.exposeFunction('escrowWrite', (caller: string, func: string, args: string[], send: string) => escrow.apply(caller, func, args, send))
     await page.addInitScript(({ client }) => {
         const address = localStorage.getItem('e2e-wallet') || client

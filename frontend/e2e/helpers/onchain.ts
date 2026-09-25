@@ -35,12 +35,21 @@ import type { Page } from '@playwright/test'
  * surface backed by hosts outside it. That advice is even sharper for
  * fulfillOnchainReads: an out-of-list host isn't merely left flaky — it
  * silently escapes the fixture and is served LIVE (extend the list, or layer
- * a dedicated route the way validators.spec.ts does for monitoring.gnolove.world).
+ * a dedicated route the way validators.spec.ts does for GNO_MONITORING_HOST).
  */
 export const GNO_RPC_HOSTS = [/\.gno\.land/, /testnets\.gno\.land/, /gnoland\.network/, /\.onbloc\.xyz/, /\.samourai\.live/]
 
+/**
+ * The gnomonitoring REST API (config.ts DEFAULT_GNO_MONITORING_API_URL). It sits
+ * under `.samourai.live` like the samourai RPC sentries, but it is NOT an RPC:
+ * isOnchainRead excludes it so fulfillOnchainReads never answers it with a
+ * JSON-RPC envelope, and specs keep stubbing it with their own layered route.
+ */
+export const GNO_MONITORING_HOST = /gnomonitoring\.samourai\.live/
+
 /** True if the URL points at one of the gno RPC hosts in GNO_RPC_HOSTS. */
 export function isOnchainRead(url: string): boolean {
+    if (GNO_MONITORING_HOST.test(url)) return false
     return GNO_RPC_HOSTS.some(re => re.test(url))
 }
 
@@ -99,7 +108,7 @@ export interface GnoRpcCall {
  *    result-less `{jsonrpc,id}` that clients degrade from silently.
  *
  * Non-RPC URLs are passed on with route.fallback(), so a spec can layer an
- * extra route (e.g. monitoring.gnolove.world, which is deliberately NOT in
+ * extra route (e.g. GNO_MONITORING_HOST, which isOnchainRead deliberately excludes
  * GNO_RPC_HOSTS) by registering it BEFORE this one.
  */
 export async function fulfillOnchainReads(

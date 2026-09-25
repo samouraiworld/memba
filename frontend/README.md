@@ -91,6 +91,6 @@ The **Kodera design system** uses Vanilla CSS with design tokens and custom comp
 | `VITE_PEARL_RPC_URL` | Override Pearl's RPC endpoint (`VITE_<NETWORK>_RPC_URL` per network) | `https://rpc.pearl.testnets.gno.land:443` |
 | `VITE_GITHUB_CLIENT_ID` | GitHub OAuth Client ID | — |
 | `VITE_DAO_REALM_PATH` | DAO realm path | `gno.land/r/samcrew/samourai_dao` |
-| `VITE_GNOLOVE_API_URL` | Gnolove API URL | `https://gnolove.world` |
+| `VITE_GNOLOVE_API_URL` | Gnolove API URL (hosts outside `TRUSTED_GNOLOVE_API_DOMAINS` are ignored) | `https://gnolove-api.samourai.live` |
 | `VITE_SENTRY_DSN` | Sentry DSN | — (disabled when empty) |
 | `SENTRY_AUTH_TOKEN` | Sentry auth token (build-time) | — (source map upload) |

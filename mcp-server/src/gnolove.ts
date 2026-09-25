@@ -2,7 +2,7 @@
  * Gnolove API helpers — contributor data for the MCP server.
  */
 
-const DEFAULT_API = "https://backend.gnolove.world";
+const DEFAULT_API = "https://gnolove-api.samourai.live";
 const TIMEOUT_MS = 8_000;
 
 function getApiUrl(): string {

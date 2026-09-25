@@ -20,6 +20,13 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Dev Report and validator data stop depending on the lapsed gnolove.world domain (2026-09-25)
+<!-- categories: memba, security -->
+- **Validator monikers, uptime, incidents and scores load again.** The monitoring default moves to Samourai's own gnomonitoring host, `https://gnomonitoring.samourai.live`, which serves every endpoint Memba reads for `gnoland-1` with the same response shapes.
+- **gnolove.world is no longer trusted anywhere.** The domain lapsed, so whoever re-registers it would receive Memba's requests. It is gone from the monitoring allowlist, the default gnolove API URL and the `connect-src` of both CSPs (`netlify.toml`, `index.html`). A unit test fails if it comes back.
+- **A stale deploy override cannot bring it back.** `VITE_GNOLOVE_API_URL` and `VITE_GNO_MONITORING_API_URL` now only accept exact allowlisted hosts (plus `localhost`); any other value falls back to the default with a console warning.
+- **Dev Report points at `https://gnolove-api.samourai.live`.** That host has no DNS record yet, so the Dev Report keeps showing its existing "unavailable" state until it does; the queries do not retry network errors.
+
 ### The Marketplace entry follows the live Services lane, and the realms notice says what is not available (2026-09-25)
 <!-- categories: memba -->
 - **Marketplace is no longer badged "soon" once escrow Services is live.** The entry keyed off `VITE_ENABLE_MARKETPLACE` alone, so a network with `VITE_ENABLE_SERVICES` on and escrow allowlisted (gno.land mainnet today) could show "Marketplace · soon" over a working lane. The desktop sidebar, the mobile More sheet and the home tile now treat a live Services lane as a live Marketplace, and `/marketplace` already lands on the Services lane when it is the only live one. Without a live Services lane nothing changes.

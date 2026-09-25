@@ -95,8 +95,8 @@ describe("shouldEnforceFlagGate", () => {
 describe("assertSecureApiUrls", () => {
     it("fails a shipped build whose backend URL is plain http (browsers block it as mixed content: \"Failed to fetch\")", () => {
         expect(() => assertSecureApiUrls({ VITE_API_URL: "http://memba-backend.fly.dev" })).toThrow(/VITE_API_URL.*https/)
-        expect(() => assertSecureApiUrls({ VITE_GNOLOVE_API_URL: "http://backend.gnolove.world" })).toThrow(/VITE_GNOLOVE_API_URL/)
-        expect(() => assertSecureApiUrls({ VITE_GNO_MONITORING_API_URL: "http://monitoring.gnolove.world" })).toThrow(/VITE_GNO_MONITORING_API_URL/)
+        expect(() => assertSecureApiUrls({ VITE_GNOLOVE_API_URL: "http://gnolove-api.samourai.live" })).toThrow(/VITE_GNOLOVE_API_URL/)
+        expect(() => assertSecureApiUrls({ VITE_GNO_MONITORING_API_URL: "http://gnomonitoring.samourai.live" })).toThrow(/VITE_GNO_MONITORING_API_URL/)
     })
 
     it("fails a URL that isn't a URL at all", () => {

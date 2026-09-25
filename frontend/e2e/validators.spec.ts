@@ -1,6 +1,6 @@
 import { test, expect, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { fulfillOnchainReads, mockChainStatus } from './helpers/onchain'
+import { fulfillOnchainReads, mockChainStatus, GNO_MONITORING_HOST } from './helpers/onchain'
 
 /**
  * Validators page E2E tests — verify the validator dashboard renders
@@ -24,7 +24,7 @@ import { fulfillOnchainReads, mockChainStatus } from './helpers/onchain'
  *  - /net_info — one peer, so the 5-card stat grid keeps its Network card;
  *  - abci_query (valopers qrender) — empty → the on-chain moniker overlay
  *    just stays absent;
- *  - monitoring.gnolove.world (NOT a GNO_RPC_HOSTS host — layered route,
+ *  - gnomonitoring (GNO_MONITORING_HOST, excluded from isOnchainRead — layered route,
  *    registered first so fulfillOnchainReads' fallback() reaches it) — [] →
  *    cards simply carry no uptime enrichment.
  */
@@ -71,7 +71,7 @@ async function fulfillValidatorRoster(page: Page) {
         }],
     }
 
-    await page.route(/monitoring\.gnolove\.world/, route =>
+    await page.route(GNO_MONITORING_HOST, route =>
         route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }))
     await fulfillOnchainReads(page, ({ method }) => {
         if (method === 'validators') return VALIDATORS

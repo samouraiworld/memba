@@ -311,8 +311,63 @@ describe('config constants', () => {
         expect(GNO_BECH32_PREFIX).toBe('g')
     })
 
-    it('GNOLOVE_API_URL defaults to backend.gnolove.world', () => {
-        expect(GNOLOVE_API_URL).toBe('https://backend.gnolove.world')
+    it('GNOLOVE_API_URL defaults to the samourai.live gnolove API host', () => {
+        expect(GNOLOVE_API_URL).toBe('https://gnolove-api.samourai.live')
+    })
+})
+
+describe('external service URLs only resolve to allowlisted hosts', () => {
+    afterEach(() => {
+        vi.unstubAllEnvs()
+        vi.resetModules()
+    })
+
+    async function load(env: Record<string, string>) {
+        vi.stubEnv('VITE_GNOLOVE_API_URL', '')
+        vi.stubEnv('VITE_GNO_MONITORING_API_URL', '')
+        for (const [k, v] of Object.entries(env)) vi.stubEnv(k, v)
+        vi.resetModules()
+        const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+        const cfg = await import('./config')
+        warn.mockRestore()
+        return cfg
+    }
+
+    it('defaults both services to Samourai hosts', async () => {
+        const cfg = await load({})
+        expect(cfg.GNOLOVE_API_URL).toBe('https://gnolove-api.samourai.live')
+        expect(cfg.GNO_MONITORING_API_URL).toBe('https://gnomonitoring.samourai.live')
+    })
+
+    it('keeps an override on an allowlisted host', async () => {
+        const cfg = await load({
+            VITE_GNOLOVE_API_URL: 'http://localhost:8888',
+            VITE_GNO_MONITORING_API_URL: 'http://localhost:5000',
+        })
+        expect(cfg.GNOLOVE_API_URL).toBe('http://localhost:8888')
+        expect(cfg.GNO_MONITORING_API_URL).toBe('http://localhost:5000')
+    })
+
+    it('ignores a stale override naming the lapsed gnolove domain', async () => {
+        const cfg = await load({
+            VITE_GNOLOVE_API_URL: 'https://backend.gnolove.world',
+            VITE_GNO_MONITORING_API_URL: 'https://monitoring.gnolove.world',
+        })
+        expect(cfg.GNOLOVE_API_URL).toBe('https://gnolove-api.samourai.live')
+        expect(cfg.GNO_MONITORING_API_URL).toBe('https://gnomonitoring.samourai.live')
+    })
+
+    it('never lets a look-alike or sibling domain satisfy the allowlist', async () => {
+        for (const host of [
+            'https://evilsamourai.live',
+            'https://gnomonitoring.samourai.live.evil.com',
+            'https://evil-gnomonitoring.samourai.live',
+            'https://other.samourai.live',
+        ]) {
+            const cfg = await load({ VITE_GNOLOVE_API_URL: host, VITE_GNO_MONITORING_API_URL: host })
+            expect(cfg.GNOLOVE_API_URL, host).toBe('https://gnolove-api.samourai.live')
+            expect(cfg.GNO_MONITORING_API_URL, host).toBe('https://gnomonitoring.samourai.live')
+        }
     })
 })
 

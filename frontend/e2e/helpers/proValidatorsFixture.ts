@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test'
-import { fulfillOnchainReads, mockChainStatus } from './onchain'
+import { fulfillOnchainReads, mockChainStatus, GNO_MONITORING_HOST } from './onchain'
 
 /** Test-only deterministic roster, never imported by application source. */
 export async function fulfillProValidatorRoster(page: Page, mode: 'healthy' | 'mixed' | 'missing' | 'empty' | 'large' | 'resolved' = 'healthy') {
@@ -51,7 +51,7 @@ export async function fulfillProValidatorRoster(page: Page, mode: 'healthy' | 'm
         }],
     }
 
-    await page.route(/monitoring\.gnolove\.world/, route => {
+    await page.route(GNO_MONITORING_HOST, route => {
         const path = new URL(route.request().url()).pathname.toLowerCase()
         const rows = (mode === 'missing' ? [] : ids.filter(n => mode !== 'mixed' || n !== 4)).map(n => ({
             addr: `g1mockval000000000000000000000000000000${n}`,

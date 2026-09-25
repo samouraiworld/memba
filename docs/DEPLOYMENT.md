@@ -42,7 +42,8 @@ npm run dev
 | `VITE_API_URL` | `""` (same-origin) | Backend ConnectRPC base URL |
 | `VITE_MAINNET_RPC_URL` | `https://rpc.gno.land:443` | Override mainnet's (`gnoland-1`) RPC (same `VITE_<NETWORK>_RPC_URL` pattern per network; retired Pearl keeps `VITE_PEARL_RPC_URL`). Optional — the endpoint is baked into `config.ts`. (There is no `VITE_GNO_RPC_URL`: no code reads it.) |
 | `VITE_DAO_REALM_PATH` | `gno.land/r/samcrew/memba_dao` | Canonical Memba dApp DAO realm path on-chain |
-| `VITE_GNOLOVE_API_URL` | `https://backend.gnolove.world` | Gnolove Go API (scoreboard, reports, analytics) |
+| `VITE_GNOLOVE_API_URL` | `https://gnolove-api.samourai.live` | Gnolove Go API (scoreboard, reports, analytics). Hosts outside `TRUSTED_GNOLOVE_API_DOMAINS` are ignored |
+| `VITE_GNO_MONITORING_API_URL` | `https://gnomonitoring.samourai.live` | gnomonitoring API (validator monikers, uptime). Hosts outside `TRUSTED_MONITORING_DOMAINS` are ignored |
 
 > **On-chain verification**: Browse deployed Samouraï Coop realms and packages on mainnet at [gno.land/r/samcrew](https://gno.land/r/samcrew) (gno-core's official gnoweb). Pearl (`pearl-1`) was retired on 2026-09-23.
 > Note: `samourai_dao` is a separate Samouraï Coop DAO for crew members only — do **not** use it as `VITE_DAO_REALM_PATH`.
@@ -74,14 +75,15 @@ VITE_API_URL = https://memba-backend.fly.dev
 VITE_GNO_CHAIN_ID = mainnet
 VITE_DAO_REALM_PATH = gno.land/r/samcrew/memba_dao
 VITE_GITHUB_CLIENT_ID = <GitHub OAuth App Client ID>
-VITE_GNOLOVE_API_URL = https://backend.gnolove.world
-VITE_GNO_MONITORING_API_URL = https://monitoring.gnolove.world
+VITE_GNOLOVE_API_URL = https://gnolove-api.samourai.live   (optional: this is the default)
+VITE_GNO_MONITORING_API_URL = https://gnomonitoring.samourai.live   (optional: this is the default)
 VITE_CLERK_PUBLISHABLE_KEY = <Clerk publishable key (pk_live_)>
 ```
 
-> **Note (v2.20)**: `VITE_GNOLOVE_API_URL` must point to the Go API server (`backend.gnolove.world`),
-> not the Next.js frontend (`gnolove.world`). The Gnolove Go backend CORS is configured to allow
-> `memba.samourai.app` by default — no `CORS_ALLOWED_ORIGINS` env var change needed on the VPS.
+> **Note**: `VITE_GNOLOVE_API_URL` must point to the gnolove Go API server, not a Next.js frontend.
+> The former gnolove domain lapsed in 2026-09; both services now live on Samourai hosts under
+> `samourai.live`, and `config.ts` ignores an override naming any host outside its allowlists.
+> Each API's CORS must allow every Memba origin (`memba.samourai.app`, `memba.club`).
 > `VITE_CLERK_PUBLISHABLE_KEY` is shared with the gnolove Clerk app instance.
 
 ### Backend — Fly.io

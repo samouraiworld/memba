@@ -45,8 +45,6 @@ const REMOTE = [
     /testnets\.gno\.land/,
     /gnoland\.network/,
     /\.onbloc\.xyz/,
-    /gnolove\.world/,
-    /monitoring\.gnolove/,
     /api\.github\.com/,
     /lighthouse\.storage/,
     /samourai\.live/,

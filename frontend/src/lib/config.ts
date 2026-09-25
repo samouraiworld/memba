@@ -83,7 +83,7 @@ interface NetworkConfig {
      *  `topaz`, needing an override here; 2026-07-23: it flipped back, so the
      *  override became wrong and was removed). Before trusting or changing a
      *  `monitoringChain` value, re-verify live:
-     *    GET https://monitoring.gnolove.world/uptime?chain=<candidate>
+     *    GET https://gnomonitoring.samourai.live/uptime?chain=<candidate>
      *  (use `/uptime`, not `/Participation` — the latter 400s with "Missing
      *  period" unless you also pass `period=current_month`, which reads like
      *  a chain-id rejection if you're not expecting it.) A 200 with real
@@ -1193,30 +1193,73 @@ export const UGNOT_PER_GNOT = 1_000_000
 /** DAO realm path on-chain. Update when the DAO realm is deployed. */
 export const DAO_REALM_PATH = import.meta.env.VITE_DAO_REALM_PATH || "gno.land/r/samcrew/memba_dao"
 
-/** Gnolove API base URL for profile enrichment and contribution data. */
-export const GNOLOVE_API_URL = import.meta.env.VITE_GNOLOVE_API_URL || "https://backend.gnolove.world"
-
-/** Gnomonitoring API base URL for validator metrics (monikers, uptime, participation).
- *  Serves Memba's /validators dashboard. Public, no auth required.
- *  Override via VITE_GNO_MONITORING_API_URL if you run your own instance. */
-/** Trusted domains for the monitoring API. */
-const TRUSTED_MONITORING_DOMAINS = ["gnolove.world", "monitoring.gnolove.world", "localhost"]
-
-function isTrustedMonitoringDomain(url: string): boolean {
+/** True when `url`'s host is exactly one of `domains`, or a sub-domain of one.
+ *  The sub-domain arm requires a leading dot, so a look-alike registrable
+ *  domain (`evilsamourai.live`) never satisfies an entry (`samourai.live`). */
+function isTrustedHost(url: string, domains: readonly string[]): boolean {
     try {
         const hostname = new URL(url).hostname.toLowerCase()
-        return TRUSTED_MONITORING_DOMAINS.some(d => hostname === d || hostname.endsWith(`.${d}`))
+        return domains.some(d => hostname === d || hostname.endsWith(`.${d}`))
     } catch { return false }
 }
 
-export const GNO_MONITORING_API_URL = (() => {
-    const url = import.meta.env.VITE_GNO_MONITORING_API_URL || "https://monitoring.gnolove.world"
-    if (url !== "https://monitoring.gnolove.world" && !isTrustedMonitoringDomain(url)) {
-        console.warn(`[Memba] Untrusted monitoring API URL: ${url}. Falling back to default.`)
-        return "https://monitoring.gnolove.world"
+/** Resolve an overridable service URL against an allowlist: an override whose
+ *  host is not listed is ignored (with a warning) in favour of the default.
+ *  This is what retires a lapsed domain even when a stale deploy-env override
+ *  still names it — the build keeps working and never calls the old host. */
+function resolveTrustedServiceUrl(
+    override: string | undefined,
+    fallback: string,
+    domains: readonly string[],
+    label: string,
+): string {
+    const url = override || fallback
+    if (url !== fallback && !isTrustedHost(url, domains)) {
+        console.warn(`[Memba] Untrusted ${label} URL: ${url}. Falling back to default.`)
+        return fallback
     }
     return url
-})()
+}
+
+// The previous gnolove / gnomonitoring domain lapsed in 2026-09 (no NS
+// records). Anyone re-registering it would be served Memba's traffic, so it is
+// deliberately absent from every list below and from the CSP connect-src —
+// `externalHosts.test.ts` fails if it comes back.
+
+/** Gnolove API default: Samourai's own host. */
+export const DEFAULT_GNOLOVE_API_URL = "https://gnolove-api.samourai.live"
+
+/** Hosts the gnolove API may be served from. Exact hosts (plus their
+ *  sub-domains), never a bare parent-domain suffix. */
+export const TRUSTED_GNOLOVE_API_DOMAINS = ["gnolove-api.samourai.live", "localhost"] as const
+
+/** Gnolove API base URL for profile enrichment and contribution data (Dev Report).
+ *  Override via VITE_GNOLOVE_API_URL; an override outside
+ *  TRUSTED_GNOLOVE_API_DOMAINS is ignored. */
+export const GNOLOVE_API_URL = resolveTrustedServiceUrl(
+    import.meta.env.VITE_GNOLOVE_API_URL,
+    DEFAULT_GNOLOVE_API_URL,
+    TRUSTED_GNOLOVE_API_DOMAINS,
+    "gnolove API",
+)
+
+/** Gnomonitoring default: Samourai's own gnomonitoring VPS. */
+export const DEFAULT_GNO_MONITORING_API_URL = "https://gnomonitoring.samourai.live"
+
+/** Hosts the monitoring API may be served from. Exact hosts (plus their
+ *  sub-domains), never a bare parent-domain suffix. */
+export const TRUSTED_MONITORING_DOMAINS = ["gnomonitoring.samourai.live", "localhost"] as const
+
+/** Gnomonitoring API base URL for validator metrics (monikers, uptime, participation).
+ *  Serves Memba's /validators dashboard. Public, no auth required.
+ *  Override via VITE_GNO_MONITORING_API_URL if you run your own instance on a
+ *  host listed in TRUSTED_MONITORING_DOMAINS; any other override is ignored. */
+export const GNO_MONITORING_API_URL = resolveTrustedServiceUrl(
+    import.meta.env.VITE_GNO_MONITORING_API_URL,
+    DEFAULT_GNO_MONITORING_API_URL,
+    TRUSTED_MONITORING_DOMAINS,
+    "monitoring API",
+)
 
 /** Clerk publishable key for alerting feature auth.
  *  Shared Clerk app instance for Memba alerting.

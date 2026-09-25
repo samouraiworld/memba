@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test'
-import { abortOnchainReads, isOnchainRead } from '../helpers/onchain'
+import { abortOnchainReads, isOnchainRead, GNO_MONITORING_HOST } from '../helpers/onchain'
 
 /**
  * Marketplace LIVE surface — 375px layout guard (workstream 2c).
@@ -25,13 +25,11 @@ import { abortOnchainReads, isOnchainRead } from '../helpers/onchain'
  * primary, fallback and telemetry hosts are all in GNO_RPC_HOSTS, so the page
  * never dials a dead host and waits on its connection failure — the lane drops
  * out of loading instantly and renders the same empty shell every run. The
- * home page visited by resolveNetwork() also asks monitoring.gnolove.world for
- * validator participation — deliberately NOT a GNO_RPC_HOSTS host, so it is
+ * home page visited by resolveNetwork() also asks gnomonitoring for validator
+ * participation — deliberately excluded from isOnchainRead, so it is
  * aborted by a layered route (registered AFTER abortOnchainReads, which
  * continue()s non-RPC URLs, so the later-registered route must win).
  */
-
-const GNOLOVE_MONITORING = /monitoring\.gnolove\.world/
 
 test.use({ baseURL: 'http://localhost:5176' })
 
@@ -52,13 +50,13 @@ test.describe('Marketplace LIVE surface — 375px layout', () => {
 
     test.beforeEach(async ({ page }) => {
         // Never leave the sandbox: every gno RPC read (test13 primary, fallback,
-        // telemetry) rejects instantly, and so does the gnolove participation read.
+        // telemetry) rejects instantly, and so does the gnomonitoring participation read.
         await abortOnchainReads(page)
-        await page.route(GNOLOVE_MONITORING, route => route.abort())
+        await page.route(GNO_MONITORING_HOST, route => route.abort())
         served = []
         page.on('requestfinished', r => {
             const url = r.url()
-            if (isOnchainRead(url) || GNOLOVE_MONITORING.test(url)) served.push(url)
+            if (isOnchainRead(url) || GNO_MONITORING_HOST.test(url)) served.push(url)
         })
         // Pin the exact width the mobile CSS (@media max-width:640px) targets.
         await page.setViewportSize({ width: 375, height: 812 })

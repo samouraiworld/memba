@@ -36,12 +36,12 @@ curl -s https://rpc.gno.land:443 \
 
 ### Get contributor leaderboard
 ```bash
-curl -s 'https://backend.gnolove.world/stats?time_filter=all'
+curl -s 'https://gnolove-api.samourai.live/stats?time_filter=all'
 ```
 
 ### Get validator metrics
 ```bash
-curl -s 'https://monitoring.gnolove.world/validators'
+curl -s 'https://gnomonitoring.samourai.live/uptime?chain=gnoland-1'
 ```
 
 ## MCP Servers
@@ -136,7 +136,7 @@ echo "$RESULT" | jq -r '.result.response.ResponseBase.Data' | base64 -d
 
 ### Monitor validator uptime
 ```bash
-curl -s 'https://monitoring.gnolove.world/validators' | jq '.[0]'
+curl -s 'https://gnomonitoring.samourai.live/uptime?chain=gnoland-1' | jq '.[0]'
 ```
 
 ## Data Sources Reference
