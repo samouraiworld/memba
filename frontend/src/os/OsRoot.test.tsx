@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react"
+import { act, render, screen } from "@testing-library/react"
 import { MemoryRouter } from "react-router-dom"
 import { afterEach, describe, expect, it, vi } from "vitest"
 import OsRoot from "./OsRoot"
@@ -40,5 +40,24 @@ describe("OsRoot", () => {
         localStorage.setItem(OS_THEME_KEY, "light")
         renderOs()
         expect(screen.getByTestId("memba-os")).toHaveAttribute("data-os-theme", "light")
+    })
+
+    it("paints the classic pages in the OS theme and restores the page theme on unmount", () => {
+        document.documentElement.setAttribute("data-theme", "dark")
+        mockSystemDark(false)
+        const { unmount } = renderOs()
+        expect(document.documentElement).toHaveAttribute("data-theme", "light")
+        unmount()
+        expect(document.documentElement).toHaveAttribute("data-theme", "dark")
+    })
+
+    it("keeps the OS theme when a classic control changes the page theme", () => {
+        mockSystemDark(false)
+        renderOs()
+        act(() => {
+            document.documentElement.setAttribute("data-theme", "dark")
+            window.dispatchEvent(new Event("memba:theme-change"))
+        })
+        expect(document.documentElement).toHaveAttribute("data-theme", "light")
     })
 })
