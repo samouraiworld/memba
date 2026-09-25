@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { parseOsPath } from "./osPath"
 import {
-    appSpec, daoSpec, DOCK_ROOM, EMPTY_WINDOWS, frontWindow, specForTarget, urlForWindow, welcomeSpec, windowsReducer,
+    appSpec, daoSpec, DOCK_ROOM, EMPTY_WINDOWS, frontWindow, maxGeometry, specForTarget, urlForWindow, welcomeSpec, windowsReducer,
     type WindowsAction, type WindowsState,
 } from "./windows"
 
@@ -142,6 +142,19 @@ describe("windowsReducer", () => {
         const after = windowsReducer(restored, open(appSpec("feed")))
         expect(new Set(after.wins.map((w) => w.id)).size).toBe(2)
         expect(frontWindow(after.wins)?.key).toBe("app:feed")
+    })
+})
+
+describe("maxGeometry", () => {
+    it("fills the desk under the menu bar", () => {
+        const g = maxGeometry({ w: 1440, h: 870 })
+        expect(g).toMatchObject({ x: 8, y: 6, width: 1424 })
+    })
+    it("starts below the guest banner while it shows", () => {
+        const plain = maxGeometry({ w: 1440, h: 870 })
+        const g = maxGeometry({ w: 1440, h: 870, top: 52 })
+        expect(g.y).toBe(58)
+        expect(g.height).toBe(plain.height - 52)
     })
 })
 

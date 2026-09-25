@@ -115,6 +115,18 @@ test.describe('Memba OS windows', () => {
         await expect.poll(async () => Math.round((await win(page, 'Feed').boundingBox())!.width)).toBe(960) // page windows open at 960
     })
 
+    test('shared link as guest: maximising a window still starts it below the banner', async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 760 })
+        await page.goto(`${OS_ON}/os/validators`)
+        const w = await settled(page, 'Validators')
+        await expect(page.getByText('Browsing as guest')).toBeVisible()
+        await w.getByRole('button', { name: 'Maximise Validators' }).click()
+        await expect.poll(async () => Math.round((await w.boundingBox())!.width)).toBe(1280 - 16)
+        const banner = (await page.locator('.os-banner').boundingBox())!
+        const titleBar = (await w.locator('.os-tb').boundingBox())!
+        expect(titleBar.y).toBeGreaterThanOrEqual(banner.y + banner.height)
+    })
+
     test('Window menu: tile the two front windows, minimise all, next', async ({ page }) => {
         await page.goto(`${OS_ON}/os/feed?w=app.wallet`)
         await settled(page, 'Wallet')

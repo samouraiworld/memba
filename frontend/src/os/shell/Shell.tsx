@@ -6,7 +6,7 @@
  *
  * @module os/shell/Shell
  */
-import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react"
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom"
 import { OS_APPS, type OsAppId } from "../apps"
 import { ConnectModal } from "./ConnectModal"
@@ -130,6 +130,8 @@ export function Shell() {
 
     // Windows placed while the guest banner shows start below it (it sits above windows).
     const bannerUp = linkGuest && session.status !== "member"
+    // A maximised window must start under the banner too, not just newly-placed ones.
+    const frameDesk = useMemo<DeskSize>(() => (bannerUp ? { ...desk, top: BANNER_ROOM } : desk), [desk, bannerUp])
     const bannerNow = useRef(bannerUp)
     useEffect(() => { bannerNow.current = bannerUp }, [bannerUp])
     const placeDesk = useCallback((): DeskSize => ({ ...deskNow.current, top: bannerNow.current ? BANNER_ROOM : 0 }), [])
@@ -321,7 +323,7 @@ export function Shell() {
                     </div>
                 )}
                 {visible.map((w) => (
-                    <WindowFrame key={w.id} win={w} active={w.id === front?.id} desk={desk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast} />
+                    <WindowFrame key={w.id} win={w} active={w.id === front?.id} desk={frameDesk} frame={frame} session={session} openApp={openApp} open={open} toast={showToast} />
                 ))}
                 {menu && <ContextMenu x={menu.x} y={menu.y} entries={menuEntries} onClose={closeMenu} />}
                 {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={() => setLauncher(false)} />}
