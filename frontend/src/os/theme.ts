@@ -47,3 +47,20 @@ export function useOsTheme(pref: OsThemePref = readThemePref()): OsTheme {
     }, [])
     return resolveTheme(pref, systemDark)
 }
+
+/** The classic pages inside windows read html[data-theme] (lib/themeStore): while Memba OS
+ *  is mounted, the OS theme is the only theme. A classic control that sets another one is
+ *  overruled at once; the page theme comes back when the OS unmounts. */
+export function useClassicThemeSync(theme: OsTheme): void {
+    useEffect(() => {
+        const root = document.documentElement
+        const before = root.getAttribute("data-theme")
+        const apply = () => { if (root.getAttribute("data-theme") !== theme) root.setAttribute("data-theme", theme) }
+        apply()
+        window.addEventListener("memba:theme-change", apply)
+        return () => {
+            window.removeEventListener("memba:theme-change", apply)
+            if (before) root.setAttribute("data-theme", before)
+        }
+    }, [theme])
+}
