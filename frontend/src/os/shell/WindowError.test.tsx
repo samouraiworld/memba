@@ -74,4 +74,16 @@ describe("WindowError", () => {
         fireEvent.click(screen.getByRole("button", { name: "Try again" }))
         expect(screen.getByText("recovered")).toBeInTheDocument()
     })
+
+    it("without close (a boundary inside a window), offers only Try again and doesn't mention closing", () => {
+        render(<WindowError resetKey="a"><Boom msg="render crash" /></WindowError>)
+        expect(screen.getByText("Your other windows are fine. Try again.")).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument()
+        expect(screen.queryByRole("button", { name: "Close window" })).toBeNull()
+    })
+
+    it("with close, still offers closing the window", () => {
+        render(<WindowError resetKey="a" close={() => {}}><Boom msg="render crash" /></WindowError>)
+        expect(screen.getByText("Your other windows are fine. Try again, or close this window.")).toBeInTheDocument()
+    })
 })
