@@ -4,6 +4,11 @@
  * Shows top users by XP with rank badges, quest counts,
  * and the current user's position highlighted.
  *
+ * Player names are the wallet's on-chain registered username (r/sys/users),
+ * resolved client-side for the current page only, else a short address. The
+ * backend's `username` field is the free-text profile title, which anyone can
+ * set to look like someone else's @handle, so it is never shown as a name.
+ *
  * Route: /:network/leaderboard
  */
 
@@ -11,6 +16,7 @@ import { useState, useEffect } from "react"
 import { Link } from "react-router-dom"
 import { useAdena } from "../hooks/useAdena"
 import { useNetworkKey } from "../hooks/useNetworkNav"
+import { useActorUsernames } from "../hooks/home/useActorUsernames"
 import { api } from "../lib/api"
 import { create } from "@bufbuild/protobuf"
 import { GetLeaderboardRequestSchema } from "../gen/memba/v1/memba_pb"
@@ -54,6 +60,8 @@ export default function Leaderboard() {
     }, [page])
 
     const totalPages = Math.ceil(totalCount / PAGE_SIZE)
+    // Cached per address set; a failed or unregistered lookup is simply absent.
+    const usernames = useActorUsernames(entries.map(e => e.address))
 
     const truncate = (addr: string) =>
         addr.length > 16 ? `${addr.slice(0, 10)}...${addr.slice(-4)}` : addr
@@ -109,8 +117,10 @@ export default function Leaderboard() {
                                             })()}
                                         </td>
                                         <td>
-                                            <Link to={`/${nk}/profile/${entry.address}`} className="k-leaderboard-addr">
-                                                {entry.username || truncate(entry.address)}
+                                            <Link to={`/${nk}/profile/${entry.address}`} className="k-leaderboard-addr" title={entry.address}>
+                                                {usernames.has(entry.address)
+                                                    ? `@${usernames.get(entry.address)}`
+                                                    : truncate(entry.address)}
                                             </Link>
                                             {isMe && <span className="k-leaderboard-you">(you)</span>}
                                         </td>

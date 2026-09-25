@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Leaderboard names can't be faked (2026-09-24)
+<!-- categories: memba -->
+- **The leaderboard shows each player's registered gno.land username, or a short address.** It used to show the free-text profile title, so anyone could set a title like "@alice" and appear as someone else.
+- Names are looked up only for the page you are viewing and cached. If a lookup fails, the address is shown.
+
 ### GitHub links on profiles are verified (2026-09-24)
 <!-- categories: memba -->
 - **New GitHub links on profiles are verified.** Before, "Link GitHub" checked the account but the page then saved the link itself, and any wallet could set any GitHub URL through a profile update. Links saved before this change are kept as they are.
