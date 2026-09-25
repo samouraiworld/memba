@@ -82,6 +82,12 @@ describe("osTargetForClassic", () => {
         expect(osTargetForClassic("/mainnet/feedback", "mainnet")).toEqual({ kind: "feedback" })
     })
 
+    it("sends the classic dashboard and home to the desktop", () => {
+        expect(osTargetForClassic("/mainnet/dashboard", "mainnet")).toEqual({ kind: "desktop" })
+        expect(osTargetForClassic("/", "mainnet")).toEqual({ kind: "desktop" })
+        expect(osTargetForClassic("/mainnet/dashboard/extra", "mainnet")).not.toEqual({ kind: "desktop" })
+    })
+
     it("gives a bare legacy path the current network, as LegacyRedirect does", () => {
         expect(osTargetForClassic("/validators/hacker", "mainnet")).toEqual({ kind: "app", app: "validators", section: "hacker" })
         expect(osTargetForClassic("/os/feed", "mainnet")).toBeNull()

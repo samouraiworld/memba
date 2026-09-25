@@ -51,9 +51,16 @@ export function ClassicPage({ network, page, query, layout }: {
             // A page link is the whole address: no query means the page has none (never "keep the old one").
             return t ? specForTarget(t.kind === "app" ? { ...t, query: t.query ?? "" } : t) : null
         }
+        // A classic dashboard or home link has no window of its own: it goes to the desktop itself.
+        const isDesktop = (to: To) => osTargetForClassic(pathOf(to), network)?.kind === "desktop"
         // Through the real router, so an in-page link is a history entry (Back returns
         // to the previous page); the shell's URL reader then opens or retargets the window.
         const go = (replace: boolean) => (to: To, state?: unknown) => {
+            if (isDesktop(to)) {
+                if (replace) parent.navigator.replace("/os", state)
+                else parent.navigator.push("/os", state)
+                return
+            }
             const spec = specFor(to)
             if (!spec) { window.location.assign(pathOf(to)); return }
             if (replace) parent.navigator.replace(urlForWindow(spec), state)
@@ -64,7 +71,11 @@ export function ClassicPage({ network, page, query, layout }: {
             navigator: {
                 ...parent.navigator,
                 // Links show (and copy) the Memba OS address of their window.
-                createHref: (to: To) => { const spec = specFor(to); return spec ? urlForWindow(spec) : parent.navigator.createHref(to) },
+                createHref: (to: To) => {
+                    if (isDesktop(to)) return "/os"
+                    const spec = specFor(to)
+                    return spec ? urlForWindow(spec) : parent.navigator.createHref(to)
+                },
                 push: go(false),
                 replace: go(true),
                 go: (n: number) => window.history.go(n),
