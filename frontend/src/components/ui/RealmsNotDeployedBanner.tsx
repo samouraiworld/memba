@@ -26,6 +26,9 @@ interface RealmsNotDeployedBannerProps {
 
 const DEFAULT_MISSING = ["channels", "candidature", "feed", "quests"] as const
 
+// Feature names that take a plural verb ("channels are", but "candidature is").
+const PLURAL_FEATURES = new Set(["channels", "quests"])
+
 function listFeatures(items: readonly string[]): string {
     if (items.length <= 1) return items.join("")
     return `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`
@@ -53,9 +56,11 @@ export function RealmsNotDeployedBanner({ deployed, networkLabel, missing = DEFA
         >
             <span style={{ fontSize: "1.2rem", flexShrink: 0 }} aria-hidden="true">🚧</span>
             <div style={{ flex: 1 }}>
-                Memba&apos;s community {missing.length === 1 ? "realm" : "realms"} for {listFeatures(missing)}{" "}
-                {missing.length === 1 ? "is" : "are"} not on <strong>{networkLabel}</strong> yet. You can read GovDAO and
-                DAOs deployed by their members.
+                {/* "Not available", not "not deployed": a feature can be unusable while its
+                    realm is on chain (mainnet's channels realm is live but closed to members). */}
+                Memba&apos;s {listFeatures(missing)}{" "}
+                {missing.length > 1 || PLURAL_FEATURES.has(missing[0]) ? "are" : "is"} not available on{" "}
+                <strong>{networkLabel}</strong> yet. You can read GovDAO and DAOs deployed by their members.
             </div>
         </div>
     )

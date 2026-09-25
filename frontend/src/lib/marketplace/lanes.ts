@@ -13,7 +13,7 @@
  * @module lib/marketplace/lanes
  */
 
-import { isNftEnabled, isNftMarketV3Valid, isServicesEnabled, isEscrowValid, isTokensEnabled, isTokenOtcValid, isAgentsEnabled, isAgentRegistryValid } from "../config"
+import { isMarketplaceEnabled, isNftEnabled, isNftMarketV3Valid, isServicesEnabled, isEscrowValid, isTokensEnabled, isTokenOtcValid, isAgentsEnabled, isAgentRegistryValid } from "../config"
 import type { AssetType } from "./types"
 
 export interface LaneDef {
@@ -73,6 +73,18 @@ export function getLiveLanes(): LaneDef[] {
 export function isLaneLive(assetType: AssetType): boolean {
     const lane = LANES.find((l) => l.assetType === assetType)
     return lane ? lane.isLive() : false
+}
+
+/**
+ * Is the Marketplace entry live (nav entries, home tile) rather than "soon"?
+ * VITE_ENABLE_MARKETPLACE turns it on for the whole marketplace, and a live
+ * Services lane turns it on by itself: escrow Services goes live on a network
+ * (VITE_ENABLE_SERVICES plus the escrow realm allowlisted there) ahead of the
+ * other lanes, and /marketplace then lands on it, so badging the entry "soon"
+ * would hide a working lane. Without either, the entry stays "soon".
+ */
+export function isMarketplaceEntryLive(): boolean {
+    return isMarketplaceEnabled() || isLaneLive("service")
 }
 
 /** The slug of the first live lane — the marketplace's default landing lane. */

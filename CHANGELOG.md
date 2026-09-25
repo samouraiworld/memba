@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### The Marketplace entry follows the live Services lane, and the realms notice says what is not available (2026-09-25)
+<!-- categories: memba -->
+- **Marketplace is no longer badged "soon" once escrow Services is live.** The entry keyed off `VITE_ENABLE_MARKETPLACE` alone, so a network with `VITE_ENABLE_SERVICES` on and escrow allowlisted (gno.land mainnet today) could show "Marketplace · soon" over a working lane. The desktop sidebar, the mobile More sheet and the home tile now treat a live Services lane as a live Marketplace, and `/marketplace` already lands on the Services lane when it is the only live one. Without a live Services lane nothing changes.
+- **The realms notice names features, not realms.** On gno.land it now reads "Memba's channels and candidature are not available on gno.land yet": the channels realm is on chain but open only to its publisher, and candidature is not deployed. Feed and quests work on mainnet and are not named.
+
 ### The mainnet governing DAO can vote (2026-09-25)
 <!-- categories: memba, network, security -->
 - **Members of the mainnet governing DAO (`gno.land/r/samcrew/memba_dao`, v12) can propose adapter acceptances, vote and execute from Memba on gno.land.** Every call keeps its measured gas limit and storage-deposit cap, the pre-sign re-reads, the one-open-acceptance rule and the live wallet check.

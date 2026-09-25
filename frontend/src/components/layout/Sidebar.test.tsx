@@ -128,6 +128,20 @@ describe('W6.2 — 4-mode IA sections', () => {
         expect(launch.textContent).toContain('soon')
     })
 
+    test('Marketplace stays "soon" with the Services flag on where escrow is not valid (test13)', () => {
+        // A live Services lane lifts the "soon" badge (MarketplaceNavEntry.test.tsx),
+        // but the lane needs escrow allowlisted on the network too; on test13 it is not.
+        vi.stubEnv('VITE_ENABLE_SERVICES', 'true')
+        try {
+            renderSidebar({ connected: false })
+            const launch = document.querySelector('[data-testid="nav-mode-launch"]')!
+            const link = [...launch.querySelectorAll('a')].find(a => a.getAttribute('href') === '/test13/marketplace')
+            expect(link?.textContent).toContain('soon')
+        } finally {
+            vi.unstubAllEnvs()
+        }
+    })
+
     test('Feed renders at the top (under Home) with a pill, not inside a mode section', () => {
         renderSidebar({ connected: false })
         // Feed link is present and reachable (its accessible name carries the pill).
