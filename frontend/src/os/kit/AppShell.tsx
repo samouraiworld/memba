@@ -35,7 +35,8 @@ export function AppShell({ label, sections, current, onSelect, children }: {
                     <button key={s.id} type="button" aria-current={s.id === current ? "true" : undefined} onClick={() => onSelect(s.id)}>
                         {s.icon && <Icon name={s.icon} />}
                         <span>{s.name}</span>
-                        {s.badge && <span className="os-fw-badge">{s.badge}</span>}
+                        {/* the space names the button "Proposals 3", not "Proposals3"; the flex nav ignores it visually */}
+                        {s.badge != null && <>{" "}<span className="os-fw-badge">{s.badge}</span></>}
                     </button>
                 ))}
             </nav>

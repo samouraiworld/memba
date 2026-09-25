@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest"
-import { nativeViewFrom, resolveNative } from "./registry"
+import { nativeModuleKeys, nativeViewFrom, resolveNative, unknownNativeFolders } from "./registry"
 
 const load = async () => ({ default: () => null })
 describe("resolveNative", () => {
@@ -31,5 +31,19 @@ describe("nativeViewFrom", () => {
         // The same map still returns its own cached component, unaffected by modulesB.
         expect(nativeViewFrom(modulesA, "settings")).toBe(fromA)
         expect(nativeViewFrom(modulesB, "settings")).toBe(fromB)
+    })
+})
+
+describe("unknownNativeFolders", () => {
+    it("flags a folder that isn't an OS app id, and nothing else", () => {
+        expect(unknownNativeFolders([
+            "../apps/settings/native.tsx",
+            "../apps/news/native.tsx",
+            "../apps/setings/native.tsx",
+            "../apps/Settings/native.tsx",
+        ])).toEqual(["../apps/setings/native.tsx", "../apps/Settings/native.tsx"])
+    })
+    it("finds no stray folder in the real src/os/apps", () => {
+        expect(unknownNativeFolders(nativeModuleKeys())).toEqual([])
     })
 })

@@ -18,7 +18,7 @@ export function StatGrid({ stats }: { stats: readonly Stat[] }) {
                 <div key={`${i}:${s.label}`} className="os-card os-stat">
                     <div className="os-stat-l">{s.label}</div>
                     <div className="os-stat-v">{s.value}</div>
-                    {s.hint && <div className="os-sub">{s.hint}</div>}
+                    {s.hint != null && <div className="os-sub">{s.hint}</div>}
                 </div>
             ))}
         </div>

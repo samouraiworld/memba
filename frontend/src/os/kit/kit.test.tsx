@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { AppShell, Card, CardGrid, Chips, ErrorState, Gate, NotOnMainnet, Pill, Segmented, Table, Toggle } from "./index"
+import { AppShell, Card, CardGrid, Chips, Empty, ErrorState, Gate, Loading, NotOnMainnet, Pill, Segmented, StatGrid, Table, Toggle } from "./index"
 
 vi.mock("@sentry/react", () => ({ captureException: vi.fn() }))
 
@@ -142,11 +142,25 @@ describe("os kit", () => {
             expect(screen.queryByRole("table")).toBeNull()
         })
     })
-    it("Toggle is a switch", () => {
+    it("Toggle is a switch named by label, both ways", () => {
         const onChange = vi.fn()
-        render(<Toggle checked={false} onChange={onChange} label="Sounds" />)
-        fireEvent.click(screen.getByRole("switch", { name: "Sounds" }))
-        expect(onChange).toHaveBeenCalledWith(true)
+        const { rerender } = render(<Toggle checked={false} onChange={onChange} label="Sounds" />)
+        const sw = screen.getByRole("switch", { name: "Sounds" })
+        expect(sw).toHaveAttribute("aria-checked", "false")
+        fireEvent.click(sw)
+        expect(onChange).toHaveBeenLastCalledWith(true)
+        rerender(<Toggle checked onChange={onChange} label="Sounds" />)
+        expect(sw).toHaveAttribute("aria-checked", "true")
+        fireEvent.click(sw)
+        expect(onChange).toHaveBeenLastCalledWith(false)
+    })
+    it("Toggle can be named by a visible label instead (labelledBy)", () => {
+        const onChange = vi.fn()
+        render(<><span id="snd">Play sounds</span><Toggle checked onChange={onChange} labelledBy="snd" /></>)
+        const sw = screen.getByRole("switch", { name: "Play sounds" })
+        expect(sw).not.toHaveAttribute("aria-label")
+        fireEvent.click(sw)
+        expect(onChange).toHaveBeenCalledWith(false)
     })
     it("ErrorState retries", () => {
         const onRetry = vi.fn()
@@ -154,9 +168,43 @@ describe("os kit", () => {
         fireEvent.click(screen.getByRole("button", { name: "Retry" }))
         expect(onRetry).toHaveBeenCalled()
     })
-    it("NotOnMainnet says actions stay off", () => {
-        render(<NotOnMainnet what="The NFT launchpad" />)
-        expect(screen.getByText(/isn't on gnoland-1 yet/)).toBeInTheDocument()
+    it("NotOnMainnet names the network once in a pill and once in the copy", () => {
+        const { rerender } = render(<NotOnMainnet what="The NFT launchpad" />)
+        expect(screen.getByText("Not on gnoland-1 yet")).toHaveClass("os-pill", "os-warn")
+        expect(screen.getByRole("note")).toHaveTextContent("The NFT launchpad isn't available on gnoland-1 yet. You can look around; actions stay off.")
+        rerender(<NotOnMainnet what="Channels" network="test12" />)
+        expect(screen.getByText("Not on test12 yet")).toBeInTheDocument()
+        expect(screen.getByRole("note")).toHaveTextContent("Channels isn't available on test12 yet.")
+    })
+    it("AppShell draws section icons and badges, 0 included", () => {
+        render(<AppShell label="Inbox" sections={[{ id: "a", name: "All", icon: "doc", badge: 0 }, { id: "b", name: "Mine", badge: 4 }, { id: "c", name: "None" }]} current="a" onSelect={() => {}}>body</AppShell>)
+        const all = screen.getByRole("button", { name: "All 0" })
+        expect(all.querySelector("svg")).not.toBeNull()
+        expect(all.querySelector(".os-fw-badge")).toHaveTextContent("0")
+        expect(screen.getByRole("button", { name: "Mine 4" }).querySelector("svg")).toBeNull()
+        expect(screen.getByRole("button", { name: "None" }).querySelector(".os-fw-badge")).toBeNull()
+    })
+    it("StatGrid shows each stat's label, value and hint, 0 included", () => {
+        render(<StatGrid stats={[{ label: "Votes", value: 12, hint: 0 }, { label: "Members", value: 0 }]} />)
+        const votes = screen.getByText("Votes").closest(".os-stat")
+        expect(votes).toHaveTextContent("12")
+        expect(votes?.querySelector(".os-sub")).toHaveTextContent("0")
+        const members = screen.getByText("Members").closest(".os-stat")
+        expect(members?.querySelector(".os-stat-v")).toHaveTextContent("0")
+        expect(members?.querySelector(".os-sub")).toBeNull()
+    })
+    it("Loading is a status with a default or given label", () => {
+        const { rerender } = render(<Loading />)
+        expect(screen.getByRole("status")).toHaveTextContent("Loading…")
+        rerender(<Loading label="Loading proposals…" />)
+        expect(screen.getByRole("status")).toHaveTextContent("Loading proposals…")
+    })
+    it("Empty shows its title and optional action", () => {
+        const onCreate = vi.fn()
+        render(<Empty title="No proposals yet." action={<button type="button" onClick={onCreate}>New proposal</button>} />)
+        expect(screen.getByText("No proposals yet.")).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "New proposal" }))
+        expect(onCreate).toHaveBeenCalled()
     })
     it("Segmented is a labelled group of pressed buttons that reports a choice", () => {
         const onChange = vi.fn()
