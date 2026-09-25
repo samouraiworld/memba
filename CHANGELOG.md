@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: a kit for native app windows, and apps go native by folder (2026-09-26)
+<!-- categories: memba -->
+- **An app becomes a native Memba OS window by adding one folder** (`src/os/apps/<app>/native.tsx`), found at build time and loaded lazily, so several apps can go native in parallel without touching a shared file. A native window receives the same gated fallback a page window shows today, so a guest still gets "Connect a wallet" on wallet-only pages.
+- **A shared kit for those windows**, built to the mockup: the sidebar window, a table with sortable headers, a pager and a labelled open button, stat cards, segmented controls, filter chips, pills, the connect bar, card grids, a switch, and one loading, empty, error and "not on this network" state. Aqua tokens only, light and dark, sized by the window rather than the screen.
+- Memba OS only (memba.club): nothing changes on memba.samourai.app, and the bundle gate still finds no Memba OS code in a production build.
+
 ### Dev Report and validator data stop depending on the lapsed gnolove.world domain (2026-09-25)
 <!-- categories: memba, security -->
 - **Validator monikers, uptime, incidents and scores load again.** The monitoring default moves to Samourai's own gnomonitoring host, `https://gnomonitoring.samourai.live`, which serves every endpoint Memba reads for `gnoland-1` with the same response shapes.
