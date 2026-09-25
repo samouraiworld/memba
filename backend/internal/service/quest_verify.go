@@ -97,7 +97,20 @@ var (
 	errQuestNotMet       = errors.New("quest requirements not met on-chain")
 	errMetaServerDerived = errors.New("meta-quests are server-derived and cannot be claimed directly")
 	errQuestRetired      = errors.New("quest is retired and can no longer be completed")
+	// errPackageNotFound is a node's answer that the queried package does not
+	// exist on its chain (ABCI /vm.InvalidPkgPathError). It is authoritative, so
+	// it neither fails over nor counts as an outage.
+	errPackageNotFound = errors.New("package not found on chain")
 )
+
+// realmNotDeployedError reports that a realm a quest check reads is absent from
+// the chain the quest RPC points at, so the quest can't be completed there yet.
+// It is not a user failure and is reported as such.
+type realmNotDeployedError struct{ path string }
+
+func (e *realmNotDeployedError) Error() string {
+	return "not available on this network yet: " + e.path + " is not deployed"
+}
 
 // retiredQuests are ids kept in validQuests only so existing completions keep
 // their XP. They are never completable, syncable or claimable again. Without
@@ -147,6 +160,10 @@ func (s *MultisigService) verifyQuestCompletable(ctx context.Context, addr, ques
 	case "on_chain":
 		ok, err := s.runOnChainVerify(ctx, addr, questID, proof)
 		if err != nil {
+			var notDeployed *realmNotDeployedError
+			if errors.As(err, &notDeployed) {
+				return connect.NewError(connect.CodeFailedPrecondition, notDeployed)
+			}
 			return connect.NewError(connect.CodeFailedPrecondition, errVerifyUnavailable)
 		}
 		if !ok {
@@ -334,6 +351,9 @@ func (s *MultisigService) namespaceOwnedBy(ctx context.Context, ns, addr string)
 // its files; an absent path yields an ABCI error -> empty result).
 func pathExists(ctx context.Context, path string) (bool, error) {
 	out, err := questAbciQuery(ctx, questRPCURL(), "vm/qfile", path)
+	if errors.Is(err, errPackageNotFound) {
+		return false, nil
+	}
 	if err != nil {
 		return false, err
 	}
@@ -356,15 +376,25 @@ func (s *MultisigService) proofUsedForOtherDeploy(ctx context.Context, addr, que
 }
 
 // questRender runs a vm/qrender query (pkgPath + ":" + renderArg) against the
-// quest RPC and returns the rendered text ("" when the realm/path is absent).
+// quest RPC and returns the rendered text ("" when the render path is absent).
+// When the realm itself is absent from the chain it returns a
+// *realmNotDeployedError, so the quest reads as unavailable, not as unmet.
 func questRender(ctx context.Context, pkgPath, renderArg string) (string, error) {
-	return questAbciQuery(ctx, questRPCURL(), "vm/qrender", pkgPath+":"+renderArg)
+	out, err := questAbciQuery(ctx, questRPCURL(), "vm/qrender", pkgPath+":"+renderArg)
+	if errors.Is(err, errPackageNotFound) {
+		return "", &realmNotDeployedError{path: pkgPath}
+	}
+	return out, err
 }
 
 // questEval runs a vm/qeval expression (e.g. `pkg.Func("arg")`) against the
 // quest RPC, returning the printed result ("" when the realm/expr is absent).
 func questEval(ctx context.Context, expr string) (string, error) {
-	return questAbciQuery(ctx, questRPCURL(), "vm/qeval", expr)
+	out, err := questAbciQuery(ctx, questRPCURL(), "vm/qeval", expr)
+	if errors.Is(err, errPackageNotFound) {
+		return "", nil
+	}
+	return out, err
 }
 
 // accountInfo reads sequence + account_number for an address from the chain.
@@ -424,6 +454,9 @@ func questAbciQuery(ctx context.Context, rpcURL, path, data string) (string, err
 			return "", err
 		}
 		out, err := questAbciQueryOnce(ctx, u, path, data)
+		if errors.Is(err, errPackageNotFound) {
+			return "", err // the node's answer, not a transport failure
+		}
 		if err == nil {
 			if i > 0 {
 				slog.Warn("quest-verify RPC primary unreachable; answered via fallback node", "fallback", u, "primary_err", lastErr)
@@ -438,8 +471,9 @@ func questAbciQuery(ctx context.Context, rpcURL, path, data string) (string, err
 // questAbciQueryOnce performs a single quest-verification query against one node
 // using the wire format gno.land requires: the `data` param base64-encoded. A
 // non-empty ABCI ResponseBase.Error (missing account, "not found" render) is
-// treated as an EMPTY result — "requirement not met" — not a transport failure.
-// Only genuine transport/RPC errors return a non-nil error so questAbciQuery can
+// treated as an EMPTY result — "requirement not met" — not a transport failure,
+// except a missing package, which returns errPackageNotFound. Only genuine
+// transport/RPC errors otherwise return a non-nil error so questAbciQuery can
 // fail over.
 func questAbciQueryOnce(ctx context.Context, rpcURL, path, data string) (string, error) {
 	reqBody := abciQueryRequest{
@@ -499,6 +533,9 @@ func questAbciQueryOnce(ctx context.Context, rpcURL, path, data string) (string,
 
 	rb := result.Result.Response.ResponseBase
 	if abciErrorPresent(rb.Error) {
+		if abciErrorType(rb.Error) == abciPkgNotFoundType {
+			return "", errPackageNotFound
+		}
 		// ABCI-level error (missing account / not found) = requirement not met.
 		// Shares the exact predicate abciQueryOnce uses so the two transports'
 		// empty-vs-failover semantics cannot drift.
@@ -512,4 +549,20 @@ func questAbciQueryOnce(ctx context.Context, rpcURL, path, data string) (string,
 		return "", fmt.Errorf("decode base64: %w", err)
 	}
 	return string(decoded), nil
+}
+
+// abciPkgNotFoundType is the ABCI error a gno.land node returns when the queried
+// package does not exist on its chain ("package not found: <path>").
+const abciPkgNotFoundType = "/vm.InvalidPkgPathError"
+
+// abciErrorType returns the amino "@type" of an ABCI ResponseBase.Error object,
+// or "" when the error is not an object.
+func abciErrorType(raw json.RawMessage) string {
+	var e struct {
+		Type string `json:"@type"`
+	}
+	if json.Unmarshal(raw, &e) != nil {
+		return ""
+	}
+	return e.Type
 }

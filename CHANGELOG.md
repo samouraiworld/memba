@@ -20,6 +20,12 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Quests that need undeployed realms say so on mainnet (2026-09-24)
+<!-- categories: memba, network -->
+- **DAO Member, Applicant and Token Minter could never complete on gno.land mainnet.** Their checks read `memba_dao`, `memba_dao_candidature_v3` and `tokenfactory_v2`, none of which is deployed on `gnoland-1`, and the failure read as "requirements not met", so people kept retrying.
+- These quests now show "Not available on this network yet" and offer no verify button on networks without their realm.
+- The backend now tells a missing realm apart from an unmet quest: it answers "not available on this network yet: <realm> is not deployed" instead of "requirements not met".
+
 ### Signing needs the wallet to name this page's network (2026-09-25)
 <!-- categories: memba -->
 - **Memba now asks Adena for its network right before sending it any transaction to sign, and refuses unless it matches the page.** The old check compared a chain id saved at connect time and skipped the comparison when that id was empty. A wallet that reported no network, or had switched network without telling the page, could then sign a realm call for another chain, where the same realm paths exist.

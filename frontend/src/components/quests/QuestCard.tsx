@@ -8,6 +8,7 @@
 import { Link } from "react-router-dom"
 import { useNetworkKey } from "../../hooks/useNetworkNav"
 import { getQuestById, type GnoQuest } from "../../lib/gnobuilders"
+import { isQuestAvailableOnNetwork, QUEST_NOT_ON_NETWORK_LABEL } from "../../lib/questNetwork"
 
 interface QuestCardProps {
     quest: GnoQuest
@@ -24,7 +25,8 @@ const DIFFICULTY_COLORS: Record<string, string> = {
 
 export function QuestCard({ quest, completed, available }: QuestCardProps) {
     const nk = useNetworkKey()
-    const statusClass = completed ? "completed" : available ? "available" : "locked"
+    const onNetwork = isQuestAvailableOnNetwork(quest.id, nk)
+    const statusClass = completed ? "completed" : available && onNetwork ? "available" : "locked"
     const diffColor = DIFFICULTY_COLORS[quest.difficulty] || "var(--color-k-muted)"
 
     return (
@@ -50,6 +52,8 @@ export function QuestCard({ quest, completed, available }: QuestCardProps) {
             <div className="k-quest-card-footer">
                 {completed ? (
                     <span className="k-quest-card-status k-quest-card-status--done">Completed</span>
+                ) : !onNetwork ? (
+                    <span className="k-quest-card-status k-quest-card-status--locked">{QUEST_NOT_ON_NETWORK_LABEL}</span>
                 ) : available ? (
                     <span className="k-quest-card-status k-quest-card-status--available">Available</span>
                 ) : (

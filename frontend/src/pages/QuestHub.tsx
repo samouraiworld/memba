@@ -27,6 +27,7 @@ import {
     type QuestCategory,
     type QuestDifficulty,
 } from "../lib/gnobuilders"
+import { questHubStatus } from "../lib/questNetwork"
 import { RankBadge } from "../components/quests/RankBadge"
 import { AttestationPanel } from "../components/quests/AttestationPanel"
 import { QuestCard } from "../components/quests/QuestCard"
@@ -144,12 +145,8 @@ export default function QuestHub() {
         if (difficulty !== "all") {
             result = result.filter(q => q.difficulty === difficulty)
         }
-        if (status === "completed") {
-            result = result.filter(q => completedIds.has(q.id))
-        } else if (status === "available") {
-            result = result.filter(q => isQuestAvailable(q.id, completedIds))
-        } else if (status === "locked") {
-            result = result.filter(q => !completedIds.has(q.id) && !isQuestAvailable(q.id, completedIds))
+        if (status !== "all") {
+            result = result.filter(q => questHubStatus(q.id, completedIds, nk) === status)
         }
         if (search.trim()) {
             const term = search.toLowerCase()
@@ -161,7 +158,7 @@ export default function QuestHub() {
         }
 
         return result
-    }, [liveQuests, category, difficulty, status, search, completedIds])
+    }, [liveQuests, category, difficulty, status, search, completedIds, nk])
 
     const completedCount = useMemo(
         () => liveQuests.filter(q => completedIds.has(q.id)).length,

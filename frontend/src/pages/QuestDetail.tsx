@@ -20,6 +20,7 @@ import {
     type GnoQuest,
 } from "../lib/gnobuilders"
 import { verifyQuest, type QuestVerificationResult } from "../lib/questVerifier"
+import { isQuestAvailableOnNetwork, notOnNetworkMessage, QUEST_NOT_ON_NETWORK_LABEL } from "../lib/questNetwork"
 import { SelfReportForm } from "../components/quests/SelfReportForm"
 import { GNO_RPC_URL } from "../lib/config"
 import { trackPageVisit } from "../lib/quests"
@@ -65,6 +66,9 @@ export default function QuestDetail() {
     // Phase 0: only curated "live" quests expose a verification path. Non-live
     // quests show a "coming soon" note instead of a button that can't succeed.
     const isLive = questId ? isQuestLive(questId) : false
+    // A quest whose realm isn't deployed on this network can't complete here —
+    // no verify action, just an explanation.
+    const onNetwork = questId ? isQuestAvailableOnNetwork(questId, nk) : true
 
     // Get prerequisite chain
     const prereqChain = useMemo(() => {
@@ -142,10 +146,11 @@ export default function QuestDetail() {
             setVerification({ status: "verified", message: "Verified!" })
             setShowCelebration(true)
             setTimeout(() => setShowCelebration(false), 4000)
-        } catch {
+        } catch (err) {
             setVerification({
                 status: "not_verified",
-                message: "Couldn't verify on-chain yet — complete the action, then try again.",
+                message: notOnNetworkMessage(err)
+                    ?? "Couldn't verify on-chain yet — complete the action, then try again.",
             })
         } finally {
             setVerifying(false)
@@ -206,6 +211,10 @@ export default function QuestDetail() {
                     <div className="k-questdetail-locked">
                         <span>Coming soon</span>
                     </div>
+                ) : !onNetwork ? (
+                    <div className="k-questdetail-locked">
+                        <span>{QUEST_NOT_ON_NETWORK_LABEL}</span>
+                    </div>
                 ) : isAvailable ? (
                     <div className="k-questdetail-available">
                         <span>Available</span>
@@ -223,6 +232,16 @@ export default function QuestDetail() {
                     <p className="k-questdetail-hint">
                         This quest isn&apos;t live yet — its verification or reward is still
                         being wired up. It&apos;ll open in a future season.
+                    </p>
+                </div>
+            )}
+
+            {/* Not-on-network explanation — the quest's realm isn't deployed here */}
+            {!isCompleted && isLive && !onNetwork && (
+                <div className="k-questdetail-verify">
+                    <p className="k-questdetail-hint">
+                        The realm this quest checks isn&apos;t deployed on this network yet, so it
+                        can&apos;t be completed here. It&apos;ll open once the realm is deployed.
                     </p>
                 </div>
             )}
@@ -248,8 +267,8 @@ export default function QuestDetail() {
                 </div>
             )}
 
-            {/* Verification section (live + available quests only) */}
-            {!isCompleted && isAvailable && isLive && (
+            {/* Verification section (live + available quests on this network only) */}
+            {!isCompleted && isAvailable && isLive && onNetwork && (
                 <div className="k-questdetail-verify">
                     <h3>Verification</h3>
 
