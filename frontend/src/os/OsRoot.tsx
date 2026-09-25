@@ -7,6 +7,7 @@
  */
 import "./os.css"
 import "./shell/shell.css"
+import "./classic-bridge.css"
 import "./kit/kit.css"
 import { Shell } from "./shell/Shell"
 import { useClassicThemeSync, useOsTheme } from "./theme"
