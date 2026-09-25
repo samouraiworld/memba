@@ -34,6 +34,7 @@ const PAGES = [
     ['arcade', 'Arcade', '.coming-soon-gate', 'grid'],
     ['validators', 'Validators', '.val-stats-grid', 'grid'],
     ['quests', 'Quests', '.k-questhub-hero', 'flex'],
+    ['dev-report', 'Dev Report', '.gl-subnav', 'flex'],
 ] as const
 
 test.describe('Memba OS pages in a narrow window', () => {

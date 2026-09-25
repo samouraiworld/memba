@@ -241,6 +241,9 @@ Full changelogs are split by version range for easier navigation:
 - Sign, broadcast, new transaction, create and import open Memba's own multisig pages inside the window, unchanged; native wizards come after the multisig signing-path review.
 - ⌥F (or Window → Full screen) shows the front window full screen, for games and anything else (D32).
 
+### Memba OS Dev Report fits narrow windows
+<!-- categories: memba -->
+- Dev Report keeps its phone layout in a narrow Memba OS window, still behind `VITE_MEMBA_OS`: the section tabs wrap and the time filters scroll instead of being clipped. Its main phone rules are mirrored as `@container os-window` rules, which never apply outside Memba OS.
 ### Memba OS page windows keep their query string
 <!-- categories: memba -->
 - A Memba page inside a Memba OS window now gets its own query string, still behind `VITE_MEMBA_OS`. Tabs and filters that live in the address (Validators sections, the App Store directory, the Explorer directory tabs) switch inside the window, and shared import links (`/import?pubkey=…`) carry their data again. Before, the window dropped the query, so those tabs never changed.

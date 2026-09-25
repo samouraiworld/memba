@@ -2039,6 +2039,132 @@
     }
 }
 
+/* The same layout in a narrow Memba OS window (the viewport is still a desktop's). */
+@container os-window (max-width: 768px) {
+    .gl-profile-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .gl-profile-sidebar {
+        position: static;
+    }
+
+    .gl-profile-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .gl-team-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .gl-stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .gl-subnav {
+        flex-wrap: wrap;
+    }
+
+    .gl-week-nav {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .gl-table-wrap {
+        font-size: var(--pro-caption, 11px);
+    }
+
+    .gl-filters {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .gl-filter-group {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+        max-width: 100%;
+    }
+
+    .gl-filter-group::-webkit-scrollbar {
+        display: none;
+    }
+
+    .gl-filter-group .gl-filter-btn {
+        flex-shrink: 0;
+    }
+
+    .gl-tabs {
+        flex-wrap: wrap;
+    }
+
+    .gl-repo-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .gl-activity-feed {
+        grid-template-columns: 1fr;
+    }
+
+    .gl-section-toggle {
+        flex-wrap: wrap;
+    }
+
+    .gl-section-summary {
+        width: 100%;
+        margin-left: 0;
+    }
+
+    .gl-report-filters {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .gl-panel-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .gl-dash-stats {
+        grid-template-columns: repeat(2, 1fr);
+    }
+
+    .gl-team-compact-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .gl-team-compact-card {
+        min-width: 0;
+    }
+
+    .gl-milestone {
+        padding: 12px;
+    }
+
+    .gl-milestone-header {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .gl-section-header-row {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
+
+    .gl-pagination {
+        flex-wrap: wrap;
+    }
+
+    .gl-tab,
+    .gl-filter-btn,
+    .gl-export-btn,
+    .gl-pagination-btn,
+    .gl-sort-btn {
+        min-height: 44px;
+        min-width: 44px;
+    }
+}
+
 /* ── Compact Team Cards (v2.21.1 — above leaderboard) ────── */
 
 .gl-team-compact-grid {
