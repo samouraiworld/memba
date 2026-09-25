@@ -11,11 +11,12 @@ prescribes misses the two ways it has actually arrived here:
   2. Base64. A provenance manifest embedded in an SVG holds the name encoded,
      so it is not present as text at all and no plain grep can see it.
 
-So this reads every tracked file as bytes, decodes base64 runs, whether on
-one line or wrapped across several, and inflates compressed PNG text chunks.
-What it decodes or inflates is read again the same way, because a data URI is
-a file inside a file: a PNG in an SVG carries its chunks as surely as the PNG
-does on its own.
+So this reads every tracked file as bytes, decodes base64 runs in either
+alphabet, whether on one line or wrapped across several, reads UTF-16 text,
+and inflates compressed PNG chunks, in a PNG file or in an icon. What it
+decodes or inflates is read again the same way, because a data URI is a file
+inside a file: a PNG in an SVG carries its chunks as surely as the PNG does on
+its own.
 
 It also fails on the metadata containers themselves, whoever wrote them: a
 design asset has no reason to carry a text or provenance chunk, and checking
@@ -85,7 +86,16 @@ FORBIDDEN_CHUNKS = tuple(
 # 40 characters decode to 30 bytes — short enough to catch a name tucked into a
 # small blob. The earlier threshold of 120 let a 96-character run through.
 B64_FLOOR = 40
-B64_RUN = re.compile(rb"[A-Za-z0-9+/=]{%d,}" % B64_FLOOR)
+
+# The URL-safe alphabet (RFC 4648 section 5) writes `-` and `_` where the
+# standard one writes `+` and `/`: tokens, JWT segments, data in a URL. A run is
+# taken over both alphabets at once, one search rather than two, and then cut
+# into the pieces of each: the standard pieces are exactly the runs a search
+# over the standard alphabet alone would find.
+B64_RUN = re.compile(rb"[A-Za-z0-9+/_=-]{%d,}" % B64_FLOOR)
+B64_STD_PIECES = re.compile(rb"[-_]+")
+B64_URL_PIECES = re.compile(rb"[+/]+")
+B64URL_TO_STD = bytes.maketrans(b"-_", b"+/")
 
 # Base64 as encoders emit it: wrapped at 76 columns (`base64`, MIME) or 64
 # (PEM), with LF or CRLF line ends, indented inside a YAML block, or broken by
@@ -95,11 +105,22 @@ B64_RUN = re.compile(rb"[A-Za-z0-9+/=]{%d,}" % B64_FLOOR)
 # every following line that is nothing but the alphabet, and the run that
 # starts the line after those; the pieces are joined before decoding.
 #
+# A line break may also be escaped (a YAML double-quoted scalar or a shell
+# command continued with a backslash), and the next line may open with a
+# comment marker: `#`, ` * ` inside a block comment, or `// ` followed by a
+# blank. The slashes are in the alphabet, so they count as a marker only when
+# a blank follows them, which no line of base64 contains. Without that, a
+# block held in a comment is read line by line, and at a width that is not a
+# multiple of four every line after the first is out of step. Other markers
+# (`--`, `;`, `%`) are not joined: that is a known limit, not an oversight.
+#
 # Linear time, whatever the input: a match can start only where the character
 # before it is outside the alphabet, so each run is tried once, and every line
 # break starts with a character outside the alphabet, so a failed attempt gives
-# back at most the run it started on.
-B64_BREAK = re.compile(rb"[ \t]*(?:\r?\n|(?:\\r)?\\n)[ \t]*")
+# back at most the run it started on and the marker after one line break.
+B64_BREAK = re.compile(
+    rb"[ \t]*(?:\\?\r?\n|(?:\\r)?\\n)[ \t]*(?:(?:#|\*|//(?=[ \t]))[ \t]*)?"
+)
 B64_WRAPPED = re.compile(
     rb"(?<![A-Za-z0-9+/=])[A-Za-z0-9+/=]+(?:" + B64_BREAK.pattern + rb"[A-Za-z0-9+/=]+)+"
 )
@@ -115,6 +136,16 @@ B64_WRAPPED = re.compile(
 # reads to its end before failing: 80,000 of them held one file for half a
 # minute. Anchored, each run is tried once, and the splits are the same.
 B64_PADDING = re.compile(rb"(?<!=)=+(?=[A-Za-z0-9+/])")
+
+# A run of UTF-16 text in the ASCII range: each character a printable byte and
+# a NUL. The match starts at a NUL rather than at the character before it,
+# which lets the search skip straight from one NUL to the next: started at a
+# character class, it is twenty times slower on a binary, and binaries are
+# where NULs are. Three characters after the NUL, and the one before it, is no
+# longer than the shortest needle, and long enough that a binary seldom holds
+# such a run by chance, so what is read again is text and not noise.
+UTF16_RUN = re.compile(rb"\x00(?:[\t\n\r\x20-\x7e]\x00){3,}[\t\n\r\x20-\x7e]?")
+UTF16_CHARS = frozenset(b"\t\n\r" + bytes(range(0x20, 0x7F)))
 
 # Containers opened one inside another, and no deeper: an HTML page holding an
 # SVG as a data URI, holding a PNG as a data URI, whose profile is compressed,
@@ -150,6 +181,28 @@ COMPRESSED_CHUNKS = (
     bytes.fromhex("69434350"),  # colour profile
 )
 
+# Of those, the two whose payload is always compressed. One that does not
+# inflate at all hides whatever it holds, so it is reported. International text
+# may be stored uncompressed, and is forbidden in any case.
+MUST_INFLATE = (
+    bytes.fromhex("7a545874"),  # compressed text
+    bytes.fromhex("69434350"),  # colour profile
+)
+
+# Every other chunk, private ones included, is inflated too if it holds a zlib
+# stream, at the start of its payload or after a keyword, because a private
+# chunk is a place to put anything. Except the image data: it is compressed as
+# a matter of course, and inflated it would spend a large image's whole budget
+# on pixels.
+IMAGE_DATA = (
+    bytes.fromhex("49444154"),  # image data
+    bytes.fromhex("66644154"),  # animation frame data
+)
+
+# An icon or cursor file is a directory of images, and each may be a whole PNG
+# stored verbatim: a favicon carries chunks exactly as a PNG file does.
+ICO_HEADERS = (b"\0\0\1\0", b"\0\0\2\0")
+
 ALLOWLIST = os.path.join(os.path.dirname(__file__), "vendor-attribution-allowlist.txt")
 
 
@@ -179,22 +232,76 @@ def png_chunks(raw):
             return
 
 
-def inflate(body, limit=MAX_INFLATE):
-    """Decompress a compressed chunk payload: (bytes, whole, spent).
+def ico_images(raw):
+    """Each PNG stored in an icon or cursor file. Nothing if not one.
+
+    Each image runs to the start of the next, so however many directory entries
+    a file declares, and wherever they point, the images read are disjoint and
+    their total is at most the file.
+    """
+    if raw[:4] not in ICO_HEADERS:
+        return
+    starts = set()
+    for entry in range(int.from_bytes(raw[4:6], "little")):
+        at = 6 + 16 * entry
+        if at + 16 > len(raw):
+            break
+        start = int.from_bytes(raw[at + 12 : at + 16], "little")
+        if raw.startswith(PNG_SIGNATURE, start):
+            starts.add(start)
+    order = sorted(starts)
+    for at, start in enumerate(order):
+        yield raw[start : order[at + 1] if at + 1 < len(order) else len(raw)]
+
+
+def utf16_texts(payload):
+    """Every run of UTF-16 text in PAYLOAD, with its NULs taken out.
+
+    Whichever the byte order, and with or without a byte-order mark: read one
+    byte in, big-endian text is little-endian text, so one pattern finds both.
+    Wherever in a file the text sits, too: a font's name table, a resource in
+    an executable, a script saved by an editor that writes UTF-16.
+    """
+    for match in UTF16_RUN.finditer(payload):
+        start = match.start()
+        # The character before the first NUL, when there is one: little-endian
+        # text puts its first character there.
+        lead = payload[start - 1 : start] if start else b""
+        if lead and lead[0] not in UTF16_CHARS:
+            lead = b""
+        yield lead + match.group()[1::2]
+
+
+def inflate_starts(kind, body):
+    """Where a zlib stream may begin in a chunk's payload, in the order tried."""
+    # Past the keyword, then past up to four bytes of flags and empty fields.
+    _, _, tail = body.partition(b"\0")
+    starts = [tail[start:] for start in range(min(len(tail), 4) + 1)]
+    if kind not in COMPRESSED_CHUNKS:
+        # A private chunk need not have a keyword at all.
+        starts = [body[start:] for start in range(min(len(body), 4) + 1)] + starts
+    return starts
+
+
+def inflate(starts, limit=MAX_INFLATE):
+    """Decompress a compressed chunk payload: (bytes, state, spent).
 
     A name inside one of these is neither readable text nor base64, so it
-    would otherwise pass both of the other scans. `bytes` is None when no
-    starting offset inflates to the end of a stream. `whole` is False when the
-    payload inflates past LIMIT, and the bytes are then its first LIMIT.
-    `spent` counts every byte inflated, from abandoned offsets too, so that a
-    caller can hold every chunk in a file to one budget.
+    would otherwise pass both of the other scans. STARTS are the offsets at
+    which the stream may begin, and the first to inflate to the end of a stream
+    wins: STATE is "whole". Past LIMIT, the state is "over" and the bytes are
+    the first LIMIT. When no offset reaches the end, because the stream is cut
+    short or corrupt, the longest output any of them gave is returned as
+    "partial": what a stream holds before it breaks is still published, and a
+    stream cut short after the name would otherwise hide it. With no output at
+    all, the bytes are None. `spent` counts every byte inflated, from abandoned
+    offsets too, so that a caller can hold every chunk in a file to one budget.
     """
-    # Skip the keyword and the compression flags, then inflate what is left.
-    _, _, tail = body.partition(b"\0")
     spent = 0
-    for start in range(min(len(tail), 4) + 1):
+    longest = b""
+    for tail in starts:
         stream = zlib.decompressobj()
-        pending, blob = tail[start:], bytearray()
+        pending, blob = tail, bytearray()
         try:
             while not stream.eof and len(blob) <= limit:
                 room = min(INFLATE_STEP, limit + 1 - len(blob))
@@ -205,14 +312,14 @@ def inflate(body, limit=MAX_INFLATE):
                 blob += step
                 spent += len(step)
         except zlib.error:
-            continue
+            pass
         if len(blob) > limit:
-            return bytes(blob[:limit]), False, spent
-        # A stream that stopped short is the wrong starting offset, as it was
-        # when this read the chunk in one call and that call raised.
+            return bytes(blob[:limit]), "over", spent
         if stream.eof:
-            return bytes(blob), True, spent
-    return None, False, spent
+            return bytes(blob), "whole", spent
+        if len(blob) > len(longest):
+            longest = bytes(blob)
+    return (longest, "partial", spent) if longest else (None, None, spent)
 
 
 def b64decode(run):
@@ -229,12 +336,19 @@ def b64_runs(payload):
     """Every run of base64 worth decoding in PAYLOAD, one line or wrapped.
 
     Each is given once: the ways of reading a wrapped block overlap, and a
-    run decoded twice is only time spent twice.
+    run decoded twice is only time spent twice. URL-safe runs are given
+    rewritten in the standard alphabet.
     """
     # A JSON string may escape every slash, and a backslash is outside the
     # alphabet: left in, it cuts the run at each slash the encoding contains.
     payload = payload.replace(b"\\/", b"/")
-    runs = B64_RUN.findall(payload)
+    runs, urlsafe = [], []
+    for run in B64_RUN.findall(payload):
+        if b"-" in run or b"_" in run:
+            runs += B64_STD_PIECES.split(run)
+            urlsafe += (p for p in B64_URL_PIECES.split(run) if b"-" in p or b"_" in p)
+        else:
+            runs.append(run)
     for match in B64_WRAPPED.finditer(payload):
         pieces = B64_BREAK.split(match.group())
         # From the first piece, and again from the first whole line: the first
@@ -261,6 +375,22 @@ def b64_runs(payload):
             if len(part) >= B64_FLOOR and part not in seen:
                 seen.add(part)
                 yield part
+    # `-` and `_` also join words (`some-name_with-parts`), so a word glued on
+    # in front of a URL-safe blob puts it out of step. Each is decoded from
+    # each of its first four characters, which covers a prefix of any length,
+    # and cut to a length that decodes: a last character one past a
+    # four-character group holds less than a byte, and would fail the decode.
+    # Unwrapped only: wrapped URL-safe base64 is not something encoders emit.
+    for run in urlsafe:
+        for part in (run, *B64_PADDING.split(run)[1:]):
+            part = part.translate(B64URL_TO_STD)
+            for start in range(4):
+                shifted = part[start:].rstrip(b"=")
+                if len(shifted) % 4 == 1:
+                    shifted = shifted[:-1]
+                if len(shifted) >= B64_FLOOR and shifted not in seen:
+                    seen.add(shifted)
+                    yield shifted
 
 
 def findings(path):
@@ -317,24 +447,38 @@ def findings_in(raw):
                 if decoded:
                     examine(decoded, ("base64", *via))
 
-        for kind, body in png_chunks(payload):
-            if kind in FORBIDDEN_CHUNKS:
-                note(kind.decode() + " chunk" + suffix)
-            if opened and kind in COMPRESSED_CHUNKS:
-                if budget[0] <= 0:
-                    note("inflate budget exceeded")
-                    continue
-                limit = min(MAX_INFLATE, budget[0])
-                blob, whole, spent = inflate(body, limit)
-                budget[0] -= spent
-                if blob is None:
-                    continue
-                if not whole:
-                    if limit < MAX_INFLATE:
-                        note("inflate budget exceeded")
-                    else:
-                        note("compressed chunk too large to inflate" + suffix)
-                examine(blob, ("compressed chunk", *via))
+        # UTF-16 writes each character of a name as two bytes, one of them
+        # NUL, so no needle matches it as it stands. Without a NUL there is
+        # no UTF-16 to read.
+        if b"\0" in payload:
+            for text in utf16_texts(payload):
+                examine(text, ("UTF-16", *via))
+
+        for image in (payload, *ico_images(payload)):
+            for kind, body in png_chunks(image):
+                chunk(kind, body, suffix, via, opened)
+
+    def chunk(kind, body, suffix, via, opened):
+        if kind in FORBIDDEN_CHUNKS:
+            note(kind.decode() + " chunk" + suffix)
+        if not opened or kind in IMAGE_DATA:
+            return
+        if budget[0] <= 0:
+            note("inflate budget exceeded")
+            return
+        limit = min(MAX_INFLATE, budget[0])
+        blob, state, spent = inflate(inflate_starts(kind, body), limit)
+        budget[0] -= spent
+        if blob is None:
+            if kind in MUST_INFLATE:
+                note("compressed chunk does not inflate" + suffix)
+            return
+        if state == "over":
+            if limit < MAX_INFLATE:
+                note("inflate budget exceeded")
+            else:
+                note("compressed chunk too large to inflate" + suffix)
+        examine(blob, ("compressed chunk", *via))
 
     examine(raw, ())
 

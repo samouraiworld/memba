@@ -656,6 +656,183 @@ expect_line "chunks under the cap that together pass the file's budget are repor
 rm "$work/budget.png"
 expect_clean "the tree is clean once the base64 fixtures are removed"
 
+# ── the encodings, containers and chunks a name can still hide in ───────────
+# Each fixture below reads clean to a check that only knows the shapes above,
+# and each is caught for the reason its line names.
+
+# Builds a PNG, an icon or a chunk for the fixtures that follow. The name is
+# passed in, as everywhere in this file, never written out.
+cat > "$spare/fixture.py" <<'PY'
+import base64, os, struct, sys, zlib
+
+NAMED = b"made with " + os.environ["NEEDLE"].encode()
+
+def chunk(kind, body):
+    return (struct.pack(">I", len(body)) + kind + body
+            + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF))
+
+def png(*extra):
+    return (b"\x89PNG\r\n\x1a\n"
+            + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 0, 0, 0, 0))
+            + b"".join(extra)
+            + chunk(b"IDAT", zlib.compress(b"\x00\x00"))
+            + chunk(b"IEND", b""))
+
+def ico(*images):
+    # An icon directory: a header, one 16-byte entry per image, then the
+    # images, each stored whole.
+    offset = 6 + 16 * len(images)
+    head = struct.pack("<HHH", 0, 1, len(images))
+    for image in images:
+        head += struct.pack("<BBBBHHII", 1, 1, 0, 0, 1, 32, len(image), offset)
+        offset += len(image)
+    return head + b"".join(images)
+
+def write(data):
+    open(sys.argv[1], "wb").write(data)
+PY
+fixture() { NEEDLE="$needle" PYTHONPATH="$spare" python3 - "$@"; }
+hidden() { if grep -qi "$needle" "$1"; then fail "the $2 fixture is not actually hidden"; fi; }
+
+# URL-safe base64 writes `-` and `_` for `+` and `/`, and each cuts a
+# standard-alphabet run. Glued behind a word joined by a dash, five characters
+# long, the blob is also out of step from the start of its run.
+fixture "$work/token.txt" <<'PY'
+from fixture import *
+blob = base64.urlsafe_b64encode(b"??>" * 8 + b" written by " + NAMED + b" " + b"\xff\xfe\xfd" * 10)
+assert b"-" in blob and b"_" in blob
+write(b"session: sess-" + blob.rstrip(b"=") + b"\n")
+PY
+hidden "$work/token.txt" "URL-safe"
+expect_line "URL-safe base64 behind a word is decoded" \
+  "::error file=token.txt::carries $needle (base64)"
+rm "$work/token.txt"
+
+# UTF-16 writes a NUL beside every character of the name. Little-endian with
+# a byte-order mark, as Windows editors save it...
+fixture "$work/notes-le.txt" <<'PY'
+from fixture import *
+write(("﻿release notes, " + NAMED.decode() + ", fin\r\n").encode("utf-16-le"))
+PY
+hidden "$work/notes-le.txt" "UTF-16LE"
+expect_line "UTF-16 little-endian text with a byte-order mark is read as text" \
+  "::error file=notes-le.txt::carries $needle (UTF-16)"
+rm "$work/notes-le.txt"
+
+# ...and big-endian with none, the name its very last character, which is the
+# one character a big-endian run read one byte in has no NUL after.
+fixture "$work/notes-be.txt" <<'PY'
+from fixture import *
+write(("release notes, " + NAMED.decode()).encode("utf-16-be"))
+PY
+hidden "$work/notes-be.txt" "UTF-16BE"
+expect_line "UTF-16 big-endian text with no mark is read to its last character" \
+  "::error file=notes-be.txt::carries $needle (UTF-16)"
+rm "$work/notes-be.txt"
+
+# An icon is a directory of images, each of which may be a whole PNG: this one
+# holds two, a text chunk in the first and a profile naming the assistant in
+# the second. Both are read as a PNG file would be.
+fixture "$work/favicon.ico" <<'PY'
+from fixture import *
+write(ico(png(chunk(b"tEXt", b"Comment\x00nothing incriminating here")),
+          png(chunk(b"iCCP", b"ICC profile\x00\x00" + zlib.compress(NAMED)))))
+PY
+hidden "$work/favicon.ico" "icon"
+expect_line "each PNG in an icon is held to the chunk policy and inflated" \
+  "::error file=favicon.ico::carries $needle (compressed chunk), tEXt chunk"
+rm "$work/favicon.ico"
+
+# A private chunk type, which no list names, holding a bare zlib stream with no
+# keyword before it.
+fixture "$work/private.png" <<'PY'
+from fixture import *
+write(png(chunk(b"prVt", zlib.compress(NAMED))))
+PY
+hidden "$work/private.png" "private-chunk"
+expect_line "a private chunk holding a zlib stream is inflated" \
+  "::error file=private.png::carries $needle (compressed chunk)"
+rm "$work/private.png"
+
+# A profile whose stream is cut short after the name: no starting offset
+# reaches the end of a stream, and what it gave before the cut is still read.
+fixture "$work/truncated.png" <<'PY'
+from fixture import *
+stream = zlib.compress(NAMED + bytes(range(256)) * 16)
+write(png(chunk(b"iCCP", b"ICC profile\x00\x00" + stream[: len(stream) // 2])))
+PY
+hidden "$work/truncated.png" "truncated-stream"
+expect_line "a compressed chunk cut short is read as far as it goes" \
+  "::error file=truncated.png::carries $needle (compressed chunk)"
+rm "$work/truncated.png"
+
+# ...and one that gives nothing at all is refused: it cannot be read, so it
+# cannot be known to be clean.
+fixture "$work/corrupt.png" <<'PY'
+from fixture import *
+write(png(chunk(b"iCCP", b"ICC profile\x00\x00" + b"\xff" * 64)))
+PY
+expect_line "a compressed chunk that does not inflate at all is reported" \
+  "::error file=corrupt.png::carries compressed chunk does not inflate"
+rm "$work/corrupt.png"
+
+# Base64 in a comment block, wrapped at 70: not a multiple of four, so read
+# line by line, every line after the first is out of step. The name is in the
+# second line.
+printf '%060d%s%060d' 0 "$needle" 0 | base64 | tr -d '\n' | fold -w 70 > "$spare/c70.b64"
+[ -z "$(lines_alone_carry "$spare/c70.b64")" ] || fail "the comment fixture is caught line by line"
+sed 's/^/# /' "$spare/c70.b64" > "$work/hash-comment.py"
+expect_line "base64 wrapped at 70 in # comments is joined" \
+  "::error file=hash-comment.py::carries $needle (base64)"
+rm "$work/hash-comment.py"
+
+{ printf '/**\n'; sed 's/^/ * /' "$spare/c70.b64"; printf ' */\n'; } > "$work/block-comment.ts"
+expect_line "base64 wrapped at 70 in a block comment is joined" \
+  "::error file=block-comment.ts::carries $needle (base64)"
+rm "$work/block-comment.ts"
+
+sed 's|^|// |' "$spare/c70.b64" > "$work/line-comment.go"
+expect_line "base64 wrapped at 70 in // comments is joined" \
+  "::error file=line-comment.go::carries $needle (base64)"
+rm "$work/line-comment.go"
+
+# A YAML double-quoted scalar continued with a backslash at each line end.
+{ printf 'blob: "'; sed -e '$!s/$/\\/' -e '2,$s/^/  /' "$spare/c70.b64"; printf '"\n'; } > "$work/continued.yaml"
+expect_line "base64 continued with backslashes in YAML is joined" \
+  "::error file=continued.yaml::carries $needle (base64)"
+rm "$work/continued.yaml"
+
+# `//` is also two characters of the alphabet, so it is a marker only with a
+# blank after it. A wrapped line that merely starts with `//` must still join.
+fixture "$spare/slashes.b64" <<'PY'
+from fixture import *
+data = b"\x00" * 57 + b"\xff\xff" + b"\x00" * 38 + b" by " + NAMED + b"\x00" * 40
+text = base64.b64encode(data)
+lines = [text[i : i + 76] for i in range(0, len(text), 76)]
+assert lines[1].startswith(b"//")
+write(b"\n".join(lines))
+PY
+[ -z "$(lines_alone_carry "$spare/slashes.b64")" ] || fail "the slash fixture is caught line by line"
+cp "$spare/slashes.b64" "$work/slashes.txt"
+expect_line "a wrapped line that starts with // is base64, not a comment" \
+  "::error file=slashes.txt::carries $needle (base64)"
+rm "$work/slashes.txt"
+
+# The converse, because every one of these reads more than it used to: prose in
+# comments, a clean UTF-16 file, a clean icon and kebab-case identifiers.
+seq 1 200 | awk '{ printf "# word%s\n// word%s\n * word%s\n", $0, $0, $0 }' > "$work/comments.txt"
+fixture "$work/clean16.txt" <<'PY'
+from fixture import *
+write("﻿nothing to declare here at all\r\n".encode("utf-16-le"))
+PY
+fixture "$work/clean.ico" <<'PY'
+from fixture import *
+write(ico(png(), png(chunk(b"iCCP", b"ICC profile\x00\x00" + zlib.compress(b"sRGB")))))
+PY
+seq 1 200 | awk '{ printf "some-long-kebab-case-identifier_with_parts-%s\n", $0 }' > "$work/idents.txt"
+expect_clean "comment prose, clean UTF-16, a clean icon and identifiers read clean"
+rm "$work/comments.txt" "$work/clean16.txt" "$work/clean.ico" "$work/idents.txt"
+
 # ── the surfaces that are not files ─────────────────────────────────────────
 # The rule names five of them — commit messages, branch names, pull-request
 # titles and bodies, tags and release notes — and `git ls-files` can see none.
@@ -813,7 +990,10 @@ echo "the listing order, the allowlist, the path scan, the unreadable-file"
 echo "report, the manifest namespace, wrapped base64 in seven shapes, base64"
 echo "behind escaped slashes and behind a key= prefix, a long run of padding in"
 echo "bounded time, the PNG inside a data URI, three containers of nesting, the"
-echo "inflation cap and the per-file inflation budget each"
+echo "inflation cap and the per-file inflation budget, URL-safe base64, UTF-16"
+echo "in either byte order, the PNGs in an icon, a private compressed chunk, a"
+echo "stream cut short and one that does not inflate, base64 wrapped in comments"
+echo "and in YAML continuations each"
 echo "proved by their own message AND their own exit status — and, for the"
 echo "surfaces that are not files, the label, the scanned size, base64, the"
 echo "refusal of an empty surface, the narrowness of --allow-empty and the usage"
