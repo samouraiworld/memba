@@ -45,7 +45,14 @@ for (const theme of ['light', 'dark'] as const) {
     })
 }
 
-const APPS = ['feed', 'store', 'settings', 'quests', 'validators', 'tokens', 'profile', 'news', 'explorer', 'arcade', 'feedback']
+const APPS = ['feed', 'store', 'settings', 'quests', 'validators', 'tokens', 'profile', 'news', 'explorer', 'arcade', 'feedback', 'dev-report']
+
+// Apps whose classic page is wallet-gated (classicRoute.ts pageNeedsWallet): as a
+// guest they render a "Connect a wallet to use <App>." holding pane, never
+// .os-classic — that's the only reason .os-classic is allowed to be absent. Any
+// other app that never renders it is a real bug (a broken route, an error
+// boundary, a regression), not a state to shrug off.
+const WALLET_GATED = ['profile']
 
 test('no Beta teal inside the app windows', async ({ page }) => {
     await guest(page)
@@ -57,11 +64,11 @@ test('no Beta teal inside the app windows', async ({ page }) => {
     for (const app of APPS) {
         await page.goto(`${OS_ON}/os/${app}`)
         const classic = page.locator('.os-classic').first()
-        // A guest-gated page (e.g. Profile: "Connect a wallet to use Profile.") never
-        // renders .os-classic — that empty/gated state is fine; nothing to sweep.
         try {
-            await classic.waitFor({ timeout: 5_000 })
+            await classic.waitFor({ timeout: 8_000 })
         } catch {
+            if (!WALLET_GATED.includes(app)) throw new Error(`${app}: no .os-classic`)
+            test.info().annotations.push({ type: 'skipped', description: `${app}: wallet-gated for a guest, no .os-classic to sweep` })
             continue
         }
         await page.waitForTimeout(600)
