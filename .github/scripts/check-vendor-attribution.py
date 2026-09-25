@@ -99,10 +99,17 @@ B64_RUN = re.compile(rb"[A-Za-z0-9+/=]{%d,}" % B64_FLOOR)
 # before it is outside the alphabet, so each run is tried once, and every line
 # break starts with a character outside the alphabet, so a failed attempt gives
 # back at most the run it started on.
-B64_BREAK = re.compile(rb"(?:\r?\n|(?:\\r)?\\n)[ \t]*")
+B64_BREAK = re.compile(rb"[ \t]*(?:\r?\n|(?:\\r)?\\n)[ \t]*")
 B64_WRAPPED = re.compile(
     rb"(?<![A-Za-z0-9+/=])[A-Za-z0-9+/=]+(?:" + B64_BREAK.pattern + rb"[A-Za-z0-9+/=]+)+"
 )
+
+# Where one run of the alphabet holds more than one encoding: after the `=` of
+# a `key=value` prefix, or after the padding of one blob with another written
+# straight after it. B64_RUN takes `=` as part of the alphabet, so it keeps
+# such a run whole, and decoding it whole puts everything after the `=` out of
+# step with base64's four-character groups.
+B64_PADDING = re.compile(rb"=+(?=[A-Za-z0-9+/])")
 
 # Containers opened one inside another, and no deeper: an HTML page holding an
 # SVG as a data URI, holding a PNG as a data URI, whose profile is compressed,
@@ -113,6 +120,17 @@ MAX_DEPTH = 3
 # from, so it is the one step that is capped. A chunk that inflates past the
 # cap is reported: read in part and passed, it would be a place to hide a name.
 MAX_INFLATE = 32 << 20
+
+# ...and capped per file as well. A PNG may hold any number of chunks under
+# the cap, and a data URI is opened again for each way its wrapped lines can be
+# joined, so a small crafted file could otherwise hold CI for minutes. Every
+# byte inflated counts, whether it is kept or not, and a file that runs out is
+# reported, for the same reason as a chunk over the cap.
+INFLATE_BUDGET = 64 << 20
+
+# Inflated a step at a time, so that a stream abandoned partway, because it
+# raised or stopped short of its end, is still charged for what it produced.
+INFLATE_STEP = 1 << 20
 
 PNG_SIGNATURE = b"\x89PNG\r\n\x1a\n"
 
@@ -156,29 +174,40 @@ def png_chunks(raw):
             return
 
 
-def inflate(body):
-    """Decompress a compressed chunk payload: (bytes, whole), or None.
+def inflate(body, limit=MAX_INFLATE):
+    """Decompress a compressed chunk payload: (bytes, whole, spent).
 
     A name inside one of these is neither readable text nor base64, so it
-    would otherwise pass both of the other scans. `whole` is False when the
-    payload inflates past MAX_INFLATE, and the bytes are then its first
-    MAX_INFLATE.
+    would otherwise pass both of the other scans. `bytes` is None when no
+    starting offset inflates to the end of a stream. `whole` is False when the
+    payload inflates past LIMIT, and the bytes are then its first LIMIT.
+    `spent` counts every byte inflated, from abandoned offsets too, so that a
+    caller can hold every chunk in a file to one budget.
     """
     # Skip the keyword and the compression flags, then inflate what is left.
     _, _, tail = body.partition(b"\0")
+    spent = 0
     for start in range(min(len(tail), 4) + 1):
         stream = zlib.decompressobj()
+        pending, blob = tail[start:], bytearray()
         try:
-            blob = stream.decompress(tail[start:], MAX_INFLATE + 1)
+            while not stream.eof and len(blob) <= limit:
+                room = min(INFLATE_STEP, limit + 1 - len(blob))
+                step = stream.decompress(pending, room)
+                pending = stream.unconsumed_tail
+                if not step:
+                    break
+                blob += step
+                spent += len(step)
         except zlib.error:
             continue
-        if len(blob) > MAX_INFLATE:
-            return blob[:MAX_INFLATE], False
+        if len(blob) > limit:
+            return bytes(blob[:limit]), False, spent
         # A stream that stopped short is the wrong starting offset, as it was
         # when this read the chunk in one call and that call raised.
         if stream.eof:
-            return blob, True
-    return None
+            return bytes(blob), True, spent
+    return None, False, spent
 
 
 def b64decode(run):
@@ -192,18 +221,38 @@ def b64decode(run):
 
 
 def b64_runs(payload):
-    """Every run of base64 worth decoding in PAYLOAD, one line or wrapped."""
-    yield from B64_RUN.findall(payload)
+    """Every run of base64 worth decoding in PAYLOAD, one line or wrapped.
+
+    Each is given once: the ways of reading a wrapped block overlap, and a
+    run decoded twice is only time spent twice.
+    """
+    # A JSON string may escape every slash, and a backslash is outside the
+    # alphabet: left in, it cuts the run at each slash the encoding contains.
+    payload = payload.replace(b"\\/", b"/")
+    runs = B64_RUN.findall(payload)
     for match in B64_WRAPPED.finditer(payload):
         pieces = B64_BREAK.split(match.group())
         # From the first piece, and again from the first whole line: the first
         # piece is only the tail of its line, and when that line is prose
         # rather than a data URI's prefix, the tail puts every later line out
         # of step with base64's four-character groups.
+        #
+        # To the last piece, and again short of it, for the same reason at the
+        # other end: the last piece is only the head of its line, and when that
+        # line is prose, its first word is glued on. With no padding before it,
+        # a word one character past a four-character group fails the decode,
+        # and the whole block with it.
         for start in (0, 1) if len(pieces) > 2 else (0,):
-            joined = b"".join(pieces[start:])
-            if len(joined) >= B64_FLOOR:
-                yield joined
+            for end in (len(pieces), len(pieces) - 1):
+                # A single piece is a run B64_RUN has already found.
+                if end - start > 1:
+                    runs.append(b"".join(pieces[start:end]))
+    seen = set()
+    for run in runs:
+        for part in (run, *B64_PADDING.split(run)[1:]):
+            if len(part) >= B64_FLOOR and part not in seen:
+                seen.add(part)
+                yield part
 
 
 def findings(path):
@@ -218,6 +267,7 @@ def findings_in(raw):
     are not files: a commit message, a branch name, a pull-request body.
     """
     hits = []
+    budget = [INFLATE_BUDGET]
 
     def note(label):
         if label not in hits:
@@ -263,12 +313,20 @@ def findings_in(raw):
             if kind in FORBIDDEN_CHUNKS:
                 note(kind.decode() + " chunk" + suffix)
             if opened and kind in COMPRESSED_CHUNKS:
-                inflated = inflate(body)
-                if inflated is not None:
-                    blob, whole = inflated
-                    if not whole:
+                if budget[0] <= 0:
+                    note("inflate budget exceeded")
+                    continue
+                limit = min(MAX_INFLATE, budget[0])
+                blob, whole, spent = inflate(body, limit)
+                budget[0] -= spent
+                if blob is None:
+                    continue
+                if not whole:
+                    if limit < MAX_INFLATE:
+                        note("inflate budget exceeded")
+                    else:
                         note("compressed chunk too large to inflate" + suffix)
-                    examine(blob, ("compressed chunk", *via))
+                examine(blob, ("compressed chunk", *via))
 
     examine(raw, ())
 

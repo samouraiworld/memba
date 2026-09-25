@@ -448,6 +448,56 @@ seq 1 200 | awk '{ printf "word%s\n", $0 }' > "$work/column.txt"
 expect_clean "clean wrapped base64 and a column of words read clean"
 rm "$work/clean-wrapped.txt" "$work/column.txt"
 
+# ── what sits next to a blob must not cost the blob ─────────────────────────
+# Each of these is the whole blob, readable as it stands, lost only to what is
+# written beside it.
+
+# The join takes the first word of the line after a block as its last piece.
+# With no padding at the end of the block, a word one character past a
+# four-character group ("Hello", five) fails the decode, and the whole joined
+# block with it, so the block is decoded again short of that word.
+printf '%055d%s%053d' 0 "$needle" 0 | base64 | tr -d '\n' | fold -w 76 > "$spare/unpadded.b64"
+if grep -q '=' "$spare/unpadded.b64"; then fail "the short-word fixture is padded"; fi
+[ -z "$(lines_alone_carry "$spare/unpadded.b64")" ] || fail "the short-word fixture is caught line by line"
+{ cat "$spare/unpadded.b64"; printf '\nHello world\n'; } > "$work/short-word.txt"
+expect_line "a wrapped block followed by a short word is decoded short of the word" \
+  "::error file=short-word.txt::carries $needle (base64)"
+rm "$work/short-word.txt"
+
+# Blanks before the line break: two of them are a hard line break in Markdown.
+printf '%055d%s%040d' 0 "$needle" 0 | base64 | tr -d '\n' | fold -w 76 \
+  | awk '{ printf "%s  \n", $0 }' > "$spare/blanks.b64"
+[ -z "$(lines_alone_carry "$spare/blanks.b64")" ] || fail "the trailing-blanks fixture is caught line by line"
+cp "$spare/blanks.b64" "$work/hard-breaks.md"
+expect_line "wrapped with trailing blanks before each break, the name is decoded" \
+  "::error file=hard-breaks.md::carries $needle (base64)"
+rm "$work/hard-breaks.md"
+
+# A JSON encoder may escape every slash, and base64 of high bytes is full of
+# them. Each escape cuts the run, and no piece between two of them is long
+# enough to decode.
+NEEDLE="$needle" python3 - "$work/escaped.json" <<'PY'
+import base64, os, sys
+text = (bytes(range(250, 256)) * 8 + b" by " + os.environ["NEEDLE"].encode()
+        + b" " + bytes((255, 254, 253)) * 20)
+encoded = base64.b64encode(text)
+assert encoded.count(b"/") > 5
+open(sys.argv[1], "wb").write(b'{"u": "' + encoded.replace(b"/", b"\\/") + b'"}\n')
+PY
+if grep -qi "$needle" "$work/escaped.json"; then fail "the escaped-slash fixture is not hidden"; fi
+expect_line "base64 with every slash escaped, as JSON may write it, is decoded" \
+  "::error file=escaped.json::carries $needle (base64)"
+rm "$work/escaped.json"
+
+# A `key=` prefix: `=` is in the alphabet, so the key and the blob are one run,
+# and the key's five characters put the blob out of step when it is decoded.
+encoded="$(printf 'a note written by %s and kept here for later reference ok' "$needle" | base64 | tr -d '\n')"
+printf 'token=%s\n' "$encoded" > "$work/prefixed.env"
+if grep -qi "$needle" "$work/prefixed.env"; then fail "the key-prefix fixture is not hidden"; fi
+expect_line "base64 behind a key= prefix is decoded from after the =" \
+  "::error file=prefixed.env::carries $needle (base64)"
+rm "$work/prefixed.env"
+
 # ── what base64 carries is read like a file ─────────────────────────────────
 # A PNG in a `data:` URI is the same bytes as the PNG file, and was read as
 # nothing but text: a text chunk that fails as a file passed inside an SVG, and
@@ -557,6 +607,28 @@ PY
 expect_line "a chunk that inflates past the cap is reported, not read in part" \
   "::error file=bomb.png::carries compressed chunk too large to inflate"
 rm "$work/bomb.png"
+
+# The cap is per chunk, so a file is held to a total as well: three chunks each
+# under the cap, which together inflate past the per-file budget. Reported, for
+# the same reason as a chunk over the cap, rather than read in part and passed.
+python3 - "$work/budget.png" <<'PY'
+import struct, sys, zlib
+
+def chunk(kind, body):
+    return (struct.pack(">I", len(body)) + kind + body
+            + struct.pack(">I", zlib.crc32(kind + body) & 0xFFFFFFFF))
+
+profile = chunk(b"iCCP", b"ICC profile\x00\x00" + zlib.compress(bytes(30 << 20), 9))
+png = (b"\x89PNG\r\n\x1a\n"
+       + chunk(b"IHDR", struct.pack(">IIBBBBB", 1, 1, 8, 0, 0, 0, 0))
+       + profile * 3
+       + chunk(b"IDAT", zlib.compress(b"\x00\x00"))
+       + chunk(b"IEND", b""))
+open(sys.argv[1], "wb").write(png)
+PY
+expect_line "chunks under the cap that together pass the file's budget are reported" \
+  "::error file=budget.png::carries inflate budget exceeded"
+rm "$work/budget.png"
 expect_clean "the tree is clean once the base64 fixtures are removed"
 
 # ── the surfaces that are not files ─────────────────────────────────────────
@@ -713,8 +785,10 @@ expect_usage "two labels are refused rather than one being picked" --text a b
 echo "self-test passed: plain text, binary metadata, base64 long and short, a"
 echo "permitted compressed chunk, a forbidden chunk type, the summary count,"
 echo "the listing order, the allowlist, the path scan, the unreadable-file"
-echo "report, the manifest namespace, wrapped base64 in five shapes, the PNG"
-echo "inside a data URI, three containers of nesting and the inflation cap each"
+echo "report, the manifest namespace, wrapped base64 in seven shapes, base64"
+echo "behind escaped slashes and behind a key= prefix, the PNG inside a data"
+echo "URI, three containers of nesting, the inflation cap and the per-file"
+echo "inflation budget each"
 echo "proved by their own message AND their own exit status — and, for the"
 echo "surfaces that are not files, the label, the scanned size, base64, the"
 echo "refusal of an empty surface, the narrowness of --allow-empty and the usage"
