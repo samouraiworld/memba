@@ -162,8 +162,6 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
             const beforeSign = async () => {
                 assertCurrent()
                 assertWeightedPlanSignable(plan)
-                // v12: ask the wallet for its network now; the cached chain id may be empty.
-                if (isV12) { await assertLiveWalletChain({ chainId, address: wallet.address }); assertCurrent() }
                 const current = await readWeightedSnapshot(ctx)
                 assertCurrent()
                 if (weightedAuthority(current) !== weightedAuthority(fresh)) throw new Error("DAO roster or roles changed during confirmation; review again")
@@ -176,8 +174,8 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
                     if (action.type === "execute" && JSON.stringify(p.action) !== JSON.stringify(executes)) throw new Error("Proposal changed during confirmation; refresh")
                     if (action.type === "vote" && isV12) await assertBallot(action.id, action.vote)
                 }
-                // Ask again right before the wallet is called: the reads above can take
-                // dozens of round trips, long enough for the wallet to switch networks.
+                // doContractBroadcast runs the shared wallet-network guard before and
+                // after these rechecks; v12 adds only the governance hold list.
                 if (isV12) { await assertLiveWalletChain({ chainId, address: wallet.address }); assertCurrent() }
             }
             const acceptTarget = action.type === "accept" && fresh.config.schema === WEIGHTED_APPLICATIONS_SCHEMA ? fresh.config[action.adapter].target : ""
