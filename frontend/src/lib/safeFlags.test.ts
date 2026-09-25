@@ -1,5 +1,5 @@
 import { describe, it, expect } from "vitest"
-import { assertSafeFlags, SAFETY_GATED_FLAGS, shouldEnforceFlagGate } from "./safeFlags"
+import { assertSafeFlags, assertSecureApiUrls, SAFETY_GATED_FLAGS, shouldEnforceFlagGate } from "./safeFlags"
 
 describe("assertSafeFlags", () => {
     it("keeps native multisig production activation behind release review", () => {
@@ -89,5 +89,26 @@ describe("shouldEnforceFlagGate", () => {
     })
     it("does NOT enforce in dev / serve", () => {
         expect(shouldEnforceFlagGate("serve", undefined)).toBe(false)
+    })
+})
+
+describe("assertSecureApiUrls", () => {
+    it("fails a shipped build whose backend URL is plain http (browsers block it as mixed content: \"Failed to fetch\")", () => {
+        expect(() => assertSecureApiUrls({ VITE_API_URL: "http://memba-backend.fly.dev" })).toThrow(/VITE_API_URL.*https/)
+        expect(() => assertSecureApiUrls({ VITE_GNOLOVE_API_URL: "http://backend.gnolove.world" })).toThrow(/VITE_GNOLOVE_API_URL/)
+        expect(() => assertSecureApiUrls({ VITE_GNO_MONITORING_API_URL: "http://monitoring.gnolove.world" })).toThrow(/VITE_GNO_MONITORING_API_URL/)
+    })
+
+    it("fails a URL that isn't a URL at all", () => {
+        expect(() => assertSecureApiUrls({ VITE_API_URL: "memba-backend.fly.dev" })).toThrow(/VITE_API_URL/)
+    })
+
+    it("passes https, unset or empty values (the app's https defaults apply), and loopback for local e2e builds", () => {
+        expect(() => assertSecureApiUrls({ VITE_API_URL: "https://memba-backend.fly.dev" })).not.toThrow()
+        expect(() => assertSecureApiUrls({})).not.toThrow()
+        expect(() => assertSecureApiUrls({ VITE_API_URL: "" })).not.toThrow()
+        for (const local of ["http://localhost:5174", "http://127.0.0.1:8080", "http://[::1]:8080"]) {
+            expect(() => assertSecureApiUrls({ VITE_API_URL: local }), local).not.toThrow()
+        }
     })
 })

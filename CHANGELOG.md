@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### A build with an http backend URL now fails (2026-09-25)
+<!-- categories: security, build -->
+- **The production build refuses a plain-http backend.** memba.club was built with `VITE_API_URL=http://memba-backend.fly.dev`: the browser blocks http calls from an https page, so signing in failed with "Failed to fetch". `npm run build` (CI and Netlify production builds) now fails when `VITE_API_URL`, `VITE_GNOLOVE_API_URL` or `VITE_GNO_MONITORING_API_URL` is set to anything but https; loopback http stays allowed for local e2e builds. The beta site's value was corrected to https.
+
 ### Read the mainnet weighted DAO (2026-09-24)
 <!-- categories: memba, network -->
 - **The weighted DAO workspace reads the mainnet governing DAO contract (`memba-weighted-host/v12`).** It shows the ten fixed application adapters (market config, reviews, quests, arcade, App Store, escrow on `escrow_v4` with its fee-recipient rotation, badges, feed, channels, feedback) with their targets, successors and categories, and each proposal's category, operation and the target state frozen when it was proposed. Routine and financial proposals are shown as ready as soon as they qualify; critical ones keep their 24 hour and 72 hour routes. Open proposals warn that executing them invalidates every other outstanding proposal.

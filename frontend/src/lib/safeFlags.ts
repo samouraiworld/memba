@@ -47,6 +47,38 @@ export function assertSafeFlags(env: Record<string, string | undefined>): void {
     }
 }
 
+/** Backend URLs the browser calls from an https page. */
+export const API_URL_VARS = ["VITE_API_URL", "VITE_GNOLOVE_API_URL", "VITE_GNO_MONITORING_API_URL"] as const
+
+const LOOPBACK = new Set(["localhost", "127.0.0.1", "[::1]"])
+
+/**
+ * Throws (failing the build) if a backend URL is set to anything but https.
+ * A shipped page is served over https, so the browser blocks a plain-http
+ * backend as mixed content and every call fails with "Failed to fetch" (the
+ * memba.club beta was built with VITE_API_URL=http://…, 09-25, and nobody could
+ * sign in). Unset/empty values fall back to the app's https defaults; loopback
+ * http stays allowed for local e2e builds.
+ */
+export function assertSecureApiUrls(env: Record<string, string | undefined>): void {
+    const bad = API_URL_VARS.flatMap((key) => {
+        const value = env[key]?.trim()
+        if (!value) return []
+        try {
+            const u = new URL(value)
+            return u.protocol === "https:" || (u.protocol === "http:" && LOOPBACK.has(u.hostname)) ? [] : [`${key}=${value}`]
+        } catch {
+            return [`${key}=${value}`]
+        }
+    })
+    if (bad.length > 0) {
+        throw new Error(
+            `API URL GATE FAILED — ${bad.join(", ")}. A shipped build must call its backends over https ` +
+                `(browsers block http from an https page as mixed content). Fix the value in the Netlify site's environment variables.`,
+        )
+    }
+}
+
 /**
  * Whether the fund-flag gate should enforce for this build. Enforces on CI /
  * local production builds (no Netlify CONTEXT) and the Netlify PRODUCTION build

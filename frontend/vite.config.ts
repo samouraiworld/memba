@@ -6,7 +6,7 @@ import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 import { sentryVitePlugin } from '@sentry/vite-plugin'
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs'
-import { assertSafeFlags, shouldEnforceFlagGate } from './src/lib/safeFlags'
+import { assertSafeFlags, assertSecureApiUrls, shouldEnforceFlagGate } from './src/lib/safeFlags'
 import { assertOsFlagAllowed } from './src/os/osBuildGate'
 import { buildSitemapXml, SITE_ORIGIN, SITEMAP_NETWORK } from './src/lib/sitemap'
 import { readdirSync } from 'node:fs'
@@ -43,6 +43,8 @@ function safeFlagsPlugin(): PluginOption {
       // leave it unset. Enforce on CI + the production build, skip ephemeral previews.
       if (shouldEnforceFlagGate(command, process.env.CONTEXT)) {
         assertSafeFlags({ ...process.env, ...loadEnv(mode, '..', 'VITE_') })
+        // Backends over https only: an http one is blocked as mixed content on the live site.
+        assertSecureApiUrls({ ...process.env, ...loadEnv(mode, '..', 'VITE_') })
         // Memba OS may only ship on the beta site (see src/os/osBuildGate.ts).
         assertOsFlagAllowed({ ...process.env, ...loadEnv(mode, '..', 'VITE_') })
       }
