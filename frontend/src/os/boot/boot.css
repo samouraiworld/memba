@@ -1,0 +1,84 @@
+/* memba.club boot (A → C). One timeline, BOOT_MS = 2.1 s:
+   0–0.72 s   self-test lines type out on the dark screen (A)
+   0.72–0.9   the text collapses into a bright horizontal line
+   0.86–1.35  that line becomes the CRT beam; the black halves open (C)
+   0.95–1.9   glow and scanlines settle over the page underneath
+   1.05–2.0   the Memba mark flickers in once, then fades
+   Colours are os.css tokens (--os-boot-*); the global reduced-motion rule and
+   shouldBoot() keep it off for anyone who asked for less motion. */
+.memba-os .os-boot { position: absolute; inset: 0; z-index: 1100; /* above the lock screen (1000) and every modal */ overflow: hidden; cursor: pointer; }
+.memba-os .os-boot > * { position: absolute; }
+
+.memba-os .os-boot-glow {
+  inset: 0; z-index: 1;
+  background: radial-gradient(70% 60% at 50% 50%, var(--os-boot-glow-1), var(--os-boot-glow-2) 60%, var(--os-boot-glow-3) 100%);
+  animation: os-boot-fade .9s ease-out .95s both;
+}
+.memba-os .os-boot-scan {
+  inset: 0; z-index: 2;
+  background: repeating-linear-gradient(to bottom, var(--os-boot-scanline) 0 1px, transparent 1px 3px);
+  box-shadow: inset 0 0 12vmin 3vmin var(--os-boot-vignette);
+  animation: os-boot-fade .7s ease-out 1.2s both;
+}
+.memba-os .os-boot-mark {
+  left: 50%; top: 46%; z-index: 3; display: flex; align-items: center; gap: 12px;
+  transform: translate(-50%, -50%);
+  font: 800 clamp(22px, 6vmin, 40px)/1 var(--os-font); letter-spacing: -.025em; color: var(--os-boot-mark);
+  animation: os-boot-flicker 1s linear 1.05s both;
+}
+.memba-os .os-boot-half { left: 0; right: 0; height: 50.5%; z-index: 4; background: var(--os-boot-black); }
+.memba-os .os-boot-top { top: 0; transform-origin: 50% 0; animation: os-boot-open .3s cubic-bezier(.2, .8, .25, 1) .95s both; }
+.memba-os .os-boot-bot { bottom: 0; transform-origin: 50% 100%; animation: os-boot-open .3s cubic-bezier(.2, .8, .25, 1) .95s both; }
+.memba-os .os-boot-beam {
+  left: 0; right: 0; top: 50%; height: 2px; margin-top: -1px; z-index: 5;
+  background: var(--os-boot-beam);
+  box-shadow: 0 0 10px 2px var(--os-boot-beam-glow), 0 0 36px 8px var(--os-boot-beam-halo);
+  animation: os-boot-beam .5s linear .86s both;
+}
+
+/* A: the self-test on its own dark screen, above everything until it hands over the line. */
+.memba-os .os-boot-a {
+  inset: 0; z-index: 6;
+  background: radial-gradient(120% 90% at 50% 40%, var(--os-boot-bg-1) 0%, var(--os-boot-bg-2) 60%, var(--os-boot-bg-3) 100%);
+  animation: os-boot-fade .08s linear .88s both;
+}
+.memba-os .os-boot-post {
+  position: absolute; inset: 0; padding: 11vmin 9vmin;
+  font: 500 clamp(11px, 3.2vmin, 16px)/1.75 var(--os-mono);
+  color: var(--os-boot-ink); transform-origin: 50% 50%;
+  animation: os-boot-collapse .18s cubic-bezier(.6, 0, .8, .4) .72s both;
+}
+.memba-os .os-boot-ln {
+  white-space: nowrap; overflow: hidden; width: 0;
+  animation: os-boot-type calc(var(--n) * 5ms) steps(var(--n), end) calc(.04s + var(--i) * .1s) both;
+}
+.memba-os .os-boot-ln b { color: var(--os-boot-strong); font-weight: 700; }
+.memba-os .os-boot-ln em { font-style: normal; color: var(--os-boot-ok); }
+.memba-os .os-boot-dim { color: var(--os-boot-dim); }
+.memba-os .os-boot-cur {
+  display: inline-block; width: .62em; height: 1.05em; vertical-align: -.2em; margin-left: .15ch;
+  background: var(--os-boot-ink); animation: os-boot-blink .26s steps(1, end) .6s 5;
+}
+
+@keyframes os-boot-type { from { width: 0 } to { width: calc((var(--n) + .5) * 1ch) } }
+@keyframes os-boot-blink { 0% { opacity: 1 } 50% { opacity: 0 } }
+@keyframes os-boot-collapse {
+  0% { transform: none; filter: none; }
+  100% { transform: scale(.85, .02); filter: brightness(3); }
+}
+@keyframes os-boot-fade { from { opacity: 1 } to { opacity: 0 } }
+@keyframes os-boot-open { from { transform: scaleY(1) } to { transform: scaleY(0) } }
+@keyframes os-boot-beam {
+  0% { transform: scaleX(.85) scaleY(1); opacity: 1; }
+  18% { transform: scaleX(1) scaleY(1); opacity: 1; }
+  45% { transform: scaleX(1) scaleY(6); opacity: .8; }
+  100% { transform: scaleX(1) scaleY(30); opacity: 0; }
+}
+@keyframes os-boot-flicker {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(1.04); text-shadow: 0 0 18px var(--os-boot-beam-glow); }
+  6% { opacity: 1; }
+  11% { opacity: .12; transform: translate(calc(-50% + 1.5px), -50%) scale(1.02); }
+  17% { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+  55% { opacity: 1; text-shadow: 0 0 0 transparent; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1); }
+}

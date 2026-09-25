@@ -44,6 +44,8 @@ test.describe('Memba OS on a phone', () => {
     test('first visit: the lock screen, then the home screen as a guest', async ({ page }) => {
         await page.goto(`${OS_ON}/os`)
         const lock = page.getByRole('dialog', { name: 'Welcome to Memba' })
+        // The boot (first visit only) plays over it first.
+        await expect(page.getByTestId('os-boot')).toHaveCount(0)
         await expect(lock).toBeVisible()
         await lock.getByRole('button', { name: 'Continue as guest' }).click()
         // The Welcome window opens as a sheet; Home shows the home screen.

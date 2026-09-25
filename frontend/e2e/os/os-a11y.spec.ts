@@ -57,6 +57,8 @@ for (const scheme of ['light', 'dark'] as const) {
             await page.setViewportSize({ width: 1280, height: 860 })
             await page.goto(`${OS_ON}/os`)
             await expect(page.getByRole('dialog', { name: 'Welcome to Memba' })).toBeVisible()
+            // A first visit plays the boot over the lock screen; scan what stays once it ends.
+            await expect(page.getByTestId('os-boot')).toHaveCount(0)
             expect(await violations(page)).toEqual([])
             await page.getByRole('button', { name: 'Continue as guest' }).click()
             await expect(page.getByRole('region', { name: 'Welcome to Memba' })).toBeVisible()

@@ -66,6 +66,8 @@ test.describe('Memba OS shell · entry scenarios', () => {
     test('first visit: lock screen once, then the guest desktop with the Welcome window', async ({ page }) => {
         await page.goto(`${OS_ON}/os`)
         await expect(lockScreen(page)).toBeVisible()
+        // The boot (first visit only) plays over it first.
+        await expect(page.getByTestId('os-boot')).toHaveCount(0)
         await page.getByRole('button', { name: 'Continue as guest' }).click()
         await expect(lockScreen(page)).toHaveCount(0)
         await expect(page.getByRole('region', { name: 'Welcome to Memba' })).toBeVisible()

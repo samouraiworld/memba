@@ -8,7 +8,7 @@
  */
 import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from "react"
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom"
-import type { OsAppId } from "../apps"
+import { OS_APPS, type OsAppId } from "../apps"
 import { ConnectModal } from "./ConnectModal"
 import { itemTarget } from "./desk"
 import { ContextMenu, DeskItems, type MenuEntry } from "./DeskItems"
@@ -16,6 +16,8 @@ import { Dock } from "./Dock"
 import { markSeen, readSeen, resolveEntry, type OsEntry } from "./entry"
 import { shortAddr } from "./format"
 import { LockScreen } from "./LockScreen"
+import { BootScreen } from "../boot/BootScreen"
+import { bootLines, markBooted, readBooted, shouldBoot } from "../boot/boot"
 import { MenuBar } from "./MenuBar"
 import { takeNetworkSwitchNotice } from "./network"
 import type { OsTarget } from "./osPath"
@@ -117,6 +119,13 @@ export function Shell() {
     })
     const [entry] = useState(() => resolveEntry({ seen: readSeen(), resuming: session.status === "resuming", deepLink: fromLink }))
     const [locked, setLocked] = useState(entry === "lock")
+    // The memba.club boot (A → C) plays over the lock screen on a first visit only.
+    const [booting, setBooting] = useState(() => shouldBoot({
+        entry, booted: readBooted(),
+        reducedMotion: typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
+    }))
+    useEffect(() => { if (booting) markBooted() }, [booting])
+    const endBoot = useCallback(() => setBooting(false), [])
     const [linkGuest, setLinkGuest] = useState(entry === "link")
 
     // Windows placed while the guest banner shows start below it (it sits above windows).
@@ -256,6 +265,12 @@ export function Shell() {
     const visible = visibleWindows(win.wins)
     const shared = (
         <>
+            {booting && (
+                <BootScreen onDone={endBoot} lines={bootLines({
+                    chainId: session.network.chainId, isTestnet: session.network.isTestnet,
+                    wallet: typeof window !== "undefined" && "adena" in window, deskCount: deskItems.items.length, appCount: OS_APPS.length,
+                })} />
+            )}
             <ConnectModal session={session} />
             {toast && <div className="os-toast os-glass" role="status">{toast}</div>}
             {locked && (

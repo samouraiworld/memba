@@ -40,6 +40,24 @@
   --os-blur: blur(28px) saturate(1.4);
   --os-radius-win: 14px;
   --os-radius-ctl: 10px;
+  /* memba.club boot (os/boot): the same in both themes, a dark screen that warms up */
+  --os-boot-bg-1: #16215A;
+  --os-boot-bg-2: #0A1030;
+  --os-boot-bg-3: #060A1E;
+  --os-boot-ink: #BFD2FF;
+  --os-boot-strong: #FFFFFF;
+  --os-boot-ok: #8FE3B9;
+  --os-boot-dim: #6F82BA;
+  --os-boot-black: #020308;
+  --os-boot-beam: #F2F7FF;
+  --os-boot-beam-glow: rgba(150, 190, 255, .95);
+  --os-boot-beam-halo: rgba(90, 130, 255, .55);
+  --os-boot-glow-1: rgba(246, 250, 255, .96);
+  --os-boot-glow-2: rgba(190, 215, 255, .6);
+  --os-boot-glow-3: rgba(120, 160, 240, .3);
+  --os-boot-scanline: rgba(20, 30, 80, .22);
+  --os-boot-vignette: rgba(0, 0, 20, .55);
+  --os-boot-mark: #182852;
 
   position: fixed;
   inset: 0;
