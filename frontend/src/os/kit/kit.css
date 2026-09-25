@@ -1,6 +1,9 @@
 /*
- * Memba OS kit: sidebar window, table, stat cards, switch, loading/empty/
- * error states, not-on-mainnet warning. Mockup v4 values, tokens only.
+ * Memba OS kit: sidebar window, table, stat cards, card grid, switch,
+ * segmented control, chips, pills, gate bar, loading/empty/error states,
+ * not-on-mainnet warning. Mockup v4 values, tokens only. Segmented, chips,
+ * pills and the gate reuse shell.css's .os-segm/.os-chipset/.os-pill/.os-gate;
+ * only what those lack is added here.
  */
 /* The sidebar window fills the window body edge to edge: the body drops its
    padding for it (instead of a negative margin, which overflowed the body by
@@ -50,3 +53,21 @@
 .memba-os .os-toggle[aria-checked="true"] span { left: 19px; }
 .memba-os .os-empty { display: grid; justify-items: start; gap: 8px; padding: 12px 0; }
 @media (prefers-reduced-motion: reduce) { .memba-os .os-toggle span { transition: none; } }
+/* Segmented: shell.css styles .os-segm's chosen button by aria-checked (the
+   signer's radiogroup); the kit's toggle-button group uses aria-pressed. */
+.memba-os .os-segm button[aria-pressed="true"] { background: var(--os-acc); color: var(--os-on-acc); }
+.memba-os .os-chip-n { font-variant-numeric: tabular-nums; }
+/* Pill tones (.os-pill.os-ok is in shell.css) */
+.memba-os .os-pill.os-warn { background: var(--os-warn-bg); color: var(--os-warn); }
+.memba-os .os-pill.os-err { background: var(--os-err-bg); color: var(--os-err); }
+.memba-os .os-pill.os-neutral { background: var(--os-hover); color: var(--os-mut); }
+/* Gate: shell.css's .os-gate is the mockup's .gate bar minus its top margin */
+.memba-os .os-gate.os-gatebar { margin-top: 12px; }
+/* Card grid (mockup .sgrid .scard); columns come from CardGrid's min */
+.memba-os .os-sgrid { display: grid; gap: 10px; }
+.memba-os .os-scard {
+  display: flex; gap: 10px; align-items: flex-start; border: 1px solid var(--os-line); background: var(--os-card); border-radius: 14px;
+  padding: 10px 12px; font: inherit; color: inherit; min-width: 0; text-align: left;
+}
+.memba-os button.os-scard { cursor: pointer; }
+.memba-os button.os-scard:hover { border-color: var(--os-acc); }

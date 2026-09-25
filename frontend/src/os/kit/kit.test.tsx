@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from "@testing-library/react"
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
-import { AppShell, ErrorState, NotOnMainnet, Table, Toggle } from "./index"
+import { AppShell, Card, CardGrid, Chips, ErrorState, Gate, NotOnMainnet, Pill, Segmented, Table, Toggle } from "./index"
 
 vi.mock("@sentry/react", () => ({ captureException: vi.fn() }))
 
@@ -157,5 +157,52 @@ describe("os kit", () => {
     it("NotOnMainnet says actions stay off", () => {
         render(<NotOnMainnet what="The NFT launchpad" />)
         expect(screen.getByText(/isn't on gnoland-1 yet/)).toBeInTheDocument()
+    })
+    it("Segmented is a labelled group of pressed buttons that reports a choice", () => {
+        const onChange = vi.fn()
+        render(<Segmented label="Period" options={[{ id: "d", name: "Day" }, { id: "w", name: "Week" }]} value="d" onChange={onChange} />)
+        const group = screen.getByRole("group", { name: "Period" })
+        expect(group).toHaveClass("os-segm")
+        expect(screen.getByRole("button", { name: "Day" })).toHaveAttribute("aria-pressed", "true")
+        expect(screen.getByRole("button", { name: "Week" })).toHaveAttribute("aria-pressed", "false")
+        fireEvent.click(screen.getByRole("button", { name: "Week" }))
+        expect(onChange).toHaveBeenCalledWith("w")
+    })
+    it("Chips shows counts (0 included) and reports a choice", () => {
+        const onChange = vi.fn()
+        render(<Chips label="Status" options={[{ id: "all", name: "All" }, { id: "open", name: "Open", count: 3 }, { id: "done", name: "Done", count: 0 }]} value="all" onChange={onChange} />)
+        expect(screen.getByRole("group", { name: "Status" })).toHaveClass("os-chipset")
+        expect(screen.getByRole("button", { name: "All" })).toHaveAttribute("aria-pressed", "true")
+        expect(screen.getByRole("button", { name: "Done 0" })).toHaveAttribute("aria-pressed", "false")
+        fireEvent.click(screen.getByRole("button", { name: "Open 3" }))
+        expect(onChange).toHaveBeenCalledWith("open")
+    })
+    it("Pill takes a tone", () => {
+        render(<><Pill>Live</Pill><Pill tone="warn">Soon</Pill><Pill tone="ok">Done</Pill><Pill tone="err">Failed</Pill></>)
+        expect(screen.getByText("Live")).toHaveClass("os-pill")
+        expect(screen.getByText("Soon")).toHaveClass("os-pill", "os-warn")
+        expect(screen.getByText("Done")).toHaveClass("os-pill", "os-ok")
+        expect(screen.getByText("Failed")).toHaveClass("os-pill", "os-err")
+    })
+    it("Gate shows its text and action", () => {
+        const onConnect = vi.fn()
+        render(<Gate text="Connect to vote." action={<button type="button" onClick={onConnect}>Connect</button>} />)
+        expect(screen.getByText("Connect to vote.")).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Connect" }))
+        expect(onConnect).toHaveBeenCalled()
+    })
+    it("CardGrid sizes its columns; a Card is a button only when it does something", () => {
+        const onClick = vi.fn()
+        render(
+            <CardGrid min={180}>
+                <Card onClick={onClick}>Clickable card</Card>
+                <Card>Static card</Card>
+            </CardGrid>,
+        )
+        const button = screen.getByRole("button", { name: "Clickable card" })
+        fireEvent.click(button)
+        expect(onClick).toHaveBeenCalledTimes(1)
+        expect(screen.getByText("Static card").closest("button")).toBeNull()
+        expect(button.parentElement?.style.gridTemplateColumns).toBe("repeat(auto-fill, minmax(180px, 1fr))")
     })
 })
