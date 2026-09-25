@@ -43,7 +43,7 @@ for (const theme of ['light', 'dark'] as const) {
         expect(probe.text).toBe(probe.ink)
         expect(probe.font).toContain('Manrope')
         await page.evaluate(() => document.fonts.ready)
-        expect(await page.evaluate(() => document.fonts.check('700 13px Manrope'))).toBe(true)
+        expect(await page.evaluate(async () => (await document.fonts.load('700 13px Manrope')).some((f) => f.status === 'loaded'))).toBe(true)
     })
 }
 
@@ -57,6 +57,11 @@ const APPS = ['feed', 'store', 'settings', 'quests', 'validators', 'tokens', 'pr
 const WALLET_GATED = ['profile']
 
 test('no Beta teal inside the app windows', async ({ page }) => {
+    // 12 apps × up to 20s each under 2-worker dev-server contention (plus the
+    // fixed 600ms settle + navigation) can exceed the config's 60s default;
+    // this doesn't fire on the normal fast path, only when a wait actually
+    // needs the extra headroom.
+    test.setTimeout(120_000)
     await guest(page)
     await page.addInitScript(() => {
         localStorage.setItem('memba_os_seen', '1')
@@ -67,7 +72,7 @@ test('no Beta teal inside the app windows', async ({ page }) => {
         await page.goto(`${OS_ON}/os/${app}`)
         const classic = page.locator('.os-classic').first()
         try {
-            await classic.waitFor({ timeout: 8_000 })
+            await classic.waitFor({ timeout: 20_000 })
         } catch {
             if (!WALLET_GATED.includes(app)) throw new Error(`${app}: no .os-classic`)
             test.info().annotations.push({ type: 'skipped', description: `${app}: wallet-gated for a guest, no .os-classic to sweep` })

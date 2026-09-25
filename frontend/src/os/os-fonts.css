@@ -3,6 +3,10 @@
  * chunk via OsRoot.tsx, so a flag-off production build never emits or
  * precaches these files — src/os/fonts/*.woff2, licence in
  * src/os/fonts/OFL-Manrope.txt. Same-origin (CSP: font-src 'self').
+ * A flag-off build also relies on vite.config.ts's assetsInlineLimit
+ * override, which force-inlines these specific files as base64 so Rollup's
+ * CSS asset pipeline never emits them as separate files even though it still
+ * loads this module while building the (dead) OS chunk's module graph.
  */
 @font-face {
   font-family: 'Manrope';
