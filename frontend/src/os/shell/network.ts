@@ -14,6 +14,7 @@ import {
     NETWORKS,
     selectableNetworksFor,
 } from "../../lib/config"
+import { OS_NET_SWITCHED_KEY } from "../../lib/networkSwitch"
 import { completeQuest, getQuestWalletAddress } from "../../lib/quests"
 import { trackNetworkVisit } from "../../lib/questVerifier"
 
@@ -45,8 +46,11 @@ export function selectableOsNetworks(): OsNetwork[] {
     return Object.keys(selectableNetworksFor(ACTIVE_NETWORK_KEY)).map(describe)
 }
 
-/** Shown once after the reload that a switch triggers. */
-export const OS_NET_SWITCHED_KEY = "memba_os_net_switched"
+/** Shown once after the reload that a switch triggers. Single source of truth
+ *  is `lib/networkSwitch.ts` — `hooks/useNetwork.ts` (which cannot import from
+ *  `src/os/`) sets the same key on its own /os reload path. Re-exported here
+ *  so existing importers of this module keep working. */
+export { OS_NET_SWITCHED_KEY }
 
 export function switchOsNetwork(key: string): void {
     if (!NETWORKS[key] || key === ACTIVE_NETWORK_KEY) return

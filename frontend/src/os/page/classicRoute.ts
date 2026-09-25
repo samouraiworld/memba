@@ -82,12 +82,14 @@ function daoTarget(splat: string): OsTarget | null {
  * has none (another network, a callback, an unknown page): those leave Memba OS.
  */
 export function osTargetForClassic(pathname: string, network: string): OsTarget | null {
+    if (pathname === "/" || pathname === "") return { kind: "desktop" }
     const m = /^\/([^/?#]+)\/?([^?#]*)/.exec(pathname)
     if (!m || !NETWORKS[network]) return null
     // A bare legacy path (/validators/hacker) gets the current network, as LegacyRedirect does.
     if (!NETWORKS[m[1]]) return pathname.startsWith("/os/") || pathname === "/os" ? null : osTargetForClassic(`/${network}${pathname}`, network)
     if (m[1] !== network) return null
     const rest = m[2].replace(/\/+$/, "")
+    if (rest === "dashboard") return { kind: "desktop" }
     if (rest === "") return { kind: "app", app: "wallet", section: null }
     if (rest === "feedback") return { kind: "feedback" }
     if (rest === "dao") return { kind: "app", app: "daos", section: null }

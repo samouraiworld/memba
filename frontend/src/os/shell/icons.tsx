@@ -17,6 +17,7 @@ const PATHS = {
     set: <><circle cx="12" cy="12" r="3.2" /><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M5.6 18.4l2.1-2.1M16.3 7.7l2.1-2.1" /></>,
     tok: <><ellipse cx="12" cy="7" rx="7" ry="3" /><path d="M5 7v5c0 1.7 3.1 3 7 3s7-1.3 7-3V7M5 12v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5" /></>,
     nft: <><rect x="4" y="4" width="16" height="16" rx="3" /><circle cx="9" cy="9" r="1.6" /><path d="M4 16l5-5 4 4 3-3 4 4" /></>,
+    tag: <><path d="M3 12V4h8l10 10-8 8z" /><circle cx="7.5" cy="7.5" r="1.5" /></>,
     quest: <path d="M6 21V4M6 4h11l-2 4 2 4H6" />,
     exp: <><circle cx="12" cy="12" r="8.5" /><path d="M15.5 8.5l-2 5-5 2 2-5z" /></>,
     chart: <path d="M4 20h16M7 16v-5M12 16V7M17 16v-8" />,
@@ -32,7 +33,7 @@ export type IconName = keyof typeof PATHS
 
 const APP_ICON: Record<OsAppId, IconName> = {
     daos: "dao", wallet: "wal", multisig: "msig", feed: "feed", store: "store", arcade: "game", validators: "val",
-    settings: "set", tokens: "tok", nft: "nft", quests: "quest", explorer: "exp", profile: "prof", news: "news",
+    settings: "set", tokens: "tok", nft: "nft", market: "tag", quests: "quest", explorer: "exp", profile: "prof", news: "news",
     devreport: "chart", terminal: "term",
 }
 

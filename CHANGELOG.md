@@ -25,6 +25,11 @@ Full changelogs are split by version range for easier navigation:
 - **An app becomes a native Memba OS window by adding one folder** (`src/os/apps/<app>/native.tsx`), found at build time and loaded lazily, so several apps can go native in parallel without touching a shared file. A native window receives the same gated fallback a page window shows today, so a guest still gets "Connect a wallet" on wallet-only pages.
 - **A shared kit for those windows**, built to the mockup: the sidebar window, a table with sortable headers, a pager and a labelled open button, stat cards, segmented controls, filter chips, pills, the connect bar, card grids, a switch, and one loading, empty, error and "not on this network" state. Aqua tokens only, light and dark, sized by the window rather than the screen.
 - Memba OS only (memba.club): nothing changes on memba.samourai.app, and the bundle gate still finds no Memba OS code in a production build.
+### Memba OS keeps you in the OS, and the marketplace gets its own Market app (2026-09-26)
+<!-- categories: memba -->
+- **Switching network from a page inside Memba OS reloads Memba OS on the new network** instead of dropping you on the classic site. Outside Memba OS nothing changes.
+- **Links to the old dashboard or home page land on the Memba OS desktop** (NotFound, the DAO list, candidature and multisig creation used them) instead of leaving the OS.
+- **A Market app owns the marketplace** (escrow Services, NFT and token trading, agents), owner decision 09-25. It used to live inside the NFT app, where the live Services lane was hard to find. Links to `/marketplace/...` and `/services` open the Market window.
 
 ### Dev Report and validator data stop depending on the lapsed gnolove.world domain (2026-09-25)
 <!-- categories: memba, security -->

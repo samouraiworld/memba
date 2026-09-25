@@ -37,6 +37,12 @@ describe("sections", () => {
         expect(classicHome("terminal")).toBeNull()
     })
 
+    it("gives Market the classic marketplace page as its home, and round-trips a services section", () => {
+        expect(classicForSection("market", null)).toBe("marketplace")
+        expect(classicForSection("market", "services")).toBe("services")
+        expect(sectionForClassic("market", "services")).toBe("services")
+    })
+
     it("round-trip every static route of every app", () => {
         for (const app of OS_APPS) {
             for (const route of app.routes) {
@@ -80,6 +86,12 @@ describe("osTargetForClassic", () => {
         expect(osTargetForClassic("/betanet/feed", "mainnet")).toBeNull()
         expect(osTargetForClassic("/mainnet/github/callback", "mainnet")).toBeNull()
         expect(osTargetForClassic("/mainnet/feedback", "mainnet")).toEqual({ kind: "feedback" })
+    })
+
+    it("sends the classic dashboard and home to the desktop", () => {
+        expect(osTargetForClassic("/mainnet/dashboard", "mainnet")).toEqual({ kind: "desktop" })
+        expect(osTargetForClassic("/", "mainnet")).toEqual({ kind: "desktop" })
+        expect(osTargetForClassic("/mainnet/dashboard/extra", "mainnet")).not.toEqual({ kind: "desktop" })
     })
 
     it("gives a bare legacy path the current network, as LegacyRedirect does", () => {
