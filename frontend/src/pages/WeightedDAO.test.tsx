@@ -19,9 +19,9 @@ vi.mock("../lib/grc20", () => ({ doContractBroadcast: vi.fn() }))
 vi.mock("../lib/dao/weightedAcceptance", async importOriginal => ({ ...await importOriginal<typeof import("../lib/dao/weightedAcceptance")>(), readAcceptanceStates: vi.fn(), readTargetAuthority: vi.fn() }))
 let fixture = weightedFixture()
 function snapshot() { return { config: fixture.config, members: fixture.members, page: fixture.page } as Awaited<ReturnType<typeof readWeightedSnapshot>> }
-function App({ address = fixture.members[5].address, network = "pearl", connected = true }: { address?: string; network?: string; connected?: boolean }) {
+function App({ address = fixture.members[5].address, network = "pearl", connected = true, realm = weightedRealm }: { address?: string; network?: string; connected?: boolean; realm?: string }) {
     const context = { adena: { connected, address, chainId: network === "mainnet" ? "gnoland-1" : "pearl" }, auth: { isAuthenticated: true, address } }
-    return <MemoryRouter initialEntries={[`/${network}/weighted-dao/${weightedRealm}`]}><Routes><Route element={<Outlet context={context} />}><Route path="/:network/weighted-dao/*" element={<WeightedDAO />} /></Route></Routes></MemoryRouter>
+    return <MemoryRouter initialEntries={[`/${network}/weighted-dao/${realm}`]}><Routes><Route element={<Outlet context={context} />}><Route path="/:network/weighted-dao/*" element={<WeightedDAO />} /></Route></Routes></MemoryRouter>
 }
 beforeEach(() => {
     vi.clearAllMocks(); fixture = weightedFixture()
@@ -454,6 +454,17 @@ it("checks the wallet's live network right before signing a v12 call, and stops 
     expect((await screen.findByRole("alert")).textContent).toMatch(/where governance writes remain on hold/)
     expect(assertLiveWalletChain).toHaveBeenCalledWith({ chainId: "pearl", address: voter, schema: "memba-weighted-host/v12", realmPath: weightedRealm })
     expect(screen.queryByText(/Transaction submitted:/)).toBeNull()
+})
+it("passes the page's own realm path and version to the wallet check, not the released DAO's", async () => {
+    vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())
+    const other = "gno.land/r/samcrew/memba_dao_v2", voter = v12Snapshot().members[1].address
+    render(<App network="pearl" address={voter} realm={other} />)
+    const card = await screen.findByRole("article", { name: "Proposal 17" })
+    await within(card).findByText("You have not voted.")
+    fireEvent.click(within(card).getByRole("button", { name: "Vote yes" }))
+    await screen.findByText(/Transaction submitted:/)
+    expect(assertLiveWalletChain).toHaveBeenCalledWith({ chainId: "pearl", address: voter, schema: "memba-weighted-host/v12", realmPath: other })
+    expect(vi.mocked(doContractBroadcast).mock.calls[0][0][0].value).toMatchObject({ pkg_path: other, func: "Vote" })
 })
 it("runs the hold-list wallet check once, after the page's own pre-sign rechecks", async () => {
     vi.mocked(readWeightedSnapshot).mockImplementation(async () => v12Snapshot())

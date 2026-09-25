@@ -337,9 +337,9 @@ export const WEIGHTED_WRITE_HOLD_CHAINS: readonly string[] = ["gnoland-1"]
  * change. Released: the mainnet governing DAO (v12 at r/samcrew/memba_dao,
  * published h315078). Any other weighted DAO on gnoland-1 stays read-only.
  */
-export const WEIGHTED_WRITE_RELEASES: readonly { chainId: string; schema: string; realmPath: string }[] = [
-    { chainId: "gnoland-1", schema: WEIGHTED_APPLICATIONS_SCHEMA, realmPath: "gno.land/r/samcrew/memba_dao" },
-]
+export const WEIGHTED_WRITE_RELEASES: readonly Readonly<{ chainId: string; schema: string; realmPath: string }>[] = Object.freeze([
+    Object.freeze({ chainId: "gnoland-1", schema: WEIGHTED_APPLICATIONS_SCHEMA, realmPath: "gno.land/r/samcrew/memba_dao" }),
+])
 
 /** True when governance writes stay on hold for this DAO on this chain. */
 export function weightedWritesHeld(chainId: string, schema: string, realmPath: string): boolean {

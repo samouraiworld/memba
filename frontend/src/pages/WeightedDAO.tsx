@@ -220,7 +220,7 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
             <p>Voting lasts 7 days. Proposals qualified before closing retain their execution delay. {applications ? "Every executed proposal and every emergency pause invalidates all other outstanding proposals." : "Every executed role or key change invalidates other outstanding proposals."}</p>
             <p>Admin and finance labels do not add voting power or exclusive execution rights.</p>
         </section>
-        {held && <p role="status">Mainnet governance is read-only for this DAO in Memba.</p>}
+        {data && held && <p role="status">Mainnet governance is read-only for this DAO in Memba.</p>}
         <p>{applications ? "Fixed application actions are available for the adapters below. Migration and treasury spending are not." : "Migration, treasury spending and application actions are not available in this DAO version."}</p>
         <button disabled={loading || busy} onClick={() => void refresh("0")}>Refresh chain state</button>
         {loading && <p role="status">Reading governance state…</p>}
@@ -235,7 +235,7 @@ function WeightedWorkspace({ ctx, wallet, authenticated }: { ctx: WeightedContex
             <section className="k-card" aria-labelledby="weighted-propose"><h2 id="weighted-propose">Propose a role change</h2>
                 {!writable ? <p>This DAO version is read-only in Memba for now. Voting and proposing arrive in a later release.</p>
                     : applications ? <p>Role proposals for this DAO version arrive in a later Memba release. Use the adapter acceptances and proposal votes below.</p>
-                    : !canAct && !busy && <p>Actions require a connected, authenticated member on the selected test network.</p>}
+                    : !canAct && !busy && <p>Actions require a connected, authenticated member on the selected network.</p>}
                 <form onSubmit={e => { e.preventDefault(); void submit({ type: "propose", target, role, grant }) }}><fieldset disabled={!canAct || !kinds.has("propose")}>
                     <label>Member<select value={target} onChange={e => setTarget(e.target.value)} required><option value="">Choose a member</option>{data.members.map(m => <option key={m.address} value={m.address}>{reveal(m.personId)} — {reveal(m.address)}</option>)}</select></label>
                     <label>Role<select value={role} onChange={e => setRole(e.target.value as "admin" | "finance")}><option value="admin">Admin</option><option value="finance">Finance</option></select></label>
@@ -325,7 +325,7 @@ function AdapterAuthority({ adapter, state, dao, canAccept, eligible, held, open
             <p>The proposal locks up to {formatUgnotExact(budget.maxDepositUgnot)} of storage deposit from the proposer.</p>
             {openAccept && <p>Acceptance proposal #{openAccept} is still open. Propose this one after it executes or closes.</p>}
             {next && next !== adapter && <p>The recommended order hands over {POLICY_LABELS[next]} first.</p>}
-            {!eligible && !held && <p>Proposing requires a connected, authenticated member on the selected test network.</p>}
+            {!eligible && !held && <p>Proposing requires a connected, authenticated member on the selected network.</p>}
             <button type="button" disabled={!canAccept || !!openAccept} onClick={() => void submit({ type: "accept", adapter })}>Propose acceptance</button>
         </>}
     </div>
