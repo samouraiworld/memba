@@ -42,6 +42,8 @@ for (const theme of ['light', 'dark'] as const) {
         expect(probe.brand).toBe(probe.acc)
         expect(probe.text).toBe(probe.ink)
         expect(probe.font).toContain('Manrope')
+        await page.evaluate(() => document.fonts.ready)
+        expect(await page.evaluate(() => document.fonts.check('700 13px Manrope'))).toBe(true)
     })
 }
 

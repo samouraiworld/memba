@@ -5,6 +5,7 @@
  *
  * @module os/OsRoot
  */
+import "./os-fonts.css"
 import "./os.css"
 import "./shell/shell.css"
 import "./classic-bridge.css"
