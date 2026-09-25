@@ -3,6 +3,7 @@ import { renderHook } from "@testing-library/react"
 import { MemoryRouter, Routes, Route } from "react-router-dom"
 import type { ReactNode } from "react"
 import { useNetwork } from "./useNetwork"
+import { NETWORKS, ACTIVE_NETWORK_KEY, NETWORK_PREF_STORAGE_KEY } from "../lib/config"
 
 /**
  * The "Network Hopper" quest (`switch-network`, 15 XP, season 1, LIVE) is awarded
@@ -109,5 +110,31 @@ describe("useNetwork.switchNetwork — an explicit choice is recorded apart from
         const { result } = renderHook(() => useNetwork(), { wrapper })
         result.current.switchNetwork("topaz")
         expect(localStorage.getItem("memba_network_pref")).toBeNull()
+    })
+})
+
+describe("useNetwork.switchNetwork — a switch from inside Memba OS stays in Memba OS", () => {
+    afterEach(() => {
+        vi.unstubAllGlobals()
+        localStorage.removeItem("memba_network_pref")
+        localStorage.removeItem("memba_network")
+    })
+
+    it("reloads in place inside Memba OS instead of leaving it", () => {
+        // Any key other than the module-load active one is a real switch —
+        // never hard-coded, since ACTIVE_NETWORK_KEY depends on env/build config.
+        const targetKey = Object.keys(NETWORKS).find((k) => k !== ACTIVE_NETWORK_KEY)!
+        const reload = vi.fn()
+        const assign = vi.fn()
+        vi.stubGlobal("location", {
+            pathname: "/os/feed",
+            reload,
+            set href(v: string) { assign(v) },
+        })
+        const { result } = renderHook(() => useNetwork(), { wrapper })
+        result.current.switchNetwork(targetKey)
+        expect(reload).toHaveBeenCalled()
+        expect(assign).not.toHaveBeenCalled()
+        expect(localStorage.getItem(NETWORK_PREF_STORAGE_KEY)).toBe(targetKey)
     })
 })

@@ -49,6 +49,8 @@ export function useNetwork() {
         // readers that still treat it as "the network the user is on".
         localStorage.setItem(NETWORK_PREF_STORAGE_KEY, key)
         localStorage.setItem(NETWORK_ECHO_STORAGE_KEY, key)
+        // Memba OS reads the network preference on load and keeps its windows (os/shell/network.ts).
+        if (window.location.pathname === "/os" || window.location.pathname.startsWith("/os/")) { window.location.reload(); return }
         // Navigate to the same path but with the new network prefix
         const currentPath = window.location.pathname
         // Strip current network prefix if present
