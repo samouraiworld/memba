@@ -55,12 +55,23 @@ export function useClassicThemeSync(theme: OsTheme): void {
     useEffect(() => {
         const root = document.documentElement
         const before = root.getAttribute("data-theme")
-        const apply = () => { if (root.getAttribute("data-theme") !== theme) root.setAttribute("data-theme", theme) }
+        // Idempotent: re-entry from our own dispatch below sees the attribute already
+        // matching `theme` and no-ops, so this can never loop.
+        const apply = () => {
+            if (root.getAttribute("data-theme") !== theme) {
+                root.setAttribute("data-theme", theme)
+                window.dispatchEvent(new Event("memba:theme-change"))
+            }
+        }
         apply()
         window.addEventListener("memba:theme-change", apply)
         return () => {
             window.removeEventListener("memba:theme-change", apply)
-            if (before) root.setAttribute("data-theme", before)
+            if (root.getAttribute("data-theme") !== before) {
+                if (before) root.setAttribute("data-theme", before)
+                else root.removeAttribute("data-theme")
+                window.dispatchEvent(new Event("memba:theme-change"))
+            }
         }
     }, [theme])
 }
