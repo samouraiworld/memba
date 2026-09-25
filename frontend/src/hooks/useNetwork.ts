@@ -7,6 +7,7 @@ import {
     NETWORK_PREF_STORAGE_KEY,
     storedNetworkKey,
 } from "../lib/config"
+import { OS_NET_SWITCHED_KEY } from "../lib/networkSwitch"
 import { completeQuest, getQuestWalletAddress } from "../lib/quests"
 import { trackNetworkVisit } from "../lib/questVerifier"
 
@@ -50,7 +51,15 @@ export function useNetwork() {
         localStorage.setItem(NETWORK_PREF_STORAGE_KEY, key)
         localStorage.setItem(NETWORK_ECHO_STORAGE_KEY, key)
         // Memba OS reads the network preference on load and keeps its windows (os/shell/network.ts).
-        if (window.location.pathname === "/os" || window.location.pathname.startsWith("/os/")) { window.location.reload(); return }
+        if (window.location.pathname === "/os" || window.location.pathname.startsWith("/os/")) {
+            // Same key os/shell/network.ts's switchOsNetwork writes, so Shell.tsx's
+            // toast (takeNetworkSwitchNotice) fires from this path too. Best-effort,
+            // like the OS's own read: without it the switch itself still landed via
+            // the localStorage writes above, only the toast is lost.
+            try { sessionStorage.setItem(OS_NET_SWITCHED_KEY, key) } catch { /* toast is best-effort */ }
+            window.location.reload()
+            return
+        }
         // Navigate to the same path but with the new network prefix
         const currentPath = window.location.pathname
         // Strip current network prefix if present
