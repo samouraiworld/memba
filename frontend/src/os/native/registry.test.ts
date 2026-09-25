@@ -19,4 +19,17 @@ describe("nativeViewFrom", () => {
         expect(first).toBeDefined()
         expect(first).toBe(second)
     })
+
+    it("scopes the cache per modules map, so a different map for the same app id gets its own component", () => {
+        const modulesA = { "../apps/settings/native.tsx": load }
+        const modulesB = { "../apps/settings/native.tsx": load }
+        const fromA = nativeViewFrom(modulesA, "settings")
+        const fromB = nativeViewFrom(modulesB, "settings")
+        expect(fromA).toBeDefined()
+        expect(fromB).toBeDefined()
+        expect(fromA).not.toBe(fromB)
+        // The same map still returns its own cached component, unaffected by modulesB.
+        expect(nativeViewFrom(modulesA, "settings")).toBe(fromA)
+        expect(nativeViewFrom(modulesB, "settings")).toBe(fromB)
+    })
 })

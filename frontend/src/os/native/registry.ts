@@ -16,7 +16,10 @@ export function resolveNative(modules: Record<string, Loader>, app: OsAppId): Lo
 }
 
 const MODULES = import.meta.glob<{ default: ComponentType<NativeViewProps> }>("../apps/*/native.tsx")
-const cache = new Map<OsAppId, LazyExoticComponent<ComponentType<NativeViewProps>>>()
+// Scoped per `modules` map (a WeakMap keyed by that object), not by app id alone: two
+// different modules maps must never share a cached component for the same app id, even
+// if it's the same app id, since they can resolve to different loaders.
+const caches = new WeakMap<Record<string, Loader>, Map<OsAppId, LazyExoticComponent<ComponentType<NativeViewProps>>>>()
 
 /**
  * Cache-backed lookup, taking `modules` so tests can pin identity stability
@@ -26,6 +29,8 @@ const cache = new Map<OsAppId, LazyExoticComponent<ComponentType<NativeViewProps
 export function nativeViewFrom(modules: Record<string, Loader>, app: OsAppId): LazyExoticComponent<ComponentType<NativeViewProps>> | undefined {
     const load = resolveNative(modules, app)
     if (!load) return undefined
+    let cache = caches.get(modules)
+    if (!cache) { cache = new Map(); caches.set(modules, cache) }
     let view = cache.get(app)
     if (!view) { view = lazy(load); cache.set(app, view) }
     return view
