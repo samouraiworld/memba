@@ -20,6 +20,11 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Activity bot refuses mainnet (2026-09-24)
+<!-- categories: memba, network -->
+- **Operator tool fix: the testnet activity bot no longer defaults to gno.land mainnet.** The mainnet cutover had switched its default chain and RPC to `gnoland-1`, so a run without flags targeted mainnet.
+- `-chain-id` and `-remote` are now required, and the mainnet chain ids `gnoland-1` and `gnoland1` are refused with a clear error.
+
 ### Feed reactions load in one request per page (2026-09-24)
 <!-- categories: memba -->
 - **A feed page no longer spends one API request per post on reaction counts.** Each post asked for its own counts, so a long page used up the shared per-minute request limit and other calls started failing.

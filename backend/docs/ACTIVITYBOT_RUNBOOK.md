@@ -13,6 +13,10 @@ funds.
   **name** from gnokey's keyring. The throwaway key lives only in gnokey's
   keyring / a `flyctl` secret — never in the repo, never in an env var read by
   Go.
+- **No default network, mainnet refused.** `-chain-id` and `-remote` are
+  required on every run (dry-run included); there is no built-in default. A
+  gno.land mainnet chain id (`gnoland-1`, `gnoland1`) is refused with an error
+  before anything else happens.
 - **Kill switch.** `ACTIVITYBOT_ENABLED` must equal `"true"`. Anything else and
   the bot logs "disabled" and exits `0` — so a scheduled job is a clean no-op
   until you explicitly turn it on, and turning it off is a one-line change.
@@ -48,7 +52,8 @@ funds.
 
 Dry-run (safe anywhere — prints the commands, sends nothing):
 ```sh
-go run ./cmd/activitybot -scenario cmd/activitybot/scenario.example.json
+go run ./cmd/activitybot -scenario cmd/activitybot/scenario.example.json \
+  -chain-id <testnet-chain-id> -remote <testnet-rpc-url>
 # → "disabled" unless ACTIVITYBOT_ENABLED=true; then prints gnokey commands
 ```
 
@@ -56,6 +61,7 @@ Broadcast (testnet, key must be in gnokey's keyring as `activitybot`):
 ```sh
 ACTIVITYBOT_ENABLED=true go run ./cmd/activitybot \
   -scenario scenario.json -broadcast -key activitybot \
+  -chain-id <testnet-chain-id> -remote <testnet-rpc-url> \
   -state /var/lib/activitybot/state.json
 ```
 
@@ -71,7 +77,8 @@ throwaway addresses.
 
 - **GitHub Actions `schedule:`** (recommended) — a workflow that checks out,
   installs gnokey, imports `ACTIVITYBOT_PRIVKEY` into the keyring, and runs the
-  bot with `ACTIVITYBOT_ENABLED=true`. Persist `state.json` as an artifact/cache
+  bot with `ACTIVITYBOT_ENABLED=true` and an explicit testnet `-chain-id` and
+  `-remote`. Persist `state.json` as an artifact/cache
   so the daily counter survives across runs.
 - **`fly machines run`** — a one-shot machine invoked on a schedule from an
   external trigger.

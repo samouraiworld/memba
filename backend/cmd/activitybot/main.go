@@ -8,6 +8,8 @@
 // throwaway key lives only in gnokey's keyring / a flyctl secret, never here.
 //
 // Hard safety rails, all enforced before any broadcast:
+//   - no network default: -chain-id and -remote are required, and known gno.land
+//     mainnet chain ids (mainnetChainIDs) are refused outright, dry-run included;
 //   - kill switch: ACTIVITYBOT_ENABLED must equal "true" or the bot exits 0
 //     cleanly (so a scheduled job is a no-op until explicitly enabled);
 //   - MaxActionsPerRun caps one invocation; MaxTransfersPerDay caps the rolling
@@ -20,16 +22,18 @@
 //
 // Usage:
 //
-//	activitybot -scenario scenario.json                 # DRY-RUN: print gnokey cmds
-//	ACTIVITYBOT_ENABLED=true activitybot -scenario scenario.json -broadcast -key activitybot
+//	activitybot -scenario scenario.json -chain-id test-13 -remote <testnet-rpc>   # DRY-RUN: print gnokey cmds
+//	ACTIVITYBOT_ENABLED=true activitybot -scenario scenario.json -chain-id test-13 -remote <testnet-rpc> -broadcast -key activitybot
 //
 // Testnet only. See docs/ACTIVITYBOT_RUNBOOK.md.
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 )
 
@@ -50,13 +54,36 @@ const (
 	defaultGasFeeUg = 1_000_000
 )
 
+// mainnetChainIDs are gno.land mainnet chain ids the bot refuses to target. Both
+// spellings are listed because both have been used for mainnet.
+var mainnetChainIDs = []string{"gnoland-1", "gnoland1"}
+
+// checkNetwork requires an explicit chain id and RPC endpoint (there is no
+// default network) and refuses mainnet, so the bot can only ever act on a
+// testnet the operator named.
+func checkNetwork(chainID, remote string) error {
+	id := strings.TrimSpace(chainID)
+	if id == "" {
+		return errors.New("-chain-id is required (testnet only; there is no default network)")
+	}
+	if strings.TrimSpace(remote) == "" {
+		return errors.New("-remote is required (testnet RPC endpoint; there is no default network)")
+	}
+	for _, m := range mainnetChainIDs {
+		if strings.EqualFold(id, m) {
+			return fmt.Errorf("-chain-id %q is gno.land mainnet; activitybot is testnet-only and refuses to run there", chainID)
+		}
+	}
+	return nil
+}
+
 func main() {
 	var (
 		scenarioPath = flag.String("scenario", "", "path to the scenario JSON (required)")
 		statePath    = flag.String("state", "activitybot-state.json", "path to the rolling-counter state file")
 		key          = flag.String("key", "activitybot", "gnokey key NAME for the bot signer (keyring, never a raw key)")
-		chainID      = flag.String("chain-id", "gnoland-1", "gno chain id")
-		remote       = flag.String("remote", "https://rpc.gno.land:443", "gno RPC endpoint")
+		chainID      = flag.String("chain-id", "", "gno TESTNET chain id (required; mainnet is refused)")
+		remote       = flag.String("remote", "", "gno testnet RPC endpoint (required)")
 		broadcast    = flag.Bool("broadcast", false, "broadcast via gnokey (default: dry-run, print commands only)")
 		maxActions   = flag.Int("max", MaxActionsPerRun, "max actions this run (clamped to MaxActionsPerRun)")
 	)
@@ -64,6 +91,9 @@ func main() {
 
 	if *scenarioPath == "" {
 		fatal("-scenario is required")
+	}
+	if err := checkNetwork(*chainID, *remote); err != nil {
+		fatal("%v", err)
 	}
 
 	// Kill switch — a scheduled run is a clean no-op until explicitly enabled.
