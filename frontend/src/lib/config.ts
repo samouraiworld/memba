@@ -1196,10 +1196,14 @@ export const DAO_REALM_PATH = import.meta.env.VITE_DAO_REALM_PATH || "gno.land/r
 /** True when `url`'s host is exactly one of `domains`, or a sub-domain of one.
  *  The sub-domain arm requires a leading dot, so a look-alike registrable
  *  domain (`evilsamourai.live`) never satisfies an entry (`samourai.live`). */
+/** Exact host only (no sub-domains: a dangling record under a trusted name must
+ *  not become trusted), over https, or http for localhost in development. */
 function isTrustedHost(url: string, domains: readonly string[]): boolean {
     try {
-        const hostname = new URL(url).hostname.toLowerCase()
-        return domains.some(d => hostname === d || hostname.endsWith(`.${d}`))
+        const parsed = new URL(url)
+        const hostname = parsed.hostname.toLowerCase()
+        const scheme = parsed.protocol === "https:" || (parsed.protocol === "http:" && hostname === "localhost")
+        return scheme && domains.includes(hostname)
     } catch { return false }
 }
 

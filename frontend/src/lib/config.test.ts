@@ -363,6 +363,15 @@ describe('external service URLs only resolve to allowlisted hosts', () => {
             'https://gnomonitoring.samourai.live.evil.com',
             'https://evil-gnomonitoring.samourai.live',
             'https://other.samourai.live',
+            // Sub-domains of a trusted host: a dangling record under it must not become trusted.
+            'https://x.gnomonitoring.samourai.live',
+            'https://x.gnolove-api.samourai.live',
+            'http://evil.localhost',
+            // A trusted host over anything but https (http only for localhost).
+            'http://gnomonitoring.samourai.live',
+            'http://gnolove-api.samourai.live',
+            'ws://gnomonitoring.samourai.live',
+            'https://gnomonitoring.samourai.live@evil.com',
         ]) {
             const cfg = await load({ VITE_GNOLOVE_API_URL: host, VITE_GNO_MONITORING_API_URL: host })
             expect(cfg.GNOLOVE_API_URL, host).toBe('https://gnolove-api.samourai.live')
