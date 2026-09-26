@@ -1,13 +1,13 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, devices, type Page } from '@playwright/test'
 
 async function ready(page: Page) {
     await page.goto('/mainnet')
     await expect(page.getByTestId('home-spine-visitor')).toBeVisible()
     await page.waitForLoadState('networkidle')
-    await page.evaluate(async () => {
-        await navigator.serviceWorker.ready
-        if (!navigator.serviceWorker.controller) await new Promise<void>(resolve => navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true }))
-    })
+    await page.evaluate(async () => { await navigator.serviceWorker.ready })
+    // Prompt mode does not claim the first open tab until it navigates again.
+    if (!await page.evaluate(() => !!navigator.serviceWorker.controller)) await page.reload()
+    await expect(page.getByTestId('home-spine-visitor')).toBeVisible()
 }
 test.beforeEach(async ({ page, request }) => {
     await request.post('/__release?build=a')
@@ -17,7 +17,7 @@ test.beforeEach(async ({ page, request }) => {
     })
 })
 
-test('a controlled old tab adopts build B, reloads B, and boots its cached shell offline', async ({ page, request, context }) => {
+test('an old tab offers build B without reloading, then boots B offline after a click', async ({ page, request, context }) => {
     await ready(page)
     const records = await page.evaluate(() => {
         const address = 'g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c'
@@ -34,15 +34,11 @@ test('a controlled old tab adopts build B, reloads B, and boots its cached shell
     await request.post('/__release?build=b')
     const b = await (await request.get('/build-info.json')).json()
     expect(b.entry).not.toBe(a.entry)
-    await page.evaluate(async () => {
-        const controller = navigator.serviceWorker.controller
-        const changed = new Promise<void>(resolve => navigator.serviceWorker.addEventListener('controllerchange', () => resolve(), { once: true }))
-        await (await navigator.serviceWorker.ready).update()
-        if (navigator.serviceWorker.controller === controller) await changed
-    })
-    // A service worker takeover alone must not force a page reload.
+    await page.evaluate(async () => { await (await navigator.serviceWorker.ready).update() })
+    await expect(page.getByRole('button', { name: 'Reload to update' })).toBeVisible()
+    // Installing B leaves the old tab and its in-memory state alone.
     expect(await page.locator('script[type=module]').getAttribute('src')).toBe('/' + a.entry)
-    await page.reload()
+    await page.getByRole('button', { name: 'Reload to update' }).click()
     await expect(page.locator('script[type=module]')).toHaveAttribute('src', '/' + b.entry)
     await expect(page.locator('#main-content')).toBeVisible()
     await context.setOffline(true)
@@ -86,3 +82,27 @@ test('blocked session storage does not prevent the shell or cause automatic relo
     expect(navigations).toBe(0)
     await expect(page.locator('#main-content')).toBeVisible()
 })
+
+for (const [name, device] of [['desktop', devices['Desktop Chrome']], ['phone', devices['Pixel 7']]] as const) {
+    test.describe(`OS update notice on ${name}`, () => {
+        test.use({ viewport: device.viewport, deviceScaleFactor: device.deviceScaleFactor,
+            isMobile: device.isMobile, hasTouch: device.hasTouch, userAgent: device.userAgent })
+        test('keeps a Store window open until reload is chosen', async ({ page, request }) => {
+            await page.goto('/os/store')
+            await expect(page.getByRole('heading', { name: 'App Store', exact: true }).first()).toBeVisible()
+            await page.evaluate(async () => { await navigator.serviceWorker.ready })
+            if (!await page.evaluate(() => !!navigator.serviceWorker.controller)) await page.reload()
+            await expect(page.getByRole('heading', { name: 'App Store', exact: true }).first()).toBeVisible()
+            const oldEntry = await page.locator('script[type=module]').getAttribute('src')
+            await request.post('/__release?build=b')
+            const newEntry = '/' + (await (await request.get('/build-info.json')).json()).entry
+            await page.evaluate(async () => { await (await navigator.serviceWorker.ready).update() })
+            await expect(page.getByRole('button', { name: 'Reload to update' })).toBeVisible()
+            expect(await page.locator('script[type=module]').getAttribute('src')).toBe(oldEntry)
+            await page.getByRole('button', { name: 'Reload to update' }).click()
+            await expect(page.locator('script[type=module]')).toHaveAttribute('src', newEntry)
+            await expect(page).toHaveURL(/\/os\/store$/)
+            await expect(page.getByRole('heading', { name: 'App Store', exact: true }).first()).toBeVisible()
+        })
+    })
+}

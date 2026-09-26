@@ -71,6 +71,7 @@ function clearAdena() {
 import { useAdena } from "./useAdena"
 import { doContractBroadcast, setWalletRpcContext } from "../lib/grc20"
 import { GNO_CHAIN_ID } from "../lib/config"
+import { isWalletRequestPending } from "../lib/walletActivity"
 
 beforeEach(() => {
     sessionStorage.clear() // setup.ts only clears localStorage; the hook uses sessionStorage
@@ -747,6 +748,7 @@ describe("useAdena — disconnect racing an in-flight connect (F-24)", () => {
         let connectPromise!: Promise<boolean>
         act(() => { connectPromise = result.current.connect() }) // interactive
         await waitFor(() => expect(adena.AddEstablish).toHaveBeenCalled())
+        expect(isWalletRequestPending()).toBe(true)
 
         act(() => { result.current.disconnect() })
 
@@ -757,6 +759,7 @@ describe("useAdena — disconnect racing an in-flight connect (F-24)", () => {
         })
 
         expect(returned).toBe(false)
+        expect(isWalletRequestPending()).toBe(false)
         expect(result.current.connected).toBe(false)
         // The disconnect's clear must stand: the connect may not re-assert the
         // session flag it snapshotted before the popup.

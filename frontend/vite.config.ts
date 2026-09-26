@@ -167,7 +167,8 @@ export default defineConfig(({ mode }) => ({
     // Colors track the real app canvas (--color-k-bg dark = #000000), not a
     // separate brand value, to stay aligned with the §13 design system.
     VitePWA({
-      registerType: 'autoUpdate',
+      // Keep the old tab on its current build until the user chooses to reload.
+      registerType: 'prompt',
       devOptions: { enabled: false },
       includeAssets: osIdentityAllowed({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }) ? [] : ['apple-touch-icon.png'],
       manifest: osIdentityAllowed({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }) ? osManifest : {

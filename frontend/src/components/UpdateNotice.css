@@ -1,0 +1,38 @@
+.memba-update {
+    position: fixed;
+    right: max(16px, env(safe-area-inset-right));
+    bottom: max(20px, env(safe-area-inset-bottom));
+    z-index: 2000;
+    box-sizing: border-box;
+    width: min(360px, calc(100vw - 32px));
+    padding: 16px;
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    background: var(--color-bg-card);
+    color: var(--color-text);
+    box-shadow: 0 14px 40px rgba(0, 0, 0, .28);
+    font: 14px/1.45 var(--font-sans);
+}
+
+.memba-update h2 { margin: 0; font: 700 15px/1.4 var(--font-sans); }
+.memba-update p { margin: 6px 0 12px; color: var(--color-text-secondary); }
+.memba-update button {
+    min-height: 40px;
+    padding: 8px 14px;
+    border: 0;
+    border-radius: 8px;
+    background: var(--color-brand);
+    color: #082823;
+    font: inherit;
+    font-weight: 700;
+    cursor: pointer;
+}
+.memba-update button:disabled { opacity: .55; cursor: not-allowed; }
+.memba-update button:focus-visible { outline: 2px solid var(--color-text); outline-offset: 3px; }
+
+@media (max-width: 600px) {
+    .memba-update {
+        right: 16px;
+        bottom: calc(88px + env(safe-area-inset-bottom));
+    }
+}

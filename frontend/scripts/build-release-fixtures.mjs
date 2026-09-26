@@ -5,6 +5,8 @@ import { resolve } from 'node:path'
 delete process.env.SENTRY_AUTH_TOKEN
 Object.assign(process.env, {
     VITE_GNO_CHAIN_ID: 'mainnet', VITE_ENABLE_PRO_APP: 'true',
+    // The same release fixture covers the classic route and the beta OS shell.
+    VITE_MEMBA_OS: 'true', MEMBA_OS_BETA_SITE: 'true',
     VITE_ENABLE_TREASURY_SPEND: 'false', VITE_ENABLE_AGENT_CREDITS: 'false',
     VITE_SENTRY_DSN: '', VITE_CLERK_PUBLISHABLE_KEY: '',
 })

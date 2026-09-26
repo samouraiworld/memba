@@ -1,4 +1,5 @@
 /// <reference types="vite/client" />
+/// <reference types="vite-plugin-pwa/vanillajs" />
 
 /**
  * Build-time constants injected by Vite `define` in vite.config.ts.

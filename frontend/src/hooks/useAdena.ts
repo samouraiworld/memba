@@ -28,6 +28,8 @@ interface AdenaAccount {
     };
 }
 
+interface AdenaPromptResult { status: string; type?: string }
+
 interface AdenaState {
     connected: boolean;
     address: string;
@@ -197,7 +199,7 @@ export function useAdena() {
                     return false;
                 }
                 // Full establish flow — shows Adena approval popup (interactive only)
-                const connectRes = await adena.AddEstablish("Memba");
+                const connectRes = await withWalletActivity<AdenaPromptResult>(() => adena.AddEstablish("Memba"));
                 if (connectRes.status === "failure" && connectRes.type !== "ALREADY_CONNECTED") {
                     setState((s) => ({ ...s, loading: false, error: "Connection rejected" }));
                     return false;
@@ -424,7 +426,7 @@ export function useAdena() {
                 return false;
             }
             try {
-                const res = await adena.AddNetwork(params);
+                const res = await withWalletActivity<AdenaPromptResult>(() => adena.AddNetwork(params));
                 // Adena returns status:"success" or status:"failure"
                 return res.status !== "failure";
             } catch (err) {
@@ -447,13 +449,13 @@ export function useAdena() {
                 return false;
             }
             try {
-                const res = await adena.SwitchNetwork(chainId);
+                const res = await withWalletActivity<AdenaPromptResult>(() => adena.SwitchNetwork(chainId));
                 if (res.status !== "failure") return true;
                 // UNADDED_NETWORK: try adding the network first, then switch again
                 if (res.type === "UNADDED_NETWORK" && chainName && rpcUrl) {
                     const added = await addNetwork({ chainId, chainName, rpcUrl });
                     if (!added) return false;
-                    const retry = await adena.SwitchNetwork(chainId);
+                    const retry = await withWalletActivity<AdenaPromptResult>(() => adena.SwitchNetwork(chainId));
                     return retry.status !== "failure";
                 }
                 return false;

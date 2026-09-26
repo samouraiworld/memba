@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### App updates: reload when ready (2026-09-26)
+
+- Tell open beta and classic tabs when a new version is ready. Reload only when the user chooses, and keep the action disabled during wallet requests.
+
 ### App Store: one catalogue (2026-09-26)
 
 - Show live on-chain listings first and hide matching static cards by verified realm path or web address. Keep off-chain tools and unmatched projects discoverable, add Bubble Rumble as an external game, and link Kourt only to its verified mainnet realm.

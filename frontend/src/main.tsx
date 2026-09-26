@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import * as Sentry from '@sentry/react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { UpdateNotice } from './components/UpdateNotice'
 import { tryChunkReload } from './lib/staleChunk'
 import { TxConfirmationProvider } from './components/ui/TxConfirmation'
 import { initTheme } from './lib/themeStore'
@@ -14,6 +15,7 @@ import './tokens.css'
 import './index.css'
 import './mobile-tokens.css'
 import './components/mobile/mobile-primitives.css'
+import './components/UpdateNotice.css'
 import App from './App.tsx'
 
 // Apply theme before first paint (avoids flash)
@@ -55,6 +57,7 @@ createRoot(document.getElementById('root')!).render(
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
         <TxConfirmationProvider>
+          <UpdateNotice />
           <App />
         </TxConfirmationProvider>
       </QueryClientProvider>
