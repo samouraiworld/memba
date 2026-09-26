@@ -97,9 +97,9 @@ export function ComingSoonGate({
                         <div className="soon-preview__stats"><div><span>Overview</span><strong>{title}</strong></div><div><span>Activity</span><strong>—</strong></div></div>
                         {features.slice(0, 3).map(feature => <div className="soon-preview__row" key={feature}><span>{feature}</span><ArrowUpRight size={16} /></div>)}
                     </>}
-                    <div className="soon-preview__footer">A first look at what’s ahead</div>
+                    <div className="soon-preview__footer">Illustrative preview</div>
                 </div>
-                <p className="soon-preview__note">This feature is not available here yet. The preview shows the intended experience; details may change before release.</p>
+                <p className="soon-preview__note">This feature is not available here. The preview is illustrative and does not show live controls.</p>
             </figure>
         </div>
     )
