@@ -23,6 +23,7 @@ export function notOnChain(
     const paths = new Set(listings.map((listing) => normalizeRealmPath(listing.pkgPath)))
     const urls = new Set(listings.map((listing) => normalizeAppUrl(listing.appURL)).filter((url): url is string => url !== null))
     return projects.filter((project) => {
+        if (project.kind === "tool") return true
         if (project.realm && paths.has(normalizeRealmPath(project.realm.path))) return false
         const url = normalizeAppUrl(project.url)
         return url === null || !urls.has(url)

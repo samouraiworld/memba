@@ -26,4 +26,9 @@ describe("one App Store catalogue", () => {
         const live = [{ pkgPath: "gno.land/r/g1ecsuj0q572jr0dhu29q9njtnmw03hyu7tyyvv6/kourt", appURL: "https://new.kourt.xyz/" }]
         expect(notOnChain(ECOSYSTEM_PROJECTS, live).some((project) => project.id === "kourt")).toBe(false)
     })
+
+    it("always keeps off-chain tools in the static directory", () => {
+        const live = [{ pkgPath: "gno.land/r/other/registry_entry", appURL: "https://www.adena.app/" }]
+        expect(notOnChain(ECOSYSTEM_PROJECTS, live).some((project) => project.id === "adena")).toBe(true)
+    })
 })
