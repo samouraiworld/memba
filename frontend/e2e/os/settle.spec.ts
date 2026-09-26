@@ -24,7 +24,7 @@ test('colour scans wait for a finite fade and proceed past an infinite spinner',
     test.setTimeout(5_000)
     await page.setContent('<main><div id="spinner" aria-hidden="true">Loading</div><p id="fade">Ready</p></main>')
     await page.evaluate(() => {
-        document.querySelector('#spinner')!.animate([{ opacity: 0.5 }, { opacity: 1 }], { duration: 100, iterations: Infinity })
+        document.querySelector('#spinner')!.animate([{ transform: 'rotate(0deg)' }, { transform: 'rotate(360deg)' }], { duration: 100, iterations: Infinity })
         document.querySelector('#fade')!.animate([{ opacity: 0.5 }, { opacity: 1 }], { duration: 200, fill: 'forwards' })
     })
     await settleAnimations(page)

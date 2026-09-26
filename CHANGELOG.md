@@ -27,6 +27,10 @@ Full changelogs are split by version range for easier navigation:
 
 - Show posting limits and helpful cooldown feedback, invite first posts, and let people apply for Memba DAO community membership with a public #join post. Keep an existing Feed draft when a join link opens its window and show recent applications with the scan limit disclosed.
 
+### Memba OS colour-scan fixture (2026-09-26)
+
+- Keep the test's infinite spinner moving without fading its text below accessible contrast during the colour scan.
+
 ### App Store: one catalogue (2026-09-26)
 
 - Show live on-chain listings first and hide matching static cards by verified realm path or web address. Keep off-chain tools and unmatched projects discoverable, add Bubble Rumble as an external game, and link Kourt only to its verified mainnet realm.
