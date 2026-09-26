@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
+import AxeBuilder from '@axe-core/playwright'
 import { OS_ON } from '../../playwright.os.config'
 import { abortOnchainReads } from '../helpers/onchain'
 import { fulfillProValidatorRoster } from '../helpers/proValidatorsFixture'
@@ -125,3 +126,27 @@ test.describe('Memba OS pages in windows', () => {
         await expect(win(page, 'Send feedback')).toBeVisible()
     })
 })
+
+for (const view of [
+    { name: 'light', theme: 'light', width: 1400, height: 900 },
+    { name: 'dark', theme: 'dark', width: 1400, height: 900 },
+    { name: '420px', theme: 'light', width: 1400, height: 900, windowWidth: 420 },
+    { name: 'phone', theme: 'light', width: 375, height: 760 },
+] as const) {
+    test(`NFT home accessibility and layout · ${view.name}`, async ({ page }, testInfo) => {
+        await guest(page)
+        await page.emulateMedia({ colorScheme: view.theme, reducedMotion: 'reduce' })
+        await page.setViewportSize({ width: view.width, height: view.height })
+        await page.goto(`${OS_ON}/os/nft`)
+        const nft = win(page, 'NFT')
+        await expect(nft.getByText(/isn't available yet/)).toBeVisible()
+        if ('windowWidth' in view) {
+            await nft.evaluate((el, width) => { (el as HTMLElement).style.width = `${width}px` }, view.windowWidth)
+        }
+        const body = nft.locator('.os-wbody')
+        expect(await body.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+        const results = await new AxeBuilder({ page }).include('.memba-os').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
+        expect(results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')).toEqual([])
+        await testInfo.attach(`nft-${view.name}`, { body: await page.screenshot(), contentType: 'image/png' })
+    })
+}
