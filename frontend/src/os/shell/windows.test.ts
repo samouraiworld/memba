@@ -17,7 +17,10 @@ describe("windowsReducer", () => {
         expect(room.width).toBeGreaterThan(960)
         const state = run(open(home), open(room))
         expect(state.wins).toHaveLength(1)
-        expect(urlForWindow(state.wins[0])).toBe("/os/meet/abc-defg-hij")
+        expect(urlForWindow(state.wins[0])).toBe("/os/meet")
+        expect(state.wins[0].target).toEqual({ kind: "app", app: "meet", section: "abc-defg-hij" })
+        const reopened = windowsReducer(state, open(appSpec("meet")))
+        expect(reopened.wins[0].target).toEqual(state.wins[0].target)
     })
     it("opens games beside the Arcade lobby and gives BARRICADE the available desk", () => {
         const lobby = appSpec("arcade")

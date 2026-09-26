@@ -453,13 +453,13 @@ export function Shell() {
             )}
         </>
     )
-    // A phone draws the same windows as full-screen sheets on a home screen (day 6).
-    if (phone) {
-        return (
-            <LiveActivityProvider networkKey={session.network.key} active={!locked && front?.app === "live"}>
-            <SignerProvider key={signerOwner} session={session} toast={showToast}>
-                <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
-                <MeetStageContext.Provider value={setMeetSlot}>
+    // The video stays at one React position while the visible layout changes.
+    return (
+        <LiveActivityProvider networkKey={session.network.key} active={!locked && (!phone || front?.app === "live")}>
+        <SignerProvider key={signerOwner} session={session} toast={showToast}>
+            <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
+            <MeetStageContext.Provider value={setMeetSlot}>
+            {phone ? <>
                 <PhoneShell locked={modalBlocked} session={session} front={front} wins={win.wins} items={deskItems.items} open={open} openApp={openApp} openItem={openItem}
                     close={win.close} toast={showToast} openSearch={openLauncher}
                     home={(id) => {
@@ -471,19 +471,7 @@ export function Shell() {
                         win.minimiseAll()
                     }} />
                 {launcher && <Launcher network={session.network.key} open={(spec) => open(spec, false)} onClose={closeLauncher} />}
-                {meetStage}
-                </MeetStageContext.Provider>
-                </div>
-                {shared}
-            </SignerProvider>
-            </LiveActivityProvider>
-        )
-    }
-    return (
-        <LiveActivityProvider networkKey={session.network.key} active={!locked}>
-        <SignerProvider key={signerOwner} session={session} toast={showToast}>
-            <div className="os-workspace" data-locked={locked || undefined} inert={locked} aria-hidden={locked}>
-            <MeetStageContext.Provider value={setMeetSlot}>
+            </> : <>
             <MenuBar locked={modalBlocked} session={session} wins={win.wins} front={front} openApp={openApp} openSpec={open} focusWin={win.focus} closeWin={win.close}
                 closeAll={win.closeAll} minimiseAll={win.minimiseAll} tile={tile} nextWin={win.next} lock={lock} toast={showToast}
                 isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} openSearch={openLauncher} />
@@ -516,6 +504,7 @@ export function Shell() {
                 </div>
             )}
             <Dock wins={win.wins} openApp={openApp} restore={win.focus} locked={modalBlocked} />
+            </>}
             {meetStage}
             </MeetStageContext.Provider>
             </div>

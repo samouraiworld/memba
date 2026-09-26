@@ -10,7 +10,6 @@
  * @module os/shell/urlSync
  */
 import { getApp, OS_APPS } from "../apps"
-import { normaliseRoomId } from "../apps/meet/rooms"
 import { parseOsPath, type OsTarget } from "./osPath"
 import { frontWindow, isJoinFeedTarget, JOIN_FEED_QUERY, urlForWindow, visibleWindows, type OsWindow } from "./windows"
 
@@ -21,10 +20,8 @@ export function windowToken(t: OsTarget | null): string | null {
         case "app":
             if (isJoinFeedTarget(t)) return "feed.join"
             if (t.app === "feed" && t.section && /^post\/[1-9]\d{0,19}$/.test(t.section)) return `feed.post.${t.section.slice(5)}`
-            if (t.app === "meet" && t.section) {
-                const room = normaliseRoomId(t.section)
-                return room ? `meet.${room}` : "app.meet"
-            }
+            // Meet room codes grant access: never put them in URLs or saved windows.
+            if (t.app === "meet") return "app.meet"
             if (t.app === "arcade" && t.section && ["game", "space-invaders", "barricade", "runs", "daily-board"].includes(t.section)) return `arcade.${t.section}`
             return t.app === "daos" && t.section === "new" ? "newdao" : t.app === "wallet" && t.section === "send" ? "send" : `app.${getApp(t.app).slug}`
         case "dao": return `dao.${t.name}`
@@ -50,7 +47,6 @@ export function tokenToTarget(token: string): OsTarget | null {
     let path: string | null = null
     if (kind === "app" && OS_APPS.some((a) => a.slug === rest)) path = `/os/${rest}`
     else if (kind === "feed" && /^post\.[1-9]\d{0,19}$/.test(rest)) path = `/os/feed/post/${rest.slice(5)}`
-    else if (kind === "meet" && normaliseRoomId(rest) === rest) path = `/os/meet/${rest}`
     else if (kind === "arcade" && ["game", "space-invaders", "barricade", "runs", "daily-board"].includes(rest)) path = `/os/arcade/${rest}`
     else if (kind === "dao") path = `/os/dao/${rest}`
     else if (kind === "msig") path = `/os/multisig/${rest}`

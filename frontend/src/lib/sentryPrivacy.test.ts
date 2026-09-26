@@ -166,6 +166,23 @@ describe('Sentry breadcrumb privacy boundary', () => {
 })
 
 describe('Sentry outgoing event privacy boundary', () => {
+    it('removes meeting bearer codes from URLs, transactions and nested telemetry', () => {
+        const room = 'abc-defg-hij'
+        const event = {
+            type: 'transaction' as const,
+            transaction: `/os/meet/${room}`,
+            request: { url: `https://memba.club/os/feed?w=meet.${room}`, headers: { Referer: `https://memba.club/os/meet/${room}` } },
+            contexts: { trace: { data: { target: `https://visio.samourai.app/${room}` } } },
+            spans: [{ description: `/os/meet/${room}` }],
+            tags: { meeting: room },
+            breadcrumbs: [{ data: { to: `/os/meet/${room}` } }],
+        }
+        const result = redactSentryEvent(event)
+        expect(JSON.stringify(result)).not.toContain(room)
+        expect(result.request?.url).toContain('meet.[REDACTED_MEETING]')
+        expect(event.request.url).toContain(room)
+    })
+
     it('keeps existing message/linked-exception redaction and rescrubs late breadcrumbs', () => {
         const event = { message: sensitive, exception: { values: [{ value: sensitive }, { value: jwt }] },
             breadcrumbs: [{ message: sensitive, data: { arguments: [sensitive] } }], tags: { feature: 'points' } }

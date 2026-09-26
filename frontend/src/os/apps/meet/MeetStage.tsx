@@ -2,7 +2,7 @@ import { useLayoutEffect, useState, type CSSProperties } from "react"
 import { roomUrl } from "./rooms"
 import "./meet.css"
 
-type Rect = { left: number; top: number; width: number; height: number }
+type Rect = { left: number; top: number; width: number; height: number; clipTop: number; clipRight: number; clipBottom: number; clipLeft: number }
 
 /** Keep the same iframe mounted while its window is moved, hidden or minimised. */
 export function MeetStage({ roomId, slot, minimized, foreground, restore }: {
@@ -17,7 +17,20 @@ export function MeetStage({ roomId, slot, minimized, foreground, restore }: {
         if (!slot) return
         const measure = () => {
             const box = slot.getBoundingClientRect()
-            const next = { left: box.left, top: box.top, width: box.width, height: box.height }
+            // The phone sheet scrolls under its title and floating dock. Clip the
+            // fixed iframe to the scrollable area without moving/remounting it.
+            const scroller = slot.closest(".os-ph-sheet-b")
+            const bounds = scroller?.getBoundingClientRect()
+            const dock = scroller?.closest(".os-phone")?.querySelector(".os-ph-dock")?.getBoundingClientRect()
+            const top = bounds?.top ?? box.top
+            const right = bounds?.right ?? box.right
+            const bottom = Math.min(bounds?.bottom ?? box.bottom, dock ? dock.top - 8 : Infinity)
+            const left = bounds?.left ?? box.left
+            const next = {
+                left: box.left, top: box.top, width: box.width, height: box.height,
+                clipTop: Math.max(0, top - box.top), clipRight: Math.max(0, box.right - right),
+                clipBottom: Math.max(0, box.bottom - bottom), clipLeft: Math.max(0, left - box.left),
+            }
             setRect((prev) => prev && Object.keys(next).every((key) => prev[key as keyof Rect] === next[key as keyof Rect]) ? prev : next)
         }
         const firstFrame = requestAnimationFrame(measure)
@@ -37,8 +50,13 @@ export function MeetStage({ roomId, slot, minimized, foreground, restore }: {
 
     const pip = minimized
     const currentRect = slot ? rect : null
-    const visible = pip || (foreground && currentRect !== null && currentRect.width > 0 && currentRect.height > 0)
-    const style: CSSProperties = pip ? {} : currentRect ? { left: currentRect.left, top: currentRect.top, width: currentRect.width, height: currentRect.height } : {}
+    const visible = pip || (foreground && currentRect !== null &&
+        currentRect.width > currentRect.clipLeft + currentRect.clipRight &&
+        currentRect.height > currentRect.clipTop + currentRect.clipBottom)
+    const style: CSSProperties = pip ? {} : currentRect ? {
+        left: currentRect.left, top: currentRect.top, width: currentRect.width, height: currentRect.height,
+        clipPath: `inset(${currentRect.clipTop}px ${currentRect.clipRight}px ${currentRect.clipBottom}px ${currentRect.clipLeft}px)`,
+    } : {}
 
     return (
         <div className={`meet-stage${pip ? " meet-stage-pip" : ""}`} style={{ ...style, visibility: visible ? "visible" : "hidden" }} aria-hidden={!visible}>
