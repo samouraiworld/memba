@@ -142,7 +142,7 @@ function bodyFallback({ t, classicPage, winId, ...a }: Actions & { t: { app: OsA
     // Keyed by the page too: a window that follows a link to another page (tx 7 → tx 12)
     // must start that page fresh, never carry the previous page's typed state over.
     // Its query isn't in the key: a tab change is the same page, which re-renders in place.
-    return <ClassicPage key={`${winId}:${classicPage}`} network={a.session.network.key} page={classicPage} query={t.query} layout={a.session.layout} />
+    return <ClassicPage key={`${winId}:${classicPage}`} network={a.session.network.key} page={classicPage} query={t.query} layout={a.session.layout} onGameExit={a.close} />
 }
 
 export interface FrameActions {

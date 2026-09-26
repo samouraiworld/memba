@@ -62,6 +62,7 @@ for (const [width, device] of [[1440, 'desktop'], [375, 'phone']] as const) {
         await expect(exit).toHaveAttribute('href', '/os/arcade')
         await exit.click()
         await expect(page.getByRole('region', { name: 'Arcade', exact: true })).toBeVisible()
+        await expect(page.getByRole('region', { name: 'BARRICADE · Arcade' })).toHaveCount(0)
     })
 
     test(`Arcade game window survives reload beside the lobby on ${device}`, async ({ page }) => {
