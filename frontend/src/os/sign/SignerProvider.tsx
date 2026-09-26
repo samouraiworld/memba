@@ -5,7 +5,8 @@
  *
  * @module os/sign/SignerProvider
  */
-import { useCallback, useMemo, useRef, useState, type ReactNode } from "react"
+import { useCallback, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react"
+import { beginWalletActivity } from "../../lib/walletActivity"
 import type { OsSession } from "../shell/useOsSession"
 import { adenaChecklist, type SignRow } from "./decode"
 import { executeSignature, verifyWithRetries, type SettledOutcome, type SignRequest } from "./signer"
@@ -31,6 +32,13 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
     const [unread, setUnread] = useState(0)
     const [version, setVersion] = useState(0)
     const busy = useRef(false)
+    const reviewOpen = review !== null
+
+    // The global update notice lives above this provider. Hold its reload action
+    // from the first review paint through preflight and the Adena request.
+    useLayoutEffect(() => {
+        if (reviewOpen) return beginWalletActivity()
+    }, [reviewOpen])
 
     const notify = useCallback((n: Omit<TxNotice, "id">) => {
         setNotices((list) => [{ ...n, id: ++seq }, ...list].slice(0, 30))

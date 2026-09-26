@@ -2,6 +2,10 @@ import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { RegisterSWOptions } from 'vite-plugin-pwa/types'
 import { withWalletActivity } from '../lib/walletActivity'
+import { SignerProvider } from '../os/sign/SignerProvider'
+import type { SignRequest } from '../os/sign/signer'
+import { useSigner } from '../os/sign/signerContext'
+import type { OsSession } from '../os/shell/useOsSession'
 import { UpdateNotice } from './UpdateNotice'
 
 const pwa = vi.hoisted(() => ({
@@ -49,6 +53,28 @@ it('keeps the reload action disabled for a pending wallet decision', async () =>
     fireEvent.click(button)
     expect(pwa.update).not.toHaveBeenCalled()
     await act(async () => { finish(); await wallet })
+    expect(button).toBeEnabled()
+})
+
+it('keeps reload disabled while an OS signature review sheet is open', () => {
+    const request: SignRequest = {
+        title: 'Vote', summary: 'Review a vote', lines: () => [], label: () => 'Vote',
+        prepare: () => ({ msgs: [] }), send: async () => ({ hash: 'unused' }),
+    }
+    function OpenReview() {
+        const signer = useSigner()
+        return <button type="button" onClick={() => signer.sign(request)}>Open review</button>
+    }
+    const session = { status: 'member', network: { chainId: 'gnoland-1' }, openConnect: vi.fn() } as unknown as OsSession
+    render(<><UpdateNotice /><SignerProvider session={session} toast={vi.fn()}><OpenReview /></SignerProvider></>)
+    act(() => { pwa.options?.onNeedRefresh?.() })
+    const button = screen.getByRole('button', { name: 'Reload to update' })
+    fireEvent.click(screen.getByRole('button', { name: 'Open review' }))
+    expect(screen.getByRole('dialog', { name: 'Review · Vote' })).toBeVisible()
+    expect(button).toBeDisabled()
+    fireEvent.click(button)
+    expect(pwa.update).not.toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(button).toBeEnabled()
 })
 

@@ -7,9 +7,20 @@ export function subscribeWalletActivity(listener: () => void) {
     return () => { listeners.delete(listener) }
 }
 function notify() { for (const listener of listeners) listener() }
-export async function withWalletActivity<T>(operation: () => Promise<T>): Promise<T> {
+/** Hold reloads from the start of an interactive review until it closes. */
+export function beginWalletActivity(): () => void {
     pending++
     notify()
+    let ended = false
+    return () => {
+        if (ended) return
+        ended = true
+        pending--
+        notify()
+    }
+}
+export async function withWalletActivity<T>(operation: () => Promise<T>): Promise<T> {
+    const end = beginWalletActivity()
     try { return await operation() }
-    finally { pending--; notify() }
+    finally { end() }
 }

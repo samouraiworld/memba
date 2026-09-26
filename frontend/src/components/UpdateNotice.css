@@ -22,7 +22,7 @@
     border: 0;
     border-radius: 8px;
     background: var(--color-brand);
-    color: #082823;
+    color: var(--color-k-on-accent);
     font: inherit;
     font-weight: 700;
     cursor: pointer;
