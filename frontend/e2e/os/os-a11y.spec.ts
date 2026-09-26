@@ -1,6 +1,6 @@
 import { expect, test, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
-import { settle } from './settle'
+import { settle, settleAnimations } from './settle'
 import { OS_ON } from '../../playwright.os.config'
 import { fulfillGovernance } from '../helpers/proGovernanceFixture'
 import { abortOnchainReads } from '../helpers/onchain'
@@ -12,7 +12,7 @@ import { abortOnchainReads } from '../helpers/onchain'
 
 async function violations(page: Page): Promise<string[]> {
     // Scan settled colours, not a panel mid fade-in.
-    await page.evaluate(() => Promise.all(document.getAnimations().map((a) => a.finished.catch(() => undefined))))
+    await settleAnimations(page)
     const r = await new AxeBuilder({ page }).include('.memba-os').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
     return r.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical').map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(' ')).join(', ')}`)
 }
