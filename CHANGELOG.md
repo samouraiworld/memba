@@ -22,7 +22,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Memba OS: Aqua foundations inside every window (2026-09-26)
 <!-- categories: memba -->
-- **Memba OS windows show Memba pages in Aqua:** one theme, self-hosted Manrope, compact route loaders and visible keyboard focus. Charts follow the window theme; maximized windows stay below the guest banner. Accessibility scans cover the classic pages, including Arcade and Feedback, and wait for every visible loader without hanging on persistent animations. Classic production styling stays unchanged.
+- **Memba OS windows show Memba pages in Aqua:** one theme, self-hosted typography, compact route loaders and visible keyboard focus. Charts follow the window theme; maximized windows stay below the guest banner. Accessibility scans cover the classic pages, including Arcade and Feedback, and wait for every visible loader without hanging on persistent animations. Classic production styling stays unchanged.
 
 ### Memba OS: the NFT window gets its own home (2026-09-26)
 <!-- categories: memba -->
