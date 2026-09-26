@@ -195,7 +195,8 @@
   min-height: 120px !important;
 }
 .memba-os .os-classic [role="status"][aria-live="polite"] > .animate-glow {
-  display: none;
+  /* ConnectingLoader sets display:flex inline on the logo wrapper. */
+  display: none !important;
 }
 .memba-os .os-classic [role="status"][aria-live="polite"] > .animate-glow + div {
   background: var(--os-line) !important;

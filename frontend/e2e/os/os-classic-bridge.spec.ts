@@ -162,7 +162,7 @@ test('the route-fallback loader inside a window hides its logo and stays compact
     const result = await page.evaluate(() => {
         const classic = document.querySelector('.os-classic')!
         const host = document.createElement('div')
-        host.innerHTML = '<div role="status" aria-live="polite" style="min-height:30vh"><div class="animate-glow" style="width:104px;height:104px"><img></div><div style="width:200px;height:2px;background:rgba(255,255,255,0.04)"><div></div></div><span>Loading...</span></div>'
+        host.innerHTML = '<div role="status" aria-live="polite" style="min-height:30vh"><div class="animate-glow" style="width:104px;height:104px;display:flex;align-items:center;justify-content:center"><img></div><div style="width:200px;height:2px;background:rgba(255,255,255,0.04)"><div></div></div><span>Loading...</span></div>'
         classic.appendChild(host)
         const wrap = host.querySelector('[role="status"]') as HTMLElement
         const logo = host.querySelector('.animate-glow') as HTMLElement
