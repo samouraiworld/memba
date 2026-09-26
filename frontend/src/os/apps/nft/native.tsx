@@ -20,7 +20,7 @@ export default function NftWindow({ section, session, open, openApp, fallback }:
     if (!session.network.isTestnet) {
         return (
             <div className="os-stack">
-                <NotOnMainnet what="NFT collections and the launchpad" />
+                <NotOnMainnet what="The NFT launchpad" />
                 <CardGrid>
                     <Card onClick={() => openApp("market")}>
                         <Icon name="tag" />

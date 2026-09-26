@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: the NFT window gets its own home (2026-09-26)
+<!-- categories: memba -->
+- **The NFT window no longer opens empty.** Its old page only redirected to the marketplace, which now lives in the Market app. On gno.land it says the NFT launchpad isn't available yet and points to Market; on test networks it offers Browse NFTs (in Market), Create a collection and Your studio. The first app window built natively on the new Memba OS kit.
+
 ### Memba OS: a kit for native app windows, and apps go native by folder (2026-09-26)
 <!-- categories: memba -->
 - **An app becomes a native Memba OS window by adding one folder** (`src/os/apps/<app>/native.tsx`), found at build time and loaded lazily, so several apps can go native in parallel without touching a shared file. A native window receives the same gated fallback a page window shows today, so a guest still gets "Connect a wallet" on wallet-only pages.
