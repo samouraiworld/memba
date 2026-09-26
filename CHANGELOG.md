@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: compact route loader correction (2026-09-26)
+
+- **Route loaders keep their logo hidden inside OS windows:** override the logo wrapper's inline layout and cover that layout in the regression probe. Classic loaders retain their existing appearance.
+
 ### Memba OS: Aqua foundations inside every window (2026-09-26)
 <!-- categories: memba -->
 - **Memba OS windows show Memba pages in Aqua:** one theme, self-hosted typography, compact route loaders and visible keyboard focus. Charts follow the window theme; maximized windows stay below the guest banner. Accessibility scans cover the classic pages, including Arcade and Feedback, and wait for every visible loader without hanging on persistent animations. Classic production styling stays unchanged.
