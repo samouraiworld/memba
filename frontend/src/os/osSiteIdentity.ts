@@ -60,7 +60,8 @@ export function osSiteHtml(html: string): string {
 }
 
 export const osManifest = {
-    name: 'Memba OS', short_name: 'Memba OS', id: '/os', start_url: '/os', scope: '/',
+    // Keep the existing app identity so installed beta copies update in place.
+    name: 'Memba OS', short_name: 'Memba OS', id: '/', start_url: '/os', scope: '/',
     display: 'standalone' as const, background_color: '#E9EDF4', theme_color: '#4C6EF5', description,
     icons: [
         { src: `${OS_BRAND_PATH}icon-192.png`, sizes: '192x192', type: 'image/png' },

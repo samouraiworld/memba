@@ -32,6 +32,7 @@ describe('beta identity', () => {
         expect(html).not.toContain('memba.samourai.app')
         expect(html).not.toContain('/brand/folded-m/')
         expect(html).not.toContain('share-1200x1200')
+        expect(osManifest.id).toBe('/')
         expect(osManifest.start_url).toBe('/os')
         expect(osManifest.icons.every(icon => icon.src.startsWith('/brand/os/'))).toBe(true)
         for (const f of OS_BRAND_FILES) expect(readFileSync(resolve(brand, f)).length).toBeGreaterThan(0)
