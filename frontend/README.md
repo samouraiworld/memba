@@ -1,6 +1,8 @@
 # Memba Frontend
 
-> React + Vite + Vanilla CSS + Kodera design system
+> React + Vite + Vanilla CSS. The classic application and gated Memba OS beta share this frontend.
+
+The default build serves the classic site at [memba.samourai.app](https://memba.samourai.app). The separate [memba.club](https://memba.club) production build includes Memba OS at `/os` with `VITE_MEMBA_OS=true` and `MEMBA_OS_BETA_SITE=true`; the latter is a build-only site marker. The enforced build gate rejects an OS-enabled build without that marker. Development and preview builds can emit OS code with `VITE_MEMBA_OS` alone. OS source and artwork live under `src/os/`, and the flag-off artifact check guards classic isolation. Feature routes have additional flags and mainnet realm checks; see the [repository status](../README.md) and [config](src/lib/config.ts).
 
 ## Stack
 
@@ -16,7 +18,7 @@
 
 ```
 src/
-├── App.tsx            # Root layout with Suspense + lazy routes
+├── App.tsx            # Classic routes and gated lazy OS root
 ├── main.tsx           # Entry point + Sentry initialization
 ├── index.css          # Kodera design system + sidebar/topbar/tabbar + responsive styles
 ├── components/        # Reusable UI components
@@ -45,6 +47,7 @@ src/
 │   ├── errorLog.ts    # Structured error logging → Sentry forwarding
 │   └── account.ts     # Account utilities
 ├── pages/             # Route pages (20 pages, lazy-loaded)
+├── os/                # Beta desktop, app windows, kit and brand assets
 ├── types/             # TypeScript type definitions
 └── gen/               # Auto-generated protobuf types
 ```
@@ -88,9 +91,11 @@ The **Kodera design system** uses Vanilla CSS with design tokens and custom comp
 |----------|-------------|---------|
 | `VITE_API_URL` | Backend API URL | (empty = Vite proxy) |
 | `VITE_GNO_CHAIN_ID` | Network KEY the app defaults to | `mainnet` |
-| `VITE_PEARL_RPC_URL` | Override Pearl's RPC endpoint (`VITE_<NETWORK>_RPC_URL` per network) | `https://rpc.pearl.testnets.gno.land:443` |
+| `VITE_MAINNET_RPC_URL` | Optional RPC override for the offered gno.land network | `https://rpc.gno.land:443` |
 | `VITE_GITHUB_CLIENT_ID` | GitHub OAuth Client ID | — |
-| `VITE_DAO_REALM_PATH` | DAO realm path | `gno.land/r/samcrew/samourai_dao` |
+| `VITE_DAO_REALM_PATH` | Founding DAO realm path | `gno.land/r/samcrew/memba_dao` |
+| `VITE_MEMBA_OS` | Emit the beta desktop; requires the site marker in an enforced build | off |
+| `MEMBA_OS_BETA_SITE` | Build-only marker allowing the OS beta site | off |
 | `VITE_GNOLOVE_API_URL` | Gnolove API URL (hosts outside `TRUSTED_GNOLOVE_API_DOMAINS` are ignored) | `https://gnolove-api.samourai.live` |
 | `VITE_SENTRY_DSN` | Sentry DSN | — (disabled when empty) |
 | `SENTRY_AUTH_TOKEN` | Sentry auth token (build-time) | — (source map upload) |

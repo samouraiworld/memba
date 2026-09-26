@@ -4,8 +4,8 @@
 
 ### Prerequisites
 
-- Go ≥ 1.25
-- Node.js ≥ 20
+- Go ≥ 1.26.6
+- Node.js ≥ 22
 - [Buf CLI](https://buf.build/docs/installation)
 - [Adena Wallet](https://adena.app/) browser extension (for signing)
 
@@ -58,16 +58,18 @@ buf generate
 
 ## Production
 
-### Frontend — Netlify ✅
+### Frontends — Netlify
 
-**Live at**: https://memba.samourai.app/
+The classic application is live at [memba.samourai.app](https://memba.samourai.app/). The separate Memba OS public beta is live at [memba.club](https://memba.club/), opening at `/os`. Each site's public `build-info.json` reports its deployed version and commit. That build record does not establish that all feature flags or on-chain realms are available.
+
+The production beta build sets `VITE_MEMBA_OS=true` and `MEMBA_OS_BETA_SITE=true`. The latter is build-only. An enforced OS build without it fails; development and preview builds can emit OS code with `VITE_MEMBA_OS` alone. A flag-off build must contain no OS assets. The classic site retains its own HTML head, manifest and artwork. Build-time feature flags and chain capability checks still govern individual windows; see the [repository status table](../README.md).
 
 | Setting | Value |
 |---------|-------|
 | Build directory | `frontend` |
 | Build command | `npm run build` |
 | Publish directory | `frontend/dist` |
-| Custom domain | `memba.samourai.app` |
+| Custom domains | `memba.samourai.app` (classic); `memba.club` (OS beta, separate site) |
 
 **Netlify environment variables:**
 ```
@@ -108,7 +110,7 @@ curl https://memba-backend.fly.dev/health
 ```bash
 # Generate a seed: openssl rand -hex 32
 flyctl secrets set ED25519_SEED=<64-hex-chars>
-flyctl secrets set CORS_ORIGINS=https://memba.samourai.app
+flyctl secrets set CORS_ORIGINS=https://memba.samourai.app,https://memba.club,http://localhost:5173
 flyctl secrets set GITHUB_OAUTH_CLIENT_ID=<from GitHub OAuth App>
 flyctl secrets set GITHUB_OAUTH_CLIENT_SECRET=<from GitHub OAuth App>
 ```

@@ -86,7 +86,7 @@ For dependencies whose runtime behavior we can pin to a specific risk class, we 
 |------------|-----------|-----------------|
 | `dompurify` | XSS sanitizer | `frontend/src/lib/__tests__/sanitize-regression.test.ts` (30 OWASP-style XSS vectors at the 3 call sites' default config). Locks the 3.4+ baseline and flags any future regression to a vulnerable version. |
 | `@clerk/clerk-react` | Auth surface | The Clerk advisories `GHSA-w24r-5266-9c3c` and `GHSA-vqx2-fgx2-5wq9` are **not exploitable in Memba** (no calls to `has()`, `auth.protect()`, `createRouteMatcher`, billing, reverification, or org-scoped APIs). See `docs/advisories/MEMBA-2026-001.md` §"Memba-specific exploitability" for the evidence. Re-audit after any Clerk major bump. |
-| `golang.org/x/net`, `crypto/x509`, `html/template`, `net/http` | Stdlib | `govulncheck` (pinned `v1.3.0`) runs on every PR and weekly cron. Memba is currently on Go **1.25.10** (closes `GO-2026-4918/-4971/-4980/-4982`). |
+| `golang.org/x/net`, `crypto/x509`, `html/template`, `net/http` | Stdlib | `govulncheck` runs on every PR and weekly cron. The backend's required Go version is declared in [go.mod](../backend/go.mod); check the active toolchain before relying on a historical advisory closeout. |
 
 When adding a new call-site regression test:
 

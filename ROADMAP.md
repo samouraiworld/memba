@@ -1,8 +1,14 @@
 # Memba — Product Roadmap
 
-> **Current state (2026-09-23):** Memba runs on gno.land mainnet (`gnoland-1`), the default and only offered network. The first wave of shared community realms is live there (`memba_appstore_v3`, `memba_reviews_v2`, `memba_feedback_v2`, `gnobuilders_badges_v2`, `memba_feed_v1`), the backend follows mainnet, and the games no longer depend on Pearl. The Pearl testnet (`pearl-1`) is retired: `/pearl/…` links redirect to mainnet, and its configuration stays in code, hidden, for a future testnet. Dated sections below — including snapshots that name Pearl as the default network or v7.4.0 as the latest release — are kept as history.
+> **Current state (2026-09-26):** gno.land mainnet (`gnoland-1`) is the default and only offered network. Pearl is retired and old `/pearl/…` routes redirect to mainnet. The classic application is at [memba.samourai.app](https://memba.samourai.app); the gated Memba OS public beta is at [memba.club](https://memba.club). Both sites served frontend 7.7.0 at this audit; use their public `build-info.json` files for the current deployed commit. Shared mainnet realms include App Store, reviews, feedback, badges and Feed, but each UI still depends on its build flag and realm checks. The founding `memba_dao` v12 has a narrow mainnet write release; other weighted DAO writes remain held. Historical dated sections below are snapshots, not current availability claims.
 
-Recovery frontend candidate (7.7.0): v1/v2 structured contracts, governed same-person key replacement, historical former-member addresses and post-confirmation authority checks. Real signing rehearsal, migration and target authority remain required before mainnet.
+Recovery frontend candidate (7.7.0): v1/v2 structured contracts, governed same-person key replacement, historical former-member addresses and post-confirmation authority checks. Real signing rehearsal, migration and target authority remain required before general mainnet use.
+
+## Memba OS public beta delivery
+
+Delivered: beta identity and per-path HTML metadata, desktop and window shell, Aqua foundations, native app kit and NFT home. These run in the beta build; the classic build excludes the OS assets. NFT creation and trading remain unavailable on mainnet because their backing realms are absent from the mainnet capability allowlist.
+
+Next documentation and interface work is separate: truthful unavailable states, an About system window, a later classic-site beta banner, Arcade and catalogue clarity, native Feed and bounded guest access, then Live activity and its ticker after the relay guard. Full Pulse analytics is later. App Store listing transactions, feature flags, seed content and launch approval are owner actions; a published realm does not imply an enabled interface. See the [repository status table](README.md) for current availability.
 
 > Versioned roadmap for Memba, the standalone Gno multisig & DAO wallet.
 > Each version includes scope, acceptance criteria, engineering gates, and cross-perspective review checkpoints.
@@ -11,11 +17,11 @@ Recovery frontend candidate (7.7.0): v1/v2 structured contracts, governed same-p
 
 ---
 
-## Weighted DAO integration candidate (2026-09-15)
+## Historical: weighted DAO integration candidate (2026-09-15)
 
 The v7.6.0 frontend candidate adds structured founding-DAO reads and governed admin/finance proposal, vote and execution controls on a dedicated route. Mainnet writes remain held. Next: actual generated-realm browser/wallet rehearsal, member recovery/migration and typed application/treasury authority. See [the scoped plan](docs/WEIGHTED_DAO.md). This is not a release or mainnet readiness claim.
 
-## Current frontend status (2026-09-21)
+## Historical: frontend status (2026-09-21)
 
 The verified production baseline is frontend v7.7.0 at `843ca35086c6356cdca8238943d0d78f2dcfbb26`, with mainnet (`gnoland-1`) as the default network. This is a frontend deployment observation, not a claim that all shared realms or wallet journeys are ready on mainnet.
 

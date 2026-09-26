@@ -1,5 +1,7 @@
 # Weighted founding DAO frontend candidate
 
+> **Current status (2026-09-26):** The exact v12 founding DAO write release described below is implemented on mainnet. Earlier v1/v2 candidate and Pearl rehearsal sections are historical. After verifying `rpc.gno.land/status` reported `node_info.network = gnoland-1`, a read-only `vm/qrender` of `gno.land/r/samcrew/memba_dao:` returned the seven-member Memba DAO. The mainnet comment in `realm-versions.json` and general `config.ts` realm-allowlist comments still describe the pre-release absence; they need a separate registry reconciliation. The exact v12 write release is in `frontend/src/lib/dao/weighted.ts`, not the general realm allowlist.
+
 The owner authorized autonomous Memba mainnet preparation and approved the founding 2/1 weights, independent five-developer route, proposal-only admin/finance role changes, seven-day voting and initial founder admin/finance labels. Deployer #183–#186 implement and test the policy, authenticated host, structured reads and local wrapper generator. This document scopes their frontend integration; it grants no production ceremony authority.
 
 ## Route and behavior

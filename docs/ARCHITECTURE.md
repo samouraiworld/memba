@@ -1,6 +1,8 @@
 # Memba — Architecture
 
-> System design for Memba, the Gno multisig & DAO governance application.
+> System overview for the classic application and Memba OS public beta. The component inventory below documents architecture; feature availability is governed by build flags and the active network's realm checks.
+
+The classic site is [memba.samourai.app](https://memba.samourai.app). The separate [memba.club](https://memba.club) build enables the OS desktop at `/os`; its windows reuse classic pages where no native app exists. `App.tsx` lazily imports the OS root when `VITE_MEMBA_OS` is on. `osBuildGate.ts` also requires the beta-site marker for enforced builds, and the flag-off artifact check protects the classic build. Each site's `build-info.json` reports its current deployed version and commit. See the [status table](../README.md) before treating a component below as a live mainnet feature.
 
 ## System Overview
 
@@ -10,7 +12,7 @@
 │                                                                  │
 │   ┌─────────────────────┐    ┌──────────────────────────────┐   │
 │   │   Adena Extension   │◄──►│   Vite SPA (Netlify)         │   │
-│   │   (wallet/signing)  │    │   memba.samourai.app         │   │
+│   │   (wallet/signing)  │    │   classic or OS beta build   │   │
 │   └─────────────────────┘    └──────────┬───────────────────┘   │
 └─────────────────────────────────────────┼────────────────────────┘
                                           │ ConnectRPC (HTTPS)
@@ -51,7 +53,7 @@
 | **Backend** | Go + ConnectRPC | Auth, multisig coordination, tx management |
 | **Database** | SQLite (WAL mode, FK enabled) | Multisigs, members, transactions, signatures |
 | **Wallet** | Adena (window.adena) | Key management, signing |
-| **Chain** | Gno — gno.land mainnet (`gnoland-1`) since 2026-09-23; pearl-1 retired the same day (sapphire-1 retired 2026-09-09) | Account state, tx broadcast, balance queries |
+| **Chain** | Gno — gno.land mainnet (`gnoland-1`) is the only offered network; Pearl and Sapphire are retired | Account state, tx broadcast, balance queries |
 
 ## Backend Packages
 

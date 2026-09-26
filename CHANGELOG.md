@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Repository documentation reflects the deployed classic and OS beta (2026-09-26)
+
+- Clarify which features are implemented, deployed on mainnet, enabled by build flags or still planned across the README, roadmap and frontend and deployment guides. Record the two public sites and the narrow founding DAO release without changing application behavior.
+
 ### Memba OS: beta identity (2026-09-26)
 
 - **memba.club has its own indigo identity:** approved icons, an Aqua share card and installable-app details, with canonical links that follow each desktop path in the HTTP response. Classic identity and assets remain unchanged.
