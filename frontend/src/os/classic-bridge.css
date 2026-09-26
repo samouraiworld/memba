@@ -178,7 +178,7 @@
 }
 .memba-os .os-classic .val-page-btn { border-color: var(--os-acc); background: var(--os-chip); }
 .memba-os .os-classic .val-page-btn:hover:not(:disabled) { border-color: var(--os-acc); background: var(--os-chip); }
-/* pages/points/points.css .tier-badge--platinum reads --color-accent-teal
+/* components/points/points.css .tier-badge--platinum reads --color-accent-teal
  * (tokens.css :root, #2dd4bf), a token this bridge doesn't otherwise alias. */
 .memba-os .os-classic .tier-badge--platinum { border-color: var(--os-acc); }
 
@@ -190,7 +190,7 @@
  * indeterminate track a visible rail (its moving highlight already reads
  * var(--color-k-accent), aliased above, and its text already reads
  * var(--color-text-muted) + var(--font-ui), also aliased above) so it reads like
- * the OS's own os-spin + "Loading…" state. Not editable directly: production. */
+ * the OS's own os-spin + "Loading…" state. The shared component retains its classic production styling. */
 .memba-os .os-classic [role="status"][aria-live="polite"]:has(> .animate-glow) {
   min-height: 120px !important;
 }

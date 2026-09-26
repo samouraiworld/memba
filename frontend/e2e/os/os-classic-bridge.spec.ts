@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
+import { settle } from './settle'
 import { OS_ON } from '../../playwright.os.config'
 import { abortOnchainReads } from '../helpers/onchain'
 
@@ -10,16 +11,6 @@ async function guest(page: Page) {
     await abortOnchainReads(page)
 }
 
-/** Waits until nothing inside `root` is still announcing a loading state, instead
- * of a fixed sleep. Doesn't fail the test if one lingers past the timeout — it
- * annotates and moves on, since a stuck spinner is its own bug to catch elsewhere. */
-async function settle(root: Locator, timeout = 20_000) {
-    try {
-        await root.locator('[role="status"], .os-spin').first().waitFor({ state: 'hidden', timeout })
-    } catch {
-        test.info().annotations.push({ type: 'unsettled', description: 'a [role=status]/.os-spin element was still present after the settle timeout' })
-    }
-}
 
 for (const theme of ['light', 'dark'] as const) {
     test(`classic pages take the Aqua tokens (${theme})`, async ({ page }) => {
@@ -98,11 +89,11 @@ async function sweepTealFor(page: Page, app: string, hits: string[]) {
 }
 
 test('no Beta teal inside the app windows', async ({ page }) => {
-    // 12 apps × up to 20s each under 2-worker dev-server contention (plus the
-    // fixed 600ms settle + navigation) can exceed the config's 60s default;
+    // Each app can spend up to 20s waiting for its page and another 20s
+    // waiting for all visible loading states, beyond the default test budget;
     // this doesn't fire on the normal fast path, only when a wait actually
     // needs the extra headroom.
-    test.setTimeout(120_000)
+    test.setTimeout(APPS.length * 40_000 + 30_000)
     await guest(page)
     await page.addInitScript(() => {
         localStorage.setItem('memba_os_seen', '1')
@@ -118,6 +109,7 @@ test('no Beta teal inside the app windows', async ({ page }) => {
 // dark-theme coverage for the two apps most likely to carry a theme-specific
 // literal (chart/heatmap tokens, validator status colours).
 test('no Beta teal inside the app windows (dark: validators, dev-report)', async ({ page }) => {
+    test.setTimeout(2 * 40_000 + 30_000)
     await guest(page)
     await page.emulateMedia({ colorScheme: 'dark' })
     await page.addInitScript(() => {
@@ -188,10 +180,8 @@ test('kit.css scopes the sidebar nav to a direct child, not a classic <nav> in t
         localStorage.setItem('memba_os_seen', '1')
         localStorage.setItem('memba_os_booted', '1')
     })
-    // AppShell/.os-fw has no live route yet (W0-b), so this mounts its exact
-    // markup shape directly, the same way os-a11y.spec.ts's ACCENT_FILLS does for
-    // shapes with no reachable live instance. Any app window gives a live
-    // .memba-os host to mount it in.
+    // Mount both navigation shapes in the live theme to check that sidebar
+    // styling reaches only the direct child, even when a section contains nav.
     await page.goto(`${OS_ON}/os/settings`)
     await page.locator('.os-classic').first().waitFor()
     const result = await page.evaluate(() => {
@@ -206,3 +196,31 @@ test('kit.css scopes the sidebar nav to a direct child, not a classic <nav> in t
     expect(result.kit).toBe('7px 10px')
     expect(result.classic).not.toBe('7px 10px')
 })
+
+for (const view of [
+    { name: 'light', theme: 'light', width: 1400, height: 900 },
+    { name: 'dark', theme: 'dark', width: 1400, height: 900 },
+    { name: '420px', theme: 'light', width: 1400, height: 900, windowWidth: 420 },
+    { name: 'phone', theme: 'light', width: 375, height: 760 },
+] as const) {
+    test(`classic Settings layout and font · ${view.name}`, async ({ page }, testInfo) => {
+        await guest(page)
+        await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+        await page.emulateMedia({ colorScheme: view.theme, reducedMotion: 'reduce' })
+        await page.setViewportSize({ width: view.width, height: view.height })
+        await page.goto(`${OS_ON}/os/settings`)
+        const settings = page.getByRole('region', { name: 'Settings', exact: true })
+        const classic = settings.locator('.os-classic')
+        await expect(classic).toBeVisible({ timeout: 30_000 })
+        await settle(classic)
+        if ('windowWidth' in view) {
+            await settings.evaluate((el, width) => { (el as HTMLElement).style.width = `${width}px` }, view.windowWidth)
+        }
+        await page.evaluate(() => document.fonts.ready)
+        expect(await classic.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Manrope')
+        expect(await classic.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
+        const screenshot = testInfo.outputPath(`foundations-${view.name}.png`)
+        await page.screenshot({ path: screenshot })
+        await testInfo.attach(`foundations-${view.name}`, { path: screenshot, contentType: 'image/png' })
+    })
+}

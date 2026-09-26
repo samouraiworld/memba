@@ -1,5 +1,6 @@
-import { expect, test, type Locator, type Page } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
+import { settle } from './settle'
 import { OS_ON } from '../../playwright.os.config'
 import { fulfillGovernance } from '../helpers/proGovernanceFixture'
 import { abortOnchainReads } from '../helpers/onchain'
@@ -29,17 +30,6 @@ async function classicViolations(page: Page): Promise<string[]> {
     return (await violations(page)).filter((v) => !KNOWN_CLASSIC.includes(v))
 }
 
-/** Waits until nothing inside `root` is still announcing a loading state, instead
- * of scanning a panel mid loading-spinner. Doesn't fail the test if one lingers
- * past the timeout — it annotates and proceeds, since a stuck spinner is its own
- * bug to catch elsewhere, not a reason to skip the a11y scan. */
-async function settle(root: Locator, timeout = 20_000) {
-    try {
-        await root.locator('[role="status"], .os-spin').first().waitFor({ state: 'hidden', timeout })
-    } catch {
-        test.info().annotations.push({ type: 'unsettled', description: 'a [role=status]/.os-spin element was still present after the settle timeout' })
-    }
-}
 
 /** Accent-filled controls whose text axe can't measure (aria-hidden step numbers, hover-only
  * pin buttons, states a guest never sees): mount each shape in the live theme and measure its
