@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### App Store: one catalogue (2026-09-26)
+
+- Show live on-chain listings first and hide matching static cards by verified realm path or web address. Keep off-chain tools and unmatched projects discoverable, add Bubble Rumble as an external game, and link Kourt only to its verified mainnet realm.
+
 ### Memba OS: Arcade lobby (2026-09-26)
 
 - Add Games, Your runs and Daily board to Arcade, linking its three playable games and stating when scores are unavailable. Give BARRICADE a large game window and clarify Block Party's unreachable target message.

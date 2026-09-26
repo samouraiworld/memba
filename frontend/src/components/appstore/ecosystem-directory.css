@@ -11,7 +11,7 @@
 .ecosystem-app__top { display: flex; align-items: center; gap: 12px; color: var(--color-text-secondary); font-size: 13px; }
 .ecosystem-app__top > svg { margin-left: auto; flex-shrink: 0; }
 .ecosystem-app__icon { display: flex; align-items: center; justify-content: center; width: 48px; height: 48px; border: 1px solid var(--color-border); border-radius: 12px; color: var(--color-k-accent-text); flex-shrink: 0; }
-.ecosystem-app h2 { font-size: 21px; font-weight: 600; margin: 24px 0 10px; }
+.ecosystem-app h2, .ecosystem-app h3 { font-size: 21px; font-weight: 600; margin: 24px 0 10px; }
 .ecosystem-app > p { font-size: 14px; color: var(--color-text-secondary); line-height: 1.6; margin: 0 0 28px; }
 .ecosystem-app__footer { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-top: auto; padding-top: 18px; border-top: 1px solid var(--color-border); font-size: 12px; color: var(--color-text-secondary); }
 .ecosystem-app__footer > span:first-child { color: var(--color-k-accent-text); }

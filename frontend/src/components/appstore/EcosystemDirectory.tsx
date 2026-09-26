@@ -1,23 +1,25 @@
-import { ArrowUpRight, Wallet, ArrowsLeftRight, ChatsCircle, Cube, MagnifyingGlass, Code } from "@phosphor-icons/react"
+import { ArrowUpRight, Wallet, ArrowsLeftRight, ChatsCircle, GameController, Cube, MagnifyingGlass, Code } from "@phosphor-icons/react"
 import { useSearchParams } from "react-router-dom"
-import { ECOSYSTEM_CATEGORIES, filterEcosystemProjects, type EcosystemFilters } from "../../lib/ecosystemDirectory"
+import { notOnChain } from "../../lib/appCatalogue"
+import type { AppListing } from "../../lib/appStore"
+import { ECOSYSTEM_CATEGORIES, ECOSYSTEM_PROJECTS, filterEcosystemProjects, type EcosystemFilters } from "../../lib/ecosystemDirectory"
 import { parseEcosystemFilters, updateEcosystemFilters } from "../../lib/ecosystemDirectoryUrl"
 import { ExplorerLink } from "../directory/ExplorerLink"
 import "./ecosystem-directory.css"
 
-const ICONS = { Wallet, Exchange: ArrowsLeftRight, Community: ChatsCircle, "Creative worlds": Cube, Explorer: MagnifyingGlass, "Developer tools": Code }
+const ICONS = { Wallet, Exchange: ArrowsLeftRight, Community: ChatsCircle, Games: GameController, "Creative worlds": Cube, Explorer: MagnifyingGlass, "Developer tools": Code }
 
-export function EcosystemDirectory({ standalone = false }: { standalone?: boolean }) {
+export function EcosystemDirectory({ standalone = false, onChain }: { standalone?: boolean; onChain?: readonly Pick<AppListing, "pkgPath" | "appURL">[] }) {
     const [params, setParams] = useSearchParams()
     const filters = parseEcosystemFilters(params)
-    const projects = filterEcosystemProjects(filters)
+    const projects = filterEcosystemProjects(filters, standalone || !onChain ? ECOSYSTEM_PROJECTS : notOnChain(ECOSYSTEM_PROJECTS, onChain))
     const update = (patch: Partial<EcosystemFilters>) => setParams(previous => updateEcosystemFilters(previous, patch), { replace: Object.keys(patch).every(key => key === "q") })
     return (
         <section className="ecosystem-directory" aria-label="Gno ecosystem apps">
             <header className="ecosystem-directory__header">
                 <p className="ecosystem-directory__eyebrow">Built on Gno</p>
-                <h1>App Store</h1>
-                <p>Tools for your next idea. Discover wallets, communities, creative worlds, and apps built around Gno.</p>
+                {standalone ? <h1>App Store</h1> : <h2>More from the Gno ecosystem</h2>}
+                <p>{standalone ? "Tools for your next idea. Discover wallets, communities, creative worlds, and apps built around Gno." : "Projects and tools without a matching live registry listing."}</p>
             </header>
             <div className="ecosystem-directory__filters" role="search" aria-label="Find ecosystem projects">
                 <label>Search projects<input type="search" maxLength={200} value={filters.q} onChange={event => update({ q: event.target.value })} placeholder="Name, category or realm path" /></label>
@@ -38,7 +40,7 @@ export function EcosystemDirectory({ standalone = false }: { standalone?: boolea
                     const Icon = ICONS[project.category]
                     return <li key={project.id}><article className="ecosystem-app">
                         <div className="ecosystem-app__top"><span className="ecosystem-app__icon"><Icon size={26} aria-hidden="true" /></span><span>{project.category}</span></div>
-                        <h2>{project.name}</h2><p>{project.description}</p>
+                        {standalone ? <h2>{project.name}</h2> : <h3>{project.name}</h3>}<p>{project.description}</p>
                         <p className="ecosystem-app__availability">{project.availability}</p>
                         <div className="ecosystem-app__links">
                             <a href={project.url} target="_blank" rel="noopener noreferrer" aria-label={`Visit ${project.name} (opens in a new tab)`}>Open {project.name}<ArrowUpRight size={16} aria-hidden="true" /></a>
@@ -51,7 +53,7 @@ export function EcosystemDirectory({ standalone = false }: { standalone?: boolea
                     </article></li>
                 })}
             </ul>
-            <p className="ecosystem-directory__note">These links open independent projects outside Memba. Read access and network selection do not establish transaction readiness.{!standalone && " Ecosystem links are separate from the on-chain listings below."}</p>
+            <p className="ecosystem-directory__note">These links open independent projects outside Memba. Read access and network selection do not establish transaction readiness.</p>
             {standalone && <div className="ecosystem-directory__registry"><h2>On-chain listings are unavailable here</h2><p>Browse the ecosystem above while Memba’s publishing and review features are unavailable on this network.</p></div>}
         </section>
     )

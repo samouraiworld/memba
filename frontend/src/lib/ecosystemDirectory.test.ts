@@ -9,10 +9,11 @@ describe("editorial discovery", () => {
         expect(filterEcosystemProjects({ ...defaults, q: "boards", category: "Wallet" })).toEqual([])
     })
     it("does not turn tool or external-app labels into mainnet deployment claims", () => {
-        expect(filterEcosystemProjects({ ...defaults, availability: "mainnet" }).map(p => p.id)).toEqual(["boards", "gnoscan", "mygnoscan"])
-        expect(filterEcosystemProjects({ ...defaults, availability: "unknown" }).map(p => p.id)).toEqual(["gnoswap", "akkadia"])
+        expect(filterEcosystemProjects({ ...defaults, availability: "mainnet" }).map(p => p.id)).toEqual(["gnoswap", "boards", "kourt", "gnoscan", "mygnoscan"])
+        expect(filterEcosystemProjects({ ...defaults, availability: "unknown" }).map(p => p.id)).toEqual(["akkadia", "bubble-rumble"])
         expect(filterEcosystemProjects({ ...defaults, availability: "testnet" }).map(p => p.id)).toEqual(["gnoscan"])
         expect(filterEcosystemProjects({ ...defaults, availability: "tools", category: "Wallet" }).map(p => p.id)).toEqual(["adena"])
+        expect(filterEcosystemProjects({ ...defaults, category: "Games" }).map(p => p.id)).toEqual(["bubble-rumble"])
     })
     it("bounds hostile URL input and defaults invalid facets", () => {
         expect(parseEcosystemFilters(new URLSearchParams({ q: "x".repeat(1000), category: "__proto__", availability: "live" }))).toEqual({ ...defaults, q: "x".repeat(200) })

@@ -183,7 +183,7 @@ if (process.env.DESIGN_REVIEW_FEATURES !== 'true') {
                     await page.goto(`/mainnet/${route}`)
                     await expect(page.locator('.k-pro-app')).toBeVisible()
                     if (route === 'apps') {
-                        for (const name of ['Adena', 'GnoSwap', 'Boards', 'Akkadia', 'GnoScan', 'Gno Playground']) {
+                        for (const name of ['Adena', 'GnoSwap', 'Boards', 'Akkadia', 'Bubble Rumble', 'Kourt', 'GnoScan', 'Gno Playground']) {
                             await expect(page.getByRole('link', { name: `Visit ${name} (opens in a new tab)` })).toBeVisible()
                         }
                         await expect(page.getByText('Builder preview', { exact: true })).toBeVisible()

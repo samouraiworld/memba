@@ -228,7 +228,6 @@ function AppGrid() {
 
     return (
         <div className="appstore" data-testid="appstore-root">
-            <EcosystemDirectory />
             <header className="appstore__masthead">
                 <p className="appstore__eyebrow">Curated on-chain apps</p>
                 <h2 className="appstore__headline">
@@ -301,6 +300,8 @@ function AppGrid() {
                     )}
                 </>
             )}
+
+            {!isPending && <EcosystemDirectory onChain={isError ? [] : apps ?? []} />}
 
             {/* Verified (live) apps are the default view above. On v3, pending-review apps are an
                 opt-in disclosure only — never a peer of the verified grid. */}

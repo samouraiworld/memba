@@ -166,6 +166,24 @@ describe("AppGrid — masthead counts from GetStatsJSON (W0.6)", () => {
     })
 })
 
+describe("AppGrid — one catalogue", () => {
+    it("places live registry cards before the unmatched static directory without duplicate apps", async () => {
+        fetchLiveApps.mockResolvedValue([
+            listing({ pkgPath: "gno.land/r/gnoswap/router", name: "GnoSwap", appURL: "https://gnoswap.io/", status: "live" }),
+            listing({ pkgPath: "gno.land/r/gnoland/boards2/v0", name: "Boards", appURL: "https://gno.land/r/gnoland/boards2/v0", status: "live" }),
+        ])
+        renderWithProviders(<AppStore />, { route: "/mainnet/apps" })
+        expect(await screen.findByRole("heading", { name: "More from the Gno ecosystem" })).toBeInTheDocument()
+        expect(screen.getAllByRole("heading", { name: "GnoSwap" })).toHaveLength(1)
+        expect(screen.getAllByRole("button", { name: "Boards" })).toHaveLength(1)
+        expect(screen.queryByRole("heading", { name: "Boards" })).not.toBeInTheDocument()
+        expect(screen.getByRole("status")).toHaveTextContent("7 projects found")
+        const headings = screen.getAllByRole("heading").map((heading) => heading.textContent)
+        expect(headings.indexOf("GnoSwap")).toBeLessThan(headings.indexOf("More from the Gno ecosystem"))
+        expect(screen.getByRole("link", { name: "Visit Bubble Rumble (opens in a new tab)" })).toBeInTheDocument()
+    })
+})
+
 describe("AppGrid — review stars on cards (W0.6)", () => {
     beforeEach(() => {
         reviewsEnabled = true

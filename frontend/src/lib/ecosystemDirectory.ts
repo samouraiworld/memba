@@ -1,7 +1,7 @@
 /** Editorial references, separate from registry listings and realm eligibility.
  * Evidence: docs/design/professional-mainnet-2026-09/ECOSYSTEM-SOURCES.md.
  */
-export const ECOSYSTEM_CATEGORIES = ["Wallet", "Exchange", "Community", "Creative worlds", "Explorer", "Developer tools"] as const
+export const ECOSYSTEM_CATEGORIES = ["Wallet", "Exchange", "Community", "Games", "Creative worlds", "Explorer", "Developer tools"] as const
 export type EcosystemCategory = typeof ECOSYSTEM_CATEGORIES[number]
 export type EcosystemNetwork = "mainnet" | "staging"
 export interface EcosystemProject {
@@ -24,11 +24,12 @@ export const ECOSYSTEM_PROJECTS: readonly EcosystemProject[] = [
         url: "https://www.adena.app/", status: "Browser wallet", availability: "External tool · choose a network in the wallet",
         description: "Manage your Gno accounts and connect to apps with a browser extension.",
         evidence: { url: "https://docs.gno.land/users/third-party-wallets/", checkedAt: "2026-09-22" } },
-    { id: "gnoswap", name: "GnoSwap", category: "Exchange", kind: "app", networks: [],
-        url: "https://gnoswap.io/", status: "Exchange", availability: "Network not verified",
+    { id: "gnoswap", name: "GnoSwap", category: "Exchange", kind: "app", networks: ["mainnet"],
+        url: "https://gnoswap.io/", status: "Exchange", availability: "Mainnet · router realm checked",
         description: "Explore token swaps and liquidity pools built for the Gno ecosystem.",
         sourceUrl: "https://github.com/gnoswap-labs/gnoswap",
-        evidence: { url: "https://gnoswap.io/", checkedAt: "2026-09-22" } },
+        realm: { path: "gno.land/r/gnoswap/router", network: "mainnet", url: "https://gno.land/r/gnoswap/router" },
+        evidence: { url: "https://gno.land/r/gnoswap/router", checkedAt: "2026-09-26" } },
     { id: "boards", name: "Boards", category: "Community", kind: "app", networks: ["mainnet"],
         url: "https://gno.land/r/gnoland/boards2/v0", status: "On-chain forum", availability: "Mainnet · read access checked",
         description: "Read community discussions on Gno and explore the forum’s public source.",
@@ -39,6 +40,15 @@ export const ECOSYSTEM_PROJECTS: readonly EcosystemProject[] = [
         url: "https://abp.akkadia.land/", status: "Builder preview", availability: "Network not verified",
         description: "Discover a preview of a sandbox for creating shared worlds on Gno.",
         evidence: { url: "https://abp.akkadia.land/", checkedAt: "2026-09-22" } },
+    { id: "bubble-rumble", name: "Bubble Rumble", category: "Games", kind: "app", networks: [],
+        url: "https://bubblerumble.net/", status: "External game", availability: "External game · mainnet realm not verified",
+        description: "Play Bubble Rumble on its own site. Its advertised realm is not available on gnoland-1 yet.",
+        evidence: { url: "https://bubblerumble.net/", checkedAt: "2026-09-26" } },
+    { id: "kourt", name: "Kourt", category: "Community", kind: "app", networks: ["mainnet"],
+        url: "https://kourt.xyz/", status: "On-chain community", availability: "Mainnet · realm source checked",
+        description: "Explore Kourt's community experience and its public on-chain realm.",
+        realm: { path: "gno.land/r/g1ecsuj0q572jr0dhu29q9njtnmw03hyu7tyyvv6/kourt", network: "mainnet", url: "https://gno.land/r/g1ecsuj0q572jr0dhu29q9njtnmw03hyu7tyyvv6/kourt" },
+        evidence: { url: "https://gno.land/r/g1ecsuj0q572jr0dhu29q9njtnmw03hyu7tyyvv6/kourt", checkedAt: "2026-09-26" } },
     { id: "gnoscan", name: "GnoScan", category: "Explorer", kind: "tool", networks: ["mainnet", "staging"],
         url: "https://gnoscan.io/", status: "Network explorer", availability: "Mainnet / Staging · select in explorer",
         description: "Look up accounts, transactions, blocks, and realms across Gno networks.",
@@ -56,9 +66,9 @@ export const ECOSYSTEM_PROJECTS: readonly EcosystemProject[] = [
 export const ECOSYSTEM_AVAILABILITY = ["all", "mainnet", "testnet", "tools", "unknown"] as const
 export type EcosystemAvailability = typeof ECOSYSTEM_AVAILABILITY[number]
 export interface EcosystemFilters { q: string; category: EcosystemCategory | "all"; availability: EcosystemAvailability }
-export function filterEcosystemProjects(filters: EcosystemFilters): readonly EcosystemProject[] {
+export function filterEcosystemProjects(filters: EcosystemFilters, pool: readonly EcosystemProject[] = ECOSYSTEM_PROJECTS): readonly EcosystemProject[] {
     const q = filters.q.trim().toLowerCase()
-    return ECOSYSTEM_PROJECTS.filter(project => {
+    return pool.filter(project => {
         if (filters.category !== "all" && project.category !== filters.category) return false
         if (filters.availability === "mainnet" && !project.networks.includes("mainnet")) return false
         if (filters.availability === "testnet" && !project.networks.includes("staging")) return false
