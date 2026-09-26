@@ -127,7 +127,7 @@ export function MenuBar(p: MenuBarProps) {
                         <Item onClick={run(p.openSearch)} hint="⌘K">Search and commands…</Item>
                         <Item onClick={run(() => p.openApp("settings"))}>Personalise desktop…</Item>
                         <Item onClick={run(() => p.openSpec(specForTarget({ kind: "feedback" })!))}>Send feedback…</Item>
-                        <Item onClick={run(() => p.toast("Memba OS · beta preview"))}>About Memba OS</Item>
+                        <Item onClick={run(() => p.openSpec(specForTarget({ kind: "about" })!))}>About Memba OS</Item>
                         <div className="os-msep" role="separator" />
                         <Item onClick={run(p.lock)}>{guest ? "Lock screen" : "Disconnect & lock"}</Item>
                     </div>

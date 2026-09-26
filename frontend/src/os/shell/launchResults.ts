@@ -62,6 +62,7 @@ function all(ctx: LaunchContext): LaunchItem[] {
     }
     out.push({ id: "cmd:new-dao", title: "Create a DAO", sub: "Command · DAOs", icon: { app: "daos" }, spec: newDaoSpec() })
     out.push({ id: "cmd:send", title: "Send GNOT", sub: "Command · Wallet", keywords: "transfer pay", icon: { app: "wallet" }, spec: sendSpec() })
+    out.push({ id: "cmd:about", title: "About Memba OS", sub: "Command · version, chain and links", keywords: "credits licence samourai", icon: { thing: "doc" }, spec: specForTarget({ kind: "about" })! })
     for (const c of COMMANDS) {
         if (!c.path || c.path === "/" || c.path === "/dashboard" || c.path === "/dao/create") continue
         const t = osTargetForClassic(`/${ctx.network}${c.path}`, ctx.network)

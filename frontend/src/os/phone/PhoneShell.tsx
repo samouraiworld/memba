@@ -15,7 +15,7 @@ import { AppTile } from "../shell/icons"
 import { useClock } from "../shell/clock"
 import type { OsSession } from "../shell/useOsSession"
 import { WindowBody } from "../shell/WindowFrame"
-import { sendSpec, type OsWindow, type WindowSpec } from "../shell/windows"
+import { sendSpec, specForTarget, type OsWindow, type WindowSpec } from "../shell/windows"
 import { useSigner } from "../sign/signerContext"
 import { formatUgnot } from "../wallet/send"
 
@@ -57,6 +57,7 @@ export function PhoneShell(p: PhoneShellProps) {
                         <button key={a.id} type="button" className="os-ph-ic" onClick={go(() => p.openApp(a.id))}><AppTile app={a.id} size={52} /><span className="os-ph-label">{a.name}</span></button>
                     ))}
                 </div>
+                <button type="button" className="os-btn os-quiet" onClick={go(() => p.open(specForTarget({ kind: "about" })!))}>About Memba OS</button>
             </Sheet>
         )
     } else if (sheet === "notif") {

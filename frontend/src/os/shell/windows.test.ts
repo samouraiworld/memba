@@ -11,6 +11,13 @@ const open = (spec = appSpec("feed"), center = false): WindowsAction => ({ type:
 const byKey = (s: WindowsState, key: string) => s.wins.find((w) => w.key === key)!
 
 describe("windowsReducer", () => {
+    it("opens About once as a linkable system window", () => {
+        const spec = specForTarget({ kind: "about" })!
+        expect(spec).toMatchObject({ key: "about", title: "About Memba OS", app: null })
+        expect(urlForWindow({ target: spec.target })).toBe("/os/about")
+        expect(run(open(spec), open(spec)).wins).toHaveLength(1)
+    })
+
     it("opens windows on top and refocuses an already-open key instead of duplicating it", () => {
         let s = run(open(welcomeSpec()), open(appSpec("feed")))
         expect(frontWindow(s.wins)?.key).toBe("app:feed")
