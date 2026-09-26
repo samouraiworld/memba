@@ -16,13 +16,24 @@ vi.mock("../../lib/feedJoin", async original => ({
         posts: [{ id: 42n, author: "g1alice", body: "#join I build realms", blockTs: 0n }],
     })),
 }))
+vi.mock("./useOsDao", async original => ({
+    ...(await original<typeof import("./useOsDao")>()),
+    useDaoConfig: vi.fn(),
+    useDaoProposals: vi.fn(),
+    useDaoMembers: vi.fn(),
+}))
 const { JoinMembaDao } = await import("./JoinMembaDao")
+const { DaoFolder } = await import("./DaoWindows")
 const { isFeedEnabled } = await import("../../lib/config")
 const { fetchJoinCandidates } = await import("../../lib/feedJoin")
+const { useDaoConfig, useDaoMembers, useDaoProposals } = await import("./useOsDao")
 
 beforeEach(() => {
     vi.mocked(isFeedEnabled).mockReturnValue(true)
     vi.mocked(fetchJoinCandidates).mockClear()
+    vi.mocked(useDaoConfig).mockReturnValue({ data: null, isPending: false, isError: false } as ReturnType<typeof useDaoConfig>)
+    vi.mocked(useDaoProposals).mockReturnValue({ data: [], isPending: false, isError: false } as ReturnType<typeof useDaoProposals>)
+    vi.mocked(useDaoMembers).mockReturnValue({ data: [], isPending: false, isError: false } as ReturnType<typeof useDaoMembers>)
 })
 
 describe("Memba DAO community applications", () => {
@@ -55,5 +66,18 @@ describe("Memba DAO community applications", () => {
         expect(screen.getByText(/will open when the Feed is available/)).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: "Apply with a Feed post" })).toBeNull()
         expect(fetchJoinCandidates).not.toHaveBeenCalled()
+    })
+
+    it("keeps community applications accessible when the Memba DAO realm is absent", () => {
+        renderWithProviders(<DaoFolder name="memba_dao" section="overview" open={vi.fn()} />)
+        expect(screen.getByText(/No DAO answers at/)).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Apply with a Feed post" })).toBeInTheDocument()
+    })
+
+    it("keeps community applications accessible when the DAO query fails", () => {
+        vi.mocked(useDaoConfig).mockReturnValue({ data: undefined, isPending: false, isError: true, refetch: vi.fn() } as unknown as ReturnType<typeof useDaoConfig>)
+        renderWithProviders(<DaoFolder name="memba_dao" section="overview" open={vi.fn()} />)
+        expect(screen.getByText(/Couldn't load this DAO/)).toBeInTheDocument()
+        expect(screen.getByRole("button", { name: "Apply with a Feed post" })).toBeInTheDocument()
     })
 })

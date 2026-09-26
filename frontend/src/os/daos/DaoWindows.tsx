@@ -150,7 +150,6 @@ function DaoFolderBody({ name, realmPath, section, open }: { name: string; realm
                         ))}</ul>
                         : <p className="os-sub">None right now.</p>}
                 </section>
-                {name === "memba_dao" && <JoinMembaDao open={open} />}
             </div>
         )
     } else if (section === "proposals") {
@@ -193,7 +192,11 @@ function DaoFolderBody({ name, realmPath, section, open }: { name: string; realm
                     <button key={t.id} type="button" role="tab" aria-selected={section === t.id} className="os-tab" onClick={() => open(daoSpec(name, t.id))}>{t.label}</button>
                 ))}
             </div>
-            <div className="os-folder-body" role="tabpanel">{body}</div>
+            <div className="os-folder-body" role="tabpanel">
+                {name === "memba_dao" && section === "overview"
+                    ? <div className="os-stack">{body}<JoinMembaDao open={open} /></div>
+                    : body}
+            </div>
         </div>
     )
 }
