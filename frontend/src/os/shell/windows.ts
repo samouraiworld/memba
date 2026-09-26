@@ -92,6 +92,7 @@ export function specForTarget(t: OsTarget): WindowSpec | null {
         case "new-proposal": return { key: `flow:prop:${t.dao}`, title: `New proposal · ${t.dao}`, app: "daos", width: 760, height: 540, target: t }
         case "multisig": return { key: `msig:${t.address}`, title: `Multisig ${t.address.slice(0, 8)}…${t.address.slice(-4)}`, app: "multisig", width: 620, height: 540, target: t }
         case "feedback": return { key: "feedback", title: "Send feedback", app: null, width: 640, height: 620, target: t }
+        case "about": return { key: "about", title: "About Memba OS", app: null, width: 560, height: 620, target: t }
         case "unknown": return { key: "notfound", title: "Not found", app: null, width: 420, height: 280, target: t }
     }
 }
@@ -107,6 +108,7 @@ export function urlForWindow(w: Pick<OsWindow, "target">): string {
         case "new-proposal": return `/os/dao/${encodeURIComponent(t.dao)}/proposals/new`
         case "multisig": return `/os/multisig/${t.address}`
         case "feedback": return "/os/feedback"
+        case "about": return "/os/about"
         default: return "/os"
     }
 }

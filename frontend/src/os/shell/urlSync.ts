@@ -23,6 +23,7 @@ export function windowToken(t: OsTarget | null): string | null {
         case "new-proposal": return `newprop.${t.dao}`
         case "multisig": return `msig.${t.address}`
         case "feedback": return "feedback"
+        case "about": return "about"
         default: return null
     }
 }
@@ -30,6 +31,7 @@ export function windowToken(t: OsTarget | null): string | null {
 export function tokenToTarget(token: string): OsTarget | null {
     if (token === "newdao") return parseOsPath("/os/daos/new")
     if (token === "feedback") return { kind: "feedback" }
+    if (token === "about") return { kind: "about" }
     if (token === "send") return parseOsPath("/os/wallet/send")
     const dot = token.indexOf(".")
     if (dot < 1) return null

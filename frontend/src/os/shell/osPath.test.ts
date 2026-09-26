@@ -9,6 +9,11 @@ describe("parseOsPath", () => {
         expect(parseOsPath("/os/")).toEqual({ kind: "desktop" })
     })
 
+    it("reads About as a system window, never as an app section", () => {
+        expect(parseOsPath("/os/about")).toEqual({ kind: "about" })
+        expect(parseOsPath("/os/about/extra").kind).toBe("unknown")
+    })
+
     it("reads apps by their slug, keeping any section", () => {
         expect(parseOsPath("/os/wallet")).toEqual({ kind: "app", app: "wallet", section: null })
         expect(parseOsPath("/os/dev-report")).toEqual({ kind: "app", app: "devreport", section: null })

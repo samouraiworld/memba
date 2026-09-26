@@ -6,6 +6,7 @@
  *   /os/dao/<name>/proposals/<n>          a proposal
  *   /os/dao/<name>/proposals/new          the New proposal wizard
  *   /os/multisig/<address>                a multisig
+ *   /os/about                             the About Memba OS window
  * Anything else is "unknown" and opens the not-found window.
  *
  * @module os/shell/osPath
@@ -25,6 +26,7 @@ export type OsTarget =
     | { kind: "new-proposal"; dao: string }
     | { kind: "multisig"; address: string }
     | { kind: "feedback" }
+    | { kind: "about" }
     | { kind: "unknown"; path: string }
 
 const DAO_NAME = /^[A-Za-z0-9_.-]{1,64}$/
@@ -70,6 +72,7 @@ export function parseOsPath(pathname: string): OsTarget {
     }
 
     if (first === "feedback") return second === undefined ? { kind: "feedback" } : { kind: "unknown", path: pathname }
+    if (first === "about") return second === undefined ? { kind: "about" } : { kind: "unknown", path: pathname }
 
     const app = OS_APPS.find((a) => a.slug === first)
     if (!app) return { kind: "unknown", path: pathname }

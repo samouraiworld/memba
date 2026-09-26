@@ -16,6 +16,7 @@ const ProposalWindow = lazy(() => import("../daos/DaoWindows").then((m) => ({ de
 const CreateDaoWizard = lazy(() => import("../daos/CreateDaoWizard").then((m) => ({ default: m.CreateDaoWizard })))
 const ProposeWizard = lazy(() => import("../daos/ProposeWizard").then((m) => ({ default: m.ProposeWizard })))
 const ClassicPage = lazy(() => import("../page/ClassicPage").then((m) => ({ default: m.ClassicPage })))
+const AboutWindow = lazy(() => import("../about/AboutWindow").then((m) => ({ default: m.AboutWindow })))
 const MultisigApp = lazy(() => import("../multisig/MultisigWindows").then((m) => ({ default: m.MultisigApp })))
 const MultisigWindow = lazy(() => import("../multisig/MultisigWindows").then((m) => ({ default: m.MultisigWindow })))
 const SendWindow = lazy(() => import("../wallet/WalletWindows").then((m) => ({ default: m.SendWindow })))
@@ -100,6 +101,7 @@ function Body({ win, ...a }: Actions & { win: OsWindow }) {
     if (t.kind === "multisig") return <MultisigWindow address={t.address} session={a.session} open={a.open} />
     if (t.kind === "app" && t.app === "multisig" && t.section === null) return <MultisigApp session={a.session} open={a.open} />
     if (t.kind === "feedback") return <ClassicPage key={`${win.id}:feedback`} network={net} page="feedback" layout={a.session.layout} />
+    if (t.kind === "about") return <AboutWindow chainId={a.session.network.chainId} openApp={a.openApp} open={a.open} />
     const classicPage = classicForSection(t.app, t.section)
     const fallback = bodyFallback({ ...a, t, classicPage, winId: win.id })
     const native = nativeView(t.app)

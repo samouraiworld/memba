@@ -1,0 +1,54 @@
+.memba-os .os-about {
+  display: grid;
+  gap: 18px;
+  max-width: 560px;
+  color: var(--os-ink);
+}
+
+.memba-os .os-about-head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.memba-os .os-about-head img { flex: none; }
+.memba-os .os-about-mark {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: var(--os-acc);
+  color: var(--os-on-acc);
+  font-size: 28px;
+  font-weight: 800;
+}
+.memba-os .os-about-head h2 { margin: 0 0 4px; font-size: 20px; }
+.memba-os .os-about-head p { margin: 0; overflow-wrap: anywhere; }
+
+.memba-os .os-about-note {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: var(--os-radius-ctl);
+  background: var(--os-warn-bg);
+  color: var(--os-ink);
+}
+
+.memba-os .os-about-actions,
+.memba-os .os-about-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 16px;
+}
+
+.memba-os .os-about-links a { color: var(--os-acc-ink); font-weight: 700; }
+.memba-os .os-about-credit { margin: 0; }
+.memba-os .os-about-credit a { text-decoration: underline; text-underline-offset: 2px; }
+
+@container os-window (max-width: 420px) {
+  .memba-os .os-about-head img,
+  .memba-os .os-about-mark { width: 40px; height: 40px; }
+  .memba-os .os-about-mark { font-size: 22px; }
+}

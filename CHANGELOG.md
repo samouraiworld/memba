@@ -24,6 +24,10 @@ Full changelogs are split by version range for easier navigation:
 
 - Explain when token and NFT screens are implemented but their required realms are unavailable, or an NFT build flag is off. Keep unavailable actions gated. Update the shared classic home and token and collection copy on both public sites.
 
+### Memba OS: About window (2026-09-26)
+
+- **About Memba OS opens as a system window:** it identifies the current build and selected chain, explains the experimental Public Beta, and links to Samouraï, the blog, feedback and source. Founder manifesto text awaits owner review.
+
 ### Repository documentation reflects the deployed classic and OS beta (2026-09-26)
 
 - Clarify which features are implemented, deployed on mainnet, enabled by build flags or still planned across the README, roadmap and frontend and deployment guides. Record the two public sites and the narrow founding DAO release without changing application behavior.

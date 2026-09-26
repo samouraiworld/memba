@@ -19,6 +19,10 @@ describe("launcherResults", () => {
         expect(launcherResults("create a dao", ctx)[0].spec.key).toBe("flow:dao")
     })
 
+    it("finds About as a system command", () => {
+        expect(launcherResults("about", ctx)[0]).toMatchObject({ id: "cmd:about", spec: { key: "about", app: null } })
+    })
+
     it("turns a typed address into its profile and validator windows, and a realm path into its DAO", () => {
         const addr = launcherResults(ADDR, ctx)
         expect(addr.map((r) => r.spec.target)).toEqual([
