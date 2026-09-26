@@ -17,6 +17,7 @@ describe("Meet room links", () => {
 
     it("accepts codes and Visio invites only", () => {
         expect(normaliseRoomId("ABCdefgHIJ")).toBe("abc-defg-hij")
+        expect(normaliseRoomId("ab1-cd2e-fg3")).toBe("ab1-cd2e-fg3")
         expect(normaliseRoomId("https://visio.samourai.app/abc-defg-hij/")).toBe("abc-defg-hij")
         expect(normaliseRoomId("https://evil.example/abc-defg-hij")).toBeNull()
         expect(normaliseRoomId("https://visio.samourai.app/abc-defg-hij?x=1")).toBeNull()

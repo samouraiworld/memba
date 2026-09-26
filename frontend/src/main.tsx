@@ -8,7 +8,7 @@ import { tryChunkReload } from './lib/staleChunk'
 import { TxConfirmationProvider } from './components/ui/TxConfirmation'
 import { initTheme } from './lib/themeStore'
 import { queryClient } from './lib/queryClient'
-import { redactSentryBreadcrumb, redactSentryEvent } from './lib/sentryPrivacy'
+import { redactSentryBreadcrumb, redactSentryEvent, redactSentrySpan } from './lib/sentryPrivacy'
 // Vendored woff2 fonts — latin subset, no OFL npm dep
 import './fonts.css'
 import './tokens.css'
@@ -49,6 +49,7 @@ if (sentryDsn) {
     beforeBreadcrumb: redactSentryBreadcrumb,
     beforeSend: redactSentryEvent,
     beforeSendTransaction: redactSentryEvent,
+    beforeSendSpan: redactSentrySpan,
   })
 }
 

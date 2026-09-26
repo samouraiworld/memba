@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import fc from 'fast-check'
 import { ConnectError } from '@connectrpc/connect'
-import { redactSentryBreadcrumb, redactSentryEvent } from './sentryPrivacy'
+import { redactSentryBreadcrumb, redactSentryEvent, redactSentrySpan } from './sentryPrivacy'
 
 const address = `g1${'a'.repeat(38)}`
 const jwt = 'eyJTeW50aGV0aWM.UE9CRQ.U0lHTkFUVVJF'
@@ -167,7 +167,7 @@ describe('Sentry breadcrumb privacy boundary', () => {
 
 describe('Sentry outgoing event privacy boundary', () => {
     it('removes meeting bearer codes from URLs, transactions and nested telemetry', () => {
-        const room = 'abc-defg-hij'
+        const room = 'ab1-cd2e-fg3'
         const event = {
             type: 'transaction' as const,
             transaction: `/os/meet/${room}`,
@@ -213,5 +213,21 @@ describe('Sentry outgoing event privacy boundary', () => {
             { data: { wide: Array.from({ length: 2000 }, () => sensitive) } },
         ] })
         expect(result).toEqual({ message: 'ordinary error', breadcrumbs: [{ message: 'useful', data: { status: 503 } }] })
+    })
+})
+
+describe('Sentry standalone span privacy boundary', () => {
+    it('removes room codes from resource span names and attributes', () => {
+        const room = 'ab1-cd2e-fg3'
+        const span = { span_id: '0123456789abcdef', trace_id: '0123456789abcdef0123456789abcdef',
+            start_timestamp: 1, data: { 'url.full': `https://visio.samourai.app/${room}` },
+            description: `resource https://visio.samourai.app/${room}` }
+        const result = redactSentrySpan(span)
+        expect(JSON.stringify(result)).not.toContain(room)
+        expect(result.data['url.full']).toContain('[REDACTED_MEETING]')
+        expect(span.data['url.full']).toContain(room)
+        const oversized = redactSentrySpan({ ...span, data: { url: room, extra: 'x'.repeat(40_000) } })
+        expect(JSON.stringify(oversized)).not.toContain(room)
+        expect(oversized.data).toEqual({})
     })
 })
