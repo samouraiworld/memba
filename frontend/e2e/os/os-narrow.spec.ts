@@ -48,6 +48,7 @@ test.describe('Memba OS pages in a narrow window', () => {
         const win = page.getByRole('region', { name: 'Arcade', exact: true })
         await expect(win.getByRole('navigation', { name: 'Arcade' })).toBeVisible()
         await expect(win.getByRole('button', { name: /BARRICADE/ })).toBeVisible()
+        await win.evaluate((el) => Promise.all(el.getAnimations().map((a) => a.finished)))
         expect(Math.round((await win.boundingBox())!.width)).toBe(360)
         expect(await spill(page)).toEqual([])
     })
