@@ -147,6 +147,8 @@ for (const view of [
         expect(await body.evaluate((el) => el.scrollWidth <= el.clientWidth)).toBe(true)
         const results = await new AxeBuilder({ page }).include('.memba-os').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
         expect(results.violations.filter((v) => v.impact === 'serious' || v.impact === 'critical')).toEqual([])
-        await testInfo.attach(`nft-${view.name}`, { body: await page.screenshot(), contentType: 'image/png' })
+        const screenshot = testInfo.outputPath(`nft-${view.name}.png`)
+        await page.screenshot({ path: screenshot })
+        await testInfo.attach(`nft-${view.name}`, { path: screenshot, contentType: 'image/png' })
     })
 }

@@ -72,3 +72,6 @@
 .memba-os button.os-scard { cursor: pointer; }
 .memba-os button.os-scard:hover { border-color: var(--os-acc); }
 .memba-os .os-scard > svg { width: 20px; height: 20px; flex: none; color: var(--os-mut); }
+
+/* Warning copy uses body ink for contrast on the tinted warning surface. */
+.memba-os .os-note.os-warn { color: var(--os-ink); }

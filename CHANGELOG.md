@@ -22,7 +22,7 @@ Full changelogs are split by version range for easier navigation:
 
 ### Memba OS: the NFT window gets its own home (2026-09-26)
 <!-- categories: memba -->
-- **The NFT window no longer opens empty.** Its old page only redirected to the marketplace, which now lives in the Market app. On gno.land it says the NFT launchpad isn't available yet and points to Market; on test networks it offers Browse NFTs (in Market), Create a collection and Your studio. The first app window built natively on the new Memba OS kit.
+- **The NFT window no longer opens empty.** Its old page only redirected to the marketplace, which now lives in the Market app. On gno.land it says the NFT launchpad isn't available yet and points to Market; on test networks it offers Browse NFTs (in Market), Create a collection and Your studio. The first app window built natively on the new Memba OS kit. Warning notices use readable body text on their tinted surface in both themes.
 
 ### Memba OS: a kit for native app windows, and apps go native by folder (2026-09-26)
 <!-- categories: memba -->
