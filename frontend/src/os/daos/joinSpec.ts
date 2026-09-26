@@ -1,4 +1,8 @@
 import { appSpec, type WindowSpec } from "../shell/windows"
 
-/** A public Feed post requests community-channel membership, not a voting seat. */
-export const applyToJoinSpec = (): WindowSpec => appSpec("feed", null, "compose=join")
+/** Keep an open Feed thread (and its unsent reply) intact when applying. */
+export const applyToJoinSpec = (): WindowSpec => ({
+    ...appSpec("feed", null, "compose=join"),
+    key: "flow:feed-join",
+    title: "Join community · Feed",
+})
