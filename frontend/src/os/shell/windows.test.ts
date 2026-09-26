@@ -11,6 +11,14 @@ const open = (spec = appSpec("feed"), center = false): WindowsAction => ({ type:
 const byKey = (s: WindowsState, key: string) => s.wins.find((w) => w.key === key)!
 
 describe("windowsReducer", () => {
+    it("keeps a Meet room in its own window when the app starts a call", () => {
+        const home = appSpec("meet")
+        const room = appSpec("meet", "abc-defg-hij")
+        expect(room.width).toBeGreaterThan(960)
+        const state = run(open(home), open(room))
+        expect(state.wins).toHaveLength(1)
+        expect(urlForWindow(state.wins[0])).toBe("/os/meet/abc-defg-hij")
+    })
     it("opens games beside the Arcade lobby and gives BARRICADE the available desk", () => {
         const lobby = appSpec("arcade")
         const barricade = appSpec("arcade", "barricade")

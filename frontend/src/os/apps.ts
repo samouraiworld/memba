@@ -14,7 +14,7 @@ export type AppTier = "mvp" | "v1.1" | "v1.2" | "v1.3"
 
 export type OsAppId =
     | "daos" | "wallet" | "multisig" | "feed" | "live" | "store" | "arcade" | "validators" | "settings"
-    | "tokens" | "nft" | "market" | "quests" | "explorer" | "profile" | "news" | "devreport" | "terminal" | "learn"
+    | "tokens" | "nft" | "market" | "quests" | "explorer" | "profile" | "news" | "devreport" | "terminal" | "learn" | "meet"
 
 export interface OsApp {
     id: OsAppId
@@ -70,6 +70,8 @@ export const OS_APPS: readonly OsApp[] = [
     { id: "terminal", name: "Terminal", slug: "terminal", summary: "Explore the chain and edit Gno drafts", tier: "v1.3", tint: ["#2B3040", "#0F1117"], dock: false,
       routes: [] },
     { id: "learn", name: "Learn", slug: "learn", summary: "PeerDev lessons for building on Gno", tier: "v1.3", tint: ["#446A9F", "#263F69"], dock: false,
+      routes: [] },
+    { id: "meet", name: "Meet", slug: "meet", summary: "Start or join a video meeting", tier: "v1.3", tint: ["#3684C7", "#17496C"], dock: false,
       routes: [] },
 ] as const
 

@@ -62,7 +62,7 @@ export function appSpec(app: OsAppId, section: string | null = null, query?: str
     // Games open beside the lobby. BARRICADE's stage and side panel need the
     // desk's available space rather than the standard 960 px page window.
     const game = app === "arcade" && ["game", "space-invaders", "barricade"].includes(section ?? "")
-    const [width, height] = app === "daos" ? [480, 400] : app === "wallet" && section === null ? [420, 420] : app === "multisig" && section === null ? [520, 460] : app === "live" && section === null ? [620, 560] : app === "arcade" && section === "barricade" ? [1600, 1000] : [960, 660]
+    const [width, height] = app === "daos" ? [480, 400] : app === "wallet" && section === null ? [420, 420] : app === "multisig" && section === null ? [520, 460] : app === "live" && section === null ? [620, 560] : app === "meet" ? [1040, 720] : app === "arcade" && section === "barricade" ? [1600, 1000] : [960, 660]
     return { key: game ? `game:${section}` : `app:${app}`, title: game ? `${section === "game" ? "Block Party" : section === "barricade" ? "BARRICADE" : "Space Invaders"} · Arcade` : getApp(app).name, app, width, height, target: { kind: "app", app, section, ...(query === undefined ? {} : { query }) } }
 }
 

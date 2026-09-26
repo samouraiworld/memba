@@ -87,6 +87,12 @@ describe("URL ⇄ windows", () => {
 })
 
 describe("saved session", () => {
+    it("restores a minimised meeting with its room code intact", () => {
+        let state = windowsReducer(EMPTY_WINDOWS, { type: "open", spec: appSpec("meet", "abc-defg-hij"), desk })
+        state = windowsReducer(state, { type: "minimise", id: state.wins[0].id })
+        saveWindows(state.wins)
+        expect(loadSavedTargets()[0]).toMatchObject({ target: { kind: "app", app: "meet", section: "abc-defg-hij" }, geom: { min: true } })
+    })
     it("partitions window paths and page queries by chain and account", () => {
         const s = windowsReducer(EMPTY_WINDOWS, { type: "open", spec: appSpec("feed", null, "compose=join"), desk })
         saveWindows(s.wins, "member:gnoland-1:g1alpha")
