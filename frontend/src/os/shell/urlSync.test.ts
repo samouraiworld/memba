@@ -10,14 +10,14 @@ afterEach(() => localStorage.clear())
 
 describe("?w= tokens", () => {
     it("round-trip every linkable window", () => {
-        for (const url of ["/os/feed", "/os/dev-report", "/os/dao/memba_dao", "/os/dao/my.dao", "/os/dao/memba_dao/proposals/12", "/os/dao/my.dao/proposals/3", "/os/dao/memba_dao/proposals/new", "/os/daos/new", "/os/feedback", "/os/about", `/os/multisig/${MSIG}`]) {
+        for (const url of ["/os/feed", "/os/dev-report", "/os/arcade/game", "/os/arcade/space-invaders", "/os/arcade/barricade", "/os/arcade/runs", "/os/arcade/daily-board", "/os/dao/memba_dao", "/os/dao/my.dao", "/os/dao/memba_dao/proposals/12", "/os/dao/my.dao/proposals/3", "/os/dao/memba_dao/proposals/new", "/os/daos/new", "/os/feedback", "/os/about", `/os/multisig/${MSIG}`]) {
             const t = parseOsPath(url)
             expect(tokenToTarget(windowToken(t)!), url).toEqual(t)
         }
     })
 
     it("refuse anything a typed link would refuse", () => {
-        for (const bad of ["app.nope", "dao.<b>", "prop.memba_dao.x", "prop.12", "msig.g1short", "feed", ".feed", "x.y"]) {
+        for (const bad of ["app.nope", "arcade.invalid", "arcade.game/other", "dao.<b>", "prop.memba_dao.x", "prop.12", "msig.g1short", "feed", ".feed", "x.y"]) {
             expect(tokenToTarget(bad), bad).toBeNull()
         }
     })
@@ -56,6 +56,23 @@ describe("URL ⇄ windows", () => {
 })
 
 describe("saved session", () => {
+    it("restores the lobby and separate game windows without losing their sections", () => {
+        let s = windowsReducer(EMPTY_WINDOWS, { type: "open", spec: appSpec("arcade"), desk })
+        s = windowsReducer(s, { type: "open", spec: appSpec("arcade", "barricade"), desk })
+        s = windowsReducer(s, { type: "open", spec: appSpec("arcade", "space-invaders"), desk })
+        expect(urlForWindows(s.wins)).toBe("/os/arcade/space-invaders?w=app.arcade,arcade.barricade")
+        expect(targetsFromUrl("/os/arcade/space-invaders", "?w=app.arcade,arcade.barricade").others).toEqual([
+            { kind: "app", app: "arcade", section: null },
+            { kind: "app", app: "arcade", section: "barricade" },
+        ])
+        saveWindows(s.wins)
+        expect(loadSavedTargets().map(({ target }) => target)).toEqual([
+            { kind: "app", app: "arcade", section: null },
+            { kind: "app", app: "arcade", section: "barricade" },
+            { kind: "app", app: "arcade", section: "space-invaders" },
+        ])
+    })
+
     it("saves linkable windows with their geometry and restores them", () => {
         let s = windowsReducer(EMPTY_WINDOWS, { type: "open", spec: appSpec("feed"), desk })
         s = windowsReducer(s, { type: "open", spec: welcomeSpec(), desk })

@@ -17,7 +17,9 @@ import { frontWindow, urlForWindow, visibleWindows, type OsWindow } from "./wind
 export function windowToken(t: OsTarget | null): string | null {
     if (!t) return null
     switch (t.kind) {
-        case "app": return t.app === "daos" && t.section === "new" ? "newdao" : t.app === "wallet" && t.section === "send" ? "send" : `app.${getApp(t.app).slug}`
+        case "app":
+            if (t.app === "arcade" && t.section && ["game", "space-invaders", "barricade", "runs", "daily-board"].includes(t.section)) return `arcade.${t.section}`
+            return t.app === "daos" && t.section === "new" ? "newdao" : t.app === "wallet" && t.section === "send" ? "send" : `app.${getApp(t.app).slug}`
         case "dao": return `dao.${t.name}`
         case "proposal": return `prop.${t.dao}.${t.n}`
         case "new-proposal": return `newprop.${t.dao}`
@@ -39,6 +41,7 @@ export function tokenToTarget(token: string): OsTarget | null {
     const rest = token.slice(dot + 1)
     let path: string | null = null
     if (kind === "app" && OS_APPS.some((a) => a.slug === rest)) path = `/os/${rest}`
+    else if (kind === "arcade" && ["game", "space-invaders", "barricade", "runs", "daily-board"].includes(rest)) path = `/os/arcade/${rest}`
     else if (kind === "dao") path = `/os/dao/${rest}`
     else if (kind === "msig") path = `/os/multisig/${rest}`
     else if (kind === "newprop") path = `/os/dao/${rest}/proposals/new`

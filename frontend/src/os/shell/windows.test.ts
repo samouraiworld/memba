@@ -11,6 +11,19 @@ const open = (spec = appSpec("feed"), center = false): WindowsAction => ({ type:
 const byKey = (s: WindowsState, key: string) => s.wins.find((w) => w.key === key)!
 
 describe("windowsReducer", () => {
+    it("opens games beside the Arcade lobby and gives BARRICADE the available desk", () => {
+        const lobby = appSpec("arcade")
+        const barricade = appSpec("arcade", "barricade")
+        expect(lobby.key).toBe("app:arcade")
+        expect(barricade.key).toBe("game:barricade")
+        expect(barricade.width).toBeGreaterThan(lobby.width)
+        const s = run(open(lobby), open(barricade))
+        expect(s.wins).toHaveLength(2)
+        expect(s.wins[1].width).toBe(desk.w - 16)
+        expect(s.wins[1].height).toBe(desk.h - DOCK_ROOM - 16)
+        expect(urlForWindow(s.wins[1])).toBe("/os/arcade/barricade")
+    })
+
     it("opens About once as a linkable system window", () => {
         const spec = specForTarget({ kind: "about" })!
         expect(spec).toMatchObject({ key: "about", title: "About Memba OS", app: null })

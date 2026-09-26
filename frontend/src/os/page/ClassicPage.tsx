@@ -17,6 +17,7 @@ import { createPath, Outlet, Route, Routes, UNSAFE_NavigationContext, type To } 
 import { OrgProvider } from "../../contexts/OrgContext"
 import { networkRouteChildren } from "../../routes/networkRoutes"
 import type { LayoutContext } from "../../types/layout"
+import type { OsTarget } from "../shell/osPath"
 import { specForTarget, urlForWindow } from "../shell/windows"
 import { osTargetForClassic } from "./classicRoute"
 
@@ -36,26 +37,40 @@ function WindowOutlet({ layout }: { layout: LayoutContext }) {
 
 const pathOf = (to: To) => (typeof to === "string" ? to : createPath(to))
 
-export function ClassicPage({ network, page, query, layout }: {
+export function ClassicPage({ network, page, query, layout, onGameExit }: {
     network: string
     /** The classic page, relative to /:network ("" is the home page). */
     page: string
     /** The page's query string (no "?"), read by useSearchParams inside the page. */
     query?: string
     layout: LayoutContext
+    onGameExit?: () => void
 }) {
     const parent = useContext(UNSAFE_NavigationContext)
     const nav = useMemo(() => {
+        const isGameExit = (to: To) => (page === "game" || page.startsWith("game/")) && pathOf(to).replace(/\/+$/, "") === `/${network}`
+        const targetFor = (to: To): OsTarget | null => {
+            const path = pathOf(to)
+            // The existing games' Exit links point at the classic network home.
+            // Inside the OS, that action returns to the Arcade lobby.
+            if (isGameExit(to)) {
+                return { kind: "app", app: "arcade", section: null }
+            }
+            return osTargetForClassic(path, network)
+        }
         const specFor = (to: To) => {
-            const t = osTargetForClassic(pathOf(to), network)
+            const t = targetFor(to)
             // A page link is the whole address: no query means the page has none (never "keep the old one").
             return t ? specForTarget(t.kind === "app" ? { ...t, query: t.query ?? "" } : t) : null
         }
         // A classic dashboard or home link has no window of its own: it goes to the desktop itself.
-        const isDesktop = (to: To) => osTargetForClassic(pathOf(to), network)?.kind === "desktop"
+        const isDesktop = (to: To) => targetFor(to)?.kind === "desktop"
         // Through the real router, so an in-page link is a history entry (Back returns
         // to the previous page); the shell's URL reader then opens or retargets the window.
         const go = (replace: boolean) => (to: To, state?: unknown) => {
+            // A game Exit unmounts its running simulation, then shows the lobby.
+            // Normal OS navigation keeps other windows open.
+            if (isGameExit(to)) onGameExit?.()
             if (isDesktop(to)) {
                 if (replace) parent.navigator.replace("/os", state)
                 else parent.navigator.push("/os", state)
@@ -81,7 +96,7 @@ export function ClassicPage({ network, page, query, layout }: {
                 go: (n: number) => window.history.go(n),
             },
         }
-    }, [parent, network])
+    }, [parent, network, page, onGameExit])
 
     return (
         <div className="os-classic">

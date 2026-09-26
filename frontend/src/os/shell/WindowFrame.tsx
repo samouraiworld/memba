@@ -46,7 +46,7 @@ function Welcome({ session, openApp }: Actions) {
             </div>
             <div className="os-opts">
                 <button type="button" onClick={() => openApp("daos")}><AppTile app="daos" size={34} /><b>Explore DAOs</b><span className="os-sub">See what communities are deciding</span></button>
-                <button type="button" onClick={() => openApp("arcade")}><AppTile app="arcade" size={34} /><b>Play</b><span className="os-sub">Games with on-chain scores</span></button>
+                <button type="button" onClick={() => openApp("arcade")}><AppTile app="arcade" size={34} /><b>Play</b><span className="os-sub">Three games and daily challenges</span></button>
                 <button type="button" onClick={session.openConnect}><AppTile app="wallet" size={34} /><b>Connect wallet</b><span className="os-sub">Vote, sign, post and keep your desk</span></button>
             </div>
         </div>
@@ -142,7 +142,7 @@ function bodyFallback({ t, classicPage, winId, ...a }: Actions & { t: { app: OsA
     // Keyed by the page too: a window that follows a link to another page (tx 7 → tx 12)
     // must start that page fresh, never carry the previous page's typed state over.
     // Its query isn't in the key: a tab change is the same page, which re-renders in place.
-    return <ClassicPage key={`${winId}:${classicPage}`} network={a.session.network.key} page={classicPage} query={t.query} layout={a.session.layout} />
+    return <ClassicPage key={`${winId}:${classicPage}`} network={a.session.network.key} page={classicPage} query={t.query} layout={a.session.layout} onGameExit={a.close} />
 }
 
 export interface FrameActions {
