@@ -102,7 +102,7 @@ cd ~/Desktop/Code/Gno/samcrew-deployer
 | `jq` | any | `jq --version` |
 | `curl` | any | `curl --version` |
 | Node.js | 22+ | `node -v` |
-| Go | 1.25+ | `go version` |
+| Go | 1.26.6+ | `go version` |
 
 ### 5. Deploy key verification
 
