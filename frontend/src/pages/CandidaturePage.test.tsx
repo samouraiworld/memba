@@ -64,6 +64,7 @@ vi.mock("../lib/config", () => ({
     MEMBA_DAO: { candidaturePath: "gno.land/r/samcrew/memba_dao_candidature_v3" },
     GNO_RPC_URL: "https://rpc.test.gno.land",
     isCandidatureValid: vi.fn(() => true),
+    isFeedEnabled: vi.fn(() => true),
 }))
 
 vi.mock("../lib/grc20", () => ({
@@ -145,7 +146,7 @@ describe("CandidaturePage — realm validity gate", () => {
     it("says candidatures are not available where the realm is not deployed", () => {
         vi.mocked(configMock.isCandidatureValid).mockReturnValue(false)
         render(<CandidaturePage />)
-        expect(screen.getByTestId("candidature-unavailable")).toHaveTextContent("Not available on this network yet")
+        expect(screen.getByTestId("candidature-unavailable")).toHaveTextContent("Apply with a #join post in the Feed")
         // No form, no XP gate, no (empty) applications list.
         expect(screen.queryByLabelText("Bio")).toBeNull()
         expect(screen.queryByText(/No candidatures/i)).toBeNull()
@@ -160,11 +161,11 @@ describe("CandidaturePage — realm validity gate", () => {
         expect(questsMock.resolveCandidatureEligibility).not.toHaveBeenCalled()
     })
 
-    it("points to the Quest Hub", () => {
+    it("points to the community #join post", () => {
         vi.mocked(configMock.isCandidatureValid).mockReturnValue(false)
         render(<CandidaturePage />)
-        fireEvent.click(screen.getByText(/Quest Hub/))
-        expect(mockNavigate).toHaveBeenCalledWith("/quests")
+        fireEvent.click(screen.getByRole("button", { name: /Write your #join post/ }))
+        expect(mockNavigate).toHaveBeenCalledWith("/feed?compose=join")
     })
 })
 

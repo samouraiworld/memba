@@ -1041,3 +1041,9 @@
     color: var(--color-text);
     margin: 0;
 }
+.feed-empty__actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: center;
+}

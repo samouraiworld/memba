@@ -23,6 +23,9 @@ Full changelogs are split by version range for easier navigation:
 ### App updates: reload when ready (2026-09-26)
 
 - Tell open beta and classic tabs when a new version is ready. Reload only when the user chooses, and keep the action disabled during wallet requests.
+### Feed: community join flow (2026-09-26)
+
+- Show posting limits and helpful cooldown feedback, invite first posts, and let people apply for Memba DAO community membership with a public #join post. Keep an existing Feed draft when a join link opens its window and show recent applications with the scan limit disclosed.
 
 ### App Store: one catalogue (2026-09-26)
 

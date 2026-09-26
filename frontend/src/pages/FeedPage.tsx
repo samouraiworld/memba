@@ -16,7 +16,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query"
 import { ArrowUp } from "@phosphor-icons/react"
-import { Link } from "react-router-dom"
+import { Link, useSearchParams } from "react-router-dom"
 import { useNetworkNav, useNetworkPath } from "../hooks/useNetworkNav"
 import { useTabListKeyboard } from "../hooks/useTabListKeyboard"
 import { useAdena } from "../hooks/useAdena"
@@ -32,6 +32,7 @@ import { fetchFeedTimeline, fetchFeedStats } from "../lib/feedApi"
 import { countNewer } from "../lib/feedPaging"
 import { reconciles, isStaleOptimistic, type UiPost } from "../lib/feedTypes"
 import { FEED_POLL_MS, RECONCILE_MS } from "../lib/feedConstants"
+import { JOIN_TEMPLATE } from "../lib/feedJoin"
 import "./feed.css"
 
 // Tab keys in display order — shared by the tablist markup and the keyboard hook.
@@ -41,6 +42,10 @@ export default function FeedPage() {
     const { address, connected, connect } = useAdena()
     const nav = useNetworkNav()
     const networkPath = useNetworkPath()
+    const [searchParams] = useSearchParams()
+    const joinPreset = searchParams.get("compose") === "join" ? JOIN_TEMPLATE : undefined
+    const composerRef = useRef<HTMLTextAreaElement>(null)
+    useEffect(() => { if (joinPreset) composerRef.current?.focus() }, [joinPreset])
 
     // address in the query key: switching wallets must refetch, not keep
     // serving the previous wallet's viewerHasFlagged state from cache.
@@ -158,7 +163,7 @@ export default function FeedPage() {
             </div>
 
             <div className="feed-page__compose">
-                <FeedComposer connected={connected} address={address} onConnect={connect} onPosted={onPosted} />
+                <FeedComposer connected={connected} address={address} onConnect={connect} onPosted={onPosted} initialBody={joinPreset} inputRef={composerRef} />
             </div>
 
             {/* Right rail (≥1024px) / stacked context strip (mobile): live counters +
@@ -218,6 +223,8 @@ export default function FeedPage() {
                             onConnect={connect}
                             onOpenThread={openThread}
                             onOpenProfile={openProfile}
+                            onCompose={() => composerRef.current?.focus()}
+                            onShowEcosystem={() => setTab("ecosystem")}
                         />
 
                         {timeline.hasNextPage && (
@@ -249,6 +256,8 @@ function FeedList({
     onConnect,
     onOpenThread,
     onOpenProfile,
+    onCompose,
+    onShowEcosystem,
 }: {
     posts: UiPost[]
     loading: boolean
@@ -262,6 +271,8 @@ function FeedList({
     onConnect: () => void | Promise<boolean>
     onOpenThread: (id: bigint) => void
     onOpenProfile: (address: string) => void
+    onCompose: () => void
+    onShowEcosystem: () => void
 }) {
     const names = useActorUsernames(posts.map(p => p.author))
     if (loading && posts.length === 0) {
@@ -289,11 +300,15 @@ function FeedList({
 
     if (posts.length === 0) {
         return (
-            <EmptyState
-                icon="ti-message-circle"
-                title="No posts yet"
-                body="Be the first to post to the Memba feed."
-            />
+            <div className="emptystate" data-testid="feed-empty">
+                <i className="ti ti-message-circle emptystate__icon" aria-hidden="true" />
+                <p className="emptystate__title">Start the conversation</p>
+                <p className="emptystate__body">No posts yet. Say hello, share what you're building, or apply to join the Memba DAO community with a #join post.</p>
+                <div className="feed-empty__actions">
+                    <button type="button" className="emptystate__cta" onClick={onCompose}>Write the first post</button>
+                    <button type="button" className="feed-btn" onClick={onShowEcosystem}>See ecosystem activity</button>
+                </div>
+            </div>
         )
     }
 

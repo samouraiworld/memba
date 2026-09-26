@@ -9,11 +9,11 @@
  * @module components/feed/FeedComposer
  */
 
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState, type Ref } from "react"
 import { PaperPlaneTilt } from "@phosphor-icons/react"
 import { buildCreatePostMsg, submitFeedMsg } from "../../lib/feed"
 import { makeOptimisticPost, type UiPost } from "../../lib/feedTypes"
-import { MAX_FEED_BODY, feedBodyLength } from "../../lib/feedConstants"
+import { MAX_FEED_BODY, FEED_LIMITS_NOTE, cooldownMessage, feedBodyLength } from "../../lib/feedConstants"
 import { isFeedWritable, FEED_INDEXED_NETWORK, FEED_INDEXED_NETWORK_LABEL } from "../../lib/config"
 import { useNetwork } from "../../hooks/useNetwork"
 
@@ -25,6 +25,8 @@ export function FeedComposer({
     replyTo = 0n,
     placeholder = "Share something with the community…",
     submitLabel = "Post",
+    initialBody,
+    inputRef,
 }: {
     connected: boolean
     address: string | undefined
@@ -35,10 +37,14 @@ export function FeedComposer({
     replyTo?: bigint
     placeholder?: string
     submitLabel?: string
+    initialBody?: string
+    inputRef?: Ref<HTMLTextAreaElement>
 }) {
     const { switchNetwork } = useNetwork()
     const writable = isFeedWritable()
-    const [body, setBody] = useState("")
+    const [body, setBody] = useState(initialBody ?? "")
+    const [presetConflict, setPresetConflict] = useState(false)
+    const previousPreset = useRef(initialBody)
     const [submitting, setSubmitting] = useState(false)
     const [error, setError] = useState<string | null>(null)
     // Set when a disconnected user clicked Post: the broadcast fires as soon as
@@ -52,6 +58,21 @@ export function FeedComposer({
     const bodyLength = feedBodyLength(body)
     const overLimit = bodyLength > MAX_FEED_BODY
 
+    // A join link can refocus an existing Feed window. Preserve its draft until
+    // the author explicitly chooses to replace it.
+    useEffect(() => {
+        if (!initialBody) { previousPreset.current = undefined; return }
+        if (initialBody === previousPreset.current) return
+        previousPreset.current = initialBody
+        if (body.trim()) {
+            // eslint-disable-next-line react-hooks/set-state-in-effect -- react to an external route change
+            setPresetConflict(true)
+        } else {
+            setBody(initialBody)
+            setPresetConflict(false)
+        }
+    }, [initialBody, body])
+
     const broadcast = useCallback(async (from: string, text: string) => {
         setSubmitting(true)
         setError(null)
@@ -64,7 +85,10 @@ export function FeedComposer({
             setBody("")
         } catch (e) {
             const msg = e instanceof Error ? e.message : String(e)
-            if (/reject|cancel|denied/i.test(msg)) {
+            const cooldown = cooldownMessage(msg)
+            if (cooldown) {
+                setError(cooldown)
+            } else if (/reject|cancel|denied/i.test(msg)) {
                 // A user rejection in the wallet is not worth shouting about.
             } else if (/too fast|characters|deleted|hidden|paused|reply|not indexed/i.test(msg)) {
                 // Surface the realm's actionable panic (e.g. "posting too fast").
@@ -128,6 +152,7 @@ export function FeedComposer({
             ) : (
             <>
             <textarea
+                ref={inputRef}
                 className="feed-composer__input"
                 placeholder={placeholder}
                 aria-label={replyTo === 0n ? "Write a post" : "Write a reply"}
@@ -152,6 +177,15 @@ export function FeedComposer({
                     {submitting || pending ? "Posting…" : !connected ? `Connect & ${submitLabel.toLowerCase()}` : submitLabel}
                 </button>
             </div>
+            <p className="feed-composer__hint" data-testid="feed-composer-limits">{FEED_LIMITS_NOTE}</p>
+            {presetConflict && initialBody && (
+                <div className="feed-composer__hint" role="status">
+                    Your draft is still here. Replace it with the #join template only if you are ready.
+                    <button type="button" className="feed-btn" disabled={pending || submitting} onClick={() => { setBody(initialBody); setPresetConflict(false) }}>
+                        Replace draft with #join template
+                    </button>
+                </div>
+            )}
             {!connected && (
                 <p className="feed-composer__hint">You can read the feed freely — connect only when you post.</p>
             )}

@@ -31,7 +31,7 @@ import {
     MAX_BIO_LENGTH,
     MAX_SKILLS_LENGTH,
 } from "../lib/candidatureTemplate"
-import { MEMBA_DAO, GNO_RPC_URL, isCandidatureValid } from "../lib/config"
+import { MEMBA_DAO, GNO_RPC_URL, isCandidatureValid, isFeedEnabled } from "../lib/config"
 import { doContractBroadcast } from "../lib/grc20"
 import { queryRender, queryEval } from "../lib/dao/shared"
 import type { LayoutContext } from "../types/layout"
@@ -176,16 +176,17 @@ export default function CandidaturePage() {
                     <div className="candidature-gate__header">
                         <span className="candidature-gate__icon">🚧</span>
                         <div>
-                            <h3 className="candidature-gate__title">Not available on this network yet</h3>
+                            <h3 className="candidature-gate__title">Legacy candidature is unavailable here</h3>
                             <p className="candidature-gate__desc">
-                                The Memba DAO candidature realm isn&apos;t deployed on this network, so applications
-                                can&apos;t be submitted or reviewed here yet.
+                                The old candidature realm isn&apos;t deployed on this network. {isFeedEnabled()
+                                    ? "Apply with a #join post in the Feed to request Memba DAO community membership. This does not grant a voting seat."
+                                    : "Community applications will open through the Feed when it is available here."}
                             </p>
                         </div>
                     </div>
-                    <button className="k-btn-secondary" onClick={() => navigate("/quests")}>
-                        Earn XP in the Quest Hub meanwhile →
-                    </button>
+                    {isFeedEnabled() && <button className="k-btn-secondary" onClick={() => navigate("/feed?compose=join")}>
+                        Write your #join post →
+                    </button>}
                 </div>
             </div>
         )

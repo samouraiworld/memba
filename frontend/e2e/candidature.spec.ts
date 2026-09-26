@@ -34,7 +34,7 @@ test.describe('Candidature Page', () => {
 test.describe('Candidature — realm not deployed (mainnet)', () => {
     test('shows the not-available state', async ({ page }) => {
         await page.goto('/candidature')
-        await expect(page.getByTestId('candidature-unavailable')).toContainText('Not available on this network yet')
+        await expect(page.getByTestId('candidature-unavailable')).toContainText(/Apply with a #join post in the Feed|Community applications will open through the Feed/)
         await expect(page.getByText(/XP Required/)).toHaveCount(0)
     })
 })

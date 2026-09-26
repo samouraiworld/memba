@@ -7,6 +7,15 @@
 
 /** Max post body length — mirrors the realm's MaxBodyLen (memba_feed_v1). */
 export const MAX_FEED_BODY = 1000
+export const FEED_COOLDOWN_BLOCKS = 2
+export const FEED_YOUNG_COOLDOWN_BLOCKS = 12
+
+export const FEED_LIMITS_NOTE = `Up to ${MAX_FEED_BODY} bytes. Posts are spaced ${FEED_YOUNG_COOLDOWN_BLOCKS} blocks apart while your address is new to the feed, then ${FEED_COOLDOWN_BLOCKS} blocks apart.`
+
+export function cooldownMessage(realmError: string): string | null {
+    const match = /posting too fast: wait (\d+) blocks/i.exec(realmError)
+    return match ? `The feed needs ${match[1]} more blocks before your next post. Your draft is still here.` : null
+}
 
 const utf8 = new TextEncoder()
 

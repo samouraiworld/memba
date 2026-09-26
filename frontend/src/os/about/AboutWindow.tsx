@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react"
-import { APP_VERSION } from "../../lib/config"
+import { APP_VERSION, isFeedEnabled } from "../../lib/config"
 import type { OsAppId } from "../apps"
 import type { WindowSpec } from "../shell/windows"
 import { specForTarget } from "../shell/windows"
+import { applyToJoinSpec } from "../daos/joinSpec"
 import { ABOUT_LINKS, LICENSE_URL, bootEntryPath, buildCommit } from "./aboutInfo"
 import "./about.css"
 
@@ -42,6 +43,7 @@ export function AboutWindow({ chainId, openApp, open }: {
             <div className="os-about-actions">
                 <button type="button" className="os-btn" onClick={() => openApp("news")}>Read the blog</button>
                 <button type="button" className="os-btn os-quiet" onClick={() => open(specForTarget({ kind: "feedback" })!)}>Send feedback</button>
+                {isFeedEnabled() && <button type="button" className="os-btn os-quiet" onClick={() => open(applyToJoinSpec())}>Apply to join the community</button>}
             </div>
             <nav className="os-about-links" aria-label="Memba links">
                 {ABOUT_LINKS.map(({ label, href }) => <a key={href} href={href} target="_blank" rel="noopener noreferrer">{label}</a>)}

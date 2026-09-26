@@ -21,6 +21,7 @@ import { useSigner } from "../sign/signerContext"
 import { nameForRealm, realmForName } from "./daoNames"
 import { useDaoConfig, useDaoMembers, useDaoProposals, useMyVote, useProposal } from "./useOsDao"
 import { voteRequest, voteScope } from "./voteRequest"
+import { JoinMembaDao } from "./JoinMembaDao"
 
 const DAO_TINT = ["#5B7CFA", "#3D5BE0"] as const
 
@@ -149,6 +150,7 @@ function DaoFolderBody({ name, realmPath, section, open }: { name: string; realm
                         ))}</ul>
                         : <p className="os-sub">None right now.</p>}
                 </section>
+                {name === "memba_dao" && <JoinMembaDao open={open} />}
             </div>
         )
     } else if (section === "proposals") {

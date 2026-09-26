@@ -162,10 +162,23 @@ describe("FeedPage load failure", () => {
         expect(screen.queryByText("Couldn't load the feed")).toBeNull()
     })
 
-    it("still says 'No posts yet' when the feed is genuinely empty", async () => {
+    it("invites a first post and offers ecosystem activity when genuinely empty", async () => {
         mockFetch.mockResolvedValue({ posts: [], nextCursor: 0n, indexerLastBlock: 0n })
         renderWithClient(<FeedPage />)
-        expect(await screen.findByText("No posts yet")).toBeInTheDocument()
+        expect(await screen.findByText("Start the conversation")).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Write the first post" }))
+        expect(screen.getByTestId("feed-composer-input")).toHaveFocus()
+        fireEvent.click(screen.getByRole("button", { name: "See ecosystem activity" }))
+        expect(screen.getByTestId("feed-ecosystem")).toBeInTheDocument()
         expect(screen.queryByText("Couldn't load the feed")).toBeNull()
+    })
+})
+
+describe("FeedPage join link", () => {
+    it("opens the composer with the join template", async () => {
+        renderWithProviders(<FeedPage />, { route: "/test13/feed?compose=join" })
+        const input = await screen.findByTestId("feed-composer-input")
+        expect((input as HTMLTextAreaElement).value).toMatch(/^#join /)
+        expect(input).toHaveFocus()
     })
 })

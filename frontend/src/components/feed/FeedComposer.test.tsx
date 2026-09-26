@@ -19,7 +19,7 @@ vi.mock("../../lib/feed", () => ({
     submitFeedMsg: vi.fn(),
     buildCreatePostMsg: vi.fn(() => ({})),
 }))
-const { submitFeedMsg } = await import("../../lib/feed")
+const { submitFeedMsg, buildCreatePostMsg } = await import("../../lib/feed")
 const { FeedComposer } = await import("./FeedComposer")
 const mockSubmit = vi.mocked(submitFeedMsg)
 
@@ -87,5 +87,34 @@ describe("FeedComposer length cap", () => {
         fireEvent.change(screen.getByTestId("feed-composer-input"), { target: { value: "é".repeat(501) } })
         expect(await screen.findByText("1002/1000")).toBeInTheDocument()
         expect(screen.getByTestId("feed-post-btn")).toBeDisabled()
+    })
+})
+
+describe("FeedComposer join preset", () => {
+    it("keeps an unsaved draft when a join link enters an existing Feed", () => {
+        const props = { connected: false, address: undefined, onConnect: vi.fn(), onPosted: vi.fn() }
+        const { rerender } = render(<FeedComposer {...props} />)
+        const input = screen.getByTestId("feed-composer-input")
+        fireEvent.change(input, { target: { value: "my unsaved work" } })
+        rerender(<FeedComposer {...props} initialBody="#join template" />)
+        expect(input).toHaveValue("my unsaved work")
+        expect(screen.getByRole("button", { name: "Replace draft with #join template" })).toBeInTheDocument()
+        fireEvent.click(screen.getByRole("button", { name: "Replace draft with #join template" }))
+        expect(input).toHaveValue("#join template")
+    })
+
+    it("shows the byte and cooldown limits before connecting", () => {
+        render(<FeedComposer connected={false} address={undefined} onConnect={vi.fn()} onPosted={vi.fn()} />)
+        expect(screen.getByTestId("feed-composer-limits")).toHaveTextContent("1000 bytes")
+        expect(screen.getByTestId("feed-composer-limits")).toHaveTextContent("12 blocks")
+    })
+
+    it("keeps text after the realm rejects a post for cooldown", async () => {
+        vi.mocked(buildCreatePostMsg).mockImplementationOnce(() => { throw new Error("VM panic: posting too fast: wait 12 blocks between posts") })
+        render(<FeedComposer connected={true} address="g1meeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee" onConnect={vi.fn()} onPosted={vi.fn()} />)
+        fireEvent.change(screen.getByTestId("feed-composer-input"), { target: { value: "my post" } })
+        fireEvent.click(screen.getByTestId("feed-post-btn"))
+        expect(await screen.findByText(/needs 12 more blocks/)).toBeInTheDocument()
+        expect(screen.getByTestId("feed-composer-input")).toHaveValue("my post")
     })
 })
