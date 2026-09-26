@@ -33,9 +33,9 @@ test.describe('Memba OS pages in windows', () => {
     test('the NFT window shows its own native home instead of opening Market by itself', async ({ page }) => {
         await page.goto(`${OS_ON}/os/nft`)
         const nft = win(page, 'NFT')
-        // This e2e's default network is gnoland-1 (mainnet): the NFT realms aren't
-        // live there yet, so the home explains that instead of the classic page.
-        await expect(nft.getByText(/isn't available yet/)).toBeVisible()
+        // The default network is mainnet: the home names the missing registry
+        // and the build flag instead of implying NFT actions are available.
+        await expect(nft.getByRole('note')).toContainText('collection registry is not deployed')
         await expect.poll(() => new URL(page.url()).pathname).toBe('/os/nft')
         await expect(page.getByRole('region', { name: 'Market', exact: true })).toHaveCount(0)
         await nft.getByRole('button', { name: 'Open Market' }).click()
@@ -139,7 +139,7 @@ for (const view of [
         await page.setViewportSize({ width: view.width, height: view.height })
         await page.goto(`${OS_ON}/os/nft`)
         const nft = win(page, 'NFT')
-        await expect(nft.getByText(/isn't available yet/)).toBeVisible()
+        await expect(nft.getByRole('note')).toContainText('collection registry is not deployed')
         if ('windowWidth' in view) {
             await nft.evaluate((el, width) => { (el as HTMLElement).style.width = `${width}px` }, view.windowWidth)
         }

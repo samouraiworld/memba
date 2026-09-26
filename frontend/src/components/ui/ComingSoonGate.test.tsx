@@ -9,6 +9,8 @@ describe("Coming soon previews", () => {
         renderWithProviders(<Routes><Route path="/:network/*" element={<ComingSoonGate title="Upcoming feature" icon="◇" description="A planned feature." features={["Explore your workspace"]} preview={preview} />} /></Routes>, { route: "/mainnet/marketplace" })
         const figure = screen.getByRole("figure", { name: "Upcoming feature design preview" })
         expect(within(figure).getByText("Illustrative · not live")).toBeInTheDocument()
+        expect(within(figure).getByText("Illustrative preview")).toBeInTheDocument()
+        expect(within(figure).getByText(/does not show live controls/)).toBeInTheDocument()
         expect(figure.querySelectorAll('a, button, input, select, textarea, [tabindex]')).toHaveLength(0)
         expect(screen.getByRole("link", { name: "Back to Home" })).toHaveAttribute("href", "/mainnet/")
     })

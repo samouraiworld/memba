@@ -32,7 +32,7 @@ export function ExploreGrid({ networkKey }: ExploreGridProps) {
                         <Icon size={18} aria-hidden="true" className="explore-tile__icon" />
                         <span className="explore-tile__text">
                             <span className="explore-tile__label">{label}</span>
-                            <span className="explore-tile__sub">{key === "tokens" && !isRealmValidOn(networkKey, GRC20_FACTORY_PATH) ? "not available on this network" : sub}</span>
+                            <span className="explore-tile__sub">{key === "tokens" && !isRealmValidOn(networkKey, GRC20_FACTORY_PATH) ? "Memba token creation unavailable here" : sub}</span>
                         </span>
                     </Link>
                 ))}

@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: honest token and NFT availability (2026-09-26)
+
+- Explain when token and NFT screens are implemented but their required realms are unavailable, or an NFT build flag is off. Keep unavailable actions gated. Update the shared classic home and token and collection copy on both public sites.
+
 ### Repository documentation reflects the deployed classic and OS beta (2026-09-26)
 
 - Clarify which features are implemented, deployed on mainnet, enabled by build flags or still planned across the README, roadmap and frontend and deployment guides. Record the two public sites and the narrow founding DAO release without changing application behavior.

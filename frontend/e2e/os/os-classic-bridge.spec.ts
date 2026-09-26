@@ -49,7 +49,21 @@ for (const theme of ['light', 'dark'] as const) {
     })
 }
 
-const APPS = ['feed', 'store', 'settings', 'quests', 'validators', 'tokens', 'profile', 'news', 'explorer', 'arcade', 'feedback', 'dev-report']
+// Tokens renders a native unavailable state on mainnet, so it has no classic
+// subtree to check. The sweep still covers every app listed here.
+const APPS = ['feed', 'store', 'settings', 'quests', 'validators', 'profile', 'news', 'explorer', 'arcade', 'feedback', 'dev-report']
+
+test('Tokens unavailable state is native on mainnet', async ({ page }) => {
+    await guest(page)
+    await page.addInitScript(() => {
+        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_booted', '1')
+    })
+    await page.goto(`${OS_ON}/os/tokens`)
+    const tokens = page.getByRole('region', { name: 'Tokens', exact: true })
+    await expect(tokens.getByRole('note')).toContainText('factory is not deployed')
+    await expect(tokens.locator('.os-classic')).toHaveCount(0)
+})
 
 // Apps whose classic page is wallet-gated (classicRoute.ts pageNeedsWallet): as a
 // guest they render a "Connect a wallet to use <App>." holding pane, never

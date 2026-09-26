@@ -51,7 +51,7 @@ describe("TokenDashboard", () => {
     it("does not query or advertise creation when the factory is unavailable", () => {
         capability.available = false
         renderWithProviders(<TokenDashboard />)
-        expect(screen.getByText("Not available on this network")).toBeInTheDocument()
+        expect(screen.getByText("Token creation unavailable here")).toBeInTheDocument()
         expect(screen.queryByRole("button", { name: /Create a Token/ })).not.toBeInTheDocument()
         expect(screen.queryByText("No tokens yet")).not.toBeInTheDocument()
         expect(listFactoryTokens).not.toHaveBeenCalled()

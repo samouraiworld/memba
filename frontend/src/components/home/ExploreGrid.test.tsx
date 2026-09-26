@@ -23,7 +23,7 @@ describe("ExploreGrid", () => {
 
     it("labels the unavailable mainnet token launchpad", () => {
         render(<MemoryRouter><ExploreGrid networkKey="mainnet" /></MemoryRouter>)
-        expect(screen.getByTestId("explore-tokens")).toHaveTextContent("not available on this network")
+        expect(screen.getByTestId("explore-tokens")).toHaveTextContent("Memba token creation unavailable here")
     })
 
     it("surfaces a flag-enabled feature as a live tile", () => {

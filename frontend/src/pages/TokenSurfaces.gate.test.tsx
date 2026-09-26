@@ -45,7 +45,7 @@ describe("token surfaces without a token factory", () => {
 
     it("TokenView says the factory is not on this network and never looks the token up", () => {
         renderRoute(<TokenView />)
-        expect(screen.getByTestId("token-view-unavailable")).toHaveTextContent("Not available on this network")
+        expect(screen.getByTestId("token-view-unavailable")).toHaveTextContent("Memba token unavailable here")
         expect(getTokenInfo).not.toHaveBeenCalled()
     })
 

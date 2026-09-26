@@ -220,10 +220,10 @@ for (const network of ['mainnet', 'test13'] as const) {
             await expect(page.getByTestId('value-card-vote')).toContainText('Explore DAOs')
             const tokenCard = page.getByTestId('value-card-launch')
             if (network === 'mainnet') {
-                await expect(tokenCard).toContainText('not available on this network')
+                await expect(tokenCard).toContainText('Memba token creation unavailable here')
                 await expect(page.getByRole('link', { name: 'MembaDAO', exact: true })).toHaveCount(0)
                 await tokenCard.click()
-                await expect(page.getByRole('heading', { name: 'Not available on this network' })).toBeVisible()
+                await expect(page.getByRole('heading', { name: 'Token creation unavailable here' })).toBeVisible()
                 await expect(page.getByRole('button', { name: /Create a Token/ })).toHaveCount(0)
             } else {
                 await expect(tokenCard).toContainText('Launch a token')

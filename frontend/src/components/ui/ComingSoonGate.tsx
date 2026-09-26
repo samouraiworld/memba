@@ -22,6 +22,8 @@ interface ComingSoonGateProps {
     description: string
     /** Bullet list of planned capabilities */
     features: string[]
+    /** Override the generic badge when a feature is disabled or unavailable. */
+    statusLabel?: string
     /** Optional estimated release, e.g. "Q3 2026" */
     estimatedRelease?: string
     preview?: "marketplace" | "workspace" | "reputation" | "game" | "feed"
@@ -32,6 +34,7 @@ export function ComingSoonGate({
     icon,
     description,
     features,
+    statusLabel = "Coming soon",
     estimatedRelease,
     preview = "workspace",
 }: ComingSoonGateProps) {
@@ -41,7 +44,7 @@ export function ComingSoonGate({
         <div className="coming-soon-gate" data-testid="coming-soon-gate">
             <header className="coming-soon-card">
                 <div className="coming-soon-icon" aria-hidden="true">{icon}</div>
-                <span className="coming-soon-badge">Coming soon</span>
+                <span className="coming-soon-badge">{statusLabel}</span>
                 <h1 className="coming-soon-title">{title}</h1>
                 <p className="coming-soon-desc">{description}</p>
 
@@ -94,9 +97,9 @@ export function ComingSoonGate({
                         <div className="soon-preview__stats"><div><span>Overview</span><strong>{title}</strong></div><div><span>Activity</span><strong>—</strong></div></div>
                         {features.slice(0, 3).map(feature => <div className="soon-preview__row" key={feature}><span>{feature}</span><ArrowUpRight size={16} /></div>)}
                     </>}
-                    <div className="soon-preview__footer">A first look at what’s ahead</div>
+                    <div className="soon-preview__footer">Illustrative preview</div>
                 </div>
-                <p className="soon-preview__note">This feature is not available here yet. The preview shows the intended experience; details may change before release.</p>
+                <p className="soon-preview__note">This feature is not available here. The preview is illustrative and does not show live controls.</p>
             </figure>
         </div>
     )

@@ -24,6 +24,9 @@ describe("NftGate", () => {
             </NftGate>,
         )
         expect(screen.getByTestId("coming-soon-gate")).toBeInTheDocument()
+        expect(screen.getByTestId("coming-soon-gate")).toHaveTextContent("disabled in this build")
+        expect(screen.getByText("Not enabled in this build")).toBeInTheDocument()
+        expect(screen.getByTestId("coming-soon-gate")).toHaveTextContent("actions are unavailable here")
         expect(screen.queryByText("NFT_LIVE_CONTENT")).not.toBeInTheDocument()
     })
 
