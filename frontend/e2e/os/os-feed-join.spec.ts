@@ -20,3 +20,25 @@ for (const width of [1280, 375]) test(`an OS join link preserves an existing Fee
     await page.getByRole('button', { name: 'Replace draft with #join template' }).click()
     await expect(composer).toHaveValue(/^#join /)
 })
+
+test('Apply opens a separate Feed window and keeps an unsent draft through OS navigation', async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 })
+    await page.route(/memba\.v1\.|\.gno\.land|gnolove|plausible\.io|sentry\.|clerk[.-]/, route => route.abort())
+    await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+    await page.goto(`${OS_FEED_ON}/os/feed`)
+
+    const draft = page.getByRole('region', { name: 'Feed', exact: true }).getByTestId('feed-composer-input')
+    await expect(draft).toBeVisible()
+    await draft.fill('My unsent Feed draft')
+    await page.evaluate(() => {
+        window.history.pushState({}, '', '/os/about?w=app.feed')
+        window.dispatchEvent(new PopStateEvent('popstate'))
+    })
+    await page.getByRole('button', { name: 'Apply to join the community' }).click()
+
+    const join = page.getByRole('region', { name: 'Join community · Feed' }).getByTestId('feed-composer-input')
+    await expect(join).toHaveValue(/^#join /)
+    await expect(draft).toHaveValue('My unsent Feed draft')
+    await page.evaluate(() => window.dispatchEvent(new PopStateEvent('popstate')))
+    await expect(draft).toHaveValue('My unsent Feed draft')
+})

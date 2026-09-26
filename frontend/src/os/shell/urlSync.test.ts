@@ -1,7 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest"
 import { parseOsPath } from "./osPath"
 import { loadSavedTargets, OS_WINDOWS_KEY, saveWindows, targetsFromUrl, tokenToTarget, urlForWindows, windowToken } from "./urlSync"
-import { appSpec, EMPTY_WINDOWS, specForTarget, welcomeSpec, windowsReducer, type WindowsState } from "./windows"
+import { appSpec, EMPTY_WINDOWS, specForTarget, welcomeSpec, windowsForNavigation, windowsReducer, type WindowsState } from "./windows"
+import { applyToJoinSpec } from "../daos/joinSpec"
 
 const desk = { w: 1200, h: 760 }
 const MSIG = "g103kjrkw6l0a9le0a0q0dsgy0uyt4jyha55cd4l"
@@ -10,7 +11,7 @@ afterEach(() => localStorage.clear())
 
 describe("?w= tokens", () => {
     it("round-trip every linkable window", () => {
-        for (const url of ["/os/feed", "/os/dev-report", "/os/arcade/game", "/os/arcade/space-invaders", "/os/arcade/barricade", "/os/arcade/runs", "/os/arcade/daily-board", "/os/dao/memba_dao", "/os/dao/my.dao", "/os/dao/memba_dao/proposals/12", "/os/dao/my.dao/proposals/3", "/os/dao/memba_dao/proposals/new", "/os/daos/new", "/os/feedback", "/os/about", `/os/multisig/${MSIG}`]) {
+        for (const url of ["/os/feed", "/os/feed/post/12", "/os/dev-report", "/os/arcade/game", "/os/arcade/space-invaders", "/os/arcade/barricade", "/os/arcade/runs", "/os/arcade/daily-board", "/os/dao/memba_dao", "/os/dao/my.dao", "/os/dao/memba_dao/proposals/12", "/os/dao/my.dao/proposals/3", "/os/dao/memba_dao/proposals/new", "/os/daos/new", "/os/feedback", "/os/about", `/os/multisig/${MSIG}`]) {
             const t = parseOsPath(url)
             expect(tokenToTarget(windowToken(t)!), url).toEqual(t)
         }
@@ -52,6 +53,31 @@ describe("URL ⇄ windows", () => {
         s = windowsReducer(s, { type: "minimise", id: s.wins[0].id })
         expect(urlForWindows(s.wins)).toBe("/os/dao/memba_dao/proposals/12?w=app.wallet")
         expect(urlForWindows([])).toBe("/os")
+    })
+
+    it("preserves a Feed thread beside the separate join window through URL and session restoration", () => {
+        let s = windowsReducer(EMPTY_WINDOWS, { type: "open", spec: appSpec("feed", "post/12"), desk })
+        s = windowsReducer(s, { type: "open", spec: applyToJoinSpec(), desk })
+        expect(urlForWindows(s.wins)).toBe("/os/feed?compose=join&osJoin=1&w=feed.post.12")
+
+        const { front, others } = targetsFromUrl("/os/feed", "?compose=join&osJoin=1&w=feed.post.12")
+        expect(specForTarget(front)?.key).toBe("flow:feed-join")
+        expect(others).toEqual([{ kind: "app", app: "feed", section: "post/12" }])
+        expect(specForTarget(others[0])?.key).toBe("app:feed")
+        const roundTrip = windowsForNavigation(s, [specForTarget(front)!, ...others.map(target => specForTarget(target)!)], desk, true)
+        expect(roundTrip.wins).toHaveLength(2)
+        expect(roundTrip.wins.find(win => win.key === "app:feed")).toMatchObject({ id: s.wins[0].id, target: { section: "post/12" } })
+
+        const threadFront = windowsReducer(s, { type: "focus", id: s.wins[0].id })
+        expect(urlForWindows(threadFront.wins)).toBe("/os/feed/post/12?w=feed.join")
+        const behind = targetsFromUrl("/os/feed/post/12", "?w=feed.join").others
+        expect(specForTarget(behind[0])?.key).toBe("flow:feed-join")
+
+        saveWindows(s.wins)
+        const restored = loadSavedTargets().map(({ target }) => specForTarget(target))
+        expect(restored.map(spec => spec?.key)).toEqual(["app:feed", "flow:feed-join"])
+        expect(restored[0]?.target).toMatchObject({ section: "post/12" })
+        expect(specForTarget(targetsFromUrl("/os/feed", "?compose=join").front)?.key).toBe("app:feed")
     })
 })
 

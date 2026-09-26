@@ -66,6 +66,19 @@ export function appSpec(app: OsAppId, section: string | null = null, query?: str
     return { key: game ? `game:${section}` : `app:${app}`, title: game ? `${section === "game" ? "Block Party" : section === "barricade" ? "BARRICADE" : "Space Invaders"} · Arcade` : getApp(app).name, app, width, height, target: { kind: "app", app, section, ...(query === undefined ? {} : { query }) } }
 }
 
+/** Distinguish an Apply window from the ordinary Feed window in URL/session state. */
+export const JOIN_FEED_QUERY = "compose=join&osJoin=1"
+
+export function isJoinFeedTarget(t: OsTarget): boolean {
+    if (t.kind !== "app" || t.app !== "feed" || t.section !== null || !t.query) return false
+    const query = new URLSearchParams(t.query)
+    return query.get("compose") === "join" && query.get("osJoin") === "1"
+}
+
+export function joinFeedSpec(query = JOIN_FEED_QUERY): WindowSpec {
+    return { ...appSpec("feed", null, query), key: "flow:feed-join", title: "Join community · Feed" }
+}
+
 /** The Create DAO wizard (/os/daos/new): its own window, so the DAOs app stays open beside it. */
 export function newDaoSpec(): WindowSpec {
     return { key: "flow:dao", title: "Create a DAO", app: "daos", width: 820, height: 560, target: { kind: "app", app: "daos", section: "new" } }
@@ -87,6 +100,7 @@ export function specForTarget(t: OsTarget): WindowSpec | null {
         case "app":
             if (t.app === "daos" && t.section === "new") return newDaoSpec()
             if (t.app === "wallet" && t.section === "send") return sendSpec()
+            if (isJoinFeedTarget(t)) return joinFeedSpec(t.query)
             return appSpec(t.app, t.section, t.query)
         case "dao": return daoSpec(t.name, t.section)
         case "proposal": return { key: `prop:${t.dao}:${t.n}`, title: `${t.dao} · Proposal #${t.n}`, app: "daos", width: 460, height: 380, target: t }

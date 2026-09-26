@@ -31,7 +31,7 @@ describe("Memba DAO community applications", () => {
         renderWithProviders(<JoinMembaDao open={open} />)
         expect(screen.getByText(/posting does not grant membership or a voting seat/)).toBeInTheDocument()
         fireEvent.click(screen.getByRole("button", { name: "Apply with a Feed post" }))
-        expect(open).toHaveBeenCalledWith(expect.objectContaining({ key: "flow:feed-join", target: { kind: "app", app: "feed", section: null, query: "compose=join" } }))
+        expect(open).toHaveBeenCalledWith(expect.objectContaining({ key: "flow:feed-join", target: { kind: "app", app: "feed", section: null, query: "compose=join&osJoin=1" } }))
         fireEvent.click(await screen.findByRole("button", { name: /g1alice/ }))
         expect(open).toHaveBeenLastCalledWith(expect.objectContaining({ target: expect.objectContaining({ app: "feed", section: "post/42" }) }))
         expect(screen.getByText(/Older applications may not appear here/)).toBeInTheDocument()
@@ -46,7 +46,7 @@ describe("Memba DAO community applications", () => {
 
         expect(joined.wins).toHaveLength(2)
         expect(joined.wins[0]).toMatchObject({ id: thread.wins[0].id, key: "app:feed", target: { section: "post/12" } })
-        expect(joined.wins[1]).toMatchObject({ key: "flow:feed-join", target: { section: null, query: "compose=join" } })
+        expect(joined.wins[1]).toMatchObject({ key: "flow:feed-join", target: { section: null, query: "compose=join&osJoin=1" } })
     })
 
     it("does not promise an application route while the Feed flag is off", () => {

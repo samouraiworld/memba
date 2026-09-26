@@ -11,13 +11,15 @@
  */
 import { getApp, OS_APPS } from "../apps"
 import { parseOsPath, type OsTarget } from "./osPath"
-import { frontWindow, urlForWindow, visibleWindows, type OsWindow } from "./windows"
+import { frontWindow, isJoinFeedTarget, JOIN_FEED_QUERY, urlForWindow, visibleWindows, type OsWindow } from "./windows"
 
 /** The ?w= token for a window, or null for windows that aren't linkable (Welcome, not found). */
 export function windowToken(t: OsTarget | null): string | null {
     if (!t) return null
     switch (t.kind) {
         case "app":
+            if (isJoinFeedTarget(t)) return "feed.join"
+            if (t.app === "feed" && t.section && /^post\/[1-9]\d{0,19}$/.test(t.section)) return `feed.post.${t.section.slice(5)}`
             if (t.app === "arcade" && t.section && ["game", "space-invaders", "barricade", "runs", "daily-board"].includes(t.section)) return `arcade.${t.section}`
             return t.app === "daos" && t.section === "new" ? "newdao" : t.app === "wallet" && t.section === "send" ? "send" : `app.${getApp(t.app).slug}`
         case "dao": return `dao.${t.name}`
@@ -31,6 +33,7 @@ export function windowToken(t: OsTarget | null): string | null {
 }
 
 export function tokenToTarget(token: string): OsTarget | null {
+    if (token === "feed.join") return { kind: "app", app: "feed", section: null, query: JOIN_FEED_QUERY }
     if (token === "newdao") return parseOsPath("/os/daos/new")
     if (token === "feedback") return { kind: "feedback" }
     if (token === "about") return { kind: "about" }
@@ -41,6 +44,7 @@ export function tokenToTarget(token: string): OsTarget | null {
     const rest = token.slice(dot + 1)
     let path: string | null = null
     if (kind === "app" && OS_APPS.some((a) => a.slug === rest)) path = `/os/${rest}`
+    else if (kind === "feed" && /^post\.[1-9]\d{0,19}$/.test(rest)) path = `/os/feed/post/${rest.slice(5)}`
     else if (kind === "arcade" && ["game", "space-invaders", "barricade", "runs", "daily-board"].includes(rest)) path = `/os/arcade/${rest}`
     else if (kind === "dao") path = `/os/dao/${rest}`
     else if (kind === "msig") path = `/os/multisig/${rest}`
@@ -120,7 +124,9 @@ export function loadSavedTargets(): { target: OsTarget; geom: Omit<Saved, "token
         const found = typeof e?.token === "string" ? tokenToTarget(e.token) : null
         if (!found) return []
         // A page's query comes back through URLSearchParams, so only a plain query string survives.
-        const target: OsTarget = found.kind === "app" && typeof e.query === "string" && e.query ? { ...found, query: pageQuery(e.query) } : found
+        const target: OsTarget = e.token !== "feed.join" && found.kind === "app" && typeof e.query === "string" && e.query
+            ? { ...found, query: pageQuery(e.query) }
+            : found
         return [{ target, geom: { x: num(e.x, 60), y: num(e.y, 22), width: num(e.width, 480), height: num(e.height, 400), z: num(e.z, 1), min: e.min === true, max: e.max === true } }]
     })
 }
