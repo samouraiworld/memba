@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: beta identity (2026-09-26)
+
+- **memba.club has its own indigo identity:** approved icons, an Aqua share card and installable-app details, with canonical links that follow each desktop path in the HTTP response. Classic identity and assets remain unchanged.
+
 ### Memba OS: compact route loader correction (2026-09-26)
 
 - **Route loaders keep their logo hidden inside OS windows:** override the logo wrapper's inline layout and cover that layout in the regression probe. Classic loaders retain their existing appearance.

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Memba OS icons and square card</title>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  html,body{background:transparent;font-family:Manrope,Inter,system-ui,sans-serif;-webkit-font-smoothing:antialiased;overflow:hidden}
+  .v{display:none;position:absolute;inset:0}
+  body[data-v="icon"] #icon, body[data-v="maskable"] #maskable, body[data-v="touch"] #touch, body[data-v="square"] #square{display:block}
+  .grad{background:linear-gradient(145deg,#6B8BFF 0%,#4C6EF5 45%,#7654E8 100%)}
+  .full{position:absolute;inset:0;display:grid;place-items:center}
+  /* rounded app icon with transparent corners (favicons, PWA "any") */
+  #icon .tile{position:absolute;inset:0;border-radius:22.5%;box-shadow:inset 0 2px 0 rgba(255,255,255,.35)}
+  #icon svg{width:60%;height:60%}
+  /* maskable: full bleed, mark inside the 80% safe zone */
+  #maskable svg{width:46%;height:46%}
+  /* iOS: full bleed square (iOS rounds it) */
+  #touch svg{width:58%;height:58%}
+  /* square share card 1200x1200 */
+  #square{background:radial-gradient(120% 90% at 18% 8%,#CADCFF,transparent 60%),radial-gradient(100% 80% at 92% 95%,#F7D6E7,transparent 55%),#E8EEF8;color:#1B1F2A;text-align:center}
+  #square .mk{width:260px;height:260px;border-radius:60px;margin:230px auto 60px;display:grid;place-items:center;box-shadow:inset 0 2px 0 rgba(255,255,255,.45),0 30px 60px -20px rgba(76,110,245,.65)}
+  #square .mk svg{width:58%;height:58%}
+  #square h1{font-size:150px;font-weight:800;letter-spacing:-.035em;line-height:1}
+  #square .sub{font-size:52px;font-weight:600;color:#5B6274;margin-top:28px}
+  #square .beta{display:inline-flex;align-items:center;gap:16px;margin-top:64px;height:76px;padding:0 32px 0 26px;border-radius:99px;background:rgba(76,110,245,.11);color:#3B5BDB;font-size:34px;font-weight:800}
+  #square .dot{width:16px;height:16px;border-radius:50%;background:#2FC08E;box-shadow:0 0 0 6px rgba(47,192,142,.2)}
+  #square .url{position:absolute;left:0;right:0;bottom:70px;font-size:40px;font-weight:800;color:#3B5BDB}
+</style>
+</head>
+<body data-v="icon">
+<svg width="0" height="0" style="position:absolute"><defs>
+  <symbol id="m" viewBox="0 -6 112 112"><path d="M0 0 56 45 112 0V100H87V50L56 79 25 50V100H0Z" fill="#fff"/><path d="M0 0 56 45V79L25 50 0 29Z" fill="#2A1F8F" fill-opacity=".30"/><path d="M56 45 112 0 87 50 56 79Z" fill="#2A1F8F" fill-opacity=".10"/></symbol>
+</defs></svg>
+<section class="v" id="icon"><div class="tile grad"></div><div class="full"><svg><use href="#m"/></svg></div></section>
+<section class="v grad" id="maskable"><div class="full"><svg><use href="#m"/></svg></div></section>
+<section class="v grad" id="touch"><div class="full"><svg><use href="#m"/></svg></div></section>
+<section class="v" id="square">
+  <div class="mk grad"><svg><use href="#m"/></svg></div>
+  <h1>Memba OS</h1>
+  <div class="sub">A home for gno.land.</div>
+  <div class="beta"><span class="dot"></span>Public Beta · on mainnet</div>
+  <div class="url">memba.club</div>
+</section>
+<script>document.body.dataset.v = (location.hash || "#icon").slice(1)</script>
+</body>
+</html>

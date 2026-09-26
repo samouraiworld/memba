@@ -8,6 +8,7 @@ import { sentryVitePlugin } from '@sentry/vite-plugin'
 import { readFileSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs'
 import { assertSafeFlags, assertSecureApiUrls, shouldEnforceFlagGate } from './src/lib/safeFlags'
 import { assertOsFlagAllowed } from './src/os/osBuildGate'
+import { osIdentityAllowed, osSiteHtml, osManifest, OS_BRAND_FILES } from './src/os/osSiteIdentity'
 import { buildSitemapXml, SITE_ORIGIN, SITEMAP_NETWORK } from './src/lib/sitemap'
 import { readdirSync } from 'node:fs'
 import { parseBlogArticles, buildRssXml } from './src/lib/blogParser'
@@ -70,6 +71,22 @@ function professionalBrandPlugin(): PluginOption {
         ['icon-512.png', 'icons/icon-512.png'], ['maskable-512.png', 'icons/maskable-512.png'],
         ['apple-touch-icon.png', 'apple-touch-icon.png'], ['favicon-32.png', 'memba-icon.png'],
       ]) copyFileSync(`public/brand/folded-m/${source}`, `${outDir}/${destination}`)
+    },
+  }
+}
+
+// Emit stable URLs from committed source art only for an explicitly allowed beta build.
+function osIdentityPlugin(mode: string): PluginOption {
+  const enabled = osIdentityAllowed({ ...loadEnv(mode, '..', 'VITE_'), ...process.env })
+  return {
+    name: 'beta-site-identity',
+    apply: 'build',
+    transformIndexHtml(html) { return enabled ? osSiteHtml(html) : html },
+    generateBundle() {
+      if (!enabled) return
+      for (const name of OS_BRAND_FILES) {
+        this.emitFile({ type: 'asset', fileName: `brand/os/${name}`, source: readFileSync(new URL(`./src/os/brand/${name}`, import.meta.url)) })
+      }
     },
   }
 }
@@ -144,6 +161,7 @@ export default defineConfig(({ mode }) => ({
     buildIdentityPlugin(),
     sitemapPlugin(),
     professionalBrandPlugin(),
+    osIdentityPlugin(mode),
     // PWA: installable manifest + Workbox service worker. SW is OFF in dev
     // (devOptions.enabled:false) so it never affects dev / Playwright / tests.
     // Colors track the real app canvas (--color-k-bg dark = #000000), not a
@@ -151,8 +169,8 @@ export default defineConfig(({ mode }) => ({
     VitePWA({
       registerType: 'autoUpdate',
       devOptions: { enabled: false },
-      includeAssets: ['apple-touch-icon.png'],
-      manifest: {
+      includeAssets: osIdentityAllowed({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }) ? [] : ['apple-touch-icon.png'],
+      manifest: osIdentityAllowed({ ...loadEnv(mode, '..', 'VITE_'), ...process.env }) ? osManifest : {
         name: 'Memba',
         short_name: 'Memba',
         id: '/',
