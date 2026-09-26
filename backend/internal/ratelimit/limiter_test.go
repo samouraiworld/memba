@@ -315,6 +315,22 @@ func TestUploadImageBucket_AdmitsFullListing(t *testing.T) {
 	}
 }
 
+func TestIndexerBucket_BoundsLivePollingAndAllowsPageReads(t *testing.T) {
+	cfg, ok := DefaultConfigs()["indexer"]
+	if !ok || cfg.MaxRequests != 90 || cfg.Window != time.Minute {
+		t.Fatalf("unexpected indexer bucket: %+v, present=%t", cfg, ok)
+	}
+	l := New(t.Context(), nil)
+	for i := 0; i < cfg.MaxRequests; i++ {
+		if !l.Allow("203.0.113.9", "indexer") {
+			t.Fatalf("request %d/%d was blocked", i+1, cfg.MaxRequests)
+		}
+	}
+	if l.Allow("203.0.113.10", "indexer") { // same /24 subnet
+		t.Fatal("request beyond the shared subnet limit should be blocked")
+	}
+}
+
 // TestImageUploadEndpoint_PerUserCap proves the per-wallet AllowKey cap: a wallet is
 // blocked once it exceeds ImageUploadEndpoint's quota, while a different wallet keeps
 // its own independent bucket.

@@ -33,6 +33,7 @@ func DefaultConfigs() map[string]Config {
 		"marketplace":        {MaxRequests: 30, Window: time.Minute},  // Marketplace agents/escrow render
 		"token_launches":     {MaxRequests: 60, Window: time.Minute},  // cached token launch-date map (read)
 		"recent_submissions": {MaxRequests: 30, Window: time.Minute},  // fixed mainnet Directory read
+		"indexer":            {MaxRequests: 90, Window: time.Minute},  // shared subnet: Live (10/min/tab) plus home/profile reads and bursts
 		"default":            {MaxRequests: 100, Window: time.Minute}, // Fallback for unknown endpoints
 	}
 }

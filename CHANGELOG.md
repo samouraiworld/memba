@@ -31,6 +31,10 @@ Full changelogs are split by version range for easier navigation:
 
 - Keep the test's infinite spinner moving without fading its text below accessible contrast during the colour scan.
 
+### Mainnet indexer relay guard (2026-09-26)
+
+- Verify the relayed indexer's indexed tip belongs to `gnoland-1` before forwarding GraphQL reads, fail closed when identity is unavailable, and give the relay a dedicated rate limit ahead of Memba OS Live.
+
 ### App Store: one catalogue (2026-09-26)
 
 - Show live on-chain listings first and hide matching static cards by verified realm path or web address. Keep off-chain tools and unmatched projects discoverable, add Bubble Rumble as an external game, and link Kourt only to its verified mainnet realm.
