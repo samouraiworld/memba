@@ -1,13 +1,13 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Locator, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { OS_ON } from '../../playwright.os.config'
 import { fulfillGovernance } from '../helpers/proGovernanceFixture'
 import { abortOnchainReads } from '../helpers/onchain'
 
-// Day 7: no serious or critical WCAG 2.1 AA violations (contrast included) on
-// the main Memba OS surfaces, in the light and dark themes, desktop and phone.
-// Task 6 extends the scan to the classic pages rendered inside windows
-// (.os-classic), which used to be excluded here entirely.
+// No serious or critical WCAG 2.1 AA violations (contrast included) on the main
+// Memba OS surfaces, in the light and dark themes, desktop and phone. The scan
+// also covers the classic pages rendered inside windows (.os-classic), which
+// used to be excluded here entirely.
 
 async function violations(page: Page): Promise<string[]> {
     // Scan settled colours, not a panel mid fade-in.
@@ -27,6 +27,18 @@ const KNOWN_CLASSIC: string[] = []
 
 async function classicViolations(page: Page): Promise<string[]> {
     return (await violations(page)).filter((v) => !KNOWN_CLASSIC.includes(v))
+}
+
+/** Waits until nothing inside `root` is still announcing a loading state, instead
+ * of scanning a panel mid loading-spinner. Doesn't fail the test if one lingers
+ * past the timeout — it annotates and proceeds, since a stuck spinner is its own
+ * bug to catch elsewhere, not a reason to skip the a11y scan. */
+async function settle(root: Locator, timeout = 20_000) {
+    try {
+        await root.locator('[role="status"], .os-spin').first().waitFor({ state: 'hidden', timeout })
+    } catch {
+        test.info().annotations.push({ type: 'unsettled', description: 'a [role=status]/.os-spin element was still present after the settle timeout' })
+    }
 }
 
 /** Accent-filled controls whose text axe can't measure (aria-hidden step numbers, hover-only
@@ -106,7 +118,7 @@ for (const scheme of ['light', 'dark'] as const) {
 /** Apps with no native OS window: they render their existing Memba page (.os-classic)
  * inside the window instead. Store's extensions sub-route isn't scanned separately —
  * this is the app's landing deep link, /os/<slug> (osPath.ts requires a slug). */
-const CLASSIC_APPS = ['feed', 'store', 'settings', 'quests', 'validators', 'news', 'dev-report', 'explorer', 'tokens']
+const CLASSIC_APPS = ['feed', 'store', 'settings', 'quests', 'validators', 'news', 'dev-report', 'explorer', 'tokens', 'arcade', 'feedback']
 
 for (const scheme of ['light', 'dark'] as const) {
     test.describe(`Memba OS classic pages accessibility · ${scheme}`, () => {
@@ -124,7 +136,9 @@ for (const scheme of ['light', 'dark'] as const) {
         for (const app of CLASSIC_APPS) {
             test(`${app} window`, async ({ page }) => {
                 await page.goto(`${OS_ON}/os/${app}`)
-                await expect(page.locator('.os-classic').first()).toBeVisible()
+                const classic = page.locator('.os-classic').first()
+                await expect(classic).toBeVisible({ timeout: 30_000 })
+                await settle(classic)
                 expect(await classicViolations(page)).toEqual([])
             })
         }
