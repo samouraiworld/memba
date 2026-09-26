@@ -46,7 +46,7 @@ function Welcome({ session, openApp }: Actions) {
             </div>
             <div className="os-opts">
                 <button type="button" onClick={() => openApp("daos")}><AppTile app="daos" size={34} /><b>Explore DAOs</b><span className="os-sub">See what communities are deciding</span></button>
-                <button type="button" onClick={() => openApp("arcade")}><AppTile app="arcade" size={34} /><b>Play</b><span className="os-sub">Games with on-chain scores</span></button>
+                <button type="button" onClick={() => openApp("arcade")}><AppTile app="arcade" size={34} /><b>Play</b><span className="os-sub">Three games and daily challenges</span></button>
                 <button type="button" onClick={session.openConnect}><AppTile app="wallet" size={34} /><b>Connect wallet</b><span className="os-sub">Vote, sign, post and keep your desk</span></button>
             </div>
         </div>

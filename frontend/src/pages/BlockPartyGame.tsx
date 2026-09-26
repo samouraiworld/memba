@@ -452,7 +452,7 @@ export default function BlockPartyGame() {
             </div>
           )}
           {ranked && challenge?.ready && reachablePar == null && (
-            <p className="k-bp-target-note">Target hidden: the legacy value exceeds this board's mathematical score ceiling.</p>
+            <p className="k-bp-target-note">This board has no reachable target score. Play for your best result.</p>
           )}
           <div className="sr-only" aria-live="polite">Score {score}. {Number.isFinite(shownMovesLeft) ? `${shownMovesLeft} moves remaining.` : ranked ? "Daily is locked." : "Practice has no move limit."}</div>
 

@@ -59,10 +59,11 @@ export function welcomeSpec(): WindowSpec {
 }
 
 export function appSpec(app: OsAppId, section: string | null = null, query?: string): WindowSpec {
-    // The DAOs app is a native list; the others show a full Memba page for now, so they open larger.
-    // Native app windows are compact; the others show a full Memba page for now, so they open larger.
-    const [width, height] = app === "daos" ? [480, 400] : app === "wallet" && section === null ? [420, 420] : app === "multisig" && section === null ? [520, 460] : [960, 660]
-    return { key: `app:${app}`, title: getApp(app).name, app, width, height, target: { kind: "app", app, section, ...(query === undefined ? {} : { query }) } }
+    // Games open beside the lobby. BARRICADE's stage and side panel need the
+    // desk's available space rather than the standard 960 px page window.
+    const game = app === "arcade" && ["game", "space-invaders", "barricade"].includes(section ?? "")
+    const [width, height] = app === "daos" ? [480, 400] : app === "wallet" && section === null ? [420, 420] : app === "multisig" && section === null ? [520, 460] : app === "arcade" && section === "barricade" ? [1600, 1000] : [960, 660]
+    return { key: game ? `game:${section}` : `app:${app}`, title: game ? `${section === "game" ? "Block Party" : section === "barricade" ? "BARRICADE" : "Space Invaders"} · Arcade` : getApp(app).name, app, width, height, target: { kind: "app", app, section, ...(query === undefined ? {} : { query }) } }
 }
 
 /** The Create DAO wizard (/os/daos/new): its own window, so the DAOs app stays open beside it. */

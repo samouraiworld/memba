@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: Arcade lobby (2026-09-26)
+
+- Add Games, Your runs and Daily board to Arcade, linking its three playable games and stating when scores are unavailable. Give BARRICADE a large game window and clarify Block Party's unreachable target message.
+
 ### Memba OS: honest token and NFT availability (2026-09-26)
 
 - Explain when token and NFT screens are implemented but their required realms are unavailable, or an NFT build flag is off. Keep unavailable actions gated. Update the shared classic home and token and collection copy on both public sites.

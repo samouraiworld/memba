@@ -31,13 +31,27 @@ async function spill(page: Page): Promise<string[]> {
 const PAGES = [
     ['feed', 'Feed', '.coming-soon-gate', 'grid'],
     ['store', 'App Store', '.ecosystem-directory__grid', 'grid'],
-    ['arcade', 'Arcade', '.coming-soon-gate', 'grid'],
     ['validators', 'Validators', '.val-stats-grid', 'grid'],
     ['quests', 'Quests', '.k-questhub-hero', 'flex'],
     ['dev-report', 'Dev Report', '.gl-subnav', 'flex'],
 ] as const
 
 test.describe('Memba OS pages in a narrow window', () => {
+    test('Arcade lobby fits a 360 px window', async ({ page }) => {
+        await fulfillGovernance(page)
+        await page.addInitScript(() => {
+            localStorage.setItem('memba_os_seen', '1')
+            localStorage.setItem('memba_os_windows', JSON.stringify([{ token: 'app.arcade', x: 40, y: 20, width: 360, height: 640, z: 1, min: false, max: false }]))
+        })
+        await page.setViewportSize({ width: 1280, height: 800 })
+        await page.goto(`${OS_ON}/os`)
+        const win = page.getByRole('region', { name: 'Arcade', exact: true })
+        await expect(win.getByRole('navigation', { name: 'Arcade' })).toBeVisible()
+        await expect(win.getByRole('button', { name: /BARRICADE/ })).toBeVisible()
+        expect(Math.round((await win.boundingBox())!.width)).toBe(360)
+        expect(await spill(page)).toEqual([])
+    })
+
     for (const [app, name, sentinel, display] of PAGES) {
         test(`${name} fits a 360 px window`, async ({ page }) => {
             // Only other hosts are refused: the dev server's own modules must load.

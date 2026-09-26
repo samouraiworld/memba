@@ -41,7 +41,7 @@ export const OS_APPS: readonly OsApp[] = [
       routes: ["feed", "feed/post/:id", "feed/user/:address", "feed/mod", "feed/transparency"] },
     { id: "store", name: "App Store", slug: "store", summary: "On-chain app listings, submissions, extensions", tier: "mvp", tint: ["#46B8F0", "#1E90D8"], dock: true,
       routes: ["apps/*", "apps/submit", "apps/review", "apps/my-submissions", "extensions"] },
-    { id: "arcade", name: "Arcade", slug: "arcade", summary: "Games with verified scores", tier: "mvp", tint: ["#F46BA0", "#D9467E"], dock: true,
+    { id: "arcade", name: "Arcade", slug: "arcade", summary: "Three playable games and daily challenges", tier: "mvp", tint: ["#F46BA0", "#D9467E"], dock: true,
       routes: ["game", "game/space-invaders", "game/barricade"] },
     { id: "validators", name: "Validators", slug: "validators", summary: "Validator set, monitoring and alerts", tier: "mvp", tint: ["#4A5368", "#232836"], dock: true,
       routes: ["validators", "validators/hacker", "validators/valoper/:operatorAddress", "validators/:address", "alerts"] },
