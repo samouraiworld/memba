@@ -117,7 +117,12 @@
   font-family: var(--os-font); color: var(--os-ink); background: var(--os-card);
   border: 1px solid var(--os-line); border-radius: var(--os-radius-ctl);
 }
-.memba-os .os-classic :is(input, select, textarea):focus-visible { outline: none; border-color: var(--os-acc); box-shadow: 0 0 0 3px var(--os-chip); }
+/* Every focusable control gets a visible ring, including checkboxes/radios/ranges
+ * (a plain outline: none here used to remove their only focus signal, WCAG 2.4.7 /
+ * 1.4.11); text-like controls additionally get the border/box-shadow treatment
+ * since they have room for it. */
+.memba-os .os-classic :is(input, select, textarea):focus-visible { outline: 2px solid var(--os-acc); outline-offset: 0; }
+.memba-os .os-classic :is(input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea):focus-visible { border-color: var(--os-acc); box-shadow: 0 0 0 3px var(--os-chip); }
 .memba-os .os-classic a:not([class]) { color: var(--os-acc-ink); }
 /* .animate-glow's keyframes (index.css) pulse a literal teal box-shadow — Beta
  * styling with no OS token to redeclare it against, so the animation is removed
@@ -138,13 +143,13 @@
 .memba-os .os-classic .val-retry-btn { border-color: var(--os-acc); background: var(--os-chip); }
 .memba-os .os-classic .val-retry-btn:hover { background: var(--os-chip); }
 
-/* Controller's real-data probe (guest/e2e fixtures render gated or empty states
- * that never reach these): validators.css .val-chain-badge and .val-profile-link
- * (base + border), dev-report's active nav/tab/filter pills, explorer's live-chain
- * pulse. Bar gradients (.val-power-mini-bar / .val-power-segment) go flat
- * var(--os-acc) rather than a two-stop gradient into --os-ok: the original was two
- * shades of the SAME teal (depth only), and --os-ok is a semantic success colour —
- * mixing it in would read as a health/status signal these bars don't carry. */
+/* Real-data states a guest/e2e fixture never reaches (gated or empty in that mode):
+ * validators.css .val-chain-badge and .val-profile-link (base + border),
+ * dev-report's active nav/tab/filter pills, explorer's live-chain pulse. Bar
+ * gradients (.val-power-mini-bar / .val-power-segment) go flat var(--os-acc)
+ * rather than a two-stop gradient into --os-ok: the original was two shades of the
+ * SAME teal (depth only), and --os-ok is a semantic success colour — mixing it in
+ * would read as a health/status signal these bars don't carry. */
 .memba-os .os-classic .val-chain-badge { background: var(--os-chip); border-color: var(--os-acc); }
 .memba-os .os-classic .val-profile-link { border-color: var(--os-acc); }
 .memba-os .os-classic .val-profile-link:hover { border-color: var(--os-acc); background: var(--os-chip); }
@@ -173,3 +178,25 @@
 }
 .memba-os .os-classic .val-page-btn { border-color: var(--os-acc); background: var(--os-chip); }
 .memba-os .os-classic .val-page-btn:hover:not(:disabled) { border-color: var(--os-acc); background: var(--os-chip); }
+/* pages/points/points.css .tier-badge--platinum reads --color-accent-teal
+ * (tokens.css :root, #2dd4bf), a token this bridge doesn't otherwise alias. */
+.memba-os .os-classic .tier-badge--platinum { border-color: var(--os-acc); }
+
+/* ConnectingLoader (components/ui/ConnectingLoader.tsx): the route-fallback shown
+ * while a window's own page chunk loads. It has no class/id hook beyond the
+ * shared .animate-glow on its logo wrapper, so it's keyed on its markup shape —
+ * role=status/aria-live=polite wrapping that logo — which nothing else in the app
+ * matches. Hides the big logo, shrinks the reserved height, and gives the
+ * indeterminate track a visible rail (its moving highlight already reads
+ * var(--color-k-accent), aliased above, and its text already reads
+ * var(--color-text-muted) + var(--font-ui), also aliased above) so it reads like
+ * the OS's own os-spin + "Loading…" state. Not editable directly: production. */
+.memba-os .os-classic [role="status"][aria-live="polite"]:has(> .animate-glow) {
+  min-height: 120px !important;
+}
+.memba-os .os-classic [role="status"][aria-live="polite"] > .animate-glow {
+  display: none;
+}
+.memba-os .os-classic [role="status"][aria-live="polite"] > .animate-glow + div {
+  background: var(--os-line) !important;
+}

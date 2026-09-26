@@ -10,17 +10,20 @@
    the padding and clipped the bottom), so height: 100% is the body's height. */
 .memba-os .os-wbody:has(> .os-fw) { padding: 0; }
 .memba-os .os-fw { display: grid; grid-template-columns: 170px 1fr; height: 100%; min-height: 0; }
-.memba-os .os-fw nav { border-right: 1px solid var(--os-line); padding: 10px 8px; display: grid; align-content: start; gap: 2px; background: var(--os-card); overflow: auto; }
-.memba-os .os-fw nav button { border: 0; background: none; text-align: left; padding: 7px 10px; border-radius: 8px; display: flex; gap: 8px; align-items: center; font-weight: 600; font-size: 12.5px; cursor: pointer; }
-.memba-os .os-fw nav button:hover { background: var(--os-hover); }
-.memba-os .os-fw nav button[aria-current="true"] { background: var(--os-chip); color: var(--os-acc-ink); }
-.memba-os .os-fw nav svg { width: 16px; height: 16px; flex: none; }
+/* > nav, not a bare descendant: AppShell's own nav is a direct child of .os-fw,
+   and a classic page rendered inside .os-fw > section can have its own <nav>
+   (breadcrumbs, tabs, …) that must not pick up this styling. */
+.memba-os .os-fw > nav { border-right: 1px solid var(--os-line); padding: 10px 8px; display: grid; align-content: start; gap: 2px; background: var(--os-card); overflow: auto; }
+.memba-os .os-fw > nav button { border: 0; background: none; text-align: left; padding: 7px 10px; border-radius: 8px; display: flex; gap: 8px; align-items: center; font-weight: 600; font-size: 12.5px; cursor: pointer; }
+.memba-os .os-fw > nav button:hover { background: var(--os-hover); }
+.memba-os .os-fw > nav button[aria-current="true"] { background: var(--os-chip); color: var(--os-acc-ink); }
+.memba-os .os-fw > nav svg { width: 16px; height: 16px; flex: none; }
 .memba-os .os-navh { font-size: 10.5px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--os-mut); padding: 8px 10px 4px; }
 .memba-os .os-fw-badge { margin-left: auto; }
 .memba-os .os-fw > section { overflow: auto; padding: 16px 18px; min-height: 0; }
 @container os-window (max-width: 560px) {
   .memba-os .os-fw { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
-  .memba-os .os-fw nav { border-right: 0; border-bottom: 1px solid var(--os-line); display: flex; overflow-x: auto; }
+  .memba-os .os-fw > nav { border-right: 0; border-bottom: 1px solid var(--os-line); display: flex; overflow-x: auto; }
   .memba-os .os-navh { display: none; }
 }
 .memba-os .os-tw { overflow-x: auto; }
