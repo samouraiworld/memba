@@ -32,13 +32,13 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
     const [unread, setUnread] = useState(0)
     const [version, setVersion] = useState(0)
     const busy = useRef(false)
-    const reviewOpen = review !== null
+    const holdReload = review !== null || pending.length > 0
 
     // The global update notice lives above this provider. Hold its reload action
-    // from the first review paint through preflight and the Adena request.
+    // from the first review paint through preflight, Adena, and tray verification.
     useLayoutEffect(() => {
-        if (reviewOpen) return beginWalletActivity()
-    }, [reviewOpen])
+        if (holdReload) return beginWalletActivity()
+    }, [holdReload])
 
     const notify = useCallback((n: Omit<TxNotice, "id">) => {
         setNotices((list) => [{ ...n, id: ++seq }, ...list].slice(0, 30))
@@ -78,17 +78,18 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
             setReview((r) => r && { ...r, stage: "review", error: res.error })
             return
         }
-        setReview(null)
         if (res.outcome === "unknown") {
+            setReview(null)
             notify({ kind: "warn", title: `Outcome unknown · ${label}`, sub: "Check before trying again." })
             toast(`Outcome unknown: ${label}. Check before retrying.`)
             settle(req, choice, "unknown")
             return
         }
-        if (res.outcome !== "sent") return
+        if (res.outcome !== "sent") { setReview(null); return }
         const hash = res.hash
         const id = ++seq
         setPending((p) => [...p, { id, label }])
+        setReview(null)
         // Without a way to read the result back (older DAOs), "sent" is all we can say.
         const ok = req.verify ? await verifyWithRetries(() => req.verify!(choice, hash, res.result), req.verifyAttempts) : null
         setPending((p) => p.filter((x) => x.id !== id))

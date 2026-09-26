@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import type { RegisterSWOptions } from 'vite-plugin-pwa/types'
 import { withWalletActivity } from '../lib/walletActivity'
@@ -76,6 +76,35 @@ it('keeps reload disabled while an OS signature review sheet is open', () => {
     expect(pwa.update).not.toHaveBeenCalled()
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
     expect(button).toBeEnabled()
+})
+
+it('keeps reload disabled while a sent OS transaction is in the verification tray', async () => {
+    let resolveVerify!: (confirmed: boolean) => void
+    const request: SignRequest = {
+        title: 'Vote', summary: 'Review a vote', lines: () => [], label: () => 'Vote',
+        prepare: () => ({ msgs: [] }),
+        send: async (_choice, beforeSign) => { await beforeSign(); return { hash: 'sent-hash' } },
+        verify: () => new Promise<boolean>(resolve => { resolveVerify = resolve }),
+        verifyAttempts: 1,
+    }
+    function OpenReview() {
+        const signer = useSigner()
+        return <><button type="button" onClick={() => signer.sign(request)}>Open review</button>
+            <output data-testid="pending-count">{signer.pending.length}</output></>
+    }
+    const session = { status: 'member', network: { chainId: 'gnoland-1' }, openConnect: vi.fn() } as unknown as OsSession
+    render(<><UpdateNotice /><SignerProvider session={session} toast={vi.fn()}><OpenReview /></SignerProvider></>)
+    act(() => { pwa.options?.onNeedRefresh?.() })
+    const button = screen.getByRole('button', { name: 'Reload to update' })
+    fireEvent.click(screen.getByRole('button', { name: 'Open review' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in Adena' }))
+    await waitFor(() => expect(screen.getByTestId('pending-count')).toHaveTextContent('1'))
+    expect(screen.queryByRole('dialog', { name: 'Review · Vote' })).not.toBeInTheDocument()
+    expect(button).toBeDisabled()
+    fireEvent.click(button)
+    expect(pwa.update).not.toHaveBeenCalled()
+    await act(async () => { resolveVerify(true) })
+    await waitFor(() => expect(button).toBeEnabled())
 })
 
 it('does not auto-reload if another tab activates the new worker', () => {
