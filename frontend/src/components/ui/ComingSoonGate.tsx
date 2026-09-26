@@ -22,6 +22,8 @@ interface ComingSoonGateProps {
     description: string
     /** Bullet list of planned capabilities */
     features: string[]
+    /** Override the generic badge when a feature is disabled or unavailable. */
+    statusLabel?: string
     /** Optional estimated release, e.g. "Q3 2026" */
     estimatedRelease?: string
     preview?: "marketplace" | "workspace" | "reputation" | "game" | "feed"
@@ -32,6 +34,7 @@ export function ComingSoonGate({
     icon,
     description,
     features,
+    statusLabel = "Coming soon",
     estimatedRelease,
     preview = "workspace",
 }: ComingSoonGateProps) {
@@ -41,7 +44,7 @@ export function ComingSoonGate({
         <div className="coming-soon-gate" data-testid="coming-soon-gate">
             <header className="coming-soon-card">
                 <div className="coming-soon-icon" aria-hidden="true">{icon}</div>
-                <span className="coming-soon-badge">Coming soon</span>
+                <span className="coming-soon-badge">{statusLabel}</span>
                 <h1 className="coming-soon-title">{title}</h1>
                 <p className="coming-soon-desc">{description}</p>
 

@@ -4,7 +4,7 @@ import { useNetworkNav } from "../hooks/useNetworkNav"
 import { api } from "../lib/api"
 import { ErrorToast } from "../components/ui/ErrorToast"
 import { DeploymentPipeline, type DeployStep, type DeploymentResult } from "../components/ui/DeploymentPipeline"
-import { GNO_CHAIN_ID, isTokenFactoryValid } from "../lib/config"
+import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, isTokenFactoryValid } from "../lib/config"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { fetchAccountInfo } from "../lib/account"
 import {
@@ -64,22 +64,17 @@ export function CreateToken() {
             })()
     }, [auth.isAuthenticated, auth.token])
 
-    // The token factory realm isn't valid on every network (e.g. test13 carries
-    // a stale v1 tokenfactory the interrealm-v2 VM can't run — a New() call would
-    // fail with "unexpected node …:0:0"). Gate the whole page instead of letting
-    // the user submit a tx that's guaranteed to fail.
+    // A missing factory makes submission fail. Keep the implemented form behind
+    // this gate until its target realm is available on the selected network.
     if (!isTokenFactoryValid()) {
-        // The description used to promise the factory "arrives with the
-        // commerce ceremony". That ceremony ran on 2026-07-31 (topaz) and again
-        // on 2026-08-31 (pearl), so tokenfactory_v2 is allowlisted on the default
-        // network and this gate does NOT render there; it renders only on networks
-        // without the factory (e.g. Betanet), where a promise about the ceremony
-        // would already be false.
         return (
             <ComingSoonGate
                 title="Token Factory"
                 icon="🪙"
-                description="Token creation isn't available on this network yet. Switch to a network where the token factory is deployed."
+                statusLabel="Unavailable on this network"
+                description={ACTIVE_NETWORK_KEY === "mainnet"
+                    ? `Token creation is implemented in Memba, but its factory is not deployed on ${GNO_CHAIN_ID}. Creation is unavailable here.`
+                    : `Token creation is implemented in Memba, but its factory is not available on ${GNO_CHAIN_ID}. Creation is unavailable here.`}
                 features={["Create GRC20 tokens", "Mint, transfer & burn", "Built-in faucet & DAO treasury minting"]}
             />
         )

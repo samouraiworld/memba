@@ -19,7 +19,7 @@ import { useOutletContext, Link } from "react-router-dom"
 import { useNetworkPath } from "../hooks/useNetworkNav"
 import { ComingSoonGate } from "../components/ui/ComingSoonGate"
 import { NFTMedia } from "../components/nft/NFTMedia"
-import { isNftEnabled, isNftLaunchpadValid } from "../lib/config"
+import { ACTIVE_NETWORK_KEY, GNO_CHAIN_ID, isNftEnabled, isNftLaunchpadValid } from "../lib/config"
 import { NFT_COLLECTIONS_PATH, PLATFORM_FEE_BPS_V3 } from "../lib/nftConfig"
 import {
     buildCreateCollectionMsg,
@@ -41,13 +41,9 @@ export function CreateCollectionLaunchpad() {
             <ComingSoonGate
                 title="Launch a collection"
                 icon="🖼️"
-                description="Launch an NFT collection on Memba — instantly tradable on the marketplace, with enforced creator royalties."
-                features={[
-                    "Open, permissionless collection launch",
-                    "Public + allowlist mint phases",
-                    "Enforced on-chain royalties on every sale",
-                    "Centrally tradable — no separate realm to deploy",
-                ]}
+                statusLabel="Not enabled in this build"
+                description="The NFT launchpad is implemented in Memba but disabled in this build. Collection creation is unavailable here."
+                features={[]}
             />
         )
     }
@@ -105,7 +101,7 @@ function CreateCollectionContent() {
             : !symbol.trim()
               ? "Add a symbol."
               : !launchpadLive
-                ? "The launchpad isn't live on this network yet."
+                ? "The collection registry is unavailable on this network."
                 : ""
 
     const onSubmit = useCallback(async () => {
@@ -175,8 +171,7 @@ function CreateCollectionContent() {
 
             {!launchpadLive && (
                 <div className="lp-warning" role="status">
-                    The launchpad registry isn't live on this network yet. You can prepare your collection below;
-                    submission unlocks once <code>memba_collections</code> is deployed.
+                    The launchpad is implemented in Memba, but its collection registry is {ACTIVE_NETWORK_KEY === "mainnet" ? "not deployed" : "not available"} on {GNO_CHAIN_ID}. You can prepare your collection below; submission stays unavailable here.
                 </div>
             )}
 

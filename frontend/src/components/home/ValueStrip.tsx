@@ -31,7 +31,7 @@ export function ValueStrip({ networkKey }: ValueStripProps) {
     const canCreateToken = isRealmValidOn(networkKey, GRC20_FACTORY_PATH)
     const cards: ValueCard[] = [
         { key: "vote", title: "Explore DAOs", sub: "read proposals and membership rules", href: `/${networkKey}/dao`, Icon: UsersThree },
-        { key: "launch", title: canCreateToken ? "Launch a token" : "Token launchpad", sub: canCreateToken ? "review the token creation flow" : "not available on this network", href: `/${networkKey}/tokens`, Icon: Rocket },
+        { key: "launch", title: canCreateToken ? "Launch a token" : "Token launchpad", sub: canCreateToken ? "review the token creation flow" : "Memba token creation unavailable here", href: `/${networkKey}/tokens`, Icon: Rocket },
         { key: "track", title: "Track the network", sub: "validators, blocks, activity", href: `/${networkKey}/validators`, Icon: Pulse },
         // Includes the editorial directory where on-chain listings are unavailable.
         ...(isAppStoreEnabled()

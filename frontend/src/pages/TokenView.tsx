@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query"
 import { useParams, useOutletContext } from "react-router-dom"
 import { useNetworkNav } from "../hooks/useNetworkNav"
 import { ArrowsClockwise } from "@phosphor-icons/react"
-import { GNO_RPC_URL, GNO_CHAIN_ID, isTokenFactoryValid } from "../lib/config"
+import { ACTIVE_NETWORK_KEY, GNO_RPC_URL, GNO_CHAIN_ID, isTokenFactoryValid } from "../lib/config"
 import {
     getTokenInfo, getTokenBalance, buildTransferMsg, buildFaucetMsg,
     buildMintMsgs, buildBurnMsg, calculateFee,
@@ -128,9 +128,9 @@ export function TokenView() {
     if (!factoryAvailable) {
         return (
             <div className="animate-fade-in tv-empty" data-testid="token-view-unavailable">
-                <h2 className="tv-empty__title">Not available on this network</h2>
+                <h2 className="tv-empty__title">Memba token unavailable here</h2>
                 <p className="tv-empty__hint">
-                    Memba&rsquo;s token factory is not deployed on {GNO_CHAIN_ID}, so its tokens can&rsquo;t be viewed or traded here.
+                    Memba&rsquo;s token factory is implemented, but {ACTIVE_NETWORK_KEY === "mainnet" ? "not deployed" : "not available"} on {GNO_CHAIN_ID}. Its tokens can&rsquo;t be viewed or traded here.
                 </p>
                 <div className="tv-empty__actions">
                     <button onClick={() => navigate("/tokens")} className="tv-back-btn">← Back to Tokens</button>

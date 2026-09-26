@@ -51,10 +51,10 @@ export function TokenDashboard() {
             <button onClick={() => navigate("/")} className="token-back-btn">← Home</button>
             <h2 className="token-title">Token launchpad</h2>
             <div className="k-card token-empty">
-                <h3 className="token-empty-title">Not available on this network</h3>
+                <h3 className="token-empty-title">Token creation unavailable here</h3>
                 <p className="token-empty-desc">
-                    Memba’s token launchpad is not available on {GNO_CHAIN_ID}.
-                    This page does not list all tokens on the network.
+                    Memba’s token launchpad is implemented, but its factory is {ACTIVE_NETWORK_KEY === "mainnet" ? "not deployed" : "not available"} on {GNO_CHAIN_ID}.
+                    This page lists Memba factory tokens only, not every token on the network.
                 </p>
             </div>
         </div>

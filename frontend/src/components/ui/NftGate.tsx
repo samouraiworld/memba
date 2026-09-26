@@ -22,13 +22,9 @@ export function NftGate({ children }: { children: ReactNode }) {
                 preview="marketplace"
                 title="NFT Marketplace"
                 icon="🎨"
-                description="Mint, list, and trade GRC721 NFT collections on gno.land."
-                features={[
-                    "Launch a collection from the Creator Studio",
-                    "Public & allowlist minting with on-chain royalties",
-                    "List, buy, and make offers through the trading engine",
-                    "Verified-collection badges and activity feeds",
-                ]}
+                statusLabel="Not enabled in this build"
+                description="NFT creation and trading screens are implemented in Memba but disabled in this build. Collection and market actions are unavailable here."
+                features={[]}
             />
         )
     }

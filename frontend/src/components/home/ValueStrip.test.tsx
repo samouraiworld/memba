@@ -19,7 +19,7 @@ describe("ValueStrip", () => {
 
     it("labels the unavailable token launchpad on mainnet", () => {
         renderIt("mainnet")
-        expect(screen.getByRole("link", { name: /token launchpad.*not available/i })).toHaveAttribute("href", "/mainnet/tokens")
+        expect(screen.getByRole("link", { name: /token launchpad.*Memba token creation unavailable here/i })).toHaveAttribute("href", "/mainnet/tokens")
         expect(screen.queryByText(/launch a token/i)).not.toBeInTheDocument()
     })
 

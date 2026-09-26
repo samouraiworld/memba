@@ -74,7 +74,7 @@ export function LaunchpadDoor({ networkKey }: LaunchpadDoorProps) {
                             {canCreateToken ? "Launch a token" : "Token launchpad"}
                         </span>
                         <span className="launchpad-door__sub">
-                            {canCreateToken ? "Review token creation on this network" : "Not available on this network"}
+                            {canCreateToken ? "Review token creation on this network" : "Memba token creation unavailable here"}
                         </span>
                     </>
                 )}
