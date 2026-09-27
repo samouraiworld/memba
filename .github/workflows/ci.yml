@@ -260,8 +260,7 @@ jobs:
   # Full desktop and OS Chromium suites run in parallel with the Node jobs.
   # Both #1340 and #1341 reached the former 20-minute job limit while OS cases
   # were still passing; allow the enlarged suite to finish before judging CI.
-  # OWNER ACTION: add "Frontend E2E (chromium)" to the branch-protection
-  # required checks so E2E keeps gating merges (it left the Node-22 job).
+  # Main branch protection requires this exact check name.
   frontend-e2e-full:
     name: Frontend E2E (chromium)
     runs-on: ubuntu-latest
