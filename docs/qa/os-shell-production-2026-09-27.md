@@ -34,14 +34,16 @@ Ten independent perspectives exercised the deployed OS shell in isolated browser
 | P2 | More than twelve distinct windows silently truncated during URL or session round-trip. | The shared URL and saved layout now use a consistent budget of 32 background windows plus a front window; both keep the most recent visible windows at that bound. |
 | P3 | An invalid OS path changed to `/os` while its Not found window remained. | Keep the invalid path in the address bar until the window closes, so the typo can be corrected or reloaded. |
 | P3 | Minimise all and Search Escape left focus on the page. | Menu and launcher return focus to the invoking control when their content disappears. |
+| P2 | After native Settings merged, its local reset omitted the new account-scoped window layouts. | Reset now clears scoped layouts across accounts and networks while retaining drafts, recipients and send locks. |
 
 ## Verification
 
 - Local targeted unit suite: 107 signing and lock tests passed, with the remaining window/URL/DAO tests also passing. Cases include owner isolation, lock persistence, window stacking, URL round-trip, a deferred signature after an account switch, overlapping signing requests, and refusal after a possible prior wallet attempt.
 - Local Playwright shell suite: 24 passed across Chromium and Firefox. Checks include modal focus, lock reload and cancelled connection, saved desktop URL restoration, locked deep links, phone Home and Back, short landscape, menu arrows, keyboard geometry, and invalid links.
 - TypeScript build and lint passed. The full repository CI suite and deploy confirmation are PR gates; the branch has not been described as deployed.
+- After rebasing onto native Settings PR #1344, 84 of 86 combined Chromium and Firefox browser checks passed; the two failures exposed the scoped reset gap above. Its focused browser rerun passed in both browsers, along with the reset unit test and TypeScript build.
 - The full local unit run reached 7,102 tests. Three shell-related fixtures were updated and passed on focused rerun. The local Gno toolchain probe still fails on an unavailable `chain/runtime/unsafe` import; that test and its toolchain code are outside this branch. CI will establish the result in the pinned environment.
 
 ## Coordination and limits
 
-The active native Settings branch owns the OS appearance controls and addresses the production theme mismatch. This shell PR only changes its menu wording to “Open Settings…” and does not edit that branch. Feed/Live and Tokens work in other sessions is likewise outside this PR. The 33-window persistence budget, short-landscape Welcome scroll affordance, and expected Live ticker polling are documented tradeoffs. No on-chain transaction was made during production QA.
+Native Settings PR #1344 merged while this shell PR was in review. This branch rebased on that change and resolved its reset integration gap. Feed/Live and Tokens work in other sessions is outside this PR. The 33-window persistence budget, short-landscape Welcome scroll affordance, and expected Live ticker polling are documented tradeoffs. No on-chain transaction was made during production QA.

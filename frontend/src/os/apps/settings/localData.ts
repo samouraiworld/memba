@@ -6,7 +6,7 @@ export const RESET_EXACT_KEYS = [
     "memba_os_theme", "memba_os_wallpaper", "memba_os_icon_size",
 ] as const
 
-const RESET_PREFIXES = ["memba_os_desk:"] as const
+const RESET_PREFIXES = ["memba_os_desk:", "memba_os_windows:"] as const
 
 export function resetLocalUiData(storage: Storage): number {
     const keys = new Set<string>(RESET_EXACT_KEYS)

@@ -27,6 +27,7 @@ Full changelogs are split by version range for easier navigation:
 
 - Keep lock and wallet dialogs keyboard-contained; restore focus after menus and search, support keyboard window positioning, and fit short-landscape phones.
 - Partition saved windows and signing state by member and network, preserve background page state and navigation, and prevent stale layouts and high windows from covering dialogs.
+- Clear account-scoped window layouts when Settings resets local UI data, while retaining drafts and send locks.
 - Record the cross-perspective production QA findings and feature-by-feature audit queue.
 
 ### Memba OS: bounded guest access (2026-09-27)

@@ -6,7 +6,7 @@ Started 27 September 2026. Each feature gets its own production baseline, cross-
 |---|---|
 | OS shell: boot, lock, desktop, phone, launcher, windows, URL/session, connect, notifications | First audit in `fix/os-shell-production-qa` |
 | Terminal and Learn | Production QA merged in PR #1343; earlier combined release |
-| Settings | Native Settings work active in a separate worktree; audit after its merge |
+| Settings | Native Settings merged in PR #1344; shell reset integration covered in PR #1345; dedicated audit queued |
 | Feed and Live | Active Feed/Activities session; audit after its merge |
 | Tokens | Active Tokens session; audit after its merge and mainnet availability check |
 | Wallet and Send | Queued |
