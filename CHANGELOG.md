@@ -34,6 +34,12 @@ Full changelogs are split by version range for easier navigation:
 - Clear account-scoped window layouts when Settings resets local UI data, while retaining drafts and send locks.
 - Record the cross-perspective production QA findings and feature-by-feature audit queue.
 
+### Memba OS: Settings production QA (2026-09-27)
+
+- Keep stored gas defaults within supported call and deploy limits, with clear validation in OS and Classic Settings.
+- Make reset clear the live layout and chain-scoped name caches, contain keyboard focus, and keep its actions reachable on small screens.
+- Correct Settings section navigation, cross-tab gas updates, network switching and feature availability copy.
+
 ### Memba OS: Wallet and Send production QA (2026-09-27)
 
 - Keep balances tied to the active wallet and mark unavailable RPC results as unknown, so Send cannot use stale funds.

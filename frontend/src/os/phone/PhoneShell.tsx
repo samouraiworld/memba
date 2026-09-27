@@ -69,8 +69,8 @@ export function PhoneShell(p: PhoneShellProps) {
                         <div key={n.id} className={`os-nc os-nc-${n.kind}`}><span className="os-grow"><b>{n.title}</b><span className="os-sub os-block">{n.sub}</span></span></div>
                     ))}
                     {!member
-                        ? <div className="os-gate"><span>Connect for DAO, multisig and prize alerts.</span><button type="button" className="os-btn" onClick={session.openConnect}>Connect</button></div>
-                        : signer.notices.length === 0 && <p className="os-sub">You're all caught up.</p>}
+                        ? <div className="os-gate"><span>Connect to sign. Signing and transaction status appears here during this session.</span><button type="button" className="os-btn" onClick={session.openConnect}>Connect</button></div>
+                        : signer.notices.length === 0 && <p className="os-sub">No signing activity in this session.</p>}
                 </div>
             </Sheet>
         )

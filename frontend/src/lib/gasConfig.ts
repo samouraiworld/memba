@@ -20,9 +20,30 @@ export interface GasConfig {
     deployWanted: number
 }
 
-const DEFAULT_GAS_WANTED = 10_000_000
-const DEFAULT_GAS_FEE = 1_000_000
+export const DEFAULT_GAS_WANTED = 10_000_000
+export const DEFAULT_GAS_FEE = 1_000_000
 const DEPLOY_MULTIPLIER = 5
+// A deploy uses five times the regular limit. Its 500M ceiling is enforced by
+// the broadcaster, so the saved regular default must stay within 100M.
+export const MAX_DEFAULT_GAS_WANTED = 100_000_000
+// This flat default is paid in ugnot (10 GNOT maximum). Explicit operation
+// fees can have different budgets and are validated by their own callers.
+export const MAX_DEFAULT_GAS_FEE_UGNOT = 10_000_000
+
+export function validDefaultGasWanted(value: unknown): value is number {
+    return Number.isSafeInteger(value) && (value as number) > 0 && (value as number) <= MAX_DEFAULT_GAS_WANTED
+}
+
+export function validDefaultGasFee(value: unknown): value is number {
+    return Number.isSafeInteger(value) && (value as number) > 0 && (value as number) <= MAX_DEFAULT_GAS_FEE_UGNOT
+}
+
+/** Reject partial numbers, decimals, signs, and exponential notation from inputs. */
+export function parseDefaultGasInput(raw: string, max: number): number | null {
+    if (!/^\d+$/.test(raw)) return null
+    const value = Number(raw)
+    return Number.isSafeInteger(value) && value > 0 && value <= max ? value : null
+}
 
 /**
  * Read gas configuration from user settings (localStorage).
@@ -33,10 +54,10 @@ export function getGasConfig(): GasConfig {
         const raw = localStorage.getItem(SETTINGS_KEY)
         if (raw) {
             const parsed = JSON.parse(raw)
-            const wanted = typeof parsed.gasWanted === "number" && parsed.gasWanted > 0
+            const wanted = validDefaultGasWanted(parsed.gasWanted)
                 ? parsed.gasWanted
                 : DEFAULT_GAS_WANTED
-            const fee = typeof parsed.gasFee === "number" && parsed.gasFee > 0
+            const fee = validDefaultGasFee(parsed.gasFee)
                 ? parsed.gasFee
                 : DEFAULT_GAS_FEE
             return { fee, wanted, deployWanted: wanted * DEPLOY_MULTIPLIER }

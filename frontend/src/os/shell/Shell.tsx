@@ -43,6 +43,7 @@ const MENU_BAR = 30
  * windows placed while it shows start below it, so it never covers their title bar. */
 const BANNER_ROOM = 52
 const PHONE_LAYOUT_QUERY = "(max-width: 768px), (max-width: 1100px) and (max-height: 500px)"
+const LOCAL_UI_RESET_REVISION_KEY = "memba_os_ui_reset_revision"
 
 function subscribePhoneLayout(onChange: () => void): () => void {
     const query = window.matchMedia(PHONE_LAYOUT_QUERY)
@@ -174,6 +175,7 @@ export function Shell() {
     const previousStorageOwner = useRef(storageOwner)
     const skipSaveFor = useRef<readonly OsWindow[] | null>(null)
     const skipNextOwnerWrite = useRef<string | null>(null)
+    const resetLayoutPending = useRef(false)
 
     useLayoutEffect(() => {
         const previous = previousStorageOwner.current
@@ -261,6 +263,10 @@ export function Shell() {
         const skipOwnerWrite = skipNextOwnerWrite.current === storageOwner
         if (skipOwnerWrite) skipNextOwnerWrite.current = null
         let skipStorageWrite = locked || skipLockWrite.current || skipOwnerWrite
+        if (resetLayoutPending.current) {
+            if (win.wins.every((w) => w.app === "settings")) skipStorageWrite = true
+            else resetLayoutPending.current = false
+        }
         if (!initialSaveChecked.current) {
             initialSaveChecked.current = true
             try {
@@ -295,7 +301,35 @@ export function Shell() {
     const modalBlocked = locked || Boolean(session.stage)
     const signerOwner = member ? `${session.network.chainId}:${session.address}` : "guest"
     const deskOwner = session.status === "resuming" ? undefined : member ? session.address : null
-    const deskItems = useDesk(deskOwner)
+    const deskItems = useDesk(deskOwner, session.network.key)
+    const { resetFromStorage: resetDeskFromStorage } = deskItems
+    // Reset is dispatched by Settings after the saved UI keys are removed. Keep
+    // that window on screen, and leave the cleared layout absent until the user
+    // opens another window. The revision notifies other open OS tabs; their
+    // storage event runs the same cleanup without broadcasting it again.
+    useEffect(() => {
+        const applyReset = () => {
+            resetLayoutPending.current = true
+            resetDeskFromStorage()
+            const settings = win.wins.find((w) => w.app === "settings")
+            dispatch({ type: "restore", wins: settings ? [{ ...settings, min: false }] : [] })
+        }
+        const onLocalReset = () => {
+            applyReset()
+            try {
+                localStorage.setItem(LOCAL_UI_RESET_REVISION_KEY, `${Date.now()}:${Math.random()}`)
+            } catch { /* local reset still applies if storage refuses the notification */ }
+        }
+        const onStorage = (event: StorageEvent) => {
+            if (event.key === LOCAL_UI_RESET_REVISION_KEY && event.newValue !== null) applyReset()
+        }
+        window.addEventListener("memba-os-local-ui-reset", onLocalReset)
+        window.addEventListener("storage", onStorage)
+        return () => {
+            window.removeEventListener("memba-os-local-ui-reset", onLocalReset)
+            window.removeEventListener("storage", onStorage)
+        }
+    }, [resetDeskFromStorage, dispatch, win.wins])
 
     const unlock = () => {
         skipLockWrite.current = false
@@ -334,6 +368,7 @@ export function Shell() {
     }, [])
     useEffect(() => {
         const onKey = (e: KeyboardEvent) => {
+            if (document.querySelector('[aria-modal="true"]')) return
             // ⌘K / Ctrl+K opens search, from anywhere (D13).
             if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k" && !locked && !session.stage) {
                 e.preventDefault()

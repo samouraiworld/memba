@@ -243,8 +243,8 @@ export function MenuBar(p: MenuBarProps) {
                             </div>
                         ))}
                         {guest
-                            ? <div className="os-gate"><span>Connect for DAO, multisig and prize alerts.</span><button type="button" className="os-btn" onClick={run(session.openConnect)}>Connect</button></div>
-                            : signer.notices.length === 0 && <p className="os-sub os-pad">You're all caught up. Votes, signature requests and replies will show here.</p>}
+                            ? <div className="os-gate"><span>Connect to sign. Signing and transaction status appears here during this session.</span><button type="button" className="os-btn" onClick={run(session.openConnect)}>Connect</button></div>
+                            : signer.notices.length === 0 && <p className="os-sub os-pad">No signing activity in this session.</p>}
                     </div>
                 </div>
             )

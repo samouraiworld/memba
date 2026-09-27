@@ -20,6 +20,10 @@ import { useNetwork } from "../hooks/useNetwork"
 import { Globe, FolderOpen, GasPump, User, Wrench, Gear, SunDim } from "@phosphor-icons/react"
 import { ThemeSelect } from "../components/ui/ThemeSelect"
 import { trackEvent } from "../lib/analytics"
+import {
+    getGasConfig, MAX_DEFAULT_GAS_WANTED, MAX_DEFAULT_GAS_FEE_UGNOT,
+    parseDefaultGasInput,
+} from "../lib/gasConfig"
 
 const SETTINGS_KEY = "memba_settings"
 
@@ -29,21 +33,15 @@ interface UserSettings {
 }
 
 function loadSettings(): UserSettings {
-    try {
-        const raw = localStorage.getItem(SETTINGS_KEY)
-        if (raw) return { ...defaults(), ...JSON.parse(raw) }
-    } catch { /* ignore */ }
-    return defaults()
-}
-
-function defaults(): UserSettings {
-    return { gasWanted: 10000000, gasFee: 1000000 }
+    const gas = getGasConfig()
+    return { gasWanted: gas.wanted, gasFee: gas.fee }
 }
 
 function saveSettings(s: UserSettings) {
     try {
         localStorage.setItem(SETTINGS_KEY, JSON.stringify(s))
-    } catch { /* quota */ }
+        return true
+    } catch { return false }
 }
 
 // ── UX-L2: Collapsible section component ──────────────────────
@@ -98,6 +96,11 @@ function Section({ title, icon, defaultOpen = false, children }: {
 export function Settings() {
     const navigate = useNetworkNav()
     const [settings, setSettings] = useState(loadSettings)
+    const [gasDraft, setGasDraft] = useState(() => ({
+        gasWanted: String(settings.gasWanted), gasFee: String(settings.gasFee),
+    }))
+    const [gasTouched, setGasTouched] = useState({ gasWanted: false, gasFee: false })
+    const [gasConflict, setGasConflict] = useState({ gasWanted: false, gasFee: false })
     // The THIRD network picker (after TopBar and MobileTabBar). It listed the full
     // NETWORKS map, so it kept offering Betanet after `hidden` landed — and it
     // compared a network KEY against GNO_CHAIN_ID (a chain ID: "topaz" vs
@@ -105,10 +108,87 @@ export function Settings() {
     // same helpers as the switcher.
     const { networkKey, switchNetwork } = useNetwork()
     const [saved, setSaved] = useState(false)
+    const [saveError, setSaveError] = useState(false)
 
     useEffect(() => {
-        saveSettings(settings)
-    }, [settings])
+        const refreshFromStorage = (event: StorageEvent) => {
+            if (event.key !== SETTINGS_KEY && event.key !== null) return
+            const latest = loadSettings()
+            const wantedDirty = gasDraft.gasWanted !== String(settings.gasWanted)
+            const feeDirty = gasDraft.gasFee !== String(settings.gasFee)
+            setGasConflict(current => ({
+                gasWanted: current.gasWanted || (wantedDirty && latest.gasWanted !== settings.gasWanted),
+                gasFee: current.gasFee || (feeDirty && latest.gasFee !== settings.gasFee),
+            }))
+            setGasDraft(current => ({
+                gasWanted: wantedDirty ? current.gasWanted : String(latest.gasWanted),
+                gasFee: feeDirty ? current.gasFee : String(latest.gasFee),
+            }))
+            setSettings(latest)
+            setSaved(false)
+        }
+        window.addEventListener("storage", refreshFromStorage)
+        return () => window.removeEventListener("storage", refreshFromStorage)
+    }, [gasDraft, settings])
+
+    const commitGasDraft = (field: keyof UserSettings, overrideConflict = false) => {
+        setGasTouched(current => ({ ...current, [field]: true }))
+        const max = field === "gasWanted" ? MAX_DEFAULT_GAS_WANTED : MAX_DEFAULT_GAS_FEE_UGNOT
+        const value = parseDefaultGasInput(gasDraft[field], max)
+        if (value === null) return
+
+        // Read again at commit time: another tab may have written since the
+        // last storage event. Preserve its other field and refuse to silently
+        // replace an edit to this same field.
+        const latest = loadSettings()
+        const dirty = gasDraft[field] !== String(settings[field])
+        const other: keyof UserSettings = field === "gasWanted" ? "gasFee" : "gasWanted"
+        if (!dirty && latest[field] !== settings[field]) {
+            // The field was untouched locally. A delayed storage event must
+            // never turn a blur into a write of the stale displayed value.
+            setGasDraft(current => ({
+                ...current, [field]: String(latest[field]),
+                [other]: current[other] === String(settings[other]) ? String(latest[other]) : current[other],
+            }))
+            setSettings(latest)
+            setSaved(false)
+            return
+        }
+        if (!overrideConflict && (gasConflict[field] || (dirty && latest[field] !== settings[field]))) {
+            setGasDraft(current => ({ ...current, [other]: current[other] === String(settings[other]) ? String(latest[other]) : current[other] }))
+            setSettings(latest)
+            setGasConflict(current => ({ ...current, [field]: true }))
+            setSaved(false)
+            return
+        }
+
+        const next = { ...latest, [field]: value }
+        if (value !== latest[field] && !saveSettings(next)) {
+            setSaveError(true)
+            setSaved(false)
+            return
+        }
+        setGasDraft(current => ({
+            ...current, [field]: String(value),
+            [other]: current[other] === String(settings[other]) ? String(latest[other]) : current[other],
+        }))
+        setSettings(next)
+        setGasConflict(current => ({ ...current, [field]: false }))
+        setSaveError(false)
+        setSaved(value !== latest[field])
+    }
+
+    const restoreLatestGasValue = (field: keyof UserSettings) => {
+        const latest = loadSettings()
+        setSettings(latest)
+        setGasDraft(current => ({ ...current, [field]: String(latest[field]) }))
+        setGasConflict(current => ({ ...current, [field]: false }))
+        setGasTouched(current => ({ ...current, [field]: false }))
+        setSaved(false)
+    }
+
+    const wantedInvalid = gasTouched.gasWanted && parseDefaultGasInput(gasDraft.gasWanted, MAX_DEFAULT_GAS_WANTED) === null
+    const feeInvalid = gasTouched.gasFee && parseDefaultGasInput(gasDraft.gasFee, MAX_DEFAULT_GAS_FEE_UGNOT) === null
 
     const handleNetworkChange = (key: string) => {
         // No local same-network guard: switchNetwork owns that rule now (it was
@@ -161,6 +241,9 @@ export function Settings() {
                     ✓ Settings saved
                 </div>
             )}
+            {saveError && (
+                <div role="alert" style={{ color: "var(--color-danger)" }}>Could not save gas defaults. Check browser storage and try again.</div>
+            )}
 
             {/* Network — open by default */}
             <Section title="Network" icon={<Globe size={18} />} defaultOpen>
@@ -211,24 +294,54 @@ export function Settings() {
             {/* Gas Defaults */}
             <Section title="Gas Defaults" icon={<GasPump size={18} />}>
                 <div style={{ paddingTop: 8 }}>
-                    <label style={labelStyle}>Gas Wanted</label>
+                    <label htmlFor="settings-gas-wanted" style={labelStyle}>Gas Wanted</label>
                     <input
                         id="settings-gas-wanted"
-                        type="number"
-                        value={settings.gasWanted}
-                        onChange={e => setSettings(s => ({ ...s, gasWanted: parseInt(e.target.value, 10) || 10000000 }))}
+                        type="text"
+                        inputMode="numeric"
+                        value={gasDraft.gasWanted}
+                        onChange={e => { setGasDraft(s => ({ ...s, gasWanted: e.target.value })); setSaved(false); setSaveError(false) }}
+                        onBlur={() => commitGasDraft("gasWanted")}
+                        onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur() }}
+                        aria-invalid={wantedInvalid}
+                        aria-describedby="settings-gas-wanted-help"
                         style={inputStyle}
                     />
+                    <small id="settings-gas-wanted-help" style={{ color: wantedInvalid ? "var(--color-danger)" : "var(--color-text-secondary)" }}>
+                        {wantedInvalid ? "Enter a whole number from 1 to 100,000,000." : "1–100,000,000 gas; deploys use 5× this limit."}
+                    </small>
+                    {gasConflict.gasWanted && (
+                        <div role="alert" style={{ color: "var(--color-danger)" }}>
+                            Gas Wanted changed in another tab. Choose which value to keep.
+                            <button type="button" onClick={() => restoreLatestGasValue("gasWanted")}>Use latest value</button>
+                            <button type="button" onClick={() => commitGasDraft("gasWanted", true)}>Save my value</button>
+                        </div>
+                    )}
                 </div>
                 <div>
-                    <label style={labelStyle}>Gas Fee (ugnot)</label>
+                    <label htmlFor="settings-gas-fee" style={labelStyle}>Gas Fee (ugnot)</label>
                     <input
                         id="settings-gas-fee"
-                        type="number"
-                        value={settings.gasFee}
-                        onChange={e => setSettings(s => ({ ...s, gasFee: parseInt(e.target.value, 10) || 1000000 }))}
+                        type="text"
+                        inputMode="numeric"
+                        value={gasDraft.gasFee}
+                        onChange={e => { setGasDraft(s => ({ ...s, gasFee: e.target.value })); setSaved(false); setSaveError(false) }}
+                        onBlur={() => commitGasDraft("gasFee")}
+                        onKeyDown={e => { if (e.key === "Enter") e.currentTarget.blur() }}
+                        aria-invalid={feeInvalid}
+                        aria-describedby="settings-gas-fee-help"
                         style={inputStyle}
                     />
+                    <small id="settings-gas-fee-help" style={{ color: feeInvalid ? "var(--color-danger)" : "var(--color-text-secondary)" }}>
+                        {feeInvalid ? "Enter a whole number from 1 to 10,000,000 ugnot." : "1–10,000,000 ugnot (up to 10 GNOT)."}
+                    </small>
+                    {gasConflict.gasFee && (
+                        <div role="alert" style={{ color: "var(--color-danger)" }}>
+                            Gas Fee changed in another tab. Choose which value to keep.
+                            <button type="button" onClick={() => restoreLatestGasValue("gasFee")}>Use latest value</button>
+                            <button type="button" onClick={() => commitGasDraft("gasFee", true)}>Save my value</button>
+                        </div>
+                    )}
                 </div>
             </Section>
 
