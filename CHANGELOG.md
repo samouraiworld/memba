@@ -46,6 +46,13 @@ Full changelogs are split by version range for easier navigation:
 - Hold each transfer's recovery record across tabs until its transaction is confirmed, and show a direct status check for submitted or uncertain outcomes.
 - Recheck the network fee before signing, reject ambiguous amounts, clarify recipient storage and copy actions, and improve form accessibility and mobile wallet guidance.
 
+### Memba OS: DAOs production QA (2026-09-28)
+
+- Read version-2 votes across pages and release verified vote locks; keep confirmed proposal receipts until the member starts another proposal, and keep proposal availability current as deadlines pass.
+- Retain proposal recovery when a wallet returns only a hash, instead of identifying a different same-title proposal as this transaction's result.
+- Clarify DAO capabilities and proposal errors, avoid unreliable list tallies, and constrain chain-supplied profile links.
+- Make DAO tabs, wizard choices and member editing usable by keyboard and in narrow windows; offer draft discard and accurate storage feedback.
+
 ### Memba OS: bounded guest access (2026-09-27)
 
 - Keep public App Store browsing open while requiring a signed-in OS member session for publisher and curator windows. Check that session again immediately before any OS wallet broadcast, including actions in public classic pages, and stop queued signing reviews if it ends. Describe guest access without promising private account reads.

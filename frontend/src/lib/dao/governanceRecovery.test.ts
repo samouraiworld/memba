@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { beginGovernanceRequest, clearGovernanceMemory, clearGovernanceReceipt, governanceRequestActive, readGovernanceReceipt, saveGovernanceReceipt } from './governanceRecovery'
+import { beginGovernanceRequest, clearGovernanceMemory, clearGovernanceReceipt, clearProposalDraft, governanceRequestActive, readGovernanceReceipt, readProposalDraft, saveGovernanceReceipt, saveProposalDraft } from './governanceRecovery'
 const scope = { chainId: 'gnoland-1', realmPath: 'gno.land/r/alice/dao', caller: 'alice', operation: 'vote:1' }
 beforeEach(() => { clearGovernanceMemory(); localStorage.clear(); vi.restoreAllMocks() })
 describe('governance recovery', () => {
@@ -26,5 +26,13 @@ describe('governance recovery', () => {
         expect(readGovernanceReceipt(scope)).toBeNull()
         expect(() => saveGovernanceReceipt(scope, { phase: 'submitted', hash: 'knownhash', label: 'Vote YES' })).toThrow('quota')
         expect(readGovernanceReceipt(scope)?.hash).toBe('knownhash')
+    })
+    it('reports a draft removal failure while leaving the persisted draft available', () => {
+        const draftScope = { ...scope, operation: 'proposal-draft:test' }
+        const draft = { kind: 'text' as const, title: 'A proposal', description: '', category: 'governance', target: '', powerText: '', roles: null }
+        saveProposalDraft(draftScope, draft)
+        vi.spyOn(localStorage, 'removeItem').mockImplementation(() => { throw new Error('storage refused') })
+        expect(clearProposalDraft(draftScope)).toBe(false)
+        expect(readProposalDraft(draftScope)).toEqual(draft)
     })
 })

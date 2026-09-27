@@ -10,7 +10,7 @@ Started 27 September 2026. Each feature gets its own production baseline, cross-
 | Feed and Live | Active Feed/Activities session; audit after its merge |
 | Tokens | Active Tokens session; audit after its merge and mainnet availability check |
 | Wallet and Send | Ten-perspective audit and focused fixes in `fix/os-wallet-production-qa`, stacked after shell PR #1345 |
-| DAOs: list, folder, proposal, voting, creation | Queued |
+| DAOs: list, folder, proposal, voting, creation | Ten-perspective production QA and focused fixes in `fix/os-daos-production-qa`, stacked after Settings PR #1350 |
 | Multisig: accounts, proposals, signing | Queued |
 | Market | Queued |
 | NFT | Queued |

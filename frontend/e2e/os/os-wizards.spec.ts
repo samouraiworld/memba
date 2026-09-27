@@ -30,6 +30,8 @@ const V2_READS: Record<string, string> = {
     'GetMembersJSON(0, 50)': wire({ total: 2, offset: 0, members: [{ address: ALICE, power: 2, roles: ['lead'] }, { address: BOB, power: 1, roles: [] }] }),
     'GetProposalsJSON(0, 50)': wire({ proposals: [V2_PROPOSAL], next_before: 0 }),
     'GetProposalsJSON(0, 20)': wire({ proposals: [V2_PROPOSAL], next_before: 0 }),
+    'GetProposalJSON(1)': wire({ ...V2_PROPOSAL, description: 'A plan for the DAO.' }),
+    'GetProposalJSON(2)': wire({ ...V2_PROPOSAL, id: 2, title: 'Apply the roadmap', status: 'ACCEPTED', accepted_at: NOW - 1800, executable_at: NOW - 900, execute_by: NOW + 86400, description: 'Ready to execute.' }),
 }
 
 // ── The Create DAO path: absent until Adena signs, then live ──
@@ -73,7 +75,12 @@ test.describe('Memba OS wizards', () => {
         await member(page)
         await fulfillOnchainReads(page, ({ method, path, arg }) => {
             if (method === 'status') return mockAppChainStatus('gnoland-1')
-            if (path === 'vm/qeval' && arg.startsWith(`${V2_DAO}.`)) return V2_READS[arg.slice(V2_DAO.length + 1)] ?? null
+            if (path === 'vm/qeval' && arg.startsWith(`${V2_DAO}.`)) {
+                const call = arg.slice(V2_DAO.length + 1)
+                if (call === `HasVoted(1, address("${ALICE}"))`) return signed ? '(true bool)' : '(false bool)'
+                if (call === 'GetVotesJSON(1, 0, 50)') return wire({ total: signed ? 1 : 0, offset: 0, votes: signed ? [{ voter: ALICE, choice: 'NO', power: 2 }] : [] })
+                return V2_READS[call] ?? null
+            }
             if (path === 'vm/qeval' && arg.includes('IsAuthorizedAddressForNamespace')) return arg.includes(ALICE) ? '(true bool)' : '(false bool)'
             if (path === 'params/vm:p:code_submission_policy') return '"permissionless"'
             if (path === 'vm/qpkgmeta_json' && arg === NEW_DAO_PATH) {
@@ -88,6 +95,53 @@ test.describe('Memba OS wizards', () => {
             a.DoContract = async (tx) => { await (window as unknown as { __signed: () => Promise<void> }).__signed(); return send(tx) }
         })
         signed = false
+    })
+
+    test('a 320px Create DAO member editor keeps the address usable', async ({ page }) => {
+        await page.setViewportSize({ width: 320, height: 568 })
+        await page.goto(`${OS_ON}/os/daos/new`)
+        const wiz = win(page, 'Create a DAO')
+        await wiz.getByLabel('Name').fill('Small DAO')
+        await wiz.getByRole('button', { name: 'Continue' }).click()
+        const address = wiz.getByLabel('Member 1 address')
+        await expect(address).toBeVisible()
+        const width = await address.evaluate((element) => element.getBoundingClientRect().width)
+        expect(width).toBeGreaterThan(180)
+        const overflow = await wiz.locator('.os-wiz').evaluate((element) => element.scrollWidth - element.clientWidth)
+        expect(overflow).toBeLessThanOrEqual(0)
+    })
+
+    test('a resized desktop Create DAO window keeps the member address usable', async ({ page }) => {
+        await page.goto(`${OS_ON}/os/daos/new`)
+        const wiz = win(page, 'Create a DAO')
+        await wiz.getByLabel('Name').fill('Narrow desktop')
+        await wiz.getByRole('button', { name: 'Continue' }).click()
+        const before = (await wiz.boundingBox())!
+        const handle = (await wiz.getByTestId('resize').boundingBox())!
+        await page.mouse.move(handle.x + handle.width / 2, handle.y + handle.height / 2)
+        await page.mouse.down()
+        await page.mouse.move(handle.x + handle.width / 2 + (360 - before.width), handle.y + handle.height / 2, { steps: 8 })
+        await page.mouse.up()
+        await expect.poll(async () => Math.round((await wiz.boundingBox())!.width)).toBe(360)
+        const addressWidth = await wiz.getByLabel('Member 1 address').evaluate((element) => element.getBoundingClientRect().width)
+        expect(addressWidth).toBeGreaterThan(180)
+        const overflow = await wiz.locator('.os-wiz').evaluate((element) => element.scrollWidth - element.clientWidth)
+        expect(overflow).toBeLessThanOrEqual(0)
+    })
+
+    test('Create DAO draft can be discarded and preset radios use arrow keys', async ({ page }) => {
+        await page.goto(`${OS_ON}/os/daos/new`)
+        const wiz = win(page, 'Create a DAO')
+        const basic = wiz.getByRole('radio', { name: /^Basic/ })
+        await basic.focus()
+        await basic.press('ArrowRight')
+        await expect(basic).toHaveAttribute('aria-checked', 'false')
+        await expect(wiz.getByRole('radio', { checked: true })).toBeFocused()
+        await wiz.getByLabel('Name').fill('Draft to discard')
+        await expect.poll(() => page.evaluate(() => Object.keys(localStorage).some((key) => key.startsWith('memba_os_dao_draft:')))).toBe(true)
+        await wiz.getByRole('button', { name: 'Discard draft' }).click()
+        await expect(wiz.getByLabel('Name')).toHaveValue('')
+        expect(await page.evaluate(() => Object.keys(localStorage).some((key) => key.startsWith('memba_os_dao_draft:')))).toBe(false)
     })
 
     test('a new proposal goes through the wizard and the Memba review, and Adena gets ProposeText', async ({ page }) => {
@@ -108,6 +162,90 @@ test.describe('Memba OS wizards', () => {
         await expect.poll(async () => (await adenaCalls(page)).length).toBe(1)
         const [call] = await adenaCalls(page)
         expect(call.messages[0].value).toMatchObject({ pkg_path: V2_DAO, func: 'ProposeText', args: ['Ship Memba OS', 'Beta on memba.club', 'governance'] })
+        // Adena returned a hash but no proposal ID. A similar chain row could
+        // belong to another transaction, so this draft stays in recovery.
+        await expect(wiz.getByText('Outcome unknown.')).toBeVisible()
+        await page.reload()
+        await expect(win(page, 'New proposal · test.teamv2').getByText('Outcome unknown.')).toBeVisible()
+    })
+
+    test('a confirmed proposal cannot be submitted twice when saved draft removal fails', async ({ page }) => {
+        await page.goto(`${OS_ON}/os/dao/test.teamv2/proposals/new`)
+        const wiz = win(page, 'New proposal · test.teamv2')
+        await wiz.getByRole('button', { name: 'Next' }).click()
+        await wiz.getByLabel('Title').fill('One proposal only')
+        await wiz.getByRole('button', { name: 'Next' }).click()
+        await page.evaluate(() => {
+            const original = Storage.prototype.removeItem
+            Storage.prototype.removeItem = function (key: string) {
+                if (key.includes('proposal-draft')) throw new Error('storage refused')
+                return original.call(this, key)
+            }
+            const adena = (window as unknown as { adena: { DoContract: (tx: unknown) => Promise<{ status: string; data: { hash: string } }> } }).adena
+            const send = adena.DoContract
+            adena.DoContract = async (tx) => { const result = await send(tx); return { ...result, data: { ...result.data, deliverTx: { data: '(2 uint64)' } } } }
+        })
+        await wiz.getByRole('button', { name: 'Propose…' }).click()
+        await page.getByRole('dialog', { name: 'Review · Propose' }).getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(wiz.getByText('Proposal #2 was created.')).toBeVisible()
+        await expect(wiz.getByRole('button', { name: 'Propose…' })).toHaveCount(0)
+        await expect(wiz.getByRole('button', { name: 'Remove saved draft' })).toBeVisible()
+        expect(await adenaCalls(page)).toHaveLength(1)
+        await page.reload()
+        const recovered = win(page, 'New proposal · test.teamv2')
+        await expect(recovered.getByText('Proposal #2 was created.')).toBeVisible()
+        await expect(recovered.getByRole('button', { name: 'Propose…' })).toHaveCount(0)
+        await expect(recovered.getByRole('button', { name: 'Start a new proposal' })).toBeVisible()
+        await expect.poll(() => page.evaluate(() => Object.keys(localStorage).some((key) => key.includes('proposal-draft')))).toBe(true)
+        await win(page, 'test.teamv2 · Proposal #2').getByRole('button', { name: 'Close test.teamv2 · Proposal #2' }).click()
+        await recovered.getByRole('button', { name: 'Start a new proposal' }).click()
+        await expect(recovered.getByRole('radio', { name: /^Text/ })).toBeVisible()
+        await recovered.getByRole('button', { name: 'Next' }).click()
+        await expect(recovered.getByLabel('Title')).toHaveValue('')
+        await expect.poll(() => page.evaluate(() => Object.keys(localStorage).some((key) => key.startsWith('memba_governance:') && key.includes('"proposal"')))).toBe(false)
+    })
+
+    test('a version-2 vote reviews its gas limit and confirms the chosen vote', async ({ page }) => {
+        await page.goto(`${OS_ON}/os/dao/test.teamv2/proposals/1`)
+        const proposal = win(page, 'test.teamv2 · Proposal #1')
+        await proposal.getByRole('button', { name: 'Vote…' }).click()
+        const review = page.getByRole('dialog', { name: 'Review · Vote' })
+        const yes = review.getByRole('radio', { name: 'Yes' })
+        await yes.focus()
+        await yes.press('ArrowRight')
+        await expect(review.getByRole('radio', { name: 'No' })).toHaveAttribute('aria-checked', 'true')
+        await expect(review.getByText('Gas limit')).toBeVisible()
+        await expect(review.getByText('Adena shows the final network fee', { exact: false })).toBeVisible()
+        await review.getByRole('button', { name: 'Sign in Adena' }).click()
+        await expect(review).toHaveCount(0)
+        await expect(proposal.getByText('You voted')).toBeVisible()
+        const [call] = await adenaCalls(page)
+        expect(call.messages[0].value).toMatchObject({ pkg_path: V2_DAO, func: 'Vote', args: ['1', 'NO'] })
+    })
+
+    test('a short landscape vote review keeps its actions reachable', async ({ page }) => {
+        await page.setViewportSize({ width: 667, height: 320 })
+        await page.goto(`${OS_ON}/os/dao/test.teamv2/proposals/1`)
+        await win(page, 'test.teamv2 · Proposal #1').getByRole('button', { name: 'Vote…' }).click()
+        const review = page.getByRole('dialog', { name: 'Review · Vote' })
+        await expect(review.getByRole('button', { name: 'Cancel' })).toBeVisible()
+        await expect(review.getByRole('button', { name: 'Sign in Adena' })).toBeVisible()
+        const fit = await review.evaluate((element) => {
+            const outer = element.getBoundingClientRect()
+            const footer = element.querySelector('.os-rvf')!.getBoundingClientRect()
+            return { height: outer.height, bottom: footer.bottom }
+        })
+        expect(fit.height).toBeLessThanOrEqual(288)
+        expect(fit.bottom).toBeLessThanOrEqual(320)
+        await review.getByRole('button', { name: 'Cancel' }).click()
+    })
+
+    test('an accepted proposal links to the working execution page', async ({ page }) => {
+        await page.goto(`${OS_ON}/os/dao/test.teamv2/proposals/2`)
+        const proposal = win(page, 'test.teamv2 · Proposal #2')
+        const execute = proposal.getByRole('link', { name: 'Execute on the DAO page' })
+        await expect(execute).toBeVisible()
+        await expect(execute).toHaveAttribute('href', '/mainnet/dao/gno.land/r/test/teamv2/proposal/2')
     })
 
     test('a DAO is created through the five steps, checked, deployed and opened', async ({ page }) => {

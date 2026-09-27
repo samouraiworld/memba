@@ -162,10 +162,10 @@ export function readDaoDraft(chainId: string, wallet: string): DaoDraft | null {
     }
 }
 
-export function saveDaoDraft(chainId: string, wallet: string, d: DaoDraft): void {
-    try { localStorage.setItem(draftKey(chainId, wallet), JSON.stringify(d)) } catch { /* storage refused: the draft lasts for this visit */ }
+export function saveDaoDraft(chainId: string, wallet: string, d: DaoDraft): boolean {
+    try { localStorage.setItem(draftKey(chainId, wallet), JSON.stringify(d)); return true } catch { return false }
 }
 
-export function clearDaoDraft(chainId: string, wallet: string): void {
-    try { localStorage.removeItem(draftKey(chainId, wallet)) } catch { /* nothing to clear */ }
+export function clearDaoDraft(chainId: string, wallet: string): boolean {
+    try { localStorage.removeItem(draftKey(chainId, wallet)); return true } catch { return false }
 }

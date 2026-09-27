@@ -210,7 +210,7 @@ export function parseProposalList(data: string, realmPath = ""): DAOProposal[] {
             category: categoryMatch?.[1]?.toLowerCase() || "",
             status: normalizeRenderedStatus(statusMatch?.[1] || "open", realmPath),
             author: authorName,
-            authorProfile: authorMatch?.[2] || "",
+            authorProfile: authorMatch?.[2] ? safeProfileUrl(authorMatch[2]) : "",
             tiers: tiersMatch
                 ? tiersMatch[1].split(",").map((t) => t.trim()).filter(Boolean)
                 : [],
@@ -456,12 +456,22 @@ export async function getDAOProposals(
  */
 export function parseProposalAuthor(data: string): { author: string; authorProfile: string } {
     const linked = data.match(/Author:\s*\[@([^\]]+)\]\(([^)]+)\)/)
-    if (linked) return { author: `@${linked[1]}`, authorProfile: linked[2] }
+    if (linked) return { author: `@${linked[1]}`, authorProfile: safeProfileUrl(linked[2]) }
     const addr = data.match(/Author:\s*(g1[a-z0-9]+)/)
     if (addr) return { author: addr[1], authorProfile: "" }
     const proposer = data.match(/\*\*Proposer\*\*[:\s]+(g\S+)/i)
     if (proposer) return { author: proposer[1], authorProfile: "" }
     return { author: "", authorProfile: "" }
+}
+
+/** Render output is chain supplied; only Memba's Gno profile route is a link. */
+function safeProfileUrl(raw: string): string {
+    try {
+        if (raw.startsWith("/")) return /^\/u\/[a-zA-Z0-9_.-]+\/?$/.test(raw) ? raw : ""
+        const url = new URL(raw)
+        return url.protocol === "https:" && url.hostname === "gno.land" && !url.port && !url.username && !url.password
+            && /^\/u\/[a-zA-Z0-9_.-]+\/?$/.test(url.pathname) && !url.search && !url.hash ? raw : ""
+    } catch { return "" }
 }
 
 /**
@@ -476,7 +486,7 @@ export function parseVoters(voterBlock: string): VoterEntry[] {
         if (!line.startsWith("-")) continue
         const linked = line.match(/@([^\]]+)\]\(([^)]+)\)/)
         if (linked) {
-            voters.push({ username: `@${linked[1]}`, profileUrl: linked[2] })
+            voters.push({ username: `@${linked[1]}`, profileUrl: safeProfileUrl(linked[2]) })
             continue
         }
         const addr = line.match(/(g1[a-z0-9]+)/)

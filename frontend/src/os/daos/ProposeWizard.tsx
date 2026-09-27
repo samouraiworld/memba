@@ -5,11 +5,11 @@
  *
  * @module os/daos/ProposeWizard
  */
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type ReactNode } from "react"
 import { clearGovernanceReceipt, clearProposalDraft, readGovernanceReceipt, readProposalDraft, saveProposalDraft, type ProposalDraft } from "../../lib/dao/governanceRecovery"
 import type { DaoProposalKind } from "../../lib/dao/kind"
 import { formatDuration } from "../../lib/templates/dao/v2/duration"
-import { v2CharCount, V2_MAX_DESCRIPTION_CHARS, V2_MAX_TITLE_CHARS } from "../../lib/dao/v2Text"
+import { revealInvisibleFormatting, v2CharCount, V2_MAX_DESCRIPTION_CHARS, V2_MAX_TITLE_CHARS } from "../../lib/dao/v2Text"
 import { useDaoKind } from "../../hooks/useDaoKind"
 import { ThingTile } from "../shell/icons"
 import type { OsSession } from "../shell/useOsSession"
@@ -52,11 +52,21 @@ function Wizard({ dao, realmPath, session, open, close }: { dao: string; realmPa
     const [step, setStep] = useState(0)
     const [showErrors, setShowErrors] = useState(false)
     const [checked, setChecked] = useState(false)
+    const [draftSaved, setDraftSaved] = useState(true)
+    const [draftError, setDraftError] = useState<string | null>(null)
+    const [createdId, setCreatedId] = useState<number | null>(null)
+    const skipSave = useRef(false)
     const [, rerender] = useState(0)
 
     // The automatic draft (D18), in the classic draft slot so either interface can continue it.
     useEffect(() => {
-        try { saveProposalDraft(draftScope, draft) } catch { /* storage refused: the draft lasts for this visit */ }
+        if (skipSave.current) { skipSave.current = false; return }
+        let saved = true
+        try { saveProposalDraft(draftScope, draft) }
+        catch { saved = false }
+        let active = true
+        queueMicrotask(() => { if (active) setDraftSaved(saved) })
+        return () => { active = false }
     }, [draftScope, draft])
 
     if (kind.loading || config.isPending || members.isPending) return <div className="os-row" role="status"><span className="os-spin" aria-hidden="true" /><span className="os-sub">Loading the DAO's settings…</span></div>
@@ -65,8 +75,16 @@ function Wizard({ dao, realmPath, session, open, close }: { dao: string; realmPa
         return <Gate><b>Memba OS makes proposals for version-2 DAOs.</b><span className="os-sub">This DAO uses another contract. Its proposals are listed in its folder.</span></Gate>
     }
     if (!members.data) return <Gate><b>The DAO's members couldn't be read.</b><button type="button" className="os-btn os-quiet" onClick={() => void members.refetch()}>Try again</button></Gate>
-    if (v2.archived) return <Gate><b>{v2.name} is archived.</b><span className="os-sub">It no longer accepts proposals.</span></Gate>
-    if (!members.data.some((m) => m.address === caller)) return <Gate><b>Only members of {v2.name} can make proposals.</b><span className="os-sub">Your connected wallet isn't a member.</span></Gate>
+    if (v2.archived) return <Gate><b>{revealInvisibleFormatting(v2.name)} is archived.</b><span className="os-sub">It no longer accepts proposals.</span></Gate>
+    if (!members.data.some((m) => m.address === caller)) return <Gate><b>Only members of {revealInvisibleFormatting(v2.name)} can make proposals.</b><span className="os-sub">Your connected wallet isn't a member.</span></Gate>
+    if (createdId !== null) return <Gate>
+        <b>Proposal #{createdId} was created.</b>
+        <span className="os-sub">{draftError || "The proposal is ready to view."}</span>
+        <button type="button" className="os-btn os-quiet" onClick={() => open(specForTarget({ kind: "proposal", dao, n: createdId })!)}>Open proposal #{createdId}</button>
+        {draftError && <button type="button" className="os-btn os-quiet" onClick={() => {
+            if (clearProposalDraft(draftScope)) { setDraftError(null); close() }
+        }}>Remove saved draft</button>}
+    </Gate>
 
     const receipt = readGovernanceReceipt(proposalScope(realmPath, caller))
     if (receipt) {
@@ -79,8 +97,19 @@ function Wizard({ dao, realmPath, session, open, close }: { dao: string; realmPa
                 {created && <button type="button" className="os-btn os-ghost" onClick={() => open(specForTarget({ kind: "proposal", dao, n: receipt.proposalId! })!)}>Open proposal #{receipt.proposalId}</button>}
                 {!created && <label className="os-ack"><input type="checkbox" checked={checked} onChange={(e) => setChecked(e.target.checked)} /> I checked the transaction and want to review a proposal again.</label>}
                 <button type="button" className="os-btn os-quiet" disabled={!created && !checked} onClick={() => {
-                    try { clearGovernanceReceipt(proposalScope(realmPath, caller)); setChecked(false); rerender((x) => x + 1) } catch { /* a request is still in flight */ }
+                    if (created && !clearProposalDraft(draftScope)) {
+                        setDraftError("Browser storage refused to remove the saved draft. Try again or clear this site's storage in your browser.")
+                        return
+                    }
+                    try {
+                        clearGovernanceReceipt(proposalScope(realmPath, caller))
+                        if (created) setDraft(emptyDraft("text"))
+                        setDraftError(null)
+                        setChecked(false)
+                        rerender((x) => x + 1)
+                    } catch { /* a request is still in flight */ }
                 }}>{created ? "Start a new proposal" : "Review a proposal again"}</button>
+                {draftError && <span className="os-sub" role="status">{draftError}</span>}
             </Gate>
         )
     }
@@ -88,6 +117,25 @@ function Wizard({ dao, realmPath, session, open, close }: { dao: string; realmPa
     const kinds = kind.capabilities.propose
     const e = evaluateProposal(draft, v2, members.data)
     const set = (patch: Partial<ProposalDraft>) => setDraft((d) => ({ ...d, ...patch }))
+    const discardDraft = () => {
+        const removed = clearProposalDraft(draftScope)
+        if (!removed) { setDraftError("Browser storage refused to remove the saved draft. Try again or clear this site's storage in your browser."); return }
+        skipSave.current = true
+        setDraft(emptyDraft("text"))
+        setStep(0)
+        setShowErrors(false)
+        setDraftError(null)
+        setDraftSaved(removed)
+    }
+    const onKindKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+        const next = event.key === "Home" ? 0 : event.key === "End" ? kinds.length - 1
+            : event.key === "ArrowRight" || event.key === "ArrowDown" ? (index + 1) % kinds.length
+                : event.key === "ArrowLeft" || event.key === "ArrowUp" ? (index + kinds.length - 1) % kinds.length : -1
+        if (next < 0) return
+        event.preventDefault()
+        set({ kind: kinds[next], roles: null })
+        event.currentTarget.parentElement?.querySelectorAll<HTMLButtonElement>('[role="radio"]')[next]?.focus()
+    }
     const shown = (f: FieldName, value: string) => ((showErrors || value !== "") ? e.problems[f] : undefined)
     const detailsValid = !!e.action
 
@@ -99,7 +147,12 @@ function Wizard({ dao, realmPath, session, open, close }: { dao: string; realmPa
             daoKind: "memba-v2", realmPath, daoName: v2.name, caller, config: v2, proposalKind: draft.kind, action: e.action,
             effect: proposalEffect(draft, e, v2.name),
             onCreated: (id) => {
-                try { clearProposalDraft(draftScope) } catch { /* nothing to clear */ }
+                if (!clearProposalDraft(draftScope)) {
+                    setCreatedId(id)
+                    setDraftError("Proposal created, but browser storage refused to remove its saved draft. Retry removal or clear this site's storage.")
+                    open(specForTarget({ kind: "proposal", dao, n: id })!)
+                    return
+                }
                 close()
                 open(specForTarget({ kind: "proposal", dao, n: id })!)
             },
@@ -112,8 +165,9 @@ function Wizard({ dao, realmPath, session, open, close }: { dao: string; realmPa
             <div className="os-stack os-tight">
                 <h3 className="os-h">What should this proposal do?</h3>
                 <div className="os-opt" role="radiogroup" aria-label="Proposal type">
-                    {kinds.map((k: DaoProposalKind) => (
-                        <button key={k} type="button" role="radio" aria-checked={draft.kind === k} className={k === "archive" ? "os-danger" : undefined}
+                    {kinds.map((k: DaoProposalKind, index: number) => (
+                        <button key={k} type="button" role="radio" aria-checked={draft.kind === k} tabIndex={draft.kind === k ? 0 : -1} className={k === "archive" ? "os-danger" : undefined}
+                            onKeyDown={(event) => onKindKey(event, index)}
                             onClick={() => set({ kind: k, roles: null })}>
                             <b>{TYPE_LABELS[k]}</b><span className="os-sub">{TYPE_HINTS[k]}</span>
                         </button>
@@ -139,7 +193,7 @@ function Wizard({ dao, realmPath, session, open, close }: { dao: string; realmPa
                 )}
                 {draft.kind !== "add_member" && needsTarget(draft.kind) && (
                     <div className="os-chipset">{members.data.slice(0, 8).map((m) => (
-                        <button key={m.address} type="button" aria-pressed={draft.target === m.address} onClick={() => set({ target: m.address })}>{m.username || `${m.address.slice(0, 8)}…`}</button>
+                        <button key={m.address} type="button" aria-pressed={draft.target === m.address} onClick={() => set({ target: m.address })}>{m.username ? revealInvisibleFormatting(m.username) : `${m.address.slice(0, 8)}…`}</button>
                     ))}</div>
                 )}
                 {draft.kind === "add_member" && (
@@ -151,18 +205,18 @@ function Wizard({ dao, realmPath, session, open, close }: { dao: string; realmPa
                     <Field label="Roles" hint="Roles are labels; they grant no special powers." error={e.problems.roles}>
                         <div className="os-chipset">{v2.roles.map((r) => {
                             const on = e.roles.includes(r)
-                            return <button key={r} type="button" aria-pressed={on} onClick={() => set({ roles: on ? e.roles.filter((x) => x !== r) : [...e.roles, r] })}>{r}</button>
+                            return <button key={r} type="button" aria-pressed={on} onClick={() => set({ roles: on ? e.roles.filter((x) => x !== r) : [...e.roles, r] })}>{revealInvisibleFormatting(r)}</button>
                         })}</div>
                     </Field>
                 )}
-                {draft.kind === "archive" && <p className="os-note os-err">Archiving is permanent. {v2.name} keeps its history but can never accept proposals again.</p>}
+                {draft.kind === "archive" && <p className="os-note os-err">Archiving is permanent. {revealInvisibleFormatting(v2.name)} keeps its history but can never accept proposals again.</p>}
                 <Field label="Description" htmlFor="os-prop-desc" hint="Optional. Context, motivation, links." error={shown("description", draft.description)} count={`${v2CharCount(draft.description)} / ${V2_MAX_DESCRIPTION_CHARS}`}>
                     <textarea id="os-prop-desc" className="os-in os-ta" value={draft.description} onChange={(ev) => set({ description: ev.target.value })} />
                 </Field>
                 {draft.kind === "text" && (
                     <Field label="Category" error={e.problems.category}>
                         <div className="os-chipset">{v2.categories.map((c) => (
-                            <button key={c} type="button" aria-pressed={e.category === c} onClick={() => set({ category: c })}>{c}</button>
+                            <button key={c} type="button" aria-pressed={e.category === c} onClick={() => set({ category: c })}>{revealInvisibleFormatting(c)}</button>
                         ))}</div>
                     </Field>
                 )}
@@ -172,10 +226,10 @@ function Wizard({ dao, realmPath, session, open, close }: { dao: string; realmPa
         body = (
             <div className="os-stack os-tight">
                 <h3 className="os-h">Review</h3>
-                <div className="os-rv-title">Propose “{draft.title.trim()}”</div>
-                <div className="os-sub">{TYPE_LABELS[draft.kind]} · {v2.name}</div>
+                <div className="os-rv-title">Propose “{revealInvisibleFormatting(draft.title.trim())}”</div>
+                <div className="os-sub">{TYPE_LABELS[draft.kind]} · {revealInvisibleFormatting(v2.name)}</div>
                 <dl className="os-kv">
-                    <div className="os-kv-row"><dt>If it passes</dt><dd>{proposalEffect(draft, e, v2.name)}</dd></div>
+                    <div className="os-kv-row"><dt>If it passes and is executed</dt><dd>{revealInvisibleFormatting(proposalEffect(draft, e, v2.name))}</dd></div>
                     <div className="os-kv-row"><dt>Voting</dt><dd>lasts {formatDuration(v2.voting_period)}</dd></div>
                     <div className="os-kv-row"><dt>Passes with</dt><dd>{v2.threshold} % yes{v2.quorum ? `, ${v2.quorum} % quorum` : ""}</dd></div>
                 </dl>
@@ -187,15 +241,15 @@ function Wizard({ dao, realmPath, session, open, close }: { dao: string; realmPa
     return (
         <WizardFrame steps={STEPS} step={step} onBack={() => setStep(step - 1)} onNext={next}
             nextLabel={step === STEPS.length - 1 ? "Propose…" : "Next"}
-            note="Your draft is saved in this browser."
+            note={<>{draftError && <span className="os-fe" role="alert">{draftError}</span>}<span>{draftSaved ? "Your draft is saved in this browser." : "Browser storage is unavailable. This draft lasts only while this page stays open."}</span>{draftSaved && <button type="button" className="os-btn os-quiet os-inline" onClick={discardDraft}>Discard draft</button>}</>}
             preview={(
                 <div className="os-stack os-tight">
                     <h3 className="os-h">Members will see</h3>
                     <div className="os-pvcard">
-                        <span className="os-sub">{v2.name} · #{v2.proposal_count + 1}</span>
-                        <b>{draft.title.trim() || <span className="os-sub">Your title</span>}</b>
-                        <span className="os-sub">{TYPE_LABELS[draft.kind]}{draft.kind === "text" ? ` · ${e.category}` : ""}</span>
-                        {draft.description && <span className="os-sub os-clamp">{draft.description}</span>}
+                        <span className="os-sub">{revealInvisibleFormatting(v2.name)} · #{v2.proposal_count + 1}</span>
+                        <b>{draft.title.trim() ? revealInvisibleFormatting(draft.title.trim()) : <span className="os-sub">Your title</span>}</b>
+                        <span className="os-sub">{TYPE_LABELS[draft.kind]}{draft.kind === "text" ? ` · ${revealInvisibleFormatting(e.category)}` : ""}</span>
+                        {draft.description && <span className="os-sub os-clamp">{revealInvisibleFormatting(draft.description)}</span>}
                     </div>
                     <dl className="os-kv">
                         <div className="os-kv-row"><dt>Members</dt><dd>{v2.member_count}</dd></div>

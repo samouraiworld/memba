@@ -8,7 +8,7 @@ import { resolveDaoKind } from "./kind"
 import { getDAOConfig } from "./config"
 import { getDAOMembers, getMemberRole } from "./members"
 import { getDAOProposals, getProposalDetail, getProposalVotes, invalidateProposalCache } from "./proposals"
-import { V2_MAX_PROPOSAL_PAGES } from "./membaV2Shell"
+import { findV2VoterChoice, V2_MAX_PROPOSAL_PAGES } from "./membaV2Shell"
 
 vi.mock("../rpcFallback", async (importOriginal) => ({
     ...(await importOriginal<typeof import("../rpcFallback")>()),
@@ -141,6 +141,29 @@ describe("version-2 DAOs in the generic readers", () => {
         ] }])
         expect(expressions).toEqual(["GetProposalJSON(1)", "GetVotesJSON(1, 0, 50)"])
         expect(realmQueriesThroughLegacyLayer()).toEqual([])
+    })
+
+    it("finds a member's choice on the second of at most two vote pages", async () => {
+        const votes = Array.from({ length: 60 }, (_, i) => ({ voter: addr(i + 1), choice: i === 54 ? "NO" : "YES", power: 1 }))
+        replies["GetVotesJSON(1, 0, 50)"] = wire({ total: 60, offset: 0, votes: votes.slice(0, 50) })
+        replies["GetVotesJSON(1, 50, 50)"] = wire({ total: 60, offset: 50, votes: votes.slice(50) })
+        expect(await findV2VoterChoice(RPC, REALM, 1, addr(55))).toBe("NO")
+        expect(expressions).toEqual(["GetVotesJSON(1, 0, 50)", "GetVotesJSON(1, 50, 50)"])
+        expressions.length = 0
+        expect(await findV2VoterChoice(RPC, REALM, 1, addr(61))).toBeNull()
+        expect(expressions).toHaveLength(2)
+    })
+
+    it("treats an incomplete vote page as unavailable instead of a missing choice", async () => {
+        replies["GetVotesJSON(1, 0, 50)"] = wire({ total: 60, offset: 0, votes: [{ voter: addr(1), choice: "YES", power: 1 }] })
+        await expect(findV2VoterChoice(RPC, REALM, 1, addr(55))).rejects.toThrow("Truncated vote page")
+        expect(expressions).toEqual(["GetVotesJSON(1, 0, 50)"])
+    })
+
+    it("rejects a vote total above the contract's 100-member bound", async () => {
+        replies["GetVotesJSON(1, 0, 50)"] = wire({ total: 101, offset: 0, votes: Array.from({ length: 50 }, (_, i) => ({ voter: addr(i + 1), choice: "YES", power: 1 })) })
+        await expect(findV2VoterChoice(RPC, REALM, 1, addr(60))).rejects.toThrow("member limit")
+        expect(expressions).toEqual(["GetVotesJSON(1, 0, 50)"])
     })
 
     it("surfaces a failed JSON read to strict callers instead of parsing Render", async () => {

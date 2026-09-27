@@ -39,6 +39,8 @@ export interface SignRequest<C extends string = string> {
     label: (choice: C | undefined) => string
     /** DAO actions: the classic governance receipt that doubles as the unknown-outcome lock. */
     receipt?: GovernanceScope
+    /** A creation receipt with a transaction-correlated ID stays until the member starts another action. */
+    retainConfirmedReceipt?: boolean
     /** The exact messages for this choice (pure; throws with a user message if it can't). */
     prepare: (choice: C | undefined) => { msgs: AminoMsg[] }
     /** Fresh on-chain checks right before the wallet opens; throws to stop. */

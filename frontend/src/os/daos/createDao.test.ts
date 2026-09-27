@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it } from "vitest"
+import { afterEach, describe, expect, it, vi } from "vitest"
 import { generateDAOCode } from "../../lib/daoTemplate"
 import {
     applyPreset, clearDaoDraft, daoConfig, daoDraftError, emptyDaoDraft, firstInvalidStep, formatSeconds, readDaoDraft, realmPathFor,
@@ -10,7 +10,7 @@ const OTHER = "g1us8428u2a5satrlxzagqqa5m6vmuze025anjlj"
 
 const named = (over: Partial<DaoDraft> = {}): DaoDraft => ({ ...emptyDaoDraft(ME), name: "Gno Builders", ...over })
 
-afterEach(() => localStorage.clear())
+afterEach(() => { vi.restoreAllMocks(); localStorage.clear() })
 
 describe("the realm path", () => {
     it("is derived from the name as on the classic page", () => {
@@ -95,5 +95,11 @@ describe("the draft", () => {
     it("drops a role the preset no longer has", () => {
         saveDaoDraft("gnoland-1", ME, named({ preset: "basic", members: [{ address: ME, powerText: "1", role: "finance" }] }))
         expect(readDaoDraft("gnoland-1", ME)?.members[0].role).toBe("admin")
+    })
+    it("reports a failed draft removal so the UI does not claim it was discarded", () => {
+        saveDaoDraft("gnoland-1", ME, named())
+        vi.spyOn(localStorage, "removeItem").mockImplementation(() => { throw new Error("storage refused") })
+        expect(clearDaoDraft("gnoland-1", ME)).toBe(false)
+        expect(readDaoDraft("gnoland-1", ME)?.name).toBe("Gno Builders")
     })
 })

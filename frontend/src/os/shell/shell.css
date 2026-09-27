@@ -295,8 +295,10 @@
 .memba-os .os-nc-fail { box-shadow: inset 3px 0 0 var(--os-err); cursor: default; }
 
 /* DAO folder and proposal windows */
-.memba-os .os-folder { display: grid; gap: 14px; }
-.memba-os .os-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--os-hover); justify-self: start; flex-wrap: wrap; }
+.memba-os .os-folder { display: grid; gap: 14px; min-width: 0; }
+.memba-os .os-folder-body, .memba-os .os-folder .os-list { min-width: 0; }
+.memba-os .os-folder .os-list .os-mono { overflow-wrap: anywhere; }
+.memba-os .os-tabs { display: flex; gap: 4px; padding: 3px; border-radius: 10px; background: var(--os-hover); min-width: 0; width: 100%; box-sizing: border-box; flex-wrap: wrap; }
 .memba-os .os-tab { border: 0; background: none; cursor: pointer; font: 700 12px var(--os-font); color: var(--os-mut); padding: 5px 12px; border-radius: 8px; }
 .memba-os .os-tab[aria-selected="true"] { background: var(--os-card); color: var(--os-ink); box-shadow: 0 1px 3px rgba(0, 0, 0, .12); }
 .memba-os .os-tally { display: grid; gap: 4px; font-size: 12px; font-weight: 700; }
@@ -362,6 +364,12 @@
 .memba-os .os-card.os-dim { opacity: .7; }
 .memba-os .os-card.os-row { flex-wrap: nowrap; }
 .memba-os .os-mrow { display: grid; grid-template-columns: minmax(0, 1fr) 72px 110px 26px; gap: 8px; align-items: center; }
+.memba-os .os-mrow > .os-in { min-width: 0; width: 100%; }
+@container os-window (max-width: 480px) {
+  .memba-os .os-mrow { grid-template-columns: minmax(65px, 1fr) minmax(100px, 1fr) 26px; }
+  .memba-os .os-mrow[aria-hidden="true"] { display: none; }
+  .memba-os .os-mrow > .os-in:first-child { grid-column: 1 / -1; }
+}
 .memba-os .os-xbtn {
   width: 26px; height: 26px; border-radius: 8px; border: 1px solid var(--os-line); background: var(--os-card);
   color: var(--os-mut); font: 700 14px var(--os-font); cursor: pointer;
