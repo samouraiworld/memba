@@ -6,7 +6,7 @@ import { fulfillOnchainReads, mockAppChainStatus } from '../helpers/onchain'
 for (const [width, device] of [[1280, 'desktop'], [375, 'phone']] as const) {
     test(`flag-off Store keeps external apps and verified realm links in the OS on ${device}`, async ({ page }) => {
         await fulfillGovernance(page)
-        await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.setViewportSize({ width, height: 800 })
         await page.goto(`${OS_ON}/os/store`)
         const store = page.getByRole('region', { name: 'App Store', exact: true })
@@ -33,7 +33,7 @@ for (const [width, device] of [[1280, 'desktop'], [375, 'phone']] as const) {
             if (path === 'vm/qeval' && arg.includes('GetStatsJSON')) return `(${JSON.stringify(JSON.stringify({ live: 2, total: 2, registrationFee: 1000000, paused: false }))} string)`
             return null
         })
-        await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.setViewportSize({ width, height: 800 })
         await page.goto(`${OS_ON}/os/store`)
         const store = page.getByRole('region', { name: 'App Store', exact: true })

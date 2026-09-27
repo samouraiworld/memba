@@ -1,8 +1,8 @@
 import { useRef, type KeyboardEvent } from "react"
 import { useClock } from "./clock"
 
-/** First-visit lock screen (D7). Also shown after "Lock screen" / "Disconnect & lock". */
-export function LockScreen({ onConnect, onGuest }: { onConnect: () => void; onGuest: () => void }) {
+/** Visit choice. Also shown after "Lock screen" / "Disconnect & lock". */
+export function LockScreen({ onConnect, onGuest, resuming = false }: { onConnect: () => void; onGuest: () => void; resuming?: boolean }) {
     const [time, date] = useClock()
     const connect = useRef<HTMLButtonElement>(null)
     const guest = useRef<HTMLButtonElement>(null)
@@ -24,10 +24,10 @@ export function LockScreen({ onConnect, onGuest }: { onConnect: () => void; onGu
                 <div className="os-lock-tag">Memba — your desk on gno.land</div>
                 <div className="os-lock-date">{date}</div>
                 <div className="os-lock-acts">
-                    <button ref={connect} type="button" className="os-lock-primary" onClick={onConnect} autoFocus>Connect wallet</button>
+                    <button ref={connect} type="button" className="os-lock-primary" onClick={onConnect} disabled={resuming} autoFocus>{resuming ? "Resuming wallet…" : "Connect wallet"}</button>
                     <button ref={guest} type="button" className="os-lock-secondary" onClick={onGuest}>Continue as guest</button>
                 </div>
-                <div className="os-lock-hint">Guests can explore public apps, DAOs and posts. Connect for private accounts or on-chain actions. You can return here from the Memba menu.</div>
+                <div className="os-lock-hint">Guests can explore public apps, DAOs and posts. Connect for private accounts or on-chain actions. You can skip this screen in Settings or return here from the Memba menu.</div>
             </div>
         </div>
     )

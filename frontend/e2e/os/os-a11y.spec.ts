@@ -93,7 +93,7 @@ for (const scheme of ['light', 'dark'] as const) {
         })
 
         test('phone home screen and a sheet', async ({ page }) => {
-            await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+            await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
             await page.setViewportSize({ width: 375, height: 760 })
             await page.goto(`${OS_ON}/os`)
             await expect(page.getByRole('main', { name: 'Home' })).toBeVisible()
@@ -117,7 +117,7 @@ for (const scheme of ['light', 'dark'] as const) {
             await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
             await abortOnchainReads(page)
             await page.addInitScript(() => {
-                localStorage.setItem('memba_os_seen', '1')
+                localStorage.setItem('memba_os_skip_intro', '1')
                 localStorage.setItem('memba_os_booted', '1')
             })
             await page.setViewportSize({ width: 1280, height: 860 })
@@ -165,7 +165,7 @@ for (const scheme of ['light', 'dark'] as const) {
         })
 
         test('Settings native appearance and reset sheet', async ({ page }) => {
-            await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+            await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
             await page.goto(`${OS_ON}/os/settings`)
             const settings = page.getByRole('region', { name: 'Settings', exact: true })
             await expect(settings.getByRole('navigation', { name: 'Settings' })).toBeVisible()
@@ -182,7 +182,7 @@ test.describe('Memba OS keyboard and motion', () => {
     test.beforeEach(async ({ page }) => {
         await page.route(/memba\.v1\.|gnolove|plausible\.io|sentry\.|clerk[.-]/, (r) => r.abort())
         await fulfillGovernance(page)
-        await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.setViewportSize({ width: 1280, height: 860 })
     })
 

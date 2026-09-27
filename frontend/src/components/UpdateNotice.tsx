@@ -10,6 +10,7 @@ export function UpdateNotice() {
     const [ready, setReady] = useState(false)
     const [activating, setActivating] = useState(false)
     const [activationFailed, setActivationFailed] = useState(false)
+    const [collapsed, setCollapsed] = useState(false)
     const walletPending = useSyncExternalStore(subscribeWalletActivity, isWalletRequestPending)
     const updateWorker = useRef<ReturnType<typeof registerSW> | null>(null)
     const newWorkerControlsPage = useRef(false)
@@ -83,15 +84,19 @@ export function UpdateNotice() {
     }
 
     if (!ready) return null
+    if (collapsed) return <button type="button" className="memba-update-mini" onClick={() => setCollapsed(false)}>● Update available</button>
     return <aside className="memba-update" aria-label="App update" aria-live="polite">
-        <h2>Update available</h2>
-        <p>Save your work, then reload for the latest Memba.</p>
+        <div className="memba-update-head"><span className="memba-update-mark" aria-hidden="true">↻</span><div><h2>Update available</h2><span>Ready when you are</span></div></div>
+        <p>A newer Memba is ready. Save any work here before reloading.</p>
         {walletPending && <p id="memba-update-wallet" role="status">Finish the wallet request before reloading.</p>}
         {activationFailed && <p role="status">The update could not start. Try again when you are online.</p>}
-        <button type="button" disabled={walletPending || activating}
-            aria-describedby={walletPending ? 'memba-update-wallet' : undefined}
-            onClick={() => { void reload() }}>
-            {activating ? 'Preparing update…' : 'Reload to update'}
-        </button>
+        <div className="memba-update-actions">
+            <button type="button" className="memba-update-later" onClick={() => setCollapsed(true)}>Later</button>
+            <button type="button" disabled={walletPending || activating}
+                aria-describedby={walletPending ? 'memba-update-wallet' : undefined}
+                onClick={() => { void reload() }}>
+                {activating ? 'Preparing update…' : 'Reload to update'}
+            </button>
+        </div>
     </aside>
 }

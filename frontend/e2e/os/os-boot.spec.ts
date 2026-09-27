@@ -2,8 +2,8 @@ import { expect, test, type Page } from '@playwright/test'
 import { OS_ON } from '../../playwright.os.config'
 import { fulfillGovernance } from '../helpers/proGovernanceFixture'
 
-// The memba.club boot (owner's pick 09-25: proposal A "POST check" straight into
-// proposal C "CRT warm-up"): first visit only, over the lock screen, about 2 s,
+// The memba.club boot (proposal A "POST check" straight into
+// proposal C "CRT warm-up"): each plain visit, over the lock screen, about 2 s,
 // a click or a key skips it, never under reduced motion, never on a shared link.
 
 async function offline(page: Page) {
@@ -21,7 +21,7 @@ const lock = (page: Page) => page.getByRole('dialog', { name: 'Welcome to Memba'
 test.describe('Memba OS boot', () => {
     test.beforeEach(async ({ page }) => { await offline(page) })
 
-    test('a first visit boots over the lock screen with real facts, then hands over; a reload never replays it', async ({ page }) => {
+    test('each plain visit boots over the lock screen with real facts', async ({ page }) => {
         await page.goto(`${OS_ON}/os`)
         await expect(boot(page)).toBeAttached()
         // The self-test reports what this browser knows: the network, the wallet, the desk, the apps.
@@ -32,7 +32,17 @@ test.describe('Memba OS boot', () => {
         await expect(lock(page)).toBeVisible()
         await page.reload()
         await expect(lock(page)).toBeVisible()
+        await expect(boot(page)).toBeAttached()
+        await expect(boot(page)).toHaveCount(0, { timeout: 4000 })
+    })
+
+    test('Settings can skip the intro on future plain visits', async ({ page }) => {
+        await page.goto(`${OS_ON}/os/settings`)
+        await page.getByRole('checkbox', { name: 'Skip intro automatically' }).check()
+        await page.goto(`${OS_ON}/os`)
         await expect(boot(page)).toHaveCount(0)
+        await expect(lock(page)).toHaveCount(0)
+        await expect(page.getByRole('main', { name: 'Desktop' })).toBeVisible()
     })
 
     test('a click skips it; a key skips it without pressing the lock screen button underneath', async ({ page }) => {
@@ -41,7 +51,6 @@ test.describe('Memba OS boot', () => {
         await expect(boot(page)).toHaveCount(0)
         await expect(lock(page)).toBeVisible()
 
-        await page.evaluate(() => localStorage.clear())
         await page.reload()
         await expect(boot(page)).toBeAttached()
         // "Connect wallet" has focus on the lock screen: Enter must only end the boot.

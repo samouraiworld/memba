@@ -13,11 +13,12 @@ import { ConnectModal } from "./ConnectModal"
 import { itemTarget } from "./desk"
 import { ContextMenu, DeskItems, type MenuEntry } from "./DeskItems"
 import { Dock } from "./Dock"
-import { markLocked, markSeen, readLocked, readSeen, resolveEntry, type OsEntry } from "./entry"
+import { markLocked, readLocked, resolveEntry } from "./entry"
 import { shortAddr } from "./format"
 import { LockScreen } from "./LockScreen"
 import { BootScreen } from "../boot/BootScreen"
-import { bootLines, markBooted, readBooted, shouldBoot } from "../boot/boot"
+import { bootLines, shouldBoot } from "../boot/boot"
+import { readSkipIntro, useLiveWidget } from "../preferences"
 import { MenuBar } from "./MenuBar"
 import { takeNetworkSwitchNotice } from "./network"
 import type { OsTarget } from "./osPath"
@@ -65,8 +66,8 @@ function openTargets(s: WindowsState, front: OsTarget, others: OsTarget[], desk:
     return specs.reduce((acc, spec, i) => windowsReducer(acc, { type: "open", spec, desk, center: specs.length === 1 && i === 0 }), s)
 }
 
-function arrivalWindows(arrival: ReturnType<typeof targetsFromUrl>, fromLink: boolean, entry: OsEntry, desk: DeskSize, storageOwner: string | null): WindowsState {
-    const saved = entry === "lock" || storageOwner === null ? [] : loadSavedTargets(storageOwner)
+function arrivalWindows(arrival: ReturnType<typeof targetsFromUrl>, fromLink: boolean, desk: DeskSize, storageOwner: string | null, explicitlyLocked: boolean): WindowsState {
+    const saved = explicitlyLocked || storageOwner === null ? [] : loadSavedTargets(storageOwner)
     if (fromLink) {
         // A link decides which windows open; where this browser had the same
         // window before (a reload), it keeps the position and size it had.
@@ -86,7 +87,6 @@ function arrivalWindows(arrival: ReturnType<typeof targetsFromUrl>, fromLink: bo
             }),
         }
     }
-    if (entry === "lock") return EMPTY_WINDOWS
     const wins: OsWindow[] = saved.flatMap(({ target, geom }, i) => {
         const spec = specForTarget(target)
         return spec ? [{ ...spec, ...geom, id: `w${i + 1}` }] : []
@@ -134,7 +134,7 @@ export function Shell() {
         onSignedIn: (address) => {
             skipLockWrite.current = false
             markLocked(false)
-            markSeen()
+            setExplicitlyLocked(false)
             setLocked(false)
             win.closeKey("welcome")
             setLinkGuest(false)
@@ -147,14 +147,15 @@ export function Shell() {
         setWalletActionGuard(() => memberNow.current)
         return () => setWalletActionGuard(null)
     }, [])
-    const [entry] = useState(() => resolveEntry({ seen: readSeen(), resuming: session.status === "resuming", deepLink: fromLink, locked: readLocked() }))
+    const [explicitlyLocked, setExplicitlyLocked] = useState(readLocked)
+    const [entry] = useState(() => resolveEntry({ skipIntro: readSkipIntro(), resuming: session.status === "resuming", deepLink: fromLink, locked: explicitlyLocked }))
     const [locked, setLocked] = useState(entry === "lock")
-    // The memba.club boot (A → C) plays over the lock screen on a first visit only.
+    const liveWidget = useLiveWidget()
+    // The memba.club boot (A → C) plays over the lock screen on each plain visit.
     const [booting, setBooting] = useState(() => shouldBoot({
-        entry, booted: readBooted(),
+        entry,
         reducedMotion: typeof window !== "undefined" && !!window.matchMedia?.("(prefers-reduced-motion: reduce)").matches,
     }))
-    useEffect(() => { if (booting) markBooted() }, [booting])
     const endBoot = useCallback(() => setBooting(false), [])
     const [linkGuest, setLinkGuest] = useState(entry === "link")
     const storageOwner = session.status === "resuming" ? null : session.status === "member"
@@ -168,7 +169,7 @@ export function Shell() {
     useEffect(() => { bannerNow.current = bannerUp }, [bannerUp])
     const placeDesk = useCallback((): DeskSize => ({ ...deskNow.current, top: bannerNow.current ? BANNER_ROOM : 0 }), [])
 
-    const win = useWindows(() => arrivalWindows(arrival, fromLink, entry, { ...deskNow.current, top: entry === "link" ? BANNER_ROOM : 0 }, storageOwner))
+    const win = useWindows(() => arrivalWindows(arrival, fromLink, { ...deskNow.current, top: entry === "link" ? BANNER_ROOM : 0 }, storageOwner, explicitlyLocked))
     const { dispatch } = win
     const previousStorageOwner = useRef(storageOwner)
     const skipSaveFor = useRef<readonly OsWindow[] | null>(null)
@@ -191,7 +192,7 @@ export function Shell() {
             }
             skipSaveFor.current = win.wins
             skipNextOwnerWrite.current = storageOwner
-            const restored = arrivalWindows(arrival, false, locked ? "lock" : "guest", placeDesk(), storageOwner)
+            const restored = arrivalWindows(arrival, false, placeDesk(), storageOwner, explicitlyLocked)
             dispatch({ type: "restore", wins: restored.wins })
         } else if (previous?.startsWith("guest:") && storageOwner.startsWith("member:")) {
             // A link remains visible after connection, but is not an edit to
@@ -204,14 +205,13 @@ export function Shell() {
             skipNextOwnerWrite.current = storageOwner
             dispatch({ type: "closeAll" })
         }
-    }, [storageOwner, fromLink, arrival, locked, dispatch, win.wins, placeDesk])
+    }, [storageOwner, fromLink, arrival, explicitlyLocked, dispatch, win.wins, placeDesk])
 
     useEffect(() => {
         dispatch({ type: "fit", desk: frameDesk })
     }, [dispatch, frameDesk])
 
     useEffect(() => {
-        if (entry !== "lock") markSeen()
         const switched = takeNetworkSwitchNotice()
         // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot notice read from sessionStorage after a switch reload
         if (switched) showToast(switched)
@@ -256,7 +256,8 @@ export function Shell() {
     const wroteOwner = useRef<string | null>(null)
     const initialSaveChecked = useRef(false)
     useEffect(() => {
-        if (storageOwner === null || skipSaveFor.current === win.wins) return
+        // A repeat welcome keeps the arrival URL plain until the user chooses.
+        if ((locked && !explicitlyLocked) || storageOwner === null || skipSaveFor.current === win.wins) return
         const skipOwnerWrite = skipNextOwnerWrite.current === storageOwner
         if (skipOwnerWrite) skipNextOwnerWrite.current = null
         let skipStorageWrite = locked || skipLockWrite.current || skipOwnerWrite
@@ -279,7 +280,7 @@ export function Shell() {
         if (url === lastUrl.current) return
         lastUrl.current = url
         if (url !== window.location.pathname + window.location.search) navigate(url, { replace: true })
-    }, [win.wins, navigate, storageOwner, locked])
+    }, [win.wins, navigate, storageOwner, locked, explicitlyLocked])
 
     // ── actions ──
     const open = useCallback((spec: WindowSpec, center = false) => dispatch({ type: "open", spec, desk: placeDesk(), center }), [dispatch, placeDesk])
@@ -299,7 +300,7 @@ export function Shell() {
     const unlock = () => {
         skipLockWrite.current = false
         skipNextOwnerWrite.current = storageOwner
-        markLocked(false); setLocked(false); markSeen()
+        markLocked(false); setExplicitlyLocked(false); setLocked(false)
     }
     const lock = () => {
         skipLockWrite.current = true
@@ -307,6 +308,7 @@ export function Shell() {
         win.closeAll()
         setLinkGuest(false)
         markLocked(true)
+        setExplicitlyLocked(true)
         setLocked(true)
     }
 
@@ -396,8 +398,14 @@ export function Shell() {
             {toast && <div className="os-toast os-glass" role="status">{toast}</div>}
             {locked && !session.stage && (
                 <LockScreen
-                    onConnect={session.openConnect}
-                    onGuest={() => { unlock(); if (!win.wins.length) open(welcomeSpec(), true) }}
+                    resuming={session.status === "resuming"}
+                    onConnect={() => { if (session.status === "member") unlock(); else session.openConnect() }}
+                    onGuest={() => {
+                        if (session.status !== "guest") session.disconnect()
+                        if (session.status === "member") win.closeAll()
+                        unlock()
+                        if (session.status === "guest" && !win.wins.length) open(welcomeSpec(), true)
+                    }}
                 />
             )}
         </>
@@ -431,7 +439,7 @@ export function Shell() {
                 isPinned={deskItems.isPinned} pin={deskItems.pin} startRequest={startRequest} openSearch={openLauncher} />
             <main ref={setDeskEl} className="os-desk" aria-label="Desktop" inert={modalBlocked} aria-hidden={modalBlocked}
                 onContextMenu={(e) => { if (e.target === e.currentTarget && !locked) { e.preventDefault(); openMenu(e, null) } }}>
-                {!locked && <LiveTicker onOpen={() => openApp("live")} />}
+                {!locked && liveWidget && <LiveTicker onOpen={() => openApp("live")} />}
                 <DeskItems items={deskItems.items} deskWidth={desk.w} onOpen={openItem} onMove={deskItems.move} onMenu={openMenu} />
                 {member && deskItems.items.length === 0 && visible.length === 0 && (
                     <div className="os-getstarted os-glass">

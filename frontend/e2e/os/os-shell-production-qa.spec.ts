@@ -132,7 +132,7 @@ test('invalid deep link stays in the address bar until the window closes', async
 
 test('saved guest desk restores its front URL without rewriting stored state', async ({ page }) => {
     await page.addInitScript(() => {
-        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem('memba_os_windows:guest:gnoland-1', JSON.stringify([
             { token: 'app.feed', x: 60, y: 40, width: 680, height: 500, z: 2, min: false, max: false },
         ]))
@@ -149,7 +149,7 @@ test('disconnecting from a linked member desk preserves both saved owner layouts
     const guestLayout = JSON.stringify([{ token: 'app.feed', x: 60, y: 40, width: 680, height: 500, z: 2, min: false, max: false }])
     const memberLayout = JSON.stringify([{ token: 'app.wallet', x: 90, y: 50, width: 680, height: 500, z: 2, min: false, max: false }])
     await page.addInitScript(({ address, guestKey, memberKey, guestLayout, memberLayout }) => {
-        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem('memba_adena_connected', 'true')
         localStorage.setItem('memba_auth_token', JSON.stringify({ nonce: 'e2e', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId: 'gnoland-1', serverSignature: 'e2e-only' }))
         localStorage.setItem(guestKey, guestLayout)
@@ -182,7 +182,7 @@ test('connecting from a guest link does not replace the member saved desktop', a
         json: { authToken: { nonce: 'AQID', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId: 'gnoland-1', serverSignature: 'CQ==' } },
     }))
     await page.addInitScript(({ address, memberKey, memberLayout }) => {
-        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem(memberKey, memberLayout)
         Object.defineProperty(window, 'adena', { value: {
             GetAccount: async () => ({ status: 'success', data: { address, coins: '250000000ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' }, accountNumber: '1', sequence: '1', chainId: 'gnoland-1' } }),
@@ -211,7 +211,7 @@ test('connecting from the lock screen resumes saving later desktop changes', asy
         json: { authToken: { nonce: 'AQID', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId: 'gnoland-1', serverSignature: 'CQ==' } },
     }))
     await page.addInitScript(({ address }) => {
-        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_skip_intro', '1')
         Object.defineProperty(window, 'adena', { value: {
             GetAccount: async () => ({ status: 'success', data: { address, coins: '250000000ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' }, accountNumber: '1', sequence: '1', chainId: 'gnoland-1' } }),
             GetNetwork: async () => ({ status: 'success', data: { chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land' } }),
@@ -231,6 +231,18 @@ test('connecting from the lock screen resumes saving later desktop changes', asy
     await expect.poll(() => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '[]').some((item: { token: string }) => item.token === 'app.feed'), memberKey)).toBe(true)
     await page.goto(`${OS_BASE}/os`)
     await expect(page.getByRole('region', { name: 'Feed' })).toBeVisible()
+})
+
+test('repeat welcome preserves saved guest windows until the choice is made', async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem('memba_os_windows:guest:gnoland-1', JSON.stringify([
+        { token: 'app.feed', x: 60, y: 40, width: 680, height: 500, z: 2, min: false, max: false },
+    ])))
+    await page.goto(`${OS_BASE}/os`)
+    await expect(page.getByRole('dialog', { name: 'Welcome to Memba' })).toBeVisible()
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/os')
+    await page.getByRole('button', { name: 'Continue as guest' }).click()
+    await expect(page.getByRole('region', { name: 'Feed' })).toBeVisible()
+    await expect.poll(() => new URL(page.url()).pathname).toBe('/os/feed')
 })
 
 test('wallet connection cancelled from lock keeps the desk locked', async ({ page }) => {

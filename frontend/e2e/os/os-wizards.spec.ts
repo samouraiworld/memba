@@ -42,7 +42,7 @@ async function offline(page: Page) {
 /** A connected member (ALICE), Adena stubbed; `window.__adenaCalls` records every DoContract. */
 async function member(page: Page) {
     await page.addInitScript(({ address }) => {
-        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem('memba_adena_connected', 'true')
         localStorage.setItem('memba_auth_token', JSON.stringify({ nonce: 'e2e', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId: 'gnoland-1', serverSignature: 'e2e-only' }))
         const calls: unknown[] = []

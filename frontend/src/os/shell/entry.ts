@@ -1,46 +1,26 @@
 /**
- * How a visit enters Memba OS (D7): the lock screen shows on a first visit
- * only; a wallet session resumes without it; a deep link opens its content
- * straight away as a guest.
+ * How a visit enters Memba OS: a plain visit shows the Connect/Guest choice
+ * unless Settings skips it. A direct link opens its content immediately.
  *
  * @module os/shell/entry
  */
 
-/** Set once the visitor has passed the lock screen (or skipped it via a link or a session). */
-export const OS_SEEN_KEY = "memba_os_seen"
 export const OS_LOCKED_KEY = "memba_os_locked"
-
 export type OsEntry =
-    /** First visit, no session, plain /os: show the lock screen. */
+    /** Plain /os visit with intro enabled. */
     | "lock"
-    /** A wallet session from an earlier visit is reconnecting: no lock screen. */
+    /** A wallet session reconnects with intro skipped or a direct link. */
     | "resume"
     /** A shared link and no session: open the content as a guest, no lock screen. */
     | "link"
-    /** Already seen, no session: the guest desktop. */
+    /** Intro skipped, no session: the guest desktop. */
     | "guest"
 
-export function resolveEntry(opts: { seen: boolean; resuming: boolean; deepLink: boolean; locked?: boolean }): OsEntry {
+export function resolveEntry(opts: { skipIntro: boolean; resuming: boolean; deepLink: boolean; locked?: boolean }): OsEntry {
     if (opts.locked) return "lock"
-    if (opts.resuming) return "resume"
+    if (opts.resuming && (opts.deepLink || opts.skipIntro)) return "resume"
     if (opts.deepLink) return "link"
-    return opts.seen ? "guest" : "lock"
-}
-
-export function readSeen(): boolean {
-    try {
-        return localStorage.getItem(OS_SEEN_KEY) === "1"
-    } catch {
-        return false
-    }
-}
-
-export function markSeen(): void {
-    try {
-        localStorage.setItem(OS_SEEN_KEY, "1")
-    } catch {
-        // Storage refused (private window): the lock screen shows again next visit.
-    }
+    return opts.skipIntro ? "guest" : "lock"
 }
 
 export function readLocked(): boolean {

@@ -18,7 +18,7 @@ async function phone(page: Page) {
 
 async function member(page: Page) {
     await page.addInitScript(({ address }) => {
-        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem('memba_adena_connected', 'true')
         localStorage.setItem('memba_auth_token', JSON.stringify({ nonce: 'e2e', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId: 'gnoland-1', serverSignature: 'e2e-only' }))
         Object.defineProperty(window, 'adena', { value: {
@@ -44,7 +44,7 @@ test.describe('Memba OS on a phone', () => {
     test('first visit: the lock screen, then the home screen as a guest', async ({ page }) => {
         await page.goto(`${OS_ON}/os`)
         const lock = page.getByRole('dialog', { name: 'Welcome to Memba' })
-        // The boot (first visit only) plays over it first.
+        // The boot plays over it first.
         await expect(page.getByTestId('os-boot')).toHaveCount(0)
         await expect(lock).toBeVisible()
         await lock.getByRole('button', { name: 'Continue as guest' }).click()
@@ -60,7 +60,7 @@ test.describe('Memba OS on a phone', () => {
     })
 
     test('a shared link opens straight as a sheet; Home and back work; DAO tabs follow the address', async ({ page }) => {
-        await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.goto(`${OS_ON}/os/dao/govdao/proposals/4`)
         const prop = sheet(page, 'govdao · Proposal #4')
         await expect(prop.getByRole('heading', { name: 'Fund the community education programme' })).toBeVisible()
@@ -116,7 +116,7 @@ test.describe('Memba OS on a phone', () => {
     })
 
     test('turning a phone into a desktop (rotation, a wider window) lays windows out for the real desk', async ({ page }) => {
-        await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.goto(`${OS_ON}/os`)
         await expect(page.getByRole('main', { name: 'Home' })).toBeVisible()
         await page.setViewportSize({ width: 1400, height: 900 })

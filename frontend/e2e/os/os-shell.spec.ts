@@ -63,10 +63,10 @@ const connectModal = (page: Page) => page.getByRole('dialog', { name: 'Connect a
 test.describe('Memba OS shell · entry scenarios', () => {
     test.beforeEach(async ({ page }) => { await offline(page) })
 
-    test('first visit: lock screen once, then the guest desktop with the Welcome window', async ({ page }) => {
+    test('each visit offers Connect or Guest while preserving desktop windows', async ({ page }) => {
         await page.goto(`${OS_ON}/os`)
         await expect(lockScreen(page)).toBeVisible()
-        // The boot (first visit only) plays over it first.
+        // The boot plays over it first.
         await expect(page.getByTestId('os-boot')).toHaveCount(0)
         await page.getByRole('button', { name: 'Continue as guest' }).click()
         await expect(lockScreen(page)).toHaveCount(0)
@@ -75,18 +75,32 @@ test.describe('Memba OS shell · entry scenarios', () => {
 
         await page.reload()
         await expect(page.getByTestId('memba-os')).toBeVisible()
+        await expect(lockScreen(page)).toBeVisible()
+        await lockScreen(page).getByRole('button', { name: 'Continue as guest' }).click()
         await expect(page.getByRole('banner', { name: 'Menu bar' })).toBeVisible()
-        await expect(lockScreen(page)).toHaveCount(0)
+        await expect(page.getByRole('region', { name: 'Welcome to Memba' })).toBeVisible()
     })
 
-    test('returning member: the session resumes without the lock screen', async ({ page }) => {
+    test('returning member: Connect continues the resumed session', async ({ page }) => {
         await returningMember(page)
         await page.goto(`${OS_ON}/os`)
+        await expect(lockScreen(page)).toBeVisible()
+        await lockScreen(page).getByRole('button', { name: 'Connect wallet' }).click()
         await expect(page.getByRole('button', { name: `Account ${ADDR}` })).toBeVisible()
         await expect(page.getByText('Welcome back · session resumed')).toBeVisible()
         await expect(lockScreen(page)).toHaveCount(0)
         await expect(page.getByText("Your desk is empty — let's fill it.")).toBeVisible()
         await expect(page.getByRole('button', { name: 'Connect wallet' })).toHaveCount(0)
+    })
+
+    test('returning member: Guest leaves the wallet session', async ({ page }) => {
+        await returningMember(page)
+        await page.goto(`${OS_ON}/os`)
+        await expect(lockScreen(page)).toBeVisible()
+        await lockScreen(page).getByRole('button', { name: 'Continue as guest' }).click()
+        await expect(lockScreen(page)).toHaveCount(0)
+        await expect(page.getByRole('button', { name: `Account ${ADDR}` })).toHaveCount(0)
+        await expect(page.getByRole('banner', { name: 'Menu bar' }).getByRole('button', { name: 'Connect wallet' })).toBeVisible()
     })
 
     test('shared link: opens the proposal as a guest, no lock screen', async ({ page }) => {

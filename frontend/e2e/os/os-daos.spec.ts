@@ -17,7 +17,7 @@ type WalletMode = 'ok' | 'timeout'
 /** A connected GovDAO member (@alice in the fixture), Adena stubbed. */
 async function member(page: Page, mode: WalletMode) {
     await page.addInitScript(({ address, mode }) => {
-        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem('memba_adena_connected', 'true')
         localStorage.setItem('memba_auth_token', JSON.stringify({ nonce: 'e2e', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId: 'gnoland-1', serverSignature: 'e2e-only' }))
         const calls: unknown[] = []
@@ -46,7 +46,7 @@ test.describe('Memba OS DAOs', () => {
     })
 
     test('a DAO folder opens from its link, with sections and proposals', async ({ page }) => {
-        await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.goto(`${OS_ON}/os/dao/govdao`)
         const folder = win(page, 'govdao')
         await expect(folder.getByText('GovDAO', { exact: true })).toBeVisible()

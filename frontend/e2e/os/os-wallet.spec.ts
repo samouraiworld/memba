@@ -21,7 +21,7 @@ async function offline(page: Page) {
 
 async function member(page: Page, mode: 'ok' | 'timeout' = 'ok') {
     await page.addInitScript(({ address, mode }) => {
-        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_os_skip_intro', '1')
         localStorage.setItem('memba_adena_connected', 'true')
         localStorage.setItem('memba_auth_token', JSON.stringify({ nonce: 'e2e', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId: 'gnoland-1', serverSignature: 'e2e-only' }))
         const calls: unknown[] = []
@@ -47,7 +47,7 @@ test.describe('Memba OS wallet', () => {
     test.beforeEach(async ({ page }) => { await offline(page) })
 
     test('a guest is asked to connect', async ({ page }) => {
-        await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+        await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
         await page.goto(`${OS_ON}/os/wallet`)
         await expect(win(page, 'Wallet').getByText('No wallet connected')).toBeVisible()
     })

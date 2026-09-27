@@ -16,6 +16,15 @@
 .memba-os .os-live-ticker-text strong { font-size: 11px; }
 .memba-os .os-live-ticker-text > span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--os-mut); }
 .memba-os .os-live-ticker-age { flex: none; font-size: 10px; color: var(--os-mut); }
+.memba-os .os-net-wrap { position: relative; display: flex; }
+.memba-os .os-live-popover {
+  display: none; position: absolute; top: 100%; right: 0; z-index: 950;
+  width: min(360px, calc(100vw - 24px)); padding: 6px; border: 1px solid var(--os-line);
+  border-radius: 14px; box-shadow: 0 18px 42px -14px var(--os-shadow);
+}
+.memba-os .os-net-wrap:hover .os-live-popover,
+.memba-os .os-net-wrap:focus-within .os-live-popover { display: block; }
+.memba-os .os-live-popover .os-live-ticker { position: static; width: 100%; box-shadow: none; }
 
 .memba-os .os-live-window { display: grid; align-content: start; gap: 14px; padding: 18px; min-width: 0; }
 .memba-os .os-live-head { display: flex; align-items: start; justify-content: space-between; gap: 16px; }

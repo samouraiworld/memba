@@ -1,22 +1,14 @@
 import { afterEach, describe, expect, it } from "vitest"
-import { BOOT_MS, BOOTED_KEY, bootLines, markBooted, readBooted, shouldBoot } from "./boot"
+import { BOOT_MS, bootLines, shouldBoot } from "./boot"
 
 afterEach(() => localStorage.clear())
 
 describe("shouldBoot", () => {
-    it("plays on a first visit (the lock screen) only, never under reduced motion, never twice", () => {
-        expect(shouldBoot({ entry: "lock", reducedMotion: false, booted: false })).toBe(true)
-        expect(shouldBoot({ entry: "lock", reducedMotion: true, booted: false })).toBe(false)
-        expect(shouldBoot({ entry: "lock", reducedMotion: false, booted: true })).toBe(false)
+    it("plays on every lock entry, never under reduced motion or on direct links", () => {
+        expect(shouldBoot({ entry: "lock", reducedMotion: false })).toBe(true)
+        expect(shouldBoot({ entry: "lock", reducedMotion: true })).toBe(false)
         // A shared link, a resumed session or a returning guest go straight in.
-        for (const entry of ["link", "resume", "guest"] as const) expect(shouldBoot({ entry, reducedMotion: false, booted: false }), entry).toBe(false)
-    })
-
-    it("remembers that it played, in this browser", () => {
-        expect(readBooted()).toBe(false)
-        markBooted()
-        expect(readBooted()).toBe(true)
-        expect(localStorage.getItem(BOOTED_KEY)).toBe("1")
+        for (const entry of ["link", "resume", "guest"] as const) expect(shouldBoot({ entry, reducedMotion: false }), entry).toBe(false)
     })
 
     it("stays short: the whole boot is under 2.2 s", () => {

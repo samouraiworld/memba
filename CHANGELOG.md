@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: quieter Live and repeat welcome
+
+- Show Live activity from the network selector on hover or focus, with an optional desktop widget in Settings. Replay the introduction and Connect or Guest choice on plain visits unless the local skip setting is enabled. Let the update notice collapse to a compact reminder.
+
 ### Memba OS: native Settings
 
 - Give Settings a native OS window with desktop appearance, wallpaper and icon size controls, honest notification availability, read-only network details, local gas defaults, account status and About access. Reset only disposable local UI data after confirmation, preserving unsent drafts, saved recipients and send locks.

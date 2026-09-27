@@ -4,7 +4,7 @@ import { abortOnchainReads } from '../helpers/onchain'
 
 async function guest(page: Page) {
     await abortOnchainReads(page)
-    await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+    await page.addInitScript(() => localStorage.setItem('memba_os_skip_intro', '1'))
 }
 
 test.describe('native OS Settings', () => {
@@ -37,6 +37,29 @@ test.describe('native OS Settings', () => {
         await expect(os).toHaveAttribute('data-os-theme', 'dark')
         await page.reload()
         await expect(os).toHaveAttribute('data-os-theme', 'dark')
+    })
+
+    test('Live is a network hover/focus preview and the desktop widget is opt-in', async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 800 })
+        await page.goto(`${OS_ON}/os/settings`)
+        const network = page.getByRole('button', { name: 'Network: gnoland-1' })
+        const widget = page.getByRole('main', { name: 'Desktop' }).locator('.os-live-ticker')
+        const preview = page.getByRole('group', { name: 'Live activity preview' })
+        await expect(widget).toHaveCount(0)
+        await network.hover()
+        await expect(preview).toBeVisible()
+        await network.click()
+        await expect(page.getByRole('menu', { name: 'Network' })).toBeVisible()
+        await page.keyboard.press('Escape')
+        await network.focus()
+        await expect(preview).toBeVisible()
+        const setting = page.getByRole('checkbox', { name: 'Add the Widget' })
+        await setting.check()
+        await expect(widget).toBeVisible()
+        await page.reload()
+        await expect(widget).toBeVisible()
+        await page.getByRole('checkbox', { name: 'Add the Widget' }).uncheck()
+        await expect(widget).toHaveCount(0)
     })
 
     test('wallpaper and desktop icon size apply without reload', async ({ page }) => {
