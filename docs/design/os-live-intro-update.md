@@ -1,6 +1,8 @@
 # OS entry, Live, and update controls
 
-Status: Implemented — local acceptance passed; PR and CI pending
+Status: Implemented — local acceptance passed; PR open, CI pending
+
+Integration: Depends on shell QA PR #1345. Merge that branch first; this change preserves its explicit locks and account-scoped desktop layouts.
 
 ## User behavior
 
