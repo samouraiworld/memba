@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { OS_ON } from '../../playwright.os.config'
+import { settleAnimations } from './settle'
 
 for (const [width, name] of [[1280, 'desktop'], [375, 'phone']] as const) {
     test(`Live keeps an indexer failure distinct from an empty sample on ${name}`, async ({ page }) => {
@@ -20,6 +21,7 @@ for (const [width, name] of [[1280, 'desktop'], [375, 'phone']] as const) {
             const ticker = page.getByRole('button', { name: /Open Live activity.*Activity could not be refreshed/ })
             await expect(ticker).toHaveAttribute('data-state', 'error')
         }
+        await settleAnimations(page)
         const scan = await new AxeBuilder({ page }).include('.memba-os').withTags(['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa']).analyze()
         expect(scan.violations.filter(result => result.impact === 'serious' || result.impact === 'critical')).toEqual([])
     })
