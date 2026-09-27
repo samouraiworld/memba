@@ -11,6 +11,7 @@ export function CodeEditor({ value, onChange, onLimit }: { value: string; onChan
     const view = useRef<EditorView | null>(null)
     const change = useRef(onChange)
     const limit = useRef(onLimit)
+    const beforeDeletion = useRef<string | null>(null)
 
     useEffect(() => { change.current = onChange }, [onChange])
     useEffect(() => { limit.current = onLimit }, [onLimit])
@@ -22,10 +23,17 @@ export function CodeEditor({ value, onChange, onLimit }: { value: string; onChan
             state: EditorState.create({
                 doc: value,
                 extensions: [basicSetup, go(), EditorState.transactionFilter.of((transaction) => {
-                    if (transaction.docChanged && new TextEncoder().encode(transaction.newDoc.toString()).length > MAX_SOURCE_BYTES) {
-                        limit.current()
-                        return []
+                    if (!transaction.docChanged) return transaction
+                    if (new TextEncoder().encode(transaction.newDoc.toString()).length > MAX_SOURCE_BYTES) {
+                        const restore = beforeDeletion.current
+                        beforeDeletion.current = null
+                        queueMicrotask(() => limit.current())
+                        // Firefox may issue select-all replacement as a deletion followed by insertion.
+                        // Restore the pre-deletion document if its insertion is rejected.
+                        return restore === null ? [] : [{ changes: { from: 0, to: transaction.startState.doc.length, insert: restore } }]
                     }
+                    beforeDeletion.current = transaction.newDoc.length < transaction.startState.doc.length
+                        ? transaction.startState.doc.toString() : null
                     return transaction
                 }), EditorView.lineWrapping, EditorView.contentAttributes.of({ "aria-label": "Gno source editor" }), EditorView.updateListener.of((update) => {
                     if (update.docChanged) change.current(update.state.doc.toString())

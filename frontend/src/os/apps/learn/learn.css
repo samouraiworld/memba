@@ -10,8 +10,8 @@
 .memba-os .os-learn-video-poster { display: flex; flex-direction: column; align-items: flex-start; justify-content: center; padding: 28px; background: linear-gradient(145deg, #233F6C, #14243E); color: #fff; }
 .memba-os .os-learn-play-mark { font-size: 24px; margin-bottom: 14px; }
 .memba-os .os-learn-video-poster b { font-size: 18px; }
-.memba-os .os-learn-video-poster p { max-width: 30ch; color: #C7D9EE; }
-.memba-os .os-learn-video-poster button { border: 0; border-radius: 8px; padding: 9px 13px; color: #182B49; background: #D9E8FB; font-weight: 700; cursor: pointer; }
+.memba-os .os-learn-video-poster p { max-width: 30ch; color: #fff; opacity: .8; }
+.memba-os .os-learn-video-poster button { border: 0; border-radius: 8px; padding: 9px 13px; color: #000; background: #D9E8FB; font-weight: 700; cursor: pointer; }
 .memba-os .os-learn-video > a { display: inline-block; margin-top: 10px; color: var(--os-acc-ink); }
 .memba-os .os-learn-chapters h3 { margin: 0 0 12px; font-size: 15px; }
 .memba-os .os-learn-chapters ol { list-style: none; counter-reset: lessons; margin: 0; padding: 0; display: grid; gap: 8px; }
