@@ -30,4 +30,4 @@ Before adding these commands, require a threat model and RPC resource policy for
 
 ## Delivery and merge order
 
-Terminal lives in its own `feat/os-terminal-v1` worktree. Guest boundaries, native Feed, and Live activity have merged. This branch includes their current app registry and icons. Run targeted unit and OS browser journeys, frontend build/lint, independent CTO and SWE reviews, and all required CI on the final head. Merge only when the branch is current with `main` and required reviews/checks pass.
+Terminal and Learn merged in #1340 after guest boundaries, native Feed, and Live activity. The 2026-09-27 `memba.club` build `170374fe` served both native guest windows in a clean browser context: Terminal accepted `help` without a wallet prompt, and Learn created its video iframe only after the guest clicked Play. Signed calls, arbitrary evaluation, and package deployment remain outside this beta.
