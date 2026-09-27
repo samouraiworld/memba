@@ -245,7 +245,7 @@ export class TokenLaunchpadClient {
     async registryKeyOf(id: string): Promise<string> {
         if (!/^T[1-9][0-9]{0,9}$/.test(id)) invalid("invalid registry id")
         const key = parseQevalString(await this.read(`RegistryKeyOf(${JSON.stringify(id)})`))
-        if (key === "") invalid("empty registry key")
+        if (key !== `${TOKEN_LAUNCHPAD_PATH}.${id}`) invalid("registry key mismatch")
         return key
     }
 }
