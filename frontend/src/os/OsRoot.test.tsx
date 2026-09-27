@@ -19,8 +19,7 @@ function renderOs() {
     // main.tsx supplies this in the app; the shell's Live polling uses it.
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
     const tree = () => <QueryClientProvider client={client}><MemoryRouter initialEntries={["/os"]}><OsRoot /></MemoryRouter></QueryClientProvider>
-    const result = render(tree())
-    return { ...result, rerenderOs: () => result.rerender(tree()) }
+    return render(tree())
 }
 
 afterEach(() => {
@@ -94,14 +93,16 @@ describe("OsRoot", () => {
         expect(document.documentElement).not.toHaveAttribute("data-theme")
     })
 
-    it("keeps html[data-theme] equal to the OS theme across a re-render, and still restores the page theme on unmount", () => {
+    it("syncs a stored theme change from another tab and restores the page theme on unmount", () => {
         document.documentElement.setAttribute("data-theme", "sepia")
         mockSystemDark(false)
-        const { rerenderOs, unmount } = renderOs()
+        const { unmount } = renderOs()
         expect(document.documentElement).toHaveAttribute("data-theme", "light")
 
-        localStorage.setItem(OS_THEME_KEY, "dark")
-        rerenderOs()
+        act(() => {
+            localStorage.setItem(OS_THEME_KEY, "dark")
+            window.dispatchEvent(new StorageEvent("storage", { key: OS_THEME_KEY }))
+        })
         expect(document.documentElement).toHaveAttribute("data-theme", "dark")
 
         unmount()

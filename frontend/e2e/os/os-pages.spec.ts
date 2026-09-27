@@ -22,9 +22,9 @@ test.describe('Memba OS pages in windows', () => {
     test.beforeEach(async ({ page }) => { await guest(page) })
 
     test('an app without a native window shows its Memba page inside the window', async ({ page }) => {
-        await page.goto(`${OS_ON}/os/settings`)
-        const settings = win(page, 'Settings')
-        await expect(settings.getByRole('heading', { name: 'Settings', exact: true }).first()).toBeVisible()
+        await page.goto(`${OS_ON}/os/news`)
+        const news = win(page, 'News')
+        await expect(news.locator('.os-classic')).toBeVisible()
         await expect(page.getByRole('link', { name: /in Memba$/ })).toHaveCount(0)
         // Memba's own navigation chrome stays out: the window holds the page only.
         await expect(page.locator('.os-classic nav[aria-label="Main navigation"], .os-classic .k-sidebar')).toHaveCount(0)
@@ -82,10 +82,10 @@ test.describe('Memba OS pages in windows', () => {
     test("a page's link to another app opens that app's window beside it", async ({ page }) => {
         await page.goto(`${OS_ON}/os/settings`)
         const settings = win(page, 'Settings')
-        await settings.getByRole('button', { name: /Directory/ }).first().click()
-        await settings.locator('#settings-directory-btn').click()
-        await expect.poll(() => new URL(page.url()).pathname).toBe('/os/explorer')
-        await expect(win(page, 'Explorer')).toBeVisible()
+        await settings.getByRole('navigation', { name: 'Settings' }).getByRole('button', { name: 'Account' }).click()
+        await settings.getByRole('button', { name: 'Open Profile' }).click()
+        await expect.poll(() => new URL(page.url()).pathname).toBe('/os/profile')
+        await expect(win(page, 'Profile')).toBeVisible()
         await expect(win(page, 'Settings')).toBeVisible()
     })
 

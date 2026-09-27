@@ -20,6 +20,10 @@ Full changelogs are split by version range for easier navigation:
 
 ## [Unreleased]
 
+### Memba OS: native Settings
+
+- Give Settings a native OS window with desktop appearance, wallpaper and icon size controls, honest notification availability, read-only network details, local gas defaults, account status and About access. Reset only disposable local UI data after confirmation, preserving unsent drafts, saved recipients and send locks.
+
 ### Memba OS: bounded guest access (2026-09-27)
 
 - Keep public App Store browsing open while requiring a signed-in OS member session for publisher and curator windows. Check that session again immediately before any OS wallet broadcast, including actions in public classic pages, and stop queued signing reviews if it ends. Describe guest access without promising private account reads.

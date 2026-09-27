@@ -11,21 +11,22 @@ import "./shell/shell.css"
 import "./classic-bridge.css"
 import "./kit/kit.css"
 import { Shell } from "./shell/Shell"
-import { useClassicThemeSync, useOsTheme } from "./theme"
-import { DEFAULT_WALLPAPER } from "./wallpapers"
+import { AppearanceContext, useAppearanceState } from "./appearance"
+import { useClassicThemeSync } from "./theme"
 
 export default function OsRoot() {
-    const theme = useOsTheme()
-    useClassicThemeSync(theme)
-    const wallpaper = DEFAULT_WALLPAPER
+    const appearance = useAppearanceState()
+    useClassicThemeSync(appearance.theme)
     return (
         <div
             className="memba-os"
             data-testid="memba-os"
-            data-os-theme={theme}
-            style={{ background: theme === "dark" ? wallpaper.dark : wallpaper.light }}
+            data-os-theme={appearance.theme}
+            data-os-wallpaper={appearance.wallpaper.id}
+            data-os-icon-size={appearance.iconSize}
+            style={{ background: appearance.theme === "dark" ? appearance.wallpaper.dark : appearance.wallpaper.light }}
         >
-            <Shell />
+            <AppearanceContext.Provider value={appearance}><Shell /></AppearanceContext.Provider>
         </div>
     )
 }

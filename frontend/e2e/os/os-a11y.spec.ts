@@ -108,7 +108,7 @@ for (const scheme of ['light', 'dark'] as const) {
 /** Apps with no native OS window: they render their existing Memba page (.os-classic)
  * inside the window instead. Store's extensions sub-route isn't scanned separately —
  * this is the app's landing deep link, /os/<slug> (osPath.ts requires a slug). */
-const CLASSIC_APPS = ['store', 'settings', 'quests', 'validators', 'news', 'dev-report', 'explorer', 'feedback']
+const CLASSIC_APPS = ['store', 'quests', 'validators', 'news', 'dev-report', 'explorer', 'feedback']
 
 for (const scheme of ['light', 'dark'] as const) {
     test.describe(`Memba OS classic pages accessibility · ${scheme}`, () => {
@@ -161,6 +161,18 @@ for (const scheme of ['light', 'dark'] as const) {
             await page.goto(`${OS_ON}/os/arcade`)
             const arcade = page.getByRole('region', { name: 'Arcade', exact: true })
             await expect(arcade.getByRole('navigation', { name: 'Arcade' })).toBeVisible()
+            expect(await violations(page)).toEqual([])
+        })
+
+        test('Settings native appearance and reset sheet', async ({ page }) => {
+            await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
+            await page.goto(`${OS_ON}/os/settings`)
+            const settings = page.getByRole('region', { name: 'Settings', exact: true })
+            await expect(settings.getByRole('navigation', { name: 'Settings' })).toBeVisible()
+            expect(await violations(page)).toEqual([])
+            await settings.getByRole('button', { name: 'Safety' }).click()
+            await settings.getByRole('button', { name: 'Reset local app data' }).click()
+            await expect(page.getByRole('dialog', { name: 'Reset local app data' })).toBeVisible()
             expect(await violations(page)).toEqual([])
         })
     })

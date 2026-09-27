@@ -50,7 +50,7 @@ for (const theme of ['light', 'dark'] as const) {
 }
 
 // Feed and Tokens now have native windows; this sweep covers classic pages.
-const APPS = ['store', 'settings', 'quests', 'validators', 'profile', 'news', 'explorer', 'feedback', 'dev-report']
+const APPS = ['store', 'quests', 'validators', 'profile', 'news', 'explorer', 'feedback', 'dev-report']
 
 test('Tokens unavailable state is native on mainnet', async ({ page }) => {
     await guest(page)
@@ -140,9 +140,9 @@ test('a checkbox inside a classic window keeps a visible focus ring', async ({ p
         localStorage.setItem('memba_os_seen', '1')
         localStorage.setItem('memba_os_booted', '1')
     })
-    await page.goto(`${OS_ON}/os/settings`)
+    await page.goto(`${OS_ON}/os/news`)
     await page.locator('.os-classic').first().waitFor()
-    // Settings/App Store's own checkboxes are behind live data or a feature flag
+    // App Store's own checkboxes are behind live data or a feature flag
     // this guest fixture doesn't reach, so mount a bare one inside the live
     // .os-classic scope instead — a real element, styled by the real CSS, just not
     // one of the app's own gated checkboxes.
@@ -165,7 +165,7 @@ test('the route-fallback loader inside a window hides its logo and stays compact
         localStorage.setItem('memba_os_seen', '1')
         localStorage.setItem('memba_os_booted', '1')
     })
-    await page.goto(`${OS_ON}/os/settings`)
+    await page.goto(`${OS_ON}/os/news`)
     await page.locator('.os-classic').first().waitFor()
     // ConnectingLoader's own route chunk loads too fast in this fixture for a delayed-
     // chunk probe to be deterministic, so this mounts its exact markup shape (role=
@@ -195,7 +195,7 @@ test('kit.css scopes the sidebar nav to a direct child, not a classic <nav> in t
     })
     // Mount both navigation shapes in the live theme to check that sidebar
     // styling reaches only the direct child, even when a section contains nav.
-    await page.goto(`${OS_ON}/os/settings`)
+    await page.goto(`${OS_ON}/os/news`)
     await page.locator('.os-classic').first().waitFor()
     const result = await page.evaluate(() => {
         const host = document.createElement('div')
@@ -216,18 +216,18 @@ for (const view of [
     { name: '420px', theme: 'light', width: 1400, height: 900, windowWidth: 420 },
     { name: 'phone', theme: 'light', width: 375, height: 760 },
 ] as const) {
-    test(`classic Settings layout and font · ${view.name}`, async ({ page }, testInfo) => {
+    test(`classic News layout and font · ${view.name}`, async ({ page }, testInfo) => {
         await guest(page)
         await page.addInitScript(() => localStorage.setItem('memba_os_seen', '1'))
         await page.emulateMedia({ colorScheme: view.theme, reducedMotion: 'reduce' })
         await page.setViewportSize({ width: view.width, height: view.height })
-        await page.goto(`${OS_ON}/os/settings`)
-        const settings = page.getByRole('region', { name: 'Settings', exact: true })
-        const classic = settings.locator('.os-classic')
+        await page.goto(`${OS_ON}/os/news`)
+        const news = page.getByRole('region', { name: 'News', exact: true })
+        const classic = news.locator('.os-classic')
         await expect(classic).toBeVisible({ timeout: 30_000 })
         await settle(classic)
         if ('windowWidth' in view) {
-            await settings.evaluate((el, width) => { (el as HTMLElement).style.width = `${width}px` }, view.windowWidth)
+            await news.evaluate((el, width) => { (el as HTMLElement).style.width = `${width}px` }, view.windowWidth)
         }
         await page.evaluate(() => document.fonts.ready)
         expect(await classic.evaluate((el) => getComputedStyle(el).fontFamily)).toContain('Manrope')
