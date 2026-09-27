@@ -1,7 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import AxeBuilder from '@axe-core/playwright'
 import { settle, settleAnimations } from './settle'
-import { OS_ON } from '../../playwright.os.config'
+import { OS_FEED_ON, OS_ON } from '../../playwright.os.config'
 import { fulfillGovernance } from '../helpers/proGovernanceFixture'
 import { abortOnchainReads } from '../helpers/onchain'
 
@@ -137,6 +137,15 @@ for (const scheme of ['light', 'dark'] as const) {
             await page.goto(`${OS_ON}/os/feed`)
             const feed = page.getByRole('region', { name: 'Feed', exact: true })
             await expect(feed.getByText('The Feed is disabled in this build.')).toBeVisible()
+            expect(await violations(page)).toEqual([])
+        })
+
+        test('Feed native enabled window', async ({ page }) => {
+            await page.route(/memba\.v1\.|memba-backend\.fly\.dev/, route => route.fulfill({ status: 503, body: 'offline' }))
+            await page.goto(`${OS_FEED_ON}/os/feed`)
+            const feed = page.getByRole('region', { name: 'Feed', exact: true })
+            await expect(feed.getByRole('heading', { name: 'Community posts' })).toBeVisible()
+            await expect(feed.getByText('The Feed could not be loaded. Your posts remain on-chain.')).toBeVisible()
             expect(await violations(page)).toEqual([])
         })
 
