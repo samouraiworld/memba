@@ -30,4 +30,4 @@ Before adding these commands, require a threat model and RPC resource policy for
 
 ## Delivery and merge order
 
-Terminal lives in its own `feat/os-terminal-v1` worktree. Session #1 owns Feed/Activities and guest boundaries. Rebase shared registry, icon and CSP edits after its merge train settles. Run targeted unit and OS browser journeys, frontend build/lint, independent CTO and SWE reviews, and all required CI on the final head. Merge only when the branch is current with `main` and required reviews/checks pass.
+Terminal lives in its own `feat/os-terminal-v1` worktree. Guest boundaries, native Feed, and Live activity have merged. This branch includes their current app registry and icons. Run targeted unit and OS browser journeys, frontend build/lint, independent CTO and SWE reviews, and all required CI on the final head. Merge only when the branch is current with `main` and required reviews/checks pass.
