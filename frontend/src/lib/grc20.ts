@@ -8,7 +8,7 @@ import { withWalletActivity } from "./walletActivity"
  * - v2.1a: $MEMBA/$MEMBATEST token helpers
  */
 
-import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN, GNO_CHAIN_ID, API_BASE_URL } from "./config"
+import { GRC20_FACTORY_PATH as _FACTORY_PATH, MEMBA_TOKEN, GNO_CHAIN_ID, API_BASE_URL, ACTIVATION_PROFILE_REALM } from "./config"
 import { getGasConfig } from "./gasConfig"
 import { getRpcUrlsInOrder } from "./rpcFallback"
 import { abciQueryText } from "./dao/packageStatus"
@@ -134,6 +134,11 @@ export const UNVERIFIED_CHAIN_ID = "__unverified__"
  * BroadcastMultisigTransaction) can apply the SAME safety checks (W2.1).
  */
 export function assertWalletBroadcastSafe(): void {
+    assertWalletBroadcastSafeInternal(false)
+}
+
+function assertWalletBroadcastSafeInternal(allowOsActivation: boolean): void {
+    assertWalletActionAllowed(false, allowOsActivation)
     // SECURITY: Block transactions through untrusted or unverifiable RPC
     if (!_walletRpcTrusted) {
         const detail = _walletRpcUrl
@@ -173,6 +178,24 @@ export function assertWalletBroadcastSafe(): void {
  */
 export type TxConfirmCallback = (msgs: AminoMsg[], memo: string) => Promise<boolean>
 let _txConfirmCallback: TxConfirmCallback | null = null
+
+/** The OS registers its session boundary while mounted. Classic pages have no extra gate. */
+let _walletActionGuard: (() => boolean) | null = null
+
+export class WalletActionBlockedError extends Error {
+    constructor() { super("Your Memba session ended. Connect again before signing.") }
+}
+
+export function setWalletActionGuard(guard: (() => boolean) | null): void {
+    _walletActionGuard = guard
+}
+
+function assertWalletActionAllowed(earlierAttemptMayHaveLanded = false, allowOsActivation = false): void {
+    if (_walletActionGuard && !_walletActionGuard() && !allowOsActivation) {
+        if (earlierAttemptMayHaveLanded) throw new Error("Memba session ended before retrying. An earlier attempt may have reached the chain. Check its outcome before trying again.")
+        throw new WalletActionBlockedError()
+    }
+}
 
 /**
  * Register the confirmation callback. Called by TxConfirmationProvider on mount.
@@ -255,7 +278,7 @@ export function feeForGasWanted(gasWanted: number, price: GasPrice): number {
 export async function doContractBroadcast(
     msgs: AminoMsg[],
     memo: string,
-    opts?: { gas?: "call" | "deploy"; gasWanted?: number; retry?: false; beforeSign?: () => void | Promise<void> },
+    opts?: { gas?: "call" | "deploy"; gasWanted?: number; retry?: false; beforeSign?: () => void | Promise<void>; osActivation?: true },
 ): Promise<{ hash: string; result?: unknown }> {
     return withWalletActivity(() => broadcastContract(msgs, memo, opts))
 }
@@ -266,9 +289,9 @@ export async function doContractBroadcast(
  * reached the wallet and may have landed, so a refusal must not read as
  * "nothing sent": it becomes a plain error saying the outcome is unknown.
  */
-async function walletStillSafe(attempt: number, lastError: Error | null): Promise<void> {
+async function walletStillSafe(attempt: number, lastError: Error | null, allowOsActivation = false): Promise<void> {
     try {
-        assertWalletBroadcastSafe()
+        assertWalletBroadcastSafeInternal(allowOsActivation)
         await assertLiveWalletNetwork(GNO_CHAIN_ID, { address: _walletAddress })
     } catch (err) {
         if (attempt === 0) throw err
@@ -284,12 +307,22 @@ async function walletStillSafe(attempt: number, lastError: Error | null): Promis
 async function broadcastContract(
     msgs: AminoMsg[],
     memo: string,
-    opts?: { gas?: "call" | "deploy"; gasWanted?: number; retry?: false; beforeSign?: () => void | Promise<void> },
+    opts?: { gas?: "call" | "deploy"; gasWanted?: number; retry?: false; beforeSign?: () => void | Promise<void>; osActivation?: true },
 ): Promise<{ hash: string; result?: unknown }> {
     if (opts?.gasWanted !== undefined && (!Number.isSafeInteger(opts.gasWanted) || opts.gasWanted <= 0 || opts.gasWanted > MAX_GAS_WANTED)) {
         throw new Error(`Invalid gas limit: must be a whole number between 1 and ${MAX_GAS_WANTED}`)
     }
 
+    // First-time wallet activation precedes OS sign-in. Only its exact Bio
+    // registration call can use this exception; the option alone grants nothing.
+    const activation = opts?.osActivation === true && memo === "Memba Network Activation"
+        && msgs.length === 1 && msgs[0].type === "vm/MsgCall"
+        && typeof msgs[0].value.caller === "string" && /^g1[02-9ac-hj-np-z]{38}$/.test(msgs[0].value.caller)
+        && msgs[0].value.caller === _walletAddress
+        && msgs[0].value.send === "" && msgs[0].value.pkg_path === ACTIVATION_PROFILE_REALM
+        && msgs[0].value.func === "SetStringField" && Array.isArray(msgs[0].value.args)
+        && msgs[0].value.args.length === 2 && msgs[0].value.args[0] === "Bio" && msgs[0].value.args[1] === ""
+    assertWalletActionAllowed(false, activation)
     // A6: Confirmation gate — ask user before broadcasting
     if (_txConfirmCallback) {
         const confirmed = await _txConfirmCallback(msgs, memo)
@@ -299,7 +332,7 @@ async function broadcastContract(
     }
 
     // SECURITY: RPC-trust + wrong-chain guards (shared with multisig broadcast)
-    assertWalletBroadcastSafe()
+    assertWalletBroadcastSafeInternal(activation)
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const adena = (window as any).adena
@@ -324,11 +357,13 @@ async function broadcastContract(
         // it names this page's chain (and account). Asked first before the
         // caller's beforeSign, which callers treat as "the wallet is opening",
         // so a wallet on the wrong network is reported as nothing sent.
-        await walletStillSafe(attempt, lastError)
+        await walletStillSafe(attempt, lastError, activation)
         // Await caller revalidation after confirmation, then recheck wallet safety.
         await opts?.beforeSign?.()
         // Asked again right before the wallet request: beforeSign can take a while.
-        await walletStillSafe(attempt, lastError)
+        await walletStillSafe(attempt, lastError, activation)
+        // No await between this OS session check and the Adena request.
+        assertWalletActionAllowed(attempt > 0, activation)
         try {
             const res = await adena.DoContract({
                 messages: toAdenaMessages(msgs),

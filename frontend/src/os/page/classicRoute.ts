@@ -109,4 +109,5 @@ export function osTargetForClassic(pathname: string, network: string): OsTarget 
 /** Pages that send a guest away in the classic app (they need a signed-in wallet): the window asks to connect instead. */
 export function pageNeedsWallet(page: string): boolean {
     return page === "profile" || page === "multisig" || page === "create" || page === "import" || page.startsWith("multisig/")
+        || page === "apps/submit" || page === "apps/review" || page === "apps/my-submissions"
 }

@@ -14,7 +14,7 @@ export function LockScreen({ onConnect, onGuest }: { onConnect: () => void; onGu
                     <button type="button" className="os-lock-primary" onClick={onConnect} autoFocus>Connect wallet</button>
                     <button type="button" className="os-lock-secondary" onClick={onGuest}>Continue as guest</button>
                 </div>
-                <div className="os-lock-hint">Guests can open and read everything. You'll only see this screen once.</div>
+                <div className="os-lock-hint">Guests can explore public apps, DAOs and posts. Connect for private accounts or on-chain actions. You'll only see this screen once.</div>
             </div>
         </div>
     )

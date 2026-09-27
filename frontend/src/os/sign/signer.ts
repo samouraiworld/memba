@@ -12,7 +12,7 @@
  *
  * @module os/sign/signer
  */
-import { setTxConfirmationCallback, type AminoMsg } from "../../lib/grc20"
+import { setTxConfirmationCallback, WalletActionBlockedError, type AminoMsg } from "../../lib/grc20"
 import {
     beginGovernanceRequest, clearGovernanceReceipt, governanceRequestActive, saveGovernanceReceipt, type GovernanceScope,
 } from "../../lib/dao/governanceRecovery"
@@ -69,6 +69,8 @@ export async function executeSignature<C extends string>(
     choice: C | undefined,
     reviewed: readonly AminoMsg[],
     onWallet: () => void,
+    /** Checked after asynchronous chain rechecks and immediately before Adena opens. */
+    canOpenWallet: () => boolean = () => true,
 ): Promise<SignResult> {
     const label = req.label(choice)
     let walletStarted = false
@@ -91,6 +93,7 @@ export async function executeSignature<C extends string>(
         }
         const res = await req.send(choice, async () => {
             await req.recheck?.(choice)
+            if (!canOpenWallet()) throw new Error("Your Memba session ended. Connect again before signing.")
             walletStarted = true
             onWallet()
         })
@@ -102,7 +105,7 @@ export async function executeSignature<C extends string>(
     } catch (err) {
         const raw = err instanceof Error ? err.message : String(err)
         // A wallet-network refusal is thrown before the wallet is asked to sign.
-        const nothingSent = (!walletStarted && !hash) || REJECTED_IN_WALLET.test(raw) || err instanceof WalletNetworkError
+        const nothingSent = (!walletStarted && !hash) || REJECTED_IN_WALLET.test(raw) || err instanceof WalletNetworkError || err instanceof WalletActionBlockedError
         if (nothingSent) {
             finish()
             if (req.receipt) { try { clearGovernanceReceipt(req.receipt) } catch { /* keep the conservative lock */ } }

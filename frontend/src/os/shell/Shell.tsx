@@ -6,7 +6,7 @@
  *
  * @module os/shell/Shell
  */
-import { useCallback, useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react"
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from "react"
 import { useLocation, useNavigate, useNavigationType } from "react-router-dom"
 import { OS_APPS, type OsAppId } from "../apps"
 import { ConnectModal } from "./ConnectModal"
@@ -26,6 +26,7 @@ import { useDesk } from "./useDesk"
 import { useOsSession } from "./useOsSession"
 import { SignerProvider } from "../sign/SignerProvider"
 import { useIsMobile } from "../../hooks/useIsMobile"
+import { setWalletActionGuard } from "../../lib/grc20"
 import { PhoneShell } from "../phone/PhoneShell"
 import { Launcher } from "./Launcher"
 import { WindowFrame, type FrameActions } from "./WindowFrame"
@@ -117,6 +118,12 @@ export function Shell() {
             showToast(`Connected with Adena · ${shortAddr(address)}`)
         },
     })
+    const memberNow = useRef(session.status === "member")
+    useLayoutEffect(() => { memberNow.current = session.status === "member" }, [session.status])
+    useLayoutEffect(() => {
+        setWalletActionGuard(() => memberNow.current)
+        return () => setWalletActionGuard(null)
+    }, [])
     const [entry] = useState(() => resolveEntry({ seen: readSeen(), resuming: session.status === "resuming", deepLink: fromLink }))
     const [locked, setLocked] = useState(entry === "lock")
     // The memba.club boot (A → C) plays over the lock screen on a first visit only.

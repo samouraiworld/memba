@@ -110,7 +110,7 @@ describe("osTargetForClassic", () => {
 
 describe("pageNeedsWallet", () => {
     it("covers the pages that send guests away in the classic app", () => {
-        expect(["profile", "multisig", "create", "import", `multisig/${ADDR}`, `multisig/${ADDR}/propose`].every(pageNeedsWallet)).toBe(true)
-        expect(["feed", "validators", "profile/g1x", "apps"].some(pageNeedsWallet)).toBe(false)
+        expect(["profile", "multisig", "create", "import", `multisig/${ADDR}`, `multisig/${ADDR}/propose`, "apps/submit", "apps/review", "apps/my-submissions"].every(pageNeedsWallet)).toBe(true)
+        expect(["feed", "validators", "profile/g1x", "apps", "apps/gno.land/r/alice/example"].some(pageNeedsWallet)).toBe(false)
     })
 })

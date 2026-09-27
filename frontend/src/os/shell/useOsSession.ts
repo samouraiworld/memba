@@ -148,6 +148,7 @@ export function useOsSession(opts: { onSignedIn?: (address: string) => void } = 
                     value: { caller: adena.address, send: "", pkg_path: ACTIVATION_PROFILE_REALM, func: "SetStringField", args: ["Bio", ""] },
                 }],
                 "Memba Network Activation",
+                { osActivation: true },
             )
             if (epoch.current !== my) return
             if (activationForced) { window.location.reload(); return } // re-read the wallet with its key

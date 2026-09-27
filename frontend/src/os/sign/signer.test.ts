@@ -58,6 +58,21 @@ describe("executeSignature", () => {
         expect(readGovernanceReceipt(scope)).toBeNull()
     })
 
+    it("stops before Adena if the OS member session ends during an asynchronous recheck", async () => {
+        let finishRecheck!: () => void
+        const wait = new Promise<void>((resolve) => { finishRecheck = resolve })
+        const wallet = vi.fn(async () => ({ hash: "NEVER" }))
+        const onWallet = vi.fn()
+        let member = true
+        const result = executeSignature(request({ recheck: () => wait, wallet }), "YES", [msg], onWallet, () => member)
+        member = false
+        finishRecheck()
+        await expect(result).resolves.toMatchObject({ outcome: "failed" })
+        expect(onWallet).not.toHaveBeenCalled()
+        expect(wallet).not.toHaveBeenCalled()
+        expect(readGovernanceReceipt(scope)).toBeNull()
+    })
+
     it("a rejection in Adena means nothing was sent", async () => {
         const res = await executeSignature(request({ wallet: async () => { throw new Error("The transaction has been rejected by the user.") } }), "YES", [msg], () => {})
         expect(res).toEqual({ outcome: "cancelled", error: "Cancelled. Nothing was sent." })
@@ -121,4 +136,3 @@ describe("verifyWithRetries", () => {
         await expect(verifyWithRetries(async () => false, 2, 0)).resolves.toBe(false)
     })
 })
-

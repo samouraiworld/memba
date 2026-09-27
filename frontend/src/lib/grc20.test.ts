@@ -33,12 +33,13 @@ import {
     MAX_GAS_WANTED,
     setWalletRpcContext,
     setTxConfirmationCallback,
+    setWalletActionGuard,
     assertWalletBroadcastSafe,
     UNVERIFIED_CHAIN_ID,
     getTokenDecimals,
     __resetTokenDecimalsCache,
 } from './grc20'
-import { GNO_CHAIN_ID } from './config'
+import { ACTIVATION_PROFILE_REALM, GNO_CHAIN_ID } from './config'
 import { liveWallet } from '../test/walletStub'
 
 // getTokenDecimals -> getTokenInfo -> queryRender -> abciQuery, which is a
@@ -69,6 +70,7 @@ const WRONG_CHAIN = `${GNO_CHAIN_ID}-other`
 beforeEach(() => {
     setWalletRpcContext(null, false, null)
     setTxConfirmationCallback(null)
+    setWalletActionGuard(null)
     __resetTokenDecimalsCache()
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     delete (window as any).adena
@@ -478,6 +480,59 @@ describe('doContractBroadcast — wrong-chain guard (defense-in-depth)', () => {
         setWalletRpcContext('https://rpc.sapphire.testnets.gno.land:443', true, GNO_CHAIN_ID)
         // matches → not blocked by the chain guard; fails later (no window.adena in jsdom)
         await expect(doContractBroadcast([], 'memo')).rejects.toThrow(/Adena wallet not available/)
+    })
+})
+
+describe('doContractBroadcast — OS member boundary', () => {
+    it('blocks classic page writes even when Adena remains connected', async () => {
+        setWalletRpcContext('https://rpc.gno.land:443', true, GNO_CHAIN_ID)
+        const doContract = vi.fn()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(window as any).adena = { ...liveWallet(), DoContract: doContract }
+        setWalletActionGuard(() => false)
+        await expect(doContractBroadcast([], 'memo')).rejects.toThrow(/Memba session ended/)
+        expect(doContract).not.toHaveBeenCalled()
+    })
+
+    it('rechecks membership after the final asynchronous wallet check', async () => {
+        setWalletRpcContext('https://rpc.gno.land:443', true, GNO_CHAIN_ID)
+        let member = true
+        let releaseCheck!: () => void
+        let checkStarted!: () => void
+        const started = new Promise<void>((resolve) => { checkStarted = resolve })
+        const held = new Promise<void>((resolve) => { releaseCheck = resolve })
+        const wallet = liveWallet()
+        let accountReads = 0
+        wallet.GetAccount.mockImplementation(async () => {
+            if (++accountReads === 2) { checkStarted(); await held }
+            return { status: 'success', data: { address: 'g1stub', chainId: GNO_CHAIN_ID } }
+        })
+        const doContract = vi.fn()
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(window as any).adena = { ...wallet, DoContract: doContract }
+        setWalletActionGuard(() => member)
+        const result = doContractBroadcast([], 'memo', { beforeSign: async () => {} })
+        await started
+        member = false
+        releaseCheck()
+        await expect(result).rejects.toThrow(/Memba session ended/)
+        expect(doContract).not.toHaveBeenCalled()
+    })
+
+    it('permits only the exact pre-login activation transaction', async () => {
+        const address = 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+        setWalletRpcContext('https://rpc.gno.land:443', true, GNO_CHAIN_ID, address)
+        const doContract = vi.fn().mockResolvedValue({ status: 'success', data: { hash: 'ACT' } })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        ;(window as any).adena = { ...liveWallet({ address }), DoContract: doContract }
+        setWalletActionGuard(() => false)
+        const activation = { type: 'vm/MsgCall', value: { caller: address, send: '', pkg_path: ACTIVATION_PROFILE_REALM, func: 'SetStringField', args: ['Bio', ''] } }
+        await expect(doContractBroadcast([activation], 'Memba Network Activation', { osActivation: true })).resolves.toMatchObject({ hash: 'ACT' })
+        expect(doContract).toHaveBeenCalledOnce()
+        await expect(doContractBroadcast([{ ...activation, value: { ...activation.value, args: ['Bio', 'changed'] } }], 'Memba Network Activation', { osActivation: true })).rejects.toThrow(/Memba session ended/)
+        await expect(doContractBroadcast([{ ...activation, value: { ...activation.value, caller: 'g1747t5m2f08plqjlrjk2q0qld7465hxz8gkx59c' } }], 'Memba Network Activation', { osActivation: true })).rejects.toThrow(/Memba session ended/)
+        await expect(doContractBroadcast([activation], 'Memba Network Activation')).rejects.toThrow(/Memba session ended/)
+        expect(doContract).toHaveBeenCalledOnce()
     })
 })
 

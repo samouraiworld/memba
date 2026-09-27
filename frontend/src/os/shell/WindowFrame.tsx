@@ -40,8 +40,8 @@ function Welcome({ session, openApp }: Actions) {
             <div>
                 <div className="os-welcome-title">Your desk on gno.land.</div>
                 <p className="os-sub os-welcome-sub">
-                    Memba is where DAOs, multisigs and people on gno.land get things done. You're a guest, so you can open and
-                    read everything. Connect a wallet when you want to vote, sign or post.
+                    Memba is where DAOs, multisigs and people on gno.land get things done. As a guest, you can explore public
+                    apps, DAOs and posts. Connect a wallet for private accounts or on-chain actions.
                 </p>
             </div>
             <div className="os-opts">

@@ -32,6 +32,8 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
     const [unread, setUnread] = useState(0)
     const [version, setVersion] = useState(0)
     const busy = useRef(false)
+    const member = useRef(session.status === "member")
+    useLayoutEffect(() => { member.current = session.status === "member" }, [session.status])
     const holdReload = review !== null || pending.length > 0
 
     // The global update notice lives above this provider. Hold its reload action
@@ -60,6 +62,7 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
     const go = useCallback(async () => {
         if (!review || busy.current) return
         // The button is disabled in these cases; the sheet enforces them here too.
+        if (session.status !== "member") return
         if (!review.acked.every(Boolean)) return
         if (session.walletChainId && session.walletChainId !== session.network.chainId) return
         const { req, choice } = review
@@ -71,7 +74,7 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
         busy.current = true
         setReview((r) => r && { ...r, stage: "checking", error: null })
         const label = req.label(choice)
-        const res = await executeSignature(req, choice, msgs, () => setReview((r) => r && { ...r, stage: "wallet" }))
+        const res = await executeSignature(req, choice, msgs, () => setReview((r) => r && { ...r, stage: "wallet" }), () => member.current)
         busy.current = false
         if (res.outcome === "failed" || res.outcome === "cancelled") {
             if (res.outcome === "cancelled") { setReview(null); toast(res.error); settle(req, choice, "cancelled"); return }
@@ -101,7 +104,7 @@ export function SignerProvider({ session, toast, children }: { session: OsSessio
                 : { kind: "warn", title: `Submitted · ${label}`, sub: "The chain hasn't shown it yet. Don't send it again." })
         if (ok === false) toast(`Submitted: ${label}. Not visible on chain yet.`)
         settle(req, choice, ok === true ? "confirmed" : "submitted")
-    }, [review, notify, toast, settle, session.network.chainId, session.walletChainId])
+    }, [review, notify, toast, settle, session.network.chainId, session.walletChainId, session.status])
 
     const cancel = useCallback(() => {
         if (review?.stage === "checking" || review?.stage === "wallet") return // the wallet request is in flight
@@ -149,7 +152,7 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onCancel }: {
     let prepareError: string | null = null
     try { checklist = adenaChecklist(req.prepare(choice).msgs, chain) } catch (err) { prepareError = err instanceof Error ? err.message : String(err) }
     const allAcked = review.acked.every(Boolean)
-    const canGo = stage === "review" && !wrongNet && !prepareError && allAcked
+    const canGo = stage === "review" && session.status === "member" && !wrongNet && !prepareError && allAcked
 
     return (
         <div className="os-scrim os-scrim-center">
@@ -182,6 +185,7 @@ function ReviewSheet({ review, session, onChoice, onAck, onGo, onCancel }: {
                             {wrongNet && (
                                 <p className="os-note os-err" role="alert">Adena is on {session.walletChainId}, but Memba is on {chain}. Switch Adena to {chain} before signing.</p>
                             )}
+                            {session.status !== "member" && <p className="os-note os-err" role="alert">Your Memba session ended. Cancel this review, then connect again before signing.</p>}
                             {error && <p className="os-note os-err" role="alert">{error}</p>}
                             {req.note && <p className="os-sub os-flush">{req.note}</p>}
                             <p className="os-sub os-flush">Next, Adena opens. Check it shows the same details.</p>
