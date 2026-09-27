@@ -8,6 +8,8 @@ test.describe('Memba OS foundations', () => {
         const os = page.getByTestId('memba-os')
         await expect(os).toBeVisible()
         await expect(os).toHaveAttribute('data-os-theme', 'light')
+        await expect(page.getByRole('dialog', { name: 'Welcome to Memba' })).toBeVisible()
+        await page.getByRole('button', { name: 'Continue as guest' }).click()
         await expect(page.getByRole('banner', { name: 'Menu bar' })).toBeVisible()
     })
 
