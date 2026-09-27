@@ -1,10 +1,10 @@
-.memba-os .meet-home { min-height: 100%; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(240px, .8fr); gap: 22px; align-items: center; }
+.memba-os .meet-home { --meet-light-ink: #17496c; --meet-muted-on-dark: #d1e5f4; min-height: 100%; display: grid; grid-template-columns: minmax(0, 1.2fr) minmax(240px, .8fr); gap: 22px; align-items: center; }
 .memba-os .meet-intro { display: flex; flex-direction: column; align-items: flex-start; gap: 18px; padding: clamp(24px, 5vw, 48px); min-height: 400px; justify-content: center; border-radius: 22px; background: linear-gradient(145deg, #1e476f, #153451 60%, #102f49); color: #fff; }
-.memba-os .meet-mark { width: 64px; height: 64px; display: grid; place-items: center; border-radius: 19px; background: #f1f7ff; color: #1c608e; }
+.memba-os .meet-mark { width: 64px; height: 64px; display: grid; place-items: center; border-radius: 19px; background: #f1f7ff; color: var(--meet-light-ink); }
 .memba-os .meet-mark svg { width: 34px; height: 34px; }
 .memba-os .meet-intro h3 { font-size: clamp(26px, 3vw, 42px); font-weight: 800; letter-spacing: -.045em; line-height: 1.08; margin: 8px 0 0; max-width: 14ch; }
-.memba-os .meet-intro p { font-size: 14px; line-height: 1.55; color: #d1e5f4; margin: 0; max-width: 35ch; }
-.memba-os .meet-start { margin-top: 10px; background: #f1f7ff; color: #17496c; font-size: 13px; padding: 11px 20px; }
+.memba-os .meet-intro p { font-size: 14px; line-height: 1.55; color: var(--meet-muted-on-dark); margin: 0; max-width: 35ch; }
+.memba-os .meet-start { margin-top: 10px; background: #f1f7ff; color: var(--meet-light-ink); font-size: 13px; padding: 11px 20px; }
 .memba-os .meet-join { padding: 24px 10px; min-width: 0; }
 .memba-os .meet-join label { font-size: 18px; font-weight: 800; letter-spacing: -.025em; }
 .memba-os .meet-join p { color: var(--os-mut); font-size: 13px; line-height: 1.5; }
@@ -28,11 +28,11 @@
 .memba-os .meet-invalid p { line-height: 1.5; color: var(--os-mut); }
 .memba-os .meet-stage { position: fixed; overflow: hidden; border-radius: 12px; z-index: 850; background: #0e2031; }
 .memba-os .meet-stage iframe { display: block; width: 100%; height: 100%; border: 0; background: #0e2031; }
-.memba-os .meet-stage-pip { left: auto; top: auto; right: 24px; bottom: 100px; width: min(320px, calc(100vw - 32px)); height: 220px; box-shadow: 0 20px 50px #0008; border: 1px solid #ffffff44; }
+.memba-os .meet-stage-pip { --meet-light-ink: #17496c; left: auto; top: auto; right: 24px; bottom: 100px; width: min(320px, calc(100vw - 32px)); height: 220px; box-shadow: 0 20px 50px #0008; border: 1px solid #ffffff44; }
 .memba-os .meet-stage-pip iframe { height: calc(100% - 34px); }
 .memba-os .meet-pip-bar { height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 9px; color: white; font-size: 11px; font-weight: 700; }
 .memba-os .meet-pip-bar span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.memba-os .meet-pip-bar button, .memba-os .meet-pip-bar a { flex: none; border: 0; border-radius: 6px; padding: 4px 6px; background: #e7f4ff; color: #16476a; font: inherit; cursor: pointer; text-decoration: none; }
+.memba-os .meet-pip-bar button, .memba-os .meet-pip-bar a { flex: none; border: 0; border-radius: 6px; padding: 4px 6px; background: #e7f4ff; color: var(--meet-light-ink); font: inherit; cursor: pointer; text-decoration: none; }
 @media (max-width: 700px) {
   .memba-os .meet-home { grid-template-columns: 1fr; gap: 8px; align-items: start; align-content: start; }
   .memba-os .meet-intro { min-height: 0; padding: 18px; gap: 10px; }
