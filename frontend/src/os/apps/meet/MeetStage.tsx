@@ -33,14 +33,52 @@ export function MeetStage({ roomId, slot, minimized, foreground, restore }: {
             }
             setRect((prev) => prev && Object.keys(next).every((key) => prev[key as keyof Rect] === next[key as keyof Rect]) ? prev : next)
         }
-        const firstFrame = requestAnimationFrame(measure)
+        // Window and phone-sheet opening animations move the slot with a CSS
+        // transform. ResizeObserver does not report transform movement, so
+        // follow those animations until they settle instead of waiting for a
+        // later pointer move to put the fixed iframe in the right place.
+        const animatedWindow = slot.closest(".os-win, .os-ph-sheet")
+        let followFrame = 0
+        let following = false
+        const follow = () => {
+            measure()
+            if (following) followFrame = requestAnimationFrame(follow)
+        }
+        const startFollowing = () => {
+            if (following) return
+            following = true
+            followFrame = requestAnimationFrame(follow)
+        }
+        const stopFollowing = () => {
+            following = false
+            cancelAnimationFrame(followFrame)
+            measure()
+        }
+        const settleTimer = window.setTimeout(stopFollowing, 350)
+        const onAnimationStart = (event: Event) => {
+            if (event.target !== animatedWindow) return
+            clearTimeout(settleTimer)
+            startFollowing()
+        }
+        const onAnimationEnd = (event: Event) => {
+            if (event.target === animatedWindow) stopFollowing()
+        }
+        animatedWindow?.addEventListener("animationstart", onAnimationStart)
+        animatedWindow?.addEventListener("animationend", onAnimationEnd)
+        animatedWindow?.addEventListener("animationcancel", onAnimationEnd)
+        startFollowing()
         const observer = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(measure)
         observer?.observe(slot)
         window.addEventListener("resize", measure)
         window.addEventListener("scroll", measure, true)
         window.addEventListener("pointermove", measure)
         return () => {
-            cancelAnimationFrame(firstFrame)
+            clearTimeout(settleTimer)
+            following = false
+            cancelAnimationFrame(followFrame)
+            animatedWindow?.removeEventListener("animationstart", onAnimationStart)
+            animatedWindow?.removeEventListener("animationend", onAnimationEnd)
+            animatedWindow?.removeEventListener("animationcancel", onAnimationEnd)
             observer?.disconnect()
             window.removeEventListener("resize", measure)
             window.removeEventListener("scroll", measure, true)

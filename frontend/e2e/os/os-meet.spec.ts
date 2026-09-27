@@ -29,6 +29,24 @@ test('resizing across the phone breakpoint keeps the same meeting iframe', async
     expect(await iframe.evaluate((element) => (element as HTMLIFrameElement & { keep?: boolean }).keep)).toBe(true)
 })
 
+test('the meeting stage follows window animation without pointer movement', async ({ page }) => {
+    await page.setViewportSize({ width: 1100, height: 760 })
+    await startMeeting(page)
+    await page.waitForTimeout(350)
+    await page.addStyleTag({ content: '@keyframes meet-test-shift { to { transform: translateX(80px) } } .meet-test-shift { animation: meet-test-shift 220ms forwards !important; }' })
+    await page.locator('.os-win[data-win="app:meet"]').evaluate((element) => element.classList.add('meet-test-shift'))
+    // Do not move the pointer: animation events must keep the fixed iframe aligned.
+    await page.waitForTimeout(300)
+    const slot = await page.locator('.meet-viewport').boundingBox()
+    const stage = await page.locator('.meet-stage').boundingBox()
+    expect(slot).not.toBeNull()
+    expect(stage).not.toBeNull()
+    expect(Math.abs(stage!.x - slot!.x)).toBeLessThan(2)
+    expect(Math.abs(stage!.y - slot!.y)).toBeLessThan(2)
+    expect(Math.abs(stage!.width - slot!.width)).toBeLessThan(2)
+    expect(Math.abs(stage!.height - slot!.height)).toBeLessThan(2)
+})
+
 test('the Meet fullscreen shortcut shows the live iframe', async ({ page }) => {
     await page.setViewportSize({ width: 1100, height: 760 })
     const iframe = await startMeeting(page)
