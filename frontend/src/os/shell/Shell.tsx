@@ -128,9 +128,11 @@ export function Shell() {
     // ── arrival: decided once ──
     const [arrival] = useState(() => targetsFromUrl(location.pathname, location.search))
     const fromLink = arrival.front.kind !== "desktop" || arrival.others.length > 0
+    const skipLockWrite = useRef(false)
 
     const session = useOsSession({
         onSignedIn: (address) => {
+            skipLockWrite.current = false
             markLocked(false)
             markSeen()
             setLocked(false)
@@ -170,29 +172,36 @@ export function Shell() {
     const { dispatch } = win
     const previousStorageOwner = useRef(storageOwner)
     const skipSaveFor = useRef<readonly OsWindow[] | null>(null)
+    const skipNextOwnerWrite = useRef<string | null>(null)
 
     useLayoutEffect(() => {
         const previous = previousStorageOwner.current
         if (previous === storageOwner) return
         previousStorageOwner.current = storageOwner
         if (storageOwner === null) return
-        if (!fromLink && (previous === null || storageOwner.startsWith("member:"))) {
+        if (!fromLink) {
             // A slow silent reconnect can briefly enter guest mode. Recover the
-            // member's saved desk once their identity is known, including an
-            // intentionally empty desk. A first-time member keeps the guest
-            // windows they just opened.
-            if (previous?.startsWith("guest:")) {
+            // destination's saved desk once its identity is known, including an
+            // intentionally empty desk. A first-time member keeps the public
+            // windows they just opened as a guest.
+            if (previous?.startsWith("guest:") && storageOwner.startsWith("member:")) {
                 try {
                     if (localStorage.getItem(windowsStorageKey(storageOwner)) === null) return
                 } catch { return }
             }
             skipSaveFor.current = win.wins
+            skipNextOwnerWrite.current = storageOwner
             const restored = arrivalWindows(arrival, false, locked ? "lock" : "guest", placeDesk(), storageOwner)
             dispatch({ type: "restore", wins: restored.wins })
-        } else if (previous?.startsWith("member:") && previous !== storageOwner) {
-            // An account change must not leave the previous member's paths or
-            // page queries in the next person's open windows.
+        } else if (previous?.startsWith("guest:") && storageOwner.startsWith("member:")) {
+            // A link remains visible after connection, but is not an edit to
+            // the member's previously saved desktop.
+            skipNextOwnerWrite.current = storageOwner
+        } else if (previous !== null) {
+            // On a linked page, a different account or network must not retain
+            // the previous owner's paths or overwrite the destination layout.
             skipSaveFor.current = win.wins
+            skipNextOwnerWrite.current = storageOwner
             dispatch({ type: "closeAll" })
         }
     }, [storageOwner, fromLink, arrival, locked, dispatch, win.wins, placeDesk])
@@ -248,7 +257,9 @@ export function Shell() {
     const initialSaveChecked = useRef(false)
     useEffect(() => {
         if (storageOwner === null || skipSaveFor.current === win.wins) return
-        let skipStorageWrite = false
+        const skipOwnerWrite = skipNextOwnerWrite.current === storageOwner
+        if (skipOwnerWrite) skipNextOwnerWrite.current = null
+        let skipStorageWrite = locked || skipLockWrite.current || skipOwnerWrite
         if (!initialSaveChecked.current) {
             initialSaveChecked.current = true
             try {
@@ -268,7 +279,7 @@ export function Shell() {
         if (url === lastUrl.current) return
         lastUrl.current = url
         if (url !== window.location.pathname + window.location.search) navigate(url, { replace: true })
-    }, [win.wins, navigate, storageOwner])
+    }, [win.wins, navigate, storageOwner, locked])
 
     // ── actions ──
     const open = useCallback((spec: WindowSpec, center = false) => dispatch({ type: "open", spec, desk: placeDesk(), center }), [dispatch, placeDesk])
@@ -285,8 +296,13 @@ export function Shell() {
     const deskOwner = session.status === "resuming" ? undefined : member ? session.address : null
     const deskItems = useDesk(deskOwner)
 
-    const unlock = () => { markLocked(false); setLocked(false); markSeen() }
+    const unlock = () => {
+        skipLockWrite.current = false
+        skipNextOwnerWrite.current = storageOwner
+        markLocked(false); setLocked(false); markSeen()
+    }
     const lock = () => {
+        skipLockWrite.current = true
         if (member) session.disconnect()
         win.closeAll()
         setLinkGuest(false)

@@ -142,6 +142,97 @@ test('saved guest desk restores its front URL without rewriting stored state', a
     await expect.poll(() => new URL(page.url()).pathname).toBe('/os/feed')
 })
 
+test('disconnecting from a linked member desk preserves both saved owner layouts', async ({ page }) => {
+    const address = 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+    const guestKey = 'memba_os_windows:guest:gnoland-1'
+    const memberKey = `memba_os_windows:member:gnoland-1:${address}`
+    const guestLayout = JSON.stringify([{ token: 'app.feed', x: 60, y: 40, width: 680, height: 500, z: 2, min: false, max: false }])
+    const memberLayout = JSON.stringify([{ token: 'app.wallet', x: 90, y: 50, width: 680, height: 500, z: 2, min: false, max: false }])
+    await page.addInitScript(({ address, guestKey, memberKey, guestLayout, memberLayout }) => {
+        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem('memba_adena_connected', 'true')
+        localStorage.setItem('memba_auth_token', JSON.stringify({ nonce: 'e2e', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId: 'gnoland-1', serverSignature: 'e2e-only' }))
+        localStorage.setItem(guestKey, guestLayout)
+        localStorage.setItem(memberKey, memberLayout)
+        Object.defineProperty(window, 'adena', { value: {
+            GetAccount: async () => ({ status: 'success', data: { address, coins: '250000000ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' }, accountNumber: '1', sequence: '1', chainId: 'gnoland-1' } }),
+            GetNetwork: async () => ({ status: 'success', data: { chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land' } }),
+            On: () => true,
+        } })
+    }, { address, guestKey, memberKey, guestLayout, memberLayout })
+    await page.goto(`${OS_BASE}/os/validators`)
+    await expect(page.getByRole('region', { name: 'Validators' })).toBeVisible()
+    await page.getByRole('button', { name: 'Memba menu' }).click()
+    await page.getByRole('menuitem', { name: 'Disconnect & lock' }).click()
+    await expect(page.getByRole('dialog', { name: 'Welcome to Memba' })).toBeVisible()
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), memberKey)).toBe(memberLayout)
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), guestKey)).toBe(guestLayout)
+    await page.getByRole('button', { name: 'Continue as guest' }).click()
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), guestKey)).toBe(guestLayout)
+})
+
+test('connecting from a guest link does not replace the member saved desktop', async ({ page }) => {
+    const address = 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+    const memberKey = `memba_os_windows:member:gnoland-1:${address}`
+    const memberLayout = JSON.stringify([{ token: 'app.wallet', x: 90, y: 50, width: 680, height: 500, z: 2, min: false, max: false }])
+    await page.route('**/memba.v1.MultisigService/GetChallenge', (route) => route.fulfill({
+        json: { challenge: { nonce: 'AQID', expiration: '2099-01-01T00:00:00Z', serverSignature: 'CQ==', boundPubkeyHash: '', chainId: 'gnoland-1' } },
+    }))
+    await page.route('**/memba.v1.MultisigService/GetToken', (route) => route.fulfill({
+        json: { authToken: { nonce: 'AQID', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId: 'gnoland-1', serverSignature: 'CQ==' } },
+    }))
+    await page.addInitScript(({ address, memberKey, memberLayout }) => {
+        localStorage.setItem('memba_os_seen', '1')
+        localStorage.setItem(memberKey, memberLayout)
+        Object.defineProperty(window, 'adena', { value: {
+            GetAccount: async () => ({ status: 'success', data: { address, coins: '250000000ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' }, accountNumber: '1', sequence: '1', chainId: 'gnoland-1' } }),
+            GetNetwork: async () => ({ status: 'success', data: { chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land' } }),
+            SignMultisigTransaction: async () => ({ status: 'success', data: { signature: { signature: 'AQID', pub_key: { value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' } } } }),
+            On: () => true,
+        } })
+    }, { address, memberKey, memberLayout })
+    await page.goto(`${OS_BASE}/os/validators`)
+    await expect(page.getByRole('region', { name: 'Validators' })).toBeVisible()
+    await page.getByRole('banner', { name: 'Menu bar' }).getByRole('button', { name: 'Connect wallet' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Connect a wallet' })
+    await dialog.getByRole('button', { name: /Adena/ }).click()
+    await dialog.getByRole('button', { name: 'Sign in Adena' }).click()
+    await expect(page.getByRole('button', { name: `Account ${address}` })).toBeVisible()
+    await expect.poll(() => page.evaluate((key) => localStorage.getItem(key), memberKey)).toBe(memberLayout)
+})
+
+test('connecting from the lock screen resumes saving later desktop changes', async ({ page }) => {
+    const address = 'g1jg8mtutu9khhfwc4nxmuhcpftf0pajdhfvsqf5'
+    const memberKey = `memba_os_windows:member:gnoland-1:${address}`
+    await page.route('**/memba.v1.MultisigService/GetChallenge', (route) => route.fulfill({
+        json: { challenge: { nonce: 'AQID', expiration: '2099-01-01T00:00:00Z', serverSignature: 'CQ==', boundPubkeyHash: '', chainId: 'gnoland-1' } },
+    }))
+    await page.route('**/memba.v1.MultisigService/GetToken', (route) => route.fulfill({
+        json: { authToken: { nonce: 'AQID', userAddress: address, expiration: '2099-01-01T00:00:00Z', chainId: 'gnoland-1', serverSignature: 'CQ==' } },
+    }))
+    await page.addInitScript(({ address }) => {
+        localStorage.setItem('memba_os_seen', '1')
+        Object.defineProperty(window, 'adena', { value: {
+            GetAccount: async () => ({ status: 'success', data: { address, coins: '250000000ugnot', publicKey: { '@type': '/tm.PubKeySecp256k1', value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' }, accountNumber: '1', sequence: '1', chainId: 'gnoland-1' } }),
+            GetNetwork: async () => ({ status: 'success', data: { chainId: 'gnoland-1', rpcUrl: 'https://rpc.gno.land' } }),
+            SignMultisigTransaction: async () => ({ status: 'success', data: { signature: { signature: 'AQID', pub_key: { value: 'A6+DHJsdkWFczHKaLWvmPIIQhjIQRYHrSzqFZGsrwJfE' } } } }),
+            On: () => true,
+        } })
+    }, { address })
+    await page.goto(`${OS_BASE}/os`)
+    await page.getByRole('button', { name: 'Memba menu' }).click()
+    await page.getByRole('menuitem', { name: 'Lock screen' }).click()
+    await page.getByRole('dialog', { name: 'Welcome to Memba' }).getByRole('button', { name: 'Connect wallet' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Connect a wallet' })
+    await dialog.getByRole('button', { name: /Adena/ }).click()
+    await dialog.getByRole('button', { name: 'Sign in Adena' }).click()
+    await expect(page.getByRole('button', { name: `Account ${address}` })).toBeVisible()
+    await page.getByRole('navigation', { name: 'Dock' }).getByRole('button', { name: 'Feed' }).click()
+    await expect.poll(() => page.evaluate((key) => JSON.parse(localStorage.getItem(key) ?? '[]').some((item: { token: string }) => item.token === 'app.feed'), memberKey)).toBe(true)
+    await page.goto(`${OS_BASE}/os`)
+    await expect(page.getByRole('region', { name: 'Feed' })).toBeVisible()
+})
+
 test('wallet connection cancelled from lock keeps the desk locked', async ({ page }) => {
     await page.goto(`${OS_BASE}/os`)
     await page.getByRole('button', { name: 'Connect wallet' }).click()
